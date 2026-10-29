@@ -22,6 +22,12 @@
     },
     {
       "path": "../mail"
+    },
+    {
+      "path": "../../session/working-directory"
+    },
+    {
+      "path": "../../workspace/workspace"
     }
   ]
 }

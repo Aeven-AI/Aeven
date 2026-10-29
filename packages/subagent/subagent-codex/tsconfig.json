@@ -37,6 +37,12 @@
     },
     {
       "path": "../../util/timeout"
+    },
+    {
+      "path": "../../session/working-directory"
+    },
+    {
+      "path": "../../workspace/workspace"
     }
   ]
 }

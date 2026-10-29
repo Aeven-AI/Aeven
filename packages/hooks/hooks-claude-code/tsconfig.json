@@ -40,6 +40,12 @@
     },
     {
       "path": "../../shell/shell"
+    },
+    {
+      "path": "../../session/working-directory"
+    },
+    {
+      "path": "../../workspace/workspace"
     }
   ]
 }

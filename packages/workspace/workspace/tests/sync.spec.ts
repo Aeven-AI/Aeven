@@ -129,7 +129,7 @@ describe('workspaces across devices', () => {
     const pathB = await folder('b')
     const bound = await b.bind(created.id, pathB)
     expect(bound).toMatchObject({ kind: 'folder', path: pathB })
-    await expect(b.bind(created.id, pathB)).rejects.toThrow(/already has its directory/)
+    await expect(b.bind(created.id, pathB)).resolves.toMatchObject({ kind: 'folder', path: pathB })
     await expect(b.bind('missing' as WorkspaceId, pathB)).rejects.toThrow(/no workspace/)
     const other = await b.create(await folder('other'), 'Other', OWNER)
     const third = await a.create(await folder('third'), 'Third', OWNER)

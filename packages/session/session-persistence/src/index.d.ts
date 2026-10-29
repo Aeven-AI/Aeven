@@ -1,0 +1,282 @@
+/**
+ * Durable session-persistence Service Definition (`ctx.sessionPersistence`). Backends store
+ * {@link SessionEvent}s as the event-sourced log and carry non-replayable
+ * {@link SessionHeader} metadata separately.
+ * @module @aeven/session-persistence
+ */
+import { Context, Service } from '@deepseek-ai/cordis';
+import { SessionPreparation, SessionLogOffset } from '@aeven/session';
+import type { Session, SessionEvent, SessionId, SessionHeader } from '@aeven/session';
+import type { SessionPersistenceRevision } from './revision.ts';
+export type { SessionHeader } from '@aeven/session';
+export { SessionPersistenceRevision } from './revision.ts';
+export { SessionPersistenceBusyError, SessionPersistenceNotFoundError, SessionPersistenceReadOnlyError } from './errors.ts';
+/** Lightweight immutable source identity returned without loading a full log. */
+export interface SessionPersistenceSnapshot {
+    /** Detached metadata for one materialized session. */
+    header: SessionHeader;
+    /** Opaque source-qualified token that changes whenever this stored log changes. */
+    revision: SessionPersistenceRevision;
+}
+/** Logical Session header paired with its exact inherited cut for body-bearing storage operations. */
+export interface SessionStorageMetadata {
+    /** Validated immutable Session header. */
+    readonly meta: SessionHeader;
+    /** Number of leading events inherited from the Session's fork parent. */
+    readonly inheritedEventCount: SessionLogOffset;
+}
+/** Immutable logical session prepared from persistence or a live owner. */
+export interface SessionInspection extends SessionStorageMetadata {
+    /** Validated contiguous logical event log. */
+    readonly events: readonly SessionEvent[];
+}
+/** Detached logical suffix returned by one explicit stored-log offset read. */
+export interface SessionEventSuffix extends SessionStorageMetadata {
+    /** First requested log offset; {@link events} contains only seqs at or after it. */
+    readonly fromSeq: SessionLogOffset;
+    /** Valid contiguous stored events at or after {@link fromSeq}; not a complete Session log when the offset is nonzero. */
+    readonly events: readonly SessionEvent[];
+}
+/** A borrowed exact Session source returned from a cold materialization or concurrent live owner. */
+export type BorrowedSessionSource = Disposable & ({
+    /** A reusable unpublished Session is pinned until this observation is disposed. */
+    readonly source: 'prepared';
+    /** Immutable header and logical event prefix observed together. */
+    readonly inspection: SessionInspection;
+    /** Durable revision represented by the prepared source. */
+    readonly revision: SessionPersistenceRevision;
+    /** Exact unpublished Session retained for a later {@link prepare}. */
+    readonly preparedSession: Session;
+} | {
+    /** A live Session won source resolution while the persistence read was starting. */
+    readonly source: 'live';
+    /** Immutable live header and event prefix observed together. */
+    readonly inspection: SessionInspection;
+});
+/** A backend's own raw artifact text for one session, verbatim. */
+export interface SessionRawArtifact extends SessionStorageMetadata {
+    /** The artifact's base filename on disk, without any physical encoding suffix. */
+    readonly filename: string;
+    /** The artifact's full text content, decoded from the backend's physical encoding. */
+    readonly content: string;
+}
+export { DEFAULT_PREPARED_SESSION_CACHE_SIZE, DEFAULT_WRITE_BATCH_MAX_DELAY_MS, MAX_WRITE_BATCH_DELAY_MS, PersistenceCoordinator, SessionFormatUnsupportedError, SessionPersistenceCorruptionError, sessionFormatVersionRefusal, } from './coordinator.ts';
+export type { PersistenceBackend, PersistenceCoordinatorOptions, StoredPrefix, StoredSuffix, } from './coordinator.ts';
+declare module '@deepseek-ai/cordis' {
+    interface Events {
+        /**
+         * A contiguous event batch committed to durable storage, including cold replicated logs.
+         * @mode emit
+         * @param header - the persisted session's metadata.
+         * @param events - the newly committed events.
+         */
+        'session-persistence/append'(header: SessionHeader, events: readonly SessionEvent[]): void;
+    }
+    interface Context {
+        sessionPersistence: SessionPersistence;
+    }
+}
+/**
+ * A backend-resolved, per-session local artifact location. The path is an
+ * absolute target path and can name an artifact that has not materialized yet.
+ * Consumers must treat it as a location hint, never as an authorization token.
+ */
+export interface SessionLocation {
+    /** Backend-specific artifact kind, for example `jsonl`. */
+    readonly kind: string;
+    /** Absolute path to this session's backend-owned artifact. */
+    readonly path: string;
+}
+/**
+ * Durable append-only session storage. Implementations preserve contiguous,
+ * losslessly JSON-serializable events; {@link append} resolves only after
+ * durability, and {@link load} balances a complete interrupted tail without
+ * rewriting committed events.
+ */
+export declare abstract class SessionPersistence extends Service {
+    constructor(ctx: Context);
+    /**
+     * Resolve this backend's independent local artifact for a session without
+     * reading, creating, flushing, or otherwise materializing it. A backend
+     * that does not own one artifact per Session returns `undefined`.
+     * @param meta - the immutable session header whose artifact is requested.
+     * @returns the backend-specific absolute location, when one exists.
+     */
+    abstract locate(meta: SessionHeader): SessionLocation | undefined;
+    /**
+     * Whether this backend exposes one verbatim raw artifact per session.
+     * A backend that declares `true` must override {@link readRaw}.
+     */
+    abstract readonly supportsRawArtifacts: boolean;
+    /**
+     * Read a session's backend-owned artifact text verbatim — the exact durable
+     * bytes the backend wrote (decoded from its physical encoding, e.g. a
+     * decompressed JSONL). The returned `content` is the raw text, not a
+     * reconstruction from parsed events, so it preserves backend-specific
+     * serialization (chunk packing, key order, line breaks). Callers first test
+     * {@link supportsRawArtifacts}; `undefined` then means only that the requested
+     * session has no materialized artifact.
+     * @param _id - the persisted session to read (unused by the default: no
+     * per-session artifact).
+     * @param signal - optional cancellation for backend read work.
+     * @returns the raw artifact plus its parsed header, or `undefined` when the
+     * session is absent.
+     * @throws when this backend does not expose per-session raw artifacts.
+     */
+    readRaw(_id: SessionId, signal?: AbortSignal): Promise<SessionRawArtifact | undefined>;
+    /**
+     * Permanently remove one stored session's artifact and this backend's cached
+     * state for it. The session must not be live: its owner disposes it first,
+     * and a still-attached session rejects. Derived stores that reconcile
+     * against {@link listSnapshots} drop the session on their next observation.
+     * @param _id - the stored session to remove (unused by the default: no
+     * deletable artifact).
+     * @returns whether a stored artifact existed and was removed.
+     * @throws when this backend cannot delete sessions, or the session is live.
+     */
+    delete(_id: SessionId): Promise<boolean>;
+    /**
+     * Register a new session's metadata. A backend MAY defer the physical write
+     * until the first {@link append} (lazy materialization), in which case a
+     * created-but-never-appended session is absent from {@link list}
+     * — abandoned sessions leave nothing behind.
+     * @param meta - the immutable header (id, version, cwd, lineage) to record.
+     * @param inheritedEventCount - exact fork-inherited prefix length. Required
+     * for a seeded header and omitted only for an unseeded header.
+     */
+    abstract create(meta: SessionHeader, inheritedEventCount?: SessionLogOffset): Promise<void>;
+    /**
+     * Change whether a cold stored session permits local execution without changing its log bytes.
+     * @param _id - stored session; live or reserved sessions are refused.
+     * @param _replica - true for a received copy, false after exclusive runner ownership is acquired.
+     * @returns when the local execution marker is durable.
+     */
+    setReplica(_id: SessionId, _replica: boolean): Promise<void>;
+    /**
+     * Ensure a live session has a durable header even when it has no events.
+     * Ordinary sessions remain lazily materialized; lifecycle frontends call
+     * this only when an empty session itself is a durable resumable resource.
+     * @param _session - exact live session whose registered header is materialized.
+     */
+    ensureMaterialized(_session: Session): Promise<void>;
+    /**
+     * Durably persist a batch of events. Honors the append-only and contiguous-
+     * seq contracts: the first event's `seq` MUST equal the stored next-seq
+     * (after `load` has durably closed any interrupted turn). Rejects non-JSON-
+     * serializable `event.data` with an error naming the offending event type.
+     * A seeded session's first materializing batch must reach its complete
+     * inherited prefix.
+     * @param id - the session the batch belongs to.
+     * @param events - the contiguous batch to persist, in seq order.
+     */
+    abstract append(id: SessionId, events: readonly SessionEvent[]): Promise<void>;
+    /**
+     * Prepare the exact unpublished Session used by resume. Implementations may
+     * reuse object graphs retained by an earlier {@link inspect} after confirming
+     * their durable revision is still current; disposal releases an unpublished
+     * reservation. Revision retries require the durable log to remain unchanged
+     * for one read/check round trip; continuous external writers may delay completion.
+     * @param id - persisted session to prepare.
+     * @param signal - optional cancellation for preparation work.
+     * @returns one owned unpublished Session preparation.
+     */
+    prepare(id: SessionId, signal?: AbortSignal): Promise<SessionPreparation>;
+    /**
+     * Load an immutable balanced logical view and commit any required cold
+     * recovery. A complete interrupted final turn is preserved and durably
+     * closed with missing tool errors plus any open step and turn boundaries;
+     * only a torn final record is discarded. Unknown versions and corruption in
+     * the committed prefix reject. Implementations MUST NOT crash-repair an
+     * identity still bound to a live Session: a balanced live log may return as a
+     * durable snapshot, while an open live turn rejects. Returned values may be
+     * shared with immutable live or prepared state and must not be mutated.
+     * Revision-based implementations may wait for one stable read/check round trip.
+     * @param id - the persisted session to reload.
+     * @returns the header and a log ending on a balanced `turn/end`.
+     */
+    abstract load(id: SessionId): Promise<SessionInspection>;
+    /**
+     * Inspect an immutable logical session without committing recovery or
+     * publishing it. A cold complete interrupted turn receives synthetic closers
+     * in memory and a torn physical tail remains untouched. An already-live
+     * Session instead yields its current immutable snapshot, which may contain an
+     * open turn and its `session/end-seed` boundary. Coordinator-backed
+     * implementations retain the exact cold unpublished Session for bounded
+     * reuse by a later {@link prepare}. A stale ready source is reloaded; a source
+     * already committing or reserved for resume remains exclusive, and inspection
+     * may borrow its immutable view. Callers borrow only the immutable header and
+     * log. Continuous external writers may delay revision convergence.
+     * @param id - the persisted session to inspect.
+     * @param signal - optional cancellation for queued and backend read work.
+     * @returns the validated header and current logical event log.
+     */
+    abstract inspect(id: SessionId, signal?: AbortSignal): Promise<SessionInspection>;
+    /**
+     * Borrow one exact inspection while retaining any reusable prepared source.
+     * A cold observation must pin the exact prepared Session that a later
+     * {@link prepare} reserves. Implementations must not degrade this operation
+     * to a detached {@link inspect} result.
+     * @param id - persisted session to observe.
+     * @param signal - optional cancellation for preparation work.
+     * @returns a disposable immutable observation.
+     */
+    abstract borrowSession(id: SessionId, signal?: AbortSignal): Promise<BorrowedSessionSource>;
+    /**
+     * Read the stored events from `fromSeq` onward — the read-from-seq
+     * primitive for read models that resume from a watermark (e.g. a persisted
+     * projection cache folding only the tail past its checkpoint). Unlike
+     * {@link inspect}, it is a detached physical suffix read: no preparation
+     * cache, torn-tail truncation, synthetic closers, or coordinator-state
+     * publication. Only events from the valid contiguous stored prefix are
+     * returned, so a torn fragment never reaches the caller. `fromSeq` at or
+     * beyond the stored prefix returns an empty event list (never an error).
+     * A backend whose medium can seek by seq may read only the suffix;
+     * sequential media such as JSONL still parse the whole artifact and skip
+     * forward. The primitive bounds what is returned and refolded, not every
+     * backend's physical read.
+     * @param id - the persisted session to read.
+     * @param fromSeq - first event offset to include.
+     * @param signal - optional cancellation for queued and backend read work.
+     * @returns storage metadata, the requested offset, and stored events with `seq >= fromSeq`.
+     */
+    abstract readFrom(id: SessionId, fromSeq: SessionLogOffset, signal?: AbortSignal): Promise<SessionEventSuffix>;
+    /**
+     * Lightweight listing from metadata, without a full-log parse.
+     * @param signal - optional cancellation for backend listing work.
+     * @returns one header per materialized session.
+     */
+    abstract list(signal?: AbortSignal): Promise<SessionHeader[]>;
+    /**
+     * List materialized sessions with cheap per-log change tokens.
+     *
+     * Repeated observations of an unchanged log return the same revision. A
+     * successful mutating {@link load} repair changes the next listed revision.
+     * Revisions also distinguish independently backed stores so backend-local
+     * counters cannot compare equal across different persistence sources.
+     * @param signal - optional cancellation for backend snapshot-listing work.
+     * @returns one header and opaque revision per materialized session without loading full logs.
+     */
+    abstract listSnapshots(signal?: AbortSignal): Promise<SessionPersistenceSnapshot[]>;
+    /**
+     * List materialized sessions together with a seeded Session's inherited cut.
+     *
+     * A {@link SessionHeader} cannot express the cut (`isSeeded` records only that
+     * fork lineage exists), yet a seeded Session's projection-cache identity is
+     * keyed by it — so a consumer resolving cached projections from a listed
+     * Session needs it, and cannot reconstruct it without reading the body.
+     * Optional: a backend that cannot expose the cut while listing omits this
+     * method, and listings fall back to {@link list} without one.
+     * @param signal - optional cancellation for backend listing work.
+     * @returns one header per materialized session, with the cut only where seeded.
+     */
+    listWithInheritedCuts?(signal?: AbortSignal): Promise<SessionInheritedCut[]>;
+}
+/** One listed Session with the inherited cut a seeded Session's identity needs. */
+export interface SessionInheritedCut {
+    /** Detached metadata for one materialized session. */
+    header: SessionHeader;
+    /** Exact fork-inherited prefix length; absent for an unseeded Session. */
+    inheritedEventCount?: SessionLogOffset;
+}
+export default SessionPersistence;
+//# sourceMappingURL=index.d.ts.map

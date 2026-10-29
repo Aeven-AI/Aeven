@@ -52,6 +52,12 @@
     },
     {
       "path": "../../shell/shell-env"
+    },
+    {
+      "path": "../../session/working-directory"
+    },
+    {
+      "path": "../../workspace/workspace"
     }
   ]
 }

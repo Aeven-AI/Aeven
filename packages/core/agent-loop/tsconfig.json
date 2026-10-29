@@ -46,6 +46,12 @@
     },
     {
       "path": "../../session/session-projection"
+    },
+    {
+      "path": "../../session/working-directory"
+    },
+    {
+      "path": "../../workspace/workspace"
     }
   ]
 }

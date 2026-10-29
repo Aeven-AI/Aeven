@@ -482,7 +482,7 @@ describe('workspace browser rows', () => {
       actions={{ rename: vi.fn(), delete: vi.fn(), bind: onBind }} t={t}
     />)
     fireEvent.click(screen.getByRole('button', { name: '工作区“Research”的操作' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: '在此设备上选择文件夹' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '选择工作区' }))
     expect(onBind).toHaveBeenCalledOnce()
     expect(screen.queryByRole('menu')).toBeNull()
   })

@@ -40,6 +40,12 @@
     },
     {
       "path": "../../subprocess/subprocess"
+    },
+    {
+      "path": "../../session/working-directory"
+    },
+    {
+      "path": "../../workspace/workspace"
     }
   ]
 }
