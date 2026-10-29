@@ -28,7 +28,7 @@
 | Seed 传输 | Apple 公证会检查归档内的代码；把 pnpm 存储的每个文件分别放入应用，还会让应用签名记录数万个缓存条目，而单个压缩归档会放大小幅包变更。 | macOS 打包先签署每个 Mach-O CAS 对象、重写其 pnpm 哈希并再次证明离线安装，再把存储文件分配到 16 个确定性的未压缩 tar 分片。外层安装包负责压缩，差分更新可以复用未变化的分片。 |
 | 状态归属 | 共享可执行依赖图会让 CLI（命令行界面）与 Desktop 相互改变 avn、Cordis、插件或原生模块版本，而两个桌面进程还可能争用同一个 profile。 | Electron 在访问任何 profile 前获取进程生命周期单实例锁，并独占 `$AVN_HOME/profiles/desktop` 及其包管理器状态。CLI 与 Desktop 共享 `$AVN_HOME` 下受支持的产品数据，但绝不共享可执行包、插件激活、锁文件或 `node_modules`。 |
 | 通信 | 监听 Web 服务会引入端口归属、认证、CORS 与暴露风险；Electron 与上游 Node.js 之间也需要明确的跨进程协议。 | `avn-app://` 承载 Web 资源和 Fetch 流量，并把订阅请求转发到操作系统分配端口的 `127.0.0.1` HTTP 监听器；分帧字节管道以背压传输有界请求与响应分块，Node IPC 只承载子进程生命周期控制。 |
-| 激活 | 依赖解析、生命周期脚本、原生模块与插件启动都可能失败，目录替换期间进程也可能中断。 | 发布与插件变更先安装到 staging，并启动完整后端执行健康检查；只有成功后才替换活跃 profile，中断替换由事务日志和一个 rollback profile 恢复。 |
+| 激活 | 依赖解析、生命周期脚本、原生模块与插件启动都可能失败，目录替换期间进程也可能中断。 | 更新与插件变更先安装到 staging，并启动完整后端执行健康检查；只有成功后才替换活跃 profile，中断替换由事务日志和一个 rollback profile 恢复。 |
 | 更新 | 桌面壳与 avn 独立更新会重新产生版本分裂，而桌面壳未变化的数据块不应强制完整传输。 | Electron 壳、匹配的 avn seed、Node.js 与 pnpm 组成一个已签名更新单元。平台更新产物可以复用未变化的数据块，但运行时版本选择绝不脱离 Desktop 发布。 |
 
 [Electron 打包与更新 Agent Note](../../.agents/notes/implemented/architecture/2026-08-25-electron-desktop-packaging-and-updates.zh.md) 记录了这些决策背后的理由、替代方案、安全约束和发布验证要求。
@@ -63,7 +63,7 @@ Windows 最多并发解包十六个已验证的存储分片，因为 `tar` 会�
 2. 如果活跃 profile 的 `desktop-release.json` 与 `desktop-packages.json` 与 seed 中的文件逐字节相同，且已安装的 avn 与 Desktop Host 版本匹配，则直接复用，既不重新安装，也不对 seed 或任何 tarball 计算哈希。预发布构建会在重新构建与 Host 协议变更之间沿用同一版本号，因此由 tarball 摘要与协议号而非版本号单独决定。
 3. 否则验证完整 seed 清单、本地包集与每个归档条目，把私有存储中缺少（同路径同大小的文件不存在）的存储文件解包到 Desktop 拥有的临时 staging 目录，通过重命名把这些文件移入存储并合并 SQLite 包索引记录，再创建 staging profile。Windows 重建[预计算 profile 布局](../../.agents/notes/implemented/bug-fix/2026-10-29-windows-precomputed-profile-layout.zh.md)；POSIX 通过内置 Node.js 与 pnpm 执行 `pnpm install --offline --frozen-lockfile --trust-lockfile`。Seed 记录替换匹配的索引键，插件专属记录继续保留。
 4. Electron 升级时，从旧活跃 profile 读取每个插件的名称和精确版本，再通过现有 Desktop pnpm 状态以 `--offline` 把这些版本加入 staging。只读取旧 profile 的 `package.json` bundle 列表与已安装插件清单，因此由较旧 Host 协议或工作区格式写入的 profile 仍可升级。首次安装不执行插件恢复。
-5. 停止活跃后端，启动并停止完整的 staging 后端执行健康检查，再在激活前重新启动活跃后端。这种串行方式避免两个桌面后端共享 `$AVN_HOME`；安装错误或插件不兼容会删除 staging，并保持活跃 profile 不变。
+5. 停止活跃后端，启动并停止完整的 staging 后端执行健康检查，再在激活前重新启动活跃后端。这种串行方式避免两个桌面后端共享 `$AVN_HOME`；安装错误或插件不兼容会删除 staging，并保持活跃 profile 不变。macOS 首次安装改为在激活期间从最终 profile 启动一次提供服务的后端；启动失败会拒绝并撤销激活。
 6. 在每次目录移动前先持久化下一个激活阶段，把活跃 profile 移到 `$AVN_HOME/desktop/rollback/profile`，再把 staging 移到 `$AVN_HOME/profiles/desktop`。恢复过程同时检查日志与真实的 profile、rollback 和 staging 目录，因此在写入后、移动前的任一间隙中断后仍会恢复或保留一个完整 profile。
 
 GUI 插件修改会在把注册表包安装到共享 Desktop pnpm 存储后，使用相同的 staging、健康检查、激活与 rollback 路径。

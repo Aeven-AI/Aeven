@@ -214,6 +214,27 @@ describe('desktop package policy', () => {
 })
 
 describe('desktop project transactions', () => {
+  it('undoes a first installation when the serving backend fails during activation', async () => {
+    const root = temporaryRoot()
+    const seed = join(root, 'seed')
+    createTestSeedMetadata(seed, release())
+    writeFileSync(join(seed, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
+    archiveStore(seed)
+    writeIntegrity(seed)
+    const paths = resolveDesktopPaths(join(root, '.aeven'))
+    const manager = new DesktopProjectManager(paths, { node: process.execPath, pnpm: writeFakePnpm(root) })
+    const failure = new Error('serving backend failed')
+    await expect(manager.applyRelease(seed, '1.0.0', hooks({
+      afterActivate: async () => {
+        expect(manager.avnVersion()).toBe('1.0.0')
+        throw failure
+      },
+    }))).rejects.toBe(failure)
+    expect(existsSync(paths.profile)).toBe(false)
+    expect(existsSync(paths.pending)).toBe(false)
+    expect(existsSync(paths.rollback)).toBe(false)
+  })
+
   it('activates a precomputed seed profile without launching pnpm', async () => {
     const root = temporaryRoot()
     const seed = join(root, 'seed')

@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-10-27-desktop-release-install-speed.md
-2026-10-27-desktop-release-install-speed.md: 7eb1822af69d4bbfcdf3f6eea9c05253d728e16a
-2026-10-27-desktop-release-install-speed.zh.md: f3c1ac5b4ccdd499b40beff01705dfb8d0586d7f
+2026-10-27-desktop-release-install-speed.md: c872fecccd16e6cf1c66abe6c02d6d57b31041fd
+2026-10-27-desktop-release-install-speed.zh.md: ca488872b34f77f6af8b1c01a67a1f13161af4e5
