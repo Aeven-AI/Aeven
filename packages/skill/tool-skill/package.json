@@ -31,6 +31,7 @@
     "@aeven/llm": "workspace:^",
     "@aeven/skill": "workspace:^",
     "@aeven/tools": "workspace:^",
+    "@aeven/working-directory": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
   "dependencies": {
@@ -44,6 +45,7 @@
     "@aeven/skill": "workspace:^",
     "@aeven/skill-filesystem": "workspace:^",
     "@aeven/tools": "workspace:^",
+    "@aeven/working-directory": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   }
 }
