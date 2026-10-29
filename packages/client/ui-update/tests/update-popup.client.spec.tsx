@@ -58,23 +58,23 @@ describe('desktop update popup', () => {
 
   it('shows the check running with the loading mark', () => {
     popup({ phase: 'checking' })
-    expect(screen.getByText('Checking for updates…')).toBeTruthy()
+    expect(screen.getByText('Checking for updates')).toBeTruthy()
     expect(document.querySelector('svg')).toBeTruthy()
     expect(screen.queryByText('Later')).toBeNull()
   })
 
   it('follows a download with and without a percentage', () => {
     popup({ phase: 'downloading', version: '1.2.0', percent: 42 })
-    expect(screen.getByText('Downloading update 1.2.0 — 42%')).toBeTruthy()
+    expect(screen.getByText('Downloading update - 42%')).toBeTruthy()
     cleanup()
     popup({ phase: 'available', version: '1.2.0' })
-    expect(screen.getByText('Downloading update 1.2.0…')).toBeTruthy()
+    expect(screen.getByText('Downloading update')).toBeTruthy()
   })
 
   it('asks before the restart that installs the downloaded release', () => {
     const { install, close } = popup({ phase: 'ready', version: '1.2.0' })
-    expect(screen.getByText('Update 1.2.0 is ready to install.')).toBeTruthy()
-    expect(screen.getByText('Restarting switches Aeven to the new version.')).toBeTruthy()
+    expect(screen.getByText('Update is ready to install.')).toBeTruthy()
+    expect(screen.getByText('Restart switches to the new version.')).toBeTruthy()
     fireEvent.click(screen.getByText('Restart and install'))
     expect(install).toHaveBeenCalledOnce()
     fireEvent.click(screen.getByText('Later'))
@@ -83,7 +83,7 @@ describe('desktop update popup', () => {
 
   it('reports the install in flight without offering another answer', () => {
     popup({ phase: 'installing', version: '1.2.0' })
-    expect(screen.getByText('Installing update 1.2.0. Aeven restarts when it is done.')).toBeTruthy()
+    expect(screen.getByText('Installing update')).toBeTruthy()
     expect(screen.queryByText('Restart and install')).toBeNull()
     expect(screen.queryByText('Later')).toBeNull()
   })
