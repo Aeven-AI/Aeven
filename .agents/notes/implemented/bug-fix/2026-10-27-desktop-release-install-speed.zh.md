@@ -28,6 +28,7 @@ Status: implemented
 - `mergePnpmStore` 通过重命名而非复制把解包结果移入存储。存储中缺少的目录整体移动，除非其中包含索引；文件替换存储中同一路径的文件。每次重命名都经过 `renameRetryingWindowsLocks`（现位于 `rename-retry.ts`），因为 Windows 扫描程序会占用刚写入的文件。staging 目录与存储都位于 `$AVN_HOME/desktop` 下，因此重命名不会跨卷。
 - `applyRelease` 只在快速路径发现 profile 过期之后才对 seed 计算哈希并验证 seed 的包集，快速路径也不再对 profile 的 tarball 计算哈希。验证保护的是进入可写状态的 seed 内容，而快速路径不写入任何内容；已是最新的 profile 从其 `node_modules` 运行，之后不会再读取它的 tarball，因为 staging 从 seed 复制 tarball。profile 已是最新的启动只读取 seed 的包集描述文件，不计算任何哈希。
 - 启动屏会说明当前步骤以及是否为首次安装：没有活跃 profile 时显示“正在设置 Aeven：…”，否则显示“正在更新 Aeven：…”，分别对应解压软件包、安装软件包与健康检查。
+- macOS 首次安装在激活期间启动提供服务的 Host 来验证最终 profile，并为窗口保留该 Host。启动失败会拒绝激活事务并撤销 profile 移动。更新会替换已有 profile，因此保留 staging 健康检查；Windows 与 Linux 保留原有启动顺序。
 - 标题栏菜单条的 IPC 处理器在启动屏加载之前注册，因此 Windows 与 Linux 的菜单条会出现在启动屏上。
 
 在报告问题的机器的 seed 与存储上，升级的解包步骤耗时 13.8 秒，只写入一个文件。首次安装仍会把每个文件解包一次，但不再复制第二遍。

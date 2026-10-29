@@ -854,10 +854,18 @@ async function main(): Promise<void> {
   }
 
   if (development === undefined && plan.kind === 'spawn') {
+    const firstMacInstallation = process.platform === 'darwin' && !existsSync(paths.profile)
     await manager.applyRelease(resources.seed, app.getVersion(), {
       ...hooks,
+      // A fresh Mac profile has no previous installation to protect. Its serving Host validates the final path
+      // inside activation, so a failed boot still rejects the transaction without a separate staged Host boot.
+      healthCheck: async (projectDir) => {
+        if (!firstMacInstallation) await hooks.healthCheck(projectDir)
+      },
       beforeActivate: async () => {},
-      afterActivate: async () => {},
+      afterActivate: async () => {
+        if (firstMacInstallation) await hooks.afterActivate()
+      },
     })
   }
   // Decide the backend before starting one. A live Host that answers on its
@@ -874,7 +882,7 @@ async function main(): Promise<void> {
       return undefined
     })
     keepAevenSession()
-  } else {
+  } else if (host === undefined) {
     console.log(`desktop: starting a Host of its own because ${plan.reason}`)
     host = await startHost()
   }
