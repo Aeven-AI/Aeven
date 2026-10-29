@@ -24,4 +24,13 @@ export interface EnvelopeHeader {
    * from the same device for the same id; this package does not track counters.
    */
   counter: number
+  /** Authenticated transport parts of one logical payload; every part shares its counter. */
+  fragment?: {
+    /** Keyed payload digest identifying this partition. */
+    id: string
+    /** Zero-based part position. */
+    index: number
+    /** Parts required before the payload can be applied. */
+    count: number
+  }
 }

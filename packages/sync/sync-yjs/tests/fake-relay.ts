@@ -5,6 +5,7 @@
  */
 import { randomBytes } from 'node:crypto'
 import { WebSocketServer, type WebSocket } from 'ws'
+import { RELAY_MAX_MESSAGE_BYTES } from '../src/relay.ts'
 
 interface StoredFrame {
   seq: number
@@ -38,6 +39,10 @@ function headerOf(data: Buffer): { kind: string; id: string } {
 
 /** A running fake relay. */
 export class FakeRelay {
+  /** Complete JSON request sizes observed after the transport accepted them. */
+  readonly requests: Array<{ type: string; bytes: number }> = []
+  /** Transport refusals, including oversized messages rejected before protocol handling. */
+  readonly transportErrors: Error[] = []
   readonly accounts = new Map<string, Account>()
   /** Codes the next requests of a type answer with, consumed in order. */
   readonly refusals = new Map<string, string[]>()
@@ -55,14 +60,16 @@ export class FakeRelay {
 
   /**
    * Start a relay on an ephemeral loopback port.
+   * @param maxPayload - complete WebSocket message limit, matching the deployed relay by default.
    * @returns the running relay.
    */
-  static async start(): Promise<FakeRelay> {
+  static async start(maxPayload = RELAY_MAX_MESSAGE_BYTES): Promise<FakeRelay> {
     // eslint-disable-next-line prefer-const -- assigned once the server listens; verifyClient reads it later.
     let relay: FakeRelay
     const server = new WebSocketServer({
       host: '127.0.0.1',
       port: 0,
+      maxPayload,
       verifyClient: (info: { req: { headers: Record<string, string | string[] | undefined> } }, done: (accept: boolean) => void) => {
         const accept = typeof info.req.headers.authorization === 'string' && info.req.headers.authorization.startsWith('Bearer ok-')
         setTimeout(() => { done(accept) }, relay.handshakeDelayMs)
@@ -93,7 +100,12 @@ export class FakeRelay {
     const peer: Peer = { socket, account: this.account(owner), peer: ++this.nextPeer }
     peer.account.sockets.add(peer)
     socket.on('close', () => { peer.account.sockets.delete(peer) })
-    socket.on('message', (data: Buffer) => { this.handle(peer, JSON.parse(data.toString('utf8')) as Record<string, unknown>) })
+    socket.on('error', (error) => { this.transportErrors.push(error) })
+    socket.on('message', (data: Buffer) => {
+      const message = JSON.parse(data.toString('utf8')) as Record<string, unknown>
+      this.requests.push({ type: String(message.t), bytes: data.length })
+      this.handle(peer, message)
+    })
   }
 
   private send(peer: Peer, message: unknown): void {

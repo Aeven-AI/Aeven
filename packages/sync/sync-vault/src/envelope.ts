@@ -25,6 +25,8 @@ export interface SealEnvelopeInput {
   counter: number
   /** Plaintext payload. */
   payload: Uint8Array
+  /** Transport part metadata, authenticated with the ciphertext. */
+  fragment?: EnvelopeHeader['fragment']
 }
 
 /**
@@ -33,7 +35,9 @@ export interface SealEnvelopeInput {
  * @returns the frame.
  */
 export function sealEnvelope(input: SealEnvelopeInput): Uint8Array {
-  const header: EnvelopeHeader = { v: 2, kind: input.kind, id: input.id, device: input.device, counter: input.counter }
+  const header: EnvelopeHeader = { v: 2, kind: input.kind, id: input.id, device: input.device, counter: input.counter,
+    ...input.fragment === undefined ? {} : { fragment: input.fragment },
+  }
   const headerBytes = new TextEncoder().encode(JSON.stringify(header))
   const prefix = Buffer.alloc(3)
   prefix.writeUInt8(FRAME_VERSION, 0)
@@ -59,12 +63,19 @@ function split(frame: Uint8Array): { header: EnvelopeHeader; aad: Uint8Array; se
     || typeof h.id !== 'string' || typeof h.device !== 'string'
     || !Number.isSafeInteger(h.counter) || (h.counter as number) < 0
   ) throw new SyncVaultError('envelope header is malformed')
+  const fragment = h.fragment as EnvelopeHeader['fragment']
+  if (fragment !== undefined && (
+    fragment === null || typeof fragment !== 'object' || typeof fragment.id !== 'string' || !/^[a-f0-9]{64}$/.test(fragment.id)
+    || !Number.isSafeInteger(fragment.index) || !Number.isSafeInteger(fragment.count)
+    || fragment.index < 0 || fragment.count < 2 || fragment.index >= fragment.count
+  )) throw new SyncVaultError('envelope fragment is malformed')
   const header: EnvelopeHeader = {
     v: 2,
     kind: h.kind as EnvelopeKind,
     id: brandString<OpaqueId>(h.id),
     device: brandString<DeviceId>(h.device),
     counter: h.counter as number,
+    ...fragment === undefined ? {} : { fragment },
   }
   return { header, aad: frame.subarray(0, aadEnd), sealed: frame.subarray(aadEnd) }
 }

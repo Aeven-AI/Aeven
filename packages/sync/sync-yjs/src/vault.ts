@@ -11,11 +11,9 @@ import {
 } from '@aeven/sync-vault'
 import type { SyncDocument, SyncState, SyncStatus } from '@aeven/sync'
 import type { SyncOffload } from './offload.ts'
-import { RelayError, type RelayConnection } from './relay.ts'
+import { publishFrameLimit, publishRequestBytes, type PublishFrame, type RelayConnection } from './relay.ts'
+import { prepareFrame } from './frames.ts'
 import type { SyncStore } from './store.ts'
-
-/** Relay error codes that no retry can change. */
-const PERMANENT_REFUSALS: ReadonlySet<string> = new Set(['too-large', 'bad-frame'])
 
 /** Logical name whose opaque id is the account's local-network tag. */
 const LAN_TAG = 'lan/account'
@@ -39,7 +37,7 @@ export interface VaultTuning {
   statusMs: number
   /** Most queued frames one publish request carries. */
   publishFrames: number
-  /** Most frame bytes one publish request carries; a larger single frame travels alone. */
+  /** Maximum complete publish request bytes, including base64url and JSON. */
   publishBytes: number
 }
 
@@ -275,9 +273,11 @@ export class AccountVault {
           this.warn(`sync: dropped relay frame ${String(result.seq)}`, new Error(result.error))
           continue
         }
-        const { header, payload } = result
+        const { header } = result
         const apply = header.device !== this.device && (header.kind === 'update' || header.kind === 'snapshot')
-        if (!apply || !this.store.acceptCounter(header.device, header.id, header.counter)) continue
+        if (!apply || !this.store.isNewCounter(header.device, header.id, header.counter)) continue
+        const payload = this.store.assemble(header, result.payload)
+        if (payload === undefined || !this.store.acceptCounter(header.device, header.id, header.counter)) continue
         this.store.appendDocUpdate(header.id, payload)
         applied.set(header.id, [...applied.get(header.id) ?? [], payload])
       }
@@ -340,9 +340,12 @@ export class AccountVault {
    */
   appendStream(name: string, payload: Uint8Array): void {
     const id = this.documentId(name)
-    const frame = this.seal('stream', id, payload)
-    this.store.enqueue(frame)
-    this.lanSend?.(frame)
+    const frame = this.store.transaction(() => {
+      const sealed = this.seal('stream', id, payload)
+      this.store.enqueue(sealed)
+      return sealed
+    })
+    this.sendLan(frame)
     this.changed()
     void this.flush()
   }
@@ -373,10 +376,34 @@ export class AccountVault {
   async readStream(name: string, after: number): Promise<{ batches: Array<{ seq: number; payload: Uint8Array }>; more: boolean }> {
     const relay = this.relay
     if (relay === undefined) throw new Error('reading a stream needs a connection to the relay')
-    const { frames, more } = await relay.request('stream.get', { id: this.documentId(name), after }) as { frames: Array<{ seq: number; frame: string }>; more: boolean }
     const key = this.requireKey()
-    const batches = frames.map(({ seq, frame }) => ({ seq, payload: openEnvelope(new Uint8Array(Buffer.from(frame, 'base64url')), key).payload }))
-    return { batches, more }
+    const batches: Array<{ seq: number; payload: Uint8Array }> = []
+    const partials = new Map<string, number>()
+    let cursor = after
+    for (;;) {
+      const { frames, more } = await relay.request('stream.get', { id: this.documentId(name), after: cursor }) as { frames: Array<{ seq: number; frame: string }>; more: boolean }
+      this.store.transaction(() => {
+        for (const { seq, frame } of frames) {
+          const opened = openEnvelope(new Uint8Array(Buffer.from(frame, 'base64url')), key)
+          cursor = seq
+          if (this.store.duplicateStreamPart(opened.header, seq)) continue
+          const fragment = opened.header.fragment
+          const transfer = `${opened.header.device}:${String(opened.header.counter)}:${fragment?.id ?? ''}`
+          if (fragment !== undefined && !partials.has(transfer)) partials.set(transfer, seq)
+          const payload = this.store.assemble(opened.header, opened.payload, seq)
+          if (payload !== undefined) {
+            const logical = `${opened.header.device}:${String(opened.header.counter)}:`
+            for (const pending of partials.keys()) if (pending.startsWith(logical)) partials.delete(pending)
+            batches.push({ seq, payload })
+          }
+        }
+      })
+      // A partial logical batch cannot advance the caller's cursor; read its remaining transport pages here.
+      if ((partials.size === 0 && batches.length > 0) || !more || frames.length === 0) {
+        const firstPartial = Math.min(...partials.values())
+        return { batches: batches.filter(batch => batch.seq < firstPartial), more: more && frames.length > 0 }
+      }
+    }
   }
 
   private seal(kind: EnvelopeKind, id: OpaqueId, payload: Uint8Array): Uint8Array {
@@ -384,12 +411,13 @@ export class AccountVault {
   }
 
   private localUpdate(id: OpaqueId, update: Uint8Array): void {
-    const frame = this.seal('update', id, update)
-    this.store.transaction(() => {
+    const frame = this.store.transaction(() => {
+      const sealed = this.seal('update', id, update)
       this.store.appendDocUpdate(id, update)
-      this.store.enqueue(frame)
+      this.store.enqueue(sealed)
+      return sealed
     })
-    this.lanSend?.(frame)
+    this.sendLan(frame)
     this.afterAppend(id)
     this.changed()
     void this.flush()
@@ -401,6 +429,11 @@ export class AccountVault {
    */
   setLanSender(send: ((frame: Uint8Array) => void) | undefined): void {
     this.lanSend = send
+  }
+
+  private sendLan(frame: Uint8Array): void {
+    if (this.lanSend === undefined) return
+    for (const part of prepareFrame(frame, this.requireKey(), publishFrameLimit(this.tuning.publishBytes))) this.lanSend(part)
   }
 
   /**
@@ -455,14 +488,19 @@ export class AccountVault {
       this.warn('sync: dropped a frame from a device on the local network', error)
       return
     }
-    const { header, payload } = opened
+    const { header } = opened
     if (header.device === this.device) return
+    const payload = this.store.transaction(() => {
+      const complete = this.store.assemble(header, opened.payload)
+      if (complete !== undefined && header.kind === 'update') this.store.appendDocUpdate(header.id, complete)
+      return complete
+    })
+    if (payload === undefined) return
     if (header.kind === 'stream') {
       for (const listener of this.streamWatchers.get(header.id) ?? []) listener(payload)
       return
     }
     if (header.kind !== 'update') return
-    this.store.appendDocUpdate(header.id, payload)
     const open = this.docs.get(header.id)
     if (open !== undefined) Y.applyUpdate(open.doc, payload, REMOTE)
     this.documentChanged(header.id)
@@ -492,7 +530,7 @@ export class AccountVault {
       doc: id,
       compact: this.store.docUpdateCount(id) > this.tuning.compactAfter,
       ...snapshotDue
-        ? { snapshot: { accountKey: key, device: this.device, counter: this.store.nextCounter(id), covers: this.store.relayCursor() } }
+        ? { snapshot: { accountKey: key, device: this.device, covers: this.store.relayCursor() } }
         : {},
     })
     if (snapshotDue) void this.flush()
@@ -507,7 +545,10 @@ export class AccountVault {
       this.flushing = undefined
       // A frame queued after the pass found the outbox empty, but before this point, still needs sending.
       if (emptied && this.relay !== undefined && this.store.pending() > 0) void this.flush()
-    }, () => { this.flushing = undefined })
+    }, (error: unknown) => {
+      this.flushing = undefined
+      this.warn('sync: preparing queued frames failed; they stay queued', error)
+    })
     return this.flushing
   }
 
@@ -520,41 +561,52 @@ export class AccountVault {
       const relay = this.relay
       const queued = this.store.outbox(this.tuning.publishFrames)
       if (relay === undefined || queued.length === 0) return queued.length === 0
-      const batch: typeof queued = []
-      let bytes = 0
-      for (const next of queued) {
-        if (batch.length > 0 && bytes + next.frame.length > this.tuning.publishBytes) break
-        batch.push(next)
-        bytes += next.frame.length
-      }
-      let stored: number
-      try {
-        const answer = await relay.request('publish', {
-          frames: batch.map(next => ({ frame: toBase64Url(next.frame), ...next.covers === undefined ? {} : { covers: next.covers } })),
-        }) as { seqs: number[]; refused?: { code: string; message: string } }
-        stored = answer.seqs.length
-        if (answer.refused !== undefined) throw new RelayError(answer.refused.code, answer.refused.message)
-      } catch (error) {
-        stored ??= 0
-        // A frame the relay refuses outright would block every frame behind it; it is dropped instead.
-        if (error instanceof RelayError && PERMANENT_REFUSALS.has(error.code)) {
-          this.warn(`sync: the relay refused a frame (${error.code}); dropping it`, error)
-          stored += 1
-        } else {
+      const batch: Array<{ seq: number; last: boolean; item: PublishFrame }> = []
+      let bytes = publishRequestBytes([])
+      const publish = async (): Promise<boolean> => {
+        if (batch.length === 0) return true
+        let stored = 0
+        let complete = false
+        try {
+          const answer = await relay.request('publish', { frames: batch.map(part => part.item) }) as {
+            seqs: number[]
+            refused?: { code: string; message: string }
+          }
+          stored = answer.seqs.length
+          if (answer.refused !== undefined) throw new Error(`sync relay refused a frame (${answer.refused.code}): ${answer.refused.message}`)
+          complete = stored === batch.length
+        } catch (error) {
           this.warn('sync: publishing frames failed; they stay queued', error)
-          this.acknowledge(batch, stored)
-          return false
+        }
+        // A logical frame stays durable until every part is acknowledged; reconnects may resend a prefix.
+        const last = batch.slice(0, stored).findLast(part => part.last)
+        if (last !== undefined) {
+          this.store.acknowledge(last.seq)
+          this.changed()
+        }
+        batch.length = 0
+        bytes = publishRequestBytes([])
+        return complete
+      }
+      for (const next of queued) {
+        const limit = publishFrameLimit(this.tuning.publishBytes)
+        const frames = next.frame.length <= limit ? [next.frame] : await this.offload.prepare(next.frame, this.requireKey(), limit)
+        for (const [index, frame] of frames.entries()) {
+          const last = index === frames.length - 1
+          const item: PublishFrame = { frame: toBase64Url(frame),
+            ...last && next.covers !== undefined ? { covers: next.covers } : {},
+          }
+          const itemBytes = Buffer.byteLength(JSON.stringify(item), 'utf8')
+          if (batch.length > 0 && (batch.length >= this.tuning.publishFrames
+            || bytes + 1 + itemBytes > this.tuning.publishBytes)) {
+            if (!await publish()) return false
+          }
+          bytes += itemBytes + (batch.length > 0 ? 1 : 0)
+          batch.push({ seq: next.seq, last, item })
         }
       }
-      this.acknowledge(batch, stored)
+      if (!await publish()) return false
     }
-  }
-
-  private acknowledge(batch: ReadonlyArray<{ seq: number }>, count: number): void {
-    const last = batch[count - 1]
-    if (last === undefined) return
-    this.store.acknowledge(last.seq)
-    this.changed()
   }
 
   /** Wait for durable publication and a complete relay backlog before transferring a session writer. */

@@ -5,8 +5,8 @@
  */
 import { parentPort } from 'node:worker_threads'
 import Database from 'better-sqlite3'
-import * as Y from 'yjs'
 import { openEnvelope, sealEnvelope, type OpaqueId } from '@aeven/sync-vault'
+import { compactUpdates, prepareFrame } from './frames.ts'
 import type { MaintainRequest, OpenedFrame, WorkerReply, WorkerRequest } from './offload.ts'
 
 const connections = new Map<string, Database.Database>()
@@ -28,17 +28,20 @@ function maintain(request: MaintainRequest): null {
   const rows = db.prepare('SELECT seq, data FROM doc_updates WHERE id = ? ORDER BY seq').all(request.doc) as Array<{ seq: number; data: Buffer }>
   const last = rows.at(-1)
   if (last === undefined) return null
-  const merged = rows.length === 1 ? new Uint8Array(last.data) : Y.mergeUpdates(rows.map(row => new Uint8Array(row.data)))
+  const merged = compactUpdates(rows.map(row => new Uint8Array(row.data)))
   const { snapshot } = request
-  const frame = snapshot === undefined
-    ? undefined
-    : sealEnvelope({ kind: 'snapshot', id: request.doc as OpaqueId, accountKey: snapshot.accountKey, device: snapshot.device, counter: snapshot.counter, payload: merged })
   db.transaction(() => {
     if (request.compact && rows.length > 1) {
       db.prepare('DELETE FROM doc_updates WHERE id = ? AND seq <= ?').run(request.doc, last.seq)
       db.prepare('INSERT INTO doc_updates (id, data) VALUES (?, ?)').run(request.doc, Buffer.from(merged))
     }
-    if (frame !== undefined && snapshot !== undefined) {
+    if (snapshot !== undefined) {
+      // Counter allocation and queue insertion share the write transaction with concurrent Host updates.
+      const { counter } = db.prepare('INSERT INTO counters (id, counter) VALUES (?, 1) ON CONFLICT (id) DO UPDATE SET counter = counter + 1 RETURNING counter')
+        .get(request.doc) as { counter: number }
+      const frame = sealEnvelope({ kind: 'snapshot', id: request.doc as OpaqueId, accountKey: snapshot.accountKey,
+        device: snapshot.device, counter, payload: merged,
+      })
       db.prepare('INSERT INTO outbox (frame, covers) VALUES (?, ?)').run(Buffer.from(frame), snapshot.covers)
       db.prepare('DELETE FROM since_snapshot WHERE id = ?').run(request.doc)
     }
@@ -61,7 +64,9 @@ function openFrames(request: Extract<WorkerRequest, { method: 'open' }>): Opened
 parentPort?.on('message', (request: WorkerRequest) => {
   let reply: WorkerReply
   try {
-    const value = request.method === 'open' ? openFrames(request) : maintain(request)
+    const value = request.method === 'open' ? openFrames(request)
+      : request.method === 'prepare' ? prepareFrame(request.frame, request.accountKey, request.maxBytes)
+        : maintain(request)
     reply = { id: request.id, ok: true, value } as WorkerReply
   } catch (error) {
     reply = { id: request.id, ok: false, message: error instanceof Error ? error.message : String(error) }

@@ -13,6 +13,36 @@
  */
 import WebSocket from 'ws'
 
+/** The deployed relay admits 4 MiB encrypted frames, base64url-encoded inside a JSON request. */
+export const RELAY_MAX_FRAME_BYTES = 4 * 1024 * 1024
+/** Maximum JSON message admitted by the relay's WebSocket transport. */
+export const RELAY_MAX_MESSAGE_BYTES = Math.ceil((RELAY_MAX_FRAME_BYTES * 4) / 3) + 1024
+
+/** One frame in a publish request. */
+export interface PublishFrame {
+  frame: string
+  covers?: number
+}
+
+/**
+ * Measure a complete publish request, reserving the longest supported request id.
+ * @param frames - encoded frames and snapshot pruning positions.
+ * @returns maximum UTF-8 request bytes.
+ */
+export function publishRequestBytes(frames: readonly PublishFrame[]): number {
+  return Buffer.byteLength(JSON.stringify({ frames, rid: Number.MAX_SAFE_INTEGER, t: 'publish' }), 'utf8')
+}
+
+/**
+ * Compute a frame limit that includes base64url, JSON, and snapshot metadata in the publish budget.
+ * @param bytes - complete request limit.
+ * @returns maximum encrypted frame bytes.
+ */
+export function publishFrameLimit(bytes: number): number {
+  const overhead = publishRequestBytes([{ frame: '', covers: Number.MAX_SAFE_INTEGER }])
+  return Math.min(RELAY_MAX_FRAME_BYTES, Math.floor((bytes - overhead) / 4) * 3)
+}
+
 /** Listener for socket errors whose `close` that follows is handled. */
 function ignore(): void {}
 
@@ -139,12 +169,16 @@ export class RelayConnection {
   request(type: string, fields: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
     if (this.socket.readyState !== WebSocket.OPEN) return Promise.reject(new RelayError('closed', 'relay connection closed'))
     const rid = this.nextRid++
+    const message = JSON.stringify({ ...fields, rid, t: type })
+    if (Buffer.byteLength(message, 'utf8') > RELAY_MAX_MESSAGE_BYTES) {
+      return Promise.reject(new RelayError('too-large', 'sync request exceeds the relay message limit'))
+    }
     const timer = setTimeout(() => {
       if (this.pending.has(rid)) this.socket.terminate()
     }, this.requestMs)
     return new Promise<Record<string, unknown>>((resolve, reject) => {
       this.pending.set(rid, { resolve, reject })
-      this.socket.send(JSON.stringify({ ...fields, rid, t: type }))
+      this.socket.send(message)
     }).finally(() => { clearTimeout(timer) })
   }
 

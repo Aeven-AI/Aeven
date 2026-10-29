@@ -187,7 +187,7 @@ describe('the Yjs sync provider', () => {
     expect(unreachable.sync.status(lonely).state).toBe('starting')
   })
 
-  it('publishes a long outbox in batches and drops a frame the relay refuses outright', async () => {
+  it('retains a refused frame and publishes it with the rest of the outbox on the next flush', async () => {
     const account = owner()
     const first = await host()
     first.signIn(account)
@@ -196,8 +196,10 @@ describe('the Yjs sync provider', () => {
     relay.refusals.set('publish', ['too-large'])
     const doc = await first.sync.openDocument(account, 'notes')
     for (let i = 0; i < 250; i++) doc.doc.getMap('m').set(String(i), i)
-    await vi.waitFor(() => { expect(first.sync.status(account).pending).toBe(0) })
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('refused a frame (too-large)'))
+    await vi.waitFor(() => { expect(warn).toHaveBeenCalledWith('sync: publishing frames failed; they stay queued') })
+    // The public handover barrier also flushes unacknowledged changes.
+    await first.sync.synchronize(account)
+    expect(first.sync.status(account).pending).toBe(0)
     expect(relay.account(account).frames.length).toBeGreaterThan(0)
     doc.close()
   })

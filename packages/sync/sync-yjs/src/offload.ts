@@ -28,6 +28,7 @@ export type WorkerRequest =
     readonly accountKey: Uint8Array
   }
   | ({ readonly id: number; readonly method: 'maintain' } & MaintainRequest)
+  | { readonly id: number; readonly method: 'prepare'; readonly frame: Uint8Array; readonly accountKey: Uint8Array; readonly maxBytes: number }
 
 /** Compact one document's stored updates and, when due, queue a snapshot of it; the worker writes both. */
 export interface MaintainRequest {
@@ -41,20 +42,19 @@ export interface MaintainRequest {
   readonly snapshot?: {
     readonly accountKey: Uint8Array
     readonly device: DeviceId
-    readonly counter: number
     readonly covers: number
   }
 }
 
 /** The worker's answer to one request. */
 export type WorkerReply =
-  | { readonly id: number; readonly ok: true; readonly value: OpenedFrame[] | null }
+  | { readonly id: number; readonly ok: true; readonly value: OpenedFrame[] | Uint8Array[] | null }
   | { readonly id: number; readonly ok: false; readonly message: string }
 
 /** A request before the client numbers it. */
 type Unnumbered<T> = T extends { readonly id: number } ? Omit<T, 'id'> : never
 
-type Pending = { resolve: (value: OpenedFrame[] | null) => void; reject: (error: Error) => void }
+type Pending = { resolve: (value: OpenedFrame[] | Uint8Array[] | null) => void; reject: (error: Error) => void }
 
 /** Where the worker's code is: the built CommonJS bundle, or the TypeScript source loaded through tsx. */
 function workerEntry(): string | URL {
@@ -97,7 +97,7 @@ export class SyncOffload {
     return worker
   }
 
-  private request(message: Unnumbered<WorkerRequest>): Promise<OpenedFrame[] | null> {
+  private request(message: Unnumbered<WorkerRequest>): Promise<OpenedFrame[] | Uint8Array[] | null> {
     const worker = this.start()
     const id = this.nextId++
     return new Promise((resolve, reject) => {
@@ -123,6 +123,17 @@ export class SyncOffload {
    */
   async maintain(request: MaintainRequest): Promise<void> {
     await this.request({ method: 'maintain', ...request })
+  }
+
+  /**
+   * Reframe queued payloads on the worker so encryption and snapshot recovery do not block the Host.
+   * @param frame - original durable frame.
+   * @param accountKey - account's key.
+   * @param maxBytes - maximum encrypted transport frame size.
+   * @returns bounded transport parts.
+   */
+  async prepare(frame: Uint8Array, accountKey: Uint8Array, maxBytes: number): Promise<Uint8Array[]> {
+    return await this.request({ method: 'prepare', frame, accountKey, maxBytes }) as Uint8Array[]
   }
 
   /** Stop the worker; requests it held fail. */

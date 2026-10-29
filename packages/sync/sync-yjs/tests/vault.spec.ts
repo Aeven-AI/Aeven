@@ -31,7 +31,16 @@ afterEach(() => {
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true })
 })
 
-const TUNING: VaultTuning = { compactAfter: 100, snapshotAfter: 100, applyFrames: 200, applyPauseMs: 0, pageFrames: 500, statusMs: 0, publishFrames: 100, publishBytes: 2_097_152 }
+const TUNING: VaultTuning = {
+  compactAfter: 100,
+  snapshotAfter: 100,
+  applyFrames: 200,
+  applyPauseMs: 0,
+  pageFrames: 500,
+  statusMs: 0,
+  publishFrames: 100,
+  publishBytes: 2_097_152,
+}
 
 interface Device {
   store: SyncStore
@@ -147,7 +156,7 @@ describe('a vault on two devices', () => {
     doc.close()
   })
 
-  it('keeps frames queued when the relay fails them, and drops one the relay refuses outright', async () => {
+  it('retains unacknowledged frames after transient and permanent relay refusals', async () => {
     const { a } = await pair()
     relay.refusals.set('publish', ['server-error'])
     const doc = a.vault.openDocument('doc')
@@ -155,6 +164,8 @@ describe('a vault on two devices', () => {
     await vi.waitFor(() => { expect(a.warn).toHaveBeenCalledWith('sync: publishing frames failed; they stay queued', expect.anything()) })
     expect(a.store.pending()).toBe(1)
     relay.refusals.set('publish', ['bad-frame'])
+    await a.vault.flush()
+    expect(a.store.pending()).toBe(1)
     await a.vault.flush()
     expect(a.store.pending()).toBe(0)
     doc.close()
