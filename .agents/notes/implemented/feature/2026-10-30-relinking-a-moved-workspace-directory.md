@@ -20,7 +20,7 @@ A relink records the directory it leaves in a new durable `anchorPaths` list, mo
 
 Resolution follows the same list: a session this device wrote resolves to its recorded directory, and when that directory sits under an anchor it is translated to the same place inside the workspace's current directory, so a session that worked in a subdirectory keeps that subdirectory across the move.
 
-The row menu carries the action as **Choose workspace**, above Delete workspace, on every row that is not the built-in one — the same entry whether the workspace is pathless here or already folder-backed.
+The row menu carries the action as **Link workspace**, above Delete workspace, on every row that is not the built-in one — the same entry whether the workspace is pathless here or already folder-backed.
 
 ## Alternatives considered
 

@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-30-relinking-a-moved-workspace-directory.md
-2026-10-30-relinking-a-moved-workspace-directory.md: af6ca479347275136b5952953af5343f4b7a9eed
-2026-10-30-relinking-a-moved-workspace-directory.zh.md: 60a730ec1f5e77776c63ed04bce08134a07fddc9
+2026-10-30-relinking-a-moved-workspace-directory.md: 413014233e24eb8938aa08d1fe4e084d861d2485
+2026-10-30-relinking-a-moved-workspace-directory.zh.md: 134463b3c2af4178cb0dfa461608913dc19cef8d
