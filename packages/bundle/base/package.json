@@ -105,6 +105,7 @@
     "@aeven/tool-jobs": "workspace:^",
     "@aeven/tool-pwsh": "workspace:^",
     "@aeven/tool-ralph": "workspace:^",
+    "@aeven/tool-read-aloud": "workspace:^",
     "@aeven/tool-skill": "workspace:^",
     "@aeven/tool-str-replace-editor": "workspace:^",
     "@aeven/tool-subagent": "workspace:^",

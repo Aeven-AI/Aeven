@@ -631,6 +631,7 @@ export const InputBar = memo(function InputBar({
               useProjection={useProjection}
               keepFocus={keepFocus}
               overlayRef={overlayRef}
+              optionsSlot={sessionId === undefined ? undefined : renderSlot('conversation.input.options', {})}
               t={t}
             />
             <div className={css.modes}>

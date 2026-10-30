@@ -50,6 +50,7 @@
 | `@aeven/tool-workflow` | `workflow` | `ctx.tools`、`ctx.workflowEngine`、`ctx.systemPrompt`、`a calling Agent (exec.agent parents the script children)` | `tool/call`、`tool/result` | - | - |
 | `@aeven/tool-web` | `web_fetch`、`web_search` | `ctx.tools`、`ctx.web`、`ctx.systemPrompt` | `tool/call`、`tool/result` | - | web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可见 schema 在更换后端时保持稳定。 |
 | `@aeven/tool-browser` | `preview_back`、`preview_click`、`preview_evaluate`、`preview_forward`、`preview_navigate`、`preview_press`、`preview_reload`、`preview_screenshot`、`preview_scroll`、`preview_sequence`、`preview_snapshot`、`preview_status`、`preview_type`、`preview_upload` | `ctx.tools`、`ctx.agents`、`a browser/automation listener (execution time)` | `tool/call`、`tool/result` | - | preview_* 调用由持有该会话浏览器的客户端应答；每次调用都受工具超时上限约束。 |
+| `@aeven/tool-read-aloud` | `read_aloud` | `ctx.tools` | `tool/call`, `tool/result` | - | The tool is a pure instruction: it logs the switch it was given and speaks nothing on the Host. The Web Surface reads the settled call and moves its own reader, so the model can start language practice without a Session event of its own. |
 | `@aeven/tool-location` | `get_location` | `ctx.tools`、`ctx.agents`、`a location/request listener (execution time)` | `tool/call`、`tool/result` | - | get_location 由显示该会话的客户端在读者做出选择后应答；该调用受工具超时上限约束。 |
 | `@aeven/tool-capability` | `capability_manage` | `ctx.tools`、`ctx.systemPrompt`、`ctx.capabilities`、`ctx.llm`、`ctx.memory (default store)`、`an Agent whose session has an owner at execution time` | `tool/call`、`tool/result`、`capabilities/changed for the capabilities store`、`long-term memory for a learned procedure under the default store` | - | 注册的 action 取决于加载时的 `store` 配置：默认的 `memory` 会把学到的流程保存为长期记忆，且只注册 `learn` 与 `import`；`capabilities` 则把它保存为能力文件，并注册 list、view、learn、update、write_file、report、retire 与 restore。学习器与流程回忆都运行在同一包内，本身不贡献任何工具。 |
 | `@aeven/tool-device` | `device_close`、`device_list`、`device_open`、`device_screenshot` | `ctx.tools`、`ctx.devices (execution time)`、`ctx.attachments + ctx.llm on an image-capable route (device_screenshot)`、`a calling Agent for per-session device ownership` | `tool/call`、`tool/result`、`the session's device pane state`、`a durable image attachment for a screenshot` | - | 这 4 个工具在每个 Host 上都会注册；缺少 `ctx.devices`、关闭设备支持或没有 agent 访问权限的部署会返回各自的固定语句，而不是隐藏该工具。驱动设备要通过 `device_open` 返回的 agent-device CLI，而不是为每种设备操作提供一个工具。 |
@@ -3233,6 +3234,33 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
 
 preview_* 调用由持有该会话浏览器的客户端应答；每次调用都受工具超时上限约束。
+
+<a id="aeventool-read-aloud"></a>
+
+## `@aeven/tool-read-aloud`
+
+### `read_aloud`
+
+Turn spoken read-aloud of your replies on or off for this session. Switch it on when the user wants to hear the answers — language practice, pronunciation, or a hands-free conversation — and off when they ask you to stop. It changes only the reader; your replies themselves stay text.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "description": "true to read your replies aloud from now on, false to stop reading them."
+    }
+  },
+  "required": [
+    "enabled"
+  ]
+}
+```
+
+Source: [`packages/speech/tool-read-aloud/src/index.ts`](../packages/speech/tool-read-aloud/src/index.ts)
+
+The tool is a pure instruction: it logs the switch it was given and speaks nothing on the Host. The Web Surface reads the settled call and moves its own reader, so the model can start language practice without a Session event of its own.
 
 <a id="aeventool-location"></a>
 

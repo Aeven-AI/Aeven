@@ -87,6 +87,7 @@ import * as ToolImageSearch from '@aeven/tool-image-search'
 import Memory from '@aeven/memory'
 import * as ToolMemory from '@aeven/tool-memory'
 import * as ToolMail from '@aeven/tool-mail'
+import * as ToolReadAloud from '@aeven/tool-read-aloud'
 import { writePairedPage } from './paired-locale.ts'
 import { githubSlug } from './verify-md-links.ts'
 
@@ -718,6 +719,18 @@ const TOOL_PACKAGES: ToolPackage[] = [
     },
     note:
       'preview_* calls are answered by the Client holding the session\'s browser; each call is bounded by the tool timeout.',
+  },
+  {
+    pkg: '@aeven/tool-read-aloud',
+    dir: 'tool-read-aloud',
+    source: 'packages/speech/tool-read-aloud/src/index.ts',
+    requires: ['ctx.tools'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(ToolReadAloud)
+    },
+    note:
+      'The tool is a pure instruction: it logs the switch it was given and speaks nothing on the Host. The Web Surface reads the settled call and moves its own reader, so the model can start language practice without a Session event of its own.',
   },
   {
     pkg: '@aeven/tool-location',

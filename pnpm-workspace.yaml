@@ -81,6 +81,10 @@ allowBuilds:
   # Optional OS keychain token cache for the Microsoft 365 connector
   # (@softeria/ms-365-mcp-server); matches the desktop runtime workspace.
   keytar: true
+  # Edge text-to-speech client for the read-aloud provider. Its only lifecycle
+  # script refuses non-pnpm installs, and the published package ships its built
+  # dist, so the script has nothing to do here.
+  msedge-tts: false
 
 # Release-age screening is off: a dependency may be installed the moment it is
 # published. This is deliberate, and it gives up the delay that would otherwise

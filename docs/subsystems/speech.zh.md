@@ -135,4 +135,73 @@ async transcribe(spec: SpeechSpec, signal: AbortSignal): Promise<Transcript>
 ```
 
 Source: [`packages/speech/speech-to-text/src/index.ts`](../../packages/speech/speech-to-text/src/index.ts)
+
+<a id="ctxtexttospeech--texttospeech"></a>
+
+### `ctx.textToSpeech` — `TextToSpeech`
+
+Registry shared by every synthesis consumer in one Host composition.
+
+```ts cordis-catalog
+/**
+ * Register one synthesis provider; duplicate provider or voice ids fail without replacing the original.
+ * @param provider - provider owned by the contributing fiber.
+ * @returns idempotent disposer which rejects admission and joins accepted work.
+ */
+register(provider: TtsProvider): () => Promise<void>
+
+/**
+ * Read the current provider roster.
+ * @returns provider facts in registration order.
+ */
+listProviders(): readonly TtsProvider['info'][]
+
+/**
+ * Read every voice a Surface may choose, plus the configured language mapping.
+ * @returns detached voice roster and mapping.
+ */
+catalog(): TtsCatalog
+
+/**
+ * Apply the requested voice, the configured language mapping, or the catalogue for that language.
+ * A voice id that no provider registered fails explicitly instead of falling back.
+ * @param request - text plus a language or an exact voice.
+ * @returns provider-pinned input for synthesize().
+ */
+resolve(request: TtsRequest): TtsSpec
+
+/**
+ * Execute exactly the resolved provider; no fallback speaks the text elsewhere.
+ * @param spec - resolved input; a withdrawn or replaced registration is rejected.
+ * @param signal - caller cancellation.
+ * @returns encoded audio after provider settlement.
+ */
+async synthesize(spec: TtsSpec, signal: AbortSignal): Promise<Uint8Array>
+```
+
+Source: [`packages/speech/text-to-speech/src/index.ts`](../../packages/speech/text-to-speech/src/index.ts)
+
+<a id="ctxttscontroller--ttscontroller"></a>
+
+### `ctx.ttsController` — `TtsController`
+
+Speech synthesis never activates or submits to an Agent.
+
+```ts cordis-catalog
+/**
+ * Read the voices a Surface may choose and the configured language mapping.
+ * @returns detached voice roster and mapping.
+ */
+@Remote catalog(): TtsCatalog
+
+/**
+ * Speak one utterance through the explicit voice resolution.
+ * @param request - text plus a language or an exact voice.
+ * @param signal - Client cancellation or Remote contribution disposal.
+ * @returns encoded audio without adding a Session event.
+ */
+@Remote async synthesize(request: SpeechRequest, signal: AbortSignal): Promise<SpeechAudio>
+```
+
+Source: [`packages/speech/api-text-to-speech/src/index.ts`](../../packages/speech/api-text-to-speech/src/index.ts)
 <!-- END GENERATED cordis-surface -->

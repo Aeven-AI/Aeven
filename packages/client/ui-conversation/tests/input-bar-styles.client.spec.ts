@@ -49,10 +49,14 @@ function bodyOf(selector: string): string {
 }
 
 describe('composer control row spacing', () => {
-  it('spaces both clusters 8px apart', () => {
+  it('packs both clusters flush and keeps the 8px on the outer controls', () => {
     // The leading cluster (attach, options, mode chips) and the trailing one
-    // (model, activity, send) draw the same 8px between controls.
-    expect(bodyOf('.tools')).toContain('gap: 8px')
-    expect(bodyOf('.trailing')).toContain('gap: 8px')
+    // (model, activity, send) pack their icons together; the attach circle
+    // carries the 8px after it and the send circle the 8px before it, so the
+    // glyph clusters read 8px away from the control that brackets them.
+    expect(bodyOf('.tools')).toContain('gap: 0')
+    expect(bodyOf('.trailing')).toContain('gap: 0')
+    expect(bodyOf('.add')).toContain('margin-right: 8px')
+    expect(bodyOf('.primary')).toContain('margin-left: 8px')
   })
 })

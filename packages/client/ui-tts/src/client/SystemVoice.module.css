@@ -1,0 +1,183 @@
+/* The Options popup's voice row and the card it opens beside the popup. The row is the popup's own
+   cell (40px, 8px padding, 8px gap, control radius, 14/22 name, trailing chevron); the card copies
+   the permission row's `.pane`, and its rows copy the permission list cell — trailing check, no fill. */
+
+.seat {
+  position: relative;
+}
+
+.row {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--dsw-aeven-control-size);
+  padding: 8px;
+  border: none;
+  border-radius: var(--dsw-aeven-radius-control);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.row:hover,
+.row[data-open] {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.rowIcon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.rowIcon svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2;
+}
+
+.rowLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowChevron {
+  display: inline-flex;
+  flex: none;
+  color: var(--dsw-alias-label-caption);
+}
+
+.pane {
+  position: absolute;
+  left: calc(100% + 10px);
+  bottom: -4px;
+  z-index: 30;
+  box-sizing: border-box;
+  width: max-content;
+  min-width: 179px;
+  max-width: min(360px, calc(100vw - 32px));
+  max-height: min(560px, 60vh);
+  max-height: min(560px, 60dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 8px 8px;
+  border: 0;
+  border-radius: var(--dsw-aeven-radius-surface);
+  background: var(--dsw-specific-menu);
+  --dsw-elevation-stroke-color: transparent;
+  box-shadow: var(--dsw-elevation-prominent);
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  color: var(--dsw-alias-label-secondary);
+  cursor: default;
+  /* The list is browsed by scroll; a thumb on the card's rounded edge would be chrome the popup
+     family does not have. The pair is rebound to the card's own elevation first, so the hidden bar
+     never inherits the well's thumb on the surface it sits on. */
+  --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+  scrollbar-width: none;
+}
+
+.pane::-webkit-scrollbar {
+  display: none;
+}
+
+.section {
+  padding-bottom: 6px;
+}
+
+/* One header stays at the top while its own language scrolls past, on the card's opaque surface so
+   rows pass underneath instead of through. */
+.sectionHeader {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 8px 4px;
+  background: var(--dsw-specific-menu);
+}
+
+/* Language name as the platform spells it: sentence case, at the rows' own size. */
+.language {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.375rem;
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* The roster size sits on the rows' trailing edge. */
+.count {
+  flex: none;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  color: var(--dsw-alias-label-caption);
+}
+
+/* The permission list cell: 40px row, 8px padding, 8px gap, control radius, trailing check. */
+.option {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--dsw-aeven-control-size);
+  padding: 8px;
+  border: none;
+  border-radius: var(--dsw-aeven-radius-control);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.option:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.optionLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The voice a row resolves to, read after its name in the caption tier. */
+.optionDetail {
+  flex: none;
+  margin-left: 6px;
+  color: var(--dsw-alias-label-caption);
+}
+
+.check {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.empty {
+  margin: 0;
+  padding: 10px 8px;
+}

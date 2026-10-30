@@ -170,6 +170,8 @@ flowchart LR
   cfg --> plugin_avn_base_tool_vcs
   plugin_avn_base_tool_todo["tool-todo<br/>@aeven/tool-todo"]
   cfg --> plugin_avn_base_tool_todo
+  plugin_avn_base_tool_read_aloud["tool-read-aloud<br/>@aeven/tool-read-aloud"]
+  cfg --> plugin_avn_base_tool_read_aloud
   plugin_avn_base_tool_goal["tool-goal<br/>@aeven/tool-goal"]
   cfg --> plugin_avn_base_tool_goal
   plugin_avn_base_tool_ralph["tool-ralph<br/>@aeven/tool-ralph"]
@@ -287,6 +289,7 @@ flowchart LR
 | `vcs-git` | `@aeven/vcs-git` |
 | `tool-vcs` | `@aeven/tool-vcs` |
 | `tool-todo` | `@aeven/tool-todo` |
+| `tool-read-aloud` | `@aeven/tool-read-aloud` |
 | `tool-goal` | `@aeven/tool-goal` |
 | `tool-ralph` | `@aeven/tool-ralph` |
 | `tool-str-replace-editor` | `@aeven/tool-str-replace-editor` |

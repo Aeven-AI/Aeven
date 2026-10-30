@@ -102,6 +102,12 @@
       "path": "../../speech/speech-to-text"
     },
     {
+      "path": "../../speech/api-text-to-speech"
+    },
+    {
+      "path": "../../speech/text-to-speech"
+    },
+    {
       "path": "../../memory/api-memory-manager"
     },
     {

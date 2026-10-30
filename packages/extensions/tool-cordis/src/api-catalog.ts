@@ -3917,6 +3917,43 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'textToSpeech',
+    summary: 'Registry shared by every synthesis consumer in one Host composition.',
+    description: 'Registry shared by every synthesis consumer in one Host composition.',
+    methods: [
+      {
+        signature: 'register(provider: TtsProvider): () => Promise<void>',
+        description: 'Register one synthesis provider; duplicate provider or voice ids fail without replacing the original.',
+        parameters: [{ name: 'provider', description: 'provider owned by the contributing fiber.' }],
+        returns: 'idempotent disposer which rejects admission and joins accepted work.',
+      },
+      {
+        signature: 'listProviders(): readonly TtsProvider[\'info\'][]',
+        description: 'Read the current provider roster.',
+        parameters: [],
+        returns: 'provider facts in registration order.',
+      },
+      {
+        signature: 'catalog(): TtsCatalog',
+        description: 'Read every voice a Surface may choose, plus the configured language mapping.',
+        parameters: [],
+        returns: 'detached voice roster and mapping.',
+      },
+      {
+        signature: 'resolve(request: TtsRequest): TtsSpec',
+        description: 'Apply the requested voice, the configured language mapping, or the catalogue for that language. A voice id that no provider registered fails explicitly instead of falling back.',
+        parameters: [{ name: 'request', description: 'text plus a language or an exact voice.' }],
+        returns: 'provider-pinned input for synthesize().',
+      },
+      {
+        signature: 'async synthesize(spec: TtsSpec, signal: AbortSignal): Promise<Uint8Array>',
+        description: 'Execute exactly the resolved provider; no fallback speaks the text elsewhere.',
+        parameters: [{ name: 'spec', description: 'resolved input; a withdrawn or replaced registration is rejected.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'encoded audio after provider settlement.',
+      },
+    ],
+  },
+  {
     key: 'timer',
     summary: 'Disposable timer helpers mixed into Cordis contexts.',
     description: 'Disposable timer helpers mixed into Cordis contexts.',
@@ -4055,6 +4092,25 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Execute through pre-policy, guards, around-dispatch, post-policy, definition-owned content finalization, and final notification. Tool and listener failures resolve as materialized error results; an invisible tool reports `UNKNOWN_TOOL`. The returned outcome is the same lossless, frozen snapshot final observers receive. Cancellation arriving after entry and before final result materialization skips a not-yet-started body with `ABORTED_BEFORE_DISPATCH` or replaces a successful started outcome with `ABORTED`; already-started work is still drained and may retain a tool-owned structured error.',
         parameters: [{ name: 'exec', description: 'the typed same-process call input. The registry assigns its correlation token before policy begins.' }],
         returns: 'the materialized final result.',
+      },
+    ],
+  },
+  {
+    key: 'ttsController',
+    summary: 'Speech synthesis never activates or submits to an Agent.',
+    description: 'Speech synthesis never activates or submits to an Agent.',
+    methods: [
+      {
+        signature: '@Remote catalog(): TtsCatalog',
+        description: 'Read the voices a Surface may choose and the configured language mapping.',
+        parameters: [],
+        returns: 'detached voice roster and mapping.',
+      },
+      {
+        signature: '@Remote async synthesize(request: SpeechRequest, signal: AbortSignal): Promise<SpeechAudio>',
+        description: 'Speak one utterance through the explicit voice resolution.',
+        parameters: [{ name: 'request', description: 'text plus a language or an exact voice.' }, { name: 'signal', description: 'Client cancellation or Remote contribution disposal.' }],
+        returns: 'encoded audio without adding a Session event.',
       },
     ],
   },
@@ -8455,6 +8511,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SpawnTeammateResult {\n    readonly member: TeamMemberView;\n}',
   },
   {
+    name: 'SpeechAudio',
+    declaration: 'export interface SpeechAudio {\n    readonly audioBase64: string;\n    readonly mediaType: string;\n    readonly voiceId: TtsVoiceId;\n}',
+  },
+  {
     name: 'SpeechCatalog',
     declaration: 'export interface SpeechCatalog extends SpeechSnapshot {\n    readonly maxAudioBytes: number;\n    readonly maxDurationSeconds: number;\n}',
   },
@@ -8501,10 +8561,6 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SpeechProviderView',
     declaration: 'export interface SpeechProviderView extends SpeechProviderInfo {\n    readonly preparation: SpeechPreparationState;\n}',
-  },
-  {
-    name: 'SpeechRequest',
-    declaration: 'export interface SpeechRequest {\n    readonly audio: Uint8Array;\n    readonly providerId?: SpeechProviderId;\n    readonly language?: string;\n}',
   },
   {
     name: 'SpeechSelection',
@@ -9081,6 +9137,46 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'TreeDiff',
     declaration: 'export interface TreeDiff {\n    complete: boolean;\n    added: readonly DesktopNode[];\n    removed: readonly number[];\n    changed: readonly NodeChange[];\n    unchanged: readonly number[];\n}',
+  },
+  {
+    name: 'TtsCatalog',
+    declaration: 'export interface TtsCatalog {\n    readonly voices: readonly TtsVoiceView[];\n    readonly voiceByLanguage: Readonly<Record<string, string>>;\n}',
+  },
+  {
+    name: 'TtsInput',
+    declaration: 'export interface TtsInput {\n    readonly text: string;\n    readonly voiceId: TtsVoiceId;\n}',
+  },
+  {
+    name: 'TtsProvider',
+    declaration: 'export interface TtsProvider {\n    readonly info: TtsProviderInfo;\n    readonly voices: readonly TtsVoice[];\n    synthesize(input: TtsInput, signal: AbortSignal): Promise<Uint8Array>;\n}',
+  },
+  {
+    name: 'TtsProviderId',
+    declaration: 'export type TtsProviderId = Branded<\'TtsProviderId\'>;',
+  },
+  {
+    name: 'TtsProviderInfo',
+    declaration: 'export interface TtsProviderInfo {\n    readonly id: TtsProviderId;\n    readonly name: string;\n    readonly location: \'host-local\' | \'cloud\';\n}',
+  },
+  {
+    name: 'TtsRequest',
+    declaration: 'export interface TtsRequest {\n    readonly text: string;\n    readonly language?: string;\n    readonly voiceId?: TtsVoiceId;\n}',
+  },
+  {
+    name: 'TtsSpec',
+    declaration: 'export interface TtsSpec {\n    readonly provider: TtsProvider;\n    readonly text: string;\n    readonly voiceId: TtsVoiceId;\n}',
+  },
+  {
+    name: 'TtsVoice',
+    declaration: 'export interface TtsVoice {\n    readonly id: TtsVoiceId;\n    readonly name: string;\n    readonly language: string;\n    readonly gender?: \'female\' | \'male\';\n}',
+  },
+  {
+    name: 'TtsVoiceId',
+    declaration: 'export type TtsVoiceId = Branded<\'TtsVoiceId\'>;',
+  },
+  {
+    name: 'TtsVoiceView',
+    declaration: 'export interface TtsVoiceView extends TtsVoice {\n    readonly providerId: TtsProviderId;\n    readonly providerName: string;\n}',
   },
   {
     name: 'TurnEndCancelCause',

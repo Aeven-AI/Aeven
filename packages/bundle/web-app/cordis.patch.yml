@@ -197,6 +197,44 @@
     - id: api-speech-to-text
       name: '@aeven/api-speech-to-text'
 
+    # Read-aloud: the synthesis registry, the Edge read-aloud provider, and the
+    # browser's `tts` Remote. Synthesis stays on this Host; the encoded audio
+    # travels to the Surface, which plays it on the reader's own machine. Ava is
+    # the default English voice, and each language maps to its own voice because
+    # a voice speaks exactly one language.
+    - id: text-to-speech
+      name: '@aeven/text-to-speech'
+      config:
+        voiceByLanguage:
+          en: en-US-AvaMultilingualNeural
+          nl: nl-NL-FennaNeural
+          es: es-CO-SalomeNeural
+          zh: zh-CN-XiaoxiaoNeural
+          de: de-DE-SeraphinaMultilingualNeural
+
+    - id: text-to-speech-edge
+      name: '@aeven/text-to-speech-edge'
+      config:
+        voices:
+          - id: en-US-AvaMultilingualNeural
+            name: Ava
+            language: en
+          - id: nl-NL-FennaNeural
+            name: Fenna
+            language: nl
+          - id: es-CO-SalomeNeural
+            name: Salome
+            language: es
+          - id: zh-CN-XiaoxiaoNeural
+            name: Xiaoxiao
+            language: zh
+          - id: de-DE-SeraphinaMultilingualNeural
+            name: Seraphina
+            language: de
+
+    - id: api-text-to-speech
+      name: '@aeven/api-text-to-speech'
+
     # Long-term memory: the `memory` slot and the MemOS provider, which runs the
     # MemOS core in this process and routes its auxiliary model calls through
     # the owning session's `llm` route. The slot always mounts because the
@@ -645,6 +683,12 @@
     # host half is the `speech-to-text` rows above; audio stays on this Host.
     - id: ui-voice-input
       name: '@aeven/client-ui-voice-input'
+
+    # Read-aloud: the composer speaker toggle beside dictation. Reading is
+    # session-scoped and starts off; the host half is the `text-to-speech` rows
+    # above, and the audio plays in this browser, not on the Host.
+    - id: ui-tts
+      name: '@aeven/client-ui-tts'
 
     # Goal surface: GoalBar in the input dock over the goal session projection.
     - id: ui-goal

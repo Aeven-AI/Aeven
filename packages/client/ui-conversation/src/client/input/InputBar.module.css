@@ -247,16 +247,24 @@
   flex: 1;
 }
 
-/* The leading cluster spaces its controls 8px apart, the trailing cluster's own
-   gap (figma 75:8208 drew 16 between + and the mode chips and 4 between Plan /
+/* The clusters pack their icons flush; the row's outer controls carry the 8px
+   inside instead — the attach circle on its right, the send circle on its left
+   (figma 75:8208 drew 16 between + and the mode chips and 4 between Plan /
    Read-only; the chip gap widened to 12 so the pill chips read as separate
    controls). */
 .tools {
-  gap: 8px;
+  gap: 0;
 }
 
 .modes {
   gap: 12px;
+}
+
+/* An empty mode group is a zero-width flex item that the row's gap still counts
+   on both sides, so the control after it reads a double space away. Hiding it
+   restores one gap; the group shows again as soon as its slot renders a chip. */
+.modes:not(:has(> :not(:empty))) {
+  display: none;
 }
 
 .trailing {
@@ -267,8 +275,8 @@
      model trigger (external:107). The auto margin re-anchors it right on the
      wrapped line; on a single line space-between already pins it right. */
   margin-left: auto;
-  /* The same 8px the leading cluster spaces its controls with. */
-  gap: 8px;
+  /* Flush like the leading cluster; the send circle owns the 8px before it. */
+  gap: 0;
 }
 
 /* Attach-menu glyphs: the icon box is the primitive's, the ink is the row's
@@ -284,6 +292,9 @@
   display: grid;
   place-items: center;
   flex: none;
+  /* The 8px the cluster no longer spends as a gap, kept on this side of the
+     circle so the icons after it read as one packed group. */
+  margin-right: 8px;
   width: var(--dsw-aeven-control-size);
   height: var(--dsw-aeven-control-size);
   border: 1.5px solid var(--dsw-alias-label-primary);
@@ -337,6 +348,9 @@
   display: grid;
   place-items: center;
   flex: none;
+  /* The 8px the cluster no longer spends as a gap, kept on this side of the
+     circle so the controls before it read as one packed group. */
+  margin-left: 8px;
   width: var(--dsw-aeven-control-size);
   height: var(--dsw-aeven-control-size);
   border: 1.5px solid var(--dsw-alias-label-primary);
