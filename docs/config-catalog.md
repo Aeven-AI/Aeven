@@ -111,7 +111,7 @@ export interface Config {
 
 Depends on: [`AgentOptions`](subsystems/core.md) · [`SessionId`](subsystems/core.md)
 
-Source: [`packages/core/agent-loop/src/index.ts:330`](../packages/core/agent-loop/src/index.ts)
+Source: [`packages/core/agent-loop/src/index.ts:331`](../packages/core/agent-loop/src/index.ts)
 
 <a id="aevenagent-presets"></a>
 
@@ -467,7 +467,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/guard/bash-edit-guard/src/index.ts:32`](../packages/guard/bash-edit-guard/src/index.ts)
+Source: [`packages/guard/bash-edit-guard/src/index.ts:35`](../packages/guard/bash-edit-guard/src/index.ts)
 
 <a id="aevenbash-local"></a>
 
@@ -1357,8 +1357,8 @@ export interface Config {
   /**
    * Replaces `${CLAUDE_PROJECT_DIR}` in command strings AND is exported as the
    * `CLAUDE_PROJECT_DIR` env var for hook processes. When omitted, the env var
-   * defaults per-run to the agent's session workspace (`session.header.cwd`, the
-   * same dir the hook runs in) — Claude Code always exports this var, and common
+   * defaults per-run to the session's directory on this device (the one the hook
+   * runs in) — Claude Code always exports this var, and common
    * unmodified hooks reference `$CLAUDE_PROJECT_DIR` for project-relative paths.
    */
   projectDir?: string
@@ -1369,7 +1369,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/hooks/hooks-claude-code/src/index.ts:46`](../packages/hooks/hooks-claude-code/src/index.ts)
+Source: [`packages/hooks/hooks-claude-code/src/index.ts:47`](../packages/hooks/hooks-claude-code/src/index.ts)
 
 <a id="aevenhooks-codex"></a>
 
@@ -1396,7 +1396,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/hooks/hooks-codex/src/index.ts:45`](../packages/hooks/hooks-codex/src/index.ts)
+Source: [`packages/hooks/hooks-codex/src/index.ts:46`](../packages/hooks/hooks-codex/src/index.ts)
 
 <a id="aevenhost-account-integrations"></a>
 
@@ -3004,7 +3004,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/context/project-context/src/index.ts:31`](../packages/context/project-context/src/index.ts)
+Source: [`packages/context/project-context/src/index.ts:32`](../packages/context/project-context/src/index.ts)
 
 <a id="aevenpwsh-local"></a>
 
@@ -3161,8 +3161,9 @@ export interface Config {
   /** File-sandbox mode a session starts from (default: `read-only`). */
   mode?: SandboxMode
   /**
-   * Fallback root for agentless calls and sessions without a cwd (default:
-   * `process.cwd()`). Normal agent calls use their session cwd instead.
+   * Fallback root for agentless calls and for sessions that record no directory
+   * (default: `process.cwd()`). A session with a workspace uses this device's
+   * binding for it instead.
    */
   workspaceRoot?: string
 }
@@ -3832,8 +3833,10 @@ export interface Config {
    * Working directory override for the child process and its ACP session.
    * Must be non-empty; a relative path resolves against the harness launch
    * directory at load, and the result must be an existing directory. When
-   * omitted, each child inherits its delegating parent session's cwd — and
-   * starting one from a parent session that has no cwd fails.
+   * omitted, each child starts in this device's directory for its delegating
+   * parent session's workspace — starting one from a parent session that
+   * records no directory fails, and a parent workspace with no folder on this
+   * device refuses.
    */
   cwd?: string
   /**
@@ -3864,7 +3867,7 @@ export interface Config {
 export type PermissionPolicy = 'allow' | 'reject'
 ```
 
-Source: [`packages/subagent/subagent-acp/src/index.ts:27`](../packages/subagent/subagent-acp/src/index.ts)
+Source: [`packages/subagent/subagent-acp/src/index.ts:30`](../packages/subagent/subagent-acp/src/index.ts)
 
 <a id="aevensubagent-avn-sdk"></a>
 
@@ -3889,9 +3892,10 @@ export interface Config {
    * Working directory override for the child process and its SDK session
    * workspace. Must be non-empty; a relative path resolves against the
    * harness launch directory at load, and the result must be an existing
-   * directory. When omitted, each child inherits its delegating parent
-   * session's cwd — and starting one from a parent session that has no cwd
-   * fails.
+   * directory. When omitted, each child starts in this device's directory for
+   * its delegating parent session's workspace — starting one from a parent
+   * session that records no directory fails, and a parent workspace with no
+   * folder on this device refuses.
    */
   cwd?: string
   /** Provider route the child runtime initializes with (default `deepseek-official`). */
@@ -3920,7 +3924,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/subagent/subagent-avn-sdk/src/index.ts:34`](../packages/subagent/subagent-avn-sdk/src/index.ts)
+Source: [`packages/subagent/subagent-avn-sdk/src/index.ts:37`](../packages/subagent/subagent-avn-sdk/src/index.ts)
 
 <a id="aevensubagent-claude-code"></a>
 
@@ -3955,7 +3959,7 @@ export interface Config {
 export type ClaudeCodePermissionMode = typeof CLAUDE_CODE_PERMISSION_MODES[number]
 ```
 
-Source: [`packages/subagent/subagent-claude-code/src/index.ts:38`](../packages/subagent/subagent-claude-code/src/index.ts)
+Source: [`packages/subagent/subagent-claude-code/src/index.ts:42`](../packages/subagent/subagent-claude-code/src/index.ts)
 
 <a id="aevensubagent-codex"></a>
 
@@ -3988,7 +3992,7 @@ export type CodexPermissionMode =
   | 'dangerously-bypass-approvals-and-sandbox'
 ```
 
-Source: [`packages/subagent/subagent-codex/src/index.ts:36`](../packages/subagent/subagent-codex/src/index.ts)
+Source: [`packages/subagent/subagent-codex/src/index.ts:37`](../packages/subagent/subagent-codex/src/index.ts)
 
 <a id="aevensubagent-fork-in-process"></a>
 
@@ -4731,7 +4735,7 @@ export interface ImageModelChoice {
 }
 ```
 
-Source: [`packages/media/tool-media/src/index.ts:140`](../packages/media/tool-media/src/index.ts)
+Source: [`packages/media/tool-media/src/index.ts:141`](../packages/media/tool-media/src/index.ts)
 
 <a id="aeventool-memory"></a>
 
@@ -4881,7 +4885,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/skill/tool-skill/src/index.ts:61`](../packages/skill/tool-skill/src/index.ts)
+Source: [`packages/skill/tool-skill/src/index.ts:62`](../packages/skill/tool-skill/src/index.ts)
 
 <a id="aeventool-str-replace-editor"></a>
 
@@ -5104,7 +5108,7 @@ Requires: `llm`
 export interface Config {
   /** Tool names whose successful call in a turn makes it a turn to review. */
   triggerTools: string[]
-  /** Reviews per turn; a turn whose findings persist after this many rounds closes anyway. */
+  /** Reviews per turn; unresolved findings at this limit fail the turn. */
   maxReviewsPerTurn: number
   /** Cap on the characters of one tool argument, tool result, or message quoted to the reviewer. */
   maxEntryChars: number
@@ -5171,6 +5175,32 @@ export type ApprovalPolicy = 'ask' | 'never'
 ```
 
 Source: [`packages/interaction/user-approval/src/index.ts:132`](../packages/interaction/user-approval/src/index.ts)
+
+<a id="aevenvcs-git"></a>
+
+## `@aeven/vcs-git`
+
+Requires: `subprocess` · `vcs`
+
+```ts config-catalog
+/** Deployment bounds and defaults for the git provider. */
+export interface Config {
+  /** Grace a git child gets between termination signals. */
+  graceMs: number
+  /** Largest output tail retained for one git call. */
+  outputMaxBytes: number
+  /** Largest diff returned to a caller; a longer diff is cut and marked truncated. */
+  diffMaxBytes: number
+  /** Commit count reported when a request omits one. */
+  logLimit: number
+  /** Largest commit count a request may ask for. */
+  logLimitMax: number
+  /** Largest number of changed paths one status report keeps. */
+  statusMaxEntries: number
+}
+```
+
+Source: [`packages/vcs/vcs-git/src/index.ts:61`](../packages/vcs/vcs-git/src/index.ts)
 
 <a id="aevenweb"></a>
 
@@ -5529,9 +5559,11 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@aeven/tool-cordis` — requires `tools` · `systemPrompt` · `dynamicCordisRunner` · `cordisInspect` ([`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts))
 - `@aeven/tool-device` — requires `tools` ([`packages/device/tool-device/src/index.ts`](../packages/device/tool-device/src/index.ts))
 - `@aeven/tool-subagent-control` — requires `tools` · `subagents` ([`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts))
+- `@aeven/tool-vcs` — requires `tools` · `vcs` ([`packages/vcs/tool-vcs/src/index.ts`](../packages/vcs/tool-vcs/src/index.ts))
 - `@aeven/tool-working-directory` — requires `tools` · `workingDirectory` ([`packages/session/tool-working-directory/src/index.ts`](../packages/session/tool-working-directory/src/index.ts))
 - `@aeven/tool-worktrees` — requires `tools` · `worktrees` ([`packages/session/tool-worktrees/src/index.ts`](../packages/session/tool-worktrees/src/index.ts))
 - `@aeven/user-questions` ([`packages/interaction/user-questions/src/index.ts`](../packages/interaction/user-questions/src/index.ts))
+- `@aeven/vcs` ([`packages/vcs/vcs/src/index.ts`](../packages/vcs/vcs/src/index.ts))
 - `@aeven/webhook` — requires `agents` · `agentDefaultModel` · `agentPresets` · `permissionPresets` · `sessionTitle` · `workspaceRegistry` ([`packages/webhook/webhook/src/index.ts`](../packages/webhook/webhook/src/index.ts))
 - `@aeven/working-directory` — requires `sessionProjections` ([`packages/session/working-directory/src/index.ts`](../packages/session/working-directory/src/index.ts))
 

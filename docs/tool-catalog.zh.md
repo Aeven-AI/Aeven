@@ -34,6 +34,7 @@
 | `@aeven/tool-goal` | `create_goal`、`get_goal`、`update_goal` | `ctx.tools`、`ctx.agents`、`ctx.goals`、`ctx.systemPrompt`、`a calling Agent in an authorized open turn` | `tool/call`、`goal/change for mutations`、`tool/result` | - | create、edit、pause 和 resume 要求直接来自人类的根权限；complete 和 blocked 也接受确切的当前 Goal Round。blocked 的默认下限是 3 个获准的 Round。 |
 | `@aeven/schedule` | `schedule_create`、`schedule_delete`、`schedule_list` | `ctx.tools`、`ctx.sessions`、Session 持久化、未来创建的 live 根 Agent | `tool/call`、`schedule/change create or delete`、`tool/result` | - | 仅在选择启用的 Schedule 插件加载后创建的 live 根 Agent scope 内注册。版本 1 接受 after_seconds、显式绝对 at 和有界固定速率 every_seconds，并披露 session-local 交付；管理读取与变更必须通过共享的 Session 持久化 barrier。 |
 | `@aeven/tool-lsp` | `lsp` | `ctx.tools`、`ctx.lsp`、`ctx.systemPrompt` | `tool/call`、`tool/result` | - | lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，因此其模型可见 schema 在更换提供方时保持稳定。运行时要求已注册提供方，例如 `@aeven/lsp-stdio`；如果没有提供方，查询会返回结构化 `LSP_UNAVAILABLE` 错误，而不会改变 schema。 |
+| `@aeven/tool-vcs` | `git_branch`, `git_commit`, `git_diff`, `git_log`, `git_merge`, `git_remote`, `git_status` | `ctx.tools`, `ctx.vcs`, `a calling Agent with a session working directory` | `tool/call`, `tool/result` | - | The git tools keep provider selection and git subprocesses behind ctx.vcs, so their model-visible schemas stay stable across providers. Requires a registered provider (e.g. `@aeven/vcs-git`) at runtime; without one, every call returns the structured `VCS_UNAVAILABLE` error rather than changing the schema. |
 | `@aeven/tool-ralph` | `ralph` | `ctx.tools`、`ctx.workflowEngine`、`ctx.subagents`、`ctx.systemPrompt`、`a calling Agent (exec.agent parents every fresh round)` | `tool/call`、`tool/result`、`workflow and child session events during execution` | - | 固定的前台工作流会在每个 Round 启动一个全新的结构化子级；模型只能选择不可变目标和可选的 Round 上限。 |
 | `@aeven/tool-skill` | `skill` | `ctx.tools`、`ctx.agents`、`ctx.skills` | `tool/call`、`tool/result`、`user/message replacement catalogs via agent.inject()` | - | - |
 | `@aeven/tool-search` | `tool_search` | `ctx.tools`、`ctx.systemPrompt`、`mcp/servers listeners (opportunistic)`、`ctx.codeRuntime (opportunistic, for run_code declarations)` | `tool/call`、`tool/result`、`one plugin user message when the deferred tool index changes` | - | 只有在至少有一个工具被延迟、或至少一台执行延迟的 MCP 服务器未在服务时才呈现给模型。关键词查询只列出工具而不加载它们；`select:` 把 schema 加载到后续请求中，或在该请求呈现 `run_code` 时返回 SDK 声明；`restart:` 重新连接一台 MCP 服务器。 |
@@ -1354,6 +1355,195 @@ create、edit、pause 和 resume 要求直接来自人类的根权限；complete
 来源：[`packages/lsp/tool-lsp/src/index.ts`](../packages/lsp/tool-lsp/src/index.ts)
 
 lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，因此其模型可见 schema 在更换提供方时保持稳定。运行时要求已注册提供方，例如 `@aeven/lsp-stdio`；如果没有提供方，查询会返回结构化 `LSP_UNAVAILABLE` 错误，而不会改变 schema。
+
+<a id="aeventool-vcs"></a>
+
+## `@aeven/tool-vcs`
+
+### `git_branch`
+
+List, create, switch, or delete branches. Switching refuses while the checkout has uncommitted changes unless allow_dirty is true, because a switch would otherwise carry or block them unpredictably. Deleting refuses an unmerged branch unless force is true.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "operation": {
+      "type": "string",
+      "description": "What to do: list every local branch, switch to one, create one, or delete one.",
+      "enum": [
+        "list",
+        "switch",
+        "create",
+        "delete"
+      ]
+    },
+    "name": {
+      "type": "string",
+      "description": "Branch name; required for switch, create, and delete."
+    },
+    "from": {
+      "type": "string",
+      "description": "Revision a created branch starts from. Defaults to HEAD."
+    },
+    "allow_dirty": {
+      "type": "boolean",
+      "description": "Switch even though the checkout has uncommitted changes."
+    },
+    "force": {
+      "type": "boolean",
+      "description": "Delete a branch that is not merged."
+    }
+  },
+  "required": [
+    "operation"
+  ]
+}
+```
+
+Source: [`packages/vcs/tool-vcs/src/index.ts`](../packages/vcs/tool-vcs/src/index.ts)
+
+### `git_commit`
+
+Record the staged changes as a commit. Pass paths to stage those paths first, or omit them to commit exactly what the index holds. The message goes to git verbatim, so keep it to one clear subject line and, when useful, a body after a blank line.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "message": {
+      "type": "string",
+      "description": "Commit message, passed to git verbatim."
+    },
+    "paths": {
+      "type": "array",
+      "description": "Repository-relative paths to stage before committing; omit to commit the index as it stands.",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "message"
+  ]
+}
+```
+
+Source: [`packages/vcs/tool-vcs/src/index.ts`](../packages/vcs/tool-vcs/src/index.ts)
+
+### `git_diff`
+
+Show a unified diff of this session's repository. By default it compares the working tree with the index, so it shows what is not staged yet; use staged to compare the index with HEAD, or range for two revisions such as "main..HEAD". A long diff is cut and marked truncated.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "path": {
+      "type": "string",
+      "description": "Repository-relative path to diff; omit for the whole checkout."
+    },
+    "staged": {
+      "type": "boolean",
+      "description": "Compare the index with HEAD instead of the working tree with the index."
+    },
+    "range": {
+      "type": "string",
+      "description": "Two revisions to compare, such as \"main..HEAD\". Takes precedence over staged."
+    }
+  }
+}
+```
+
+Source: [`packages/vcs/tool-vcs/src/index.ts`](../packages/vcs/tool-vcs/src/index.ts)
+
+### `git_log`
+
+List recent commits in this session's repository, newest first, with hash, author, date, and subject. Use it to see what landed before changing history or writing a commit message.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "limit": {
+      "type": "number",
+      "description": "How many commits to report. Omit for the configured default."
+    }
+  }
+}
+```
+
+Source: [`packages/vcs/tool-vcs/src/index.ts`](../packages/vcs/tool-vcs/src/index.ts)
+
+### `git_merge`
+
+Merge a branch or revision into the checked-out branch. A merge that conflicts returns the paths left with conflicts instead of raising only an exit status; abort discards an in-progress merge.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "ref": {
+      "type": "string",
+      "description": "Branch or revision to merge into the checked-out branch."
+    },
+    "abort": {
+      "type": "boolean",
+      "description": "Abort an in-progress merge instead of starting one."
+    }
+  }
+}
+```
+
+Source: [`packages/vcs/tool-vcs/src/index.ts`](../packages/vcs/tool-vcs/src/index.ts)
+
+### `git_remote`
+
+Fetch from a remote or push the current branch to it. Omit remote to use the branch's own remote and omit branch to push the branch that is checked out. The command's own output is returned.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "operation": {
+      "type": "string",
+      "description": "Fetch remote updates, or push the current branch.",
+      "enum": [
+        "fetch",
+        "push"
+      ]
+    },
+    "remote": {
+      "type": "string",
+      "description": "Remote name; omit to use the branch's own remote."
+    },
+    "branch": {
+      "type": "string",
+      "description": "Branch to push; omit to push the checked-out branch."
+    }
+  },
+  "required": [
+    "operation"
+  ]
+}
+```
+
+Source: [`packages/vcs/tool-vcs/src/index.ts`](../packages/vcs/tool-vcs/src/index.ts)
+
+### `git_status`
+
+Report the repository this session works in: checked-out branch, upstream and commits ahead or behind it, and every changed path with its staged and unstaged change. Start here before committing or switching branches.
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+Source: [`packages/vcs/tool-vcs/src/index.ts`](../packages/vcs/tool-vcs/src/index.ts)
+
+The git tools keep provider selection and git subprocesses behind ctx.vcs, so their model-visible schemas stay stable across providers. Requires a registered provider (e.g. `@aeven/vcs-git`) at runtime; without one, every call returns the structured `VCS_UNAVAILABLE` error rather than changing the schema.
 
 <a id="aeventool-ralph"></a>
 

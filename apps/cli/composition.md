@@ -162,6 +162,12 @@ flowchart LR
   cfg --> plugin_avn_base_worktrees
   plugin_avn_base_tool_worktrees["tool-worktrees<br/>@aeven/tool-worktrees"]
   cfg --> plugin_avn_base_tool_worktrees
+  plugin_avn_base_vcs["vcs<br/>@aeven/vcs"]
+  cfg --> plugin_avn_base_vcs
+  plugin_avn_base_vcs_git["vcs-git<br/>@aeven/vcs-git"]
+  cfg --> plugin_avn_base_vcs_git
+  plugin_avn_base_tool_vcs["tool-vcs<br/>@aeven/tool-vcs"]
+  cfg --> plugin_avn_base_tool_vcs
   plugin_avn_base_tool_todo["tool-todo<br/>@aeven/tool-todo"]
   cfg --> plugin_avn_base_tool_todo
   plugin_avn_base_tool_goal["tool-goal<br/>@aeven/tool-goal"]
@@ -277,6 +283,9 @@ flowchart LR
 | `tool-working-directory` | `@aeven/tool-working-directory` |
 | `worktrees` | `@aeven/worktrees` |
 | `tool-worktrees` | `@aeven/tool-worktrees` |
+| `vcs` | `@aeven/vcs` |
+| `vcs-git` | `@aeven/vcs-git` |
+| `tool-vcs` | `@aeven/tool-vcs` |
 | `tool-todo` | `@aeven/tool-todo` |
 | `tool-goal` | `@aeven/tool-goal` |
 | `tool-ralph` | `@aeven/tool-ralph` |

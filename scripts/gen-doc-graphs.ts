@@ -707,6 +707,15 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Provider registration and selection plus normalized query execution over exactly four operations; the seam offers no protocol escape hatch, so a backend translates into the normalized request and result.',
   },
   {
+    key: 'vcs',
+    pkg: 'vcs',
+    title: 'Version-control seam',
+    mode: 'seam',
+    implementations: ['vcs-git'],
+    consumers: ['tool-vcs'],
+    note: 'Provider registration and selection plus normalized checkout operations; a changed path keeps its staged and unstaged sides, and reports state their bounds instead of returning a smaller complete-looking value.',
+  },
+  {
     key: 'dynamicCordisRunner',
     pkg: 'cordis-host-runner',
     title: 'Dynamic Cordis package host runner',

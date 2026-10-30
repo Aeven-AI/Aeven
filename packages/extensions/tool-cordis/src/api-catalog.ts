@@ -4154,6 +4154,25 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'vcs',
+    summary: '`ctx.vcs`: the checkout operations over whichever provider handles the directory, plus the registration that supplies them.',
+    description: '`ctx.vcs`: the checkout operations over whichever provider handles the directory, plus the registration that supplies them.',
+    methods: [
+      {
+        signature: 'registerProvider(provider: VcsProvider): () => void',
+        description: 'Reserve a provider id and the operations it implements.',
+        parameters: [{ name: 'provider', description: 'the implementation to publish.' }],
+        returns: 'the disposer that withdraws it.',
+      },
+      {
+        signature: 'repository(cwd: string, signal?: AbortSignal): Promise<{ provider: VcsProvider; repositoryRoot: string }>',
+        description: 'Select the provider that handles a directory and resolve its repository.',
+        parameters: [{ name: 'cwd', description: 'any directory inside a checkout.' }, { name: 'signal', description: 'cancels detection.' }],
+        returns: 'the provider and the absolute repository root.',
+      },
+    ],
+  },
+  {
     key: 'web',
     summary: 'The web access service.',
     description: 'The web access service. Registered as `ctx.web` (one instance per context).\n\nSelection semantics (resolved at execution time, never order-dependent):\n\n- A configured id that is registered and `available()` → that provider.\n- A configured id not registered → `WEB_PROVIDER_CONFIGURED_MISSING`.\n- A configured id registered but unavailable → `WEB_PROVIDER_CONFIGURED_UNAVAILABLE`.\n- No id configured, exactly one registered usable provider → that provider.\n- No id configured, multiple usable providers → `WEB_PROVIDER_AMBIGUOUS`.\n- No id configured, no usable provider → `WEB_PROVIDER_UNAVAILABLE`.',
@@ -9190,6 +9209,90 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'UserResolver',
     declaration: 'export interface UserResolver {\n    readonly id: string;\n    resolve(request: IdentityRequest): User | undefined;\n    readonly credentialRef?: CredentialRef;\n}',
+  },
+  {
+    name: 'VcsBranch',
+    declaration: 'export interface VcsBranch {\n    readonly name: string;\n    readonly current: boolean;\n}',
+  },
+  {
+    name: 'VcsChange',
+    declaration: 'export interface VcsChange {\n    readonly path: string;\n    readonly staged: VcsChangeKind | null;\n    readonly worktree: VcsChangeKind | null;\n}',
+  },
+  {
+    name: 'VcsChangeKind',
+    declaration: 'export type VcsChangeKind = \'added\' | \'modified\' | \'deleted\' | \'renamed\' | \'copied\' | \'type-changed\' | \'untracked\' | \'conflicted\' | \'unknown\';',
+  },
+  {
+    name: 'VcsCommit',
+    declaration: 'export interface VcsCommit {\n    readonly hash: string;\n    readonly shortHash: string;\n    readonly author: string;\n    readonly date: string;\n    readonly subject: string;\n}',
+  },
+  {
+    name: 'VcsCommitRequest',
+    declaration: 'export interface VcsCommitRequest {\n    readonly message: string;\n    readonly paths?: readonly string[] | undefined;\n}',
+  },
+  {
+    name: 'VcsCommitResult',
+    declaration: 'export interface VcsCommitResult {\n    readonly commit: VcsCommit;\n}',
+  },
+  {
+    name: 'VcsDeleteBranchRequest',
+    declaration: 'export interface VcsDeleteBranchRequest {\n    readonly name: string;\n    readonly force?: boolean | undefined;\n}',
+  },
+  {
+    name: 'VcsDiff',
+    declaration: 'export interface VcsDiff {\n    readonly text: string;\n    readonly truncated: boolean;\n}',
+  },
+  {
+    name: 'VcsDiffRequest',
+    declaration: 'export interface VcsDiffRequest {\n    readonly path?: string | undefined;\n    readonly staged?: boolean | undefined;\n    readonly range?: string | undefined;\n}',
+  },
+  {
+    name: 'VcsLog',
+    declaration: 'export interface VcsLog {\n    readonly commits: readonly VcsCommit[];\n}',
+  },
+  {
+    name: 'VcsLogRequest',
+    declaration: 'export interface VcsLogRequest {\n    readonly limit?: number | undefined;\n}',
+  },
+  {
+    name: 'VcsMergeRequest',
+    declaration: 'export interface VcsMergeRequest {\n    readonly ref: string;\n    readonly abort?: boolean | undefined;\n}',
+  },
+  {
+    name: 'VcsMergeResult',
+    declaration: 'export interface VcsMergeResult {\n    readonly outcome: \'merged\' | \'conflicted\' | \'up-to-date\' | \'aborted\';\n    readonly conflicts: readonly string[];\n    readonly output: string;\n}',
+  },
+  {
+    name: 'VcsOperations',
+    declaration: 'export interface VcsOperations {\n    status(cwd: string, signal?: AbortSignal): Promise<VcsStatus>;\n    diff(cwd: string, request: VcsDiffRequest, signal?: AbortSignal): Promise<VcsDiff>;\n    log(cwd: string, request: VcsLogRequest, signal?: AbortSignal): Promise<VcsLog>;\n    stage(cwd: string, paths: readonly string[], signal?: AbortSignal): Promise<void>;\n    unstage(cwd: string, paths: readonly string[], signal?: AbortSignal): Promise<void>;\n    commit(cwd: string, request: VcsCommitRequest, signal?: AbortSignal): Promise<VcsCommitResult>;\n    listBranches(cwd: string, signal?: AbortSignal): Promise<readonly VcsBranch[]>;\n    switchBranch(cwd: string, request: VcsSwitchRequest, signal?: AbortSignal): Promise<VcsSwitchResult>;\n    deleteBranch(cwd: string, request: VcsDeleteBranchRequest, signal?: AbortSignal): Promise<void>;\n    remote(cwd: string, request: VcsRemoteRequest, signal?: AbortSignal): Promise<VcsRemoteResult>;\n    merge(cwd: string, request: VcsMergeRequest, signal?: AbortSignal): Promise<VcsMergeResult>;\n}',
+  },
+  {
+    name: 'VcsProvider',
+    declaration: 'export interface VcsProvider extends VcsOperations {\n    readonly id: VcsProviderId;\n    detect(cwd: string, signal?: AbortSignal): Promise<string | null>;\n}',
+  },
+  {
+    name: 'VcsProviderId',
+    declaration: 'export type VcsProviderId = Branded<\'vcs-provider-id\'>;',
+  },
+  {
+    name: 'VcsRemoteRequest',
+    declaration: 'export interface VcsRemoteRequest {\n    readonly operation: \'fetch\' | \'push\';\n    readonly remote?: string | undefined;\n    readonly branch?: string | undefined;\n}',
+  },
+  {
+    name: 'VcsRemoteResult',
+    declaration: 'export interface VcsRemoteResult {\n    readonly output: string;\n}',
+  },
+  {
+    name: 'VcsStatus',
+    declaration: 'export interface VcsStatus {\n    readonly repositoryRoot: string;\n    readonly branch: string | null;\n    readonly upstream: string | null;\n    readonly ahead: number;\n    readonly behind: number;\n    readonly changes: readonly VcsChange[];\n    readonly truncated: boolean;\n}',
+  },
+  {
+    name: 'VcsSwitchRequest',
+    declaration: 'export interface VcsSwitchRequest {\n    readonly name: string;\n    readonly create?: boolean | undefined;\n    readonly from?: string | undefined;\n    readonly allowDirty?: boolean | undefined;\n}',
+  },
+  {
+    name: 'VcsSwitchResult',
+    declaration: 'export interface VcsSwitchResult {\n    readonly branch: string;\n    readonly created: boolean;\n}',
   },
   {
     name: 'VerificationOutcome',

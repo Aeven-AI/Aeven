@@ -48,6 +48,7 @@ Every package lives in exactly one group; new packages join existing groups, and
 | [`device/`](device/README.md) | `ctx.devices` seam, the local simulator toolchain host, and the model-facing device tools |
 | [`fs/`](fs/README.md) | Filesystem capability family: seam, local impl, model-facing file tools, discovery tools |
 | [`lsp/`](lsp/README.md) | LSP capability family: seam, generic stdio provider, and the `lsp` tool |
+| [`vcs/`](vcs/README.md) | Version-control capability family: seam, git provider, and the `git_*` tools |
 | [`skill/`](skill/README.md) | Skill capability family: provider registry, local provider, model-facing catalog/loader |
 | [`compaction/`](compaction/README.md) | Compaction capability family: Service Definition + basic provider + command Consumer |
 | [`context/`](context/README.md) | Model-visible request context: workspace instructions, time context, references |

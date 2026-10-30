@@ -455,6 +455,26 @@
     - id: tool-worktrees
       name: '@aeven/tool-worktrees'
 
+    # Source control as one capability: `ctx.vcs` reports a checkout's branch,
+    # upstream, changed paths, diffs, and history, and the git tools below stage,
+    # commit, branch, sync, and merge through it. Read-only reports skip
+    # repository hooks and fsmonitor; history and checkout changes run them.
+    - id: vcs
+      name: '@aeven/vcs'
+
+    - id: vcs-git
+      name: '@aeven/vcs-git'
+      config:
+        graceMs: 5000
+        outputMaxBytes: 1000000
+        diffMaxBytes: 200000
+        logLimit: 20
+        logLimitMax: 100
+        statusMaxEntries: 2000
+
+    - id: tool-vcs
+      name: '@aeven/tool-vcs'
+
     - id: tool-todo
       name: '@aeven/tool-todo'
       config:
