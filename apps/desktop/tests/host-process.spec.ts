@@ -112,6 +112,32 @@ function answer(streamId) {
     }
   })
 
+  it('hands the child the configured V8 compile cache and leaves an unconfigured one alone', async () => {
+    const project = projectWithHost(`
+process.send({
+  type: 'ready', protocolVersion: 6, url: 'http://127.0.0.1:3080/', ownsHost: true,
+  avnVersion: process.env.NODE_COMPILE_CACHE ?? 'none',
+})
+function onRequestFrame() {}
+`)
+    const cache = mkdtempSync(join(tmpdir(), 'avn-desktop-compile-cache-'))
+    roots.push(cache)
+    const cached = new DesktopHostProcess(process.execPath, project, tmpdir(), undefined, cache)
+    try {
+      await expect(cached.start()).resolves.toMatchObject({ avnVersion: cache })
+      await expect(cached.stop()).resolves.toBeUndefined()
+    } finally {
+      await cached.stop().catch(() => undefined)
+    }
+    const plain = new DesktopHostProcess(process.execPath, project, tmpdir())
+    try {
+      await expect(plain.start()).resolves.toMatchObject({ avnVersion: 'none' })
+      await expect(plain.stop()).resolves.toBeUndefined()
+    } finally {
+      await plain.stop().catch(() => undefined)
+    }
+  })
+
   it('streams a large binary response in bounded raw frames', async () => {
     const size = 2 * 1024 * 1024
     const project = projectWithHost(`
