@@ -369,7 +369,7 @@
         command: !!js "process.platform === 'win32' ? 'npx.cmd' : 'npx'"
         args:
           - '-y'
-          - chrome-devtools-mcp@latest
+          - chrome-devtools-mcp@1.12.0
           - '--browser-url=http://127.0.0.1:9333'
           - '--no-usage-statistics'
           # Chrome DevTools MCP restricts file paths to the OS temp directory
@@ -385,8 +385,8 @@
           - '--workspace'
           - !!js "process.env.HOME ?? process.env.USERPROFILE"
         failOnStartupError: false
-        # npx resolution takes seconds; the tools register when the server
-        # connects instead of holding up the Host's readiness.
+        # A pinned version skips the `latest` dist-tag lookup; the tools
+        # register when the server connects instead of holding up readiness.
         awaitStartup: false
     - id: mcp-playwright
       name: '@aeven/mcp-client'
@@ -397,7 +397,7 @@
         command: !!js "process.platform === 'win32' ? 'npx.cmd' : 'npx'"
         args:
           - '-y'
-          - '@playwright/mcp@latest'
+          - '@playwright/mcp@0.0.83'
           - '--headless'
           - '--caps=devtools'
         failOnStartupError: false
