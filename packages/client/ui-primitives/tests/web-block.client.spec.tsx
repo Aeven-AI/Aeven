@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it } from 'vitest'
-import { cleanup, render } from '@testing-library/react'
+import { cleanup, fireEvent, render } from '@testing-library/react'
 import { WebBlock as LocalizedWebBlock } from '../src/index.ts'
 import type {
   WebFetchBlockProps, WebSearchBlockProps, WebSourceView,
@@ -53,13 +53,13 @@ describe('WebBlock search card', () => {
   it('shows the empty-state note when a search returns no answer and no sources', () => {
     const view = render(<WebBlock kind="search" sources={[]} truncated={false} />)
     expect(view.getByText('未找到结果')).toBeTruthy()
-    // The empty note replaces the source list, not an empty <ol>.
-    expect(view.container.querySelector('ol')).toBeNull()
+    // The empty note replaces the source list, not an empty list element.
+    expect(view.container.querySelector('ul')).toBeNull()
   })
 
   it('shows the source list, not the empty note, when a source is present', () => {
     const view = render(<WebBlock kind="search" sources={sources(1)} truncated={false} />)
-    expect(view.container.querySelector('ol')).toBeTruthy()
+    expect(view.container.querySelector('ul')).toBeTruthy()
     expect(view.queryByText('未找到结果')).toBeNull()
   })
 
@@ -129,36 +129,36 @@ describe('WebBlock search card', () => {
     expect(view.container.querySelectorAll('[class^="_published_"]')).toHaveLength(1)
   })
 
-  it('shows the truncated indicator only when the list was capped by the tool', () => {
-    const on = render(<WebBlock kind="search" sources={sources(1)} truncated />)
-    expect(on.getByText('来源列表已截断')).toBeTruthy()
-    cleanup()
-    const off = render(<WebBlock kind="search" sources={sources(1)} truncated={false} />)
-    expect(off.queryByText('来源列表已截断')).toBeNull()
+  it('folds a long source list after four rows and expands it on demand', () => {
+    const view = render(<WebBlock kind="search" sources={sources(30)} truncated={false} />)
+    expect(view.container.querySelectorAll('li[class^="_source_"]')).toHaveLength(4)
+    expect(view.getByText('全部 30 个来源')).toBeTruthy()
+    const toggle = view.container.querySelector('button[aria-expanded]')!
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    fireEvent.click(toggle)
+    expect(view.container.querySelectorAll('li[class^="_source_"]')).toHaveLength(30)
+    expect(view.getByText('收起')).toBeTruthy()
+    expect(toggle.getAttribute('aria-expanded')).toBe('true')
+    fireEvent.click(toggle)
+    expect(view.container.querySelectorAll('li[class^="_source_"]')).toHaveLength(4)
   })
 
-  it('renders every source in one <ol> with no expand control', () => {
-    // The card shows the whole list the tool returned, with no head/tail
-    // collapse and no expand button. jsdom does not resolve the CSS Modules
-    // layout, so the scroll geometry the `.sources` max-height produces is
-    // pinned by the assembled browser case in apps/web/tests/web-search-round.e2e.ts,
-    // not here.
-    const view = render(<WebBlock kind="search" sources={sources(30)} truncated={false} />)
-    expect(view.container.querySelectorAll('li[class^="_source_"]')).toHaveLength(30)
-    expect(view.container.querySelector('[aria-expanded]')).toBeNull()
-    // The header's copy control is the card's only button; the list itself has
-    // no expander.
+  it('draws no fold control when every source fits', () => {
+    const view = render(<WebBlock kind="search" sources={sources(4)} truncated={false} />)
+    expect(view.container.querySelectorAll('li[class^="_source_"]')).toHaveLength(4)
+    // The header's copy control is the card's only button.
     expect([...view.container.querySelectorAll('button')]
       .map(button => button.getAttribute('aria-label'))).toEqual(['复制'])
-    // Every direct child of the <ol> is a source <li> (no marker-less expander).
-    const ol = view.container.querySelector('ol')!
-    expect([...ol.children].every(child => child.tagName === 'LI')).toBe(true)
   })
 
-  it('numbers every source by its 1-based citation index via <li value>', () => {
-    const view = render(<WebBlock kind="search" sources={sources(4)} truncated={false} />)
+  it('keeps a row readable by its 1-based citation index after folding', () => {
+    const view = render(<WebBlock kind="search" sources={sources(6)} truncated={false} />)
     const items = [...view.container.querySelectorAll('li[class^="_source_"]')]
-    expect(items.map(li => li.getAttribute('value'))).toEqual(['1', '2', '3', '4'])
+    expect(items.map(li => li.querySelector('[class^="_index_"]')?.textContent)).toEqual(['1.', '2.', '3.', '4.'])
+    fireEvent.click(view.container.querySelector('button[aria-expanded]')!)
+    const expanded = [...view.container.querySelectorAll('li[class^="_source_"]')]
+    expect(expanded.map(li => li.querySelector('[class^="_index_"]')?.textContent))
+      .toEqual(['1.', '2.', '3.', '4.', '5.', '6.'])
   })
 })
 

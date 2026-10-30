@@ -60,7 +60,8 @@ export const jsonTreeLabels: JsonTreeLabels = {
 }
 
 export const webBlockLabels: WebBlockLabels = {
-  noResults: '未找到结果', sourcesTruncated: '来源列表已截断',
+  noResults: '未找到结果',
+  sourcesAll: count => `全部 ${count} 个来源`, sourcesCollapse: '收起',
   http: 'HTTP', contentTruncated: '内容已截断',
   fetchTitle: '抓取', searchTitle: '搜索', copy: '复制', copied: '复制成功',
   markdown: markdownLabels,

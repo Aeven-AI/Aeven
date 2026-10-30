@@ -29,9 +29,9 @@ const SEARCH_CREDENTIAL = 'snapshot-search-key'
 
 /**
  * Provider results the double returns per query. The combined result exceeds
- * the shipped `searchMaxResults`, so the tool's round-robin cap and the card's
- * scroll container are both exercised. Each row carries a title, a snippet,
- * and a date, so 8 kept rows exceed the `.sources` 320px max-height.
+ * the shipped `searchMaxResults`, so the tool's round-robin cap is exercised and
+ * the kept list is long enough to fold. Each row carries a title, a snippet, and
+ * a date.
  */
 const PROVIDER_RESULT_COUNT = 6
 
@@ -270,54 +270,34 @@ describe('web e2e: shipped default web search', () => {
     await compareOrRefreshGolden(UI_EXPECTED, snapshot, MODE)
   })
 
-  it.skipIf(MODE === 'record')('scrolls the capped source list inside the fixed-height container', async () => {
-    onTestFailed(() => saveFailureShot(page, 'web-e2e-search-sources-scroll'))
+  it.skipIf(MODE === 'record')('folds the capped source list to four rows and expands it in place', async () => {
+    onTestFailed(() => saveFailureShot(page, 'web-e2e-search-sources-fold'))
     const row = page.locator('[data-tool="web_search"] [data-expandable]').first()
     await expandOwningTurnProcess(page, row)
     await row.click()
     await expect.poll(() => row.getAttribute('aria-expanded'), { timeout: 5_000 }).toBe('true')
 
     const card = page.locator('[data-web="search"]')
-    const sources = card.locator('ol')
+    const sources = card.locator('ul')
     await sources.waitFor({ timeout: 10_000 })
-    // The card draws exactly the sources the model saw after the combined cap.
+    // The card draws exactly the sources the model saw after the combined cap,
+    // folded to the edited-files card's four rows.
+    expect(await sources.locator('li').count()).toBe(4)
+
+    const toggle = card.locator('button[aria-expanded]')
+    expect(await toggle.getAttribute('aria-expanded')).toBe('false')
+    await toggle.click()
     expect(await sources.locator('li').count()).toBe(WEB_SEARCH_MAX_RESULTS)
-    // The list is complete in the DOM, so the card carries no expand control.
-    expect(await card.locator('button').count()).toBe(0)
-    expect(await card.getByText('Source list truncated').isVisible()).toBe(true)
-
-    const geometry = await sources.evaluate((element) => {
-      const computed = getComputedStyle(element)
-      return {
-        maxHeight: computed.maxHeight,
-        overflowY: computed.overflowY,
-        scrollHeight: element.scrollHeight,
-        clientHeight: element.clientHeight,
-      }
-    })
-    expect(geometry.maxHeight).toBe('320px')
-    expect(geometry.overflowY).toBe('auto')
-    expect(geometry.scrollHeight).toBeGreaterThan(geometry.clientHeight)
-  })
-
-  it.skipIf(MODE === 'record')('reserves marker room a scroll container cannot clip back', async () => {
-    onTestFailed(() => saveFailureShot(page, 'web-e2e-search-marker-room'))
-    await expandOwningTurnProcess(page, page.locator('[data-tool="web_search"]'))
-    // `overflow-y: auto` clips inline-start overflow with no way to scroll it
-    // back, and markers are right-aligned to the content edge, so a marker wider
-    // than `padding-left` silently loses its leading digits. `searchMaxResults`
-    // is an unbounded positive integer, so measure the widest three-digit marker
-    // in the list's own font and require the shipped padding to hold it.
-    const marker = await page.locator('[data-web="search"] ol').evaluate((element) => {
-      const probe = document.createElement('span')
-      probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;font:inherit'
-      probe.textContent = '999. '
-      element.append(probe)
-      const widest = probe.getBoundingClientRect().width
-      probe.remove()
-      return { widest, paddingLeft: parseFloat(getComputedStyle(element).paddingLeft) }
-    })
-    expect(marker.paddingLeft).toBeGreaterThanOrEqual(marker.widest)
+    expect(await toggle.getAttribute('aria-expanded')).toBe('true')
+    // The fold is display-only: the expanded list needs no scroll container.
+    const geometry = await sources.evaluate(element => ({
+      maxHeight: getComputedStyle(element).maxHeight,
+      fits: element.scrollHeight <= element.clientHeight,
+    }))
+    expect(geometry.maxHeight).toBe('none')
+    expect(geometry.fits).toBe(true)
+    await toggle.click()
+    expect(await sources.locator('li').count()).toBe(4)
   })
 
   it.skipIf(MODE === 'record')('stayed clean and kept the exact fixture inventory', async () => {

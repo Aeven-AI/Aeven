@@ -27,32 +27,43 @@
   margin-bottom: 0;
 }
 
-/* The citation list: ordered so each source reads as a numbered reference. The
-   whole list — the sources the tool returned, matching what the model saw —
-   renders here; a max-height caps the card so a long list scrolls in place
-   rather than growing the card unbounded. The height is a design constant of the
-   card's geometry, not a deployment choice, so it lives here rather than a plugin
-   config field.
-
-   `overflow-y` makes this a scroll container, which also clips inline-start
-   overflow: a marker wider than `padding-left` loses its leading digits with no
-   way to scroll them back. Markers are right-aligned to the content edge, so the
-   padding must fit the widest one the list can produce. `searchMaxResults` is an
-   unbounded positive integer, so the padding is sized in `em` — against this
-   element's own font, the one a marker inherits — to hold a three-digit marker
-   (`999. ` measures 2.35em in the app font stack) plus the gap the one-digit
-   case already had. */
+/* The citation list: one numbered row per source, as the turn's edited-files
+   card lists its rows. The whole list the tool returned is here — folding only
+   hides rows that are already in the payload. */
 .sources {
   margin: 0;
-  padding-left: 2.5em;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  max-height: 320px;
-  overflow-y: auto;
+  list-style: none;
 }
 
+/* A source row, on the edited-files card's row metrics. */
 .source {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 24px;
+  padding: 7px 2px;
+}
+
+/* The citation index the answer refers to; right-aligned tabular digits keep
+   every link on one content edge however wide the number grows. */
+.index {
+  flex: none;
+  min-width: 1.25em;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.sourceBody {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
 }
 
@@ -85,6 +96,49 @@
   margin-top: 8px;
   color: var(--dsw-alias-label-tertiary);
   font: var(--dsw-font-xs-14);
+}
+
+/* The fold control under the list, on the edited-files card's `.listToggle`:
+   a full-width row that names what it reveals and wears a chevron. */
+.listToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 10px 2px;
+  border: 0;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.125rem;
+  text-align: left;
+}
+
+.listToggle:hover {
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+}
+
+.listToggle svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+.listToggle:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
+}
+
+@media (pointer: coarse) {
+  .listToggle {
+    min-height: 44px;
+  }
 }
 
 .empty {
