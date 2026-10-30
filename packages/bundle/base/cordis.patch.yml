@@ -480,6 +480,11 @@
       config:
         allowParallelInProgress: true
 
+    # Spoken replies: the agent switches reading on itself, for language practice
+    # and hands-free conversations. The Web Surface applies the settled call.
+    - id: tool-read-aloud
+      name: '@aeven/tool-read-aloud'
+
     # Persisted same-session goals reach the model and the slash menu here; the
     # domain, driver, and `/goal` command are above.
     - id: tool-goal

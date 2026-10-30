@@ -68,6 +68,7 @@
     "@aeven/api-session-controller": "workspace:^",
     "@aeven/api-settings-controller": "workspace:^",
     "@aeven/api-speech-to-text": "workspace:^",
+    "@aeven/api-text-to-speech": "workspace:^",
     "@aeven/api-terminal-controller": "workspace:^",
     "@aeven/api-workspace-controller": "workspace:^",
     "@aeven/api-workspace-files": "workspace:^",

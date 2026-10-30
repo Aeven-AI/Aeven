@@ -874,6 +874,23 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Named providers register disposably and the registry resolves each request to one provider and one model.',
   },
   {
+    key: 'textToSpeech',
+    pkg: 'text-to-speech',
+    title: 'Speech synthesis provider registry',
+    mode: 'seam',
+    implementations: ['text-to-speech-edge'],
+    consumers: ['api-text-to-speech'],
+    note: 'Named providers register disposably, the registry resolves each request to one provider and one voice, and synthesis runs on the Host that owns the provider.',
+  },
+  {
+    key: 'ttsController',
+    pkg: 'api-text-to-speech',
+    title: 'Speech synthesis Remote',
+    mode: 'core',
+    consumers: ['ui-tts'],
+    note: 'Authenticated, cancellation-aware Client access to the voice catalogue and to synthesized audio, which the Surface plays on the reader\'s own machine; synthesis never activates an Agent.',
+  },
+  {
     key: 'terminalController',
     pkg: 'terminal-controller',
     title: 'Terminal Remote',

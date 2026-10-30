@@ -217,6 +217,8 @@ declare module '@aeven/client-ui-slots' {
     'conversation.input.plan': { kind: 'single'; scope: 'session'; owner: InputControlOwnerProps }
     /** Model selector inside the composer tool row. */
     'conversation.input.model': { kind: 'single'; scope: 'session'; owner: InputControlOwnerProps }
+    /** Rows contributed below the built-in ones in the composer's Options popup. */
+    'conversation.input.options': { kind: 'list'; scope: 'session' }
     /** One composer activity, such as dictation, placed before Stop and Send; while active it occupies the whole control row. */
     'conversation.input.activity': { kind: 'single'; scope: 'session'; owner: InputActivityOwnerProps }
   }
@@ -427,7 +429,7 @@ export type ComposerBarProps =
     | 'conversation.input.attachments' | 'conversation.input.overlay'
     | 'conversation.input.left' | 'conversation.input.plan'
     | 'conversation.input.right' | 'conversation.input.model'
-    | 'conversation.input.activity' | 'conversation.composer.dock'
+    | 'conversation.input.activity' | 'conversation.input.options' | 'conversation.composer.dock'
   >
   & InjectFace<ComposerBarInjected>
   & PropsLocale<'conversation'>

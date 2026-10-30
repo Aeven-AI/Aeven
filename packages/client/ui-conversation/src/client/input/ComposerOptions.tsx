@@ -84,12 +84,14 @@ export interface ComposerOptionsProps {
    * picker is in use.
    */
   overlayRef: RefObject<HTMLElement | null>
+  /** Rows other plugins contribute, drawn after the built-in model rows and before the permission row. */
+  optionsSlot?: ReactNode
   /** The owning bar's locale seat, passed down as a plain prop. */
   t: ComposerBarProps['t']
 }
 
 export function ComposerOptions({
-  permissions, locked, command, onImageModel, onVideoModel, useProjection, keepFocus, overlayRef, t,
+  permissions, locked, command, onImageModel, onVideoModel, useProjection, keepFocus, overlayRef, optionsSlot, t,
 }: ComposerOptionsProps) {
   const [open, setOpen] = useState(false)
   const [pane, setPane] = useState<Pane | null>(null)
@@ -159,7 +161,7 @@ export function ComposerOptions({
   // Nothing to hold: a composer with none of the popup's rows keeps the disc
   // off the row rather than opening an empty card.
   if (permissions === undefined && context === null
-    && onImageModel === undefined && onVideoModel === undefined) return null
+    && onImageModel === undefined && onVideoModel === undefined && optionsSlot === undefined) return null
 
   return (
     <span ref={rootRef} className={css.root}>
@@ -226,6 +228,7 @@ export function ComposerOptions({
               onToggle={(trigger) => { onVideoModel(trigger) }}
             />
           )}
+          {optionsSlot}
           {permissions === undefined ? null : (
             <div className={css.rowSeat}>
               <OptionsRow

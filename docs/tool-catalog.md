@@ -46,6 +46,7 @@ This table connects model-visible tool names to the plugin package and service s
 | `@aeven/tool-workflow` | `workflow` | `ctx.tools`, `ctx.workflowEngine`, `ctx.systemPrompt`, `a calling Agent (exec.agent parents the script children)` | `tool/call`, `tool/result` | - | - |
 | `@aeven/tool-web` | `web_fetch`, `web_search` | `ctx.tools`, `ctx.web`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps. |
 | `@aeven/tool-browser` | `preview_back`, `preview_click`, `preview_evaluate`, `preview_forward`, `preview_navigate`, `preview_press`, `preview_reload`, `preview_screenshot`, `preview_scroll`, `preview_sequence`, `preview_snapshot`, `preview_status`, `preview_type`, `preview_upload` | `ctx.tools`, `ctx.agents`, `a browser/automation listener (execution time)` | `tool/call`, `tool/result` | - | preview_* calls are answered by the Client holding the session's browser; each call is bounded by the tool timeout. |
+| `@aeven/tool-read-aloud` | `read_aloud` | `ctx.tools` | `tool/call`, `tool/result` | - | The tool is a pure instruction: it logs the switch it was given and speaks nothing on the Host. The Web Surface reads the settled call and moves its own reader, so the model can start language practice without a Session event of its own. |
 | `@aeven/tool-location` | `get_location` | `ctx.tools`, `ctx.agents`, `a location/request listener (execution time)` | `tool/call`, `tool/result` | - | get_location is answered by the Client showing the session, after the reader chooses; the call is bounded by the tool timeout. |
 | `@aeven/tool-capability` | `capability_manage` | `ctx.tools`, `ctx.systemPrompt`, `ctx.capabilities`, `ctx.llm`, `ctx.memory (default store)`, `an Agent whose session has an owner at execution time` | `tool/call`, `tool/result`, `capabilities/changed for the capabilities store`, `long-term memory for a learned procedure under the default store` | - | The registered actions depend on the load-time `store` config: the default `memory` stores a learned procedure as a long-term memory and registers only `learn` and `import`, while `capabilities` keeps it as a capability file and registers list, view, learn, update, write_file, report, retire, and restore. The learner and procedure recall run behind the same package and contribute no tool of their own. |
 | `@aeven/tool-device` | `device_close`, `device_list`, `device_open`, `device_screenshot` | `ctx.tools`, `ctx.devices (execution time)`, `ctx.attachments + ctx.llm on an image-capable route (device_screenshot)`, `a calling Agent for per-session device ownership` | `tool/call`, `tool/result`, `the session's device pane state`, `a durable image attachment for a screenshot` | - | All four tools register on every host; a deployment without `ctx.devices`, with device support turned off, or without agent access answers with its own fixed sentence instead of hiding the tool. Driving a device goes through the agent-device CLI that `device_open` returns, not through a tool per device operation. |
@@ -3229,6 +3230,33 @@ Attach local files in this browser. Prefer the file input selector; an Upload bu
 Source: [`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
 
 preview_* calls are answered by the Client holding the session's browser; each call is bounded by the tool timeout.
+
+<a id="aeventool-read-aloud"></a>
+
+## `@aeven/tool-read-aloud`
+
+### `read_aloud`
+
+Turn spoken read-aloud of your replies on or off for this session. Switch it on when the user wants to hear the answers — language practice, pronunciation, or a hands-free conversation — and off when they ask you to stop. It changes only the reader; your replies themselves stay text.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "description": "true to read your replies aloud from now on, false to stop reading them."
+    }
+  },
+  "required": [
+    "enabled"
+  ]
+}
+```
+
+Source: [`packages/speech/tool-read-aloud/src/index.ts`](../packages/speech/tool-read-aloud/src/index.ts)
+
+The tool is a pure instruction: it logs the switch it was given and speaks nothing on the Host. The Web Surface reads the settled call and moves its own reader, so the model can start language practice without a Session event of its own.
 
 <a id="aeventool-location"></a>
 

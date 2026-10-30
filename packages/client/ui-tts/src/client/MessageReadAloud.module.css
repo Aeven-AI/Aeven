@@ -1,0 +1,28 @@
+/* One icon action in the assistant strip, drawn with the metrics of the copy and branch actions
+   beside it so the row reads as one cluster. The volume glyph is drawn on a 24 grid with air around
+   it, so its box grows until the ink spans the same width as the 16-grid glyphs next to it. */
+.action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 5px;
+  border: none;
+  border-radius: 28px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* flex: none keeps the glyph at its own size instead of shrinking to the button's content box. */
+.action svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+/* The spinner keeps the row's 16px glyph metric instead of the shared mark's default. */
+.spinner {
+  --avn-spinner-size: 16px;
+}

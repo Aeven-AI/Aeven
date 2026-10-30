@@ -304,6 +304,12 @@ flowchart LR
   pkg_speech_to_text["speech-to-text"]
   svc_speechToText["ctx.speechToText<br/>Transcription provider registry"]
   pkg_speech_to_text_whisper["speech-to-text-whisper"]
+  pkg_text_to_speech["text-to-speech"]
+  svc_textToSpeech["ctx.textToSpeech<br/>Speech synthesis provider registry"]
+  pkg_text_to_speech_edge["text-to-speech-edge"]
+  pkg_api_text_to_speech["api-text-to-speech"]
+  svc_ttsController["ctx.ttsController<br/>Speech synthesis Remote"]
+  pkg_ui_tts["ui-tts"]
   pkg_terminal_controller["terminal-controller"]
   svc_terminalController["ctx.terminalController<br/>Terminal Remote"]
   pkg_ui_sidebar_terminal["ui-sidebar-terminal"]
@@ -324,6 +330,7 @@ flowchart LR
   pkg_api_settings_controller --> svc_credentialsController
   pkg_api_settings_controller --> svc_settingsController
   pkg_api_speech_to_text --> svc_speechController
+  pkg_api_text_to_speech --> svc_ttsController
   pkg_api_workspace_controller --> svc_directoryPickerController
   pkg_api_workspace_controller --> svc_workspaceController
   pkg_attachment --> svc_attachments
@@ -451,6 +458,8 @@ flowchart LR
   pkg_terminal --> svc_terminals
   pkg_terminal_bash --> svc_terminals
   pkg_terminal_controller --> svc_terminalController
+  pkg_text_to_speech --> svc_textToSpeech
+  pkg_text_to_speech_edge --> svc_textToSpeech
   pkg_token_meter --> svc_tokenMeter
   pkg_tool_subagent --> svc_subagentModelSelection
   pkg_tools --> svc_tools
@@ -601,6 +610,7 @@ flowchart LR
   svc_systemPrompt --> pkg_tools
   svc_terminalController --> pkg_ui_sidebar_terminal
   svc_terminals --> pkg_tool_terminal
+  svc_textToSpeech --> pkg_api_text_to_speech
   svc_tokenMeter --> pkg_compaction_basic
   svc_toolResultPruner --> pkg_compaction_basic
   svc_tools --> pkg_agent_loop
@@ -613,6 +623,7 @@ flowchart LR
   svc_tools --> pkg_tool_terminal
   svc_tools --> pkg_tool_todo
   svc_tools --> pkg_tool_web
+  svc_ttsController --> pkg_ui_tts
   svc_typert --> pkg_api_gateway
   svc_typert --> pkg_typert_loader
   svc_userQuestions --> pkg_tool_ask_user
@@ -732,6 +743,8 @@ flowchart LR
 | `ctx.skillCatalog` | `core` | [`skill-catalog`](../packages/skill/skill-catalog) | - | `account-integrations` | - | Read-only local source of installable skills: the catalog lists what a reader may install and the installer reads one entry's files from the same tree. 可安装 skill 的本地只读来源：目录列出读者可安装的内容，安装器从同一棵树读取某个条目的文件。 |
 | `ctx.speechController` | `core` | [`api-speech-to-text`](../packages/speech/api-speech-to-text) | - | `ui-voice-input` | - | Authenticated, cancellation-aware Client access to speech preparation and transcription; a speech call never activates or submits to an Agent. 经过认证且可取消的客户端语音准备与转写访问；一次语音调用不会激活或提交给 agent。 |
 | `ctx.speechToText` | `seam` | [`speech-to-text`](../packages/speech/speech-to-text) | [`speech-to-text-whisper`](../packages/speech/speech-to-text-whisper) | [`api-speech-to-text`](../packages/speech/api-speech-to-text) | - | Named providers register disposably and the registry resolves each request to one provider and one model. 具名提供方可注册且可释放，注册表把每个请求解析到一个提供方和一个模型。 |
+| `ctx.textToSpeech` | `seam` | [`text-to-speech`](../packages/speech/text-to-speech) | [`text-to-speech-edge`](../packages/speech/text-to-speech-edge) | [`api-text-to-speech`](../packages/speech/api-text-to-speech) | - | Named providers register disposably, the registry resolves each request to one provider and one voice, and synthesis runs on the Host that owns the provider. |
+| `ctx.ttsController` | `core` | [`api-text-to-speech`](../packages/speech/api-text-to-speech) | - | `ui-tts` | - | Authenticated, cancellation-aware Client access to the voice catalogue and to synthesized audio, which the Surface plays on the reader's own machine; synthesis never activates an Agent. |
 | `ctx.terminalController` | `core` | `terminal-controller` | - | `ui-sidebar-terminal` | - | Typed Remote control of transient session-owned terminal processes, which run with the execution environment's system-user permissions. 对短暂的、会话所有终端进程的类型化 Remote 控制；这些进程以执行环境的系统用户权限运行。 |
 | `ctx.workspaceFiles` | `core` | `workspace-files` | - | `ui-sidebar-files` | - | Serves listings, text previews, and a bounded name search over a session's workspace root for the sidebar file explorer; nothing here writes. 为侧栏文件浏览器提供某会话工作区根目录下的列目录、文本预览与有界名称搜索；此处不写入任何内容。 |
 

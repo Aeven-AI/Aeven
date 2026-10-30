@@ -7,7 +7,7 @@
  */
 
 import { Context, Service } from '@deepseek-ai/cordis'
-import { isAbsolute } from 'node:path'
+import { posix } from 'node:path'
 import { brandString } from '@aeven/brand'
 import { deepFreeze, snapshotJsonValue } from '@aeven/util-values'
 import { scopeOf, scopeTarget } from '@aeven/scope'
@@ -101,6 +101,25 @@ declare module '@aeven/typert-protocol' {
   }
 }
 
+/** A Windows drive or UNC root: one location on any Windows device, unlike a bare `\\` prefix (current drive). */
+const WINDOWS_ABSOLUTE = /^(?:[A-Za-z]:[\\/]|\\\\[^\\/]+[\\/]+[^\\/]+)/
+
+/**
+ * Whether one recorded `cwd` is fully qualified in either spelling Aeven runs on.
+ *
+ * The header records the directory of the device that wrote the log, and an
+ * account's devices import each other's sessions: `C:\…` arrives on a POSIX host
+ * and `/Users/…` on Windows. The rule therefore asks the spelling, not
+ * `process.platform`, so a stored header validates identically everywhere. The
+ * directory is resolved through the workspace on a device that did not write it
+ * (`@aeven/working-directory`), never by acting on this value.
+ * @param path - the recorded directory.
+ * @returns whether it is POSIX-absolute or carries a Windows drive or UNC root.
+ */
+function isRecordedAbsolutePath(path: string): boolean {
+  return posix.isAbsolute(path) || WINDOWS_ABSOLUTE.test(path)
+}
+
 /** Validate and freeze one detached creation header in place. */
 function validateSessionHeader(id: SessionId, input: unknown): SessionHeader {
   if (input === null || typeof input !== 'object' || Array.isArray(input)) {
@@ -123,7 +142,7 @@ function validateSessionHeader(id: SessionId, input: unknown): SessionHeader {
   }
   if (record.cwd !== undefined) {
     if (typeof record.cwd !== 'string') throw new Error('session header cwd must be a string')
-    if (!isAbsolute(record.cwd)) {
+    if (!isRecordedAbsolutePath(record.cwd)) {
       throw new Error(`session header cwd must be an absolute path, got "${record.cwd}"`)
     }
   }

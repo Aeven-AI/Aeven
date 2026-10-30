@@ -343,6 +343,22 @@ export interface Config {
 
 来源：[`packages/api/terminal-controller/src/index.ts:32`](../packages/api/terminal-controller/src/index.ts)
 
+<a id="aevenapi-text-to-speech"></a>
+
+## `@aeven/api-text-to-speech`
+
+需要：`textToSpeech` · `typert`
+
+```ts config-catalog
+/** Limits applied before calling a provider. */
+export interface Config {
+  /** Maximum characters of one synthesized utterance. */
+  maxTextChars: number
+}
+```
+
+来源：[`packages/speech/api-text-to-speech/src/index.ts:19`](../packages/speech/api-text-to-speech/src/index.ts)
+
 <a id="aevenapi-workspace-files"></a>
 
 ## `@aeven/api-workspace-files`
@@ -4263,6 +4279,54 @@ export type ShellDialect = 'bash' | 'pwsh'
 
 来源：[`packages/terminal/terminal-bash/src/config.ts:10`](../packages/terminal/terminal-bash/src/config.ts)
 
+<a id="aeventext-to-speech"></a>
+
+## `@aeven/text-to-speech`
+
+```ts config-catalog
+/** Composition defaults for the language-to-voice mapping. */
+export interface Config {
+  /** Voice id per primary language subtag, such as `{ en: 'en-US-AvaMultilingualNeural' }`. */
+  voiceByLanguage: Record<string, string>
+}
+```
+
+来源：[`packages/speech/text-to-speech/src/index.ts:16`](../packages/speech/text-to-speech/src/index.ts)
+
+<a id="aeventext-to-speech-edge"></a>
+
+## `@aeven/text-to-speech-edge`
+
+需要：`textToSpeech`
+
+```ts config-catalog
+/** Validated runtime configuration for the provider plugin. */
+export interface Config {
+  /** Provider id registered in the synthesis registry. */
+  providerId: string
+  /** Voices this deployment exposes; the language mapping references these ids. */
+  voices: VoiceConfig[]
+  /** Locales whose Edge voices join the catalogue at startup, such as `nl-NL`; an empty list takes every locale. */
+  locales: string[]
+  /** Per-request synthesis deadline in milliseconds. */
+  timeoutMs: number
+}
+
+/** One voice the deployment offers, named by its service voice id. */
+export interface VoiceConfig {
+  /** Service voice id, such as `en-US-AvaMultilingualNeural`. */
+  id: string
+  /** Display name shown in Surfaces. */
+  name: string
+  /** Primary language subtag the voice speaks. */
+  language: string
+  /** Timbre, so a configured row keeps it when the provider's own listing is replaced. */
+  gender?: 'female' | 'male'
+}
+```
+
+来源：[`packages/speech/text-to-speech-edge/src/config.ts:17`](../packages/speech/text-to-speech-edge/src/config.ts)
+
 <a id="aeventime-context"></a>
 
 ## `@aeven/time-context`
@@ -5521,6 +5585,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@aeven/client-ui-theme` ([`packages/client/ui-theme/src/index.ts`](../packages/client/ui-theme/src/index.ts))
 - `@aeven/client-ui-tool` ([`packages/client/ui-tool/src/index.ts`](../packages/client/ui-tool/src/index.ts))
 - `@aeven/client-ui-trajectory` ([`packages/client/ui-trajectory/src/index.ts`](../packages/client/ui-trajectory/src/index.ts))
+- `@aeven/client-ui-tts` ([`packages/client/ui-tts/src/index.ts`](../packages/client/ui-tts/src/index.ts))
 - `@aeven/client-ui-update` ([`packages/client/ui-update/src/index.ts`](../packages/client/ui-update/src/index.ts))
 - `@aeven/client-ui-user-questions` ([`packages/client/ui-user-questions/src/index.ts`](../packages/client/ui-user-questions/src/index.ts))
 - `@aeven/client-ui-voice-input` ([`packages/client/ui-voice-input/src/index.ts`](../packages/client/ui-voice-input/src/index.ts))
@@ -5560,6 +5625,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@aeven/tool-call-timeout-policy` — requires `tools` ([`packages/guard/timeout-policy/src/index.ts`](../packages/guard/timeout-policy/src/index.ts))
 - `@aeven/tool-cordis` — requires `tools` · `systemPrompt` · `dynamicCordisRunner` · `cordisInspect` ([`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts))
 - `@aeven/tool-device` — requires `tools` ([`packages/device/tool-device/src/index.ts`](../packages/device/tool-device/src/index.ts))
+- `@aeven/tool-read-aloud` — requires `tools` ([`packages/speech/tool-read-aloud/src/index.ts`](../packages/speech/tool-read-aloud/src/index.ts))
 - `@aeven/tool-subagent-control` — requires `tools` · `subagents` ([`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts))
 - `@aeven/tool-vcs` — requires `tools` · `vcs` ([`packages/vcs/tool-vcs/src/index.ts`](../packages/vcs/tool-vcs/src/index.ts))
 - `@aeven/tool-working-directory` — requires `tools` · `workingDirectory` ([`packages/session/tool-working-directory/src/index.ts`](../packages/session/tool-working-directory/src/index.ts))
