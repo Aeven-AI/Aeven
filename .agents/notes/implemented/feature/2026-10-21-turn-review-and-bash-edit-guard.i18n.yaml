@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-21-turn-review-and-bash-edit-guard.md
-2026-10-21-turn-review-and-bash-edit-guard.md: 4d2bfd2a495af810cbace9d1796075d904081ae8
-2026-10-21-turn-review-and-bash-edit-guard.zh.md: 88b862a0a7a49d0ba213b2d2459a28446e0d7378
+2026-10-21-turn-review-and-bash-edit-guard.md: 31efe4a129a9726c137d092bb2636c6be830040b
+2026-10-21-turn-review-and-bash-edit-guard.zh.md: 3960d80e1d29d2dd4def85724abf305bfcee6d06

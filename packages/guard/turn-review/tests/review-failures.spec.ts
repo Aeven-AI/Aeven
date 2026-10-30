@@ -1,9 +1,9 @@
 /**
  * Review calls that fail: a review that reaches its output cap, requests a tool,
  * reports an error, exceeds its deadline, answers something other than the
- * requested JSON, or is cancelled with the turn. Each of them leaves the reply as
- * written and lets the turn close, except the turn's own cancellation, which
- * propagates.
+ * requested JSON, or is cancelled with the turn. Without earlier findings,
+ * failures leave the reply as written. Unresolved findings fail the turn;
+ * the turn's own cancellation propagates.
  */
 
 import { describe, expect, it } from 'vitest'
@@ -65,6 +65,24 @@ async function failingReview(
 }
 
 describe('the review call itself fails', () => {
+  it.each(['failure', 'budget'] as const)('fails the turn with unresolved findings after review %s', async (ending) => {
+    const issue = 'The requested implementation is unfinished.'
+    const review = await mountReview([
+      ...REVIEWED_TURN,
+      textResponse(JSON.stringify({ complete: false, issues: [issue] })),
+      textResponse('The implementation is still unfinished.'),
+      ...ending === 'failure' ? [maxTokensResponse('{"complete": tru')] : [],
+    ], reviewConfig({ maxReviewsPerTurn: ending === 'budget' ? 1 : 2 }))
+    try {
+      await review.turn()
+      expect(review.ofType('turn/end').map(event => event.data.reason)).toEqual([
+        expect.objectContaining({ kind: 'error', error: expect.objectContaining({ message: expect.stringContaining(issue) }) }),
+      ])
+    } finally {
+      await review.fiber.dispose()
+    }
+  })
+
   it('closes the turn when the reviewer reaches its output-token cap', async () => {
     const { warnings, review } = await failingReview([...REVIEWED_TURN, maxTokensResponse('{"complete": tru')])
 
