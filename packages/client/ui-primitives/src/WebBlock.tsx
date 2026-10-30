@@ -1,7 +1,12 @@
+import { useState } from 'react'
 import clsx from 'clsx'
 import { BlockHeader } from './BlockHeader.tsx'
+import { IconChevronDownOutline14, IconChevronUpOutline14 } from './icons/index.tsx'
 import { MarkdownText, type MarkdownLabels } from './markdown/MarkdownText.tsx'
 import css from './WebBlock.module.css'
+
+/** Sources shown before the citation list folds, matching the edited-files card. */
+const FOLDED_SOURCES = 4
 
 /**
  * One citeable source drawn in a search card: the projection of the contract's
@@ -29,8 +34,7 @@ export interface WebSearchBlockProps {
   /** The cited sources, in provider order. */
   sources: WebSourceView[]
   /** True when the tool cut the source list to its result cap. */
-  truncated: boolean
-  /** Extra class merged onto the wrapper (callers position; this component draws). */
+  truncated: boolean  /** Extra class merged onto the wrapper (callers position; this component draws). */
   className?: string | undefined
 }
 
@@ -55,7 +59,10 @@ export type WebBlockProps = WebSearchBlockProps | WebFetchBlockProps
 /** Localized chrome for {@link WebBlock}. */
 export interface WebBlockLabels {
   noResults: string
-  sourcesTruncated: string
+  /** The fold control's collapsed-state label, e.g. "All 8 sources". */
+  sourcesAll: (count: number) => string
+  /** The fold control's expanded-state label. */
+  sourcesCollapse: string
   http: string
   contentTruncated: string
   /** The fetch card's name in its header. */
@@ -126,39 +133,45 @@ function SafeLink({ url, label, className }: { url: string; label: string; class
 }
 
 /**
- * One source row in a search card: the safe link plus its snippet and date. The
- * `<li value>` pins the source's 1-based citation index explicitly rather than
- * relying on the `<ol>`'s implicit numbering, so a row reads by its real index
- * even inside the scroll container.
+ * One source row in a search card: the citation index, the safe link, and its
+ * snippet and date. The index is drawn rather than left to an `<ol>` marker so
+ * a folded row keeps its real 1-based citation number.
  * @param props.source - the source to render.
  * @param props.ordinal - the source's 1-based position in the full list.
  * @returns the source list item.
  */
 function SourceItem({ source, ordinal }: { source: WebSourceView; ordinal: number }) {
   return (
-    <li className={css.source} value={ordinal}>
-      <SafeLink url={source.url} label={linkLabel(source.url, source.title)} className={css.sourceLink} />
-      {source.snippet !== undefined && source.snippet !== '' && (
-        <div className={css.snippet}>{source.snippet}</div>
-      )}
-      {source.publishedAt !== undefined && source.publishedAt !== '' && (
-        <div className={css.published}>{source.publishedAt}</div>
-      )}
+    <li className={css.source}>
+      <span className={css.index}>{ordinal}.</span>
+      <span className={css.sourceBody}>
+        <SafeLink url={source.url} label={linkLabel(source.url, source.title)} className={css.sourceLink} />
+        {source.snippet !== undefined && source.snippet !== '' && (
+          <div className={css.snippet}>{source.snippet}</div>
+        )}
+        {source.publishedAt !== undefined && source.publishedAt !== '' && (
+          <div className={css.published}>{source.publishedAt}</div>
+        )}
+      </span>
     </li>
   )
 }
 
 /**
- * The search card body: the answer over the full source list, which scrolls in
- * place once it exceeds the `.sources` container height.
+ * The search card body: the answer over the citation list, which folds after
+ * four rows and expands on demand.
  * @param props - see {@link WebSearchBlockProps}.
  * @returns the search card element.
  */
-function WebSearchBlock({ answer, sources, truncated, labels, className }: WebSearchBlockProps) {
+function WebSearchBlock({ answer, sources, labels, className }: WebSearchBlockProps) {
+  const [expanded, setExpanded] = useState(false)
   // A provider may legitimately return no answer and no sources; the chat WebRow
   // does not show the raw result content, so without this the user would see an
   // empty card. Mirror the backend's `No results found.` render text.
   const empty = (answer === undefined || answer === '') && sources.length === 0
+  // The list folds only when it has rows to hide; a shorter list draws no control.
+  const foldable = sources.length > FOLDED_SOURCES
+  const rows = foldable && !expanded ? sources.slice(0, FOLDED_SOURCES) : sources
   // The answer, then one numbered source URL per line: what the card shows,
   // as text that pastes back into a message or a note.
   const copyText = [
@@ -175,11 +188,23 @@ function WebSearchBlock({ answer, sources, truncated, labels, className }: WebSe
         {empty ? (
           <div className={css.empty}>{labels.noResults}</div>
         ) : (
-          <ol className={clsx(css.sources, 'no-scrollbar')}>
-            {sources.map((source, index) => <SourceItem key={index} source={source} ordinal={index + 1} />)}
-          </ol>
+          <>
+            <ul className={css.sources}>
+              {rows.map((source, index) => <SourceItem key={index} source={source} ordinal={index + 1} />)}
+            </ul>
+            {foldable && (
+              <button
+                type="button"
+                className={css.listToggle}
+                aria-expanded={expanded}
+                onClick={() => { setExpanded(value => !value) }}
+              >
+                <span>{expanded ? labels.sourcesCollapse : labels.sourcesAll(sources.length)}</span>
+                {expanded ? <IconChevronUpOutline14 /> : <IconChevronDownOutline14 />}
+              </button>
+            )}
+          </>
         )}
-        {truncated && <div className={css.truncated}>{labels.sourcesTruncated}</div>}
       </div>
     </div>
   )

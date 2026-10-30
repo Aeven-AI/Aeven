@@ -90,7 +90,8 @@ export function searchBlockLabels(t: T): SearchBlockLabels {
 export function webBlockLabels(t: T): WebBlockLabels {
   return {
     noResults: t('web.noResults'),
-    sourcesTruncated: t('web.sourcesTruncated'),
+    sourcesAll: count => t('web.sourcesAll', { count: String(count) }),
+    sourcesCollapse: t('web.sourcesCollapse'),
     http: t('web.http'),
     contentTruncated: t('web.contentTruncated'),
     fetchTitle: t('web.fetchTitle'),
