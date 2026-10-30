@@ -5,7 +5,7 @@
  */
 
 import { createRequire } from 'node:module'
-import { closeSync, createReadStream, createWriteStream, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { createReadStream, createWriteStream, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { once } from 'node:events'
 import { readFile } from 'node:fs/promises'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -406,19 +406,6 @@ function remoteStreamHandler(ctx: Context): ConnectionFetchHandler {
   }
 }
 
-/**
- * Close one inherited Electron pipe descriptor. After the shell has left, the
- * descriptor can already be closed, and teardown must still run to completion.
- * @param fd - inherited pipe descriptor number.
- */
-function closePipeDescriptor(fd: number): void {
-  try {
-    closeSync(fd)
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'EBADF') throw error
-  }
-}
-
 interface NodeRequestInit extends RequestInit {
   readonly duplex?: 'half'
 }
@@ -585,8 +572,11 @@ async function main(): Promise<void> {
   if (option !== undefined && option !== '--allow-linked-profile') {
     throw new Error(`avn desktop: unsupported internal option ${JSON.stringify(option)}`)
   }
-  const requestPipe = createReadStream('', { fd: DESKTOP_REQUEST_PIPE_FD, autoClose: false })
-  const responsePipe = createWriteStream('', { fd: DESKTOP_RESPONSE_PIPE_FD, autoClose: false })
+  // Each stream owns its inherited descriptor, so libuv closes it after its pending
+  // read or write finishes. Closing these file descriptors directly while a libuv
+  // request is still outstanding blocks teardown on Windows.
+  const requestPipe = createReadStream('', { fd: DESKTOP_REQUEST_PIPE_FD })
+  const responsePipe = createWriteStream('', { fd: DESKTOP_RESPONSE_PIPE_FD })
   let responseWriteTail: Promise<void> = Promise.resolve()
   const writeResponse = (frame: Buffer): Promise<void> => {
     const write = responseWriteTail.then(async () => {
@@ -669,7 +659,6 @@ async function main(): Promise<void> {
       blockedRequests.clear()
       discardedRequestBodies.clear()
       requestPipe.destroy()
-      closePipeDescriptor(DESKTOP_REQUEST_PIPE_FD)
       await controller.dispose()
       await startup.release()
       await Promise.allSettled([...runs])
@@ -678,9 +667,11 @@ async function main(): Promise<void> {
         await new Promise<void>((resolvePromise) => { responsePipe.end(resolvePromise) })
         responsePipe.destroy()
       }
-      closePipeDescriptor(DESKTOP_RESPONSE_PIPE_FD)
       if (process.connected) process.disconnect()
-      process.exitCode = requestedExitCode
+      // Every teardown step has finished and the pipes are closed. A plugin handle that outlives
+      // its disposal would keep the event loop alive after this point, which is what the deadline
+      // above reports; exiting here makes a clean stop immediate instead of 15 seconds.
+      process.exit(requestedExitCode)
     })()
     return stopping
   }
