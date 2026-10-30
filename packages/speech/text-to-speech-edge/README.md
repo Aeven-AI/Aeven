@@ -16,6 +16,7 @@ This provider speaks through Microsoft's Edge read-aloud service, one WebSocket 
 - [Further Exploration](#further-exploration)
 - [Model Experience](#model-experience)
 - [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
 
 -----
 
@@ -58,3 +59,14 @@ None. The provider returns audio bytes for text the model already produced.
 ## Known Limitations and Deferred Work
 
 Synthesis requires outbound network access to Microsoft's service; there is no offline provider with comparable voice quality yet. The provided `msedge-tts` package is an unofficial client of that service, so endpoint changes are an upstream risk.
+
+-----
+
+<a id="dev-note"></a>
+## Dev Note
+
+One `MsEdgeTTS` instance serves each voice id and stays cached. The client opens a WebSocket per instance, so creating one per request would pay a handshake for every clause. A failed synthesis releases the cached instance so the next attempt reconnects instead of reusing a closed carrier.
+
+A voice's `Gender` is read from the provider's own voice list and is the only source of that fact: the ids and display names do not encode timbre, and the multilingual voices sit outside any single language's roster.
+
+No runtime invariant companion is published: discovery and synthesis are the only observations, and both are reported to the caller directly.

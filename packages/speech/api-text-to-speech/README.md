@@ -16,6 +16,7 @@ This Remote exposes the `tts` namespace to Clients: the voice catalogue and per-
 - [Further Exploration](#further-exploration)
 - [Model Experience](#model-experience)
 - [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
 
 -----
 
@@ -56,3 +57,12 @@ None. The Remote carries no model-visible input or output.
 ## Known Limitations and Deferred Work
 
 One request renders one sentence's worth of text; longer passages are the caller's segmentation decision.
+
+-----
+
+<a id="dev-note"></a>
+## Dev Note
+
+The controller exposes the seam over the `tts` Remote namespace and holds no state of its own: nothing it carries is model-visible, so it logs no session event and replay cannot diverge from a live run. `maxTextChars` bounds one request because the Surface segments a reply before asking; a longer body is rejected before the provider is touched.
+
+Cancellation is the caller's signal, passed straight through to synthesis, so a stop mid-clause aborts the provider request rather than buffering audio nobody will hear.

@@ -16,6 +16,7 @@ This Service Definition turns text into spoken audio through `ctx.textToSpeech`.
 - [Further Exploration](#further-exploration)
 - [Model Experience](#model-experience)
 - [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
 
 -----
 
@@ -58,3 +59,14 @@ None. Synthesis renders text the model already produced and adds no tokens, prom
 ## Known Limitations and Deferred Work
 
 The service has no voice-preference persistence; Surfaces currently read the composition's mapping only. Rate, pitch, and per-request prosody are not part of the request.
+
+-----
+
+<a id="dev-note"></a>
+## Dev Note
+
+The default voice for a language is female because the rosters ship more male voices than female ones at several rungs, and a plain first-match resolution lands on a male voice: the Edge roster lists a male Japanese voice ahead of `ja-JP-NanamiNeural` and a Cantonese voice for the `zh` family. Resolution therefore prefers a female voice at each rung — the language's dominant region, the exact language, the family, then any multilingual voice — and falls back to a male voice only where the provider has no female voice for that language. `dominantLocale()` counts the roster instead of trusting the first listed locale, which is what keeps `zh` on Mandarin.
+
+The catalogue carries the timbre the provider reported rather than inferring it from a voice id: names such as `zh-CN-XiaoxiaoNeural` do not encode gender, and a configured row that omits `gender` keeps whatever discovery reported for the same id.
+
+No runtime invariant companion is published: the registry is the only source of roster and mapping observations.

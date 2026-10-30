@@ -16,6 +16,7 @@ This browser plugin adds a speaker toggle to the composer's leading control row.
 - [Further Exploration](#further-exploration)
 - [Model Experience](#model-experience)
 - [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
 
 -----
 
@@ -57,4 +58,15 @@ None. The plugin reads text the model already produced and sends nothing to it.
 <a id="known-limitations-and-deferred-work"></a>
 ## Known Limitations and Deferred Work
 
-The toggle is session-scoped and not persisted. Reading one Session continues while another Session's reply streams; a global stop is not part of the composer row yet.
+The toggle is Session-scoped: a reload restores the flag, but two Sessions read at once and the composer row has no global stop. The voice picker writes a per-language preference in this browser only.
+
+-----
+
+<a id="dev-note"></a>
+## Dev Note
+
+Three decisions hold the reader together. The engine schedules decoded buffers back to back through `AudioBufferSourceNode`s, so the queue rather than the player decides what is missing: `pump()` keeps four fragments prefetched and twelve seconds scheduled ahead, and `drain()` re-pumps in its `finally`. A stop interrupts the drain while its clause is still in flight; without that re-pump the next request would find the channel pumping and play nothing.
+
+The per-message action runs on its own channel, `message:<id>`, so reading one message cannot disturb a running reply and a reply cannot cut a message off. The session toggle keeps the plain session channel.
+
+`toSpeechText()` strips Markdown emphasis and then any residual emphasis or table marker, because a reader that receives one announces it — "asterisk" for bold text, for example.
