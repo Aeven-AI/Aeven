@@ -454,11 +454,14 @@ async fileSession(sessionId: SessionId, home: string, header?: SessionHeader): P
 onLateFiling(listener: () => void): () => void
 
 /**
- * Give a workspace that another device of the account registered a directory on this device. The directory
- * stays here; the account's other devices keep their own.
- * @param id - a workspace without a directory on this device.
+ * Point a workspace at a directory on this device. A record another device
+ * registered gains its first directory here; a folder record whose directory
+ * moved is relinked to the new one. Either way the account's other devices
+ * keep their own paths: the binding is device-local, while the workspace id
+ * is what they share.
+ * @param id - the workspace to point at a directory here.
  * @param path - existing directory, in a fully qualified spelling.
- * @returns the workspace, now folder-backed.
+ * @returns the workspace, folder-backed and naming that directory.
  */
 async bind(id: WorkspaceId, path: string): Promise<Workspace>
 

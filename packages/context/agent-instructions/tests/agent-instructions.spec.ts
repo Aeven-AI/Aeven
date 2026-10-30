@@ -3924,10 +3924,12 @@ describe('dynamic nested workspace context injection', () => {
       ctx.on('tools/post-execute', async () => ({
         kind: 'accept' as const,
         value: {
-          path: 'pkg/deep/file.txt',
-          offset: 1,
-          lines: [{ number: 1, text: 'downstream replacement' }],
-          totalLines: 1,
+          files: [{
+            path: 'pkg/deep/file.txt',
+            offset: 1,
+            lines: [{ number: 1, text: 'downstream replacement' }],
+            totalLines: 1,
+          }],
         },
         additionalContexts: [createUserMessage({
           content: [{ type: 'text' as const, text: 'downstream context' }],
@@ -3946,10 +3948,12 @@ describe('dynamic nested workspace context injection', () => {
       expect(result.isError).toBe(false)
       if (result.isError) throw new Error('expected read replacement success')
       expect(result.value).toEqual({
-        path: 'pkg/deep/file.txt',
-        offset: 1,
-        lines: [{ number: 1, text: 'downstream replacement' }],
-        totalLines: 1,
+        files: [{
+          path: 'pkg/deep/file.txt',
+          offset: 1,
+          lines: [{ number: 1, text: 'downstream replacement' }],
+          totalLines: 1,
+        }],
       })
       expect(blocksText(result.content)).toContain('downstream replacement')
       expect(result.additionalContexts).toHaveLength(1)

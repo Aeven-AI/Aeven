@@ -2992,10 +2992,10 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     methods: [
       {
         signature: '@Remote async list(request: SkillListRequest, signal: AbortSignal): Promise<SkillListValue>',
-        description: 'List the user-invocable skills visible to one Session composition.',
-        parameters: [{ name: 'request', description: 'Session identity whose cwd and preset select the catalog view.' }, { name: 'signal', description: 'caller lifetime carried by the Remote transport; admitted catalog reads retain their existing completion semantics.' }],
+        description: 'List the user-invocable skills visible to one Session composition.\n\nThe project scope is the directory this device binds for the Session\'s workspace, never the path the Session log recorded: a listing served for a conversation synced from another machine reads the skills of a folder that exists here.',
+        parameters: [{ name: 'request', description: 'Session identity whose directory and preset select the catalog view.' }, { name: 'signal', description: 'caller lifetime carried by the Remote transport; admitted catalog reads retain their existing completion semantics.' }],
         returns: 'user-invocable skill metadata without loading skill bodies.',
-        throws: ['RemoteError when the Session cannot be inspected or no registry can serve it.'],
+        throws: ['RemoteError when the Session cannot be inspected or no registry can serve it.', '{WorkingDirectoryUnavailableError} when the Session\'s workspace has no folder on this device.'],
       },
     ],
   },
@@ -4521,9 +4521,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'async bind(id: WorkspaceId, path: string): Promise<Workspace>',
-        description: 'Give a workspace that another device of the account registered a directory on this device. The directory stays here; the account\'s other devices keep their own.',
-        parameters: [{ name: 'id', description: 'a workspace without a directory on this device.' }, { name: 'path', description: 'existing directory, in a fully qualified spelling.' }],
-        returns: 'the workspace, now folder-backed.',
+        description: 'Point a workspace at a directory on this device. A record another device registered gains its first directory here; a folder record whose directory moved is relinked to the new one. Either way the account\'s other devices keep their own paths: the binding is device-local, while the workspace id is what they share.',
+        parameters: [{ name: 'id', description: 'the workspace to point at a directory here.' }, { name: 'path', description: 'existing directory, in a fully qualified spelling.' }],
+        returns: 'the workspace, folder-backed and naming that directory.',
       },
       {
         signature: 'insertBefore(id: WorkspaceId, beforeId?: WorkspaceId): Promise<readonly WorkspaceId[]>',
@@ -9397,7 +9397,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'Workspace',
-    declaration: 'export interface Workspace {\n    readonly id: WorkspaceId;\n    readonly isDefault: boolean;\n    readonly isBuiltIn: boolean;\n    readonly kind: WorkspaceKind;\n    readonly path: string | undefined;\n    readonly title: string;\n    readonly owner: string | undefined;\n    readonly createdAt: string;\n    readonly updatedAt: string;\n    readonly sessionIds: readonly SessionId[];\n    setTitle(title: string): Promise<void>;\n    attachSession(sessionId: SessionId): Promise<void>;\n    insertSessionBefore(sessionId: SessionId, beforeSessionId?: SessionId): Promise<void>;\n    detachSession(sessionId: SessionId): Promise<void>;\n    status(): Promise<\'ok\' | \'missing-dir\'>;\n}',
+    declaration: 'export interface Workspace {\n    readonly id: WorkspaceId;\n    readonly isDefault: boolean;\n    readonly isBuiltIn: boolean;\n    readonly kind: WorkspaceKind;\n    readonly path: string | undefined;\n    readonly anchorPaths: readonly string[];\n    readonly title: string;\n    readonly owner: string | undefined;\n    readonly createdAt: string;\n    readonly updatedAt: string;\n    readonly sessionIds: readonly SessionId[];\n    setTitle(title: string): Promise<void>;\n    attachSession(sessionId: SessionId): Promise<void>;\n    insertSessionBefore(sessionId: SessionId, beforeSessionId?: SessionId): Promise<void>;\n    detachSession(sessionId: SessionId): Promise<void>;\n    status(): Promise<\'ok\' | \'missing-dir\'>;\n}',
   },
   {
     name: 'WorkspaceArchiveSessionRequest',
