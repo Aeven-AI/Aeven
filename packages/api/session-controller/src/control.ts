@@ -32,11 +32,20 @@ interface RemoteLive {
   readonly interactions: readonly SharedInteraction[]
 }
 
+/**
+ * Whether a device's published live state says a turn runs.
+ * @param value - the state another device published, as received.
+ * @returns whether that device runs a turn.
+ */
+export function remoteRunning(value: unknown): boolean {
+  return typeof value === 'object' && value !== null && (value as Record<string, unknown>).running === true
+}
+
 /** Read another device's live state, which arrives over the wire. */
 function remoteLive(value: unknown): RemoteLive {
   const record = typeof value === 'object' && value !== null ? value as Record<string, unknown> : {}
   return {
-    running: record.running === true,
+    running: remoteRunning(record),
     queue: Array.isArray(record.queue) ? record.queue as SessionQueuedItem[] : [],
     interactions: Array.isArray(record.interactions) ? record.interactions as SharedInteraction[] : [],
   }

@@ -3418,6 +3418,11 @@ export interface SessionSyncTuning {
   backfillDays: number
   /** Pause between two sessions of a background import or publication scan, in milliseconds. */
   pauseMs: number
+  /**
+   * Longest one session's publication may run before the attempt is reported and left to the next scan.
+   * A publication that never settles would otherwise hold that session's publications forever.
+   */
+  publishTimeoutMs: number
   /** Queued frames above which publishing history waits for the account's outbox to drain; live turns never wait. */
   outboxLimit: number
 }

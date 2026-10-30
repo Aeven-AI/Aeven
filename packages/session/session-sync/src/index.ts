@@ -30,6 +30,7 @@ export default class SessionSync extends SessionHandoff {
     compressionQuality: z.natural().max(11).default(4),
     backfillDays: z.natural().default(0),
     pauseMs: z.natural().default(16),
+    publishTimeoutMs: z.natural().min(1_000).default(120_000),
     outboxLimit: z.natural().min(1).default(200),
     runnerLease: z.object({ ttlMs: z.natural().min(1_000).default(30_000), renewMs: z.natural().min(1).default(10_000) }),
   })

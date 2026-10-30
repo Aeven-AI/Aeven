@@ -107,6 +107,11 @@ export interface SessionSyncTuning {
   backfillDays: number
   /** Pause between two sessions of a background import or publication scan, in milliseconds. */
   pauseMs: number
+  /**
+   * Longest one session's publication may run before the attempt is reported and left to the next scan.
+   * A publication that never settles would otherwise hold that session's publications forever.
+   */
+  publishTimeoutMs: number
   /** Queued frames above which publishing history waits for the account's outbox to drain; live turns never wait. */
   outboxLimit: number
 }
@@ -715,6 +720,9 @@ export class SessionMirror {
       if (transaction.local) return
       for (const key of event.keysChanged) this.liveChange?.(key as SessionId)
     })
+    // A device that starts while another device runs a turn reads the state already published, not
+    // only later changes, so the turn shows as running here from the first frame.
+    for (const id of live.doc.getMap<LiveEntry>('sessions').keys()) this.liveChange?.(id as SessionId)
     this.entries().observe((event: YMapEvent<IndexEntry>, transaction: Transaction) => {
       if (transaction.local) return
       for (const [id, change] of event.changes.keys) {
@@ -1025,12 +1033,31 @@ export class SessionMirror {
     }
   }
 
-  /** Run one publication of a session after every earlier one of the same session. */
+  /** Run one publication of a session after every earlier one of the same session, and stop waiting for it. */
   private serialize(id: string, work: () => Promise<void>): Promise<void> {
-    const run = (this.publications.get(id) ?? Promise.resolve()).then(work)
+    const run = (this.publications.get(id) ?? Promise.resolve()).then(() => this.bounded(id, work))
     // The caller reports the failure; the chain only orders publications.
     this.publications.set(id, run.catch(() => {}))
     return run
+  }
+
+  /**
+   * Bound one publication so a call that never settles cannot hold a session's publications forever.
+   * @param id - the session being published.
+   * @param work - the publication.
+   */
+  private async bounded(id: string, work: () => Promise<void>): Promise<void> {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const expired = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => {
+        reject(new Error(`publishing session ${id} did not finish within ${String(this.tuning.publishTimeoutMs)} ms`))
+      }, this.tuning.publishTimeoutMs)
+    })
+    try {
+      await Promise.race([work(), expired])
+    } finally {
+      clearTimeout(timer)
+    }
   }
 
   /**
@@ -1105,6 +1132,14 @@ export class SessionMirror {
     let batch: SessionEvent[] = []
     let bytes = 0
     const prepared: Promise<Uint8Array>[] = []
+    // Attachments travel before the events that reference them, so no device imports a reference it
+    // cannot fetch yet. A failed upload costs the objects themselves, not the turn: the events still
+    // publish, and the objects upload again once nothing marks them published.
+    try {
+      await this.publishAttachments(suffix.events)
+    } catch (error) {
+      this.warn(`session sync: publishing attachments of ${header.id} failed: ${String(error)}`)
+    }
     const queue = async (): Promise<void> => {
       const payloads = await Promise.all(prepared.splice(0))
       if (this.isClosed()) return
@@ -1133,7 +1168,9 @@ export class SessionMirror {
     await flush()
     await queue()
     if (this.isClosed() || (this.entries().get(header.id)?.origin ?? me) !== me) return
-    await this.publishAttachments(suffix.events)
+    // The index position advances as soon as the events are on the stream: everything after it that
+    // can still fail, such as workspace filing, must not make the next scan publish the same events
+    // again.
     const home = this.filing?.sessionHome(header.id)
     const previous = this.entries().get(header.id)
     const title = titleOf(suffix.events) ?? previous?.title

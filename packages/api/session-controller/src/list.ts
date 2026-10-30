@@ -14,6 +14,7 @@ import { SessionQueryError, type SessionSearchCursor } from '@aeven/session-quer
 import { RemoteError } from '@aeven/typert-protocol'
 import type {} from '@aeven/identity-user'
 import { callerMayAccessSession } from './agent.ts'
+import { remoteRunning } from './control.ts'
 import { z } from 'zod'
 import {
   SESSION_SEARCH_RESULT_LIMIT,
@@ -190,7 +191,7 @@ export class ApiSessionList {
     return {
       sessionId: id,
       updatedAt: updatedAt(source.header, metadata),
-      running: false,
+      running: this.remoteSessionRunning(source.header.owner, id),
       blank: metadata?.blank ?? false,
       ...listFields(source.header),
       ...snapshot === undefined ? {} : { projections: { asOfSeq: snapshot.asOfSeq, values: snapshot.values as SessionProjectionValues } },
@@ -205,7 +206,7 @@ export class ApiSessionList {
   sharedFor(owner: string): SessionSummary[] {
     return (this.ctx.get('sessionHandoff')?.catalog(owner) ?? []).map(entry => ({
       sessionId: entry.header.id, ...listFields(entry.header),
-      updatedAt: entry.updatedAt, running: false, blank: false,
+      updatedAt: entry.updatedAt, running: this.remoteSessionRunning(owner, entry.header.id), blank: false,
       ...entry.title === undefined ? {} : { projections: { asOfSeq: entry.next - 1, values: { title: entry.title } } },
     }))
   }
@@ -312,6 +313,19 @@ export class ApiSessionList {
     }
   }
 
+  /**
+   * Whether another device of the account runs a turn of a session this device does not run.
+   * @param owner - the account the session belongs to.
+   * @param id - the session.
+   * @returns whether its writing device publishes a running turn.
+   */
+  private remoteSessionRunning(owner: string | undefined, id: SessionId): boolean {
+    if (owner === undefined) return false
+    const handoff = this.ctx.get('sessionHandoff')
+    if (handoff?.runnerOf(owner, id) === undefined) return false
+    return remoteRunning(handoff.liveOf(owner, id))
+  }
+
   private summarizeCold(entry: ColdListEntry): SessionSummary {
     const { header } = entry
     // Cache-first: a title is served from the durable projection cache, so a
@@ -326,7 +340,7 @@ export class ApiSessionList {
     return {
       sessionId: header.id,
       updatedAt: updatedAt(header, metadata),
-      running: false,
+      running: this.remoteSessionRunning(header.owner, header.id),
       // A cache miss stays visible; the renderer keeps the localized New
       // Session label on a title-less row rather than ever showing the Session id.
       blank: metadata?.blank ?? false,
