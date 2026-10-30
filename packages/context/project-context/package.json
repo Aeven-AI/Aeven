@@ -35,6 +35,7 @@
     "@aeven/fs": "workspace:^",
     "@aeven/llm": "workspace:^",
     "@aeven/session": "workspace:^",
+    "@aeven/working-directory": "workspace:^",
     "@aeven/workspace": "workspace:^"
   },
   "devDependencies": {
@@ -43,6 +44,7 @@
     "@aeven/fs": "workspace:^",
     "@aeven/llm": "workspace:^",
     "@aeven/session": "workspace:^",
+    "@aeven/working-directory": "workspace:^",
     "@aeven/workspace": "workspace:^"
   }
 }

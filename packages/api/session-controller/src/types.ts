@@ -257,6 +257,12 @@ declare module '@aeven/typert-protocol' {
       readonly sessionId: SessionId
       readonly reason: 'same-workspace' | 'missing-directory' | 'subagent' | 'managed-workspace'
     }
+    /** This device claimed the Session, but its workspace has no folder here to run it in. */
+    'workspace/no-local-directory': {
+      readonly sessionId: SessionId
+      readonly workspaceId?: WorkspaceId
+      readonly reason: 'workspace-unbound' | 'workspace-not-here'
+    }
     /** The edit target is not a current user-authored prompt of the Session. */
     'session/edit-unavailable': { readonly sessionId: SessionId; readonly messageSeq: number }
     /** The Session's latest turn did not end in a failure, or later activity followed it. */

@@ -17,7 +17,7 @@ import { SessionTitleInvalidError } from '@aeven/session-title'
 import { canonicalClientTimeZone } from '@aeven/util-time'
 import { RemoteError, remoteErrorOf } from '@aeven/typert-protocol'
 import type { Workspace } from '@aeven/workspace'
-import type {} from '@aeven/working-directory'
+import { WorkingDirectoryUnavailableError, sessionDirectory } from '@aeven/working-directory'
 import type { SessionHandoffInput } from '@aeven/session-handoff'
 import {
   ApiSessionAgentController,
@@ -751,25 +751,64 @@ export class SessionCommandController {
     return this.ctx.get('sessionHandoff')?.runnerOf(owner, sessionId) === undefined ? undefined : owner
   }
 
+  /**
+   * Take the acting account's claim on a Session for a turn-starting input.
+   *
+   * A handover records nothing in the Session log: this device's directory for
+   * the Session's workspace is derived at execution time from the workspace
+   * binding, so there is no path to write.
+   * @param sessionId - the Session the input addresses.
+   * @returns the account whose device keeps writing the Session when this device
+   *   hands the input over, or undefined when this device applies it locally.
+   * @throws RemoteError `workspace/no-local-directory` when this device claimed a
+   *   Session it has no directory to run in; the claim stays in place.
+   */
   private async claimRunnerAccount(sessionId: SessionId): Promise<string | undefined> {
     const handoff = this.ctx.get('sessionHandoff')
     const owner = this.ctx.get('identityUsers')?.actingUser()?.id
     if (handoff === undefined || owner === undefined) return undefined
     const runner = handoff.runnerOf(owner, sessionId)
-    const workspace = this.ctx.workspaceRegistry.list().find(candidate => candidate.sessionIds.includes(sessionId))
     // Without a folder here, running the session on this device gains nothing, so input goes to the device writing it.
-    if (runner !== undefined && workspace?.path === undefined) {
-      return owner
-    }
+    if (runner !== undefined && !this.hasLocalFolder(sessionId)) return owner
     const claimed = await handoff.claim(owner, sessionId)
     if (!claimed.claimed) return owner
-    if (runner !== undefined && workspace?.path !== undefined) {
-      const agent = await this.resolveAgent(sessionId)
-      const directory = this.ctx.get('workingDirectory')
-      if (directory === undefined) throw new Error('session handover requires workingDirectory')
-      await directory.enter(agent.session, workspace.path)
+    const agent = await this.resolveAgent(sessionId)
+    try {
+      // Only the refusal is taken here; execution resolves the directory again for each call.
+      sessionDirectory(this.ctx, agent.session)
+    } catch (error) {
+      if (!(error instanceof WorkingDirectoryUnavailableError)) throw error
+      // The claim stands: this device writes the session now, so forwarding would
+      // return the input to this device; the refusal names the folder it lacks.
+      const placement = this.ctx.workspaceRegistry.placeSession(sessionId)
+      throw new RemoteError(
+        'workspace/no-local-directory',
+        error.reason === 'workspace-unbound'
+          ? 'The workspace of this conversation has no folder on this device yet; choose its folder here before sending input'
+          : 'The workspace of this conversation has no folder on this device yet: the conversation was written on another device and that workspace has not arrived here',
+        {
+          sessionId,
+          ...(placement.state === 'filed' ? { workspaceId: placement.workspace.id } : {}),
+          reason: error.reason,
+        },
+      )
     }
     return undefined
+  }
+
+  /**
+   * Whether this device holds a directory to run a Session in, asked before a
+   * claim: the folder of a workspace filed here, or, for a Session this device's
+   * own log accounts for and no workspace names, the directory it recorded. An
+   * imported Session names no workspace here, so its recorded directory is
+   * another machine's and does not count.
+   */
+  private hasLocalFolder(sessionId: SessionId): boolean {
+    const placement = this.ctx.workspaceRegistry.placeSession(sessionId)
+    if (placement.state === 'filed') {
+      return placement.workspace.kind === 'folder' && placement.workspace.path !== undefined
+    }
+    return placement.state === 'unfiled' && !this.ctx.workspaceRegistry.replicated(sessionId)
   }
 
   private async forward(owner: string, sessionId: SessionId, operation: string, request: unknown): Promise<{ accepted: true }> {

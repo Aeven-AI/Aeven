@@ -89,7 +89,7 @@ This section explains the design decisions behind the feature and points at the 
 
 ### API behavior
 
-The API is one small family with two owners: `WorkspaceRegistry` creates, orders, and deletes projects and manages their session accounting; the `Workspace` entity exposes the display title, directory status, and the session projection. Per-method contracts live in the code, not this README — see [src/index.ts](src/index.ts) and [src/entity.ts](src/entity.ts).
+The API is one small family with two owners: `WorkspaceRegistry` creates, orders, and deletes projects and manages their session accounting; the `Workspace` entity exposes the display title, directory status, and the session projection. `placeSession(sessionId)` answers where one session sits on *this* device — the workspace that accounts it, the shared workspace name it awaits, or nothing — and `replicated(sessionId)` says whether its log came from another device; `@aeven/working-directory` reads both to resolve a local execution directory from the workspace binding rather than from the path a session's header recorded elsewhere. Per-method contracts live in the code, not this README — see [src/index.ts](src/index.ts) and [src/entity.ts](src/entity.ts).
 
 ### Source map
 
@@ -111,6 +111,8 @@ The domain uses the `per-record` layout, so a write rewrites only the record it 
 Two processes sharing one home converge: each observes the other's record and global writes through the domain layer's [cross-process coherence](../../../.agents/notes/implemented/architecture/2026-09-16-cross-process-domain-coherence.md). Convergence is eventual rather than transactional, so simultaneous edits to the order or archive set — both of which live in the single `global.json` — still resolve last-writer-wins.
 
 While account sync serves an account, that account's workspaces also travel between its devices through the synced `workspaces` document: each workspace's title and timestamps, and the account's display order. A directory path stays on the device that opened it, so a workspace another device receives arrives pathless as `remote` and opens once this device registers a directory of its own. Session accounting and the archive set stay device-local, because a session body lives where it ran; a row only this device holds keeps its place beside the account's. A later title wins, and a removal drops the record without touching a directory or a session log.
+
+The same rule governs sessions: a synced session's `SessionHeader.cwd` and its logged `session/cwd` events name directories on the device that wrote them, so neither is a local path here. Consumers that need a directory ask `placeSession` for the session's workspace and act in *this* device's binding ([decision](../../../.agents/notes/implemented/architecture/2026-10-29-synced-session-directory-is-the-local-binding.md)).
 
 ### Lifecycle
 
@@ -167,6 +169,7 @@ These limits define when the project list is a poor fit or needs special operati
 
 - **Removal never deletes data** — removing a project leaves its folder, files, and session histories in place; those sessions are archived, and session deletion or folder removal are separate, absent capabilities ([decision](../../../.agents/notes/implemented/feature/2026-07-27-workspace-registration-deletion.md)).
 - **A received workspace opens after this device binds a directory** — a workspace that arrived from another device carries no path here, so it lists as `remote` until a path binding exists.
+- **A moved directory is relinked, not re-filed** — choosing the workspace's folder again ("Link workspace" in the row menu) points it at the new directory and records the old one as an anchor, so the sessions recorded there stay attached; the workspace keeps both spellings for this device only.
 - **A session joins only with a recorded directory** — a session belongs to a project only when its record carries a directory that resolves to the project's path; sessions without one stay ungrouped, and a session from another directory cannot be moved in.
 - **External changes are seen late** — if another process deletes or damages a directory, the project reflects it only at the next refresh or restart.
 - **Archiving is one-way** — a hidden session keeps its history and its place, but no unarchive action exists yet; the archive set is a durable display filter.

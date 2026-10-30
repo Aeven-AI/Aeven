@@ -34,7 +34,8 @@
     "@aeven/llm": "workspace:^",
     "@aeven/session": "workspace:^",
     "@aeven/session-projection": "workspace:^",
-    "@aeven/tools": "workspace:^"
+    "@aeven/tools": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   },
   "dependencies": {
     "@aeven/util-values": "workspace:^",
@@ -54,6 +55,7 @@
     "@aeven/session-projection": "workspace:^",
     "@aeven/system-prompt": "workspace:^",
     "@aeven/tool-fs": "workspace:^",
-    "@aeven/tools": "workspace:^"
+    "@aeven/tools": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   }
 }

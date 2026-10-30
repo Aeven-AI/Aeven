@@ -28,7 +28,7 @@ import type { RetainedItems } from '@aeven/output-retention'
 import type { SubprocessHandle, SubprocessOutcome, SubprocessOutputRead, SubprocessSpawnSpec } from '@aeven/subprocess'
 import type { SaveTextSpill, SpillRef } from '@aeven/spill'
 import type { ToolExecution } from '@aeven/tools'
-import type {} from '@aeven/working-directory'
+import { sessionDirectory } from '@aeven/working-directory'
 
 /**
  * Default cap on the complete raw `rg` stdout the tools will parse (the
@@ -184,8 +184,12 @@ export function resolveRgPath(): Promise<string> {
 /**
  * Run the packaged ripgrep binary with a plain argv vector and return its
  * complete raw stdout. The working directory is the calling agent's session
- * directory (`ctx.workingDirectory` when composed, else the header cwd) when available, else
- * `process.cwd()`. `exec.signal` is forwarded so the cooperative tool timeout
+ * directory on this device, resolved by `@aeven/working-directory` from the
+ * session's workspace rather than from the path the header records; a call with
+ * no agent, or a session that records no directory, falls back to
+ * `process.cwd()`. A session whose workspace has no folder here fails with
+ * `WorkingDirectoryUnavailableError` rather than searching another path.
+ * `exec.signal` is forwarded so the cooperative tool timeout
  * (`@aeven/tool-call-timeout-policy`) and caller cancellation terminate the
  * process tree.
  *
@@ -215,6 +219,7 @@ export function resolveRgPath(): Promise<string> {
  * @param graceMs - the seam's terminate-escalation grace period.
  * @param stderrMaxBytes - cap on the retained stderr diagnostic tail.
  * @returns the complete stdout, the zero-result flag, and the resolved workdir.
+ * @throws when the session's workspace has no folder on this device (`WorkingDirectoryUnavailableError`).
  */
 export async function runRipgrep(
   ctx: Context,
@@ -229,7 +234,7 @@ export async function runRipgrep(
     throw new SearchError(`${toolName} was aborted before completion (tool timeout or caller cancellation)`, 'SEARCH_ABORTED')
   }
   const session = exec.agent?.session
-  const cwd = session === undefined ? undefined : ctx.get('workingDirectory')?.of(session) ?? session.header.cwd
+  const cwd = session === undefined ? undefined : sessionDirectory(ctx, session)
   const workdir = cwd ?? process.cwd()
   let handle: SubprocessHandle
   try {

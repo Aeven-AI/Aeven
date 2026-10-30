@@ -20,6 +20,7 @@ import {
   type SkillInvocationSource,
   type SkillSummary,
 } from '@aeven/skill'
+import { sessionDirectory } from '@aeven/working-directory'
 
 export const name = 'tool-skill'
 export const inject = ['agents', 'tools', 'skills']
@@ -73,6 +74,15 @@ export const Config: z<Config> = z.object({
  * durable session catalog. The catalog is emitted only when the calling agent
  * resolves this plugin's exact tool registration; a restriction or scoped
  * same-name shadow therefore removes both the schema and its call guidance.
+ *
+ * Every lookup and the catalog itself resolve project skills against the directory
+ * this device binds for the session's workspace, never the path the session log
+ * recorded, so a conversation synced from another machine reads the skills of a
+ * folder that exists here.
+ * @param ctx - plugin context; the working-directory capability is looked up through it.
+ * @param config - catalog rendering limits.
+ * @throws {WorkingDirectoryUnavailableError} from a lookup or a catalog step when the
+ *   session's workspace has no folder on this device.
  */
 export function apply(ctx: Context, config: Config = {}): void {
   const catalogDescriptionMaxLength = config.catalogDescriptionMaxLength ?? DEFAULT_CATALOG_DESCRIPTION_MAX_LENGTH
@@ -131,7 +141,7 @@ export function apply(ctx: Context, config: Config = {}): void {
       // The agent is its own scope key, so the lookup resolves the layered
       // registry exactly as this agent's composition sees it.
       const lookup = {
-        cwd: exec.agent?.session.header.cwd,
+        cwd: exec.agent === undefined ? undefined : sessionDirectory(ctx, exec.agent.session),
         owner: exec.agent?.session.header.owner,
         signal: exec.signal,
         scope: exec.agent,
@@ -188,7 +198,7 @@ export function apply(ctx: Context, config: Config = {}): void {
     const names = invokedSkillNames(messages)
     if (names.length === 0) return decision
     signal.throwIfAborted()
-    const lookup = { cwd: agent.session.header.cwd, owner: agent.session.header.owner, signal, scope: agent }
+    const lookup = { cwd: sessionDirectory(ctx, agent.session), owner: agent.session.header.owner, signal, scope: agent }
     const injections: UserMessage[] = []
     for (const name of names) {
       const skill = await ctx.skills.get(name, lookup)
@@ -224,7 +234,7 @@ export function apply(ctx: Context, config: Config = {}): void {
     signal.throwIfAborted()
     const toolVisible = ctx.tools.get(skillTool.name, agent) === skillTool
     const snapshot = toolVisible
-      ? await ctx.skills.snapshot({ cwd: agent.session.header.cwd, owner: agent.session.header.owner, signal, scope: agent })
+      ? await ctx.skills.snapshot({ cwd: sessionDirectory(ctx, agent.session), owner: agent.session.header.owner, signal, scope: agent })
       : { skills: [], complete: true }
     signal.throwIfAborted()
     if (!snapshot.complete) return decision

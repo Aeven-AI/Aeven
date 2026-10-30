@@ -37,7 +37,8 @@
     "@aeven/media": "workspace:^",
     "@aeven/settings": "workspace:^",
     "@aeven/tools": "workspace:^",
-    "@aeven/user-questions": "workspace:^"
+    "@aeven/user-questions": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
@@ -49,6 +50,7 @@
     "@aeven/settings": "workspace:^",
     "@aeven/system-prompt": "workspace:^",
     "@aeven/tools": "workspace:^",
-    "@aeven/user-questions": "workspace:^"
+    "@aeven/user-questions": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   }
 }

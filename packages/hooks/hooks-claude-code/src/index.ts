@@ -19,6 +19,7 @@ import type { ContentBlock, MessageSource } from '@aeven/llm'
 import type { UserMessage } from '@aeven/session'
 import type {} from '@aeven/session-persistence'
 import type { PostToolDecision, PreToolDecision, ToolExecution, ToolExecutionResult } from '@aeven/tools'
+import { sessionDirectory } from '@aeven/working-directory'
 import {
   appendHookInvoked,
   appendHookResult,
@@ -59,8 +60,8 @@ export interface Config {
   /**
    * Replaces `${CLAUDE_PROJECT_DIR}` in command strings AND is exported as the
    * `CLAUDE_PROJECT_DIR` env var for hook processes. When omitted, the env var
-   * defaults per-run to the agent's session workspace (`session.header.cwd`, the
-   * same dir the hook runs in) — Claude Code always exports this var, and common
+   * defaults per-run to the session's directory on this device (the one the hook
+   * runs in) — Claude Code always exports this var, and common
    * unmodified hooks reference `$CLAUDE_PROJECT_DIR` for project-relative paths.
    */
   projectDir?: string
@@ -143,11 +144,12 @@ export function apply(ctx: Context, config: Config): void {
   ): Promise<MergedHookOutcome> {
     const groups: MatcherGroup[] = parsed[point] ?? []
     const outputs: HookOutput[] = []
-    // Run the hook in the agent's session workspace (the `session/new` cwd on the session
-    // header), not the executor or entry-point process's launch dir.
-    const workdir = opts.agent?.session.header.cwd
+    // Run the hook in the session's directory on this device, resolved through the working-directory
+    // capability, not the recorded header path of the writing device, the executor, or the entry-point
+    // process's launch dir.
+    const workdir = opts.agent === undefined ? undefined : sessionDirectory(ctx, opts.agent.session)
     // CLAUDE_PROJECT_DIR: an explicit config value wins; otherwise default it to the session
-    // workspace (the same dir the hook runs in).
+    // directory (the same dir the hook runs in).
     const projectDir = config.projectDir ?? workdir
     const hookEnv = projectDir !== undefined ? { CLAUDE_PROJECT_DIR: projectDir } : undefined
     for (const group of groups) {
@@ -325,7 +327,7 @@ function base(ctx: Context, agent: Agent | undefined, event: string): Record<str
     transcript_path: agent === undefined
       ? ''
       : ctx.get('sessionPersistence')?.locate(agent.session.header)?.path ?? '',
-    cwd: agent?.session.header.cwd ?? process.cwd(),
+    cwd: agent === undefined ? process.cwd() : sessionDirectory(ctx, agent.session) ?? process.cwd(),
     hook_event_name: event,
   }
 }

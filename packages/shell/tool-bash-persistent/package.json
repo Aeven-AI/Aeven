@@ -30,6 +30,7 @@
     "@aeven/terminal": "workspace:^",
     "@aeven/timeout": "workspace:^",
     "@aeven/tools": "workspace:^",
+    "@aeven/working-directory": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
   "dependencies": {

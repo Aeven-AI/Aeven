@@ -29,6 +29,12 @@
     },
     {
       "path": "../../core/tools"
+    },
+    {
+      "path": "../../session/working-directory"
+    },
+    {
+      "path": "../../workspace/workspace"
     }
   ]
 }

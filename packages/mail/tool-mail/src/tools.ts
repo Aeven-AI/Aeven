@@ -1,10 +1,16 @@
-/** The five mail tool definitions over `ctx.mail`. */
+/**
+ * The five mail tool definitions over `ctx.mail`. Saved attachments land in the
+ * directory this device resolves for the session's workspace, never the path the
+ * session log recorded, so a conversation synced from another machine writes into
+ * a folder that exists here.
+ */
 
 import { mkdir, realpath, writeFile } from 'node:fs/promises'
 import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool, type ToolDefinition, type ToolRunContext } from '@aeven/tools'
 import type { MailUpdateAction } from '@aeven/mail'
+import { sessionDirectory } from '@aeven/working-directory'
 import { formatAccounts, formatMessage, formatSearch, formatSend } from './format.ts'
 
 /** Per-tool cooperative timeouts. */
@@ -26,9 +32,19 @@ function ownerOf(exec: ToolRunContext): string {
   return owner
 }
 
-/** Write attachment bytes inside the session workspace without replacing existing files. */
+/**
+ * Write attachment bytes inside the session's directory on this device without replacing existing files.
+ * The base is this device's binding for the session's workspace; the recorded header path is never it, so a
+ * conversation synced from another machine writes where its folder is here.
+ * @param exec - the running `mail_read` call; its agent-scoped context resolves the directory.
+ * @param directory - the folder to write into, resolved against the session directory and confined to it.
+ * @param filename - the attachment's own filename, when the message names one.
+ * @param content - the attachment bytes.
+ * @returns the written path, relative to the session directory.
+ * @throws {WorkingDirectoryUnavailableError} when the session's workspace has no folder on this device.
+ */
 async function saveAttachment(exec: ToolRunContext, directory: string, filename: string | undefined, content: Uint8Array): Promise<string> {
-  const cwd = exec.agent?.session.header.cwd
+  const cwd = exec.agent === undefined ? undefined : sessionDirectory(exec.agent.ctx, exec.agent.session)
   if (cwd === undefined) throw new Error('Saving attachments needs a conversation with a workspace folder.')
   const root = await realpath(cwd)
   const target = resolve(root, directory)

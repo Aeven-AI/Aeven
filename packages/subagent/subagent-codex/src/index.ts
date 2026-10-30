@@ -17,6 +17,7 @@ import {
   type SubagentCapabilities,
   type SubagentProvider,
 } from '@aeven/subagent'
+import { sessionDirectory } from '@aeven/working-directory'
 import {
   CODEX_PERMISSION_MODES,
   DEFAULT_CODEX_PERMISSION_MODE,
@@ -71,7 +72,7 @@ class CodexProvider implements SubagentProvider {
   ) {}
 
   start(request: ResolvedSubagentStartRequest) {
-    const parentCwd = request.parent.session.header.cwd
+    const parentCwd = sessionDirectory(this.ctx, request.parent.session)
     if (parentCwd === undefined) {
       throw new Error(
         'subagent-codex: no working directory for the child — delegate from a parent session that has one',

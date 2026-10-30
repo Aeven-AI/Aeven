@@ -310,7 +310,7 @@ Host Remote listings, previews and name searches over the composed filesystem.
 ```ts cordis-catalog
 /**
  * List the direct children of one directory inside the Session's workspace.
- * @param agent - the Session asking; its header names the workspace root.
+ * @param agent - the Session asking; this device's binding for its workspace names the root.
  * @param path - workspace-relative or absolute path; empty for the root.
  * @param signal - caller cancellation.
  * @returns the root, the listed path and its children, bounded by the entry cap.
@@ -329,7 +329,7 @@ Host Remote listings, previews and name searches over the composed filesystem.
 /**
  * Find entries whose name contains `query` (case-insensitive), walking the
  * workspace breadth-first and skipping the configured directory names.
- * @param agent - the Session asking; its header names the workspace root.
+ * @param agent - the Session asking; this device's binding for its workspace names the root.
  * @param query - the name fragment to match.
  * @param signal - caller cancellation.
  * @returns the matches in walk order and whether a cap stopped the walk.
@@ -418,6 +418,24 @@ sessionHome(sessionId: SessionId): string | undefined
 sessionHomes(): ReadonlyMap<SessionId, string>
 
 /**
+ * Name the workspace that accounts a Session on this device, as a consumer that needs a directory reads it.
+ *
+ * The answer is about this device only: a Session imported from another device is `pending` until its
+ * workspace arrives, never filed by the path in its header, because that path names another machine's folder.
+ * @param sessionId - the session.
+ * @returns the local workspace, the shared name it awaits, or the fact that none accounts it.
+ */
+placeSession(sessionId: SessionId): SessionPlacement
+
+/**
+ * Whether a Session's log was published by another device, so the directory its header records belongs to that
+ * device rather than to this one.
+ * @param sessionId - the session to check.
+ * @returns whether this device holds a copy of another device's log.
+ */
+replicated(sessionId: SessionId): boolean
+
+/**
  * File a session another device published into the workspace its {@link sessionHome} names, when this device
  * holds that workspace and the session is not filed yet.
  * @param sessionId - the session, already stored on this device.
@@ -436,11 +454,14 @@ async fileSession(sessionId: SessionId, home: string, header?: SessionHeader): P
 onLateFiling(listener: () => void): () => void
 
 /**
- * Give a workspace that another device of the account registered a directory on this device. The directory
- * stays here; the account's other devices keep their own.
- * @param id - a workspace without a directory on this device.
+ * Point a workspace at a directory on this device. A record another device
+ * registered gains its first directory here; a folder record whose directory
+ * moved is relinked to the new one. Either way the account's other devices
+ * keep their own paths: the binding is device-local, while the workspace id
+ * is what they share.
+ * @param id - the workspace to point at a directory here.
  * @param path - existing directory, in a fully qualified spelling.
- * @returns the workspace, now folder-backed.
+ * @returns the workspace, folder-backed and naming that directory.
  */
 async bind(id: WorkspaceId, path: string): Promise<Workspace>
 

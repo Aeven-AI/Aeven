@@ -20,7 +20,7 @@ of(session) = last logged session/cwd ?? session.header.cwd
 
 `resolve` normalizes an absolute path and resolves a relative one against `of()`, so successive changes compose the way a shell's `cd` does. `change` requires an existing directory, appends the event, and returns the absolute path; an empty target, a missing path, or a file throws naming the path, and a target already in force appends nothing.
 
-`@aeven/tool-working-directory` exposes that as the model-facing `working_directory` tool, and the four shell tools resolve through `ctx.get('workingDirectory')?.of(session)` with the header as fallback, so a composition without the plugin behaves exactly as before.
+`@aeven/tool-working-directory` exposes that as the model-facing `working_directory` tool, and every shell, file, search, and sandbox consumer resolves through the capability, so a composition without the plugin behaves exactly as before. A session that arrived from another device no longer takes the second operand as its directory: the [portable-resolution decision](2026-10-29-synced-session-directory-is-the-local-binding.md) keeps the recorded pair as the portable record and resolves the local directory from this device's workspace binding.
 
 ## Alternatives considered
 
@@ -34,6 +34,6 @@ of(session) = last logged session/cwd ?? session.header.cwd
 
 - `session/cwd` joins the persistence catalog and the known event types; `SESSION_FORMAT_VERSION` stays `0` because no envelope or format changed.
 - The projection unit `workingDirectory` exists for clients, so a reloaded or forked session renders the directory the log recorded.
-- Consumers that still read `session.header.cwd` directly pin the creation directory. The four shell tools are migrated; file, search, and MCP tools are mechanical follow-ups and are recorded as a limitation in the package README.
+- Every consumer that acts in a directory now resolves through `sessionDirectory` or `sessionWorkspaceRoot` rather than reading `session.header.cwd` itself; identity comparisons keep the header. Which local directory those helpers return follows the [later decision](2026-10-29-synced-session-directory-is-the-local-binding.md).
 - `change` does not enforce sandbox confinement. A confined composition rejects out-of-root targets in the policy that owns confinement, which is where that decision already lives.
 - The Git Worktrees work depends on this: `create_worktree` moves the session with `change` after `git worktree add`.

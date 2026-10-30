@@ -218,10 +218,12 @@ describe('read tool', () => {
     expect(result.isError).toBe(false)
     if (result.isError) throw new Error('expected read success')
     expect(result.value).toEqual({
-      path: '/abs/a.txt',
-      offset: 1,
-      lines: [{ number: 1, text: 'hello' }, { number: 2, text: 'world' }],
-      totalLines: 2,
+      files: [{
+        path: '/abs/a.txt',
+        offset: 1,
+        lines: [{ number: 1, text: 'hello' }, { number: 2, text: 'world' }],
+        totalLines: 2,
+      }],
     })
     expect(text(result)).toBe(`<path>/abs/a.txt</path>
 <type>file</type>
@@ -238,7 +240,7 @@ describe('read tool', () => {
     fs.files.set('key:empty.txt', '')
     const result = await call(ctx, 'read', { file_path: 'empty.txt' })
     if (result.isError) throw new Error('expected empty read success')
-    expect(result.value).toEqual({ path: '/abs/empty.txt', offset: 1, lines: [], totalLines: 0 })
+    expect(result.value).toEqual({ files: [{ path: '/abs/empty.txt', offset: 1, lines: [], totalLines: 0 }] })
     expect(text(result)).toContain('(End of file - total 0 lines)')
   })
 
@@ -436,7 +438,7 @@ describe('edit tool', () => {
     await call(ctx, 'read', { file_path: 'a.txt' }, { session })
     const result = await call(ctx, 'edit', { file_path: 'a.txt', old_string: 'a', new_string: 'b' }, { session })
     if (result.isError) throw new Error('expected edit success')
-    expect(result.value).toEqual({ path: '/abs/a.txt', before: 'a', after: 'b' })
+    expect(result.value).toEqual({ files: [{ path: '/abs/a.txt', before: 'a', after: 'b' }] })
     expect(text(result)).toBe('The file /abs/a.txt has been updated successfully.')
   })
 
@@ -759,7 +761,7 @@ describe('read caps are plugin config', () => {
     const result = await call(ctx, 'read', { file_path: 'a.txt' })
     expect(result.isError).toBe(false)
     if (result.isError) throw new Error('expected read success')
-    expect(result.value).toMatchObject({ totalLines: 3 })
+    expect(result.value).toMatchObject({ files: [{ totalLines: 3 }] })
     expect(text(result)).toContain('Output capped.')
     expect(text(result)).not.toContain('cccc')
   })
@@ -1019,9 +1021,9 @@ async function guidanceScope(ctx: Context) {
 }
 
 const originalGuidance = {
-  read: 'Use the read tool — not shell commands like cat — to inspect text files. Results include line numbers. Use offset and limit to continue reading large files.',
+  read: 'Use the read tool — not shell commands like cat — to inspect text files. Results include line numbers. Use offset and limit to continue reading large files. To read several files you already know you need, pass them together as files in one call instead of one call per file.',
   write: 'Use the write tool to create files or completely replace file contents. Existing files are overwritten, so read an existing file first (the default fs-observation-policy requires it) and prefer edit for targeted changes.',
-  edit: 'Use the edit tool for targeted changes to existing UTF-8 text files. It replaces literal old_string with new_string; by default old_string must appear exactly once. If old_string appears multiple times, provide a more specific old_string or set replace_all to true. For several changes to one file, pass them together as edits in one call: they apply in order, each against the result of the previous ones, and none applies unless all match. The text you replace must match the current file exactly, so take it from the file; a file that changed since you last read it is refused until you read it again.',
+  edit: 'Use the edit tool for targeted changes to existing UTF-8 text files. It replaces literal old_string with new_string; by default old_string must appear exactly once. If old_string appears multiple times, provide a more specific old_string or set replace_all to true. For several changes to one file, pass them together as edits in one call: they apply in order, each against the result of the previous ones, and none applies unless all match. To change several files whose edits are already decided, pass them together as files in one call, one entry per file in the same form as a single-file call: files apply in order, and a failure stops at that file and reports the files already changed. The text you replace must match the current file exactly, so take it from the file; a file that changed since you last read it is refused until you read it again.',
 }
 
 describe('scope-aware filesystem guidance', () => {

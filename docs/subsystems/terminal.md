@@ -106,10 +106,11 @@ Typed Remote control of transient Session-owned terminal processes.
 
 ```ts cordis-catalog
 /**
- * Read the Session working directory and terminal limits without resolving a shell.
+ * Read the Session's local working directory and terminal limits without resolving a shell.
  * @param agent - Session owner supplied by the Gateway.
  * @param signal - request cancellation.
- * @returns the Session workspace directory and terminal limits.
+ * @returns the directory this device starts the Session's terminals in, and terminal limits.
+ * @throws {WorkingDirectoryUnavailableError} when the Session's workspace has no folder on this device.
  */
 @Remote environment(agent: Agent, signal: AbortSignal): TerminalEnvironment
 

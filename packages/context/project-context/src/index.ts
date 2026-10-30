@@ -19,6 +19,7 @@ import type { Agent, PreStepDecision } from '@aeven/agent'
 import type { FileSystem } from '@aeven/fs'
 import { createUserMessage } from '@aeven/llm'
 import type { UserMessage } from '@aeven/session'
+import { sessionDirectory } from '@aeven/working-directory'
 import type {} from '@aeven/workspace'
 
 /** Cordis plugin name used by loader diagnostics and message sources. */
@@ -191,9 +192,10 @@ export function apply(ctx: Context, config: Config): void {
     const decision = await next()
     if (decision.kind === 'reject' || signal.aborted) return decision
     const fileSystem = ctx.get('fs')
-    // A session without a workspace, such as a personal chat, has no project; the Host process
-    // cwd is the server's own checkout, not the person's project.
-    const cwd = agent.session.header.cwd
+    // The orientation describes the directory this device resolves for the session's workspace, never the
+    // recorded header path of the device that wrote the log. A session without a workspace, such as a
+    // personal chat, has no project.
+    const cwd = sessionDirectory(ctx, agent.session)
     if (fileSystem === undefined || cwd === undefined) return decision
     if (decision.messages.some(message => message.source.kind === 'plugin' && message.source.plugin === name)) return decision
     if (surfaceHasOrientation(agent)) return decision

@@ -84,10 +84,19 @@ export interface Workspace {
    * Canonical directory path: the `fs.realpath` of the path given at create
    * time (trailing slashes, `..`, and symlinks all resolved). Present exactly
    * when {@link kind} is `'folder'`; a `virtual` or `remote` workspace has no
-   * local directory and is always `undefined` here. Never rewritten
-   * afterwards, even when the directory disappears (see {@link status}).
+   * local directory and is always `undefined` here. Rewritten only by a
+   * relink, which moves the workspace onto a new directory and records the old
+   * one in {@link anchorPaths}; a directory that merely disappears stays named
+   * here (see {@link status}).
    */
   readonly path: string | undefined
+
+  /**
+   * Directories this workspace occupied earlier on this device, most recent
+   * first. Device-local: they never enter the account document. A session whose
+   * record names one still belongs here, so a relink keeps its sessions.
+   */
+  readonly anchorPaths: readonly string[]
 
   /** Display title. Defaults to the final path segment, or a filesystem root's own spelling; duplicates are allowed. */
   readonly title: string
@@ -183,3 +192,21 @@ export interface Workspace {
  * path as authoritative instead of re-checking it.
  */
 export type FolderWorkspace = Workspace & { readonly kind: 'folder'; readonly path: string }
+
+/**
+ * Where one Session sits in this device's registry: which workspace owns it
+ * here, whether that workspace has arrived yet, or that no workspace names it.
+ *
+ * A Session's own header records the directory of the device that created it,
+ * so a consumer that needs a directory here asks this question first: `filed`
+ * hands it the local workspace (which may still carry no directory), while
+ * `pending` and `unfiled` say the workspace identity is known but nothing local
+ * can act in a directory yet.
+ */
+export type SessionPlacement =
+  /** A workspace on this device accounts the Session. */
+  | { readonly state: 'filed'; readonly workspace: Workspace }
+  /** The Session names a shared workspace that has not reached this device. */
+  | { readonly state: 'pending'; readonly home: string }
+  /** No workspace accounts the Session here. */
+  | { readonly state: 'unfiled' }

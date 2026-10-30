@@ -2332,7 +2332,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   {
     key: 'sandboxPolicy',
     summary: 'The sandbox-policy service (`ctx.sandboxPolicy`).',
-    description: 'The sandbox-policy service (`ctx.sandboxPolicy`). Owns the deployment default mode, fallback workspace root, and current request-time policy section. Tool layers call resolve for each execution so a session\'s mode log and immutable cwd travel together to every enforcing capability.',
+    description: 'The sandbox-policy service (`ctx.sandboxPolicy`). Owns the deployment default mode, fallback workspace root, and current request-time policy section. Tool layers call resolve for each execution so a session\'s mode log and workspace root travel together to every enforcing capability.',
     methods: [
       {
         signature: 'readonly defaultMode: SandboxMode',
@@ -2341,14 +2341,15 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'readonly workspaceRoot: string',
-        description: 'The absolute `workspace-write` fallback root for calls without a session cwd.',
+        description: 'The absolute `workspace-write` fallback root for calls without a session directory.',
         parameters: [],
       },
       {
         signature: 'resolve(request: SandboxPolicyRequest = {}): SandboxExecutionPolicy',
-        description: 'Resolve the complete policy for one capability call. An approved explicit mode outranks the session\'s last `sandbox/mode` event, which outranks the deployment default. A session\'s workspace root — the logged root from `ctx.workingDirectory` when composed, else its header cwd — is its workspace-write boundary; the configured root is the fallback for agentless calls and sessions without a cwd. A root that is a linked git worktree also grants the repository\'s shared git directory.',
+        description: 'Resolve the complete policy for one capability call. An approved explicit mode outranks the session\'s last `sandbox/mode` event, which outranks the deployment default. A session\'s workspace root is this device\'s binding for the workspace that session belongs to, and is its workspace-write boundary; a session whose workspace has no folder here is refused rather than confined to a path its log recorded on another machine. The configured root is the fallback for agentless calls and sessions that record no directory at all. A root that is a linked git worktree also grants the repository\'s shared git directory.',
         parameters: [{ name: 'request', description: 'optional session and approved mode override.' }],
         returns: 'the fully resolved per-call mode, absolute workspace root, and additional writable roots.',
+        throws: ['{WorkingDirectoryUnavailableError} when the session records a directory but no folder on this device stands for its workspace.'],
       },
       {
         signature: 'overrideOf(session: Session): SandboxMode | undefined',
@@ -2991,10 +2992,10 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     methods: [
       {
         signature: '@Remote async list(request: SkillListRequest, signal: AbortSignal): Promise<SkillListValue>',
-        description: 'List the user-invocable skills visible to one Session composition.',
-        parameters: [{ name: 'request', description: 'Session identity whose cwd and preset select the catalog view.' }, { name: 'signal', description: 'caller lifetime carried by the Remote transport; admitted catalog reads retain their existing completion semantics.' }],
+        description: 'List the user-invocable skills visible to one Session composition.\n\nThe project scope is the directory this device binds for the Session\'s workspace, never the path the Session log recorded: a listing served for a conversation synced from another machine reads the skills of a folder that exists here.',
+        parameters: [{ name: 'request', description: 'Session identity whose directory and preset select the catalog view.' }, { name: 'signal', description: 'caller lifetime carried by the Remote transport; admitted catalog reads retain their existing completion semantics.' }],
         returns: 'user-invocable skill metadata without loading skill bodies.',
-        throws: ['RemoteError when the Session cannot be inspected or no registry can serve it.'],
+        throws: ['RemoteError when the Session cannot be inspected or no registry can serve it.', '{WorkingDirectoryUnavailableError} when the Session\'s workspace has no folder on this device.'],
       },
     ],
   },
@@ -3794,9 +3795,10 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     methods: [
       {
         signature: '@Remote environment(agent: Agent, signal: AbortSignal): TerminalEnvironment',
-        description: 'Read the Session working directory and terminal limits without resolving a shell.',
+        description: 'Read the Session\'s local working directory and terminal limits without resolving a shell.',
         parameters: [{ name: 'agent', description: 'Session owner supplied by the Gateway.' }, { name: 'signal', description: 'request cancellation.' }],
-        returns: 'the Session workspace directory and terminal limits.',
+        returns: 'the directory this device starts the Session\'s terminals in, and terminal limits.',
+        throws: ['{WorkingDirectoryUnavailableError} when the Session\'s workspace has no folder on this device.'],
       },
       {
         signature: '@Remote shells(agent: Agent, signal: AbortSignal): Promise<TerminalShell[]>',
@@ -4315,22 +4317,29 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Directory resolution and change for one session.',
     methods: [
       {
+        signature: 'local(session: Session): LocalDirectory',
+        description: 'The directory pair in force for a session on this device.',
+        parameters: [{ name: 'session', description: 'the session to resolve.' }],
+        returns: 'the local directory and workspace root, why this device has none, or the fact that the session records no directory at all.',
+      },
+      {
         signature: 'of(session: Session): string | undefined',
-        description: 'The directory in force for a session.',
+        description: 'The directory in force for a session on this device.',
         parameters: [{ name: 'session', description: 'the session whose tool calls resolve paths against it.' }],
-        returns: 'the last logged `session/cwd`, else the header\'s `cwd`, else undefined when the session records none and nothing overrode it.',
+        returns: 'the local directory, or undefined when this device has none — read {@link local} to tell a refusal from a session that records none.',
       },
       {
         signature: 'rootOf(session: Session): string | undefined',
-        description: 'The workspace root in force for a session: the directory sandboxed writes are confined to.',
+        description: 'The workspace root in force for a session on this device: the directory sandboxed writes are confined to.',
         parameters: [{ name: 'session', description: 'the session to resolve.' }],
-        returns: 'the last logged `root`, else the header\'s `cwd`, else undefined.',
+        returns: 'the local root, or undefined when this device has none.',
       },
       {
         signature: 'resolve(session: Session, path: string): string',
         description: 'Resolve a path the way the tools do, without touching the filesystem.',
         parameters: [{ name: 'session', description: 'the session supplying the base directory.' }, { name: 'path', description: 'absolute, or relative to {@link of}.' }],
         returns: 'the normalized absolute path.',
+        throws: ['{WorkingDirectoryUnavailableError} when this device has no directory for a session that records one, so a relative path cannot resolve here.', 'when the session records no directory at all and `path` is relative.'],
       },
       {
         signature: 'async change(session: Session, target: string): Promise<string>',
@@ -4353,7 +4362,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'inherit(child: Session, parent: Session): void',
-        description: 'Start a child session where its parent works: copy the parent\'s logged directory and workspace root onto the child\'s log. A parent still in its header directory leaves the child on its own header.',
+        description: 'Start a child session where its parent works: copy the parent\'s logged directory and workspace root onto the child\'s log. A parent still in its header directory leaves the child on its own header.\n\nA parent working through this device\'s workspace binding has no portable directory to copy: the child\'s own header already names this device\'s directory, and copying the parent\'s recorded path would carry another machine\'s spelling into the child\'s synced log.',
         parameters: [{ name: 'child', description: 'the child session, inside its creation window.' }, { name: 'parent', description: 'the delegating session.' }],
       },
     ],
@@ -4427,7 +4436,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       {
         signature: '@Remote async list(agent: Agent, path: string, signal: AbortSignal): Promise<WorkspaceDirectoryListing>',
         description: 'List the direct children of one directory inside the Session\'s workspace.',
-        parameters: [{ name: 'agent', description: 'the Session asking; its header names the workspace root.' }, { name: 'path', description: 'workspace-relative or absolute path; empty for the root.' }, { name: 'signal', description: 'caller cancellation.' }],
+        parameters: [{ name: 'agent', description: 'the Session asking; this device\'s binding for its workspace names the root.' }, { name: 'path', description: 'workspace-relative or absolute path; empty for the root.' }, { name: 'signal', description: 'caller cancellation.' }],
         returns: 'the root, the listed path and its children, bounded by the entry cap.',
       },
       {
@@ -4439,7 +4448,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       {
         signature: '@Remote async search(agent: Agent, query: string, signal: AbortSignal): Promise<WorkspaceSearchResult>',
         description: 'Find entries whose name contains `query` (case-insensitive), walking the workspace breadth-first and skipping the configured directory names.',
-        parameters: [{ name: 'agent', description: 'the Session asking; its header names the workspace root.' }, { name: 'query', description: 'the name fragment to match.' }, { name: 'signal', description: 'caller cancellation.' }],
+        parameters: [{ name: 'agent', description: 'the Session asking; this device\'s binding for its workspace names the root.' }, { name: 'query', description: 'the name fragment to match.' }, { name: 'signal', description: 'caller cancellation.' }],
         returns: 'the matches in walk order and whether a cap stopped the walk.',
       },
     ],
@@ -4487,6 +4496,18 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'each filed session\'s shared workspace name.',
       },
       {
+        signature: 'placeSession(sessionId: SessionId): SessionPlacement',
+        description: 'Name the workspace that accounts a Session on this device, as a consumer that needs a directory reads it.\n\nThe answer is about this device only: a Session imported from another device is `pending` until its workspace arrives, never filed by the path in its header, because that path names another machine\'s folder.',
+        parameters: [{ name: 'sessionId', description: 'the session.' }],
+        returns: 'the local workspace, the shared name it awaits, or the fact that none accounts it.',
+      },
+      {
+        signature: 'replicated(sessionId: SessionId): boolean',
+        description: 'Whether a Session\'s log was published by another device, so the directory its header records belongs to that device rather than to this one.',
+        parameters: [{ name: 'sessionId', description: 'the session to check.' }],
+        returns: 'whether this device holds a copy of another device\'s log.',
+      },
+      {
         signature: 'async fileSession(sessionId: SessionId, home: string, header?: SessionHeader): Promise<boolean>',
         description: 'File a session another device published into the workspace its sessionHome names, when this device holds that workspace and the session is not filed yet.',
         parameters: [{ name: 'sessionId', description: 'the session, already stored on this device.' }, { name: 'home', description: 'the shared workspace name.' }, { name: 'header', description: 'received metadata when the body has not been downloaded yet.' }],
@@ -4500,9 +4521,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'async bind(id: WorkspaceId, path: string): Promise<Workspace>',
-        description: 'Give a workspace that another device of the account registered a directory on this device. The directory stays here; the account\'s other devices keep their own.',
-        parameters: [{ name: 'id', description: 'a workspace without a directory on this device.' }, { name: 'path', description: 'existing directory, in a fully qualified spelling.' }],
-        returns: 'the workspace, now folder-backed.',
+        description: 'Point a workspace at a directory on this device. A record another device registered gains its first directory here; a folder record whose directory moved is relinked to the new one. Either way the account\'s other devices keep their own paths: the binding is device-local, while the workspace id is what they share.',
+        parameters: [{ name: 'id', description: 'the workspace to point at a directory here.' }, { name: 'path', description: 'existing directory, in a fully qualified spelling.' }],
+        returns: 'the workspace, folder-backed and naming that directory.',
       },
       {
         signature: 'insertBefore(id: WorkspaceId, beforeId?: WorkspaceId): Promise<readonly WorkspaceId[]>',
@@ -6823,6 +6844,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export class LlmRuntime extends TypertRemoteService {\n    constructor(ctx: Context);\n    registerAdapter(providers: string[], adapter: LlmAdapter): AdapterRegistrationHandle;\n    @Remote\n    listProviders(): LlmProviderInfo[];\n    registerConfigurableProviders(entries: readonly LlmConfigurableProvider[]): DirectoryRegistrationHandle;\n    @Remote\n    listConfigurableProviders(): LlmConfigurableProvider[];\n    registerModelDiscovery(settingsNs: string, discover: (request: LlmModelDiscoveryRequest, signal?: AbortSignal) => Promise<readonly LlmDiscoveredModel[]>): () => void;\n    async discoverModels(settingsNs: string, request: LlmModelDiscoveryRequest, signal?: AbortSignal): Promise<LlmDiscoveredModel[]>;\n    @Remote(\'discoverModels\')\n    async remoteDiscoverModels(settingsNs: string, request: LlmModelDiscoveryRequest, signal: AbortSignal): Promise<LlmDiscoveredModel[]>;\n    providerRetryPolicy(provider: string): ResolvedRetryPolicy;\n    imageRequestPricing(provider: string, model: string): LlmImageRequestPricing | undefined;\n    async listModels(provider: string): Promise<LlmModelInfo[]>;\n    async resolveModelInfo(provider: string, model: string, signal?: AbortSignal): Promise<LlmResolvedModelInfo>;\n    async resolveCallConfig(config: LlmCallConfig, signal?: AbortSignal): Promise<LlmCallConfig>;\n    async prepareCall(config: LlmCallConfig, signal?: AbortSignal): Promise<PreparedLlmCall>;\n    stream(options: GenerateOptions): AsyncIterable<StreamChunk>;\n}',
   },
   {
+    name: 'LocalDirectory',
+    declaration: 'export type LocalDirectory = {\n    readonly state: \'local\';\n    readonly cwd: string;\n    readonly root: string;\n} | {\n    readonly state: \'unresolved\';\n    readonly reason: LocalDirectoryProblem;\n} | {\n    readonly state: \'absent\';\n};',
+  },
+  {
+    name: 'LocalDirectoryProblem',
+    declaration: 'export type LocalDirectoryProblem = \'workspace-unbound\' | \'workspace-not-here\';',
+  },
+  {
     name: 'LocalTime',
     declaration: 'export type LocalTime = string;',
   },
@@ -7961,6 +7990,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SessionPersistenceSnapshot',
     declaration: 'export interface SessionPersistenceSnapshot {\n    header: SessionHeader;\n    revision: SessionPersistenceRevision;\n}',
+  },
+  {
+    name: 'SessionPlacement',
+    declaration: 'export type SessionPlacement = {\n    readonly state: \'filed\';\n    readonly workspace: Workspace;\n} | {\n    readonly state: \'pending\';\n    readonly home: string;\n} | {\n    readonly state: \'unfiled\';\n};',
   },
   {
     name: 'SessionPreparation',
@@ -9364,7 +9397,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'Workspace',
-    declaration: 'export interface Workspace {\n    readonly id: WorkspaceId;\n    readonly isDefault: boolean;\n    readonly isBuiltIn: boolean;\n    readonly kind: WorkspaceKind;\n    readonly path: string | undefined;\n    readonly title: string;\n    readonly owner: string | undefined;\n    readonly createdAt: string;\n    readonly updatedAt: string;\n    readonly sessionIds: readonly SessionId[];\n    setTitle(title: string): Promise<void>;\n    attachSession(sessionId: SessionId): Promise<void>;\n    insertSessionBefore(sessionId: SessionId, beforeSessionId?: SessionId): Promise<void>;\n    detachSession(sessionId: SessionId): Promise<void>;\n    status(): Promise<\'ok\' | \'missing-dir\'>;\n}',
+    declaration: 'export interface Workspace {\n    readonly id: WorkspaceId;\n    readonly isDefault: boolean;\n    readonly isBuiltIn: boolean;\n    readonly kind: WorkspaceKind;\n    readonly path: string | undefined;\n    readonly anchorPaths: readonly string[];\n    readonly title: string;\n    readonly owner: string | undefined;\n    readonly createdAt: string;\n    readonly updatedAt: string;\n    readonly sessionIds: readonly SessionId[];\n    setTitle(title: string): Promise<void>;\n    attachSession(sessionId: SessionId): Promise<void>;\n    insertSessionBefore(sessionId: SessionId, beforeSessionId?: SessionId): Promise<void>;\n    detachSession(sessionId: SessionId): Promise<void>;\n    status(): Promise<\'ok\' | \'missing-dir\'>;\n}',
   },
   {
     name: 'WorkspaceArchiveSessionRequest',

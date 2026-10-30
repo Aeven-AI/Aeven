@@ -12,7 +12,7 @@ import FileReferenceService, {
   type FileReferenceCandidate,
 } from '@aeven/file-reference'
 import type {} from '@aeven/tools'
-import type {} from '@aeven/working-directory'
+import { sessionWorkspaceRoot } from '@aeven/working-directory'
 import {
   DEFAULT_FILE_SEARCH_EXCLUDED_DIRECTORIES,
   DEFAULT_FILE_SEARCH_MAX_ENTRIES,
@@ -116,7 +116,7 @@ export class LocalFileReferenceService extends FileReferenceService {
     query: string,
     signal: AbortSignal,
   ): Promise<FileReferenceCandidate[]> {
-    const root = this.ctx.get('workingDirectory')?.rootOf(agent.session) ?? agent.session.header.cwd ?? process.cwd()
+    const root = sessionWorkspaceRoot(this.ctx, agent.session) ?? process.cwd()
     let search = this.searches.get(agent)
     if (search !== undefined && search.root !== root) {
       // The session moved into another workspace (e.g. a git worktree).

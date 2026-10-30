@@ -37,7 +37,8 @@
     "@aeven/shell-env": "workspace:^",
     "@aeven/system-prompt": "workspace:^",
     "@aeven/tools": "workspace:^",
-    "@aeven/user-approval": "workspace:^"
+    "@aeven/user-approval": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "workspace:^"

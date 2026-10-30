@@ -260,10 +260,15 @@ Host service backing `ctx.remote.skills` without activating a cold Agent.
 ```ts cordis-catalog
 /**
  * List the user-invocable skills visible to one Session composition.
- * @param request - Session identity whose cwd and preset select the catalog view.
+ *
+ * The project scope is the directory this device binds for the Session's workspace, never the path the
+ * Session log recorded: a listing served for a conversation synced from another machine reads the
+ * skills of a folder that exists here.
+ * @param request - Session identity whose directory and preset select the catalog view.
  * @param signal - caller lifetime carried by the Remote transport; admitted catalog reads retain their existing completion semantics.
  * @returns user-invocable skill metadata without loading skill bodies.
  * @throws RemoteError when the Session cannot be inspected or no registry can serve it.
+ * @throws {WorkingDirectoryUnavailableError} when the Session's workspace has no folder on this device.
  */
 @Remote async list(request: SkillListRequest, signal: AbortSignal): Promise<SkillListValue>
 ```

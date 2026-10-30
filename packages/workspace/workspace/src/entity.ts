@@ -127,6 +127,17 @@ function labelOf(id: WorkspaceId, record: WorkspaceRecord): string {
   return record.path ?? String(id)
 }
 
+/**
+ * Every directory this record owns: the current one plus the ones a relink
+ * replaced, most recent first.
+ * @param record - the record whose directories are being listed.
+ * @returns the owned directories, empty for a record with no directory.
+ */
+function ownedPaths(record: WorkspaceRecord): readonly string[] {
+  if (record.path === undefined) return []
+  return [record.path, ...record.anchorPaths ?? []]
+}
+
 /** The single {@link Workspace} implementation; constructed only by the registry. */
 export class WorkspaceEntity implements Workspace {
   private record: WorkspaceRecord
@@ -189,6 +200,10 @@ export class WorkspaceEntity implements Workspace {
     return this.record.updatedAt
   }
 
+  get anchorPaths(): readonly string[] {
+    return this.record.anchorPaths ?? []
+  }
+
   get sessionIds(): readonly SessionId[] {
     return this.record.sessionIds.filter(id => this.member(id))
   }
@@ -208,7 +223,8 @@ export class WorkspaceEntity implements Workspace {
   private member(id: SessionId): boolean {
     const path = this.record.path
     if (this.record.kind !== 'folder' || path === undefined || this.host.replicated(id)) return true
-    return this.host.sessionPath(id) === path
+    const sessionPath = this.host.sessionPath(id)
+    return sessionPath !== undefined && ownedPaths(this.record).includes(sessionPath)
   }
 
   /**
@@ -249,6 +265,27 @@ export class WorkspaceEntity implements Workspace {
   async bindDirectory(path: string): Promise<void> {
     if (this.record.kind !== 'remote') throw new Error(`workspace '${this.label}' already has its directory on this device`)
     await this.mutate(record => ({ ...record, kind: 'folder', path }))
+  }
+
+  /**
+   * Point a folder workspace at the directory it now occupies on this device.
+   *
+   * The directory it leaves joins {@link anchorPaths}, so the sessions recorded
+   * under it stay members: a moved workspace is the same workspace in a new
+   * place, and its sessions must not fall out of it.
+   * @param path - canonical existing directory on this device.
+   */
+  async relinkDirectory(path: string): Promise<void> {
+    const previous = this.record.path
+    if (this.record.kind !== 'folder' || previous === undefined) {
+      throw new Error(`workspace '${this.label}' has no directory on this device to relink`)
+    }
+    if (previous === path) return
+    await this.mutate(record => ({
+      ...record,
+      path,
+      anchorPaths: [previous, ...(record.anchorPaths ?? []).filter(anchor => anchor !== previous && anchor !== path)],
+    }))
   }
 
   async attachSession(sessionId: SessionId): Promise<void> {
@@ -313,7 +350,7 @@ export class WorkspaceEntity implements Workspace {
         + `its cwd '${header.cwd}' is not a directory`,
       )
     }
-    if (cwd !== path) {
+    if (!ownedPaths(this.record).includes(cwd)) {
       throw new Error(
         `cannot attach session '${sessionId}' to workspace '${this.label}': `
         + `its cwd resolves to '${cwd}'`,
@@ -385,9 +422,12 @@ export class WorkspaceEntity implements Workspace {
     try {
       next = await this.host.table().update(this.id, (current) => {
         const changed = fn(current)
-        const sessionIds = changed.sessionIds.filter(
-          id => this.host.replicated(id) || this.host.sessionPath(id) === changed.path,
-        )
+        const owned = ownedPaths(changed)
+        const sessionIds = changed.sessionIds.filter((id) => {
+          if (this.host.replicated(id) || changed.path === undefined) return true
+          const sessionPath = this.host.sessionPath(id)
+          return sessionPath !== undefined && owned.includes(sessionPath)
+        })
         if (changed === current && sessionIds.length === current.sessionIds.length) {
           throw unchangedSentinel
         }

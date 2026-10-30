@@ -38,7 +38,8 @@
     "@aeven/session": "workspace:^",
     "@aeven/subagent": "workspace:^",
     "@aeven/subprocess": "workspace:^",
-    "@aeven/timeout": "workspace:^"
+    "@aeven/timeout": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   },
   "dependencies": {
     "@aeven/brand": "workspace:^",
@@ -63,6 +64,7 @@
     "@aeven/timeout": "workspace:^",
     "@aeven/tool-jobs": "workspace:^",
     "@aeven/tool-subagent": "workspace:^",
-    "@aeven/tools": "workspace:^"
+    "@aeven/tools": "workspace:^",
+    "@aeven/working-directory": "workspace:^"
   }
 }

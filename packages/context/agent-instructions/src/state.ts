@@ -240,7 +240,8 @@ function relativeScope(projectRoot: string, dir: string): string {
  * @param resolved - normalized plugin configuration.
  * @param versionCache - per-session scope metadata used to skip unchanged reads.
  * @param fileSystem - provider used for current file probes.
- * @param options - authoritative claimed context, pending scope hints, touched paths, and baseline participation.
+ * @param options - the session's directory on this device, authoritative claimed context, pending scope hints,
+ *   touched paths, and baseline participation.
  * @returns rendered context plus deferred cache updates, or undefined when unchanged/unavailable.
  */
 export async function reconcileInstructionContext(
@@ -249,6 +250,8 @@ export async function reconcileInstructionContext(
   versionCache: InstructionVersionCache,
   fileSystem: FileSystem,
   options: {
+    /** The session's directory on this device, resolved by the caller through `sessionDirectory`. */
+    cwd: string
     authorityMessages: readonly UserMessage[]
     scopeMessages: readonly UserMessage[]
     touchedPaths: readonly string[]
@@ -260,8 +263,7 @@ export async function reconcileInstructionContext(
 ): Promise<ReconciledInstructionContext | undefined> {
   const session = agent.session
   const effective = visibleInstructionChanges(agent, options.authorityMessages)
-  /* v8 ignore next -- normal agents carry an absolute session cwd. */
-  const cwd = session.header.cwd ?? process.cwd()
+  const { cwd } = options
   // TODO(frozen-project-root): retain the baseline root for the loop instance;
   // recomputing it after marker edits reinterprets the existing relative scope keys.
   const projectRoot = options.projectRoot

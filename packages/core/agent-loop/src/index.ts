@@ -31,6 +31,7 @@ import type {} from '@aeven/tools'
 import type {} from '@aeven/session-projection'
 import type { ProjectionDefinition } from '@aeven/session-projection'
 import type { SessionPersistence } from '@aeven/session-persistence'
+import type {} from '@aeven/working-directory'
 import { ReactLoopAgent } from './agent.ts'
 import { DEFAULT_MAX_PARALLEL_TOOL_CALLS } from './constants.ts'
 
@@ -432,12 +433,16 @@ export class AgentLoop extends Service implements AgentFactory {
     ctx.effect(() => ctx.agents.setFactory(this), 'agentLoop.setFactory()')
     ctx.systemPrompt.variable('provider', context => context.agent?.options.provider)
     ctx.systemPrompt.variable('model', context => context.agent?.options.model)
-    // A Session with no working directory reports that absence rather than an
-    // undefined value; see {@link NO_WORKING_DIRECTORY} for why.
+    // The directory is the one this device resolves for the session's workspace. Without the
+    // working-directory capability there is no workspace binding to consult, so the header is the
+    // only value left. A Session with no directory reports that absence rather than an undefined
+    // value; see {@link NO_WORKING_DIRECTORY} for why.
     ctx.systemPrompt.variable('cwd', (context) => {
       const agent = context.agent
       if (agent === undefined) return undefined
-      return agent.session.header.cwd ?? NO_WORKING_DIRECTORY
+      const workingDirectory = ctx.get('workingDirectory')
+      if (workingDirectory === undefined) return agent.session.header.cwd ?? NO_WORKING_DIRECTORY
+      return workingDirectory.of(agent.session) ?? NO_WORKING_DIRECTORY
     })
 
     for (const { id, sessionId, cwd, resumeSessionId, ...options } of this.config.agents) {

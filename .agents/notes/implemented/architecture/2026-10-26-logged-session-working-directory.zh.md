@@ -20,7 +20,7 @@ of(session) = last logged session/cwd ?? session.header.cwd
 
 `resolve` 对绝对路径做规范化，对相对路径相对于 `of()` 解析，因此连续变更像 shell 的 `cd` 那样叠加。`change` 要求目录存在、追加事件并返回绝对路径；空目标、缺失路径或普通文件会抛错并点出该路径，目标已在生效状态时不追加任何事件。
 
-`@aeven/tool-working-directory` 将其作为模型可见的 `working_directory` 工具暴露，四个 shell 工具通过 `ctx.get('workingDirectory')?.of(session)` 解析，并以头部作为回退，因此没有该插件的组合行为与之前完全一致。
+`@aeven/tool-working-directory` 将其作为模型可见的 `working_directory` 工具暴露，所有 shell、文件、搜索与沙箱消费方都通过该容量解析，因此没有该插件的组合行为与之前完全一致。来自另一台设备的会话不再把第二个操作数当作自己的目录：[可移植解析决定](2026-10-29-synced-session-directory-is-the-local-binding.zh.md)保留记录下来的目录作为可移植记录，并从本设备的工作区绑定解析本地目录。
 
 ## 考虑过的替代方案
 
@@ -34,6 +34,6 @@ of(session) = last logged session/cwd ?? session.header.cwd
 
 - `session/cwd` 进入持久化目录与已知事件类型；`SESSION_FORMAT_VERSION` 保持 `0`，因为没有信封或格式变化。
 - 投影单元 `workingDirectory` 为客户端而存在，因此重新加载或分叉的会话渲染日志记录的目录。
-- 仍直接读取 `session.header.cwd` 的消费者固定在创建目录。四个 shell 工具已迁移；文件、搜索与 MCP 工具是机械后续工作，并记录在包 README 的局限中。
+- 每个在目录中作用的消费方现在都通过 `sessionDirectory` 或 `sessionWorkspaceRoot` 解析，而不是自己读取 `session.header.cwd`；身份比较仍读取头部。这些辅助函数返回哪个本地目录，遵循[后续决定](2026-10-29-synced-session-directory-is-the-local-binding.zh.md)。
 - `change` 不强制沙箱限制。受限组合在拥有限制的策略中拒绝根外目标，那是该判断本就归属的地方。
 - Git Worktrees 工作依赖于此：`create_worktree` 在 `git worktree add` 之后用 `change` 移动会话。

@@ -179,10 +179,12 @@ export function ProjectRowItem({ group, onToggle, newSessionHref, onCreate, acti
   ))
   // Deleting a workspace keeps its folder and session logs and archives its
   // sessions, so the row reads like the others rather than as destructive.
+  // Choosing the workspace's folder is the same action whether the workspace
+  // arrived from another device without one or its directory moved since, so
+  // the row offers it in both cases.
   const workspaceMenuItems = [
-    // A workspace another device registered opens here once it has a folder of this device.
-    ...actions?.bind === undefined ? [] : [{ id: 'bind', label: t('bind.workspace'), icon: <IconLucideFolder /> }],
     { id: 'rename', label: t('rename'), icon: <IconEditOutline16 /> },
+    ...actions?.bind === undefined ? [] : [{ id: 'bind', label: t('bind.workspace'), icon: <IconLucideFolder /> }],
     { id: 'delete', label: t('delete.workspace'), icon: <IconTrashOutline16 /> },
   ]
   return (

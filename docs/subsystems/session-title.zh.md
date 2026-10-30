@@ -210,18 +210,26 @@ Directory resolution and change for one session.
 
 ```ts cordis-catalog
 /**
- * The directory in force for a session.
+ * The directory pair in force for a session on this device.
+ * @param session - the session to resolve.
+ * @returns the local directory and workspace root, why this device has none,
+ *   or the fact that the session records no directory at all.
+ */
+local(session: Session): LocalDirectory
+
+/**
+ * The directory in force for a session on this device.
  * @param session - the session whose tool calls resolve paths against it.
- * @returns the last logged `session/cwd`, else the header's `cwd`, else
- *   undefined when the session records none and nothing overrode it.
+ * @returns the local directory, or undefined when this device has none — read
+ *   {@link local} to tell a refusal from a session that records none.
  */
 of(session: Session): string | undefined
 
 /**
- * The workspace root in force for a session: the directory sandboxed writes
- * are confined to.
+ * The workspace root in force for a session on this device: the directory
+ * sandboxed writes are confined to.
  * @param session - the session to resolve.
- * @returns the last logged `root`, else the header's `cwd`, else undefined.
+ * @returns the local root, or undefined when this device has none.
  */
 rootOf(session: Session): string | undefined
 
@@ -230,6 +238,9 @@ rootOf(session: Session): string | undefined
  * @param session - the session supplying the base directory.
  * @param path - absolute, or relative to {@link of}.
  * @returns the normalized absolute path.
+ * @throws {WorkingDirectoryUnavailableError} when this device has no directory
+ *   for a session that records one, so a relative path cannot resolve here.
+ * @throws when the session records no directory at all and `path` is relative.
  */
 resolve(session: Session, path: string): string
 
@@ -269,6 +280,11 @@ enterVerified(session: Session, path: string): void
  * Start a child session where its parent works: copy the parent's logged
  * directory and workspace root onto the child's log. A parent still in its
  * header directory leaves the child on its own header.
+ *
+ * A parent working through this device's workspace binding has no portable
+ * directory to copy: the child's own header already names this device's
+ * directory, and copying the parent's recorded path would carry another
+ * machine's spelling into the child's synced log.
  * @param child - the child session, inside its creation window.
  * @param parent - the delegating session.
  */

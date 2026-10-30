@@ -6,7 +6,7 @@ import { assertNever } from '@aeven/util-values'
 import type { Agent } from '@aeven/agent'
 import type { SessionId } from '@aeven/session'
 import type {} from '@aeven/sandbox-policy'
-import type {} from '@aeven/working-directory'
+import { sessionDirectory } from '@aeven/working-directory'
 import type {} from '@aeven/identity-user'
 import { Remote, RemoteError, TypertRemoteService } from '@aeven/typert-protocol'
 import { scopeTarget } from '@aeven/scope'
@@ -130,16 +130,17 @@ export class TerminalController extends TypertRemoteService {
   }
 
   /**
-   * Read the Session working directory and terminal limits without resolving a shell.
+   * Read the Session's local working directory and terminal limits without resolving a shell.
    * @param agent - Session owner supplied by the Gateway.
    * @param signal - request cancellation.
-   * @returns the Session workspace directory and terminal limits.
+   * @returns the directory this device starts the Session's terminals in, and terminal limits.
+   * @throws {WorkingDirectoryUnavailableError} when the Session's workspace has no folder on this device.
    */
   @Remote
   environment(agent: Agent, signal: AbortSignal): TerminalEnvironment {
     signal.throwIfAborted()
     const { sandboxPolicy } = this.execution(agent)
-    return { cwd: this.ctx.get('workingDirectory')?.of(agent.session) ?? agent.session.header.cwd ?? sandboxPolicy.workspaceRoot,
+    return { cwd: sessionDirectory(this.ctx, agent.session) ?? sandboxPolicy.workspaceRoot,
       maxInputBytes: this.config.maxInputBytes, maxCols: this.config.maxCols,
       maxRows: this.config.maxRows, scrollback: this.config.scrollback }
   }

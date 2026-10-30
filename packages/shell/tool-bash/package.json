@@ -37,6 +37,7 @@
     "@aeven/jobs": "workspace:^",
     "@aeven/tools": "workspace:^",
     "@aeven/user-approval": "workspace:^",
+    "@aeven/working-directory": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
   "dependencies": {
