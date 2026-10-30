@@ -20,6 +20,7 @@ interface FakeWorld {
   dialog: {
     setOptions: ReturnType<typeof vi.fn>
     setTitle: ReturnType<typeof vi.fn>
+    setFolder?: ReturnType<typeof vi.fn>
     show: ReturnType<typeof vi.fn>
     resultPath: ReturnType<typeof vi.fn>
     release: ReturnType<typeof vi.fn>
@@ -50,6 +51,19 @@ function world(overrides: Partial<Win32FolderDialog> = {}, coInit = 0): FakeWorl
 }
 
 describe('runFolderDialog', () => {
+  it('opens in the requested folder and keeps the dialog when the shell refuses it', () => {
+    const opened = world({ setFolder: vi.fn(() => 0) })
+    expect(runFolderDialog(opened.bindings, 'Pick', vi.fn(), 'C:\\work')).toBe('C:\\picked\\目录')
+    expect(opened.dialog.setFolder!).toHaveBeenCalledWith('C:\\work')
+
+    const refusing = world({ setFolder: vi.fn(() => E_FAIL) })
+    expect(runFolderDialog(refusing.bindings, 'Pick', vi.fn(), 'C:\\gone')).toBe('C:\\picked\\目录')
+    expect(refusing.dialog.setFolder!).toHaveBeenCalledWith('C:\\gone')
+
+    const absent = world()
+    expect(runFolderDialog(absent.bindings, 'Pick', vi.fn())).toBe('C:\\picked\\目录')
+    expect(absent.dialog.setFolder).toBeUndefined()
+  })
   it('sequences DPI, STA, options, title, show, result extraction, and apartment teardown', () => {
     const { bindings, dpi, dialog, uninitialize } = world()
     const showing = vi.fn()

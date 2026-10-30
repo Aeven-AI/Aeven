@@ -4328,7 +4328,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/shell/tool-bash/src/index.ts:37`](../packages/shell/tool-bash/src/index.ts)
+Source: [`packages/shell/tool-bash/src/index.ts:38`](../packages/shell/tool-bash/src/index.ts)
 
 <a id="aeventool-bash-persistent"></a>
 

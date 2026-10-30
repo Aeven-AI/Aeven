@@ -337,9 +337,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'sessionId', description: 'Session to archive.' }],
       },
       {
-        signature: 'pickDirectory(): Promise<string | null>',
+        signature: 'pickDirectory(directory?: string): Promise<string | null>',
         description: 'Open the Host-native directory picker.',
-        parameters: [],
+        parameters: [{ name: 'directory', description: 'directory the chooser opens at; absent leaves the platform\'s own default, which is its last-used folder.' }],
         returns: 'the selected directory, or null when cancelled.',
       },
       {

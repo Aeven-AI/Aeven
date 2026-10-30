@@ -31,6 +31,14 @@ export interface Win32FolderDialog {
    */
   setTitle(title: string): number
   /**
+   * `IFileDialog::SetFolder`, the folder the dialog opens in. Absent on a
+   * surface that cannot resolve a path, which is why the caller treats it as
+   * a hint rather than a precondition.
+   * @param path - absolute directory to open at.
+   * @returns the call's HRESULT.
+   */
+  setFolder?(path: string): number
+  /**
    * `IModalWindow::Show` with no owner window; blocks the calling thread
    * until the user selects or dismisses.
    * @returns the call's HRESULT (`HRESULT_CANCELLED` on dismissal).
@@ -114,12 +122,15 @@ function check(hr: number, what: string): number {
  * @param title - the dialog title text.
  * @param onShowing - called with the native thread id immediately before the
  *   blocking `Show`, so a driver on another thread can close the dialog.
+ * @param directory - absolute directory to open at; a path the shell cannot
+ *   resolve leaves the dialog's own default.
  * @returns the selected filesystem path, or null when the user cancels.
  */
 export function runFolderDialog(
   bindings: Win32DialogBindings,
   title: string,
   onShowing: (threadId: number) => void,
+  directory?: string,
 ): string | null {
   bindings.setThreadDpiAwareness()
   check(bindings.coInitializeSta(), 'CoInitializeEx')
@@ -130,6 +141,9 @@ export function runFolderDialog(
     try {
       check(dialog.setOptions(FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM | FOS_NOCHANGEDIR), 'SetOptions')
       check(dialog.setTitle(title), 'SetTitle')
+      // The starting folder is a hint: a stale or unreachable path must leave
+      // the dialog's own default rather than abort the operator's pick.
+      if (directory !== undefined) dialog.setFolder?.(directory)
       onShowing(bindings.currentThreadId())
       bindings.pressAltForForeground()
       const shown = dialog.show()

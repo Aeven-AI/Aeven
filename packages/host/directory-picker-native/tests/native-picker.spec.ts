@@ -20,6 +20,9 @@ const { execFileMock } = vi.hoisted(() => ({ execFileMock: vi.fn<ExecFileMock>()
 
 vi.mock('node:child_process', () => ({ execFile: execFileMock }))
 
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { pickNativeDirectory, type DirectoryPickerRunner } from '../src/native-picker.ts'
 
@@ -53,6 +56,52 @@ describe('native directory picker', () => {
   ])('does not mistake %s for macOS cancellation', async (_label, reason) => {
     const run = vi.fn<DirectoryPickerRunner>(async () => { throw reason })
     await expect(pickNativeDirectory(signal(), { platform: 'darwin', run })).rejects.toBe(reason)
+  })
+
+  it('opens the macOS chooser at the requested folder, escaping its path', async () => {
+    const run = vi.fn<DirectoryPickerRunner>(async () => ({ stdout: '/Users/test/project/\n', stderr: '' }))
+    const root = mkdtempSync(join(tmpdir(), 'avn-pick-'))
+    const quoted = join(root, 'two "quotes"')
+    mkdirSync(quoted)
+    try {
+      await pickNativeDirectory(signal(), { platform: 'darwin', run, directory: quoted })
+      const [, args] = run.mock.calls[0]!
+      expect(args).toEqual([
+        '-e', `set selectedFolder to choose folder with prompt "Select Workspace Directory" default location (POSIX file "${quoted.replace(/"/g, '\\"')}")`,
+        '-e', 'POSIX path of selectedFolder',
+      ])
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('leaves the macOS default folder when the requested one is gone', async () => {
+    const run = vi.fn<DirectoryPickerRunner>(async () => ({ stdout: '/Users/test/project/\n', stderr: '' }))
+    await pickNativeDirectory(signal(), { platform: 'darwin', run, directory: join(tmpdir(), 'avn-absent-workspace') })
+    const [, args] = run.mock.calls[0]!
+    expect(args[1]).toBe('set selectedFolder to choose folder with prompt "Select Workspace Directory"')
+  })
+
+  it('opens Zenity and KDialog at the requested folder', async () => {
+    const run = vi.fn<DirectoryPickerRunner>(async () => ({ stdout: '/home/test/project\n', stderr: '' }))
+    await pickNativeDirectory(signal(), { platform: 'linux', run, directory: '/home/test/project' })
+    expect(run).toHaveBeenCalledWith('zenity', [
+      '--file-selection', '--directory', '--title=Select Workspace Directory', '--filename=/home/test/project/',
+    ], expect.any(AbortSignal))
+
+    run.mockRejectedValueOnce(failure('ENOENT'))
+    await pickNativeDirectory(signal(), { platform: 'linux', run, directory: '/home/test/project' })
+    expect(run).toHaveBeenLastCalledWith('kdialog', [
+      '--getexistingdirectory', '/home/test/project', '--title', 'Select Workspace Directory',
+    ], expect.any(AbortSignal))
+  })
+
+  it('hands the requested folder to the Win32 dialog', async () => {
+    const pickWin32Dialog = vi.fn(async (): Promise<string | null> => 'C:\\work\\selected')
+    await pickNativeDirectory(signal(), {
+      platform: 'win32', run: vi.fn<DirectoryPickerRunner>(), pickWin32Dialog, directory: 'C:\\work',
+    })
+    expect(pickWin32Dialog).toHaveBeenCalledWith(expect.any(AbortSignal), 'C:\\work')
   })
 
   it('uses the Win32 dialog and never spawns a command when it answers', async () => {

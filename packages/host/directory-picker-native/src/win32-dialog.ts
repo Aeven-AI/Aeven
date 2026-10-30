@@ -42,6 +42,16 @@ export interface Win32DialogInternals {
   closeRetryMs?: number
 }
 
+/** One opening: the caller's starting-directory hint plus the test hooks. */
+export interface Win32PickOptions extends Win32DialogInternals {
+  /**
+   * Absolute directory the dialog opens at. The worker applies it as
+   * `IFileOpenDialog::SetFolder`; a path that fails to resolve leaves the
+   * dialog's own default instead of failing the pick.
+   */
+  readonly directory?: string
+}
+
 /** The dialog title every host shows. */
 export const DIALOG_TITLE = 'Select Workspace Directory'
 
@@ -60,19 +70,21 @@ function assertNever(value: never): never {
 /**
  * Open the modern Win32 folder picker off the event loop.
  * @param signal - caller lifetime; abort closes the dialog and rejects.
- * @param internals - Worker/window hooks for deterministic tests.
+ * @param options - starting-directory hint plus worker/window hooks for deterministic tests.
  * @returns the selected path, or null when the user cancels.
  */
 export async function pickWin32Directory(
   signal: AbortSignal,
-  internals: Win32DialogInternals = {},
+  options: Win32PickOptions = {},
 ): Promise<string | null> {
   if (signal.aborted) throw new Error('native directory picker aborted')
-  const spawnWorker = internals.spawnWorker ?? spawnDialogWorker
-  const closeWindows = internals.closeThreadWindows ?? hostCloseThreadWindows
-  const closeRetryMs = internals.closeRetryMs ?? CLOSE_RETRY_MS
+  const spawnWorker = options.spawnWorker ?? spawnDialogWorker
+  const closeWindows = options.closeThreadWindows ?? hostCloseThreadWindows
+  const closeRetryMs = options.closeRetryMs ?? CLOSE_RETRY_MS
 
-  const worker: Win32DialogWorkerLike = spawnWorker({ title: DIALOG_TITLE })
+  const worker: Win32DialogWorkerLike = spawnWorker(options.directory === undefined
+    ? { title: DIALOG_TITLE }
+    : { title: DIALOG_TITLE, directory: options.directory })
   let dialogThreadId: number | undefined
   let closeTimer: NodeJS.Timeout | undefined
   let settled = false

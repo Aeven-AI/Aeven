@@ -1,6 +1,8 @@
 /** Cross-platform native single-directory chooser behind the native backend's capability. */
 
+import { existsSync } from 'node:fs'
 import { runNativeCommand, type NativeCommandRunner } from '@aeven/native-command'
+import type { DirectoryPickerPickOptions } from '@aeven/host-directory-picker'
 import { pickWin32Directory } from './win32-dialog.ts'
 
 /** Testable command boundary; native implementations never invoke a shell. */
@@ -11,7 +13,30 @@ export interface DirectoryPickerInternals {
   platform?: NodeJS.Platform
   run?: DirectoryPickerRunner
   /** Replaces the in-process Win32 dialog (`pickWin32Directory`) for deterministic tests. */
-  pickWin32Dialog?: (signal: AbortSignal) => Promise<string | null>
+  pickWin32Dialog?: (signal: AbortSignal, directory?: string) => Promise<string | null>
+}
+
+/** One opening: the caller's starting-directory hint plus the test hooks. */
+export interface PickNativeDirectoryOptions extends DirectoryPickerInternals, DirectoryPickerPickOptions {}
+
+/**
+ * Quote one string as an AppleScript literal.
+ * @param text - the raw text.
+ * @returns the literal, with backslashes and quotes escaped.
+ */
+function appleScriptLiteral(text: string): string {
+  return `"${text.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+}
+
+/**
+ * The `default location` clause that makes the macOS chooser open at `directory`.
+ * @param directory - absolute directory the caller wants to start from.
+ * @returns the clause, or an empty string when the directory is gone: a stale
+ * record must leave the platform default rather than break the chooser.
+ */
+function macDefaultLocation(directory: string | undefined): string {
+  if (directory === undefined || !existsSync(directory)) return ''
+  return ` default location (POSIX file ${appleScriptLiteral(directory)})`
 }
 
 function outputPath(stdout: string): string | null {
@@ -42,20 +67,20 @@ function rethrowIfAborted(signal: AbortSignal, error: unknown): void {
 /**
  * Open the platform directory picker.
  * @param signal - caller/connection lifetime; abort terminates the native command.
- * @param internals - Platform and runner hooks for deterministic tests.
+ * @param options - starting-directory hint plus platform/runner hooks for deterministic tests.
  * @returns the selected path, or null when the user cancels.
  */
 export async function pickNativeDirectory(
   signal: AbortSignal,
-  internals: DirectoryPickerInternals = {},
+  options: PickNativeDirectoryOptions = {},
 ): Promise<string | null> {
-  const platform = internals.platform ?? process.platform
-  const run = internals.run ?? runNativeCommand
+  const platform = options.platform ?? process.platform
+  const run = options.run ?? runNativeCommand
 
   if (platform === 'darwin') {
     try {
       const result = await run('osascript', [
-        '-e', 'set selectedFolder to choose folder with prompt "Select Workspace Directory"',
+        '-e', `set selectedFolder to choose folder with prompt "Select Workspace Directory"${macDefaultLocation(options.directory)}`,
         '-e', 'POSIX path of selectedFolder',
       ], signal)
       return outputPath(result.stdout)
@@ -72,14 +97,15 @@ export async function pickNativeDirectory(
     // whose availability the install guarantees, so there is no fallback
     // tier: any failure surfaces as-is (no PowerShell fallback tier; see
     // .agents/notes/implemented/simplification/2026-08-04-drop-windows-powershell-picker-fallback.md).
-    const pickDialog = internals.pickWin32Dialog ?? pickWin32Directory
-    return await pickDialog(signal)
+    const pickDialog = options.pickWin32Dialog ?? pickWin32Directory
+    return await pickDialog(signal, options.directory)
   }
 
   if (platform === 'linux') {
     try {
       const result = await run('zenity', [
         '--file-selection', '--directory', '--title=Select Workspace Directory',
+        ...options.directory === undefined ? [] : [`--filename=${options.directory}/`],
       ], signal)
       return outputPath(result.stdout)
     } catch (error: unknown) {
@@ -90,7 +116,7 @@ export async function pickNativeDirectory(
 
     try {
       const result = await run('kdialog', [
-        '--getexistingdirectory', '.', '--title', 'Select Workspace Directory',
+        '--getexistingdirectory', options.directory ?? '.', '--title', 'Select Workspace Directory',
       ], signal)
       return outputPath(result.stdout)
     } catch (error: unknown) {
