@@ -1,0 +1,52 @@
+[
+  {
+    "kind": "chunks",
+    "chunks": [
+      {
+        "type": "block-start",
+        "index": 0,
+        "blockType": "tool-call"
+      },
+      {
+        "type": "block-end",
+        "index": 0,
+        "block": {
+          "type": "tool-call",
+          "id": "generate",
+          "name": "bash",
+          "arguments": "{\"description\": \"Generate declared document outputs\", \"command\": \"for file in report.pdf report.docx book.xlsx slides.pptx letter.pages book.numbers slides.key data.csv; do printf output > \\\"$file\\\"; done\", \"output_files\": [\"report.pdf\", \"report.docx\", \"book.xlsx\", \"slides.pptx\", \"letter.pages\", \"book.numbers\", \"slides.key\", \"data.csv\"]}"
+        }
+      },
+      {
+        "type": "finish",
+        "reason": {
+          "kind": "tool-calls"
+        }
+      }
+    ]
+  },
+  {
+    "kind": "chunks",
+    "chunks": [
+      {
+        "type": "block-start",
+        "index": 0,
+        "blockType": "text"
+      },
+      {
+        "type": "block-end",
+        "index": 0,
+        "block": {
+          "type": "text",
+          "text": "DONE"
+        }
+      },
+      {
+        "type": "finish",
+        "reason": {
+          "kind": "stop"
+        }
+      }
+    ]
+  }
+]

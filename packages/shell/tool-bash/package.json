@@ -38,7 +38,8 @@
     "@aeven/tools": "workspace:^",
     "@aeven/user-approval": "workspace:^",
     "@aeven/working-directory": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/fs": "workspace:^"
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "workspace:^"
@@ -64,6 +65,8 @@
     "@aeven/user-approval": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@aeven/session-projection": "workspace:^",
-    "@aeven/working-directory": "workspace:^"
+    "@aeven/working-directory": "workspace:^",
+    "@aeven/fs": "workspace:^",
+    "@aeven/fs-local": "workspace:^"
   }
 }

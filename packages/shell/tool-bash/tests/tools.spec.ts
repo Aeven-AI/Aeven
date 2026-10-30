@@ -1,4 +1,4 @@
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
@@ -23,6 +23,7 @@ import SandboxPolicyService from '@aeven/sandbox-policy'
 import SessionProjectionRegistry from '@aeven/session-projection'
 import * as ToolBash from '@aeven/tool-bash'
 import * as BashEnvPlugin from '@aeven/shell-env'
+import LocalFileSystem from '@aeven/fs-local'
 import { processOutcome } from '../src/background.ts'
 import { renderProcessRead, renderResult } from '../src/render.ts'
 
@@ -67,6 +68,40 @@ async function setup() {
   await ctx.plugin(ToolBash)
   return ctx
 }
+
+describe('declared generated files', () => {
+  it('records new and modified outputs but excludes unchanged, missing, and directory paths', async () => {
+    const ctx = await setup()
+    const root = mkdtempSync(join(tmpdir(), 'avn-generated-files-'))
+    const fsFiber = await ctx.plugin(LocalFileSystem)
+    writeFileSync(join(root, 'existing.xlsx'), 'before')
+    writeFileSync(join(root, 'unchanged.pages'), 'unchanged')
+    try {
+      const result = await call(ctx, 'bash', {
+        description: 'Generate documents', workdir: root,
+        command: 'printf pdf > report.pdf; printf docx > report.docx; printf pptx > slides.pptx; printf after > existing.xlsx',
+        output_files: ['report.pdf', 'report.docx', 'slides.pptx', 'existing.xlsx', 'unchanged.pages', 'missing.pdf', '.'],
+      })
+      expect(result.isError).not.toBe(true)
+      expect(result.meta).toEqual({ producedFiles: [
+        { path: join(root, 'report.pdf'), created: true },
+        { path: join(root, 'report.docx'), created: true },
+        { path: join(root, 'slides.pptx'), created: true },
+        { path: join(root, 'existing.xlsx'), created: false },
+      ] })
+    } finally {
+      await fsFiber.dispose()
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('refuses background publication before starting a command', async () => {
+    const ctx = await setup()
+    const result = await call(ctx, 'bash', { command: 'exit 0', description: 'Generate document', output_files: ['report.pdf'], run_in_background: true })
+    expect(result.isError).toBe(true)
+    expect(text(result)).toContain('output_files requires a foreground command')
+  })
+})
 
 /** Full harness: the generic job runtime + its controller, then the bash tool. */
 async function setupWithTasks(config: ToolBash.Config = {}) {
@@ -615,7 +650,7 @@ describe('background execution through the job runtime', () => {
 
     const schema = ctx.tools.schemas().find(s => s.name === 'bash')!
     expect(Object.keys(schema.parameters.properties as Record<string, unknown>))
-      .toEqual(['description', 'command', 'timeoutMs', 'workdir'])
+      .toEqual(['description', 'command', 'timeoutMs', 'workdir', 'output_files'])
     expect(schema.description).toContain('Background execution is not available')
     expect(schema.description).not.toContain('run_in_background')
     // The registry-held definition agrees (schema and capability never disagree).

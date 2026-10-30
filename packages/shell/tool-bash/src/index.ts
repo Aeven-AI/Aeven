@@ -15,6 +15,7 @@ import { defineTool, TOOL_ABORTED } from '@aeven/tools'
 import type { GenericCallView, TerminalCallView, ToolExecution, ToolResult, ToolResultView } from '@aeven/tools'
 import { HarnessError } from '@aeven/llm'
 import type { Agent } from '@aeven/agent'
+import type {} from '@aeven/fs'
 import type { JobId, JobRegistry } from '@aeven/jobs'
 import { sessionDirectory } from '@aeven/working-directory'
 import type {} from '@aeven/user-approval'
@@ -60,6 +61,7 @@ interface BashToolArgs {
   run_in_background?: boolean
   sandbox_permissions?: string
   justification?: string
+  output_files?: string[]
 }
 
 function validateBashArgs(args: BashToolArgs): void {
@@ -75,6 +77,8 @@ function validateBashArgs(args: BashToolArgs): void {
   // The escalation pairing (sandbox_permissions ⇔ justification, non-empty) is
   // the shared rule both enforcing families validate identically.
   validateEscalationArgs(args.sandbox_permissions, args.justification)
+  if (args.output_files?.some(path => path.trim().length === 0)) throw new Error('output_files must contain non-blank file paths')
+  if (args.output_files?.length && args.run_in_background === true) throw new Error('output_files requires a foreground command')
 }
 
 function bashDescription(
@@ -333,6 +337,10 @@ export function apply(ctx: Context, config: Config = {}): void {
       command: { type: 'string', required: true, description: 'The bash command to execute.' },
       timeoutMs: { type: 'number', description: 'Timeout in milliseconds. The executor applies its configured default and cap, and kills the command on expiry.' },
       workdir: { type: 'string', description: 'Working directory for this command. Defaults to the session workspace; a relative path is resolved against it.' },
+      output_files: {
+        type: 'array', items: { type: 'string' },
+        description: 'For commands generating deliverables (PDF, DOCX, spreadsheets, images, etc.), list every output path here. Paths resolve against workdir. Verified new or changed files appear in the created/edited-files block. Requires foreground execution.',
+      },
       ...backgroundEnabled ? {
         run_in_background: { type: 'boolean' as const, description: 'Run in the background and return a job id immediately (collect with job_output, stop with job_kill). No timeout applies.' },
       } : {},
@@ -367,6 +375,15 @@ export function apply(ctx: Context, config: Config = {}): void {
               timedOut: { type: 'boolean', required: true },
               aborted: { type: 'boolean', required: true },
               timeoutMs: { type: 'number', required: true },
+              producedFiles: {
+                type: 'array', items: {
+                  type: 'object', additionalProperties: false,
+                  properties: {
+                    path: { type: 'string', required: true },
+                    created: { type: 'boolean', required: true },
+                  },
+                },
+              },
               stdout: {
                 type: 'object',
                 additionalProperties: false,
@@ -409,6 +426,9 @@ export function apply(ctx: Context, config: Config = {}): void {
             : `${BACKGROUND_ACK}${value.jobId}`
           : renderResult(value as { kind: 'foreground' } & ShellRunResult, escalationModes),
       }],
+      presentationMeta: (_args, value) => value.kind === 'foreground' && value.producedFiles !== undefined
+        ? { producedFiles: value.producedFiles }
+        : {},
     },
     async execute(args: BashToolArgs, exec) {
       validateBashArgs(args)
@@ -432,6 +452,24 @@ export function apply(ctx: Context, config: Config = {}): void {
         ...args.timeoutMs !== undefined ? { timeoutMs: args.timeoutMs } : {},
         avnEnv,
         ...policy !== undefined ? { sandboxPolicy: policy } : {},
+      }
+      if (args.output_files?.length) {
+        const fs = ctx.get('fs')
+        if (fs === undefined) throw new Error('output_files requires a filesystem provider')
+        const outputs = await Promise.all([...new Set(args.output_files)].map(async (path) => {
+          const target = await fs.resolve(path, { ...workdir === undefined ? {} : { cwd: workdir }, signal: exec.signal })
+          return { path, before: await fs.stat(target, exec.signal) }
+        }))
+        const result = finishForeground(await ctx.shell.run(ctx.shell.resolve({ ...request, signal: exec.signal })))
+        const producedFiles: { path: string; created: boolean }[] = []
+        for (const output of outputs) {
+          const target = await fs.resolve(output.path, { ...workdir === undefined ? {} : { cwd: workdir }, signal: exec.signal })
+          const after = await fs.stat(target, exec.signal)
+          if (after?.type === 'file' && after.version !== output.before?.version) {
+            producedFiles.push({ path: target.displayPath, created: output.before === undefined })
+          }
+        }
+        return { ...result, producedFiles }
       }
       if (args.run_in_background === true) {
         // Undeclared keys are allowed, so schema omission also needs enforcement.
