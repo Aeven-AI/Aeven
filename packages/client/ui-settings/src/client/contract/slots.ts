@@ -53,12 +53,14 @@ declare module '@aeven/client-ui-slots' {
      */
     'settings.section': { kind: 'list'; scope: 'root'; owner: SettingsSectionOwnerProps }
     /**
-     * One page inside the Plugins settings section. The section owner renders
-     * localized entry labels as tabs and mounts each contribution inside its
-     * corresponding tab panel. Options: `id` (tab key), `order` (tab order),
-     * and `label` (registrant-localized tab text). Declared at runtime by the
-     * feature that owns the Plugins section; the type lives here so inventory
-     * and configuration plugins collaborate without depending on one another.
+     * One page inside the Plugin settings section. A deployment that registers
+     * a single page renders it as the section itself; from the second page on,
+     * the section owner renders localized entry labels as tabs and mounts each
+     * contribution inside its corresponding tab panel. Options: `id` (tab
+     * key), `order` (tab order), and `label` (registrant-localized tab text).
+     * Declared at runtime by the feature that owns the section; the type lives
+     * here so inventory and configuration plugins collaborate without
+     * depending on one another.
      */
     'settings.plugins.tab': { kind: 'list'; scope: 'root'; owner: SettingsPluginsTabOwnerProps }
     /**

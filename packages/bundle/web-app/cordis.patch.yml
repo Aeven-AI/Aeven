@@ -584,9 +584,6 @@
     - id: ui-settings-integrations
       name: '@aeven/client-ui-settings-integrations'
 
-    - id: ui-settings-plugin-inventory
-      name: '@aeven/client-ui-settings-plugin-inventory'
-
     # Settings → Memory, over the memoryManager Remote.
     - id: ui-settings-memory
       name: '@aeven/client-ui-settings-memory'

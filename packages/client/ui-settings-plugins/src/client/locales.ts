@@ -22,9 +22,9 @@ export type PluginsSettingsLocaleKey =
 
 /** English copy. */
 export const en: Record<PluginsSettingsLocaleKey, string> = {
-  nav: 'Plugins',
-  title: 'Plugins',
-  intro: 'Configure and inspect the plugins installed in this deployment.',
+  nav: 'Plugin settings',
+  title: 'Plugin settings',
+  intro: 'Configure the plugins installed in this deployment.',
   tabs: 'Plugin views',
   configurableTab: 'Plugin configuration',
   empty: 'This deployment exposes no plugin settings.',
@@ -50,7 +50,7 @@ export const en: Record<PluginsSettingsLocaleKey, string> = {
   agentLoopMaxParallel: 'Parallel tool calls',
   agentLoopMaxParallelHint: 'Upper bound on parallel-safe calls running at once within one step.',
   webSearchTitle: 'Web search',
-  webSearchDescription: 'The DeepSeek search provider.',
+  webSearchDescription: 'The search provider of Æven.',
   webSearchApiKey: 'API key',
   webSearchApiKeyHint: 'Stored outside the settings file. Leave blank to keep the current key.',
   webSearchApiKeySet: 'A key is configured.',
@@ -83,9 +83,9 @@ export const en: Record<PluginsSettingsLocaleKey, string> = {
 
 /** Simplified Chinese copy. */
 export const zh: Record<PluginsSettingsLocaleKey, string> = {
-  nav: '插件',
-  title: '插件',
-  intro: '配置和查看本部署已安装的插件。',
+  nav: '插件设置',
+  title: '插件设置',
+  intro: '配置本部署已安装的插件。',
   tabs: '插件视图',
   configurableTab: '插件配置',
   empty: '本部署没有开放任何插件设置。',
@@ -111,7 +111,7 @@ export const zh: Record<PluginsSettingsLocaleKey, string> = {
   agentLoopMaxParallel: '并行工具调用数',
   agentLoopMaxParallelHint: '同一步内最多同时运行多少个可并行的调用。',
   webSearchTitle: '网页搜索',
-  webSearchDescription: 'DeepSeek 搜索提供方。',
+  webSearchDescription: 'Æven 的搜索提供方。',
   webSearchApiKey: 'API Key',
   webSearchApiKeyHint: '不写入设置文件。留空表示保持当前密钥。',
   webSearchApiKeySet: '已配置密钥。',
@@ -144,9 +144,9 @@ export const zh: Record<PluginsSettingsLocaleKey, string> = {
 
 /** Spanish dictionary, checked complete against the zh key set. */
 export const es: Record<PluginsSettingsLocaleKey, string> = {
-  nav: 'Complementos',
-  title: 'Complementos',
-  intro: 'Configura e inspecciona los complementos instalados en este despliegue.',
+  nav: 'Ajustes de complementos',
+  title: 'Ajustes de complementos',
+  intro: 'Configura los complementos instalados en este despliegue.',
   tabs: 'Vistas de complementos',
   configurableTab: 'Configuración de complementos',
   empty: 'Este despliegue no expone ajustes de complementos.',
@@ -172,7 +172,7 @@ export const es: Record<PluginsSettingsLocaleKey, string> = {
   agentLoopMaxParallel: 'Llamadas a herramientas en paralelo',
   agentLoopMaxParallelHint: 'Máximo de llamadas seguras en paralelo que se ejecutan a la vez dentro de un paso.',
   webSearchTitle: 'Búsqueda web',
-  webSearchDescription: 'El proveedor de búsqueda de DeepSeek.',
+  webSearchDescription: 'El proveedor de búsqueda de Æven.',
   webSearchApiKey: 'Clave de API',
   webSearchApiKeyHint: 'Se guarda fuera del archivo de ajustes. Déjala vacía para conservar la clave actual.',
   webSearchApiKeySet: 'Hay una clave configurada.',
