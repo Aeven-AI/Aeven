@@ -2,8 +2,8 @@
  * Turn review: before a file-changing turn or an action commitment closes, one auxiliary model call reads the turn's
  * user messages, tool calls, tool results, and final reply, and names requests left undone or done
  * differently than asked, and claims that no tool result supports or that a tool result
- * contradicts. Findings steer the agent into another step; a clean review, a failed review call,
- * or a spent per-turn review budget lets the turn close.
+ * contradicts. Findings steer the agent into another step and require a clean review;
+ * a failed review or spent budget with unresolved findings fails the turn.
  * @module @aeven/turn-review
  */
 
@@ -52,7 +52,7 @@ export interface TurnReviewVerdictEventData {
   readonly issues: string[]
 }
 
-/** A review call that produced no verdict; the turn closed with its reply as written. */
+/** A review call that produced no verdict; earlier findings remain unresolved. */
 export interface TurnReviewFailureEventData {
   /** The reviewed turn. */
   readonly turn: number
@@ -77,7 +77,7 @@ declare module '@aeven/session/types' {
 export interface Config {
   /** Tool names whose successful call in a turn makes it a turn to review. */
   triggerTools: string[]
-  /** Reviews per turn; a turn whose findings persist after this many rounds closes anyway. */
+  /** Reviews per turn; unresolved findings at this limit fail the turn. */
   maxReviewsPerTurn: number
   /** Cap on the characters of one tool argument, tool result, or message quoted to the reviewer. */
   maxEntryChars: number
@@ -317,9 +317,14 @@ export function apply(ctx: Context, config: Config): void {
   ctx.on('agent/turn-stopping', async ({ agent, turn, signal }): Promise<void> => {
     const spent = rounds.get(agent)
     const count = spent?.turn === turn ? spent.count : 0
-    if (count >= config.maxReviewsPerTurn) return
     const events = turnEvents(agent, turn)
-    if (!endsWithReply(events) || (!changedFiles(events, triggers) && !promisesAction(events))) return
+    const lastVerdict = events.findLast(event => event.type === 'turn-review/verdict')
+    const issues = lastVerdict?.type === 'turn-review/verdict' ? lastVerdict.data.issues : []
+    if (count >= config.maxReviewsPerTurn) {
+      if (issues.length > 0) throw new Error(`turn-review: review budget exhausted with unresolved findings: ${issues.join('; ')}`)
+      return
+    }
+    if (!endsWithReply(events) || (issues.length === 0 && !changedFiles(events, triggers) && !promisesAction(events))) return
     const header = agent.session.requestHeader()?.config
     const route = config.provider !== undefined && config.model !== undefined
       ? { provider: config.provider, model: config.model }
@@ -354,11 +359,12 @@ export function apply(ctx: Context, config: Config): void {
       if (failure !== undefined) throw failure
       verdict = parseVerdict(assembler.blocks().map(block => block.type === 'text' ? block.text : '').join(''))
     } catch (error: unknown) {
-      // The turn's own cancellation propagates; a failed review leaves the reply as written.
+      // Cancellation propagates; a failed review cannot clear an earlier finding.
       signal.throwIfAborted()
       const message = error instanceof Error ? error.message : String(error)
       logger.warn('turn %d review failed: %s', turn, message)
       agent.session.append('turn-review/failure', { turn, round, message })
+      if (issues.length > 0) throw new Error(`turn-review: ${message}; unresolved findings: ${issues.join('; ')}`)
       return
     }
     agent.session.append('turn-review/verdict', { turn, round, ...verdict })
