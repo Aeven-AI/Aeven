@@ -332,6 +332,22 @@ describe('failures', () => {
     expect(h.engine.view.speaking).toEqual(['s1'])
   })
 
+  it('forgets a retry that fails after reading was switched off', async () => {
+    const h = makeEngine({ instant: false })
+    h.engine.setEnabled('s1', true, '1.1', 'One.')
+    await flush()
+    h.syntheses[0]?.reject()
+    await flush()
+    expect(h.syntheses).toHaveLength(2)
+
+    h.engine.setEnabled('s1', false, '1.1', 'One.')
+    h.syntheses[1]?.reject()
+    await flush()
+
+    expect(h.engine.view.failed).toEqual([])
+    expect(h.engine.view.speaking).toEqual([])
+  })
+
   it('reports no failure once the reply has already been audible', async () => {
     const h = makeEngine({ instant: false })
     h.engine.setEnabled('s1', true, '1.1', 'One. Two.')

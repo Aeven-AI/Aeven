@@ -8,7 +8,7 @@ import {
   ENABLED_KEY, groupVoices, latestReadAloudRequest, messageText, preferredVoice, readEnabled,
   readPreferences, STORAGE_KEY, writeEnabled, writePreference, type ReadAloudCatalog,
 } from '../src/client/voices.ts'
-import { assistantNode, toolResultNode } from './harness.ts'
+import { assistantNode, toolResultNode } from './harness.client.ts'
 
 beforeEach(() => { localStorage.clear() })
 

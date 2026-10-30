@@ -10,7 +10,7 @@ import { en } from '../src/client/locales.ts'
 import { MessageReadAloud, type MessageReadAloudProps } from '../src/client/MessageReadAloud.tsx'
 import {
   assistantNode, chatSnapshot, makeT, readAloudState, useChatOf, useReadAloudOf,
-} from './harness.ts'
+} from './harness.client.ts'
 
 const SID = 's1' as SessionId
 const CHANNEL = 'message:m1'

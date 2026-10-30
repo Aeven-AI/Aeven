@@ -9,7 +9,7 @@ import type { SessionId } from '@aeven/session/types'
 import { en } from '../src/client/locales.ts'
 import { readPreferences, STORAGE_KEY, type ReadAloudCatalog } from '../src/client/voices.ts'
 import { SystemVoice, type SystemVoiceProps } from '../src/client/SystemVoice.tsx'
-import { makeT } from './harness.ts'
+import { makeT } from './harness.client.ts'
 
 const SID = 's1' as SessionId
 const t = makeT()
@@ -46,7 +46,13 @@ function picker(options: { fail?: boolean; pending?: boolean } = {}) {
   }))
   const props = { sessionId: SID, loadCatalog, t } as unknown as SystemVoiceProps
   const view = render(<SystemVoice {...props} />)
-  return { ...view, props, loadCatalog, settle: (catalog = CATALOG) => { settle(catalog) }, reject }
+  return {
+    ...view,
+    props,
+    loadCatalog,
+    settle: (catalog = CATALOG) => { settle(catalog) },
+    failLoad: (error = new Error('catalog unavailable')) => { reject(error) },
+  }
 }
 
 /**
@@ -93,6 +99,29 @@ describe('the row', () => {
     const card = await openCard()
 
     await waitFor(() => { expect(within(card).getByText(en['voice.unavailable'])).toBeDefined() })
+  })
+
+  it('forgets a catalogue that arrives after the reader closed the card', async () => {
+    const { settle } = picker({ pending: true })
+    const row = screen.getByRole('menuitem', { name: en['voice.row'] })
+    fireEvent.click(row)
+    fireEvent.click(row)
+    await act(async () => { settle() })
+
+    fireEvent.click(row)
+    expect(screen.getByText(en['voice.loading'])).toBeDefined()
+  })
+
+  it('forgets a catalogue failure that lands after the card was closed', async () => {
+    const { failLoad } = picker({ pending: true })
+    const row = screen.getByRole('menuitem', { name: en['voice.row'] })
+    fireEvent.click(row)
+    fireEvent.click(row)
+    await act(async () => { failLoad() })
+
+    fireEvent.click(row)
+    expect(screen.getByText(en['voice.loading'])).toBeDefined()
+    expect(screen.queryByText(en['voice.unavailable'])).toBeNull()
   })
 })
 
