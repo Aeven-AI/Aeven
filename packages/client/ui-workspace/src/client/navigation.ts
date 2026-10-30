@@ -150,9 +150,11 @@ export interface UiWorkspace {
   moveSession(sessionId: SessionId, workspaceId: WorkspaceId): Promise<SessionId>
   /**
    * Open the Host-native directory picker.
+   * @param directory - directory the chooser opens at; absent leaves the
+   *   platform's own default, which is its last-used folder.
    * @returns the selected directory, or null when cancelled.
    */
-  pickDirectory(): Promise<string | null>
+  pickDirectory(directory?: string): Promise<string | null>
   /**
    * List one Host directory level.
    * @param path - directory path; absent selects the Host home.
@@ -522,8 +524,8 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     return movedId
   }
 
-  async pickDirectory(): Promise<string | null> {
-    const result = await this.directoryPicker.pick()
+  async pickDirectory(directory?: string): Promise<string | null> {
+    const result = await this.directoryPicker.pick(directory)
     if (!result.ok) throw new Error(`directory picker failed: ${result.error.message}`)
     return result.value
   }

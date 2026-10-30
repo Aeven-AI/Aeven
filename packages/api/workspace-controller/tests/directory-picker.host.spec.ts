@@ -70,10 +70,17 @@ async function refused(call: Promise<unknown>): Promise<{ code: string; message:
 describe('directoryPicker pick Remote', () => {
   it('answers the selected path or the operator\'s cancellation', async () => {
     const selected = await harness({ kind: 'native', pick: async () => '/tmp/project' })
-    expect(await selected.pick(new AbortController().signal)).toBe('/tmp/project')
+    expect(await selected.pick(undefined, new AbortController().signal)).toBe('/tmp/project')
 
     const cancelled = await harness(NATIVE_STUB)
-    expect(await cancelled.pick(new AbortController().signal)).toBeNull()
+    expect(await cancelled.pick(undefined, new AbortController().signal)).toBeNull()
+  })
+
+  it('hands the starting folder to the backend', async () => {
+    const pick = vi.fn(async () => '/tmp/project')
+    const selected = await harness({ kind: 'native', pick })
+    expect(await selected.pick('/Users/me/project', new AbortController().signal)).toBe('/tmp/project')
+    expect(pick).toHaveBeenCalledWith(expect.any(AbortSignal), { directory: '/Users/me/project' })
   })
 
   it('reports an aborted chooser as cancelled and any other failure as internal', async () => {
@@ -84,19 +91,19 @@ describe('directoryPicker pick Remote', () => {
       }),
     })
     const abort = new AbortController()
-    const pending = refused(picker.pick(abort.signal))
+    const pending = refused(picker.pick(undefined, abort.signal))
     abort.abort()
     expect((await pending).code).toBe('gateway/cancelled')
 
     const broken = await harness({ kind: 'native', pick: async () => { throw new Error('no chooser installed') } })
-    const failure = await refused(broken.pick(new AbortController().signal))
+    const failure = await refused(broken.pick(undefined, new AbortController().signal))
     expect(failure.code).toBe('gateway/internal')
     expect(failure.message).toContain('no chooser installed')
   })
 
   it('refuses the native verb under a browse composition', async () => {
     const picker = await harness(BROWSE_STUB)
-    const failure = await refused(picker.pick(new AbortController().signal))
+    const failure = await refused(picker.pick(undefined, new AbortController().signal))
     expect(failure.code).toBe('directory-picker/unavailable')
     expect(failure.message).toContain('needs the native capability')
     expect(failure.details).toEqual({ capability: 'browse' })

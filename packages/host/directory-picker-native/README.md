@@ -25,7 +25,7 @@ An operator at the host's display picks a workspace directory through a native O
 <a id="use-this-package"></a>
 ## Use this package
 
-Compose this backend when the operator works at the host's display and a native chooser is the right interaction. A workspace flow that opens a directory picker calls `pick(signal)` once per open request; the returned promise resolves with the chosen absolute path, or `null` when the operator cancels.
+Compose this backend when the operator works at the host's display and a native chooser is the right interaction. A workspace flow that opens a directory picker calls `pick(signal, { directory? })` once per open request; the returned promise resolves with the chosen absolute path, or `null` when the operator cancels. `directory` is the folder the chooser opens at — an AppleScript `default location` on macOS, `--filename` for Zenity and the directory argument for KDialog, and `IFileDialog::SetFolder` on Windows — and a folder that no longer exists leaves the platform default instead of failing the pick.
 
 ### When to choose it
 

@@ -16,15 +16,27 @@ import type { DirectoryListing } from './types.ts'
 
 export type { DirectoryEntry, DirectoryListing } from './types.ts'
 
+/** Hints for one chooser opening. */
+export interface DirectoryPickerPickOptions {
+  /**
+   * Absolute directory the chooser opens at. Omitted, the platform decides:
+   * macOS and Windows reopen the folder their dialog used last, which is the
+   * folder chosen for whichever Workspace was linked before. A directory that
+   * no longer exists is ignored rather than failing the pick.
+   */
+  readonly directory?: string
+}
+
 /** The native interaction: one OS directory chooser on the host display. */
 export interface DirectoryPickerNativeCapability {
   kind: 'native'
   /**
    * Open the chooser and wait for the operator.
    * @param signal - caller/connection lifetime; abort terminates the chooser.
+   * @param options - starting-directory hint.
    * @returns the chosen absolute path, or null when the operator cancels.
    */
-  pick(signal: AbortSignal): Promise<string | null>
+  pick(signal: AbortSignal, options?: DirectoryPickerPickOptions): Promise<string | null>
 }
 
 /**

@@ -36,6 +36,12 @@ interface ComWorld {
   freed: unknown[]
   /** `keybd_event` calls as `[virtualKey, scanCode, flags, extraInfo]`. */
   keyEvents: number[][]
+  /** Paths handed to `SHCreateItemFromParsingName`. */
+  shellPaths: string[]
+  shellItemHr: number
+  /** HRESULT `IFileDialog::SetFolder` answers, and how many times it ran. */
+  setFolderHr: number
+  folderCalls: number
   released: string[]
   posted: { hwnd: unknown; message: number }[]
   /** Buffer sizes handed to the fake `decode(..., 'str16')`. */
@@ -51,6 +57,7 @@ function comWorld(overrides: Partial<ComWorld> = {}): ComWorld {
     hasThreadDpi: true, supportedDpiContexts: [-4], enumThrows: false,
     path: 'C:\\选中\\directory',
     titles: [], options: [], dpiContexts: [], freed: [], keyEvents: [], released: [], posted: [],
+    shellPaths: [], shellItemHr: 0, setFolderHr: 0, folderCalls: 0,
     str16PointerSizes: [],
     registered: 0, unregistered: 0, uninitialized: 0,
     ...overrides,
@@ -68,10 +75,12 @@ function installFakeKoffi(world: ComWorld, options: {
   const pointerSize = options.pointerSize ?? FAKE_POINTER_SIZE
   const dialogPtr = 0x1100n
   const itemPtr = 0x2200n
+  const folderPtr = 0x4400n
   const namePtr = options.nameAddress ?? 0x3300n
   const pointers = new Map<bigint, FakePtr>([
     [dialogPtr, { kind: 'dialog' }],
     [itemPtr, { kind: 'item' }],
+    [folderPtr, { kind: 'folder' }],
     [namePtr, { kind: 'name', text: world.path }],
   ])
   const outBuffers = new Map<unknown, bigint>()
@@ -82,6 +91,7 @@ function installFakeKoffi(world: ComWorld, options: {
       switch (slot) {
         case 9: world.options.push(args[0] as number); return 0
         case 17: world.titles.push(args[0] as string); return 0
+        case 12: world.folderCalls += 1; return world.setFolderHr
         case 3: return world.showHr
         case 20: {
           if (world.getResultHr < 0) return world.getResultHr
@@ -98,8 +108,8 @@ function installFakeKoffi(world: ComWorld, options: {
         ;(args[1] as unknown[])[0] = namePtr
         return 0
       }
-      case 2: world.released.push('item'); return 0
-      default: throw new Error(`unexpected item slot ${slot}`)
+      case 2: world.released.push(self.kind === 'folder' ? 'folder' : 'item'); return 0
+      default: throw new Error(`unexpected ${self.kind} slot ${slot}`)
     }
   }
 
@@ -120,6 +130,12 @@ function installFakeKoffi(world: ComWorld, options: {
               return 0
             }
             case 'CoTaskMemFree': return (ptr: unknown) => { world.freed.push(ptr) }
+            case 'SHCreateItemFromParsingName': return (path: string, _ctx: unknown, _iid: unknown, out: unknown[]) => {
+              world.shellPaths.push(path)
+              if (world.shellItemHr < 0) return world.shellItemHr
+              out[0] = folderPtr
+              return 0
+            }
             case 'GetCurrentThreadId': return () => 31337
             case 'SetThreadDpiAwarenessContext': {
               if (!world.hasThreadDpi) throw new Error(`${dll}: SetThreadDpiAwarenessContext not found`)
@@ -205,6 +221,29 @@ describe('loadWin32DialogBindings over the fake COM world', () => {
     expect(world.str16PointerSizes).toEqual([FAKE_POINTER_SIZE])
     expect(world.released).toEqual(['item', 'dialog'])
     expect(world.uninitialized).toBe(1)
+  })
+
+  it('opens at the requested folder through the shell item', async () => {
+    const world = comWorld()
+    installFakeKoffi(world)
+    const bindings = await (await loadBindingsModule()).loadWin32DialogBindings()
+
+    expect(runFolderDialog(bindings, 'Pick', vi.fn(), 'C:\\work')).toBe(world.path)
+    expect(world.shellPaths).toEqual(['C:\\work'])
+    expect(world.folderCalls).toBe(1)
+    // The shell item is released on the same path whether or not the dialog took it.
+    expect(world.released).toContain('folder')
+  })
+
+  it.each([
+    ['the shell refuses the path', { shellItemHr: E_FAIL }, ['item', 'dialog']],
+    ['the dialog refuses the folder', { setFolderHr: E_FAIL }, ['folder', 'item', 'dialog']],
+  ])('keeps the picker when %s', async (_label, overrides, released) => {
+    const world = comWorld(overrides)
+    installFakeKoffi(world)
+    const bindings = await (await loadBindingsModule()).loadWin32DialogBindings()
+    expect(runFolderDialog(bindings, 'Pick', vi.fn(), 'C:\\gone')).toBe(world.path)
+    expect(world.released).toEqual(released)
   })
 
   it.each([

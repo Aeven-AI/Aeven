@@ -33,15 +33,18 @@ async function bench() {
   const binding = vi.fn(() => ({ session: { rename: renameSession } }))
   const fork = vi.fn(async () => 'forked' as never)
   const subscribe = () => () => {}
+  let items: readonly unknown[] = []
+  const bind = vi.fn(async () => ({}))
   ctx.provide('workspaces', {
     list: {
       getSnapshot: () => ({
-        items: [], archivedSessionIds: [], state: 'idle', phase: 'ready', error: null,
+        items, archivedSessionIds: [], state: 'idle', phase: 'ready', error: null,
       }),
       subscribe,
     },
     create,
     rename,
+    bind,
     delete: vi.fn(async () => undefined),
     insertBefore: vi.fn(async () => undefined),
     archiveSession: vi.fn(async () => undefined),
@@ -74,7 +77,8 @@ async function bench() {
   locale.setLocale('zh')
   ctx.provide('locale', locale)
   return {
-    ctx, slots: ctx.get('slots') as SlotRegistry, locale, create, rename,
+    ctx, slots: ctx.get('slots') as SlotRegistry, locale, create, rename, bind,
+    setItems: (next: readonly unknown[]) => { items = next },
     insertSessionBefore, open, clear, search, renameSession, binding, fork, pickDirectory,
   }
 }
@@ -122,6 +126,24 @@ describe('ui-workspace apply', () => {
     await Promise.resolve()
     expect(after.slots.entries('conversation.hero.workspace')[0]!.component).toBe(WorkspacePicker)
     // expect(after.slots.entries('conversation.empty.workspace')[0]!.component).toBe(WorkspacePicker)
+  })
+
+  it('opens the folder chooser at the workspace being linked', async () => {
+    const b = await bench()
+    declare(b.slots, 'sidebar.workspaces')
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    const browser = (b.slots.entries('sidebar.workspaces')[0]!.inject as () => WorkspaceBrowserInjected)()
+
+    b.setItems([{ workspaceId: 'ws-linked', kind: 'folder', path: '/projects/mine' }])
+    browser.bindWorkspace('ws-linked' as never)
+    await vi.waitFor(() => { expect(b.bind).toHaveBeenCalledWith('ws-linked', '/projects/picked') })
+    // The row's own folder, so a second link cannot inherit the first one's pick.
+    expect(b.pickDirectory).toHaveBeenCalledWith('/projects/mine')
+
+    b.setItems([{ workspaceId: 'ws-virtual', kind: 'virtual' }])
+    browser.bindWorkspace('ws-virtual' as never)
+    await vi.waitFor(() => { expect(b.bind).toHaveBeenCalledWith('ws-virtual', '/projects/picked') })
+    expect(b.pickDirectory).toHaveBeenLastCalledWith(undefined)
   })
 
   it('routes browser actions and picker creation to the services', async () => {

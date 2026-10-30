@@ -48,14 +48,16 @@ export class DirectoryPickerController extends TypertRemoteService {
 
   /**
    * Open the host's OS chooser for a Remote caller.
+   * @param directory - absolute directory the chooser opens at; absent leaves
+   *   the platform's own default (its last-used folder).
    * @param signal - caller lifetime; abort terminates the chooser.
    * @returns the chosen absolute path, or null when the operator cancels.
    */
   @Remote('pick')
-  async pick(signal: AbortSignal): Promise<string | null> {
+  async pick(directory: string | undefined, signal: AbortSignal): Promise<string | null> {
     const capability = this.requireCapability('native', 'pick')
     try {
-      return await capability.pick(signal)
+      return await capability.pick(signal, directory === undefined ? {} : { directory })
     } catch (error: unknown) {
       throw cancellableFailure(error, signal, 'directory picker was aborted', 'directory picker failed')
     }
