@@ -7,13 +7,35 @@
  */
 import type { ReactNode } from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { ClientRemote } from '@aeven/api-remotes/client'
+import type { ClientRemote, SessionId } from '@aeven/api-remotes/client'
 import type { SessionWorkspacePathApplication } from '@aeven/api-session-controller/types'
 import {
-  IconLucideChevronDown, IconLucideFolderOpen, IconLucideSquareArrowOutUpRight, Menu, type MenuItem,
+  extensionOf, fileKindOf, IconLucideChevronDown, IconLucideFolderOpen, IconLucideSquareArrowOutUpRight, Menu, type MenuItem,
 } from '@aeven/client-ui-primitives'
 import type { TranslateNS } from '@aeven/client-ui-slots'
 import css from './FilesPane.module.css'
+
+const DOCUMENTS = new Set([
+  'pdf', 'doc', 'docx', 'docm', 'dot', 'dotx', 'dotm', 'rtf',
+  'xls', 'xlsx', 'xlsm', 'xlsb', 'xlt', 'xltx', 'xltm',
+  'ppt', 'pptx', 'pptm', 'pot', 'potx', 'potm', 'pps', 'ppsx', 'ppsm',
+  'odt', 'ott', 'ods', 'ots', 'odp', 'otp', 'odg', 'otg',
+  'pages', 'numbers', 'key', 'keynote', 'epub',
+])
+
+/**
+ * Test whether the Files sidebar has a viewer for a path.
+ * @param remote - workspace reader used to detect other binary formats.
+ * @param sessionId - session owning the workspace.
+ * @param path - workspace-relative or absolute file path.
+ * @returns false for documents and other binary files that need a desktop application.
+ */
+export async function canPreviewFile(remote: ClientRemote, sessionId: SessionId, path: string): Promise<boolean> {
+  if (DOCUMENTS.has(extensionOf(path))) return false
+  if (fileKindOf(path) === 'image') return true
+  const result = await remote.workspaceFiles.read(sessionId, path)
+  return result.ok || result.error.code !== 'workspace-file/not-text'
+}
 
 /** One desktop handoff for a path. */
 export type OpenOperation =

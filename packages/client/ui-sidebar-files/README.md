@@ -26,7 +26,7 @@ The Files pill in the right sidebar shows the session's workspace: a tree that l
 
 Compose it in a web client whose sidebar should browse the session workspace. It needs `sidebarContent`, `remote`, `remote.workspaceFiles`, and `remote.session`. `apply` registers the `files` pane and its dictionaries inside effects on the plugin fiber, so disposing the fiber withdraws the kind, and the registration waits for the column's registry rather than racing the column's own apply. The pane lists a folder with `workspaceFiles.list`, reads the open file with `workspaceFiles.read`, searches names with `workspaceFiles.search`, and asks `session.canOpenWorkspacePath`, `session.workspacePathApplications`, and `session.openWorkspacePath` for the row menu.
 
-`sidebarFiles.open(sessionId, path)` focuses a Files pane already showing the requested file, or opens a new pane, and shows the sidebar. The opener returns `false` for non-text files without an image viewer so callers can use the default app. Requests wait for the selected pane to mount; the viewer reads through `workspaceFiles` and retains its workspace access checks.
+`sidebarFiles.open(sessionId, path)` focuses a Files pane already showing the requested file, or opens a new pane, and shows the sidebar. The opener returns `false` for PDF, Office, iWork, OpenDocument, and other binary files without a sidebar viewer so callers can use the default app. Tree, search, and row-menu opens send these files directly to the Host default application without opening a sidebar viewer. Requests wait for the selected pane to mount; the viewer reads through `workspaceFiles` and retains its workspace access checks.
 
 -----
 

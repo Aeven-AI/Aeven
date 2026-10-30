@@ -10,7 +10,7 @@ New-file pills advertise sidebar previews, but the chat opener delegates to the 
 
 ## Decision
 
-The Files plugin owns `sidebarFiles.open`. Deliverables call it for new-file pills and edited-file rows; an existing pane showing the file receives focus, or a new Files pane consumes a pending per-session path after mounting, preserving the other open files. File reads retain the workspace Remote access checks. Non-text files without an image viewer return to the Host default-app opener. Prose links and desktop menus keep their existing destinations.
+The Files plugin owns `sidebarFiles.open`. Deliverables call it for new-file pills and edited-file rows; an existing pane showing the file receives focus, or a new Files pane consumes a pending per-session path after mounting, preserving the other open files. File reads retain the workspace Remote access checks. PDF, Office, iWork, OpenDocument, and other binary files without a sidebar viewer use the Host default-app opener, including opens from the explorer tree and search results. Prose links and desktop menus keep their existing destinations.
 
 ## Alternatives considered
 
