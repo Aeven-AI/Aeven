@@ -56,6 +56,8 @@ import * as ToolGoal from '@aeven/tool-goal'
 import * as ToolSchedule from '@aeven/schedule'
 import Lsp from '@aeven/lsp'
 import * as ToolLsp from '@aeven/tool-lsp'
+import Vcs from '@aeven/vcs'
+import * as ToolVcs from '@aeven/tool-vcs'
 import * as ToolSkill from '@aeven/tool-skill'
 import * as ToolSearch from '@aeven/tool-search'
 import * as ToolSessionQuery from '@aeven/tool-session-query'
@@ -452,6 +454,20 @@ const TOOL_PACKAGES: ToolPackage[] = [
     },
     note:
       'The lsp tool keeps provider selection and language-server subprocesses behind ctx.lsp, so its model-visible schema stays stable across providers. Requires a registered provider (e.g. `@aeven/lsp-stdio`) at runtime; without one, a query returns the structured `LSP_UNAVAILABLE` error rather than changing the schema.',
+  },
+  {
+    pkg: '@aeven/tool-vcs',
+    dir: 'tool-vcs',
+    source: 'packages/vcs/tool-vcs/src/index.ts',
+    requires: ['ctx.tools', 'ctx.vcs', 'a calling Agent with a session working directory'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      // The tools register from the seam alone; the schemas do not depend on any provider.
+      await ctx.plugin(Vcs)
+      await ctx.plugin(ToolVcs)
+    },
+    note:
+      'The git tools keep provider selection and git subprocesses behind ctx.vcs, so their model-visible schemas stay stable across providers. Requires a registered provider (e.g. `@aeven/vcs-git`) at runtime; without one, every call returns the structured `VCS_UNAVAILABLE` error rather than changing the schema.',
   },
   {
     pkg: '@aeven/tool-ralph',

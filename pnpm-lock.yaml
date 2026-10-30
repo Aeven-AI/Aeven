@@ -1824,6 +1824,9 @@ importers:
       '@aeven/tool-todo':
         specifier: workspace:^
         version: link:../../todo/tool-todo
+      '@aeven/tool-vcs':
+        specifier: workspace:^
+        version: link:../../vcs/tool-vcs
       '@aeven/tool-web':
         specifier: workspace:^
         version: link:../../web/tool-web
@@ -1854,6 +1857,12 @@ importers:
       '@aeven/user-questions':
         specifier: workspace:^
         version: link:../../interaction/user-questions
+      '@aeven/vcs':
+        specifier: workspace:^
+        version: link:../../vcs/vcs
+      '@aeven/vcs-git':
+        specifier: workspace:^
+        version: link:../../vcs/vcs-git
       '@aeven/web':
         specifier: workspace:^
         version: link:../../web/web
@@ -12810,6 +12819,52 @@ importers:
 
   packages/util/workspace-path:
     devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/vcs/tool-vcs:
+    devDependencies:
+      '@aeven/tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+      '@aeven/vcs':
+        specifier: workspace:^
+        version: link:../vcs
+      '@aeven/working-directory':
+        specifier: workspace:^
+        version: link:../../session/working-directory
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/vcs/vcs:
+    devDependencies:
+      '@aeven/brand':
+        specifier: workspace:^
+        version: link:../../util/brand
+      '@aeven/llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/vcs/vcs-git:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@aeven/llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
+      '@aeven/subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
+      '@aeven/vcs':
+        specifier: workspace:^
+        version: link:../vcs
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
