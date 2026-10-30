@@ -11,9 +11,9 @@ import type {} from '@aeven/client-locale/client'
 import type {} from '@aeven/client-ui-sidebar-select/client'
 import type { SidebarContentPaneProps } from '@aeven/client-ui-sidebar-select/client'
 import { createElement, useCallback, useEffect, useState } from 'react'
-import { fileKindOf } from '@aeven/client-ui-primitives'
 import { resolveWorkspacePath } from '@aeven/util-workspace-path'
 import { FilesPane } from './FilesPane.tsx'
+import { canPreviewFile } from './open-with.tsx'
 import { en, es, zh, type SidebarFilesKey } from './locales.ts'
 
 export type { FilesPaneProps } from './FilesPane.tsx'
@@ -27,7 +27,7 @@ declare module '@deepseek-ai/cordis' {
        * Focus the file’s existing Files pane, or open a new pane.
        * @param sessionId - Session owning the workspace.
        * @param path - Workspace-relative or absolute file path.
-       * @returns Whether the file can be displayed in the sidebar; false for non-text files without an image viewer.
+       * @returns Whether the file can be displayed in the sidebar; false for documents and other binary files without a viewer.
        */
       open(sessionId: SessionId, path: string): Promise<boolean>
     }
@@ -63,10 +63,7 @@ export function apply(ctx: ClientContext): void {
     // Mounted panes, which reveal a folder in place instead of opening another pill.
     const revealers = new Map<string, { sessionId: string; surfaceId: string; reveal: (path: string) => void }>()
     const openFile = async (sessionId: SessionId, path: string): Promise<boolean> => {
-      if (fileKindOf(path) !== 'image') {
-        const result = await remote.workspaceFiles.read(sessionId, path)
-        if (!result.ok && result.error.code === 'workspace-file/not-text') return false
-      }
+      if (!await canPreviewFile(remote, sessionId, path)) return false
       for (const file of openFiles.values()) {
         if (file.sessionId === sessionId && file.path !== null
           && resolveWorkspacePath(file.root ?? undefined, file.path) === resolveWorkspacePath(file.root ?? undefined, path)) {

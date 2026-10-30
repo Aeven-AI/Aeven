@@ -26,7 +26,7 @@ import type { SidebarContentPaneProps } from '@aeven/client-ui-sidebar-select/cl
 import { resolveWorkspacePath } from '@aeven/util-workspace-path'
 import type { TranslateNS } from '@aeven/client-ui-slots'
 import { ancestorsOf, recall, remember, type ExplorerMemory } from './memory.ts'
-import { applicationItems, openOnDesktop, operationOf, OpenWithButton, revealLabel, useApplications } from './open-with.tsx'
+import { applicationItems, canPreviewFile, openOnDesktop, operationOf, OpenWithButton, revealLabel, useApplications } from './open-with.tsx'
 import css from './FilesPane.module.css'
 
 /** What the plugin hands every Files pane beyond the column's props. */
@@ -181,10 +181,14 @@ export function FilesPane({
     if (!memory.expanded.has(path) && folders.get(path)?.status !== 'ready') void load(path)
   }, [folders, load, memory.expanded, update])
 
-  const openFile = useCallback((path: string) => {
+  const openFile = useCallback(async (path: string) => {
+    if (!await canPreviewFile(remote, sessionId as SessionId, path)) {
+      await openOnDesktop(remote, absolutePath(root, path), { kind: 'default' })
+      return
+    }
     update(current => ({ ...current, openFile: path }))
     setFocus(path)
-  }, [update])
+  }, [remote, root, sessionId, update])
 
   useEffect(() => {
     if (requestedFile !== undefined) openFile(requestedFile.path)
