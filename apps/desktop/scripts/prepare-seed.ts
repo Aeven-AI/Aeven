@@ -33,6 +33,7 @@ import {
 import { resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
 import { pruneSeedStore, type SeedStorePruneTarget } from './seed-store-prune.ts'
 import { createSeedProfileLayout } from '../src/seed-profile.ts'
+import { bundleSeedDependencies } from './bundle-seed-dependencies.ts'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_PATCHES = resolve(APP_ROOT, '..', '..', 'patches')
@@ -150,6 +151,9 @@ async function verifyOfflineInstallation(release: DesktopRelease): Promise<void>
     }
     const target = pruneTarget()
     if (target.platform === 'win32') {
+      const bundles = await bundleSeedDependencies(installedModules, join(SEED_ROOT, 'bundle-scratch'))
+      rmSync(join(SEED_ROOT, 'bundle-scratch'), { recursive: true, force: true })
+      process.stdout.write(`desktop seed: consolidated ${bundles.reduce((sum, item) => sum + item.modules, 0)} modules in ${bundles.length} dependency packages\n`)
       await createSeedProfileLayout(SEED_ROOT, STORE_ROOT, installedModules, target.arch)
     }
   } finally {

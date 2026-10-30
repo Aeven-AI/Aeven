@@ -785,11 +785,14 @@ async function main(): Promise<void> {
   // Last, so an installed Node.js still wins: on a machine without one, the bundled `node`, `npm`, and `npx` resolve.
   process.env.PATH = mergePath(process.env.PATH ?? '', dirname(resources.node), delimiter)
 
+  // Repeat launches re-use the bytecode of the backend's module graph instead of parsing and compiling it again.
+  const compileCacheDir = join(resolveAvnHome(), 'runtime', 'compile-cache')
+
   const startHost = async (projectDir = activeProject): Promise<DesktopHostProcess> => {
     // The serving Host keeps its profile as the cwd that sessions without a directory fall back to; a staged health
     // check runs from `paths.work`, since its profile is renamed into place as soon as it stops.
     const workDir = projectDir === activeProject ? projectDir : paths.work
-    const next = new DesktopHostProcess(resources.node, projectDir, workDir, hostInspectPort)
+    const next = new DesktopHostProcess(resources.node, projectDir, workDir, hostInspectPort, compileCacheDir)
     const ready = await next.start()
     if (!ready.ownsHost && projectDir !== activeProject) {
       next.release()

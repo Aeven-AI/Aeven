@@ -116,12 +116,15 @@ export class DesktopHostProcess {
    * @param workDir - the Host's working directory: the active profile, or a directory outside every profile for a
    * staged health check, so nothing that Host leaves running can hold the staged profile against its rename on Windows.
    * @param inspectPort - optional loopback inspector port for workspace development.
+   * @param compileCacheDir - directory Node.js persists V8 code cache in for this child. Launching the backend
+   * parses and compiles its whole module graph; the cache reuses that bytecode on later launches.
    */
   constructor(
     private readonly node: string,
     private readonly projectDir: string,
     private readonly workDir: string,
     private readonly inspectPort?: number,
+    private readonly compileCacheDir?: string,
   ) {}
 
   /** Start the child once and resolve only after its complete composition is active. */
@@ -140,9 +143,12 @@ export class DesktopHostProcess {
     ], {
       cwd: this.workDir,
       detached: true,
-      env: Object.fromEntries(Object.entries(process.env).filter(([name]) => (
-        name !== 'NODE_OPTIONS' && !/^AVN_DESKTOP_/u.test(name) && !/^(?:npm|pnpm|corepack)_/iu.test(name)
-      ))),
+      env: {
+        ...Object.fromEntries(Object.entries(process.env).filter(([name]) => (
+          name !== 'NODE_OPTIONS' && !/^AVN_DESKTOP_/u.test(name) && !/^(?:npm|pnpm|corepack)_/iu.test(name)
+        ))),
+        ...this.compileCacheDir === undefined ? {} : { NODE_COMPILE_CACHE: this.compileCacheDir },
+      },
       stdio: ['ignore', 'pipe', 'pipe', 'pipe', 'pipe', 'ipc'],
     })
     const requestPipe = child.stdio[DESKTOP_REQUEST_PIPE_FD]

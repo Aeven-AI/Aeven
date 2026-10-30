@@ -234,6 +234,7 @@ External packages **directly declared** only by repository tooling, test infrast
 | [`@yarnpkg/cli-dist`](https://github.com/yarnpkg/berry) | BSD-2-Clause |
 | [`app-builder-lib`](https://github.com/electron-userland/electron-builder) | MIT |
 | [`big-integer`](https://github.com/git@github.com:peterolson/BigInteger.js) | Unlicense |
+| [`cjs-module-lexer`](https://github.com/nodejs/cjs-module-lexer) | MIT |
 | [`cytoscape`](https://github.com/cytoscape/cytoscape.js) | MIT |
 | [`cytoscape-cose-bilkent`](https://github.com/cytoscape/cytoscape.js-cose-bilkent) | MIT |
 | [`dayjs`](https://github.com/iamkun/dayjs) | MIT |
