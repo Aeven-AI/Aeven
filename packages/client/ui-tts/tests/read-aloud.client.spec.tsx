@@ -11,7 +11,7 @@ import { en } from '../src/client/locales.ts'
 import { ReadAloudToggle, type ReadAloudProps } from '../src/client/ReadAloud.tsx'
 import {
   chatSnapshot, makeT, partialStep, readAloudState, toolResultNode, useChatOf, useReadAloudOf,
-} from './harness.ts'
+} from './harness.client.ts'
 
 const SID = 's1' as SessionId
 const t = makeT()
