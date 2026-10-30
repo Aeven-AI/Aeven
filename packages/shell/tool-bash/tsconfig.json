@@ -55,6 +55,9 @@
     },
     {
       "path": "../../workspace/workspace"
+    },
+    {
+      "path": "../../fs/fs"
     }
   ]
 }

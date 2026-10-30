@@ -10967,6 +10967,12 @@ importers:
       '@aeven/bash-local':
         specifier: workspace:^
         version: link:../bash-local
+      '@aeven/fs':
+        specifier: workspace:^
+        version: link:../../fs/fs
+      '@aeven/fs-local':
+        specifier: workspace:^
+        version: link:../../fs/fs-local
       '@aeven/jobs':
         specifier: workspace:^
         version: link:../../jobs/jobs

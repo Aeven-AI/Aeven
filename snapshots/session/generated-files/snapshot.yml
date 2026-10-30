@@ -1,0 +1,12 @@
+version: 1
+scenario: generated-files
+profile: headless
+composition: default
+recording: authored
+header:
+  class: generated-files
+  pin: true
+replay:
+  override: true
+workspace:
+  final: true

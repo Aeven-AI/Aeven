@@ -54,6 +54,8 @@ kind: "package-reference"
 
 工具执行 `bash -c <command>` 并返回合并后的输出。命令每次调用都运行在全新 shell 中，因此状态从不保留——请传 `workdir` 而不是 `cd`。非零退出以 `[exit code: N]` 报告给 agent 解读，而不是作为工具错误抛出。主动语态的 `description`（5–10 个词）在 UI 中标注该调用；`timeoutMs` 覆盖执行器的默认值与上限。超出执行器流上限的输出会被截断为尾部，完整输出保存到 spill 文件并报告其路径。
 
+生成交付文件的命令声明 `output_files`，路径相对于 `workdir` 解析。文件系统提供者在前台命令执行前后检查每个路径；新建或修改的普通文件连同创建状态进入持久的 `producedFiles` 结果元数据。已创建／已编辑文件块消费这些元数据，不按扩展名过滤，覆盖 PDF、Microsoft Office、OpenDocument 和 iWork 文件。缺失或未变化的路径不列出。声明输出会禁用自动转为后台任务，也不能与 `run_in_background` 同用；命令保留正常超时。使用该参数的组合必须挂载文件系统提供者。
+
 ### 后台运行长时间命令
 
 传入 `run_in_background: true` 会立即返回 job id，不应用超时；命令继续运行，agent 同时处理其他事情。agent 用 `job_output` 读取输出（除非 `wait: true`，否则非阻塞）、用 `job_list` 列出任务、用 `job_kill` 停止任务；完成的任务会在会话内通知拥有它的 agent。后台支持需要挂载通用任务运行时（`avn-jobs-local`）及其控制工具（`avn-tool-jobs`）。
