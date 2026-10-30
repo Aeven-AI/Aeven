@@ -245,13 +245,19 @@ describe('default deployment (with avn-fs-observation-policy)', () => {
       await call('read', { file_path: 'a.txt' })
       await rm(join(dir, 'a.txt')) // out-of-band deletion
 
-      // The original positive observation still protects the first mutation.
+      // The original positive observation still protects edit: absence never
+      // authorizes one, since there is no content or version to replace.
       const edit = await call('edit', { file_path: 'a.txt', old_string: 'original', new_string: 'x' })
       expect(edit.isError).toBe(true)
       expect(edit.error).toMatchObject({ info: { code: 'FS_STALE_VERSION' } })
-      const write = await call('write', { file_path: 'a.txt', content: 'premature' })
-      expect(write.isError).toBe(true)
-      expect(write.error).toMatchObject({ info: { code: 'FS_STALE_VERSION' } })
+
+      // A write meeting a stale observation of a now-absent target records the
+      // absence and recreates the file; the provider owns publication CAS.
+      const recreated = await call('write', { file_path: 'a.txt', content: 'premature' })
+      expect(recreated.isError).toBe(false)
+      expect(await readFile(join(dir, 'a.txt'), 'utf8')).toBe('premature')
+
+      await rm(join(dir, 'a.txt')) // deleted again, now with the newer observation
 
       // A read-not-found is an authoritative negative observation for this
       // owner. It still fails as a read, but changes the next write guard.
@@ -260,7 +266,7 @@ describe('default deployment (with avn-fs-observation-policy)', () => {
       expect(reread.error).toMatchObject({ info: { code: 'FS_NOT_FOUND' } })
 
       // Absence never authorizes edit: there is no content/version to edit.
-      const retriedEdit = await call('edit', { file_path: 'a.txt', old_string: 'original', new_string: 'x' })
+      const retriedEdit = await call('edit', { file_path: 'a.txt', old_string: 'premature', new_string: 'x' })
       expect(retriedEdit.isError).toBe(true)
       expect(retriedEdit.error).toMatchObject({ info: { code: 'FS_NOT_FOUND' } })
 
