@@ -43,7 +43,7 @@ The Host `ToolDefinition.presentCall`, `ToolDefinition.presentResult`, `ToolCall
 | Absent | `openCalls` and fallback event scans used only for follow presentation |
 | Absent | the Client Session's parallel `views` array, Conversation input `view`, and Tool block `callView`/`resultView` |
 | Derived | terminal, diff, read, search, and web card models read raw blocks and metadata |
-| Derived | Deliverables reads successful mutation names and arguments |
+| Derived | Deliverables reads successful mutation names and arguments plus verified generated-file result metadata |
 | Retained | Host `ToolDefinition.presentCall`/`presentResult` APIs, types, implementations, and direct tests |
 | Retained | `output.presentationMeta` and durable `tool/result.data.meta` |
 | Retained | the Session log format, Remote journal lifecycle, and Conversation identity/topology |
