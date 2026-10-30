@@ -106,9 +106,15 @@ export function apply(ctx: ClientContext): void {
         revealers.set(key, { sessionId: props.sessionId, surfaceId: props.surfaceId, reveal })
         return () => { if (revealers.get(key)?.reveal === reveal) revealers.delete(key) }
       }, [key, props.sessionId, props.surfaceId])
-      const [requested] = useState(() => pending.get(props.sessionId))
+      // A request opens this pane once, so it is handed down for its first
+      // commit only: a request kept in hand would reopen a file the reader
+      // closed, since the pane re-renders whenever the column does and each
+      // render hands the explorer a fresh request object.
+      const [requested, setRequested] = useState(() => pending.get(props.sessionId))
       useEffect(() => {
+        if (requested === undefined) return
         if (pending.get(props.sessionId) === requested) pending.delete(props.sessionId)
+        setRequested(undefined)
       }, [props.sessionId, requested])
       return createElement(FilesPane, {
         ...props, t, remote, onFileChange, registerReveal,

@@ -26,7 +26,7 @@ kind: "package-reference"
 
 当 Web 客户端的侧栏应当浏览会话工作区时编排本插件。它需要 `sidebarContent`、`remote`、`remote.workspaceFiles` 与 `remote.session`。`apply` 在插件 fiber 的 effect 中注册 `files` 窗格及其字典，因此销毁 fiber 会撤下该种类，且注册会等待该栏的注册表，而不是与该栏自身的 apply 竞争。窗格用 `workspaceFiles.list` 列出一个文件夹，用 `workspaceFiles.read` 读取打开的文件，用 `workspaceFiles.search` 搜索名称，并用 `session.canOpenWorkspacePath`、`session.workspacePathApplications` 与 `session.openWorkspacePath` 支撑行菜单。
 
-`sidebarFiles.open(sessionId, path)` 聚焦已显示所请求文件的 Files 窗格，或打开新的窗格，并显示侧栏。对于 PDF、Office、iWork、OpenDocument 以及没有侧栏查看器的其他二进制文件，打开器返回 `false`，以便调用者使用默认应用。树、搜索和行菜单中的打开操作直接将这些文件交给 Host 默认应用，不打开侧栏查看器。请求会等待选定窗格挂载；查看器通过 `workspaceFiles` 读取文件并保留工作区访问检查。
+`sidebarFiles.open(sessionId, path)` 聚焦已显示所请求文件的 Files 窗格，或打开新的窗格，并显示侧栏。对于 PDF、Office、iWork、OpenDocument 以及没有侧栏查看器的其他二进制文件，打开器返回 `false`，以便调用者使用默认应用。树、搜索和行菜单中的打开操作直接将这些文件交给 Host 默认应用，不打开侧栏查看器。请求会等待选定窗格挂载，并在该窗格只应用一次，因此读者关闭的文件保持关闭；查看器通过 `workspaceFiles` 读取文件并保留工作区访问检查。
 
 -----
 
