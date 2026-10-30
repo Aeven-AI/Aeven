@@ -176,6 +176,20 @@ function deliverablesOf(value: ConversationNodeAssembler, turn = 1): Readonly<De
 }
 
 describe('produced-file Turn data', () => {
+  it('lists verified generated Office and PDF outputs without an extension filter', () => {
+    const producedFiles = ['report.pdf', 'report.docx', 'book.xlsx', 'slides.pptx', 'letter.pages', 'book.numbers', 'slides.key', 'data.csv']
+      .map((path, index) => ({ path, created: index !== 2 }))
+    const value = assembler([
+      at(1, 'turn/start', { turn: 1 }),
+      call(2, 'generate', 'bash', { command: 'generate documents', output_files: producedFiles.map(file => file.path) }),
+      at(3, 'tool/result', {
+        turn: 1, step: 1, meta: { producedFiles },
+        message: { source: { type: 'tool-result', callId: 'generate' }, content: [{ type: 'tool-result', content: [] }] },
+      }),
+    ])
+    expect(selectProducedFiles(tailOwner(deliverablesOf(value), 4))).toEqual(producedFiles.map(file => ({ ...file, counts: undefined })))
+  })
+
   it('deduplicates paths in first-seen order and stops at the closing Assistant seq', () => {
     const data = produced(
       [3, 'out/index.html'],

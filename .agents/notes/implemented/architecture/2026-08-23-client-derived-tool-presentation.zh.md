@@ -43,7 +43,7 @@ Host 的 `ToolDefinition.presentCall`、`ToolDefinition.presentResult`、`ToolCa
 | 不存在 | follow 中只服务 presentation 的 `openCalls` 与 fallback event scan |
 | 不存在 | Client Session 的平行 `views` 数组、Conversation input 的 `view`、Tool block 的 `callView`／`resultView` |
 | 派生 | terminal、diff、read、search、web card model 读取 raw block/meta |
-| 派生 | Deliverables 读取成功 mutation 的名称与参数 |
+| 派生 | Deliverables 读取成功 mutation 的名称与参数，以及已验证的生成文件结果元数据 |
 | 保留 | Host `ToolDefinition.presentCall`／`presentResult` API、类型、实现与直接测试 |
 | 保留 | `output.presentationMeta` 与持久 `tool/result.data.meta` |
 | 保留 | Session 日志格式、Remote journal 生命周期与 Conversation identity/topology |

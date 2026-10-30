@@ -1,7 +1,7 @@
 /**
  * Turn-scoped produced-file Definition and readers. Client-only and
- * model-free: the vocabulary comes from successful first-party mutation
- * calls, never presentation data or the closing prose.
+ * model-free: paths come from successful first-party mutation calls and
+ * verified generated-file result metadata, never the closing prose.
  */
 import { diffArrays } from 'diff'
 import { isAppendSurfaceEvent } from '@aeven/session/surface'
@@ -214,7 +214,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * Files produced by one Turn data value.
  *
  * The source is the arguments of successful `write`, `edit`, and mutating
- * `str_replace_editor` calls, not the closing prose: a produced file must be
+ * `str_replace_editor` calls and verified generated-file metadata, not the closing prose: a produced file must be
  * listed whether or not the model remembered to name it. Reads, unsupported
  * tools, malformed calls, and failed results contribute nothing. Paths keep
  * first-seen order and appear once, so a file written and then edited in the
@@ -300,11 +300,18 @@ export const deliverablesDefinition: ConversationNodeDefinition<DeliverablesStat
     if (match.event.type !== 'tool/result') return context.state
     const result = match.event.data.message.content[0]
     if (result.isError === true) return context.state
+    const { seq, data: { meta } } = match.event
+    if (isRecord(meta) && Array.isArray(meta.producedFiles)) {
+      const produced = meta.producedFiles.flatMap((file: unknown) =>
+        isRecord(file) && pathValue(file.path) !== null && typeof file.created === 'boolean'
+          ? [{ seq, path: file.path as string, created: file.created }]
+          : [])
+      return { ...context.state, produced: [...context.state.produced, ...produced] }
+    }
     const callId = String(match.event.data.message.source.callId)
     const calls = context.state.calls.get(callId)
     if (calls === undefined || calls.length === 0) return context.state
     const text = result.content.map(block => block.type === 'text' ? block.text : '').join('\n')
-    const { seq, data: { meta } } = match.event
     const produced = calls.map(call => ({ seq, path: call.path, ...settledMutation(call, text, meta) }))
     return { ...context.state, produced: [...context.state.produced, ...produced] }
   },
