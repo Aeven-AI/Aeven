@@ -57,7 +57,7 @@ describe('provider roster', () => {
     const { tts } = await mounted({ en: 'en-US-AvaMultilingualNeural' })
     tts.register(provider('edge', [voice('en-US-AvaMultilingualNeural', 'en', 'female')]))
     const catalog = tts.catalog()
-    const mutableVoices = catalog.voices as TtsVoice[]
+    const mutableVoices = catalog.voices as unknown as TtsVoice[]
     mutableVoices.splice(0)
     const mapping = catalog.voiceByLanguage as Record<string, string>
     mapping.en = 'nonsense'

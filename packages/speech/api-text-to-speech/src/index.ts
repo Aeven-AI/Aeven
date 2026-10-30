@@ -24,7 +24,7 @@ export interface Config {
 /** Speech synthesis never activates or submits to an Agent. */
 export default class TtsController extends TypertRemoteService {
   static inject = ['textToSpeech', 'typert']
-  static Config: z<Config> = z.object({
+  static Config: z<Partial<Config>, Config> = z.object({
     maxTextChars: z.natural().min(1).default(1200),
   })
 
