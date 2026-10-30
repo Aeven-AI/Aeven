@@ -1429,6 +1429,16 @@ export interface Config {
   reverseEngineering?: ReverseEngineeringConfig
   /** Largest decoded skill bundle. */
   maxSkillBytes: number
+  /** Claude Code configuration root whose `skills` and plugin skills Settings offers to import. */
+  claudeHome: string
+  /** Codex configuration root whose `skills` and vendored skills Settings offers to import. */
+  codexHome: string
+  /** Agent configuration root whose shared `skills` folder already supplies skills no import may replace. */
+  agentsHome: string
+  /** Skill root Aeven ships; when absent, this deployment has no bundled skills. */
+  bundledSkillDir?: string
+  /** Agent skill names Aeven already serves through its own tools, which Settings leaves out of the import picker. */
+  agentSkillExclusions: string[]
   /** MCP discovery, tool, and OAuth request budget. */
   timeoutMs: number
   /** Maximum time between starting a consent and the provider returning to the Aeven API. */
@@ -1524,7 +1534,7 @@ export interface ReverseEngineeringConfig {
 }
 ```
 
-来源：[`packages/host/account-integrations/src/index.ts:54`](../packages/host/account-integrations/src/index.ts)
+来源：[`packages/host/account-integrations/src/index.ts:56`](../packages/host/account-integrations/src/index.ts)
 
 <a id="aevenhost-directory-picker-browse"></a>
 

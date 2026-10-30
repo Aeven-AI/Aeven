@@ -1,8 +1,8 @@
 /** Personal skill import and connector account management. */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { AccountIntegrationsView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillUploadFile, WhatsAppPairingView } from '@aeven/api-remotes/client'
-import { Button, LoadingBlock, SectionHeader, MarkdownText, Menu, Modal, Spinner, Switch, Tabs, IconWarningOutline16, IconChevronLeftOutline14, IconLucideSettings2 } from '@aeven/client-ui-primitives'
+import type { AccountIntegrationsView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillReferenceImport, SkillUploadFile, SystemSkillView, WhatsAppPairingView } from '@aeven/api-remotes/client'
+import { Button, LoadingBlock, SectionHeader, MarkdownText, Menu, Modal, Spinner, Switch, Tabs, IconWarningOutline16, IconChevronLeftOutline14, IconCloseOutline16, IconLucideSettings2 } from '@aeven/client-ui-primitives'
 import type { HostObservable, InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import css from './IntegrationsSection.module.css'
 import { connectorIcons } from './connector-icons.ts'
@@ -23,6 +23,9 @@ function byTitle(left: { name: string; displayName?: string }, right: { name: st
 
 /** Address prefix that marks a catalog category page, so Back returns to the index. */
 const CATEGORY_DETAIL_PREFIX = 'category:'
+
+/** Coding agents whose installed skills the import popup offers, in the order it groups them. */
+const AGENTS = ['codex', 'claude'] as const
 
 /**
  * Display name for a catalog category: every hyphen-separated word capitalized.
@@ -60,7 +63,24 @@ export interface IntegrationsSectionInjected extends TelegramPairingOperations {
    * @param name - catalogued skill name.
    */
   installCatalogSkill: (name: string) => Promise<void>
-  importSkill: (files: SkillUploadFile[]) => Promise<void>
+  importSkill: (files: SkillUploadFile[]) => Promise<SkillReferenceImport>
+  /**
+   * Add every skill a GitHub repository or npm package carries.
+   * @param reference - GitHub URL, npm URL, `npm:<package>`, or a package name.
+   * @returns the names added, and the ones a built-in skill owns.
+   */
+  importSkillReference: (reference: string) => Promise<SkillReferenceImport>
+  /**
+   * List the skills Claude Code and Codex installed on this computer.
+   * @returns those skills, in agent and name order.
+   */
+  systemSkills: () => Promise<SystemSkillView[]>
+  /**
+   * Add one skill another coding agent keeps on this computer.
+   * @param id - handle `systemSkills` reported for that skill.
+   * @returns the name added, or the built-in skill that owns it.
+   */
+  installSystemSkill: (id: string) => Promise<SkillReferenceImport>
   setSkillEnabled: (name: string, enabled: boolean) => Promise<void>
   /** Retry the tool install a skill's engine needs, after that install failed. */
   retryReverseEngineering: () => Promise<void>
@@ -147,6 +167,13 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     ? selectedSkillId.slice(CATEGORY_DETAIL_PREFIX.length)
     : undefined
   const [optionsOpen, setOptionsOpen] = useState(false)
+  /** Whether the import popup is open, what the reader typed into it, and what the last import did. */
+  const [importOpen, setImportOpen] = useState(false)
+  const [reference, setReference] = useState('')
+  const [importResult, setImportResult] = useState<SkillReferenceImport>()
+  /** Skills Claude Code and Codex keep on this computer; undefined until the popup reads them. */
+  const [agentSkills, setAgentSkills] = useState<SystemSkillView[]>()
+  const [agentSkillsFailed, setAgentSkillsFailed] = useState(false)
   const [busy, setBusy] = useState(false)
   const [signingIn, setSigningIn] = useState(false)
   const [failed, setFailed] = useState(false)
@@ -230,6 +257,16 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
   }, [catalogSkill, preview, props])
   // A catalogued skill's page belongs to the catalog list, so Back returns there.
   useEffect(() => { if (catalogSkill !== undefined && mode !== 'catalog') setMode('catalog') }, [catalogSkill, mode])
+  // The popup reads the other agents' skills when it opens, and only once per opening.
+  useEffect(() => {
+    if (!importOpen || agentSkills !== undefined) return
+    let active = true
+    void props.systemSkills().then(
+      (value) => { if (active) setAgentSkills(value) },
+      () => { if (active) { setAgentSkills([]); setAgentSkillsFailed(true) } },
+    )
+    return () => { active = false }
+  }, [importOpen, agentSkills, props])
   const run = async (operation: () => Promise<unknown>): Promise<void> => {
     ++requestVersion.current
     setBusy(true)
@@ -330,13 +367,44 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     onSelect={(id) => { setView(id === 'category' ? 'category' : 'all'); setOptionsOpen(false) }}
     items={[{ id: 'category', label: t('optionCategory') }, { id: 'all', label: t('optionAll') }]}
     anchor={<button
-      type="button" className={css.iconAction} aria-label={t('displayOptions')} title={t('displayOptions')}
+      type="button" className={css.displayButton} aria-label={t('displayOptions')} title={t('displayOptions')}
       aria-haspopup="menu" aria-expanded={optionsOpen} onClick={() => { setOptionsOpen(open => !open) }}
     ><IconLucideSettings2 className={css.optionIcon} /></button>}
   />
 
   const install = (name: string): void => { void run(async () => { await props.installCatalogSkill(name); refreshList() }) }
   const uninstall = (name: string): void => { void run(async () => { await props.removeSkill(name); refreshList() }) }
+  /** Open the import popup, reading the other agents' skills afresh. */
+  const openImport = (): void => {
+    setReference('')
+    setImportResult(undefined)
+    setAgentSkills(undefined)
+    setImportOpen(true)
+  }
+  /** Add every skill a link carries, and keep the link when it added nothing so the reader can correct it. */
+  const submitReference = (): void => {
+    const text = reference.trim()
+    if (text === '') return
+    void run(async () => {
+      const result = await props.importSkillReference(text)
+      setImportResult(result)
+      if (result.imported.length > 0) setReference('')
+    })
+  }
+  /** One switch per skill another agent installed: on copies it into this library, off removes that copy. */
+  const agentSkillSwitch = (skill: SystemSkillView) => {
+    const installed = installedNames.has(skill.name)
+    return toggle(skill.name, installed, false, () => {
+      void run(async () => {
+        if (installed) {
+          await props.removeSkill(skill.name)
+          setImportResult(undefined)
+          return
+        }
+        setImportResult(await props.installSystemSkill(skill.id))
+      })
+    })
+  }
   /** One switch per catalogued skill: on installs it into the library, off removes it from it. */
   const catalogSwitch = (skill: SkillCatalogView['skills'][number]) => {
     const installed = installedNames.has(skill.name)
@@ -473,7 +541,7 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     />
     {mode === 'catalog'
       ? displayMenu
-      : <button type="button" className={css.primaryAction} disabled={busy} title={t('importHint')} onClick={() => { fileInput.current?.click() }}>{t('import')}</button>}
+      : <button type="button" className={css.primaryAction} disabled={busy} title={t('importHint')} onClick={() => { openImport() }}>{t('import')}</button>}
   </div> : undefined
   const catalogVisible = (page === 'skills' ? selectedSkillId : selectedConnector) === undefined
   // Nothing the list owns is drawn while the first read is in flight, so the
@@ -487,11 +555,63 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     {failed && <p role="alert">{t('failed')}</p>}
     {loading && <LoadingBlock label={t('loading')} />}
     {!loading && (page === 'skills' ? <>
-      <input ref={fileInput} type="file" accept=".md,.zip,.skill" className={css.upload} aria-label={t('import')} onChange={(event) => {
+      <input ref={fileInput} type="file" accept=".md,.zip,.skill" className={css.upload} aria-label={t('importFile')} onChange={(event) => {
         const file = event.currentTarget.files?.[0]
-        if (file !== undefined) void run(async () => { await props.importSkill([await upload(file)]) })
+        if (file !== undefined) void run(async () => { setImportResult(await props.importSkill([await upload(file)])) })
         event.currentTarget.value = ''
       }} />
+      <Modal
+        open={importOpen}
+        onClose={() => { setImportOpen(false) }}
+        title={t('import')}
+        headless
+        className={`${css.section} ${css.skillModal ?? ''}`}
+      >
+        <div className={css.skillModalHeader}>
+          <h2>{t('import')}</h2>
+          <button type="button" className={css.skillModalClose} aria-label={t('close')} onClick={() => { setImportOpen(false) }}>
+            <IconCloseOutline16 size={14} />
+          </button>
+        </div>
+        <div className={`${css.skillModalContent ?? ''} no-scrollbar`}>
+          <div className={css.importBody}>
+            <form className={css.card} onSubmit={(event) => { event.preventDefault(); submitReference() }}>
+              <label className={css.field}>{t('importReference')}
+                <input
+                  autoFocus value={reference} disabled={busy} placeholder={t('importReferencePlaceholder')}
+                  onChange={(event) => { setReference(event.currentTarget.value) }}
+                />
+              </label>
+              <div className={css.actions}>
+                <button type="submit" className={css.primaryAction} disabled={busy || reference.trim() === ''}>{t('importAction')}</button>
+                <button type="button" className={css.secondaryAction} disabled={busy} onClick={() => { fileInput.current?.click() }}>{t('importFile')}</button>
+              </div>
+              {importResult !== undefined && importResult.imported.length > 0 && <p className={css.importResult}>{t('importedSkills')}: {importResult.imported.join(', ')}</p>}
+              {importResult !== undefined && importResult.skipped.length > 0 && <p className={css.hint}>{t('skippedBuiltIn')}: {importResult.skipped.map(skip => skip.name).join(', ')}</p>}
+            </form>
+            <div className={css.agentGroups}>
+              {agentSkillsFailed && <p className={css.hint}>{t('agentSkillsUnavailable')}</p>}
+              {agentSkills === undefined
+                ? <LoadingBlock label={t('loading')} />
+                : AGENTS.map((agent) => {
+                  const rows = agentSkills.filter(skill => skill.agent === agent)
+                  return <section key={agent} className={css.category}>
+                    <h3 className={css.categoryHeader}>{t(agent)}<span className={css.categoryCount}>{rows.length}</span></h3>
+                    {rows.length === 0
+                      ? <p className={css.hint}>{t('agentSkillsEmpty')}</p>
+                      : <div className={css.agentSkillList}>{rows.map(skill => <article key={skill.id} className={css.agentSkillRow}>
+                        <span className={css.skillSummary}>
+                          <span className={css.agentSkillName}>{humanSkillName(skill.name)}</span>
+                          <span className={css.agentSkillDescription}>{skill.description}</span>
+                        </span>
+                        <span className={css.switchCell}>{agentSkillSwitch(skill)}</span>
+                      </article>)}</div>}
+                  </section>
+                })}
+            </div>
+          </div>
+        </div>
+      </Modal>
       {selectedSkillId === undefined ? <>
         {modeSwitch}
         {searchBar}

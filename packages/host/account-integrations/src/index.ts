@@ -2,6 +2,7 @@
 
 import { createHash, randomUUID } from 'node:crypto'
 import { rename, rm, writeFile } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { mkdir } from 'node:fs/promises'
 import { Context, Service, type Fiber } from '@deepseek-ai/cordis'
@@ -31,6 +32,7 @@ import { googleConnection, googleService, verifyGoogle } from './google.ts'
 import { microsoftConnection, microsoftService, verifyMicrosoft } from './microsoft.ts'
 import { publicToolName } from '@aeven/mcp-client'
 import { parsePersonalSkill } from './skills.ts'
+import { discoverAgentSkills, discoverSkillNames, fetchReferenceSkills, parseSkillReference, readAgentSkill } from './skill-sources.ts'
 import { ReverseEngineeringRuntime, type ReverseEngineeringConfig } from './reverse-engineering.ts'
 import { resolveFfmpegBinary, resolveWhatsAppBinary, WhatsAppDaemon } from './whatsapp.ts'
 import { resolveTelegramEntry, TelegramDaemon, type TelegramCredentials, type TelegramDaemonStatus } from './telegram.ts'
@@ -39,7 +41,7 @@ import { isSlackReadTool, slackConnectorId, SLACK_DIRECT_MESSAGE_SCOPES, SLACK_M
 import { isSlackConsentFailure, probeSlackToken, revokeSlackToken, refreshSlackToken, SlackLoginError, startSlackLogin, type SlackLogin, type SlackToken } from './slack-login.ts'
 import { connectorCredential, type PendingConsent } from './oauth.ts'
 import { BrokerError, ConnectorBroker, type ConsentStatus, type IssuedToken } from './broker.ts'
-import type { AccountIntegrationsView, CatalogSkillView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, ConnectorProviderView, DiscordConnectorSettings, PersonalSkillView, EmailConnectionFailure, EmailConnectorSettings, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillSetup, SkillViewId, SkillUploadFile, SlackConnectorSettings, TelegramConnectorSettings, TelegramPairingView, WhatsAppPairingView } from './types.ts'
+import type { AccountIntegrationsView, CatalogSkillView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, ConnectorProviderView, DiscordConnectorSettings, PersonalSkillView, EmailConnectionFailure, EmailConnectorSettings, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillReferenceImport, SkillSetup, SkillViewId, SkillUploadFile, SlackConnectorSettings, SystemSkillAgent, SystemSkillView, TelegramConnectorSettings, TelegramPairingView, WhatsAppPairingView } from './types.ts'
 
 export type * from './types.ts'
 
@@ -56,6 +58,16 @@ export interface Config {
   reverseEngineering?: ReverseEngineeringConfig
   /** Largest decoded skill bundle. */
   maxSkillBytes: number
+  /** Claude Code configuration root whose `skills` and plugin skills Settings offers to import. */
+  claudeHome: string
+  /** Codex configuration root whose `skills` and vendored skills Settings offers to import. */
+  codexHome: string
+  /** Agent configuration root whose shared `skills` folder already supplies skills no import may replace. */
+  agentsHome: string
+  /** Skill root Aeven ships; when absent, this deployment has no bundled skills. */
+  bundledSkillDir?: string
+  /** Agent skill names Aeven already serves through its own tools, which Settings leaves out of the import picker. */
+  agentSkillExclusions: string[]
   /** MCP discovery, tool, and OAuth request budget. */
   timeoutMs: number
   /** Maximum time between starting a consent and the provider returning to the Aeven API. */
@@ -477,6 +489,11 @@ export default class AccountIntegrations extends TypertRemoteService {
       outputMaxBytes: Schema.natural().min(1).default(64 * 1024),
     }),
     maxSkillBytes: Schema.natural().min(1).default(10 * 1024 * 1024),
+    claudeHome: Schema.string().default(join(homedir(), '.claude')),
+    codexHome: Schema.string().default(join(homedir(), '.codex')),
+    agentsHome: Schema.string().default(process.env.AVN_AGENTS_HOME ?? join(homedir(), '.agents')),
+    bundledSkillDir: Schema.string(),
+    agentSkillExclusions: Schema.array(Schema.string()).default(['computer-use']),
     timeoutMs: Schema.natural().min(1).default(60_000),
     consentLifetimeMs: Schema.natural().min(1).default(600_000),
     consentPollMs: Schema.natural().min(100).default(2_000),
@@ -775,9 +792,7 @@ export default class AccountIntegrations extends TypertRemoteService {
     // A connector-owned skill documents the connector that decides its invocation instead.
     const connectorOwned = new Map<string, AccountIntegrationsView['skills'][number]>()
     const scope = await this.ctx.get('agentPresets')?.standingKeyFor()
-    const views: (string | undefined)[] = [undefined, ...this.ctx.workspaceRegistry.list()
-      .filter(workspace => workspace.owner === owner && workspace.kind === 'folder')
-      .map(workspace => workspace.path)]
+    const views: (string | undefined)[] = this.skillViews(owner)
     for (const cwd of views) {
       const options = { owner, cwd, scope }
       for (const skill of await this.ctx.skills.list(options)) {
@@ -921,18 +936,154 @@ export default class AccountIntegrations extends TypertRemoteService {
   /**
    * Install or replace one personal bundle after validating every resource path.
    * @param files - uploaded SKILL.md and resources, or one ZIP/.skill file.
+   * @returns the name stored, or the built-in skill that owns the name.
    */
   @Remote
-  async importSkill(files: SkillUploadFile[]): Promise<void> {
+  async importSkill(files: SkillUploadFile[]): Promise<SkillReferenceImport> {
+    return this.importBundles([files])
+  }
+
+  /**
+   * Install every skill a GitHub repository or npm package publishes.
+   * @param reference - GitHub URL or `owner/repository`, npm URL, `npm:<package>`, or a package name.
+   * @returns the names stored, and the skills a built-in name kept out.
+   */
+  @Remote
+  async importSkillReference(reference: string): Promise<SkillReferenceImport> {
+    const bundles = await fetchReferenceSkills(parseSkillReference(reference), { timeoutMs: this.config.timeoutMs })
+    return this.importBundles(bundles)
+  }
+
+  /**
+   * List the skills Claude Code and Codex installed on this computer that Aeven can take over, in agent and name order.
+   * A skill is left out when Aeven already answers its name — another provider, the account's own roots, the bundled
+   * set, or {@link Config.agentSkillExclusions} — and when it fails the validation an import would apply, so the picker
+   * only lists skills that switching on can actually install.
+   * @returns every remaining skill those agents keep on disk, with the handle {@link installSystemSkill} takes.
+   */
+  @Remote
+  async systemSkills(): Promise<SystemSkillView[]> {
+    const covered = await this.builtInSkillNames(this.owner())
+    const excluded = new Set(this.config.agentSkillExclusions.map(name => name.toLowerCase()))
+    const agents: readonly (readonly [SystemSkillAgent, string])[] = [['claude', this.config.claudeHome], ['codex', this.config.codexHome]]
+    const found = await Promise.all(agents.map(async ([agent, home]) => {
+      const candidates = (await discoverAgentSkills(agent, home))
+        .filter(skill => !covered.has(skill.name) && !excluded.has(skill.name.toLowerCase()))
+      const usable = await Promise.all(candidates.map(async skill => await this.agnosticAgentSkill(home, skill.path) ? skill : undefined))
+      return usable.filter(skill => skill !== undefined)
+        .map((skill): SystemSkillView => ({ id: `${agent}:${skill.path}`, name: skill.name, agent, description: skill.description }))
+    }))
+    return found.flat().sort((left, right) => left.agent.localeCompare(right.agent)
+      || left.name.localeCompare(right.name, undefined, { sensitivity: 'base' }))
+  }
+
+  /**
+   * Whether one installed skill passes the bundle validation an import applies: exactly one `SKILL.md`, a hyphenated
+   * lowercase name, a description, boolean invocation flags, safe resource paths, and the size budget.
+   * @param home - agent configuration root the skill sits in.
+   * @param path - skill directory relative to that root.
+   * @returns true when switching the skill on would install it.
+   */
+  private async agnosticAgentSkill(home: string, path: string): Promise<boolean> {
+    try {
+      parsePersonalSkill(uploadsSchema.parse(await readAgentSkill(home, path, this.config.maxSkillBytes)), this.config.maxSkillBytes)
+      return true
+    } catch {
+      // A skill this build cannot store — a rejected name, an oversized bundle, a directory that moved since
+      // discovery — is left out of the picker, which only promises what it can install.
+      return false
+    }
+  }
+
+  /**
+   * Install one skill another coding agent keeps on this computer into the caller's library.
+   * @param id - handle {@link systemSkills} reported for that skill.
+   * @returns the name stored, or the built-in skill that owns the name.
+   */
+  @Remote
+  async installSystemSkill(id: string): Promise<SkillReferenceImport> {
+    const separator = id.indexOf(':')
+    const agent = id.slice(0, separator)
+    if (separator < 0 || (agent !== 'claude' && agent !== 'codex')) throw new Error('unknown coding agent')
+    const home = agent === 'claude' ? this.config.claudeHome : this.config.codexHome
+    return this.importBundles([await readAgentSkill(home, id.slice(separator + 1), this.config.maxSkillBytes)])
+  }
+
+  /**
+   * Validate and store one or more bundles in the caller's library.
+   * @param bundles - one upload set per skill, each holding its own SKILL.md.
+   * @returns the names stored, and the skills a built-in name kept out.
+   */
+  private async importBundles(bundles: readonly SkillUploadFile[][]): Promise<SkillReferenceImport> {
     const owner = this.owner()
-    const skill = parsePersonalSkill(uploadsSchema.parse(files), this.config.maxSkillBytes)
-    await this.domain.table('skills').put(`${accountDirectory(owner)}:${skill.name}`, {
-      owner, name: skill.name, description: skill.description, content: skill.content, enabled: this.domain.table('skill_preferences').get(`${accountDirectory(owner)}:${skill.name}`)?.enabled !== false,
-      modelInvocable: skill.modelInvocable, userInvocable: skill.userInvocable,
-      resources: Object.fromEntries([...skill.files].map(([path, bytes]) => [path, Buffer.from(bytes).toString('base64')])), revision: randomUUID(),
-    })
-    this.invalidateSkills()
-    this.prepareReverseEngineering(skill.name, true)
+    const builtIn = await this.builtInSkillNames(owner)
+    const result: SkillReferenceImport = { imported: [], skipped: [] }
+    for (const files of bundles) {
+      const skill = parsePersonalSkill(uploadsSchema.parse(files), this.config.maxSkillBytes)
+      if (builtIn.has(skill.name)) {
+        result.skipped.push({ name: skill.name, reason: 'built-in' })
+        continue
+      }
+      await this.domain.table('skills').put(`${accountDirectory(owner)}:${skill.name}`, {
+        owner, name: skill.name, description: skill.description, content: skill.content, enabled: this.domain.table('skill_preferences').get(`${accountDirectory(owner)}:${skill.name}`)?.enabled !== false,
+        modelInvocable: skill.modelInvocable, userInvocable: skill.userInvocable,
+        resources: Object.fromEntries([...skill.files].map(([path, bytes]) => [path, Buffer.from(bytes).toString('base64')])), revision: randomUUID(),
+      })
+      result.imported.push(skill.name)
+      this.prepareReverseEngineering(skill.name, true)
+    }
+    if (result.imported.length > 0) this.invalidateSkills()
+    return result
+  }
+
+  /**
+   * Names the account does not own: skills a project, a user root, or Aeven's bundled set supplies. An import never
+   * replaces one of them, so a built-in skill keeps its behaviour whatever the reader pastes.
+   * @param owner - account whose view is being built.
+   * @returns the names an import leaves alone.
+   */
+  private async builtInSkillNames(owner: string): Promise<Set<string>> {
+    const scope = await this.ctx.get('agentPresets')?.standingKeyFor()
+    const names = new Set<string>()
+    for (const cwd of this.skillViews(owner)) {
+      for (const skill of await this.ctx.skills.list({ owner, cwd, scope })) {
+        if (skill.provider !== 'account-integrations') names.add(skill.name)
+      }
+    }
+    for (const root of this.installedSkillRoots(owner)) {
+      for (const name of await discoverSkillNames(root)) names.add(name)
+    }
+    return names
+  }
+
+  /**
+   * Skill roots this deployment writes outside the account library, in the ranks an import would otherwise shadow:
+   * Aeven's bundled set, the user's own roots, and each workspace's project folders. The registry lookup alone misses
+   * them, because a preset mounts local discovery per agent rather than into the Host's own view.
+   * @param owner - account whose folder workspaces contribute project roots.
+   * @returns absolute root paths, duplicates included.
+   */
+  private installedSkillRoots(owner: string): string[] {
+    const roots = [
+      this.config.bundledSkillDir ?? process.env.AVN_BUNDLED_SKILL_DIR,
+      avnHomePath('skills'),
+      join(this.config.agentsHome, 'skills'),
+    ].filter((root): root is string => root !== undefined && root !== '')
+    for (const cwd of this.skillViews(owner)) {
+      if (cwd !== undefined) roots.push(join(cwd, '.avn', 'skills'), join(cwd, '.agents', 'skills'))
+    }
+    return roots
+  }
+
+  /**
+   * Every working directory the account's skills are discovered from: the bare host and each folder workspace.
+   * @param owner - account whose workspaces are read.
+   * @returns one lookup cwd per view, `undefined` standing for the Host's own.
+   */
+  private skillViews(owner: string): (string | undefined)[] {
+    return [undefined, ...this.ctx.workspaceRegistry.list()
+      .filter(workspace => workspace.owner === owner && workspace.kind === 'folder')
+      .map(workspace => workspace.path)]
   }
 
   /**

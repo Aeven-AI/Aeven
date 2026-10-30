@@ -32,7 +32,8 @@ export type {
   ConnectorProvider, DiscordConnectorSettings, EmailConnectionFailure, EmailConnectionRequest,
   EmailConnectionResult, EmailConnectionUpdate, EmailConnectorSettings,
   EmailProbeStep, EmailReceiveSettings, EmailSecurity, EmailServerSettings,
-  PersonalSkillView, PersonalConnectorView, SkillCatalogView, SkillUploadFile, TelegramConnectorSettings,
+  PersonalSkillView, PersonalConnectorView, SkillCatalogView, SkillReferenceImport, SkillUploadFile,
+  SystemSkillAgent, SystemSkillView, TelegramConnectorSettings,
   TelegramLoginFailure, TelegramPairingState, TelegramPairingView, WhatsAppConnectorSettings,
   WhatsAppPairingState, WhatsAppPairingView,
 } from '@aeven/host-account-integrations/types'

@@ -5,6 +5,26 @@ import { unzipSync } from 'fflate'
 import { isSkillName } from '@aeven/skill'
 import type { SkillUploadFile } from './types.ts'
 
+/** Skill frontmatter block and the body below it. */
+const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)([\s\S]*)$/
+
+/**
+ * Read a skill's declared name and description without validating the rest of the bundle.
+ * @param markdown - SKILL.md contents.
+ * @returns the frontmatter name and description, or undefined when either is missing or malformed.
+ */
+export function skillHeader(markdown: string): { name: string; description: string } | undefined {
+  const [, frontmatter] = FRONTMATTER.exec(markdown) ?? []
+  if (frontmatter === undefined) return undefined
+  const metadata: unknown = load(frontmatter, { schema: JSON_SCHEMA })
+  if (typeof metadata !== 'object' || metadata === null || Array.isArray(metadata)) return undefined
+  const fields = metadata as Record<string, unknown>
+  const { name, description } = fields
+  return typeof name === 'string' && typeof description === 'string' && description.trim() !== ''
+    ? { name, description }
+    : undefined
+}
+
 /** Validated skill content and decoded, relative resource files. */
 export interface ParsedPersonalSkill {
   name: string
@@ -60,7 +80,7 @@ export function parsePersonalSkill(uploads: readonly SkillUploadFile[], maxBytes
     resources.set(path.slice(prefix.length), data)
   }
   const markdown = new TextDecoder('utf-8', { fatal: true }).decode(files.get(definition))
-  const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)([\s\S]*)$/.exec(markdown)
+  const match = FRONTMATTER.exec(markdown)
   const [, frontmatter, content] = match ?? []
   if (frontmatter === undefined || content === undefined) throw new Error('SKILL.md requires YAML frontmatter')
   const metadata: unknown = load(frontmatter, { schema: JSON_SCHEMA })

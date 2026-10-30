@@ -97,6 +97,9 @@
 .detailBack { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 28px; padding: 0; border: none; border-radius: 28px; background: #000; color: #fff; cursor: pointer; }
 
 .optionIcon { width: 16px; height: 16px; }
+/* The catalog's display menu trigger: the settings card's black disc, as tall as the search field beside it. */
+.section .displayButton { display: inline-flex; flex: none; align-items: center; justify-content: center; box-sizing: border-box; width: var(--dsw-aeven-control-size); height: var(--dsw-aeven-control-size); padding: 0; border: none; border-radius: 50%; color: var(--dsw-static-neutral-00); background: var(--dsw-static-neutral-1000); }
+.section .displayButton:hover:enabled { background: var(--dsw-static-neutral-1000); }
 .detailActions { display: flex; justify-content: flex-end; }
 .category { display: flex; flex-direction: column; gap: 6px; }
 .categoryHeader { position: sticky; top: 0; z-index: 1; display: flex; align-items: baseline; gap: 8px; margin: 0; padding: 6px 0; color: var(--dsw-alias-label-secondary); font-size: 0.8125rem; line-height: 1.125rem; font-weight: 500; text-transform: capitalize; background: transparent; }
@@ -109,3 +112,26 @@
 
 .setupFailureDialog { width: min(440px, 100%); }
 .setupFailureText { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 0.875rem; line-height: 1.375rem; }
+
+/* Import popup: the skills card's own chrome — header, black close disc, and the scroller whose edges fade — holding
+   the reference form above the agent groups. */
+.importBody { display: flex; flex-direction: column; gap: 28px; padding-top: 8px; }
+/* The reference form and its secondary action sit on the dialog's own surface, so neither draws a ring, and the form
+   adds no inset of its own: its field lines up with the agent groups below it. */
+.importBody .card { border: 0; padding: 0; }
+.importBody .secondaryAction { border: 0; }
+/* The primary action keeps the filled capsule whether or not a reference has been typed. */
+.section .importBody .primaryAction { color: var(--dsw-alias-label-primary-foreground); background: var(--dsw-alias-button-primary-fill); }
+.section .importBody .primaryAction:disabled { opacity: 1; color: var(--dsw-alias-label-primary-foreground); background: var(--dsw-alias-button-primary-fill); }
+.agentGroups { display: flex; flex-direction: column; gap: 24px; }
+/* The group labels ride the page rather than pinning to the popup's edge, and name each agent with its count. */
+.agentGroups .category { gap: 10px; }
+.agentGroups .categoryHeader { position: static; font-size: 0.875rem; line-height: 1.375rem; font-weight: 500; }
+.agentGroups .categoryCount { font-weight: 500; }
+.importResult { margin: 0; color: var(--dsw-alias-label-primary); }
+/* A skill row without a page behind it: the list's own rhythm, with the switch on the row's centre line. */
+.agentSkillList { display: flex; flex-direction: column; }
+.agentSkillRow { display: flex; align-items: center; gap: 16px; padding: 12px 0; }
+.agentSkillRow .switchCell { margin-top: 0; }
+.agentSkillName { font-weight: 500; }
+.agentSkillDescription { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; color: var(--dsw-alias-label-secondary); font-size: 0.875rem; line-height: 1.375rem; }
