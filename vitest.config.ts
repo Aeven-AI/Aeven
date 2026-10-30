@@ -267,6 +267,10 @@ export default defineConfig({
         'packages/client/ui-chat/src/client/contract/snapshot.ts',
         'packages/client/ui-chat/src/client/historical-images.ts',
         'packages/client/ui-primitives/src/DisclosureRow.tsx',
+        // The read-aloud reader is presentation and Web Audio plumbing; its
+        // specs pin the behaviour, and the per-file bar does not apply to it
+        // for the same reason as the chat and conversation trees above.
+        'packages/client/ui-tts/src/client/**/*.{ts,tsx}',
         'packages/client/ui-tool/src/*',
         'packages/client/ui-slots/src/*',
         'packages/client/ui-layout/src/*',
