@@ -116,13 +116,13 @@ lefthook is configured in `lefthook.yml` as a fast local checkpoint:
 
 The vendor manifest guard checks that changes under `vendor/*/src` are staged with the matching `vendor/README.md` manifest update. See `vendor/README.md` before editing vendored code.
 
-Apart from the scoped staged-record verification, the hooks intentionally do not run tests, snapshots, documentation checks, builds, or hygiene. Contributors run the [checks relevant to the changed behavior](../AGENTS.md#run-relevant-checks-locally) once; the local gate matrix owns exhaustive coverage, built-artifact smokes, and the Node 22.19, 24, and 26 compatibility matrix.
+Apart from the scoped staged-record verification, the hooks intentionally do not run tests, snapshots, documentation checks, builds, or hygiene. Contributors run the [checks relevant to the changed behavior](../AGENTS.md#run-relevant-checks-locally) once. The pull-request workflow covers the static, types-and-lint, snapshot, and built-artifact lanes; coverage, the Node 22.19, 24, and 26 compatibility matrix, the browser snapshots, and the Windows lanes stay local.
 
 Contributors can opt into the comprehensive local gate set with `pnpm run check:all`. The command is independent of the Git hooks and is not an agent instruction.
 
 ### Gate lanes
 
-This repository runs no GitHub Actions: the whole gate matrix is local, and [scripts/run-gates.ts](../scripts/run-gates.ts) owns it. Its lane profiles (`pnpm run check:ci:static`, `check:ci:coverage`, `check:ci:snapshot`, `check:ci:artifacts`, and the Windows lanes) group independent gates into broad lanes, `pnpm run check:node-compat` runs the smaller compatibility signal across supported Node versions, and `pnpm run check:all` is the comprehensive aggregate. Artifact consumers wait for one build within their lane. The real-API suite is `pnpm run test:e2e`, which self-skips without a key and runs with its configured worker bound.
+Pull requests run three of those lanes in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) — `pnpm run check:ci:static`, and `pnpm run typecheck` with `pnpm run check:ci:lint:contracts-ready`, both on Ubuntu; then `pnpm run check:ci:build-verify`, which builds the workspace once and replays the recorded snapshots on macOS — on every pull request into `main` and every merge-queue entry, and the `main` ruleset requires those three job names. [scripts/run-gates.ts](../scripts/run-gates.ts) owns the gate inventory: its lane profiles group independent gates into broad lanes, `pnpm run check:node-compat` runs the smaller compatibility signal across supported Node versions, and `pnpm run check:all` is the comprehensive aggregate. Artifact consumers wait for one build within their lane. The real-API suite is `pnpm run test:e2e`, which self-skips without a key and runs with its configured worker bound.
 
 ### Daily commands
 

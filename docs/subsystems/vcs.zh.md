@@ -1,6 +1,8 @@
 # 版本控制
 
-源码管理作为一个[能力接缝](../../docs/glossary.md#capability-seam)：一个 `ctx.vcs` 服务报告检出目录的分支、变更路径、差异与历史，并执行模型要求的改动——暂存、提交、分支、拉取、推送、合并——调用方无需解析任何引擎的终端输出。该接缝分为三个包：服务定义（[avn-vcs](../../packages/vcs/vcs)，`ctx.vcs` 与提供方注册表）、服务提供方（[avn-vcs-git](../../packages/vcs/vcs-git)，通过 `ctx.subprocess` 调用 git）以及消费者（[avn-tool-vcs](../../packages/vcs/tool-vcs)，`git_*` 工具）。版本控制是**一个可选能力**，不属于 agent-loop 主干。
+[English](vcs.md) | 中文
+
+源码管理作为一个[能力接缝](../../docs/glossary.zh.md#capability-seam)：一个 `ctx.vcs` 服务报告检出目录的分支、变更路径、差异与历史，并执行模型要求的改动——暂存、提交、分支、拉取、推送、合并——调用方无需解析任何引擎的终端输出。该接缝分为三个包：服务定义（[avn-vcs](../../packages/vcs/vcs)，`ctx.vcs` 与提供方注册表）、服务提供方（[avn-vcs-git](../../packages/vcs/vcs-git)，通过 `ctx.subprocess` 调用 git）以及消费者（[avn-tool-vcs](../../packages/vcs/tool-vcs)，`git_*` 工具）。版本控制是**一个可选能力**，不属于 agent-loop 主干。
 
 Source: [`packages/vcs/vcs/src/types.ts`](../../packages/vcs/vcs/src/types.ts)
 
@@ -54,10 +56,10 @@ git 提供方以 `core.hooksPath=/dev/null` 与 `core.fsmonitor=false` 运行只
 
 ## 相关
 
-- [avn-vcs](../../packages/vcs/vcs/README.md) — 定义。
-- [avn-vcs-git](../../packages/vcs/vcs-git/README.md) — git 提供方。
-- [avn-tool-vcs](../../packages/vcs/tool-vcs/README.md) — 面向模型的工具。
-- [源码管理作为能力的 Agent Note](../../.agents/notes/implemented/architecture/2026-10-30-source-control-as-a-capability.md) — 备选方案与延后事项。
+- [avn-vcs](../../packages/vcs/vcs/README.zh.md) — 定义。
+- [avn-vcs-git](../../packages/vcs/vcs-git/README.zh.md) — git 提供方。
+- [avn-tool-vcs](../../packages/vcs/tool-vcs/README.zh.md) — 面向模型的工具。
+- [源码管理作为能力的 Agent Note](../../.agents/notes/implemented/architecture/2026-10-30-source-control-as-a-capability.zh.md) — 备选方案与延后事项。
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 

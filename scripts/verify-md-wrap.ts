@@ -6,9 +6,11 @@
  * masked before parsing. The owning convention is in `docs/AGENTS.md`.
  */
 
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { relative, resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import type { Nodes } from 'mdast'
+import { changedPaths, isChangedScope } from './changed-files.ts'
 import { parseMarkdown, visitMarkdown } from './markdown.ts'
 import { isArchivedAgentNotePath, uniqueRepoFiles } from './repo-files.ts'
 
@@ -32,8 +34,12 @@ const PATTERNS = [
 /** A located hard-wrap: a prose paragraph spanning more than one source line. */
 interface Violation {
   file: string
+  /** Absolute path of the violating file, for the rewrite. */
+  abs: string
   /** 1-based line where the hard-wrapped paragraph starts. */
   line: number
+  /** 1-based line where the same paragraph ends. */
+  endLine: number
   text: string
 }
 
@@ -61,7 +67,7 @@ function findViolations(absPath: string): Violation[] {
       const { start, end } = node.position
       if (end.line > start.line) {
         const firstLine = source.split('\n')[start.line - 1] ?? ''
-        out.push({ file, line: start.line, text: firstLine.trim() })
+        out.push({ file, abs: absPath, line: start.line, endLine: end.line, text: firstLine.trim() })
       }
       // Paragraph children are inline, so no further paragraph can be nested.
       return false
@@ -70,17 +76,64 @@ function findViolations(absPath: string): Violation[] {
   return out
 }
 
-const files = uniqueRepoFiles(root, PATTERNS, isArchivedAgentNotePath)
-const all = files.flatMap(file => findViolations(file.abs))
-const checked = files.length
+/**
+ * Check (and with `--fix`, repair) every Markdown prose paragraph in scope.
+ * @param argv - arguments to read `--fix` from.
+ * @returns 0 when nothing is hard-wrapped, 1 otherwise.
+ */
+export function runMdWrap(argv: readonly string[] = process.argv): number {
+  const scoped = isChangedScope(argv) ? changedPaths() : undefined
+  const files = uniqueRepoFiles(root, PATTERNS, isArchivedAgentNotePath)
+    .filter(file => scoped === undefined || scoped.has(relative(root, file.abs)))
+  const checked = files.length
+  const fix = argv.includes('--fix')
 
-if (all.length === 0) {
-  console.log(`verify-md-wrap: ${checked} file(s) checked, no hard-wrapped prose paragraphs.`)
-  process.exit(0)
+  /** Blockquote and table paragraphs carry semantic prefixes a join would drop. */
+  const fixable = (violation: Violation): boolean =>
+    !violation.text.startsWith('>') && !violation.text.startsWith('|')
+
+  /** Rewrite each multi-line paragraph as one physical line, keeping its leading indentation. */
+  function joinParagraphs(absPath: string, violations: Violation[]): number {
+    const lines = readFileSync(absPath, 'utf8').split('\n')
+    let joined = 0
+    for (const violation of [...violations].sort((a, b) => b.line - a.line)) {
+      const paragraph = lines.slice(violation.line - 1, violation.endLine)
+      const indent = /^\s*/.exec(paragraph[0] ?? '')?.[0] ?? ''
+      const text = paragraph
+        .map(line => line.trim().replace(/\\$/, '').trimEnd())
+        .filter(line => line.length > 0)
+        .join(' ')
+      lines.splice(violation.line - 1, violation.endLine - violation.line + 1, `${indent}${text}`)
+      joined++
+    }
+    if (joined > 0) writeFileSync(absPath, lines.join('\n'))
+    return joined
+  }
+
+  let all = files.flatMap(file => findViolations(file.abs))
+  if (fix && all.length > 0) {
+    const byFile = new Map<string, Violation[]>()
+    for (const violation of all.filter(fixable)) {
+      byFile.set(violation.abs, [...(byFile.get(violation.abs) ?? []), violation])
+    }
+    let rewritten = 0
+    for (const [absPath, violations] of byFile) rewritten += joinParagraphs(absPath, violations)
+    console.log(`verify-md-wrap --fix: joined ${rewritten} paragraph(s) in ${byFile.size} file(s).`)
+    all = files.flatMap(file => findViolations(file.abs))
+  }
+
+  if (all.length === 0) {
+    console.log(`verify-md-wrap: ${checked} file(s) checked, no hard-wrapped prose paragraphs.`)
+    return 0
+  }
+
+  console.error('verify-md-wrap: hard-wrapped prose paragraphs found (write one physical line per paragraph; `--fix` joins those outside blockquotes and tables):')
+  for (const v of all) {
+    console.error(`  ${v.file}:${v.line}  ${v.text.slice(0, 80)}${v.text.length > 80 ? '…' : ''}`)
+  }
+  return 1
 }
 
-console.error('verify-md-wrap: hard-wrapped prose paragraphs found (write one physical line per paragraph):')
-for (const v of all) {
-  console.error(`  ${v.file}:${v.line}  ${v.text.slice(0, 80)}${v.text.length > 80 ? '…' : ''}`)
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  process.exit(runMdWrap())
 }
-process.exit(1)

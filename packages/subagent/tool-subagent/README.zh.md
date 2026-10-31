@@ -45,6 +45,7 @@ kind: "package-reference"
 | `provider` | 必填 | `ctx.subagents` 上的提供方名称（如 `spawn`、`fork`、`acp`） |
 | `toolName` | `subagent` | 面向模型的工具名称；每个已加载实例必须不同 |
 | `modelSelectionSettings` | `false` | 为每个新顶层 Session 读取宿主的精确路由授权偏好；只在 Agent 作用域内有效，并要求提供方支持 `agentOptions` |
+| `nestingSettings` | `false` | 每次启动都读取宿主的 `subagent-nesting` 开关：关闭时调用方的子 agent 都是叶子；开启时 `maxDepth` 即上限。要求数值型 `maxDepth`，且宿主作用域内已组装该设置服务 |
 | `enableRunInBackground` | `true` | 公开 `run_in_background`；禁用时也会拒绝强制后台调用 |
 | `backgroundMode` | `one-shot` | 后台策略：`one-shot` 默认前台调用；`continuable` 默认后台调用，并要求提供方具备 `prepareContinuable` 能力 |
 | `agentOptions` | — | 配置的子级 `provider`、`model`、适配器所有的 `reasoningEffort` 与正整数 `maxTokens` 默认值；要求提供方支持 `agentOptions`，并会覆盖提供方持有的路由默认值 |
@@ -66,6 +67,10 @@ kind: "package-reference"
 
 设置 `modelSelectionSettings: true`，即可在组合每个全新顶层 Session 时读取宿主的 `subagent-model-selection` 偏好。没有已记录策略的恢复 Session 会保持禁用，包括显式为空的恢复。启用后，非空的精确 provider/model 路由列表会记录进 Session、由子 Session 继承，后续设置编辑不会改变它。工具随后公开可选的 `provider`、`model` 与 `reasoning_effort` 字段，并注册共享的 `list_subagent_models` 工具。此模式要求后端声明 `agentOptions`；两个进程内后端和 AVN SDK 支持该能力，而 ACP、Codex 与 Claude Code 会拒绝它，而不是忽略它。
 
+### 启用嵌套委派
+
+设置 `nestingSettings: true`，即可由宿主的 `subagent-nesting` 开关决定子 agent 能否继续委派。该开关在每次启动时读取，而不是一次性采样，因此在插件设置中切换会立即作用于已在运行的 agent 及其随后启动的子 agent；它不需要 Session 事件，因为没有任何工具 schema 或提示文本随之变化。关闭时，调用方的子 agent 都是叶子：无论 `maxDepth` 允许多少，每次启动都被固定到深度一。开启时 `maxDepth` 即上限——`maxDepth: 2` 时，深度 1 的子 agent 可以启动深度 2 的孙 agent，而后者无法再委派。该开关要求宿主作用域内组装 `@aeven/tool-subagent/nesting-settings` 并使用数值型 `maxDepth`；进程外提供方拥有自己的递归预算，因此 `maxDepth: 'provider-managed'` 与 `nestingSettings` 同时出现会在加载时失败。
+
 一次调用需同时提供 `provider` 与 `model`；当配置值、父 agent 值或提供方持有的默认值能提供路由时，也可只提供推理等级。静态的 `provider.agentRouteDefaults` 在存在时构成提供方／模型基线；工具配置与模型字段会在路由相关强度合并和确切路由预检前覆盖它。没有这些默认值的提供方会使用父 agent 最新已记录请求中的兼容值，再使用父级首次请求前的创建选项，并保留配置的 `maxTokens`。更改路由但未显式提供推理等级时，会清除继承的路由自有等级，使所选模型解析自己的默认值。实时 LLM 适配器在创建子 agent 前校验有效路由。目录成员资格只提供建议，因此适配器接受时，模型可以使用未列出的 id。
 
 -----
@@ -80,7 +85,7 @@ kind: "package-reference"
 
 ### 设计理念
 
-一个实例就是一个提供方加一个工具名称。插件镜像提供方生命周期：具名提供方出现时注册工具，提供方离开时释放工具，因此同级加载顺序与 HMR 替换不会让工具悬空。提供方无法执行的数值型 `maxDepth` 或已配置 LLM 选择会在挂载时失败，而不是在首次委派时失败。每个工具作用域内最多一个实例可以拥有模型选择，因为 `list_subagent_models` 使用全局名称。
+一个实例就是一个提供方加一个工具名称。插件镜像提供方生命周期：具名提供方出现时注册工具，提供方离开时释放工具，因此同级加载顺序与 HMR 替换不会让工具悬空。提供方无法执行的数值型 `maxDepth` 或已配置 LLM 选择会在挂载时失败，而不是在首次委派时失败；缺少宿主设置服务的 `nestingSettings` 同样如此。每个工具作用域内最多一个实例可以拥有模型选择，因为 `list_subagent_models` 使用全局名称。
 
 ### 前台结算
 
@@ -102,6 +107,7 @@ kind: "package-reference"
 | [`src/model-selection.ts`](src/model-selection.ts) | 请求／配置合并与实时 LLM 路由预检 |
 | [`src/model-selection-settings.ts`](src/model-selection-settings.ts) | 为新 Session 读取的宿主所有 opt-in 设置 |
 | [`src/model-selection-state.ts`](src/model-selection-state.ts) | 记录并继承已读取决定的 Session 事件 |
+| [`src/nesting-settings.ts`](src/nesting-settings.ts) | 每次委派启动时读取的宿主开关 |
 | [`src/list-models.ts`](src/list-models.ts) | `list_subagent_models` 运行时发现工具 |
 
 </details>

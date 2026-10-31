@@ -1,8 +1,8 @@
-# Agent Note: Windows seed ????
+# Agent Note: Windows seed 依赖合并
 
 Status: implemented
 
-[English](2026-10-30-host-dependency-bundles.md) | ??
+[English](2026-10-30-host-dependency-bundles.md) | 中文
 
 ## Problem
 

@@ -5,6 +5,8 @@ kind: "package-reference"
 
 # @aeven/text-to-speech-edge
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 This provider speaks through Microsoft's Edge read-aloud service, one WebSocket per voice. At startup it asks Edge for every voice in the configured locales, so the catalogue follows the service instead of a restated list, and the configured voices join it as the entries a deployment guarantees.
@@ -48,20 +50,6 @@ Audio is 24 kHz mono MP3, which the browser decodes with `decodeAudioData`.
 
 -----
 
-<a id="model-experience"></a>
-## Model Experience
-
-None. The provider returns audio bytes for text the model already produced.
-
------
-
-<a id="known-limitations-and-deferred-work"></a>
-## Known Limitations and Deferred Work
-
-Synthesis requires outbound network access to Microsoft's service; there is no offline provider with comparable voice quality yet. `src/edge-tts.ts` is Aeven's own client of that unofficial service, so a protocol change reaches us as an outage rather than as an upstream release: it speaks the Edge read-aloud WebSocket protocol against `api.msedgeservices.com` and lists voices on the legacy `speech.platform.bing.com` host, which is the only one that answers a voice list.
-
------
-
 <a id="dev-note"></a>
 ## Dev Note
 
@@ -70,3 +58,18 @@ One `MsEdgeTTS` instance serves each voice id and stays cached. The client opens
 A voice's `Gender` is read from the provider's own voice list and is the only source of that fact: the ids and display names do not encode timbre, and the multilingual voices sit outside any single language's roster.
 
 No runtime invariant companion is published: discovery and synthesis are the only observations, and both are reported to the caller directly.
+
+-----
+
+<a id="model-experience"></a>
+## Model Experience
+
+Indirectly, through `avn-text-to-speech`, which owns the request it synthesises.
+
+#### KV Cache effect
+
+The provider returns audio for text the model already produced and appends nothing to a request, so an existing prefix stays reusable.
+
+## Known Limitations and Deferred Work
+
+- Synthesis requires outbound network access to Microsoft's service; there is no offline provider with comparable voice quality yet. `src/edge-tts.ts` is Aeven's own client of that unofficial service, so a protocol change reaches us as an outage rather than as an upstream release: it speaks the Edge read-aloud WebSocket protocol against `api.msedgeservices.com` and lists voices on the legacy `speech.platform.bing.com` host, which is the only one that answers a voice list.

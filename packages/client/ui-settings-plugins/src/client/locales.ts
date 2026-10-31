@@ -19,6 +19,8 @@ export type PluginsSettingsLocaleKey =
   | 'subagentModelSelectionPartial' | 'subagentModelSelectionUnavailable'
   | 'subagentModelSelectionUnavailableGroup' | 'subagentModelSelectionEmpty'
   | 'subagentModelSelectionRequired' | 'subagentModelSelectionConflict' | 'subagentModelSelectionOff'
+  | 'subagentNestingTitle' | 'subagentNestingDescription' | 'subagentNestingToggle'
+  | 'subagentNestingEnabledHint' | 'subagentNestingDisabledHint'
 
 /** English copy. */
 export const en: Record<PluginsSettingsLocaleKey, string> = {
@@ -79,6 +81,11 @@ export const en: Record<PluginsSettingsLocaleKey, string> = {
   subagentModelSelectionRequired: 'Select at least one model before saving.',
   subagentModelSelectionConflict: 'Settings changed elsewhere. Discard your draft and try again.',
   subagentModelSelectionOff: 'Subagents use configured defaults or inherit the parent agent\'s model. Saved model choices are retained.',
+  subagentNestingTitle: 'Subagent nesting',
+  subagentNestingDescription: 'Let subagents start subagents of their own.',
+  subagentNestingToggle: 'Allow subagents to start subagents',
+  subagentNestingEnabledHint: 'A subagent may delegate within the depth this deployment allows.',
+  subagentNestingDisabledHint: 'A subagent finishes its task without delegating; only a top-level agent starts subagents.',
 }
 
 /** Simplified Chinese copy. */
@@ -140,6 +147,11 @@ export const zh: Record<PluginsSettingsLocaleKey, string> = {
   subagentModelSelectionRequired: '保存前请至少选择一个模型。',
   subagentModelSelectionConflict: '设置已在其他位置更新。请放弃修改后重试。',
   subagentModelSelectionOff: '关闭后，Subagent 使用配置的默认模型或继承父 Agent 的模型；已选模型会保留。',
+  subagentNestingTitle: 'Subagent 嵌套',
+  subagentNestingDescription: '允许 Subagent 创建自己的 Subagent。',
+  subagentNestingToggle: '允许 Subagent 创建 Subagent',
+  subagentNestingEnabledHint: 'Subagent 可以在本部署允许的深度内继续委派。',
+  subagentNestingDisabledHint: 'Subagent 只完成任务、不再委派；只有顶层 Agent 启动 Subagent。',
 }
 
 /** Spanish dictionary, checked complete against the zh key set. */
@@ -201,4 +213,9 @@ export const es: Record<PluginsSettingsLocaleKey, string> = {
   subagentModelSelectionRequired: 'Selecciona al menos un modelo antes de guardar.',
   subagentModelSelectionConflict: 'Los ajustes cambiaron en otro lugar. Descarta tus cambios y vuelve a intentarlo.',
   subagentModelSelectionOff: 'Los subagentes usan los valores predeterminados configurados o heredan el modelo del agente principal. Las opciones de modelo guardadas se conservan.',
+  subagentNestingTitle: 'Anidamiento de subagentes',
+  subagentNestingDescription: 'Permite que los subagentes creen sus propios subagentes.',
+  subagentNestingToggle: 'Permitir que los subagentes creen subagentes',
+  subagentNestingEnabledHint: 'Un subagente puede delegar dentro de la profundidad que permite este despliegue.',
+  subagentNestingDisabledHint: 'Un subagente termina su tarea sin delegar; solo un agente de nivel superior inicia subagentes.',
 }

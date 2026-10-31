@@ -5008,6 +5008,14 @@ export interface Config {
    */
   modelSelectionSettings?: boolean
   /**
+   * Read the Host `subagent-nesting` user setting at every delegation start, so
+   * the switch decides whether a child agent may delegate in turn. Switched
+   * off, the calling agent's children are leaves whatever `maxDepth` allows;
+   * switched on, `maxDepth` is the ceiling. Requires the service composed and a
+   * numeric `maxDepth`.
+   */
+  nestingSettings?: boolean
+  /**
    * Expose `run_in_background` (default true). Disabled instances omit the
    * parameter and reject forced background calls.
    */

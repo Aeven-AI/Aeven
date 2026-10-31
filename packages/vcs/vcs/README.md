@@ -5,6 +5,8 @@ kind: "package-reference"
 
 # @aeven/vcs
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 `avn-vcs` defines source control as one capability: a `ctx.vcs` service holding registered providers and the operations a caller uses — resolve the repository, report status, diff, log, stage, unstage, commit, list and move branches, fetch, push, and merge. Every report is normalized, so a consumer reads branch, change, and history facts without parsing an engine's output, and a provider that speaks a different engine answers the same calls. Compose it with a provider such as `avn-vcs-git`; on its own the service has no operations to run and fails with `VCS_UNAVAILABLE`.
@@ -79,23 +81,11 @@ Every failure is a `VcsError` carrying one stable code: `VCS_UNAVAILABLE` (no pr
 <a id="model-experience"></a>
 ## Model Experience
 
-None. This package contributes no prompt text, tool schema, or result; its values reach the model only through a Consumer.
+None, as this package contributes no prompt text, tool schema, or result; its values reach the model only through a Consumer.
 
-### System prompt
+#### KV Cache effect
 
-None.
-
-### Tool schema
-
-None.
-
-### Results
-
-None.
-
-### UI presentation
-
-None.
+Nothing from this service enters a model request, so provider cache reuse is unaffected.
 
 ## Known Limitations and Deferred Work
 

@@ -5,6 +5,8 @@ kind: "package-reference"
 
 # @aeven/client-ui-tts
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 This browser plugin adds a speaker toggle to the composer's leading control row. While it is on, each assistant reply is read aloud fragment by fragment, from audio the Host synthesizes and this browser plays.
@@ -48,20 +50,6 @@ The spoken language is chosen per fragment: the script decides Japanese, Korean,
 
 -----
 
-<a id="model-experience"></a>
-## Model Experience
-
-None. The plugin reads text the model already produced and sends nothing to it.
-
------
-
-<a id="known-limitations-and-deferred-work"></a>
-## Known Limitations and Deferred Work
-
-The toggle is Session-scoped: a reload restores the flag, but two Sessions read at once and the composer row has no global stop. The voice picker writes a per-language preference in this browser only.
-
------
-
 <a id="dev-note"></a>
 ## Dev Note
 
@@ -72,3 +60,18 @@ The per-message action runs on its own channel, `message:<id>`, so reading one m
 `toSpeechText()` strips Markdown emphasis and then any residual emphasis or table marker, because a reader that receives one announces it — "asterisk" for bold text, for example.
 
 No runtime invariant companion is published: the reader owns one audio context and a queue over audio the Host synthesized, and the facts it could restate belong to that speech Remote.
+
+-----
+
+<a id="model-experience"></a>
+## Model Experience
+
+None, as the reader only renders reply text the model already produced and sends nothing back.
+
+#### KV Cache effect
+
+Nothing here enters a model request, so provider cache reuse is unaffected.
+
+## Known Limitations and Deferred Work
+
+- The toggle is Session-scoped: a reload restores the flag, but two Sessions read at once and the composer row has no global stop. The voice picker writes a per-language preference in this browser only.

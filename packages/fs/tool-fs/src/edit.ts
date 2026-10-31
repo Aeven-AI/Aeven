@@ -230,6 +230,7 @@ export function applyEditTool(ctx: Context, sandbox: FsSandboxController): void 
   ctx.tools.register(defineTool({
     name: 'edit',
     description: 'Edit existing UTF-8 text files by replacing literal text. Several files whose edits are already decided go together in one call through files.',
+    /* jscpd:ignore-start -- per-tool schema text stays literal; the nested files/edits properties mirror the top-level ones. */
     parameters: {
       file_path: { type: 'string', description: 'Path to edit, resolved by the filesystem backend. Required unless files is given.' },
       old_string: { type: 'string', description: 'Literal text to replace. Must match exactly. Required unless edits is given.' },
@@ -277,6 +278,7 @@ export function applyEditTool(ctx: Context, sandbox: FsSandboxController): void 
       },
       ...sandbox.escalationModes.length > 0 ? sandbox.schemaFields() : {},
     },
+    /* jscpd:ignore-end */
     output: {
       schema: {
         type: 'object',

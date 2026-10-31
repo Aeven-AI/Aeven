@@ -64,6 +64,11 @@
     - id: subagent-model-selection-settings
       name: '@aeven/tool-subagent/model-selection-settings'
 
+    # Host-owned switch the delegation tools read at every start, so it decides
+    # whether a subagent may delegate in turn. The Plugins page edits it.
+    - id: subagent-nesting-settings
+      name: '@aeven/tool-subagent/nesting-settings'
+
     - id: code-runtime
       name: '@aeven/code-runtime-worker-thread'
 

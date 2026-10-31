@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-打开设置中的「插件」分区并选择**插件配置**标签页，即可编辑本部署所组装的宿主平面插件。卡片依次为 shell 执行器（`bash`）、agent 循环的工具调用并行度（`agent-loop`）、subagent 模型选择（`subagent-model-selection`）、SQLite 会话搜索（`session-query-sqlite`）以及 DeepSeek 搜索提供方（`web-search-deepseek`）。
+打开设置中的「插件」分区并选择**插件配置**标签页，即可编辑本部署所组装的宿主平面插件。卡片依次为 shell 执行器（`bash`）、agent 循环的工具调用并行度（`agent-loop`）、subagent 模型选择（`subagent-model-selection`）、subagent 嵌套（`subagent-nesting`）、SQLite 会话搜索（`session-query-sqlite`）以及 DeepSeek 搜索提供方（`web-search-deepseek`）。
 
 ### 这里会出现什么
 
@@ -36,6 +36,8 @@ kind: "package-reference"
 卡片暂存用户输入，只有用户保存时才写入。每个控件渲染的都是暂存文本，因此屏幕上所见即保存后所存；**放弃修改**丢弃这些草稿，持有未保存修改的卡片即使收起也会在标题上标明。保存成功后，卡片会在回读确认写入后收起；保存失败时，卡片保持展开、报告失败并保留草稿供用户修改。重置暂存的是组装默认值而非立即写入；字段不接受的草稿会阻塞保存，而不是被丢弃。某个值是否被接受只有 Host 说了算。
 
 Subagent 卡会同时暂存其权限开关与精确模型复选框。启用时必须至少选择一条适配器路由。保存会在一次 mutation 中提交 `enabled` 与 `allowedModels`，并以草稿开始时的 revision 设栅；Host revision 更新后，草稿会标记为失败，而不会恢复已撤销的路由。关闭时会保留已选路由供以后重新使用。可用模型按提供方分组；当前目录中缺失的已存路由排在末尾，且仍可移除。适配器名称与模型描述仍属于实时目录元数据，不会存储；适配器变化、设置提交和重连后，卡片会刷新这些元数据。
+
+Subagent 嵌套卡是作用在委派工具启动时读取的命名空间上的单一开关：启用后 subagent 可以在本部署允许的深度内创建自己的 subagent，关闭后每个 subagent 都是叶子。保存会作用于已在运行的 agent，开关下方会说明当前生效的是哪一种。
 
 会话搜索卡把开关映射到 SQLite 提供方的打开策略。启用会存储 `first-search`，使 SQLite 及其派生索引在内容搜索需要它们前保持未打开；关闭会存储 `never`，并保留标题与 Workspace 名称匹配。重置会恢复部署组装的策略。
 

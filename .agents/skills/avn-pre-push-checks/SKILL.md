@@ -5,7 +5,7 @@ description: Use before pushing, force-pushing, marking ready for review, or cla
 
 # AVN Pre-Push Checks
 
-Use this skill to run relevant local evidence once before a `aeven` push. The sole ordering exception is `gh stack sync`, which may publish a cascading rebase before the rewritten layers can be validated; validate them immediately afterward and do not merge until the evidence passes. Git hooks are intentionally narrow: pre-commit fixes staged lint, checks staged whitespace, and guards vendored-source metadata; pre-push runs only the incremental repository typecheck. CI owns exhaustive coverage and the platform matrix.
+Use this skill to run relevant local evidence once before a `aeven` push. The sole ordering exception is `gh stack sync`, which may publish a cascading rebase before the rewritten layers can be validated; validate them immediately afterward and do not merge until the evidence passes. Git hooks are intentionally narrow: pre-commit fixes staged lint, checks staged whitespace, and guards vendored-source metadata; pre-push runs only the incremental repository typecheck. Coverage, the Node compatibility matrix, the browser snapshots, and the Windows lanes stay local: the pull-request workflow runs the static, types-and-lint, snapshot, and built-artifact lanes.
 
 ## Inspect the outgoing change
 

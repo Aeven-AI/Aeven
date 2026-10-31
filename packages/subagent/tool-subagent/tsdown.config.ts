@@ -15,5 +15,6 @@ const entry = (path: string) => ({
 export default defineConfig([
   entry('lib/types/index.js'),
   entry('lib/types/model-selection-settings.js'),
+  entry('lib/types/nesting-settings.js'),
   entry('lib/types/invariant.js'),
 ])

@@ -43,6 +43,7 @@ export class PersonalizationSync {
    * @param owner - the account.
    * @returns the open document, or undefined while sync does not serve the account.
    */
+  /* jscpd:ignore-start -- parallel to the other account-document attachers; its empty-document seeding rules are this capability's own. */
   attach(owner: string): Promise<SyncDocument | undefined> {
     const existing = this.open.get(owner)
     if (existing !== undefined) return existing
@@ -68,6 +69,7 @@ export class PersonalizationSync {
     this.open.set(owner, opening)
     return opening
   }
+  /* jscpd:ignore-end */
 
   /**
    * Publish this device's preferences after a local change.

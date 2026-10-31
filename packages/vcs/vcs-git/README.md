@@ -5,6 +5,8 @@ kind: "package-reference"
 
 # @aeven/vcs-git
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 `avn-vcs-git` implements `ctx.vcs` with git: it detects the checkout a directory belongs to, reads porcelain v2 status into per-path staged and unstaged changes, renders bounded diffs, lists commits and branches, and stages, commits, moves branches, fetches, pushes, and merges. Output is collected through `ctx.subprocess` and parsed as data, so no caller depends on git's progress text. Read-only reports run with repository hooks and fsmonitor disabled; commands that record history or move the checkout run the repository's own configuration.
@@ -96,23 +98,11 @@ The generated [configuration catalog](../../../docs/config-catalog.md) is the ex
 <a id="model-experience"></a>
 ## Model Experience
 
-None directly. The provider contributes no prompt text, schema, or result; its values reach the model through `avn-tool-vcs`.
+Indirectly, through `avn-tool-vcs`, which renders the change records this backend produces.
 
-### System prompt
+#### KV Cache effect
 
-None.
-
-### Tool schema
-
-None.
-
-### Results
-
-None.
-
-### UI presentation
-
-None.
+The backend returns change records a Consumer renders; it appends nothing to a request, so an existing prefix stays reusable.
 
 ## Known Limitations and Deferred Work
 

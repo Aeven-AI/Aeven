@@ -25,6 +25,8 @@ kind: "package-reference"
 
 Web bundle 将此插件与[技能和连接器页面](../../client/ui-settings-integrations/README.zh.md)一起挂载。设置列出账户自己的技能：导入的包与已安装的技能。被发现的技能——代码仓库、部署默认预设，以及账户拥有的每个文件夹工作区——不会列出，因为它们始终可用，也没有账户级开关；连接器拥有的技能只出现在该连接器的详情中。列表与打开的对话无关，已禁用的技能仍然可见。每个列出的技能都有一个持久化的账户调用开关，移除它会删除已存储的包。偏好作用于该技能名称，同时限制模型和用户调用，不修改文件，也不扩大工作区访问权限。导入一个 SKILL.md、.skill 或 ZIP 包，其中必须恰好包含一个技能定义。资源路径必须位于该目录内；重复路径、格式错误的 frontmatter 和超出大小限制的包将被拒绝。导入使用现有技能提供方注册表及调用控制。
 
+引用导入接受 GitHub URL、npm URL、包名或 `owner/repository` 简写。宿主会下载代码仓库或包归档——GitHub 默认分支，或注册表中的最新版本或所请求的版本——并导入归档携带的每个 skill，按最接近顶层的 `SKILL.md` 匹配 skill，因此同时附带现成分发的代码仓库会把每个名称只导入一次。当该 skill 名称已存在于某个项目根目录、用户自己的根目录或 Aeven 的随附集合中时，导入会保留该 skill，并将该名称报告为已跳过。设置还会列出本机上 Claude Code 与 Codex 安装的 skill，按 agent 分组并按名称排序。已发现的 skill 只有在开启后能够安装时才会出现：其名称不得已由其他提供方、用户的根目录、随附集合或 `agentSkillExclusions` 提供，且其包必须通过导入所执行的同一套校验，因此被拒绝的名称、超出大小限制的包，或发现后已移动的目录都不会出现。开启一项即把它的包复制到账户库，关闭则删除该副本；agent 自己的目录永远不会被写入。`claudeHome`、`codexHome`、`agentsHome` 与 `bundledSkillDir` 配置选择这次读取覆盖的根目录。
+
 账户启用已安装的 `reverse-engineering` 技能时，该启用动作会在后台于 `$AVN_HOME/runtimes/reverse-engineering` 内准备 REA 与兼容的分析引擎，因此其后的首次对话请求已经拥有这些工具。初始化先询问宿主：`rea doctor` 认证通过的 Ghidra 与 JDK 就地使用，不下载任何内容；没有可用引擎的机器才会把 Ghidra 与 JDK 归档下载一次，存入按内容寻址的缓存供后续尝试复用。Ghidra 的发布归档不含 macOS 反编译器，因此在 macOS 上初始化会用它自带的源码构建一个，这需要 Xcode 命令行工具。任何请求都不会等待初始化，初始化失败也绝不会让请求失败：设置显示进度与失败详情，并提供显式重试；自动重试等待 `retryDelayMs`，随后按 agent 连接 REA 工具。`reverseEngineering` 配置选择版本、安装预算与重试延迟。引擎发现与下载需要网络。Ghidra 之外的专用引擎仍需另行准备。
 
 自定义连接接受 Streamable HTTP MCP 地址和可选 bearer token；GitHub 还接受用于其官方远程地址的个人访问令牌。创建连接会先验证 MCP 发现，再保存。令牌仅可写入，并由凭据提供方按账户派生的键保存。即使对话仍持有旧工具目录，禁用或断开连接也会拒绝后续调用。
@@ -124,6 +126,10 @@ Slack 是唯一不需要在 Aeven API 上保存凭据的提供方：它的 PKCE 
 | Field | Default | Meaning |
 |---|---|---|
 | `maxSkillBytes` | 10485760 | 解码后技能包的最大字节数 |
+| `claudeHome`、`codexHome` | `~/.claude`、`~/.codex` | 导入选择器从中读取已安装 skill 的 agent 配置根目录 |
+| `agentsHome` | `~/.agents`（或 `AVN_AGENTS_HOME`） | 共享的 agent 根目录，其 `skills` 文件夹视为已安装，因此任何导入都不会替换它 |
+| `bundledSkillDir` | `AVN_BUNDLED_SKILL_DIR` | Aeven 随附的 skill 根目录，导入会保留其中的名称 |
+| `agentSkillExclusions` | `['computer-use']` | Aeven 已通过自身工具提供的 agent skill 名称，不列入选择器 |
 | `timeoutMs` | 60000 | OAuth、MCP 发现、守护进程控制及工具请求的时限 |
 | `consentLifetimeMs` | 600000 | 授权或登录操作的最大持续时间 |
 | `consentPollMs` | 2000 | 向 Aeven API 检查待完成登录的间隔，登录完成后无需重新打开设置即可连接 |

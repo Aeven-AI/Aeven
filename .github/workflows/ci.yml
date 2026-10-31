@@ -1,0 +1,86 @@
+# Pull-request gate matrix. The local hooks in lefthook.yml stay narrow
+# checkpoints; this workflow runs the lanes scripts/run-gates.ts already
+# defines, and the `main` ruleset requires the four job names below.
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  # A merge queue re-checks the merged result, so a queued batch runs the same
+  # lanes instead of entering `main` on its source pull requests' evidence.
+  merge_group:
+  workflow_dispatch:
+
+# A later push on the same ref supersedes the run it replaces. A merge-queue
+# batch carries its own ref, so no pull-request push cancels it.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  # Report the first failing gate in a lane instead of spending the job budget
+  # on the gates queued behind it.
+  AVN_GATE_FAIL_FAST: '1'
+
+jobs:
+  # Build-free: constraints, package manifests and licenses, Cordis config, the
+  # client surface (CSS baseline, UI i18n, type scale, dispatchers), and every
+  # generated documentation reference against its source.
+  static:
+    name: static
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Static gates
+        run: pnpm run check:ci:static
+
+  # The only lane that compiles the whole workspace: Host lib (including the
+  # generated Typert contracts), Client tsc, then repository-wide Oxlint and
+  # cross-file duplication.
+  types-lint:
+    name: types-lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm run typecheck
+      - name: Lint and duplication
+        run: pnpm run check:ci:lint:contracts-ready
+
+  # One build, then everything that reads its output: the shipped publish surface
+  # (publint, NodeNext consumer types, built-package invariants) and the keyless
+  # recorded-session replay. Two separate jobs would build the workspace twice.
+  # macOS, because the recorded expectations carry that platform's sandbox and
+  # process-tree behavior.
+  build-verify:
+    name: build-verify
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build once, then verify artifacts and replay snapshots
+        run: pnpm run check:ci:build-verify

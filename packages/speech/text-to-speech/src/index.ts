@@ -57,6 +57,7 @@ export default class TextToSpeech extends Service {
     return async () => { await this.remove(registration) }
   }
 
+  /* jscpd:ignore-start -- the synthesis and recognition rosters unregister the same lifecycle; this one also drops its voices. */
   private async remove(registration: Registration): Promise<void> {
     if (this.providers.get(registration.provider.info.id) !== registration) return
     this.providers.delete(registration.provider.info.id)
@@ -66,6 +67,7 @@ export default class TextToSpeech extends Service {
     registration.lifetime.abort(new Error('Speech synthesis provider unloaded'))
     await Promise.allSettled(registration.pending)
   }
+  /* jscpd:ignore-end */
 
   /**
    * Read the current provider roster.

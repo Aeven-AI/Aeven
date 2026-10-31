@@ -103,8 +103,32 @@ Signed-in users manage their own integrations; each agent mounts only its owner'
 /**
  * Install or replace one personal bundle after validating every resource path.
  * @param files - uploaded SKILL.md and resources, or one ZIP/.skill file.
+ * @returns the name stored, or the built-in skill that owns the name.
  */
-@Remote async importSkill(files: SkillUploadFile[]): Promise<void>
+@Remote async importSkill(files: SkillUploadFile[]): Promise<SkillReferenceImport>
+
+/**
+ * Install every skill a GitHub repository or npm package publishes.
+ * @param reference - GitHub URL or `owner/repository`, npm URL, `npm:<package>`, or a package name.
+ * @returns the names stored, and the skills a built-in name kept out.
+ */
+@Remote async importSkillReference(reference: string): Promise<SkillReferenceImport>
+
+/**
+ * List the skills Claude Code and Codex installed on this computer that Aeven can take over, in agent and name order.
+ * A skill is left out when Aeven already answers its name — another provider, the account's own roots, the bundled
+ * set, or {@link Config.agentSkillExclusions} — and when it fails the validation an import would apply, so the picker
+ * only lists skills that switching on can actually install.
+ * @returns every remaining skill those agents keep on disk, with the handle {@link installSystemSkill} takes.
+ */
+@Remote async systemSkills(): Promise<SystemSkillView[]>
+
+/**
+ * Install one skill another coding agent keeps on this computer into the caller's library.
+ * @param id - handle {@link systemSkills} reported for that skill.
+ * @returns the name stored, or the built-in skill that owns the name.
+ */
+@Remote async installSystemSkill(id: string): Promise<SkillReferenceImport>
 
 /**
  * Change account invocation availability for a skill across its installed sources.

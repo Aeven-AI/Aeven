@@ -61,7 +61,11 @@ interface SessionHeader {
   readonly id: SessionId
   /** Non-negative safe-integer Unix epoch milliseconds when the session was created. */
   readonly createdAt: number
-  /** Absolute working directory the session was created in (if any). */
+  /**
+   * Absolute working directory of the device that wrote the log, in that device's
+   * spelling (if any). A session synced to another device keeps this value for
+   * replay; the directory in force there comes from its workspace.
+   */
   readonly cwd?: string
   /** The session this one was forked from (seed lineage), if any. */
   readonly parentSession?: SessionId

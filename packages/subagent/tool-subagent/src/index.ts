@@ -63,6 +63,14 @@ export interface Config {
    */
   modelSelectionSettings?: boolean
   /**
+   * Read the Host `subagent-nesting` user setting at every delegation start, so
+   * the switch decides whether a child agent may delegate in turn. Switched
+   * off, the calling agent's children are leaves whatever `maxDepth` allows;
+   * switched on, `maxDepth` is the ceiling. Requires the service composed and a
+   * numeric `maxDepth`.
+   */
+  nestingSettings?: boolean
+  /**
    * Expose `run_in_background` (default true). Disabled instances omit the
    * parameter and reject forced background calls.
    */
@@ -110,6 +118,7 @@ export const Config: z<Config> = z.object({
   provider: z.string().required(),
   toolName: z.string().default('subagent'),
   modelSelectionSettings: z.boolean().default(false),
+  nestingSettings: z.boolean().default(false),
   enableRunInBackground: z.boolean().default(true),
   backgroundMode: z.union(['one-shot', 'continuable'] as const).default('one-shot'),
   // Prevent Schemastery from materializing omitted agentOptions as `{}`.
@@ -312,6 +321,17 @@ export function apply(ctx: Context, config: Config): void {
   // Direct apply() bypasses Schemastery's numeric constraints. A direct-apply
   // omission stays capless (the schema default only runs through the loader).
   if (config.maxDepth !== 'provider-managed') assertSubagentMaxDepth(config.maxDepth)
+  const nestingSettings = config.nestingSettings === true
+  if (nestingSettings && config.maxDepth === 'provider-managed') {
+    throw new Error(
+      'tool-subagent: `nestingSettings` needs a numeric maxDepth — an out-of-process provider owns its own recursion budget',
+    )
+  }
+  if (nestingSettings && ctx.get('subagentNesting') === undefined) {
+    throw new Error(
+      'tool-subagent: `nestingSettings` requires @aeven/tool-subagent/nesting-settings in the Host scope',
+    )
+  }
   // Reject an empty explicit filter at load instead of failing every delegation.
   if (config.toolFilter !== undefined && config.toolFilter.allow === undefined && config.toolFilter.deny === undefined) {
     throw new Error('tool-subagent: `toolFilter` is configured but names neither `allow` nor `deny` — remove the key or fill the filter')
@@ -321,6 +341,19 @@ export function apply(ctx: Context, config: Config): void {
   const toolName = config.toolName ?? 'subagent'
   // Only background continuable instances carry the shared delegation sentence.
   const sharedGuidance = backgroundEnabled && continuable
+
+  /**
+   * Depth the calling agent's child may reach. Without `nestingSettings` the
+   * composed `maxDepth` stands unchanged; with it, a switched-off document
+   * pins children to depth one, which is what makes them leaves.
+   */
+  const delegationMaxDepth = (runtimeCtx: Context): number | undefined => {
+    const ceiling = typeof config.maxDepth === 'number' ? config.maxDepth : undefined
+    // An opted-in instance already resolved the service at load; a deployment
+    // that drops it mid-flight keeps its composition entry.
+    if (!nestingSettings || runtimeCtx.get('subagentNesting')?.current() === true) return ceiling
+    return Math.min(ceiling ?? 1, 1)
+  }
 
   const modelSelectionCapable = config.modelSelectionSettings === true
   ctx.sessionProjections.register(subagentModelSelectionProjectionDefinition)
@@ -511,7 +544,7 @@ export function apply(ctx: Context, config: Config): void {
             }
           }
           exec.signal.throwIfAborted()
-          const maxDepth = typeof config.maxDepth === 'number' ? config.maxDepth : undefined
+          const maxDepth = delegationMaxDepth(runtimeCtx)
           const request = {
             label: args.description,
             prompt: [{ type: 'text', text: args.prompt }] as ContentBlock[],

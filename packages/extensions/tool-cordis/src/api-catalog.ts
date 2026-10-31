@@ -116,9 +116,28 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         throws: ['Error when the deployment mounts no catalog, or the name is not catalogued.'],
       },
       {
-        signature: '@Remote async importSkill(files: SkillUploadFile[]): Promise<void>',
+        signature: '@Remote async importSkill(files: SkillUploadFile[]): Promise<SkillReferenceImport>',
         description: 'Install or replace one personal bundle after validating every resource path.',
         parameters: [{ name: 'files', description: 'uploaded SKILL.md and resources, or one ZIP/.skill file.' }],
+        returns: 'the name stored, or the built-in skill that owns the name.',
+      },
+      {
+        signature: '@Remote async importSkillReference(reference: string): Promise<SkillReferenceImport>',
+        description: 'Install every skill a GitHub repository or npm package publishes.',
+        parameters: [{ name: 'reference', description: 'GitHub URL or `owner/repository`, npm URL, `npm:<package>`, or a package name.' }],
+        returns: 'the names stored, and the skills a built-in name kept out.',
+      },
+      {
+        signature: '@Remote async systemSkills(): Promise<SystemSkillView[]>',
+        description: 'List the skills Claude Code and Codex installed on this computer that Aeven can take over, in agent and name order. A skill is left out when Aeven already answers its name — another provider, the account\'s own roots, the bundled set, or Config.agentSkillExclusions — and when it fails the validation an import would apply, so the picker only lists skills that switching on can actually install.',
+        parameters: [],
+        returns: 'every remaining skill those agents keep on disk, with the handle {@link installSystemSkill} takes.',
+      },
+      {
+        signature: '@Remote async installSystemSkill(id: string): Promise<SkillReferenceImport>',
+        description: 'Install one skill another coding agent keeps on this computer into the caller\'s library.',
+        parameters: [{ name: 'id', description: 'handle {@link systemSkills} reported for that skill.' }],
+        returns: 'the name stored, or the built-in skill that owns the name.',
       },
       {
         signature: '@Remote async setSkillEnabled(name: string, enabled: boolean): Promise<void>',
@@ -3469,6 +3488,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Read a detached selection preference for the next eligible Agent publication.',
         parameters: [],
         returns: 'the enabled state and exact allowed routes.',
+      },
+    ],
+  },
+  {
+    key: 'subagentNesting',
+    summary: 'Singleton settings owner read by the delegation tools.',
+    description: 'Singleton settings owner read by the delegation tools.',
+    methods: [
+      {
+        signature: 'current(): boolean',
+        description: 'Read whether a child agent may start subagents of its own.',
+        parameters: [],
+        returns: 'the stored switch, defaulting to off.',
       },
     ],
   },
@@ -8439,6 +8471,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SkillEntry {\n    readonly name: string;\n    readonly description: string;\n    readonly whenToUse?: string;\n    readonly modelInvocable: boolean;\n}',
   },
   {
+    name: 'SkillImportSkip',
+    declaration: 'export interface SkillImportSkip {\n    name: string;\n    reason: \'built-in\';\n}',
+  },
+  {
     name: 'SkillInvocationPolicy',
     declaration: 'export interface SkillInvocationPolicy {\n    readonly modelInvocable: boolean;\n    readonly userInvocable: boolean;\n}',
   },
@@ -8465,6 +8501,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SkillProviderObservation',
     declaration: 'export interface SkillProviderObservation {\n    readonly candidates: readonly SkillCandidate[];\n    readonly complete: boolean;\n}',
+  },
+  {
+    name: 'SkillReferenceImport',
+    declaration: 'export interface SkillReferenceImport {\n    imported: string[];\n    skipped: SkillImportSkip[];\n}',
   },
   {
     name: 'SkillRegistration',
@@ -8817,6 +8857,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SystemPrompt',
     declaration: 'export class SystemPrompt extends Service {\n    static Config: z<Config>;\n    constructor(ctx: Context, config: Config);\n    section(section: PromptSection): () => void;\n    getSectionOrder(name: PromptSectionOrderName): number;\n    getContextOrder(name: PromptContextOrderName): number;\n    context(context: PromptContext): () => void;\n    suppressRuntimeContext(): () => void;\n    tools(provider: (context: AssembleContext) => ToolProviderResult): () => void;\n    variable(name: string, provider: (context: AssembleContext) => string | undefined): () => void;\n    sectionText(name: string, context: AssembleContext = {}): string | undefined;\n    async assemble(context: AssembleContext = {}): Promise<PromptAssembly>;\n}',
+  },
+  {
+    name: 'SystemSkillAgent',
+    declaration: 'export type SystemSkillAgent = \'claude\' | \'codex\';',
+  },
+  {
+    name: 'SystemSkillView',
+    declaration: 'export interface SystemSkillView {\n    id: string;\n    name: string;\n    agent: SystemSkillAgent;\n    description: string;\n}',
   },
   {
     name: 'TableKeyOf',

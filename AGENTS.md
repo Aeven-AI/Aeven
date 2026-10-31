@@ -68,7 +68,7 @@ Package groups: [packages/README.md](packages/README.md).
 pnpm install            # workspaces, node ^22.19 || >=24
 pnpm run clean           # remove build outputs and residue from deleted packages
 pnpm run test           # unit tests
-pnpm run test:coverage  # CI coverage gate: per-file 100% on packages/*/*/src
+pnpm run test:coverage  # gating coverage run: per-file 100% on packages/*/*/src
 pnpm run test:e2e       # real-API tests; self-skip without DEEPSEEK_API_KEY
 pnpm run test:expected  # owner-local process expectations
 pnpm run test:snapshot  # keyless replay through shipped profiles; filter: -t <name>
@@ -79,7 +79,7 @@ pnpm run duplication    # cross-file TypeScript clone detection
 pnpm run build          # tsc emits lib/types, tsdown bundles runtime
 pnpm run build:client   # client libs + web frontend only; the build a web UI change needs
 pnpm run hygiene        # publint + workspace/package/dependency checks + NodeNext consumer check
-pnpm run check:windows-wine  # ONLY when diagnosing a known Windows failure (needs wine); CI owns it
+pnpm run check:windows-wine  # ONLY when diagnosing a known Windows failure (needs wine)
 pnpm run doc-sync       # regenerate generated docs + translation records; never blocks
 pnpm run doc-check      # opt-in documentation gates; never required, never chase
 pnpm run website:build  # VitePress build (doubles as dead-link check)
@@ -94,8 +94,8 @@ If a required `gh`, `pnpm`, build, test, or generator command fails because the 
 
 Run checks before pushes via [avn-pre-push-checks](.agents/skills/avn-pre-push-checks/SKILL.md); report only commands run. After `gh stack sync`, validate before merging.
 
-- Match evidence to the surface: focused behavior tests, model/user-output snapshots, `doc-sync` once for docs (advisory), built smokes for published paths, and real-API e2e for providers. Never repeat a passing check; CI owns exhaustive coverage and the platform matrix, so rehearse locally only by explicit request or for CI diagnosis.
-- `test:coverage`, not `test`, is the CI coverage gate ([why](docs/testing.md)).
+- Match evidence to the surface: focused behavior tests, model/user-output snapshots, `doc-sync` once for docs (advisory), built smokes for published paths, and real-API e2e for providers. Never repeat a passing check; coverage and the platform matrix stay local, so rehearse them only by explicit request or for CI diagnosis.
+- `test:coverage`, not `test`, is the gating coverage run ([why](docs/testing.md)).
 
 ## Secrets / .env
 

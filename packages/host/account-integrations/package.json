@@ -35,13 +35,13 @@
   },
   "files": [
     "lib/index.js",
+    "scripts/ensure-gws.mjs",
     "lib/types/**/*.js",
     "lib/types/**/*.d.ts",
     "lib/typert.host.js",
     "lib/typert.host.d.ts",
     "lib/typert.remote-client.js",
-    "lib/typert.remote-client.d.ts",
-    "scripts/ensure-gws.mjs"
+    "lib/typert.remote-client.d.ts"
   ],
   "scripts": {
     "postinstall": "node scripts/ensure-gws.mjs"
