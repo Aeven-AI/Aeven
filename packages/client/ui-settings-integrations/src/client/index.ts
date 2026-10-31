@@ -57,6 +57,9 @@ export function apply(ctx: Context): void {
     catalogSkillContent: name => value(remote.catalogSkillContent(name)),
     installCatalogSkill: name => value(remote.installCatalogSkill(name)),
     importSkill: files => value(remote.importSkill(files)),
+    importSkillReference: reference => value(remote.importSkillReference(reference)),
+    systemSkills: () => value(remote.systemSkills()),
+    installSystemSkill: id => value(remote.installSystemSkill(id)),
     setSkillEnabled: (name, enabled) => value(remote.setSkillEnabled(name, enabled)),
     retryReverseEngineering: () => value(remote.retryReverseEngineering()),
     removeSkill: name => value(remote.removeSkill(name)),
@@ -80,8 +83,9 @@ export function apply(ctx: Context): void {
     name: 'settings.action', id: 'detail-back', locale: namespace,
   }, DetailBack))
   ctx.slots.inject('settings.section', function* () {
-    // Connectors follows General in the nav: what Aeven can reach is the first thing most readers set up.
-    for (const [page, order] of [['skills', 55], ['connectors', 25]] as const) {
+    // Skills sits directly above Connectors: what Aeven knows how to do, then
+    // what it can reach.
+    for (const [page, order] of [['skills', 22], ['connectors', 25]] as const) {
       yield ctx.slots.register({
         name: 'settings.section', id: page, order, label: () => t(page), locale: namespace,
         inject: () => ({ ...operations, page }),

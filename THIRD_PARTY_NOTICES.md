@@ -144,6 +144,7 @@ External packages that a workspace package resolves at runtime. The tier covers 
 | [`semver`](https://github.com/npm/node-semver) | ISC |
 | [`sharp`](https://github.com/lovell/sharp) | Apache-2.0 |
 | [`supports-color`](https://github.com/chalk/supports-color) | MIT |
+| [`tar`](https://github.com/isaacs/node-tar) | BlueOak-1.0.0 |
 | [`tesseract.js`](https://github.com/naptha/tesseract.js) | Apache-2.0 |
 | [`tippy.js`](https://github.com/atomiks/tippyjs) | MIT |
 | [`tsx`](https://github.com/privatenumber/tsx) | MIT |
@@ -259,7 +260,6 @@ External packages **directly declared** only by repository tooling, test infrast
 | [`publint`](https://github.com/publint/publint) | MIT |
 | [`smol-toml`](https://github.com/squirrelchat/smol-toml) | BSD-3-Clause |
 | [`spdx-expression-parse`](https://github.com/jslicense/spdx-expression-parse.js) | MIT |
-| [`tar`](https://github.com/isaacs/node-tar) | BlueOak-1.0.0 |
 | [`teleproto`](https://github.com/sanyok12345/teleproto) | MIT |
 | [`tsdown`](https://github.com/rolldown/tsdown) | MIT |
 | [`typescript-language-server`](https://github.com/typescript-language-server/typescript-language-server) | Apache-2.0 |

@@ -136,6 +136,37 @@ export interface ConnectorAuthorization {
   url: string
 }
 
+/** Coding agent whose skills Settings offers to import. */
+export type SystemSkillAgent = 'claude' | 'codex'
+
+/** One skill installed for another coding agent on this computer. */
+export interface SystemSkillView {
+  /** Handle the install call sends back: the agent, then the skill directory below its home. */
+  id: string
+  /** Skill name from the skill's frontmatter. */
+  name: string
+  /** Agent whose home holds the skill. */
+  agent: SystemSkillAgent
+  /** Description the skill declares. */
+  description: string
+}
+
+/** One reference the account library already provides under another name. */
+export interface SkillImportSkip {
+  /** Skill name the reference declares. */
+  name: string
+  /** Why the import left it alone: a skill Aeven ships or the agent itself supplies owns the name. */
+  reason: 'built-in'
+}
+
+/** What one repository or package reference added to the account library. */
+export interface SkillReferenceImport {
+  /** Names the import added, in the order the archive carried them. */
+  imported: string[]
+  /** Skills the import left alone. */
+  skipped: SkillImportSkip[]
+}
+
 /** One uploaded bundle file, relative to its SKILL.md directory. */
 export interface SkillUploadFile {
   path: string
