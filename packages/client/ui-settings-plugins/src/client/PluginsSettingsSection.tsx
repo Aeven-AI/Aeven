@@ -1,4 +1,8 @@
-/** Plugins settings section: localized tabs around feature-owned pages. */
+/**
+ * Plugin settings section: the pages the plugins themselves contribute, under
+ * one heading. A deployment that registers a single page shows it as the
+ * section; the tab strip appears only once a second page joins.
+ */
 
 import { useEffect, useId, useState } from 'react'
 import { SectionHeader, Tabs } from '@aeven/client-ui-primitives'
@@ -30,7 +34,7 @@ export type PluginsSettingsSectionProps =
   & PropsRenderSlots<'settings.plugins.tab'>
   & InjectFace<PluginsSettingsSectionInjected>
 
-/** Render one Plugins page whose contents arrive from feature-owned tabs. */
+/** Render the plugin settings pages whose contents arrive from feature-owned tabs. */
 export function PluginsSettingsSection({ t, renderSlot, useTabs }: PluginsSettingsSectionProps) {
   const tabsId = useId()
   const rows = useTabs(value => value)
@@ -38,9 +42,13 @@ export function PluginsSettingsSection({ t, renderSlot, useTabs }: PluginsSettin
   const [visitedIds, setVisitedIds] = useState<ReadonlySet<string>>(() => new Set())
   const active = rows.find(row => row.id === activeId)?.id ?? rows[0]?.id
 
+  // One page is the section itself: a strip would label a single view that
+  // never changes, so the page renders directly under the heading.
+  const tabbed = rows.length > 1
+
   // A tab mounts only when first selected, then stays mounted while hidden so
   // local drafts, disclosure state, search, and the inventory snapshot survive
-  // switching between the two views.
+  // switching between the views.
   useEffect(() => {
     if (active === undefined) return
     setVisitedIds((previous) => {
@@ -49,35 +57,37 @@ export function PluginsSettingsSection({ t, renderSlot, useTabs }: PluginsSettin
     })
   }, [active])
 
+  const pages = tabbed ? rows.filter(row => row.id === active || visitedIds.has(row.id)) : rows.slice(0, 1)
+
   return (
     <div className={css.section}>
       <SectionHeader title={t('title')} description={t('intro')} />
       {rows.length === 0 ? <p className={css.empty}>{t('empty')}</p> : (
         <>
-          <Tabs
-            items={rows.map(row => ({ id: row.id, label: row.label }))}
-            activeId={active}
-            onSelect={setActiveId}
-            label={t('tabs')}
-            idPrefix={tabsId}
-          />
-          {rows
-            .filter(row => row.id === active || visitedIds.has(row.id))
-            .map((row) => {
-              const selected = row.id === active
-              return (
-                <div
-                  key={row.id}
-                  id={`${tabsId}-panel-${row.id}`}
-                  className={css.panel}
-                  role="tabpanel"
-                  aria-labelledby={`${tabsId}-tab-${row.id}`}
-                  hidden={!selected}
-                >
-                  {renderSlot('settings.plugins.tab', {}, { only: row.id })}
-                </div>
-              )
-            })}
+          {tabbed && (
+            <Tabs
+              items={rows.map(row => ({ id: row.id, label: row.label }))}
+              activeId={active}
+              onSelect={setActiveId}
+              label={t('tabs')}
+              idPrefix={tabsId}
+            />
+          )}
+          {pages.map((row) => {
+            const selected = row.id === active
+            return (
+              <div
+                key={row.id}
+                id={`${tabsId}-panel-${row.id}`}
+                className={css.panel}
+                role={tabbed ? 'tabpanel' : undefined}
+                aria-labelledby={tabbed ? `${tabsId}-tab-${row.id}` : undefined}
+                hidden={tabbed ? !selected : undefined}
+              >
+                {renderSlot('settings.plugins.tab', {}, { only: row.id })}
+              </div>
+            )
+          })}
         </>
       )}
     </div>

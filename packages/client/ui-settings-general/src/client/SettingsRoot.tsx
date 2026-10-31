@@ -40,7 +40,6 @@ const RECOVERY_CONFIRMATION_MS = 2_000
  */
 const NAV_GROUPS: readonly { id: string; label: SettingsKey; members: readonly string[] }[] = [
   { id: 'account', label: 'group.account', members: ['account', 'sync'] },
-  { id: 'extensions', label: 'group.extensions', members: ['skills', 'plugins'] },
 ]
 
 /** One nav entry: a group of registered sections, or a single section. */
@@ -77,7 +76,6 @@ function navEntries(rows: readonly SettingsSectionRow[], t: SettingsRootComponen
 /** Nav glyph by entry id; unknown ids fall back to the settings gear. */
 function navIcon(id: string) {
   if (id === 'account') return <IconUserOutline16 className={css.navIcon} size={16} />
-  if (id === 'extensions') return <span className={css.navIcon}><IconLucidePlug /></span>
   if (id === 'models') return <IconDataOutline16 className={css.navIcon} size={16} />
   if (id === 'personalization') return <IconEnhanceOutline16 className={css.navIcon} size={16} />
   if (id === 'plugins') return <span className={css.navIcon}><IconLucidePlug /></span>

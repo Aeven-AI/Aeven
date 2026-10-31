@@ -1,12 +1,12 @@
 /**
- * Plugins settings surface, browser half — one section whose feature-owned
- * tabs include configurable Host plugin cards and read-only inventory.
+ * Plugin settings surface, browser half — one section whose feature-owned pages
+ * hold configurable Host plugin cards.
  *
- * The section declares `settings.plugins.tab`; its own `configurable` tab then
+ * The section declares `settings.plugins.tab`; its own `configurable` page then
  * declares `settings.plugin.item` and renders whatever cards were registered
  * into it. The cards this package ships are the host-plane sections the
  * deployment already exposes; each binds its namespace through the client
- * settings scope, which keeps them unaware of one another and of other tabs.
+ * settings scope, which keeps them unaware of one another and of other pages.
  */
 
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
@@ -144,8 +144,9 @@ export function apply(ctx: ClientContext): void {
     },
   })
 
-  // This package owns the one Plugins navigation entry and the tab chrome;
-  // feature plugins contribute pages without competing for Settings nav rows.
+  // This package owns the one Plugin settings navigation entry and the page
+  // chrome; feature plugins contribute pages without competing for Settings
+  // nav rows. A single registered page renders as the section itself.
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section',
     id: 'plugins',
