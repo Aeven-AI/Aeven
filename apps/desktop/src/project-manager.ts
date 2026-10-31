@@ -109,6 +109,7 @@ interface DesktopSeedIntegrityRecord {
 const PROJECT_NAME = '@aeven/desktop-runtime'
 const AVN_PACKAGE = '@aeven/cli'
 const CORE_BUILD_PACKAGE = '@aeven/subprocess-local'
+const ACCOUNTS_PACKAGE = '@aeven/host-account-integrations'
 const DESKTOP_PROFILE_BUNDLES = ['@aeven/base', '@aeven/web-app'] as const
 const WORKSPACE_SETTINGS = 'nodeLinker: hoisted\nautoInstallPeers: false\nstrictDepBuilds: true\n'
 const PACKAGE_NAME_PATTERN = /^(?:@[a-z0-9][a-z0-9._~-]*\/[a-z0-9][a-z0-9._~-]*|[a-z0-9][a-z0-9._~-]*)$/u
@@ -164,19 +165,26 @@ function workspaceFile(corePackages: Readonly<Record<string, string>> = {}): str
   const entries = Object.entries({ ...DESKTOP_DEPENDENCY_OVERRIDES, ...corePackages })
     .sort(([left], [right]) => left.localeCompare(right))
   const overrideSection = `overrides:\n${entries.map(([name, spec]) => `  ${JSON.stringify(name)}: ${JSON.stringify(spec)}`).join('\n')}\n`
-  const coreBuildSpec = corePackages[CORE_BUILD_PACKAGE]
-  const coreBuildKey = coreBuildSpec === undefined
-    ? CORE_BUILD_PACKAGE
-    : `${CORE_BUILD_PACKAGE}@${coreBuildSpec.replace('file:./', 'file:')}`
+  const coreBuildKey = packageSelector(corePackages, CORE_BUILD_PACKAGE)
+  const accountsKey = packageSelector(corePackages, ACCOUNTS_PACKAGE)
   // onnxruntime-node's install script only downloads CUDA execution providers (Linux x64); MemOS embeds on the
   // CPU runtime the package ships, so allowing it would put about 300 MB of GPU libraries into every install.
   // The Google connectors spawn the platform CLI the Host installs into the package's own `bin/` from its
   // postinstall, which also covers Windows on ARM; the package's own installer refuses that host.
-  return `packages:\n  - .\n\n${overrideSection}${WORKSPACE_SETTINGS}allowBuilds:\n  '@googleworkspace/cli': false\n  '@aeven/host-account-integrations': true\n  node-pty: true\n  koffi: true\n  keytar: true\n  fs-ext: true\n  esbuild: true\n  better-sqlite3: true\n  onnxruntime-node: false\n  sharp: true\n  ${JSON.stringify(coreBuildKey)}: true\n  '@google/genai': false\n  protobufjs: false\n  node-addon-require-builtin: false\n  tesseract.js: false\n`
+  return `packages:\n  - .\n\n${overrideSection}${WORKSPACE_SETTINGS}allowBuilds:\n  '@googleworkspace/cli': false\n  ${JSON.stringify(accountsKey)}: true\n  node-pty: true\n  koffi: true\n  keytar: true\n  fs-ext: true\n  esbuild: true\n  better-sqlite3: true\n  onnxruntime-node: false\n  sharp: true\n  ${JSON.stringify(coreBuildKey)}: true\n  '@google/genai': false\n  protobufjs: false\n  node-addon-require-builtin: false\n  tesseract.js: false\n`
 }
 
-function releaseFile(projectDir: string): DesktopRelease {
-  return parseDesktopRelease(readJson(join(projectDir, 'desktop-release.json')))
+/**
+ * @param corePackages - Local tarball overrides by package name.
+ * @param name - Package whose build script the seed allows.
+ * @returns the allowBuilds selector: pnpm matches a local tarball dependency by its `file:` spec, not by name alone.
+ */
+function packageSelector(corePackages: Readonly<Record<string, string>>, name: string): string {
+  const spec = corePackages[name]
+  return spec === undefined ? name : `${name}@${spec.replace('file:./', 'file:')}`
+}
+
+function releaseFile(projectDir: string): DesktopRelease {  return parseDesktopRelease(readJson(join(projectDir, 'desktop-release.json')))
 }
 
 function installedReleaseVersion(projectDir: string): string {
