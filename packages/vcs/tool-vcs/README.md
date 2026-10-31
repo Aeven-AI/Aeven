@@ -156,6 +156,6 @@ None.
 <details>
 <summary>Working context for maintainers — click to expand</summary>
 
-None.
+No runtime invariant companion is published: each tool maps model arguments onto one `ctx.vcs` call, so the repository facts it reports belong to the provider that read them.
 
 </details>

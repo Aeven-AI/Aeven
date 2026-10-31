@@ -46,6 +46,7 @@ const SAFE_HOST_DEPENDENCY_EXPORTS = {
   '@aeven/credentials': ['credentialKey'],
   '@aeven/deque': ['Deque'],
   '@aeven/home-paths': ['resolveAvnHome'],
+  '@aeven/working-directory': ['sessionDirectory'],
   '@aeven/llm': [
     'LlmAdapter',
     'RetryPolicySchema',

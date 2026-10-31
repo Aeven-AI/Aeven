@@ -266,7 +266,7 @@ describe('the toggle\u2019s face', () => {
 
     for (const factory of harness.effects) {
       const disposer = factory()
-      if (typeof disposer === 'function') disposer()
+      if (typeof disposer === 'function') (disposer as () => void)()
     }
     expect(FakeAudioContext.instances[0]?.closed).toBe(true)
   })

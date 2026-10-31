@@ -32,8 +32,10 @@ function tempPath(): string {
 describe('RelayConnection', () => {
   it('answers requests and reports relay refusals by code', async () => {
     const connection = await RelayConnection.open(relay.url, 'ok-alice', handlers(), 2000, 2000)
-    expect(await connection.request('key.get')).toMatchObject({ t: 'ok', key: expect.any(String) })
-    const refusal = await connection.request('nope').catch((error: unknown) => error)
+    const reply: unknown = await connection.request('key.get')
+    const key = expect.any(String) as unknown
+    expect(reply).toMatchObject({ t: 'ok', key })
+    const refusal: unknown = await connection.request('nope').catch((error: unknown) => error)
     expect(refusal).toBeInstanceOf(RelayError)
     expect(refusal).toMatchObject({ code: 'bad-request' })
     connection.close()

@@ -70,3 +70,5 @@ Three decisions hold the reader together. The engine schedules decoded buffers b
 The per-message action runs on its own channel, `message:<id>`, so reading one message cannot disturb a running reply and a reply cannot cut a message off. The session toggle keeps the plain session channel.
 
 `toSpeechText()` strips Markdown emphasis and then any residual emphasis or table marker, because a reader that receives one announces it — "asterisk" for bold text, for example.
+
+No runtime invariant companion is published: the reader owns one audio context and a queue over audio the Host synthesized, and the facts it could restate belong to that speech Remote.

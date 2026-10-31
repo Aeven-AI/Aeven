@@ -67,7 +67,7 @@ parentPort?.on('message', (request: WorkerRequest) => {
     const value = request.method === 'open' ? openFrames(request)
       : request.method === 'prepare' ? prepareFrame(request.frame, request.accountKey, request.maxBytes)
         : maintain(request)
-    reply = { id: request.id, ok: true, value } as WorkerReply
+    reply = { id: request.id, ok: true, value }
   } catch (error) {
     reply = { id: request.id, ok: false, message: error instanceof Error ? error.message : String(error) }
   }

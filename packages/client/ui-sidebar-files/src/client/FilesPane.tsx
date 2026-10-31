@@ -191,7 +191,7 @@ export function FilesPane({
   }, [remote, root, sessionId, update])
 
   useEffect(() => {
-    if (requestedFile !== undefined) openFile(requestedFile.path)
+    if (requestedFile !== undefined) void openFile(requestedFile.path)
   }, [requestedFile, openFile])
 
   /** Show a path in the tree: open its folders and focus its row. */
@@ -247,14 +247,14 @@ export function FilesPane({
     if (target === null) return
     const operation = operationOf(id)
     if (operation !== null) void openOnDesktop(remote, absolute(target.path), operation)
-    else if (id === 'open') openFile(target.path)
+    else if (id === 'open') void openFile(target.path)
     else if (id === 'copy') void writeClipboard(absolute(target.path))
     else if (id === 'copy-relative') void writeClipboard(target.path)
   }
 
   const activate = (path: string, type: WorkspaceDirectoryEntry['type']) => {
     if (type === 'directory') toggle(path)
-    else if (type === 'file') openFile(path)
+    else if (type === 'file') void openFile(path)
   }
 
   const onTreeKey = (event: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -346,7 +346,7 @@ export function FilesPane({
           {memory.query.trim() !== ''
             ? <SearchRows search={search} focus={focus} t={t} onOpen={(hit) => {
               if (hit.type === 'directory') reveal(hit.path, 'directory')
-              else { openFile(hit.path); reveal(hit.path, 'file') }
+              else { void openFile(hit.path); reveal(hit.path, 'file') }
             }} onMenu={onRowMenu} />
             : rows.map(row => row.kind === 'note'
               ? <div key={row.key} className={css.note} style={{ paddingLeft: indent(row.depth) }}>{row.text}</div>

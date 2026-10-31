@@ -98,7 +98,7 @@ it('preserves updates whose causal predecessors have not arrived when compacting
     doc.getText('t').insert(5, 'second')
     Y.applyUpdate(restored, compactUpdates([updates[1]!]))
     Y.applyUpdate(restored, updates[0]!)
-    expect(restored.getText('t').toString()).toBe('firstsecond')
+    expect(restored.getText('t').toJSON()).toBe('firstsecond')
   } finally {
     doc.destroy()
     restored.destroy()
@@ -314,9 +314,9 @@ it('prunes a snapshot prefix only after all its transport parts are stored', asy
   await a.vault.flush()
   expect(relay.account('bounded').frames.every(frame => frame.seq > covers)).toBe(true)
   const fresh = device()
-  const restored = fresh.vault.openDocument
+  const restored = (path: string) => fresh.vault.openDocument(path)
   await connect(fresh)
-  const remote = restored.call(fresh.vault, 'doc')
+  const remote = restored('doc')
   await vi.waitFor(() => { expect(remote.doc.getMap('m').get('blob')).toHaveLength(9000) })
   expect(remote.doc.getMap('m').get('baseline')).toBe(true)
   doc.close()

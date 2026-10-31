@@ -427,7 +427,7 @@ export function apply(ctx: Context, config: Config): void {
     state.promptResolved = true
     if (decision.kind === 'reject' || !state.userText || state.recallAttempted || !ctx.memory.active) return decision
     state.recallAttempted = true
-    const profiled = profileMessage(payload.agent.session, state.scope, decision.kind === 'enter' ? decision.messages : [], payload.signal)
+    const profiled = profileMessage(payload.agent.session, state.scope, decision.messages, payload.signal)
     if (!config.recall) return withMessages(decision, await profiled)
     const recalledBefore = recalledProcedures.get(payload.agent.session.id)
     const previous = recalledBefore === undefined ? undefined : Math.max(...[...recalledBefore.keys()].filter(turn => turn < payload.turn))
