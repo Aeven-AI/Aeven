@@ -39,6 +39,17 @@ const RELEASE_TYPES = ['major', 'minor', 'patch'] as const
 /** The workspace root manifest, which carries the avn family's version. */
 const ROOT_MANIFEST = 'package.json'
 
+/**
+ * Files that record the version a published build was verified against. The
+ * executable exact-version gate compares them with the workspace root, so a
+ * bump that leaves them behind fails that gate on the released commit.
+ */
+const COMPATIBILITY_RECORD = [
+  'packages/llm/subscription-auth/compatibility/avn-bom.json',
+  'packages/llm/subscription-auth/src/compatibility.ts',
+  'packages/llm/subscription-auth/package.json',
+] as const
+
 /** One manifest the bump rewrites, and the tag its new version will carry. */
 interface PlannedVersion {
   readonly manifestPath: string
@@ -232,6 +243,26 @@ function writeVersion(root: string, manifestPath: string, from: string, to: stri
 }
 
 /**
+ * Rewrite the verified compatibility record to the version being released.
+ * @param root - repository root.
+ * @param from - the version the record still names.
+ * @param to - the version being released.
+ * @returns The record paths rewritten.
+ * @throws When a record names no `from` version, so the rewrite cannot be trusted.
+ */
+export function recordCompatibility(root: string, from: string, to: string): string[] {
+  return COMPATIBILITY_RECORD.map((recordPath) => {
+    const path = join(root, recordPath)
+    const text = readFileSync(path, 'utf8')
+    if (!text.includes(from)) {
+      throw new Error(`${recordPath}: names no ${from} version to record as ${to}`)
+    }
+    writeFileSync(path, text.replaceAll(from, to))
+    return recordPath
+  })
+}
+
+/**
  * Read the workspace root version.
  * @param root - repository root.
  * @returns The root manifest version.
@@ -391,8 +422,11 @@ function main(): void {
   }
 
   const dryRun = values['dry-run']
+  let recorded: string[] = []
   if (!dryRun) {
+    const previous = rootVersion(root)
     for (const entry of planned) writeVersion(root, entry.manifestPath, entry.from, entry.to)
+    if (sharedVersion !== undefined) recorded = recordCompatibility(root, previous, sharedVersion)
     const pnpm = pnpmInvocation(['install', '--lockfile-only'])
     capture(pnpm.command, pnpm.args)
   }
@@ -406,7 +440,7 @@ function main(): void {
     console.log('release bump: dry run, nothing written')
     return
   }
-  capture('git', ['add', 'pnpm-lock.yaml', ...planned.map(entry => entry.manifestPath)])
+  capture('git', ['add', 'pnpm-lock.yaml', ...planned.map(entry => entry.manifestPath), ...recorded])
   capture('git', ['commit', '-m', `release(${family.id}): ${summary}`])
   console.log('release bump: committed. After this merges to master, tag it:')
   // The Desktop release builds from `v<version>`, while the family tag drives the npm publish dispatch. Both are
