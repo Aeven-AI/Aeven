@@ -10,7 +10,7 @@ Status: implemented
 
 ## 决策
 
-**该技能包以 29 条本仓库编写的来源、归入同一个分类发行。** 每个技能都位于 `packages/skill/skill-catalog/authored/<name>/SKILL.md`，并在 `catalog/sources.json` 中列在 `aeven-stack` 分类下，于是设置页面为整个包显示一行，而不是散落的 29 行。移植保留上游的循环、停止条件与规则原文，只改身份与宿主事实。`sources.json` 这套机制本身由[未收录来源的记录](../process/2026-10-17-skill-catalog-extra-sources.md)负责说明，维护路径与该[逆向工程技能](2026-10-17-authored-reverse-engineering-skill.md)相同。
+**该技能包以 29 条本仓库编写的来源、归入同一个分类发行。** 每个技能都位于 `packages/skill/skill-catalog/authored/<name>/SKILL.md`，并在 `catalog/sources.json` 中列在 `aeven-stack` 分类下，于是设置页面为整个包显示一行，而不是散落的 29 行。移植保留上游的循环、停止条件与规则原文，只改身份与宿主事实。`sources.json` 这套机制本身由[未收录来源的记录](../process/2026-10-17-skill-catalog-extra-sources.zh.md)负责说明，维护路径与该[逆向工程技能](2026-10-17-authored-reverse-engineering-skill.zh.md)相同。
 
 **命名遵循 `avn-` 前缀，入口技能叫 `aeven-stack`。** `ds-adopt` 安装为 `avn-adopt`，其余 28 个同理，沿用仓库既有的 `avn-` 技能命名。该包的路由技能——上游的 `ds-help`，负责回答“这些里哪个适合我的任务”——安装为 `aeven-stack`，于是这个包有一个以自己命名的入口。没有任何 `avn-` 名字与 `.agents/skills/` 下的仓库技能或目录中内置的名字相撞。
 

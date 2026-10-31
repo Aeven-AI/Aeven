@@ -2,6 +2,8 @@
 
 Status: implemented
 
+[English](2026-10-31-dependency-patches-give-way-to-owned-installs.md) | 中文
+
 ## Problem
 
 `patches/` 里留着三个 pnpm 补丁，而每个 Desktop 发布目标都在 seed 安装阶段失败，报 `[ERR_PNPM_IGNORED_BUILDS] Ignored build scripts: msedge-tts@2.1.1`：pnpm 11 拒绝既未允许也未拒绝的依赖生命周期脚本，而 seed 生成的 workspace 文件两者都没有写。三个补丁中有两个只是为了让它所补的依赖自带安装脚本在不受支持的平台上活下来——这类修复本来就该落在我们自己的代码里。

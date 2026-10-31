@@ -5,6 +5,8 @@ kind: "package-group"
 
 # vcs/ — Version control
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 The vcs group gives agents a working understanding of the repository they are editing: which branch is checked out, what is staged and what is not, what a change contains, what landed recently, and how to record the next commit without guessing. The capability is split across three product packages: the `avn-vcs` seam (`ctx.vcs`) that selects a provider and normalizes every report, the `avn-vcs-git` provider that carries out the operations with git through `ctx.subprocess`, and the model-facing `avn-tool-vcs` tools that own the `git_*` schemas and presentation. The group ships no forge integration: pull requests, reviews, and merge queues are not part of it.

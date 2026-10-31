@@ -1,5 +1,7 @@
 # Version control
 
+English | [中文](vcs.zh.md)
+
 Source control as a [capability seam](../../docs/glossary.md#capability-seam): one `ctx.vcs` service reports a checkout's branch, changed paths, diffs, and history, and applies the changes a model asks for — stage, commit, branch, fetch, push, merge — without any caller parsing an engine's terminal output. The seam is split across three packages: Service Definition ([avn-vcs](../../packages/vcs/vcs), `ctx.vcs` plus the provider registry), Service Provider ([avn-vcs-git](../../packages/vcs/vcs-git), git through `ctx.subprocess`), and Consumer ([avn-tool-vcs](../../packages/vcs/tool-vcs), the `git_*` tools). Version control is **one optional capability**, not part of the agent-loop spine.
 
 Source: [`packages/vcs/vcs/src/types.ts`](../../packages/vcs/vcs/src/types.ts)

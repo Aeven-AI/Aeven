@@ -2,7 +2,7 @@
 
 Status: implemented
 
-English | [??](2026-10-30-host-dependency-bundles.zh.md)
+English | [中文](2026-10-30-host-dependency-bundles.zh.md)
 
 ## Problem
 

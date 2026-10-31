@@ -233,16 +233,19 @@
     - id: tool-subagent-list-agents
       name: '@aeven/tool-subagent-control/list-agents'
 
-    # Only the session agent delegates: children are leaves. Depth counts both
-    # rows, so a spawn or fork child cannot start its own subagents.
+    # `maxDepth: 2` is the ceiling, not the standing budget: the
+    # `subagent-nesting` switch in Plugin settings decides whether a child may
+    # delegate in turn. Switched off, every child is a leaf; switched on, a
+    # depth-1 child may start its own child at depth 2, which is a leaf.
     - id: tool-subagent
       name: '@aeven/tool-subagent'
       config:
         provider: spawn
         toolName: subagent
         modelSelectionSettings: true
+        nestingSettings: true
         backgroundMode: continuable
-        maxDepth: 1
+        maxDepth: 2
 
     # Fork omits model selection so provider/model stay equal to the parent and
     # the inherited history remains eligible for KV Cache reuse. This preset
@@ -253,8 +256,9 @@
       config:
         provider: fork
         toolName: subagent_fork
+        nestingSettings: true
         backgroundMode: continuable
-        maxDepth: 1
+        maxDepth: 2
 
     # Production avn does not install these optional providers. Install the
     # matching Bundle in this Profile and restart the Host, then copy this

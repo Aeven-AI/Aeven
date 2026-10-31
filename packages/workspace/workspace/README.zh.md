@@ -89,7 +89,7 @@ ctx.workspaceRegistry.list() // Chats first, then the project
 
 ### API 行为
 
-该 API 是一个由两个所有者构成的小家族：`WorkspaceRegistry` 负责创建、排序与删除项目并管理其会话记账；`Workspace` 实体暴露显示标题、目录状态与会话投影。各方法的精确约定在代码中，而非本 README——参见 [src/index.ts](src/index.ts) 与 [src/entity.ts](src/entity.ts)。
+该 API 是一个由两个所有者构成的小家族：`WorkspaceRegistry` 负责创建、排序与删除项目并管理其会话记账；`Workspace` 实体暴露显示标题、目录状态与会话投影。`placeSession(sessionId)` 回答一个会话在*本机*所处的位置：记账它的 workspace、它正在等待的共享 workspace 名称，或什么都没有；`replicated(sessionId)` 说明它的日志是否来自另一台设备；`@aeven/working-directory` 读取这两者，从 workspace 绑定解析本地执行目录，而不是使用会话头部在别处记录的路径。各方法的精确约定在代码中，而非本 README——参见 [src/index.ts](src/index.ts) 与 [src/entity.ts](src/entity.ts)。
 
 ### 源码地图
 
@@ -111,6 +111,8 @@ ctx.workspaceRegistry.list() // Chats first, then the project
 共用一个 home 的两个进程会收敛：各自通过领域层的[跨进程一致性](../../../.agents/notes/implemented/architecture/2026-09-16-cross-process-domain-coherence.zh.md)观察到对方的记录与全局写入。收敛是最终一致的，而非事务性的，因此对显示顺序或归档集合——两者都存放在单一的 `global.json` 中——的同时编辑，仍按最后写入者胜出裁决。
 
 当账户同步为该账户服务时，该账户的 workspace 也会通过同步文档 `workspaces` 在其各设备之间传递：每个 workspace 的标题与时间戳，以及该账户的显示顺序。目录路径留在打开它的设备上，因此另一台设备收到的 workspace 不会带路径，而以 `remote` 形式列出，直到本机为其登记一个目录才可打开。会话账本与归档集合留在本机，因为会话正文存在于实际运行之处；只有本机持有的行会与账户的行并列保留位置。较晚的标题胜出，而删除会移除记录，但不会改动任何目录或会话日志。
+
+同一条规则也适用于会话：同步会话的 `SessionHeader.cwd` 与其记录的 `session/cwd` 事件指向写入它们的设备上的目录，因此在这里都不是本机路径。需要目录的消费方会向 `placeSession` 询问会话所在的 workspace，并在*本机*的绑定中行动（[决定](../../../.agents/notes/implemented/architecture/2026-10-29-synced-session-directory-is-the-local-binding.zh.md)）。
 
 ### 生命周期
 
@@ -167,6 +169,7 @@ ctx.workspaceRegistry.list() // Chats first, then the project
 
 - **移除绝不删除数据**——移除项目会保留其文件夹、文件与会话历史；这些会话会被归档，而会话删除与文件夹移除是彼此独立且尚未提供的功能（参见[决策记录](../../../.agents/notes/implemented/feature/2026-07-27-workspace-registration-deletion.zh.md)）。
 - **收到的 workspace 需要本机绑定目录才能打开**——从另一台设备到达的 workspace 在本机没有路径，因此会以 `remote` 列出，直到存在路径绑定为止。
+- **移动后的目录会重新链接，而不是重新归档**——再次选择 workspace 的文件夹（行菜单中的「链接 workspace」）会把它指向新目录，并把旧目录记录为锚点，因此记录在那里的会话仍然保持关联；该 workspace 只在本机保留这两种拼写。
 - **只有带记录目录的会话才能加入**——只有记录中带有可解析为项目路径的目录的会话才属于项目；没有目录的会话保持 Ungrouped，来自其他目录的会话无法移入。
 - **外部变更延迟可见**——如果另一进程删除或损坏目录，项目只能在下次刷新或重启后反映出来。
 - **归档是单向的**——被隐藏的会话保留其历史与位置，但目前没有取消归档操作；归档集合是持久的显示过滤器。

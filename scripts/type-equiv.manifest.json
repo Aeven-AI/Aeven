@@ -1992,6 +1992,11 @@
       "source": "packages/web/web/src/types.ts"
     },
     {
+      "doc": "docs/subsystems/vcs.md",
+      "symbol": "VcsChange",
+      "source": "packages/vcs/vcs/src/types.ts"
+    },
+    {
       "doc": "docs/subsystems/web.md",
       "symbol": "WebFetchResult",
       "source": "packages/web/web/src/types.ts"

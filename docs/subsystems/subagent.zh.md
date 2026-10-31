@@ -485,6 +485,22 @@ current(): SubagentModelSelectionSettings
 
 Source: [`packages/subagent/tool-subagent/src/model-selection-settings.ts`](../../packages/subagent/tool-subagent/src/model-selection-settings.ts)
 
+<a id="ctxsubagentnesting--subagentnestingconfig"></a>
+
+### `ctx.subagentNesting` — `SubagentNestingConfig`
+
+Singleton settings owner read by the delegation tools.
+
+```ts cordis-catalog
+/**
+ * Read whether a child agent may start subagents of its own.
+ * @returns the stored switch, defaulting to off.
+ */
+current(): boolean
+```
+
+Source: [`packages/subagent/tool-subagent/src/nesting-settings.ts`](../../packages/subagent/tool-subagent/src/nesting-settings.ts)
+
 <a id="ctxsubagents--subagentruntime"></a>
 
 ### `ctx.subagents` — `SubagentRuntime`

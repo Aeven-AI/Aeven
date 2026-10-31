@@ -5,7 +5,7 @@
  * Run: `tsx scripts/check-workspace-constraints.ts`.
  */
 
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { hasTypertRemoteNavigation, isForbiddenPublicationFile } from './publication-payload.ts'
@@ -169,7 +169,7 @@ const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
   '@aeven/speech-to-text-whisper': ['runtime/assets.json'],
   // The Web Host mounts the default-off settings owner independently of each
   // Agent-scoped delegation-tool instance.
-  '@aeven/tool-subagent': ['lib/model-selection-settings.js'],
+  '@aeven/tool-subagent': ['lib/model-selection-settings.js', 'lib/nesting-settings.js'],
   // The argv-prefix runner entry ships beside the lib as its own bundle;
   // sandbox-local resolves it through the package's ./runner export. tsdown
   // also shares its generated FFI code through a hashed runtime chunk.
@@ -503,9 +503,36 @@ function checkWorkspaceProtocol(manifests: readonly WorkspaceManifest[]): string
   return errors
 }
 
-/** Run the repository constraint gate. */
-export function main(): void {
-  const manifests = workspaceManifests()
+/** Rewrite `files` to the expected publication list, keeping every other manifest key in place. */
+function fixPublicationFiles(manifests: WorkspaceManifest[]): number {
+  let fixed = 0
+  for (const { dir, manifest } of manifests) {
+    const expectedFiles = dir.startsWith('apps/') && dir !== desktopApplicationDirectory
+      ? appPackageFiles[manifest.name]
+      : dir.startsWith('packages/') && manifest.name?.startsWith('@aeven/')
+        ? expectedAvnPackageFiles(manifest)
+        : undefined
+    if (expectedFiles === undefined || sameStringList(manifest.files, expectedFiles)) continue
+    writeFileSync(join(root, dir, 'package.json'), `${JSON.stringify({ ...manifest, files: expectedFiles }, null, 2)}\n`)
+    fixed++
+  }
+  return fixed
+}
+
+/**
+ * Run the repository constraint gate.
+ * @param argv - arguments to read `--fix` from.
+ * @returns 0 when every manifest satisfies the constraints, 1 otherwise.
+ */
+export function main(argv: readonly string[] = process.argv): number {
+  let manifests = workspaceManifests()
+  if (argv.includes('--fix')) {
+    const fixed = fixPublicationFiles(manifests)
+    if (fixed > 0) {
+      console.log(`check-workspace-constraints --fix: rewrote the publication files list in ${fixed} manifest(s).`)
+      manifests = workspaceManifests()
+    }
+  }
   const dependencyManifests = [
     ...manifests,
     { dir: 'python/sdk-runtime', manifest: readJson(join(root, 'python/sdk-runtime/package.json')) },
@@ -520,8 +547,9 @@ export function main(): void {
   ]
   if (errors.length > 0) {
     console.error(errors.join('\n'))
-    process.exitCode = 1
+    return 1
   }
+  return 0
 }
 
-if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) main()
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) process.exit(main())

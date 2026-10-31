@@ -27,6 +27,7 @@ import { PluginsSettingsSection } from './PluginsSettingsSection.tsx'
 import type { PluginsSettingsSectionInjected, PluginsSettingsTabEntry } from './PluginsSettingsSection.tsx'
 import { SessionSearchCard } from './SessionSearchCard.tsx'
 import { SubagentModelSelectionCard } from './SubagentModelSelectionCard.tsx'
+import { SubagentNestingCard } from './SubagentNestingCard.tsx'
 import { WebSearchCard } from './WebSearchCard.tsx'
 import { AGENT_LOOP_NS, AgentLoopCardController } from './agent-loop-card-controller.ts'
 import { SHELL_NS, BashCardController } from './bash-card-controller.ts'
@@ -35,6 +36,7 @@ import { SESSION_SEARCH_NS, SessionSearchCardController } from './session-search
 import {
   SUBAGENT_MODEL_SELECTION_NS, SubagentModelSelectionCardController,
 } from './subagent-model-selection-card-controller.ts'
+import { SUBAGENT_NESTING_NS, SubagentNestingCardController } from './subagent-nesting-card-controller.ts'
 import { WEB_SEARCH_NS, WebSearchCardController } from './web-search-card-controller.ts'
 import { en, es, zh } from './locales.ts'
 
@@ -77,6 +79,8 @@ export function apply(ctx: ClientContext): void {
     ctx.settingsScope.bind({ namespace: SUBAGENT_MODEL_SELECTION_NS }),
     ctx,
   )
+  const subagentNesting = new SubagentNestingCardController(
+    ctx.settingsScope.bind({ namespace: SUBAGENT_NESTING_NS }))
 
   // The credential a card reports is not part of any settings section, so its
   // scope publishes nothing when one is written. This is the only signal that
@@ -188,6 +192,12 @@ export function apply(ctx: ClientContext): void {
       locale: NS,
       inject: () => subagentModelSelection.inject(),
     }, SubagentModelSelectionCard)
+    yield ctx.slots.register({
+      name: 'settings.plugin.item',
+      key: SUBAGENT_NESTING_NS,
+      locale: NS,
+      inject: () => subagentNesting.inject(),
+    }, SubagentNestingCard)
     yield ctx.slots.register({
       name: 'settings.plugin.item',
       key: SESSION_SEARCH_NS,

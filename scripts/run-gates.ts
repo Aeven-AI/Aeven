@@ -426,9 +426,12 @@ function runningNodeMajor(): number {
 
 function ciStaticGates(options: { ownsBuild: boolean }): Gate[] {
   return [
-    ...ciSharedStaticGates(),
+    // `doc-gates` runs the workspace constraints next to the Markdown wrap check in
+    // one process, so the lane spawns neither of them separately.
+    ...ciSharedStaticGates().filter(gate => gate.id !== 'constraints'),
     ...options.ownsBuild ? [ciBuildGate()] : [],
     ...docSyncLeafGates({
+      fuseDocGates: true,
       includeDocTypecheck: options.ownsBuild,
       ...options.ownsBuild
         ? {
@@ -707,6 +710,8 @@ function hygieneLeafGates(options: { artifactNeeds?: string[] } = {}): Gate[] {
 }
 
 function docSyncLeafGates(options: {
+  /** Run the workspace constraints and the Markdown wrap check as one `doc-gates` process. */
+  fuseDocGates?: boolean
   includeDocTypecheck?: boolean
   docTypecheckNeeds?: string[]
   docTypecheckEnv?: Record<string, string | undefined>
@@ -730,7 +735,9 @@ function docSyncLeafGates(options: {
     pnpmScript('mermaid', 'verify-mermaid'),
     pnpmScript('scoped-events', 'verify-scoped-events', { label: 'scoped events' }),
     pnpmScript('translation-pairing', 'verify-translation-pairing', { label: 'translation pairing', quick: true }),
-    pnpmScript('markdown-wrap', 'verify-md-wrap', { label: 'markdown wrap', quick: true }),
+    ...options.fuseDocGates === true
+      ? [pnpmScript('doc-gates', 'doc-gates', { label: 'doc gates', quick: true })]
+      : [pnpmScript('markdown-wrap', 'verify-md-wrap', { label: 'markdown wrap', quick: true })],
     pnpmScript('client-catalog', 'verify-client-catalog', { label: 'client catalog' }),
     pnpmScript('export-jsdoc', 'verify-export-jsdoc', { label: 'export jsdoc' }),
     pnpmScript('tool-catalog', 'verify-tool-catalog', { label: 'tool catalog' }),

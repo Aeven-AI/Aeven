@@ -134,6 +134,7 @@
     "verify-doc-site-fragments": "tsx scripts/verify-doc-site-fragments.ts",
     "verify-export-jsdoc": "tsx scripts/verify-export-jsdoc.ts",
     "verify-md-links": "tsx scripts/verify-md-links.ts",
+    "doc-gates": "tsx scripts/doc-gates.ts",
     "verify-md-wrap": "tsx scripts/verify-md-wrap.ts",
     "verify-mermaid": "tsx scripts/verify-mermaid.ts",
     "verify-no-bare-dispatcher": "tsx scripts/verify-no-bare-dispatcher.ts",

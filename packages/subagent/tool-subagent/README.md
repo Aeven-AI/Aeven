@@ -45,6 +45,7 @@ Load the subagent service, an in-process or remote backend, and this tool; then 
 | `provider` | required | Provider name on `ctx.subagents` (e.g. `spawn`, `fork`, `acp`) |
 | `toolName` | `subagent` | Model-facing tool name; distinct for every loaded instance |
 | `modelSelectionSettings` | `false` | Sample the Host's exact-route authorization preference for each new top-level Session; valid only in Agent scope and requires provider `agentOptions` support |
+| `nestingSettings` | `false` | Read the Host's `subagent-nesting` switch at every start: off, the calling agent's children are leaves; on, `maxDepth` is the ceiling. Requires a numeric `maxDepth` and the settings service in the Host scope |
 | `enableRunInBackground` | `true` | Expose `run_in_background`; disabling also rejects forced background calls |
 | `backgroundMode` | `one-shot` | Background policy: `one-shot` defaults calls to foreground; `continuable` defaults them to background and requires the provider's `prepareContinuable` capability |
 | `agentOptions` | — | Configured child `provider`, `model`, adapter-owned `reasoningEffort`, and positive `maxTokens` defaults; requires provider `agentOptions` support and overlays any provider-owned route defaults |
@@ -66,6 +67,10 @@ Under `continuable` policy, an omitted or `true` `run_in_background` starts a du
 
 Set `modelSelectionSettings: true` to sample the Host's `subagent-model-selection` preference when each fresh top-level Session is composed. A restored Session without a recorded policy remains disabled, including an explicitly empty restore. When enabled, the non-empty exact provider/model route list is recorded in the Session, inherited by child Sessions, and unchanged by later settings edits. The tool then exposes optional `provider`, `model`, and `reasoning_effort` fields and registers the shared `list_subagent_models` tool. This mode requires a backend that advertises `agentOptions`; both in-process backends and AVN SDK support it, while ACP, Codex, and Claude Code reject it rather than ignore it.
 
+### Enabling nested delegation
+
+Set `nestingSettings: true` to let the Host's `subagent-nesting` switch decide whether a child agent may delegate in turn. The switch is read at every start instead of being sampled once, so flipping it in Plugin settings applies to the agents already running and to the children they start afterwards, and it needs no Session event because no tool schema or prompt text follows it. Switched off, the calling agent's children are leaves: each start is pinned to depth one whatever `maxDepth` allows. Switched on, `maxDepth` is the ceiling — with `maxDepth: 2` a depth-1 child may start a depth-2 grandchild, which cannot delegate in turn. The switch requires `@aeven/tool-subagent/nesting-settings` composed in the Host scope and a numeric `maxDepth`; an out-of-process provider owns its own recursion budget, so `maxDepth: 'provider-managed'` with `nestingSettings` fails at load.
+
 A call supplies `provider` and `model` together, or supplies only an effort when configured, parent, or provider-owned defaults provide the route. Static `provider.agentRouteDefaults`, when present, form the provider/model baseline; tool configuration and model fields overlay it before route-aware effort merging and exact-route preflight. Providers without these defaults use compatible values from the parent's latest logged request, then the parent's creation options before its first request, while retaining the configured `maxTokens`. Changing the route without an explicit effort clears the inherited route-owned effort, so the selected model resolves its default. The live LLM adapter validates the effective route before child creation. Catalog membership remains advisory, so a model can use an unlisted id when its adapter accepts it.
 
 -----
@@ -80,7 +85,7 @@ This section explains how the tool mirrors provider lifecycle and settles runs; 
 
 ### Design concept
 
-One instance is one provider plus one tool name. The plugin mirrors provider lifecycle: it registers the tool when the named provider appears and disposes it when the provider leaves, so sibling load order and HMR replacement cannot strand a dangling tool. A numeric `maxDepth` or configured LLM selection the provider cannot enforce fails the mount instead of the first delegation. At most one instance in a tool scope may own model selection because `list_subagent_models` has a global name.
+One instance is one provider plus one tool name. The plugin mirrors provider lifecycle: it registers the tool when the named provider appears and disposes it when the provider leaves, so sibling load order and HMR replacement cannot strand a dangling tool. A numeric `maxDepth` or configured LLM selection the provider cannot enforce fails the mount instead of the first delegation, and so does `nestingSettings` without its Host settings service. At most one instance in a tool scope may own model selection because `list_subagent_models` has a global name.
 
 ### Foreground settlement
 
@@ -102,6 +107,7 @@ The tool's description derives from `provider.inheritsParentContext`: a fresh ch
 | [`src/model-selection.ts`](src/model-selection.ts) | Request/config merge and live LLM route preflight |
 | [`src/model-selection-settings.ts`](src/model-selection-settings.ts) | Host-owned opt-in setting sampled for new Sessions |
 | [`src/model-selection-state.ts`](src/model-selection-state.ts) | Session event that records and inherits the sampled decision |
+| [`src/nesting-settings.ts`](src/nesting-settings.ts) | Host-owned switch read at every delegation start |
 | [`src/list-models.ts`](src/list-models.ts) | `list_subagent_models` runtime discovery tool |
 
 </details>

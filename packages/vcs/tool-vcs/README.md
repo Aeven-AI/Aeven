@@ -5,6 +5,8 @@ kind: "package-reference"
 
 # @aeven/tool-vcs
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 `avn-tool-vcs` gives the model seven source-control tools over the `ctx.vcs` seam: read the checkout's branch and changed paths, read a diff or recent history, commit, list and move branches, fetch or push, and merge. Each tool resolves the calling session's directory, so a call finds the repository the session actually edits — including a worktree the session was moved into — and reports normalized values rather than git's progress text. The tools own every model-visible name, schema, and rendering; the provider owns only execution.
@@ -83,63 +85,11 @@ A tool call fails when the session has no directory, when no provider owns the d
 <a id="model-experience"></a>
 ## Model Experience
 
-### System prompt
-
-None.
-
-#### What the model sees
-
-No prompt section; each tool's description carries its own usage guidance.
-
-#### Token effect
-
-Fixed schema cost per request, described under Tool schema.
+Indirectly, through the tools assembly, which owns the schema and result projection for these calls.
 
 #### KV Cache effect
 
-None from a prompt prefix.
-
-### Tool schema
-
-#### What the model sees
-
-Seven tool schemas: `git_status`, `git_diff`, `git_log`, `git_commit`, `git_branch`, `git_remote`, `git_merge`, as listed in the generated [`git_*` catalog entries](../../../docs/tool-catalog.md).
-
-#### Token effect
-
-Fixed cost on every request while the plugin is active; the largest is `git_branch`, whose five parameters cover four operations.
-
-#### KV Cache effect
-
-Prefix-stable while the visible definitions and their order are unchanged; registration or disposal may invalidate reuse from the first changed schema token.
-
-### Results
-
-#### What the model sees
-
-Per-path status lines with each side named, unified diffs with an explicit truncation marker, commit lines, branch lists with the current branch marked, remote output, and merge outcomes with conflicted paths. Empty results say so — `working tree clean`, `no differences`, `no commits yet`.
-
-#### Token effect
-
-Bounded by the provider's `diffMaxBytes`, `statusMaxEntries`, and `logLimitMax`; each bound reports its own truncation rather than returning a smaller-looking complete value.
-
-#### KV Cache effect
-
-Tool results append after the cached request prefix and do not directly invalidate it.
-
-### UI presentation
-
-#### What the model sees
-
-Nothing. No call or result presenter is registered, so the client renders these tools from their raw results.
-
-#### Token effect
-
-None; presentation is client-side.
-
-#### KV Cache effect
-
-None.
+The tool renders change records it receives and appends nothing to a prompt prefix, so reuse is unaffected.
 
 ## Known Limitations and Deferred Work
 

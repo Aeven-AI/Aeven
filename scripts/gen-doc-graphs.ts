@@ -290,6 +290,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Owns the default-off settings namespace that Agent-scoped delegation tools sample when composing a new top-level Session.',
   },
   {
+    key: 'subagentNesting',
+    pkg: 'tool-subagent',
+    title: 'Subagent nesting switch',
+    mode: 'core',
+    consumers: ['tool-subagent'],
+    note: 'Owns the default-off settings section that every delegation tool samples at each start, so flipping the switch reaches the agents already running and every child they start afterwards.',
+  },
+  {
     key: 'credentials',
     pkg: 'credentials',
     title: 'Credential seam',

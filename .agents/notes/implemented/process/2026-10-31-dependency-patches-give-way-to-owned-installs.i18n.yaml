@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-10-31-dependency-patches-give-way-to-owned-installs.md
-2026-10-31-dependency-patches-give-way-to-owned-installs.md: 6f71a6a8416ffd34d62302edef1fa8229320ed6f
-2026-10-31-dependency-patches-give-way-to-owned-installs.zh.md: 019031e1d49491d05789a385442dc71a9bcceb67
+2026-10-31-dependency-patches-give-way-to-owned-installs.md: 6dee036ecd53b467924ad31834ff0b4ad7b51bb9
+2026-10-31-dependency-patches-give-way-to-owned-installs.zh.md: 8eec2717b2f045975cef1d76815c355ac95f355d

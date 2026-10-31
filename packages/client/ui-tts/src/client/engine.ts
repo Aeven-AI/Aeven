@@ -79,7 +79,10 @@ export class ReadAloud {
 
   constructor(private readonly deps: ReadAloudDeps) {}
 
-  /** @returns the current snapshot, with its reference unchanged while nothing moves. */
+  /**
+   * The reader's current channels and fragments.
+   * @returns the current snapshot, with its reference unchanged while nothing moves.
+   */
   get view(): ReadAloudSnapshot { return this.snapshot }
 
   /**

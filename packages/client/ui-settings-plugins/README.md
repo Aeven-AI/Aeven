@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Open the Plugins section in Settings and select the **Plugin configuration** tab to edit the host-plane plugins this deployment composes. The cards appear in this order: the shell executor (`bash`), the agent loop's tool-call parallelism (`agent-loop`), subagent model selection (`subagent-model-selection`), SQLite session search (`session-query-sqlite`), and the DeepSeek search provider (`web-search-deepseek`).
+Open the Plugins section in Settings and select the **Plugin configuration** tab to edit the host-plane plugins this deployment composes. The cards appear in this order: the shell executor (`bash`), the agent loop's tool-call parallelism (`agent-loop`), subagent model selection (`subagent-model-selection`), subagent nesting (`subagent-nesting`), SQLite session search (`session-query-sqlite`), and the DeepSeek search provider (`web-search-deepseek`).
 
 ### What appears here
 
@@ -36,6 +36,8 @@ The tab reads which settings namespaces the Host serves and dispatches one slot 
 A card stages what the user types and writes it only when they save. Each control renders staged text, so what is on screen is exactly what a save would store; **Discard** drops the drafts, and a card holding unsaved edits says so on its header even while collapsed. A successful save collapses the card after the read-back confirms the writes; a failed save keeps the card open, reports the failure, and retains the drafts for correction. A reset stages the composed default rather than writing immediately, and a draft the field does not accept blocks the save instead of being dropped. The Host is the only authority on whether a value was accepted.
 
 The Subagent card stages its permission switch and exact model checkboxes together. Enabling requires at least one selected adapter route. Saving submits `enabled` and `allowedModels` in one mutation fenced by the revision where that draft began; a newer Host revision marks the draft failed instead of restoring a revoked route. Disabling retains the selected routes for later reuse. Available models are grouped by provider, while saved routes absent from the current catalog appear last and remain removable. Adapter names and model descriptions remain live directory metadata and are not stored, and the card refreshes them after adapter changes, settings commits, and reconnects.
+
+The Subagent nesting card is one switch over the namespace the delegation tools read at every start: enabling lets a subagent start subagents of its own within the deployment's depth allowance, disabling leaves every subagent a leaf. A save applies to the agents already running, and the card states which of the two is in effect beneath the switch.
 
 The Session search card maps its switch to the SQLite provider's opening policy. Enabling stores `first-search`, so SQLite and its derived index remain unopened until a content search needs them; disabling stores `never`, which leaves title and Workspace-name matching available. Reset restores the deployment's composed policy.
 

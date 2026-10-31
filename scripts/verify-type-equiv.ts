@@ -8,7 +8,8 @@
  * reuse the manifest-backed check of their unsuffixed sibling.
  */
 
-import { globSync, readFileSync, existsSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { globSync, readFileSync, existsSync, writeFileSync } from 'node:fs'
 import { resolve, sep } from 'node:path'
 import ts from 'typescript'
 import { markdownFences } from './markdown.ts'
@@ -291,6 +292,38 @@ const { primary: blocks, derivatives } = partitionPairedMarkdownDerivatives(
 )
 
 const errors: string[] = []
+const fix = process.argv.includes('--fix')
+/** Every manifest entry's source declaration, so `--fix` can paste it verbatim. */
+const fixTargets = new Map<string, string>()
+for (const entry of entries) {
+  const decl = entry.augmentations !== undefined
+    ? mergedInterfaceDeclaration(entry)
+    : entry.projection === 'public-api'
+      ? sourcePublicApi(entry.source, entry.symbol)
+      : sourceDeclaration(entry.source, entry.symbol)
+  if (decl !== null) {
+    const projection = entry.projection ?? 'declaration'
+    const sibling = entry.doc.endsWith('.zh.md') ? entry.doc : entry.doc.replace(/\.md$/, '.zh.md')
+    for (const doc of new Set([entry.doc, sibling])) fixTargets.set(`${doc}::${entry.symbol}::${projection}`, decl)
+  }
+}
+
+/** Replace each block body with the declaration its manifest entry names. */
+function applyFixes(items: Array<{ block: EquivBlock; decl: string }>): number {
+  const byDoc = new Map<string, Array<{ block: EquivBlock; decl: string }>>()
+  for (const item of items) byDoc.set(item.block.doc, [...(byDoc.get(item.block.doc) ?? []), item])
+  let rewritten = 0
+  for (const [docRel, docItems] of byDoc) {
+    const lines = readFileSync(resolve(root, docRel), 'utf8').split('\n')
+    for (const { block, decl } of [...docItems].sort((a, b) => b.block.line - a.block.line)) {
+      const bodyLines = block.code === '' ? 0 : block.code.split('\n').length
+      lines.splice(block.line, bodyLines, ...decl.split('\n'))
+      rewritten++
+    }
+    writeFileSync(resolve(root, docRel), lines.join('\n'))
+  }
+  return rewritten
+}
 // A manifest entry naming a doc that does not exist (or is outside the scanned
 // scope, so no block could ever match it) is an error in its own right.
 for (const d of [...new Set(entries.map(e => e.doc))]) {
@@ -363,6 +396,21 @@ for (const e of entries) {
     continue
   }
   verified++
+}
+
+if (fix) {
+  const drifted = extractedBlocks.flatMap((block) => {
+    const decl = fixTargets.get(`${block.doc}::${block.symbol}::${block.projection ?? 'declaration'}`)
+    if (decl === undefined) return []
+    const matches = normalizeStructure(stripExport(block.code)) === normalizeStructure(decl)
+      && JSON.stringify(normalizeJSDoc(stripExport(block.code))) === JSON.stringify(normalizeJSDoc(decl))
+    return matches ? [] : [{ block, decl }]
+  })
+  if (drifted.length > 0) {
+    console.log(`verify-type-equiv --fix: rewrote ${applyFixes(drifted)} block(s) from their manifest source; re-checking.`)
+    const rerun = spawnSync(process.execPath, ['--import', 'tsx/esm', import.meta.filename], { stdio: 'inherit' })
+    process.exit(rerun.status ?? 1)
+  }
 }
 
 if (errors.length === 0) {

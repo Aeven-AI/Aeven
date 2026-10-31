@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-10-31-dependency-patches-give-way-to-owned-installs.zh.md)
+
 ## Problem
 
 Three pnpm patches sat in `patches/`, and every Desktop release target failed at the seed install with `[ERR_PNPM_IGNORED_BUILDS] Ignored build scripts: msedge-tts@2.1.1`: pnpm 11 refuses a dependency whose lifecycle scripts are neither allowed nor denied, and the seed's generated workspace file named neither. Two of the three patches existed only to make a dependency's own installer survive a platform it does not support, which is the sort of fix that belongs to code we own.
