@@ -1,7 +1,7 @@
 {
   "name": "@aeven/session-sync",
   "description": "Account sync Consumer for conversation history: every device of an account lists and replays its sessions",
-  "version": "0.3.28-alpha",
+  "version": "0.3.29-alpha",
   "publishConfig": {
     "access": "public"
   },

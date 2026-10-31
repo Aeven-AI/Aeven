@@ -1,7 +1,7 @@
 {
   "name": "@aeven/workflow",
   "description": "Workflow capability seam: ctx.workflowEngine service, run vocabulary, and workflow/* events",
-  "version": "0.3.28-alpha",
+  "version": "0.3.29-alpha",
   "publishConfig": {
     "access": "public"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@aeven/jobs-local",
   "description": "Process-local implementation of the Aeven background job registry seam",
-  "version": "0.3.28-alpha",
+  "version": "0.3.29-alpha",
   "publishConfig": {
     "access": "public"
   },

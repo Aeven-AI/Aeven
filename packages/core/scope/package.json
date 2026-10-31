@@ -1,7 +1,7 @@
 {
   "name": "@aeven/scope",
   "description": "Scoped-context registration primitive (scope tags, scope-filtered event dispatch) for the Aeven",
-  "version": "0.3.28-alpha",
+  "version": "0.3.29-alpha",
   "publishConfig": {
     "access": "public"
   },

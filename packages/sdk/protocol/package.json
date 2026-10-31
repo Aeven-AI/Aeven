@@ -1,7 +1,7 @@
 {
   "name": "@aeven/sdk-protocol",
   "description": "Shared wire protocol for the Aeven SDK runtime: the newline-delimited JSON-RPC stdio transport and the named request, result, and notification types spoken between the runtime server and SDK clients",
-  "version": "0.3.28-alpha",
+  "version": "0.3.29-alpha",
   "publishConfig": {
     "access": "public"
   },

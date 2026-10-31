@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-subagent",
   "description": "Subagent conversation catalog, continuation routing UI, and '@' reference source",
-  "version": "0.3.28-alpha",
+  "version": "0.3.29-alpha",
   "publishConfig": {
     "access": "public"
   },

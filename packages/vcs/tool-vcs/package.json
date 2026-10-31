@@ -1,7 +1,7 @@
 {
   "name": "@aeven/tool-vcs",
   "description": "Model-facing source-control tools for Aeven (git_status, git_diff, git_log, git_commit, git_branch, git_remote, git_merge) over the ctx.vcs capability seam",
-  "version": "0.3.28-alpha",
+  "version": "0.3.29-alpha",
   "publishConfig": {
     "access": "public"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-input-trigger",
   "description": "Input trigger pipeline: '/' and '@' detection, candidate menu, pick routing to registered sources",
-  "version": "0.3.28-alpha",
+  "version": "0.3.29-alpha",
   "publishConfig": {
     "access": "public"
   },
