@@ -40,8 +40,12 @@
     "lib/typert.host.js",
     "lib/typert.host.d.ts",
     "lib/typert.remote-client.js",
-    "lib/typert.remote-client.d.ts"
+    "lib/typert.remote-client.d.ts",
+    "scripts/ensure-gws.mjs"
   ],
+  "scripts": {
+    "postinstall": "node scripts/ensure-gws.mjs"
+  },
   "license": "Apache-2.0",
   "dependencies": {
     "@aeven/brand": "workspace:^",

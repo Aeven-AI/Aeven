@@ -168,6 +168,8 @@ The Node API needs `MICROSOFT_CONNECTOR_CLIENT_ID` and `MICROSOFT_CONNECTOR_CLIE
 
 The account domain stores metadata and validated skill resources; the credential provider owns secrets. The skill provider filters every lookup by account owner. Connector scopes belong to this plugin and are disposed when their conversation ends; the existing MCP client registers discovered tools in the owning agent's scope. Skill changes invalidate browser slash-menu catalogs through the forwarded registry event. No invariant companion is published because these operations use the storage, identity, credential, skill, and tool registries directly.
 
+The Google connectors spawn the Workspace CLI binary through `GWS_BIN`. This package's postinstall, `scripts/ensure-gws.mjs`, installs that binary from the releases `@googleworkspace/cli` names, so the host triple the package's own installer refuses — Windows on ARM — runs the emulated x64 build instead; both the workspace and the packaged Desktop seed deny the package's build script, and an existing binary is left untouched.
+
 </details>
 
 ## Model Experience

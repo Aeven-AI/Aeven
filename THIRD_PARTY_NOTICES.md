@@ -118,7 +118,6 @@ External packages that a workspace package resolves at runtime. The tier covers 
 | [`micromark-util-symbol`](https://github.com/micromark/micromark/tree/main/packages/micromark-util-symbol) | MIT |
 | [`micromark-util-types`](https://github.com/micromark/micromark/tree/main/packages/micromark-util-types) | MIT |
 | [`mime-types`](https://github.com/jshttp/mime-types) | MIT |
-| [`msedge-tts`](https://github.com/Migushthe2nd/MsEdgeTTS) | MIT |
 | [`negotiator`](https://github.com/jshttp/negotiator) | MIT |
 | [`node-addon-require-builtin`](https://www.npmjs.com/package/node-addon-require-builtin) | MIT |
 | [`node-pop3`](https://github.com/lianxh/node-pop3) | MIT |
@@ -166,8 +165,6 @@ External packages that a workspace package resolves at runtime. The tier covers 
 
 pnpm applies local patches to the following packages at install time, so shipped artifacts carry modified copies; each patch file is the complete record of the modification:
 
-- `@googleworkspace/cli@0.22.5` — [`patches/@googleworkspace__cli@0.22.5.patch`](patches/@googleworkspace__cli@0.22.5.patch)
-- `app-builder-lib@26.17.0` — [`patches/app-builder-lib@26.17.0.patch`](patches/app-builder-lib@26.17.0.patch)
 - `node-pty@1.2.0-beta.15` — [`patches/node-pty@1.2.0-beta.15.patch`](patches/node-pty@1.2.0-beta.15.patch)
 
 ## Official Claude Code platform payloads
@@ -233,7 +230,6 @@ External packages **directly declared** only by repository tooling, test infrast
 | [`@vitejs/plugin-react`](https://github.com/vitejs/vite-plugin-react) | MIT |
 | [`@vitest/coverage-v8`](https://github.com/vitest-dev/vitest) | MIT |
 | [`@yarnpkg/cli-dist`](https://github.com/yarnpkg/berry) | BSD-2-Clause |
-| [`app-builder-lib`](https://github.com/electron-userland/electron-builder) | MIT |
 | [`big-integer`](https://github.com/git@github.com:peterolson/BigInteger.js) | Unlicense |
 | [`cjs-module-lexer`](https://github.com/nodejs/cjs-module-lexer) | MIT |
 | [`cytoscape`](https://github.com/cytoscape/cytoscape.js) | MIT |

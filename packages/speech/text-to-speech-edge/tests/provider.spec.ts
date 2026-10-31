@@ -59,7 +59,7 @@ const edge = vi.hoisted(() => {
   }
 })
 
-vi.mock('msedge-tts', () => ({ MsEdgeTTS: edge.MsEdgeTTS, OUTPUT_FORMAT: edge.OUTPUT_FORMAT }))
+vi.mock('../src/edge-tts.ts', () => ({ MsEdgeTTS: edge.MsEdgeTTS, OUTPUT_FORMAT: edge.OUTPUT_FORMAT }))
 
 const roots: Context[] = []
 afterEach(async () => {
@@ -183,7 +183,7 @@ it('streams one utterance through the pinned voice and returns the joined audio'
   expect(engine.format).toBe('audio-24khz-48kbitrate-mono-mp3')
 })
 
-it('reports the caller cancellation reason and reconnects the voice afterwards', async () => {
+it('reports the caller cancellation reason and keeps the connection for the next utterance', async () => {
   edge.state.listed = [{ ShortName: 'en-GB-SoniaNeural', Locale: 'en-GB', Gender: 'Female' }]
   const held = heldStream()
   edge.state.streams.set('Good morning', held.stream)
@@ -196,11 +196,11 @@ it('reports the caller cancellation reason and reconnects the voice afterwards',
   held.release()
   await expect(cancelled).rejects.toThrow('caller stopped reading')
   const opened = edge.MsEdgeTTS.instances.length
-  expect(edge.MsEdgeTTS.instances[opened - 1]?.closed).toBe(1)
+  expect(edge.MsEdgeTTS.instances[opened - 1]?.closed).toBe(0)
   edge.state.streams.set('Again', streamOf(Buffer.from('ef')))
   expect(Buffer.from(await tts.synthesize(tts.resolve({ text: 'Again', voiceId: 'en-GB-SoniaNeural' as TtsVoiceId }), new AbortController().signal)).toString())
     .toBe('ef')
-  expect(edge.MsEdgeTTS.instances).toHaveLength(opened + 1)
+  expect(edge.MsEdgeTTS.instances).toHaveLength(opened)
 })
 
 it('reports a generic cancellation when the signal carries no Error', async () => {
@@ -216,7 +216,7 @@ it('reports a generic cancellation when the signal carries no Error', async () =
   await expect(cancelled).rejects.toThrow('Speech synthesis cancelled')
 })
 
-it('closes a shared connection once when two utterances are cancelled together', async () => {
+it('keeps the shared connection when two utterances are cancelled together', async () => {
   edge.state.listed = [{ ShortName: 'en-GB-SoniaNeural', Locale: 'en-GB', Gender: 'Female' }]
   const first = heldStream(), second = heldStream()
   edge.state.streams.set('one', first.stream)
@@ -231,7 +231,7 @@ it('closes a shared connection once when two utterances are cancelled together',
   second.release()
   await expect(a).rejects.toThrow('stopped')
   await expect(b).rejects.toThrow('stopped')
-  expect(edge.MsEdgeTTS.instances.at(-1)?.closed).toBe(1)
+  expect(edge.MsEdgeTTS.instances.at(-1)?.closed).toBe(0)
 })
 
 it('reports an utterance that produced no audio and drops its connection', async () => {

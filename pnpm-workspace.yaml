@@ -46,8 +46,9 @@ peerDependencyRules:
 # default and only allow scripts we need. esbuild (native binary) and lefthook
 # (git hooks) genuinely need theirs.
 allowBuilds:
-  # Downloads Google’s platform-specific Workspace CLI used by account connectors.
-  '@googleworkspace/cli': true
+  # The Google connectors spawn the Workspace CLI this package downloads into its own bin/; Aeven
+  # fetches that binary from the Host's postinstall instead, which covers Windows on ARM too.
+  '@googleworkspace/cli': false
   esbuild: true
   lefthook: true
   # Cross-platform boundary for the persistent PTY backend, including ConPTY on Windows.
@@ -81,10 +82,6 @@ allowBuilds:
   # Optional OS keychain token cache for the Microsoft 365 connector
   # (@softeria/ms-365-mcp-server); matches the desktop runtime workspace.
   keytar: true
-  # Edge text-to-speech client for the read-aloud provider. Its only lifecycle
-  # script refuses non-pnpm installs, and the published package ships its built
-  # dist, so the script has nothing to do here.
-  msedge-tts: false
 
 # Release-age screening is off: a dependency may be installed the moment it is
 # published. This is deliberate, and it gives up the delay that would otherwise
@@ -128,6 +125,4 @@ minimumReleaseAgeExclude:
 
 patchedDependencies:
   # Windows on ARM falls back to the x64 gws build; upstream publishes none for arm64.
-  '@googleworkspace/cli@0.22.5': patches/@googleworkspace__cli@0.22.5.patch
-  app-builder-lib@26.17.0: patches/app-builder-lib@26.17.0.patch
   node-pty@1.2.0-beta.15: patches/node-pty@1.2.0-beta.15.patch

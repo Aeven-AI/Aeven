@@ -33,7 +33,7 @@ Load beside [`@aeven/text-to-speech`](../text-to-speech/README.md). `voices` lis
 <details>
 <summary>Maintainer details — click to expand</summary>
 
-The first request for a voice opens and configures one `msedge-tts` client for that voice; later requests reuse it, so consecutive sentences do not pay the handshake again. Cancellation rejects the pending synthesis and closes that voice's client, which the next request reopens. Disposal closes every open client.
+The first request for a voice opens one `MsEdgeTTS` client in `src/edge-tts.ts`; later requests reuse it, so consecutive sentences do not pay the handshake again. Cancellation rejects the pending synthesis and keeps that client open, because stopping mid-sentence leaves the connection healthy and the next utterance would otherwise pay a handshake again; a synthesis that fails on its own releases the client, which the next request reopens. Disposal closes every open client.
 
 Audio is 24 kHz mono MP3, which the browser decodes with `decodeAudioData`.
 
@@ -58,14 +58,14 @@ None. The provider returns audio bytes for text the model already produced.
 <a id="known-limitations-and-deferred-work"></a>
 ## Known Limitations and Deferred Work
 
-Synthesis requires outbound network access to Microsoft's service; there is no offline provider with comparable voice quality yet. The provided `msedge-tts` package is an unofficial client of that service, so endpoint changes are an upstream risk.
+Synthesis requires outbound network access to Microsoft's service; there is no offline provider with comparable voice quality yet. `src/edge-tts.ts` is Aeven's own client of that unofficial service, so a protocol change reaches us as an outage rather than as an upstream release: it speaks the Edge read-aloud WebSocket protocol against `api.msedgeservices.com` and lists voices on the legacy `speech.platform.bing.com` host, which is the only one that answers a voice list.
 
 -----
 
 <a id="dev-note"></a>
 ## Dev Note
 
-One `MsEdgeTTS` instance serves each voice id and stays cached. The client opens a WebSocket per instance, so creating one per request would pay a handshake for every clause. A failed synthesis releases the cached instance so the next attempt reconnects instead of reusing a closed carrier.
+One `MsEdgeTTS` instance serves each voice id and stays cached. The client opens a WebSocket per instance, so creating one per request would pay a handshake for every clause. Only a synthesis that fails on its own releases the cached instance, so the next attempt reconnects instead of reusing a closed carrier; a caller's cancellation keeps it, and the abandoned turn's frames are ignored because every turn carries its own request id.
 
 A voice's `Gender` is read from the provider's own voice list and is the only source of that fact: the ids and display names do not encode timbre, and the multilingual voices sit outside any single language's roster.
 
