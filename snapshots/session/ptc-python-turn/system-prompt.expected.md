@@ -9,11 +9,11 @@ Verify your work by running the code or tests. Keep answers brief and factual.
 
 Check the [exit code: N] marker on every bash result; investigate failures before moving on. Run anything whose duration you cannot bound — installs, builds, test suites, servers, downloads — with `run_in_background: true` and keep working. Never wait with a foreground `sleep`: collect the job with `job_output`, let the program retry for itself (`curl --retry`), or check the condition in a bounded loop that returns the moment it holds (`until nc -z localhost 3000; do sleep 0.5; done`). Pause only as long as a real clock constraint, such as a rate limit, requires, and end the turn when nothing useful is left: a settled job wakes you.
 
-Use the read tool — not shell commands like cat — to inspect text files. Results include line numbers. Use offset and limit to continue reading large files.
+Use the read tool — not shell commands like cat — to inspect text files. Results include line numbers. Use offset and limit to continue reading large files. To read several files you already know you need, pass them together as files in one call instead of one call per file.
 
 Use the write tool to create files or completely replace file contents. Existing files are overwritten, so read an existing file first (the default fs-observation-policy requires it) and prefer edit for targeted changes.
 
-Use the edit tool for targeted changes to existing UTF-8 text files. It replaces literal old_string with new_string; by default old_string must appear exactly once. If old_string appears multiple times, provide a more specific old_string or set replace_all to true. Read the file first (the default fs-observation-policy requires it), unless you just created or edited it in this session.
+Use the edit tool for targeted changes to existing UTF-8 text files. It replaces literal old_string with new_string; by default old_string must appear exactly once. If old_string appears multiple times, provide a more specific old_string or set replace_all to true. For several changes to one file, pass them together as edits in one call: they apply in order, each against the result of the previous ones, and none applies unless all match. To change several files whose edits are already decided, pass them together as files in one call, one entry per file in the same form as a single-file call: files apply in order, and a failure stops at that file and reports the files already changed. The text you replace must match the current file exactly, so take it from the file; a file that changed since you last read it is refused until you read it again.
 
 Use the glob tool — not shell find — to discover files by path pattern.
 
@@ -59,6 +59,8 @@ class BashArgs(TypedDict):
     timeoutMs: NotRequired[float]
     # Working directory for this command. Defaults to the session workspace; a relative path is resolved against it.
     workdir: NotRequired[str]
+    # For commands generating deliverables (PDF, DOCX, spreadsheets, images, etc.), list every output path here. Paths resolve against workdir. Verified new or changed files appear in the created/edited-files block. Requires foreground execution.
+    output_files: NotRequired[list[str]]
     # Run in the background and return a job id immediately (collect with job_output, stop with job_kill). No timeout applies.
     run_in_background: NotRequired[bool]
     # The wider sandbox mode this command needs. Only valid as a one-shot retry of a command the sandbox just denied; requires justification and user approval.
@@ -72,6 +74,10 @@ class BashOutput1(TypedDict):
     jobId: str
     detached: NotRequired[bool]
     detachAfterMs: NotRequired[float]
+
+class BashOutput2ProducedFiles(TypedDict):
+    path: str
+    created: bool
 
 class BashOutput2Stdout(TypedDict):
     text: str
@@ -96,6 +102,7 @@ class BashOutput2(TypedDict):
     timedOut: bool
     aborted: bool
     timeoutMs: float
+    producedFiles: NotRequired[list[BashOutput2ProducedFiles]]
     stdout: BashOutput2Stdout
     stderr: BashOutput2Stderr
     sandbox: NotRequired[BashOutput2Sandbox]
@@ -132,26 +139,62 @@ class CreateWorktreeOutput(TypedDict):
     branch: str
     baseCommit: str
     repositoryRoot: str
+    setup: NotRequired[str]
 
-class EditArgs(TypedDict):
-    # Path to edit, resolved by the filesystem backend.
-    file_path: str
+class EditArgsEdits(TypedDict):
     # Literal text to replace. Must match exactly.
     old_string: str
-    # Literal replacement text. Use an empty string to delete the match.
+    # Literal replacement text.
     new_string: str
+    # Replace all matches of this old_string.
+    replace_all: NotRequired[bool]
+
+class EditArgsFilesEdits(TypedDict):
+    # Literal text to replace. Must match exactly.
+    old_string: str
+    # Literal replacement text.
+    new_string: str
+    # Replace all matches of this old_string.
+    replace_all: NotRequired[bool]
+
+class EditArgsFiles(TypedDict):
+    # Path to edit, resolved by the filesystem backend.
+    file_path: str
+    # Literal text to replace. Must match exactly. Required unless edits is given.
+    old_string: NotRequired[str]
+    # Literal replacement text. Required unless edits is given.
+    new_string: NotRequired[str]
+    # Replace all matches. Defaults to false.
+    replace_all: NotRequired[bool]
+    # Several replacements for this file, applied in order; none applies unless all match.
+    edits: NotRequired[list[EditArgsFilesEdits]]
+
+class EditArgs(TypedDict):
+    # Path to edit, resolved by the filesystem backend. Required unless files is given.
+    file_path: NotRequired[str]
+    # Literal text to replace. Must match exactly. Required unless edits is given.
+    old_string: NotRequired[str]
+    # Literal replacement text. Use an empty string to delete the match. Required unless edits is given.
+    new_string: NotRequired[str]
     # Replace all matches. Defaults to false; when false, old_string must appear exactly once.
     replace_all: NotRequired[bool]
+    # Several replacements for this file in one call, applied in order; none applies unless all match. Use instead of old_string/new_string.
+    edits: NotRequired[list[EditArgsEdits]]
+    # Several files in one call, applied in order, each file at most once. Use instead of the top-level file_path and its replacements.
+    files: NotRequired[list[EditArgsFiles]]
     # The wider sandbox mode this file operation needs. Only valid as a one-shot retry of an operation the sandbox just denied; requires justification and user approval.
     sandbox_permissions: NotRequired[Literal["workspace-write", "danger-full-access"]]
     # Required with sandbox_permissions: one sentence for the user explaining why this exact file operation needs the wider access. Use the language of the user’s current request.
     justification: NotRequired[str]
     # Additional keys beyond those declared are allowed.
 
-class EditOutput(TypedDict):
+class EditOutputFiles(TypedDict):
     path: str
     before: str
     after: str
+
+class EditOutput(TypedDict):
+    files: list[EditOutputFiles]
 
 class ExitPlanModeArgs(TypedDict):
     # The complete plan, as markdown, starting with a # heading that names it.
@@ -180,6 +223,95 @@ class GetGoalOutput2Goal(TypedDict):
 class GetGoalOutput2(TypedDict):
     goal: GetGoalOutput2Goal
     activation: Literal["armed", "disarmed"]
+
+class GitBranchOutputBranches(TypedDict):
+    name: str
+    current: bool
+
+class GitBranchOutput(TypedDict):
+    branches: NotRequired[list[GitBranchOutputBranches]]
+    branch: NotRequired[str]
+    created: NotRequired[bool]
+    deleted: NotRequired[str]
+
+class GitCommitArgs(TypedDict):
+    # Commit message, passed to git verbatim.
+    message: str
+    # Repository-relative paths to stage before committing; omit to commit the index as it stands.
+    paths: NotRequired[list[str]]
+    # Additional keys beyond those declared are allowed.
+
+class GitCommitOutput(TypedDict):
+    hash: str
+    short_hash: str
+    subject: str
+
+class GitDiffArgs(TypedDict):
+    # Repository-relative path to diff; omit for the whole checkout.
+    path: NotRequired[str]
+    # Compare the index with HEAD instead of the working tree with the index.
+    staged: NotRequired[bool]
+    # Two revisions to compare, such as "main..HEAD". Takes precedence over staged.
+    range: NotRequired[str]
+    # Additional keys beyond those declared are allowed.
+
+class GitDiffOutput(TypedDict):
+    diff: str
+    truncated: bool
+
+class GitLogArgs(TypedDict):
+    # How many commits to report. Omit for the configured default.
+    limit: NotRequired[float]
+    # Additional keys beyond those declared are allowed.
+
+class GitLogOutputCommits(TypedDict):
+    hash: str
+    short_hash: str
+    author: str
+    date: str
+    subject: str
+
+class GitLogOutput(TypedDict):
+    commits: list[GitLogOutputCommits]
+
+class GitMergeArgs(TypedDict):
+    # Branch or revision to merge into the checked-out branch.
+    ref: NotRequired[str]
+    # Abort an in-progress merge instead of starting one.
+    abort: NotRequired[bool]
+    # Additional keys beyond those declared are allowed.
+
+class GitMergeOutput(TypedDict):
+    outcome: Literal["merged", "conflicted", "up-to-date", "aborted"]
+    conflicts: list[str]
+    output: str
+
+class GitRemoteArgs(TypedDict):
+    # Fetch remote updates, or push the current branch.
+    operation: Literal["fetch", "push"]
+    # Remote name; omit to use the branch's own remote.
+    remote: NotRequired[str]
+    # Branch to push; omit to push the checked-out branch.
+    branch: NotRequired[str]
+    # Additional keys beyond those declared are allowed.
+
+class GitRemoteOutput(TypedDict):
+    output: str
+
+class GitStatusOutputChanges(TypedDict):
+    path: str
+    staged: NotRequired[str]
+    worktree: NotRequired[str]
+
+class GitStatusOutput(TypedDict):
+    repository: str
+    branch: NotRequired[str]
+    detached: bool
+    upstream: NotRequired[str]
+    ahead: float
+    behind: float
+    truncated: bool
+    changes: list[GitStatusOutputChanges]
 
 class GlobArgs(TypedDict):
     # Glob pattern to match file paths against (e.g. "**/*.ts", "src/**/*.test.js"). A pattern with no "/" matches the basename at any depth, so "*" and "*.ts" both search the whole tree; include a separator to anchor the depth.
@@ -300,24 +432,49 @@ class RalphOutput(TypedDict):
     agentsStarted: int
     result: Any
 
-class ReadArgs(TypedDict):
+class ReadArgsFiles(TypedDict):
     # Path to read, resolved by the filesystem backend.
     file_path: str
     # 1-based first line to return. Defaults to 1.
     offset: NotRequired[float]
     # Maximum number of lines to return. Defaults to 2000.
     limit: NotRequired[float]
+
+class ReadArgs(TypedDict):
+    # Path to read, resolved by the filesystem backend. Required unless files is given.
+    file_path: NotRequired[str]
+    # 1-based first line to return. Defaults to 1.
+    offset: NotRequired[float]
+    # Maximum number of lines to return. Defaults to 2000.
+    limit: NotRequired[float]
+    # Several files in one call, read concurrently and returned in order. Use instead of the top-level file_path, offset, and limit.
+    files: NotRequired[list[ReadArgsFiles]]
     # Additional keys beyond those declared are allowed.
 
-class ReadOutputLines(TypedDict):
+class ReadOutputFiles1Lines(TypedDict):
     number: int
     text: str
 
-class ReadOutput(TypedDict):
+class ReadOutputFiles1(TypedDict):
     path: str
     offset: int
-    lines: list[ReadOutputLines]
+    lines: list[ReadOutputFiles1Lines]
     totalLines: int
+
+class ReadOutputFiles2(TypedDict):
+    path: str
+    error: str
+
+class ReadOutput(TypedDict):
+    files: list[ReadOutputFiles1 | ReadOutputFiles2]
+
+class ReadAloudArgs(TypedDict):
+    # true to read your replies aloud from now on, false to stop reading them.
+    enabled: bool
+    # Additional keys beyond those declared are allowed.
+
+class ReadAloudOutput(TypedDict):
+    enabled: bool
 
 class ReadImageArgs(TypedDict):
     # Path to the image file, resolved by the filesystem backend.
@@ -340,6 +497,19 @@ class ReadImageOutputImage(TypedDict):
 class ReadImageOutput(TypedDict):
     path: str
     image: ReadImageOutputImage
+
+class RemoveWorktreeArgs(TypedDict):
+    # Name of the worktree to remove, as its directory and branch name it (without the branch prefix). Omit to remove the worktree this session works in.
+    name: NotRequired[str]
+    # Also delete the worktree's branch. Git refuses while the branch is not merged.
+    delete_branch: NotRequired[bool]
+    # Additional keys beyond those declared are allowed.
+
+class RemoveWorktreeOutput(TypedDict):
+    path: str
+    branch: NotRequired[str]
+    branchDeleted: bool
+    cwd: NotRequired[str]
 
 class SendMessageArgs(TypedDict):
     # The agent id of your direct continuable child, or your direct parent when you are a resident continuable child.
@@ -595,13 +765,27 @@ class Tools(Protocol):
     async def create_goal(self, args: CreateGoalArgs) -> CreateGoalOutput1 | CreateGoalOutput2:
         """Create a persisted goal that keeps this session working across automatic continuation rounds. Use it when the direct human request is a long-running objective, even if the user did not say \"goal\"; not for single-turn work."""
     async def create_worktree(self, args: dict[str, Any]) -> CreateWorktreeOutput:
-        """Create a git worktree on a new branch and move this session into it. Use it when a task needs its own checkout: work in parallel with another agent on the same repository, try a change without touching the main working tree, or leave a build in place while starting something else. The new checkout is created from HEAD, or from the revision you name, and every later file, shell, and search call resolves against it."""
+        """Create a git worktree on a new branch and move this session into it. Use it when a task needs its own checkout: work in parallel with another agent on the same repository, try a change without touching the main working tree, or leave a build in place while starting something else. The new checkout is created from HEAD, or from the revision you name; uncommitted changes in the current checkout do not carry over. Every later file, shell, and search call resolves against it, and file writes are confined to it. Subagents already get their own worktree automatically."""
     async def edit(self, args: EditArgs) -> EditOutput:
-        """Edit an existing UTF-8 text file by replacing literal text."""
+        """Edit existing UTF-8 text files by replacing literal text. Several files whose edits are already decided go together in one call through files."""
     async def exit_plan_mode(self, args: ExitPlanModeArgs) -> ExitPlanModeOutput:
         """Use only in plan mode. Present your plan for the user's review and, on approval, leave plan mode. Send the COMPLETE plan as markdown, starting with a # heading that names it. The user may approve (carry out the plan from your next step) or keep planning — their feedback comes back in the tool result; revise and present again."""
     async def get_goal(self, args: dict[str, Any]) -> GetGoalOutput1 | GetGoalOutput2:
         """Read the current session goal, including the id and revision that update_goal requires."""
+    async def git_branch(self, args: dict[str, Any]) -> GitBranchOutput:
+        """List, create, switch, or delete branches. Switching refuses while the checkout has uncommitted changes unless allow_dirty is true, because a switch would otherwise carry or block them unpredictably. Deleting refuses an unmerged branch unless force is true."""
+    async def git_commit(self, args: GitCommitArgs) -> GitCommitOutput:
+        """Record the staged changes as a commit. Pass paths to stage those paths first, or omit them to commit exactly what the index holds. The message goes to git verbatim, so keep it to one clear subject line and, when useful, a body after a blank line."""
+    async def git_diff(self, args: GitDiffArgs) -> GitDiffOutput:
+        """Show a unified diff of this session's repository. By default it compares the working tree with the index, so it shows what is not staged yet; use staged to compare the index with HEAD, or range for two revisions such as \"main..HEAD\". A long diff is cut and marked truncated."""
+    async def git_log(self, args: GitLogArgs) -> GitLogOutput:
+        """List recent commits in this session's repository, newest first, with hash, author, date, and subject. Use it to see what landed before changing history or writing a commit message."""
+    async def git_merge(self, args: GitMergeArgs) -> GitMergeOutput:
+        """Merge a branch or revision into the checked-out branch. A merge that conflicts returns the paths left with conflicts instead of raising only an exit status; abort discards an in-progress merge."""
+    async def git_remote(self, args: GitRemoteArgs) -> GitRemoteOutput:
+        """Fetch from a remote or push the current branch to it. Omit remote to use the branch's own remote and omit branch to push the branch that is checked out. The command's own output is returned."""
+    async def git_status(self, args: dict[str, Any]) -> GitStatusOutput:
+        """Report the repository this session works in: checked-out branch, upstream and commits ahead or behind it, and every changed path with its staged and unstaged change. Start here before committing or switching branches."""
     async def glob(self, args: GlobArgs) -> GlobOutput:
         """Find files, not directories, whose paths match a glob pattern, including hidden and ignored files. Returns up to 100 paths in modification-time order; a larger result keeps the first paths and reports where the complete list was saved."""
     async def grep(self, args: GrepArgs) -> GrepOutput:
@@ -619,9 +803,13 @@ class Tools(Protocol):
     async def ralph(self, args: RalphArgs) -> RalphOutput:
         """Run a foreground fresh-agent Ralph loop toward one immutable objective. Use only when the direct human explicitly asks for Ralph or fresh-agent iteration. Each round opens a new child with no parent conversation or prior child session; the shared workspace is long-term memory, and only a bounded structured report crosses rounds. The call returns when a worker reports completion or a concrete blocker, or at the round limit. Ordinary long-running same-session work belongs to goal tools."""
     async def read(self, args: ReadArgs) -> ReadOutput:
-        """Read a UTF-8 text file and return line-numbered content."""
+        """Read UTF-8 text files and return line-numbered content. Several files you already know you need go together in one call through files."""
+    async def read_aloud(self, args: ReadAloudArgs) -> ReadAloudOutput:
+        """Turn spoken read-aloud of your replies on or off for this session. Switch it on when the user wants to hear the answers — language practice, pronunciation, or a hands-free conversation — and off when they ask you to stop. It changes only the reader; your replies themselves stay text."""
     async def read_image(self, args: ReadImageArgs) -> ReadImageOutput:
         """Read a PNG/JPEG/WebP/GIF file and return the image itself. A path without a file extension is accepted; the format is detected from the file content, so normalized attachment paths can be passed directly without copying or renaming. Aeven validates and downscales large supported images before the next model request, so use this tool directly instead of installing image libraries or creating thumbnails merely to inspect an image. Independent files may be read concurrently in small batches. Requires the current model to accept image input."""
+    async def remove_worktree(self, args: RemoveWorktreeArgs) -> RemoveWorktreeOutput:
+        """Remove a git worktree created by create_worktree or for a subagent, once its branch is merged or no longer needed. Without a name, removes the worktree this session works in and moves the session back to the repository's main checkout. Fails while the worktree has uncommitted changes. With delete_branch, also deletes its branch, which git refuses while the branch is unmerged."""
     async def send_message(self, args: SendMessageArgs) -> SendMessageOutput:
         """Send a message to a direct continuable child by its agent id. If you are a resident continuable child, you may also target your direct parent. If the target is still working, the message steers its nearest step; if it is idle, the message starts a turn. This call returns no answer from the agent — only confirmation that the message was delivered. A failure means the message was NOT delivered."""
     async def skill(self, args: SkillArgs) -> SkillOutput:

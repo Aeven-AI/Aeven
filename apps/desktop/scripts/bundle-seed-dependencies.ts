@@ -2,7 +2,7 @@
 
 import { createRequire } from 'node:module'
 import { existsSync } from 'node:fs'
-import { lstat, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises'
 import { dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { init, parse } from 'cjs-module-lexer'
 import { build } from 'tsdown'
@@ -27,6 +27,17 @@ const ESM_PACKAGE_ROOTS: Readonly<Record<string, readonly string[]>> = {
 }
 
 /**
+ * Decide whether one module id belongs to the package being consolidated.
+ * @param id - module id the compiler reports.
+ * @param roots - the package directory beside the path its symlinks resolve to.
+ * @returns whether the module lives inside the package.
+ */
+function insidePackage(id: string, roots: readonly string[]): boolean {
+  const path = id.replaceAll('\\', '/')
+  return roots.some(root => path.startsWith(root.split(sep).join('/') + '/'))
+}
+
+/**
  * Consolidate one reviewed CommonJS package, preserving deep imports and Node's named-export detection.
  * The output replaces directory entries by rename, never writes through pnpm's hard links.
  * @param packageDir - package directory owned by the packaging transaction.
@@ -36,6 +47,7 @@ const ESM_PACKAGE_ROOTS: Readonly<Record<string, readonly string[]>> = {
  */
 export async function bundleSeedPackage(packageDir: string, roots: readonly string[], scratchRoot: string): Promise<number> {
   const base = resolve(packageDir)
+  const rootsInside = [base, await realpath(base)]
   const files: string[] = []
   const collect = async (path: string): Promise<void> => {
     const identity = await lstat(path)
@@ -101,7 +113,7 @@ export async function bundleSeedPackage(packageDir: string, roots: readonly stri
       logLevel: 'silent',
       deps: { neverBundle: Object.keys({ ...manifest.dependencies, ...manifest.peerDependencies, ...manifest.optionalDependencies }) },
       outputOptions: {
-        codeSplitting: { groups: [{ name: 'aeven-runtime', test: id => id.replaceAll('\\', '/').startsWith(base.split(sep).join('/') + '/') }] },
+        codeSplitting: { groups: [{ name: 'aeven-runtime', test: id => insidePackage(id, rootsInside) }] },
       },
     })
     for (const path of files) {
@@ -139,6 +151,7 @@ export async function bundleSeedPackage(packageDir: string, roots: readonly stri
  */
 export async function bundleSeedEsmPackage(packageDir: string, roots: readonly string[], scratchRoot: string): Promise<number> {
   const base = resolve(packageDir)
+  const rootsInside = [base, await realpath(base)]
   const files: string[] = []
   const collect = async (path: string): Promise<void> => {
     const identity = await lstat(path)
@@ -185,9 +198,10 @@ export async function bundleSeedEsmPackage(packageDir: string, roots: readonly s
       logLevel: 'silent',
       deps: { neverBundle: Object.keys({ ...manifest.dependencies, ...manifest.peerDependencies, ...manifest.optionalDependencies }) },
       outputOptions: {
-        codeSplitting: { groups: [{ name: 'aeven-runtime', test: id => id.replaceAll('\\', '/').startsWith(base.split(sep).join('/') + '/') }] },
+        codeSplitting: { groups: [{ name: 'aeven-runtime', test: id => insidePackage(id, rootsInside) }] },
       },
     })
+    const renamed = new Map<string, string>()
     const publish = async (dir: string): Promise<void> => {
       for (const item of await readdir(dir, { withFileTypes: true })) {
         const path = join(dir, item.name)
@@ -199,10 +213,25 @@ export async function bundleSeedEsmPackage(packageDir: string, roots: readonly s
           const target = existsSync(module) ? module : emitted
           await mkdir(dirname(target), { recursive: true })
           await renameRetryingWindowsLocks(path, target)
+          renamed.set(emitted, target)
         }
       }
     }
     await publish(output)
+    // A module published under its source extension leaves every facade naming the
+    // emitted `.js` path, so those specifiers follow the rename within their directory.
+    const republished = [...renamed].filter(([emitted, target]) => emitted !== target)
+    for (const file of renamed.values()) {
+      const ext = extname(file)
+      if (ext !== '.js' && ext !== '.mjs') continue
+      let source = await readFile(file, 'utf8')
+      for (const [emitted, target] of republished) {
+        if (dirname(emitted) !== dirname(file)) continue
+        source = source.split(`./${relative(dirname(emitted), emitted)}`)
+          .join(`./${relative(dirname(target), target)}`)
+      }
+      await writeFile(file, source)
+    }
     return files.length
   } finally {
     await rm(scratch, { recursive: true, force: true })

@@ -18,7 +18,7 @@
     },
     {
       "name": "create_worktree",
-      "description": "Create a git worktree on a new branch and move this session into it. Use it when a task needs its own checkout: work in parallel with another agent on the same repository, try a change without touching the main working tree, or leave a build in place while starting something else. The new checkout is created from HEAD, or from the revision you name, and every later file, shell, and search call resolves against it.",
+      "description": "Create a git worktree on a new branch and move this session into it. Use it when a task needs its own checkout: work in parallel with another agent on the same repository, try a change without touching the main working tree, or leave a build in place while starting something else. The new checkout is created from HEAD, or from the revision you name; uncommitted changes in the current checkout do not carry over. Every later file, shell, and search call resolves against it, and file writes are confined to it. Subagents already get their own worktree automatically.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -29,6 +29,187 @@
           "from": {
             "type": "string",
             "description": "Revision the new branch starts from: a branch, tag, or commit. Defaults to HEAD of the session's repository."
+          }
+        }
+      }
+    },
+    {
+      "name": "git_branch",
+      "description": "List, create, switch, or delete branches. Switching refuses while the checkout has uncommitted changes unless allow_dirty is true, because a switch would otherwise carry or block them unpredictably. Deleting refuses an unmerged branch unless force is true.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "description": "What to do: list every local branch, switch to one, create one, or delete one.",
+            "enum": [
+              "list",
+              "switch",
+              "create",
+              "delete"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "description": "Branch name; required for switch, create, and delete."
+          },
+          "from": {
+            "type": "string",
+            "description": "Revision a created branch starts from. Defaults to HEAD."
+          },
+          "allow_dirty": {
+            "type": "boolean",
+            "description": "Switch even though the checkout has uncommitted changes."
+          },
+          "force": {
+            "type": "boolean",
+            "description": "Delete a branch that is not merged."
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      }
+    },
+    {
+      "name": "git_commit",
+      "description": "Record the staged changes as a commit. Pass paths to stage those paths first, or omit them to commit exactly what the index holds. The message goes to git verbatim, so keep it to one clear subject line and, when useful, a body after a blank line.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Commit message, passed to git verbatim."
+          },
+          "paths": {
+            "type": "array",
+            "description": "Repository-relative paths to stage before committing; omit to commit the index as it stands.",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "message"
+        ]
+      }
+    },
+    {
+      "name": "git_diff",
+      "description": "Show a unified diff of this session's repository. By default it compares the working tree with the index, so it shows what is not staged yet; use staged to compare the index with HEAD, or range for two revisions such as \"main..HEAD\". A long diff is cut and marked truncated.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Repository-relative path to diff; omit for the whole checkout."
+          },
+          "staged": {
+            "type": "boolean",
+            "description": "Compare the index with HEAD instead of the working tree with the index."
+          },
+          "range": {
+            "type": "string",
+            "description": "Two revisions to compare, such as \"main..HEAD\". Takes precedence over staged."
+          }
+        }
+      }
+    },
+    {
+      "name": "git_log",
+      "description": "List recent commits in this session's repository, newest first, with hash, author, date, and subject. Use it to see what landed before changing history or writing a commit message.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "number",
+            "description": "How many commits to report. Omit for the configured default."
+          }
+        }
+      }
+    },
+    {
+      "name": "git_merge",
+      "description": "Merge a branch or revision into the checked-out branch. A merge that conflicts returns the paths left with conflicts instead of raising only an exit status; abort discards an in-progress merge.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string",
+            "description": "Branch or revision to merge into the checked-out branch."
+          },
+          "abort": {
+            "type": "boolean",
+            "description": "Abort an in-progress merge instead of starting one."
+          }
+        }
+      }
+    },
+    {
+      "name": "git_remote",
+      "description": "Fetch from a remote or push the current branch to it. Omit remote to use the branch's own remote and omit branch to push the branch that is checked out. The command's own output is returned.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "description": "Fetch remote updates, or push the current branch.",
+            "enum": [
+              "fetch",
+              "push"
+            ]
+          },
+          "remote": {
+            "type": "string",
+            "description": "Remote name; omit to use the branch's own remote."
+          },
+          "branch": {
+            "type": "string",
+            "description": "Branch to push; omit to push the checked-out branch."
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      }
+    },
+    {
+      "name": "git_status",
+      "description": "Report the repository this session works in: checked-out branch, upstream and commits ahead or behind it, and every changed path with its staged and unstaged change. Start here before committing or switching branches.",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "read_aloud",
+      "description": "Turn spoken read-aloud of your replies on or off for this session. Switch it on when the user wants to hear the answers — language practice, pronunciation, or a hands-free conversation — and off when they ask you to stop. It changes only the reader; your replies themselves stay text.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "true to read your replies aloud from now on, false to stop reading them."
+          }
+        },
+        "required": [
+          "enabled"
+        ]
+      }
+    },
+    {
+      "name": "remove_worktree",
+      "description": "Remove a git worktree created by create_worktree or for a subagent, once its branch is merged or no longer needed. Without a name, removes the worktree this session works in and moves the session back to the repository's main checkout. Fails while the worktree has uncommitted changes. With delete_branch, also deletes its branch, which git refuses while the branch is unmerged.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the worktree to remove, as its directory and branch name it (without the branch prefix). Omit to remove the worktree this session works in."
+          },
+          "delete_branch": {
+            "type": "boolean",
+            "description": "Also delete the worktree's branch. Git refuses while the branch is not merged."
           }
         }
       }

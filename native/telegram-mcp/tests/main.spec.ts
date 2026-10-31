@@ -1,6 +1,7 @@
 /** The built daemon entry: its address announcement, the token gate, and shutdown when stdin closes. */
 
 import { spawn, type ChildProcess } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -51,7 +52,10 @@ afterEach(async () => {
 })
 
 describe('telegram daemon entry', () => {
-  it('announces a loopback address, answers status only for its token, and stops when stdin closes', async () => {
+  // The subject is the built entry: the CI test job builds it, and a checkout
+  // that has not says so by skipping instead of reporting a daemon exit code.
+  it.skipIf(!existsSync(ENTRY))(
+    'announces a loopback address, answers status only for its token, and stops when stdin closes', async () => {
     const { child, address, token } = await launch()
 
     const unauthorized = await fetch(`http://${address}/status`)

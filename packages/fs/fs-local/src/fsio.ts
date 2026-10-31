@@ -36,6 +36,11 @@ function isENOTDIR(error: unknown): boolean {
   return error instanceof Error && 'code' in error && error.code === 'ENOTDIR'
 }
 
+/** A descriptor directory (`/dev/fd`, `/proc/self/fd`) names a live handle the process owns. */
+function isEBADF(error: unknown): boolean {
+  return error instanceof Error && 'code' in error && error.code === 'EBADF'
+}
+
 function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === 'AbortError'
 }
@@ -313,7 +318,11 @@ export async function listDirectory(target: LocalTarget, signal?: AbortSignal): 
         ...(childInfo?.type === 'file' ? { size: childInfo.size } : {}),
       })
     } catch (error: unknown) {
-      throw listingIoError(join(target.displayPath, entry.name), error)
+      // A child can leave the directory between readdir and its stat, and a
+      // descriptor directory like /dev/fd names a handle whose number belongs to
+      // this process. Skipping one unusable child keeps the listing usable; any
+      // other failure still names the path that caused it.
+      if (!isENOENT(error) && !isEBADF(error)) throw listingIoError(join(target.displayPath, entry.name), error)
     }
     throwIfAborted(signal, 'list')
   }

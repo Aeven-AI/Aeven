@@ -136,6 +136,7 @@ describe('ui-settings-plugins apply', () => {
         'shell',
         'agent-loop',
         'subagent-model-selection',
+        'subagent-nesting',
         'session-query-sqlite',
         'web-search-deepseek',
       ])
@@ -241,7 +242,7 @@ describe('ui-settings-plugins apply', () => {
     declareRoot(slots)
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
-    expect(slots.entries('settings.plugin.item')).toHaveLength(5)
+    expect(slots.entries('settings.plugin.item')).toHaveLength(6)
 
     await fiber.dispose()
 

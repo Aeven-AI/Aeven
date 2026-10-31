@@ -17,7 +17,7 @@ describe('Client Cordis inspect catalog', () => {
         'startSession(workspaceId?: WorkspaceId, sessionId?: SessionId): void',
         'newSessionHref(): { href: string; sessionId: SessionId }',
         'archiveSession(sessionId: SessionId): Promise<void>',
-        'pickDirectory(): Promise<string | null>',
+        'pickDirectory(directory?: string): Promise<string | null>',
         'listDirectory(path?: string, signal?: AbortSignal): Promise<DirectoryListing>',
         'createDirectory(path: string, name: string): Promise<string>',
       ])

@@ -40,6 +40,10 @@ async function fixture(options: { corrupt?: boolean; unhealthy?: boolean; host?:
   const directory = await mkdtemp(join(tmpdir(), 'avn-rea-install-'))
   disposers.push(() => rm(directory, { recursive: true, force: true }))
   vi.stubEnv('AVN_HOME', directory)
+  // A runner image often exports a JDK or Ghidra location of its own. Both the
+  // host probe and the engine checks read these names, so a spec that wants the
+  // fixture's engines has to start from a host that names none.
+  for (const name of ['GHIDRA_INSTALL_DIR', 'JAVA_HOME', 'JDK_HOME']) vi.stubEnv(name, undefined)
   const javaPath = process.platform === 'darwin' ? 'jdk/Contents/Home/bin' : 'jdk/bin'
   await mkdir(join(directory, javaPath), { recursive: true })
   await writeFile(join(directory, javaPath, 'java'), 'fixture JDK')
