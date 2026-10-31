@@ -46,6 +46,10 @@ jobs:
       # `lib/`, so a checkout with no build output cannot run it at all.
       - name: Build
         run: pnpm run build
+      # The workspace build leaves `native/` alone, and the daemon spec launches
+      # this entry rather than its source.
+      - name: Build the telegram daemon entry
+        run: pnpm --filter @aeven/telegram-mcp run build
       - name: Unit suite
         run: pnpm run check:ci:test
 

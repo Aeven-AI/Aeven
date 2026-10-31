@@ -52,8 +52,8 @@ afterEach(async () => {
 })
 
 describe('telegram daemon entry', () => {
-  // The subject is the built entry, so a checkout without build output has
-  // nothing to launch; the build lane covers this case.
+  // The subject is the built entry: the CI test job builds it, and a checkout
+  // that has not says so by skipping instead of reporting a daemon exit code.
   it.skipIf(!existsSync(ENTRY))(
     'announces a loopback address, answers status only for its token, and stops when stdin closes', async () => {
     const { child, address, token } = await launch()
