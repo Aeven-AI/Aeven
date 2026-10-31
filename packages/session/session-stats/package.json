@@ -1,7 +1,7 @@
 {
   "name": "@aeven/session-stats",
   "description": "Whole-log conversation counts and wall times projection (sessionStats) for the Aeven",
-  "version": "0.3.29-alpha",
+  "version": "0.3.30-alpha",
   "publishConfig": {
     "access": "public"
   },

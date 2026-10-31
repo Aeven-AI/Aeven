@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-model-selection",
   "description": "Model selection over the shared model catalog, Session projection, and session.selectModel",
-  "version": "0.3.29-alpha",
+  "version": "0.3.30-alpha",
   "publishConfig": {
     "access": "public"
   },

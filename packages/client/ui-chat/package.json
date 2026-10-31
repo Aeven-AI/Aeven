@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-chat",
   "description": "Chat Conversation target, node definitions, renderers, and details surface",
-  "version": "0.3.29-alpha",
+  "version": "0.3.30-alpha",
   "publishConfig": {
     "access": "public"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-update",
   "description": "Desktop update popup: the release stream's state, its download progress, and the restart question",
-  "version": "0.3.29-alpha",
+  "version": "0.3.30-alpha",
   "publishConfig": {
     "access": "public"
   },

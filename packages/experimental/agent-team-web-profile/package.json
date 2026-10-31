@@ -1,7 +1,7 @@
 {
   "name": "@aeven/experimental-agent-team-web-profile",
   "description": "Private Web profile layer for Agent Teams Remote and UI plugins",
-  "version": "0.3.29-alpha",
+  "version": "0.3.30-alpha",
   "private": true,
   "repository": {
     "type": "git",
