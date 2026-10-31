@@ -100,10 +100,12 @@ jobs:
         run: |
           sudo apt-get install --yes --no-install-recommends zlib1g-dev pkg-config nasm libva-dev
 
-      # The same MSYS2 setup the ffmpeg-only workflow uses: the action installs and updates the environment, and
-      # its package set supplies the compiler, binutils, static libopus, pkgconf, nasm, make, and diffutils.
-      # The action's package cache is off: its last step prunes that cache with paccache, and a failed prune
-      # failed a build after every package had installed, so the download cost is the cheaper failure mode.
+      # The same MSYS2 setup the ffmpeg-only workflow uses: the action installs the environment, and the package
+      # set supplies the compiler, binutils, static libopus, pkgconf, nasm, make, and diffutils.
+      # Its cache is off deliberately: `update` runs one `pacman -Syuu` and one stalled mirror transfer fails the
+      # build with `failed to synchronize all databases`, while the package cache's last step prunes with
+      # paccache, and a failed prune failed a build after every package had installed. `install-msys2.ps1`
+      # therefore performs both the upgrade and the install, with curl retrying each transfer.
       - name: Set up MSYS2 (Windows x64)
         if: inputs.target == 'win-x64'
         id: msys2-x64
@@ -112,11 +114,12 @@ jobs:
           msystem: CLANG64
           cache: false
           release: false
-          update: true
-          install: >-
-            make nasm diffutils pkgconf
-            mingw-w64-clang-x86_64-clang mingw-w64-clang-x86_64-binutils
-            mingw-w64-clang-x86_64-opus mingw-w64-clang-x86_64-zlib
+          update: false
+
+      - name: Install MSYS2 packages (Windows x64)
+        if: inputs.target == 'win-x64'
+        shell: pwsh
+        run: ./.github/scripts/install-msys2.ps1 -Msys2Root '${{ steps.msys2-x64.outputs.msys2-location }}' -Packages make,nasm,diffutils,pkgconf,mingw-w64-clang-x86_64-clang,mingw-w64-clang-x86_64-binutils,mingw-w64-clang-x86_64-opus,mingw-w64-clang-x86_64-zlib
 
       - name: Set up MSYS2 (Windows arm64)
         if: inputs.target == 'win-arm64'
@@ -126,11 +129,12 @@ jobs:
           msystem: CLANGARM64
           cache: false
           release: false
-          update: true
-          install: >-
-            make nasm diffutils pkgconf
-            mingw-w64-clang-aarch64-clang mingw-w64-clang-aarch64-binutils
-            mingw-w64-clang-aarch64-opus mingw-w64-clang-aarch64-zlib
+          update: false
+
+      - name: Install MSYS2 packages (Windows arm64)
+        if: inputs.target == 'win-arm64'
+        shell: pwsh
+        run: ./.github/scripts/install-msys2.ps1 -Msys2Root '${{ steps.msys2-arm64.outputs.msys2-location }}' -Packages make,nasm,diffutils,pkgconf,mingw-w64-clang-aarch64-clang,mingw-w64-clang-aarch64-binutils,mingw-w64-clang-aarch64-opus,mingw-w64-clang-aarch64-zlib
 
       - run: pnpm install --frozen-lockfile
 
