@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-tts",
   "description": "Composer read-aloud toggle: speaks assistant replies through the Host speech synthesis Remote",
-  "version": "0.3.29-alpha",
+  "version": "0.3.30-alpha",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",

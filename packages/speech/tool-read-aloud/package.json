@@ -1,7 +1,7 @@
 {
   "name": "@aeven/tool-read-aloud",
   "description": "Model-facing read_aloud tool that switches spoken replies on for a session",
-  "version": "0.3.29-alpha",
+  "version": "0.3.30-alpha",
   "publishConfig": {
     "access": "public"
   },

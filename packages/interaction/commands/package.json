@@ -1,7 +1,7 @@
 {
   "name": "@aeven/commands",
   "description": "Plugin-owned human command registry for Aeven UIs",
-  "version": "0.3.29-alpha",
+  "version": "0.3.30-alpha",
   "publishConfig": {
     "access": "public"
   },

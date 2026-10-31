@@ -1,7 +1,7 @@
 {
   "name": "@aeven/spill-local",
   "description": "Local-filesystem implementation of the Aeven spill storage seam (private session-scoped files)",
-  "version": "0.3.29-alpha",
+  "version": "0.3.30-alpha",
   "publishConfig": {
     "access": "public"
   },

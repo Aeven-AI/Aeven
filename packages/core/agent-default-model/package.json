@@ -1,7 +1,7 @@
 {
   "name": "@aeven/agent-default-model",
   "description": "Default model selection shared by Agent entry points",
-  "version": "0.3.29-alpha",
+  "version": "0.3.30-alpha",
   "publishConfig": {
     "access": "public"
   },
