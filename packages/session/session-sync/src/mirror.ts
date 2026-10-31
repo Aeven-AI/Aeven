@@ -352,6 +352,9 @@ export class SessionMirror {
   private releaseLocal(sessionId: SessionId): Promise<void> {
     const existing = this.releases.get(sessionId)
     if (existing !== undefined) return existing
+    // Batches from the new writer reach this device directly, so subscribe before the release awaits; a batch
+    // published meanwhile waits for the release in `ingestLan` and is applied after it.
+    this.watch(sessionId)
     const release = (async () => {
       const holder = this.runners.get(sessionId)
       this.runners.delete(sessionId)
