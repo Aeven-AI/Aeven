@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-10-31-pull-request-gates-run-on-github.md
-2026-10-31-pull-request-gates-run-on-github.md: 0564650ffc4d3977bcc608c452c5042168ef4c2d
-2026-10-31-pull-request-gates-run-on-github.zh.md: 34461d9c53a9e11f792b7ab446de893b96db8e17
+2026-10-31-pull-request-gates-run-on-github.md: b3602a790ecefaec16611092334b2d1194a4ad5f
+2026-10-31-pull-request-gates-run-on-github.zh.md: 070347d912343ac10d9c968fbca6f189446afc8d

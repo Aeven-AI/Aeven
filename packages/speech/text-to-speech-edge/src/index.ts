@@ -55,7 +55,7 @@ export function apply(ctx: Context, config: Config): void {
             const chunks: Buffer[] = []
             for await (const chunk of tts.toStream(input.text).audioStream) {
               signal.throwIfAborted()
-              chunks.push(Buffer.from(chunk as Uint8Array))
+              chunks.push(Buffer.from(chunk))
             }
             if (chunks.length === 0) throw new Error('Speech synthesis returned no audio')
             return new Uint8Array(Buffer.concat(chunks))

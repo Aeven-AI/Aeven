@@ -10,10 +10,13 @@ The `main` ruleset required a pull request and refused direct pushes, deletion, 
 
 ## Decision
 
-- **`.github/workflows/ci.yml` runs four lanes** on every pull request into `main`, every merge-queue entry, and manual dispatch, one job each on `ubuntu-latest` with Node 24: `pnpm run check:ci:static`; `pnpm run typecheck` followed by `pnpm run check:ci:lint:contracts-ready`; `pnpm run check:ci:snapshot`; and `pnpm run check:ci:artifacts`.
-- **The `main` ruleset requires the four job names** — `static`, `types-lint`, `snapshot`, `artifacts` — beside the pull-request, deletion, and non-fast-forward rules.
+- **`.github/workflows/ci.yml` runs three lanes** on every pull request into `main`, every merge-queue entry, and manual dispatch, one job each with Node 24: `static` and `types-lint` on `ubuntu-latest`, and `build-verify` on `macos-latest`.
+- **`build-verify` builds the workspace once** and then runs everything that reads the output: `publint`, the NodeNext consumer types, the built-package invariants, and the keyless recorded-session replay. The replay reads this platform's sandbox and process-tree behavior, which is why that job is macOS.
+- **The `main` ruleset requires the three job names** — `static`, `types-lint`, `build-verify` — beside the pull-request, deletion, and non-fast-forward rules.
 - **Coverage stays local.** `pnpm run test:coverage` remains the repository's gating coverage run, off the per-push path: per-file 100% under instrumentation is the slowest lane in the matrix, and a lane that fails on runner capacity teaches contributors to ignore the check.
 - **The remaining lanes stay local**: `check:ci:consumers` (Node 22.19/24/26 compatibility, browser web snapshots, doc typecheck), the Windows lanes, `pnpm run test:e2e` (needs `DEEPSEEK_API_KEY`, which fork pull requests never receive), and every documentation gate, which is advisory by policy.
+- **Duplication and the snapshot replay report without blocking.** Six clones are open on `main` across the per-package `sync.ts` modules, and several headless fixtures predate the working-directory prompt section; both need a shared helper or a keyed `test:snapshot:record` before they can gate a merge, and `ci-primary` still fails on them.
+- **The documentation gates run in one process.** `pnpm run doc-gates` executes the workspace constraints and the Markdown wrap check from one Node process inside the `static` lane, instead of one `pnpm run` subprocess each.
 - **No `paths:` filters.** A required check that a filter skips never reports, and an unreported required check blocks the merge.
 
 ## Alternatives considered
@@ -28,8 +31,8 @@ The `main` ruleset required a pull request and refused direct pushes, deletion, 
 
 ## Consequences
 
-- Every pull request costs four Linux jobs. `snapshot` and `artifacts` each build the workspace, so that build runs twice; one combined job would halve it and lose a check name that names one concern.
-- A merge now waits for four checks, so an unstable one blocks the queue. `concurrency` cancels a superseded push run and exempts a merge-queue batch, which a pull-request push must not cancel.
+- One `build-verify` job builds the workspace once for both the publish surface and the snapshot replay; two jobs would build it twice and cost a second full compile per pull request.
+- A merge now waits for three checks, so an unstable one blocks the queue. `concurrency` cancels a superseded push run and exempts a merge-queue batch, which a pull-request push must not cancel.
 - Coverage, the Node compatibility matrix, browser snapshots, and the Windows lanes remain evidence someone runs by hand: `main` can carry an uncovered line until a contributor or a diagnosing agent runs `check:all`.
-- The four job names are ruleset identifiers. A renamed job leaves every open pull request waiting on a context that never reports.
-- The workflow's own pull request is its first evidence: the four jobs report on this change before the ruleset requires them.
+- The three job names are ruleset identifiers. A renamed job leaves every open pull request waiting on a context that never reports.
+- The workflow's own pull request is its first evidence: the three jobs report on this change before the ruleset requires them.

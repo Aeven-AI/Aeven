@@ -164,8 +164,10 @@ export class MsEdgeTTS {
           continue
         }
         if (turn.ended) return
-        const notified = await this.wait(turn)
-        if (!notified && turn.frames.length === 0 && !turn.ended && turn.failure === undefined) {
+        const wake = await this.wait(turn)
+        if (wake === 'ended') return
+        if (wake instanceof Error) throw wake
+        if (wake === 'timeout') {
           throw new Error(`Edge TTS synthesis timed out after ${this.synthesisTimeoutMs} milliseconds without activity`)
         }
       }
@@ -177,12 +179,14 @@ export class MsEdgeTTS {
   /**
    * Wait for the next frame of one turn, no longer than the synthesis deadline.
    * @param turn - turn its reader is waiting on.
-   * @returns whether the service woke the wait.
+   * @returns what settled the wait: a frame, the end of the turn, its failure, or the deadline.
    */
-  private async wait(turn: Turn): Promise<boolean> {
-    return await new Promise<boolean>((resolve) => {
-      const timer = setTimeout(() => { resolve(false) }, this.synthesisTimeoutMs)
-      turn.notify = () => { clearTimeout(timer); resolve(true) }
+  private async wait(turn: Turn): Promise<'frame' | 'ended' | Error | 'timeout'> {
+    return await new Promise<'frame' | 'ended' | Error | 'timeout'>((resolve) => {
+      const timer = setTimeout(() => {
+        resolve(turn.frames.length > 0 ? 'frame' : turn.ended ? 'ended' : turn.failure ?? 'timeout')
+      }, this.synthesisTimeoutMs)
+      turn.notify = () => { clearTimeout(timer); resolve('frame') }
     })
   }
 
@@ -192,12 +196,15 @@ export class MsEdgeTTS {
    */
   private async connect(retryClock = true): Promise<void> {
     if (this.socket?.readyState === WebSocket.OPEN) return
-    if (this.opening !== undefined) return await this.opening
+    if (this.opening !== undefined) {
+      await this.opening
+      return
+    }
     const opening = this.openSocket().catch(async (error: unknown) => {
       const rejected = error as { statusCode?: number; serverTime?: number }
       if (!retryClock || rejected.statusCode !== 403) throw error
       if (rejected.serverTime !== undefined) clockOffsetMs = rejected.serverTime - Date.now()
-      return await this.connect(false)
+      await this.connect(false)
     })
     this.opening = opening
     try {

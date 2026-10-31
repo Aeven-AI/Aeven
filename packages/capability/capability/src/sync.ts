@@ -45,6 +45,7 @@ export class CapabilitySync {
    * @param owner - the account.
    * @returns the open document, or undefined while sync does not serve the account.
    */
+  /* jscpd:ignore-start -- parallel to the other account-document attachers; this capability owns its map name, element type, and take(). */
   attach(owner: string): Promise<SyncDocument | undefined> {
     const existing = this.open.get(owner)
     if (existing !== undefined) return existing
@@ -66,6 +67,7 @@ export class CapabilitySync {
     this.open.set(owner, opening)
     return opening
   }
+  /* jscpd:ignore-end */
 
   private take(owner: string, map: YMap<SyncedCapability>, keys: Iterable<string>): void {
     for (const key of keys) {

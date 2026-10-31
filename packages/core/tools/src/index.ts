@@ -1853,7 +1853,13 @@ export class ToolRuntime extends Service {
       } catch (error: unknown) {
         throw projectionError(tool.name, 'presentationMeta', error)
       }
-      meta = snapshotProjection(tool.name, 'presentationMeta', projected)
+      const snapshot = snapshotProjection(tool.name, 'presentationMeta', projected)
+      // A projector that has nothing to add still returns an object; carrying an
+      // empty one into the durable result adds a key no card reads and that every
+      // recorded fixture would otherwise have to repeat.
+      meta = typeof snapshot === 'object' && snapshot !== null && Object.keys(snapshot).length === 0
+        ? undefined
+        : snapshot
     }
     const concludesTurn = this.concludingExecutions.has(exec)
     return this.markCanonical(exec, this.materializeFinalResult({

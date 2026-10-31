@@ -126,7 +126,7 @@ vendor manifest 守卫检查 `vendor/*/src` 下的改动是否连同对应的 `v
 
 ### 门禁 lane
 
-pull request 在 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) 中运行其中四条 lane——`pnpm run check:ci:static`；`pnpm run typecheck` 搭配 `pnpm run check:ci:lint:contracts-ready`；`pnpm run check:ci:snapshot`；以及 `pnpm run check:ci:artifacts`——在每次进入 `main` 的 pull request 和每个 merge queue 条目上运行，且 `main` ruleset 要求这四个作业名。[scripts/run-gates.ts](../scripts/run-gates.ts) 掌管门禁清单：它的 lane profile 把独立门禁分组到若干宽粒度 lane，`pnpm run check:node-compat` 在受支持的 Node 版本上运行较小的兼容性检查，`pnpm run check:all` 则是全面的聚合。产物消费方在各自 lane 内等待一次 build。真实 API 套件是 `pnpm run test:e2e`，无密钥时自动跳过，并按其配置的 worker 上限运行。
+pull request 在 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) 中运行其中三条 lane——`pnpm run check:ci:static`，以及 `pnpm run typecheck` 搭配 `pnpm run check:ci:lint:contracts-ready`，两者都在 Ubuntu 上；随后是 `pnpm run check:ci:build-verify`，它只构建一次工作区并在 macOS 上回放录制的快照——在每次进入 `main` 的 pull request 和每个 merge queue 条目上运行，且 `main` ruleset 要求这三个作业名。[scripts/run-gates.ts](../scripts/run-gates.ts) 掌管门禁清单：它的 lane profile 把独立门禁分组到若干宽粒度 lane，`pnpm run check:node-compat` 在受支持的 Node 版本上运行较小的兼容性检查，`pnpm run check:all` 则是全面的聚合。产物消费方在各自 lane 内等待一次 build。真实 API 套件是 `pnpm run test:e2e`，无密钥时自动跳过，并按其配置的 worker 上限运行。
 
 ### 日常命令
 

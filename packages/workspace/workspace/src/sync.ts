@@ -59,6 +59,7 @@ export class WorkspaceSync {
    * @param owner - the account.
    * @returns the open document, or undefined while sync does not serve the account.
    */
+  /* jscpd:ignore-start -- parallel to the other account-document attachers; this one mirrors a map plus its ordering array. */
   attach(owner: string): Promise<SyncDocument | undefined> {
     const existing = this.open.get(owner)
     if (existing !== undefined) return existing
@@ -85,6 +86,7 @@ export class WorkspaceSync {
     this.open.set(owner, opening)
     return opening
   }
+  /* jscpd:ignore-end */
 
   private take(owner: string, records: YMap<SyncedWorkspace>, order: YArray<WorkspaceId>): void {
     const projection: SyncedWorkspaces = {
