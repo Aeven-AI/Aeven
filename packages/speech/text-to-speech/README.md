@@ -5,6 +5,8 @@ kind: "package-reference"
 
 # @aeven/text-to-speech
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 This Service Definition turns text into spoken audio through `ctx.textToSpeech`. Consumers resolve a request (text plus a language or an exact voice) before execution; providers register their own voices and transport.
@@ -48,20 +50,6 @@ No runtime invariant companion is published: the registry is the only source of 
 
 -----
 
-<a id="model-experience"></a>
-## Model Experience
-
-None. Synthesis renders text the model already produced and adds no tokens, prompt text, or tool result.
-
------
-
-<a id="known-limitations-and-deferred-work"></a>
-## Known Limitations and Deferred Work
-
-The service has no voice-preference persistence; Surfaces currently read the composition's mapping only. Rate, pitch, and per-request prosody are not part of the request.
-
------
-
 <a id="dev-note"></a>
 ## Dev Note
 
@@ -70,3 +58,18 @@ The default voice for a language is female because the rosters ship more male vo
 The catalogue carries the timbre the provider reported rather than inferring it from a voice id: names such as `zh-CN-XiaoxiaoNeural` do not encode gender, and a configured row that omits `gender` keeps whatever discovery reported for the same id.
 
 No runtime invariant companion is published: the registry is the only source of roster and mapping observations.
+
+-----
+
+<a id="model-experience"></a>
+## Model Experience
+
+Indirectly, through `avn-tool-read-aloud` and the Web reader that call it.
+
+#### KV Cache effect
+
+Synthesis renders text the model already produced and adds no token to a request, so prefix reuse is unaffected.
+
+## Known Limitations and Deferred Work
+
+- The service has no voice-preference persistence; Surfaces currently read the composition's mapping only. Rate, pitch, and per-request prosody are not part of the request.

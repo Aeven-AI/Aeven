@@ -5,6 +5,8 @@ kind: "package-reference"
 
 # @aeven/api-text-to-speech
 
+English | [中文](README.zh.md)
+
 ## Summary
 
 This Remote exposes the `tts` namespace to Clients: the voice catalogue and per-sentence synthesis, with caller cancellation carried through to the provider.
@@ -46,20 +48,6 @@ Synthesis never creates a Session event: a reply is read from text the Session a
 
 -----
 
-<a id="model-experience"></a>
-## Model Experience
-
-None. The Remote carries no model-visible input or output.
-
------
-
-<a id="known-limitations-and-deferred-work"></a>
-## Known Limitations and Deferred Work
-
-One request renders one sentence's worth of text; longer passages are the caller's segmentation decision.
-
------
-
 <a id="dev-note"></a>
 ## Dev Note
 
@@ -68,3 +56,18 @@ The controller exposes the seam over the `tts` Remote namespace and holds no sta
 Cancellation is the caller's signal, passed straight through to synthesis, so a stop mid-clause aborts the provider request rather than buffering audio nobody will hear.
 
 No runtime invariant companion is published: the controller holds no state between calls and answers from the registered provider, so there is no second observation to compare.
+
+-----
+
+<a id="model-experience"></a>
+## Model Experience
+
+None, as the Remote carries no model-visible input or output.
+
+#### KV Cache effect
+
+No tokens pass through this seam, so provider cache reuse is unaffected.
+
+## Known Limitations and Deferred Work
+
+- One request renders one sentence's worth of text; longer passages are the caller's segmentation decision.
