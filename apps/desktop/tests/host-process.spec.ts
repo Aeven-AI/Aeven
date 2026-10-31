@@ -129,11 +129,16 @@ function onRequestFrame() {}
     } finally {
       await cached.stop().catch(() => undefined)
     }
+    // An inherited NODE_COMPILE_CACHE would reach the child the same way the
+    // configured directory does, so the unconfigured case has to clear it.
+    const inherited = process.env.NODE_COMPILE_CACHE
+    delete process.env.NODE_COMPILE_CACHE
     const plain = new DesktopHostProcess(process.execPath, project, tmpdir())
     try {
       await expect(plain.start()).resolves.toMatchObject({ avnVersion: 'none' })
       await expect(plain.stop()).resolves.toBeUndefined()
     } finally {
+      if (inherited !== undefined) process.env.NODE_COMPILE_CACHE = inherited
       await plain.stop().catch(() => undefined)
     }
   })

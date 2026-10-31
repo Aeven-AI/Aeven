@@ -58,10 +58,14 @@ describe('summary blank = conversation not started', () => {
     const { ctx, remote } = await harness()
     try {
       ctx.provide('identityUsers', { actingUser: () => ({ id: 'account' }) } as never)
-      ctx.provide('sessionHandoff', { catalog: () => [{
-        header: { id: SessionId('not-downloaded'), owner: 'account', version: 0, createdAt: 1, isSeeded: false, replica: true },
-        next: 10, updatedAt: 3, title: 'Shared history',
-      }] } as never)
+      ctx.provide('sessionHandoff', {
+        catalog: () => [{
+          header: { id: SessionId('not-downloaded'), owner: 'account', version: 0, createdAt: 1, isSeeded: false, replica: true },
+          next: 10, updatedAt: 3, title: 'Shared history',
+        }],
+        // Nothing in this account runs the shared conversation on another device.
+        runnerOf: () => undefined,
+      } as never)
       const result = await remote.list({})
       expect(result).toMatchObject({ ok: true, value: { items: [{
         sessionId: 'not-downloaded', replica: true, blank: false,
