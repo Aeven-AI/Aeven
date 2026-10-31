@@ -25,6 +25,7 @@ export type Mode =
   | 'ci-primary'
   | 'ci-linux-primary'
   | 'ci-static'
+  | 'ci-test'
   | 'ci-lint-contracts-ready'
   | 'ci-coverage'
   | 'ci-snapshot'
@@ -139,6 +140,7 @@ function parseMode(raw: string | undefined): Mode {
     case 'ci-primary':
     case 'ci-linux-primary':
     case 'ci-static':
+    case 'ci-test':
     case 'ci-lint-contracts-ready':
     case 'ci-coverage':
     case 'ci-snapshot':
@@ -156,7 +158,7 @@ function parseMode(raw: string | undefined): Mode {
       return raw
     default:
       throw new Error(
-        `run-gates: expected mode ci-primary | ci-linux-primary | ci-static | ci-lint-contracts-ready | ci-coverage | ci-snapshot | ci-artifacts | ci-build-verify | ci-consumers | ci-windows-blocking | ci-windows-complete | ci-windows-observational | node-compat | check-all | hygiene | doc-sync | doc-quick, got ${JSON.stringify(raw)}.`,
+        `run-gates: expected mode ci-primary | ci-linux-primary | ci-static | ci-test | ci-lint-contracts-ready | ci-coverage | ci-snapshot | ci-artifacts | ci-build-verify | ci-consumers | ci-windows-blocking | ci-windows-complete | ci-windows-observational | node-compat | check-all | hygiene | doc-sync | doc-quick, got ${JSON.stringify(raw)}.`,
       )
   }
 }
@@ -240,14 +242,10 @@ export function gatesForMode(selected: Mode): Gate[] {
       return [...ciPrimaryGates(), webSnapshotGate(['built-package-invariants'])]
     case 'ci-static':
       return ciStaticGates({ ownsBuild: false })
+    case 'ci-test':
+      return ciTestGates()
     case 'ci-lint-contracts-ready':
-      return [
-        lintGate(),
-        // Six clones are open on `main` across the per-package `sync.ts` modules. The
-        // pull-request lane reports them without blocking until those modules share one
-        // helper; `ci-primary` still fails on them.
-        { ...pnpmScript('duplication', 'duplication'), allowFailure: true },
-      ]
+      return [lintGate(), pnpmScript('duplication', 'duplication')]
     case 'ci-coverage':
       return coverageGates()
     case 'ci-snapshot':
@@ -429,6 +427,15 @@ function runningNodeMajor(): number {
     throw new Error(`run-gates: cannot parse Node version ${JSON.stringify(process.versions.node)}.`)
   }
   return major
+}
+
+/**
+ * The unit suite as its own lane, so a pull request runs the behaviour tests the
+ * static and artifact lanes never reach.
+ * @returns the gate that runs the workspace's vitest suite.
+ */
+function ciTestGates(): Gate[] {
+  return [pnpmScript('test', 'test', { label: 'unit tests' })]
 }
 
 function ciStaticGates(options: { ownsBuild: boolean }): Gate[] {
