@@ -187,7 +187,10 @@ export const Config: z<Config> = z.object({
     outboxLimit: z.natural().min(1).default(200),
     maintenanceTtlMs: z.natural().min(1_000).default(180_000),
     maintenanceRenewMs: z.natural().min(100).default(60_000),
-  }).default({ drainMs: 2_000, drainBatch: 500, applyPauseMs: 16, outboxLimit: 200, maintenanceTtlMs: 180_000, maintenanceRenewMs: 60_000 }),
+  }).default({
+    drainMs: 2_000, drainBatch: 500, applyPauseMs: 16, outboxLimit: 200,
+    maintenanceTtlMs: 180_000, maintenanceRenewMs: 60_000,
+  }),
   embedding: z.object({
     model: z.string().min(1).default('Xenova/multilingual-e5-small'),
     queryPrefix: z.string().default('query: '),

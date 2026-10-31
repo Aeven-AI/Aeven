@@ -63,12 +63,7 @@ function split(frame: Uint8Array): { header: EnvelopeHeader; aad: Uint8Array; se
     || typeof h.id !== 'string' || typeof h.device !== 'string'
     || !Number.isSafeInteger(h.counter) || (h.counter as number) < 0
   ) throw new SyncVaultError('envelope header is malformed')
-  const fragment = h.fragment as EnvelopeHeader['fragment']
-  if (fragment !== undefined && (
-    fragment === null || typeof fragment !== 'object' || typeof fragment.id !== 'string' || !/^[a-f0-9]{64}$/.test(fragment.id)
-    || !Number.isSafeInteger(fragment.index) || !Number.isSafeInteger(fragment.count)
-    || fragment.index < 0 || fragment.count < 2 || fragment.index >= fragment.count
-  )) throw new SyncVaultError('envelope fragment is malformed')
+  const fragment = readFragment(h.fragment)
   const header: EnvelopeHeader = {
     v: 2,
     kind: h.kind as EnvelopeKind,
@@ -88,6 +83,23 @@ function split(frame: Uint8Array): { header: EnvelopeHeader; aad: Uint8Array; se
  */
 export function readEnvelopeHeader(frame: Uint8Array): EnvelopeHeader {
   return split(frame).header
+}
+
+/**
+ * Validate the header's transport-part field, which arrives from another device.
+ * @param raw - the field as parsed from the header JSON.
+ * @returns the fragment, or undefined when the header carries none.
+ * @throws {SyncVaultError} when the field is present but not a well-formed fragment.
+ */
+function readFragment(raw: unknown): EnvelopeHeader['fragment'] {
+  if (raw === undefined) return undefined
+  const f = raw as Record<string, unknown>
+  if (
+    typeof raw !== 'object' || raw === null || typeof f.id !== 'string' || !/^[a-f0-9]{64}$/.test(f.id)
+    || !Number.isSafeInteger(f.index) || !Number.isSafeInteger(f.count)
+    || (f.index as number) < 0 || (f.count as number) < 2 || (f.index as number) >= (f.count as number)
+  ) throw new SyncVaultError('envelope fragment is malformed')
+  return raw as EnvelopeHeader['fragment']
 }
 
 /**

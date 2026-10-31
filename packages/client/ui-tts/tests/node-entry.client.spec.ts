@@ -7,6 +7,6 @@ import { apply } from '../src/index.ts'
 
 describe('node half', () => {
   it('applies without host-side behavior', () => {
-    expect(apply()).toBeUndefined()
+    expect(() => { apply() }).not.toThrow()
   })
 })

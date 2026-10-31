@@ -5,7 +5,6 @@ import TextToSpeech from '@aeven/text-to-speech'
 import type { TtsProvider, TtsProviderId, TtsVoice, TtsVoiceId } from '@aeven/text-to-speech/types'
 import { afterEach, expect, it, vi } from 'vitest'
 import TtsController from '../src/index.ts'
-import type { Config as TtsControllerConfig } from '../src/index.ts'
 import type { SpeechRequest } from '../src/types.ts'
 
 const roots: Context[] = []
@@ -53,7 +52,7 @@ it('binds the tts namespace with its two Remote methods', () => {
   const { api } = fixture()
   expect(api.typertRemote).toEqual(expect.objectContaining({ serviceKey: 'ttsController', namespace: 'tts' }))
   expect(remoteMethods(api).map(marker => marker.method)).toEqual(['catalog', 'synthesize'])
-  expect(TtsController.Config({} as TtsControllerConfig)).toEqual({ maxTextChars: 1200 })
+  expect(TtsController.Config({})).toEqual({ maxTextChars: 1200 })
   expect(() => TtsController.Config({ maxTextChars: 0 })).toThrow()
 })
 

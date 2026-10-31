@@ -90,7 +90,7 @@ function runScript(script: string, args: string[] = []): Promise<number> {
   const invocation = pnpmInvocation(['run', '--silent', script, ...args])
   return new Promise((settle) => {
     const child = spawn(invocation.command, invocation.args, { cwd: root, stdio: 'inherit' })
-    child.on('error', () => settle(1))
-    child.on('close', code => settle(code ?? 1))
+    child.on('error', () => { settle(1) })
+    child.on('close', (code) => { settle(code ?? 1) })
   })
 }

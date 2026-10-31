@@ -61,12 +61,12 @@
     "@deepseek-ai/schemastery": "workspace:^",
     "@xterm/addon-serialize": "^0.14.0",
     "@xterm/headless": "^6.0.0",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "@aeven/working-directory": "workspace:^"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
-    "@aeven/scope": "workspace:^",
-    "@aeven/working-directory": "workspace:^"
+    "@aeven/scope": "workspace:^"
   },
   "devDependencies": {
     "@aeven/agent": "workspace:^",
@@ -87,8 +87,7 @@
     "@aeven/util-crypto": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/cordis-plugin-include": "workspace:^",
-    "@deepseek-ai/cordis-plugin-loader": "workspace:^",
-    "@aeven/working-directory": "workspace:^"
+    "@deepseek-ai/cordis-plugin-loader": "workspace:^"
   },
   "files": [
     "lib/index.js",

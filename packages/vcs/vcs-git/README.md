@@ -130,6 +130,6 @@ None.
 <details>
 <summary>Working context for maintainers — click to expand</summary>
 
-None.
+No runtime invariant companion is published: every answer is derived from the repository on disk through `ctx.subprocess`, so a second observation would repeat the same read.
 
 </details>

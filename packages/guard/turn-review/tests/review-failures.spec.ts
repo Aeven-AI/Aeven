@@ -75,8 +75,10 @@ describe('the review call itself fails', () => {
     ], reviewConfig({ maxReviewsPerTurn: ending === 'budget' ? 1 : 2 }))
     try {
       await review.turn()
-      expect(review.ofType('turn/end').map(event => event.data.reason)).toEqual([
-        expect.objectContaining({ kind: 'error', error: expect.objectContaining({ message: expect.stringContaining(issue) }) }),
+      const message = expect.stringContaining(issue) as unknown
+      const error = expect.objectContaining({ message }) as unknown
+      expect(review.ofType('turn/end').map((event: { data: { reason?: unknown } }) => event.data.reason)).toEqual([
+        expect.objectContaining({ kind: 'error', error }),
       ])
     } finally {
       await review.fiber.dispose()

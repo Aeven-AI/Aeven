@@ -256,15 +256,12 @@
   gap: 0;
 }
 
+/* The mode seat holds at most one chip and its slot renders nothing while no
+   plan is active. As contents, a group with no chip contributes no flex item,
+   so the row's gap does not read as a double space, and the chip that does
+   render takes the row's gap as itself. */
 .modes {
-  gap: 12px;
-}
-
-/* An empty mode group is a zero-width flex item that the row's gap still counts
-   on both sides, so the control after it reads a double space away. Hiding it
-   restores one gap; the group shows again as soon as its slot renders a chip. */
-.modes:not(:has(> :not(:empty))) {
-  display: none;
+  display: contents;
 }
 
 .trailing {

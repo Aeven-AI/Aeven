@@ -1347,6 +1347,9 @@ importers:
       '@aeven/util-values':
         specifier: workspace:^
         version: link:../../util/values
+      '@aeven/working-directory':
+        specifier: workspace:^
+        version: link:../../session/working-directory
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
@@ -1408,9 +1411,6 @@ importers:
       '@aeven/util-crypto':
         specifier: workspace:^
         version: link:../../util/crypto
-      '@aeven/working-directory':
-        specifier: workspace:^
-        version: link:../../session/working-directory
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis

@@ -308,7 +308,7 @@ export class SessionMirror {
     if (await this.sync.linked(this.owner) === 0) return { claimed: false }
     const stored = (await this.persistence.list()).some(header => header.id === sessionId && header.owner === this.owner)
     if (!stored) return { claimed: false }
-    if (await this.next(sessionId as string, new Set([sessionId as string])) !== entry.next) return { claimed: false }
+    if (await this.next(sessionId, new Set([sessionId as string])) !== entry.next) return { claimed: false }
     this.entries().set(sessionId, { ...entry, origin: me })
     await this.persistence.setReplica(sessionId, false)
     return { claimed: true }
@@ -999,7 +999,7 @@ export class SessionMirror {
         const entry = entries.get(id)
         if (header.replica || header.owner !== this.owner || (entry !== undefined && entry.origin !== me)) return false
         // A workspace move changes the index entry, not the log, so it is published without a new revision.
-        const moved = entry !== undefined && homes !== undefined && entry.workspace !== homes.get(header.id as SessionId)
+        const moved = entry !== undefined && homes !== undefined && entry.workspace !== homes.get(header.id)
         if (moved) return true
         if ((this.revisions.get(id) ?? this.recorded(id).revision) === String(revision)) return false
         // A live publication already carried every committed event; only its revision is left to record.

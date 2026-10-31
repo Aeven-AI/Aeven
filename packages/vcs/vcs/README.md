@@ -60,7 +60,7 @@ Every failure is a `VcsError` carrying one stable code: `VCS_UNAVAILABLE` (no pr
 | [`src/index.ts`](src/index.ts) | `Vcs` service, `VcsError`, registration, and operation delegation |
 | [`src/types.ts`](src/types.ts) | Report, request, provider, and service types |
 | [`src/brand.ts`](src/brand.ts) | The branded provider id |
-| — | No runtime invariant companion: this package holds a registry and delegates, and the relations it could assert belong to the providers that own checkouts. |
+| — | No runtime invariant companion is published: this package holds a registry and delegates, and the relations it could assert belong to the providers that own checkouts. |
 
 </details>
 
