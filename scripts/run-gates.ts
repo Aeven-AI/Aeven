@@ -435,7 +435,9 @@ function runningNodeMajor(): number {
  * @returns the gate that runs the workspace's vitest suite.
  */
 function ciTestGates(): Gate[] {
-  return [pnpmScript('test', 'test', { label: 'unit tests' })]
+  // A red unit suite is useless as evidence when the lane only keeps its own
+  // summary: the failing spec names have to reach the job log as they happen.
+  return [pnpmScript('test', 'test', { label: 'unit tests', streamOutput: true })]
 }
 
 function ciStaticGates(options: { ownsBuild: boolean }): Gate[] {

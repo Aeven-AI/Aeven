@@ -85,6 +85,13 @@
             "type": "string",
             "description": "Working directory for this command. Defaults to the session workspace; a relative path is resolved against it."
           },
+          "output_files": {
+            "type": "array",
+            "description": "For commands generating deliverables (PDF, DOCX, spreadsheets, images, etc.), list every output path here. Paths resolve against workdir. Verified new or changed files appear in the created/edited-files block. Requires foreground execution.",
+            "items": {
+              "type": "string"
+            }
+          },
           "run_in_background": {
             "type": "boolean",
             "description": "Run in the background and return a job id immediately (collect with job_output, stop with job_kill). No timeout applies."
@@ -130,7 +137,7 @@
     },
     {
       "name": "create_worktree",
-      "description": "Create a git worktree on a new branch and move this session into it. Use it when a task needs its own checkout: work in parallel with another agent on the same repository, try a change without touching the main working tree, or leave a build in place while starting something else. The new checkout is created from HEAD, or from the revision you name, and every later file, shell, and search call resolves against it.",
+      "description": "Create a git worktree on a new branch and move this session into it. Use it when a task needs its own checkout: work in parallel with another agent on the same repository, try a change without touching the main working tree, or leave a build in place while starting something else. The new checkout is created from HEAD, or from the revision you name; uncommitted changes in the current checkout do not carry over. Every later file, shell, and search call resolves against it, and file writes are confined to it. Subagents already get their own worktree automatically.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -147,25 +154,106 @@
     },
     {
       "name": "edit",
-      "description": "Edit an existing UTF-8 text file by replacing literal text.",
+      "description": "Edit existing UTF-8 text files by replacing literal text. Several files whose edits are already decided go together in one call through files.",
       "parameters": {
         "type": "object",
         "properties": {
           "file_path": {
             "type": "string",
-            "description": "Path to edit, resolved by the filesystem backend."
+            "description": "Path to edit, resolved by the filesystem backend. Required unless files is given."
           },
           "old_string": {
             "type": "string",
-            "description": "Literal text to replace. Must match exactly."
+            "description": "Literal text to replace. Must match exactly. Required unless edits is given."
           },
           "new_string": {
             "type": "string",
-            "description": "Literal replacement text. Use an empty string to delete the match."
+            "description": "Literal replacement text. Use an empty string to delete the match. Required unless edits is given."
           },
           "replace_all": {
             "type": "boolean",
             "description": "Replace all matches. Defaults to false; when false, old_string must appear exactly once."
+          },
+          "edits": {
+            "type": "array",
+            "description": "Several replacements for this file in one call, applied in order; none applies unless all match. Use instead of old_string/new_string.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "old_string": {
+                  "type": "string",
+                  "description": "Literal text to replace. Must match exactly."
+                },
+                "new_string": {
+                  "type": "string",
+                  "description": "Literal replacement text."
+                },
+                "replace_all": {
+                  "type": "boolean",
+                  "description": "Replace all matches of this old_string."
+                }
+              },
+              "required": [
+                "old_string",
+                "new_string"
+              ]
+            }
+          },
+          "files": {
+            "type": "array",
+            "description": "Several files in one call, applied in order, each file at most once. Use instead of the top-level file_path and its replacements.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "file_path": {
+                  "type": "string",
+                  "description": "Path to edit, resolved by the filesystem backend."
+                },
+                "old_string": {
+                  "type": "string",
+                  "description": "Literal text to replace. Must match exactly. Required unless edits is given."
+                },
+                "new_string": {
+                  "type": "string",
+                  "description": "Literal replacement text. Required unless edits is given."
+                },
+                "replace_all": {
+                  "type": "boolean",
+                  "description": "Replace all matches. Defaults to false."
+                },
+                "edits": {
+                  "type": "array",
+                  "description": "Several replacements for this file, applied in order; none applies unless all match.",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "old_string": {
+                        "type": "string",
+                        "description": "Literal text to replace. Must match exactly."
+                      },
+                      "new_string": {
+                        "type": "string",
+                        "description": "Literal replacement text."
+                      },
+                      "replace_all": {
+                        "type": "boolean",
+                        "description": "Replace all matches of this old_string."
+                      }
+                    },
+                    "required": [
+                      "old_string",
+                      "new_string"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "file_path"
+              ]
+            }
           },
           "sandbox_permissions": {
             "type": "string",
@@ -179,12 +267,7 @@
             "type": "string",
             "description": "Required with sandbox_permissions: one sentence for the user explaining why this exact file operation needs the wider access. Use the language of the user’s current request."
           }
-        },
-        "required": [
-          "file_path",
-          "old_string",
-          "new_string"
-        ]
+        }
       }
     },
     {
@@ -206,6 +289,154 @@
     {
       "name": "get_goal",
       "description": "Read the current session goal, including the id and revision that update_goal requires.",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "git_branch",
+      "description": "List, create, switch, or delete branches. Switching refuses while the checkout has uncommitted changes unless allow_dirty is true, because a switch would otherwise carry or block them unpredictably. Deleting refuses an unmerged branch unless force is true.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "description": "What to do: list every local branch, switch to one, create one, or delete one.",
+            "enum": [
+              "list",
+              "switch",
+              "create",
+              "delete"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "description": "Branch name; required for switch, create, and delete."
+          },
+          "from": {
+            "type": "string",
+            "description": "Revision a created branch starts from. Defaults to HEAD."
+          },
+          "allow_dirty": {
+            "type": "boolean",
+            "description": "Switch even though the checkout has uncommitted changes."
+          },
+          "force": {
+            "type": "boolean",
+            "description": "Delete a branch that is not merged."
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      }
+    },
+    {
+      "name": "git_commit",
+      "description": "Record the staged changes as a commit. Pass paths to stage those paths first, or omit them to commit exactly what the index holds. The message goes to git verbatim, so keep it to one clear subject line and, when useful, a body after a blank line.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Commit message, passed to git verbatim."
+          },
+          "paths": {
+            "type": "array",
+            "description": "Repository-relative paths to stage before committing; omit to commit the index as it stands.",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "message"
+        ]
+      }
+    },
+    {
+      "name": "git_diff",
+      "description": "Show a unified diff of this session's repository. By default it compares the working tree with the index, so it shows what is not staged yet; use staged to compare the index with HEAD, or range for two revisions such as \"main..HEAD\". A long diff is cut and marked truncated.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Repository-relative path to diff; omit for the whole checkout."
+          },
+          "staged": {
+            "type": "boolean",
+            "description": "Compare the index with HEAD instead of the working tree with the index."
+          },
+          "range": {
+            "type": "string",
+            "description": "Two revisions to compare, such as \"main..HEAD\". Takes precedence over staged."
+          }
+        }
+      }
+    },
+    {
+      "name": "git_log",
+      "description": "List recent commits in this session's repository, newest first, with hash, author, date, and subject. Use it to see what landed before changing history or writing a commit message.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "number",
+            "description": "How many commits to report. Omit for the configured default."
+          }
+        }
+      }
+    },
+    {
+      "name": "git_merge",
+      "description": "Merge a branch or revision into the checked-out branch. A merge that conflicts returns the paths left with conflicts instead of raising only an exit status; abort discards an in-progress merge.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string",
+            "description": "Branch or revision to merge into the checked-out branch."
+          },
+          "abort": {
+            "type": "boolean",
+            "description": "Abort an in-progress merge instead of starting one."
+          }
+        }
+      }
+    },
+    {
+      "name": "git_remote",
+      "description": "Fetch from a remote or push the current branch to it. Omit remote to use the branch's own remote and omit branch to push the branch that is checked out. The command's own output is returned.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "description": "Fetch remote updates, or push the current branch.",
+            "enum": [
+              "fetch",
+              "push"
+            ]
+          },
+          "remote": {
+            "type": "string",
+            "description": "Remote name; omit to use the branch's own remote."
+          },
+          "branch": {
+            "type": "string",
+            "description": "Branch to push; omit to push the checked-out branch."
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      }
+    },
+    {
+      "name": "git_status",
+      "description": "Report the repository this session works in: checked-out branch, upstream and commits ahead or behind it, and every changed path with its staged and unstaged change. Start here before committing or switching branches.",
       "parameters": {
         "type": "object",
         "properties": {}
@@ -362,13 +593,13 @@
     },
     {
       "name": "read",
-      "description": "Read a UTF-8 text file and return line-numbered content.",
+      "description": "Read UTF-8 text files and return line-numbered content. Several files you already know you need go together in one call through files.",
       "parameters": {
         "type": "object",
         "properties": {
           "file_path": {
             "type": "string",
-            "description": "Path to read, resolved by the filesystem backend."
+            "description": "Path to read, resolved by the filesystem backend. Required unless files is given."
           },
           "offset": {
             "type": "number",
@@ -377,10 +608,48 @@
           "limit": {
             "type": "number",
             "description": "Maximum number of lines to return. Defaults to 2000."
+          },
+          "files": {
+            "type": "array",
+            "description": "Several files in one call, read concurrently and returned in order. Use instead of the top-level file_path, offset, and limit.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "file_path": {
+                  "type": "string",
+                  "description": "Path to read, resolved by the filesystem backend."
+                },
+                "offset": {
+                  "type": "number",
+                  "description": "1-based first line to return. Defaults to 1."
+                },
+                "limit": {
+                  "type": "number",
+                  "description": "Maximum number of lines to return. Defaults to 2000."
+                }
+              },
+              "required": [
+                "file_path"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "read_aloud",
+      "description": "Turn spoken read-aloud of your replies on or off for this session. Switch it on when the user wants to hear the answers — language practice, pronunciation, or a hands-free conversation — and off when they ask you to stop. It changes only the reader; your replies themselves stay text.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "true to read your replies aloud from now on, false to stop reading them."
           }
         },
         "required": [
-          "file_path"
+          "enabled"
         ]
       }
     },
@@ -398,6 +667,23 @@
         "required": [
           "file_path"
         ]
+      }
+    },
+    {
+      "name": "remove_worktree",
+      "description": "Remove a git worktree created by create_worktree or for a subagent, once its branch is merged or no longer needed. Without a name, removes the worktree this session works in and moves the session back to the repository's main checkout. Fails while the worktree has uncommitted changes. With delete_branch, also deletes its branch, which git refuses while the branch is unmerged.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the worktree to remove, as its directory and branch name it (without the branch prefix). Omit to remove the worktree this session works in."
+          },
+          "delete_branch": {
+            "type": "boolean",
+            "description": "Also delete the worktree's branch. Git refuses while the branch is not merged."
+          }
+        }
       }
     },
     {

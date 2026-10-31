@@ -199,7 +199,9 @@ describe('the Yjs sync provider', () => {
     await vi.waitFor(() => { expect(warn).toHaveBeenCalledWith('sync: publishing frames failed; they stay queued') })
     // The public handover barrier also flushes unacknowledged changes.
     await first.sync.synchronize(account)
-    expect(first.sync.status(account).pending).toBe(0)
+    // The refused frame leaves the outbox only once the retried publish is acked,
+    // so wait for that ack instead of assuming the barrier already carried it.
+    await vi.waitFor(() => { expect(first.sync.status(account).pending).toBe(0) })
     expect(relay.account(account).frames.length).toBeGreaterThan(0)
     doc.close()
   })

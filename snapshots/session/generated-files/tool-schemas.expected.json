@@ -575,6 +575,22 @@
       }
     },
     {
+      "name": "read_aloud",
+      "description": "Turn spoken read-aloud of your replies on or off for this session. Switch it on when the user wants to hear the answers — language practice, pronunciation, or a hands-free conversation — and off when they ask you to stop. It changes only the reader; your replies themselves stay text.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "true to read your replies aloud from now on, false to stop reading them."
+          }
+        },
+        "required": [
+          "enabled"
+        ]
+      }
+    },
+    {
       "name": "read_image",
       "description": "Read a PNG/JPEG/WebP/GIF file and return the image itself. A path without a file extension is accepted; the format is detected from the file content, so normalized attachment paths can be passed directly without copying or renaming. Aeven validates and downscales large supported images before the next model request, so use this tool directly instead of installing image libraries or creating thumbnails merely to inspect an image. Independent files may be read concurrently in small batches. Requires the current model to accept image input.",
       "parameters": {

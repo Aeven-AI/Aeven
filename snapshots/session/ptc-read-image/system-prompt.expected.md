@@ -9,11 +9,11 @@ Verify your work by running the code or tests. Keep answers brief and factual.
 
 Check the [exit code: N] marker on every bash result; investigate failures before moving on. Run anything whose duration you cannot bound — installs, builds, test suites, servers, downloads — with `run_in_background: true` and keep working. Never wait with a foreground `sleep`: collect the job with `job_output`, let the program retry for itself (`curl --retry`), or check the condition in a bounded loop that returns the moment it holds (`until nc -z localhost 3000; do sleep 0.5; done`). Pause only as long as a real clock constraint, such as a rate limit, requires, and end the turn when nothing useful is left: a settled job wakes you.
 
-Use the read tool — not shell commands like cat — to inspect text files. Results include line numbers. Use offset and limit to continue reading large files.
+Use the read tool — not shell commands like cat — to inspect text files. Results include line numbers. Use offset and limit to continue reading large files. To read several files you already know you need, pass them together as files in one call instead of one call per file.
 
 Use the write tool to create files or completely replace file contents. Existing files are overwritten, so read an existing file first (the default fs-observation-policy requires it) and prefer edit for targeted changes.
 
-Use the edit tool for targeted changes to existing UTF-8 text files. It replaces literal old_string with new_string; by default old_string must appear exactly once. If old_string appears multiple times, provide a more specific old_string or set replace_all to true. Read the file first (the default fs-observation-policy requires it), unless you just created or edited it in this session.
+Use the edit tool for targeted changes to existing UTF-8 text files. It replaces literal old_string with new_string; by default old_string must appear exactly once. If old_string appears multiple times, provide a more specific old_string or set replace_all to true. For several changes to one file, pass them together as edits in one call: they apply in order, each against the result of the previous ones, and none applies unless all match. To change several files whose edits are already decided, pass them together as files in one call, one entry per file in the same form as a single-file call: files apply in order, and a failure stops at that file and reports the files already changed. The text you replace must match the current file exactly, so take it from the file; a file that changed since you last read it is refused until you read it again.
 
 Use the glob tool — not shell find — to discover files by path pattern.
 
@@ -62,6 +62,8 @@ interface ToolArgsMap {
     timeoutMs?: number;
     /** Working directory for this command. Defaults to the session workspace; a relative path is resolved against it. */
     workdir?: string;
+    /** For commands generating deliverables (PDF, DOCX, spreadsheets, images, etc.), list every output path here. Paths resolve against workdir. Verified new or changed files appear in the created/edited-files block. Requires foreground execution. */
+    output_files?: string[];
     /** Run in the background and return a job id immediately (collect with job_output, stop with job_kill). No timeout applies. */
     run_in_background?: boolean;
     /** The wider sandbox mode this command needs. Only valid as a one-shot retry of a command the sandbox just denied; requires justification and user approval. */
@@ -76,23 +78,52 @@ interface ToolArgsMap {
     /** Optional positive safe-integer limit on automatic continuation rounds. */
     max_goal_rounds?: number;
   } & Record<string, JsonValue>;
-  /** Create a git worktree on a new branch and move this session into it. Use it when a task needs its own checkout: work in parallel with another agent on the same repository, try a change without touching the main working tree, or leave a build in place while starting something else. The new checkout is created from HEAD, or from the revision you name, and every later file, shell, and search call resolves against it. */
+  /** Create a git worktree on a new branch and move this session into it. Use it when a task needs its own checkout: work in parallel with another agent on the same repository, try a change without touching the main working tree, or leave a build in place while starting something else. The new checkout is created from HEAD, or from the revision you name; uncommitted changes in the current checkout do not carry over. Every later file, shell, and search call resolves against it, and file writes are confined to it. Subagents already get their own worktree automatically. */
   create_worktree: {
     /** Worktree name: letters, digits, dots, dashes, or underscores. The branch and the checkout directory both use it. Omit for a generated name. */
     name?: string;
     /** Revision the new branch starts from: a branch, tag, or commit. Defaults to HEAD of the session's repository. */
     from?: string;
   } & Record<string, JsonValue>;
-  /** Edit an existing UTF-8 text file by replacing literal text. */
+  /** Edit existing UTF-8 text files by replacing literal text. Several files whose edits are already decided go together in one call through files. */
   edit: {
-    /** Path to edit, resolved by the filesystem backend. */
-    file_path: string;
-    /** Literal text to replace. Must match exactly. */
-    old_string: string;
-    /** Literal replacement text. Use an empty string to delete the match. */
-    new_string: string;
+    /** Path to edit, resolved by the filesystem backend. Required unless files is given. */
+    file_path?: string;
+    /** Literal text to replace. Must match exactly. Required unless edits is given. */
+    old_string?: string;
+    /** Literal replacement text. Use an empty string to delete the match. Required unless edits is given. */
+    new_string?: string;
     /** Replace all matches. Defaults to false; when false, old_string must appear exactly once. */
     replace_all?: boolean;
+    /** Several replacements for this file in one call, applied in order; none applies unless all match. Use instead of old_string/new_string. */
+    edits?: {
+      /** Literal text to replace. Must match exactly. */
+      old_string: string;
+      /** Literal replacement text. */
+      new_string: string;
+      /** Replace all matches of this old_string. */
+      replace_all?: boolean;
+    }[];
+    /** Several files in one call, applied in order, each file at most once. Use instead of the top-level file_path and its replacements. */
+    files?: {
+      /** Path to edit, resolved by the filesystem backend. */
+      file_path: string;
+      /** Literal text to replace. Must match exactly. Required unless edits is given. */
+      old_string?: string;
+      /** Literal replacement text. Required unless edits is given. */
+      new_string?: string;
+      /** Replace all matches. Defaults to false. */
+      replace_all?: boolean;
+      /** Several replacements for this file, applied in order; none applies unless all match. */
+      edits?: {
+        /** Literal text to replace. Must match exactly. */
+        old_string: string;
+        /** Literal replacement text. */
+        new_string: string;
+        /** Replace all matches of this old_string. */
+        replace_all?: boolean;
+      }[];
+    }[];
     /** The wider sandbox mode this file operation needs. Only valid as a one-shot retry of an operation the sandbox just denied; requires justification and user approval. */
     sandbox_permissions?: "workspace-write" | "danger-full-access";
     /** Required with sandbox_permissions: one sentence for the user explaining why this exact file operation needs the wider access. Use the language of the user’s current request. */
@@ -105,6 +136,58 @@ interface ToolArgsMap {
   } & Record<string, JsonValue>;
   /** Read the current session goal, including the id and revision that update_goal requires. */
   get_goal: Record<string, JsonValue>;
+  /** List, create, switch, or delete branches. Switching refuses while the checkout has uncommitted changes unless allow_dirty is true, because a switch would otherwise carry or block them unpredictably. Deleting refuses an unmerged branch unless force is true. */
+  git_branch: {
+    /** What to do: list every local branch, switch to one, create one, or delete one. */
+    operation: "list" | "switch" | "create" | "delete";
+    /** Branch name; required for switch, create, and delete. */
+    name?: string;
+    /** Revision a created branch starts from. Defaults to HEAD. */
+    from?: string;
+    /** Switch even though the checkout has uncommitted changes. */
+    allow_dirty?: boolean;
+    /** Delete a branch that is not merged. */
+    force?: boolean;
+  } & Record<string, JsonValue>;
+  /** Record the staged changes as a commit. Pass paths to stage those paths first, or omit them to commit exactly what the index holds. The message goes to git verbatim, so keep it to one clear subject line and, when useful, a body after a blank line. */
+  git_commit: {
+    /** Commit message, passed to git verbatim. */
+    message: string;
+    /** Repository-relative paths to stage before committing; omit to commit the index as it stands. */
+    paths?: string[];
+  } & Record<string, JsonValue>;
+  /** Show a unified diff of this session's repository. By default it compares the working tree with the index, so it shows what is not staged yet; use staged to compare the index with HEAD, or range for two revisions such as "main..HEAD". A long diff is cut and marked truncated. */
+  git_diff: {
+    /** Repository-relative path to diff; omit for the whole checkout. */
+    path?: string;
+    /** Compare the index with HEAD instead of the working tree with the index. */
+    staged?: boolean;
+    /** Two revisions to compare, such as "main..HEAD". Takes precedence over staged. */
+    range?: string;
+  } & Record<string, JsonValue>;
+  /** List recent commits in this session's repository, newest first, with hash, author, date, and subject. Use it to see what landed before changing history or writing a commit message. */
+  git_log: {
+    /** How many commits to report. Omit for the configured default. */
+    limit?: number;
+  } & Record<string, JsonValue>;
+  /** Merge a branch or revision into the checked-out branch. A merge that conflicts returns the paths left with conflicts instead of raising only an exit status; abort discards an in-progress merge. */
+  git_merge: {
+    /** Branch or revision to merge into the checked-out branch. */
+    ref?: string;
+    /** Abort an in-progress merge instead of starting one. */
+    abort?: boolean;
+  } & Record<string, JsonValue>;
+  /** Fetch from a remote or push the current branch to it. Omit remote to use the branch's own remote and omit branch to push the branch that is checked out. The command's own output is returned. */
+  git_remote: {
+    /** Fetch remote updates, or push the current branch. */
+    operation: "fetch" | "push";
+    /** Remote name; omit to use the branch's own remote. */
+    remote?: string;
+    /** Branch to push; omit to push the checked-out branch. */
+    branch?: string;
+  } & Record<string, JsonValue>;
+  /** Report the repository this session works in: checked-out branch, upstream and commits ahead or behind it, and every changed path with its staged and unstaged change. Start here before committing or switching branches. */
+  git_status: Record<string, JsonValue>;
   /** Find files, not directories, whose paths match a glob pattern, including hidden and ignored files. Returns up to 100 paths in modification-time order; a larger result keeps the first paths and reports where the complete list was saved. */
   glob: {
     /** Glob pattern to match file paths against (e.g. "**\/*.ts", "src/**\/*.test.js"). A pattern with no "/" matches the basename at any depth, so "*" and "*.ts" both search the whole tree; include a separator to anchor the depth. */
@@ -156,19 +239,40 @@ interface ToolArgsMap {
     /** Optional positive safe-integer round cap, bounded by the deployment ceiling. */
     maxRounds?: number;
   } & Record<string, JsonValue>;
-  /** Read a UTF-8 text file and return line-numbered content. */
+  /** Read UTF-8 text files and return line-numbered content. Several files you already know you need go together in one call through files. */
   read: {
-    /** Path to read, resolved by the filesystem backend. */
-    file_path: string;
+    /** Path to read, resolved by the filesystem backend. Required unless files is given. */
+    file_path?: string;
     /** 1-based first line to return. Defaults to 1. */
     offset?: number;
     /** Maximum number of lines to return. Defaults to 2000. */
     limit?: number;
+    /** Several files in one call, read concurrently and returned in order. Use instead of the top-level file_path, offset, and limit. */
+    files?: {
+      /** Path to read, resolved by the filesystem backend. */
+      file_path: string;
+      /** 1-based first line to return. Defaults to 1. */
+      offset?: number;
+      /** Maximum number of lines to return. Defaults to 2000. */
+      limit?: number;
+    }[];
+  } & Record<string, JsonValue>;
+  /** Turn spoken read-aloud of your replies on or off for this session. Switch it on when the user wants to hear the answers — language practice, pronunciation, or a hands-free conversation — and off when they ask you to stop. It changes only the reader; your replies themselves stay text. */
+  read_aloud: {
+    /** true to read your replies aloud from now on, false to stop reading them. */
+    enabled: boolean;
   } & Record<string, JsonValue>;
   /** Read a PNG/JPEG/WebP/GIF file and return the image itself. A path without a file extension is accepted; the format is detected from the file content, so normalized attachment paths can be passed directly without copying or renaming. Aeven validates and downscales large supported images before the next model request, so use this tool directly instead of installing image libraries or creating thumbnails merely to inspect an image. Independent files may be read concurrently in small batches. Requires the current model to accept image input. */
   read_image: {
     /** Path to the image file, resolved by the filesystem backend. */
     file_path: string;
+  } & Record<string, JsonValue>;
+  /** Remove a git worktree created by create_worktree or for a subagent, once its branch is merged or no longer needed. Without a name, removes the worktree this session works in and moves the session back to the repository's main checkout. Fails while the worktree has uncommitted changes. With delete_branch, also deletes its branch, which git refuses while the branch is unmerged. */
+  remove_worktree: {
+    /** Name of the worktree to remove, as its directory and branch name it (without the branch prefix). Omit to remove the worktree this session works in. */
+    name?: string;
+    /** Also delete the worktree's branch. Git refuses while the branch is not merged. */
+    delete_branch?: boolean;
   } & Record<string, JsonValue>;
   /** Send a message to a direct continuable child by its agent id. If you are a resident continuable child, you may also target your direct parent. If the target is still working, the message steers its nearest step; if it is idle, the message starts a turn. This call returns no answer from the agent — only confirmation that the message was delivered. A failure means the message was NOT delivered. */
   send_message: {
@@ -308,6 +412,10 @@ interface ToolOutputMap {
     timedOut: boolean;
     aborted: boolean;
     timeoutMs: number;
+    producedFiles?: {
+      path: string;
+      created: boolean;
+    }[];
     stdout: {
       text: string;
       truncated: boolean;
@@ -347,11 +455,14 @@ interface ToolOutputMap {
     branch: string;
     baseCommit: string;
     repositoryRoot: string;
+    setup?: string;
   };
   edit: {
-    path: string;
-    before: string;
-    after: string;
+    files: {
+      path: string;
+      before: string;
+      after: string;
+    }[];
   };
   exit_plan_mode: {
     approved: true;
@@ -372,6 +483,55 @@ interface ToolOutputMap {
       };
     };
     activation: "armed" | "disarmed";
+  };
+  git_branch: {
+    branches?: {
+      name: string;
+      current: boolean;
+    }[];
+    branch?: string;
+    created?: boolean;
+    deleted?: string;
+  };
+  git_commit: {
+    hash: string;
+    short_hash: string;
+    subject: string;
+  };
+  git_diff: {
+    diff: string;
+    truncated: boolean;
+  };
+  git_log: {
+    commits: {
+      hash: string;
+      short_hash: string;
+      author: string;
+      date: string;
+      subject: string;
+    }[];
+  };
+  git_merge: {
+    outcome: "merged" | "conflicted" | "up-to-date" | "aborted";
+    conflicts: string[];
+    output: string;
+  };
+  git_remote: {
+    output: string;
+  };
+  git_status: {
+    repository: string;
+    branch?: string;
+    detached: boolean;
+    upstream?: string;
+    ahead: number;
+    behind: number;
+    truncated: boolean;
+    changes: {
+      path: string;
+      staged?: string;
+      worktree?: string;
+    }[];
   };
   glob: {
     root: string;
@@ -440,13 +600,21 @@ interface ToolOutputMap {
     result: JsonValue;
   };
   read: {
-    path: string;
-    offset: number;
-    lines: {
-      number: number;
-      text: string;
-    }[];
-    totalLines: number;
+    files: ({
+      path: string;
+      offset: number;
+      lines: {
+        number: number;
+        text: string;
+      }[];
+      totalLines: number;
+    } | {
+      path: string;
+      error: string;
+    })[];
+  };
+  read_aloud: {
+    enabled: boolean;
   };
   read_image: {
     path: string;
@@ -462,6 +630,12 @@ interface ToolOutputMap {
         height: number;
       };
     };
+  };
+  remove_worktree: {
+    path: string;
+    branch?: string;
+    branchDeleted: boolean;
+    cwd?: string;
   };
   send_message: {
     messageId: string;
