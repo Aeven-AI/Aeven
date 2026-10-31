@@ -1,7 +1,7 @@
 {
   "name": "@aeven/memory-memos",
   "description": "MemOS long-term memory provider running the MemOS local core in the Host process",
-  "version": "0.3.28-alpha",
+  "version": "0.3.29-alpha",
   "publishConfig": {
     "access": "public"
   },

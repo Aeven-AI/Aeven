@@ -1,7 +1,7 @@
 {
   "name": "@aeven/desktop-host",
   "description": "Private upstream-Node host process for the Electron desktop application",
-  "version": "0.3.28-alpha",
+  "version": "0.3.29-alpha",
   "private": true,
   "license": "Apache-2.0",
   "type": "module",

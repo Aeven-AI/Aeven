@@ -1,7 +1,7 @@
 {
   "name": "@aeven/vcs",
   "description": "Abstract version-control capability seam (ctx.vcs) for the Aeven — provider registry keyed by branded id, repository detection, and normalized status, diff, log, staging, commit, branch, remote, and merge operations that tool Consumers drive",
-  "version": "0.3.28-alpha",
+  "version": "0.3.29-alpha",
   "publishConfig": {
     "access": "public"
   },

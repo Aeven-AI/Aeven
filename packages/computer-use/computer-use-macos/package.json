@@ -1,7 +1,7 @@
 {
   "name": "@aeven/computer-use-macos",
   "description": "macOS desktop adapter for self-contained computer use",
-  "version": "0.3.28-alpha",
+  "version": "0.3.29-alpha",
   "publishConfig": {
     "access": "public"
   },

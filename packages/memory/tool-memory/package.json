@@ -1,7 +1,7 @@
 {
   "name": "@aeven/tool-memory",
   "description": "Model-facing tools to search and inspect long-term memory",
-  "version": "0.3.28-alpha",
+  "version": "0.3.29-alpha",
   "publishConfig": {
     "access": "public"
   },
