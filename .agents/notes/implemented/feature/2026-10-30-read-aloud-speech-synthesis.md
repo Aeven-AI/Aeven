@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-10-30-read-aloud-speech-synthesis.zh.md)
+
 ## Problem
 
 Aeven could speak no reply, and no seam existed to add it: the model had no way to ask for reading, the Host had no synthesis provider, and the Web client had nowhere to put a reader's choice of voice. Speech recognition already had a definition/provider/Remote/tool stack, so synthesis needed the same shape rather than a bespoke path. Building it surfaced three product problems that a naive implementation would have shipped: a language with no configured voice fell through to whichever voice the provider listed first, which for Japanese was a male voice; the toggle forgot itself the moment the reader opened another Session; and Markdown left in the spoken text made a reader announce "asterisk" between words.

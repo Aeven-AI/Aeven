@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-10-30-source-control-as-a-capability.zh.md)
+
 ## Problem
 
 Agents working in a repository had no way to read its state as data. A model that needed to know what was staged, what a change contained, or what landed recently either ran `git` through the shell and parsed progress text, or guessed from the files it had just edited. Committing, switching branches, and merging were shell commands with no structure: a branch switch that would carry uncommitted work failed with an exit code, and a conflicting merge surfaced as a wall of output rather than a list of paths to resolve.
