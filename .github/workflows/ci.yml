@@ -41,6 +41,11 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # The suite loads published dependencies (`@deepseek-ai/dsh-llm` through
+      # `dsh-coding-oauth-core`) that import the vendored cordis by its built
+      # `lib/`, so a checkout with no build output cannot run it at all.
+      - name: Build
+        run: pnpm run build
       - name: Unit suite
         run: pnpm run check:ci:test
 
