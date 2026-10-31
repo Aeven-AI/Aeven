@@ -28,7 +28,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@deepseek-ai/schemastery": "workspace:^",
-    "msedge-tts": "^2.1.1"
+    "ws": "^8.21.3"
   },
   "peerDependencies": {
     "@aeven/text-to-speech": "workspace:^",
@@ -36,6 +36,7 @@
   },
   "devDependencies": {
     "@aeven/text-to-speech": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@types/ws": "^8.18.2"
   }
 }

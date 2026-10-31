@@ -1,5 +1,5 @@
 /** Cloud provider: Microsoft Edge read-aloud voices, one websocket per voice. */
-import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts'
+import { MsEdgeTTS, OUTPUT_FORMAT } from './edge-tts.ts'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@aeven/text-to-speech'
 import type { TtsProviderId, TtsVoice, TtsVoiceId } from '@aeven/text-to-speech/types'
@@ -8,13 +8,6 @@ import { Config, type VoiceConfig } from './config.ts'
 export { Config } from './config.ts'
 export const name = 'text-to-speech-edge'
 export const inject = ['textToSpeech']
-
-/** The parts of Edge's voice listing this provider reads. */
-interface EdgeVoice {
-  readonly ShortName: string
-  readonly Locale: string
-  readonly Gender?: string
-}
 
 /**
  * Register the Edge provider; sockets open on first use per voice and close on disposal.
@@ -73,7 +66,9 @@ export function apply(ctx: Context, config: Config): void {
           try {
             return await Promise.race([collected, cancelled])
           } catch (error) {
-            release(input.voiceId, tts)
+            // A caller that stops reading leaves the carrier healthy: `msedge-tts` drops that turn's
+            // stream and the next utterance reuses the socket instead of paying a new handshake.
+            if (!signal.aborted) release(input.voiceId, tts)
             throw error
           }
         },
@@ -112,7 +107,7 @@ export function apply(ctx: Context, config: Config): void {
 async function discover(config: Config): Promise<TtsVoice[]> {
   const client = new MsEdgeTTS({ synthesisTimeoutMs: config.timeoutMs })
   try {
-    const listed = await client.getVoices() as unknown as EdgeVoice[]
+    const listed = await client.getVoices()
     return listed
       .filter(voice => config.locales.length === 0 || config.locales.includes(voice.Locale))
       .map((voice) => {

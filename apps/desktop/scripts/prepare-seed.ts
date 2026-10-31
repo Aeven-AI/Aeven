@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto'
 import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { delimiter, dirname, join, relative, resolve, sep } from 'node:path'
-import { createSeedMetadata, DESKTOP_DEPENDENCY_PATCHES } from '../src/project-manager.ts'
+import { createSeedMetadata } from '../src/project-manager.ts'
 import { DESKTOP_HOST_PROTOCOL_VERSION } from '../src/host-protocol.ts'
 import { parseDesktopRelease, type DesktopRelease } from '../src/release.ts'
 import {
@@ -36,7 +36,6 @@ import { createSeedProfileLayout } from '../src/seed-profile.ts'
 import { bundleSeedDependencies } from './bundle-seed-dependencies.ts'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
-const REPOSITORY_PATCHES = resolve(APP_ROOT, '..', '..', 'patches')
 const BUILD_PATHS = resolveDesktopTargetBuildPaths()
 const SEED_OUTPUT_ROOT = BUILD_PATHS.seed
 const SEED_ROOT = mkdtempSync(join(tmpdir(), 'avn-desktop-seed-'))
@@ -170,7 +169,6 @@ async function main(): Promise<void> {
     copyFileSync(join(PACKAGE_SET_ROOT, DESKTOP_PACKAGE_SET_FILE), join(SEED_ROOT, DESKTOP_PACKAGE_SET_FILE))
     cpSync(join(PACKAGE_SET_ROOT, DESKTOP_PACKAGES_DIR), join(SEED_ROOT, DESKTOP_PACKAGES_DIR), { recursive: true })
     createSeedMetadata(SEED_ROOT, release)
-    for (const file of Object.values(DESKTOP_DEPENDENCY_PATCHES)) copyFileSync(join(REPOSITORY_PATCHES, file), join(SEED_ROOT, file))
     await runPnpm(['install', '--lockfile-only'])
     verifyDesktopCoreLockfile(
       readFileSync(join(SEED_ROOT, 'pnpm-lock.yaml'), 'utf8'),

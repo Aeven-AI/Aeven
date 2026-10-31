@@ -36,17 +36,6 @@ import { renameRetryingWindowsLocks } from './rename-retry.ts'
 import { extractPnpmStoreArchives, mergePnpmStore } from './seed-store.ts'
 import { installSeedProfileLayout, SEED_PROFILE_LAYOUT } from './seed-profile.ts'
 
-/**
- * Dependency patches a packaged Desktop project applies, by pnpm selector, to the file the project carries at its
- * root. Each file is the repository's own `patches/` entry, copied into the seed when it is prepared.
- *
- * `@googleworkspace/cli` publishes no Windows on ARM build of `gws`; its patch falls back to the x64 build, which
- * runs under emulation, instead of failing the install script.
- */
-export const DESKTOP_DEPENDENCY_PATCHES: Readonly<Record<string, string>> = {
-  '@googleworkspace/cli@0.22.5': '@googleworkspace__cli@0.22.5.patch',
-}
-
 /** Files the package transaction copies between active and staging projects. */
 const DESKTOP_PROJECT_FILES = [
   'package.json',
@@ -54,7 +43,6 @@ const DESKTOP_PROJECT_FILES = [
   'pnpm-workspace.yaml',
   'desktop-release.json',
   DESKTOP_PACKAGE_SET_FILE,
-  ...Object.values(DESKTOP_DEPENDENCY_PATCHES),
 ] as const
 
 /** Desktop plugin record derived from the installed profile. */
@@ -172,26 +160,19 @@ function readJson(path: string): unknown {
   return JSON.parse(readFileSync(path, 'utf8'))
 }
 
-function workspaceFile(
-  corePackages: Readonly<Record<string, string>> = {},
-  patches: Readonly<Record<string, string>> = {},
-): string {
+function workspaceFile(corePackages: Readonly<Record<string, string>> = {}): string {
   const entries = Object.entries({ ...DESKTOP_DEPENDENCY_OVERRIDES, ...corePackages })
     .sort(([left], [right]) => left.localeCompare(right))
   const overrideSection = `overrides:\n${entries.map(([name, spec]) => `  ${JSON.stringify(name)}: ${JSON.stringify(spec)}`).join('\n')}\n`
-  const patchEntries = Object.entries(patches).sort(([left], [right]) => left.localeCompare(right))
-  const patchSection = patchEntries.length === 0
-    ? ''
-    : `patchedDependencies:\n${patchEntries.map(([selector, file]) => `  ${JSON.stringify(selector)}: ${JSON.stringify(file)}`).join('\n')}\n`
   const coreBuildSpec = corePackages[CORE_BUILD_PACKAGE]
   const coreBuildKey = coreBuildSpec === undefined
     ? CORE_BUILD_PACKAGE
     : `${CORE_BUILD_PACKAGE}@${coreBuildSpec.replace('file:./', 'file:')}`
   // onnxruntime-node's install script only downloads CUDA execution providers (Linux x64); MemOS embeds on the
   // CPU runtime the package ships, so allowing it would put about 300 MB of GPU libraries into every install.
-  // The Google connectors spawn the platform CLI this package's install script downloads into its own `bin/`; denying
-  // the script leaves `bin/gws` missing and the connector tools unusable.
-  return `packages:\n  - .\n\n${overrideSection}${patchSection}${WORKSPACE_SETTINGS}allowBuilds:\n  '@googleworkspace/cli': true\n  node-pty: true\n  koffi: true\n  keytar: true\n  fs-ext: true\n  esbuild: true\n  better-sqlite3: true\n  onnxruntime-node: false\n  sharp: true\n  ${JSON.stringify(coreBuildKey)}: true\n  '@google/genai': false\n  protobufjs: false\n  node-addon-require-builtin: false\n  tesseract.js: false\n`
+  // The Google connectors spawn the platform CLI the Host installs into the package's own `bin/` from its
+  // postinstall, which also covers Windows on ARM; the package's own installer refuses that host.
+  return `packages:\n  - .\n\n${overrideSection}${WORKSPACE_SETTINGS}allowBuilds:\n  '@googleworkspace/cli': false\n  '@aeven/host-account-integrations': true\n  node-pty: true\n  koffi: true\n  keytar: true\n  fs-ext: true\n  esbuild: true\n  better-sqlite3: true\n  onnxruntime-node: false\n  sharp: true\n  ${JSON.stringify(coreBuildKey)}: true\n  '@google/genai': false\n  protobufjs: false\n  node-addon-require-builtin: false\n  tesseract.js: false\n`
 }
 
 function releaseFile(projectDir: string): DesktopRelease {
@@ -336,7 +317,7 @@ function projectManifest(projectDir: string): DesktopProjectManifest {
   if (manifest.dependencies[AVN_PACKAGE] !== desktopAvnPackageSpec(packageSet)
     || Object.entries(expectedOverrides).some(([name, spec]) => manifest.dependencies[name] !== spec)
     || readFileSync(join(projectDir, 'pnpm-workspace.yaml'), 'utf8')
-      !== workspaceFile(expectedOverrides, DESKTOP_DEPENDENCY_PATCHES)) {
+      !== workspaceFile(expectedOverrides)) {
     throw new Error(`desktop project: core package mapping does not match ${DESKTOP_PACKAGE_SET_FILE}`)
   }
   return manifest
@@ -804,7 +785,7 @@ export function createSeedMetadata(seedDir: string, release: DesktopRelease): vo
   writeJson(join(seedDir, 'package.json'), manifest)
   writeFileSync(
     join(seedDir, 'pnpm-workspace.yaml'),
-    workspaceFile(desktopCorePackageOverrides(packageSet), DESKTOP_DEPENDENCY_PATCHES),
+    workspaceFile(desktopCorePackageOverrides(packageSet)),
     { mode: 0o600 },
   )
   writeJson(join(seedDir, 'desktop-release.json'), release)

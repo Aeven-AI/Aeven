@@ -184,6 +184,8 @@ const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
   // resolve at install time, before the build produces lib/bin.js.
   '@aeven/experimental-webworker-packer': ['bin.js', 'lib/repository-*.js'],
   '@aeven/subprocess-local': ['scripts/ensure-spawn-helper.mjs'],
+  // The Windows on ARM installer fetches the emulated x64 `gws` the connector's GWS_BIN names.
+  '@aeven/host-account-integrations': ['scripts/ensure-gws.mjs'],
 }
 
 function sameStringList(actual: readonly string[] | undefined, expected: readonly string[]): boolean {
