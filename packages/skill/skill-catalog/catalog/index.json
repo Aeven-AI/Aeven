@@ -2,9 +2,125 @@
   "upstream": {
     "repo": "davila7/claude-code-templates",
     "commit": "8293bc3e6130e49391c1a3530cd73212f01aec83",
-    "synced": "2026-10-17"
+    "synced": "2026-10-31"
   },
   "sources": [
+    {
+      "path": "packages/skill/skill-catalog/authored/aeven-stack",
+      "category": "aeven-stack"
+    },
+    {
+      "path": "packages/skill/skill-catalog/authored/avn-adopt",
+      "category": "aeven-stack"
+    },
+    {
+      "path": "packages/skill/skill-catalog/authored/avn-best-of-n",
+      "category": "aeven-stack"
+    },
+    {
+      "path": "packages/skill/skill-catalog/authored/avn-blast-radius",
+      "category": "aeven-stack"
+    },
+    {
+      "path": "packages/skill/skill-catalog/authored/avn-blueprint",
+      "category": "aeven-stack"
+    },
+    {
+      "path": "packages/skill/skill-catalog/authored/avn-catchup",
+      "category": "aeven-stack"
+    },
+    {
+      "path": "packages/skill/skill-catalog/authored/avn-context-reset",
+      "category": "aeven-stack"
+    },
+    {
+      "path": "packages/skill/skill-catalog/authored/avn-design",
+      "category": "aeven-stack"
+    },
+    {
+      "path": "packages/skill/skill-catalog/authored/avn-design-audit",
+      "category": "aeven-stack"
+    },
+    {
+      "path": "packages/skill/skill-catalog/authored/avn-explain",
+      "category": "aeven-stack"
+    },
+    {
+      "path": "packages/skill/skill-catalog/authored/avn-jury",
+      "category": "aeven-stack"
+    },
+    {
+      "path": "packages/skill/skill-catalog/authored/avn-ledger",
+      "category": "aeven-stack"
+    },
+    {
+      "path": "packages/skill/skill-catalog/authored/avn-lessons",
+      "category": "aeven-stack"
+    },
+    {
+      "path": "packages/skill/skill-catalog/authored/avn-mode",
+      "category": "aeven-stack"
+    },
+    {
+      "path": "packages/skill/skill-catalog/authored/avn-plan-loop",
+      "category": "aeven-stack"
+    },
+    {
+      "path": "packages/skill/skill-catalog/authored/avn-pr",
+      "category": "aeven-stack"
+    },
+    {
+      "path": "packages/skill/skill-catalog/authored/avn-pr-comments",
+      "category": "aeven-stack"
+    },
+    {
+      "path": "packages/skill/skill-catalog/authored/avn-principles",
+      "category": "aeven-stack"
+    },
+    {
+      "path": "packages/skill/skill-catalog/authored/avn-ready",
+      "category": "aeven-stack"
+    },
+    {
+      "path": "packages/skill/skill-catalog/authored/avn-review-loop",
+      "category": "aeven-stack"
+    },
+    {
+      "path": "packages/skill/skill-catalog/authored/avn-revive",
+      "category": "aeven-stack"
+    },
+    {
+      "path": "packages/skill/skill-catalog/authored/avn-sharpen",
+      "category": "aeven-stack"
+    },
+    {
+      "path": "packages/skill/skill-catalog/authored/avn-ship",
+      "category": "aeven-stack"
+    },
+    {
+      "path": "packages/skill/skill-catalog/authored/avn-swarm",
+      "category": "aeven-stack"
+    },
+    {
+      "path": "packages/skill/skill-catalog/authored/avn-tdd",
+      "category": "aeven-stack"
+    },
+    {
+      "path": "packages/skill/skill-catalog/authored/avn-unslop",
+      "category": "aeven-stack"
+    },
+    {
+      "path": "packages/skill/skill-catalog/authored/avn-unstick",
+      "category": "aeven-stack"
+    },
+    {
+      "path": "packages/skill/skill-catalog/authored/avn-verify-loop",
+      "category": "aeven-stack"
+    },
+    {
+      "path": "packages/skill/skill-catalog/authored/avn-watch-pr",
+      "category": "aeven-stack"
+    },
     {
       "path": "packages/skill/skill-catalog/authored/reverse-engineering",
       "category": "reverse-engineering"
@@ -15,6 +131,10 @@
     }
   ],
   "categories": [
+    {
+      "name": "aeven-stack",
+      "skills": 29
+    },
     {
       "name": "ai-research",
       "skills": 1
@@ -69,6 +189,383 @@
     }
   ],
   "skills": [
+    {
+      "name": "aeven-stack",
+      "displayName": "aeven-stack",
+      "category": "aeven-stack",
+      "description": "Route a task to the right skill in the aeven-stack pack and explain how the pack fits together. Use when the user asks which skill to use, what the pack contains, or where to start on a coding task in Aeven.",
+      "keywords": [],
+      "downloads": 0,
+      "author": "",
+      "path": "packages/skill/skill-catalog/authored/aeven-stack",
+      "files": 2,
+      "bytes": 1782,
+      "sha256": "0bc827d31fa6c8c76b1ffafd476f57ca079b55245ace238660233ce2eb76ae92"
+    },
+    {
+      "name": "avn-adopt",
+      "displayName": "avn-adopt",
+      "category": "aeven-stack",
+      "description": "Takes over an existing PR, branch or agent thread and finishes its original goal while keeping credit for the first contributors. Use when the user says take over, adopt, pick up or finish this PR.",
+      "keywords": [],
+      "downloads": 0,
+      "author": "",
+      "path": "packages/skill/skill-catalog/authored/avn-adopt",
+      "files": 2,
+      "bytes": 1895,
+      "sha256": "4f63035f5fd158af01131d9ae8c3f63f7e028dbb4a25f8b14a30fabc87a75829"
+    },
+    {
+      "name": "avn-best-of-n",
+      "displayName": "avn-best-of-n",
+      "category": "aeven-stack",
+      "description": "Run N independent attempts at the same task in parallel, pick the strongest as the base, and graft the best parts of the others into it. Use when one attempt at a non-trivial artifact could land on the wrong shape, or for 'try a few versions', 'best of 3'.",
+      "keywords": [],
+      "downloads": 0,
+      "author": "",
+      "path": "packages/skill/skill-catalog/authored/avn-best-of-n",
+      "files": 2,
+      "bytes": 1796,
+      "sha256": "08065c249d623cd9daf190a73223ce77b42a857494be7dffff976c836c23ee69"
+    },
+    {
+      "name": "avn-blast-radius",
+      "displayName": "avn-blast-radius",
+      "category": "aeven-stack",
+      "description": "Find what a change could break outside its own diff, then prove the key safety fact by running real code. Use before shipping a risky or untrusted change, for 'what could this break', 'blast radius of X'.",
+      "keywords": [],
+      "downloads": 0,
+      "author": "",
+      "path": "packages/skill/skill-catalog/authored/avn-blast-radius",
+      "files": 2,
+      "bytes": 1830,
+      "sha256": "874430a60828cb40ad0abfc647c50dcb15f7ddb49172f9f7e6e9b167c098f193"
+    },
+    {
+      "name": "avn-blueprint",
+      "displayName": "avn-blueprint",
+      "category": "aeven-stack",
+      "description": "Design the types, function signatures and module layout first, agree on that shape, then implement against it. Use when work is non-trivial and coding straight away would lock in the wrong structure, or for 'design this first', 'architect this'.",
+      "keywords": [],
+      "downloads": 0,
+      "author": "",
+      "path": "packages/skill/skill-catalog/authored/avn-blueprint",
+      "files": 2,
+      "bytes": 1847,
+      "sha256": "0bca24d5ff2df440a1ab0179afa8ba3fc8a6d6426cf7cdb2a35279216d48b4c7"
+    },
+    {
+      "name": "avn-catchup",
+      "displayName": "avn-catchup",
+      "category": "aeven-stack",
+      "description": "Give the user a short plain-language catch-up on what changed since their last message, followed by every decision still waiting on them. Use when the user returns after a long or unattended run, or asks 'where are we', 'what did I miss'.",
+      "keywords": [],
+      "downloads": 0,
+      "author": "",
+      "path": "packages/skill/skill-catalog/authored/avn-catchup",
+      "files": 2,
+      "bytes": 1719,
+      "sha256": "1c5d80ad79d2b511fa1945ba9070fd2cc749b04156216589dcb8e6b62b7084fe"
+    },
+    {
+      "name": "avn-context-reset",
+      "displayName": "avn-context-reset",
+      "category": "aeven-stack",
+      "description": "Keep a PROGRESS.md for long tasks and move to a fresh session or subagent that reads only that file when the context gets long or stale. Use when a task spans many steps or sessions, when the model starts repeating itself, forgets earlier facts, or re-tries old fixes, or when the context window is past about half full.",
+      "keywords": [],
+      "downloads": 0,
+      "author": "",
+      "path": "packages/skill/skill-catalog/authored/avn-context-reset",
+      "files": 2,
+      "bytes": 2010,
+      "sha256": "66b5408e5932ac870301384b7bd3e28ae4179a91212df3d367eae6f3ece6afc9"
+    },
+    {
+      "name": "avn-design",
+      "displayName": "avn-design",
+      "category": "aeven-stack",
+      "description": "Builds a frontend with a clear visual direction instead of the generic AI look. Use when you create a new page, app screen, or component, or restyle one that looks templated.",
+      "keywords": [],
+      "downloads": 0,
+      "author": "",
+      "path": "packages/skill/skill-catalog/authored/avn-design",
+      "files": 2,
+      "bytes": 2414,
+      "sha256": "2f2dadba1b55d3451ba58ffdd1c718aa562737451901ee270c175221aeaa739b"
+    },
+    {
+      "name": "avn-design-audit",
+      "displayName": "avn-design-audit",
+      "category": "aeven-stack",
+      "description": "Reviews an existing UI with scores based on evidence, then fixes the highest-impact problems. Use when a page or app screen looks generic, cluttered, or unfinished, or before you ship UI work.",
+      "keywords": [],
+      "downloads": 0,
+      "author": "",
+      "path": "packages/skill/skill-catalog/authored/avn-design-audit",
+      "files": 2,
+      "bytes": 2348,
+      "sha256": "12c14e391a138dff94bda7d8771709382f634fecd4d56be546a01f07cd8f5718"
+    },
+    {
+      "name": "avn-explain",
+      "displayName": "avn-explain",
+      "category": "aeven-stack",
+      "description": "Explain how a piece of code works, why it is built that way, and what that means, in plain language a person can follow. Use for 'how does X work', 'why is it like this', 'teach me this', or onboarding to a subsystem.",
+      "keywords": [],
+      "downloads": 0,
+      "author": "",
+      "path": "packages/skill/skill-catalog/authored/avn-explain",
+      "files": 2,
+      "bytes": 1803,
+      "sha256": "6d41ed8b2ff598d8f6f637f6651eb8bde2c11f2c6ba611820940329bdb43f34b"
+    },
+    {
+      "name": "avn-jury",
+      "displayName": "avn-jury",
+      "category": "aeven-stack",
+      "description": "Gets independent reviews of a change from two or three different models or providers and loops on fixes until they agree. Use when the user says jury, panel review, second opinions, ask other models.",
+      "keywords": [],
+      "downloads": 0,
+      "author": "",
+      "path": "packages/skill/skill-catalog/authored/avn-jury",
+      "files": 2,
+      "bytes": 2036,
+      "sha256": "4e55a5a6491306e635f386a1ba85f55735f4656eaf7ca65503b66069a9dd3944"
+    },
+    {
+      "name": "avn-ledger",
+      "displayName": "avn-ledger",
+      "category": "aeven-stack",
+      "description": "Keep a one-row-per-decision log during long or unattended runs, and re-read it before each step so the run does not drift from its goal. Use for multi-phase or autonomous work, or work a human will review later.",
+      "keywords": [],
+      "downloads": 0,
+      "author": "",
+      "path": "packages/skill/skill-catalog/authored/avn-ledger",
+      "files": 2,
+      "bytes": 1711,
+      "sha256": "78524745e7579750a339ec312586655aeced991cd44f08d0f7936df8a3d7a1ab"
+    },
+    {
+      "name": "avn-lessons",
+      "displayName": "avn-lessons",
+      "category": "aeven-stack",
+      "description": "Find mistakes agents keep repeating in a repo and turn each into structure that blocks it, preferring types over lint over tests over docs, plus an end-of-session reflection. Use after a user correction, when the same fix comes up twice, or at the end of a long session.",
+      "keywords": [],
+      "downloads": 0,
+      "author": "",
+      "path": "packages/skill/skill-catalog/authored/avn-lessons",
+      "files": 2,
+      "bytes": 1873,
+      "sha256": "4cdaa3a4837bb33ef40e3866c65a942da0cd074fff31d1ef627346b7f9217579"
+    },
+    {
+      "name": "avn-mode",
+      "displayName": "avn-mode",
+      "category": "aeven-stack",
+      "description": "Always-on working style for Aeven agents: restate the task, read before editing, small verified steps, evidence before done, lean context, short reports. Use when starting any coding task, or when work starts to drift.",
+      "keywords": [],
+      "downloads": 0,
+      "author": "",
+      "path": "packages/skill/skill-catalog/authored/avn-mode",
+      "files": 2,
+      "bytes": 2216,
+      "sha256": "e3ffa0e185c2e8d64b2963ee8a415427b4bf62b7e4c5c91aa12538d9823d9eb9"
+    },
+    {
+      "name": "avn-plan-loop",
+      "displayName": "avn-plan-loop",
+      "category": "aeven-stack",
+      "description": "Write a numbered plan with an acceptance check for each step, critique it once in a fresh pass, revise it, then execute one step at a time. Use when a task touches more than one file, has unclear scope, or failed before because steps were missed.",
+      "keywords": [],
+      "downloads": 0,
+      "author": "",
+      "path": "packages/skill/skill-catalog/authored/avn-plan-loop",
+      "files": 2,
+      "bytes": 2008,
+      "sha256": "f54a925543bd6a9168b11d94235c61c3df5bdc2fb4bddc193d6db234380be8e4"
+    },
+    {
+      "name": "avn-pr",
+      "displayName": "avn-pr",
+      "category": "aeven-stack",
+      "description": "Files a short, clear pull request for the current branch. Use when the user asks to open, file or create a PR.",
+      "keywords": [],
+      "downloads": 0,
+      "author": "",
+      "path": "packages/skill/skill-catalog/authored/avn-pr",
+      "files": 2,
+      "bytes": 1832,
+      "sha256": "81b331377f1f7d35c28dd0ea990506df0efdc34650e35de5e95aa1dafca28ceb"
+    },
+    {
+      "name": "avn-pr-comments",
+      "displayName": "avn-pr-comments",
+      "category": "aeven-stack",
+      "description": "Formats and posts GitHub comments written by an agent on the user's behalf, with clear attribution and no leaked secrets. Use whenever you post a PR comment, review reply or dismissal reason.",
+      "keywords": [],
+      "downloads": 0,
+      "author": "",
+      "path": "packages/skill/skill-catalog/authored/avn-pr-comments",
+      "files": 2,
+      "bytes": 1711,
+      "sha256": "7fd3655cbb9dc2a54e74c13fb3815f06ad65e52ed2b9eea4ff319e5053bdea7a"
+    },
+    {
+      "name": "avn-principles",
+      "displayName": "avn-principles",
+      "category": "aeven-stack",
+      "description": "Compact engineering principles for design, debugging, verification, and delegation, each with a trigger. Use when choosing structure or types, sizing a diff, debugging, writing tests, or reviewing a change.",
+      "keywords": [],
+      "downloads": 0,
+      "author": "",
+      "path": "packages/skill/skill-catalog/authored/avn-principles",
+      "files": 2,
+      "bytes": 2726,
+      "sha256": "34d04e21b8ad8ed46c9bcb56272dd1317491ff4aa38a91f638f0cbcfc45a0ae5"
+    },
+    {
+      "name": "avn-ready",
+      "displayName": "avn-ready",
+      "category": "aeven-stack",
+      "description": "Runs the full avn-ship workflow but stops with the pull request ready for a human to merge, and never merges. Use when the user says get it ready, make it mergeable, stop before merge.",
+      "keywords": [],
+      "downloads": 0,
+      "author": "",
+      "path": "packages/skill/skill-catalog/authored/avn-ready",
+      "files": 2,
+      "bytes": 1759,
+      "sha256": "69fd69bb7676eb37074682de6a6ed4f5dc732cf5d852cb8f94ddde3960a486b9"
+    },
+    {
+      "name": "avn-review-loop",
+      "displayName": "avn-review-loop",
+      "category": "aeven-stack",
+      "description": "Runs an author and a fresh-context reviewer in a loop on the current change until both agree it is correct, for at most four rounds. Use before or after filing a PR, for 'review loop', 'get it reviewed'.",
+      "keywords": [],
+      "downloads": 0,
+      "author": "",
+      "path": "packages/skill/skill-catalog/authored/avn-review-loop",
+      "files": 2,
+      "bytes": 2253,
+      "sha256": "3062ea4b07126393bd9c91c217f3ae055a4938c1672361ffc12ad8d00213519e"
+    },
+    {
+      "name": "avn-revive",
+      "displayName": "avn-revive",
+      "category": "aeven-stack",
+      "description": "Brings an old PR up to date by checking if its idea still fits the current code, then rebasing, reworking or recommending it be closed. Use when asked to rebase, refresh, update or revive a stale PR.",
+      "keywords": [],
+      "downloads": 0,
+      "author": "",
+      "path": "packages/skill/skill-catalog/authored/avn-revive",
+      "files": 2,
+      "bytes": 2123,
+      "sha256": "95377ca0853e73b6bdf8d138a0779b680c2d628d6a856143c037e5299372b08a"
+    },
+    {
+      "name": "avn-sharpen",
+      "displayName": "avn-sharpen",
+      "category": "aeven-stack",
+      "description": "Restate the user's goal, make the task deeper rather than bigger, rewrite the prompt, and optionally attack the plan to find weak spots. Use before starting vague or high-stakes work, for 'sharpen this', 'what am I really asking', 'stress test this plan'.",
+      "keywords": [],
+      "downloads": 0,
+      "author": "",
+      "path": "packages/skill/skill-catalog/authored/avn-sharpen",
+      "files": 2,
+      "bytes": 1705,
+      "sha256": "3c01b3e3313df88052e8f03caf25a65249947134c663a0a437fc504629f2b389"
+    },
+    {
+      "name": "avn-ship",
+      "displayName": "avn-ship",
+      "category": "aeven-stack",
+      "description": "Takes a change all the way from code to a merged pull request without supervision: build it, prove it, review it, file the PR, watch it and merge it. Use when the user says ship it, send it all the way, merge when green.",
+      "keywords": [],
+      "downloads": 0,
+      "author": "",
+      "path": "packages/skill/skill-catalog/authored/avn-ship",
+      "files": 2,
+      "bytes": 2074,
+      "sha256": "52dfa10f3669d04d2b263837d2aef3cb716784cede91ce9445478ce2b520f3b3"
+    },
+    {
+      "name": "avn-swarm",
+      "displayName": "avn-swarm",
+      "category": "aeven-stack",
+      "description": "Fan out N parallel workers on slices of a job or on a race, collect every result, and return one evidence-backed report. Use for wide coverage, audits, races between approaches or exploration, or for 'swarm this', 'split this across workers'.",
+      "keywords": [],
+      "downloads": 0,
+      "author": "",
+      "path": "packages/skill/skill-catalog/authored/avn-swarm",
+      "files": 2,
+      "bytes": 1788,
+      "sha256": "6e02b470c06ec01447ed47adb40a2d34f223ca386f2c8e881baa9e9a86364d56"
+    },
+    {
+      "name": "avn-tdd",
+      "displayName": "avn-tdd",
+      "category": "aeven-stack",
+      "description": "Fix a bug by first writing a focused test that fails for the right reason, then making the smallest change that makes it pass. Use when the user asks for TDD or a regression test, when a bug has a cheap local test target, or before claiming a bug fix.",
+      "keywords": [],
+      "downloads": 0,
+      "author": "",
+      "path": "packages/skill/skill-catalog/authored/avn-tdd",
+      "files": 2,
+      "bytes": 1683,
+      "sha256": "37718774f0383342b9f297eb3c05b33a6c41631166135ca21b0a848cbc73b636"
+    },
+    {
+      "name": "avn-unslop",
+      "displayName": "avn-unslop",
+      "category": "aeven-stack",
+      "description": "Remove AI writing tells from prose and code comments, then rewrite in plain, specific English. Use when writing or editing replies, docs, READMEs, PR descriptions, commit messages, or comments.",
+      "keywords": [],
+      "downloads": 0,
+      "author": "",
+      "path": "packages/skill/skill-catalog/authored/avn-unslop",
+      "files": 2,
+      "bytes": 2404,
+      "sha256": "7bd6dcf4c85766d1a6376fc69de97cede98baeec22334a29c20c09895f84bee7"
+    },
+    {
+      "name": "avn-unstick",
+      "displayName": "avn-unstick",
+      "category": "aeven-stack",
+      "description": "Break out of a repeating failure: name the assumption behind all the failed fixes, test it directly, list three other approaches, pick one, and restart clean if needed. Use when the same error or wrong behavior comes back after two fix attempts, or when you notice you are retrying small variations.",
+      "keywords": [],
+      "downloads": 0,
+      "author": "",
+      "path": "packages/skill/skill-catalog/authored/avn-unstick",
+      "files": 2,
+      "bytes": 2030,
+      "sha256": "4b4cf0c7b12549967d7253252ec6fdfcc40fa436b8ee66973e31f88fb7a7ea1d"
+    },
+    {
+      "name": "avn-verify-loop",
+      "displayName": "avn-verify-loop",
+      "category": "aeven-stack",
+      "description": "Run edit, real check, read the actual error, fix the root cause, rerun, until the check passes or the cap is hit. Use when you change code that has tests, a type checker, a build, or a runnable app, or before you claim any fix works.",
+      "keywords": [],
+      "downloads": 0,
+      "author": "",
+      "path": "packages/skill/skill-catalog/authored/avn-verify-loop",
+      "files": 2,
+      "bytes": 1902,
+      "sha256": "00b495333bfe70f780753cd4295fe5a1db44c221bd9272612fbe0c83dfd7cf0b"
+    },
+    {
+      "name": "avn-watch-pr",
+      "displayName": "avn-watch-pr",
+      "category": "aeven-stack",
+      "description": "Watches a pull request through CI and review, fixes real findings and stops when it is ready, merged or blocked. Use when the user asks to watch, monitor or babysit a PR.",
+      "keywords": [],
+      "downloads": 0,
+      "author": "",
+      "path": "packages/skill/skill-catalog/authored/avn-watch-pr",
+      "files": 3,
+      "bytes": 4303,
+      "sha256": "2cbc950206bde254b5ae427dddbe37dbad0b65289debae3cf4847afd60c818fa"
+    },
     {
       "name": "agent-tool-builder",
       "displayName": "agent-tool-builder",
@@ -168,9 +665,9 @@
       "downloads": 0,
       "author": "Open Design contributors",
       "path": "nexu-io/open-design/skills/motion-design",
-      "files": 3,
-      "bytes": 14973,
-      "sha256": "f724937b025d06c851af26152f8cff01a42700016e69c1f129309751863736f8",
+      "files": 4,
+      "bytes": 19724,
+      "sha256": "6c8a7c8bbe07cfbe58c547497fb9b50bf7ed2ba55b6e7c8be22952d42b1ee6ac",
       "verdict": "net-new",
       "value": 5
     },

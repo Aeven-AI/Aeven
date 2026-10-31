@@ -12,7 +12,7 @@ Status: implemented
 
 `packages/skill/skill-catalog/sources.json` 列出集合未收录的技能。每条都指明本仓库中存放该技能 `SKILL.md` 的目录（相对仓库根目录），并写明设置页面对它使用的分类。`scripts/sync-skill-catalog.ts` 在 `curation.json` 旁边读取该文件，把每个目录按内置技能同样的改写与 frontmatter 重命名处理后，写出 `catalog/bundles/<category>/<name>.zip`。`index.json` 把每一条记录在 `sources` 下，条目的 `path` 就是该目录；`MANIFEST.md` 为每条打印一行 `Authored source:`。
 
-今天发行版里只有一条：`reverse-engineering`，来自 `packages/skill/skill-catalog/authored/reverse-engineering`，归入 `reverse-engineering` 分类，并在 `curation.json` 中被评为 `net-new`、价值 5。[该技能的记录](../feature/2026-10-17-authored-reverse-engineering-skill.zh.md)负责说明这份文件写了什么。
+今天发行版里有三十一条：`reverse-engineering` 与 `leanrea` 归入 `reverse-engineering` 分类，`aeven-stack` 的 29 个工作流技能归入 `aeven-stack` 分类。[该技能的记录](../feature/2026-10-17-authored-reverse-engineering-skill.zh.md)负责说明第一条写了什么，后 29 条由[技能包的记录](../feature/2026-10-31-aeven-stack-skill-pack.zh.md)负责。
 
 本仓库编写的技能，安装方式与目录中的上游技能完全一致：`SkillCatalog.bundle('reverse-engineering')` 读取它内置的 zip，账户导入路径像对待任何上传一样校验该压缩包。宿主、Remote 与设置页面都没有改动；也正是“安装”这一步，让它能够再从设置页面移除。
 
@@ -30,7 +30,7 @@ Status: implemented
 
 ## 后果
 
-本仓库编写的技能没有热度信号——`downloads: 0`、空的 `author`、空的 `keywords`——因此在目录默认的热度排序里排在最后，需要靠分类或搜索到达。`reverse-engineering` 是 `reverse-engineering` 分类的唯一成员，在设置页面里单独成段。
+本仓库编写的技能没有热度信号——`downloads: 0`、空的 `author`、空的 `keywords`——因此在目录默认的热度排序里排在最后，需要靠分类或搜索到达。`reverse-engineering` 与 `aeven-stack` 两个分类里只有本仓库编写的技能，各自在设置页面里单独成段。
 
 本仓库编写的技能按构造绕过 `curation.json` 的 `minValue` 门槛：把它列出来就是评审本身。条目仍然带有评审记录，这样它的价值对读者是明示的，清单中“已评审但未内置”的计数也保持有意义。
 

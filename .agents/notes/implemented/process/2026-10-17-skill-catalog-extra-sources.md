@@ -12,7 +12,7 @@ The shipped catalog is one generated snapshot of `davila7/claude-code-templates`
 
 `packages/skill/skill-catalog/sources.json` lists skills the collection does not carry. Each entry names a directory in this repository holding that skill's `SKILL.md`, relative to the repository root, and states the category Settings groups it under. `scripts/sync-skill-catalog.ts` reads the file beside `curation.json`, stages each directory through the same rebranding rewrite and frontmatter rename a vendored skill gets, and writes `catalog/bundles/<category>/<name>.zip`. `index.json` records each one under `sources` with its directory as the entry's `path`, and `MANIFEST.md` prints one `Authored source:` line per entry.
 
-One entry ships today: `reverse-engineering`, from `packages/skill/skill-catalog/authored/reverse-engineering`, grouped under the `reverse-engineering` category and reviewed `net-new` at value 5 in `curation.json`. [The skill note](../feature/2026-10-17-authored-reverse-engineering-skill.md) owns what that file says.
+Thirty-one entries ship today: `reverse-engineering` and `leanrea` under the `reverse-engineering` category, and the 29 `aeven-stack` workflow skills under `aeven-stack`. [The skill note](../feature/2026-10-17-authored-reverse-engineering-skill.md) owns what the first one says, and [the pack note](../feature/2026-10-31-aeven-stack-skill-pack.md) owns the last 29.
 
 An authored skill installs exactly like a catalogued upstream skill: `SkillCatalog.bundle('reverse-engineering')` reads its vendored zip, and the account import path validates the archive like any upload. Nothing about the Host, the Remote, or the Settings page changed, and the install is what makes the skill removable again from Settings.
 
@@ -30,7 +30,7 @@ An authored skill installs exactly like a catalogued upstream skill: `SkillCatal
 
 ## Consequences
 
-Authored skills carry no popularity signal — `downloads: 0`, empty `author`, empty `keywords` — so they sort last in the catalog's default popularity order and are reached by category or search. `reverse-engineering` is the only member of the `reverse-engineering` category, which reads as its own section in Settings.
+Authored skills carry no popularity signal — `downloads: 0`, empty `author`, empty `keywords` — so they sort last in the catalog's default popularity order and are reached by category or search. The `reverse-engineering` and `aeven-stack` categories hold only authored skills, so each reads as its own section in Settings.
 
 Authored skills bypass `curation.json`'s `minValue` gate by construction: listing an entry is the review. The entry still carries a curation record so its value is stated for readers and the manifest's "reviewed but not vendored" count stays meaningful.
 

@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-31-aeven-stack-skill-pack.md
+2026-10-31-aeven-stack-skill-pack.md: f499bb95a434d31d984ac87b5d1a1c4867c364a5
+2026-10-31-aeven-stack-skill-pack.zh.md: ef5712194d4615d09d6a3847a00057bf5f0c3b60

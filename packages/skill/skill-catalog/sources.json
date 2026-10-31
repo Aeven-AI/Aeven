@@ -2,6 +2,122 @@
  "_note": "Skills the catalog ships as this repository's own writing. Each entry names the directory holding the skill's SKILL.md, relative to the repository root, and the category Settings groups it under; `scripts/sync-skill-catalog.ts` packages it into a bundle beside the vendored upstream skills, so Settings installs and removes it like any other catalog skill.",
  "skills": [
   {
+   "authored": "packages/skill/skill-catalog/authored/aeven-stack",
+   "category": "aeven-stack"
+  },
+  {
+   "authored": "packages/skill/skill-catalog/authored/avn-adopt",
+   "category": "aeven-stack"
+  },
+  {
+   "authored": "packages/skill/skill-catalog/authored/avn-best-of-n",
+   "category": "aeven-stack"
+  },
+  {
+   "authored": "packages/skill/skill-catalog/authored/avn-blast-radius",
+   "category": "aeven-stack"
+  },
+  {
+   "authored": "packages/skill/skill-catalog/authored/avn-blueprint",
+   "category": "aeven-stack"
+  },
+  {
+   "authored": "packages/skill/skill-catalog/authored/avn-catchup",
+   "category": "aeven-stack"
+  },
+  {
+   "authored": "packages/skill/skill-catalog/authored/avn-context-reset",
+   "category": "aeven-stack"
+  },
+  {
+   "authored": "packages/skill/skill-catalog/authored/avn-design",
+   "category": "aeven-stack"
+  },
+  {
+   "authored": "packages/skill/skill-catalog/authored/avn-design-audit",
+   "category": "aeven-stack"
+  },
+  {
+   "authored": "packages/skill/skill-catalog/authored/avn-explain",
+   "category": "aeven-stack"
+  },
+  {
+   "authored": "packages/skill/skill-catalog/authored/avn-jury",
+   "category": "aeven-stack"
+  },
+  {
+   "authored": "packages/skill/skill-catalog/authored/avn-ledger",
+   "category": "aeven-stack"
+  },
+  {
+   "authored": "packages/skill/skill-catalog/authored/avn-lessons",
+   "category": "aeven-stack"
+  },
+  {
+   "authored": "packages/skill/skill-catalog/authored/avn-mode",
+   "category": "aeven-stack"
+  },
+  {
+   "authored": "packages/skill/skill-catalog/authored/avn-plan-loop",
+   "category": "aeven-stack"
+  },
+  {
+   "authored": "packages/skill/skill-catalog/authored/avn-pr",
+   "category": "aeven-stack"
+  },
+  {
+   "authored": "packages/skill/skill-catalog/authored/avn-pr-comments",
+   "category": "aeven-stack"
+  },
+  {
+   "authored": "packages/skill/skill-catalog/authored/avn-principles",
+   "category": "aeven-stack"
+  },
+  {
+   "authored": "packages/skill/skill-catalog/authored/avn-ready",
+   "category": "aeven-stack"
+  },
+  {
+   "authored": "packages/skill/skill-catalog/authored/avn-review-loop",
+   "category": "aeven-stack"
+  },
+  {
+   "authored": "packages/skill/skill-catalog/authored/avn-revive",
+   "category": "aeven-stack"
+  },
+  {
+   "authored": "packages/skill/skill-catalog/authored/avn-sharpen",
+   "category": "aeven-stack"
+  },
+  {
+   "authored": "packages/skill/skill-catalog/authored/avn-ship",
+   "category": "aeven-stack"
+  },
+  {
+   "authored": "packages/skill/skill-catalog/authored/avn-swarm",
+   "category": "aeven-stack"
+  },
+  {
+   "authored": "packages/skill/skill-catalog/authored/avn-tdd",
+   "category": "aeven-stack"
+  },
+  {
+   "authored": "packages/skill/skill-catalog/authored/avn-unslop",
+   "category": "aeven-stack"
+  },
+  {
+   "authored": "packages/skill/skill-catalog/authored/avn-unstick",
+   "category": "aeven-stack"
+  },
+  {
+   "authored": "packages/skill/skill-catalog/authored/avn-verify-loop",
+   "category": "aeven-stack"
+  },
+  {
+   "authored": "packages/skill/skill-catalog/authored/avn-watch-pr",
+   "category": "aeven-stack"
+  },
+  {
    "authored": "packages/skill/skill-catalog/authored/reverse-engineering",
    "category": "reverse-engineering"
   },
