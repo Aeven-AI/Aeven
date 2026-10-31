@@ -507,11 +507,14 @@ function checkWorkspaceProtocol(manifests: readonly WorkspaceManifest[]): string
 function fixPublicationFiles(manifests: WorkspaceManifest[]): number {
   let fixed = 0
   for (const { dir, manifest } of manifests) {
-    const expectedFiles = dir.startsWith('apps/') && dir !== desktopApplicationDirectory
-      ? appPackageFiles[manifest.name]
-      : dir.startsWith('packages/') && manifest.name?.startsWith('@aeven/')
-        ? expectedAvnPackageFiles(manifest)
-        : undefined
+    const name = manifest.name
+    const expectedFiles = name === undefined
+      ? undefined
+      : dir.startsWith('apps/') && dir !== desktopApplicationDirectory
+        ? appPackageFiles[name]
+        : dir.startsWith('packages/') && name.startsWith('@aeven/')
+          ? expectedAvnPackageFiles(manifest)
+          : undefined
     if (expectedFiles === undefined || sameStringList(manifest.files, expectedFiles)) continue
     writeFileSync(join(root, dir, 'package.json'), `${JSON.stringify({ ...manifest, files: expectedFiles }, null, 2)}\n`)
     fixed++
