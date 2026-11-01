@@ -431,7 +431,11 @@ function renderEvent(e: AnnotatedLogEventEntry, locale: Locale): string[] {
   out.push('```' + FENCE, e.declaration, '```', '')
   const links = typeLinks(e.payload, locale)
   if (links) out.push(links, '')
-  out.push(`${locale.source}[\`${e.source}\`](../${e.source.split(':')[0]})`, '')
+  // The label carries the file, not the declaration line: a source line moves with
+  // every unrelated edit above it, so including it made this file drift on changes
+  // that never touched the catalog.
+  const sourceFile = e.source.split(':')[0] ?? e.source
+  out.push(`${locale.source}[\`${sourceFile}\`](../${sourceFile})`, '')
   return out
 }
 
@@ -454,7 +458,9 @@ export function render(
     envelopeTypes.map(entry => entry.declaration).join('\n\n'),
     '```',
     '',
-    `${locale.sources}${envelopeTypes.map(entry => `[\`${entry.source}\`](../${entry.source.split(':')[0]})`).join(' · ')}`,
+    `${locale.sources}${[...new Set(envelopeTypes.map(entry => entry.source.split(':')[0] ?? entry.source))]
+      .map(sourceFile => `[\`${sourceFile}\`](../${sourceFile})`)
+      .join(' · ')}`,
     '',
     locale.eventsHeading,
     '',
