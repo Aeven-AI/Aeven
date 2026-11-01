@@ -4,7 +4,7 @@
  * types must resolve without collisions, and every enumerable schema path must
  * exist on the declared config type. External and dynamic types stay unknown;
  * declared runtime-only fields need not appear in the schema. `--check` verifies
- * the committed artifact.
+ * the committed artifact; `--validate` runs the same source checks alone.
  */
 
 import { globSync, readFileSync, writeFileSync } from 'node:fs'
@@ -49,7 +49,12 @@ interface TypeRef {
 interface Paste {
   /** Full source text: leading JSDoc (when present) through the closing token. */
   text: string
-  /** Source pointer `packages/…/file.ts:line` of the declaration. */
+  /**
+   * Source file of the declaration, repo-relative. The line is deliberately
+   * absent: a position shifts with every edit above it, which made the committed
+   * catalogue disagree with a fresh generation for reasons unrelated to any
+   * config change.
+   */
   source: string
 }
 
@@ -986,8 +991,8 @@ function renderConfigEntry(entry: CatalogEntry, byName: Map<string, CatalogEntry
   if (entry.refs && entry.refs.length > 0) {
     out.push(`${locale.dependsOn}${entry.refs.map(r => refLink(r, byName, locale)).join(' · ')}`, '')
   }
-  const source = entry.pastes?.[0]?.source ?? entry.entry
-  out.push(`${locale.source}[\`${source}\`](../${source.split(':')[0]})`, '')
+  const [sourceFile = entry.entry] = (entry.pastes?.[0]?.source ?? entry.entry).split(':')
+  out.push(`${locale.source}[\`${sourceFile}\`](../${sourceFile})`, '')
   return out
 }
 
@@ -1038,11 +1043,16 @@ export function render(entries: CatalogEntry[], locale: Locale = EN): string {
 const LOCALES: readonly Locale[] = [EN, ZH]
 
 /** CLI entry: default writes both sides of the pair, `--check` fails if either
- * committed copy is stale. Guarded behind an entry-point check so importing
+ * committed copy is stale, `--validate` checks the sources without reading or
+ * writing the committed copies. Guarded behind an entry-point check so importing
  * this module for tests neither regenerates the committed files nor calls
  * process.exit. */
 function main(): void {
   const entries = collectConfigCatalog()
+  if (process.argv.includes('--validate')) {
+    console.log('gen-config-catalog: sources validate.')
+    return
+  }
   const stale: Locale[] = []
   for (const locale of LOCALES) {
     const content = render(entries, locale)
