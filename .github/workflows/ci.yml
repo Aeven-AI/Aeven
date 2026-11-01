@@ -79,11 +79,6 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Static gates
-        # Report-only. The unit suite, typecheck and the build decide whether a
-        # change is sound; this lane checks that generated files match their
-        # sources, which is hygiene and can differ with the machine that ran the
-        # generator. Its failure is fixed in its own pull request.
-        continue-on-error: true
         run: pnpm run check:ci:static
 
   # The only lane that compiles the whole workspace: Host lib (including the
