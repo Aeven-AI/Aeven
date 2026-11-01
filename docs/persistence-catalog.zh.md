@@ -92,7 +92,7 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 }[T]
 ```
 
-来源：[`packages/core/session/src/types.ts:392`](../packages/core/session/src/types.ts) · [`packages/core/session/src/types.ts:399`](../packages/core/session/src/types.ts) · [`packages/core/session/src/types.ts:428`](../packages/core/session/src/types.ts) · [`packages/core/session/src/types.ts:460`](../packages/core/session/src/types.ts)
+来源：[`packages/core/session/src/types.ts`](../packages/core/session/src/types.ts)
 
 ## 事件
 
@@ -117,7 +117,7 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 }
 ```
 
-来源：[`packages/core/agent/src/types.ts:58`](../packages/core/agent/src/types.ts)
+来源：[`packages/core/agent/src/types.ts`](../packages/core/agent/src/types.ts)
 
 ### `agent-preset/*`
 
@@ -135,7 +135,7 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 'agent-preset/selected': { agentPreset: string }
 ```
 
-来源：[`packages/preset/agent-presets/src/session.ts:28`](../packages/preset/agent-presets/src/session.ts)
+来源：[`packages/preset/agent-presets/src/session.ts`](../packages/preset/agent-presets/src/session.ts)
 
 ### `approval/*`
 
@@ -166,7 +166,7 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 
 Types: [ToolCallId](subsystems/core.zh.md)
 
-来源：[`packages/interaction/user-approval/src/types.ts:62`](../packages/interaction/user-approval/src/types.ts)
+来源：[`packages/interaction/user-approval/src/types.ts`](../packages/interaction/user-approval/src/types.ts)
 
 <a id="approvaldecided--log-only"></a>
 
@@ -186,7 +186,7 @@ Types: [ToolCallId](subsystems/core.zh.md)
 }
 ```
 
-来源：[`packages/interaction/user-approval/src/types.ts:77`](../packages/interaction/user-approval/src/types.ts)
+来源：[`packages/interaction/user-approval/src/types.ts`](../packages/interaction/user-approval/src/types.ts)
 
 <a id="approvalpolicy--log-only"></a>
 
@@ -208,7 +208,7 @@ Types: [ToolCallId](subsystems/core.zh.md)
 }
 ```
 
-来源：[`packages/interaction/user-approval/src/index.ts:34`](../packages/interaction/user-approval/src/index.ts)
+来源：[`packages/interaction/user-approval/src/index.ts`](../packages/interaction/user-approval/src/index.ts)
 
 ### `assistant/*`
 
@@ -223,7 +223,7 @@ Types: [ToolCallId](subsystems/core.zh.md)
 
 Types: [StreamChunk](subsystems/llm-streaming.zh.md)
 
-来源：[`packages/core/session/src/types.ts:305`](../packages/core/session/src/types.ts)
+来源：[`packages/core/session/src/types.ts`](../packages/core/session/src/types.ts)
 
 <a id="assistantmessage--surface"></a>
 
@@ -245,7 +245,7 @@ Types: [StreamChunk](subsystems/llm-streaming.zh.md)
 
 Types: [TokenUsage](subsystems/llm-streaming.zh.md)
 
-来源：[`packages/core/session/src/types.ts:316`](../packages/core/session/src/types.ts)
+来源：[`packages/core/session/src/types.ts`](../packages/core/session/src/types.ts)
 
 ### `cache-warm/*`
 
@@ -258,7 +258,7 @@ Types: [TokenUsage](subsystems/llm-streaming.zh.md)
 'cache-warm/result': import('./types.ts').CacheWarmResultEventData
 ```
 
-来源：[`packages/llm/llm-cache-warm/src/index.ts:35`](../packages/llm/llm-cache-warm/src/index.ts)
+来源：[`packages/llm/llm-cache-warm/src/index.ts`](../packages/llm/llm-cache-warm/src/index.ts)
 
 <a id="cache-warmstart--log-only"></a>
 
@@ -269,7 +269,7 @@ Types: [TokenUsage](subsystems/llm-streaming.zh.md)
 'cache-warm/start': import('./types.ts').CacheWarmStartEventData
 ```
 
-来源：[`packages/llm/llm-cache-warm/src/index.ts:33`](../packages/llm/llm-cache-warm/src/index.ts)
+来源：[`packages/llm/llm-cache-warm/src/index.ts`](../packages/llm/llm-cache-warm/src/index.ts)
 
 ### `command/*`
 
@@ -292,7 +292,7 @@ Types: [TokenUsage](subsystems/llm-streaming.zh.md)
 }
 ```
 
-来源：[`packages/interaction/commands/src/types.ts:104`](../packages/interaction/commands/src/types.ts)
+来源：[`packages/interaction/commands/src/types.ts`](../packages/interaction/commands/src/types.ts)
 
 <a id="commandrun--log-only"></a>
 
@@ -312,7 +312,7 @@ Types: [TokenUsage](subsystems/llm-streaming.zh.md)
 'command/run': { commandId: CommandId; name: string; args?: string; source: CommandSource }
 ```
 
-来源：[`packages/interaction/commands/src/types.ts:97`](../packages/interaction/commands/src/types.ts)
+来源：[`packages/interaction/commands/src/types.ts`](../packages/interaction/commands/src/types.ts)
 
 ### `compaction/*`
 
@@ -328,7 +328,7 @@ Types: [TokenUsage](subsystems/llm-streaming.zh.md)
 'compaction/end': { compactionId: CompactionId; sourceCommandId?: CommandId; turn: number | null; error?: string }
 ```
 
-来源：[`packages/compaction/compaction/src/types.ts:72`](../packages/compaction/compaction/src/types.ts)
+来源：[`packages/compaction/compaction/src/types.ts`](../packages/compaction/compaction/src/types.ts)
 
 <a id="compactionprune--log-only"></a>
 
@@ -354,7 +354,7 @@ Types: [TokenUsage](subsystems/llm-streaming.zh.md)
 }
 ```
 
-来源：[`packages/compaction/compaction/src/types.ts:82`](../packages/compaction/compaction/src/types.ts)
+来源：[`packages/compaction/compaction/src/types.ts`](../packages/compaction/compaction/src/types.ts)
 
 <a id="compactionstart--log-only"></a>
 
@@ -369,7 +369,7 @@ Types: [TokenUsage](subsystems/llm-streaming.zh.md)
 'compaction/start': { compactionId: CompactionId; sourceCommandId?: CommandId; turn: number | null }
 ```
 
-来源：[`packages/compaction/compaction/src/types.ts:24`](../packages/compaction/compaction/src/types.ts)
+来源：[`packages/compaction/compaction/src/types.ts`](../packages/compaction/compaction/src/types.ts)
 
 <a id="compactionsummary--log-only"></a>
 
@@ -423,7 +423,7 @@ Types: [TokenUsage](subsystems/llm-streaming.zh.md)
 
 Types: [ContentBlock](subsystems/core.zh.md) · [TokenUsage](subsystems/llm-streaming.zh.md)
 
-来源：[`packages/compaction/compaction/src/types.ts:34`](../packages/compaction/compaction/src/types.ts)
+来源：[`packages/compaction/compaction/src/types.ts`](../packages/compaction/compaction/src/types.ts)
 
 ### `feedback/*`
 
@@ -439,7 +439,7 @@ Types: [ContentBlock](subsystems/core.zh.md) · [TokenUsage](subsystems/llm-stre
 'feedback/record': { text: string }
 ```
 
-来源：[`packages/feedback/command-feedback/src/index.ts:62`](../packages/feedback/command-feedback/src/index.ts)
+来源：[`packages/feedback/command-feedback/src/index.ts`](../packages/feedback/command-feedback/src/index.ts)
 
 ### `goal/*`
 
@@ -454,7 +454,7 @@ Types: [ContentBlock](subsystems/core.zh.md) · [TokenUsage](subsystems/llm-stre
 'goal/change': GoalChangeMeta
 ```
 
-来源：[`packages/goal/goal/src/domain.ts:66`](../packages/goal/goal/src/domain.ts)
+来源：[`packages/goal/goal/src/domain.ts`](../packages/goal/goal/src/domain.ts)
 
 ### `hook/*`
 
@@ -481,7 +481,7 @@ Types: [ContentBlock](subsystems/core.zh.md) · [TokenUsage](subsystems/llm-stre
 }
 ```
 
-来源：[`packages/hooks/hook-protocol/src/types.ts:19`](../packages/hooks/hook-protocol/src/types.ts)
+来源：[`packages/hooks/hook-protocol/src/types.ts`](../packages/hooks/hook-protocol/src/types.ts)
 
 <a id="hookresult--log-only"></a>
 
@@ -504,7 +504,7 @@ Types: [ContentBlock](subsystems/core.zh.md) · [TokenUsage](subsystems/llm-stre
 }
 ```
 
-来源：[`packages/hooks/hook-protocol/src/types.ts:31`](../packages/hooks/hook-protocol/src/types.ts)
+来源：[`packages/hooks/hook-protocol/src/types.ts`](../packages/hooks/hook-protocol/src/types.ts)
 
 ### `llm/*`
 
@@ -517,7 +517,7 @@ Types: [ContentBlock](subsystems/core.zh.md) · [TokenUsage](subsystems/llm-stre
 'llm/retry': LlmRetryEventData
 ```
 
-来源：[`packages/llm/llm-retry/src/types.ts:9`](../packages/llm/llm-retry/src/types.ts)
+来源：[`packages/llm/llm-retry/src/types.ts`](../packages/llm/llm-retry/src/types.ts)
 
 <a id="llmretry-started--log-only"></a>
 
@@ -528,7 +528,7 @@ Types: [ContentBlock](subsystems/core.zh.md) · [TokenUsage](subsystems/llm-stre
 'llm/retry-started': LlmRetryStartedEventData
 ```
 
-来源：[`packages/llm/llm-retry/src/types.ts:11`](../packages/llm/llm-retry/src/types.ts)
+来源：[`packages/llm/llm-retry/src/types.ts`](../packages/llm/llm-retry/src/types.ts)
 
 ### `model/*`
 
@@ -544,7 +544,7 @@ Types: [ContentBlock](subsystems/core.zh.md) · [TokenUsage](subsystems/llm-stre
 'model/selection': ModelSelection
 ```
 
-来源：[`packages/api/session-controller/src/types.ts:46`](../packages/api/session-controller/src/types.ts)
+来源：[`packages/api/session-controller/src/types.ts`](../packages/api/session-controller/src/types.ts)
 
 ### `permission/*`
 
@@ -562,7 +562,7 @@ Types: [ContentBlock](subsystems/core.zh.md) · [TokenUsage](subsystems/llm-stre
 'permission/preset': { preset: string }
 ```
 
-来源：[`packages/interaction/permission-presets/src/index.ts:53`](../packages/interaction/permission-presets/src/index.ts)
+来源：[`packages/interaction/permission-presets/src/index.ts`](../packages/interaction/permission-presets/src/index.ts)
 
 ### `plan/*`
 
@@ -579,7 +579,7 @@ Types: [ContentBlock](subsystems/core.zh.md) · [TokenUsage](subsystems/llm-stre
 'plan/mode': { active: boolean }
 ```
 
-来源：[`packages/plan/plan-mode/src/index.ts:46`](../packages/plan/plan-mode/src/index.ts)
+来源：[`packages/plan/plan-mode/src/index.ts`](../packages/plan/plan-mode/src/index.ts)
 
 ### `request/*`
 
@@ -595,7 +595,7 @@ Types: [ContentBlock](subsystems/core.zh.md) · [TokenUsage](subsystems/llm-stre
 'request/context': RequestContext
 ```
 
-来源：[`packages/core/session/src/types.ts:355`](../packages/core/session/src/types.ts)
+来源：[`packages/core/session/src/types.ts`](../packages/core/session/src/types.ts)
 
 <a id="requestheader--log-only"></a>
 
@@ -614,7 +614,7 @@ Types: [ContentBlock](subsystems/core.zh.md) · [TokenUsage](subsystems/llm-stre
 }
 ```
 
-来源：[`packages/core/session/src/types.ts:345`](../packages/core/session/src/types.ts)
+来源：[`packages/core/session/src/types.ts`](../packages/core/session/src/types.ts)
 
 ### `sandbox/*`
 
@@ -637,7 +637,7 @@ Types: [ContentBlock](subsystems/core.zh.md) · [TokenUsage](subsystems/llm-stre
 }
 ```
 
-来源：[`packages/sandbox/sandbox-policy/src/session-mode.ts:33`](../packages/sandbox/sandbox-policy/src/session-mode.ts)
+来源：[`packages/sandbox/sandbox-policy/src/session-mode.ts`](../packages/sandbox/sandbox-policy/src/session-mode.ts)
 
 ### `schedule/*`
 
@@ -655,7 +655,7 @@ Types: [ContentBlock](subsystems/core.zh.md) · [TokenUsage](subsystems/llm-stre
 
 Types: [ScheduleChange](subsystems/schedule.zh.md)
 
-来源：[`packages/schedule/schedule/src/types.ts:219`](../packages/schedule/schedule/src/types.ts)
+来源：[`packages/schedule/schedule/src/types.ts`](../packages/schedule/schedule/src/types.ts)
 
 ### `session/*`
 
@@ -677,7 +677,7 @@ Types: [ScheduleChange](subsystems/schedule.zh.md)
 'session/cwd': { cwd: string; root?: string }
 ```
 
-来源：[`packages/session/working-directory/src/types.ts:20`](../packages/session/working-directory/src/types.ts)
+来源：[`packages/session/working-directory/src/types.ts`](../packages/session/working-directory/src/types.ts)
 
 <a id="sessionend-seed--log-only"></a>
 
@@ -709,7 +709,7 @@ Types: [ScheduleChange](subsystems/schedule.zh.md)
 'session/end-seed': Record<string, never>
 ```
 
-来源：[`packages/core/session/src/types.ts:378`](../packages/core/session/src/types.ts)
+来源：[`packages/core/session/src/types.ts`](../packages/core/session/src/types.ts)
 
 <a id="sessionrewind--log-only"></a>
 
@@ -728,7 +728,7 @@ Types: [ScheduleChange](subsystems/schedule.zh.md)
 'session/rewind': { seq: SessionSeq }
 ```
 
-来源：[`packages/core/session/src/types.ts:388`](../packages/core/session/src/types.ts)
+来源：[`packages/core/session/src/types.ts`](../packages/core/session/src/types.ts)
 
 <a id="sessiontitle--log-only"></a>
 
@@ -744,7 +744,7 @@ Types: [ScheduleChange](subsystems/schedule.zh.md)
 
 Types: [SessionTitleEventData](subsystems/session-title.zh.md)
 
-来源：[`packages/session/session-title/src/index.ts:77`](../packages/session/session-title/src/index.ts)
+来源：[`packages/session/session-title/src/index.ts`](../packages/session/session-title/src/index.ts)
 
 <a id="sessiontitle-llm-request--log-only"></a>
 
@@ -757,7 +757,7 @@ Types: [SessionTitleEventData](subsystems/session-title.zh.md)
 
 Types: [SessionTitleLlmRequestEventData](subsystems/session-title.zh.md)
 
-来源：[`packages/session/session-title-llm/src/index.ts:45`](../packages/session/session-title-llm/src/index.ts)
+来源：[`packages/session/session-title-llm/src/index.ts`](../packages/session/session-title-llm/src/index.ts)
 
 ### `session-log-deepseek/*`
 
@@ -775,7 +775,7 @@ Types: [SessionTitleLlmRequestEventData](subsystems/session-title.zh.md)
 }
 ```
 
-来源：[`packages/session/session-log-deepseek/src/types.ts:57`](../packages/session/session-log-deepseek/src/types.ts)
+来源：[`packages/session/session-log-deepseek/src/types.ts`](../packages/session/session-log-deepseek/src/types.ts)
 
 ### `step/*`
 
@@ -788,7 +788,7 @@ Types: [SessionTitleLlmRequestEventData](subsystems/session-title.zh.md)
 'step/end': { turn: number; step: number }
 ```
 
-来源：[`packages/core/session/src/types.ts:295`](../packages/core/session/src/types.ts)
+来源：[`packages/core/session/src/types.ts`](../packages/core/session/src/types.ts)
 
 <a id="stepstart--log-only"></a>
 
@@ -799,7 +799,7 @@ Types: [SessionTitleLlmRequestEventData](subsystems/session-title.zh.md)
 'step/start': { turn: number; step: number }
 ```
 
-来源：[`packages/core/session/src/types.ts:293`](../packages/core/session/src/types.ts)
+来源：[`packages/core/session/src/types.ts`](../packages/core/session/src/types.ts)
 
 ### `subagent/*`
 
@@ -818,7 +818,7 @@ Types: [SessionTitleLlmRequestEventData](subsystems/session-title.zh.md)
 'subagent/descriptor': SubagentDescriptorData
 ```
 
-来源：[`packages/subagent/subagent/src/descriptor.ts:38`](../packages/subagent/subagent/src/descriptor.ts)
+来源：[`packages/subagent/subagent/src/descriptor.ts`](../packages/subagent/subagent/src/descriptor.ts)
 
 <a id="subagentmodel-selection-policy--log-only"></a>
 
@@ -837,7 +837,7 @@ Types: [SessionTitleLlmRequestEventData](subsystems/session-title.zh.md)
 }
 ```
 
-来源：[`packages/subagent/tool-subagent/src/model-selection-state.ts:17`](../packages/subagent/tool-subagent/src/model-selection-state.ts)
+来源：[`packages/subagent/tool-subagent/src/model-selection-state.ts`](../packages/subagent/tool-subagent/src/model-selection-state.ts)
 
 ### `team/*`
 
@@ -852,7 +852,7 @@ Types: [SessionTitleLlmRequestEventData](subsystems/session-title.zh.md)
 
 Types: [TeamId](subsystems/agent-team.zh.md) · [TeamMemberSnapshot](subsystems/agent-team.zh.md)
 
-来源：[`packages/experimental/agent-team/src/types.ts:223`](../packages/experimental/agent-team/src/types.ts)
+来源：[`packages/experimental/agent-team/src/types.ts`](../packages/experimental/agent-team/src/types.ts)
 
 <a id="teammessagedelivered--log-only"></a>
 
@@ -870,7 +870,7 @@ Types: [TeamId](subsystems/agent-team.zh.md) · [TeamMemberSnapshot](subsystems/
 
 Types: [TeamId](subsystems/agent-team.zh.md) · [TeamMessageId](subsystems/agent-team.zh.md)
 
-来源：[`packages/experimental/agent-team/src/types.ts:229`](../packages/experimental/agent-team/src/types.ts)
+来源：[`packages/experimental/agent-team/src/types.ts`](../packages/experimental/agent-team/src/types.ts)
 
 <a id="teammessagequeued--log-only"></a>
 
@@ -883,7 +883,7 @@ Types: [TeamId](subsystems/agent-team.zh.md) · [TeamMessageId](subsystems/agent
 
 Types: [TeamId](subsystems/agent-team.zh.md) · [TeamMessageSnapshot](subsystems/agent-team.zh.md)
 
-来源：[`packages/experimental/agent-team/src/types.ts:227`](../packages/experimental/agent-team/src/types.ts)
+来源：[`packages/experimental/agent-team/src/types.ts`](../packages/experimental/agent-team/src/types.ts)
 
 <a id="teamtask--log-only"></a>
 
@@ -896,7 +896,7 @@ Types: [TeamId](subsystems/agent-team.zh.md) · [TeamMessageSnapshot](subsystems
 
 Types: [TeamId](subsystems/agent-team.zh.md) · [TeamTaskSnapshot](subsystems/agent-team.zh.md)
 
-来源：[`packages/experimental/agent-team/src/types.ts:225`](../packages/experimental/agent-team/src/types.ts)
+来源：[`packages/experimental/agent-team/src/types.ts`](../packages/experimental/agent-team/src/types.ts)
 
 ### `todo/*`
 
@@ -911,7 +911,7 @@ Types: [TeamId](subsystems/agent-team.zh.md) · [TeamTaskSnapshot](subsystems/ag
 
 Types: [TodoItem](subsystems/todo.zh.md)
 
-来源：[`packages/todo/tool-todo/src/types.ts:31`](../packages/todo/tool-todo/src/types.ts)
+来源：[`packages/todo/tool-todo/src/types.ts`](../packages/todo/tool-todo/src/types.ts)
 
 ### `tool/*`
 
@@ -930,7 +930,7 @@ Types: [TodoItem](subsystems/todo.zh.md)
 
 Types: [ToolCallId](subsystems/core.zh.md)
 
-来源：[`packages/core/session/src/types.ts:322`](../packages/core/session/src/types.ts)
+来源：[`packages/core/session/src/types.ts`](../packages/core/session/src/types.ts)
 
 <a id="toolcode-dispatch--log-only"></a>
 
@@ -955,7 +955,7 @@ Types: [ToolCallId](subsystems/core.zh.md)
 'tool/code-dispatch': PtcDispatchEventData
 ```
 
-来源：[`packages/core/tools/src/types.ts:56`](../packages/core/tools/src/types.ts)
+来源：[`packages/core/tools/src/types.ts`](../packages/core/tools/src/types.ts)
 
 <a id="toolcode-dispatch-start--log-only"></a>
 
@@ -978,7 +978,7 @@ Types: [ToolCallId](subsystems/core.zh.md)
 'tool/code-dispatch-start': PtcDispatchStartEventData
 ```
 
-来源：[`packages/core/tools/src/types.ts:40`](../packages/core/tools/src/types.ts)
+来源：[`packages/core/tools/src/types.ts`](../packages/core/tools/src/types.ts)
 
 <a id="toolresult--surface"></a>
 
@@ -1005,7 +1005,7 @@ Types: [ToolCallId](subsystems/core.zh.md)
 }
 ```
 
-来源：[`packages/core/session/src/types.ts:334`](../packages/core/session/src/types.ts)
+来源：[`packages/core/session/src/types.ts`](../packages/core/session/src/types.ts)
 
 ### `tool-workflow/*`
 
@@ -1021,7 +1021,7 @@ Types: [ToolCallId](subsystems/core.zh.md)
 'tool-workflow/agent-end': ToolWorkflowAgentEndData
 ```
 
-来源：[`packages/workflow/tool-workflow/src/types.ts:57`](../packages/workflow/tool-workflow/src/types.ts)
+来源：[`packages/workflow/tool-workflow/src/types.ts`](../packages/workflow/tool-workflow/src/types.ts)
 
 <a id="tool-workflowagent-start--log-only"></a>
 
@@ -1035,7 +1035,7 @@ Types: [ToolCallId](subsystems/core.zh.md)
 'tool-workflow/agent-start': ToolWorkflowAgentStartData
 ```
 
-来源：[`packages/workflow/tool-workflow/src/types.ts:52`](../packages/workflow/tool-workflow/src/types.ts)
+来源：[`packages/workflow/tool-workflow/src/types.ts`](../packages/workflow/tool-workflow/src/types.ts)
 
 <a id="tool-workflowrun-end--log-only"></a>
 
@@ -1049,7 +1049,7 @@ Types: [ToolCallId](subsystems/core.zh.md)
 'tool-workflow/run-end': ToolWorkflowRunEndData
 ```
 
-来源：[`packages/workflow/tool-workflow/src/types.ts:62`](../packages/workflow/tool-workflow/src/types.ts)
+来源：[`packages/workflow/tool-workflow/src/types.ts`](../packages/workflow/tool-workflow/src/types.ts)
 
 <a id="tool-workflowrun-start--log-only"></a>
 
@@ -1063,7 +1063,7 @@ Types: [ToolCallId](subsystems/core.zh.md)
 'tool-workflow/run-start': ToolWorkflowRunStartData
 ```
 
-来源：[`packages/workflow/tool-workflow/src/types.ts:47`](../packages/workflow/tool-workflow/src/types.ts)
+来源：[`packages/workflow/tool-workflow/src/types.ts`](../packages/workflow/tool-workflow/src/types.ts)
 
 ### `turn/*`
 
@@ -1085,7 +1085,7 @@ Types: [ToolCallId](subsystems/core.zh.md)
 
 Types: [TurnEndReason](subsystems/session.zh.md)
 
-来源：[`packages/core/session/src/types.ts:291`](../packages/core/session/src/types.ts)
+来源：[`packages/core/session/src/types.ts`](../packages/core/session/src/types.ts)
 
 <a id="turnstart--log-only"></a>
 
@@ -1101,7 +1101,7 @@ Types: [TurnEndReason](subsystems/session.zh.md)
 'turn/start': { turn: number }
 ```
 
-来源：[`packages/core/session/src/types.ts:282`](../packages/core/session/src/types.ts)
+来源：[`packages/core/session/src/types.ts`](../packages/core/session/src/types.ts)
 
 ### `turn-review/*`
 
@@ -1114,7 +1114,7 @@ Types: [TurnEndReason](subsystems/session.zh.md)
 'turn-review/failure': TurnReviewFailureEventData
 ```
 
-来源：[`packages/guard/turn-review/src/index.ts:72`](../packages/guard/turn-review/src/index.ts)
+来源：[`packages/guard/turn-review/src/index.ts`](../packages/guard/turn-review/src/index.ts)
 
 <a id="turn-reviewrequest--log-only"></a>
 
@@ -1125,7 +1125,7 @@ Types: [TurnEndReason](subsystems/session.zh.md)
 'turn-review/request': TurnReviewRequestEventData
 ```
 
-来源：[`packages/guard/turn-review/src/index.ts:68`](../packages/guard/turn-review/src/index.ts)
+来源：[`packages/guard/turn-review/src/index.ts`](../packages/guard/turn-review/src/index.ts)
 
 <a id="turn-reviewverdict--log-only"></a>
 
@@ -1136,7 +1136,7 @@ Types: [TurnEndReason](subsystems/session.zh.md)
 'turn-review/verdict': TurnReviewVerdictEventData
 ```
 
-来源：[`packages/guard/turn-review/src/index.ts:70`](../packages/guard/turn-review/src/index.ts)
+来源：[`packages/guard/turn-review/src/index.ts`](../packages/guard/turn-review/src/index.ts)
 
 ### `user/*`
 
@@ -1155,7 +1155,7 @@ Types: [TurnEndReason](subsystems/session.zh.md)
 'user/message': UserMessage
 ```
 
-来源：[`packages/core/session/src/types.ts:303`](../packages/core/session/src/types.ts)
+来源：[`packages/core/session/src/types.ts`](../packages/core/session/src/types.ts)
 
 ### `web/*`
 
@@ -1168,7 +1168,7 @@ Types: [TurnEndReason](subsystems/session.zh.md)
 'web/deepseek-search-llm-request': DeepSeekSearchLlmRequest
 ```
 
-来源：[`packages/web/web-search-deepseek/src/provider.ts:83`](../packages/web/web-search-deepseek/src/provider.ts)
+来源：[`packages/web/web-search-deepseek/src/provider.ts`](../packages/web/web-search-deepseek/src/provider.ts)
 
 ### `worktree/*`
 
@@ -1186,7 +1186,7 @@ Types: [TurnEndReason](subsystems/session.zh.md)
 'worktree/delegated': { worktree: CreatedWorktree; child: SessionId }
 ```
 
-来源：[`packages/session/worktrees/src/types.ts:75`](../packages/session/worktrees/src/types.ts)
+来源：[`packages/session/worktrees/src/types.ts`](../packages/session/worktrees/src/types.ts)
 
 <a id="worktreeentered--log-only"></a>
 
@@ -1202,7 +1202,7 @@ Types: [TurnEndReason](subsystems/session.zh.md)
 'worktree/entered': { worktree: CreatedWorktree }
 ```
 
-来源：[`packages/session/worktrees/src/types.ts:68`](../packages/session/worktrees/src/types.ts)
+来源：[`packages/session/worktrees/src/types.ts`](../packages/session/worktrees/src/types.ts)
 
 <a id="worktreeremoved--log-only"></a>
 
@@ -1217,4 +1217,4 @@ Types: [TurnEndReason](subsystems/session.zh.md)
 'worktree/removed': { path: string }
 ```
 
-来源：[`packages/session/worktrees/src/types.ts:81`](../packages/session/worktrees/src/types.ts)
+来源：[`packages/session/worktrees/src/types.ts`](../packages/session/worktrees/src/types.ts)
