@@ -380,7 +380,10 @@ function localCandidate(date: DateTime, hour: number, minute: number, zone: stri
     { zone },
   )
   // Luxon shifts nonexistent spring-forward wall times; skipping is explicit and stable.
-  return value.isValid && value.hour === hour && value.minute === minute ? value : null
+  if (!value.isValid || value.hour !== hour || value.minute !== minute) return null
+  // A fall-back hour repeats this wall time, and Luxon resolves it to the later offset; the schedule fires once, on the first instant.
+  const [first] = value.getPossibleOffsets()
+  return first ?? value
 }
 
 function parseInstant(value: string, field: string): DateTime {
