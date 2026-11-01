@@ -55,6 +55,8 @@ In a Web composition, `@aeven/api-remotes` forwards `browser/automation` to the 
 
 `preview_status` answers without a page. It composes the Client's answer with the status of the `browserChromium` service of `@aeven/browser-chromium` — read through `ctx.get`, so a composition that mounts no Host browser still answers — and reports every surface the session can drive. The calls that need a page fail with `BROWSER_UNAVAILABLE` and an instruction to open the browser or ask `preview_status` which surfaces the session has; a call without a calling agent fails with `BROWSER_NO_AGENT`.
 
+`preview_navigate` refuses an address served from this machine — `localhost`, its subdomains, `[::1]`, `0.0.0.0`, and any loopback IPv4 address — whenever the Host's Chrome DevTools tools are registered and the person's own request does not name that address. The call fails with `BROWSER_DEVELOPMENT_TARGET` and names the `new_page` call to make instead, so the sidebar pane is never navigated by the model to a page it is building. The person asking to see a local address opens it in the pane: the newest message from the person counts as naming it when it carries the address, its host, or its port. A deployment whose Chrome DevTools tools are absent keeps the pane as its only visible browser, and the refusal does not fire there.
+
 ## Model Experience
 
 ### First-step browser context
@@ -89,10 +91,6 @@ Append-only: the message is logged as a `user/message` at the start of the turn,
 #### What the model sees
 
 `preview_status` answers with one JSON object and never fails for a missing browser. `sessionTab` is the page the browser beside the session shows, or null. `hostBrowser` is the Chromium this Host runs — its debugging endpoint, whether a browser answers there, whether an executable was found, and the prefix of the tool names that drive it — or null when the composition mounts none. When no tool registered for the session carries that prefix, `hostBrowser.toolsUnavailable` says why, from the MCP server's `mcp/servers` report (its state, last error, and the `tool_search` restart query), and `nextStep` says the tools are not serving instead of sending the model to them. `nextStep` names what to drive: the open page for a task that only visits a site, Chrome DevTools for development and debugging and for any `localhost` page, the Host's Chromium when nothing is open, and otherwise what to ask the user for. A page that refuses `web_fetch` is the case this report exists for, because the Host's Chromium is reachable while the browser beside the session is not.
-
-### Development addresses
-
-`preview_navigate` refuses an address served from this machine — `localhost`, its subdomains, `[::1]`, `0.0.0.0`, and any loopback IPv4 address — whenever the Host's Chrome DevTools tools are registered and the person's own request does not name that address. The call fails with `BROWSER_DEVELOPMENT_TARGET` and names the `new_page` call to make instead, so the sidebar pane is never navigated by the model to a page it is building. The person asking to see a local address opens it in the pane: the newest message from the person counts as naming it when it carries the address, its host, or its port. A deployment whose Chrome DevTools tools are absent keeps the pane as its only visible browser, and the refusal does not fire there.
 
 #### Token effect
 

@@ -53,6 +53,8 @@ kind: "package-reference"
 
 `preview_status` 无需页面即可应答。它把 Client 的应答与 `@aeven/browser-chromium` 的 `browserChromium` 服务状态组合起来 —— 通过 `ctx.get` 读取，因此未挂载 Host 浏览器的组合依然能够应答 —— 并报告该会话可以驱动的每个界面。需要页面的调用以 `BROWSER_UNAVAILABLE` 失败，并附带打开浏览器、或询问 `preview_status` 该会话有哪些界面的指示；没有调用方代理的调用以 `BROWSER_NO_AGENT` 失败。
 
+`preview_navigate` 拒绝本机提供的地址 —— `localhost`、其子域名、`[::1]`、`0.0.0.0` 以及任何回环 IPv4 地址 —— 只要 Host 的 Chrome DevTools 工具已注册，且用户本人的请求没有点名该地址。该调用以 `BROWSER_DEVELOPMENT_TARGET` 失败，并指明应当改用的 `new_page` 调用，因此模型永远不会把侧边栏窗格导航到它正在构建的页面。用户要求查看某个本机地址时，它就在窗格里打开：最新的用户消息只要带有该地址、其主机名或其端口，就算点名了它。Chrome DevTools 工具缺席的部署仍把窗格当作唯一的可见浏览器，那里不会触发该拒绝。
+
 ## Model Experience
 
 ### 第一步浏览器上下文
@@ -87,10 +89,6 @@ Correct an actionable error in this browser. If this browser needs authenticatio
 #### What the model sees
 
 `preview_status` 以一个 JSON 对象应答，并且不会因浏览器缺失而失败。`sessionTab` 是会话旁的浏览器当前显示的页面，或为 null。`hostBrowser` 是本 Host 运行的 Chromium —— 其调试端点、是否已有浏览器在该端点应答、是否找到了可执行文件，以及驱动它的工具名前缀 —— 当组合未挂载任何 Host 浏览器时为 null。当本会话注册的工具中没有任何一个带有该前缀时，`hostBrowser.toolsUnavailable` 依据 MCP 服务器的 `mcp/servers` 报告（其状态、最近一次错误以及 `tool_search` 重启查询）说明原因，`nextStep` 也会说明这些工具未在服务，而不是让模型去调用它们。`nextStep` 指明应当驱动什么：只访问站点的任务用会话旁的页面，开发与调试以及任何 `localhost` 页面用 Chrome DevTools，没有打开页面时用 Host 的 Chromium，两者皆无时说明需要向用户请求什么。被 `web_fetch` 拒绝的页面正是这份报告存在的理由：会话旁的浏览器此时不可用，而 Host 的 Chromium 仍然可达。
-
-### 开发地址
-
-`preview_navigate` 拒绝本机提供的地址 —— `localhost`、其子域名、`[::1]`、`0.0.0.0` 以及任何回环 IPv4 地址 —— 只要 Host 的 Chrome DevTools 工具已注册，且用户本人的请求没有点名该地址。该调用以 `BROWSER_DEVELOPMENT_TARGET` 失败，并指明应当改用的 `new_page` 调用，因此模型永远不会把侧边栏窗格导航到它正在构建的页面。用户要求查看某个本机地址时，它就在窗格里打开：最新的用户消息只要带有该地址、其主机名或其端口，就算点名了它。Chrome DevTools 工具缺席的部署仍把窗格当作唯一的可见浏览器，那里不会触发该拒绝。
 
 #### Token effect
 
