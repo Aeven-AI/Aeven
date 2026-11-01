@@ -93,6 +93,7 @@
     "verify-client-catalog": "tsx scripts/gen-client-catalog.ts --check",
     "gen-config-catalog": "tsx scripts/gen-config-catalog.ts",
     "verify-config-catalog": "tsx scripts/gen-config-catalog.ts --check",
+    "verify-config-schema": "tsx scripts/gen-config-catalog.ts --validate",
     "gen-cordis-api": "tsx scripts/gen-cordis-api.ts",
     "verify-cordis-api": "tsx scripts/gen-cordis-api.ts --check",
     "gen-cordis-catalog": "tsx scripts/gen-cordis-catalog.ts",

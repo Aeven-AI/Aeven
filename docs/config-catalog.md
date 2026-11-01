@@ -31,7 +31,7 @@ export interface AcpConfig {
 
 Depends on: `Stream` (`@agentclientprotocol/sdk`)
 
-Source: [`packages/acp/acp/src/index.ts:75`](../packages/acp/acp/src/index.ts)
+Source: [`packages/acp/acp/src/index.ts`](../packages/acp/acp/src/index.ts)
 
 <a id="aevenagent-default-model"></a>
 
@@ -47,7 +47,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/core/agent-default-model/src/index.ts:41`](../packages/core/agent-default-model/src/index.ts)
+Source: [`packages/core/agent-default-model/src/index.ts`](../packages/core/agent-default-model/src/index.ts)
 
 <a id="aevenagent-instructions"></a>
 
@@ -79,7 +79,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/context/agent-instructions/src/config.ts:18`](../packages/context/agent-instructions/src/config.ts)
+Source: [`packages/context/agent-instructions/src/config.ts`](../packages/context/agent-instructions/src/config.ts)
 
 <a id="aevenagent-loop"></a>
 
@@ -111,7 +111,7 @@ export interface Config {
 
 Depends on: [`AgentOptions`](subsystems/core.md) · [`SessionId`](subsystems/core.md)
 
-Source: [`packages/core/agent-loop/src/index.ts:331`](../packages/core/agent-loop/src/index.ts)
+Source: [`packages/core/agent-loop/src/index.ts`](../packages/core/agent-loop/src/index.ts)
 
 <a id="aevenagent-presets"></a>
 
@@ -157,7 +157,7 @@ export interface PresetRoot {
 export type PresetTrust = 'system' | 'user'
 ```
 
-Source: [`packages/preset/agent-presets/src/preset.ts:52`](../packages/preset/agent-presets/src/preset.ts)
+Source: [`packages/preset/agent-presets/src/preset.ts`](../packages/preset/agent-presets/src/preset.ts)
 
 <a id="aevenagent-tool-presentation"></a>
 
@@ -181,7 +181,7 @@ export interface Config {
 
 Depends on: [`ToolPresentationMode`](subsystems/tools.md)
 
-Source: [`packages/core/agent-tool-presentation/src/index.ts:38`](../packages/core/agent-tool-presentation/src/index.ts)
+Source: [`packages/core/agent-tool-presentation/src/index.ts`](../packages/core/agent-tool-presentation/src/index.ts)
 
 <a id="aevenapi-gateway"></a>
 
@@ -197,7 +197,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/api/gateway/src/index.ts:128`](../packages/api/gateway/src/index.ts)
+Source: [`packages/api/gateway/src/index.ts`](../packages/api/gateway/src/index.ts)
 
 <a id="aevenapi-job-controller"></a>
 
@@ -215,7 +215,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/api/job-controller/src/index.ts:40`](../packages/api/job-controller/src/index.ts)
+Source: [`packages/api/job-controller/src/index.ts`](../packages/api/job-controller/src/index.ts)
 
 <a id="aevenapi-memory-manager"></a>
 
@@ -233,7 +233,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/memory/api-memory-manager/src/index.ts:38`](../packages/memory/api-memory-manager/src/index.ts)
+Source: [`packages/memory/api-memory-manager/src/index.ts`](../packages/memory/api-memory-manager/src/index.ts)
 
 <a id="aevenapi-session-controller"></a>
 
@@ -254,7 +254,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/api/session-controller/src/index.ts:86`](../packages/api/session-controller/src/index.ts)
+Source: [`packages/api/session-controller/src/index.ts`](../packages/api/session-controller/src/index.ts)
 
 <a id="aevenapi-settings-controller"></a>
 
@@ -268,7 +268,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/api/settings-controller/src/index.ts:36`](../packages/api/settings-controller/src/index.ts)
+Source: [`packages/api/settings-controller/src/index.ts`](../packages/api/settings-controller/src/index.ts)
 
 <a id="aevenapi-speech-to-text"></a>
 
@@ -286,7 +286,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/speech/api-speech-to-text/src/index.ts:20`](../packages/speech/api-speech-to-text/src/index.ts)
+Source: [`packages/speech/api-speech-to-text/src/index.ts`](../packages/speech/api-speech-to-text/src/index.ts)
 
 <a id="aevenapi-terminal-controller"></a>
 
@@ -339,7 +339,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/api/terminal-controller/src/index.ts:32`](../packages/api/terminal-controller/src/index.ts)
+Source: [`packages/api/terminal-controller/src/index.ts`](../packages/api/terminal-controller/src/index.ts)
 
 <a id="aevenapi-text-to-speech"></a>
 
@@ -355,7 +355,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/speech/api-text-to-speech/src/index.ts:19`](../packages/speech/api-text-to-speech/src/index.ts)
+Source: [`packages/speech/api-text-to-speech/src/index.ts`](../packages/speech/api-text-to-speech/src/index.ts)
 
 <a id="aevenapi-workspace-files"></a>
 
@@ -383,7 +383,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/api/workspace-files/src/index.ts:47`](../packages/api/workspace-files/src/index.ts)
+Source: [`packages/api/workspace-files/src/index.ts`](../packages/api/workspace-files/src/index.ts)
 
 <a id="aevenattachment-local"></a>
 
@@ -426,7 +426,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/attachment/attachment-local/src/index.ts:70`](../packages/attachment/attachment-local/src/index.ts)
+Source: [`packages/attachment/attachment-local/src/index.ts`](../packages/attachment/attachment-local/src/index.ts)
 
 <a id="aevenautomations"></a>
 
@@ -465,7 +465,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/core/automations/src/index.ts:118`](../packages/core/automations/src/index.ts)
+Source: [`packages/core/automations/src/index.ts`](../packages/core/automations/src/index.ts)
 
 <a id="aevenbash-edit-guard"></a>
 
@@ -483,7 +483,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/guard/bash-edit-guard/src/index.ts:35`](../packages/guard/bash-edit-guard/src/index.ts)
+Source: [`packages/guard/bash-edit-guard/src/index.ts`](../packages/guard/bash-edit-guard/src/index.ts)
 
 <a id="aevenbash-local"></a>
 
@@ -509,7 +509,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/shell/bash-local/src/index.ts:41`](../packages/shell/bash-local/src/index.ts)
+Source: [`packages/shell/bash-local/src/index.ts`](../packages/shell/bash-local/src/index.ts)
 
 <a id="aevenbash-sandbox"></a>
 
@@ -530,7 +530,7 @@ export type Config = LocalConfig
 
 Depends on: [`LocalConfig`](#aevenbash-local)
 
-Source: [`packages/shell/bash-sandbox/src/index.ts:36`](../packages/shell/bash-sandbox/src/index.ts)
+Source: [`packages/shell/bash-sandbox/src/index.ts`](../packages/shell/bash-sandbox/src/index.ts)
 
 <a id="aevenbrowser-chromium"></a>
 
@@ -559,7 +559,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/web/browser-chromium/src/index.ts:59`](../packages/web/browser-chromium/src/index.ts)
+Source: [`packages/web/browser-chromium/src/index.ts`](../packages/web/browser-chromium/src/index.ts)
 
 <a id="aevencapability"></a>
 
@@ -577,7 +577,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/capability/capability/src/index.ts:51`](../packages/capability/capability/src/index.ts)
+Source: [`packages/capability/capability/src/index.ts`](../packages/capability/capability/src/index.ts)
 
 <a id="aevenclient-connection"></a>
 
@@ -604,7 +604,7 @@ export interface ConnectionConfig {
 }
 ```
 
-Source: [`packages/client/connection/src/index.ts:70`](../packages/client/connection/src/index.ts)
+Source: [`packages/client/connection/src/index.ts`](../packages/client/connection/src/index.ts)
 
 <a id="aevenclient-hmr"></a>
 
@@ -620,7 +620,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/client/hmr/src/index.ts:31`](../packages/client/hmr/src/index.ts)
+Source: [`packages/client/hmr/src/index.ts`](../packages/client/hmr/src/index.ts)
 
 <a id="aevenclient-modules"></a>
 
@@ -639,7 +639,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/client/modules/src/index.ts:340`](../packages/client/modules/src/index.ts)
+Source: [`packages/client/modules/src/index.ts`](../packages/client/modules/src/index.ts)
 
 <a id="aevencode-runtime-worker-thread"></a>
 
@@ -676,7 +676,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/code-runtime/code-runtime-worker-thread/src/index.ts:25`](../packages/code-runtime/code-runtime-worker-thread/src/index.ts)
+Source: [`packages/code-runtime/code-runtime-worker-thread/src/index.ts`](../packages/code-runtime/code-runtime-worker-thread/src/index.ts)
 
 <a id="aevencompaction-basic"></a>
 
@@ -726,7 +726,7 @@ export interface ModelCompactPolicyConfig extends CompactionPolicyConfig {
 }
 ```
 
-Source: [`packages/compaction/compaction-basic/src/types.ts:42`](../packages/compaction/compaction-basic/src/types.ts)
+Source: [`packages/compaction/compaction-basic/src/types.ts`](../packages/compaction/compaction-basic/src/types.ts)
 
 <a id="aevencompaction-tool-result-pruner"></a>
 
@@ -746,7 +746,7 @@ export interface ToolResultPruneConfig {
 }
 ```
 
-Source: [`packages/compaction/compaction-tool-result-pruner/src/types.ts:5`](../packages/compaction/compaction-tool-result-pruner/src/types.ts)
+Source: [`packages/compaction/compaction-tool-result-pruner/src/types.ts`](../packages/compaction/compaction-tool-result-pruner/src/types.ts)
 
 <a id="aevencomputer-use-cua-driver-mcp"></a>
 
@@ -784,7 +784,7 @@ export interface Config {
 
 Depends on: [`McpClient`](../packages/mcp/mcp-client/src/index.ts)
 
-Source: [`packages/computer-use/computer-use-cua-driver-mcp/src/index.ts:25`](../packages/computer-use/computer-use-cua-driver-mcp/src/index.ts)
+Source: [`packages/computer-use/computer-use-cua-driver-mcp/src/index.ts`](../packages/computer-use/computer-use-cua-driver-mcp/src/index.ts)
 
 <a id="aevencomputer-use-macos-provider"></a>
 
@@ -820,7 +820,7 @@ export interface Config {
 
 Depends on: [`RecipeBook`](../packages/computer-use/computer-use-router/src/index.ts)
 
-Source: [`packages/computer-use/computer-use-macos-provider/src/index.ts:49`](../packages/computer-use/computer-use-macos-provider/src/index.ts)
+Source: [`packages/computer-use/computer-use-macos-provider/src/index.ts`](../packages/computer-use/computer-use-macos-provider/src/index.ts)
 
 <a id="aevencomputer-use-windows-provider"></a>
 
@@ -856,7 +856,7 @@ export interface Config {
 
 Depends on: [`RecipeBook`](../packages/computer-use/computer-use-router/src/index.ts)
 
-Source: [`packages/computer-use/computer-use-windows-provider/src/index.ts:56`](../packages/computer-use/computer-use-windows-provider/src/index.ts)
+Source: [`packages/computer-use/computer-use-windows-provider/src/index.ts`](../packages/computer-use/computer-use-windows-provider/src/index.ts)
 
 <a id="aevencordis-host-runner"></a>
 
@@ -872,7 +872,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/extensions/cordis-host-runner/src/index.ts:90`](../packages/extensions/cordis-host-runner/src/index.ts)
+Source: [`packages/extensions/cordis-host-runner/src/index.ts`](../packages/extensions/cordis-host-runner/src/index.ts)
 
 <a id="aevencredentials-local"></a>
 
@@ -892,7 +892,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/credentials/credentials-local/src/index.ts:71`](../packages/credentials/credentials-local/src/index.ts)
+Source: [`packages/credentials/credentials-local/src/index.ts`](../packages/credentials/credentials-local/src/index.ts)
 
 <a id="aevendevice"></a>
 
@@ -924,7 +924,7 @@ export interface DeviceConsent {
 }
 ```
 
-Source: [`packages/device/device/src/index.ts:58`](../packages/device/device/src/index.ts)
+Source: [`packages/device/device/src/index.ts`](../packages/device/device/src/index.ts)
 
 <a id="aevendevice-local"></a>
 
@@ -960,7 +960,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/device/device-local/src/index.ts:38`](../packages/device/device-local/src/index.ts)
+Source: [`packages/device/device-local/src/index.ts`](../packages/device/device-local/src/index.ts)
 
 <a id="aevendocument-extract"></a>
 
@@ -974,7 +974,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/document/document-extract/src/index.ts:46`](../packages/document/document-extract/src/index.ts)
+Source: [`packages/document/document-extract/src/index.ts`](../packages/document/document-extract/src/index.ts)
 
 <a id="aevendocument-extract-js"></a>
 
@@ -994,7 +994,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/document/document-extract-js/src/index.ts:26`](../packages/document/document-extract-js/src/index.ts)
+Source: [`packages/document/document-extract-js/src/index.ts`](../packages/document/document-extract-js/src/index.ts)
 
 <a id="aevendocument-extract-ocr"></a>
 
@@ -1020,7 +1020,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/document/document-extract-ocr/src/index.ts:24`](../packages/document/document-extract-ocr/src/index.ts)
+Source: [`packages/document/document-extract-ocr/src/index.ts`](../packages/document/document-extract-ocr/src/index.ts)
 
 <a id="aevendocument-extract-office"></a>
 
@@ -1038,7 +1038,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/document/document-extract-office/src/index.ts:27`](../packages/document/document-extract-office/src/index.ts)
+Source: [`packages/document/document-extract-office/src/index.ts`](../packages/document/document-extract-office/src/index.ts)
 
 <a id="aevendocument-extract-video"></a>
 
@@ -1056,7 +1056,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/document/document-extract-video/src/index.ts:28`](../packages/document/document-extract-video/src/index.ts)
+Source: [`packages/document/document-extract-video/src/index.ts`](../packages/document/document-extract-video/src/index.ts)
 
 <a id="aevene2b"></a>
 
@@ -1074,7 +1074,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/e2b/e2b/src/index.ts:45`](../packages/e2b/e2b/src/index.ts)
+Source: [`packages/e2b/e2b/src/index.ts`](../packages/e2b/e2b/src/index.ts)
 
 <a id="aevenexperimental-agent-team"></a>
 
@@ -1098,7 +1098,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/experimental/agent-team/src/types.ts:131`](../packages/experimental/agent-team/src/types.ts)
+Source: [`packages/experimental/agent-team/src/types.ts`](../packages/experimental/agent-team/src/types.ts)
 
 <a id="aevenexperimental-code-runtime-python"></a>
 
@@ -1165,7 +1165,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/experimental/code-runtime-python/src/index.ts:47`](../packages/experimental/code-runtime-python/src/index.ts)
+Source: [`packages/experimental/code-runtime-python/src/index.ts`](../packages/experimental/code-runtime-python/src/index.ts)
 
 <a id="aevenexperimental-inspector"></a>
 
@@ -1233,7 +1233,7 @@ export interface InspectorOptions {
 }
 ```
 
-Source: [`packages/experimental/inspector/src/index.ts:66`](../packages/experimental/inspector/src/index.ts)
+Source: [`packages/experimental/inspector/src/index.ts`](../packages/experimental/inspector/src/index.ts)
 
 <a id="aevenexperimental-tool-agent-team"></a>
 
@@ -1251,7 +1251,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/experimental/tool-agent-team/src/index.ts:17`](../packages/experimental/tool-agent-team/src/index.ts)
+Source: [`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
 <a id="aevenfile-reference-local"></a>
 
@@ -1271,7 +1271,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/context/file-reference-local/src/index.ts:35`](../packages/context/file-reference-local/src/index.ts)
+Source: [`packages/context/file-reference-local/src/index.ts`](../packages/context/file-reference-local/src/index.ts)
 
 <a id="aevenfs-local"></a>
 
@@ -1290,7 +1290,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/fs/fs-local/src/index.ts:41`](../packages/fs/fs-local/src/index.ts)
+Source: [`packages/fs/fs-local/src/index.ts`](../packages/fs/fs-local/src/index.ts)
 
 <a id="aevenfs-sandbox"></a>
 
@@ -1310,7 +1310,7 @@ export type Config = LocalConfig
 
 Depends on: [`LocalConfig`](#aevenfs-local)
 
-Source: [`packages/fs/fs-sandbox/src/index.ts:45`](../packages/fs/fs-sandbox/src/index.ts)
+Source: [`packages/fs/fs-sandbox/src/index.ts`](../packages/fs/fs-sandbox/src/index.ts)
 
 <a id="aevengoal"></a>
 
@@ -1326,7 +1326,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/goal/goal/src/index.ts:172`](../packages/goal/goal/src/index.ts)
+Source: [`packages/goal/goal/src/index.ts`](../packages/goal/goal/src/index.ts)
 
 <a id="aevenheadless"></a>
 
@@ -1347,7 +1347,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/bundle/headless/src/index.ts:34`](../packages/bundle/headless/src/index.ts)
+Source: [`packages/bundle/headless/src/index.ts`](../packages/bundle/headless/src/index.ts)
 
 <a id="aevenhooks-claude-code"></a>
 
@@ -1385,7 +1385,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/hooks/hooks-claude-code/src/index.ts:47`](../packages/hooks/hooks-claude-code/src/index.ts)
+Source: [`packages/hooks/hooks-claude-code/src/index.ts`](../packages/hooks/hooks-claude-code/src/index.ts)
 
 <a id="aevenhooks-codex"></a>
 
@@ -1412,7 +1412,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/hooks/hooks-codex/src/index.ts:46`](../packages/hooks/hooks-codex/src/index.ts)
+Source: [`packages/hooks/hooks-codex/src/index.ts`](../packages/hooks/hooks-codex/src/index.ts)
 
 <a id="aevenhost-account-integrations"></a>
 
@@ -1532,7 +1532,7 @@ export interface ReverseEngineeringConfig {
 }
 ```
 
-Source: [`packages/host/account-integrations/src/index.ts:56`](../packages/host/account-integrations/src/index.ts)
+Source: [`packages/host/account-integrations/src/index.ts`](../packages/host/account-integrations/src/index.ts)
 
 <a id="aevenhost-directory-picker-browse"></a>
 
@@ -1546,7 +1546,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/host/directory-picker-browse/src/index.ts:181`](../packages/host/directory-picker-browse/src/index.ts)
+Source: [`packages/host/directory-picker-browse/src/index.ts`](../packages/host/directory-picker-browse/src/index.ts)
 
 <a id="aevenhost-frontend-static"></a>
 
@@ -1562,7 +1562,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/host/frontend-static/src/index.ts:32`](../packages/host/frontend-static/src/index.ts)
+Source: [`packages/host/frontend-static/src/index.ts`](../packages/host/frontend-static/src/index.ts)
 
 <a id="aevenhost-webserver"></a>
 
@@ -1590,7 +1590,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/host/webserver/src/index.ts:62`](../packages/host/webserver/src/index.ts)
+Source: [`packages/host/webserver/src/index.ts`](../packages/host/webserver/src/index.ts)
 
 <a id="aevenhost-workspace-files"></a>
 
@@ -1606,7 +1606,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/host/workspace-files/src/index.ts:36`](../packages/host/workspace-files/src/index.ts)
+Source: [`packages/host/workspace-files/src/index.ts`](../packages/host/workspace-files/src/index.ts)
 
 <a id="aevenidentity-user-aeven"></a>
 
@@ -1698,7 +1698,7 @@ export interface Config {
 export type OAuthFlow = 'redirect' | 'window'
 ```
 
-Source: [`packages/identity/user-aeven/src/index.ts:66`](../packages/identity/user-aeven/src/index.ts)
+Source: [`packages/identity/user-aeven/src/index.ts`](../packages/identity/user-aeven/src/index.ts)
 
 <a id="aeveninvariants"></a>
 
@@ -1716,7 +1716,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/runtime-diagnostics/invariants/src/index.ts:15`](../packages/runtime-diagnostics/invariants/src/index.ts)
+Source: [`packages/runtime-diagnostics/invariants/src/index.ts`](../packages/runtime-diagnostics/invariants/src/index.ts)
 
 <a id="aevenjobs-local"></a>
 
@@ -1743,7 +1743,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/jobs/jobs-local/src/index.ts:45`](../packages/jobs/jobs-local/src/index.ts)
+Source: [`packages/jobs/jobs-local/src/index.ts`](../packages/jobs/jobs-local/src/index.ts)
 
 <a id="aevenllm-aeven"></a>
 
@@ -1808,7 +1808,7 @@ export interface Config {
 
 Depends on: [`DeepSeekCatalogModel`](../packages/llm/llm-deepseek/src/index.ts) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts)
 
-Source: [`packages/llm/llm-aeven/src/index.ts:225`](../packages/llm/llm-aeven/src/index.ts)
+Source: [`packages/llm/llm-aeven/src/index.ts`](../packages/llm/llm-aeven/src/index.ts)
 
 <a id="aevenllm-cache-warm"></a>
 
@@ -1846,7 +1846,7 @@ export interface ProviderSchedule {
 }
 ```
 
-Source: [`packages/llm/llm-cache-warm/src/index.ts:40`](../packages/llm/llm-cache-warm/src/index.ts)
+Source: [`packages/llm/llm-cache-warm/src/index.ts`](../packages/llm/llm-cache-warm/src/index.ts)
 
 <a id="aevenllm-deepseek"></a>
 
@@ -1933,7 +1933,7 @@ export interface DeepSeekCatalogModel {
 
 Depends on: [`ModelModality`](../packages/llm/llm/src/index.ts) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts)
 
-Source: [`packages/llm/llm-deepseek/src/index.ts:124`](../packages/llm/llm-deepseek/src/index.ts)
+Source: [`packages/llm/llm-deepseek/src/index.ts`](../packages/llm/llm-deepseek/src/index.ts)
 
 <a id="aevenllm-pi-ai"></a>
 
@@ -2246,7 +2246,7 @@ export type PiAiThinkingFormat = NonNullable<OpenAICompletionsCompat['thinkingFo
 
 Depends on: `Api` (`@earendil-works/pi-ai`) · `CacheRetention` (`@earendil-works/pi-ai`) · `Model` (`@earendil-works/pi-ai`) · `ModelThinkingLevel` (`@earendil-works/pi-ai`) · `OpenAICompletionsCompat` (`@earendil-works/pi-ai`) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts) · `ThinkingBudgets` (`@earendil-works/pi-ai`) · `Transport` (`@earendil-works/pi-ai`)
 
-Source: [`packages/llm/llm-pi-ai/src/config.ts:265`](../packages/llm/llm-pi-ai/src/config.ts)
+Source: [`packages/llm/llm-pi-ai/src/config.ts`](../packages/llm/llm-pi-ai/src/config.ts)
 
 <a id="aevenllm-replay"></a>
 
@@ -2323,7 +2323,7 @@ export interface ReplayModelConfig {
 
 Depends on: [`ModelModality`](../packages/llm/llm/src/index.ts) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts)
 
-Source: [`packages/test-support/llm-replay/src/index.ts:924`](../packages/test-support/llm-replay/src/index.ts)
+Source: [`packages/test-support/llm-replay/src/index.ts`](../packages/test-support/llm-replay/src/index.ts)
 
 <a id="aevenllm-retry"></a>
 
@@ -2336,7 +2336,7 @@ Requires: `agents` · `sessionProjections`
 export type Config = Readonly<Record<string, never>>
 ```
 
-Source: [`packages/llm/llm-retry/src/index.ts:25`](../packages/llm/llm-retry/src/index.ts)
+Source: [`packages/llm/llm-retry/src/index.ts`](../packages/llm/llm-retry/src/index.ts)
 
 <a id="aevenlsp-stdio"></a>
 
@@ -2378,7 +2378,7 @@ export interface LspLocalServerConfig {
 }
 ```
 
-Source: [`packages/lsp/lsp-stdio/src/index.ts:82`](../packages/lsp/lsp-stdio/src/index.ts)
+Source: [`packages/lsp/lsp-stdio/src/index.ts`](../packages/lsp/lsp-stdio/src/index.ts)
 
 <a id="aevenmail"></a>
 
@@ -2406,7 +2406,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/mail/mail/src/index.ts:35`](../packages/mail/mail/src/index.ts)
+Source: [`packages/mail/mail/src/index.ts`](../packages/mail/mail/src/index.ts)
 
 <a id="aevenmcp-client"></a>
 
@@ -2497,7 +2497,7 @@ export interface ReconnectConfig {
 }
 ```
 
-Source: [`packages/mcp/mcp-client/src/index.ts:119`](../packages/mcp/mcp-client/src/index.ts)
+Source: [`packages/mcp/mcp-client/src/index.ts`](../packages/mcp/mcp-client/src/index.ts)
 
 <a id="aevenmedia"></a>
 
@@ -2517,7 +2517,7 @@ export interface MediaRuntimeConfig {
 }
 ```
 
-Source: [`packages/media/media/src/index.ts:60`](../packages/media/media/src/index.ts)
+Source: [`packages/media/media/src/index.ts`](../packages/media/media/src/index.ts)
 
 <a id="aevenmedia-aeven"></a>
 
@@ -2539,7 +2539,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/media/media-aeven/src/index.ts:160`](../packages/media/media-aeven/src/index.ts)
+Source: [`packages/media/media-aeven/src/index.ts`](../packages/media/media-aeven/src/index.ts)
 
 <a id="aevenmedia-deepinfra"></a>
 
@@ -2561,7 +2561,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/media/media-deepinfra/src/index.ts:59`](../packages/media/media-deepinfra/src/index.ts)
+Source: [`packages/media/media-deepinfra/src/index.ts`](../packages/media/media-deepinfra/src/index.ts)
 
 <a id="aevenmedia-openrouter"></a>
 
@@ -2581,7 +2581,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/media/media-openrouter/src/index.ts:47`](../packages/media/media-openrouter/src/index.ts)
+Source: [`packages/media/media-openrouter/src/index.ts`](../packages/media/media-openrouter/src/index.ts)
 
 <a id="aevenmedia-pi-ai"></a>
 
@@ -2603,7 +2603,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/media/media-pi-ai/src/index.ts:34`](../packages/media/media-pi-ai/src/index.ts)
+Source: [`packages/media/media-pi-ai/src/index.ts`](../packages/media/media-pi-ai/src/index.ts)
 
 <a id="aevenmemory-context"></a>
 
@@ -2676,7 +2676,7 @@ export interface Config {
 
 Depends on: [`MemoryDomain`](../packages/memory/memory/src/index.ts)
 
-Source: [`packages/memory/memory-context/src/index.ts:33`](../packages/memory/memory-context/src/index.ts)
+Source: [`packages/memory/memory-context/src/index.ts`](../packages/memory/memory-context/src/index.ts)
 
 <a id="aevenmemory-invariants"></a>
 
@@ -2697,7 +2697,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/memory/memory-invariants/src/index.ts:33`](../packages/memory/memory-invariants/src/index.ts)
+Source: [`packages/memory/memory-invariants/src/index.ts`](../packages/memory/memory-invariants/src/index.ts)
 
 <a id="aevenmemory-memos"></a>
 
@@ -2868,7 +2868,7 @@ export interface SimilarityConfig {
 }
 ```
 
-Source: [`packages/memory/memory-memos/src/index.ts:31`](../packages/memory/memory-memos/src/index.ts)
+Source: [`packages/memory/memory-memos/src/index.ts`](../packages/memory/memory-memos/src/index.ts)
 
 <a id="aevenmessage-feedback"></a>
 
@@ -2884,7 +2884,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/feedback/message-feedback/src/index.ts:52`](../packages/feedback/message-feedback/src/index.ts)
+Source: [`packages/feedback/message-feedback/src/index.ts`](../packages/feedback/message-feedback/src/index.ts)
 
 <a id="aevenpermission-presets"></a>
 
@@ -2923,7 +2923,7 @@ export interface PresetSpec {
 
 Depends on: [`ApprovalPolicy`](subsystems/approval.md) · [`SandboxMode`](subsystems/sandbox.md)
 
-Source: [`packages/interaction/permission-presets/src/index.ts:143`](../packages/interaction/permission-presets/src/index.ts)
+Source: [`packages/interaction/permission-presets/src/index.ts`](../packages/interaction/permission-presets/src/index.ts)
 
 <a id="aevenpersona"></a>
 
@@ -2947,7 +2947,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/preset/persona/src/index.ts:30`](../packages/preset/persona/src/index.ts)
+Source: [`packages/preset/persona/src/index.ts`](../packages/preset/persona/src/index.ts)
 
 <a id="aevenpersonalization"></a>
 
@@ -2972,7 +2972,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/preset/personalization/src/index.ts:43`](../packages/preset/personalization/src/index.ts)
+Source: [`packages/preset/personalization/src/index.ts`](../packages/preset/personalization/src/index.ts)
 
 <a id="aevenplan-mode"></a>
 
@@ -2988,7 +2988,7 @@ export interface PlanModeConfig {
 }
 ```
 
-Source: [`packages/plan/plan-mode/src/index.ts:63`](../packages/plan/plan-mode/src/index.ts)
+Source: [`packages/plan/plan-mode/src/index.ts`](../packages/plan/plan-mode/src/index.ts)
 
 <a id="aevenplugin-package-inventory-deepseek"></a>
 
@@ -3004,7 +3004,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/llm/plugin-package-inventory-deepseek/src/index.ts:31`](../packages/llm/plugin-package-inventory-deepseek/src/index.ts)
+Source: [`packages/llm/plugin-package-inventory-deepseek/src/index.ts`](../packages/llm/plugin-package-inventory-deepseek/src/index.ts)
 
 <a id="aevenproject-context"></a>
 
@@ -3030,7 +3030,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/context/project-context/src/index.ts:32`](../packages/context/project-context/src/index.ts)
+Source: [`packages/context/project-context/src/index.ts`](../packages/context/project-context/src/index.ts)
 
 <a id="aevenpwsh-local"></a>
 
@@ -3063,7 +3063,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/shell/pwsh-local/src/index.ts:58`](../packages/shell/pwsh-local/src/index.ts)
+Source: [`packages/shell/pwsh-local/src/index.ts`](../packages/shell/pwsh-local/src/index.ts)
 
 <a id="aevenpwsh-sandbox"></a>
 
@@ -3085,7 +3085,7 @@ export type Config = LocalConfig
 
 Depends on: [`LocalConfig`](#aevenpwsh-local)
 
-Source: [`packages/shell/pwsh-sandbox/src/index.ts:43`](../packages/shell/pwsh-sandbox/src/index.ts)
+Source: [`packages/shell/pwsh-sandbox/src/index.ts`](../packages/shell/pwsh-sandbox/src/index.ts)
 
 <a id="aevenrepeat-tool-reminder"></a>
 
@@ -3119,7 +3119,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/guard/repeat-tool-reminder/src/index.ts:28`](../packages/guard/repeat-tool-reminder/src/index.ts)
+Source: [`packages/guard/repeat-tool-reminder/src/index.ts`](../packages/guard/repeat-tool-reminder/src/index.ts)
 
 <a id="aevenreply-language"></a>
 
@@ -3135,7 +3135,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/context/reply-language/src/index.ts:43`](../packages/context/reply-language/src/index.ts)
+Source: [`packages/context/reply-language/src/index.ts`](../packages/context/reply-language/src/index.ts)
 
 <a id="aevensandbox-local"></a>
 
@@ -3167,7 +3167,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/sandbox/sandbox-local/src/index.ts:44`](../packages/sandbox/sandbox-local/src/index.ts)
+Source: [`packages/sandbox/sandbox-local/src/index.ts`](../packages/sandbox/sandbox-local/src/index.ts)
 
 <a id="aevensandbox-policy"></a>
 
@@ -3197,7 +3197,7 @@ export interface Config {
 
 Depends on: [`SandboxMode`](subsystems/sandbox.md)
 
-Source: [`packages/sandbox/sandbox-policy/src/index.ts:101`](../packages/sandbox/sandbox-policy/src/index.ts)
+Source: [`packages/sandbox/sandbox-policy/src/index.ts`](../packages/sandbox/sandbox-policy/src/index.ts)
 
 <a id="aevensdk-app"></a>
 
@@ -3213,7 +3213,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/bundle/sdk-app/src/index.ts:23`](../packages/bundle/sdk-app/src/index.ts)
+Source: [`packages/bundle/sdk-app/src/index.ts`](../packages/bundle/sdk-app/src/index.ts)
 
 <a id="aevensdk-jsonrpc-server"></a>
 
@@ -3237,7 +3237,7 @@ export interface JsonRpcConfig {
 
 Depends on: `Readable` (`node:stream`) · `Writable` (`node:stream`)
 
-Source: [`packages/sdk/server/src/index.ts:25`](../packages/sdk/server/src/index.ts)
+Source: [`packages/sdk/server/src/index.ts`](../packages/sdk/server/src/index.ts)
 
 <a id="aevensession-log-deepseek"></a>
 
@@ -3253,7 +3253,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/session/session-log-deepseek/src/index.ts:36`](../packages/session/session-log-deepseek/src/index.ts)
+Source: [`packages/session/session-log-deepseek/src/index.ts`](../packages/session/session-log-deepseek/src/index.ts)
 
 <a id="aevensession-persistence-jsonl"></a>
 
@@ -3292,7 +3292,7 @@ export interface Config {
 export type JsonlCompression = 'zstd' | 'none'
 ```
 
-Source: [`packages/session/session-persistence-jsonl/src/index.ts:112`](../packages/session/session-persistence-jsonl/src/index.ts)
+Source: [`packages/session/session-persistence-jsonl/src/index.ts`](../packages/session/session-persistence-jsonl/src/index.ts)
 
 <a id="aevensession-projection-cache"></a>
 
@@ -3316,7 +3316,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/session/session-projection-cache/src/index.ts:55`](../packages/session/session-projection-cache/src/index.ts)
+Source: [`packages/session/session-projection-cache/src/index.ts`](../packages/session/session-projection-cache/src/index.ts)
 
 <a id="aevensession-query-sqlite"></a>
 
@@ -3375,7 +3375,7 @@ export type JournalMode = 'wal' | 'delete' | 'truncate' | 'persist'
 
 Depends on: [`SessionQueryConfig`](../packages/session-query/session-query/src/index.ts)
 
-Source: [`packages/session-query/session-query-sqlite/src/index.ts:115`](../packages/session-query/session-query-sqlite/src/index.ts)
+Source: [`packages/session-query/session-query-sqlite/src/index.ts`](../packages/session-query/session-query-sqlite/src/index.ts)
 
 <a id="aevensession-reference"></a>
 
@@ -3395,7 +3395,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/context/session-reference/src/config.ts:11`](../packages/context/session-reference/src/config.ts)
+Source: [`packages/context/session-reference/src/config.ts`](../packages/context/session-reference/src/config.ts)
 
 <a id="aevensession-sync"></a>
 
@@ -3440,7 +3440,7 @@ export interface SessionSyncTuning {
 
 Depends on: [`LeaseHolderTiming`](../packages/sync/sync/src/index.ts)
 
-Source: [`packages/session/session-sync/src/index.ts:19`](../packages/session/session-sync/src/index.ts)
+Source: [`packages/session/session-sync/src/index.ts`](../packages/session/session-sync/src/index.ts)
 
 <a id="aevensession-telemetry-otel"></a>
 
@@ -3486,7 +3486,7 @@ export enum SessionTelemetryMode {
 
 Depends on: `BatchLogRecordProcessorOptions` (`@opentelemetry/sdk-logs`) · `OTLPExporterNodeConfigBase` (`@opentelemetry/otlp-exporter-base`)
 
-Source: [`packages/session/session-telemetry-otel/src/index.ts:91`](../packages/session/session-telemetry-otel/src/index.ts)
+Source: [`packages/session/session-telemetry-otel/src/index.ts`](../packages/session/session-telemetry-otel/src/index.ts)
 
 <a id="aevensession-title"></a>
 
@@ -3506,7 +3506,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/session/session-title/src/index.ts:56`](../packages/session/session-title/src/index.ts)
+Source: [`packages/session/session-title/src/index.ts`](../packages/session/session-title/src/index.ts)
 
 <a id="aevensession-title-all-prompts-llm"></a>
 
@@ -3521,7 +3521,7 @@ export type Config = SessionTitleLlmConfig
 
 Depends on: [`SessionTitleLlmConfig`](../packages/session/session-title-llm/src/index.ts)
 
-Source: [`packages/session/session-title-all-prompts-llm/src/index.ts:15`](../packages/session/session-title-all-prompts-llm/src/index.ts)
+Source: [`packages/session/session-title-all-prompts-llm/src/index.ts`](../packages/session/session-title-all-prompts-llm/src/index.ts)
 
 <a id="aevensession-title-first-prompt-llm"></a>
 
@@ -3536,7 +3536,7 @@ export type Config = SessionTitleLlmConfig
 
 Depends on: [`SessionTitleLlmConfig`](../packages/session/session-title-llm/src/index.ts)
 
-Source: [`packages/session/session-title-first-prompt-llm/src/index.ts:15`](../packages/session/session-title-first-prompt-llm/src/index.ts)
+Source: [`packages/session/session-title-first-prompt-llm/src/index.ts`](../packages/session/session-title-first-prompt-llm/src/index.ts)
 
 <a id="aevensettings-file"></a>
 
@@ -3556,7 +3556,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/settings/settings-file/src/index.ts:22`](../packages/settings/settings-file/src/index.ts)
+Source: [`packages/settings/settings-file/src/index.ts`](../packages/settings/settings-file/src/index.ts)
 
 <a id="aevenshell-env"></a>
 
@@ -3570,7 +3570,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/shell/shell-env/src/index.ts:29`](../packages/shell/shell-env/src/index.ts)
+Source: [`packages/shell/shell-env/src/index.ts`](../packages/shell/shell-env/src/index.ts)
 
 <a id="aevenskill"></a>
 
@@ -3584,7 +3584,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/skill/skill/src/index.ts:285`](../packages/skill/skill/src/index.ts)
+Source: [`packages/skill/skill/src/index.ts`](../packages/skill/skill/src/index.ts)
 
 <a id="aevenskill-catalog"></a>
 
@@ -3598,7 +3598,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/skill/skill-catalog/src/index.ts:39`](../packages/skill/skill-catalog/src/index.ts)
+Source: [`packages/skill/skill-catalog/src/index.ts`](../packages/skill/skill-catalog/src/index.ts)
 
 <a id="aevenskill-filesystem"></a>
 
@@ -3636,7 +3636,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/skill/skill-filesystem/src/index.ts:49`](../packages/skill/skill-filesystem/src/index.ts)
+Source: [`packages/skill/skill-filesystem/src/index.ts`](../packages/skill/skill-filesystem/src/index.ts)
 
 <a id="aevenspeech-to-text"></a>
 
@@ -3652,7 +3652,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/speech/speech-to-text/src/index.ts:20`](../packages/speech/speech-to-text/src/index.ts)
+Source: [`packages/speech/speech-to-text/src/index.ts`](../packages/speech/speech-to-text/src/index.ts)
 
 <a id="aevenspeech-to-text-whisper"></a>
 
@@ -3712,7 +3712,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/speech/speech-to-text-whisper/src/config.ts:7`](../packages/speech/speech-to-text-whisper/src/config.ts)
+Source: [`packages/speech/speech-to-text-whisper/src/config.ts`](../packages/speech/speech-to-text-whisper/src/config.ts)
 
 <a id="aevenspill-local"></a>
 
@@ -3741,7 +3741,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/spill/spill-local/src/index.ts:31`](../packages/spill/spill-local/src/index.ts)
+Source: [`packages/spill/spill-local/src/index.ts`](../packages/spill/spill-local/src/index.ts)
 
 <a id="aevenspill-policy"></a>
 
@@ -3761,7 +3761,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/spill/spill-policy/src/index.ts:61`](../packages/spill/spill-policy/src/index.ts)
+Source: [`packages/spill/spill-policy/src/index.ts`](../packages/spill/spill-policy/src/index.ts)
 
 <a id="aevenstorage-domain"></a>
 
@@ -3784,7 +3784,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/storage/storage-domain/src/index.ts:52`](../packages/storage/storage-domain/src/index.ts)
+Source: [`packages/storage/storage-domain/src/index.ts`](../packages/storage/storage-domain/src/index.ts)
 
 <a id="aevenstorage-json"></a>
 
@@ -3805,7 +3805,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/storage/storage-json/src/index.ts:28`](../packages/storage/storage-json/src/index.ts)
+Source: [`packages/storage/storage-json/src/index.ts`](../packages/storage/storage-json/src/index.ts)
 
 <a id="aevenstorage-sqlite"></a>
 
@@ -3845,7 +3845,7 @@ export interface Config {
 export type JournalMode = 'wal' | 'delete' | 'truncate' | 'persist'
 ```
 
-Source: [`packages/storage/storage-sqlite/src/index.ts:24`](../packages/storage/storage-sqlite/src/index.ts)
+Source: [`packages/storage/storage-sqlite/src/index.ts`](../packages/storage/storage-sqlite/src/index.ts)
 
 <a id="aevensubagent-acp"></a>
 
@@ -3900,7 +3900,7 @@ export interface Config {
 export type PermissionPolicy = 'allow' | 'reject'
 ```
 
-Source: [`packages/subagent/subagent-acp/src/index.ts:30`](../packages/subagent/subagent-acp/src/index.ts)
+Source: [`packages/subagent/subagent-acp/src/index.ts`](../packages/subagent/subagent-acp/src/index.ts)
 
 <a id="aevensubagent-avn-sdk"></a>
 
@@ -3957,7 +3957,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/subagent/subagent-avn-sdk/src/index.ts:37`](../packages/subagent/subagent-avn-sdk/src/index.ts)
+Source: [`packages/subagent/subagent-avn-sdk/src/index.ts`](../packages/subagent/subagent-avn-sdk/src/index.ts)
 
 <a id="aevensubagent-claude-code"></a>
 
@@ -3992,7 +3992,7 @@ export interface Config {
 export type ClaudeCodePermissionMode = typeof CLAUDE_CODE_PERMISSION_MODES[number]
 ```
 
-Source: [`packages/subagent/subagent-claude-code/src/index.ts:42`](../packages/subagent/subagent-claude-code/src/index.ts)
+Source: [`packages/subagent/subagent-claude-code/src/index.ts`](../packages/subagent/subagent-claude-code/src/index.ts)
 
 <a id="aevensubagent-codex"></a>
 
@@ -4025,7 +4025,7 @@ export type CodexPermissionMode =
   | 'dangerously-bypass-approvals-and-sandbox'
 ```
 
-Source: [`packages/subagent/subagent-codex/src/index.ts:37`](../packages/subagent/subagent-codex/src/index.ts)
+Source: [`packages/subagent/subagent-codex/src/index.ts`](../packages/subagent/subagent-codex/src/index.ts)
 
 <a id="aevensubagent-fork-in-process"></a>
 
@@ -4041,7 +4041,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/subagent/subagent-fork-in-process/src/index.ts:31`](../packages/subagent/subagent-fork-in-process/src/index.ts)
+Source: [`packages/subagent/subagent-fork-in-process/src/index.ts`](../packages/subagent/subagent-fork-in-process/src/index.ts)
 
 <a id="aevensubagent-spawn-in-process"></a>
 
@@ -4057,7 +4057,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/subagent/subagent-spawn-in-process/src/index.ts:25`](../packages/subagent/subagent-spawn-in-process/src/index.ts)
+Source: [`packages/subagent/subagent-spawn-in-process/src/index.ts`](../packages/subagent/subagent-spawn-in-process/src/index.ts)
 
 <a id="aevensubprocess-e2b"></a>
 
@@ -4073,7 +4073,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/e2b/subprocess-e2b/src/index.ts:25`](../packages/e2b/subprocess-e2b/src/index.ts)
+Source: [`packages/e2b/subprocess-e2b/src/index.ts`](../packages/e2b/subprocess-e2b/src/index.ts)
 
 <a id="aevensubscription-auth"></a>
 
@@ -4165,7 +4165,7 @@ export interface CapabilitySettings {
 
 Depends on: [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts)
 
-Source: [`packages/llm/subscription-auth/src/index.ts:254`](../packages/llm/subscription-auth/src/index.ts)
+Source: [`packages/llm/subscription-auth/src/index.ts`](../packages/llm/subscription-auth/src/index.ts)
 
 <a id="aevensync-yjs"></a>
 
@@ -4215,7 +4215,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/sync/sync-yjs/src/index.ts:25`](../packages/sync/sync-yjs/src/index.ts)
+Source: [`packages/sync/sync-yjs/src/index.ts`](../packages/sync/sync-yjs/src/index.ts)
 
 <a id="aevensystem-prompt"></a>
 
@@ -4242,7 +4242,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/core/system-prompt/src/index.ts:245`](../packages/core/system-prompt/src/index.ts)
+Source: [`packages/core/system-prompt/src/index.ts`](../packages/core/system-prompt/src/index.ts)
 
 <a id="aeventerminal-bash"></a>
 
@@ -4292,7 +4292,7 @@ export interface Config {
 export type ShellDialect = 'bash' | 'pwsh'
 ```
 
-Source: [`packages/terminal/terminal-bash/src/config.ts:10`](../packages/terminal/terminal-bash/src/config.ts)
+Source: [`packages/terminal/terminal-bash/src/config.ts`](../packages/terminal/terminal-bash/src/config.ts)
 
 <a id="aeventext-to-speech"></a>
 
@@ -4306,7 +4306,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/speech/text-to-speech/src/index.ts:16`](../packages/speech/text-to-speech/src/index.ts)
+Source: [`packages/speech/text-to-speech/src/index.ts`](../packages/speech/text-to-speech/src/index.ts)
 
 <a id="aeventext-to-speech-edge"></a>
 
@@ -4340,7 +4340,7 @@ export interface VoiceConfig {
 }
 ```
 
-Source: [`packages/speech/text-to-speech-edge/src/config.ts:17`](../packages/speech/text-to-speech-edge/src/config.ts)
+Source: [`packages/speech/text-to-speech-edge/src/config.ts`](../packages/speech/text-to-speech-edge/src/config.ts)
 
 <a id="aeventime-context"></a>
 
@@ -4358,7 +4358,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/context/time-context/src/index.ts:49`](../packages/context/time-context/src/index.ts)
+Source: [`packages/context/time-context/src/index.ts`](../packages/context/time-context/src/index.ts)
 
 <a id="aeventmux-context"></a>
 
@@ -4374,7 +4374,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/context/tmux-context/src/index.ts:36`](../packages/context/tmux-context/src/index.ts)
+Source: [`packages/context/tmux-context/src/index.ts`](../packages/context/tmux-context/src/index.ts)
 
 <a id="aeventoken-meter"></a>
 
@@ -4387,7 +4387,7 @@ Requires: `sessionProjections`
 export type TokenMeterConfig = Record<string, never>
 ```
 
-Source: [`packages/llm/token-meter/src/types.ts:13`](../packages/llm/token-meter/src/types.ts)
+Source: [`packages/llm/token-meter/src/types.ts`](../packages/llm/token-meter/src/types.ts)
 
 <a id="aeventool-bash"></a>
 
@@ -4409,7 +4409,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/shell/tool-bash/src/index.ts:38`](../packages/shell/tool-bash/src/index.ts)
+Source: [`packages/shell/tool-bash/src/index.ts`](../packages/shell/tool-bash/src/index.ts)
 
 <a id="aeventool-bash-persistent"></a>
 
@@ -4431,7 +4431,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/shell/tool-bash-persistent/src/index.ts:450`](../packages/shell/tool-bash-persistent/src/index.ts)
+Source: [`packages/shell/tool-bash-persistent/src/index.ts`](../packages/shell/tool-bash-persistent/src/index.ts)
 
 <a id="aeventool-browser"></a>
 
@@ -4449,7 +4449,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/web/tool-browser/src/index.ts:41`](../packages/web/tool-browser/src/index.ts)
+Source: [`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
 
 <a id="aeventool-call-access-policy"></a>
 
@@ -4472,7 +4472,7 @@ export interface Config {
 
 Depends on: [`SandboxMode`](subsystems/sandbox.md)
 
-Source: [`packages/guard/access-policy/src/index.ts:56`](../packages/guard/access-policy/src/index.ts)
+Source: [`packages/guard/access-policy/src/index.ts`](../packages/guard/access-policy/src/index.ts)
 
 <a id="aeventool-capability"></a>
 
@@ -4526,7 +4526,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/capability/tool-capability/src/index.ts:34`](../packages/capability/tool-capability/src/index.ts)
+Source: [`packages/capability/tool-capability/src/index.ts`](../packages/capability/tool-capability/src/index.ts)
 
 <a id="aeventool-elevation"></a>
 
@@ -4544,7 +4544,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/sandbox/tool-elevation/src/index.ts:31`](../packages/sandbox/tool-elevation/src/index.ts)
+Source: [`packages/sandbox/tool-elevation/src/index.ts`](../packages/sandbox/tool-elevation/src/index.ts)
 
 <a id="aeventool-fs"></a>
 
@@ -4566,7 +4566,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/fs/tool-fs/src/index.ts:25`](../packages/fs/tool-fs/src/index.ts)
+Source: [`packages/fs/tool-fs/src/index.ts`](../packages/fs/tool-fs/src/index.ts)
 
 <a id="aeventool-fs-search"></a>
 
@@ -4601,7 +4601,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/fs/tool-fs-search/src/index.ts:73`](../packages/fs/tool-fs-search/src/index.ts)
+Source: [`packages/fs/tool-fs-search/src/index.ts`](../packages/fs/tool-fs-search/src/index.ts)
 
 <a id="aeventool-goal"></a>
 
@@ -4617,7 +4617,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/goal/tool-goal/src/index.ts:25`](../packages/goal/tool-goal/src/index.ts)
+Source: [`packages/goal/tool-goal/src/index.ts`](../packages/goal/tool-goal/src/index.ts)
 
 <a id="aeventool-image-search"></a>
 
@@ -4637,7 +4637,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/web/tool-image-search/src/index.ts:93`](../packages/web/tool-image-search/src/index.ts)
+Source: [`packages/web/tool-image-search/src/index.ts`](../packages/web/tool-image-search/src/index.ts)
 
 <a id="aeventool-jobs"></a>
 
@@ -4673,7 +4673,7 @@ export interface Config {
 export type CompletionDelivery = 'quiet' | 'wakeup'
 ```
 
-Source: [`packages/jobs/tool-jobs/src/index.ts:41`](../packages/jobs/tool-jobs/src/index.ts)
+Source: [`packages/jobs/tool-jobs/src/index.ts`](../packages/jobs/tool-jobs/src/index.ts)
 
 <a id="aeventool-location"></a>
 
@@ -4691,7 +4691,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/interaction/tool-location/src/index.ts:31`](../packages/interaction/tool-location/src/index.ts)
+Source: [`packages/interaction/tool-location/src/index.ts`](../packages/interaction/tool-location/src/index.ts)
 
 <a id="aeventool-lsp"></a>
 
@@ -4711,7 +4711,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/lsp/tool-lsp/src/index.ts:57`](../packages/lsp/tool-lsp/src/index.ts)
+Source: [`packages/lsp/tool-lsp/src/index.ts`](../packages/lsp/tool-lsp/src/index.ts)
 
 <a id="aeventool-mail"></a>
 
@@ -4729,7 +4729,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/mail/tool-mail/src/index.ts:26`](../packages/mail/tool-mail/src/index.ts)
+Source: [`packages/mail/tool-mail/src/index.ts`](../packages/mail/tool-mail/src/index.ts)
 
 <a id="aeventool-media"></a>
 
@@ -4816,7 +4816,7 @@ export interface ImageModelChoice {
 }
 ```
 
-Source: [`packages/media/tool-media/src/index.ts:141`](../packages/media/tool-media/src/index.ts)
+Source: [`packages/media/tool-media/src/index.ts`](../packages/media/tool-media/src/index.ts)
 
 <a id="aeventool-memory"></a>
 
@@ -4836,7 +4836,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/memory/tool-memory/src/index.ts:20`](../packages/memory/tool-memory/src/index.ts)
+Source: [`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
 
 <a id="aeventool-pwsh"></a>
 
@@ -4858,7 +4858,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/shell/tool-pwsh/src/index.ts:56`](../packages/shell/tool-pwsh/src/index.ts)
+Source: [`packages/shell/tool-pwsh/src/index.ts`](../packages/shell/tool-pwsh/src/index.ts)
 
 <a id="aeventool-pwsh-persistent"></a>
 
@@ -4880,7 +4880,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/shell/tool-pwsh-persistent/src/index.ts:466`](../packages/shell/tool-pwsh-persistent/src/index.ts)
+Source: [`packages/shell/tool-pwsh-persistent/src/index.ts`](../packages/shell/tool-pwsh-persistent/src/index.ts)
 
 <a id="aeventool-ralph"></a>
 
@@ -4902,7 +4902,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/workflow/tool-ralph/src/index.ts:21`](../packages/workflow/tool-ralph/src/index.ts)
+Source: [`packages/workflow/tool-ralph/src/index.ts`](../packages/workflow/tool-ralph/src/index.ts)
 
 <a id="aeventool-search"></a>
 
@@ -4932,7 +4932,7 @@ export interface ToolGroup {
 }
 ```
 
-Source: [`packages/core/tool-search/src/index.ts:53`](../packages/core/tool-search/src/index.ts)
+Source: [`packages/core/tool-search/src/index.ts`](../packages/core/tool-search/src/index.ts)
 
 <a id="aeventool-session-query"></a>
 
@@ -4950,7 +4950,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/session-query/tool-session-query/src/index.ts:28`](../packages/session-query/tool-session-query/src/index.ts)
+Source: [`packages/session-query/tool-session-query/src/index.ts`](../packages/session-query/tool-session-query/src/index.ts)
 
 <a id="aeventool-skill"></a>
 
@@ -4966,7 +4966,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/skill/tool-skill/src/index.ts:62`](../packages/skill/tool-skill/src/index.ts)
+Source: [`packages/skill/tool-skill/src/index.ts`](../packages/skill/tool-skill/src/index.ts)
 
 <a id="aeventool-str-replace-editor"></a>
 
@@ -4984,7 +4984,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/fs/tool-str-replace-editor/src/index.ts:506`](../packages/fs/tool-str-replace-editor/src/index.ts)
+Source: [`packages/fs/tool-str-replace-editor/src/index.ts`](../packages/fs/tool-str-replace-editor/src/index.ts)
 
 <a id="aeventool-subagent"></a>
 
@@ -5062,7 +5062,7 @@ export interface Config {
 
 Depends on: [`AgentOptions`](subsystems/core.md)
 
-Source: [`packages/subagent/tool-subagent/src/index.ts:52`](../packages/subagent/tool-subagent/src/index.ts)
+Source: [`packages/subagent/tool-subagent/src/index.ts`](../packages/subagent/tool-subagent/src/index.ts)
 
 <a id="aeventool-terminal"></a>
 
@@ -5080,7 +5080,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/terminal/tool-terminal/src/index.ts:36`](../packages/terminal/tool-terminal/src/index.ts)
+Source: [`packages/terminal/tool-terminal/src/index.ts`](../packages/terminal/tool-terminal/src/index.ts)
 
 <a id="aeventool-todo"></a>
 
@@ -5102,7 +5102,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/todo/tool-todo/src/index.ts:43`](../packages/todo/tool-todo/src/index.ts)
+Source: [`packages/todo/tool-todo/src/index.ts`](../packages/todo/tool-todo/src/index.ts)
 
 <a id="aeventool-web"></a>
 
@@ -5130,7 +5130,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/web/tool-web/src/index.ts:37`](../packages/web/tool-web/src/index.ts)
+Source: [`packages/web/tool-web/src/index.ts`](../packages/web/tool-web/src/index.ts)
 
 <a id="aeventool-workflow"></a>
 
@@ -5148,7 +5148,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/workflow/tool-workflow/src/index.ts:32`](../packages/workflow/tool-workflow/src/index.ts)
+Source: [`packages/workflow/tool-workflow/src/index.ts`](../packages/workflow/tool-workflow/src/index.ts)
 
 <a id="aeventools"></a>
 
@@ -5184,7 +5184,7 @@ export interface Config {
 export type ToolPresentationMode = 'native' | 'ptc' | 'both'
 ```
 
-Source: [`packages/core/tools/src/index.ts:651`](../packages/core/tools/src/index.ts)
+Source: [`packages/core/tools/src/index.ts`](../packages/core/tools/src/index.ts)
 
 <a id="aeventurn-review"></a>
 
@@ -5214,7 +5214,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/guard/turn-review/src/index.ts:77`](../packages/guard/turn-review/src/index.ts)
+Source: [`packages/guard/turn-review/src/index.ts`](../packages/guard/turn-review/src/index.ts)
 
 <a id="aeventypert-loader"></a>
 
@@ -5230,7 +5230,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/typert/loader/src/index.ts:47`](../packages/typert/loader/src/index.ts)
+Source: [`packages/typert/loader/src/index.ts`](../packages/typert/loader/src/index.ts)
 
 <a id="aevenuser-approval"></a>
 
@@ -5263,7 +5263,7 @@ export interface Config {
 export type ApprovalPolicy = 'ask' | 'never'
 ```
 
-Source: [`packages/interaction/user-approval/src/index.ts:132`](../packages/interaction/user-approval/src/index.ts)
+Source: [`packages/interaction/user-approval/src/index.ts`](../packages/interaction/user-approval/src/index.ts)
 
 <a id="aevenvcs-git"></a>
 
@@ -5289,7 +5289,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/vcs/vcs-git/src/index.ts:61`](../packages/vcs/vcs-git/src/index.ts)
+Source: [`packages/vcs/vcs-git/src/index.ts`](../packages/vcs/vcs-git/src/index.ts)
 
 <a id="aevenweb"></a>
 
@@ -5310,7 +5310,7 @@ export interface WebRuntimeConfig {
 }
 ```
 
-Source: [`packages/web/web/src/index.ts:55`](../packages/web/web/src/index.ts)
+Source: [`packages/web/web/src/index.ts`](../packages/web/web/src/index.ts)
 
 <a id="aevenweb-app"></a>
 
@@ -5345,7 +5345,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/bundle/web-app/src/index.ts:40`](../packages/bundle/web-app/src/index.ts)
+Source: [`packages/bundle/web-app/src/index.ts`](../packages/bundle/web-app/src/index.ts)
 
 <a id="aevenweb-fetch-http"></a>
 
@@ -5369,7 +5369,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/web/web-fetch-http/src/index.ts:32`](../packages/web/web-fetch-http/src/index.ts)
+Source: [`packages/web/web-fetch-http/src/index.ts`](../packages/web/web-fetch-http/src/index.ts)
 
 <a id="aevenweb-search-deepseek"></a>
 
@@ -5397,7 +5397,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/web/web-search-deepseek/src/index.ts:47`](../packages/web/web-search-deepseek/src/index.ts)
+Source: [`packages/web/web-search-deepseek/src/index.ts`](../packages/web/web-search-deepseek/src/index.ts)
 
 <a id="aevenweb-search-exa"></a>
 
@@ -5421,7 +5421,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/web/web-search-exa/src/index.ts:35`](../packages/web/web-search-exa/src/index.ts)
+Source: [`packages/web/web-search-exa/src/index.ts`](../packages/web/web-search-exa/src/index.ts)
 
 <a id="aevenweb-search-perplexity"></a>
 
@@ -5445,7 +5445,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/web/web-search-perplexity/src/index.ts:30`](../packages/web/web-search-perplexity/src/index.ts)
+Source: [`packages/web/web-search-perplexity/src/index.ts`](../packages/web/web-search-perplexity/src/index.ts)
 
 <a id="aevenwebhook-github"></a>
 
@@ -5467,7 +5467,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/webhook/webhook-github/src/index.ts:17`](../packages/webhook/webhook-github/src/index.ts)
+Source: [`packages/webhook/webhook-github/src/index.ts`](../packages/webhook/webhook-github/src/index.ts)
 
 <a id="aevenworkflow-worker-thread"></a>
 
@@ -5497,7 +5497,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/workflow/workflow-worker-thread/src/index.ts:32`](../packages/workflow/workflow-worker-thread/src/index.ts)
+Source: [`packages/workflow/workflow-worker-thread/src/index.ts`](../packages/workflow/workflow-worker-thread/src/index.ts)
 
 <a id="aevenworkspace"></a>
 
@@ -5515,7 +5515,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/workspace/workspace/src/index.ts:45`](../packages/workspace/workspace/src/index.ts)
+Source: [`packages/workspace/workspace/src/index.ts`](../packages/workspace/workspace/src/index.ts)
 
 <a id="aevenworktrees"></a>
 
@@ -5549,7 +5549,7 @@ export interface SetupEntry {
 }
 ```
 
-Source: [`packages/session/worktrees/src/index.ts:54`](../packages/session/worktrees/src/index.ts)
+Source: [`packages/session/worktrees/src/index.ts`](../packages/session/worktrees/src/index.ts)
 
 ## Loadable plugins with no config
 
