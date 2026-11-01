@@ -489,9 +489,7 @@ export class SessionCommandController {
         }
         const content = await admitPromptContent(this.ctx.attachments, request.content)
         const message: UserMessage = createUserMessage({ content, source })
-        // A steer is a request to interrupt, so it needs a turn to interrupt: the
-        // client decides the mode from a running bit that can lag a step boundary.
-        if (request.mode === 'steer' && agent.status === 'running') agent.steer(message)
+        if (request.mode === 'steer') agent.steer(message)
         else agent.followup(message)
       } catch (error) {
         if (remoteErrorOf(error) !== undefined) throw error

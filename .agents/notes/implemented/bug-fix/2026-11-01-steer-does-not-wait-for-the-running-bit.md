@@ -14,7 +14,7 @@ The downgrade was not protecting anything. `Agent.steer()` splices into `next-st
 
 Plain Enter uses the busy-Enter preference whenever steering is available, whatever `running` reports. The accelerated chord still inverts that preference, but only against a running turn; an idle send delivers the same content either way, so it keeps the preference. Without steering support — an addressed subagent — both gestures stay Queue.
 
-The prompt path now decides against the agent's own status: `commands.ts` steers only when the agent reports running, and otherwise delivers the same message as a followup, which starts the next turn. A steer that arrives after the turn ended therefore becomes an ordinary turn instead of reaching `agent.steer()` on an idle loop.
+The prompt path stays as it was: `Agent.steer()` splices into `next-step` and wakes the driver, so the Host already accepts a steer on an idle agent — the recorded ACP scenarios replay exactly that shape — and no server change is needed for the client to stop second-guessing it.
 
 ## Alternatives considered
 
@@ -26,6 +26,6 @@ The prompt path now decides against the agent's own status: `commands.ts` steers
 
 ## Consequences
 
-A message typed while the agent works reaches the running turn as a steer even when the snapshot has not caught up; when the turn has genuinely ended, the Host starts a new one with the same message, so nothing is lost or held behind a second gesture.
+A message typed while the agent works reaches the running turn as a steer even when the snapshot has not caught up. When the turn has genuinely ended, the Host's own splice decides what happens, so nothing is lost or held behind a second gesture.
 
-The client can no longer report a delivery mode it knows is impossible: the mode it sends is a request, and the agent's status decides whether it interrupts or starts a turn.
+The client can no longer report a delivery mode it knows is impossible: the mode it sends is a request, and the agent decides what it interrupts.

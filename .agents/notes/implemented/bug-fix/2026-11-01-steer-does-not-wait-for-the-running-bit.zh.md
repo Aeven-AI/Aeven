@@ -14,7 +14,7 @@ Composer 依据 `running` 决定 queue 还是 steer，而该状态位来自 Host
 
 只要 steering 可用，普通 Enter 就按 busy-Enter 偏好决定，无论 `running` 报告什么。加速和弦仍然反转该偏好，但只针对正在运行的 turn；空闲发送两种方式送达的内容相同，因此保持偏好。没有 steering 支持时——即面向 subagent——两种手势都保持 Queue。
 
-prompt 路径改为按 agent 自身状态决定：`commands.ts` 仅在 agent 报告 running 时 steer，否则把同一条消息作为 followup 送达，开启下一个 turn。因此 turn 已结束后到达的 steer 会变成一个普通 turn，而不会在空闲循环上抵达 `agent.steer()`。
+prompt 路径保持原样：`Agent.steer()` 插入 `next-step` 并唤醒 driver，因此 Host 本就接受空闲 agent 上的 steer——录制的 ACP 场景正是这一形状——客户端不再猜测它，服务端也就无需改动。
 
 ## Alternatives considered
 
@@ -26,6 +26,6 @@ prompt 路径改为按 agent 自身状态决定：`commands.ts` 仅在 agent 报
 
 ## Consequences
 
-在 agent 工作时输入的消息，即使快照尚未跟上，也会作为 steer 到达正在运行的 turn；当 turn 确实已经结束，Host 会用同一条消息开始新的 turn，因此不会丢失内容，也不会被第二次手势挡在后面。
+在 agent 工作时输入的消息，即使快照尚未跟上，也会作为 steer 到达正在运行的 turn。当 turn 确实已经结束，由 Host 自身的插入决定去向，因此不会丢失内容，也不会被第二次手势挡在后面。
 
-客户端不再报告它明知不可能的投递模式：它发出的模式是一个请求，由 agent 状态决定它是打断还是开启一个 turn。
+客户端不再报告它明知不可能的投递模式：它发出的模式是一个请求，由 agent 决定它打断什么。
