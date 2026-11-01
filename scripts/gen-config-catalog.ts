@@ -49,7 +49,12 @@ interface TypeRef {
 interface Paste {
   /** Full source text: leading JSDoc (when present) through the closing token. */
   text: string
-  /** Source pointer `packages/…/file.ts:line` of the declaration. */
+  /**
+   * Source file of the declaration, repo-relative. The line is deliberately
+   * absent: a position shifts with every edit above it, which made the committed
+   * catalogue disagree with a fresh generation for reasons unrelated to any
+   * config change.
+   */
   source: string
 }
 
@@ -986,8 +991,8 @@ function renderConfigEntry(entry: CatalogEntry, byName: Map<string, CatalogEntry
   if (entry.refs && entry.refs.length > 0) {
     out.push(`${locale.dependsOn}${entry.refs.map(r => refLink(r, byName, locale)).join(' · ')}`, '')
   }
-  const source = entry.pastes?.[0]?.source ?? entry.entry
-  out.push(`${locale.source}[\`${source}\`](../${source.split(':')[0]})`, '')
+  const [sourceFile = entry.entry] = (entry.pastes?.[0]?.source ?? entry.entry).split(':')
+  out.push(`${locale.source}[\`${sourceFile}\`](../${sourceFile})`, '')
   return out
 }
 
