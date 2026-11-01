@@ -1,0 +1,46 @@
+name: Auto-merge
+
+# Merges a pull request as soon as the CI run for its head commit concludes
+# successfully. GitHub's native auto-merge is disabled on this repository, so the
+# decision is made here from the run's conclusion. Drafts, anything labelled
+# `do-not-merge`, and pull requests that touch nothing this workflow may merge
+# are left alone.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  merge:
+    if: >-
+      github.event.workflow_run.conclusion == 'success'
+      && github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Merge the pull request whose CI run just succeeded
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          pr=$(gh api "repos/$REPO/commits/$SHA/pulls" --jq '.[0].number // empty')
+          if [ -z "$pr" ]; then
+            echo "no pull request owns $SHA; nothing to merge"
+            exit 0
+          fi
+          read -r draft labels < <(gh pr view "$pr" --repo "$REPO" --json isDraft,labels \
+            --jq '"\(.isDraft) \([.labels[].name] | join(","))"')
+          if [ "$draft" = "true" ]; then
+            echo "pull request #$pr is a draft; leaving it open"
+            exit 0
+          fi
+          case ",$labels," in
+            *,do-not-merge,*) echo "pull request #$pr is labelled do-not-merge; leaving it open"; exit 0 ;;
+          esac
+          gh pr merge "$pr" --repo "$REPO" --merge --delete-branch

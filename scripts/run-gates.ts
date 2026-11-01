@@ -28,7 +28,6 @@ export type Mode =
   | 'ci-test'
   | 'ci-lint-contracts-ready'
   | 'ci-coverage'
-  | 'ci-snapshot'
   | 'ci-artifacts'
   | 'ci-build-verify'
   | 'ci-consumers'
@@ -143,7 +142,6 @@ function parseMode(raw: string | undefined): Mode {
     case 'ci-test':
     case 'ci-lint-contracts-ready':
     case 'ci-coverage':
-    case 'ci-snapshot':
     case 'ci-artifacts':
     case 'ci-build-verify':
     case 'ci-consumers':
@@ -158,7 +156,7 @@ function parseMode(raw: string | undefined): Mode {
       return raw
     default:
       throw new Error(
-        `run-gates: expected mode ci-primary | ci-linux-primary | ci-static | ci-test | ci-lint-contracts-ready | ci-coverage | ci-snapshot | ci-artifacts | ci-build-verify | ci-consumers | ci-windows-blocking | ci-windows-complete | ci-windows-observational | node-compat | check-all | hygiene | doc-sync | doc-quick, got ${JSON.stringify(raw)}.`,
+        `run-gates: expected mode ci-primary | ci-linux-primary | ci-static | ci-test | ci-lint-contracts-ready | ci-coverage | ci-artifacts | ci-build-verify | ci-consumers | ci-windows-blocking | ci-windows-complete | ci-windows-observational | node-compat | check-all | hygiene | doc-sync | doc-quick, got ${JSON.stringify(raw)}.`,
       )
   }
 }
@@ -248,12 +246,10 @@ export function gatesForMode(selected: Mode): Gate[] {
       return [lintGate(), pnpmScript('duplication', 'duplication')]
     case 'ci-coverage':
       return coverageGates()
-    case 'ci-snapshot':
-      return [ciBuildGate(), snapshotGate()]
     case 'ci-artifacts':
       return ciArtifactGates()
     case 'ci-build-verify':
-      return ciBuildVerifyGates()
+      return ciArtifactGates()
     case 'ci-consumers':
       return ciConsumerGates()
     case 'ci-windows-blocking':
@@ -274,7 +270,6 @@ export function gatesForMode(selected: Mode): Gate[] {
         // lane carries it.
         pnpmScript('issue-management', 'test:issue-management', { label: 'Issue management policy' }),
         pnpmScript('duplication', 'duplication'),
-        snapshotGate(),
         expectedOutputGate(),
         pnpmScript('build', 'build'),
         pnpmScript('build:web', 'build:web'),
@@ -342,7 +337,6 @@ function ciPrimaryGates(): Gate[] {
     pnpmScript('duplication', 'duplication'),
     ...coverageGates(),
     ...nodeCompatSmokeGates(),
-    snapshotGate(),
     ...docSyncLeafGates({
       docTypecheckNeeds: ['typert-contracts'],
       docTypecheckScript: 'doc-typecheck:contracts-ready',
@@ -483,22 +477,6 @@ function builtArtifactGates(): Gate[] {
   ]
 }
 
-/**
- * One build, then every gate that reads its output: the publish surface and the
- * recorded-session replay. Separate lanes would build the workspace twice.
- * @returns the build, the artifact gates, and the snapshot replay.
- */
-function ciBuildVerifyGates(): Gate[] {
-  return [
-    ciBuildGate(),
-    ...builtArtifactGates(),
-    // Several headless fixtures predate the working-directory prompt section, so the
-    // replay reports drift a keyed `test:snapshot:record` has to settle. Keep the
-    // result visible without blocking the pull-request lane until that re-record lands.
-    { ...snapshotGate(['build']), allowFailure: true },
-  ]
-}
-
 function ciConsumerGates(): Gate[] {
   const builtTree = ['build']
   const validatedBuild = ['built-package-invariants']
@@ -508,7 +486,6 @@ function ciConsumerGates(): Gate[] {
   const buildArtifactReaders = [
     'publint',
     'lint-and-duplication',
-    'snapshot',
     'expected-output',
     'doc-typecheck',
     'node-next-types',
@@ -525,7 +502,6 @@ function ciConsumerGates(): Gate[] {
       label: 'lint and duplication',
       needs: validatedBuild,
     }),
-    snapshotGate(validatedBuild),
     expectedOutputGate(validatedBuild),
     webSnapshotGate(validatedBuild, buildArtifactReaders),
     pnpmScript('doc-typecheck', 'doc-typecheck:contracts-ready', {
@@ -687,15 +663,6 @@ function coverageGates(): Gate[] {
       label: 'test:coverage-exempt-heavy',
     }),
   ]
-}
-
-// Recorded-session adapters boot process scenarios in `lib` mode. Callers wait
-// either on `build` or on a validation gate that transitively owns that build.
-function snapshotGate(needs: string[] = ['build']): Gate {
-  return pnpmScript('snapshot', 'test:snapshot', {
-    env: { AVN_EXAMPLE_MODE: 'lib' },
-    needs,
-  })
 }
 
 // Owner-local process expectations consume built package exports without entering
