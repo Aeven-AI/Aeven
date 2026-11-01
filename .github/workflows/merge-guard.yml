@@ -1,0 +1,31 @@
+name: Merge guard
+
+# `main` accepts a merge only from a pull request the repository owner opened.
+# The workflow is the machine-readable half of that rule: the `owner-only` check is
+# required on `main`, so a pull request from anyone else stays unmergeable however
+# green its CI run is. Access control already leaves one account with write
+# permission; this keeps the rule true if that ever changes.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+
+jobs:
+  owner-only:
+    name: owner-only
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require the repository owner as the pull request author
+        env:
+          LOGIN: ${{ github.event.pull_request.user.login }}
+          OWNER: ${{ github.repository_owner }}
+          NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ "$LOGIN" != "$OWNER" ]; then
+            echo "::error::Only $OWNER merges into main; #$NUMBER was opened by $LOGIN."
+            exit 1
+          fi
+          echo "#$NUMBER was opened by $LOGIN, the repository owner."
