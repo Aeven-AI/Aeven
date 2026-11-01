@@ -1,10 +1,11 @@
 name: Auto-merge
 
 # Merges a pull request as soon as the CI run for its head commit concludes
-# successfully. GitHub's native auto-merge is disabled on this repository, so the
-# decision is made here from the run's conclusion. Drafts, anything labelled
-# `do-not-merge`, and pull requests that touch nothing this workflow may merge
-# are left alone.
+# successfully, and only when the repository owner opened it from a branch in this
+# repository. Anyone else's pull request — a collaborator's, a fork's — waits for
+# the owner to merge it. GitHub's native auto-merge is disabled on this repository,
+# so the decision is made here from the run's conclusion. Drafts and anything
+# labelled `do-not-merge` are left alone.
 on:
   workflow_run:
     workflows: [CI]
@@ -19,6 +20,7 @@ jobs:
     if: >-
       github.event.workflow_run.conclusion == 'success'
       && github.event.workflow_run.event == 'pull_request'
+      && github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -26,6 +28,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
           SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
@@ -34,8 +37,13 @@ jobs:
             echo "no pull request owns $SHA; nothing to merge"
             exit 0
           fi
-          read -r draft labels < <(gh pr view "$pr" --repo "$REPO" --json isDraft,labels \
-            --jq '"\(.isDraft) \([.labels[].name] | join(","))"')
+          read -r draft labels author < <(gh pr view "$pr" --repo "$REPO" \
+            --json isDraft,labels,author \
+            --jq '"\(.isDraft) \([.labels[].name] | join(",")) \(.author.login)"')
+          if [ "$author" != "$OWNER" ]; then
+            echo "pull request #$pr was opened by $author, not $OWNER; leaving it for the owner to merge"
+            exit 0
+          fi
           if [ "$draft" = "true" ]; then
             echo "pull request #$pr is a draft; leaving it open"
             exit 0
