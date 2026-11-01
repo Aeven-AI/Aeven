@@ -25,6 +25,7 @@ const REVIEW_SYSTEM = [
   'For an action request, listing unfinished authorised work is not completion. Report it unless the user stopped or changed the task, or a concrete blocker requires user input. Questions and requests for a plan do not require execution.',
   'Do not report style, wording, scope suggestions, or improvements nobody asked for. Disclosing that a check was not run avoids a false verification claim but does not excuse leaving requested work unfinished.',
   'Answer with JSON only, no prose and no code fence: {"complete": true, "issues": []} or {"complete": false, "issues": ["..."]}. Each issue is one sentence that names the request or claim and what the tool results show.',
+  'Name at most five issues, each under 200 characters, and quote no tool output: the findings are read as a list of what to fix, not as a report.',
 ].join('\n')
 
 describe('a turn that ends with a reply after changing a file', () => {

@@ -9,7 +9,7 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { BlockAssembler, createUserMessage } from '@aeven/llm'
+import { BlockAssembler, createUserMessage, LlmError } from '@aeven/llm'
 import type { ContentBlock, FinishReason, GenerateOptions, Message, MessageSource } from '@aeven/llm'
 import type { Agent } from '@aeven/agent'
 import type { SessionEvent } from '@aeven/session'
@@ -23,6 +23,9 @@ export const inject = ['llm']
 
 /** Timeout reason code for review calls. */
 export const TURN_REVIEW_TIMEOUT_CODE = 'TURN_REVIEW_TIMEOUT'
+
+/** Failure code: the per-turn review rounds are spent with findings the turn left unresolved. */
+export const TURN_REVIEW_UNRESOLVED_CODE = 'TURN_REVIEW_UNRESOLVED'
 
 /** Exact review request recorded before dispatch. */
 export interface TurnReviewRequestEventData {
@@ -119,6 +122,7 @@ const SYSTEM = [
   'For an action request, listing unfinished authorised work is not completion. Report it unless the user stopped or changed the task, or a concrete blocker requires user input. Questions and requests for a plan do not require execution.',
   'Do not report style, wording, scope suggestions, or improvements nobody asked for. Disclosing that a check was not run avoids a false verification claim but does not excuse leaving requested work unfinished.',
   'Answer with JSON only, no prose and no code fence: {"complete": true, "issues": []} or {"complete": false, "issues": ["..."]}. Each issue is one sentence that names the request or claim and what the tool results show.',
+  'Name at most five issues, each under 200 characters, and quote no tool output: the findings are read as a list of what to fix, not as a report.',
 ].join('\n')
 
 /** One transcript entry quoted to the reviewer. */
@@ -275,13 +279,13 @@ function finishError(finish: FinishReason): Error | undefined {
       return undefined
     case 'error':
     case 'aborted':
-      return new Error(`turn-review: ${finish.failure.message}`)
+      return new Error(finish.failure.message)
     case 'max-tokens':
-      return new Error('turn-review: review output reached maxOutputTokens')
+      return new Error('review output reached maxOutputTokens')
     case 'tool-calls':
-      return new Error('turn-review: review model requested a tool')
+      return new Error('review model requested a tool')
     default:
-      return new Error(`turn-review: unsupported finish reason "${String((finish as { kind?: unknown }).kind)}"`)
+      return new Error(`unsupported finish reason "${String((finish as { kind?: unknown }).kind)}"`)
   }
 }
 
@@ -321,7 +325,7 @@ export function apply(ctx: Context, config: Config): void {
     const lastVerdict = events.findLast(event => event.type === 'turn-review/verdict')
     const issues = lastVerdict?.type === 'turn-review/verdict' ? lastVerdict.data.issues : []
     if (count >= config.maxReviewsPerTurn) {
-      if (issues.length > 0) throw new Error(`turn-review: review budget exhausted with unresolved findings: ${issues.join('; ')}`)
+      if (issues.length > 0) throw new LlmError(`review budget exhausted with unresolved findings: ${issues.join('; ')}`, TURN_REVIEW_UNRESOLVED_CODE)
       return
     }
     if (!endsWithReply(events) || (issues.length === 0 && !changedFiles(events, triggers) && !promisesAction(events))) return
@@ -359,12 +363,13 @@ export function apply(ctx: Context, config: Config): void {
       if (failure !== undefined) throw failure
       verdict = parseVerdict(assembler.blocks().map(block => block.type === 'text' ? block.text : '').join(''))
     } catch (error: unknown) {
-      // Cancellation propagates; a failed review cannot clear an earlier finding.
+      // Cancellation propagates. A review that produced no verdict is the reviewer's failure,
+      // not the reply's, so it is recorded and warned about and the turn keeps the answer it
+      // already has instead of failing into a retry prompt.
       signal.throwIfAborted()
       const message = error instanceof Error ? error.message : String(error)
       logger.warn('turn %d review failed: %s', turn, message)
       agent.session.append('turn-review/failure', { turn, round, message })
-      if (issues.length > 0) throw new Error(`turn-review: ${message}; unresolved findings: ${issues.join('; ')}`)
       return
     }
     agent.session.append('turn-review/verdict', { turn, round, ...verdict })

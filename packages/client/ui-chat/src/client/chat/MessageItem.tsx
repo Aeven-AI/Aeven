@@ -130,7 +130,7 @@ function ModelRetryItem({ node, active, t }: {
 }
 
 /** Plain-language copy group for a terminal failure code. */
-type TurnFailureKind = 'quota' | 'tooLong' | 'signedOut' | 'busy' | 'connection' | 'other'
+type TurnFailureKind = 'quota' | 'tooLong' | 'signedOut' | 'busy' | 'connection' | 'review' | 'other'
 
 /**
  * Group a recorded failure code under the copy a reader understands. Codes are
@@ -159,6 +159,8 @@ function turnFailureKind(code: string | undefined): TurnFailureKind {
     case 'PROVIDER_TIMEOUT':
     case 'PROVIDER_UNAVAILABLE':
       return 'connection'
+    case 'TURN_REVIEW_UNRESOLVED':
+      return 'review'
     default:
       return 'other'
   }
@@ -171,6 +173,7 @@ const TURN_FAILURE_COPY = {
   signedOut: { title: 'turnError.signedOut.title', body: 'turnError.signedOut.body' },
   busy: { title: 'turnError.busy.title', body: 'turnError.busy.body' },
   connection: { title: 'turnError.connection.title', body: 'turnError.connection.body' },
+  review: { title: 'turnError.review.title', body: 'turnError.review.body' },
   other: { title: 'turnError.other.title', body: 'turnError.other.body' },
 } as const satisfies Record<TurnFailureKind, { title: ChatKey; body: ChatKey }>
 
