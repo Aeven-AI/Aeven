@@ -45,11 +45,16 @@ jobs:
             echo "no pull request owns $SHA; nothing to merge"
             exit 0
           fi
-          read -r draft labels author < <(gh pr view "$pr" --repo "$REPO" \
-            --json isDraft,labels,author \
-            --jq '"\(.isDraft) \([.labels[].name] | join(",")) \(.author.login)"')
-          # The owner is the account holding admin permission; `github.repository_owner`
-          # names the organization, so permission is the fact to read, not the name.
+          # One field per call: a single `read` over a space-joined line collapses the
+          # fields whenever the label list is empty, which silently produced an empty
+          # author and a 404 permission lookup on #373.
+          draft=$(gh pr view "$pr" --repo "$REPO" --json isDraft --jq '.isDraft')
+          labels=$(gh pr view "$pr" --repo "$REPO" --json labels --jq '[.labels[].name] | join(",")')
+          author=$(gh pr view "$pr" --repo "$REPO" --json author --jq '.author.login')
+          if [ -z "$author" ]; then
+            echo "pull request #$pr reports no author; leaving it for a human merge"
+            exit 0
+          fi
           permission=$(gh api "repos/$REPO/collaborators/$author/permission" --jq '.permission' 2>/dev/null || echo none)
           if [ "$permission" != "admin" ]; then
             echo "pull request #$pr was opened by $author ($permission), not an administrator; leaving it for a human merge"
