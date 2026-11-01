@@ -355,7 +355,7 @@ describe('tool-browser status report', () => {
     expect(report.hostBrowser).not.toBeNull()
   })
 
-  it('prefers the page beside the session when both surfaces exist', async () => {
+  it('keeps a site visit in the page beside the session when both surfaces exist', async () => {
     const ctx = await mount()
     await mountHostBrowser(ctx)
     answer(ctx, () => Promise.resolve(PAGE))
@@ -364,7 +364,7 @@ describe('tool-browser status report', () => {
 
     expect(report.sessionTab).toEqual({ url: PAGE.url, title: PAGE.title })
     expect(report.hostBrowser).not.toBeNull()
-    expect(report.nextStep).toBe('Drive the page beside this session with the preview_* tools.')
+    expect(report.nextStep).toBe('Drive the page beside this session with the preview_* tools when the task is to open, visit, or read a site. Development and debugging, a localhost or 127.0.0.1 page included, belong to the Chrome DevTools browser (mcp__chrome_devtools__*), not this pane.')
   })
 })
 
