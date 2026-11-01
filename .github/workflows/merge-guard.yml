@@ -18,14 +18,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Require the repository owner as the pull request author
+      - name: Require a repository administrator as the pull request author
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
           LOGIN: ${{ github.event.pull_request.user.login }}
-          OWNER: ${{ github.repository_owner }}
           NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          if [ "$LOGIN" != "$OWNER" ]; then
-            echo "::error::Only $OWNER merges into main; #$NUMBER was opened by $LOGIN."
+          # The owner is the account holding admin permission. `github.repository_owner`
+          # names the organization here, so permission is the fact to read, not the name.
+          permission=$(gh api "repos/$REPO/collaborators/$LOGIN/permission" --jq '.permission' 2>/dev/null || echo none)
+          if [ "$permission" != "admin" ]; then
+            echo "::error::Only an administrator merges into main; #$NUMBER was opened by $LOGIN ($permission)."
             exit 1
           fi
-          echo "#$NUMBER was opened by $LOGIN, the repository owner."
+          echo "#$NUMBER was opened by $LOGIN, an administrator of $REPO."

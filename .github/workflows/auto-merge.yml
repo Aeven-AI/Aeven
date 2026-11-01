@@ -28,7 +28,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-          OWNER: ${{ github.repository_owner }}
           SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
@@ -40,8 +39,11 @@ jobs:
           read -r draft labels author < <(gh pr view "$pr" --repo "$REPO" \
             --json isDraft,labels,author \
             --jq '"\(.isDraft) \([.labels[].name] | join(",")) \(.author.login)"')
-          if [ "$author" != "$OWNER" ]; then
-            echo "pull request #$pr was opened by $author, not $OWNER; leaving it for the owner to merge"
+          # The owner is the account holding admin permission; `github.repository_owner`
+          # names the organization, so permission is the fact to read, not the name.
+          permission=$(gh api "repos/$REPO/collaborators/$author/permission" --jq '.permission' 2>/dev/null || echo none)
+          if [ "$permission" != "admin" ]; then
+            echo "pull request #$pr was opened by $author ($permission), not an administrator; leaving it for a human merge"
             exit 0
           fi
           if [ "$draft" = "true" ]; then
