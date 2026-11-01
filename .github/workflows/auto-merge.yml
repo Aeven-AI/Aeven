@@ -62,6 +62,16 @@ jobs:
           case ",$labels," in
             *,do-not-merge,*) echo "pull request #$pr is labelled do-not-merge; leaving it open"; exit 0 ;;
           esac
+          # `skip-ci` is the owner saying the lanes cannot inform this change, so an
+          # administrator merge is the intended route: the skipped lanes never turn the
+          # required checks green, and waiting for them would trap the pull request.
+          case ",$labels," in
+            *,skip-ci,*)
+              echo "pull request #$pr carries skip-ci; merging with administrator rights"
+              gh pr merge "$pr" --repo "$REPO" --merge --delete-branch --admin
+              exit 0
+              ;;
+          esac
           # A `check_suite` run settles one suite; the rollup says whether the others
           # are done, which is the fact a merge decision needs.
           if [ "$EVENT" = "check_suite" ]; then
