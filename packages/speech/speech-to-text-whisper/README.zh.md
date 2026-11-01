@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`@aeven/speech-to-text-whisper` 以 `providerId`（默认 `whisper-local`）在 `ctx.speechToText` 上注册本地识别器。whisper.cpp 运行在受管的子进程工作进程中，一次接收一段解码后的 WAV，并返回其文本。插件激活时会检视磁盘缓存，并在不下载、不加载模型的情况下报告就绪状态；一次准备会从配置的来源下载模型与 Silero VAD 文件，逐项按 SHA-256 校验，然后启动工作进程。同一个串行工作进程服务每一次录制，`maxPending` 限定可排队等待的数量，空闲的工作进程在 `idleTimeoutMs` 之后停止。
+`@aeven/speech-to-text-whisper` 以 `providerId`（默认 `whisper-local`）在 `ctx.speechToText` 上注册本地识别器。whisper.cpp 运行在受管的子进程工作进程中，一次接收一段解码后的 WAV，并返回其文本。插件激活时会检视磁盘缓存，并在不下载、不加载模型的情况下报告就绪状态；一次准备会从配置的来源下载模型与 Silero VAD 文件，逐项按 SHA-256 校验，然后启动工作进程。同一个串行工作进程服务每一次录制，`maxPending` 限定可排队等待的数量，空闲的工作进程在 `idleTimeoutMs` 之后停止。工作进程的启动代价高昂——macOS 预构建二进制在报告就绪前约需二十秒编译其 Metal 内核——因此 `warmOnActivation` 在激活期间启动已校验的工作进程，`idleTimeoutMs: 0` 则保留它，把该代价记在 Host 启动而不是读者的首次录音上。
 
 ## 目录
 
@@ -21,7 +21,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用此包
 
-在带有 `speechToText` 席位的 Host 组合中挂载它。`dataRoot` 是存放已校验模型的绝对目录；`modelPath`、`vadModelPath` 与 `workerPath` 改为指向已存在的文件，否则默认使用下载而来的模型与平台包预构建的工作进程。`modelOrigins` 列出每次下载前会比较的 Hugging Face 兼容来源，设置 `modelOrigin` 则固定单一来源并去掉公共回退。本包自己的 spec 覆盖下载与完整性路径、来源竞速以及下载诊断。
+在带有 `speechToText` 席位的 Host 组合中挂载它。`dataRoot` 是存放已校验模型的绝对目录；`modelPath`、`vadModelPath` 与 `workerPath` 改为指向已存在的文件，否则默认使用下载而来的模型与平台包预构建的工作进程。`modelOrigins` 列出每次下载前会比较的 Hugging Face 兼容来源，设置 `modelOrigin` 则固定单一来源并去掉公共回退。`warmOnActivation` 在已校验资源存在时启动工作进程，使其冷加载不会延迟一次录音；未准备的模型仍留给显式的准备流程。`idleTimeoutMs` 决定已预热的工作进程是否跨过空闲期，`0` 会保留它直到进程结束。本包自己的 spec 覆盖下载与完整性路径、来源竞速以及下载诊断。
 
 <a id="model-experience"></a>
 ## 模型体验

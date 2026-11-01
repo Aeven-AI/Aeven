@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@aeven/speech-to-text-whisper` registers the local recognizer on `ctx.speechToText` under `providerId` (default `whisper-local`). whisper.cpp runs in a managed subprocess worker that takes one decoded WAV at a time and answers with its text. On activation the plugin inspects the on-disk caches and reports readiness without downloading or loading a model; a preparation downloads the model and the Silero VAD file from a configured origin, verifies each by SHA-256, and starts the worker. One serial worker serves every recording, `maxPending` bounds how many may wait, and an idle worker is stopped after `idleTimeoutMs`.
+`@aeven/speech-to-text-whisper` registers the local recognizer on `ctx.speechToText` under `providerId` (default `whisper-local`). whisper.cpp runs in a managed subprocess worker that takes one decoded WAV at a time and answers with its text. On activation the plugin inspects the on-disk caches and reports readiness without downloading or loading a model; a preparation downloads the model and the Silero VAD file from a configured origin, verifies each by SHA-256, and starts the worker. One serial worker serves every recording, `maxPending` bounds how many may wait, and an idle worker is stopped after `idleTimeoutMs`. A worker start is expensive — the prebuilt macOS binary spends about twenty seconds compiling its Metal kernels before it reports ready — so `warmOnActivation` starts an already verified worker during activation and `idleTimeoutMs: 0` keeps it, charging that cost to the Host's boot instead of to a reader's first recording.
 
 ## Table of Contents
 
@@ -20,7 +20,7 @@ English | [中文](README.zh.md)
 
 ## Use this package
 
-Mount it in a Host composition beside a `speechToText` slot. `dataRoot` is the absolute directory holding verified models; `modelPath`, `vadModelPath`, and `workerPath` name existing files instead and otherwise default to the downloaded model and the platform package's prebuilt worker. `modelOrigins` lists the Hugging Face-compatible origins compared before each download, and setting `modelOrigin` pins one origin and drops the public fallback. The package's own specs cover the download and integrity path, the origin race, and the download diagnostics.
+Mount it in a Host composition beside a `speechToText` slot. `dataRoot` is the absolute directory holding verified models; `modelPath`, `vadModelPath`, and `workerPath` name existing files instead and otherwise default to the downloaded model and the platform package's prebuilt worker. `modelOrigins` lists the Hugging Face-compatible origins compared before each download, and setting `modelOrigin` pins one origin and drops the public fallback. `warmOnActivation` starts a worker whose verified resources already exist, so its cold load never delays a recording; an unprepared model is left to the explicit preparation. `idleTimeoutMs` decides whether a warm worker survives an idle period, and `0` keeps it for the process's lifetime. The package's own specs cover the download and integrity path, the origin race, and the download diagnostics.
 
 ## Model Experience
 

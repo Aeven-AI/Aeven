@@ -3697,6 +3697,8 @@ export interface Config {
   inferenceTimeoutMs: number
   /** Idle period before stopping the worker; zero keeps it warm. */
   idleTimeoutMs: number
+  /** Start an already verified worker on activation instead of at its first recording. */
+  warmOnActivation: boolean
   /** Maximum accepted running and waiting transcriptions. */
   maxPending: number
   /** Managed process termination grace period. */

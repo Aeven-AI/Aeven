@@ -198,6 +198,11 @@
       name: '@aeven/speech-to-text-whisper'
       config:
         dataRoot: !!js avnHomePath('speech-to-text', 'whisper')
+        # A cold worker spends about twenty seconds compiling its Metal kernels before its
+        # first word, so the app pays that once in the background and keeps the worker after
+        # it, rather than charging it to the next dictation after every idle period.
+        warmOnActivation: true
+        idleTimeoutMs: 0
 
     - id: api-speech-to-text
       name: '@aeven/api-speech-to-text'
