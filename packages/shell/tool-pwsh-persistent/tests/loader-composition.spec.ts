@@ -76,7 +76,7 @@ describe.skipIf(!hasPwsh)('persistent pwsh through a real cordis.yml Loader comp
   // runner can drop its beginning at the scrollback limit before the marker is
   // reached. One retry keeps a busy machine from failing a composition that
   // works; the marker assertion itself stays strict.
-  it('preserves cwd and environment across calls', { retry: 1 }, async () => {
+  it('preserves cwd and environment across calls', { retry: 1, timeout: 120_000 }, async () => {
     root = await realpath(await mkdtemp(join(tmpdir(), 'avn-persistent-pwsh-loader-')))
     const configPath = join(root, 'cordis.yml')
     await writeFile(configPath, [
@@ -170,5 +170,5 @@ describe.skipIf(!hasPwsh)('persistent pwsh through a real cordis.yml Loader comp
     const exited = text(await execute('exit', 'exit'))
     expect(exited).toContain('next pwsh call starts from the workspace')
     expect(text(await execute('after-exit', 'Write-Output "$PWD"'))).toBe(root)
-  }, 120_000)
+  })
 })
