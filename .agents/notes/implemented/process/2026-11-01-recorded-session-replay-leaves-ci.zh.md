@@ -1,4 +1,8 @@
-# 录制会话回放退出 CI
+# Agent Note: 录制会话回放退出 CI
+
+Status: implemented
+
+[English](2026-11-01-recorded-session-replay-leaves-ci.md) | 中文
 
 ## 问题
 
@@ -6,13 +10,13 @@
 
 结果是一个永远无法说「不」的门禁。它对坏掉的回放和正常的回放给出同一个结论，于是它检测到的漂移——同一周里一次复核提示改动破坏了十一个场景——就这样悄无声息地进了 `main`。
 
-## 决定
+## 决策
 
 回放不再是 CI 门禁。`ciBuildVerifyGates()` 只返回构建与产物门禁，模式列表里不再有 `ci-snapshot`，`package.json` 里不再有 `check:ci:snapshot`，`webSnapshotGate` 的排序也不再等待它。`pnpm run test:snapshot` 仍可在工作树中运行该套件，供想把自己改动的提示与录制语料做比对的人使用。
 
 门禁的价值在于它检查的东西坏掉时会失败。一个打印 `NON-BLOCKING FAILED` 却以零退出的门禁比没有更糟：它花掉这次运行的时间，却产出读起来像「通过」的证据。
 
-## 备选方案
+## 考虑过的替代方案
 
 **把它改成阻塞门禁并重新录制 fixture。** 这是这项检查诚实的形态，暂时被否决，因为语料需要 DeepSeek 密钥，并且需要为录制模式会跳过的场景手工编写替代。等有人愿意接手这次重新录制时，它可以以那种形态回归。
 

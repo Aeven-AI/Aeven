@@ -1,4 +1,8 @@
-# The recorded-session replay left CI
+# Agent Note: The recorded-session replay left CI
+
+Status: implemented
+
+English | [中文](2026-11-01-recorded-session-replay-leaves-ci.zh.md)
 
 ## Problem
 
@@ -12,7 +16,7 @@ The replay is not a CI gate. `ciBuildVerifyGates()` returns the build and the ar
 
 A gate earns its place by failing when the thing it checks is broken. One that reports `NON-BLOCKING FAILED` and exits zero is worse than absent: it spends the run's minutes and produces evidence that reads as a pass.
 
-## Alternatives
+## Alternatives considered
 
 **Make it blocking and re-record the fixtures.** That is the honest version of this check, and it was rejected for now because the corpus needs a DeepSeek key and hand-authored replacements for the scenarios that record mode skips. It can come back that way when someone owns that re-record.
 
