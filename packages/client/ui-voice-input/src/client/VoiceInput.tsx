@@ -102,11 +102,19 @@ export function VoiceInput({ sessionId, inputActions, locked, onActiveChange, cr
     }
   }
 
+  // Why the mic cannot record yet: a control that refuses to start must say so on hover.
+  const blocked = !readiness.connected ? t('reconnecting')
+    : preparation === 'unprepared' ? t('modelUnprepared')
+      : preparation === 'failed' || preparation === 'cancelled' ? t('modelFailed') : t('modelPreparing')
+
   const start = async (): Promise<void> => {
     if (!usable) {
-      // The mic is where dictation is asked for, so it starts a missing model itself;
+      // The mic is where dictation is asked for, so it starts a missing or failed model itself;
       // Settings keeps its explicit Download for starting one without recording.
-      if (readiness.connected && catalog && preparation === 'unprepared') prepareModel(catalog.selection.providerId)
+      setError(blocked)
+      if (readiness.connected && catalog && (preparation === 'unprepared' || preparation === 'failed' || preparation === 'cancelled')) {
+        prepareModel(catalog.selection.providerId)
+      }
       openSettings()
       return
     }
@@ -142,8 +150,10 @@ export function VoiceInput({ sessionId, inputActions, locked, onActiveChange, cr
     else if (phaseRef.current === 'recording') void finish()
   }, [dictationRequest])
 
+  useEffect(() => { if (usable) setError('') }, [usable])
+
   if (!expanded) {
-    return <Tooltip label={error === '' ? t('dictate') : error} side="top">
+    return <Tooltip label={error === '' ? (usable ? t('dictate') : blocked) : error} side="top">
       <button type="button" className={css.mic} data-loading={phase === 'starting' ? '' : undefined} aria-label={t('dictate')}
         disabled={locked} onMouseDown={(event) => { event.preventDefault() }} onClick={() => { void start() }}>
         <span className={css.micIcon}><IconLucideMic /></span>

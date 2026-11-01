@@ -24,7 +24,7 @@ Dictation turns the composer's microphone into a recorder: the control row becom
 <a id="use-this-package"></a>
 ## Use this package
 
-Compose it in a web client whose composer should accept dictation. It needs `remote`, `remote.speech`, `slots`, and `locale`. `apply` registers the composer control, the Settings voice section, and the dictionaries inside effects on the plugin fiber, and one reconnecting readiness mirror follows `speech.follow` for every occurrence of the UI, so the mic and the settings section agree about the recognizer. The control calls `speech.transcribe` with the recorded audio and the selected provider; the settings section calls `speech.prepare` and shows the preparation phase it reports.
+Compose it in a web client whose composer should accept dictation. It needs `remote`, `remote.speech`, `slots`, and `locale`. `apply` registers the composer control, the Settings voice section, and the dictionaries inside effects on the plugin fiber, and one readiness mirror follows `speech.follow` for every occurrence of the UI, so the mic and the settings section agree about the recognizer. The mirror reopens its stream after any end — with backoff, and immediately when the carrier reports a fresh Host — because a closed stream otherwise leaves the composer unable to record until the page reloads. The control calls `speech.transcribe` with the recorded audio and the selected provider; the settings section calls `speech.prepare` and shows the preparation phase it reports.
 
 -----
 
@@ -55,6 +55,7 @@ These limits define what dictation keeps and what it leaves to the Host.
 - **Only speech is kept** — frames under the detector's thresholds are dropped, so a passage quieter than the thresholds can be lost and a recording with no speech produces nothing.
 - **The transcript is ordinary draft text** — it can be edited or deleted like typed words, and nothing about the message records which words were dictated.
 - **A failed transcription is reported, not retried** — the mic shows the Host's message and the recording is dropped.
+- **An unusable recognizer explains itself instead of recording** — while the stream is closed or the model is unprepared, the mic's tooltip names the reason, starts a missing or failed preparation, and opens the voice section rather than capturing audio that could not be transcribed.
 
 <a id="dev-note"></a>
 ### Dev Note

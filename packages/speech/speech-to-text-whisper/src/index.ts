@@ -34,6 +34,7 @@ export function apply(ctx: Context, config: Config): void {
       transcribe: async (input, signal) => await worker.transcribe(input, signal),
     })
     worker.inspect()
+    if (config.warmOnActivation) worker.warm()
     return async () => {
       const removing = unregister()
       await worker.dispose()

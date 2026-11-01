@@ -39,6 +39,8 @@ export interface Config {
   inferenceTimeoutMs: number
   /** Idle period before stopping the worker; zero keeps it warm. */
   idleTimeoutMs: number
+  /** Start an already verified worker on activation instead of at its first recording. */
+  warmOnActivation: boolean
   /** Maximum accepted running and waiting transcriptions. */
   maxPending: number
   /** Managed process termination grace period. */
@@ -73,6 +75,7 @@ export const Config: z<Partial<Config>, Config> = z.object({
   prepareTimeoutMs: z.natural().min(1).max(MAX_TIMER_DELAY_MS).default(3_600_000),
   inferenceTimeoutMs: z.natural().min(1).max(MAX_TIMER_DELAY_MS).default(120_000),
   idleTimeoutMs: z.natural().max(MAX_TIMER_DELAY_MS).default(300_000),
+  warmOnActivation: z.boolean().default(false),
   maxPending: z.natural().min(1).default(4),
   graceMs: z.natural().min(1).max(MAX_TIMER_DELAY_MS).default(1000),
   maxLogBytes: z.natural().min(1).default(64 * 1024),

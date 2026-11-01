@@ -186,6 +186,20 @@ export class WhisperWorker {
   }
 
   /**
+   * Start an already verified worker before the first recording. A cold worker compiles its
+   * Metal kernels for tens of seconds, so paying that at activation keeps the first dictation
+   * responsive; a model the reader has not prepared is left to the Settings download.
+   */
+  warm(): void {
+    const inspection = this.preparing
+    void (async () => {
+      await inspection?.settled
+      if (this.lifetime.signal.aborted || this.worker !== undefined || this.runtime === undefined) return
+      this.runPreparation(async (signal) => { await this.start(signal) })
+    })()
+  }
+
+  /**
    * Start or join one Host-owned preparation task with a fixed download source.
    * @param options - omitted source uses deployment policy; a manual source must be advertised and disables fallback.
    */

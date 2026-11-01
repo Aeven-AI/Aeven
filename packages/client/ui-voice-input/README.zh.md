@@ -24,7 +24,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-当 Web 客户端的输入框需要接受听写时编排本插件。它需要 `remote`、`remote.speech`、`slots` 与 `locale`。`apply` 在插件 fiber 的 effect 中注册输入框控件、Settings 语音分区与字典，并由一条重连的就绪镜像为界面的每一处跟随 `speech.follow`，因此麦克风与该设置分区对识别器的判断一致。控件用录制音频与所选提供方调用 `speech.transcribe`；设置分区调用 `speech.prepare` 并展示其报告的准备工作阶段。
+当 Web 客户端的输入框需要接受听写时编排本插件。它需要 `remote`、`remote.speech`、`slots` 与 `locale`。`apply` 在插件 fiber 的 effect 中注册输入框控件、Settings 语音分区与字典，并由一条就绪镜像为界面的每一处跟随 `speech.follow`，因此麦克风与该设置分区对识别器的判断一致。该镜像在每次结束后重新打开自己的流——按退避等待，并在载体报告新的 Host 时立即重启——因为关闭的流会让输入框在整页重载前都无法录音。控件用录制音频与所选提供方调用 `speech.transcribe`；设置分区调用 `speech.prepare` 并展示其报告的准备工作阶段。
 
 -----
 
@@ -56,6 +56,7 @@ Indirectly, through the conversation composer's draft: a transcript this plugin 
 - **无不变式伴生入口**——不发布不变式伴生入口，因为本插件只拥有每次录音的一份采集、一条由宿主语音流供给的就绪镜像，以及 effect 作用域内的注册；它们各自在录音结束或插件 fiber 结束时释放，且没有第二个权威观察同一份采集。
 - **只保留语音**——低于检测阈值的帧会被丢弃，因此比阈值更轻的段落可能丢失，完全没有语音的录音不会产生任何内容。
 - **转写文本就是普通草稿文本**——可以像键入的文字一样编辑或删除，消息中不记录哪些词来自听写。
+- **不可用的识别器会说明自己，而不是录音**——当流已关闭或模型未准备时，麦克风的提示会说明原因，开始一次缺失或失败的准备，并打开语音分区，而不是采集无法转写的音频。
 - **转写失败只报告不重试**——麦克风显示宿主的消息，录音被丢弃。
 
 <a id="dev-note"></a>
