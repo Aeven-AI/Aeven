@@ -509,19 +509,6 @@
         thresholds: [3, 5, 8]
         argumentsPreviewChars: 500
 
-    # Before a turn that changed files closes, one review call checks the final
-    # reply against the turn's requests and tool results; findings steer one
-    # more step, at most twice per turn.
-    - id: turn-review
-      name: '@aeven/turn-review'
-      config:
-        triggerTools: [write, edit, str_replace_editor]
-        maxReviewsPerTurn: 2
-        maxEntryChars: 2000
-        maxTranscriptChars: 60000
-        maxOutputTokens: 4000
-        timeoutMs: 90000
-
     # Shell commands may not change an existing source file in place; edits go
     # through edit/write. New files, scratch output, builds, and installs pass.
     - id: bash-edit-guard
