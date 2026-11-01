@@ -1,11 +1,11 @@
 ---
 name: in-app-browser
-description: Control the browser beside the session — read and drive the page with the preview_* tools, press the pane's own toolbar, and capture what the user sees. Use for web verification, for screenshots of the pane, and when the pane is closed, refuses an automated read, or hides behind a consent wall.
+description: Control the sidebar browser beside the session — open, visit, and read pages with the preview_* tools, press the pane's own toolbar, and capture what the user sees. A site the user names ("open linkedin") opens here; localhost, development, and debugging pages belong to Chrome DevTools. Use for screenshots of the pane, and when the pane is closed, refuses an automated read, or hides behind a consent wall.
 ---
 
 # Control the in-app browser
 
-The in-app browser is available in Electron. When the user selects it, keep the task in that pane. Prefer it to external Chrome/CDP; use Chrome/CDP only when the required operation is unavailable in the pane. Serve that pane:
+The in-app browser is available in Electron. A request to open, visit, or read a website is this pane's: open it here and keep the task here, including a local address the person names. Development and debugging belong to the Chrome DevTools browser instead — a `localhost` or `127.0.0.1` page you are building, and any task that changes the code behind a page — and `preview_navigate` refuses such an address unless the person's own request names it, pointing at the `new_page` call to make instead. Serve that pane:
 read it, drive it, capture it, and say plainly when it cannot be driven. Resolve
 every relative path below against the base directory reported in
 `<skill_resources>`.
@@ -76,10 +76,9 @@ stop and ask the user to sign in instead.
   the browser from the right sidebar (Browser) rather than reporting that no
   browser exists.
 - **The page is served from this machine.** A `localhost` or `127.0.0.1` page is
-  an application under development. Verify it first in the browser the user can
-  see — this pane, or the Chrome attached to the user's own browser. Use the
-  headless browser tools only when neither is available, and say that the check
-  ran in a headless copy.
+  an application under development, so it belongs to the Chrome DevTools browser.
+  Open it there, not in this pane. Use the headless browser tools only when
+  Chrome DevTools is unavailable, and say that the check ran in a headless copy.
 - **A remote page refuses automated reads.** Inspect it in the selected pane.
   If the pane cannot perform the required operation, use external Chrome/CDP.
   Use headless browsing only when neither visible surface is available.

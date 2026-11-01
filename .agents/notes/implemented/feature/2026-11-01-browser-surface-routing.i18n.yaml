@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-01-browser-surface-routing.md
+2026-11-01-browser-surface-routing.md: 72f4437a14afb2352f5230f96d97d8035bebebbc
+2026-11-01-browser-surface-routing.zh.md: 79aa586b925b2fc1f68c745d2e0d0d78da6d47f0

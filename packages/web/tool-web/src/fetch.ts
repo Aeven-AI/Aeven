@@ -452,7 +452,7 @@ export function presentFetchResult(args: { url: string }, result: ToolResult): W
 function fetchEscalation(browsers: { preview: boolean; headless: boolean; attached: boolean }): string {
   const limit = ' It runs no JavaScript, so a page that builds itself in a browser, or that answers non-browser requests with a block page, returns little or nothing.'
   if (!browsers.preview) return limit
-  const visible = limit + ' Call preview_status to see the available browser surfaces. When the user selected the Electron in-app browser, drive that page with preview_* and keep the task there; correct actionable errors and ask the user to sign in there when needed. Never switch browsers merely because a click or text insertion failed.'
+  const visible = limit + ' Call preview_status to see the available browser surfaces. Opening, visiting, or reading a website stays in the Electron in-app browser when the session has one ("open linkedin"); development, debugging, and localhost pages belong to the Chrome DevTools browser. Correct actionable errors in the surface you are using and ask the user to sign in there when needed. Never switch browsers merely because a click or text insertion failed.'
   if (browsers.attached) {
     return visible + " If the selected pane cannot perform the required operation, or no pane is selected, use the Chrome attached to the user's browser (mcp__chrome_devtools__*). Use headless browsing only when neither visible browser can serve the task."
   }

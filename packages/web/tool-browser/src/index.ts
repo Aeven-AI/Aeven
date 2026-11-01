@@ -25,6 +25,7 @@ import type { Agent, PreStepDecision } from '@aeven/agent'
 import type { BrowserChromiumStatus } from '@aeven/browser-chromium'
 import type { McpServerReport } from '@aeven/mcp-client'
 import { createUserMessage, HarnessError } from '@aeven/llm'
+import type { Message } from '@aeven/llm'
 import { scopeTarget } from '@aeven/scope'
 import { deadline, MAX_TIMER_DELAY_MS, timeoutOf } from '@aeven/timeout'
 import { defineTool, type ParameterSchemaSpec, type ToolRunContext } from '@aeven/tools'
@@ -84,16 +85,64 @@ function isCancelled(signal: AbortSignal): boolean {
 }
 
 /**
+ * Whether an address is served from this machine, which makes it a page under
+ * development rather than a site the user asked to see.
+ * @param hostname - the host as `URL.hostname` reports it, bracketed for IPv6.
+ * @returns true for `localhost`, its subdomains, the IPv6 loopback, the wildcard address, and any loopback IPv4 address.
+ */
+function isDevelopmentHost(hostname: string): boolean {
+  const host = hostname.toLowerCase()
+  return host === 'localhost' || host.endsWith('.localhost') || host === '[::1]' || host === '0.0.0.0' || /^127\.\d+\.\d+\.\d+$/.test(host)
+}
+
+/**
+ * Whether a call's address is a page served from this machine.
+ * @param url - the address a call navigates to or uploads into.
+ * @returns {@link isDevelopmentHost} of its host, or false when no URL parser accepts the string, which only the pane's guest reads.
+ */
+function isDevelopmentAddress(url: string): boolean {
+  try {
+    return isDevelopmentHost(new URL(url).hostname)
+  } catch {
+    // A non-absolute address such as `about:blank` reaches no server, so no Host browser competes for it.
+    return false
+  }
+}
+
+/**
+ * Whether the person's own request names an address, which makes opening it a
+ * site visit they asked for rather than the model checking its own work.
+ * @param messages - the session's derived transcript.
+ * @param url - the address a call navigates to.
+ * @returns true when the newest person message carries the address, its host, or its port.
+ */
+function personAskedForAddress(messages: readonly Message[], url: string): boolean {
+  let request = ''
+  for (const message of messages) {
+    if (message.source.kind !== 'user') continue
+    request = message.content.flatMap(block => block.type === 'text' ? [block.text] : []).join('\n')
+  }
+  if (request.includes(url)) return true
+  try {
+    const parsed = new URL(url)
+    return request.includes(parsed.hostname) || (parsed.port !== '' && request.includes(`:${parsed.port}`))
+  } catch {
+    // Only a parsed address reaches this check, so no caller depends on an unparseable one matching.
+    return false
+  }
+}
+
+/**
  * t3code's browser instructions (`CodexDeveloperInstructions.ts`
  * `T3_CODE_BROWSER_TOOL_INSTRUCTIONS`), sent only while a browser is open, as
  * t3code omits them when its tools are not attached.
  */
 const BROWSER_INSTRUCTIONS = [
   'This browser is the collaborative browser shared with the user. Prefer the preview_* tools for browser navigation, inspection, and interaction on it.',
-  'When this browser is selected, stay in it for the task. Use external Chrome/CDP only when this browser cannot perform the required action; never switch merely because an interaction failed.',
+  'Task routing: a request to open, visit, or read a website is this pane\'s ("open linkedin") — open it here and keep the task here, including a local address the person names. Development and debugging belong to the Chrome DevTools browser (mcp__chrome_devtools__*): a localhost or 127.0.0.1 page of your own, and any task that changes the code behind a page. Never open a local dev server in this pane to check your own work, and never switch surfaces merely because an interaction failed.',
   'Use preview_sequence for known consecutive actions; it runs locally in order and waits for specified elements without another model request between actions. Use preview_upload to attach files directly; never use clipboard tricks, a local HTTP server, or a native picker for a supported upload.',
   'For browser work, first call preview_status. Then use preview_navigate, preview_snapshot, and the focused interaction tools. Prefer snapshot-provided selectors over coordinates.',
-  'A page served from this machine (localhost or 127.0.0.1) is an application under development: verify it first in the browser the user can see — this pane, or the Chromium preview_status reports. Use the headless browser tools for it only when neither is available, and say that the check ran in a headless copy.',
+  'A page served from this machine (localhost or 127.0.0.1) is an application under development: open it in the Chrome DevTools browser (mcp__chrome_devtools__*), not this pane. Use the headless browser tools for it only when that browser and this pane are both unavailable, and say that the check ran in a headless copy.',
   'Correct an actionable error in this browser. If this browser needs authentication, ask the user to sign in here; never type credentials or switch browsers to bypass sign-in. Prefer preview_snapshot and focused actions over writing JavaScript for ordinary clicks or text entry.',
 ].join('\n')
 
@@ -162,8 +211,9 @@ type HostBrowserReport = {
 }
 
 /**
- * What to drive, in the terms the decision needs: the open page first, the
- * Host's Chromium when nothing is open, and the user when there is neither. A
+ * What to drive, in the terms the decision needs: the open page first for a
+ * task that only visits a site, Chrome DevTools for development and debugging,
+ * the Host's Chromium when nothing is open, and the user when there is neither. A
  * report that named only a closed pane is what leaves a model believing no
  * browser exists on the machine at all.
  * @param pageOpen - whether the browser beside the session shows a page.
@@ -172,8 +222,9 @@ type HostBrowserReport = {
  * @returns the sentence the model acts on.
  */
 function nextStepFor(pageOpen: boolean, openable: boolean, host: HostBrowserReport | null): string {
-  if (pageOpen) return 'Drive the page beside this session with the preview_* tools.'
-  if (openable) return 'No page is open beside this session yet. preview_navigate opens the collaborative browser beside it at an address; use it whenever the user asks to open, visit, or go to a website or URL, then drive the page with the other preview_* tools.'
+  const devtools = host?.toolPrefix === undefined ? 'the Chrome DevTools browser' : `the Chrome DevTools browser (${host.toolPrefix}*)`
+  if (pageOpen) return `Drive the page beside this session with the preview_* tools when the task is to open, visit, or read a site. Development and debugging, a localhost or 127.0.0.1 page included, belong to ${devtools}, not this pane.`
+  if (openable) return `No page is open beside this session yet. preview_navigate opens the collaborative browser beside it at an address; use it whenever the user asks to open, visit, or go to a website or URL, then drive the page with the other preview_* tools. Open a local dev server in ${devtools} instead.`
   if (host === null) {
     return 'No browser is open beside this session, and this deployment mounts none on the Host. Ask the user to open one from the right sidebar (Browser).'
   }
@@ -295,7 +346,7 @@ export function apply(ctx: Context, config: Config): void {
     const url = new URL(page.url)
     const paths = input.paths
     if (!Array.isArray(paths) || paths.length === 0 || !paths.every(path => typeof path === 'string')) throw new HarnessError('upload requires file paths', 'BROWSER_UPLOAD_PATHS')
-    if (!['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) {
+    if (!isDevelopmentHost(url.hostname)) {
       const approval = ctx.get('approval')
       if (approval === undefined) throw new HarnessError('upload requires user approval', 'BROWSER_UPLOAD_APPROVAL_UNAVAILABLE')
       const outcome = await approval.request({
@@ -370,6 +421,18 @@ export function apply(ctx: Context, config: Config): void {
     output: { schema: { type: 'string' }, ...text },
     async execute(args, exec) {
       let input = args as { [key: string]: JsonValue }
+      if (operation === 'navigate' && typeof input.url === 'string' && isDevelopmentAddress(input.url)) {
+        const agent = callingAgent(exec)
+        const host = personAskedForAddress(agent.session.deriveMessages(), input.url)
+          ? null
+          : await readHostBrowser(agent, exec.signal)
+        if (host?.toolPrefix !== undefined && host.toolsUnavailable === undefined) {
+          throw new HarnessError(
+            `${input.url} is served from this machine, so it belongs to the Chrome DevTools browser rather than the sidebar pane: nothing in the person's request asked you to open it. Call ${host.toolPrefix}new_page with {"url":"${input.url}"} and drive it with the other ${host.toolPrefix}* tools.`,
+            'BROWSER_DEVELOPMENT_TARGET',
+          )
+        }
+      }
       if (operation === 'upload') input = await uploadInput(input, exec)
       if (operation === 'sequence' && (!Array.isArray(input.actions) || input.actions.length === 0 || input.actions.length > 20)) throw new HarnessError('sequence requires 1 to 20 actions', 'BROWSER_SEQUENCE_ACTION')
       if (operation === 'sequence' && Array.isArray(input.actions)) {
@@ -435,7 +498,7 @@ export function apply(ctx: Context, config: Config): void {
       },
     }),
     action('preview_navigate', 'navigate',
-      "Navigate the collaborative browser tab, opening that browser beside the session when it is closed. Use it whenever the user asks to open, visit, or go to a website or URL, rather than a shell command that opens another browser. Pass {url:'https://t3.chat'} for a website or a local dev server URL.",
+      "Navigate the collaborative browser tab, opening that browser beside the session when it is closed. Use it whenever the user asks to open, visit, or go to a website or URL, rather than a shell command that opens another browser. Pass {url:'https://t3.chat'} for a website. A localhost or loopback address opens here only when the person's own request names it; a page you are building belongs to the Chrome DevTools browser.",
       { url: { type: 'string', required: true, description: 'Website URL. Use this for public pages and directly reachable URLs.' } }),
     action('preview_back', 'back',
       'Go back one page in the collaborative browser tab, showing the pointer pressing the control.',

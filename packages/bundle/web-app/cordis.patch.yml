@@ -370,7 +370,7 @@
         serverName: chrome_devtools
         # The title is how the tool index tells the two browsers apart, so it
         # names which one web development uses.
-        title: Chrome DevTools over CDP in the visible Chrome the user can see; use it for all web development, debugging, and checking pages, signed-in ones included
+        title: Chrome DevTools over CDP in the visible Chrome the user can see; use it for web development, debugging, and any localhost or other page under development, signed-in ones included; opening a site the user names stays in the sidebar browser
         command: !!js "process.platform === 'win32' ? 'npx.cmd' : 'npx'"
         args:
           - '-y'
