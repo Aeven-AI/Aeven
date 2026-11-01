@@ -4447,7 +4447,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/web/tool-browser/src/index.ts:40`](../packages/web/tool-browser/src/index.ts)
+Source: [`packages/web/tool-browser/src/index.ts:41`](../packages/web/tool-browser/src/index.ts)
 
 <a id="aeventool-call-access-policy"></a>
 

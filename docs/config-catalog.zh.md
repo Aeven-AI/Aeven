@@ -4449,7 +4449,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/web/tool-browser/src/index.ts:40`](../packages/web/tool-browser/src/index.ts)
+来源：[`packages/web/tool-browser/src/index.ts:41`](../packages/web/tool-browser/src/index.ts)
 
 <a id="aeventool-call-access-policy"></a>
 
