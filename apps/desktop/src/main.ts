@@ -41,6 +41,7 @@ import type { DesktopUpdateState } from './ipc.ts'
 import { desktopUpdatePrompt } from './update-prompt.ts'
 import { loginShellPath, mergePath } from './login-shell-path.ts'
 import { sendVideoEmbedReferrer } from './video-embeds.ts'
+import { authorizeSystemLocation, systemLocationSettingsAddress } from './system-location.ts'
 import { START_PAGE_PATH, readStartScreenScheme, startPageDocument, startPageUrl } from './start-screen.ts'
 import { bundleIdentifier, clearUpdateResidue, updateCacheRoot, updaterCacheDir } from './update-residue.ts'
 
@@ -947,6 +948,20 @@ async function main(): Promise<void> {
     assertDesktopSender(event, ['app'])
     if (typeof enabled !== 'boolean') throw new Error('avn desktop: background mode must be a boolean')
     await background.setEnabled(enabled)
+  })
+
+  // The page asks for the system's location decision before it reads a position.
+  // Electron raises no such alert, and while macOS holds no decision Chromium
+  // starts no provider, so a read that arrives first only times out.
+  ipcMain.handle(DESKTOP_IPC.locationAuthorize, (event) => {
+    assertDesktopSender(event, ['app'])
+    return authorizeSystemLocation()
+  })
+  ipcMain.handle(DESKTOP_IPC.locationOpenSettings, async (event) => {
+    assertDesktopSender(event, ['app'])
+    const address = systemLocationSettingsAddress()
+    if (address === undefined) return
+    await shell.openExternal(address)
   })
 
   sendVideoEmbedReferrer(session.defaultSession)

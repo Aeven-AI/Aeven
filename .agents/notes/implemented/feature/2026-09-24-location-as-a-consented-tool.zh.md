@@ -15,7 +15,7 @@ Status: implemented
 - `@aeven/tool-location` 注册带必填 `purpose` 的 `get_location`。调用派发以代理为作用域的 `location/request` waterfall 并渲染应答：带 `accuracyMeters` 的设备坐标、输入的地点、拒绝，或带原因的不可用。`precision: approximate` 把坐标四舍五入到约一公里。等待时间是工具超时 `consentTimeoutMs`，因为转发的 waterfall 会一直挂起直到客户端应答（[有界的浏览器状态查询](../bug-fix/2026-09-24-bounded-browser-status-lookup.zh.md)）。
 - `@aeven/client-ui-location` 在 Web 客户端中应答该 waterfall。浏览器的许可提示就是读者唯一的一次批准：浏览器已允许的网站不显示卡片直接读取；否则立即开始读取，并由输入区卡片**允许 Aeven 获取你的精确位置？**解释该提示，**好**再次读取，**不**只拒绝本次请求。最初的设计在浏览器提示之前先在卡片中询问，使读者需要批准两次。
 
-waterfall 就是提供者接缝：读取 Core Location、Windows.Devices.Geolocation 或 GeoClue 的 Host 监听器可以应答同一事件，而无需改变工具或模型契约。
+waterfall 就是提供者接缝：读取 Core Location、Windows.Devices.Geolocation 或 GeoClue 的 Host 监听器可以应答同一事件，而无需改变工具或模型契约。在桌面应用中，操作系统的决定先于读取、由外壳提起，因为系统尚无决定时 Chromium 不启动任何提供者（[系统决定](../architecture/2026-11-01-desktop-location-asks-the-system.zh.md)）。
 
 ## 考虑过的替代方案
 
@@ -29,4 +29,4 @@ waterfall 就是提供者接缝：读取 Core Location、Windows.Devices.Geoloca
 
 - 模型收到坐标，因为没有能直接消费它们的地点或地理编码工具；`approximate` 精度是部署层面的控制。
 - 浏览器只向安全上下文提供定位，因此通过 http 在局域网地址上的 Web 客户端会报告位置不可用。
-- 在原生提供者存在之前，桌面应用可能报告位置不可用。
+- 桌面应用在操作系统允许后经由 Chromium 读取，并先向系统请求该决定（[系统决定](../architecture/2026-11-01-desktop-location-asks-the-system.zh.md)）；开关被拒绝时，模型收到的是带原因（不可用）的应答，卡片中提供设置面板。
