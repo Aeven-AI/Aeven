@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-11-01-inconclusive-review-keeps-the-reply.md
-2026-11-01-inconclusive-review-keeps-the-reply.md: d0cef497b7a9a73ac22441a2369022baac3e160f
-2026-11-01-inconclusive-review-keeps-the-reply.zh.md: 70055fc10d1f7c3a2a1bb44265881cbe8e3bf624
+2026-11-01-inconclusive-review-keeps-the-reply.md: 3afb80c3c477ea7178e923b58ed111ebacfe79f7
+2026-11-01-inconclusive-review-keeps-the-reply.zh.md: 29d51d7b681acd68a96ffff8c8ef3d2a7ba16703

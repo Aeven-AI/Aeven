@@ -65,7 +65,7 @@ async function failingReview(
 }
 
 describe('the review call itself fails', () => {
-  it('fails the turn with unresolved findings once the review rounds are spent', async () => {
+  it('records unresolved findings once the review rounds are spent and keeps the reply', async () => {
     const issue = 'The requested implementation is unfinished.'
     const review = await mountReview([
       ...REVIEWED_TURN,
@@ -74,11 +74,11 @@ describe('the review call itself fails', () => {
     ], reviewConfig({ maxReviewsPerTurn: 1 }))
     try {
       await review.turn()
-      const message = expect.stringContaining(issue) as unknown
-      const error = expect.objectContaining({ message }) as unknown
-      expect(review.ofType('turn/end').map((event: { data: { reason?: unknown } }) => event.data.reason)).toEqual([
-        expect.objectContaining({ kind: 'error', error }),
-      ])
+      const failure = review.ofType('turn-review/failure').map(event => event.data.message)
+      expect(failure).toEqual([expect.stringContaining(issue) as unknown as string])
+      const kinds = review.ofType('turn/end')
+        .map((event: { data: { reason?: { kind?: string } } }) => event.data.reason?.kind)
+      expect(kinds).not.toContain('error')
     } finally {
       await review.fiber.dispose()
     }

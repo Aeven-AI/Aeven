@@ -9,7 +9,7 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { BlockAssembler, createUserMessage, LlmError } from '@aeven/llm'
+import { BlockAssembler, createUserMessage, ReasoningEffortId } from '@aeven/llm'
 import type { ContentBlock, FinishReason, GenerateOptions, Message, MessageSource } from '@aeven/llm'
 import type { Agent } from '@aeven/agent'
 import type { SessionEvent } from '@aeven/session'
@@ -23,9 +23,6 @@ export const inject = ['llm']
 
 /** Timeout reason code for review calls. */
 export const TURN_REVIEW_TIMEOUT_CODE = 'TURN_REVIEW_TIMEOUT'
-
-/** Failure code: the per-turn review rounds are spent with findings the turn left unresolved. */
-export const TURN_REVIEW_UNRESOLVED_CODE = 'TURN_REVIEW_UNRESOLVED'
 
 /** Exact review request recorded before dispatch. */
 export interface TurnReviewRequestEventData {
@@ -41,6 +38,8 @@ export interface TurnReviewRequestEventData {
   readonly messages: Message[]
   /** Review output-token cap. */
   readonly maxTokens: number
+  /** Reasoning effort the review call requests, absent when the route does not advertise it. */
+  readonly reasoningEffort?: ReasoningEffortId
 }
 
 /** Parsed review outcome. */
@@ -88,6 +87,8 @@ export interface Config {
   maxTranscriptChars: number
   /** Review output-token cap. */
   maxOutputTokens: number
+  /** Reasoning effort requested for the review call; ignored when the route does not advertise it. */
+  reviewReasoningEffort: 'off' | 'low' | 'high' | 'max'
   /** End-to-end deadline of one review call in milliseconds. */
   timeoutMs: number
   /** Explicit review provider; pairs with `model`. Absent uses the turn's own route. */
@@ -103,6 +104,12 @@ export const Config: z<Config> = z.object({
   maxEntryChars: z.natural().min(100).default(2000),
   maxTranscriptChars: z.natural().min(1000).default(60000),
   maxOutputTokens: z.natural().min(64).default(4000),
+  /**
+   * Reasoning effort for the review call. A verdict is a short JSON answer about a transcript the
+   * reviewer only compares against the request, so thinking is the whole reason this call can reach
+   * `maxOutputTokens`: the route default spent the budget on deliberation and truncated the answer.
+   */
+  reviewReasoningEffort: z.union(['off', 'low', 'high', 'max']).default('low'),
   timeoutMs: z.natural().min(1).max(MAX_TIMER_DELAY_MS).default(90000),
   provider: z.string(),
   model: z.string(),
@@ -139,6 +146,29 @@ type Entry =
 function assertRoute(config: Config): void {
   if ((config.provider === undefined) !== (config.model === undefined)) {
     throw new Error('turn-review: provider and model must be configured together')
+  }
+}
+
+/**
+ * Resolve the configured review effort against the route's own reasoning metadata.
+ * @param ctx - plugin context exposing the llm service.
+ * @param route - provider and model the review call will use.
+ * @param configured - effort the plugin is configured to request.
+ * @returns the branded effort when the route advertises it, otherwise undefined so the adapter default applies.
+ */
+async function reviewEffort(
+  ctx: Context,
+  route: { provider: string; model: string },
+  configured: string,
+): Promise<ReasoningEffortId | undefined> {
+  try {
+    const info = await ctx.llm.resolveModelInfo(route.provider, route.model)
+    const offered = info.reasoning?.efforts.some(effort => effort.id === configured) === true
+    return offered ? ReasoningEffortId(configured) : undefined
+  } catch {
+    // Only a catalog lookup reaches this: a route the adapter cannot describe is
+    // still callable, so the review falls back to the adapter's own default effort.
+    return undefined
   }
 }
 
@@ -325,7 +355,14 @@ export function apply(ctx: Context, config: Config): void {
     const lastVerdict = events.findLast(event => event.type === 'turn-review/verdict')
     const issues = lastVerdict?.type === 'turn-review/verdict' ? lastVerdict.data.issues : []
     if (count >= config.maxReviewsPerTurn) {
-      if (issues.length > 0) throw new LlmError(`review budget exhausted with unresolved findings: ${issues.join('; ')}`, TURN_REVIEW_UNRESOLVED_CODE)
+      if (issues.length > 0) {
+        // The rounds are spent and the findings stand. The reply the reader asked for is
+        // already written, so the outcome is recorded and warning-logged, never turned into
+        // a failed turn that asks them to retry work the reviewer could not settle.
+        const message = `review rounds spent with unresolved findings: ${issues.join('; ')}`
+        logger.warn('turn %d %s', turn, message)
+        agent.session.append('turn-review/failure', { turn, round: count, message })
+      }
       return
     }
     if (!endsWithReply(events) || (issues.length === 0 && !changedFiles(events, triggers) && !promisesAction(events))) return
@@ -344,16 +381,22 @@ export function apply(ctx: Context, config: Config): void {
     let verdict: { complete: boolean; issues: string[] }
     try {
       using callDeadline = deadline(signal, config.timeoutMs, TURN_REVIEW_TIMEOUT_CODE)
+      const effort = await reviewEffort(ctx, route, config.reviewReasoningEffort)
+      signal.throwIfAborted()
       const options: GenerateOptions = {
         provider: route.provider,
         model: route.model,
         system: SYSTEM,
         messages,
         maxTokens: config.maxOutputTokens,
+        ...effort === undefined ? {} : { reasoningEffort: effort },
         sessionId: agent.session.id,
         signal: callDeadline.signal,
       }
-      agent.session.append('turn-review/request', { turn, round, route, system: SYSTEM, messages, maxTokens: config.maxOutputTokens })
+      agent.session.append('turn-review/request', {
+        turn, round, route, system: SYSTEM, messages, maxTokens: config.maxOutputTokens,
+        ...effort === undefined ? {} : { reasoningEffort: effort },
+      })
       const assembler = new BlockAssembler()
       for await (const chunk of ctx.llm.stream(options)) {
         callDeadline.signal.throwIfAborted()

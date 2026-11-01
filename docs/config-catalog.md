@@ -2323,7 +2323,7 @@ export interface ReplayModelConfig {
 
 Depends on: [`ModelModality`](../packages/llm/llm/src/index.ts) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts)
 
-Source: [`packages/test-support/llm-replay/src/index.ts:924`](../packages/test-support/llm-replay/src/index.ts)
+Source: [`packages/test-support/llm-replay/src/index.ts:930`](../packages/test-support/llm-replay/src/index.ts)
 
 <a id="aevenllm-retry"></a>
 
@@ -5205,6 +5205,8 @@ export interface Config {
   maxTranscriptChars: number
   /** Review output-token cap. */
   maxOutputTokens: number
+  /** Reasoning effort requested for the review call; ignored when the route does not advertise it. */
+  reviewReasoningEffort: 'off' | 'low' | 'high' | 'max'
   /** End-to-end deadline of one review call in milliseconds. */
   timeoutMs: number
   /** Explicit review provider; pairs with `model`. Absent uses the turn's own route. */
@@ -5214,7 +5216,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/guard/turn-review/src/index.ts:77`](../packages/guard/turn-review/src/index.ts)
+Source: [`packages/guard/turn-review/src/index.ts:82`](../packages/guard/turn-review/src/index.ts)
 
 <a id="aeventypert-loader"></a>
 

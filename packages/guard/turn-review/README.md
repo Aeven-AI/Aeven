@@ -49,10 +49,11 @@ Choose it when agents edit files and the product's value depends on the turn's f
 | Field | Default | Meaning |
 |---|---|---|
 | `triggerTools` | `[write, edit, str_replace_editor]` | A successful call to one of these makes the turn reviewed |
-| `maxReviewsPerTurn` | `2` | Review rounds per turn; unresolved findings at the limit fail the turn |
+| `maxReviewsPerTurn` | `2` | Review rounds per turn; findings still unresolved at the limit are recorded and the turn keeps its reply |
 | `maxEntryChars` | `2000` | Characters quoted from one tool argument, tool result, or message (head and tail kept) |
 | `maxTranscriptChars` | `60000` | Characters of the whole transcript; the oldest tool entries are dropped first, messages and replies are kept |
 | `maxOutputTokens` | `4000` | Review output cap; reaching it fails the review, and the turn keeps the reply it already has |
+| `reviewReasoningEffort` | `low` | Reasoning effort the review call requests; dropped when the route does not advertise it, so the adapter default applies |
 | `timeoutMs` | `90000` | Deadline of one review call |
 | `provider`, `model` | the turn's route | Explicit review route; both or neither, otherwise loading fails |
 
@@ -72,7 +73,9 @@ The plugin listens on `agent/turn-stopping`, which runs while the turn can still
 
 The reviewer reads a JSON array built from the turn's events in order: user messages whose source kind is `user`, every tool call with its arguments, every tool result, and every assistant reply. Each entry is clipped to `maxEntryChars`, keeping its head and tail with a cut marker, and the whole array is trimmed by dropping the oldest call and result entries until it fits `maxTranscriptChars`; messages and replies are never dropped.
 
-A finding round is a steering message, not a duplicate step. The plugin budgets rounds per agent and turn, and a round is spent when its request is dispatched, so a turn whose findings persist after `maxReviewsPerTurn` fails with the unresolved findings. A review call that times out, fails, reaches `maxOutputTokens`, or answers without a parsable verdict appends `turn-review/failure` with the reason and leaves the reply as written: a reviewer that produced no verdict says nothing about the reply itself.
+A finding round is a steering message, not a duplicate step. The plugin budgets rounds per agent and turn, and a round is spent when its request is dispatched; a turn whose findings persist after `maxReviewsPerTurn` records them as `turn-review/failure` and ends with the reply it has, because the reader's answer is already written and a review cannot rewrite it for them. A review call that times out, fails, reaches `maxOutputTokens`, or answers without a parsable verdict appends `turn-review/failure` with the reason and leaves the reply as written: a reviewer that produced no verdict says nothing about the reply itself.
+
+The review asks for a bounded reasoning effort because thinking is what carries this call to `maxOutputTokens`: the route default spent the whole cap deliberating and truncated the verdict. The effort is checked against the route's own reasoning metadata and dropped when the route does not advertise it, so an unusual route still runs the review on its default instead of failing it.
 
 ### Source map
 

@@ -6,6 +6,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
+import { ReasoningEffortId } from '@aeven/llm'
 import { textResponse, toolCallResponse } from '../../../core/agent-loop/tests/mock-adapter.ts'
 import { mountReview, reviewConfig, transcriptOf } from './harness.ts'
 
@@ -241,4 +242,38 @@ describe('action commitments without a file change', () => {
       }
     },
   )
+})
+
+describe('the review effort', () => {
+  const reviewedTurn = [
+    toolCallResponse('c1', 'read', {}),
+    toolCallResponse('c2', 'write', { body: 'notes' }),
+    textResponse('Wrote notes.md.'),
+  ]
+
+  it('requests the configured effort when the route advertises it', async () => {
+    const review = await mountReview([...reviewedTurn, textResponse(CLEAN)], reviewConfig(), {
+      efforts: [{ id: ReasoningEffortId('low'), name: 'Low' }],
+    })
+    try {
+      await review.turn()
+      expect(review.ofType('turn-review/request')[0]?.data.reasoningEffort).toBe('low')
+      expect(review.adapter.requests.at(-1)?.reasoningEffort).toBe('low')
+    } finally {
+      await review.fiber.dispose()
+    }
+  })
+
+  it('leaves the adapter default in place when the route does not advertise it', async () => {
+    const review = await mountReview([...reviewedTurn, textResponse(CLEAN)], reviewConfig(), {
+      efforts: [{ id: ReasoningEffortId('high'), name: 'High' }],
+    })
+    try {
+      await review.turn()
+      expect(review.ofType('turn-review/request')[0]?.data.reasoningEffort).toBeUndefined()
+      expect(review.adapter.requests.at(-1)?.reasoningEffort).toBeUndefined()
+    } finally {
+      await review.fiber.dispose()
+    }
+  })
 })

@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/guard/turn-review/README.md
-README.md: 13b152c6ce4ccc8c060c1bd375f2b861aad52871
-README.zh.md: c29f48bfee151682620d8cdce6793a13a6360877
+README.md: b5e148bd9e6f2298f1cf99c5300d8eef46ae8231
+README.zh.md: a07fabcbcbc7adedb08cecc2ef2c30d7532e04f5
