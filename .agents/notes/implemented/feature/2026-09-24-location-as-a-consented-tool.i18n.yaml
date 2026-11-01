@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-24-location-as-a-consented-tool.md
-2026-09-24-location-as-a-consented-tool.md: a3b9225e3c6c503747f6a9425691a88fa6b5a151
-2026-09-24-location-as-a-consented-tool.zh.md: a2c23fe2a4a49b5cc61e8278f75e73678fa86660
+2026-09-24-location-as-a-consented-tool.md: 0c1b2cfc23e9b5dfe7f44c7e18a3f242f1305f0b
+2026-09-24-location-as-a-consented-tool.zh.md: bb6edd2cb5e938538af003eab0b8b9c6403e4f36

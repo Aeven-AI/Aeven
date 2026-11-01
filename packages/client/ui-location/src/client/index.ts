@@ -15,9 +15,10 @@ import type { PendingInteractionPublisher } from '@aeven/client-ui-session/clien
 import type { TypertClientEventListener } from '@aeven/typert-protocol'
 import type {} from '@aeven/client-locale/client'
 import { PendingLocation } from './contract/slots.ts'
-import { geolocationPermission, readDevicePosition } from './device-position.ts'
+import { geolocationPermission } from './device-position.ts'
 import { LocationPanel } from './LocationPanel.tsx'
 import { en, es, zh } from './locales.ts'
+import { readLocationWithPermission } from './system-location.ts'
 
 export type { LocationComposerProps, PendingLocation } from './contract/slots.ts'
 export type { LocationKey } from './locales.ts'
@@ -48,7 +49,8 @@ function showsSession(ctx: ClientContext, sessionId: string): boolean {
  * Answer one request: read the device position directly when this window
  * shows the session and the browser already allows it, otherwise present the
  * card until the read succeeds, the reader declines, or the request's lifetime
- * ends.
+ * ends. The operating system's own decision comes first, because Chromium reads
+ * no position while the system holds none.
  */
 async function answerLocation(
   ctx: ClientContext,
@@ -60,8 +62,8 @@ async function answerLocation(
   const sessionId = ctx.sessions.scopeOf(owner)
   if (sessionId === undefined) return next()
   if (showsSession(ctx, sessionId) && await geolocationPermission() === 'granted') {
-    const read = await readDevicePosition()
-    if (read.kind === 'device' || read.kind === 'unavailable') return read
+    const attempt = await readLocationWithPermission()
+    if (attempt.outcome.kind === 'device' || attempt.outcome.kind === 'unavailable') return attempt.outcome
   }
   const pending = new PendingLocation(sessionId, request.purpose, request.signal)
   return awaitPendingResult(pending, registerPendingInteraction, next)

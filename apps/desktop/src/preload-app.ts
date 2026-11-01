@@ -11,6 +11,7 @@ import {
   type DesktopProviderSignInState,
   type DesktopUpdateState,
 } from './ipc.ts'
+import type { SystemLocationState } from './system-location.ts'
 
 const api: AvnDesktopAppApi = {
   protocolVersion: 1,
@@ -43,6 +44,10 @@ const api: AvnDesktopAppApi = {
   },
   contextMenu: {
     show: items => ipcRenderer.invoke(DESKTOP_IPC.appMenuShow, items) as Promise<string | null>,
+  },
+  location: {
+    authorize: () => ipcRenderer.invoke(DESKTOP_IPC.locationAuthorize) as Promise<SystemLocationState>,
+    openSettings: () => ipcRenderer.invoke(DESKTOP_IPC.locationOpenSettings) as Promise<void>,
   },
   links: {
     onOpen(listener) {

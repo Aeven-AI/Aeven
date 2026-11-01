@@ -1,5 +1,6 @@
 /** Typed preload operations exposed only by the Electron shell. */
 import type { Branded } from '@aeven/brand'
+import type { SystemLocationState } from './system-location.ts'
 
 /** One application-menu command the shell sends to the page it renders. */
 export type DesktopMenuCommand = 'open-settings' | 'start-dictation' | 'show-update'
@@ -34,6 +35,8 @@ export const DESKTOP_IPC = {
   updatesInstall: 'avn-desktop:updates-install',
   updatesState: 'avn-desktop:updates-state',
   updatesListen: 'avn-desktop:updates-listen',
+  locationAuthorize: 'avn-desktop:location-authorize',
+  locationOpenSettings: 'avn-desktop:location-open-settings',
 } as const
 
 /** Window operation a page-drawn Linux caption button asks for; `maximize` toggles. */
@@ -178,6 +181,8 @@ export interface AvnDesktopAppApi {
   readonly links: AvnDesktopLinksApi
   /** The Desktop release stream, which the application menu and the update popup both drive. */
   readonly update: AvnDesktopUpdateApi
+  /** The operating system's location permission, which the shell asks for. */
+  readonly location: AvnDesktopLocationApi
   /**
    * Observe the application menu's commands, which the shell issues on the page's behalf.
    * @param listener - called with each command the menu sends.
@@ -239,6 +244,29 @@ export interface AvnDesktopBackgroundApi {
    * @returns disposer removing the listener.
    */
   onChange(listener: (enabled: boolean) => void): () => void
+}
+
+/**
+ * The operating system's location permission.
+ *
+ * Chromium starts no location provider while the system holds no decision, and
+ * Electron offers no API that asks for one, so the page asks the shell: it
+ * raises the system's one-time alert where the platform has one and reports
+ * what the system says, which tells the page whether to read or to send the
+ * reader to the pane that carries the switch.
+ */
+export interface AvnDesktopLocationApi {
+  /**
+   * Ask the operating system for its decision, raising its alert when the
+   * application has none.
+   * @returns the system's answer, and whether a settings pane carries the switch.
+   */
+  authorize(): Promise<SystemLocationState>
+  /**
+   * Open the settings pane that carries this platform's location switch, where
+   * one exists; a platform without such a pane does nothing.
+   */
+  openSettings(): Promise<void>
 }
 
 /**

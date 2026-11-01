@@ -15,7 +15,7 @@ Location is a tool the model calls, answered by the reader:
 - `@aeven/tool-location` registers `get_location` with a required `purpose`. The call dispatches the agent-scoped `location/request` waterfall and renders the answer: device coordinates with `accuracyMeters`, a typed place, declined, or unavailable with a reason. `precision: approximate` rounds coordinates to about a kilometre. The wait is the tool timeout `consentTimeoutMs`, because a forwarded waterfall stays pending until a client answers ([bounded browser status lookup](../bug-fix/2026-09-24-bounded-browser-status-lookup.md)).
 - `@aeven/client-ui-location` answers the waterfall in the Web client. The browser's permission prompt is the reader's one approval: a site the browser already allows is read without a card; otherwise the read starts at once and a composer card, **Allow Aeven to know your precise location?**, explains the prompt with **OK** to read again and **No** to decline this request only. A first design asked in the card before the browser prompt, which made the reader approve twice.
 
-The waterfall is the provider seam: a Host listener reading Core Location, Windows.Devices.Geolocation, or GeoClue can answer the same event without changing the tool or the model contract.
+The waterfall is the provider seam: a Host listener reading Core Location, Windows.Devices.Geolocation, or GeoClue can answer the same event without changing the tool or the model contract. In the desktop application the operating system's decision comes before the read, raised by the shell, because Chromium starts no provider while the system holds none ([system decision](../architecture/2026-11-01-desktop-location-asks-the-system.md)).
 
 ## Alternatives considered
 
@@ -29,4 +29,4 @@ The waterfall is the provider seam: a Host listener reading Core Location, Windo
 
 - The model receives coordinates, because no places or geocoding tool could consume them directly; `approximate` precision is the deployment control.
 - Browsers expose geolocation only to secure contexts, so a Web client on a LAN address over http reports the location unavailable.
-- The desktop app can report the location unavailable until a native provider exists.
+- The desktop app reads through Chromium once the operating system allows it, and asks the system for that decision first ([system decision](../architecture/2026-11-01-desktop-location-asks-the-system.md)); a refused switch reaches the model as unavailable with the settings pane offered in the card.

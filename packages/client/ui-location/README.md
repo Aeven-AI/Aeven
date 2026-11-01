@@ -8,7 +8,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Browser location consent over the Agent-scoped `location/request` Remote Event waterfall, where the browser's own permission prompt is the reader's one approval. When the model calls `get_location` and the browser already allows the site, the plugin reads the position without showing anything. Otherwise it starts the read at once, which opens the browser prompt, and takes over the Conversation composer with **Allow Aeven to know your precise location?**, the model's purpose, and two buttons: **OK** reads again, for a reader who dismissed or has not yet answered the prompt, and **No** declines this request only.
+Browser location consent over the Agent-scoped `location/request` Remote Event waterfall, where the browser's own permission prompt is the reader's one approval. When the model calls `get_location` and the browser already allows the site, the plugin reads the position without showing anything. Otherwise it starts the read at once, which opens the browser prompt, and takes over the Conversation composer with **Allow Aeven to know your precise location?**, the model's purpose, and two buttons: **OK** reads again, for a reader who dismissed or has not yet answered the prompt, and **No** declines this request only. In the desktop application the Aeven shell raises the operating system's alert before any read, because Chromium reads no position while the system holds no decision; a switch that refuses shows the same card with **Open settings** beside **OK**.
 
 ## Table of Contents
 
@@ -33,7 +33,7 @@ None; presenting a request and returning the reader's choice does not alter a mo
 
 - **Secure pages only** — browsers expose geolocation only over https or a loopback address, so a page opened on a LAN address over http reports the location unavailable.
 - **A blocked site stays blocked** — after the reader blocks the prompt, the card asks them to allow the site in the browser's settings; the page cannot re-open a prompt the browser has blocked.
-- **Electron needs a native provider** — Chromium geolocation in Electron may need a Google API key; until a Host provider answers `location/request`, the desktop card can report the location unavailable.
+- **The system's answer outranks the page** — Chromium starts no location provider until the operating system decides, and only the desktop shell can ask it to; a page in a browser keeps the browser's own prompt, and an alert left unanswered still ends in the unavailable report.
 - **Invariant omission** — No invariant companion is published because each request is answered once, inside the one window that shows the session: the position, the card, and the reader's choice exist only as that window's pending interaction, while the Host owner of the `location/request` waterfall keeps the ordering.
 
 <a id="dev-note"></a>

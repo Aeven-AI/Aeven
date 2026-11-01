@@ -1,8 +1,8 @@
-/** Composer takeover that accompanies the browser's location prompt. */
+/** Composer takeover that accompanies the system's location decision. */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@aeven/client-ui-primitives'
 import type { LocationComposerProps, PendingLocation } from './contract/slots.ts'
-import { readDevicePosition } from './device-position.ts'
+import { openSystemLocationSettings, readLocationWithPermission } from './system-location.ts'
 import css from './LocationPanel.module.css'
 
 /**
@@ -16,32 +16,46 @@ export function LocationPanel(props: LocationComposerProps) {
 
 type Status =
   | { readonly kind: 'waiting' }
+  | { readonly kind: 'denied' }
   | { readonly kind: 'blocked' }
   | { readonly kind: 'unavailable'; readonly reason: string }
 
 /**
- * Read the position as soon as the card shows, so the browser's own prompt is
- * the reader's one approval. A granted read answers the request; OK reads
- * again, and No declines this request only.
+ * Read the position as soon as the card shows: the operating system's decision
+ * comes first, then the browser's, and both are the reader's one approval. A
+ * granted read answers the request; OK asks again, and No declines this
+ * request only.
  */
 function LocationFlow({ pending, t }: {
   pending: PendingLocation
   t: LocationComposerProps['t']
 }) {
   const [status, setStatus] = useState<Status>({ kind: 'waiting' })
+  /** Whether the shell can open the pane that carries a location switch it refused. */
+  const [settings, setSettings] = useState(false)
   const [reading, setReading] = useState(false)
   const active = useRef(true)
   const read = useCallback((): void => {
     setReading(true)
     setStatus({ kind: 'waiting' })
-    void readDevicePosition().then((result) => {
+    void readLocationWithPermission().then((attempt) => {
       if (!active.current) return
       setReading(false)
-      if (result.kind === 'device') {
-        pending.answer(result)
-        return
+      setSettings(attempt.settings)
+      const outcome = attempt.outcome
+      switch (outcome.kind) {
+        case 'device':
+          pending.answer(outcome)
+          return
+        case 'denied':
+          setStatus({ kind: 'denied' })
+          return
+        case 'blocked':
+          setStatus({ kind: 'blocked' })
+          return
+        case 'unavailable':
+          setStatus({ kind: 'unavailable', reason: outcome.reason })
       }
-      setStatus(result.kind === 'blocked' ? { kind: 'blocked' } : { kind: 'unavailable', reason: result.reason })
     })
   }, [pending])
   // The first read waits until the page is visible: a background window that
@@ -64,11 +78,14 @@ function LocationFlow({ pending, t }: {
       document.removeEventListener('visibilitychange', onVisible)
     }
   }, [read])
-  const notice = status.kind === 'blocked'
-    ? t('blocked')
-    : status.kind === 'unavailable'
-      ? t('unavailable', { reason: status.reason })
-      : reading ? t('approvePrompt') : null
+  const notice = status.kind === 'denied'
+    ? t('denied')
+    : status.kind === 'blocked'
+      ? t('blocked')
+      : status.kind === 'unavailable'
+        ? t('unavailable', { reason: status.reason })
+        : reading ? t('approvePrompt') : null
+  const offersSettings = settings && (status.kind === 'denied' || status.kind === 'unavailable')
   return (
     <div className={css.root} data-location-key={pending.key} data-location-status={status.kind}>
       <div className={css.card} role="group" aria-label={t('title')}>
@@ -80,8 +97,11 @@ function LocationFlow({ pending, t }: {
           )}
         </div>
         <div className={css.actionRow}>
+          {offersSettings && (
+            <Button variant="outline" onClick={() => { void openSystemLocationSettings() }}>{t('openSettings')}</Button>
+          )}
           <Button variant="outline" onClick={() => { pending.answer({ kind: 'declined' }) }}>{t('no')}</Button>
-          {/* Always enabled: while the browser prompt is open a read never
+          {/* Always enabled: while the system or browser prompt is open a read never
               settles, and OK is how the reader asks again after dismissing it. */}
           <Button variant="primary" onClick={read}>{t('ok')}</Button>
         </div>
