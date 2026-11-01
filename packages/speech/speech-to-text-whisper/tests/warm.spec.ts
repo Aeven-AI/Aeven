@@ -11,16 +11,16 @@ import { WhisperWorker } from '../src/recognizer.ts'
 const cleanup: Array<() => Promise<void>> = []
 afterEach(async () => { for (const close of cleanup.splice(0).reverse()) await close() })
 
-async function fixture() {
+async function fixture(overrides: Partial<Config> = {}) {
   const root = await mkdtemp(join(tmpdir(), 'avn-speech-warm-'))
   cleanup.push(async () => { await rm(root, { recursive: true, force: true }) })
   const model = join(root, 'model.bin'), vad = join(root, 'vad.bin'), worker = join(root, 'worker')
   await Promise.all([writeFile(model, 'model'), writeFile(vad, 'vad'), writeFile(worker, 'worker')])
-  const config = { dataRoot: root, modelPath: model, vadModelPath: vad, workerPath: worker, modelOrigins: ['https://example.invalid'],
+  const managed = { modelPath: model, vadModelPath: vad }
+  return { dataRoot: root, ...managed, workerPath: worker, modelOrigins: ['https://example.invalid'],
     modelProbeTimeoutMs: 1000, threads: 1, vadThreshold: 0.5, vadMinSpeechMs: 250, vadMinSilenceMs: 100, vadSpeechPadMs: 30,
     maxAudioBytes: 1024, prepareTimeoutMs: 10_000, inferenceTimeoutMs: 10_000, idleTimeoutMs: 0, warmOnActivation: true, maxPending: 1,
-    graceMs: 1000, maxLogBytes: 1024, maxResponseBytes: 1024, progressIntervalMs: 100 } as Config
-  return config
+    graceMs: 1000, maxLogBytes: 1024, maxResponseBytes: 1024, progressIntervalMs: 100, ...overrides } as Config
 }
 
 /** A spawned worker that reports itself ready and then stays alive until terminated. */
@@ -47,7 +47,7 @@ it('starts a verified worker on activation without waiting for a recording', asy
 })
 
 it('leaves an unverified model to the explicit preparation instead of downloading it', async () => {
-  const config = { ...await fixture(), modelPath: undefined, vadModelPath: undefined }, { ctx, spawn } = fakeWorker()
+  const config = await fixture({ modelPath: undefined, vadModelPath: undefined }), { ctx, spawn } = fakeWorker()
   const worker = new WhisperWorker(ctx, config)
   worker.inspect()
   await vi.waitFor(() => { expect(worker.snapshot().phase).toBe('unprepared') })

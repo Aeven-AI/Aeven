@@ -2,7 +2,7 @@
 /** The readiness mirror reopens its stream instead of leaving the composer unable to record. */
 import { afterEach, expect, it, vi } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
-import { RemoteStream } from '@aeven/api-gateway/client'
+import { RemoteStream, type RemoteStreamOptions } from '@aeven/api-gateway/client'
 import type { SpeechCatalog } from '@aeven/api-speech-to-text/types'
 import { observeReadiness } from '../src/client/readiness.ts'
 
@@ -28,7 +28,7 @@ function harness(script: Array<{ hold: boolean }>) {
   const follows = { count: 0 }
   const ctx = {
     remote: {
-      $stream: <Item>(options: ConstructorParameters<typeof RemoteStream>[1]) => new RemoteStream<Item>(connection as never, options),
+      $stream: <Item>(options: RemoteStreamOptions<Item>) => new RemoteStream<Item>(connection, options),
       speech: {
         follow: async function* (signal: AbortSignal) {
           const step = script[follows.count++] ?? { hold: true }
