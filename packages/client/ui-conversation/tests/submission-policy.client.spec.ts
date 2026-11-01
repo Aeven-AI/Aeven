@@ -7,11 +7,11 @@ import {
 import type { ConversationSettings } from '../src/submission-settings.ts'
 
 describe('ComposerSubmissionPolicy', () => {
-  it('defaults to Steer and only applies the preference while running', () => {
+  it('defaults to Steer and applies the preference without waiting for the running bit', () => {
     const policy = new ComposerSubmissionPolicy()
     expect(policy.busyEnter.getSnapshot()).toBe(DEFAULT_BUSY_ENTER_BEHAVIOR)
-    expect(policy.resolve(false, 'enter', true)).toBe('queue')
-    expect(policy.resolve(false, 'accelerated', true)).toBe('queue')
+    expect(policy.resolve(false, 'enter', true)).toBe('steer')
+    expect(policy.resolve(false, 'accelerated', true)).toBe('steer')
     expect(policy.resolve(true, 'enter', true)).toBe('steer')
     expect(policy.resolve(true, 'accelerated', true)).toBe('queue')
     expect(policy.resolve(true, 'enter', false)).toBe('queue')
