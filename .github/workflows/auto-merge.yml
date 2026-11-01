@@ -1,34 +1,43 @@
 name: Auto-merge
 
-# Merges a pull request as soon as the CI run for its head commit concludes
-# successfully, and only when the repository owner opened it from a branch in this
-# repository. Anyone else's pull request — a collaborator's, a fork's — waits for
-# the owner to merge it. GitHub's native auto-merge is disabled on this repository,
-# so the decision is made here from the run's conclusion. Drafts and anything
-# labelled `do-not-merge` are left alone.
+# Merges a pull request once its checks report green, and only when a repository
+# administrator opened it from a branch in this repository. Anyone else's pull
+# request — a collaborator's, a fork's — waits for a human merge. Drafts and
+# anything labelled `do-not-merge` are left alone.
+#
+# Two triggers because the lanes and the merge guard finish differently: `CI` ends a
+# `workflow_run`, while a `skip-ci` pull request only ever produces the guard's
+# check suite. Either one settling is the moment to look at the rollup.
 on:
   workflow_run:
     workflows: [CI]
+    types: [completed]
+  check_suite:
     types: [completed]
 
 permissions:
   contents: write
   pull-requests: write
+  checks: read
 
 jobs:
   merge:
     if: >-
-      github.event.workflow_run.conclusion == 'success'
-      && github.event.workflow_run.event == 'pull_request'
-      && github.event.workflow_run.head_repository.full_name == github.repository
+      (github.event_name == 'workflow_run'
+        && github.event.workflow_run.conclusion == 'success'
+        && github.event.workflow_run.event == 'pull_request'
+        && github.event.workflow_run.head_repository.full_name == github.repository)
+      || (github.event_name == 'check_suite'
+        && github.event.check_suite.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Merge the pull request whose CI run just succeeded
+      - name: Merge the pull request whose checks just went green
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-          SHA: ${{ github.event.workflow_run.head_sha }}
+          EVENT: ${{ github.event_name }}
+          SHA: ${{ github.event.workflow_run.head_sha || github.event.check_suite.head_sha }}
         run: |
           set -euo pipefail
           pr=$(gh api "repos/$REPO/commits/$SHA/pulls" --jq '.[0].number // empty')
@@ -53,4 +62,14 @@ jobs:
           case ",$labels," in
             *,do-not-merge,*) echo "pull request #$pr is labelled do-not-merge; leaving it open"; exit 0 ;;
           esac
+          # A `check_suite` run settles one suite; the rollup says whether the others
+          # are done, which is the fact a merge decision needs.
+          if [ "$EVENT" = "check_suite" ]; then
+            pending=$(gh pr view "$pr" --repo "$REPO" --json statusCheckRollup \
+              --jq '[.statusCheckRollup[]? | select(((.conclusion // "PENDING") | IN("SUCCESS","SKIPPED","NEUTRAL")) | not)] | length')
+            if [ "$pending" != "0" ]; then
+              echo "pull request #$pr still has $pending unsettled or failing checks; leaving it open"
+              exit 0
+            fi
+          fi
           gh pr merge "$pr" --repo "$REPO" --merge --delete-branch
