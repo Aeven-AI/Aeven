@@ -9,7 +9,7 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { BlockAssembler, createUserMessage } from '@aeven/llm'
+import { BlockAssembler, createUserMessage, ReasoningEffortId } from '@aeven/llm'
 import type { ContentBlock, FinishReason, GenerateOptions, Message, MessageSource } from '@aeven/llm'
 import type { Agent } from '@aeven/agent'
 import type { SessionEvent } from '@aeven/session'
@@ -38,6 +38,8 @@ export interface TurnReviewRequestEventData {
   readonly messages: Message[]
   /** Review output-token cap. */
   readonly maxTokens: number
+  /** Reasoning effort the review call requests, absent when the route does not advertise it. */
+  readonly reasoningEffort?: ReasoningEffortId
 }
 
 /** Parsed review outcome. */
@@ -85,6 +87,8 @@ export interface Config {
   maxTranscriptChars: number
   /** Review output-token cap. */
   maxOutputTokens: number
+  /** Reasoning effort requested for the review call; ignored when the route does not advertise it. */
+  reviewReasoningEffort: 'off' | 'low' | 'high' | 'max'
   /** End-to-end deadline of one review call in milliseconds. */
   timeoutMs: number
   /** Explicit review provider; pairs with `model`. Absent uses the turn's own route. */
@@ -100,6 +104,12 @@ export const Config: z<Config> = z.object({
   maxEntryChars: z.natural().min(100).default(2000),
   maxTranscriptChars: z.natural().min(1000).default(60000),
   maxOutputTokens: z.natural().min(64).default(4000),
+  /**
+   * Reasoning effort for the review call. A verdict is a short JSON answer about a transcript the
+   * reviewer only compares against the request, so thinking is the whole reason this call can reach
+   * `maxOutputTokens`: the route default spent the budget on deliberation and truncated the answer.
+   */
+  reviewReasoningEffort: z.union(['off', 'low', 'high', 'max']).default('low'),
   timeoutMs: z.natural().min(1).max(MAX_TIMER_DELAY_MS).default(90000),
   provider: z.string(),
   model: z.string(),
@@ -119,6 +129,7 @@ const SYSTEM = [
   'For an action request, listing unfinished authorised work is not completion. Report it unless the user stopped or changed the task, or a concrete blocker requires user input. Questions and requests for a plan do not require execution.',
   'Do not report style, wording, scope suggestions, or improvements nobody asked for. Disclosing that a check was not run avoids a false verification claim but does not excuse leaving requested work unfinished.',
   'Answer with JSON only, no prose and no code fence: {"complete": true, "issues": []} or {"complete": false, "issues": ["..."]}. Each issue is one sentence that names the request or claim and what the tool results show.',
+  'Name at most five issues, each under 200 characters, and quote no tool output: the findings are read as a list of what to fix, not as a report.',
 ].join('\n')
 
 /** One transcript entry quoted to the reviewer. */
@@ -135,6 +146,29 @@ type Entry =
 function assertRoute(config: Config): void {
   if ((config.provider === undefined) !== (config.model === undefined)) {
     throw new Error('turn-review: provider and model must be configured together')
+  }
+}
+
+/**
+ * Resolve the configured review effort against the route's own reasoning metadata.
+ * @param ctx - plugin context exposing the llm service.
+ * @param route - provider and model the review call will use.
+ * @param configured - effort the plugin is configured to request.
+ * @returns the branded effort when the route advertises it, otherwise undefined so the adapter default applies.
+ */
+async function reviewEffort(
+  ctx: Context,
+  route: { provider: string; model: string },
+  configured: string,
+): Promise<ReasoningEffortId | undefined> {
+  try {
+    const info = await ctx.llm.resolveModelInfo(route.provider, route.model)
+    const offered = info.reasoning?.efforts.some(effort => effort.id === configured) === true
+    return offered ? ReasoningEffortId(configured) : undefined
+  } catch {
+    // Only a catalog lookup reaches this: a route the adapter cannot describe is
+    // still callable, so the review falls back to the adapter's own default effort.
+    return undefined
   }
 }
 
@@ -275,13 +309,13 @@ function finishError(finish: FinishReason): Error | undefined {
       return undefined
     case 'error':
     case 'aborted':
-      return new Error(`turn-review: ${finish.failure.message}`)
+      return new Error(finish.failure.message)
     case 'max-tokens':
-      return new Error('turn-review: review output reached maxOutputTokens')
+      return new Error('review output reached maxOutputTokens')
     case 'tool-calls':
-      return new Error('turn-review: review model requested a tool')
+      return new Error('review model requested a tool')
     default:
-      return new Error(`turn-review: unsupported finish reason "${String((finish as { kind?: unknown }).kind)}"`)
+      return new Error(`unsupported finish reason "${String((finish as { kind?: unknown }).kind)}"`)
   }
 }
 
@@ -321,7 +355,14 @@ export function apply(ctx: Context, config: Config): void {
     const lastVerdict = events.findLast(event => event.type === 'turn-review/verdict')
     const issues = lastVerdict?.type === 'turn-review/verdict' ? lastVerdict.data.issues : []
     if (count >= config.maxReviewsPerTurn) {
-      if (issues.length > 0) throw new Error(`turn-review: review budget exhausted with unresolved findings: ${issues.join('; ')}`)
+      if (issues.length > 0) {
+        // The rounds are spent and the findings stand. The reply the reader asked for is
+        // already written, so the outcome is recorded and warning-logged, never turned into
+        // a failed turn that asks them to retry work the reviewer could not settle.
+        const message = `review rounds spent with unresolved findings: ${issues.join('; ')}`
+        logger.warn('turn %d %s', turn, message)
+        agent.session.append('turn-review/failure', { turn, round: count, message })
+      }
       return
     }
     if (!endsWithReply(events) || (issues.length === 0 && !changedFiles(events, triggers) && !promisesAction(events))) return
@@ -340,16 +381,22 @@ export function apply(ctx: Context, config: Config): void {
     let verdict: { complete: boolean; issues: string[] }
     try {
       using callDeadline = deadline(signal, config.timeoutMs, TURN_REVIEW_TIMEOUT_CODE)
+      const effort = await reviewEffort(ctx, route, config.reviewReasoningEffort)
+      signal.throwIfAborted()
       const options: GenerateOptions = {
         provider: route.provider,
         model: route.model,
         system: SYSTEM,
         messages,
         maxTokens: config.maxOutputTokens,
+        ...effort === undefined ? {} : { reasoningEffort: effort },
         sessionId: agent.session.id,
         signal: callDeadline.signal,
       }
-      agent.session.append('turn-review/request', { turn, round, route, system: SYSTEM, messages, maxTokens: config.maxOutputTokens })
+      agent.session.append('turn-review/request', {
+        turn, round, route, system: SYSTEM, messages, maxTokens: config.maxOutputTokens,
+        ...effort === undefined ? {} : { reasoningEffort: effort },
+      })
       const assembler = new BlockAssembler()
       for await (const chunk of ctx.llm.stream(options)) {
         callDeadline.signal.throwIfAborted()
@@ -359,12 +406,13 @@ export function apply(ctx: Context, config: Config): void {
       if (failure !== undefined) throw failure
       verdict = parseVerdict(assembler.blocks().map(block => block.type === 'text' ? block.text : '').join(''))
     } catch (error: unknown) {
-      // Cancellation propagates; a failed review cannot clear an earlier finding.
+      // Cancellation propagates. A review that produced no verdict is the reviewer's failure,
+      // not the reply's, so it is recorded and warned about and the turn keeps the answer it
+      // already has instead of failing into a retry prompt.
       signal.throwIfAborted()
       const message = error instanceof Error ? error.message : String(error)
       logger.warn('turn %d review failed: %s', turn, message)
       agent.session.append('turn-review/failure', { turn, round, message })
-      if (issues.length > 0) throw new Error(`turn-review: ${message}; unresolved findings: ${issues.join('; ')}`)
       return
     }
     agent.session.append('turn-review/verdict', { turn, round, ...verdict })

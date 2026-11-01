@@ -6,6 +6,14 @@
   name: '@aeven/llm-deepseek'
   disabled: true
 
+# The recording predates the turn reviewer and its script holds one call per turn
+# plus the compaction summary, so a review call would have nothing to replay. This
+# scenario asserts image pricing drives the compaction decision; the reviewer is
+# covered by the scenarios that pin its transcripts.
+- id: turn-review
+  name: '@aeven/turn-review'
+  disabled: true
+
 - id: acp
   name: '@aeven/acp'
   config:

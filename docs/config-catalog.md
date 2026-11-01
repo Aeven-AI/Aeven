@@ -5205,6 +5205,8 @@ export interface Config {
   maxTranscriptChars: number
   /** Review output-token cap. */
   maxOutputTokens: number
+  /** Reasoning effort requested for the review call; ignored when the route does not advertise it. */
+  reviewReasoningEffort: 'off' | 'low' | 'high' | 'max'
   /** End-to-end deadline of one review call in milliseconds. */
   timeoutMs: number
   /** Explicit review provider; pairs with `model`. Absent uses the turn's own route. */

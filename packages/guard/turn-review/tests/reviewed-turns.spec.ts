@@ -6,6 +6,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
+import { ReasoningEffortId } from '@aeven/llm'
 import { textResponse, toolCallResponse } from '../../../core/agent-loop/tests/mock-adapter.ts'
 import { mountReview, reviewConfig, transcriptOf } from './harness.ts'
 
@@ -25,6 +26,7 @@ const REVIEW_SYSTEM = [
   'For an action request, listing unfinished authorised work is not completion. Report it unless the user stopped or changed the task, or a concrete blocker requires user input. Questions and requests for a plan do not require execution.',
   'Do not report style, wording, scope suggestions, or improvements nobody asked for. Disclosing that a check was not run avoids a false verification claim but does not excuse leaving requested work unfinished.',
   'Answer with JSON only, no prose and no code fence: {"complete": true, "issues": []} or {"complete": false, "issues": ["..."]}. Each issue is one sentence that names the request or claim and what the tool results show.',
+  'Name at most five issues, each under 200 characters, and quote no tool output: the findings are read as a list of what to fix, not as a report.',
 ].join('\n')
 
 describe('a turn that ends with a reply after changing a file', () => {
@@ -240,4 +242,38 @@ describe('action commitments without a file change', () => {
       }
     },
   )
+})
+
+describe('the review effort', () => {
+  const reviewedTurn = [
+    toolCallResponse('c1', 'read', {}),
+    toolCallResponse('c2', 'write', { body: 'notes' }),
+    textResponse('Wrote notes.md.'),
+  ]
+
+  it('requests the configured effort when the route advertises it', async () => {
+    const review = await mountReview([...reviewedTurn, textResponse(CLEAN)], reviewConfig(), {
+      efforts: [{ id: ReasoningEffortId('low'), name: 'Low' }],
+    })
+    try {
+      await review.turn()
+      expect(review.ofType('turn-review/request')[0]?.data.reasoningEffort).toBe('low')
+      expect(review.adapter.requests.at(-1)?.reasoningEffort).toBe('low')
+    } finally {
+      await review.fiber.dispose()
+    }
+  })
+
+  it('leaves the adapter default in place when the route does not advertise it', async () => {
+    const review = await mountReview([...reviewedTurn, textResponse(CLEAN)], reviewConfig(), {
+      efforts: [{ id: ReasoningEffortId('high'), name: 'High' }],
+    })
+    try {
+      await review.turn()
+      expect(review.ofType('turn-review/request')[0]?.data.reasoningEffort).toBeUndefined()
+      expect(review.adapter.requests.at(-1)?.reasoningEffort).toBeUndefined()
+    } finally {
+      await review.fiber.dispose()
+    }
+  })
 })

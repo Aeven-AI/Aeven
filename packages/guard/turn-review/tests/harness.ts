@@ -8,7 +8,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import type { Fiber } from '@deepseek-ai/cordis'
 import { createUserMessage } from '@aeven/llm'
-import type { GenerateOptions, StreamChunk } from '@aeven/llm'
+import type { GenerateOptions, LlmModelReasoningInfo, StreamChunk } from '@aeven/llm'
 import { SessionId, type SessionEvent } from '@aeven/session'
 import { defineContentToolFixture } from '@aeven/tools'
 import type { Agent } from '@aeven/agent'
@@ -34,6 +34,7 @@ export interface ReviewConfigOverrides {
   maxEntryChars?: number
   maxTranscriptChars?: number
   maxOutputTokens?: number
+  reviewReasoningEffort?: 'off' | 'low' | 'high' | 'max'
   timeoutMs?: number
   provider?: string
   model?: string
@@ -65,6 +66,7 @@ export function reviewConfig(overrides: ReviewConfigOverrides = {}): Config {
     maxEntryChars: overrides.maxEntryChars ?? defaults.maxEntryChars,
     maxTranscriptChars: overrides.maxTranscriptChars ?? defaults.maxTranscriptChars,
     maxOutputTokens: overrides.maxOutputTokens ?? defaults.maxOutputTokens,
+    reviewReasoningEffort: overrides.reviewReasoningEffort ?? defaults.reviewReasoningEffort,
     timeoutMs: overrides.timeoutMs ?? defaults.timeoutMs,
     ...overrides.provider === undefined ? {} : { provider: overrides.provider },
     ...overrides.model === undefined ? {} : { model: overrides.model },
@@ -87,12 +89,13 @@ export function transcriptOf(request: TurnReviewRequestEventData): unknown {
 export async function mountReview(
   script: ScriptEntry[],
   config: Config = reviewConfig(),
+  reasoning?: LlmModelReasoningInfo,
 ): Promise<ReviewHarness> {
   const ctx = new Context()
   await mountAgentLoopTestDependencies(ctx)
   await ctx.plugin(SessionProjectionRegistry)
   await ctx.plugin(AgentLoop, { agents: [] })
-  const adapter = new MockAdapter(script)
+  const adapter = new MockAdapter(script, reasoning)
   ctx.llm.registerAdapter(['mock', 'review-provider'], adapter)
   const fiber = await ctx.plugin(TurnReview, config)
 

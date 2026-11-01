@@ -65,30 +65,43 @@ async function failingReview(
 }
 
 describe('the review call itself fails', () => {
-  it.each(['failure', 'budget'] as const)('fails the turn with unresolved findings after review %s', async (ending) => {
+  it('records unresolved findings once the review rounds are spent and keeps the reply', async () => {
     const issue = 'The requested implementation is unfinished.'
     const review = await mountReview([
       ...REVIEWED_TURN,
       textResponse(JSON.stringify({ complete: false, issues: [issue] })),
       textResponse('The implementation is still unfinished.'),
-      ...ending === 'failure' ? [maxTokensResponse('{"complete": tru')] : [],
-    ], reviewConfig({ maxReviewsPerTurn: ending === 'budget' ? 1 : 2 }))
+    ], reviewConfig({ maxReviewsPerTurn: 1 }))
     try {
       await review.turn()
-      const message = expect.stringContaining(issue) as unknown
-      const error = expect.objectContaining({ message }) as unknown
-      expect(review.ofType('turn/end').map((event: { data: { reason?: unknown } }) => event.data.reason)).toEqual([
-        expect.objectContaining({ kind: 'error', error }),
-      ])
+      const failure = review.ofType('turn-review/failure').map(event => event.data.message)
+      expect(failure).toEqual([expect.stringContaining(issue) as unknown as string])
+      const kinds = review.ofType('turn/end')
+        .map((event: { data: { reason?: { kind?: string } } }) => event.data.reason?.kind)
+      expect(kinds).not.toContain('error')
     } finally {
       await review.fiber.dispose()
     }
   })
 
+  it('keeps the reply when an inconclusive review follows earlier findings', async () => {
+    const { review } = await failingReview([
+      ...REVIEWED_TURN,
+      textResponse(JSON.stringify({ complete: false, issues: ['The requested implementation is unfinished.'] })),
+      textResponse('The implementation is still unfinished.'),
+      maxTokensResponse('{"complete": tru'),
+    ])
+
+    expect(review.ofType('turn-review/failure')).toHaveLength(1)
+    const kinds = review.ofType('turn/end')
+      .map((event: { data: { reason?: { kind?: string } } }) => event.data.reason?.kind)
+    expect(kinds).not.toContain('error')
+  })
+
   it('closes the turn when the reviewer reaches its output-token cap', async () => {
     const { warnings, review } = await failingReview([...REVIEWED_TURN, maxTokensResponse('{"complete": tru')])
 
-    expect(warnings).toEqual(['turn-review: review output reached maxOutputTokens'])
+    expect(warnings).toEqual(['review output reached maxOutputTokens'])
     expect(review.ofType('turn-review/verdict')).toEqual([])
     expect(review.injected()).toEqual([])
   })
@@ -96,7 +109,7 @@ describe('the review call itself fails', () => {
   it('closes the turn when the reviewer requests a tool', async () => {
     const { warnings, review } = await failingReview([...REVIEWED_TURN, toolCallResponse('c9', 'read', {})])
 
-    expect(warnings).toEqual(['turn-review: review model requested a tool'])
+    expect(warnings).toEqual(['review model requested a tool'])
     expect(review.ofType('turn-review/verdict')).toEqual([])
   })
 
@@ -106,7 +119,7 @@ describe('the review call itself fails', () => {
       () => { throw new Error('review transport down') },
     ])
 
-    expect(warnings).toEqual(['turn-review: review transport down'])
+    expect(warnings).toEqual(['review transport down'])
     expect(review.ofType('turn-review/verdict')).toEqual([])
   })
 
@@ -121,7 +134,7 @@ describe('the review call itself fails', () => {
   it('closes the turn when the reviewer stops for a reason the parser does not know', async () => {
     const { warnings, review } = await failingReview([...REVIEWED_TURN, unknownFinish('{"complete": true, "issues": []}')])
 
-    expect(warnings).toEqual(['turn-review: unsupported finish reason "safety-filter"'])
+    expect(warnings).toEqual(['unsupported finish reason "safety-filter"'])
     expect(review.ofType('turn-review/verdict')).toEqual([])
   })
 
