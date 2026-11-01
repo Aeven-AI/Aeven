@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-11-01-dictation-stays-usable.zh.md)
+
 ## Problem
 
 Dictation failed in two ways a reader could not distinguish from a broken app.

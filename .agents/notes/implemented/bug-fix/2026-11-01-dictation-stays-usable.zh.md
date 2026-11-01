@@ -2,6 +2,8 @@
 
 Status: implemented
 
+[English](2026-11-01-dictation-stays-usable.md) | 中文
+
 ## Problem
 
 听写曾以两种读者无法与「应用坏了」区分的方式失败。
