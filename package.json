@@ -80,7 +80,6 @@
     "check:ci:test": "tsx scripts/run-gates.ts ci-test",
     "check:ci:lint:contracts-ready": "tsx scripts/run-gates.ts ci-lint-contracts-ready",
     "check:ci:coverage": "tsx scripts/run-gates.ts ci-coverage",
-    "check:ci:snapshot": "tsx scripts/run-gates.ts ci-snapshot",
     "check:ci:artifacts": "tsx scripts/run-gates.ts ci-artifacts",
     "check:ci:build-verify": "tsx scripts/run-gates.ts ci-build-verify",
     "check:ci:consumers": "tsx scripts/run-gates.ts ci-consumers",
