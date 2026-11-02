@@ -138,7 +138,21 @@ Signed-in users manage their own integrations; each agent mounts only its owner'
 @Remote async setSkillEnabled(name: string, enabled: boolean): Promise<void>
 
 /**
+ * Set whether a model may invoke one library skill on its own.
+ *
+ * The flag an import reads from `disable-model-invocation` is a starting point, not a decision the account cannot
+ * revisit: switching it on joins the skill to the model's catalog, switching it off leaves it to a `/name` gesture.
+ * The choice outlives a re-import, which restores the source's value only for a skill the account never decided.
+ * @param name - personal skill name.
+ * @param modelInvocable - whether the model may invoke the skill without being asked by name.
+ * @throws Error when the name is not in the account library.
+ */
+@Remote async setSkillModelInvocable(name: string, modelInvocable: boolean): Promise<void>
+
+/**
  * Remove one caller-owned skill from discovery.
+ *
+ * The account's preferences for that name go with it, so importing the skill again starts from its own source.
  * @param name - personal skill name.
  */
 @Remote async removeSkill(name: string): Promise<void>

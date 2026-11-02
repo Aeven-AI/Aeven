@@ -10,7 +10,7 @@
  */
 
 import { readdir, readFile } from 'node:fs/promises'
-import { join, relative, sep } from 'node:path'
+import { join, posix, relative, sep } from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { createGunzip } from 'node:zlib'
@@ -44,6 +44,21 @@ const MAX_ARCHIVE_BYTES = 64 * 1024 * 1024
 /** Most skills one reference may add, so a monorepo of skills cannot flood the library. */
 const MAX_REFERENCE_SKILLS = 40
 
+/** Marker files that name a directory as a plugin root whose files its skills may address. */
+const PLUGIN_MARKERS: readonly string[] = ['plugin.json', '.claude-plugin/plugin.json']
+
+/** Variable a plugin's files expand to that plugin's root directory. */
+const PLUGIN_ROOT_VARIABLE = '${CLAUDE_PLUGIN_ROOT}'
+
+/** Bundle directory that holds the root files a skill references. */
+const PLUGIN_BUNDLE_DIRECTORY = 'plugin'
+
+/** Most root-file bytes one skill's carried references may add. */
+const MAX_CARRIED_BYTES = 4 * 1024 * 1024
+
+/** Most unresolved references one skill reports, so one broken bundle cannot flood the import result. */
+const MAX_MISSING_REFERENCES = 12
+
 const GITHUB_API = 'https://api.github.com'
 const GITHUB_CODELOAD = 'https://codeload.github.com'
 const NPM_REGISTRY = 'https://registry.npmjs.org'
@@ -65,6 +80,14 @@ export interface DiscoveredSkill {
   readonly name: string
   /** Description declared by the skill's frontmatter. */
   readonly description: string
+}
+
+/** One skill a reference published, with the root files its instructions name. */
+export interface ReferenceSkill {
+  /** Files of one skill, `SKILL.md` at the bundle root. */
+  readonly files: SkillUploadFile[]
+  /** Root-relative references the repository does not carry, as the skill writes them. */
+  readonly missing: string[]
 }
 
 /** Where a reference points: a GitHub repository, or a published npm package. */
@@ -159,10 +182,10 @@ export function parseSkillReference(reference: string): SkillReference {
  * Fetch every skill a reference publishes.
  * @param reference - parsed GitHub repository or npm package.
  * @param options - request budget.
- * @returns one upload set per skill found, in name order.
+ * @returns one bundle per skill found, in name order.
  * @throws Error when the reference cannot be fetched or carries no skill.
  */
-export async function fetchReferenceSkills(reference: SkillReference, options: ReferenceOptions): Promise<SkillUploadFile[][]> {
+export async function fetchReferenceSkills(reference: SkillReference, options: ReferenceOptions): Promise<ReferenceSkill[]> {
   const archive = reference.kind === 'github'
     ? await fetchGithubArchive(reference.repo, reference.ref, options)
     : await fetchNpmArchive(reference.name, reference.version, options)
@@ -265,7 +288,7 @@ function isSafeArchivePath(path: string): boolean {
  * A file joins the deepest skill directory containing it, so a skill that vendors another skill keeps its own
  * resources; a name the archive carries more than once resolves to the shallower copy.
  */
-function skillBundles(files: Map<string, Buffer>): SkillUploadFile[][] {
+function skillBundles(files: Map<string, Buffer>): ReferenceSkill[] {
   // Directories end with `/` so a prefix test cannot match a sibling with the same leading characters.
   const directories = new Set<string>()
   for (const path of files.keys()) {
@@ -281,13 +304,187 @@ function skillBundles(files: Map<string, Buffer>): SkillUploadFile[][] {
     owner.push(path)
     members.set(directory, owner)
   }
-  const byName = new Map<string, SkillUploadFile[]>()
+  const byName = new Map<string, ReferenceSkill>()
   for (const directory of [...directories].sort((left, right) => left.split('/').length - right.split('/').length || left.localeCompare(right))) {
     const header = skillHeader(files.get(`${directory}${SKILL_FILE}`)?.toString('utf8') ?? '')
     if (header === undefined || !isSkillName(header.name) || byName.has(header.name)) continue
-    byName.set(header.name, (members.get(directory) ?? []).map(path => ({ path: path.slice(directory.length), base64: files.get(path)?.toString('base64') ?? '' })))
+    byName.set(header.name, bundleOf(files, directory, members.get(directory) ?? []))
   }
   return [...byName.values()].slice(0, MAX_REFERENCE_SKILLS)
+}
+
+/** One relative path a markdown file names, and the text that carries it. */
+interface NamedReference {
+  /** Text to replace when the file it names has to move into the bundle. */
+  readonly text: string
+  /** The path itself. */
+  readonly target: string
+  /** Whether the path starts at the plugin root instead of the referencing file. */
+  readonly rooted: boolean
+}
+
+/** Paths a markdown file names: a plugin-root expansion, a link target, or an inline code span. */
+const NAMED_REFERENCE = /\$\{CLAUDE_PLUGIN_ROOT\}(?:\/[^\s`)\]"'<>]*)?|\]\([^)\s]+\)|`[^`\n]+`/g
+
+/**
+ * Build one skill's bundle, carrying the root files its instructions reference and rewriting those references.
+ *
+ * A plugin keeps shared files such as `docs/` and `agents/` above its skills and addresses them from every skill, so a
+ * bundle built from the skill directory alone names files its reader never receives. Each root file a reference
+ * resolves to comes along under {@link PLUGIN_BUNDLE_DIRECTORY} and the reference is rewritten to that copy; a
+ * reference that only the plugin root could supply and the repository does not carry stays as written and is reported.
+ * @param files - every archive file, keyed by path.
+ * @param directory - skill directory ending with `/`, or `''` at the archive root.
+ * @param members - archive paths the skill directory owns.
+ * @returns the bundle uploads, `SKILL.md` at the root, and the references the repository could not supply.
+ */
+function bundleOf(files: Map<string, Buffer>, directory: string, members: readonly string[]): ReferenceSkill {
+  const root = pluginRootOf(files, directory) ?? ''
+  const depth = directory.slice(root.length).split('/').filter(part => part !== '').length
+  const own = new Set(members)
+  const carried = new Map<string, Buffer>()
+  const rewrites = new Map<string, Map<string, string>>()
+  const missing = new Set<string>()
+  let budget = 0
+  for (const path of members.filter(member => member.endsWith('.md'))) {
+    const bundlePath = path.slice(directory.length)
+    const edits = new Map<string, string>()
+    for (const reference of referencesIn((files.get(path) ?? Buffer.alloc(0)).toString('utf8'))) {
+      const located = locate(files, reference, { root, referrer: posix.dirname(path) })
+      if (located === undefined) {
+        // A reference that climbs out of the skill's own directory group reaches the plugin root, so its absence is
+        // the repository missing a file the skill expects; one that stays inside the group may be an example path.
+        if (reachesRoot(reference, depth)) missing.add(reference.text)
+        continue
+      }
+      if (own.has(located)) continue
+      const target = `${PLUGIN_BUNDLE_DIRECTORY}/${located.slice(root.length)}`
+      const fresh = !carried.has(target)
+        ? [{ bundlePath: target, data: files.get(located) ?? Buffer.alloc(0) }]
+        : []
+      const needed = fresh.reduce((total, entry) => total + entry.data.byteLength, 0)
+      if (budget + needed > MAX_CARRIED_BYTES) {
+        missing.add(reference.text)
+        continue
+      }
+      budget += needed
+      for (const entry of fresh) carried.set(entry.bundlePath, entry.data)
+      const rewrite = posix.relative(posix.dirname(bundlePath), target)
+      if (rewrite !== '') edits.set(reference.text, rewrite)
+    }
+    if (edits.size > 0) rewrites.set(bundlePath, edits)
+  }
+  const uploads: SkillUploadFile[] = []
+  for (const path of members) {
+    const bundlePath = path.slice(directory.length)
+    uploads.push({ path: bundlePath, base64: withRewrites(files.get(path) ?? Buffer.alloc(0), rewrites.get(bundlePath)).toString('base64') })
+  }
+  for (const [path, data] of carried) uploads.push({ path, base64: withRewrites(data, rewrites.get(path)).toString('base64') })
+  return { files: uploads, missing: [...missing].slice(0, MAX_MISSING_REFERENCES) }
+}
+
+/**
+ * Find the plugin root above a skill directory.
+ * @param files - every archive file.
+ * @param directory - skill directory ending with `/`.
+ * @returns the root prefix ending with `/` (empty at the archive root), or undefined when no ancestor is a root.
+ */
+function pluginRootOf(files: Map<string, Buffer>, directory: string): string | undefined {
+  const parts = directory.split('/').filter(part => part !== '')
+  for (let depth = parts.length; depth >= 0; depth -= 1) {
+    const prefix = parts.slice(0, depth).join('/')
+    const base = prefix === '' ? '' : `${prefix}/`
+    if (PLUGIN_MARKERS.some(marker => files.has(`${base}${marker}`))) return base
+  }
+  return undefined
+}
+
+/**
+ * List the relative paths a markdown file names.
+ *
+ * A path inside inline code keeps its backticks in the file, so the reference carries only the path the code span
+ * holds. Fenced blocks and bare file names are skipped: a fence shows an example tree, and a name with no directory
+ * is a file the skill writes rather than one it reads from the plugin.
+ * @param text - `SKILL.md` body or a carried markdown resource.
+ * @returns each reference with the text that carries it.
+ */
+function referencesIn(text: string): NamedReference[] {
+  const found: NamedReference[] = []
+  const fences = fencesIn(text)
+  for (const match of text.matchAll(NAMED_REFERENCE)) {
+    if (fences.some(([start, end]) => match.index >= start && match.index < end)) continue
+    const token = match[0]
+    const inner = token.startsWith('`') ? token.slice(1, -1) : token.startsWith('](') ? token.slice(2, -1) : token
+    const rooted = inner.startsWith(PLUGIN_ROOT_VARIABLE)
+    const target = rooted ? inner.slice(PLUGIN_ROOT_VARIABLE.length).replace(/^\//, '') : inner
+    if (!followable(target) || (!rooted && !target.includes('/'))) continue
+    found.push({ text: inner, target, rooted })
+  }
+  return found
+}
+
+/**
+ * Whether a reference was meant to reach the plugin root rather than a file beside it.
+ * @param reference - the path a skill names.
+ * @param depth - how many directories below the plugin root the referencing skill sits.
+ * @returns true for a root-relative path, or one whose parent traversals leave the skill's directory group.
+ */
+function reachesRoot(reference: NamedReference, depth: number): boolean {
+  if (reference.rooted) return true
+  const climb = /^(?:\.\.\/)+/.exec(reference.target)?.[0].length ?? 0
+  return climb / 3 >= depth
+}
+
+/**
+ * Locate the fenced code blocks a markdown file holds.
+ * @param text - the file's contents.
+ * @returns the start and end offset of each fence.
+ */
+function fencesIn(text: string): [number, number][] {
+  const ranges: [number, number][] = []
+  for (const match of text.matchAll(/^```[^\n]*\n[\s\S]*?^```/gm)) ranges.push([match.index, match.index + match[0].length])
+  return ranges
+}
+
+/** Whether a target names a file a repository could carry, rather than a URL, anchor, absolute path, or placeholder. */
+function followable(target: string): boolean {
+  return target !== '' && !/^[/#]/.test(target) && !/^[a-z][\w+.-]*:/i.test(target) && !/[<>{}[\]$*?|\\\s]/.test(target)
+}
+
+/**
+ * Resolve one reference to the archive file that carries it, beside the referencing file and then at the plugin root.
+ * A reference to a directory is not followed: a skill naming `../..` or a folder tree would otherwise pull the whole
+ * repository into every bundle.
+ * @param files - every archive file.
+ * @param reference - the path and the directory its file reads it from.
+ * @param roots - plugin root prefix and the referencing file's archive directory.
+ * @returns the archive path the reference resolved to, or undefined when it names no file.
+ */
+function locate(
+  files: Map<string, Buffer>, reference: NamedReference, roots: { readonly root: string; readonly referrer: string },
+): string | undefined {
+  const candidates = reference.rooted
+    ? [posix.join(roots.root, reference.target)]
+    : [posix.join(roots.referrer, reference.target), posix.join(roots.root, reference.target)]
+  for (const candidate of candidates) {
+    const base = posix.normalize(candidate)
+    if (base === '.' || base === '..' || base.startsWith('../')) continue
+    if (files.has(base)) return base
+  }
+  return undefined
+}
+
+/**
+ * Apply a file's reference rewrites.
+ * @param data - the file's bytes.
+ * @param edits - original text to replacement path, or undefined when the file names no carried file.
+ * @returns the rewritten bytes, or the original buffer.
+ */
+function withRewrites(data: Buffer, edits: Map<string, string> | undefined): Buffer {
+  if (edits === undefined) return data
+  let text = data.toString('utf8')
+  for (const [from, to] of edits) text = text.split(from).join(to)
+  return Buffer.from(text, 'utf8')
 }
 
 /** Fetch a GitHub repository tarball, trying the default branch and then the two conventional names. */

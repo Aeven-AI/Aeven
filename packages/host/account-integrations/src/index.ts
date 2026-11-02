@@ -45,6 +45,14 @@ import type { AccountIntegrationsView, CatalogSkillView, ConnectorAuthorization,
 
 export type * from './types.ts'
 
+/** One bundle an import stores, and the references its source could not supply. */
+interface ImportBundle {
+  /** Uploads of one skill, `SKILL.md` at the bundle root. */
+  readonly files: readonly SkillUploadFile[]
+  /** References the source does not carry, as the skill writes them. */
+  readonly missing?: readonly string[]
+}
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     /** Signed-in account integration management. */
@@ -210,7 +218,8 @@ const connectorSchema = z.object({
 })
 const domainSpec = defineDomain({ name: 'account_integrations', version: 0, tables: {
   skills: domainTable<string, z.infer<typeof skillSchema>>(skillSchema),
-  skill_preferences: domainTable<string, { enabled: boolean }>(z.object({ enabled: z.boolean() })),
+  skill_preferences: domainTable<string, { enabled: boolean; modelInvocable?: boolean | undefined }>(
+    z.object({ enabled: z.boolean(), modelInvocable: z.boolean().optional() })),
   connectors: domainTable<ConnectorId, z.infer<typeof connectorSchema>>(connectorSchema),
 } })
 const createSchema = z.object({
@@ -628,7 +637,7 @@ export default class AccountIntegrations extends TypertRemoteService {
           .filter(([, skill]) => skill.owner === options.owner && skill.enabled)
           .map(([key, skill]): SkillCandidate => ({
             name: skill.name, description: skill.description, source: 'account', provider: 'account-integrations',
-            invocation: { modelInvocable: skill.modelInvocable, userInvocable: skill.userInvocable },
+            invocation: { modelInvocable: this.resolvedModelInvocable(key, skill), userInvocable: skill.userInvocable },
             rank: 350, locator: key,
           }))),
         get: async (candidate, options) => {
@@ -786,6 +795,7 @@ export default class AccountIntegrations extends TypertRemoteService {
     const connectors = [...this.domain.table('connectors').entries()].filter(([, item]) => item.owner === owner)
     const skills: AccountIntegrationsView['skills'] = [...this.domain.table('skills').entries()].filter(([, item]) => item.owner === owner)
       .map(([, item]) => ({ id: `${accountDirectory(owner)}:${item.name}` as SkillViewId, name: item.name, description: item.description, content: item.content, enabled: this.domain.table('skill_preferences').get(`${accountDirectory(owner)}:${item.name}`)?.enabled ?? item.enabled,
+        modelInvocable: this.resolvedModelInvocable(`${accountDirectory(owner)}:${item.name}`, item),
         files: Object.keys(item.resources), source: 'account', ...(item.setup === undefined ? {} : { setup: item.setup }) }))
       .sort((a, b) => a.name.localeCompare(b.name))
     // Discovered skills are not the account's to switch off, so the library lists none of them.
@@ -940,7 +950,7 @@ export default class AccountIntegrations extends TypertRemoteService {
    */
   @Remote
   async importSkill(files: SkillUploadFile[]): Promise<SkillReferenceImport> {
-    return this.importBundles([files])
+    return this.importBundles([{ files }])
   }
 
   /**
@@ -1006,20 +1016,21 @@ export default class AccountIntegrations extends TypertRemoteService {
     const agent = id.slice(0, separator)
     if (separator < 0 || (agent !== 'claude' && agent !== 'codex')) throw new Error('unknown coding agent')
     const home = agent === 'claude' ? this.config.claudeHome : this.config.codexHome
-    return this.importBundles([await readAgentSkill(home, id.slice(separator + 1), this.config.maxSkillBytes)])
+    return this.importBundles([{ files: await readAgentSkill(home, id.slice(separator + 1), this.config.maxSkillBytes) }])
   }
 
   /**
    * Validate and store one or more bundles in the caller's library.
-   * @param bundles - one upload set per skill, each holding its own SKILL.md.
-   * @returns the names stored, and the skills a built-in name kept out.
+   * @param bundles - one bundle per skill, each holding its own SKILL.md.
+   * @returns the names stored, the skills a built-in name kept out, and the imported skills whose references stayed
+   * behind.
    */
-  private async importBundles(bundles: readonly SkillUploadFile[][]): Promise<SkillReferenceImport> {
+  private async importBundles(bundles: readonly ImportBundle[]): Promise<SkillReferenceImport> {
     const owner = this.owner()
     const builtIn = await this.builtInSkillNames(owner)
-    const result: SkillReferenceImport = { imported: [], skipped: [] }
-    for (const files of bundles) {
-      const skill = parsePersonalSkill(uploadsSchema.parse(files), this.config.maxSkillBytes)
+    const result: SkillReferenceImport = { imported: [], skipped: [], incomplete: [] }
+    for (const bundle of bundles) {
+      const skill = parsePersonalSkill(uploadsSchema.parse(bundle.files), this.config.maxSkillBytes)
       if (builtIn.has(skill.name)) {
         result.skipped.push({ name: skill.name, reason: 'built-in' })
         continue
@@ -1030,6 +1041,9 @@ export default class AccountIntegrations extends TypertRemoteService {
         resources: Object.fromEntries([...skill.files].map(([path, bytes]) => [path, Buffer.from(bytes).toString('base64')])), revision: randomUUID(),
       })
       result.imported.push(skill.name)
+      if (bundle.missing !== undefined && bundle.missing.length > 0) {
+        result.incomplete.push({ name: skill.name, missing: [...bundle.missing] })
+      }
       this.prepareReverseEngineering(skill.name, true)
     }
     if (result.imported.length > 0) this.invalidateSkills()
@@ -1095,7 +1109,7 @@ export default class AccountIntegrations extends TypertRemoteService {
   async setSkillEnabled(name: string, enabled: boolean): Promise<void> {
     if (!(await this.list()).skills.some(skill => skill.name === name)) throw new Error('skill is not in the account library')
     const key = `${accountDirectory(this.owner())}:${name}`
-    await this.domain.table('skill_preferences').put(key, { enabled })
+    await this.domain.table('skill_preferences').put(key, { ...this.domain.table('skill_preferences').get(key), enabled })
     if (this.domain.table('skills').get(key) !== undefined) {
       await this.domain.table('skills').update(key, skill => ({ ...skill, enabled }))
     }
@@ -1103,13 +1117,43 @@ export default class AccountIntegrations extends TypertRemoteService {
     this.prepareReverseEngineering(name, enabled)
   }
 
+  /** The model invocation one stored skill resolves to: the account's own choice, else the value its source declared. */
+  private resolvedModelInvocable(key: string, skill: { modelInvocable: boolean }): boolean {
+    return this.domain.table('skill_preferences').get(key)?.modelInvocable ?? skill.modelInvocable
+  }
+
+  /**
+   * Set whether a model may invoke one library skill on its own.
+   *
+   * The flag an import reads from `disable-model-invocation` is a starting point, not a decision the account cannot
+   * revisit: switching it on joins the skill to the model's catalog, switching it off leaves it to a `/name` gesture.
+   * The choice outlives a re-import, which restores the source's value only for a skill the account never decided.
+   * @param name - personal skill name.
+   * @param modelInvocable - whether the model may invoke the skill without being asked by name.
+   * @throws Error when the name is not in the account library.
+   */
+  @Remote
+  async setSkillModelInvocable(name: string, modelInvocable: boolean): Promise<void> {
+    const key = `${accountDirectory(this.owner())}:${name}`
+    const skill = this.domain.table('skills').get(key)
+    if (skill === undefined) throw new Error('skill is not in the account library')
+    const preference = this.domain.table('skill_preferences').get(key)
+    if ((preference?.modelInvocable ?? skill.modelInvocable) === modelInvocable) return
+    await this.domain.table('skill_preferences').put(key, { enabled: preference?.enabled ?? skill.enabled, modelInvocable })
+    this.invalidateSkills()
+  }
+
   /**
    * Remove one caller-owned skill from discovery.
+   *
+   * The account's preferences for that name go with it, so importing the skill again starts from its own source.
    * @param name - personal skill name.
    */
   @Remote
   async removeSkill(name: string): Promise<void> {
-    await this.domain.table('skills').delete(`${accountDirectory(this.owner())}:${name}`)
+    const key = `${accountDirectory(this.owner())}:${name}`
+    await this.domain.table('skills').delete(key)
+    await this.domain.table('skill_preferences').delete(key)
     this.invalidateSkills()
   }
 

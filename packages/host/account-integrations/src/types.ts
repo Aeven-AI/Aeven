@@ -21,6 +21,8 @@ export interface PersonalSkillView {
   files: string[]
   /** `account` for an imported bundle; the discovery source of a connector-owned skill. */
   source: string
+  /** Whether a model may invoke an account skill on its own; absent when the connector that owns the skill decides. */
+  modelInvocable?: boolean
   /** Install progress for a skill whose tools are prepared after it is enabled; absent for skills that need none. */
   setup?: SkillSetup
 }
@@ -159,12 +161,22 @@ export interface SkillImportSkip {
   reason: 'built-in'
 }
 
+/** A skill the import stored while some root files its instructions name stayed behind. */
+export interface SkillImportIncomplete {
+  /** Name the skill was stored under. */
+  name: string
+  /** References the repository does not carry, as the skill writes them. */
+  missing: string[]
+}
+
 /** What one repository or package reference added to the account library. */
 export interface SkillReferenceImport {
   /** Names the import added, in the order the archive carried them. */
   imported: string[]
   /** Skills the import left alone. */
   skipped: SkillImportSkip[]
+  /** Imported skills whose instructions name files the repository does not carry. */
+  incomplete: SkillImportIncomplete[]
 }
 
 /** One uploaded bundle file, relative to its SKILL.md directory. */
