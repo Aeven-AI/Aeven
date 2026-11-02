@@ -103,10 +103,8 @@ jobs:
         run: pnpm run check:ci:lint:contracts-ready
 
   # One build, then everything that reads its output: the shipped publish surface
-  # (publint, NodeNext consumer types, built-package invariants) and the keyless
-  # recorded-session replay. Two separate jobs would build the workspace twice.
-  # macOS, because the recorded expectations carry that platform's sandbox and
-  # process-tree behavior.
+  # (publint, NodeNext consumer types, built-package invariants). Two separate
+  # jobs would build the workspace twice.
   build-verify:
     name: build-verify
     if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
@@ -120,5 +118,5 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Build once, then verify artifacts and replay snapshots
+      - name: Build once, then verify the publish surface
         run: pnpm run check:ci:build-verify
