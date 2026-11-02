@@ -125,8 +125,11 @@ function showRightbar(draft: LayoutState, sessionId: string, viewport: number): 
  */
 export function createLayoutStore(): EngineStoreHandle<LayoutState, LayoutActions>  {
   const handle = defineStore({
+    // A first open starts closed, so a fresh profile gives the whole frame to
+    // the conversation; the reader opens the column from the conversation
+    // header's fold.
     init: (): LayoutState => ({
-      sidebar: SIDEBAR_DEFAULT, details: 0, narrow: false, narrowExpanded: false, fullscreen: false,
+      sidebar: 0, details: 0, narrow: false, narrowExpanded: false, fullscreen: false,
       rightbar: {}, rightbarWidth: 0,
     }),
     // Reload restores the columns the reader left: the sidebar's width,
