@@ -57,7 +57,6 @@ native/      @deepseek-ai/node-addon-landlock-run source of record (native/READM
 .agents/     Agent workflows and Agent Notes (`notes/`)
 docs/        architecture, catalogs, postmortems, cookbook (docs/AGENTS.md)
 scripts/     repo gates and generators
-website/     VitePress projection of selected bilingual docs sources
 ```
 
 Package groups: [packages/README.md](packages/README.md).
@@ -82,7 +81,6 @@ pnpm run hygiene        # publint + workspace/package/dependency checks + NodeNe
 pnpm run check:windows-wine  # ONLY when diagnosing a known Windows failure (needs wine)
 pnpm run doc-sync       # regenerate generated docs + translation records; never blocks
 pnpm run doc-check      # opt-in documentation gates; never required, never chase
-pnpm run website:build  # VitePress build (doubles as dead-link check)
 pnpm avn --profile headless "task"  # run one task from source (needs DEEPSEEK_API_KEY)
 ```
 

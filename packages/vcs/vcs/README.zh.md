@@ -27,7 +27,7 @@ kind: "package-reference"
 
 消费方注入 `vcs`，并用检出目录内的任意目录调用某个操作；服务选择提供方、解析仓库根目录，并对其运行该操作。
 
-```ts
+```ts ignore-check
 const status = await ctx.vcs.status(sessionDirectory(ctx, session), exec.signal)
 if (status.branch === null) throw new Error('detached HEAD')
 ```
