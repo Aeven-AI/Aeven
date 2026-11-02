@@ -199,7 +199,7 @@ The [kit repository](https://github.com/deepseek-harness/libreoffice-kit) suppli
 
 ## Development-only npm dependencies
 
-External packages **directly declared** only by repository tooling, test infrastructure, the documentation site, the demo leaves, or the native launcher's build workspace. No shipped surface names them itself. A package here may still be pulled in transitively by a runtime dependency — `pnpm-lock.yaml` is the authority on the full closure — so this tier records who declares a package, not what a build ultimately bundles.
+External packages **directly declared** only by repository tooling, test infrastructure, the demo leaves, or the native launcher's build workspace. No shipped surface names them itself. A package here may still be pulled in transitively by a runtime dependency — `pnpm-lock.yaml` is the authority on the full closure — so this tier records who declares a package, not what a build ultimately bundles.
 
 | Package | License |
 | --- | --- |
