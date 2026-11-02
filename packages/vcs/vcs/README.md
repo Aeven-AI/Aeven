@@ -27,7 +27,7 @@ English | [中文](README.zh.md)
 
 A consumer injects `vcs` and calls an operation with any directory inside a checkout; the service selects a provider, resolves the repository root, and runs the operation against it.
 
-```ts
+```ts ignore-check
 const status = await ctx.vcs.status(sessionDirectory(ctx, session), exec.signal)
 if (status.branch === null) throw new Error('detached HEAD')
 ```

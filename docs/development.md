@@ -48,7 +48,7 @@ The repository uses isolated Host and Client aggregates. An ordinary package is 
 | File | Role | Forms a program? |
 |---|---|---|
 | `tsconfig.json` | Solution root: `extends` base, `files: []`, and references to the two aggregates. It is the tsserver discovery entry and the entry for explicitly running the complete Project Reference graph; through the inherited `paths`, it is also the resolution config for tsx running `scripts/`. | No |
-| `tsconfig.host.json` | Host aggregate: Host packages, examples, tests, scripts, website, and the exceptional Host project of `api/remotes`. | Yes |
+| `tsconfig.host.json` | Host aggregate: Host packages, examples, tests, scripts, and the exceptional Host project of `api/remotes`. | Yes |
 | `tsconfig.client.json` | Client aggregate: `packages/client/*` packages and their tests, `apps/web`, and the exceptional Client project of `api/remotes`. | Yes |
 | `tsconfig.base.json` | Shared compilerOptions and the source `paths` map: inherited by every compiler project, and read once per Vitest config to build the alias map every test file resolves through. | No |
 | `tsconfig.base.client.json` | Browser compiler settings (`jsx`, DOM libs, `types: []`) extended by the Client aggregate and every `packages/client/*` package. | No |

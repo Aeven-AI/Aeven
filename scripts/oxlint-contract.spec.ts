@@ -58,7 +58,6 @@ describe('Oxlint executable contract', () => {
       // probe carries the Client suffix to reach the Client aggregate.
       ['client package test', 'packages/client/ui-trajectory/tests', 'tsconfig.client.json', '.client.ts'],
       ['CLI profile test', 'apps/cli/tests/profiles/headless/tests', 'tsconfig.host.json'],
-      ['website', 'website', 'tsconfig.host.json'],
     ] as const
     const source = `export function probePromise(): Promise<void> {
   return Promise.resolve()

@@ -20,7 +20,6 @@ packages:
   - native/discord-mcp
   # Product assemblies over the package tier; apps/cli owns the `avn` bin.
   - apps/*
-  - website
   # Deploy root of the single-exe build: a pure dependency manifest whose
   # closure is what the exe bundles and what the Python runtime distributes.
   - python/sdk-runtime

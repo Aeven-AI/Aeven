@@ -176,18 +176,11 @@ describe('avn-doc skill consolidation', () => {
       '.agents/skills/avn-doc/references/structure-hierarchy.md',
       '.agents/skills/avn-doc/references/style.md',
       '.agents/skills/avn-doc/references/review.md',
-      '.agents/skills/avn-doc/references/website-sync.md',
     ]
     for (const file of files) {
       const source = readFileSync(resolve(root, file), 'utf8')
       expect(source, file).not.toMatch(/\bprototype\b/i)
     }
-  })
-
-  it('copies no stale website sidebar or section-owner values', () => {
-    const source = readFileSync(resolve(root, '.agents/skills/avn-doc/references/website-sync.md'), 'utf8')
-    expect(source).not.toContain('en-docs')
-    expect(source).not.toContain('sectionOrder')
   })
 
   it('keeps the reference example linked from the skill', () => {
