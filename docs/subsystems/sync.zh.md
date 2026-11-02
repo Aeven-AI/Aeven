@@ -2,7 +2,7 @@
 
 [English](sync.md) | 中文
 
-账户同步让同一 Aeven 账户的对话、设置与记忆在每台已登录设备上保持一致。设备在变更离开本机前就完成加密，中继只存储并转发它无法解开的密文，两台设备同时在线时在一秒内交换变更，某台设备重新上线后补齐落后的部分。[sync/](../../packages/sync/README.zh.md) 是包地图；本页是 `ctx.sync` 词汇与它发出的事件的参考。
+账户同步让同一 Aeven 账户的对话、设置与记忆在每台已登录设备上保持一致。设备在变更离开本机前就完成加密，中继存储并转发这些帧，由于中继创建并保存每个账户的密钥，它今天能打开这些内容；把该密钥移到用户自己密码管理器中的通行密钥上的工作正在进行。两台设备同时在线时在一秒内交换变更，某台设备重新上线后补齐落后的部分。[sync/](../../packages/sync/README.zh.md) 是包地图；本页是 `ctx.sync` 词汇与它发出的事件的参考。
 
 该 seam 遵循[能力 seam](../glossary.zh.md)的角色划分：[@aeven/sync](../../packages/sync/sync/README.zh.md) 声明 `ctx.sync` 及其类型，[@aeven/sync-yjs](../../packages/sync/sync-yjs/README.zh.md) 提供文档、本地存储与中继连接，各 consumer 通过它发布自己的数据——[@aeven/session-sync](../../packages/session/session-sync/README.zh.md) 负责对话历史，[@aeven/settings-sync](../../packages/settings/settings-sync/README.zh.md) 负责声明账户归属的设置命名空间。[@aeven/api-sync-controller](../../packages/api/sync-controller/README.zh.md) 向 Client 暴露状态与设备调用，[@aeven/client-ui-settings-sync](../../packages/client/ui-settings-sync/README.zh.md) 渲染设置 → 同步。
 

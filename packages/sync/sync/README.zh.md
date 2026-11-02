@@ -1,5 +1,5 @@
 ---
-description: "账户同步的 Service Definition（`ctx.sync`）：按账户的加密文档、流、设备与加入。"
+description: "账户同步的 Service Definition（`ctx.sync`）：按账户的加密文档、流、设备与租约。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`ctx.sync` Service Definition。Consumer 按逻辑名在账户的保管库中打开文档并编辑其 Yjs 状态，追加和读取流，在另一台设备发送流批次时收到它们（`watchStream`，包括在没有中转服务器的局域网上），统计与本机直接相连的设备数（`linked`），列出和移除设备，并驱动加入流程：`createVault`、`vaultExists`、`join`、`acceptJoins`、`joinRequests`、`approveJoin` 和 `rejectJoin`。`sync/status`、`sync/join-requests` 和 `sync/document` 在账户状态、待处理的加入请求或某个文档变化时通知监听方。`tests/memory.ts` 是供 Consumer 测试使用的内存设备网络。见[账户同步分组](../README.zh.md)。
+`ctx.sync` Service Definition。Consumer 按逻辑名在账户的保管库中打开文档并编辑其 Yjs 状态，追加和读取流，在另一台设备发送流批次时收到它们（`watchStream`，包括在没有中转服务器的局域网上），统计与本机直接相连的设备数（`linked`），列出和移除设备，保存留在本机的按账户值（`localValue`、`setLocalValue`），并获取和释放独占工作的租约（`acquireLease`、`releaseLease`）；`synchronize` 在独占工作转移之前发布发件箱并取得中转服务器积压的帧。`sync/status` 与 `sync/document` 在账户状态或某个文档变化时通知监听方。`tests/memory.ts` 是供 Consumer 测试使用的内存设备网络。见[账户同步分组](../README.zh.md)。
 
 `sync/progress` 收集对话发布计数，包括尚未进入传输队列的已发现历史记录。这些计数与排队等待中转的帧分开报告。
 

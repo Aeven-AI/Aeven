@@ -1,5 +1,5 @@
 ---
-description: "账户同步的保管库密码学：设备密钥、密钥纪元、加密并签名的信封、密钥包装、设备链和批准代码。"
+description: "账户同步的保管库密码学：账户密钥、不透明文档 id 与 AES-256-GCM 信封。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-基于 `node:crypto` 内置能力的库：Ed25519 和 X25519 设备密钥、保管库密钥纪元、文档名的不透明 HMAC id、由发送设备签名的 AES-256-GCM 信封、为设备或通行密钥 PRF 结果包装密钥环、每台设备都会验证的哈希链接设备链，以及先承诺后揭示的六位批准代码。它不持有状态。见[账户同步分组](../README.zh.md)。
+基于 `node:crypto` 内置能力的库：32 字节账户密钥、按文档或流 id 经 HKDF 派生的内容密钥、逻辑名的不透明 HMAC id、以明文头部作为关联数据的 AES-256-GCM 信封，以及设备在局域网上建立连接时交换的密钥证明。它不持有状态。见[账户同步分组](../README.zh.md)。
 
 ## 目录
 
@@ -45,4 +45,4 @@ kind: "package-reference"
 
 </details>
 
-**运行时 invariant：** 不发布 runtime invariant companion，因为 key epoch、envelope 签名和设备链都由包内测试针对其存储字节校验，且没有任何地方发布可发散的同进程值对。
+**运行时 invariant：** 不发布 runtime invariant companion，因为 envelope 认证与不透明 id 派生都由包内测试针对其字节校验，且没有任何地方发布可发散的同进程值对。
