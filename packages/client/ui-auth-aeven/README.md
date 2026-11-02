@@ -68,6 +68,14 @@ This section covers how the surface is assembled; observable behavior is covered
 
 The screens are carried over from the Aeven client as they stand, so the service objects they reach for are assembled here from small local modules rather than edited out of the markup. That keeps the two clients' sign-in behavior identical and confines the port to one seam. React is brought forward for this one purpose, because the screens must be on screen before the UI renderer that normally supplies it.
 
+### The mark on the black half
+
+The screens' dark column carries the Aeven website's own mark and motion: `MarkBackdrop` renders the website's layer tree into `.graphics-container` and runs the same GSAP timelines with the same values, so the two surfaces move identically. The styling lives in the vendored stylesheet, scoped to the auth view's selector chain so no rule reaches the header's own `.auth-mark`. A reader who asks for reduced motion sees the settled picture with nothing running. The values are the website's, so a change to that motion is mirrored here.
+
+### Reading back a password
+
+A field of `type="password"` carries a reveal control: Lucide's `eye` and `eye-off` in a button that flips the input between `password` and `text`, returns focus to the field, and takes its label from the dictionary (`field.showPassword` / `field.hidePassword`).
+
 ### Two credentials, two transports
 
 The refresh token is an httpOnly cookie nothing here can read; the API exchanges it for a fresh access token. Every authenticated call goes through `currentBearer`, which returns the held token when it is unexpired and names the right user, and otherwise refreshes. HTTP presents the bearer as `Authorization`. A browser cannot set a header on a WebSocket upgrade, so the Remote stream socket offers the same bearer through the `socketCredential` hook, which rejects while the page holds none rather than letting the socket fall back to a refresh cookie another tab may have replaced. Both are installed through the transport hook the connection plugin already reads, rather than teaching that plugin about Aeven.
@@ -98,6 +106,8 @@ A configured `localhost` origin is rewritten to the page's own hostname when bot
 |---|---|
 | [`src/client/index.ts`](src/client/index.ts) | The gate: `restoreSession`, `requireSignIn`, and `installAuthenticatedTransport` |
 | [`src/client/auth/mount.tsx`](src/client/auth/mount.tsx) | Mounting a screen, following in-surface navigation, and handing over on success |
+| [`src/client/auth/com/MarkBackdrop.tsx`](src/client/auth/com/MarkBackdrop.tsx) | The black half's mark, on the website's own timelines: arrival, breathing, pointer follow, and the idle walk |
+| [`src/client/auth/com/Input.tsx`](src/client/auth/com/Input.tsx) | The ported field, including the password reveal control |
 | [`src/client/auth/views/NameCheck.tsx`](src/client/auth/views/NameCheck.tsx) | The naming step: the greeting, the name field, and Continue |
 | [`src/client/auth/services/tokens.ts`](src/client/auth/services/tokens.ts) | Held bearers, usability check, and the serialized refresh exchange |
 | [`src/client/auth/services/watch.ts`](src/client/auth/services/watch.ts) | Background renewal, leaving for the sign-in screen when the session ends, and ending this document's session when the browser holds another account |
