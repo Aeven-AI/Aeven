@@ -94,10 +94,7 @@ describe.skipIf(!hasPwsh)('persistent pwsh through a real cordis.yml Loader comp
       "- name: '@aeven/terminal-bash'",
       '  config:',
       '    shellDialect: pwsh',
-      '    pollIntervalMs: 10',
-      '    exactProbeAfterMs: 20',
-      '    idleSilenceMs: 300',
-      '    handoffGraceMs: 300',
+      // Holds the 12,050-line flood whole, so its head is still in the transcript.
       '    scrollbackLines: 20000',
       '    timeoutMs: 60000',
       '    disposeGraceMs: 500',
