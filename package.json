@@ -13,8 +13,7 @@
     "packages/*/*",
     "native/landlock-run",
     "native/landlock-run/packages/*",
-    "apps/*",
-    "website"
+    "apps/*"
   ],
   "scripts": {
     "postinstall": "node scripts/install-lefthook.mjs",
@@ -156,13 +155,6 @@
     "verify-type-equiv": "tsx scripts/verify-type-equiv.ts",
     "verify-typert": "tsx scripts/verify-typert.ts",
     "verify-vendored-links": "tsx scripts/verify-vendored-links.ts",
-    "docs:dev": "pnpm --filter @deepseek-ai/website run dev",
-    "docs:build": "tsx website/build.ts && pnpm run verify-doc-site-fragments",
-    "docs:build:mpa": "tsx website/build.ts --mpa && pnpm run verify-doc-site-fragments",
-    "docs:preview": "pnpm --filter @deepseek-ai/website run preview",
-    "docs:check": "pnpm exec vitest run scripts/project-doc-site.spec.ts scripts/verify-doc-site-fragments.spec.ts && pnpm run docs:build",
-    "website:dev": "pnpm run docs:dev",
-    "website:build": "pnpm run docs:build",
     "doc-typecheck": "npm run build:lib:host && npm run doc-typecheck:contracts-ready",
     "doc-typecheck:contracts-ready": "tsx scripts/doc-typecheck.ts",
     "prepare:desktop": "pnpm --filter @aeven/desktop run prepare:package",
