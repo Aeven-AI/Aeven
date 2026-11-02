@@ -19,10 +19,10 @@ const PERSIST_KEY = 'avn.layout.panels'
 beforeEach(() => { localStorage.clear() })
 
 describe('createLayoutStore', () => {
-  it('initializes the sidebar at its default width, details closed, wide viewport assumed', () => {
+  it('starts with the sidebar and details closed, wide viewport assumed', () => {
     const { store } = createLayoutStore().create()
     expect(store.getSnapshot()).toEqual({
-      sidebar: SIDEBAR_DEFAULT, details: 0, narrow: false, narrowExpanded: false, fullscreen: false,
+      sidebar: 0, details: 0, narrow: false, narrowExpanded: false, fullscreen: false,
       rightbar: {}, rightbarWidth: 0,
     })
   })
@@ -31,7 +31,7 @@ describe('createLayoutStore', () => {
     const a = createLayoutStore().create()
     const b = createLayoutStore().create()
     a.actions.setSidebar(400)
-    expect(b.store.getSnapshot().sidebar).toBe(SIDEBAR_DEFAULT)
+    expect(b.store.getSnapshot().sidebar).toBe(0)
   })
 
   it('setSidebar/setDetails clamp into the contract ranges', () => {
@@ -115,14 +115,17 @@ describe('createLayoutStore', () => {
     })
   })
 
-  it('a closed sidebar survives the reload as closed', () => {
-    createLayoutStore().create().actions.toggleSidebar()
+  it('a sidebar the reader closed again survives the reload as closed', () => {
+    const first = createLayoutStore().create()
+    first.actions.setSidebar(400)
+    first.actions.toggleSidebar()
+    expect(JSON.parse(localStorage.getItem(PERSIST_KEY) ?? 'null')).toMatchObject({ sidebar: 0 })
     expect(createLayoutStore().create().store.getSnapshot().sidebar).toBe(0)
   })
 
   it('ignores a stored width that is not a number', () => {
     localStorage.setItem(PERSIST_KEY, JSON.stringify({ sidebar: 'wide' }))
-    expect(createLayoutStore().create().store.getSnapshot().sidebar).toBe(SIDEBAR_DEFAULT)
+    expect(createLayoutStore().create().store.getSnapshot().sidebar).toBe(0)
   })
 })
 

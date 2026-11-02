@@ -15,7 +15,7 @@ import { act, cleanup, render } from '@testing-library/react'
 import { useSyncExternalStore } from 'react'
 import { AppFrame } from '@aeven/client-ui-layout/src/client/AppFrame.tsx'
 import type { AppFrameProps } from '@aeven/client-ui-layout/src/client/AppFrame.tsx'
-import { SIDEBAR_AUTO_COLLAPSE, SIDEBAR_COLLAPSED } from '@aeven/client-ui-layout/src/client/columns.ts'
+import { SIDEBAR_AUTO_COLLAPSE, SIDEBAR_COLLAPSED, SIDEBAR_DEFAULT } from '@aeven/client-ui-layout/src/client/columns.ts'
 import { createLayoutStore } from '@aeven/client-ui-layout/src/client/stores.ts'
 import type { SessionListState } from '@aeven/api-session-controller/client'
 import type { WorkspaceSnapshot } from '@aeven/api-workspace-controller/client'
@@ -64,6 +64,9 @@ function hookOf<T>(inst: { subscribe: (fn: () => void) => () => void; getSnapsho
 function mountFrame() {
   window.innerWidth = frameWidth // first-render viewport source before the observer fires
   const instance = createLayoutStore().create()
+  // The store opens a fresh profile with the sidebar closed; these cases describe the
+  // frame once the reader has opened the column, which the store spec owns as a default.
+  instance.actions.setSidebar(SIDEBAR_DEFAULT)
   const slotCalls: { key: string; props: unknown }[] = []
   const renderSlot = ((key: string, owner: object, opts?: { entryKey?: string }) => {
     slotCalls.push({ key, props: owner })

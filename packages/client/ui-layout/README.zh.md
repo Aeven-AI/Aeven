@@ -41,7 +41,7 @@ frame 使用 Aeven 中性画布且不显示分栏描边，同时保留三栏、�
 <details>
 <summary>实现细节——点击展开</summary>
 
-一次 `register()` 调用把 `AppFrame` 贡献进运行时的内建 `'root'` 槽位，并在同一刻声明四个子槽位（`sidebar`、`conversation`、`details`、`shell.overlay`）、安放布局 store（面板几何）并接好 `ctx.layout` 面板动作服务。布局 store 以默认宽度启动侧栏、保持详情栏关闭，并只把侧栏宽度持久化到 `avn.layout.panels`——已关闭的侧栏（宽度 0）重新加载后仍为关闭，而详情栏与窄视口那一对字段每页重新开始。AppFrame 始终挂载会话与详情两栏；已连接 Session 经 `SessionProvider` 渲染。它把所选 Session 标题投影到构建配置的产品标题或本地化 `common.brand.localBuild` 回退值之上，因此 locale revision 会随根 entry 一起更新文档元数据。主题呈现器是第二个 effect：从解析后的快照做纯 DOM 写入——初始状态经 getter 读取一次，此后仅事件驱动，不经过 React。它先应用调色板、字号与 token 变量，再把渲染出的背景测量为唯一的颜色依据。
+一次 `register()` 调用把 `AppFrame` 贡献进运行时的内建 `'root'` 槽位，并在同一刻声明四个子槽位（`sidebar`、`conversation`、`details`、`shell.overlay`）、安放布局 store（面板几何）并接好 `ctx.layout` 面板动作服务。布局 store 以侧栏关闭、详情栏关闭启动，并只把侧栏宽度持久化到 `avn.layout.panels`——读者打开过的侧栏重新加载后按该宽度还原，全新配置则仍为关闭，而详情栏与窄视口那一对字段每页重新开始。AppFrame 始终挂载会话与详情两栏；已连接 Session 经 `SessionProvider` 渲染。它把所选 Session 标题投影到构建配置的产品标题或本地化 `common.brand.localBuild` 回退值之上，因此 locale revision 会随根 entry 一起更新文档元数据。主题呈现器是第二个 effect：从解析后的快照做纯 DOM 写入——初始状态经 getter 读取一次，此后仅事件驱动，不经过 React。它先应用调色板、字号与 token 变量，再把渲染出的背景测量为唯一的颜色依据。
 
 `ctx.layout.surfaces` 负责整页界面的路由：界面注册它所拥有的单段路径根（Imagine 注册 `/i`），地址位于该根之下时，AppFrame 以该界面的 id 渲染 keyed 的 `surface` slot 以取代 `conversation`，并把归 Session 所有的 `details` 与 `rightbar` 两栏视为关闭。格式错误的根或冲突的 id、根会在注册时抛出。
 
@@ -77,7 +77,7 @@ frame 使用 Aeven 中性画布且不显示分栏描边，同时保留三栏、�
 
 这些限制界定了当前布局行为。它们是当前包约束，不是通用窗口管理器对比或任务积压。
 
-- **只有侧栏宽度能活过本页**——重新加载会从 `localStorage` 恢复它并让详情栏保持关闭；在不同会话 id 之间切换同样会关闭详情栏并忘记拖动后的宽度，而未选中表面以零宽度渲染详情栏却不修改几何。
+- **只有侧栏宽度能活过本页**——重新加载会从 `localStorage` 恢复它（全新打开时为关闭），并让详情栏保持关闭；在不同会话 id 之间切换同样会关闭详情栏并忘记拖动后的宽度，而未选中表面以零宽度渲染详情栏却不修改几何。
 - **让步链自动关闭通过推导零宽度实现，不触碰偏好宽度**——窗口变宽时面板自行恢复；消费方不得把 store 中的详情宽度当作渲染真值。
 - **挤压重排期间无滚动锚定**——布局变化可能移动读者的视口。
 
