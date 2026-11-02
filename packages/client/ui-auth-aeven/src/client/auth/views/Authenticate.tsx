@@ -5,6 +5,7 @@ import JSConfetti from '../../../vendor/confetti/index.ts'
 
 import Input, { type InputHandle } from '../com/Input.tsx'
 import Button, { type ButtonHandle } from '../com/Button.tsx'
+import { MarkBackdrop } from '../com/MarkBackdrop.tsx'
 
 import * as api from '../services/api.ts'
 import * as events from '../services/events.ts'
@@ -1729,7 +1730,9 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
           </div>
           <div className="content-container">
             {renderAuthComponent()}
-            <div className="graphics-container"></div>
+            <div className="graphics-container">
+              <MarkBackdrop />
+            </div>
           </div>
         </div>
       </div>

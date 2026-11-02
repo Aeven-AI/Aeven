@@ -68,6 +68,14 @@ Aeven 无法抵达时，`restoreSession` 会用它所保留的最近一份 profi
 
 这些界面按原样从 Aeven 客户端移植过来，因此它们所依赖的 service 对象由此处的若干小型本地模块组装，而不是从标记中改写掉。这让两个客户端的登录行为保持一致，并把移植限制在一道 seam 上。React 仅为此目的被提前引入，因为这些界面必须先于通常提供 React 的 UI renderer 出现在屏幕上。
 
+### 黑色半边上的徽记
+
+界面的深色那一列带着 Aeven 官网自己的徽记与动效：`MarkBackdrop` 把官网的图层树渲染进 `.graphics-container`，并以相同数值运行同一批 GSAP 时间线，因此两个界面动得一模一样。样式写在 vendored 样式表里，限定在 auth 视图的选择器链下，任何规则都到不了页头自己的 `.auth-mark`。要求减少动效的读者看到的是静止的画面，没有任何东西在运行。数值来自官网，因此那边的动效改动要在这里同步。
+
+### 读回密码
+
+`type="password"` 的输入框带一个可见性开关：Lucide 的 `eye` 与 `eye-off` 放在一个按钮里，在 `password` 与 `text` 之间切换，焦点留在输入框，标签取自词典（`field.showPassword` / `field.hidePassword`）。
+
 ### 两种凭据，两种传输
 
 refresh token 是此处无法读取的 httpOnly cookie；由 API 把它换成新的 access token。每次已认证调用都经过 `currentBearer`，当持有的 token 未过期且指向正确用户时直接返回它，否则刷新。HTTP 以 `Authorization` 出示 bearer。浏览器无法在 WebSocket 升级上设置 header，因此 Remote stream socket 通过 `socketCredential` 钩子提供同一个 bearer；页面不持有 bearer 时该钩子会拒绝，而不是让 socket 回退到可能已被其他标签页替换的 refresh cookie。两者都通过 connection 插件本就读取的传输钩子安装，而不是让该插件了解 Aeven。
@@ -96,6 +104,8 @@ Aeven 无法抵达期间，access token 会过期而没有续期能替换它，�
 |---|---|
 | [`src/client/index.ts`](src/client/index.ts) | gate：`restoreSession`、`requireSignIn` 与 `installAuthenticatedTransport` |
 | [`src/client/auth/mount.tsx`](src/client/auth/mount.tsx) | 挂载界面、跟随界面内导航，以及成功后的交接 |
+| [`src/client/auth/com/MarkBackdrop.tsx`](src/client/auth/com/MarkBackdrop.tsx) | 黑色半边上的徽记，运行官网自己的时间线：入场、呼吸、指针跟随与自行游走 |
+| [`src/client/auth/com/Input.tsx`](src/client/auth/com/Input.tsx) | 移植的输入框，包括密码可见性开关 |
 | [`src/client/auth/views/NameCheck.tsx`](src/client/auth/views/NameCheck.tsx) | 命名界面：问候语、名字输入与 Continue |
 | [`src/client/auth/services/tokens.ts`](src/client/auth/services/tokens.ts) | 持有的 bearer、可用性检查与串行化的刷新交换 |
 | [`src/client/auth/services/watch.ts`](src/client/auth/services/watch.ts) | 后台续期，以及会话结束时前往登录界面 |

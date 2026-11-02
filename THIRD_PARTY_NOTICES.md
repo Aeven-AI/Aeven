@@ -93,6 +93,7 @@ External packages that a workspace package resolves at runtime. The tier covers 
 | [`entities`](https://github.com/fb55/entities) | BSD-2-Clause |
 | [`eventsource-parser`](https://github.com/rexxars/eventsource-parser) | MIT |
 | [`fflate`](https://github.com/101arrowz/fflate) | MIT |
+| [`gsap`](https://github.com/greensock/GSAP) | Standard 'no charge' license: https://gsap.com/standard-license. |
 | [`hast-util-to-jsx-runtime`](https://github.com/syntax-tree/hast-util-to-jsx-runtime) | MIT |
 | [`highlight.js`](https://github.com/highlightjs/highlight.js) | BSD-3-Clause |
 | [`imapflow`](https://github.com/postalsys/imapflow) | MIT |
@@ -183,6 +184,10 @@ The installed SDK 0.3.241 declares the following optional platform packages. Eac
 | [`@anthropic-ai/claude-agent-sdk-linux-x64-musl`](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk-linux-x64-musl) | 0.3.241 | SEE LICENSE IN LICENSE.md |
 | [`@anthropic-ai/claude-agent-sdk-win32-arm64`](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk-win32-arm64) | 0.3.241 | SEE LICENSE IN LICENSE.md |
 | [`@anthropic-ai/claude-agent-sdk-win32-x64`](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk-win32-x64) | 0.3.241 | SEE LICENSE IN LICENSE.md |
+
+## Animation runtime: GSAP
+
+[`gsap`](https://github.com/greensock/GSAP) ships under GreenSock's [Standard `no charge` license](https://gsap.com/standard-license/), which is not an OSI-permissive license: it is free of charge, including in commercial products, and it forbids using the library to build a competing animation tool. The project owner authorizes shipping it inside the web client, where it runs the authentication screens' mark motion. This authorization is identity-scoped to `gsap` and covers no other runtime package; a version or declared-terms change still requires the ordinary review.
 
 
 ## LibreOffice conversion kit

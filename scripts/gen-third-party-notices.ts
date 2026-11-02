@@ -61,13 +61,19 @@ const LIBREOFFICE_PACKAGES = new Set([
 ])
 
 /**
+ * Runtime packages whose non-permissive terms the project owner authorizes
+ * shipping, each by identity alone.
+ */
+const OWNER_AUTHORIZED_RUNTIME: readonly string[] = [CLAUDE_AGENT_SDK_PACKAGE, 'gsap']
+
+/**
  * Whether a non-permissive runtime declaration has an identity-scoped owner
  * authorization. This does not reclassify its terms as permissive.
  * @param name - exact npm package identity.
- * @returns true only for the official Claude Agent SDK package.
+ * @returns true only for a package the owner authorized by name.
  */
 export function isOwnerAuthorizedRuntime(name: string): boolean {
-  return name === CLAUDE_AGENT_SDK_PACKAGE
+  return OWNER_AUTHORIZED_RUNTIME.includes(name)
 }
 
 /**
@@ -697,6 +703,14 @@ ${rows.join('\n')}
 `
 }
 
+function renderGsapTerms(): string {
+  return `
+## Animation runtime: GSAP
+
+[\`gsap\`](https://github.com/greensock/GSAP) ships under GreenSock's [Standard \`no charge\` license](https://gsap.com/standard-license/), which is not an OSI-permissive license: it is free of charge, including in commercial products, and it forbids using the library to build a competing animation tool. The project owner authorizes shipping it inside the web client, where it runs the authentication screens' mark motion. This authorization is identity-scoped to \`gsap\` and covers no other runtime package; a version or declared-terms change still requires the ordinary review.
+`
+}
+
 /**
  * Render the complete notices document.
  * @returns the exact bytes `THIRD_PARTY_NOTICES.md` must hold.
@@ -760,7 +774,7 @@ ${renderNpmTable(runtimeDeps)}
 pnpm applies local patches to the following packages at install time, so shipped artifacts carry modified copies; each patch file is the complete record of the modification:
 
 ${patchedLines.join('\n')}
-${renderClaudeDistribution(claudeDistribution)}
+${renderClaudeDistribution(claudeDistribution)}${renderGsapTerms()}
 ${kitRuntime ? `
 ## LibreOffice conversion kit
 

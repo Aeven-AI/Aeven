@@ -14,8 +14,48 @@ import {
   type ChangeEvent, type ClipboardEvent, type KeyboardEvent, type RefObject,
 } from 'react'
 
+import { t } from '../../locales.ts'
+
 /** How many boxes the code field holds; Aeven's codes are six digits. */
 const CODE_LENGTH = 6
+
+/** Lucide's `eye`: a password field the reader can read. */
+const EYE_PATHS = [
+  'M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0',
+  'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6',
+] as const
+
+/** Lucide's `eye-off`: a password field put back under cover. */
+const EYE_OFF_PATHS = [
+  'M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49',
+  'M14.084 14.158a3 3 0 0 1-4.242-4.242',
+  'M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143',
+  'm2 2 20 20',
+] as const
+
+/**
+ * The reveal control's mark, wearing the eye while the field is covered.
+ * @param props - whether the password is currently readable.
+ * @returns Lucide's `eye` or `eye-off`, at the field's own stroke.
+ */
+function RevealIcon({ revealed }: { readonly revealed: boolean }): React.JSX.Element {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {(revealed ? EYE_OFF_PATHS : EYE_PATHS).map(path => <path key={path} d={path} />)}
+    </svg>
+  )
+}
 
 /** Props the sign-in and sign-up forms pass. */
 export interface InputProps {
@@ -128,7 +168,9 @@ const InputText = forwardRef<InputHandle, InputProps>(function InputText(props, 
     autoCapitalize, autoCorrect, spellCheck, inputMode, autoComplete,
   } = props
   const [value, setValue] = useState(defaultValue ?? '')
+  const [revealed, setRevealed] = useState(false)
   const element = useRef<HTMLInputElement>(null)
+  const revealable = type === 'password'
 
   // Aeven resets the field when the caller changes the default; the
   // verification step relies on that to clear the code between attempts.
@@ -143,10 +185,10 @@ const InputText = forwardRef<InputHandle, InputProps>(function InputText(props, 
   // An unrecognized variant renders nothing, as in the original.
   if (inputType !== 'inputText') return null
   return (
-    <div className={cssClass ?? ''}>
+    <div className={revealable ? `${cssClass ?? ''} has-reveal` : cssClass ?? ''}>
       <input
         ref={element}
-        type={type ?? 'text'}
+        type={revealable && revealed ? 'text' : type ?? 'text'}
         value={value}
         placeholder={placeholder ?? ''}
         autoCapitalize={autoCapitalize}
@@ -159,6 +201,22 @@ const InputText = forwardRef<InputHandle, InputProps>(function InputText(props, 
           onChange?.(event)
         }}
       />
+      {revealable
+        ? (
+          <button
+            type="button"
+            className="input-reveal"
+            aria-label={t(revealed ? 'field.hidePassword' : 'field.showPassword')}
+            onClick={() => {
+              setRevealed(current => !current)
+              // The caret stays in the field, so typing continues where the reader left it.
+              element.current?.focus()
+            }}
+          >
+            <RevealIcon revealed={revealed} />
+          </button>
+        )
+        : null}
     </div>
   )
 })
