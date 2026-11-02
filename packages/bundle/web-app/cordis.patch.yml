@@ -276,7 +276,8 @@
       name: '@aeven/api-memory-manager'
 
     # Account sync: every device signed in to one account holds the same
-    # documents, end-to-end encrypted on the device and relayed by the Aeven API.
+    # documents, encrypted on the device and relayed by the Aeven API, which
+    # holds the account key until the key moves onto the user's passkeys.
     - id: sync-yjs
       name: '@aeven/sync-yjs'
       config:

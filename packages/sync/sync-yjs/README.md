@@ -1,5 +1,5 @@
 ---
-description: "Yjs Service Provider for account sync: local store, encrypted frames, device approval, and the Aeven relay connection."
+description: "Yjs Service Provider for account sync: the local store, encrypted frames, local-network links, and the Aeven relay connection."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The `ctx.sync` provider. Each enrolled account keeps `accounts/<hash>/sync/sync.db` with its device keys, keyring, device chain, document updates, outbox, and replay counters, and holds one relay connection while a client of the account has a session on the Host. Frames are applied in relay order; documents are compacted locally and snapshotted so the relay can prune covered updates; a frame the relay refuses outright is dropped rather than blocking the outbox. Two devices linked on a local network exchange document updates and stream batches directly, so a conversation that streams keeps reaching the other device while the relay is unreachable. Configuration: `relayUrl`, `credentialRef`, `deviceName`, `reconnectMs`, `connectTimeoutMs`, `compactAfter`, and `snapshotAfter`. See the [account sync group](../README.md).
+The `ctx.sync` provider. Each account keeps `accounts/<hash>/sync/sync.db` with its device id, the account key the relay hands it, document updates, outbox, and replay counters, and holds one relay connection while a client of the account has a session on the Host. Frames are applied in relay order; documents are compacted locally and snapshotted so the relay can prune covered updates; a frame the relay refuses outright is dropped rather than blocking the outbox. Two devices linked on a local network exchange document updates and stream batches directly, so a conversation that streams keeps reaching the other device while the relay is unreachable. Configuration: `relayUrl`, `credentialRef`, `deviceName`, `reconnectMs`, `connectTimeoutMs`, `compactAfter`, and `snapshotAfter`. See the [account sync group](../README.md).
 
 A device without its account key stays in `starting`; `connecting`, `online`, and `offline` allow local documents to open.
 

@@ -1,5 +1,5 @@
 ---
-description: "账户同步的 Yjs Service Provider：本地存储、加密帧、设备批准和 Aeven 中转连接。"
+description: "账户同步的 Yjs Service Provider：本地存储、加密帧、局域网连接和 Aeven 中转连接。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`ctx.sync` 的提供方。每个已加入的账户在 `accounts/<hash>/sync/sync.db` 中保存设备密钥、密钥环、设备链、文档更新、发件箱和重放计数器，并在该账户的客户端在 Host 上持有会话时保持一条中转连接。帧按中转顺序应用；文档在本地压缩并生成快照，使中转服务器可以清理被覆盖的更新；中转服务器直接拒绝的帧会被丢弃，而不会阻塞发件箱。在局域网上互相连接的两台设备直接交换文档更新和流批次，因此中转服务器不可达时，正在流出的会话仍会到达另一台设备。配置：`relayUrl`、`credentialRef`、`deviceName`、`reconnectMs`、`connectTimeoutMs`、`compactAfter` 和 `snapshotAfter`。见[账户同步分组](../README.zh.md)。
+`ctx.sync` 的提供方。每个账户在 `accounts/<hash>/sync/sync.db` 中保存设备 id、中转服务器交给它的账户密钥、文档更新、发件箱和重放计数器，并在该账户的客户端在 Host 上持有会话时保持一条中转连接。帧按中转顺序应用；文档在本地压缩并生成快照，使中转服务器可以清理被覆盖的更新；中转服务器直接拒绝的帧会被丢弃，而不会阻塞发件箱。在局域网上互相连接的两台设备直接交换文档更新和流批次，因此中转服务器不可达时，正在流出的会话仍会到达另一台设备。配置：`relayUrl`、`credentialRef`、`deviceName`、`reconnectMs`、`connectTimeoutMs`、`compactAfter` 和 `snapshotAfter`。见[账户同步分组](../README.zh.md)。
 
 尚未取得账户密钥的设备保持 `starting` 状态；`connecting`、`online` 和 `offline` 状态允许打开本地文档。
 

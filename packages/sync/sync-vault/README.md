@@ -1,5 +1,5 @@
 ---
-description: "Vault cryptography for account sync: device keys, key epochs, encrypted and signed envelopes, key wrapping, the device chain, and the approval code."
+description: "Vault cryptography for account sync: the account key, opaque document ids, and AES-256-GCM envelopes."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-A library on `node:crypto` built-ins: Ed25519 and X25519 device keys, vault key epochs, opaque HMAC ids for document names, AES-256-GCM envelopes signed by the sending device, keyring wrapping for a device or a passkey PRF result, the hash-linked device chain that every device verifies, and the commit-then-reveal six-digit approval code. It holds no state. See the [account sync group](../README.md).
+A library on `node:crypto` built-ins: 32-byte account keys, HKDF-derived content keys per document or stream id, opaque HMAC ids for logical names, AES-256-GCM envelopes whose plaintext header is the associated data, and the key proof devices exchange when they link on a local network. It holds no state. See the [account sync group](../README.md).
 
 ## Table of Contents
 
@@ -42,4 +42,4 @@ None.
 
 </details>
 
-**Runtime invariant:** No runtime invariant companion is published because key epochs, envelope signatures, and the device chain are checked over its stored bytes in package tests, and nothing publishes a divergent in-process pair.
+**Runtime invariant:** No runtime invariant companion is published because envelope authentication and opaque-id derivation are checked over its bytes in package tests, and nothing publishes a divergent in-process pair.

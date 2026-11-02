@@ -1,8 +1,8 @@
 /**
  * Direct exchange of document updates between an account's devices on one local network. Each enrolled device
  * listens on a WebSocket port and advertises it over mDNS under an opaque account tag. Two devices that find
- * each other link once both proved, by signing the other's challenge, that they hold an active device key of
- * the account's chain; a found device whose link closed or was refused is tried again while it stays found.
+ * each other link once both proved, by answering the other's challenge, that they hold the account key; a found
+ * device whose link closed or was refused is tried again while it stays found.
  * A linked device receives each local update the moment it is made. The relay still carries every update, so
  * the direct link only makes delivery faster and keeps it working without internet.
  */
@@ -56,17 +56,17 @@ export interface LanVault {
   /** @returns this device's id. */
   device(): string
   /**
-   * Sign handshake bytes with this device's key.
+   * Prove holding the account key over the handshake bytes.
    * @param data - the bytes.
-   * @returns the signature.
+   * @returns the proof.
    */
   sign(data: Uint8Array): Uint8Array
   /**
-   * Check a handshake signature against an active device of the chain.
+   * Check a handshake proof against the account key.
    * @param device - the claimed device.
-   * @param data - the signed bytes.
-   * @param signature - the signature.
-   * @returns whether `device` is active and signed `data`.
+   * @param data - the bytes the peer proved over.
+   * @param signature - the proof the peer sent.
+   * @returns whether the proof was made with this account's key.
    */
   verify(device: string, data: Uint8Array, signature: Uint8Array): boolean
   /**
@@ -217,12 +217,12 @@ export class LanTransport {
   }
 
   /**
-   * Follow a change of the device chain: close links to devices it no longer holds active, and link to found
+   * Follow a change of the account key: close links whose proof no longer verifies, and link to found
    * devices that are not linked, such as one whose admission had not arrived when it first tried.
    */
   refresh(): void {
     for (const link of this.links) {
-      // An active device's key verifies its handshake proof again; a removed device's no longer does.
+      // A proof made under an earlier account key no longer verifies; the device has to admit its key again.
       const { device, proof } = link
       if (device !== undefined && proof !== undefined && !this.vault.verify(device, this.transcript(link.nonce, device), proof)) {
         link.socket.close()
