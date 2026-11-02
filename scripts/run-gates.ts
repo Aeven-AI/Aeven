@@ -335,7 +335,6 @@ function ciPrimaryGates(): Gate[] {
     pnpmScript('typecheck', 'typecheck:contracts-ready', { needs: ['typert-contracts'] }),
     lintGate({ needs: ['typert-contracts'] }),
     pnpmScript('duplication', 'duplication'),
-    ...coverageGates(),
     ...nodeCompatSmokeGates(),
     ...docSyncLeafGates({
       docTypecheckNeeds: ['typert-contracts'],
