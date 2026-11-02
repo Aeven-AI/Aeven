@@ -57,6 +57,7 @@ function catalogued(name: string, displayName: string, downloads: number, catego
 /** Mount the Skills page with stubbed account operations. */
 function mount(view: AccountIntegrationsView, detail?: string, catalog?: SkillCatalogView) {
   const setSkillEnabled = vi.fn().mockResolvedValue(undefined)
+  const setSkillModelInvocable = vi.fn().mockResolvedValue(undefined)
   const retryReverseEngineering = vi.fn().mockResolvedValue(undefined)
   const removeSkill = vi.fn().mockResolvedValue(undefined)
   const showDetail = vi.fn()
@@ -73,7 +74,7 @@ function mount(view: AccountIntegrationsView, detail?: string, catalog?: SkillCa
     catalog: () => Promise.resolve(catalog),
     catalogSkillContent: () => Promise.resolve(undefined),
     installCatalogSkill: vi.fn().mockResolvedValue(undefined),
-    showDetail, importSkill: vi.fn().mockResolvedValue({ imported: [], skipped: [] }), setSkillEnabled, removeSkill,
+    showDetail, importSkill: vi.fn().mockResolvedValue({ imported: [], skipped: [] }), setSkillEnabled, setSkillModelInvocable, removeSkill,
     retryReverseEngineering,
     importSkillReference: vi.fn(), systemSkills: vi.fn(), installSystemSkill: vi.fn(),
     connect: vi.fn(), connectEmail: vi.fn(), updateEmail: vi.fn(), authorize: vi.fn(),

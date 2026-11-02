@@ -61,6 +61,7 @@ export function apply(ctx: Context): void {
     systemSkills: () => value(remote.systemSkills()),
     installSystemSkill: id => value(remote.installSystemSkill(id)),
     setSkillEnabled: (name, enabled) => value(remote.setSkillEnabled(name, enabled)),
+    setSkillModelInvocable: (name, modelInvocable) => value(remote.setSkillModelInvocable(name, modelInvocable)),
     retryReverseEngineering: () => value(remote.retryReverseEngineering()),
     removeSkill: name => value(remote.removeSkill(name)),
     connect: request => value(remote.connect(request)),

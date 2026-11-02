@@ -82,6 +82,8 @@ export interface IntegrationsSectionInjected extends TelegramPairingOperations {
    */
   installSystemSkill: (id: string) => Promise<SkillReferenceImport>
   setSkillEnabled: (name: string, enabled: boolean) => Promise<void>
+  /** Set whether a model may invoke one library skill on its own. */
+  setSkillModelInvocable: (name: string, modelInvocable: boolean) => Promise<void>
   /** Retry the tool install a skill's engine needs, after that install failed. */
   retryReverseEngineering: () => Promise<void>
   removeSkill: (name: string) => Promise<void>
@@ -588,6 +590,7 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
               </div>
               {importResult !== undefined && importResult.imported.length > 0 && <p className={css.importResult}>{t('importedSkills')}: {importResult.imported.join(', ')}</p>}
               {importResult !== undefined && importResult.skipped.length > 0 && <p className={css.hint}>{t('skippedBuiltIn')}: {importResult.skipped.map(skip => skip.name).join(', ')}</p>}
+              {importResult !== undefined && importResult.incomplete.length > 0 && <p className={css.hint}>{t('incompleteSkills')}: {importResult.incomplete.map(entry => `${entry.name} (${entry.missing.join(', ')})`).join('; ')}</p>}
             </form>
             <div className={css.agentGroups}>
               {agentSkillsFailed && <p className={css.hint}>{t('agentSkillsUnavailable')}</p>}
@@ -650,6 +653,15 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
             <div className={css.connectorHeading}><h2>{humanSkillName(selectedSkill.name)}</h2>{skillSwitch(selectedSkill)}</div>
             <p className={css.detailDescription}>{selectedSkill.description}</p>
             <p className={css.meta}>{t('personalSkill')}</p>
+            {selectedSkill.modelInvocable !== undefined && <div className={css.connectorRow}>
+              <span className={css.skillSummary}>
+                <strong>{t('modelInvocation')}</strong>
+                <span className={css.connectorDescription}>{t('modelInvocationHint')}</span>
+              </span>
+              <span className={css.switchCell}>{toggle(t('modelInvocation'), selectedSkill.modelInvocable, false, () => {
+                void run(() => props.setSkillModelInvocable(selectedSkill.name, !selectedSkill.modelInvocable))
+              })}</span>
+            </div>}
             <div className={css.instructions}>
               <MarkdownText
                 key={selectedSkill.id}

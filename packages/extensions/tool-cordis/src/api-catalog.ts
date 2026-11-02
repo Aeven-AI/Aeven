@@ -145,8 +145,14 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'name', description: 'skill name visible in the account library.' }, { name: 'enabled', description: 'invocation availability.' }],
       },
       {
+        signature: '@Remote async setSkillModelInvocable(name: string, modelInvocable: boolean): Promise<void>',
+        description: 'Set whether a model may invoke one library skill on its own.\n\nThe flag an import reads from `disable-model-invocation` is a starting point, not a decision the account cannot revisit: switching it on joins the skill to the model\'s catalog, switching it off leaves it to a `/name` gesture. The choice outlives a re-import, which restores the source\'s value only for a skill the account never decided.',
+        parameters: [{ name: 'name', description: 'personal skill name.' }, { name: 'modelInvocable', description: 'whether the model may invoke the skill without being asked by name.' }],
+        throws: ['Error when the name is not in the account library.'],
+      },
+      {
         signature: '@Remote async removeSkill(name: string): Promise<void>',
-        description: 'Remove one caller-owned skill from discovery.',
+        description: 'Remove one caller-owned skill from discovery.\n\nThe account\'s preferences for that name go with it, so importing the skill again starts from its own source.',
         parameters: [{ name: 'name', description: 'personal skill name.' }],
       },
       {
@@ -7512,7 +7518,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'PersonalSkillView',
-    declaration: 'export interface PersonalSkillView {\n    id: SkillViewId;\n    name: string;\n    description: string;\n    enabled: boolean;\n    content: string;\n    files: string[];\n    source: string;\n    setup?: SkillSetup;\n}',
+    declaration: 'export interface PersonalSkillView {\n    id: SkillViewId;\n    name: string;\n    description: string;\n    enabled: boolean;\n    content: string;\n    files: string[];\n    source: string;\n    modelInvocable?: boolean;\n    setup?: SkillSetup;\n}',
   },
   {
     name: 'PlatformInvocation',
@@ -8471,6 +8477,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SkillEntry {\n    readonly name: string;\n    readonly description: string;\n    readonly whenToUse?: string;\n    readonly modelInvocable: boolean;\n}',
   },
   {
+    name: 'SkillImportIncomplete',
+    declaration: 'export interface SkillImportIncomplete {\n    name: string;\n    missing: string[];\n}',
+  },
+  {
     name: 'SkillImportSkip',
     declaration: 'export interface SkillImportSkip {\n    name: string;\n    reason: \'built-in\';\n}',
   },
@@ -8504,7 +8514,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SkillReferenceImport',
-    declaration: 'export interface SkillReferenceImport {\n    imported: string[];\n    skipped: SkillImportSkip[];\n}',
+    declaration: 'export interface SkillReferenceImport {\n    imported: string[];\n    skipped: SkillImportSkip[];\n    incomplete: SkillImportIncomplete[];\n}',
   },
   {
     name: 'SkillRegistration',
