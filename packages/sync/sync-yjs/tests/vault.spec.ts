@@ -60,7 +60,7 @@ function device(owner: string, tuning: VaultTuning = TUNING): Device {
       expect(vault.ready()).toBe(true)
       expect(() => vault.documentId('memory')).not.toThrow()
     }
-  }, (id) => { documents.push(id) }, warn, offload)
+  }, (id) => { documents.push(id) }, warn, offload, vi.fn())
   return { store, vault, warn, documents }
 }
 

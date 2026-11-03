@@ -154,9 +154,11 @@ export class MemorySyncMirror {
   /**
    * Install the triggers, record existing rows once, queue the shard documents this device already holds, and
    * start draining. Applying and publishing run in the background, one bounded step at a time.
+   * @param republish - record every existing row again, because the account's documents started over.
    */
-  start(): void {
+  start(republish = false): void {
     this.installTriggers()
+    if (republish) this.db.prepare("DELETE FROM sync_state WHERE key = 'seeded'").run()
     const seeded = this.db.prepare("SELECT value FROM sync_state WHERE key = 'seeded'").get() as { value: string } | undefined
     if (seeded === undefined) {
       this.db.transaction(() => {

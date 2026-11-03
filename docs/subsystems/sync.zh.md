@@ -2,7 +2,7 @@
 
 [English](sync.md) | 中文
 
-账户同步让同一 Aeven 账户的对话、设置与记忆在每台已登录设备上保持一致。设备在变更离开本机前就完成加密，中继存储并转发这些帧，由于中继创建并保存每个账户的密钥，它今天能打开这些内容；把该密钥移到用户自己密码管理器中的通行密钥上的工作正在进行。两台设备同时在线时在一秒内交换变更，某台设备重新上线后补齐落后的部分。[sync/](../../packages/sync/README.zh.md) 是包地图；本页是 `ctx.sync` 词汇与它发出的事件的参考。
+账户同步让同一 Aeven 账户的对话、设置与记忆在每台已登录设备上保持一致。设备在变更离开本机前就完成加密，中继存储并转发这些帧，在中继创建并保存账户密钥期间，它能打开这些内容；用户用通行密钥保护账户后，只有该账户的设备持有密钥，中继只保存它无法解开的副本。两台设备同时在线时在一秒内交换变更，某台设备重新上线后补齐落后的部分。[sync/](../../packages/sync/README.zh.md) 是包地图；本页是 `ctx.sync` 词汇与它发出的事件的参考。
 
 该 seam 遵循[能力 seam](../glossary.zh.md)的角色划分：[@aeven/sync](../../packages/sync/sync/README.zh.md) 声明 `ctx.sync` 及其类型，[@aeven/sync-yjs](../../packages/sync/sync-yjs/README.zh.md) 提供文档、本地存储与中继连接，各 consumer 通过它发布自己的数据——[@aeven/session-sync](../../packages/session/session-sync/README.zh.md) 负责对话历史，[@aeven/settings-sync](../../packages/settings/settings-sync/README.zh.md) 负责声明账户归属的设置命名空间。[@aeven/api-sync-controller](../../packages/api/sync-controller/README.zh.md) 向 Client 暴露状态与设备调用，[@aeven/client-ui-settings-sync](../../packages/client/ui-settings-sync/README.zh.md) 渲染设置 → 同步。
 
@@ -137,6 +137,58 @@ watchStream(_owner: string, _name: string, _listener: (payload: Uint8Array) => v
 synchronize(_owner: string): Promise<void>
 
 /**
+ * Move the account key from the relay to the user's passkey: this device creates a new key, the relay keeps it
+ * only wrapped under the passkey, purges what it stored under the earlier key, and every device starts over. The
+ * account's other devices unlock with the passkey before they sync again. Requires a connection.
+ * @param _owner - an account whose key the relay holds.
+ * @param _passkey - a newly created passkey's credential id and PRF output.
+ * @returns when the relay holds only the wrapped key.
+ */
+protect(_owner: string, _passkey: SyncPasskey): Promise<void>
+
+/**
+ * Wrap the account key under one more passkey, so either of them unlocks a new device. Requires a connection and
+ * an unlocked account.
+ * @param _owner - an account whose key a passkey holds.
+ * @param _passkey - the additional passkey's credential id and PRF output.
+ * @returns when the relay stores the additional copy.
+ */
+addPasskey(_owner: string, _passkey: SyncPasskey): Promise<void>
+
+/**
+ * Drop one passkey's copy of the account key; the last one stays until {@link unprotect}. Requires a connection.
+ * @param _owner - an account whose key passkeys hold.
+ * @param _credentialId - a credential id {@link SyncProtection.passkeys} lists.
+ * @returns when the relay no longer stores that copy.
+ */
+removePasskey(_owner: string, _credentialId: string): Promise<void>
+
+/**
+ * Unlock the account on this device with one of its passkeys: the device unwraps the key the relay stores and
+ * syncs from then on without asking again. Requires a connection.
+ * @param _owner - an account whose status is locked.
+ * @param _passkey - the passkey's credential id and PRF output.
+ * @returns when the key is stored on this device.
+ * @throws {Error} when the passkey does not open the account key.
+ */
+unlock(_owner: string, _passkey: SyncPasskey): Promise<void>
+
+/**
+ * Hand the account key back to the relay: it creates a new key it holds, purges what it stored, and every device
+ * starts over. The account's other devices ask the user before syncing under it. Requires a connection.
+ * @param _owner - an account whose key passkeys hold, unlocked on this device.
+ * @returns when this device holds the relay's new key.
+ */
+unprotect(_owner: string): Promise<void>
+
+/**
+ * Confirm syncing under the key the relay holds after it took the key back from the account's passkeys.
+ * @param _owner - an account whose status is downgraded.
+ * @returns when this device holds the relay's key.
+ */
+acceptServerKey(_owner: string): Promise<void>
+
+/**
  * Acquire or renew exclusive work on this device. Requires an online account; an unreachable relay
  * rejects the request. Callers must stop work before renewal fails or its requested duration elapses.
  * @param owner - the account.
@@ -175,6 +227,33 @@ The signed-in user's account sync.
  * @returns the status afterwards.
  */
 @Remote async setEnabled(enabled: boolean): Promise<SyncView>
+
+/**
+ * Start a passkey step: the returned page creates a passkey (`protect`, `add`) or asks for one of the account's
+ * passkeys (`unlock`) in the system browser, and this Host collects the result and applies it in the background.
+ * The step shows in {@link status} until it succeeds; a new step replaces one in progress.
+ * @param purpose - what the passkey is for.
+ * @returns the page to open.
+ */
+@Remote async startPasskey(purpose: SyncPasskeyPurpose): Promise<SyncPasskeyStart>
+
+/**
+ * Stop a passkey step, or dismiss one that did not finish.
+ * @returns the status afterwards.
+ */
+@Remote async cancelPasskey(): Promise<SyncView>
+
+/**
+ * Hand the caller's account key back to the Aeven relay; every device starts over under the relay's new key.
+ * @returns the status afterwards.
+ */
+@Remote async unprotect(): Promise<SyncView>
+
+/**
+ * Keep syncing under the key the relay took back from the account's passkeys.
+ * @returns the status afterwards.
+ */
+@Remote async acceptServerKey(): Promise<SyncView>
 
 /**
  * List the caller's devices.
@@ -228,6 +307,26 @@ Collect an account's conversation publication progress without reading its logs.
  * @param progress - publisher counters, initialized to zero by the caller.
  */
 'sync/progress'(owner: string, progress: SyncProgress): void
+```
+
+Source: [`packages/sync/sync/src/index.ts`](../../packages/sync/sync/src/index.ts)
+
+<a id="syncreset--emit"></a>
+
+#### `sync/reset` — emit
+
+An account's documents started over under a new key: this device dropped every document, its outbox, and the values it kept with Sync.setLocalValue, and the relay purged what it stored under the earlier key. Consumers close the documents they hold for the account and forget cached document ids; once the account syncs again they open the documents anew and publish their data again.
+
+```ts cordis-catalog
+/**
+ * An account's documents started over under a new key: this device dropped every document, its outbox, and the
+ * values it kept with {@link Sync.setLocalValue}, and the relay purged what it stored under the earlier key.
+ * Consumers close the documents they hold for the account and forget cached document ids; once the account
+ * syncs again they open the documents anew and publish their data again.
+ * @mode emit
+ * @param owner - the account.
+ */
+'sync/reset'(owner: string): void
 ```
 
 Source: [`packages/sync/sync/src/index.ts`](../../packages/sync/sync/src/index.ts)

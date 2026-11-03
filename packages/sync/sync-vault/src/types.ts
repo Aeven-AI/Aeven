@@ -3,6 +3,9 @@ import type { Branded } from '@aeven/brand'
 /** Random identifier one device of an account chose for itself; it names the sender of the device's frames. */
 export type DeviceId = Branded<'SyncDeviceId'>
 
+/** Public id of an account key; the relay names the current key by it and devices check an unwrapped key against it. */
+export type KeyId = Branded<'SyncKeyId'>
+
 /** Server-visible identifier of one document or stream; an HMAC of its logical name under the account key. */
 export type OpaqueId = Branded<'SyncOpaqueId'>
 

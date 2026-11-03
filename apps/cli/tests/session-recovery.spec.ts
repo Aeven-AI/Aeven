@@ -119,18 +119,18 @@ describe('session failure recovery', () => {
   })
 
   // Use the provider's actual delay; advancing a fake clock would also alter Loader and persistence timers.
-  it('retries a gateway HTTP failure after its 60-second Retry-After', { timeout: 90_000 }, async () => {
+  it('retries a gateway HTTP failure after its Retry-After', { timeout: 10_000 }, async () => {
     const loaded = await boot()
     let requests = 0
     vi.stubGlobal('fetch', async () => ++requests === 1
-      ? new Response('{"error":{"message":"temporary gateway failure"}}', { status: 520, headers: { 'retry-after': '60' } })
+      ? new Response('{"error":{"message":"temporary gateway failure"}}', { status: 520, headers: { 'retry-after': '1' } })
       : response({ content: 'Recovered reply.' }, 'stop'))
     const agent = loaded.agentLoop.create(SessionId('gateway-retry'), { provider: LlmAeven.PROVIDER, model: 'Aeven-1.0-Flash' })
     agent.followup(createUserMessage({ content: [{ type: 'text', text: 'Continue after the gateway recovers.' }], source: { kind: 'user' } }))
     await agent.whenIdle()
     expect(requests).toBe(2)
     expect(agent.session.snapshotEvents().filter(event => event.type === 'llm/retry').map(event => event.data))
-      .toMatchObject([{ delayMs: 60_000, failure: { status: 520, providerRetryAfterMs: 60_000 } }])
+      .toMatchObject([{ delayMs: 1_000, failure: { status: 520, providerRetryAfterMs: 1_000 } }])
     expect(agent.session.snapshotEvents().filter(event => event.type === 'turn/end').at(-1)?.data.reason).toEqual({ kind: 'completed' })
     expect(agent.session.deriveMessages().at(-1)?.content).toEqual([{ type: 'text', text: 'Recovered reply.' }])
   })

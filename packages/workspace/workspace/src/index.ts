@@ -212,6 +212,11 @@ export class WorkspaceRegistry extends Service {
         ctx.logger('workspace').warn(`workspace: claiming workspaces for the account failed: ${String(error)}`)
       })
     })
+    // A new key starts the account's documents over; claiming again republishes this device's workspaces.
+    ctx.on('sync/reset', (owner) => {
+      this.claimed.delete(owner)
+      void this.synced.reset(owner)
+    })
     ctx.effect(() => () => this.synced.dispose(), 'workspace.sync')
   }
 

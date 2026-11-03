@@ -91,7 +91,7 @@ function waitForCdp(assertion: () => void | Promise<void>): Promise<void> {
 // decide the run: the `afterEach` below closes the client, two CDP sockets, the
 // inspector Worker, and one HTTP server, and the last of those alone costs about
 // 3s in this lane while the aborted SSE socket settles.
-describe('experimental Inspector real Worker', { timeout: 60_000 }, () => {
+describe('experimental Inspector real Worker', { timeout: 20_000 }, () => {
   let inspector: InspectorHandle | undefined
   let cdp: TestCdpClient | undefined
   let secondCdp: TestCdpClient | undefined

@@ -726,7 +726,14 @@ describe('JsonlSessionPersistence: default Zstandard encoding', () => {
       .rejects.toThrow(/empty or header-less Zstandard session log/)
     await expect(ctx.sessionPersistence.load(SessionId('empty-header')))
       .rejects.toThrow(/first frame is not exactly one header line/)
-    await expect(ctx.sessionPersistence.list()).rejects.toThrow(/header frame failed validation/)
+
+    // `list()` reads every session in the root, so it reports whichever corrupt header it meets first. The
+    // checksum-corrupt session gets its own root so this assertion names the failure it means to prove.
+    const corruptRoot = await freshRoot()
+    await mkdir(sessionDir(corruptRoot, undefined, SessionId('bad-checksum')), { recursive: true })
+    await writeFile(logPath(corruptRoot, undefined, SessionId('bad-checksum'), 'zstd'), corruptHeader)
+    const corrupt = await mount(corruptRoot)
+    await expect(corrupt.sessionPersistence.list()).rejects.toThrow(/header frame failed validation/)
   })
 })
 

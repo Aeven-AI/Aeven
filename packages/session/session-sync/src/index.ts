@@ -72,6 +72,15 @@ export default class SessionSync extends SessionHandoff {
     ctx.on('session-persistence/append', (header, events) => {
       if (header.owner !== undefined) this.mirrors.get(header.owner)?.appended(header, events)
     })
+    // The account's documents started over under a new key; the next mirror publishes every conversation again.
+    ctx.on('sync/reset', (owner) => {
+      const stale = this.mirrors.get(owner)
+      if (stale === undefined) return
+      this.mirrors.delete(owner)
+      void stale.dispose().then(() => { this.track(owner) }, (error: unknown) => {
+        ctx.logger.warn(`session sync: stopping for an account failed: ${String(error)}`)
+      })
+    })
     ctx.effect(() => async () => {
       await Promise.all([...this.mirrors.values()].map(mirror => mirror.dispose()))
       this.mirrors.clear()

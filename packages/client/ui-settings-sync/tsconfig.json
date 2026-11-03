@@ -18,6 +18,9 @@
       "path": "../locale"
     },
     {
+      "path": "../ui-layout"
+    },
+    {
       "path": "../ui-settings"
     },
     {

@@ -98,7 +98,7 @@ async function upgrade(port: number, path: string): Promise<ReturnType<typeof co
 }
 
 describe('real Loader composition', () => {
-  it('applies gzip only to eligible socket-backed HTTP responses', { timeout: 60_000 }, async () => {
+  it('applies gzip only to eligible socket-backed HTTP responses', { timeout: 15_000 }, async () => {
     expect(HttpServer.Config({ host: '127.0.0.1', port: 0 })).toEqual({
       host: '127.0.0.1',
       port: 0,
@@ -194,7 +194,7 @@ describe('real Loader composition', () => {
   // Real-Loader composition resolves workspace packages through tsx at test
   // time; first resolution after the host/client program split is slow enough
   // to trip the default 5s budget on cold caches.
-  it('serves registered routes, index taps, and the fallback-seat semantics', { timeout: 60_000 }, async () => {
+  it('serves registered routes, index taps, and the fallback-seat semantics', { timeout: 15_000 }, async () => {
     const loaded = await loadComposition()
     const unloaded = [...loaded.loader.entries()]
       .filter(entry => entry.fiber === undefined && !entry.disabled)
@@ -305,7 +305,7 @@ describe('real Loader composition', () => {
     await expect(request(port, '/probe')).rejects.toThrow()
   })
 
-  it('collects injection rows fresh per render and layers taps over the rendered rows', { timeout: 60_000 }, async () => {
+  it('collects injection rows fresh per render and layers taps over the rendered rows', { timeout: 15_000 }, async () => {
     const loaded = await loadComposition()
     const server = loaded.webServer
     let flag = 'dark'
@@ -360,7 +360,7 @@ describe('real Loader composition', () => {
       + '<script>(globalThis.__AVN_BOOT_READY__ ??= Promise.withResolvers()).resolve()</script>')
   })
 
-  it('fails the fiber when the port is already taken (fail-loud at activation)', { timeout: 60_000 }, async () => {
+  it('fails the fiber when the port is already taken (fail-loud at activation)', { timeout: 15_000 }, async () => {
     const first = await loadComposition()
     const takenPort = first.webServer.port
     const firstRoot = root

@@ -80,6 +80,7 @@ export default class PersonalizationController extends TypertRemoteService {
     this.synced = new PersonalizationSync(ctx, this.store, (message) => { ctx.logger('personalization').warn(message) })
     // Each account's preferences follow it to every device its sync vault holds, once that vault is served here.
     ctx.on('sync/status', (owner) => { void this.synced.attach(owner) })
+    ctx.on('sync/reset', (owner) => { void this.synced.reset(owner) })
     ctx.effect(() => () => { void this.synced.dispose() }, 'personalization.sync')
 
     /* jscpd:ignore-start -- mirrors @aeven/memory-context's per-agent prompt-section fibers for its own block */

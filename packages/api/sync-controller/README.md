@@ -1,5 +1,5 @@
 ---
-description: "The `sync` Remote: the signed-in user's account sync status, turning sync on, joining from a new device, approving devices, and removing them."
+description: "The `sync` Remote: the signed-in user's account sync status, this device's switch, the passkey step that protects or unlocks the account, and the account's devices."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-A Typert Remote over `ctx.sync` that acts only for the caller of the running request. `acceptJoins` answers join requests for `acceptJoinsMs` unless the add-device screen closes first. See the [account sync group](../../sync/README.md).
+A Typert Remote over `ctx.sync` that acts only for the caller of the running request. `startPasskey` returns the `/passkey/vault` page on `siteUrl` and collects the sealed result in the background for up to `passkeyMs`, polling every `passkeyPollMs`; the step shows in `status` until it succeeds and emits `sync/status` when it ends. `unprotect` hands the key back to the relay and `acceptServerKey` confirms a key the relay took back. See the [account sync group](../../sync/README.md).
 
 Status includes conversation publication progress collected through `sync/progress`, alongside pending and queued relay-frame counts.
 

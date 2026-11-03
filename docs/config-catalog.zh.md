@@ -290,6 +290,26 @@ export interface Config {
 
 来源：[`packages/speech/api-speech-to-text/src/index.ts`](../packages/speech/api-speech-to-text/src/index.ts)
 
+<a id="aevenapi-sync-controller"></a>
+
+## `@aeven/api-sync-controller`
+
+需要：`typert` · `sync` · `identityUsers`
+
+```ts config-catalog
+/** Service configuration. */
+export interface Config {
+  /** Origin of the Aeven site that serves the passkey page, such as `https://aeven.io`. */
+  siteUrl: string
+  /** How long a passkey step waits for the page's result, in milliseconds. */
+  passkeyMs: number
+  /** Pause between two collection attempts of a passkey result, in milliseconds. */
+  passkeyPollMs: number
+}
+```
+
+来源：[`packages/api/sync-controller/src/index.ts`](../packages/api/sync-controller/src/index.ts)
+
 <a id="aevenapi-terminal-controller"></a>
 
 ## `@aeven/api-terminal-controller`
@@ -5562,7 +5582,6 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@aeven/acp-app` — requires `cmdlineArgs` ([`packages/bundle/acp-app/src/index.ts`](../packages/bundle/acp-app/src/index.ts))
 - `@aeven/agent` ([`packages/core/agent/src/index.ts`](../packages/core/agent/src/index.ts))
 - `@aeven/api-remotes` — requires `typertGateway` ([`packages/api/remotes/src/index.ts`](../packages/api/remotes/src/index.ts))
-- `@aeven/api-sync-controller` — requires `typert` · `sync` · `identityUsers` ([`packages/api/sync-controller/src/index.ts`](../packages/api/sync-controller/src/index.ts))
 - `@aeven/api-workspace-controller` — requires `typert` · `workspaceRegistry` ([`packages/api/workspace-controller/src/index.ts`](../packages/api/workspace-controller/src/index.ts))
 - `@aeven/authorization` — requires `credentials` ([`packages/credentials/authorization/src/index.ts`](../packages/credentials/authorization/src/index.ts))
 - `@aeven/client-locale` ([`packages/client/locale/src/index.ts`](../packages/client/locale/src/index.ts))

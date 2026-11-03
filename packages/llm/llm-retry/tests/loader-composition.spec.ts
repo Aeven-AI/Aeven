@@ -87,7 +87,7 @@ describe('real Loader composition', () => {
   // Real-Loader composition resolves workspace packages through tsx at test
   // time; first resolution after the host/client program split is slow enough
   // to trip the default 5s budget on cold caches.
-  it('loads provider-supplied policy and records recovery through the shipping loop', { timeout: 60_000 }, async () => {
+  it('loads provider-supplied policy and records recovery through the shipping loop', { timeout: 15_000 }, async () => {
     const loaded = await loadYaml([
       "- name: '@aeven/llm'",
       "- name: '@aeven/session'",

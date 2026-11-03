@@ -153,12 +153,12 @@ describe('PythonCodeRuntime — seam descriptors and misuse', () => {
     const out = execFileSync(process.execPath, ['--max-old-space-size=128', '--import', 'tsx', '-e', script], {
       cwd: resolve(import.meta.dirname, '../../../..'),
       encoding: 'utf8',
-      timeout: 60_000,
+      timeout: 20_000,
       env: { ...process.env, TSX_TSCONFIG_PATH: resolve(import.meta.dirname, '../../../../tsconfig.json') },
     })
     expect(out).toContain('REJECTED:')
     expect(out).toContain('must not exceed')
-  }, 60_000)
+  }, 20_000)
 
   it('parses a worst-shape frame at the derived cap on a constrained heap', async () => {
     // The host-heap frame cap must be measured against the WORST parse shape —
@@ -185,10 +185,10 @@ describe('PythonCodeRuntime — seam descriptors and misuse', () => {
     ].join('\n')
     const out = execFileSync(process.execPath, ['--max-old-space-size=128', '-e', script], {
       encoding: 'utf8',
-      timeout: 60_000,
+      timeout: 20_000,
     })
     expect(out).toContain('SURVIVED:')
-  }, 60_000)
+  }, 20_000)
 
   it('rejects a pythonBin that spawn() would throw on, at load', async () => {
     // Both values pass the string schema and both make `spawn` throw

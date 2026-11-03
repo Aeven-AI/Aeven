@@ -46,6 +46,7 @@
   "devDependencies": {
     "@aeven/api-remotes": "workspace:^",
     "@aeven/client-locale": "workspace:^",
+    "@aeven/client-ui-layout": "workspace:^",
     "@aeven/client-ui-primitives": "workspace:^",
     "@aeven/client-ui-renderer": "workspace:^",
     "@aeven/client-ui-settings": "workspace:^",

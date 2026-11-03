@@ -59,6 +59,7 @@
     "test:web:perf": "npm run build && npm run test:web:perf:built",
     "test:web:perf:built": "AVN_SNAPSHOT=replay vitest run --config vitest.web.perf.config.ts",
     "test:web:stress": "npm run build && vitest run --config vitest.web-stress.config.ts",
+    "test:boundary": "AVN_BOUNDARY_PROOFS=1 vitest run packages/experimental/code-runtime-python/tests",
     "test:gui": "vitest run packages/client packages/host",
     "test:docs": "tsx scripts/doc-fix.ts",
     "test:issue-management": "node .github/issue-management/policy.test.mjs",

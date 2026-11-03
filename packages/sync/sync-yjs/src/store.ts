@@ -1,11 +1,12 @@
 /**
- * One account's local sync state in `accounts/<hash>/sync/sync.db`: this device's id, the account key, whether
- * this device syncs, document updates keyed by opaque id, the outbox of sealed frames, and replay counters. Every
+ * One account's local sync state in `accounts/<hash>/sync/sync.db`: this device's id, the account key and who
+ * holds it, whether this device syncs, document updates keyed by opaque id, the outbox of sealed frames, and replay counters. Every
  * write that must survive a crash together runs in one transaction.
  */
 import { mkdirSync, rmSync } from 'node:fs'
 import { dirname } from 'node:path'
 import Database from 'better-sqlite3'
+import type { SyncKeyMode } from '@aeven/sync'
 import { fromBase64Url, generateDeviceId, toBase64Url, type DeviceId, type EnvelopeHeader, type OpaqueId } from '@aeven/sync-vault'
 
 const SCHEMA_VERSION = 2
@@ -134,8 +135,8 @@ export class SyncStore {
   }
 
   /**
-   * Read the account key the relay handed to this device.
-   * @returns the key, or undefined before the handoff.
+   * Read the account key this device holds.
+   * @returns the key, or undefined before the relay or a passkey handed one over.
    */
   accountKey(): Uint8Array | undefined {
     const stored = this.meta('key')
@@ -143,25 +144,58 @@ export class SyncStore {
   }
 
   /**
-   * Hold the relay's account key. A different key means the relay started the account over: the documents,
-   * outbox, counters, and cursor of the earlier key are dropped, and Consumers publish their data again.
+   * Read who held the account key when this device last read it from the relay.
+   * @returns the mode, or undefined before the first read.
+   */
+  keyMode(): SyncKeyMode | undefined {
+    const stored = this.meta('key-mode')
+    return stored === 'server' || stored === 'passkey' ? stored : undefined
+  }
+
+  /**
+   * Record who holds the account key, as the relay reported it.
+   * @param mode - the mode.
+   */
+  setKeyMode(mode: SyncKeyMode): void {
+    this.setMeta('key-mode', mode)
+  }
+
+  /**
+   * Hold an account key. A different key means the account started over: the documents, outbox, counters, cursor,
+   * and Consumers' local values of the earlier key are dropped, and Consumers publish their data again.
    * @param key - the account key.
+   * @param mode - who holds the key besides this device.
    * @returns whether the store started over.
    */
-  setAccountKey(key: Uint8Array): boolean {
+  setAccountKey(key: Uint8Array, mode: SyncKeyMode): boolean {
     const stored = this.meta('key')
     const encoded = toBase64Url(key)
-    if (stored === encoded) return false
-    this.transaction(() => {
-      if (stored !== undefined) {
-        this.db.exec('DELETE FROM doc_updates; DELETE FROM outbox; DELETE FROM counters; DELETE FROM seen; DELETE FROM since_snapshot;')
-        this.db.prepare("DELETE FROM meta WHERE key = 'cursor'").run()
-        this.db.prepare("DELETE FROM meta WHERE key LIKE 'fragment:%'").run()
-        this.db.prepare("DELETE FROM meta WHERE key LIKE 'stream-complete:%'").run()
-      }
+    return this.transaction(() => {
+      this.setMeta('key-mode', mode)
+      if (stored === encoded) return false
+      if (stored !== undefined) this.wipe()
       this.setMeta('key', encoded)
+      return stored !== undefined
     })
-    return stored !== undefined
+  }
+
+  /**
+   * Drop the account key this device holds, with everything kept under it, because the account moved to a key this
+   * device does not hold yet.
+   * @returns whether a key was dropped.
+   */
+  dropAccountKey(): boolean {
+    if (this.meta('key') === undefined) return false
+    this.transaction(() => {
+      this.wipe()
+      this.db.prepare("DELETE FROM meta WHERE key = 'key'").run()
+    })
+    return true
+  }
+
+  private wipe(): void {
+    this.db.exec('DELETE FROM doc_updates; DELETE FROM outbox; DELETE FROM counters; DELETE FROM seen; DELETE FROM since_snapshot;')
+    this.db.prepare("DELETE FROM meta WHERE key = 'cursor' OR key LIKE 'fragment:%' OR key LIKE 'stream-complete:%' OR key LIKE 'local:%'").run()
   }
 
   /**

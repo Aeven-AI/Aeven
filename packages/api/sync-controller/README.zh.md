@@ -1,5 +1,5 @@
 ---
-description: "`sync` Remote：已登录用户的账户同步状态、开启同步、从新设备加入、批准设备以及移除设备。"
+description: "`sync` Remote：已登录用户的账户同步状态、本设备的开关、保护或解锁账户的通行密钥步骤，以及账户的设备。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-基于 `ctx.sync` 的 Typert Remote，只为当前请求的调用方执行操作。`acceptJoins` 在 `acceptJoinsMs` 内回应加入请求，除非“添加设备”界面先关闭。见[账户同步分组](../../sync/README.zh.md)。
+基于 `ctx.sync` 的 Typert Remote，只为当前请求的调用方执行操作。`startPasskey` 返回 `siteUrl` 上的 `/passkey/vault` 页面，并在后台最多 `passkeyMs` 内每隔 `passkeyPollMs` 取回密封结果；该步骤在成功前显示在 `status` 中，结束时发出 `sync/status`。`unprotect` 把密钥交还给中转服务器，`acceptServerKey` 确认中转服务器收回的密钥。见[账户同步分组](../../sync/README.zh.md)。
 
 状态包含通过 `sync/progress` 收集的对话发布进度，以及等待处理和排队的中转帧数。
 
