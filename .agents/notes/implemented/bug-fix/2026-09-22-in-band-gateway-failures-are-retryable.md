@@ -14,7 +14,7 @@ The observed failure is exactly that shape — `the provider failed after the re
 
 ## Decision
 
-The `aeven-cloud` route resolves its own retry policy when the composition configures none: the canonical five plus the six codes the gateway's contract marks worth resending — `PROVIDER_UNAVAILABLE`, `PROVIDER_TIMEOUT`, `PROVIDER_ERROR`, `RATE_LIMITED`, `CONCURRENCY_LIMITED`, `INTERNAL`. `maxRetries` and `backoff` are deliberately left unstated in that value so `resolveRetryPolicy` fills them from the shared budget, which stays the one place that budget is decided for every route.
+The `aeven-cloud` route resolves its own retry policy when the composition configures none: the canonical five plus the six codes the gateway's contract marks worth resending — `PROVIDER_UNAVAILABLE`, `PROVIDER_TIMEOUT`, `PROVIDER_ERROR`, `RATE_LIMITED`, `CONCURRENCY_LIMITED`, `INTERNAL`. Its maximum backoff is 60 seconds so the gateway's `Retry-After: 60` fits the policy; retry count, initial delay, and jitter use the shared defaults.
 
 The route owns this because the vocabulary is a fact about its upstream, not about the transport: the same `DeepSeekAdapter` serves `deepseek-official`, whose failures never carry Aeven's contract codes. Route-owned policy stays authoritative — a `retryPolicy` in the plugin row or a user-settings section replaces the whole value, and the resolved per-provider policy continues to be captured at registration as [per-provider request retry policies](../feature/2026-07-24-provider-retry-policies.md) requires.
 
@@ -30,7 +30,7 @@ The route owns this because the vocabulary is a fact about its upstream, not abo
 
 ## Consequences
 
-- A transient upstream outage on this route consumes a bounded retry — five attempts on the shared backoff — instead of ending the turn. Partial output from the discarded attempt still does not enter the next request; that guarantee is the retry machinery's, unchanged here.
+- A transient upstream outage on this route consumes a bounded retry — five retries with a maximum delay of 60 seconds — instead of ending the turn. Partial output from the discarded attempt still does not enter the next request; that guarantee is the retry machinery's, unchanged here.
 - Retryability on this route is no longer identical to the shared default, so the two DeepSeek-transport routes differ by code set. The route states why: it is the only one of the two that has a gateway in front of it.
 - The six codes track another repository's contract. A code the gateway renames would silently stop matching, and a new transient code it starts sending would need adding here; the gateway's own `RETRYABLE_CODES` is the source of truth for the list, not this file.
-- `packages/llm/llm-aeven/tests/connection.spec.ts` pins the omitted resolution: the shared budget (`maxRetries: 5`, 500 ms → 10 s, 0.1 jitter) and the exact eleven-code set, so a narrowed or reordered list fails a test rather than a user's turn.
+- `packages/llm/llm-aeven/tests/connection.spec.ts` pins the omitted resolution: the shared budget (`maxRetries: 5`, 500 ms → 60 s, 0.1 jitter) and the exact eleven-code set, so a narrowed or reordered list fails a test rather than a user's turn.

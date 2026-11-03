@@ -117,12 +117,12 @@ const GATEWAY_TRANSIENT_CODES = [
 /**
  * The retry policy this route resolves when the composition configures none.
  *
- * Only the code set departs from the shared default. `maxRetries` and `backoff`
- * are deliberately left unstated so the resolver fills them from the shared
- * budget, which stays the one place that budget is decided for every route.
+ * The route accepts the gateway's 60-second Retry-After. The retry count,
+ * initial delay, and jitter use the shared defaults.
  */
 const AEVEN_ROUTE_RETRY_POLICY: RetryPolicyConfig = {
   mode: 'normal',
+  backoff: { maxDelayMs: 60_000 },
   retryableCodes: [
     EMPTY_RESPONSE_CODE,
     'RATE_LIMIT',

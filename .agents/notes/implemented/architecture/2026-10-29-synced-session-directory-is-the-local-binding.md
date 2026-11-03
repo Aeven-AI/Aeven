@@ -24,7 +24,9 @@ Workspace identity is the portable fact; the directory is device-local. `@aeven/
 |---|---|
 | Records no directory (a workspace-less chat) | `absent` |
 | Workspace not on this device yet | `unresolved('workspace-not-here')` |
-| Workspace here without a directory | `unresolved('workspace-unbound')` |
+| Virtual workspace, log written here | the recorded pair |
+| Virtual workspace, directory entered by this process | the entered pair |
+| Workspace here without a directory or a locally established virtual-workspace directory | `unresolved('workspace-unbound')` |
 | Workspace bound here, log written by another device | the binding, as both directory and root |
 | Workspace bound here, log written here | the recorded pair |
 | No workspace accounts it here | the recorded pair |

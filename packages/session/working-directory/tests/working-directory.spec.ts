@@ -1,14 +1,23 @@
 /** Working-directory service: header seed, logged override, and path resolution. */
 
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import SessionStore from '@aeven/session'
 import type { Session } from '@aeven/session'
 import SessionProjectionRegistry from '@aeven/session-projection'
-import WorkingDirectoryService from '@aeven/working-directory'
+import WorkingDirectoryService, { sessionDirectory, sessionWorkspaceRoot } from '@aeven/working-directory'
+import type { Workspace } from '@aeven/workspace'
+
+const contexts: Context[] = []
+const directories: string[] = []
+
+afterEach(async () => {
+  await Promise.all(contexts.splice(0).map(ctx => ctx.fiber.dispose()))
+  await Promise.all(directories.splice(0).map(path => rm(path, { recursive: true, force: true })))
+})
 
 interface Bench {
   ctx: Context
@@ -22,6 +31,7 @@ interface Bench {
  */
 async function harness(cwd?: string): Promise<Bench> {
   const ctx = new Context()
+  contexts.push(ctx)
   await ctx.plugin(SessionStore)
   await ctx.plugin(SessionProjectionRegistry)
   await ctx.plugin(WorkingDirectoryService)
@@ -36,6 +46,7 @@ async function harness(cwd?: string): Promise<Bench> {
  */
 async function benchDirectory(names: readonly string[]): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), 'avn-wd-'))
+  directories.push(root)
   for (const name of names) await mkdir(join(root, name), { recursive: true })
   return root
 }
@@ -116,5 +127,42 @@ describe('working directory', () => {
     const bench = await harness()
     await bench.ctx.workingDirectory.change(bench.session, join(root, 'a'))
     expect(bench.ctx.workingDirectory.of(bench.session)).toBe(join(root, 'a'))
+  })
+
+  it.each([false, true])('keeps a directory entered here in a virtual workspace (replicated: %s)', async (replicated) => {
+    const root = await benchDirectory(['site'])
+    const bench = await harness()
+    // Only placement and provenance are read from the registry by this service.
+    bench.ctx.provide('workspaceRegistry', {
+      placeSession: () => ({ state: 'filed', workspace: { kind: 'virtual' } as Workspace }),
+      replicated: () => replicated,
+    } as never)
+    const target = join(root, 'site')
+    await bench.ctx.workingDirectory.change(bench.session, target)
+    expect(sessionDirectory(bench.ctx, bench.session)).toBe(target)
+    expect(sessionWorkspaceRoot(bench.ctx, bench.session)).toBe(target)
+    expect(bench.ctx.workingDirectory.resolve(bench.session, 'index.html')).toBe(join(target, 'index.html'))
+  })
+
+  it.each(['virtual', 'remote', 'folder'] as const)('refuses an imported directory without a local %s workspace binding', async (kind) => {
+    const root = await benchDirectory([])
+    const bench = await harness(root)
+    bench.ctx.provide('workspaceRegistry', {
+      placeSession: () => ({ state: 'filed', workspace: { kind } as Workspace }),
+      replicated: () => true,
+    } as never)
+    expect(() => sessionDirectory(bench.ctx, bench.session)).toThrow('has no folder on this device yet')
+    expect(() => sessionWorkspaceRoot(bench.ctx, bench.session)).toThrow('has no folder on this device yet')
+  })
+
+  it('restores a local chat directory from its log after the service restarts', async () => {
+    const root = await benchDirectory([])
+    const bench = await harness()
+    bench.ctx.provide('workspaceRegistry', {
+      placeSession: () => ({ state: 'filed', workspace: { kind: 'virtual' } as Workspace }),
+      replicated: () => false,
+    } as never)
+    bench.session.append('session/cwd', { cwd: root })
+    expect(sessionDirectory(bench.ctx, bench.session)).toBe(root)
   })
 })
