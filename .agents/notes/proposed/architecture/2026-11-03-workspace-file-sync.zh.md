@@ -28,7 +28,7 @@ Status: proposed
 
 - **打开之前就已就绪。** 最近 `prefetch.recentDays` 天（默认 30）内在任何设备上用过的工作区在磁盘预算内于后台到达；其他工作区在首次打开时到达。
 - **另一台电脑休眠时仍然可用。** Aeven 服务器上保存每个文件夹工作区的加密副本，服务器无法读取，在没有其他设备在线时提供文件（[云端副本](#cloud-copy)）。
-- **新电脑上无需设置任何东西。** 系统缺少 Git 时使用打包的 Git，被 Git 忽略的环境文件加密传递，依赖在后台安装（[全新电脑](#a-fresh-computer)）。
+- **新电脑上无需设置任何东西。** 电脑缺少 Git 时通过平台自己的安装器安装，被 Git 忽略的环境文件加密传递，依赖在后台安装（[全新电脑](#a-fresh-computer)）。
 - **工作从不等待整个文件夹。** 用户或代理打开的文件优先获取；只有读取整个目录树的命令才会等待（[按需文件](#on-demand-files)）。
 
 ### 用户体验原则
@@ -61,7 +61,7 @@ Status: proposed
 
 1. 用户点击工作区。如果预取已经完成，它已就绪。
 2. 如果在常见位置已存在同一远程的检出（[检出发现](#checkout-discovery)），设备绑定它并显示提示："正在使用 ~/code/aeven"。不发生下载。
-3. 否则设备把远程连同子模块和 Git LFS 对象克隆到选定的文件夹："正在获取 aeven · 60%"。它使用这台电脑自己的 Git 凭据（SSH agent、凭据助手、Git Credential Manager），系统没有 Git 时使用打包的 Git。
+3. 否则设备把远程连同子模块和 Git LFS 对象克隆到选定的文件夹："正在获取 aeven · 60%"。它使用这台电脑自己的 Git 凭据（SSH agent、凭据助手、Git Credential Manager），电脑没有 Git 时先安装 Git。
 4. 如果克隆因认证或网络原因失败，设备改为从另一台设备或云端副本复制仓库（[对等克隆](#peer-clone)），并将 `origin` 设为远程 URL。通知显示"已从你的 MacBook Pro 复制。要从这台电脑推送，请登录 github.com。"不出现对话框。
 5. 设备恢复工作区的环境文件并应用最新的工作状态检查点，使用户在设备 A 上未提交的更改出现在本地。
 6. 如果仓库有可识别的锁文件且对应工具链已安装，设备在后台安装依赖："正在准备 aeven…"。期间工作区照常可用。
@@ -138,7 +138,7 @@ Status: proposed
 
 新电脑往往没有 Git、没有机密，也没有已安装的依赖。每一项都无需用户处理：
 
-- **Git。** 系统 Git 存在且版本足够新时，设备使用它；否则使用桌面应用通过 [dugite](https://github.com/desktop/dugite) 附带的 Git，dugite 为 macOS、Windows 和 Linux 打包了 Git 和 Git LFS。因此全新的 Mac 在克隆时永远不会弹出 Xcode 命令行工具提示。代理自己使用 Git 时解析到同一个可执行文件。
+- **Git。** 设备使用在 `PATH` 和各平台标准安装位置找到的 Git；应用不附带 Git。当仓库工作区在没有 Git 的电脑上需要 Git 时，设备运行一次平台的安装器，该行显示"正在安装 Git"：存在 Homebrew 时运行 `brew install git`；否则在 macOS 上运行 `xcode-select --install`，它会打开 Apple 的一键式命令行工具对话框；在 Windows 上运行 `winget install --id Git.Git --exact --silent`，可能会显示 Windows 管理员提示；在 Linux 上安装需要 root 权限，该行显示发行版的安装命令供复制。由于正在运行的进程看不到 `PATH` 的变化，设备通过探测标准位置来检测安装完成，然后继续克隆。缺少 Git LFS 时跳过 LFS 对象，并在该行列出它们。代理自己使用 Git 时解析到同一个可执行文件。
 - **环境文件。** 被 Git 忽略但项目运行所需的文件——名称匹配 `envFiles.patterns`（默认 `.env`、`.env.*`、`.dev.vars`、`.envrc`，排除 `*.example`、`*.sample`、`*.template`）且每个小于 `envFiles.maxBytes`（默认 64 KB）——随工作区描述加密传递。设备只在不存在同名文件的位置恢复它，从不覆盖本地值；一台设备上的更改以同样方式更新其他设备。其他被忽略的文件从不传递。
 - **依赖。** 克隆后，设备检测锁文件（`pnpm-lock.yaml`、`package-lock.json`、`yarn.lock`、`bun.lock`、`uv.lock`、`poetry.lock`、`Pipfile.lock`、`Cargo.lock`、`go.sum`、`Gemfile.lock`），当对应工具链在 `PATH` 上时，通过 shell 能力在工作区的沙箱中以低优先级运行该锁文件的冻结安装命令。缺少工具链时静默跳过；任务需要时由代理安装。工作区中有打开的会话时，该步骤记录为会话事件，使模型知道依赖正在安装，不会再启动第二次安装。
 
@@ -223,7 +223,7 @@ Aeven 服务器使用 Syncthing 的不受信任设备模式，为每个文件夹
 | `packages/sync/file-sync`（`@aeven/file-sync`） | Service Definition `ctx.fileSync`：本设备的传输对等 id、与对等设备和云端副本共享和取消共享文件夹、文件夹状态及其变更事件、全局文件索引、文件优先级、定向扫描、冲突及其解决，以及用于交接的 `awaitCurrent(owner, folder, deadline)` |
 | `packages/sync/file-sync-syncthing`（`@aeven/file-sync-syncthing`） | Service Provider：通过 subprocess 能力监管打包的 Syncthing 进程，通过其回环 REST API 配置它，跟随 `/rest/events`，将文件夹映射到工作区，写入忽略、版本保留、监视器和优先级设置，并执行电源与网络策略 |
 | `packages/workspace/workspace` | Consumer：在现有 `workspaces` 文档中发布每个工作区的文件描述、位置提示、请求方和持有方；运行放置、预取和状态投影；注册读取前钩子以及 shell 和搜索的等待闸门 |
-| `packages/workspace/workspace-git-sync`（`@aeven/workspace-git-sync`） | Consumer：Git 解析（系统或打包）、仓库检测、远程规范化、检出发现、含子模块和 LFS 的克隆、对等克隆、环境文件、依赖准备、工作状态检查点，以及注册在会话交接认领上的应用步骤 |
+| `packages/workspace/workspace-git-sync`（`@aeven/workspace-git-sync`） | Consumer：Git 解析与安装、仓库检测、远程规范化、检出发现、含子模块和 LFS 的克隆、对等克隆、环境文件、依赖准备、工作状态检查点，以及注册在会话交接认领上的应用步骤 |
 | `packages/api/file-sync-controller` | Remote：为 Client 提供状态、取得、移除、冲突和设置 |
 | `packages/client/ui-workspace`、`ui-sidebar-files`、`ui-settings-sync` | 行状态与进度、`fetching` 期间的完整目录树、设置 → 同步 → 文件、两个版本的对比视图 |
 
@@ -259,10 +259,10 @@ interface SyncedWorkspaceFiles {
 
 #### 进程与打包
 
-- 桌面构建为每个平台和架构下载固定版本的 Syncthing 和 dugite 发布包，校验其校验和，并作为嵌套可执行文件发布，与 [`prepare-runtime.ts`](../../../../apps/desktop/scripts/prepare-runtime.ts) 处理 Cua Driver 的路径相同，因此它们随应用一起签名和公证。
+- 桌面构建为每个平台和架构下载固定版本的 Syncthing 发布包（压缩后约 14 MB，解压后 36 MB），校验其校验和，并作为嵌套可执行文件发布，与 [`prepare-runtime.ts`](../../../../apps/desktop/scripts/prepare-runtime.ts) 处理 Cua Driver 的路径相同，因此它随应用一起签名和公证。
 - 提供者在每个 Host 上运行一个 Syncthing 进程，其主目录位于 `$AVN_HOME/file-sync/syncthing/`；崩溃后按退避策略重启，并随 Host 停止。文件夹标记其所属账户；文件夹只与该账户的对等设备和云端实例共享。
 - 桌面配置补丁挂载这些插件；基础和 Web bundle 以禁用状态挂载它们。浏览器无法运行 Syncthing，因此 Web 端对文件的访问经由用户的某台设备，与[托管 Web 界面 Agent Note](2026-09-30-hosted-web-surface-and-sync.zh.md) 一致。
-- Syncthing 采用 MPL-2.0，Git 采用 GPL-2.0。发布它们未修改的二进制文件需要附带许可声明和对应源代码的链接；本地补丁将会公开。
+- Syncthing 采用 MPL-2.0。发布其未修改的二进制文件需要附带许可声明和对应源代码的链接；本地补丁将会公开。
 
 <a id="configuration"></a>
 #### 配置
@@ -285,7 +285,7 @@ interface SyncedWorkspaceFiles {
 | `handoffWaitMs` | 120000 | 认领或整树命令等待文件的最长时间 |
 | `envFiles.patterns`、`envFiles.maxBytes` | 见[全新电脑](#a-fresh-computer) | 会传递的被忽略文件 |
 | `prepareDependencies` | `true` | 克隆后安装依赖 |
-| `git` | `auto` | `auto`（系统版本足够新时用系统 Git，否则用打包的）、`system` 或 `bundled` |
+| `gitInstall` | `true` | 当仓库工作区需要 Git 而找不到时，运行平台的 Git 安装器 |
 | `discoveryRoots`、`discoveryDepth` | 见[检出发现](#checkout-discovery) | 查找已有检出的位置 |
 | `defaultIgnores` | 内置集合 | 文件夹模式的忽略模式 |
 | `discoveryServers`、`relayServers` | aeven.io | Syncthing 发现与中继端点 |
@@ -301,7 +301,7 @@ interface SyncedWorkspaceFiles {
 
 | 阶段 | 范围 | 工程师周 |
 |---|---|---|
-| 0. 探索 | 在 macOS、Windows 和 Linux 上打包、签名和公证 Syncthing 与 dugite；监管 Syncthing；在 100,000 个文件的文件夹和 5 GB 文件夹上测量性能预算；测量不受信任设备模式下每个云端实例可承载的账户数 | 1.5 |
+| 0. 探索 | 在 macOS、Windows 和 Linux 上打包、签名和公证 Syncthing；在每个平台上运行 Git 安装流程；监管 Syncthing；在 100,000 个文件的文件夹和 5 GB 文件夹上测量性能预算；测量不受信任设备模式下每个云端实例可承载的账户数 | 1.5 |
 | 1. 接缝与文件夹模式 | `ctx.fileSync`、Syncthing 提供者、通过 `devices` 文档配对、提前索引、邀请、放置、磁盘预算、版本保留、状态投影、侧边栏进度 | 2.5 |
 | 2. 仓库模式 | Git 解析、检测、远程规范化、检出发现、含子模块和 LFS 的克隆、对等克隆、环境文件 | 2 |
 | 3. 继续工作与按需文件 | 认领时生成新检查点的工作状态检查点、对写入文件的定向扫描、读取前优先级、shell 和搜索的等待闸门、带 stash 保护的应用 | 2 |
@@ -313,10 +313,48 @@ interface SyncedWorkspaceFiles {
 
 第 1–3 阶段交付在线设备之间无需设置的文件同步；第 4 阶段消除"正在等待你的 MacBook Pro"；第 5 阶段消除剩余的首次打开等待。
 
+<a id="phase-0-results"></a>
+### 第 0 阶段结果
+
+首次探索在一台 macOS arm64 电脑（12 核，32 GB）上把 Syncthing v2.1.7（已校验校验和）作为多个独立的本地实例运行，因此所有网络数据都来自回环接口；Windows、Linux、互联网延迟以及签名和公证留待第 0 阶段的其余部分完成。
+
+| 测量项 | 结果 | 预算 |
+|---|---|---|
+| 二进制文件 | 解压后 36 MB，在 macOS、Windows 和 Linux 上压缩后 13–14 MB；已带 hardened runtime 签名 | — |
+| 启动到 REST API 可用 | 空实例 60–110 ms，已索引 100,000 个文件时 56 ms | — |
+| 在线对等设备上 1 KB–9 MB 的变更，定向扫描 | 中位数 270–290 ms，第 95 百分位 305 ms；其中 1 s 只有在 `pullerDelayS: 0` 时才会消失 | 3 s 以内 |
+| 同样的变更，仅依靠监视器（`watcherDelayS` 1） | 0.9–1.3 s | — |
+| 9 MB 文件内部的 4 KB 编辑 | 传输 131 KB | — |
+| 100,000 个文件的文件夹内的 4 KB 编辑 | 中位数 297 ms，第 95 百分位 549 ms | 3 s 以内 |
+| 100,000 个文件（977 MB）的初始索引 | 34 s | — |
+| 完整重新扫描未变化的 100,000 个文件 | 6.6 s，7.1 CPU 秒 | — |
+| 接收 100,000 个文件，默认设置 | 875 s（114 个文件/s） | — |
+| 接收 10,000 个文件：默认 / 关闭 fsync / 关闭 fsync、16 路写入、4 个复制器、4 个哈希器 | 160 / 253 / 404 个文件/s | — |
+| 接收 20 个大文件共 5 GB | 9.9 s（517 MB/s） | — |
+| 5 GB 传输期间优先获取 2 KB 文件 | 4.0 s | 2 s 以内 |
+| 5 GB 传输期间优先获取 256 MB 文件 | 0.6 s | — |
+| 100,000 个文件时的空闲状态 | 0–0.03% CPU，工作进程常驻内存 98–144 MB，数据库 90–104 MB | 1% 以内，200 MB 以内 |
+| 云端副本：不受信任实例上的明文内容或文件名 | 未发现 | — |
+| 云端副本：传输中途 SIGKILL 后重启 | 自行收敛，无需干预 | — |
+| 云端副本：源设备离线时新设备恢复 2,003 个文件、308 MB | 11.8 s，所有文件一致 | — |
+| 云端副本：新设备上的编辑仅通过云端副本到达源设备 | 源设备重启后 1.1 s | — |
+| 云端副本：目录重命名（100 个文件）/ 100 MB 文件重命名 | 重新上传 163 KB / 100 MB | — |
+| 云端实例密度：18 个账户、54 个文件夹、16,200 个文件 | 常驻 232 MB（每个账户约 7 MB），空闲 CPU 2.9%，每秒 18 次编辑时占一个核心的 40% | — |
+
+对计划的修改：
+
+- **`pullerDelayS: 0`** 应用于每个工作区文件夹；仅 Syncthing 默认的 1 s 就超过同网络预算的三分之一。
+- **批量首次获取。** 首次下载受限于大量小文件而非字节数：即使调优后，100,000 个文件的文件夹也需要约 4 分钟。处于 `fetching` 的文件夹关闭 fsync，使用 16 路并发写入以及 4 个复制器和哈希器，并在 `current` 时恢复默认设置；此时其他设备仍持有断电可能中断的每个文件。仓库工作区通过 Git 克隆，因此不受此限制。
+- **获取期间的优先级。** 2 KB 请求被正在传输的大块阻塞，未达到 2 s 预算。第 1 阶段在有优先请求待处理时降低 `pullerMaxPendingKiB` 并重新测量。
+- **向云端副本的重命名会重新上传。** 加密名称决定每个文件的加密方式，因此移动的大文件会再次发送到云端副本；对等设备之间的重命名仍然无需传输。云端副本的配额会计入这部分。
+- **Git 不随安装器附带。** 通过 dugite 打包 Git 的实测大小为每个平台解压后 150 MB，去掉 Git Credential Manager 后 40 MB；设备改为运行平台的 Git 安装器（[全新电脑](#a-fresh-computer)）。
+- **密度结果倾向对象存储。** 每个账户约 7 MB 和 0.05% 的空闲 CPU，每秒每次编辑占一个核心的 2.2%，使一个实例只能承载数百而非数千个账户；第 4 阶段从[未决问题 1](#open-questions) 中的中继对象存储方案开始。
+
+<a id="open-questions"></a>
 ### 未决问题
 
-1. **云端实例密度。** 一个不受信任设备模式的 Syncthing 实例在其内存和连接限制内能为多少账户的文件夹提供服务，决定了实例池的规模和成本。第 0 阶段测量它；如果密度过低，云端副本改为通过账户中继的对象存储保存同样的加密块，仍在同一个 `ctx.fileSync` 提供者之后。
-2. **不受信任设备模式的成熟度。** Syncthing 的文档将不受信任设备模式标为比协议其余部分更新的功能。在云端副本成为默认之前，第 0 阶段会用崩溃、重命名和大型文件夹场景对其进行测试。
+1. **云端实例密度。** 一个不受信任设备模式的 Syncthing 实例在其内存和连接限制内能为多少账户的文件夹提供服务，决定了实例池的规模和成本。首次探索测得每个实例可承载数百个账户（[结果](#phase-0-results)）；由于密度较低，云端副本改为通过账户中继的对象存储保存同样的加密块，仍在同一个 `ctx.fileSync` 提供者之后。
+2. **不受信任设备模式的成熟度。** Syncthing 的文档将不受信任设备模式标为比协议其余部分更新的功能。首次探索发现崩溃恢复、源设备离线时的恢复以及通过云端副本中转的编辑均正确，而重命名会重新上传（[结果](#phase-0-results)）；在云端副本成为默认之前，还需在 Windows 和 Linux 上完成大型文件夹测试。
 
 ## 考虑过的替代方案
 
@@ -340,7 +378,7 @@ interface SyncedWorkspaceFiles {
 
 **让用户自己处理 `.env` 文件。** 机密不经过网络。被否决，因为新电脑上的第一个回合在大多数 Web 和后端仓库中会因此失败，这与开箱即用正好相反；这些文件很小，端到端加密，且从不覆盖本地值。
 
-**要求系统 Git。** 应用更小。被否决，因为全新的 Mac 没有 Git，运行它会弹出命令行工具安装器；dugite 增加数十 MB，却消除了这个提示。
+**通过 dugite 打包 Git。** 在没有 Git 的电脑上省去安装步骤。被否决：每个平台解压后 150 MB，去掉 Git Credential Manager 后仍有 40 MB，另需签名和公证 37 个可执行文件，并承担 GPL-2.0 源代码义务，而缺少 Git 的电脑只占少数，平台安装器即可覆盖。
 
 **浅克隆或部分克隆。** 首次克隆更快。被否决，因为代理会读取历史和 blame，而部分克隆会在代理需要时通过网络获取缺失的对象，这更慢且离线时会失败。
 
@@ -379,7 +417,7 @@ interface SyncedWorkspaceFiles {
 - **机密经过网络。** 环境文件现在会传递。它们端到端加密，在通行密钥模式下只有账户的设备能读取；在中继持有密钥模式下中继能够读取，正如它能读取经常引用这些机密的对话一样。
 - **克隆后运行仓库代码。** 依赖准备在没有明确点击的情况下运行用户自己仓库中的安装脚本。它在工作区的沙箱中运行，且只针对账户已经在使用的仓库；`prepareDependencies` 可以关闭它。
 - **云端成本。** 云端副本增加每个账户的存储和一个实例池。配额按账户限制它；在其成为默认之前，第 0 阶段测量密度。
-- **打包的原生可执行文件。** 签名、公证、Windows 上杀毒软件的误报、Git 的 GPL 源代码义务，以及保持固定版本及时打补丁都是持续成本，与 Cua Driver 的路径共享。
+- **打包的原生可执行文件。** 签名、公证、Windows 上杀毒软件的误报，以及保持固定版本及时打补丁都是持续成本，与 Cua Driver 的路径共享。
 - **资源使用。** 提前索引会在可能永远不被请求的文件夹上花费 CPU 和磁盘。它在接通电源时以低优先级运行，预算限制稳定状态。
 - **在用户自己的编辑之上应用工作。** 应用检查点会改动用户可能正在编辑器中打开的文件。stash、通知以及从不 reset 使更改可撤销；用户仍会看到文件在编辑器下发生变化。
 - **放置出乎意料。** 镜像路径可能落在第二台机器上用户未预期的位置。位置会在事后显示，**使用其他文件夹…** 可以移动绑定。
