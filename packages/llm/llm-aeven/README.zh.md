@@ -63,7 +63,7 @@ kind: "package-reference"
 | `maxImagesPerRequest` | 30 | 图片数量上限；网关转发 DeepSeek 模型所经的 DeepInfra 拒绝更多图片 |
 | `imageOffloadCountQuantum` | 10 | 每次超出数量上限时移除的最旧图片数 |
 | Files API 设置 | 适配器默认值 | 本路由没有 Files API |
-| `retryPolicy` | 常规，5 次重试 | 提供方自有的重试策略，在注册时解析一次 |
+| `retryPolicy` | 常规，5 次重试，最大延迟 60 秒 | 提供方自有的重试策略；接受网关的 60 秒 `Retry-After`，在注册时解析一次 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#aevenllm-aeven)是每个可接受字段及其 JSDoc 的完整来源。
 

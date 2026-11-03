@@ -149,12 +149,11 @@ describe('connection resolution', () => {
     expect(calls).toHaveLength(1)
 
     const policy = ctx.llm.providerRetryPolicy(PROVIDER)
-    // The route resolves the shared normal budget when the composition
-    // configures no policy of its own.
+    // The gateway's Retry-After is 60 seconds on a temporary HTTP failure.
     if (policy.mode !== 'normal') throw new Error(`expected a normal retry policy, got ${policy.mode}`)
     expect(policy.maxRetries).toBe(5)
     expect(policy.initialDelayMs).toBe(500)
-    expect(policy.maxDelayMs).toBe(10_000)
+    expect(policy.maxDelayMs).toBe(60_000)
     expect(policy.jitterRatio).toBe(0.1)
     // A failure the gateway could not send as a status arrives as an in-band
     // error frame carrying the gateway's own code, which the adapter passes

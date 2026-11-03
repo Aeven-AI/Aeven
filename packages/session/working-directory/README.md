@@ -38,6 +38,8 @@ service.local(session) = local binding for the session's workspace, when this de
 
 Resolution reads two facts: the recorded pair, and where `ctx.workspaceRegistry.placeSession(sessionId)` says the session sits on this device. A session this device wrote keeps its recorded directory, which is where its work is — a subdirectory, a checkout, a worktree. A session replicated from another device acts in this device's binding for its workspace, because the recorded path belongs to the machine that wrote it. A session whose workspace reached this device without a directory, or has not arrived yet, resolves to no directory and says why; the recorded path is never used in place of a missing binding. A session that records no directory at all (a workspace-less chat) has none here either, and `of()` returns `undefined` rather than inventing one.
 
+Virtual workspaces such as Chats have no folder binding. A chat written on this device uses its recorded directory; an imported chat uses a directory explicitly entered by this process, and refuses its foreign recorded path otherwise.
+
 The `workingDirectory` projection unit folds the same events for clients. While a local directory is in force, the service adds one runtime-context line before each request: `Current working directory: "<path>". Relative paths in file, search, and shell calls resolve against it.` — or a line saying that directory no longer exists. When this device cannot honour the session's workspace, the line says so and asks the model to settle on a folder instead of guessing.
 
 ## Operations

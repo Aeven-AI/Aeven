@@ -39,6 +39,8 @@ service.local(session) = local binding for the session's workspace, when this de
 
 解析读取两个事实：记录下来的目录与其根，以及 `ctx.workspaceRegistry.placeSession(sessionId)` 说出的会话在本机所处的位置。由本设备写入的会话保留其记录的目录，因为那正是它的工作所在：子目录、检出或 worktree。从另一台设备复制过来的会话，在本机为其工作区所做的绑定中行动，因为记录的路径属于写入它的机器。工作区到达本设备但没有目录、或尚未到达的会话，解析不出目录，并会说明原因；记录路径绝不会顶替缺失的绑定。完全没有记录目录的会话（没有工作区的对话）在这里也没有目录，`of()` 返回 `undefined` 而不是凭空造一个。
 
+Chats 等虚拟工作区没有文件夹绑定。由本设备写入的聊天使用其记录的目录；导入的聊天使用本进程明确进入的目录，否则拒绝使用来自其他设备的记录路径。
+
 `workingDirectory` 投影单元为客户端折叠同一批事件。当本机目录生效时，服务在每次请求前添加一行运行时上下文：`Current working directory: "<path>". Relative paths in file, search, and shell calls resolve against it.`；该目录已不存在时则改为说明这一点的一行。本机无法承担该会话的工作区时，该行会说明这一点，并请模型自己选定一个文件夹，而不是猜测。
 
 <a id="operations"></a>

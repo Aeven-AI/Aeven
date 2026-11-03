@@ -89,6 +89,9 @@ export function localDirectory(input: LocalDirectoryInput): LocalDirectory {
       return { state: 'unresolved', reason: 'workspace-not-here' }
     case 'filed': {
       const workspace = placement.workspace
+      if (workspace.kind === 'virtual' && (entered !== undefined || !replicated)) {
+        return localAt(entered ?? recorded)
+      }
       if (workspace.kind !== 'folder' || workspace.path === undefined) {
         return { state: 'unresolved', reason: 'workspace-unbound' }
       }

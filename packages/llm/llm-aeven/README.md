@@ -63,7 +63,7 @@ Only `apiUrl` and `apiKeyEnv` describe where requests go and what authenticates 
 | `maxImagesPerRequest` | 30 | Image cap; DeepInfra, which the gateway routes DeepSeek models through, refuses more |
 | `imageOffloadCountQuantum` | 10 | Oldest images removed per count-overflow step |
 | Files API settings | adapter defaults | No Files API on this route |
-| `retryPolicy` | normal, 5 retries | Provider-owned retry policy, resolved once at registration |
+| `retryPolicy` | normal, 5 retries, 60 s maximum delay | Provider-owned retry policy; accepts the gateway's 60-second `Retry-After`, resolved once at registration |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#aevenllm-aeven) is the exhaustive source for every accepted field and its JSDoc.
 

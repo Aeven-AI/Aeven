@@ -14,7 +14,7 @@ Status: implemented
 
 ## 决策
 
-当组合未配置重试策略时，`aeven-cloud` 路由解析自己的策略：规范五码，加上网关契约认为值得重发的六个码——`PROVIDER_UNAVAILABLE`、`PROVIDER_TIMEOUT`、`PROVIDER_ERROR`、`RATE_LIMITED`、`CONCURRENCY_LIMITED`、`INTERNAL`。该取值刻意不写 `maxRetries` 与 `backoff`，让 `resolveRetryPolicy` 从共享预算中填充，共享预算因而仍是唯一为所有路由决定预算的地方。
+当组合未配置重试策略时，`aeven-cloud` 路由解析自己的策略：规范五码，加上网关契约认为值得重发的六个码——`PROVIDER_UNAVAILABLE`、`PROVIDER_TIMEOUT`、`PROVIDER_ERROR`、`RATE_LIMITED`、`CONCURRENCY_LIMITED`、`INTERNAL`。最大退避延迟为 60 秒，使网关的 `Retry-After: 60` 落在策略范围内；重试次数、初始延迟和抖动使用共享默认值。
 
 该词汇属于路由上游的事实，而非传输层的事实，所以由路由拥有它：同一个 `DeepSeekAdapter` 也服务于 `deepseek-official`，而后者的失败从不携带 Aeven 的契约码。路由自有的策略仍然具有权威性——插件行或用户设置中的 `retryPolicy` 会整体替换该取值，且解析后的按路由策略依旧在注册时捕获，这符合[按提供方设定的请求重试策略](../feature/2026-07-24-provider-retry-policies.zh.md)的要求。
 
@@ -30,7 +30,7 @@ Status: implemented
 
 ## 后果
 
-- 该路由上的瞬态上游中断会消耗一次有界重试——按共享退避共五次尝试——而不是结束回合。被丢弃尝试的部分输出依旧不会进入下一次请求；该保证属于重试机制，本次未改动。
+- 该路由上的瞬态上游中断会消耗一次有界重试——最多五次重试，最大延迟为 60 秒——而不是结束回合。被丢弃尝试的部分输出依旧不会进入下一次请求；该保证属于重试机制，本次未改动。
 - 该路由的可重试性不再与共享默认完全一致，因此共用同一 DeepSeek 传输的两条路由在码集上出现差异。路由已说明原因：两者之中只有它在前面还有一道网关。
 - 这六个码跟踪的是另一个仓库的契约。网关若重命名某个码，匹配会静默失效；网关若开始发送新的瞬态码，则需要在此处补上；该列表的事实来源是网关自身的 `RETRYABLE_CODES`，而非本文。
-- `packages/llm/llm-aeven/tests/connection.spec.ts` 固定了省略时的解析结果：共享预算（`maxRetries: 5`、500 ms → 10 s、0.1 抖动）以及恰好十一个码的集合，因此被收窄或重排的列表会让测试失败，而不是让用户的回合失败。
+- `packages/llm/llm-aeven/tests/connection.spec.ts` 固定了省略时的解析结果：共享预算（`maxRetries: 5`、500 ms → 60 s、0.1 抖动）以及恰好十一个码的集合，因此被收窄或重排的列表会让测试失败，而不是让用户的回合失败。
