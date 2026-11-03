@@ -18,6 +18,52 @@ Sync status reports `catchingUp` while relay history or received frames are bein
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxfilesync--filesync-abstract-seam"></a>
+
+### `ctx.fileSync` — `FileSync` (abstract seam)
+
+File sync capability.
+
+```ts cordis-catalog
+/**
+ * This device's identity on the file transport, which the account's other devices pass to {@link setPeers}.
+ * @returns the peer id, once the transport has started.
+ */
+abstract peerId(): Promise<FileSyncPeerId>
+
+/**
+ * Replace the devices an account's folders are shared with. A peer absent from the list stops receiving and
+ * sending changes for every folder of the account; this device itself is ignored when listed.
+ * @param owner - the account.
+ * @param peers - the account's other devices' peer ids.
+ * @returns when the transport applies the list.
+ */
+abstract setPeers(owner: string, peers: readonly FileSyncPeerId[]): Promise<void>
+
+/**
+ * Keep a folder in sync with the account's peers. Sharing an id again with another path moves it to that path.
+ * @param folder - the folder, its account, and its directory here.
+ * @returns when the transport has started on the folder.
+ */
+abstract share(folder: FileSyncFolder): Promise<void>
+
+/**
+ * Stop syncing a folder on this device; its files stay on disk.
+ * @param id - a folder {@link share} started.
+ * @returns when the transport no longer serves the folder.
+ */
+abstract unshare(id: FileSyncFolderId): Promise<void>
+
+/**
+ * Read a shared folder's status.
+ * @param id - the folder.
+ * @returns its status, or undefined for a folder this device does not share or whose status is not known yet.
+ */
+abstract status(id: FileSyncFolderId): FileSyncFolderStatus | undefined
+```
+
+Source: [`packages/sync/file-sync/src/index.ts`](../../packages/sync/file-sync/src/index.ts)
+
 <a id="ctxsync--sync-abstract-seam"></a>
 
 ### `ctx.sync` — `Sync` (abstract seam)
@@ -272,6 +318,27 @@ The signed-in user's account sync.
 ```
 
 Source: [`packages/api/sync-controller/src/index.ts`](../../packages/api/sync-controller/src/index.ts)
+
+<a id="file-sync-events"></a>
+
+### `file-sync/*` events
+
+<a id="file-syncfolder--emit"></a>
+
+#### `file-sync/folder` — emit
+
+A shared folder's status changed; read it with FileSync.status.
+
+```ts cordis-catalog
+/**
+ * A shared folder's status changed; read it with {@link FileSync.status}.
+ * @mode emit
+ * @param folder - the folder whose status changed.
+ */
+'file-sync/folder'(folder: FileSyncFolderId): void
+```
+
+Source: [`packages/sync/file-sync/src/index.ts`](../../packages/sync/file-sync/src/index.ts)
 
 <a id="sync-events"></a>
 

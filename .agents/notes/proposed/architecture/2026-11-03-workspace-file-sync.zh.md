@@ -350,6 +350,18 @@ interface SyncedWorkspaceFiles {
 - **Git 不随安装器附带。** 通过 dugite 打包 Git 的实测大小为每个平台解压后 150 MB，去掉 Git Credential Manager 后 40 MB；设备改为运行平台的 Git 安装器（[全新电脑](#a-fresh-computer)）。
 - **密度结果倾向对象存储。** 每个账户约 7 MB 和 0.05% 的空闲 CPU，每秒每次编辑占一个核心的 2.2%，使一个实例只能承载数百而非数千个账户；第 4 阶段从[未决问题 1](#open-questions) 中的中继对象存储方案开始。
 
+<a id="phase-1-status"></a>
+### 第 1 阶段状态
+
+第 1 阶段的第一部分已经实现：[`@aeven/file-sync`](../../../../packages/sync/file-sync/README.zh.md) Service Definition、[`@aeven/file-sync-syncthing`](../../../../packages/sync/file-sync-syncthing/README.zh.md) 提供方和 [`@aeven/workspace-file-sync`](../../../../packages/workspace/workspace-file-sync/README.zh.md) Consumer；当应用附带 Syncthing（`AVN_SYNCTHING`）时由桌面 Host 挂载，Syncthing v2.1.7 由桌面构建下载、校验并随应用发布。文件夹工作区无需任何设置即可在在线设备之间同步，收到工作区的设备会把它放在其位置提示或放置根目录下，并在磁盘预算之内下载。
+
+有两项决定与上文的架构不同：
+
+- **使用自有文档而非共享文档。** 对等 id 通过 `file-sync/peers` 传递，而不是通过账户同步提供方拥有的 `devices` 文档；文件夹描述通过 `file-sync/folders` 传递，而不是通过工作区注册表拥有的 `workspaces` 文档。这样每个文档只有一个写入包。
+- **使用独立的 Consumer 包，而不是在注册表内部修改。** Consumer 是独立的包，因此注册表不依赖文件同步；注册表只新增了每次提交变更后发出的 `workspace/changed` 事件。
+
+第 1 阶段仍待完成：状态投影和侧边栏进度、通过标记复用已存在的匹配目录、提前索引、向缺少文件夹空间的设备发出提议，以及 Aeven 自己的发现和中继服务器。
+
 <a id="open-questions"></a>
 ### 未决问题
 

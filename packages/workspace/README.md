@@ -25,6 +25,7 @@ The workspace group provides the durable project list behind a host UI: one prod
 | Package | Role | ctx key |
 |---|---|---|
 | [`workspace`](workspace/README.md) | Provides named, ordered projects with the sessions that ran in each directory | `ctx.workspaceRegistry` |
+| [`workspace-file-sync`](workspace-file-sync/README.md) | Syncs folder workspaces' files to the account's other devices and places them there | — |
 
 -----
 

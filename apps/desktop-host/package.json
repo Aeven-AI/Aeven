@@ -28,6 +28,9 @@
     "@aeven/web-app": "workspace:^",
     "@aeven/web-frontend": "workspace:^",
     "@aeven/home-paths": "workspace:^",
-    "@aeven/host-frontend-static": "workspace:^"
+    "@aeven/host-frontend-static": "workspace:^",
+    "@aeven/file-sync": "workspace:^",
+    "@aeven/file-sync-syncthing": "workspace:^",
+    "@aeven/workspace-file-sync": "workspace:^"
   }
 }

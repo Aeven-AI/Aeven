@@ -1,6 +1,6 @@
 /**
- * Download and verify the upstream Node.js runtime with its bundled npm and the Cua Driver computer-use executable,
- * and copy the pinned pnpm CLI.
+ * Download and verify the upstream Node.js runtime with its bundled npm, the Cua Driver computer-use executable, and
+ * the Syncthing executable that file sync runs, and copy the pinned pnpm CLI.
  */
 
 import { createHash } from 'node:crypto'
@@ -17,6 +17,8 @@ import { resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
 const NODE_VERSION = '24.17.0'
 /** Upstream Cua Driver release shipped beside Node.js; its tag is `cua-driver-rs-v<version>`. */
 const CUA_DRIVER_VERSION = '0.35.4'
+/** Upstream Syncthing release shipped for workspace file sync; its tag is `v<version>`. */
+const SYNCTHING_VERSION = '2.1.7'
 const BUILD_PATHS = resolveDesktopTargetBuildPaths()
 const RUNTIME_ROOT = BUILD_PATHS.runtime
 const DOWNLOAD_ROOT = BUILD_PATHS.downloads
@@ -205,6 +207,58 @@ async function prepareCuaDriver(platform: RuntimePlatform, arch: RuntimeArch): P
   rmSync(extraction, { recursive: true, force: true })
 }
 
+/** The Syncthing release archive for one target and the archive's top-level folder. */
+function syncthingArchive(platform: RuntimePlatform, arch: RuntimeArch): { name: string; folder: string } {
+  const upstreamPlatform = platform === 'darwin' ? 'macos' : platform === 'win' ? 'windows' : 'linux'
+  const upstreamArch = arch === 'x64' ? 'amd64' : 'arm64'
+  const folder = `syncthing-${upstreamPlatform}-${upstreamArch}-v${SYNCTHING_VERSION}`
+  return { name: `${folder}.${platform === 'linux' ? 'tar.gz' : 'zip'}`, folder }
+}
+
+/**
+ * Download, verify, and install the Syncthing executable and its license into `runtime/syncthing`, where the shell
+ * points the Host's file sync provider at it.
+ */
+async function prepareSyncthing(platform: RuntimePlatform, arch: RuntimeArch): Promise<void> {
+  const { name: archiveName, folder } = syncthingArchive(platform, arch)
+  const releaseRoot = `https://github.com/syncthing/syncthing/releases/download/v${SYNCTHING_VERSION}`
+  const archive = join(DOWNLOAD_ROOT, archiveName)
+  const sums = join(DOWNLOAD_ROOT, `syncthing-v${SYNCTHING_VERSION}-sha256sum.txt.asc`)
+  if (!existsSync(archive)) await download(`${releaseRoot}/${archiveName}`, archive)
+  if (!existsSync(sums)) await download(`${releaseRoot}/sha256sum.txt.asc`, sums)
+  // The checksum list is clear-signed; its body lines are `<sha256>  <file>`.
+  const line = (await readFile(sums, 'utf8')).split(/\r?\n/u)
+    .find(candidate => candidate.endsWith(`  ${archiveName}`))
+  if (line === undefined) throw new Error(`desktop runtime: ${archiveName} is absent from the Syncthing checksums`)
+  const expected = line.split(/\s+/u)[0]
+  const actual = createHash('sha256').update(await readFile(archive)).digest('hex')
+  if (actual !== expected) throw new Error(`desktop runtime: checksum mismatch for ${archiveName}`)
+
+  const executable = platform === 'win' ? 'syncthing.exe' : 'syncthing'
+  const shipped = new Set([`${folder}/${executable}`, `${folder}/LICENSE.txt`])
+  const extraction = BUILD_PATHS.syncthingExtract
+  rmSync(extraction, { recursive: true, force: true })
+  mkdirSync(extraction, { recursive: true })
+  if (platform === 'linux') {
+    await extract({ cwd: extraction, file: archive, filter: path => shipped.has(path.replace(/^\.\//u, '')) })
+  } else {
+    const files = unzipSync(await readFile(archive), { filter: file => shipped.has(file.name) })
+    mkdirSync(join(extraction, folder), { recursive: true })
+    for (const [name, bytes] of Object.entries(files)) writeFileSync(join(extraction, name), bytes)
+  }
+  const source = join(extraction, folder, executable)
+  if (!existsSync(source)) throw new Error(`desktop runtime: ${archiveName} has no ${executable}`)
+
+  const destination = join(RUNTIME_ROOT, 'syncthing')
+  rmSync(destination, { recursive: true, force: true })
+  mkdirSync(destination, { recursive: true })
+  // A fresh write, as for Node.js above, so macOS validates the signature the packager applies.
+  await pipeline(createReadStream(source), createWriteStream(join(destination, executable), { flags: 'wx' }))
+  if (platform !== 'win') await chmod(join(destination, executable), 0o755)
+  cpSync(join(extraction, folder, 'LICENSE.txt'), join(destination, 'LICENSE.txt'))
+  rmSync(extraction, { recursive: true, force: true })
+}
+
 function preparePnpm(): string {
   const require = createRequire(import.meta.url)
   const manifestPath = require.resolve('pnpm')
@@ -223,6 +277,7 @@ async function main(): Promise<void> {
   mkdirSync(RUNTIME_ROOT, { recursive: true })
   const npmVersion = await prepareNode(platform, arch)
   await prepareCuaDriver(platform, arch)
+  await prepareSyncthing(platform, arch)
   const pnpmVersion = preparePnpm()
   writeFileSync(join(RUNTIME_ROOT, 'versions.json'), `${JSON.stringify({
     schemaVersion: 1,
@@ -230,6 +285,7 @@ async function main(): Promise<void> {
     npm: npmVersion,
     pnpm: pnpmVersion,
     cuaDriver: CUA_DRIVER_VERSION,
+    syncthing: SYNCTHING_VERSION,
   }, undefined, 2)}\n`)
 }
 

@@ -31,6 +31,9 @@ kind: "package-group"
 | [`@aeven/client-ui-settings-sync`](../client/ui-settings-sync/README.zh.md) | 设置 → 同步 |
 | [`@aeven/session-sync`](../session/session-sync/README.zh.md) | Consumer：对话历史 |
 | [`@aeven/session-handoff`](../session/session-handoff/README.zh.md) | Service Definition `ctx.sessionHandoff`：在另一台设备编写的对话中输入并审批 |
+| [`@aeven/file-sync`](file-sync/README.zh.md) | Service Definition `ctx.fileSync`：在账户的设备上点对点保持文件夹一致 |
+| [`@aeven/file-sync-syncthing`](file-sync-syncthing/README.zh.md) | Service Provider：一个受监管的 Syncthing 进程 |
+| [`@aeven/workspace-file-sync`](../workspace/workspace-file-sync/README.zh.md) | Consumer：文件夹工作区及其在另一台设备上的位置 |
 
 挂载了 `ctx.sync` 时，`@aeven/memory-memos` 和 `@aeven/personalization` 直接使用它；未挂载时行为与之前相同。
 
@@ -43,6 +46,7 @@ kind: "package-group"
 | 对话 | 编写某会话的设备把会话事件作为压缩的流批次发布，并在 `sessions/index` 文档中列出该会话；其他设备通过会话持久化以原始 `seq` 导入。该设备持有会话的运行者租约，未持有的设备把提示词、审批和取消转发给持有者，由它作为自己的输入应用；在同一局域网时，批次还会在两者之间直接传递。设备首次发布前、在回填窗口内创建的会话也包括在内。 |
 | 偏好 | 每个账户的个性化设置存放在 `personalization` 文档中，按字段合并。 |
 | 设备名称 | `devices` 文档把每个设备 id 映射到该设备为自己起的名称。 |
+| 工作区文件 | 在桌面应用中，文件夹工作区的文件通过 Syncthing 点对点传输，不经过中转服务器；`file-sync/peers` 和 `file-sync/folders` 文档携带每台设备的传输 id，以及每个工作区的文件夹 id、大小和位置提示。 |
 
 凭据、提供方密钥、连接器令牌、设备设置、缓存、索引和日志留在设备上。
 
@@ -83,3 +87,4 @@ kind: "package-group"
 - **没有设备能运行对话时，输入会等待。** 如果会话的编写方不可达、且本机无法接管其日志，输入会留在收件箱中，直到持有它的设备出现。
 - **对话正文在打开时才到达。** 设备先交换会话元数据，在打开时或在限速的后台过程里下载日志，因此从未打开过、且早于 `backfillDays` 的会话仍留在编写它的设备上。
 - **中转服务器为每个账户提供的存储尚未测量。** 拥有数 GB 会话的账户会把它们全部保留在中转服务器上。
+- **工作区文件只在在线设备之间传输。** 在工作区文件同步说明所规划的云端副本实现之前，设备只能在持有文件夹的另一台设备在线时接收它；仓库工作区在其 Git 模式实现之前不同步任何文件。在 Aeven 运行自己的服务器之前，发现和中继使用 Syncthing 的公共服务器。

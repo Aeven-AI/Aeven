@@ -174,7 +174,10 @@ export class WorkspaceRegistry extends Service {
       return header?.replica === true || (header?.owner !== undefined
         && this.ctx.get('sessionHandoff')?.shared(header.owner, id) === true)
     },
-    titleChanged: () => { this.publish() },
+    titleChanged: () => {
+      this.publish()
+      this.ctx.emit('workspace/changed')
+    },
     readSessionHeader: id => this.readSessionHeader(id),
     rememberSessionPath: (id, path) => {
       this.sessionPaths.set(id, path)
@@ -1493,6 +1496,7 @@ export class WorkspaceRegistry extends Service {
     // Publish after the write committed, so the account's other devices never see a half-applied mutation.
     return result.then((committed) => {
       if (publish) this.publish()
+      this.ctx.emit('workspace/changed')
       return committed
     })
   }
