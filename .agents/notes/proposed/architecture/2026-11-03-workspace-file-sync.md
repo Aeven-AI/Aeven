@@ -350,6 +350,18 @@ Changes to the plan:
 - **Git ships with no installer.** Bundling Git through dugite measured 150 MB unpacked per platform, 40 MB without Git Credential Manager; the device runs the platform's Git installer instead ([fresh computer](#a-fresh-computer)).
 - **Density favours object storage.** About 7 MB and 0.05% idle CPU per account, and 2.2% of a core per edit per second, put one instance at hundreds of accounts, not thousands; phase 4 starts from the relay object-storage variant of [open question 1](#open-questions).
 
+<a id="phase-1-status"></a>
+### Phase 1 status
+
+The first part of phase 1 is implemented: the [`@aeven/file-sync`](../../../../packages/sync/file-sync/README.md) Service Definition, the [`@aeven/file-sync-syncthing`](../../../../packages/sync/file-sync-syncthing/README.md) provider, and the [`@aeven/workspace-file-sync`](../../../../packages/workspace/workspace-file-sync/README.md) Consumer, mounted by the desktop Host when the app ships Syncthing (`AVN_SYNCTHING`), with Syncthing v2.1.7 downloaded, verified, and shipped by the desktop build. A folder workspace syncs between online devices with no setup, and a device that receives one places it under its location hint or the placement root and downloads it within the disk budget.
+
+Two decisions differ from the architecture above:
+
+- **Own documents instead of shared ones.** Peer ids travel in `file-sync/peers` rather than in the `devices` document, which the account sync provider owns, and folder descriptors in `file-sync/folders` rather than in the `workspaces` document, which the workspace registry owns. Each document then has one writer package.
+- **A Consumer package instead of a change inside the registry.** The Consumer is its own package, so the registry keeps no file sync dependency; the registry gained only a `workspace/changed` event after each committed change.
+
+Still open in phase 1: the status projection and sidebar progress, reuse of an existing matching directory through a marker, early indexing, offers to devices that lack a folder's space, and Aeven's own discovery and relay servers.
+
 <a id="open-questions"></a>
 ### Open questions
 

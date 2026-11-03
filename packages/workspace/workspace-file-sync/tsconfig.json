@@ -1,0 +1,33 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types"
+  },
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../../../vendor/cordis"
+    },
+    {
+      "path": "../../../vendor/schemastery"
+    },
+    {
+      "path": "../../util/brand"
+    },
+    {
+      "path": "../../sync/file-sync"
+    },
+    {
+      "path": "../../sync/sync"
+    },
+    {
+      "path": "../../sync/sync-vault"
+    },
+    {
+      "path": "../workspace"
+    }
+  ]
+}

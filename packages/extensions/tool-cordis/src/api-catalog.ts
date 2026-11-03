@@ -1488,6 +1488,43 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'fileSync',
+    summary: 'File sync capability.',
+    description: 'File sync capability.',
+    methods: [
+      {
+        signature: 'abstract peerId(): Promise<FileSyncPeerId>',
+        description: 'This device\'s identity on the file transport, which the account\'s other devices pass to setPeers.',
+        parameters: [],
+        returns: 'the peer id, once the transport has started.',
+      },
+      {
+        signature: 'abstract setPeers(owner: string, peers: readonly FileSyncPeerId[]): Promise<void>',
+        description: 'Replace the devices an account\'s folders are shared with. A peer absent from the list stops receiving and sending changes for every folder of the account; this device itself is ignored when listed.',
+        parameters: [{ name: 'owner', description: 'the account.' }, { name: 'peers', description: 'the account\'s other devices\' peer ids.' }],
+        returns: 'when the transport applies the list.',
+      },
+      {
+        signature: 'abstract share(folder: FileSyncFolder): Promise<void>',
+        description: 'Keep a folder in sync with the account\'s peers. Sharing an id again with another path moves it to that path.',
+        parameters: [{ name: 'folder', description: 'the folder, its account, and its directory here.' }],
+        returns: 'when the transport has started on the folder.',
+      },
+      {
+        signature: 'abstract unshare(id: FileSyncFolderId): Promise<void>',
+        description: 'Stop syncing a folder on this device; its files stay on disk.',
+        parameters: [{ name: 'id', description: 'a folder {@link share} started.' }],
+        returns: 'when the transport no longer serves the folder.',
+      },
+      {
+        signature: 'abstract status(id: FileSyncFolderId): FileSyncFolderStatus | undefined',
+        description: 'Read a shared folder\'s status.',
+        parameters: [{ name: 'id', description: 'the folder.' }],
+        returns: 'its status, or undefined for a folder this device does not share or whose status is not known yet.',
+      },
+    ],
+  },
+  {
     key: 'fs',
     summary: 'Abstract filesystem provider.',
     description: 'Abstract filesystem provider. Targets must preserve identity across aliases; reads expose regular UTF-8 text or typed errors, listings are stable and content-free, and mutations are atomic. Optional guards add stale protection without changing the unguarded provider contract.',
@@ -5058,6 +5095,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'change', description: 'domain, table (`\'\'` for global), key (`\'\'` for global), operation discriminant, and on `put` the new snapshot.' }],
   },
   {
+    name: 'file-sync/folder',
+    mode: 'emit',
+    signature: '\'file-sync/folder\'(folder: FileSyncFolderId): void',
+    summary: 'A shared folder\'s status changed; read it with FileSync.status.',
+    description: 'A shared folder\'s status changed; read it with FileSync.status.',
+    parameters: [{ name: 'folder', description: 'the folder whose status changed.' }],
+  },
+  {
     name: 'fs/edit-intent',
     mode: 'waterfall',
     signature: '\'fs/edit-intent\'(target: FsTarget, actor: object | undefined, next: () => { version: FsVersion } | undefined | Promise<{ version: FsVersion } | undefined>): Promise<{ version: FsVersion } | undefined>',
@@ -5464,6 +5509,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     summary: 'Show one workspace path in the Files sidebar beside its session.',
     description: 'Show one workspace path in the Files sidebar beside its session. The client displaying that session opens the explorer and answers; a listener without that session calls `next()` to delegate. Scope-filtered dispatch (`@aeven/scope`): agent-scoped listeners receive only that agent.',
     parameters: [{ name: 'request', description: 'the path to show.' }],
+  },
+  {
+    name: 'workspace/changed',
+    mode: 'emit',
+    signature: '\'workspace/changed\'(): void',
+    summary: 'The registry committed a change to its workspaces: one was created, bound to a directory, renamed, reordered, deleted, or received from another device.',
+    description: 'The registry committed a change to its workspaces: one was created, bound to a directory, renamed, reordered, deleted, or received from another device. Read the registry for the new state.',
+    parameters: [],
   },
 ]
 
@@ -6576,6 +6629,26 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'FileReferenceCandidate',
     declaration: 'export interface FileReferenceCandidate {\n    path: string;\n    kind: \'file\' | \'directory\';\n}',
+  },
+  {
+    name: 'FileSyncFolder',
+    declaration: 'export interface FileSyncFolder {\n    id: FileSyncFolderId;\n    owner: string;\n    path: string;\n}',
+  },
+  {
+    name: 'FileSyncFolderId',
+    declaration: 'export type FileSyncFolderId = Branded<\'FileSyncFolderId\'>;',
+  },
+  {
+    name: 'FileSyncFolderState',
+    declaration: 'export type FileSyncFolderState = \'scanning\' | \'syncing\' | \'idle\' | \'error\';',
+  },
+  {
+    name: 'FileSyncFolderStatus',
+    declaration: 'export interface FileSyncFolderStatus {\n    state: FileSyncFolderState;\n    globalBytes: number;\n    globalFiles: number;\n    needBytes: number;\n    needFiles: number;\n    error?: string;\n}',
+  },
+  {
+    name: 'FileSyncPeerId',
+    declaration: 'export type FileSyncPeerId = Branded<\'FileSyncPeerId\'>;',
   },
   {
     name: 'FileTextMethod',

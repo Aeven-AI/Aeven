@@ -1,0 +1,45 @@
+---
+description: "File sync Consumer for workspaces: folder workspaces follow the account to its other devices."
+kind: "package-reference"
+---
+
+# @aeven/workspace-file-sync
+
+English | [中文](README.zh.md)
+
+## Summary
+
+A folder workspace opened on one device of an account syncs as one `ctx.fileSync` folder with the account's other devices. Each device publishes its file transport peer id in the account's `file-sync/peers` document, and shares folders with exactly the devices `ctx.sync` lists whose peer id is known. Each folder workspace's folder id, size, and location hint (its directory relative to the home directory) travel in `file-sync/folders`. A device that receives the workspace without a directory gives it one without asking: the hint under its own home directory when that directory does not exist or is empty, otherwise the workspace title under `root`, numbered when taken; it downloads at once when the size fits `prefetchMaxBytes` and leaves `minFreeDiskRatio` of the disk free. A Git work tree publishes no folder: repositories travel through Git in a later phase. A folder whose workspace left the device stops syncing and keeps its files. The design is in the [workspace file sync Agent Note](../../../.agents/notes/proposed/architecture/2026-11-03-workspace-file-sync.md).
+
+## Table of Contents
+
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
+
+<a id="model-experience"></a>
+## Model Experience
+
+None, as the workspace files reach a model only through the file tools that already read the workspace directory.
+
+#### KV Cache effect
+
+None.
+
+## Known Limitations and Deferred Work
+
+<a id="known-limitations-and-deferred-work"></a>
+
+- **Shared with the file sync group** — the limits of file sync are listed once in the [account sync group README](../../sync/README.md#known-limitations-and-deferred-work).
+
+<a id="dev-note"></a>
+### Dev Note
+
+<details>
+<summary>Working context for maintainers — click to expand</summary>
+
+None.
+
+</details>
+
+**Runtime invariant:** No runtime invariant companion is published because the synced documents and the provider's folders are reconciled on every change rather than observed independently.

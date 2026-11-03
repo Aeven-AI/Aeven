@@ -82,3 +82,18 @@
     - id: ui-directory-picker-native
       name: '@aeven/client-ui-directory-picker-native'
 
+    # Workspace file sync: folder workspaces follow the account to its other
+    # devices, peer to peer through the Syncthing executable the installed app
+    # ships. Without one (a source launch that sets no AVN_SYNCTHING) the rows
+    # stay unmounted and workspaces sync without their files, as before.
+    - id: file-sync-syncthing
+      name: '@aeven/file-sync-syncthing'
+      disabled: !!js "process.env.AVN_SYNCTHING === undefined"
+      config:
+        binary: !!js "process.env.AVN_SYNCTHING ?? 'syncthing'"
+        home: !!js avnHomePath('file-sync', 'syncthing')
+
+    - id: workspace-file-sync
+      name: '@aeven/workspace-file-sync'
+      disabled: !!js "process.env.AVN_SYNCTHING === undefined"
+

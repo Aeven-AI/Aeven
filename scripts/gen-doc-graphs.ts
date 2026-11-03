@@ -832,6 +832,15 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Keeps an account\'s documents and streams the same on every device of the account, encrypted end to end through the Aeven relay, and directly between devices linked on one local network.',
   },
   {
+    key: 'fileSync',
+    pkg: 'file-sync',
+    title: 'File sync',
+    mode: 'seam',
+    implementations: ['file-sync-syncthing'],
+    consumers: ['workspace-file-sync'],
+    note: 'Keeps a folder the same on every device of an account, peer to peer, while the Consumer decides which folders travel and where they live.',
+  },
+  {
     key: 'sessionHandoff',
     pkg: 'session-handoff',
     title: 'Conversation handoff',

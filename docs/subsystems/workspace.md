@@ -557,6 +557,27 @@ Types: [SessionHeader](persistence.md) · [SessionId](core.md)
 
 Source: [`packages/workspace/workspace/src/index.ts`](../../packages/workspace/workspace/src/index.ts)
 
+<a id="workspace-events"></a>
+
+### `workspace/*` events
+
+<a id="workspacechanged--emit"></a>
+
+#### `workspace/changed` — emit
+
+The registry committed a change to its workspaces: one was created, bound to a directory, renamed, reordered, deleted, or received from another device. Read the registry for the new state.
+
+```ts cordis-catalog
+/**
+ * The registry committed a change to its workspaces: one was created, bound to a directory, renamed, reordered,
+ * deleted, or received from another device. Read the registry for the new state.
+ * @mode emit
+ */
+'workspace/changed'(): void
+```
+
+Source: [`packages/workspace/workspace/src/types.ts`](../../packages/workspace/workspace/src/types.ts)
+
 <a id="workspace-files-events"></a>
 
 ### `workspace-files/*` events

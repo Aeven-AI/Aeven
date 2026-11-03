@@ -8,6 +8,7 @@
 import type { Branded } from '@aeven/brand'
 import type { SessionId } from '@aeven/session/types'
 import type {} from '@aeven/typert-protocol'
+import type {} from '@deepseek-ai/cordis'
 
 /**
  * Identifies one workspace record. A generated uuid, never the path: path
@@ -30,6 +31,17 @@ export type WorkspaceId = Branded<'WorkspaceId'>
  *   produces this kind yet, and nothing may assume it is absent forever.
  */
 export type WorkspaceKind = 'folder' | 'virtual' | 'remote'
+
+declare module '@deepseek-ai/cordis' {
+  interface Events {
+    /**
+     * The registry committed a change to its workspaces: one was created, bound to a directory, renamed, reordered,
+     * deleted, or received from another device. Read the registry for the new state.
+     * @mode emit
+     */
+    'workspace/changed'(): void
+  }
+}
 
 declare module '@aeven/typert-protocol' {
   interface RemoteErrorDetailsMap {

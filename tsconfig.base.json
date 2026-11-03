@@ -382,6 +382,8 @@
       "@aeven/e2b": ["./packages/e2b/e2b/src"],
       "@aeven/file-reference": ["./packages/context/file-reference/src"],
       "@aeven/file-reference-local": ["./packages/context/file-reference-local/src"],
+      "@aeven/file-sync": ["./packages/sync/file-sync/src"],
+      "@aeven/file-sync-syncthing": ["./packages/sync/file-sync-syncthing/src"],
       "@aeven/fs": ["./packages/fs/fs/src"],
       "@aeven/fs/invariant": ["./packages/fs/fs/src/invariant.ts"],
       "@aeven/fs-e2b": ["./packages/e2b/fs-e2b/src"],
@@ -574,6 +576,7 @@
       "@aeven/working-directory": ["./packages/session/working-directory/src"],
       "@aeven/workspace": ["./packages/workspace/workspace/src"],
       "@aeven/workspace/invariant": ["./packages/workspace/workspace/src/invariant.ts"],
+      "@aeven/workspace-file-sync": ["./packages/workspace/workspace-file-sync/src"],
       "@aeven/worktrees": ["./packages/session/worktrees/src"]
       // END generated package aliases
     }

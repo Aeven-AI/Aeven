@@ -112,6 +112,8 @@ Two processes sharing one home converge: each observes the other's record and gl
 
 While account sync serves an account, that account's workspaces also travel between its devices through the synced `workspaces` document: each workspace's title and timestamps, and the account's display order. A directory path stays on the device that opened it, so a workspace another device receives arrives pathless as `remote` and opens once this device registers a directory of its own. Session accounting and the archive set stay device-local, because a session body lives where it ran; a row only this device holds keeps its place beside the account's. A later title wins, and a removal drops the record without touching a directory or a session log.
 
+Every committed change to the registry, including one received from another device, emits `workspace/changed`, so a Consumer such as `@aeven/workspace-file-sync` reacts to a new, bound, renamed, or removed workspace without polling.
+
 The same rule governs sessions: a synced session's `SessionHeader.cwd` and its logged `session/cwd` events name directories on the device that wrote them, so neither is a local path here. Consumers that need a directory ask `placeSession` for the session's workspace and act in *this* device's binding ([decision](../../../.agents/notes/implemented/architecture/2026-10-29-synced-session-directory-is-the-local-binding.md)).
 
 ### Lifecycle

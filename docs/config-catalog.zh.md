@@ -1295,6 +1295,54 @@ export interface Config {
 
 来源：[`packages/context/file-reference-local/src/index.ts`](../packages/context/file-reference-local/src/index.ts)
 
+<a id="aevenfile-sync-syncthing"></a>
+
+## `@aeven/file-sync-syncthing`
+
+需要：`subprocess`
+
+```ts config-catalog
+/** Provider configuration. */
+export interface Config {
+  /** Syncthing executable, absolute or a bare name on `PATH`. */
+  binary: string
+  /** Syncthing's configuration and database directory. */
+  home: string
+  /** Addresses Syncthing accepts peer connections on, in its own syntax; `default` is TCP and QUIC on port 22000 plus relays. */
+  listenAddresses: string[]
+  /** Global discovery servers, in Syncthing's syntax; `default` is the public Syncthing pool. */
+  discoveryServers: string[]
+  /** Whether peers on the same local network find each other by broadcast. */
+  localDiscovery: boolean
+  /** Whether connections may go through relays when no direct connection succeeds. */
+  relays: boolean
+  /** Filesystem-watcher delay of shared folders, in seconds. */
+  watcherDelayS: number
+  /** Wait between learning of a peer's change and pulling it, in seconds; Syncthing's own default is 1. */
+  pullerDelayS: number
+  /** Full rescan interval of shared folders, in seconds; the watcher reports changes in between. */
+  rescanIntervalS: number
+  /** Days a file replaced or deleted by a peer is kept in the folder's `.stversions`. */
+  versionRetentionDays: number
+  /** Ignore patterns, in Syncthing's syntax, written for every shared folder. */
+  ignores: string[]
+  /** Longest the process may take to answer its REST API after it starts, in milliseconds. */
+  startupTimeoutMs: number
+  /** Longest one REST request may take, in milliseconds. */
+  requestTimeoutMs: number
+  /** Longest one event long poll waits for an event, in seconds. */
+  eventsWaitS: number
+  /** Time between asking the process to stop and killing it, in milliseconds. */
+  stopGraceMs: number
+  /** First wait before restarting a process that exited unexpectedly, doubling per consecutive failure, in milliseconds. */
+  restartMs: number
+  /** Longest wait between restarts; a process that ran this long resets the backoff, in milliseconds. */
+  restartMaxMs: number
+}
+```
+
+来源：[`packages/sync/file-sync-syncthing/src/index.ts`](../packages/sync/file-sync-syncthing/src/index.ts)
+
 <a id="aevenfs-local"></a>
 
 ## `@aeven/fs-local`
@@ -5541,6 +5589,26 @@ export interface Config {
 
 来源：[`packages/workspace/workspace/src/index.ts`](../packages/workspace/workspace/src/index.ts)
 
+<a id="aevenworkspace-file-sync"></a>
+
+## `@aeven/workspace-file-sync`
+
+需要：`fileSync` · `workspaceRegistry` · `sync`
+
+```ts config-catalog
+/** Consumer configuration. */
+export interface Config {
+  /** Directory a workspace from another device lands in when its location hint names no free directory here. */
+  root: string
+  /** Largest workspace, in bytes, this device downloads as soon as it arrives. */
+  prefetchMaxBytes: number
+  /** Share of the disk, from 0 to 1, a download must leave free. */
+  minFreeDiskRatio: number
+}
+```
+
+来源：[`packages/workspace/workspace-file-sync/src/index.ts`](../packages/workspace/workspace-file-sync/src/index.ts)
+
 <a id="aevenworktrees"></a>
 
 ## `@aeven/worktrees`
@@ -5690,6 +5758,7 @@ Abstract service classes — a deployment loads a concrete implementation packag
 - `@aeven/compaction` — abstract `CompactionEngine` ([`packages/compaction/compaction/src/index.ts`](../packages/compaction/compaction/src/index.ts))
 - `@aeven/credentials` — abstract `CredentialProvider` ([`packages/credentials/credentials/src/index.ts`](../packages/credentials/credentials/src/index.ts))
 - `@aeven/file-reference` — abstract `FileReferenceService` ([`packages/context/file-reference/src/index.ts`](../packages/context/file-reference/src/index.ts))
+- `@aeven/file-sync` — abstract `FileSync` ([`packages/sync/file-sync/src/index.ts`](../packages/sync/file-sync/src/index.ts))
 - `@aeven/fs` — abstract `FileSystem` ([`packages/fs/fs/src/index.ts`](../packages/fs/fs/src/index.ts))
 - `@aeven/host-directory-picker` — abstract `DirectoryPicker` ([`packages/host/directory-picker/src/index.ts`](../packages/host/directory-picker/src/index.ts))
 - `@aeven/jobs` — abstract `JobRegistry` ([`packages/jobs/jobs/src/index.ts`](../packages/jobs/jobs/src/index.ts))

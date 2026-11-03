@@ -143,6 +143,17 @@ function applyBundledComputerUseDriver(): void {
   process.env.AVN_CUA_DRIVER_EMBEDDED = '1'
 }
 
+/**
+ * Point the Host's file sync provider at the Syncthing executable shipped in `runtime/syncthing`. Without it the
+ * file sync rows stay unmounted; a path the launching environment already sets wins, which is how a development
+ * launch supplies one.
+ */
+function applyBundledSyncthing(): void {
+  if (!app.isPackaged || process.env.AVN_SYNCTHING !== undefined) return
+  const syncthing = join(process.resourcesPath, 'runtime', 'syncthing', process.platform === 'win32' ? 'syncthing.exe' : 'syncthing')
+  if (existsSync(syncthing)) process.env.AVN_SYNCTHING = syncthing
+}
+
 function runtimeResources(): RuntimeResources {
   const development = !app.isPackaged
   const node = (development ? process.env.AVN_DESKTOP_NODE_BINARY : undefined)
@@ -374,6 +385,7 @@ async function main(): Promise<void> {
   const loginPathProbe = loginShellPath(process.env)
   await applyPackagedDeployment()
   applyBundledComputerUseDriver()
+  applyBundledSyncthing()
   const resources = runtimeResources()
   const paths = resolveDesktopPaths()
   const development = developmentProject()

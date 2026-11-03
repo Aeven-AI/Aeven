@@ -112,6 +112,8 @@ ctx.workspaceRegistry.list() // Chats first, then the project
 
 当账户同步为该账户服务时，该账户的 workspace 也会通过同步文档 `workspaces` 在其各设备之间传递：每个 workspace 的标题与时间戳，以及该账户的显示顺序。目录路径留在打开它的设备上，因此另一台设备收到的 workspace 不会带路径，而以 `remote` 形式列出，直到本机为其登记一个目录才可打开。会话账本与归档集合留在本机，因为会话正文存在于实际运行之处；只有本机持有的行会与账户的行并列保留位置。较晚的标题胜出，而删除会移除记录，但不会改动任何目录或会话日志。
 
+对注册表的每次已提交变更（包括从另一台设备收到的变更）都会发出 `workspace/changed`，因此像 `@aeven/workspace-file-sync` 这样的消费方无需轮询，即可对新建、绑定、重命名或删除的 workspace 作出反应。
+
 同一条规则也适用于会话：同步会话的 `SessionHeader.cwd` 与其记录的 `session/cwd` 事件指向写入它们的设备上的目录，因此在这里都不是本机路径。需要目录的消费方会向 `placeSession` 询问会话所在的 workspace，并在*本机*的绑定中行动（[决定](../../../.agents/notes/implemented/architecture/2026-10-29-synced-session-directory-is-the-local-binding.zh.md)）。
 
 ### 生命周期
