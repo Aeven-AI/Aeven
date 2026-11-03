@@ -1,6 +1,6 @@
 {
   "name": "@aeven/root",
-  "version": "0.3.32-alpha",
+  "version": "0.3.33-alpha",
   "license": "Apache-2.0",
   "private": true,
   "type": "module",
