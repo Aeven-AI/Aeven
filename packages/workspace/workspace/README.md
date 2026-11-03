@@ -114,6 +114,8 @@ While account sync serves an account, that account's workspaces also travel betw
 
 Every committed change to the registry, including one received from another device, emits `workspace/changed`, so a Consumer such as `@aeven/workspace-file-sync` reacts to a new, bound, renamed, or removed workspace without polling.
 
+The file sync Consumers share one placement for a workspace whose files arrive from another device. `locationHint` records a directory relative to the home directory, and `hintedDirectory` turns a hint back into a directory here, refusing one that would leave the home directory. `placeWorkspace` creates the hinted directory when it is free, otherwise the title under a root, numbered when taken, where free means absent or empty. `fitsDisk` checks a download against a size limit and a free-disk share.
+
 The same rule governs sessions: a synced session's `SessionHeader.cwd` and its logged `session/cwd` events name directories on the device that wrote them, so neither is a local path here. Consumers that need a directory ask `placeSession` for the session's workspace and act in *this* device's binding ([decision](../../../.agents/notes/implemented/architecture/2026-10-29-synced-session-directory-is-the-local-binding.md)).
 
 ### Lifecycle

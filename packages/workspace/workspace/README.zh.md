@@ -114,6 +114,8 @@ ctx.workspaceRegistry.list() // Chats first, then the project
 
 对注册表的每次已提交变更（包括从另一台设备收到的变更）都会发出 `workspace/changed`，因此像 `@aeven/workspace-file-sync` 这样的消费方无需轮询，即可对新建、绑定、重命名或删除的 workspace 作出反应。
 
+文件同步消费方对从另一台设备到达的 workspace 文件使用同一套放置规则。`locationHint` 记录相对于主目录的目录，`hintedDirectory` 把提示还原为本机目录，并拒绝会离开主目录的提示。`placeWorkspace` 在提示所指目录空闲时创建该目录，否则在根目录下使用标题，名称被占用时加编号；空闲指不存在或为空。`fitsDisk` 按大小上限和磁盘剩余比例检查一次下载。
+
 同一条规则也适用于会话：同步会话的 `SessionHeader.cwd` 与其记录的 `session/cwd` 事件指向写入它们的设备上的目录，因此在这里都不是本机路径。需要目录的消费方会向 `placeSession` 询问会话所在的 workspace，并在*本机*的绑定中行动（[决定](../../../.agents/notes/implemented/architecture/2026-10-29-synced-session-directory-is-the-local-binding.zh.md)）。
 
 ### 生命周期

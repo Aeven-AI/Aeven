@@ -1,0 +1,51 @@
+{
+  "name": "@aeven/workspace-git-sync",
+  "description": "Git Consumer for workspaces: repository workspaces follow the account to its other devices",
+  "version": "0.3.33-alpha",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Aeven.git",
+    "directory": "packages/workspace/workspace-git-sync"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@aeven/brand": "workspace:^",
+    "@aeven/home-paths": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:^",
+    "yjs": "13.6.27"
+  },
+  "peerDependencies": {
+    "@aeven/file-sync": "workspace:^",
+    "@aeven/subprocess": "workspace:^",
+    "@aeven/sync": "workspace:^",
+    "@aeven/sync-vault": "workspace:^",
+    "@aeven/workspace": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@aeven/file-sync": "workspace:^",
+    "@aeven/subprocess": "workspace:^",
+    "@aeven/sync": "workspace:^",
+    "@aeven/sync-vault": "workspace:^",
+    "@aeven/workspace": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  }
+}

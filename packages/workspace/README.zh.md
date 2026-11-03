@@ -26,6 +26,7 @@ workspace 组提供宿主 UI 背后的持久项目列表：一个产品包 `work
 |---|---|---|
 | [`workspace`](workspace/README.zh.md) | 提供命名且有序的项目，并在每个目录下聚合其会话 | `ctx.workspaceRegistry` |
 | [`workspace-file-sync`](workspace-file-sync/README.zh.md) | 把文件夹工作区的文件同步到账户的其他设备并为其分配位置 | — |
+| [`workspace-git-sync`](workspace-git-sync/README.zh.md) | 通过复用检出、克隆或从设备复制，把仓库工作区带到账户的其他设备 | — |
 
 -----
 

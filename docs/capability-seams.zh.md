@@ -295,6 +295,7 @@ flowchart LR
   svc_fileSync["ctx.fileSync<br/>File sync"]
   pkg_file_sync_syncthing["file-sync-syncthing"]
   pkg_workspace_file_sync["workspace-file-sync"]
+  pkg_workspace_git_sync["workspace-git-sync"]
   pkg_session_handoff["session-handoff"]
   svc_sessionHandoff["ctx.sessionHandoff<br/>Conversation handoff"]
   svc_syncController["ctx.syncController<br/>Sync Remote"]
@@ -526,6 +527,7 @@ flowchart LR
   svc_e2b --> pkg_subprocess_e2b
   svc_fileReferences --> pkg_api_session_controller
   svc_fileSync --> pkg_workspace_file_sync
+  svc_fileSync --> pkg_workspace_git_sync
   svc_fs --> pkg_tool_fs
   svc_identityUsers --> pkg_client_connection
   svc_invariants --> pkg_agent
@@ -748,7 +750,7 @@ flowchart LR
 | `ctx.memory` | `seam` | [`memory`](../packages/memory/memory) | [`memory-memos`](../packages/memory/memory-memos) | [`api-memory-manager`](../packages/memory/api-memory-manager), [`memory-context`](../packages/memory/memory-context), [`memory-memos`](../packages/memory/memory-memos), [`tool-capability`](../packages/capability/tool-capability), [`tool-memory`](../packages/memory/tool-memory) | - | One registered provider serves recall, turn capture, and inspection to every memory consumer; the definition holds no storage of its own. 唯一注册的提供方向每个记忆消费者提供回忆、回合捕获与检查；定义本身不持有存储。 |
 | `ctx.memoryManagerController` | `core` | [`api-memory-manager`](../packages/memory/api-memory-manager) | - | `ui-settings-memory` | - | Serves what Aeven has learned about the signed-in user, with view, correct, and forget, always for the caller of the running request. 提供 Aeven 对已登录用户所了解到的一切，含查看、更正与遗忘，且始终服务于当前请求的调用方。 |
 | `ctx.sync` | `seam` | [`sync`](../packages/sync/sync) | [`sync-yjs`](../packages/sync/sync-yjs) | [`memory-memos`](../packages/memory/memory-memos), [`personalization`](../packages/preset/personalization), [`session-sync`](../packages/session/session-sync), [`settings-sync`](../packages/settings/settings-sync), `sync-controller` | - | 让账户的文档和流在该账户的每台设备上保持一致，并通过 Aeven 中转服务器端到端加密传输。 |
-| `ctx.fileSync` | `seam` | [`file-sync`](../packages/sync/file-sync) | [`file-sync-syncthing`](../packages/sync/file-sync-syncthing) | [`workspace-file-sync`](../packages/workspace/workspace-file-sync) | - | Keeps a folder the same on every device of an account, peer to peer, while the Consumer decides which folders travel and where they live. |
+| `ctx.fileSync` | `seam` | [`file-sync`](../packages/sync/file-sync) | [`file-sync-syncthing`](../packages/sync/file-sync-syncthing) | [`workspace-file-sync`](../packages/workspace/workspace-file-sync), [`workspace-git-sync`](../packages/workspace/workspace-git-sync) | - | Keeps a folder the same on every device of an account, peer to peer, while the Consumer decides which folders travel and where they live. |
 | `ctx.sessionHandoff` | `seam` | [`session-handoff`](../packages/session/session-handoff) | [`session-sync`](../packages/session/session-sync) | [`api-session-controller`](../packages/api/session-controller) | - | One device writes each conversation of an account, and every device that holds a copy forwards input to it, reads its live state, and takes it over once no turn runs there. 每个账户的每段对话由一台设备写入，持有副本的每台设备都把输入转发给它、读取其实时状态，并在其无运行中的 turn 时接管。 |
 | `ctx.syncController` | `core` | `sync-controller` | - | `ui-settings-sync` | - | 开启账户同步、加入与批准设备以及移除设备，始终为当前请求的调用方执行。 |
 | `ctx.personalizationController` | `core` | [`personalization`](../packages/preset/personalization) | - | `ui-settings-personalization` | - | One Host row owns each account's voice and notes, the Remote behind Settings → Personalization, and the system-prompt section that renders the session owner's preferences after the persona. 一个宿主行拥有每个账号的声音与笔记、设置 → 个性化背后的 Remote，以及在 persona 之后渲染会话所有者偏好的系统提示词段落。 |

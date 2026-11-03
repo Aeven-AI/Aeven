@@ -577,6 +577,7 @@
       "@aeven/workspace": ["./packages/workspace/workspace/src"],
       "@aeven/workspace/invariant": ["./packages/workspace/workspace/src/invariant.ts"],
       "@aeven/workspace-file-sync": ["./packages/workspace/workspace-file-sync/src"],
+      "@aeven/workspace-git-sync": ["./packages/workspace/workspace-git-sync/src"],
       "@aeven/worktrees": ["./packages/session/worktrees/src"]
       // END generated package aliases
     }

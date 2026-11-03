@@ -4,16 +4,15 @@
  */
 import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { mkdir, readdir, statfs } from 'node:fs/promises'
-import { homedir } from 'node:os'
-import { dirname, isAbsolute, join, relative, sep } from 'node:path'
+import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Map as YMap, Transaction, YMapEvent } from 'yjs'
 import { brandString } from '@aeven/brand'
 import type { FileSyncFolderId, FileSyncPeerId } from '@aeven/file-sync'
 import type { SyncDocument } from '@aeven/sync'
 import type { DeviceId } from '@aeven/sync-vault'
-import type { Workspace, WorkspaceId } from '@aeven/workspace'
+import { fitsDisk, locationHint, placeWorkspace } from '@aeven/workspace'
+import type { WorkspaceId } from '@aeven/workspace'
 
 /** The document mapping each device of the account to its file transport peer id. */
 const PEERS = 'file-sync/peers'
@@ -197,21 +196,26 @@ export class WorkspaceFiles {
     const folders = this.folderMap(account)
     const registry = this.ctx.workspaceRegistry
     const workspaces = registry.list().filter(workspace => workspace.owner === owner && !workspace.isBuiltIn)
+    const present = new Set<WorkspaceId>()
     for (const workspace of workspaces) {
       const entry = folders.get(workspace.id)
       if (workspace.kind === 'folder' && workspace.path !== undefined) {
+        // A Git work tree travels through Git; a folder that became one stops syncing as a folder.
+        if (isWorkTree(workspace.path)) {
+          if (entry !== undefined) folders.delete(workspace.id)
+          continue
+        }
         const files = entry ?? describe(workspace.path)
-        if (files === undefined) continue
         if (entry === undefined) folders.set(workspace.id, files)
         const id = brandString<FileSyncFolderId>(files.folder)
+        present.add(workspace.id)
         this.shared.set(id, { owner, workspace: workspace.id })
         await this.ctx.fileSync.share({ id, owner, path: workspace.path })
       } else if (workspace.kind === 'remote' && entry !== undefined && await this.fits(entry.bytes)) {
         // Binding commits a registry change, whose `workspace/changed` runs the pass that shares the folder.
-        await registry.bind(workspace.id, await this.place(workspace, entry))
+        await registry.bind(workspace.id, await placeWorkspace(workspace.title, entry.hint, this.options.root))
       }
     }
-    const present = new Set(workspaces.filter(workspace => workspace.kind === 'folder').map(workspace => workspace.id))
     for (const [id, shared] of this.shared) {
       if (shared.owner !== owner || present.has(shared.workspace)) continue
       this.shared.delete(id)
@@ -220,67 +224,18 @@ export class WorkspaceFiles {
   }
 
   /** Whether downloading this many bytes stays within the prefetch limit and leaves the required share of the disk free. */
-  private async fits(bytes: number): Promise<boolean> {
-    if (bytes > this.options.prefetchMaxBytes) return false
-    let probe = this.options.root
-    while (!existsSync(probe) && dirname(probe) !== probe) probe = dirname(probe)
-    const disk = await statfs(probe)
-    const total = disk.blocks * disk.bsize
-    const free = disk.bavail * disk.bsize
-    return free - bytes >= total * this.options.minFreeDiskRatio
-  }
-
-  /**
-   * The directory a received workspace takes here: its hint under this device's home directory when that is free,
-   * otherwise its title under the placement root, numbered when the name is taken. A directory is free when it does
-   * not exist or is empty, so files already there are never mixed with the workspace's.
-   */
-  private async place(workspace: Workspace, entry: SyncedWorkspaceFiles): Promise<string> {
-    const candidates: string[] = []
-    if (entry.hint !== undefined) candidates.push(join(homedir(), ...entry.hint.split('/')))
-    const name = directoryName(workspace.title)
-    for (let index = 1; index <= 100; index += 1) {
-      candidates.push(join(this.options.root, index === 1 ? name : `${name} (${String(index)})`))
-    }
-    for (const candidate of candidates) {
-      if (await free(candidate)) {
-        await mkdir(candidate, { recursive: true })
-        return candidate
-      }
-    }
-    throw new Error(`no free directory for workspace '${workspace.title}' under ${this.options.root}`)
+  private fits(bytes: number): Promise<boolean> {
+    return fitsDisk(this.options.root, bytes, this.options.prefetchMaxBytes, this.options.minFreeDiskRatio)
   }
 }
 
-/**
- * A new descriptor for a folder workspace this device opened, or undefined for a Git work tree, whose files travel
- * through Git rather than as a folder.
- */
-function describe(path: string): SyncedWorkspaceFiles | undefined {
-  if (existsSync(join(path, '.git'))) return undefined
-  const hint = homeRelative(path)
+/** A new descriptor for a folder workspace this device opened, under a random folder id. */
+function describe(path: string): SyncedWorkspaceFiles {
+  const hint = locationHint(path)
   return { folder: randomUUID(), bytes: 0, files: 0, ...hint === undefined ? {} : { hint } }
 }
 
-/** A directory path relative to the home directory, `/`-separated, or undefined when it lies outside it. */
-function homeRelative(path: string): string | undefined {
-  const rel = relative(homedir(), path)
-  if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) return undefined
-  return rel.split(sep).join('/')
-}
-
-/** A workspace title as one directory name on every platform: separators, reserved characters, and trailing dots replaced. */
-function directoryName(title: string): string {
-  const cleaned = title.replace(/[<>:"/\\|?*\u0000-\u001f]/gu, '-').replace(/[. ]+$/u, '').trim()
-  return cleaned === '' ? 'Workspace' : cleaned
-}
-
-async function free(path: string): Promise<boolean> {
-  if (!existsSync(path)) return true
-  try {
-    return (await readdir(path)).length === 0
-  } catch {
-    // A path that exists but cannot be listed, such as a file, is not a free directory.
-    return false
-  }
+/** Whether a directory is the top of a Git work tree. */
+function isWorkTree(path: string): boolean {
+  return existsSync(join(path, '.git'))
 }

@@ -34,6 +34,7 @@ export {
 } from './spec.ts'
 export type { WorkspaceDomainState, WorkspaceRecord } from './spec.ts'
 export { realpathNormalize } from './paths.ts'
+export { fitsDisk, hintedDirectory, locationHint, placeWorkspace } from './placement.ts'
 
 /** Whether a registry without a built-in workspace seeds one (the schema default). */
 export const DEFAULT_SEED_DEFAULT_WORKSPACE = true
