@@ -11,7 +11,7 @@ English | [中文](README.zh.md)
 
 A Typert Remote over `ctx.sync` that acts only for the caller of the running request. `startPasskey` returns the `/passkey/vault` page on `siteUrl` and collects the sealed result in the background for up to `passkeyMs`, polling every `passkeyPollMs`; the step shows in `status` until it succeeds and emits `sync/status` when it ends. `unprotect` hands the key back to the relay and `acceptServerKey` confirms a key the relay took back. See the [account sync group](../../sync/README.md).
 
-Status includes conversation publication progress collected through `sync/progress`, alongside pending and queued relay-frame counts.
+Status includes conversation publication progress collected through `sync/progress`, pending and queued relay-frame counts, download catch-up, and upload or download failures.
 
 ## Table of Contents
 

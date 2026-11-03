@@ -11,7 +11,7 @@ kind: "package-reference"
 
 `ctx.sync` Service Definition。Consumer 按逻辑名在账户的保管库中打开文档并编辑其 Yjs 状态，追加和读取流，在另一台设备发送流批次时收到它们（`watchStream`，包括在没有中转服务器的局域网上），统计与本机直接相连的设备数（`linked`），列出和移除设备，保存留在本机的按账户值（`localValue`、`setLocalValue`），并获取和释放独占工作的租约（`acquireLease`、`releaseLease`）；`synchronize` 在独占工作转移之前发布发件箱并取得中转服务器积压的帧。`sync/status` 与 `sync/document` 在账户状态或某个文档变化时通知监听方。`tests/memory.ts` 是供 Consumer 测试使用的内存设备网络。见[账户同步分组](../README.zh.md)。
 
-`sync/progress` 收集对话发布计数，包括尚未进入传输队列的已发现历史记录。这些计数与排队等待中转的帧分开报告。
+`sync/progress` 收集对话发布计数，包括尚未进入传输队列的已发现历史记录。这些计数与排队的中转帧分开。状态还报告下载追赶进度和失败的传输；`sync/devices` 报告设备列表的更改。
 
 ## 目录
 

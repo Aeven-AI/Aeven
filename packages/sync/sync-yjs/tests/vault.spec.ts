@@ -64,12 +64,13 @@ function device(owner: string, tuning: VaultTuning = TUNING): Device {
   return { store, vault, warn, documents }
 }
 
-async function connect(owner: string, target: Device): Promise<RelayConnection> {
+async function connect(owner: string, target: Device, beforeAttach?: (connection: RelayConnection) => void): Promise<RelayConnection> {
   const connection = await RelayConnection.open(relay.url, `ok-${owner}`, {
     frame: (seq, frame) => { target.vault.receiveFrame(seq, frame) },
     closed: () => { target.vault.detach() },
   }, 2000, 2000)
   connections.push(connection)
+  beforeAttach?.(connection)
   await target.vault.attach(connection)
   return connection
 }
@@ -156,19 +157,53 @@ describe('a vault on two devices', () => {
     doc.close()
   })
 
-  it('retains unacknowledged frames after transient and permanent relay refusals', async () => {
+  it('retains unacknowledged frames after permanent relay refusals', async () => {
     const { a } = await pair()
-    relay.refusals.set('publish', ['server-error'])
+    relay.refusals.set('publish', ['bad-frame'])
     const doc = a.vault.openDocument('doc')
     doc.doc.getMap('m').set('k', 1)
     await vi.waitFor(() => { expect(a.warn).toHaveBeenCalledWith('sync: publishing frames failed; they stay queued', expect.anything()) })
     expect(a.store.pending()).toBe(1)
+    expect(a.vault.status().error).toBe('upload')
     relay.refusals.set('publish', ['bad-frame'])
     await a.vault.flush()
     expect(a.store.pending()).toBe(1)
     await a.vault.flush()
     expect(a.store.pending()).toBe(0)
+    expect(a.vault.status().error).toBeUndefined()
     doc.close()
+  })
+
+  it('reports catch-up until the relay history has been applied', async () => {
+    const owner = `vault-owner-${String(++accounts)}`
+    const a = device(owner)
+    let release!: () => void
+    const held = new Promise<void>((resolve) => { release = resolve })
+    await connect(owner, a, (connection) => {
+      const request = connection.request.bind(connection)
+      vi.spyOn(connection, 'request').mockImplementation(async (type, fields) => {
+        if (type === 'sync') await held
+        return await request(type, fields)
+      })
+    })
+    try {
+      expect(a.vault.status()).toMatchObject({ state: 'online', pending: 0, catchingUp: true })
+    } finally {
+      release()
+    }
+    await vi.waitFor(() => { expect(a.vault.status().catchingUp).toBeUndefined() })
+  })
+
+  it('closes a refused catch-up connection and preserves a visible download error', async () => {
+    const owner = `vault-owner-${String(++accounts)}`
+    const a = device(owner)
+    relay.refusals.set('sync', ['server-error'])
+    const connection = await connect(owner, a)
+    await connection.closed
+    expect(a.vault.status()).toMatchObject({ state: 'offline', error: 'download' })
+    await connect(owner, a)
+    await vi.waitFor(() => { expect(a.vault.status().catchingUp).toBeUndefined() })
+    expect(a.vault.status().error).toBeUndefined()
   })
 
   it('stops exchanging frames once the device turns sync off, and refuses document work', async () => {

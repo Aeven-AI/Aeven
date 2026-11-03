@@ -69,6 +69,7 @@ export function apply(ctx: ClientContext): void {
     unprotect: () => value(remote.unprotect()),
     acceptServerKey: () => value(remote.acceptServerKey()),
     onChange: listener => ctx.remote.$on('sync/status', () => { listener() }),
+    onDevicesChange: listener => ctx.remote.$on('sync/devices', () => { listener() }),
   }
   const popup: SyncPasskeyPopupInjected = {
     ...operations,

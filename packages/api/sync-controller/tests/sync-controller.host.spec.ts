@@ -50,6 +50,12 @@ describe('the sync Remote', () => {
     expect(await controller.status()).toMatchObject({ sessionsPending: 919, sessionsTotal: 948 })
   })
 
+  it('preserves download progress and transfer failures in the caller view', async () => {
+    const { controller, sync } = await boot({ id: OWNER })
+    sync.status.mockReturnValue({ state: 'online', pending: 0, queued: 0, catchingUp: true, error: 'download' })
+    expect(await controller.status()).toMatchObject({ catchingUp: true, error: 'download' })
+  })
+
   it('refuses a caller nobody signed in as', async () => {
     const { controller } = await boot(undefined)
     await expect(controller.status()).rejects.toThrow(/signed-in user/)

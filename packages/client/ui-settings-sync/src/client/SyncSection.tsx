@@ -4,7 +4,7 @@
  */
 import { useEffect, useState } from 'react'
 import type { SyncDeviceView, SyncPasskeyPurpose, SyncView } from '@aeven/api-remotes/client'
-import { Button, LoadingBlock, Modal, SectionHeader, SettingsGroup, SettingsRow, Switch } from '@aeven/client-ui-primitives'
+import { Button, IconQuestionOutline14, IconWarningOutline16, LoadingBlock, Menu, Modal, RiskConfirmation, SectionHeader, SettingsGroup, SettingsRow, Switch } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import { openPasskeyPage, useSyncStatus, type SyncOperations } from './passkey.ts'
 import css from './SyncSection.module.css'
@@ -20,6 +20,34 @@ export type SyncSectionProps =
 
 /** States whose documents open on this device, so its device list can be read. */
 const SYNCING: ReadonlySet<SyncView['state']> = new Set(['online', 'offline', 'connecting'])
+
+/**
+ * A quiet status icon whose standard menu explains the failure and offers another attempt.
+ * @param props - localized details and retry action.
+ * @returns the icon and its anchored popup.
+ */
+function SyncIssue({ message, t, retry, busy = false }: {
+  message: string
+  t: SyncSectionProps['t']
+  retry?: (() => void) | undefined
+  busy?: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <Menu
+      open={open} portal align="end" compact
+      onClose={() => { setOpen(false) }}
+      items={[{ type: 'label', id: 'details', text: message }, ...retry === undefined ? [] : [{ id: 'retry', label: t('retry'), disabled: busy }]]}
+      onSelect={() => { setOpen(false); retry?.() }}
+      anchor={(
+        <button
+          type="button" className={css.issue} aria-label={t('syncDetails')} aria-haspopup="menu"
+          aria-expanded={open} onClick={() => { setOpen(value => !value) }}
+        ><IconWarningOutline16 size={14} /></button>
+      )}
+    />
+  )
+}
 
 /**
  * The passkey step's line under the privacy rows: waiting on the browser, or why it did not finish.
@@ -56,21 +84,48 @@ export function SyncSection(props: SyncSectionProps) {
   const ops: SyncOperations = props
   const { load, refresh } = useSyncStatus(ops)
   const [devices, setDevices] = useState<SyncDeviceView[]>([])
+  const [devicesFailed, setDevicesFailed] = useState(false)
+  const [deviceRetry, setDeviceRetry] = useState(0)
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
   const [confirmOff, setConfirmOff] = useState(false)
+  const [confirmOn, setConfirmOn] = useState(false)
+  const [acknowledged, setAcknowledged] = useState(false)
 
   const syncing = load.status === 'ready' && SYNCING.has(load.view.state)
-  // Status reports arrive several times a second while data uploads; the device list is read once per syncing spell.
   useEffect(() => {
     if (!syncing) {
       setDevices([])
+      setDevicesFailed(false)
       return
     }
     let live = true
-    void ops.devices().then((listed) => { if (live) setDevices(listed) }, () => {})
-    return () => { live = false }
-  }, [ops, syncing])
+    let reading = false
+    let requested = 0
+    let completed = 0
+    const refreshDevices = async (): Promise<void> => {
+      requested += 1
+      if (reading) return
+      reading = true
+      try {
+        do {
+          const revision = requested
+          try {
+            const listed = await ops.devices()
+            if (live) { setDevices(listed); setDevicesFailed(false) }
+          } catch {
+            if (live) setDevicesFailed(true)
+          }
+          completed = revision
+        } while (live && completed !== requested)
+      } finally {
+        reading = false
+      }
+    }
+    const stop = ops.onDevicesChange(() => { void refreshDevices() })
+    void refreshDevices()
+    return () => { live = false; stop() }
+  }, [ops, syncing, deviceRetry])
 
   const run = async (operation: () => Promise<unknown>): Promise<void> => {
     setBusy(true)
@@ -111,7 +166,7 @@ export function SyncSection(props: SyncSectionProps) {
 
   const { view } = load
   const enabled = view.state !== 'disabled'
-  const conversations = view.sessionsTotal > 0
+  const conversations = view.sessionsPending > 0
   const total = conversations ? view.sessionsTotal : view.queued
   const pending = conversations ? view.sessionsPending : view.pending
   const uploading = view.sessionsPending > 0 || view.pending > 0
@@ -120,6 +175,7 @@ export function SyncSection(props: SyncSectionProps) {
   const sent = uploading ? total - pending : 0
   const percent = shown === 0 ? 0 : Math.round((sent / shown) * 100)
   const progressLabel = t('progress', { sent: String(sent), total: String(shown) })
+  const transferError = enabled && view.error !== undefined ? t(view.error === 'upload' ? 'uploadFailed' : 'downloadFailed') : undefined
   const protection = view.protection
   const waiting = view.passkey?.state === 'waiting'
   return (
@@ -132,17 +188,21 @@ export function SyncSection(props: SyncSectionProps) {
       >
         <div className={css.meterRow}>
           <span className={css.meterLine}>
-            <span>{t(view.state === 'online' && uploading ? 'syncing' : view.state)}</span>
-            <span className={css.meterLabel}>{progressLabel}</span>
+            <span className={css.status}>
+              <span>{t(transferError !== undefined ? 'paused' : view.state === 'online' && (uploading || view.catchingUp) ? 'syncing' : view.state)}</span>
+              {(transferError !== undefined || failed) && (
+                <SyncIssue message={transferError ?? t('failed')} t={t} busy={busy} retry={transferError === undefined ? undefined : () => { void run(() => ops.setEnabled(true)) }} />
+              )}
+            </span>
+            {(uploading || view.catchingUp) && <span className={css.meterLabel}>{uploading ? progressLabel : t('downloading')}</span>}
           </span>
-          <span
+          {uploading && <span
             className={css.meter} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}
             aria-label={progressLabel}
           >
-            <span style={{ width: `${String(uploading ? Math.max(percent, 2) : 0)}%` }} />
-          </span>
+            <span style={{ width: `${String(Math.max(percent, 2))}%` }} />
+          </span>}
         </div>
-        {failed && <p className={css.failed} role="alert">{t('failed')}</p>}
       </SettingsRow>
       {enabled && protection !== undefined && (
         <SettingsGroup title={t('privacy')}>
@@ -165,14 +225,22 @@ export function SyncSection(props: SyncSectionProps) {
               : (
                 <>
                   <SettingsRow
-                    title={t('passkey')}
-                    description={protection.mode === 'passkey' ? t('passkeyOn') : `${t('passkeyOff')} ${t('passkeyLoss')}`}
+                    title={protection.mode === 'passkey' ? t('passkey') : (
+                      <span className={css.status}>
+                        {t('passkey')}
+                        <button
+                          type="button" className={css.issue} aria-label={t('passkeyAbout')} aria-haspopup="dialog"
+                          onClick={() => { setAcknowledged(false); setConfirmOn(true) }}
+                        ><IconQuestionOutline14 /></button>
+                      </span>
+                    )}
+                    description={t(protection.mode === 'passkey' ? 'passkeyOn' : 'passkeyOff')}
                     control={(
                       <Switch
                         checked={protection.mode === 'passkey'}
                         label={t('passkey')}
                         disabled={busy || waiting || view.state !== 'online'}
-                        onChange={(next) => { if (next) passkey('protect'); else setConfirmOff(true) }}
+                        onChange={(next) => { if (next) { setAcknowledged(false); setConfirmOn(true) } else setConfirmOff(true) }}
                       />
                     )}
                   />
@@ -188,8 +256,12 @@ export function SyncSection(props: SyncSectionProps) {
           <PasskeyStep view={view} t={t} retry={passkey} dismiss={() => { void run(() => ops.cancelPasskey()) }} />
         </SettingsGroup>
       )}
-      {devices.length > 0 && (
-        <SettingsGroup title={t('devices')}>
+      {(devices.length > 0 || devicesFailed) && (
+        <SettingsGroup
+          title={t('devices')}
+          description={devices.some(device => !device.current) ? t('forgetBody') : undefined}
+          aside={devicesFailed ? <SyncIssue message={t('devicesFailed')} t={t} retry={() => { setDeviceRetry(value => value + 1) }} /> : undefined}
+        >
           {devices.map(device => (
             <SettingsRow
               key={device.id}
@@ -201,6 +273,20 @@ export function SyncSection(props: SyncSectionProps) {
           ))}
         </SettingsGroup>
       )}
+      <RiskConfirmation
+        open={confirmOn}
+        title={t('passkey')}
+        description={t('passkeyOffDetail')}
+        acknowledgeLabel={t('passkeyAcknowledge')}
+        cancelLabel={t('cancel')}
+        closeLabel={t('close')}
+        confirmLabel={t('usePasskey')}
+        acknowledged={acknowledged}
+        disabled={busy || waiting}
+        onAcknowledgedChange={setAcknowledged}
+        onCancel={() => { setConfirmOn(false) }}
+        onConfirm={() => { setConfirmOn(false); passkey('protect') }}
+      />
       <Modal
         open={confirmOff}
         onClose={() => { setConfirmOff(false) }}

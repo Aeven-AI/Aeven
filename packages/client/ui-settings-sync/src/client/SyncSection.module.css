@@ -90,3 +90,27 @@
     transition: none;
   }
 }
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.issue {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--dsw-aeven-radius-compact);
+  color: var(--dsw-alias-label-secondary);
+  background: transparent;
+  cursor: pointer;
+}
+
+.issue:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
