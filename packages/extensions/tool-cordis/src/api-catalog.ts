@@ -6632,7 +6632,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'FileSyncFolder',
-    declaration: 'export interface FileSyncFolder {\n    id: FileSyncFolderId;\n    owner: string;\n    path: string;\n}',
+    declaration: 'export interface FileSyncFolder {\n    id: FileSyncFolderId;\n    owner: string;\n    path: string;\n    peers?: readonly FileSyncPeerId[];\n}',
   },
   {
     name: 'FileSyncFolderId',

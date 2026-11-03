@@ -837,7 +837,7 @@ const SERVICE_ROLES: ServiceRole[] = [
     title: 'File sync',
     mode: 'seam',
     implementations: ['file-sync-syncthing'],
-    consumers: ['workspace-file-sync'],
+    consumers: ['workspace-file-sync', 'workspace-git-sync'],
     note: 'Keeps a folder the same on every device of an account, peer to peer, while the Consumer decides which folders travel and where they live.',
   },
   {

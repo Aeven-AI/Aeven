@@ -362,6 +362,19 @@ Two decisions differ from the architecture above:
 
 Still open in phase 1: the status projection and sidebar progress, reuse of an existing matching directory through a marker, early indexing, offers to devices that lack a folder's space, and Aeven's own discovery and relay servers.
 
+<a id="phase-2-status"></a>
+### Phase 2 status
+
+Repository mode is implemented in [`@aeven/workspace-git-sync`](../../../../packages/workspace/workspace-git-sync/README.md), which the desktop Host mounts whether or not it ships Syncthing. It covers the plan's Git resolution and installation, detection, remote normalization, checkout discovery, clone with submodules and Git LFS, copy from a device, and environment files. The folder Consumer now leaves Git work trees to it, and Syncthing ignores `.git` by default.
+
+Three decisions refine the architecture above:
+
+- **Own document.** Repository descriptions, holders, and copy requests travel in `workspace-git/repositories`, for the same single-writer reason as phase 1; environment files travel in `workspace-git/env/<workspace id>` as planned.
+- **One holder per copy through a lease.** A requesting device posts a request with a random transfer folder id, and every holder that sees it competes for a `ctx.sync` lease, so exactly one writes the bundle. `FileSyncFolder.peers` restricts the transfer folder to the two devices.
+- **Shared placement.** `placeWorkspace`, `fitsDisk`, and the location hint moved into `@aeven/workspace`, so both Consumers place a received workspace by one rule, and a hint that would leave the home directory is refused.
+
+A two-device run on macOS against a real Git server bound an existing checkout whose remote used another URL form, cloned on the published branch with `.env` restored and templates and ignored directories left out, copied a local-only repository with no `origin`, and delivered a later new environment file without replacing an existing one. Still open in phase 2: reporting "Installing Git" and the Linux install command as status, which waits for the status projection, and giving the agent's own Git the resolved executable.
+
 <a id="open-questions"></a>
 ### Open questions
 

@@ -128,7 +128,7 @@ export default class SyncthingFileSync extends FileSync {
     rescanIntervalS: Schema.natural().min(60).default(3_600),
     versionRetentionDays: Schema.natural().min(1).default(30),
     ignores: Schema.array(Schema.string()).default([
-      'node_modules', '.venv', 'venv', '__pycache__', 'dist', 'build', 'target', '.next', '.turbo', '.cache',
+      '.git', 'node_modules', '.venv', 'venv', '__pycache__', 'dist', 'build', 'target', '.next', '.turbo', '.cache',
       '(?d).DS_Store', '(?d)Thumbs.db', '*.tmp',
     ]),
     startupTimeoutMs: Schema.natural().min(1_000).default(30_000),
@@ -202,8 +202,8 @@ export default class SyncthingFileSync extends FileSync {
   /** @inheritdoc */
   async share(folder: FileSyncFolder): Promise<void> {
     const known = this.folders.get(folder.id)
-    if (known?.path === folder.path && known.owner === folder.owner) return
-    this.folders.set(folder.id, { ...folder })
+    if (known?.path === folder.path && known.owner === folder.owner && samePeers(known.peers, folder.peers)) return
+    this.folders.set(folder.id, { ...folder, ...folder.peers === undefined ? {} : { peers: [...folder.peers] } })
     await mkdir(folder.path, { recursive: true })
     await this.write(async (running) => {
       await this.applyFolder(running, folder)
@@ -373,7 +373,8 @@ export default class SyncthingFileSync extends FileSync {
 
   /** Write one folder's configuration and ignore patterns, shared with this device and its account's peers. */
   private async applyFolder(running: Running, folder: FileSyncFolder): Promise<void> {
-    const peers = (this.peers.get(folder.owner) ?? []).filter(peer => peer !== running.peer)
+    const only = folder.peers === undefined ? undefined : new Set(folder.peers)
+    const peers = (this.peers.get(folder.owner) ?? []).filter(peer => peer !== running.peer && (only?.has(peer) ?? true))
     await running.rest.request('PUT', `/rest/config/folders/${encodeURIComponent(folder.id)}`, {
       id: folder.id,
       label: `${LABEL_PREFIX}${folder.id}`,
@@ -457,4 +458,10 @@ export default class SyncthingFileSync extends FileSync {
     clearTimeout(this.restartTimer)
     this.restartTimer = setTimeout(() => { void this.start() }, delay)
   }
+}
+
+/** Whether two optional peer restrictions name the same peers. */
+function samePeers(left: readonly FileSyncPeerId[] | undefined, right: readonly FileSyncPeerId[] | undefined): boolean {
+  if (left === undefined || right === undefined) return left === right
+  return JSON.stringify([...left].sort()) === JSON.stringify([...right].sort())
 }

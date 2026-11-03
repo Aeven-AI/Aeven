@@ -21,6 +21,11 @@ export interface FileSyncFolder {
   owner: string
   /** Absolute directory on this device; created when absent. */
   path: string
+  /**
+   * The only peers of the account the folder travels to, such as the one device a transfer is for; absent shares it
+   * with every peer {@link FileSync.setPeers} lists for the account. A listed peer the account does not list is ignored.
+   */
+  peers?: readonly FileSyncPeerId[]
 }
 
 /** Where one shared folder stands on this device. */

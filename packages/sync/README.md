@@ -34,6 +34,7 @@ Account sync keeps an account's data the same on every device signed in to it. E
 | [`@aeven/file-sync`](file-sync/README.md) | Service Definition `ctx.fileSync`: folders kept the same on the account's devices, peer to peer |
 | [`@aeven/file-sync-syncthing`](file-sync-syncthing/README.md) | Service Provider: one supervised Syncthing process |
 | [`@aeven/workspace-file-sync`](../workspace/workspace-file-sync/README.md) | Consumer: folder workspaces and where they land on another device |
+| [`@aeven/workspace-git-sync`](../workspace/workspace-git-sync/README.md) | Consumer: repository workspaces, their environment files, and copies between devices |
 
 `@aeven/memory-memos` and `@aeven/personalization` consume `ctx.sync` directly when it is mounted; without it they behave as before.
 
@@ -46,7 +47,7 @@ Account sync keeps an account's data the same on every device signed in to it. E
 | Conversations | The device writing a session publishes its events as compressed stream batches and lists it in the `sessions/index` document; other devices import them through session persistence with their original `seq`. That device holds the session's runner lease, and a device without it forwards prompts, approvals, and cancels to the holder, which applies them as input of its own; on one local network the batches travel between the two directly as well. Sessions created within the backfill window before a device first publishes are included. |
 | Preferences | Each account's personalization lives in the `personalization` document, merged per field. |
 | Device names | The `devices` document maps each device id to the name it gave itself. |
-| Workspace files | A folder workspace's files travel peer to peer through Syncthing on the desktop app, outside the relay; the `file-sync/peers` and `file-sync/folders` documents carry each device's transport id and each workspace's folder id, size, and location hint. |
+| Workspace files | A folder workspace's files travel peer to peer through Syncthing on the desktop app, outside the relay; the `file-sync/peers` and `file-sync/folders` documents carry each device's transport id and each workspace's folder id, size, and location hint. A repository workspace travels through Git instead: `workspace-git/repositories` carries its remote without credentials, branch, location hint, size, and holders, and `workspace-git/env/<workspace id>` its ignored environment files. |
 
 Credentials, provider keys, connector tokens, device settings, caches, indexes, and logs stay on the device.
 
@@ -87,4 +88,4 @@ One WebSocket per account and device, authenticated with the account's Aeven acc
 - **Input waits while no device can run the conversation.** A session whose writer is unreachable and whose log this device cannot take over keeps the input in its inbox until a device that holds it appears.
 - **A conversation body arrives when it is opened.** Devices exchange session metadata first and download a log on open or in a throttled background pass, so a session older than `backfillDays` that was never opened stays on its writing device.
 - **The relay's storage per account is unmeasured.** An account with several gigabytes of sessions keeps all of them on the relay.
-- **Workspace files move only between online devices.** Without the cloud copy the workspace file sync note plans, a device receives a folder only while another device that holds it is online, and a repository workspace syncs no files until its Git mode exists. Discovery and relaying use the public Syncthing servers until Aeven runs its own.
+- **Workspace files move only between online devices.** Without the cloud copy the workspace file sync note plans, a device receives a folder, or a copy of a repository whose remote it cannot reach, only while another device that holds it is online, and a repository brings only committed work until work-state checkpoints exist. Discovery and relaying use the public Syncthing servers until Aeven runs its own.

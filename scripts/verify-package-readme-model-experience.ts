@@ -244,6 +244,7 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/sync/file-sync': { kind: 'none', reason: 'file sync moves files between devices and registers no prompt, schema, or tool' },
   'packages/sync/file-sync-syncthing': { kind: 'none', reason: 'the provider runs Syncthing and registers no prompt, schema, or tool' },
   'packages/workspace/workspace-file-sync': { kind: 'none', reason: 'the Consumer places and shares workspace folders; the file tools own what the model reads from them' },
+  'packages/workspace/workspace-git-sync': { kind: 'none', reason: 'the Consumer clones and places repositories; the file, shell, and version-control tools own what the model reads from them' },
   'packages/api/sync-controller': { kind: 'none', reason: 'the Remote serves Settings and adds nothing to a model request' },
   'packages/client/ui-settings-sync': { kind: 'none', reason: 'the page adds nothing to a model request' },
   'packages/session/session-sync': { kind: 'none', reason: 'imported sessions are stored as they were logged and never replayed into a live model request' },

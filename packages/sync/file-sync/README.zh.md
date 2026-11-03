@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`ctx.fileSync` Service Definition。Consumer 以随机 id 与账户的对等设备共享文件夹（`share`、`unshare`），列出这些设备（`setPeers`，每台设备的 `peerId`），并读取每个文件夹的状态和大小（`status`）；`file-sync/folder` 通知监听者某个文件夹的状态已变化。提供方负责传输及其进程，Consumer 决定哪些文件夹同步以及它们放在哪里。设计见[工作区文件同步 Agent Note](../../../.agents/notes/proposed/architecture/2026-11-03-workspace-file-sync.zh.md)。
+`ctx.fileSync` Service Definition。Consumer 以随机 id 与账户的对等设备共享文件夹，或通过文件夹的 `peers` 只与其中部分设备共享（`share`、`unshare`），列出这些设备（`setPeers`，每台设备的 `peerId`），并读取每个文件夹的状态和大小（`status`）；`file-sync/folder` 通知监听者某个文件夹的状态已变化。提供方负责传输及其进程，Consumer 决定哪些文件夹同步以及它们放在哪里。设计见[工作区文件同步 Agent Note](../../../.agents/notes/proposed/architecture/2026-11-03-workspace-file-sync.zh.md)。
 
 ## 目录
 

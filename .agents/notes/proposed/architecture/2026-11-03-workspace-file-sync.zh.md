@@ -362,6 +362,19 @@ interface SyncedWorkspaceFiles {
 
 第 1 阶段仍待完成：状态投影和侧边栏进度、通过标记复用已存在的匹配目录、提前索引、向缺少文件夹空间的设备发出提议，以及 Aeven 自己的发现和中继服务器。
 
+<a id="phase-2-status"></a>
+### 第 2 阶段状态
+
+仓库模式已在 [`@aeven/workspace-git-sync`](../../../../packages/workspace/workspace-git-sync/README.zh.md) 中实现，无论桌面 Host 是否附带 Syncthing 都会挂载它。它涵盖计划中的 Git 查找与安装、检测、远程规范化、检出发现、包含子模块和 Git LFS 的克隆、从设备复制以及环境文件。文件夹 Consumer 现在把 Git 工作树交给它处理，Syncthing 默认忽略 `.git`。
+
+有三项决定细化了上文的架构：
+
+- **自有文档。** 仓库描述、持有者和复制请求通过 `workspace-git/repositories` 传递，理由与第 1 阶段相同，即每个文档只有一个写入包；环境文件按计划通过 `workspace-git/env/<workspace id>` 传递。
+- **通过租约为每次复制选出一个持有者。** 请求设备发布带有随机传输文件夹 id 的请求，看到请求的每个持有者竞争一个 `ctx.sync` 租约，因此只有一个持有者写入 bundle。`FileSyncFolder.peers` 把传输文件夹限定在这两台设备之间。
+- **共享放置规则。** `placeWorkspace`、`fitsDisk` 和位置提示移入 `@aeven/workspace`，因此两个 Consumer 按同一规则放置收到的工作区，并拒绝会离开主目录的提示。
+
+在 macOS 上针对真实 Git 服务器的双设备运行中：绑定了远程使用另一种 URL 形式的现有检出；在发布的分支上克隆，恢复了 `.env`，模板和被忽略的目录未被复制；复制了没有 `origin` 的仅本地仓库；之后新增的环境文件已送达，且未替换已有文件。第 2 阶段仍待完成：把“正在安装 Git”和 Linux 安装命令作为状态报告（需要等待状态投影），以及让智能体自己的 Git 使用查找到的可执行文件。
+
 <a id="open-questions"></a>
 ### 未决问题
 

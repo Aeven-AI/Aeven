@@ -97,3 +97,9 @@
       name: '@aeven/workspace-file-sync'
       disabled: !!js "process.env.AVN_SYNCTHING === undefined"
 
+    # Repository workspaces follow the account through Git: a checkout of the
+    # same remote is reused, otherwise the repository is cloned, or copied from
+    # another device through file sync when that is mounted.
+    - id: workspace-git-sync
+      name: '@aeven/workspace-git-sync'
+

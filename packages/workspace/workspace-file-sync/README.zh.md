@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-在账户某台设备上打开的文件夹工作区，会作为一个 `ctx.fileSync` 文件夹与账户的其他设备同步。每台设备在账户的 `file-sync/peers` 文档中发布自己的文件传输对等 id，并只与 `ctx.sync` 列出且对等 id 已知的设备共享文件夹。每个文件夹工作区的文件夹 id、大小和位置提示（其目录相对于主目录的路径）通过 `file-sync/folders` 同步。收到没有目录的工作区的设备会在不询问的情况下为它分配目录：当提示所指的、位于本机主目录下的目录不存在或为空时使用该目录，否则在 `root` 下使用工作区标题，名称被占用时加编号；当大小不超过 `prefetchMaxBytes` 且下载后仍保留 `minFreeDiskRatio` 比例的磁盘空间时立即下载。Git 工作树不发布文件夹：仓库将在后续阶段通过 Git 同步。工作区离开设备后，其文件夹停止同步，文件保留。设计见[工作区文件同步 Agent Note](../../../.agents/notes/proposed/architecture/2026-11-03-workspace-file-sync.zh.md)。
+在账户某台设备上打开的文件夹工作区，会作为一个 `ctx.fileSync` 文件夹与账户的其他设备同步。每台设备在账户的 `file-sync/peers` 文档中发布自己的文件传输对等 id，并只与 `ctx.sync` 列出且对等 id 已知的设备共享文件夹。每个文件夹工作区的文件夹 id、大小和位置提示（其目录相对于主目录的路径）通过 `file-sync/folders` 同步。收到没有目录的工作区的设备会在不询问的情况下为它分配目录：当提示所指的、位于本机主目录下的目录不存在或为空时使用该目录，否则在 `root` 下使用工作区标题，名称被占用时加编号；当大小不超过 `prefetchMaxBytes` 且下载后仍保留 `minFreeDiskRatio` 比例的磁盘空间时立即下载。Git 工作树不发布文件夹，变成 Git 工作树的文件夹工作区会撤回其描述并停止作为文件夹同步；仓库由 [`@aeven/workspace-git-sync`](../workspace-git-sync/README.zh.md) 同步。工作区离开设备后，其文件夹停止同步，文件保留。设计见[工作区文件同步 Agent Note](../../../.agents/notes/proposed/architecture/2026-11-03-workspace-file-sync.zh.md)。
 
 ## 目录
 

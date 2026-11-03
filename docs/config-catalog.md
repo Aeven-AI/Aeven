@@ -5607,6 +5607,69 @@ export interface Config {
 
 Source: [`packages/workspace/workspace-file-sync/src/index.ts`](../packages/workspace/workspace-file-sync/src/index.ts)
 
+<a id="aevenworkspace-git-sync"></a>
+
+## `@aeven/workspace-git-sync`
+
+Requires: `workspaceRegistry` · `sync` · `subprocess` · `fileSync`
+
+```ts config-catalog
+/** Consumer configuration. */
+export interface Config {
+  /** Directory a repository from another device lands in when its location hint names no free directory here. */
+  root: string
+  /** Largest repository, in bytes, this device gets as soon as it arrives. */
+  prefetchMaxBytes: number
+  /** Share of the disk, from 0 to 1, a download must leave free. */
+  minFreeDiskRatio: number
+  /** Run the platform's Git installer when a repository arrives and this device has no Git. */
+  gitInstall: boolean
+  /** Interval between checks for a finished Git install. */
+  gitInstallPollMs: number
+  /** Longest wait for a Git install the user may have to confirm. */
+  gitInstallTimeoutMs: number
+  /** Longest an ordinary Git command runs. */
+  commandTimeoutMs: number
+  /** Longest a clone, LFS fetch, or bundle runs. */
+  transferTimeoutMs: number
+  /** Grace a stopped Git command gets before it is killed. */
+  stopGraceMs: number
+  /** Largest output kept from one Git command. */
+  outputMaxBytes: number
+  /** Directories whose subdirectories may hold an existing checkout. */
+  discoveryRoots: string[]
+  /** Levels of subdirectories under each discovery root that are searched. */
+  discoveryDepth: number
+  /** Longest one search for an existing checkout reads. */
+  discoveryTimeoutMs: number
+  /** How long the list of directories under the discovery roots is reused. */
+  discoveryCacheMs: number
+  /** Which files Git ignores travel as environment files. */
+  envFiles: {
+    /** File-name patterns that travel, with `*` and `?` wildcards. */
+    patterns: string[]
+    /** File-name patterns that never travel, such as templates. */
+    exclude: string[]
+    /** Largest environment file, in bytes, that travels. */
+    maxBytes: number
+    /** Most environment files one workspace carries. */
+    maxFiles: number
+  }
+  /** Interval between passes that publish changed environment files and retry repositories not yet received. */
+  passIntervalMs: number
+  /** Shortest wait before trying again to get a repository that could not be cloned or copied. */
+  retryMs: number
+  /** Longest a copy from another device may take. */
+  copyTimeoutMs: number
+  /** Lifetime of the lease that picks one device to serve a copy. */
+  copyLeaseMs: number
+  /** Directory copies travel through. */
+  transferRoot: string
+}
+```
+
+Source: [`packages/workspace/workspace-git-sync/src/index.ts`](../packages/workspace/workspace-git-sync/src/index.ts)
+
 <a id="aevenworktrees"></a>
 
 ## `@aeven/worktrees`
