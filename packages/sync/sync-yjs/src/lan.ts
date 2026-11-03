@@ -270,7 +270,15 @@ export class LanTransport {
     else socket.once('open', hello)
     socket.on('message', (data) => {
       const message = parse(data)
-      if (message === undefined || !this.handle(link, message)) socket.close()
+      let keep = false
+      try {
+        keep = message !== undefined && this.handle(link, message)
+      } catch {
+        // The account key changed or was dropped while a handshake ran, so this side cannot answer it; the link
+        // ends and the peer links again once both hold the same key.
+        keep = false
+      }
+      if (!keep) socket.close()
     })
     socket.once('close', () => {
       clearTimeout(link.handshake)

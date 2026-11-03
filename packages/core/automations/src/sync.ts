@@ -1,7 +1,8 @@
 /**
  * Keeps each account's automation definitions the same on all of its devices through the account's synced
  * `automations` document, while `ctx.sync` serves the account. Each definition is one map entry; a removed
- * automation leaves a tombstone, and the entry changed last wins.
+ * automation leaves a tombstone, and the entry changed last wins. Opening the document publishes every local
+ * definition it does not name yet.
  */
 import type { Context } from '@deepseek-ai/cordis'
 import type { Map as YMap, Transaction, YMapEvent } from 'yjs'
@@ -21,6 +22,9 @@ export interface SyncedDefinition {
 /** Applies another device's definition or removal locally. */
 export type DefinitionApply = (id: AutomationId, entry: SyncedDefinition) => void
 
+/** Publishes the account's definitions on this device that the document does not name. */
+export type DefinitionSeed = (owner: string, present: ReadonlySet<string>) => Promise<void>
+
 /** Mirror between the definition table and each account's synced document. */
 export class DefinitionSync {
   private readonly open = new Map<string, Promise<SyncDocument | undefined>>()
@@ -28,12 +32,14 @@ export class DefinitionSync {
   /**
    * @param ctx - the service context; `sync` is read optionally.
    * @param apply - stores another device's definition or removal.
-   * @param warn - receives failures to open the document.
+   * @param warn - receives failures to open or seed the document.
+   * @param seed - publishes local definitions the document does not name yet.
    */
   constructor(
     private readonly ctx: Context,
     private readonly apply: DefinitionApply,
     private readonly warn: (message: string) => void,
+    private readonly seed: DefinitionSeed,
   ) {}
 
   /**
@@ -51,6 +57,10 @@ export class DefinitionSync {
     const opening = sync.openDocument(owner, DOCUMENT).then((handle) => {
       const map = handle.doc.getMap<SyncedDefinition>('definitions')
       this.take(map, map.keys())
+      // Definitions written before this device synced, or before the account's documents started over.
+      void this.seed(owner, new Set(map.keys())).catch((error: unknown) => {
+        this.warn(`automations: publishing this device's definitions failed: ${String(error)}`)
+      })
       map.observe((event: YMapEvent<SyncedDefinition>, transaction: Transaction) => {
         if (!transaction.local) this.take(map, event.keysChanged)
       })
@@ -94,9 +104,22 @@ export class DefinitionSync {
     handle?.doc.getMap<SyncedDefinition>('definitions').set(id, { changedAt })
   }
 
+  /* jscpd:ignore-start -- identical in every account-document mirror; each owns its own open map and document. */
+  /**
+   * Close the account's document because its documents started over under a new key; the next attach opens it anew.
+   * @param owner - the account.
+   * @returns when the document is closed.
+   */
+  async reset(owner: string): Promise<void> {
+    const opening = this.open.get(owner)
+    this.open.delete(owner)
+    ;(await opening)?.close()
+  }
+
   /** Close every open document. */
   async dispose(): Promise<void> {
     for (const opening of this.open.values()) (await opening)?.close()
     this.open.clear()
   }
+  /* jscpd:ignore-end */
 }

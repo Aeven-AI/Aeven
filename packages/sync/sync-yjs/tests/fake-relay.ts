@@ -5,6 +5,7 @@
  */
 import { randomBytes } from 'node:crypto'
 import { WebSocketServer, type WebSocket } from 'ws'
+import { keyIdOf } from '@aeven/sync-vault'
 import { RELAY_MAX_MESSAGE_BYTES } from '../src/relay.ts'
 
 interface StoredFrame {
@@ -144,7 +145,7 @@ export class FakeRelay {
     const account = peer.account
     switch (t) {
       case 'key.get':
-        ok({ key: account.key })
+        ok({ key: account.key, keyId: keyIdOf(Buffer.from(account.key, 'base64url')) })
         return
       case 'publish': {
         const items = Array.isArray(request.frames) ? request.frames as Array<Record<string, unknown>> : [request]

@@ -3722,6 +3722,43 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'when the outbox is acknowledged and the received documents are current.',
       },
       {
+        signature: 'protect(_owner: string, _passkey: SyncPasskey): Promise<void>',
+        description: 'Move the account key from the relay to the user\'s passkey: this device creates a new key, the relay keeps it only wrapped under the passkey, purges what it stored under the earlier key, and every device starts over. The account\'s other devices unlock with the passkey before they sync again. Requires a connection.',
+        parameters: [{ name: '_owner', description: 'an account whose key the relay holds.' }, { name: '_passkey', description: 'a newly created passkey\'s credential id and PRF output.' }],
+        returns: 'when the relay holds only the wrapped key.',
+      },
+      {
+        signature: 'addPasskey(_owner: string, _passkey: SyncPasskey): Promise<void>',
+        description: 'Wrap the account key under one more passkey, so either of them unlocks a new device. Requires a connection and an unlocked account.',
+        parameters: [{ name: '_owner', description: 'an account whose key a passkey holds.' }, { name: '_passkey', description: 'the additional passkey\'s credential id and PRF output.' }],
+        returns: 'when the relay stores the additional copy.',
+      },
+      {
+        signature: 'removePasskey(_owner: string, _credentialId: string): Promise<void>',
+        description: 'Drop one passkey\'s copy of the account key; the last one stays until unprotect. Requires a connection.',
+        parameters: [{ name: '_owner', description: 'an account whose key passkeys hold.' }, { name: '_credentialId', description: 'a credential id {@link SyncProtection.passkeys} lists.' }],
+        returns: 'when the relay no longer stores that copy.',
+      },
+      {
+        signature: 'unlock(_owner: string, _passkey: SyncPasskey): Promise<void>',
+        description: 'Unlock the account on this device with one of its passkeys: the device unwraps the key the relay stores and syncs from then on without asking again. Requires a connection.',
+        parameters: [{ name: '_owner', description: 'an account whose status is locked.' }, { name: '_passkey', description: 'the passkey\'s credential id and PRF output.' }],
+        returns: 'when the key is stored on this device.',
+        throws: ['{Error} when the passkey does not open the account key.'],
+      },
+      {
+        signature: 'unprotect(_owner: string): Promise<void>',
+        description: 'Hand the account key back to the relay: it creates a new key it holds, purges what it stored, and every device starts over. The account\'s other devices ask the user before syncing under it. Requires a connection.',
+        parameters: [{ name: '_owner', description: 'an account whose key passkeys hold, unlocked on this device.' }],
+        returns: 'when this device holds the relay\'s new key.',
+      },
+      {
+        signature: 'acceptServerKey(_owner: string): Promise<void>',
+        description: 'Confirm syncing under the key the relay holds after it took the key back from the account\'s passkeys.',
+        parameters: [{ name: '_owner', description: 'an account whose status is downgraded.' }],
+        returns: 'when this device holds the relay\'s key.',
+      },
+      {
         signature: 'abstract acquireLease(owner: string, name: string, ttlMs: number): Promise<SyncLease>',
         description: 'Acquire or renew exclusive work on this device. Requires an online account; an unreachable relay rejects the request. Callers must stop work before renewal fails or its requested duration elapses.',
         parameters: [{ name: 'owner', description: 'the account.' }, { name: 'name', description: 'logical work name, hidden from the relay.' }, { name: 'ttlMs', description: 'requested lifetime, bounded by the relay\'s deployment policy.' }],
@@ -3749,6 +3786,30 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         signature: '@Remote async setEnabled(enabled: boolean): Promise<SyncView>',
         description: 'Turn sync on or off for the caller\'s account on this device.',
         parameters: [{ name: 'enabled', description: 'whether this device syncs the account.' }],
+        returns: 'the status afterwards.',
+      },
+      {
+        signature: '@Remote async startPasskey(purpose: SyncPasskeyPurpose): Promise<SyncPasskeyStart>',
+        description: 'Start a passkey step: the returned page creates a passkey (`protect`, `add`) or asks for one of the account\'s passkeys (`unlock`) in the system browser, and this Host collects the result and applies it in the background. The step shows in status until it succeeds; a new step replaces one in progress.',
+        parameters: [{ name: 'purpose', description: 'what the passkey is for.' }],
+        returns: 'the page to open.',
+      },
+      {
+        signature: '@Remote async cancelPasskey(): Promise<SyncView>',
+        description: 'Stop a passkey step, or dismiss one that did not finish.',
+        parameters: [],
+        returns: 'the status afterwards.',
+      },
+      {
+        signature: '@Remote async unprotect(): Promise<SyncView>',
+        description: 'Hand the caller\'s account key back to the Aeven relay; every device starts over under the relay\'s new key.',
+        parameters: [],
+        returns: 'the status afterwards.',
+      },
+      {
+        signature: '@Remote async acceptServerKey(): Promise<SyncView>',
+        description: 'Keep syncing under the key the relay took back from the account\'s passkeys.',
+        parameters: [],
         returns: 'the status afterwards.',
       },
       {
@@ -5235,6 +5296,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     summary: 'Collect an account\'s conversation publication progress without reading its logs.',
     description: 'Collect an account\'s conversation publication progress without reading its logs.',
     parameters: [{ name: 'owner', description: 'the account whose progress is requested.' }, { name: 'progress', description: 'publisher counters, initialized to zero by the caller.' }],
+  },
+  {
+    name: 'sync/reset',
+    mode: 'emit',
+    signature: '\'sync/reset\'(owner: string): void',
+    summary: 'An account\'s documents started over under a new key: this device dropped every document, its outbox, and the values it kept with Sync.setLocalValue, and the relay purged what it stored under the earlier key.',
+    description: 'An account\'s documents started over under a new key: this device dropped every document, its outbox, and the values it kept with Sync.setLocalValue, and the relay purged what it stored under the earlier key. Consumers close the documents they hold for the account and forget cached document ids; once the account syncs again they open the documents anew and publish their data again.',
+    parameters: [{ name: 'owner', description: 'the account.' }],
   },
   {
     name: 'sync/status',
@@ -8837,12 +8906,40 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SyncDocument {\n    readonly doc: Doc;\n    close(): void;\n}',
   },
   {
+    name: 'SyncKeyMode',
+    declaration: 'export type SyncKeyMode = \'server\' | \'passkey\';',
+  },
+  {
     name: 'SyncLease',
     declaration: 'export interface SyncLease {\n    granted: boolean;\n    holder: DeviceId;\n    expiresAt: number;\n}',
   },
   {
+    name: 'SyncPasskey',
+    declaration: 'export interface SyncPasskey {\n    credentialId: string;\n    prf: Uint8Array;\n}',
+  },
+  {
+    name: 'SyncPasskeyPurpose',
+    declaration: 'export type SyncPasskeyPurpose = \'protect\' | \'add\' | \'unlock\';',
+  },
+  {
+    name: 'SyncPasskeyStart',
+    declaration: 'export interface SyncPasskeyStart {\n    readonly url: string;\n}',
+  },
+  {
+    name: 'SyncPasskeyView',
+    declaration: 'export interface SyncPasskeyView {\n    readonly purpose: SyncPasskeyPurpose;\n    readonly state: \'waiting\' | \'failed\' | \'unsupported\';\n}',
+  },
+  {
     name: 'SyncProgress',
     declaration: 'export interface SyncProgress {\n    sessionsPending: number;\n    sessionsTotal: number;\n}',
+  },
+  {
+    name: 'SyncProtection',
+    declaration: 'export interface SyncProtection {\n    mode: SyncKeyMode;\n    locked: boolean;\n    downgraded: boolean;\n    passkeys: readonly string[];\n}',
+  },
+  {
+    name: 'SyncProtectionView',
+    declaration: 'export interface SyncProtectionView {\n    readonly mode: \'server\' | \'passkey\';\n    readonly locked: boolean;\n    readonly downgraded: boolean;\n    readonly passkeys: number;\n}',
   },
   {
     name: 'SyncState',
@@ -8850,7 +8947,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SyncStatus',
-    declaration: 'export interface SyncStatus {\n    state: SyncState;\n    device?: DeviceId;\n    pending: number;\n    queued: number;\n}',
+    declaration: 'export interface SyncStatus {\n    state: SyncState;\n    protection?: SyncProtection;\n    device?: DeviceId;\n    pending: number;\n    queued: number;\n}',
   },
   {
     name: 'SyncStreamBatch',
@@ -8858,7 +8955,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SyncView',
-    declaration: 'export interface SyncView {\n    readonly state: SyncViewState;\n    readonly pending: number;\n    readonly queued: number;\n    readonly sessionsPending: number;\n    readonly sessionsTotal: number;\n}',
+    declaration: 'export interface SyncView {\n    readonly state: SyncViewState;\n    readonly pending: number;\n    readonly queued: number;\n    readonly sessionsPending: number;\n    readonly sessionsTotal: number;\n    readonly protection?: SyncProtectionView;\n    readonly passkey?: SyncPasskeyView;\n}',
   },
   {
     name: 'SyncViewState',

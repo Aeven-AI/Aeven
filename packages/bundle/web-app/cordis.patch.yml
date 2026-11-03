@@ -277,15 +277,19 @@
 
     # Account sync: every device signed in to one account holds the same
     # documents, encrypted on the device and relayed by the Aeven API, which
-    # holds the account key until the key moves onto the user's passkeys.
+    # holds the account key unless the user moved it onto a passkey.
     - id: sync-yjs
       name: '@aeven/sync-yjs'
       config:
         relayUrl: !!js process.env.AEVEN_SYNC_URL ?? 'ws://localhost:9010/sync'
 
-    # Settings → Sync: sync status, this device's on/off switch, and the account's devices.
+    # Settings → Sync: sync status, this device's on/off switch, the passkey that
+    # holds the account key, and the account's devices.
     - id: api-sync-controller
       name: '@aeven/api-sync-controller'
+      config:
+        # The site serving the passkey page; locally the servers/node web server.
+        siteUrl: !!js process.env.AEVEN_WEB_URL ?? 'http://localhost:9020'
 
     # Conversation history on every device of the account: each session is
     # published by the device that created it and imported elsewhere.

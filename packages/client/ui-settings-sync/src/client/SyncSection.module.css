@@ -14,6 +14,29 @@
   color: var(--dsw-alias-state-error-primary);
 }
 
+/* Supporting text inside the privacy group and its dialog. */
+.note {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* A passkey step waiting on the browser, or why it did not finish, with its verbs. */
+.step {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+}
+
+.stepActions {
+  display: flex;
+  flex: none;
+  gap: 8px;
+}
+
 /* Marks the device this page runs on. */
 .tag {
   padding: 1px 8px;

@@ -24,6 +24,11 @@ export interface AevenReader {
   readonly imageUrl?: string
   /** The Aeven account page, absent when this deployment names no web client. */
   readonly accountUrl?: string
+  /**
+   * True when the reader signed in through an authentication screen of this page; absent when the page restored
+   * an earlier session. A surface that greets a new sign-in reads it.
+   */
+  readonly signedInThisPage?: true
   /** End the Aeven session; the caller decides where the reader goes next. */
   readonly signOut: () => Promise<void>
   /**
@@ -64,6 +69,14 @@ export interface AevenReader {
   readonly cloud: <T>(path: string, init?: RequestInit) => Promise<T>
 }
 
+/** Whether an authentication screen of this page was left signed in. */
+let signedInThisPage = false
+
+/** Record that an authentication screen of this page finished with the reader signed in. */
+export function markSignedInThisPage(): void {
+  signedInThisPage = true
+}
+
 /** Page global carrying the reader. */
 interface ReaderScope {
   __AVN_AEVEN_READER__?: AevenReader
@@ -90,6 +103,7 @@ export function publishReader(): void {
     ...session.email === undefined ? {} : { email: session.email },
     ...imageUrl === undefined ? {} : { imageUrl },
     ...web === undefined ? {} : { accountUrl: `${web}/account/` },
+    ...signedInThisPage ? { signedInThisPage: true as const } : {},
     signOut,
     setDisplayName: async (displayName: string) => {
       const stored = await setDisplayName(displayName)

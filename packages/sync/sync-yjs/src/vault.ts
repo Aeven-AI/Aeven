@@ -1,15 +1,16 @@
 /**
- * One account's vault on this device: the account key the relay hands to signed-in devices, open Yjs documents,
- * and the exchange of sealed frames with the relay. Frames are applied in relay order; the relay delivers each
- * connection's frames in sequence order, which the per-sender counter check relies on.
+ * One account's vault on this device: the account key, held by the relay or unwrapped from one of the user's
+ * passkeys, open Yjs documents, and the exchange of sealed frames with the relay. Frames are applied in relay order;
+ * the relay delivers each connection's frames in sequence order, which the per-sender counter check relies on.
  */
 import * as Y from 'yjs'
 import { Deque } from '@aeven/deque'
 import {
-  fromBase64Url, opaqueIdOf, openEnvelope, proveKey, sealEnvelope, toBase64Url, verifyKeyProof,
-  type DeviceId, type EnvelopeKind, type OpaqueId,
+  fromBase64Url, generateVaultKey, keyIdOf, opaqueIdOf, openEnvelope, proveKey, sealEnvelope, toBase64Url,
+  unwrapUnderPasskey, verifyKeyProof, wrapUnderPasskey,
+  type DeviceId, type EnvelopeKind, type KeyId, type OpaqueId,
 } from '@aeven/sync-vault'
-import type { SyncDocument, SyncState, SyncStatus } from '@aeven/sync'
+import type { SyncDocument, SyncKeyMode, SyncPasskey, SyncProtection, SyncState, SyncStatus } from '@aeven/sync'
 import type { SyncOffload } from './offload.ts'
 import { publishFrameLimit, publishRequestBytes, type PublishFrame, type RelayConnection } from './relay.ts'
 import { prepareFrame } from './frames.ts'
@@ -41,6 +42,37 @@ export interface VaultTuning {
   publishBytes: number
 }
 
+/** The account key state `key.get` answers. */
+type RelayKeyState =
+  | { readonly mode: 'server'; readonly key: Uint8Array; readonly keyId: KeyId }
+  | { readonly mode: 'passkey'; readonly keyId: KeyId; readonly passkeys: ReadonlyArray<{ readonly id: string; readonly wrapped: string }> }
+
+const BASE64URL = /^[A-Za-z0-9_-]+$/
+
+/**
+ * Validate the relay's `key.get` answer.
+ * @param answer - the answer fields.
+ * @returns the key state.
+ * @throws {Error} when the answer is malformed.
+ */
+function parseKeyState(answer: Record<string, unknown>): RelayKeyState {
+  const { mode, keyId } = answer
+  if (typeof keyId !== 'string' || !BASE64URL.test(keyId)) throw new Error('the relay named no key id')
+  if (mode === 'server' || (mode === undefined && typeof answer.key === 'string')) {
+    if (typeof answer.key !== 'string') throw new Error('the relay sent no key')
+    const key = fromBase64Url(answer.key, 32)
+    if (keyIdOf(key) !== keyId) throw new Error('the relay sent a key that does not match its id')
+    return { mode: 'server', key, keyId: keyId as KeyId }
+  }
+  const { passkeys } = answer
+  if (mode !== 'passkey' || !Array.isArray(passkeys) || passkeys.length === 0) throw new Error('the relay sent an unknown key state')
+  for (const entry of passkeys as unknown[]) {
+    const fields = entry as { id?: unknown; wrapped?: unknown } | null
+    if (typeof fields?.id !== 'string' || typeof fields.wrapped !== 'string') throw new Error('the relay sent a malformed passkey')
+  }
+  return { mode: 'passkey', keyId: keyId as KeyId, passkeys: passkeys as Array<{ id: string; wrapped: string }> }
+}
+
 /** Settles after a real timer, so I/O, HTTP, and the agent loop run before the next slice. */
 function pause(ms: number): Promise<void> {
   return new Promise((resolve) => { setTimeout(resolve, ms) })
@@ -57,7 +89,13 @@ export type VaultWarn = (message: string, error: unknown) => void
 /** One account's vault on this device. */
 export class AccountVault {
   private readonly device: DeviceId
+  /** The connection exchanging frames: set once this device holds the key the relay names. */
   private relay: RelayConnection | undefined
+  /** The open connection, including one that waits for the user to unlock or confirm the key. */
+  private connection: RelayConnection | undefined
+  /** The key state the relay last answered. */
+  private relayKey: RelayKeyState | undefined
+  private protection: SyncProtection | undefined
   private state: SyncState
   private flushing: Promise<void> | undefined
   private lanSend: ((frame: Uint8Array) => void) | undefined
@@ -84,6 +122,7 @@ export class AccountVault {
    * @param documentChanged - called after another device's change to a document was stored.
    * @param warn - receives dropped-frame diagnostics.
    * @param offload - the provider's sync worker for opening frames and compacting documents.
+   * @param startedOver - called after the account's documents were dropped because its key changed.
    */
   constructor(
     private readonly store: SyncStore,
@@ -92,10 +131,15 @@ export class AccountVault {
     private readonly documentChanged: (id: OpaqueId) => void,
     private readonly warn: VaultWarn,
     private readonly offload: SyncOffload,
+    private readonly startedOver: () => void,
   ) {
     this.device = store.deviceId()
     this.received = store.relayCursor()
     this.state = !store.enabled() ? 'disabled' : store.accountKey() === undefined ? 'starting' : 'offline'
+    const mode = store.keyMode()
+    if (mode !== undefined) {
+      this.protection = { mode, locked: mode === 'passkey' && store.accountKey() === undefined, downgraded: false, passkeys: [] }
+    }
   }
 
   /**
@@ -150,7 +194,7 @@ export class AccountVault {
    */
   setEnabled(enabled: boolean): void {
     this.store.setEnabled(enabled)
-    if (!enabled) this.relay?.close()
+    if (!enabled) this.connection?.close()
     this.setState(!enabled ? 'disabled' : this.store.accountKey() === undefined ? 'starting' : 'offline')
   }
 
@@ -161,7 +205,10 @@ export class AccountVault {
   status(): SyncStatus {
     const pending = this.store.pending()
     this.queued = pending === 0 ? 0 : Math.max(this.queued, pending)
-    return { state: this.state, device: this.device, pending, queued: this.queued }
+    return {
+      state: this.state, device: this.device, pending, queued: this.queued,
+      ...this.protection === undefined ? {} : { protection: this.protection },
+    }
   }
 
   private setState(state: SyncState): void {
@@ -171,27 +218,198 @@ export class AccountVault {
   }
 
   /**
-   * Take the account key over a new connection, start sending queued frames, and catch up in the background.
-   * A device without an account key stays in `starting` until the key is stored.
+   * Read the account key state over a new connection. When this device holds the key the relay names it starts
+   * sending queued frames and catches up in the background; otherwise it stays in `starting` until the user unlocks
+   * the account with a passkey or confirms a key the relay took back.
    * @param relay - an open connection for the account.
    */
   async attach(relay: RelayConnection): Promise<void> {
     if (!this.store.enabled()) return
-    this.relay = relay
+    this.connection = relay
     this.setState(this.ready() ? 'connecting' : 'starting')
-    const { key } = await relay.request('key.get') as { key: string }
-    if (this.relay !== relay) return
-    if (this.store.setAccountKey(fromBase64Url(key, 32))) {
-      this.received = 0
-      this.warn('sync: the relay started the account over with a new key; this device publishes its data again', undefined)
+    const state = parseKeyState(await relay.request('key.get'))
+    if (this.connection !== relay) return
+    this.relayKey = state
+    if (state.mode === 'server') {
+      // A relay that held no key while this device last saw a passkey hold it took the key back, whether another
+      // device turned protection off or the relay did it on its own; the user decides before anything is sent.
+      if (this.store.keyMode() === 'passkey') {
+        this.protection = { mode: 'server', locked: false, downgraded: true, passkeys: [] }
+        this.setState('starting')
+        this.changed()
+        return
+      }
+      this.protection = { mode: 'server', locked: false, downgraded: false, passkeys: [] }
+      this.useKey(relay, state.key, 'server')
+      return
     }
+    this.store.setKeyMode('passkey')
+    const passkeys = state.passkeys.map(({ id }) => id)
+    const local = this.store.accountKey()
+    if (local !== undefined && keyIdOf(local) === state.keyId) {
+      this.protection = { mode: 'passkey', locked: false, downgraded: false, passkeys }
+      this.goOnline(relay)
+      return
+    }
+    // The key moved to one this device does not hold; nothing kept under the earlier one can reach the relay again.
+    if (this.store.dropAccountKey()) this.restart()
+    this.protection = { mode: 'passkey', locked: true, downgraded: false, passkeys }
+    this.setState('starting')
+    this.changed()
+  }
+
+  /** Hold `key` and exchange frames under it over `relay`. */
+  private useKey(relay: RelayConnection | undefined, key: Uint8Array, mode: SyncKeyMode): void {
+    if (this.store.setAccountKey(key, mode)) this.restart()
+    if (relay === undefined || this.connection !== relay) {
+      this.setState('offline')
+      return
+    }
+    this.goOnline(relay)
+  }
+
+  private goOnline(relay: RelayConnection): void {
+    this.relay = relay
     // The device is online once connected; queued frames go out and the relay's backlog arrives in the background.
     this.setState('online')
+    this.changed()
     void this.flush()
     this.catchingUp = this.catchUp(relay).catch((error: unknown) => {
       // The connection loop reconnects after a dropped connection; the next attach resumes from the stored cursor.
       if (this.relay === relay) this.warn('sync: catching up with the relay failed', error)
     })
+  }
+
+  /** The store started over under another key: drop what was received or open under the earlier one. */
+  private restart(): void {
+    this.received = 0
+    this.queued = 0
+    this.inbound.clear()
+    for (const open of this.docs.values()) open.doc.destroy()
+    this.docs.clear()
+    // Unthrottled: local-network links still announce and answer under the earlier key until the provider hears it.
+    this.statusChanged()
+    this.startedOver()
+  }
+
+  /**
+   * Stop sending frames over the connection and wait for the publish in flight, so a key change requested next is
+   * the last thing the relay sees under the earlier key.
+   * @returns the open connection.
+   */
+  private async quiesce(): Promise<RelayConnection> {
+    const relay = this.connection
+    if (relay === undefined) throw new Error('changing the account key needs a connection to the relay')
+    this.relay = undefined
+    await this.flushing
+    return relay
+  }
+
+  /**
+   * Create a new account key held by a passkey and have the relay keep it only wrapped under that passkey.
+   * @param passkey - the new passkey's credential id and PRF output.
+   */
+  async protect(passkey: SyncPasskey): Promise<void> {
+    if (this.protection?.mode !== 'server' || this.protection.downgraded || !this.ready()) {
+      throw new Error('only an account whose key the relay holds can move it to a passkey')
+    }
+    const relay = await this.quiesce()
+    const key = generateVaultKey()
+    try {
+      await relay.request('key.protect', {
+        keyId: keyIdOf(key),
+        passkey: { id: passkey.credentialId, wrapped: wrapUnderPasskey(passkey.prf, passkey.credentialId, key) },
+      })
+    } catch (error) {
+      if (this.connection === relay) this.goOnline(relay)
+      throw error
+    }
+    this.protection = { mode: 'passkey', locked: false, downgraded: false, passkeys: [passkey.credentialId] }
+    this.useKey(relay, key, 'passkey')
+  }
+
+  /**
+   * Unwrap the account key with one of its passkeys.
+   * @param passkey - the passkey's credential id and PRF output.
+   * @throws {Error} when the passkey holds no copy of the key or its copy does not open.
+   */
+  unlock(passkey: SyncPasskey): void {
+    const state = this.relayKey
+    if (state?.mode !== 'passkey' || this.protection?.locked !== true) throw new Error('the account is not locked')
+    const entry = state.passkeys.find(({ id }) => id === passkey.credentialId)
+    if (entry === undefined) throw new Error('this passkey does not hold the account key')
+    const key = unwrapUnderPasskey(passkey.prf, entry.id, state.keyId, entry.wrapped)
+    this.protection = { ...this.protection, locked: false }
+    this.useKey(this.connection, key, 'passkey')
+  }
+
+  /**
+   * Wrap the account key under one more passkey.
+   * @param passkey - the passkey's credential id and PRF output.
+   */
+  async addPasskey(passkey: SyncPasskey): Promise<void> {
+    const key = this.unlockedPasskeyKey()
+    const relay = this.requireConnection()
+    const answer = await relay.request('passkey.add', {
+      passkey: { id: passkey.credentialId, wrapped: wrapUnderPasskey(passkey.prf, passkey.credentialId, key) },
+    })
+    this.setPasskeys(answer)
+  }
+
+  /**
+   * Drop one passkey's copy of the account key.
+   * @param credentialId - the passkey's credential id.
+   */
+  async removePasskey(credentialId: string): Promise<void> {
+    this.unlockedPasskeyKey()
+    const answer = await this.requireConnection().request('passkey.remove', { id: credentialId })
+    this.setPasskeys(answer)
+  }
+
+  /** Hand the account key back to the relay, which creates a new one. */
+  async unprotect(): Promise<void> {
+    this.unlockedPasskeyKey()
+    const relay = await this.quiesce()
+    let answer: Record<string, unknown>
+    try {
+      answer = await relay.request('key.unprotect')
+    } catch (error) {
+      if (this.connection === relay) this.goOnline(relay)
+      throw error
+    }
+    const state = parseKeyState({ ...answer, mode: 'server' })
+    if (state.mode !== 'server') throw new Error('the relay returned no key')
+    this.relayKey = state
+    this.protection = { mode: 'server', locked: false, downgraded: false, passkeys: [] }
+    this.useKey(relay, state.key, 'server')
+  }
+
+  /** Sync under the key the relay took back from the account's passkeys. */
+  acceptServerKey(): void {
+    const state = this.relayKey
+    if (state?.mode !== 'server' || this.protection?.downgraded !== true) throw new Error('the relay did not take the key back')
+    this.protection = { mode: 'server', locked: false, downgraded: false, passkeys: [] }
+    this.useKey(this.connection, state.key, 'server')
+  }
+
+  private unlockedPasskeyKey(): Uint8Array {
+    const key = this.key()
+    if (this.protection?.mode !== 'passkey' || this.protection.locked || key === undefined) {
+      throw new Error('the account key is not held by a passkey on this device')
+    }
+    return key
+  }
+
+  private requireConnection(): RelayConnection {
+    if (this.connection === undefined) throw new Error('changing the account passkeys needs a connection to the relay')
+    return this.connection
+  }
+
+  private setPasskeys(answer: Record<string, unknown>): void {
+    const { passkeys } = answer
+    if (!Array.isArray(passkeys) || passkeys.some(id => typeof id !== 'string')) throw new Error('the relay returned malformed passkeys')
+    if (this.protection !== undefined) this.protection = { ...this.protection, passkeys: passkeys as string[] }
+    this.changed()
   }
 
   /**
@@ -219,6 +437,7 @@ export class AccountVault {
   /** The relay connection closed. */
   detach(): void {
     this.relay = undefined
+    this.connection = undefined
     if (this.store.enabled()) this.setState(this.store.accountKey() === undefined ? 'starting' : 'offline')
   }
 
@@ -327,7 +546,8 @@ export class AccountVault {
         closed = true
         handle.handles -= 1
         if (handle.handles > 0) return
-        this.docs.delete(id)
+        // A key change already dropped and destroyed the document.
+        if (this.docs.get(id) === handle) this.docs.delete(id)
         handle.doc.destroy()
       },
     }

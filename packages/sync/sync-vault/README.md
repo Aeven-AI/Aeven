@@ -1,5 +1,5 @@
 ---
-description: "Vault cryptography for account sync: the account key, opaque document ids, and AES-256-GCM envelopes."
+description: "Vault cryptography for account sync: the account key, opaque document ids, AES-256-GCM envelopes, and the account key wrapped under a passkey."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-A library on `node:crypto` built-ins: 32-byte account keys, HKDF-derived content keys per document or stream id, opaque HMAC ids for logical names, AES-256-GCM envelopes whose plaintext header is the associated data, and the key proof devices exchange when they link on a local network. It holds no state. See the [account sync group](../README.md).
+A library on `node:crypto` built-ins: 32-byte account keys, HKDF-derived content keys per document or stream id, opaque HMAC ids for logical names, AES-256-GCM envelopes whose plaintext header is the associated data, the key proof devices exchange when they link on a local network, the key id, the account key wrapped under a passkey's WebAuthn PRF output, and opening the result a passkey page seals to a one-use X25519 key. It holds no state. See the [account sync group](../README.md).
 
 ## Table of Contents
 

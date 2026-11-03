@@ -1,6 +1,7 @@
 /**
  * Keeps each account's learned capabilities the same on all of its devices through the account's synced
- * `capabilities` document, while `ctx.sync` serves the account. Each capability is one entry holding its files
+ * `capabilities` document, while `ctx.sync` serves the account. Opening the document publishes every local
+ * capability it does not name yet. Each capability is one entry holding its files
  * keyed by path, so a procedure and its scripts reach the other devices together; a removed capability leaves a
  * tombstone, and the entry written last wins. A device's execution log stays on that device.
  */
@@ -25,6 +26,9 @@ export interface SyncedCapability {
 /** Applies another device's capability or its removal on this device. */
 export type CapabilityApply = (owner: string, name: string, entry: SyncedCapability) => void
 
+/** Publishes the account's capabilities on this device that the document does not name. */
+export type CapabilitySeed = (owner: string, present: ReadonlySet<string>) => Promise<void>
+
 /** Mirror between the capability directories and each account's synced document. */
 export class CapabilitySync {
   private readonly open = new Map<string, Promise<SyncDocument | undefined>>()
@@ -32,12 +36,14 @@ export class CapabilitySync {
   /**
    * @param ctx - the service context; `sync` is read optionally.
    * @param apply - stores another device's capability or removal.
-   * @param warn - receives failures to open the document.
+   * @param warn - receives failures to open or seed the document.
+   * @param seed - publishes local capabilities the document does not name yet.
    */
   constructor(
     private readonly ctx: Context,
     private readonly apply: CapabilityApply,
     private readonly warn: (message: string) => void,
+    private readonly seed: CapabilitySeed,
   ) {}
 
   /**
@@ -55,6 +61,10 @@ export class CapabilitySync {
     const opening = sync.openDocument(owner, DOCUMENT).then((handle) => {
       const map = handle.doc.getMap<SyncedCapability>('capabilities')
       this.take(owner, map, map.keys())
+      // Capabilities written before this device synced, or before the account's documents started over.
+      void this.seed(owner, new Set(map.keys())).catch((error: unknown) => {
+        this.warn(`capabilities: publishing this device's capabilities failed: ${String(error)}`)
+      })
       map.observe((event: YMapEvent<SyncedCapability>, transaction: Transaction) => {
         if (!transaction.local) this.take(owner, map, event.keysChanged)
       })
@@ -98,9 +108,22 @@ export class CapabilitySync {
     handle?.doc.getMap<SyncedCapability>('capabilities').set(name, { changedAt, removed: true })
   }
 
+  /* jscpd:ignore-start -- identical in every account-document mirror; each owns its own open map and document. */
+  /**
+   * Close the account's document because its documents started over under a new key; the next attach opens it anew.
+   * @param owner - the account.
+   * @returns when the document is closed.
+   */
+  async reset(owner: string): Promise<void> {
+    const opening = this.open.get(owner)
+    this.open.delete(owner)
+    ;(await opening)?.close()
+  }
+
   /** Close every open document. */
   async dispose(): Promise<void> {
     for (const opening of this.open.values()) (await opening)?.close()
     this.open.clear()
   }
+  /* jscpd:ignore-end */
 }

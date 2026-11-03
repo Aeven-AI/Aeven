@@ -86,7 +86,7 @@ class CdpClient {
 // startup rather than the behavior under test. The default 5s is startup budget
 // on an idle machine only; a full suite run exceeds it while the behavior itself
 // stays sub-second.
-describe('Cordis tree inspection', { timeout: 60_000 }, () => {
+describe('Cordis tree inspection', { timeout: 15_000 }, () => {
   let inspector: InspectorHandle | undefined
   let cdp: CdpClient | undefined
   let secondCdp: CdpClient | undefined

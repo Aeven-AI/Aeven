@@ -173,6 +173,12 @@ export class Automations extends Service<Config> {
       ctx,
       (id, entry) => { this.applySynced(id, entry) },
       (message) => { ctx.logger.warn(message) },
+      async (owner, present) => {
+        const domain = await this.ready
+        for (const [id, definition] of domain.table('definitions').entries()) {
+          if (definition.owner === owner && !present.has(id)) await this.synced.publish(owner, definition)
+        }
+      },
     )
     // Inbound secrets open before definitions, so a rejected trigger record cannot
     // leave the definition domain open without its owner.
@@ -229,6 +235,7 @@ export class Automations extends Service<Config> {
     })
     // Each account's automations follow it to every device its sync vault holds, once that vault is served here.
     this.ctx.on('sync/status', (owner) => { void this.synced.attach(owner) })
+    this.ctx.on('sync/reset', (owner) => { void this.synced.reset(owner) })
     this.ctx.effect(() => async () => {
       await this.synced.dispose()
       await Promise.all([...this.leases.values()].map(holder => holder.dispose()))

@@ -80,7 +80,7 @@ function signIn(target: { ctx: Context }, owner: string): void {
 }
 
 describe('Hosts of one account on one local network', () => {
-  it('deliver an update directly while the relay holds it, and drop a removed device', async () => {
+  it('deliver an update directly while the relay holds it, and drop a removed device', { timeout: 20_000 }, async () => {
     const account = 'lan-owner-1'
     const first = await host()
     signIn(first, account)

@@ -48,7 +48,7 @@ function device(path?: string) {
     path = join(root, 'sync.db')
   }
   const store = new SyncStore(path, 'bounded')
-  const vault = new AccountVault(store, tuning, vi.fn(), vi.fn(), vi.fn(), offload)
+  const vault = new AccountVault(store, tuning, vi.fn(), vi.fn(), vi.fn(), offload, vi.fn())
   const target = { store, vault, retired: false }
   devices.push(target)
   return target
@@ -108,7 +108,7 @@ it('preserves updates whose causal predecessors have not arrived when compacting
 it('recovers an oversized queued snapshot without changing its counter or covered relay position', async () => {
   const a = device()
   const key = Buffer.from(relay.account('bounded').key, 'base64url')
-  a.store.setAccountKey(key)
+  a.store.setAccountKey(key, 'server')
   const id = opaqueIdOf(key, 'sessions/index')
   const doc = new Y.Doc({ gc: false })
   const updates: Uint8Array[] = []
@@ -326,7 +326,7 @@ it('prunes a snapshot prefix only after all its transport parts are stored', asy
 it('allocates maintenance snapshot counters with their outbox insertion', async () => {
   const a = device()
   const key = generateVaultKey()
-  a.store.setAccountKey(key)
+  a.store.setAccountKey(key, 'server')
   const id = opaqueIdOf(key, 'doc')
   const doc = new Y.Doc()
   const updates: Uint8Array[] = []

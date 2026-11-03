@@ -2,7 +2,8 @@
  * Service Definition for account sync (`ctx.sync`): every device signed in to one account holds the same
  * documents. Consumers open a document by logical name in an owner's vault and edit its Yjs state; the
  * provider persists it locally, encrypts every change under the account key, and exchanges it with the
- * account's other devices.
+ * account's other devices. The account key is held either by the relay or, once the user protects the account,
+ * only by the user's passkeys and devices.
  * @module @aeven/sync
  */
 import { Context, Service } from '@deepseek-ai/cordis'
@@ -13,7 +14,11 @@ import type { DeviceId } from '@aeven/sync-vault'
 export type SyncState =
   /** The user turned sync off on this device. */
   | 'disabled'
-  /** This device has not received the account key yet; documents cannot open until it connects once. */
+  /**
+   * This device does not hold the account key yet: it has not connected once, the account's passkey has not
+   * unlocked it here, or the relay took the key back and the user has not confirmed it (see {@link SyncProtection}).
+   * Documents cannot open.
+   */
   | 'starting'
   /** No connection to the relay; documents open and change locally and reach other devices later. */
   | 'offline'
@@ -22,10 +27,43 @@ export type SyncState =
   /** Connected; the relay's backlog may still be arriving. */
   | 'online'
 
+/** Who holds an account's key. */
+export type SyncKeyMode =
+  /** The relay creates and keeps the key, so it can open what it stores. */
+  | 'server'
+  /** A device created the key and the relay keeps it only wrapped under the user's passkeys. */
+  | 'passkey'
+
+/** How an account's key is held, as this device last read it from the relay. */
+export interface SyncProtection {
+  /** Who holds the key. */
+  mode: SyncKeyMode
+  /** The key is held by passkeys and this device has not unlocked it; documents open after {@link Sync.unlock}. */
+  locked: boolean
+  /**
+   * The relay holds the key although this device last saw it held by a passkey. It may have been turned off on
+   * another device or by the relay itself; this device waits until the user confirms with
+   * {@link Sync.acceptServerKey} or protects the account again.
+   */
+  downgraded: boolean
+  /** Credential ids, base64url, of the passkeys the key is wrapped under; empty in `server` mode. */
+  passkeys: readonly string[]
+}
+
+/** One passkey ceremony's result: the credential and its PRF output for the account sync salt. */
+export interface SyncPasskey {
+  /** The credential id, base64url. */
+  credentialId: string
+  /** The 32-byte PRF output. */
+  prf: Uint8Array
+}
+
 /** One account's sync status on this device. */
 export interface SyncStatus {
   /** Current state. */
   state: SyncState
+  /** How the account's key is held; absent until this device has read it from the relay once. */
+  protection?: SyncProtection
   /** This device's id; absent for an account this device has never synced. */
   device?: DeviceId
   /** Local changes not yet acknowledged by the relay. */
@@ -104,6 +142,15 @@ declare module '@deepseek-ai/cordis' {
      * @param id - the document's opaque id, as {@link Sync.documentId} returns it.
      */
     'sync/document'(owner: string, id: string): void
+    /**
+     * An account's documents started over under a new key: this device dropped every document, its outbox, and the
+     * values it kept with {@link Sync.setLocalValue}, and the relay purged what it stored under the earlier key.
+     * Consumers close the documents they hold for the account and forget cached document ids; once the account
+     * syncs again they open the documents anew and publish their data again.
+     * @mode emit
+     * @param owner - the account.
+     */
+    'sync/reset'(owner: string): void
   }
 }
 
@@ -233,6 +280,70 @@ export abstract class Sync extends Service {
   }
 
   /**
+   * Move the account key from the relay to the user's passkey: this device creates a new key, the relay keeps it
+   * only wrapped under the passkey, purges what it stored under the earlier key, and every device starts over. The
+   * account's other devices unlock with the passkey before they sync again. Requires a connection.
+   * @param _owner - an account whose key the relay holds.
+   * @param _passkey - a newly created passkey's credential id and PRF output.
+   * @returns when the relay holds only the wrapped key.
+   */
+  protect(_owner: string, _passkey: SyncPasskey): Promise<void> {
+    return Promise.reject(new Error('this sync provider cannot hold the account key under a passkey'))
+  }
+
+  /**
+   * Wrap the account key under one more passkey, so either of them unlocks a new device. Requires a connection and
+   * an unlocked account.
+   * @param _owner - an account whose key a passkey holds.
+   * @param _passkey - the additional passkey's credential id and PRF output.
+   * @returns when the relay stores the additional copy.
+   */
+  addPasskey(_owner: string, _passkey: SyncPasskey): Promise<void> {
+    return Promise.reject(new Error('this sync provider cannot hold the account key under a passkey'))
+  }
+
+  /**
+   * Drop one passkey's copy of the account key; the last one stays until {@link unprotect}. Requires a connection.
+   * @param _owner - an account whose key passkeys hold.
+   * @param _credentialId - a credential id {@link SyncProtection.passkeys} lists.
+   * @returns when the relay no longer stores that copy.
+   */
+  removePasskey(_owner: string, _credentialId: string): Promise<void> {
+    return Promise.reject(new Error('this sync provider cannot hold the account key under a passkey'))
+  }
+
+  /**
+   * Unlock the account on this device with one of its passkeys: the device unwraps the key the relay stores and
+   * syncs from then on without asking again. Requires a connection.
+   * @param _owner - an account whose status is locked.
+   * @param _passkey - the passkey's credential id and PRF output.
+   * @returns when the key is stored on this device.
+   * @throws {Error} when the passkey does not open the account key.
+   */
+  unlock(_owner: string, _passkey: SyncPasskey): Promise<void> {
+    return Promise.reject(new Error('this sync provider cannot hold the account key under a passkey'))
+  }
+
+  /**
+   * Hand the account key back to the relay: it creates a new key it holds, purges what it stored, and every device
+   * starts over. The account's other devices ask the user before syncing under it. Requires a connection.
+   * @param _owner - an account whose key passkeys hold, unlocked on this device.
+   * @returns when this device holds the relay's new key.
+   */
+  unprotect(_owner: string): Promise<void> {
+    return Promise.reject(new Error('this sync provider cannot hold the account key under a passkey'))
+  }
+
+  /**
+   * Confirm syncing under the key the relay holds after it took the key back from the account's passkeys.
+   * @param _owner - an account whose status is downgraded.
+   * @returns when this device holds the relay's key.
+   */
+  acceptServerKey(_owner: string): Promise<void> {
+    return Promise.reject(new Error('this sync provider cannot hold the account key under a passkey'))
+  }
+
+  /**
    * Acquire or renew exclusive work on this device. Requires an online account; an unreachable relay
    * rejects the request. Callers must stop work before renewal fails or its requested duration elapses.
    * @param owner - the account.
@@ -255,6 +366,14 @@ export abstract class Sync extends Service {
    */
   protected notifyStatus(owner: string): void {
     this.ctx.emit('sync/status', owner)
+  }
+
+  /**
+   * Tell Consumers that an account's documents started over under a new key.
+   * @param owner - the account.
+   */
+  protected notifyReset(owner: string): void {
+    this.ctx.emit('sync/reset', owner)
   }
 
   /**

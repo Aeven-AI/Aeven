@@ -206,6 +206,7 @@ export class MessageFeedbackService extends TypertRemoteService {
     this.table = domain.table('sessions')
     // Each account's feedback follows it to every device its sync vault holds, once that vault is served here.
     this.ctx.on('sync/status', (owner) => { void this.synced.attach(owner) })
+    this.ctx.on('sync/reset', (owner) => { void this.synced.reset(owner) })
     this.ctx.effect(() => () => this.synced.dispose(), 'message-feedback.sync')
   }
 

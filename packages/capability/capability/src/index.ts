@@ -79,9 +79,15 @@ export default class Capabilities extends Service {
       ctx,
       (owner, name, entry) => { this.applySynced(owner, name, entry) },
       (message) => { ctx.logger('capabilities').warn(message) },
+      async (owner, present) => {
+        for (const record of await this.store.list(owner)) {
+          if (!present.has(record.name)) await this.publishOne(owner, record.name)
+        }
+      },
     )
     // Each account's capabilities follow it to every device its sync vault holds, once that vault is served here.
     this.ctx.on('sync/status', (owner) => { void this.synced.attach(owner) })
+    this.ctx.on('sync/reset', (owner) => { void this.synced.reset(owner) })
     ctx.effect(() => () => this.synced.dispose(), 'capabilities.sync')
   }
 

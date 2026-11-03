@@ -18,6 +18,7 @@ import { NameCheck } from './views/NameCheck.tsx'
 import { OauthResult } from './views/OauthResult.tsx'
 import { matchAuthRoute } from './route-match.ts'
 import { AUTH_EXIT_ELSEWHERE, AUTH_ROUTES, isAuthRoute } from './services/routes.ts'
+import { markSignedInThisPage } from './services/reader.ts'
 import { storage } from './services/session.ts'
 import '../../vendor/aeven-auth.css'
 
@@ -111,6 +112,7 @@ export function mountAuthScreen(container: Element, pathname: string, cover?: Au
       return
     }
     const state = window.history.state as { authExit?: unknown } | null
+    markSignedInThisPage()
     settle(state?.authExit === AUTH_EXIT_ELSEWHERE.authExit ? 'elsewhere' : 'here')
   }
   window.addEventListener('popstate', followRoute)
@@ -160,6 +162,7 @@ export function mountNameScreen(container: Element, pathname: string): MountedAu
             // `pushState`: the application reads the address as it boots, and
             // there is no mounted application yet to hear a navigation.
             window.history.pushState(null, '', destination())
+            markSignedInThisPage()
             settle('here')
           },
         }))),

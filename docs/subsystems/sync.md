@@ -2,7 +2,7 @@
 
 English | [中文](sync.zh.md)
 
-Account sync keeps one Aeven account's conversations, settings, and memory the same on every device signed in to it. Each device encrypts a change before it leaves and the relay stores and forwards the frames, which it can open today because it creates and keeps each account's key; moving that key onto a passkey in the user's own password manager is in progress. Devices exchange changes within a second while both are online and catch up when one returns. [sync/](../../packages/sync/README.md) maps the packages; this page is the reference for the `ctx.sync` vocabulary and the events it emits.
+Account sync keeps one Aeven account's conversations, settings, and memory the same on every device signed in to it. Each device encrypts a change before it leaves and the relay stores and forwards the frames, which it can open while it creates and keeps the account's key; once the user protects the account with a passkey, only the account's devices hold the key and the relay keeps copies it cannot unwrap. Devices exchange changes within a second while both are online and catch up when one returns. [sync/](../../packages/sync/README.md) maps the packages; this page is the reference for the `ctx.sync` vocabulary and the events it emits.
 
 The seam follows the [capability-seam](../glossary.md) roles: [@aeven/sync](../../packages/sync/sync/README.md) declares `ctx.sync` and its types, [@aeven/sync-yjs](../../packages/sync/sync-yjs/README.md) provides documents, the local store, and the relay connection, and each consumer publishes its own data through it — [@aeven/session-sync](../../packages/session/session-sync/README.md) for conversation history and [@aeven/settings-sync](../../packages/settings/settings-sync/README.md) for the settings namespaces that declare the account reach. [@aeven/api-sync-controller](../../packages/api/sync-controller/README.md) exposes status and device calls to the Client, and [@aeven/client-ui-settings-sync](../../packages/client/ui-settings-sync/README.md) renders Settings → Sync.
 
@@ -137,6 +137,58 @@ watchStream(_owner: string, _name: string, _listener: (payload: Uint8Array) => v
 synchronize(_owner: string): Promise<void>
 
 /**
+ * Move the account key from the relay to the user's passkey: this device creates a new key, the relay keeps it
+ * only wrapped under the passkey, purges what it stored under the earlier key, and every device starts over. The
+ * account's other devices unlock with the passkey before they sync again. Requires a connection.
+ * @param _owner - an account whose key the relay holds.
+ * @param _passkey - a newly created passkey's credential id and PRF output.
+ * @returns when the relay holds only the wrapped key.
+ */
+protect(_owner: string, _passkey: SyncPasskey): Promise<void>
+
+/**
+ * Wrap the account key under one more passkey, so either of them unlocks a new device. Requires a connection and
+ * an unlocked account.
+ * @param _owner - an account whose key a passkey holds.
+ * @param _passkey - the additional passkey's credential id and PRF output.
+ * @returns when the relay stores the additional copy.
+ */
+addPasskey(_owner: string, _passkey: SyncPasskey): Promise<void>
+
+/**
+ * Drop one passkey's copy of the account key; the last one stays until {@link unprotect}. Requires a connection.
+ * @param _owner - an account whose key passkeys hold.
+ * @param _credentialId - a credential id {@link SyncProtection.passkeys} lists.
+ * @returns when the relay no longer stores that copy.
+ */
+removePasskey(_owner: string, _credentialId: string): Promise<void>
+
+/**
+ * Unlock the account on this device with one of its passkeys: the device unwraps the key the relay stores and
+ * syncs from then on without asking again. Requires a connection.
+ * @param _owner - an account whose status is locked.
+ * @param _passkey - the passkey's credential id and PRF output.
+ * @returns when the key is stored on this device.
+ * @throws {Error} when the passkey does not open the account key.
+ */
+unlock(_owner: string, _passkey: SyncPasskey): Promise<void>
+
+/**
+ * Hand the account key back to the relay: it creates a new key it holds, purges what it stored, and every device
+ * starts over. The account's other devices ask the user before syncing under it. Requires a connection.
+ * @param _owner - an account whose key passkeys hold, unlocked on this device.
+ * @returns when this device holds the relay's new key.
+ */
+unprotect(_owner: string): Promise<void>
+
+/**
+ * Confirm syncing under the key the relay holds after it took the key back from the account's passkeys.
+ * @param _owner - an account whose status is downgraded.
+ * @returns when this device holds the relay's key.
+ */
+acceptServerKey(_owner: string): Promise<void>
+
+/**
  * Acquire or renew exclusive work on this device. Requires an online account; an unreachable relay
  * rejects the request. Callers must stop work before renewal fails or its requested duration elapses.
  * @param owner - the account.
@@ -175,6 +227,33 @@ The signed-in user's account sync.
  * @returns the status afterwards.
  */
 @Remote async setEnabled(enabled: boolean): Promise<SyncView>
+
+/**
+ * Start a passkey step: the returned page creates a passkey (`protect`, `add`) or asks for one of the account's
+ * passkeys (`unlock`) in the system browser, and this Host collects the result and applies it in the background.
+ * The step shows in {@link status} until it succeeds; a new step replaces one in progress.
+ * @param purpose - what the passkey is for.
+ * @returns the page to open.
+ */
+@Remote async startPasskey(purpose: SyncPasskeyPurpose): Promise<SyncPasskeyStart>
+
+/**
+ * Stop a passkey step, or dismiss one that did not finish.
+ * @returns the status afterwards.
+ */
+@Remote async cancelPasskey(): Promise<SyncView>
+
+/**
+ * Hand the caller's account key back to the Aeven relay; every device starts over under the relay's new key.
+ * @returns the status afterwards.
+ */
+@Remote async unprotect(): Promise<SyncView>
+
+/**
+ * Keep syncing under the key the relay took back from the account's passkeys.
+ * @returns the status afterwards.
+ */
+@Remote async acceptServerKey(): Promise<SyncView>
 
 /**
  * List the caller's devices.
@@ -228,6 +307,26 @@ Collect an account's conversation publication progress without reading its logs.
  * @param progress - publisher counters, initialized to zero by the caller.
  */
 'sync/progress'(owner: string, progress: SyncProgress): void
+```
+
+Source: [`packages/sync/sync/src/index.ts`](../../packages/sync/sync/src/index.ts)
+
+<a id="syncreset--emit"></a>
+
+#### `sync/reset` — emit
+
+An account's documents started over under a new key: this device dropped every document, its outbox, and the values it kept with Sync.setLocalValue, and the relay purged what it stored under the earlier key. Consumers close the documents they hold for the account and forget cached document ids; once the account syncs again they open the documents anew and publish their data again.
+
+```ts cordis-catalog
+/**
+ * An account's documents started over under a new key: this device dropped every document, its outbox, and the
+ * values it kept with {@link Sync.setLocalValue}, and the relay purged what it stored under the earlier key.
+ * Consumers close the documents they hold for the account and forget cached document ids; once the account
+ * syncs again they open the documents anew and publish their data again.
+ * @mode emit
+ * @param owner - the account.
+ */
+'sync/reset'(owner: string): void
 ```
 
 Source: [`packages/sync/sync/src/index.ts`](../../packages/sync/sync/src/index.ts)

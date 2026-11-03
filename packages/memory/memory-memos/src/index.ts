@@ -416,6 +416,8 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   // Each account's memory follows it to every device its sync vault holds, once that vault is served here and
   // the account's database exists.
   const mirrors = new Map<string, MemorySyncMirror>()
+  /** Accounts whose documents started over; their next mirror publishes every row again. */
+  const republish = new Set<string>()
   const mirror = (owner: string): void => {
     const sync = ctx.get('sync')
     const state = sync?.status(owner).state
@@ -431,12 +433,22 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     const created = new MemorySyncMirror(owner, dbFile, sync, config.embedding.model, config.sync, (message) => { logger.warn(message) })
     mirrors.set(owner, created)
     try {
-      created.start()
+      created.start(republish.delete(owner))
     } catch (error) {
       logger.warn(`memory sync: starting for an account failed: ${String(error)}`)
     }
   }
   ctx.on('sync/status', mirror)
+  // The account's shard ids changed with its key: the mirror is rebuilt once the account syncs again.
+  ctx.on('sync/reset', (owner) => {
+    const stale = mirrors.get(owner)
+    if (stale === undefined) return
+    mirrors.delete(owner)
+    republish.add(owner)
+    void stale.dispose().then(() => { mirror(owner) }, (error: unknown) => {
+      logger.warn(`memory sync: stopping for an account failed: ${String(error)}`)
+    })
+  })
   ctx.on('sync/document', (owner, id) => { mirrors.get(owner)?.documentChanged(id) })
   ctx.effect(() => async () => {
     await Promise.all([...mirrors.values()].map(created => created.dispose()))

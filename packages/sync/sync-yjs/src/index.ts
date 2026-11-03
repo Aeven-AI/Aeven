@@ -1,8 +1,9 @@
 /**
  * Yjs Service Provider for account sync. Every account signed in on this Host syncs unless the user turned it off
  * on this device: it keeps a local store under `accounts/<hash>/sync/sync.db` and, while a client of that account
- * holds a session on this Host (so its Aeven access token resolves), one relay connection that takes the account
- * key and exchanges encrypted frames with the account's other devices. Devices of the account on the same local
+ * holds a session on this Host (so its Aeven access token resolves), one relay connection that reads the account
+ * key state and exchanges encrypted frames with the account's other devices. The key is the relay's, or one the
+ * user's passkey unwraps on this device. Devices of the account on the same local
  * network also link directly and send each other updates as they are made.
  * @module @aeven/sync-yjs
  */
@@ -13,7 +14,9 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import Schema from '@deepseek-ai/schemastery'
 import { credentialRef, type CredentialRef } from '@aeven/credentials'
 import { accountHomePath, avnHomePath, ACCOUNTS_DIR_NAME } from '@aeven/home-paths'
-import { Sync, type SyncDevice, type SyncDocument, type SyncLease, type SyncStatus, type SyncStreamBatch } from '@aeven/sync'
+import {
+  Sync, type SyncDevice, type SyncDocument, type SyncLease, type SyncPasskey, type SyncStatus, type SyncStreamBatch,
+} from '@aeven/sync'
 import type { DeviceId } from '@aeven/sync-vault'
 import { SyncOffload } from './offload.ts'
 import { LanTransport, MdnsDiscovery } from './lan.ts'
@@ -176,6 +179,7 @@ export default class YjsSync extends Sync {
         this.ctx.logger.warn(error)
       },
       this.offload,
+      () => { this.notifyReset(owner) },
     )
     account = { store, vault, wake: () => {} }
     this.accounts.set(owner, account)
@@ -302,6 +306,54 @@ export default class YjsSync extends Sync {
     const account = this.account(owner)
     account.vault.setEnabled(enabled)
     if (enabled) account.wake()
+  }
+
+  private vaultOf(owner: string): AccountVault {
+    const vault = this.accounts.get(owner)?.vault
+    if (vault === undefined) throw new Error('this device does not sync the account')
+    return vault
+  }
+
+  /** @inheritdoc */
+  override async protect(owner: string, passkey: SyncPasskey): Promise<void> {
+    await this.vaultOf(owner).protect(passkey)
+    this.nameAfterKey(owner)
+  }
+
+  /** @inheritdoc */
+  override async addPasskey(owner: string, passkey: SyncPasskey): Promise<void> {
+    await this.vaultOf(owner).addPasskey(passkey)
+  }
+
+  /** @inheritdoc */
+  override async removePasskey(owner: string, credentialId: string): Promise<void> {
+    await this.vaultOf(owner).removePasskey(credentialId)
+  }
+
+  /** @inheritdoc */
+  override async unlock(owner: string, passkey: SyncPasskey): Promise<void> {
+    this.vaultOf(owner).unlock(passkey)
+    this.nameAfterKey(owner)
+    await Promise.resolve()
+  }
+
+  /** @inheritdoc */
+  override async unprotect(owner: string): Promise<void> {
+    await this.vaultOf(owner).unprotect()
+    this.nameAfterKey(owner)
+  }
+
+  /** @inheritdoc */
+  override async acceptServerKey(owner: string): Promise<void> {
+    this.vaultOf(owner).acceptServerKey()
+    this.nameAfterKey(owner)
+    await Promise.resolve()
+  }
+
+  /** A key this device took outside a connection's start still needs this device's name in the new documents. */
+  private nameAfterKey(owner: string): void {
+    const account = this.accounts.get(owner)
+    if (account !== undefined) this.nameDevice(account)
   }
 
   /** @inheritdoc */

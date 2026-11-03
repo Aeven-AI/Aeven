@@ -79,6 +79,12 @@ export function apply(ctx: Context): void {
   }
 
   ctx.on('sync/status', attach)
+  // The account's documents started over under a new key; the next attach opens and seeds the document anew.
+  ctx.on('sync/reset', (owner) => {
+    const opening = open.get(owner)
+    open.delete(owner)
+    void opening?.then(handle => handle?.close())
+  })
   ctx.on('settings/document-updated', (ns) => {
     if (!accountNamespaces(ctx).has(ns)) return
     for (const opening of open.values()) {

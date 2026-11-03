@@ -138,9 +138,22 @@ export class WorkspaceSync {
     handle?.doc.getMap<SyncedWorkspace>('records').set(id, { removed: true, title, updatedAt: this.now().toISOString() })
   }
 
+  /* jscpd:ignore-start -- identical in every account-document mirror; each owns its own open map and document. */
+  /**
+   * Close the account's document because its documents started over under a new key; the next attach opens it anew.
+   * @param owner - the account.
+   * @returns when the document is closed.
+   */
+  async reset(owner: string): Promise<void> {
+    const opening = this.open.get(owner)
+    this.open.delete(owner)
+    ;(await opening)?.close()
+  }
+
   /** Close every open document. */
   async dispose(): Promise<void> {
     for (const opening of this.open.values()) (await opening)?.close()
     this.open.clear()
   }
+  /* jscpd:ignore-end */
 }

@@ -9,9 +9,9 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The `ctx.sync` provider. Each account keeps `accounts/<hash>/sync/sync.db` with its device id, the account key the relay hands it, document updates, outbox, and replay counters, and holds one relay connection while a client of the account has a session on the Host. Frames are applied in relay order; documents are compacted locally and snapshotted so the relay can prune covered updates; a frame the relay refuses outright is dropped rather than blocking the outbox. Two devices linked on a local network exchange document updates and stream batches directly, so a conversation that streams keeps reaching the other device while the relay is unreachable. Configuration: `relayUrl`, `credentialRef`, `deviceName`, `reconnectMs`, `connectTimeoutMs`, `compactAfter`, and `snapshotAfter`. See the [account sync group](../README.md).
+The `ctx.sync` provider. Each account keeps `accounts/<hash>/sync/sync.db` with its device id, the account key and who holds it, document updates, outbox, and replay counters, and holds one relay connection while a client of the account has a session on the Host. Frames are applied in relay order; documents are compacted locally and snapshotted so the relay can prune covered updates; a frame the relay refuses outright is dropped rather than blocking the outbox. Two devices linked on a local network exchange document updates and stream batches directly, so a conversation that streams keeps reaching the other device while the relay is unreachable. Configuration: `relayUrl`, `credentialRef`, `deviceName`, `reconnectMs`, `connectTimeoutMs`, `compactAfter`, and `snapshotAfter`. See the [account sync group](../README.md).
 
-A device without its account key stays in `starting`; `connecting`, `online`, and `offline` allow local documents to open.
+A device without its account key, including one locked until a passkey unlocks it and one waiting for the user to accept a key the relay took back, stays in `starting`; `connecting`, `online`, and `offline` allow local documents to open.
 
 ## Table of Contents
 

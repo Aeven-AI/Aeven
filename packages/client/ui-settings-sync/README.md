@@ -1,5 +1,5 @@
 ---
-description: "Settings → Sync: turn account sync on, add this device, approve new devices by code, and remove devices."
+description: "Settings → Sync: this device's switch, protecting the account with a passkey, and the account's devices; and the passkey popup."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The Settings section over the `sync` Remote, refreshed by the forwarded `sync/status` and `sync/join-requests` events. It shows the six-digit code on both devices and approves only from the device whose add-device screen is open. Copy lives in the `settings.sync` dictionaries (English, Chinese, Spanish). See the [account sync group](../../sync/README.md).
+The Settings section over the `sync` Remote, refreshed by the forwarded `sync/status` event: this device's switch, the upload meter, the passkey switch and passkey count, unlocking, and the account's devices. A `shell.overlay` popup offers protection after a sign-in on the page (the reader's `signedInThisPage`), asks for the passkey while this device is locked, and asks before syncing under a key the relay took back; it reads the status at most every two seconds. A passkey step opens its page in the system browser from the click. Copy lives in the `settings.sync` dictionaries (English, Chinese, Spanish). See the [account sync group](../../sync/README.md).
 
 The upload counter and progress bar remain visible when the queue is empty, keeping the card height stable between batches.
 

@@ -26,7 +26,7 @@ async function boot(user: User | undefined) {
   ctx.provide('typert', {} as never)
   ctx.provide('sync', sync as unknown as Sync)
   ctx.provide('identityUsers', { actingUser: () => user } as never)
-  await ctx.plugin(SyncController)
+  await ctx.plugin(SyncController, { siteUrl: 'https://aeven.test', passkeyMs: 600_000, passkeyPollMs: 1_000 })
   return { controller: ctx.syncController, sync, ctx }
 }
 
