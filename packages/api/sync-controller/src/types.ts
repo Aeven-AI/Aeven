@@ -43,6 +43,10 @@ export interface SyncPasskeyStart {
 /** The caller's sync status on this Host. */
 export interface SyncView {
   readonly state: SyncViewState
+  /** True while relay history or received frames are being applied; absent when none are pending. */
+  readonly catchingUp?: boolean
+  /** The failed transfer; queued local changes remain stored until publication succeeds. */
+  readonly error?: 'upload' | 'download'
   /** Local changes the relay has not acknowledged yet. */
   readonly pending: number
   /** Changes queued since the outbox was last empty; `queued - pending` of them are sent. */

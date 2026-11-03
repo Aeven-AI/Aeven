@@ -81,12 +81,14 @@ export default class SyncController extends TypertRemoteService {
   }
 
   private view(owner: string): SyncView {
-    const { state, pending, queued, protection } = this.ctx.sync.status(owner)
+    const { state, pending, queued, protection, catchingUp, error } = this.ctx.sync.status(owner)
     const progress: SyncProgress = { sessionsPending: 0, sessionsTotal: 0 }
     this.ctx.emit('sync/progress', owner, progress)
     const step = this.passkeys.get(owner)
     return {
       state, pending, queued, ...progress,
+      ...catchingUp === undefined ? {} : { catchingUp },
+      ...error === undefined ? {} : { error },
       ...protection === undefined ? {} : {
         protection: {
           mode: protection.mode, locked: protection.locked, downgraded: protection.downgraded, passkeys: protection.passkeys.length,

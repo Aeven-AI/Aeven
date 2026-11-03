@@ -74,6 +74,9 @@ function remoteEventSource(ctx: Context): TypertRemoteEventSource {
     // about a Session that has already left memory still reaches its owner.
     const owners = new Map<string, string | undefined>()
     const audienceOf = (event: string, args: readonly unknown[]): RemoteEventAudience | undefined => {
+      if ((event === 'sync/status' || event === 'sync/devices') && typeof args[0] === 'string') {
+        return { owner: args[0] }
+      }
       const sessionId = NOTIFICATION_SESSION[event]?.(args)
       if (typeof sessionId !== 'string') return undefined
       if (event === 'api-session/added' && typeof args[1] === 'string') owners.set(sessionId, args[1])

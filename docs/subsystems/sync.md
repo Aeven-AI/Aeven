@@ -8,6 +8,8 @@ The seam follows the [capability-seam](../glossary.md) roles: [@aeven/sync](../.
 
 A session another device writes opens as a local replica: readable and forkable, never resumed or repaired here ([persistence.md](persistence.md)). The design and its trade-offs are in the [account sync Agent Note](../../.agents/notes/proposed/architecture/2026-10-27-account-sync-network.md).
 
+Sync status reports `catchingUp` while relay history or received frames are being applied, and `error` identifies an upload or download that failed. `sync/devices` reports changes to the account’s device list independently of transfer progress.
+
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
 <a id="cordis-surface"></a>
@@ -274,6 +276,23 @@ Source: [`packages/api/sync-controller/src/index.ts`](../../packages/api/sync-co
 <a id="sync-events"></a>
 
 ### `sync/*` events
+
+<a id="syncdevices--emit"></a>
+
+#### `sync/devices` — emit
+
+The account's device list changed.
+
+```ts cordis-catalog
+/**
+ * The account's device list changed.
+ * @mode emit
+ * @param owner - the account whose devices changed.
+ */
+'sync/devices'(owner: string): void
+```
+
+Source: [`packages/sync/sync/src/index.ts`](../../packages/sync/sync/src/index.ts)
 
 <a id="syncdocument--emit"></a>
 

@@ -669,6 +669,15 @@ class UiWorkspaceService extends Service implements UiWorkspace {
         if (!this.keepsStart(sessions.current)) this.sessionUrl.push(sessions.current)
       }
 
+      // A chat address with nothing selected shows a composer that accepts no input. After a New Session that
+      // failed, such as one sent while the Host restarted, the next list update, which the reconnect delivers,
+      // opens a chat again, so that state lasts only while no attempt can succeed.
+      if (urlInitialized && this.initialNav === 'done' && sessions.current === undefined && this.connecting.size === 0
+        && this.sessionUrl.ownsAddress() && this.sessionUrl.readStart() === undefined) {
+        this.startSession()
+        return
+      }
+
       if (this.initialNav !== 'waiting') return
       /* v8 ignore next 4 -- guard only: every branch above that sets
        * `urlInitialized` also marks navigation done, and a done navigation

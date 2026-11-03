@@ -9,9 +9,11 @@ kind: "package-reference"
 
 ## 概述
 
-`ctx.sync` 的提供方。每个账户在 `accounts/<hash>/sync/sync.db` 中保存设备 id、账户密钥及其保管方、文档更新、发件箱和重放计数器，并在该账户的客户端在 Host 上持有会话时保持一条中转连接。帧按中转顺序应用；文档在本地压缩并生成快照，使中转服务器可以清理被覆盖的更新；中转服务器直接拒绝的帧会被丢弃，而不会阻塞发件箱。在局域网上互相连接的两台设备直接交换文档更新和流批次，因此中转服务器不可达时，正在流出的会话仍会到达另一台设备。配置：`relayUrl`、`credentialRef`、`deviceName`、`reconnectMs`、`connectTimeoutMs`、`compactAfter` 和 `snapshotAfter`。见[账户同步分组](../README.zh.md)。
+`ctx.sync` 的提供方。每个账户在 `accounts/<hash>/sync/sync.db` 中保存设备 id、账户密钥及其持有方、文档更新、发件箱和重放计数器，并在该账户的客户端持有 Host 会话期间保持一条中转连接。帧按中转顺序应用；文档在本地压缩并生成快照，以便中转服务器裁剪已覆盖的更新；未确认的帧保留在发件箱中。中转服务器暂时拒绝时，连接会关闭，发布通过已配置的重连循环恢复；其他拒绝会显示为上传失败。本地网络上互相连接的两台设备直接交换文档更新和流批次，因此中转服务器不可达时，正在流出的会话仍会到达另一台设备。配置：`relayUrl`、`credentialRef`、`deviceName`、`reconnectMs`、`connectTimeoutMs`、`compactAfter` 和 `snapshotAfter`。见[账户同步分组](../README.zh.md)。
 
 尚未取得账户密钥的设备（包括等待通行密钥解锁的设备，以及等待用户接受中转服务器收回的密钥的设备）保持 `starting` 状态；`connecting`、`online` 和 `offline` 状态允许打开本地文档。
+
+状态区分中转连接已建立与下载追赶已完成。追赶失败后从持久化游标重连。上传队列操作复用预编译的 SQLite 语句，接收批次对更新分组时不会为每一帧复制该文档已累计的更新。
 
 ## 目录
 

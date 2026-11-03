@@ -28,7 +28,7 @@ Four defaults make the feature work out of the box:
 
 - **Ready before it is opened.** Workspaces used on any device in the last `prefetch.recentDays` (default 30) arrive in the background within a disk budget; others arrive on first open.
 - **Available while the other computer sleeps.** An encrypted copy of every folder workspace on Aeven's servers, which the servers cannot read, serves files when no other device is online ([cloud copy](#cloud-copy)).
-- **Nothing to set up on the new computer.** Git is bundled when the system lacks it, environment files that Git ignores travel encrypted, and dependencies install in the background ([fresh computer](#a-fresh-computer)).
+- **Nothing to set up on the new computer.** Git installs through the platform's own installer when the computer lacks it, environment files that Git ignores travel encrypted, and dependencies install in the background ([fresh computer](#a-fresh-computer)).
 - **Work never waits for the whole folder.** A file the user or the agent opens is fetched first; only commands that read the whole tree wait ([on-demand files](#on-demand-files)).
 
 ### UX principles
@@ -61,7 +61,7 @@ Account sync's existing progress runs. Workspaces from other devices appear in t
 
 1. The user clicks the workspace. If prefetch already finished, it is ready.
 2. If a checkout of the same remote already exists in a likely place ([checkout discovery](#checkout-discovery)), the device binds it and shows a toast: "Using ~/code/aeven". No download happens.
-3. Otherwise the device clones the remote into the placed folder, with submodules and Git LFS objects: "Getting aeven · 60%". It uses this computer's own Git credentials (SSH agent, credential helper, Git Credential Manager), and the bundled Git when the system has none.
+3. Otherwise the device clones the remote into the placed folder, with submodules and Git LFS objects: "Getting aeven · 60%". It uses this computer's own Git credentials (SSH agent, credential helper, Git Credential Manager), and installs Git first when the computer has none.
 4. If cloning fails for authentication or network reasons, the device copies the repository from another device or the cloud copy instead ([peer clone](#peer-clone)) and sets `origin` to the remote URL. A notice says "Copied from your MacBook Pro. To push from this computer, sign in to github.com." No dialog appears.
 5. The device restores the workspace's environment files and applies the newest work-state checkpoint, so the user's uncommitted changes from device A are present.
 6. If the repository has a recognized lockfile and its toolchain is installed, the device installs dependencies in the background: "Preparing aeven…". The workspace is usable meanwhile.
@@ -138,7 +138,7 @@ Discovery reads only `.git/config` of each candidate, stops at the first match, 
 
 A new computer often has no Git, no secrets, and no installed dependencies. Each is handled without the user:
 
-- **Git.** The device uses the system Git when it is present and recent enough, and otherwise the Git that ships with the desktop app through [dugite](https://github.com/desktop/dugite), which bundles Git and Git LFS for macOS, Windows, and Linux. A fresh Mac therefore never shows the Xcode command-line tools prompt for a clone. The agent's own Git use resolves the same executable.
+- **Git.** The device uses the Git it finds on `PATH` and in each platform's standard install locations; the app ships no Git. When a repository workspace needs Git on a computer that has none, the device runs the platform's installer once and the row reads "Installing Git": `brew install git` when Homebrew is present, otherwise `xcode-select --install` on macOS, which opens Apple's one-click Command Line Tools dialog; `winget install --id Git.Git --exact --silent` on Windows, which may show the Windows administrator prompt; on Linux, where installing needs root, the row shows the distribution's install command to copy. The device detects the finished install by probing the standard locations, since a running process does not see a `PATH` change, and continues the clone. A missing Git LFS skips LFS objects and the row names them. The agent's own Git use resolves the same executable.
 - **Environment files.** Files that Git ignores but a project needs to run — names matching `envFiles.patterns` (default `.env`, `.env.*`, `.dev.vars`, `.envrc`, excluding `*.example`, `*.sample`, `*.template`) under `envFiles.maxBytes` (default 64 KB) each — travel encrypted with the workspace's descriptor. A device restores one only where no file of that name exists, never overwriting a local value, and a change on one device updates the others the same way. Other ignored files never travel.
 - **Dependencies.** After a clone, the device detects a lockfile (`pnpm-lock.yaml`, `package-lock.json`, `yarn.lock`, `bun.lock`, `uv.lock`, `poetry.lock`, `Pipfile.lock`, `Cargo.lock`, `go.sum`, `Gemfile.lock`) and, when the matching toolchain is on `PATH`, runs that lockfile's frozen install command through the shell capability under the workspace's sandbox at low priority. A missing toolchain skips the step silently; the agent installs it when a task needs it. The step is recorded as a session event when a session is open in the workspace, so the model knows dependencies are being installed and does not start a second install.
 
@@ -223,7 +223,7 @@ The feature is one [capability seam](../../../../docs/glossary.md#capability-sea
 | `packages/sync/file-sync` (`@aeven/file-sync`) | Service Definition `ctx.fileSync`: this device's transport peer id, share and unshare a folder with peers and the cloud copy, folder status and its change events, the global file index, file prioritization, targeted scans, conflicts and their resolution, and `awaitCurrent(owner, folder, deadline)` for handoff |
 | `packages/sync/file-sync-syncthing` (`@aeven/file-sync-syncthing`) | Service Provider: supervises the bundled Syncthing process through the subprocess capability, configures it through its loopback REST API, follows `/rest/events`, maps folders to workspaces, writes ignore, versioning, watcher, and priority settings, and applies the power and network policy |
 | `packages/workspace/workspace` | Consumer: publishes each workspace's file descriptor, location hint, wants, and holders in the existing `workspaces` document; runs placement, prefetch, and the status projection; registers the pre-read hook and the shell and search gate |
-| `packages/workspace/workspace-git-sync` (`@aeven/workspace-git-sync`) | Consumer: Git resolution (system or bundled), repository detection, remote normalization, checkout discovery, clone with submodules and LFS, peer clone, environment files, dependency preparation, work-state checkpoints, and the apply step registered on session handoff's claim |
+| `packages/workspace/workspace-git-sync` (`@aeven/workspace-git-sync`) | Consumer: Git resolution and installation, repository detection, remote normalization, checkout discovery, clone with submodules and LFS, peer clone, environment files, dependency preparation, work-state checkpoints, and the apply step registered on session handoff's claim |
 | `packages/api/file-sync-controller` | Remote: status, materialize, remove, conflicts, and settings for the Client |
 | `packages/client/ui-workspace`, `ui-sidebar-files`, `ui-settings-sync` | Row status and progress, the full tree during `fetching`, Settings → Sync → Files, the two-versions comparison |
 
@@ -259,10 +259,10 @@ Syncthing connects devices directly over TLS when they share a network or can tr
 
 #### Process and packaging
 
-- The desktop build downloads pinned Syncthing and dugite releases per platform and architecture, verifies their checksums, and ships them as nested executables, the same path [`prepare-runtime.ts`](../../../../apps/desktop/scripts/prepare-runtime.ts) uses for the Cua Driver, so they are signed and notarized with the app.
+- The desktop build downloads the pinned Syncthing release per platform and architecture (about 14 MB compressed, 36 MB unpacked), verifies its checksum, and ships it as a nested executable, the same path [`prepare-runtime.ts`](../../../../apps/desktop/scripts/prepare-runtime.ts) uses for the Cua Driver, so it is signed and notarized with the app.
 - The provider runs one Syncthing process per Host with its home under `$AVN_HOME/file-sync/syncthing/`, restarts it with backoff after a crash, and stops it with the Host. Folders are tagged with their owning account; a folder is shared only with that account's peers and cloud instance.
 - The desktop profile patch mounts the plugins; the base and Web bundles mount them disabled. A browser cannot run Syncthing, so Web access to files goes through one of the user's devices, consistent with the [hosted Web surface note](2026-09-30-hosted-web-surface-and-sync.md).
-- Syncthing is MPL-2.0 and Git is GPL-2.0. Shipping their unmodified binaries requires their license notices and links to the corresponding source; a local patch would be published.
+- Syncthing is MPL-2.0. Shipping its unmodified binary requires its license notice and a link to the corresponding source; a local patch would be published.
 
 <a id="configuration"></a>
 #### Configuration
@@ -285,7 +285,7 @@ Every deployment-varying value is a validated `Config` field changeable from `co
 | `handoffWaitMs` | 120000 | Longest a claim or a whole-tree command waits for files |
 | `envFiles.patterns`, `envFiles.maxBytes` | see [fresh computer](#a-fresh-computer) | Ignored files that travel |
 | `prepareDependencies` | `true` | Install dependencies after a clone |
-| `git` | `auto` | `auto` (system when recent enough, else bundled), `system`, or `bundled` |
+| `gitInstall` | `true` | Run the platform's Git installer when a repository workspace needs Git and none is found |
 | `discoveryRoots`, `discoveryDepth` | see [checkout discovery](#checkout-discovery) | Where existing checkouts are found |
 | `defaultIgnores` | built-in set | Folder-mode ignore patterns |
 | `discoveryServers`, `relayServers` | aeven.io | Syncthing discovery and relay endpoints |
@@ -301,7 +301,7 @@ Every deployment-varying value is a validated `Config` field changeable from `co
 
 | Phase | Scope | Engineer-weeks |
 |---|---|---|
-| 0. Spike | Bundle, sign, and notarize Syncthing and dugite on macOS, Windows, and Linux; supervise Syncthing; measure the performance budgets on a 100,000-file folder and a 5 GB folder; measure accounts per cloud instance in untrusted-device mode | 1.5 |
+| 0. Spike | Bundle, sign, and notarize Syncthing on macOS, Windows, and Linux; run the Git install flow on each; supervise Syncthing; measure the performance budgets on a 100,000-file folder and a 5 GB folder; measure accounts per cloud instance in untrusted-device mode | 1.5 |
 | 1. Seam and folder mode | `ctx.fileSync`, Syncthing provider, pairing through the `devices` document, early indexing, offers, placement, disk budget, versioning, status projection, sidebar progress | 2.5 |
 | 2. Repository mode | Git resolution, detection, remote normalization, checkout discovery, clone with submodules and LFS, peer clone, environment files | 2 |
 | 3. Continuing work and on-demand files | Work-state checkpoints with fresh-on-claim, targeted scans of written files, pre-read prioritization, the shell and search gate, apply with stash protection | 2 |
@@ -313,10 +313,48 @@ Every deployment-varying value is a validated `Config` field changeable from `co
 
 Phases 1–3 deliver files between online devices with no setup; phase 4 removes "Waiting for your MacBook Pro"; phase 5 removes the remaining first-open wait.
 
+<a id="phase-0-results"></a>
+### Phase 0 results
+
+The first spike ran Syncthing v2.1.7 (checksum verified) as separate local instances on one macOS arm64 computer (12 cores, 32 GB), so every network figure is loopback; Windows, Linux, internet latency, and signing and notarization remain for the rest of phase 0.
+
+| Measure | Result | Budget |
+|---|---|---|
+| Binary | 36 MB unpacked, 13–14 MB compressed on macOS, Windows, and Linux; already signed with hardened runtime | — |
+| Start to healthy REST API | 60–110 ms empty, 56 ms with 100,000 files indexed | — |
+| Change of 1 KB–9 MB on an online peer, targeted scan | 270–290 ms median, 305 ms 95th percentile; 1 s of that disappears only with `pullerDelayS: 0` | under 3 s |
+| Same change, watcher only (`watcherDelayS` 1) | 0.9–1.3 s | — |
+| 4 KB edit inside a 9 MB file | 131 KB transferred | — |
+| 4 KB edit inside the 100,000-file folder | 297 ms median, 549 ms 95th percentile | under 3 s |
+| Initial index of 100,000 files (977 MB) | 34 s | — |
+| Full rescan of the unchanged 100,000 files | 6.6 s, 7.1 CPU seconds | — |
+| Receiving 100,000 files, default settings | 875 s (114 files/s) | — |
+| Receiving 10,000 files: default / fsync off / fsync off, 16 writes, 4 copiers, 4 hashers | 160 / 253 / 404 files/s | — |
+| Receiving 5 GB in 20 large files | 9.9 s (517 MB/s) | — |
+| Prioritized 2 KB file during the 5 GB transfer | 4.0 s | under 2 s |
+| Prioritized 256 MB file during the 5 GB transfer | 0.6 s | — |
+| Idle with 100,000 files | 0–0.03% CPU, 98–144 MB worker resident memory, 90–104 MB database | under 1%, under 200 MB |
+| Cloud copy: plaintext contents or names on the untrusted instance | none found | — |
+| Cloud copy: SIGKILL mid-transfer, restart | converged, no intervention | — |
+| Cloud copy: fresh device restores 2,003 files, 308 MB, origin offline | 11.8 s, every file identical | — |
+| Cloud copy: edits on the fresh device reach the origin through the cloud copy alone | 1.1 s after the origin restarts | — |
+| Cloud copy: directory rename (100 files) / 100 MB file rename | 163 KB / 100 MB uploaded again | — |
+| Cloud instance density: 18 accounts, 54 folders, 16,200 files | 232 MB resident (about 7 MB per account), 2.9% idle CPU, 40% of one core under 18 edits/s | — |
+
+Changes to the plan:
+
+- **`pullerDelayS: 0`** on every workspace folder; Syncthing's default of 1 s alone exceeds a third of the same-network budget.
+- **Bulk first fetch.** Many small files, not bytes, limit a first download: a 100,000-file folder takes about 4 minutes even tuned. A folder in `fetching` runs with fsync off, 16 concurrent writes, and 4 copiers and hashers, and returns to defaults at `current`, where the other devices still hold every file a power loss could cut short. Repository workspaces avoid the limit because they clone through Git.
+- **Prioritization during fetching.** The 2 KB request missed the 2 s budget behind in-flight large blocks. Phase 1 lowers `pullerMaxPendingKiB` while a priority request is pending and measures again.
+- **Renames to the cloud copy re-upload.** Encrypted names derive each file's encryption, so a moved large file is sent to the cloud copy again; peer-to-peer renames stay free. The cloud copy's quota counts it.
+- **Git ships with no installer.** Bundling Git through dugite measured 150 MB unpacked per platform, 40 MB without Git Credential Manager; the device runs the platform's Git installer instead ([fresh computer](#a-fresh-computer)).
+- **Density favours object storage.** About 7 MB and 0.05% idle CPU per account, and 2.2% of a core per edit per second, put one instance at hundreds of accounts, not thousands; phase 4 starts from the relay object-storage variant of [open question 1](#open-questions).
+
+<a id="open-questions"></a>
 ### Open questions
 
-1. **Cloud instance density.** How many accounts' folders one Syncthing instance in untrusted-device mode serves within its memory and connection limits decides the pool's size and cost. Phase 0 measures it; if the density is too low, the cloud copy stores the same encrypted blocks through the account relay's object storage instead, behind the same `ctx.fileSync` provider.
-2. **Untrusted-device mode maturity.** Syncthing documents untrusted-device mode as newer than the rest of the protocol. Phase 0 runs it against crash, rename, and large-folder cases before the cloud copy becomes the default.
+1. **Cloud instance density.** How many accounts' folders one Syncthing instance in untrusted-device mode serves within its memory and connection limits decides the pool's size and cost. The first spike measured hundreds of accounts per instance ([results](#phase-0-results)); since that density is low, the cloud copy stores the same encrypted blocks through the account relay's object storage instead, behind the same `ctx.fileSync` provider.
+2. **Untrusted-device mode maturity.** Syncthing documents untrusted-device mode as newer than the rest of the protocol. The first spike found crash recovery, restore with the origin offline, and edits relayed through the cloud copy correct, and renames uploaded again ([results](#phase-0-results)); a large-folder run on Windows and Linux remains before the cloud copy becomes the default.
 
 ## Alternatives considered
 
@@ -340,7 +378,7 @@ Phases 1–3 deliver files between online devices with no setup; phase 4 removes
 
 **Leaving `.env` files to the user.** Keeps secrets off the wire. Rejected because the first turn on a new computer would then fail in most web and backend repositories, which is the opposite of working out of the box; the files are small, encrypted end to end, and never overwrite local values.
 
-**Requiring a system Git.** Smaller app. Rejected because a fresh Mac has no Git and running it shows the command-line tools installer; dugite adds tens of megabytes and removes that prompt.
+**Bundling Git through dugite.** Removes the install step on computers without Git. Rejected: 150 MB unpacked per platform, 40 MB after removing Git Credential Manager, 37 more executables to sign and notarize, and GPL-2.0 source obligations, for the minority of computers that lack Git, which the platform installer covers.
 
 **Shallow or partial clones.** Faster first clone. Rejected because the agent reads history and blame, and a partial clone fetches missing objects over the network at the moment the agent needs them, which is slower and fails offline.
 
@@ -379,7 +417,7 @@ Phases 1–3 deliver files between online devices with no setup; phase 4 removes
 - **Secrets on the wire.** Environment files now travel. They are encrypted end to end and readable only by the account's devices in passkey mode; in relay-held key mode the relay could read them, as it could read the conversations that often quote them.
 - **Running repository code after a clone.** Dependency preparation runs install scripts from the user's own repository without an explicit click. It runs in the workspace's sandbox and only for repositories the account already uses; `prepareDependencies` turns it off.
 - **Cloud cost.** The cloud copy adds per-account storage and an instance pool. The quota bounds it per account; phase 0 measures density before it is the default.
-- **Bundled native executables.** Signing, notarization, antivirus false positives on Windows, GPL source obligations for Git, and keeping pinned releases patched are ongoing costs, shared with the Cua Driver's path.
+- **Bundled native executables.** Signing, notarization, antivirus false positives on Windows, and keeping pinned releases patched are ongoing costs, shared with the Cua Driver's path.
 - **Resource use.** Early indexing spends CPU and disk on folders that may never be requested. It runs on AC power at low priority, and the budgets bound the steady state.
 - **Applying work over a user's own edits.** Applying a checkpoint changes files the user may have open in an editor. The stash, the notice, and never resetting keep the change reversible; the user still sees files change under their editor.
 - **Placement surprises.** A mirrored path can land somewhere the user did not expect on the second machine. The location is shown after the fact and **Use a different folder…** moves the binding.

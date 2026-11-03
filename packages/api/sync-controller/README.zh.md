@@ -11,7 +11,7 @@ kind: "package-reference"
 
 基于 `ctx.sync` 的 Typert Remote，只为当前请求的调用方执行操作。`startPasskey` 返回 `siteUrl` 上的 `/passkey/vault` 页面，并在后台最多 `passkeyMs` 内每隔 `passkeyPollMs` 取回密封结果；该步骤在成功前显示在 `status` 中，结束时发出 `sync/status`。`unprotect` 把密钥交还给中转服务器，`acceptServerKey` 确认中转服务器收回的密钥。见[账户同步分组](../../sync/README.zh.md)。
 
-状态包含通过 `sync/progress` 收集的对话发布进度，以及等待处理和排队的中转帧数。
+状态包含通过 `sync/progress` 收集的对话发布进度、等待处理和排队的中转帧数、下载追赶进度，以及上传或下载失败。
 
 ## 目录
 

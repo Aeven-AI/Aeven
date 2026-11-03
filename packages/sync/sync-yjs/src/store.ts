@@ -391,7 +391,7 @@ export class SyncStore {
    * @param covers - for a snapshot, the relay sequence number it covers.
    */
   enqueue(frame: Uint8Array, covers?: number): void {
-    this.db.prepare('INSERT INTO outbox (frame, covers) VALUES (?, ?)').run(Buffer.from(frame), covers ?? null)
+    this.statement('INSERT INTO outbox (frame, covers) VALUES (?, ?)').run(Buffer.from(frame), covers ?? null)
   }
 
   /**
@@ -401,8 +401,8 @@ export class SyncStore {
    */
   outbox(limit?: number): OutboxFrame[] {
     const rows = limit === undefined
-      ? this.db.prepare('SELECT seq, frame, covers FROM outbox ORDER BY seq').all()
-      : this.db.prepare('SELECT seq, frame, covers FROM outbox ORDER BY seq LIMIT ?').all(limit)
+      ? this.statement('SELECT seq, frame, covers FROM outbox ORDER BY seq').all()
+      : this.statement('SELECT seq, frame, covers FROM outbox ORDER BY seq LIMIT ?').all(limit)
     return (rows as Array<{ seq: number; frame: Buffer; covers: number | null }>)
       .map(row => ({ seq: row.seq, frame: new Uint8Array(row.frame), ...row.covers === null ? {} : { covers: row.covers } }))
   }
@@ -412,7 +412,7 @@ export class SyncStore {
    * @param seq - the last acknowledged outbox position; it and every earlier frame leave the outbox.
    */
   acknowledge(seq: number): void {
-    this.db.prepare('DELETE FROM outbox WHERE seq <= ?').run(seq)
+    this.statement('DELETE FROM outbox WHERE seq <= ?').run(seq)
   }
 
   /**
@@ -420,6 +420,6 @@ export class SyncStore {
    * @returns the number of frames still queued.
    */
   pending(): number {
-    return (this.db.prepare('SELECT COUNT(*) AS n FROM outbox').get() as { n: number }).n
+    return (this.statement('SELECT COUNT(*) AS n FROM outbox').get() as { n: number }).n
   }
 }

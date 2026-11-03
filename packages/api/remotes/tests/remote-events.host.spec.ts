@@ -95,6 +95,22 @@ describe('Remote event Host source', () => {
     }
   })
 
+  it('scopes sync status and device notifications to the owning account', async () => {
+    const { ctx, gateway } = await setup()
+    const abort = new AbortController()
+    const iterator = sourceOf(gateway)(abort.signal)[Symbol.asyncIterator]()
+    try {
+      for (const event of ['sync/status', 'sync/devices']) {
+        emitRaw(ctx, event, ['sync-owner'])
+        expect((await iterator.next()).value).toMatchObject({ event, audience: { owner: 'sync-owner' } })
+      }
+    } finally {
+      abort.abort()
+      await iterator.return?.()
+      await ctx.fiber.dispose()
+    }
+  })
+
   it('registers the Host home used by Client connection generations', async () => {
     const { gateway, fiber } = await setup()
     expect(gateway.host?.home).toBeTypeOf('string')

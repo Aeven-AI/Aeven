@@ -38,6 +38,8 @@ Client 组合挂载 Commands、凭据、settings、Goal、动态 Cordis、文件
 <a id="forwarded-host-events"></a>
 ## 转发的 Host 事件
 
+`sync/status` 和 `sync/devices` 通知仅发送给所属账户的客户端。设备列表变化使用独立通知，因此上传进度不会触发设备列表读取。
+
 `src/remote-events.ts` 持有 `API_REMOTE_FORWARDED_EVENTS`，即本应用不改名转发给消费端的 Host Cordis 事件名单；每个条目还会选择普通发送或 Agent-scoped waterfall 投递。该名单同时就是 `ctx.remote.$on` 的合法键集，只含类型的 `src/types.ts` 派生其选择面。多转发一个事件只需在该数组里加一项：类型投影、消费端键面与 Host 转发循环全部由它派生。
 
 监听器签名不在此处重写。名单内每条事件的 Cordis `Events` 声明都住在其 owner 包 client-safe 的 `./types` 出口，本包两个 face 都把那些声明纳入编译面。Host face 还会把每个条目断言给 `TypertForwardableEventEntry`：`emit` 条目必须是已声明的单向事件，`waterfall` 条目则必须是已声明的 Agent-scoped waterfall，且其最后一个参数是返回相同结果类型的 `next()` 回调。

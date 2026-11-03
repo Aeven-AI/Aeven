@@ -19,6 +19,12 @@ export interface SyncOperations {
    * @returns a function that stops listening.
    */
   onChange: (listener: () => void) => () => void
+  /**
+   * Subscribe to changes to the account's device list.
+   * @param listener - refresh callback.
+   * @returns a function that stops listening.
+   */
+  onDevicesChange: (listener: () => void) => () => void
 }
 
 /** The status as a view reads it. */

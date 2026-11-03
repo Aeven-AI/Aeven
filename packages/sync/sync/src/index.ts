@@ -62,6 +62,10 @@ export interface SyncPasskey {
 export interface SyncStatus {
   /** Current state. */
   state: SyncState
+  /** True while relay history or received frames are still being applied; absent when no download is pending. */
+  catchingUp?: boolean
+  /** The transfer that failed; absent after it succeeds. Queued local changes remain stored. */
+  error?: 'upload' | 'download'
   /** How the account's key is held; absent until this device has read it from the relay once. */
   protection?: SyncProtection
   /** This device's id; absent for an account this device has never synced. */
@@ -128,6 +132,12 @@ declare module '@deepseek-ai/cordis' {
      * @param owner - the account whose status changed.
      */
     'sync/status'(owner: string): void
+    /**
+     * The account's device list changed.
+     * @mode emit
+     * @param owner - the account whose devices changed.
+     */
+    'sync/devices'(owner: string): void
     /**
      * Collect an account's conversation publication progress without reading its logs.
      * @mode emit

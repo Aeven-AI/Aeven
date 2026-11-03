@@ -5282,6 +5282,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'info', description: 'the provider and published child identity.' }],
   },
   {
+    name: 'sync/devices',
+    mode: 'emit',
+    signature: '\'sync/devices\'(owner: string): void',
+    summary: 'The account\'s device list changed.',
+    description: 'The account\'s device list changed.',
+    parameters: [{ name: 'owner', description: 'the account whose devices changed.' }],
+  },
+  {
     name: 'sync/document',
     mode: 'emit',
     signature: '\'sync/document\'(owner: string, id: string): void',
@@ -8947,7 +8955,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SyncStatus',
-    declaration: 'export interface SyncStatus {\n    state: SyncState;\n    protection?: SyncProtection;\n    device?: DeviceId;\n    pending: number;\n    queued: number;\n}',
+    declaration: 'export interface SyncStatus {\n    state: SyncState;\n    catchingUp?: boolean;\n    error?: \'upload\' | \'download\';\n    protection?: SyncProtection;\n    device?: DeviceId;\n    pending: number;\n    queued: number;\n}',
   },
   {
     name: 'SyncStreamBatch',
@@ -8955,7 +8963,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SyncView',
-    declaration: 'export interface SyncView {\n    readonly state: SyncViewState;\n    readonly pending: number;\n    readonly queued: number;\n    readonly sessionsPending: number;\n    readonly sessionsTotal: number;\n    readonly protection?: SyncProtectionView;\n    readonly passkey?: SyncPasskeyView;\n}',
+    declaration: 'export interface SyncView {\n    readonly state: SyncViewState;\n    readonly catchingUp?: boolean;\n    readonly error?: \'upload\' | \'download\';\n    readonly pending: number;\n    readonly queued: number;\n    readonly sessionsPending: number;\n    readonly sessionsTotal: number;\n    readonly protection?: SyncProtectionView;\n    readonly passkey?: SyncPasskeyView;\n}',
   },
   {
     name: 'SyncViewState',

@@ -173,7 +173,10 @@ export default class YjsSync extends Sync {
         this.updateLan(owner)
         this.notifyStatus(owner)
       },
-      (id) => { this.notifyDocument(owner, id) },
+      (id) => {
+        this.notifyDocument(owner, id)
+        if (vault.ready() && id === vault.documentId(DEVICES)) this.ctx.emit('sync/devices', owner)
+      },
       (message, error) => {
         this.ctx.logger.warn(message)
         this.ctx.logger.warn(error)
@@ -247,12 +250,15 @@ export default class YjsSync extends Sync {
   }
 
   /** Record this device's name in the account's devices document once it holds the account key. */
-  private nameDevice(account: Account): void {
+  private nameDevice(owner: string, account: Account): void {
     const device = account.vault.status().device
     if (!account.vault.ready() || device === undefined) return
     const names = account.vault.openDocument(DEVICES)
     const map = names.doc.getMap<{ name: string }>('names')
-    if (map.get(device)?.name !== this.config.deviceName) map.set(device, { name: this.config.deviceName })
+    if (map.get(device)?.name !== this.config.deviceName) {
+      map.set(device, { name: this.config.deviceName })
+      this.ctx.emit('sync/devices', owner)
+    }
     names.close()
   }
 
@@ -284,7 +290,7 @@ export default class YjsSync extends Sync {
     account.relay = relay
     try {
       await account.vault.attach(relay)
-      this.nameDevice(account)
+      this.nameDevice(owner, account)
     } catch (error) {
       this.ctx.logger.warn('sync: catching up with the relay failed for %s', owner)
       this.ctx.logger.warn(error)
@@ -305,7 +311,10 @@ export default class YjsSync extends Sync {
   setEnabled(owner: string, enabled: boolean): void {
     const account = this.account(owner)
     account.vault.setEnabled(enabled)
-    if (enabled) account.wake()
+    if (enabled) {
+      if (account.vault.status().error !== undefined) account.relay?.close()
+      account.wake()
+    }
   }
 
   private vaultOf(owner: string): AccountVault {
@@ -353,7 +362,7 @@ export default class YjsSync extends Sync {
   /** A key this device took outside a connection's start still needs this device's name in the new documents. */
   private nameAfterKey(owner: string): void {
     const account = this.accounts.get(owner)
-    if (account !== undefined) this.nameDevice(account)
+    if (account !== undefined) this.nameDevice(owner, account)
   }
 
   /** @inheritdoc */
@@ -378,6 +387,7 @@ export default class YjsSync extends Sync {
     const names = vault.openDocument(DEVICES)
     try {
       names.doc.getMap<{ name: string }>('names').delete(device)
+      this.ctx.emit('sync/devices', owner)
     } finally {
       names.close()
       await Promise.resolve()

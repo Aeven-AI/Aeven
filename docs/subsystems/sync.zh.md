@@ -8,6 +8,8 @@
 
 另一台设备写入的会话以本地副本打开：可读取、可 fork，但不在此处恢复或修复（见 [persistence.md](persistence.zh.md)）。设计与取舍见[账户同步 Agent Note](../../.agents/notes/proposed/architecture/2026-10-27-account-sync-network.zh.md)。
 
+同步状态在应用中转历史或接收帧时报告 `catchingUp`，并通过 `error` 标识上传或下载失败。`sync/devices` 独立于传输进度报告账户设备列表的变化。
+
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
 <a id="cordis-surface"></a>
@@ -274,6 +276,23 @@ Source: [`packages/api/sync-controller/src/index.ts`](../../packages/api/sync-co
 <a id="sync-events"></a>
 
 ### `sync/*` events
+
+<a id="syncdevices--emit"></a>
+
+#### `sync/devices` — emit
+
+The account's device list changed.
+
+```ts cordis-catalog
+/**
+ * The account's device list changed.
+ * @mode emit
+ * @param owner - the account whose devices changed.
+ */
+'sync/devices'(owner: string): void
+```
+
+Source: [`packages/sync/sync/src/index.ts`](../../packages/sync/sync/src/index.ts)
 
 <a id="syncdocument--emit"></a>
 

@@ -12,7 +12,7 @@ import {
 } from '@aeven/sync-vault'
 import type { SyncDocument, SyncKeyMode, SyncPasskey, SyncProtection, SyncState, SyncStatus } from '@aeven/sync'
 import type { SyncOffload } from './offload.ts'
-import { publishFrameLimit, publishRequestBytes, type PublishFrame, type RelayConnection } from './relay.ts'
+import { publishFrameLimit, publishRequestBytes, type PublishFrame, type RelayConnection, RelayError } from './relay.ts'
 import { prepareFrame } from './frames.ts'
 import type { SyncStore } from './store.ts'
 
@@ -96,6 +96,7 @@ export class AccountVault {
   /** The key state the relay last answered. */
   private relayKey: RelayKeyState | undefined
   private protection: SyncProtection | undefined
+  private error: 'upload' | 'download' | undefined
   private state: SyncState
   private flushing: Promise<void> | undefined
   private lanSend: ((frame: Uint8Array) => void) | undefined
@@ -207,6 +208,8 @@ export class AccountVault {
     this.queued = pending === 0 ? 0 : Math.max(this.queued, pending)
     return {
       state: this.state, device: this.device, pending, queued: this.queued,
+      ...this.catchingUp !== undefined || this.applying !== undefined ? { catchingUp: true } : {},
+      ...this.error === undefined ? {} : { error: this.error },
       ...this.protection === undefined ? {} : { protection: this.protection },
     }
   }
@@ -270,14 +273,22 @@ export class AccountVault {
 
   private goOnline(relay: RelayConnection): void {
     this.relay = relay
-    // The device is online once connected; queued frames go out and the relay's backlog arrives in the background.
+    const catchingUp = this.catchUp(relay).then(() => {
+      if (this.relay === relay && this.error === 'download') this.error = undefined
+    }, (error: unknown) => {
+      if (this.relay !== relay) return
+      this.error = 'download'
+      this.warn('sync: catching up with the relay failed', error)
+      relay.close()
+    }).finally(() => {
+      if (this.catchingUp !== catchingUp) return
+      this.catchingUp = undefined
+      this.changed()
+    })
+    this.catchingUp = catchingUp
     this.setState('online')
     this.changed()
     void this.flush()
-    this.catchingUp = this.catchUp(relay).catch((error: unknown) => {
-      // The connection loop reconnects after a dropped connection; the next attach resumes from the stored cursor.
-      if (this.relay === relay) this.warn('sync: catching up with the relay failed', error)
-    })
   }
 
   /** The store started over under another key: drop what was received or open under the earlier one. */
@@ -452,7 +463,11 @@ export class AccountVault {
     // A replayed frame fails its counter check when applied; the highest number only resumes catch-up.
     this.received = Math.max(this.received, seq)
     this.inbound.pushBack({ seq, frame })
-    this.applying ??= this.applyInbound().finally(() => { this.applying = undefined })
+    this.applying ??= this.applyInbound().finally(() => {
+      this.applying = undefined
+      this.changed()
+    })
+    this.changed()
   }
 
   private async applyInbound(): Promise<void> {
@@ -461,10 +476,14 @@ export class AccountVault {
         await this.applyBatch()
       } catch (error) {
         // Frames taken from the queue were not stored; reconnecting replays them from the stored cursor.
+        this.error = 'download'
+        this.changed()
         this.warn('sync: applying received frames failed; catching up again', error)
         this.inbound.clear()
         this.received = this.store.relayCursor()
-        this.relay?.close()
+        const relay = this.relay
+        this.detach()
+        relay?.close()
         return
       }
       // A single live frame applies at once; a backlog leaves the CPU and the disk to the rest of the Host between batches.
@@ -498,7 +517,9 @@ export class AccountVault {
         const payload = this.store.assemble(header, result.payload)
         if (payload === undefined || !this.store.acceptCounter(header.device, header.id, header.counter)) continue
         this.store.appendDocUpdate(header.id, payload)
-        applied.set(header.id, [...applied.get(header.id) ?? [], payload])
+        const updates = applied.get(header.id)
+        if (updates === undefined) applied.set(header.id, [payload])
+        else updates.push(payload)
       }
       this.store.setRelayCursor((frames.at(-1) as { seq: number }).seq)
     })
@@ -767,6 +788,8 @@ export class AccountVault {
       if (emptied && this.relay !== undefined && this.store.pending() > 0) void this.flush()
     }, (error: unknown) => {
       this.flushing = undefined
+      this.error = 'upload'
+      this.changed()
       this.warn('sync: preparing queued frames failed; they stay queued', error)
     })
     return this.flushing
@@ -780,6 +803,10 @@ export class AccountVault {
     for (;;) {
       const relay = this.relay
       const queued = this.store.outbox(this.tuning.publishFrames)
+      if (queued.length === 0 && this.error === 'upload') {
+        this.error = undefined
+        this.changed()
+      }
       if (relay === undefined || queued.length === 0) return queued.length === 0
       const batch: Array<{ seq: number; last: boolean; item: PublishFrame }> = []
       let bytes = publishRequestBytes([])
@@ -793,10 +820,14 @@ export class AccountVault {
             refused?: { code: string; message: string }
           }
           stored = answer.seqs.length
-          if (answer.refused !== undefined) throw new Error(`sync relay refused a frame (${answer.refused.code}): ${answer.refused.message}`)
+          if (answer.refused !== undefined) throw new RelayError(answer.refused.code, answer.refused.message)
           complete = stored === batch.length
+          if (!complete) throw new RelayError('server-error', 'sync relay did not acknowledge every published frame')
         } catch (error) {
+          this.error = 'upload'
+          this.changed()
           this.warn('sync: publishing frames failed; they stay queued', error)
+          if (error instanceof RelayError && (error.code === 'server-error' || error.code === 'closed')) relay.close()
         }
         // A logical frame stays durable until every part is acknowledged; reconnects may resend a prefix.
         const last = batch.slice(0, stored).findLast(part => part.last)

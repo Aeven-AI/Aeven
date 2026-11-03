@@ -38,6 +38,7 @@ export const API_REMOTE_FORWARDED_EVENTS = [
   { event: 'location/request', mode: 'waterfall' },
   { event: 'settings/document-updated', mode: 'emit' },
   { event: 'skills/change', mode: 'emit' },
+  { event: 'sync/devices', mode: 'emit' },
   { event: 'sync/status', mode: 'emit' },
   { event: 'terminal/show', mode: 'waterfall' },
   { event: 'user-questions/request', mode: 'waterfall' },
