@@ -925,6 +925,8 @@ async function main(): Promise<void> {
     publishUpdate,
     async () => {
       shellInstallerOwnsQuit = true
+      // Stopping the Host drops every renderer's connection; hidden windows never show that drop.
+      for (const window of BrowserWindow.getAllWindows()) window.hide()
       const active = host
       host = undefined
       await active?.stop()
