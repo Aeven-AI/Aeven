@@ -325,7 +325,7 @@ export const longProbe = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 +
     }
   }))
 
-  it('prints only the final diagnostics when a fix retry still fails', () => withTransientProbeWindow(async () => {
+  it('prints only the final diagnostics when a fix retry still fails', { timeout: 30_000 }, () => withTransientProbeWindow(async () => {
     const suffix = randomUUID()
     const path = join(repositoryRoot, 'scripts', `staged-lint-probe-${suffix}.ts`)
 

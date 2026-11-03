@@ -920,24 +920,29 @@ describe('WorkspaceAnalyzer', { timeout: 60_000 }, () => {
     }
     writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
 
-    const model = new WorkspaceAnalyzer({ root }).analyze()
+    const model = new WorkspaceAnalyzer({ root, packages: ['@fixture/host'] }).analyze()
     const exports = model.faces.find(face => face.face === 'host')?.packages[0]?.exports ?? []
     expect(exports.some(item => item.subpath === './array' && item.name === 'RuntimeOnly')).toBe(true)
     expect(exports.some(item => item.subpath === './fallback' && item.name === 'RuntimeOnly')).toBe(true)
     expect(exports.some(item => item.subpath === './direct' && item.name === 'Direct')).toBe(true)
     expect(exports.some(item => item.subpath === './empty')).toBe(false)
 
+    // Each remaining form reads `@fixture/host`'s own export table, so those analyses are scoped to that package:
+    // an unscoped one builds a program for every fixture package once per manifest form.
+    const hostExports = (): number =>
+      new WorkspaceAnalyzer({ root, packages: ['@fixture/host'] }).analyze().faces[0]?.packages[0]?.exports.length ?? 0
+
     manifest.exports = './lib/index.js'
     writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
-    expect(new WorkspaceAnalyzer({ root }).analyze().faces[0]?.packages[0]?.exports.length).toBeGreaterThan(0)
+    expect(hostExports()).toBeGreaterThan(0)
 
     manifest.exports = { types: './lib/types/index.d.ts', default: './lib/index.js' }
     writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
-    expect(new WorkspaceAnalyzer({ root }).analyze().faces[0]?.packages[0]?.exports.length).toBeGreaterThan(0)
+    expect(hostExports()).toBeGreaterThan(0)
 
     manifest.exports = [null, './lib/index.js']
     writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
-    expect(new WorkspaceAnalyzer({ root }).analyze().faces[0]?.packages[0]?.exports.length).toBeGreaterThan(0)
+    expect(hostExports()).toBeGreaterThan(0)
 
     manifest.exports = {}
     writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
@@ -947,7 +952,7 @@ describe('WorkspaceAnalyzer', { timeout: 60_000 }, () => {
     delete manifest.exports
     manifest.types = './lib/types/index.d.ts'
     writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
-    expect(new WorkspaceAnalyzer({ root }).analyze().faces[0]?.packages[0]?.exports.length).toBeGreaterThan(0)
+    expect(hostExports()).toBeGreaterThan(0)
 
     delete manifest.types
     writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)

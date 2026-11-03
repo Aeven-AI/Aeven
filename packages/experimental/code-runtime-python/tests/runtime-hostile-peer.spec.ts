@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
+import { boundaryProofs } from '../../../../scripts/boundary-proof.ts'
 import { logTruncationMarker } from '../src/protocol.ts'
 import type { CodeJsonValue, CodeRunResult } from '@aeven/code-runtime'
 import { cleanupTempFixtures, setup, tools } from './harness.ts'
@@ -220,7 +221,7 @@ describe('PythonCodeRuntime — hostile peer', () => {
     expect(result.error?.kind).toBe('output-limit')
   })
 
-  it('meters a surrogate-dense completion by counting, not by materializing a match list', async () => {
+  it.skipIf(!boundaryProofs)('meters a surrogate-dense completion by counting, not by materializing a match list', async () => {
     // `_json_str_cost` counted lone surrogates with `_SURROGATE.findall`,
     // which materializes one single-character string PER surrogate: a
     // surrogate-dense value near the budget (each surrogate serializes to six
@@ -1433,7 +1434,7 @@ describe('PythonCodeRuntime — hostile peer', () => {
     expect(result.value).toBe(reply.length)
   }, 90_000)
 
-  it('drops a late binding resolution before snapshotting it', async () => {
+  it.skipIf(!boundaryProofs)('drops a late binding resolution before snapshotting it', async () => {
     // `sendReply` checks `settled`, but only after the resolution has been walked
     // and copied by `snapshotJsonValue`. Binding resolution carries no seam-level
     // byte cap, so a binding that resolves a wide value AFTER the run already

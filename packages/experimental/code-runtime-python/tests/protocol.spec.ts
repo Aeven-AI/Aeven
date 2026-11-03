@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { boundaryProofs } from '../../../../scripts/boundary-proof.ts'
 import { checkDoneValue, encodeJsonPlain, hasNonLosslessNumber, hasUnsafeIntegerToken, hostFrameParseCeiling, logTruncationMarker, validateChildFrame } from '../src/index.ts'
 
 describe('logTruncationMarker', () => {
@@ -132,7 +133,7 @@ describe('lossless-number scan', () => {
     expect(hasNonLosslessNumber(deep)).toBe(false)
   })
 
-  it('walks wide arrays and objects one member at a time', () => {
+  it.skipIf(!boundaryProofs)('walks wide arrays and objects one member at a time', () => {
     // `call.args` carries no seam byte cap, so a wide forged payload has no
     // budget to be rejected against — the walk must hold one cursor per
     // NESTING LEVEL, not one entry per member, or a flat payload at the top of
@@ -194,7 +195,7 @@ describe('checkDoneValue', () => {
     }
   })
 
-  it('rejects an over-budget value before its secondary allocations', () => {
+  it.skipIf(!boundaryProofs)('rejects an over-budget value before its secondary allocations', () => {
     // A huge string is refused on the cheap length lower bound, before its
     // escaped copy is built.
     const huge = { data: 'x'.repeat(1_000_000), tail: 'y' }
@@ -283,7 +284,7 @@ describe('checkDoneValue', () => {
     expect(checkDoneValue(Infinity, 3)).toEqual({ ok: false, reason: 'over-budget' })
   })
 
-  it('meters and encodes deep nesting iteratively without overflowing the stack', () => {
+  it.skipIf(!boundaryProofs)('meters and encodes deep nesting iteratively without overflowing the stack', () => {
     let deep: unknown = 0
     for (let i = 0; i < 100_000; i++) deep = [deep]
     // 100000 '[' + '0' + 100000 ']' = 200001 bytes.
@@ -302,7 +303,7 @@ describe('checkDoneValue', () => {
     expect(checkDoneValue(v, 100)).toEqual({ ok: true, bytes: Buffer.byteLength('[1152921504606846976]', 'utf8') })
   })
 
-  it('walks wide arrays and objects one member at a time', () => {
+  it.skipIf(!boundaryProofs)('walks wide arrays and objects one member at a time', () => {
     // A completion value has a seam byte budget, but the budget alone does not
     // bound the traversal's AUXILIARY state: a wide value near the frame cap
     // (millions of members) must not have every member's reference copied onto

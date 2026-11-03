@@ -1,5 +1,4 @@
-import { readFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   projectCordisCatalog,
@@ -7,18 +6,14 @@ import {
   renderPageRegion,
   type CordisCatalogPolicy,
 } from '../src/cordis-catalog.ts'
-import {
-  CORDIS_CATALOG_POLICY,
-  EVENT_SCOPE_PAGE,
-  localizePageRegion,
-  REGION_BEGIN,
-  REGION_END,
-  SERVICE_PAGE,
-} from '../../../../scripts/gen-cordis-catalog.ts'
+import { CORDIS_CATALOG_POLICY } from '../../../../scripts/gen-cordis-catalog.ts'
 
 const workspaceRoot = resolve(import.meta.dirname, '../../../..')
 
-/** One workspace projection shared by both cases: analyzing it twice doubles a multi-minute run. */
+/**
+ * One whole-workspace projection for the case that needs it: Typert analyzes every package, so the file pays that
+ * cost once. The committed artifacts themselves are checked by `pnpm run verify-cordis-catalog`, which CI runs.
+ */
 let cached: ReturnType<typeof projectCordisCatalog> | undefined
 const projection = (): ReturnType<typeof projectCordisCatalog> =>
   (cached ??= projectCordisCatalog(workspaceRoot, CORDIS_CATALOG_POLICY))
@@ -57,35 +52,11 @@ describe('Typert-backed Cordis catalog', () => {
     expect(inherited).toContain('([`vendor/cordis/src/context.ts:12`](../../vendor/cordis/src/context.ts))')
   })
 
-  it('reproduces every committed catalog artifact byte for byte', { timeout: 480_000 }, () => {
-    const { projector, model } = projection()
-    const expected = (path: string): string => readFileSync(join(workspaceRoot, path), 'utf8')
-
-    expect(renderInheritedPage(CORDIS_CATALOG_POLICY)).toBe(expected('docs/cordis-api/inherited.md'))
-    for (const page of [...new Set([...Object.values(SERVICE_PAGE), ...Object.values(EVENT_SCOPE_PAGE)])].sort()) {
-      const region = renderPageRegion(
-        page,
-        [...model.services].filter(s => SERVICE_PAGE[s.key] === page),
-        [...model.events].filter(e => EVENT_SCOPE_PAGE[e.scope] === page),
-        CORDIS_CATALOG_POLICY,
-      )
-      for (const side of [page, page.replace(/\.md$/, '.zh.md')]) {
-        const rel = `docs/subsystems/${side}`
-        const committed = expected(rel)
-        const begin = committed.indexOf(REGION_BEGIN)
-        const end = committed.indexOf(REGION_END)
-        expect(begin, `${rel} carries the region`).toBeGreaterThanOrEqual(0)
-        expect(committed.slice(begin, end + REGION_END.length)).toBe(
-          localizePageRegion(region, rel, workspaceRoot),
-        )
-      }
-    }
-    expect(projector.renderRuntimeApi(model)).toBe(
-      expected('packages/extensions/tool-cordis/src/api-catalog.ts'),
-    )
-  })
-
-  it('resolves each key to the declaration a caller meets, and drops keys no plugin provides', { timeout: 480_000 }, () => {
+  // Skipped: this projects the whole workspace (~25-30 s, and ~45 s under the suite's parallel load) to
+  // assert which declaration each key resolves to. `pnpm run verify-cordis-catalog` regenerates every
+  // artifact from that same projection and fails on any difference, so a wrong resolution already turns
+  // the static lane red. Remove `.skip` when changing how a key picks its declaration.
+  it.skip('resolves each key to the declaration a caller meets, and drops keys no plugin provides', { timeout: 90_000 }, () => {
     const byKey = new Map(projection().model.services.map(service => [service.key, service]))
     // An interface-typed key is described by its Service Definition: that is where
     // the contract and, by repository convention, the member JSDoc live.
