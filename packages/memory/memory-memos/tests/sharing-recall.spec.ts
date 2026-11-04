@@ -3,7 +3,8 @@
  * without them, so a work turn never pays for a scan of the person's life; when that judgment reports the person
  * sharing it, a second judgment runs with them and replaces the first unless it is degraded.
  */
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import type { MemoryRecall } from '@aeven/memory'
 import { MemoryDeadlineError } from '../src/deadline.ts'
 import { recallHarness, SCOPE, signal, type FakeCoreOptions, type FakeTrace } from './harness.ts'
 
@@ -56,6 +57,30 @@ const SHARED = '{"lead":"person","sharing":true,"keep":[1]}'
 const WORK_ONLY = '{"lead":"task","sharing":false,"keep":[1]}'
 
 describe('recall of the person\'s recent memories on a later turn', () => {
+  it('continues with fallback memories when the relevance provider ignores its timeout', async () => {
+    vi.useFakeTimers()
+    const started = Promise.withResolvers<undefined>()
+    const answer = Promise.withResolvers<string>()
+    let result: MemoryRecall | undefined
+    const { memory } = recallHarness([work], {
+      relevance: {
+        timeoutMs: 4000,
+        run: () => { started.resolve(undefined); return answer.promise },
+      },
+    })
+    const recall = memory.recall({ scope: SCOPE, query: REQUEST, purpose: 'turn-start', timeoutMs: 5000, signal })
+      .then((value) => { result = value })
+    try {
+      await started.promise
+      await vi.advanceTimersByTimeAsync(4000)
+      expect(result).toMatchObject({ degraded: true, timedOut: false, hits: [{ id: 'tr_work' }] })
+    } finally {
+      answer.resolve(SHARED)
+      await recall
+      vi.useRealTimers()
+    }
+  })
+
   it('judges the turn without the person\'s recent memories first', async () => {
     const { judged, recall } = sharingTurn([WORK_ONLY])
     expect((await recall).hits.map(hit => hit.id)).toEqual(['tr_work'])
