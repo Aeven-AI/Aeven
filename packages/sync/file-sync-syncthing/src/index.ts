@@ -68,6 +68,8 @@ export interface Config {
   cloudUrl: string
   /** Credential reference holding each account's Aeven access token, which registers this device with the cloud. */
   credentialRef: string
+  /** Wait before registering with the file cloud again after its token was missing or the request failed, in milliseconds. */
+  cloudRetryMs: number
 }
 
 /** Folder labels and device names the provider writes, so it recognizes its own entries in Syncthing's configuration. */
@@ -149,6 +151,7 @@ export default class SyncthingFileSync extends FileSync {
     binary: Schema.string().required(),
     cloudUrl: Schema.string().default(''),
     credentialRef: Schema.string().default('AEVEN_TOKEN'),
+    cloudRetryMs: Schema.natural().min(1_000).default(60_000),
     home: Schema.string().default(avnHomePath('file-sync', 'syncthing')),
     listenAddresses: Schema.array(Schema.string()).default(['default']),
     discoveryServers: Schema.array(Schema.string()).default(['default']),
@@ -183,6 +186,8 @@ export default class SyncthingFileSync extends FileSync {
   private readonly clouds = new Map<string, FileCloud>()
   /** Registrations with the file cloud in flight, so one account registers once at a time. */
   private readonly registering = new Map<string, Promise<void>>()
+  /** Each account's next registration attempt after one that did not succeed. */
+  private readonly cloudRetries = new Map<string, ReturnType<typeof setTimeout>>()
   /** Accounts whose folders are paused on this device. */
   private readonly pausedOwners = new Set<string>()
   /** The user's ignore patterns, absent while the composition mounts no `settings` service. */
@@ -210,13 +215,15 @@ export default class SyncthingFileSync extends FileSync {
 
   /**
    * Resolve the executable and stop the process when the plugin is disposed. The process itself starts only once an
-   * account has a peer and a folder to share with it, so a single-device account never runs Syncthing.
+   * account has a peer, another of its devices or the file cloud, and a folder to share with it.
    */
   async [Service.init](): Promise<void> {
     this.executable = await this.ctx.subprocess.resolveExecutable(this.config.binary)
     this.ctx.effect(() => async () => {
       this.disposed = true
       clearTimeout(this.restartTimer)
+      for (const timer of this.cloudRetries.values()) clearTimeout(timer)
+      this.cloudRetries.clear()
       const running = this.running
       this.running = undefined
       if (running !== undefined) {
@@ -267,10 +274,10 @@ export default class SyncthingFileSync extends FileSync {
 
   /** @inheritdoc */
   async setPeers(owner: string, peers: readonly FileSyncPeerId[]): Promise<void> {
+    this.registerCloud(owner)
     const listed = [...new Set(peers)].sort()
     if (JSON.stringify(this.peers.get(owner)) === JSON.stringify(listed)) return
     this.peers.set(owner, listed)
-    this.registerCloud(owner)
     this.demand()
     await this.write(async (running) => {
       await this.applyDevices(running)
@@ -551,14 +558,27 @@ export default class SyncthingFileSync extends FileSync {
   }
 
   /**
-   * Register this device with the file cloud for an account, once its access token resolves; a failure is tried
-   * again at the account's next peer change.
+   * Register this device with the file cloud for an account, which makes the cloud a peer of every workspace folder
+   * of the account. A missing access token or a failed request is tried again after `cloudRetryMs`, until it succeeds.
    */
   private registerCloud(owner: string): void {
-    if (this.config.cloudUrl === '' || this.clouds.has(owner) || this.registering.has(owner)) return
+    if (this.config.cloudUrl === '' || this.disposed || this.clouds.has(owner) || this.registering.has(owner)) return
+    clearTimeout(this.cloudRetries.get(owner))
+    this.cloudRetries.delete(owner)
+    const retry = (): void => {
+      if (this.disposed) return
+      this.cloudRetries.set(owner, setTimeout(() => {
+        this.cloudRetries.delete(owner)
+        this.registerCloud(owner)
+      }, this.config.cloudRetryMs))
+    }
     const run = this.requestCloud(owner)
       .then(async (cloud) => {
-        if (cloud === undefined || this.disposed) return
+        if (this.disposed) return
+        if (cloud === undefined) {
+          retry()
+          return
+        }
         this.clouds.set(owner, cloud)
         this.demand()
         await this.write(async (running) => {
@@ -569,7 +589,8 @@ export default class SyncthingFileSync extends FileSync {
         })
       })
       .catch((error: unknown) => {
-        this.ctx.logger('file-sync').debug(`file-sync: registering with the file cloud failed: ${String(error)}`)
+        this.ctx.logger('file-sync').warn(`file-sync: registering with the file cloud failed: ${String(error)}`)
+        if (!this.clouds.has(owner)) retry()
       })
       .finally(() => { this.registering.delete(owner) })
     this.registering.set(owner, run)

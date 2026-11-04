@@ -63,12 +63,15 @@ export interface SpeechProviderView extends SpeechProviderInfo {
 export interface SpeechSelection {
   readonly providerId: SpeechProviderId
   readonly language: string
+  /** Whether the user turned voice input on; off hides dictation and refuses recordings. */
+  readonly enabled: boolean
 }
 
 /** User intent updates only the preference fields explicitly changed. */
 export interface SpeechSelectionPatch {
   readonly providerId?: SpeechProviderId
   readonly language?: string
+  readonly enabled?: boolean
 }
 
 /** One consistent provider roster and default-selection observation. */

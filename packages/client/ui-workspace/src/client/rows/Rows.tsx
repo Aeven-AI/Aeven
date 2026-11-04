@@ -88,15 +88,14 @@ function filesStatusEntry(files: WorkspaceFilesView, t: RowTranslate): MenuEntry
 }
 
 /**
- * A Workspace's file status as one line of text, such as Settings → Files shows under a Workspace.
+ * A Workspace's file status as its short label, such as the caption of its bar in Settings → Sync → Files.
  * @param files - the status.
  * @param t - the workspace namespace's translate.
- * @returns the line, with the sync percentage after it while one is known.
+ * @returns the label without the percentage.
  */
-export function filesStatusText(files: WorkspaceFilesView, t: RowTranslate): string {
+export function filesStatusLabel(files: WorkspaceFilesView, t: RowTranslate): string {
   const entry = filesStatusEntry(files, t)
-  if (entry === undefined || !('type' in entry) || entry.type !== 'status') return t('files.gitNeeded')
-  return entry.trailing === undefined ? entry.text : `${entry.text} · ${entry.trailing}`
+  return entry === undefined || !('type' in entry) || entry.type !== 'status' ? t('files.gitNeeded') : entry.text
 }
 
 /** The short reason a Workspace's files cannot arrive. */

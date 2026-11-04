@@ -22,6 +22,8 @@ export interface Config {
   defaultProvider: string
   /** Provider language hint selected when the caller omits one. */
   language: string
+  /** Whether the user turned voice input on; while off, {@link SpeechToText.resolve} refuses every recording. */
+  enabled: boolean
 }
 
 interface Registration {
@@ -36,6 +38,7 @@ export default class SpeechToText extends Service {
   static Config: z<Partial<Config>, Config> = z.object({
     defaultProvider: z.string().min(1).required(),
     language: z.string().min(1).default('auto'),
+    enabled: z.boolean().default(true),
   })
 
   private readonly providers = new Map<SpeechProviderId, Registration>()
@@ -139,12 +142,12 @@ export default class SpeechToText extends Service {
   snapshot(): SpeechSnapshot {
     return { providers: [...this.providers.values()].map(({ provider }) => ({ ...provider.info,
       preparation: provider.preparation?.snapshot() ?? { phase: 'ready' },
-    })), selection: { providerId: this.selection().defaultProvider as SpeechProviderId, language: this.selection().language } }
+    })), selection: { providerId: this.selection().defaultProvider as SpeechProviderId, language: this.selection().language, enabled: this.selection().enabled } }
   }
 
   /**
    * Save changed selection fields as user preferences; the resulting language must be accepted by the selected provider.
-   * @param patch - explicit provider or language changes.
+   * @param patch - explicit provider, language, or on/off changes.
    * @returns after the settings write commits and observers see the new selection.
    */
   async configure(patch: SpeechSelectionPatch): Promise<void> {
@@ -153,7 +156,8 @@ export default class SpeechToText extends Service {
     const current = this.selection()
     this.selectedProvider(patch.providerId ?? current.defaultProvider as SpeechProviderId, patch.language ?? current.language)
     await preferences.update({ ...patch.providerId === undefined ? {} : { defaultProvider: patch.providerId },
-      ...patch.language === undefined ? {} : { language: patch.language } })
+      ...patch.language === undefined ? {} : { language: patch.language },
+      ...patch.enabled === undefined ? {} : { enabled: patch.enabled } })
   }
 
   private selectedProvider(id: SpeechProviderId, language: string): SpeechProvider {
@@ -188,12 +192,13 @@ export default class SpeechToText extends Service {
   }
 
   /**
-   * Apply composition defaults and capture the selected provider. Missing providers and unsupported languages fail explicitly.
+   * Apply composition defaults and capture the selected provider. Missing providers, unsupported languages, and voice input turned off fail explicitly.
    * @param request - complete recording and optional selection.
    * @returns provider-pinned input for transcribe().
    */
   resolve(request: SpeechRequest): SpeechSpec {
     const selection = this.selection()
+    if (!selection.enabled) throw new Error('Voice input is turned off')
     const id = request.providerId ?? selection.defaultProvider as SpeechProviderId
     const language = request.language ?? selection.language
     return { provider: this.selectedProvider(id, language), audio: request.audio, language }

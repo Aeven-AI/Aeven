@@ -4,10 +4,10 @@
  * sync.
  */
 import { useEffect, useState } from 'react'
-import type { WorkspaceFilesEntry, WorkspaceFilesSettings } from '@aeven/api-workspace-controller/client'
-import { Button, LoadingBlock, SettingsGroup, SettingsRow, Switch } from '@aeven/client-ui-primitives'
+import type { WorkspaceFileState, WorkspaceFilesEntry, WorkspaceFilesSettings, WorkspaceFilesView } from '@aeven/api-workspace-controller/client'
+import { Button, LoadingBlock, SettingsGroup, SettingsMeter, SettingsRow, Switch, type SettingsMeterProps } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
-import { filesStatusText } from '../rows/Rows.tsx'
+import { filesStatusLabel } from '../rows/Rows.tsx'
 import css from './FilesSection.module.css'
 
 /** Registration-side operations the group calls. */
@@ -38,8 +38,36 @@ function revealKey(): 'filesSettings.revealFinder' | 'filesSettings.revealExplor
   return 'filesSettings.revealFolder'
 }
 
+/** A directory with the home directory written as `~`, the way a file manager's path bar reads it. */
+function shortPath(path: string): string {
+  const home = /^(\/Users\/[^/]+|\/home\/[^/]+|[A-Za-z]:\\Users\\[^\\]+)(?=[/\\]|$)/u.exec(path)?.[0]
+  return home === undefined ? path : `~${path.slice(home.length)}`
+}
+
+/** Each file state's bar tone; `moving` states without a known size sweep the bar instead of filling it. */
+const METER_TONE: Record<WorkspaceFileState, { tone: NonNullable<SettingsMeterProps['tone']>; moving: boolean }> = {
+  'syncing': { tone: 'success', moving: true },
+  'installing': { tone: 'success', moving: true },
+  'preparing': { tone: 'success', moving: true },
+  'paused': { tone: 'muted', moving: false },
+  'stopped': { tone: 'muted', moving: false },
+  'waiting': { tone: 'muted', moving: false },
+  'git-needed': { tone: 'muted', moving: false },
+  'conflict': { tone: 'error', moving: false },
+  'failed': { tone: 'error', moving: false },
+}
+
+/** How full a workspace's bar is and in which tone: whole while current, its share while syncing, empty otherwise. */
+function meterOf(files: WorkspaceFilesView | null, paused: boolean): Pick<SettingsMeterProps, 'percent' | 'tone'> {
+  if (files === null) return { percent: 100, tone: paused ? 'muted' : 'success' }
+  const { tone, moving } = METER_TONE[files.state]
+  const percent = files.progress === null ? (moving && !paused ? null : 0) : files.progress * 100
+  return { percent, tone: paused ? 'muted' : tone }
+}
+
 /**
- * One workspace's row: where its files live here, its file status, and a bar while a size is known.
+ * One workspace's row: its name, where its files live here, the button that shows them, and a bar of how far it
+ * has synced.
  * @param props - the workspace, whether sync is paused, the translate seat, and the reveal action.
  * @returns the row.
  */
@@ -49,27 +77,24 @@ function WorkspaceRow({ workspace, paused, t, reveal }: {
   t: FilesSectionProps['t']
   reveal: (path: string) => void
 }) {
-  const status = workspace.files === null
-    ? (paused || workspace.path === null ? undefined : t('filesSettings.upToDate'))
-    : filesStatusText(workspace.files, t)
-  const progress = workspace.files?.state === 'syncing' ? workspace.files.progress : null
-  const path = workspace.path
+  const { files, path } = workspace
+  const label = paused ? t('files.stopped') : files === null ? t('filesSettings.upToDate') : filesStatusLabel(files, t)
+  const meter = meterOf(files, paused)
   return (
     <SettingsRow
       title={workspace.title}
-      description={[path ?? t('filesSettings.notHere'), ...status === undefined ? [] : [status]].join(' · ')}
+      description={<span className={css.path} title={path ?? undefined}>{path === null ? t('filesSettings.notHere') : shortPath(path)}</span>}
       control={path === null
         ? undefined
-        : <Button variant="outline" onClick={() => { reveal(path) }}>{t(revealKey())}</Button>}
+        : <Button variant="primary" onClick={() => { reveal(path) }}>{t(revealKey())}</Button>}
     >
-      {progress !== null && (
-        <span
-          className={css.meter} role="progressbar" aria-valuemin={0} aria-valuemax={100}
-          aria-valuenow={Math.floor(progress * 100)} aria-label={status}
-        >
-          <span style={{ width: `${String(Math.max(progress * 100, 2))}%` }} />
-        </span>
-      )}
+      <SettingsMeter
+        label={label}
+        value={meter.percent === null ? undefined : `${String(Math.floor(meter.percent))}%`}
+        percent={meter.percent}
+        tone={meter.tone}
+        ariaLabel={`${workspace.title}: ${label}`}
+      />
     </SettingsRow>
   )
 }

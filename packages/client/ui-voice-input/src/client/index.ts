@@ -106,6 +106,14 @@ export function apply(ctx: Context): void {
       const result = await ctx.remote.speech.prepare(providerId)
       if (!result.ok) throw result.error
     },
+    cancel: async (providerId) => {
+      const result = await ctx.remote.speech.cancelPreparation(providerId)
+      if (!result.ok) throw result.error
+    },
+    setEnabled: async (enabled) => {
+      const result = await ctx.remote.speech.configure({ enabled })
+      if (!result.ok) throw result.error
+    },
   }
   ctx.slots.inject('conversation.input.activity', () => ctx.slots.register({
     name: 'conversation.input.activity', locale: NS, inject: () => composer,

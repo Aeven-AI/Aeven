@@ -1,27 +1,10 @@
-/* The Files group inside Settings → Sync: settings rows, a download bar under a syncing workspace, and the ignore editor. */
+/* The Files group inside Settings → Sync: settings rows, one-line directories, and the ignore editor. */
 
 .failed {
   margin: 0;
   font-size: 0.75rem;
   line-height: 1.125rem;
   color: var(--dsw-alias-state-error-primary);
-}
-
-/* The same 8px track as the Sync upload meter. */
-.meter {
-  display: block;
-  width: 100%;
-  height: 8px;
-  border-radius: 4px;
-  background: var(--dsw-alias-bg-module-platform);
-}
-
-.meter > span {
-  display: block;
-  height: 100%;
-  border-radius: 4px;
-  background-color: var(--dsw-alias-state-success-primary);
-  transition: width 0.3s;
 }
 
 .editor {
@@ -47,4 +30,12 @@
 .actions {
   display: flex;
   justify-content: flex-end;
+}
+
+/* A long directory stays on one line and ends in an ellipsis; its full path is the tooltip. */
+.path {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

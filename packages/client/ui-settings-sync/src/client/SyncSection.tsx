@@ -4,7 +4,7 @@
  */
 import { useEffect, useState } from 'react'
 import type { SyncDeviceView, SyncPasskeyPurpose, SyncView } from '@aeven/api-remotes/client'
-import { Button, IconLucideLaptopMinimal, IconLucideLaptopMinimalCheck, IconQuestionOutline14, IconWarningOutline16, LoadingBlock, Menu, Modal, RiskConfirmation, SectionHeader, SettingsGroup, SettingsRow, Switch, Tooltip } from '@aeven/client-ui-primitives'
+import { Button, IconLucideLaptopMinimal, IconLucideLaptopMinimalCheck, IconQuestionOutline14, IconWarningOutline16, LoadingBlock, Menu, Modal, RiskConfirmation, SectionHeader, SettingsGroup, SettingsMeter, SettingsRow, Switch, Tooltip } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime } from '@aeven/client-ui-slots'
 import { openPasskeyPage, useSyncStatus, type SyncOperations } from './passkey.ts'
 import css from './SyncSection.module.css'
@@ -68,8 +68,8 @@ function PasskeyStep({ view, t, retry, dismiss }: {
     <div className={css.step} role="status" aria-live="polite">
       <p className={step.state === 'failed' ? css.failed : css.note}>{line}</p>
       <div className={css.stepActions}>
-        {step.state === 'failed' && <Button variant="outline" size="sm" onClick={() => { retry(step.purpose) }}>{t('tryAgain')}</Button>}
-        <Button variant="ghost" size="sm" onClick={dismiss}>{step.state === 'waiting' ? t('cancel') : t('dismiss')}</Button>
+        {step.state === 'failed' && <Button variant="outline" onClick={() => { retry(step.purpose) }}>{t('tryAgain')}</Button>}
+        <Button variant="ghost" onClick={dismiss}>{step.state === 'waiting' ? t('cancel') : t('dismiss')}</Button>
       </div>
     </div>
   )
@@ -170,6 +170,7 @@ export function SyncSection(props: SyncSectionProps) {
   const transferError = enabled && view.error !== undefined ? t(view.error === 'upload' ? 'uploadFailed' : 'downloadFailed') : undefined
   const protection = view.protection
   const waiting = view.passkey?.state === 'waiting'
+  const statusText = t(transferError !== undefined ? 'paused' : view.state === 'online' && (uploading || view.catchingUp) ? 'syncing' : view.state)
   return (
     <div className={css.section}>
       {header}
@@ -178,23 +179,22 @@ export function SyncSection(props: SyncSectionProps) {
         description={t('enabledBody')}
         control={<Switch checked={enabled} onChange={(next) => { void run(() => ops.setEnabled(next)) }} label={t('enabled')} disabled={busy} />}
       >
-        <div className={css.meterRow}>
-          <span className={css.meterLine}>
-            <span className={css.status}>
-              <span>{t(transferError !== undefined ? 'paused' : view.state === 'online' && (uploading || view.catchingUp) ? 'syncing' : view.state)}</span>
-              {(transferError !== undefined || failed) && (
-                <SyncIssue message={transferError ?? t('failed')} t={t} busy={busy} retry={transferError === undefined ? undefined : () => { void run(() => ops.setEnabled(true)) }} />
-              )}
-            </span>
-            {(uploading || view.catchingUp) && <span className={css.meterLabel}>{uploading ? progressLabel : t('downloading')}</span>}
-          </span>
-          {uploading && <span
-            className={css.meter} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}
-            aria-label={progressLabel}
-          >
-            <span style={{ width: `${String(Math.max(percent, 2))}%` }} />
-          </span>}
-        </div>
+        {enabled && (
+          <SettingsMeter
+            label={(
+              <>
+                {statusText}
+                {(transferError !== undefined || failed) && (
+                  <SyncIssue message={transferError ?? t('failed')} t={t} busy={busy} retry={transferError === undefined ? undefined : () => { void run(() => ops.setEnabled(true)) }} />
+                )}
+              </>
+            )}
+            value={uploading ? progressLabel : view.catchingUp ? t('downloading') : view.state === 'online' && transferError === undefined ? '100%' : undefined}
+            percent={uploading ? percent : view.catchingUp || view.state === 'connecting' ? null : view.state === 'online' && transferError === undefined ? 100 : 0}
+            tone={transferError !== undefined ? 'error' : view.state === 'online' || view.state === 'connecting' ? 'success' : 'muted'}
+            ariaLabel={uploading ? progressLabel : statusText}
+          />
+        )}
       </SettingsRow>
       {enabled && protection !== undefined && (
         <SettingsGroup title={t('privacy')}>
@@ -248,7 +248,6 @@ export function SyncSection(props: SyncSectionProps) {
           <PasskeyStep view={view} t={t} retry={passkey} dismiss={() => { void run(() => ops.cancelPasskey()) }} />
         </SettingsGroup>
       )}
-      {enabled && props.renderSlot('settings.sync.files', {})}
       {(devices.length > 0 || devicesFailed) && (
         <SettingsGroup
           title={t('devices')}
@@ -271,6 +270,7 @@ export function SyncSection(props: SyncSectionProps) {
           ))}
         </SettingsGroup>
       )}
+      {enabled && <div className={css.files}>{props.renderSlot('settings.sync.files', {})}</div>}
       <RiskConfirmation
         open={confirmOn}
         title={t('passkey')}

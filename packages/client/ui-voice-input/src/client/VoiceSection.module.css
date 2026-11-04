@@ -1,18 +1,5 @@
-/* Voice input group: each recognizer is a settings row whose control is its
-   state, plus the download button while one is needed. */
-
-.status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.75rem;
-  line-height: 1.125rem;
-  color: var(--dsw-alias-label-tertiary);
-}
-
-.status[data-ready='true'] {
-  color: var(--dsw-alias-label-secondary);
-}
+/* Voice input group: each recognizer is a settings row whose control is the
+   switch that downloads its model. */
 
 .detail,
 .notice {
@@ -28,25 +15,6 @@
   color: var(--dsw-alias-state-error-primary);
 }
 
-/* The preparation bar, matching the allowance bar on the Account page. */
-.meter {
-  display: block;
-  width: 100%;
-  height: 8px;
-  border-radius: 4px;
-  background: var(--dsw-alias-bg-module-platform);
-}
-
-.meter > span {
-  display: block;
-  height: 100%;
-  border-radius: 4px;
-  background: var(--dsw-alias-state-success-primary);
-  transition: width 0.3s;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .meter > span {
-    transition: none;
-  }
+.failed {
+  color: var(--dsw-alias-state-error-primary);
 }
