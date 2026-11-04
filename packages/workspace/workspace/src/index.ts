@@ -553,7 +553,9 @@ export class WorkspaceRegistry extends Service {
   async fileSession(sessionId: SessionId, home: string, header?: SessionHeader): Promise<boolean> {
     if (header !== undefined) {
       if (header.id !== sessionId) throw new Error('shared session metadata names another session')
+      const learned = header.owner !== undefined && this.headers.get(sessionId)?.owner !== header.owner
       this.headers.set(sessionId, header)
+      if (learned) this.announceOwners(new Set([sessionId]))
     }
     const state = this.requireState()
     const id = home === 'default'
@@ -1340,6 +1342,11 @@ export class WorkspaceRegistry extends Service {
       if (header.owner !== undefined && this.headers.get(header.id)?.owner !== header.owner) learned.add(header.id)
       await this.indexHeader(header)
     }
+    this.announceOwners(learned)
+  }
+
+  /** Tell each workspace listing one of these sessions that the session's owner is now known. */
+  private announceOwners(learned: ReadonlySet<SessionId>): void {
     if (learned.size === 0) return
     for (const [id, entity] of this.entities) {
       if (entity.sessionIds.some(sessionId => learned.has(sessionId))) this.ctx.emit('workspace/session-owner', id)
