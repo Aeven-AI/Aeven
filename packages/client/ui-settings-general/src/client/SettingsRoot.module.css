@@ -56,10 +56,12 @@
 }
 
 /* Full-viewport layer (figma Mask 501:29946 #000@24%): mask tokens match the
-   Modal primitive (--dsw-alias-bg-mask-1 + --dsw-mask-blur). */
+   Modal primitive (--dsw-alias-bg-mask-1 + --dsw-mask-blur). It starts below
+   the desktop shell's caption strip (`--avn-window-inset-top`, unset in a
+   browser and on macOS). */
 .overlay {
   position: fixed;
-  inset: 0;
+  inset: var(--avn-window-inset-top, 0px) 0 0;
   z-index: 1000;
   display: flex;
   align-items: center;
@@ -75,22 +77,20 @@
 
 /* Panel: Aeven primary radius and white surface; B's 800px information
    architecture and shared elevation remain.
-   One height for every section, taken from the viewport rather than the
+   One height for every section, taken from the overlay rather than the
    content: sections differ by hundreds of pixels (a settings list against the
    composition editor), and a content-sized panel would resize under the
    pointer on every nav click. Whatever does not fit scrolls in `.options`.
    The page inset (24px, 16px at ≤640) is both the margin around the panel
    and the panel's content inset: the section's right edge, and the close
-   glyph's top and right edges. `dvh` tracks the visible height under mobile
-   browser toolbars; engines without it keep the `vh` height. */
+   glyph's top and right edges. */
 .panel {
   position: relative;
   z-index: 1;
   display: flex;
   width: 800px;
-  height: min(800px, calc(100vh - 2 * var(--dsw-aeven-page-inset)));
-  height: min(800px, calc(100dvh - 2 * var(--dsw-aeven-page-inset)));
-  max-width: calc(100vw - 2 * var(--dsw-aeven-page-inset));
+  height: min(800px, calc(100% - 2 * var(--dsw-aeven-page-inset)));
+  max-width: calc(100% - 2 * var(--dsw-aeven-page-inset));
   border-radius: var(--dsw-aeven-radius-surface);
   overflow: hidden;
   background: var(--dsw-alias-bg-layer-2);
