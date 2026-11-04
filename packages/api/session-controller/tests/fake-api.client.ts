@@ -268,6 +268,8 @@ export class FakeApiClient {
         rename: payload => this.record('workspace.rename', payload, this.onWorkspaceRename(payload)),
         bind: payload => this.record('workspace.bind', payload, this.onWorkspaceRename(payload)),
         getFiles: payload => this.record('workspace.getFiles', payload, Promise.resolve({ ok: true, value: { requested: true } })),
+        conflicts: payload => this.record('workspace.conflicts', payload, Promise.resolve({ ok: true, value: { conflicts: [] } })),
+        resolveConflict: payload => this.record('workspace.resolveConflict', payload, Promise.resolve({ ok: true, value: { resolved: false } })),
         delete: payload => this.record('workspace.delete', payload, this.onWorkspaceDelete(payload)),
         insertBefore: payload => this.record(
           'workspace.insertBefore',

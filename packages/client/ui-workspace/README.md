@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
 
 `avn-client-ui-workspace` is the shared Workspace browser and picker of the avn web client: users browse Session rows grouped by Workspace or by status in the sidebar, pick a Workspace for a new session from the Session Intent hero, and manage Workspaces and Sessions with add, rename, reorder, search, fork, and archive actions; the same Workspace menu and add flow serve both surfaces. Pending user interactions surface as amber warning dots, active Schedule projections surface as non-interactive alarm markers in ordinary and search rows, and the shared sidebar projection hides subagent-origin sessions. Distinct canonical paths remain separate id-keyed Workspaces, and adding a folder goes through a directory-flow child hole that a composed picker package's client half fills.
 
+The **Install Git?** dialog stays open while Git installs, closes when it finishes, and offers **Try again** after a failure. A Workspace whose files have two versions offers **Compare versions** in its menu, which opens a diff of each file with **Keep this computer's** and **Keep the other**. Dependencies installing after a clone read **Installing dependencies**, and a large first download on battery reads **Paused on battery**.
+
 Workspace and Session rows follow the Aeven menu's full-width 40px geometry, responsive 24px/16px insets, square corners, contiguous rhythm, and transparent hover and selected states while preserving every existing status and action icon. Selecting a Session navigates to its `/c/<id>` SPA path; the address bar, browser history, and Session Controller stay synchronized.
 
 ## Table of Contents

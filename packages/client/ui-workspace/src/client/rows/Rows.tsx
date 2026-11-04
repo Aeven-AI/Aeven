@@ -14,7 +14,7 @@ import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 
 import clsx from 'clsx'
 import {
   IconAlarmClockOutline16, IconArchiveOutline20, IconBranchOutline16,
-  IconEditOutline16, IconLucideCircleAlert, IconLucideClock, IconLucideDownload,
+  IconEditOutline16, IconLucideCircleAlert, IconLucideClock, IconLucideDownload, IconLucidePause,
   IconLucideEllipsis, IconLucideEllipsisVertical, IconLucideMessageCircle,
   IconLucideMessageCircleQuestionMark,
   IconLucideFolder, IconLucideFolderOpen,
@@ -71,22 +71,29 @@ function filesStatusEntry(files: WorkspaceFilesView, t: RowTranslate): MenuEntry
       files.progress === null ? undefined : `${String(Math.floor(files.progress * 100))}%`,
     )
     case 'installing': return line(t('files.installing'), <Spinner />)
+    case 'preparing': return line(t('files.preparing'), <Spinner />)
+    case 'paused': return line(t('files.paused'), <IconLucidePause />)
     case 'waiting': return line(t('files.waiting'), <IconLucideClock />)
     case 'git-needed': return undefined
-    case 'failed': return line(failureText(files.reason, t), <IconLucideCircleAlert />)
+    case 'conflict': return line(
+      t(files.count === 1 ? 'files.conflict.one' : 'files.conflict.other', { n: files.count ?? 0 }),
+      <IconLucideCircleAlert />,
+    )
+    case 'failed': return line(failureText(files.reason, files.count, t), <IconLucideCircleAlert />)
     /* v8 ignore next -- closed WorkspaceFileState union */
     default: return assertNever(files.state)
   }
 }
 
 /** The short reason a Workspace's files cannot arrive. */
-function failureText(reason: WorkspaceFilesView['reason'], t: RowTranslate): string {
+function failureText(reason: WorkspaceFilesView['reason'], count: number | null, t: RowTranslate): string {
   switch (reason) {
     case 'access': return t('files.failed.access')
     case 'network': return t('files.failed.network')
     case 'disk': return t('files.failed.disk')
     case 'folder': return t('files.failed.folder')
     case 'git-install': return t('files.failed.gitInstall')
+    case 'unstorable': return t(count === 1 ? 'files.failed.unstorable.one' : 'files.failed.unstorable.other', { n: count ?? 0 })
     case 'unknown':
     case null: return t('files.failed.unknown')
     /* v8 ignore next -- closed WorkspaceFileFailure union */
@@ -204,6 +211,7 @@ export function ProjectRowItem({ group, onToggle, newSessionHref, onCreate, acti
     delete: () => void
     bind?: (() => void) | undefined
     installGit?: (() => void) | undefined
+    compare?: (() => void) | undefined
   } | undefined
   /** Present only for real Workspace rows in the grouped view. */
   drag?: WorkspaceRowDragProps | undefined
@@ -243,6 +251,7 @@ export function ProjectRowItem({ group, onToggle, newSessionHref, onCreate, acti
     ...filesEntry === undefined && !needsGit(row.files) ? [] : [{ type: 'separator' as const, id: 'files-separator' }],
     ...filesEntry === undefined ? [] : [filesEntry],
     ...needsGit(row.files) ? [{ id: 'install-git', label: t('files.installGit'), icon: <IconLucideDownload /> }] : [],
+    ...row.files?.state === 'conflict' ? [{ id: 'compare', label: t('files.compare'), icon: <IconBranchOutline16 /> }] : [],
   ]
   return (
     <div
@@ -284,7 +293,11 @@ export function ProjectRowItem({ group, onToggle, newSessionHref, onCreate, acti
                 actions.installGit?.()
                 return
               }
-              /* v8 ignore next -- Menu can emit only the bind, install-git, rename, and delete rows supplied above. */
+              if (id === 'compare') {
+                actions.compare?.()
+                return
+              }
+              /* v8 ignore next -- Menu can emit only the bind, install-git, compare, rename, and delete rows supplied above. */
               if (id !== 'rename' && id !== 'delete') return
               if (id === 'rename') actions.rename()
               else actions.delete()

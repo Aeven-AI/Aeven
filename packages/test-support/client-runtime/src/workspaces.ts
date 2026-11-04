@@ -1,7 +1,7 @@
 /** Test-owned workspaces face: the renderer standard-kit observable plus recorded actions. */
 import { createSnapshotStore } from '@aeven/client-store'
 import type {
-  IWorkspaces, WorkspaceId, WorkspaceSnapshot, WorkspaceView,
+  IWorkspaces, WorkspaceConflictView, WorkspaceId, WorkspaceSnapshot, WorkspaceView,
 } from '@aeven/api-workspace-controller/client'
 import type { SessionId } from '@aeven/session/types'
 import type { SnapshotStore } from '@aeven/client-store'
@@ -113,6 +113,28 @@ export class TestWorkspaces implements IWorkspaces {
   async getFiles(workspaceId: WorkspaceId): Promise<void> {
     this.calls.push({ method: 'getFiles', args: [workspaceId] })
     await (this.stubs.get('getFiles')?.(workspaceId) as Promise<void> | undefined)
+  }
+
+  /**
+   * List a Workspace's conflicts (recorded; default none).
+   * @param workspaceId - target workspace.
+   * @returns the stubbed conflicts, or none.
+   */
+  async conflicts(workspaceId: WorkspaceId): Promise<readonly WorkspaceConflictView[]> {
+    this.calls.push({ method: 'conflicts', args: [workspaceId] })
+    const stub = this.stubs.get('conflicts')
+    return stub === undefined ? [] : await (stub(workspaceId) as Promise<readonly WorkspaceConflictView[]>)
+  }
+
+  /**
+   * Keep one version of a conflicting file (recorded; default no-op).
+   * @param workspaceId - target workspace.
+   * @param path - the conflicting file.
+   * @param keep - which version stays.
+   */
+  async resolveConflict(workspaceId: WorkspaceId, path: string, keep: 'this' | 'other'): Promise<void> {
+    this.calls.push({ method: 'resolveConflict', args: [workspaceId, path, keep] })
+    await (this.stubs.get('resolveConflict')?.(workspaceId, path, keep) as Promise<void> | undefined)
   }
 
   /**

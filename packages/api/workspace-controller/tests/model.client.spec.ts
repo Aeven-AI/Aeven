@@ -109,6 +109,16 @@ class FakeWorkspaceRemote implements WorkspaceRemote {
     return Promise.resolve({ ok: true, value: { requested: true } })
   }
 
+  conflicts(request: { readonly workspaceId: WorkspaceId }): Promise<RemoteResult<{ readonly conflicts: readonly never[] }>> {
+    this.record('conflicts', request)
+    return Promise.resolve({ ok: true, value: { conflicts: [] } })
+  }
+
+  resolveConflict(request: { readonly workspaceId: WorkspaceId; readonly path: string; readonly keep: 'this' | 'other' }): Promise<RemoteResult<{ readonly resolved: boolean }>> {
+    this.record('resolveConflict', request)
+    return Promise.resolve({ ok: true, value: { resolved: false } })
+  }
+
   delete(request: WorkspaceDeleteRequest): Promise<RemoteResult<WorkspaceDeleteValue>> {
     this.record('delete', request)
     return this.onDelete(request)

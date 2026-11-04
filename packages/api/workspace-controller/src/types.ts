@@ -18,6 +18,8 @@ export interface WorkspaceFilesView {
   readonly progress: number | null
   /** Why the files cannot arrive, present exactly in `failed`; otherwise `null`. */
   readonly reason: WorkspaceFileFailure | null
+  /** How many files have two versions, present exactly in `conflict`; otherwise `null`. */
+  readonly count: number | null
 }
 
 /** One durable Workspace projected for browser consumers. */
@@ -124,6 +126,39 @@ export interface WorkspaceGetFilesRequest {
 /** Receipt after a files request reached the Consumer that syncs the Workspace's files. */
 export interface WorkspaceGetFilesValue {
   readonly requested: true
+}
+
+/** The Workspace whose conflicting versions to list. */
+export interface WorkspaceConflictsRequest {
+  readonly workspaceId: WorkspaceId
+}
+
+/** One file two devices changed differently, with both versions' text when they are small text files. */
+export interface WorkspaceConflictView {
+  /** `/`-separated path relative to the Workspace directory. */
+  readonly path: string
+  /** This Host's text, or `null` when the file is not text or too large to compare. */
+  readonly thisText: string | null
+  /** The other device's text, or `null` when it is not text or too large to compare. */
+  readonly otherText: string | null
+}
+
+/** A Workspace's conflicting files. */
+export interface WorkspaceConflictsValue {
+  readonly conflicts: readonly WorkspaceConflictView[]
+}
+
+/** Keep one version of a conflicting file. */
+export interface WorkspaceResolveConflictRequest {
+  readonly workspaceId: WorkspaceId
+  readonly path: string
+  /** `this` keeps this Host's version, `other` the other device's. */
+  readonly keep: 'this' | 'other'
+}
+
+/** Whether the file had a conflict that is now resolved. */
+export interface WorkspaceResolveConflictValue {
+  readonly resolved: boolean
 }
 
 /** Workspace mutation returning the complete changed row. */

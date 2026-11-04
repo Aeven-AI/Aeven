@@ -166,6 +166,8 @@ export function apply(ctx: Context): void {
         ctx.logger.warn(`workspace: asking for the files of ${workspaceId} failed: ${String(error)}`)
       })
     },
+    listConflicts: workspaceId => workspaces.conflicts(workspaceId),
+    resolveConflict: async (workspaceId, path, keep) => { await workspaces.resolveConflict(workspaceId, path, keep) },
     insertWorkspaceBefore: async (workspaceId, beforeWorkspaceId) => {
       await workspaces.insertBefore(workspaceId, beforeWorkspaceId)
     },

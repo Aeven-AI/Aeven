@@ -25,6 +25,9 @@ import type {
   FolderWorkspace,
   SessionPlacement,
   Workspace,
+  WorkspaceConflict,
+  WorkspaceConflictChoice,
+  WorkspaceConflictSource,
   WorkspaceFileStatus,
   WorkspaceId as WorkspaceIdBrand,
 } from './types.ts'
@@ -33,6 +36,9 @@ export type {
   FolderWorkspace,
   SessionPlacement,
   Workspace,
+  WorkspaceConflict,
+  WorkspaceConflictChoice,
+  WorkspaceConflictSource,
   WorkspaceFileFailure,
   WorkspaceFileState,
   WorkspaceFileStatus,
@@ -48,8 +54,9 @@ export {
 } from './spec.ts'
 export type { WorkspaceDomainState, WorkspaceRecord } from './spec.ts'
 export { realpathNormalize } from './paths.ts'
-export { fitsDisk, hintedDirectory, locationHint, placeWorkspace } from './placement.ts'
+export { fitsDisk, hintedDirectory, locationHint, markedDirectory, placeWorkspace, WORKSPACE_MARKER, writeMarker } from './placement.ts'
 export { WorkspaceFileStatusReport } from './file-status.ts'
+export { byRecentUse, onBatteryPower } from './power.ts'
 
 /** Whether a registry without a built-in workspace seeds one (the schema default). */
 export const DEFAULT_SEED_DEFAULT_WORKSPACE = true
@@ -182,6 +189,8 @@ export class WorkspaceRegistry extends Service {
   private readonly synced: WorkspaceSync
   /** Device-local file statuses the file sync Consumers report; never persisted or synced. */
   private readonly fileStatuses = new Map<WorkspaceId, WorkspaceFileStatus>()
+  /** File sync Consumers that list and resolve conflicting versions. */
+  private readonly conflictSources = new Set<WorkspaceConflictSource>()
 
   private readonly host: WorkspaceEntityHost = {
     table: () => this.requireTable(),
@@ -361,10 +370,49 @@ export class WorkspaceRegistry extends Service {
    */
   setFileStatus(id: WorkspaceId, status: WorkspaceFileStatus | undefined): void {
     const previous = this.fileStatuses.get(id)
-    if (previous?.state === status?.state && previous?.progress === status?.progress && previous?.reason === status?.reason) return
+    const same = previous?.state === status?.state && previous?.progress === status?.progress
+      && previous?.reason === status?.reason && previous?.count === status?.count
+    if (same) return
     if (status === undefined) this.fileStatuses.delete(id)
     else this.fileStatuses.set(id, status)
     this.ctx.emit('workspace/files', id)
+  }
+
+  /**
+   * Register a file sync Consumer's conflict listing and resolution.
+   * @param source - the Consumer's conflicts.
+   * @returns the disposer that removes it.
+   */
+  registerConflicts(source: WorkspaceConflictSource): () => void {
+    this.conflictSources.add(source)
+    return () => { this.conflictSources.delete(source) }
+  }
+
+  /**
+   * List the files of a workspace that two devices changed differently.
+   * @param id - Workspace id.
+   * @returns the conflicts, empty for a workspace no source syncs.
+   */
+  async conflicts(id: WorkspaceId): Promise<readonly WorkspaceConflict[]> {
+    for (const source of this.conflictSources) {
+      const listed = await source.list(id)
+      if (listed !== undefined) return listed
+    }
+    return []
+  }
+
+  /**
+   * Keep one version of a conflicting file.
+   * @param id - Workspace id.
+   * @param path - the conflicting file, relative to the workspace directory.
+   * @param keep - which version stays.
+   * @returns whether a source resolved it.
+   */
+  async resolveConflict(id: WorkspaceId, path: string, keep: WorkspaceConflictChoice): Promise<boolean> {
+    for (const source of this.conflictSources) {
+      if (await source.resolve(id, path, keep)) return true
+    }
+    return false
   }
 
   /**

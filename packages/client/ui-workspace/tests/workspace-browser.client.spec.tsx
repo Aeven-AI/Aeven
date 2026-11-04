@@ -104,6 +104,8 @@ function mount(
     deleteWorkspace: vi.fn(async () => {}),
     bindWorkspace: vi.fn(),
     getWorkspaceFiles: vi.fn(),
+    listConflicts: vi.fn(() => Promise.resolve([])),
+    resolveConflict: vi.fn(() => Promise.resolve()),
     archiveSession: vi.fn(async () => {}),
     unarchiveSession: vi.fn(async () => {}),
     insertWorkspaceBefore: vi.fn(async () => {}),

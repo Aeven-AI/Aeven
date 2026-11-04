@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
 
 The `ctx.fileSync` provider. It runs one Syncthing process per Host through the subprocess capability, with its home under `$AVN_HOME/file-sync/syncthing`, a REST listener on a free loopback port, and a random API key; usage reporting, crash reporting, and automatic upgrades are off, and it runs at low priority. Every shared folder is a send-and-receive folder shared with this device and its account's listed peers, or the subset its `peers` names, with staggered versioning, the configured ignore patterns (by default `.git` and dependency and build directories), a one-second watcher delay, and no pull delay. Devices and folders a previous run configured that no current account lists are removed at start, so a device taken off the account while the Host was stopped is not trusted again. A process that exits unexpectedly restarts with backoff. Configuration: `binary`, `home`, `listenAddresses`, `discoveryServers`, `localDiscovery`, `relays`, `watcherDelayS`, `pullerDelayS`, `rescanIntervalS`, `versionRetentionDays`, `ignores`, and the process budgets.
 
+The provider reads this device's peer id from Syncthing's key without running it, and starts Syncthing only once an account has a peer and a folder to share with it, so a single-device account never runs it. A conflict is Syncthing's `<name>.sync-conflict-<date>-<time>-<device><ext>` copy beside the file; keeping the other version moves the copy over the file. The folder summary's `pullErrors` becomes `failedFiles`.
+
 ## Table of Contents
 
 - [Model Experience](#model-experience)

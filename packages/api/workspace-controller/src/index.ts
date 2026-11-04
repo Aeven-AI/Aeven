@@ -14,8 +14,12 @@ import type {
   WorkspaceDeleteRequest,
   WorkspaceDeleteValue,
   WorkspaceFollowFrame,
+  WorkspaceConflictsRequest,
+  WorkspaceConflictsValue,
   WorkspaceGetFilesRequest,
   WorkspaceGetFilesValue,
+  WorkspaceResolveConflictRequest,
+  WorkspaceResolveConflictValue,
   WorkspaceInsertBeforeRequest,
   WorkspaceInsertSessionBeforeRequest,
   WorkspaceOrderValue,
@@ -92,6 +96,26 @@ export class WorkspaceController extends TypertRemoteService {
   @Remote('getFiles')
   getFiles(request: WorkspaceGetFilesRequest): Promise<WorkspaceGetFilesValue> {
     return this.commands.getFiles(request)
+  }
+
+  /**
+   * List a Workspace's files that two devices changed differently.
+   * @param request - Workspace identity.
+   * @returns the conflicts with both versions' text where available.
+   */
+  @Remote('conflicts')
+  conflicts(request: WorkspaceConflictsRequest): Promise<WorkspaceConflictsValue> {
+    return this.commands.conflicts(request)
+  }
+
+  /**
+   * Keep one version of a conflicting file.
+   * @param request - Workspace identity, file, and the version to keep.
+   * @returns whether the file had a conflict.
+   */
+  @Remote('resolveConflict')
+  resolveConflict(request: WorkspaceResolveConflictRequest): Promise<WorkspaceResolveConflictValue> {
+    return this.commands.resolveConflict(request)
   }
 
   /**

@@ -60,6 +60,40 @@ abstract unshare(id: FileSyncFolderId): Promise<void>
  * @returns its status, or undefined for a folder this device does not share or whose status is not known yet.
  */
 abstract status(id: FileSyncFolderId): FileSyncFolderStatus | undefined
+
+/**
+ * Look at these paths now instead of waiting for the filesystem watcher, so a change this device just made reaches
+ * the peers at once.
+ * @param id - a folder {@link share} started.
+ * @param paths - `/`-separated paths relative to the folder.
+ * @returns when the transport has queued the scan.
+ */
+abstract scan(id: FileSyncFolderId, paths: readonly string[]): Promise<void>
+
+/**
+ * Move one file to the front of the download queue when the account's devices hold it and this device does not yet.
+ * @param id - a folder {@link share} started.
+ * @param path - `/`-separated path relative to the folder.
+ * @returns whether the file is on its way: false when it is already here or no device holds it.
+ */
+abstract prioritize(id: FileSyncFolderId, path: string): Promise<boolean>
+
+/**
+ * List the files of a shared folder that two devices changed differently.
+ * @param id - a folder {@link share} started.
+ * @returns each conflicting file and the copy of its other version.
+ */
+abstract conflicts(id: FileSyncFolderId): Promise<FileSyncConflict[]>
+
+/**
+ * Keep one version of a conflicting file: `file` keeps the version under its name and removes the copy, `copy`
+ * moves the copy's content over the file.
+ * @param id - a folder {@link share} started.
+ * @param conflict - a conflict {@link conflicts} listed.
+ * @param keep - which version stays.
+ * @returns when the folder holds one version.
+ */
+abstract resolveConflict(id: FileSyncFolderId, conflict: FileSyncConflict, keep: 'file' | 'copy'): Promise<void>
 ```
 
 Source: [`packages/sync/file-sync/src/index.ts`](../../packages/sync/file-sync/src/index.ts)

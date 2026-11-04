@@ -11,6 +11,7 @@ export const folderSummarySchema = z.object({
   globalFiles: z.number(),
   needBytes: z.number(),
   needFiles: z.number(),
+  pullErrors: z.number().optional(),
   error: z.string().optional(),
 })
 

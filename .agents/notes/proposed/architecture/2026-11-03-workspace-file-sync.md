@@ -362,7 +362,7 @@ Two decisions differ from the architecture above:
 
 The status projection and sidebar progress followed. The workspace registry holds each workspace's file status device-locally, both Consumers report it, and it travels as a `files` field of each workspace on the existing workspace stream rather than through a `file-sync-controller` Remote, so the sidebar reads it with the rows it already follows; a row never carries a status mark, the menu ends with the status line below the Workspace actions, and a repository that waits for Git opens one "Install Git?" dialog. Three refinements to the status vocabulary above follow from it: `fetching` and `catching-up` are one `syncing` state, with progress only during a first download; `absent` is gone, because a workspace downloads whenever the disk keeps its free share and otherwise fails with the `disk` reason; and Git installs only after the user accepts, through `pkexec` on Linux. A folder now counts as complete only once it holds the files its descriptor records, so a receiving device no longer records an empty size before it reaches a peer. The conversation header and the Files sidebar do not show the status yet.
 
-Still open in phase 1: reuse of an existing matching directory through a marker, early indexing, offers to devices that lack a folder's space, and Aeven's own discovery and relay servers.
+The rest of phase 1 followed. A folder workspace's directory carries a `.aeven-workspace` marker, and a receiving device binds a marked copy where placement looks first. The provider reads the peer id from Syncthing's key and starts Syncthing only once an account has a peer and a folder, so indexing begins when a second device exists; on battery a large first download waits. A folder is offered to every peer, and a device whose disk cannot take it reports the `disk` failure. Still open in phase 1: Aeven's own discovery and relay servers, which live in `servers/node`.
 
 <a id="phase-2-status"></a>
 ### Phase 2 status
@@ -375,7 +375,15 @@ Three decisions refine the architecture above:
 - **One holder per copy through a lease.** A requesting device posts a request with a random transfer folder id, and every holder that sees it competes for a `ctx.sync` lease, so exactly one writes the bundle. `FileSyncFolder.peers` restricts the transfer folder to the two devices.
 - **Shared placement.** `placeWorkspace`, `fitsDisk`, and the location hint moved into `@aeven/workspace`, so both Consumers place a received workspace by one rule, and a hint that would leave the home directory is refused.
 
-A two-device run on macOS against a real Git server bound an existing checkout whose remote used another URL form, cloned on the published branch with `.env` restored and templates and ignored directories left out, copied a local-only repository with no `origin`, and delivered a later new environment file without replacing an existing one. "Installing Git" and the Linux install command now appear as status, and a copy request that no holder takes within `copyAnswerMs` gives up instead of holding up the other repositories for the whole copy timeout. Still open in phase 2: giving the agent's own Git the resolved executable.
+A two-device run on macOS against a real Git server bound an existing checkout whose remote used another URL form, cloned on the published branch with `.env` restored and templates and ignored directories left out, copied a local-only repository with no `origin`, and delivered a later new environment file without replacing an existing one. "Installing Git" and the Linux install command now appear as status, and a copy request that no holder takes within `copyAnswerMs` gives up instead of holding up the other repositories for the whole copy timeout. The agent's own Git now resolves the same executable through `@aeven/git-executable`, which closes phase 2.
+
+<a id="phase-3-to-6-status"></a>
+
+### Phases 3 to 6 status
+
+Phase 3 is implemented. Reads of a file still arriving wait for it through the new `fs/pre-read` event, `bash`, `grep`, and `glob` wait for a first download and note when they ran without it, and the agent's reads and writes trigger targeted scans. Work-state checkpoints are fresh-on-claim between online devices: the device that loses a session to another device checkpoints at once, turns and passes checkpoint after them, and the first step of a turn applies a newer checkpoint with stash protection. Without the relay's blob storage, a checkpoint travels only while the device that wrote it is online.
+
+Phase 4 is not started, because the cloud copy needs the assignment endpoint and quota accounting in `servers/node`. Phase 5 orders arrivals most recently changed first, defers first downloads above 100 MB on battery, and installs dependencies from a lockfile through the shell capability; metered networks are not detected. Phase 6 adds conflict comparison and resolution and reports files this computer cannot store; Settings → Files and the ignore editor wait for their design.
 
 <a id="open-questions"></a>
 ### Open questions

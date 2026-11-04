@@ -12,6 +12,8 @@ kind: "package-reference"
 
 每个投影出的 Workspace 都带有 `files`：文件同步消费方向注册表上报的、该 Workspace 在本 Host 上的文件状态，包含进度比例和失败原因；文件已在本机且是最新时为 `null`。状态变化会在 follow 流上再次发布该 Workspace。`getFiles` 把用户获取某个 Workspace 文件的请求（例如同意安装 Git）交给注册表。
 
+`conflicts` 和 `resolveConflict` 列出 Workspace 中有两个版本的文件（小型文本文件附带两个版本的文本），并保留其中一个版本。
+
 ## 目录
 
 - [使用本包](#use-this-package)

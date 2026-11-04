@@ -34,15 +34,23 @@
   },
   "peerDependencies": {
     "@aeven/file-sync": "workspace:^",
+    "@aeven/fs": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/subprocess": "workspace:^",
     "@aeven/sync": "workspace:^",
     "@aeven/sync-vault": "workspace:^",
+    "@aeven/tools": "workspace:^",
     "@aeven/workspace": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
     "@aeven/file-sync": "workspace:^",
+    "@aeven/fs": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/subprocess": "workspace:^",
     "@aeven/sync": "workspace:^",
     "@aeven/sync-vault": "workspace:^",
+    "@aeven/tools": "workspace:^",
     "@aeven/workspace": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   }

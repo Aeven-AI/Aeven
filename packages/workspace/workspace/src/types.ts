@@ -61,11 +61,14 @@ declare module '@deepseek-ai/cordis' {
  *
  * - `syncing` — files are arriving: the first download, a clone, a copy from another device, or later changes.
  * - `installing` — this device is installing Git before it can get the repository.
+ * - `preparing` — the repository arrived and its dependencies are being installed.
+ * - `paused` — a large first download waits until this computer is plugged in.
+ * - `conflict` — two devices changed the same files; {@link WorkspaceFileStatus.count} files have two versions.
  * - `waiting` — no device or server that holds the files is reachable yet.
  * - `git-needed` — the repository needs Git, which this device installs only once the user accepts.
  * - `failed` — the files cannot arrive; {@link WorkspaceFileStatus.reason} says why.
  */
-export type WorkspaceFileState = 'syncing' | 'installing' | 'waiting' | 'git-needed' | 'failed'
+export type WorkspaceFileState = 'syncing' | 'installing' | 'preparing' | 'paused' | 'waiting' | 'git-needed' | 'conflict' | 'failed'
 
 /**
  * Why a workspace's files cannot arrive.
@@ -75,9 +78,10 @@ export type WorkspaceFileState = 'syncing' | 'installing' | 'waiting' | 'git-nee
  * - `disk` — the files would not leave the required share of the disk free.
  * - `folder` — the workspace's directory is missing or unreadable.
  * - `git-install` — installing Git failed or was declined at the system prompt.
+ * - `unstorable` — {@link WorkspaceFileStatus.count} files have names or sizes this computer's filesystem rejects.
  * - `unknown` — any other failure; the Host log has the detail.
  */
-export type WorkspaceFileFailure = 'access' | 'network' | 'disk' | 'folder' | 'git-install' | 'unknown'
+export type WorkspaceFileFailure = 'access' | 'network' | 'disk' | 'folder' | 'git-install' | 'unstorable' | 'unknown'
 
 /** One workspace's file status on this device, which the file sync Consumers report. */
 export interface WorkspaceFileStatus {
@@ -86,6 +90,39 @@ export interface WorkspaceFileStatus {
   readonly progress?: number
   /** Why the files cannot arrive; present only in `failed`. */
   readonly reason?: WorkspaceFileFailure
+  /** How many files have two versions in `conflict`, or cannot be stored in `failed` with `unstorable`. */
+  readonly count?: number
+}
+
+/** One file that two devices changed differently: this device's version and the one another device kept. */
+export interface WorkspaceConflict {
+  /** `/`-separated path relative to the workspace directory. */
+  readonly path: string
+  /** This device's text, or `null` when the file is not text or too large to compare. */
+  readonly thisText: string | null
+  /** The other device's text, or `null` when it is not text or too large to compare. */
+  readonly otherText: string | null
+}
+
+/** Which version of a conflicting file stays. */
+export type WorkspaceConflictChoice = 'this' | 'other'
+
+/** A file sync Consumer's view of the conflicts in the workspaces it syncs. */
+export interface WorkspaceConflictSource {
+  /**
+   * List a workspace's conflicts.
+   * @param workspace - the workspace.
+   * @returns its conflicts, or undefined for a workspace this source does not sync.
+   */
+  list(workspace: WorkspaceId): Promise<readonly WorkspaceConflict[] | undefined>
+  /**
+   * Keep one version of a conflicting file and remove the other.
+   * @param workspace - the workspace.
+   * @param path - the conflicting file.
+   * @param keep - which version stays.
+   * @returns whether this source syncs the workspace and resolved the file.
+   */
+  resolve(workspace: WorkspaceId, path: string, keep: WorkspaceConflictChoice): Promise<boolean>
 }
 
 declare module '@aeven/typert-protocol' {

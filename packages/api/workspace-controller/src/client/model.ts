@@ -11,7 +11,9 @@ import type {
   WorkspaceCreateRequest,
   WorkspaceCreateValue,
   WorkspaceDeleteValue,
+  WorkspaceConflictsValue,
   WorkspaceGetFilesValue,
+  WorkspaceResolveConflictValue,
   WorkspaceInsertSessionBeforeRequest,
   WorkspaceOrderValue,
   WorkspaceUnarchiveSessionRequest,
@@ -121,6 +123,26 @@ export class ClientWorkspaceModel implements WorkspaceFollowSink {
    */
   getFiles(workspaceId: WorkspaceId): Promise<RemoteResult<WorkspaceGetFilesValue>> {
     return this.remote.getFiles({ workspaceId })
+  }
+
+  /**
+   * List a Workspace's conflicting files.
+   * @param workspaceId - target Workspace.
+   * @returns generated Remote result.
+   */
+  conflicts(workspaceId: WorkspaceId): Promise<RemoteResult<WorkspaceConflictsValue>> {
+    return this.remote.conflicts({ workspaceId })
+  }
+
+  /**
+   * Keep one version of a conflicting file; the status change arrives on the follow stream.
+   * @param workspaceId - target Workspace.
+   * @param path - the conflicting file.
+   * @param keep - which version stays.
+   * @returns generated Remote result.
+   */
+  resolveConflict(workspaceId: WorkspaceId, path: string, keep: 'this' | 'other'): Promise<RemoteResult<WorkspaceResolveConflictValue>> {
+    return this.remote.resolveConflict({ workspaceId, path, keep })
   }
 
   /**

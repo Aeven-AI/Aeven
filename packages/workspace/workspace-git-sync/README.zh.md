@@ -11,6 +11,8 @@ kind: "package-reference"
 
 目录是 Git 工作树的工作区会作为仓库随账户同步到其他设备。持有仓库的每台设备在账户的 `workspace-git/repositories` 文档中发布去掉凭据的远程 URL、当前检出的分支、位置提示（其目录相对于主目录的路径）和大小，并把自己记录为持有者。收到没有目录的工作区的设备会在不询问的情况下获取它：
 
+未提交和未推送的工作以工作状态检查点同步：基础提交和分支、远程没有的提交的 bundle、已跟踪更改的二进制 diff，以及 `.gitignore` 未排除的未跟踪文件的副本。另一台设备接管仓库中的会话时、每轮结束 `checkpointDebounceMs` 后以及每次检查时，设备都会写入检查点（工作树未变化时跳过），并通过传输文件夹提供。每轮的第一步之前，设备会应用另一台设备更新的检查点，最多等待 `handoffWaitMs`：先暂存自己的更改，为检查点会丢下的提交保留一个 ref，移动分支，应用 diff，并复制未跟踪文件。克隆之后，锁文件的冻结安装通过 shell 能力运行，期间 workspace 报告 `preparing`；超过 `batteryDeferBytes` 的首次克隆在使用电池时报告 `paused`。Git 来自 [`@aeven/git-executable`](../../util/git-executable/README.zh.md)。
+
 1. **现有检出。** 远程包含同一仓库的检出会被直接绑定，不下载。搜索按主机和路径比较远程，因此 SSH 与 HTTPS 形式可以匹配。它先查看提示所指的目录，再查看其他工作区目录的同级目录，最后在 `discoveryRoots` 下最多 `discoveryDepth` 层中查找。它只读取每个候选的 Git 配置，超过 `discoveryTimeoutMs` 即放弃。
 2. **克隆。** 否则，当下载后仍保留 `minFreeDiskRatio` 比例的磁盘空间时，设备克隆到按文件夹工作区相同规则选出的目录。克隆包含子模块，并切换到发布的分支。它使用本机自己的 Git 凭据，从不提示输入。安装了 Git LFS 时会获取 Git LFS 对象。
 3. **从设备复制。** 克隆失败或仓库没有远程时，设备从持有它的另一台设备复制。通过租约选出的一个持有者把包含所有 ref 的 bundle 写入传输文件夹，`ctx.fileSync` 只把该文件夹共享给请求的设备。请求方从 bundle 克隆，并把 `origin` 设为发布的远程，或将其移除。
@@ -43,7 +45,6 @@ Git 来自 `PATH` 或各平台的标准安装位置。没有 Git 的设备从不
 <a id="known-limitations-and-deferred-work"></a>
 
 - **只同步已提交并已推送的工作。** 未提交的更改和远程没有的提交会留在产生它们的设备上，直到 note 为第 3 阶段计划的工作状态检查点实现；从设备复制会带上其提交，但不带工作树更改。
-- **智能体自己的 Git 仍使用 `PATH`。** 版本控制提供方从 `PATH` 运行 `git`，因此只存在于标准位置的 Git（例如刚安装的）还不是智能体使用的 Git。
 - **复制不带 LFS 对象。** 从另一台设备复制的仓库不带 Git LFS 对象；远程可达后再从远程获取。
 - **与文件同步分组共享** — 文件同步的其他限制统一列在[账户同步分组 README](../../sync/README.zh.md#known-limitations-and-deferred-work)中。
 

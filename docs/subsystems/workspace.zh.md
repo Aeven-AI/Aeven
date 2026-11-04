@@ -275,6 +275,20 @@ Host service backing the generated `ctx.remote.workspace` namespace.
 @Remote('getFiles') getFiles(request: WorkspaceGetFilesRequest): Promise<WorkspaceGetFilesValue>
 
 /**
+ * List a Workspace's files that two devices changed differently.
+ * @param request - Workspace identity.
+ * @returns the conflicts with both versions' text where available.
+ */
+@Remote('conflicts') conflicts(request: WorkspaceConflictsRequest): Promise<WorkspaceConflictsValue>
+
+/**
+ * Keep one version of a conflicting file.
+ * @param request - Workspace identity, file, and the version to keep.
+ * @returns whether the file had a conflict.
+ */
+@Remote('resolveConflict') resolveConflict(request: WorkspaceResolveConflictRequest): Promise<WorkspaceResolveConflictValue>
+
+/**
  * Remove one Workspace registration while retaining files and Sessions.
  * @param request - Workspace identity to remove.
  * @returns deletion confirmation.
@@ -415,6 +429,29 @@ fileStatus(id: WorkspaceId): WorkspaceFileStatus | undefined
  * @param status - the new status, or `undefined` once the files are here and up to date.
  */
 setFileStatus(id: WorkspaceId, status: WorkspaceFileStatus | undefined): void
+
+/**
+ * Register a file sync Consumer's conflict listing and resolution.
+ * @param source - the Consumer's conflicts.
+ * @returns the disposer that removes it.
+ */
+registerConflicts(source: WorkspaceConflictSource): () => void
+
+/**
+ * List the files of a workspace that two devices changed differently.
+ * @param id - Workspace id.
+ * @returns the conflicts, empty for a workspace no source syncs.
+ */
+async conflicts(id: WorkspaceId): Promise<readonly WorkspaceConflict[]>
+
+/**
+ * Keep one version of a conflicting file.
+ * @param id - Workspace id.
+ * @param path - the conflicting file, relative to the workspace directory.
+ * @param keep - which version stays.
+ * @returns whether a source resolved it.
+ */
+async resolveConflict(id: WorkspaceId, path: string, keep: WorkspaceConflictChoice): Promise<boolean>
 
 /**
  * Ask for a workspace's files now on the user's behalf, for example after they accept to install Git; emits

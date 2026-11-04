@@ -4,9 +4,9 @@
  * @module @aeven/workspace-git-sync/git
  */
 import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import type { Context } from '@deepseek-ai/cordis'
+import { findGit } from '@aeven/git-executable'
 import type {} from '@aeven/subprocess'
 
 /** Bounds and installer behavior for Git commands. */
@@ -47,9 +47,6 @@ export interface GitRun {
 
 /** No Git on this device, or the platform's installer could not install it. */
 export class GitUnavailableError extends Error {}
-
-/** The macOS command-line stub that opens Apple's install dialog when the developer tools are absent. */
-const MACOS_GIT_STUB = '/usr/bin/git'
 
 /** Finds, installs, and runs this device's Git. */
 export class Git {
@@ -147,15 +144,8 @@ export class Git {
   /** The first Git executable on `PATH` or in this platform's standard locations. */
   private async find(): Promise<string | undefined> {
     if (this.executable !== undefined && existsSync(this.executable)) return this.executable
-    this.executable = undefined
-    try {
-      const onPath = await this.ctx.subprocess.resolveExecutable('git')
-      // The stub on `PATH` opens an install dialog instead of running Git when the developer tools are absent.
-      if (process.platform !== 'darwin' || onPath !== MACOS_GIT_STUB) this.executable = onPath
-    } catch {
-      // No Git on `PATH`; the standard locations below cover a GUI app's short `PATH` and a fresh install.
-    }
-    this.executable ??= standardLocations().find(path => existsSync(path))
+    // No Git on `PATH` resolves to undefined; the standard locations cover a GUI app's short `PATH` and a fresh install.
+    this.executable = await findGit(() => this.ctx.subprocess.resolveExecutable('git').catch(() => undefined))
     return this.executable
   }
 
@@ -222,25 +212,6 @@ export class Git {
     })
     return (await child.done).exitCode === 0
   }
-}
-
-/** Where each platform's Git installers put the executable. */
-function standardLocations(): string[] {
-  if (process.platform === 'darwin') {
-    return [
-      '/opt/homebrew/bin/git',
-      '/usr/local/bin/git',
-      '/Library/Developer/CommandLineTools/usr/bin/git',
-      '/Applications/Xcode.app/Contents/Developer/usr/bin/git',
-    ]
-  }
-  if (process.platform === 'win32') {
-    return [process.env.ProgramW6432, process.env.ProgramFiles, process.env['ProgramFiles(x86)']]
-      .filter(base => base !== undefined)
-      .map(base => join(base, 'Git', 'cmd', 'git.exe'))
-      .concat(process.env.LOCALAPPDATA === undefined ? [] : [join(process.env.LOCALAPPDATA, 'Programs', 'Git', 'cmd', 'git.exe')])
-  }
-  return ['/usr/bin/git', '/usr/local/bin/git']
 }
 
 /** The distribution's non-interactive Git install command, which needs root. */

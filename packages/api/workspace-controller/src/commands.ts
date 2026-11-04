@@ -20,8 +20,12 @@ import type {
   WorkspaceCreateRequest,
   WorkspaceCreateValue,
   WorkspaceDeleteRequest,
+  WorkspaceConflictsRequest,
+  WorkspaceConflictsValue,
   WorkspaceGetFilesRequest,
   WorkspaceGetFilesValue,
+  WorkspaceResolveConflictRequest,
+  WorkspaceResolveConflictValue,
   WorkspaceDeleteValue,
   WorkspaceInsertBeforeRequest,
   WorkspaceInsertSessionBeforeRequest,
@@ -99,6 +103,30 @@ export class WorkspaceCommands {
       this.requireWorkspace(request.workspaceId)
       this.ctx.workspaceRegistry.requestFiles(WorkspaceId(request.workspaceId))
       return Promise.resolve({ requested: true as const })
+    })
+  }
+
+  /**
+   * List a Workspace's files that two devices changed differently.
+   * @param request - Workspace identity.
+   * @returns the conflicts with both versions' text where available.
+   */
+  async conflicts(request: WorkspaceConflictsRequest): Promise<WorkspaceConflictsValue> {
+    this.requireWorkspace(request.workspaceId)
+    const conflicts = await this.ctx.workspaceRegistry.conflicts(WorkspaceId(request.workspaceId))
+    return { conflicts: conflicts.map(conflict => ({ path: conflict.path, thisText: conflict.thisText, otherText: conflict.otherText })) }
+  }
+
+  /**
+   * Keep one version of a conflicting file.
+   * @param request - Workspace identity, file, and the version to keep.
+   * @returns whether the file had a conflict.
+   */
+  resolveConflict(request: WorkspaceResolveConflictRequest): Promise<WorkspaceResolveConflictValue> {
+    return this.enqueue(async () => {
+      this.requireWorkspace(request.workspaceId)
+      const resolved = await this.ctx.workspaceRegistry.resolveConflict(WorkspaceId(request.workspaceId), request.path, request.keep)
+      return { resolved }
     })
   }
 

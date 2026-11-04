@@ -5592,6 +5592,22 @@ export interface Config {
   minFreeDiskRatio: number
   /** Directory holding one marker per folder this device has held completely. */
   completeDirectory: string
+  /** Longest a read waits for a file that is still arriving from another device. */
+  readWaitMs: number
+  /** Interval between checks for a file a read waits for. */
+  readPollMs: number
+  /** Delay that gathers the files the agent touched into one targeted scan. */
+  scanDelayMs: number
+  /** Longest a command that reads the whole tree waits for a workspace's first download to finish. */
+  gateWaitMs: number
+  /** Size above which a first download waits while this computer runs on battery. */
+  batteryDeferBytes: number
+  /** Interval between checks of whether this computer runs on battery. */
+  powerPollMs: number
+  /** Shortest interval between two listings of one folder's conflicting versions. */
+  conflictScanMs: number
+  /** Largest file, in bytes, whose two versions are shown as text. */
+  conflictTextMaxBytes: number
 }
 ```
 
@@ -5651,8 +5667,24 @@ export interface Config {
   copyTimeoutMs: number
   /** Lifetime of the lease that picks one device to serve a copy. */
   copyLeaseMs: number
-  /** Directory copies travel through. */
+  /** Directory copies and checkpoints travel through. */
   transferRoot: string
+  /** Largest checkpoint of uncommitted work, in bytes, that travels to other devices. */
+  checkpointMaxBytes: number
+  /** Delay after a turn before its uncommitted work is checkpointed. */
+  checkpointDebounceMs: number
+  /** Longest a turn waits for another device's checkpoint before it runs without it. */
+  handoffWaitMs: number
+  /** File recording which checkpoint each workspace last applied on this device. */
+  checkpointStateFile: string
+  /** Size above which a first clone or copy waits while this computer runs on battery. */
+  batteryDeferBytes: number
+  /** Interval between checks of whether this computer runs on battery. */
+  powerPollMs: number
+  /** Install a received repository's dependencies from its lockfile when the toolchain is on `PATH`. */
+  prepareDependencies: boolean
+  /** Longest a dependency install runs. */
+  prepareTimeoutMs: number
 }
 ```
 
@@ -5857,6 +5889,7 @@ Imported as libraries by other packages; a `cordis.yml` cannot load them.
 - `@aeven/experimental-browser-overlay` ([`packages/experimental/browser-overlay/src/index.ts`](../packages/experimental/browser-overlay/src/index.ts))
 - `@aeven/experimental-webworker-packer` ([`packages/experimental/webworker-packer/src/index.ts`](../packages/experimental/webworker-packer/src/index.ts))
 - `@aeven/experimental-webworker-runtime` ([`packages/experimental/webworker-runtime/src/index.ts`](../packages/experimental/webworker-runtime/src/index.ts))
+- `@aeven/git-executable` ([`packages/util/git-executable/src/index.ts`](../packages/util/git-executable/src/index.ts))
 - `@aeven/home-paths` ([`packages/util/home-paths/src/index.ts`](../packages/util/home-paths/src/index.ts))
 - `@aeven/hook-protocol` ([`packages/hooks/hook-protocol/src/index.ts`](../packages/hooks/hook-protocol/src/index.ts))
 - `@aeven/http-proxy` ([`packages/util/http-proxy/src/index.ts`](../packages/util/http-proxy/src/index.ts))

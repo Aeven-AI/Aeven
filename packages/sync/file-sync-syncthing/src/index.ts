@@ -6,12 +6,14 @@
  * @module @aeven/file-sync-syncthing
  */
 import { randomBytes } from 'node:crypto'
-import { mkdir } from 'node:fs/promises'
+import { mkdir, readdir, rename, rm } from 'node:fs/promises'
+import { join, sep } from 'node:path'
 import { createServer } from 'node:net'
 import { Context, Service } from '@deepseek-ai/cordis'
 import Schema from '@deepseek-ai/schemastery'
 import { brandString } from '@aeven/brand'
 import {
+  type FileSyncConflict,
   FileSync, type FileSyncFolder, type FileSyncFolderId, type FileSyncFolderState, type FileSyncFolderStatus,
   type FileSyncPeerId,
 } from '@aeven/file-sync'
@@ -87,6 +89,7 @@ function folderStatus(summary: FolderSummary): FileSyncFolderStatus {
     globalFiles: summary.globalFiles,
     needBytes: summary.needBytes,
     needFiles: summary.needFiles,
+    failedFiles: summary.pullErrors ?? 0,
     ...state === 'error' && summary.error !== undefined && summary.error !== '' ? { error: summary.error } : {},
   }
 }
@@ -146,6 +149,10 @@ export default class SyncthingFileSync extends FileSync {
   private markReady!: (running: Running) => void
   private failReady!: (error: unknown) => void
   private disposed = false
+  /** Whether the process was started; it starts once an account has a peer and a folder to share with it. */
+  private started = false
+  /** This device's peer id, read from the key without running the process. */
+  private identity: Promise<FileSyncPeerId> | undefined
   private failures = 0
   private restartTimer: NodeJS.Timeout | undefined
   /** Folders shared through {@link share}, by id. */
@@ -165,7 +172,10 @@ export default class SyncthingFileSync extends FileSync {
     this.ready = this.pendingReady()
   }
 
-  /** Resolve the executable, then start the process in the background; stop it when the plugin is disposed. */
+  /**
+   * Resolve the executable and stop the process when the plugin is disposed. The process itself starts only once an
+   * account has a peer and a folder to share with it, so a single-device account never runs Syncthing.
+   */
   async [Service.init](): Promise<void> {
     this.executable = await this.ctx.subprocess.resolveExecutable(this.config.binary)
     this.ctx.effect(() => async () => {
@@ -178,12 +188,16 @@ export default class SyncthingFileSync extends FileSync {
         await running.handle.waitForExit()
       }
     }, 'file-sync-syncthing: process')
-    void this.start()
+    this.demand()
   }
 
   /** @inheritdoc */
-  async peerId(): Promise<FileSyncPeerId> {
-    return (await this.ready).peer
+  peerId(): Promise<FileSyncPeerId> {
+    this.identity ??= this.readIdentity().catch((error: unknown) => {
+      this.identity = undefined
+      throw error
+    })
+    return this.identity
   }
 
   /** @inheritdoc */
@@ -191,6 +205,7 @@ export default class SyncthingFileSync extends FileSync {
     const listed = [...new Set(peers)].sort()
     if (JSON.stringify(this.peers.get(owner)) === JSON.stringify(listed)) return
     this.peers.set(owner, listed)
+    this.demand()
     await this.write(async (running) => {
       await this.applyDevices(running)
       for (const folder of this.folders.values()) {
@@ -205,6 +220,7 @@ export default class SyncthingFileSync extends FileSync {
     if (known?.path === folder.path && known.owner === folder.owner && samePeers(known.peers, folder.peers)) return
     this.folders.set(folder.id, { ...folder, ...folder.peers === undefined ? {} : { peers: [...folder.peers] } })
     await mkdir(folder.path, { recursive: true })
+    this.demand()
     await this.write(async (running) => {
       await this.applyFolder(running, folder)
       await this.refreshStatus(running, folder.id)
@@ -219,6 +235,58 @@ export default class SyncthingFileSync extends FileSync {
       await running.rest.request('DELETE', `/rest/config/folders/${encodeURIComponent(id)}`)
     })
     this.notifyFolder(id)
+  }
+
+  /** @inheritdoc */
+  async scan(id: FileSyncFolderId, paths: readonly string[]): Promise<void> {
+    if (!this.folders.has(id) || paths.length === 0) return
+    await this.write(async (running) => {
+      const query = paths.map(path => `&sub=${encodeURIComponent(path)}`).join('')
+      await running.rest.request('POST', `/rest/db/scan?folder=${encodeURIComponent(id)}${query}`)
+    })
+  }
+
+  /** @inheritdoc */
+  async prioritize(id: FileSyncFolderId, path: string): Promise<boolean> {
+    if (!this.folders.has(id) || !this.started) return false
+    const running = await this.ready
+    const file = `folder=${encodeURIComponent(id)}&file=${encodeURIComponent(path)}`
+    let info: unknown
+    try {
+      info = await running.rest.request('GET', `/rest/db/file?${file}`)
+    } catch (error) {
+      // Syncthing answers 404 for a file no device of the folder holds.
+      if (error instanceof SyncthingRequestError && error.status === 404) return false
+      throw error
+    }
+    if (!wantedFromPeers(info)) return false
+    await running.rest.request('POST', `/rest/db/prio?${file}`)
+    return true
+  }
+
+  /** @inheritdoc */
+  async conflicts(id: FileSyncFolderId): Promise<FileSyncConflict[]> {
+    const folder = this.folders.get(id)
+    if (folder === undefined) return []
+    const entries = await readdir(folder.path, { recursive: true }).catch(() => [] as string[])
+    const conflicts: FileSyncConflict[] = []
+    for (const entry of entries) {
+      const copy = entry.split(sep).join('/')
+      const original = conflictOriginal(copy)
+      if (original !== undefined) conflicts.push({ path: original, copy })
+    }
+    return conflicts
+  }
+
+  /** @inheritdoc */
+  async resolveConflict(id: FileSyncFolderId, conflict: FileSyncConflict, keep: 'file' | 'copy'): Promise<void> {
+    const folder = this.folders.get(id)
+    // Both paths came from a listing of this folder; one that does not name a conflict copy here is refused.
+    if (folder === undefined || conflictOriginal(conflict.copy) !== conflict.path) return
+    const copy = join(folder.path, ...conflict.copy.split('/'))
+    if (keep === 'copy') await rename(copy, join(folder.path, ...conflict.path.split('/')))
+    else await rm(copy, { force: true })
+    await this.scan(id, [conflict.path, conflict.copy])
   }
 
   /** @inheritdoc */
@@ -241,8 +309,55 @@ export default class SyncthingFileSync extends FileSync {
     return ready
   }
 
+  /**
+   * Start the process once some account has a peer and a folder to share with it. Before that, changes stay in the
+   * folder and peer maps, which the start applies in full.
+   */
+  private demand(): void {
+    if (this.started || this.disposed || this.executable === undefined) return
+    const wanted = [...this.folders.values()].some(folder => (folder.peers ?? this.peers.get(folder.owner) ?? []).length > 0)
+    if (!wanted) return
+    this.started = true
+    void this.start()
+  }
+
+  /** This device's peer id from its key, which `generate` creates once and keeps. */
+  private async readIdentity(): Promise<FileSyncPeerId> {
+    const executable = this.executable ?? await this.ctx.subprocess.resolveExecutable(this.config.binary)
+    await this.generate(executable)
+    const child = this.ctx.subprocess.spawn({
+      argv: [executable, 'device-id', `--home=${this.config.home}`],
+      cwd: this.config.home,
+      stdio: { stdin: 'ignore', stdout: { maxBytes: 1_024 }, stderr: { maxBytes: 16_384 } },
+      graceMs: this.config.stopGraceMs,
+    })
+    const outcome = await child.done
+    const id = child.collected.stdout?.readFrom(0).text.trim() ?? ''
+    if (outcome.exitCode !== 0 || id === '') throw new Error(`syncthing device-id exited with ${String(outcome.exitCode ?? outcome.signal)}`)
+    return brandString<FileSyncPeerId>(id)
+  }
+
+  /** Create the key and configuration when absent; an existing one is kept. */
+  private async generate(executable: string): Promise<void> {
+    const home = this.config.home
+    await mkdir(home, { recursive: true })
+    const generate = this.ctx.subprocess.spawn({
+      argv: [executable, 'generate', `--home=${home}`, '--no-port-probing'],
+      cwd: home,
+      stdio: { stdin: 'ignore', stdout: { maxBytes: 16_384 }, stderr: { maxBytes: 16_384 } },
+      env: { STNODEFAULTFOLDER: '1', STNOUPGRADE: '1' },
+      graceMs: this.config.stopGraceMs,
+    })
+    const generated = await generate.done
+    if (generated.exitCode !== 0) {
+      throw new Error(`syncthing generate exited with ${String(generated.exitCode ?? generated.signal)}: ${generate.collected.stderr?.readFrom(0).text ?? ''}`)
+    }
+  }
+
   /** Run one configuration change against the running process, after the changes queued before it. */
   private write(change: (running: Running) => Promise<void>): Promise<void> {
+    // Before the process starts there is nothing to change; the start applies the maps in full.
+    if (!this.started) return Promise.resolve()
     const next = this.writes.then(async () => { await change(await this.ready) })
     this.writes = next.catch(() => {})
     return next
@@ -278,17 +393,10 @@ export default class SyncthingFileSync extends FileSync {
 
   private async launch(executable: string): Promise<Running> {
     const home = this.config.home
-    await mkdir(home, { recursive: true })
     const env = { STNODEFAULTFOLDER: '1', STNOUPGRADE: '1' }
     const stdio = { stdin: 'ignore', stdout: { maxBytes: 16_384 }, stderr: { maxBytes: 16_384 } } as const
-    // `generate` keeps an existing key and configuration, so it runs on every start and creates them only once.
-    const generate = this.ctx.subprocess.spawn({
-      argv: [executable, 'generate', `--home=${home}`, '--no-port-probing'], cwd: home, stdio, env, graceMs: this.config.stopGraceMs,
-    })
-    const generated = await generate.done
-    if (generated.exitCode !== 0) {
-      throw new Error(`syncthing generate exited with ${String(generated.exitCode ?? generated.signal)}: ${generate.collected.stderr?.readFrom(0).text ?? ''}`)
-    }
+    // The identity read runs `generate`, which creates the key and configuration once; a second run could race it.
+    await this.peerId()
     const port = await freePort()
     const apiKey = randomBytes(24).toString('base64url')
     const handle = this.ctx.subprocess.spawn({
@@ -464,4 +572,26 @@ export default class SyncthingFileSync extends FileSync {
 function samePeers(left: readonly FileSyncPeerId[] | undefined, right: readonly FileSyncPeerId[] | undefined): boolean {
   if (left === undefined || right === undefined) return left === right
   return JSON.stringify([...left].sort()) === JSON.stringify([...right].sort())
+}
+
+/**
+ * Whether a `/rest/db/file` answer describes a file the folder's devices hold and this device lacks or holds older: the
+ * global entry exists and is not deleted, and the local entry is missing, deleted, or of another version.
+ */
+function wantedFromPeers(info: unknown): boolean {
+  if (typeof info !== 'object' || info === null || !('global' in info)) return false
+  const global = info.global as { deleted?: boolean; version?: unknown } | null | undefined
+  if (global === null || global === undefined || global.deleted === true) return false
+  const local = 'local' in info ? info.local as { deleted?: boolean; version?: unknown } | null | undefined : undefined
+  return local === null || local === undefined || local.deleted === true || JSON.stringify(local.version) !== JSON.stringify(global.version)
+}
+
+/** Syncthing's name for the other version of a conflicting file: `<name>.sync-conflict-<date>-<time>-<device><ext>`. */
+const CONFLICT_COPY = /^(?<dir>(?:.*\/)?)(?<stem>[^/]*?)\.sync-conflict-\d{8}-\d{6}-[A-Z0-9]{7}(?<ext>(?:\.[^./]*)?)$/u
+
+/** The file a conflict copy stands beside, or undefined for any other path. */
+function conflictOriginal(copy: string): string | undefined {
+  const match = CONFLICT_COPY.exec(copy)
+  if (match?.groups === undefined) return undefined
+  return `${match.groups.dir ?? ''}${match.groups.stem ?? ''}${match.groups.ext ?? ''}`
 }

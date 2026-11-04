@@ -11,6 +11,8 @@ kind: "package-reference"
 
 `avn-workspace` 为宿主提供一组持久 workspace：命名用户目录，每个目录带有在其中运行的会话，并在重启之间保持稳定顺序。借助它，UI 可以显示项目侧边栏、把会话附加到正确的项目、把会话从分组中隐藏而不丢失它，以及移除项目——移除绝不会删除文件夹或会话历史，这些会话会被归档。在需要持久项目分组的 GUI 或宿主组合中使用它；headless 与最小运行可以完全省略它。此包只面向宿主侧：模型、工具与 agent loop 永远不会看到它，因此不会增加任何 token、提示词或请求上下文。它需要会话存储与持久化后端一并挂载；设置只需几行组合配置。
 
+workspace 目录中有一个命名该 workspace 的 `.aeven-workspace` 标记（`writeMarker`），因此 `markedDirectory` 能识别本设备已有的副本。`registerConflicts` 让文件同步 Consumer 通过 `conflicts` 和 `resolveConflict` 列出并解决冲突版本。`onBatteryPower` 和 `byRecentUse` 让 Consumer 在使用电池时推迟大型首次下载，并优先获取最近更改的 workspace。
+
 ## 目录
 
 - [使用本包](#use-this-package)

@@ -49,6 +49,7 @@ const NO_MODEL_EXPERIENCE_SECTION: Readonly<Record<string, string>> = {
   'packages/computer-use/computer-use-windows-com': 'The package implements one host-side mechanism handler behind the executor; it registers no tool, schema, or prompt section, and the consumer that exposes a session owns every model-visible effect.',
   'packages/core/scope': 'The package is a model-agnostic registration and lifecycle primitive; model-facing consumers own any context selection.',
   'packages/util/brand': 'The package only constructs plain string values and registers nothing model-facing.',
+  'packages/util/git-executable': 'The package only finds the Git executable; the version-control and repository Consumers own what the model sees.',
   'packages/util/home-paths': 'The package only resolves harness-owned host paths; model-facing consumers own any rendered use.',
   'packages/util/launch-environment': 'The package only resolves host environment values; model-facing consumers own any rendered use.',
   'packages/util/workspace-path': 'The package only formats Workspace paths for browser UI; it never constructs model input.',

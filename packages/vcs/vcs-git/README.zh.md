@@ -11,6 +11,8 @@ kind: "package-reference"
 
 `avn-vcs-git` 用 git 实现 `ctx.vcs`：它探测某个目录所属的检出，把 porcelain v2 状态读取为按路径划分的已暂存与未暂存变更，渲染有界的差异，列出提交与分支，并执行暂存、提交、移动分支、抓取、推送与合并。输出通过 `ctx.subprocess` 收集并当作数据解析，因此没有任何调用方依赖 git 的进度文本。只读报告在禁用仓库钩子与 fsmonitor 的情况下运行；记录历史或移动检出的命令则按仓库自身的配置运行。
 
+Git 从 [`@aeven/git-executable`](../../util/git-executable/README.zh.md) 找到的可执行文件运行，因此 `PATH` 较短的桌面应用也能用到 Homebrew 或 Git for Windows 安装的 Git。
+
 ## 目录
 
 - [使用本包](#use-this-package)

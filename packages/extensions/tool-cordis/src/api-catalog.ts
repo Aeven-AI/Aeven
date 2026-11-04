@@ -1464,6 +1464,30 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'id', description: 'the folder.' }],
         returns: 'its status, or undefined for a folder this device does not share or whose status is not known yet.',
       },
+      {
+        signature: 'abstract scan(id: FileSyncFolderId, paths: readonly string[]): Promise<void>',
+        description: 'Look at these paths now instead of waiting for the filesystem watcher, so a change this device just made reaches the peers at once.',
+        parameters: [{ name: 'id', description: 'a folder {@link share} started.' }, { name: 'paths', description: '`/`-separated paths relative to the folder.' }],
+        returns: 'when the transport has queued the scan.',
+      },
+      {
+        signature: 'abstract prioritize(id: FileSyncFolderId, path: string): Promise<boolean>',
+        description: 'Move one file to the front of the download queue when the account\'s devices hold it and this device does not yet.',
+        parameters: [{ name: 'id', description: 'a folder {@link share} started.' }, { name: 'path', description: '`/`-separated path relative to the folder.' }],
+        returns: 'whether the file is on its way: false when it is already here or no device holds it.',
+      },
+      {
+        signature: 'abstract conflicts(id: FileSyncFolderId): Promise<FileSyncConflict[]>',
+        description: 'List the files of a shared folder that two devices changed differently.',
+        parameters: [{ name: 'id', description: 'a folder {@link share} started.' }],
+        returns: 'each conflicting file and the copy of its other version.',
+      },
+      {
+        signature: 'abstract resolveConflict(id: FileSyncFolderId, conflict: FileSyncConflict, keep: \'file\' | \'copy\'): Promise<void>',
+        description: 'Keep one version of a conflicting file: `file` keeps the version under its name and removes the copy, `copy` moves the copy\'s content over the file.',
+        parameters: [{ name: 'id', description: 'a folder {@link share} started.' }, { name: 'conflict', description: 'a conflict {@link conflicts} listed.' }, { name: 'keep', description: 'which version stays.' }],
+        returns: 'when the folder holds one version.',
+      },
     ],
   },
   {
@@ -4556,6 +4580,18 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the request receipt.',
       },
       {
+        signature: '@Remote(\'conflicts\') conflicts(request: WorkspaceConflictsRequest): Promise<WorkspaceConflictsValue>',
+        description: 'List a Workspace\'s files that two devices changed differently.',
+        parameters: [{ name: 'request', description: 'Workspace identity.' }],
+        returns: 'the conflicts with both versions\' text where available.',
+      },
+      {
+        signature: '@Remote(\'resolveConflict\') resolveConflict(request: WorkspaceResolveConflictRequest): Promise<WorkspaceResolveConflictValue>',
+        description: 'Keep one version of a conflicting file.',
+        parameters: [{ name: 'request', description: 'Workspace identity, file, and the version to keep.' }],
+        returns: 'whether the file had a conflict.',
+      },
+      {
         signature: '@Remote(\'delete\') delete(request: WorkspaceDeleteRequest): Promise<WorkspaceDeleteValue>',
         description: 'Remove one Workspace registration while retaining files and Sessions.',
         parameters: [{ name: 'request', description: 'Workspace identity to remove.' }],
@@ -4651,6 +4687,24 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         signature: 'setFileStatus(id: WorkspaceId, status: WorkspaceFileStatus | undefined): void',
         description: 'Report a workspace\'s file status on this device and emit `workspace/files` when it changed. The Consumer that syncs the workspace\'s files is its only reporter, and clears what it reported when it stops.',
         parameters: [{ name: 'id', description: 'Workspace id.' }, { name: 'status', description: 'the new status, or `undefined` once the files are here and up to date.' }],
+      },
+      {
+        signature: 'registerConflicts(source: WorkspaceConflictSource): () => void',
+        description: 'Register a file sync Consumer\'s conflict listing and resolution.',
+        parameters: [{ name: 'source', description: 'the Consumer\'s conflicts.' }],
+        returns: 'the disposer that removes it.',
+      },
+      {
+        signature: 'async conflicts(id: WorkspaceId): Promise<readonly WorkspaceConflict[]>',
+        description: 'List the files of a workspace that two devices changed differently.',
+        parameters: [{ name: 'id', description: 'Workspace id.' }],
+        returns: 'the conflicts, empty for a workspace no source syncs.',
+      },
+      {
+        signature: 'async resolveConflict(id: WorkspaceId, path: string, keep: WorkspaceConflictChoice): Promise<boolean>',
+        description: 'Keep one version of a conflicting file.',
+        parameters: [{ name: 'id', description: 'Workspace id.' }, { name: 'path', description: 'the conflicting file, relative to the workspace directory.' }, { name: 'keep', description: 'which version stays.' }],
+        returns: 'whether a source resolved it.',
       },
       {
         signature: 'requestFiles(id: WorkspaceId): void',
@@ -5087,6 +5141,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     summary: 'Record an authoritative positive or negative observation.',
     description: 'Record an authoritative positive or negative observation. Listeners must be synchronous recorders: throws fail the tool call and returned promises are not awaited.',
     parameters: [{ name: 'target', description: 'the target whose presence or absence was observed.' }, { name: 'observation', description: 'present with its version, or confirmed absent.' }, { name: 'actor', description: 'the observing tool-execution context; undefined records nothing useful.' }],
+  },
+  {
+    name: 'fs/pre-read',
+    mode: 'parallel',
+    signature: '\'fs/pre-read\'(target: FsTarget, signal: AbortSignal | undefined): Promise<void>',
+    summary: 'A read tool is about to read a target.',
+    description: 'A read tool is about to read a target. Every listener runs and is awaited, so one may hold the read until the file is here, such as a synced file still arriving from another device; the read proceeds when they settle.',
+    parameters: [{ name: 'target', description: 'the resolved target about to be read.' }, { name: 'signal', description: 'cancels the wait with the tool call.' }],
   },
   {
     name: 'fs/write-intent',
@@ -6617,6 +6679,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface FileReferenceCandidate {\n    path: string;\n    kind: \'file\' | \'directory\';\n}',
   },
   {
+    name: 'FileSyncConflict',
+    declaration: 'export interface FileSyncConflict {\n    path: string;\n    copy: string;\n}',
+  },
+  {
     name: 'FileSyncFolder',
     declaration: 'export interface FileSyncFolder {\n    id: FileSyncFolderId;\n    owner: string;\n    path: string;\n    peers?: readonly FileSyncPeerId[];\n}',
   },
@@ -6630,7 +6696,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'FileSyncFolderStatus',
-    declaration: 'export interface FileSyncFolderStatus {\n    state: FileSyncFolderState;\n    globalBytes: number;\n    globalFiles: number;\n    needBytes: number;\n    needFiles: number;\n    error?: string;\n}',
+    declaration: 'export interface FileSyncFolderStatus {\n    state: FileSyncFolderState;\n    globalBytes: number;\n    globalFiles: number;\n    needBytes: number;\n    needFiles: number;\n    failedFiles: number;\n    error?: string;\n}',
   },
   {
     name: 'FileSyncPeerId',
@@ -9797,6 +9863,30 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface WorkspaceBindRequest {\n    readonly workspaceId: WorkspaceId;\n    readonly path: string;\n}',
   },
   {
+    name: 'WorkspaceConflict',
+    declaration: 'export interface WorkspaceConflict {\n    readonly path: string;\n    readonly thisText: string | null;\n    readonly otherText: string | null;\n}',
+  },
+  {
+    name: 'WorkspaceConflictChoice',
+    declaration: 'export type WorkspaceConflictChoice = \'this\' | \'other\';',
+  },
+  {
+    name: 'WorkspaceConflictSource',
+    declaration: 'export interface WorkspaceConflictSource {\n    list(workspace: WorkspaceId): Promise<readonly WorkspaceConflict[] | undefined>;\n    resolve(workspace: WorkspaceId, path: string, keep: WorkspaceConflictChoice): Promise<boolean>;\n}',
+  },
+  {
+    name: 'WorkspaceConflictsRequest',
+    declaration: 'export interface WorkspaceConflictsRequest {\n    readonly workspaceId: WorkspaceId;\n}',
+  },
+  {
+    name: 'WorkspaceConflictsValue',
+    declaration: 'export interface WorkspaceConflictsValue {\n    readonly conflicts: readonly WorkspaceConflictView[];\n}',
+  },
+  {
+    name: 'WorkspaceConflictView',
+    declaration: 'export interface WorkspaceConflictView {\n    readonly path: string;\n    readonly thisText: string | null;\n    readonly otherText: string | null;\n}',
+  },
+  {
     name: 'WorkspaceCreateRequest',
     declaration: 'export interface WorkspaceCreateRequest {\n    readonly path: string;\n}',
   },
@@ -9822,7 +9912,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'WorkspaceFileFailure',
-    declaration: 'export type WorkspaceFileFailure = \'access\' | \'network\' | \'disk\' | \'folder\' | \'git-install\' | \'unknown\';',
+    declaration: 'export type WorkspaceFileFailure = \'access\' | \'network\' | \'disk\' | \'folder\' | \'git-install\' | \'unstorable\' | \'unknown\';',
   },
   {
     name: 'WorkspaceFilesShowRequestEvent',
@@ -9834,15 +9924,15 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'WorkspaceFileState',
-    declaration: 'export type WorkspaceFileState = \'syncing\' | \'installing\' | \'waiting\' | \'git-needed\' | \'failed\';',
+    declaration: 'export type WorkspaceFileState = \'syncing\' | \'installing\' | \'preparing\' | \'paused\' | \'waiting\' | \'git-needed\' | \'conflict\' | \'failed\';',
   },
   {
     name: 'WorkspaceFileStatus',
-    declaration: 'export interface WorkspaceFileStatus {\n    readonly state: WorkspaceFileState;\n    readonly progress?: number;\n    readonly reason?: WorkspaceFileFailure;\n}',
+    declaration: 'export interface WorkspaceFileStatus {\n    readonly state: WorkspaceFileState;\n    readonly progress?: number;\n    readonly reason?: WorkspaceFileFailure;\n    readonly count?: number;\n}',
   },
   {
     name: 'WorkspaceFilesView',
-    declaration: 'export interface WorkspaceFilesView {\n    readonly state: WorkspaceFileState;\n    readonly progress: number | null;\n    readonly reason: WorkspaceFileFailure | null;\n}',
+    declaration: 'export interface WorkspaceFilesView {\n    readonly state: WorkspaceFileState;\n    readonly progress: number | null;\n    readonly reason: WorkspaceFileFailure | null;\n    readonly count: number | null;\n}',
   },
   {
     name: 'WorkspaceFileText',
@@ -9883,6 +9973,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WorkspaceRenameRequest',
     declaration: 'export interface WorkspaceRenameRequest {\n    readonly workspaceId: WorkspaceId;\n    readonly title: string;\n}',
+  },
+  {
+    name: 'WorkspaceResolveConflictRequest',
+    declaration: 'export interface WorkspaceResolveConflictRequest {\n    readonly workspaceId: WorkspaceId;\n    readonly path: string;\n    readonly keep: \'this\' | \'other\';\n}',
+  },
+  {
+    name: 'WorkspaceResolveConflictValue',
+    declaration: 'export interface WorkspaceResolveConflictValue {\n    readonly resolved: boolean;\n}',
   },
   {
     name: 'WorkspaceSearchHit',

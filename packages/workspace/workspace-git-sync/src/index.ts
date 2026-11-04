@@ -13,8 +13,12 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import Schema from '@deepseek-ai/schemastery'
+import type {} from '@aeven/agent'
 import type {} from '@aeven/file-sync'
+import type { SessionId } from '@aeven/session'
+import type {} from '@aeven/session-handoff'
 import { avnHomePath } from '@aeven/home-paths'
+import { onBatteryPower } from '@aeven/workspace'
 import type {} from '@aeven/subprocess'
 import type {} from '@aeven/sync'
 import type {} from '@aeven/workspace'
@@ -82,8 +86,24 @@ export interface Config {
   copyTimeoutMs: number
   /** Lifetime of the lease that picks one device to serve a copy. */
   copyLeaseMs: number
-  /** Directory copies travel through. */
+  /** Directory copies and checkpoints travel through. */
   transferRoot: string
+  /** Largest checkpoint of uncommitted work, in bytes, that travels to other devices. */
+  checkpointMaxBytes: number
+  /** Delay after a turn before its uncommitted work is checkpointed. */
+  checkpointDebounceMs: number
+  /** Longest a turn waits for another device's checkpoint before it runs without it. */
+  handoffWaitMs: number
+  /** File recording which checkpoint each workspace last applied on this device. */
+  checkpointStateFile: string
+  /** Size above which a first clone or copy waits while this computer runs on battery. */
+  batteryDeferBytes: number
+  /** Interval between checks of whether this computer runs on battery. */
+  powerPollMs: number
+  /** Install a received repository's dependencies from its lockfile when the toolchain is on `PATH`. */
+  prepareDependencies: boolean
+  /** Longest a dependency install runs. */
+  prepareTimeoutMs: number
 }
 
 /** Where developers keep checkouts, under the home directory on every platform. */
@@ -115,6 +135,14 @@ export const Config: Schema<Config> = Schema.object({
   copyTimeoutMs: Schema.natural().min(1_000).default(600_000),
   copyLeaseMs: Schema.natural().min(1_000).default(60_000),
   transferRoot: Schema.string().default(avnHomePath('workspace-git-sync', 'transfer')),
+  checkpointMaxBytes: Schema.natural().min(1).default(100 * 1024 ** 2),
+  checkpointDebounceMs: Schema.natural().default(30_000),
+  handoffWaitMs: Schema.natural().min(1_000).default(60_000),
+  checkpointStateFile: Schema.string().default(avnHomePath('workspace-git-sync', 'applied.json')),
+  batteryDeferBytes: Schema.natural().default(100 * 1024 ** 2),
+  powerPollMs: Schema.natural().min(1_000).default(60_000),
+  prepareDependencies: Schema.boolean().default(true),
+  prepareTimeoutMs: Schema.natural().min(1_000).default(1_800_000),
 })
 
 /**
@@ -147,10 +175,32 @@ export function apply(ctx: Context, config: Config): void {
   ctx.on('sync/reset', (owner) => { repositories.reset(owner).catch(warn) })
   ctx.on('workspace/changed', () => { repositories.reconcileAll() })
   ctx.on('workspace/files-requested', (workspace) => { repositories.requested(workspace) })
+  // Work continues on whichever device runs the session: the device that loses it checkpoints its work, a turn's end
+  // checkpoints it shortly after, and the first step of each turn applies newer work from another device.
+  ctx.on('session-handoff/released', async (owner, sessionId) => { await repositories.released(owner, sessionId) })
+  ctx.on('agent/turn-stopping', ({ agent }) => { repositories.turnEnded(agent.session.id) })
+  const prepared = new Map<SessionId, number>()
+  ctx.on('agent/pre-step', async ({ agent, turn, signal }, next) => {
+    if (prepared.get(agent.session.id) !== turn) {
+      prepared.set(agent.session.id, turn)
+      await repositories.beforeTurn(agent.session.id, signal).catch(warn)
+    }
+    return next()
+  })
+  ctx.on('agent/disposed', ({ agent }) => { prepared.delete(agent.session.id) })
   ctx.effect(() => {
     const timer = setInterval(() => { repositories.reconcileAll() }, config.passIntervalMs)
+    // Plugging in releases the first downloads that waited for power.
+    let battery: boolean | undefined
+    const power = setInterval(() => {
+      void onBatteryPower(ctx).then((now) => {
+        if (battery === true && !now) repositories.powerChanged()
+        battery = now
+      })
+    }, config.powerPollMs)
     return () => {
       clearInterval(timer)
+      clearInterval(power)
       return repositories.dispose()
     }
   }, 'workspace-git-sync: repositories')

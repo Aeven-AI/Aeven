@@ -11,6 +11,8 @@ kind: "package-reference"
 
 `avn-client-ui-workspace` 是 avn Web 客户端的共享 Workspace 浏览器与选择器：用户在侧边栏浏览按 Workspace 或按状态分组的 Session 行，在 Session Intent 主视觉区为新会话选择 Workspace，并可用添加、重命名、重排序、搜索、fork 与归档操作管理 Workspace 与 Session；两个界面共用同一套 Workspace 菜单与添加流程。待处理的用户交互以琥珀色警告点呈现，活动 Schedule projection 会在普通行与搜索结果中显示不可交互的闹钟，共享侧边栏投影还会隐藏 subagent 来源的会话。不同的规范化路径仍作为由 id 区分的独立 Workspace；添加文件夹走目录流子 slot，由组合的选择器包 client half 填充。
 
+**安装 Git？**对话框在安装 Git 期间保持打开，完成后关闭，失败后提供**重试**。文件有两个版本的 Workspace 在菜单中提供**比较版本**，打开每个文件的 diff，并提供**保留这台电脑的**和**保留另一个**。克隆后安装依赖时显示**正在安装依赖**，使用电池时的大型首次下载显示**使用电池时已暂停**。
+
 Workspace 与 Session 行遵循 Aeven 菜单的整行 40px 几何、响应式 24px/16px 内边距、直角、连续节奏，以及透明 hover 与选中状态，同时保留所有原有状态与操作图标。选择 Session 会导航到其 `/c/<id>` SPA 路径；地址栏、浏览器历史与 Session Controller 始终保持同步。
 
 ## 目录

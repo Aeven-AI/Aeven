@@ -248,3 +248,31 @@
     animation: none;
   }
 }
+
+/* The Git install in progress: the shared spinner beside one short line. */
+.gitInstalling {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* One file with two versions: its diff, then the two choices. */
+.conflict {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.conflictPath {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.875rem;
+}
+
+.conflictActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
