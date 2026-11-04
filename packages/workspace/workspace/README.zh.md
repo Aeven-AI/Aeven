@@ -116,6 +116,8 @@ ctx.workspaceRegistry.list() // Chats first, then the project
 
 文件同步消费方对从另一台设备到达的 workspace 文件使用同一套放置规则。`locationHint` 记录相对于主目录的目录，`hintedDirectory` 把提示还原为本机目录，并拒绝会离开主目录的提示。`placeWorkspace` 在提示所指目录空闲时创建该目录，否则在根目录下使用标题，名称被占用时加编号；空闲指不存在或为空。`fitsDisk` 按大小上限和磁盘剩余比例检查一次下载。
 
+注册表还保存每个 workspace 在本设备上的文件状态，该状态从不持久化或同步：`absent`、带可选进度比例的 `fetching`、`installing`、`catching-up`、`waiting`、`git-missing` 或 `failed`，并可附带命令或错误文本作为详情。文件同步消费方通过 `WorkspaceFileStatusReport` 上报状态；当 workspace 离开某个消费方或该消费方停止时，它会撤回该消费方上报的状态。状态变化时 `setFileStatus` 发出 `workspace/files`；没有状态表示文件已在本机且是最新的。
+
 同一条规则也适用于会话：同步会话的 `SessionHeader.cwd` 与其记录的 `session/cwd` 事件指向写入它们的设备上的目录，因此在这里都不是本机路径。需要目录的消费方会向 `placeSession` 询问会话所在的 workspace，并在*本机*的绑定中行动（[决定](../../../.agents/notes/implemented/architecture/2026-10-29-synced-session-directory-is-the-local-binding.zh.md)）。
 
 ### 生命周期

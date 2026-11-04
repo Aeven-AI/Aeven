@@ -5592,6 +5592,8 @@ export interface Config {
   prefetchMaxBytes: number
   /** Share of the disk, from 0 to 1, a download must leave free. */
   minFreeDiskRatio: number
+  /** Directory holding one marker per folder this device has held completely. */
+  completeDirectory: string
 }
 ```
 
@@ -5649,6 +5651,8 @@ export interface Config {
   passIntervalMs: number
   /** Shortest wait before trying again to get a repository that could not be cloned or copied. */
   retryMs: number
+  /** Longest a copy request waits for a device that holds the repository to take it. */
+  copyAnswerMs: number
   /** Longest a copy from another device may take. */
   copyTimeoutMs: number
   /** Lifetime of the lease that picks one device to serve a copy. */

@@ -13,11 +13,11 @@ import { brandString } from '@aeven/brand'
 import type { FileSync, FileSyncFolderId, FileSyncPeerId } from '@aeven/file-sync'
 import type { SyncDocument } from '@aeven/sync'
 import type { DeviceId } from '@aeven/sync-vault'
-import { fitsDisk, hintedDirectory, locationHint, placeWorkspace } from '@aeven/workspace'
+import { fitsDisk, hintedDirectory, locationHint, placeWorkspace, WorkspaceFileStatusReport } from '@aeven/workspace'
 import type { Workspace, WorkspaceId } from '@aeven/workspace'
 import { CheckoutDiscovery, parentsOf } from './discovery.ts'
 import { EnvFileNames, readEnvFiles, restoreEnvFiles, type EnvFileOptions } from './env-files.ts'
-import type { Git } from './git.ts'
+import { GitUnavailableError, type Git } from './git.ts'
 import { publicRemote, remoteKey } from './remote.ts'
 
 /** The document describing the account's repository workspaces, their holders, and copy requests. */
@@ -63,6 +63,8 @@ export interface WorkspaceRepositoriesOptions {
   transferRoot: string
   /** Shortest wait before trying again to get a repository that could not be cloned or copied. */
   retryMs: number
+  /** Longest a copy request waits for a device that holds the repository to take it. */
+  copyAnswerMs: number
   /** Longest a copy from another device may take, from request to clone. */
   copyTimeoutMs: number
   /** Lifetime of the lease that picks one holder for a copy. */
@@ -103,6 +105,7 @@ export class WorkspaceRepositories {
   /** Called on every change of the copy requests, so a waiting request sees the holder's answer. */
   private readonly requestWaiters = new Set<() => void>()
   private readonly names: EnvFileNames
+  private readonly statuses: WorkspaceFileStatusReport
   private disposed = false
 
   /**
@@ -118,6 +121,7 @@ export class WorkspaceRepositories {
     private readonly options: WorkspaceRepositoriesOptions,
   ) {
     this.names = new EnvFileNames(options.envFiles)
+    this.statuses = new WorkspaceFileStatusReport(ctx.workspaceRegistry)
   }
 
   /**
@@ -168,12 +172,13 @@ export class WorkspaceRepositories {
     }
   }
 
-  /** Let running passes finish, stop serving copies, and close every open document. */
+  /** Let running passes finish, stop serving copies, close every open document, and withdraw reported file statuses. */
   async dispose(): Promise<void> {
     this.disposed = true
     await Promise.all([...this.passes.values(), ...this.serving.values()])
     for (const key of [...this.served.keys()]) await this.stopServing(key)
     for (const owner of [...this.accounts.keys()]) await this.reset(owner)
+    this.statuses.clear()
   }
 
   /** The account's open document, opened on first use once this device syncs the account. */
@@ -225,6 +230,7 @@ export class WorkspaceRepositories {
     const holders = holderMap(account)
     const workspaces = this.ctx.workspaceRegistry.list().filter(workspace => workspace.owner === owner && !workspace.isBuiltIn)
     const held = new Set<WorkspaceId>()
+    const arriving = new Set<WorkspaceId>()
     for (const workspace of workspaces) {
       if (workspace.kind === 'folder' && workspace.path !== undefined && isWorkTree(workspace.path)) {
         held.add(workspace.id)
@@ -235,10 +241,16 @@ export class WorkspaceRepositories {
         await this.publishEnv(owner, workspace.id, workspace.path)
       } else if (workspace.kind === 'remote') {
         const entry = repositories.get(workspace.id)
-        const due = Date.now() >= (this.retryAt.get(workspace.id) ?? 0)
-        if (entry !== undefined && due) await this.materialize(account, owner, workspace, entry)
+        if (entry === undefined) continue
+        arriving.add(workspace.id)
+        if (Date.now() >= (this.retryAt.get(workspace.id) ?? 0)) await this.materialize(account, owner, workspace, entry)
       }
     }
+    // Another account's workspaces keep their statuses; a deleted or bound workspace's status goes.
+    this.statuses.retain((id) => {
+      const other = this.ctx.workspaceRegistry.get(id)
+      return other !== undefined && (other.owner !== owner || arriving.has(id))
+    })
     for (const key of [...holders.keys()]) {
       const [workspace, device] = key.split('/')
       if (device === account.device && !held.has(brandString<WorkspaceId>(workspace ?? ''))) holders.delete(key)
@@ -279,7 +291,8 @@ export class WorkspaceRepositories {
   /**
    * Get a repository workspace that arrived from another device: bind an existing checkout of its remote, or clone
    * it into a placed directory, or copy it from a device that holds it, when it fits the disk budget. A failure waits
-   * for `retryMs` before the next try.
+   * for `retryMs` before the next try. The workspace's file status follows each step and stays at the last failure
+   * until the next try.
    */
   private async materialize(account: Account, owner: string, workspace: Workspace, entry: SyncedRepository): Promise<void> {
     this.retryAt.set(workspace.id, Date.now() + this.options.retryMs)
@@ -298,13 +311,27 @@ export class WorkspaceRepositories {
         this.retryAt.delete(workspace.id)
         // Binding commits a registry change, whose `workspace/changed` runs the pass that describes the repository.
         await registry.bind(workspace.id, existing)
+        this.statuses.set(workspace.id, undefined)
         return
       }
     }
-    if (!await fitsDisk(this.options.root, entry.bytes, this.options.prefetchMaxBytes, this.options.minFreeDiskRatio)) return
+    if (!await fitsDisk(this.options.root, entry.bytes, this.options.prefetchMaxBytes, this.options.minFreeDiskRatio)) {
+      this.statuses.set(workspace.id, { state: 'absent' })
+      return
+    }
+    if (!await this.git.available()) this.statuses.set(workspace.id, { state: 'installing' })
+    try {
+      await this.git.require()
+    } catch (error) {
+      if (!(error instanceof GitUnavailableError)) throw error
+      this.statuses.set(workspace.id, { state: 'git-missing', ...error.command === undefined ? {} : { detail: error.command } })
+      return
+    }
+    this.statuses.set(workspace.id, { state: 'fetching' })
     const directory = await placeWorkspace(workspace.title, entry.hint, this.options.root)
     try {
-      let got = remote !== undefined && await this.clone(remote, directory)
+      const cloned = remote === undefined ? undefined : await this.clone(remote, directory)
+      let got = cloned === true
       if (got && branch !== undefined) await this.git.run(['switch', branch], { cwd: directory })
       if (!got) {
         await emptyDirectory(directory)
@@ -312,6 +339,10 @@ export class WorkspaceRepositories {
       }
       if (!got) {
         await rm(directory, { recursive: true, force: true })
+        // A failed copy means no device that holds the repository answered; without file sync only the clone could run.
+        this.statuses.set(workspace.id, this.ctx.get('fileSync') === undefined && typeof cloned === 'string'
+          ? { state: 'failed', detail: cloned }
+          : { state: 'waiting' })
         return
       }
       await this.git.run(['submodule', 'update', '--init', '--recursive'], { cwd: directory, transfer: true })
@@ -319,24 +350,29 @@ export class WorkspaceRepositories {
       await this.restoreEnv(owner, workspace.id, directory)
       this.retryAt.delete(workspace.id)
       await registry.bind(workspace.id, directory)
+      this.statuses.set(workspace.id, undefined)
     } catch (error) {
       await rm(directory, { recursive: true, force: true })
+      this.statuses.set(workspace.id, { state: 'failed', detail: String(error) })
       throw error
     }
   }
 
   /**
    * Clone from the remote with this device's own credentials, leaving Git LFS objects for {@link pullLfs}.
-   * @returns whether the clone succeeded; a failure leaves the copy from another device to try.
+   * @returns true when the clone succeeded, otherwise the end of Git's error output; a failure leaves the copy from
+   *   another device to try.
    */
-  private async clone(remote: string, directory: string): Promise<boolean> {
+  private async clone(remote: string, directory: string): Promise<true | string> {
     // Without Git LFS, a required LFS filter would fail the whole clone; LFS objects are pulled afterwards instead.
     const result = await this.git.run(
       ['-c', 'filter.lfs.required=false', 'clone', '--recurse-submodules', '--', remote, directory],
       { cwd: this.options.root, transfer: true, env: { GIT_LFS_SKIP_SMUDGE: '1' } },
     )
-    if (result.exitCode !== 0) this.warn(`cloning a repository failed, trying a copy from another device: ${result.stderr.trim().slice(-300)}`)
-    return result.exitCode === 0
+    if (result.exitCode === 0) return true
+    const error = result.stderr.trim().slice(-300)
+    this.warn(`cloning a repository failed, trying a copy from another device: ${error}`)
+    return error
   }
 
   /** Fetch Git LFS objects of the checked-out files when Git LFS is installed; without it they stay pointer files. */
@@ -370,6 +406,12 @@ export class WorkspaceRepositories {
     const deadline = Date.now() + this.options.copyTimeoutMs
     requests.set(key, { peer: await fileSync.peerId(), folder, state: 'requested' })
     try {
+      // A holder that is offline never takes the request; giving up early keeps it from holding up the pass.
+      const taken = await this.until(Math.min(deadline, Date.now() + this.options.copyAnswerMs), this.requestWaiters, () => {
+        const request = requests.get(key)
+        return request?.folder === folder && request.state !== 'requested' ? request : undefined
+      })
+      if (taken === undefined) return false
       const ready = await this.until(deadline, this.requestWaiters, () => {
         const request = requests.get(key)
         return request?.folder === folder && request.state === 'ready' ? request : undefined

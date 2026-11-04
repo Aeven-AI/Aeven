@@ -21,9 +21,22 @@ import { defaultWorkspaceTitle, realpathNormalize } from './paths.ts'
 import { kindPathAgrees, workspaceDomainSpec } from './spec.ts'
 import type { WorkspaceDomainState, WorkspaceRecord } from './spec.ts'
 import { WorkspaceSync, type SyncedWorkspaces, type SyncedWorkspace } from './sync.ts'
-import type { FolderWorkspace, SessionPlacement, Workspace, WorkspaceId as WorkspaceIdBrand } from './types.ts'
+import type {
+  FolderWorkspace,
+  SessionPlacement,
+  Workspace,
+  WorkspaceFileStatus,
+  WorkspaceId as WorkspaceIdBrand,
+} from './types.ts'
 
-export type { FolderWorkspace, SessionPlacement, Workspace, WorkspaceKind } from './types.ts'
+export type {
+  FolderWorkspace,
+  SessionPlacement,
+  Workspace,
+  WorkspaceFileState,
+  WorkspaceFileStatus,
+  WorkspaceKind,
+} from './types.ts'
 export {
   INITIAL_WORKSPACE_DOMAIN_STATE,
   kindPathAgrees,
@@ -35,6 +48,7 @@ export {
 export type { WorkspaceDomainState, WorkspaceRecord } from './spec.ts'
 export { realpathNormalize } from './paths.ts'
 export { fitsDisk, hintedDirectory, locationHint, placeWorkspace } from './placement.ts'
+export { WorkspaceFileStatusReport } from './file-status.ts'
 
 /** Whether a registry without a built-in workspace seeds one (the schema default). */
 export const DEFAULT_SEED_DEFAULT_WORKSPACE = true
@@ -165,6 +179,8 @@ export class WorkspaceRegistry extends Service {
   private readonly invalidSessionPaths = new Map<SessionId, string>()
   private operationTail: Promise<void> = Promise.resolve()
   private readonly synced: WorkspaceSync
+  /** Device-local file statuses the file sync Consumers report; never persisted or synced. */
+  private readonly fileStatuses = new Map<WorkspaceId, WorkspaceFileStatus>()
 
   private readonly host: WorkspaceEntityHost = {
     table: () => this.requireTable(),
@@ -324,6 +340,30 @@ export class WorkspaceRegistry extends Service {
       }
       return entity
     })
+  }
+
+  /**
+   * Read a workspace's file status on this device.
+   * @param id - Workspace id.
+   * @returns the status a file sync Consumer reported, or `undefined` while the files are here and up to date, or
+   *   for a workspace whose files no Consumer syncs.
+   */
+  fileStatus(id: WorkspaceId): WorkspaceFileStatus | undefined {
+    return this.fileStatuses.get(id)
+  }
+
+  /**
+   * Report a workspace's file status on this device and emit `workspace/files` when it changed. The Consumer that
+   * syncs the workspace's files is its only reporter, and clears what it reported when it stops.
+   * @param id - Workspace id.
+   * @param status - the new status, or `undefined` once the files are here and up to date.
+   */
+  setFileStatus(id: WorkspaceId, status: WorkspaceFileStatus | undefined): void {
+    const previous = this.fileStatuses.get(id)
+    if (previous?.state === status?.state && previous?.progress === status?.progress && previous?.detail === status?.detail) return
+    if (status === undefined) this.fileStatuses.delete(id)
+    else this.fileStatuses.set(id, status)
+    this.ctx.emit('workspace/files', id)
   }
 
   /**

@@ -81,6 +81,8 @@ export interface Config {
   passIntervalMs: number
   /** Shortest wait before trying again to get a repository that could not be cloned or copied. */
   retryMs: number
+  /** Longest a copy request waits for a device that holds the repository to take it. */
+  copyAnswerMs: number
   /** Longest a copy from another device may take. */
   copyTimeoutMs: number
   /** Lifetime of the lease that picks one device to serve a copy. */
@@ -116,6 +118,7 @@ export const Config: Schema<Config> = Schema.object({
   }),
   passIntervalMs: Schema.natural().min(1_000).default(300_000),
   retryMs: Schema.natural().min(1_000).default(600_000),
+  copyAnswerMs: Schema.natural().min(1_000).default(30_000),
   copyTimeoutMs: Schema.natural().min(1_000).default(600_000),
   copyLeaseMs: Schema.natural().min(1_000).default(60_000),
   transferRoot: Schema.string().default(avnHomePath('workspace-git-sync', 'transfer')),

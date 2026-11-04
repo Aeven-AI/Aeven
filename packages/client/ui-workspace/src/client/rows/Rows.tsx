@@ -14,13 +14,16 @@ import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 
 import clsx from 'clsx'
 import {
   IconAlarmClockOutline16, IconArchiveOutline20, IconBranchOutline16,
-  IconEditOutline16, IconLucideEllipsis, IconLucideEllipsisVertical, IconLucideMessageCircle,
+  IconEditOutline16, IconLucideCircleAlert, IconLucideDownload,
+  IconLucideEllipsis, IconLucideEllipsisVertical, IconLucideMessageCircle,
   IconLucideMessageCircleQuestionMark,
   IconLucideFolder, IconLucideFolderOpen,
   IconLucideMessageCirclePlus, IconTrashOutline16, Menu,
   Spinner, StateDot, Tooltip,
 } from '@aeven/client-ui-primitives'
-import type { StateDotState } from '@aeven/client-ui-primitives'
+import type { MenuEntry, StateDotState } from '@aeven/client-ui-primitives'
+import type { ReactNode } from 'react'
+import type { WorkspaceFilesView } from '@aeven/api-workspace-controller/client'
 import type { SessionId } from '@aeven/session/types'
 import type { WorkspaceBrowserProps } from '../contract/slots.ts'
 import { sessionPathOf } from '../session-url.ts'
@@ -51,6 +54,47 @@ function isPlainActivation(event: ReactMouseEvent): boolean {
   // for Enter, which is the keyboard's own navigation and takes this path too.
   if (event.button !== 0) return false
   return !NAVIGATION_MODIFIER_KEYS.some(key => event[key])
+}
+
+/**
+ * A Workspace's file status as the line its row menu shows. A command or error
+ * the Host sent is shown verbatim inside the localized text.
+ */
+function filesLabel(files: WorkspaceFilesView, t: RowTranslate): string {
+  switch (files.state) {
+    case 'absent': return t('files.absent')
+    case 'fetching': return files.progress === null
+      ? t('files.fetching')
+      : t('files.fetchingProgress', { percent: Math.floor(files.progress * 100) })
+    case 'installing': return t('files.installing')
+    case 'catching-up': return t('files.catchingUp')
+    case 'waiting': return t('files.waiting')
+    case 'git-missing': return files.detail === null
+      ? t('files.gitMissing')
+      : t('files.gitMissingCommand', { command: files.detail })
+    case 'failed': return files.detail === null ? t('files.failed') : t('files.failedDetail', { detail: files.detail })
+    /* v8 ignore next -- closed WorkspaceFileState union */
+    default: return assertNever(files.state)
+  }
+}
+
+/**
+ * The mark a Workspace row shows only while its files need the user: syncing,
+ * catching up, and waiting for another computer happen on their own and leave
+ * the row unmarked.
+ */
+function filesMark(files: WorkspaceFilesView): ReactNode {
+  switch (files.state) {
+    case 'absent': return <IconLucideDownload />
+    case 'git-missing':
+    case 'failed': return <IconLucideCircleAlert />
+    case 'fetching':
+    case 'installing':
+    case 'catching-up':
+    case 'waiting': return undefined
+    /* v8 ignore next -- closed WorkspaceFileState union */
+    default: return assertNever(files.state)
+  }
 }
 
 /**
@@ -160,6 +204,8 @@ export function ProjectRowItem({ group, onToggle, newSessionHref, onCreate, acti
 }) {
   const row = group
   const label = groupLabel(row, t)
+  const filesText = row.files === null ? undefined : filesLabel(row.files, t)
+  const mark = row.files === null ? undefined : filesMark(row.files)
   const [menuOpen, setMenuOpen] = useState(false)
   /**
    * The chat a browser-owned open of this row's New Session link starts.
@@ -182,7 +228,12 @@ export function ProjectRowItem({ group, onToggle, newSessionHref, onCreate, acti
   // Choosing the workspace's folder is the same action whether the workspace
   // arrived from another device without one or its directory moved since, so
   // the row offers it in both cases.
-  const workspaceMenuItems = [
+  // The files' status heads the menu as a line that is read, not chosen.
+  const workspaceMenuItems: MenuEntry[] = [
+    ...filesText === undefined ? [] : [
+      { type: 'label' as const, id: 'files', text: filesText },
+      { type: 'separator' as const, id: 'files-separator' },
+    ],
     { id: 'rename', label: t('rename'), icon: <IconEditOutline16 /> },
     ...actions?.bind === undefined ? [] : [{ id: 'bind', label: t('bind.workspace'), icon: <IconLucideFolder /> }],
     { id: 'delete', label: t('delete.workspace'), icon: <IconTrashOutline16 /> },
@@ -209,6 +260,11 @@ export function ProjectRowItem({ group, onToggle, newSessionHref, onCreate, acti
       <span className={css.projectText}>
         <span className={css.title}>{label}</span>
       </span>
+      {mark !== undefined && filesText !== undefined && (
+        <Tooltip label={filesText} side="top" anchor="icon">
+          <span className={clsx(css.slot, css.filesMark)} role="img" aria-label={filesText}>{mark}</span>
+        </Tooltip>
+      )}
       <span className={css.rowActions}>
         {actions !== undefined && (
           <Menu
@@ -285,9 +341,9 @@ export function ProjectRowItem({ group, onToggle, newSessionHref, onCreate, acti
   )
 }
 
-/* v8 ignore next 3 -- closed-union backstop; only reached if the status is forged */
+/* v8 ignore next 3 -- closed-union backstop; only reached if a value is forged */
 function assertNever(value: never): never {
-  throw new Error(`unknown pending interaction: ${String(value)}`)
+  throw new Error(`unknown variant: ${String(value)}`)
 }
 
 /** A row's status mark: one of the dot states, or the pending-interaction mark

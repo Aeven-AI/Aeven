@@ -240,7 +240,11 @@ export class WorkspaceCommands {
 
   /** The workspace as the acting caller sees it: only their own sessions. */
   private view(workspace: Workspace): ReturnType<typeof workspaceView> {
-    return callerWorkspaceView(this.ctx, workspaceView(workspace), this.ctx.get('identityUsers')?.actingUser())
+    return callerWorkspaceView(
+      this.ctx,
+      workspaceView(workspace, this.ctx.workspaceRegistry.fileStatus(workspace.id)),
+      this.ctx.get('identityUsers')?.actingUser(),
+    )
   }
 
   private enqueue<T>(operation: () => Promise<T>): Promise<T> {

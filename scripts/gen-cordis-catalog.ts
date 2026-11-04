@@ -876,6 +876,7 @@ export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   SessionMoveValue: 'package-owned type is documented in packages/api/session-controller/src/types.ts',
   SessionWorkspacePathApplication: 'package-owned type is documented in packages/api/session-controller/src/types.ts',
   SessionPlacement: 'package-owned type is documented in packages/workspace/workspace/src/types.ts',
+  WorkspaceFileStatus: 'package-owned type is documented in packages/workspace/workspace/src/types.ts',
   LocalDirectory: 'package-owned type is documented in packages/session/working-directory/src/local.ts',
   SkillCatalogView: 'package-owned type is documented in packages/host/account-integrations/src/types.ts',
   SkillReferenceImport: 'package-owned type is documented in packages/host/account-integrations/src/types.ts',

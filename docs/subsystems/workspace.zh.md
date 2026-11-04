@@ -394,6 +394,22 @@ get(id: WorkspaceId): Workspace | undefined
 list(): Workspace[]
 
 /**
+ * Read a workspace's file status on this device.
+ * @param id - Workspace id.
+ * @returns the status a file sync Consumer reported, or `undefined` while the files are here and up to date, or
+ *   for a workspace whose files no Consumer syncs.
+ */
+fileStatus(id: WorkspaceId): WorkspaceFileStatus | undefined
+
+/**
+ * Report a workspace's file status on this device and emit `workspace/files` when it changed. The Consumer that
+ * syncs the workspace's files is its only reporter, and clears what it reported when it stops.
+ * @param id - Workspace id.
+ * @param status - the new status, or `undefined` once the files are here and up to date.
+ */
+setFileStatus(id: WorkspaceId, status: WorkspaceFileStatus | undefined): void
+
+/**
  * Delete one workspace registration while retaining its directory and every
  * session log. The workspace's sessions join the archive set in the same
  * write that removes it from the durable order, so no session is left
@@ -574,6 +590,23 @@ The registry committed a change to its workspaces: one was created, bound to a d
  * @mode emit
  */
 'workspace/changed'(): void
+```
+
+Source: [`packages/workspace/workspace/src/types.ts`](../../packages/workspace/workspace/src/types.ts)
+
+<a id="workspacefiles--emit"></a>
+
+#### `workspace/files` — emit
+
+A workspace's file status on this device changed; read it with `WorkspaceRegistry.fileStatus`.
+
+```ts cordis-catalog
+/**
+ * A workspace's file status on this device changed; read it with `WorkspaceRegistry.fileStatus`.
+ * @mode emit
+ * @param workspace - the workspace whose status changed.
+ */
+'workspace/files'(workspace: WorkspaceId): void
 ```
 
 Source: [`packages/workspace/workspace/src/types.ts`](../../packages/workspace/workspace/src/types.ts)

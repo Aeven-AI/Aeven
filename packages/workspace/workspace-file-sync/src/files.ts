@@ -4,15 +4,16 @@
  */
 import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
+import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Map as YMap, Transaction, YMapEvent } from 'yjs'
 import { brandString } from '@aeven/brand'
-import type { FileSyncFolderId, FileSyncPeerId } from '@aeven/file-sync'
+import type { FileSyncFolderId, FileSyncFolderStatus, FileSyncPeerId } from '@aeven/file-sync'
 import type { SyncDocument } from '@aeven/sync'
 import type { DeviceId } from '@aeven/sync-vault'
-import { fitsDisk, locationHint, placeWorkspace } from '@aeven/workspace'
-import type { WorkspaceId } from '@aeven/workspace'
+import { fitsDisk, locationHint, placeWorkspace, WorkspaceFileStatusReport } from '@aeven/workspace'
+import type { WorkspaceFileStatus, WorkspaceId } from '@aeven/workspace'
 
 /** The document mapping each device of the account to its file transport peer id. */
 const PEERS = 'file-sync/peers'
@@ -43,6 +44,8 @@ export interface WorkspaceFilesOptions {
   prefetchMaxBytes: number
   /** Share of the disk a download must leave free. */
   minFreeDiskRatio: number
+  /** Directory holding one marker per folder this device has held completely. */
+  completeDirectory: string
 }
 
 interface Account {
@@ -61,6 +64,7 @@ interface Shared {
 export class WorkspaceFiles {
   private readonly accounts = new Map<string, Promise<Account | undefined>>()
   private readonly shared = new Map<FileSyncFolderId, Shared>()
+  private readonly statuses: WorkspaceFileStatusReport
   /** Serializes each account's reconciliation, so a bind it causes runs after the pass that made it. */
   private readonly passes = new Map<string, Promise<void>>()
 
@@ -68,7 +72,9 @@ export class WorkspaceFiles {
    * @param ctx - context providing `fileSync`, `workspaceRegistry`, and `sync`.
    * @param options - placement root and disk budget.
    */
-  constructor(private readonly ctx: Context, private readonly options: WorkspaceFilesOptions) {}
+  constructor(private readonly ctx: Context, private readonly options: WorkspaceFilesOptions) {
+    this.statuses = new WorkspaceFileStatusReport(ctx.workspaceRegistry)
+  }
 
   /**
    * Open the account's documents once this device syncs it, publish this device's peer id, and reconcile. Later
@@ -104,18 +110,23 @@ export class WorkspaceFiles {
   }
 
   /**
-   * Record the size of a folder this device holds completely, so other devices can budget its download.
+   * Report a shared folder's status as its workspace's file status, and record the size of a folder this device
+   * holds completely, so other devices can budget its download.
    * @param id - the folder whose status changed.
    */
   async folderChanged(id: FileSyncFolderId): Promise<void> {
     const shared = this.shared.get(id)
     const status = this.ctx.fileSync.status(id)
-    if (shared === undefined || status?.state !== 'idle' || status.needFiles > 0) return
+    if (shared === undefined || status === undefined) return
     const account = await this.accounts.get(shared.owner)
     if (account === undefined) return
     const folders = this.folderMap(account)
     const entry = folders.get(shared.workspace)
-    if (entry === undefined || (entry.bytes === status.globalBytes && entry.files === status.globalFiles)) return
+    if (entry === undefined) return
+    const complete = await this.complete(id, status, entry)
+    this.statuses.set(shared.workspace, folderFileStatus(status, entry, complete))
+    if (!complete || status.state !== 'idle' || status.needFiles > 0) return
+    if (entry.bytes === status.globalBytes && entry.files === status.globalFiles) return
     folders.set(shared.workspace, { ...entry, bytes: status.globalBytes, files: status.globalFiles })
   }
 
@@ -131,9 +142,10 @@ export class WorkspaceFiles {
     account?.folders.close()
   }
 
-  /** Close every open document. */
+  /** Close every open document and withdraw the file statuses this Consumer reported. */
   async dispose(): Promise<void> {
     for (const owner of [...this.accounts.keys()]) await this.reset(owner)
+    this.statuses.clear()
   }
 
   private account(owner: string): Promise<Account | undefined> {
@@ -206,13 +218,24 @@ export class WorkspaceFiles {
           continue
         }
         const files = entry ?? describe(workspace.path)
-        if (entry === undefined) folders.set(workspace.id, files)
         const id = brandString<FileSyncFolderId>(files.folder)
+        if (entry === undefined) {
+          // The device that describes a folder holds it completely by definition.
+          await this.markComplete(id)
+          folders.set(workspace.id, files)
+        }
         present.add(workspace.id)
         this.shared.set(id, { owner, workspace: workspace.id })
         await this.ctx.fileSync.share({ id, owner, path: workspace.path })
-      } else if (workspace.kind === 'remote' && entry !== undefined && await this.fits(entry.bytes)) {
+        await this.folderChanged(id)
+      } else if (workspace.kind === 'remote' && entry !== undefined) {
+        present.add(workspace.id)
+        if (!await this.fits(entry.bytes)) {
+          this.statuses.set(workspace.id, { state: 'absent' })
+          continue
+        }
         // Binding commits a registry change, whose `workspace/changed` runs the pass that shares the folder.
+        this.statuses.set(workspace.id, { state: 'fetching', progress: 0 })
         await registry.bind(workspace.id, await placeWorkspace(workspace.title, entry.hint, this.options.root))
       }
     }
@@ -220,7 +243,34 @@ export class WorkspaceFiles {
       if (shared.owner !== owner || present.has(shared.workspace)) continue
       this.shared.delete(id)
       await this.ctx.fileSync.unshare(id)
+      await rm(this.completeMarker(id), { force: true })
     }
+    // Another account's workspaces keep their statuses; a deleted workspace's status goes with it.
+    this.statuses.retain((id) => {
+      const workspace = registry.get(id)
+      return present.has(id) || (workspace !== undefined && workspace.owner !== owner)
+    })
+  }
+
+  /**
+   * Whether this device has held the folder completely: once its status shows every file the account's devices
+   * agree on and at least as many files as the descriptor last recorded, a marker keeps the answer across restarts.
+   * Before the device reaches a peer it agrees with itself on an empty folder, which the descriptor's count rules out.
+   */
+  private async complete(id: FileSyncFolderId, status: FileSyncFolderStatus, entry: SyncedWorkspaceFiles): Promise<boolean> {
+    if (existsSync(this.completeMarker(id))) return true
+    if (status.state !== 'idle' || status.needFiles > 0 || status.globalFiles < entry.files) return false
+    await this.markComplete(id)
+    return true
+  }
+
+  private async markComplete(id: FileSyncFolderId): Promise<void> {
+    await mkdir(this.options.completeDirectory, { recursive: true })
+    await writeFile(this.completeMarker(id), '')
+  }
+
+  private completeMarker(id: FileSyncFolderId): string {
+    return join(this.options.completeDirectory, id)
   }
 
   /** Whether downloading this many bytes stays within the prefetch limit and leaves the required share of the disk free. */
@@ -233,6 +283,24 @@ export class WorkspaceFiles {
 function describe(path: string): SyncedWorkspaceFiles {
   const hint = locationHint(path)
   return { folder: randomUUID(), bytes: 0, files: 0, ...hint === undefined ? {} : { hint } }
+}
+
+/**
+ * A shared folder's status as its workspace's file status: nothing while the folder is complete and current, the
+ * download progress against the larger of the agreed size and the descriptor's size before it first completes.
+ */
+function folderFileStatus(
+  status: FileSyncFolderStatus,
+  entry: SyncedWorkspaceFiles,
+  complete: boolean,
+): WorkspaceFileStatus | undefined {
+  if (status.state === 'error') return { state: 'failed', ...status.error === undefined ? {} : { detail: status.error } }
+  // Idle while files are missing: no device that holds them is reachable.
+  if (status.state === 'idle' && (status.needFiles > 0 || !complete)) return { state: 'waiting' }
+  if (complete) return status.needFiles > 0 ? { state: 'catching-up' } : undefined
+  const total = Math.max(status.globalBytes, entry.bytes)
+  if (total === 0) return { state: 'fetching' }
+  return { state: 'fetching', progress: Math.min(1, Math.max(0, (status.globalBytes - status.needBytes) / total)) }
 }
 
 /** Whether a directory is the top of a Git work tree. */

@@ -10,6 +10,8 @@ kind: "package-reference"
 
 `@aeven/api-workspace-controller` 拥有 Host 的 `ctx.workspaceController` 服务和生成的 Client `ctx.remote.workspace` namespace。它的 Remote 方法负责创建、重命名、移除和重排 Workspace，在 Workspace 内重排 Session，从 Workspace 导航中归档 Session，以及跟随完整的 Workspace 投影。当 Client 必须修改或跟随 Workspace 导航时，请通过 API Gateway 使用它。本包同时拥有 `ctx.directoryPickerController` 与生成的 `ctx.remote.directoryPicker` namespace，因为它承载的选目录 seam 是抽象的，自身从不作为 Loader entry。
 
+每个投影出的 Workspace 都带有 `files`：文件同步消费方向注册表上报的、该 Workspace 在本 Host 上的文件状态；文件已在本机且是最新时为 `null`。状态变化会在 follow 流上再次发布该 Workspace。
+
 ## 目录
 
 - [使用本包](#use-this-package)

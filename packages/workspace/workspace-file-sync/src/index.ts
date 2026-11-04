@@ -12,6 +12,7 @@ import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import Schema from '@deepseek-ai/schemastery'
 import type {} from '@aeven/file-sync'
+import { avnHomePath } from '@aeven/home-paths'
 import type {} from '@aeven/sync'
 import type {} from '@aeven/workspace'
 import { WorkspaceFiles } from './files.ts'
@@ -32,6 +33,8 @@ export interface Config {
   prefetchMaxBytes: number
   /** Share of the disk, from 0 to 1, a download must leave free. */
   minFreeDiskRatio: number
+  /** Directory holding one marker per folder this device has held completely. */
+  completeDirectory: string
 }
 
 /** Configuration schema. */
@@ -39,6 +42,7 @@ export const Config: Schema<Config> = Schema.object({
   root: Schema.string().default(join(homedir(), 'Aeven')),
   prefetchMaxBytes: Schema.natural().default(5 * 1024 ** 3),
   minFreeDiskRatio: Schema.number().min(0).max(1).default(0.1),
+  completeDirectory: Schema.string().default(avnHomePath('workspace-file-sync', 'complete')),
 })
 
 /**

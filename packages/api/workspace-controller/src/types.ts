@@ -6,10 +6,19 @@
  */
 
 import type { SessionId } from '@aeven/session/types'
-import type { WorkspaceId, WorkspaceKind } from '@aeven/workspace/types'
+import type { WorkspaceFileState, WorkspaceId, WorkspaceKind } from '@aeven/workspace/types'
 
-export type { WorkspaceId } from '@aeven/workspace/types'
+export type { WorkspaceFileState, WorkspaceId } from '@aeven/workspace/types'
 export type { DirectoryEntry, DirectoryListing } from '@aeven/host-directory-picker/types'
+
+/** Where a Workspace's files stand on the Host while they are not simply there and up to date. */
+export interface WorkspaceFilesView {
+  readonly state: WorkspaceFileState
+  /** Share of the files already on the Host, from 0 to 1, or `null` when the transfer does not know it. */
+  readonly progress: number | null
+  /** A command or error text to show verbatim, or `null`; see `WorkspaceFileState`. */
+  readonly detail: string | null
+}
 
 /** One durable Workspace projected for browser consumers. */
 export interface WorkspaceView {
@@ -48,6 +57,12 @@ export interface WorkspaceView {
   readonly title: string
   /** Sessions accounted to this Workspace in manual order. */
   readonly sessionIds: readonly SessionId[]
+  /**
+   * The Workspace's file status on this Host, or `null` while its files are
+   * here and up to date or no file sync carries them. Device-local: another
+   * Host of the account reports its own.
+   */
+  readonly files: WorkspaceFilesView | null
   /** ISO-8601 creation instant. */
   readonly createdAt: string
   /** ISO-8601 last-mutation instant. */

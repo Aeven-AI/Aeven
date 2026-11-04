@@ -51,7 +51,7 @@ const sessionState = (items: readonly SessionSummary[], overrides: Partial<Sessi
 })
 const workspace = (id: string, sessionIds: string[], title = id): WorkspaceView => ({
   workspaceId: wid(id), kind: 'folder', isDefault: false, isBuiltIn: false, path: `/projects/${id}`, title,
-  sessionIds: sessionIds.map(sid), createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z',
+  sessionIds: sessionIds.map(sid), files: null, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z',
 })
 const workspaceState = (
   items: readonly WorkspaceView[],

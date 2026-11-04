@@ -360,7 +360,9 @@ Two decisions differ from the architecture above:
 - **Own documents instead of shared ones.** Peer ids travel in `file-sync/peers` rather than in the `devices` document, which the account sync provider owns, and folder descriptors in `file-sync/folders` rather than in the `workspaces` document, which the workspace registry owns. Each document then has one writer package.
 - **A Consumer package instead of a change inside the registry.** The Consumer is its own package, so the registry keeps no file sync dependency; the registry gained only a `workspace/changed` event after each committed change.
 
-Still open in phase 1: the status projection and sidebar progress, reuse of an existing matching directory through a marker, early indexing, offers to devices that lack a folder's space, and Aeven's own discovery and relay servers.
+The status projection and sidebar progress followed. The workspace registry holds each workspace's file status device-locally, both Consumers report it, and it travels as a `files` field of each workspace on the existing workspace stream rather than through a `file-sync-controller` Remote, so the sidebar reads it with the rows it already follows; a row stays unmarked while files sync on their own, its menu opens with the status line, and only a status that needs the user (files over the disk budget, Git to install by hand, a failure) marks the row. A folder now counts as complete only once it holds the files its descriptor records, so a receiving device no longer records an empty size before it reaches a peer. The conversation header and the Files sidebar do not show the status yet.
+
+Still open in phase 1: reuse of an existing matching directory through a marker, early indexing, offers to devices that lack a folder's space, and Aeven's own discovery and relay servers.
 
 <a id="phase-2-status"></a>
 ### Phase 2 status
@@ -373,7 +375,7 @@ Three decisions refine the architecture above:
 - **One holder per copy through a lease.** A requesting device posts a request with a random transfer folder id, and every holder that sees it competes for a `ctx.sync` lease, so exactly one writes the bundle. `FileSyncFolder.peers` restricts the transfer folder to the two devices.
 - **Shared placement.** `placeWorkspace`, `fitsDisk`, and the location hint moved into `@aeven/workspace`, so both Consumers place a received workspace by one rule, and a hint that would leave the home directory is refused.
 
-A two-device run on macOS against a real Git server bound an existing checkout whose remote used another URL form, cloned on the published branch with `.env` restored and templates and ignored directories left out, copied a local-only repository with no `origin`, and delivered a later new environment file without replacing an existing one. Still open in phase 2: reporting "Installing Git" and the Linux install command as status, which waits for the status projection, and giving the agent's own Git the resolved executable.
+A two-device run on macOS against a real Git server bound an existing checkout whose remote used another URL form, cloned on the published branch with `.env` restored and templates and ignored directories left out, copied a local-only repository with no `origin`, and delivered a later new environment file without replacing an existing one. "Installing Git" and the Linux install command now appear as status, and a copy request that no holder takes within `copyAnswerMs` gives up instead of holding up the other repositories for the whole copy timeout. Still open in phase 2: giving the agent's own Git the resolved executable.
 
 <a id="open-questions"></a>
 ### Open questions

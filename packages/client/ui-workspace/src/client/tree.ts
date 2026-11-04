@@ -6,7 +6,7 @@
 import {
   type SessionListState, type SessionSearchResultItem, type SessionSummary,
 } from '@aeven/api-session-controller/client'
-import type { WorkspaceId, WorkspaceView } from '@aeven/api-workspace-controller/client'
+import type { WorkspaceFilesView, WorkspaceId, WorkspaceView } from '@aeven/api-workspace-controller/client'
 import type {
   SessionPendingInteractionBase,
 } from '@aeven/client-ui-session/client'
@@ -105,6 +105,8 @@ export interface GroupNode {
   managed: boolean
   /** Whether the backing Workspace has no directory on this device yet, such as one another device registered. */
   remote: boolean
+  /** The backing Workspace's file status on this device; `null` while its files are here and up to date. */
+  files: WorkspaceFilesView | null
   cwd: string | undefined
   /** Workspace creation time (epoch ms); absent for derived buckets. */
   createdAt: number | undefined
@@ -173,6 +175,7 @@ interface Group {
   isBuiltIn: boolean
   managed: boolean
   remote: boolean
+  files: WorkspaceFilesView | null
   cwd: string | undefined
   createdAt: number | undefined
   label: string
@@ -369,6 +372,8 @@ function groupByWorkspace(
       isBuiltIn: workspace.isBuiltIn,
       managed: isManagedWorkspace(workspace),
       remote: workspace.kind === 'remote',
+      // A Host from before file sync statuses sends no field at all.
+      files: workspace.files ?? null,
       // The wire carries "no directory" as JSON `null`; the grouping vocabulary
       // speaks `undefined`, so absence is translated once, here.
       cwd: workspace.path ?? undefined,
@@ -389,6 +394,7 @@ function groupByWorkspace(
       isBuiltIn: false,
       managed: false,
       remote: false,
+      files: null,
       cwd: undefined,
       createdAt: undefined,
       label: '',
@@ -472,6 +478,7 @@ export function deriveGroups(
       isBuiltIn: g.isBuiltIn,
       managed: g.managed,
       remote: g.remote,
+      files: g.files,
       cwd: g.cwd,
       createdAt: g.createdAt,
       label: g.label,
@@ -572,6 +579,7 @@ export function deriveStatusBuckets(
       isBuiltIn: true,
       managed: true,
       remote: false,
+      files: null,
       cwd: undefined,
       createdAt: undefined,
       label: '',

@@ -5,7 +5,7 @@ import { Deque } from '@aeven/deque'
 import type { DomainChanged } from '@aeven/storage-domain'
 import type { User } from '@aeven/identity-user'
 import type { SessionId } from '@aeven/session'
-import type { Workspace, WorkspaceRecord } from '@aeven/workspace'
+import type { Workspace, WorkspaceFileStatus, WorkspaceRecord } from '@aeven/workspace'
 import {
   workspaceDomainState,
   workspaceRecord,
@@ -13,9 +13,20 @@ import {
 } from '@aeven/workspace'
 import type {
   WorkspaceBaseline,
+  WorkspaceFilesView,
   WorkspaceFollowFrame,
   WorkspaceView,
 } from './types.ts'
+
+/**
+ * Project a registry file status into its Remote value, carrying absence as `null`.
+ * @param status - the status the registry holds, if any.
+ * @returns the Remote value.
+ */
+function filesView(status: WorkspaceFileStatus | undefined): WorkspaceFilesView | null {
+  if (status === undefined) return null
+  return { state: status.state, progress: status.progress ?? null, detail: status.detail ?? null }
+}
 
 /**
  * Project one authoritative Workspace entity into its Remote value.
@@ -24,9 +35,10 @@ import type {
  * Remote boundary carries JSON only, so absence crosses the wire as `null`.
  * This mapping is the single place that conversion happens.
  * @param workspace - authoritative registry entity.
+ * @param files - the registry's file status for the entity.
  * @returns detached Workspace projection for Remote consumers.
  */
-export function workspaceView(workspace: Workspace): WorkspaceView {
+export function workspaceView(workspace: Workspace, files: WorkspaceFileStatus | undefined): WorkspaceView {
   return {
     workspaceId: workspace.id,
     isDefault: workspace.isDefault,
@@ -35,6 +47,7 @@ export function workspaceView(workspace: Workspace): WorkspaceView {
     path: workspace.path ?? null,
     title: workspace.title,
     sessionIds: [...workspace.sessionIds],
+    files: filesView(files),
     createdAt: workspace.createdAt,
     updatedAt: workspace.updatedAt,
   }
@@ -50,6 +63,7 @@ export function workspaceView(workspace: Workspace): WorkspaceView {
  * @param value - the changed record value.
  * @param defaultWorkspaceId - the registry's default id, when it has one.
  * @param isBuiltIn - whether the registry publishes the id as built-in.
+ * @param files - the registry's file status for the id.
  * @returns detached Workspace projection for Remote consumers.
  */
 function changedWorkspaceView(
@@ -57,6 +71,7 @@ function changedWorkspaceView(
   value: unknown,
   defaultWorkspaceId: string | undefined,
   isBuiltIn: boolean,
+  files: WorkspaceFileStatus | undefined,
 ): WorkspaceView {
   const record: WorkspaceRecord = workspaceRecord.parse(value)
   return {
@@ -67,6 +82,7 @@ function changedWorkspaceView(
     path: record.path ?? null,
     title: record.title,
     sessionIds: [...record.sessionIds],
+    files: filesView(files),
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   }
@@ -130,6 +146,7 @@ export class WorkspaceFeed {
     this.order = baseline.map(workspace => String(workspace.id))
     this.archived = ctx.workspaceRegistry.archivedSessionIds.map(String)
     ctx.on('domain/changed', (change: DomainChanged) => { this.changed(change) })
+    ctx.on('workspace/files', (id) => { this.filesChanged(id) })
     ctx.effect(() => () => {
       for (const follower of this.followers) follower.close()
       this.followers.clear()
@@ -145,7 +162,7 @@ export class WorkspaceFeed {
     return {
       items: this.ctx.workspaceRegistry.list()
         .filter(workspace => workspaceVisible(this.ctx, workspace.isBuiltIn, workspace.owner, caller))
-        .map(workspace => callerWorkspaceView(this.ctx, workspaceView(workspace), caller)),
+        .map(workspace => callerWorkspaceView(this.ctx, this.view(workspace), caller)),
       archivedSessionIds: this.ctx.workspaceRegistry.archivedSessionIds
         .filter(id => workspaceSessionVisible(this.ctx, id, caller)),
     }
@@ -184,7 +201,7 @@ export class WorkspaceFeed {
           throw new Error(`committed Workspace registry references missing Workspace "${id}"`)
         }
         this.knownIds.add(id)
-        this.publishUpsert(workspaceView(workspace), workspace.owner)
+        this.publishUpsert(this.view(workspace), workspace.owner)
       }
       this.order = nextOrder
       if (orderChanged) {
@@ -227,9 +244,21 @@ export class WorkspaceFeed {
         change.value,
         this.ctx.workspaceRegistry.defaultWorkspaceId,
         this.ctx.workspaceRegistry.get(WorkspaceId(change.key))?.isBuiltIn ?? false,
+        this.ctx.workspaceRegistry.fileStatus(WorkspaceId(change.key)),
       ),
       this.ctx.workspaceRegistry.get(WorkspaceId(change.key))?.owner,
     )
+  }
+
+  private view(workspace: Workspace): WorkspaceView {
+    return workspaceView(workspace, this.ctx.workspaceRegistry.fileStatus(workspace.id))
+  }
+
+  /** Publish a known workspace again after its file status changed. */
+  private filesChanged(id: WorkspaceId): void {
+    const workspace = this.ctx.workspaceRegistry.get(id)
+    if (workspace === undefined || !this.knownIds.has(id)) return
+    this.publishUpsert(this.view(workspace), workspace.owner)
   }
 
   private publishUpsert(view: WorkspaceView, owner: string | undefined): void {

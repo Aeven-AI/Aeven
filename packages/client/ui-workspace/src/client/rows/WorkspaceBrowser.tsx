@@ -603,6 +603,7 @@ function ArchivedSection({
     isBuiltIn: true,
     managed: true,
     remote: false,
+    files: null,
     cwd: undefined,
     createdAt: undefined,
     label: '',
