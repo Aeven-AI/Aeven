@@ -855,7 +855,9 @@ export class SessionCommandController {
   async applyForwarded(sessionId: SessionId, input: SessionHandoffInput): Promise<void> {
     const request = { ...(input.request as object), sessionId }
     switch (input.operation) {
-      case 'prompt': await this.prompt(request as SessionPromptRequest); return
+      // A prompt from another device never joins the turn running here: it becomes its own turn with its own answer,
+      // instead of turning that turn's answer into intermediate work.
+      case 'prompt': await this.prompt({ ...request as SessionPromptRequest, mode: 'queue' }); return
       case 'select-model': await this.selectModel(request as SessionSelectModelRequest); return
       case 'edit': await this.edit(request as SessionEditRequest); return
       case 'retry': await this.retry(request); return
