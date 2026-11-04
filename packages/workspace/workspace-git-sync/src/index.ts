@@ -28,13 +28,12 @@ export { publicRemote, remoteKey } from './remote.ts'
 /** Plugin name. */
 export const name = 'workspace-git-sync'
 
-/** Services this Consumer requires; `fileSync` carries copies between devices when it is mounted. */
-export const inject = {
-  workspaceRegistry: { required: true },
-  sync: { required: true },
-  subprocess: { required: true },
-  fileSync: { required: false },
-}
+/**
+ * Services this Consumer requires. `fileSync` is read through `ctx.get` when a copy travels and is never injected:
+ * every injected service is required, so injecting it would keep the Consumer from starting on a Host without file
+ * sync, which still clones and binds repositories.
+ */
+export const inject = ['workspaceRegistry', 'sync', 'subprocess']
 
 /** Consumer configuration. */
 export interface Config {

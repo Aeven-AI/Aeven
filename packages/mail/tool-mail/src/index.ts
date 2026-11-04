@@ -19,8 +19,11 @@ export { EXTERNAL_MAIL_CONTENT_NOTICE } from './format.ts'
 /** Cordis plugin name used by loader diagnostics. */
 export const name = 'tool-mail'
 
-/** Services required by the mail tools; `mail` is optional so a composition without it still mounts. */
-export const inject = { tools: { required: true }, mail: { required: false } }
+/**
+ * Services required by the mail tools. `mail` is read through `ctx.get` at each step and is never injected: every
+ * injected service is required, so injecting it would keep the tools from mounting in a composition without mail.
+ */
+export const inject = ['tools']
 
 /** Per-tool cooperative timeouts. */
 export interface Config {
