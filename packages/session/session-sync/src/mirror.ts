@@ -880,9 +880,7 @@ export class SessionMirror {
       if (!transaction.local) this.consumeInbox()
     })
     // Settling folds every stored conversation once, so it runs behind startup rather than holding opening and input.
-    void this.settleStored().catch((error: unknown) => {
-      this.warn(`session sync: settling stored sessions failed: ${String(error)}`)
-    })
+    this.scheduleSettle()
     this.consumeInbox()
     this.scheduleImport()
     this.progressChanged?.()
@@ -905,11 +903,36 @@ export class SessionMirror {
 
   /** The account's connection came back: fold what was published meanwhile and settle what this device wrote. */
   reconnected(): void {
-    void this.settleStored().catch((error: unknown) => {
-      this.warn(`session sync: settling stored sessions failed: ${String(error)}`)
-    })
+    this.scheduleSettle()
     this.scheduleImport()
     if (this.docs !== undefined) this.consumeInbox()
+  }
+
+  /** The running settle pass, if any. */
+  private settling: Promise<void> | undefined
+  /** A settle pass was requested while one ran. */
+  private settleAgain = false
+
+  /** Run {@link settleStored} once at a time; a request during a pass runs one more pass after it. */
+  private scheduleSettle(): void {
+    if (this.docs === undefined || this.isClosed()) return
+    if (this.settling !== undefined) {
+      this.settleAgain = true
+      return
+    }
+    this.settling = (async () => {
+      do {
+        this.settleAgain = false
+        await this.settleStored()
+      } while (this.repeatSettle() && !this.isClosed())
+    })().catch((error: unknown) => {
+      this.warn(`session sync: settling stored sessions failed: ${String(error)}`)
+    }).finally(() => { this.settling = undefined })
+  }
+
+  /** Opaque read of {@link settleAgain}, set by a concurrent request while a pass awaits. */
+  private repeatSettle(): boolean {
+    return this.settleAgain
   }
 
   /**
@@ -1564,7 +1587,7 @@ export class SessionMirror {
     for (const timer of this.live.values()) clearTimeout(timer)
     this.live.clear()
     await Promise.all([
-      this.publishing, this.importing, this.consuming, ...this.publications.values(),
+      this.publishing, this.importing, this.consuming, this.settling, ...this.publications.values(),
       ...this.ownership.values(), ...this.releases.values(), ...this.imports.values(),
     ])
     await Promise.all([...this.claims.values()].map(claim => claim.holder?.dispose()))

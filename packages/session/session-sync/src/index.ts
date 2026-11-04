@@ -38,6 +38,8 @@ export default class SessionSync extends SessionHandoff {
   })
 
   private readonly mirrors = new Map<string, SessionMirror>()
+  /** Each account's last seen sync state; `sync/status` also reports progress, so only a change to online reconnects. */
+  private readonly states = new Map<string, string>()
 
   /**
    * @param ctx - Host context with sync and session persistence.
@@ -91,9 +93,11 @@ export default class SessionSync extends SessionHandoff {
 
   private track(owner: string): void {
     const state = this.ctx.sync.status(owner).state
+    const previous = this.states.get(owner)
+    this.states.set(owner, state)
     const existing = this.mirrors.get(owner)
     if (existing !== undefined) {
-      if (state === 'online') existing.reconnected()
+      if (state === 'online' && previous !== 'online') existing.reconnected()
       return
     }
     if (state === 'disabled' || state === 'starting') return
