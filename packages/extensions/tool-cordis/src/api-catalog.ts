@@ -4636,6 +4636,17 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'a fresh ordered array of workspace entities.',
       },
       {
+        signature: 'fileStatus(id: WorkspaceId): WorkspaceFileStatus | undefined',
+        description: 'Read a workspace\'s file status on this device.',
+        parameters: [{ name: 'id', description: 'Workspace id.' }],
+        returns: 'the status a file sync Consumer reported, or `undefined` while the files are here and up to date, or for a workspace whose files no Consumer syncs.',
+      },
+      {
+        signature: 'setFileStatus(id: WorkspaceId, status: WorkspaceFileStatus | undefined): void',
+        description: 'Report a workspace\'s file status on this device and emit `workspace/files` when it changed. The Consumer that syncs the workspace\'s files is its only reporter, and clears what it reported when it stops.',
+        parameters: [{ name: 'id', description: 'Workspace id.' }, { name: 'status', description: 'the new status, or `undefined` once the files are here and up to date.' }],
+      },
+      {
         signature: 'delete(id: WorkspaceId): Promise<boolean>',
         description: 'Delete one workspace registration while retaining its directory and every session log. The workspace\'s sessions join the archive set in the same write that removes it from the durable order, so no session is left without a group. The order and archive write precedes the table deletion; a failed table write restores the prior order and archive set and keeps the entity published. Unknown ids are an idempotent no-op for domain callers.\n\nThe built-in workspace refuses deletion. It is the one registration the product guarantees a reader has, and removing it would restore the state the registration exists to prevent — a first screen that demands a folder before it accepts a message. A deployment that does not want one turns seeding off in configuration rather than deleting it at runtime.',
         parameters: [{ name: 'id', description: 'Workspace registration to remove.' }],
@@ -5465,6 +5476,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     summary: 'The registry committed a change to its workspaces: one was created, bound to a directory, renamed, reordered, deleted, or received from another device.',
     description: 'The registry committed a change to its workspaces: one was created, bound to a directory, renamed, reordered, deleted, or received from another device. Read the registry for the new state.',
     parameters: [],
+  },
+  {
+    name: 'workspace/files',
+    mode: 'emit',
+    signature: '\'workspace/files\'(workspace: WorkspaceId): void',
+    summary: 'A workspace\'s file status on this device changed; read it with `WorkspaceRegistry.fileStatus`.',
+    description: 'A workspace\'s file status on this device changed; read it with `WorkspaceRegistry.fileStatus`.',
+    parameters: [{ name: 'workspace', description: 'the workspace whose status changed.' }],
   },
 ]
 
@@ -9791,6 +9810,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type WorkspaceFilesShowResult = \'shown\' | \'not-previewable\' | \'no-window\';',
   },
   {
+    name: 'WorkspaceFileState',
+    declaration: 'export type WorkspaceFileState = \'absent\' | \'fetching\' | \'installing\' | \'catching-up\' | \'waiting\' | \'git-missing\' | \'failed\';',
+  },
+  {
+    name: 'WorkspaceFileStatus',
+    declaration: 'export interface WorkspaceFileStatus {\n    readonly state: WorkspaceFileState;\n    readonly progress?: number;\n    readonly detail?: string;\n}',
+  },
+  {
+    name: 'WorkspaceFilesView',
+    declaration: 'export interface WorkspaceFilesView {\n    readonly state: WorkspaceFileState;\n    readonly progress: number | null;\n    readonly detail: string | null;\n}',
+  },
+  {
     name: 'WorkspaceFileText',
     declaration: 'export interface WorkspaceFileText {\n    readonly absolutePath: string;\n    readonly bytes: number | null;\n    readonly text: string;\n    readonly eof: boolean;\n}',
   },
@@ -9840,7 +9871,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'WorkspaceView',
-    declaration: 'export interface WorkspaceView {\n    readonly workspaceId: WorkspaceId;\n    readonly isDefault: boolean;\n    readonly isBuiltIn: boolean;\n    readonly kind: WorkspaceKind;\n    readonly path: string | null;\n    readonly title: string;\n    readonly sessionIds: readonly SessionId[];\n    readonly createdAt: string;\n    readonly updatedAt: string;\n}',
+    declaration: 'export interface WorkspaceView {\n    readonly workspaceId: WorkspaceId;\n    readonly isDefault: boolean;\n    readonly isBuiltIn: boolean;\n    readonly kind: WorkspaceKind;\n    readonly path: string | null;\n    readonly title: string;\n    readonly sessionIds: readonly SessionId[];\n    readonly files: WorkspaceFilesView | null;\n    readonly createdAt: string;\n    readonly updatedAt: string;\n}',
   },
   {
     name: 'WorktreeBranch',

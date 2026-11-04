@@ -89,6 +89,14 @@ export class Git {
   }
 
   /**
+   * Whether this device has Git now, without installing it.
+   * @returns true when an executable is on `PATH` or in a standard location.
+   */
+  async available(): Promise<boolean> {
+    return await this.find() !== undefined
+  }
+
+  /**
    * Run one Git command without prompts: a credential or host-key question fails the command instead of waiting.
    * @param args - arguments after `git`.
    * @param run - directory, time limit, and cancellation.

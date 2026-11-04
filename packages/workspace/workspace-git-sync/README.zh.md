@@ -21,6 +21,8 @@ Git 来自 `PATH` 或各平台的标准安装位置。仓库到达没有 Git 的
 
 失败的尝试会等待 `retryMs`，每 `passIntervalMs` 运行一次的检查会发布变化的环境文件并重试。设计见[工作区文件同步 Agent Note](../../../.agents/notes/proposed/architecture/2026-11-03-workspace-file-sync.zh.md)。
 
+每一步都会设置 workspace 的文件状态：平台安装程序运行时为 `installing`；Git 无法在无需用户操作的情况下安装时为 `git-missing` 并附带安装命令；克隆或复制期间为 `fetching`；在 `copyAnswerMs` 内没有持有该仓库的设备接下复制请求时为 `waiting`；出错时为 `failed` 并附带错误；仓库太大而不获取时为 `absent`；绑定后清除状态。状态会停留在最近一次失败上，直到下一次尝试。
+
 ## 目录
 
 - [模型体验](#model-experience)

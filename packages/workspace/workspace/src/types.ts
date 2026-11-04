@@ -40,7 +40,36 @@ declare module '@deepseek-ai/cordis' {
      * @mode emit
      */
     'workspace/changed'(): void
+    /**
+     * A workspace's file status on this device changed; read it with `WorkspaceRegistry.fileStatus`.
+     * @mode emit
+     * @param workspace - the workspace whose status changed.
+     */
+    'workspace/files'(workspace: WorkspaceId): void
   }
+}
+
+/**
+ * Where a workspace's files stand on this device while they are not simply here and up to date.
+ *
+ * - `absent` — another device holds the files and this device has not downloaded them.
+ * - `fetching` — the first download, clone, or copy from another device is running.
+ * - `installing` — this device is installing Git before it can clone the repository.
+ * - `catching-up` — the files are here and changes from other devices are arriving.
+ * - `waiting` — no device that holds the files is online.
+ * - `git-missing` — the repository needs Git, which this device cannot install without the user;
+ *   {@link WorkspaceFileStatus.detail} is the install command when the platform has one.
+ * - `failed` — the files cannot arrive; {@link WorkspaceFileStatus.detail} is the error the transport or Git reported.
+ */
+export type WorkspaceFileState = 'absent' | 'fetching' | 'installing' | 'catching-up' | 'waiting' | 'git-missing' | 'failed'
+
+/** One workspace's file status on this device, which the file sync Consumers report. */
+export interface WorkspaceFileStatus {
+  readonly state: WorkspaceFileState
+  /** Share of the files already here, from 0 to 1, when the transfer knows it. */
+  readonly progress?: number
+  /** A command or error text shown verbatim, never translated copy; see {@link WorkspaceFileState}. */
+  readonly detail?: string
 }
 
 declare module '@aeven/typert-protocol' {

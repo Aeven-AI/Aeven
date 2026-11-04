@@ -28,6 +28,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@aeven/brand": "workspace:^",
+    "@aeven/home-paths": "workspace:^",
     "@deepseek-ai/schemastery": "workspace:^",
     "yjs": "13.6.27"
   },

@@ -96,6 +96,7 @@
 | `workflow/start` | `emit` | [`packages/workflow/workflow/src/index.ts:43`](../packages/workflow/workflow/src/index.ts) | [`workflow`](../packages/workflow/workflow) (`events.dispatch`) | [`workflow`](../packages/workflow/workflow) |
 | `workspace-files/show` | `waterfall` | [`packages/api/workspace-files/src/types.ts:100`](../packages/api/workspace-files/src/types.ts) | `workspace-files` (`waterfall`) | `remotes` |
 | `workspace/changed` | `emit` | [`packages/workspace/workspace/src/types.ts:42`](../packages/workspace/workspace/src/types.ts) | [`workspace`](../packages/workspace/workspace) (`emit`) | [`workspace-file-sync`](../packages/workspace/workspace-file-sync), [`workspace-git-sync`](../packages/workspace/workspace-git-sync) |
+| `workspace/files` | `emit` | [`packages/workspace/workspace/src/types.ts:48`](../packages/workspace/workspace/src/types.ts) | [`workspace`](../packages/workspace/workspace) (`emit`) | `workspace-controller` |
 
 ## 包源码中出现的非 harness 或未声明事件字符串
 

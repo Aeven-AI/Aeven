@@ -302,6 +302,7 @@ interface WorkspaceView {
   readonly path: string
   readonly title: string
   readonly sessionIds: readonly SessionId[]
+  readonly files: null
   readonly createdAt: string
   readonly updatedAt: string
 }
@@ -1959,6 +1960,7 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
   const workspaceSnapshot = (workspace: FixtureWorkspace): WorkspaceView => ({
     ...workspace,
     sessionIds: [...workspace.sessionIds],
+    files: null,
   })
   const workspaceBaseline = (): Extract<WorkspaceFollowFrame, { type: 'baseline' }> => ({
     type: 'baseline',

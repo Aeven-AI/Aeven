@@ -21,6 +21,8 @@ Environment files are files Git ignores whose names match `envFiles.patterns`, s
 
 A failed attempt waits `retryMs`, and a pass every `passIntervalMs` publishes changed environment files and retries. The design is in the [workspace file sync Agent Note](../../../.agents/notes/proposed/architecture/2026-11-03-workspace-file-sync.md).
 
+Each step sets the workspace's file status: `installing` while the platform's installer runs, `git-missing` with the install command when Git cannot be installed without the user, `fetching` during a clone or copy, `waiting` when no device that holds the repository takes the copy request within `copyAnswerMs`, `failed` with the error, and `absent` for a repository too large to get; binding clears it. The status stays at the last failure until the next try.
+
 ## Table of Contents
 
 - [Model Experience](#model-experience)

@@ -4773,7 +4773,7 @@ Source: [`packages/lsp/tool-lsp/src/index.ts`](../packages/lsp/tool-lsp/src/inde
 
 ## `@aeven/tool-mail`
 
-Requires: `tools` · `mail`
+Requires: `tools`
 
 ```ts config-catalog
 /** Per-tool cooperative timeouts. */
@@ -5590,6 +5590,8 @@ export interface Config {
   prefetchMaxBytes: number
   /** Share of the disk, from 0 to 1, a download must leave free. */
   minFreeDiskRatio: number
+  /** Directory holding one marker per folder this device has held completely. */
+  completeDirectory: string
 }
 ```
 
@@ -5599,7 +5601,7 @@ Source: [`packages/workspace/workspace-file-sync/src/index.ts`](../packages/work
 
 ## `@aeven/workspace-git-sync`
 
-Requires: `workspaceRegistry` · `sync` · `subprocess` · `fileSync`
+Requires: `workspaceRegistry` · `sync` · `subprocess`
 
 ```ts config-catalog
 /** Consumer configuration. */
@@ -5647,6 +5649,8 @@ export interface Config {
   passIntervalMs: number
   /** Shortest wait before trying again to get a repository that could not be cloned or copied. */
   retryMs: number
+  /** Longest a copy request waits for a device that holds the repository to take it. */
+  copyAnswerMs: number
   /** Longest a copy from another device may take. */
   copyTimeoutMs: number
   /** Lifetime of the lease that picks one device to serve a copy. */

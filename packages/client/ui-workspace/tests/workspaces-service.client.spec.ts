@@ -32,6 +32,7 @@ function workspace(
     path: `/w/${id}`,
     title: id,
     sessionIds,
+    files: null,
     createdAt,
     updatedAt: createdAt,
   }
@@ -49,6 +50,7 @@ function chats(sessionIds: readonly SessionId[] = []): WorkspaceView {
     path: null,
     title: 'Chats',
     sessionIds,
+    files: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
   }

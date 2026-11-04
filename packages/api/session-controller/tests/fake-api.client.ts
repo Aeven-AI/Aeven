@@ -46,6 +46,7 @@ function fakeWorkspace(id: string, over: Partial<WorkspaceView> = {}): Workspace
     path: '/f/ws',
     title: 'ws',
     sessionIds: [],
+    files: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     ...over,

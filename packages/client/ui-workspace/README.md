@@ -51,6 +51,8 @@ The Session row's Rename action opens a dialog prefilled with the row's display 
 
 Session rows render the runtime's live `pendingInteraction` classification: approvals report **Waiting for approval**, plan reviews report **Plan awaiting review**, and ordinary questions report **Waiting for answer**. Every pending interaction uses an amber warning dot that takes precedence over the running indicator.
 
+Files sync on their own, so a Workspace row stays unmarked while its files arrive, catch up, or wait for another computer. The row's menu opens with one line that reads the files' status on this device, such as **Getting files · 34%**. Only a status that needs the user marks the row, with the same text in its tooltip and accessible name: files not downloaded because they exceed the disk budget, Git that must be installed by hand, and a failure. A command or error the Host sends appears verbatim inside the localized text.
+
 ### Active Schedule markers
 
 Workspace-grouped and status Session rows, plus search results, show an outline alarm when `SessionSummary.projectionValues.schedule` is a non-empty array. The marker sits after the title; an ordinary row keeps its update time after the marker, while a search result has no update time. It is not a button, has no independent pointer action or tab stop, and clicking its area still opens the row. The localized tooltip and matching screen-reader label say **Has active scheduled task**.
