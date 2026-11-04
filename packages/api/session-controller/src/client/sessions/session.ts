@@ -853,6 +853,15 @@ export class Session implements SessionFace {
     if (projections !== undefined) this.projections.seed(projections)
     this.eventSource.replace(entries, { hasOlder: hasMore, hasNewer })
     for (const entry of entries) this.observeSubmissionEvent(entry.event)
+    // A live-tail window holds the durable events this Session missed while it
+    // followed only the control stream, such as a claimed row's `user/message`
+    // and its turn's end. A detached window's older `turn/end` must not retire
+    // rows of a turn running now.
+    if (!hasNewer) {
+      for (const { event } of entries) {
+        if (event.type === 'user/message' || event.type === 'turn/end') this.queueMirror.acceptDurable(event)
+      }
+    }
     this.notifier.markDirty()
   }
 
