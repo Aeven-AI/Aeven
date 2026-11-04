@@ -11,6 +11,7 @@ import type { DesktopRelease } from '../src/release.ts'
 import { resolveAvnHome } from '@aeven/home-paths'
 import { prepareDevelopmentApp } from './development-app.ts'
 import { prepareDevelopmentProject } from './development-project.ts'
+import { installSyncthing, SYNCTHING_VERSION } from './syncthing-runtime.ts'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')
@@ -53,6 +54,32 @@ async function runPackageScript(script: string, cwd: string): Promise<void> {
   await run(invocation.command, invocation.args, cwd)
 }
 
+/**
+ * The Syncthing executable workspace file sync runs in a source launch: `AVN_SYNCTHING` from the shell or `.env`, else
+ * the pinned release, installed once per version under the development root as the packaged runtime ships it.
+ */
+async function developmentSyncthing(): Promise<string> {
+  const configured = process.env.AVN_SYNCTHING
+  if (configured !== undefined && configured !== '') return configured
+  const platform = process.platform === 'win32' ? 'win' : process.platform
+  if (platform !== 'darwin' && platform !== 'linux' && platform !== 'win') {
+    throw new Error(`desktop development: no Syncthing release for ${process.platform}; set AVN_SYNCTHING`)
+  }
+  const arch = process.arch
+  if (arch !== 'arm64' && arch !== 'x64') throw new Error(`desktop development: no Syncthing release for ${arch}; set AVN_SYNCTHING`)
+  const destination = join(DEVELOPMENT_ROOT, 'runtime', `syncthing-v${SYNCTHING_VERSION}`)
+  const executable = join(destination, platform === 'win' ? 'syncthing.exe' : 'syncthing')
+  if (existsSync(executable)) return executable
+  console.log(`desktop development: installing Syncthing ${SYNCTHING_VERSION} for file sync`)
+  return await installSyncthing({
+    platform,
+    arch,
+    downloads: join(BUILD_ROOT, 'downloads'),
+    extraction: join(DEVELOPMENT_ROOT, 'syncthing-extract'),
+    destination,
+  })
+}
+
 async function launchElectron(projectDir: string): Promise<void> {
   const require = createRequire(import.meta.url)
   const electron: unknown = require('electron')
@@ -75,6 +102,7 @@ async function launchElectron(projectDir: string): Promise<void> {
   // A private home starts signed out and empty, so development defaults to the
   // home the reader already uses; `AVN_HOME` still selects a throwaway one.
   const home = resolveAvnHome()
+  const syncthing = await developmentSyncthing()
   const userData = join(DEVELOPMENT_ROOT, 'electron-user-data')
   const environment: NodeJS.ProcessEnv = {
     ...process.env,
@@ -86,10 +114,12 @@ async function launchElectron(projectDir: string): Promise<void> {
     AVN_DESKTOP_DEV_PROJECT_DIR: projectDir,
     AVN_DESKTOP_HOST_INSPECT_PORT: String(hostPort),
     AVN_DESKTOP_NODE_BINARY: process.execPath,
+    AVN_SYNCTHING: syncthing,
     AVN_DESKTOP_OPEN_DEVTOOLS: process.env.AVN_DESKTOP_OPEN_DEVTOOLS ?? '1',
     ELECTRON_ENABLE_LOGGING: process.env.ELECTRON_ENABLE_LOGGING ?? '1',
   }
   console.log(`desktop development: AVN_HOME=${home}`)
+  console.log(`desktop development: AVN_SYNCTHING=${syncthing}`)
   console.log(`desktop development: inspectors main=${String(mainPort)}, renderer=${String(rendererPort)}, host=${String(hostPort)}`)
   // The macOS Electron executable rejects `--remote-debugging-port` and
   // `--user-data-dir` as command-line arguments, so darwin launches a
@@ -103,6 +133,7 @@ async function launchElectron(projectDir: string): Promise<void> {
       userData,
       projectDir,
       nodeBinary: process.execPath,
+      syncthing,
       mainPort,
       rendererPort,
       hostPort,
