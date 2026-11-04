@@ -874,7 +874,10 @@ export class SessionMirror {
     this.pending().observe((_event: YMapEvent<InboxEntry>, transaction: Transaction) => {
       if (!transaction.local) this.consumeInbox()
     })
-    await this.settleStored()
+    // Settling folds every stored conversation once, so it runs behind startup rather than holding opening and input.
+    void this.settleStored().catch((error: unknown) => {
+      this.warn(`session sync: settling stored sessions failed: ${String(error)}`)
+    })
     this.consumeInbox()
     this.scheduleImport()
     this.progressChanged?.()
@@ -916,9 +919,16 @@ export class SessionMirror {
     const snapshots = await this.persistence.listSnapshots()
     const local = new Set(snapshots.map(({ header }) => header.id as string))
     const revisions = new Map(snapshots.map(({ header, revision }) => [header.id as string, String(revision)]))
-    for (const { header } of snapshots) {
+    // The most recently active conversations settle first.
+    const ordered = [...snapshots].sort((left, right) => {
+      const l = this.entries().get(left.header.id)
+      const r = this.entries().get(right.header.id)
+      return (r === undefined ? 0 : recency(r)) - (l === undefined ? 0 : recency(l))
+    })
+    for (const { header } of ordered) {
       if (this.isClosed()) return
       if (header.owner !== this.owner || header.replica === true) continue
+      await pause(this.tuning.pauseMs)
       const id = header.id
       const entry = this.entries().get(id)
       if (entry === undefined || this.claims.has(id) || this.running.has(id)) continue
@@ -1121,6 +1131,8 @@ export class SessionMirror {
     return this.serialImport(id, async () => {
       const local = new Set((await this.persistence.list()).map(header => header.id as string))
       const fold = { ...this.foldStart(id) }
+      // The stored log, read once per pass for comparing accepted events with what this device holds.
+      const held: { events?: readonly SessionEvent[] } = {}
       let stored = false
       try {
         reading: for (;;) {
@@ -1132,7 +1144,7 @@ export class SessionMirror {
             const events = this.accept(batch, fold)
             fold.cursor = seq
             if (events === undefined) continue
-            const accepted = await this.applyAccepted(id, entry, events, batch.claim, local, revisions)
+            const accepted = await this.applyAccepted(id, entry, events, batch.claim, local, held, revisions)
             if (accepted === 'gap') {
               // The stored log is shorter than the recorded head: fold again from the stream's start.
               this.folds.delete(id)
@@ -1140,7 +1152,7 @@ export class SessionMirror {
               Object.assign(fold, { cursor: 0, head: 0, claim: undefined })
               continue reading
             }
-            stored = true
+            if (accepted === 'stored') stored = true
             fold.head = after(events, fold.head)
             if (batch.claim !== undefined) fold.claim = batch.claim
           }
@@ -1182,13 +1194,14 @@ export class SessionMirror {
    * @param events - accepted events, contiguous from the previous head.
    * @param claim - the claim they belong to.
    * @param local - sessions stored here.
+   * @param held - the stored log as this pass last read it; cleared whenever the log changes.
    * @param revisions - stored log revisions, by session.
-   * @returns `gap` when the stored log ends before the events start.
+   * @returns `gap` when the stored log ends before the events start, `same` when it already holds them.
    */
   private async applyAccepted(
     id: string, entry: IndexEntry, events: readonly SessionEvent[], claim: string | undefined,
-    local: ReadonlySet<string>, revisions?: ReadonlyMap<string, string>,
-  ): Promise<'stored' | 'gap'> {
+    local: ReadonlySet<string>, held: { events?: readonly SessionEvent[] }, revisions?: ReadonlyMap<string, string>,
+  ): Promise<'stored' | 'same' | 'gap'> {
     const first = events[0]?.seq ?? 0
     const exists = local.has(id) || this.created.has(id)
     const localNext = exists ? await this.next(id, local, revisions) : 0
@@ -1201,16 +1214,19 @@ export class SessionMirror {
     if (own !== undefined && own.id !== claim) await this.releaseLocal(sessionId)
     let fresh = events
     if (first < localNext) {
-      const held = (await this.persistence.readFrom(sessionId, SessionLogOffset(first))).events
+      held.events ??= (await this.persistence.readFrom(sessionId, SessionLogOffset(0))).events
+      const tail = held.events.slice(first)
       let same = 0
-      while (same < held.length && same < events.length && sameEvent(held[same] as SessionEvent, events[same] as SessionEvent)) same++
-      if (same < held.length && same < events.length) {
-        await this.rewrite(sessionId, entry, first + same, events.slice(same), held.slice(same))
+      while (same < tail.length && same < events.length && sameEvent(tail[same] as SessionEvent, events[same] as SessionEvent)) same++
+      if (same < tail.length && same < events.length) {
+        delete held.events
+        await this.rewrite(sessionId, entry, first + same, events.slice(same), tail.slice(same))
         return 'stored'
       }
       fresh = events.slice(same)
     }
-    if (fresh.length === 0) return 'stored'
+    if (fresh.length === 0) return 'same'
+    delete held.events
     if (!exists) {
       // A seeded artifact materializes only once its complete inherited prefix can commit together.
       if (after(fresh, first) < entry.inherited) return 'stored'
