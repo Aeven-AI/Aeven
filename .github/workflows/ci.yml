@@ -1,6 +1,11 @@
 # Pull-request gate matrix. The local hooks in lefthook.yml stay narrow
 # checkpoints; this workflow runs the lanes scripts/run-gates.ts already
 # defines, and the `main` ruleset requires the four job names below.
+#
+# A `release/<version>` branch carries version bumps and nothing else, so its
+# pull request skips every lane without a label: the release commit is the tree
+# the previous release already proved, with only `version` fields changed.
+# `skip-ci` remains for the other changes the lanes cannot inform.
 name: CI
 
 on:
@@ -31,8 +36,9 @@ jobs:
   # Runs beside the static lane so the pass costs its own duration, not a queue.
   test:
     name: test
-    # `skip-ci` merges a change this lane cannot inform, such as workflow policy.
-    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
+    # `skip-ci` merges a change this lane cannot inform, such as workflow policy;
+    # a release branch carries only version bumps.
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-ci') && !startsWith(github.head_ref, 'release/') }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -67,7 +73,7 @@ jobs:
   # host-sensitive fixture must not hold a fix or a release.
   static:
     name: static
-    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-ci') && !startsWith(github.head_ref, 'release/') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -86,7 +92,7 @@ jobs:
   # cross-file duplication.
   types-lint:
     name: types-lint
-    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-ci') && !startsWith(github.head_ref, 'release/') }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -107,7 +113,7 @@ jobs:
   # jobs would build the workspace twice.
   build-verify:
     name: build-verify
-    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-ci') && !startsWith(github.head_ref, 'release/') }}
     runs-on: macos-latest
     timeout-minutes: 60
     steps:
