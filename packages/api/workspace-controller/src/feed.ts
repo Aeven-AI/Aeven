@@ -147,6 +147,8 @@ export class WorkspaceFeed {
     this.archived = ctx.workspaceRegistry.archivedSessionIds.map(String)
     ctx.on('domain/changed', (change: DomainChanged) => { this.changed(change) })
     ctx.on('workspace/files', (id) => { this.filesChanged(id) })
+    // A session filed before its owner was known was left out of each caller's projection.
+    ctx.on('workspace/session-owner', (id) => { this.filesChanged(id) })
     ctx.effect(() => () => {
       for (const follower of this.followers) follower.close()
       this.followers.clear()
@@ -254,7 +256,7 @@ export class WorkspaceFeed {
     return workspaceView(workspace, this.ctx.workspaceRegistry.fileStatus(workspace.id))
   }
 
-  /** Publish a known workspace again after its file status changed. */
+  /** Publish a known workspace again after its file status or a listed session's owner changed. */
   private filesChanged(id: WorkspaceId): void {
     const workspace = this.ctx.workspaceRegistry.get(id)
     if (workspace === undefined || !this.knownIds.has(id)) return

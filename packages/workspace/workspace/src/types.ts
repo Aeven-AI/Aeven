@@ -47,6 +47,13 @@ declare module '@deepseek-ai/cordis' {
      */
     'workspace/files'(workspace: WorkspaceId): void
     /**
+     * The registry learned the owner of a session a workspace already lists, which changes who may see that session
+     * in the workspace; read the workspace from the registry again.
+     * @mode emit
+     * @param workspace - the workspace that lists the session.
+     */
+    'workspace/session-owner'(workspace: WorkspaceId): void
+    /**
      * The user asked for a workspace's files now, for example by accepting to install Git: the Consumer that syncs
      * them installs what they need and tries again at once.
      * @mode emit

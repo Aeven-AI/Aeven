@@ -1335,7 +1335,15 @@ export class WorkspaceRegistry extends Service {
   }
 
   private async indexHeaders(headers: readonly SessionHeader[]): Promise<void> {
-    for (const header of headers) await this.indexHeader(header)
+    const learned = new Set<SessionId>()
+    for (const header of headers) {
+      if (header.owner !== undefined && this.headers.get(header.id)?.owner !== header.owner) learned.add(header.id)
+      await this.indexHeader(header)
+    }
+    if (learned.size === 0) return
+    for (const [id, entity] of this.entities) {
+      if (entity.sessionIds.some(sessionId => learned.has(sessionId))) this.ctx.emit('workspace/session-owner', id)
+    }
   }
 
   private async indexHeader(header: SessionHeader): Promise<void> {
