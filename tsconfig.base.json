@@ -386,6 +386,7 @@
       "@aeven/fs-local": ["./packages/fs/fs-local/src"],
       "@aeven/fs-observation-policy": ["./packages/fs/fs-observation-policy/src"],
       "@aeven/fs-sandbox": ["./packages/fs/fs-sandbox/src"],
+      "@aeven/git-executable": ["./packages/util/git-executable/src"],
       "@aeven/goal": ["./packages/goal/goal/src"],
       "@aeven/goal/invariant": ["./packages/goal/goal/src/invariant.ts"],
       "@aeven/goal-round-driver": ["./packages/goal/goal-round-driver/src"],

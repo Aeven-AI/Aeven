@@ -28,6 +28,8 @@ export interface DevelopmentAppOptions {
   readonly projectDir: string
   /** Node executable the shell starts its Host with. */
   readonly nodeBinary: string
+  /** Syncthing executable the Host's workspace file sync runs. */
+  readonly syncthing: string
   /** Main-process inspector port. */
   readonly mainPort: number
   /** Renderer remote-debugging port. */
@@ -105,6 +107,7 @@ export function developmentLauncher(options: DevelopmentAppOptions, bundle: stri
     AVN_DESKTOP_HOST_INSPECT_PORT: String(options.hostPort),
     AVN_DESKTOP_NODE_BINARY: options.nodeBinary,
     AVN_DESKTOP_OPEN_DEVTOOLS: options.openDevtools,
+    AVN_SYNCTHING: options.syncthing,
     ELECTRON_ENABLE_LOGGING: '1',
   }
   const args = [

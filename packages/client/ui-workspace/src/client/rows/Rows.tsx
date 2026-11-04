@@ -14,11 +14,12 @@ import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 
 import clsx from 'clsx'
 import {
   IconAlarmClockOutline16, IconArchiveOutline20, IconBranchOutline16,
-  IconEditOutline16, IconLucideCircleAlert, IconLucideDownload,
+  IconChatPlusAnimated,
+  IconEditOutline16, IconLucideCircleAlert, IconLucideClock, IconLucideDownload, IconLucidePause,
   IconLucideEllipsis, IconLucideEllipsisVertical, IconLucideMessageCircle,
   IconLucideMessageCircleQuestionMark,
   IconLucideFolder, IconLucideFolderOpen,
-  IconLucideMessageCirclePlus, IconTrashOutline16, Menu,
+  IconTrashOutline16, Menu,
   Spinner, StateDot, Tooltip,
 } from '@aeven/client-ui-primitives'
 import type { MenuEntry, StateDotState } from '@aeven/client-ui-primitives'
@@ -57,44 +58,65 @@ function isPlainActivation(event: ReactMouseEvent): boolean {
 }
 
 /**
- * A Workspace's file status as the line its row menu shows. A command or error
- * the Host sent is shown verbatim inside the localized text.
+ * A Workspace's file status as the line at the bottom of its row menu, or none
+ * while the menu offers to install Git instead.
  */
-function filesLabel(files: WorkspaceFilesView, t: RowTranslate): string {
+function filesStatusEntry(files: WorkspaceFilesView, t: RowTranslate): MenuEntry | undefined {
+  const line = (text: string, icon: ReactNode, trailing?: string): MenuEntry => ({
+    type: 'status', id: 'files', text, icon, ...trailing === undefined ? {} : { trailing },
+  })
   switch (files.state) {
-    case 'absent': return t('files.absent')
-    case 'fetching': return files.progress === null
-      ? t('files.fetching')
-      : t('files.fetchingProgress', { percent: Math.floor(files.progress * 100) })
-    case 'installing': return t('files.installing')
-    case 'catching-up': return t('files.catchingUp')
-    case 'waiting': return t('files.waiting')
-    case 'git-missing': return files.detail === null
-      ? t('files.gitMissing')
-      : t('files.gitMissingCommand', { command: files.detail })
-    case 'failed': return files.detail === null ? t('files.failed') : t('files.failedDetail', { detail: files.detail })
+    case 'syncing': return line(
+      t('files.syncing'),
+      <Spinner />,
+      files.progress === null ? undefined : `${String(Math.floor(files.progress * 100))}%`,
+    )
+    case 'installing': return line(t('files.installing'), <Spinner />)
+    case 'preparing': return line(t('files.preparing'), <Spinner />)
+    case 'paused': return line(t('files.paused'), <IconLucidePause />)
+    case 'stopped': return line(t('files.stopped'), <IconLucidePause />)
+    case 'waiting': return line(t('files.waiting'), <IconLucideClock />)
+    case 'git-needed': return undefined
+    case 'conflict': return line(
+      t(files.count === 1 ? 'files.conflict.one' : 'files.conflict.other', { n: files.count ?? 0 }),
+      <IconLucideCircleAlert />,
+    )
+    case 'failed': return line(failureText(files.reason, files.count, t), <IconLucideCircleAlert />)
     /* v8 ignore next -- closed WorkspaceFileState union */
     default: return assertNever(files.state)
   }
 }
 
 /**
- * The mark a Workspace row shows only while its files need the user: syncing,
- * catching up, and waiting for another computer happen on their own and leave
- * the row unmarked.
+ * A Workspace's file status as its short label, such as the caption of its bar in Settings → Sync → Files.
+ * @param files - the status.
+ * @param t - the workspace namespace's translate.
+ * @returns the label without the percentage.
  */
-function filesMark(files: WorkspaceFilesView): ReactNode {
-  switch (files.state) {
-    case 'absent': return <IconLucideDownload />
-    case 'git-missing':
-    case 'failed': return <IconLucideCircleAlert />
-    case 'fetching':
-    case 'installing':
-    case 'catching-up':
-    case 'waiting': return undefined
-    /* v8 ignore next -- closed WorkspaceFileState union */
-    default: return assertNever(files.state)
+export function filesStatusLabel(files: WorkspaceFilesView, t: RowTranslate): string {
+  const entry = filesStatusEntry(files, t)
+  return entry === undefined || !('type' in entry) || entry.type !== 'status' ? t('files.gitNeeded') : entry.text
+}
+
+/** The short reason a Workspace's files cannot arrive. */
+function failureText(reason: WorkspaceFilesView['reason'], count: number | null, t: RowTranslate): string {
+  switch (reason) {
+    case 'access': return t('files.failed.access')
+    case 'network': return t('files.failed.network')
+    case 'disk': return t('files.failed.disk')
+    case 'folder': return t('files.failed.folder')
+    case 'git-install': return t('files.failed.gitInstall')
+    case 'unstorable': return t(count === 1 ? 'files.failed.unstorable.one' : 'files.failed.unstorable.other', { n: count ?? 0 })
+    case 'unknown':
+    case null: return t('files.failed.unknown')
+    /* v8 ignore next -- closed WorkspaceFileFailure union */
+    default: return assertNever(reason)
   }
+}
+
+/** Whether a Workspace's repository waits for Git, so its menu offers to install it. */
+function needsGit(files: WorkspaceFilesView | null): boolean {
+  return files?.state === 'git-needed' || (files?.state === 'failed' && files.reason === 'git-install')
 }
 
 /**
@@ -197,15 +219,20 @@ export function ProjectRowItem({ group, onToggle, newSessionHref, onCreate, acti
   /** Start a New Session in this row's Workspace. */
   onCreate: () => void
   /** Real-Workspace actions; absent for the ungrouped bucket (no menu shown). */
-  actions?: { rename: () => void; delete: () => void; bind?: (() => void) | undefined } | undefined
+  actions?: {
+    rename: () => void
+    delete: () => void
+    bind?: (() => void) | undefined
+    installGit?: (() => void) | undefined
+    compare?: (() => void) | undefined
+  } | undefined
   /** Present only for real Workspace rows in the grouped view. */
   drag?: WorkspaceRowDragProps | undefined
   t: RowTranslate
 }) {
   const row = group
   const label = groupLabel(row, t)
-  const filesText = row.files === null ? undefined : filesLabel(row.files, t)
-  const mark = row.files === null ? undefined : filesMark(row.files)
+  const filesEntry = row.files === null ? undefined : filesStatusEntry(row.files, t)
   const [menuOpen, setMenuOpen] = useState(false)
   /**
    * The chat a browser-owned open of this row's New Session link starts.
@@ -228,15 +255,16 @@ export function ProjectRowItem({ group, onToggle, newSessionHref, onCreate, acti
   // Choosing the workspace's folder is the same action whether the workspace
   // arrived from another device without one or its directory moved since, so
   // the row offers it in both cases.
-  // The files' status heads the menu as a line that is read, not chosen.
+  // Syncing is never the first thing the menu offers: the files' status and the
+  // Git install sit below the Workspace actions.
   const workspaceMenuItems: MenuEntry[] = [
-    ...filesText === undefined ? [] : [
-      { type: 'label' as const, id: 'files', text: filesText },
-      { type: 'separator' as const, id: 'files-separator' },
-    ],
     { id: 'rename', label: t('rename'), icon: <IconEditOutline16 /> },
     ...actions?.bind === undefined ? [] : [{ id: 'bind', label: t('bind.workspace'), icon: <IconLucideFolder /> }],
     { id: 'delete', label: t('delete.workspace'), icon: <IconTrashOutline16 /> },
+    ...filesEntry === undefined && !needsGit(row.files) ? [] : [{ type: 'separator' as const, id: 'files-separator' }],
+    ...filesEntry === undefined ? [] : [filesEntry],
+    ...needsGit(row.files) ? [{ id: 'install-git', label: t('files.installGit'), icon: <IconLucideDownload /> }] : [],
+    ...row.files?.state === 'conflict' ? [{ id: 'compare', label: t('files.compare'), icon: <IconBranchOutline16 /> }] : [],
   ]
   return (
     <div
@@ -260,11 +288,6 @@ export function ProjectRowItem({ group, onToggle, newSessionHref, onCreate, acti
       <span className={css.projectText}>
         <span className={css.title}>{label}</span>
       </span>
-      {mark !== undefined && filesText !== undefined && (
-        <Tooltip label={filesText} side="top" anchor="icon">
-          <span className={clsx(css.slot, css.filesMark)} role="img" aria-label={filesText}>{mark}</span>
-        </Tooltip>
-      )}
       <span className={css.rowActions}>
         {actions !== undefined && (
           <Menu
@@ -279,7 +302,15 @@ export function ProjectRowItem({ group, onToggle, newSessionHref, onCreate, acti
                 actions.bind?.()
                 return
               }
-              /* v8 ignore next -- Menu can emit only the bind, rename, and delete rows supplied above. */
+              if (id === 'install-git') {
+                actions.installGit?.()
+                return
+              }
+              if (id === 'compare') {
+                actions.compare?.()
+                return
+              }
+              /* v8 ignore next -- Menu can emit only the bind, install-git, compare, rename, and delete rows supplied above. */
               if (id !== 'rename' && id !== 'delete') return
               if (id === 'rename') actions.rename()
               else actions.delete()
@@ -332,7 +363,7 @@ export function ProjectRowItem({ group, onToggle, newSessionHref, onCreate, acti
             >
               {/* The New Session mark itself, so the row's add affordance and the
                   Chat row above it read as the same action. */}
-              <IconLucideMessageCirclePlus className={css.actionIcon} />
+              <IconChatPlusAnimated className={css.actionIcon} />
             </a>
           </Tooltip>
         )}

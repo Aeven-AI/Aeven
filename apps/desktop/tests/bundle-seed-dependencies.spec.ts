@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { cp, link, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { cp, link, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -20,6 +20,15 @@ async function exercisePackage(ownerPath: string, name: string, roots: readonly 
     const original = dirname(require.resolve(`${name}/package.json`))
     const target = join(root, 'node_modules', name)
     await cp(original, target, { recursive: true, dereference: true })
+    const manifest = JSON.parse(await readFile(join(original, 'package.json'), 'utf8')) as {
+      dependencies?: Record<string, string>
+    }
+    const modulesRoot = name.startsWith('@') ? dirname(dirname(original)) : dirname(original)
+    for (const dependency of Object.keys(manifest.dependencies ?? {})) {
+      const external = join(root, 'node_modules', dependency)
+      await mkdir(dirname(external), { recursive: true })
+      await symlink(await realpath(join(modulesRoot, dependency)), external, 'junction')
+    }
     const script = join(root, 'check.mjs')
     await writeFile(script, `
 import assert from 'node:assert/strict'

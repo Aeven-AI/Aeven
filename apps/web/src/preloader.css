@@ -47,13 +47,14 @@ html[data-avn-traffic-lights] .avn-drag-band {
   display: flex;
   position: fixed;
   inset: 0;
+  top: var(--avn-window-inset-top, 0px);
   opacity: 1;
   /* Above every in-app layer, whose highest is the browser pane's 1300: the app
      boots behind the preloader even when its address already names an open
      modal, so no popup paints until the preloader is gone. */
   z-index: 2000;
   width: 100vw;
-  height: 100%;
+  height: calc(100% - var(--avn-window-inset-top, 0px));
   max-width: 100%;
   align-items: center;
   justify-content: center;

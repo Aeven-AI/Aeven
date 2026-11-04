@@ -85,6 +85,18 @@ async function pair(tuning?: VaultTuning): Promise<{ owner: string; a: Device; b
 }
 
 describe('a vault on two devices', () => {
+  it('derives a shared folder password only after the account key arrives', async () => {
+    const owner = `secret-owner-${String(++accounts)}`
+    const a = device(owner)
+    const b = device(owner)
+    const label = 'file-sync/folder/example'
+    expect(() => a.vault.secret(label)).toThrow('this device does not sync the account')
+    await connect(owner, a)
+    await connect(owner, b)
+    expect(a.vault.secret(label)).toBe(b.vault.secret(label))
+    expect(a.vault.secret(`${label}-other`)).not.toBe(a.vault.secret(label))
+  })
+
   it('takes the account key on connecting and carries edits both ways', async () => {
     const { owner, a, b } = await pair()
     expect(a.vault.status()).toMatchObject({ state: 'online' })

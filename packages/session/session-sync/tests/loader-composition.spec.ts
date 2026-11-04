@@ -6,6 +6,38 @@ import { expect, it, vi } from 'vitest'
 import { MemorySyncNetwork } from '../../../sync/sync/tests/memory.ts'
 import { host } from './harness.ts'
 
+it('continues an imported initialization-only draft that has no shared index entry', async () => {
+  const network = new MemorySyncNetwork()
+  const a = await host(network.device())
+  const id = SessionId('imported-draft')
+  await a.sessionPersistence.create({ version: 0, id, createdAt: Date.now(), owner: 'account', isSeeded: false, replica: true })
+  await a.sessionPersistence.append(id, [{ type: 'sandbox/mode', seq: 0, time: Date.now(), data: { mode: 'off' } }] as never)
+  const original = await a.sessionPersistence.readFrom(id, 0 as never)
+  expect(a.sessionHandoff.catalog('account').some(entry => entry.header.id === id)).toBe(false)
+
+  network.leases.set(`sessions/${id}`, { holder: 'another-device', expiresAt: Number.MAX_SAFE_INTEGER })
+  expect(await a.sessionHandoff.claim('account', id)).toEqual({ claimed: false })
+  await expect(a.sessionPersistence.prepare(id)).rejects.toThrow(/replicated from another device/)
+  network.leases.delete(`sessions/${id}`)
+
+  expect(await a.sessionHandoff.claim('account', id)).toEqual({ claimed: true })
+  expect((await a.sessionPersistence.readFrom(id, 0 as never)).events).toEqual(original.events)
+  using prepared = await a.sessionPersistence.prepare(id)
+  expect(prepared.session.id).toBe(id)
+  expect(prepared.session.header.replica).not.toBe(true)
+  expect(prepared.session.snapshotEvents()).toEqual(expect.arrayContaining([...original.events]))
+})
+
+it('does not promote an unindexed replica owned by another account', async () => {
+  const network = new MemorySyncNetwork()
+  const a = await host(network.device())
+  const id = SessionId('foreign-draft')
+  await a.sessionPersistence.create({ version: 0, id, createdAt: Date.now(), owner: 'another-account', isSeeded: false, replica: true })
+  await a.sessionPersistence.append(id, [{ type: 'sandbox/mode', seq: 0, time: Date.now(), data: { mode: 'off' } }] as never)
+  await expect(a.sessionHandoff.claim('account', id)).rejects.toThrow('session does not belong to this account')
+  await expect(a.sessionPersistence.prepare(id)).rejects.toThrow(/replicated from another device/)
+})
+
 it('continues the same durable conversation on either device without a fork or an extra session', async () => {
   const network = new MemorySyncNetwork()
   const a = await host(network.device())

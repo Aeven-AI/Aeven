@@ -768,8 +768,11 @@ export class SessionCommandController {
     const owner = this.ctx.get('identityUsers')?.actingUser()?.id
     if (handoff === undefined || owner === undefined) return undefined
     const runner = handoff.runnerOf(owner, sessionId)
-    // Without a folder here, running the session on this device gains nothing, so input goes to the device writing it.
-    if (runner !== undefined && !this.hasLocalFolder(sessionId)) return owner
+    // Directoryless chats can move between devices without a local folder binding.
+    const recordedCwd = runner === undefined
+      ? undefined
+      : handoff.catalog(owner).find(entry => entry.header.id === sessionId)?.header.cwd
+    if (runner !== undefined && recordedCwd !== undefined && !this.hasLocalFolder(sessionId)) return owner
     const claimed = await handoff.claim(owner, sessionId)
     if (!claimed.claimed) return owner
     const agent = await this.resolveAgent(sessionId)

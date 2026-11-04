@@ -74,15 +74,14 @@ export function hidePreloader(animation = true): void {
   }
   el.classList.remove('entering')
   el.classList.add('animate')
-  requestAnimationFrame(() => {
+  // Commit the visible state before changing opacity; occluded windows may never deliver an animation frame.
+  void el.getBoundingClientRect()
+  el.classList.add('hide')
+  settle(el, () => {
     if (ticket !== operation) return
-    el.classList.add('hide')
-    settle(el, () => {
-      if (ticket !== operation) return
-      el.classList.remove('animate')
-      el.classList.add('screen-hidden')
-      spinner?.classList.remove('active')
-    })
+    el.classList.remove('animate')
+    el.classList.add('screen-hidden')
+    spinner?.classList.remove('active')
   })
 }
 
@@ -110,13 +109,10 @@ export function showPreloader(animation = true): Promise<void> {
   // layout and still transparent, so removing `hide` transitions from there.
   void el.getBoundingClientRect()
   return new Promise((resolve) => {
-    requestAnimationFrame(() => {
-      if (ticket !== operation) { resolve(); return }
-      el.classList.remove('hide')
-      settle(el, () => {
-        if (ticket === operation) el.classList.remove('animate', 'entering')
-        resolve()
-      }, FADE_IN_MS)
-    })
+    el.classList.remove('hide')
+    settle(el, () => {
+      if (ticket === operation) el.classList.remove('animate', 'entering')
+      resolve()
+    }, FADE_IN_MS)
   })
 }

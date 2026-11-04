@@ -43,6 +43,9 @@
     },
     {
       "path": "../../session/session-handoff"
+    },
+    {
+      "path": "../../subprocess/subprocess"
     }
   ]
 }

@@ -8,10 +8,10 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import clsx from 'clsx'
 import {
-  Button, IconLucideListChevronsDownUp, IconLucideListChevronsUpDown, Modal,
+  Button, DiffBlock, IconLucideListChevronsDownUp, IconLucideListChevronsUpDown, Modal, Spinner,
 } from '@aeven/client-ui-primitives'
 import type { SessionListState } from '@aeven/api-session-controller/client'
-import type { WorkspaceId, WorkspaceView } from '@aeven/api-workspace-controller/client'
+import type { WorkspaceConflictView, WorkspaceId, WorkspaceView } from '@aeven/api-workspace-controller/client'
 import type { SessionId } from '@aeven/session/types'
 import type { WorkspaceBrowserProps } from '../contract/slots.ts'
 import type { GroupNode, SessionNode, SessionOrderBy } from '../tree.ts'
@@ -192,6 +192,10 @@ type SessionTreeProps = Pick<
   onDeleteRequest: (workspaceId: WorkspaceId, currentTitle: string) => void
   /** Ask for a folder of this device for a Workspace that has none here. */
   onBindRequest: (workspaceId: WorkspaceId) => void
+  /** Ask the Host to install Git for a Workspace whose repository waits for it. */
+  onInstallGitRequest: (workspaceId: WorkspaceId) => void
+  /** Open the comparison of a Workspace's files that have two versions. */
+  onCompareRequest: (workspaceId: WorkspaceId, title: string) => void
   /** Open the browser-owned session rename dialog. */
   onSessionRename: (sessionId: SessionNode['id'], currentTitle: string) => void
   /** Archive a session (row menu action; the row disappears on the state echo). */
@@ -209,7 +213,7 @@ function SessionTree({
   useSessions, useSessionPendingInteraction, startSession, newSessionHref, open, forkSession, workspaces,
   archivedSessionIds, hideManaged, archivedSection,
   workspaceReady,
-  onRenameRequest, onDeleteRequest, onBindRequest, onSessionRename, onSessionArchive,
+  onRenameRequest, onDeleteRequest, onBindRequest, onInstallGitRequest, onCompareRequest, onSessionRename, onSessionArchive,
   insertWorkspaceBefore, insertSessionBefore, orderBy,
   groupExpansion, setGroupExpanded,
   sessionOrderByAccount, sessionUpdatedAtByAccount, syncSessionOrderAccount, setSessionOrder, t,
@@ -495,6 +499,14 @@ function SessionTree({
                     /* v8 ignore next -- narrowing guard: the actions object exists only for real-workspace groups. */
                       if (group.workspaceId !== undefined) onBindRequest(group.workspaceId)
                     },
+                    installGit: () => {
+                    /* v8 ignore next -- narrowing guard: the actions object exists only for real-workspace groups. */
+                      if (group.workspaceId !== undefined) onInstallGitRequest(group.workspaceId)
+                    },
+                    compare: () => {
+                    /* v8 ignore next -- narrowing guard: the actions object exists only for real-workspace groups. */
+                      if (group.workspaceId !== undefined) onCompareRequest(group.workspaceId, group.label)
+                    },
                   }}
               />
               {(sessionsExpanded
@@ -776,6 +788,9 @@ export function WorkspaceBrowser({
   renameWorkspace,
   deleteWorkspace,
   bindWorkspace,
+  getWorkspaceFiles,
+  listConflicts,
+  resolveConflict,
   insertWorkspaceBefore,
   archiveSession,
   unarchiveSession,
@@ -958,6 +973,67 @@ export function WorkspaceBrowser({
   // Delete dialog is separate from the row so a successful removal can
   // unmount that row without tearing down the in-flight confirmation state.
   const [deleteTarget, setDeleteTarget] = useState<{ workspaceId: WorkspaceId; title: string } | null>(null)
+  // Repositories whose Git question the reader already answered in this window; asked again only after a reload.
+  const [gitAnswered, setGitAnswered] = useState<ReadonlySet<WorkspaceId>>(() => new Set())
+  // The repository whose Git install the reader started; the dialog follows its status until the install ends.
+  const [gitInstalling, setGitInstalling] = useState<WorkspaceId | undefined>(undefined)
+  const gitNeeded = workspaces.find(item => item.files?.state === 'git-needed' && !gitAnswered.has(item.workspaceId))
+  const installed = gitInstalling === undefined ? undefined : workspaces.find(item => item.workspaceId === gitInstalling)
+  const installFailed = installed?.files?.state === 'failed' && installed.files.reason === 'git-install'
+  // Until the Host reports `installing`, the repository still reads `git-needed`; both mean the install runs.
+  const installRunning = installed !== undefined
+    && (installed.files?.state === 'installing' || installed.files?.state === 'git-needed')
+  const gitDialog: 'ask' | 'installing' | 'failed' | undefined = installRunning
+    ? 'installing'
+    : installFailed ? 'failed' : gitInstalling === undefined && gitNeeded !== undefined ? 'ask' : undefined
+  useEffect(() => {
+    // A finished install closes the dialog: the repository moved on to syncing, or left the list.
+    if (gitInstalling !== undefined && !installRunning && !installFailed) setGitInstalling(undefined)
+  }, [gitInstalling, installRunning, installFailed])
+  const startGitInstall = (workspaceId: WorkspaceId): void => {
+    // One install serves every repository waiting for Git, so none of them asks again.
+    const waiting = workspaces.filter(item => item.files?.state === 'git-needed').map(item => item.workspaceId)
+    setGitAnswered(previous => new Set([...previous, ...waiting, workspaceId]))
+    setGitInstalling(workspaceId)
+    getWorkspaceFiles(workspaceId)
+  }
+  // The Workspace whose two-version files the reader compares, and what the Host listed for it.
+  const [compareTarget, setCompareTarget] = useState<{ workspaceId: WorkspaceId; title: string } | null>(null)
+  const [conflicts, setConflicts] = useState<readonly WorkspaceConflictView[] | null>(null)
+  const loadConflicts = (workspaceId: WorkspaceId): void => {
+    listConflicts(workspaceId).then(setConflicts, () => { setConflicts([]) })
+  }
+  const openCompare = (workspaceId: WorkspaceId, title: string): void => {
+    setCompareTarget({ workspaceId, title })
+    setConflicts(null)
+    loadConflicts(workspaceId)
+  }
+  const diffLabels = {
+    copy: t('compare.copy'),
+    copied: t('compare.copied'),
+    collapseAria: t('compare.collapse'),
+    expandAria: (hidden: number) => t('compare.expand', { n: hidden }),
+    collapse: t('compare.collapse'),
+    expand: (hidden: number) => t('compare.expand', { n: hidden }),
+    files: (count: number) => t('compare.files', { n: count }),
+  }
+  const closeCompare = (): void => {
+    setCompareTarget(null)
+    setConflicts(null)
+  }
+  const keepVersion = (path: string, keep: 'this' | 'other'): void => {
+    if (compareTarget === null) return
+    const { workspaceId } = compareTarget
+    resolveConflict(workspaceId, path, keep).then(() => { loadConflicts(workspaceId) }, () => { loadConflicts(workspaceId) })
+  }
+  useEffect(() => {
+    // The last resolved file closes the comparison.
+    if (compareTarget !== null && conflicts !== null && conflicts.length === 0) closeCompare()
+  }, [compareTarget, conflicts])
+  const declineGit = (): void => {
+    const waiting = workspaces.filter(item => item.files?.state === 'git-needed').map(item => item.workspaceId)
+    setGitAnswered(previous => new Set([...previous, ...waiting]))
+  }
   const [deleting, setDeleting] = useState(false)
   const [deleteCommittedId, setDeleteCommittedId] = useState<WorkspaceId | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -1048,6 +1124,8 @@ export function WorkspaceBrowser({
                 setDeleteError(null)
               }}
               onBindRequest={bindWorkspace}
+              onInstallGitRequest={startGitInstall}
+              onCompareRequest={openCompare}
             />
           ))}
       </div>
@@ -1142,6 +1220,78 @@ export function WorkspaceBrowser({
       >
         {deleting && <div className={css.deleteStatus} role="status">{t('delete.pending')}</div>}
         {deleteError !== null && <div className={css.renameError} role="alert">{deleteError}</div>}
+      </Modal>
+
+      <Modal
+        open={compareTarget !== null}
+        onClose={closeCompare}
+        closeLabel={t('close')}
+        title={t('compare.title', { name: compareTarget?.title ?? '' })}
+        width="720px"
+      >
+        {conflicts === null && <Spinner />}
+        {conflicts?.map(conflict => (
+          <div key={conflict.path} className={css.conflict}>
+            {conflict.thisText !== null && conflict.otherText !== null
+              ? (
+                <DiffBlock
+                  diffs={[{ path: conflict.path, oldText: conflict.thisText, newText: conflict.otherText }]}
+                  labels={diffLabels}
+                />
+              )
+              : <div className={css.conflictPath}>{conflict.path}<span>{t('compare.binary')}</span></div>}
+            <div className={css.conflictActions}>
+              <Button variant="outline" onClick={() => { keepVersion(conflict.path, 'this') }}>{t('compare.keepThis')}</Button>
+              <Button variant="outline" onClick={() => { keepVersion(conflict.path, 'other') }}>{t('compare.keepOther')}</Button>
+            </div>
+          </div>
+        ))}
+      </Modal>
+
+      <Modal
+        open={gitDialog !== undefined}
+        onClose={() => {
+          if (gitDialog === 'ask') declineGit()
+          else setGitInstalling(undefined)
+        }}
+        closeLabel={t('close')}
+        title={gitDialog === 'installing'
+          ? t('git.installingTitle')
+          : gitDialog === 'failed' ? t('git.failedTitle') : t('git.title')}
+        {...gitDialog === 'ask' && gitNeeded !== undefined
+          ? { description: t('git.body', { name: gitNeeded.title }) }
+          : gitDialog === 'failed' ? { description: t('git.failedBody') } : {}}
+        {...gitDialog === 'installing' ? {} : {
+          footer: (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (gitDialog === 'ask') declineGit()
+                  else setGitInstalling(undefined)
+                }}
+              >
+                {gitDialog === 'failed' ? t('close') : t('git.later')}
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  const target = gitDialog === 'failed' ? gitInstalling : gitNeeded?.workspaceId
+                  if (target !== undefined) startGitInstall(target)
+                }}
+              >
+                {gitDialog === 'failed' ? t('git.retry') : t('git.install')}
+              </Button>
+            </>
+          ),
+        }}
+      >
+        {gitDialog === 'installing' && (
+          <div className={css.gitInstalling} role="status">
+            <Spinner />
+            <span>{t('git.installingBody')}</span>
+          </div>
+        )}
       </Modal>
     </div>
   )

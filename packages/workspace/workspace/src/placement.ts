@@ -4,12 +4,15 @@
  * @module @aeven/workspace/placement
  */
 import { existsSync } from 'node:fs'
-import { mkdir, readdir, statfs } from 'node:fs/promises'
+import { mkdir, readFile, readdir, statfs, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, isAbsolute, join, relative, sep } from 'node:path'
 
 /** Numbered alternatives to a taken directory name tried under the placement root. */
 const NUMBERED_NAMES = 100
+
+/** The file in a workspace's directory that names the workspace, so another device recognizes its own copy. */
+export const WORKSPACE_MARKER = '.aeven-workspace'
 
 /**
  * A directory's path relative to this device's home directory, `/`-separated, which another device turns into its own
@@ -44,14 +47,7 @@ export function hintedDirectory(hint: string): string | undefined {
  * @returns the created or empty directory.
  */
 export async function placeWorkspace(title: string, hint: string | undefined, root: string): Promise<string> {
-  const candidates: string[] = []
-  const hinted = hint === undefined ? undefined : hintedDirectory(hint)
-  if (hinted !== undefined) candidates.push(hinted)
-  const name = directoryName(title)
-  for (let index = 1; index <= NUMBERED_NAMES; index += 1) {
-    candidates.push(join(root, index === 1 ? name : `${name} (${String(index)})`))
-  }
-  for (const candidate of candidates) {
+  for (const candidate of placementCandidates(title, hint, root)) {
     if (await isFree(candidate)) {
       await mkdir(candidate, { recursive: true })
       return candidate
@@ -61,20 +57,83 @@ export async function placeWorkspace(title: string, hint: string | undefined, ro
 }
 
 /**
- * Whether receiving this many bytes under the placement root stays within a size limit and leaves a share of the
- * disk free.
+ * Whether receiving this many bytes under the placement root leaves a share of the disk free.
  * @param root - the placement root, which need not exist yet.
  * @param bytes - the size to receive.
- * @param maxBytes - the largest size received without being asked.
  * @param minFreeDiskRatio - the share of the disk, from 0 to 1, that must stay free.
  * @returns whether the files fit.
  */
-export async function fitsDisk(root: string, bytes: number, maxBytes: number, minFreeDiskRatio: number): Promise<boolean> {
-  if (bytes > maxBytes) return false
+export async function fitsDisk(root: string, bytes: number, minFreeDiskRatio: number): Promise<boolean> {
   let probe = root
   while (!existsSync(probe) && dirname(probe) !== probe) probe = dirname(probe)
   const disk = await statfs(probe)
   return disk.bavail * disk.bsize - bytes >= disk.blocks * disk.bsize * minFreeDiskRatio
+}
+
+/**
+ * Find a directory on this device that already holds a workspace's files: a placement candidate whose marker names
+ * the workspace.
+ * @param workspace - the workspace id.
+ * @param title - the workspace title.
+ * @param hint - the publishing device's location hint, when it recorded one.
+ * @param root - the placement root.
+ * @returns the marked directory, or undefined when none holds the workspace.
+ */
+export async function markedDirectory(
+  workspace: string,
+  title: string,
+  hint: string | undefined,
+  root: string,
+): Promise<string | undefined> {
+  for (const candidate of placementCandidates(title, hint, root)) {
+    if (!existsSync(candidate)) continue
+    if (await readMarker(candidate) === workspace) return candidate
+  }
+  return undefined
+}
+
+/**
+ * Record in a workspace's directory which workspace it holds; an existing marker is left as it is.
+ * @param directory - the workspace's directory.
+ * @param workspace - the workspace id.
+ */
+export async function writeMarker(directory: string, workspace: string): Promise<void> {
+  await writeFile(join(directory, WORKSPACE_MARKER), `${JSON.stringify({ workspace })}\n`, { flag: 'wx' }).catch((error: unknown) => {
+    // `wx` refuses an existing marker, which stays: it may name a workspace this directory held first.
+    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+  })
+}
+
+/** The workspace id a directory's marker names, or undefined without a readable marker. */
+async function readMarker(directory: string): Promise<string | undefined> {
+  let text: string
+  try {
+    text = await readFile(join(directory, WORKSPACE_MARKER), 'utf8')
+  } catch {
+    // No marker, or one this device cannot read: the directory is not recognized.
+    return undefined
+  }
+  try {
+    const parsed: unknown = JSON.parse(text)
+    return typeof parsed === 'object' && parsed !== null && 'workspace' in parsed && typeof parsed.workspace === 'string'
+      ? parsed.workspace
+      : undefined
+  } catch {
+    // Another device or the user wrote something else into the file; it names no workspace.
+    return undefined
+  }
+}
+
+/** The directories a received workspace may take, in order: the hinted directory, then the title under the root. */
+function placementCandidates(title: string, hint: string | undefined, root: string): string[] {
+  const candidates: string[] = []
+  const hinted = hint === undefined ? undefined : hintedDirectory(hint)
+  if (hinted !== undefined) candidates.push(hinted)
+  const name = directoryName(title)
+  for (let index = 1; index <= NUMBERED_NAMES; index += 1) {
+    candidates.push(join(root, index === 1 ? name : `${name} (${String(index)})`))
+  }
+  return candidates
 }
 
 /** A workspace title as one directory name on every platform: separators, reserved characters, and trailing dots replaced. */

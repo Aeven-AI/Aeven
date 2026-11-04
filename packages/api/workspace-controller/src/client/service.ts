@@ -4,7 +4,7 @@ import { Service, type Context } from '@deepseek-ai/cordis'
 import type { SessionId } from '@aeven/session/types'
 import type { RemoteFailure } from '@aeven/typert-protocol'
 import type { WorkspaceId } from '@aeven/workspace/types'
-import type { WorkspaceView } from '../types.ts'
+import type { WorkspaceConflictView, WorkspaceView } from '../types.ts'
 import type { ClientWorkspaceModel, WorkspaceSnapshot } from './model.ts'
 
 /** Structured create failure for callers that distinguish Host business errors. */
@@ -53,6 +53,24 @@ export interface IWorkspaces {
    * @returns the bound Workspace.
    */
   bind(workspaceId: WorkspaceId, path: string): Promise<WorkspaceView>
+  /**
+   * Ask the Host for a Workspace's files now, such as after the user accepts to install Git.
+   * @param workspaceId - target Workspace.
+   */
+  getFiles(workspaceId: WorkspaceId): Promise<void>
+  /**
+   * List a Workspace's files that two devices changed differently.
+   * @param workspaceId - target Workspace.
+   * @returns the conflicts with both versions' text where available.
+   */
+  conflicts(workspaceId: WorkspaceId): Promise<readonly WorkspaceConflictView[]>
+  /**
+   * Keep one version of a conflicting file.
+   * @param workspaceId - target Workspace.
+   * @param path - the conflicting file.
+   * @param keep - which version stays.
+   */
+  resolveConflict(workspaceId: WorkspaceId, path: string, keep: 'this' | 'other'): Promise<void>
   /**
    * Delete a Workspace registration without deleting Sessions or files.
    * @param workspaceId - target Workspace.
@@ -117,6 +135,22 @@ export class WorkspaceController extends Service implements IWorkspaces {
     const result = await this.model.bind(workspaceId, path)
     if (!result.ok) throw commandError('bind', result.error)
     return result.value.workspace
+  }
+
+  async getFiles(workspaceId: WorkspaceId): Promise<void> {
+    const result = await this.model.getFiles(workspaceId)
+    if (!result.ok) throw commandError('getFiles', result.error)
+  }
+
+  async conflicts(workspaceId: WorkspaceId): Promise<readonly WorkspaceConflictView[]> {
+    const result = await this.model.conflicts(workspaceId)
+    if (!result.ok) throw commandError('conflicts', result.error)
+    return result.value.conflicts
+  }
+
+  async resolveConflict(workspaceId: WorkspaceId, path: string, keep: 'this' | 'other'): Promise<void> {
+    const result = await this.model.resolveConflict(workspaceId, path, keep)
+    if (!result.ok) throw commandError('resolveConflict', result.error)
   }
 
   async delete(workspaceId: WorkspaceId): Promise<void> {

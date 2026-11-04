@@ -71,3 +71,42 @@ export function SettingsRow({ title, description, control, children }: SettingsR
     </div>
   )
 }
+
+/** Props of {@link SettingsMeter}. */
+export interface SettingsMeterProps {
+  /** What the bar measures, such as "Up to date" or "Syncing"; leads the line above the bar. */
+  label: ReactNode
+  /** Trailing figure on the line, such as "42%"; absent renders none. */
+  value?: ReactNode
+  /** Filled share from 0 to 100, or `null` for work whose size is not known yet, which animates the bar. */
+  percent: number | null
+  /** `muted` greys the fill for work that does not move, such as a pause; `error` marks a failure. */
+  tone?: 'success' | 'muted' | 'error' | undefined
+  /** The bar's accessible name. */
+  ariaLabel: string
+}
+
+/**
+ * Render a status line over a full-width progress bar, the way Settings shows how far something has come.
+ * @param props - see {@link SettingsMeterProps}.
+ * @returns the meter element.
+ */
+export function SettingsMeter({ label, value, percent, tone = 'success', ariaLabel }: SettingsMeterProps) {
+  const known = percent !== null
+  const filled = known ? Math.min(100, Math.max(0, percent)) : 0
+  return (
+    <div className={css.meter}>
+      <div className={css.meterLine}>
+        <span className={css.meterLabel}>{label}</span>
+        {value !== undefined && <span className={css.meterValue}>{value}</span>}
+      </div>
+      <span
+        className={css.meterTrack} data-tone={tone} data-indeterminate={known ? undefined : 'true'}
+        role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={known ? Math.round(filled) : undefined}
+        aria-label={ariaLabel}
+      >
+        <span style={known ? { width: `${String(filled === 0 ? 0 : Math.max(filled, 2))}%` } : undefined} />
+      </span>
+    </div>
+  )
+}

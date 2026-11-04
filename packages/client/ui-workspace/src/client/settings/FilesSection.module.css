@@ -1,0 +1,41 @@
+/* The Files group inside Settings → Sync: settings rows, one-line directories, and the ignore editor. */
+
+.failed {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ignores {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: var(--dsw-aeven-radius-control);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-family: var(--ds-font-mono, ui-monospace, monospace);
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  resize: vertical;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* A long directory stays on one line and ends in an ellipsis; its full path is the tooltip. */
+.path {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

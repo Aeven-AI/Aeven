@@ -22,6 +22,9 @@ import type {
 import { RemoteError, type RemoteFailure, type RemoteResult } from '@aeven/typert-protocol'
 import type { SessionId } from '@aeven/session/types'
 
+/** The files-settings value the fake Remote answers. */
+type FilesValue = { readonly paused: boolean; readonly ignores: readonly string[]; readonly workspaces: readonly never[] }
+
 const sid = (id: string): SessionId => id as SessionId
 const wid = (id: string): WorkspaceId => id as WorkspaceId
 
@@ -102,6 +105,33 @@ class FakeWorkspaceRemote implements WorkspaceRemote {
   bind(request: WorkspaceBindRequest): Promise<RemoteResult<WorkspaceValue>> {
     this.record('bind', request)
     return this.onRename({ workspaceId: request.workspaceId, title: request.path })
+  }
+
+  getFiles(request: { readonly workspaceId: WorkspaceId }): Promise<RemoteResult<{ readonly requested: true }>> {
+    this.record('getFiles', request)
+    return Promise.resolve({ ok: true, value: { requested: true } })
+  }
+
+  conflicts(request: { readonly workspaceId: WorkspaceId }): Promise<RemoteResult<{ readonly conflicts: readonly never[] }>> {
+    this.record('conflicts', request)
+    return Promise.resolve({ ok: true, value: { conflicts: [] } })
+  }
+
+  resolveConflict(request: { readonly workspaceId: WorkspaceId; readonly path: string; readonly keep: 'this' | 'other' }): Promise<RemoteResult<{ readonly resolved: boolean }>> {
+    this.record('resolveConflict', request)
+    return Promise.resolve({ ok: true, value: { resolved: false } })
+  }
+
+  filesSettings(): Promise<RemoteResult<FilesValue>> {
+    return Promise.resolve({ ok: true, value: { paused: false, ignores: [], workspaces: [] } })
+  }
+
+  setFilesPaused(_request: { readonly paused: boolean }): Promise<RemoteResult<FilesValue>> {
+    return Promise.resolve({ ok: true, value: { paused: false, ignores: [], workspaces: [] } })
+  }
+
+  setFilesIgnores(_request: { readonly ignores: readonly string[] }): Promise<RemoteResult<FilesValue>> {
+    return Promise.resolve({ ok: true, value: { paused: false, ignores: [], workspaces: [] } })
   }
 
   delete(request: WorkspaceDeleteRequest): Promise<RemoteResult<WorkspaceDeleteValue>> {

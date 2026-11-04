@@ -65,6 +65,17 @@ export function opaqueIdOf(accountKey: Uint8Array, name: string): OpaqueId {
 }
 
 /**
+ * Derive a secret for one purpose from the account key, the same on every device that holds the key, such as a file
+ * sync folder's encryption password.
+ * @param vaultKey - the account key.
+ * @param label - the purpose, such as `file-sync/folder/<id>`.
+ * @returns 32 bytes, base64url-encoded.
+ */
+export function derivedSecretOf(vaultKey: Uint8Array, label: string): string {
+  return toBase64Url(hkdf(vaultKey, new Uint8Array(0), `aeven-sync/derived/${label}`))
+}
+
+/**
  * Derive the AES-256 key for one id.
  * @param vaultKey - the account key.
  * @param id - document or stream id.

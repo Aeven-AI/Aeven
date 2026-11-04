@@ -32,7 +32,7 @@ async function bench() {
   const runtime = await SlotTestRuntime.create()
   runtime.releaseWorkspaceSource()
   const directoryPicker = {}
-  const remote = new TestRemote(runtime.ctx)
+  const remote = new TestRemote(runtime.ctx, { workspace: {}, session: {} })
   Object.assign(remote, { directoryPicker })
   runtime.ctx.provide('remote.directoryPicker', directoryPicker as never)
   const locale = new LocaleRuntime(runtime.ctx)

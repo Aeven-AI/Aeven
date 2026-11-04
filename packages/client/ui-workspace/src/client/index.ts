@@ -26,6 +26,9 @@ import type {} from '@aeven/client-locale/client'
 import type {} from '@aeven/client-ui-renderer/client'
 // Type-only: pulls the Session root standard-hook merge.
 import type {} from '@aeven/client-ui-session/client'
+// Type-only: pulls the `settings.sync.files` slot declaration.
+import type {} from '@aeven/client-ui-settings-sync/client'
+import type { RemoteResult } from '@aeven/typert-protocol'
 import type {
   WorkspaceBrowserInjected, WorkspaceHeaderActionsInjected, WorkspaceHeaderSearchInjected,
   WorkspacePickerInjected,
@@ -37,6 +40,7 @@ import { WorkspaceHeaderActions } from './HeaderActions.tsx'
 import { WorkspaceHeaderSearch } from './rows/HeaderSearch.tsx'
 import { WorkspaceBrowser } from './rows/WorkspaceBrowser.tsx'
 import { WorkspacePicker } from './WorkspacePicker.tsx'
+import { FilesSection, type FilesSectionInjected } from './settings/FilesSection.tsx'
 import { en, es, zh, type WorkspaceKey } from './locales.ts'
 
 export type { SessionMoveTarget, UiWorkspace } from './navigation.ts'
@@ -72,7 +76,7 @@ const NS = 'workspace'
  * declaration through `slots.inject()` instead of assuming order.
  */
 export const inject = [
-  'slots', 'sessions', 'workspaces', 'locale', 'remote', 'remote.directoryPicker',
+  'slots', 'sessions', 'workspaces', 'locale', 'remote', 'remote.directoryPicker', 'remote.workspace', 'remote.session',
 ]
 
 /**
@@ -161,6 +165,13 @@ export function apply(ctx: Context): void {
         ctx.logger.warn(`workspace: choosing a folder for ${workspaceId} failed: ${String(error)}`)
       })
     },
+    getWorkspaceFiles: (workspaceId) => {
+      workspaces.getFiles(workspaceId).catch((error: unknown) => {
+        ctx.logger.warn(`workspace: asking for the files of ${workspaceId} failed: ${String(error)}`)
+      })
+    },
+    listConflicts: workspaceId => workspaces.conflicts(workspaceId),
+    resolveConflict: async (workspaceId, path, keep) => { await workspaces.resolveConflict(workspaceId, path, keep) },
     insertWorkspaceBefore: async (workspaceId, beforeWorkspaceId) => {
       await workspaces.insertBefore(workspaceId, beforeWorkspaceId)
     },
@@ -218,4 +229,26 @@ export function apply(ctx: Context): void {
     },
     WorkspacePicker,
   ))
+  // The Files group inside Settings → Sync: file sync on this computer for the signed-in account.
+  const value = async <T>(result: Promise<RemoteResult<T>>): Promise<T> => {
+    const settled = await result
+    if (!settled.ok) throw new Error(`workspace files: ${settled.error.code}: ${settled.error.message}`)
+    return settled.value
+  }
+  const filesInjected: FilesSectionInjected = {
+    load: () => value(ctx.remote.workspace.filesSettings()),
+    setPaused: paused => value(ctx.remote.workspace.setFilesPaused({ paused })),
+    setIgnores: ignores => value(ctx.remote.workspace.setFilesIgnores({ ignores })),
+    reveal: (path) => {
+      void ctx.remote.session.openWorkspacePath({ path, action: 'reveal' }).then((result) => {
+        if (!result.ok) ctx.logger.warn(`workspace: showing ${path} failed: ${result.error.message}`)
+      })
+    },
+    onChange: listener => workspaces.list.subscribe(listener),
+  }
+  ctx.slots.inject('settings.sync.files', () => ctx.slots.register({
+    name: 'settings.sync.files',
+    locale: NS,
+    inject: () => filesInjected,
+  }, FilesSection))
 }

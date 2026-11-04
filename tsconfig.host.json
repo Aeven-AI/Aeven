@@ -134,6 +134,7 @@
     { "path": "./packages/util/http-proxy" },
     { "path": "./packages/util/launch-environment" },
     { "path": "./packages/util/native-command" },
+    { "path": "./packages/util/git-executable" },
     { "path": "./packages/util/home-paths" },
     { "path": "./packages/util/time" },
     { "path": "./packages/util/timeout" },

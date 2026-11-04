@@ -36,6 +36,9 @@
     },
     {
       "path": "../../identity/user"
+    },
+    {
+      "path": "../../settings/settings"
     }
   ]
 }

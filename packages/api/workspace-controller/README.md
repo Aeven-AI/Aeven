@@ -10,7 +10,9 @@ English | [中文](README.zh.md)
 
 `@aeven/api-workspace-controller` owns the Host `ctx.workspaceController` service and the generated Client `ctx.remote.workspace` namespace. Its Remote methods create, rename, remove, and reorder Workspaces, reorder Sessions within a Workspace, archive Sessions from Workspace navigation, and follow the complete Workspace projection. Use it through API Gateway when a Client must change or follow Workspace navigation. The package also owns `ctx.directoryPickerController` and the generated `ctx.remote.directoryPicker` namespace, because the directory-picking seam it carries is abstract and never a Loader entry of its own.
 
-Each projected Workspace carries `files`, its file status on this Host as the file sync Consumers report it to the registry, or `null` while its files are here and up to date; a status change publishes the Workspace again on the follow stream.
+Each projected Workspace carries `files`, its file status on this Host as the file sync Consumers report it to the registry, with a progress share and a failure reason, or `null` while its files are here and up to date; a status change publishes the Workspace again on the follow stream. `getFiles` passes the user's request for a Workspace's files, such as accepting to install Git, to the registry.
+
+`conflicts` and `resolveConflict` list a Workspace's files with two versions, with both texts when they are small text files, and keep one version.
 
 ## Table of Contents
 

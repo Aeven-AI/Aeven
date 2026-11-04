@@ -28,12 +28,17 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@aeven/brand": "workspace:^",
+    "@aeven/git-executable": "workspace:^",
     "@aeven/home-paths": "workspace:^",
     "@deepseek-ai/schemastery": "workspace:^",
     "yjs": "13.6.27"
   },
   "peerDependencies": {
+    "@aeven/agent": "workspace:^",
     "@aeven/file-sync": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/session-handoff": "workspace:^",
+    "@aeven/shell": "workspace:^",
     "@aeven/subprocess": "workspace:^",
     "@aeven/sync": "workspace:^",
     "@aeven/sync-vault": "workspace:^",
@@ -41,7 +46,11 @@
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
+    "@aeven/agent": "workspace:^",
     "@aeven/file-sync": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/session-handoff": "workspace:^",
+    "@aeven/shell": "workspace:^",
     "@aeven/subprocess": "workspace:^",
     "@aeven/sync": "workspace:^",
     "@aeven/sync-vault": "workspace:^",

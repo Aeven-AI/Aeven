@@ -46,30 +46,99 @@ declare module '@deepseek-ai/cordis' {
      * @param workspace - the workspace whose status changed.
      */
     'workspace/files'(workspace: WorkspaceId): void
+    /**
+     * The registry learned the owner of a session a workspace already lists, which changes who may see that session
+     * in the workspace; read the workspace from the registry again.
+     * @mode emit
+     * @param workspace - the workspace that lists the session.
+     */
+    'workspace/session-owner'(workspace: WorkspaceId): void
+    /**
+     * The user asked for a workspace's files now, for example by accepting to install Git: the Consumer that syncs
+     * them installs what they need and tries again at once.
+     * @mode emit
+     * @param workspace - the workspace whose files were requested.
+     */
+    'workspace/files-requested'(workspace: WorkspaceId): void
+    /**
+     * The user paused or resumed file sync for an account on this device; read it with
+     * `WorkspaceRegistry.filesPaused`.
+     * @mode emit
+     * @param owner - the account.
+     */
+    'workspace/files-paused'(owner: string): void
   }
 }
 
 /**
  * Where a workspace's files stand on this device while they are not simply here and up to date.
  *
- * - `absent` — another device holds the files and this device has not downloaded them.
- * - `fetching` — the first download, clone, or copy from another device is running.
- * - `installing` — this device is installing Git before it can clone the repository.
- * - `catching-up` — the files are here and changes from other devices are arriving.
- * - `waiting` — no device that holds the files is online.
- * - `git-missing` — the repository needs Git, which this device cannot install without the user;
- *   {@link WorkspaceFileStatus.detail} is the install command when the platform has one.
- * - `failed` — the files cannot arrive; {@link WorkspaceFileStatus.detail} is the error the transport or Git reported.
+ * - `syncing` — files are arriving: the first download, a clone, a copy from another device, or later changes.
+ * - `installing` — this device is installing Git before it can get the repository.
+ * - `preparing` — the repository arrived and its dependencies are being installed.
+ * - `paused` — a large first download waits until this computer is plugged in.
+ * - `stopped` — the user paused file sync on this computer.
+ * - `conflict` — two devices changed the same files; {@link WorkspaceFileStatus.count} files have two versions.
+ * - `waiting` — no device or server that holds the files is reachable yet.
+ * - `git-needed` — the repository needs Git, which this device installs only once the user accepts.
+ * - `failed` — the files cannot arrive; {@link WorkspaceFileStatus.reason} says why.
  */
-export type WorkspaceFileState = 'absent' | 'fetching' | 'installing' | 'catching-up' | 'waiting' | 'git-missing' | 'failed'
+export type WorkspaceFileState =
+  | 'syncing' | 'installing' | 'preparing' | 'paused' | 'stopped' | 'waiting' | 'git-needed' | 'conflict' | 'failed'
+
+/**
+ * Why a workspace's files cannot arrive.
+ *
+ * - `access` — the remote refused this device's credentials.
+ * - `network` — the remote could not be reached.
+ * - `disk` — the files would not leave the required share of the disk free.
+ * - `folder` — the workspace's directory is missing or unreadable.
+ * - `git-install` — installing Git failed or was declined at the system prompt.
+ * - `unstorable` — {@link WorkspaceFileStatus.count} files have names or sizes this computer's filesystem rejects.
+ * - `unknown` — any other failure; the Host log has the detail.
+ */
+export type WorkspaceFileFailure = 'access' | 'network' | 'disk' | 'folder' | 'git-install' | 'unstorable' | 'unknown'
 
 /** One workspace's file status on this device, which the file sync Consumers report. */
 export interface WorkspaceFileStatus {
   readonly state: WorkspaceFileState
-  /** Share of the files already here, from 0 to 1, when the transfer knows it. */
+  /** Share of the folder's bytes already here, from 0 to 1, while `syncing` with a known size. */
   readonly progress?: number
-  /** A command or error text shown verbatim, never translated copy; see {@link WorkspaceFileState}. */
-  readonly detail?: string
+  /** Why the files cannot arrive; present only in `failed`. */
+  readonly reason?: WorkspaceFileFailure
+  /** How many files have two versions in `conflict`, or cannot be stored in `failed` with `unstorable`. */
+  readonly count?: number
+}
+
+/** One file that two devices changed differently: this device's version and the one another device kept. */
+export interface WorkspaceConflict {
+  /** `/`-separated path relative to the workspace directory. */
+  readonly path: string
+  /** This device's text, or `null` when the file is not text or too large to compare. */
+  readonly thisText: string | null
+  /** The other device's text, or `null` when it is not text or too large to compare. */
+  readonly otherText: string | null
+}
+
+/** Which version of a conflicting file stays. */
+export type WorkspaceConflictChoice = 'this' | 'other'
+
+/** A file sync Consumer's view of the conflicts in the workspaces it syncs. */
+export interface WorkspaceConflictSource {
+  /**
+   * List a workspace's conflicts.
+   * @param workspace - the workspace.
+   * @returns its conflicts, or undefined for a workspace this source does not sync.
+   */
+  list(workspace: WorkspaceId): Promise<readonly WorkspaceConflict[] | undefined>
+  /**
+   * Keep one version of a conflicting file and remove the other.
+   * @param workspace - the workspace.
+   * @param path - the conflicting file.
+   * @param keep - which version stays.
+   * @returns whether this source syncs the workspace and resolved the file.
+   */
+  resolve(workspace: WorkspaceId, path: string, keep: WorkspaceConflictChoice): Promise<boolean>
 }
 
 declare module '@aeven/typert-protocol' {

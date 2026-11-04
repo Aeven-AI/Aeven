@@ -86,7 +86,8 @@ export function VoiceInput({ sessionId, inputActions, locked, onActiveChange, cr
       if (audio === undefined) return
       const abort = new AbortController()
       request.current = abort
-      const result = await transcribe({ audioBase64: audioBase64(audio), ...catalog.selection }, abort.signal)
+      const { providerId, language } = catalog.selection
+      const result = await transcribe({ audioBase64: audioBase64(audio), providerId, language }, abort.signal)
       if (run !== generation.current) return
       if (!result.ok) { setError(t('failed', { message: result.error.message })); return }
       if (result.value.text !== '') inputActions.appendText(result.value.text)
@@ -108,6 +109,11 @@ export function VoiceInput({ sessionId, inputActions, locked, onActiveChange, cr
       : preparation === 'failed' || preparation === 'cancelled' ? t('modelFailed') : t('modelPreparing')
 
   const start = async (): Promise<void> => {
+    // Voice input turned off in Settings: the request opens the switch that turns it on.
+    if (catalog?.selection.enabled === false) {
+      openSettings()
+      return
+    }
     if (!usable) {
       // The mic is where dictation is asked for, so it starts a missing or failed model itself;
       // Settings keeps its explicit Download for starting one without recording.
@@ -152,6 +158,7 @@ export function VoiceInput({ sessionId, inputActions, locked, onActiveChange, cr
 
   useEffect(() => { if (usable) setError('') }, [usable])
 
+  if (!expanded && catalog?.selection.enabled === false) return null
   if (!expanded) {
     return <Tooltip label={error === '' ? (usable ? t('dictate') : blocked) : error} side="top">
       <button type="button" className={css.mic} data-loading={phase === 'starting' ? '' : undefined} aria-label={t('dictate')}

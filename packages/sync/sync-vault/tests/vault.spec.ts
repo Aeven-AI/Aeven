@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import {
-  fromBase64Url, generateDeviceId, generateVaultKey, opaqueIdOf, openEnvelope, proveKey, readEnvelopeHeader,
+  derivedSecretOf, fromBase64Url, generateDeviceId, generateVaultKey, opaqueIdOf, openEnvelope, proveKey, readEnvelopeHeader,
   sealEnvelope, SyncVaultError, toBase64Url, verifyKeyProof,
 } from '../src/index.ts'
 
@@ -61,6 +61,16 @@ describe('envelopes', () => {
 })
 
 describe('keys', () => {
+  it('derives stable folder passwords and separates purposes and accounts', () => {
+    const label = 'file-sync/folder/example'
+    const secret = derivedSecretOf(key, label)
+    expect(fromBase64Url(secret)).toHaveLength(32)
+    expect(derivedSecretOf(new Uint8Array(key), label)).toBe(secret)
+    expect(derivedSecretOf(key, `${label}-other`)).not.toBe(secret)
+    expect(derivedSecretOf(generateVaultKey(), label)).not.toBe(secret)
+    expect(opaqueIdOf(key, label)).not.toBe(secret)
+  })
+
   it('derive stable opaque ids that hide names, and fresh device ids', () => {
     expect(opaqueIdOf(key, 'notes')).toBe(id)
     expect(id).not.toContain('notes')

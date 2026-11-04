@@ -84,14 +84,18 @@
 
     # Workspace file sync: folder workspaces follow the account to its other
     # devices, peer to peer through the Syncthing executable the installed app
-    # ships. Without one (a source launch that sets no AVN_SYNCTHING) the rows
-    # stay unmounted and workspaces sync without their files, as before.
+    # ships, or `pnpm dev:desktop` installs. Without AVN_SYNCTHING the rows stay
+    # unmounted and workspaces sync without their files.
     - id: file-sync-syncthing
       name: '@aeven/file-sync-syncthing'
       disabled: !!js "process.env.AVN_SYNCTHING === undefined"
       config:
         binary: !!js "process.env.AVN_SYNCTHING ?? 'syncthing'"
         home: !!js avnHomePath('file-sync', 'syncthing')
+        cloudUrl: !!js "`${process.env.AEVEN_API_URL ?? 'https://aeven.io/api'}/api/cloud/files`"
+        # Aeven's own discovery and relay servers once they run; until then the public Syncthing pool.
+        discoveryServers: !!js "process.env.AEVEN_SYNC_DISCOVERY?.split(',') ?? ['default']"
+        listenAddresses: !!js "['default', ...(process.env.AEVEN_SYNC_RELAY?.split(',') ?? [])]"
 
     - id: workspace-file-sync
       name: '@aeven/workspace-file-sync'

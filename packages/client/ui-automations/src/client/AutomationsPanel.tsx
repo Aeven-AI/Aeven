@@ -1,7 +1,7 @@
 /** Composer-first automation management at the registered /automations address. */
 import { useEffect, useState } from 'react'
 import {
-  Button, IconBotOutline16, IconChevronDownOutline14, IconCopyOutline16, IconEditOutline16, IconLucideCheck,
+  Button, IconBotFaceAnimated, IconBotFaceLooping, IconChevronDownOutline14, IconCopyOutline16, IconEditOutline16, IconLucideCheck,
   IconLucideClock, IconLucideMinus,
   IconLucidePause, IconLucidePlay,
   IconLucideRotateCcw, IconLucideX, IconTrashOutline16, Modal, Spinner, Tooltip, writeClipboard,
@@ -134,7 +134,7 @@ export function AutomationRow({ rowClassName, iconClassName, labelClassName, ope
         open()
       }}
     >
-      <IconBotOutline16 className={iconClassName} />
+      <IconBotFaceAnimated className={iconClassName} />
       <span className={labelClassName}>{t('title')}</span>
     </a>
   )
@@ -347,9 +347,10 @@ export function AutomationsPanel({ t, inputActions, list, call, openRun, view, s
         <span className={css.templateMeta}>
           <span className={css.templateSchedule}><IconLucideClock />{schedule(template)}</span>
           {need !== undefined && (
-            <Button variant="primary" size="sm" className={css.templateConnect} icon={<IconPlug />} onClick={() => { openConnector(target) }}>
+            <button type="button" className={css.templateConnect} onClick={() => { openConnector(target) }}>
+              <IconPlug />
               {t(CONNECT_LABELS[need])}
-            </Button>
+            </button>
           )}
         </span>
       </div>
@@ -370,7 +371,7 @@ export function AutomationsPanel({ t, inputActions, list, call, openRun, view, s
           <>
             {data.definitions.length === 0 && (
               <div className={css.empty}>
-                <IconBotOutline16 className={css.emptyIcon} />
+                <IconBotFaceLooping className={css.emptyIcon} />
                 <h3 className={css.emptyTitle}>{t('empty')}</h3>
                 <p className={css.emptyText}>{t('emptyDetail')}</p>
               </div>

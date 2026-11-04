@@ -34,6 +34,21 @@
     },
     {
       "path": "../workspace"
+    },
+    {
+      "path": "../../util/git-executable"
+    },
+    {
+      "path": "../../core/agent"
+    },
+    {
+      "path": "../../core/session"
+    },
+    {
+      "path": "../../session/session-handoff"
+    },
+    {
+      "path": "../../shell/shell"
     }
   ]
 }

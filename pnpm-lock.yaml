@@ -1455,6 +1455,9 @@ importers:
       '@aeven/session':
         specifier: workspace:^
         version: link:../../core/session
+      '@aeven/settings':
+        specifier: workspace:^
+        version: link:../../settings/settings
       '@aeven/storage':
         specifier: workspace:^
         version: link:../../storage/storage
@@ -5505,6 +5508,9 @@ importers:
       '@aeven/client-ui-session':
         specifier: workspace:^
         version: link:../ui-session
+      '@aeven/client-ui-settings-sync':
+        specifier: workspace:^
+        version: link:../ui-settings-sync
       '@aeven/client-ui-sidebar':
         specifier: workspace:^
         version: link:../ui-sidebar
@@ -12197,12 +12203,21 @@ importers:
         specifier: ^4.4.3
         version: 4.6.5
     devDependencies:
+      '@aeven/credentials':
+        specifier: workspace:^
+        version: link:../../credentials/credentials
       '@aeven/file-sync':
         specifier: workspace:^
         version: link:../file-sync
+      '@aeven/settings':
+        specifier: workspace:^
+        version: link:../../settings/settings
       '@aeven/subprocess':
         specifier: workspace:^
         version: link:../../subprocess/subprocess
+      '@aeven/sync':
+        specifier: workspace:^
+        version: link:../sync
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -12840,6 +12855,12 @@ importers:
         specifier: workspace:^
         version: link:../../../vendor/cordis
 
+  packages/util/git-executable:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
   packages/util/home-paths:
     dependencies:
       koffi:
@@ -12934,6 +12955,9 @@ importers:
 
   packages/vcs/vcs-git:
     dependencies:
+      '@aeven/git-executable':
+        specifier: workspace:^
+        version: link:../../util/git-executable
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
@@ -13498,6 +13522,9 @@ importers:
       '@aeven/storage-domain':
         specifier: workspace:^
         version: link:../../storage/storage-domain
+      '@aeven/subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
       '@aeven/sync':
         specifier: workspace:^
         version: link:../../sync/sync
@@ -13526,12 +13553,24 @@ importers:
       '@aeven/file-sync':
         specifier: workspace:^
         version: link:../../sync/file-sync
+      '@aeven/fs':
+        specifier: workspace:^
+        version: link:../../fs/fs
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@aeven/subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
       '@aeven/sync':
         specifier: workspace:^
         version: link:../../sync/sync
       '@aeven/sync-vault':
         specifier: workspace:^
         version: link:../../sync/sync-vault
+      '@aeven/tools':
+        specifier: workspace:^
+        version: link:../../core/tools
       '@aeven/workspace':
         specifier: workspace:^
         version: link:../workspace
@@ -13544,6 +13583,9 @@ importers:
       '@aeven/brand':
         specifier: workspace:^
         version: link:../../util/brand
+      '@aeven/git-executable':
+        specifier: workspace:^
+        version: link:../../util/git-executable
       '@aeven/home-paths':
         specifier: workspace:^
         version: link:../../util/home-paths
@@ -13554,9 +13596,21 @@ importers:
         specifier: 13.6.27
         version: 13.6.27
     devDependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../../core/agent
       '@aeven/file-sync':
         specifier: workspace:^
         version: link:../../sync/file-sync
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@aeven/session-handoff':
+        specifier: workspace:^
+        version: link:../../session/session-handoff
+      '@aeven/shell':
+        specifier: workspace:^
+        version: link:../../shell/shell
       '@aeven/subprocess':
         specifier: workspace:^
         version: link:../../subprocess/subprocess

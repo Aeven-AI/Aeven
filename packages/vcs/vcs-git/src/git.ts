@@ -10,6 +10,8 @@
  * @module @aeven/vcs-git/git
  */
 
+import { existsSync } from 'node:fs'
+import { findGit } from '@aeven/git-executable'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@aeven/subprocess'
 import { VcsError } from '@aeven/vcs'
@@ -42,6 +44,20 @@ const READ_ONLY_FLAGS = ['-c', 'core.hooksPath=/dev/null', '-c', 'core.fsmonitor
 /** Characters of command output kept in a failure message. */
 const FAILURE_DETAIL_CHARS = 1200
 
+/** The Git executable this process found last; looked up again once it disappears. */
+let found: string | undefined
+
+/**
+ * This device's Git: the one on `PATH`, or a standard install location a GUI app's short `PATH` misses, such as a
+ * Homebrew Git while macOS's `/usr/bin/git` is only the install-dialog stub. Without one, `git` is spawned as before,
+ * so the failure names the missing command.
+ */
+async function gitExecutable(ctx: Context): Promise<string> {
+  if (found !== undefined && existsSync(found)) return found
+  found = await findGit(() => ctx.subprocess.resolveExecutable('git').catch(() => undefined))
+  return found ?? 'git'
+}
+
 /**
  * Run one git command.
  * @param ctx - the plugin context supplying `subprocess`.
@@ -60,7 +76,8 @@ export async function runGit(
   limits: GitLimits,
   readOnly: boolean,
 ): Promise<GitRunResult> {
-  const argv = readOnly ? ['git', ...READ_ONLY_FLAGS, ...args] : ['git', ...args]
+  const git = await gitExecutable(ctx)
+  const argv = readOnly ? [git, ...READ_ONLY_FLAGS, ...args] : [git, ...args]
   const child = ctx.subprocess.spawn({
     argv,
     cwd,

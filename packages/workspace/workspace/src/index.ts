@@ -25,6 +25,9 @@ import type {
   FolderWorkspace,
   SessionPlacement,
   Workspace,
+  WorkspaceConflict,
+  WorkspaceConflictChoice,
+  WorkspaceConflictSource,
   WorkspaceFileStatus,
   WorkspaceId as WorkspaceIdBrand,
 } from './types.ts'
@@ -33,6 +36,10 @@ export type {
   FolderWorkspace,
   SessionPlacement,
   Workspace,
+  WorkspaceConflict,
+  WorkspaceConflictChoice,
+  WorkspaceConflictSource,
+  WorkspaceFileFailure,
   WorkspaceFileState,
   WorkspaceFileStatus,
   WorkspaceKind,
@@ -47,8 +54,12 @@ export {
 } from './spec.ts'
 export type { WorkspaceDomainState, WorkspaceRecord } from './spec.ts'
 export { realpathNormalize } from './paths.ts'
-export { fitsDisk, hintedDirectory, locationHint, placeWorkspace } from './placement.ts'
+export { fitsDisk, hintedDirectory, locationHint, markedDirectory, placeWorkspace, WORKSPACE_MARKER, writeMarker } from './placement.ts'
 export { WorkspaceFileStatusReport } from './file-status.ts'
+export { byRecentUse, onBatteryPower } from './power.ts'
+
+/** The device-local account value that records whether the user paused file sync here. */
+const FILES_PAUSED = 'workspace/files-paused'
 
 /** Whether a registry without a built-in workspace seeds one (the schema default). */
 export const DEFAULT_SEED_DEFAULT_WORKSPACE = true
@@ -181,6 +192,8 @@ export class WorkspaceRegistry extends Service {
   private readonly synced: WorkspaceSync
   /** Device-local file statuses the file sync Consumers report; never persisted or synced. */
   private readonly fileStatuses = new Map<WorkspaceId, WorkspaceFileStatus>()
+  /** File sync Consumers that list and resolve conflicting versions. */
+  private readonly conflictSources = new Set<WorkspaceConflictSource>()
 
   private readonly host: WorkspaceEntityHost = {
     table: () => this.requireTable(),
@@ -360,10 +373,81 @@ export class WorkspaceRegistry extends Service {
    */
   setFileStatus(id: WorkspaceId, status: WorkspaceFileStatus | undefined): void {
     const previous = this.fileStatuses.get(id)
-    if (previous?.state === status?.state && previous?.progress === status?.progress && previous?.detail === status?.detail) return
+    const same = previous?.state === status?.state && previous?.progress === status?.progress
+      && previous?.reason === status?.reason && previous?.count === status?.count
+    if (same) return
     if (status === undefined) this.fileStatuses.delete(id)
     else this.fileStatuses.set(id, status)
     this.ctx.emit('workspace/files', id)
+  }
+
+  /**
+   * Whether the user paused file sync for an account on this device.
+   * @param owner - the account.
+   * @returns true while paused; false when file sync runs or the account does not sync.
+   */
+  filesPaused(owner: string): boolean {
+    const sync = this.ctx.get('sync')
+    return sync !== undefined && sync.status(owner).device !== undefined && sync.localValue(owner, FILES_PAUSED) === '1'
+  }
+
+  /**
+   * Pause or resume file sync for an account on this device, remembered across restarts; emits
+   * `workspace/files-paused`.
+   * @param owner - the account.
+   * @param paused - whether file sync pauses.
+   */
+  setFilesPaused(owner: string, paused: boolean): void {
+    const sync = this.ctx.get('sync')
+    if (sync === undefined || sync.status(owner).device === undefined || this.filesPaused(owner) === paused) return
+    sync.setLocalValue(owner, FILES_PAUSED, paused ? '1' : '0')
+    this.ctx.emit('workspace/files-paused', owner)
+  }
+
+  /**
+   * Register a file sync Consumer's conflict listing and resolution.
+   * @param source - the Consumer's conflicts.
+   * @returns the disposer that removes it.
+   */
+  registerConflicts(source: WorkspaceConflictSource): () => void {
+    this.conflictSources.add(source)
+    return () => { this.conflictSources.delete(source) }
+  }
+
+  /**
+   * List the files of a workspace that two devices changed differently.
+   * @param id - Workspace id.
+   * @returns the conflicts, empty for a workspace no source syncs.
+   */
+  async conflicts(id: WorkspaceId): Promise<readonly WorkspaceConflict[]> {
+    for (const source of this.conflictSources) {
+      const listed = await source.list(id)
+      if (listed !== undefined) return listed
+    }
+    return []
+  }
+
+  /**
+   * Keep one version of a conflicting file.
+   * @param id - Workspace id.
+   * @param path - the conflicting file, relative to the workspace directory.
+   * @param keep - which version stays.
+   * @returns whether a source resolved it.
+   */
+  async resolveConflict(id: WorkspaceId, path: string, keep: WorkspaceConflictChoice): Promise<boolean> {
+    for (const source of this.conflictSources) {
+      if (await source.resolve(id, path, keep)) return true
+    }
+    return false
+  }
+
+  /**
+   * Ask for a workspace's files now on the user's behalf, for example after they accept to install Git; emits
+   * `workspace/files-requested` for the Consumer that syncs them.
+   * @param id - Workspace id.
+   */
+  requestFiles(id: WorkspaceId): void {
+    this.ctx.emit('workspace/files-requested', id)
   }
 
   /**
@@ -469,7 +553,9 @@ export class WorkspaceRegistry extends Service {
   async fileSession(sessionId: SessionId, home: string, header?: SessionHeader): Promise<boolean> {
     if (header !== undefined) {
       if (header.id !== sessionId) throw new Error('shared session metadata names another session')
+      const learned = header.owner !== undefined && this.headers.get(sessionId)?.owner !== header.owner
       this.headers.set(sessionId, header)
+      if (learned) this.announceOwners(new Set([sessionId]))
     }
     const state = this.requireState()
     const id = home === 'default'
@@ -1251,7 +1337,20 @@ export class WorkspaceRegistry extends Service {
   }
 
   private async indexHeaders(headers: readonly SessionHeader[]): Promise<void> {
-    for (const header of headers) await this.indexHeader(header)
+    const learned = new Set<SessionId>()
+    for (const header of headers) {
+      if (header.owner !== undefined && this.headers.get(header.id)?.owner !== header.owner) learned.add(header.id)
+      await this.indexHeader(header)
+    }
+    this.announceOwners(learned)
+  }
+
+  /** Tell each workspace listing one of these sessions that the session's owner is now known. */
+  private announceOwners(learned: ReadonlySet<SessionId>): void {
+    if (learned.size === 0) return
+    for (const [id, entity] of this.entities) {
+      if (entity.sessionIds.some(sessionId => learned.has(sessionId))) this.ctx.emit('workspace/session-owner', id)
+    }
   }
 
   private async indexHeader(header: SessionHeader): Promise<void> {

@@ -131,7 +131,9 @@ const CAPTION_STRIP_HEIGHT = 32
 /**
  * Clear the strip Windows draws its caption buttons in and make it the
  * window's drag area. The body gives up the strip's height, so every screen,
- * sign-in included, lays out below it with nothing in the client knowing. The
+ * sign-in included, lays out below it with nothing in the client knowing.
+ * Fixed layers ignore the body's padding, so the strip's height is also
+ * `--avn-window-inset-top` on the root for a layer to start below it. The
  * strip is #f2f2f2 in the light scheme and shows the body's own background in
  * the dark one. It is installed before the document has a `head`, so the style
  * element goes where the parser has got to.
@@ -139,6 +141,9 @@ const CAPTION_STRIP_HEIGHT = 32
 function installCaptionStrip(): void {
   const style = document.createElement('style')
   style.textContent = `
+    html[data-avn-caption-buttons] {
+      --avn-window-inset-top: ${String(CAPTION_STRIP_HEIGHT)}px;
+    }
     html[data-avn-caption-buttons] body {
       padding-top: ${String(CAPTION_STRIP_HEIGHT)}px;
       box-sizing: border-box;

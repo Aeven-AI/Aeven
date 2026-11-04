@@ -66,12 +66,12 @@ it('saves explicit provider and language changes as user settings and publishes 
     await speech.configure({ providerId: 'cloud' as SpeechProviderId })
     expect((await next).value).toMatchObject({ selection: { providerId: 'cloud', language: 'auto' } })
     await speech.configure({ language: 'en' })
-    expect(speech.snapshot().selection).toEqual({ providerId: 'cloud', language: 'en' })
+    expect(speech.snapshot().selection).toEqual({ providerId: 'cloud', language: 'en', enabled: true })
     expect(speech.resolve({ audio })).toMatchObject({ provider: { info: { id: 'cloud' } }, language: 'en' })
     expect(writes()).toEqual([{ defaultProvider: 'cloud' }, { defaultProvider: 'cloud', language: 'en' }])
     await expect(speech.configure({ providerId: 'missing' as SpeechProviderId })).rejects.toThrow('unavailable')
     await expect(speech.configure({ language: '' })).rejects.toThrow()
-    expect(speech.snapshot().selection).toEqual({ providerId: 'cloud', language: 'en' })
+    expect(speech.snapshot().selection).toEqual({ providerId: 'cloud', language: 'en', enabled: true })
   } finally { await ctx.fiber.dispose() }
 })
 
@@ -82,7 +82,7 @@ it('refuses to configure without the settings service', async () => {
     const speech = ctx.get('speechToText')!
     speech.register(provider('local'))
     await expect(speech.configure({ language: 'zh' })).rejects.toThrow('settings service')
-    expect(speech.snapshot().selection).toEqual({ providerId: 'local', language: 'auto' })
+    expect(speech.snapshot().selection).toEqual({ providerId: 'local', language: 'auto', enabled: true })
   } finally { await ctx.fiber.dispose() }
 })
 
@@ -193,7 +193,7 @@ it('rejects unsupported language selections before persistence or transcription'
 
 it('requires the composition to choose its default provider', () => {
   expect(() => z.resolve({}, SpeechToText.Config, {})).toThrow()
-  expect(SpeechToText.Config({ defaultProvider: 'custom' })).toEqual({ defaultProvider: 'custom', language: 'auto' })
+  expect(SpeechToText.Config({ defaultProvider: 'custom' })).toEqual({ defaultProvider: 'custom', language: 'auto', enabled: true })
 })
 
 it('ends observers when the service unloads after a persisted selection', async () => {

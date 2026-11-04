@@ -426,7 +426,12 @@ export class MemosMemory implements MemoryProvider {
     const user = relevanceInput(request.request ?? request.query, request.context ?? '', offered, now)
     let answer: string
     try {
-      answer = await this.withRoute(request.scope.route, () => relevance.run(RELEVANCE_PROMPT, user, timeoutMs))
+      answer = await withDeadline(
+        this.withRoute(request.scope.route, () => relevance.run(RELEVANCE_PROMPT, user, timeoutMs)),
+        now + timeoutMs,
+        request.signal,
+        `Memory relevance judgment exceeded ${timeoutMs}ms`,
+      )
     } catch (error) {
       return fallback(`failed (${describe(error)})`)
     }

@@ -18,6 +18,11 @@ export interface EnvFileOptions {
   maxBytes: number
   /** Most files one workspace carries. */
   maxFiles: number
+  /**
+   * Largest total, in bytes, of one workspace's files; the account sync relay refuses a frame over its own limit, and
+   * the files travel in one document.
+   */
+  maxTotalBytes: number
 }
 
 /** Matches file names against wildcard patterns. */
@@ -57,12 +62,14 @@ export class EnvFileNames {
 export async function readEnvFiles(git: Git, root: string, names: EnvFileNames, options: EnvFileOptions): Promise<Map<string, string>> {
   const listed = await git.output(['ls-files', '-z', '--others', '--ignored', '--exclude-standard', '--directory'], { cwd: root })
   const files = new Map<string, string>()
+  let total = 0
   for (const path of listed.split('\0')) {
     if (files.size >= options.maxFiles) break
     if (!names.matches(path)) continue
     const absolute = join(root, ...path.split('/'))
     const info = await lstat(absolute).catch(() => undefined)
-    if (info?.isFile() !== true || info.size > options.maxBytes) continue
+    if (info?.isFile() !== true || info.size > options.maxBytes || total + info.size > options.maxTotalBytes) continue
+    total += info.size
     files.set(path, (await readFile(absolute)).toString('base64'))
   }
   return files

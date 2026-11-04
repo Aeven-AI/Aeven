@@ -1479,6 +1479,23 @@ export const IconLucideMinimize2 = ({ className }: LucideGlyphProps) => (
   </LucideSvg>
 )
 
+/** lucide `laptop-minimal-check`: the current device. */
+export const IconLucideLaptopMinimalCheck = ({ className }: LucideGlyphProps) => (
+  <LucideSvg className={className}>
+    <path d="M2 20h20" />
+    <path d="m9 10 2 2 4-4" />
+    <rect x="3" y="4" width="18" height="12" rx="2" />
+  </LucideSvg>
+)
+
+/** lucide `laptop-minimal`: another synced device. */
+export const IconLucideLaptopMinimal = ({ className }: LucideGlyphProps) => (
+  <LucideSvg className={className}>
+    <rect width="18" height="12" x="3" y="4" rx="2" ry="2" />
+    <line x1="2" x2="22" y1="20" y2="20" />
+  </LucideSvg>
+)
+
 /** lucide `tablet-smartphone`: the device emulator. */
 export const IconLucideTabletSmartphone = ({ className }: LucideGlyphProps) => (
   <LucideSvg className={className}>

@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
 
 The `ctx.fileSync` Service Definition. A Consumer shares a folder under a random id with the account's peers, or with only some of them through the folder's `peers` (`share`, `unshare`), lists which devices those are (`setPeers`, with each device's `peerId`), and reads each folder's state and size (`status`); `file-sync/folder` tells listeners a folder's status changed. The provider owns the transport and its process, and the Consumer decides which folders travel and where they live. The design is in the [workspace file sync Agent Note](../../../.agents/notes/proposed/architecture/2026-11-03-workspace-file-sync.md).
 
+Consumers also scan paths at once (`scan`), move one missing file to the front of the download queue (`prioritize`), and list and resolve files two devices changed differently (`conflicts`, `resolveConflict`). A folder status counts the files this device cannot store, such as names its filesystem rejects, as `failedFiles`.
+
 ## Table of Contents
 
 - [Model Experience](#model-experience)

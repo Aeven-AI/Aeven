@@ -25,7 +25,7 @@ import type {
  */
 function filesView(status: WorkspaceFileStatus | undefined): WorkspaceFilesView | null {
   if (status === undefined) return null
-  return { state: status.state, progress: status.progress ?? null, detail: status.detail ?? null }
+  return { state: status.state, progress: status.progress ?? null, reason: status.reason ?? null, count: status.count ?? null }
 }
 
 /**
@@ -129,7 +129,11 @@ export function workspaceSessionVisible(
  * @returns the projection listing only the caller's sessions.
  */
 export function callerWorkspaceView(ctx: Context, view: WorkspaceView, caller: User | undefined): WorkspaceView {
-  return { ...view, sessionIds: view.sessionIds.filter(id => workspaceSessionVisible(ctx, id, caller)) }
+  // Resolved once per view: a workspace can list hundreds of sessions, and each service lookup crosses Cordis proxies.
+  const users = ctx.get('identityUsers')
+  if (users === undefined) return view
+  const registry = ctx.workspaceRegistry
+  return { ...view, sessionIds: view.sessionIds.filter(id => users.mayAccess(registry.sessionOwner(id), caller)) }
 }
 
 /** Owns Workspace domain observation and all active follow generations. */
@@ -147,6 +151,8 @@ export class WorkspaceFeed {
     this.archived = ctx.workspaceRegistry.archivedSessionIds.map(String)
     ctx.on('domain/changed', (change: DomainChanged) => { this.changed(change) })
     ctx.on('workspace/files', (id) => { this.filesChanged(id) })
+    // A session filed before its owner was known was left out of each caller's projection.
+    ctx.on('workspace/session-owner', (id) => { this.filesChanged(id) })
     ctx.effect(() => () => {
       for (const follower of this.followers) follower.close()
       this.followers.clear()
@@ -254,7 +260,7 @@ export class WorkspaceFeed {
     return workspaceView(workspace, this.ctx.workspaceRegistry.fileStatus(workspace.id))
   }
 
-  /** Publish a known workspace again after its file status changed. */
+  /** Publish a known workspace again after its file status or a listed session's owner changed. */
   private filesChanged(id: WorkspaceId): void {
     const workspace = this.ctx.workspaceRegistry.get(id)
     if (workspace === undefined || !this.knownIds.has(id)) return

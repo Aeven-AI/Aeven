@@ -11,6 +11,8 @@ English | [中文](README.zh.md)
 
 `avn-vcs-git` implements `ctx.vcs` with git: it detects the checkout a directory belongs to, reads porcelain v2 status into per-path staged and unstaged changes, renders bounded diffs, lists commits and branches, and stages, commits, moves branches, fetches, pushes, and merges. Output is collected through `ctx.subprocess` and parsed as data, so no caller depends on git's progress text. Read-only reports run with repository hooks and fsmonitor disabled; commands that record history or move the checkout run the repository's own configuration.
 
+Git runs from the executable [`@aeven/git-executable`](../../util/git-executable/README.md) finds, so a desktop app with a short `PATH` reaches a Homebrew or Git for Windows install.
+
 ## Table of Contents
 
 - [Use this package](#use-this-package)

@@ -17,6 +17,8 @@ export interface SwitchProps {
   title?: string | undefined
   /** Element id, for a visible `<label htmlFor>`; absent renders none. */
   id?: string | undefined
+  /** `success` fills "on" green, for a switch whose on state means something is ready and running; absent uses the brand fill. */
+  tone?: 'success' | undefined
 }
 
 /**
@@ -25,7 +27,7 @@ export interface SwitchProps {
  * @param props - see {@link SwitchProps}.
  * @returns the `button` element with `role="switch"`.
  */
-export function Switch({ checked, onChange, label, disabled, title, id }: SwitchProps) {
+export function Switch({ checked, onChange, label, disabled, title, id, tone }: SwitchProps) {
   return (
     <button
       id={id}
@@ -35,6 +37,7 @@ export function Switch({ checked, onChange, label, disabled, title, id }: Switch
       aria-label={label}
       title={title}
       className={css.switch}
+      data-tone={tone}
       disabled={disabled}
       onClick={(event) => {
         event.stopPropagation()

@@ -881,7 +881,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'WorkspaceFilesView',
-    declaration: 'export interface WorkspaceFilesView {\n    readonly state: WorkspaceFileState;\n    readonly progress: number | null;\n    readonly detail: string | null;\n}',
+    declaration: 'export interface WorkspaceFilesView {\n    readonly state: WorkspaceFileState;\n    readonly progress: number | null;\n    readonly reason: WorkspaceFileFailure | null;\n    readonly count: number | null;\n}',
   },
   {
     name: 'WorkspaceView',

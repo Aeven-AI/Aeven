@@ -33,13 +33,19 @@
     "zod": "^4.4.3"
   },
   "peerDependencies": {
+    "@aeven/credentials": "workspace:^",
     "@aeven/file-sync": "workspace:^",
+    "@aeven/settings": "workspace:^",
     "@aeven/subprocess": "workspace:^",
+    "@aeven/sync": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
+    "@aeven/credentials": "workspace:^",
     "@aeven/file-sync": "workspace:^",
+    "@aeven/settings": "workspace:^",
     "@aeven/subprocess": "workspace:^",
+    "@aeven/sync": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   }
 }

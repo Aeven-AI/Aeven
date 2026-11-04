@@ -486,6 +486,25 @@ Record an authoritative positive or negative observation. Listeners must be sync
 
 Source: [`packages/fs/fs/src/index.ts`](../../packages/fs/fs/src/index.ts)
 
+<a id="fspre-read--parallel"></a>
+
+#### `fs/pre-read` — parallel
+
+A read tool is about to read a target. Every listener runs and is awaited, so one may hold the read until the file is here, such as a synced file still arriving from another device; the read proceeds when they settle.
+
+```ts cordis-catalog
+/**
+ * A read tool is about to read a target. Every listener runs and is awaited, so one may hold the read until the
+ * file is here, such as a synced file still arriving from another device; the read proceeds when they settle.
+ * @param target - the resolved target about to be read.
+ * @param signal - cancels the wait with the tool call.
+ * @mode parallel
+ */
+'fs/pre-read'(target: FsTarget, signal: AbortSignal | undefined): Promise<void>
+```
+
+Source: [`packages/fs/fs/src/index.ts`](../../packages/fs/fs/src/index.ts)
+
 <a id="fswrite-intent--waterfall"></a>
 
 #### `fs/write-intent` — waterfall

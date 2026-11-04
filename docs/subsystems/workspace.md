@@ -268,6 +268,47 @@ Host service backing the generated `ctx.remote.workspace` namespace.
 @Remote('bind') bind(request: WorkspaceBindRequest): Promise<WorkspaceValue>
 
 /**
+ * Ask for a Workspace's files now on the user's behalf, such as after they accept to install Git.
+ * @param request - Workspace identity.
+ * @returns the request receipt.
+ */
+@Remote('getFiles') getFiles(request: WorkspaceGetFilesRequest): Promise<WorkspaceGetFilesValue>
+
+/**
+ * Read file sync on this Host for the calling account.
+ * @returns whether it is paused, the ignore patterns, and the account's Workspaces with their files' place and status.
+ */
+@Remote('filesSettings') filesSettings(): Promise<WorkspaceFilesSettings>
+
+/**
+ * Pause or resume file sync on this Host for the calling account.
+ * @param request - whether to pause.
+ * @returns file sync after the change.
+ */
+@Remote('setFilesPaused') setFilesPaused(request: WorkspaceFilesPauseRequest): Promise<WorkspaceFilesSettings>
+
+/**
+ * Replace the patterns no folder syncs, the same on every device of the account.
+ * @param request - the patterns.
+ * @returns file sync after the change.
+ */
+@Remote('setFilesIgnores') setFilesIgnores(request: WorkspaceFilesIgnoresRequest): Promise<WorkspaceFilesSettings>
+
+/**
+ * List a Workspace's files that two devices changed differently.
+ * @param request - Workspace identity.
+ * @returns the conflicts with both versions' text where available.
+ */
+@Remote('conflicts') conflicts(request: WorkspaceConflictsRequest): Promise<WorkspaceConflictsValue>
+
+/**
+ * Keep one version of a conflicting file.
+ * @param request - Workspace identity, file, and the version to keep.
+ * @returns whether the file had a conflict.
+ */
+@Remote('resolveConflict') resolveConflict(request: WorkspaceResolveConflictRequest): Promise<WorkspaceResolveConflictValue>
+
+/**
  * Remove one Workspace registration while retaining files and Sessions.
  * @param request - Workspace identity to remove.
  * @returns deletion confirmation.
@@ -408,6 +449,51 @@ fileStatus(id: WorkspaceId): WorkspaceFileStatus | undefined
  * @param status - the new status, or `undefined` once the files are here and up to date.
  */
 setFileStatus(id: WorkspaceId, status: WorkspaceFileStatus | undefined): void
+
+/**
+ * Whether the user paused file sync for an account on this device.
+ * @param owner - the account.
+ * @returns true while paused; false when file sync runs or the account does not sync.
+ */
+filesPaused(owner: string): boolean
+
+/**
+ * Pause or resume file sync for an account on this device, remembered across restarts; emits
+ * `workspace/files-paused`.
+ * @param owner - the account.
+ * @param paused - whether file sync pauses.
+ */
+setFilesPaused(owner: string, paused: boolean): void
+
+/**
+ * Register a file sync Consumer's conflict listing and resolution.
+ * @param source - the Consumer's conflicts.
+ * @returns the disposer that removes it.
+ */
+registerConflicts(source: WorkspaceConflictSource): () => void
+
+/**
+ * List the files of a workspace that two devices changed differently.
+ * @param id - Workspace id.
+ * @returns the conflicts, empty for a workspace no source syncs.
+ */
+async conflicts(id: WorkspaceId): Promise<readonly WorkspaceConflict[]>
+
+/**
+ * Keep one version of a conflicting file.
+ * @param id - Workspace id.
+ * @param path - the conflicting file, relative to the workspace directory.
+ * @param keep - which version stays.
+ * @returns whether a source resolved it.
+ */
+async resolveConflict(id: WorkspaceId, path: string, keep: WorkspaceConflictChoice): Promise<boolean>
+
+/**
+ * Ask for a workspace's files now on the user's behalf, for example after they accept to install Git; emits
+ * `workspace/files-requested` for the Consumer that syncs them.
+ * @param id - Workspace id.
+ */
+requestFiles(id: WorkspaceId): void
 
 /**
  * Delete one workspace registration while retaining its directory and every
@@ -607,6 +693,60 @@ A workspace's file status on this device changed; read it with `WorkspaceRegistr
  * @param workspace - the workspace whose status changed.
  */
 'workspace/files'(workspace: WorkspaceId): void
+```
+
+Source: [`packages/workspace/workspace/src/types.ts`](../../packages/workspace/workspace/src/types.ts)
+
+<a id="workspacefiles-paused--emit"></a>
+
+#### `workspace/files-paused` — emit
+
+The user paused or resumed file sync for an account on this device; read it with `WorkspaceRegistry.filesPaused`.
+
+```ts cordis-catalog
+/**
+ * The user paused or resumed file sync for an account on this device; read it with
+ * `WorkspaceRegistry.filesPaused`.
+ * @mode emit
+ * @param owner - the account.
+ */
+'workspace/files-paused'(owner: string): void
+```
+
+Source: [`packages/workspace/workspace/src/types.ts`](../../packages/workspace/workspace/src/types.ts)
+
+<a id="workspacefiles-requested--emit"></a>
+
+#### `workspace/files-requested` — emit
+
+The user asked for a workspace's files now, for example by accepting to install Git: the Consumer that syncs them installs what they need and tries again at once.
+
+```ts cordis-catalog
+/**
+ * The user asked for a workspace's files now, for example by accepting to install Git: the Consumer that syncs
+ * them installs what they need and tries again at once.
+ * @mode emit
+ * @param workspace - the workspace whose files were requested.
+ */
+'workspace/files-requested'(workspace: WorkspaceId): void
+```
+
+Source: [`packages/workspace/workspace/src/types.ts`](../../packages/workspace/workspace/src/types.ts)
+
+<a id="workspacesession-owner--emit"></a>
+
+#### `workspace/session-owner` — emit
+
+The registry learned the owner of a session a workspace already lists, which changes who may see that session in the workspace; read the workspace from the registry again.
+
+```ts cordis-catalog
+/**
+ * The registry learned the owner of a session a workspace already lists, which changes who may see that session
+ * in the workspace; read the workspace from the registry again.
+ * @mode emit
+ * @param workspace - the workspace that lists the session.
+ */
+'workspace/session-owner'(workspace: WorkspaceId): void
 ```
 
 Source: [`packages/workspace/workspace/src/types.ts`](../../packages/workspace/workspace/src/types.ts)

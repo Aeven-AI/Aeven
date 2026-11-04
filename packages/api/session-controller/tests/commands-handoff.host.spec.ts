@@ -16,7 +16,13 @@ import type { SessionRequestId } from '../src/types.ts'
 const REMOTE = SessionId('remote-session')
 const LOCAL = SessionId('local-session')
 
-async function harness(options: { handoff?: boolean; signedIn?: boolean; claim?: boolean; binding?: 'remote' | 'folder' } = {}) {
+async function harness(options: {
+  handoff?: boolean
+  signedIn?: boolean
+  claim?: boolean
+  binding?: 'remote' | 'folder'
+  directoryless?: boolean
+} = {}) {
   const ctx = new Context()
   await ctx.plugin(SessionStore)
   await ctx.plugin(AgentRegistry)
@@ -38,6 +44,7 @@ async function harness(options: { handoff?: boolean; signedIn?: boolean; claim?:
   const forward = vi.fn((_owner: string, _id: SessionId, _input: unknown) => Promise.resolve())
   if (options.handoff !== false) {
     ctx.provide('sessionHandoff', {
+      catalog: () => [{ header: { ...copy.header, ...(options.directoryless ? {} : { cwd: '/other-device/project' }) } }],
       runnerOf: (_owner: string, id: SessionId) => (id === REMOTE ? { device: 'laptop-id', name: 'laptop' } : undefined),
       forward,
       fetch: () => Promise.resolve(),
@@ -77,6 +84,15 @@ async function harness(options: { handoff?: boolean; signedIn?: boolean; claim?:
 const requestId = 'request-1' as SessionRequestId
 
 describe('input for a session another device writes', () => {
+  it('takes over a directoryless replica without a local folder binding', async () => {
+    const { controller, forward, followup } = await harness({ claim: true, directoryless: true })
+    await expect(controller.prompt({
+      requestId, sessionId: REMOTE, mode: 'queue', content: [{ type: 'text', text: 'continue here' }],
+    })).resolves.toEqual({ accepted: true })
+    expect(followup).toHaveBeenCalledOnce()
+    expect(forward).not.toHaveBeenCalled()
+  })
+
   it('continues locally after handover, in the folder this device holds', async () => {
     const { controller, forward, followup, enter } = await harness({ claim: true, binding: 'folder' })
     await expect(controller.prompt({ requestId, sessionId: REMOTE, mode: 'queue', content: [{ type: 'text', text: 'continue here' }] })).resolves.toEqual({ accepted: true })

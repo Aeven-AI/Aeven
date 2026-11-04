@@ -87,6 +87,14 @@ declare module '@deepseek-ai/cordis' {
      * @mode emit
      */
     'fs/observed'(target: FsTarget, observation: FsObservation, actor: object | undefined): void
+    /**
+     * A read tool is about to read a target. Every listener runs and is awaited, so one may hold the read until the
+     * file is here, such as a synced file still arriving from another device; the read proceeds when they settle.
+     * @param target - the resolved target about to be read.
+     * @param signal - cancels the wait with the tool call.
+     * @mode parallel
+     */
+    'fs/pre-read'(target: FsTarget, signal: AbortSignal | undefined): Promise<void>
   }
 }
 

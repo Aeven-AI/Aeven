@@ -8,7 +8,6 @@ export interface SyncOperations {
   status: () => Promise<SyncView>
   setEnabled: (enabled: boolean) => Promise<SyncView>
   devices: () => Promise<SyncDeviceView[]>
-  removeDevice: (id: string) => Promise<SyncDeviceView[]>
   startPasskey: (purpose: SyncPasskeyPurpose) => Promise<SyncPasskeyStart>
   cancelPasskey: () => Promise<SyncView>
   unprotect: () => Promise<SyncView>

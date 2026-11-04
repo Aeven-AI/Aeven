@@ -1,18 +1,16 @@
 /**
  * This device's Git: the executable found on `PATH` or in each platform's standard install locations, the platform's
- * own installer when there is none, and bounded, non-interactive Git commands.
+ * own installer once the user accepts it, and bounded, non-interactive Git commands.
  * @module @aeven/workspace-git-sync/git
  */
 import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import type { Context } from '@deepseek-ai/cordis'
+import { findGit } from '@aeven/git-executable'
 import type {} from '@aeven/subprocess'
 
 /** Bounds and installer behavior for Git commands. */
 export interface GitOptions {
-  /** Run the platform's installer when this device has no Git. */
-  install: boolean
   /** Interval between checks for a finished install. */
   installPollMs: number
   /** Longest wait for an install the user may have to confirm. */
@@ -47,19 +45,8 @@ export interface GitRun {
   env?: Record<string, string>
 }
 
-/** No Git on this device and no installer that runs without the user; the message names the command to run. */
-export class GitUnavailableError extends Error {
-  /**
-   * @param message - why Git is unavailable.
-   * @param command - the install command for the user, when the platform has one but needs administrator rights.
-   */
-  constructor(message: string, readonly command?: string) {
-    super(message)
-  }
-}
-
-/** The macOS command-line stub that opens Apple's install dialog when the developer tools are absent. */
-const MACOS_GIT_STUB = '/usr/bin/git'
+/** No Git on this device, or the platform's installer could not install it. */
+export class GitUnavailableError extends Error {}
 
 /** Finds, installs, and runs this device's Git. */
 export class Git {
@@ -75,17 +62,29 @@ export class Git {
   constructor(private readonly ctx: Context, private readonly options: GitOptions) {}
 
   /**
-   * The Git executable, installing it through the platform's installer when this device has none.
-   * @param signal - cancels the install wait.
+   * The Git executable.
    * @returns the executable path.
-   * @throws {GitUnavailableError} when Git is absent and cannot be installed without the user.
+   * @throws {GitUnavailableError} when this device has no Git.
    */
-  async require(signal?: AbortSignal): Promise<string> {
+  async require(): Promise<string> {
     const found = await this.find()
-    if (found !== undefined) return found
-    if (!this.options.install) throw new GitUnavailableError('Git is not installed on this computer')
-    this.installing ??= this.install(signal).finally(() => { this.installing = undefined })
-    return await this.installing
+    if (found === undefined) throw new GitUnavailableError('Git is not installed on this computer')
+    return found
+  }
+
+  /**
+   * Install Git through the platform's installer, which the user has accepted: Homebrew or Apple's Command Line Tools
+   * dialog on macOS, winget on Windows, and the distribution's package manager behind the system password prompt on
+   * Linux. Concurrent calls share one install.
+   * @param signal - cancels the install wait.
+   * @returns the executable path once Git is found.
+   * @throws {GitUnavailableError} when the installer is missing, fails, or Git does not appear within the time limit.
+   */
+  install(signal?: AbortSignal): Promise<string> {
+    this.installing ??= this.find()
+      .then(found => found ?? this.runInstaller(signal))
+      .finally(() => { this.installing = undefined })
+    return this.installing
   }
 
   /**
@@ -103,7 +102,7 @@ export class Git {
    * @returns the result; a non-zero exit is data, not an error.
    */
   async run(args: readonly string[], run: GitRun): Promise<GitResult> {
-    const executable = await this.require(run.signal)
+    const executable = await this.require()
     const timeout = AbortSignal.timeout(run.transfer === true ? this.options.transferTimeoutMs : this.options.commandTimeoutMs)
     const signal = run.signal === undefined ? timeout : AbortSignal.any([run.signal, timeout])
     const child = this.ctx.subprocess.spawn({
@@ -145,19 +144,12 @@ export class Git {
   /** The first Git executable on `PATH` or in this platform's standard locations. */
   private async find(): Promise<string | undefined> {
     if (this.executable !== undefined && existsSync(this.executable)) return this.executable
-    this.executable = undefined
-    try {
-      const onPath = await this.ctx.subprocess.resolveExecutable('git')
-      // The stub on `PATH` opens an install dialog instead of running Git when the developer tools are absent.
-      if (process.platform !== 'darwin' || onPath !== MACOS_GIT_STUB) this.executable = onPath
-    } catch {
-      // No Git on `PATH`; the standard locations below cover a GUI app's short `PATH` and a fresh install.
-    }
-    this.executable ??= standardLocations().find(path => existsSync(path))
+    // No Git on `PATH` resolves to undefined; the standard locations cover a GUI app's short `PATH` and a fresh install.
+    this.executable = await findGit(() => this.ctx.subprocess.resolveExecutable('git').catch(() => undefined))
     return this.executable
   }
 
-  private async install(signal: AbortSignal | undefined): Promise<string> {
+  private async runInstaller(signal: AbortSignal | undefined): Promise<string> {
     const logger = this.ctx.logger('workspace-git-sync')
     const installer = await this.installer()
     logger.info(`workspace-git-sync: installing Git with ${installer.join(' ')}`)
@@ -171,6 +163,8 @@ export class Git {
     })
     const outcome = await child.done
     if (outcome.exitCode !== 0) {
+      // The system password prompt was dismissed or the package manager failed; nothing will install Git.
+      if (process.platform === 'linux') throw new GitUnavailableError(`${installer.join(' ')} exited ${String(outcome.exitCode)}`)
       logger.warn(`workspace-git-sync: ${installer.join(' ')} exited ${String(outcome.exitCode)}; waiting for Git anyway`)
     }
     // A running process does not see a `PATH` change, and Apple's dialog installs after its command returns.
@@ -191,15 +185,22 @@ export class Git {
     }
     if (process.platform === 'win32') {
       const winget = await this.ctx.subprocess.resolveExecutable('winget').catch(() => undefined)
-      if (winget === undefined) throw new GitUnavailableError('Git is not installed and winget is unavailable', 'winget install --id Git.Git --exact')
+      if (winget === undefined) throw new GitUnavailableError('Git is not installed and winget is unavailable')
       return [winget, 'install', '--id', 'Git.Git', '--exact', '--silent', '--accept-package-agreements', '--accept-source-agreements']
     }
-    throw new GitUnavailableError('Git is not installed on this computer', linuxInstallCommand())
+    // Installing needs root; pkexec asks for the password through the desktop's own prompt.
+    const pkexec = await this.ctx.subprocess.resolveExecutable('pkexec').catch(() => undefined)
+    if (pkexec === undefined) throw new GitUnavailableError('Git is not installed and pkexec is unavailable')
+    return [pkexec, ...linuxInstallCommand()]
   }
 
-  /** Environment that keeps Git from asking for credentials or host keys on a terminal nobody watches. */
+  /**
+   * Environment that keeps Git from asking for credentials or host keys on a terminal nobody watches, and from taking
+   * the optional index lock a read such as `git diff` refreshes, which would fail the agent's own Git commands in the
+   * same work tree.
+   */
   private async environment(executable: string): Promise<Record<string, string>> {
-    const env: Record<string, string> = { GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' }
+    const env: Record<string, string> = { GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never', GIT_OPTIONAL_LOCKS: '0' }
     if (process.env.GIT_SSH_COMMAND !== undefined || process.env.GIT_SSH !== undefined) return env
     this.sshConfigured ??= await this.configured(executable, 'core.sshCommand')
     return this.sshConfigured ? env : { ...env, GIT_SSH_COMMAND: 'ssh -o BatchMode=yes' }
@@ -217,27 +218,8 @@ export class Git {
   }
 }
 
-/** Where each platform's Git installers put the executable. */
-function standardLocations(): string[] {
-  if (process.platform === 'darwin') {
-    return [
-      '/opt/homebrew/bin/git',
-      '/usr/local/bin/git',
-      '/Library/Developer/CommandLineTools/usr/bin/git',
-      '/Applications/Xcode.app/Contents/Developer/usr/bin/git',
-    ]
-  }
-  if (process.platform === 'win32') {
-    return [process.env.ProgramW6432, process.env.ProgramFiles, process.env['ProgramFiles(x86)']]
-      .filter(base => base !== undefined)
-      .map(base => join(base, 'Git', 'cmd', 'git.exe'))
-      .concat(process.env.LOCALAPPDATA === undefined ? [] : [join(process.env.LOCALAPPDATA, 'Programs', 'Git', 'cmd', 'git.exe')])
-  }
-  return ['/usr/bin/git', '/usr/local/bin/git']
-}
-
-/** The distribution's Git install command, which needs root and so is shown rather than run. */
-function linuxInstallCommand(): string {
+/** The distribution's non-interactive Git install command, which needs root. */
+function linuxInstallCommand(): string[] {
   let release = ''
   try {
     release = readFileSync('/etc/os-release', 'utf8')
@@ -245,9 +227,9 @@ function linuxInstallCommand(): string {
     // Without `/etc/os-release` the distribution is unknown; the Debian command below is the most common one.
   }
   const ids = (/^ID_LIKE=(.*)$/mu.exec(release)?.[1] ?? '') + ' ' + (/^ID=(.*)$/mu.exec(release)?.[1] ?? '')
-  if (/fedora|rhel|centos/u.test(ids)) return 'sudo dnf install git'
-  if (/arch/u.test(ids)) return 'sudo pacman -S git'
-  if (/suse/u.test(ids)) return 'sudo zypper install git'
-  if (/alpine/u.test(ids)) return 'sudo apk add git'
-  return 'sudo apt install git'
+  if (/fedora|rhel|centos/u.test(ids)) return ['dnf', 'install', '-y', 'git']
+  if (/arch/u.test(ids)) return ['pacman', '-S', '--noconfirm', 'git']
+  if (/suse/u.test(ids)) return ['zypper', '--non-interactive', 'install', 'git']
+  if (/alpine/u.test(ids)) return ['apk', 'add', 'git']
+  return ['apt-get', 'install', '-y', 'git']
 }

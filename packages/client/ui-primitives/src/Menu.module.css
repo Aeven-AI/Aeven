@@ -232,6 +232,36 @@
   background: var(--dsw-alias-interactive-bg-hover-danger);
 }
 
+/* Status row: an item's geometry and type size, read rather than chosen, so it
+   takes no hover fill and wraps long text such as an error or a command. */
+.status {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: var(--dsw-aeven-control-size);
+  padding: 8px;
+  box-sizing: border-box;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  color: var(--dsw-alias-label-primary);
+  cursor: default;
+}
+
+.status .itemIcon {
+  height: 22px;
+}
+
+.statusText {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.statusTrailing {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Heading row: non-interactive small grey text, padding aligned with items. */
 .label {
   padding: 8px;

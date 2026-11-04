@@ -6,7 +6,7 @@
 import * as Y from 'yjs'
 import { Deque } from '@aeven/deque'
 import {
-  fromBase64Url, generateVaultKey, keyIdOf, opaqueIdOf, openEnvelope, proveKey, sealEnvelope, toBase64Url,
+  fromBase64Url, generateVaultKey, keyIdOf, derivedSecretOf, opaqueIdOf, openEnvelope, proveKey, sealEnvelope, toBase64Url,
   unwrapUnderPasskey, verifyKeyProof, wrapUnderPasskey,
   type DeviceId, type EnvelopeKind, type KeyId, type OpaqueId,
 } from '@aeven/sync-vault'
@@ -538,6 +538,15 @@ export class AccountVault {
    */
   documentId(name: string): OpaqueId {
     return opaqueIdOf(this.requireKey(), name)
+  }
+
+  /**
+   * Derive a secret for one purpose from the account key.
+   * @param label - the purpose.
+   * @returns the secret, the same on every device that holds the key.
+   */
+  secret(label: string): string {
+    return derivedSecretOf(this.requireKey(), label)
   }
 
   /**

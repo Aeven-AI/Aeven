@@ -26,7 +26,7 @@
 import clsx from 'clsx'
 import { useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react'
 import {
-  AevenMark, IconLucideMessageCirclePlus, Tooltip,
+  AevenMark, IconChatPlusAnimated, Tooltip,
 } from '@aeven/client-ui-primitives'
 import type { SidebarRootComponentProps } from './contract/slots.ts'
 import css from './SidebarRoot.module.css'
@@ -148,7 +148,7 @@ export function SidebarRoot({
                   activate()
                 }}
               >
-                <IconLucideMessageCirclePlus className={css.newSessionIcon} />
+                <IconChatPlusAnimated className={css.newSessionIcon} />
                 <span className={css.newSessionLabel}>{t('session.new')}</span>
               </a>
             </Tooltip>

@@ -6,19 +6,23 @@
 import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { mkdir, readdir, rm, stat } from 'node:fs/promises'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Map as YMap, Transaction, YMapEvent } from 'yjs'
 import { brandString } from '@aeven/brand'
 import type { FileSync, FileSyncFolderId, FileSyncPeerId } from '@aeven/file-sync'
 import type { SyncDocument } from '@aeven/sync'
 import type { DeviceId } from '@aeven/sync-vault'
-import { fitsDisk, hintedDirectory, locationHint, placeWorkspace, WorkspaceFileStatusReport } from '@aeven/workspace'
-import type { Workspace, WorkspaceId } from '@aeven/workspace'
+import type { SessionId } from '@aeven/session'
+import type {} from '@aeven/shell'
+import { byRecentUse, fitsDisk, hintedDirectory, locationHint, onBatteryPower, placeWorkspace, WorkspaceFileStatusReport } from '@aeven/workspace'
+import type { Workspace, WorkspaceFileFailure, WorkspaceFileStatus, WorkspaceId } from '@aeven/workspace'
 import { CheckoutDiscovery, parentsOf } from './discovery.ts'
 import { EnvFileNames, readEnvFiles, restoreEnvFiles, type EnvFileOptions } from './env-files.ts'
 import { GitUnavailableError, type Git } from './git.ts'
 import { publicRemote, remoteKey } from './remote.ts'
+import { untilFolder } from './wait.ts'
+import { WorkState } from './work-state.ts'
 
 /** The document describing the account's repository workspaces, their holders, and copy requests. */
 const REPOSITORIES = 'workspace-git/repositories'
@@ -55,14 +59,14 @@ interface CopyRequest {
 export interface WorkspaceRepositoriesOptions {
   /** Directory a repository lands in when its hint names no free directory here. */
   root: string
-  /** Largest repository this device gets without being asked. */
-  prefetchMaxBytes: number
   /** Share of the disk a download must leave free. */
   minFreeDiskRatio: number
   /** Directory transfer folders live in while a copy travels. */
   transferRoot: string
   /** Shortest wait before trying again to get a repository that could not be cloned or copied. */
   retryMs: number
+  /** Wait after construction before the first pass; passes requested sooner run once when it ends. */
+  startDelayMs: number
   /** Longest a copy request waits for a device that holds the repository to take it. */
   copyAnswerMs: number
   /** Longest a copy from another device may take, from request to clone. */
@@ -71,7 +75,36 @@ export interface WorkspaceRepositoriesOptions {
   copyLeaseMs: number
   /** Which ignored files travel. */
   envFiles: EnvFileOptions
+  /** Largest checkpoint of uncommitted work, in bytes, that travels to other devices. */
+  checkpointMaxBytes: number
+  /** Delay after a turn before its work is checkpointed. */
+  checkpointDebounceMs: number
+  /** Longest a turn waits for another device's checkpoint before it runs without it. */
+  handoffWaitMs: number
+  /** File recording which checkpoint each workspace last applied on this device. */
+  checkpointStateFile: string
+  /** Size above which a first clone or copy waits while this computer runs on battery. */
+  batteryDeferBytes: number
+  /** Install a received repository's dependencies from its lockfile when the toolchain is on `PATH`. */
+  prepareDependencies: boolean
+  /** Longest a dependency install runs. */
+  prepareTimeoutMs: number
 }
+
+/** Lockfiles, the toolchain each needs, and its frozen install, in the order a repository is checked. */
+const PREPARATIONS: ReadonlyArray<{ lockfile: string; tool: string; command: string }> = [
+  { lockfile: 'pnpm-lock.yaml', tool: 'pnpm', command: 'pnpm install --frozen-lockfile' },
+  { lockfile: 'bun.lock', tool: 'bun', command: 'bun install --frozen-lockfile' },
+  { lockfile: 'bun.lockb', tool: 'bun', command: 'bun install --frozen-lockfile' },
+  { lockfile: 'yarn.lock', tool: 'yarn', command: 'yarn install --frozen-lockfile' },
+  { lockfile: 'package-lock.json', tool: 'npm', command: 'npm ci' },
+  { lockfile: 'uv.lock', tool: 'uv', command: 'uv sync --frozen' },
+  { lockfile: 'poetry.lock', tool: 'poetry', command: 'poetry install --no-interaction' },
+  { lockfile: 'Pipfile.lock', tool: 'pipenv', command: 'pipenv sync' },
+  { lockfile: 'Cargo.lock', tool: 'cargo', command: 'cargo fetch --locked' },
+  { lockfile: 'go.sum', tool: 'go', command: 'go mod download' },
+  { lockfile: 'Gemfile.lock', tool: 'bundle', command: 'bundle install' },
+]
 
 interface Account {
   device: DeviceId
@@ -98,6 +131,8 @@ interface Served {
 export class WorkspaceRepositories {
   private readonly accounts = new Map<string, Promise<Account | undefined>>()
   private readonly passes = new Map<string, Promise<void>>()
+  /** Each account's pass that is queued and has not started; it covers every request made until it starts. */
+  private readonly queued = new Map<string, Promise<void>>()
   private readonly serving = new Map<string, Promise<void>>()
   private readonly env = new Map<WorkspaceId, EnvFiles>()
   private readonly retryAt = new Map<WorkspaceId, number>()
@@ -106,7 +141,14 @@ export class WorkspaceRepositories {
   private readonly requestWaiters = new Set<() => void>()
   private readonly names: EnvFileNames
   private readonly statuses: WorkspaceFileStatusReport
+  private readonly workState: WorkState
+  /** Repositories whose dependencies are being installed after they arrived. */
+  private readonly preparing = new Set<WorkspaceId>()
   private disposed = false
+  /** Resolves when `startDelayMs` has passed, so passes stay out of the Host's startup. */
+  private readonly started: Promise<void>
+  private startTimer: NodeJS.Timeout | undefined
+  private releaseStart: () => void = () => {}
 
   /**
    * @param ctx - context providing `workspaceRegistry`, `sync`, and `subprocess`, and optionally `fileSync`.
@@ -121,7 +163,95 @@ export class WorkspaceRepositories {
     private readonly options: WorkspaceRepositoriesOptions,
   ) {
     this.names = new EnvFileNames(options.envFiles)
+    this.started = new Promise((resolve) => {
+      this.releaseStart = resolve
+      this.startTimer = setTimeout(resolve, options.startDelayMs)
+    })
     this.statuses = new WorkspaceFileStatusReport(ctx.workspaceRegistry)
+    this.workState = new WorkState(ctx, git, {
+      transferRoot: options.transferRoot,
+      checkpointMaxBytes: options.checkpointMaxBytes,
+      checkpointDebounceMs: options.checkpointDebounceMs,
+      handoffWaitMs: options.handoffWaitMs,
+      stateFile: options.checkpointStateFile,
+    }, owner => this.accounts.get(owner) ?? Promise.resolve(undefined))
+  }
+
+  /**
+   * Checkpoint a session's repository at once because another device took the session over, so that device can
+   * continue from this device's work.
+   * @param owner - the account.
+   * @param sessionId - the session the other device claimed.
+   */
+  async released(owner: string, sessionId: SessionId): Promise<void> {
+    const repository = this.sessionRepository(sessionId)
+    if (repository !== undefined && !this.ctx.workspaceRegistry.filesPaused(owner)) {
+      await this.workState.checkpoint(owner, repository.id, repository.path)
+    }
+  }
+
+  /**
+   * Checkpoint a session's repository shortly after a turn ends, once a burst of turns has settled.
+   * @param sessionId - the session whose turn ended.
+   */
+  turnEnded(sessionId: SessionId): void {
+    const repository = this.sessionRepository(sessionId)
+    if (repository?.owner === undefined || this.ctx.workspaceRegistry.filesPaused(repository.owner)) return
+    this.workState.schedule(repository.owner, repository.id, repository.path)
+  }
+
+  /**
+   * Before a session's turn, apply newer work another device left in the session's repository.
+   * @param sessionId - the session about to run a turn.
+   * @param signal - the turn's abort signal.
+   */
+  async beforeTurn(sessionId: SessionId, signal: AbortSignal): Promise<void> {
+    const repository = this.sessionRepository(sessionId)
+    if (repository?.owner === undefined || this.ctx.workspaceRegistry.filesPaused(repository.owner)) return
+    this.workState.postpone(repository.id)
+    await this.workState.apply(repository.owner, repository.id, repository.path, signal)
+  }
+
+  /**
+   * Re-check repositories that wait for power after this computer was plugged in.
+   */
+  powerChanged(): void {
+    for (const workspace of this.ctx.workspaceRegistry.list()) {
+      if (this.ctx.workspaceRegistry.fileStatus(workspace.id)?.state === 'paused') this.retryAt.delete(workspace.id)
+    }
+    this.reconcileAll()
+  }
+
+  /**
+   * Install a repository's dependencies from its lockfile through the shell capability, which applies the Host's
+   * sandbox; a missing lockfile, toolchain, or shell skips the step, and the agent installs them when a task needs it.
+   */
+  private async prepare(workspace: WorkspaceId, directory: string): Promise<void> {
+    const shell = this.ctx.get('shell')
+    if (!this.options.prepareDependencies || shell === undefined) return
+    const step = PREPARATIONS.find(candidate => existsSync(join(directory, candidate.lockfile)))
+    if (step === undefined) return
+    if (await this.ctx.subprocess.resolveExecutable(step.tool).catch(() => undefined) === undefined) return
+    this.preparing.add(workspace)
+    this.statuses.set(workspace, { state: 'preparing' })
+    try {
+      const result = await shell.run(shell.resolve({ command: step.command, workdir: directory, timeoutMs: this.options.prepareTimeoutMs }))
+      if (result.exitCode !== 0) this.warn(`installing dependencies with ${step.command} in ${directory} exited ${String(result.exitCode)}`)
+    } catch (error) {
+      this.warn(`installing dependencies in ${directory} failed: ${String(error)}`)
+    } finally {
+      this.preparing.delete(workspace)
+      this.statuses.set(workspace, undefined)
+    }
+  }
+
+  /** The repository workspace a session works in on this device, when it is a bound Git work tree. */
+  private sessionRepository(sessionId: SessionId): { id: WorkspaceId; path: string; owner: string | undefined } | undefined {
+    const placement = this.ctx.workspaceRegistry.placeSession(sessionId)
+    if (placement.state !== 'filed') return undefined
+    const { workspace } = placement
+    if (workspace.kind !== 'folder' || workspace.path === undefined || !isWorkTree(workspace.path)) return undefined
+    return { id: workspace.id, path: workspace.path, owner: workspace.owner }
   }
 
   /**
@@ -157,6 +287,26 @@ export class WorkspaceRepositories {
   }
 
   /**
+   * Act on the user's request for a workspace's files: install Git when the repository waits for it, which the user
+   * has just accepted, then try every repository that waited for Git again at once. A request for a workspace this
+   * Consumer does not report on is ignored.
+   * @param workspace - the workspace whose files were requested.
+   */
+  requested(workspace: WorkspaceId): void {
+    const registry = this.ctx.workspaceRegistry
+    if (!needsGit(registry.fileStatus(workspace))) return
+    const waiting = registry.list().filter(other => needsGit(registry.fileStatus(other.id))).map(other => other.id)
+    for (const id of waiting) this.statuses.set(id, { state: 'installing' })
+    this.git.install().then(() => {
+      for (const id of waiting) this.retryAt.delete(id)
+      this.reconcileAll()
+    }, (error: unknown) => {
+      this.warn(`installing Git failed: ${String(error)}`)
+      for (const id of waiting) this.statuses.set(id, { state: 'failed', reason: 'git-install' })
+    })
+  }
+
+  /**
    * Close the account's documents because they started over under a new key; the next status attaches again.
    * @param owner - the account.
    */
@@ -175,7 +325,10 @@ export class WorkspaceRepositories {
   /** Let running passes finish, stop serving copies, close every open document, and withdraw reported file statuses. */
   async dispose(): Promise<void> {
     this.disposed = true
+    clearTimeout(this.startTimer)
+    this.releaseStart()
     await Promise.all([...this.passes.values(), ...this.serving.values()])
+    await this.workState.dispose()
     for (const key of [...this.served.keys()]) await this.stopServing(key)
     for (const owner of [...this.accounts.keys()]) await this.reset(owner)
     this.statuses.clear()
@@ -212,9 +365,16 @@ export class WorkspaceRepositories {
 
   private reconcile(owner: string): Promise<void> {
     if (this.disposed) return Promise.resolve()
-    const pass = (this.passes.get(owner) ?? Promise.resolve()).then(() => this.reconcileNow(owner)).catch((error: unknown) => {
+    // A burst of workspace changes runs one pass after the current one, not one pass per change.
+    const waiting = this.queued.get(owner)
+    if (waiting !== undefined) return waiting
+    const pass = (this.passes.get(owner) ?? this.started).then(() => {
+      this.queued.delete(owner)
+      return this.disposed ? undefined : this.reconcileNow(owner)
+    }).catch((error: unknown) => {
       this.warn(`reconciling repositories failed: ${String(error)}`)
     })
+    this.queued.set(owner, pass)
     this.passes.set(owner, pass)
     return pass
   }
@@ -228,7 +388,7 @@ export class WorkspaceRepositories {
     if (account === undefined) return
     const repositories = repositoryMap(account)
     const holders = holderMap(account)
-    const workspaces = this.ctx.workspaceRegistry.list().filter(workspace => workspace.owner === owner && !workspace.isBuiltIn)
+    const workspaces = byRecentUse(this.ctx.workspaceRegistry.list().filter(workspace => workspace.owner === owner && !workspace.isBuiltIn))
     const held = new Set<WorkspaceId>()
     const arriving = new Set<WorkspaceId>()
     for (const workspace of workspaces) {
@@ -239,17 +399,23 @@ export class WorkspaceRepositories {
         const key = `${workspace.id}/${account.device}`
         if (holders.get(key) !== true) holders.set(key, true)
         await this.publishEnv(owner, workspace.id, workspace.path)
+        // The pass also catches work done outside a turn; an unchanged work tree writes nothing.
+        if (!this.ctx.workspaceRegistry.filesPaused(owner)) void this.workState.checkpoint(owner, workspace.id, workspace.path)
       } else if (workspace.kind === 'remote') {
         const entry = repositories.get(workspace.id)
         if (entry === undefined) continue
         arriving.add(workspace.id)
+        if (this.ctx.workspaceRegistry.filesPaused(owner)) {
+          this.statuses.set(workspace.id, { state: 'stopped' })
+          continue
+        }
         if (Date.now() >= (this.retryAt.get(workspace.id) ?? 0)) await this.materialize(account, owner, workspace, entry)
       }
     }
     // Another account's workspaces keep their statuses; a deleted or bound workspace's status goes.
     this.statuses.retain((id) => {
       const other = this.ctx.workspaceRegistry.get(id)
-      return other !== undefined && (other.owner !== owner || arriving.has(id))
+      return other !== undefined && (other.owner !== owner || arriving.has(id) || this.preparing.has(id))
     })
     for (const key of [...holders.keys()]) {
       const [workspace, device] = key.split('/')
@@ -315,19 +481,22 @@ export class WorkspaceRepositories {
         return
       }
     }
-    if (!await fitsDisk(this.options.root, entry.bytes, this.options.prefetchMaxBytes, this.options.minFreeDiskRatio)) {
-      this.statuses.set(workspace.id, { state: 'absent' })
+    if (!await fitsDisk(this.options.root, entry.bytes, this.options.minFreeDiskRatio)) {
+      this.statuses.set(workspace.id, { state: 'failed', reason: 'disk' })
       return
     }
-    if (!await this.git.available()) this.statuses.set(workspace.id, { state: 'installing' })
-    try {
-      await this.git.require()
-    } catch (error) {
-      if (!(error instanceof GitUnavailableError)) throw error
-      this.statuses.set(workspace.id, { state: 'git-missing', ...error.command === undefined ? {} : { detail: error.command } })
+    if (entry.bytes > this.options.batteryDeferBytes && await onBatteryPower(this.ctx)) {
+      this.statuses.set(workspace.id, { state: 'paused' })
       return
     }
-    this.statuses.set(workspace.id, { state: 'fetching' })
+    // Git installs only once the user accepts; the request then tries this repository again.
+    if (!await this.git.available()) {
+      if (this.ctx.workspaceRegistry.fileStatus(workspace.id)?.state !== 'installing') {
+        this.statuses.set(workspace.id, { state: 'git-needed' })
+      }
+      return
+    }
+    this.statuses.set(workspace.id, { state: 'syncing' })
     const directory = await placeWorkspace(workspace.title, entry.hint, this.options.root)
     try {
       const cloned = remote === undefined ? undefined : await this.clone(remote, directory)
@@ -341,7 +510,7 @@ export class WorkspaceRepositories {
         await rm(directory, { recursive: true, force: true })
         // A failed copy means no device that holds the repository answered; without file sync only the clone could run.
         this.statuses.set(workspace.id, this.ctx.get('fileSync') === undefined && typeof cloned === 'string'
-          ? { state: 'failed', detail: cloned }
+          ? { state: 'failed', reason: cloneFailure(cloned) }
           : { state: 'waiting' })
         return
       }
@@ -351,9 +520,10 @@ export class WorkspaceRepositories {
       this.retryAt.delete(workspace.id)
       await registry.bind(workspace.id, directory)
       this.statuses.set(workspace.id, undefined)
+      void this.prepare(workspace.id, directory)
     } catch (error) {
       await rm(directory, { recursive: true, force: true })
-      this.statuses.set(workspace.id, { state: 'failed', detail: String(error) })
+      this.statuses.set(workspace.id, { state: 'failed', reason: error instanceof GitUnavailableError ? 'git-install' : 'unknown' })
       throw error
     }
   }
@@ -367,7 +537,7 @@ export class WorkspaceRepositories {
     // Without Git LFS, a required LFS filter would fail the whole clone; LFS objects are pulled afterwards instead.
     const result = await this.git.run(
       ['-c', 'filter.lfs.required=false', 'clone', '--recurse-submodules', '--', remote, directory],
-      { cwd: this.options.root, transfer: true, env: { GIT_LFS_SKIP_SMUDGE: '1' } },
+      { cwd: dirname(directory), transfer: true, env: { GIT_LFS_SKIP_SMUDGE: '1' } },
     )
     if (result.exitCode === 0) return true
     const error = result.stderr.trim().slice(-300)
@@ -420,11 +590,11 @@ export class WorkspaceRepositories {
       await fileSync.share({ id: folder, owner, path: transfer, peers: [brandString<FileSyncPeerId>(ready.holder)] })
       const bundle = join(transfer, BUNDLE)
       const bytes = ready.bytes
-      const arrived = await this.untilFolder(fileSync, folder, deadline, async () => {
+      const arrived = await untilFolder(this.ctx, fileSync, folder, deadline, async () => {
         return (await stat(bundle).catch(() => undefined))?.size === bytes
       })
       if (!arrived) return false
-      await this.git.output(['clone', '--', bundle, directory], { cwd: this.options.root, transfer: true })
+      await this.git.output(['clone', '--', bundle, directory], { cwd: dirname(directory), transfer: true })
       // Switch while the bundle's branches are still remote-tracking branches of `origin`.
       if (checkout.branch !== undefined) await this.git.run(['switch', checkout.branch], { cwd: directory })
       if (checkout.remote === undefined) await this.git.output(['remote', 'remove', 'origin'], { cwd: directory })
@@ -443,6 +613,8 @@ export class WorkspaceRepositories {
    * copy stops being served when the request is withdrawn or `copyTimeoutMs` elapses.
    */
   private async serveNow(owner: string): Promise<void> {
+    // A paused account serves no copies; the transfer folders would not move anyway.
+    if (this.ctx.workspaceRegistry.filesPaused(owner)) return
     const account = await this.accounts.get(owner)
     const fileSync = this.ctx.get('fileSync')
     if (account === undefined || fileSync === undefined) return
@@ -551,29 +723,6 @@ export class WorkspaceRepositories {
     })
   }
 
-  /** Resolve true once a shared folder holds everything its peers have and `complete` agrees, or false at the deadline. */
-  private untilFolder(fileSync: FileSync, folder: FileSyncFolderId, deadline: number, complete: () => Promise<boolean>): Promise<boolean> {
-    return new Promise((resolve) => {
-      let settled = false
-      const finish = (value: boolean): void => {
-        if (settled) return
-        settled = true
-        dispose()
-        clearTimeout(timer)
-        resolve(value)
-      }
-      const check = async (): Promise<void> => {
-        const status = fileSync.status(folder)
-        if (status?.state === 'idle' && status.needFiles === 0 && await complete()) finish(true)
-      }
-      const dispose = this.ctx.on('file-sync/folder', (changed) => {
-        if (changed === folder) void check()
-      })
-      const timer = setTimeout(() => { finish(false) }, Math.max(0, deadline - Date.now()))
-      void check()
-    })
-  }
-
   private warn(message: string): void {
     this.ctx.logger('workspace-git-sync').warn(`workspace-git-sync: ${message}`)
   }
@@ -596,6 +745,22 @@ function requestMap(account: Account): YMap<CopyRequest> {
 /** Whether a directory is the top of a Git work tree. */
 function isWorkTree(path: string): boolean {
   return existsSync(join(path, '.git'))
+}
+
+/** Whether a repository waits for Git: it was never installed, or the last install failed and may be tried again. */
+function needsGit(status: WorkspaceFileStatus | undefined): boolean {
+  return status?.state === 'git-needed' || (status?.state === 'failed' && status.reason === 'git-install')
+}
+
+/**
+ * Why a clone failed, from the end of Git's error output: refused credentials, an unreachable remote, a full disk, or
+ * anything else.
+ */
+function cloneFailure(stderr: string): WorkspaceFileFailure {
+  if (/authentication failed|could not read username|permission denied|repository not found|access denied|403/iu.test(stderr)) return 'access'
+  if (/could not resolve host|unable to access|connection (refused|timed out)|network is unreachable|timed out/iu.test(stderr)) return 'network'
+  if (/no space left on device|disk quota/iu.test(stderr)) return 'disk'
+  return 'unknown'
 }
 
 /** Remove what a failed clone left in a directory, keeping the directory. */

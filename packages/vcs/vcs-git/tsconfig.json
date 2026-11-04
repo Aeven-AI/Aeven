@@ -25,6 +25,9 @@
     },
     {
       "path": "../vcs"
+    },
+    {
+      "path": "../../util/git-executable"
     }
   ]
 }

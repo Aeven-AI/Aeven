@@ -60,6 +60,48 @@ abstract unshare(id: FileSyncFolderId): Promise<void>
  * @returns its status, or undefined for a folder this device does not share or whose status is not known yet.
  */
 abstract status(id: FileSyncFolderId): FileSyncFolderStatus | undefined
+
+/**
+ * Pause or resume every folder of an account on this device; a paused folder neither sends nor receives changes.
+ * @param owner - the account.
+ * @param paused - whether its folders pause.
+ * @returns when the transport applies it.
+ */
+abstract setPaused(owner: string, paused: boolean): Promise<void>
+
+/**
+ * Look at these paths now instead of waiting for the filesystem watcher, so a change this device just made reaches
+ * the peers at once.
+ * @param id - a folder {@link share} started.
+ * @param paths - `/`-separated paths relative to the folder.
+ * @returns when the transport has queued the scan.
+ */
+abstract scan(id: FileSyncFolderId, paths: readonly string[]): Promise<void>
+
+/**
+ * Move one file to the front of the download queue when the account's devices hold it and this device does not yet.
+ * @param id - a folder {@link share} started.
+ * @param path - `/`-separated path relative to the folder.
+ * @returns whether the file is on its way: false when it is already here or no device holds it.
+ */
+abstract prioritize(id: FileSyncFolderId, path: string): Promise<boolean>
+
+/**
+ * List the files of a shared folder that two devices changed differently.
+ * @param id - a folder {@link share} started.
+ * @returns each conflicting file and the copy of its other version.
+ */
+abstract conflicts(id: FileSyncFolderId): Promise<FileSyncConflict[]>
+
+/**
+ * Keep one version of a conflicting file: `file` keeps the version under its name and removes the copy, `copy`
+ * moves the copy's content over the file.
+ * @param id - a folder {@link share} started.
+ * @param conflict - a conflict {@link conflicts} listed.
+ * @param keep - which version stays.
+ * @returns when the folder holds one version.
+ */
+abstract resolveConflict(id: FileSyncFolderId, conflict: FileSyncConflict, keep: 'file' | 'copy'): Promise<void>
 ```
 
 Source: [`packages/sync/file-sync/src/index.ts`](../../packages/sync/file-sync/src/index.ts)
@@ -109,6 +151,15 @@ abstract removeDevice(owner: string, device: DeviceId): Promise<void>
  * @returns the opaque id.
  */
 abstract documentId(owner: string, name: string): string
+
+/**
+ * Derive a secret for one purpose from the account key, the same on every device that holds it, such as a file sync
+ * folder's encryption password. A relay holding the account key can also derive it.
+ * @param owner - an account whose key this device holds.
+ * @param label - the purpose, such as `file-sync/folder/<id>`.
+ * @returns the secret.
+ */
+abstract secret(owner: string, label: string): string
 
 /**
  * Open a document of an account whose key this device holds, loading its local state first.

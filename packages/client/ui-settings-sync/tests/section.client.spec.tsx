@@ -17,7 +17,6 @@ function setup(view: SyncView, copy = en) {
     status: vi.fn(() => Promise.resolve(status)),
     devices: vi.fn(() => Promise.resolve<SyncDeviceView[]>([{ id: 'd1', name: 'Laptop', current: true }])),
     setEnabled: vi.fn(() => Promise.resolve(status)),
-    removeDevice: vi.fn(() => Promise.resolve([])),
     startPasskey: vi.fn(() => Promise.resolve({ url: 'https://example.test/passkey' })),
     cancelPasskey: vi.fn(() => Promise.resolve(status)),
     unprotect: vi.fn(() => Promise.resolve(status)),
@@ -26,7 +25,7 @@ function setup(view: SyncView, copy = en) {
     onDevicesChange: (listener) => { devicesChanged = listener; return () => { devicesChanged = () => {} } },
   }
   const props = {
-    ...ops, close: () => {}, detail: undefined, showDetail: () => {},
+    ...ops, close: () => {}, detail: undefined, showDetail: () => {}, renderSlot: () => null,
     t: (key: keyof typeof en, values?: Record<string, string>) => {
       let text = copy[key]
       for (const [name, value] of Object.entries(values ?? {})) text = text.replace(`{${name}}`, value)
@@ -78,8 +77,8 @@ describe('Sync settings', () => {
     ])
     await act(async () => { page.devicesChanged() })
     await screen.findByText('Desktop')
-    expect(screen.getByRole('button', { name: en.remove })).toBeTruthy()
-    expect(screen.getByText(en.forgetBody)).toBeTruthy()
+    expect(screen.getByRole('img', { name: en.thisDevice })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /device/i })).toBeNull()
   })
 
   it('coalesces device notifications while a device read is in flight', async () => {

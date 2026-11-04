@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  FADE_DELAY_MS, FADE_MS, PRELOADER_ELEMENT_ID, hidePreloader, showPreloader,
+  FADE_DELAY_MS, FADE_IN_MS, FADE_MS, PRELOADER_ELEMENT_ID, hidePreloader, showPreloader,
 } from '../src/preloader.ts'
 
 /** The whole time the control waits before it can take the element out of the layout. */
@@ -39,6 +39,28 @@ describe('static shell preloader control', () => {
     vi.advanceTimersByTime(FADE_WINDOW_MS)
     expect(element.classList.contains('screen-hidden')).toBe(true)
     expect(element.querySelector('.spinner')?.classList.contains('active')).toBe(false)
+  })
+
+  it('finishes hiding when Chromium delivers no animation frames or transition events', () => {
+    vi.stubGlobal('requestAnimationFrame', vi.fn())
+    const element = mountPreloader()
+    hidePreloader()
+    vi.advanceTimersByTime(FADE_WINDOW_MS)
+    expect(element.classList.contains('screen-hidden')).toBe(true)
+    expect(element.querySelector('.spinner')?.classList.contains('active')).toBe(false)
+  })
+
+  it('finishes restoring when Chromium delivers no animation frames or transition events', async () => {
+    vi.stubGlobal('requestAnimationFrame', vi.fn())
+    const element = mountPreloader()
+    hidePreloader(false)
+    const restored = vi.fn()
+    const showing = showPreloader().then(restored)
+    await vi.advanceTimersByTimeAsync(FADE_IN_MS + 100)
+    expect(restored).toHaveBeenCalledOnce()
+    expect(element.classList.contains('hide')).toBe(false)
+    expect(element.classList.contains('animate')).toBe(false)
+    await showing
   })
 
   it('can hide and restore immediately for the worker source chooser', () => {

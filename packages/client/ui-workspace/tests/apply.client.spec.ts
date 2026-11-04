@@ -68,7 +68,7 @@ async function bench() {
   } as never)
   const pickDirectory = vi.fn(() => Promise.resolve({ ok: true as const, value: '/projects/picked' }))
   const directoryPicker = { pick: pickDirectory }
-  Object.assign(new TestRemote(ctx), { directoryPicker })
+  Object.assign(new TestRemote(ctx, { workspace: {}, session: {} }), { directoryPicker })
   ctx.provide('remote.directoryPicker', directoryPicker as never)
   const locale = new LocaleRuntime(ctx)
   // These specs assert the shipped Chinese copy. There is no jsdom `window`
@@ -106,7 +106,7 @@ describe('ui-workspace apply', () => {
 
   it('declares the services it drives', () => {
     expect(inject).toEqual([
-      'slots', 'sessions', 'workspaces', 'locale', 'remote', 'remote.directoryPicker',
+      'slots', 'sessions', 'workspaces', 'locale', 'remote', 'remote.directoryPicker', 'remote.workspace', 'remote.session',
     ])
   })
 

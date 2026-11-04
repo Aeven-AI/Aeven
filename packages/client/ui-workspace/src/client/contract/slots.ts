@@ -33,7 +33,7 @@ import type {} from '@aeven/client-ui-sidebar/client'
 import type {} from '@aeven/client-ui-conversation/client'
 import type { SessionSearchResultItem } from '@aeven/api-session-controller/client'
 import type { RemoteHostFacts } from '@aeven/api-remotes/client'
-import type { WorkspaceId, WorkspaceView } from '@aeven/api-workspace-controller/client'
+import type { WorkspaceConflictView, WorkspaceId, WorkspaceView } from '@aeven/api-workspace-controller/client'
 import type { SessionId, SessionSeq } from '@aeven/session/types'
 import type { SessionRenameRequest } from '../navigation.ts'
 import type { createWorkspaceViewStore } from '../stores.ts'
@@ -137,6 +137,12 @@ export type WorkspaceBrowserInjected = {
   deleteWorkspace: (workspaceId: WorkspaceId) => Promise<void>
   /** Ask for a folder of this device and give it to a Workspace that has none here. */
   bindWorkspace: (workspaceId: WorkspaceId) => void
+  /** Ask the Host for a Workspace's files now, such as after the user accepts to install Git. */
+  getWorkspaceFiles: (workspaceId: WorkspaceId) => void
+  /** List a Workspace's files that two devices changed differently. */
+  listConflicts: (workspaceId: WorkspaceId) => Promise<readonly WorkspaceConflictView[]>
+  /** Keep one version of a conflicting file. */
+  resolveConflict: (workspaceId: WorkspaceId, path: string, keep: 'this' | 'other') => Promise<void>
   /**
    * Reorder a Workspace in the durable registry display order.
    * Omitted anchor appends to the end.

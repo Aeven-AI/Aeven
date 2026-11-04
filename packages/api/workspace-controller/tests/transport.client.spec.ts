@@ -36,6 +36,9 @@ import type {
   WorkspaceView,
 } from '../src/types.ts'
 
+/** The files-settings value the fake Remote answers. */
+type FilesValue = { readonly paused: boolean; readonly ignores: readonly string[]; readonly workspaces: readonly never[] }
+
 const AVAILABLE_CONNECTION = {
   generation: {
     getSnapshot: () => ({ id: 1, host: { home: '/home/fixture' } }),
@@ -136,6 +139,30 @@ class ScriptedWorkspaceRemote implements WorkspaceRemote {
     throw new Error('unused')
   }
 
+  getFiles(_request: { readonly workspaceId: WorkspaceId }): Promise<RemoteResult<{ readonly requested: true }>> {
+    throw new Error('unused')
+  }
+
+  conflicts(_request: { readonly workspaceId: WorkspaceId }): Promise<RemoteResult<{ readonly conflicts: readonly never[] }>> {
+    throw new Error('unused')
+  }
+
+  resolveConflict(_request: { readonly workspaceId: WorkspaceId; readonly path: string; readonly keep: 'this' | 'other' }): Promise<RemoteResult<{ readonly resolved: boolean }>> {
+    throw new Error('unused')
+  }
+
+  filesSettings(): Promise<RemoteResult<FilesValue>> {
+    throw new Error('unused')
+  }
+
+  setFilesPaused(_request: { readonly paused: boolean }): Promise<RemoteResult<FilesValue>> {
+    throw new Error('unused')
+  }
+
+  setFilesIgnores(_request: { readonly ignores: readonly string[] }): Promise<RemoteResult<FilesValue>> {
+    throw new Error('unused')
+  }
+
   delete(_request: WorkspaceDeleteRequest): Promise<RemoteResult<WorkspaceDeleteValue>> {
     throw new Error('unused')
   }
@@ -185,6 +212,18 @@ class CommandWorkspaceRemote implements WorkspaceRemote {
   readonly bind = vi.fn<WorkspaceRemote['bind']>(request => Promise.resolve(remoteOk({
     workspace: workspace(String(request.workspaceId), { path: request.path, kind: 'folder' }),
   })))
+
+  readonly getFiles = vi.fn<WorkspaceRemote['getFiles']>(() => Promise.resolve(remoteOk({ requested: true as const })))
+
+  readonly conflicts = vi.fn<WorkspaceRemote['conflicts']>(() => Promise.resolve(remoteOk({ conflicts: [] })))
+
+  readonly resolveConflict = vi.fn<WorkspaceRemote['resolveConflict']>(() => Promise.resolve(remoteOk({ resolved: false })))
+
+  readonly filesSettings = vi.fn<WorkspaceRemote['filesSettings']>(() => Promise.resolve(remoteOk({ paused: false, ignores: [], workspaces: [] })))
+
+  readonly setFilesPaused = vi.fn<WorkspaceRemote['setFilesPaused']>(() => Promise.resolve(remoteOk({ paused: false, ignores: [], workspaces: [] })))
+
+  readonly setFilesIgnores = vi.fn<WorkspaceRemote['setFilesIgnores']>(() => Promise.resolve(remoteOk({ paused: false, ignores: [], workspaces: [] })))
 
   readonly delete = vi.fn<WorkspaceRemote['delete']>(() => Promise.resolve(remoteOk({ deleted: true })))
 

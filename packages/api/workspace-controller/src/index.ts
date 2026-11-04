@@ -14,6 +14,15 @@ import type {
   WorkspaceDeleteRequest,
   WorkspaceDeleteValue,
   WorkspaceFollowFrame,
+  WorkspaceConflictsRequest,
+  WorkspaceConflictsValue,
+  WorkspaceFilesIgnoresRequest,
+  WorkspaceFilesPauseRequest,
+  WorkspaceFilesSettings,
+  WorkspaceGetFilesRequest,
+  WorkspaceGetFilesValue,
+  WorkspaceResolveConflictRequest,
+  WorkspaceResolveConflictValue,
   WorkspaceInsertBeforeRequest,
   WorkspaceInsertSessionBeforeRequest,
   WorkspaceOrderValue,
@@ -80,6 +89,65 @@ export class WorkspaceController extends TypertRemoteService {
   @Remote('bind')
   bind(request: WorkspaceBindRequest): Promise<WorkspaceValue> {
     return this.commands.bind(request)
+  }
+
+  /**
+   * Ask for a Workspace's files now on the user's behalf, such as after they accept to install Git.
+   * @param request - Workspace identity.
+   * @returns the request receipt.
+   */
+  @Remote('getFiles')
+  getFiles(request: WorkspaceGetFilesRequest): Promise<WorkspaceGetFilesValue> {
+    return this.commands.getFiles(request)
+  }
+
+  /**
+   * Read file sync on this Host for the calling account.
+   * @returns whether it is paused, the ignore patterns, and the account's Workspaces with their files' place and status.
+   */
+  @Remote('filesSettings')
+  filesSettings(): Promise<WorkspaceFilesSettings> {
+    return Promise.resolve(this.commands.filesSettings())
+  }
+
+  /**
+   * Pause or resume file sync on this Host for the calling account.
+   * @param request - whether to pause.
+   * @returns file sync after the change.
+   */
+  @Remote('setFilesPaused')
+  setFilesPaused(request: WorkspaceFilesPauseRequest): Promise<WorkspaceFilesSettings> {
+    return Promise.resolve(this.commands.setFilesPaused(request))
+  }
+
+  /**
+   * Replace the patterns no folder syncs, the same on every device of the account.
+   * @param request - the patterns.
+   * @returns file sync after the change.
+   */
+  @Remote('setFilesIgnores')
+  setFilesIgnores(request: WorkspaceFilesIgnoresRequest): Promise<WorkspaceFilesSettings> {
+    return this.commands.setFilesIgnores(request)
+  }
+
+  /**
+   * List a Workspace's files that two devices changed differently.
+   * @param request - Workspace identity.
+   * @returns the conflicts with both versions' text where available.
+   */
+  @Remote('conflicts')
+  conflicts(request: WorkspaceConflictsRequest): Promise<WorkspaceConflictsValue> {
+    return this.commands.conflicts(request)
+  }
+
+  /**
+   * Keep one version of a conflicting file.
+   * @param request - Workspace identity, file, and the version to keep.
+   * @returns whether the file had a conflict.
+   */
+  @Remote('resolveConflict')
+  resolveConflict(request: WorkspaceResolveConflictRequest): Promise<WorkspaceResolveConflictValue> {
+    return this.commands.resolveConflict(request)
   }
 
   /**

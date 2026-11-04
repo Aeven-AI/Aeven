@@ -106,12 +106,6 @@
   box-sizing: border-box;
 }
 
-/* The mark of a Workspace whose files need the user; its text is in the
-   tooltip and in the row menu. */
-.filesMark svg {
-  width: 14px;
-  height: 14px;
-}
 
 /* Session cell (figma): pad 8, a 16px status slot, then a 4px title gap. */
 .sessionRow {

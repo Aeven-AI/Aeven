@@ -1312,6 +1312,15 @@ export interface Config {
   restartMs: number
   /** Longest wait between restarts; a process that ran this long resets the backoff, in milliseconds. */
   restartMaxMs: number
+  /**
+   * The file cloud's endpoint, such as `https://aeven.io/api/cloud/files`; empty keeps every folder peer to peer. The
+   * cloud stores an encrypted copy, so a device receives a folder while no other device of its account is online.
+   */
+  cloudUrl: string
+  /** Credential reference holding each account's Aeven access token, which registers this device with the cloud. */
+  credentialRef: string
+  /** Wait before registering with the file cloud again after its token was missing or the request failed, in milliseconds. */
+  cloudRetryMs: number
 }
 ```
 
@@ -3693,6 +3702,8 @@ export interface Config {
   defaultProvider: string
   /** Provider language hint selected when the caller omits one. */
   language: string
+  /** Whether the user turned voice input on; while off, {@link SpeechToText.resolve} refuses every recording. */
+  enabled: boolean
 }
 ```
 
@@ -5588,12 +5599,26 @@ export interface Config {
 export interface Config {
   /** Directory a workspace from another device lands in when its location hint names no free directory here. */
   root: string
-  /** Largest workspace, in bytes, this device downloads as soon as it arrives. */
-  prefetchMaxBytes: number
   /** Share of the disk, from 0 to 1, a download must leave free. */
   minFreeDiskRatio: number
   /** Directory holding one marker per folder this device has held completely. */
   completeDirectory: string
+  /** Longest a read waits for a file that is still arriving from another device. */
+  readWaitMs: number
+  /** Interval between checks for a file a read waits for. */
+  readPollMs: number
+  /** Delay that gathers the files the agent touched into one targeted scan. */
+  scanDelayMs: number
+  /** Longest a command that reads the whole tree waits for a workspace's first download to finish. */
+  gateWaitMs: number
+  /** Size above which a first download waits while this computer runs on battery. */
+  batteryDeferBytes: number
+  /** Interval between checks of whether this computer runs on battery. */
+  powerPollMs: number
+  /** Shortest interval between two listings of one folder's conflicting versions. */
+  conflictScanMs: number
+  /** Largest file, in bytes, whose two versions are shown as text. */
+  conflictTextMaxBytes: number
 }
 ```
 
@@ -5610,12 +5635,8 @@ export interface Config {
 export interface Config {
   /** Directory a repository from another device lands in when its location hint names no free directory here. */
   root: string
-  /** Largest repository, in bytes, this device gets as soon as it arrives. */
-  prefetchMaxBytes: number
   /** Share of the disk, from 0 to 1, a download must leave free. */
   minFreeDiskRatio: number
-  /** Run the platform's Git installer when a repository arrives and this device has no Git. */
-  gitInstall: boolean
   /** Interval between checks for a finished Git install. */
   gitInstallPollMs: number
   /** Longest wait for a Git install the user may have to confirm. */
@@ -5646,9 +5667,13 @@ export interface Config {
     maxBytes: number
     /** Most environment files one workspace carries. */
     maxFiles: number
+    /** Largest total, in bytes, of one workspace's environment files, which travel in one account document. */
+    maxTotalBytes: number
   }
   /** Interval between passes that publish changed environment files and retry repositories not yet received. */
   passIntervalMs: number
+  /** Wait after the Host starts before the first pass; passes requested sooner run once when it ends. */
+  startDelayMs: number
   /** Shortest wait before trying again to get a repository that could not be cloned or copied. */
   retryMs: number
   /** Longest a copy request waits for a device that holds the repository to take it. */
@@ -5657,8 +5682,24 @@ export interface Config {
   copyTimeoutMs: number
   /** Lifetime of the lease that picks one device to serve a copy. */
   copyLeaseMs: number
-  /** Directory copies travel through. */
+  /** Directory copies and checkpoints travel through. */
   transferRoot: string
+  /** Largest checkpoint of uncommitted work, in bytes, that travels to other devices. */
+  checkpointMaxBytes: number
+  /** Delay after a turn before its uncommitted work is checkpointed. */
+  checkpointDebounceMs: number
+  /** Longest a turn waits for another device's checkpoint before it runs without it. */
+  handoffWaitMs: number
+  /** File recording which checkpoint each workspace last applied on this device. */
+  checkpointStateFile: string
+  /** Size above which a first clone or copy waits while this computer runs on battery. */
+  batteryDeferBytes: number
+  /** Interval between checks of whether this computer runs on battery. */
+  powerPollMs: number
+  /** Install a received repository's dependencies from its lockfile when the toolchain is on `PATH`. */
+  prepareDependencies: boolean
+  /** Longest a dependency install runs. */
+  prepareTimeoutMs: number
 }
 ```
 
@@ -5863,6 +5904,7 @@ Imported as libraries by other packages; a `cordis.yml` cannot load them.
 - `@aeven/experimental-browser-overlay` ([`packages/experimental/browser-overlay/src/index.ts`](../packages/experimental/browser-overlay/src/index.ts))
 - `@aeven/experimental-webworker-packer` ([`packages/experimental/webworker-packer/src/index.ts`](../packages/experimental/webworker-packer/src/index.ts))
 - `@aeven/experimental-webworker-runtime` ([`packages/experimental/webworker-runtime/src/index.ts`](../packages/experimental/webworker-runtime/src/index.ts))
+- `@aeven/git-executable` ([`packages/util/git-executable/src/index.ts`](../packages/util/git-executable/src/index.ts))
 - `@aeven/home-paths` ([`packages/util/home-paths/src/index.ts`](../packages/util/home-paths/src/index.ts))
 - `@aeven/hook-protocol` ([`packages/hooks/hook-protocol/src/index.ts`](../packages/hooks/hook-protocol/src/index.ts))
 - `@aeven/http-proxy` ([`packages/util/http-proxy/src/index.ts`](../packages/util/http-proxy/src/index.ts))

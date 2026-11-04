@@ -22,6 +22,7 @@ export async function resolveRegularReadTarget(
   requestedPath: string,
 ): Promise<{ target: FsTarget; info: FsInfo }> {
   const target = await ctx.fs.resolve(requestedPath, sessionResolveOptions(ctx, exec, requestedPath))
+  await ctx.parallel('fs/pre-read', target, exec.signal)
   const info = await ctx.fs.stat(target, exec.signal)
   if (info === undefined) {
     ctx.emit('fs/observed', target, { kind: 'absent' }, exec)

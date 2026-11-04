@@ -31,6 +31,18 @@
     },
     {
       "path": "../workspace"
+    },
+    {
+      "path": "../../fs/fs"
+    },
+    {
+      "path": "../../core/tools"
+    },
+    {
+      "path": "../../core/session"
+    },
+    {
+      "path": "../../subprocess/subprocess"
     }
   ]
 }

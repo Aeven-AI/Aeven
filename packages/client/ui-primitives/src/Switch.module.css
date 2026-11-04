@@ -17,6 +17,10 @@
   background: var(--dsw-alias-brand-primary);
 }
 
+.switch[aria-checked='true'][data-tone='success'] {
+  background: var(--dsw-alias-state-success-primary);
+}
+
 .thumb {
   display: block;
   width: 16px;
