@@ -25,7 +25,6 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 将本包与 subagent 服务和 Agent 注册表一起挂载。发现功能是部署可以省略的独立插件。
-在模型需要对可继续子级发消息、中断或列出的任何组合中挂载本包。根插件只需要 subagent 服务；列表工具是独立插件，部署方可以省略。
 
 ### 最小配置
 

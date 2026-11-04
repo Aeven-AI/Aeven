@@ -605,12 +605,19 @@ export class SubagentRuntime extends TypertRemoteService {
     try {
       const run = await provider.start(resolved)
       manager?.registerOneShot(run.localAgent, root)
+      let disposal: Promise<void> | undefined
       return observeRun(this.emitLifecycle, name, request.parent, {
         id: run.id,
         localAgent: run.localAgent,
         result: run.result,
-        async dispose() {
-          try { await run.dispose() } finally { release() }
+        // One memoized teardown: the tree slot releases with the first dispose
+        // call, and a later caller awaits that same promise.
+        dispose(): Promise<void> {
+          if (disposal !== undefined) return disposal
+          disposal = (async () => {
+            try { await run.dispose() } finally { release() }
+          })()
+          return disposal
         },
       })
     } catch (error: unknown) {
