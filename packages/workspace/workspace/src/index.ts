@@ -58,6 +58,9 @@ export { fitsDisk, hintedDirectory, locationHint, markedDirectory, placeWorkspac
 export { WorkspaceFileStatusReport } from './file-status.ts'
 export { byRecentUse, onBatteryPower } from './power.ts'
 
+/** The device-local account value that records whether the user paused file sync here. */
+const FILES_PAUSED = 'workspace/files-paused'
+
 /** Whether a registry without a built-in workspace seeds one (the schema default). */
 export const DEFAULT_SEED_DEFAULT_WORKSPACE = true
 
@@ -376,6 +379,29 @@ export class WorkspaceRegistry extends Service {
     if (status === undefined) this.fileStatuses.delete(id)
     else this.fileStatuses.set(id, status)
     this.ctx.emit('workspace/files', id)
+  }
+
+  /**
+   * Whether the user paused file sync for an account on this device.
+   * @param owner - the account.
+   * @returns true while paused; false when file sync runs or the account does not sync.
+   */
+  filesPaused(owner: string): boolean {
+    const sync = this.ctx.get('sync')
+    return sync !== undefined && sync.status(owner).device !== undefined && sync.localValue(owner, FILES_PAUSED) === '1'
+  }
+
+  /**
+   * Pause or resume file sync for an account on this device, remembered across restarts; emits
+   * `workspace/files-paused`.
+   * @param owner - the account.
+   * @param paused - whether file sync pauses.
+   */
+  setFilesPaused(owner: string, paused: boolean): void {
+    const sync = this.ctx.get('sync')
+    if (sync === undefined || sync.status(owner).device === undefined || this.filesPaused(owner) === paused) return
+    sync.setLocalValue(owner, FILES_PAUSED, paused ? '1' : '0')
+    this.ctx.emit('workspace/files-paused', owner)
   }
 
   /**

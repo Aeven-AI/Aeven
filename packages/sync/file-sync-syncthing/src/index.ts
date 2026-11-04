@@ -11,6 +11,7 @@ import { join, sep } from 'node:path'
 import { createServer } from 'node:net'
 import { Context, Service } from '@deepseek-ai/cordis'
 import Schema from '@deepseek-ai/schemastery'
+import { z } from 'zod'
 import { brandString } from '@aeven/brand'
 import {
   type FileSyncConflict,
@@ -18,6 +19,9 @@ import {
   type FileSyncPeerId,
 } from '@aeven/file-sync'
 import { avnHomePath } from '@aeven/home-paths'
+import { credentialRef } from '@aeven/credentials'
+import type { SettingsScope } from '@aeven/settings'
+import type {} from '@aeven/sync'
 import type { SubprocessHandle } from '@aeven/subprocess'
 import { folderSummarySchema, SyncthingRequestError, SyncthingRest, type FolderSummary, type SyncthingEvent } from './rest.ts'
 
@@ -57,10 +61,32 @@ export interface Config {
   restartMs: number
   /** Longest wait between restarts; a process that ran this long resets the backoff, in milliseconds. */
   restartMaxMs: number
+  /**
+   * The file cloud's endpoint, such as `https://aeven.io/api/cloud/files`; empty keeps every folder peer to peer. The
+   * cloud stores an encrypted copy, so a device receives a folder while no other device of its account is online.
+   */
+  cloudUrl: string
+  /** Credential reference holding each account's Aeven access token, which registers this device with the cloud. */
+  credentialRef: string
 }
 
 /** Folder labels and device names the provider writes, so it recognizes its own entries in Syncthing's configuration. */
 const LABEL_PREFIX = 'aeven:'
+
+/** Where this device reaches an account's file cloud. */
+interface FileCloud {
+  peer: FileSyncPeerId
+  addresses: string[]
+}
+
+/** The file cloud's answer to a device registration. */
+const fileCloudSchema = z.object({ peer: z.string().min(1), addresses: z.array(z.string()) })
+
+/** The user-editable settings of file sync: the patterns no folder syncs. */
+const IGNORE_SETTINGS = Schema.object({
+  /** Syncthing ignore patterns applied to every folder; the composition's `ignores` are the default. */
+  ignores: Schema.array(Schema.string()).default([]),
+})
 
 /** Events that change a folder's status. */
 const FOLDER_EVENTS = ['StateChanged', 'FolderSummary', 'FolderErrors'] as const
@@ -121,6 +147,8 @@ export default class SyncthingFileSync extends FileSync {
 
   static Config: Schema<Config> = Schema.object({
     binary: Schema.string().required(),
+    cloudUrl: Schema.string().default(''),
+    credentialRef: Schema.string().default('AEVEN_TOKEN'),
     home: Schema.string().default(avnHomePath('file-sync', 'syncthing')),
     listenAddresses: Schema.array(Schema.string()).default(['default']),
     discoveryServers: Schema.array(Schema.string()).default(['default']),
@@ -151,6 +179,14 @@ export default class SyncthingFileSync extends FileSync {
   private disposed = false
   /** Whether the process was started; it starts once an account has a peer and a folder to share with it. */
   private started = false
+  /** Each account's file cloud, once this device registered with it. */
+  private readonly clouds = new Map<string, FileCloud>()
+  /** Registrations with the file cloud in flight, so one account registers once at a time. */
+  private readonly registering = new Map<string, Promise<void>>()
+  /** Accounts whose folders are paused on this device. */
+  private readonly pausedOwners = new Set<string>()
+  /** The user's ignore patterns, absent while the composition mounts no `settings` service. */
+  private ignoreSettings: SettingsScope<{ ignores: string[] }> | undefined
   /** This device's peer id, read from the key without running the process. */
   private identity: Promise<FileSyncPeerId> | undefined
   private failures = 0
@@ -188,7 +224,36 @@ export default class SyncthingFileSync extends FileSync {
         await running.handle.waitForExit()
       }
     }, 'file-sync-syncthing: process')
+    // The ignore patterns are the user's to change: one list for every folder, the same on every computer.
+    this.ctx.inject(['settings'], (settingsCtx) => {
+      const scope = settingsCtx.settings.register('file-sync', IGNORE_SETTINGS, { base: { ignores: this.config.ignores }, reach: 'account' })
+      this.ignoreSettings = scope
+      const stop = scope.watch(() => { void this.reapplyFolders() })
+      settingsCtx.effect(() => () => {
+        stop()
+        this.ignoreSettings = undefined
+      }, 'file-sync-syncthing: ignore settings')
+    })
     this.demand()
+  }
+
+  /** @inheritdoc */
+  async setPaused(owner: string, paused: boolean): Promise<void> {
+    if (this.pausedOwners.has(owner) === paused) return
+    if (paused) this.pausedOwners.add(owner)
+    else this.pausedOwners.delete(owner)
+    await this.write(async (running) => {
+      for (const folder of this.folders.values()) {
+        if (folder.owner === owner) await this.applyFolder(running, folder)
+      }
+    })
+  }
+
+  /** Apply every folder again, such as after the user changed the ignore patterns. */
+  private async reapplyFolders(): Promise<void> {
+    await this.write(async (running) => {
+      for (const folder of this.folders.values()) await this.applyFolder(running, folder)
+    })
   }
 
   /** @inheritdoc */
@@ -205,6 +270,7 @@ export default class SyncthingFileSync extends FileSync {
     const listed = [...new Set(peers)].sort()
     if (JSON.stringify(this.peers.get(owner)) === JSON.stringify(listed)) return
     this.peers.set(owner, listed)
+    this.registerCloud(owner)
     this.demand()
     await this.write(async (running) => {
       await this.applyDevices(running)
@@ -315,7 +381,8 @@ export default class SyncthingFileSync extends FileSync {
    */
   private demand(): void {
     if (this.started || this.disposed || this.executable === undefined) return
-    const wanted = [...this.folders.values()].some(folder => (folder.peers ?? this.peers.get(folder.owner) ?? []).length > 0)
+    const wanted = [...this.folders.values()].some(folder =>
+      (folder.peers ?? this.peers.get(folder.owner) ?? []).length > 0 || (folder.peers === undefined && this.clouds.has(folder.owner)))
     if (!wanted) return
     this.started = true
     void this.start()
@@ -463,8 +530,11 @@ export default class SyncthingFileSync extends FileSync {
   /** Make the configured devices exactly this device plus every account's listed peers. */
   private async applyDevices(running: Running): Promise<void> {
     const wanted = new Set(this.allPeers(running))
+    // The cloud only ever receives encrypted folders, so it is an untrusted device.
+    const clouds = new Map([...this.clouds.values()].map(cloud => [cloud.peer, cloud.addresses]))
     for (const device of await running.rest.devices()) {
-      if (device.deviceID === running.peer || wanted.has(brandString<FileSyncPeerId>(device.deviceID))) continue
+      const id = brandString<FileSyncPeerId>(device.deviceID)
+      if (device.deviceID === running.peer || wanted.has(id) || clouds.has(id)) continue
       if (device.name.startsWith(LABEL_PREFIX)) await running.rest.request('DELETE', `/rest/config/devices/${encodeURIComponent(device.deviceID)}`)
     }
     for (const peer of wanted) {
@@ -473,6 +543,53 @@ export default class SyncthingFileSync extends FileSync {
         autoAcceptFolders: false, introducer: false, untrusted: false,
       })
     }
+    for (const [peer, addresses] of clouds) {
+      await running.rest.request('PUT', `/rest/config/devices/${encodeURIComponent(peer)}`, {
+        deviceID: peer, name: `${LABEL_PREFIX}cloud`, addresses, autoAcceptFolders: false, introducer: false, untrusted: true,
+      })
+    }
+  }
+
+  /**
+   * Register this device with the file cloud for an account, once its access token resolves; a failure is tried
+   * again at the account's next peer change.
+   */
+  private registerCloud(owner: string): void {
+    if (this.config.cloudUrl === '' || this.clouds.has(owner) || this.registering.has(owner)) return
+    const run = this.requestCloud(owner)
+      .then(async (cloud) => {
+        if (cloud === undefined || this.disposed) return
+        this.clouds.set(owner, cloud)
+        this.demand()
+        await this.write(async (running) => {
+          await this.applyDevices(running)
+          for (const folder of this.folders.values()) {
+            if (folder.owner === owner) await this.applyFolder(running, folder)
+          }
+        })
+      })
+      .catch((error: unknown) => {
+        this.ctx.logger('file-sync').debug(`file-sync: registering with the file cloud failed: ${String(error)}`)
+      })
+      .finally(() => { this.registering.delete(owner) })
+    this.registering.set(owner, run)
+  }
+
+  private async requestCloud(owner: string): Promise<FileCloud | undefined> {
+    const credentials = this.ctx.get('credentials')
+    if (credentials === undefined) return undefined
+    const token = (await credentials.resolve(credentialRef(this.config.credentialRef), owner).catch(() => undefined))?.value
+    if (token === undefined) return undefined
+    const response = await fetch(`${this.config.cloudUrl}/devices`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ peer: await this.peerId() }),
+      signal: AbortSignal.timeout(this.config.requestTimeoutMs),
+    })
+    if (!response.ok) throw new Error(`the file cloud answered ${String(response.status)}`)
+    const parsed = fileCloudSchema.safeParse(await response.json())
+    if (!parsed.success) throw new Error('the file cloud answered an unexpected body')
+    return { peer: brandString<FileSyncPeerId>(parsed.data.peer), addresses: parsed.data.addresses }
   }
 
   private allPeers(running: Running): FileSyncPeerId[] {
@@ -483,12 +600,18 @@ export default class SyncthingFileSync extends FileSync {
   private async applyFolder(running: Running, folder: FileSyncFolder): Promise<void> {
     const only = folder.peers === undefined ? undefined : new Set(folder.peers)
     const peers = (this.peers.get(folder.owner) ?? []).filter(peer => peer !== running.peer && (only?.has(peer) ?? true))
+    // A workspace folder also travels, encrypted under a password only the account's devices derive, to the cloud.
+    const cloud = folder.peers === undefined ? this.clouds.get(folder.owner) : undefined
+    const sync = this.ctx.get('sync')
+    const encrypted = cloud === undefined || sync === undefined
+      ? []
+      : [{ deviceID: cloud.peer, encryptionPassword: sync.secret(folder.owner, `file-sync/folder/${folder.id}`) }]
     await running.rest.request('PUT', `/rest/config/folders/${encodeURIComponent(folder.id)}`, {
       id: folder.id,
       label: `${LABEL_PREFIX}${folder.id}`,
       path: folder.path,
       type: 'sendreceive',
-      devices: [running.peer, ...peers].map(deviceID => ({ deviceID })),
+      devices: [...[running.peer, ...peers].map(deviceID => ({ deviceID })), ...encrypted],
       fsWatcherEnabled: true,
       fsWatcherDelayS: this.config.watcherDelayS,
       pullerDelayS: this.config.pullerDelayS,
@@ -497,9 +620,10 @@ export default class SyncthingFileSync extends FileSync {
         type: 'staggered',
         params: { maxAge: String(this.config.versionRetentionDays * 86_400), cleanInterval: '3600' },
       },
-      paused: false,
+      paused: this.pausedOwners.has(folder.owner),
     })
-    await running.rest.request('POST', `/rest/db/ignores?folder=${encodeURIComponent(folder.id)}`, { ignore: this.config.ignores })
+    const ignores = this.ignoreSettings?.get().ignores ?? this.config.ignores
+    await running.rest.request('POST', `/rest/db/ignores?folder=${encodeURIComponent(folder.id)}`, { ignore: ignores })
   }
 
   private async refreshStatus(running: Running, id: FileSyncFolderId): Promise<void> {

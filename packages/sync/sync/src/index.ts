@@ -210,6 +210,15 @@ export abstract class Sync extends Service {
   abstract documentId(owner: string, name: string): string
 
   /**
+   * Derive a secret for one purpose from the account key, the same on every device that holds it, such as a file sync
+   * folder's encryption password. A relay holding the account key can also derive it.
+   * @param owner - an account whose key this device holds.
+   * @param label - the purpose, such as `file-sync/folder/<id>`.
+   * @returns the secret.
+   */
+  abstract secret(owner: string, label: string): string
+
+  /**
    * Open a document of an account whose key this device holds, loading its local state first.
    * @param owner - the account.
    * @param name - logical name, such as `settings/account`; never sent to the relay.

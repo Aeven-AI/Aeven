@@ -5654,6 +5654,8 @@ export interface Config {
     maxBytes: number
     /** Most environment files one workspace carries. */
     maxFiles: number
+    /** Largest total, in bytes, of one workspace's environment files, which travel in one account document. */
+    maxTotalBytes: number
   }
   /** Interval between passes that publish changed environment files and retry repositories not yet received. */
   passIntervalMs: number

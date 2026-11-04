@@ -53,6 +53,13 @@ declare module '@deepseek-ai/cordis' {
      * @param workspace - the workspace whose files were requested.
      */
     'workspace/files-requested'(workspace: WorkspaceId): void
+    /**
+     * The user paused or resumed file sync for an account on this device; read it with
+     * `WorkspaceRegistry.filesPaused`.
+     * @mode emit
+     * @param owner - the account.
+     */
+    'workspace/files-paused'(owner: string): void
   }
 }
 
@@ -63,12 +70,14 @@ declare module '@deepseek-ai/cordis' {
  * - `installing` — this device is installing Git before it can get the repository.
  * - `preparing` — the repository arrived and its dependencies are being installed.
  * - `paused` — a large first download waits until this computer is plugged in.
+ * - `stopped` — the user paused file sync on this computer.
  * - `conflict` — two devices changed the same files; {@link WorkspaceFileStatus.count} files have two versions.
  * - `waiting` — no device or server that holds the files is reachable yet.
  * - `git-needed` — the repository needs Git, which this device installs only once the user accepts.
  * - `failed` — the files cannot arrive; {@link WorkspaceFileStatus.reason} says why.
  */
-export type WorkspaceFileState = 'syncing' | 'installing' | 'preparing' | 'paused' | 'waiting' | 'git-needed' | 'conflict' | 'failed'
+export type WorkspaceFileState =
+  | 'syncing' | 'installing' | 'preparing' | 'paused' | 'stopped' | 'waiting' | 'git-needed' | 'conflict' | 'failed'
 
 /**
  * Why a workspace's files cannot arrive.

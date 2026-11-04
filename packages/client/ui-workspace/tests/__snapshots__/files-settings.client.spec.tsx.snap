@@ -1,0 +1,3 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Files settings > lists folders, pauses locally, and saves advanced ignore patterns > files overview 1`] = `"FilesKeep your workspaces’ files the same on all your computers.Sync filesFiles sync between your computers on their own.Workspaces on this computerProject/projectShow in folderShow advanced"`;

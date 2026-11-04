@@ -75,6 +75,8 @@ export interface Config {
     maxBytes: number
     /** Most environment files one workspace carries. */
     maxFiles: number
+    /** Largest total, in bytes, of one workspace's environment files, which travel in one account document. */
+    maxTotalBytes: number
   }
   /** Interval between passes that publish changed environment files and retry repositories not yet received. */
   passIntervalMs: number
@@ -128,6 +130,7 @@ export const Config: Schema<Config> = Schema.object({
     exclude: Schema.array(Schema.string()).default(['*.example', '*.sample', '*.template']),
     maxBytes: Schema.natural().min(1).default(64 * 1024),
     maxFiles: Schema.natural().min(1).default(50),
+    maxTotalBytes: Schema.natural().min(1).default(1024 * 1024),
   }),
   passIntervalMs: Schema.natural().min(1_000).default(300_000),
   retryMs: Schema.natural().min(1_000).default(600_000),
@@ -174,6 +177,7 @@ export function apply(ctx: Context, config: Config): void {
   ctx.on('sync/status', (owner) => { void cleared.then(() => repositories.attach(owner)).catch(warn) })
   ctx.on('sync/reset', (owner) => { repositories.reset(owner).catch(warn) })
   ctx.on('workspace/changed', () => { repositories.reconcileAll() })
+  ctx.on('workspace/files-paused', () => { repositories.reconcileAll() })
   ctx.on('workspace/files-requested', (workspace) => { repositories.requested(workspace) })
   // Work continues on whichever device runs the session: the device that loses it checkpoints its work, a turn's end
   // checkpoints it shortly after, and the first step of each turn applies newer work from another device.

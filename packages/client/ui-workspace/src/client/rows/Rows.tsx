@@ -73,6 +73,7 @@ function filesStatusEntry(files: WorkspaceFilesView, t: RowTranslate): MenuEntry
     case 'installing': return line(t('files.installing'), <Spinner />)
     case 'preparing': return line(t('files.preparing'), <Spinner />)
     case 'paused': return line(t('files.paused'), <IconLucidePause />)
+    case 'stopped': return line(t('files.stopped'), <IconLucidePause />)
     case 'waiting': return line(t('files.waiting'), <IconLucideClock />)
     case 'git-needed': return undefined
     case 'conflict': return line(
@@ -83,6 +84,18 @@ function filesStatusEntry(files: WorkspaceFilesView, t: RowTranslate): MenuEntry
     /* v8 ignore next -- closed WorkspaceFileState union */
     default: return assertNever(files.state)
   }
+}
+
+/**
+ * A Workspace's file status as one line of text, such as Settings → Files shows under a Workspace.
+ * @param files - the status.
+ * @param t - the workspace namespace's translate.
+ * @returns the line, with a first download's percentage after it.
+ */
+export function filesStatusText(files: WorkspaceFilesView, t: RowTranslate): string {
+  const entry = filesStatusEntry(files, t)
+  if (entry === undefined || !('type' in entry) || entry.type !== 'status') return t('files.gitNeeded')
+  return entry.trailing === undefined ? entry.text : `${entry.text} · ${entry.trailing}`
 }
 
 /** The short reason a Workspace's files cannot arrive. */

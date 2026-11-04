@@ -124,6 +124,14 @@ export abstract class FileSync extends Service {
   abstract status(id: FileSyncFolderId): FileSyncFolderStatus | undefined
 
   /**
+   * Pause or resume every folder of an account on this device; a paused folder neither sends nor receives changes.
+   * @param owner - the account.
+   * @param paused - whether its folders pause.
+   * @returns when the transport applies it.
+   */
+  abstract setPaused(owner: string, paused: boolean): Promise<void>
+
+  /**
    * Look at these paths now instead of waiting for the filesystem watcher, so a change this device just made reaches
    * the peers at once.
    * @param id - a folder {@link share} started.

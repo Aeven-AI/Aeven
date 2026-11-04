@@ -107,7 +107,20 @@ export class WorkspaceFiles {
     const account = await this.account(owner)
     if (account === undefined) return
     await this.refreshPeers(owner)
+    await this.pausedChanged(owner)
+  }
+
+  /**
+   * Apply the user's pause of file sync for an account on this device, then reconcile its folders.
+   * @param owner - the account.
+   */
+  async pausedChanged(owner: string): Promise<void> {
+    if (!this.accounts.has(owner)) return
+    await this.ctx.fileSync.setPaused(owner, this.ctx.workspaceRegistry.filesPaused(owner))
     await this.reconcile(owner)
+    for (const [id, shared] of this.shared) {
+      if (shared.owner === owner) await this.folderChanged(id)
+    }
   }
 
   /**
@@ -144,6 +157,10 @@ export class WorkspaceFiles {
     const entry = folders.get(shared.workspace)
     if (entry === undefined) return
     const complete = await this.complete(id, status, entry)
+    if (this.ctx.workspaceRegistry.filesPaused(shared.owner)) {
+      this.statuses.set(shared.workspace, { state: 'stopped' })
+      return
+    }
     const fileStatus = folderFileStatus(status, entry, complete)
     const conflicts = fileStatus === undefined ? await this.conflictCount(id) : 0
     this.statuses.set(shared.workspace, conflicts > 0 ? { state: 'conflict', count: conflicts } : fileStatus)
@@ -334,6 +351,10 @@ export class WorkspaceFiles {
         await this.folderChanged(id)
       } else if (workspace.kind === 'remote' && entry !== undefined) {
         present.add(workspace.id)
+        if (registry.filesPaused(owner)) {
+          this.statuses.set(workspace.id, { state: 'stopped' })
+          continue
+        }
         // A copy this device already holds is bound in place; the transport then exchanges only the differences.
         const held = await markedDirectory(workspace.id, workspace.title, entry.hint, this.options.root)
         if (held !== undefined) {

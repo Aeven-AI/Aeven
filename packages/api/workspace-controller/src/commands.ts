@@ -11,6 +11,7 @@ import {
 } from '@aeven/workspace'
 import { RemoteError, remoteErrorOf } from '@aeven/typert-protocol'
 import type {} from '@aeven/identity-user'
+import type {} from '@aeven/settings'
 import type { SessionId } from '@aeven/session'
 import { callerWorkspaceView, workspaceSessionVisible, workspaceView, workspaceVisible } from './feed.ts'
 import type {
@@ -22,6 +23,9 @@ import type {
   WorkspaceDeleteRequest,
   WorkspaceConflictsRequest,
   WorkspaceConflictsValue,
+  WorkspaceFilesIgnoresRequest,
+  WorkspaceFilesPauseRequest,
+  WorkspaceFilesSettings,
   WorkspaceGetFilesRequest,
   WorkspaceGetFilesValue,
   WorkspaceResolveConflictRequest,
@@ -34,6 +38,11 @@ import type {
   WorkspaceUnarchiveSessionRequest,
   WorkspaceValue,
 } from './types.ts'
+
+/** Most ignore patterns one account keeps. */
+const MAX_IGNORES = 500
+/** Longest one ignore pattern. */
+const MAX_IGNORE_LENGTH = 500
 
 /** Implements Workspace mutations against the authoritative registry. */
 export class WorkspaceCommands {
@@ -104,6 +113,60 @@ export class WorkspaceCommands {
       this.ctx.workspaceRegistry.requestFiles(WorkspaceId(request.workspaceId))
       return Promise.resolve({ requested: true as const })
     })
+  }
+
+  /**
+   * Read file sync on this Host for the calling account.
+   * @returns whether it is paused, the ignore patterns, and the account's Workspaces with their files' place and status.
+   */
+  filesSettings(): WorkspaceFilesSettings {
+    const owner = this.ctx.get('identityUsers')?.actingUser()?.id
+    const registry = this.ctx.workspaceRegistry
+    const settings = this.ctx.get('settings')?.get('file-sync') as { ignores?: string[] } | undefined
+    return {
+      paused: owner !== undefined && registry.filesPaused(owner),
+      ignores: settings?.ignores ?? [],
+      workspaces: registry.list()
+        .filter(workspace => !workspace.isBuiltIn && workspace.owner === owner)
+        .map(workspace => ({
+          workspaceId: workspace.id,
+          title: workspace.title,
+          path: workspace.path ?? null,
+          files: workspaceView(workspace, registry.fileStatus(workspace.id)).files,
+        })),
+    }
+  }
+
+  /**
+   * Pause or resume file sync on this Host for the calling account.
+   * @param request - whether to pause.
+   * @returns file sync after the change.
+   */
+  setFilesPaused(request: WorkspaceFilesPauseRequest): WorkspaceFilesSettings {
+    const owner = this.ctx.get('identityUsers')?.actingUser()?.id
+    if (owner === undefined) throw new RemoteError('gateway/bad-request', 'pausing file sync needs a signed-in user', {})
+    this.ctx.workspaceRegistry.setFilesPaused(owner, request.paused)
+    return this.filesSettings()
+  }
+
+  /**
+   * Replace the patterns no folder syncs, the same on every device of the account.
+   * @param request - the patterns.
+   * @returns file sync after the change.
+   */
+  async setFilesIgnores(request: WorkspaceFilesIgnoresRequest): Promise<WorkspaceFilesSettings> {
+    const ignores = request.ignores.map(pattern => pattern.trim()).filter(pattern => pattern !== '')
+    if (ignores.length > MAX_IGNORES || ignores.some(pattern => pattern.length > MAX_IGNORE_LENGTH)) {
+      throw new RemoteError(
+        'gateway/bad-request',
+        `ignore patterns are limited to ${String(MAX_IGNORES)} of ${String(MAX_IGNORE_LENGTH)} characters`,
+        {},
+      )
+    }
+    const settings = this.ctx.get('settings')
+    if (settings === undefined) throw new RemoteError('gateway/bad-request', 'this Host keeps no settings', {})
+    await settings.update('file-sync', { ignores })
+    return this.filesSettings()
   }
 
   /**

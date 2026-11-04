@@ -26,6 +26,9 @@ import type {} from '@aeven/client-locale/client'
 import type {} from '@aeven/client-ui-renderer/client'
 // Type-only: pulls the Session root standard-hook merge.
 import type {} from '@aeven/client-ui-session/client'
+// Type-only: pulls the `settings.section` slot declaration.
+import type {} from '@aeven/client-ui-settings/client'
+import type { RemoteResult } from '@aeven/typert-protocol'
 import type {
   WorkspaceBrowserInjected, WorkspaceHeaderActionsInjected, WorkspaceHeaderSearchInjected,
   WorkspacePickerInjected,
@@ -37,6 +40,7 @@ import { WorkspaceHeaderActions } from './HeaderActions.tsx'
 import { WorkspaceHeaderSearch } from './rows/HeaderSearch.tsx'
 import { WorkspaceBrowser } from './rows/WorkspaceBrowser.tsx'
 import { WorkspacePicker } from './WorkspacePicker.tsx'
+import { FilesSection, type FilesSectionInjected } from './settings/FilesSection.tsx'
 import { en, es, zh, type WorkspaceKey } from './locales.ts'
 
 export type { SessionMoveTarget, UiWorkspace } from './navigation.ts'
@@ -225,4 +229,30 @@ export function apply(ctx: Context): void {
     },
     WorkspacePicker,
   ))
+  // Settings → Files, beside Settings → Sync: file sync on this computer for the signed-in account.
+  const value = async <T>(result: Promise<RemoteResult<T>>): Promise<T> => {
+    const settled = await result
+    if (!settled.ok) throw new Error(`workspace files: ${settled.error.code}: ${settled.error.message}`)
+    return settled.value
+  }
+  const filesInjected: FilesSectionInjected = {
+    load: () => value(ctx.remote.workspace.filesSettings()),
+    setPaused: paused => value(ctx.remote.workspace.setFilesPaused({ paused })),
+    setIgnores: ignores => value(ctx.remote.workspace.setFilesIgnores({ ignores })),
+    reveal: (path) => {
+      void ctx.remote.session.openWorkspacePath({ path, action: 'reveal' }).then((result) => {
+        if (!result.ok) ctx.logger.warn(`workspace: showing ${path} failed: ${result.error.message}`)
+      })
+    },
+    onChange: listener => workspaces.list.subscribe(listener),
+  }
+  const t = ctx.locale.bind(NS)
+  ctx.slots.inject('settings.section', () => ctx.slots.register({
+    name: 'settings.section',
+    id: 'files',
+    order: 46,
+    label: () => t('filesSettings.nav'),
+    locale: NS,
+    inject: () => filesInjected,
+  }, FilesSection))
 }

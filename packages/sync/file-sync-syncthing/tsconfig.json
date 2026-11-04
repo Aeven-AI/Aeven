@@ -25,6 +25,15 @@
     },
     {
       "path": "../file-sync"
+    },
+    {
+      "path": "../../settings/settings"
+    },
+    {
+      "path": "../../credentials/credentials"
+    },
+    {
+      "path": "../sync"
     }
   ]
 }

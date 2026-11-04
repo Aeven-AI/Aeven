@@ -128,6 +128,37 @@ export interface WorkspaceGetFilesValue {
   readonly requested: true
 }
 
+/** One Workspace as Settings → Files lists it: where its files live on this Host and how they stand. */
+export interface WorkspaceFilesEntry {
+  readonly workspaceId: WorkspaceId
+  readonly title: string
+  /** Its directory on this Host, or `null` while its files have not arrived. */
+  readonly path: string | null
+  /** Its file status, or `null` while its files are here and up to date. */
+  readonly files: WorkspaceFilesView | null
+}
+
+/** File sync on this Host for the calling account. */
+export interface WorkspaceFilesSettings {
+  /** Whether the user paused file sync on this Host. */
+  readonly paused: boolean
+  /** The patterns no folder syncs, the same on every device of the account. */
+  readonly ignores: readonly string[]
+  /** The account's Workspaces with their files' place and status here. */
+  readonly workspaces: readonly WorkspaceFilesEntry[]
+}
+
+/** Pause or resume file sync on this Host. */
+export interface WorkspaceFilesPauseRequest {
+  readonly paused: boolean
+}
+
+/** Replace the patterns no folder syncs. */
+export interface WorkspaceFilesIgnoresRequest {
+  /** One Syncthing ignore pattern per entry; blank entries are dropped. */
+  readonly ignores: readonly string[]
+}
+
 /** The Workspace whose conflicting versions to list. */
 export interface WorkspaceConflictsRequest {
   readonly workspaceId: WorkspaceId

@@ -1,0 +1,36 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* The advanced part stays one quiet line until the reader opens it. */
+.reveal {
+  display: flex;
+}
+
+.note {
+  margin: 0 0 8px;
+  font-size: 0.8125rem;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.ignores {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: var(--dsw-aeven-radius-control);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-family: var(--ds-font-mono, ui-monospace, monospace);
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  resize: vertical;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}

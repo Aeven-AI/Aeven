@@ -1455,6 +1455,9 @@ importers:
       '@aeven/session':
         specifier: workspace:^
         version: link:../../core/session
+      '@aeven/settings':
+        specifier: workspace:^
+        version: link:../../settings/settings
       '@aeven/storage':
         specifier: workspace:^
         version: link:../../storage/storage
@@ -5505,6 +5508,9 @@ importers:
       '@aeven/client-ui-session':
         specifier: workspace:^
         version: link:../ui-session
+      '@aeven/client-ui-settings':
+        specifier: workspace:^
+        version: link:../ui-settings
       '@aeven/client-ui-sidebar':
         specifier: workspace:^
         version: link:../ui-sidebar
@@ -12197,12 +12203,21 @@ importers:
         specifier: ^4.4.3
         version: 4.6.5
     devDependencies:
+      '@aeven/credentials':
+        specifier: workspace:^
+        version: link:../../credentials/credentials
       '@aeven/file-sync':
         specifier: workspace:^
         version: link:../file-sync
+      '@aeven/settings':
+        specifier: workspace:^
+        version: link:../../settings/settings
       '@aeven/subprocess':
         specifier: workspace:^
         version: link:../../subprocess/subprocess
+      '@aeven/sync':
+        specifier: workspace:^
+        version: link:../sync
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis

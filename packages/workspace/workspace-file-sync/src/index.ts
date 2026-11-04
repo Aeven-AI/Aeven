@@ -88,6 +88,7 @@ export function apply(ctx: Context, config: Config): void {
   ctx.on('sync/devices', (owner) => { files.refreshPeers(owner).catch(warn) })
   ctx.on('sync/reset', (owner) => { files.reset(owner).catch(warn) })
   ctx.on('workspace/changed', () => { files.reconcileAll() })
+  ctx.on('workspace/files-paused', (owner) => { files.pausedChanged(owner).catch(warn) })
   ctx.on('file-sync/folder', (folder) => { files.folderChanged(folder).catch(warn) })
   // Reads and writes go through the filesystem capability; a Host without it has no agent file tools to serve.
   ctx.on('fs/pre-read', async (target, signal) => {

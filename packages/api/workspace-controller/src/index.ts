@@ -16,6 +16,9 @@ import type {
   WorkspaceFollowFrame,
   WorkspaceConflictsRequest,
   WorkspaceConflictsValue,
+  WorkspaceFilesIgnoresRequest,
+  WorkspaceFilesPauseRequest,
+  WorkspaceFilesSettings,
   WorkspaceGetFilesRequest,
   WorkspaceGetFilesValue,
   WorkspaceResolveConflictRequest,
@@ -96,6 +99,35 @@ export class WorkspaceController extends TypertRemoteService {
   @Remote('getFiles')
   getFiles(request: WorkspaceGetFilesRequest): Promise<WorkspaceGetFilesValue> {
     return this.commands.getFiles(request)
+  }
+
+  /**
+   * Read file sync on this Host for the calling account.
+   * @returns whether it is paused, the ignore patterns, and the account's Workspaces with their files' place and status.
+   */
+  @Remote('filesSettings')
+  filesSettings(): Promise<WorkspaceFilesSettings> {
+    return Promise.resolve(this.commands.filesSettings())
+  }
+
+  /**
+   * Pause or resume file sync on this Host for the calling account.
+   * @param request - whether to pause.
+   * @returns file sync after the change.
+   */
+  @Remote('setFilesPaused')
+  setFilesPaused(request: WorkspaceFilesPauseRequest): Promise<WorkspaceFilesSettings> {
+    return Promise.resolve(this.commands.setFilesPaused(request))
+  }
+
+  /**
+   * Replace the patterns no folder syncs, the same on every device of the account.
+   * @param request - the patterns.
+   * @returns file sync after the change.
+   */
+  @Remote('setFilesIgnores')
+  setFilesIgnores(request: WorkspaceFilesIgnoresRequest): Promise<WorkspaceFilesSettings> {
+    return this.commands.setFilesIgnores(request)
   }
 
   /**

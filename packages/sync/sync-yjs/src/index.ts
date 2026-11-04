@@ -482,6 +482,13 @@ export default class YjsSync extends Sync {
   }
 
   /** @inheritdoc */
+  secret(owner: string, label: string): string {
+    const account = this.accounts.get(owner)
+    if (account === undefined) throw new Error('this device does not sync the account')
+    return account.vault.secret(label)
+  }
+
+  /** @inheritdoc */
   async openDocument(owner: string, name: string): Promise<SyncDocument> {
     const vault = this.readyVault(owner)
     await Promise.resolve()

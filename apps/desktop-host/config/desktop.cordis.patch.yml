@@ -92,6 +92,10 @@
       config:
         binary: !!js "process.env.AVN_SYNCTHING ?? 'syncthing'"
         home: !!js avnHomePath('file-sync', 'syncthing')
+        cloudUrl: !!js "`${process.env.AEVEN_API_URL ?? 'https://aeven.io/api'}/api/cloud/files`"
+        # Aeven's own discovery and relay servers once they run; until then the public Syncthing pool.
+        discoveryServers: !!js "process.env.AEVEN_SYNC_DISCOVERY?.split(',') ?? ['default']"
+        listenAddresses: !!js "['default', ...(process.env.AEVEN_SYNC_RELAY?.split(',') ?? [])]"
 
     - id: workspace-file-sync
       name: '@aeven/workspace-file-sync'

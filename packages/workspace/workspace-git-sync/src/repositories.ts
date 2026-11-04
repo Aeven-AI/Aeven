@@ -173,7 +173,9 @@ export class WorkspaceRepositories {
    */
   async released(owner: string, sessionId: SessionId): Promise<void> {
     const repository = this.sessionRepository(sessionId)
-    if (repository !== undefined) await this.workState.checkpoint(owner, repository.id, repository.path)
+    if (repository !== undefined && !this.ctx.workspaceRegistry.filesPaused(owner)) {
+      await this.workState.checkpoint(owner, repository.id, repository.path)
+    }
   }
 
   /**
@@ -182,7 +184,8 @@ export class WorkspaceRepositories {
    */
   turnEnded(sessionId: SessionId): void {
     const repository = this.sessionRepository(sessionId)
-    if (repository?.owner !== undefined) this.workState.schedule(repository.owner, repository.id, repository.path)
+    if (repository?.owner === undefined || this.ctx.workspaceRegistry.filesPaused(repository.owner)) return
+    this.workState.schedule(repository.owner, repository.id, repository.path)
   }
 
   /**
@@ -192,7 +195,8 @@ export class WorkspaceRepositories {
    */
   async beforeTurn(sessionId: SessionId, signal: AbortSignal): Promise<void> {
     const repository = this.sessionRepository(sessionId)
-    if (repository?.owner !== undefined) await this.workState.apply(repository.owner, repository.id, repository.path, signal)
+    if (repository?.owner === undefined || this.ctx.workspaceRegistry.filesPaused(repository.owner)) return
+    await this.workState.apply(repository.owner, repository.id, repository.path, signal)
   }
 
   /**
@@ -374,11 +378,15 @@ export class WorkspaceRepositories {
         if (holders.get(key) !== true) holders.set(key, true)
         await this.publishEnv(owner, workspace.id, workspace.path)
         // The pass also catches work done outside a turn; an unchanged work tree writes nothing.
-        void this.workState.checkpoint(owner, workspace.id, workspace.path)
+        if (!this.ctx.workspaceRegistry.filesPaused(owner)) void this.workState.checkpoint(owner, workspace.id, workspace.path)
       } else if (workspace.kind === 'remote') {
         const entry = repositories.get(workspace.id)
         if (entry === undefined) continue
         arriving.add(workspace.id)
+        if (this.ctx.workspaceRegistry.filesPaused(owner)) {
+          this.statuses.set(workspace.id, { state: 'stopped' })
+          continue
+        }
         if (Date.now() >= (this.retryAt.get(workspace.id) ?? 0)) await this.materialize(account, owner, workspace, entry)
       }
     }
@@ -583,6 +591,8 @@ export class WorkspaceRepositories {
    * copy stops being served when the request is withdrawn or `copyTimeoutMs` elapses.
    */
   private async serveNow(owner: string): Promise<void> {
+    // A paused account serves no copies; the transfer folders would not move anyway.
+    if (this.ctx.workspaceRegistry.filesPaused(owner)) return
     const account = await this.accounts.get(owner)
     const fileSync = this.ctx.get('fileSync')
     if (account === undefined || fileSync === undefined) return

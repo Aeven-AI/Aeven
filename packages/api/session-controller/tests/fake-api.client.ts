@@ -270,6 +270,9 @@ export class FakeApiClient {
         getFiles: payload => this.record('workspace.getFiles', payload, Promise.resolve({ ok: true, value: { requested: true } })),
         conflicts: payload => this.record('workspace.conflicts', payload, Promise.resolve({ ok: true, value: { conflicts: [] } })),
         resolveConflict: payload => this.record('workspace.resolveConflict', payload, Promise.resolve({ ok: true, value: { resolved: false } })),
+        filesSettings: () => Promise.resolve({ ok: true, value: { paused: false, ignores: [], workspaces: [] } }),
+        setFilesPaused: payload => this.record('workspace.setFilesPaused', payload, Promise.resolve({ ok: true, value: { paused: false, ignores: [], workspaces: [] } })),
+        setFilesIgnores: payload => this.record('workspace.setFilesIgnores', payload, Promise.resolve({ ok: true, value: { paused: false, ignores: [], workspaces: [] } })),
         delete: payload => this.record('workspace.delete', payload, this.onWorkspaceDelete(payload)),
         insertBefore: payload => this.record(
           'workspace.insertBefore',
