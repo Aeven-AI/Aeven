@@ -137,6 +137,8 @@ export type WorkspaceBrowserInjected = {
   deleteWorkspace: (workspaceId: WorkspaceId) => Promise<void>
   /** Ask for a folder of this device and give it to a Workspace that has none here. */
   bindWorkspace: (workspaceId: WorkspaceId) => void
+  /** Ask the Host for a Workspace's files now, such as after the user accepts to install Git. */
+  getWorkspaceFiles: (workspaceId: WorkspaceId) => void
   /**
    * Reorder a Workspace in the durable registry display order.
    * Omitted anchor appends to the end.

@@ -20,6 +20,8 @@ import type {
   WorkspaceCreateRequest,
   WorkspaceCreateValue,
   WorkspaceDeleteRequest,
+  WorkspaceGetFilesRequest,
+  WorkspaceGetFilesValue,
   WorkspaceDeleteValue,
   WorkspaceInsertBeforeRequest,
   WorkspaceInsertSessionBeforeRequest,
@@ -84,6 +86,19 @@ export class WorkspaceCommands {
           { cause: error },
         )
       }
+    })
+  }
+
+  /**
+   * Pass the user's request for a Workspace's files to the Consumer that syncs them.
+   * @param request - Workspace identity.
+   * @returns the request receipt.
+   */
+  getFiles(request: WorkspaceGetFilesRequest): Promise<WorkspaceGetFilesValue> {
+    return this.enqueue(() => {
+      this.requireWorkspace(request.workspaceId)
+      this.ctx.workspaceRegistry.requestFiles(WorkspaceId(request.workspaceId))
+      return Promise.resolve({ requested: true as const })
     })
   }
 

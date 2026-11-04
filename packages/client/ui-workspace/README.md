@@ -51,7 +51,7 @@ The Session row's Rename action opens a dialog prefilled with the row's display 
 
 Session rows render the runtime's live `pendingInteraction` classification: approvals report **Waiting for approval**, plan reviews report **Plan awaiting review**, and ordinary questions report **Waiting for answer**. Every pending interaction uses an amber warning dot that takes precedence over the running indicator.
 
-Files sync on their own, so a Workspace row stays unmarked while its files arrive, catch up, or wait for another computer. The row's menu opens with one line that reads the files' status on this device, such as **Getting files · 34%**. Only a status that needs the user marks the row, with the same text in its tooltip and accessible name: files not downloaded because they exceed the disk budget, Git that must be installed by hand, and a failure. A command or error the Host sends appears verbatim inside the localized text.
+Files sync on their own, so a Workspace row never carries a file status mark. The row's menu ends, below the Workspace actions, with one line in the item type size that reads the files' status on this device: **Syncing files** with the first download's percentage at the right edge, **Installing Git**, **Waiting for connection**, or a short failure reason such as **No access to the repository**. A repository that waits for Git opens one **Install Git?** dialog per window, whose **Install** asks the Host to install Git and try again; **Not now** leaves an **Install Git** item at the bottom of the menu.
 
 ### Active Schedule markers
 

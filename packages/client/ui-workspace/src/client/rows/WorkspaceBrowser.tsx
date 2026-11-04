@@ -192,6 +192,8 @@ type SessionTreeProps = Pick<
   onDeleteRequest: (workspaceId: WorkspaceId, currentTitle: string) => void
   /** Ask for a folder of this device for a Workspace that has none here. */
   onBindRequest: (workspaceId: WorkspaceId) => void
+  /** Ask the Host to install Git for a Workspace whose repository waits for it. */
+  onInstallGitRequest: (workspaceId: WorkspaceId) => void
   /** Open the browser-owned session rename dialog. */
   onSessionRename: (sessionId: SessionNode['id'], currentTitle: string) => void
   /** Archive a session (row menu action; the row disappears on the state echo). */
@@ -209,7 +211,7 @@ function SessionTree({
   useSessions, useSessionPendingInteraction, startSession, newSessionHref, open, forkSession, workspaces,
   archivedSessionIds, hideManaged, archivedSection,
   workspaceReady,
-  onRenameRequest, onDeleteRequest, onBindRequest, onSessionRename, onSessionArchive,
+  onRenameRequest, onDeleteRequest, onBindRequest, onInstallGitRequest, onSessionRename, onSessionArchive,
   insertWorkspaceBefore, insertSessionBefore, orderBy,
   groupExpansion, setGroupExpanded,
   sessionOrderByAccount, sessionUpdatedAtByAccount, syncSessionOrderAccount, setSessionOrder, t,
@@ -495,6 +497,10 @@ function SessionTree({
                     /* v8 ignore next -- narrowing guard: the actions object exists only for real-workspace groups. */
                       if (group.workspaceId !== undefined) onBindRequest(group.workspaceId)
                     },
+                    installGit: () => {
+                    /* v8 ignore next -- narrowing guard: the actions object exists only for real-workspace groups. */
+                      if (group.workspaceId !== undefined) onInstallGitRequest(group.workspaceId)
+                    },
                   }}
               />
               {(sessionsExpanded
@@ -776,6 +782,7 @@ export function WorkspaceBrowser({
   renameWorkspace,
   deleteWorkspace,
   bindWorkspace,
+  getWorkspaceFiles,
   insertWorkspaceBefore,
   archiveSession,
   unarchiveSession,
@@ -958,6 +965,15 @@ export function WorkspaceBrowser({
   // Delete dialog is separate from the row so a successful removal can
   // unmount that row without tearing down the in-flight confirmation state.
   const [deleteTarget, setDeleteTarget] = useState<{ workspaceId: WorkspaceId; title: string } | null>(null)
+  // Repositories whose Git question the reader already answered in this window; asked again only after a reload.
+  const [gitAnswered, setGitAnswered] = useState<ReadonlySet<WorkspaceId>>(() => new Set())
+  const gitNeeded = workspaces.find(item => item.files?.state === 'git-needed' && !gitAnswered.has(item.workspaceId))
+  const answerGit = (install: boolean): void => {
+    // One answer covers every repository waiting for Git: one install serves them all.
+    const waiting = workspaces.filter(item => item.files?.state === 'git-needed').map(item => item.workspaceId)
+    setGitAnswered(previous => new Set([...previous, ...waiting]))
+    if (install && gitNeeded !== undefined) getWorkspaceFiles(gitNeeded.workspaceId)
+  }
   const [deleting, setDeleting] = useState(false)
   const [deleteCommittedId, setDeleteCommittedId] = useState<WorkspaceId | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -1048,6 +1064,7 @@ export function WorkspaceBrowser({
                 setDeleteError(null)
               }}
               onBindRequest={bindWorkspace}
+              onInstallGitRequest={getWorkspaceFiles}
             />
           ))}
       </div>
@@ -1143,6 +1160,20 @@ export function WorkspaceBrowser({
         {deleting && <div className={css.deleteStatus} role="status">{t('delete.pending')}</div>}
         {deleteError !== null && <div className={css.renameError} role="alert">{deleteError}</div>}
       </Modal>
+
+      <Modal
+        open={gitNeeded !== undefined}
+        onClose={() => { answerGit(false) }}
+        closeLabel={t('close')}
+        title={t('git.title')}
+        {...gitNeeded === undefined ? {} : { description: t('git.body', { name: gitNeeded.title }) }}
+        footer={(
+          <>
+            <Button variant="outline" onClick={() => { answerGit(false) }}>{t('git.later')}</Button>
+            <Button variant="primary" onClick={() => { answerGit(true) }}>{t('git.install')}</Button>
+          </>
+        )}
+      />
     </div>
   )
 }

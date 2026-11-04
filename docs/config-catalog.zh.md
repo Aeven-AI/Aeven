@@ -5588,8 +5588,6 @@ export interface Config {
 export interface Config {
   /** Directory a workspace from another device lands in when its location hint names no free directory here. */
   root: string
-  /** Largest workspace, in bytes, this device downloads as soon as it arrives. */
-  prefetchMaxBytes: number
   /** Share of the disk, from 0 to 1, a download must leave free. */
   minFreeDiskRatio: number
   /** Directory holding one marker per folder this device has held completely. */
@@ -5610,12 +5608,8 @@ export interface Config {
 export interface Config {
   /** Directory a repository from another device lands in when its location hint names no free directory here. */
   root: string
-  /** Largest repository, in bytes, this device gets as soon as it arrives. */
-  prefetchMaxBytes: number
   /** Share of the disk, from 0 to 1, a download must leave free. */
   minFreeDiskRatio: number
-  /** Run the platform's Git installer when a repository arrives and this device has no Git. */
-  gitInstall: boolean
   /** Interval between checks for a finished Git install. */
   gitInstallPollMs: number
   /** Longest wait for a Git install the user may have to confirm. */

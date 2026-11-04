@@ -61,16 +61,13 @@ export async function placeWorkspace(title: string, hint: string | undefined, ro
 }
 
 /**
- * Whether receiving this many bytes under the placement root stays within a size limit and leaves a share of the
- * disk free.
+ * Whether receiving this many bytes under the placement root leaves a share of the disk free.
  * @param root - the placement root, which need not exist yet.
  * @param bytes - the size to receive.
- * @param maxBytes - the largest size received without being asked.
  * @param minFreeDiskRatio - the share of the disk, from 0 to 1, that must stay free.
  * @returns whether the files fit.
  */
-export async function fitsDisk(root: string, bytes: number, maxBytes: number, minFreeDiskRatio: number): Promise<boolean> {
-  if (bytes > maxBytes) return false
+export async function fitsDisk(root: string, bytes: number, minFreeDiskRatio: number): Promise<boolean> {
   let probe = root
   while (!existsSync(probe) && dirname(probe) !== probe) probe = dirname(probe)
   const disk = await statfs(probe)

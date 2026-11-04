@@ -29,8 +29,6 @@ export const inject = ['fileSync', 'workspaceRegistry', 'sync']
 export interface Config {
   /** Directory a workspace from another device lands in when its location hint names no free directory here. */
   root: string
-  /** Largest workspace, in bytes, this device downloads as soon as it arrives. */
-  prefetchMaxBytes: number
   /** Share of the disk, from 0 to 1, a download must leave free. */
   minFreeDiskRatio: number
   /** Directory holding one marker per folder this device has held completely. */
@@ -40,7 +38,6 @@ export interface Config {
 /** Configuration schema. */
 export const Config: Schema<Config> = Schema.object({
   root: Schema.string().default(join(homedir(), 'Aeven')),
-  prefetchMaxBytes: Schema.natural().default(5 * 1024 ** 3),
   minFreeDiskRatio: Schema.number().min(0).max(1).default(0.1),
   completeDirectory: Schema.string().default(avnHomePath('workspace-file-sync', 'complete')),
 })

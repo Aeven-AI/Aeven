@@ -14,6 +14,8 @@ import type {
   WorkspaceDeleteRequest,
   WorkspaceDeleteValue,
   WorkspaceFollowFrame,
+  WorkspaceGetFilesRequest,
+  WorkspaceGetFilesValue,
   WorkspaceInsertBeforeRequest,
   WorkspaceInsertSessionBeforeRequest,
   WorkspaceOrderValue,
@@ -80,6 +82,16 @@ export class WorkspaceController extends TypertRemoteService {
   @Remote('bind')
   bind(request: WorkspaceBindRequest): Promise<WorkspaceValue> {
     return this.commands.bind(request)
+  }
+
+  /**
+   * Ask for a Workspace's files now on the user's behalf, such as after they accept to install Git.
+   * @param request - Workspace identity.
+   * @returns the request receipt.
+   */
+  @Remote('getFiles')
+  getFiles(request: WorkspaceGetFilesRequest): Promise<WorkspaceGetFilesValue> {
+    return this.commands.getFiles(request)
   }
 
   /**

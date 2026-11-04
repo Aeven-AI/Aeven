@@ -268,6 +268,13 @@ Host service backing the generated `ctx.remote.workspace` namespace.
 @Remote('bind') bind(request: WorkspaceBindRequest): Promise<WorkspaceValue>
 
 /**
+ * Ask for a Workspace's files now on the user's behalf, such as after they accept to install Git.
+ * @param request - Workspace identity.
+ * @returns the request receipt.
+ */
+@Remote('getFiles') getFiles(request: WorkspaceGetFilesRequest): Promise<WorkspaceGetFilesValue>
+
+/**
  * Remove one Workspace registration while retaining files and Sessions.
  * @param request - Workspace identity to remove.
  * @returns deletion confirmation.
@@ -408,6 +415,13 @@ fileStatus(id: WorkspaceId): WorkspaceFileStatus | undefined
  * @param status - the new status, or `undefined` once the files are here and up to date.
  */
 setFileStatus(id: WorkspaceId, status: WorkspaceFileStatus | undefined): void
+
+/**
+ * Ask for a workspace's files now on the user's behalf, for example after they accept to install Git; emits
+ * `workspace/files-requested` for the Consumer that syncs them.
+ * @param id - Workspace id.
+ */
+requestFiles(id: WorkspaceId): void
 
 /**
  * Delete one workspace registration while retaining its directory and every
@@ -607,6 +621,24 @@ A workspace's file status on this device changed; read it with `WorkspaceRegistr
  * @param workspace - the workspace whose status changed.
  */
 'workspace/files'(workspace: WorkspaceId): void
+```
+
+Source: [`packages/workspace/workspace/src/types.ts`](../../packages/workspace/workspace/src/types.ts)
+
+<a id="workspacefiles-requested--emit"></a>
+
+#### `workspace/files-requested` — emit
+
+The user asked for a workspace's files now, for example by accepting to install Git: the Consumer that syncs them installs what they need and tries again at once.
+
+```ts cordis-catalog
+/**
+ * The user asked for a workspace's files now, for example by accepting to install Git: the Consumer that syncs
+ * them installs what they need and tries again at once.
+ * @mode emit
+ * @param workspace - the workspace whose files were requested.
+ */
+'workspace/files-requested'(workspace: WorkspaceId): void
 ```
 
 Source: [`packages/workspace/workspace/src/types.ts`](../../packages/workspace/workspace/src/types.ts)

@@ -6,18 +6,18 @@
  */
 
 import type { SessionId } from '@aeven/session/types'
-import type { WorkspaceFileState, WorkspaceId, WorkspaceKind } from '@aeven/workspace/types'
+import type { WorkspaceFileFailure, WorkspaceFileState, WorkspaceId, WorkspaceKind } from '@aeven/workspace/types'
 
-export type { WorkspaceFileState, WorkspaceId } from '@aeven/workspace/types'
+export type { WorkspaceFileFailure, WorkspaceFileState, WorkspaceId } from '@aeven/workspace/types'
 export type { DirectoryEntry, DirectoryListing } from '@aeven/host-directory-picker/types'
 
 /** Where a Workspace's files stand on the Host while they are not simply there and up to date. */
 export interface WorkspaceFilesView {
   readonly state: WorkspaceFileState
-  /** Share of the files already on the Host, from 0 to 1, or `null` when the transfer does not know it. */
+  /** Share of the files already on the Host, from 0 to 1, during a first download whose size is known; otherwise `null`. */
   readonly progress: number | null
-  /** A command or error text to show verbatim, or `null`; see `WorkspaceFileState`. */
-  readonly detail: string | null
+  /** Why the files cannot arrive, present exactly in `failed`; otherwise `null`. */
+  readonly reason: WorkspaceFileFailure | null
 }
 
 /** One durable Workspace projected for browser consumers. */
@@ -114,6 +114,16 @@ export interface WorkspaceBindRequest {
   readonly workspaceId: WorkspaceId
   /** Existing directory on this Host, fully qualified. */
   readonly path: string
+}
+
+/** The user's request for a Workspace's files now, such as accepting to install Git. */
+export interface WorkspaceGetFilesRequest {
+  readonly workspaceId: WorkspaceId
+}
+
+/** Receipt after a files request reached the Consumer that syncs the Workspace's files. */
+export interface WorkspaceGetFilesValue {
+  readonly requested: true
 }
 
 /** Workspace mutation returning the complete changed row. */

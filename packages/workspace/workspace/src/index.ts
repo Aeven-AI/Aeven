@@ -33,6 +33,7 @@ export type {
   FolderWorkspace,
   SessionPlacement,
   Workspace,
+  WorkspaceFileFailure,
   WorkspaceFileState,
   WorkspaceFileStatus,
   WorkspaceKind,
@@ -360,10 +361,19 @@ export class WorkspaceRegistry extends Service {
    */
   setFileStatus(id: WorkspaceId, status: WorkspaceFileStatus | undefined): void {
     const previous = this.fileStatuses.get(id)
-    if (previous?.state === status?.state && previous?.progress === status?.progress && previous?.detail === status?.detail) return
+    if (previous?.state === status?.state && previous?.progress === status?.progress && previous?.reason === status?.reason) return
     if (status === undefined) this.fileStatuses.delete(id)
     else this.fileStatuses.set(id, status)
     this.ctx.emit('workspace/files', id)
+  }
+
+  /**
+   * Ask for a workspace's files now on the user's behalf, for example after they accept to install Git; emits
+   * `workspace/files-requested` for the Consumer that syncs them.
+   * @param id - Workspace id.
+   */
+  requestFiles(id: WorkspaceId): void {
+    this.ctx.emit('workspace/files-requested', id)
   }
 
   /**

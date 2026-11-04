@@ -753,6 +753,8 @@ export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   SessionRunner: 'package-owned type is documented in packages/session/session-handoff/src/index.ts',
   SessionClaim: 'package-owned type is documented in packages/session/session-handoff/src/index.ts',
   WorkspaceBindRequest: 'package-owned type is documented in packages/api/workspace-controller/src/types.ts',
+  WorkspaceGetFilesRequest: 'package-owned type is documented in packages/api/workspace-controller/src/types.ts',
+  WorkspaceGetFilesValue: 'package-owned type is documented in packages/api/workspace-controller/src/types.ts',
   AgentDeviceTarget: 'package-owned type is documented in packages/device/device/src/index.ts',
   AutomationDefinition: 'package-owned type is documented in packages/core/automations/src/types.ts',
   AutomationId: 'package-owned type is documented in packages/core/automations/src/types.ts',

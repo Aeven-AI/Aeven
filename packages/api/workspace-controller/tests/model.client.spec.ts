@@ -104,6 +104,11 @@ class FakeWorkspaceRemote implements WorkspaceRemote {
     return this.onRename({ workspaceId: request.workspaceId, title: request.path })
   }
 
+  getFiles(request: { readonly workspaceId: WorkspaceId }): Promise<RemoteResult<{ readonly requested: true }>> {
+    this.record('getFiles', request)
+    return Promise.resolve({ ok: true, value: { requested: true } })
+  }
+
   delete(request: WorkspaceDeleteRequest): Promise<RemoteResult<WorkspaceDeleteValue>> {
     this.record('delete', request)
     return this.onDelete(request)

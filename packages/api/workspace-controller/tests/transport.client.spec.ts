@@ -136,6 +136,10 @@ class ScriptedWorkspaceRemote implements WorkspaceRemote {
     throw new Error('unused')
   }
 
+  getFiles(_request: { readonly workspaceId: WorkspaceId }): Promise<RemoteResult<{ readonly requested: true }>> {
+    throw new Error('unused')
+  }
+
   delete(_request: WorkspaceDeleteRequest): Promise<RemoteResult<WorkspaceDeleteValue>> {
     throw new Error('unused')
   }
@@ -185,6 +189,8 @@ class CommandWorkspaceRemote implements WorkspaceRemote {
   readonly bind = vi.fn<WorkspaceRemote['bind']>(request => Promise.resolve(remoteOk({
     workspace: workspace(String(request.workspaceId), { path: request.path, kind: 'folder' }),
   })))
+
+  readonly getFiles = vi.fn<WorkspaceRemote['getFiles']>(() => Promise.resolve(remoteOk({ requested: true as const })))
 
   readonly delete = vi.fn<WorkspaceRemote['delete']>(() => Promise.resolve(remoteOk({ deleted: true })))
 

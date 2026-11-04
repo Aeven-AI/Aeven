@@ -4550,6 +4550,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the updated Workspace projection.',
       },
       {
+        signature: '@Remote(\'getFiles\') getFiles(request: WorkspaceGetFilesRequest): Promise<WorkspaceGetFilesValue>',
+        description: 'Ask for a Workspace\'s files now on the user\'s behalf, such as after they accept to install Git.',
+        parameters: [{ name: 'request', description: 'Workspace identity.' }],
+        returns: 'the request receipt.',
+      },
+      {
         signature: '@Remote(\'delete\') delete(request: WorkspaceDeleteRequest): Promise<WorkspaceDeleteValue>',
         description: 'Remove one Workspace registration while retaining files and Sessions.',
         parameters: [{ name: 'request', description: 'Workspace identity to remove.' }],
@@ -4645,6 +4651,11 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         signature: 'setFileStatus(id: WorkspaceId, status: WorkspaceFileStatus | undefined): void',
         description: 'Report a workspace\'s file status on this device and emit `workspace/files` when it changed. The Consumer that syncs the workspace\'s files is its only reporter, and clears what it reported when it stops.',
         parameters: [{ name: 'id', description: 'Workspace id.' }, { name: 'status', description: 'the new status, or `undefined` once the files are here and up to date.' }],
+      },
+      {
+        signature: 'requestFiles(id: WorkspaceId): void',
+        description: 'Ask for a workspace\'s files now on the user\'s behalf, for example after they accept to install Git; emits `workspace/files-requested` for the Consumer that syncs them.',
+        parameters: [{ name: 'id', description: 'Workspace id.' }],
       },
       {
         signature: 'delete(id: WorkspaceId): Promise<boolean>',
@@ -5484,6 +5495,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     summary: 'A workspace\'s file status on this device changed; read it with `WorkspaceRegistry.fileStatus`.',
     description: 'A workspace\'s file status on this device changed; read it with `WorkspaceRegistry.fileStatus`.',
     parameters: [{ name: 'workspace', description: 'the workspace whose status changed.' }],
+  },
+  {
+    name: 'workspace/files-requested',
+    mode: 'emit',
+    signature: '\'workspace/files-requested\'(workspace: WorkspaceId): void',
+    summary: 'The user asked for a workspace\'s files now, for example by accepting to install Git: the Consumer that syncs them installs what they need and tries again at once.',
+    description: 'The user asked for a workspace\'s files now, for example by accepting to install Git: the Consumer that syncs them installs what they need and tries again at once.',
+    parameters: [{ name: 'workspace', description: 'the workspace whose files were requested.' }],
   },
 ]
 
@@ -9802,6 +9821,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface WorkspaceDirectoryListing {\n    readonly root: string;\n    readonly path: string;\n    readonly entries: readonly WorkspaceDirectoryEntry[];\n    readonly truncated: boolean;\n}',
   },
   {
+    name: 'WorkspaceFileFailure',
+    declaration: 'export type WorkspaceFileFailure = \'access\' | \'network\' | \'disk\' | \'folder\' | \'git-install\' | \'unknown\';',
+  },
+  {
     name: 'WorkspaceFilesShowRequestEvent',
     declaration: 'export interface WorkspaceFilesShowRequestEvent {\n    readonly path: string;\n    readonly type: \'file\' | \'directory\';\n    agent?: Agent;\n    signal?: AbortSignal;\n}',
   },
@@ -9811,15 +9834,15 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'WorkspaceFileState',
-    declaration: 'export type WorkspaceFileState = \'absent\' | \'fetching\' | \'installing\' | \'catching-up\' | \'waiting\' | \'git-missing\' | \'failed\';',
+    declaration: 'export type WorkspaceFileState = \'syncing\' | \'installing\' | \'waiting\' | \'git-needed\' | \'failed\';',
   },
   {
     name: 'WorkspaceFileStatus',
-    declaration: 'export interface WorkspaceFileStatus {\n    readonly state: WorkspaceFileState;\n    readonly progress?: number;\n    readonly detail?: string;\n}',
+    declaration: 'export interface WorkspaceFileStatus {\n    readonly state: WorkspaceFileState;\n    readonly progress?: number;\n    readonly reason?: WorkspaceFileFailure;\n}',
   },
   {
     name: 'WorkspaceFilesView',
-    declaration: 'export interface WorkspaceFilesView {\n    readonly state: WorkspaceFileState;\n    readonly progress: number | null;\n    readonly detail: string | null;\n}',
+    declaration: 'export interface WorkspaceFilesView {\n    readonly state: WorkspaceFileState;\n    readonly progress: number | null;\n    readonly reason: WorkspaceFileFailure | null;\n}',
   },
   {
     name: 'WorkspaceFileText',
@@ -9832,6 +9855,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WorkspaceFollowIncrement',
     declaration: 'export type WorkspaceFollowIncrement = {\n    readonly type: \'upsert\';\n    readonly workspace: WorkspaceView;\n} | {\n    readonly type: \'remove\';\n    readonly workspaceId: WorkspaceId;\n} | {\n    readonly type: \'order\';\n    readonly workspaceIds: readonly WorkspaceId[];\n} | {\n    readonly type: \'archived\';\n    readonly archivedSessionIds: readonly SessionId[];\n};',
+  },
+  {
+    name: 'WorkspaceGetFilesRequest',
+    declaration: 'export interface WorkspaceGetFilesRequest {\n    readonly workspaceId: WorkspaceId;\n}',
+  },
+  {
+    name: 'WorkspaceGetFilesValue',
+    declaration: 'export interface WorkspaceGetFilesValue {\n    readonly requested: true;\n}',
   },
   {
     name: 'WorkspaceInsertBeforeRequest',

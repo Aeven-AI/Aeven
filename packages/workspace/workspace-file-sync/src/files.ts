@@ -40,8 +40,6 @@ export interface SyncedWorkspaceFiles {
 export interface WorkspaceFilesOptions {
   /** Directory a workspace lands in when its hint names no usable directory here. */
   root: string
-  /** Largest workspace this device downloads without being asked. */
-  prefetchMaxBytes: number
   /** Share of the disk a download must leave free. */
   minFreeDiskRatio: number
   /** Directory holding one marker per folder this device has held completely. */
@@ -231,11 +229,11 @@ export class WorkspaceFiles {
       } else if (workspace.kind === 'remote' && entry !== undefined) {
         present.add(workspace.id)
         if (!await this.fits(entry.bytes)) {
-          this.statuses.set(workspace.id, { state: 'absent' })
+          this.statuses.set(workspace.id, { state: 'failed', reason: 'disk' })
           continue
         }
         // Binding commits a registry change, whose `workspace/changed` runs the pass that shares the folder.
-        this.statuses.set(workspace.id, { state: 'fetching', progress: 0 })
+        this.statuses.set(workspace.id, { state: 'syncing', progress: 0 })
         await registry.bind(workspace.id, await placeWorkspace(workspace.title, entry.hint, this.options.root))
       }
     }
@@ -273,9 +271,9 @@ export class WorkspaceFiles {
     return join(this.options.completeDirectory, id)
   }
 
-  /** Whether downloading this many bytes stays within the prefetch limit and leaves the required share of the disk free. */
+  /** Whether downloading this many bytes leaves the required share of the disk free. */
   private fits(bytes: number): Promise<boolean> {
-    return fitsDisk(this.options.root, bytes, this.options.prefetchMaxBytes, this.options.minFreeDiskRatio)
+    return fitsDisk(this.options.root, bytes, this.options.minFreeDiskRatio)
   }
 }
 
@@ -286,7 +284,7 @@ function describe(path: string): SyncedWorkspaceFiles {
 }
 
 /**
- * A shared folder's status as its workspace's file status: nothing while the folder is complete and current, the
+ * A shared folder's status as its workspace's file status: nothing while the folder is complete and current, and the
  * download progress against the larger of the agreed size and the descriptor's size before it first completes.
  */
 function folderFileStatus(
@@ -294,13 +292,13 @@ function folderFileStatus(
   entry: SyncedWorkspaceFiles,
   complete: boolean,
 ): WorkspaceFileStatus | undefined {
-  if (status.state === 'error') return { state: 'failed', ...status.error === undefined ? {} : { detail: status.error } }
+  if (status.state === 'error') return { state: 'failed', reason: 'folder' }
   // Idle while files are missing: no device that holds them is reachable.
   if (status.state === 'idle' && (status.needFiles > 0 || !complete)) return { state: 'waiting' }
-  if (complete) return status.needFiles > 0 ? { state: 'catching-up' } : undefined
+  if (complete) return status.needFiles > 0 ? { state: 'syncing' } : undefined
   const total = Math.max(status.globalBytes, entry.bytes)
-  if (total === 0) return { state: 'fetching' }
-  return { state: 'fetching', progress: Math.min(1, Math.max(0, (status.globalBytes - status.needBytes) / total)) }
+  if (total === 0) return { state: 'syncing' }
+  return { state: 'syncing', progress: Math.min(1, Math.max(0, (status.globalBytes - status.needBytes) / total)) }
 }
 
 /** Whether a directory is the top of a Git work tree. */

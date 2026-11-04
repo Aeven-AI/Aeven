@@ -161,6 +161,11 @@ export function apply(ctx: Context): void {
         ctx.logger.warn(`workspace: choosing a folder for ${workspaceId} failed: ${String(error)}`)
       })
     },
+    getWorkspaceFiles: (workspaceId) => {
+      workspaces.getFiles(workspaceId).catch((error: unknown) => {
+        ctx.logger.warn(`workspace: asking for the files of ${workspaceId} failed: ${String(error)}`)
+      })
+    },
     insertWorkspaceBefore: async (workspaceId, beforeWorkspaceId) => {
       await workspaces.insertBefore(workspaceId, beforeWorkspaceId)
     },

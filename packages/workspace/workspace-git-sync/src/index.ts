@@ -39,12 +39,8 @@ export const inject = ['workspaceRegistry', 'sync', 'subprocess']
 export interface Config {
   /** Directory a repository from another device lands in when its location hint names no free directory here. */
   root: string
-  /** Largest repository, in bytes, this device gets as soon as it arrives. */
-  prefetchMaxBytes: number
   /** Share of the disk, from 0 to 1, a download must leave free. */
   minFreeDiskRatio: number
-  /** Run the platform's Git installer when a repository arrives and this device has no Git. */
-  gitInstall: boolean
   /** Interval between checks for a finished Git install. */
   gitInstallPollMs: number
   /** Longest wait for a Git install the user may have to confirm. */
@@ -96,9 +92,7 @@ const DISCOVERY_ROOTS = ['Projects', 'code', 'src', 'Developer', 'repos', 'git',
 /** Configuration schema. */
 export const Config: Schema<Config> = Schema.object({
   root: Schema.string().default(join(homedir(), 'Aeven')),
-  prefetchMaxBytes: Schema.natural().default(5 * 1024 ** 3),
   minFreeDiskRatio: Schema.number().min(0).max(1).default(0.1),
-  gitInstall: Schema.boolean().default(true),
   gitInstallPollMs: Schema.natural().min(100).default(5_000),
   gitInstallTimeoutMs: Schema.natural().min(1_000).default(1_800_000),
   commandTimeoutMs: Schema.natural().min(1_000).default(60_000),
@@ -130,7 +124,6 @@ export const Config: Schema<Config> = Schema.object({
  */
 export function apply(ctx: Context, config: Config): void {
   const git = new Git(ctx, {
-    install: config.gitInstall,
     installPollMs: config.gitInstallPollMs,
     installTimeoutMs: config.gitInstallTimeoutMs,
     commandTimeoutMs: config.commandTimeoutMs,
@@ -153,6 +146,7 @@ export function apply(ctx: Context, config: Config): void {
   ctx.on('sync/status', (owner) => { void cleared.then(() => repositories.attach(owner)).catch(warn) })
   ctx.on('sync/reset', (owner) => { repositories.reset(owner).catch(warn) })
   ctx.on('workspace/changed', () => { repositories.reconcileAll() })
+  ctx.on('workspace/files-requested', (workspace) => { repositories.requested(workspace) })
   ctx.effect(() => {
     const timer = setInterval(() => { repositories.reconcileAll() }, config.passIntervalMs)
     return () => {

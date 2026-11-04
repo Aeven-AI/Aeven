@@ -11,6 +11,7 @@ import type {
   WorkspaceCreateRequest,
   WorkspaceCreateValue,
   WorkspaceDeleteValue,
+  WorkspaceGetFilesValue,
   WorkspaceInsertSessionBeforeRequest,
   WorkspaceOrderValue,
   WorkspaceUnarchiveSessionRequest,
@@ -111,6 +112,15 @@ export class ClientWorkspaceModel implements WorkspaceFollowSink {
     const result = await this.remote.bind({ workspaceId, path })
     if (result.ok) this.upsert(result.value.workspace)
     return result
+  }
+
+  /**
+   * Ask the Host for a Workspace's files now; the status change arrives on the follow stream.
+   * @param workspaceId - target Workspace.
+   * @returns generated Remote result.
+   */
+  getFiles(workspaceId: WorkspaceId): Promise<RemoteResult<WorkspaceGetFilesValue>> {
+    return this.remote.getFiles({ workspaceId })
   }
 
   /**

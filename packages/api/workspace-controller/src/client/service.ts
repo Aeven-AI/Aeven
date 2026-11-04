@@ -54,6 +54,11 @@ export interface IWorkspaces {
    */
   bind(workspaceId: WorkspaceId, path: string): Promise<WorkspaceView>
   /**
+   * Ask the Host for a Workspace's files now, such as after the user accepts to install Git.
+   * @param workspaceId - target Workspace.
+   */
+  getFiles(workspaceId: WorkspaceId): Promise<void>
+  /**
    * Delete a Workspace registration without deleting Sessions or files.
    * @param workspaceId - target Workspace.
    */
@@ -117,6 +122,11 @@ export class WorkspaceController extends Service implements IWorkspaces {
     const result = await this.model.bind(workspaceId, path)
     if (!result.ok) throw commandError('bind', result.error)
     return result.value.workspace
+  }
+
+  async getFiles(workspaceId: WorkspaceId): Promise<void> {
+    const result = await this.model.getFiles(workspaceId)
+    if (!result.ok) throw commandError('getFiles', result.error)
   }
 
   async delete(workspaceId: WorkspaceId): Promise<void> {

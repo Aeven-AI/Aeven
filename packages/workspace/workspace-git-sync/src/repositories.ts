@@ -14,7 +14,7 @@ import type { FileSync, FileSyncFolderId, FileSyncPeerId } from '@aeven/file-syn
 import type { SyncDocument } from '@aeven/sync'
 import type { DeviceId } from '@aeven/sync-vault'
 import { fitsDisk, hintedDirectory, locationHint, placeWorkspace, WorkspaceFileStatusReport } from '@aeven/workspace'
-import type { Workspace, WorkspaceId } from '@aeven/workspace'
+import type { Workspace, WorkspaceFileFailure, WorkspaceFileStatus, WorkspaceId } from '@aeven/workspace'
 import { CheckoutDiscovery, parentsOf } from './discovery.ts'
 import { EnvFileNames, readEnvFiles, restoreEnvFiles, type EnvFileOptions } from './env-files.ts'
 import { GitUnavailableError, type Git } from './git.ts'
@@ -55,8 +55,6 @@ interface CopyRequest {
 export interface WorkspaceRepositoriesOptions {
   /** Directory a repository lands in when its hint names no free directory here. */
   root: string
-  /** Largest repository this device gets without being asked. */
-  prefetchMaxBytes: number
   /** Share of the disk a download must leave free. */
   minFreeDiskRatio: number
   /** Directory transfer folders live in while a copy travels. */
@@ -154,6 +152,26 @@ export class WorkspaceRepositories {
   /** Reconcile every attached account. */
   reconcileAll(): void {
     for (const owner of this.accounts.keys()) void this.reconcile(owner)
+  }
+
+  /**
+   * Act on the user's request for a workspace's files: install Git when the repository waits for it, which the user
+   * has just accepted, then try every repository that waited for Git again at once. A request for a workspace this
+   * Consumer does not report on is ignored.
+   * @param workspace - the workspace whose files were requested.
+   */
+  requested(workspace: WorkspaceId): void {
+    const registry = this.ctx.workspaceRegistry
+    if (!needsGit(registry.fileStatus(workspace))) return
+    const waiting = registry.list().filter(other => needsGit(registry.fileStatus(other.id))).map(other => other.id)
+    for (const id of waiting) this.statuses.set(id, { state: 'installing' })
+    this.git.install().then(() => {
+      for (const id of waiting) this.retryAt.delete(id)
+      this.reconcileAll()
+    }, (error: unknown) => {
+      this.warn(`installing Git failed: ${String(error)}`)
+      for (const id of waiting) this.statuses.set(id, { state: 'failed', reason: 'git-install' })
+    })
   }
 
   /**
@@ -315,19 +333,18 @@ export class WorkspaceRepositories {
         return
       }
     }
-    if (!await fitsDisk(this.options.root, entry.bytes, this.options.prefetchMaxBytes, this.options.minFreeDiskRatio)) {
-      this.statuses.set(workspace.id, { state: 'absent' })
+    if (!await fitsDisk(this.options.root, entry.bytes, this.options.minFreeDiskRatio)) {
+      this.statuses.set(workspace.id, { state: 'failed', reason: 'disk' })
       return
     }
-    if (!await this.git.available()) this.statuses.set(workspace.id, { state: 'installing' })
-    try {
-      await this.git.require()
-    } catch (error) {
-      if (!(error instanceof GitUnavailableError)) throw error
-      this.statuses.set(workspace.id, { state: 'git-missing', ...error.command === undefined ? {} : { detail: error.command } })
+    // Git installs only once the user accepts; the request then tries this repository again.
+    if (!await this.git.available()) {
+      if (this.ctx.workspaceRegistry.fileStatus(workspace.id)?.state !== 'installing') {
+        this.statuses.set(workspace.id, { state: 'git-needed' })
+      }
       return
     }
-    this.statuses.set(workspace.id, { state: 'fetching' })
+    this.statuses.set(workspace.id, { state: 'syncing' })
     const directory = await placeWorkspace(workspace.title, entry.hint, this.options.root)
     try {
       const cloned = remote === undefined ? undefined : await this.clone(remote, directory)
@@ -341,7 +358,7 @@ export class WorkspaceRepositories {
         await rm(directory, { recursive: true, force: true })
         // A failed copy means no device that holds the repository answered; without file sync only the clone could run.
         this.statuses.set(workspace.id, this.ctx.get('fileSync') === undefined && typeof cloned === 'string'
-          ? { state: 'failed', detail: cloned }
+          ? { state: 'failed', reason: cloneFailure(cloned) }
           : { state: 'waiting' })
         return
       }
@@ -353,7 +370,7 @@ export class WorkspaceRepositories {
       this.statuses.set(workspace.id, undefined)
     } catch (error) {
       await rm(directory, { recursive: true, force: true })
-      this.statuses.set(workspace.id, { state: 'failed', detail: String(error) })
+      this.statuses.set(workspace.id, { state: 'failed', reason: error instanceof GitUnavailableError ? 'git-install' : 'unknown' })
       throw error
     }
   }
@@ -596,6 +613,22 @@ function requestMap(account: Account): YMap<CopyRequest> {
 /** Whether a directory is the top of a Git work tree. */
 function isWorkTree(path: string): boolean {
   return existsSync(join(path, '.git'))
+}
+
+/** Whether a repository waits for Git: it was never installed, or the last install failed and may be tried again. */
+function needsGit(status: WorkspaceFileStatus | undefined): boolean {
+  return status?.state === 'git-needed' || (status?.state === 'failed' && status.reason === 'git-install')
+}
+
+/**
+ * Why a clone failed, from the end of Git's error output: refused credentials, an unreachable remote, a full disk, or
+ * anything else.
+ */
+function cloneFailure(stderr: string): WorkspaceFileFailure {
+  if (/authentication failed|could not read username|permission denied|repository not found|access denied|403/iu.test(stderr)) return 'access'
+  if (/could not resolve host|unable to access|connection (refused|timed out)|network is unreachable|timed out/iu.test(stderr)) return 'network'
+  if (/no space left on device|disk quota/iu.test(stderr)) return 'disk'
+  return 'unknown'
 }
 
 /** Remove what a failed clone left in a directory, keeping the directory. */

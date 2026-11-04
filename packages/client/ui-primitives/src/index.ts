@@ -42,7 +42,7 @@ export type {
 } from './ActivityMenu.tsx'
 export { Input } from './Input.tsx'
 export { Menu } from './Menu.tsx'
-export type { MenuEntry, MenuItem, MenuSeparator, MenuLabel } from './Menu.tsx'
+export type { MenuEntry, MenuItem, MenuSeparator, MenuLabel, MenuStatus } from './Menu.tsx'
 export { useAnchoredMaxHeight } from './useAnchoredMaxHeight.ts'
 export { useAnchoredPosition } from './useAnchoredPosition.ts'
 export type { AnchoredPositionOptions } from './useAnchoredPosition.ts'

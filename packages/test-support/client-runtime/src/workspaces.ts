@@ -107,6 +107,15 @@ export class TestWorkspaces implements IWorkspaces {
   }
 
   /**
+   * Ask for a Workspace's files (recorded; default no-op).
+   * @param workspaceId - target workspace.
+   */
+  async getFiles(workspaceId: WorkspaceId): Promise<void> {
+    this.calls.push({ method: 'getFiles', args: [workspaceId] })
+    await (this.stubs.get('getFiles')?.(workspaceId) as Promise<void> | undefined)
+  }
+
+  /**
    * Delete a Workspace (recorded; default no-op).
    * @param workspaceId - target workspace.
    */

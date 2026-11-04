@@ -25,7 +25,7 @@ import type {
  */
 function filesView(status: WorkspaceFileStatus | undefined): WorkspaceFilesView | null {
   if (status === undefined) return null
-  return { state: status.state, progress: status.progress ?? null, detail: status.detail ?? null }
+  return { state: status.state, progress: status.progress ?? null, reason: status.reason ?? null }
 }
 
 /**

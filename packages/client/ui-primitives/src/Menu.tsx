@@ -34,8 +34,18 @@ export interface MenuLabel {
   text: string
 }
 
-/** One primary-menu entry: a row, a separator, or a heading label. */
-export type MenuEntry = MenuItem | MenuSeparator | MenuLabel
+/** Non-interactive line that reports a state at the item size, with an optional leading icon; long text wraps. */
+export interface MenuStatus {
+  type: 'status'
+  id: string
+  text: string
+  icon?: ReactNode
+  /** Right-aligned value beside the text, such as a percentage. */
+  trailing?: string
+}
+
+/** One primary-menu entry: a row, a separator, a heading label, or a status line. */
+export type MenuEntry = MenuItem | MenuSeparator | MenuLabel | MenuStatus
 
 function isSeparator(entry: MenuEntry): entry is MenuSeparator {
   return 'type' in entry && entry.type === 'separator'
@@ -43,6 +53,10 @@ function isSeparator(entry: MenuEntry): entry is MenuSeparator {
 
 function isLabel(entry: MenuEntry): entry is MenuLabel {
   return 'type' in entry && entry.type === 'label'
+}
+
+function isStatus(entry: MenuEntry): entry is MenuStatus {
+  return 'type' in entry && entry.type === 'status'
 }
 
 /** Unplaced portal card: hidden but laid out at a fixed origin so offsetWidth/offsetHeight are real. */
@@ -224,7 +238,8 @@ export function Menu({ open, anchor, items, selectedId, selectedIds, onSelect, o
 
   // The submenu card is absolutely positioned outside the list box; the
   // scroll clip would crop it, so only submenu-free menus get the height cap.
-  const scrollable = !items.some(entry => !isSeparator(entry) && !isLabel(entry) && entry.submenu !== undefined && entry.submenu.length > 0)
+  const scrollable = !items.some(entry => !isSeparator(entry) && !isLabel(entry) && !isStatus(entry)
+    && entry.submenu !== undefined && entry.submenu.length > 0)
 
   const renderEntry = (entry: MenuEntry) => {
     if (isSeparator(entry)) {
@@ -232,6 +247,15 @@ export function Menu({ open, anchor, items, selectedId, selectedIds, onSelect, o
     }
     if (isLabel(entry)) {
       return <div key={entry.id} className={css.label} role="presentation">{entry.text}</div>
+    }
+    if (isStatus(entry)) {
+      return (
+        <div key={entry.id} className={css.status} role="status">
+          {entry.icon !== undefined && <span className={css.itemIcon} aria-hidden="true">{entry.icon}</span>}
+          <span className={css.statusText}>{entry.text}</span>
+          {entry.trailing !== undefined && <span className={css.statusTrailing}>{entry.trailing}</span>}
+        </div>
+      )
     }
     const hasSub = entry.submenu !== undefined && entry.submenu.length > 0
     const subOpen = hasSub && openSubmenuId === entry.id
