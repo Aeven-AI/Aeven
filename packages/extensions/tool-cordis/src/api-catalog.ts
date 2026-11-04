@@ -5265,11 +5265,11 @@ export const EVENT_API: readonly EventApiEntry[] = [
   },
   {
     name: 'session-handoff/input',
-    mode: 'emit',
-    signature: '\'session-handoff/input\'(owner: string, sessionId: SessionId, input: SessionHandoffInput): void',
-    summary: 'Another device forwarded an input for a session this device writes.',
-    description: 'Another device forwarded an input for a session this device writes. Listeners apply it as the session\'s owner; it is delivered once.',
-    parameters: [{ name: 'owner', description: 'the account the session belongs to.' }, { name: 'sessionId', description: 'the session.' }, { name: 'input', description: 'the forwarded input.' }],
+    mode: 'parallel',
+    signature: '\'session-handoff/input\'(owner: string, sessionId: SessionId, input: SessionHandoffInput): Promise<void>',
+    summary: 'An input some device of the account submitted is to be applied on this device.',
+    description: 'An input some device of the account submitted is to be applied on this device. Listeners apply it as the session\'s owner and reject when this device cannot apply it, such as when it cannot serve the session\'s model; a rejected input stays in the account\'s inbox for another device.',
+    parameters: [{ name: 'owner', description: 'the account the session belongs to.' }, { name: 'sessionId', description: 'the session.' }, { name: 'input', description: 'the submitted input.' }],
   },
   {
     name: 'session-handoff/live',

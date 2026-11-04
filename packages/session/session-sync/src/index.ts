@@ -33,6 +33,8 @@ export default class SessionSync extends SessionHandoff {
     publishTimeoutMs: z.natural().min(1_000).default(120_000),
     outboxLimit: z.natural().min(1).default(200),
     runnerLease: z.object({ ttlMs: z.natural().min(1_000).default(30_000), renewMs: z.natural().min(1).default(10_000) }),
+    inputGraceMs: z.natural().min(100).default(3_000),
+    inputExpiryMs: z.natural().min(1_000).default(60_000),
   })
 
   private readonly mirrors = new Map<string, SessionMirror>()
@@ -99,7 +101,7 @@ export default class SessionSync extends SessionHandoff {
       owner, this.ctx.sync, this.ctx.sessionPersistence, this.config,
       (message) => { this.ctx.logger.warn(message) },
       this.ctx.get('attachments'), this.ctx.get('workspaceRegistry'),
-      (sessionId, input) => { this.deliver(owner, sessionId, input) },
+      (sessionId, input) => this.deliver(owner, sessionId, input),
       (sessionId) => { this.liveChanged(owner, sessionId) },
       sessionId => this.released(owner, sessionId),
       () => { this.ctx.emit('session-handoff/catalog', owner) },

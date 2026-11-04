@@ -1366,22 +1366,23 @@ Types: [SessionId](core.zh.md)
 
 Source: [`packages/session/session-handoff/src/index.ts`](../../packages/session/session-handoff/src/index.ts)
 
-<a id="session-handoffinput--emit"></a>
+<a id="session-handoffinput--parallel"></a>
 
-#### `session-handoff/input` — emit
+#### `session-handoff/input` — parallel
 
-Another device forwarded an input for a session this device writes. Listeners apply it as the session's owner; it is delivered once.
+An input some device of the account submitted is to be applied on this device. Listeners apply it as the session's owner and reject when this device cannot apply it, such as when it cannot serve the session's model; a rejected input stays in the account's inbox for another device.
 
 ```ts cordis-catalog
 /**
- * Another device forwarded an input for a session this device writes. Listeners apply it as the session's
- * owner; it is delivered once.
- * @mode emit
+ * An input some device of the account submitted is to be applied on this device. Listeners apply it as the
+ * session's owner and reject when this device cannot apply it, such as when it cannot serve the session's
+ * model; a rejected input stays in the account's inbox for another device.
+ * @mode parallel
  * @param owner - the account the session belongs to.
  * @param sessionId - the session.
- * @param input - the forwarded input.
+ * @param input - the submitted input.
  */
-'session-handoff/input'(owner: string, sessionId: SessionId, input: SessionHandoffInput): void
+'session-handoff/input'(owner: string, sessionId: SessionId, input: SessionHandoffInput): Promise<void>
 ```
 
 Types: [SessionId](core.zh.md)

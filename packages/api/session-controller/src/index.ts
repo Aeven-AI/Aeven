@@ -180,8 +180,8 @@ export class SessionController extends TypertRemoteService {
       )
     })
 
-    // Input the account's other devices typed for a session this device writes runs here as if typed here.
-    ctx.on('session-handoff/input', (owner, sessionId, input) => {
+    // Input any device of the account submitted runs here as if typed here; a rejection leaves it for another device.
+    ctx.on('session-handoff/input', async (owner, sessionId, input) => {
       const identity = ctx.get('identityUsers')
       if (input.operation === 'interaction') {
         const answer = input.request as { readonly id?: unknown; readonly answer?: unknown }
@@ -189,9 +189,7 @@ export class SessionController extends TypertRemoteService {
         return
       }
       const apply = () => this.commands.applyForwarded(sessionId, input)
-      void (identity === undefined ? apply() : identity.runAs({ id: owner }, apply)).catch((error: unknown) => {
-        ctx.logger.warn(`session: input another device forwarded for ${sessionId} was not applied: ${String(error)}`)
-      })
+      await (identity === undefined ? apply() : identity.runAs({ id: owner }, apply))
     })
 
     // A first sync changes the catalog once per received frame: emit once per turn of the event loop, and only the

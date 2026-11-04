@@ -130,7 +130,7 @@ function ModelRetryItem({ node, active, t }: {
 }
 
 /** Plain-language copy group for a terminal failure code. */
-type TurnFailureKind = 'quota' | 'tooLong' | 'signedOut' | 'busy' | 'connection' | 'other'
+type TurnFailureKind = 'quota' | 'tooLong' | 'signedOut' | 'busy' | 'connection' | 'model' | 'other'
 
 /**
  * Group a recorded failure code under the copy a reader understands. Codes are
@@ -159,6 +159,8 @@ function turnFailureKind(code: string | undefined): TurnFailureKind {
     case 'PROVIDER_TIMEOUT':
     case 'PROVIDER_UNAVAILABLE':
       return 'connection'
+    case 'UNKNOWN_MODEL':
+      return 'model'
     default:
       return 'other'
   }
@@ -171,6 +173,7 @@ const TURN_FAILURE_COPY = {
   signedOut: { title: 'turnError.signedOut.title', body: 'turnError.signedOut.body' },
   busy: { title: 'turnError.busy.title', body: 'turnError.busy.body' },
   connection: { title: 'turnError.connection.title', body: 'turnError.connection.body' },
+  model: { title: 'turnError.model.title', body: 'turnError.model.body' },
   other: { title: 'turnError.other.title', body: 'turnError.other.body' },
 } as const satisfies Record<TurnFailureKind, { title: ChatKey; body: ChatKey }>
 
@@ -216,6 +219,8 @@ function TurnErrorDialog({ node, retryTurn, openPlans, onClose, t }: {
       closeLabel={t('turnError.close')}
       title={t(TURN_FAILURE_COPY[kind].title)}
       description={t(TURN_FAILURE_COPY[kind].body)}
+      // A failure without its own copy shows the recorded cause, so it is never hidden behind a generic line.
+      children={kind === 'other' && node.message !== '' ? <p className={css.turnErrorMessage}>{node.message}</p> : undefined}
       footer={(
         <>
           <Button variant="outline" className={css.modalAction} onClick={onClose}>{t('turnError.dismiss')}</Button>

@@ -47,14 +47,15 @@ declare module '@deepseek-ai/cordis' {
 
   interface Events {
     /**
-     * Another device forwarded an input for a session this device writes. Listeners apply it as the session's
-     * owner; it is delivered once.
-     * @mode emit
+     * An input some device of the account submitted is to be applied on this device. Listeners apply it as the
+     * session's owner and reject when this device cannot apply it, such as when it cannot serve the session's
+     * model; a rejected input stays in the account's inbox for another device.
+     * @mode parallel
      * @param owner - the account the session belongs to.
      * @param sessionId - the session.
-     * @param input - the forwarded input.
+     * @param input - the submitted input.
      */
-    'session-handoff/input'(owner: string, sessionId: SessionId, input: SessionHandoffInput): void
+    'session-handoff/input'(owner: string, sessionId: SessionId, input: SessionHandoffInput): Promise<void>
     /**
      * The live state another device publishes for a session it writes changed; read it with
      * {@link SessionHandoff.liveOf}.
@@ -194,8 +195,8 @@ export abstract class SessionHandoff extends Service {
    * @param sessionId - the session.
    * @param input - the input.
    */
-  protected deliver(owner: string, sessionId: SessionId, input: SessionHandoffInput): void {
-    this.ctx.emit('session-handoff/input', owner, sessionId, input)
+  protected async deliver(owner: string, sessionId: SessionId, input: SessionHandoffInput): Promise<void> {
+    await this.ctx.parallel('session-handoff/input', owner, sessionId, input)
   }
 }
 

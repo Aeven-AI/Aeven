@@ -135,7 +135,8 @@ export class SessionHistoryController {
       notify()
     }, { global: true })
     const disposeStored = this.ctx.on('session-persistence/append', (header, events) => {
-      if (header.id !== target || !header.replica) return
+      // A live session's own appends arrive as `session/event`; any other append to its log is an import.
+      if (header.id !== target || this.ctx.sessions.get(target) !== undefined) return
       for (const event of events) buffered.pushBack(event)
       notify()
     })

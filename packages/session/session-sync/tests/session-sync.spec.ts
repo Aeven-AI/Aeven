@@ -85,6 +85,7 @@ const tuning: SessionSyncTuning = {
   publishMs: 20, batchBytes: 2_000, backfillDays: 30, liveMs: 5, pauseMs: 0, outboxLimit: 1000,
   publishTimeoutMs: 120_000,
   runnerLease: { ttlMs: 30_000, renewMs: 10_000 },
+  inputGraceMs: 100, inputExpiryMs: 1_000,
 }
 const mirrors: SessionMirror[] = []
 afterEach(async () => { await Promise.all(mirrors.splice(0).map(mirror => mirror.dispose())) })
@@ -670,7 +671,7 @@ describe('session-sync plugin', () => {
     const homeA = new MemoryPersistence()
     homeA.start('shared', Date.now(), 1)
     const delivered: Array<[string, unknown]> = []
-    const collect = (id: string, input: unknown): void => { delivered.push([id, input]) }
+    const collect = (id: string, input: unknown): Promise<void> => { delivered.push([id, input]); return Promise.resolve() }
     const a = new SessionMirror(OWNER, syncA.asSync(), homeA as never, tuning, vi.fn(), undefined, undefined, collect)
     const attachments = new MemoryAttachments()
     const image = `sha256:${'c'.repeat(64)}`
@@ -701,7 +702,7 @@ describe('session-sync plugin', () => {
     const attachmentsA = new MemoryAttachments()
     const held: boolean[] = []
     const image = new MemoryAttachments().hold(Uint8Array.of(7, 8, 9))
-    const deliverA = (): void => { held.push(attachmentsA.objects.has(image)) }
+    const deliverA = (): Promise<void> => { held.push(attachmentsA.objects.has(image)); return Promise.resolve() }
     const syncA = network.device().asSync()
     const a = new SessionMirror(OWNER, syncA, homeA as never, tuning, vi.fn(), attachmentsA as never, undefined, deliverA)
     const attachmentsB = new MemoryAttachments()
@@ -763,7 +764,7 @@ describe('session-sync plugin', () => {
     await new Promise(resolve => setTimeout(resolve, 2))
     await b.forward('later' as never, { operation: 'cancel', request: {} })
     const delivered: string[] = []
-    const collect = (_id: string, input: { operation: string }): void => { delivered.push(input.operation) }
+    const collect = (_id: string, input: { operation: string }): Promise<void> => { delivered.push(input.operation); return Promise.resolve() }
     const again = new SessionMirror(OWNER, syncA.asSync(), homeA as never, tuning, vi.fn(), undefined, undefined, collect)
     mirrors.push(again)
     await again.start()
@@ -788,6 +789,7 @@ describe('session-sync plugin', () => {
       publishMs: 250, batchBytes: 2_000, backfillDays: 30, liveMs: 5, pauseMs: 0, outboxLimit: 1000,
       publishTimeoutMs: 120_000,
       runnerLease: { ttlMs: 30_000, renewMs: 10_000 },
+      inputGraceMs: 100, inputExpiryMs: 1_000,
     })
     await fiber
     ctx.emit('sync/status', OWNER)
@@ -802,7 +804,7 @@ describe('session-sync plugin', () => {
     await vi.waitFor(() => { expect(network.streams.get('sessions/s')!.length).toBeGreaterThan(1) })
     // Input another device forwards for a session this Host writes reaches this Host's listeners.
     const inputs: unknown[] = []
-    ctx.on('session-handoff/input', (owner, sessionId, input) => { inputs.push([owner, sessionId, input.operation]) })
+    ctx.on('session-handoff/input', (owner, sessionId, input) => { inputs.push([owner, sessionId, input.operation]); return Promise.resolve() })
     expect(ctx.sessionHandoff.runnerOf(OWNER, 's' as never)).toBeUndefined()
     const lives: string[] = []
     ctx.on('session-handoff/live', (_owner, sessionId) => { lives.push(sessionId) })

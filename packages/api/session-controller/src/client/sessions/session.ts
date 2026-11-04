@@ -751,6 +751,16 @@ export class Session implements SessionFace {
   }
 
   /**
+   * `api-session/added` relay: the Host lists the session again, such as after its local agent stopped because
+   * another device of the account continued it, so it takes input again.
+   */
+  handleRestored(): void {
+    if (!this.removed) return
+    this.removed = false
+    this.notifier.markDirty()
+  }
+
+  /**
    * `api-session/error` relay: the outlet for live failures with no turn position.
    * @param message - the stringified error.
    */
