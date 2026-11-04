@@ -4773,7 +4773,7 @@ Source: [`packages/lsp/tool-lsp/src/index.ts`](../packages/lsp/tool-lsp/src/inde
 
 ## `@aeven/tool-mail`
 
-Requires: `tools` · `mail`
+Requires: `tools`
 
 ```ts config-catalog
 /** Per-tool cooperative timeouts. */
@@ -5599,7 +5599,7 @@ Source: [`packages/workspace/workspace-file-sync/src/index.ts`](../packages/work
 
 ## `@aeven/workspace-git-sync`
 
-Requires: `workspaceRegistry` · `sync` · `subprocess` · `fileSync`
+Requires: `workspaceRegistry` · `sync` · `subprocess`
 
 ```ts config-catalog
 /** Consumer configuration. */

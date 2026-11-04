@@ -4775,7 +4775,7 @@ export interface Config {
 
 ## `@aeven/tool-mail`
 
-需要：`tools` · `mail`
+需要：`tools`
 
 ```ts config-catalog
 /** Per-tool cooperative timeouts. */
@@ -5601,7 +5601,7 @@ export interface Config {
 
 ## `@aeven/workspace-git-sync`
 
-需要：`workspaceRegistry` · `sync` · `subprocess` · `fileSync`
+需要：`workspaceRegistry` · `sync` · `subprocess`
 
 ```ts config-catalog
 /** Consumer configuration. */
