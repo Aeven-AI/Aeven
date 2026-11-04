@@ -1,6 +1,6 @@
 /** The sidebar's Imagine row: a link to the `/imagine` start address, opened in place on a plain click. */
 import type { MouseEvent as ReactMouseEvent } from 'react'
-import { IconLucideImages } from '@aeven/client-ui-primitives'
+import { IconStackedImagesAnimated } from '@aeven/client-ui-primitives'
 import type { PropsLocale } from '@aeven/client-ui-slots'
 import type { SidebarNavOwnerProps } from '@aeven/client-ui-sidebar/client'
 import type {} from './locales.ts'
@@ -38,7 +38,7 @@ export function ImagineRow({ rowClassName, iconClassName, labelClassName, href, 
         open()
       }}
     >
-      <IconLucideImages className={iconClassName} />
+      <IconStackedImagesAnimated className={iconClassName} />
       <span className={labelClassName}>{t('title')}</span>
     </a>
   )

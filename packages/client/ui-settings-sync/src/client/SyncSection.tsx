@@ -4,7 +4,7 @@
  */
 import { useEffect, useState } from 'react'
 import type { SyncDeviceView, SyncPasskeyPurpose, SyncView } from '@aeven/api-remotes/client'
-import { Button, IconQuestionOutline14, IconWarningOutline16, LoadingBlock, Menu, Modal, RiskConfirmation, SectionHeader, SettingsGroup, SettingsRow, Switch } from '@aeven/client-ui-primitives'
+import { Button, IconLucideLaptopMinimal, IconLucideLaptopMinimalCheck, IconQuestionOutline14, IconWarningOutline16, LoadingBlock, Menu, Modal, RiskConfirmation, SectionHeader, SettingsGroup, SettingsRow, Switch, Tooltip } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import { openPasskeyPage, useSyncStatus, type SyncOperations } from './passkey.ts'
 import css from './SyncSection.module.css'
@@ -141,15 +141,6 @@ export function SyncSection(props: SyncSectionProps) {
   }
   const passkey = (purpose: SyncPasskeyPurpose): void => { void run(() => openPasskeyPage(ops, purpose)) }
 
-  const remove = async (id: string): Promise<void> => {
-    setFailed(false)
-    try {
-      setDevices(await ops.removeDevice(id))
-    } catch {
-      setFailed(true)
-    }
-  }
-
   const header = <SectionHeader title={t('nav')} description={t('intro')} />
   if (load.status === 'loading') return <div className={css.section}>{header}<LoadingBlock label={t('loading')} /></div>
   if (load.status === 'error') {
@@ -248,7 +239,7 @@ export function SyncSection(props: SyncSectionProps) {
                     <SettingsRow
                       title={t('passkeys')}
                       description={t('passkeysBody', { count: String(protection.passkeys) })}
-                      control={<Button variant="outline" disabled={busy || waiting || view.state !== 'online'} onClick={() => { passkey('add') }}>{t('addPasskey')}</Button>}
+                      control={<Button variant="primary" className={css.actionButton} disabled={busy || waiting || view.state !== 'online'} onClick={() => { passkey('add') }}>{t('addPasskey')}</Button>}
                     />
                   )}
                 </>
@@ -259,7 +250,6 @@ export function SyncSection(props: SyncSectionProps) {
       {(devices.length > 0 || devicesFailed) && (
         <SettingsGroup
           title={t('devices')}
-          description={devices.some(device => !device.current) ? t('forgetBody') : undefined}
           aside={devicesFailed ? <SyncIssue message={t('devicesFailed')} t={t} retry={() => { setDeviceRetry(value => value + 1) }} /> : undefined}
         >
           {devices.map(device => (
@@ -267,8 +257,14 @@ export function SyncSection(props: SyncSectionProps) {
               key={device.id}
               title={device.name === '' ? t('unnamed') : device.name}
               control={device.current
-                ? <span className={css.tag}>{t('thisDevice')}</span>
-                : <Button variant="ghost" size="sm" onClick={() => { void remove(device.id) }}>{t('remove')}</Button>}
+                ? (
+                  <Tooltip label={t('thisDevice')} side="top">
+                    <span className={css.deviceIcon} role="img" aria-label={t('thisDevice')}><IconLucideLaptopMinimalCheck /></span>
+                  </Tooltip>
+                )
+                : (
+                  <span className={css.deviceIcon}><IconLucideLaptopMinimal /></span>
+                )}
             />
           ))}
         </SettingsGroup>

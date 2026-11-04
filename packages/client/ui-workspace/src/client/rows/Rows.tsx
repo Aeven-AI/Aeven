@@ -14,11 +14,12 @@ import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 
 import clsx from 'clsx'
 import {
   IconAlarmClockOutline16, IconArchiveOutline20, IconBranchOutline16,
+  IconChatPlusAnimated,
   IconEditOutline16, IconLucideCircleAlert, IconLucideClock, IconLucideDownload, IconLucidePause,
   IconLucideEllipsis, IconLucideEllipsisVertical, IconLucideMessageCircle,
   IconLucideMessageCircleQuestionMark,
   IconLucideFolder, IconLucideFolderOpen,
-  IconLucideMessageCirclePlus, IconTrashOutline16, Menu,
+  IconTrashOutline16, Menu,
   Spinner, StateDot, Tooltip,
 } from '@aeven/client-ui-primitives'
 import type { MenuEntry, StateDotState } from '@aeven/client-ui-primitives'
@@ -363,7 +364,7 @@ export function ProjectRowItem({ group, onToggle, newSessionHref, onCreate, acti
             >
               {/* The New Session mark itself, so the row's add affordance and the
                   Chat row above it read as the same action. */}
-              <IconLucideMessageCirclePlus className={css.actionIcon} />
+              <IconChatPlusAnimated className={css.actionIcon} />
             </a>
           </Tooltip>
         )}

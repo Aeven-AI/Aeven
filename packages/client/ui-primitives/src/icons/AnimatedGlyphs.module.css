@@ -1,0 +1,152 @@
+/* Sidebar glyphs that come alive while the row carrying them is hovered or
+   focused by the keyboard. The rows live in the feature packages that draw
+   them (ui-sidebar, ui-automations, ui-imagine) and are links or buttons, so
+   the row element itself is the trigger and every glyph is passive until one
+   is pointed at or reached. Nothing moves while motion is reduced. */
+
+/* The plus turns a half circle and lands on the drawing it started from: a
+   plus is symmetric under a half turn, so only the travel shows. The origin is
+   the artwork's own centre on the stock 24-unit canvas. */
+.plus {
+  transform-box: view-box;
+  transform-origin: 12px 12px;
+}
+
+/* The eyes sit above and right of the dial's centre, so the resting face
+   already looks right; the travel below has room on both sides inside the
+   ring. Collapsing about the eyes' own box keeps the blink on their line. */
+.eyes {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* The same eyes, resting between glances for a self-running loop. */
+.eyesLoop {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* The sun turns about its own centre as it travels down to the island's
+   slope and back up. */
+.sun {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .plus {
+    transition: transform 620ms cubic-bezier(0.34, 1.45, 0.5, 1);
+  }
+
+  :is(a, button):is(:hover, :focus-visible) .plus {
+    transform: rotate(180deg);
+  }
+
+  /* Left, back across to the right, then a blink: three glances at one
+     second, which is under the time a pointer rests before it commits. */
+  :is(a, button):is(:hover, :focus-visible) .eyes {
+    animation: avn-glyph-eyes 1000ms ease-in-out;
+  }
+
+  /* The Bots page's empty state draws this face at 28px with no row around it,
+     so it runs on its own: a look left, a look right, a blink, then a beat. */
+  .eyesLoop {
+    animation: avn-glyph-eyes-loop 4200ms ease-in-out infinite;
+  }
+
+  :is(a, button):is(:hover, :focus-visible) .sun {
+    animation: avn-glyph-sun 1200ms ease-in-out;
+  }
+}
+
+@keyframes avn-glyph-eyes {
+  0%,
+  8% {
+    transform: translateX(0) scaleY(1);
+  }
+
+  18%,
+  36% {
+    transform: translateX(-0.7px) scaleY(1);
+  }
+
+  48%,
+  66% {
+    transform: translateX(0.7px) scaleY(1);
+  }
+
+  74%,
+  78% {
+    transform: translateX(0) scaleY(1);
+  }
+
+  84% {
+    transform: translateX(0) scaleY(0.1);
+  }
+
+  90%,
+  100% {
+    transform: translateX(0) scaleY(1);
+  }
+}
+
+/* `avn-glyph-eyes` at the pace of a face waiting rather than one answering a
+   pointer: slower travel, a blink that closes and opens over 250ms each way,
+   and a third of the cycle spent at rest. */
+@keyframes avn-glyph-eyes-loop {
+  0%,
+  4% {
+    transform: translateX(0) scaleY(1);
+  }
+
+  12%,
+  26% {
+    transform: translateX(-0.7px) scaleY(1);
+  }
+
+  40%,
+  56% {
+    transform: translateX(0.7px) scaleY(1);
+  }
+
+  62% {
+    transform: translateX(0) scaleY(1);
+  }
+
+  68% {
+    transform: translateX(0) scaleY(0.1);
+  }
+
+  74%,
+  100% {
+    transform: translateX(0) scaleY(1);
+  }
+}
+
+/* One day in the picture: the sun sinks to the island's slope, fades out where
+   the stroke would cover it, and comes back up and brightens. Nothing else in
+   the frame moves, so the eye follows the light. */
+@keyframes avn-glyph-sun {
+  0%,
+  6% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+
+  46% {
+    transform: translateY(6.1px) scale(0.75);
+    opacity: 0.15;
+  }
+
+  54%,
+  62% {
+    transform: translateY(6.1px) scale(0.7);
+    opacity: 0;
+  }
+
+  94%,
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}

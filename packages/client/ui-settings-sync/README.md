@@ -13,7 +13,7 @@ The Settings section over the `sync` Remote, refreshed by the forwarded `sync/st
 
 The upload counter and progress bar appear while uploads are pending. Download catch-up keeps the status at Syncing; an idle device shows Up to date without an empty counter. A muted status icon opens a standard menu with failure details and a retry action.
 
-Conversation preparation shows the complete discovered backlog separately from upload batches. The status stays syncing while conversation preparation, queued uploads, or download catch-up remain. Device-list changes refresh the list independently of upload status, and overlapping notifications share one active read and one pending refresh. Forget device removes a list entry without revoking access.
+Conversation preparation shows the complete discovered backlog separately from upload batches. The status stays syncing while conversation preparation, queued uploads, or download catch-up remain. Device-list changes refresh the list independently of upload status, and overlapping notifications share one active read and one pending refresh. The device list is read-only. A laptop-minimal-check icon marks this device with a localized tooltip and accessible label; laptop-minimal marks other devices. Add a passkey keeps its black background on hover.
 
 ## Table of Contents
 

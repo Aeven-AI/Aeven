@@ -37,14 +37,24 @@
   gap: 8px;
 }
 
-/* Marks the device this page runs on. */
-.tag {
-  padding: 1px 8px;
-  border: 0.5px solid var(--dsw-alias-border-l3);
-  border-radius: 999px;
-  font-size: 0.75rem;
-  line-height: 1.125rem;
+.deviceIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
   color: var(--dsw-alias-label-secondary);
+}
+
+.deviceIcon > svg {
+  width: 20px;
+  height: 20px;
+}
+
+.section .actionButton,
+.section .actionButton:hover:not(:disabled) {
+  color: #ffffff;
+  background: #000000;
 }
 
 /* The upload bar is the Account allowance meter: an 8px track on the module platform fill. */
