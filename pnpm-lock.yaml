@@ -5508,9 +5508,9 @@ importers:
       '@aeven/client-ui-session':
         specifier: workspace:^
         version: link:../ui-session
-      '@aeven/client-ui-settings':
+      '@aeven/client-ui-settings-sync':
         specifier: workspace:^
-        version: link:../ui-settings
+        version: link:../ui-settings-sync
       '@aeven/client-ui-sidebar':
         specifier: workspace:^
         version: link:../ui-sidebar

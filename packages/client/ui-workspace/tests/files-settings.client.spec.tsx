@@ -35,7 +35,7 @@ describe('Files settings', () => {
     fireEvent.click(screen.getByRole('switch', { name: en['filesSettings.sync'] }))
     await waitFor(() => { expect(ops.setPaused).toHaveBeenCalledWith(true) })
     await screen.findByText(en['filesSettings.syncOff'])
-    fireEvent.click(screen.getByText(en['filesSettings.showAdvanced']))
+    fireEvent.click(screen.getByText(en['filesSettings.edit']))
     const ignores = screen.getByRole('textbox', { name: en['filesSettings.ignores'] })
     fireEvent.change(ignores, { target: { value: 'node_modules\n*.cache' } })
     fireEvent.click(screen.getByText(en['filesSettings.save']))
@@ -55,7 +55,7 @@ describe('Files settings', () => {
     const { ops } = setup()
     vi.mocked(ops.setIgnores).mockRejectedValueOnce(new Error('offline'))
     await screen.findByText('Project')
-    fireEvent.click(screen.getByText(en['filesSettings.showAdvanced']))
+    fireEvent.click(screen.getByText(en['filesSettings.edit']))
     const ignores = screen.getByRole('textbox', { name: en['filesSettings.ignores'] }) as HTMLTextAreaElement
     fireEvent.change(ignores, { target: { value: '*.cache' } })
     fireEvent.click(screen.getByText(en['filesSettings.save']))

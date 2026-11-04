@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react'
 import type { SyncDeviceView, SyncPasskeyPurpose, SyncView } from '@aeven/api-remotes/client'
 import { Button, IconLucideLaptopMinimal, IconLucideLaptopMinimalCheck, IconQuestionOutline14, IconWarningOutline16, LoadingBlock, Menu, Modal, RiskConfirmation, SectionHeader, SettingsGroup, SettingsRow, Switch, Tooltip } from '@aeven/client-ui-primitives'
-import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
+import type { InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime } from '@aeven/client-ui-slots'
 import { openPasskeyPage, useSyncStatus, type SyncOperations } from './passkey.ts'
 import css from './SyncSection.module.css'
 
@@ -15,6 +15,7 @@ export type SyncSectionInjected = SyncOperations
 /** Full component props assembled by the slot renderer. */
 export type SyncSectionProps =
   PropsRuntime<'settings.section'>
+  & PropsRenderSlots<'settings.sync.files'>
   & PropsLocale<'settings.sync'>
   & InjectFace<SyncSectionInjected>
 
@@ -247,6 +248,7 @@ export function SyncSection(props: SyncSectionProps) {
           <PasskeyStep view={view} t={t} retry={passkey} dismiss={() => { void run(() => ops.cancelPasskey()) }} />
         </SettingsGroup>
       )}
+      {enabled && props.renderSlot('settings.sync.files', {})}
       {(devices.length > 0 || devicesFailed) && (
         <SettingsGroup
           title={t('devices')}

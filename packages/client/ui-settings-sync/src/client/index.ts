@@ -30,6 +30,11 @@ declare module '@aeven/client-ui-slots' {
     /** Settings → Sync copy. */
     'settings.sync': SyncLocaleKey
   }
+
+  interface SlotMap {
+    /** The account's workspace files on this device, shown inside Settings → Sync while sync is on. */
+    'settings.sync.files': { kind: 'single'; scope: 'root' }
+  }
 }
 
 /** Dictionary namespace owned by this plugin. */
@@ -81,6 +86,7 @@ export function apply(ctx: ClientContext): void {
     order: 45,
     label: () => t('nav'),
     locale: NS,
+    children: { 'settings.sync.files': { kind: 'single', scope: 'root' } },
     inject: () => operations,
   }, SyncSection))
 

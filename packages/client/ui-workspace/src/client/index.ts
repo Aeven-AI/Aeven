@@ -26,8 +26,8 @@ import type {} from '@aeven/client-locale/client'
 import type {} from '@aeven/client-ui-renderer/client'
 // Type-only: pulls the Session root standard-hook merge.
 import type {} from '@aeven/client-ui-session/client'
-// Type-only: pulls the `settings.section` slot declaration.
-import type {} from '@aeven/client-ui-settings/client'
+// Type-only: pulls the `settings.sync.files` slot declaration.
+import type {} from '@aeven/client-ui-settings-sync/client'
 import type { RemoteResult } from '@aeven/typert-protocol'
 import type {
   WorkspaceBrowserInjected, WorkspaceHeaderActionsInjected, WorkspaceHeaderSearchInjected,
@@ -229,7 +229,7 @@ export function apply(ctx: Context): void {
     },
     WorkspacePicker,
   ))
-  // Settings → Files, beside Settings → Sync: file sync on this computer for the signed-in account.
+  // The Files group inside Settings → Sync: file sync on this computer for the signed-in account.
   const value = async <T>(result: Promise<RemoteResult<T>>): Promise<T> => {
     const settled = await result
     if (!settled.ok) throw new Error(`workspace files: ${settled.error.code}: ${settled.error.message}`)
@@ -246,12 +246,8 @@ export function apply(ctx: Context): void {
     },
     onChange: listener => workspaces.list.subscribe(listener),
   }
-  const t = ctx.locale.bind(NS)
-  ctx.slots.inject('settings.section', () => ctx.slots.register({
-    name: 'settings.section',
-    id: 'files',
-    order: 46,
-    label: () => t('filesSettings.nav'),
+  ctx.slots.inject('settings.sync.files', () => ctx.slots.register({
+    name: 'settings.sync.files',
     locale: NS,
     inject: () => filesInjected,
   }, FilesSection))

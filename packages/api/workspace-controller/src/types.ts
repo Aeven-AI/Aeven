@@ -14,7 +14,7 @@ export type { DirectoryEntry, DirectoryListing } from '@aeven/host-directory-pic
 /** Where a Workspace's files stand on the Host while they are not simply there and up to date. */
 export interface WorkspaceFilesView {
   readonly state: WorkspaceFileState
-  /** Share of the files already on the Host, from 0 to 1, during a first download whose size is known; otherwise `null`. */
+  /** Share of the folder's bytes already on the Host, from 0 to 1, while `syncing` with a known size; otherwise `null`. */
   readonly progress: number | null
   /** Why the files cannot arrive, present exactly in `failed`; otherwise `null`. */
   readonly reason: WorkspaceFileFailure | null

@@ -1,15 +1,16 @@
 /**
- * Settings → Files: one switch that pauses file sync on this computer, the account's workspaces with where their
- * files live here, and, behind **Show advanced**, the patterns of files that never sync.
+ * The Files group inside Settings → Sync: one switch that pauses file sync on this computer, the account's workspaces
+ * with where their files live here and how far each has synced, and, behind **Edit**, the patterns of files that never
+ * sync.
  */
 import { useEffect, useState } from 'react'
-import type { WorkspaceFilesSettings } from '@aeven/api-workspace-controller/client'
-import { Button, LoadingBlock, SectionHeader, SettingsGroup, SettingsRow, Switch } from '@aeven/client-ui-primitives'
+import type { WorkspaceFilesEntry, WorkspaceFilesSettings } from '@aeven/api-workspace-controller/client'
+import { Button, LoadingBlock, SettingsGroup, SettingsRow, Switch } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import { filesStatusText } from '../rows/Rows.tsx'
 import css from './FilesSection.module.css'
 
-/** Registration-side operations the page calls. */
+/** Registration-side operations the group calls. */
 export interface FilesSectionInjected {
   /** Read file sync on this computer. */
   load: () => Promise<WorkspaceFilesSettings>
@@ -25,7 +26,7 @@ export interface FilesSectionInjected {
 
 /** Full component props assembled by the slot renderer. */
 export type FilesSectionProps =
-  PropsRuntime<'settings.section'>
+  PropsRuntime<'settings.sync.files'>
   & PropsLocale<'workspace'>
   & InjectFace<FilesSectionInjected>
 
@@ -38,9 +39,45 @@ function revealKey(): 'filesSettings.revealFinder' | 'filesSettings.revealExplor
 }
 
 /**
- * The Files section.
+ * One workspace's row: where its files live here, its file status, and a bar while a size is known.
+ * @param props - the workspace, whether sync is paused, the translate seat, and the reveal action.
+ * @returns the row.
+ */
+function WorkspaceRow({ workspace, paused, t, reveal }: {
+  workspace: WorkspaceFilesEntry
+  paused: boolean
+  t: FilesSectionProps['t']
+  reveal: (path: string) => void
+}) {
+  const status = workspace.files === null
+    ? (paused || workspace.path === null ? undefined : t('filesSettings.upToDate'))
+    : filesStatusText(workspace.files, t)
+  const progress = workspace.files?.state === 'syncing' ? workspace.files.progress : null
+  const path = workspace.path
+  return (
+    <SettingsRow
+      title={workspace.title}
+      description={[path ?? t('filesSettings.notHere'), ...status === undefined ? [] : [status]].join(' · ')}
+      control={path === null
+        ? undefined
+        : <Button variant="outline" onClick={() => { reveal(path) }}>{t(revealKey())}</Button>}
+    >
+      {progress !== null && (
+        <span
+          className={css.meter} role="progressbar" aria-valuemin={0} aria-valuemax={100}
+          aria-valuenow={Math.floor(progress * 100)} aria-label={status}
+        >
+          <span style={{ width: `${String(Math.max(progress * 100, 2))}%` }} />
+        </span>
+      )}
+    </SettingsRow>
+  )
+}
+
+/**
+ * The Files group.
  * @param props - slot runtime, locale, and injected operations.
- * @returns the rendered section.
+ * @returns the rendered group.
  */
 export function FilesSection(props: FilesSectionProps) {
   const { t } = props
@@ -48,7 +85,7 @@ export function FilesSection(props: FilesSectionProps) {
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
   const [retry, setRetry] = useState(0)
-  const [advanced, setAdvanced] = useState(false)
+  const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<string | undefined>(undefined)
   useEffect(() => {
     let live = true
@@ -69,18 +106,20 @@ export function FilesSection(props: FilesSectionProps) {
     setFailed(false)
     change().then(setSettings, () => { setFailed(true) }).finally(() => { setBusy(false) })
   }
-  const header = <SectionHeader title={t('filesSettings.nav')} description={t('filesSettings.intro')} />
   if (settings === undefined) {
-    return <div className={css.section}>{header}{failed
-      ? <SettingsRow title={t('filesSettings.failed')} control={<Button onClick={() => { setFailed(false); setRetry(value => value + 1) }}>{t('filesSettings.retry')}</Button>} />
-      : <LoadingBlock label={t('filesSettings.loading')} />}</div>
+    return (
+      <SettingsGroup title={t('filesSettings.nav')} description={t('filesSettings.intro')}>
+        {failed
+          ? <SettingsRow title={t('filesSettings.failed')} control={<Button variant="outline" onClick={() => { setFailed(false); setRetry(value => value + 1) }}>{t('filesSettings.retry')}</Button>} />
+          : <LoadingBlock label={t('filesSettings.loading')} />}
+      </SettingsGroup>
+    )
   }
   const saved = settings.ignores.join('\n')
   const text = draft ?? saved
   return (
-    <div className={css.section}>
-      {header}
-      {failed && <p role="alert">{t('filesSettings.failed')}</p>}
+    <SettingsGroup title={t('filesSettings.nav')} description={t('filesSettings.intro')}>
+      {failed && <p className={css.failed} role="alert">{t('filesSettings.failed')}</p>}
       <SettingsRow
         title={t('filesSettings.sync')}
         description={t(settings.paused ? 'filesSettings.syncOff' : 'filesSettings.syncOn')}
@@ -93,61 +132,46 @@ export function FilesSection(props: FilesSectionProps) {
           />
         )}
       />
-      {settings.workspaces.length > 0 && (
-        <SettingsGroup title={t('filesSettings.workspaces')}>
-          {settings.workspaces.map(workspace => (
-            <SettingsRow
-              key={workspace.workspaceId}
-              title={workspace.title}
-              description={[
-                workspace.path ?? t('filesSettings.notHere'),
-                ...workspace.files === null ? [] : [filesStatusText(workspace.files, t)],
-              ].join(' · ')}
-              control={workspace.path === null
-                ? undefined
-                : (
-                  <Button variant="ghost" size="sm" onClick={() => { if (workspace.path !== null) props.reveal(workspace.path) }}>
-                    {t(revealKey())}
-                  </Button>
-                )}
+      {settings.workspaces.map(workspace => (
+        <WorkspaceRow key={workspace.workspaceId} workspace={workspace} paused={settings.paused} t={t} reveal={props.reveal} />
+      ))}
+      <SettingsRow
+        title={t('filesSettings.ignores')}
+        description={t('filesSettings.ignoresBody')}
+        control={(
+          <Button variant="outline" aria-expanded={editing} onClick={() => { setEditing(value => !value); setDraft(undefined) }}>
+            {t(editing ? 'filesSettings.done' : 'filesSettings.edit')}
+          </Button>
+        )}
+      >
+        {editing && (
+          <div className={css.editor}>
+            <textarea
+              className={css.ignores}
+              value={text}
+              aria-label={t('filesSettings.ignores')}
+              spellCheck={false}
+              rows={Math.min(14, Math.max(6, text.split('\n').length + 1))}
+              onChange={(event) => { setDraft(event.target.value) }}
             />
-          ))}
-        </SettingsGroup>
-      )}
-      <div className={css.reveal}>
-        <Button variant="ghost" size="sm" aria-expanded={advanced} onClick={() => { setAdvanced(value => !value) }}>
-          {t(advanced ? 'filesSettings.hideAdvanced' : 'filesSettings.showAdvanced')}
-        </Button>
-      </div>
-      {advanced && (
-        <SettingsGroup title={t('filesSettings.ignores')}>
-          <p className={css.note}>{t('filesSettings.ignoresBody')}</p>
-          <textarea
-            className={css.ignores}
-            value={text}
-            aria-label={t('filesSettings.ignores')}
-            spellCheck={false}
-            rows={Math.min(14, Math.max(6, text.split('\n').length + 1))}
-            onChange={(event) => { setDraft(event.target.value) }}
-          />
-          <div className={css.actions}>
-            <Button
-              variant="primary"
-              size="sm"
-              disabled={busy || text === saved}
-              onClick={() => {
-                run(async () => {
-                  const next = await props.setIgnores(text.split('\n'))
-                  setDraft(undefined)
-                  return next
-                })
-              }}
-            >
-              {t('filesSettings.save')}
-            </Button>
+            <div className={css.actions}>
+              <Button
+                variant="primary"
+                disabled={busy || text === saved}
+                onClick={() => {
+                  run(async () => {
+                    const next = await props.setIgnores(text.split('\n'))
+                    setDraft(undefined)
+                    return next
+                  })
+                }}
+              >
+                {t('filesSettings.save')}
+              </Button>
+            </div>
           </div>
-        </SettingsGroup>
-      )}
-    </div>
+        )}
+      </SettingsRow>
+    </SettingsGroup>
   )
 }

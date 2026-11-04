@@ -95,7 +95,7 @@ export type WorkspaceFileFailure = 'access' | 'network' | 'disk' | 'folder' | 'g
 /** One workspace's file status on this device, which the file sync Consumers report. */
 export interface WorkspaceFileStatus {
   readonly state: WorkspaceFileState
-  /** Share of the files already here, from 0 to 1, during a first download whose size is known. */
+  /** Share of the folder's bytes already here, from 0 to 1, while `syncing` with a known size. */
   readonly progress?: number
   /** Why the files cannot arrive; present only in `failed`. */
   readonly reason?: WorkspaceFileFailure

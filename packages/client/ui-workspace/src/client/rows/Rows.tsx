@@ -91,7 +91,7 @@ function filesStatusEntry(files: WorkspaceFilesView, t: RowTranslate): MenuEntry
  * A Workspace's file status as one line of text, such as Settings → Files shows under a Workspace.
  * @param files - the status.
  * @param t - the workspace namespace's translate.
- * @returns the line, with a first download's percentage after it.
+ * @returns the line, with the sync percentage after it while one is known.
  */
 export function filesStatusText(files: WorkspaceFilesView, t: RowTranslate): string {
   const entry = filesStatusEntry(files, t)

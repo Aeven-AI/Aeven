@@ -57,7 +57,7 @@
       "path": "../../util/workspace-path"
     },
     {
-      "path": "../ui-settings"
+      "path": "../ui-settings-sync"
     }
   ]
 }

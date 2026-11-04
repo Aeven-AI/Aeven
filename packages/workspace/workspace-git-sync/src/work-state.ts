@@ -109,6 +109,16 @@ export class WorkState {
   }
 
   /**
+   * Drop a workspace's pending checkpoint while a turn runs there, so its Git commands stay out of the turn; the turn's
+   * end schedules the next one.
+   * @param workspace - the repository workspace.
+   */
+  postpone(workspace: WorkspaceId): void {
+    clearTimeout(this.timers.get(workspace))
+    this.timers.delete(workspace)
+  }
+
+  /**
    * Write and publish a workspace's checkpoint now, after any checkpoint of it still being written. A work tree equal
    * to the published checkpoint writes nothing.
    * @param owner - the account.

@@ -196,6 +196,7 @@ export class WorkspaceRepositories {
   async beforeTurn(sessionId: SessionId, signal: AbortSignal): Promise<void> {
     const repository = this.sessionRepository(sessionId)
     if (repository?.owner === undefined || this.ctx.workspaceRegistry.filesPaused(repository.owner)) return
+    this.workState.postpone(repository.id)
     await this.workState.apply(repository.owner, repository.id, repository.path, signal)
   }
 

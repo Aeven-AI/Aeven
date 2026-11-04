@@ -194,9 +194,13 @@ export class Git {
     return [pkexec, ...linuxInstallCommand()]
   }
 
-  /** Environment that keeps Git from asking for credentials or host keys on a terminal nobody watches. */
+  /**
+   * Environment that keeps Git from asking for credentials or host keys on a terminal nobody watches, and from taking
+   * the optional index lock a read such as `git diff` refreshes, which would fail the agent's own Git commands in the
+   * same work tree.
+   */
   private async environment(executable: string): Promise<Record<string, string>> {
-    const env: Record<string, string> = { GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' }
+    const env: Record<string, string> = { GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never', GIT_OPTIONAL_LOCKS: '0' }
     if (process.env.GIT_SSH_COMMAND !== undefined || process.env.GIT_SSH !== undefined) return env
     this.sshConfigured ??= await this.configured(executable, 'core.sshCommand')
     return this.sshConfigured ? env : { ...env, GIT_SSH_COMMAND: 'ssh -o BatchMode=yes' }

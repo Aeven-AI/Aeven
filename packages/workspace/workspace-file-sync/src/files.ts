@@ -489,8 +489,9 @@ function describe(path: string): SyncedWorkspaceFiles {
 }
 
 /**
- * A shared folder's status as its workspace's file status: nothing while the folder is complete and current, and the
- * download progress against the larger of the agreed size and the descriptor's size before it first completes.
+ * A shared folder's status as its workspace's file status: nothing while the folder is complete and current, the
+ * download progress against the larger of the agreed size and the descriptor's size before it first completes, and the
+ * share of the folder's bytes already here while later changes arrive.
  */
 function folderFileStatus(
   status: FileSyncFolderStatus,
@@ -502,11 +503,21 @@ function folderFileStatus(
   const need = Math.max(0, status.needFiles - status.failedFiles)
   // Idle while files are missing: no device that holds them is reachable.
   if (status.state === 'idle' && (need > 0 || !complete)) return { state: 'waiting' }
-  if (complete && need > 0) return { state: 'syncing' }
+  if (complete && need > 0) return status.globalBytes > 0
+    ? { state: 'syncing', progress: fraction(status.globalBytes - status.needBytes, status.globalBytes) }
+    : { state: 'syncing' }
   if (complete) return status.failedFiles > 0 ? { state: 'failed', reason: 'unstorable', count: status.failedFiles } : undefined
   const total = Math.max(status.globalBytes, entry.bytes)
   if (total === 0) return { state: 'syncing' }
-  return { state: 'syncing', progress: Math.min(1, Math.max(0, (status.globalBytes - status.needBytes) / total)) }
+  return { state: 'syncing', progress: fraction(status.globalBytes - status.needBytes, total) }
+}
+
+/**
+ * The share of `total` that `done` is, from 0 to 1, in whole percents: a status changes, and reaches the windows that
+ * show it, at most once per percent of a sync.
+ */
+function fraction(done: number, total: number): number {
+  return Math.floor(Math.min(1, Math.max(0, done / total)) * 100) / 100
 }
 
 /** Whether a directory is the top of a Git work tree. */
