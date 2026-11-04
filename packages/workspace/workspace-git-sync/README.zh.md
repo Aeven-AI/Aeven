@@ -21,7 +21,7 @@ Git 来自 `PATH` 或各平台的标准安装位置。没有 Git 的设备从不
 
 环境文件是 Git 忽略、名称匹配 `envFiles.patterns`（如 `.env`）、不在被忽略目录中且在大小和数量限制内的文件。它们加密后通过账户的 `workspace-git/env/<workspace id>` 文档同步。设备只在不存在同名文件的位置写入，因此不会替换本地值，并且只写入匹配模式的路径。文件在本地变化后，设备会再次发布它。
 
-失败的尝试会等待 `retryMs`，每 `passIntervalMs` 运行一次的检查会发布变化的环境文件并重试。设计见[工作区文件同步 Agent Note](../../../.agents/notes/proposed/architecture/2026-11-03-workspace-file-sync.zh.md)。
+失败的尝试会等待 `retryMs`，每 `passIntervalMs` 运行一次的检查会发布变化的环境文件并重试。检查在 Host 启动 `startDelayMs` 之后才开始；检查运行期间到达的变化共用下一次检查，因此一连串工作区变化不会每次都运行 Git。设计见[工作区文件同步 Agent Note](../../../.agents/notes/proposed/architecture/2026-11-03-workspace-file-sync.zh.md)。
 
 每一步都会设置 workspace 的文件状态：缺少 Git 时为 `git-needed`；安装程序运行时为 `installing`；克隆或复制期间为 `syncing`；在 `copyAnswerMs` 内没有持有该仓库的设备接下复制请求时为 `waiting`；失败时为带简短原因的 `failed`：根据克隆错误输出得到 `access` 或 `network`，仓库会使磁盘剩余比例不足时为 `disk`，安装 Git 失败时为 `git-install`，其余为 `unknown`；绑定后清除状态。状态会停留在最近一次失败上，直到下一次尝试。
 

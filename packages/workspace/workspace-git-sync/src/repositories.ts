@@ -65,6 +65,8 @@ export interface WorkspaceRepositoriesOptions {
   transferRoot: string
   /** Shortest wait before trying again to get a repository that could not be cloned or copied. */
   retryMs: number
+  /** Wait after construction before the first pass; passes requested sooner run once when it ends. */
+  startDelayMs: number
   /** Longest a copy request waits for a device that holds the repository to take it. */
   copyAnswerMs: number
   /** Longest a copy from another device may take, from request to clone. */
@@ -129,6 +131,8 @@ interface Served {
 export class WorkspaceRepositories {
   private readonly accounts = new Map<string, Promise<Account | undefined>>()
   private readonly passes = new Map<string, Promise<void>>()
+  /** Each account's pass that is queued and has not started; it covers every request made until it starts. */
+  private readonly queued = new Map<string, Promise<void>>()
   private readonly serving = new Map<string, Promise<void>>()
   private readonly env = new Map<WorkspaceId, EnvFiles>()
   private readonly retryAt = new Map<WorkspaceId, number>()
@@ -141,6 +145,10 @@ export class WorkspaceRepositories {
   /** Repositories whose dependencies are being installed after they arrived. */
   private readonly preparing = new Set<WorkspaceId>()
   private disposed = false
+  /** Resolves when `startDelayMs` has passed, so passes stay out of the Host's startup. */
+  private readonly started: Promise<void>
+  private startTimer: NodeJS.Timeout | undefined
+  private releaseStart: () => void = () => {}
 
   /**
    * @param ctx - context providing `workspaceRegistry`, `sync`, and `subprocess`, and optionally `fileSync`.
@@ -155,6 +163,10 @@ export class WorkspaceRepositories {
     private readonly options: WorkspaceRepositoriesOptions,
   ) {
     this.names = new EnvFileNames(options.envFiles)
+    this.started = new Promise((resolve) => {
+      this.releaseStart = resolve
+      this.startTimer = setTimeout(resolve, options.startDelayMs)
+    })
     this.statuses = new WorkspaceFileStatusReport(ctx.workspaceRegistry)
     this.workState = new WorkState(ctx, git, {
       transferRoot: options.transferRoot,
@@ -313,6 +325,8 @@ export class WorkspaceRepositories {
   /** Let running passes finish, stop serving copies, close every open document, and withdraw reported file statuses. */
   async dispose(): Promise<void> {
     this.disposed = true
+    clearTimeout(this.startTimer)
+    this.releaseStart()
     await Promise.all([...this.passes.values(), ...this.serving.values()])
     await this.workState.dispose()
     for (const key of [...this.served.keys()]) await this.stopServing(key)
@@ -351,9 +365,16 @@ export class WorkspaceRepositories {
 
   private reconcile(owner: string): Promise<void> {
     if (this.disposed) return Promise.resolve()
-    const pass = (this.passes.get(owner) ?? Promise.resolve()).then(() => this.reconcileNow(owner)).catch((error: unknown) => {
+    // A burst of workspace changes runs one pass after the current one, not one pass per change.
+    const waiting = this.queued.get(owner)
+    if (waiting !== undefined) return waiting
+    const pass = (this.passes.get(owner) ?? this.started).then(() => {
+      this.queued.delete(owner)
+      return this.disposed ? undefined : this.reconcileNow(owner)
+    }).catch((error: unknown) => {
       this.warn(`reconciling repositories failed: ${String(error)}`)
     })
+    this.queued.set(owner, pass)
     this.passes.set(owner, pass)
     return pass
   }

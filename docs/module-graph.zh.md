@@ -563,8 +563,6 @@ flowchart TD
   pkg_media --> pkg_llm
   pkg_subprocess_local --> pkg_subprocess
   pkg_subprocess_local --> pkg_timeout
-  pkg_file_sync_syncthing --> pkg_file_sync
-  pkg_file_sync_syncthing --> pkg_subprocess
   pkg_sync_yjs --> pkg_credentials
   pkg_sync_yjs --> pkg_sync
   pkg_vcs_git --> pkg_llm
@@ -655,6 +653,11 @@ flowchart TD
   pkg_shell --> pkg_settings
   pkg_shell --> pkg_subprocess
   pkg_speech_to_text --> pkg_settings
+  pkg_file_sync_syncthing --> pkg_credentials
+  pkg_file_sync_syncthing --> pkg_file_sync
+  pkg_file_sync_syncthing --> pkg_settings
+  pkg_file_sync_syncthing --> pkg_subprocess
+  pkg_file_sync_syncthing --> pkg_sync
   pkg_workspace --> pkg_invariants
   pkg_workspace --> pkg_session
   pkg_workspace --> pkg_session_handoff
@@ -721,6 +724,7 @@ flowchart TD
   pkg_api_workspace_controller --> pkg_host_directory_picker
   pkg_api_workspace_controller --> pkg_identity_user
   pkg_api_workspace_controller --> pkg_session
+  pkg_api_workspace_controller --> pkg_settings
   pkg_api_workspace_controller --> pkg_storage_domain
   pkg_api_workspace_controller --> pkg_typert_protocol
   pkg_api_workspace_controller --> pkg_workspace
@@ -1733,7 +1737,6 @@ flowchart TD
 | [`identity-user`](../packages/identity/user) | `identity` | [`credentials`](../packages/credentials/credentials) |
 | [`media`](../packages/media/media) | `media` | [`attachment`](../packages/attachment/attachment), [`credentials`](../packages/credentials/credentials), [`llm`](../packages/llm/llm) |
 | [`subprocess-local`](../packages/subprocess/subprocess-local) | `subprocess` | [`subprocess`](../packages/subprocess/subprocess), [`timeout`](../packages/util/timeout) |
-| [`file-sync-syncthing`](../packages/sync/file-sync-syncthing) | `sync` | [`file-sync`](../packages/sync/file-sync), [`subprocess`](../packages/subprocess/subprocess) |
 | [`sync-yjs`](../packages/sync/sync-yjs) | `sync` | [`credentials`](../packages/credentials/credentials), [`sync`](../packages/sync/sync) |
 | [`vcs-git`](../packages/vcs/vcs-git) | `vcs` | [`llm`](../packages/llm/llm), [`subprocess`](../packages/subprocess/subprocess), [`vcs`](../packages/vcs/vcs) |
 | [`skill-badge`](../packages/skill/skill-badge) | `skill` | [`skill`](../packages/skill/skill) |
@@ -1768,6 +1771,7 @@ flowchart TD
 | [`settings-sync`](../packages/settings/settings-sync) | `settings` | [`settings`](../packages/settings/settings), [`sync`](../packages/sync/sync) |
 | [`shell`](../packages/shell/shell) | `shell` | [`sandbox`](../packages/sandbox/sandbox), [`settings`](../packages/settings/settings), [`subprocess`](../packages/subprocess/subprocess) |
 | [`speech-to-text`](../packages/speech/speech-to-text) | `speech` | [`settings`](../packages/settings/settings) |
+| [`file-sync-syncthing`](../packages/sync/file-sync-syncthing) | `sync` | [`credentials`](../packages/credentials/credentials), [`file-sync`](../packages/sync/file-sync), [`settings`](../packages/settings/settings), [`subprocess`](../packages/subprocess/subprocess), [`sync`](../packages/sync/sync) |
 | [`workspace`](../packages/workspace/workspace) | `workspace` | [`invariants`](../packages/runtime-diagnostics/invariants), [`session`](../packages/core/session), [`session-handoff`](../packages/session/session-handoff), [`session-persistence`](../packages/session/session-persistence), [`storage`](../packages/storage/storage), [`storage-domain`](../packages/storage/storage-domain), [`subprocess`](../packages/subprocess/subprocess), [`sync`](../packages/sync/sync), [`typert-protocol`](../packages/typert/protocol) |
 | [`llm-deepseek`](../packages/llm/llm-deepseek) | `llm` | [`anonymous-user-id`](../packages/identity/anonymous-user-id), [`atomic-write`](../packages/util/atomic-write), [`attachment`](../packages/attachment/attachment), [`credentials`](../packages/credentials/credentials), [`deepseek-llm-api-extensions`](../packages/llm/deepseek-llm-api-extensions), [`fs`](../packages/fs/fs), [`home-paths`](../packages/util/home-paths), [`launch-environment`](../packages/util/launch-environment), [`llm`](../packages/llm/llm), [`settings`](../packages/settings/settings), [`timeout`](../packages/util/timeout) |
 | [`llm-pi-ai`](../packages/llm/llm-pi-ai) | `llm` | [`attachment`](../packages/attachment/attachment), [`authorization`](../packages/credentials/authorization), [`credentials`](../packages/credentials/credentials), [`fs`](../packages/fs/fs), [`launch-environment`](../packages/util/launch-environment), [`llm`](../packages/llm/llm), [`settings`](../packages/settings/settings), [`timeout`](../packages/util/timeout) |
@@ -1779,7 +1783,7 @@ flowchart TD
 | [`skill-filesystem`](../packages/skill/skill-filesystem) | `skill` | [`fs`](../packages/fs/fs), [`home-paths`](../packages/util/home-paths), [`skill`](../packages/skill/skill) |
 | [`web-search-deepseek`](../packages/web/web-search-deepseek) | `web` | [`agent`](../packages/core/agent), [`credentials`](../packages/credentials/credentials), [`identity-user`](../packages/identity/user), [`launch-environment`](../packages/util/launch-environment), [`session`](../packages/core/session), [`settings`](../packages/settings/settings), [`web`](../packages/web/web) |
 | [`hook-protocol`](../packages/hooks/hook-protocol) | `hooks` | [`invariants`](../packages/runtime-diagnostics/invariants), [`session`](../packages/core/session), [`shell`](../packages/shell/shell) |
-| [`api-workspace-controller`](../packages/api/workspace-controller) | `api` | [`api-gateway`](../packages/api/gateway), [`client-connection`](../packages/client/connection), [`host-directory-picker`](../packages/host/directory-picker), [`identity-user`](../packages/identity/user), [`session`](../packages/core/session), [`storage-domain`](../packages/storage/storage-domain), [`typert-protocol`](../packages/typert/protocol), [`workspace`](../packages/workspace/workspace) |
+| [`api-workspace-controller`](../packages/api/workspace-controller) | `api` | [`api-gateway`](../packages/api/gateway), [`client-connection`](../packages/client/connection), [`host-directory-picker`](../packages/host/directory-picker), [`identity-user`](../packages/identity/user), [`session`](../packages/core/session), [`settings`](../packages/settings/settings), [`storage-domain`](../packages/storage/storage-domain), [`typert-protocol`](../packages/typert/protocol), [`workspace`](../packages/workspace/workspace) |
 | [`file-reference`](../packages/context/file-reference) | `context` | [`agent`](../packages/core/agent) |
 | [`reply-language`](../packages/context/reply-language) | `context` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection) |
 | [`time-context`](../packages/context/time-context) | `context` | [`agent`](../packages/core/agent), [`invariants`](../packages/runtime-diagnostics/invariants), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection) |

@@ -21,7 +21,7 @@ Git comes from `PATH` or each platform's standard install locations. A device wi
 
 Environment files are files Git ignores whose names match `envFiles.patterns`, such as `.env`, outside ignored directories and within the size and count limits. They travel encrypted in the account's `workspace-git/env/<workspace id>` document. A device writes one only where no file of that name exists, so a local value is never replaced, and writes only paths that match the patterns. A device publishes a file again when it changes locally.
 
-A failed attempt waits `retryMs`, and a pass every `passIntervalMs` publishes changed environment files and retries. The design is in the [workspace file sync Agent Note](../../../.agents/notes/proposed/architecture/2026-11-03-workspace-file-sync.md).
+A failed attempt waits `retryMs`, and a pass every `passIntervalMs` publishes changed environment files and retries. Passes start `startDelayMs` after the Host does, and changes that arrive while a pass runs share one following pass, so a burst of workspace changes does not run Git once per change. The design is in the [workspace file sync Agent Note](../../../.agents/notes/proposed/architecture/2026-11-03-workspace-file-sync.md).
 
 Each step sets the workspace's file status: `git-needed` while Git is missing, `installing` while the installer runs, `syncing` during a clone or copy, `waiting` when no device that holds the repository takes the copy request within `copyAnswerMs`, and `failed` with a short reason: `access` or `network` from the clone's error output, `disk` when the repository would not leave the free-disk share, `git-install` when installing Git failed, and `unknown` otherwise; binding clears it. The status stays at the last failure until the next try.
 

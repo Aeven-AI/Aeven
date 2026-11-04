@@ -129,7 +129,11 @@ export function workspaceSessionVisible(
  * @returns the projection listing only the caller's sessions.
  */
 export function callerWorkspaceView(ctx: Context, view: WorkspaceView, caller: User | undefined): WorkspaceView {
-  return { ...view, sessionIds: view.sessionIds.filter(id => workspaceSessionVisible(ctx, id, caller)) }
+  // Resolved once per view: a workspace can list hundreds of sessions, and each service lookup crosses Cordis proxies.
+  const users = ctx.get('identityUsers')
+  if (users === undefined) return view
+  const registry = ctx.workspaceRegistry
+  return { ...view, sessionIds: view.sessionIds.filter(id => users.mayAccess(registry.sessionOwner(id), caller)) }
 }
 
 /** Owns Workspace domain observation and all active follow generations. */

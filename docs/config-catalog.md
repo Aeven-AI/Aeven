@@ -1310,6 +1310,15 @@ export interface Config {
   restartMs: number
   /** Longest wait between restarts; a process that ran this long resets the backoff, in milliseconds. */
   restartMaxMs: number
+  /**
+   * The file cloud's endpoint, such as `https://aeven.io/api/cloud/files`; empty keeps every folder peer to peer. The
+   * cloud stores an encrypted copy, so a device receives a folder while no other device of its account is online.
+   */
+  cloudUrl: string
+  /** Credential reference holding each account's Aeven access token, which registers this device with the cloud. */
+  credentialRef: string
+  /** Wait before registering with the file cloud again after its token was missing or the request failed, in milliseconds. */
+  cloudRetryMs: number
 }
 ```
 
@@ -3691,6 +3700,8 @@ export interface Config {
   defaultProvider: string
   /** Provider language hint selected when the caller omits one. */
   language: string
+  /** Whether the user turned voice input on; while off, {@link SpeechToText.resolve} refuses every recording. */
+  enabled: boolean
 }
 ```
 
@@ -5659,6 +5670,8 @@ export interface Config {
   }
   /** Interval between passes that publish changed environment files and retry repositories not yet received. */
   passIntervalMs: number
+  /** Wait after the Host starts before the first pass; passes requested sooner run once when it ends. */
+  startDelayMs: number
   /** Shortest wait before trying again to get a repository that could not be cloned or copied. */
   retryMs: number
   /** Longest a copy request waits for a device that holds the repository to take it. */

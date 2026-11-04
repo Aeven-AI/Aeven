@@ -80,6 +80,8 @@ export interface Config {
   }
   /** Interval between passes that publish changed environment files and retry repositories not yet received. */
   passIntervalMs: number
+  /** Wait after the Host starts before the first pass; passes requested sooner run once when it ends. */
+  startDelayMs: number
   /** Shortest wait before trying again to get a repository that could not be cloned or copied. */
   retryMs: number
   /** Longest a copy request waits for a device that holds the repository to take it. */
@@ -133,6 +135,7 @@ export const Config: Schema<Config> = Schema.object({
     maxTotalBytes: Schema.natural().min(1).default(1024 * 1024),
   }),
   passIntervalMs: Schema.natural().min(1_000).default(300_000),
+  startDelayMs: Schema.natural().default(15_000),
   retryMs: Schema.natural().min(1_000).default(600_000),
   copyAnswerMs: Schema.natural().min(1_000).default(30_000),
   copyTimeoutMs: Schema.natural().min(1_000).default(600_000),
