@@ -98,7 +98,9 @@
 | `workspace-files/show` | `waterfall` | [`packages/api/workspace-files/src/types.ts:100`](../packages/api/workspace-files/src/types.ts) | `workspace-files` (`waterfall`) | `remotes` |
 | `workspace/changed` | `emit` | [`packages/workspace/workspace/src/types.ts:42`](../packages/workspace/workspace/src/types.ts) | [`workspace`](../packages/workspace/workspace) (`emit`) | [`workspace-file-sync`](../packages/workspace/workspace-file-sync), [`workspace-git-sync`](../packages/workspace/workspace-git-sync) |
 | `workspace/files` | `emit` | [`packages/workspace/workspace/src/types.ts:48`](../packages/workspace/workspace/src/types.ts) | [`workspace`](../packages/workspace/workspace) (`emit`) | `workspace-controller` |
-| `workspace/files-requested` | `emit` | [`packages/workspace/workspace/src/types.ts:55`](../packages/workspace/workspace/src/types.ts) | [`workspace`](../packages/workspace/workspace) (`emit`) | [`workspace-git-sync`](../packages/workspace/workspace-git-sync) |
+| `workspace/files-paused` | `emit` | [`packages/workspace/workspace/src/types.ts:69`](../packages/workspace/workspace/src/types.ts) | [`workspace`](../packages/workspace/workspace) (`emit`) | [`workspace-file-sync`](../packages/workspace/workspace-file-sync), [`workspace-git-sync`](../packages/workspace/workspace-git-sync) |
+| `workspace/files-requested` | `emit` | [`packages/workspace/workspace/src/types.ts:62`](../packages/workspace/workspace/src/types.ts) | [`workspace`](../packages/workspace/workspace) (`emit`) | [`workspace-git-sync`](../packages/workspace/workspace-git-sync) |
+| `workspace/session-owner` | `emit` | [`packages/workspace/workspace/src/types.ts:55`](../packages/workspace/workspace/src/types.ts) | [`workspace`](../packages/workspace/workspace) (`emit`) | `workspace-controller` |
 
 ## 包源码中出现的非 harness 或未声明事件字符串
 

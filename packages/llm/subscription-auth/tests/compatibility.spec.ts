@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
 import { AVN_EXACT_BOM } from '../src/compatibility.ts'
@@ -118,28 +119,43 @@ describe('AVN compatibility contracts', () => {
     expect(() =>{  adapter.assertCompatible() }).not.toThrow()
   })
 
-  it('reports a healthy host once every verified contract is present', () => {
-    const context = {
-      effect() {},
-      inject() {},
-      get() {},
-      logger() {},
-      webServer: { register() {} },
-      settings: { register() {} },
-      credentials: { resolve() {} },
-      llm: { registerAdapter() {} },
-      ownerRequestPolicy: { authorize() {}, diagnostics() {} },
-    } as unknown as Context
-    const adapter = createAvnHostAdapter(context)
-    const compatibility = adapter.compatibility()
+  it('reports a healthy host once every verified contract is present', async () => {
+    vi.resetModules()
+    vi.doMock('node:module', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('node:module')>()
+      return Object.assign({}, actual, {
+        createRequire: () => Object.assign(actual.createRequire(import.meta.url), {
+          resolve: () => fileURLToPath(new URL('../../../../package.json', import.meta.url)),
+        }),
+      })
+    })
+    try {
+      const { createAvnHostAdapter: create } = await import('../src/avn-host-adapter.ts')
+      const context = {
+        effect() {},
+        inject() {},
+        get() {},
+        logger() {},
+        webServer: { register() {} },
+        settings: { register() {} },
+        credentials: { resolve() {} },
+        llm: { registerAdapter() {} },
+        ownerRequestPolicy: { authorize() {}, diagnostics() {} },
+      } as unknown as Context
+      const adapter = create(context)
+      const compatibility = adapter.compatibility()
 
-    expect(adapter.diagnostics()).toEqual([])
-    expect(compatibility.status).toBe('healthy')
-    expect(compatibility.diagnostics).toEqual([])
-    expect(compatibility.avnVersion).toMatch(/^\d+\.\d+\.\d+/u)
-    expect(compatibility.uiOwner).toBe('standalone')
-    expect(compatibility.accessMode).toBe('loopback')
-    expect(() =>{  adapter.assertCompatible() }).not.toThrow()
+      expect(adapter.diagnostics()).toEqual([])
+      expect(compatibility.status).toBe('healthy')
+      expect(compatibility.diagnostics).toEqual([])
+      expect(compatibility.avnVersion).toMatch(/^\d+\.\d+\.\d+/u)
+      expect(compatibility.uiOwner).toBe('standalone')
+      expect(compatibility.accessMode).toBe('loopback')
+      expect(() =>{  adapter.assertCompatible() }).not.toThrow()
+    } finally {
+      vi.doUnmock('node:module')
+      vi.resetModules()
+    }
   })
 
   it('resolves the participant scope from the root context it was handed', () => {

@@ -142,7 +142,11 @@ export default class SpeechToText extends Service {
   snapshot(): SpeechSnapshot {
     return { providers: [...this.providers.values()].map(({ provider }) => ({ ...provider.info,
       preparation: provider.preparation?.snapshot() ?? { phase: 'ready' },
-    })), selection: { providerId: this.selection().defaultProvider as SpeechProviderId, language: this.selection().language, enabled: this.selection().enabled } }
+    })), selection: {
+      providerId: this.selection().defaultProvider as SpeechProviderId,
+      language: this.selection().language,
+      enabled: this.selection().enabled,
+    } }
   }
 
   /**
@@ -192,7 +196,8 @@ export default class SpeechToText extends Service {
   }
 
   /**
-   * Apply composition defaults and capture the selected provider. Missing providers, unsupported languages, and voice input turned off fail explicitly.
+   * Apply composition defaults and capture the selected provider.
+   * Missing providers, unsupported languages, and voice input turned off fail explicitly.
    * @param request - complete recording and optional selection.
    * @returns provider-pinned input for transcribe().
    */

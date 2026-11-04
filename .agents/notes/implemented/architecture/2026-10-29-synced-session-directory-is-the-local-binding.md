@@ -35,6 +35,8 @@ Workspace identity is the portable fact; the directory is device-local. `@aeven/
 
 Handover writes nothing. `claimRunnerAccount()` resolves the local directory after it claims a session and refuses with `workspace/no-local-directory` (details carry the session, the workspace, and the reason) when there is none; it no longer calls `enter()`. The local directory is derived at execution time, so there is nothing to record.
 
+Directoryless chats may claim the runner lease on any signed-in device. The absence of a local folder is not a reason to forward their input to an idle previous writer; folder-dependent sessions still require a local binding or forward to their existing writer.
+
 ### What stays on the header
 
 Values used to *compare* or to *label* a session keep reading `SessionHeader.cwd`, because a recorded directory is still the right answer to "which workspace did this come from": workspace membership and admission, ACP session metadata, session-reference ranking, the procedural-memory scope, and the registry's own cwd validation. The change is about where a tool acts, not about what a session is.

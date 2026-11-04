@@ -17,8 +17,8 @@ function setup(load = vi.fn(() => Promise.resolve(initial))) {
   let changed = () => {}
   const ops: FilesSectionInjected = {
     load,
-    setPaused: vi.fn(paused => Promise.resolve({ ...initial, paused })),
-    setIgnores: vi.fn(ignores => Promise.resolve({ ...initial, ignores: [...ignores] })),
+    setPaused: vi.fn<FilesSectionInjected['setPaused']>(paused => Promise.resolve({ ...initial, paused })),
+    setIgnores: vi.fn<FilesSectionInjected['setIgnores']>(ignores => Promise.resolve({ ...initial, ignores: [...ignores] })),
     reveal: vi.fn(),
     onChange: (listener) => { changed = listener; return () => { changed = () => {} } },
   }

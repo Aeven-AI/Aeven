@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-10-29-synced-session-directory-is-the-local-binding.md
-2026-10-29-synced-session-directory-is-the-local-binding.md: 5b0303ae38c15b32d43f8058279e99b0d67aa002
-2026-10-29-synced-session-directory-is-the-local-binding.zh.md: e7650e53a48afce06a4305eaba80febcc110abd1
+2026-10-29-synced-session-directory-is-the-local-binding.md: 4c13560b8c9fbc2e9059eec16ebb425f62e13155
+2026-10-29-synced-session-directory-is-the-local-binding.zh.md: a537614ac3a36a1151f611c49bc3fb21b986f5ef

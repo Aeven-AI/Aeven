@@ -275,6 +275,26 @@ Host service backing the generated `ctx.remote.workspace` namespace.
 @Remote('getFiles') getFiles(request: WorkspaceGetFilesRequest): Promise<WorkspaceGetFilesValue>
 
 /**
+ * Read file sync on this Host for the calling account.
+ * @returns whether it is paused, the ignore patterns, and the account's Workspaces with their files' place and status.
+ */
+@Remote('filesSettings') filesSettings(): Promise<WorkspaceFilesSettings>
+
+/**
+ * Pause or resume file sync on this Host for the calling account.
+ * @param request - whether to pause.
+ * @returns file sync after the change.
+ */
+@Remote('setFilesPaused') setFilesPaused(request: WorkspaceFilesPauseRequest): Promise<WorkspaceFilesSettings>
+
+/**
+ * Replace the patterns no folder syncs, the same on every device of the account.
+ * @param request - the patterns.
+ * @returns file sync after the change.
+ */
+@Remote('setFilesIgnores') setFilesIgnores(request: WorkspaceFilesIgnoresRequest): Promise<WorkspaceFilesSettings>
+
+/**
  * List a Workspace's files that two devices changed differently.
  * @param request - Workspace identity.
  * @returns the conflicts with both versions' text where available.
@@ -429,6 +449,21 @@ fileStatus(id: WorkspaceId): WorkspaceFileStatus | undefined
  * @param status - the new status, or `undefined` once the files are here and up to date.
  */
 setFileStatus(id: WorkspaceId, status: WorkspaceFileStatus | undefined): void
+
+/**
+ * Whether the user paused file sync for an account on this device.
+ * @param owner - the account.
+ * @returns true while paused; false when file sync runs or the account does not sync.
+ */
+filesPaused(owner: string): boolean
+
+/**
+ * Pause or resume file sync for an account on this device, remembered across restarts; emits
+ * `workspace/files-paused`.
+ * @param owner - the account.
+ * @param paused - whether file sync pauses.
+ */
+setFilesPaused(owner: string, paused: boolean): void
 
 /**
  * Register a file sync Consumer's conflict listing and resolution.
@@ -662,6 +697,24 @@ A workspace's file status on this device changed; read it with `WorkspaceRegistr
 
 Source: [`packages/workspace/workspace/src/types.ts`](../../packages/workspace/workspace/src/types.ts)
 
+<a id="workspacefiles-paused--emit"></a>
+
+#### `workspace/files-paused` — emit
+
+The user paused or resumed file sync for an account on this device; read it with `WorkspaceRegistry.filesPaused`.
+
+```ts cordis-catalog
+/**
+ * The user paused or resumed file sync for an account on this device; read it with
+ * `WorkspaceRegistry.filesPaused`.
+ * @mode emit
+ * @param owner - the account.
+ */
+'workspace/files-paused'(owner: string): void
+```
+
+Source: [`packages/workspace/workspace/src/types.ts`](../../packages/workspace/workspace/src/types.ts)
+
 <a id="workspacefiles-requested--emit"></a>
 
 #### `workspace/files-requested` — emit
@@ -676,6 +729,24 @@ The user asked for a workspace's files now, for example by accepting to install 
  * @param workspace - the workspace whose files were requested.
  */
 'workspace/files-requested'(workspace: WorkspaceId): void
+```
+
+Source: [`packages/workspace/workspace/src/types.ts`](../../packages/workspace/workspace/src/types.ts)
+
+<a id="workspacesession-owner--emit"></a>
+
+#### `workspace/session-owner` — emit
+
+The registry learned the owner of a session a workspace already lists, which changes who may see that session in the workspace; read the workspace from the registry again.
+
+```ts cordis-catalog
+/**
+ * The registry learned the owner of a session a workspace already lists, which changes who may see that session
+ * in the workspace; read the workspace from the registry again.
+ * @mode emit
+ * @param workspace - the workspace that lists the session.
+ */
+'workspace/session-owner'(workspace: WorkspaceId): void
 ```
 
 Source: [`packages/workspace/workspace/src/types.ts`](../../packages/workspace/workspace/src/types.ts)

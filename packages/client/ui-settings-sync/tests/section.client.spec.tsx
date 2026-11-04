@@ -25,7 +25,7 @@ function setup(view: SyncView, copy = en) {
     onDevicesChange: (listener) => { devicesChanged = listener; return () => { devicesChanged = () => {} } },
   }
   const props = {
-    ...ops, close: () => {}, detail: undefined, showDetail: () => {},
+    ...ops, close: () => {}, detail: undefined, showDetail: () => {}, renderSlot: () => null,
     t: (key: keyof typeof en, values?: Record<string, string>) => {
       let text = copy[key]
       for (const [name, value] of Object.entries(values ?? {})) text = text.replace(`{${name}}`, value)

@@ -62,6 +62,14 @@ abstract unshare(id: FileSyncFolderId): Promise<void>
 abstract status(id: FileSyncFolderId): FileSyncFolderStatus | undefined
 
 /**
+ * Pause or resume every folder of an account on this device; a paused folder neither sends nor receives changes.
+ * @param owner - the account.
+ * @param paused - whether its folders pause.
+ * @returns when the transport applies it.
+ */
+abstract setPaused(owner: string, paused: boolean): Promise<void>
+
+/**
  * Look at these paths now instead of waiting for the filesystem watcher, so a change this device just made reaches
  * the peers at once.
  * @param id - a folder {@link share} started.
@@ -143,6 +151,15 @@ abstract removeDevice(owner: string, device: DeviceId): Promise<void>
  * @returns the opaque id.
  */
 abstract documentId(owner: string, name: string): string
+
+/**
+ * Derive a secret for one purpose from the account key, the same on every device that holds it, such as a file sync
+ * folder's encryption password. A relay holding the account key can also derive it.
+ * @param owner - an account whose key this device holds.
+ * @param label - the purpose, such as `file-sync/folder/<id>`.
+ * @returns the secret.
+ */
+abstract secret(owner: string, label: string): string
 
 /**
  * Open a document of an account whose key this device holds, loading its local state first.

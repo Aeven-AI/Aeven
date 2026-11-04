@@ -99,7 +99,7 @@ snapshot(): SpeechSnapshot
 
 /**
  * Save changed selection fields as user preferences; the resulting language must be accepted by the selected provider.
- * @param patch - explicit provider or language changes.
+ * @param patch - explicit provider, language, or on/off changes.
  * @returns after the settings write commits and observers see the new selection.
  */
 async configure(patch: SpeechSelectionPatch): Promise<void>
@@ -119,7 +119,8 @@ prepare(id: SpeechProviderId, options?: SpeechPreparationOptions): void
 async cancelPreparation(id: SpeechProviderId): Promise<void>
 
 /**
- * Apply composition defaults and capture the selected provider. Missing providers and unsupported languages fail explicitly.
+ * Apply composition defaults and capture the selected provider.
+ * Missing providers, unsupported languages, and voice input turned off fail explicitly.
  * @param request - complete recording and optional selection.
  * @returns provider-pinned input for transcribe().
  */

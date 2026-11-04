@@ -81,7 +81,7 @@ exports[`sidebar shell snapshots > keeps the expanded contents mounted behind th
             <svg
               aria-hidden="true"
               class="newSessionIcon"
-              data-content="f9600f30"
+              data-content="f1e1b8f6"
               fill="none"
               stroke="currentColor"
               stroke-linecap="round"
@@ -228,7 +228,7 @@ exports[`sidebar shell snapshots > renders the expanded column (wordmark, capsul
             <svg
               aria-hidden="true"
               class="newSessionIcon"
-              data-content="f9600f30"
+              data-content="f1e1b8f6"
               fill="none"
               stroke="currentColor"
               stroke-linecap="round"
@@ -375,7 +375,7 @@ exports[`sidebar shell snapshots > renders the expanded column in the default lo
             <svg
               aria-hidden="true"
               class="newSessionIcon"
-              data-content="f9600f30"
+              data-content="f1e1b8f6"
               fill="none"
               stroke="currentColor"
               stroke-linecap="round"

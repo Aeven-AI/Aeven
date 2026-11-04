@@ -81,10 +81,10 @@ it('saves language and provider preferences without remounting and restores them
   registerProviders(ctx)
   const speech = ctx.get('speechToText')!
   await speech.configure({ language: 'nl' })
-  expect(speech.snapshot().selection).toEqual({ providerId: 'whisper-local', language: 'nl' })
+  expect(speech.snapshot().selection).toEqual({ providerId: 'whisper-local', language: 'nl', enabled: true })
   await speech.configure({ providerId: 'another-provider' as SpeechProviderId })
   expect(ctx.get('speechToText')!.listProviders().map(info => info.id)).toEqual(['whisper-local', 'another-provider'])
-  expect(speech.snapshot().selection).toEqual({ providerId: 'another-provider', language: 'nl' })
+  expect(speech.snapshot().selection).toEqual({ providerId: 'another-provider', language: 'nl', enabled: true })
   const saved = await readFile(join(home, 'settings.yaml'), 'utf8')
   expect(saved).toContain('speech-to-text:')
   expect(saved).toContain('defaultProvider: another-provider')
@@ -92,7 +92,7 @@ it('saves language and provider preferences without remounting and restores them
 
   await ctx.fiber.dispose()
   ctx = await compose(home, true)
-  expect(ctx.get('speechToText')!.snapshot().selection).toEqual({ providerId: 'another-provider', language: 'nl' })
+  expect(ctx.get('speechToText')!.snapshot().selection).toEqual({ providerId: 'another-provider', language: 'nl', enabled: true })
 })
 
 it('uses the composition defaults and refuses to save preferences when no settings service is mounted', async () => {
@@ -101,6 +101,6 @@ it('uses the composition defaults and refuses to save preferences when no settin
   const ctx = await compose(home, false)
   registerProviders(ctx)
   const speech = ctx.get('speechToText')!
-  expect(speech.snapshot().selection).toEqual({ providerId: 'whisper-local', language: 'auto' })
+  expect(speech.snapshot().selection).toEqual({ providerId: 'whisper-local', language: 'auto', enabled: true })
   await expect(speech.configure({ language: 'nl' })).rejects.toThrow('settings service')
 })

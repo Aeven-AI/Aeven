@@ -17,8 +17,8 @@ const icons = Object.fromEntries(
 const iconNames = Object.keys(icons)
 
 describe('ic_ds_ icon set', () => {
-  it('exports the complete icon set (89 drawn glyphs plus sixty-eight CSS-sized ones)', () => {
-    expect(iconNames.length).toBe(157)
+  it('exports the complete icon set', () => {
+    expect(iconNames.length).toBe(158)
     expect(iconNames).toContain('IconBotOutline16')
   })
 
