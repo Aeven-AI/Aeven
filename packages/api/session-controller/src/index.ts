@@ -137,6 +137,8 @@ export class SessionController extends TypertRemoteService {
   private readonly openFileApplication: typeof openNativeFileApplication
   private readonly revealPath: (path: string, signal: AbortSignal) => Promise<void>
   private readonly promotions = new Set<Promise<void>>()
+  /** Sessions whose local agent stops because another device of the account continues them; they stay listed. */
+  private readonly releasing = new Set<SessionId>()
   /** Imported sessions whose list entry is being rebuilt, mapped to whether another append arrived meanwhile. */
   private readonly refreshing = new Map<SessionId, boolean>()
   /** Accounts whose catalog emission waits for the next turn of the event loop. */
@@ -217,9 +219,14 @@ export class SessionController extends TypertRemoteService {
     ctx.on('session-handoff/released', async (owner, sessionId) => {
       const agent = ctx.agents.get(sessionId)
       if (agent !== undefined && agent.session.header.owner !== owner) throw new Error('session runner owner mismatch')
-      await this.agents.release(sessionId)
-      // Releasing disposes the local agent, which removes the row; the conversation continues on the device that
-      // took it, so it stays listed as that device's replica.
+      // Releasing disposes the local agent; the conversation continues on the device that took it, so it stays
+      // listed and open here as a copy rather than being removed from the reader's view.
+      this.releasing.add(sessionId)
+      try {
+        await this.agents.release(sessionId)
+      } finally {
+        this.releasing.delete(sessionId)
+      }
       ctx.emit('api-session/added', { ...await this.listState.summaryForStored(sessionId), replica: true }, owner)
     })
 
@@ -265,7 +272,7 @@ The user's account display name is ${JSON.stringify(source.clientDisplayName)}.
       void updating.finally(() => { this.promotions.delete(updating) })
     })
     ctx.on('session/disposed', (session) => {
-      ctx.emit('api-session/removed', session.id)
+      if (!this.releasing.has(session.id)) ctx.emit('api-session/removed', session.id)
     })
     ctx.on('agent/status', ({ agent, status }) => {
       ctx.emit('api-session/status', agent.id, status === 'running')
