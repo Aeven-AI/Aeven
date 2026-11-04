@@ -46,7 +46,7 @@ describe('release families', () => {
     const members = releaseFamily('avn').members(resolve(import.meta.dirname, '../..'))
 
     expect(members.some(member => member.directory.startsWith('packages/experimental/'))).toBe(false)
-    expect(members.map(member => member.name)).not.toContain('@aeven/experimental-agent-team')
+    expect(members.map(member => member.name)).not.toContain('@aeven/experimental-inspector')
   })
 
   it('discovers vendored packages under their npm scope and rejects other scopes', () => {

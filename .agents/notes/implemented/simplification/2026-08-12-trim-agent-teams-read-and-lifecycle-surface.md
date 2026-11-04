@@ -4,6 +4,8 @@ Status: implemented
 
 English | [中文](2026-08-12-trim-agent-teams-read-and-lifecycle-surface.zh.md)
 
+[Shared task board](../feature/2026-11-04-shared-task-board.md) supersedes this note: the trimmed Team service is removed, and the task board keeps no read or lifecycle surface of its own.
+
 ## Problem
 
 Agent Teams correctly owns durable roster, peer-mailbox, and shared-task policy, while the subagent continuation manager owns continuable child Activations. The first implementation nevertheless duplicated data and lifecycle mechanics across those roles.

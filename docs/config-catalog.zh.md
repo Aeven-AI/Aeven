@@ -161,6 +161,22 @@ export type PresetTrust = 'system' | 'user'
 
 来源：[`packages/preset/agent-presets/src/preset.ts`](../packages/preset/agent-presets/src/preset.ts)
 
+<a id="aevenagent-team"></a>
+
+## `@aeven/agent-team`
+
+需要：`sessions` · `sessionProjections` · `subagents`
+
+```ts config-catalog
+/** Task-board deployment limits. */
+export interface Config {
+  /** Maximum non-deleted tasks retained by one board. */
+  readonly maxTasks: number
+}
+```
+
+来源：[`packages/team/agent-team/src/types.ts`](../packages/team/agent-team/src/types.ts)
+
 <a id="aevenagent-tool-presentation"></a>
 
 ## `@aeven/agent-tool-presentation`
@@ -1098,30 +1114,6 @@ export interface Config {
 
 来源：[`packages/e2b/e2b/src/index.ts`](../packages/e2b/e2b/src/index.ts)
 
-<a id="aevenexperimental-agent-team"></a>
-
-## `@aeven/experimental-agent-team`
-
-需要：`agents` · `sessions` · `sessionPersistence` · `sessionProjections` · `subagents`
-
-```ts config-catalog
-/** Team-service deployment limits. */
-export interface Config {
-  /** Maximum immutable teammate names retained by one Team. */
-  readonly maxMembers?: number
-  /** Maximum non-deleted tasks retained by one Team. */
-  readonly maxTasks?: number
-  /** Maximum queued-minus-delivered messages for one target member. */
-  readonly maxPendingMessagesPerMember?: number
-  /** Maximum UTF-8 bytes in one complete sender-framed delivery. */
-  readonly maxMessageBytes?: number
-  /** Maximum milliseconds allowed for Team-owned runtime disposal. */
-  readonly disposalTimeoutMs?: number
-}
-```
-
-来源：[`packages/experimental/agent-team/src/types.ts`](../packages/experimental/agent-team/src/types.ts)
-
 <a id="aevenexperimental-code-runtime-python"></a>
 
 ## `@aeven/experimental-code-runtime-python`
@@ -1256,24 +1248,6 @@ export interface InspectorOptions {
 ```
 
 来源：[`packages/experimental/inspector/src/index.ts`](../packages/experimental/inspector/src/index.ts)
-
-<a id="aevenexperimental-tool-agent-team"></a>
-
-## `@aeven/experimental-tool-agent-team`
-
-需要：`agents` · `agentTeams` · `tools` · `systemPrompt`
-
-```ts config-catalog
-/** Tool routing configuration. */
-export interface Config {
-  /** Continuable-subagent provider used for fresh teammates. */
-  readonly freshProvider?: string
-  /** Continuable-subagent provider used for completed-prefix fork teammates. */
-  readonly forkProvider?: string
-}
-```
-
-来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
 <a id="aevenfile-reference-local"></a>
 
@@ -3917,6 +3891,20 @@ export type JournalMode = 'wal' | 'delete' | 'truncate' | 'persist'
 
 来源：[`packages/storage/storage-sqlite/src/index.ts`](../packages/storage/storage-sqlite/src/index.ts)
 
+<a id="aevensubagent"></a>
+
+## `@aeven/subagent`
+
+```ts config-catalog
+/** Deployment limit shared by active child executions in each subagent tree. */
+export interface Config {
+  /** Maximum child executions, including startup and teardown; the root uses no slot. */
+  maxActiveSubagents: number
+}
+```
+
+来源：[`packages/subagent/subagent/src/index.ts`](../packages/subagent/subagent/src/index.ts)
+
 <a id="aevensubagent-acp"></a>
 
 ## `@aeven/subagent-acp`
@@ -5775,7 +5763,6 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@aeven/computer-use` ([`packages/computer-use/computer-use/src/index.ts`](../packages/computer-use/computer-use/src/index.ts))
 - `@aeven/cordis-client-runner` ([`packages/extensions/cordis-client-runner/src/index.ts`](../packages/extensions/cordis-client-runner/src/index.ts))
 - `@aeven/deepseek-llm-api-extensions` ([`packages/llm/deepseek-llm-api-extensions/src/index.ts`](../packages/llm/deepseek-llm-api-extensions/src/index.ts))
-- `@aeven/experimental-client-ui-agent-team` ([`packages/experimental/client-ui-agent-team/src/index.ts`](../packages/experimental/client-ui-agent-team/src/index.ts))
 - `@aeven/fs-e2b` — requires `e2b` ([`packages/e2b/fs-e2b/src/index.ts`](../packages/e2b/fs-e2b/src/index.ts))
 - `@aeven/fs-observation-policy` ([`packages/fs/fs-observation-policy/src/index.ts`](../packages/fs/fs-observation-policy/src/index.ts))
 - `@aeven/goal-round-driver` — requires `agents` · `goals` · `sessions` ([`packages/goal/goal-round-driver/src/index.ts`](../packages/goal/goal-round-driver/src/index.ts))
@@ -5795,15 +5782,15 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@aeven/settings-sync` — requires `sync` · `settings` ([`packages/settings/settings-sync/src/index.ts`](../packages/settings/settings-sync/src/index.ts))
 - `@aeven/skill-badge` — requires `skills` ([`packages/skill/skill-badge/src/index.ts`](../packages/skill/skill-badge/src/index.ts))
 - `@aeven/storage` ([`packages/storage/storage/src/index.ts`](../packages/storage/storage/src/index.ts))
-- `@aeven/subagent` ([`packages/subagent/subagent/src/index.ts`](../packages/subagent/subagent/src/index.ts))
 - `@aeven/subprocess-local` ([`packages/subprocess/subprocess-local/src/index.ts`](../packages/subprocess/subprocess-local/src/index.ts))
 - `@aeven/terminal` ([`packages/terminal/terminal/src/index.ts`](../packages/terminal/terminal/src/index.ts))
+- `@aeven/tool-agent-team` — requires `agentTeams` · `tools` ([`packages/team/tool-agent-team/src/index.ts`](../packages/team/tool-agent-team/src/index.ts))
 - `@aeven/tool-ask-user` — requires `tools` · `userQuestions` ([`packages/interaction/tool-ask-user/src/index.ts`](../packages/interaction/tool-ask-user/src/index.ts))
 - `@aeven/tool-call-timeout-policy` — requires `tools` ([`packages/guard/timeout-policy/src/index.ts`](../packages/guard/timeout-policy/src/index.ts))
 - `@aeven/tool-cordis` — requires `tools` · `systemPrompt` · `dynamicCordisRunner` · `cordisInspect` ([`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts))
 - `@aeven/tool-device` — requires `tools` ([`packages/device/tool-device/src/index.ts`](../packages/device/tool-device/src/index.ts))
 - `@aeven/tool-read-aloud` — requires `tools` ([`packages/speech/tool-read-aloud/src/index.ts`](../packages/speech/tool-read-aloud/src/index.ts))
-- `@aeven/tool-subagent-control` — requires `tools` · `subagents` ([`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts))
+- `@aeven/tool-subagent-control` — requires `tools` · `subagents` · `agents` ([`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts))
 - `@aeven/tool-vcs` — requires `tools` · `vcs` ([`packages/vcs/tool-vcs/src/index.ts`](../packages/vcs/tool-vcs/src/index.ts))
 - `@aeven/tool-working-directory` — requires `tools` · `workingDirectory` ([`packages/session/tool-working-directory/src/index.ts`](../packages/session/tool-working-directory/src/index.ts))
 - `@aeven/tool-worktrees` — requires `tools` · `worktrees` ([`packages/session/tool-worktrees/src/index.ts`](../packages/session/tool-worktrees/src/index.ts))
@@ -5869,8 +5856,6 @@ Imported as libraries by other packages; a `cordis.yml` cannot load them.
 - `@aeven/computer-use-windows` ([`packages/computer-use/computer-use-windows/src/index.ts`](../packages/computer-use/computer-use-windows/src/index.ts))
 - `@aeven/computer-use-windows-com` ([`packages/computer-use/computer-use-windows-com/src/index.ts`](../packages/computer-use/computer-use-windows-com/src/index.ts))
 - `@aeven/deque` ([`packages/util/deque/src/index.ts`](../packages/util/deque/src/index.ts))
-- `@aeven/experimental-agent-team-profile` ([`packages/experimental/agent-team-profile/src/index.ts`](../packages/experimental/agent-team-profile/src/index.ts))
-- `@aeven/experimental-agent-team-web-profile` ([`packages/experimental/agent-team-web-profile/src/index.ts`](../packages/experimental/agent-team-web-profile/src/index.ts))
 - `@aeven/experimental-browser-overlay` ([`packages/experimental/browser-overlay/src/index.ts`](../packages/experimental/browser-overlay/src/index.ts))
 - `@aeven/experimental-webworker-packer` ([`packages/experimental/webworker-packer/src/index.ts`](../packages/experimental/webworker-packer/src/index.ts))
 - `@aeven/experimental-webworker-runtime` ([`packages/experimental/webworker-runtime/src/index.ts`](../packages/experimental/webworker-runtime/src/index.ts))

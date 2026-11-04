@@ -17,26 +17,29 @@ import type { SessionId } from '@aeven/session'
 import type {} from '@aeven/subagent'
 import { markAdjacentAgentSendMessageTool } from '@aeven/subagent/internal'
 
+import { registerWaitAgent } from './wait-agent.ts'
+
 export const name = 'tool-subagent-control'
-export const inject = ['tools', 'subagents']
+export const inject = ['tools', 'subagents', 'agents']
 
 /**
  * Register the `send_message` and `interrupt_agent` tools.
  * @param ctx - context carrying the tool registry and subagent service.
  */
 export function apply(ctx: Context): void {
+  registerWaitAgent(ctx)
   ctx.tools.register(markAdjacentAgentSendMessageTool(defineTool({
     name: 'send_message',
     description:
-      'Send a message to a direct continuable child by its agent id. If you are a resident continuable child, '
-      + 'you may also target your direct parent. If the target is still working, the message steers its nearest step; '
+      'Send a message to another agent in your subagent tree by its agent id, including the root, siblings, '
+      + 'and continuable descendants. If the target is still working, the message steers its nearest step; '
       + 'if it is idle, the message starts a turn. This call returns no answer from the agent — only confirmation '
       + 'that the message was delivered. A failure means the message was NOT delivered.',
     parameters: {
       agent_id: {
         type: 'string',
         required: true,
-        description: 'The agent id of your direct continuable child, or your direct parent when you are a resident continuable child.',
+        description: 'The agent id of the root or another continuable member of your subagent tree, from list_agents.',
       },
       message: {
         type: 'string',

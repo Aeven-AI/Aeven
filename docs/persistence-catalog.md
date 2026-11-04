@@ -839,62 +839,18 @@ Source: [`packages/subagent/tool-subagent/src/model-selection-state.ts`](../pack
 
 ### `team/*`
 
-<a id="teammember--log-only"></a>
-
-#### `team/member` — log-only
-
-```ts persistence-catalog
-/** Whole teammate lifecycle value, stored only in the Team Lead Session. */
-'team/member': { version: 1; teamId: TeamId; member: TeamMemberSnapshot }
-```
-
-Types: [TeamId](subsystems/agent-team.md) · [TeamMemberSnapshot](subsystems/agent-team.md)
-
-Source: [`packages/experimental/agent-team/src/types.ts`](../packages/experimental/agent-team/src/types.ts)
-
-<a id="teammessagedelivered--log-only"></a>
-
-#### `team/message/delivered` — log-only
-
-```ts persistence-catalog
-/** Durable acknowledgement that the target Session recorded the message. */
-'team/message/delivered': {
-  version: 1
-  teamId: TeamId
-  messageId: TeamMessageId
-  targetId: SessionId
-}
-```
-
-Types: [TeamId](subsystems/agent-team.md) · [TeamMessageId](subsystems/agent-team.md)
-
-Source: [`packages/experimental/agent-team/src/types.ts`](../packages/experimental/agent-team/src/types.ts)
-
-<a id="teammessagequeued--log-only"></a>
-
-#### `team/message/queued` — log-only
-
-```ts persistence-catalog
-/** Durable mailbox enqueue, stored before delivery is attempted. */
-'team/message/queued': { version: 1; teamId: TeamId; message: TeamMessageSnapshot }
-```
-
-Types: [TeamId](subsystems/agent-team.md) · [TeamMessageSnapshot](subsystems/agent-team.md)
-
-Source: [`packages/experimental/agent-team/src/types.ts`](../packages/experimental/agent-team/src/types.ts)
-
 <a id="teamtask--log-only"></a>
 
 #### `team/task` — log-only
 
 ```ts persistence-catalog
-/** Whole shared-task value, stored only in the Team Lead Session. */
+/** Whole shared-task value, stored only in the subagent tree root's Session. */
 'team/task': { version: 1; teamId: TeamId; task: TeamTaskSnapshot }
 ```
 
 Types: [TeamId](subsystems/agent-team.md) · [TeamTaskSnapshot](subsystems/agent-team.md)
 
-Source: [`packages/experimental/agent-team/src/types.ts`](../packages/experimental/agent-team/src/types.ts)
+Source: [`packages/team/agent-team/src/types.ts`](../packages/team/agent-team/src/types.ts)
 
 ### `todo/*`
 

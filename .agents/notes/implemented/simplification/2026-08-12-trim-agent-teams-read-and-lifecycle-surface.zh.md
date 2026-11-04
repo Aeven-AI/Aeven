@@ -4,6 +4,8 @@ Status: implemented
 
 [English](2026-08-12-trim-agent-teams-read-and-lifecycle-surface.md) | 中文
 
+[共享任务板](../feature/2026-11-04-shared-task-board.zh.md)取代本记录：精简后的 Team 服务已移除，任务板不保留自己的读取或生命周期表面。
+
 ## Problem
 
 Agent Teams 合理地拥有持久 roster、peer mailbox 与共享任务策略，subagent continuation manager 则拥有 continuable child Activation。但第一版仍在这两类角色之间重复了数据和生命周期机制。

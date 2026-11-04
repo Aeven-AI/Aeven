@@ -401,18 +401,9 @@ importers:
       '@aeven/deepseek-llm-api-extensions':
         specifier: workspace:^
         version: link:../../packages/llm/deepseek-llm-api-extensions
-      '@aeven/experimental-agent-team':
-        specifier: workspace:^
-        version: link:../../packages/experimental/agent-team
-      '@aeven/experimental-agent-team-profile':
-        specifier: workspace:^
-        version: link:../../packages/experimental/agent-team-profile
       '@aeven/experimental-code-runtime-python':
         specifier: workspace:^
         version: link:../../packages/experimental/code-runtime-python
-      '@aeven/experimental-tool-agent-team':
-        specifier: workspace:^
-        version: link:../../packages/experimental/tool-agent-team
       '@aeven/fs-observation-policy':
         specifier: workspace:^
         version: link:../../packages/fs/fs-observation-policy
@@ -1633,6 +1624,9 @@ importers:
       '@aeven/agent-loop':
         specifier: workspace:^
         version: link:../../core/agent-loop
+      '@aeven/agent-team':
+        specifier: workspace:^
+        version: link:../../team/agent-team
       '@aeven/api-gateway':
         specifier: workspace:^
         version: link:../../api/gateway
@@ -1804,6 +1798,9 @@ importers:
       '@aeven/token-meter':
         specifier: workspace:^
         version: link:../../llm/token-meter
+      '@aeven/tool-agent-team':
+        specifier: workspace:^
+        version: link:../../team/tool-agent-team
       '@aeven/tool-bash':
         specifier: workspace:^
         version: link:../../shell/tool-bash
@@ -6939,99 +6936,6 @@ importers:
         specifier: workspace:^
         version: link:../../../vendor/cordis
 
-  packages/experimental/agent-team:
-    dependencies:
-      '@aeven/brand':
-        specifier: workspace:^
-        version: link:../../util/brand
-      '@deepseek-ai/schemastery':
-        specifier: link:../../../vendor/schemastery
-        version: link:../../../vendor/schemastery
-      zod:
-        specifier: ^4.4.3
-        version: 4.6.5
-    devDependencies:
-      '@aeven/agent':
-        specifier: workspace:^
-        version: link:../../core/agent
-      '@aeven/agent-loop':
-        specifier: workspace:^
-        version: link:../../core/agent-loop
-      '@aeven/agent-loop-testkit':
-        specifier: workspace:^
-        version: link:../../test-support/agent-loop-testkit
-      '@aeven/invariants':
-        specifier: workspace:^
-        version: link:../../runtime-diagnostics/invariants
-      '@aeven/llm':
-        specifier: workspace:^
-        version: link:../../llm/llm
-      '@aeven/session':
-        specifier: workspace:^
-        version: link:../../core/session
-      '@aeven/session-persistence':
-        specifier: workspace:^
-        version: link:../../session/session-persistence
-      '@aeven/session-persistence-jsonl':
-        specifier: workspace:^
-        version: link:../../session/session-persistence-jsonl
-      '@aeven/session-projection':
-        specifier: workspace:^
-        version: link:../../session/session-projection
-      '@aeven/session-query':
-        specifier: workspace:^
-        version: link:../../session-query/session-query
-      '@aeven/subagent':
-        specifier: workspace:^
-        version: link:../../subagent/subagent
-      '@aeven/subagent-fork-in-process':
-        specifier: workspace:^
-        version: link:../../subagent/subagent-fork-in-process
-      '@aeven/subagent-spawn-in-process':
-        specifier: workspace:^
-        version: link:../../subagent/subagent-spawn-in-process
-      '@aeven/typert-protocol':
-        specifier: workspace:^
-        version: link:../../typert/protocol
-      '@deepseek-ai/cordis':
-        specifier: workspace:^
-        version: link:../../../vendor/cordis
-
-  packages/experimental/agent-team-profile:
-    dependencies:
-      '@aeven/experimental-agent-team':
-        specifier: workspace:^
-        version: link:../agent-team
-      '@aeven/experimental-tool-agent-team':
-        specifier: workspace:^
-        version: link:../tool-agent-team
-    devDependencies:
-      '@deepseek-ai/cordis':
-        specifier: workspace:^
-        version: link:../../../vendor/cordis
-      '@deepseek-ai/cordis-plugin-include':
-        specifier: workspace:^
-        version: link:../../../vendor/include
-      js-yaml:
-        specifier: ^4.2.0
-        version: 4.3.1
-
-  packages/experimental/agent-team-web-profile:
-    dependencies:
-      '@aeven/experimental-client-ui-agent-team':
-        specifier: workspace:^
-        version: link:../client-ui-agent-team
-    devDependencies:
-      '@deepseek-ai/cordis':
-        specifier: workspace:^
-        version: link:../../../vendor/cordis
-      '@deepseek-ai/cordis-plugin-include':
-        specifier: workspace:^
-        version: link:../../../vendor/include
-      js-yaml:
-        specifier: ^4.2.0
-        version: 4.3.1
-
   packages/experimental/browser-overlay:
     devDependencies:
       '@deepseek-ai/cordis':
@@ -7043,61 +6947,6 @@ importers:
       playwright:
         specifier: ^1.62.1
         version: 1.62.1
-
-  packages/experimental/client-ui-agent-team:
-    dependencies:
-      react:
-        specifier: ^18.2.0
-        version: 18.3.1
-    devDependencies:
-      '@aeven/api-remotes':
-        specifier: workspace:^
-        version: link:../../api/remotes
-      '@aeven/api-session-controller':
-        specifier: workspace:^
-        version: link:../../api/session-controller
-      '@aeven/client-locale':
-        specifier: workspace:^
-        version: link:../../client/locale
-      '@aeven/client-test-runtime':
-        specifier: workspace:^
-        version: link:../../test-support/client-runtime
-      '@aeven/client-ui-conversation':
-        specifier: workspace:^
-        version: link:../../client/ui-conversation
-      '@aeven/client-ui-primitives':
-        specifier: workspace:^
-        version: link:../../client/ui-primitives
-      '@aeven/client-ui-renderer':
-        specifier: workspace:^
-        version: link:../../client/ui-renderer
-      '@aeven/client-ui-session':
-        specifier: workspace:^
-        version: link:../../client/ui-session
-      '@aeven/client-ui-slots':
-        specifier: workspace:^
-        version: link:../../client/ui-slots
-      '@aeven/experimental-agent-team':
-        specifier: workspace:^
-        version: link:../agent-team
-      '@aeven/session':
-        specifier: workspace:^
-        version: link:../../core/session
-      '@aeven/typert-protocol':
-        specifier: workspace:^
-        version: link:../../typert/protocol
-      '@deepseek-ai/cordis':
-        specifier: workspace:^
-        version: link:../../../vendor/cordis
-      '@testing-library/react':
-        specifier: ^16.1.0
-        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@types/react':
-        specifier: ~18.3.1
-        version: 18.3.31
-      react-dom:
-        specifier: ^18.2.0
-        version: 18.3.1(react@18.3.1)
 
   packages/experimental/code-runtime-python:
     dependencies:
@@ -7157,61 +7006,6 @@ importers:
       tsx:
         specifier: ^4.19.2
         version: 4.22.4
-
-  packages/experimental/tool-agent-team:
-    dependencies:
-      '@deepseek-ai/schemastery':
-        specifier: link:../../../vendor/schemastery
-        version: link:../../../vendor/schemastery
-    devDependencies:
-      '@aeven/agent':
-        specifier: workspace:^
-        version: link:../../core/agent
-      '@aeven/agent-loop':
-        specifier: workspace:^
-        version: link:../../core/agent-loop
-      '@aeven/agent-loop-testkit':
-        specifier: workspace:^
-        version: link:../../test-support/agent-loop-testkit
-      '@aeven/experimental-agent-team':
-        specifier: workspace:^
-        version: link:../agent-team
-      '@aeven/scope':
-        specifier: workspace:^
-        version: link:../../core/scope
-      '@aeven/session':
-        specifier: workspace:^
-        version: link:../../core/session
-      '@aeven/session-persistence-jsonl':
-        specifier: workspace:^
-        version: link:../../session/session-persistence-jsonl
-      '@aeven/session-projection':
-        specifier: workspace:^
-        version: link:../../session/session-projection
-      '@aeven/session-query':
-        specifier: workspace:^
-        version: link:../../session-query/session-query
-      '@aeven/subagent':
-        specifier: workspace:^
-        version: link:../../subagent/subagent
-      '@aeven/subagent-fork-in-process':
-        specifier: workspace:^
-        version: link:../../subagent/subagent-fork-in-process
-      '@aeven/subagent-spawn-in-process':
-        specifier: workspace:^
-        version: link:../../subagent/subagent-spawn-in-process
-      '@aeven/system-prompt':
-        specifier: workspace:^
-        version: link:../../core/system-prompt
-      '@aeven/tool-subagent-control':
-        specifier: workspace:^
-        version: link:../../subagent/tool-subagent-control
-      '@aeven/tools':
-        specifier: workspace:^
-        version: link:../../core/tools
-      '@deepseek-ai/cordis':
-        specifier: workspace:^
-        version: link:../../../vendor/cordis
 
   packages/experimental/webworker-packer:
     dependencies:
@@ -12484,6 +12278,101 @@ importers:
       tsx:
         specifier: ^4.22.4
         version: 4.22.4
+
+  packages/team/agent-team:
+    dependencies:
+      '@aeven/brand':
+        specifier: workspace:^
+        version: link:../../util/brand
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+      zod:
+        specifier: ^4.4.3
+        version: 4.6.5
+    devDependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../../core/agent
+      '@aeven/agent-loop':
+        specifier: workspace:^
+        version: link:../../core/agent-loop
+      '@aeven/agent-loop-testkit':
+        specifier: workspace:^
+        version: link:../../test-support/agent-loop-testkit
+      '@aeven/llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@aeven/session-persistence-jsonl':
+        specifier: workspace:^
+        version: link:../../session/session-persistence-jsonl
+      '@aeven/session-projection':
+        specifier: workspace:^
+        version: link:../../session/session-projection
+      '@aeven/session-query':
+        specifier: workspace:^
+        version: link:../../session-query/session-query
+      '@aeven/subagent':
+        specifier: workspace:^
+        version: link:../../subagent/subagent
+      '@aeven/subagent-fork-in-process':
+        specifier: workspace:^
+        version: link:../../subagent/subagent-fork-in-process
+      '@aeven/subagent-spawn-in-process':
+        specifier: workspace:^
+        version: link:../../subagent/subagent-spawn-in-process
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/team/tool-agent-team:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../../core/agent
+      '@aeven/agent-loop':
+        specifier: workspace:^
+        version: link:../../core/agent-loop
+      '@aeven/agent-loop-testkit':
+        specifier: workspace:^
+        version: link:../../test-support/agent-loop-testkit
+      '@aeven/agent-team':
+        specifier: workspace:^
+        version: link:../agent-team
+      '@aeven/llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@aeven/session-persistence-jsonl':
+        specifier: workspace:^
+        version: link:../../session/session-persistence-jsonl
+      '@aeven/session-projection':
+        specifier: workspace:^
+        version: link:../../session/session-projection
+      '@aeven/session-query':
+        specifier: workspace:^
+        version: link:../../session-query/session-query
+      '@aeven/subagent':
+        specifier: workspace:^
+        version: link:../../subagent/subagent
+      '@aeven/subagent-spawn-in-process':
+        specifier: workspace:^
+        version: link:../../subagent/subagent-spawn-in-process
+      '@aeven/tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
 
   packages/terminal/terminal:
     devDependencies:

@@ -13,7 +13,7 @@
  *
  * Public operations express caller intent: `start` returns one published owned
  * one-shot run, `startContinuable` establishes a durable continuable child, and
- * `sendMessage` steers between adjacent Agents without exposing whether a child
+ * `sendMessage` steers between Agents in one tree without exposing whether a child
  * is resident. Continuable children never become a {@link SubagentRun}: the
  * continuation manager holds their `AgentHandle` directly and orders every turn
  * through the child's own inbox, so providers contribute only the detached
@@ -30,6 +30,7 @@
  */
 
 import { Context } from '@deepseek-ai/cordis'
+import z from 'zod'
 import { admitPromptContent } from '@aeven/attachment'
 import { scopeTarget } from '@aeven/scope'
 import type { Scoped } from '@aeven/scope'
@@ -190,8 +191,19 @@ interface BrowserPromptSource {
   readonly clientTimeZone?: string
 }
 
+/** Deployment limit shared by active child executions in each subagent tree. */
+export interface Config {
+  /** Maximum child executions, including startup and teardown; the root uses no slot. */
+  maxActiveSubagents: number
+}
+
 /** Named provider registry with one-shot runs, durable discovery, and continuable-child operations. */
 export class SubagentRuntime extends TypertRemoteService {
+  static Config = z.object({
+    maxActiveSubagents: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER).default(16),
+  }).default({ maxActiveSubagents: 16 })
+  private readonly capacity = new WeakMap<Agent, Set<symbol>>()
+  private readonly config: Config
   private providers = new Map<string, SubagentProvider>()
   private continuations: SubagentContinuationManager | undefined
   /**
@@ -201,11 +213,13 @@ export class SubagentRuntime extends TypertRemoteService {
    */
   private readonly emitLifecycle: LifecycleEmitter
 
-  constructor(ctx: Context) {
+  constructor(ctx: Context, config: Config = { maxActiveSubagents: 16 }) {
     super(ctx, 'subagents')
+    this.config = SubagentRuntime.Config.parse(config)
     this.emitLifecycle = createLifecycleEmitter(this.ctx, parent => scopeTarget(this, parent))
     ctx.inject(['agents'], (childCtx: Context) => {
       const manager = new SubagentContinuationManager(childCtx, {
+        reserve: root => this.reserve(root),
         prepareContinuable: (name, request) => this.prepareContinuable(name, request),
         observeActivation: (provider, childId, parent) => this.observeActivation(provider, childId, parent),
       })
@@ -222,6 +236,15 @@ export class SubagentRuntime extends TypertRemoteService {
   }
 
   /**
+   * Resolve the exact live root of a managed subagent tree.
+   * @param caller - exact live calling Agent.
+   * @returns its live root without restoring any Session.
+   */
+  rootOf(caller: Agent): Agent {
+    return this.requireContinuations().rootOf(caller)
+  }
+
+  /**
    * Establish one durable continuable child and deliver its initial prompt.
    * Resolves when the child's inbox accepts that prompt, without waiting for the
    * turn to start or for the message to reach the Session log; any earlier
@@ -235,17 +258,18 @@ export class SubagentRuntime extends TypertRemoteService {
   }
 
   /**
-   * Steer one model-authored message to the sender's direct parent or direct
-   * continuable child. A running target admits it at the nearest step boundary;
-   * an idle target starts a turn, and an absent direct child cold-resumes from
-   * persistence. The service derives durable sender attribution from the exact
+   * Steer one model-authored message to another member of the sender's tree.
+   * A running target admits it at the nearest step boundary;
+   * an idle target starts a turn. A cold target resumes from persistence while
+   * its creation ancestors remain offline. The service derives durable sender
+   * attribution from the exact
    * live sender. Caller cancellation stops only pre-acceptance work.
    * @param sender - exact live Agent authorizing and originating the message.
-   * @param targetId - durable direct-parent or direct-child session id.
+   * @param targetId - durable root or continuable tree-member session id.
    * @param content - model-authored content to deliver.
    * @param options - caller cancellation before inbox acceptance.
    * @returns the accepted message's inbox id.
-   * @throws when continuation services are unavailable, adjacency is rejected,
+   * @throws when continuation services are unavailable, tree membership is rejected,
    *   or the message was not admitted.
    */
   async sendMessage(
@@ -574,7 +598,40 @@ export class SubagentRuntime extends TypertRemoteService {
       ...request.label !== undefined ? { label: request.label } : {},
     })
     const resolved: ResolvedSubagentStartRequest = { ...request, descriptor }
-    return observeRun(this.emitLifecycle, name, request.parent, await provider.start(resolved))
+    // External-only compositions need no local Agent registry or continuation manager.
+    const manager = this.continuations
+    const root = manager === undefined ? request.parent : manager.rootOf(request.parent)
+    const release = this.reserve(root)
+    try {
+      const run = await provider.start(resolved)
+      manager?.registerOneShot(run.localAgent, root)
+      return observeRun(this.emitLifecycle, name, request.parent, {
+        id: run.id,
+        localAgent: run.localAgent,
+        result: run.result,
+        async dispose() {
+          try { await run.dispose() } finally { release() }
+        },
+      })
+    } catch (error: unknown) {
+      release()
+      throw error
+    }
+  }
+
+  /** Reserve one tree slot until startup rollback or child resource release. */
+  private reserve(root: Agent): () => void {
+    let slots = this.capacity.get(root)
+    if (slots === undefined) {
+      slots = new Set()
+      this.capacity.set(root, slots)
+    }
+    if (slots.size >= this.config.maxActiveSubagents) {
+      throw new SubagentError('Subagent limit reached; wait for an active child to finish or use an existing agent.', 'ACTIVATION_LIMIT_REACHED')
+    }
+    const slot = Symbol()
+    slots.add(slot)
+    return () => { slots.delete(slot) }
   }
 
   /**

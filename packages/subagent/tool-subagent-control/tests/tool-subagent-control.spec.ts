@@ -65,11 +65,11 @@ async function setupWith(adapter: MockAdapter | GatedAdapter, park = true) {
   await ctx.plugin(SubagentRuntime)
   await ctx.plugin(SubagentSpawn, { providerName: 'spawn' })
   await ctx.plugin(SubagentFork, { providerName: 'fork' })
-  await ctx.plugin(tool)
+  const controlFiber = await ctx.plugin(tool)
   ctx.llm.registerAdapter(['mock'], adapter)
   const parent = ctx.agentLoop.create(SessionId('parent'), { provider: 'mock', model: 'mock' })
   if (park) parkParent(ctx, parent)
-  return { ctx, parent, adapter }
+  return { ctx, parent, adapter, controlFiber }
 }
 
 async function setup(script: ConstructorParameters<typeof MockAdapter>[0]) {
@@ -115,10 +115,10 @@ describe('avn-tool-subagent-control', () => {
     expect(schemas[0]!.description).not.toContain('job_output')
     expect(schemas[0]!.description).not.toContain('job id')
     expect(schemas[0]!.description).toContain('nearest step')
-    expect(schemas[0]!.description).toContain('direct continuable child')
-    expect(schemas[0]!.description).toContain('If you are a resident continuable child')
+    expect(schemas[0]!.description).toContain('root, siblings')
+    expect(schemas[0]!.description).toContain('continuable descendants')
     expect(props.agent_id).toMatchObject({
-      description: 'The agent id of your direct continuable child, or your direct parent when you are a resident continuable child.',
+      description: 'The agent id of the root or another continuable member of your subagent tree, from list_agents.',
     })
   })
 
@@ -318,7 +318,7 @@ describe('avn-tool-subagent-control', () => {
       message: 'mine now',
     }, stranger)
     expect(result.isError).toBe(true)
-    expect(text(result)).toContain('another parent session')
+    expect(text(result)).toContain('another tree')
   })
 
   it('fails loud when invoked without a calling agent', async () => {
@@ -345,7 +345,7 @@ describe('avn-tool-subagent-control', () => {
   it('has the namespace-plugin export shape (no stray default)', () => {
     expect('default' in tool).toBe(false)
     expect(tool.name).toBe('tool-subagent-control')
-    expect(tool.inject).toEqual(['tools', 'subagents'])
+    expect(tool.inject).toEqual(['tools', 'subagents', 'agents'])
     expect(typeof tool.apply).toBe('function')
   })
 })
@@ -521,5 +521,61 @@ describe('avn-tool-subagent-control interrupt_agent', () => {
     const result = await callTool(ctx, 'interrupt_agent', { agent_id: 'x' })
     expect(result.isError).toBe(true)
     expect(text(result)).toContain('requires a calling agent')
+  })
+})
+
+
+describe('wait_agent', () => {
+  it('returns immediately for pending next-step input without consuming it', async () => {
+    const { ctx, parent } = await setup([])
+    const input = createUserMessage({ content: [{ type: 'text', text: 'pending' }], source: { kind: 'user' } })
+    parent.inject(input)
+    const result = await callTool(ctx, 'wait_agent', {}, parent)
+    expect(result.isError).toBe(false)
+    expect(text(result)).toBe('{"timedOut":false}')
+    expect(parent.inbox.nextStep.some(item => item.id === input.id)).toBe(true)
+  })
+
+  it('wakes for incoming steering and unregisters waits when its plugin unloads', async () => {
+    const { ctx, parent, controlFiber } = await setup([])
+    const on = vi.spyOn(ctx, 'on')
+    const waiting = callTool(ctx, 'wait_agent', {}, parent)
+    await vi.waitFor(() => { expect(on).toHaveBeenCalledWith('agent/inbox/inserted', expect.any(Function)) })
+    parent.steer(createUserMessage({ content: [{ type: 'text', text: 'steering' }], source: { kind: 'user' } }))
+    expect(text(await waiting)).toBe('{"timedOut":false}')
+    await parent.whenIdle()
+    on.mockClear()
+    const interrupted = callTool(ctx, 'wait_agent', {}, parent)
+    await vi.waitFor(() => { expect(on).toHaveBeenCalledWith('agent/inbox/inserted', expect.any(Function)) })
+    await controlFiber.dispose()
+    expect((await interrupted).isError).toBe(true)
+    expect(ctx.tools.get('wait_agent')).toBeUndefined()
+  })
+
+  it('rejects invalid durations and caller cancellation', async () => {
+    const { ctx, parent } = await setup([])
+    expect((await callTool(ctx, 'wait_agent', { timeout_ms: 1 }, parent)).isError).toBe(true)
+    const abort = new AbortController()
+    const on = vi.spyOn(ctx, 'on')
+    const waiting = callTool(ctx, 'wait_agent', {}, parent, abort.signal)
+    await vi.waitFor(() => { expect(on).toHaveBeenCalledWith('agent/inbox/inserted', expect.any(Function)) })
+    abort.abort(new Error('cancel waiting'))
+    expect((await waiting).isError).toBe(true)
+  })
+})
+
+describe('wait_agent deadline', () => {
+  it('returns timedOut and removes its timer when no input arrives', async () => {
+    const { ctx, parent } = await setup([])
+    vi.useFakeTimers()
+    try {
+      const on = vi.spyOn(ctx, 'on')
+      const waiting = callTool(ctx, 'wait_agent', { timeout_ms: 10_000 }, parent)
+      await vi.waitFor(() => { expect(on).toHaveBeenCalledWith('agent/inbox/inserted', expect.any(Function)) })
+      await vi.advanceTimersByTimeAsync(10_000)
+      expect(text(await waiting)).toBe('{"timedOut":true}')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

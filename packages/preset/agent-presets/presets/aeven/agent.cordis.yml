@@ -337,6 +337,7 @@
       - list_agents
       - interrupt_agent
       - send_message
+      - team_task_*
       - ralph
       - workflow
     groups:
@@ -353,7 +354,7 @@
       - title: Device location
         tools: [get_location]
       - title: Running subagents and workflows
-        tools: [list_agents, interrupt_agent, send_message, ralph, workflow]
+        tools: [list_agents, interrupt_agent, send_message, team_task_*, ralph, workflow]
 
 - id: tool-todo
   name: '@aeven/tool-todo'

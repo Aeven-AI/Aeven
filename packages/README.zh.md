@@ -62,6 +62,7 @@ harness 由 `packages/` 下的 npm 包组装而成，按能力系列分组：会
 | [`document/`](document/README.zh.md) | 文档抽取注册表 + 把文档或录制片段转成文本的读取方 |
 | [`spill/`](spill/README.zh.md) | spill 能力系列：存储 seam、本地实现、工具结果 spill 策略 |
 | [`todo/`](todo/README.zh.md) | 面向模型的 `todo_write` 工具 |
+| [`team/`](team/README.zh.md) | 同一 subagent 树共享的任务板及其 `team_task_*` 工具 |
 | [`plan/`](plan/README.zh.md) | Plan 协作状态，提供直接进入命令与经评审的退出 |
 | [`preset/`](preset/README.zh.md) | 由 preset `cordis.yml` 按会话组装 agent |
 | [`guard/`](guard/README.zh.md) | 循环卫生守卫：建议性重复调用提醒 + `tools/execute` 截止时间强制执行器 |

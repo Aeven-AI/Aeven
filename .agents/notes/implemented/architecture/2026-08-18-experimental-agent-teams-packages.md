@@ -4,6 +4,8 @@ Status: implemented
 
 English | [中文](2026-08-18-experimental-agent-teams-packages.zh.md)
 
+[Shared task board](../feature/2026-11-04-shared-task-board.md) removes the Agent Teams packages from `packages/experimental/`; the placement, release-exclusion, and dependency-isolation rules here still govern the remaining experimental packages.
+
 ## Problem
 
 Agent Teams needs the real Session log, subagent lifecycle, tools, examples, snapshots, and repository checks while its service and tool contracts continue to change. Placing those packages in a product-role group makes them members of the avn release family and gives them the same publication expectation as stable packages.

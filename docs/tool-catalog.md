@@ -36,9 +36,9 @@ This table connects model-visible tool names to the plugin package and service s
 | `@aeven/tool-search` | `tool_search` | `ctx.tools`, `ctx.systemPrompt`, `mcp/servers listeners (opportunistic)`, `ctx.codeRuntime (opportunistic, for run_code declarations)` | `tool/call`, `tool/result`, `one plugin user message when the deferred tool index changes` | - | Presented to the model only while at least one tool is deferred or a deferring MCP server is not serving. Keyword queries list tools without loading them; `select:` loads schemas into following requests, or returns SDK declarations when the request presents `run_code`; `restart:` reconnects an MCP server. |
 | `@aeven/tool-session-query` | `session_event_read`, `session_event_search`, `session_event_trace`, `session_search`, `session_trace` | `ctx.tools`, `ctx.systemPrompt`, `ctx.sessionQuery`, `a calling Agent for workspace authority` | `tool/call`, `tool/result` | - | The five read-only tools hide provider cursors and authorize every result from the immutable calling agent session. The package is opt-in; compositions that need enforced deadlines or bounded inline output also mount the generic timeout or spill policies. |
 | `@aeven/tool-subagent` | `list_subagent_models`, `subagent` | `ctx.tools`, `ctx.subagents`, `ctx.systemPrompt`, `ctx.llm for model discovery and selected-route validation` | `tool/call`, `tool/result`, `child session events through the chosen provider` | `subagent`, `subagent_fork` | The registered delegation name is the load-time `toolName` config (default `subagent`); the default schema above has model selection off, while the discovery schema is shown as the fixed companion available in an enabled Session. Web presets sample the Plugins preference for each new top-level Session and preserve that decision for its child Sessions; `subagent_fork` remains fixed-route. Each instance independently controls whether it reads model-selection settings and its background behavior through `modelSelectionSettings`, `backgroundMode`, and `enableRunInBackground`. |
-| `@aeven/tool-subagent-control` | `interrupt_agent`, `list_agents`, `send_message` | `ctx.tools`, `ctx.subagents`, `ctx.agents and ctx.sessionProjections (list_agents only)` | `tool/call`, `tool/result`, `child session events through ctx.subagents` | - | The globally named control tools over continuable background subagents: provider-bound `tool-subagent` instances register distinct delegation tools, while this package registers `send_message` and `interrupt_agent` once, plus `list_agents` from its separately loaded `/list-agents` plugin (whose catalog rows use the sessionProjections and live Agent registries). |
+| `@aeven/tool-subagent-control` | `interrupt_agent`, `list_agents`, `send_message`, `wait_agent` | `ctx.tools`, `ctx.subagents`, `ctx.agents and ctx.sessionProjections (list_agents only)` | `tool/call`, `tool/result`, `child session events through ctx.subagents` | - | The globally named control tools over continuable background subagents: provider-bound `tool-subagent` instances register distinct delegation tools, while this package registers `send_message`, `interrupt_agent`, and `wait_agent` once, plus `list_agents` from its separately loaded `/list-agents` plugin (whose catalog rows use the sessionProjections and live Agent registries). |
 | `@aeven/tool-jobs` | `job_kill`, `job_list`, `job_output` | `ctx.tools`, `ctx.jobs`, `ctx.systemPrompt` | `tool/call`, `tool/result`, `user/message via agent.inject() for background completion notices` | - | The kind-agnostic background-job controller: background bash commands, PTY sends, and subagents are read, listed, and killed through the same three tools. Loading the plugin attaches the controller that arms producers' `ctx.jobs.start()`. |
-| `@aeven/experimental-tool-agent-team` | `followup_task`, `interrupt_agent`, `list_agents`, `send_message`, `spawn_teammate`, `team_task_create`, `team_task_get`, `team_task_list`, `team_task_update`, `wait_agent` | `ctx.tools`, `ctx.systemPrompt`, `ctx.agentTeams`, `an exact live Team member Agent` | `tool/call`, `team/member`, `team/message/queued`, `team/message/delivered`, `team/task`, `tool/result` | - | All ten tools are scoped to implicit Team Leads and durable teammates. The shipped avn-base bundle keeps the package disabled; the documented Agent Teams profile patch enables it while disabling the legacy continuable-child control names. |
+| `@aeven/tool-agent-team` | `team_task_create`, `team_task_get`, `team_task_list`, `team_task_update` | `ctx.tools`, `ctx.agentTeams`, `a calling Agent in a subagent tree` | `tool/call`, `team/task in the tree root Session`, `tool/result` | - | The four task tools are registered for every agent; the aeven preset defers them behind `tool_search`, so a session pays for their schemas only after loading them. Every agent in one subagent tree reads and changes the board stored in the tree root Session. |
 | `@aeven/tool-media` | `generate_image`, `generate_video` | `ctx.tools`, `ctx.media`, `ctx.attachments` | `tool/call`, `tool/result carrying one image block per stored image` | - | The catalog mounts the tool with no configured model, which is the shape that requires every call to name one. A deployment setting `model` gets the same schema; the default never reaches the description. Generated bytes are stored through `ctx.attachments`, so the result carries image blocks the conversation card renders without any registration here. |
 | `@aeven/tool-working-directory` | `working_directory` | `ctx.tools`, `ctx.workingDirectory`, `owning Agent session` | `tool/call`, `session/cwd`, `tool/result` | - | The catalog mounts the capability and the tool together, because the tool reads the directory the service resolves. One change appends `session/cwd`, which replays last-wins: a resumed or forked session continues in the directory the log recorded, and the next call resolves relative paths against it. |
 | `@aeven/tool-worktrees` | `create_worktree`, `remove_worktree` | `ctx.tools`, `ctx.subprocess`, `ctx.workingDirectory`, `ctx.worktrees`, `owning Agent session` | `tool/call`, `session/cwd`, `worktree/entered`, `worktree/removed`, `tool/result` | - | The catalog mounts the capability and the tools together, because `create_worktree` and `remove_worktree` move the session through `workingDirectory`, which the same call then reports. The checkout directory, branch prefix, git grace period, subagent isolation, and dependency setup are Config with no defaults; the base bundle keeps checkouts under `$AVN_HOME/worktrees`, prefixes branches with `avn/`, isolates subagents, and installs dependencies with the package manager whose lockfile a checkout carries. |
@@ -1956,7 +1956,7 @@ Source: [`packages/subagent/tool-subagent-control/src/index.ts`](../packages/sub
 
 ### `list_agents`
 
-List your continuable background subagents by durable id and label. Use it to recall which ones you started, not to poll for completion — you are told when one finishes. Status comes from the live registry: running means the agent is working right now, idle means it is loaded but between turns (it may be waiting on agents it started), and ready means it exists only in storage — resumable, not terminal, and not a result waiting to be collected; a `send_message` steers a running child at its nearest step boundary or starts a turn for an idle or ready child, and a direct child remains a `send_message` candidate in every status. The snapshot is not a delivery promise — `send_message` performs the authoritative check and may still fail. Children that could not be read are reported as diagnostics instead of being silently dropped. Scope `descendants` walks the whole tree below you in stable pre-order, annotating each entry with its durable direct-parent session id and depth. You may use `send_message` only for depth-1 entries; deeper entries are candidates for `interrupt_agent` only.
+List the root and continuable members of your subagent tree by agent id. Use send_message to contact another member. Status describes current activity, not task completion: running means working, idle means loaded between turns, and ready means stored and resumable. Unreadable branches appear as diagnostics. Scope descendants (default) lists the complete tree; children lists the root and its direct children. Listing never activates an agent and does not guarantee later delivery.
 
 ```json
 {
@@ -1964,7 +1964,7 @@ List your continuable background subagents by durable id and label. Use it to re
   "properties": {
     "scope": {
       "type": "string",
-      "description": "children (default) lists direct children only; descendants walks the complete tree below you.",
+      "description": "descendants (default) lists the whole tree; children lists only the root and its direct children.",
       "enum": [
         "children",
         "descendants"
@@ -1978,7 +1978,7 @@ Source: [`packages/subagent/tool-subagent-control/src/list-agents.ts`](../packag
 
 ### `send_message`
 
-Send a message to a direct continuable child by its agent id. If you are a resident continuable child, you may also target your direct parent. If the target is still working, the message steers its nearest step; if it is idle, the message starts a turn. This call returns no answer from the agent — only confirmation that the message was delivered. A failure means the message was NOT delivered.
+Send a message to another agent in your subagent tree by its agent id, including the root, siblings, and continuable descendants. If the target is still working, the message steers its nearest step; if it is idle, the message starts a turn. This call returns no answer from the agent — only confirmation that the message was delivered. A failure means the message was NOT delivered.
 
 ```json
 {
@@ -1986,7 +1986,7 @@ Send a message to a direct continuable child by its agent id. If you are a resid
   "properties": {
     "agent_id": {
       "type": "string",
-      "description": "The agent id of your direct continuable child, or your direct parent when you are a resident continuable child."
+      "description": "The agent id of the root or another continuable member of your subagent tree, from list_agents."
     },
     "message": {
       "type": "string",
@@ -2002,7 +2002,25 @@ Send a message to a direct continuable child by its agent id. If you are a resid
 
 Source: [`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts)
 
-The globally named control tools over continuable background subagents: provider-bound `tool-subagent` instances register distinct delegation tools, while this package registers `send_message` and `interrupt_agent` once, plus `list_agents` from its separately loaded `/list-agents` plugin (whose catalog rows use the sessionProjections and live Agent registries).
+### `wait_agent`
+
+Wait for input at your next step, including agent messages, completion notifications, and user steering. Returns immediately when that input is already pending.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "timeout_ms": {
+      "type": "integer",
+      "description": "Wait duration in milliseconds, from 10000 through 3600000. Defaults to 30000."
+    }
+  }
+}
+```
+
+Source: [`packages/subagent/tool-subagent-control/src/wait-agent.ts`](../packages/subagent/tool-subagent-control/src/wait-agent.ts)
+
+The globally named control tools over continuable background subagents: provider-bound `tool-subagent` instances register distinct delegation tools, while this package registers `send_message`, `interrupt_agent`, and `wait_agent` once, plus `list_agents` from its separately loaded `/list-agents` plugin (whose catalog rows use the sessionProjections and live Agent registries).
 
 <a id="aeventool-jobs"></a>
 
@@ -2077,138 +2095,13 @@ Source: [`packages/jobs/tool-jobs/src/index.ts`](../packages/jobs/tool-jobs/src/
 
 The kind-agnostic background-job controller: background bash commands, PTY sends, and subagents are read, listed, and killed through the same three tools. Loading the plugin attaches the controller that arms producers' `ctx.jobs.start()`.
 
-<a id="aevenexperimental-tool-agent-team"></a>
+<a id="aeventool-agent-team"></a>
 
-## `@aeven/experimental-tool-agent-team`
-
-### `followup_task`
-
-Send a durable follow-up task to another Team member and start a turn when needed.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "target": {
-      "type": "string",
-      "description": "Team member name, or lead."
-    },
-    "message": {
-      "type": "string",
-      "description": "Self-contained message for the target."
-    }
-  },
-  "required": [
-    "target",
-    "message"
-  ]
-}
-```
-
-Source: [`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
-
-### `interrupt_agent`
-
-Interrupt one teammate's current turn while preserving its pending inbox. Team Lead only.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "target": {
-      "type": "string",
-      "description": "Teammate name."
-    }
-  },
-  "required": [
-    "target"
-  ]
-}
-```
-
-Source: [`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
-
-### `list_agents`
-
-List the Lead and every durable teammate with current runtime status.
-
-```json
-{
-  "type": "object",
-  "properties": {}
-}
-```
-
-Source: [`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
-
-### `send_message`
-
-Send durable information to another Team member without starting an idle member.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "target": {
-      "type": "string",
-      "description": "Team member name, or lead."
-    },
-    "message": {
-      "type": "string",
-      "description": "Self-contained message for the target."
-    }
-  },
-  "required": [
-    "target",
-    "message"
-  ]
-}
-```
-
-Source: [`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
-
-### `spawn_teammate`
-
-Create one named, durable teammate. Only the Team Lead may call this tool.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "name": {
-      "type": "string",
-      "description": "Unique lower-kebab-case teammate name."
-    },
-    "description": {
-      "type": "string",
-      "description": "Short description of the delegated responsibility."
-    },
-    "prompt": {
-      "type": "string",
-      "description": "Complete initial task for the teammate."
-    },
-    "context": {
-      "type": "string",
-      "description": "fresh starts without Lead history; fork inherits completed Lead turns. Defaults to fresh.",
-      "enum": [
-        "fresh",
-        "fork"
-      ]
-    }
-  },
-  "required": [
-    "name",
-    "description",
-    "prompt"
-  ]
-}
-```
-
-Source: [`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
+## `@aeven/tool-agent-team`
 
 ### `team_task_create`
 
-Create one unowned pending task on the shared Team task board.
+Create one unowned pending task on the task board shared by your whole agent tree: the root agent and every subagent under it. Use the board to split parallel work: give tasks disjoint write scopes and list the tasks that must complete first. Agents then claim ready tasks with team_task_update.
 
 ```json
 {
@@ -2231,7 +2124,7 @@ Create one unowned pending task on the shared Team task board.
     },
     "write_scopes": {
       "type": "array",
-      "description": "Advisory workspace-relative file or directory prefixes this task expects to modify.",
+      "description": "Workspace-relative file or directory prefixes this task expects to modify. Overlaps with other in-progress tasks are reported as warnings, never locked.",
       "items": {
         "type": "string"
       }
@@ -2244,7 +2137,7 @@ Create one unowned pending task on the shared Team task board.
 }
 ```
 
-Source: [`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
+Source: [`packages/team/tool-agent-team/src/index.ts`](../packages/team/tool-agent-team/src/index.ts)
 
 ### `team_task_get`
 
@@ -2265,11 +2158,11 @@ Read the complete latest value of one shared task before changing or executing i
 }
 ```
 
-Source: [`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
+Source: [`packages/team/tool-agent-team/src/index.ts`](../packages/team/tool-agent-team/src/index.ts)
 
 ### `team_task_list`
 
-List shared tasks, including readiness, owner, revision, blockers, and write-scope warnings.
+List the shared tasks of your agent tree, including readiness, owner agent id, revision, blockers, and write-scope warnings.
 
 ```json
 {
@@ -2286,7 +2179,7 @@ List shared tasks, including readiness, owner, revision, blockers, and write-sco
     },
     "owner": {
       "type": "string",
-      "description": "Optional member-name filter; use unowned for tasks without an owner."
+      "description": "Optional exact ownerId filter; use unowned for tasks without an owner."
     },
     "ready": {
       "type": "boolean",
@@ -2304,11 +2197,11 @@ List shared tasks, including readiness, owner, revision, blockers, and write-sco
 }
 ```
 
-Source: [`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
+Source: [`packages/team/tool-agent-team/src/index.ts`](../packages/team/tool-agent-team/src/index.ts)
 
 ### `team_task_update`
 
-Compare-and-set a shared task action using the latest revision from team_task_get or team_task_list.
+Change one shared task, using its latest revision from team_task_get or team_task_list; a stale revision is rejected. Claim a ready task, do the work, then complete it. The owner or the root agent may release, edit, set_dependencies, complete, reopen, or delete; only the root agent may reassign. Task changes never notify or start another agent; use send_message when an agent must act on one.
 
 ```json
 {
@@ -2320,7 +2213,7 @@ Compare-and-set a shared task action using the latest revision from team_task_ge
     },
     "expected_revision": {
       "type": "integer",
-      "description": "Current task revision used as the CAS precondition."
+      "description": "Current task revision; the change applies only if it still matches."
     },
     "action": {
       "type": "string",
@@ -2353,14 +2246,14 @@ Compare-and-set a shared task action using the latest revision from team_task_ge
     },
     "write_scopes": {
       "type": "array",
-      "description": "Replacement advisory write scopes for edit.",
+      "description": "Replacement write scopes for edit.",
       "items": {
         "type": "string"
       }
     },
     "owner": {
       "type": "string",
-      "description": "Member name for Lead-only reassign; omit to unassign."
+      "description": "For reassign: the agent id, from list_agents, of the root agent or any continuable subagent; omit to unassign."
     }
   },
   "required": [
@@ -2371,27 +2264,9 @@ Compare-and-set a shared task action using the latest revision from team_task_ge
 }
 ```
 
-Source: [`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
+Source: [`packages/team/tool-agent-team/src/index.ts`](../packages/team/tool-agent-team/src/index.ts)
 
-### `wait_agent`
-
-Wait for the next teammate status, mailbox, or shared-task change after this call starts. This never wakes inactive members and returns noProgress immediately when no other member is running or provisioning. Re-list after wakeup or timeout instead of polling.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "timeout_ms": {
-      "type": "integer",
-      "description": "Wait duration in milliseconds, from 10000 through 3600000. Defaults to 30000."
-    }
-  }
-}
-```
-
-Source: [`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
-
-All ten tools are scoped to implicit Team Leads and durable teammates. The shipped avn-base bundle keeps the package disabled; the documented Agent Teams profile patch enables it while disabling the legacy continuable-child control names.
+The four task tools are registered for every agent; the aeven preset defers them behind `tool_search`, so a session pays for their schemas only after loading them. Every agent in one subagent tree reads and changes the board stored in the tree root Session.
 
 <a id="aeventool-media"></a>
 
