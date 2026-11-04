@@ -234,6 +234,11 @@ function after(events: readonly SessionEvent[], fallback: number): number {
   return events.reduce((_next, event) => event.seq + 1, fallback)
 }
 
+/** Whether an event is a prompt the user typed, the activity the conversation list orders by. */
+function humanPrompt(event: SessionEvent): boolean {
+  return event.type === 'user/message' && (event.data as unknown as { source?: { kind?: unknown } }).source?.kind === 'user'
+}
+
 /** Whether two events at one `seq` are the same event. */
 function sameEvent(left: SessionEvent, right: SessionEvent): boolean {
   return left.type === right.type && left.time === right.time && JSON.stringify(left.data) === JSON.stringify(right.data)
@@ -1439,7 +1444,7 @@ export class SessionMirror {
         : undefined
       if (this.isClosed()) return
       const title = current.title ?? (backfill === undefined ? undefined : titleOf(backfill))
-      const updatedAt = current.updatedAt ?? backfill?.filter(event => event.type === 'user/message').at(-1)?.time
+      const updatedAt = current.updatedAt ?? backfill?.filter(humanPrompt).at(-1)?.time
       if (current.running !== this.running.has(sessionId) || current.workspace !== home
         || current.title !== title || current.updatedAt !== updatedAt) {
         const { workspace: _previous, ...rest } = current
@@ -1509,7 +1514,7 @@ export class SessionMirror {
       header: suffix.meta,
       running: this.running.has(sessionId),
       ...title === undefined ? {} : { title },
-      updatedAt: suffix.events.filter(event => event.type === 'user/message').at(-1)?.time
+      updatedAt: suffix.events.filter(humanPrompt).at(-1)?.time
         ?? previous?.updatedAt ?? suffix.meta.createdAt,
       inherited: suffix.inheritedEventCount,
       next: Math.max(previous?.next ?? 0, active.published),
