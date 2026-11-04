@@ -537,12 +537,18 @@ function listFields(header: SessionHeader): {
 
 /**
  * Give a summary whose stored log names no title yet the title the account's catalog holds: a conversation another
- * device published may be stored here before the event that named it arrives.
- * @param summary - the summary from the stored log.
+ * device published may be stored here before the event that named it arrives, and the catalog's activity time when
+ * it is later than the one this device's list cache holds.
+ * @param stored - the summary from the stored log.
  * @param entry - the conversation's catalog entry, when the account shares it.
- * @returns the summary, titled from the catalog when only the catalog has a title.
+ * @returns the summary, titled and timed from the catalog where the catalog is ahead.
  */
-function withCatalogTitle(summary: SessionSummary, entry: SharedSession | undefined): SessionSummary {
+function withCatalogTitle(stored: SessionSummary, entry: SharedSession | undefined): SessionSummary {
+  // The account index records each conversation's last prompt for every device alike, while this device's list
+  // cache can lag behind imported events; the later of the two keeps every device's order the same.
+  const summary = entry !== undefined && !stored.blank && entry.updatedAt > stored.updatedAt
+    ? { ...stored, updatedAt: entry.updatedAt }
+    : stored
   if (entry?.title === undefined || summary.blank || summary.projections?.values.title !== undefined) return summary
   const projections: SessionProjectionHints = summary.projections === undefined
     ? { asOfSeq: entry.next - 1, values: { title: entry.title } }

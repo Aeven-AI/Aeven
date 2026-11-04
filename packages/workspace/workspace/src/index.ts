@@ -234,6 +234,8 @@ export class WorkspaceRegistry extends Service {
       ctx,
       (owner, projection) => { void this.applySynced(owner, projection) },
       (message) => { ctx.logger('workspace').warn(message) },
+      undefined,
+      (owner, marks) => { void this.applyArchive(owner, marks) },
     )
     // The account's workspaces follow it to every device its sync vault holds, once that vault is served here.
     ctx.on('sync/status', (owner) => {
@@ -241,6 +243,7 @@ export class WorkspaceRegistry extends Service {
         if (handle === undefined || this.claimed.has(owner)) return
         this.claimed.add(owner)
         await this.claimOwnerless(owner)
+        await this.seedArchive(owner)
       }).catch((error: unknown) => {
         ctx.logger('workspace').warn(`workspace: claiming workspaces for the account failed: ${String(error)}`)
       })
@@ -675,6 +678,7 @@ export class WorkspaceRegistry extends Service {
       }
       const state = this.requireState()
       await this.setState({ ...state, archivedSessionIds: [...state.archivedSessionIds, sessionId] })
+      this.markArchived([sessionId], true)
     })
   }
 
@@ -692,7 +696,60 @@ export class WorkspaceRegistry extends Service {
       const state = this.requireState()
       if (!state.archivedSessionIds.includes(sessionId)) return
       await this.setState({ ...state, archivedSessionIds: state.archivedSessionIds.filter(id => id !== sessionId) })
+      this.markArchived([sessionId], false)
     })
+  }
+
+  /**
+   * Record archive changes in the account's synced document, so the account's other devices follow them.
+   * @param sessionIds - sessions whose archive state changed here.
+   * @param archived - whether they are archived now.
+   */
+  private markArchived(sessionIds: readonly SessionId[], archived: boolean): void {
+    const byOwner = new Map<string, SessionId[]>()
+    for (const id of sessionIds) {
+      const owner = this.headers.get(id)?.owner
+      if (owner !== undefined) byOwner.set(owner, [...byOwner.get(owner) ?? [], id])
+    }
+    for (const [owner, ids] of byOwner) {
+      void this.synced.markArchived(owner, ids, archived).catch((error: unknown) => {
+        this.ctx.logger('workspace').warn(`workspace: publishing archive changes failed: ${String(error)}`)
+      })
+    }
+  }
+
+  /**
+   * Join this device's archive set with the account's once the account syncs here: a session archived here that the
+   * account has no mark for is marked archived, and every mark then applies here.
+   * @param owner - the account.
+   * @returns when both sides agree.
+   */
+  private async seedArchive(owner: string): Promise<void> {
+    const marks = await this.synced.archiveMarks(owner)
+    if (marks === undefined) return
+    const unmarked = this.requireState().archivedSessionIds
+      .filter(id => !marks.has(id) && this.headers.get(id)?.owner === owner)
+    await this.synced.markArchived(owner, unmarked, true)
+    await this.applyArchive(owner, await this.synced.archiveMarks(owner) ?? marks)
+  }
+
+  /**
+   * Make this device's archive set follow the account's marks.
+   * @param _owner - the account the marks belong to.
+   * @param marks - each marked session's archive state.
+   * @returns when the archive set is durable.
+   */
+  private applyArchive(_owner: string, marks: ReadonlyMap<string, boolean>): Promise<void> {
+    return this.enqueueOperation(async () => {
+      const state = this.requireState()
+      const current = new Set<string>(state.archivedSessionIds)
+      const archived = [
+        ...state.archivedSessionIds.filter(id => marks.get(id) !== false),
+        ...[...marks].filter(([id, on]) => on && !current.has(id)).map(([id]) => id as SessionId),
+      ]
+      if (archived.length === state.archivedSessionIds.length && archived.every((id, i) => id === state.archivedSessionIds[i])) return
+      await this.setState({ ...state, archivedSessionIds: archived })
+    }, false)
   }
 
   /**
