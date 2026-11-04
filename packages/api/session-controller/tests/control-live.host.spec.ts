@@ -29,7 +29,7 @@ async function harness(options: { owner?: string; handoff?: boolean } = {}) {
       liveOf: () => shared,
     } as never)
   }
-  const control = new SessionControlController(ctx, 1_000)
+  const control = new SessionControlController(ctx, 1_000, 100)
   return { ctx, control, agent, inbox, published, share: (value: unknown) => { shared = value } }
 }
 

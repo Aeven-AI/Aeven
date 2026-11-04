@@ -23,7 +23,7 @@ import { SessionControlController } from './control.ts'
 import { SessionHistoryController } from './history.ts'
 import { SessionFileReferences } from './file-references.ts'
 import { SessionMediaReferences } from './media-references.ts'
-import { registerFileReadRoute, registerFileUploadRoutes, registerImageReadRoute } from './file-uploads.ts'
+import { readFetchedAttachment, registerFileReadRoute, registerFileUploadRoutes, registerImageReadRoute } from './file-uploads.ts'
 import { ApiSessionList } from './list.ts'
 import { buildModelCatalog } from './catalog.ts'
 import {
@@ -91,6 +91,11 @@ export interface Config {
    * the account to answer, in milliseconds.
    */
   readonly remoteAnswerMs?: number
+  /**
+   * Pause before an approval or question no client took is offered to the clients again, in milliseconds, so a
+   * window that connects or reloads while it is pending still receives it.
+   */
+  readonly interactionRetryMs?: number
 }
 
 /** Host integrations replaceable by direct unit tests. */
@@ -124,6 +129,7 @@ export class SessionController extends TypertRemoteService {
   static Config: z<Config> = z.object({
     nativeOpen: z.boolean(),
     remoteAnswerMs: z.natural().default(600_000),
+    interactionRetryMs: z.natural().min(100).default(2_000),
   })
 
   private readonly agents: ApiSessionAgentController
@@ -155,7 +161,7 @@ export class SessionController extends TypertRemoteService {
     installModelSelectionProjection(ctx)
     this.agents = new ApiSessionAgentController(ctx)
     this.commands = new SessionCommandController(ctx, this.agents, process.cwd())
-    this.controlState = new SessionControlController(ctx, config.remoteAnswerMs ?? 600_000)
+    this.controlState = new SessionControlController(ctx, config.remoteAnswerMs ?? 600_000, config.interactionRetryMs ?? 2_000)
     // Registered before history so reverse-order teardown closes every
     // follower before waiting for already-admitted promotions.
     ctx.effect(() => async () => {
@@ -178,7 +184,7 @@ export class SessionController extends TypertRemoteService {
       registerImageReadRoute(
         readCtx,
         (sessionId, attachmentId) => this.commands.referencedImage(sessionId, attachmentId),
-        ref => readCtx.attachments.readImage(ref),
+        ref => readFetchedAttachment(ctx, String(ref.attachmentId), () => readCtx.attachments.readImage(ref)),
       )
     })
 

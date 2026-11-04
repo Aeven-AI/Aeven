@@ -23,7 +23,7 @@ async function harness(options: { owner?: string | null; handoff?: boolean; wait
   const forward = vi.fn((_owner: string, _id: SessionId, _input: unknown) => Promise.resolve())
   if (options.handoff !== false) ctx.provide('sessionHandoff', { forward } as never)
   const changed = vi.fn()
-  const relay = new InteractionRelay(ctx, changed, options.waitMs ?? 1_000)
+  const relay = new InteractionRelay(ctx, changed, options.waitMs ?? 1_000, 100)
   return { ctx, agent, relay, changed, forward }
 }
 

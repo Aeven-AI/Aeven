@@ -155,6 +155,16 @@ export abstract class SessionHandoff extends Service {
   abstract holdRunner(owner: string, sessionId: SessionId, running: boolean): Promise<void>
 
   /**
+   * Download an attachment another device of the account published, such as an image, video, or file a synced
+   * conversation cites, when this device does not hold it yet.
+   * @param _attachmentId - the attachment's content address.
+   * @returns whether this device holds the attachment now.
+   */
+  fetchAttachment(_attachmentId: string): Promise<boolean> {
+    return Promise.resolve(false)
+  }
+
+  /**
    * Publish that another device took over a session this device wrote to `session-handoff/released` listeners.
    * @param owner - the account.
    * @param sessionId - the session.

@@ -557,7 +557,8 @@ export class SessionMirror {
   }
 
   /**
-   * Fetch the attachments some imported events reference that are missing here and another device published.
+   * Fetch the attachments some imported events reference that are missing here and another device published. One
+   * not published yet, because its events arrived before the index named it, is fetched once the index does.
    * @param events - the imported events.
    */
   private async importAttachments(events: unknown): Promise<void> {
@@ -565,7 +566,32 @@ export class SessionMirror {
     if (store === undefined) return
     const published = this.published()
     for (const id of attachmentIds(events)) {
-      if (!published.has(id) || await store.hasObject(AttachmentId(id))) continue
+      if (await store.hasObject(AttachmentId(id))) continue
+      if (!published.has(id)) {
+        this.awaitedAttachments.add(id)
+        continue
+      }
+      await this.downloadAttachment(id)
+    }
+  }
+
+  /** Attachments imported events reference that no device had published when the events arrived. */
+  private readonly awaitedAttachments = new Set<string>()
+  /** Attachment downloads in flight, so a route and an import never fetch the same object twice. */
+  private readonly downloads = new Map<string, Promise<void>>()
+
+  /**
+   * Download one published attachment into this Host's store.
+   * @param id - the attachment's content address.
+   * @returns when the object is stored.
+   */
+  private downloadAttachment(id: string): Promise<void> {
+    const store = this.attachments
+    if (store === undefined) return Promise.resolve()
+    const existing = this.downloads.get(id)
+    if (existing !== undefined) return existing
+    const download = (async () => {
+      if (await store.hasObject(AttachmentId(id))) return
       const parts: Uint8Array[] = []
       let cursor = 0
       for (;;) {
@@ -577,7 +603,25 @@ export class SessionMirror {
         if (!more) break
       }
       await store.importObject(AttachmentId(id), new Uint8Array(Buffer.concat(parts)))
-    }
+      this.awaitedAttachments.delete(id)
+    })().finally(() => { this.downloads.delete(id) })
+    this.downloads.set(id, download)
+    return download
+  }
+
+  /**
+   * Download an attachment another device published, such as one a conversation on screen cites.
+   * @param id - the attachment's content address.
+   * @returns whether this Host holds the attachment now.
+   */
+  async fetchAttachment(id: string): Promise<boolean> {
+    await this.starting
+    const store = this.attachments
+    if (store === undefined || this.docs === undefined) return false
+    if (await store.hasObject(AttachmentId(id))) return true
+    if (!this.published().has(id)) return false
+    await this.downloadAttachment(id)
+    return true
   }
 
   /** Opaque read of {@link closed}: control flow cannot narrow it across awaits. */
@@ -878,6 +922,16 @@ export class SessionMirror {
     })
     this.pending().observe((_event: YMapEvent<InboxEntry>, transaction: Transaction) => {
       if (!transaction.local) this.consumeInbox()
+    })
+    // An attachment whose events arrived before its publication is fetched as soon as the index names it.
+    this.published().observe((event: YMapEvent<{ chunks: number }>, transaction: Transaction) => {
+      if (transaction.local) return
+      for (const id of event.keysChanged) {
+        if (!this.awaitedAttachments.has(id)) continue
+        void this.downloadAttachment(id).catch((error: unknown) => {
+          this.warn(`session sync: fetching attachment ${id} failed: ${String(error)}`)
+        })
+      }
     })
     // Settling folds every stored conversation once, so it runs behind startup rather than holding opening and input.
     this.scheduleSettle()
@@ -1587,7 +1641,7 @@ export class SessionMirror {
     for (const timer of this.live.values()) clearTimeout(timer)
     this.live.clear()
     await Promise.all([
-      this.publishing, this.importing, this.consuming, this.settling, ...this.publications.values(),
+      this.publishing, this.importing, this.consuming, this.settling, ...this.downloads.values(), ...this.publications.values(),
       ...this.ownership.values(), ...this.releases.values(), ...this.imports.values(),
     ])
     await Promise.all([...this.claims.values()].map(claim => claim.holder?.dispose()))

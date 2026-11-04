@@ -58,11 +58,14 @@ export class InteractionRelay {
    * @param ctx - Host context.
    * @param changed - republishes an Agent's live state after its pending interactions changed.
    * @param waitMs - how long a request nobody answered here waits for another device's answer.
+   * @param retryMs - pause before a request no client took is offered to this device's clients again, so a window
+   *   that connects or reloads while it is pending still receives it.
    */
   constructor(
     private readonly ctx: Context,
     private readonly changed: (agent: Agent) => void,
     private readonly waitMs: number,
+    private readonly retryMs: number,
   ) {
     ctx.on('approval/request', (request, next) => this.relay('approval/request', request, next) as Promise<ApprovalAnswer>, { prepend: true })
     ctx.on('user-questions/request', (request, next) => this.relay('user-questions/request', request, next) as Promise<AskUserQuestionAnswer>, {
@@ -108,6 +111,36 @@ export class InteractionRelay {
     ))
   }
 
+  /**
+   * Ask this device's clients until one answers, the request is withdrawn, or nobody took it for `giveUpMs`.
+   * @param event - the waterfall.
+   * @param agent - the Agent or stand-in the request belongs to.
+   * @param request - makes a fresh request object for each offer.
+   * @param signal - the request's withdrawal.
+   * @param giveUpMs - how long offers nobody took continue.
+   * @returns the first answer, or the last unanswered outcome.
+   */
+  private async askUntilAnswered(
+    event: RelayedInteraction, agent: Agent, request: () => object, signal: AbortSignal, giveUpMs: number,
+  ): Promise<Outcome> {
+    let since = Date.now()
+    for (;;) {
+      const offered = Date.now()
+      const outcome: Outcome = await this.ask(event, agent, request())
+        .then(value => ({ kind: 'answer' as const, value }), (error: unknown) => ({ kind: 'failed' as const, error }))
+      if (outcome.kind === 'answer' && !UNANSWERED[event](outcome.value)) return outcome
+      if (signal.aborted) return outcome
+      // An offer a client held for a while was seen; the give-up window starts again after it.
+      if (Date.now() - offered > this.retryMs) since = Date.now()
+      if (Date.now() - since >= giveUpMs) return outcome
+      const resumed = await Promise.race([
+        new Promise<'retry'>((resolve) => { setTimeout(() => { resolve('retry') }, this.retryMs) }),
+        aborted(signal),
+      ])
+      if (resumed === 'aborted') return outcome
+    }
+  }
+
   private async relay(
     event: RelayedInteraction,
     request: { readonly agent?: Agent; readonly signal?: AbortSignal },
@@ -121,26 +154,24 @@ export class InteractionRelay {
     const withdraw = new AbortController()
     const forward = (): void => { withdraw.abort(request.signal?.reason) }
     request.signal?.addEventListener('abort', forward, { once: true })
-    const copy = { ...request, signal: withdraw.signal }
-    this.copies.add(copy)
     const { agent: _agent, signal: _signal, ...shown } = request
     const id = randomUUID()
     const remote = Promise.withResolvers<unknown>()
     this.pending.set(id, { agent, shared: { id, event, request: shown }, settle: remote.resolve })
     this.changed(agent)
     try {
-      const local: Promise<Outcome> = this.ask(event, agent, copy)
-        .then(value => ({ kind: 'answer' as const, value }), (error: unknown) => ({ kind: 'failed' as const, error }))
+      // This device's clients are asked until one answers, so a window that reloads or connects while the request is
+      // pending still receives it; another device of the account may answer meanwhile. When no client takes it for
+      // {@link waitMs}, the request is reported unanswered as it would be without other devices.
+      const local = this.askUntilAnswered(event, agent, () => {
+        const again = { ...request, signal: withdraw.signal }
+        this.copies.add(again)
+        return again
+      }, withdraw.signal, this.waitMs)
       const elsewhere = remote.promise.then(value => ({ kind: 'remote' as const, value }))
-      const first = await Promise.race([local, elsewhere])
+      const first = await Promise.race([local, elsewhere, aborted(request.signal)])
+      if (first === 'aborted') throw request.signal?.reason ?? new Error('interaction request aborted')
       if (first.kind === 'remote') return first.value
-      if (first.kind === 'answer' && !UNANSWERED[event](first.value)) return first.value
-      // Nobody answered on this device; another device of the account still may, for a bounded time.
-      const timer = Promise.withResolvers<'timeout'>()
-      const timeout = setTimeout(() => { timer.resolve('timeout') }, this.waitMs)
-      const late = await Promise.race([elsewhere, timer.promise, aborted(request.signal)])
-      clearTimeout(timeout)
-      if (late !== 'timeout' && late !== 'aborted') return late.value
       if (first.kind === 'failed') throw first.error
       return first.value
     } finally {
@@ -185,12 +216,17 @@ export class InteractionRelay {
     Object.assign(stand, { ctx: this.ctx.extend({ agent: stand }) })
     let answer: unknown
     try {
-      const request = { ...interaction.request, agent: stand, signal }
-      // Presented here on behalf of the running device, so this device's relay does not list it again.
-      this.copies.add(request)
-      answer = await this.ask(interaction.event, stand, request)
+      // Presented here on behalf of the running device, so this device's relay does not list it again. Offered again
+      // until a client answers or the running device withdraws it, so a window that connects later still receives it.
+      const outcome = await this.askUntilAnswered(interaction.event, stand, () => {
+        const request = { ...interaction.request, agent: stand, signal }
+        this.copies.add(request)
+        return request
+      }, signal, Infinity)
+      if (outcome.kind === 'failed') return
+      answer = outcome.value
     } catch {
-      // No client here answered, or the running device withdrew the request; it keeps its own outcome.
+      // The running device withdrew the request; it keeps its own outcome.
       return
     }
     if (signal.aborted || UNANSWERED[interaction.event](answer)) return

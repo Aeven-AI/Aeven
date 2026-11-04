@@ -161,6 +161,12 @@ export default class SessionSync extends SessionHandoff {
   }
 
   /** @inheritdoc */
+  override async fetchAttachment(attachmentId: string): Promise<boolean> {
+    for (const mirror of this.mirrors.values()) if (await mirror.fetchAttachment(attachmentId)) return true
+    return false
+  }
+
+  /** @inheritdoc */
   async forward(owner: string, sessionId: SessionId, input: SessionHandoffInput): Promise<void> {
     const mirror = this.mirrors.get(owner)
     if (mirror === undefined) throw new Error('account sync does not serve this account on this device')

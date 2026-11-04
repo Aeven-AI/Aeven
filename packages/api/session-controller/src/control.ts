@@ -60,9 +60,10 @@ export class SessionControlController {
   /**
    * @param ctx - Host context carrying live Agent, projection, and jobs services.
    * @param remoteAnswerMs - how long a request nobody answered here waits for another device's answer.
+   * @param interactionRetryMs - pause before a request no client took is offered to the clients again.
    */
-  constructor(private readonly ctx: Context, remoteAnswerMs: number) {
-    this.interactions = new InteractionRelay(ctx, (agent) => { this.shareLive(agent) }, remoteAnswerMs)
+  constructor(private readonly ctx: Context, remoteAnswerMs: number, interactionRetryMs: number) {
+    this.interactions = new InteractionRelay(ctx, (agent) => { this.shareLive(agent) }, remoteAnswerMs, interactionRetryMs)
     ctx.on('session/event', (session, event) => { this.onSessionEvent(session, event) })
     // A turn running here, and what waits in its queue, show on the account's other devices too.
     ctx.on('agent/status', ({ agent }) => { this.shareLive(agent) })

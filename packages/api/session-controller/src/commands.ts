@@ -5,6 +5,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { brandString } from '@aeven/brand'
 import type { Agent, ModelSelection as AgentModelSelection } from '@aeven/agent'
 import { AttachmentError, admitPromptContent } from '@aeven/attachment'
+import { readFetchedAttachment } from './file-uploads.ts'
 import type { FileAttachmentRef, ImageAttachmentRef, StoredFileAttachment, StoredImageAttachment } from '@aeven/attachment'
 import {
   ReasoningEffortId, createUserMessage, freezeMessage,
@@ -623,7 +624,7 @@ export class SessionCommandController {
       )
     }
     try {
-      const stored = await this.ctx.attachments.readImage(ref)
+      const stored = await readFetchedAttachment(this.ctx, String(ref.attachmentId), () => this.ctx.attachments.readImage(ref))
       return {
         attachment: stored.ref,
         data: Buffer.from(stored.data).toString('base64'),
@@ -645,7 +646,7 @@ export class SessionCommandController {
   async referencedFile(sessionId: SessionId, attachmentId: string): Promise<StoredFileAttachment | undefined> {
     const source = await this.readSessionState(sessionId)
     const ref = referencedAttachment(source.events, 'file', attachmentId)
-    return ref === undefined ? undefined : this.ctx.attachments.readFile(ref)
+    return ref === undefined ? undefined : readFetchedAttachment(this.ctx, attachmentId, () => this.ctx.attachments.readFile(ref))
   }
 
   /**
@@ -657,7 +658,7 @@ export class SessionCommandController {
   async referencedImage(sessionId: SessionId, attachmentId: string): Promise<StoredImageAttachment | undefined> {
     const source = await this.readSessionState(sessionId)
     const ref = referencedAttachment(source.events, 'image', attachmentId)
-    return ref === undefined ? undefined : this.ctx.attachments.readImage(ref)
+    return ref === undefined ? undefined : readFetchedAttachment(this.ctx, attachmentId, () => this.ctx.attachments.readImage(ref))
   }
 
   /**
