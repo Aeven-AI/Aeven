@@ -241,7 +241,12 @@ export class SessionMirror {
       // A session this device writes needs no handover, so a turn never waits for the account's backlog.
       const mine = entry === undefined || entry.origin === me
       const online = this.sync.status(this.owner).state === 'online'
-      if (mine && !online) return { claimed: true }
+      if (mine && !online) {
+        const stored = entry === undefined
+          ? (await this.persistence.list()).find(header => header.id === sessionId)
+          : undefined
+        return { claimed: stored?.replica !== true }
+      }
       if (!online) return await this.takeOver(sessionId, entry)
       const timing = this.tuning.runnerLease
       if (timing === undefined) throw new Error('session runner lease timing is not configured')
@@ -257,8 +262,18 @@ export class SessionMirror {
       if (!holder.held()) return { claimed: false }
       this.runners.set(sessionId, holder)
       try {
-        if (mine) return { claimed: true }
+        if (mine && entry !== undefined) return { claimed: true }
         await this.sync.synchronize(this.owner)
+        if (!this.entries().has(sessionId)) {
+          const stored = (await this.persistence.list()).find(header => header.id === sessionId)
+          if (stored !== undefined && stored.owner !== this.owner) throw new Error('session does not belong to this account')
+          // Initialization-only drafts have no shared index entry; their imported log still needs promotion.
+          if (stored?.replica) {
+            if (!holder.held()) throw new Error('session runner lease expired during handover')
+            await this.persistence.setReplica(sessionId, false)
+          }
+          return { claimed: true }
+        }
         // A pending import finishes before promotion; the lease prevents another runner advancing the tail.
         await this.fetch(sessionId)
         await this.imports.get(sessionId)
