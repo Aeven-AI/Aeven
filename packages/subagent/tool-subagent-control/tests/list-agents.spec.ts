@@ -115,17 +115,17 @@ describe('avn-tool-subagent-control/list-agents', () => {
     expect(parameters.properties?.scope?.enum).toEqual(['children', 'descendants'])
     expect(parameters.required ?? []).toEqual([])
     expect(schemas[0]!.description).toContain('send_message')
-    expect(schemas[0]!.description).toContain('steers a running child at its nearest step boundary')
+    expect(schemas[0]!.description).toContain('root and continuable members')
     expect(schemas[0]!.description).not.toContain('send_message` starts a new turn')
-    expect(schemas[0]!.description).toContain('interrupt_agent')
+    expect(schemas[0]!.description).toContain('does not guarantee later delivery')
   })
 
-  it('renders the empty result as (no subagents)', async () => {
+  it('lists the root when no children exist', async () => {
     const { ctx, parent } = await setup([])
     await ctx.sessions.flush(parent.session)
     const result = await callTool(ctx, 'list_agents', {}, parent)
     expect(result.isError).toBe(false)
-    expect(text(result)).toBe('(no subagents)')
+    expect(text(result)).toBe('parent [idle] — root agent')
   })
 
   it('renders children and diagnostics in array order with registry-derived statuses', async () => {
@@ -180,28 +180,28 @@ describe('avn-tool-subagent-control/list-agents', () => {
       ['running-child', { status: 'running' }],
       ['waiting-child', { status: 'idle' }],
     ])
-    vi.spyOn(ctx.agents, 'get').mockImplementation(id => agents.get(id) as never)
-    const result = await callTool(ctx, 'list_agents', {}, parent)
+    vi.spyOn(ctx.agents, 'get').mockImplementation(id => id === parent.id ? parent : agents.get(id) as never)
+    const result = await callTool(ctx, 'list_agents', { scope: 'children' }, parent)
     expect(result.isError).toBe(false)
     // `ready` is the resumable counterpart to a live `running` record, not a
     // claim that the child's conversation ended with a result to collect.
     expect(text(result)).toBe(
-      `${started.childId} [ready] — real child\n`
+      `parent [idle] — root agent\n${started.childId} [ready] — real child\n`
       + 'running-child [running] — still working\n'
       + 'waiting-child [idle] — waiting on descendants\n'
       + 'broken-child [diagnostic: corrupt]',
     )
   })
 
-  it('resolves omitted scope to children and forwards the tool cancellation signal', async () => {
+  it('resolves omitted scope to descendants and forwards the tool cancellation signal', async () => {
     const { ctx, parent } = await setup([])
     const signal = new AbortController().signal
-    const listChildren = vi.spyOn(ctx.subagents, 'listChildren').mockResolvedValue([])
+    const listDescendants = vi.spyOn(ctx.subagents, 'listDescendants').mockResolvedValue([])
 
     const result = await callTool(ctx, 'list_agents', {}, parent, signal)
 
     expect(result.isError).toBe(false)
-    expect(listChildren).toHaveBeenCalledWith(parent.id, signal)
+    expect(listDescendants).toHaveBeenCalledWith(parent.id, signal)
   })
 
   it('lists a real settled continuable child and omits a real one-shot sibling', async () => {
@@ -223,7 +223,7 @@ describe('avn-tool-subagent-control/list-agents', () => {
     await waitNoActivation(ctx, started.childId)
     const result = await callTool(ctx, 'list_agents', {}, parent)
     expect(result.isError).toBe(false)
-    expect(text(result)).toBe(`${started.childId} [ready] — summarize the doc`)
+    expect(text(result)).toBe(`parent [idle] — root agent\n${started.childId} [ready] parent=parent depth=1 — summarize the doc`)
   })
 
   it('describes ready as resumable and pins the status vocabulary', async () => {
@@ -231,8 +231,8 @@ describe('avn-tool-subagent-control/list-agents', () => {
     const schema = ctx.tools.schemas().find(candidate => candidate.name === 'list_agents')
     // Completion reaches the parent through its notice; listing is discovery,
     // so its inactive status must not send the model looking for a result.
-    expect(schema?.description).toContain('you are told when one finishes')
-    expect(schema?.description).toContain('resumable, not terminal')
+    expect(schema?.description).toContain('not task completion')
+    expect(schema?.description).toContain('stored and resumable')
     // The enum is the closed vocabulary the model renders, so pin it rather than
     // scanning prose that legitimately reads "not to poll for completion".
     const variants = ctx.tools.get('list_agents')?.output.schema.items?.oneOf ?? []
@@ -299,7 +299,7 @@ describe('avn-tool-subagent-control/list-agents', () => {
     const result = await callTool(ctx, 'list_agents', { scope: 'descendants' }, parent)
     expect(result.isError).toBe(false)
     expect(text(result)).toBe(
-      `${started.childId} [idle] parent=${parent.id} depth=1 — waiting branch\n`
+      `parent [idle] — root agent\n${started.childId} [idle] parent=${parent.id} depth=1 — waiting branch\n`
       + `${grandchild.childId} [running] parent=${started.childId} depth=2 — nested leaf`,
     )
 
@@ -344,7 +344,7 @@ describe('avn-tool-subagent-control/list-agents', () => {
     const result = await callTool(ctx, 'list_agents', { scope: 'descendants' }, parent)
     expect(result.isError).toBe(false)
     expect(text(result)).toBe(
-      'deep-leaf [ready] parent=one-shot-mid depth=2 — deep leaf\n'
+      'parent [idle] — root agent\ndeep-leaf [ready] parent=one-shot-mid depth=2 — deep leaf\n'
       + `broken-node [diagnostic: unavailable] parent=${parent.id} depth=1`,
     )
   })

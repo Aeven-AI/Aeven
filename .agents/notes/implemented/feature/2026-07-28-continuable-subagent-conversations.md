@@ -18,6 +18,8 @@ Parent Agents need to send later work to the same live child without changing it
 
 ## Decision
 
+[Tree coordination](2026-11-04-subagent-tree-coordination.md) owns model messaging and discovery across the whole tree. Direct-parent authorization remains specific to browser Queue delivery; this note retains the independent descriptor and lifecycle rationale.
+
 A continuable subagent has one durable Session and at most one process-local Activation:
 
 ```text

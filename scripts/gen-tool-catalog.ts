@@ -62,8 +62,8 @@ import * as ToolSkill from '@aeven/tool-skill'
 import * as ToolSearch from '@aeven/tool-search'
 import * as ToolSessionQuery from '@aeven/tool-session-query'
 import * as ToolTasks from '@aeven/tool-jobs'
-import type TeamService from '@aeven/experimental-agent-team'
-import * as ToolTeam from '@aeven/experimental-tool-agent-team'
+import type TeamService from '@aeven/agent-team'
+import * as ToolTeam from '@aeven/tool-agent-team'
 import * as ToolMedia from '@aeven/tool-media'
 import { MediaRuntime } from '@aeven/media'
 import * as ToolTodo from '@aeven/tool-todo'
@@ -554,6 +554,7 @@ const TOOL_PACKAGES: ToolPackage[] = [
       interrupt_agent: 'packages/subagent/tool-subagent-control/src/index.ts',
       list_agents: 'packages/subagent/tool-subagent-control/src/list-agents.ts',
       send_message: 'packages/subagent/tool-subagent-control/src/index.ts',
+      wait_agent: 'packages/subagent/tool-subagent-control/src/wait-agent.ts',
     },
     requires: ['ctx.tools', 'ctx.subagents', 'ctx.agents and ctx.sessionProjections (list_agents only)'],
     writes: ['tool/call', 'tool/result', 'child session events through ctx.subagents'],
@@ -566,7 +567,7 @@ const TOOL_PACKAGES: ToolPackage[] = [
       await ctx.plugin(ToolSubagentListAgents)
     },
     note:
-      'The globally named control tools over continuable background subagents: provider-bound `tool-subagent` instances register distinct delegation tools, while this package registers `send_message` and `interrupt_agent` once, plus `list_agents` from its separately loaded `/list-agents` plugin (whose catalog rows use the sessionProjections and live Agent registries).',
+      'The globally named control tools over continuable background subagents: provider-bound `tool-subagent` instances register distinct delegation tools, while this package registers `send_message`, `interrupt_agent`, and `wait_agent` once, plus `list_agents` from its separately loaded `/list-agents` plugin (whose catalog rows use the sessionProjections and live Agent registries).',
   },
   {
     pkg: '@aeven/tool-jobs',
@@ -582,36 +583,18 @@ const TOOL_PACKAGES: ToolPackage[] = [
       'The kind-agnostic background-job controller: background bash commands, PTY sends, and subagents are read, listed, and killed through the same three tools. Loading the plugin attaches the controller that arms producers\' `ctx.jobs.start()`.',
   },
   {
-    pkg: '@aeven/experimental-tool-agent-team',
+    pkg: '@aeven/tool-agent-team',
     dir: 'tool-agent-team',
-    source: 'packages/experimental/tool-agent-team/src/index.ts',
-    requires: ['ctx.tools', 'ctx.systemPrompt', 'ctx.agentTeams', 'an exact live Team member Agent'],
-    writes: ['tool/call', 'team/member', 'team/message/queued', 'team/message/delivered', 'team/task', 'tool/result'],
+    source: 'packages/team/tool-agent-team/src/index.ts',
+    requires: ['ctx.tools', 'ctx.agentTeams', 'a calling Agent in a subagent tree'],
+    writes: ['tool/call', 'team/task in the tree root Session', 'tool/result'],
     async mount(ctx) {
-      await ctx.plugin(AgentRegistry)
-      await ctx.plugin(SessionStore)
-      const session = ctx.sessions.create(SessionId('tool-catalog-team-lead'))
-      // The team service has to exist before the lead registers, so the membership reads the
-      // agent the registration then assigns.
-      const lead: { agent?: Agent } = {}
-      const membership = {
-        get root() { return lead.agent },
-        id: session.id,
-        role: 'lead' as const,
-        name: 'lead',
-      }
-      ctx.provide('agentTeams', {
-        tryMembership: (candidate: Agent) => candidate === lead.agent ? membership : undefined,
-        membership: () => membership,
-      } as unknown as TeamService)
-      const agent = await registerCatalogAgent(ctx, session, ['tools', 'systemPrompt', 'agents', 'agentTeams'])
-      lead.agent = agent
+      // Schemas and descriptions do not read the board, so the catalog needs no live Team service.
+      ctx.provide('agentTeams', {} as TeamService)
       await ctx.plugin(ToolTeam)
-      catalogChildScopes.set(ctx, agent)
     },
-    scope: ctx => catalogChildScopes.get(ctx) as Agent,
     note:
-      'All ten tools are scoped to implicit Team Leads and durable teammates. The shipped avn-base bundle keeps the package disabled; the documented Agent Teams profile patch enables it while disabling the legacy continuable-child control names.',
+      'The four task tools are registered for every agent; the aeven preset defers them behind `tool_search`, so a session pays for their schemas only after loading them. Every agent in one subagent tree reads and changes the board stored in the tree root Session.',
   },
   {
     pkg: '@aeven/tool-media',

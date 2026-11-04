@@ -4,6 +4,8 @@ Status: implemented
 
 [English](2026-08-18-experimental-agent-teams-packages.md) | 中文
 
+[共享任务板](../feature/2026-11-04-shared-task-board.zh.md)已将 Agent Teams 包移出 `packages/experimental/`；本记录中的位置、发布排除与依赖隔离规则仍适用于其余实验包。
+
 ## 问题
 
 Agent Teams 的服务与工具约定仍在变化，但它需要使用真实 Session 日志、subagent 生命周期、工具、示例、快照和仓库检查。把这些包放在产品职责组会使其成为 avn 发布系列成员，并获得与稳定包相同的发布预期。
@@ -12,7 +14,7 @@ Agent Teams 的服务与工具约定仍在变化，但它需要使用真实 Sess
 
 ## 决策
 
-`packages/experimental/agent-team`、`packages/experimental/tool-agent-team`、`packages/experimental/agent-team-profile`、`packages/experimental/client-ui-agent-team` 与 `packages/experimental/agent-team-web-profile` 是私有 workspace 包。[实验性包命名决策](2026-08-19-experimental-package-name-prefix.zh.md)负责其 npm 名和 promotion 重命名；本记录负责其目录归属、发布排除与依赖隔离。
+五个 Agent Teams 包——`@aeven/experimental-agent-team`、`@aeven/experimental-tool-agent-team`、`@aeven/experimental-agent-team-profile`、`@aeven/experimental-client-ui-agent-team` 与 `@aeven/experimental-agent-team-web-profile`——是私有 workspace 包。[实验性包命名决策](2026-08-19-experimental-package-name-prefix.zh.md)负责其 npm 名和 promotion 重命名；本记录负责其目录归属、发布排除与依赖隔离。
 
 avn pack 与 publish 集合以及本地 baseline 发布器均排除 `packages/experimental/` 下的所有 manifest。`release:avn` 仍会让这些 manifest 跟随 avn 共享版本递增，但不会创建发布 tag。workspace 约束要求每个实验性包设置 `private: true` 并省略 `publishConfig`。同一个顶层检查会拒绝发布包、发布 app 或 Python runtime 通过 `dependencies`、`optionalDependencies` 或 `peerDependencies` 依赖实验性包。实验性包可以依赖发布包和其他实验性包；测试可以通过 `devDependencies` 使用它们，示例可以显式加载它们。
 

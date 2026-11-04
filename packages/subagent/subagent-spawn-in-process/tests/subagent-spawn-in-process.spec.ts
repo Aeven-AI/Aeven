@@ -451,7 +451,7 @@ describe('avn-subagent-spawn-in-process', () => {
     })
   })
 
-  it('spawning from a DISPOSING parent fails loud with no orphaned child (INACTIVE_EFFECT teaching error)', async () => {
+  it('spawning from a DISPOSED parent fails loud with no orphaned child (dead caller rejected before publication)', async () => {
     const { ctx } = await setup([])
     // A handle-owned parent we can dispose (config agents dispose with the loop fiber).
     const parentHandle = await ctx.agents.create({
@@ -468,7 +468,7 @@ describe('avn-subagent-spawn-in-process', () => {
     await expect(start(ctx, 'spawn', {
       prompt: [{ type: 'text', text: 'do X' }],
       parent: parentHandle.agent,
-    })).rejects.toThrow(/inactive context/)
+    })).rejects.toThrow(/exact live calling agent/)
     expect(ctx.agents.list().length).toBe(before)
     expect(ctx.sessions.list()).toHaveLength(sessionsBefore)
     expect(published).toEqual([])

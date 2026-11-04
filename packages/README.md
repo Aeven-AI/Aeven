@@ -62,6 +62,7 @@ Every package lives in exactly one group; new packages join existing groups, and
 | [`document/`](document/README.md) | Document-extraction registry + the readers that turn a document or recorded clip into text |
 | [`spill/`](spill/README.md) | Spill capability family: storage seam, local impl, tool-result spill policy |
 | [`todo/`](todo/README.md) | The model-facing `todo_write` tool |
+| [`team/`](team/README.md) | Task board shared by one subagent tree and its `team_task_*` tools |
 | [`plan/`](plan/README.md) | Plan collaboration state with a direct entry command and reviewed exit |
 | [`preset/`](preset/README.md) | Per-session agent composition from preset `cordis.yml` files |
 | [`guard/`](guard/README.md) | Loop-hygiene guards: advisory repeat-call reminders + the `tools/execute` deadline enforcer |

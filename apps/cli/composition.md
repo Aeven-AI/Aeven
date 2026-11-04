@@ -138,6 +138,10 @@ flowchart LR
   cfg --> plugin_avn_base_tool_subagent
   plugin_avn_base_tool_subagent_fork["tool-subagent-fork<br/>@aeven/tool-subagent"]
   cfg --> plugin_avn_base_tool_subagent_fork
+  plugin_avn_base_agent_team["agent-team<br/>@aeven/agent-team"]
+  cfg --> plugin_avn_base_agent_team
+  plugin_avn_base_tool_agent_team["tool-agent-team<br/>@aeven/tool-agent-team"]
+  cfg --> plugin_avn_base_tool_agent_team
   plugin_avn_base_workflow_worker_thread["workflow-worker-thread<br/>@aeven/workflow-worker-thread"]
   cfg --> plugin_avn_base_workflow_worker_thread
   plugin_avn_base_tool_workflow["tool-workflow<br/>@aeven/tool-workflow"]
@@ -271,6 +275,8 @@ flowchart LR
 | `tool-subagent-list-agents` | `@aeven/tool-subagent-control/list-agents` |
 | `tool-subagent` | `@aeven/tool-subagent` |
 | `tool-subagent-fork` | `@aeven/tool-subagent` |
+| `agent-team` | `@aeven/agent-team` |
+| `tool-agent-team` | `@aeven/tool-agent-team` |
 | `workflow-worker-thread` | `@aeven/workflow-worker-thread` |
 | `tool-workflow` | `@aeven/tool-workflow` |
 | `timeout-policy` | `@aeven/tool-call-timeout-policy` |

@@ -44,11 +44,15 @@ kind: "package-reference"
 
 ### 一次性与可继续子级
 
-一次性子 agent 只运行一次，并以单个结果结算，可附带可选的结构化输出与失败时的安全诊断。启动请求可以通过 `agentOptions` 覆盖子 Agent 的提供方、模型、推理等级与输出 token 上限；每个请求的选项都要求提供方声明对应能力。可继续子 agent 保留持久会话并按顺序接受后续消息：调用方收到稳定的子 agent id、发送相邻 Agent 消息，并可中断当前轮次而不销毁子 agent。工具行的 `backgroundMode` 选择形态（默认 `one-shot`，或在支持的提供方上使用 `continuable`）。
+一次性子 agent 只运行一次，并以单个结果结算，可附带可选的结构化输出与失败时的安全诊断。启动请求可以通过 `agentOptions` 覆盖子 Agent 的提供方、模型、推理等级与输出 token 上限；每个请求的选项都要求提供方声明对应能力。可继续子 agent 保留持久会话并按顺序接受后续消息：调用方收到稳定的子 agent id、在自己的 subagent 树内发送消息，并可中断当前轮次而不销毁子 agent。工具行的 `backgroundMode` 选择形态（默认 `one-shot`，或在支持的提供方上使用 `continuable`）。
 
 ### 消息、中断与发现
 
-每个确切在线 Agent 都可以对直接可继续 child 使用 `sendMessage()`；驻留的可继续 child 还可以对自己的直接 parent 使用它。正在工作的目标通过 Steer 在最近 step 接收消息；空闲目标启动轮次，且只有直接 child 可以冷恢复。parent 也可以随时中断正在运行的后代或列举自己的子级。浏览器发出的继续执行 prompt 可以携带图片部分：Host 先通过附件存储完成整批图片的准入与持久化，子级 inbox 才接受这条消息；当子级声明的模型不接受图片输入时拒绝投递。发现覆盖两种形态：服务列举直接子级与完整后代树——模式、活动状态与血缘——直接读取在线会话状态与可选持久化，不加载任何子 agent。
+根与受管理的本地子级可以通过 `sendMessage()` 联系同一树内的根或其他可继续成员，包括兄弟与更深的后代。正在工作的目标在最近 step 接收 Steer 输入；空闲目标启动轮次。冷目标恢复时不激活其创建祖先。确切在线的根必须保持可用。祖先保留中断权限；兄弟仅获得消息权限。浏览器发出的继续执行 prompt 可以携带图片部分：Host 先通过附件存储完成整批图片的准入与持久化，子级 inbox 才接受这条消息；当子级声明的模型不接受图片输入时拒绝投递。发现覆盖两种形态：服务列举直接子级与完整后代树——模式、活动状态与血缘——直接读取在线会话状态与可选持久化，不加载任何子 agent。
+
+### 共享激活容量
+
+`maxActiveSubagents` 限制每棵树的子级执行数；默认值与 base bundle 的选择均为 `16`。根不占用槽位。可继续子级的启动与驻留（包括清理）与一次性提供方运行共享池，一次性运行直到调用方 dispose 才释放槽位。准入以 `ACTIVATION_LIMIT_REACHED` 拒绝，而不排队。冷恢复仅为目标使用一个槽位；存储历史不占槽位。独立根具有独立的池。启动失败与完成清理都会释放槽位。
 
 ### 失败与恢复
 
@@ -76,7 +80,7 @@ kind: "package-reference"
 | 文件 | 职责 |
 |---|---|
 | [`src/index.ts`](src/index.ts) | 服务入口：提供方注册表、启动与继续 API、生命周期事件 |
-| [`src/continuation.ts`](src/continuation.ts) | 可继续子级：身份预留、Activation 驻留、相邻消息、中断、结算 |
+| [`src/continuation.ts`](src/continuation.ts) | 可继续子级：身份预留、Activation 驻留、树内消息、中断、结算 |
 | [`src/internal.ts`](src/internal.ts) | 供浏览器与 Team 消息协议使用的 host-only Queue 适配器 |
 | [`src/types.ts`](src/types.ts) | 公开的请求、结果与提供方约定 |
 | [`src/descriptor.ts`](src/descriptor.ts) | 版本化的 `subagent/descriptor` 会话事件词汇 |
@@ -91,13 +95,13 @@ kind: "package-reference"
 
 ### 可继续流程
 
-管理器预留 child 身份、解析持久化描述符、创建（或冷恢复）child、把它安装进 Activation 并提交提示词。模型编写的消息通过固定 Steer 调度跨一条 parent/child 边；host 协议保留内部 Queue 适配器以创建独立轮次。直接 child 不存在 Activation 时会从持久化会话冷恢复。当驻留 Activation 结算时，管理器会在 parent 自身的轮次流中告知该 child 的直接 parent。
+管理器预留 child 身份、解析持久化描述符、创建或冷恢复 child、把它安装进 Activation 并提交提示词。模型编写的消息通过固定 Steer 调度在树内投递；Host 协议保留用于独立轮次的内部 Queue 适配器。冷目标在在线根之下从持久化会话恢复，并保留其持久直接父级身份。无论由谁发送，运行中的子级都会让其在线的直接父级保持驻留；父级离线时被恢复的子级结算时不发送通知。驻留 Activation 结算后，管理器在子级直接父级自身的轮次流中通知它。
 
 ### 所有权与不变式
 
 - **发布即边界**——发布前提供方拥有设置并须在失败时回滚；发布后调用方拥有运行并须 dispose（资源释放）它。
 - **注册受 effect 作用域约束**——移除提供方会阻止新启动，但绝不撤销已接受的运行。
-- **Agent 消息权限基于确切相邻关系**——`sendMessage()` 要求确切在线 sender；每个 sender 都可以指定直接可继续 child，只有具备驻留可继续 Activation 的 sender 可以指定自己的直接 parent。
+- **Agent 消息权限基于树成员关系**——`sendMessage()` 要求确切在线的 sender 与根；持久化 subagent 血缘为冷目标提供授权。普通 fork 构成独立的树。
 - **描述符仅进日志**——它是会话事件，不进入模型历史，并跨压缩（compaction）保留；可继续描述符会显式记录解析后的子级提供方、模型与推理等级，用于冷恢复。
 
 </details>
@@ -163,12 +167,12 @@ You are a delegated subagent: your permission scope was fixed when you were star
 这些限制说明该 seam 何时不合适，或何时需要特别的运维注意。它们是当前包约束，不是通用委派对比或任务积压。
 
 - **ACP 子级仍为一次性，且无法通过追踪枚举**——ACP 运行在父级会话语料中没有本地子会话，远程提供方需要 Activation 所有权约定才能支持可继续子级。
-- **仅允许相邻模型消息**——`sendMessage()` 要求确切在线 sender；每个 sender 都可以指定直接可继续 child，只有具备驻留可继续 Activation 的 sender 可以指定自己的直接 parent。浏览器提示使用独立的 Queue 控制路径。
-- **child 到 parent 的投递要求直接 parent 保持在线**——服务没有持久 parent mailbox；parent 缺失时会拒绝消息，而非接受无法唤醒的工作。
+- **仅允许树内模型消息**——无关树、自身目标与一次性目标拒绝投递。浏览器提示保留独立的直接父级 Queue 控制路径。
+- **根必须保持在线**——创建者离线时冷目标可以恢复，但消息要求确切在线的树根。
 - **取消收敛期间存在唤醒缺口**——中断信号发出后、driver 进入 idle 前被接受的后续消息会保持排队，直到另一条唤醒发送到达。
 - **驻留仅限进程内**——Activation inbox 与所有权图不会在两个 harness 进程之间协调；对单个持久化存储的并发访问需要持久化邮箱与跨进程租约协议。
 - **不回放已接受但未记录的消息**——崩溃可能丢失从未写入子会话日志、已被接受的提示词；丢失的消息不会自动回放。
-- **没有持久化 parent mailbox**——child 到 parent 的消息要求驻留的可继续 child 与在线直接 parent，提供的是接受标识，不保证恰好一次投递。
+- **没有持久化根邮箱**——消息提供接受身份而非恰好一次投递；根不可用时拒绝操作。
 - **生命周期事件只供观察**——影响运行的 `subagent/end` 延续或决策接口仍需等待具体消费方。
 
 <a id="dev-note"></a>

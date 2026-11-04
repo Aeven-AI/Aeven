@@ -40,9 +40,9 @@
 | `@aeven/tool-search` | `tool_search` | `ctx.tools`、`ctx.systemPrompt`、`mcp/servers listeners (opportunistic)`、`ctx.codeRuntime (opportunistic, for run_code declarations)` | `tool/call`、`tool/result`、`one plugin user message when the deferred tool index changes` | - | 只有在至少有一个工具被延迟、或至少一台执行延迟的 MCP 服务器未在服务时才呈现给模型。关键词查询只列出工具而不加载它们；`select:` 把 schema 加载到后续请求中，或在该请求呈现 `run_code` 时返回 SDK 声明；`restart:` 重新连接一台 MCP 服务器。 |
 | `@aeven/tool-session-query` | `session_event_read`、`session_event_search`、`session_event_trace`、`session_search`、`session_trace` | `ctx.tools`、`ctx.systemPrompt`、`ctx.sessionQuery`、`a calling Agent for workspace authority` | `tool/call`、`tool/result` | - | 这 5 个只读工具会隐藏提供方游标，并根据不可变的调用 agent 会话为每个结果授权。该包需要选择启用；需要强制截止时间或限制行内输出的组合还会挂载通用超时或 spill 策略。 |
 | `@aeven/tool-subagent` | `list_subagent_models`、`subagent` | `ctx.tools`、`ctx.subagents`、`ctx.systemPrompt`、`用于模型发现和所选路由校验的 ctx.llm` | `tool/call`、`tool/result`、`child session events through the chosen provider` | `subagent`、`subagent_fork` | 注册的委派工具名称取决于加载时 `toolName` 配置（默认为 `subagent`）；上述默认 schema 关闭模型选择，而发现 schema 则展示为已启用 Session 中可用的固定配套工具。Web preset 会在每个新顶层 Session 创建时读取插件页偏好，并为其子 Session 保留该决定；`subagent_fork` 始终使用固定路由。每个实例通过 `modelSelectionSettings`、`backgroundMode` 与 `enableRunInBackground` 独立控制是否读取模型选择设置及其后台行为。 |
-| `@aeven/tool-subagent-control` | `interrupt_agent`、`list_agents`、`send_message` | `ctx.tools`、`ctx.subagents`、`ctx.agents and ctx.sessionProjections (list_agents only)` | `tool/call`、`tool/result`、`child session events through ctx.subagents` | - | 这些是控制可继续后台 subagent 的全局命名工具：绑定提供方的 `tool-subagent` 实例注册不同的委派工具；本包注册一次 `send_message` 和 `interrupt_agent`，另由 `list_agents` 通过单独加载的 `/list-agents` 插件提供，其目录行使用 sessionProjections 和实时 Agent 注册表。 |
+| `@aeven/tool-subagent-control` | `interrupt_agent`, `list_agents`, `send_message`, `wait_agent` | `ctx.tools`, `ctx.subagents`, `ctx.agents and ctx.sessionProjections (list_agents only)` | `tool/call`, `tool/result`, `child session events through ctx.subagents` | - | The globally named control tools over continuable background subagents: provider-bound `tool-subagent` instances register distinct delegation tools, while this package registers `send_message`, `interrupt_agent`, and `wait_agent` once, plus `list_agents` from its separately loaded `/list-agents` plugin (whose catalog rows use the sessionProjections and live Agent registries). |
 | `@aeven/tool-jobs` | `job_kill`、`job_list`、`job_output` | `ctx.tools`、`ctx.jobs`、`ctx.systemPrompt` | `tool/call`、`tool/result`、`user/message via agent.inject() for background completion notices` | - | 与任务种类无关的后台任务控制器：后台 bash 命令、PTY 发送和 subagent 都通过相同的 3 个工具读取、列出和终止。加载该插件会挂接控制器，从而启用生产方的 `ctx.jobs.start()`。 |
-| `@aeven/experimental-tool-agent-team` | `followup_task`、`interrupt_agent`、`list_agents`、`send_message`、`spawn_teammate`、`team_task_create`、`team_task_get`、`team_task_list`、`team_task_update`、`wait_agent` | `ctx.tools`、`ctx.systemPrompt`、`ctx.agentTeams`、`an exact live Team member Agent` | `tool/call`、`team/member`、`team/message/queued`、`team/message/delivered`、`team/task`、`tool/result` | - | 这 10 个工具限定于隐式 Team Lead 与持久 teammate 作用域。随产品发布的 avn-base bundle 默认禁用该包；文档中的 Agent Teams profile patch 会启用它，并禁用旧 continuable child 的同名控制工具。 |
+| `@aeven/tool-agent-team` | `team_task_create`, `team_task_get`, `team_task_list`, `team_task_update` | `ctx.tools`, `ctx.agentTeams`, `a calling Agent in a subagent tree` | `tool/call`, `team/task in the tree root Session`, `tool/result` | - | The four task tools are registered for every agent; the aeven preset defers them behind `tool_search`, so a session pays for their schemas only after loading them. Every agent in one subagent tree reads and changes the board stored in the tree root Session. |
 | `@aeven/tool-media` | `generate_image`、`generate_video` | `ctx.tools`、`ctx.media`、`ctx.attachments` | `tool/call`、`tool/result carrying one image block per stored image` | - | 本目录以未配置模型的形态挂载该工具，这种形态要求每次调用自行指明模型。设置了 `model` 的部署得到的是同一份 Schema；默认值不会进入描述。生成的字节经 `ctx.attachments` 存储，因此结果携带的图像块无需在此注册任何东西即可被会话卡片渲染。 |
 | `@aeven/tool-working-directory` | `working_directory` | `ctx.tools`、`ctx.workingDirectory`、`owning Agent session` | `tool/call`、`session/cwd`、`tool/result` | - | 本目录同时挂载该容量与该工具，因为工具读取的目录由服务解析。一次变更追加 `session/cwd`，按最后一条重放：恢复或分叉的会话继续在日志记录的目录中，下一次调用相对于它解析相对路径。 |
 | `@aeven/tool-worktrees` | `create_worktree`, `remove_worktree` | `ctx.tools`、`ctx.subprocess`、`ctx.workingDirectory`、`ctx.worktrees`、`owning Agent session` | `tool/call`、`session/cwd`、`worktree/entered`、`worktree/removed`、`tool/result` | - | 本目录同时挂载该能力与工具，因为 `create_worktree` 和 `remove_worktree` 通过 `workingDirectory` 移动会话，而同一次调用随后报告该目录。检出目录、分支前缀、git 宽限期、子智能体隔离和依赖准备都是无默认值的 Config；基础 bundle 把检出放在 `$AVN_HOME/worktrees` 下，为分支添加 `avn/` 前缀，隔离子智能体，并用检出中锁文件对应的包管理器安装依赖。 |
@@ -1960,7 +1960,7 @@ The git tools keep provider selection and git subprocesses behind ctx.vcs, so th
 
 ### `list_agents`
 
-按持久 id 和标签列出你的可继续后台 subagent。用它回忆你启动过哪些 subagent，而不是轮询完成情况——subagent 完成时你会被告知。状态来自实时注册表：running 表示 agent 此刻正在工作；idle 表示已加载但处于轮次之间，可能正在等待它启动的 agent；ready 表示它只存在于存储中——可恢复而非终态，也不表示有结果等待收集；`send_message` 会在运行中 child 的最近 step 边界 steer 消息，或为 idle、ready child 启动轮次，且无论处于哪种状态，直接子级都仍可作为 `send_message` 的目标。该快照并非投递承诺；`send_message` 会执行权威检查，仍可能失败。无法读取的子级会作为诊断信息报告，而不会被静默丢弃。`descendants` 作用域会按稳定的前序顺序遍历你下方的整棵树，并为每个条目标注其持久的直接父会话 id 和深度。只有深度为 1 的条目可以使用 `send_message`；更深的条目只能作为 `interrupt_agent` 的候选目标。
+List the root and continuable members of your subagent tree by agent id. Use send_message to contact another member. Status describes current activity, not task completion: running means working, idle means loaded between turns, and ready means stored and resumable. Unreadable branches appear as diagnostics. Scope descendants (default) lists the complete tree; children lists the root and its direct children. Listing never activates an agent and does not guarantee later delivery.
 
 ```json
 {
@@ -1968,7 +1968,7 @@ The git tools keep provider selection and git subprocesses behind ctx.vcs, so th
   "properties": {
     "scope": {
       "type": "string",
-      "description": "children (default) lists direct children only; descendants walks the complete tree below you.",
+      "description": "descendants (default) lists the whole tree; children lists only the root and its direct children.",
       "enum": [
         "children",
         "descendants"
@@ -1982,7 +1982,7 @@ The git tools keep provider selection and git subprocesses behind ctx.vcs, so th
 
 ### `send_message`
 
-根据 agent id 向直接可继续 child 发送消息。如果你是驻留的可继续 child，也可以把自己的直接 parent 作为目标。如果目标仍在工作，消息会 steer 其最近的 step；如果目标处于 idle，消息会启动一个轮次。此调用不会返回该 agent 的答案，只会确认消息已投递。调用失败表示消息**未**投递。
+Send a message to another agent in your subagent tree by its agent id, including the root, siblings, and continuable descendants. If the target is still working, the message steers its nearest step; if it is idle, the message starts a turn. This call returns no answer from the agent — only confirmation that the message was delivered. A failure means the message was NOT delivered.
 
 ```json
 {
@@ -1990,7 +1990,7 @@ The git tools keep provider selection and git subprocesses behind ctx.vcs, so th
   "properties": {
     "agent_id": {
       "type": "string",
-      "description": "The agent id of your direct continuable child, or your direct parent when you are a resident continuable child."
+      "description": "The agent id of the root or another continuable member of your subagent tree, from list_agents."
     },
     "message": {
       "type": "string",
@@ -2006,7 +2006,25 @@ The git tools keep provider selection and git subprocesses behind ctx.vcs, so th
 
 来源：[`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts)
 
-这些是控制可继续后台 subagent 的全局命名工具：绑定提供方的 `tool-subagent` 实例注册不同的委派工具；本包注册一次 `send_message` 和 `interrupt_agent`，另由 `list_agents` 通过单独加载的 `/list-agents` 插件提供，其目录行使用 sessionProjections 和实时 Agent 注册表。
+### `wait_agent`
+
+Wait for input at your next step, including agent messages, completion notifications, and user steering. Returns immediately when that input is already pending.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "timeout_ms": {
+      "type": "integer",
+      "description": "Wait duration in milliseconds, from 10000 through 3600000. Defaults to 30000."
+    }
+  }
+}
+```
+
+Source: [`packages/subagent/tool-subagent-control/src/wait-agent.ts`](../packages/subagent/tool-subagent-control/src/wait-agent.ts)
+
+The globally named control tools over continuable background subagents: provider-bound `tool-subagent` instances register distinct delegation tools, while this package registers `send_message`, `interrupt_agent`, and `wait_agent` once, plus `list_agents` from its separately loaded `/list-agents` plugin (whose catalog rows use the sessionProjections and live Agent registries).
 
 <a id="aeventool-jobs"></a>
 
@@ -2081,138 +2099,13 @@ The git tools keep provider selection and git subprocesses behind ctx.vcs, so th
 
 与任务种类无关的后台任务控制器：后台 bash 命令、PTY 发送和 subagent 都通过相同的 3 个工具读取、列出和终止。加载该插件会挂接控制器，从而启用生产方的 `ctx.jobs.start()`。
 
-<a id="aevenexperimental-tool-agent-team"></a>
+<a id="aeventool-agent-team"></a>
 
-## `@aeven/experimental-tool-agent-team`
-
-### `followup_task`
-
-向另一名 Team member 发送持久 follow-up task，并在需要时启动一个 turn。
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "target": {
-      "type": "string",
-      "description": "Team member name, or lead."
-    },
-    "message": {
-      "type": "string",
-      "description": "Self-contained message for the target."
-    }
-  },
-  "required": [
-    "target",
-    "message"
-  ]
-}
-```
-
-来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
-
-### `interrupt_agent`
-
-中断一名 teammate 的当前 turn，同时保留其待处理 inbox。仅 Team Lead 可用。
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "target": {
-      "type": "string",
-      "description": "Teammate name."
-    }
-  },
-  "required": [
-    "target"
-  ]
-}
-```
-
-来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
-
-### `list_agents`
-
-列出 Lead 与所有持久 teammate，以及各自当前的运行时状态。
-
-```json
-{
-  "type": "object",
-  "properties": {}
-}
-```
-
-来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
-
-### `send_message`
-
-向另一名 Team member 发送持久信息，但不启动 idle member。
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "target": {
-      "type": "string",
-      "description": "Team member name, or lead."
-    },
-    "message": {
-      "type": "string",
-      "description": "Self-contained message for the target."
-    }
-  },
-  "required": [
-    "target",
-    "message"
-  ]
-}
-```
-
-来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
-
-### `spawn_teammate`
-
-创建一名具名、持久的 teammate。只有 Team Lead 可以调用此工具。
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "name": {
-      "type": "string",
-      "description": "Unique lower-kebab-case teammate name."
-    },
-    "description": {
-      "type": "string",
-      "description": "Short description of the delegated responsibility."
-    },
-    "prompt": {
-      "type": "string",
-      "description": "Complete initial task for the teammate."
-    },
-    "context": {
-      "type": "string",
-      "description": "fresh starts without Lead history; fork inherits completed Lead turns. Defaults to fresh.",
-      "enum": [
-        "fresh",
-        "fork"
-      ]
-    }
-  },
-  "required": [
-    "name",
-    "description",
-    "prompt"
-  ]
-}
-```
-
-来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
+## `@aeven/tool-agent-team`
 
 ### `team_task_create`
 
-在共享 Team 任务板上创建一个无 owner 的 pending task。
+Create one unowned pending task on the task board shared by your whole agent tree: the root agent and every subagent under it. Use the board to split parallel work: give tasks disjoint write scopes and list the tasks that must complete first. Agents then claim ready tasks with team_task_update.
 
 ```json
 {
@@ -2235,7 +2128,7 @@ The git tools keep provider selection and git subprocesses behind ctx.vcs, so th
     },
     "write_scopes": {
       "type": "array",
-      "description": "Advisory workspace-relative file or directory prefixes this task expects to modify.",
+      "description": "Workspace-relative file or directory prefixes this task expects to modify. Overlaps with other in-progress tasks are reported as warnings, never locked.",
       "items": {
         "type": "string"
       }
@@ -2248,7 +2141,7 @@ The git tools keep provider selection and git subprocesses behind ctx.vcs, so th
 }
 ```
 
-来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
+Source: [`packages/team/tool-agent-team/src/index.ts`](../packages/team/tool-agent-team/src/index.ts)
 
 ### `team_task_get`
 
@@ -2269,11 +2162,11 @@ The git tools keep provider selection and git subprocesses behind ctx.vcs, so th
 }
 ```
 
-来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
+Source: [`packages/team/tool-agent-team/src/index.ts`](../packages/team/tool-agent-team/src/index.ts)
 
 ### `team_task_list`
 
-列出共享任务，包括 readiness、owner、revision、blocker 与 write-scope warning。
+List the shared tasks of your agent tree, including readiness, owner agent id, revision, blockers, and write-scope warnings.
 
 ```json
 {
@@ -2290,7 +2183,7 @@ The git tools keep provider selection and git subprocesses behind ctx.vcs, so th
     },
     "owner": {
       "type": "string",
-      "description": "Optional member-name filter; use unowned for tasks without an owner."
+      "description": "Optional exact ownerId filter; use unowned for tasks without an owner."
     },
     "ready": {
       "type": "boolean",
@@ -2308,11 +2201,11 @@ The git tools keep provider selection and git subprocesses behind ctx.vcs, so th
 }
 ```
 
-来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
+Source: [`packages/team/tool-agent-team/src/index.ts`](../packages/team/tool-agent-team/src/index.ts)
 
 ### `team_task_update`
 
-使用 team_task_get 或 team_task_list 返回的最新 revision，对共享任务操作执行 compare-and-set。
+Change one shared task, using its latest revision from team_task_get or team_task_list; a stale revision is rejected. Claim a ready task, do the work, then complete it. The owner or the root agent may release, edit, set_dependencies, complete, reopen, or delete; only the root agent may reassign. Task changes never notify or start another agent; use send_message when an agent must act on one.
 
 ```json
 {
@@ -2324,7 +2217,7 @@ The git tools keep provider selection and git subprocesses behind ctx.vcs, so th
     },
     "expected_revision": {
       "type": "integer",
-      "description": "Current task revision used as the CAS precondition."
+      "description": "Current task revision; the change applies only if it still matches."
     },
     "action": {
       "type": "string",
@@ -2357,14 +2250,14 @@ The git tools keep provider selection and git subprocesses behind ctx.vcs, so th
     },
     "write_scopes": {
       "type": "array",
-      "description": "Replacement advisory write scopes for edit.",
+      "description": "Replacement write scopes for edit.",
       "items": {
         "type": "string"
       }
     },
     "owner": {
       "type": "string",
-      "description": "Member name for Lead-only reassign; omit to unassign."
+      "description": "For reassign: the agent id, from list_agents, of the root agent or any continuable subagent; omit to unassign."
     }
   },
   "required": [
@@ -2375,27 +2268,9 @@ The git tools keep provider selection and git subprocesses behind ctx.vcs, so th
 }
 ```
 
-来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
+Source: [`packages/team/tool-agent-team/src/index.ts`](../packages/team/tool-agent-team/src/index.ts)
 
-### `wait_agent`
-
-等待本次调用开始后下一次 teammate 状态、mailbox 或共享任务变更。它绝不会唤醒 inactive member；若没有其他 member 正在 running 或 provisioning，则立即返回 noProgress。唤醒或超时后应重新列出状态，而不是轮询。
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "timeout_ms": {
-      "type": "integer",
-      "description": "Wait duration in milliseconds, from 10000 through 3600000. Defaults to 30000."
-    }
-  }
-}
-```
-
-来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
-
-这 10 个工具限定于隐式 Team Lead 与持久 teammate 作用域。随产品发布的 avn-base bundle 默认禁用该包；文档中的 Agent Teams profile patch 会启用它，并禁用旧 continuable child 的同名控制工具。
+The four task tools are registered for every agent; the aeven preset defers them behind `tool_search`, so a session pays for their schemas only after loading them. Every agent in one subagent tree reads and changes the board stored in the tree root Session.
 
 <a id="aeventool-media"></a>
 

@@ -11,7 +11,8 @@ import type { MessageId, RpcId, SessionId } from '@aeven/api-remotes/client'
 import type { SessionControlFrame } from '@aeven/api-session-controller/types'
 import { Session } from '../src/client/sessions/session.ts'
 import { SessionManager } from '../src/client/sessions/manager.ts'
-import { FakeApiClient, fakeRemote } from './fake-api.client.ts'
+import { FakeApiClient, fakeRemote, ok } from './fake-api.client.ts'
+import { entries, plainTurn } from './event-script.client.ts'
 
 const SID = 'fk-q1' as SessionId
 const text = (value: string): ContentBlock[] => [{ type: 'text', text: value }]
@@ -231,6 +232,21 @@ describe('Session queue snapshot intake', () => {
     await vi.waitFor(() => {
       expect(session.getSnapshot().queue).toEqual([])
     })
+  })
+})
+
+describe('queue rows claimed before the history window opens', () => {
+  it('retires a claimed row whose message and turn end arrive in the opening window', async () => {
+    const { api, session } = makeBench()
+    const turn = plainTurn(SessionSeq(0), 1, 'first prompt', 'done')
+    const message = turn[1]!.data as UserMessage
+    session.handleControlFrame(queueFrame([{ id: 'first', body: '', message }]))
+    session.handleControlFrame({ type: 'queue', sessionId: SID, items: [], claimed: [message.id] })
+    expect(session.getSnapshot().queue.map(row => row.messageId)).toEqual([message.id])
+
+    api.onHistory = () => Promise.resolve(ok({ records: entries(turn) as never[], hasMore: false }))
+    await session.open()
+    expect(session.getSnapshot().queue).toEqual([])
   })
 })
 

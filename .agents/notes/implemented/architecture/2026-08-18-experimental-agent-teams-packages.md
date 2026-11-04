@@ -4,6 +4,8 @@ Status: implemented
 
 English | [中文](2026-08-18-experimental-agent-teams-packages.zh.md)
 
+[Shared task board](../feature/2026-11-04-shared-task-board.md) removes the Agent Teams packages from `packages/experimental/`; the placement, release-exclusion, and dependency-isolation rules here still govern the remaining experimental packages.
+
 ## Problem
 
 Agent Teams needs the real Session log, subagent lifecycle, tools, examples, snapshots, and repository checks while its service and tool contracts continue to change. Placing those packages in a product-role group makes them members of the avn release family and gives them the same publication expectation as stable packages.
@@ -12,7 +14,7 @@ An experimental directory without a current package previously imposed placement
 
 ## Decision
 
-`packages/experimental/agent-team`, `packages/experimental/tool-agent-team`, `packages/experimental/agent-team-profile`, `packages/experimental/client-ui-agent-team`, and `packages/experimental/agent-team-web-profile` are private workspace packages. The [experimental package naming decision](2026-08-19-experimental-package-name-prefix.md) owns their npm names and promotion rename; this note owns their placement, release exclusion, and dependency isolation.
+The five Agent Teams packages — `@aeven/experimental-agent-team`, `@aeven/experimental-tool-agent-team`, `@aeven/experimental-agent-team-profile`, `@aeven/experimental-client-ui-agent-team`, and `@aeven/experimental-agent-team-web-profile` — are private workspace packages. The [experimental package naming decision](2026-08-19-experimental-package-name-prefix.md) owns their npm names and promotion rename; this note owns their placement, release exclusion, and dependency isolation.
 
 The avn pack and publish set and the local baseline publisher exclude every manifest below `packages/experimental/`. `release:avn` still advances their manifest versions with the shared avn version without creating release tags. Workspace constraints require each experimental package to set `private: true` and omit `publishConfig`. The same top-level check rejects `dependencies`, `optionalDependencies`, and `peerDependencies` from release packages, release apps, or the Python runtime to an experimental package. Experimental packages may depend on release packages and each other; tests may use them through `devDependencies`, and examples may load them explicitly.
 

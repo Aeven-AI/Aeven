@@ -343,6 +343,8 @@
 
     - id: subagent
       name: '@aeven/subagent'
+      config:
+        maxActiveSubagents: 16
 
     - id: subagent-spawn-in-process
       name: '@aeven/subagent-spawn-in-process'
@@ -381,6 +383,14 @@
         provider: fork
         toolName: subagent_fork
         backgroundMode: one-shot
+
+    # One shared task board per subagent tree, stored in the root Session; the
+    # aeven preset defers the four team_task_* tools behind tool_search.
+    - id: agent-team
+      name: '@aeven/agent-team'
+
+    - id: tool-agent-team
+      name: '@aeven/tool-agent-team'
 
     - id: workflow-worker-thread
       name: '@aeven/workflow-worker-thread'

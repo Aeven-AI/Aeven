@@ -623,11 +623,11 @@ const SERVICE_ROLES: ServiceRole[] = [
   },
   {
     key: 'agentTeams',
-    pkg: 'experimental-agent-team',
-    title: 'Agent Teams coordination domain',
+    pkg: 'agent-team',
+    title: 'Shared task board for subagent trees',
     mode: 'core',
-    consumers: ['experimental-tool-agent-team', 'experimental-client-ui-agent-team'],
-    note: 'Owns the implicit-root roster, durable peer mailbox, shared task DAG, continuable-child lifecycle, and generated Team Remote methods; tool-agent-team contributes model controls and client-ui-agent-team mounts the browser contribution.',
+    consumers: ['tool-agent-team'],
+    note: 'Owns the task DAG stored in each subagent tree root Session: compare-and-set claims, owners, dependencies, and advisory write-scope warnings; membership comes from the subagent runtime, and tool-agent-team contributes the model tools.',
   },
   {
     key: 'inspector',

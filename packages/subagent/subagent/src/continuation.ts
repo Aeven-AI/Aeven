@@ -58,7 +58,7 @@ import type { ActivationObserver, ActivationTerminal } from './lifecycle.ts'
 import { SubagentError } from './error.ts'
 import { isAdjacentAgentSendMessageTool } from './internal.ts'
 
-/** Durable attribution for one model-authored message between adjacent Agents. */
+/** Durable attribution for one model-authored message between Agents in one subagent tree. */
 export interface AgentMessageSource {
   readonly kind: 'agent-message'
   /** A message another agent addressed to this one (`relay` context form). */
@@ -129,7 +129,7 @@ export type SubagentInterruptAuthority =
   | { readonly kind: 'user'; readonly parentSessionId: SessionId }
   | { readonly kind: 'ancestor'; readonly agent: Agent }
 
-/** Options for one model-authored message between adjacent Agents. */
+/** Options for one model-authored message between Agents in one subagent tree. */
 export interface SubagentSendMessageOptions {
   /** Caller cancellation, owning the operation only until inbox acceptance. */
   readonly signal: AbortSignal
@@ -137,7 +137,7 @@ export interface SubagentSendMessageOptions {
 
 /** Inputs shared by model steering and the human Queue adapter. */
 type ChildDeliveryOptions =
-  | { readonly delivery: 'steer'; readonly signal: AbortSignal }
+  | { readonly delivery: 'steer'; readonly sender: Agent; readonly signal: AbortSignal }
   | { readonly delivery: 'queue'; readonly source: MessageSource; readonly signal: AbortSignal }
 
 /**
@@ -157,6 +157,8 @@ type ActivationState = 'running' | 'waiting' | 'settled'
  * consumer outside this package supplies a host.
  */
 interface ContinuationHost {
+  /** Reserve one slot in the service-owned pool shared with one-shot providers. */
+  reserve(root: Agent): () => void
   /**
    * Resolve one provider's continuable-creation contribution, or reject when
    * the provider is unknown or lacks the capability.
@@ -190,6 +192,10 @@ interface Activation {
    * reachable through a handle disposal has already released.
    */
   readonly parentSession: SessionId
+  /** Exact live root authorizing membership throughout this residency epoch. */
+  readonly root: Agent
+  /** Release the tree capacity slot after handle teardown. */
+  readonly releaseSlot: () => void
   /** The provider name recorded in the durable descriptor. */
   readonly provider: string
   /** The retained live Agent handle, disposed exactly once at settlement. */
@@ -236,6 +242,9 @@ interface MaterializeInputs {
   childId: SessionId
   provider: string
   parent: Agent
+  /** Durable lineage retained when a cold target resumes under its root. */
+  parentSession?: SessionId | undefined
+  ancestors?: readonly Agent[]
   /**
    * Creation inputs; absent for a cold resume, which loads the persisted
    * session — including the delegation policy events a fresh creation seeded,
@@ -277,7 +286,7 @@ function disposalOf(activation: Activation): Promise<void> | undefined {
   return activation.disposal
 }
 
-/** Build durable attribution for one adjacent-Agent message. */
+/** Build durable attribution for one tree-member message. */
 function agentMessageSource(sender: Agent): AgentMessageSource {
   return {
     kind: 'agent-message',
@@ -286,7 +295,7 @@ function agentMessageSource(sender: Agent): AgentMessageSource {
   }
 }
 
-/** Build the model-visible and durable representation of one adjacent-Agent message. */
+/** Build the model-visible and durable representation of one tree-member message. */
 function agentMessage(sender: Agent, content: ContentBlock[]) {
   return createUserMessage({
     content: [
@@ -394,6 +403,7 @@ export class SubagentContinuationManager {
    */
   private readonly closingScopes = new Map<Agent, Set<Agent>>()
   private draining = false
+  private readonly externalRoots = new WeakMap<Agent, Agent>()
 
   constructor(
     private readonly ctx: Context,
@@ -521,17 +531,17 @@ export class SubagentContinuationManager {
   }
 
   /**
-   * Deliver one model-authored message to a direct continuable child or to the
-   * sender's direct parent. Both directions use Steer: a running target admits
+   * Deliver one model-authored message within the live subagent tree.
+   * Delivery uses Steer: a running target admits
    * the message at its nearest step boundary, while an idle target starts a
-   * turn. A missing direct child cold-resumes through the ordinary continuation
-   * lifecycle. The caller signal owns the operation only until inbox acceptance.
+   * turn. A cold target resumes through the continuation lifecycle without
+   * activating its creation ancestors. The caller signal owns the operation only until inbox acceptance.
    * @param sender - exact live Agent authorizing and originating the message.
-   * @param targetId - durable direct-parent or direct-child session id.
+   * @param targetId - durable root or continuable tree-member session id.
    * @param content - model-authored content to deliver.
    * @param options - caller cancellation before acceptance.
    * @returns the accepted message's inbox id.
-   * @throws when adjacency, availability, or admission rejects delivery.
+   * @throws when tree membership, availability, or admission rejects delivery.
    */
   async sendMessage(
     sender: Agent,
@@ -539,30 +549,60 @@ export class SubagentContinuationManager {
     content: ContentBlock[],
     options: SubagentSendMessageOptions,
   ): Promise<MessageId> {
-    if (this.ctx.agents.get(sender.id) !== sender) {
-      throw new SubagentError(
-        'message delivery requires the exact live sender agent',
-        'UNAUTHORIZED',
-      )
-    }
+    const root = this.rootOf(sender)
     this.assertAdmitting(sender)
-    const senderActivation = this.activations.get(sender.id)
-    if (senderActivation !== undefined
-      && senderActivation.handle.agent === sender
-      && senderActivation.parentSession === targetId) {
-      options.signal.throwIfAborted()
-      return this.sendToParent(senderActivation, sender, content)
+    options.signal.throwIfAborted()
+    if (targetId === sender.id) throw new SubagentError('an agent cannot message itself', 'UNAUTHORIZED')
+    if (targetId === root.id) {
+      const message = agentMessage(sender, content)
+      this.sendWaking(root, message, () => { this.sendAgentMessage(root, message) })
+      return message.id
     }
-    if (sender.session.header.parentSession === targetId) {
-      throw new SubagentError(
-        `agent "${sender.id}" is not a resident continuable child and cannot send to parent "${targetId}"`,
-        'UNAUTHORIZED',
-      )
-    }
-    return this.deliverToChild(sender, targetId, content, {
+    return this.deliverToChild(root, targetId, content, {
       signal: options.signal,
       delivery: 'steer',
+      sender,
     })
+  }
+
+  /**
+   * Resolve the exact live root of a managed child or an ordinary Agent.
+   * @param caller - exact live calling Agent.
+   * @returns its live tree root without activating any Session.
+   */
+  rootOf(caller: Agent): Agent {
+    if (this.ctx.agents.get(caller.id) !== caller) {
+      throw new SubagentError('operation requires the exact live calling agent', 'UNAUTHORIZED')
+    }
+    const activation = this.activations.get(caller.id)
+    const root = activation?.handle.agent === caller ? activation.root : this.externalRoots.get(caller)
+    if (root !== undefined) {
+      if (this.ctx.agents.get(root.id) !== root) throw new SubagentError('subagent tree root is not live', 'PARENT_UNAVAILABLE')
+      return root
+    }
+    if (caller.session.header.origin === 'subagent') {
+      throw new SubagentError('agent is not a managed member of a live subagent tree', 'UNAUTHORIZED')
+    }
+    return caller
+  }
+
+  /**
+   * Reserve shared tree capacity before starting or restoring a child.
+   * @param parent - exact live caller whose tree owns the slot.
+   * @returns an idempotent release for publication rollback or completed teardown.
+   */
+  reserve(parent: Agent): () => void {
+    this.assertAdmitting(parent)
+    return this.host.reserve(this.rootOf(parent))
+  }
+
+  /**
+   * Retain tree identity for a published local one-shot run.
+   * @param child - published child Agent, absent for external providers.
+   * @param root - exact live root captured before provider startup.
+   */
+  registerOneShot(child: Agent | undefined, root: Agent): void {
+    if (child !== undefined) this.externalRoots.set(child, root)
   }
 
   /**
@@ -690,32 +730,6 @@ export class SubagentContinuationManager {
       authority.kind === 'user' ? { kind: 'user' } : { kind: 'parent' },
       { keepInbox: true },
     )
-  }
-
-  /** Deliver one resident continuable child's message to its live direct parent. */
-  private sendToParent(
-    activation: Activation,
-    sender: Agent,
-    content: ContentBlock[],
-  ): MessageId {
-    /* v8 ignore next 6 -- only synchronous re-entrant teardown can open this
-     * transaction between exact-agent authorization and this no-await span. */
-    if (activation.disposal !== undefined) {
-      throw new SubagentError(
-        `subagent "${sender.id}" activation is being disposed; the message was not delivered`,
-        'ACTIVATION_CLOSING',
-      )
-    }
-    const parent = this.ctx.agents.get(activation.parentSession)
-    if (parent === undefined) {
-      throw new SubagentError(
-        'direct parent is not live; the message was not delivered',
-        'PARENT_UNAVAILABLE',
-      )
-    }
-    const message = agentMessage(sender, content)
-    this.sendWaking(parent, message, () => { this.sendAgentMessage(parent, message) })
-    return message.id
   }
 
   /**
@@ -919,13 +933,13 @@ export class SubagentContinuationManager {
   private liveLineage(agent: Agent): Agent[] {
     const lineage = [agent]
     const seen = new Set<SessionId>([agent.id])
-    let parentSession = agent.session.header.parentSession
+    let parentSession = agent.session.header.origin === 'subagent' ? agent.session.header.parentSession : undefined
     while (parentSession !== undefined) {
       const parent = this.ctx.agents.get(parentSession)
       if (parent === undefined || seen.has(parent.id)) break
       lineage.push(parent)
       seen.add(parent.id)
-      parentSession = parent.session.header.parentSession
+      parentSession = parent.session.header.origin === 'subagent' ? parent.session.header.parentSession : undefined
     }
     return lineage
   }
@@ -1000,7 +1014,24 @@ export class SubagentContinuationManager {
     this.assertAdmitting(parent)
     // Authorize the persisted header before folding: only the durable child's
     // exact live direct parent may continue it.
-    this.authorizeLineage(parent, childId, source.header.parentSession)
+    const ancestors: Agent[] = [parent]
+    if (options.delivery === 'queue') {
+      this.authorizeLineage(parent, childId, source.header.parentSession)
+    } else {
+      const seen = new Set<SessionId>([childId])
+      let header = source.header
+      while (header.id !== parent.id) {
+        if (header.origin !== 'subagent' || header.parentSession === undefined || seen.has(header.parentSession)) {
+          throw new SubagentError(`subagent "${childId}" belongs to another tree`, 'UNAUTHORIZED')
+        }
+        if (header.parentSession === parent.id) break
+        seen.add(header.parentSession)
+        using ancestor = await query.observeSession(header.parentSession, { signal: options.signal })
+        const live = this.ctx.agents.get(header.parentSession)
+        if (live !== undefined && this.rootOf(live) === parent) ancestors.push(live)
+        header = ancestor.header
+      }
+    }
     // Fold only the child's own suffix: a fork seed replays the parent's log,
     // which may carry an ANCESTOR's descriptor when the parent is itself a
     // continuable child.
@@ -1017,6 +1048,8 @@ export class SubagentContinuationManager {
         childId,
         provider: descriptor.provider,
         parent,
+        parentSession: source.header.parentSession,
+        ancestors,
         agentOptions: {
           ...descriptor.agentProvider !== undefined ? { provider: descriptor.agentProvider } : {},
           ...descriptor.agentModel !== undefined ? { model: descriptor.agentModel } : {},
@@ -1107,14 +1140,18 @@ export class SubagentContinuationManager {
    */
   private materialize(inputs: MaterializeInputs): Promise<Activation> {
     this.assertAdmitting(inputs.parent)
+    const releaseSlot = this.reserve(inputs.parent)
     const settled = Promise.withResolvers<void>()
-    const lineage = this.liveLineage(inputs.parent)
+    const lineage = inputs.ancestors ?? this.liveLineage(inputs.parent)
     const materialization: Materialization = {
       lineage,
       settled: settled.promise,
     }
     this.materializations.add(materialization)
-    return this.materializeTracked(inputs, lineage).finally(() => {
+    return this.materializeTracked(inputs, lineage, releaseSlot).catch((error: unknown) => {
+      releaseSlot()
+      throw error
+    }).finally(() => {
       this.materializations.delete(materialization)
       settled.resolve()
     })
@@ -1128,8 +1165,10 @@ export class SubagentContinuationManager {
   private async materializeTracked(
     inputs: MaterializeInputs,
     parentLineage: readonly Agent[],
+    releaseSlot: () => void,
   ): Promise<Activation> {
     const { childId, provider, parent, create } = inputs
+    const root = this.rootOf(parent)
     // No id pre-check here: the child lock serializes each durable child, both
     // callers reach this only after confirming no Activation exists, and
     // `AgentRegistry.enter()` is the authoritative collision boundary for an id
@@ -1170,7 +1209,9 @@ export class SubagentContinuationManager {
       // The durable lineage, not merely the caller: creation stamps this same
       // agent into the child's header, and cold resume authorized it against
       // the persisted header before materializing.
-      parentSession: parent.id,
+      parentSession: inputs.parentSession ?? parent.id,
+      root,
+      releaseSlot,
       provider,
       handle,
       ancestry: new WeakSet([handle.agent, ...parentLineage]),
@@ -1186,8 +1227,9 @@ export class SubagentContinuationManager {
     this.activations.set(childId, activation)
     try {
       inputs.signal.throwIfAborted()
+      this.rootOf(parent)
       this.assertAdmitting(parent)
-      this.acquireOwnership(parent, childId)
+      this.acquireOwnership(this.ownerOf(inputs.parentSession, parent), childId)
       // Every accepted id leaves the inbox exactly once, through dequeue or
       // discard. Clearing it there is what lets `stateOf()` distinguish a truly
       // quiet Agent from one whose accepted turn has not been admitted yet.
@@ -1229,6 +1271,7 @@ export class SubagentContinuationManager {
         await activation.handle.dispose()
       } finally {
         this.activations.delete(activation.childId)
+        activation.releaseSlot()
         this.releaseOwnership(activation.childId)
       }
     })())
@@ -1250,6 +1293,15 @@ export class SubagentContinuationManager {
       )
     }
     parentActivation.ownedChildren.add(childId)
+  }
+
+  /**
+   * Select the Agent that must stay live while a child runs: the child's live
+   * durable parent, which receives its settlement notice, else the delivering
+   * caller. An Agent without an Activation, such as the tree root, owns nothing.
+   */
+  private ownerOf(parentSession: SessionId | undefined, caller: Agent): Agent {
+    return parentSession === undefined ? caller : this.ctx.agents.get(parentSession) ?? caller
   }
 
   /** Remove one child from its live owner's set and let that owner re-check settlement. */
@@ -1276,11 +1328,11 @@ export class SubagentContinuationManager {
     options: ChildDeliveryOptions,
     parent: Agent,
   ): MessageId {
-    // Parent-originated delivery keeps the parent live through ownership, so
+    // Any delivery keeps the child's durable parent live through ownership, so
     // establish it before the message can enter the child's inbox.
-    this.acquireOwnership(parent, activation.childId)
+    this.acquireOwnership(this.ownerOf(activation.parentSession, parent), activation.childId)
     const message = options.delivery === 'steer'
-      ? agentMessage(parent, content)
+      ? agentMessage(options.sender, content)
       : createUserMessage({ content, source: options.source })
     const accepted = this.admitWaking(activation, message.id, () => {
       if (options.delivery === 'steer') activation.handle.agent.steer(message)
@@ -1340,11 +1392,11 @@ export class SubagentContinuationManager {
         'ACTIVATION_CLOSING',
       )
     }
-    this.authorizeLineage(
-      parent,
-      activation.childId,
-      activation.handle.agent.session.header.parentSession,
-    )
+    if (options.delivery === 'queue') {
+      this.authorizeLineage(parent, activation.childId, activation.parentSession)
+    } else if (this.rootOf(options.sender) !== activation.root || this.rootOf(parent) !== activation.root) {
+      throw new SubagentError(`subagent "${activation.childId}" belongs to another tree`, 'UNAUTHORIZED')
+    }
     return this.submit(activation, content, options, parent)
   }
 
@@ -1509,6 +1561,7 @@ export class SubagentContinuationManager {
     // makes a racing delivery wait for release rather than cold-resume into the
     // still-registered agent.
     this.activations.delete(childId)
+    activation.releaseSlot()
     // BEFORE releasing ownership, while the parent still counts this child and
     // therefore cannot be judged settled. Delivering after the release would
     // race a parent watcher that resumes one microtask later, finds itself

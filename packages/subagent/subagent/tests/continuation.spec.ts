@@ -69,7 +69,7 @@ afterEach(async () => {
 /** Boot the full continuable stack: loop, persistence, providers, and subagents. */
 async function setupWith(
   adapter: LlmAdapter,
-  options: { persistence?: boolean; sessionQuery?: boolean } = {},
+  options: { persistence?: boolean; sessionQuery?: boolean; maxActiveSubagents?: number } = {},
 ) {
   const ctx = new Context()
   await mountAgentLoopTestDependencies(ctx)
@@ -90,7 +90,7 @@ async function setupWith(
   }
   await ctx.plugin(AgentLoop, { agents: [] })
   if (options.sessionQuery !== false) await ctx.plugin(TestSessionQuery)
-  await ctx.plugin(SubagentRuntime)
+  await ctx.plugin(SubagentRuntime, { maxActiveSubagents: options.maxActiveSubagents ?? 16 })
   await ctx.plugin(SubagentSpawn, { providerName: 'spawn' })
   await ctx.plugin(SubagentFork, { providerName: 'fork' })
   ctx.llm.registerAdapter(['mock'], adapter)
@@ -1868,7 +1868,7 @@ describe('continuable adjacent-Agent delivery', () => {
       signal: testSignal,
     })).rejects.toMatchObject({
       code: 'UNAUTHORIZED',
-      message: `agent "${childId}" is not a resident continuable child and cannot send to parent "${parent.id}"`,
+      message: 'agent is not a managed member of a live subagent tree',
     })
 
     await handle.dispose()
@@ -2980,5 +2980,145 @@ describe('SubagentRuntime.interrupt', () => {
 
     hold.resolve(undefined)
     await drained
+  })
+})
+
+describe('subagent tree coordination', () => {
+  it('delivers between siblings with the actual sender and rejects other trees', async () => {
+    const release = Promise.withResolvers<undefined>()
+    const adapter = new GatedAdapter([
+      { chunks: textResponse('left'), gate: release.promise },
+      { chunks: textResponse('right'), gate: release.promise },
+    ])
+    const { ctx, parent } = await setupWith(adapter)
+    const left = await ctx.subagents.startContinuable(startSpec(parent))
+    const right = await ctx.subagents.startContinuable(startSpec(parent))
+    try {
+      await vi.waitFor(() => { expect(adapter.requests).toHaveLength(2) })
+      const sender = ctx.agents.get(left.childId)!
+      const target = ctx.agents.get(right.childId)!
+      const id = await ctx.subagents.sendMessage(sender, right.childId, message('sibling update'), { signal: testSignal })
+      const received = target.inbox.nextStep.find(item => item.id === id)
+      expect(received?.source).toMatchObject({ kind: 'agent-message', senderSessionId: left.childId })
+      expect(ctx.subagents.rootOf(sender)).toBe(parent)
+      const stranger = ctx.agentLoop.create(SessionId('other-root'), { provider: 'mock', model: 'mock' })
+      await expect(ctx.subagents.sendMessage(stranger, right.childId, message('intrusion'), { signal: testSignal }))
+        .rejects.toMatchObject({ code: 'UNAUTHORIZED' })
+      await expect(ctx.subagents.sendMessage(sender, sender.id, message('self'), { signal: testSignal }))
+        .rejects.toMatchObject({ code: 'UNAUTHORIZED' })
+    } finally {
+      const drained = ctx.subagents.drainContinuableDescendants([parent])
+      release.resolve(undefined)
+      await drained
+    }
+  })
+
+  it('restores only a cold grandchild when its creator is offline', async () => {
+    const release = Promise.withResolvers<undefined>()
+    const adapter = new GatedAdapter([
+      { chunks: textResponse('creator'), gate: release.promise },
+      { chunks: textResponse('grandchild') },
+      { chunks: textResponse('resumed grandchild') },
+    ])
+    const { ctx, parent } = await setupWith(adapter)
+    // Settlement messages are observed separately from child model requests.
+    ctx.on('agent/pre-step', async ({ agent }, next) => agent === parent ? { kind: 'reject' } : next())
+    const creator = await ctx.subagents.startContinuable(startSpec(parent))
+    const liveCreator = ctx.agents.get(creator.childId)!
+    const grandchild = await ctx.subagents.startContinuable(startSpec(liveCreator))
+    try {
+      await waitNoActivation(ctx, grandchild.childId)
+      release.resolve(undefined)
+      await waitNoActivation(ctx, creator.childId)
+      const before = adapter.requests.filter(request => request.sessionId === creator.childId).length
+      await ctx.subagents.sendMessage(parent, grandchild.childId, message('resume only target'), { signal: testSignal })
+      await waitNoActivation(ctx, grandchild.childId)
+      expect(ctx.agents.get(creator.childId)).toBeUndefined()
+      expect(adapter.requests.filter(request => request.sessionId === creator.childId)).toHaveLength(before)
+      const saved = await ctx.sessionPersistence.load(grandchild.childId)
+      expect(saved.meta.parentSession).toBe(creator.childId)
+      expect(hasUserText(saved.events, 'resume only target')).toBe(true)
+    } finally {
+      release.resolve(undefined)
+      await ctx.subagents.drainContinuableDescendants([parent])
+    }
+  })
+
+  it('keeps a live intermediate parent waiting for the cold child it messages', async () => {
+    const holdMiddle = Promise.withResolvers<undefined>()
+    const holdInner = Promise.withResolvers<undefined>()
+    const adapter = new GatedAdapter([
+      { chunks: textResponse('middle'), gate: holdMiddle.promise },
+      { chunks: textResponse('inner') },
+      { chunks: textResponse('inner again'), gate: holdInner.promise },
+      { chunks: textResponse('middle reacts') },
+      { chunks: textResponse('middle reacts again') },
+    ])
+    const { ctx, parent } = await setupWith(adapter)
+    // Settlement messages are observed separately from child model requests.
+    ctx.on('agent/pre-step', async ({ agent }, next) => agent === parent ? { kind: 'reject' } : next())
+    const outer = await ctx.subagents.startContinuable(startSpec(parent))
+    const middle = await vi.waitFor(() => {
+      const live = ctx.agents.get(outer.childId)
+      expect(live).toBeDefined()
+      return live!
+    })
+    try {
+      const inner = await ctx.subagents.startContinuable(startSpec(middle))
+      await waitNoActivation(ctx, inner.childId)
+      await ctx.subagents.sendMessage(middle, inner.childId, message('follow up'), { signal: testSignal })
+      await vi.waitFor(() => { expect(ctx.agents.get(inner.childId)).toBeDefined() })
+
+      // The middle Agent finishes its own turn while the resumed child still runs;
+      // it must stay live so the child's result reaches it.
+      holdMiddle.resolve(undefined)
+      await vi.waitFor(() => { expect(middle.status).toBe('idle') })
+      expect(ctx.agents.get(outer.childId)).toBe(middle)
+      holdInner.resolve(undefined)
+      await vi.waitFor(() => {
+        expect(settlementNotices(middle).filter(notice => notice.sender === inner.childId)).toHaveLength(2)
+      })
+    } finally {
+      holdMiddle.resolve(undefined)
+      holdInner.resolve(undefined)
+      await ctx.subagents.drainContinuableDescendants([parent])
+    }
+  })
+
+  it('shares slots across nested continuations and one-shot providers and releases them after disposal', async () => {
+    const release = Promise.withResolvers<undefined>()
+    const { ctx, parent } = await setupWith(new GatedAdapter([
+      { chunks: textResponse('branch'), gate: release.promise },
+      { chunks: textResponse('leaf'), gate: release.promise },
+    ]), { maxActiveSubagents: 2 })
+    const branch = await ctx.subagents.startContinuable(startSpec(parent))
+    const liveBranch = ctx.agents.get(branch.childId)!
+    await ctx.subagents.startContinuable(startSpec(liveBranch))
+    try {
+      await expect(ctx.subagents.startContinuable(startSpec(parent)))
+        .rejects.toMatchObject({ code: 'ACTIVATION_LIMIT_REACHED' })
+      await expect(ctx.subagents.start('spawn', { ...startSpec(liveBranch).request, signal: testSignal }))
+        .rejects.toMatchObject({ code: 'ACTIVATION_LIMIT_REACHED' })
+    } finally {
+      const drained = ctx.subagents.drainContinuableDescendants([parent])
+      release.resolve(undefined)
+      await drained
+    }
+    // A separate root has an independent pool even when the first tree is closed.
+    const other = ctx.agentLoop.create(SessionId('independent-root'), { provider: 'mock', model: 'mock' })
+    ctx.subagents.registerProvider({
+      name: 'external', capabilities: { agentOptions: false, outputSchema: false, depthLimit: false, toolFilter: false, persona: false }, inheritsParentContext: false,
+      async start() {
+        return { id: SessionId('external-child'), localAgent: undefined,
+          result: Promise.resolve({ output: [], stopReason: 'completed' as const }), async dispose() {} }
+      },
+    })
+    const first = await ctx.subagents.start('external', { parent: other, prompt: [], signal: testSignal })
+    const second = await ctx.subagents.start('external', { parent: other, prompt: [], signal: testSignal })
+    await expect(ctx.subagents.start('external', { parent: other, prompt: [], signal: testSignal }))
+      .rejects.toMatchObject({ code: 'ACTIVATION_LIMIT_REACHED' })
+    await first.dispose()
+    const replacement = await ctx.subagents.start('external', { parent: other, prompt: [], signal: testSignal })
+    await Promise.all([second.dispose(), replacement.dispose()])
   })
 })
