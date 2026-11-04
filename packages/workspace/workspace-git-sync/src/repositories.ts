@@ -6,7 +6,7 @@
 import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { mkdir, readdir, rm, stat } from 'node:fs/promises'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Map as YMap, Transaction, YMapEvent } from 'yjs'
 import { brandString } from '@aeven/brand'
@@ -516,7 +516,7 @@ export class WorkspaceRepositories {
     // Without Git LFS, a required LFS filter would fail the whole clone; LFS objects are pulled afterwards instead.
     const result = await this.git.run(
       ['-c', 'filter.lfs.required=false', 'clone', '--recurse-submodules', '--', remote, directory],
-      { cwd: this.options.root, transfer: true, env: { GIT_LFS_SKIP_SMUDGE: '1' } },
+      { cwd: dirname(directory), transfer: true, env: { GIT_LFS_SKIP_SMUDGE: '1' } },
     )
     if (result.exitCode === 0) return true
     const error = result.stderr.trim().slice(-300)
@@ -573,7 +573,7 @@ export class WorkspaceRepositories {
         return (await stat(bundle).catch(() => undefined))?.size === bytes
       })
       if (!arrived) return false
-      await this.git.output(['clone', '--', bundle, directory], { cwd: this.options.root, transfer: true })
+      await this.git.output(['clone', '--', bundle, directory], { cwd: dirname(directory), transfer: true })
       // Switch while the bundle's branches are still remote-tracking branches of `origin`.
       if (checkout.branch !== undefined) await this.git.run(['switch', checkout.branch], { cwd: directory })
       if (checkout.remote === undefined) await this.git.output(['remote', 'remove', 'origin'], { cwd: directory })
