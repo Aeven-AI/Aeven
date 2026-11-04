@@ -940,6 +940,11 @@ export class SessionMirror {
       await this.own(id, async () => {
         if (this.claims.has(id) || this.running.has(id)) return
         const localNext = await this.next(id, local, revisions)
+        if (this.recorded(id).head === undefined) {
+          // A log the old rules already prove consistent records its position without reading the stream again.
+          const trusted = this.trustedStart(id, entry, localNext, false)
+          if (trusted !== undefined) this.record(id, { head: trusted.head, cursor: trusted.cursor })
+        }
         const recorded = this.recorded(id)
         if (online && (recorded.head === undefined || localNext !== recorded.head || entry.next > localNext)) {
           await this.fold(id, entry).catch((error: unknown) => {
@@ -1116,12 +1121,36 @@ export class SessionMirror {
    * The fold position to continue from. A record without a head predates claims; its stored log may have diverged
    * from the stream, so the fold starts over and {@link applyAccepted} compares every stored event.
    */
-  private foldStart(id: string): Fold {
+  private async foldStart(id: string, entry: IndexEntry, local: ReadonlySet<string>, replica: boolean, revisions?: ReadonlyMap<string, string>): Promise<Fold> {
     const known = this.folds.get(id)
     if (known !== undefined) return known
     const recorded = this.recorded(id)
     if (recorded.head !== undefined) return { cursor: recorded.cursor ?? 0, head: recorded.head, ...recorded.claim === undefined ? {} : { claim: recorded.claim } }
+    if (local.has(id)) {
+      const trusted = this.trustedStart(id, entry, await this.next(id, local, revisions), replica)
+      if (trusted !== undefined) return trusted
+    }
     return { cursor: 0, head: 0 }
+  }
+
+  /**
+   * The fold position of a stored log whose record predates claims, when the old rules prove it consistent with the
+   * stream: an imported copy only ever appended the stream's events up to its recorded cursor, and a log the index
+   * still names this device the writer of, at exactly the published length, is the history itself. Any other log may
+   * have diverged and is compared from the stream's start.
+   * @param id - the session.
+   * @param entry - its index entry.
+   * @param localNext - one past the last stored `seq`.
+   * @param replica - whether the stored log is an imported copy.
+   * @returns the position to continue from, or undefined when the log must be compared.
+   */
+  private trustedStart(id: string, entry: IndexEntry, localNext: number, replica: boolean): Fold | undefined {
+    const recorded = this.recorded(id)
+    if (replica && recorded.cursor !== undefined) return { cursor: recorded.cursor, head: localNext }
+    // Entries published before claims name the writing device; this build no longer writes the field.
+    const origin = (entry as IndexEntry & { origin?: string }).origin
+    if (!replica && origin !== undefined && origin === this.device() && entry.next === localNext) return { cursor: 0, head: localNext }
+    return undefined
   }
 
   /**
@@ -1134,8 +1163,10 @@ export class SessionMirror {
    */
   private fold(id: string, entry: IndexEntry, revisions?: ReadonlyMap<string, string>): Promise<void> {
     return this.serialImport(id, async () => {
-      const local = new Set((await this.persistence.list()).map(header => header.id as string))
-      const fold = { ...this.foldStart(id) }
+      const headers = await this.persistence.list()
+      const local = new Set(headers.map(header => header.id as string))
+      const replica = headers.find(header => header.id === id)?.replica === true
+      const fold = { ...await this.foldStart(id, entry, local, replica, revisions) }
       // The stored log, read once per pass for comparing accepted events with what this device holds.
       const held: { events?: readonly SessionEvent[] } = {}
       let stored = false
