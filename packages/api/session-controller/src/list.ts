@@ -9,7 +9,7 @@ import type { Session, SessionEvent, SessionHeader, SessionId } from '@aeven/ses
 import type { ProjectionSnapshot } from '@aeven/session-projection'
 import type {} from '@aeven/session-projection-cache'
 import type {} from '@aeven/session-persistence'
-import type {} from '@aeven/session-handoff'
+import type { SharedSession } from '@aeven/session-handoff'
 import { SessionQueryError, type SessionSearchCursor } from '@aeven/session-query'
 import { RemoteError } from '@aeven/typert-protocol'
 import type {} from '@aeven/identity-user'
@@ -188,14 +188,15 @@ export class ApiSessionList {
     const snapshot = source.projections
     const values = snapshot?.values as SessionProjectionValues | undefined
     const metadata = values?.sessionListMetadata
-    return {
+    const owner = source.header.owner
+    return withCatalogTitle({
       sessionId: id,
       updatedAt: updatedAt(source.header, metadata),
-      running: this.remoteSessionRunning(source.header.owner, id),
+      running: this.remoteSessionRunning(owner, id),
       blank: metadata?.blank ?? false,
       ...listFields(source.header),
       ...snapshot === undefined ? {} : { projections: { asOfSeq: snapshot.asOfSeq, values: snapshot.values as SessionProjectionValues } },
-    }
+    }, owner === undefined ? undefined : this.ctx.get('sessionHandoff')?.catalog(owner).find(entry => entry.header.id === id))
   }
 
   /**
@@ -245,6 +246,8 @@ export class ApiSessionList {
     for (const entry of cold) items.push(this.summarizeCold(entry))
     await this.recoverMissingTitles(items, cold, signal)
     if (caller !== undefined) {
+      const catalog = new Map((this.ctx.get('sessionHandoff')?.catalog(caller.id) ?? []).map(entry => [entry.header.id, entry]))
+      for (const [index, item] of items.entries()) items[index] = withCatalogTitle(item, catalog.get(item.sessionId))
       const present = new Set(items.map(item => item.sessionId))
       for (const summary of this.sharedFor(caller.id)) if (!present.has(summary.sessionId)) items.push(summary)
     }
@@ -530,4 +533,19 @@ function listFields(header: SessionHeader): {
     ...(header.origin === undefined ? {} : { origin: header.origin }),
     ...(header.cwd === undefined ? {} : { cwd: header.cwd }),
   }
+}
+
+/**
+ * Give a summary whose stored log names no title yet the title the account's catalog holds: a conversation another
+ * device published may be stored here before the event that named it arrives.
+ * @param summary - the summary from the stored log.
+ * @param entry - the conversation's catalog entry, when the account shares it.
+ * @returns the summary, titled from the catalog when only the catalog has a title.
+ */
+function withCatalogTitle(summary: SessionSummary, entry: SharedSession | undefined): SessionSummary {
+  if (entry?.title === undefined || summary.blank || summary.projections?.values.title !== undefined) return summary
+  const projections: SessionProjectionHints = summary.projections === undefined
+    ? { asOfSeq: entry.next - 1, values: { title: entry.title } }
+    : { ...summary.projections, values: { ...summary.projections.values, title: entry.title } as SessionProjectionValues }
+  return { ...summary, projections }
 }
