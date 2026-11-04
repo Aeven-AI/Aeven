@@ -63,6 +63,35 @@ function providePersistence(ctx: Context, persistence: Record<string, unknown>):
 }
 
 describe('sessions.list cold merge', () => {
+  it('uses an account catalog title before attempting cold log recovery', async () => {
+    const ctx = new Context()
+    try {
+      await ctx.plugin(SessionStore)
+      const meta = header('catalog-titled', 100, { owner: 'account' })
+      const readFrom = vi.fn(() => Promise.reject(new Error('body must not be read')))
+      providePersistence(ctx, { list: () => Promise.resolve([meta]), readFrom })
+      ctx.provide('identityUsers', {
+        actingUser: () => ({ id: 'account' }),
+        mayAccess: (owner: string, caller: { id: string }) => owner === caller.id,
+      } as never)
+      ctx.provide('sessionHandoff', {
+        catalog: () => [{ header: meta, next: 10, updatedAt: 100, title: 'Already shared' }],
+        runnerOf: () => undefined,
+      } as never)
+      ctx.provide('sessionProjectionCache', { cachedSnapshot: () => undefined } as never)
+      const remote = createSessionTestRemote(ctx, {
+        defaultModelSelection: () => ({ provider: 'p', model: 'm' }), cwd: '/tmp',
+      })
+
+      expect(await remote.list({})).toMatchObject({ ok: true, value: { items: [{
+        sessionId: meta.id, projections: { values: { title: 'Already shared' } },
+      }] } })
+      expect(readFrom).not.toHaveBeenCalled()
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
+
   it('serves cold rows from cached projections without reading a body', async () => {
     // Listing is a cache-first read: blankness and title come from the durable
     // projection cache, so a hit costs no body read and listing latency stays

@@ -244,13 +244,13 @@ export class ApiSessionList {
       })
     }
     for (const entry of cold) items.push(this.summarizeCold(entry))
-    await this.recoverMissingTitles(items, cold, signal)
     if (caller !== undefined) {
       const catalog = new Map((this.ctx.get('sessionHandoff')?.catalog(caller.id) ?? []).map(entry => [entry.header.id, entry]))
       for (const [index, item] of items.entries()) items[index] = withCatalogTitle(item, catalog.get(item.sessionId))
       const present = new Set(items.map(item => item.sessionId))
       for (const summary of this.sharedFor(caller.id)) if (!present.has(summary.sessionId)) items.push(summary)
     }
+    await this.recoverMissingTitles(items, cold, signal)
     items.sort((left, right) => right.updatedAt - left.updatedAt)
     return items
   }
