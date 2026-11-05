@@ -38,7 +38,8 @@
     "@aeven/attachment": "workspace:^",
     "@aeven/workspace": "workspace:^",
     "@aeven/session-handoff": "workspace:^",
-    "@aeven/agent": "workspace:^"
+    "@aeven/agent": "workspace:^",
+    "@aeven/system-prompt": "workspace:^"
   },
   "devDependencies": {
     "@aeven/session": "workspace:^",
@@ -48,10 +49,14 @@
     "@aeven/attachment": "workspace:^",
     "@aeven/workspace": "workspace:^",
     "@aeven/session-handoff": "workspace:^",
-    "@aeven/agent": "workspace:^"
+    "@aeven/agent": "workspace:^",
+    "@aeven/system-prompt": "workspace:^"
   },
   "peerDependenciesMeta": {
     "@aeven/workspace": {
+      "optional": true
+    },
+    "@aeven/system-prompt": {
       "optional": true
     }
   }

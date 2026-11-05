@@ -154,6 +154,8 @@ export interface SessionSyncTuning {
   inputGraceMs: number
   /** How long a cancel, queue change, or answer waits for a running turn before it is discarded. */
   inputExpiryMs: number
+  /** How long a read of an attachment a synced conversation cites waits for another device to publish it. */
+  attachmentWaitMs: number
 }
 
 const compress = promisify(brotliCompress)
@@ -619,9 +621,29 @@ export class SessionMirror {
     const store = this.attachments
     if (store === undefined || this.docs === undefined) return false
     if (await store.hasObject(AttachmentId(id))) return true
-    if (!this.published().has(id)) return false
+    // A conversation's events can arrive before the index names an attachment they cite; the read waits for it.
+    if (!this.published().has(id) && !await this.publication(id)) return false
     await this.downloadAttachment(id)
     return true
+  }
+
+  /**
+   * Wait for the index to name an attachment as published.
+   * @param id - the attachment's content address.
+   * @returns whether it was published within {@link SessionSyncTuning.attachmentWaitMs}.
+   */
+  private publication(id: string): Promise<boolean> {
+    const published = this.published()
+    return new Promise<boolean>((resolve) => {
+      const settle = (named: boolean): void => {
+        clearTimeout(timer)
+        published.unobserve(seen)
+        resolve(named)
+      }
+      const seen = (): void => { if (published.has(id)) settle(true) }
+      const timer = setTimeout(() => { settle(false) }, this.tuning.attachmentWaitMs)
+      published.observe(seen)
+    })
   }
 
   /** Opaque read of {@link closed}: control flow cannot narrow it across awaits. */
@@ -755,6 +777,22 @@ export class SessionMirror {
    */
   shared(sessionId: SessionId): boolean {
     return this.docs?.index.doc.getMap<IndexEntry>('sessions').has(sessionId) ?? false
+  }
+
+  /**
+   * Tell the model which of the account's devices runs this turn of a shared conversation, since its earlier turns
+   * may have run on another device whose file paths do not exist here.
+   * @param sessionId - the session.
+   * @returns the runtime-context sentence, or empty for a conversation only this device holds.
+   */
+  deviceContext(sessionId: SessionId): string {
+    const docs = this.docs
+    const me = this.device()
+    if (docs === undefined || me === undefined || !this.shared(sessionId)) return ''
+    const name = docs.names.doc.getMap<{ name: string }>('names').get(me)?.name
+    const system = process.platform === 'darwin' ? 'macOS' : process.platform === 'win32' ? 'Windows' : process.platform === 'linux' ? 'Linux' : process.platform
+    const device = name === undefined || name === '' ? `a ${system} device` : `"${name}" (${system})`
+    return `This conversation is shared across the user's devices, and this turn runs on ${device}. Earlier turns may have run on another device: file paths they used may not exist on this one.`
   }
 
   /**

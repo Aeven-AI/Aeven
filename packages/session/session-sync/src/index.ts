@@ -11,6 +11,7 @@ import type {} from '@aeven/agent'
 import type {} from '@aeven/session-persistence'
 import type {} from '@aeven/attachment'
 import type {} from '@aeven/workspace'
+import type {} from '@aeven/system-prompt'
 import type { SessionId } from '@aeven/session'
 import { SessionHandoff, type SessionClaim, type SessionHandoffInput, type SessionRunner, type SharedSession } from '@aeven/session-handoff'
 import { SessionMirror, type SessionSyncTuning } from './mirror.ts'
@@ -35,6 +36,7 @@ export default class SessionSync extends SessionHandoff {
     runnerLease: z.object({ ttlMs: z.natural().min(1_000).default(30_000), renewMs: z.natural().min(1).default(10_000) }),
     inputGraceMs: z.natural().min(100).default(3_000),
     inputExpiryMs: z.natural().min(1_000).default(60_000),
+    attachmentWaitMs: z.natural().default(30_000),
   })
 
   private readonly mirrors = new Map<string, SessionMirror>()
@@ -83,6 +85,18 @@ export default class SessionSync extends SessionHandoff {
       this.mirrors.delete(owner)
       void stale.dispose().then(() => { this.track(owner) }, (error: unknown) => {
         ctx.logger.warn(`session sync: stopping for an account failed: ${String(error)}`)
+      })
+    })
+    // A shared conversation's turns can run on any of the account's devices; the model learns which one runs this turn.
+    ctx.inject(['systemPrompt'], (scope) => {
+      scope.systemPrompt.context({
+        name: 'session-sync:device',
+        order: scope.systemPrompt.getContextOrder('DEVICE'),
+        text: ({ agent }) => {
+          const owner = agent?.session.header.owner
+          const mirror = owner === undefined ? undefined : this.mirrors.get(owner)
+          return agent === undefined || mirror === undefined ? '' : mirror.deviceContext(agent.id)
+        },
       })
     })
     ctx.effect(() => async () => {

@@ -159,6 +159,7 @@ const SECTION_ORDERS = {
 export type PromptSectionOrderName = keyof typeof SECTION_ORDERS
 
 const CONTEXT_ORDERS = {
+  DEVICE: 100,
   WORKING_DIRECTORY: 105,
   WORKTREES: 106,
   SANDBOX_POLICY: 110,
