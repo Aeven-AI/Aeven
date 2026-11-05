@@ -31,7 +31,7 @@ export interface Config {
   timeoutMs: number
 }
 
-export const Config: z<Config> = z.object({
+export const Config = z.object({
   providerId: z.string().default('aeven-cloud'),
   apiUrl: z.string().required(),
   apiKeyEnv: z.string().role('credential-ref').default('AEVEN_TOKEN'),

@@ -250,6 +250,10 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/session/session-sync': { kind: 'none', reason: 'imported sessions are stored as they were logged and never replayed into a live model request' },
   'packages/session/session-handoff': { kind: 'none', reason: 'a forwarded prompt is stored as the user message the writing device logs; the handoff renders nothing to a model request' },
   'packages/settings/settings-sync': { kind: 'indirect', reason: 'a synced account namespace changes a later request exactly as a local settings edit does; this package registers no prompt, schema, or result of its own' },
+  'packages/bundle/hosted-app': { kind: 'none', reason: 'a row patch for one deployment: it removes capabilities and narrows account reach, and registers no prompt, schema, or result of its own' },
+  'packages/client/ui-desktop-handoff': { kind: 'none', reason: 'the dialog explains where a capability lives on the reader\'s own computer and registers nothing model-facing' },
+  'packages/client/ui-workspace-name': { kind: 'none', reason: 'the dialog collects a Workspace title and registers nothing model-facing' },
+  'packages/speech/speech-to-text-aeven': { kind: 'indirect', reason: 'a transcript reaches a request only through the consumer that puts it in its own message or prompt' },
 }
 
 interface Failure {

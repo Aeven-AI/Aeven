@@ -249,15 +249,21 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Owns the default model selection independently of any Host or transport. The composition entry remains usable without a settings provider; when one is mounted, its user layer is read live.',
     methods: [
       {
-        signature: 'currentSelection(): ModelSelection',
+        signature: 'async prepare(owner: string | undefined): Promise<void>',
+        description: 'Read one account\'s own default so currentSelection answers for it. Without account sections, or for no account, there is nothing to read.',
+        parameters: [{ name: 'owner', description: 'the account, when one is known.' }],
+        returns: 'resolution once the account\'s default is in place.',
+      },
+      {
+        signature: 'currentSelection(owner?: string): ModelSelection',
         description: 'Read the current default model selection.',
-        parameters: [],
+        parameters: [{ name: 'owner', description: 'the account the selection is for; its own default wins once {@link prepare} read it.' }],
         returns: 'a detached provider, model, and optional reasoning selection.',
       },
       {
-        signature: 'async saveSelection(next: ModelSelection): Promise<void>',
-        description: 'Save the complete default model selection. A deployment without a settings provider keeps its composition entry.',
-        parameters: [{ name: 'next', description: 'resolved selection accepted by an entry point.' }],
+        signature: 'async saveSelection(next: ModelSelection, owner?: string): Promise<void>',
+        description: 'Save the complete default model selection. A deployment without a settings provider keeps its composition entry. On a settings provider that keeps account sections, an account\'s choice is stored as that account\'s own.',
+        parameters: [{ name: 'next', description: 'resolved selection accepted by an entry point.' }, { name: 'owner', description: 'the account choosing, when one is signed in.' }],
         returns: 'fulfillment after the optional settings write settles.',
       },
     ],
@@ -2435,7 +2441,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the normalized selection installed for the Session.',
       },
       {
-        signature: '@Remote(\'modelCatalog\') modelCatalog(): Promise<ModelCatalog>',
+        signature: '@Remote(\'modelCatalog\') async modelCatalog(): Promise<ModelCatalog>',
         description: 'Describe every currently routable model for Host-generation selectors.',
         parameters: [],
         returns: 'provider-grouped models, the deployment default, and isolated provider failures.',
@@ -3135,11 +3141,35 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'one descriptor per registered namespace, in registration order.',
       },
       {
+        signature: 'async describeFor(owner: string | undefined, options?: SettingsDescribeOptions): Promise<SettingsDescriptor[]>',
+        description: 'Describe every namespace as `owner` sees it: an `account`-reach namespace resolves with the account\'s own section over the document\'s, and reports that section as `user`. Without account sections, or without an owner, it is describe.',
+        parameters: [{ name: 'owner', description: 'the signed-in account, when one is acting.' }, { name: 'options', description: 'redaction for wire surfaces.' }],
+        returns: 'one descriptor per registered namespace.',
+      },
+      {
+        signature: 'async valueFor<const Namespace extends string>( ns: Namespace & SettingsNamespaceInput<Namespace>, owner: string | undefined, ): Promise<unknown>',
+        description: 'Resolve one namespace as `owner` sees it; see describeFor.',
+        parameters: [{ name: 'ns', description: 'the namespace.' }, { name: 'owner', description: 'the account, when one is known.' }],
+        returns: 'the resolved value, or undefined for an unregistered namespace.',
+      },
+      {
+        signature: 'async accountSectionOf<const Namespace extends string>( owner: string, ns: Namespace & SettingsNamespaceInput<Namespace>, ): Promise<Record<string, unknown> | undefined>',
+        description: 'Read one account\'s own section of an `account`-reach namespace.',
+        parameters: [{ name: 'owner', description: 'the account.' }, { name: 'ns', description: 'the namespace.' }],
+        returns: 'the stored section, or undefined when the account stored none.',
+      },
+      {
+        signature: 'writeFor<const Namespace extends string>( owner: string, ns: Namespace & SettingsNamespaceInput<Namespace>, mode: \'merge\' | \'replace\' | \'mutate\', input: object, expectedRevision?: number, ): Promise<void>',
+        description: 'Write one account\'s own section of an `account`-reach namespace, the account-scoped counterpart of update, replace, and mutate. Each write emits `settings/document-updated` with the account\'s revision and `settings/account-updated` with the account.',
+        parameters: [{ name: 'owner', description: 'the account.' }, { name: 'ns', description: 'the namespace; it must be registered with `reach: \'account\'`.' }, { name: 'mode', description: 'merge a patch, replace the section, or apply path ops.' }, { name: 'input', description: 'the patch, the section, or the ops.' }, { name: 'expectedRevision', description: 'the account revision the caller read; undefined writes unconditionally.' }],
+        returns: 'resolution after durability.',
+        throws: ['when the provider keeps no account sections, the namespace is not account-reach, or the revision moved.'],
+      },
+      {
         signature: 'get<const Namespace extends string>(ns: Namespace & SettingsNamespaceInput<Namespace>): unknown',
-        description: 'Read one registered namespace\'s resolved value.',
-        parameters: [{ name: 'ns', description: 'the namespace to read.' }],
-        returns: 'the resolved value, or `undefined` while unregistered.',
-        throws: ['{TypeError} when `ns` is not a lowercase hyphenated identifier.'],
+        description: 'Read one registered namespace\'s resolved value for this device, ignoring any account\'s own section.',
+        parameters: [{ name: 'ns', description: 'the namespace.' }],
+        returns: 'the resolved value, or undefined for an unregistered namespace.',
       },
       {
         signature: 'async update<const Namespace extends string>( ns: Namespace & SettingsNamespaceInput<Namespace>, patch: object, expectedRevision?: number, ): Promise<void>',
@@ -3167,10 +3197,10 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Host service backing the generated `ctx.remote.settings` namespace. Every remote read uses `redactSecrets: true`, so a `role(\'secret\')` field cannot ride a response. Writes expose the settings service\'s merge, replacement, and path-addressed operations, and classify every provider refusal as `settings/conflict` or `settings/rejected` with the service\'s message.',
     methods: [
       {
-        signature: '@Remote describe(): SettingsDescribeValue',
-        description: 'Describe every registered namespace for a configuration page: redacted layered values plus the serialized schema the page renders its form from.',
+        signature: '@Remote async describe(): Promise<SettingsDescribeValue>',
+        description: 'Describe every registered namespace for a configuration page: redacted layered values plus the serialized schema the page renders its form from. On a provider that keeps account sections, `account`-reach namespaces resolve for the acting user and report that user\'s own section.',
         parameters: [],
-        returns: 'provider writability, local-document presence, and one view per namespace.',
+        returns: 'writability of the Host\'s document, local-document presence, and one view per namespace.',
         throws: ['RemoteError when no settings provider is mounted.'],
       },
       {
@@ -4575,8 +4605,8 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     methods: [
       {
         signature: '@Remote(\'create\') create(request: WorkspaceCreateRequest): Promise<WorkspaceCreateValue>',
-        description: 'Create or idempotently resolve one Workspace over an existing directory.',
-        parameters: [{ name: 'request', description: 'directory path to register.' }],
+        description: 'Create or idempotently resolve one Workspace over an existing directory, or create a Workspace with no directory under a title.',
+        parameters: [{ name: 'request', description: 'directory path to register, or title of a pathless Workspace.' }],
         returns: 'the Workspace and whether this call created it.',
       },
       {
@@ -4700,6 +4730,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Create or reuse a workspace for an existing directory. The fully qualified path is canonicalized through `fs.realpath`; a relative, nonexistent, or non-directory path rejects. Repeated calls for the same canonical path and owner return the existing entity without changing its title; another account registering the same directory gets a workspace of its own. A newly created workspace lands directly below the built-in one, which keeps the head of the order — and so the first screen — where the reader left it instead of handing it to whichever registration was created last. Different canonical paths may share a display title.',
         parameters: [{ name: 'path', description: 'Existing directory to own, in a fully qualified path spelling.' }, { name: 'title', description: 'Display title used only when a new record is created.' }, { name: 'owner', description: 'Account id of the signed-in user registering the directory; absent when nobody is signed in.' }],
         returns: 'the existing or newly durable workspace.',
+      },
+      {
+        signature: 'async createVirtual(title: string, owner?: string): Promise<Workspace>',
+        description: 'Create one workspace that has no directory, owned by the account that asks for it. Its sessions record no cwd, so the registration travels between devices unchanged; a device that later wants a folder for it binds one. Every call creates a new registration: titles may repeat. The new workspace lands directly below the built-in one, like create.',
+        parameters: [{ name: 'title', description: 'display title of the new workspace.' }, { name: 'owner', description: 'account id of the signed-in user creating it; absent when nobody is signed in.' }],
+        returns: 'the newly durable workspace.',
       },
       {
         signature: 'get(id: WorkspaceId): Workspace | undefined',
@@ -5348,6 +5384,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     summary: 'Awaited parallel settlement before a process ends its ownership of a session, such as a one-shot run about to exit: listeners finish background work derived from the session before their promise settles.',
     description: 'Awaited parallel settlement before a process ends its ownership of a session, such as a one-shot run about to exit: listeners finish background work derived from the session before their promise settles. Long-running hosts need not dispatch it. Scope-filtered dispatch (`@aeven/scope`) reuses the session\'s owner scope.',
     parameters: [{ name: 'session', description: 'the session whose owner is about to end it.' }],
+  },
+  {
+    name: 'settings/account-updated',
+    mode: 'emit',
+    signature: '\'settings/account-updated\'(owner: string, ns: SettingsNamespace): void',
+    summary: 'One account\'s own section of an `account`-reach namespace changed on a provider that keeps account sections.',
+    description: 'One account\'s own section of an `account`-reach namespace changed on a provider that keeps account sections. Account sync publishes it to the account\'s other devices.',
+    parameters: [{ name: 'owner', description: 'the account.' }, { name: 'ns', description: 'the namespace.' }],
   },
   {
     name: 'settings/document-updated',
@@ -9951,7 +9995,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'WorkspaceCreateRequest',
-    declaration: 'export interface WorkspaceCreateRequest {\n    readonly path: string;\n}',
+    declaration: 'export interface WorkspaceCreateRequest {\n    readonly path?: string;\n    readonly title?: string;\n}',
   },
   {
     name: 'WorkspaceCreateValue',

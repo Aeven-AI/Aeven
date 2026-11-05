@@ -246,8 +246,9 @@ Host service backing the generated `ctx.remote.workspace` namespace.
 
 ```ts cordis-catalog
 /**
- * Create or idempotently resolve one Workspace over an existing directory.
- * @param request - directory path to register.
+ * Create or idempotently resolve one Workspace over an existing directory, or
+ * create a Workspace with no directory under a title.
+ * @param request - directory path to register, or title of a pathless Workspace.
  * @returns the Workspace and whether this call created it.
  */
 @Remote('create') create(request: WorkspaceCreateRequest): Promise<WorkspaceCreateValue>
@@ -418,6 +419,18 @@ Membership is re-derived rather than trusted because the durable record is not s
  * @returns the existing or newly durable workspace.
  */
 async create(path: string, title?: string, owner?: string): Promise<Workspace>
+
+/**
+ * Create one workspace that has no directory, owned by the account that asks
+ * for it. Its sessions record no cwd, so the registration travels between
+ * devices unchanged; a device that later wants a folder for it binds one.
+ * Every call creates a new registration: titles may repeat. The new
+ * workspace lands directly below the built-in one, like {@link create}.
+ * @param title - display title of the new workspace.
+ * @param owner - account id of the signed-in user creating it; absent when nobody is signed in.
+ * @returns the newly durable workspace.
+ */
+async createVirtual(title: string, owner?: string): Promise<Workspace>
 
 /**
  * Look up a workspace by id.

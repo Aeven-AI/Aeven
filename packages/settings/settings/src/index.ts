@@ -733,6 +733,11 @@ export abstract class SettingsProvider extends Service {
     }
   }
 
+  /**
+   * Read one registered namespace's resolved value for this device, ignoring any account's own section.
+   * @param ns - the namespace.
+   * @returns the resolved value, or undefined for an unregistered namespace.
+   */
   get<const Namespace extends string>(ns: Namespace & SettingsNamespaceInput<Namespace>): unknown {
     return this.registrations.get(parseSettingsNamespace(ns))?.resolved
   }

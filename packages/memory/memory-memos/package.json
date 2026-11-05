@@ -19,12 +19,16 @@
       "default": "./lib/index.js"
     },
     "./src/*": "./src/*",
+    "./worker": {
+      "types": "./lib/types/worker.d.ts",
+      "default": "./lib/worker.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
     "lib/index.js",
-    "lib/types/**/*.d.ts",
-    "lib/embedding-worker.js"
+    "lib/worker.js",
+    "lib/types/**/*.d.ts"
   ],
   "license": "Apache-2.0",
   "dependencies": {

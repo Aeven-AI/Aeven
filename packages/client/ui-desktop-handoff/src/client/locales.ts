@@ -17,6 +17,7 @@ export const zh = {
   'notOpened': '没有打开？请先安装 Aeven 桌面版。',
 }
 
+/** Every copy key the desktop-handoff dialog reads from its dictionaries. */
 export type DesktopHandoffKey = keyof typeof zh
 
 /** English dictionary. */

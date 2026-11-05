@@ -1,6 +1,6 @@
 import { defineConfig } from 'tsdown'
 
-export default defineConfig(['index', 'embedding-worker'].map(name => ({
+export default defineConfig(['index', 'worker'].map(name => ({
   entry: [`lib/types/${name}.js`],
   outDir: 'lib',
   format: ['esm' as const],

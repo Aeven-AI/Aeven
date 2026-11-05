@@ -727,7 +727,7 @@ async inspect( sessionId: SessionId, signal?: AbortSignal, ): Promise<SessionIns
  * Describe every currently routable model for Host-generation selectors.
  * @returns provider-grouped models, the deployment default, and isolated provider failures.
  */
-@Remote('modelCatalog') modelCatalog(): Promise<ModelCatalog>
+@Remote('modelCatalog') async modelCatalog(): Promise<ModelCatalog>
 
 /**
  * Describe every image model this deployment can generate with.

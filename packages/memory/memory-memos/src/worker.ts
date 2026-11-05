@@ -20,7 +20,7 @@ port.on('message', (message: unknown) => {
     config: { provider: 'local', model, device, dtype, dimensions: 0, openRouter: false, cache: { enabled: false, maxItems: 0 } },
     log,
   }).then(
-    vectors => { port.postMessage({ id, vectors }) },
+    (vectors) => { port.postMessage({ id, vectors }) },
     (error: unknown) => { port.postMessage({ id, error: error instanceof Error ? error.message : String(error) }) },
   )
 })

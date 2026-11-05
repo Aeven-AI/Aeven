@@ -1,0 +1,61 @@
+---
+description: "The avn hosted bundle: the web patch layer narrowed for a Host that Aeven operates for many accounts, which runs no command or file operation on its own machine and keeps no setting one account could change for another."
+kind: "package-bundle"
+---
+
+# @aeven/hosted-app
+
+English | [中文](README.zh.md)
+
+## Summary
+
+`@aeven/hosted-app` is the bundle layer for Aeven Web served to many people from one Host. It applies after `@aeven/web-app` and states two rules as rows: nothing runs on the Host's machine for a session, and nothing one account changes applies to another. Shell, filesystem, terminal, browser, device, computer-use, code runtime, workflow workers, code subagents, the skill catalog, and workspace folders are all off; web search and fetch, imagine, attachments, memory, and in-process subagent delegation stay. Account settings resolve per signed-in account, and the sync provider keeps an encrypted connection for every account signed in here.
+
+Boot it with `avn hosted`, which composes base, web, and this bundle on port 3085 unless `AVN_HOSTED_PORT` names another. `AVN_HOME` decides where the deployment keeps its state, `AVN_HOSTED_HOST` the address the server binds, and `AVN_HOSTED_TRUSTED_HOSTS` the public names a browser may reach it by; TLS, the public name, and request limits belong to the proxy in front.
+
+## Table of Contents
+
+- [Use this package](#use-this-package)
+- [Understand the implementation](#understand-the-implementation)
+- [Further Exploration](#further-exploration)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+
+-----
+
+<a id="use-this-package"></a>
+## Use this package
+
+`avn hosted` is the only supported launch. A deployment sets `AVN_API_URL` and `AEVEN_SYNC_URL` to the API and relay it serves, names its public hosts in `AVN_HOSTED_TRUSTED_HOSTS`, and points its proxy at the bound address with WebSocket upgrade for `/sync` and the client socket. Sessions, workspaces, memory, personalization, automations, connectors, mail, and sync key by the signed-in account; settings written through the browser are refused, because the settings document belongs to the Host.
+
+## Understand the implementation
+
+The bundle is one `cordis.patch.yml` applied over the web layer. A patch replaces the targeted row's whole `config`, so every row here restates every key it owns, and the preset tool rows are disabled in the same file so no preset re-enables them. `src/limits.ts` admits model streams per account and in total, queueing a request behind that account's own queue and refusing one that would exceed either bound.
+
+## Further Exploration
+
+- [Agent Note: Hosted Aeven Web for many accounts](../../../.agents/notes/implemented/feature/2026-11-05-hosted-web-host.md)
+- [Web app bundle](../web-app/README.md)
+
+## Model Experience
+
+None, as the bundle adds no prompt section and no tool of its own: it removes the tools that would reach the Host's machine, so a hosted session's model sees the conversation, web, memory, and attachment tools only.
+
+#### KV Cache effect
+
+None of its own; requests keep whatever caching the remaining tools and the system prompt already produce.
+
+## Known Limitations and Deferred Work
+
+<a id="known-limitations-and-deferred-work"></a>
+
+- **No quotas or rate limits for public sign-up** — request admission bounds concurrent streams per account and in total; it does not gate account creation, spend, or request frequency.
+- **Account data is not encrypted at rest** — each account's sessions, memory, and sync database live in its own directory under the deployment's home, readable by whoever operates the Host.
+- **No code execution, at all** — a hosted session cannot run a command, read a file, or open a browser, including for work the model could otherwise do itself.
+- **Images are served per session** — the deployment refuses fingerprint-only reads, so hosted images carry no cache-forever URL.
+- **Memory work is bounded, not isolated** — embeddings run in the Host process, so a large catch-up for one account still costs the others latency.
+
+
+### Dev Note
+
+No invariant companion is published: the bundle owns no independent runtime relationship, only row configuration that its own composition and tests observe.

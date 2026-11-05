@@ -2,6 +2,12 @@
 import { Worker } from 'node:worker_threads'
 import type { EmbedRole, EmbeddingProvider, ProviderCallCtx } from '@deepseek-ai/memos-local-plugin/core/embedding/types.js'
 
+/** The rejection reason a cancelled embedding request settles with. */
+function cancelled(reason: unknown): Error {
+  if (reason instanceof Error) return reason
+  return new Error(typeof reason === 'string' ? reason : 'Embedding request cancelled')
+}
+
 interface Job {
   id: number
   owner: string
@@ -44,7 +50,7 @@ export class HostedEmbeddings {
 
   private embed(owner: string, texts: string[], role: EmbedRole, context: ProviderCallCtx): Promise<number[][]> {
     if (this.failure !== undefined) return Promise.reject(this.failure)
-    if (context.signal?.aborted === true) return Promise.reject(context.signal.reason)
+    if (context.signal?.aborted === true) return Promise.reject(cancelled(context.signal.reason))
     if (this.count >= this.limits.total || (this.counts.get(owner) ?? 0) >= this.limits.perAccount) {
       return Promise.reject(new Error('Hosted embedding queue is full'))
     }
@@ -77,14 +83,15 @@ export class HostedEmbeddings {
     const next = this.queues.entries().next().value
     if (next === undefined) return
     const [owner, queue] = next
-    const job = queue.shift()!
+    const job = queue.shift()
+    if (job === undefined) return
     this.queues.delete(owner)
     if (queue.length > 0) this.queues.set(owner, queue)
     this.active = job
     try {
       if (this.worker === undefined) {
         const source = new URL(import.meta.url).pathname.endsWith('.ts')
-        this.worker = new Worker(new URL(source ? './embedding-worker.ts' : './embedding-worker.js', import.meta.url))
+        this.worker = new Worker(new URL(source ? './worker.ts' : './worker.js', import.meta.url))
         this.worker.on('message', (message: unknown) => { this.complete(message) })
         this.worker.on('error', (error) => { this.fail(error) })
         this.worker.on('exit', (code) => { this.fail(new Error(`Hosted embedding worker exited (${code})`)) })
@@ -98,15 +105,15 @@ export class HostedEmbeddings {
 
   private complete(message: unknown): void {
     const job = this.active
-    if (job === undefined) return this.fail(new Error('Unexpected embedding response'))
-    if (typeof message !== 'object' || message === null) return this.fail(new Error('Invalid embedding response'))
+    if (job === undefined) { this.fail(new Error('Unexpected embedding response')); return }
+    if (typeof message !== 'object' || message === null) { this.fail(new Error('Invalid embedding response')); return }
     const value = message as Record<string, unknown>
-    if (value.id !== job.id) return this.fail(new Error('Embedding response identity mismatch'))
+    if (value.id !== job.id) { this.fail(new Error('Embedding response identity mismatch')); return }
     if (typeof value.error === 'string') job.reject(new Error(value.error))
     else if (Array.isArray(value.vectors) && value.vectors.length === job.texts.length
       && value.vectors.every((row: unknown) => Array.isArray(row) && row.every((number: unknown) => typeof number === 'number' && Number.isFinite(number)))) {
       job.resolve(value.vectors as number[][])
-    } else return this.fail(new Error('Invalid embedding vectors'))
+    } else { this.fail(new Error('Invalid embedding vectors')); return }
     this.active = undefined
     this.release(job)
     this.pump()

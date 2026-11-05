@@ -19,7 +19,10 @@ export interface HandoffStore {
   hide: () => void
 }
 
-/** @returns a closed dialog store. */
+/**
+ * Create the dialog's store, closed until a surface asks for it.
+ * @returns a closed dialog store.
+ */
 export function createHandoffStore(): HandoffStore {
   const state = createSnapshotStore<HandoffState>({ open: false, reason: 'files' })
   return {

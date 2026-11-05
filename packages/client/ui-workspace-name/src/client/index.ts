@@ -25,42 +25,35 @@ export const inject = ['slots', 'locale']
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => {
-    const disposers: (() => void)[] = []
-    const dictionaries: [locale: string, dict: Record<string, string>][] = [
-      ['en', {
-        'name.title': 'New workspace',
-        'name.hint': 'A workspace keeps related conversations, and what Aeven learns about the project, together.',
-        'name.label': 'Workspace name',
-        'name.placeholder': 'Workspace name',
-        'name.create': 'Create',
-        'name.cancel': 'Cancel',
-      }],
-      ['zh', {
-        'name.title': '新建工作区',
-        'name.hint': '工作区把相关的对话以及 Aeven 对该项目的了解放在一起。',
-        'name.label': '工作区名称',
-        'name.placeholder': '工作区名称',
-        'name.create': '创建',
-        'name.cancel': '取消',
-      }],
-      ['es', {
-        'name.title': 'Nuevo espacio de trabajo',
-        'name.hint': 'Un espacio de trabajo reúne conversaciones relacionadas y lo que Aeven aprende del proyecto.',
-        'name.label': 'Nombre del espacio de trabajo',
-        'name.placeholder': 'Nombre del espacio de trabajo',
-        'name.create': 'Crear',
-        'name.cancel': 'Cancelar',
-      }],
-    ]
-    try {
-      for (const [locale, dict] of dictionaries) disposers.push(ctx.locale.register(LOCALE_NS, locale, dict))
-    } catch (error) {
-      for (const dispose of disposers.reverse()) dispose()
-      throw error
-    }
-    return () => { for (const dispose of disposers) dispose() }
-  }, 'workspace-name: dialog dictionaries')
+  const dictionaries: [locale: string, dict: Record<string, string>][] = [
+    ['en', {
+      'name.title': 'New workspace',
+      'name.hint': 'A workspace keeps related conversations, and what Aeven learns about the project, together.',
+      'name.label': 'Workspace name',
+      'name.placeholder': 'Workspace name',
+      'name.create': 'Create',
+      'name.cancel': 'Cancel',
+    }],
+    ['zh', {
+      'name.title': '新建工作区',
+      'name.hint': '工作区把相关的对话以及 Aeven 对该项目的了解放在一起。',
+      'name.label': '工作区名称',
+      'name.placeholder': '工作区名称',
+      'name.create': '创建',
+      'name.cancel': '取消',
+    }],
+    ['es', {
+      'name.title': 'Nuevo espacio de trabajo',
+      'name.hint': 'Un espacio de trabajo reúne conversaciones relacionadas y lo que Aeven aprende del proyecto.',
+      'name.label': 'Nombre del espacio de trabajo',
+      'name.placeholder': 'Nombre del espacio de trabajo',
+      'name.create': 'Crear',
+      'name.cancel': 'Cancelar',
+    }],
+  ]
+  for (const [locale, dict] of dictionaries) {
+    ctx.effect(() => ctx.locale.register(LOCALE_NS, locale, dict), `workspace-name: ${locale} dictionary`)
+  }
 
   const injected = (): NameFlowInjected => ({ t: ctx.locale.bind(LOCALE_NS) })
   ctx.slots.inject('conversation.hero.workspace.directoryFlow', () =>

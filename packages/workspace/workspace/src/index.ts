@@ -853,8 +853,8 @@ export class WorkspaceRegistry extends Service {
    * Store another device's workspaces of one account.
    *
    * A workspace this device opened a directory for keeps its path and kind. One it only received is `virtual`
-   * when the device that created it gave it no directory, and `remote`, waiting for a folder here, otherwise. A later title wins, and a removal drops
-   * this device's record without touching a directory or a session log.
+   * when the device that created it gave it no directory, and `remote`, waiting for a folder here, otherwise.
+   * A later title wins, and a removal drops this device's record without touching a directory or a session log.
    * @param owner - the account the workspaces belong to.
    * @param projection - its workspaces and their order as another device published them.
    */
@@ -882,7 +882,8 @@ export class WorkspaceRegistry extends Service {
             continue
           }
           const titled = record.titleChangedAt ?? record.createdAt
-          const retitled = entry.title !== undefined && entry.updatedAt !== undefined && entry.updatedAt > titled && entry.title !== record.title
+          const retitled = entry.title !== undefined && entry.updatedAt !== undefined
+            && entry.updatedAt > titled && entry.title !== record.title
           // A workspace received before its device said it has no directory waits for none.
           const usable = record.kind === 'remote' && entry.pathless === true
           if (retitled || usable) {

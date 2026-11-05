@@ -8,10 +8,20 @@ interface Waiting {
 
 /** Deployment limits for active streams and their waiting requests. */
 export interface RequestLimits {
+  /** Streams one account may hold at once; a request over it waits behind that account's own queue. */
   readonly perAccount: number
+  /** Streams the whole Host may hold at once, across every account and operator work. */
   readonly total: number
+  /** Waiting requests one account may have; a further request is refused rather than queued. */
   readonly queuedPerAccount: number
+  /** Waiting requests the Host may hold across every account; a further request is refused rather than queued. */
   readonly queuedTotal: number
+}
+
+/** The rejection reason a request cancelled by its caller settles with. */
+function cancelled(reason: unknown): Error {
+  if (reason instanceof Error) return reason
+  return new Error(typeof reason === 'string' ? reason : 'Hosted request cancelled')
 }
 
 /** One deployment's account-aware request admission queue. */
@@ -33,7 +43,7 @@ export class AccountRequests {
    */
   acquire(owner: string | undefined, signal?: AbortSignal): Promise<() => void> {
     if (this.closed) return Promise.reject(new Error('Hosted request admission is shutting down'))
-    if (signal?.aborted === true) return Promise.reject(signal.reason)
+    if (signal?.aborted === true) return Promise.reject(cancelled(signal.reason))
     const available = this.running < this.limits.total && (this.active.get(owner) ?? 0) < this.limits.perAccount
     if (!available && (this.queued >= this.limits.queuedTotal || (this.waiting.get(owner)?.length ?? 0) >= this.limits.queuedPerAccount)) {
       return Promise.reject(new Error('Too many pending hosted requests; wait for an active request to finish'))
@@ -48,7 +58,7 @@ export class AccountRequests {
         if (queue.length === 0) this.waiting.delete(owner)
         this.queued--
         request.detach()
-        reject(signal?.reason)
+        reject(cancelled(signal?.reason))
         this.pump()
       }
       request.detach = () => { signal?.removeEventListener('abort', abort) }
@@ -67,7 +77,8 @@ export class AccountRequests {
       const next = [...this.waiting].find(([owner]) => (this.active.get(owner) ?? 0) < this.limits.perAccount)
       if (next === undefined) return
       const [owner, queue] = next
-      const request = queue.shift()!
+      const request = queue.shift()
+      if (request === undefined) continue
       this.waiting.delete(owner)
       if (queue.length > 0) this.waiting.set(owner, queue)
       this.queued--

@@ -340,18 +340,29 @@ Owns the default model selection independently of any Host or transport. The com
 
 ```ts cordis-catalog
 /**
+ * Read one account's own default so {@link currentSelection} answers for it. Without account sections, or for no
+ * account, there is nothing to read.
+ * @param owner - the account, when one is known.
+ * @returns resolution once the account's default is in place.
+ */
+async prepare(owner: string | undefined): Promise<void>
+
+/**
  * Read the current default model selection.
+ * @param owner - the account the selection is for; its own default wins once {@link prepare} read it.
  * @returns a detached provider, model, and optional reasoning selection.
  */
-currentSelection(): ModelSelection
+currentSelection(owner?: string): ModelSelection
 
 /**
  * Save the complete default model selection. A deployment without a settings
  * provider keeps its composition entry.
+ * On a settings provider that keeps account sections, an account's choice is stored as that account's own.
  * @param next - resolved selection accepted by an entry point.
+ * @param owner - the account choosing, when one is signed in.
  * @returns fulfillment after the optional settings write settles.
  */
-async saveSelection(next: ModelSelection): Promise<void>
+async saveSelection(next: ModelSelection, owner?: string): Promise<void>
 ```
 
 Source: [`packages/core/agent-default-model/src/index.ts`](../../packages/core/agent-default-model/src/index.ts)

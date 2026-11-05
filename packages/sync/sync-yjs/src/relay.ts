@@ -69,6 +69,7 @@ export interface RelayCredential {
   readonly token: string
 }
 
+/** What one relay connection reports back to the account that opened it. */
 export interface RelayHandlers {
   /**
    * A stored frame, in sequence order.
@@ -118,7 +119,13 @@ export class RelayConnection {
    * @param requestMs - longest a request may wait for its answer before the connection is closed.
    * @returns the open connection.
    */
-  static open(url: string, credential: RelayCredential, handlers: RelayHandlers, timeoutMs: number, requestMs: number): Promise<RelayConnection> {
+  static open(
+    url: string,
+    credential: RelayCredential,
+    handlers: RelayHandlers,
+    timeoutMs: number,
+    requestMs: number,
+  ): Promise<RelayConnection> {
     return new Promise((resolve, reject) => {
       const socket = new WebSocket(url, { headers: { authorization: `${credential.scheme} ${credential.token}` }, handshakeTimeout: timeoutMs })
       const fail = (error: Error): void => {
