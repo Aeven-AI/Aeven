@@ -8,6 +8,8 @@
 
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
+import { resolveAvnHome } from '@aeven/home-paths'
 import { loadLayeredEnv } from '@aeven/app-boot'
 import { parseAvnArgs } from './args.ts'
 
@@ -30,6 +32,11 @@ process.emitWarning = function (warning: string | Error, ...args: unknown[]): vo
 
 const version = readVersion()
 const invocation = parseAvnArgs(process.argv.slice(2), version)
+
+// A hosted Host owns separate account data and a separate Host lock from the desktop runtime.
+if (invocation.profile === 'hosted' && process.env.AVN_HOME === undefined) {
+  process.env.AVN_HOME = join(resolveAvnHome(), 'hosted')
+}
 
 switch (invocation.mode) {
   case 'profile': {

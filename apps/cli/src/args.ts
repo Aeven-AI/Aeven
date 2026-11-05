@@ -10,7 +10,7 @@
  * `avn --profile tui --resume abc` boots the tui profile with `--resume abc`,
  * and `avn --profile web -h` prints the web app's help, not this one's.
  *
- * `web` is a hardcoded alias for `--profile web`; `plugin` manages a profile's
+ * `web` and `hosted` alias their named profiles; `plugin` manages a profile's
  * plugin dependencies by forwarding to pnpm.
  * @module @aeven/cli/args
  */
@@ -64,6 +64,7 @@ const collect = (value: string, previous: string[] = []): string[] => [...previo
 const HELP_EXAMPLES = `
 Examples:
   avn --profile web                          boot the web profile (same as: avn web)
+  avn hosted                                boot hosted web on port 3085
   avn --profile headless "run the tests"     answer one task, print the result, and exit
   avn --profile tui --patch ./extra.yml      boot a custom profile with one extra overlay
   avn --profile tui --resume <session>       arguments after the launcher flags reach the app
@@ -153,20 +154,22 @@ export function parseAvnArgs(argv: readonly string[], version: string): AvnInvoc
     }
   }
 
-  const web = program.command('web').description('boot the web profile (alias of --profile web); the web app\'s own flags follow')
-  web
-    .helpOption(false)
-    .allowUnknownOption()
-    .passThroughOptions()
-    .enablePositionalOptions()
-    .argument('[args...]', 'arguments for the web app (see: avn web --help)')
-    .option('--patch <path>', 'extra patch-list overlay applied after the profile layer (repeatable)', collect)
-    .option('--dump-config', 'print the composed web-profile tree (with the user layer and any --patch) and exit')
-    .option('--dump-default-config', 'print the web profile\'s bundle layers (no user layer) and exit')
-    .action((args: string[], options: BootOptions) => {
-      rejectParentOptions('web')
-      resolved = resolveBoot(web, 'web', options, args)
-    })
+  for (const profile of ['web', 'hosted']) {
+    const command = program.command(profile).description(`boot the ${profile} profile (alias of --profile ${profile}); app flags follow`)
+    command
+      .helpOption(false)
+      .allowUnknownOption()
+      .passThroughOptions()
+      .enablePositionalOptions()
+      .argument('[args...]', `arguments for the app (see: avn ${profile} --help)`)
+      .option('--patch <path>', 'extra patch-list overlay applied after the profile layer (repeatable)', collect)
+      .option('--dump-config', `print the composed ${profile}-profile tree and exit`)
+      .option('--dump-default-config', `print the ${profile} profile's bundle layers and exit`)
+      .action((args: string[], options: BootOptions) => {
+        rejectParentOptions(profile)
+        resolved = resolveBoot(command, profile, options, args)
+      })
+  }
 
   const plugin = program.command('plugin').description('manage a profile\'s plugins by forwarding the remaining arguments to pnpm in the profile directory')
   plugin
