@@ -218,8 +218,8 @@
   bottom: 12px;
 }
 
-/* Headline cards: a square thumbnail with the headline and its source beside
-   it, one result per card, the way a news list reads. */
+/* Headline cards: a square thumbnail with the headline beside it, one result per
+   card, the way a news list reads. */
 .cards {
   display: flex;
   flex-direction: column;
@@ -265,14 +265,7 @@
   color: var(--dsw-alias-label-primary);
 }
 
-.cardSource {
-  margin: 0;
-  font-size: 0.75rem;
-  line-height: 1.875rem;
-  color: var(--dsw-alias-label-tertiary);
-}
-
-/* The opening of the story itself, under its headline and above the source. */
+/* The opening of the story itself, under its headline. */
 .cardSummary {
   margin: 0;
   overflow: hidden;
@@ -284,8 +277,8 @@
   color: var(--dsw-alias-label-secondary);
 }
 
-/* The card is the link to the story: the headline, its opening text and the
-   host all open the article, with no chrome of their own. */
+/* The card is the link to the story: the headline and its opening text open the
+   article, with no chrome of their own. */
 .cardBody {
   text-decoration: none;
   color: inherit;
