@@ -330,7 +330,10 @@ export class SessionMirror {
     }
     return this.own(sessionId, async () => {
       await this.starting
-      await this.releases.get(sessionId)
+      // The device another one took the session from disposes its own Agent, and that disposal waits for a turn
+      // running here. A turn that waited for the release would keep it open for good, so it starts nowhere
+      // instead; a rewrite asks its prompts again on the accepted history.
+      if (this.releases.has(sessionId)) return { claimed: false }
       const me = this.device()
       if (me === undefined || this.isClosed()) return { claimed: false }
       const entry = this.docs?.index.doc.getMap<IndexEntry>('sessions').get(sessionId)
