@@ -19,10 +19,15 @@
       "default": "./lib/index.js"
     },
     "./src/*": "./src/*",
+    "./worker": {
+      "types": "./lib/types/worker.d.ts",
+      "default": "./lib/worker.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
     "lib/index.js",
+    "lib/worker.js",
     "lib/types/**/*.d.ts"
   ],
   "license": "Apache-2.0",
@@ -41,7 +46,8 @@
     "@aeven/memory": "workspace:^",
     "@aeven/session": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
-    "@aeven/sync": "workspace:^"
+    "@aeven/sync": "workspace:^",
+    "@aeven/workspace": "workspace:^"
   },
   "devDependencies": {
     "@aeven/llm": "workspace:^",
@@ -49,6 +55,12 @@
     "@aeven/session": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@types/better-sqlite3": "^7.6.12",
-    "@aeven/sync": "workspace:^"
+    "@aeven/sync": "workspace:^",
+    "@aeven/workspace": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@aeven/workspace": {
+      "optional": true
+    }
   }
 }

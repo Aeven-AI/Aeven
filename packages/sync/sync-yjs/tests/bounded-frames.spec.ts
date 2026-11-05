@@ -15,7 +15,7 @@ import { FakeRelay } from './fake-relay.ts'
 
 const BUDGET = 2048
 const tuning: VaultTuning = { compactAfter: 1000, snapshotAfter: 1000, applyFrames: 1, applyPauseMs: 0,
-  pageFrames: 1, statusMs: 0, publishFrames: 5, publishBytes: BUDGET }
+  pageFrames: 1, statusMs: 0, publishFrames: 5, publishBytes: BUDGET, firstDocuments: [] }
 let relay: FakeRelay
 let offload: SyncOffload
 const roots: string[] = []
@@ -55,7 +55,7 @@ function device(path?: string) {
 }
 
 async function connect(target: ReturnType<typeof device>) {
-  const connection = await RelayConnection.open(relay.url, 'ok-bounded', {
+  const connection = await RelayConnection.open(relay.url, { scheme: 'Bearer', token: 'ok-bounded' }, {
     frame: (seq, frame) => { target.vault.receiveFrame(seq, frame) }, closed: () => { target.vault.detach() },
   }, 2000, 2000)
   connections.push(connection)

@@ -199,6 +199,7 @@ export class UiConversation extends Service {
   private readonly eventNavigations = new Map<SessionId, SnapshotStore<ConversationEventNavigation | null>>()
   private nextNavigationRequestId = 0
   private readonly images: HistoricalImageCache
+  private readonly refusalHandlers = new Map<string, (sessionId: SessionId) => void>()
 
   /**
    * @param ctx - owning Client context.
@@ -230,6 +231,33 @@ export class UiConversation extends Service {
         for (const record of [...this.bindings.values()]) this.drop(record, true)
       }
     }, 'ui-conversation assembly')
+  }
+
+  /**
+   * Let a plugin answer one kind of prompt refusal in place of the composer's error toast, such as a refusal that
+   * names something only another surface offers.
+   * @param code - the Remote error code the Host refuses a prompt with.
+   * @param handler - shows the plugin's own answer for the refused Session.
+   * @returns disposer removing the handler.
+   */
+  registerRefusalHandler(code: string, handler: (sessionId: SessionId) => void): () => void {
+    this.refusalHandlers.set(code, handler)
+    return () => {
+      if (this.refusalHandlers.get(code) === handler) this.refusalHandlers.delete(code)
+    }
+  }
+
+  /**
+   * Hand one prompt refusal to the plugin registered for its code.
+   * @param code - the Remote error code.
+   * @param sessionId - the refused Session.
+   * @returns whether a handler took it; the composer shows its own toast otherwise.
+   */
+  handleRefusal(code: string, sessionId: SessionId): boolean {
+    const handler = this.refusalHandlers.get(code)
+    if (handler === undefined) return false
+    handler(sessionId)
+    return true
   }
 
   /**

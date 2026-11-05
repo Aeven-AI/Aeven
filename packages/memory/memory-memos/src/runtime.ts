@@ -73,6 +73,8 @@ export function ownerProfile(owner: string): string {
 export interface MemosMemoryOptions {
   /** One MemOS core per owning account, each over that account's own database. */
   readonly cores: OwnerCores
+  /** Hosted workspace identity resolver; absent retains directory-based namespaces. */
+  readonly workspaceId?: (scope: MemoryScope) => string | undefined
   readonly routes: LlmRouteContext
   /** MemOS's configured per-tier result limits for an explicit search. */
   readonly toolLimits: MemoryRecallLimits
@@ -186,13 +188,19 @@ export class MemosMemory implements MemoryProvider {
 
   /** One MemOS profile per owning account, so recall, capture, and reads never cross accounts. */
   private namespaceOf(scope: MemoryScope): RuntimeNamespace {
+    const workspaceId = this.options.workspaceId?.(scope)
     return {
+      ...workspaceId === undefined ? {} : { workspaceId },
       agentKind: MEMOS_AGENT,
       profileId: ownerProfile(scope.owner),
       profileLabel: scope.owner,
       ...scope.cwd === undefined ? {} : { workspacePath: scope.cwd },
       sessionKey: scope.sessionId,
     }
+  }
+
+  private projectOf(scope: MemoryScope): string | undefined {
+    return this.options.workspaceId === undefined ? scope.cwd : this.options.workspaceId(scope)
   }
 
   private state(scope: MemoryScope): SessionState {
@@ -514,8 +522,8 @@ export class MemosMemory implements MemoryProvider {
     hits: readonly RetrievalHitDTO[],
     turnStart: boolean,
   ): Promise<MemoryHit[]> {
-    const workspace = this.workspaceOf(scope.cwd)
     const namespace = this.namespaceOf(scope)
+    const workspace = normalizeNamespace(namespace, MEMOS_AGENT).workspaceId
     const classified = await Promise.all(hits.map(async (hit) => {
       const hitOrigin = await this.hitOrigin(core, hit, namespace, turnStart)
       const { domain, workspaceId, summary, correction, superseded, procedureStatus, candidateKind, recordedAt, origin } = hitOrigin
@@ -788,7 +796,7 @@ export class MemosMemory implements MemoryProvider {
     const previousReply = state.lastReply?.turn === turn.turn - 1 ? state.lastReply.text : undefined
     const { result, judgment } = this.options.judges
       ? await this.options.judges.run({
-        project: scope.cwd,
+        project: this.projectOf(scope),
         previousReply,
         memories: served.map(memory => memory.text),
         now: turn.endedAt,
@@ -834,7 +842,7 @@ export class MemosMemory implements MemoryProvider {
         userText: turn.userText,
         assistantText: turn.assistantText,
         summary: trace.summary ?? '',
-        project: turn.scope.cwd,
+        project: this.projectOf(turn.scope),
       }))
       const tags = domain === undefined ? [...(trace.tags ?? [])] : withDomainTag(trace.tags, domain)
       if (log) tags.push(LOG_TAG)
@@ -1048,7 +1056,7 @@ export class MemosMemory implements MemoryProvider {
         startedAt: now,
         endedAt: now,
         endReason: 'completed',
-      }, `${scope.sessionId}:remember:${now}`, rememberedDomain(request.domain, scope.cwd))
+      }, `${scope.sessionId}:remember:${now}`, rememberedDomain(request.domain, this.projectOf(scope)))
       return written
     })
     return brandString<MemoryItemId>(traceId)
@@ -1060,7 +1068,7 @@ export class MemosMemory implements MemoryProvider {
     return this.schedule(state, async () => {
       request.signal.throwIfAborted()
       const core = await this.options.cores.get(request.scope.owner)
-      const domain = rememberedDomain(request.domain, request.scope.cwd)
+      const domain = rememberedDomain(request.domain, this.projectOf(request.scope))
       const { ids, skipped } = await core.rememberFacts({
         namespace: this.namespaceOf(request.scope),
         sessionId: request.scope.sessionId,

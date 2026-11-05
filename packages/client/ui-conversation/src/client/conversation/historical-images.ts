@@ -11,10 +11,12 @@ import { bytesToBase64 } from '@aeven/util-crypto'
  * image itself instead of this page minting a blob for it. A new window opened
  * on the image therefore shows the stored original, not an object URL.
  * @param attachment - the durable reference the log carries.
+ * @param sessionId - session authorizing a browser read; omitted for desktop's direct local reads.
  * @returns the URL the image is displayed and re-opened from.
  */
-export function durableImageUrl(attachment: ImageAttachmentRef): string {
+export function durableImageUrl(attachment: ImageAttachmentRef, sessionId?: SessionId): string {
   const url = new URL('/api/attachment-image', document.baseURI)
+  if (sessionId !== undefined) url.searchParams.set('sessionId', sessionId)
   url.searchParams.set('id', String(attachment.attachmentId))
   url.searchParams.set('type', attachment.mediaType)
   url.searchParams.set('bytes', String(attachment.bytes))
@@ -133,7 +135,10 @@ export class HistoricalImageCache {
     // A browser reads the stored object from its own URL; only an environment
     // without one (a test runtime) falls back to reading the bytes through the
     // session binding and minting an object URL.
-    if (typeof document !== 'undefined') return Promise.resolve(durableImageUrl(attachment))
+    if (typeof document !== 'undefined') {
+      const desktop = typeof window !== 'undefined' && (window as { avnDesktop?: unknown }).avnDesktop !== undefined
+      return Promise.resolve(durableImageUrl(attachment, desktop ? undefined : entry.sessionId))
+    }
     const binding = this.sessions.binding(entry.sessionId)
     if (binding === undefined) return Promise.reject(new Error(`ui-conversation: unknown session "${entry.sessionId}"`))
     return binding.session.readAttachment(attachment.attachmentId)

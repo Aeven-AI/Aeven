@@ -9,6 +9,7 @@ import z from '@deepseek-ai/schemastery'
 import type { ModelSelection } from '@aeven/agent'
 import { ReasoningEffortId } from '@aeven/llm'
 import type {} from '@aeven/settings'
+import type {} from '@aeven/credentials'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -68,6 +69,11 @@ export class AgentDefaultModelConfig extends Service {
   })
 
   private source: () => AgentDefaultModelSettings
+  /**
+   * Each signed-in account's own default, read when the account's session reaches this Host and again whenever its
+   * section or the Host's changes; only kept on a settings provider that keeps account sections.
+   */
+  private readonly owners = new Map<string, AgentDefaultModelSettings>()
 
   constructor(ctx: Context, config: Config) {
     super(ctx, 'agentDefaultModel')
@@ -81,29 +87,65 @@ export class AgentDefaultModelConfig extends Service {
         // needs rebuilding when the settings document changes.
         onChange: () => {},
       })
+      // A Host document change moves every account's resolved default; an account change moves only that one.
+      settingsCtx.on('settings/document-updated', (ns) => {
+        if (ns !== AGENT_DEFAULT_MODEL_SETTINGS_NAMESPACE) return
+        for (const owner of this.owners.keys()) void this.prepare(owner)
+      })
+      settingsCtx.on('settings/account-updated', (owner, ns) => {
+        if (ns === AGENT_DEFAULT_MODEL_SETTINGS_NAMESPACE) void this.prepare(owner)
+      })
     })
+    ctx.on('credentials/session-updated', (_ref, user) => { void this.prepare(user) })
+  }
+
+  /**
+   * Read one account's own default so {@link currentSelection} answers for it. Without account sections, or for no
+   * account, there is nothing to read.
+   * @param owner - the account, when one is known.
+   * @returns resolution once the account's default is in place.
+   */
+  async prepare(owner: string | undefined): Promise<void> {
+    const settings = this.ctx.get('settings')
+    if (owner === undefined || settings?.accountSections !== true) return
+    try {
+      const value = await settings.valueFor(AGENT_DEFAULT_MODEL_SETTINGS_NAMESPACE, owner)
+      if (value !== undefined) this.owners.set(owner, value as AgentDefaultModelSettings)
+    } catch (error) {
+      this.ctx.logger.warn(`agent-default-model: reading an account's default failed: ${String(error)}`)
+    }
   }
 
   /**
    * Read the current default model selection.
+   * @param owner - the account the selection is for; its own default wins once {@link prepare} read it.
    * @returns a detached provider, model, and optional reasoning selection.
    */
-  currentSelection(): ModelSelection {
-    return selection(this.source())
+  currentSelection(owner?: string): ModelSelection {
+    return selection((owner === undefined ? undefined : this.owners.get(owner)) ?? this.source())
   }
 
   /**
    * Save the complete default model selection. A deployment without a settings
    * provider keeps its composition entry.
+   * On a settings provider that keeps account sections, an account's choice is stored as that account's own.
    * @param next - resolved selection accepted by an entry point.
+   * @param owner - the account choosing, when one is signed in.
    * @returns fulfillment after the optional settings write settles.
    */
-  async saveSelection(next: ModelSelection): Promise<void> {
-    await this.ctx.get('settings')?.replace(AGENT_DEFAULT_MODEL_SETTINGS_NAMESPACE, {
+  async saveSelection(next: ModelSelection, owner?: string): Promise<void> {
+    const section: AgentDefaultModelSettings = {
       provider: next.provider,
       model: next.model,
       ...next.reasoningEffort === undefined ? {} : { reasoningEffort: String(next.reasoningEffort) },
-    })
+    }
+    const settings = this.ctx.get('settings')
+    if (owner !== undefined && settings?.accountSections === true) {
+      await settings.writeFor(owner, AGENT_DEFAULT_MODEL_SETTINGS_NAMESPACE, 'replace', section)
+      this.owners.set(owner, section)
+      return
+    }
+    await settings?.replace(AGENT_DEFAULT_MODEL_SETTINGS_NAMESPACE, section)
   }
 }
 

@@ -75,6 +75,8 @@ declare module '@aeven/typert-protocol' {
   interface RemoteErrorDetailsMap {
     /** The requested directory cannot back a Workspace. */
     'workspace/invalid-path': { readonly path: string }
+    /** This Host gives Workspaces no directory of its own: it serves accounts of different people. */
+    'workspace/folders-unavailable': Record<string, never>
     /** Another Workspace already uses the requested name. */
     'workspace/name-conflict': { readonly name: string }
     /** The Session or its anchor is not in the Workspace's manual order. */
@@ -94,9 +96,15 @@ declare module '@aeven/typert-protocol' {
   }
 }
 
-/** Existing directory requested for Workspace adoption. */
+/**
+ * The Workspace to create: exactly one of an existing directory to adopt, or a
+ * title for a new Workspace with no directory.
+ */
 export interface WorkspaceCreateRequest {
-  readonly path: string
+  /** Existing directory on this Host to adopt. */
+  readonly path?: string
+  /** Title of a new Workspace with no directory; blank titles are refused. */
+  readonly title?: string
 }
 
 /** Created or previously registered Workspace. */

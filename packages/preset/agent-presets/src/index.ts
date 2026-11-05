@@ -109,6 +109,7 @@ export class AgentPresets extends TypertRemoteService {
     })).default([]),
     includeShippedRoot: z.boolean().default(true),
     includeUserRoot: z.boolean().default(true),
+    patches: z.array(z.any()).default([]),
   }) as z<Config>
 
   /**
@@ -782,7 +783,7 @@ export class AgentPresets extends TypertRemoteService {
             { agentPreset: preset.id, reason },
           )
         }
-        await mountPreset(scope.ctx, preset)
+        await mountPreset(scope.ctx, preset, this.config.patches)
         return { key, scope, stamp }
       } catch (error) {
         this.standing.delete(preset.id)

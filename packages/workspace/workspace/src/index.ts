@@ -334,6 +334,24 @@ export class WorkspaceRegistry extends Service {
   }
 
   /**
+   * Create one workspace that has no directory, owned by the account that asks
+   * for it. Its sessions record no cwd, so the registration travels between
+   * devices unchanged; a device that later wants a folder for it binds one.
+   * Every call creates a new registration: titles may repeat. The new
+   * workspace lands directly below the built-in one, like {@link create}.
+   * @param title - display title of the new workspace.
+   * @param owner - account id of the signed-in user creating it; absent when nobody is signed in.
+   * @returns the newly durable workspace.
+   */
+  async createVirtual(title: string, owner?: string): Promise<Workspace> {
+    return await this.enqueueOperation(() => this.createVirtualCanonical(
+      title,
+      (state, id) => this.carryState(state, { initialized: true, workspaceIds: this.withNewWorkspace(state, id) }),
+      owner,
+    ))
+  }
+
+  /**
    * Look up a workspace by id.
    * @param id - Workspace id.
    * @returns the workspace, or `undefined` when unknown.
@@ -795,6 +813,7 @@ export class WorkspaceRegistry extends Service {
       const group = accounts.get(record.owner) ?? { records: [], order: [] }
       group.records.push({
         id, title: record.title, owner: record.owner, createdAt: record.createdAt, updatedAt: record.titleChangedAt ?? record.createdAt,
+        ...record.kind === 'virtual' ? { pathless: true as const } : {},
       })
       group.order.push(id)
       accounts.set(record.owner, group)
@@ -833,9 +852,9 @@ export class WorkspaceRegistry extends Service {
   /**
    * Store another device's workspaces of one account.
    *
-   * A workspace this device opened a directory for keeps its path and kind, and one it only received is `remote`,
-   * which is the kind a workspace without a directory here has always had. A later title wins, and a removal drops
-   * this device's record without touching a directory or a session log.
+   * A workspace this device opened a directory for keeps its path and kind. One it only received is `virtual`
+   * when the device that created it gave it no directory, and `remote`, waiting for a folder here, otherwise.
+   * A later title wins, and a removal drops this device's record without touching a directory or a session log.
    * @param owner - the account the workspaces belong to.
    * @param projection - its workspaces and their order as another device published them.
    */
@@ -863,8 +882,17 @@ export class WorkspaceRegistry extends Service {
             continue
           }
           const titled = record.titleChangedAt ?? record.createdAt
-          if (entry.title !== undefined && entry.updatedAt !== undefined && entry.updatedAt > titled && entry.title !== record.title) {
-            await table.put(id, { ...record, title: entry.title, titleChangedAt: entry.updatedAt, updatedAt: new Date().toISOString() })
+          const retitled = entry.title !== undefined && entry.updatedAt !== undefined
+            && entry.updatedAt > titled && entry.title !== record.title
+          // A workspace received before its device said it has no directory waits for none.
+          const usable = record.kind === 'remote' && entry.pathless === true
+          if (retitled || usable) {
+            await table.put(id, {
+              ...record,
+              ...usable ? { kind: 'virtual' as const } : {},
+              ...retitled ? { title: entry.title, titleChangedAt: entry.updatedAt } : {},
+              updatedAt: new Date().toISOString(),
+            })
           }
           kept.push(id)
         }
@@ -873,7 +901,7 @@ export class WorkspaceRegistry extends Service {
           if (entry.removed === true || known.has(entry.id) || entry.title === undefined) continue
           const at = entry.updatedAt ?? new Date().toISOString()
           await table.put(entry.id, {
-            kind: 'remote',
+            kind: entry.pathless === true ? 'virtual' : 'remote',
             title: entry.title,
             ...entry.owner === undefined ? {} : { owner: entry.owner },
             sessionIds: [],
@@ -1031,11 +1059,13 @@ export class WorkspaceRegistry extends Service {
    * create.
    * @param title - display title for the new registration.
    * @param place - the committed state that orders and marks the new registration.
+   * @param owner - account that owns the registration; absent for product structure every account reaches.
    * @returns the newly durable pathless entity, already cached.
    */
   private async createVirtualCanonical(
     title: string,
     place: (state: WorkspaceDomainState, id: WorkspaceId) => WorkspaceDomainState,
+    owner?: string,
   ): Promise<WorkspaceEntity> {
     const table = this.requireTable()
     const state = this.requireState()
@@ -1047,6 +1077,7 @@ export class WorkspaceRegistry extends Service {
     const record: WorkspaceRecord = {
       kind: 'virtual',
       title,
+      ...owner === undefined ? {} : { owner },
       sessionIds: [],
       createdAt: now,
       updatedAt: now,
@@ -1120,7 +1151,8 @@ export class WorkspaceRegistry extends Service {
     const table = this.requireTable()
     const adoptable = state.workspaceIds.find((id) => {
       const record = table.get(id)
-      return record !== undefined && record.kind !== 'folder' && !this.isBuiltInId(state, id)
+      // A pathless workspace an account created is that account's, never the product's default.
+      return record !== undefined && record.kind !== 'folder' && record.owner === undefined && !this.isBuiltInId(state, id)
     })
     if (adoptable !== undefined) {
       await this.setState({ ...state, defaultWorkspaceId: adoptable })

@@ -103,5 +103,13 @@ declare module '@deepseek-ai/cordis' {
      * @mode emit
      */
     'settings/document-updated'(ns: SettingsNamespace, revision: number): void
+    /**
+     * One account's own section of an `account`-reach namespace changed on a provider that keeps account
+     * sections. Account sync publishes it to the account's other devices.
+     * @param owner - the account.
+     * @param ns - the namespace.
+     * @mode emit
+     */
+    'settings/account-updated'(owner: string, ns: SettingsNamespace): void
   }
 }

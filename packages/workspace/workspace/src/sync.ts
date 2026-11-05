@@ -25,6 +25,12 @@ export interface SyncedWorkspace {
   updatedAt?: string
   /** Set once the workspace was removed. */
   removed?: boolean
+  /**
+   * Set when the workspace was created without a directory. Another device then stores it as `virtual`, usable
+   * as it is, instead of `remote`, which waits for a folder. Once set it stays set: a device that later binds a
+   * folder of its own does not turn the workspace into a folder workspace on the others.
+   */
+  pathless?: true
 }
 
 /** The account's workspaces as one device publishes or receives them. */
@@ -134,7 +140,9 @@ export class WorkspaceSync {
     const order = handle.doc.getArray<WorkspaceId>('order')
     handle.doc.transact(() => {
       for (const { id, ...entry } of projection.records) {
-        if (JSON.stringify(records.get(id)) !== JSON.stringify(entry)) records.set(id, entry)
+        const prior = records.get(id)
+        const next = prior?.pathless === true && entry.pathless === undefined ? { ...entry, pathless: true as const } : entry
+        if (JSON.stringify(prior) !== JSON.stringify(next)) records.set(id, next)
       }
       const held = new Set(projection.order)
       // Workspaces this device has not received yet keep their place after the ones it orders.

@@ -397,6 +397,7 @@ export function apply(ctx: Context): void {
           invokeCommand: undefined,
           stop: undefined,
           command: undefined,
+          handleRefusal: undefined,
           hooks: {
             notices: ABSENT_NOTICES,
             lexicon: ABSENT_LEXICON,
@@ -480,6 +481,7 @@ export function apply(ctx: Context): void {
           const result = await session.command(line)
           return result.ok && result.value.matched
         },
+        handleRefusal: code => ctx.get('uiConversation')?.handleRefusal(code, sessionId) ?? false,
         hooks: {
           notices: shell.notices,
           lexicon: shell.lexicon,

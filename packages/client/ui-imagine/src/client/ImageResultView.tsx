@@ -92,10 +92,6 @@ export function ImageResultView({ block, renderImages }: ToolCallViewProps) {
       <div className={css.cards} data-found-images={images.length}>
         {images.map((image, index) => {
           const item = items[index]
-          let host = item?.source ?? ''
-          try { host = new URL(item?.source ?? '').hostname.replace(/^www\./, '') } catch {
-            // A source that is not a URL stays as the tool reported it.
-          }
           return (
             <article className={css.card} key={index} data-found-card={index}>
               <div className={css.cardThumb}>
@@ -104,7 +100,6 @@ export function ImageResultView({ block, renderImages }: ToolCallViewProps) {
               <a className={css.cardBody} href={item?.source ?? '#'} target="_blank" rel="noreferrer">
                 <span className={css.cardTitle}>{item?.title ?? ''}</span>
                 {item?.summary !== undefined && item.summary !== '' && <span className={css.cardSummary}>{item.summary}</span>}
-                <span className={css.cardSource}>{host}</span>
               </a>
             </article>
           )

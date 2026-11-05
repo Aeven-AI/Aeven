@@ -344,7 +344,7 @@ export class ApiSessionAgentController {
       get current(): AgentModelSelection {
         if (picked !== undefined) return picked
         const loggedHeader = agent.session.requestHeader()
-        if (loggedHeader === undefined) return defaultModel.currentSelection()
+        if (loggedHeader === undefined) return defaultModel.currentSelection(agent.session.header.owner)
         const logged = loggedHeader.config
         return {
           provider: logged.provider,
@@ -488,7 +488,7 @@ export class ApiSessionAgentController {
     }
     return this.own(await this.ctx.agents.resume({
       resumeSessionId: sessionId,
-      agentOptions: this.agentOptions(),
+      agentOptions: await this.agentOptions(),
       setup: composition.setup,
     }))
   }
@@ -531,7 +531,7 @@ export class ApiSessionAgentController {
         const composition = await this.composeAgent(storedPreset)
         return this.own(await this.ctx.agents.resume({
           resumeSessionId: sessionId,
-          agentOptions: this.agentOptions(),
+          agentOptions: await this.agentOptions(),
           setup: composition.setup,
         }))
       } catch (error: unknown) {
@@ -555,7 +555,7 @@ export class ApiSessionAgentController {
     const owner = this.ctx.get('identityUsers')?.actingUser()?.id
     return this.own(await this.ctx.agents.create({
       sessionId,
-      agentOptions: this.agentOptions(),
+      agentOptions: await this.agentOptions(),
       meta: {
         ...cwd === undefined ? {} : { cwd },
         ...(composition.agentPreset === undefined ? {} : { agentPreset: composition.agentPreset }),
@@ -592,8 +592,13 @@ export class ApiSessionAgentController {
     await handle.dispose()
   }
 
-  private agentOptions(): AgentOptions {
-    const { provider, model } = this.ctx.agentDefaultModel.currentSelection()
+  /** The acting account's default model, read for it before the agent starts. */
+  private async agentOptions(): Promise<AgentOptions> {
+    const owner = this.ctx.get('identityUsers')?.actingUser()?.id
+    if (owner !== undefined && this.ctx.get('settings')?.accountSections === true) {
+      await this.ctx.agentDefaultModel.prepare(owner)
+    }
+    const { provider, model } = this.ctx.agentDefaultModel.currentSelection(owner)
     return { provider, model }
   }
 

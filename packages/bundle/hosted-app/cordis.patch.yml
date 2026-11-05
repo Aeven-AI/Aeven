@@ -1,0 +1,317 @@
+# The avn-hosted-app bundle patch: Aeven Web as Aeven operates it, one Host
+# serving the accounts of many people. Applied after avn-web-app, so every row
+# below targets a web or base row by id; a patch replaces the targeted row's
+# whole `config`, so each row restates every key it owns.
+#
+# Two rules decide every row here:
+#
+# - Nothing runs on the Host's own machine for a session: no shell, no file
+#   tool, no terminal, no browser, no device, no desktop control, no code the
+#   model writes. The Host's disk and processes belong to every account at
+#   once, so any of these would reach the other accounts' data.
+# - Nothing one account changes applies to another. The settings document and
+#   the credential store belong to the Host, so browser callers cannot write
+#   them, and account settings are not mirrored into them.
+#
+# Per-account state that already keys by the signed-in user stays: sessions,
+# workspaces, memory, personalization, automations, connectors, mail, sync.
+
+# ── binding behind the public origin ────────────────────────────────────────
+
+# The Host listens on the address the deployment names (a container binds every
+# interface; a reverse proxy on the same machine keeps loopback) and never opens
+# a browser. TLS, the public name, and request limits belong to the proxy.
+- id: webserver
+  inject: [webStartup]
+  config:
+    host: !!js process.env.AVN_HOSTED_HOST ?? ctx.webStartup.host ?? '127.0.0.1'
+    port: !!js "Number(process.env.AVN_HOSTED_PORT ?? ctx.webStartup.port ?? 3085)"
+    portInUse: fail
+    compression: gzip
+    compressionLevel: 1
+    compressionThresholdBytes: 1024
+
+- id: web-runtime
+  inject: [webStartup]
+  config:
+    openBrowser: false
+    printUrl: true
+    surfaceContext: true
+    developerContext: false
+    trustedHosts: !!js ctx.webStartup.trustedHosts
+
+# The public names browsers reach this Host by, such as `app.aeven.io`, comma
+# separated in AVN_HOSTED_TRUSTED_HOSTS. The request fence refuses any other
+# Host or Origin header.
+- id: connection
+  inject: [webRuntime]
+  config:
+    trustedHosts: !!js "[...ctx.webRuntime.trustedHosts, ...(process.env.AVN_HOSTED_TRUSTED_HOSTS?.split(',').map(host => host.trim()).filter(host => host !== '') ?? [])]"
+
+# Development reload has no place on a shared Host.
+- id: client-hmr
+  disabled: true
+
+# ── account sync ────────────────────────────────────────────────────────────
+
+# A hosted Host is one more device of every account signed in to it: each
+# account's conversations, workspaces and memory arrive through Aeven's relay
+# and stay in that account's own sync database. Aeven operates this Host, so it
+# reaches the production relay and passkey page unless the deployment names
+# others.
+#
+# The Host stays connected for every account that has signed in here, through
+# the sync grant the relay issues on the first signed-in connection, so an
+# account is current before its browser opens. Its memory is built as soon as
+# it syncs rather than at its first turn.
+- id: sync-yjs
+  config:
+    relayUrl: !!js process.env.AEVEN_SYNC_URL ?? 'wss://aeven.io/sync'
+    keepConnected: true
+
+- id: memory-memos
+  config:
+    home: !!js avnHomePath('memory')
+    accounts: !!js avnHomePath('accounts')
+    openOnSync: true
+    workspaceIdentity: true
+    embeddingExecution: worker
+    embeddingQueuePerAccount: 8
+    embeddingQueueTotal: 128
+
+- id: api-sync-controller
+  config:
+    siteUrl: !!js process.env.AEVEN_WEB_URL ?? 'https://aeven.io'
+
+# ── nothing one account changes applies to another ──────────────────────────
+
+# Each person's own settings (language, default model, chat preferences) live
+# in that account's section beside its other data, so one account's choice
+# never applies to another; account sync carries them to the person's other
+# devices. The Host's own document and its credentials are read-only to
+# browser callers.
+- id: settings
+  config:
+    accounts: true
+
+- id: settings-controller
+  config:
+    writable: false
+
+# Provider subscriptions and the media providers that read keys from the Host's
+# credential store would bill every account to whoever stored the key.
+- id: llm-grok-build-oauth
+  disabled: true
+
+- id: media-deepinfra
+  disabled: true
+
+- id: media-openrouter
+  disabled: true
+
+# The Loader inventory and the runner that mounts plugins change or describe the
+# whole Host.
+- id: plugin-inventory
+  disabled: true
+
+- id: cordis-host-runner
+  disabled: true
+
+# The browser halves of that runner, which have nothing on this Host to talk to.
+- id: cordis-client-runner
+  disabled: true
+
+- id: ui-cordis
+  disabled: true
+
+# The catalog installs skills into the Host's own skill directories.
+- id: skill-catalog
+  disabled: true
+
+# ── no Workspace directories on the Host ────────────────────────────────────
+
+# Workspaces are created by name and carry no folder: a folder of this Host
+# would expose the Host's files to whoever registered it.
+- id: workspace-controller
+  config:
+    folders: false
+
+- id: directory-picker
+  disabled: true
+
+- insert:
+    - id: ui-workspace-name
+      name: '@aeven/client-ui-workspace-name'
+
+# Directory reads that only a folder workspace or a local file reference serve.
+- id: workspace-files
+  disabled: true
+
+- id: api-workspace-files
+  disabled: true
+
+- id: file-reference-local
+  disabled: true
+
+- id: ui-sidebar-files
+  disabled: true
+
+# The produced-files row under a reply opens files in the Files sidebar; with no
+# file tools a session produces none on this Host.
+- id: ui-deliverables
+  disabled: true
+
+# ── nothing runs on the Host's machine ──────────────────────────────────────
+
+# What needs the reader's own computer keeps its place in the interface and
+# opens the "Available in Aeven Desktop" dialog: the right sidebar's Files,
+# Browser, Terminal and Devices entries, and a conversation whose folder is on
+# a device that is not running it.
+- insert:
+    - id: ui-desktop-handoff
+      name: '@aeven/client-ui-desktop-handoff'
+
+# Pages that configure the Host itself, which a person using Aeven on the web
+# neither sees nor changes: plugin settings, model provider keys and
+# subscriptions, and tool permission presets.
+- id: ui-settings-plugins
+  disabled: true
+
+- id: ui-settings-models
+  disabled: true
+
+- id: ui-permission
+  disabled: true
+
+- id: terminal-controller
+  disabled: true
+
+- id: ui-sidebar-terminal
+  disabled: true
+
+- id: browser-chromium
+  disabled: true
+
+- id: mcp-chrome-devtools
+  disabled: true
+
+- id: mcp-playwright
+  disabled: true
+
+- id: ui-sidebar-browser
+  disabled: true
+
+- id: device
+  disabled: true
+
+- id: device-local
+  disabled: true
+
+- id: ui-sidebar-device
+  disabled: true
+
+- id: tool-elevation
+  disabled: true
+
+- id: computer-use
+  disabled: true
+
+- id: computer-use-cua-driver
+  disabled: true
+
+- id: computer-use-semantic-batches
+  disabled: true
+
+- id: computer-use-windows-batches
+  disabled: true
+
+# Process-wide tools the base mounts that act on the Host's directories and Git.
+- id: tool-working-directory
+  disabled: true
+
+- id: tool-worktrees
+  disabled: true
+
+- id: tool-vcs
+  disabled: true
+
+- id: tool-agent-team
+  disabled: true
+
+# Dictation goes to the Aeven API with the speaker's own session instead of a
+# local Whisper worker, which would hold a model in this process for everyone.
+- id: speech-to-text
+  config:
+    defaultProvider: aeven-cloud
+
+- id: speech-to-text-whisper
+  disabled: true
+
+- insert:
+    - id: speech-to-text-aeven
+      name: '@aeven/speech-to-text-aeven'
+      config:
+        apiUrl: !!js process.env.AEVEN_API_URL ?? 'http://localhost:9000'
+
+# Every session runs the `aeven` composition without the rows that act on the
+# Host's machine. Skills come only from the ones the composition ships, never
+# from the Host user's own skill directories.
+- id: agent-presets
+  config:
+    default: aeven
+    includeUserRoot: false
+    patches:
+      - id: tool-bash
+        disabled: true
+      - id: tool-pwsh
+        disabled: true
+      - id: tool-fs
+        disabled: true
+      - id: tool-fs-search
+        disabled: true
+      - id: tool-subagent-codex
+        disabled: true
+      - id: tool-subagent-claude-code
+        disabled: true
+      - id: workflow-worker-thread
+        disabled: true
+      - id: tool-workflow
+        disabled: true
+      - id: tool-ralph
+        disabled: true
+      - id: tool-browser
+        disabled: true
+      - id: tool-device
+        disabled: true
+      - id: tool-cordis
+        disabled: true
+      - id: tool-presentation
+        disabled: true
+      - id: skill-filesystem
+        config:
+          includeDefaultRoots: false
+          customSkillDirs:
+            - !!js "process.getBuiltinModule('node:url').fileURLToPath(new URL('./skills/', baseUrl))"
+
+- id: tools
+  config:
+    mode: native
+
+- id: code-runtime
+  disabled: true
+
+- id: session-controller
+  config:
+    directImageReads: false
+
+- id: workflow-worker-thread
+  disabled: true
+
+- insert:
+    - id: hosted-runtime
+      name: '@aeven/hosted-app'
+      config:
+        perAccount: 2
+        total: 64
+        queuedPerAccount: 8
+        queuedTotal: 128

@@ -34,6 +34,7 @@ import { DESKTOP_AEVEN_API_PATH, type DesktopAevenSignIn } from './host-protocol
 import { DESKTOP_IPC, type DesktopCaptionAction, type DesktopMenuCommand, type DesktopProviderSignInState } from './ipc.ts'
 import { formatDesktopMessage, resolveDesktopLocale } from './locale.ts'
 import { claimDesktopSingleInstance } from './single-instance.ts'
+import { DEEP_LINK_SCHEME, deepLinkIn, deepLinkPath } from './deep-link.ts'
 import { DesktopBackgroundMode } from './background-mode.ts'
 import { DesktopUpdateCoordinator } from './update-coordinator.ts'
 import { stagedReleaseResources, stageNativeUpdate } from './update-staging.ts'
@@ -47,6 +48,18 @@ import { bundleIdentifier, clearUpdateResidue, updateCacheRoot, updaterCacheDir 
 
 const SCHEME = 'avn-app'
 let focusPrimaryWindow = (): void => {}
+
+/** A conversation an `aeven://` link asked for before the app window could show it. */
+let pendingDeepLink: string | undefined = deepLinkPath(deepLinkIn(process.argv) ?? '')
+
+/** Shows the path an `aeven://` link names; until the app window serves, the path waits in {@link pendingDeepLink}. */
+let showDeepLink = (path: string): void => { pendingDeepLink = path }
+
+/** Open the app at the path an `aeven://` link names; anything else is ignored. */
+function openDeepLink(url: string): void {
+  const path = deepLinkPath(url)
+  if (path !== undefined) showDeepLink(path)
+}
 
 /** The menu command the shell sends when Settings… is chosen. */
 const OPEN_SETTINGS_COMMAND: DesktopMenuCommand = 'open-settings'
@@ -1050,7 +1063,19 @@ async function main(): Promise<void> {
   // exists, so a launch reads as one screen rather than a window appearing only
   // now. The client's own preloader takes over from here.
   const appWindow = mainWindow !== undefined && !mainWindow.isDestroyed() ? mainWindow : createMainWindow()
-  await appWindow.loadURL(appEntryUrl())
+  await appWindow.loadURL(pendingDeepLink === undefined ? appEntryUrl() : appPathUrl(pendingDeepLink))
+  pendingDeepLink = undefined
+  showDeepLink = (path) => {
+    focusPrimaryWindow()
+    const window = mainWindow
+    if (window !== undefined && !window.isDestroyed()) void window.loadURL(appPathUrl(path))
+  }
+  // A development launch runs Electron with this app's entry as an argument, which the registration must repeat.
+  if (process.defaultApp && process.argv[1] !== undefined) {
+    app.setAsDefaultProtocolClient(DEEP_LINK_SCHEME, process.execPath, [resolve(process.argv[1])])
+  } else {
+    app.setAsDefaultProtocolClient(DEEP_LINK_SCHEME)
+  }
   if (development !== undefined && process.env.AVN_DESKTOP_OPEN_DEVTOOLS !== '0') {
     appWindow.webContents.openDevTools({ mode: 'detach' })
   }
@@ -1137,7 +1162,17 @@ h1{font-size:18px;margin:0 0 8px}p{margin:0 0 16px;opacity:.75}pre{margin:0;padd
   void window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(page)}`)
 }
 
-const ownsDesktopInstance = claimDesktopSingleInstance(app, () => { focusPrimaryWindow() })
+const ownsDesktopInstance = claimDesktopSingleInstance(app, (argv) => {
+  const link = deepLinkIn(argv)
+  if (link === undefined) focusPrimaryWindow()
+  else openDeepLink(link)
+})
+
+// macOS hands links to the running app as an event, which can arrive before the app is ready.
+app.on('open-url', (event, url) => {
+  event.preventDefault()
+  openDeepLink(url)
+})
 
 if (ownsDesktopInstance) void app.whenReady().then(main).catch(async (error: unknown) => {
   const message = error instanceof Error ? error.message : String(error)

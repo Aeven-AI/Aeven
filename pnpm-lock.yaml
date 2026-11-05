@@ -196,6 +196,9 @@ importers:
       '@aeven/hooks-codex':
         specifier: workspace:^
         version: link:../../packages/hooks/hooks-codex
+      '@aeven/hosted-app':
+        specifier: workspace:^
+        version: link:../../packages/bundle/hosted-app
       '@aeven/http-proxy':
         specifier: workspace:^
         version: link:../../packages/util/http-proxy
@@ -1433,6 +1436,9 @@ importers:
       '@aeven/deque':
         specifier: workspace:^
         version: link:../../util/deque
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
       zod:
         specifier: ^4.4.3
         version: 4.6.5
@@ -1956,6 +1962,37 @@ importers:
       '@deepseek-ai/cordis-plugin-loader':
         specifier: workspace:^
         version: link:../../../vendor/loader
+
+  packages/bundle/hosted-app:
+    dependencies:
+      '@aeven/client-ui-desktop-handoff':
+        specifier: workspace:^
+        version: link:../../client/ui-desktop-handoff
+      '@aeven/client-ui-workspace-name':
+        specifier: workspace:^
+        version: link:../../client/ui-workspace-name
+      '@aeven/speech-to-text-aeven':
+        specifier: workspace:^
+        version: link:../../speech/speech-to-text-aeven
+      '@aeven/web-app':
+        specifier: workspace:^
+        version: link:../web-app
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../../core/agent
+      '@aeven/identity-user':
+        specifier: workspace:^
+        version: link:../../identity/user
+      '@aeven/llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
 
   packages/bundle/sdk-app:
     dependencies:
@@ -3401,6 +3438,51 @@ importers:
       react:
         specifier: ^18.2.0
         version: 18.3.1
+
+  packages/client/ui-desktop-handoff:
+    devDependencies:
+      '@aeven/client-locale':
+        specifier: workspace:^
+        version: link:../locale
+      '@aeven/client-store':
+        specifier: workspace:^
+        version: link:../store
+      '@aeven/client-ui-conversation':
+        specifier: workspace:^
+        version: link:../ui-conversation
+      '@aeven/client-ui-layout':
+        specifier: workspace:^
+        version: link:../ui-layout
+      '@aeven/client-ui-primitives':
+        specifier: workspace:^
+        version: link:../ui-primitives
+      '@aeven/client-ui-renderer':
+        specifier: workspace:^
+        version: link:../ui-renderer
+      '@aeven/client-ui-sidebar-select':
+        specifier: workspace:^
+        version: link:../ui-sidebar-select
+      '@aeven/client-ui-slots':
+        specifier: workspace:^
+        version: link:../ui-slots
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@types/react':
+        specifier: ~18.3.1
+        version: 18.3.31
+      '@types/react-dom':
+        specifier: ~18.3.1
+        version: 18.3.7(@types/react@18.3.31)
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.2.0
+        version: 18.3.1(react@18.3.1)
 
   packages/client/ui-directory-picker-browse:
     dependencies:
@@ -5548,6 +5630,36 @@ importers:
         specifier: ^18.2.0
         version: 18.3.1(react@18.3.1)
 
+  packages/client/ui-workspace-name:
+    devDependencies:
+      '@aeven/client-locale':
+        specifier: workspace:^
+        version: link:../locale
+      '@aeven/client-ui-primitives':
+        specifier: workspace:^
+        version: link:../ui-primitives
+      '@aeven/client-ui-renderer':
+        specifier: workspace:^
+        version: link:../ui-renderer
+      '@aeven/client-ui-slots':
+        specifier: workspace:^
+        version: link:../ui-slots
+      '@aeven/client-ui-workspace':
+        specifier: workspace:^
+        version: link:../ui-workspace
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@types/react':
+        specifier: ~18.3.1
+        version: 18.3.31
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.2.0
+        version: 18.3.1(react@18.3.1)
+
   packages/client/web:
     devDependencies:
       '@aeven/client-modules':
@@ -6327,6 +6439,9 @@ importers:
       '@aeven/agent':
         specifier: workspace:^
         version: link:../agent
+      '@aeven/credentials':
+        specifier: workspace:^
+        version: link:../../credentials/credentials
       '@aeven/llm':
         specifier: workspace:^
         version: link:../../llm/llm
@@ -9513,6 +9628,9 @@ importers:
       '@aeven/sync':
         specifier: workspace:^
         version: link:../../sync/sync
+      '@aeven/workspace':
+        specifier: workspace:^
+        version: link:../../workspace/workspace
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -11280,6 +11398,28 @@ importers:
       '@deepseek-ai/cordis-plugin-loader':
         specifier: workspace:^
         version: link:../../../vendor/loader
+
+  packages/speech/speech-to-text-aeven:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../../core/agent
+      '@aeven/credentials':
+        specifier: workspace:^
+        version: link:../../credentials/credentials
+      '@aeven/identity-user':
+        specifier: workspace:^
+        version: link:../../identity/user
+      '@aeven/speech-to-text':
+        specifier: workspace:^
+        version: link:../speech-to-text
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
 
   packages/speech/speech-to-text-whisper:
     dependencies:

@@ -141,6 +141,15 @@ export interface Config {
    * configured root. False mounts a roster without the derived writable root.
    */
   includeUserRoot: boolean
+  /**
+   * Patch rows applied to every composition this roster mounts, with the
+   * semantics of a profile's `cordis.patch.yml`: a row targets a composition
+   * row by id and replaces its whole `config`, or sets `disabled`, or inserts
+   * rows. A deployment that must withhold a capability from every session,
+   * such as a hosted Host that runs no commands on its own machine, states it
+   * here instead of forking the composition.
+   */
+  patches?: PatchOptions[]
 }
 
 /** One directory scanned for preset subdirectories. */
@@ -158,6 +167,8 @@ export interface PresetRoot {
  */
 export type PresetTrust = 'system' | 'user'
 ```
+
+依赖：`PatchOptions` （`@deepseek-ai/cordis-plugin-include`）
 
 来源：[`packages/preset/agent-presets/src/preset.ts`](../packages/preset/agent-presets/src/preset.ts)
 
@@ -264,6 +275,8 @@ export interface Config {
 export interface Config {
   /** Override platform desktop-opener detection. */
   readonly nativeOpen?: boolean
+  /** Permit fingerprint-only image reads; shared hosted deployments require a session instead. */
+  readonly directImageReads?: boolean
   /**
    * How long an approval or question nobody answered on the device running the turn waits for another device of
    * the account to answer, in milliseconds.
@@ -288,6 +301,14 @@ export interface Config {
 export interface Config {
   /** Override platform desktop-opener detection. */
   readonly nativeOpen?: boolean
+  /**
+   * Whether browser callers may write settings and credentials. The settings
+   * document and the credential store belong to the Host, so on a Host that
+   * serves accounts of different people a write by one would apply to every
+   * other; such a deployment sets `false`, which reports the surface read-only
+   * and refuses every write with `settings/read-only`. Defaults to `true`.
+   */
+  readonly writable?: boolean
 }
 ```
 
@@ -399,6 +420,27 @@ export interface Config {
 ```
 
 来源：[`packages/speech/api-text-to-speech/src/index.ts`](../packages/speech/api-text-to-speech/src/index.ts)
+
+<a id="aevenapi-workspace-controller"></a>
+
+## `@aeven/api-workspace-controller`
+
+需要：`typert` · `workspaceRegistry`
+
+```ts config-catalog
+/** Workspace Controller configuration. */
+export interface Config {
+  /**
+   * Whether callers may give a Workspace a directory of this Host, by creating
+   * one over a path or binding one. A Host that serves accounts of different
+   * people sets `false`: a directory there would expose the Host's own files,
+   * so its Workspaces are created by title and carry none. Defaults to `true`.
+   */
+  readonly folders?: boolean
+}
+```
+
+来源：[`packages/api/workspace-controller/src/index.ts`](../packages/api/workspace-controller/src/index.ts)
 
 <a id="aevenapi-workspace-files"></a>
 
@@ -1666,6 +1708,31 @@ export interface Config {
 
 来源：[`packages/host/workspace-files/src/index.ts`](../packages/host/workspace-files/src/index.ts)
 
+<a id="aevenhosted-app"></a>
+
+## `@aeven/hosted-app`
+
+需要：`agents` · `llm`
+
+```ts config-catalog
+/** Hosted-only admission settings. */
+export type Config = RequestLimits
+
+/** Deployment limits for active streams and their waiting requests. */
+export interface RequestLimits {
+  /** Streams one account may hold at once; a request over it waits behind that account's own queue. */
+  readonly perAccount: number
+  /** Streams the whole Host may hold at once, across every account and operator work. */
+  readonly total: number
+  /** Waiting requests one account may have; a further request is refused rather than queued. */
+  readonly queuedPerAccount: number
+  /** Waiting requests the Host may hold across every account; a further request is refused rather than queued. */
+  readonly queuedTotal: number
+}
+```
+
+来源：[`packages/bundle/hosted-app/src/index.ts`](../packages/bundle/hosted-app/src/index.ts)
+
 <a id="aevenidentity-user-aeven"></a>
 
 ## `@aeven/identity-user-aeven`
@@ -2810,6 +2877,20 @@ export interface Config {
   /** How this device publishes memory changes to the account's other devices while account sync serves it. */
   sync: MemorySyncTuning
   /**
+   * Open an account's memory as soon as its sync vault is served here, instead of at its first session, so the
+   * memory its other devices hold is in place before the account's first turn. A Host that serves an account's
+   * browser sessions sets it; a device the user signs in to opens memory with its first session either way.
+   */
+  openOnSync: boolean
+  /** Use account workspace ids for project memory on a hosted Host; desktop keeps directory-based namespaces. */
+  workspaceIdentity: boolean
+  /** Hosted-only worker execution for local embeddings; desktop retains the in-process provider. */
+  embeddingExecution: 'host' | 'worker'
+  /** Unfinished embedding requests accepted per account. */
+  embeddingQueuePerAccount: number
+  /** Unfinished embedding requests accepted across the Host. */
+  embeddingQueueTotal: number
+  /**
    * Separate episodes whose traces must support a pattern before MemOS induces a policy from it
    * (`l2Induction.minEpisodesForInduction`); one episode is a single example, not a pattern.
    */
@@ -3619,6 +3700,13 @@ export interface Config {
   watch?: boolean
   /** Watcher write-settle window in milliseconds; defaults to 100. */
   debounceMs?: number
+  /**
+   * Keep each signed-in account's own sections of `account`-reach namespaces in
+   * `accounts/<account>/settings.json` under the harness home, so a Host that
+   * serves several people resolves and writes those namespaces per account.
+   * Defaults to `false`: one document serves every account.
+   */
+  accounts?: boolean
 }
 ```
 
@@ -3721,6 +3809,30 @@ export interface Config {
 ```
 
 来源：[`packages/speech/speech-to-text/src/index.ts`](../packages/speech/speech-to-text/src/index.ts)
+
+<a id="aevenspeech-to-text-aeven"></a>
+
+## `@aeven/speech-to-text-aeven`
+
+需要：`speechToText`
+
+```ts config-catalog
+/** Deployment configuration for the Aeven transcription route. */
+export interface Config {
+  /** Unique registration id; consumers select this exact id. */
+  providerId: string
+  /** Origin of the Aeven API that serves `/transcribe`. */
+  apiUrl: string
+  /** Credential reference holding each signed-in user's Aeven session. */
+  apiKeyEnv: string
+  /** Largest recording sent, in bytes; a longer one is refused before upload. */
+  maxAudioBytes: number
+  /** Deadline for one transcription request, in milliseconds. */
+  timeoutMs: number
+}
+```
+
+来源：[`packages/speech/speech-to-text-aeven/src/index.ts`](../packages/speech/speech-to-text-aeven/src/index.ts)
 
 <a id="aevenspeech-to-text-whisper"></a>
 
@@ -4294,6 +4406,18 @@ export interface Config {
   lanRetryMs: number
   /** Largest message a local-network link accepts, in bytes. */
   lanMaxBytes: number
+  /**
+   * Whether each account stays connected to the relay while none of its clients is signed in here. The first
+   * connection opened with a user's access token asks the relay for a sync grant, kept in the account's store, and
+   * later connections present the grant when no access token resolves. A Host that serves an account's browser
+   * sessions sets it, so the account is current before the browser opens.
+   */
+  keepConnected: boolean
+  /**
+   * Logical names of documents fetched before the rest of a catch-up when this device holds no state for them, so
+   * a new device shows the account's conversation and workspace lists before the long tail arrives.
+   */
+  firstDocuments: string[]
 }
 ```
 
@@ -5759,7 +5883,6 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@aeven/acp-app` — requires `cmdlineArgs` ([`packages/bundle/acp-app/src/index.ts`](../packages/bundle/acp-app/src/index.ts))
 - `@aeven/agent` ([`packages/core/agent/src/index.ts`](../packages/core/agent/src/index.ts))
 - `@aeven/api-remotes` — requires `typertGateway` ([`packages/api/remotes/src/index.ts`](../packages/api/remotes/src/index.ts))
-- `@aeven/api-workspace-controller` — requires `typert` · `workspaceRegistry` ([`packages/api/workspace-controller/src/index.ts`](../packages/api/workspace-controller/src/index.ts))
 - `@aeven/authorization` — requires `credentials` ([`packages/credentials/authorization/src/index.ts`](../packages/credentials/authorization/src/index.ts))
 - `@aeven/client-locale` ([`packages/client/locale/src/index.ts`](../packages/client/locale/src/index.ts))
 - `@aeven/client-ui-account-aeven` ([`packages/client/ui-account-aeven/src/index.ts`](../packages/client/ui-account-aeven/src/index.ts))
@@ -5772,6 +5895,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@aeven/client-ui-conversation` ([`packages/client/ui-conversation/src/index.ts`](../packages/client/ui-conversation/src/index.ts))
 - `@aeven/client-ui-cordis` ([`packages/extensions/ui-cordis/src/index.ts`](../packages/extensions/ui-cordis/src/index.ts))
 - `@aeven/client-ui-deliverables` — requires `systemPrompt` ([`packages/client/ui-deliverables/src/index.ts`](../packages/client/ui-deliverables/src/index.ts))
+- `@aeven/client-ui-desktop-handoff` ([`packages/client/ui-desktop-handoff/src/index.ts`](../packages/client/ui-desktop-handoff/src/index.ts))
 - `@aeven/client-ui-directory-picker-browse` ([`packages/client/ui-directory-picker-browse/src/index.ts`](../packages/client/ui-directory-picker-browse/src/index.ts))
 - `@aeven/client-ui-directory-picker-native` ([`packages/client/ui-directory-picker-native/src/index.ts`](../packages/client/ui-directory-picker-native/src/index.ts))
 - `@aeven/client-ui-goal` ([`packages/client/ui-goal/src/index.ts`](../packages/client/ui-goal/src/index.ts))
@@ -5814,6 +5938,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@aeven/client-ui-voice-input` ([`packages/client/ui-voice-input/src/index.ts`](../packages/client/ui-voice-input/src/index.ts))
 - `@aeven/client-ui-workflow-run` ([`packages/client/ui-workflow-run/src/index.ts`](../packages/client/ui-workflow-run/src/index.ts))
 - `@aeven/client-ui-workspace` ([`packages/client/ui-workspace/src/index.ts`](../packages/client/ui-workspace/src/index.ts))
+- `@aeven/client-ui-workspace-name` ([`packages/client/ui-workspace-name/src/index.ts`](../packages/client/ui-workspace-name/src/index.ts))
 - `@aeven/command-compact` — requires `commands` · `compaction` ([`packages/compaction/command-compact/src/index.ts`](../packages/compaction/command-compact/src/index.ts))
 - `@aeven/command-feedback` — requires `commands` ([`packages/feedback/command-feedback/src/index.ts`](../packages/feedback/command-feedback/src/index.ts))
 - `@aeven/command-goal` — requires `commands` · `goals` ([`packages/goal/command-goal/src/index.ts`](../packages/goal/command-goal/src/index.ts))

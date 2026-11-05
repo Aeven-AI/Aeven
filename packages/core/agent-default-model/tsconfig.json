@@ -22,6 +22,9 @@
     },
     {
       "path": "../../settings/settings"
+    },
+    {
+      "path": "../../credentials/credentials"
     }
   ]
 }

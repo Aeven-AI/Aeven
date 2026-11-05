@@ -49,7 +49,7 @@ async function host(options: { home?: string; relayUrl?: string; deviceName?: st
     relayUrl: options.relayUrl ?? relay.url, credentialRef: 'AEVEN_TOKEN', deviceName: options.deviceName ?? 'test-host',
     reconnectMs: 100, connectTimeoutMs: 2000, requestTimeoutMs: 2000, compactAfter: 50, snapshotAfter: 50, applyFrames: 200,
     applyPauseMs: 0, pageFrames: 500, statusMs: 0, publishFrames: 100, publishBytes: 2_097_152,
-    lan: false, lanPort: 0, lanRetryMs: 100, lanMaxBytes: 65_536,
+    lan: false, lanPort: 0, lanRetryMs: 100, lanMaxBytes: 65_536, keepConnected: false, firstDocuments: [],
   })
   await fiber
   cleanups.push(() => fiber.dispose())

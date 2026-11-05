@@ -50,6 +50,8 @@ export interface DirectoryFlowOwnerProps {
   busy: boolean
   /** The operator picked a directory (absolute host path); the owner adopts it. */
   onPicked: (path: string) => void
+  /** The operator named a new Workspace with no directory; the owner creates it. */
+  onNamed: (title: string) => void
   /** The operator dismissed the interaction; the owner just closes the flow. */
   onCancel: () => void
   /** The interaction itself failed (chooser missing, listing denied); the owner shows its error surface. */
@@ -219,7 +221,7 @@ export type WorkspaceHeaderActionsInjected = DirectoryPickingInjected & {
    */
   startSession: (workspaceId?: WorkspaceId) => void
   /** Adopt a picked host directory as a real Workspace before targeting a Session. */
-  createWorkspace: (input: { path: string }) => Promise<WorkspaceView>
+  createWorkspace: (input: { path: string } | { title: string }) => Promise<WorkspaceView>
 }
 
 /**
@@ -241,7 +243,7 @@ export type WorkspaceHeaderActionsProps =
  */
 export type WorkspacePickerInjected = DirectoryPickingInjected & {
   /** Adopt a picked host directory as a real Workspace before targeting a Session. */
-  createWorkspace: (input: { path: string }) => Promise<WorkspaceView>
+  createWorkspace: (input: { path: string } | { title: string }) => Promise<WorkspaceView>
 }
 
 /**

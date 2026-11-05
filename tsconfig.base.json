@@ -239,6 +239,8 @@
       "@aeven/schedule/client": ["./packages/schedule/schedule/src/client.ts"],
       "@aeven/client-ui-directory-picker-browse": ["./packages/client/ui-directory-picker-browse/src"],
       "@aeven/client-ui-directory-picker-native": ["./packages/client/ui-directory-picker-native/src"],
+      "@aeven/client-ui-workspace-name": ["./packages/client/ui-workspace-name/src"],
+      "@aeven/client-ui-desktop-handoff": ["./packages/client/ui-desktop-handoff/src"],
       // sdk/ folders are role-named without their npm-side sdk/jsonrpc prefixes,
       // so their names do not match their directories and the generated aliases
       // below cannot map them; these three stay hand-written.
@@ -288,6 +290,7 @@
       "@aeven/api-text-to-speech": ["./packages/speech/api-text-to-speech/src/index.ts"],
       "@aeven/api-text-to-speech/types": ["./packages/speech/api-text-to-speech/src/types.ts"],
       "@aeven/speech-to-text-whisper": ["./packages/speech/speech-to-text-whisper/src/index.ts"],
+      "@aeven/speech-to-text-aeven": ["./packages/speech/speech-to-text-aeven/src/index.ts"],
       "@aeven/memory": ["./packages/memory/memory/src/index.ts"],
       "@aeven/memory/types": ["./packages/memory/memory/src/types.ts"],
       "@aeven/memory-memos": ["./packages/memory/memory-memos/src/index.ts"],
@@ -397,6 +400,7 @@
       "@aeven/hook-protocol/invariant": ["./packages/hooks/hook-protocol/src/invariant.ts"],
       "@aeven/hooks-claude-code": ["./packages/hooks/hooks-claude-code/src"],
       "@aeven/hooks-codex": ["./packages/hooks/hooks-codex/src"],
+      "@aeven/hosted-app": ["./packages/bundle/hosted-app/src"],
       "@aeven/http-proxy": ["./packages/util/http-proxy/src"],
       "@aeven/invariants": ["./packages/runtime-diagnostics/invariants/src"],
       "@aeven/jobs": ["./packages/jobs/jobs/src"],

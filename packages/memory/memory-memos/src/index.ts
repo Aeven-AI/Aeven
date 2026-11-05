@@ -11,11 +11,13 @@ import z from '@deepseek-ai/schemastery'
 import { accountDirectoryName } from '@aeven/home-paths'
 import { LeaseHolder } from '@aeven/sync'
 import type {} from '@aeven/llm'
-import { MEMORY_MAINTENANCE_LEASE } from '@aeven/memory'
+import type {} from '@aeven/workspace'
+import { MEMORY_MAINTENANCE_LEASE, type MemoryScope } from '@aeven/memory'
 import { loadConfig, resolveHome, type ResolvedConfig } from '@deepseek-ai/memos-local-plugin/core/config/index.js'
 import type { ResolvedHome } from '@deepseek-ai/memos-local-plugin/core/config/paths.js'
 import { bootstrapMemoryCore } from '@deepseek-ai/memos-local-plugin/core/index.js'
 import { OwnerCores } from './cores.ts'
+import { HostedEmbeddings } from './embedding.ts'
 import { createHostLlmBridge, LlmRouteContext, type MemoryLanguage } from './host-llm.ts'
 import { splitSharedMemory } from './migrate.ts'
 import { MEMOS_AGENT, MemosMemory, memosHome } from './runtime.ts'
@@ -72,6 +74,20 @@ export interface Config {
   reindexBatchSize: number
   /** How this device publishes memory changes to the account's other devices while account sync serves it. */
   sync: MemorySyncTuning
+  /**
+   * Open an account's memory as soon as its sync vault is served here, instead of at its first session, so the
+   * memory its other devices hold is in place before the account's first turn. A Host that serves an account's
+   * browser sessions sets it; a device the user signs in to opens memory with its first session either way.
+   */
+  openOnSync: boolean
+  /** Use account workspace ids for project memory on a hosted Host; desktop keeps directory-based namespaces. */
+  workspaceIdentity: boolean
+  /** Hosted-only worker execution for local embeddings; desktop retains the in-process provider. */
+  embeddingExecution: 'host' | 'worker'
+  /** Unfinished embedding requests accepted per account. */
+  embeddingQueuePerAccount: number
+  /** Unfinished embedding requests accepted across the Host. */
+  embeddingQueueTotal: number
   /**
    * Separate episodes whose traces must support a pattern before MemOS induces a policy from it
    * (`l2Induction.minEpisodesForInduction`); one episode is a single example, not a pattern.
@@ -191,6 +207,11 @@ export const Config: z<Config> = z.object({
     drainMs: 2_000, drainBatch: 500, applyPauseMs: 16, outboxLimit: 200,
     maintenanceTtlMs: 180_000, maintenanceRenewMs: 60_000,
   }),
+  openOnSync: z.boolean().default(false),
+  workspaceIdentity: z.boolean().default(false),
+  embeddingExecution: z.union(['host', 'worker'] as const).default('host'),
+  embeddingQueuePerAccount: z.natural().min(1).default(8),
+  embeddingQueueTotal: z.natural().min(1).default(128),
   embedding: z.object({
     model: z.string().min(1).default('Xenova/multilingual-e5-small'),
     queryPrefix: z.string().default('query: '),
@@ -331,6 +352,9 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     return state === undefined || state === 'disabled' || state === 'starting'
   }
 
+  const embeddings = config.embeddingExecution === 'worker' && configured.embedding.provider === 'local'
+    ? new HostedEmbeddings({ perAccount: config.embeddingQueuePerAccount, total: config.embeddingQueueTotal })
+    : undefined
   const cores = new OwnerCores(async (owner) => {
     const accountRoot = accountHome(config.accounts, owner)
     mkdirSync(accountRoot.dataDir, { recursive: true, mode: 0o700 })
@@ -341,6 +365,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       home: accountRoot,
       config: memosConfig,
       hostLlmBridge: bridge,
+      ...embeddings === undefined ? {} : { embeddingProvider: embeddings.forOwner(owner) },
       autoRecovery: recovery,
       maintenanceGate: () => mayMaintain(owner),
       initLogging: false,
@@ -365,6 +390,16 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   const memory = new MemosMemory({
     cores,
     routes,
+    ...config.workspaceIdentity ? { workspaceId: (scope: MemoryScope) => {
+      const registry = ctx.get('workspaceRegistry')
+      if (registry === undefined) throw new Error('memory-memos: workspace identity requires a workspace registry')
+      const placement = registry.placeSession(scope.sessionId)
+      if (placement.state !== 'filed') return undefined
+      if (placement.workspace.owner !== undefined && placement.workspace.owner !== scope.owner) {
+        throw new Error('memory-memos: workspace belongs to another account')
+      }
+      return placement.workspace.id
+    } } : {},
     toolLimits: {
       skills: configured.algorithm.retrieval.tier1TopK,
       traces: configured.algorithm.retrieval.tier2TopK,
@@ -418,6 +453,8 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   const mirrors = new Map<string, MemorySyncMirror>()
   /** Accounts whose documents started over; their next mirror publishes every row again. */
   const republish = new Set<string>()
+  // Accounts whose memory `openOnSync` is creating; the mirror starts once their database exists.
+  const opening = new Set<string>()
   const mirror = (owner: string): void => {
     const sync = ctx.get('sync')
     const state = sync?.status(owner).state
@@ -429,7 +466,16 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       holder.start()
     }
     const dbFile = accountHome(config.accounts, owner).dbFile
-    if (mirrors.has(owner) || !existsSync(dbFile)) return
+    if (mirrors.has(owner)) return
+    if (!existsSync(dbFile)) {
+      if (config.openOnSync && !opening.has(owner)) {
+        opening.add(owner)
+        void cores.get(owner).then(() => { mirror(owner) }, (error: unknown) => {
+          logger.warn(`memory sync: opening an account's memory failed: ${String(error)}`)
+        }).finally(() => { opening.delete(owner) })
+      }
+      return
+    }
     const created = new MemorySyncMirror(owner, dbFile, sync, config.embedding.model, config.sync, (message) => { logger.warn(message) })
     mirrors.set(owner, created)
     try {
@@ -463,6 +509,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     return async () => {
       unwatch()
       unregister()
+      await embeddings?.close()
       await memory.dispose()
     }
   }, 'memory-memos.provider')

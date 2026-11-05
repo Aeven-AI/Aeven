@@ -12,6 +12,7 @@ import { Context } from '@deepseek-ai/cordis'
 import Schema from '@deepseek-ai/schemastery'
 // Type-only: resolves the `agentPresets` Context augmentation this controller reads.
 import type {} from '@aeven/agent-presets'
+import type {} from '@aeven/identity-user'
 import {
   canOpenNativePath,
   openNativePath,
@@ -24,7 +25,7 @@ import type {
 import { Remote, RemoteError, TypertRemoteService } from '@aeven/typert-protocol'
 import type { JsonValue } from '@aeven/util-values'
 import { z } from 'zod'
-import { CredentialsController } from './credentials.ts'
+import { CredentialsController, readOnly } from './credentials.ts'
 import type { AgentPresetDirectoryOpenValue, SettingsDocumentOpenValue } from './types.ts'
 
 export { CredentialsController } from './credentials.ts'
@@ -36,6 +37,14 @@ const settingsNamespaceRequestSchema = z.object({ ns: z.string().min(1) })
 export interface Config {
   /** Override platform desktop-opener detection. */
   readonly nativeOpen?: boolean
+  /**
+   * Whether browser callers may write settings and credentials. The settings
+   * document and the credential store belong to the Host, so on a Host that
+   * serves accounts of different people a write by one would apply to every
+   * other; such a deployment sets `false`, which reports the surface read-only
+   * and refuses every write with `settings/read-only`. Defaults to `true`.
+   */
+  readonly writable?: boolean
 }
 
 /** Read abort state afresh after an awaited provider or opener call. */
@@ -86,11 +95,12 @@ declare module '@deepseek-ai/cordis' {
  * `settings/conflict` or `settings/rejected` with the service's message.
  */
 export class SettingsController extends TypertRemoteService {
-  static Config: Schema<Config> = Schema.object({ nativeOpen: Schema.boolean() })
+  static Config: Schema<Config> = Schema.object({ nativeOpen: Schema.boolean(), writable: Schema.boolean() })
 
   private readonly openPath: (path: string, signal: AbortSignal) => Promise<void>
   private readonly openTextFile: (path: string, signal: AbortSignal) => Promise<void>
   private readonly canOpenPath: () => boolean
+  private readonly writable: boolean
 
   /**
    * Register the settings namespace and mount the credentials namespace beside
@@ -104,22 +114,25 @@ export class SettingsController extends TypertRemoteService {
     this.openTextFile = internals.openTextFile ?? openNativeTextFile
     this.canOpenPath = internals.canOpenPath
       ?? (() => config.nativeOpen ?? (internals.openPath !== undefined || canOpenNativePath()))
-    ctx.plugin(CredentialsController)
+    this.writable = config.writable ?? true
+    ctx.plugin(CredentialsController, { writable: this.writable })
   }
 
   /**
    * Describe every registered namespace for a configuration page: redacted
    * layered values plus the serialized schema the page renders its form from.
-   * @returns provider writability, local-document presence, and one view per namespace.
+   * On a provider that keeps account sections, `account`-reach namespaces
+   * resolve for the acting user and report that user's own section.
+   * @returns writability of the Host's document, local-document presence, and one view per namespace.
    * @throws RemoteError when no settings provider is mounted.
    */
   @Remote
-  describe(): SettingsDescribeValue {
+  async describe(): Promise<SettingsDescribeValue> {
     const settings = this.provider()
     return {
-      writable: settings.writable,
+      writable: settings.writable && this.writable,
       hasDocument: settings.documentPath !== undefined,
-      namespaces: settings.describe({ redactSecrets: true }).map(namespaceView),
+      namespaces: (await settings.describeFor(this.actingOwner(), { redactSecrets: true })).map(namespaceView),
     }
   }
 
@@ -269,20 +282,31 @@ export class SettingsController extends TypertRemoteService {
     }
     const settings = this.provider()
     const namespace = parsed.data.ns
+    // A person's own namespace lands in that person's section; everything else is the Host's document.
+    const owner = this.actingOwner()
+    const personal = owner !== undefined && settings.accountSections
+      && settings.describe().find(candidate => candidate.ns === namespace)?.reach === 'account'
+    if (!personal && !this.writable) throw readOnly(`settings.${mode}`)
     try {
-      if (mode === 'update') await settings.update(namespace, input, expectedRevision)
+      if (personal) await settings.writeFor(owner, namespace, mode === 'update' ? 'merge' : mode, input, expectedRevision)
+      else if (mode === 'update') await settings.update(namespace, input, expectedRevision)
       else if (mode === 'replace') await settings.replace(namespace, input, expectedRevision)
       else await settings.mutate(namespace, input as SettingsPathOp[], expectedRevision)
     } catch (error: unknown) {
       throw rejected(ns, error)
     }
-    const descriptor = settings.describe({ redactSecrets: true }).find(candidate => candidate.ns === namespace)
+    const descriptor = (await settings.describeFor(owner, { redactSecrets: true })).find(candidate => candidate.ns === namespace)
     if (descriptor === undefined) {
       // The write committed but the namespace vanished before this read: only a
       // concurrent registrant disposal can produce it.
       throw new RemoteError('gateway/internal', `settings namespace "${ns}" was disposed after the ${mode}`, {})
     }
     return namespaceView(descriptor)
+  }
+
+  /** The signed-in account making the current call, when an identity authority is mounted. */
+  private actingOwner(): string | undefined {
+    return this.ctx.get('identityUsers')?.actingUser()?.id
   }
 
   /** Resolve the optional provider or report how to supply it. */

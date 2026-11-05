@@ -362,9 +362,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Workspace Controller\'s Client service face.',
     methods: [
       {
-        signature: 'create(input: { path: string }): Promise<WorkspaceView>',
-        description: 'Register an existing path as a Workspace.',
-        parameters: [{ name: 'input', description: 'Host create payload.' }],
+        signature: 'create(input: { path: string } | { title: string }): Promise<WorkspaceView>',
+        description: 'Register an existing path as a Workspace, or create a Workspace with no directory under a title.',
+        parameters: [{ name: 'input', description: 'Host create payload: a directory path or a title.' }],
         returns: 'the created or idempotently resolved Workspace.',
       },
       {

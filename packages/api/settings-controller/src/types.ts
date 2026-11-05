@@ -14,6 +14,8 @@ declare module '@aeven/typert-protocol' {
      * namespace, a read-only provider, schema validation, storage.
      */
     'settings/rejected': { readonly ns: string }
+    /** A write reached a deployment whose settings and credentials are read-only to browser callers. */
+    'settings/read-only': Record<string, never>
     /**
      * The stored revision moved after the caller read it. Its own outcome rather
      * than an invalid request: the caller must re-read and re-apply.

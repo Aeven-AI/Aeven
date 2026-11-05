@@ -1,6 +1,7 @@
 /** Host Workspace Remote owner: explicit commands and reconnect-safe state. */
 
 import { Context } from '@deepseek-ai/cordis'
+import Schema from '@deepseek-ai/schemastery'
 import { Remote, TypertRemoteService } from '@aeven/typert-protocol'
 import { WorkspaceCommands } from './commands.ts'
 import { DirectoryPickerController } from './directory-picker.ts'
@@ -41,17 +42,33 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
+/** Workspace Controller configuration. */
+export interface Config {
+  /**
+   * Whether callers may give a Workspace a directory of this Host, by creating
+   * one over a path or binding one. A Host that serves accounts of different
+   * people sets `false`: a directory there would expose the Host's own files,
+   * so its Workspaces are created by title and carry none. Defaults to `true`.
+   */
+  readonly folders?: boolean
+}
+
 /** Host service backing the generated `ctx.remote.workspace` namespace. */
 export class WorkspaceController extends TypertRemoteService {
   static inject = ['typert', 'workspaceRegistry']
 
+  static Config: Schema<Config> = Schema.object({ folders: Schema.boolean() })
+
   private readonly commands: WorkspaceCommands
   private readonly feed: WorkspaceFeed
 
-  /** @param ctx - Host context containing the Workspace registry. */
-  constructor(ctx: Context) {
+  /**
+   * @param ctx - Host context containing the Workspace registry.
+   * @param config - whether Workspaces may take directories of this Host.
+   */
+  constructor(ctx: Context, config: Config = {}) {
     super(ctx, 'workspaceController', { namespace: 'workspace' })
-    this.commands = new WorkspaceCommands(ctx)
+    this.commands = new WorkspaceCommands(ctx, config.folders ?? true)
     this.feed = new WorkspaceFeed(ctx)
     // This package is the Loader entry for both Remote owners it hosts: the
     // directory-picking seam is abstract and never an entry itself. The child
@@ -61,8 +78,9 @@ export class WorkspaceController extends TypertRemoteService {
   }
 
   /**
-   * Create or idempotently resolve one Workspace over an existing directory.
-   * @param request - directory path to register.
+   * Create or idempotently resolve one Workspace over an existing directory, or
+   * create a Workspace with no directory under a title.
+   * @param request - directory path to register, or title of a pathless Workspace.
    * @returns the Workspace and whether this call created it.
    */
   @Remote('create')

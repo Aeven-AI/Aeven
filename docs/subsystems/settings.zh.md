@@ -228,10 +228,49 @@ installSection<const Namespace extends string, T>( owner: Context, ns: Namespace
 describe(options?: SettingsDescribeOptions): SettingsDescriptor[]
 
 /**
- * Read one registered namespace's resolved value.
- * @param ns - the namespace to read.
- * @returns the resolved value, or `undefined` while unregistered.
- * @throws {TypeError} when `ns` is not a lowercase hyphenated identifier.
+ * Describe every namespace as `owner` sees it: an `account`-reach namespace resolves with the account's own
+ * section over the document's, and reports that section as `user`. Without account sections, or without an
+ * owner, it is {@link describe}.
+ * @param owner - the signed-in account, when one is acting.
+ * @param options - redaction for wire surfaces.
+ * @returns one descriptor per registered namespace.
+ */
+async describeFor(owner: string | undefined, options?: SettingsDescribeOptions): Promise<SettingsDescriptor[]>
+
+/**
+ * Resolve one namespace as `owner` sees it; see {@link describeFor}.
+ * @param ns - the namespace.
+ * @param owner - the account, when one is known.
+ * @returns the resolved value, or undefined for an unregistered namespace.
+ */
+async valueFor<const Namespace extends string>( ns: Namespace & SettingsNamespaceInput<Namespace>, owner: string | undefined, ): Promise<unknown>
+
+/**
+ * Read one account's own section of an `account`-reach namespace.
+ * @param owner - the account.
+ * @param ns - the namespace.
+ * @returns the stored section, or undefined when the account stored none.
+ */
+async accountSectionOf<const Namespace extends string>( owner: string, ns: Namespace & SettingsNamespaceInput<Namespace>, ): Promise<Record<string, unknown> | undefined>
+
+/**
+ * Write one account's own section of an `account`-reach namespace, the account-scoped counterpart of
+ * {@link update}, {@link replace}, and {@link mutate}. Each write emits `settings/document-updated` with the
+ * account's revision and `settings/account-updated` with the account.
+ * @param owner - the account.
+ * @param ns - the namespace; it must be registered with `reach: 'account'`.
+ * @param mode - merge a patch, replace the section, or apply path ops.
+ * @param input - the patch, the section, or the ops.
+ * @param expectedRevision - the account revision the caller read; undefined writes unconditionally.
+ * @returns resolution after durability.
+ * @throws when the provider keeps no account sections, the namespace is not account-reach, or the revision moved.
+ */
+writeFor<const Namespace extends string>( owner: string, ns: Namespace & SettingsNamespaceInput<Namespace>, mode: 'merge' | 'replace' | 'mutate', input: object, expectedRevision?: number, ): Promise<void>
+
+/**
+ * Read one registered namespace's resolved value for this device, ignoring any account's own section.
+ * @param ns - the namespace.
+ * @returns the resolved value, or undefined for an unregistered namespace.
  */
 get<const Namespace extends string>(ns: Namespace & SettingsNamespaceInput<Namespace>): unknown
 
@@ -290,10 +329,12 @@ Host service backing the generated `ctx.remote.settings` namespace. Every remote
 /**
  * Describe every registered namespace for a configuration page: redacted
  * layered values plus the serialized schema the page renders its form from.
- * @returns provider writability, local-document presence, and one view per namespace.
+ * On a provider that keeps account sections, `account`-reach namespaces
+ * resolve for the acting user and report that user's own section.
+ * @returns writability of the Host's document, local-document presence, and one view per namespace.
  * @throws RemoteError when no settings provider is mounted.
  */
-@Remote describe(): SettingsDescribeValue
+@Remote async describe(): Promise<SettingsDescribeValue>
 
 /**
  * Report whether this deployment can open an authored Agent preset directory natively.
@@ -356,6 +397,25 @@ Source: [`packages/api/settings-controller/src/index.ts`](../../packages/api/set
 <a id="settings-events"></a>
 
 ### `settings/*` events
+
+<a id="settingsaccount-updated--emit"></a>
+
+#### `settings/account-updated` — emit
+
+One account's own section of an `account`-reach namespace changed on a provider that keeps account sections. Account sync publishes it to the account's other devices.
+
+```ts cordis-catalog
+/**
+ * One account's own section of an `account`-reach namespace changed on a provider that keeps account
+ * sections. Account sync publishes it to the account's other devices.
+ * @param owner - the account.
+ * @param ns - the namespace.
+ * @mode emit
+ */
+'settings/account-updated'(owner: string, ns: SettingsNamespace): void
+```
+
+Source: [`packages/settings/settings/src/types.ts`](../../packages/settings/settings/src/types.ts)
 
 <a id="settingsdocument-updated--emit"></a>
 

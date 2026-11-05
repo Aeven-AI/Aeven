@@ -40,6 +40,11 @@ export interface VaultTuning {
   publishFrames: number
   /** Maximum complete publish request bytes, including base64url and JSON. */
   publishBytes: number
+  /**
+   * Logical names of documents fetched before the rest of the backlog when this device holds no state for them,
+   * such as the conversation and workspace lists a client shows first.
+   */
+  firstDocuments: readonly string[]
 }
 
 /** The account key state `key.get` answers. */
@@ -431,6 +436,7 @@ export class AccountVault {
    * @param relay - the open connection.
    */
   private async catchUp(relay: RelayConnection): Promise<void> {
+    await this.fetchFirst(relay)
     for (;;) {
       await this.applied()
       if (this.relay !== relay) return
@@ -438,6 +444,35 @@ export class AccountVault {
       if (answer.more !== true) break
     }
     await this.applied()
+  }
+
+  /**
+   * Fetch the stored frames of the configured first documents this device holds no state for, and apply them
+   * before the backlog. The relay cursor stays where it is: `sync` delivers the same frames again in order and the
+   * replay check drops them. A relay without `docs.get` refuses the request, and catch-up proceeds as before.
+   * @param relay - the open connection.
+   */
+  private async fetchFirst(relay: RelayConnection): Promise<void> {
+    const ids = [...new Set(this.tuning.firstDocuments.map(name => this.documentId(name)))]
+      .filter(id => this.store.docUpdateCount(id) === 0)
+    if (ids.length === 0) return
+    let after = 0
+    for (;;) {
+      let answer: Record<string, unknown>
+      try {
+        answer = await relay.request('docs.get', { ids, after })
+      } catch (error) {
+        if (error instanceof RelayError && error.code === 'bad-request') return
+        throw error
+      }
+      if (this.relay !== relay) return
+      const frames = (answer.frames as Array<{ seq: number; frame: string }>)
+        .map(({ seq, frame }) => ({ seq, frame: new Uint8Array(Buffer.from(frame, 'base64url')) }))
+      if (frames.length > 0) await this.applyFrames(frames, false)
+      const last = frames.at(-1)
+      if (answer.more !== true || last === undefined) return
+      after = last.seq
+    }
   }
 
   /** @returns when every received frame is applied. */
@@ -503,6 +538,17 @@ export class AccountVault {
       frames.push(next)
       if (frames.length >= this.tuning.applyFrames) break
     }
+    await this.applyFrames(frames, true)
+  }
+
+  /**
+   * Open received frames on the sync worker, store what they carry in one transaction, and update open documents.
+   * @param frames - frames in relay sequence order.
+   * @param advance - whether the frames are the relay's backlog in order, so the cursor moves past them.
+   */
+  private async applyFrames(frames: Array<{ seq: number; frame: Uint8Array }>, advance: boolean): Promise<void> {
+    const key = this.key()
+    if (key === undefined) return
     const opened = await this.offload.open(frames, key)
     const applied = new Map<OpaqueId, Uint8Array[]>()
     this.store.transaction(() => {
@@ -521,7 +567,7 @@ export class AccountVault {
         if (updates === undefined) applied.set(header.id, [payload])
         else updates.push(payload)
       }
-      this.store.setRelayCursor((frames.at(-1) as { seq: number }).seq)
+      if (advance) this.store.setRelayCursor((frames.at(-1) as { seq: number }).seq)
     })
     for (const [id, updates] of applied) {
       const open = this.docs.get(id)
