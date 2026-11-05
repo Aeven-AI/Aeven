@@ -23,7 +23,7 @@ async function harness(options: { owner?: string | null; handoff?: boolean; wait
   const forward = vi.fn((_owner: string, _id: SessionId, _input: unknown) => Promise.resolve())
   if (options.handoff !== false) ctx.provide('sessionHandoff', { forward } as never)
   const changed = vi.fn()
-  const relay = new InteractionRelay(ctx, changed, options.waitMs ?? 1_000)
+  const relay = new InteractionRelay(ctx, changed, options.waitMs ?? 1_000, 100)
   return { ctx, agent, relay, changed, forward }
 }
 
@@ -76,10 +76,11 @@ describe('approvals and questions on the device running the turn', () => {
     await vi.waitFor(() => { expect(relay.pendingFor(agent.id)).toHaveLength(1) })
     await new Promise(resolve => setTimeout(resolve, 5))
     ended.abort()
-    await expect(withdrawn).resolves.toBe('unavailable')
+    // A request whose lifetime ended fails with that end rather than reporting a decision nobody made.
+    await expect(withdrawn).rejects.toBe(ended.signal.reason)
     const before = new AbortController()
     before.abort()
-    await expect(approve(ctx, agent, before.signal)).resolves.toBe('unavailable')
+    await expect(approve(ctx, agent, before.signal)).rejects.toBe(before.signal.reason)
   })
 
   it('relays questions the same way, failing as before when nobody anywhere answers', async () => {

@@ -24,19 +24,22 @@ describe('SessionController facade', () => {
     const controller = createSessionTestController(ctx, defaults)
     const apply = vi.fn((_id: unknown, _input: unknown) => Promise.resolve())
     ;(controller as unknown as { commands: { applyForwarded: typeof apply } }).commands.applyForwarded = apply
-    const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => {})
     const answer = vi.spyOn((controller as unknown as { controlState: { interactions: { answer: () => void } } }).controlState.interactions, 'answer')
     ctx.emit('session-handoff/input', 'owner-1', SessionId('s'), { operation: 'interaction', request: { id: 'i-1', answer: 'rejected' } })
     ctx.emit('session-handoff/input', 'owner-1', SessionId('s'), { operation: 'interaction', request: { id: 7 } })
     expect(answer).toHaveBeenCalledExactlyOnceWith('i-1', 'rejected')
     const input = { operation: 'cancel', request: {} }
-    ctx.emit('session-handoff/input', 'owner-1', SessionId('s'), input)
-    await vi.waitFor(() => { expect(apply).toHaveBeenCalledWith('s', input) })
+    await ctx.parallel('session-handoff/input', 'owner-1', SessionId('s'), input)
+    expect(apply).toHaveBeenCalledWith('s', input)
     const runAs = vi.fn((_user: unknown, work: () => Promise<void>) => work())
     ctx.provide('identityUsers', { runAs } as never)
     apply.mockRejectedValueOnce(new Error('agent busy'))
-    ctx.emit('session-handoff/input', 'owner-1', SessionId('s'), input)
-    await vi.waitFor(() => { expect(warn).toHaveBeenCalledWith(expect.stringContaining('agent busy')) })
+    // An input this device cannot apply fails the dispatch, so the account's inbox keeps it for another device.
+    const declined = await ctx.parallel('session-handoff/input', 'owner-1', SessionId('s'), input)
+      .then(() => undefined, (error: unknown) => error)
+    expect(declined).toBeInstanceOf(AggregateError)
+    if (!(declined instanceof AggregateError)) throw new Error('expected AggregateError')
+    expect(declined.errors.map((error: unknown) => (error as Error).message)).toEqual(['agent busy'])
     expect(runAs).toHaveBeenCalledWith({ id: 'owner-1' }, expect.any(Function))
   })
 

@@ -47,14 +47,15 @@ declare module '@deepseek-ai/cordis' {
 
   interface Events {
     /**
-     * Another device forwarded an input for a session this device writes. Listeners apply it as the session's
-     * owner; it is delivered once.
-     * @mode emit
+     * An input some device of the account submitted is to be applied on this device. Listeners apply it as the
+     * session's owner and reject when this device cannot apply it, such as when it cannot serve the session's
+     * model; a rejected input stays in the account's inbox for another device.
+     * @mode parallel
      * @param owner - the account the session belongs to.
      * @param sessionId - the session.
-     * @param input - the forwarded input.
+     * @param input - the submitted input.
      */
-    'session-handoff/input'(owner: string, sessionId: SessionId, input: SessionHandoffInput): void
+    'session-handoff/input'(owner: string, sessionId: SessionId, input: SessionHandoffInput): Promise<void>
     /**
      * The live state another device publishes for a session it writes changed; read it with
      * {@link SessionHandoff.liveOf}.
@@ -154,6 +155,16 @@ export abstract class SessionHandoff extends Service {
   abstract holdRunner(owner: string, sessionId: SessionId, running: boolean): Promise<void>
 
   /**
+   * Download an attachment another device of the account published, such as an image, video, or file a synced
+   * conversation cites, when this device does not hold it yet.
+   * @param _attachmentId - the attachment's content address.
+   * @returns whether this device holds the attachment now.
+   */
+  fetchAttachment(_attachmentId: string): Promise<boolean> {
+    return Promise.resolve(false)
+  }
+
+  /**
    * Publish that another device took over a session this device wrote to `session-handoff/released` listeners.
    * @param owner - the account.
    * @param sessionId - the session.
@@ -194,8 +205,8 @@ export abstract class SessionHandoff extends Service {
    * @param sessionId - the session.
    * @param input - the input.
    */
-  protected deliver(owner: string, sessionId: SessionId, input: SessionHandoffInput): void {
-    this.ctx.emit('session-handoff/input', owner, sessionId, input)
+  protected async deliver(owner: string, sessionId: SessionId, input: SessionHandoffInput): Promise<void> {
+    await this.ctx.parallel('session-handoff/input', owner, sessionId, input)
   }
 }
 

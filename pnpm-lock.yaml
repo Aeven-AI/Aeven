@@ -10307,6 +10307,9 @@ importers:
       '@aeven/sync':
         specifier: workspace:^
         version: link:../../sync/sync
+      '@aeven/system-prompt':
+        specifier: workspace:^
+        version: link:../../core/system-prompt
       '@aeven/workspace':
         specifier: workspace:^
         version: link:../../workspace/workspace

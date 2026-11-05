@@ -3,7 +3,8 @@
  * document, while `ctx.sync` serves the account. The document holds each workspace's title and timestamps and the
  * account's display order — never a directory path, because a folder lives on the device that opened it: another
  * device receives the workspace pathless and stores it as `remote` until it binds a directory of its own. Session
- * accounting and the archive set stay device-local for the same reason, since a session body lives where it ran.
+ * accounting stays device-local for the same reason. The archive set travels: each session's latest archive or
+ * unarchive wins, so a conversation reads as archived on every device or on none.
  */
 import type { Context } from '@deepseek-ai/cordis'
 import type { Array as YArray, Map as YMap, Transaction, YArrayEvent, YMapEvent } from 'yjs'
@@ -37,6 +38,16 @@ export interface SyncedWorkspaces {
 /** Applies another device's workspaces on this device. */
 export type WorkspaceApply = (owner: string, projection: SyncedWorkspaces) => void
 
+/** One session's archive state as the document holds it; the later `at` wins. */
+export interface ArchiveMark {
+  archived: boolean
+  /** When a device archived or unarchived it, in milliseconds since the Unix epoch. */
+  at: number
+}
+
+/** Applies the account's archive marks on this device. */
+export type ArchiveApply = (owner: string, marks: ReadonlyMap<string, boolean>) => void
+
 /** Mirror between the workspace registry and each account's synced document. */
 export class WorkspaceSync {
   private readonly open = new Map<string, Promise<SyncDocument | undefined>>()
@@ -46,12 +57,14 @@ export class WorkspaceSync {
    * @param apply - stores another device's workspaces on this device.
    * @param warn - receives failures to open the document.
    * @param now - clock for the tombstone timestamp.
+   * @param applyArchive - stores the account's archive marks on this device.
    */
   constructor(
     private readonly ctx: Context,
     private readonly apply: WorkspaceApply,
     private readonly warn: (message: string) => void,
     private readonly now: () => Date = () => new Date(),
+    private readonly applyArchive?: ArchiveApply,
   ) {}
 
   /**
@@ -76,6 +89,10 @@ export class WorkspaceSync {
       })
       order.observe((_event: YArrayEvent<WorkspaceId>, transaction: Transaction) => {
         if (!transaction.local) take()
+      })
+      const archive = handle.doc.getMap<ArchiveMark>('archived')
+      archive.observe((_event: YMapEvent<ArchiveMark>, transaction: Transaction) => {
+        if (!transaction.local) this.applyArchive?.(owner, marksOf(archive))
       })
       return handle
     }, (error: unknown) => {
@@ -138,6 +155,30 @@ export class WorkspaceSync {
     handle?.doc.getMap<SyncedWorkspace>('records').set(id, { removed: true, title, updatedAt: this.now().toISOString() })
   }
 
+  /**
+   * The account's archive marks.
+   * @param owner - the account.
+   * @returns each marked session's archive state, or undefined while sync does not serve the account.
+   */
+  async archiveMarks(owner: string): Promise<ReadonlyMap<string, boolean> | undefined> {
+    const handle = await this.attach(owner)
+    return handle === undefined ? undefined : marksOf(handle.doc.getMap<ArchiveMark>('archived'))
+  }
+
+  /**
+   * Record that this device archived or unarchived sessions of the account.
+   * @param owner - the account.
+   * @param sessionIds - the sessions.
+   * @param archived - whether they are archived now.
+   */
+  async markArchived(owner: string, sessionIds: readonly string[], archived: boolean): Promise<void> {
+    const handle = await this.attach(owner)
+    if (handle === undefined || sessionIds.length === 0) return
+    const archive = handle.doc.getMap<ArchiveMark>('archived')
+    const at = this.now().getTime()
+    handle.doc.transact(() => { for (const id of sessionIds) archive.set(id, { archived, at }) })
+  }
+
   /* jscpd:ignore-start -- identical in every account-document mirror; each owns its own open map and document. */
   /**
    * Close the account's document because its documents started over under a new key; the next attach opens it anew.
@@ -156,4 +197,12 @@ export class WorkspaceSync {
     this.open.clear()
   }
   /* jscpd:ignore-end */
+}
+
+/**
+ * @param archive - the document's archive map.
+ * @returns each marked session's archive state.
+ */
+function marksOf(archive: YMap<ArchiveMark>): ReadonlyMap<string, boolean> {
+  return new Map([...archive.entries()].map(([id, mark]) => [id, mark.archived]))
 }

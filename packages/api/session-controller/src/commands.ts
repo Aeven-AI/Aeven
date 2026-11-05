@@ -5,6 +5,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { brandString } from '@aeven/brand'
 import type { Agent, ModelSelection as AgentModelSelection } from '@aeven/agent'
 import { AttachmentError, admitPromptContent } from '@aeven/attachment'
+import { readFetchedAttachment } from './file-uploads.ts'
 import type { FileAttachmentRef, ImageAttachmentRef, StoredFileAttachment, StoredImageAttachment } from '@aeven/attachment'
 import {
   ReasoningEffortId, createUserMessage, freezeMessage,
@@ -233,6 +234,16 @@ export class SessionCommandController {
    * @returns the normalized selection installed for the Session.
    */
   async selectModel(request: SessionSelectModelRequest): Promise<SessionSelectModelValue> {
+    const owner = await this.claimForChange(request.sessionId)
+    if (owner !== undefined) {
+      await this.forward(owner, request.sessionId, 'select-model', request)
+      return {
+        selected: {
+          provider: request.provider, model: request.model,
+          ...request.reasoningEffort === undefined ? {} : { reasoningEffort: ReasoningEffortId(request.reasoningEffort) },
+        },
+      }
+    }
     const agent = await this.resolveAgent(request.sessionId)
     return this.agents.serializeImageAdmission(agent, async () => {
       try {
@@ -276,6 +287,9 @@ export class SessionCommandController {
    * @returns the accepted title and durable event sequence.
    */
   async rename(request: SessionRenameRequest): Promise<SessionRenameValue> {
+    if (await this.claimForChange(request.sessionId) !== undefined) {
+      throw new RemoteError('session/agent-busy', 'another device of this account is running a turn of this conversation; rename it once that turn ends', { reason: 'remote-turn' })
+    }
     const agent = await this.resolveAgent(request.sessionId)
     const titles = this.ctx.get('sessionTitle')
     if (titles === undefined) {
@@ -615,7 +629,7 @@ export class SessionCommandController {
       )
     }
     try {
-      const stored = await this.ctx.attachments.readImage(ref)
+      const stored = await readFetchedAttachment(this.ctx, String(ref.attachmentId), () => this.ctx.attachments.readImage(ref))
       return {
         attachment: stored.ref,
         data: Buffer.from(stored.data).toString('base64'),
@@ -637,7 +651,7 @@ export class SessionCommandController {
   async referencedFile(sessionId: SessionId, attachmentId: string): Promise<StoredFileAttachment | undefined> {
     const source = await this.readSessionState(sessionId)
     const ref = referencedAttachment(source.events, 'file', attachmentId)
-    return ref === undefined ? undefined : this.ctx.attachments.readFile(ref)
+    return ref === undefined ? undefined : readFetchedAttachment(this.ctx, attachmentId, () => this.ctx.attachments.readFile(ref))
   }
 
   /**
@@ -649,7 +663,7 @@ export class SessionCommandController {
   async referencedImage(sessionId: SessionId, attachmentId: string): Promise<StoredImageAttachment | undefined> {
     const source = await this.readSessionState(sessionId)
     const ref = referencedAttachment(source.events, 'image', attachmentId)
-    return ref === undefined ? undefined : this.ctx.attachments.readImage(ref)
+    return ref === undefined ? undefined : readFetchedAttachment(this.ctx, attachmentId, () => this.ctx.attachments.readImage(ref))
   }
 
   /**
@@ -800,6 +814,19 @@ export class SessionCommandController {
   }
 
   /**
+   * Take the acting account's claim on a Session before a change that writes its log, such as a model selection
+   * or a title. A synced Session is a read-only copy here until this device claims it.
+   * @param sessionId - the Session to change.
+   * @returns the account whose other device runs a turn of the Session now, or undefined when this device writes it.
+   */
+  private async claimForChange(sessionId: SessionId): Promise<string | undefined> {
+    const handoff = this.ctx.get('sessionHandoff')
+    const owner = this.ctx.get('identityUsers')?.actingUser()?.id
+    if (handoff === undefined || owner === undefined) return undefined
+    return (await handoff.claim(owner, sessionId)).claimed ? undefined : owner
+  }
+
+  /**
    * Whether this device holds a directory to run a Session in, asked before a
    * claim: the folder of a workspace filed here, or, for a Session this device's
    * own log accounts for and no workspace names, the directory it recorded. An
@@ -834,7 +861,10 @@ export class SessionCommandController {
   async applyForwarded(sessionId: SessionId, input: SessionHandoffInput): Promise<void> {
     const request = { ...(input.request as object), sessionId }
     switch (input.operation) {
-      case 'prompt': await this.prompt(request as SessionPromptRequest); return
+      // A prompt from another device never joins the turn running here: it becomes its own turn with its own answer,
+      // instead of turning that turn's answer into intermediate work.
+      case 'prompt': await this.prompt({ ...request as SessionPromptRequest, mode: 'queue' }); return
+      case 'select-model': await this.selectModel(request as SessionSelectModelRequest); return
       case 'edit': await this.edit(request as SessionEditRequest); return
       case 'retry': await this.retry(request); return
       case 'queue': await this.updateQueue(request as SessionUpdateQueueRequest); return

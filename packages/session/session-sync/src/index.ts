@@ -11,6 +11,7 @@ import type {} from '@aeven/agent'
 import type {} from '@aeven/session-persistence'
 import type {} from '@aeven/attachment'
 import type {} from '@aeven/workspace'
+import type {} from '@aeven/system-prompt'
 import type { SessionId } from '@aeven/session'
 import { SessionHandoff, type SessionClaim, type SessionHandoffInput, type SessionRunner, type SharedSession } from '@aeven/session-handoff'
 import { SessionMirror, type SessionSyncTuning } from './mirror.ts'
@@ -33,9 +34,15 @@ export default class SessionSync extends SessionHandoff {
     publishTimeoutMs: z.natural().min(1_000).default(120_000),
     outboxLimit: z.natural().min(1).default(200),
     runnerLease: z.object({ ttlMs: z.natural().min(1_000).default(30_000), renewMs: z.natural().min(1).default(10_000) }),
+    inputGraceMs: z.natural().min(100).default(3_000),
+    inputExpiryMs: z.natural().min(1_000).default(60_000),
+    attachmentWaitMs: z.natural().default(30_000),
+    attachmentRetryMs: z.natural().min(10).default(500),
   })
 
   private readonly mirrors = new Map<string, SessionMirror>()
+  /** Each account's last seen sync state; `sync/status` also reports progress, so only a change to online reconnects. */
+  private readonly states = new Map<string, string>()
 
   /**
    * @param ctx - Host context with sync and session persistence.
@@ -81,6 +88,18 @@ export default class SessionSync extends SessionHandoff {
         ctx.logger.warn(`session sync: stopping for an account failed: ${String(error)}`)
       })
     })
+    // A shared conversation's turns can run on any of the account's devices; the model learns which one runs this turn.
+    ctx.inject(['systemPrompt'], (scope) => {
+      scope.systemPrompt.context({
+        name: 'session-sync:device',
+        order: scope.systemPrompt.getContextOrder('DEVICE'),
+        text: ({ agent }) => {
+          const owner = agent?.session.header.owner
+          const mirror = owner === undefined ? undefined : this.mirrors.get(owner)
+          return agent === undefined || mirror === undefined ? '' : mirror.deviceContext(agent.id)
+        },
+      })
+    })
     ctx.effect(() => async () => {
       await Promise.all([...this.mirrors.values()].map(mirror => mirror.dispose()))
       this.mirrors.clear()
@@ -89,9 +108,11 @@ export default class SessionSync extends SessionHandoff {
 
   private track(owner: string): void {
     const state = this.ctx.sync.status(owner).state
+    const previous = this.states.get(owner)
+    this.states.set(owner, state)
     const existing = this.mirrors.get(owner)
     if (existing !== undefined) {
-      if (state === 'online') existing.reconnected()
+      if (state === 'online' && previous !== 'online') existing.reconnected()
       return
     }
     if (state === 'disabled' || state === 'starting') return
@@ -99,7 +120,7 @@ export default class SessionSync extends SessionHandoff {
       owner, this.ctx.sync, this.ctx.sessionPersistence, this.config,
       (message) => { this.ctx.logger.warn(message) },
       this.ctx.get('attachments'), this.ctx.get('workspaceRegistry'),
-      (sessionId, input) => { this.deliver(owner, sessionId, input) },
+      (sessionId, input) => this.deliver(owner, sessionId, input),
       (sessionId) => { this.liveChanged(owner, sessionId) },
       sessionId => this.released(owner, sessionId),
       () => { this.ctx.emit('session-handoff/catalog', owner) },
@@ -152,6 +173,12 @@ export default class SessionSync extends SessionHandoff {
   /** @inheritdoc */
   liveOf(owner: string, sessionId: SessionId): unknown {
     return this.mirrors.get(owner)?.liveOf(sessionId)
+  }
+
+  /** @inheritdoc */
+  override async fetchAttachment(attachmentId: string): Promise<boolean> {
+    for (const mirror of this.mirrors.values()) if (await mirror.fetchAttachment(attachmentId)) return true
+    return false
   }
 
   /** @inheritdoc */

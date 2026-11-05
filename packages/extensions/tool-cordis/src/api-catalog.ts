@@ -2605,6 +2605,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'owner', description: 'the account.' }, { name: 'sessionId', description: 'the session.' }, { name: 'running', description: 'whether a turn runs; false lets other devices claim it again.' }],
       },
       {
+        signature: 'fetchAttachment(_attachmentId: string): Promise<boolean>',
+        description: 'Download an attachment another device of the account published, such as an image, video, or file a synced conversation cites, when this device does not hold it yet.',
+        parameters: [{ name: '_attachmentId', description: 'the attachment\'s content address.' }],
+        returns: 'whether this device holds the attachment now.',
+      },
+      {
         signature: 'abstract publishLive(owner: string, sessionId: SessionId, live: unknown): void',
         description: 'Publish the live state of a session this device writes, such as whether a turn runs and what waits in its queue, to the account\'s other devices. The state is the publishing Consumer\'s JSON; undefined clears it.',
         parameters: [{ name: 'owner', description: 'the account.' }, { name: 'sessionId', description: 'the session.' }, { name: 'live', description: 'the state, or undefined once nothing is live.' }],
@@ -5265,11 +5271,11 @@ export const EVENT_API: readonly EventApiEntry[] = [
   },
   {
     name: 'session-handoff/input',
-    mode: 'emit',
-    signature: '\'session-handoff/input\'(owner: string, sessionId: SessionId, input: SessionHandoffInput): void',
-    summary: 'Another device forwarded an input for a session this device writes.',
-    description: 'Another device forwarded an input for a session this device writes. Listeners apply it as the session\'s owner; it is delivered once.',
-    parameters: [{ name: 'owner', description: 'the account the session belongs to.' }, { name: 'sessionId', description: 'the session.' }, { name: 'input', description: 'the forwarded input.' }],
+    mode: 'parallel',
+    signature: '\'session-handoff/input\'(owner: string, sessionId: SessionId, input: SessionHandoffInput): Promise<void>',
+    summary: 'An input some device of the account submitted is to be applied on this device.',
+    description: 'An input some device of the account submitted is to be applied on this device. Listeners apply it as the session\'s owner and reject when this device cannot apply it, such as when it cannot serve the session\'s model; a rejected input stays in the account\'s inbox for another device.',
+    parameters: [{ name: 'owner', description: 'the account the session belongs to.' }, { name: 'sessionId', description: 'the session.' }, { name: 'input', description: 'the submitted input.' }],
   },
   {
     name: 'session-handoff/live',

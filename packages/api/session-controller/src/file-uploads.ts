@@ -336,3 +336,21 @@ export function registerFileReadRoute(
     fetch: request => read(request, readReferenced),
   }), 'session-controller: /api/attachment-file')
 }
+
+/**
+ * Read a stored attachment, first fetching it from the account when another device of a synced conversation stored
+ * it and this device does not hold it yet.
+ * @param ctx - context whose optional `sessionHandoff` fetches attachments.
+ * @param attachmentId - the attachment's content address.
+ * @param read - the read to perform, and to retry once the attachment arrived.
+ * @returns what the read returns.
+ */
+export async function readFetchedAttachment<T>(ctx: Context, attachmentId: string, read: () => Promise<T>): Promise<T> {
+  try {
+    return await read()
+  } catch (error) {
+    if (!(error instanceof AttachmentError) || error.code !== 'ATTACHMENT_NOT_FOUND') throw error
+    if (!(await ctx.get('sessionHandoff')?.fetchAttachment(attachmentId) ?? false)) throw error
+    return await read()
+  }
+}

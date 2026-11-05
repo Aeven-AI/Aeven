@@ -23,7 +23,7 @@ import { SessionControlController } from './control.ts'
 import { SessionHistoryController } from './history.ts'
 import { SessionFileReferences } from './file-references.ts'
 import { SessionMediaReferences } from './media-references.ts'
-import { registerFileReadRoute, registerFileUploadRoutes, registerImageReadRoute } from './file-uploads.ts'
+import { readFetchedAttachment, registerFileReadRoute, registerFileUploadRoutes, registerImageReadRoute } from './file-uploads.ts'
 import { ApiSessionList } from './list.ts'
 import { buildModelCatalog } from './catalog.ts'
 import {
@@ -91,6 +91,11 @@ export interface Config {
    * the account to answer, in milliseconds.
    */
   readonly remoteAnswerMs?: number
+  /**
+   * Pause before an approval or question no client took is offered to the clients again, in milliseconds, so a
+   * window that connects or reloads while it is pending still receives it.
+   */
+  readonly interactionRetryMs?: number
 }
 
 /** Host integrations replaceable by direct unit tests. */
@@ -124,6 +129,7 @@ export class SessionController extends TypertRemoteService {
   static Config: z<Config> = z.object({
     nativeOpen: z.boolean(),
     remoteAnswerMs: z.natural().default(600_000),
+    interactionRetryMs: z.natural().min(100).default(2_000),
   })
 
   private readonly agents: ApiSessionAgentController
@@ -137,6 +143,8 @@ export class SessionController extends TypertRemoteService {
   private readonly openFileApplication: typeof openNativeFileApplication
   private readonly revealPath: (path: string, signal: AbortSignal) => Promise<void>
   private readonly promotions = new Set<Promise<void>>()
+  /** Sessions whose local agent stops because another device of the account continues them; they stay listed. */
+  private readonly releasing = new Set<SessionId>()
   /** Imported sessions whose list entry is being rebuilt, mapped to whether another append arrived meanwhile. */
   private readonly refreshing = new Map<SessionId, boolean>()
   /** Accounts whose catalog emission waits for the next turn of the event loop. */
@@ -153,7 +161,7 @@ export class SessionController extends TypertRemoteService {
     installModelSelectionProjection(ctx)
     this.agents = new ApiSessionAgentController(ctx)
     this.commands = new SessionCommandController(ctx, this.agents, process.cwd())
-    this.controlState = new SessionControlController(ctx, config.remoteAnswerMs ?? 600_000)
+    this.controlState = new SessionControlController(ctx, config.remoteAnswerMs ?? 600_000, config.interactionRetryMs ?? 2_000)
     // Registered before history so reverse-order teardown closes every
     // follower before waiting for already-admitted promotions.
     ctx.effect(() => async () => {
@@ -176,12 +184,12 @@ export class SessionController extends TypertRemoteService {
       registerImageReadRoute(
         readCtx,
         (sessionId, attachmentId) => this.commands.referencedImage(sessionId, attachmentId),
-        ref => readCtx.attachments.readImage(ref),
+        ref => readFetchedAttachment(ctx, String(ref.attachmentId), () => readCtx.attachments.readImage(ref)),
       )
     })
 
-    // Input the account's other devices typed for a session this device writes runs here as if typed here.
-    ctx.on('session-handoff/input', (owner, sessionId, input) => {
+    // Input any device of the account submitted runs here as if typed here; a rejection leaves it for another device.
+    ctx.on('session-handoff/input', async (owner, sessionId, input) => {
       const identity = ctx.get('identityUsers')
       if (input.operation === 'interaction') {
         const answer = input.request as { readonly id?: unknown; readonly answer?: unknown }
@@ -189,9 +197,7 @@ export class SessionController extends TypertRemoteService {
         return
       }
       const apply = () => this.commands.applyForwarded(sessionId, input)
-      void (identity === undefined ? apply() : identity.runAs({ id: owner }, apply)).catch((error: unknown) => {
-        ctx.logger.warn(`session: input another device forwarded for ${sessionId} was not applied: ${String(error)}`)
-      })
+      await (identity === undefined ? apply() : identity.runAs({ id: owner }, apply))
     })
 
     // A first sync changes the catalog once per received frame: emit once per turn of the event loop, and only the
@@ -219,9 +225,14 @@ export class SessionController extends TypertRemoteService {
     ctx.on('session-handoff/released', async (owner, sessionId) => {
       const agent = ctx.agents.get(sessionId)
       if (agent !== undefined && agent.session.header.owner !== owner) throw new Error('session runner owner mismatch')
-      await this.agents.release(sessionId)
-      // Releasing disposes the local agent, which removes the row; the conversation continues on the device that
-      // took it, so it stays listed as that device's replica.
+      // Releasing disposes the local agent; the conversation continues on the device that took it, so it stays
+      // listed and open here as a copy rather than being removed from the reader's view.
+      this.releasing.add(sessionId)
+      try {
+        await this.agents.release(sessionId)
+      } finally {
+        this.releasing.delete(sessionId)
+      }
       ctx.emit('api-session/added', { ...await this.listState.summaryForStored(sessionId), replica: true }, owner)
     })
 
@@ -267,7 +278,7 @@ The user's account display name is ${JSON.stringify(source.clientDisplayName)}.
       void updating.finally(() => { this.promotions.delete(updating) })
     })
     ctx.on('session/disposed', (session) => {
-      ctx.emit('api-session/removed', session.id)
+      if (!this.releasing.has(session.id)) ctx.emit('api-session/removed', session.id)
     })
     ctx.on('agent/status', ({ agent, status }) => {
       ctx.emit('api-session/status', agent.id, status === 'running')

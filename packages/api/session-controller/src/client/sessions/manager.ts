@@ -736,6 +736,7 @@ export class SessionManager {
    */
   handleSessionAdded(summary: SessionSummary): void {
     this.mergeSummary(summary)
+    this.sessions.get(summary.sessionId)?.handleRestored()
     this.sessions.get(summary.sessionId)?.handleBlank(summary.blank)
     const projections = summary.projections
     if (projections !== undefined) {

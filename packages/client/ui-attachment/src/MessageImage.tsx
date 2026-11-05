@@ -39,6 +39,24 @@ export interface MessageImageLabels {
   lightbox: ImageLightboxLabels
 }
 
+/** Delays before a failed read of a durable image URL is repeated, in milliseconds. */
+const IMAGE_RETRY_DELAYS_MS = [250, 1_000, 2_000]
+
+/**
+ * The URL a repeated read of a durable image requests, so the browser asks the Host again instead of reusing the
+ * failed response it may hold for the same URL. Local `blob:` and `data:` URLs are returned unchanged.
+ * @param url - the image's durable URL.
+ * @param read - how many reads failed before this one; `0` is the first read.
+ * @returns the URL to request.
+ */
+function retriedUrl(url: string, read: number): string {
+  if (read === 0) return url
+  const retried = new URL(url, document.baseURI)
+  if (retried.protocol !== 'http:' && retried.protocol !== 'https:') return url
+  retried.searchParams.set('retry', String(read))
+  return retried.href
+}
+
 /** Display box for a lone image (DeepSeek Chat rule): long edge 240px with
  * the rendered aspect ratio clamped to [0.25, 4] — the overflow is cropped by
  * `object-fit: cover` — and never upscaled past the image's natural size. The
@@ -72,6 +90,9 @@ function dimensionsOf(image: MessageImageSpec): { readonly width: number; readon
  * several renders as a fixed 64px square tile. The preview arm displays its
  * local URL directly — no loader round-trip, no failure/retry surface.
  *
+ * A durable image is read by the browser from its own URL, so a read that fails
+ * never reaches `load`: it repeats on {@link IMAGE_RETRY_DELAYS_MS} instead.
+ *
  * @param props.image - the durable reference to load, or the local preview to display.
  * @param props.load - session-authorized URL loader for the durable arm.
  * @param props.variant - `single` for a message's lone image, `tile` otherwise.
@@ -95,6 +116,8 @@ export function MessageImage({ image, load, variant, labels, onOpen }: {
   // retry — runs under the same liveness guard and the same reset.
   const [attempt, setAttempt] = useState(0)
   const request = useCallback(() => { setAttempt(a => a + 1) }, [])
+  const [failedReads, setFailedReads] = useState(0)
+  const [readKey, setReadKey] = useState(0)
   const dimensions = useMemo(() => dimensionsOf(image), [image])
   const fit = useMemo(
     () => {
@@ -112,10 +135,23 @@ export function MessageImage({ image, load, variant, labels, onOpen }: {
     if (attachment === undefined) return
     let live = true
     setError(false)
+    setFailedReads(0)
+    setReadKey(0)
     setLoaded(load.peek?.(attachment) ?? null)
     void load(attachment).then((url) => { if (live) setLoaded(url) }).catch(() => { if (live) setError(true) })
     return () => { live = false }
   }, [attachment, load, attempt])
+
+  useEffect(() => {
+    if (attachment === undefined || failedReads === 0) return
+    const delay = IMAGE_RETRY_DELAYS_MS[failedReads - 1]
+    if (delay === undefined) {
+      setError(true)
+      return
+    }
+    const timer = setTimeout(() => { setReadKey(failedReads) }, delay)
+    return () => { clearTimeout(timer) }
+  }, [failedReads, attachment])
 
   const src = preview?.url ?? loaded
   const label = (preview?.name ?? attachment?.name) ?? labels.image
@@ -131,7 +167,15 @@ export function MessageImage({ image, load, variant, labels, onOpen }: {
         aria-label={labels.openNamed(label)}
         onClick={() => { if (src !== null) onOpen(src) }}
       >
-        {src !== null && <img src={src} alt={label} style={fit === undefined ? undefined : { objectPosition: fit.objectPosition }} />}
+        {src !== null && (
+          <img
+            key={readKey}
+            src={attachment === undefined ? src : retriedUrl(src, readKey)}
+            alt={label}
+            style={fit === undefined ? undefined : { objectPosition: fit.objectPosition }}
+            onError={attachment === undefined ? undefined : () => { setFailedReads(count => count + 1) }}
+          />
+        )}
         <span className={css.loader} data-loaded={src === null ? undefined : ''} aria-hidden="true">
           <Spinner />
         </span>

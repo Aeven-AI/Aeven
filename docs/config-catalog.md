@@ -267,6 +267,11 @@ export interface Config {
    * the account to answer, in milliseconds.
    */
   readonly remoteAnswerMs?: number
+  /**
+   * Pause before an approval or question no client took is offered to the clients again, in milliseconds, so a
+   * window that connects or reloads while it is pending still receives it.
+   */
+  readonly interactionRetryMs?: number
 }
 ```
 
@@ -3486,6 +3491,14 @@ export interface SessionSyncTuning {
   publishTimeoutMs: number
   /** Queued frames above which publishing history waits for the account's outbox to drain; live turns never wait. */
   outboxLimit: number
+  /** How long a forwarded input waits for the device it was typed on before any other device may run it. */
+  inputGraceMs: number
+  /** How long a cancel, queue change, or answer waits for a running turn before it is discarded. */
+  inputExpiryMs: number
+  /** How long a read of an attachment a synced conversation cites waits for another device to publish it. */
+  attachmentWaitMs: number
+  /** Pause between reads of an attachment's chunks that are not all on the relay yet, in milliseconds. */
+  attachmentRetryMs: number
 }
 ```
 
