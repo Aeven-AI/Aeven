@@ -43,6 +43,8 @@ export function createElectronBuilderConfig(
   return {
     appId,
     productName: 'Aeven',
+    // `aeven://` links from the web version open a conversation here.
+    protocols: [{ name: 'Aeven', schemes: ['aeven'] }],
     // An unsigned build shares the artifacts directory, so its name says so: it cannot be mistaken for a release
     // installer, and the upload plan, which looks up the release names exactly, never picks one up.
     artifactName: `aeven-\${version}-\${os}-\${arch}${unsigned ? '-unsigned' : ''}.\${ext}`,

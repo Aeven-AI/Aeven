@@ -371,7 +371,8 @@ export class Automations extends Service<Config> {
       if (nextOccurrence(parsed.schedule, now) === null) throw new Error('Choose a schedule with a future occurrence.')
       const id = brandString<AutomationId>(randomUUID())
       const agentPreset = agent?.session.header.agentPreset ?? this.ctx.agentPresets.defaultId
-      const model = this.ctx.agentDefaultModel.currentSelection()
+      await this.ctx.agentDefaultModel.prepare(owner)
+      const model = this.ctx.agentDefaultModel.currentSelection(owner)
       const definition: AutomationDefinition = {
         ...parsed, id, ...owner === undefined ? {} : { owner }, revision: 1, status: 'active', agentPreset, grants: [],
         model, createdAt: now, updatedAt: now, lastAdmittedAt: null, executionTarget: { kind: 'local', runnerId: this.runnerId(domain) },

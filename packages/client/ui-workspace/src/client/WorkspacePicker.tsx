@@ -33,7 +33,7 @@ export interface WorkspacePickFlowProps {
   /** Selector hook over the workspace list (framework standard hook). */
   useWorkspaces: <S>(selector: (state: WorkspaceSnapshot) => S) => S
   /** Adopt a picked host directory as a real Workspace. */
-  createWorkspace: (input: { path: string }) => Promise<WorkspaceView>
+  createWorkspace: (input: { path: string } | { title: string }) => Promise<WorkspaceView>
   /** Bound occupancy selector hook for this surface's directory-flow hole (empty leaves the surface with no add action). */
   useDirectoryFlow: SnapshotSelectorHook<boolean>
   /** Render this surface's directory-flow hole with the owner conversation (the entry's narrowed renderSlot). */
@@ -122,9 +122,9 @@ export function WorkspacePickFlow({
     setModalError(null)
   }
 
-  /** Adopt a picked directory; failures land in the folder-error dialog (Choose again reopens the flow). */
-  const adoptDirectory = (path: string): Promise<void> =>
-    createWorkspace({ path }).then((workspace) => {
+  /** Adopt a picked directory or create a named one; failures land in the folder-error dialog (Choose again reopens the flow). */
+  const adoptDirectory = (input: { path: string } | { title: string }): Promise<void> =>
+    createWorkspace(input).then((workspace) => {
       setFlowOpen(false)
       onPick(workspace.workspaceId)
     }).catch((reason: unknown) => {
@@ -162,7 +162,11 @@ export function WorkspacePickFlow({
     busy: pickingFolder,
     onPicked: (path) => {
       setPickingFolder(true)
-      void adoptDirectory(path).finally(() => { setPickingFolder(false) })
+      void adoptDirectory({ path }).finally(() => { setPickingFolder(false) })
+    },
+    onNamed: (title) => {
+      setPickingFolder(true)
+      void adoptDirectory({ title }).finally(() => { setPickingFolder(false) })
     },
     onCancel: () => { setFlowOpen(false) },
     onError: (message) => {

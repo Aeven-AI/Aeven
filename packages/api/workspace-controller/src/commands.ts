@@ -44,24 +44,62 @@ const MAX_IGNORES = 500
 /** Longest one ignore pattern. */
 const MAX_IGNORE_LENGTH = 500
 
+/**
+ * The refusal a Host without Workspace directories answers a directory request with.
+ * @returns the error to reject with.
+ */
+function foldersUnavailable(): RemoteError<'workspace/folders-unavailable'> {
+  return new RemoteError('workspace/folders-unavailable', 'Workspaces on this Host have no folder; create one by name', {})
+}
+
 /** Implements Workspace mutations against the authoritative registry. */
 export class WorkspaceCommands {
   private operationTail = Promise.resolve()
 
-  /** @param ctx - Host context containing the Workspace registry. */
-  constructor(private readonly ctx: Context) {}
+  /**
+   * @param ctx - Host context containing the Workspace registry.
+   * @param folders - whether callers may give a Workspace a directory of this Host.
+   */
+  constructor(private readonly ctx: Context, private readonly folders: boolean = true) {}
 
   /**
-   * Create or resolve one Workspace over an existing directory.
-   * @param request - directory path to register.
+   * Create or resolve one Workspace over an existing directory, or create a
+   * Workspace with no directory under a title.
+   * @param request - directory path to register, or title of a pathless Workspace.
    * @returns the Workspace and whether this call created it.
    */
   create(request: WorkspaceCreateRequest): Promise<WorkspaceCreateValue> {
+    const { path, title } = request
+    if ((path === undefined) === (title === undefined)) {
+      return Promise.reject(new RemoteError('gateway/bad-request', 'workspace.create takes a path or a title, not both', {}))
+    }
+    // The caller owns what they register; another account adding the same
+    // directory gets a workspace of its own.
+    const owner = this.ctx.get('identityUsers')?.actingUser()?.id
+    if (title !== undefined) {
+      const trimmed = title.trim()
+      if (trimmed === '') {
+        return Promise.reject(new RemoteError('gateway/bad-request', 'a Workspace without a directory needs a non-blank title', {}))
+      }
+      return this.enqueue(async () => {
+        const workspace = await this.ctx.workspaceRegistry.createVirtual(trimmed, owner)
+        return { workspace: this.view(workspace), created: true }
+      })
+    }
+    return this.createAt(path as string, owner)
+  }
+
+  /**
+   * Create or resolve one Workspace over an existing directory of this Host.
+   * @param path - directory path to register.
+   * @param owner - the acting account.
+   * @returns the Workspace and whether this call created it.
+   */
+  private createAt(path: string, owner: string | undefined): Promise<WorkspaceCreateValue> {
+    if (!this.folders) return Promise.reject(foldersUnavailable())
+    const request = { path }
     return this.enqueue(async () => {
       try {
-        // The caller owns what they register; another account adding the same
-        // directory gets a workspace of its own.
-        const owner = this.ctx.get('identityUsers')?.actingUser()?.id
         const existing = await this.ctx.workspaceRegistry.resolveByPath(request.path, owner)
         if (existing !== undefined) {
           return { workspace: this.view(existing), created: false }
@@ -86,6 +124,7 @@ export class WorkspaceCommands {
    * @returns the updated Workspace projection.
    */
   bind(request: WorkspaceBindRequest): Promise<WorkspaceValue> {
+    if (!this.folders) return Promise.reject(foldersUnavailable())
     return this.enqueue(async () => {
       this.requireWorkspace(request.workspaceId)
       try {

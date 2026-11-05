@@ -347,7 +347,11 @@ export abstract class SettingsProvider extends Service {
   /** Latest published raw document; empty until the provider's first publish. */
   private document: Record<string, unknown> = {}
   /** Per-namespace write chains; settled tails, so a failure never poisons the queue. */
-  private readonly writeQueues = new Map<SettingsNamespace, Promise<unknown>>()
+  private readonly writeQueues = new Map<string, Promise<unknown>>()
+  /** Each account's own sections, once read; see {@link accountSections}. */
+  private readonly accountLoads = new Map<string, Promise<Record<string, unknown>>>()
+  /** Revision of each account section, keyed by {@link accountKey}; counted from 0 per process like the document's. */
+  private readonly accountRevisions = new Map<string, number>()
   /** In-flight watcher invocation segments, drained by the dispose teardown. */
   private readonly pendingTails = new Set<Promise<void>>()
   /** Set at service dispose: refuse new writes while queued ones drain. */
@@ -522,42 +526,213 @@ export abstract class SettingsProvider extends Service {
       try {
         user = this.section(registration.ns)
       } catch {
-        // A malformed stored section already warned at publish and kept the
-        // last good resolved value; only that malformed shape can throw here,
-        // and describing it as "no user layer" keeps this read total.
         user = undefined
       }
-      const base = registration.base === undefined ? undefined : structuredClone(registration.base)
-      const detachedUser = user === undefined ? undefined : structuredClone(user)
-      const descriptor: SettingsDescriptor = {
-        ns: registration.ns,
-        schema: registration.schema.toJSON(),
-        value: registration.resolved,
-        revision: registration.revision,
-        ...base === undefined ? {} : { base },
-        ...detachedUser === undefined ? {} : { user: detachedUser },
-        applies: registration.applies,
-        reach: registration.reach,
-      }
-      if (options?.redactSecrets !== true) return descriptor
-      const schema = registration.schema as z<never>
-      const redacted = redactSecrets(schema, registration.resolved)
-      return {
-        ...descriptor,
-        value: redacted.value,
-        ...base === undefined ? {} : { base: redactSecrets(schema, base).value },
-        ...detachedUser === undefined ? {} : { user: redactSecrets(schema, detachedUser).value },
-        secrets: redacted.secrets,
-      }
+      return this.descriptorOf(registration, registration.resolved, user, registration.revision, options)
     })
   }
 
   /**
-   * Read one registered namespace's resolved value.
-   * @param ns - the namespace to read.
-   * @returns the resolved value, or `undefined` while unregistered.
-   * @throws {TypeError} when `ns` is not a lowercase hyphenated identifier.
+   * Whether `account`-reach namespaces resolve per signed-in account on this provider: each account's own section
+   * of such a namespace overrides the stored document's section for that account, and writes by that account land
+   * in its own section. A provider that stores account sections overrides it; the default keeps one section per
+   * namespace for every account.
+   * @returns whether account sections are kept.
    */
+  get accountSections(): boolean {
+    return false
+  }
+
+  /**
+   * Read one account's own sections, keyed by namespace. Called once per account; the provider caches the answer.
+   * @param _owner - the account.
+   * @returns its sections; an account that stored none answers `{}`.
+   */
+  protected loadAccount(_owner: string): Promise<Record<string, unknown>> {
+    return Promise.resolve({})
+  }
+
+  /**
+   * Store one account's own section of a namespace durably.
+   * @param _owner - the account.
+   * @param ns - the namespace.
+   * @param _section - its complete new section.
+   * @returns resolution after durability.
+   */
+  protected persistAccount(_owner: string, ns: SettingsNamespace, _section: Record<string, unknown>): Promise<void> {
+    return Promise.reject(new Error(`settings provider keeps no account sections: "${ns}" cannot be written for an account`))
+  }
+
+  /**
+   * Describe every namespace as `owner` sees it: an `account`-reach namespace resolves with the account's own
+   * section over the document's, and reports that section as `user`. Without account sections, or without an
+   * owner, it is {@link describe}.
+   * @param owner - the signed-in account, when one is acting.
+   * @param options - redaction for wire surfaces.
+   * @returns one descriptor per registered namespace.
+   */
+  async describeFor(owner: string | undefined, options?: SettingsDescribeOptions): Promise<SettingsDescriptor[]> {
+    if (owner === undefined || !this.accountSections) return this.describe(options)
+    const sections = await this.accountDocument(owner)
+    return this.describe(options).map((descriptor) => {
+      const registration = this.registrations.get(descriptor.ns)
+      if (registration === undefined || registration.reach !== 'account') return descriptor
+      const own = this.accountSection(sections, registration.ns)
+      let value: unknown
+      try {
+        value = deepFreeze(this.resolveFor(registration, own))
+      } catch {
+        // An account section a newer schema rejects resolves as the document's value until the account rewrites it.
+        return descriptor
+      }
+      return this.descriptorOf(registration, value, own, this.accountRevision(owner, registration.ns), options)
+    })
+  }
+
+  /**
+   * Resolve one namespace as `owner` sees it; see {@link describeFor}.
+   * @param ns - the namespace.
+   * @param owner - the account, when one is known.
+   * @returns the resolved value, or undefined for an unregistered namespace.
+   */
+  async valueFor<const Namespace extends string>(
+    ns: Namespace & SettingsNamespaceInput<Namespace>,
+    owner: string | undefined,
+  ): Promise<unknown> {
+    const registration = this.registrations.get(parseSettingsNamespace(ns))
+    if (registration === undefined) return undefined
+    if (owner === undefined || !this.accountSections || registration.reach !== 'account') return registration.resolved
+    const own = this.accountSection(await this.accountDocument(owner), registration.ns)
+    return own === undefined ? registration.resolved : deepFreeze(this.resolveFor(registration, own))
+  }
+
+  /**
+   * Read one account's own section of an `account`-reach namespace.
+   * @param owner - the account.
+   * @param ns - the namespace.
+   * @returns the stored section, or undefined when the account stored none.
+   */
+  async accountSectionOf<const Namespace extends string>(
+    owner: string,
+    ns: Namespace & SettingsNamespaceInput<Namespace>,
+  ): Promise<Record<string, unknown> | undefined> {
+    return this.accountSection(await this.accountDocument(owner), parseSettingsNamespace(ns))
+  }
+
+  /**
+   * Write one account's own section of an `account`-reach namespace, the account-scoped counterpart of
+   * {@link update}, {@link replace}, and {@link mutate}. Each write emits `settings/document-updated` with the
+   * account's revision and `settings/account-updated` with the account.
+   * @param owner - the account.
+   * @param ns - the namespace; it must be registered with `reach: 'account'`.
+   * @param mode - merge a patch, replace the section, or apply path ops.
+   * @param input - the patch, the section, or the ops.
+   * @param expectedRevision - the account revision the caller read; undefined writes unconditionally.
+   * @returns resolution after durability.
+   * @throws when the provider keeps no account sections, the namespace is not account-reach, or the revision moved.
+   */
+  writeFor<const Namespace extends string>(
+    owner: string,
+    ns: Namespace & SettingsNamespaceInput<Namespace>,
+    mode: 'merge' | 'replace' | 'mutate',
+    input: object,
+    expectedRevision?: number,
+  ): Promise<void> {
+    const parsedNs = parseSettingsNamespace(ns)
+    const registration = this.registrations.get(parsedNs)
+    if (registration === undefined) throw new Error(`settings namespace "${parsedNs}" is not registered`)
+    if (!this.accountSections) throw new Error(`settings provider keeps no account sections: "${parsedNs}" cannot be written for an account`)
+    if (registration.reach !== 'account') throw new Error(`settings namespace "${parsedNs}" belongs to the device, not to an account`)
+    if (this.isStopped()) throw new Error(`settings service is disposed: "${parsedNs}" cannot be written`)
+    if (mode === 'mutate') checkPathOps(parsedNs, input)
+    else if (!isPlainObject(input)) throw new TypeError(`settings write for "${parsedNs}" must be a plain object`)
+    const snapshot = cloneJsonShaped(mode === 'mutate' ? { ops: input } : input as Record<string, unknown>, (label, path) =>
+      new TypeError(`settings write for "${parsedNs}" must contain only JSON-compatible data (found ${label} at ${path})`))
+    const key = accountKey(owner, parsedNs)
+    const previous = this.writeQueues.get(key) ?? Promise.resolve()
+    const run = previous.catch(() => undefined).then(async () => {
+      const sections = await this.accountDocument(owner)
+      const revision = this.accountRevision(owner, parsedNs)
+      if (expectedRevision !== undefined && expectedRevision !== revision) {
+        throw new SettingsConflictError(parsedNs, expectedRevision, revision)
+      }
+      const current = this.accountSection(sections, parsedNs) ?? {}
+      const section = mode === 'merge'
+        ? mergeLayers(current, snapshot) as Record<string, unknown>
+        : mode === 'replace'
+          ? snapshot
+          : (snapshot['ops'] as SettingsPathOp[]).reduce(applyPathOp, current)
+      // Validates before anything is stored: a section the schema rejects never reaches the account.
+      this.resolveFor(registration, section)
+      await this.persistAccount(owner, parsedNs, section)
+      sections[parsedNs] = section
+      if (deepEqualJson(current, section)) return
+      const next = revision + 1
+      this.accountRevisions.set(key, next)
+      this.emitDocumentUpdated(parsedNs, next)
+      this.ctx.emit('settings/account-updated', owner, parsedNs)
+    })
+    this.writeQueues.set(key, run)
+    return run
+  }
+
+  /** The account's sections, read from the provider once. */
+  private accountDocument(owner: string): Promise<Record<string, unknown>> {
+    let loading = this.accountLoads.get(owner)
+    if (loading === undefined) {
+      loading = this.loadAccount(owner)
+      this.accountLoads.set(owner, loading)
+      // A failed read is retried by the next caller instead of being cached.
+      loading.catch(() => { if (this.accountLoads.get(owner) === loading) this.accountLoads.delete(owner) })
+    }
+    return loading
+  }
+
+  private accountSection(sections: Record<string, unknown>, ns: SettingsNamespace): Record<string, unknown> | undefined {
+    const section = sections[ns]
+    return isPlainObject(section) ? section : undefined
+  }
+
+  private accountRevision(owner: string, ns: SettingsNamespace): number {
+    return this.accountRevisions.get(accountKey(owner, ns)) ?? 0
+  }
+
+  /** Resolve a namespace with an account section over the document's section. */
+  private resolveFor(registration: SettingsRegistration, own: Record<string, unknown> | undefined): unknown {
+    return this.resolve(registration.schema, mergeLayers(registration.base, this.section(registration.ns)), own, registration.validate)
+  }
+
+  private descriptorOf(
+    registration: SettingsRegistration,
+    value: unknown,
+    user: Record<string, unknown> | undefined,
+    revision: number,
+    options: SettingsDescribeOptions | undefined,
+  ): SettingsDescriptor {
+    const base = registration.base === undefined ? undefined : structuredClone(registration.base)
+    const detachedUser = user === undefined ? undefined : structuredClone(user)
+    const descriptor: SettingsDescriptor = {
+      ns: registration.ns,
+      schema: registration.schema.toJSON(),
+      value,
+      revision,
+      ...base === undefined ? {} : { base },
+      ...detachedUser === undefined ? {} : { user: detachedUser },
+      applies: registration.applies,
+      reach: registration.reach,
+    }
+    if (options?.redactSecrets !== true) return descriptor
+    const schema = registration.schema as z<never>
+    const redacted = redactSecrets(schema, value)
+    return {
+      ...descriptor,
+      value: redacted.value,
+      ...base === undefined ? {} : { base: redactSecrets(schema, base).value },
+      ...detachedUser === undefined ? {} : { user: redactSecrets(schema, detachedUser).value },
+      secrets: redacted.secrets,
+    }
+  }
+
   get<const Namespace extends string>(ns: Namespace & SettingsNamespaceInput<Namespace>): unknown {
     return this.registrations.get(parseSettingsNamespace(ns))?.resolved
   }
@@ -620,15 +795,7 @@ export abstract class SettingsProvider extends Service {
     expectedRevision?: number,
   ): Promise<void> {
     const parsedNs = parseSettingsNamespace(ns)
-    if (!Array.isArray(ops)) throw new TypeError(`settings mutate for "${parsedNs}" must be an array of path ops`)
-    for (const op of ops) {
-      if (!isPlainObject(op) || (op['op'] !== 'set' && op['op'] !== 'unset')) {
-        throw new TypeError(`settings mutate for "${parsedNs}" ops must be {op:'set'|'unset', path}`)
-      }
-      if (!Array.isArray(op['path']) || (op['path'] as unknown[]).some(part => typeof part !== 'string')) {
-        throw new TypeError(`settings mutate for "${parsedNs}" op paths must be arrays of strings`)
-      }
-    }
+    checkPathOps(parsedNs, ops)
     return this.write(parsedNs, ops, 'mutate', expectedRevision)
   }
 
@@ -874,6 +1041,32 @@ export abstract class SettingsProvider extends Service {
  * against: a const enum has no runtime object to import, and the value is
  * needed at runtime (same rationale as the CLI boot driver's mirror).
  */
+/**
+ * Refuse path ops that are not `{ op: 'set' | 'unset', path: string[] }`.
+ * @param ns - the namespace, for the message.
+ * @param ops - the ops a caller passed.
+ * @throws TypeError for any malformed op.
+ */
+function checkPathOps(ns: SettingsNamespace, ops: unknown): void {
+  if (!Array.isArray(ops)) throw new TypeError(`settings mutate for "${ns}" must be an array of path ops`)
+  for (const op of ops) {
+    if (!isPlainObject(op) || (op['op'] !== 'set' && op['op'] !== 'unset')) {
+      throw new TypeError(`settings mutate for "${ns}" ops must be {op:'set'|'unset', path}`)
+    }
+    if (!Array.isArray(op['path']) || (op['path'] as unknown[]).some(part => typeof part !== 'string')) {
+      throw new TypeError(`settings mutate for "${ns}" op paths must be arrays of strings`)
+    }
+  }
+}
+
+/**
+ * The key of one account's section of a namespace in the write queues and revision table; the NUL byte cannot
+ * occur in a namespace, so it never collides with a document namespace.
+ */
+function accountKey(owner: string, ns: SettingsNamespace): string {
+  return `${owner}\0${ns}`
+}
+
 const FIBER_DISPOSED = 4
 const FIBER_UNLOADING = 5
 

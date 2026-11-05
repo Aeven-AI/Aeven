@@ -616,6 +616,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     occupants: [
       'client-ui-directory-picker-browse BrowseDirectoryFlow',
       'client-ui-directory-picker-native NativeDirectoryFlow',
+      'client-ui-workspace-name NameWorkspaceFlow',
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'conversation.hero.workspace.directoryFlow\', () => ctx.slots.register(\n      { name: \'conversation.hero.workspace.directoryFlow\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
@@ -2351,6 +2352,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     occupants: [
       'client-ui-directory-picker-browse BrowseDirectoryFlow',
       'client-ui-directory-picker-native NativeDirectoryFlow',
+      'client-ui-workspace-name NameWorkspaceFlow',
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'sidebar.header.action.directoryFlow\', () => ctx.slots.register(\n      { name: \'sidebar.header.action.directoryFlow\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',

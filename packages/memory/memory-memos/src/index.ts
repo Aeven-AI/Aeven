@@ -73,6 +73,12 @@ export interface Config {
   /** How this device publishes memory changes to the account's other devices while account sync serves it. */
   sync: MemorySyncTuning
   /**
+   * Open an account's memory as soon as its sync vault is served here, instead of at its first session, so the
+   * memory its other devices hold is in place before the account's first turn. A Host that serves an account's
+   * browser sessions sets it; a device the user signs in to opens memory with its first session either way.
+   */
+  openOnSync: boolean
+  /**
    * Separate episodes whose traces must support a pattern before MemOS induces a policy from it
    * (`l2Induction.minEpisodesForInduction`); one episode is a single example, not a pattern.
    */
@@ -191,6 +197,7 @@ export const Config: z<Config> = z.object({
     drainMs: 2_000, drainBatch: 500, applyPauseMs: 16, outboxLimit: 200,
     maintenanceTtlMs: 180_000, maintenanceRenewMs: 60_000,
   }),
+  openOnSync: z.boolean().default(false),
   embedding: z.object({
     model: z.string().min(1).default('Xenova/multilingual-e5-small'),
     queryPrefix: z.string().default('query: '),
@@ -418,6 +425,8 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   const mirrors = new Map<string, MemorySyncMirror>()
   /** Accounts whose documents started over; their next mirror publishes every row again. */
   const republish = new Set<string>()
+  // Accounts whose memory `openOnSync` is creating; the mirror starts once their database exists.
+  const opening = new Set<string>()
   const mirror = (owner: string): void => {
     const sync = ctx.get('sync')
     const state = sync?.status(owner).state
@@ -429,7 +438,16 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       holder.start()
     }
     const dbFile = accountHome(config.accounts, owner).dbFile
-    if (mirrors.has(owner) || !existsSync(dbFile)) return
+    if (mirrors.has(owner)) return
+    if (!existsSync(dbFile)) {
+      if (config.openOnSync && !opening.has(owner)) {
+        opening.add(owner)
+        void cores.get(owner).then(() => { mirror(owner) }, (error: unknown) => {
+          logger.warn(`memory sync: opening an account's memory failed: ${String(error)}`)
+        }).finally(() => { opening.delete(owner) })
+      }
+      return
+    }
     const created = new MemorySyncMirror(owner, dbFile, sync, config.embedding.model, config.sync, (message) => { logger.warn(message) })
     mirrors.set(owner, created)
     try {

@@ -60,6 +60,15 @@ export class RelayError extends Error {
 }
 
 /** Callbacks for relay pushes. */
+/**
+ * What a device presents to open its account's relay connection: the signed-in user's Aeven access token, or a
+ * sync grant the relay issued earlier over a connection opened with such a token.
+ */
+export interface RelayCredential {
+  readonly scheme: 'Bearer' | 'Grant'
+  readonly token: string
+}
+
 export interface RelayHandlers {
   /**
    * A stored frame, in sequence order.
@@ -103,15 +112,15 @@ export class RelayConnection {
   /**
    * Connect to the relay.
    * @param url - the relay's WebSocket URL.
-   * @param token - the account's Aeven access token.
+   * @param credential - the access token or sync grant the connection authenticates with.
    * @param handlers - push callbacks.
    * @param timeoutMs - longest the opening handshake may take.
    * @param requestMs - longest a request may wait for its answer before the connection is closed.
    * @returns the open connection.
    */
-  static open(url: string, token: string, handlers: RelayHandlers, timeoutMs: number, requestMs: number): Promise<RelayConnection> {
+  static open(url: string, credential: RelayCredential, handlers: RelayHandlers, timeoutMs: number, requestMs: number): Promise<RelayConnection> {
     return new Promise((resolve, reject) => {
-      const socket = new WebSocket(url, { headers: { authorization: `Bearer ${token}` }, handshakeTimeout: timeoutMs })
+      const socket = new WebSocket(url, { headers: { authorization: `${credential.scheme} ${credential.token}` }, handshakeTimeout: timeoutMs })
       const fail = (error: Error): void => {
         socket.removeAllListeners()
         // Terminating a connecting socket emits one more `error`; without a listener it would be unhandled.

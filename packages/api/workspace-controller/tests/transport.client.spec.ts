@@ -201,7 +201,7 @@ class ScriptedWorkspaceRemote implements WorkspaceRemote {
 
 class CommandWorkspaceRemote implements WorkspaceRemote {
   readonly create = vi.fn<WorkspaceRemote['create']>(request => Promise.resolve(remoteOk({
-    workspace: workspace('created', { path: request.path }),
+    workspace: workspace('created', request.path === undefined ? {} : { path: request.path }),
     created: true,
   })))
 

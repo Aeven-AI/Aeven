@@ -1,0 +1,48 @@
+{
+  "name": "@aeven/hosted-app",
+  "description": "The avn hosted bundle: the web patch layer narrowed for a Host that Aeven operates for many accounts, which runs no command or file operation on its own machine and keeps no setting one account could change for another",
+  "version": "0.3.35-alpha",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Aeven.git",
+    "directory": "packages/bundle/hosted-app"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "cordis.patch.yml",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "avn": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "dependencies": {
+    "@aeven/client-ui-desktop-handoff": "workspace:^",
+    "@aeven/client-ui-workspace-name": "workspace:^",
+    "@aeven/speech-to-text-aeven": "workspace:^",
+    "@aeven/web-app": "workspace:^"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^"
+  }
+}

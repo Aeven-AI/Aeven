@@ -109,6 +109,8 @@
     { "path": "./packages/client/ui-tts" },
     { "path": "./packages/client/ui-account-aeven" },
     { "path": "./packages/client/ui-directory-picker-browse" },
+    { "path": "./packages/client/ui-workspace-name" },
+    { "path": "./packages/client/ui-desktop-handoff" },
     { "path": "./packages/client/ui-directory-picker-native" },
     { "path": "./packages/client/ui-goal" },
     { "path": "./packages/client/ui-message-feedback" },

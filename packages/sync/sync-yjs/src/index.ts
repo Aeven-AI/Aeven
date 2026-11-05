@@ -2,8 +2,9 @@
  * Yjs Service Provider for account sync. Every account signed in on this Host syncs unless the user turned it off
  * on this device: it keeps a local store under `accounts/<hash>/sync/sync.db` and, while a client of that account
  * holds a session on this Host (so its Aeven access token resolves), one relay connection that reads the account
- * key state and exchanges encrypted frames with the account's other devices. The key is the relay's, or one the
- * user's passkey unwraps on this device. Devices of the account on the same local
+ * key state and exchanges encrypted frames with the account's other devices. With `keepConnected`, the connection
+ * also stays open while no client is signed in, through a sync grant the relay issued to this device. The key is
+ * the relay's, or one the user's passkey unwraps on this device. Devices of the account on the same local
  * network also link directly and send each other updates as they are made.
  * @module @aeven/sync-yjs
  */
@@ -20,7 +21,7 @@ import {
 import type { DeviceId } from '@aeven/sync-vault'
 import { SyncOffload } from './offload.ts'
 import { LanTransport, MdnsDiscovery } from './lan.ts'
-import { RELAY_MAX_MESSAGE_BYTES, RelayConnection } from './relay.ts'
+import { RELAY_MAX_MESSAGE_BYTES, RelayConnection, type RelayCredential, RelayError } from './relay.ts'
 import { SyncStore } from './store.ts'
 import { AccountVault } from './vault.ts'
 
@@ -62,6 +63,18 @@ export interface Config {
   lanRetryMs: number
   /** Largest message a local-network link accepts, in bytes. */
   lanMaxBytes: number
+  /**
+   * Whether each account stays connected to the relay while none of its clients is signed in here. The first
+   * connection opened with a user's access token asks the relay for a sync grant, kept in the account's store, and
+   * later connections present the grant when no access token resolves. A Host that serves an account's browser
+   * sessions sets it, so the account is current before the browser opens.
+   */
+  keepConnected: boolean
+  /**
+   * Logical names of documents fetched before the rest of a catch-up when this device holds no state for them, so
+   * a new device shows the account's conversation and workspace lists before the long tail arrives.
+   */
+  firstDocuments: string[]
 }
 
 const STORE_SEGMENTS = ['sync', 'sync.db'] as const
@@ -104,6 +117,10 @@ export default class YjsSync extends Sync {
     lanPort: Schema.natural().max(65_535).default(0),
     lanRetryMs: Schema.natural().min(100).default(5_000),
     lanMaxBytes: Schema.natural().min(1_024).default(8_388_608),
+    keepConnected: Schema.boolean().default(false),
+    firstDocuments: Schema.array(Schema.string()).default([
+      'devices', 'workspaces', 'sessions/index', 'sessions/live', 'settings/account', 'personalization', 'automations',
+    ]),
   })
 
   private readonly accounts = new Map<string, Account>()
@@ -168,6 +185,7 @@ export default class YjsSync extends Sync {
         statusMs: this.config.statusMs,
         publishFrames: this.config.publishFrames,
         publishBytes: this.config.publishBytes,
+        firstDocuments: this.config.firstDocuments,
       },
       () => {
         this.updateLan(owner)
@@ -226,8 +244,36 @@ export default class YjsSync extends Sync {
     }
   }
 
-  private async token(owner: string): Promise<string | undefined> {
-    return (await this.ctx.credentials.resolve(this.tokenRef, owner).catch(() => undefined))?.value
+  /**
+   * What the account's next connection authenticates with: a signed-in user's access token, else this device's
+   * sync grant when the Host keeps accounts connected.
+   * @param owner - the account.
+   * @param account - its store.
+   * @returns the credential, or undefined while neither is available.
+   */
+  private async credential(owner: string, account: Account): Promise<RelayCredential | undefined> {
+    const token = (await this.ctx.credentials.resolve(this.tokenRef, owner).catch(() => undefined))?.value
+    if (token !== undefined) return { scheme: 'Bearer', token }
+    const grant = this.config.keepConnected ? account.store.relayGrant() : undefined
+    return grant === undefined ? undefined : { scheme: 'Grant', token: grant }
+  }
+
+  /**
+   * Ask the relay for a sync grant over a connection a user's access token opened, when this Host keeps accounts
+   * connected and the account holds none. A relay without grants refuses, and the account then connects only
+   * while a client is signed in.
+   * @param owner - the account.
+   * @param account - its store.
+   * @param relay - the connection.
+   */
+  private async takeGrant(owner: string, account: Account, relay: RelayConnection): Promise<void> {
+    if (!this.config.keepConnected || account.store.relayGrant() !== undefined) return
+    try {
+      const answer = await relay.request('grant.issue', { device: account.store.deviceId() })
+      if (typeof answer.token === 'string') account.store.setRelayGrant(answer.token)
+    } catch (error) {
+      this.ctx.logger.debug('sync: no sync grant for %s: %s', owner, error)
+    }
   }
 
   private wait(account: Account): Promise<void> {
@@ -242,8 +288,8 @@ export default class YjsSync extends Sync {
     })
   }
 
-  private open(token: string, account: Account): Promise<RelayConnection> {
-    return RelayConnection.open(this.config.relayUrl, token, {
+  private open(credential: RelayCredential, account: Account): Promise<RelayConnection> {
+    return RelayConnection.open(this.config.relayUrl, credential, {
       frame: (seq, frame) => { account.vault.receiveFrame(seq, frame) },
       closed: () => { account.vault.detach() },
     }, this.config.connectTimeoutMs, this.config.requestTimeoutMs)
@@ -268,19 +314,21 @@ export default class YjsSync extends Sync {
 
   private async connectLoop(owner: string, account: Account): Promise<void> {
     while (this.live(owner, account)) {
-      const token = account.vault.enabled() ? await this.token(owner) : undefined
-      if (token !== undefined && this.live(owner, account)) await this.session(owner, token, account)
+      const credential = account.vault.enabled() ? await this.credential(owner, account) : undefined
+      if (credential !== undefined && this.live(owner, account)) await this.session(owner, credential, account)
       if (!this.live(owner, account)) return
       await this.wait(account)
     }
   }
 
-  private async session(owner: string, token: string, account: Account): Promise<void> {
+  private async session(owner: string, credential: RelayCredential, account: Account): Promise<void> {
     let relay: RelayConnection
     try {
-      relay = await this.open(token, account)
+      relay = await this.open(credential, account)
     } catch (error) {
       this.ctx.logger.debug('sync: relay connection for %s failed: %s', owner, error)
+      // A refused grant was revoked or expired; the next sign-in issues a new one.
+      if (credential.scheme === 'Grant' && error instanceof RelayError && error.code === 'refused') account.store.setRelayGrant(undefined)
       return
     }
     if (!this.live(owner, account)) {
@@ -291,6 +339,7 @@ export default class YjsSync extends Sync {
     try {
       await account.vault.attach(relay)
       this.nameDevice(owner, account)
+      if (credential.scheme === 'Bearer') void this.takeGrant(owner, account, relay)
     } catch (error) {
       this.ctx.logger.warn('sync: catching up with the relay failed for %s', owner)
       this.ctx.logger.warn(error)

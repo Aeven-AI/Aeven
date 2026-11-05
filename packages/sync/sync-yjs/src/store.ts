@@ -114,12 +114,30 @@ export class SyncStore {
     this.setMeta(`local:${key}`, value)
   }
 
+  /**
+   * Read the token of this device's sync grant, which opens the account's relay connection without the user's
+   * access token.
+   * @returns the token, or undefined when this device holds none.
+   */
+  relayGrant(): string | undefined {
+    return this.meta('relay-grant')
+  }
+
+  /**
+   * Store or drop this device's sync grant.
+   * @param token - the token the relay issued; undefined drops the stored one.
+   */
+  setRelayGrant(token: string | undefined): void {
+    if (token === undefined) this.statement("DELETE FROM meta WHERE key = 'relay-grant'").run()
+    else this.setMeta('relay-grant', token)
+  }
+
   private meta(key: string): string | undefined {
-    return (this.db.prepare('SELECT value FROM meta WHERE key = ?').get(key) as { value: string } | undefined)?.value
+    return (this.statement('SELECT value FROM meta WHERE key = ?').get(key) as { value: string } | undefined)?.value
   }
 
   private setMeta(key: string, value: string): void {
-    this.db.prepare('INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value').run(key, value)
+    this.statement('INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value').run(key, value)
   }
 
   /**
@@ -188,14 +206,14 @@ export class SyncStore {
     if (this.meta('key') === undefined) return false
     this.transaction(() => {
       this.wipe()
-      this.db.prepare("DELETE FROM meta WHERE key = 'key'").run()
+      this.statement("DELETE FROM meta WHERE key = 'key'").run()
     })
     return true
   }
 
   private wipe(): void {
     this.db.exec('DELETE FROM doc_updates; DELETE FROM outbox; DELETE FROM counters; DELETE FROM seen; DELETE FROM since_snapshot;')
-    this.db.prepare("DELETE FROM meta WHERE key = 'cursor' OR key LIKE 'fragment:%' OR key LIKE 'stream-complete:%' OR key LIKE 'local:%'").run()
+    this.statement("DELETE FROM meta WHERE key = 'cursor' OR key LIKE 'fragment:%' OR key LIKE 'stream-complete:%' OR key LIKE 'local:%'").run()
   }
 
   /**
@@ -236,7 +254,7 @@ export class SyncStore {
    * @returns every stored update.
    */
   docUpdates(id: OpaqueId): Uint8Array[] {
-    return (this.db.prepare('SELECT data FROM doc_updates WHERE id = ? ORDER BY seq').all(id) as Array<{ data: Buffer }>).map(row => new Uint8Array(row.data))
+    return (this.statement('SELECT data FROM doc_updates WHERE id = ? ORDER BY seq').all(id) as Array<{ data: Buffer }>).map(row => new Uint8Array(row.data))
   }
 
   /**
@@ -285,7 +303,7 @@ export class SyncStore {
    * @returns the counter to put in the next frame.
    */
   nextCounter(id: OpaqueId): number {
-    const row = this.db.prepare(
+    const row = this.statement(
       'INSERT INTO counters (id, counter) VALUES (?, 1) ON CONFLICT (id) DO UPDATE SET counter = counter + 1 RETURNING counter',
     ).get(id) as { counter: number }
     return row.counter
@@ -382,7 +400,7 @@ export class SyncStore {
    * @param id - the document.
    */
   resetSinceSnapshot(id: OpaqueId): void {
-    this.db.prepare('DELETE FROM since_snapshot WHERE id = ?').run(id)
+    this.statement('DELETE FROM since_snapshot WHERE id = ?').run(id)
   }
 
   /**

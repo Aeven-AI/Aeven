@@ -32,6 +32,7 @@ afterEach(() => {
 })
 
 const TUNING: VaultTuning = {
+  firstDocuments: [],
   compactAfter: 100,
   snapshotAfter: 100,
   applyFrames: 200,
@@ -65,7 +66,7 @@ function device(owner: string, tuning: VaultTuning = TUNING): Device {
 }
 
 async function connect(owner: string, target: Device, beforeAttach?: (connection: RelayConnection) => void): Promise<RelayConnection> {
-  const connection = await RelayConnection.open(relay.url, `ok-${owner}`, {
+  const connection = await RelayConnection.open(relay.url, { scheme: 'Bearer', token: `ok-${owner}` }, {
     frame: (seq, frame) => { target.vault.receiveFrame(seq, frame) },
     closed: () => { target.vault.detach() },
   }, 2000, 2000)

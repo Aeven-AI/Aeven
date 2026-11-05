@@ -398,6 +398,8 @@ export interface ComposerBarInjected {
   invokeCommand: ((name: string, selection: EditSelection, anchor?: Element | null) => Promise<boolean>) | undefined
   stop: (() => void) | undefined
   command: ((line: string) => Promise<boolean>) | undefined
+  /** Hand a prompt refusal to the plugin registered for its code; false leaves it to the composer's toast. */
+  handleRefusal?: ((code: string) => boolean) | undefined
   hooks: {
     notices: ObservableSnapshot<InputNotice | null>
     lexicon: ObservableSnapshot<ReadonlyMap<'/' | '@', readonly string[]>>

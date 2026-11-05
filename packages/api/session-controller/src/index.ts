@@ -393,8 +393,10 @@ The user's account display name is ${JSON.stringify(source.clientDisplayName)}.
    * @returns provider-grouped models, the deployment default, and isolated provider failures.
    */
   @Remote('modelCatalog')
-  modelCatalog(): Promise<ModelCatalog> {
-    return buildModelCatalog(this.ctx)
+  async modelCatalog(): Promise<ModelCatalog> {
+    const owner = this.ctx.get('identityUsers')?.actingUser()?.id
+    await this.ctx.agentDefaultModel.prepare(owner)
+    return await buildModelCatalog(this.ctx, this.ctx.agentDefaultModel.currentSelection(owner))
   }
 
   /**

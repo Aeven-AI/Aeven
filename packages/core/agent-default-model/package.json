@@ -31,12 +31,14 @@
   },
   "peerDependencies": {
     "@aeven/agent": "workspace:^",
+    "@aeven/credentials": "workspace:^",
     "@aeven/llm": "workspace:^",
     "@aeven/settings": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
     "@aeven/agent": "workspace:^",
+    "@aeven/credentials": "workspace:^",
     "@aeven/llm": "workspace:^",
     "@aeven/settings": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"

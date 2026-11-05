@@ -20,10 +20,13 @@ function accountNamespaces(ctx: Context): Set<string> {
   return new Set(ctx.settings.describe().filter(descriptor => descriptor.reach === 'account').map(descriptor => descriptor.ns as string))
 }
 
-/** The raw user section of each account namespace that holds one. */
-function userSections(ctx: Context): Map<string, unknown> {
+/**
+ * The raw user section of each account namespace that holds one, as `owner` keeps it: the account's own sections on
+ * a provider that keeps them, otherwise the Host document's sections.
+ */
+async function userSections(ctx: Context, owner: string): Promise<Map<string, unknown>> {
   const sections = new Map<string, unknown>()
-  for (const descriptor of ctx.settings.describe({ redactSecrets: true })) {
+  for (const descriptor of await ctx.settings.describeFor(owner, { redactSecrets: true })) {
     if (descriptor.reach === 'account' && descriptor.user !== undefined) sections.set(descriptor.ns, descriptor.user)
   }
   return sections
@@ -35,9 +38,10 @@ function userSections(ctx: Context): Map<string, unknown> {
  */
 export function apply(ctx: Context): void {
   const open = new Map<string, Promise<SyncDocument | undefined>>()
+  const perAccount = (): boolean => ctx.settings.accountSections
 
-  const publish = (map: YMap<unknown>): void => {
-    const sections = userSections(ctx)
+  const publish = async (owner: string, map: YMap<unknown>): Promise<void> => {
+    const sections = await userSections(ctx, owner)
     map.doc?.transact(() => {
       for (const [ns, section] of sections) {
         if (JSON.stringify(map.get(ns)) !== JSON.stringify(section)) map.set(ns, section)
@@ -45,17 +49,22 @@ export function apply(ctx: Context): void {
     })
   }
 
-  const take = (map: YMap<unknown>, keys: Iterable<string>): void => {
+  const take = async (owner: string, map: YMap<unknown>, keys: Iterable<string>): Promise<void> => {
     const namespaces = accountNamespaces(ctx)
+    const current = await userSections(ctx, owner)
     for (const ns of keys) {
       const section = map.get(ns)
       if (!namespaces.has(ns) || typeof section !== 'object' || section === null) continue
-      const current = userSections(ctx).get(ns)
-      if (JSON.stringify(current) === JSON.stringify(section)) continue
-      ctx.settings.replace(ns, section).catch((error: unknown) => {
+      if (JSON.stringify(current.get(ns)) === JSON.stringify(section)) continue
+      const write = perAccount() ? ctx.settings.writeFor(owner, ns, 'replace', section) : ctx.settings.replace(ns, section)
+      write.catch((error: unknown) => {
         ctx.logger.warn(`settings sync: applying ${ns} failed: ${String(error)}`)
       })
     }
+  }
+
+  const failed = (error: unknown): void => {
+    ctx.logger.warn(`settings sync: mirroring the account's settings failed: ${String(error)}`)
   }
 
   const attach = (owner: string): void => {
@@ -64,10 +73,9 @@ export function apply(ctx: Context): void {
     const opening = ctx.sync.openDocument(owner, DOCUMENT).then((handle) => {
       const map = handle.doc.getMap<unknown>('sections')
       // An empty document is seeded by this device; otherwise the account's settings win over this device's.
-      if (map.size === 0) publish(map)
-      else take(map, map.keys())
+      void (map.size === 0 ? publish(owner, map) : take(owner, map, map.keys())).catch(failed)
       map.observe((event: YMapEvent<unknown>, transaction: Transaction) => {
-        if (!transaction.local) take(map, event.keysChanged)
+        if (!transaction.local) void take(owner, map, event.keysChanged).catch(failed)
       })
       return handle
     }, (error: unknown) => {
@@ -85,12 +93,17 @@ export function apply(ctx: Context): void {
     open.delete(owner)
     void opening?.then(handle => handle?.close())
   })
+  const republish = (owner: string): void => {
+    void open.get(owner)?.then((handle) => {
+      if (handle !== undefined) return publish(owner, handle.doc.getMap<unknown>('sections'))
+    }).catch(failed)
+  }
+  // One Host document serves every account: a change to it is every synced account's change.
   ctx.on('settings/document-updated', (ns) => {
-    if (!accountNamespaces(ctx).has(ns)) return
-    for (const opening of open.values()) {
-      void opening.then((handle) => { if (handle !== undefined) publish(handle.doc.getMap<unknown>('sections')) })
-    }
+    if (perAccount() || !accountNamespaces(ctx).has(ns)) return
+    for (const owner of open.keys()) republish(owner)
   })
+  ctx.on('settings/account-updated', (owner) => { if (perAccount()) republish(owner) })
   ctx.effect(() => async () => {
     for (const opening of open.values()) (await opening)?.close()
     open.clear()

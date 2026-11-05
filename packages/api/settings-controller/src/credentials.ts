@@ -24,6 +24,15 @@ const credentialRefSchema = z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/)
 const describeRequestSchema = z.object({
   refs: z.array(credentialRefSchema).max(MAX_DESCRIBE_REFS),
 })
+/**
+ * The refusal a read-only deployment answers every write with.
+ * @param method - the Remote method that was refused.
+ * @returns the error to throw.
+ */
+export function readOnly(method: string): RemoteError<'settings/read-only'> {
+  return new RemoteError('settings/read-only', `${method} is not available: this deployment's settings are read-only`, {})
+}
+
 const setRequestSchema = z.object({ ref: credentialRefSchema, value: z.string().min(1) })
 const unsetRequestSchema = z.object({ ref: credentialRefSchema })
 
@@ -66,9 +75,15 @@ declare module '@deepseek-ai/cordis' {
  * no method here returns one.
  */
 export class CredentialsController extends TypertRemoteService {
-  /** @param ctx - Host context where a credential provider may be mounted. */
-  constructor(ctx: Context) {
+  private readonly writable: boolean
+
+  /**
+   * @param ctx - Host context where a credential provider may be mounted.
+   * @param config - `writable: false` refuses every write and reports each reference read-only.
+   */
+  constructor(ctx: Context, config: { readonly writable?: boolean } = {}) {
     super(ctx, 'credentialsController', { namespace: 'credentials' })
+    this.writable = config.writable ?? true
   }
 
   /**
@@ -88,7 +103,7 @@ export class CredentialsController extends TypertRemoteService {
     // The caller's own session credential counts; another signed-in user's never does.
     const user = this.ctx.get('identityUsers')?.actingUser()?.id
     const entries = await Promise.all(branded.map(async ([ref, key]) =>
-      [ref, projectCredentialInfo(await credentials.describe(key, user))] as const))
+      [ref, { ...projectCredentialInfo(await credentials.describe(key, user)), ...this.writable ? {} : { writable: false } }] as const))
     return Object.fromEntries(entries)
   }
 
@@ -101,6 +116,7 @@ export class CredentialsController extends TypertRemoteService {
    */
   @Remote
   async set(ref: string, value: string): Promise<void> {
+    if (!this.writable) throw readOnly('credentials.set')
     const request = parseRequest('credentials.set', setRequestSchema, { ref, value })
     const branded = credentialRef(request.ref)
     const credentials = this.provider()
@@ -114,6 +130,7 @@ export class CredentialsController extends TypertRemoteService {
    */
   @Remote
   async unset(ref: string): Promise<void> {
+    if (!this.writable) throw readOnly('credentials.unset')
     const request = parseRequest('credentials.unset', unsetRequestSchema, { ref })
     const branded = credentialRef(request.ref)
     const credentials = this.provider()

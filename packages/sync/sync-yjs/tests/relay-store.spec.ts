@@ -31,7 +31,7 @@ function tempPath(): string {
 
 describe('RelayConnection', () => {
   it('answers requests and reports relay refusals by code', async () => {
-    const connection = await RelayConnection.open(relay.url, 'ok-alice', handlers(), 2000, 2000)
+    const connection = await RelayConnection.open(relay.url, { scheme: 'Bearer', token: 'ok-alice' }, handlers(), 2000, 2000)
     const reply: unknown = await connection.request('key.get')
     const key = expect.any(String) as unknown
     expect(reply).toMatchObject({ t: 'ok', key })
@@ -43,14 +43,14 @@ describe('RelayConnection', () => {
   })
 
   it('refuses to open without an accepted token, and when nothing listens', async () => {
-    await expect(RelayConnection.open(relay.url, 'bad', handlers(), 2000, 2000)).rejects.toMatchObject({ code: 'refused' })
-    await expect(RelayConnection.open('ws://127.0.0.1:9/sync', 'ok-x', handlers(), 2000, 2000)).rejects.toThrow()
+    await expect(RelayConnection.open(relay.url, { scheme: 'Bearer', token: 'bad' }, handlers(), 2000, 2000)).rejects.toMatchObject({ code: 'refused' })
+    await expect(RelayConnection.open('ws://127.0.0.1:9/sync', { scheme: 'Bearer', token: 'ok-x' }, handlers(), 2000, 2000)).rejects.toThrow()
   })
 
   it('delivers pushed frames and ignores unknown pushes', async () => {
     const frameHandler = vi.fn()
-    const receiver = await RelayConnection.open(relay.url, 'ok-bob', handlers({ frame: frameHandler }), 2000, 2000)
-    const sender = await RelayConnection.open(relay.url, 'ok-bob', handlers(), 2000, 2000)
+    const receiver = await RelayConnection.open(relay.url, { scheme: 'Bearer', token: 'ok-bob' }, handlers({ frame: frameHandler }), 2000, 2000)
+    const sender = await RelayConnection.open(relay.url, { scheme: 'Bearer', token: 'ok-bob' }, handlers(), 2000, 2000)
     await receiver.request('sync', { since: 0 })
     const frame = Buffer.concat([Buffer.from([2, 0, 2]), Buffer.from('{}'), Buffer.alloc(28)])
     relay.broadcastRaw('bob', JSON.stringify({ t: 'later-push' }))
@@ -63,7 +63,7 @@ describe('RelayConnection', () => {
 
   it('closes the connection when an answer does not arrive in time', async () => {
     const closed = vi.fn()
-    const connection = await RelayConnection.open(relay.url, 'ok-erin', handlers({ closed }), 2000, 50)
+    const connection = await RelayConnection.open(relay.url, { scheme: 'Bearer', token: 'ok-erin' }, handlers({ closed }), 2000, 50)
     relay.unanswered.add('slow')
     await expect(connection.request('slow')).rejects.toMatchObject({ code: 'closed' })
     expect(closed).toHaveBeenCalled()
@@ -72,7 +72,7 @@ describe('RelayConnection', () => {
 
   it('drops a connection whose relay sends something other than JSON, failing pending requests', async () => {
     const closed = vi.fn()
-    const connection = await RelayConnection.open(relay.url, 'ok-carol', handlers({ closed }), 2000, 2000)
+    const connection = await RelayConnection.open(relay.url, { scheme: 'Bearer', token: 'ok-carol' }, handlers({ closed }), 2000, 2000)
     relay.unanswered.add('never-answered')
     const pending = connection.request('never-answered')
     relay.broadcastRaw('carol', 'not json')
@@ -85,7 +85,7 @@ describe('RelayConnection', () => {
 
 it('treats a protocol error from the relay as a closed connection', async () => {
   const closed = vi.fn()
-  const connection = await RelayConnection.open(relay.url, 'ok-dave', handlers({ closed }), 2000, 2000)
+  const connection = await RelayConnection.open(relay.url, { scheme: 'Bearer', token: 'ok-dave' }, handlers({ closed }), 2000, 2000)
   relay.corrupt('dave')
   await connection.closed
   expect(closed).toHaveBeenCalled()

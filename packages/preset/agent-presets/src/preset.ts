@@ -1,4 +1,5 @@
 /** Agent-preset vocabulary shared by discovery, mounting, and consumers. */
+import type { PatchOptions } from '@deepseek-ai/cordis-plugin-include'
 
 /**
  * Where a preset's composition came from. A `system` preset ships with the
@@ -67,4 +68,13 @@ export interface Config {
    * configured root. False mounts a roster without the derived writable root.
    */
   includeUserRoot: boolean
+  /**
+   * Patch rows applied to every composition this roster mounts, with the
+   * semantics of a profile's `cordis.patch.yml`: a row targets a composition
+   * row by id and replaces its whole `config`, or sets `disabled`, or inserts
+   * rows. A deployment that must withhold a capability from every session,
+   * such as a hosted Host that runs no commands on its own machine, states it
+   * here instead of forking the composition.
+   */
+  patches?: PatchOptions[]
 }

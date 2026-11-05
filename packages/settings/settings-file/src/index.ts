@@ -14,7 +14,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, extname, join, resolve } from 'node:path'
 import { Document, parseDocument } from 'yaml'
 import { withFileLock, writeFileAtomic } from '@aeven/atomic-write'
-import { canonicalizeWatchPath, resolveAvnHome } from '@aeven/home-paths'
+import { ACCOUNTS_DIR_NAME, accountDirectoryName, canonicalizeWatchPath, resolveAvnHome } from '@aeven/home-paths'
 import { SettingsProvider, type SettingsNamespace } from '@aeven/settings'
 import { deepEqualJson } from '@aeven/util-values'
 
@@ -28,6 +28,13 @@ export interface Config {
   watch?: boolean
   /** Watcher write-settle window in milliseconds; defaults to 100. */
   debounceMs?: number
+  /**
+   * Keep each signed-in account's own sections of `account`-reach namespaces in
+   * `accounts/<account>/settings.json` under the harness home, so a Host that
+   * serves several people resolves and writes those namespaces per account.
+   * Defaults to `false`: one document serves every account.
+   */
+  accounts?: boolean
 }
 
 /** Document format derived from the configured file extension. */
@@ -109,6 +116,7 @@ export class FileSettingsProvider extends SettingsProvider {
     avnHome: z.string(),
     watch: z.boolean().default(true),
     debounceMs: z.number().min(0).default(100),
+    accounts: z.boolean().default(false),
   })
 
   private readonly spec: ResolvedSpec
@@ -143,6 +151,40 @@ export class FileSettingsProvider extends SettingsProvider {
   /** The local document is always writable through {@link SettingsProvider.update}. */
   get writable(): boolean {
     return true
+  }
+
+  /** Whether `accounts` is set; see {@link Config.accounts}. */
+  override get accountSections(): boolean {
+    return this.config.accounts === true
+  }
+
+  /** The JSON file holding one account's own sections. */
+  private accountFile(owner: string): string {
+    return join(resolveAvnHome(this.config.avnHome), ACCOUNTS_DIR_NAME, accountDirectoryName(owner), 'settings.json')
+  }
+
+  protected override async loadAccount(owner: string): Promise<Record<string, unknown>> {
+    let text: string
+    try {
+      text = await readFile(this.accountFile(owner), 'utf8')
+    } catch (error) {
+      if (isENOENT(error)) return {}
+      throw error
+    }
+    const parsed: unknown = JSON.parse(text)
+    if (!isMapLike(parsed)) throw new Error(`settings-file: ${this.accountFile(owner)} must hold an object of sections`)
+    return parsed
+  }
+
+  protected override persistAccount(owner: string, ns: SettingsNamespace, section: Record<string, unknown>): Promise<void> {
+    const file = this.accountFile(owner)
+    return this.enqueue(async () => {
+      await mkdir(dirname(file), { recursive: true, mode: 0o700 })
+      await withFileLock(file, async () => {
+        const current = await this.loadAccount(owner)
+        await writeFileAtomic(file, `${JSON.stringify({ ...current, [ns]: section }, null, 2)}\n`, { mode: 0o600, dirMode: 0o700 })
+      })
+    })
   }
 
   /** The resolved YAML/JSON document path exposed to local configuration surfaces. */

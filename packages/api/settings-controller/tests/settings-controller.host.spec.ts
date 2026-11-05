@@ -119,7 +119,7 @@ describe('the settings Remote namespace a configuration page calls', () => {
 
   it('describes every namespace redacted, with the deployment facts around them', async () => {
     const { controller } = await boot(DocumentSettings, { doc: { 'ui-test': { apiKey: 'sk-stored' } } })
-    const value = controller.describe()
+    const value = await controller.describe()
     expect(value).toMatchObject({ writable: true, hasDocument: true })
     const [view] = value.namespaces
     expect(view?.ns).toBe('ui-test')
@@ -137,7 +137,7 @@ describe('the settings Remote namespace a configuration page calls', () => {
         return false
       }
     })
-    const value = controller.describe()
+    const value = await controller.describe()
     expect(value).toMatchObject({ writable: false, hasDocument: false })
     const [view] = value.namespaces
     // No composition base was declared and no user section is stored, so
@@ -148,13 +148,13 @@ describe('the settings Remote namespace a configuration page calls', () => {
 
   it('declares an empty slot list when the provider names no secrets', async () => {
     const { controller } = await boot(SlotlessSettings)
-    const [view] = controller.describe().namespaces
+    const [view] = (await controller.describe()).namespaces
     expect(view?.secrets).toEqual([])
   })
 
   it('carries the composition base layer when the registrant declared one', async () => {
     const { controller } = await boot(MemorySettings, { base: { preference: 'dark' } })
-    const [view] = controller.describe().namespaces
+    const [view] = (await controller.describe()).namespaces
     expect(view?.base).toEqual({ preference: 'dark' })
   })
 
@@ -181,7 +181,7 @@ describe('the settings Remote namespace a configuration page calls', () => {
 
   it('refuses a stale write as settings/conflict carrying both revisions', async () => {
     const { controller } = await boot()
-    const held = controller.describe().namespaces[0]!.revision
+    const held = (await controller.describe()).namespaces[0]!.revision
     await controller.mutate('ui-test', [{ op: 'set', path: ['preference'], value: 'dark' }], held)
     const failure = await controller
       .mutate('ui-test', [{ op: 'set', path: ['preference'], value: 'light' }], held)

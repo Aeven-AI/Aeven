@@ -147,6 +147,10 @@ export const PROFILE_TEMPLATES: Record<string, ProfileTemplate> = {
     bundles: ['@aeven/base', '@aeven/headless'],
     patchReload: 'startup',
   },
+  hosted: {
+    bundles: ['@aeven/base', '@aeven/web-app', '@aeven/hosted-app'],
+    patchReload: 'startup',
+  },
   sdk: {
     bundles: ['@aeven/base', '@aeven/sdk-app'],
     patchReload: 'startup',
