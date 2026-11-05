@@ -1047,9 +1047,12 @@ export class SessionMirror {
     })
     for (const { header } of ordered) {
       if (this.isClosed()) return
-      if (header.owner !== this.owner || header.replica === true) continue
-      await pause(this.tuning.pauseMs)
+      if (header.owner !== this.owner) continue
       const id = header.id
+      // A copy is settled once it is compared; one this device published to and never compared may have diverged.
+      const unsettled = this.recorded(id).head === undefined && this.recorded(id).revision !== undefined
+      if (header.replica === true && !unsettled) continue
+      await pause(this.tuning.pauseMs)
       const entry = this.entries().get(id)
       if (entry === undefined || this.claims.has(id) || this.running.has(id)) continue
       await this.own(id, async () => {
@@ -1057,7 +1060,7 @@ export class SessionMirror {
         const localNext = await this.next(id, local, revisions)
         if (this.recorded(id).head === undefined) {
           // A log the old rules already prove consistent records its position without reading the stream again.
-          const trusted = this.trustedStart(id, entry, localNext, false)
+          const trusted = this.trustedStart(id, entry, localNext, header.replica === true)
           if (trusted !== undefined) this.record(id, { head: trusted.head, cursor: trusted.cursor })
         }
         const recorded = this.recorded(id)
@@ -1076,9 +1079,11 @@ export class SessionMirror {
           })
           this.claims.delete(id)
         }
-        await this.persistence.setReplica(id, true).catch((error: unknown) => {
-          this.warn(`session sync: marking ${id} a copy failed: ${String(error)}`)
-        })
+        if (header.replica !== true) {
+          await this.persistence.setReplica(id, true).catch((error: unknown) => {
+            this.warn(`session sync: marking ${id} a copy failed: ${String(error)}`)
+          })
+        }
         this.watch(id)
       })
     }
