@@ -796,6 +796,7 @@ flowchart TD
   pkg_session_sync --> pkg_session_handoff
   pkg_session_sync --> pkg_session_persistence
   pkg_session_sync --> pkg_sync
+  pkg_session_sync --> pkg_system_prompt
   pkg_session_sync --> pkg_workspace
   pkg_session_telemetry --> pkg_agent
   pkg_session_telemetry --> pkg_session
@@ -1797,7 +1798,7 @@ flowchart TD
 | [`media-aeven`](../packages/media/media-aeven) | `media` | [`agent`](../packages/core/agent), [`credentials`](../packages/credentials/credentials), [`identity-user`](../packages/identity/user), [`media`](../packages/media/media), [`session`](../packages/core/session) |
 | [`memory`](../packages/memory/memory) | `memory` | [`agent`](../packages/core/agent), [`session`](../packages/core/session) |
 | [`personalization`](../packages/preset/personalization) | `preset` | [`agent`](../packages/core/agent), [`identity-user`](../packages/identity/user), [`scope`](../packages/core/scope), [`sync`](../packages/sync/sync), [`system-prompt`](../packages/core/system-prompt), [`typert-protocol`](../packages/typert/protocol) |
-| [`session-sync`](../packages/session/session-sync) | `session` | [`agent`](../packages/core/agent), [`attachment`](../packages/attachment/attachment), [`session`](../packages/core/session), [`session-handoff`](../packages/session/session-handoff), [`session-persistence`](../packages/session/session-persistence), [`sync`](../packages/sync/sync), [`workspace`](../packages/workspace/workspace) |
+| [`session-sync`](../packages/session/session-sync) | `session` | [`agent`](../packages/core/agent), [`attachment`](../packages/attachment/attachment), [`session`](../packages/core/session), [`session-handoff`](../packages/session/session-handoff), [`session-persistence`](../packages/session/session-persistence), [`sync`](../packages/sync/sync), [`system-prompt`](../packages/core/system-prompt), [`workspace`](../packages/workspace/workspace) |
 | [`session-telemetry`](../packages/session/session-telemetry) | `session` | [`agent`](../packages/core/agent), [`session`](../packages/core/session) |
 | [`session-title`](../packages/session/session-title) | `session` | [`agent`](../packages/core/agent), [`brand`](../packages/util/brand), [`invariants`](../packages/runtime-diagnostics/invariants), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection) |
 | [`working-directory`](../packages/session/working-directory) | `session` | [`agent`](../packages/core/agent), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection), [`system-prompt`](../packages/core/system-prompt), [`workspace`](../packages/workspace/workspace) |

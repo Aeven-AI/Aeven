@@ -934,6 +934,14 @@ abstract claim(owner: string, sessionId: SessionId): Promise<SessionClaim>
 abstract holdRunner(owner: string, sessionId: SessionId, running: boolean): Promise<void>
 
 /**
+ * Download an attachment another device of the account published, such as an image, video, or file a synced
+ * conversation cites, when this device does not hold it yet.
+ * @param _attachmentId - the attachment's content address.
+ * @returns whether this device holds the attachment now.
+ */
+fetchAttachment(_attachmentId: string): Promise<boolean>
+
+/**
  * Publish the live state of a session this device writes, such as whether a turn runs and what waits in its
  * queue, to the account's other devices. The state is the publishing Consumer's JSON; undefined clears it.
  * @param owner - the account.

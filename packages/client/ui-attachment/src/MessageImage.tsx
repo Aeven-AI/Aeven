@@ -130,7 +130,10 @@ export function MessageImage({ image, load, variant, labels, onOpen }: {
   useEffect(() => {
     if (attachment === undefined || failedReads === 0) return
     const delay = IMAGE_RETRY_DELAYS_MS[failedReads - 1]
-    if (delay === undefined) return setError(true)
+    if (delay === undefined) {
+      setError(true)
+      return
+    }
     const timer = setTimeout(() => { setReadKey(failedReads) }, delay)
     return () => { clearTimeout(timer) }
   }, [failedReads, attachment])

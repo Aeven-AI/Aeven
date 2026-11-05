@@ -237,7 +237,12 @@ export class SessionCommandController {
     const owner = await this.claimForChange(request.sessionId)
     if (owner !== undefined) {
       await this.forward(owner, request.sessionId, 'select-model', request)
-      return { selected: { provider: request.provider, model: request.model, ...(request.reasoningEffort === undefined ? {} : { reasoningEffort: ReasoningEffortId(request.reasoningEffort) }) } }
+      return {
+        selected: {
+          provider: request.provider, model: request.model,
+          ...request.reasoningEffort === undefined ? {} : { reasoningEffort: ReasoningEffortId(request.reasoningEffort) },
+        },
+      }
     }
     const agent = await this.resolveAgent(request.sessionId)
     return this.agents.serializeImageAdmission(agent, async () => {

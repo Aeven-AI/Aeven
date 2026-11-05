@@ -228,43 +228,54 @@ describe('session mirror', () => {
     expect(await a.claim('handover' as never)).toEqual({ claimed: true })
     await a.holdRunner('handover' as never, true)
     expect(await b.claim('handover' as never)).toEqual({ claimed: false })
-    network.leases.get('sessions/handover')!.expiresAt = 0
-    expect(await b.claim('handover' as never)).toEqual({ claimed: false })
     homeA.add('handover', 2)
     await a.publish()
     await a.holdRunner('handover' as never, false)
     expect(await b.claim('handover' as never)).toEqual({ claimed: true })
     expect(count(homeB, 'handover')).toBe(5)
     expect(homeB.logs.get('handover')!.header.replica).toBeUndefined()
-    await vi.waitFor(() => { expect(homeA.logs.get('handover')!.header.replica).toBe(true) })
-    expect(releases).toEqual(['handover'])
     await b.holdRunner('handover' as never, true)
     homeB.add('handover', 2)
     await b.holdRunner('handover' as never, false)
+    // The device that lost the session takes back its log as a copy once the other device's turn lands.
     await vi.waitFor(() => { expect(count(homeA, 'handover')).toBe(7) })
+    expect(homeA.logs.get('handover')!.header.replica).toBe(true)
+    expect(releases).toEqual(['handover'])
     expect(homeA.logs.get('handover')!.events).toEqual(homeB.logs.get('handover')!.events)
     expect(await a.claim('handover' as never)).toEqual({ claimed: true })
     expect(homeA.logs.get('handover')!.header.replica).toBeUndefined()
+    // The lease, not the running flag, keeps a session on its device: one that stops renewing it, such as a device
+    // that fell asleep, no longer runs the turn.
+    network.leases.get('sessions/handover')!.expiresAt = 0
+    expect(await b.claim('handover' as never)).toEqual({ claimed: true })
   })
 
-  it('refuses promotion on a gap or offline, and serializes simultaneous claims on one device', async () => {
+  it('claims while the relay is unreachable, reports a gap in the stream, and serializes simultaneous claims on one device', async () => {
     const network = new MemorySyncNetwork()
     const homeA = new MemoryPersistence()
     const homeB = new MemoryPersistence()
     homeA.start('gapped', Date.now(), 3)
     const a = mirror(network.device(), homeA).mirror
     const deviceB = network.device()
-    const b = mirror(deviceB, homeB).mirror
+    const { mirror: b, warn } = mirror(deviceB, homeB)
     await a.start()
     await b.start()
     await vi.waitFor(() => { expect(count(homeB, 'gapped')).toBe(3) })
     deviceB.setState('offline')
-    expect(await b.claim('gapped' as never)).toEqual({ claimed: false })
+    // An unreachable relay leaves the lease unanswered, so the device claims the session and the fold settles it.
+    expect(await b.claim('gapped' as never)).toEqual({ claimed: true })
+    // Two more turns publish while this device cannot hear them, and the batch between them never arrives.
+    homeA.add('gapped', 3)
+    await vi.waitFor(() => { expect(network.streams.get('sessions/gapped')!.length).toBe(2) })
+    homeA.add('gapped', 3)
+    await vi.waitFor(() => { expect(network.streams.get('sessions/gapped')!.length).toBe(3) })
+    const published = network.streams.get('sessions/gapped')!
+    network.streams.set('sessions/gapped', [published[0]!, published[2]!])
     deviceB.setState('online')
-    homeB.logs.get('gapped')!.events.pop()
-    network.streams.set('sessions/gapped', [])
-    await expect(b.claim('gapped' as never)).rejects.toThrow(/not caught up/)
-    expect(homeB.logs.get('gapped')!.header.replica).toBe(true)
+    // The hole is reported, and the turn continues on the log this device holds.
+    expect(await b.claim('gapped' as never)).toEqual({ claimed: true })
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/before a turn failed.*missing events 3–5/))
+    expect(homeB.logs.get('gapped')!.header.replica).toBeUndefined()
     homeB.add('gapped', 1)
     expect(await Promise.all([b.claim('gapped' as never), b.claim('gapped' as never)])).toEqual([{ claimed: true }, { claimed: true }])
   })
@@ -329,14 +340,14 @@ describe('session mirror', () => {
       if (homeB.logs.has(header.id)) throw new Error('session already registered')
       homeB.logs.set(header.id, { header, inherited: inherited ?? 0, events: [], revision: 0 })
     })
-    vi.spyOn(homeB, 'append').mockRejectedValueOnce(new Error('disk unavailable'))
-    const { mirror: receiver, warn } = mirror(b, homeB)
+    const append = vi.spyOn(homeB, 'append').mockRejectedValueOnce(new Error('disk unavailable'))
+    const { mirror: receiver } = mirror(b, homeB)
     await receiver.start()
-    await new Promise(resolve => setTimeout(resolve, 200))
-    await vi.waitFor(() => { expect(warn).toHaveBeenCalledWith(expect.stringContaining('disk unavailable')) })
-    receiver.reconnected()
+    // A refused append reads the stored length again and appends once more, so the batch lands in this pass.
     await vi.waitFor(() => { expect(count(homeB, 'retry')).toBe(3) })
+    expect(append).toHaveBeenCalledTimes(2)
     expect(create).toHaveBeenCalledTimes(1)
+    expect(homeB.logs.get('retry')!.header.replica).toBe(true)
   })
 
   it('continues a session the device already holds part of, and catches up after reconnecting', async () => {
@@ -682,17 +693,23 @@ describe('session-sync plugin', () => {
     await a.start()
     const names = await syncA.asSync().openDocument(OWNER, 'devices')
     names.doc.getMap('names').set(syncA.id, { name: 'laptop' })
+    // The device writing the session says so in the live map; that is how the others know where its turn runs.
+    a.publishLive('shared' as never, { running: true })
     await b.start()
     await vi.waitFor(() => { expect(b.runnerOf('shared' as never)).toEqual({ device: syncA.id, name: 'laptop' }) })
     expect(a.runnerOf('shared' as never)).toBeUndefined()
     expect(b.runnerOf('unknown' as never)).toBeUndefined()
+    // The writing device runs a turn, which is what input forwarded to it belongs to.
+    expect(await a.claim('shared' as never)).toEqual({ claimed: true })
+    await a.holdRunner('shared' as never, true)
     await b.forward('shared' as never, { operation: 'prompt', request: { text: 'first', image } })
     await b.forward('shared' as never, { operation: 'cancel', request: {} })
     await vi.waitFor(() => { expect(delivered.map(([, input]) => (input as { operation: string }).operation)).toEqual(['prompt', 'cancel']) })
     expect(network.streams.get(`attachments/${image}`)).toBeDefined()
-    await expect(b.forward('unknown' as never, { operation: 'cancel', request: {} })).rejects.toThrow(/not written by another device/)
+    // Input for a session no device here writes waits in the account's inbox for one that does.
+    await b.forward('unknown' as never, { operation: 'cancel', request: {} })
     const inbox = await network.device().asSync().openDocument(OWNER, 'sessions/inbox')
-    await vi.waitFor(() => { expect(inbox.doc.getMap('inputs').size).toBe(0) })
+    await vi.waitFor(() => { expect([...inbox.doc.getMap<{ session: string }>('inputs').values()].map(({ session }) => session)).toEqual(['unknown']) })
   })
 
   it('fetches the attachments a forwarded input references before applying it, and applies it when fetching fails', async () => {
@@ -710,8 +727,11 @@ describe('session-sync plugin', () => {
     const b = new SessionMirror(OWNER, network.device().asSync(), new MemoryPersistence() as never, tuning, vi.fn(), attachmentsB as never)
     mirrors.push(a, b)
     await a.start()
+    // The writing device says it runs the turn, which is what the other device forwards input for.
+    a.publishLive('pictured' as never, { running: true })
     await b.start()
-    await vi.waitFor(() => { expect(b.runnerOf('pictured' as never)).toBeDefined() })
+    expect(await a.claim('pictured' as never)).toEqual({ claimed: true })
+    await a.holdRunner('pictured' as never, true)
     await b.forward('pictured' as never, { operation: 'prompt', request: { content: [{ image }] } })
     await vi.waitFor(() => { expect(held).toEqual([true]) })
     attachmentsA.objects.clear()
@@ -730,12 +750,14 @@ describe('session-sync plugin', () => {
     const syncB = network.device().asSync()
     const b = new SessionMirror(OWNER, syncB, new MemoryPersistence() as never, tuning, vi.fn(), undefined, undefined, undefined, onLive)
     mirrors.push(a, b)
-    b.publishLive('busy' as never, { running: true })
     await a.start()
     await b.start()
-    await vi.waitFor(() => { expect(b.runnerOf('busy' as never)).toBeDefined() })
+    // The writing device publishes its turn's state; until it does, no device claims to run the session.
+    expect(b.runnerOf('busy' as never)).toBeUndefined()
     a.publishLive('busy' as never, { running: true })
     await vi.waitFor(() => { expect(b.liveOf('busy' as never)).toEqual({ running: true }) })
+    expect(b.runnerOf('busy' as never)).toBeDefined()
+    expect(a.runnerOf('busy' as never)).toBeUndefined()
     expect(changes).toContain('busy')
     // A device that does not write the session cannot speak for it, nor clear what the writer shared.
     b.publishLive('busy' as never, { running: false })
@@ -755,6 +777,7 @@ describe('session-sync plugin', () => {
     mirrors.push(first)
     expect(first.runnerOf('later' as never)).toBeUndefined()
     await first.start()
+    first.publishLive('later' as never, { running: true })
     const b = new SessionMirror(OWNER, network.device().asSync(), new MemoryPersistence() as never, tuning, vi.fn())
     mirrors.push(b)
     await b.start()
@@ -771,6 +794,9 @@ describe('session-sync plugin', () => {
     const again = new SessionMirror(OWNER, syncA.asSync(), homeA as never, tuning, vi.fn(), undefined, undefined, collect)
     mirrors.push(again)
     await again.start()
+    // The device the input was typed on does not run it here; the writing device does, once it holds a turn.
+    expect(await again.claim('later' as never)).toEqual({ claimed: true })
+    await again.holdRunner('later' as never, true)
     await vi.waitFor(() => { expect(delivered).toEqual(['prompt', 'cancel']) })
   })
 
@@ -821,12 +847,16 @@ describe('session-sync plugin', () => {
     mirrors.push(other)
     await other.start()
     await vi.waitFor(() => { expect(other.runnerOf('s' as never)).toBeDefined() })
+    // The Host runs the turn the forwarded cancel belongs to.
+    expect(await ctx.sessionHandoff.claim(OWNER, 's' as never)).toEqual({ claimed: true })
+    await ctx.sessionHandoff.holdRunner(OWNER, 's' as never, true)
     await other.forward('s' as never, { operation: 'cancel', request: {} })
     await vi.waitFor(() => { expect(inputs).toEqual([[OWNER, 's', 'cancel']]) })
     const writer = await network.device().asSync().openDocument(OWNER, 'sessions/live')
     writer.doc.getMap('sessions').set('s', { device: 'elsewhere', live: { running: true } })
     await vi.waitFor(() => { expect(lives).toContain('s') })
-    await expect(ctx.sessionHandoff.forward(OWNER, 's' as never, { operation: 'cancel', request: {} })).rejects.toThrow(/not written by another device/)
+    // Another device runs the session now, so this Host reads it as written elsewhere and sends nothing back to itself.
+    expect(ctx.sessionHandoff.runnerOf(OWNER, 's' as never)).toEqual({ device: 'elsewhere', name: '' })
     device.setState('offline')
     ctx.emit('sync/status', OWNER)
     home.failSnapshots = true

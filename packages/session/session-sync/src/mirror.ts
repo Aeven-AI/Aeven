@@ -369,8 +369,8 @@ export class SessionMirror {
         }
         const stored = (await this.persistence.list()).find(header => header.id === sessionId)
         if (stored !== undefined && stored.owner !== this.owner) throw new Error('session does not belong to this account')
-        const localNext = stored === undefined ? 0 : await this.next(sessionId as string, new Set([sessionId as string]))
-        const fold = this.folds.get(sessionId as string)
+        const localNext = stored === undefined ? 0 : await this.next(sessionId, new Set([sessionId]))
+        const fold = this.folds.get(sessionId)
         const previous = this.claims.get(sessionId)
         // A claim continues when nothing was accepted after it; otherwise a new one starts at the accepted head.
         const continues = previous !== undefined && (entry === undefined || fold === undefined
@@ -381,8 +381,10 @@ export class SessionMirror {
           : { id: randomUUID(), base, published: base, ...holder === undefined ? {} : { holder } }
         if (previous?.holder !== undefined && previous.holder !== holder) await previous.holder.dispose()
         this.claims.set(sessionId, claim)
+        // Another device taking this session over reaches this one only on the local network, so it listens for it.
+        this.watch(sessionId)
         if (stored?.replica === true) await this.persistence.setReplica(sessionId, false)
-        this.localNext.delete(sessionId as string)
+        this.localNext.delete(sessionId)
         return { claimed: true }
       } catch (error) {
         await holder?.dispose()
@@ -981,7 +983,7 @@ export class SessionMirror {
     // An attachment whose events arrived before its publication is fetched as soon as the index names it.
     this.published().observe((event: YMapEvent<{ chunks: number }>, transaction: Transaction) => {
       if (transaction.local) return
-      for (const id of event.keysChanged) {
+      for (const id of event.keysChanged as Set<string>) {
         if (!this.awaitedAttachments.has(id)) continue
         void this.downloadAttachment(id).catch((error: unknown) => {
           this.warn(`session sync: fetching attachment ${id} failed: ${String(error)}`)
@@ -1178,7 +1180,8 @@ export class SessionMirror {
         if (batch.claim !== undefined) {
           const current = this.lanClaims.get(id) ?? this.folds.get(id)?.claim
           if (batch.claim !== current && batch.first !== batch.base) return
-          if (batch.first !== next) return
+          // A batch that starts before this log's end overlaps events already held; the relay settles the overlap.
+          if (batch.first > next) return
         }
         if (this.claims.has(id as SessionId)) await this.releaseLocal(id as SessionId)
         await this.persistence.append(id as SessionId, events)
@@ -1230,6 +1233,17 @@ export class SessionMirror {
       } catch (error) {
         this.warn(`session sync: importing a session failed: ${String(error)}`)
       }
+    }
+    // A device whose turn this one no longer runs keeps its claim until the stream says another device's won; the
+    // fold compares the two, so a claim the accepted history superseded ends here rather than at the next turn.
+    const imported = new Set(ordered.map(([id]) => id))
+    for (const id of [...this.claims.keys()]) {
+      const entry = this.entries().get(id)
+      if (entry === undefined || imported.has(id) || !local.has(id) || this.running.has(id)) continue
+      await this.releases.get(id)
+      await this.fold(id, entry, revisions).catch((error: unknown) => {
+        this.warn(`session sync: confirming this device still writes ${id} failed: ${String(error)}`)
+      })
     }
   }
 
@@ -1321,6 +1335,9 @@ export class SessionMirror {
       const held: { events?: readonly SessionEvent[] } = {}
       let stored = false
       try {
+        // A seeded artifact's inherited prefix must commit in one append, so it accumulates across the batches
+        // that carry it instead of failing as a gap on every batch after the first.
+        let pending: SessionEvent[] = []
         reading: for (;;) {
           await this.yieldToOpening(id)
           const { batches, more } = await this.sync.readStream(this.owner, streamName(id), fold.cursor)
@@ -1329,21 +1346,36 @@ export class SessionMirror {
             const batch = await readBatch(payload)
             const events = this.accept(batch, fold)
             fold.cursor = seq
-            if (events === undefined) continue
-            const accepted = await this.applyAccepted(id, entry, events, batch.claim, local, held, revisions)
+            if (events === undefined) {
+              const first = batch.events[0]?.seq
+              // A batch that starts past the accepted head leaves a hole the relay never fills: report it.
+              if (first !== undefined && first > fold.head) {
+                throw new Error(`session ${id} is missing events ${String(fold.head)}–${String(first - 1)}`)
+              }
+              continue
+            }
+            pending.push(...events)
+            // The buffered events are the accepted history so far, so the next batch continues from their end.
+            fold.head = after(events, fold.head)
+            if (batch.claim !== undefined) fold.claim = batch.claim
+            if (fold.head < entry.inherited) continue
+            const accepted = await this.applyAccepted(id, entry, pending, batch.claim, local, held, revisions)
             if (accepted === 'gap') {
               // The stored log is shorter than the recorded head: fold again from the stream's start.
               this.folds.delete(id)
               this.record(id, { head: undefined, cursor: undefined, claim: undefined })
               Object.assign(fold, { cursor: 0, head: 0, claim: undefined })
+              pending = []
               continue reading
             }
             if (accepted === 'stored') stored = true
-            fold.head = after(events, fold.head)
-            if (batch.claim !== undefined) fold.claim = batch.claim
+            pending = []
           }
-          this.folds.set(id, { ...fold })
-          this.record(id, { cursor: fold.cursor, head: fold.head, claim: fold.claim })
+          // A prefix still short of its inherited length records nothing, so the next pass reads its batches again.
+          if (pending.length === 0) {
+            this.folds.set(id, { ...fold })
+            this.record(id, { cursor: fold.cursor, head: fold.head, claim: fold.claim })
+          }
           if (!more || this.isClosed()) break
         }
         // A claim of this device the stream never accepted, and that no turn here still continues, is over.
@@ -1363,14 +1395,14 @@ export class SessionMirror {
    * @returns the accepted events, starting at the head.
    */
   private accept(batch: Batch, fold: Fold): SessionEvent[] | undefined {
-    if (batch.claim === undefined) {
-      // A batch written before claims existed continues the history wherever it reaches the head.
-      const events = batch.events.filter(event => event.seq >= fold.head)
-      return events[0]?.seq === fold.head ? events : undefined
+    if (batch.claim !== undefined && batch.claim !== fold.claim && batch.first !== batch.base) {
+      // A new claim starts at the head the stream accepted, so a batch before its base belongs to no history.
+      return undefined
     }
-    if (batch.first !== fold.head) return undefined
-    if (batch.claim !== fold.claim && batch.first !== batch.base) return undefined
-    return batch.events.length === 0 ? undefined : batch.events
+    // A claim can start behind the accepted head, repeating events the history already holds; those are dropped
+    // and the batch continues from the head.
+    const events = batch.events.filter(event => event.seq >= fold.head)
+    return events[0]?.seq === fold.head ? events : undefined
   }
 
   /**
@@ -1650,9 +1682,9 @@ export class SessionMirror {
       }
       return
     }
-    if (entry === undefined && !suffix.events.some(event => !INITIALIZATION_EVENTS.has(event.type))) {
-      // An initialization-only draft stays local until it holds conversation activity.
-      this.claims.delete(sessionId)
+    if (!suffix.events.some(event => !INITIALIZATION_EVENTS.has(event.type))) {
+      // Initialization events wait for conversation activity, so an unwritten draft never reaches the stream.
+      if (entry === undefined) this.claims.delete(sessionId)
       return
     }
     const active = claim
@@ -1729,7 +1761,7 @@ export class SessionMirror {
       this.publishing, this.importing, this.consuming, this.settling, ...this.downloads.values(), ...this.publications.values(),
       ...this.ownership.values(), ...this.releases.values(), ...this.imports.values(),
     ])
-    await Promise.all([...this.claims.values()].map(claim => claim.holder?.dispose()))
+    await Promise.all([...this.claims.values()].map(claim => claim.holder?.dispose() ?? Promise.resolve()))
     for (const handle of Object.values(this.docs ?? {})) handle.close()
   }
 }

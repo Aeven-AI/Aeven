@@ -2605,6 +2605,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'owner', description: 'the account.' }, { name: 'sessionId', description: 'the session.' }, { name: 'running', description: 'whether a turn runs; false lets other devices claim it again.' }],
       },
       {
+        signature: 'fetchAttachment(_attachmentId: string): Promise<boolean>',
+        description: 'Download an attachment another device of the account published, such as an image, video, or file a synced conversation cites, when this device does not hold it yet.',
+        parameters: [{ name: '_attachmentId', description: 'the attachment\'s content address.' }],
+        returns: 'whether this device holds the attachment now.',
+      },
+      {
         signature: 'abstract publishLive(owner: string, sessionId: SessionId, live: unknown): void',
         description: 'Publish the live state of a session this device writes, such as whether a turn runs and what waits in its queue, to the account\'s other devices. The state is the publishing Consumer\'s JSON; undefined clears it.',
         parameters: [{ name: 'owner', description: 'the account.' }, { name: 'sessionId', description: 'the session.' }, { name: 'live', description: 'the state, or undefined once nothing is live.' }],
