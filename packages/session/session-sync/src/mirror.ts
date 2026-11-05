@@ -156,6 +156,8 @@ export interface SessionSyncTuning {
   inputExpiryMs: number
   /** How long a read of an attachment a synced conversation cites waits for another device to publish it. */
   attachmentWaitMs: number
+  /** Pause between reads of an attachment's chunks that are not all on the relay yet, in milliseconds. */
+  attachmentRetryMs: number
 }
 
 const compress = promisify(brotliCompress)
@@ -255,7 +257,10 @@ function droppedPrompts(events: readonly SessionEvent[]): SessionHandoffInput[] 
   const inputs: SessionHandoffInput[] = []
   for (const event of events) {
     if ((event.type as string) !== 'user/message') continue
-    const message = event.data as unknown as { content?: unknown; source?: { kind?: unknown; rpcId?: unknown; clientTimeZone?: unknown; clientDisplayName?: unknown } }
+    const message = event.data as unknown as {
+      content?: unknown
+      source?: { kind?: unknown; rpcId?: unknown; clientTimeZone?: unknown; clientDisplayName?: unknown }
+    }
     const source = message.source
     if (source?.kind !== 'user' || !Array.isArray(message.content)) continue
     inputs.push({
@@ -594,6 +599,10 @@ export class SessionMirror {
     if (existing !== undefined) return existing
     const download = (async () => {
       if (await store.hasObject(AttachmentId(id))) return
+      // The index can name an attachment before every chunk is readable on the relay, such as when the index arrived
+      // directly over a local network; the download waits for the chunks the index counts.
+      const expected = this.published().get(id)?.chunks ?? 1
+      const deadline = Date.now() + this.tuning.attachmentWaitMs
       const parts: Uint8Array[] = []
       let cursor = 0
       for (;;) {
@@ -602,7 +611,12 @@ export class SessionMirror {
           parts.push(batch.payload)
           cursor = batch.seq
         }
-        if (!more) break
+        if (more) continue
+        if (parts.length >= expected) break
+        if (Date.now() >= deadline || this.isClosed()) {
+          throw new Error(`attachment ${id} has ${String(parts.length)} of ${String(expected)} chunks on the relay`)
+        }
+        await pause(this.tuning.attachmentRetryMs)
       }
       await store.importObject(AttachmentId(id), new Uint8Array(Buffer.concat(parts)))
       this.awaitedAttachments.delete(id)
@@ -1241,11 +1255,23 @@ export class SessionMirror {
    * The fold position to continue from. A record without a head predates claims; its stored log may have diverged
    * from the stream, so the fold starts over and {@link applyAccepted} compares every stored event.
    */
-  private async foldStart(id: string, entry: IndexEntry, local: ReadonlySet<string>, replica: boolean, revisions?: ReadonlyMap<string, string>): Promise<Fold> {
+  private async foldStart(
+    id: string,
+    entry: IndexEntry,
+    local: ReadonlySet<string>,
+    replica: boolean,
+    revisions?: ReadonlyMap<string, string>,
+  ): Promise<Fold> {
     const known = this.folds.get(id)
     if (known !== undefined) return known
     const recorded = this.recorded(id)
-    if (recorded.head !== undefined) return { cursor: recorded.cursor ?? 0, head: recorded.head, ...recorded.claim === undefined ? {} : { claim: recorded.claim } }
+    if (recorded.head !== undefined) {
+      return {
+        cursor: recorded.cursor ?? 0,
+        head: recorded.head,
+        ...recorded.claim === undefined ? {} : { claim: recorded.claim },
+      }
+    }
     if (local.has(id)) {
       const trusted = this.trustedStart(id, entry, await this.next(id, local, revisions), replica)
       if (trusted !== undefined) return trusted

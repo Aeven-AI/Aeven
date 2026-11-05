@@ -85,7 +85,7 @@ const tuning: SessionSyncTuning = {
   publishMs: 20, batchBytes: 2_000, backfillDays: 30, liveMs: 5, pauseMs: 0, outboxLimit: 1000,
   publishTimeoutMs: 120_000,
   runnerLease: { ttlMs: 30_000, renewMs: 10_000 },
-  inputGraceMs: 100, inputExpiryMs: 1_000, attachmentWaitMs: 1_000,
+  inputGraceMs: 100, inputExpiryMs: 1_000, attachmentWaitMs: 1_000, attachmentRetryMs: 10,
 }
 const mirrors: SessionMirror[] = []
 afterEach(async () => { await Promise.all(mirrors.splice(0).map(mirror => mirror.dispose())) })
@@ -764,7 +764,10 @@ describe('session-sync plugin', () => {
     await new Promise(resolve => setTimeout(resolve, 2))
     await b.forward('later' as never, { operation: 'cancel', request: {} })
     const delivered: string[] = []
-    const collect = (_id: string, input: { operation: string }): Promise<void> => { delivered.push(input.operation); return Promise.resolve() }
+    const collect = (_id: string, input: { operation: string }): Promise<void> => {
+      delivered.push(input.operation)
+      return Promise.resolve()
+    }
     const again = new SessionMirror(OWNER, syncA.asSync(), homeA as never, tuning, vi.fn(), undefined, undefined, collect)
     mirrors.push(again)
     await again.start()
@@ -789,7 +792,7 @@ describe('session-sync plugin', () => {
       publishMs: 250, batchBytes: 2_000, backfillDays: 30, liveMs: 5, pauseMs: 0, outboxLimit: 1000,
       publishTimeoutMs: 120_000,
       runnerLease: { ttlMs: 30_000, renewMs: 10_000 },
-      inputGraceMs: 100, inputExpiryMs: 1_000, attachmentWaitMs: 1_000,
+      inputGraceMs: 100, inputExpiryMs: 1_000, attachmentWaitMs: 1_000, attachmentRetryMs: 10,
     })
     await fiber
     ctx.emit('sync/status', OWNER)
