@@ -595,7 +595,9 @@ export class ApiSessionAgentController {
   /** The acting account's default model, read for it before the agent starts. */
   private async agentOptions(): Promise<AgentOptions> {
     const owner = this.ctx.get('identityUsers')?.actingUser()?.id
-    await this.ctx.agentDefaultModel.prepare(owner)
+    if (owner !== undefined && this.ctx.get('settings')?.accountSections === true) {
+      await this.ctx.agentDefaultModel.prepare(owner)
+    }
     const { provider, model } = this.ctx.agentDefaultModel.currentSelection(owner)
     return { provider, model }
   }

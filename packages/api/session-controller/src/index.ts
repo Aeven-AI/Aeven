@@ -395,7 +395,9 @@ The user's account display name is ${JSON.stringify(source.clientDisplayName)}.
   @Remote('modelCatalog')
   async modelCatalog(): Promise<ModelCatalog> {
     const owner = this.ctx.get('identityUsers')?.actingUser()?.id
-    await this.ctx.agentDefaultModel.prepare(owner)
+    if (owner !== undefined && this.ctx.get('settings')?.accountSections === true) {
+      await this.ctx.agentDefaultModel.prepare(owner)
+    }
     return await buildModelCatalog(this.ctx, this.ctx.agentDefaultModel.currentSelection(owner))
   }
 

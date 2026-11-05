@@ -288,3 +288,10 @@
           includeDefaultRoots: false
           customSkillDirs:
             - !!js "process.getBuiltinModule('node:url').fileURLToPath(new URL('./skills/', baseUrl))"
+
+- id: tools
+  config:
+    mode: native
+
+- id: code-runtime
+  disabled: true

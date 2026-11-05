@@ -967,7 +967,9 @@ export class SessionCommandController {
     const composition = await this.agents.composeAgent(this.agents.presetForObservation(source))
     try {
       const owner = source.header.owner
-      await this.ctx.agentDefaultModel.prepare(owner)
+      if (owner !== undefined && this.ctx.get('settings')?.accountSections === true) {
+        await this.ctx.agentDefaultModel.prepare(owner)
+      }
       const { provider, model } = this.ctx.agentDefaultModel.currentSelection(owner)
       this.agents.own(await this.ctx.agents.create({
         sessionId: seeded.sessionId,
