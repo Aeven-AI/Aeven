@@ -74,6 +74,10 @@
     home: !!js avnHomePath('memory')
     accounts: !!js avnHomePath('accounts')
     openOnSync: true
+    workspaceIdentity: true
+    embeddingExecution: worker
+    embeddingQueuePerAccount: 8
+    embeddingQueueTotal: 128
 
 - id: api-sync-controller
   config:
@@ -295,3 +299,19 @@
 
 - id: code-runtime
   disabled: true
+
+- id: session-controller
+  config:
+    directImageReads: false
+
+- id: workflow-worker-thread
+  disabled: true
+
+- insert:
+    - id: hosted-runtime
+      name: '@aeven/hosted-app'
+      config:
+        perAccount: 2
+        total: 64
+        queuedPerAccount: 8
+        queuedTotal: 128

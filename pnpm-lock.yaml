@@ -1977,7 +1977,19 @@ importers:
       '@aeven/web-app':
         specifier: workspace:^
         version: link:../web-app
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
     devDependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../../core/agent
+      '@aeven/identity-user':
+        specifier: workspace:^
+        version: link:../../identity/user
+      '@aeven/llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -9616,6 +9628,9 @@ importers:
       '@aeven/sync':
         specifier: workspace:^
         version: link:../../sync/sync
+      '@aeven/workspace':
+        specifier: workspace:^
+        version: link:../../workspace/workspace
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis

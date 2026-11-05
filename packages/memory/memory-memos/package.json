@@ -23,7 +23,8 @@
   },
   "files": [
     "lib/index.js",
-    "lib/types/**/*.d.ts"
+    "lib/types/**/*.d.ts",
+    "lib/embedding-worker.js"
   ],
   "license": "Apache-2.0",
   "dependencies": {
@@ -41,7 +42,8 @@
     "@aeven/memory": "workspace:^",
     "@aeven/session": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
-    "@aeven/sync": "workspace:^"
+    "@aeven/sync": "workspace:^",
+    "@aeven/workspace": "workspace:^"
   },
   "devDependencies": {
     "@aeven/llm": "workspace:^",
@@ -49,6 +51,12 @@
     "@aeven/session": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@types/better-sqlite3": "^7.6.12",
-    "@aeven/sync": "workspace:^"
+    "@aeven/sync": "workspace:^",
+    "@aeven/workspace": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@aeven/workspace": {
+      "optional": true
+    }
   }
 }

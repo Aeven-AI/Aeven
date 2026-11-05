@@ -40,6 +40,9 @@
     },
     {
       "path": "../../sync/sync"
+    },
+    {
+      "path": "../../workspace/workspace"
     }
   ]
 }

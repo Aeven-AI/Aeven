@@ -89,7 +89,8 @@ import {
 } from "../storage/repos/index.js";
 import type { EmbeddingCountsBucket } from "../storage/repos/index.js";
 import type { ClosedEpisodeCursor } from "../storage/repos/episodes.js";
-import { createEmbedder } from "../embedding/embedder.js";
+import { createEmbedder, createEmbedderWithProvider } from "../embedding/embedder.js";
+import type { EmbeddingProvider } from "../embedding/types.js";
 import { createLlmClient } from "../llm/client.js";
 import {
   getHostLlmBridge,
@@ -151,6 +152,8 @@ type DedicatedLlmConfig = {
 };
 
 export interface BootstrapOptions {
+  /** Optional adapter-owned embedding provider; omitted uses the configured provider. */
+  embeddingProvider?: EmbeddingProvider;
   agent: AgentKind;
   namespace?: RuntimeNamespace;
   /**
@@ -365,7 +368,7 @@ export async function bootstrapMemoryCoreFull(
   let embedder = null as ReturnType<typeof createEmbedder> | null;
   let llm = null as ReturnType<typeof createLlmClient> | null;
   try {
-    embedder = createEmbedder({
+    const embeddingConfig = {
       ...(config.embedding as object),
       dimensions: initialEmbeddingDimensions(config.embedding.provider),
       onError: (d: { provider: string; model: string; message: string; code?: string; at?: number }) =>
@@ -382,7 +385,10 @@ export async function bootstrapMemoryCoreFull(
         episodeId?: string;
         phase?: string;
       }) => recordSystemModelStatus("embedding", d),
-    } as never);
+    } as never;
+    embedder = options.embeddingProvider
+      ? createEmbedderWithProvider(embeddingConfig, options.embeddingProvider)
+      : createEmbedder(embeddingConfig);
   } catch (err) {
     log.warn("embedder.unavailable", {
       err: err instanceof Error ? err.message : String(err),

@@ -86,6 +86,8 @@ declare module '@deepseek-ai/cordis' {
 export interface Config {
   /** Override platform desktop-opener detection. */
   readonly nativeOpen?: boolean
+  /** Permit fingerprint-only image reads; shared hosted deployments require a session instead. */
+  readonly directImageReads?: boolean
   /**
    * How long an approval or question nobody answered on the device running the turn waits for another device of
    * the account to answer, in milliseconds.
@@ -128,6 +130,7 @@ export class SessionController extends TypertRemoteService {
 
   static Config: z<Config> = z.object({
     nativeOpen: z.boolean(),
+    directImageReads: z.boolean().default(true),
     remoteAnswerMs: z.natural().default(600_000),
     interactionRetryMs: z.natural().min(100).default(2_000),
   })
@@ -185,6 +188,7 @@ export class SessionController extends TypertRemoteService {
         readCtx,
         (sessionId, attachmentId) => this.commands.referencedImage(sessionId, attachmentId),
         ref => readFetchedAttachment(ctx, String(ref.attachmentId), () => readCtx.attachments.readImage(ref)),
+        config.directImageReads !== false,
       )
     })
 

@@ -260,6 +260,7 @@ async function readImage(
   request: Request,
   readReferenced: (sessionId: SessionId, attachmentId: string) => Promise<StoredImageAttachment | undefined>,
   readDirect: (ref: ImageAttachmentRef) => Promise<StoredImageAttachment>,
+  allowDirect: boolean,
 ): Promise<Response> {
   const url = new URL(request.url)
   const sessionId = url.searchParams.get('sessionId')
@@ -267,12 +268,11 @@ async function readImage(
   if (attachmentId === null || attachmentId === '') {
     return failure(400, 'INVALID_ATTACHMENT_REF', 'id is required.')
   }
-  // A named session authorizes the read from its own log. A request that names
-  // no session reads the stored object by the reference it describes — the same
-  // authenticated-client access the path-addressed file route already grants,
-  // narrowed to content-addressed images whose reference the store verifies.
+  // A named session authorizes the read from its own log. Desktop also permits
+  // fingerprint-only reads; a shared hosted deployment requires the session.
   const ref = sessionId === null || sessionId === '' ? directImageRef(url) : undefined
   if (sessionId === null || sessionId === '') {
+    if (!allowDirect) return failure(403, 'SESSION_REQUIRED', 'A session is required to read this image.')
     if (ref === undefined) {
       return failure(400, 'INVALID_ATTACHMENT_REF', 'id, type, bytes, width and height are required.')
     }
@@ -308,16 +308,18 @@ export function registerFileUploadRoutes(ctx: Context): void {
  * @param ctx - context carrying the connection service.
  * @param readReferenced - Session-authorized reader of one cited image.
  * @param readDirect - reader of one image the request describes by reference.
+ * @param allowDirect - whether this deployment permits image reads without a session.
  */
 export function registerImageReadRoute(
   ctx: Context,
   readReferenced: (sessionId: SessionId, attachmentId: string) => Promise<StoredImageAttachment | undefined>,
   readDirect: (ref: ImageAttachmentRef) => Promise<StoredImageAttachment>,
+  allowDirect = true,
 ): void {
   ctx.effect(() => ctx.connection.fetch.register({
     path: IMAGE_READ_PATH,
     methods: ['GET', 'HEAD'],
-    fetch: request => readImage(request, readReferenced, readDirect),
+    fetch: request => readImage(request, readReferenced, readDirect, allowDirect),
   }), 'session-controller: /api/attachment-image')
 }
 

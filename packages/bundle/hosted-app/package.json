@@ -37,12 +37,19 @@
     "@aeven/client-ui-desktop-handoff": "workspace:^",
     "@aeven/client-ui-workspace-name": "workspace:^",
     "@aeven/speech-to-text-aeven": "workspace:^",
-    "@aeven/web-app": "workspace:^"
+    "@aeven/web-app": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:^"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/agent": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
+    "@aeven/llm": "workspace:^"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/agent": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
+    "@aeven/llm": "workspace:^"
   }
 }
