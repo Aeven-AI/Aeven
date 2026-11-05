@@ -1348,8 +1348,12 @@ export class SessionMirror {
             fold.cursor = seq
             if (events === undefined) {
               const first = batch.events[0]?.seq
-              // A batch that starts past the accepted head leaves a hole the relay never fills: report it.
-              if (first !== undefined && first > fold.head) {
+              // A batch that continues the accepted history but starts past its head leaves a hole the relay never
+              // fills: report it. That is a batch of the accepted claim, or of a claim that started at the head, whose
+              // first batch would have been accepted. A later batch of a claim the history rejected, such as the rest
+              // of a turn a device ran while it was behind, starts past the head too and is skipped like its first.
+              const continues = batch.claim === undefined || batch.claim === fold.claim || batch.base === fold.head
+              if (continues && first !== undefined && first > fold.head) {
                 throw new Error(`session ${id} is missing events ${String(fold.head)}–${String(first - 1)}`)
               }
               continue
