@@ -26,6 +26,14 @@ The claim is the only fact that decides who writes a session, and the fold is th
 - `importAll()` folds a session this device claims but no longer runs, so a claim the accepted history superseded ends there rather than at the next turn.
 - An initialization-only suffix stays local whether or not the session has an index entry.
 
+## Alternatives considered
+
+Keep `origin` on the index entry and release a session when another device's origin appears. Rejected: a claim is a fact of the stream, and the index cannot say which claim was accepted — a device that claims and writes nothing would release its peer with no history to settle the difference.
+
+Have a claiming device publish a claim-only batch, so every device learns the claim without writing an event. Rejected: a batch with no events has nothing to fold, and it would need its own rule in the fold, which compares claims through the events they carry.
+
+Refuse a batch that starts inside the accepted log. Rejected: a device republishing after a stale fold head sends exactly that batch, and refusing it drops a turn the other device can no longer obtain.
+
 ## Consequences
 
 A device that loses a turn to another device learns it from the stream and marks its log a copy, instead of holding a live claim over a conversation it no longer writes.
