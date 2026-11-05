@@ -261,7 +261,7 @@
   -webkit-box-orient: vertical;
   font-size: 1rem;
   line-height: 1.875rem;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--dsw-alias-label-primary);
 }
 
@@ -290,9 +290,4 @@
   text-decoration: none;
   color: inherit;
   cursor: pointer;
-}
-
-.cardBody:hover .cardTitle {
-  text-decoration: underline;
-  text-underline-offset: 3px;
 }
