@@ -1261,7 +1261,8 @@ export class SessionMirror {
    */
   private trustedStart(id: string, entry: IndexEntry, localNext: number, replica: boolean): Fold | undefined {
     const recorded = this.recorded(id)
-    if (replica && recorded.cursor !== undefined) return { cursor: recorded.cursor, head: localNext }
+    // A copy this device ever published to may hold its own events where the stream holds another device's.
+    if (replica && recorded.cursor !== undefined && recorded.revision === undefined) return { cursor: recorded.cursor, head: localNext }
     // Entries published before claims name the writing device; this build no longer writes the field.
     const origin = (entry as IndexEntry & { origin?: string }).origin
     if (!replica && origin !== undefined && origin === this.device() && entry.next === localNext) return { cursor: 0, head: localNext }
@@ -1347,11 +1348,12 @@ export class SessionMirror {
    * @param local - sessions stored here.
    * @param held - the stored log as this pass last read it; cleared whenever the log changes.
    * @param revisions - stored log revisions, by session.
+   * @param retry - whether a refused append reads the stored length again and retries once.
    * @returns `gap` when the stored log ends before the events start, `same` when it already holds them.
    */
   private async applyAccepted(
     id: string, entry: IndexEntry, events: readonly SessionEvent[], claim: string | undefined,
-    local: ReadonlySet<string>, held: { events?: readonly SessionEvent[] }, revisions?: ReadonlyMap<string, string>,
+    local: ReadonlySet<string>, held: { events?: readonly SessionEvent[] }, revisions?: ReadonlyMap<string, string>, retry = true,
   ): Promise<'stored' | 'same' | 'gap'> {
     const first = events[0]?.seq ?? 0
     const exists = local.has(id) || this.created.has(id)
@@ -1388,7 +1390,15 @@ export class SessionMirror {
       this.created.add(id)
       this.watch(id)
     }
-    await this.persistence.append(sessionId, fresh)
+    try {
+      await this.persistence.append(sessionId, fresh)
+    } catch (error) {
+      // A refused append means the stored length this pass compared with was stale; it is read again once.
+      if (!retry) throw error
+      this.localNext.delete(id)
+      delete held.events
+      return await this.applyAccepted(id, entry, events, claim, local, held, undefined, false)
+    }
     await this.importAttachments(fresh)
     this.localNext.set(id, after(fresh, localNext))
     return 'stored'
@@ -1543,6 +1553,9 @@ export class SessionMirror {
    */
   appended(header: SessionHeader, events: readonly SessionEvent[] = []): void {
     const id = header.id as string
+    // The stored length the fold compares with follows every commit, including this device's own turns.
+    const committed = events.at(-1)
+    if (committed !== undefined && this.localNext.has(id)) this.localNext.set(id, committed.seq + 1)
     if (header.replica || header.owner !== this.owner || this.docs === undefined) return
     const last = events.at(-1)
     if (last !== undefined) this.appendedNext.set(id, last.seq + 1)
