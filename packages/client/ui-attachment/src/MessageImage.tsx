@@ -42,6 +42,21 @@ export interface MessageImageLabels {
 /** Delays before a failed read of a durable image URL is repeated, in milliseconds. */
 const IMAGE_RETRY_DELAYS_MS = [250, 1_000, 2_000]
 
+/**
+ * The URL a repeated read of a durable image requests, so the browser asks the Host again instead of reusing the
+ * failed response it may hold for the same URL. Local `blob:` and `data:` URLs are returned unchanged.
+ * @param url - the image's durable URL.
+ * @param read - how many reads failed before this one; `0` is the first read.
+ * @returns the URL to request.
+ */
+function retriedUrl(url: string, read: number): string {
+  if (read === 0) return url
+  const retried = new URL(url, document.baseURI)
+  if (retried.protocol !== 'http:' && retried.protocol !== 'https:') return url
+  retried.searchParams.set('retry', String(read))
+  return retried.href
+}
+
 /** Display box for a lone image (DeepSeek Chat rule): long edge 240px with
  * the rendered aspect ratio clamped to [0.25, 4] — the overflow is cropped by
  * `object-fit: cover` — and never upscaled past the image's natural size. The
@@ -155,7 +170,7 @@ export function MessageImage({ image, load, variant, labels, onOpen }: {
         {src !== null && (
           <img
             key={readKey}
-            src={src}
+            src={attachment === undefined ? src : retriedUrl(src, readKey)}
             alt={label}
             style={fit === undefined ? undefined : { objectPosition: fit.objectPosition }}
             onError={attachment === undefined ? undefined : () => { setFailedReads(count => count + 1) }}
