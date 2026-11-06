@@ -185,12 +185,22 @@ export class ReadAloud {
 
   /**
    * Read one piece of text on its own channel: everything already queued or playing is dropped and the
-   * whole text is spoken once, so a repeated request starts again instead of being ignored.
+   * whole text is spoken once, so a repeated request starts again instead of being ignored. Every other channel
+   * falls silent first, so two readings never play over each other.
    * @param id - channel identity, distinct from a Session id.
    * @param text - the complete text to read.
    */
   speakOnce(id: string, text: string): void {
     const channel = this.channel(id)
+    // One voice at a time: another message's reading ends, and a Session's live reading falls silent until its next text.
+    for (const other of this.channels.values()) {
+      if (other === channel) continue
+      if (other.key === 'once') {
+        other.enabled = false
+        other.failed = false
+      }
+      this.stop(other)
+    }
     this.stop(channel)
     channel.enabled = true
     channel.failed = false
