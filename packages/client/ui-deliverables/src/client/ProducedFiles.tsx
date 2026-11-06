@@ -24,6 +24,16 @@ export interface ProducedFilesInjected {
    * @param download - Whether the browser saves the file instead of showing it.
    */
   fileUrl(path: string, download?: boolean): string
+  /**
+   * The URL of a produced file's stored copy.
+   * @param attachmentId - the copy the tool result recorded.
+   */
+  attachmentUrl(attachmentId: string): string
+  /**
+   * Open the stored copy of a produced file in a new browser tab, where media plays and documents display.
+   * @param attachmentId - the copy the tool result recorded.
+   */
+  openAttachment(attachmentId: string): void
   /** Whether the browser itself is connected over loopback. */
   isLoopback: boolean
   /** Load the opener capability when this row first reaches the page. */
@@ -62,21 +72,27 @@ type Translate = ProducedFilesProps['t']
  * @returns The produced-files section.
  */
 export function ProducedFiles({
-  matched, openFile, previewFile, fileUrl, cwd, isLoopback, ensureWorkspacePathOpen, openFileMenu, useWorkspacePathOpen, t,
+  matched, openFile, previewFile, fileUrl, attachmentUrl, openAttachment, cwd, isLoopback, ensureWorkspacePathOpen,
+  openFileMenu, useWorkspacePathOpen, t,
 }: ProducedFilesProps) {
   useEffect(() => { ensureWorkspacePathOpen() }, [ensureWorkspacePathOpen])
   const hostCanOpenPath = useWorkspacePathOpen(available => available === true)
   const canOpenPath = isLoopback && hostCanOpenPath
-  const openProducedFile = (path: string): void => {
-    void previewFile(path).then((previewed) => {
+  // A file the deployment stored opens from that copy: its reader may not reach the Host's folders, and the Host
+  // opens a path only where it is the reader's own desktop; elsewhere the reader's browser downloads it.
+  const openProducedFile = (file: ProducedFile): void => {
+    if (file.attachmentId !== undefined) {
+      openAttachment(file.attachmentId)
+      return
+    }
+    void previewFile(file.path).then((previewed) => {
       if (previewed) return
-      // A Host without a desktop, such as hosted Web, hands the file to the reader's browser instead.
-      if (hostCanOpenPath) {
-        openFile(path)
+      if (canOpenPath) {
+        openFile(file.path)
         return
       }
       const link = document.createElement('a')
-      link.href = fileUrl(path, true)
+      link.href = fileUrl(file.path, true)
       link.rel = 'noopener'
       link.click()
     })
@@ -95,7 +111,10 @@ export function ProducedFiles({
     }
   return (
     <section className={css.root} aria-label={t('produced.label')} data-produced-files-row>
-      {media.map(file => <MediaPlayer key={file.path} path={file.path} src={fileUrl(file.path)} />)}
+      {media.map(file => (
+        <MediaPlayer key={file.path} path={file.path}
+          src={file.attachmentId === undefined ? fileUrl(file.path) : attachmentUrl(file.attachmentId)} />
+      ))}
       {edited.length > 0 && (
         <FilesTable files={edited} openFile={openProducedFile} menu={menu} t={t}
           openWorkspace={canOpenPath ? () => { openFile('.') } : undefined} />
@@ -118,8 +137,8 @@ function MediaPlayer({ path, src }: { path: string; src: string }) {
   const name = basename(path)
   const onError = () => { setFailed(true) }
   return fileKindOf(name) === 'video'
-    ? <video className={css.video} src={src} controls playsInline preload="metadata" aria-label={name} title={path} onError={onError} />
-    : <audio className={css.audio} src={src} controls preload="metadata" aria-label={name} title={path} onError={onError} />
+    ? <video className={css.video} src={src} controls playsInline preload="metadata" aria-label={name} onError={onError} />
+    : <audio className={css.audio} src={src} controls preload="metadata" aria-label={name} onError={onError} />
 }
 
 /** Added and deleted line counts in the card's colors. */
@@ -165,7 +184,7 @@ function totalCounts(files: readonly ProducedFile[]): ProducedFile['counts'] {
 function FilesTable({ files, created = false, openFile, menu, openWorkspace, t }: {
   created?: boolean
   files: readonly ProducedFile[]
-  openFile: (path: string) => void
+  openFile: (file: ProducedFile) => void
   menu: ((path: string) => (event: MouseEvent) => void) | undefined
   /** Open the Session workspace; absent where the Host cannot open it. */
   openWorkspace: (() => void) | undefined
@@ -216,7 +235,7 @@ function FilesTable({ files, created = false, openFile, menu, openWorkspace, t }
             <li key={file.path} data-produced-file={created || undefined}>
               <button type="button" className={css.row} title={file.path}
                 aria-label={t('produced.open', { name: file.path })}
-                onClick={() => { openFile(file.path) }}
+                onClick={() => { openFile(file) }}
                 onContextMenu={menu?.(file.path)}>
                 <span className={css.rowName}>
                   {fileGlyph(basename(file.path))}

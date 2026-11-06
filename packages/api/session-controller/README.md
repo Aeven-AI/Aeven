@@ -29,7 +29,7 @@ Each endpoint states its activation policy. List, search, attachment, history pa
 
 Directoryless synced chats use the session runner lease to continue on the device receiving input; a missing local folder does not pin them to the previous writer.
 
-The authenticated `/api/file` route serves absolute paths through the composed filesystem provider. For extensionless raster files, including durable attachment objects, it identifies PNG, JPEG, WebP, and GIF bytes so a Markdown image can reference the stored path directly. `pathReads: false` leaves the route unregistered, for a Host serving several accounts whose readers must reach files only through a Session of their own.
+The authenticated `/api/file` route serves absolute paths through the composed filesystem provider. For extensionless raster files, including durable attachment objects, it identifies PNG, JPEG, WebP, and GIF bytes so a Markdown image can reference the stored path directly. `pathReads: false` leaves the route unregistered, for a Host serving several accounts whose readers must reach files only through a Session of their own. `/api/attachment-file` serves a stored original only when the Session log cites it: as a file content block, or as a non-image file reference a tool result records in its metadata, such as the film `show_motion` stores.
 
 `openWorkspacePath` refuses with `session/open-unavailable` while `canOpenWorkspacePath()` reports false, so a Host without a desktop never runs a native opener for a caller.
 
@@ -45,7 +45,7 @@ The Session object also carries local submission echoes: `session.beginSubmissio
 | Field | Default | Meaning |
 |---|---:|---|
 | `coldBlankProbeMaxBytes` | `1,024` | Maximum physical size of a cold Session artifact eligible for blankness verification; `0` disables probes |
-| `nativeOpen` | platform-detected | Whether Session workspace paths can be handed to a native desktop opener |
+| `nativeOpen` | platform-detected | Whether Session workspace paths can be handed to a native desktop opener; when false, `openWorkspacePath` refuses every request |
 | `pathReads` | `true` | Whether the `/api/file` route registers |
 
 `modelCatalog()` builds from the live LLM registry on every call, so a route whose model list grew since startup — a `catalogRefresh` that landed after mount, for instance — is reflected without a restart. Providers, and the models inside each provider, are ordered by the label the browser shows, with the model id as a tie-break so entries sharing a name keep a stable order between calls. Comparison is numeric-aware, so `GLM 5.2` precedes `GLM 5.3` precedes `GLM 5.10`. Provider failures keep registry order: that list is the diagnostic channel, not the list a person scans. Ordering lives here rather than in the route's own catalog, which stays in configuration order for everything that dispatches.

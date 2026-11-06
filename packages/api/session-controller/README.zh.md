@@ -29,7 +29,7 @@ kind: "package-reference"
 
 没有工作目录的同步聊天通过会话运行租约在接收输入的设备上继续；缺少本地文件夹不会使它们固定在先前的写入设备上。
 
-经过身份验证的 `/api/file` 路由通过已组合的文件系统提供者提供绝对路径文件。对于无扩展名的栅格文件，包括持久化的附件对象，它会识别 PNG、JPEG、WebP 和 GIF 字节，使 Markdown 图片能够直接引用已存储的路径。`pathReads: false` 不注册该路由，适用于服务多个账号、其读者只能通过自己的 Session 访问文件的 Host。
+经过身份验证的 `/api/file` 路由通过已组合的文件系统提供者提供绝对路径文件。对于无扩展名的栅格文件，包括持久化的附件对象，它会识别 PNG、JPEG、WebP 和 GIF 字节，使 Markdown 图片能够直接引用已存储的路径。`pathReads: false` 不注册该路由，适用于服务多个账号、其读者只能通过自己的 Session 访问文件的 Host。`/api/attachment-file` 只在 Session 日志引用某个已存储原件时才提供它：作为文件内容块，或作为工具结果在其元数据中记录的非图片文件引用，例如 `show_motion` 存储的影片。
 
 当 `canOpenWorkspacePath()` 报告 false 时，`openWorkspacePath` 以 `session/open-unavailable` 拒绝，因此没有桌面的 Host 绝不会为调用者运行原生打开器。
 
@@ -45,7 +45,7 @@ Session 对象还承载本地提交回显：`session.beginSubmission` 在调用�
 | 字段 | 默认值 | 含义 |
 |---|---:|---|
 | `coldBlankProbeMaxBytes` | `1,024` | 可进行空白状态验证的冷 Session 工件最大物理大小；`0` 禁用探测 |
-| `nativeOpen` | 平台探测 | 是否能把 Session 工作区路径交给原生桌面打开器 |
+| `nativeOpen` | 平台探测 | 是否能把 Session 工作区路径交给原生桌面打开器；为 false 时，`openWorkspacePath` 拒绝所有请求 |
 | `pathReads` | `true` | 是否注册 `/api/file` 路由 |
 
 `modelCatalog()` 在每次调用时都从实时 LLM 注册表构建，因此某条路由自启动以来增长的模型列表——例如挂载之后才完成的 `catalogRefresh`——无需重启即可体现。提供方，以及每个提供方内部的模型，都按浏览器显示的标签排序，并以模型 id 作为并列时的次序依据，使同名条目在多次调用之间保持稳定顺序。比较是数字感知的，因此 `GLM 5.2` 先于 `GLM 5.3`，`GLM 5.3` 先于 `GLM 5.10`。提供方失败保持注册表顺序：该列表是诊断通道，而非供人扫视查找模型的列表。排序位于此处而非路由自身的目录中，后者对一切参与派发的用途保持配置顺序。

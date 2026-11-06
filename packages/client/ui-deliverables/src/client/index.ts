@@ -32,6 +32,19 @@ declare module '@aeven/client-ui-slots' {
 export { ProducedFiles, type ProducedFilesProps } from './ProducedFiles.tsx'
 export { producedFilesForClosing, producedForClosing, type ProducedFile } from './turn-deliverables.ts'
 
+/**
+ * The URL of a stored copy a Session's log cites.
+ * @param sessionId - the Session whose log cites the copy.
+ * @param attachmentId - the copy's attachment id.
+ * @returns the absolute `/api/attachment-file` URL on this app's origin.
+ */
+function attachmentUrl(sessionId: string, attachmentId: string): string {
+  const url = new URL('api/attachment-file', document.baseURI)
+  url.searchParams.set('sessionId', sessionId)
+  url.searchParams.set('id', attachmentId)
+  return url.href
+}
+
 /** Required services for the tail-slot registration and its dictionaries. */
 export const inject = ['slots', 'locale', 'uiConversation', 'remote', 'remote.session', 'sidebarFiles']
 
@@ -86,6 +99,10 @@ export function apply(ctx: ClientContext): void {
       inject: sessionId => ({
         previewFile: (path: string) => ctx.sidebarFiles.open(sessionId, path),
         fileUrl: (path: string, download?: boolean) => ctx.sidebarFiles.fileUrl(sessionId, path, download),
+        attachmentUrl: (attachmentId: string) => attachmentUrl(sessionId, attachmentId),
+        openAttachment: (attachmentId: string) => {
+          window.open(attachmentUrl(sessionId, attachmentId), '_blank', 'noopener')
+        },
         isLoopback: ctx.remote.$host.isLoopback,
         ensureWorkspacePathOpen,
         openFileMenu: showMenu,

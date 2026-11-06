@@ -446,7 +446,7 @@ The user's account display name is ${JSON.stringify(source.clientDisplayName)}.
    * @param request - path after best-effort Session workspace resolution, and the requested handoff.
    * @param signal - caller lifetime; abort terminates the native command.
    * @returns confirmation after the native opener accepts the path.
-   * @throws RemoteError when the request is invalid, cancelled, or the opener fails.
+   * @throws RemoteError when this deployment opens no paths, or the request is invalid, cancelled, or the opener fails.
    */
   @Remote('openWorkspacePath')
   async openWorkspacePath(

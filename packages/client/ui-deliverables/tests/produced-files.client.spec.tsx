@@ -461,13 +461,15 @@ describe('producedFileMentions resolver', () => {
 
 
 describe('produced-file opening', () => {
+  const props = {
+    ensureWorkspacePathOpen: () => {}, revealFile: () => {}, fileUrl: (path: string) => `http://localhost/api/workspace-file?path=${path}`,
+    attachmentUrl: (id: string) => `http://localhost/api/attachment-file?id=${id}`, t: vi.fn().mockImplementation((key: string) => key) }
+
   it.each([true, false])('previews files and opens unsupported files in the default app (created=%s)', async (created) => {
     const openFile = vi.fn()
     const previewFile = vi.fn().mockResolvedValue(true)
-    const view = render(<ProducedFiles matched={[{ path: 'report.pdf', created, counts: { added: 12, deleted: 3 } }]} openFile={openFile}
-      previewFile={previewFile} fileUrl={path => `http://localhost/api/workspace-file?path=${path}`} isLoopback={false}
-      ensureWorkspacePathOpen={() => {}} revealFile={() => {}} useWorkspacePathOpen={vi.fn().mockReturnValue(true)}
-      t={vi.fn().mockImplementation((key: string) => key)} />)
+    const view = render(<ProducedFiles {...props} matched={[{ path: 'report.pdf', created, counts: { added: 12, deleted: 3 } }]} openFile={openFile}
+      previewFile={previewFile} openAttachment={vi.fn()} isLoopback useWorkspacePathOpen={vi.fn().mockReturnValue(true)} />)
     expect(view.container.querySelector(created ? '[data-created-files]' : '[data-changed-files]')).not.toBeNull()
     expect(view.queryAllByText('changes.added')).toHaveLength(created ? 0 : 2)
     fireEvent.click(view.getByTitle('report.pdf'))
@@ -476,6 +478,28 @@ describe('produced-file opening', () => {
     previewFile.mockResolvedValue(false)
     fireEvent.click(view.getByTitle('report.pdf'))
     await vi.waitFor(() => { expect(openFile).toHaveBeenCalledWith('report.pdf') })
+  })
+
+  it('asks no Host to open a file the page cannot open there', async () => {
+    const openFile = vi.fn()
+    const previewFile = vi.fn().mockResolvedValue(false)
+    const view = render(<ProducedFiles {...props} matched={[{ path: 'film.mp4', created: true }]} openFile={openFile}
+      previewFile={previewFile} openAttachment={vi.fn()} isLoopback={false} useWorkspacePathOpen={vi.fn().mockReturnValue(true)} />)
+    fireEvent.click(view.getByTitle('film.mp4'))
+    await vi.waitFor(() => { expect(previewFile).toHaveBeenCalledWith('film.mp4') })
+    expect(openFile).not.toHaveBeenCalled()
+  })
+
+  it('opens the stored copy of a shared file', () => {
+    const openFile = vi.fn()
+    const previewFile = vi.fn()
+    const openAttachment = vi.fn()
+    const view = render(<ProducedFiles {...props} matched={[{ path: 'film.mp4', created: true, attachmentId: 'a1' }]} openFile={openFile}
+      previewFile={previewFile} openAttachment={openAttachment} isLoopback={false} useWorkspacePathOpen={vi.fn().mockReturnValue(false)} />)
+    fireEvent.click(view.getByTitle('film.mp4'))
+    expect(openAttachment).toHaveBeenCalledWith('a1')
+    expect(previewFile).not.toHaveBeenCalled()
+    expect(openFile).not.toHaveBeenCalled()
   })
 })
 
