@@ -59,6 +59,7 @@ kind: "package-reference"
 | `modelNote` | 无 | 描述命令可用内容的系统提示词文本 |
 | `seccompFilter` | 无 | bubblewrap 安装的 BPF 系统调用过滤器的主机路径；文件不存在则启动失败 |
 | `sessionAttachments` | `false` | 以只读方式在存储路径上挂载对话的用户消息与工具结果引用的附件 |
+| `pythonZygote` | 无 | 运行被隔离 `python3` 命令的预加载 Python 解释器的 `python`、`script`、`preload`、`socketDir` 与 cgroup `limits`；需要 `cgroup` 和 `seccompFilter` |
 
 生成的 [配置目录](../../../docs/config-catalog.zh.md#aevensandbox-jail) 是每个可接受字段及其 JSDoc 的完整来源。
 
@@ -86,6 +87,7 @@ kind: "package-reference"
 6. 用 [`host/seccomp-filter.c`](host/seccomp-filter.c) 生成系统调用过滤器（`cc -O2 -o seccomp-filter seccomp-filter.c -lseccomp`），并在 `seccompFilter` 中填写其输出路径。
 7. 把命令可用的只读程序和库安装到 `readOnlyPaths` 列出的路径下，例如 `/opt/aeven-sandbox` 下的 Python 虚拟环境和 Node `node_modules` 目录。用 `python3 -m compileall` 预编译 Python 字节码，因为监狱无法写入 `.pyc` 文件，否则 pandas 的导入会慢五倍。
 8. 如需动画和视频，以 root 身份运行 [`host/install-motion.sh`](host/install-motion.sh)。它安装无头 Chromium（`playwright-core`）、GSAP 和开放许可字体（SIL Open Font License 下的 Google Sans Flex 等 Google Fonts 字体族，以及覆盖所有文字、CJK 和彩色 emoji 的 Noto），并把 `render-motion` 放入镜像的 `bin`。`render-motion page.html film.mp4` 通过 HyperFrames 合成自身运行时的播放器逐帧推进它，否则逐帧推进页面的 GSAP 时间线或其 `window.seek(seconds)`，再用 ffmpeg 的 libx264 编码这些帧；页面为 `-` 时从标准输入读取，`--stills` 与 `--json` 以一行 JSON 返回均匀分布的帧与影片信息，供 [`avn-motion-sandbox`](../../motion/motion-sandbox/README.zh.md) 读取。更新 `render-motion` 后需重新运行该脚本；它用已安装的副本响应 CDN 上的 GSAP 请求，其他请求一律失败。在 `readOnlyPaths` 中列出 `/var/cache/fontconfig`，并在 `env` 中设置 `PLAYWRIGHT_BROWSERS_PATH`。
+9. 如需快速的 Python，以 root 身份运行 [`host/install-python-zygote.sh`](host/install-python-zygote.sh)，在 `env` 的 `PATH` 中把 `/opt/aeven-sandbox/shim` 放在最前，并设置 `pythonZygote`。该脚本把静态的 `python3` 与 `python` shim 构建到 `<image>/shim`，并在其旁安装 `script` 所指的 `python-zygote.py`；更新这两个文件后需重新运行它。提供者在所有监狱之外、`<root>/zygote` 中启动一个解释器，它只导入一次 `preload`；shim 通过每个监狱挂载在 `/run/aeven/zygote` 的套接字把每次 `python3` 调用交给它。每次调用时它会 fork，通过套接字对端的 pidfd 识别调用者，移入调用者的账户组，加入调用者的命名空间，丢弃所有 capability，为调用者的可写挂载安装启动器的 Landlock 规则并加载监狱的系统调用过滤器，再以调用者的描述符、目录、环境与 umask 运行程序。这样 `import pandas, matplotlib.pyplot` 约需 30 毫秒而不是 0.9 秒。zygote 无法精确重现的调用，例如交互会话、不常见的参数、被改动的 `PYTHON*`、区域设置、线程数或 Matplotlib 变量，或未提及任何预加载模块的 `-c` 代码，改由镜像的解释器运行；zygote 停止期间的所有调用也是如此。
 
 ### 失败与恢复
 
@@ -106,6 +108,7 @@ launcher 无法强制执行 Landlock、bubblewrap 无法创建监狱的命名空
 | [`src/index.ts`](src/index.ts) | 插件入口：配置、启动探测、账户检查、每次调用的包装 |
 | [`src/profile.ts`](src/profile.ts) | 单次调用的 bwrap 挂载与 Landlock 授权 |
 | [`src/cgroup.ts`](src/cgroup.ts) | 委派目录下的总 cgroup 与按账户 cgroup |
+| [`src/zygote.ts`](src/zygote.ts) | Python zygote 进程：在自己的组中启动，结束后重启 |
 | — | 不发布运行时不变量伴随包；提供方不持有可被第二次观察推翻的事件序列或可变关系。 |
 
 ### 一次调用
@@ -114,7 +117,7 @@ launcher 无法强制执行 Landlock、bubblewrap 无法创建监狱的命名空
 
 ### 主机文件
 
-[`host/`](host/) 存放设置步骤安装的内容：AppArmor profile、用于委派和 Host 用户的 systemd drop-in、带 sudoers 规则的配额辅助程序、系统调用过滤器源码，以及动画安装脚本与 `render-motion`。配额辅助程序从 root 所有的 `/etc/aeven-sandbox/accounts-root` 读取账户根目录，因此调用者无法选择它限制的目录树。
+[`host/`](host/) 存放设置步骤安装的内容：AppArmor profile、用于委派和 Host 用户的 systemd drop-in、带 sudoers 规则的配额辅助程序、系统调用过滤器源码、动画安装脚本与 `render-motion`，以及 Python zygote（`python-zygote.py`，其中记录了协议）、它的 shim 源码和 shim 安装脚本。配额辅助程序从 root 所有的 `/etc/aeven-sandbox/accounts-root` 读取账户根目录，因此调用者无法选择它限制的目录树。
 
 ### 两道屏障
 
@@ -151,7 +154,8 @@ bubblewrap 构建的根目录只包含列出的路径，因此其他账户的文
 <a id="known-limitations-and-deferred-work"></a>
 
 - **仅限 Linux，共享内核** — 监狱与 Host 共享内核，因此从内部发起的内核提权会到达整台机器。把 Host 放在除其服务内容外不保存其他东西的机器上，或把执行移到单独的机器。
-- **每条命令都启动自己的解释器** — Python 命令每次调用都要支付导入开销（pandas 约 0.4 秒）；预加载并按命令 fork 的解释器尚未实现。
+- **zygote 运行共享 zygote 的启动状态** — 从同一 zygote fork 出的每次运行都有相同的字符串哈希种子，其 `os.getppid()` 为 0，启动时导入的模块保留当时读取的环境，因此改动导入期变量的调用改由解释器运行。
+- **没有 zygote 时每条命令都启动自己的解释器** — Python 命令每次调用都要支付导入开销（pandas 与 Matplotlib 约 0.9 秒）。
 - **命令从 Host 进程派生** — fork 一个大的 Host 每条命令要花几毫秒；从小型执行器进程派生尚未实现。
 - **托管的 `AVN_*` 变量不会到达命令** — 监狱用 `env` 设置完整环境。
 - **系统调用过滤器是拒绝列表** — 它拒绝挂载、命名空间、跟踪、密钥环、BPF、模块与句柄类调用，并隐藏 `io_uring` 与 `clone3`；其余调用仍被允许，命名空间、丢弃的 capability、`no_new_privs` 和 Landlock 仍是主要屏障。

@@ -8,6 +8,7 @@
 
 import { grantArgs } from '@deepseek-ai/node-addon-landlock-run'
 import type { SandboxPolicy } from '@aeven/sandbox'
+import { JAIL_ZYGOTE_DIR } from './zygote.ts'
 
 /** Where the Landlock launcher is mounted inside every jail. */
 export const JAIL_LAUNCHER = '/run/aeven/landlock-run'
@@ -30,6 +31,8 @@ export interface JailProfile {
   hostname: string
   /** Whether bubblewrap reads a system-call filter from descriptor 3. */
   seccomp: boolean
+  /** Host directory of the Python zygote's socket, mounted read-only at {@link JAIL_ZYGOTE_DIR}; absent without a zygote. */
+  zygoteDir?: string | undefined
 }
 
 /**
@@ -56,6 +59,7 @@ export function jailArgs(profile: JailProfile, policy: SandboxPolicy, readOnlyFi
   args.push('--dev', '/dev', '--proc', '/proc', '--size', size, '--tmpfs', '/tmp', '--size', size, '--tmpfs', '/dev/shm')
   for (const root of roots) args.push(writable ? '--bind' : '--ro-bind', root, root)
   for (const file of readOnlyFiles) args.push('--ro-bind', file, file)
+  if (profile.zygoteDir !== undefined) args.push('--ro-bind', profile.zygoteDir, JAIL_ZYGOTE_DIR)
   args.push('--ro-bind', profile.launcher, JAIL_LAUNCHER, '--', JAIL_LAUNCHER)
   // The jail root holds only what bwrap mounted, so read access beneath it is
   // the same view; Landlock still denies anything outside it.
