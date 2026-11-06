@@ -1092,7 +1092,7 @@ function referencedAttachment<T extends AttachmentBlockType>(
  */
 function loggedRequest(events: readonly SessionEvent[], rpcId: string | undefined): boolean {
   if (rpcId === undefined) return false
-  const fromRequest = (message: UserMessage): boolean => message.source.kind === 'user' && message.source.rpcId === rpcId
+  const fromRequest = (message: UserMessage): boolean => message.source.kind === 'user' && 'rpcId' in message.source && message.source.rpcId === rpcId
   for (let index = events.length - 1; index >= 0; index--) {
     const event = events[index]
     if (event?.type === 'agent/inbox/spliced' && event.data.inserted.some(fromRequest)) return true
