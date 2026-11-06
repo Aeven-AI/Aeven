@@ -16,6 +16,8 @@ After [sharing jailed command files](2026-11-06-hosted-sandbox-files.md), a revi
 
 `avn-tool-bash` fences the post-command resolve of each output path, records shared outputs relative to the workspace, and caps sharing per call (`shareMaxFiles`, `shareMaxBytes`) and per conversation (`shareMaxSessionBytes`, counted from the log). `avn-document-extract-video` gains `probeDirectory` and `probeRunner`; hosted runs `ffprobe` in a network-less bubblewrap jail that sees `/usr`, the library alternatives, and the probe directory. Hosted disables `vcs` and `vcs-git`.
 
+The quota helper runs inside each command's own launch step rather than from the Host, so a long first walk of a folder never blocks the Host's event loop; it records an account only after its limit is set, skips the walk when the folder already carries its project id, and the jail skips the step for accounts the record lists. The hosted `ffprobe` jail also links `/lib64` for x86_64 loaders and runs under `prlimit` with 1 GiB of address space and 30 s of CPU.
+
 ## Alternatives considered
 
 Copying each referenced attachment into the account folder was rejected: it doubles storage against the folder's quota and needs the copy to exist before the model's request is built, while a per-command read-only mount needs neither. Making Host-side writes race-free with descriptor-relative publication was deferred; jailed commands already write without that race. Counting shared bytes per account would need state beyond one conversation's log; the per-conversation cap is derived from durable data alone.

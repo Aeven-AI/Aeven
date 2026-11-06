@@ -3341,13 +3341,19 @@ export interface Config {
    */
   sessionAttachments?: boolean
   /**
-   * Argv that limits one account folder's disk use, run once per account
-   * before its first command with the folder appended, such as a root-owned
-   * helper through `sudo -n` that sets a filesystem project quota. A failure
-   * refuses the account's commands. Omitted, account folders have no limit
-   * of their own.
+   * Argv that limits one account folder's disk use, such as a root-owned
+   * helper through `sudo -n` that sets a filesystem project quota. It runs,
+   * with the folder appended, inside a command's own launch step before the
+   * jail starts, so it never blocks the Host; a failure refuses that command.
+   * Omitted, account folders have no limit of their own.
    */
   quotaCommand?: string[]
+  /**
+   * File the quota helper lists each limited account in, as `<id> <account>`
+   * lines; an account listed there skips the quota step. Omitted, every
+   * command runs the step.
+   */
+  quotaRecord?: string
   /**
    * System-prompt text describing what confined commands can use, such as
    * having no network and which programs and libraries are installed; omitted,

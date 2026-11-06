@@ -446,6 +446,7 @@
         # the accounts filesystem; the helper refuses any path that is not one
         # account folder directly under that filesystem.
         quotaCommand: [sudo, -n, /usr/local/sbin/aeven-sandbox-quota, '5242880', '200000']
+        quotaRecord: /var/lib/aeven-sandbox/projects
         modelNote: >-
           Commands run in an isolated Linux sandbox without network access, so nothing can be
           downloaded or installed (no pip, npm, apt, curl, or git clone). Installed: Python 3.12 with
@@ -481,11 +482,12 @@
     workspaceRoot: !!js "(process.getBuiltinModule('node:fs').mkdirSync(avnHomePath('sandbox', 'unowned'), { recursive: true }), avnHomePath('sandbox', 'unowned'))"
 
 # Uploaded clips are untrusted media: ffprobe reads them inside a jail without
-# network that sees only /usr and the directory the clip is written to.
+# network that sees only /usr and the directory the clip is written to, capped
+# at 1 GiB of address space and 30 s of CPU.
 - id: document-extract-video
   config:
     probeDirectory: !!js "(process.getBuiltinModule('node:fs').mkdirSync(avnHomePath('sandbox', 'probe'), { recursive: true, mode: 0o700 }), avnHomePath('sandbox', 'probe'))"
-    probeRunner: !!js "process.platform === 'linux' ? ['/usr/bin/bwrap', '--unshare-all', '--unshare-user', '--disable-userns', '--die-with-parent', '--new-session', '--clearenv', '--ro-bind', '/usr', '/usr', '--ro-bind', '/etc/alternatives', '/etc/alternatives', '--ro-bind', '/etc/ld.so.cache', '/etc/ld.so.cache', '--symlink', 'usr/lib', '/lib', '--symlink', 'usr/bin', '/bin', '--proc', '/proc', '--dev', '/dev', '--ro-bind', avnHomePath('sandbox', 'probe'), avnHomePath('sandbox', 'probe'), '--'] : undefined"
+    probeRunner: !!js "process.platform === 'linux' ? ['/usr/bin/prlimit', '--as=1073741824', '--cpu=30', '--', '/usr/bin/bwrap', '--unshare-all', '--unshare-user', '--disable-userns', '--die-with-parent', '--new-session', '--clearenv', '--ro-bind', '/usr', '/usr', '--ro-bind', '/etc/alternatives', '/etc/alternatives', '--ro-bind', '/etc/ld.so.cache', '/etc/ld.so.cache', '--symlink', 'usr/lib', '/lib', '--symlink', 'usr/lib64', '/lib64', '--symlink', 'usr/bin', '/bin', '--proc', '/proc', '--dev', '/dev', '--ro-bind', avnHomePath('sandbox', 'probe'), avnHomePath('sandbox', 'probe'), '--'] : undefined"
 
 - id: tools
   config:
