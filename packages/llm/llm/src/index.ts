@@ -329,7 +329,8 @@ export interface DirectoryRegistrationHandle {
 export class LlmRuntime extends TypertRemoteService {
   private adapters = new Map<string, AdapterRegistration>()
   private readonly accountAdapters = new Map<string, Map<string, AdapterRegistration>>()
-  private accountSource: { owner: () => string | undefined; prepare: (owner: string) => Promise<void> } | undefined
+  /** Plugins that keep model routes per account, each able to name the account a call is for and to load its routes. */
+  private readonly accountSources = new Set<{ owner: () => string | undefined; prepare: (owner: string) => Promise<void> }>()
 
   /**
    * Resolve personal routes for the current caller before asynchronous model operations.
@@ -338,24 +339,32 @@ export class LlmRuntime extends TypertRemoteService {
    * @returns disposer for the account resolver.
    */
   registerAccountSource(owner: () => string | undefined, prepare: (owner: string) => Promise<void>): () => void {
-    if (this.accountSource !== undefined) throw new Error('an LLM account source is already registered')
     const source = { owner, prepare }
     const dispose = this.ctx.effect(() => {
-      this.accountSource = source
-      return () => { if (this.accountSource === source) this.accountSource = undefined }
+      this.accountSources.add(source)
+      return () => { this.accountSources.delete(source) }
     }, 'llm account source')
     return () => { void dispose() }
   }
 
-  /** Load the current account's model routes; compositions without an account source do no work. */
+  /** The account the current call is for, as the first account source that names one answers. */
+  private currentAccount(): string | undefined {
+    for (const source of this.accountSources) {
+      const owner = source.owner()
+      if (owner !== undefined) return owner
+    }
+    return undefined
+  }
+
+  /** Load the current account's model routes from every account source; compositions without one do no work. */
   async prepareAccount(): Promise<void> {
-    const source = this.accountSource
-    const owner = source?.owner()
-    if (source !== undefined && owner !== undefined) await source.prepare(owner)
+    const owner = this.currentAccount()
+    if (owner === undefined) return
+    await Promise.all([...this.accountSources].map(source => source.prepare(owner)))
   }
 
   private callerAdapters(): Map<string, AdapterRegistration> {
-    const owner = this.accountSource?.owner()
+    const owner = this.currentAccount()
     const own = owner === undefined ? undefined : this.accountAdapters.get(owner)
     return own === undefined ? this.adapters : new Map([...this.adapters, ...own])
   }
@@ -588,7 +597,7 @@ export class LlmRuntime extends TypertRemoteService {
    * @returns detached directory entries in declaration order.
    */
   listConfigurableProviders(): LlmConfigurableProvider[] {
-    const owner = this.accountSource?.owner()
+    const owner = this.currentAccount()
     const own = owner === undefined ? undefined : this.accountDirectories.get(owner)
     return [...new Map([...this.directory, ...own ?? []]).values()].map(entry => ({ ...entry, settingsPath: [...entry.settingsPath] }))
   }

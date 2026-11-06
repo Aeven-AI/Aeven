@@ -73,6 +73,11 @@ export interface Config {
   seedDefaultWorkspace?: boolean
   /** Display title given to a newly seeded workspace (default: `Chats`). */
   defaultWorkspaceTitle?: string
+  /**
+   * Whether a workspace another device published without a directory is one this Host continues as its own
+   * (default: false). Off, it stays the other device's, as every received workspace does.
+   */
+  pathlessWorkspaces?: boolean
 }
 
 /** Identifies one workspace record (see `src/types.ts` for the brand rationale). */
@@ -173,6 +178,12 @@ export class WorkspaceRegistry extends Service {
      * was seeded with; this only names one at creation time.
      */
     defaultWorkspaceTitle: z.string().default(DEFAULT_DEFAULT_WORKSPACE_TITLE),
+    /**
+     * Whether a workspace another device published without a directory is one
+     * this Host continues as its own. Off by default: a received workspace stays
+     * the device's that made it.
+     */
+    pathlessWorkspaces: z.boolean().default(false),
   })
 
   private table?: KvTable<WorkspaceId, WorkspaceRecord>
@@ -885,7 +896,7 @@ export class WorkspaceRegistry extends Service {
           const retitled = entry.title !== undefined && entry.updatedAt !== undefined
             && entry.updatedAt > titled && entry.title !== record.title
           // A workspace received before its device said it has no directory waits for none.
-          const usable = record.kind === 'remote' && entry.pathless === true
+          const usable = this.config.pathlessWorkspaces === true && record.kind === 'remote' && entry.pathless === true
           if (retitled || usable) {
             await table.put(id, {
               ...record,
@@ -901,7 +912,7 @@ export class WorkspaceRegistry extends Service {
           if (entry.removed === true || known.has(entry.id) || entry.title === undefined) continue
           const at = entry.updatedAt ?? new Date().toISOString()
           await table.put(entry.id, {
-            kind: entry.pathless === true ? 'virtual' : 'remote',
+            kind: this.config.pathlessWorkspaces === true && entry.pathless === true ? 'virtual' : 'remote',
             title: entry.title,
             ...entry.owner === undefined ? {} : { owner: entry.owner },
             sessionIds: [],

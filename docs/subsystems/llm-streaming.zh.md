@@ -889,7 +889,7 @@ The abstract `llm` service: an adapter registry plus a streaming model-call API,
  */
 registerAccountSource(owner: () => string | undefined, prepare: (owner: string) => Promise<void>): () => void
 
-/** Load the current account's model routes; compositions without an account source do no work. */
+/** Load the current account's model routes from every account source; compositions without one do no work. */
 async prepareAccount(): Promise<void>
 
 /**

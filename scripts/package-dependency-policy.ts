@@ -45,7 +45,7 @@ const SAFE_HOST_DEPENDENCY_EXPORTS = {
   '@aeven/brand-page': ['brandPageHtml'],
   '@aeven/credentials': ['credentialKey'],
   '@aeven/deque': ['Deque'],
-  '@aeven/home-paths': ['resolveAvnHome'],
+  '@aeven/home-paths': ['accountHomePath', 'resolveAvnHome'],
   '@aeven/working-directory': ['sessionDirectory'],
   '@aeven/llm': [
     'LlmAdapter',

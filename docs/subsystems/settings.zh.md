@@ -29,6 +29,11 @@ interface SettingsRegisterOptions<T> {
   /** Whether the section belongs to the account or to this device; defaults to `device`. */
   reach?: SettingsReach
   /**
+   * Keep each signed-in account's own section on a provider with {@link SettingsProvider.accountSections}, where
+   * the namespace registers with `account` reach; any other provider registers it with {@link reach}.
+   */
+  perAccount?: boolean
+  /**
    * Reject a resolved section the owner could not act on, for constraints its
    * schema cannot express — a cross-field requirement, or one field's validity
    * depending on another's. Throwing here refuses the *write* that produced the

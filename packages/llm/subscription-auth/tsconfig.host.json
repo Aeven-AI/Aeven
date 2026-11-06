@@ -52,6 +52,12 @@
       "path": "../../host/webserver"
     },
     {
+      "path": "../../core/agent"
+    },
+    {
+      "path": "../../identity/user"
+    },
+    {
       "path": "../../media/media"
     }
   ]

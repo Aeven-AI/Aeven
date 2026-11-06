@@ -9071,6 +9071,9 @@ importers:
         specifier: 7.29.0
         version: 7.29.0
     devDependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../../core/agent
       '@aeven/attachment':
         specifier: workspace:^
         version: link:../../attachment/attachment
@@ -9098,6 +9101,9 @@ importers:
       '@aeven/host-webserver':
         specifier: workspace:^
         version: link:../../host/webserver
+      '@aeven/identity-user':
+        specifier: workspace:^
+        version: link:../../identity/user
       '@aeven/invariants':
         specifier: workspace:^
         version: link:../../runtime-diagnostics/invariants

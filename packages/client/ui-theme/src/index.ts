@@ -30,7 +30,7 @@ function readSection(ctx: Context, request: IndexRequest | undefined): { prefere
   const fallback = { preference: DEFAULT_PREFERENCE, fontSize: DEFAULT_FONT_SIZE }
   const settings = ctx.get('settings')
   if (settings === undefined) return fallback
-  const reader = request === undefined ? undefined : ctx.get('identityUsers')?.resolve(request)?.id
+  const reader = request === undefined || !settings.accountSections ? undefined : ctx.get('identityUsers')?.resolve(request)?.id
   const section = (reader === undefined
     ? settings.get(THEME_NAMESPACE)
     : settings.cachedValueFor(THEME_NAMESPACE, reader)) as ThemeSettings | undefined
@@ -47,8 +47,8 @@ function readSection(ctx: Context, request: IndexRequest | undefined): { prefere
  */
 export function apply(ctx: Context): void {
   ctx.inject(['settings'], (settingsCtx) => {
-    // A person's theme: the same on every device of the account, and their own on a Host that serves several people.
-    settingsCtx.settings.register(THEME_NAMESPACE, ThemeSettingsSchema, { reach: 'account' })
+    // One device's theme; each person's own on a Host that serves many people.
+    settingsCtx.settings.register(THEME_NAMESPACE, ThemeSettingsSchema, { reach: 'device', perAccount: true })
   })
   ctx.on('webserver/index-inject', (table, _origin, request) => {
     const section = readSection(ctx, request)

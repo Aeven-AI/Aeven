@@ -54,8 +54,8 @@ export default class SpeechToText extends Service {
   constructor(ctx: Context, private readonly config: Config) {
     super(ctx, 'speechToText')
     ctx.inject(['settings'], (settingsCtx) => {
-      // Whether a person dictates, and in which language, is theirs: the same on every device of the account.
-      const scope = settingsCtx.settings.register(SETTINGS_NAMESPACE, SpeechToText.Config, { base: config, reach: 'account' })
+      // One device's dictation choices; each person's own on a Host that serves many people.
+      const scope = settingsCtx.settings.register(SETTINGS_NAMESPACE, SpeechToText.Config, { base: config, perAccount: true })
       this.preferences = scope
       this.settings = settingsCtx.settings
       const stopAccount = settingsCtx.on('settings/account-updated', (_owner, ns) => { if (ns === SETTINGS_NAMESPACE) this.changed() })

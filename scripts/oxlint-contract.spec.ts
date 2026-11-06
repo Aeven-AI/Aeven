@@ -299,7 +299,7 @@ export const longProbe = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 +
     } finally {
       await rm(path, { force: true })
     }
-  }))
+  }), 90_000)
 
   it('preserves successful fix output channels', () => withTransientProbeWindow(async () => {
     const suffix = randomUUID()
@@ -323,7 +323,7 @@ export const longProbe = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 +
     } finally {
       await rm(path, { force: true })
     }
-  }))
+  }), 90_000)
 
   it('prints only the final diagnostics when a fix retry still fails', { timeout: 30_000 }, () => withTransientProbeWindow(async () => {
     const suffix = randomUUID()

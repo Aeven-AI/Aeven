@@ -84,6 +84,8 @@
   config:
     relayUrl: !!js process.env.AEVEN_SYNC_URL ?? 'wss://aeven.io/sync'
     keepConnected: true
+    # A browser opens on the conversation and workspace lists; the long tail of each account arrives after them.
+    firstDocuments: [devices, workspaces, sessions/index, sessions/live, settings/account, personalization, automations]
 
 - id: memory-memos
   config:
@@ -118,11 +120,16 @@
   config:
     writable: false
 
-# Provider subscriptions and the media providers that read keys from the Host's
-# credential store would bill every account to whoever stored the key.
+# Coding subscriptions (Grok Build, ChatGPT Codex) are each account's own: an
+# account signs in to its subscriptions from the Providers page, its
+# credentials and model choices live in its own directory, and its model
+# routes serve only its sessions.
 - id: llm-grok-build-oauth
-  disabled: true
+  config:
+    accounts: true
 
+# The media providers read keys from the Host's credential store, which would
+# bill every account to whoever stored the key.
 - id: media-deepinfra
   disabled: true
 
@@ -149,6 +156,11 @@
 
 # Workspaces are created by name and carry no folder: a folder of this Host
 # would expose the Host's files to whoever registered it.
+# A workspace a desktop made without a folder continues here as the account's own.
+- id: workspace
+  config:
+    pathlessWorkspaces: true
+
 - id: workspace-controller
   config:
     folders: false
@@ -276,7 +288,7 @@
     - id: speech-to-text-aeven
       name: '@aeven/speech-to-text-aeven'
       config:
-        apiUrl: !!js process.env.AEVEN_API_URL ?? 'http://localhost:9000'
+        apiUrl: !!js process.env.AEVEN_API_URL ?? 'https://aeven.io/api'
 
 # Every session runs the `aeven` composition without the rows that act on the
 # Host's machine. Skills come only from the ones the composition ships, never

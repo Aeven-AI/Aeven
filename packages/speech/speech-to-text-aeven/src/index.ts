@@ -21,7 +21,7 @@ export const inject = ['speechToText']
 export interface Config {
   /** Unique registration id; consumers select this exact id. */
   providerId: string
-  /** Origin of the Aeven API that serves `/transcribe`. */
+  /** Base URL of the Aeven API, path prefix included (`https://aeven.io/api`); `/transcribe` is appended to it. */
   apiUrl: string
   /** Credential reference holding each signed-in user's Aeven session. */
   apiKeyEnv: string
@@ -82,7 +82,8 @@ async function transcribe(ctx: Context, config: Config, input: SpeechInput, sign
   // A copy, because the input is only borrowed until settlement and Blob needs an ArrayBuffer-backed view.
   form.append('file', new Blob([new Uint8Array(input.audio)], { type: 'audio/wav' }), 'audio.wav')
   const started = performance.now()
-  const response = await fetch(new URL('/transcribe', config.apiUrl), {
+  // Appended rather than resolved, so a base with a path prefix (`https://aeven.io/api`) keeps it.
+  const response = await fetch(`${config.apiUrl.replace(/\/+$/, '')}/transcribe`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
     body: form,

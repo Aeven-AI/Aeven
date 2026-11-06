@@ -82,10 +82,13 @@ export interface CapabilityRouteOptions {
 	 * account that cannot use a provider still needs to be told so, which is
 	 * exactly what the reader answers.
 	 */
-  readonly usageReaders?: Readonly<Record<string, UsageRouteReader>>
+  readonly usageReaders?: Readonly<Record<string, UsageRouteReader>> | UsageReadersFor
   readonly credentialInfo?: () => unknown
   readonly ownerRequestPolicy?: OwnerRequestPolicy
 }
+
+/** Pick the usage readers a request is answered from, such as the signed-in account's; undefined answers 403. */
+export type UsageReadersFor = (req: IncomingMessage) => Readonly<Record<string, UsageRouteReader>> | undefined
 
 class CapabilityRouteRequestError extends Error {
   readonly statusCode: number
@@ -187,7 +190,7 @@ function usageSlugOf(req: IncomingMessage): string | undefined {
 async function handleUsage(
   req: IncomingMessage,
   res: ServerResponse,
-  readers: Readonly<Record<string, UsageRouteReader>>,
+  source: Readonly<Record<string, UsageRouteReader>> | UsageReadersFor,
   ownerRequestPolicy: OwnerRequestPolicy,
   fixedSlug?: string,
 ): Promise<void> {
@@ -196,6 +199,11 @@ async function handleUsage(
     return
   }
   if (!ownerRequestPolicy.authorize(req).authorized) {
+    json(res, 403, { error: 'forbidden' })
+    return
+  }
+  const readers = typeof source === 'function' ? source(req) : source
+  if (readers === undefined) {
     json(res, 403, { error: 'forbidden' })
     return
   }

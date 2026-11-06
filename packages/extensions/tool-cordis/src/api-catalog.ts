@@ -1843,7 +1843,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'async prepareAccount(): Promise<void>',
-        description: 'Load the current account\'s model routes; compositions without an account source do no work.',
+        description: 'Load the current account\'s model routes from every account source; compositions without one do no work.',
         parameters: [],
       },
       {
@@ -8740,7 +8740,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SettingsRegisterOptions',
-    declaration: 'export interface SettingsRegisterOptions<T> {\n    base?: Partial<T>;\n    applies?: SettingsApplies;\n    reach?: SettingsReach;\n    validate?: (value: T) => void;\n}',
+    declaration: 'export interface SettingsRegisterOptions<T> {\n    base?: Partial<T>;\n    applies?: SettingsApplies;\n    reach?: SettingsReach;\n    perAccount?: boolean;\n    validate?: (value: T) => void;\n}',
   },
   {
     name: 'SettingsSecretView',
@@ -8748,7 +8748,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SettingsSectionHooks',
-    declaration: 'export interface SettingsSectionHooks<T> {\n    setSource(current: () => T): void;\n    onChange(): void;\n    validate?: (value: T) => void;\n    reach?: SettingsReach;\n}',
+    declaration: 'export interface SettingsSectionHooks<T> {\n    setSource(current: () => T): void;\n    onChange(): void;\n    validate?: (value: T) => void;\n    reach?: SettingsReach;\n    perAccount?: boolean;\n}',
   },
   {
     name: 'SettingsUpdateSource',

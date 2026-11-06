@@ -72,7 +72,8 @@ export interface Config {
   keepConnected: boolean
   /**
    * Logical names of documents fetched before the rest of a catch-up when this device holds no state for them, so
-   * a new device shows the account's conversation and workspace lists before the long tail arrives.
+   * a new device shows the account's conversation and workspace lists before the long tail arrives. Defaults to
+   * none, so every document arrives in relay order.
    */
   firstDocuments: string[]
 }
@@ -118,9 +119,7 @@ export default class YjsSync extends Sync {
     lanRetryMs: Schema.natural().min(100).default(5_000),
     lanMaxBytes: Schema.natural().min(1_024).default(8_388_608),
     keepConnected: Schema.boolean().default(false),
-    firstDocuments: Schema.array(Schema.string()).default([
-      'devices', 'workspaces', 'sessions/index', 'sessions/live', 'settings/account', 'personalization', 'automations',
-    ]),
+    firstDocuments: Schema.array(Schema.string()).default([]),
   })
 
   private readonly accounts = new Map<string, Account>()

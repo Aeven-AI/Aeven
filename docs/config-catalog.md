@@ -3821,7 +3821,7 @@ Requires: `speechToText`
 export interface Config {
   /** Unique registration id; consumers select this exact id. */
   providerId: string
-  /** Origin of the Aeven API that serves `/transcribe`. */
+  /** Base URL of the Aeven API, path prefix included (`https://aeven.io/api`); `/transcribe` is appended to it. */
   apiUrl: string
   /** Credential reference holding each signed-in user's Aeven session. */
   apiKeyEnv: string
@@ -4311,6 +4311,12 @@ export interface Config {
    * sign-in; `0` limits it to those two moments.
    */
   modelSyncIntervalMs?: number
+  /**
+   * Keep subscriptions per signed-in account instead of once for this machine: a Host that serves the accounts of
+   * different people sets it. Each account signs in to its own subscriptions, its routes are its own, and the
+   * image, video, and search capabilities, which register once per Host, are not offered.
+   */
+  accounts?: boolean
   /** Owner-only request authorization for loopback, SSH tunnels, and trusted HTTPS proxies. */
   ownerRequest?: {
     /** Whether a loopback caller is the operator directly, or arrives over an SSH tunnel. */
@@ -4415,7 +4421,8 @@ export interface Config {
   keepConnected: boolean
   /**
    * Logical names of documents fetched before the rest of a catch-up when this device holds no state for them, so
-   * a new device shows the account's conversation and workspace lists before the long tail arrives.
+   * a new device shows the account's conversation and workspace lists before the long tail arrives. Defaults to
+   * none, so every document arrives in relay order.
    */
   firstDocuments: string[]
 }
@@ -5741,6 +5748,11 @@ export interface Config {
   seedDefaultWorkspace?: boolean
   /** Display title given to a newly seeded workspace (default: `Chats`). */
   defaultWorkspaceTitle?: string
+  /**
+   * Whether a workspace another device published without a directory is one this Host continues as its own
+   * (default: false). Off, it stays the other device's, as every received workspace does.
+   */
+  pathlessWorkspaces?: boolean
 }
 ```
 

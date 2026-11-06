@@ -40,7 +40,12 @@ function isENOENT(error: unknown): boolean {
   return (error as NodeJS.ErrnoException | null)?.code === 'ENOENT'
 }
 
-function modelsCachePath(avnHome?: string): string {
+/**
+ * Where the last Grok Build model listing is cached.
+ * @param avnHome - the harness home, or an account's subscription directory; defaults to `$AVN_HOME` or `~/.aeven`.
+ * @returns the cache file path.
+ */
+export function grokModelsCachePath(avnHome?: string): string {
   return resolve(join(resolveAvnHome(avnHome), GROK_BUILD_MODELS_CACHE_FILENAME))
 }
 
@@ -101,15 +106,17 @@ export class GrokBuildSession {
    * @param store - the Grok OAuth credential file.
    * @param onCatalogChange - called whenever the served model list may have changed.
    * @param isSelected - whether the user keeps a model on; every model is on when omitted.
+   * @param cacheFile - live listing cache path; defaults under `${AVN_HOME}`.
    */
   constructor(
     store: GrokBuildCredentialStore = new GrokBuildCredentialStore(),
     onCatalogChange?: () => void,
     isSelected: (modelId: string) => boolean = () => true,
+    cacheFile: string = grokModelsCachePath(),
   ) {
     this.store = store
     this.isSelected = isSelected
-    this.cacheFile = modelsCachePath()
+    this.cacheFile = cacheFile
     this.baselineCatalog = grokBuildBaselineModels()
     // The built-in xai provider owns login/refresh (device flow today); the
     // credential lives in this plugin's own file via the store above.

@@ -490,7 +490,8 @@ export function apply(ctx: Context, config: Config): void {
       // schema-valid profile the adapter cannot serve would be stored and then
       // silently disable every route in this namespace.
       validate: assertServiceable,
-      reach: 'account',
+      // A person's own routes on a Host that serves many people; one device's routes otherwise.
+      perAccount: true,
       setSource: (source) => {
         current = source
       },

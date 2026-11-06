@@ -15,6 +15,7 @@ import type {} from '@aeven/media'
 import { assertUsableApiKey, resolveImageAttachmentAccess, type RetryPolicyConfig, RetryPolicySchema } from '@aeven/llm'
 import z from '@deepseek-ai/schemastery'
 import { acquireCodingOAuthRuntime, CODING_OAUTH_CORE_ABI, type CodingOAuthRuntime } from 'dsh-coding-oauth-core'
+import { applyAccountSubscriptions } from './accounts.ts'
 import { createCodingOAuthAdapter } from './adapter.ts'
 import { registerCodingOAuthRoutes } from './auth-routes.ts'
 import { registerCapabilityRoutes } from './capability-routes.ts'
@@ -285,6 +286,12 @@ export interface Config {
    * sign-in; `0` limits it to those two moments.
    */
   modelSyncIntervalMs?: number
+  /**
+   * Keep subscriptions per signed-in account instead of once for this machine: a Host that serves the accounts of
+   * different people sets it. Each account signs in to its own subscriptions, its routes are its own, and the
+   * image, video, and search capabilities, which register once per Host, are not offered.
+   */
+  accounts?: boolean
   /** Owner-only request authorization for loopback, SSH tunnels, and trusted HTTPS proxies. */
   ownerRequest?: {
     /** Whether a loopback caller is the operator directly, or arrives over an SSH tunnel. */
@@ -310,6 +317,7 @@ export const Config: z<Config> = z.object({
   imagineTransport: z.union([z.const('auto'), z.const('xai-api'), z.const('grok-build')]).default('auto'),
   imagineApiTimeoutMs: z.number().min(1000).default(180_000),
   modelSyncIntervalMs: z.natural().default(30 * 60 * 1000),
+  accounts: z.boolean().default(false),
   ownerRequest: z.object({
     loopbackAccessMode: z.union([z.const('loopback'), z.const('ssh-tunnel')]),
     trustedProxy: z.object({
@@ -551,6 +559,16 @@ export function apply(ctx: Context, config: Config = {}): void {
  * child fiber, so a transient LLM unload cannot make account recovery vanish.
  */
 function applyOwned(ctx: Context, config: Config): void {
+  if (config.accounts === true) {
+    ctx.inject(['llm', 'webServer'], (accountCtx) => {
+      applyAccountSubscriptions(accountCtx, {
+        ...config.retryPolicy === undefined ? {} : { retryPolicy: config.retryPolicy },
+        ...config.capabilities === undefined ? {} : { capabilities: config.capabilities },
+        modelSyncIntervalMs: config.modelSyncIntervalMs ?? 30 * 60 * 1000,
+      })
+    })
+    return
+  }
   const host = createAvnHostAdapter(ctx)
   const ownerRequestPolicy = safeguardOwnerRequestPolicy(
     host.ownerRequestPolicy() ?? createOwnerRequestPolicy(config.ownerRequest),

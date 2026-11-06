@@ -61,6 +61,11 @@ export interface SettingsRegisterOptions<T> {
   /** Whether the section belongs to the account or to this device; defaults to `device`. */
   reach?: SettingsReach
   /**
+   * Keep each signed-in account's own section on a provider with {@link SettingsProvider.accountSections}, where
+   * the namespace registers with `account` reach; any other provider registers it with {@link reach}.
+   */
+  perAccount?: boolean
+  /**
    * Reject a resolved section the owner could not act on, for constraints its
    * schema cannot express — a cross-field requirement, or one field's validity
    * depending on another's. Throwing here refuses the *write* that produced the
@@ -448,7 +453,7 @@ export abstract class SettingsProvider extends Service {
       schema: schema as z<unknown>,
       base: options?.base,
       applies: options?.applies ?? 'live',
-      reach: options?.reach ?? 'device',
+      reach: options?.perAccount === true && this.accountSections ? 'account' : options?.reach ?? 'device',
       ...options?.validate === undefined
         ? {}
         : { validate: options.validate as (value: unknown) => void },
@@ -499,6 +504,7 @@ export abstract class SettingsProvider extends Service {
       base: entry,
       ...hooks.validate === undefined ? {} : { validate: hooks.validate },
       ...hooks.reach === undefined ? {} : { reach: hooks.reach },
+      ...hooks.perAccount === undefined ? {} : { perAccount: hooks.perAccount },
     })
     hooks.setSource(() => scope.get())
     this.ctx.effect(() => () => {
@@ -1136,6 +1142,11 @@ export interface SettingsSectionHooks<T> {
   validate?: (value: T) => void
   /** Whether the section belongs to the account or to this device; defaults to `device`. */
   reach?: SettingsReach
+  /**
+   * Keep each signed-in account's own section on a provider with {@link SettingsProvider.accountSections}, where
+   * the namespace registers with `account` reach; any other provider registers it with {@link reach}.
+   */
+  perAccount?: boolean
 }
 
 export default SettingsProvider
