@@ -67,7 +67,7 @@ The helper starts each launcher as a detached `bash` that blocks reading a scrip
 
 ### Ending
 
-When the Host disposes the runtime, the helper kills the launchers nobody took and exits; it also exits when the Host dies without closing the channel, which it notices by being reparented. If the helper ends while commands run, each is reported killed once its process group is gone, a warning is logged, and a new helper starts; after five ends within a minute the runtime logs that it gives up and starts every command with an ordinary spawn. A launcher that ends before the helper learns the Host took it reports its exit status with its removal, so the command still settles.
+When the Host disposes the runtime, the helper kills the launchers nobody took and exits; it also exits when the Host dies without closing the channel, which it notices by being reparented. If the helper ends while commands run, each is reported killed once its process group is gone, a warning is logged, and a new helper starts; after five ends within a minute the runtime logs that it gives up and starts every command with an ordinary spawn. A launcher that ends before the helper learns the Host took it reports its exit status with its removal, so the command still settles. A helper error, such as a failed spawn or a broken channel, counts as the helper ending; messages a replaced helper still delivers are dropped with their descriptors; and a command whose helper ended has its streams closed a second after its process group is gone.
 
 </details>
 

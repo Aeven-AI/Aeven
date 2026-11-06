@@ -51,6 +51,8 @@ Two config fields cover background support.
 | `shareMaxFiles` | `10` | Most produced files one call shares |
 | `shareMaxBytes` | `104857600` | Most bytes one call shares |
 | `shareMaxSessionBytes` | `524288000` | Most bytes one conversation shares across its calls, counted from its log |
+| `shareLedgerDirectory` | none | Host directory for per-account daily share totals, out of reach of confined commands |
+| `shareMaxAccountBytesPerDay` | `2147483648` | Most bytes one account shares per UTC day across its conversations; needs `shareLedgerDirectory` |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#aeventool-bash) is the exhaustive source for every accepted field and its JSDoc; the generated [tool catalog](../../../docs/tool-catalog.md#aeventool-bash) carries the full argument schema.
 

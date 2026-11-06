@@ -51,6 +51,8 @@ kind: "package-reference"
 | `shareMaxFiles` | `10` | 单次调用最多共享的生成文件数 |
 | `shareMaxBytes` | `104857600` | 单次调用最多共享的字节数 |
 | `shareMaxSessionBytes` | `524288000` | 一个对话在所有调用中最多共享的字节数，按其日志统计 |
+| `shareLedgerDirectory` | 无 | 存放按账户每日共享总量的 Host 目录，受限命令无法访问 |
+| `shareMaxAccountBytesPerDay` | `2147483648` | 一个账户每个 UTC 日在其所有对话中最多共享的字节数；需要 `shareLedgerDirectory` |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#aeventool-bash)是每个受支持字段及其 JSDoc 的穷尽式真源；生成的[工具目录](../../../docs/tool-catalog.zh.md#aeventool-bash)携带完整参数 schema。
 

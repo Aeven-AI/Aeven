@@ -98,7 +98,7 @@ export async function shareOutputs(
     }
     const info = await fs.stat(target, signal)
     if (info?.size !== undefined && bytes + info.size > budget.bytes) {
-      shared.unshared.push({ path, reason: 'sharing it would exceed the size this conversation may share' })
+      shared.unshared.push({ path, reason: 'sharing it would exceed what this call, conversation, or account may still share today' })
       continue
     }
     // A file reached through a symlink, or named outside the workspace, may be the Host's own.

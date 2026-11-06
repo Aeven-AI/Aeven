@@ -354,6 +354,9 @@
         disabled: !!js process.env.AVN_HOSTED_SANDBOX !== '1'
         config:
           shareOutputFiles: true
+          # 2 GiB per account per UTC day, beside the per-call and per-conversation caps.
+          shareLedgerDirectory: !!js avnHomePath('sandbox', 'share-ledger')
+          shareMaxAccountBytesPerDay: 2147483648
       - id: tool-pwsh
         disabled: true
       # With the jail, the model reads files and looks at images in the

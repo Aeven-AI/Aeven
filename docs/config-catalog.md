@@ -4848,6 +4848,13 @@ export interface Config {
   shareMaxBytes?: number
   /** Most bytes one conversation shares across its calls, counted from its log (default 500 MiB). */
   shareMaxSessionBytes?: number
+  /**
+   * Host directory for per-account daily share totals, out of reach of
+   * confined commands; omitted, accounts have no daily limit of their own.
+   */
+  shareLedgerDirectory?: string
+  /** Most bytes one account shares per UTC day across its conversations (default 2 GiB); needs `shareLedgerDirectory`. */
+  shareMaxAccountBytesPerDay?: number
 }
 ```
 
@@ -5292,7 +5299,7 @@ Source: [`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-mem
 
 ## `@aeven/tool-motion`
 
-Requires: `motion` · `tools` · `attachments` · `fs`
+Requires: `tools` · `attachments` · `fs`
 
 ```ts config-catalog
 /** Tool limits. */

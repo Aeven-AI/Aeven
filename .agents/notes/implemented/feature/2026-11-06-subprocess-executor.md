@@ -14,7 +14,7 @@ On Linux, Node's `child_process.spawn` forks the calling process, and a fork cop
 
 The hosted patch mounts it with a pool of eight on POSIX hosts in place of the local runtime.
 
-A helper that ends is restarted, with a warning, up to five times a minute before the runtime stays on ordinary spawns; a launcher that ends before the helper learns the Host took it reports its exit status with its removal, so the command settles. Launchers read their script with one `cat` rather than bash's byte-at-a-time `read`, and the video extractor starts `ffprobe` through `ctx.subprocess`, so it no longer forks the Host either.
+A helper that ends is restarted, with a warning, up to five times a minute before the runtime stays on ordinary spawns; a launcher that ends before the helper learns the Host took it reports its exit status with its removal, so the command settles. Launchers read their script with one `cat` rather than bash's byte-at-a-time `read`, and the video extractor starts `ffprobe` through `ctx.subprocess`, so it no longer forks the Host either. A helper error counts as the helper ending, a replaced helper's late messages are dropped with their descriptors, and a command whose helper ended has its streams closed once its process group is gone, so no tool call waits on a helper that is gone.
 
 ## Alternatives considered
 
