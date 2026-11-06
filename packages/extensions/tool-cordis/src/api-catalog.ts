@@ -2316,6 +2316,13 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         throws: ['When no renderer is registered.'],
       },
       {
+        signature: 'async bundle(compositionDir: string): Promise<string>',
+        description: 'Bundle a composition folder with the registered renderer.',
+        parameters: [{ name: 'compositionDir', description: 'absolute folder holding `index.html`.' }],
+        returns: 'the self-contained HTML document described at {@link MotionRenderer.bundle}.',
+        throws: ['When no renderer is registered.'],
+      },
+      {
         signature: 'async render(spec: MotionRenderSpec, signal: AbortSignal, onProgress?: (progress: MotionProgress) => void): Promise<MotionRenderOutput>',
         description: 'Render with exactly the resolved renderer.',
         parameters: [{ name: 'spec', description: 'resolved render; a withdrawn or replaced renderer is rejected.' }, { name: 'signal', description: 'caller cancellation.' }, { name: 'onProgress', description: 'optional progress sink.' }],
@@ -7845,7 +7852,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MotionRenderer',
-    declaration: 'export interface MotionRenderer {\n    readonly name: string;\n    render(input: MotionRenderInput, signal: AbortSignal, onProgress?: (progress: MotionProgress) => void): Promise<MotionRenderOutput>;\n}',
+    declaration: 'export interface MotionRenderer {\n    readonly name: string;\n    render(input: MotionRenderInput, signal: AbortSignal, onProgress?: (progress: MotionProgress) => void): Promise<MotionRenderOutput>;\n    bundle(compositionDir: string): Promise<string>;\n}',
   },
   {
     name: 'MotionRenderInput',

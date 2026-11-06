@@ -35,6 +35,14 @@ register(renderer: MotionRenderer): () => Promise<void>
 resolve(request: MotionRenderRequest): MotionRenderSpec
 
 /**
+ * Bundle a composition folder with the registered renderer.
+ * @param compositionDir - absolute folder holding `index.html`.
+ * @returns the self-contained HTML document described at {@link MotionRenderer.bundle}.
+ * @throws When no renderer is registered.
+ */
+async bundle(compositionDir: string): Promise<string>
+
+/**
  * Render with exactly the resolved renderer.
  * @param spec - resolved render; a withdrawn or replaced renderer is rejected.
  * @param signal - caller cancellation.

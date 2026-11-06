@@ -31,7 +31,7 @@ Mount it with one renderer, such as [`avn-motion-hyperframes`](../motion-hyperfr
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 
-`resolve()` applies the defaults and captures the registered renderer; it throws when none is registered. `render()` rejects a spec whose renderer was withdrawn or replaced and runs under both the caller's signal and the registration's lifetime. A second `register()` throws without replacing the first. The registration disposer aborts accepted renders and waits for them to settle.
+`resolve()` applies the defaults and captures the registered renderer; it throws when none is registered. `render()` rejects a spec whose renderer was withdrawn or replaced and runs under both the caller's signal and the registration's lifetime. `bundle()` asks the registered renderer for the composition as one self-contained HTML document, with scene files, the player runtime, images, and fonts inlined, so it plays without its folder; it throws when none is registered. A second `register()` throws without replacing the first. The registration disposer aborts accepted renders and waits for them to settle.
 
 -----
 

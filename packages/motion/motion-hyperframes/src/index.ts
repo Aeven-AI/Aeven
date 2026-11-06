@@ -15,6 +15,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { MotionProgress, MotionQuality, MotionRenderInput, MotionRenderOutput } from '@aeven/motion'
 import type {} from '@aeven/motion'
+import { bundleToSingleHtml } from '@hyperframes/core/compiler'
 import { detectGpuEncoder } from '@hyperframes/engine'
 import { createRenderJob, executeRenderJob, resolveConfig } from '@hyperframes/producer'
 import type { ProducerLogger, RenderJob } from '@hyperframes/producer'
@@ -193,5 +194,6 @@ export function apply(ctx: Context, config: Config): void {
       queue = next.catch(() => {})
       return next
     },
+    bundle: compositionDir => bundleToSingleHtml(compositionDir, { runtime: 'inline' }),
   }), 'motion-hyperframes: renderer')
 }

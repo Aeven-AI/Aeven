@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-tool-motion` registers `show_motion`, `render_motion`, and the `motion` skill. The skill teaches the model to plan a film, write a [HyperFrames](https://github.com/heygen-com/hyperframes) composition in the workspace, show it, review stills, and revise. `show_motion` hands the composition folder to the Imagine Motion card, which plays it live and exports it to MP4 on the user's request; with `stills`, it also renders a throwaway draft whose frames return to the model. `render_motion` renders the folder to an MP4 inside it and stores the film as a conversation file attachment, for when the user asks the model for the file. Both wait for `ctx.motion`, so a composition without a renderer shows neither.
+`avn-tool-motion` registers `show_motion`, `render_motion`, and the `motion` skill. The skill teaches the model to plan a film, write a [HyperFrames](https://github.com/heygen-com/hyperframes) composition in the workspace, show it, review stills, and revise. `show_motion` hands the composition folder to the Imagine Motion card, which plays it live and exports it to MP4 on the user's request; it also stores the folder bundled into one HTML document as a file attachment, so the account's other devices, which lack the folder, play the same film; with `stills`, it also renders a throwaway draft whose frames return to the model. `render_motion` renders the folder to an MP4 inside it and stores the film as a conversation file attachment, for when the user asks the model for the file. Both wait for `ctx.motion`, so a composition without a renderer shows neither.
 
 ## Table of Contents
 

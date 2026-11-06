@@ -31,7 +31,7 @@ Mount it on a Host that provides `ctx.connection` and `ctx.motion`. `exportQuali
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 
-The preview route calls HyperFrames' `bundleToSingleHtml` with the runtime inlined, so scene files, the runtime, images, and fonts arrive in one document. The card loads that document as `srcdoc` in a frame without `allow-same-origin`, where no relative URL could resolve. Every response carries `Content-Security-Policy: sandbox`, so a route opened directly in a tab runs nothing on the app's origin. The export route answers with the film's path, size, duration, and dimensions as JSON, or a `{ message }` body with status 500 when the render fails. The film route accepts only `.mp4` paths and honours one `Range: bytes=` span.
+The preview route returns `ctx.motion.bundle()`, so scene files, the runtime, images, and fonts arrive in one document. The card loads that document as `srcdoc` in a frame without `allow-same-origin`, where no relative URL could resolve. Every response carries `Content-Security-Policy: sandbox`, so a route opened directly in a tab runs nothing on the app's origin. The export route answers with the film's path, size, duration, and dimensions as JSON, or a `{ message }` body with status 500 when the render fails. The film route accepts only `.mp4` paths and honours one `Range: bytes=` span.
 
 -----
 

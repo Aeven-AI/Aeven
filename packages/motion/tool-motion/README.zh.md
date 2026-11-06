@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`avn-tool-motion` 注册 `show_motion`、`render_motion` 与 `motion` 技能。技能教模型规划影片、在工作区中编写 [HyperFrames](https://github.com/heygen-com/hyperframes) 合成、展示它、审阅静帧并修改。`show_motion` 把合成文件夹交给 Imagine 的 Motion 卡片，卡片实时播放它，并在用户请求时导出为 MP4；带 `stills` 时，它还会渲染一份用后即弃的草稿，其帧返回给模型。`render_motion` 把文件夹渲染为放在其内部的 MP4，并把影片存为对话文件附件，用于用户向模型索要文件的情形。二者都等待 `ctx.motion`，因此没有渲染器的组合两者都不会出现。
+`avn-tool-motion` 注册 `show_motion`、`render_motion` 与 `motion` 技能。技能教模型规划影片、在工作区中编写 [HyperFrames](https://github.com/heygen-com/hyperframes) 合成、展示它、审阅静帧并修改。`show_motion` 把合成文件夹交给 Imagine 的 Motion 卡片，卡片实时播放它，并在用户请求时导出为 MP4；它还把文件夹打包成一个 HTML 文档存为文件附件，使缺少该文件夹的账户其他设备也能播放同一部影片；带 `stills` 时，它还会渲染一份用后即弃的草稿，其帧返回给模型。`render_motion` 把文件夹渲染为放在其内部的 MP4，并把影片存为对话文件附件，用于用户向模型索要文件的情形。二者都等待 `ctx.motion`，因此没有渲染器的组合两者都不会出现。
 
 ## 目录
 

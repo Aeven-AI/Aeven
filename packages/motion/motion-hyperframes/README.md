@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This provider registers [HyperFrames](https://github.com/heygen-com/hyperframes) (Apache-2.0) as the motion renderer. HyperFrames loads the composition in a headless Chromium, seeks its paused GSAP timelines frame by frame, and encodes the frames with ffmpeg, so every render of the same files is identical. Encoding uses the Aeven-built ffmpeg and ffprobe, which carry no GPL code, so H.264 comes from an encoder each platform provides.
+This provider registers [HyperFrames](https://github.com/heygen-com/hyperframes) (Apache-2.0) as the motion renderer. HyperFrames loads the composition in a headless Chromium, seeks its paused GSAP timelines frame by frame, and encodes the frames with ffmpeg, so every render of the same files is identical. Encoding uses the Aeven-built ffmpeg and ffprobe, which carry no GPL code, so H.264 comes from an encoder each platform provides. Its `bundle()` is HyperFrames' `bundleToSingleHtml` with the runtime inlined.
 
 ## Table of Contents
 

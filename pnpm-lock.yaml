@@ -9726,9 +9726,6 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
-      '@hyperframes/core':
-        specifier: 0.9.19
-        version: 0.9.19(@types/node@22.20.1)
     devDependencies:
       '@aeven/client-connection':
         specifier: workspace:^
@@ -9755,6 +9752,9 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
+      '@hyperframes/core':
+        specifier: 0.9.19
+        version: 0.9.19(@types/node@22.20.1)
       '@hyperframes/engine':
         specifier: 0.9.19
         version: 0.9.19(@types/node@22.20.1)

@@ -31,7 +31,7 @@ kind: "package-reference"
 <a id="understand-the-implementation"></a>
 ## 理解实现
 
-预览路由以内联运行时调用 HyperFrames 的 `bundleToSingleHtml`，因此场景文件、运行时、图片与字体都在同一个文档中送达。卡片在没有 `allow-same-origin` 的 frame 中以 `srcdoc` 加载该文档，那里无法解析任何相对 URL。每个响应都带有 `Content-Security-Policy: sandbox`，因此在标签页中直接打开某条路由时，不会在应用的源上运行任何内容。导出路由以 JSON 返回影片的路径、大小、时长与尺寸；渲染失败时返回状态 500 与 `{ message }` 正文。影片路由只接受 `.mp4` 路径，并支持一个 `Range: bytes=` 区间。
+预览路由返回 `ctx.motion.bundle()`，因此场景文件、运行时、图片与字体都在同一个文档中送达。卡片在没有 `allow-same-origin` 的 frame 中以 `srcdoc` 加载该文档，那里无法解析任何相对 URL。每个响应都带有 `Content-Security-Policy: sandbox`，因此在标签页中直接打开某条路由时，不会在应用的源上运行任何内容。导出路由以 JSON 返回影片的路径、大小、时长与尺寸；渲染失败时返回状态 500 与 `{ message }` 正文。影片路由只接受 `.mp4` 路径，并支持一个 `Range: bytes=` 区间。
 
 -----
 
