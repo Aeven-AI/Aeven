@@ -8,7 +8,7 @@
  */
 import type { Context } from '@deepseek-ai/cordis'
 import type { ImageAttachmentRef } from '@aeven/attachment'
-import type { ConversationNodeDefinition } from '@aeven/client-ui-conversation/client'
+import type { ConversationMatch, ConversationNodeDefinition } from '@aeven/client-ui-conversation/client'
 import type { ContentBlock } from '@aeven/llm/types'
 import { isAppendSurfaceEvent } from '@aeven/session/surface'
 
@@ -49,39 +49,38 @@ function recordResult(state: ReadImagesState, content: readonly ContentBlock[]):
   return { calls: state.calls, byPath }
 }
 
+/** Event types the index reads; a turn's start opens it. */
+const INDEXED = new Set(['tool/call', 'tool/result'])
+
+function step(state: ReadImagesState, event: ConversationMatch['event']): ReadImagesState {
+  if (event.type === 'tool/call') {
+    if (event.data.name !== 'read_image') return state
+    return { calls: new Set(state.calls).add(String(event.data.callId)), byPath: state.byPath }
+  }
+  if (event.type !== 'tool/result') return state
+  const result = event.data.message.content[0]
+  const read = state.calls.has(String(event.data.message.source.callId)) && result.isError !== true
+  return read ? recordResult(state, result.content) : state
+}
+
 const definition: ConversationNodeDefinition<ReadImagesState> = {
   kind: 'read-images',
   match: (event, location) => {
     if (event.type === 'turn/start') return { id: String(event.data.turn), role: 'start' }
-    if (event.type !== 'tool/call' && event.type !== 'tool/result') return null
-    if (event.type === 'tool/result' && !isAppendSurfaceEvent(event)) return null
-    if (location.kind !== 'turn' && location.kind !== 'step') return null
-    return { id: String(location.turn.turn), role: 'update' }
+    const indexed = INDEXED.has(event.type) && (event.type !== 'tool/result' || isAppendSurfaceEvent(event))
+    return indexed && (location.kind === 'turn' || location.kind === 'step')
+      ? { id: String(location.turn.turn), role: 'update' }
+      : null
   },
   start: () => empty(),
-  update: ({ state }, { event }) => {
-    if (event.type === 'tool/call') {
-      return event.data.name === 'read_image'
-        ? { calls: new Set(state.calls).add(String(event.data.callId)), byPath: state.byPath }
-        : state
-    }
-    if (event.type === 'tool/result') {
-      const result = event.data.message.content[0]
-      if (!state.calls.has(String(event.data.message.source.callId)) || result.isError === true) return state
-      return recordResult(state, result.content)
-    }
-    return state
-  },
+  update: ({ state }, { event }) => step(state, event),
   buildLocationData: (context, scope, previous) => {
-    if (scope !== 'turn') return null
-    const state = context.state ?? context.matches.reduce(
-      (current, match) => definition.update({ ...context, state: current }, match),
-      empty(),
-    )
-    if (previous?.kind === 'turn' && previous.key === 'read-images' && previous.value.byPath === state.byPath) return previous
-    const location = context.start?.location ?? context.matches[0]?.location
-    if (location?.kind !== 'turn' && location?.kind !== 'step') return null
-    return { kind: 'turn', turn: location.turn.turn, key: 'read-images', value: { byPath: state.byPath } }
+    const turn = context.start?.location ?? context.matches[0]?.location
+    if (scope !== 'turn' || (turn?.kind !== 'turn' && turn?.kind !== 'step')) return null
+    const { byPath } = context.state ?? context.matches.reduce((state, match) => step(state, match.event), empty())
+    return previous?.kind === 'turn' && previous.key === 'read-images' && previous.value.byPath === byPath
+      ? previous
+      : { kind: 'turn', turn: turn.turn.turn, key: 'read-images', value: { byPath } }
   },
 }
 

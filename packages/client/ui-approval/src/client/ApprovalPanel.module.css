@@ -152,7 +152,7 @@
 
   /* Clear of the conversation header above the seat and the dock below it. */
   .card {
-    max-height: min(calc(100dvh - 190px), 520px);
+    max-height: min(calc(100vh - 190px), 520px);
     overflow-y: auto;
   }
 
