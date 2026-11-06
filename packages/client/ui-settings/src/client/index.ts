@@ -58,6 +58,16 @@ declare module '@deepseek-ai/cordis' {
 export const inject = ['remote', 'remote.settings']
 
 /**
+ * Whether the Host that served this page declared that the page keeps its settings on the Host, as a Host that
+ * keeps each signed-in account's settings does for pages that are not served from the reader's own machine.
+ * @returns true when the page global `__AVN_SETTINGS__` carries `persistence: 'host'`.
+ */
+function hostDeclaresPersistence(): boolean {
+  const declared: unknown = (globalThis as { __AVN_SETTINGS__?: unknown }).__AVN_SETTINGS__
+  return typeof declared === 'object' && declared !== null && (declared as { persistence?: unknown }).persistence === 'host'
+}
+
+/**
  * Provide the settings-namespace scope service over one shared describe
  * mirror, and keep that mirror fresh on the two signals that can move the
  * settings document: a document commit and a (re)connect.
@@ -70,7 +80,7 @@ export function apply(ctx: Context): void {
   const schema = new SettingsSchemaService(ctx)
   // Resolved once here, where `remote` is declared in this plugin's own
   // `inject`; the binder hands the same answer to every scope it binds.
-  const persistence = ctx.remote.$host.isLoopback ? 'host' : 'memory'
+  const persistence = ctx.remote.$host.isLoopback || hostDeclaresPersistence() ? 'host' : 'memory'
   const mirror = new SettingsDescribeMirror(ctx, persistence)
   ctx.effect(() => {
     const disposers = [

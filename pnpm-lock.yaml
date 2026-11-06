@@ -1987,6 +1987,9 @@ importers:
       '@aeven/attachment':
         specifier: workspace:^
         version: link:../../attachment/attachment
+      '@aeven/host-webserver':
+        specifier: workspace:^
+        version: link:../../host/webserver
       '@aeven/identity-user':
         specifier: workspace:^
         version: link:../../identity/user

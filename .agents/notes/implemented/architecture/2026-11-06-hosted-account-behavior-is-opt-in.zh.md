@@ -19,6 +19,7 @@ Status: implemented
 - `SettingsRegisterOptions.perAccount`（以及 `SettingsSectionHooks.perAccount`）只在 `accountSections` 开启的提供者上（`settings-file` `accounts: true`）以 `account` reach 注册命名空间；其他提供者按其声明的 `reach` 注册。主题保持 `device`，其余保持默认的 `device`。
 - `sync-yjs` `firstDocuments` 默认为空；托管补丁列出浏览器打开时所需的文档。
 - `@aeven/workspace` `pathlessWorkspaces` 默认为 false；托管补丁将其开启。
+- 被服务的页面在两种情况下把设置保存在 Host 上：它是回环页面（与之前相同），或者它的 Host 如此声明：`@aeven/hosted-app` 注入页面全局变量 `__AVN_SETTINGS__`，其值为 `persistence: 'host'`，由 `@aeven/client-ui-settings` 读取。没有它时，并非从读者自己机器提供的页面只在内存中保存设置，因此托管的 Providers 页面、主题以及其他所有偏好只有经由它才能到达 Host。
 - 按账户订阅只在 `avn-subscription-auth` `accounts: true` 时运行（`src/accounts.ts`）：每个账户的凭据、模型列表和选择保存在 `accounts/<account>/subscriptions/` 下，路由回答请求所携带的账户，修改类请求必须来自本 Host 的页面。未开启时，所有者路由和 `~/.grok` 登录照旧运行。
 
 ## 考虑过的替代方案

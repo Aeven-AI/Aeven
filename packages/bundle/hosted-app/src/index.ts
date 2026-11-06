@@ -2,7 +2,8 @@
  * @aeven/hosted-app — the hosted Aeven Web bundle. The package's substance is
  * `cordis.patch.yml`, declared by the `avn.bundle.patch` manifest field and
  * applied after `@aeven/web-app` by the `hosted` profile. Its runtime plugin
- * bounds model streams without installing policy in desktop compositions.
+ * bounds model streams and tells each served page to keep its settings on the
+ * Host, without installing policy in desktop compositions.
  * @module @aeven/hosted-app
  */
 
@@ -13,7 +14,15 @@ import type {} from '@aeven/identity-user'
 import type {} from '@aeven/llm'
 import type {} from '@aeven/attachment'
 import type {} from '@aeven/session-handoff'
+import type {} from '@aeven/host-webserver'
 import { AccountRequests, type RequestLimits } from './limits.ts'
+
+/**
+ * Page global naming where a served page keeps settings; `@aeven/client-ui-settings` reads it. Every page of this
+ * Host belongs to a signed-in account whose settings the Host keeps, so pages read and write them through the Host
+ * although they are not served from the reader's own machine.
+ */
+export const SETTINGS_PAGE_GLOBAL = '__AVN_SETTINGS__'
 
 export const name = 'hosted-runtime'
 export const inject = ['agents', 'llm']
@@ -34,6 +43,9 @@ export const Config: z<Config> = z.object({
  * @param config - concurrent and queued request bounds.
  */
 export function apply(ctx: Context, config: Config): void {
+  ctx.on('webserver/index-inject', (table) => {
+    table.push({ kind: 'global', name: SETTINGS_PAGE_GLOBAL, value: { persistence: 'host' } })
+  })
   ctx.on('attachment/missing', async (id, signal, next) => {
     signal?.throwIfAborted()
     const owner = ctx.agents.currentInitiator()?.session.header.owner ?? ctx.get('identityUsers')?.actingUser()?.id

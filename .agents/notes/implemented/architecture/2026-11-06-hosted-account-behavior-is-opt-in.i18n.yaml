@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-11-06-hosted-account-behavior-is-opt-in.md
-2026-11-06-hosted-account-behavior-is-opt-in.md: 4be9845f2655251025dc187c10fcd5f514e7a4bb
-2026-11-06-hosted-account-behavior-is-opt-in.zh.md: dcfb3469a5f929e19f97e48a89245ee8ffdacced
+2026-11-06-hosted-account-behavior-is-opt-in.md: e26f05c7aa0a3a2438f9140281391abdd66de4c3
+2026-11-06-hosted-account-behavior-is-opt-in.zh.md: d3c59adade36ee7e4924eacc24215ccb7b348a07

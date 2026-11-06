@@ -19,6 +19,7 @@ Per-account behavior is opt-in configuration that only the hosted bundle sets; e
 - `SettingsRegisterOptions.perAccount` (and `SettingsSectionHooks.perAccount`) registers a namespace with `account` reach only on a provider whose `accountSections` is on (`settings-file` `accounts: true`); any other provider registers it with its declared `reach`. Theme keeps `device`, the others keep the `device` default.
 - `sync-yjs` `firstDocuments` defaults to none; the hosted patch lists the documents a browser opens on.
 - `@aeven/workspace` `pathlessWorkspaces` defaults to false; the hosted patch turns it on.
+- A served page keeps its settings on the Host when it is a loopback page, as before, or when its Host declares so: `@aeven/hosted-app` injects the page global `__AVN_SETTINGS__` with `persistence: 'host'`, which `@aeven/client-ui-settings` reads. Without it a page that is not served from the reader's own machine keeps settings in memory, so the hosted Providers page, theme, and every other preference reached the Host only through it.
 - Subscriptions per account run only with `avn-subscription-auth` `accounts: true` (`src/accounts.ts`): each account's credentials, model listings, and selection live under `accounts/<account>/subscriptions/`, the routes answer the account a request carries, and changing requests must come from a page of this Host. Without it the owner routes and `~/.grok` sign-in run as before.
 
 ## Alternatives considered
