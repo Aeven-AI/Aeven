@@ -161,6 +161,7 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/lsp/lsp-stdio': { kind: 'indirect', reason: 'The provider backend delegates model rendering to avn-tool-lsp.' },
   'packages/subprocess/subprocess': { kind: 'indirect', reason: 'The seam delegates all model rendering to consumer seams such as the bash executor family.' },
   'packages/e2b/subprocess-e2b': { kind: 'indirect', reason: 'The remote spawn backend delegates model rendering to consumer seams such as the bash executor family.' },
+  'packages/subprocess/subprocess-executor': { kind: 'none', reason: 'Process-start mechanics under ctx.subprocess; tools and their consumers own every model-facing result.' },
   'packages/subprocess/subprocess-local': { kind: 'indirect', reason: 'The spawn backend delegates model rendering to consumer seams such as the bash executor family.' },
   'packages/sandbox/sandbox-jail': { kind: 'indirect', reason: 'The provider backend delegates model rendering to avn-bash-sandbox and avn-tool-bash.' },
   'packages/sandbox/sandbox-local': { kind: 'indirect', reason: 'The provider backend delegates model rendering to avn-bash-sandbox and avn-tool-bash.' },

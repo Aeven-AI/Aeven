@@ -508,6 +508,7 @@
       "@aeven/subagent-spawn-in-process": ["./packages/subagent/subagent-spawn-in-process/src"],
       "@aeven/subprocess": ["./packages/subprocess/subprocess/src"],
       "@aeven/subprocess-e2b": ["./packages/e2b/subprocess-e2b/src"],
+      "@aeven/subprocess-executor": ["./packages/subprocess/subprocess-executor/src"],
       "@aeven/subprocess-local": ["./packages/subprocess/subprocess-local/src"],
       "@aeven/sync": ["./packages/sync/sync/src"],
       "@aeven/sync-vault": ["./packages/sync/sync-vault/src"],
