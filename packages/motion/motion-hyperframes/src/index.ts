@@ -6,10 +6,10 @@
  * re-encodes to H.264.
  * @module @aeven/motion-hyperframes
  */
-import { mkdtemp, rm, stat } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, stat } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
@@ -177,6 +177,7 @@ export function apply(ctx: Context, config: Config): void {
       producerConfig: { ...resolveConfig(), chromePath },
       logger,
     }
+    await mkdir(dirname(input.outputPath), { recursive: true })
     if (path.kind === 'direct') {
       const job = createRenderJob({ ...base, format: 'mp4', useGpu: true })
       await executeRenderJob(job, input.compositionDir, input.outputPath, progress, signal)

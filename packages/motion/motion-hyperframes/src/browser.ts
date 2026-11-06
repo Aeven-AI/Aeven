@@ -47,7 +47,7 @@ function installedCandidates(): string[] {
  * @param signal - cancellation for the download.
  * @returns absolute executable path.
  * @throws When the configured path is missing, or no browser is installed and none can be downloaded for this
- *   platform (Chrome for Testing publishes no Linux arm64 build).
+ *   platform.
  */
 export async function resolveBrowser(
   options: { browserPath?: string | undefined; cacheDir: string; headlessShellBuildId: string },
@@ -60,7 +60,7 @@ export async function resolveBrowser(
   const installed = installedCandidates().find(path => existsSync(path))
   if (installed !== undefined) return installed
   const platform = detectBrowserPlatform()
-  if (platform === undefined || (process.platform === 'linux' && process.arch === 'arm64')) {
+  if (platform === undefined) {
     throw new Error('Motion rendering needs Google Chrome or Chromium; install one and try again.')
   }
   signal.throwIfAborted()

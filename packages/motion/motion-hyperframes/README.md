@@ -72,7 +72,6 @@ The renderer writes files and appends nothing to a request, so prefix reuse is u
 <a id="known-limitations-and-deferred-work"></a>
 
 - **No invariant companion** — No invariant companion is published: the renderer holds only memoized lookups, which no second observer reports.
-- **Linux arm64 needs an installed Chromium** — Chrome for Testing publishes no Linux arm64 build to download.
 - **The fallback path encodes twice** — the ProRes intermediate is visually lossless at the default profile, but it needs about 3.5 MB per second of 1080p30 in the temporary folder and adds an encode pass.
 - **A Windows N edition without the Media Feature Pack cannot render** — ffmpeg loads `mfplat.dll` only when the Media Foundation encoder opens, so it starts, but finds no encoder.
 - **No NVENC, QSV, or AMF** — the bundled ffmpeg compiles no vendor GPU encoders, so Windows always takes the fallback path.

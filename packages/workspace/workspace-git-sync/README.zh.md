@@ -11,7 +11,7 @@ kind: "package-reference"
 
 目录是 Git 工作树的工作区会作为仓库随账户同步到其他设备。持有仓库的每台设备在账户的 `workspace-git/repositories` 文档中发布去掉凭据的远程 URL、当前检出的分支、位置提示（其目录相对于主目录的路径）和大小，并把自己记录为持有者。收到没有目录的工作区的设备会在不询问的情况下获取它：
 
-未提交和未推送的工作以工作状态检查点同步：基础提交和分支、远程没有的提交的 bundle、已跟踪更改的二进制 diff，以及 `.gitignore` 未排除的未跟踪文件的副本。另一台设备接管仓库中的会话时、每轮结束 `checkpointDebounceMs` 后以及每次检查时，设备都会写入检查点（工作树未变化时跳过），并通过传输文件夹提供。每轮的第一步之前，设备会应用另一台设备更新的检查点，最多等待 `handoffWaitMs`：先暂存自己的更改，为检查点会丢下的提交保留一个 ref，移动分支，应用 diff，并复制未跟踪文件。克隆之后，锁文件的冻结安装通过 shell 能力运行，期间 workspace 报告 `preparing`；超过 `batteryDeferBytes` 的首次克隆在使用电池时报告 `paused`。Git 来自 [`@aeven/git-executable`](../../util/git-executable/README.zh.md)。
+未提交和未推送的工作以工作状态检查点同步：基础提交和分支、远程没有的提交的 bundle、已跟踪更改的二进制 diff，以及 `.gitignore` 未排除的未跟踪文件的副本。另一台设备接管仓库中的会话时、每轮结束 `checkpointDebounceMs` 后以及每次检查时，设备都会写入检查点（工作树未变化时跳过），并通过传输文件夹提供。每轮的第一步之前，设备会应用另一台设备更新的检查点，最多等待 `handoffWaitMs`；等待超时后，之后的轮次只检查该检查点是否已到达而不再等待，停止该轮也会结束等待。应用时先暂存自己的更改，为检查点会丢下的提交保留一个 ref，移动分支，应用 diff，并复制未跟踪文件。克隆之后，锁文件的冻结安装通过 shell 能力运行，期间 workspace 报告 `preparing`；超过 `batteryDeferBytes` 的首次克隆在使用电池时报告 `paused`。Git 来自 [`@aeven/git-executable`](../../util/git-executable/README.zh.md)。
 
 1. **现有检出。** 远程包含同一仓库的检出会被直接绑定，不下载。搜索按主机和路径比较远程，因此 SSH 与 HTTPS 形式可以匹配。它先查看提示所指的目录，再查看其他工作区目录的同级目录，最后在 `discoveryRoots` 下最多 `discoveryDepth` 层中查找。它只读取每个候选的 Git 配置，超过 `discoveryTimeoutMs` 即放弃。
 2. **克隆。** 否则，当下载后仍保留 `minFreeDiskRatio` 比例的磁盘空间时，设备克隆到按文件夹工作区相同规则选出的目录。克隆包含子模块，并切换到发布的分支。它使用本机自己的 Git 凭据，从不提示输入。安装了 Git LFS 时会获取 Git LFS 对象。

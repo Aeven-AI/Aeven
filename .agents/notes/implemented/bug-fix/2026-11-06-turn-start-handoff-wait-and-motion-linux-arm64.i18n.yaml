@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-11-06-turn-start-handoff-wait-and-motion-linux-arm64.md
+2026-11-06-turn-start-handoff-wait-and-motion-linux-arm64.md: cd65f7f2edc84bb92dc33087444a91769573b6ed
+2026-11-06-turn-start-handoff-wait-and-motion-linux-arm64.zh.md: c9d15a3fb3349e75288bbe61fb74d59f5a039e87
