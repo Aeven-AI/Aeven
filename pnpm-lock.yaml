@@ -7000,6 +7000,9 @@ importers:
       '@aeven/document-extract':
         specifier: workspace:^
         version: link:../document-extract
+      '@aeven/subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis

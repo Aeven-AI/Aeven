@@ -13,6 +13,9 @@
     },
     {
       "path": "../document-extract"
+    },
+    {
+      "path": "../../subprocess/subprocess"
     }
   ]
 }

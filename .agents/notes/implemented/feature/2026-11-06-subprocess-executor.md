@@ -14,6 +14,8 @@ On Linux, Node's `child_process.spawn` forks the calling process, and a fork cop
 
 The hosted patch mounts it with a pool of eight on POSIX hosts in place of the local runtime.
 
+A helper that ends is restarted, with a warning, up to five times a minute before the runtime stays on ordinary spawns; a launcher that ends before the helper learns the Host took it reports its exit status with its removal, so the command settles. Launchers read their script with one `cat` rather than bash's byte-at-a-time `read`, and the video extractor starts `ffprobe` through `ctx.subprocess`, so it no longer forks the Host either.
+
 ## Alternatives considered
 
 Re-implementing `ctx.subprocess` over IPC, as the E2B adapters do, was rejected: the local runtime's collection, spill, and teardown logic would be duplicated, and a remote spawn cannot publish a pid synchronously. Replacing `spawn` with a native `posix_spawn` or `vfork` binding was rejected as a new native dependency for one call. A Node launcher using `process.execve` would work but costs tens of megabytes per idle launcher; a waiting `bash` costs a few.

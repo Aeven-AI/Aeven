@@ -35,7 +35,7 @@ type HelperMessage =
   | { t: 'handle'; id: number; which: 'stdin' | 'stdout' | 'stderr' | 'control' }
   | { t: 'ready'; id: number; pid: number }
   | { t: 'exit'; id: number; code: number | null; signal: NodeJS.Signals | null }
-  | { t: 'gone'; id: number; message: string }
+  | { t: 'gone'; id: number; code: number | null; signal: NodeJS.Signals | null; message: string }
 
 /**
  * Quote one word for bash.
@@ -113,20 +113,46 @@ class LaunchedProcess extends EventEmitter {
   }
 }
 
+/** How the Host starts the helper and reports on it. */
+export interface ExecutorHost {
+  /** Start one helper process with an IPC channel. */
+  startHelper: () => ChildProcess
+  /** Spawner for calls a launcher cannot serve. */
+  fallback: SpawnProcess
+  /** Report a helper that ended or could not be kept running. */
+  warn: (message: string) => void
+}
+
+/** Restarts allowed within {@link RESTART_WINDOW_MS} before the executor stays on the fallback. */
+const MAX_RESTARTS = 5
+const RESTART_WINDOW_MS = 60_000
+
 /** The Host's end of the executor helper. */
 export class Executor {
   private readonly pending = new Map<number, Partial<Launcher>>()
   private readonly ready: Launcher[] = []
   private readonly running = new Map<number, LaunchedProcess>()
+  private readonly restarts: number[] = []
+  private helper: ChildProcess
+  /** Disposed, or the helper kept failing: every call takes the fallback. */
   private closed = false
 
   /**
-   * @param helper - the helper process, started with an IPC channel.
-   * @param fallback - the spawner used for calls a launcher cannot serve.
+   * @param host - how to start the helper, the fallback spawner, and where to report.
    */
-  constructor(private readonly helper: ChildProcess, private readonly fallback: SpawnProcess) {
+  constructor(private readonly host: ExecutorHost) {
+    this.helper = this.attach(host.startHelper())
+  }
+
+  /** The current helper process, for the Host's exit hook. */
+  get process(): ChildProcess {
+    return this.helper
+  }
+
+  private attach(helper: ChildProcess): ChildProcess {
     helper.on('message', (message: HelperMessage, handle?: Socket) => { this.receive(message, handle) })
-    helper.once('exit', () => { this.helperEnded() })
+    helper.once('exit', (code, signal) => { this.helperEnded(helper, code, signal) })
+    return helper
   }
 
   /**
@@ -147,7 +173,7 @@ export class Executor {
       && stdio[1] === 'pipe' && stdio[2] === 'pipe'
     const file = served ? executable(program, cwd, env) : undefined
     const launcher = file !== undefined && !file.includes('=') && isDirectory(cwd) ? this.ready.shift() : undefined
-    if (launcher === undefined || file === undefined) return this.fallback(program, args, options)
+    if (launcher === undefined || file === undefined) return this.host.fallback(program, args, options)
     this.helper.send({ t: 'taken', id: launcher.id })
     const assignments = Object.entries(env)
       .filter((entry): entry is [string, string] => entry[1] !== undefined && !entry[0].includes('='))
@@ -158,7 +184,7 @@ export class Executor {
     if (stdinMode === 'ignore') launcher.stdin.end()
     const started = new LaunchedProcess(launcher.pid, stdinMode === 'pipe' ? launcher.stdin : null, launcher.stdout, launcher.stderr)
     this.running.set(launcher.id, started)
-    launcher.control.end(`${script}\0`)
+    launcher.control.end(script)
     return started as unknown as ChildProcess
   }
 
@@ -198,6 +224,12 @@ export class Executor {
         this.running.delete(message.id)
         return
       case 'gone': {
+        const started = this.running.get(message.id)
+        if (started !== undefined) {
+          this.running.delete(message.id)
+          started.exit(message.code, message.signal)
+          return
+        }
         const index = this.ready.findIndex(launcher => launcher.id === message.id)
         if (index >= 0) this.ready.splice(index, 1)
         this.pending.delete(message.id)
@@ -211,11 +243,27 @@ export class Executor {
 
   /**
    * The helper ended: no exit status will arrive for the commands it started,
-   * so each is reported as killed once its process group is gone.
+   * so each is reported as killed once its process group is gone, and a new
+   * helper takes over unless the executor is closed or helpers keep failing.
    */
-  private helperEnded(): void {
-    this.closed = true
-    this.ready.splice(0)
+  private helperEnded(helper: ChildProcess, code: number | null, signal: NodeJS.Signals | null): void {
+    if (helper !== this.helper) return
+    for (const launcher of this.ready.splice(0)) {
+      for (const stream of [launcher.stdin, launcher.stdout, launcher.stderr, launcher.control]) stream.destroy()
+    }
+    this.pending.clear()
+    if (!this.closed) {
+      const now = Date.now()
+      while (this.restarts.length > 0 && now - (this.restarts[0] ?? now) > RESTART_WINDOW_MS) this.restarts.shift()
+      if (this.restarts.length >= MAX_RESTARTS) {
+        this.closed = true
+        this.host.warn(`subprocess executor: helper exited (${String(code ?? signal)}) ${String(MAX_RESTARTS)} times within a minute; commands now start with ordinary spawns`)
+      } else {
+        this.restarts.push(now)
+        this.host.warn(`subprocess executor: helper exited (${String(code ?? signal)}); starting a new one`)
+        this.helper = this.attach(this.host.startHelper())
+      }
+    }
     for (const [id, started] of this.running) {
       this.running.delete(id)
       const settle = (): void => {

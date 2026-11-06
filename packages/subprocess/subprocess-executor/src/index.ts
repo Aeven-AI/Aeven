@@ -36,17 +36,20 @@ export class ExecutorSubprocessRuntime extends LocalSubprocessRuntime {
   constructor(ctx: Context, config: Config) {
     super(ctx)
     if (process.platform === 'win32') throw new Error('subprocess-executor: requires a POSIX host')
-    // The one fork of the Host this runtime makes; the helper is small, so its own forks are cheap.
-    const helper = spawn(process.execPath, [HELPER_PATH, String(config.poolSize)], {
-      stdio: ['ignore', 'inherit', 'inherit', 'ipc'],
-    })
-    const executor = new Executor(helper, spawn)
-    helper.unref()
-    helper.channel?.unref()
+    // The Host forks only to start the helper (again only if it dies); the helper is small, so its own forks are cheap.
+    const startHelper = (): ReturnType<typeof spawn> => {
+      const helper = spawn(process.execPath, [HELPER_PATH, String(config.poolSize)], {
+        stdio: ['ignore', 'inherit', 'inherit', 'ipc'],
+      })
+      helper.unref()
+      helper.channel?.unref()
+      return helper
+    }
+    const executor = new Executor({ startHelper, fallback: spawn, warn: (message) => { ctx.logger.warn(message) } })
     this.internals.spawn = executor.spawnProcess
     ctx.effect(() => {
       // Node's exit phase runs no async teardown; stop the helper so its idle launchers go with it.
-      const onHostExit = (): void => { helper.kill('SIGTERM') }
+      const onHostExit = (): void => { executor.process.kill('SIGTERM') }
       process.prependListener('exit', onHostExit)
       return () => {
         process.off('exit', onHostExit)
