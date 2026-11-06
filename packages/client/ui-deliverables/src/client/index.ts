@@ -85,6 +85,12 @@ export function apply(ctx: ClientContext): void {
       locale: NS,
       inject: sessionId => ({
         previewFile: (path: string) => ctx.sidebarFiles.open(sessionId, path),
+        openAttachment: (attachmentId: string) => {
+          const url = new URL('api/attachment-file', document.baseURI)
+          url.searchParams.set('sessionId', String(sessionId))
+          url.searchParams.set('id', attachmentId)
+          window.open(url.href, '_blank', 'noopener')
+        },
         isLoopback: ctx.remote.$host.isLoopback,
         ensureWorkspacePathOpen,
         openFileMenu: showMenu,

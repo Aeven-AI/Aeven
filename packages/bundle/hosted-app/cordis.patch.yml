@@ -539,9 +539,12 @@
 - id: code-runtime
   disabled: true
 
+# The Host is no reader's desktop: it opens no path in a native application,
+# and produced files open from the copies the conversation stored.
 - id: session-controller
   config:
     directImageReads: false
+    nativeOpen: false
 
 # Motion films play live in the conversation. The renderer only bundles a
 # composition from the account's folder into the document stored with the

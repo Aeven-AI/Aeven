@@ -43,7 +43,7 @@ The Session object also carries local submission echoes: `session.beginSubmissio
 | Field | Default | Meaning |
 |---|---:|---|
 | `coldBlankProbeMaxBytes` | `1,024` | Maximum physical size of a cold Session artifact eligible for blankness verification; `0` disables probes |
-| `nativeOpen` | platform-detected | Whether Session workspace paths can be handed to a native desktop opener |
+| `nativeOpen` | platform-detected | Whether Session workspace paths can be handed to a native desktop opener; when false, `openWorkspacePath` refuses every request |
 
 `modelCatalog()` builds from the live LLM registry on every call, so a route whose model list grew since startup — a `catalogRefresh` that landed after mount, for instance — is reflected without a restart. Providers, and the models inside each provider, are ordered by the label the browser shows, with the model id as a tie-break so entries sharing a name keep a stable order between calls. Comparison is numeric-aware, so `GLM 5.2` precedes `GLM 5.3` precedes `GLM 5.10`. Provider failures keep registry order: that list is the diagnostic channel, not the list a person scans. Ordering lives here rather than in the route's own catalog, which stays in configuration order for everything that dispatches.
 

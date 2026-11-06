@@ -2543,7 +2543,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Open one path prepared by a Session-aware caller on the Host desktop: in its default application, in one registered application, or revealed in the file manager.',
         parameters: [{ name: 'request', description: 'path after best-effort Session workspace resolution, and the requested handoff.' }, { name: 'signal', description: 'caller lifetime; abort terminates the native command.' }],
         returns: 'confirmation after the native opener accepts the path.',
-        throws: ['RemoteError when the request is invalid, cancelled, or the opener fails.'],
+        throws: ['RemoteError when this deployment opens no paths, or the request is invalid, cancelled, or the opener fails.'],
       },
       {
         signature: '@Remote(\'workspacePathApplications\') async workspacePathApplications( request: { readonly path: string }, signal: AbortSignal, ): Promise<readonly SessionWorkspacePathApplication[]>',
