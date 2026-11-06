@@ -461,7 +461,9 @@ describe('producedFileMentions resolver', () => {
 
 
 describe('produced-file opening', () => {
-  const props = { ensureWorkspacePathOpen: () => {}, revealFile: () => {}, t: vi.fn().mockImplementation((key: string) => key) }
+  const props = {
+    ensureWorkspacePathOpen: () => {}, revealFile: () => {}, fileUrl: (path: string) => `http://localhost/api/workspace-file?path=${path}`,
+    attachmentUrl: (id: string) => `http://localhost/api/attachment-file?id=${id}`, t: vi.fn().mockImplementation((key: string) => key) }
 
   it.each([true, false])('previews files and opens unsupported files in the default app (created=%s)', async (created) => {
     const openFile = vi.fn()

@@ -13,7 +13,7 @@ import type { SidebarContentPaneProps } from '@aeven/client-ui-sidebar-select/cl
 import { createElement, useCallback, useEffect, useState } from 'react'
 import { resolveWorkspacePath } from '@aeven/util-workspace-path'
 import { FilesPane } from './FilesPane.tsx'
-import { canPreviewFile } from './open-with.tsx'
+import { canPreviewFile, workspaceFileUrl } from './open-with.tsx'
 import { en, es, zh, type SidebarFilesKey } from './locales.ts'
 
 export type { FilesPaneProps } from './FilesPane.tsx'
@@ -30,6 +30,14 @@ declare module '@deepseek-ai/cordis' {
        * @returns Whether the file can be displayed in the sidebar; false for documents and other binary files without a viewer.
        */
       open(sessionId: SessionId, path: string): Promise<boolean>
+      /**
+       * The URL of one workspace file's bytes, served only for a Session of the signed-in account.
+       * @param sessionId - Session owning the workspace.
+       * @param path - Workspace-relative or absolute file path.
+       * @param download - Whether the browser saves the file instead of showing it.
+       * @returns The absolute URL on this app's origin.
+       */
+      fileUrl(sessionId: SessionId, path: string, download?: boolean): string
     }
   }
 }
@@ -85,7 +93,7 @@ export function apply(ctx: ClientContext): void {
       pending.set(sessionId, { path, type: 'directory' })
       scoped.sidebarContent.requestOpen(sessionId, 'files', true)
     }
-    scoped.provide('sidebarFiles', { open: openFile })
+    scoped.provide('sidebarFiles', { open: openFile, fileUrl: workspaceFileUrl })
     scoped.inject(['sessions'], (shown) => {
       // The model's `sidebar_files` reaches the window showing its session; a window showing another session delegates.
       shown.remote.$on('workspace-files/show', function (request, next) {

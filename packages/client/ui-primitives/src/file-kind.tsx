@@ -2,11 +2,11 @@
 import type { ReactNode } from 'react'
 import {
   IconLucideFile, IconLucideFileArchive, IconLucideFileBraces, IconLucideFileCode, IconLucideFileImage,
-  IconLucideFileText,
+  IconLucideFileMusic, IconLucideFilePlay, IconLucideFileText,
 } from './icons/index.tsx'
 
 /** A file's kind as its name classifies it: the glyph it carries and the viewer that shows it. */
-export type FileKind = 'code' | 'data' | 'markdown' | 'text' | 'image' | 'archive' | 'other'
+export type FileKind = 'code' | 'data' | 'markdown' | 'text' | 'image' | 'video' | 'audio' | 'archive' | 'other'
 
 const CODE = new Set([
   'ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs', 'mts', 'cts', 'py', 'rb', 'go', 'rs', 'java', 'kt', 'swift', 'c', 'h',
@@ -18,6 +18,8 @@ const DATA = new Set(['json', 'jsonc', 'json5', 'yaml', 'yml', 'toml', 'xml', 'c
 const MARKDOWN = new Set(['md', 'mdx', 'markdown'])
 const TEXT = new Set(['txt', 'log', 'rst', 'text', 'conf', 'cfg', 'properties', 'gitignore', 'gitattributes', 'editorconfig', 'npmrc'])
 const IMAGE = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico', 'avif'])
+const VIDEO = new Set(['mp4', 'm4v', 'webm', 'mov', 'ogv'])
+const AUDIO = new Set(['mp3', 'm4a', 'aac', 'wav', 'ogg', 'oga', 'opus', 'flac'])
 const ARCHIVE = new Set(['zip', 'tar', 'gz', 'tgz', 'bz2', 'xz', '7z', 'rar', 'zst'])
 
 /**
@@ -42,6 +44,8 @@ export function fileKindOf(name: string): FileKind {
   const extension = extensionOf(name)
   if (MARKDOWN.has(extension)) return 'markdown'
   if (IMAGE.has(extension)) return 'image'
+  if (VIDEO.has(extension)) return 'video'
+  if (AUDIO.has(extension)) return 'audio'
   if (ARCHIVE.has(extension)) return 'archive'
   if (DATA.has(extension)) return 'data'
   if (CODE.has(extension)) return 'code'
@@ -61,6 +65,8 @@ export function fileGlyph(name: string): ReactNode {
     case 'markdown':
     case 'text': return <IconLucideFileText />
     case 'image': return <IconLucideFileImage />
+    case 'video': return <IconLucideFilePlay />
+    case 'audio': return <IconLucideFileMusic />
     case 'archive': return <IconLucideFileArchive />
     case 'other': return <IconLucideFile />
   }

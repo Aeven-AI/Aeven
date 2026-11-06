@@ -89,6 +89,12 @@ export interface Config {
   /** Permit fingerprint-only image reads; shared hosted deployments require a session instead. */
   readonly directImageReads?: boolean
   /**
+   * Serve `/api/file`, which reads any absolute path the composed filesystem lets the Host read (default true). A
+   * Host serving several accounts turns it off; their readers reach files through the Session-scoped
+   * `/api/workspace-file` route instead.
+   */
+  readonly pathReads?: boolean
+  /**
    * How long an approval or question nobody answered on the device running the turn waits for another device of
    * the account to answer, in milliseconds.
    */
@@ -131,6 +137,7 @@ export class SessionController extends TypertRemoteService {
   static Config: z<Config> = z.object({
     nativeOpen: z.boolean(),
     directImageReads: z.boolean().default(true),
+    pathReads: z.boolean().default(true),
     remoteAnswerMs: z.natural().default(600_000),
     interactionRetryMs: z.natural().min(100).default(2_000),
   })
@@ -180,7 +187,7 @@ export class SessionController extends TypertRemoteService {
     this.revealPath = internals.revealPath ?? revealNativePath
     ctx.plugin(SessionFileReferences)
     ctx.plugin(SessionSkillCatalog)
-    ctx.plugin(SessionMediaReferences)
+    if (config.pathReads !== false) ctx.plugin(SessionMediaReferences)
     ctx.inject(['connection', 'attachments', 'documentExtract'], (uploadCtx) => { registerFileUploadRoutes(uploadCtx) })
     ctx.inject(['connection', 'attachments'], (readCtx) => {
       registerFileReadRoute(readCtx, (sessionId, attachmentId) => this.commands.referencedFile(sessionId, attachmentId))
@@ -446,8 +453,8 @@ The user's account display name is ${JSON.stringify(source.clientDisplayName)}.
     request: SessionOpenWorkspacePathRequest,
     signal: AbortSignal,
   ): Promise<SessionOpenWorkspacePathValue> {
-    // A Host that is no reader's desktop, such as hosted Web, starts no native opener for any request.
-    if (!this.canOpenPath()) throw new RemoteError('gateway/bad-request', 'opening files is not available here', {})
+    // A Host without a desktop, such as one serving several accounts, never runs a native opener for a caller.
+    if (!this.canOpenPath()) throw new RemoteError('session/open-unavailable', 'this Host opens no paths on a desktop', {})
     const path = this.desktopPath(request.path, signal)
     try {
       if (request.action === 'reveal') await this.revealPath(path, signal)

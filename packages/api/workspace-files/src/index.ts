@@ -13,6 +13,12 @@
  * is read only up to the first character past the page and is never held whole
  * in memory; a page that would exceed the byte cap is refused rather than cut.
  *
+ * The authenticated `/api/workspace-file` route serves one file's bytes for the
+ * explorer's image, video, and audio views and its downloads: the path resolves
+ * against the Session's workspace root under the same read rule as a preview,
+ * and the Session must belong to the caller. A single byte range is answered
+ * with `206`, which is what lets a media player seek.
+ *
  * The `sidebar_files` model tool shows a path in that explorer: it resolves and
  * stats the path here, then asks the window displaying the Session to open it.
  * @module @aeven/api-workspace-files
@@ -20,15 +26,17 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
+import mime from 'mime-types'
+import type {} from '@aeven/client-connection'
 import type { Agent } from '@aeven/agent'
-import type {} from '@aeven/fs'
-import type { FsTarget } from '@aeven/fs'
+import type { FsError, FsTarget } from '@aeven/fs'
 import type {} from '@aeven/sandbox-policy'
 import type {} from '@aeven/identity-user'
 import type { SessionId } from '@aeven/session'
 import type {} from '@aeven/session-query'
 import { sessionWorkspaceRoot, WorkingDirectoryUnavailableError } from '@aeven/working-directory'
 import { Remote, RemoteError, TypertRemoteService } from '@aeven/typert-protocol'
+import { brandString } from '@aeven/brand'
 import { scopeTarget } from '@aeven/scope'
 import { defineTool, jsonStringOutput } from '@aeven/tools'
 import type {} from './types.ts'
@@ -66,6 +74,8 @@ export interface Config {
    * access). A Host whose readers must not see its own files sets true.
    */
   readonly confineReads?: boolean
+  /** Inclusive byte cap on one file `/api/workspace-file` serves; a larger file is refused with `413`. */
+  readonly maxFileBytes: number
   /** How long `sidebar_files` waits for the window showing the Session to open the explorer. */
   readonly showTimeoutMs: number
 }
@@ -113,6 +123,62 @@ async function cutPage(chunks: AsyncIterable<string>, limit: number, maxBytes: n
   return { text: lines.join('\n'), eof: true }
 }
 
+/** Path of the route that serves one workspace file's bytes. */
+const FILE_ROUTE = '/api/workspace-file'
+
+/** Headers of every `/api/workspace-file` response; HTML and SVG files open on the authenticated origin without running. */
+const FILE_HEADERS = {
+  'Cache-Control': 'private, no-store',
+  'X-Content-Type-Options': 'nosniff',
+  'Content-Security-Policy': "sandbox; default-src 'none'",
+}
+
+/** A plain-text response with the route's headers. */
+function plain(status: number, text: string): Response {
+  return new Response(text, { status, headers: { ...FILE_HEADERS, 'Content-Type': 'text/plain; charset=utf-8' } })
+}
+
+/**
+ * The one byte span a `Range` header asks for.
+ * @param header - the request's `Range` header.
+ * @param size - the file's length.
+ * @returns the inclusive span, `unsatisfiable` for a span past the end, or undefined to serve the whole file.
+ */
+function byteRange(header: string | null, size: number): { start: number; end: number } | 'unsatisfiable' | undefined {
+  const match = header === null ? null : /^bytes=(\d*)-(\d*)$/.exec(header.trim())
+  if (match === null || (match[1] === '' && match[2] === '')) return undefined
+  const suffix = match[1] === ''
+  const start = suffix ? Math.max(0, size - Number(match[2])) : Number(match[1])
+  const end = suffix || match[2] === '' ? size - 1 : Math.min(Number(match[2]), size - 1)
+  return start >= size || start > end ? 'unsatisfiable' : { start, end }
+}
+
+/** `Content-Disposition` parameters naming the saved file, ASCII and UTF-8. */
+function dispositionName(name: string): string {
+  const ascii = name.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_')
+  return `filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`
+}
+
+/** The response for a refused read: an absent or foreign Session and a path outside the workspace read as absent. */
+function fileFailure(error: unknown): Response {
+  if (error instanceof WorkingDirectoryUnavailableError) return plain(404, 'not found')
+  if (error instanceof RemoteError) {
+    return plain(error.code === 'session/not-found' || error.code === 'workspace-file/outside-workspace' ? 404 : 400, 'not found')
+  }
+  // Recognized by code, since the backend's error class may come from another package instance.
+  const code = typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined
+  if (typeof code !== 'string' || !code.startsWith('FS_')) throw error
+  const statuses: Partial<Record<FsError['code'], number>> = {
+    FS_NOT_FOUND: 404,
+    FS_NOT_REGULAR_FILE: 403,
+    FS_PERMISSION_DENIED: 403,
+    FS_SANDBOX_DENIED: 403,
+    FS_TOO_LARGE: 413,
+    FS_ABORTED: 499,
+  }
+  return plain(statuses[code as FsError['code']] ?? 500, code)
+}
+
 /** Workspace path of `target` relative to `root`, from their canonical `file:` URIs; empty for the root. */
 function workspacePathOf(rootUrl: string, targetUrl: string): string {
   const root = new URL(rootUrl).pathname.replace(/\/+$/, '')
@@ -139,6 +205,7 @@ export class WorkspaceFiles extends TypertRemoteService {
     searchSkip: z.array(z.string()).default(['.git', 'node_modules']),
     showTimeoutMs: z.number().step(1).min(1).default(5_000),
     confineReads: z.boolean().default(false),
+    maxFileBytes: z.number().step(1).min(1).default(512 * 1024 * 1024),
   })
 
   /**
@@ -148,6 +215,59 @@ export class WorkspaceFiles extends TypertRemoteService {
   constructor(ctx: Context, private readonly config: Config) {
     super(ctx, 'workspaceFiles')
     ctx.inject(['tools'], (scoped) => { this.registerTool(scoped) })
+    ctx.inject(['connection'], (scoped) => {
+      scoped.effect(() => scoped.connection.fetch.register({
+        path: FILE_ROUTE,
+        methods: ['GET', 'HEAD'],
+        fetch: request => this.serveFile(request),
+      }), 'workspace-files: /api/workspace-file')
+    })
+  }
+
+  /** Answer one `/api/workspace-file` request: the named Session's file, whole or as one byte range. */
+  private async serveFile(request: Request): Promise<Response> {
+    const url = new URL(request.url)
+    const sessionId = url.searchParams.get('sessionId')
+    const path = url.searchParams.get('path')
+    if (sessionId === null || sessionId === '' || path === null || path === '' || path.includes('\0')) {
+      return plain(400, 'sessionId and path are required')
+    }
+    let target: FsTarget
+    let bytes: Uint8Array
+    try {
+      const workspaceRoot = await this.workspaceRootFor(brandString<SessionId>(sessionId))
+      target = this.config.confineReads === true
+        ? await this.confine(await this.ctx.fs.resolve(workspaceRoot, { signal: request.signal }), workspaceRoot, path, request.signal)
+        : await this.ctx.fs.resolve(path, { cwd: workspaceRoot, signal: request.signal })
+      const info = await this.ctx.fs.stat(target, request.signal)
+      if (info === undefined) return plain(404, 'not found')
+      if (info.type !== 'file') return plain(403, 'not a regular file')
+      if (info.size !== undefined && info.size > this.config.maxFileBytes) return plain(413, 'file exceeds byte limit')
+      bytes = await this.ctx.fs.readBytes(target, request.signal, this.config.maxFileBytes)
+    } catch (error: unknown) {
+      return fileFailure(error)
+    }
+    const name = target.displayPath.split('/').pop() ?? 'file'
+    const headers: Record<string, string> = {
+      ...FILE_HEADERS,
+      'Content-Type': mime.lookup(name) || 'application/octet-stream',
+      'Content-Length': String(bytes.byteLength),
+      'Accept-Ranges': 'bytes',
+      'Content-Disposition': `${url.searchParams.get('download') === '1' ? 'attachment' : 'inline'}; ${dispositionName(name)}`,
+    }
+    const range = byteRange(request.headers.get('range'), bytes.byteLength)
+    if (range === 'unsatisfiable') {
+      return new Response(null, { status: 416, headers: { ...headers, 'Content-Length': '0', 'Content-Range': `bytes */${String(bytes.byteLength)}` } })
+    }
+    const body = range === undefined ? bytes : bytes.subarray(range.start, range.end + 1)
+    return new Response(request.method === 'HEAD' ? null : body.slice(), {
+      status: range === undefined ? 200 : 206,
+      headers: range === undefined ? headers : {
+        ...headers,
+        'Content-Length': String(body.byteLength),
+        'Content-Range': `bytes ${String(range.start)}-${String(range.end)}/${String(bytes.byteLength)}`,
+      },
+    })
   }
 
   private registerTool(ctx: Context): void {
