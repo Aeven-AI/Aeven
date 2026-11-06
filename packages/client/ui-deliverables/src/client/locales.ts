@@ -25,6 +25,16 @@ export const zh = {
   'file.openIn': '在 {app} 中打开',
   'file.copyRelativePath': '复制相对路径',
   'file.copyFullPath': '复制完整路径',
+  'video.play': '播放',
+  'video.pause': '暂停',
+  'video.seek': '播放进度',
+  'video.mute': '静音',
+  'video.unmute': '取消静音',
+  'video.fullscreen': '全屏',
+  'video.exitFullscreen': '退出全屏',
+  'video.volume': '音量',
+  'video.save': '保存选项',
+  'video.download': '下载视频',
 }
 
 /** English dictionary (same key set). */
@@ -49,6 +59,16 @@ export const en: Record<DeliverablesKey, string> = {
   'file.openIn': 'Open in {app}',
   'file.copyRelativePath': 'Copy relative path',
   'file.copyFullPath': 'Copy full path',
+  'video.play': 'Play',
+  'video.pause': 'Pause',
+  'video.seek': 'Playback position',
+  'video.mute': 'Mute',
+  'video.unmute': 'Unmute',
+  'video.fullscreen': 'Full screen',
+  'video.exitFullscreen': 'Exit full screen',
+  'video.volume': 'Volume',
+  'video.save': 'Save options',
+  'video.download': 'Download video',
 }
 
 /** Union of this namespace's dictionary keys. */
@@ -76,4 +96,14 @@ export const es: Record<DeliverablesKey, string> = {
   'file.openIn': 'Abrir en {app}',
   'file.copyRelativePath': 'Copiar la ruta relativa',
   'file.copyFullPath': 'Copiar la ruta completa',
+  'video.play': 'Reproducir',
+  'video.pause': 'Pausar',
+  'video.seek': 'Posición de reproducción',
+  'video.mute': 'Silenciar',
+  'video.unmute': 'Activar sonido',
+  'video.fullscreen': 'Pantalla completa',
+  'video.exitFullscreen': 'Salir de pantalla completa',
+  'video.volume': 'Volumen',
+  'video.save': 'Opciones de guardado',
+  'video.download': 'Descargar video',
 }

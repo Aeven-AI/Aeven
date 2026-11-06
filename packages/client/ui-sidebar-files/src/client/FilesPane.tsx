@@ -19,7 +19,7 @@ import type { WorkspaceDirectoryEntry, WorkspaceFileText, WorkspaceSearchHit } f
 import {
   CodeBlock, CopyIconButton, extensionOf, fileGlyph, fileKindOf, IconLucideChevronsDownUp, IconLucideDownload, IconLucideFolder,
   IconLucideFolderOpen, IconLucideFolderSearch, IconLucideRefreshCw, IconLucideSearch, IconLucideX, MarkdownText, Menu,
-  writeClipboard,
+  VideoPlayer, videoPlayerLabels, writeClipboard,
   type MarkdownLabels, type MenuEntry,
 } from '@aeven/client-ui-primitives'
 import type { SidebarContentPaneProps } from '@aeven/client-ui-sidebar-select/client'
@@ -671,7 +671,9 @@ function FileView({ path, root, canOpenNative, treeVisible, remote, sessionId, t
         <div className={clsx(css.fileBody, kind === 'markdown' && css.fileBodyProse)}>
           {kind === 'image' && <img className={css.image} src={workspaceFileUrl(sessionId, absolute)} alt={name} />}
           {kind === 'video' && (
-            <video className={css.image} src={workspaceFileUrl(sessionId, absolute)} controls playsInline preload="metadata" aria-label={name} />
+            <div className={css.videoFrame}>
+              <VideoPlayer src={workspaceFileUrl(sessionId, absolute)} label={name} saveName={name} labels={videoPlayerLabels(t)} />
+            </div>
           )}
           {kind === 'audio' && (
             <audio className={css.audio} src={workspaceFileUrl(sessionId, absolute)} controls preload="metadata" aria-label={name} />
