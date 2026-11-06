@@ -14111,6 +14111,9 @@ importers:
       '@aeven/memory-context':
         specifier: workspace:^
         version: link:../../packages/memory/memory-context
+      '@aeven/motion':
+        specifier: workspace:^
+        version: link:../../packages/motion/motion
       '@aeven/output-retention':
         specifier: workspace:^
         version: link:../../packages/util/output-retention
@@ -14306,6 +14309,9 @@ importers:
       '@aeven/tool-memory':
         specifier: workspace:^
         version: link:../../packages/memory/tool-memory
+      '@aeven/tool-motion':
+        specifier: workspace:^
+        version: link:../../packages/motion/tool-motion
       '@aeven/tool-pwsh':
         specifier: workspace:^
         version: link:../../packages/shell/tool-pwsh

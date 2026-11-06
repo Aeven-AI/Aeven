@@ -18,7 +18,7 @@ import type { MotionFps, MotionQuality, MotionStill } from '@aeven/motion'
 import type {} from '@aeven/motion'
 import type {} from '@aeven/sandbox-policy'
 import type {} from '@aeven/skill'
-import { fileBlockRef, imageBlockRef } from '@aeven/tool-media'
+import { FILE_ATTACHMENT_PROPERTIES, fileBlockRef, imageBlockRef } from '@aeven/tool-media'
 import { defineTool } from '@aeven/tools'
 import type { ToolRunContext } from '@aeven/tools'
 import { sessionDirectory, sessionWorkspaceRoot } from '@aeven/working-directory'
@@ -228,25 +228,7 @@ export function apply(ctx: Context, config: Config): void {
           video: {
             type: 'object',
             additionalProperties: false,
-            properties: {
-              attachmentId: { type: 'string', required: true },
-              mediaType: { type: 'string', required: true },
-              bytes: { type: 'integer', required: true },
-              name: { type: 'string', required: true },
-              extraction: {
-                type: 'object',
-                required: true,
-                additionalProperties: false,
-                properties: {
-                  textId: { type: 'string', required: true },
-                  chars: { type: 'integer', required: true },
-                  method: { type: 'string', required: true },
-                  extractor: { type: 'string', required: true },
-                  truncated: { type: 'boolean', required: true },
-                  pages: { type: 'integer' },
-                },
-              },
-            },
+            properties: FILE_ATTACHMENT_PROPERTIES,
           },
           stills: STILLS_SCHEMA,
         },

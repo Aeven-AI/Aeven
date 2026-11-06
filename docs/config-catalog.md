@@ -262,6 +262,24 @@ export interface Config {
 
 Source: [`packages/memory/api-memory-manager/src/index.ts`](../packages/memory/api-memory-manager/src/index.ts)
 
+<a id="aevenapi-motion"></a>
+
+## `@aeven/api-motion`
+
+Requires: `connection` · `motion`
+
+```ts config-catalog
+/** Route configuration. */
+export interface Config {
+  /** Quality of a film the user exports from the card. */
+  exportQuality: MotionQuality
+}
+```
+
+Depends on: [`MotionQuality`](../packages/motion/motion/src/index.ts)
+
+Source: [`packages/motion/api-motion/src/index.ts`](../packages/motion/api-motion/src/index.ts)
+
 <a id="aevenapi-session-controller"></a>
 
 ## `@aeven/api-session-controller`
@@ -3025,6 +3043,63 @@ export interface Config {
 
 Source: [`packages/feedback/message-feedback/src/index.ts`](../packages/feedback/message-feedback/src/index.ts)
 
+<a id="aevenmotion"></a>
+
+## `@aeven/motion`
+
+```ts config-catalog
+/** Composition defaults for requests that omit a field. */
+export interface Config {
+  /** Frame rate of a request that names none. */
+  fps: MotionFps
+  /** Quality tier of a request that names none. */
+  quality: MotionQuality
+}
+
+/** Frame rates a motion film is rendered at. */
+export type MotionFps = 24 | 30 | 60
+
+/** Encoding quality tiers, from fastest and smallest to slowest and sharpest. */
+export type MotionQuality = 'draft' | 'standard' | 'high'
+```
+
+Source: [`packages/motion/motion/src/index.ts`](../packages/motion/motion/src/index.ts)
+
+<a id="aevenmotion-hyperframes"></a>
+
+## `@aeven/motion-hyperframes`
+
+Requires: `motion`
+
+```ts config-catalog
+/** Executables, browser, and fallback encoding of the HyperFrames renderer. */
+export interface Config {
+  /** ffmpeg executable; omitted, the bundled `@aeven/ffmpeg-<platform>-<arch>` copy. */
+  ffmpegPath?: string
+  /** ffprobe executable; omitted, the bundled copy beside ffmpeg. */
+  ffprobePath?: string
+  /** Chromium executable; omitted, an installed Chrome, Chromium, Edge, or Brave, else a downloaded headless shell. */
+  browserPath?: string
+  /** Directory the downloaded headless shell is installed into. */
+  browserCacheDir: string
+  /** H.264 encoders tried in order when HyperFrames finds no hardware encoder. */
+  fallbackEncoders: string[]
+  /** ProRes profile of the intermediate the fallback encoder reads. */
+  intermediateProfile: IntermediateProfile
+  /** Fallback encoder video bitrate per quality tier. */
+  fallbackBitrate: Record<MotionQuality, string>
+  /** Width in pixels of the stills a render returns. */
+  stillWidth: number
+}
+
+/** ProRes profiles the intermediate may use; all are 4:2:2 without alpha. */
+export type IntermediateProfile = 'hq' | '422' | 'lt'
+```
+
+Depends on: [`MotionQuality`](../packages/motion/motion/src/index.ts)
+
+Source: [`packages/motion/motion-hyperframes/src/index.ts`](../packages/motion/motion-hyperframes/src/index.ts)
+
 <a id="aevenpermission-presets"></a>
 
 ## `@aeven/permission-presets`
@@ -5119,6 +5194,22 @@ export interface Config {
 ```
 
 Source: [`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
+
+<a id="aeventool-motion"></a>
+
+## `@aeven/tool-motion`
+
+Requires: `motion` · `tools` · `attachments` · `fs`
+
+```ts config-catalog
+/** Tool limits. */
+export interface Config {
+  /** Most stills one call may request. */
+  maxStills: number
+}
+```
+
+Source: [`packages/motion/tool-motion/src/index.ts`](../packages/motion/tool-motion/src/index.ts)
 
 <a id="aeventool-pwsh"></a>
 

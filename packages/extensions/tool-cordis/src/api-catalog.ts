@@ -2298,6 +2298,32 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'motion',
+    summary: 'Holds the sole motion renderer of one Host composition.',
+    description: 'Holds the sole motion renderer of one Host composition.',
+    methods: [
+      {
+        signature: 'register(renderer: MotionRenderer): () => Promise<void>',
+        description: 'Register the composition\'s renderer; a second registration fails without replacing the first.',
+        parameters: [{ name: 'renderer', description: 'renderer owned by the contributing fiber.' }],
+        returns: 'idempotent disposer which aborts accepted renders and joins their settlement.',
+      },
+      {
+        signature: 'resolve(request: MotionRenderRequest): MotionRenderSpec',
+        description: 'Apply the configured defaults and capture the registered renderer.',
+        parameters: [{ name: 'request', description: 'composition, output, and optional fps, quality, and still count.' }],
+        returns: 'renderer-pinned input for {@link render}.',
+        throws: ['When no renderer is registered.'],
+      },
+      {
+        signature: 'async render(spec: MotionRenderSpec, signal: AbortSignal, onProgress?: (progress: MotionProgress) => void): Promise<MotionRenderOutput>',
+        description: 'Render with exactly the resolved renderer.',
+        parameters: [{ name: 'spec', description: 'resolved render; a withdrawn or replaced renderer is rejected.' }, { name: 'signal', description: 'caller cancellation.' }, { name: 'onProgress', description: 'optional progress sink.' }],
+        returns: 'the written film.',
+      },
+    ],
+  },
+  {
     key: 'permissionPresets',
     summary: 'Owns the deployment\'s permission presets and their write path.',
     description: 'Owns the deployment\'s permission presets and their write path. Requires a confining `ctx.shell` executor and `ctx.approval`; unmatched knob values are reported as CUSTOM_PRESET, not an error.',
@@ -7804,6 +7830,42 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ModelReasoningEffort',
     declaration: 'export interface ModelReasoningEffort {\n    readonly id: string;\n    readonly name: string;\n    readonly description?: string;\n}',
+  },
+  {
+    name: 'MotionFps',
+    declaration: 'export type MotionFps = 24 | 30 | 60;',
+  },
+  {
+    name: 'MotionProgress',
+    declaration: 'export interface MotionProgress {\n    readonly fraction: number;\n    readonly stage?: string;\n}',
+  },
+  {
+    name: 'MotionQuality',
+    declaration: 'export type MotionQuality = \'draft\' | \'standard\' | \'high\';',
+  },
+  {
+    name: 'MotionRenderer',
+    declaration: 'export interface MotionRenderer {\n    readonly name: string;\n    render(input: MotionRenderInput, signal: AbortSignal, onProgress?: (progress: MotionProgress) => void): Promise<MotionRenderOutput>;\n}',
+  },
+  {
+    name: 'MotionRenderInput',
+    declaration: 'export interface MotionRenderInput {\n    readonly compositionDir: string;\n    readonly outputPath: string;\n    readonly fps: MotionFps;\n    readonly quality: MotionQuality;\n    readonly stills: number;\n}',
+  },
+  {
+    name: 'MotionRenderOutput',
+    declaration: 'export interface MotionRenderOutput {\n    readonly outputPath: string;\n    readonly bytes: number;\n    readonly durationSeconds: number;\n    readonly width: number;\n    readonly height: number;\n    readonly encoder: string;\n    readonly stills: readonly MotionStill[];\n}',
+  },
+  {
+    name: 'MotionRenderRequest',
+    declaration: 'export interface MotionRenderRequest {\n    readonly compositionDir: string;\n    readonly outputPath: string;\n    readonly fps?: MotionFps;\n    readonly quality?: MotionQuality;\n    readonly stills?: number;\n}',
+  },
+  {
+    name: 'MotionRenderSpec',
+    declaration: 'export interface MotionRenderSpec extends MotionRenderInput {\n    readonly renderer: MotionRenderer;\n}',
+  },
+  {
+    name: 'MotionStill',
+    declaration: 'export interface MotionStill {\n    readonly seconds: number;\n    readonly png: Uint8Array;\n}',
   },
   {
     name: 'NativeFileApplication',
