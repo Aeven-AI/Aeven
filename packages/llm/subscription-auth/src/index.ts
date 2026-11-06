@@ -77,7 +77,8 @@ import { grokBuildFingerprintHeaders } from './provider.ts'
 import { acquireCodingOAuthProxy } from './proxy.ts'
 import { GrokBuildSession } from './session.ts'
 import { GrokBuildCredentialStore } from './store.ts'
-import { SUBSCRIPTION_IMAGE_MODELS, subscriptionModelViews } from './subscription-models.ts'
+import { SUBSCRIPTION_IMAGE_MODELS } from './subscription-models.ts'
+import { subscriptionModelSelection, syncCodexModels } from './subscription-catalog.ts'
 import type { UsageReader } from './usage-reader.ts'
 import { createOwnerRequestPolicy, safeguardOwnerRequestPolicy } from './web-origin.ts'
 
@@ -735,18 +736,7 @@ function applyOwned(ctx: Context, config: Config): void {
           },
           {
             isSignedIn: codexSignedIn,
-            sync: async (signal) => {
-              const listed = (await codexModels.refresh(signal))
-                .filter(model => model.listed)
-                .sort((left, right) => (left.priority ?? Number.MAX_SAFE_INTEGER) - (right.priority ?? Number.MAX_SAFE_INTEGER))
-              // The capability cache answers a failed read with an empty list; the sync reports it instead.
-              if (listed.length === 0) throw new Error('the Codex model listing returned no models')
-              await codex.setLiveModels(listed.map(model => ({
-                id: model.id,
-                ...(model.name === undefined ? {} : { name: model.name }),
-                ...(model.imageInput === undefined ? {} : { imageInput: model.imageInput }),
-              })))
-            },
+            sync: signal => syncCodexModels(codex, codexModels, signal),
           },
         ],
       })
@@ -834,21 +824,7 @@ function applyOwned(ctx: Context, config: Config): void {
         uiOwner: 'standalone',
         diagnostics: ownerRequestPolicy.diagnostics(),
       }),
-    {
-      views: slug => subscriptionModelViews(
-        slug,
-        slug === 'grok' ? grok.availableModels() : codex.availableModels(),
-        modelId => selection.isSelected(slug, modelId),
-      ),
-      setSelected: async (slug, selected) => {
-        const available = subscriptionModelViews(
-          slug,
-          slug === 'grok' ? grok.availableModels() : codex.availableModels(),
-          () => true,
-        ).map(model => model.id)
-        await selection.setSelected(slug, available, selected)
-      },
-    },
+    subscriptionModelSelection(grok, codex, selection),
   )
 
   const mediaGate = (slug: 'grok' | 'codex'): SubscriptionMediaGate => ({
