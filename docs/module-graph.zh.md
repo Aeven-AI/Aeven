@@ -362,6 +362,7 @@ flowchart TD
     pkg_api_motion["api-motion"]
     pkg_motion["motion"]
     pkg_motion_hyperframes["motion-hyperframes"]
+    pkg_motion_preview["motion-preview"]
     pkg_tool_motion["tool-motion"]
   end
   subgraph group_preset["packages/preset"]
@@ -807,6 +808,8 @@ flowchart TD
   pkg_media_aeven --> pkg_session
   pkg_memory --> pkg_agent
   pkg_memory --> pkg_session
+  pkg_motion_preview --> pkg_fs
+  pkg_motion_preview --> pkg_motion
   pkg_personalization --> pkg_agent
   pkg_personalization --> pkg_identity_user
   pkg_personalization --> pkg_scope
@@ -1859,6 +1862,7 @@ flowchart TD
 | [`lsp-stdio`](../packages/lsp/lsp-stdio) | `lsp` | [`brand`](../packages/util/brand), [`fs`](../packages/fs/fs), [`llm`](../packages/llm/llm), [`lsp`](../packages/lsp/lsp), [`subprocess`](../packages/subprocess/subprocess), [`timeout`](../packages/util/timeout) |
 | [`media-aeven`](../packages/media/media-aeven) | `media` | [`agent`](../packages/core/agent), [`credentials`](../packages/credentials/credentials), [`identity-user`](../packages/identity/user), [`media`](../packages/media/media), [`session`](../packages/core/session) |
 | [`memory`](../packages/memory/memory) | `memory` | [`agent`](../packages/core/agent), [`session`](../packages/core/session) |
+| [`motion-preview`](../packages/motion/motion-preview) | `motion` | [`fs`](../packages/fs/fs), [`motion`](../packages/motion/motion) |
 | [`personalization`](../packages/preset/personalization) | `preset` | [`agent`](../packages/core/agent), [`identity-user`](../packages/identity/user), [`scope`](../packages/core/scope), [`sync`](../packages/sync/sync), [`system-prompt`](../packages/core/system-prompt), [`typert-protocol`](../packages/typert/protocol) |
 | [`session-sync`](../packages/session/session-sync) | `session` | [`agent`](../packages/core/agent), [`attachment`](../packages/attachment/attachment), [`session`](../packages/core/session), [`session-handoff`](../packages/session/session-handoff), [`session-persistence`](../packages/session/session-persistence), [`sync`](../packages/sync/sync), [`system-prompt`](../packages/core/system-prompt), [`workspace`](../packages/workspace/workspace) |
 | [`session-telemetry`](../packages/session/session-telemetry) | `session` | [`agent`](../packages/core/agent), [`session`](../packages/core/session) |

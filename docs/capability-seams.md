@@ -20,6 +20,7 @@ flowchart LR
   pkg_motion["motion"]
   svc_motion["ctx.motion<br/>Motion film renderer"]
   pkg_motion_hyperframes["motion-hyperframes"]
+  pkg_motion_preview["motion-preview"]
   pkg_tool_motion["tool-motion"]
   pkg_api_motion["api-motion"]
   pkg_computer_use["computer-use"]
@@ -413,6 +414,7 @@ flowchart LR
   pkg_message_feedback --> svc_messageFeedback
   pkg_motion --> svc_motion
   pkg_motion_hyperframes --> svc_motion
+  pkg_motion_preview --> svc_motion
   pkg_permission_presets --> svc_permissionPresets
   pkg_personalization --> svc_personalizationController
   pkg_plan_mode --> svc_planMode
@@ -668,7 +670,7 @@ flowchart LR
 | --- | --- | --- | --- | --- | --- | --- |
 | `ctx.identityUsers` | `seam` | [`identity-user`](../packages/identity/user) | [`identity-user-aeven`](../packages/identity/user-aeven) | [`client-connection`](../packages/client/connection) | - | Authorities resolve a request's credential headers to a user synchronously; the request fence consults the seam before dispatch and answers 401 when nobody is recognized. |
 | `ctx.media` | `seam` | [`media`](../packages/media/media) | [`media-aeven`](../packages/media/media-aeven), [`media-deepinfra`](../packages/media/media-deepinfra), [`media-openrouter`](../packages/media/media-openrouter), [`media-pi-ai`](../packages/media/media-pi-ai) | - | - | One service spans both media: images return bytes directly, while video is a job a caller starts, polls, and fetches. Consumers own every model-facing name and schema. |
-| `ctx.motion` | `seam` | [`motion`](../packages/motion/motion) | [`motion-hyperframes`](../packages/motion/motion-hyperframes) | [`tool-motion`](../packages/motion/tool-motion), [`api-motion`](../packages/motion/api-motion) | - | One renderer turns an HTML composition into an H.264 MP4; the tool renders on the model's request and the routes on the user's export. |
+| `ctx.motion` | `seam` | [`motion`](../packages/motion/motion) | [`motion-hyperframes`](../packages/motion/motion-hyperframes), [`motion-preview`](../packages/motion/motion-preview) | [`tool-motion`](../packages/motion/tool-motion), [`api-motion`](../packages/motion/api-motion) | - | One renderer turns an HTML composition into an H.264 MP4; the tool renders on the model's request and the routes on the user's export. |
 | `ctx.computerUse` | `seam` | [`computer-use`](../packages/computer-use/computer-use) | [`computer-use-cua-driver-mcp`](../packages/computer-use/computer-use-cua-driver-mcp) | - | - | The registry holds one optional provider slot for the shared computer-use service; the Cua Driver MCP adapter reserves it and exposes the driver's own tools through the shared tool runtime, releasing the slot with them. |
 | `ctx.computerUseProvider` | `core` | [`computer-use`](../packages/computer-use/computer-use) | [`computer-use-macos-provider`](../packages/computer-use/computer-use-macos-provider) | - | - | The provider a platform adapter published, addressed as `ctx.computerUseProvider` by the surfaces that run its tasks. The slot on that seam is what keeps it single: the adapter claims the slot before publishing, so a second provider fails with the name of the one already registered. |
 | `ctx.windowsComputerUseProvider` | `core` | [`computer-use`](../packages/computer-use/computer-use) | [`computer-use-windows-provider`](../packages/computer-use/computer-use-windows-provider) | - | - | The Windows provider, addressed as `ctx.windowsComputerUseProvider`. It carries its own name because Cordis declares a service by augmenting `Context`, and one property cannot hold two provider types in one program; the seam's slot, not the property name, is what keeps a host to one provider. |

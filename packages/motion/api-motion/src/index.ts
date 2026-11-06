@@ -24,8 +24,8 @@ import { replayComposition } from './replay.ts'
 export const name = 'api-motion'
 /**
  * The connection service carries every route. The preview, export, and film routes read Host paths and register only
- * while `ctx.motion` exists; the replay route reads only the caller's own conversation and registers while
- * `ctx.sessionController` exists, so a Host without a renderer, such as hosted Web, serves replays alone.
+ * while `ctx.motion` exists and `folderRoutes` is on; the replay route reads only the caller's own conversation and
+ * registers while `ctx.sessionController` exists, so hosted Web, which turns the folder routes off, serves replays alone.
  */
 export const inject = ['connection']
 
@@ -33,10 +33,17 @@ export const inject = ['connection']
 export interface Config {
   /** Quality of a film the user exports from the card. */
   exportQuality: MotionQuality
+  /**
+   * Whether the preview, export, and film routes register while `ctx.motion` exists. They read any absolute Host
+   * path the request names, so a Host serving several accounts, whose card plays the film stored with the call,
+   * turns them off.
+   */
+  folderRoutes: boolean
 }
 
 export const Config: z<Config> = z.object({
   exportQuality: z.union(['draft', 'standard', 'high'] as const).default('high'),
+  folderRoutes: z.boolean().default(true),
 })
 
 /** Exported film facts the card reads. */
@@ -132,9 +139,10 @@ async function bundleFiles(files: ReadonlyMap<string, string>): Promise<string> 
 }
 
 /**
- * Register the replay route, and the preview, export, and film routes while a motion renderer exists.
+ * Register the replay route, and the preview, export, and film routes while a motion renderer exists and
+ * `folderRoutes` is on.
  * @param ctx - context carrying the connection service.
- * @param config - export quality.
+ * @param config - export quality and whether the folder routes register.
  */
 export function apply(ctx: Context, config: Config): void {
   // A film shown on another of the account's devices: its composition rebuilt from this conversation's log.
@@ -164,7 +172,7 @@ export function apply(ctx: Context, config: Config): void {
       },
     }), 'api-motion: /api/motion/replay')
   })
-  ctx.inject(['motion'], (motionCtx) => { registerFolderRoutes(motionCtx, config) })
+  if (config.folderRoutes) ctx.inject(['motion'], (motionCtx) => { registerFolderRoutes(motionCtx, config) })
 }
 
 /**

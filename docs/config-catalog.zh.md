@@ -275,6 +275,12 @@ export interface Config {
 export interface Config {
   /** Quality of a film the user exports from the card. */
   exportQuality: MotionQuality
+  /**
+   * Whether the preview, export, and film routes register while `ctx.motion` exists. They read any absolute Host
+   * path the request names, so a Host serving several accounts, whose card plays the film stored with the call,
+   * turns them off.
+   */
+  folderRoutes: boolean
 }
 ```
 
@@ -3125,6 +3131,24 @@ export type IntermediateProfile = 'hq' | '422' | 'lt'
 
 来源：[`packages/motion/motion-hyperframes/src/index.ts`](../packages/motion/motion-hyperframes/src/index.ts)
 
+<a id="aevenmotion-preview"></a>
+
+## `@aeven/motion-preview`
+
+需要：`motion` · `fs`
+
+```ts config-catalog
+/** Bounds on the folder one bundle reads. */
+export interface Config {
+  /** Most files one composition folder may hold. */
+  maxFiles: number
+  /** Most bytes the folder's files may total. */
+  maxBytes: number
+}
+```
+
+来源：[`packages/motion/motion-preview/src/index.ts`](../packages/motion/motion-preview/src/index.ts)
+
 <a id="aevenpermission-presets"></a>
 
 ## `@aeven/permission-presets`
@@ -5304,10 +5328,16 @@ export interface Config {
 需要：`tools` · `attachments` · `fs`
 
 ```ts config-catalog
-/** Tool limits. */
+/** Tool limits and the film rendering the deployment offers. */
 export interface Config {
   /** Most stills one call may request. */
   maxStills: number
+  /**
+   * Whether the registered renderer writes films. When false, as on a Host whose renderer only bundles compositions
+   * for the live player, `show_motion` takes no stills, `render_motion` is not registered, and the skill teaches
+   * the show-only loop.
+   */
+  render: boolean
 }
 ```
 

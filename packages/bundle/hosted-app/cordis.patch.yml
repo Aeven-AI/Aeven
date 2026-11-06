@@ -325,6 +325,11 @@
 - id: tool-agent-team
   disabled: true
 
+# The model has no edit or write tool here and changes files with jailed
+# commands, so a guard that sends in-place edits to those tools is off.
+- id: bash-edit-guard
+  disabled: true
+
 # Dictation goes to the Aeven API with the speaker's own session instead of a
 # local Whisper worker, which would hold a model in this process for everyone.
 - id: speech-to-text
@@ -370,6 +375,10 @@
           mutations: false
       - id: tool-fs-search
         disabled: true
+      # The renderer bundles compositions for the live player and writes no films.
+      - id: tool-motion
+        config:
+          render: false
       - id: tool-subagent-codex
         disabled: true
       - id: tool-subagent-claude-code
@@ -477,12 +486,14 @@
           and marked. The working directory is this account's own folder, and files saved there stay
           between commands and conversations. Files the user uploaded can be opened by commands at the
           path shown with each upload. To give the user a chart, document, or spreadsheet, save it there
-          and list it in output_files; use read_image to look at an image you made. To make an animation or
-          short video, write an HTML page animated with GSAP (load it from
-          https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js, which is served from the installed copy) and
-          run `render-motion page.html film.mp4` (options --seconds, --fps, --width, --height, --audio); it
+          and list it in output_files; use read_image to look at an image you made. To make an animation, motion
+          graphics, or a short film, follow the motion skill and show the composition with show_motion: the
+          user plays and scrubs it at once. Only when the user asks for an MP4 file, write one HTML page
+          animated with GSAP (load it from https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js, which is
+          served from the installed copy) and run `render-motion page.html film.mp4` with the MP4 in
+          output_files (options --seconds, --fps, --width, --height, --audio); it
           steps the GSAP timeline frame by frame, or calls window.seek(seconds) when the page defines it,
-          and writes an MP4 of up to 120 seconds to list in output_files. A render takes about twice the
+          and writes an MP4 of up to 120 seconds. A render takes about twice the
           film's length at 1280x720 and 30 fps, and proportionally longer at higher sizes and frame rates;
           a command stops after 2 minutes unless its timeoutMs allows more, up to 10 minutes, so set
           timeoutMs for a long film. Node.js also has playwright-core
@@ -532,12 +543,21 @@
   config:
     directImageReads: false
 
-# The Motion card's replay route, so a film shown on another of the account's
-# devices plays from its composition rebuilt out of the conversation log. No
-# renderer is mounted, so the routes that read Host folders stay unregistered.
+# Motion films play live in the conversation. The renderer only bundles a
+# composition from the account's folder into the document stored with the
+# show_motion call, which the card plays; no browser runs model-written pages
+# on the Host. The routes that read Host folders stay off, and the replay route
+# plays a film shown on another of the account's devices from its composition
+# rebuilt out of the conversation log.
 - insert:
+    - id: motion
+      name: '@aeven/motion'
+    - id: motion-preview
+      name: '@aeven/motion-preview'
     - id: api-motion
       name: '@aeven/api-motion'
+      config:
+        folderRoutes: false
 
 - id: workflow-worker-thread
   disabled: true

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-api-motion` registers the three authenticated Host routes the Motion card calls: `GET /api/motion/preview?dir=` returns a composition folder bundled into one HTML document, `POST /api/motion/export` renders the folder through `ctx.motion` into `renders/<folder>.mp4`, and `GET /api/motion/film?path=` streams that MP4 with byte ranges so the card can seek. A fourth route, `GET /api/motion/replay?sessionId=&callId=`, rebuilds the composition a `show_motion` call showed from the caller's own conversation log, the files its successful `write` and `edit` calls produced inside the folder, and bundles it, so a film shown on another of the account's devices plays where the folder is absent. The three folder routes register only while `ctx.motion` exists and the replay route only while `ctx.sessionController` exists; the desktop Host mounts it beside the renderer, and hosted Web mounts it without one, so hosted serves replays alone.
+`avn-api-motion` registers the three authenticated Host routes the Motion card calls: `GET /api/motion/preview?dir=` returns a composition folder bundled into one HTML document, `POST /api/motion/export` renders the folder through `ctx.motion` into `renders/<folder>.mp4`, and `GET /api/motion/film?path=` streams that MP4 with byte ranges so the card can seek. A fourth route, `GET /api/motion/replay?sessionId=&callId=`, rebuilds the composition a `show_motion` call showed from the caller's own conversation log, the files its successful `write` and `edit` calls produced inside the folder, and bundles it, so a film shown on another of the account's devices plays where the folder is absent. The three folder routes register only while `ctx.motion` exists and `folderRoutes` is on, and the replay route only while `ctx.sessionController` exists; hosted Web turns the folder routes off, so it serves replays alone.
 
 ## Table of Contents
 
@@ -24,7 +24,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount it on a Host that provides `ctx.connection` and `ctx.motion`. `exportQuality` (`draft`, `standard`, or `high`; default `high`) sets the quality of a film the user exports. Each route reads an absolute path from the request, like `/api/file`; the connection service authenticates the request before the route runs, and the account cookie admits the two GET routes so the browser can load and download without a bearer.
+Mount it on a Host that provides `ctx.connection` and `ctx.motion`. `exportQuality` (`draft`, `standard`, or `high`; default `high`) sets the quality of a film the user exports. `folderRoutes` (default `true`) registers the preview, export, and film routes; a Host serving several accounts sets it to `false`, because those routes read any absolute Host path, and its card plays the film stored with the call. Each route reads an absolute path from the request, like `/api/file`; the connection service authenticates the request before the route runs, and the account cookie admits the two GET routes so the browser can load and download without a bearer.
 
 -----
 

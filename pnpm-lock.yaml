@@ -1998,6 +1998,12 @@ importers:
       '@aeven/client-ui-workspace-name':
         specifier: workspace:^
         version: link:../../client/ui-workspace-name
+      '@aeven/motion':
+        specifier: workspace:^
+        version: link:../../motion/motion
+      '@aeven/motion-preview':
+        specifier: workspace:^
+        version: link:../../motion/motion-preview
       '@aeven/sandbox-jail':
         specifier: workspace:^
         version: link:../../sandbox/sandbox-jail
@@ -9823,6 +9829,25 @@ importers:
       '@aeven/ffmpeg-win32-x64':
         specifier: workspace:^
         version: link:../../../native/ffmpeg/packages/win32-x64
+
+  packages/motion/motion-preview:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+      '@hyperframes/core':
+        specifier: 0.9.19
+        version: 0.9.19(@types/node@22.20.1)
+    devDependencies:
+      '@aeven/fs':
+        specifier: workspace:^
+        version: link:../../fs/fs
+      '@aeven/motion':
+        specifier: workspace:^
+        version: link:../motion
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
 
   packages/motion/tool-motion:
     dependencies:

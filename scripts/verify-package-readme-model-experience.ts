@@ -235,6 +235,7 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/speech/text-to-speech-edge': { kind: 'indirect', reason: 'the Edge backend returns audio for a Consumer-owned request and renders nothing itself' },
   'packages/motion/motion': { kind: 'indirect', reason: 'the renderer registry delegates every schema, skill, and result to avn-tool-motion' },
   'packages/motion/motion-hyperframes': { kind: 'indirect', reason: 'the renderer writes films for a Consumer-owned request and renders nothing model-facing itself' },
+  'packages/motion/motion-preview': { kind: 'indirect', reason: 'the renderer bundles a folder for a Consumer-owned call and renders nothing model-facing itself' },
   'packages/motion/api-motion': { kind: 'none', reason: 'the routes serve the browser preview, export, and film bytes; nothing reaches a model request' },
   'packages/vcs/vcs': { kind: 'none', reason: 'the service interface returns change records a Consumer renders; it registers no prompt, schema, or result' },
   'packages/vcs/vcs-git': { kind: 'indirect', reason: 'the git backend delegates every model-facing projection to avn-tool-vcs' },
