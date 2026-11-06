@@ -112,3 +112,13 @@ it('rejects same-size corrupted content reused from the writable store', async (
   await expect(installSeedProfileLayout(seed, store, staging, active)).rejects.toThrow(/corrupt store content/u)
   expect(existsSync(join(staging, 'node_modules', '.modules.yaml'))).toBe(false)
 })
+
+it('links no file until every reused store object passes its digest check', async () => {
+  const { seed, store, modules, staging, active } = fixture()
+  await createSeedProfileLayout(seed, store, modules, process.arch)
+  const layout = JSON.parse(readFileSync(join(seed, SEED_PROFILE_LAYOUT), 'utf8')) as { files: { content: string }[] }
+  const content = join(store, layout.files.at(-1)!.content)
+  writeFileSync(content, Buffer.alloc(statSync(content).size, 0))
+  await expect(installSeedProfileLayout(seed, store, staging, active)).rejects.toThrow(/corrupt store content/u)
+  expect(link).not.toHaveBeenCalled()
+})
