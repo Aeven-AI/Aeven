@@ -14,6 +14,8 @@ Status: implemented
 
 托管补丁在 POSIX 主机上以八个启动器的池挂载它，取代本地运行时。
 
+结束的辅助进程会在记录警告后重新启动，每分钟最多五次，超过后运行时停留在普通 spawn；在辅助进程得知 Host 已取走之前就结束的启动器，会随其移除一起报告退出状态，因此命令会结束。启动器用一次 `cat` 读取脚本，而不是 bash 逐字节的 `read`；视频提取器通过 `ctx.subprocess` 启动 `ffprobe`，因此它也不再 fork Host。
+
 ## 备选方案
 
 拒绝像 E2B 适配器那样通过 IPC 重新实现 `ctx.subprocess`：这会重复本地运行时的收集、溢出和拆除逻辑，而且远程 spawn 无法同步给出 pid。拒绝用原生的 `posix_spawn` 或 `vfork` 绑定替换 `spawn`：为一个调用引入新的原生依赖。使用 `process.execve` 的 Node 启动器也可行，但每个空闲启动器要占用数十 MB；一个等待中的 `bash` 只占几 MB。

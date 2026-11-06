@@ -13,6 +13,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import type { Context } from '@deepseek-ai/cordis'
+import type { SubprocessRuntime } from '@aeven/subprocess'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@aeven/document-extract'
 import type {
@@ -119,9 +120,17 @@ interface ProbeOutput {
  * @param extension - lowercase extension without the dot.
  * @param config - probe path and timeout.
  * @param signal - caller cancellation.
+ * @param subprocess - the composed subprocess runtime, which starts the probe without
+ *   forking the Host where it can; without one the probe runs through `execFile`.
  * @returns facts to describe, never a rejection for a failed probe.
  */
-async function probe(data: Uint8Array, extension: string, config: Config, signal: AbortSignal): Promise<ProbeFacts> {
+async function probe(
+  data: Uint8Array,
+  extension: string,
+  config: Config,
+  signal: AbortSignal,
+  subprocess: SubprocessRuntime | undefined,
+): Promise<ProbeFacts> {
   const directory = await mkdtemp(join(config.probeDirectory ?? tmpdir(), 'avn-clip-'))
   const file = join(directory, `clip.${extension}`)
   try {
@@ -131,8 +140,10 @@ async function probe(data: Uint8Array, extension: string, config: Config, signal
       '-show_entries', 'stream=width,height,codec_name:format=duration',
       '-of', 'json', file,
     ]
-    const [program, ...args] = [...config.probeRunner ?? [], ...probeArgv] as [string, ...string[]]
-    const { stdout } = await promisify(execFile)(program, args, { timeout: config.probeTimeoutMs, signal, maxBuffer: 1 << 20 })
+    const argv = [...config.probeRunner ?? [], ...probeArgv] as [string, ...string[]]
+    const stdout = subprocess === undefined
+      ? (await promisify(execFile)(argv[0], argv.slice(1), { timeout: config.probeTimeoutMs, signal, maxBuffer: 1 << 20 })).stdout
+      : await probeThrough(subprocess, argv, directory, config.probeTimeoutMs, signal)
     const parsed = JSON.parse(stdout) as ProbeOutput
     const stream = parsed.streams?.[0]
     const seconds = Number(parsed.format?.duration ?? Number.NaN)
@@ -147,6 +158,35 @@ async function probe(data: Uint8Array, extension: string, config: Config, signal
   } finally {
     await rm(directory, { recursive: true, force: true })
   }
+}
+
+/**
+ * Run the probe through the subprocess runtime and return its stdout.
+ * @param subprocess - the composed subprocess runtime.
+ * @param argv - the probe argv, runner first.
+ * @param cwd - the directory the clip was written to.
+ * @param timeoutMs - wall-clock limit for the probe.
+ * @param signal - caller cancellation.
+ * @returns the probe's standard output.
+ * @throws when the probe does not exit with status 0.
+ */
+async function probeThrough(
+  subprocess: SubprocessRuntime,
+  argv: readonly string[],
+  cwd: string,
+  timeoutMs: number,
+  signal: AbortSignal,
+): Promise<string> {
+  const handle = subprocess.spawn({
+    argv,
+    cwd,
+    stdio: { stdin: 'ignore', stdout: { maxBytes: 1 << 20 }, stderr: { maxBytes: 64 * 1024 } },
+    graceMs: 1_000,
+    signal: AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]),
+  })
+  const outcome = await handle.done
+  if (outcome.exitCode !== 0) throw new Error(`ffprobe exited with ${String(outcome.exitCode ?? outcome.signal)}`)
+  return handle.collected.stdout?.readFrom(0).text ?? ''
 }
 
 /** Probed facts, all optional because the probe is best effort. */
@@ -170,7 +210,7 @@ export function apply(ctx: Context, config: Config): void {
   ctx.effect(() => ctx.documentExtract.register({
     info: { id: PROVIDER_ID, version: EXTRACTOR_VERSION, formats: VIDEO_FORMATS, priority: 10 },
     extract: async (input: DocumentExtractInput, signal: AbortSignal): Promise<ExtractedDocument> => {
-      const context = await probe(input.data, input.extension, config, signal)
+      const context = await probe(input.data, input.extension, config, signal, ctx.get('subprocess'))
       signal.throwIfAborted()
       return {
         text: describeClip(input.name, { ...context, container: containerOf(input.extension), bytes: input.data.byteLength }),

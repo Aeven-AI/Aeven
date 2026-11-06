@@ -508,7 +508,6 @@ flowchart TD
   pkg_document_extract_js --> pkg_document_extract
   pkg_document_extract_ocr --> pkg_document_extract
   pkg_document_extract_office --> pkg_document_extract
-  pkg_document_extract_video --> pkg_document_extract
   pkg_e2b --> pkg_http_proxy
   pkg_experimental_code_runtime_python --> pkg_code_runtime
   pkg_experimental_code_runtime_python --> pkg_timeout
@@ -567,6 +566,8 @@ flowchart TD
   pkg_credentials_local --> pkg_credentials
   pkg_credentials_local --> pkg_home_paths
   pkg_credentials_local --> pkg_launch_environment
+  pkg_document_extract_video --> pkg_document_extract
+  pkg_document_extract_video --> pkg_subprocess
   pkg_subprocess_e2b --> pkg_e2b
   pkg_subprocess_e2b --> pkg_subprocess
   pkg_subprocess_e2b --> pkg_timeout
@@ -1751,7 +1752,6 @@ flowchart TD
 | [`document-extract-js`](../packages/document/document-extract-js) | `document` | [`document-extract`](../packages/document/document-extract) |
 | [`document-extract-ocr`](../packages/document/document-extract-ocr) | `document` | [`document-extract`](../packages/document/document-extract) |
 | [`document-extract-office`](../packages/document/document-extract-office) | `document` | [`document-extract`](../packages/document/document-extract) |
-| [`document-extract-video`](../packages/document/document-extract-video) | `document` | [`document-extract`](../packages/document/document-extract) |
 | [`e2b`](../packages/e2b/e2b) | `e2b` | [`http-proxy`](../packages/util/http-proxy) |
 | [`experimental-code-runtime-python`](../packages/experimental/code-runtime-python) | `experimental` | [`code-runtime`](../packages/code-runtime/code-runtime), [`timeout`](../packages/util/timeout), [`util-values`](../packages/util/values) |
 | [`experimental-inspector`](../packages/experimental/inspector) | `experimental` | [`client-modules`](../packages/client/modules), [`host-webserver`](../packages/host/webserver) |
@@ -1781,6 +1781,7 @@ flowchart TD
 | [`attachment-local`](../packages/attachment/attachment-local) | `attachment` | [`attachment`](../packages/attachment/attachment), [`home-paths`](../packages/util/home-paths) |
 | [`authorization`](../packages/credentials/authorization) | `credentials` | [`credentials`](../packages/credentials/credentials), [`invariants`](../packages/runtime-diagnostics/invariants), [`llm`](../packages/llm/llm) |
 | [`credentials-local`](../packages/credentials/credentials-local) | `credentials` | [`atomic-write`](../packages/util/atomic-write), [`credentials`](../packages/credentials/credentials), [`home-paths`](../packages/util/home-paths), [`launch-environment`](../packages/util/launch-environment) |
+| [`document-extract-video`](../packages/document/document-extract-video) | `document` | [`document-extract`](../packages/document/document-extract), [`subprocess`](../packages/subprocess/subprocess) |
 | [`subprocess-e2b`](../packages/e2b/subprocess-e2b) | `e2b` | [`e2b`](../packages/e2b/e2b), [`subprocess`](../packages/subprocess/subprocess), [`timeout`](../packages/util/timeout) |
 | [`identity-user`](../packages/identity/user) | `identity` | [`credentials`](../packages/credentials/credentials) |
 | [`media`](../packages/media/media) | `media` | [`attachment`](../packages/attachment/attachment), [`credentials`](../packages/credentials/credentials), [`llm`](../packages/llm/llm) |

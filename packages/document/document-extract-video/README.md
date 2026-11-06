@@ -30,7 +30,7 @@ Mount it beside the service: the plugin registers the `video` provider on `ctx.d
 | `ffprobePath` | `ffprobe` | Probe executable, resolved through `PATH` unless it names a file |
 | `probeTimeoutMs` | `15000` | Wall-clock limit for one probe; a timeout falls back to file facts |
 | `probeDirectory` | OS temp directory | Directory each clip is written to for the probe |
-| `probeRunner` | none | Argv the probe runs under, such as a bubblewrap jail that sees only `/usr` and `probeDirectory` |
+| `probeRunner` | none | Argv the probe runs under, such as a bubblewrap jail that sees only `/usr` and `probeDirectory`; the probe starts through `ctx.subprocess` when one is mounted |
 
 Without a reachable `ffprobe` the reader still claims the formats and reports the container and byte size alone, so a deployment without the binary attaches clips rather than refusing them.
 

@@ -67,7 +67,7 @@ The helper starts each launcher as a detached `bash` that blocks reading a scrip
 
 ### Ending
 
-When the Host disposes the runtime, the helper kills the launchers nobody took and exits. If the helper ends while commands run, each is reported killed once its process group is gone.
+When the Host disposes the runtime, the helper kills the launchers nobody took and exits; it also exits when the Host dies without closing the channel, which it notices by being reparented. If the helper ends while commands run, each is reported killed once its process group is gone, a warning is logged, and a new helper starts; after five ends within a minute the runtime logs that it gives up and starts every command with an ordinary spawn. A launcher that ends before the helper learns the Host took it reports its exit status with its removal, so the command still settles.
 
 </details>
 
@@ -97,6 +97,7 @@ No direct invalidation; it contributes nothing to requests.
 - **POSIX only** — it needs `bash`, `/usr/bin/env`, and process groups; Windows hosts keep the local runtime.
 - **Idle launchers cost a few megabytes each** — each is a waiting `bash`.
 - **Terminals still start from the Host** — `spawnTerminal` allocates a PTY through the local runtime.
+- **Running commands end with the helper** — a jailed command runs under `--die-with-parent` with the helper as its parent, so a helper that crashes takes its running commands with it before a new helper takes over.
 
 <a id="dev-note"></a>
 ### Dev Note

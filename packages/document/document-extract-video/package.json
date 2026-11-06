@@ -28,10 +28,12 @@
   "license": "Apache-2.0",
   "peerDependencies": {
     "@aeven/document-extract": "workspace:^",
+    "@aeven/subprocess": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
     "@aeven/document-extract": "workspace:^",
+    "@aeven/subprocess": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "tsx": "^4.19.2"
   }

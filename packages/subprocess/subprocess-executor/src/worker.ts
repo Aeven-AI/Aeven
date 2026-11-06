@@ -18,12 +18,14 @@ import type { ChildProcess } from 'node:child_process'
 import type { Socket } from 'node:net'
 
 /**
- * Reads the whole control pipe (until NUL or end of file), closes every
- * descriptor above stderr so the command inherits none of the helper's or the
- * Host's sockets, and runs the script. The loop takes no redirection of its
- * own: bash would park stderr above 2 for it and lose it to the loop.
+ * Reads the whole control pipe with one `cat` (bash's `read` takes a byte per
+ * system call from a socket, and every script carries the command's whole
+ * environment), keeping trailing newlines through the `x` sentinel; closes
+ * every descriptor above stderr so the command inherits none of the helper's
+ * or the Host's sockets; and runs the script. The loop takes no redirection of
+ * its own: bash would park stderr above 2 for it and lose it to the loop.
  */
-const LAUNCHER = 'IFS= read -r -d "" script <&3; for fd in /dev/fd/*; do fd=${fd##*/}; [ "$fd" -gt 2 ] && eval "exec $fd<&-"; done; eval "$script"'
+const LAUNCHER = 'script=$(/bin/cat <&3; printf x); script=${script%x}; for fd in /dev/fd/*; do fd=${fd##*/}; [ "$fd" -gt 2 ] && eval "exec $fd<&-"; done; eval "$script"'
 
 /** The descriptors handed to the Host, in this order, before `ready`. */
 const HANDLES = ['stdin', 'stdout', 'stderr', 'control'] as const
@@ -64,15 +66,17 @@ function start(): void {
   child.on('error', (error) => {
     launchers.delete(id)
     if (!taken.delete(id)) idle -= 1
-    send({ t: 'gone', id, message: error.message })
+    send({ t: 'gone', id, code: null, signal: null, message: error.message })
   })
+  // The Host may have taken a launcher whose `taken` notice has not arrived yet,
+  // so `gone` carries the exit status too: the Host settles a command it started.
   child.on('exit', (code, signal) => {
     launchers.delete(id)
     if (taken.delete(id)) {
       send({ t: 'exit', id, code, signal })
     } else {
       idle -= 1
-      send({ t: 'gone', id, message: `launcher exited before use (${String(code ?? signal)})` })
+      send({ t: 'gone', id, code, signal, message: `launcher exited before the Host's notice (${String(code ?? signal)})` })
       fill()
     }
   })
