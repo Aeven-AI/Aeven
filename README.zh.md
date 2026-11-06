@@ -12,7 +12,7 @@ Aeven 汇集理解任务所需的上下文与执行任务所需的能力。它�
 
 **AI 能做得更多，你也可以。**
 
-[开始使用](#run) · [文档](https://docs.aeven.io/) · [桌面应用](apps/desktop/README.zh.md) · [开发者](#open-by-design)
+[开始使用](#run) · [文档](https://helpcenter.aeven.io/) · [桌面应用](apps/desktop/README.zh.md) · [开发者](#open-by-design)
 
 Aeven 处于开发者预览阶段，功能和数据格式可能发生变化。授予它文件、账户或电脑访问权限前，请阅读[安全说明](SAFETY.zh.md)。
 

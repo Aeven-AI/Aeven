@@ -85,6 +85,8 @@
 - id: sync-yjs
   config:
     relayUrl: !!js process.env.AEVEN_SYNC_URL ?? 'wss://aeven.io/sync'
+    # The account's other devices list this Host by this name, not its machine host name.
+    deviceName: Aeven Cloud
     keepConnected: true
     # A browser opens on the conversation and workspace lists; the long tail of each account arrives after them.
     firstDocuments: [devices, workspaces, sessions/index, sessions/live, settings/account, personalization, automations]
