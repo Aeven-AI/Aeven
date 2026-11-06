@@ -6,6 +6,7 @@ import {
   constants,
   copyFileSync,
   cpSync,
+  createReadStream,
   existsSync,
   fsyncSync,
   ftruncateSync,
@@ -19,7 +20,7 @@ import {
   writeFileSync,
   writeSync,
 } from 'node:fs'
-import { readdir, readFile } from 'node:fs/promises'
+import { readdir } from 'node:fs/promises'
 import { basename, delimiter, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import {
   DESKTOP_PACKAGES_DIR,
@@ -252,8 +253,21 @@ function copyMetadata(source: string, target: string): void {
   })
 }
 
+/** Files hashed at once: enough to overlap disk reads, while each 1 MiB chunk keeps the event loop turning. */
+const SEED_HASH_CONCURRENCY = 4
+
+async function seedFileRecord(root: string, path: string): Promise<DesktopSeedIntegrityRecord> {
+  const hash = createHash('sha256')
+  let bytes = 0
+  for await (const chunk of createReadStream(path, { highWaterMark: 1024 * 1024 }) as AsyncIterable<Buffer>) {
+    bytes += chunk.byteLength
+    hash.update(chunk)
+  }
+  return { path: path.slice(root.length + 1).split(sep).join('/'), bytes, sha256: hash.digest('hex') }
+}
+
 async function seedFiles(root: string): Promise<readonly DesktopSeedIntegrityRecord[]> {
-  const files: DesktopSeedIntegrityRecord[] = []
+  const paths: string[] = []
   const visit = async (directory: string): Promise<void> => {
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       const path = join(directory, entry.name)
@@ -265,21 +279,21 @@ async function seedFiles(root: string): Promise<readonly DesktopSeedIntegrityRec
         continue
       }
       if (!entry.isFile()) throw new Error(`desktop seed: unsupported file type: ${relativePath}`)
-      const body = await readFile(path)
-      files.push({
-        path: relativePath,
-        bytes: body.byteLength,
-        sha256: createHash('sha256').update(body).digest('hex'),
-      })
+      paths.push(path)
     }
   }
   await visit(root)
+  const files: DesktopSeedIntegrityRecord[] = []
+  let next = 0
+  await Promise.all(Array.from({ length: SEED_HASH_CONCURRENCY }, async () => {
+    while (next < paths.length) files.push(await seedFileRecord(root, paths[next++] as string))
+  }))
   return files.sort((left, right) => left.path.localeCompare(right.path))
 }
 
 /**
- * Verify the packaged offline seed before any content enters writable desktop state. Files are read and hashed one
- * at a time between event-loop turns, so the Electron main process stays responsive across the whole seed.
+ * Verify the packaged offline seed before any content enters writable desktop state. Files are streamed through
+ * their hashes in 1 MiB chunks, a few at a time, so the Electron main process keeps painting across the whole seed.
  * @param seedDir - packaged seed directory.
  */
 export async function verifySeedIntegrity(seedDir: string): Promise<void> {

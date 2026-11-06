@@ -28,7 +28,7 @@ Mount it after [`avn-motion`](../motion/README.md). `browserCacheDir` is require
 
 | Field | Default | Meaning |
 |---|---|---|
-| `ffmpegPath`, `ffprobePath` | the bundled `@aeven/ffmpeg-<platform>-<arch>` executables | Encoder and prober; a missing executable fails the plugin at load |
+| `ffmpegPath`, `ffprobePath` | the bundled `@aeven/ffmpeg-<platform>-<arch>` executables | Encoder and prober; a missing executable is logged at load and fails each render until it is present, while the rest of the Host still starts |
 | `browserPath` | an installed Chrome, Chromium, Edge, or Brave, else a downloaded headless shell | Chromium executable for frame capture |
 | `fallbackEncoders` | `h264_mf`, `libopenh264` | H.264 encoders tried in order when HyperFrames finds no hardware encoder |
 | `intermediateProfile` | `422` | ProRes profile of the intermediate a fallback encoder reads |
@@ -46,7 +46,7 @@ Encoders by platform:
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 
-The plugin sets `HYPERFRAMES_FFMPEG_PATH` and `HYPERFRAMES_FFPROBE_PATH` for the Host process while it is loaded, because HyperFrames reads its executables only from those variables, and restores the previous values on unload.
+The plugin sets `HYPERFRAMES_FFMPEG_PATH` and `HYPERFRAMES_FFPROBE_PATH` for the Host process once it finds both executables, because HyperFrames reads its executables only from those variables, and restores the previous values on unload.
 
 On the first render it chooses the browser and the encode path and reuses both after they succeed:
 

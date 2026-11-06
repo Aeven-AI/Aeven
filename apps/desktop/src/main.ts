@@ -818,7 +818,11 @@ async function main(): Promise<void> {
     // The serving Host keeps its profile as the cwd that sessions without a directory fall back to; a staged health
     // check runs from `paths.work`, since its profile is renamed into place as soon as it stops.
     const workDir = projectDir === activeProject ? projectDir : paths.work
-    const next = new DesktopHostProcess(resources.node, projectDir, workDir, hostInspectPort, compileCacheDir)
+    // Node.js keys cached code by module path, and a staged profile's path is never loaded again, so a health check
+    // would only spend seconds at exit writing a cache nothing reads.
+    const next = new DesktopHostProcess(
+      resources.node, projectDir, workDir, hostInspectPort, projectDir === activeProject ? compileCacheDir : undefined,
+    )
     const ready = await next.start()
     if (!ready.ownsHost && projectDir !== activeProject) {
       next.release()
