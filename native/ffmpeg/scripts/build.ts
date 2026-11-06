@@ -1,20 +1,20 @@
 /**
- * Build the bundled ffmpeg executable for one platform package from the pinned upstream release source.
+ * Build the bundled ffmpeg and ffprobe executables for one platform package from the pinned upstream release source.
  *
- * `source.json` pins the ffmpeg release and the libopus release linked statically into the executable. Each
+ * `source.json` pins the ffmpeg release plus the libopus and, for Linux, OpenH264 releases linked statically. Each
  * names archives from independent hosts with their own SHA-256: ffmpeg's GitHub tag archive is a `git archive`
  * whose bytes differ from the ffmpeg.org tarball. The first archive that downloads and verifies is cached in
  * `.cache/`, and every host is retried in rounds before the build fails. The configure line is LGPL-only: no `--enable-gpl`, no `--enable-nonfree`, and
  * `--disable-autodetect` keeps every external codec library out, so the executable ships beside the
  * Apache-2.0 application under an LGPL notice. H.264 encoding therefore comes from the platform encoder
- * (VideoToolbox or VAAPI) instead of libx264, which is GPL.
+ * (VideoToolbox, Media Foundation, or VAAPI) or the BSD-licensed OpenH264 instead of libx264, which is GPL.
  *
- * The executable lands in `packages/<platform>-<arch>/bin/` (git-ignored, packed into that package's
+ * The executables land in `packages/<platform>-<arch>/bin/` (git-ignored, packed into that package's
  * tarball). The default target is the host; a macOS host may also build the other macOS architecture.
  * Every other target builds on its own native runner, because this build wires no cross toolchain.
  *
  * Run: `pnpm run build:native [--target <platform>-<arch>] [--clean]`. Needs a C compiler, make, and a
- * zlib development package. x86_64 targets want nasm on PATH for the assembly kernels and build without
+ * zlib development package; Linux also needs a C++ compiler for OpenH264 and the libva development package. x86_64 targets want nasm on PATH for the assembly kernels and build without
  * it otherwise, at a documented decode-speed cost. Windows builds through MSYS2's bash, which supplies the
  * POSIX shell `configure` needs plus the mingw64 or clangarm64 toolchain the target uses.
  */
@@ -31,6 +31,8 @@ const ROOT = resolve(import.meta.dirname, '..')
 const CACHE = join(ROOT, '.cache')
 const TARGETS = ['darwin-arm64', 'darwin-x64', 'linux-arm64', 'linux-x64', 'win32-arm64', 'win32-x64'] as const
 type Target = typeof TARGETS[number]
+/** Executables each platform package ships, staged under `bin/` with the target's executable suffix. */
+const PROGRAMS = ['ffmpeg', 'ffprobe'] as const
 
 /** One downloadable copy of a pinned release. */
 interface PinnedArchive {
@@ -44,9 +46,11 @@ interface PinnedSource {
   readonly archives: readonly PinnedArchive[]
 }
 
-/** Everything this build pins: ffmpeg and the one external library it links. */
+/** Everything this build pins: ffmpeg and the external libraries it links. */
 interface Source extends PinnedSource {
   readonly opus: PinnedSource
+  /** Linux only: the software H.264 encoder for hosts without a working VAAPI device. */
+  readonly openh264: PinnedSource
 }
 
 /** Passes over every archive host before a download failure ends the build; pass `n` first waits `(n - 1) * 15` s. */
@@ -145,11 +149,11 @@ async function sourceTree(name: string, source: PinnedSource, marker: string): P
 
 /**
  * Read the pinned release identities shipped beside this script.
- * @returns the ffmpeg and libopus versions with each archive's URL and SHA-256 digest.
+ * @returns the ffmpeg, libopus, and OpenH264 versions with each archive's URL and SHA-256 digest.
  */
 function readSource(): Source {
   const source = JSON.parse(readFileSync(join(ROOT, 'source.json'), 'utf8')) as Source
-  const pinned = [source, source.opus]
+  const pinned = [source, source.opus, source.openh264]
   const incomplete = (entry: PinnedSource): boolean => entry.version === '' || entry.archives.length === 0
     || entry.archives.some(archive => archive.url === '' || archive.sha256 === '')
   if (pinned.some(incomplete)) {
@@ -245,15 +249,15 @@ function shellQuote(word: string): string {
  * @param cwd - build directory.
  * @param configure - absolute path of the tree's `configure` script.
  * @param args - configure arguments.
- * @param makeTarget - make goal, including the target platform's executable suffix, or `install`.
+ * @param makeTargets - make goals, each including the target platform's executable suffix, or `install`.
  * @param env - extra environment for both steps.
  */
-function configureAndMake(target: Target, cwd: string, configure: string, args: readonly string[], makeTarget: string,
-  env: NodeJS.ProcessEnv = process.env): void {
+function configureAndMake(target: Target, cwd: string, configure: string, args: readonly string[],
+  makeTargets: readonly string[], env: NodeJS.ProcessEnv = process.env): void {
   const jobs = `-j${String(availableParallelism())}`
   if (process.platform !== 'win32') {
     run(configure, args, cwd, env)
-    run('make', [jobs, makeTarget], cwd, env)
+    run('make', [jobs, ...makeTargets], cwd, env)
     return
   }
   // The setup action may install MSYS2 outside C:\msys64, and its login profile only assembles PATH for the
@@ -279,7 +283,7 @@ function configureAndMake(target: Target, cwd: string, configure: string, args: 
     // library detection leaves behind, since configure prints one summary line and exits.
     `pkg-config --exists opus && pkg-config --cflags --libs --static opus || echo "build: pkg-config cannot resolve opus"`,
     `${shellQuote(msysPath(configure))} ${args.map(argument => shellQuote(msysArgument(argument))).join(' ')} || { tail -n 120 ffbuild/config.log 2>/dev/null || true; exit 1; }`,
-    `make ${jobs} ${makeTarget} || { echo '--- configure summary ---'; grep -aE '^(CONFIG_FFMPEG|CONFIG_PROGRAMS|HAVE_THREADS|HAVE_W32THREADS|HAVE_PTHREADS)=' config.mak 2>/dev/null; tail -n 80 ffbuild/config.log 2>/dev/null; exit 1; }`,
+    `make ${jobs} ${makeTargets.join(' ')} || { echo '--- configure summary ---'; grep -aE '^(CONFIG_FFMPEG|CONFIG_PROGRAMS|HAVE_THREADS|HAVE_W32THREADS|HAVE_PTHREADS)=' config.mak 2>/dev/null; tail -n 80 ffbuild/config.log 2>/dev/null; exit 1; }`,
     '',
   ].join('\n'), { mode: 0o755 })
   run(msysBash(), ['-lc', shellQuote(msysPath(script))], cwd)
@@ -319,7 +323,27 @@ function buildOpus(dependency: PinnedSource, tree: string, target: Target): stri
     env.LDFLAGS = env.CFLAGS
   }
   console.log(`build: configure opus ${dependency.version} for ${target}`)
-  configureAndMake(target, buildDir, join(tree, 'configure'), args, 'install', env)
+  configureAndMake(target, buildDir, join(tree, 'configure'), args, ['install'], env)
+  return prefix
+}
+
+/**
+ * Build the pinned OpenH264 as a static library for one Linux target.
+ * @param dependency - pinned OpenH264 release identity.
+ * @param tree - extracted OpenH264 source directory, built in place.
+ * @param target - Linux platform package being built.
+ * @returns the install prefix holding `include/wels/codec_api.h`, `lib/libopenh264.a`, and its pkg-config file.
+ */
+function buildOpenH264(dependency: PinnedSource, tree: string, target: Target): string {
+  const prefix = join(CACHE, `openh264-${target}`)
+  if (existsSync(join(prefix, 'lib', 'libopenh264.a')) && existsSync(join(prefix, 'lib', 'pkgconfig', 'openh264.pc'))) return prefix
+  const arch = target.endsWith('-x64') ? 'x86_64' : 'aarch64'
+  // The x86_64 kernels are nasm sources; the aarch64 ones assemble with the C toolchain.
+  const asm = arch === 'x86_64' && !hasNasm() ? ['USE_ASM=No'] : []
+  rmSync(prefix, { recursive: true, force: true })
+  run('make', ['clean'], tree)
+  console.log(`build: openh264 ${dependency.version} for ${target}`)
+  run('make', [`-j${String(availableParallelism())}`, 'OS=linux', `ARCH=${arch}`, ...asm, `PREFIX=${prefix}`, 'install-static'], tree)
   return prefix
 }
 
@@ -328,9 +352,10 @@ function buildOpus(dependency: PinnedSource, tree: string, target: Target): stri
  * @param target - platform package being built.
  * @param source - pinned release identities, used for the temporary prefix.
  * @param opusPrefix - install prefix of the statically built libopus.
+ * @param openh264Prefix - install prefix of the statically built OpenH264, on Linux only.
  * @returns configure arguments in the order ffmpeg expects.
  */
-function configureArgs(target: Target, source: Source, opusPrefix: string): string[] {
+function configureArgs(target: Target, source: Source, opusPrefix: string, openh264Prefix: string | undefined): string[] {
   const [platform, arch] = target.split('-') as [string, 'arm64' | 'x64']
   const args = [
     `--prefix=${join(CACHE, `install-${target}`)}`,
@@ -343,7 +368,14 @@ function configureArgs(target: Target, source: Source, opusPrefix: string): stri
     '--disable-autodetect',
     '--disable-programs',
     '--enable-ffmpeg',
-    '--disable-avdevice',
+    // HyperFrames motion renders validate every encoded artifact and probe composition media through ffprobe.
+    '--enable-ffprobe',
+    // The lavfi virtual input is the only device: HyperFrames probes the hardware encoder with a `-f lavfi`
+    // test source and mixes silent audio from one. Capture devices stay out.
+    '--enable-avdevice',
+    '--disable-indevs',
+    '--enable-indev=lavfi',
+    '--disable-outdevs',
     // zlib is permissively licensed and the PNG encoder, which posters prefer over JPEG, depends on it.
     '--enable-zlib',
     // libopus is BSD-licensed and the one external codec kept: the WhatsApp bridge names it explicitly with
@@ -361,11 +393,17 @@ function configureArgs(target: Target, source: Source, opusPrefix: string): stri
   } else {
     args.push(`--extra-cflags=-I${join(opusPrefix, 'include')}`, `--extra-ldflags=-L${join(opusPrefix, 'lib')}`)
   }
-  // Hardware H.264 keeps software GPL encoders out of the build; each host exposes its own.
+  // H.264 comes from encoders that keep libx264, which is GPL, out of the build. macOS has VideoToolbox.
   if (platform === 'darwin') args.push('--enable-videotoolbox', '--enable-audiotoolbox')
-  // Windows Media Foundation stays off: its static MFPlat dependency stops ffmpeg.exe from starting on
-  // Windows N editions, which ship without the Media Feature Pack. Software encoders cover posters and audio.
-  if (platform === 'linux') args.push('--enable-vaapi')
+  // Windows has Media Foundation's H.264 encoder. ffmpeg loads mfplat.dll when the encoder opens rather than
+  // linking it, so ffmpeg.exe still starts on N editions that lack the Media Feature Pack.
+  if (platform === 'win32') args.push('--enable-mediafoundation')
+  // Linux has VAAPI where a GPU driver serves it, and the BSD-licensed OpenH264 everywhere else.
+  if (platform === 'linux') {
+    if (openh264Prefix === undefined) throw new Error(`build: ${target} needs the OpenH264 prefix`)
+    args.push('--enable-vaapi', '--enable-libopenh264',
+      `--extra-cflags=-I${join(openh264Prefix, 'include')}`, `--extra-ldflags=-L${join(openh264Prefix, 'lib')}`)
+  }
   if (arch === 'x64' && !hasNasm()) {
     args.push('--disable-x86asm')
     console.warn('build: nasm is absent, so x86 assembly kernels are disabled and decode runs slower')
@@ -393,33 +431,39 @@ function stripExecutable(path: string): void {
 }
 
 /**
- * Configure, compile, and stage one target's executable into its platform package.
+ * Configure, compile, and stage one target's executables into its platform package.
  * @param tree - extracted ffmpeg source directory.
  * @param target - platform package being built.
  * @param source - pinned release identities.
  * @param opusPrefix - install prefix of the statically built libopus.
- * @returns the staged executable path.
+ * @param openh264Prefix - install prefix of the statically built OpenH264, on Linux only.
+ * @returns the staged executable paths, in {@link PROGRAMS} order.
  */
-function build(tree: string, target: Target, source: Source, opusPrefix: string): string {
+function build(tree: string, target: Target, source: Source, opusPrefix: string, openh264Prefix: string | undefined): string[] {
   const buildDir = join(CACHE, `build-${target}`)
   rmSync(buildDir, { recursive: true, force: true })
   mkdirSync(buildDir, { recursive: true })
-  // configure discovers the statically built libopus through pkg-config. On macOS and Linux that is the prefix
-  // this script built; on Windows it is the toolchain's own package, which the MSYS2 environment already names.
-  const metadata = join(opusPrefix, 'lib', 'pkgconfig')
+  // configure discovers the statically built libraries through pkg-config. On macOS and Linux those are the
+  // prefixes this script built; on Windows libopus is the toolchain's own package, which the MSYS2 environment
+  // already names.
+  const metadata = [opusPrefix, ...openh264Prefix === undefined ? [] : [openh264Prefix]]
+    .map(prefix => join(prefix, 'lib', 'pkgconfig')).join(':')
   const env: NodeJS.ProcessEnv = process.platform === 'win32'
     ? {}
     : { ...process.env, PKG_CONFIG_PATH: metadata }
-  const name = target.startsWith('win32-') ? 'ffmpeg.exe' : 'ffmpeg'
-  configureAndMake(target, buildDir, join(tree, 'configure'), configureArgs(target, source, opusPrefix), name, env)
-  const built = join(buildDir, name)
-  if (!existsSync(built)) throw new Error(`build: ${target} produced no ${built}`)
-  stripExecutable(built)
-  const destination = join(ROOT, 'packages', target, 'bin', name)
+  const suffix = target.startsWith('win32-') ? '.exe' : ''
+  const names = PROGRAMS.map(program => `${program}${suffix}`)
+  configureAndMake(target, buildDir, join(tree, 'configure'), configureArgs(target, source, opusPrefix, openh264Prefix), names, env)
   mkdirSync(join(ROOT, 'packages', target, 'bin'), { recursive: true })
-  copyFileSync(built, destination)
-  chmodSync(destination, 0o755)
-  return destination
+  return names.map((name) => {
+    const built = join(buildDir, name)
+    if (!existsSync(built)) throw new Error(`build: ${target} produced no ${built}`)
+    stripExecutable(built)
+    const destination = join(ROOT, 'packages', target, 'bin', name)
+    copyFileSync(built, destination)
+    chmodSync(destination, 0o755)
+    return destination
+  })
 }
 
 /** Parse arguments, build the requested target, and report the staged size. */
@@ -432,6 +476,7 @@ async function main(): Promise<void> {
   if (values.clean === true) {
     rmSync(join(CACHE, `build-${target}`), { recursive: true, force: true })
     rmSync(join(CACHE, `opus-build-${target}`), { recursive: true, force: true })
+    rmSync(join(CACHE, `openh264-${target}`), { recursive: true, force: true })
   }
   const source = readSource()
   const tree = await sourceTree('ffmpeg', source, 'configure')
@@ -443,9 +488,13 @@ async function main(): Promise<void> {
   const opusPrefix = process.platform === 'win32'
     ? msysEnvironment(target)
     : buildOpus(source.opus, await sourceTree('opus', source.opus, 'include/opus.h'), target)
-  const destination = build(tree, target, source, opusPrefix)
-  const megabytes = statSync(destination).size / (1024 * 1024)
-  console.log(`build: ffmpeg ${source.version} for ${target} -> ${destination} (${megabytes.toFixed(1)} MB)`)
+  const openh264Prefix = target.startsWith('linux-')
+    ? buildOpenH264(source.openh264, await sourceTree('openh264', source.openh264, 'codec/api/wels/codec_api.h'), target)
+    : undefined
+  for (const destination of build(tree, target, source, opusPrefix, openh264Prefix)) {
+    const megabytes = statSync(destination).size / (1024 * 1024)
+    console.log(`build: ffmpeg ${source.version} for ${target} -> ${destination} (${megabytes.toFixed(1)} MB)`)
+  }
 }
 
 await main()

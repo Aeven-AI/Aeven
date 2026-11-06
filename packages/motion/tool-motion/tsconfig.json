@@ -1,0 +1,42 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types"
+  },
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../motion"
+    },
+    {
+      "path": "../../attachment/attachment"
+    },
+    {
+      "path": "../../skill/skill"
+    },
+    {
+      "path": "../../fs/fs"
+    },
+    {
+      "path": "../../sandbox/sandbox-policy"
+    },
+    {
+      "path": "../../media/tool-media"
+    },
+    {
+      "path": "../../core/tools"
+    },
+    {
+      "path": "../../session/working-directory"
+    },
+    {
+      "path": "../../../vendor/schemastery"
+    },
+    {
+      "path": "../../../vendor/cordis"
+    }
+  ]
+}

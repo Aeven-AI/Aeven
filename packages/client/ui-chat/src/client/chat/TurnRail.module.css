@@ -176,6 +176,33 @@
   -webkit-line-clamp: 3;
 }
 
+/* Dark mode: the ticks invert to white, and the balloon takes the composer
+   popup's dark surface, as the account menu does. */
+:global(body[data-ds-dark-theme]) .tick::before {
+  --turn-tick-rest: #ffffff;
+  --turn-tick-active: #ffffff;
+}
+
+:global(body[data-ds-dark-theme]) .tickUnloaded::before {
+  --turn-tick-rest: rgba(255, 255, 255, 0.35);
+}
+
+:global(body[data-ds-dark-theme]) .tick:focus-visible::before {
+  background: var(--dsw-alias-state-business-primary, #ffffff);
+}
+
+:global(body[data-ds-dark-theme]) .tick:focus-visible {
+  outline-color: var(--dsw-alias-state-business-primary, #ffffff);
+}
+
+:global(body[data-ds-dark-theme]) .preview {
+  background: var(--dsw-tint-menu);
+  box-shadow:
+    inset 1px 1px 0 0 var(--dsw-specific-popup-highlight),
+    inset 0 0 1px 1px var(--dsw-specific-popup-highlight),
+    var(--dsw-elevation-prominent);
+}
+
 @keyframes avn-turn-preview-enter {
   from { opacity: 0; transform: translateY(-50%) translateX(4px); }
   to { opacity: 1; transform: translateY(-50%) translateX(0); }

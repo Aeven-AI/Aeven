@@ -117,6 +117,15 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'One service spans both media: images return bytes directly, while video is a job a caller starts, polls, and fetches. Consumers own every model-facing name and schema.',
   },
   {
+    key: 'motion',
+    pkg: 'motion',
+    title: 'Motion film renderer',
+    mode: 'seam',
+    implementations: ['motion-hyperframes'],
+    consumers: ['tool-motion', 'api-motion'],
+    note: 'One renderer turns an HTML composition into an H.264 MP4; the tool renders on the model\'s request and the routes on the user\'s export.',
+  },
+  {
     key: 'computerUse',
     pkg: 'computer-use',
     title: 'Computer-use provider registry',

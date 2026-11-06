@@ -1,0 +1,51 @@
+{
+  "name": "@aeven/motion-hyperframes",
+  "description": "HyperFrames renderer for the motion service: headless Chromium capture and H.264 MP4 encoding through the bundled ffmpeg",
+  "version": "0.3.35-alpha",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Aeven.git",
+    "directory": "packages/motion/motion-hyperframes"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@deepseek-ai/schemastery": "workspace:^",
+    "@hyperframes/engine": "0.9.19",
+    "@hyperframes/producer": "0.9.19",
+    "@puppeteer/browsers": "^3.2.2"
+  },
+  "optionalDependencies": {
+    "@aeven/ffmpeg-darwin-arm64": "workspace:^",
+    "@aeven/ffmpeg-darwin-x64": "workspace:^",
+    "@aeven/ffmpeg-linux-arm64": "workspace:^",
+    "@aeven/ffmpeg-linux-x64": "workspace:^",
+    "@aeven/ffmpeg-win32-arm64": "workspace:^",
+    "@aeven/ffmpeg-win32-x64": "workspace:^"
+  },
+  "peerDependencies": {
+    "@aeven/motion": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@aeven/motion": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  }
+}

@@ -107,3 +107,22 @@
     - id: workspace-git-sync
       name: '@aeven/workspace-git-sync'
 
+    # Motion films: HyperFrames captures an HTML composition in Chromium and the
+    # bundled ffmpeg encodes H.264 (VideoToolbox on macOS, Media Foundation on
+    # Windows, VAAPI or OpenH264 on Linux). The renderer uses an installed
+    # Chrome, Chromium, Edge, or Brave, else downloads a headless shell here.
+    # The session-side `render_motion` tool and `motion` skill in the aeven
+    # preset activate only while this service exists.
+    - id: motion
+      name: '@aeven/motion'
+
+    - id: motion-hyperframes
+      name: '@aeven/motion-hyperframes'
+      config:
+        browserCacheDir: !!js avnHomePath('motion', 'browser')
+
+    # The Motion card's routes: the live preview bundle, the user's MP4
+    # export, and the exported film's bytes.
+    - id: api-motion
+      name: '@aeven/api-motion'
+

@@ -84,7 +84,7 @@ jobs:
         if: startsWith(matrix.target, 'linux-')
         run: |
           sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends zlib1g-dev pkg-config nasm libva-dev
+          sudo apt-get install --yes --no-install-recommends zlib1g-dev pkg-config nasm libva-dev g++
 
       # The action installs the environment; `install-msys2.ps1` runs the upgrade and the package install, so a
       # stalled mirror transfer is retried instead of failing the build with `failed to synchronize all databases`.

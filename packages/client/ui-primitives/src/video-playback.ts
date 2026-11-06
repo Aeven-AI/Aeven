@@ -8,13 +8,31 @@
 const refusalNeedsNoRecovery = (): void => {}
 
 /**
+ * The playback surface the player chrome drives: a `<video>` element, or any element exposing the same
+ * members, such as a live composition player. A media without `volume` offers mute alone.
+ */
+export interface ClipMedia {
+  readonly paused: boolean
+  currentTime: number
+  readonly duration: number
+  muted: boolean
+  volume?: number
+  play(): Promise<void> | void
+  pause(): void
+}
+
+/**
  * Start or hold one clip. The element's own state decides which way the
  * gesture goes, so a fast second press pauses rather than replaying.
  * @param video - the clip's own element.
  */
-export function toggleClip(video: HTMLVideoElement): void {
-  if (video.paused) void video.play().catch(refusalNeedsNoRecovery)
-  else video.pause()
+export function toggleClip(video: ClipMedia): void {
+  if (!video.paused) {
+    video.pause()
+    return
+  }
+  const started = video.play()
+  if (started !== undefined) void started.catch(refusalNeedsNoRecovery)
 }
 
 /**
@@ -22,7 +40,7 @@ export function toggleClip(video: HTMLVideoElement): void {
  * @param video - the clip's own element.
  * @param seconds - the requested playback position.
  */
-export function seekClip(video: HTMLVideoElement, seconds: number): void {
+export function seekClip(video: ClipMedia, seconds: number): void {
   video.currentTime = seconds
 }
 

@@ -2605,6 +2605,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     occupants: [
       'client-ui-imagine ImageToolView',
       'client-ui-imagine VideoToolView',
+      'client-ui-imagine MotionToolView',
       'client-ui-imagine ImageResultView',
       'client-ui-skill SkillRow key \'skill\'',
       'client-ui-tool AskQuestionRow key \'ask_user_question\'',

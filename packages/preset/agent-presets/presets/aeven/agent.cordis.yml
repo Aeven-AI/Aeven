@@ -388,6 +388,10 @@
 # through the same lane a generated image uses.
 - id: tool-image-search
   name: '@aeven/tool-image-search'
+# Motion films rendered from HTML compositions. The tool and its `motion` skill
+# wait for `ctx.motion`, which only the desktop Host mounts.
+- id: tool-motion
+  name: '@aeven/tool-motion'
 - id: tool-media
   name: '@aeven/tool-media'
   config:
