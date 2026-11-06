@@ -18,6 +18,11 @@ const GROUPED = new Intl.NumberFormat('en-US')
 export interface ProducedFilesInjected {
   /** Open a produced file in the session's Files sidebar. @param path - Produced file path. */
   previewFile(path: string): Promise<boolean>
+  /**
+   * Open the stored copy of a produced file in a new browser tab, where media plays and documents display.
+   * @param attachmentId - the copy the tool result recorded.
+   */
+  openAttachment(attachmentId: string): void
   /** Whether the browser itself is connected over loopback. */
   isLoopback: boolean
   /** Load the opener capability when this row first reaches the page. */
@@ -56,13 +61,20 @@ type Translate = ProducedFilesProps['t']
  * @returns The produced-files section.
  */
 export function ProducedFiles({
-  matched, openFile, previewFile, cwd, isLoopback, ensureWorkspacePathOpen, openFileMenu, useWorkspacePathOpen, t,
+  matched, openFile, previewFile, openAttachment, cwd, isLoopback, ensureWorkspacePathOpen, openFileMenu,
+  useWorkspacePathOpen, t,
 }: ProducedFilesProps) {
   useEffect(() => { ensureWorkspacePathOpen() }, [ensureWorkspacePathOpen])
   const hostCanOpenPath = useWorkspacePathOpen(available => available === true)
   const canOpenPath = isLoopback && hostCanOpenPath
-  const openProducedFile = (path: string): void => {
-    void previewFile(path).then((previewed) => { if (!previewed) openFile(path) })
+  // A file the deployment stored opens from that copy: its reader may not reach the Host's folders, and the Host
+  // opens a path only where it is the reader's own desktop.
+  const openProducedFile = (file: ProducedFile): void => {
+    if (file.attachmentId !== undefined) {
+      openAttachment(file.attachmentId)
+      return
+    }
+    void previewFile(file.path).then((previewed) => { if (!previewed && canOpenPath) openFile(file.path) })
   }
   const edited = matched.filter(file => !file.created)
   const created = matched.filter(file => file.created)
@@ -129,7 +141,7 @@ function totalCounts(files: readonly ProducedFile[]): ProducedFile['counts'] {
 function FilesTable({ files, created = false, openFile, menu, openWorkspace, t }: {
   created?: boolean
   files: readonly ProducedFile[]
-  openFile: (path: string) => void
+  openFile: (file: ProducedFile) => void
   menu: ((path: string) => (event: MouseEvent) => void) | undefined
   /** Open the Session workspace; absent where the Host cannot open it. */
   openWorkspace: (() => void) | undefined
@@ -178,7 +190,7 @@ function FilesTable({ files, created = false, openFile, menu, openWorkspace, t }
             <li key={file.path} data-produced-file={created || undefined}>
               <button type="button" className={css.row} title={file.path}
                 aria-label={t('produced.open', { name: file.path })}
-                onClick={() => { openFile(file.path) }}
+                onClick={() => { openFile(file) }}
                 onContextMenu={menu?.(file.path)}>
                 <span className={css.rowName}>
                   {fileGlyph(basename(file.path))}

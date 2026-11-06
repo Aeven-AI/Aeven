@@ -23,6 +23,8 @@ interface ProducedPath {
   readonly created: boolean
   /** Line counts, absent when the tool records none. */
   readonly counts?: LineCounts | undefined
+  /** The stored copy of the file the deployment shared, absent when it shared none. */
+  readonly attachmentId?: string | undefined
 }
 
 /** One produced file of a turn, its mutations folded together. */
@@ -33,6 +35,8 @@ export interface ProducedFile {
   readonly created: boolean
   /** Summed line counts, absent when any mutation of the path recorded none. */
   readonly counts?: LineCounts | undefined
+  /** The latest stored copy of the file, for a reader who cannot open the Host's folders. */
+  readonly attachmentId?: string | undefined
 }
 
 /** A recognized mutation call, held until its result settles. */
@@ -252,13 +256,15 @@ export function producedFilesForClosing(
     if (produced.seq > seq) continue
     const seen = files.get(produced.path)
     if (seen === undefined) {
-      files.set(produced.path, { path: produced.path, created: produced.created, counts: produced.counts })
+      files.set(produced.path, {
+        path: produced.path, created: produced.created, counts: produced.counts, attachmentId: produced.attachmentId,
+      })
       continue
     }
     const counts = seen.counts === undefined || produced.counts === undefined
       ? undefined
       : { added: seen.counts.added + produced.counts.added, deleted: seen.counts.deleted + produced.counts.deleted }
-    files.set(produced.path, { ...seen, counts })
+    files.set(produced.path, { ...seen, counts, attachmentId: produced.attachmentId ?? seen.attachmentId })
   }
   return [...files.values()]
 }
@@ -304,7 +310,10 @@ export const deliverablesDefinition: ConversationNodeDefinition<DeliverablesStat
     if (isRecord(meta) && Array.isArray(meta.producedFiles)) {
       const produced = meta.producedFiles.flatMap((file: unknown) =>
         isRecord(file) && pathValue(file.path) !== null && typeof file.created === 'boolean'
-          ? [{ seq, path: file.path as string, created: file.created }]
+          ? [{
+            seq, path: file.path as string, created: file.created,
+            ...typeof file.attachmentId === 'string' ? { attachmentId: file.attachmentId } : {},
+          }]
           : [])
       return { ...context.state, produced: [...context.state.produced, ...produced] }
     }

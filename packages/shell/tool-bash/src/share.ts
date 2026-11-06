@@ -68,6 +68,8 @@ export interface SharedOutputs {
   files: FileAttachmentRef[]
   /** Produced files that were not shared, with the reason. */
   unshared: { path: string; reason: string }[]
+  /** The stored attachment id of each produced file, in produced order; undefined for one left out. */
+  attachmentIds: (string | undefined)[]
 }
 
 /**
@@ -88,10 +90,11 @@ export async function shareOutputs(
   signal: AbortSignal,
   budget: ShareBudget,
 ): Promise<SharedOutputs> {
-  const shared: SharedOutputs = { images: [], files: [], unshared: [] }
+  const shared: SharedOutputs = { images: [], files: [], unshared: [], attachmentIds: [] }
   let files = 0
   let bytes = 0
   for (const target of produced) {
+    shared.attachmentIds.push(undefined)
     const path = target.displayPath
     if (files >= budget.files) {
       shared.unshared.push({ path, reason: `this call already shared ${String(budget.files)} files` })
@@ -113,7 +116,9 @@ export async function shareOutputs(
     try {
       if (imageType !== undefined && attachments.imageLimits.mediaTypes.includes(imageType)) {
         const data = await fs.readBytes(target, signal, attachments.imageLimits.maxImageBytes)
-        shared.images.push(await attachments.saveImage({ data, mediaType: imageType, name }))
+        const image = await attachments.saveImage({ data, mediaType: imageType, name })
+        shared.images.push(image)
+        shared.attachmentIds[shared.attachmentIds.length - 1] = image.attachmentId
         files += 1
         bytes += data.byteLength
         continue
@@ -124,12 +129,14 @@ export async function shareOutputs(
         continue
       }
       const data = await fs.readBytes(target, signal, limits.maxFileBytes)
-      shared.files.push(await attachments.saveFile({
+      const file = await attachments.saveFile({
         data,
         mediaType: FILE_TYPES[extension] ?? 'application/octet-stream',
         name,
         text: { text: `File ${name}, written by a command in the conversation folder.`, method: 'native', extractor: 'tool-bash', truncated: false },
-      }))
+      })
+      shared.files.push(file)
+      shared.attachmentIds[shared.attachmentIds.length - 1] = file.attachmentId
       files += 1
       bytes += data.byteLength
     } catch (error) {

@@ -475,6 +475,8 @@ export function apply(ctx: Context, config: Config = {}): void {
                   properties: {
                     path: { type: 'string', required: true },
                     created: { type: 'boolean', required: true },
+                    // The stored copy a reader who cannot open the Host's folders opens instead.
+                    attachmentId: { type: 'string' },
                   },
                 },
               },
@@ -620,7 +622,10 @@ export function apply(ctx: Context, config: Config = {}): void {
           })
         return {
           ...result,
-          producedFiles,
+          producedFiles: producedFiles.map((file, index) => {
+            const attachmentId = shared.attachmentIds[index]
+            return attachmentId === undefined ? file : { ...file, attachmentId }
+          }),
           ...shared.images.length > 0 ? { sharedImages: shared.images } : {},
           ...shared.files.length > 0 ? { sharedFiles: shared.files } : {},
           ...shared.unshared.length > 0 ? { unsharedFiles: shared.unshared } : {},
