@@ -3278,6 +3278,60 @@ export interface Config {
 
 来源：[`packages/context/reply-language/src/index.ts`](../packages/context/reply-language/src/index.ts)
 
+<a id="aevensandbox-jail"></a>
+
+## `@aeven/sandbox-jail`
+
+```ts config-catalog
+/** Plugin config. */
+export interface Config {
+  /** Absolute directory whose direct children are account directories; every workspace root must lie inside one of them. */
+  accountsRoot: string
+  /** Host path of bubblewrap. */
+  bwrap?: string
+  /** Host path of the Landlock launcher; defaults to the npm-distributed launcher. */
+  launcher?: string
+  /** Host paths mounted read-only at the same path; missing paths are skipped. */
+  readOnlyPaths?: string[]
+  /** Symlinks created in the jail root, keyed by link path, e.g. `/bin: usr/bin`. */
+  symlinks?: Record<string, string>
+  /** The complete environment of confined commands; `HOME` is set to the workspace root. */
+  env?: Record<string, string>
+  /** Size bound of each of the private `/tmp` and `/dev/shm`, in MiB; their pages count against the account's memory limit. */
+  tmpSizeMb?: number
+  /** Host name confined commands see. */
+  hostname?: string
+  /** Timeout of each startup probe, in milliseconds. */
+  probeTimeoutMs?: number
+  /** cgroup placement; omitted, confined commands stay in the Host's cgroup. */
+  cgroup?: CgroupConfig
+}
+
+/** cgroup placement for confined commands. */
+export interface CgroupConfig {
+  /** Delegated cgroup v2 directory without processes of its own, e.g. `/sys/fs/cgroup/system.slice/aeven-hosted.service`. */
+  root: string
+  /** Limits for all confined commands together. */
+  total: CgroupLimits
+  /** Limits for one account's commands. */
+  account: CgroupLimits
+}
+
+/** cgroup v2 interface values written verbatim to one group. */
+export interface CgroupLimits {
+  /** `memory.max`, e.g. `2G` or `max`. */
+  memoryMax: string
+  /** `pids.max`, e.g. `256`. */
+  pidsMax: string
+  /** `cpu.max` as `<quota> <period>` in microseconds, e.g. `200000 100000` for two cores. */
+  cpuMax: string
+  /** `cpu.weight`, 1–10000. */
+  cpuWeight: string
+}
+```
+
+来源：[`packages/sandbox/sandbox-jail/src/index.ts`](../packages/sandbox/sandbox-jail/src/index.ts)
+
 <a id="aevensandbox-local"></a>
 
 ## `@aeven/sandbox-local`
@@ -3333,6 +3387,14 @@ export interface Config {
    * binding for it instead.
    */
   workspaceRoot?: string
+  /**
+   * Widest mode any call may run under (default: `danger-full-access`, no
+   * limit). A Host that runs the commands of many accounts sets
+   * `workspace-write`: an approved escalation above it is refused, and a
+   * session override above it, such as one recorded on another device,
+   * resolves to the ceiling.
+   */
+  ceiling?: SandboxMode
 }
 ```
 
@@ -5739,6 +5801,16 @@ export interface Config {
    * waiting for a folder this Host never offers. Defaults to `true`.
    */
   readonly folders?: boolean
+  /**
+   * With `folders: false`, the absolute directory under which this Host gives
+   * each account's sessions a folder it creates and manages itself, never one
+   * a person chooses: `<managedRoot>/<owner>/workspaces/<workspace id>` for a
+   * session filed in a workspace, `<managedRoot>/<owner>/chats` otherwise. A
+   * session without an owner, or whose owner or workspace id is not a plain
+   * path segment, gets no folder. Omitted, sessions without a folder of
+   * their own stay without one.
+   */
+  readonly managedRoot?: string
 }
 ```
 

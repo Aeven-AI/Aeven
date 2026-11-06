@@ -41,6 +41,8 @@ service.local(session) = local binding for the session's workspace, when this de
 
 Chats 等虚拟工作区没有文件夹绑定。由本设备写入的聊天使用其记录的目录；导入的聊天使用本进程明确进入的目录，否则拒绝使用来自其他设备的记录路径。
 
+服务多个账户的 Host 设置 `folders: false`，因此会话绝不会在其他设备记录的文件夹中操作。同时设置 `managedRoot` 时，Host 为每个账户的会话提供一个由它自己创建的文件夹：归入工作区的会话为 `<managedRoot>/<owner>/workspaces/<workspace id>`，否则为 `<managedRoot>/<owner>/chats`。没有所有者，或所有者、工作区 id 不是普通路径分量的会话不获得文件夹。
+
 `workingDirectory` 投影单元为客户端折叠同一批事件。当本机目录生效时，服务在每次请求前添加一行运行时上下文：`Current working directory: "<path>". Relative paths in file, search, and shell calls resolve against it.`；该目录已不存在时则改为说明这一点的一行。本机无法承担该会话的工作区时，该行会说明这一点，并请模型自己选定一个文件夹，而不是猜测。
 
 <a id="operations"></a>

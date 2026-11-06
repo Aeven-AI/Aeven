@@ -36,6 +36,7 @@
   "dependencies": {
     "@aeven/client-ui-desktop-handoff": "workspace:^",
     "@aeven/client-ui-workspace-name": "workspace:^",
+    "@aeven/sandbox-jail": "workspace:^",
     "@aeven/speech-to-text-aeven": "workspace:^",
     "@aeven/web-app": "workspace:^",
     "@deepseek-ai/schemastery": "workspace:^"

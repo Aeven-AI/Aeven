@@ -368,6 +368,7 @@ flowchart TD
   end
   subgraph group_sandbox["packages/sandbox"]
     pkg_sandbox["sandbox"]
+    pkg_sandbox_jail["sandbox-jail"]
     pkg_sandbox_local["sandbox-local"]
     pkg_sandbox_policy["sandbox-policy"]
     pkg_sandbox_windows_acl["sandbox-windows-acl"]
@@ -634,6 +635,7 @@ flowchart TD
   pkg_message_feedback --> pkg_storage_domain
   pkg_message_feedback --> pkg_sync
   pkg_message_feedback --> pkg_typert_protocol
+  pkg_sandbox_jail --> pkg_sandbox
   pkg_sandbox_local --> pkg_llm
   pkg_sandbox_local --> pkg_sandbox
   pkg_sandbox_local --> pkg_session
@@ -1783,6 +1785,7 @@ flowchart TD
 | [`spill-local`](../packages/spill/spill-local) | `spill` | [`spill`](../packages/spill/spill) |
 | [`device-local`](../packages/device/device-local) | `device` | [`device`](../packages/device/device) |
 | [`message-feedback`](../packages/feedback/message-feedback) | `feedback` | [`brand`](../packages/util/brand), [`identity-user`](../packages/identity/user), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-persistence`](../packages/session/session-persistence), [`storage-domain`](../packages/storage/storage-domain), [`sync`](../packages/sync/sync), [`typert-protocol`](../packages/typert/protocol) |
+| [`sandbox-jail`](../packages/sandbox/sandbox-jail) | `sandbox` | [`sandbox`](../packages/sandbox/sandbox) |
 | [`sandbox-local`](../packages/sandbox/sandbox-local) | `sandbox` | [`llm`](../packages/llm/llm), [`sandbox`](../packages/sandbox/sandbox), [`session`](../packages/core/session) |
 | [`session-persistence-jsonl`](../packages/session/session-persistence-jsonl) | `session` | [`session`](../packages/core/session), [`session-persistence`](../packages/session/session-persistence) |
 | [`session-projection-cache`](../packages/session/session-projection-cache) | `session` | [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection), [`storage-domain`](../packages/storage/storage-domain) |

@@ -68,6 +68,9 @@ function linkedWorktreeGitDir(root: string): string | undefined {
   return resolveWorkspaceRoot(resolvePath(gitDir, common))
 }
 
+/** Breadth of each mode: a wider mode permits every file effect a narrower one does. */
+const MODE_BREADTH: Record<SandboxMode, number> = { 'read-only': 0, 'workspace-write': 1, 'danger-full-access': 2 }
+
 /** Render the policy without claiming which capabilities are mounted. */
 function renderPolicyContext(policy: SandboxExecutionPolicy): string {
   switch (policy.mode) {
@@ -107,6 +110,14 @@ export interface Config {
    * binding for it instead.
    */
   workspaceRoot?: string
+  /**
+   * Widest mode any call may run under (default: `danger-full-access`, no
+   * limit). A Host that runs the commands of many accounts sets
+   * `workspace-write`: an approved escalation above it is refused, and a
+   * session override above it, such as one recorded on another device,
+   * resolves to the ceiling.
+   */
+  ceiling?: SandboxMode
 }
 
 /** Inputs that select the sandbox policy for one capability call. */
@@ -145,6 +156,7 @@ export class SandboxPolicyService extends Service {
     // No schema default: process.cwd() is resolved in the constructor so the
     // stored root is always absolute regardless of how it was supplied.
     workspaceRoot: z.string(),
+    ceiling: z.union(['read-only', 'workspace-write', 'danger-full-access'] as const).default('danger-full-access'),
   })
 
   static inject = ['sessionProjections']
@@ -153,6 +165,8 @@ export class SandboxPolicyService extends Service {
   readonly defaultMode: SandboxMode
   /** The absolute `workspace-write` fallback root for calls without a session directory. */
   readonly workspaceRoot: string
+  /** The widest mode any call may resolve to. */
+  readonly ceiling: SandboxMode
   constructor(ctx: Context, config: Config) {
     super(ctx, 'sandboxPolicy')
     // schemastery (static Config) already filled `mode`; the cast records that
@@ -160,6 +174,10 @@ export class SandboxPolicyService extends Service {
     // the process cwd is real branching, resolved absolute either way.
     this.defaultMode = config.mode as SandboxMode
     this.workspaceRoot = resolveWorkspaceRoot(config.workspaceRoot ?? process.cwd())
+    this.ceiling = config.ceiling as SandboxMode
+    if (!this.allows(this.defaultMode)) {
+      throw new Error(`sandbox-policy: default mode "${this.defaultMode}" is wider than the ceiling "${this.ceiling}"`)
+    }
 
     ctx.sessionProjections.register({
       key: 'sandboxMode',
@@ -192,22 +210,37 @@ export class SandboxPolicyService extends Service {
    * confined to a path its log recorded on another machine. The configured root
    * is the fallback for agentless calls and sessions that record no directory
    * at all. A root that is a linked git worktree also grants the repository's
-   * shared git directory.
+   * shared git directory. A session override wider than {@link ceiling}
+   * resolves to the ceiling.
    * @param request - optional session and approved mode override.
    * @returns the fully resolved per-call mode, absolute workspace root, and additional writable roots.
    * @throws {WorkingDirectoryUnavailableError} when the session records a directory but no folder on this device stands for its workspace.
+   * @throws when the approved mode override is wider than {@link ceiling}.
    */
   resolve(request: SandboxPolicyRequest = {}): SandboxExecutionPolicy {
     const { session } = request
+    if (request.mode !== undefined && !this.allows(request.mode)) {
+      throw new Error(`sandbox-policy: mode "${request.mode}" is wider than this deployment's ceiling "${this.ceiling}"`)
+    }
+    const override = session === undefined ? undefined : this.overrideOf(session)
     const sessionRoot = session === undefined ? undefined : sessionWorkspaceRoot(this.ctx, session)
     const workspaceRoot = resolveWorkspaceRoot(sessionRoot ?? this.workspaceRoot)
     const gitDir = linkedWorktreeGitDir(workspaceRoot)
     return {
-      mode: request.mode ?? (session === undefined ? undefined : this.overrideOf(session)) ?? this.defaultMode,
+      mode: request.mode ?? (override === undefined ? undefined : this.allows(override) ? override : this.ceiling) ?? this.defaultMode,
       workspaceRoot,
       ...gitDir === undefined ? {} : { additionalWritableRoots: [gitDir] },
       ...session === undefined ? {} : { sessionId: session.id },
     }
+  }
+
+  /**
+   * Whether a mode is within this deployment's ceiling.
+   * @param mode - the mode a call would run under.
+   * @returns true when the mode is no wider than {@link ceiling}.
+   */
+  allows(mode: SandboxMode): boolean {
+    return MODE_BREADTH[mode] <= MODE_BREADTH[this.ceiling]
   }
 
   /**

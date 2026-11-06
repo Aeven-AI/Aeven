@@ -238,11 +238,14 @@ export function apply(ctx: Context, config: Config = {}): void {
     throw new Error('tool-bash: detachAfterMs must be a positive finite number')
   }
   const defaultMode = ctx.shell.sandboxMode
-  const escalationModes: readonly SandboxMode[] = defaultMode === undefined ? [] : ESCALATION_TARGETS
   const sandboxPolicy: SandboxPolicyService | undefined = defaultMode === undefined ? undefined : ctx.get('sandboxPolicy')
   if (defaultMode !== undefined && sandboxPolicy === undefined) {
     throw new Error('tool-bash: the mounted bash executor confines but ctx.sandboxPolicy is missing')
   }
+  // Only modes within the deployment's ceiling are offered as escalation targets.
+  const escalationModes: readonly SandboxMode[] = sandboxPolicy === undefined
+    ? []
+    : ESCALATION_TARGETS.filter(mode => sandboxPolicy.allows(mode))
   /** Resolve the complete standing policy for this call when a confining executor is mounted. */
   const resolveSandboxPolicy = (exec: ToolExecution): SandboxExecutionPolicy | undefined =>
     sandboxPolicy?.resolve(exec.agent === undefined ? {} : { session: exec.agent.session })

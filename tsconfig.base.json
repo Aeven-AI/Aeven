@@ -442,6 +442,7 @@
       "@aeven/repeat-tool-reminder": ["./packages/guard/repeat-tool-reminder/src"],
       "@aeven/reply-language": ["./packages/context/reply-language/src"],
       "@aeven/sandbox": ["./packages/sandbox/sandbox/src"],
+      "@aeven/sandbox-jail": ["./packages/sandbox/sandbox-jail/src"],
       "@aeven/sandbox-local": ["./packages/sandbox/sandbox-local/src"],
       "@aeven/sandbox-policy": ["./packages/sandbox/sandbox-policy/src"],
       "@aeven/sandbox-policy/invariant": ["./packages/sandbox/sandbox-policy/src/invariant.ts"],
