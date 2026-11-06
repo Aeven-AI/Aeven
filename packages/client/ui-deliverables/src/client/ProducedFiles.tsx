@@ -30,11 +30,6 @@ export interface ProducedFilesInjected {
    * @param attachmentId - the copy the tool result recorded.
    */
   attachmentUrl(attachmentId: string): string
-  /**
-   * Open the stored copy of a produced file in a new browser tab, where media plays and documents display.
-   * @param attachmentId - the copy the tool result recorded.
-   */
-  openAttachment(attachmentId: string): void
   /** Whether the browser itself is connected over loopback. */
   isLoopback: boolean
   /** Load the opener capability when this row first reaches the page. */
@@ -73,19 +68,15 @@ type Translate = ProducedFilesProps['t']
  * @returns The produced-files section.
  */
 export function ProducedFiles({
-  matched, openFile, previewFile, fileUrl, attachmentUrl, openAttachment, cwd, isLoopback, ensureWorkspacePathOpen,
+  matched, openFile, previewFile, fileUrl, attachmentUrl, cwd, isLoopback, ensureWorkspacePathOpen,
   openFileMenu, useWorkspacePathOpen, t,
 }: ProducedFilesProps) {
   useEffect(() => { ensureWorkspacePathOpen() }, [ensureWorkspacePathOpen])
   const hostCanOpenPath = useWorkspacePathOpen(available => available === true)
   const canOpenPath = isLoopback && hostCanOpenPath
-  // A file the deployment stored opens from that copy: its reader may not reach the Host's folders, and the Host
-  // opens a path only where it is the reader's own desktop; elsewhere the reader's browser downloads it.
+  // The sidebar previews the file; the Host opens a path only where it is the reader's own desktop, and elsewhere the
+  // reader's browser downloads it.
   const openProducedFile = (file: ProducedFile): void => {
-    if (file.attachmentId !== undefined) {
-      openAttachment(file.attachmentId)
-      return
-    }
     void previewFile(file.path).then((previewed) => {
       if (previewed) return
       if (canOpenPath) {

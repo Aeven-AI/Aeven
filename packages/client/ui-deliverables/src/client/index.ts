@@ -100,9 +100,6 @@ export function apply(ctx: ClientContext): void {
         previewFile: (path: string) => ctx.sidebarFiles.open(sessionId, path),
         fileUrl: (path: string, download?: boolean) => ctx.sidebarFiles.fileUrl(sessionId, path, download),
         attachmentUrl: (attachmentId: string) => attachmentUrl(sessionId, attachmentId),
-        openAttachment: (attachmentId: string) => {
-          window.open(attachmentUrl(sessionId, attachmentId), '_blank', 'noopener')
-        },
         isLoopback: ctx.remote.$host.isLoopback,
         ensureWorkspacePathOpen,
         openFileMenu: showMenu,

@@ -24,7 +24,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在提供 `ctx.connection` 与 `ctx.motion` 的 Host 上挂载。`exportQuality`（`draft`、`standard` 或 `high`；默认 `high`）设定用户导出影片的质量。`folderRoutes`（默认 `true`）注册预览、导出与影片路由；服务多个账户的 Host 将其设为 `false`，因为这些路由读取任意 Host 绝对路径，其卡片播放随调用存储的影片。`exportWaitMs`（默认 20000）限定一次按调用导出的请求在回答 202 之前等待的时长。与 `/api/file` 一样，每条路由从请求中读取一个绝对路径；路由运行前由连接服务认证请求，账户 cookie 放行两条 GET 路由，使浏览器无需 bearer 也能加载与下载。
+在提供 `ctx.connection` 与 `ctx.motion` 的 Host 上挂载。`exportQuality`（`draft`、`standard` 或 `high`；默认 `high`）设定用户导出影片的质量。`folderRoutes`（默认 `true`）注册预览、导出与影片路由；服务多个账户的 Host 将其设为 `false`，因为这些路由读取任意 Host 绝对路径；此时预览路由回答 204，卡片播放随调用存储的影片。`exportWaitMs`（默认 20000）限定一次按调用导出的请求在回答 202 之前等待的时长。与 `/api/file` 一样，每条路由从请求中读取一个绝对路径；路由运行前由连接服务认证请求，账户 cookie 放行两条 GET 路由，使浏览器无需 bearer 也能加载与下载。
 
 -----
 
