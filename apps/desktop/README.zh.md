@@ -65,7 +65,7 @@ Windows 的 seed 准备会先合并经评审的 CommonJS 依赖，再记录 prof
 2. 如果活跃 profile 的 `desktop-release.json` 与 `desktop-packages.json` 与 seed 中的文件逐字节相同，且已安装的 avn 与 Desktop Host 版本匹配，则直接复用，既不重新安装，也不对 seed 或任何 tarball 计算哈希。预发布构建会在重新构建与 Host 协议变更之间沿用同一版本号，因此由 tarball 摘要与协议号而非版本号单独决定。
 3. 否则验证完整 seed 清单、本地包集与每个归档条目，把私有存储中缺少（同路径同大小的文件不存在）的存储文件解包到 Desktop 拥有的临时 staging 目录，通过重命名把这些文件移入存储并合并 SQLite 包索引记录，再创建 staging profile。Windows 重建[预计算 profile 布局](../../.agents/notes/implemented/bug-fix/2026-10-29-windows-precomputed-profile-layout.zh.md)；POSIX 通过内置 Node.js 与 pnpm 执行 `pnpm install --offline --frozen-lockfile --trust-lockfile`。Seed 记录替换匹配的索引键，插件专属记录继续保留。
 4. Electron 升级时，从旧活跃 profile 读取每个插件的名称和精确版本，再通过现有 Desktop pnpm 状态以 `--offline` 把这些版本加入 staging。只读取旧 profile 的 `package.json` bundle 列表与已安装插件清单，因此由较旧 Host 协议或工作区格式写入的 profile 仍可升级。首次安装不执行插件恢复。
-5. 停止活跃后端，启动并停止完整的 staging 后端执行健康检查，再在激活前重新启动活跃后端。这种串行方式避免两个桌面后端共享 `$AVN_HOME`；安装错误或插件不兼容会删除 staging，并保持活跃 profile 不变。macOS 首次安装改为在激活期间从最终 profile 启动一次提供服务的后端；启动失败会拒绝并撤销激活。
+5. 停止活跃后端，启动并停止完整的 staging 后端执行健康检查，再在激活前重新启动活跃后端。这种串行方式避免两个桌面后端共享 `$AVN_HOME`；安装错误或插件不兼容会删除 staging，并保持活跃 profile 不变。在 macOS 或 Linux 上启动时尚无后端运行，因此改为在激活期间从最终 profile 启动一次提供服务的后端；启动失败会拒绝并撤销激活。Windows 保留 staging 启动，因为启动失败后留在 profile 目录中的进程可能阻止撤销时的重命名。
 6. 在每次目录移动前先持久化下一个激活阶段，把活跃 profile 移到 `$AVN_HOME/desktop/rollback/profile`，再把 staging 移到 `$AVN_HOME/profiles/desktop`。恢复过程同时检查日志与真实的 profile、rollback 和 staging 目录，因此在写入后、移动前的任一间隙中断后仍会恢复或保留一个完整 profile。
 
 GUI 插件修改会在把注册表包安装到共享 Desktop pnpm 存储后，使用相同的 staging、健康检查、激活与 rollback 路径。
