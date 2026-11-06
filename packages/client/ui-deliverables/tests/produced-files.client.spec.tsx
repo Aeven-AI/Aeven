@@ -465,8 +465,8 @@ describe('produced-file opening', () => {
     const openFile = vi.fn()
     const previewFile = vi.fn().mockResolvedValue(true)
     const view = render(<ProducedFiles matched={[{ path: 'report.pdf', created, counts: { added: 12, deleted: 3 } }]} openFile={openFile}
-      previewFile={previewFile} isLoopback={false} ensureWorkspacePathOpen={() => {}}
-      revealFile={() => {}} useWorkspacePathOpen={vi.fn().mockReturnValue(false)}
+      previewFile={previewFile} fileUrl={path => `http://localhost/api/workspace-file?path=${path}`} isLoopback={false}
+      ensureWorkspacePathOpen={() => {}} revealFile={() => {}} useWorkspacePathOpen={vi.fn().mockReturnValue(true)}
       t={vi.fn().mockImplementation((key: string) => key)} />)
     expect(view.container.querySelector(created ? '[data-created-files]' : '[data-changed-files]')).not.toBeNull()
     expect(view.queryAllByText('changes.added')).toHaveLength(created ? 0 : 2)

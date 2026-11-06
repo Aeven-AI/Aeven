@@ -300,6 +300,12 @@ export interface Config {
   /** Permit fingerprint-only image reads; shared hosted deployments require a session instead. */
   readonly directImageReads?: boolean
   /**
+   * Serve `/api/file`, which reads any absolute path the composed filesystem lets the Host read (default true). A
+   * Host serving several accounts turns it off; their readers reach files through the Session-scoped
+   * `/api/workspace-file` route instead.
+   */
+  readonly pathReads?: boolean
+  /**
    * How long an approval or question nobody answered on the device running the turn waits for another device of
    * the account to answer, in milliseconds.
    */
@@ -491,6 +497,8 @@ export interface Config {
    * access). A Host whose readers must not see its own files sets true.
    */
   readonly confineReads?: boolean
+  /** Inclusive byte cap on one file `/api/workspace-file` serves; a larger file is refused with `413`. */
+  readonly maxFileBytes: number
   /** How long `sidebar_files` waits for the window showing the Session to open the explorer. */
   readonly showTimeoutMs: number
 }

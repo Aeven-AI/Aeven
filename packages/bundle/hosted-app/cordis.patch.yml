@@ -539,9 +539,13 @@
 - id: code-runtime
   disabled: true
 
+# Every read a browser makes names a Session of the reader's own account:
+# `/api/file`, which reads any path the Host can, stays off, and the Files
+# sidebar reads through the Session-scoped `/api/workspace-file` route.
 - id: session-controller
   config:
     directImageReads: false
+    pathReads: false
 
 # Motion films play live in the conversation. The renderer only bundles a
 # composition from the account's folder into the document stored with the

@@ -46,6 +46,12 @@
     },
     {
       "path": "../../session-query/session-query"
+    },
+    {
+      "path": "../../client/connection/tsconfig.host.json"
+    },
+    {
+      "path": "../../util/brand"
     }
   ]
 }

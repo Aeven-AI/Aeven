@@ -251,6 +251,8 @@ declare module '@aeven/typert-protocol' {
     'session/steer-unavailable': { readonly itemId: MessageId }
     'session/title-invalid': { readonly sessionId: SessionId }
     'session/search-disabled': Record<string, never>
+    /** This Host has no desktop to hand a path to, so it opens and reveals nothing. */
+    'session/open-unavailable': Record<string, never>
     'session/fork-unavailable': { readonly sessionId: SessionId }
     /** The Session cannot leave its current place for the named Workspace. */
     'session/move-unavailable': {

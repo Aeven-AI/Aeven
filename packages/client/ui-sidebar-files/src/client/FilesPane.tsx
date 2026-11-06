@@ -17,7 +17,7 @@ import type { ClientRemote, SessionId } from '@aeven/api-remotes/client'
 import type {} from '@aeven/api-workspace-files/remote'
 import type { WorkspaceDirectoryEntry, WorkspaceFileText, WorkspaceSearchHit } from '@aeven/api-workspace-files/types'
 import {
-  CodeBlock, CopyIconButton, extensionOf, fileGlyph, fileKindOf, IconLucideChevronsDownUp, IconLucideFolder,
+  CodeBlock, CopyIconButton, extensionOf, fileGlyph, fileKindOf, IconLucideChevronsDownUp, IconLucideDownload, IconLucideFolder,
   IconLucideFolderOpen, IconLucideFolderSearch, IconLucideRefreshCw, IconLucideSearch, IconLucideX, MarkdownText, Menu,
   writeClipboard,
   type MarkdownLabels, type MenuEntry,
@@ -26,7 +26,10 @@ import type { SidebarContentPaneProps } from '@aeven/client-ui-sidebar-select/cl
 import { resolveWorkspacePath } from '@aeven/util-workspace-path'
 import type { TranslateNS } from '@aeven/client-ui-slots'
 import { ancestorsOf, recall, remember, type ExplorerMemory } from './memory.ts'
-import { applicationItems, canPreviewFile, openOnDesktop, operationOf, OpenWithButton, revealLabel, useApplications } from './open-with.tsx'
+import {
+  applicationItems, canPreviewFile, downloadWorkspaceFile, openOnDesktop, operationOf, OpenWithButton, revealLabel,
+  useApplications, workspaceFileUrl,
+} from './open-with.tsx'
 import css from './FilesPane.module.css'
 
 /** What the plugin hands every Files pane beyond the column's props. */
@@ -183,12 +186,14 @@ export function FilesPane({
 
   const openFile = useCallback(async (path: string) => {
     if (!await canPreviewFile(remote, sessionId as SessionId, path)) {
-      await openOnDesktop(remote, absolutePath(root, path), { kind: 'default' })
+      // A Host without a desktop, such as hosted Web, hands the file to the reader's browser instead.
+      if (canOpenNative) await openOnDesktop(remote, absolutePath(root, path), { kind: 'default' })
+      else downloadWorkspaceFile(sessionId, absolutePath(root, path))
       return
     }
     update(current => ({ ...current, openFile: path }))
     setFocus(path)
-  }, [remote, root, sessionId, update])
+  }, [canOpenNative, remote, root, sessionId, update])
 
   useEffect(() => {
     if (requestedFile !== undefined) void openFile(requestedFile.path)
@@ -237,6 +242,7 @@ export function FilesPane({
       ? [{ id: 'open-with', label: t('menu.openWith'), submenu: applicationItems(menuApplications, t) }]
       : [],
     ...canOpenNative && rowMenu.type === 'directory' ? [{ id: 'reveal', label: revealLabel(t) }] : [],
+    ...rowMenu.type === 'file' ? [{ id: 'download', label: t('menu.download') }] : [],
     { type: 'separator', id: 'copy-separator' },
     { id: 'copy', label: t('menu.copyPath') },
     { id: 'copy-relative', label: t('menu.copyRelativePath') },
@@ -248,6 +254,7 @@ export function FilesPane({
     const operation = operationOf(id)
     if (operation !== null) void openOnDesktop(remote, absolute(target.path), operation)
     else if (id === 'open') void openFile(target.path)
+    else if (id === 'download') downloadWorkspaceFile(sessionId, absolute(target.path))
     else if (id === 'copy') void writeClipboard(absolute(target.path))
     else if (id === 'copy-relative') void writeClipboard(target.path)
   }
@@ -531,12 +538,14 @@ function FileView({ path, root, canOpenNative, treeVisible, remote, sessionId, t
 }) {
   const name = basename(path)
   const kind = fileKindOf(name)
-  const isCode = kind !== 'image' && kind !== 'markdown'
+  // Images, video, and audio play from the file's bytes; every other kind previews its text.
+  const media = kind === 'image' || kind === 'video' || kind === 'audio'
+  const isCode = !media && kind !== 'markdown'
   const [content, setContent] = useState<{ status: 'loading' } | { status: 'ready'; file: WorkspaceFileText } | { status: 'error'; message: string }>(
     { status: 'loading' },
   )
   useEffect(() => {
-    if (kind === 'image') return undefined
+    if (media) return undefined
     const controller = new AbortController()
     void remote.workspaceFiles.read(sessionId as SessionId, path, controller.signal).then((result) => {
       if (controller.signal.aborted) return
@@ -547,7 +556,7 @@ function FileView({ path, root, canOpenNative, treeVisible, remote, sessionId, t
       if (!controller.signal.aborted) setContent({ status: 'error', message: t('error.unavailable', { message: String(error) }) })
     })
     return () => { controller.abort() }
-  }, [kind, path, remote, sessionId, t])
+  }, [media, path, remote, sessionId, t])
 
   const labels = useMemo<MarkdownLabels>(() => ({
     code: { copyLabel: t('code.copy'), copiedLabel: t('code.copied') },
@@ -630,6 +639,15 @@ function FileView({ path, root, canOpenNative, treeVisible, remote, sessionId, t
         <button
           type="button"
           className={clsx(css.iconButton, css.lightButton)}
+          aria-label={t('file.download')}
+          title={t('file.download')}
+          onClick={() => { downloadWorkspaceFile(sessionId, absolute) }}
+        >
+          <IconLucideDownload />
+        </button>
+        <button
+          type="button"
+          className={clsx(css.iconButton, css.lightButton)}
           aria-pressed={treeVisible}
           aria-label={treeVisible ? t('tree.hide') : t('tree.show')}
           title={treeVisible ? t('tree.hide') : t('tree.show')}
@@ -651,20 +669,25 @@ function FileView({ path, root, canOpenNative, treeVisible, remote, sessionId, t
       )}
       <div className={css.scrollFrame}>
         <div className={clsx(css.fileBody, kind === 'markdown' && css.fileBodyProse)}>
-          {kind === 'image'
-            ? <img className={css.image} src={new URL(`api/file?path=${encodeURIComponent(absolute)}`, document.baseURI).href} alt={name} />
-            : content.status === 'loading'
-              ? <div className={css.note}>{t('loading')}</div>
-              : content.status === 'error'
-                ? <div className={css.note}>{content.message}</div>
-                : (
-                  <>
-                    {kind === 'markdown'
-                      ? <MarkdownText text={content.file.text} labels={labels} animation={false} />
-                      : <CodeBlock code={content.file.text} lang={extensionOf(name)} bare copyLabel={t('code.copy')} copiedLabel={t('code.copied')} className={css.code} />}
-                    {!content.file.eof && <div className={css.note}>{t('file.truncated')}</div>}
-                  </>
-                )}
+          {kind === 'image' && <img className={css.image} src={workspaceFileUrl(sessionId, absolute)} alt={name} />}
+          {kind === 'video' && (
+            <video className={css.image} src={workspaceFileUrl(sessionId, absolute)} controls playsInline preload="metadata" aria-label={name} />
+          )}
+          {kind === 'audio' && (
+            <audio className={css.audio} src={workspaceFileUrl(sessionId, absolute)} controls preload="metadata" aria-label={name} />
+          )}
+          {!media && (content.status === 'loading'
+            ? <div className={css.note}>{t('loading')}</div>
+            : content.status === 'error'
+              ? <div className={css.note}>{content.message}</div>
+              : (
+                <>
+                  {kind === 'markdown'
+                    ? <MarkdownText text={content.file.text} labels={labels} animation={false} />
+                    : <CodeBlock code={content.file.text} lang={extensionOf(name)} bare copyLabel={t('code.copy')} copiedLabel={t('code.copied')} className={css.code} />}
+                  {!content.file.eof && <div className={css.note}>{t('file.truncated')}</div>}
+                </>
+              ))}
         </div>
       </div>
     </div>

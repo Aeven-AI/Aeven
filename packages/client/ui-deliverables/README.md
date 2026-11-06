@@ -25,7 +25,7 @@ This package renders the deliverables row a finished turn ends with — the file
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this plugin alongside `ui-conversation`; a finished turn then ends with the produced-files row between the closing message's body and its action footer. New-file pills and edited-file rows preview the selected file in the Files sidebar through `sidebarFiles.open`; non-text files without a sidebar image viewer open in the default app. Inline mentions use the Host opener, with relative paths resolved against the session cwd; when the row first appears, it queries `session.canOpenWorkspacePath()`, and an omitted-file **Show in folder** action opens the session workspace only when the page is loopback and that query succeeds with `true`.
+Mount this plugin alongside `ui-conversation`; a finished turn then ends with the produced-files row between the closing message's body and its action footer. New-file pills and edited-file rows preview the selected file in the Files sidebar through `sidebarFiles.open`; non-text files without a sidebar viewer open in the default app, or download through the browser where the Host reports no desktop opener. A produced video or audio file also plays in place above the tables, from `sidebarFiles.fileUrl`; a file this Host cannot serve keeps only its row. Inline mentions use the Host opener, with relative paths resolved against the session cwd; when the row first appears, it queries `session.canOpenWorkspacePath()`, and an omitted-file **Show in folder** action opens the session workspace only when the page is loopback and that query succeeds with `true`.
 
 ### The row
 

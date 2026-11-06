@@ -444,6 +444,12 @@
   box-shadow: var(--files-glass-edge);
 }
 
+.audio {
+  display: block;
+  width: calc(100% - 24px);
+  margin: 12px auto;
+}
+
 /* The open file's "Open with" split button stays a light pill, including on hover. */
 .openWith {
   display: flex;

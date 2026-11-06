@@ -85,6 +85,7 @@ export function apply(ctx: ClientContext): void {
       locale: NS,
       inject: sessionId => ({
         previewFile: (path: string) => ctx.sidebarFiles.open(sessionId, path),
+        fileUrl: (path: string, download?: boolean) => ctx.sidebarFiles.fileUrl(sessionId, path, download),
         isLoopback: ctx.remote.$host.isLoopback,
         ensureWorkspacePathOpen,
         openFileMenu: showMenu,
