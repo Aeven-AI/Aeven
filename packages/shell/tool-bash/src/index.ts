@@ -63,6 +63,7 @@ export const Config: z<Config> = z.object({
   shareOutputFiles: z.boolean().default(false),
 })
 
+/* jscpd:ignore-start -- the attachment-reference fields @aeven/tool-fs and @aeven/tool-media declare for their own results */
 /** Output schema of one image attachment shared at the call. */
 const SHARED_IMAGE_SCHEMA = {
   type: 'object', additionalProperties: false,
@@ -101,6 +102,7 @@ const SHARED_FILE_SCHEMA = {
     },
   },
 } as const
+/* jscpd:ignore-end */
 
 /**
  * The text a shared result adds for the model: what the reader already sees,
