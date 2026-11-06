@@ -2,13 +2,15 @@
  * A motion film shown live at its `show_motion` call: the composition plays in the HyperFrames player under the
  * product's own clip chrome, and the save menu exports it to an MP4 the browser downloads. @module
  */
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 // Side-effect import: registers the `hyperframes-player` custom element. Client modules load as one bundle each,
 // so the player ships inside this module rather than as a lazily loaded chunk.
 import '@hyperframes/player'
 import { MediaPlayer, Spinner, saveClip, videoPlayerLabels, type ClipMedia } from '@aeven/client-ui-primitives'
 import type { ToolCallViewProps } from '@aeven/client-ui-tool/client'
 import type { PropsLocale } from '@aeven/client-ui-slots'
+// Type-only: pulls the session-scoped standard props (`sessionId`).
+import type {} from '@aeven/client-ui-session/client'
 import type {} from './locales.ts'
 import { ErrorDetailControl } from './ErrorDetailControl.tsx'
 import css from './ImageToolView.module.css'
@@ -59,15 +61,55 @@ async function failureText(response: Response): Promise<string> {
 }
 
 /**
+ * The newest `show_motion` call per session and composition folder, by its position in the conversation. Every
+ * card plays the folder's current files, so only the newest call stays a live player; earlier calls for the same
+ * folder would show the same film.
+ */
+const newestCalls = new Map<string, { callId: string; seq: number }>()
+const newestListeners = new Set<() => void>()
+
+/**
+ * Record a settled call as the newest for its folder when nothing later is recorded.
+ * @param key - session and folder.
+ * @param callId - the call.
+ * @param seq - the call's position in the conversation.
+ */
+function claimNewest(key: string, callId: string, seq: number): void {
+  const current = newestCalls.get(key)
+  if (current !== undefined && current.seq >= seq) return
+  newestCalls.set(key, { callId, seq })
+  for (const listener of newestListeners) listener()
+}
+
+/**
+ * Subscribe a card to newest-call changes.
+ * @param listener - re-render trigger.
+ * @returns unsubscribe.
+ */
+function subscribeNewest(listener: () => void): () => void {
+  newestListeners.add(listener)
+  return () => { newestListeners.delete(listener) }
+}
+
+/**
  * Render a running call's loader, the live film with its playback and export chrome, or the call's failure.
  * @param props - atomic call and Imagine translator.
  * @returns the film frame retained at this call's transcript position.
  */
-export function MotionToolView({ block, t }: ToolCallViewProps & PropsLocale<'imagine'>) {
+export function MotionToolView({ block, sessionId, t }: ToolCallViewProps & PropsLocale<'imagine'>) {
   const settled = 'kind' in block
   const failed = settled && block.isError
-  const dir = settled && !failed ? compositionDir(block.meta) : undefined
+  const folder = settled && !failed ? compositionDir(block.meta) : undefined
   const callError = failed ? block.content.find(content => content.type === 'text') : undefined
+  const key = folder === undefined ? undefined : `${String(sessionId)}\u0000${folder}`
+  const seq = settled ? block.seq : -1
+  useEffect(() => {
+    if (key !== undefined) claimNewest(key, block.callId, seq)
+  }, [key, block.callId, seq])
+  const newest = useSyncExternalStore(subscribeNewest, () => (key === undefined ? undefined : newestCalls.get(key)?.callId))
+  const superseded = key !== undefined && newest !== undefined && newest !== block.callId
+  // A superseded card neither fetches nor plays; the newest card below it shows the folder's current film.
+  const dir = superseded ? undefined : folder
 
   const stage = useRef<HTMLDivElement>(null)
   const [html, setHtml] = useState<string | undefined>(undefined)
@@ -144,6 +186,13 @@ export function MotionToolView({ block, t }: ToolCallViewProps & PropsLocale<'im
 
   const showError = failed || loadError !== undefined
   const loading = !settled || (dir !== undefined && media === null && !showError)
+  if (superseded) {
+    return (
+      <figure className={css.root} data-motion-call={block.callId} data-state="superseded">
+        <p className={css.motionSuperseded}>{t('motion.superseded')}</p>
+      </figure>
+    )
+  }
   return (
     <figure className={css.root} data-motion-call={block.callId} data-state={showError ? 'error' : settled ? 'settled' : 'running'}>
       <div className={css.frames} data-frames={1}>
