@@ -279,7 +279,9 @@ it('unloads cleanly after a voice refused to open', async () => {
 })
 
 it('validates its composition config', () => {
-  expect(edgePlugin.Config({ voices: [sonia] })).toEqual({ providerId: 'edge', voices: [sonia], locales: [], timeoutMs: 20000 })
+  expect(edgePlugin.Config({ voices: [sonia] })).toEqual({
+    providerId: 'edge', voices: [sonia], locales: [], timeoutMs: 20000, throttleRetries: 0, throttleRetryMs: 500,
+  })
   expect(() => edgePlugin.Config({})).toThrow()
   expect(() => edgePlugin.Config({ voices: [sonia], locales: ['n'] })).toThrow()
 })

@@ -23,6 +23,13 @@ export interface Config {
   locales: string[]
   /** Per-request synthesis deadline in milliseconds. */
   timeoutMs: number
+  /**
+   * Further handshakes after the service answers 429, which it does to many handshakes from one address; 0 reports
+   * the first refusal. A Host that reads aloud for many people sets it.
+   */
+  throttleRetries: number
+  /** Wait before the first further handshake, doubled for each one after it, in milliseconds. */
+  throttleRetryMs: number
 }
 
 /** Schema for the provider plugin configuration. */
@@ -36,4 +43,6 @@ export const Config: z<Partial<Config>, Config> = z.object({
   })).required(),
   locales: z.array(z.string().min(2)).default([]),
   timeoutMs: z.natural().min(1000).default(20000),
+  throttleRetries: z.natural().default(0),
+  throttleRetryMs: z.natural().min(50).default(500),
 })
