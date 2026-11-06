@@ -24,7 +24,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在提供 `ctx.fs` 与沙箱化 `ctx.shell`（例如安装了 `render-motion` 的 [`avn-sandbox-jail`](../../sandbox/sandbox-jail/README.zh.md)）的 Host 上，于 [`avn-motion`](../motion/README.zh.md) 之后挂载。每个渲染请求都必须携带调用会话的沙箱策略，由 [`avn-tool-motion`](../tool-motion/README.zh.md) 与 [`avn-api-motion`](../api-motion/README.zh.md) 提供；缺少策略的请求会失败。
+在 [`avn-motion`](../motion/README.zh.md) 之后，挂载到提供 `ctx.fs` 与沙箱化 `ctx.shell`（例如安装了 `render-motion` 的 [`avn-sandbox-jail`](../../sandbox/sandbox-jail/README.zh.md)）的 Host 上。每个渲染请求都必须携带调用会话的沙箱策略，由 [`avn-tool-motion`](../tool-motion/README.zh.md) 与 [`avn-api-motion`](../api-motion/README.zh.md) 提供；缺少策略的请求会失败。
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|

@@ -3,4 +3,4 @@
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/motion/motion-sandbox/README.md
 README.md: ba497c1988809c145ec222498427442e41c47167
-README.zh.md: d750b4fb0f1a520a127019c8e5aa73e34b310ca3
+README.zh.md: d596c457d28dccbdd5c346c06ea607192cac8a81
