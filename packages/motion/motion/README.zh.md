@@ -24,7 +24,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-将它与一个渲染器（如 [`avn-motion-hyperframes`](../motion-hyperframes/README.zh.md)）以及一个消费方（如 [`avn-tool-motion`](../tool-motion/README.zh.md)）一起挂载。`fps`（24、30 或 60；默认 30）与 `quality`（`draft`、`standard` 或 `high`；默认 `standard`）用于补全省略它们的请求。合成路径与输出路径都是本地绝对路径；把它们限制在工作区内是消费方的职责。
+将它与一个渲染器（如 [`avn-motion-hyperframes`](../motion-hyperframes/README.zh.md)）以及一个消费方（如 [`avn-tool-motion`](../tool-motion/README.zh.md)）一起挂载。`fps`（24、30 或 60；默认 30）与 `quality`（`draft`、`standard` 或 `high`；默认 `standard`）用于补全省略它们的请求。合成路径与输出路径都是本地绝对路径；把它们限制在工作区内是消费方的职责。请求可以携带调用会话的 `sandboxPolicy`：在账户沙箱内运行的渲染器需要它，并把每个路径限制在其工作区根内；在 Host 本机运行的渲染器忽略它。
 
 -----
 

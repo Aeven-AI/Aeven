@@ -2013,9 +2013,9 @@ importers:
       '@aeven/motion':
         specifier: workspace:^
         version: link:../../motion/motion
-      '@aeven/motion-preview':
+      '@aeven/motion-sandbox':
         specifier: workspace:^
-        version: link:../../motion/motion-preview
+        version: link:../../motion/motion-sandbox
       '@aeven/sandbox-jail':
         specifier: workspace:^
         version: link:../../sandbox/sandbox-jail
@@ -9778,9 +9778,15 @@ importers:
       '@aeven/client-connection':
         specifier: workspace:^
         version: link:../../client/connection
+      '@aeven/fs':
+        specifier: workspace:^
+        version: link:../../fs/fs
       '@aeven/motion':
         specifier: workspace:^
         version: link:../motion
+      '@aeven/sandbox-policy':
+        specifier: workspace:^
+        version: link:../../sandbox/sandbox-policy
       '@aeven/session':
         specifier: workspace:^
         version: link:../../core/session
@@ -9794,6 +9800,9 @@ importers:
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
     devDependencies:
+      '@aeven/sandbox':
+        specifier: workspace:^
+        version: link:../../sandbox/sandbox
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -9842,7 +9851,7 @@ importers:
         specifier: workspace:^
         version: link:../../../native/ffmpeg/packages/win32-x64
 
-  packages/motion/motion-preview:
+  packages/motion/motion-sandbox:
     dependencies:
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery
@@ -9857,6 +9866,9 @@ importers:
       '@aeven/motion':
         specifier: workspace:^
         version: link:../motion
+      '@aeven/shell':
+        specifier: workspace:^
+        version: link:../../shell/shell
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -9876,6 +9888,9 @@ importers:
       '@aeven/motion':
         specifier: workspace:^
         version: link:../motion
+      '@aeven/sandbox':
+        specifier: workspace:^
+        version: link:../../sandbox/sandbox
       '@aeven/sandbox-policy':
         specifier: workspace:^
         version: link:../../sandbox/sandbox-policy

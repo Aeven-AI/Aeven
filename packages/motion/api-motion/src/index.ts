@@ -13,9 +13,11 @@ import { Readable } from 'node:stream'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@aeven/client-connection'
-import type { MotionQuality } from '@aeven/motion'
+import type { MotionQuality, MotionRenderOutput } from '@aeven/motion'
 import type {} from '@aeven/motion'
 import type {} from '@aeven/api-session-controller'
+import type {} from '@aeven/fs'
+import type {} from '@aeven/sandbox-policy'
 import { brandString } from '@aeven/brand'
 import type { SessionId } from '@aeven/session'
 import { bundleToSingleHtml } from '@hyperframes/core/compiler'
@@ -39,11 +41,17 @@ export interface Config {
    * turns them off.
    */
   folderRoutes: boolean
+  /**
+   * How long one export request waits for its render, in milliseconds, before answering 202 so the card asks again;
+   * keeps each request inside a proxy's read timeout while the render continues.
+   */
+  exportWaitMs: number
 }
 
 export const Config: z<Config> = z.object({
   exportQuality: z.union(['draft', 'standard', 'high'] as const).default('high'),
   folderRoutes: z.boolean().default(true),
+  exportWaitMs: z.natural().min(1_000).default(20_000),
 })
 
 /** Exported film facts the card reads. */
@@ -173,6 +181,7 @@ export function apply(ctx: Context, config: Config): void {
     }), 'api-motion: /api/motion/replay')
   })
   if (config.folderRoutes) ctx.inject(['motion'], (motionCtx) => { registerFolderRoutes(motionCtx, config) })
+  ctx.inject(['motion', 'sessionController', 'fs'], (callCtx) => { registerCallExport(callCtx, config) })
 }
 
 /**
@@ -244,4 +253,102 @@ function registerFolderRoutes(ctx: Context, config: Config): void {
       return serveFilm(request, path)
     },
   }), 'api-motion: /api/motion/film')
+}
+
+/**
+ * The composition folder one `show_motion` call recorded in a conversation's log.
+ * @param events - the conversation's events.
+ * @param callId - the call.
+ * @returns the absolute folder, or undefined when the log holds no such call.
+ */
+function recordedFolder(events: readonly { readonly type: string; readonly data?: unknown }[], callId: string): string | undefined {
+  for (const event of events) {
+    if (event.type !== 'tool/result') continue
+    const data = event.data as { readonly message?: { readonly source?: { readonly callId?: unknown } }; readonly meta?: unknown }
+    if (data.message?.source?.callId !== callId) continue
+    const meta = data.meta as { readonly compositionDir?: unknown } | undefined
+    return typeof meta?.compositionDir === 'string' ? meta.compositionDir : undefined
+  }
+  return undefined
+}
+
+/**
+ * Register the export of a film named by its conversation and call: the composition folder comes from the caller's
+ * own log, and the render runs under that conversation's sandbox policy, so a Host serving many accounts renders
+ * only inside the caller's own workspace. The response carries the MP4 itself, or 202 while the render continues
+ * past `exportWaitMs`; asking again joins the same render.
+ * @param ctx - context carrying the connection service, the motion renderer, the session controller, and the filesystem.
+ * @param config - export quality.
+ */
+function registerCallExport(ctx: Context, config: Config): void {
+  // Renders in progress by conversation and call, so a repeated request joins the running render.
+  const exports = new Map<string, Promise<MotionRenderOutput>>()
+  // A render outlives the request that started it and ends with this registration.
+  const lifetime = new AbortController()
+  ctx.effect(() => () => { lifetime.abort() }, 'api-motion: export renders')
+  ctx.effect(() => ctx.connection.fetch.register({
+    path: '/api/motion/export-call',
+    methods: ['POST'],
+    fetch: async (request) => {
+      let body: { sessionId?: unknown; callId?: unknown }
+      try {
+        body = await request.json() as { sessionId?: unknown; callId?: unknown }
+      } catch {
+        // A body that is not JSON names no call; the check below answers it.
+        body = {}
+      }
+      if (typeof body.sessionId !== 'string' || body.sessionId === '' || typeof body.callId !== 'string' || body.callId === '') {
+        return reply(400, 'sessionId and callId required')
+      }
+      // Another account's conversation reads as absent.
+      const found = await ctx.sessionController.resolveAgent(brandString<SessionId>(body.sessionId))
+      if ('error' in found) return reply(404, 'not found')
+      const session = found.agent.session
+      const dir = recordedFolder(session.snapshotEvents(), body.callId)
+      if (dir === undefined) return reply(404, 'the conversation shows no film for this call')
+      const index = await stat(join(dir, 'index.html')).catch(() => undefined)
+      if (index?.isFile() !== true) return reply(404, { code: 'FOLDER_ABSENT', message: 'the film\'s folder is not on this device' })
+      const key = `${body.sessionId}\u0000${body.callId}`
+      let job = exports.get(key)
+      if (job === undefined) {
+        const policy = ctx.get('sandboxPolicy')?.resolve({ session })
+        const spec = ctx.motion.resolve({
+          compositionDir: dir,
+          outputPath: join(dir, 'renders', `${basename(dir)}.mp4`),
+          quality: config.exportQuality,
+          ...policy === undefined ? {} : { sandboxPolicy: policy },
+        })
+        const started = ctx.motion.render(spec, lifetime.signal)
+        job = started
+        exports.set(key, started)
+        // A finished render nobody asks for again is dropped once a waiting card would have asked.
+        void started.catch(() => undefined).finally(() => {
+          setTimeout(() => { if (exports.get(key) === started) exports.delete(key) }, config.exportWaitMs * 3)
+        })
+      }
+      const waited = await Promise.race([
+        job.then(film => ({ film }), (error: unknown) => ({ error })),
+        new Promise<undefined>((settle) => { setTimeout(settle, config.exportWaitMs) }),
+      ])
+      if (waited === undefined) return reply(202, { pending: true })
+      if (exports.get(key) === job) exports.delete(key)
+      if ('error' in waited) return reply(500, { message: waited.error instanceof Error ? waited.error.message : String(waited.error) })
+      try {
+        const film = waited.film
+        const target = await ctx.fs.resolve(film.outputPath, { signal: request.signal })
+        const data = await ctx.fs.readBytes(target, request.signal, Math.max(1, film.bytes))
+        return new Response(new Uint8Array(data), {
+          status: 200,
+          headers: {
+            ...BASE_HEADERS,
+            'Content-Type': 'video/mp4',
+            'Content-Length': String(data.byteLength),
+            'Content-Disposition': `attachment; filename="${basename(film.outputPath).replaceAll('"', '')}"`,
+          },
+        })
+      } catch (error) {
+        return reply(500, { message: error instanceof Error ? error.message : String(error) })
+      }
+    },
+  }), 'api-motion: /api/motion/export-call')
 }

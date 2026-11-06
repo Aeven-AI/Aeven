@@ -279,6 +279,11 @@ export interface Config {
    * turns them off.
    */
   folderRoutes: boolean
+  /**
+   * How long one export request waits for its render, in milliseconds, before answering 202 so the card asks again;
+   * keeps each request inside a proxy's read timeout while the render continues.
+   */
+  exportWaitMs: number
 }
 ```
 
@@ -3137,23 +3142,35 @@ Depends on: [`MotionQuality`](../packages/motion/motion/src/index.ts)
 
 Source: [`packages/motion/motion-hyperframes/src/index.ts`](../packages/motion/motion-hyperframes/src/index.ts)
 
-<a id="aevenmotion-preview"></a>
+<a id="aevenmotion-sandbox"></a>
 
-## `@aeven/motion-preview`
+## `@aeven/motion-sandbox`
 
-Requires: `motion` · `fs`
+Requires: `motion` · `fs` · `shell`
 
 ```ts config-catalog
-/** Bounds on the folder one bundle reads. */
+/** Bounds on a bundle and on a render. */
 export interface Config {
   /** Most files one composition folder may hold. */
   maxFiles: number
   /** Most bytes the folder's files may total. */
   maxBytes: number
+  /** The sandbox command that renders a page to an MP4. */
+  command: string
+  /** How long one render may run, in milliseconds. */
+  timeoutMs: number
+  /** Most bytes of the command's JSON result, which carries the stills. */
+  resultMaxBytes: number
+  /** H.264 constant rate factor per quality tier; lower is sharper and larger. */
+  crf: Record<MotionQuality, number>
+  /** Pixel width of returned stills. */
+  stillWidth: number
 }
 ```
 
-Source: [`packages/motion/motion-preview/src/index.ts`](../packages/motion/motion-preview/src/index.ts)
+Depends on: [`MotionQuality`](../packages/motion/motion/src/index.ts)
+
+Source: [`packages/motion/motion-sandbox/src/index.ts`](../packages/motion/motion-sandbox/src/index.ts)
 
 <a id="aevenpermission-presets"></a>
 
@@ -5334,16 +5351,10 @@ Source: [`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-mem
 Requires: `tools` · `attachments` · `fs`
 
 ```ts config-catalog
-/** Tool limits and the film rendering the deployment offers. */
+/** Tool limits. */
 export interface Config {
   /** Most stills one call may request. */
   maxStills: number
-  /**
-   * Whether the registered renderer writes films. When false, as on a Host whose renderer only bundles compositions
-   * for the live player, `show_motion` takes no stills, `render_motion` is not registered, and the skill teaches
-   * the show-only loop.
-   */
-  render: boolean
 }
 ```
 

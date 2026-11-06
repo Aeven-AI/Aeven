@@ -375,10 +375,6 @@
           mutations: false
       - id: tool-fs-search
         disabled: true
-      # The renderer bundles compositions for the live player and writes no films.
-      - id: tool-motion
-        config:
-          render: false
       - id: tool-subagent-codex
         disabled: true
       - id: tool-subagent-claude-code
@@ -487,16 +483,9 @@
           between commands and conversations. Files the user uploaded can be opened by commands at the
           path shown with each upload. To give the user a chart, document, or spreadsheet, save it there
           and list it in output_files; use read_image to look at an image you made. To make an animation, motion
-          graphics, or a short film, follow the motion skill and show the composition with show_motion: the
-          user plays and scrubs it at once. Only when the user asks for an MP4 file, write one HTML page
-          animated with GSAP (load it from https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js, which is
-          served from the installed copy) and run `render-motion page.html film.mp4` with the MP4 in
-          output_files (options --seconds, --fps, --width, --height, --audio); it
-          steps the GSAP timeline frame by frame, or calls window.seek(seconds) when the page defines it,
-          and writes an MP4 of up to 120 seconds. A render takes about twice the
-          film's length at 1280x720 and 30 fps, and proportionally longer at higher sizes and frame rates;
-          a command stops after 2 minutes unless its timeoutMs allows more, up to 10 minutes, so set
-          timeoutMs for a long film. Node.js also has playwright-core
+          graphics, or a short film, follow the motion skill: show the composition with show_motion, which
+          the user plays, scrubs, and exports to MP4, and call render_motion only when the user asks you for
+          the video file. Node.js also has playwright-core
           with Chromium for screenshots and PDFs of pages. Installed fonts: Google Sans Flex, Inter, Roboto
           Flex, Montserrat, Poppins, DM Sans, Space Grotesk, Outfit, Bebas Neue, Oswald, Playfair Display,
           Lora, JetBrains Mono, and Noto for every script, CJK, and colour emoji; web font links do not load.
@@ -550,17 +539,18 @@
     nativeOpen: false
     pathReads: false
 
-# Motion films play live in the conversation. The renderer only bundles a
-# composition from the account's folder into the document stored with the
-# show_motion call, which the card plays; no browser runs model-written pages
-# on the Host. The routes that read Host folders stay off, and the replay route
-# plays a film shown on another of the account's devices from its composition
-# rebuilt out of the conversation log.
+# Motion films play live in the conversation, and every render runs inside the
+# calling account's jail: the renderer bundles a composition from the account's
+# folder into the document stored with the show_motion call, which the card
+# plays, and pipes that document into the jail's render-motion for stills and
+# MP4s. The routes that read any Host path stay off; the card exports through
+# the conversation's own call, and the replay route plays a film shown on
+# another of the account's devices from its composition rebuilt out of the log.
 - insert:
     - id: motion
       name: '@aeven/motion'
-    - id: motion-preview
-      name: '@aeven/motion-preview'
+    - id: motion-sandbox
+      name: '@aeven/motion-sandbox'
     - id: api-motion
       name: '@aeven/api-motion'
       config:

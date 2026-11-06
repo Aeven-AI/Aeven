@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-tool-motion` registers `show_motion`, `render_motion`, and the `motion` skill. The skill teaches the model to plan a film, write a [HyperFrames](https://github.com/heygen-com/hyperframes) composition in the workspace, show it, review stills, and revise. `show_motion` hands the composition folder to the Imagine Motion card, which plays it live and exports it to MP4 on the user's request; it also stores the folder bundled into one HTML document as a file attachment, so the account's other devices, which lack the folder, play the same film; with `stills`, it also renders a throwaway draft whose frames return to the model. `render_motion` renders the folder to an MP4 inside it and stores the film as a conversation file attachment, for when the user asks the model for the file. Both wait for `ctx.motion`, so a composition without a renderer shows neither.
+`avn-tool-motion` registers `show_motion`, `render_motion`, and the `motion` skill. The skill teaches the model to plan a film, write a [HyperFrames](https://github.com/heygen-com/hyperframes) composition in the workspace, show it, review stills, and revise. `show_motion` hands the composition folder to the Imagine Motion card, which plays it live and exports it to MP4 on the user's request; it also stores the folder bundled into one HTML document as a file attachment, so the account's other devices, which lack the folder, play the same film; with `stills`, it also renders a draft to `renders/.review.mp4` inside the folder, replaced by each review, whose frames return to the model. `render_motion` renders the folder to an MP4 inside it and stores the film as a conversation file attachment, for when the user asks the model for the file. Both wait for `ctx.motion`, so a composition without a renderer shows neither.
 
 ## Table of Contents
 
@@ -24,7 +24,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount it per session beside a Host composition that provides `ctx.tools`, `ctx.attachments`, and `ctx.fs`. The tools and skill register only while `ctx.motion` exists, so a composition without a renderer activates the plugin with nothing registered; `ctx.skills` is optional and adds the skill, including `/motion`. `maxStills` (default 8, at most 16) caps the stills one call may request. `render` (default `true`) says whether the renderer writes films; with `false`, for a renderer that only bundles such as [`avn-motion-preview`](../motion-preview/README.md), `show_motion` takes no `stills`, `render_motion` is not registered, and the skill teaches showing without review stills or an MP4 export.
+Mount it per session beside a Host composition that provides `ctx.tools`, `ctx.attachments`, and `ctx.fs`. The tools and skill register only while `ctx.motion` exists, so a composition without a renderer activates the plugin with nothing registered; `ctx.skills` is optional and adds the skill, including `/motion`. `maxStills` (default 8, at most 16) caps the stills one call may request. Every render carries the session's sandbox policy, which a renderer confined to the account's sandbox, such as [`avn-motion-sandbox`](../motion-sandbox/README.md), requires.
 
 Both tools take a required `composition`. It resolves through `ctx.fs` the way the filesystem tools resolve paths: against the session's working directory, or, for a chat without one, against the sandbox policy's workspace root. `output` defaults to `renders/<folder>.mp4` inside the composition folder. `show_motion` takes an optional `stills`; `render_motion` takes optional `fps`, `quality`, and `stills`. Both paths must stay inside the session's workspace root, or the policy's when the session has none.
 
@@ -87,7 +87,6 @@ Append-only; does not invalidate earlier prefix reuse.
 <a id="known-limitations-and-deferred-work"></a>
 
 - **No invariant companion** — No invariant companion is published: the tool owns no durable state; storage and rendering are owned by `ctx.attachments` and `ctx.motion`.
-- **No live preview** — the user sees the rendered MP4, not the composition playing in a scrubbable preview, and edits go through the conversation.
 - **A render holds the call** — the call stays open for the whole render, with no progress shown at the call.
 
 <a id="dev-note"></a>

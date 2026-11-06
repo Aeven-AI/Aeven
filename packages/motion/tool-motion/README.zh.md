@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`avn-tool-motion` 注册 `show_motion`、`render_motion` 与 `motion` 技能。技能教模型规划影片、在工作区中编写 [HyperFrames](https://github.com/heygen-com/hyperframes) 合成、展示它、审阅静帧并修改。`show_motion` 把合成文件夹交给 Imagine 的 Motion 卡片，卡片实时播放它，并在用户请求时导出为 MP4；它还把文件夹打包成一个 HTML 文档存为文件附件，使缺少该文件夹的账户其他设备也能播放同一部影片；带 `stills` 时，它还会渲染一份用后即弃的草稿，其帧返回给模型。`render_motion` 把文件夹渲染为放在其内部的 MP4，并把影片存为对话文件附件，用于用户向模型索要文件的情形。二者都等待 `ctx.motion`，因此没有渲染器的组合两者都不会出现。
+`avn-tool-motion` 注册 `show_motion`、`render_motion` 与 `motion` 技能。技能教模型规划影片、在工作区中编写 [HyperFrames](https://github.com/heygen-com/hyperframes) 合成、展示它、审阅静帧并修改。`show_motion` 把合成文件夹交给 Imagine 的 Motion 卡片，卡片实时播放它，并在用户请求时导出为 MP4；它还把文件夹打包成一个 HTML 文档存为文件附件，使缺少该文件夹的账户其他设备也能播放同一部影片；带 `stills` 时，它还会把一份草稿渲染到文件夹内的 `renders/.review.mp4`（每次审阅都会替换它），其帧返回给模型。`render_motion` 把文件夹渲染为放在其内部的 MP4，并把影片存为对话文件附件，用于用户向模型索要文件的情形。二者都等待 `ctx.motion`，因此没有渲染器的组合两者都不会出现。
 
 ## 目录
 
@@ -24,7 +24,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在提供 `ctx.tools`、`ctx.attachments` 与 `ctx.fs` 的 Host 组合旁按会话挂载。工具与技能只在 `ctx.motion` 存在时注册，因此没有渲染器的组合会激活该插件但不注册任何内容；`ctx.skills` 为可选项，用于添加该技能及 `/motion`。`maxStills`（默认 8，最多 16）限制一次调用可请求的静帧数量。`render`（默认 `true`）表示渲染器是否写出影片；设为 `false` 时，对于只打包的渲染器（如 [`avn-motion-preview`](../motion-preview/README.zh.md)），`show_motion` 不接受 `stills`，`render_motion` 不注册，技能只讲授展示，不含审阅静帧与 MP4 导出。
+在提供 `ctx.tools`、`ctx.attachments` 与 `ctx.fs` 的 Host 组合旁按会话挂载。工具与技能只在 `ctx.motion` 存在时注册，因此没有渲染器的组合会激活该插件但不注册任何内容；`ctx.skills` 为可选项，用于添加该技能及 `/motion`。`maxStills`（默认 8，最多 16）限制一次调用可请求的静帧数量。每次渲染都携带会话的沙箱策略，限定在账户沙箱内的渲染器（如 [`avn-motion-sandbox`](../motion-sandbox/README.zh.md)）需要它。
 
 两个工具都需要必填的 `composition`。它像文件系统工具那样经由 `ctx.fs` 解析：相对会话工作目录，或对于没有工作目录的聊天，相对沙箱策略的工作区根目录。`output` 默认为合成文件夹内的 `renders/<folder>.mp4`。`show_motion` 可选 `stills`；`render_motion` 可选 `fps`、`quality` 与 `stills`。两个路径都必须位于会话的工作区根目录内，会话没有时则位于策略的根目录内。
 
@@ -87,7 +87,6 @@ kind: "package-reference"
 <a id="known-limitations-and-deferred-work"></a>
 
 - **无不变量伴随包** — 不发布不变量伴随包：工具不持有持久状态；存储与渲染分别由 `ctx.attachments` 与 `ctx.motion` 负责。
-- **没有实时预览** — 用户看到的是渲染出的 MP4，而不是可拖动预览中播放的合成，修改通过对话进行。
 - **渲染会占住调用** — 整个渲染期间调用保持打开，调用处不显示进度。
 
 <a id="dev-note"></a>

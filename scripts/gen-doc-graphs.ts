@@ -121,7 +121,7 @@ const SERVICE_ROLES: ServiceRole[] = [
     pkg: 'motion',
     title: 'Motion film renderer',
     mode: 'seam',
-    implementations: ['motion-hyperframes', 'motion-preview'],
+    implementations: ['motion-hyperframes', 'motion-sandbox'],
     consumers: ['tool-motion', 'api-motion'],
     note: 'One renderer turns an HTML composition into an H.264 MP4; the tool renders on the model\'s request and the routes on the user\'s export.',
   },

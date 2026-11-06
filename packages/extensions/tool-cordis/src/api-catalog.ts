@@ -7869,7 +7869,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MotionRenderInput',
-    declaration: 'export interface MotionRenderInput {\n    readonly compositionDir: string;\n    readonly outputPath: string;\n    readonly fps: MotionFps;\n    readonly quality: MotionQuality;\n    readonly stills: number;\n}',
+    declaration: 'export interface MotionRenderInput {\n    readonly compositionDir: string;\n    readonly outputPath: string;\n    readonly fps: MotionFps;\n    readonly quality: MotionQuality;\n    readonly stills: number;\n    readonly sandboxPolicy?: SandboxExecutionPolicy;\n}',
   },
   {
     name: 'MotionRenderOutput',
@@ -7877,7 +7877,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MotionRenderRequest',
-    declaration: 'export interface MotionRenderRequest {\n    readonly compositionDir: string;\n    readonly outputPath: string;\n    readonly fps?: MotionFps;\n    readonly quality?: MotionQuality;\n    readonly stills?: number;\n}',
+    declaration: 'export interface MotionRenderRequest {\n    readonly compositionDir: string;\n    readonly outputPath: string;\n    readonly fps?: MotionFps;\n    readonly quality?: MotionQuality;\n    readonly stills?: number;\n    readonly sandboxPolicy?: SandboxExecutionPolicy;\n}',
   },
   {
     name: 'MotionRenderSpec',
