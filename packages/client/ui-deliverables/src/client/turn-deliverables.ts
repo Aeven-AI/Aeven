@@ -279,6 +279,25 @@ export function selectProducedFiles(owner: TurnTailOwnerProps): readonly Produce
   return files.length === 0 ? null : files
 }
 
+/**
+ * The stored copies a tool result attached, by file name; a name two copies share maps to neither.
+ * @param content - the result's content blocks.
+ * @returns attachment ids by attachment name.
+ */
+function storedCopies(content: readonly unknown[]): Map<string, string> {
+  const copies = new Map<string, string>()
+  const shared = new Set<string>()
+  for (const block of content) {
+    if (!isRecord(block) || (block.type !== 'file' && block.type !== 'image') || !isRecord(block.attachment)) continue
+    const { name, attachmentId } = block.attachment
+    if (typeof name !== 'string' || typeof attachmentId !== 'string') continue
+    if (copies.has(name)) shared.add(name)
+    copies.set(name, attachmentId)
+  }
+  for (const name of shared) copies.delete(name)
+  return copies
+}
+
 /** Turn-local successful mutation accumulator; it publishes no view Node. */
 export const deliverablesDefinition: ConversationNodeDefinition<DeliverablesState> = {
   kind: 'deliverables',
@@ -308,13 +327,13 @@ export const deliverablesDefinition: ConversationNodeDefinition<DeliverablesStat
     if (result.isError === true) return context.state
     const { seq, data: { meta } } = match.event
     if (isRecord(meta) && Array.isArray(meta.producedFiles)) {
-      const produced = meta.producedFiles.flatMap((file: unknown) =>
-        isRecord(file) && pathValue(file.path) !== null && typeof file.created === 'boolean'
-          ? [{
-            seq, path: file.path as string, created: file.created,
-            ...typeof file.attachmentId === 'string' ? { attachmentId: file.attachmentId } : {},
-          }]
-          : [])
+      const stored = storedCopies(result.content)
+      const produced = meta.producedFiles.flatMap((file: unknown) => {
+        if (!isRecord(file) || pathValue(file.path) === null || typeof file.created !== 'boolean') return []
+        // A result recorded before entries named their copy still attached it, under the file's own name.
+        const attachmentId = typeof file.attachmentId === 'string' ? file.attachmentId : stored.get(basename(file.path as string))
+        return [{ seq, path: file.path as string, created: file.created, ...attachmentId === undefined ? {} : { attachmentId } }]
+      })
       return { ...context.state, produced: [...context.state.produced, ...produced] }
     }
     const callId = String(match.event.data.message.source.callId)
