@@ -357,7 +357,7 @@ function collectAttachmentFiles(value: unknown, store: AttachmentStore, files: S
  * @returns the single-quoted form.
  */
 function shellQuote(value: string): string {
-  return `'${value.replaceAll('\'', '\'\\\'\'')}'`
+  return '\'' + value.replaceAll('\'', '\'\\\'\'') + '\''
 }
 
 export default JailSandboxProvider
