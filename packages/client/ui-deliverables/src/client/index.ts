@@ -97,7 +97,8 @@ export function apply(ctx: ClientContext): void {
       select: selectProducedFiles,
       locale: NS,
       inject: sessionId => ({
-        previewFile: (path: string) => ctx.sidebarFiles.open(sessionId, path),
+        previewFile: (path: string, copy?: string) =>
+          copy === undefined ? ctx.sidebarFiles.open(sessionId, path) : ctx.sidebarFiles.open(sessionId, path, copy),
         fileUrl: (path: string, download?: boolean) => ctx.sidebarFiles.fileUrl(sessionId, path, download),
         attachmentUrl: (attachmentId: string) => attachmentUrl(sessionId, attachmentId),
         isLoopback: ctx.remote.$host.isLoopback,

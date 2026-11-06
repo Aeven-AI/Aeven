@@ -48,6 +48,13 @@ export interface FilesPaneProps extends SidebarContentPaneProps {
   readonly registerReveal?: ((reveal: (path: string) => void) => () => void) | undefined
   readonly t: TranslateNS<'sidebarFiles'>
   readonly remote: ClientRemote
+  /**
+   * The stored copy another surface named for a file, which an image, video, or audio file plays from instead of
+   * the workspace path, such as a file another device wrote.
+   * @param path - the file as the pane opened it.
+   * @returns the copy's URL, or undefined to read the workspace path.
+   */
+  readonly copyOf?: ((path: string) => string | undefined) | undefined
 }
 
 /** One folder's listing as the tree holds it. */
@@ -119,7 +126,7 @@ function failureLine(t: TranslateNS<'sidebarFiles'>, code: string, message: stri
  * @returns the explorer element tree.
  */
 export function FilesPane({
-  sessionId, surfaceId, setTab, t, remote, requestedFile, requestedFolder, registerReveal, onFileChange,
+  sessionId, surfaceId, setTab, t, remote, requestedFile, requestedFolder, registerReveal, onFileChange, copyOf,
 }: FilesPaneProps): ReactNode {
   const [memory, setMemory] = useState<ExplorerMemory>(() => recall(sessionId, surfaceId))
   const update = useCallback((next: (current: ExplorerMemory) => ExplorerMemory) => {
@@ -395,6 +402,7 @@ export function FilesPane({
             <FileView
               key={memory.openFile}
               path={memory.openFile}
+              copy={copyOf?.(memory.openFile)}
               root={root}
               canOpenNative={canOpenNative}
               treeVisible={memory.treeVisible}
@@ -524,8 +532,10 @@ function SearchRows({ search, focus, t, onOpen, onMenu }: {
 }
 
 /** The open file: its breadcrumbs, its actions, and its content by kind. */
-function FileView({ path, root, canOpenNative, treeVisible, remote, sessionId, t, onReveal, onToggleTree, onClose }: {
+function FileView({ path, copy, root, canOpenNative, treeVisible, remote, sessionId, t, onReveal, onToggleTree, onClose }: {
   path: string
+  /** A stored copy the media kinds play from instead of the workspace path. */
+  copy: string | undefined
   root: string | null
   canOpenNative: boolean
   treeVisible: boolean
@@ -669,14 +679,14 @@ function FileView({ path, root, canOpenNative, treeVisible, remote, sessionId, t
       )}
       <div className={css.scrollFrame}>
         <div className={clsx(css.fileBody, kind === 'markdown' && css.fileBodyProse)}>
-          {kind === 'image' && <img className={css.image} src={workspaceFileUrl(sessionId, absolute)} alt={name} />}
+          {kind === 'image' && <img className={css.image} src={copy ?? workspaceFileUrl(sessionId, absolute)} alt={name} />}
           {kind === 'video' && (
             <div className={css.videoFrame}>
-              <VideoPlayer src={workspaceFileUrl(sessionId, absolute)} label={name} saveName={name} labels={videoPlayerLabels(t)} />
+              <VideoPlayer src={copy ?? workspaceFileUrl(sessionId, absolute)} label={name} saveName={name} labels={videoPlayerLabels(t)} />
             </div>
           )}
           {kind === 'audio' && (
-            <audio className={css.audio} src={workspaceFileUrl(sessionId, absolute)} controls preload="metadata" aria-label={name} />
+            <audio className={css.audio} src={copy ?? workspaceFileUrl(sessionId, absolute)} controls preload="metadata" aria-label={name} />
           )}
           {!media && (content.status === 'loading'
             ? <div className={css.note}>{t('loading')}</div>
