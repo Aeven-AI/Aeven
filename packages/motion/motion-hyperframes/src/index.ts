@@ -98,22 +98,35 @@ function producerLogger(ctx: Context): ProducerLogger {
 }
 
 /**
- * Register the HyperFrames renderer. The ffmpeg and ffprobe paths resolve at load, so a host without them fails
- * here; the browser and the encode path resolve on the first render and are reused after it succeeds.
+ * Register the HyperFrames renderer. The ffmpeg and ffprobe paths, the browser, and the encode path resolve on
+ * the first render and are reused after it succeeds. A host missing ffmpeg still loads the plugin, so the rest
+ * of the Host starts; each render then fails with the resolution error until the executables are present.
  * @param ctx - plugin context carrying `ctx.motion`.
  * @param config - executables, browser cache, and fallback encoding.
  */
 export function apply(ctx: Context, config: Config): void {
-  const binaries: FfBinaries = resolveFfBinaries(config)
   const logger = producerLogger(ctx)
 
   // HyperFrames reads its ffmpeg and ffprobe paths from these process variables on every call; the Host
   // process has no other HyperFrames user, so the plugin owns them for its lifetime.
+  let binaries: FfBinaries | undefined
+  const ffBinaries = (): FfBinaries => {
+    if (binaries !== undefined) return binaries
+    const resolved = resolveFfBinaries(config)
+    process.env.HYPERFRAMES_FFMPEG_PATH = resolved.ffmpeg
+    process.env.HYPERFRAMES_FFPROBE_PATH = resolved.ffprobe
+    binaries = resolved
+    return resolved
+  }
   ctx.effect(() => {
     const previous = { ffmpeg: process.env.HYPERFRAMES_FFMPEG_PATH, ffprobe: process.env.HYPERFRAMES_FFPROBE_PATH }
-    process.env.HYPERFRAMES_FFMPEG_PATH = binaries.ffmpeg
-    process.env.HYPERFRAMES_FFPROBE_PATH = binaries.ffprobe
+    try {
+      ffBinaries()
+    } catch (error) {
+      logger.warn(`${error instanceof Error ? error.message : String(error)}; motion exports fail until it is present`)
+    }
     return () => {
+      binaries = undefined
       if (previous.ffmpeg === undefined) delete process.env.HYPERFRAMES_FFMPEG_PATH
       else process.env.HYPERFRAMES_FFMPEG_PATH = previous.ffmpeg
       if (previous.ffprobe === undefined) delete process.env.HYPERFRAMES_FFPROBE_PATH
@@ -131,10 +144,10 @@ export function apply(ctx: Context, config: Config): void {
     return created
   }
 
-  const chooseEncodePath = async (signal: AbortSignal): Promise<EncodePath> => {
+  const chooseEncodePath = async (ffmpeg: string, signal: AbortSignal): Promise<EncodePath> => {
     const gpu = await detectGpuEncoder()
     if (gpu !== null) return { kind: 'direct', encoder: `h264_${gpu}` }
-    const fallback = await firstWorkingEncoder(binaries.ffmpeg, config.fallbackEncoders, signal)
+    const fallback = await firstWorkingEncoder(ffmpeg, config.fallbackEncoders, signal)
     if (fallback === undefined) {
       throw new Error(`No H.264 encoder works on this ${process.platform} machine: no hardware encoder answered `
         + `and none of ${config.fallbackEncoders.join(', ')} encoded a test frame.`)
@@ -148,12 +161,13 @@ export function apply(ctx: Context, config: Config): void {
   const render = async (
     input: MotionRenderInput, signal: AbortSignal, onProgress?: (progress: MotionProgress) => void,
   ): Promise<MotionRenderOutput> => {
+    const ff = ffBinaries()
     const chromePath = await memo(browser, async () => resolveBrowser({
       browserPath: config.browserPath,
       cacheDir: config.browserCacheDir,
       headlessShellBuildId: await headlessShellBuildId(),
     }, signal), (value) => { browser = value })
-    const path = await memo(encodePath, () => chooseEncodePath(signal), (value) => { encodePath = value })
+    const path = await memo(encodePath, () => chooseEncodePath(ff.ffmpeg, signal), (value) => { encodePath = value })
     const progress = (job: RenderJob): void => {
       onProgress?.({ fraction: Math.min(1, job.progress / 100), stage: job.currentStage })
     }
@@ -173,7 +187,7 @@ export function apply(ctx: Context, config: Config): void {
         const job = createRenderJob({ ...base, format: 'mov', proresProfile: config.intermediateProfile })
         await executeRenderJob(job, input.compositionDir, intermediate, progress, signal)
         onProgress?.({ fraction: 1, stage: 'encode' })
-        await transcode(binaries.ffmpeg, intermediate, input.outputPath, path.encoder, config.fallbackBitrate[input.quality], signal)
+        await transcode(ff.ffmpeg, intermediate, input.outputPath, path.encoder, config.fallbackBitrate[input.quality], signal)
       } catch (error) {
         await rm(input.outputPath, { force: true })
         throw error
@@ -181,9 +195,9 @@ export function apply(ctx: Context, config: Config): void {
         await rm(scratch, { recursive: true, force: true })
       }
     }
-    const facts = await probeFilm(binaries.ffprobe, input.outputPath, signal)
+    const facts = await probeFilm(ff.ffprobe, input.outputPath, signal)
     const { size } = await stat(input.outputPath)
-    const stills = await takeStills(binaries.ffmpeg, input.outputPath, facts.durationSeconds, input.stills, config.stillWidth, signal)
+    const stills = await takeStills(ff.ffmpeg, input.outputPath, facts.durationSeconds, input.stills, config.stillWidth, signal)
     return { outputPath: input.outputPath, bytes: size, encoder: path.encoder, stills, ...facts }
   }
 

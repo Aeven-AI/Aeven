@@ -396,8 +396,10 @@ function configureArgs(target: Target, source: Source, opusPrefix: string, openh
   // H.264 comes from encoders that keep libx264, which is GPL, out of the build. macOS has VideoToolbox.
   if (platform === 'darwin') args.push('--enable-videotoolbox', '--enable-audiotoolbox')
   // Windows has Media Foundation's H.264 encoder. ffmpeg loads mfplat.dll when the encoder opens rather than
-  // linking it, so ffmpeg.exe still starts on N editions that lack the Media Feature Pack.
-  if (platform === 'win32') args.push('--enable-mediafoundation')
+  // linking it, so ffmpeg.exe still starts on N editions that lack the Media Feature Pack. ffmpeg's mfenc.c
+  // uses the D3D11 hardware-frame types unconditionally, and `--disable-autodetect` turns d3d11va off, so the
+  // encoder only compiles with d3d11va named too; ffmpeg loads d3d11.dll at runtime rather than linking it.
+  if (platform === 'win32') args.push('--enable-mediafoundation', '--enable-d3d11va')
   // Linux has VAAPI where a GPU driver serves it, and the BSD-licensed OpenH264 everywhere else.
   if (platform === 'linux') {
     if (openh264Prefix === undefined) throw new Error(`build: ${target} needs the OpenH264 prefix`)

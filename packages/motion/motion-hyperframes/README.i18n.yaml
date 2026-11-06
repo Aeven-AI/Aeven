@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/motion/motion-hyperframes/README.md
-README.md: 595017db2cf2cf5797851f73cc81644e33f6a989
-README.zh.md: 4e43c417974c5fc7593eb60cf7eb956ee4439ea9
+README.md: d9567f3e2718c1add95834b6e448c3375eff5269
+README.zh.md: 4bdbca7d2895b9672fbdbdf9042a4cccab4f2419

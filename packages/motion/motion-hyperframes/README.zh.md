@@ -28,7 +28,7 @@ kind: "package-reference"
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
-| `ffmpegPath`、`ffprobePath` | 随附的 `@aeven/ffmpeg-<platform>-<arch>` 可执行文件 | 编码器与探测器；缺少可执行文件会让插件在加载时失败 |
+| `ffmpegPath`、`ffprobePath` | 随附的 `@aeven/ffmpeg-<platform>-<arch>` 可执行文件 | 编码器与探测器；缺少可执行文件时插件在加载时记录警告，此后每次渲染都会失败，直到文件就位；Host 的其余部分照常启动 |
 | `browserPath` | 已安装的 Chrome、Chromium、Edge 或 Brave，否则为下载的无头外壳 | 用于截帧的 Chromium 可执行文件 |
 | `fallbackEncoders` | `h264_mf`、`libopenh264` | HyperFrames 找不到硬件编码器时依次尝试的 H.264 编码器 |
 | `intermediateProfile` | `422` | 回退编码器所读取中间文件的 ProRes 档次 |
@@ -46,7 +46,7 @@ kind: "package-reference"
 <a id="understand-the-implementation"></a>
 ## 理解实现
 
-插件在加载期间为 Host 进程设置 `HYPERFRAMES_FFMPEG_PATH` 与 `HYPERFRAMES_FFPROBE_PATH`，因为 HyperFrames 只从这两个变量读取其可执行文件；卸载时恢复原值。
+插件在找到两个可执行文件后为 Host 进程设置 `HYPERFRAMES_FFMPEG_PATH` 与 `HYPERFRAMES_FFPROBE_PATH`，因为 HyperFrames 只从这两个变量读取其可执行文件；卸载时恢复原值。
 
 首次渲染时，它选定浏览器与编码路径，成功后会复用二者：
 
