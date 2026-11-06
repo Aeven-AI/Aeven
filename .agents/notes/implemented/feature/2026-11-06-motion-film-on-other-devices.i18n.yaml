@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-06-motion-film-on-other-devices.md
-2026-11-06-motion-film-on-other-devices.md: 5d053920ae6292455b14537535f498758f52ecac
-2026-11-06-motion-film-on-other-devices.zh.md: a0230f4fbf622b73b47f93bce99af763ebdf2736
+2026-11-06-motion-film-on-other-devices.md: 95465ba9ef34bfcccf23f5d28512cb1a42b5ee3c
+2026-11-06-motion-film-on-other-devices.zh.md: e127cc0ca23222e9f323d5e5208855f20f4cf4a1

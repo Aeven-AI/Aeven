@@ -529,6 +529,13 @@
   config:
     directImageReads: false
 
+# The Motion card's replay route, so a film shown on another of the account's
+# devices plays from its composition rebuilt out of the conversation log. No
+# renderer is mounted, so the routes that read Host folders stay unregistered.
+- insert:
+    - id: api-motion
+      name: '@aeven/api-motion'
+
 - id: workflow-worker-thread
   disabled: true
 

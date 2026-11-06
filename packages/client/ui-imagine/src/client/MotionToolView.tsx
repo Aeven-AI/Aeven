@@ -135,32 +135,46 @@ export function MotionToolView({ block, sessionId, t }: ToolCallViewProps & Prop
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState<string | undefined>(undefined)
 
-  // The folder's current files, bundled by the Host into one document; where this Host lacks the folder or the
-  // preview route, the film the call stored.
+  // The folder's current files, bundled by the Host into one document. Where this Host lacks the folder or the
+  // preview route, the film the call stored, else the composition the Host rebuilds from this conversation's log.
   const filmId = film?.id
+  const callId = block.callId
   useEffect(() => {
     if (dir === undefined) return
     const controller = new AbortController()
     const url = new URL('api/motion/preview', document.baseURI)
     url.searchParams.set('dir', dir)
-    const stored = async (preview: string): Promise<string> => {
-      if (filmId === undefined) throw new Error(preview)
-      const fileUrl = new URL('api/attachment-file', document.baseURI)
-      fileUrl.searchParams.set('sessionId', String(sessionId))
-      fileUrl.searchParams.set('id', filmId)
-      const response = await hostFetch(fileUrl, { signal: controller.signal })
-      if (!response.ok) throw new Error(await failureText(response))
-      setStoredUrl(fileUrl.href)
-      return await response.text()
+    const elsewhere = async (preview: string): Promise<string> => {
+      const sources: URL[] = []
+      if (filmId !== undefined) {
+        const fileUrl = new URL('api/attachment-file', document.baseURI)
+        fileUrl.searchParams.set('sessionId', String(sessionId))
+        fileUrl.searchParams.set('id', filmId)
+        sources.push(fileUrl)
+      }
+      const replayUrl = new URL('api/motion/replay', document.baseURI)
+      replayUrl.searchParams.set('sessionId', String(sessionId))
+      replayUrl.searchParams.set('callId', callId)
+      sources.push(replayUrl)
+      let message = preview
+      for (const source of sources) {
+        const response = await hostFetch(source, { signal: controller.signal })
+        if (response.ok) {
+          setStoredUrl(source.href)
+          return await response.text()
+        }
+        message = await failureText(response)
+      }
+      throw new Error(message)
     }
     hostFetch(url, { signal: controller.signal })
-      .then(async response => response.ok ? await response.text() : await stored(await failureText(response)))
+      .then(async response => response.ok ? await response.text() : await elsewhere(await failureText(response)))
       .then((text) => { setHtml(text) })
       .catch((error: unknown) => {
         if (!controller.signal.aborted) setLoadError(error instanceof Error ? error.message : String(error))
       })
     return () => { controller.abort() }
-  }, [dir, filmId, sessionId])
+  }, [dir, filmId, sessionId, callId])
 
   // The player is created here rather than in JSX, which has no type for the custom element. Its frame drops
   // `allow-same-origin`, so the composition's scripts run in an opaque origin, apart from the app.

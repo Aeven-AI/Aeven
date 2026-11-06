@@ -12,6 +12,15 @@
       "path": "../motion"
     },
     {
+      "path": "../../api/session-controller/tsconfig.host.json"
+    },
+    {
+      "path": "../../util/brand"
+    },
+    {
+      "path": "../../core/session"
+    },
+    {
       "path": "../../client/connection/tsconfig.host.json"
     },
     {

@@ -266,7 +266,7 @@ Source: [`packages/memory/api-memory-manager/src/index.ts`](../packages/memory/a
 
 ## `@aeven/api-motion`
 
-Requires: `connection` · `motion`
+Requires: `connection`
 
 ```ts config-catalog
 /** Route configuration. */

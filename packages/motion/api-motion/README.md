@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-api-motion` registers the three authenticated Host routes the Motion card calls: `GET /api/motion/preview?dir=` returns a composition folder bundled into one HTML document, `POST /api/motion/export` renders the folder through `ctx.motion` into `renders/<folder>.mp4`, and `GET /api/motion/film?path=` streams that MP4 with byte ranges so the card can seek. Only the desktop Host mounts it, beside the motion renderer.
+`avn-api-motion` registers the three authenticated Host routes the Motion card calls: `GET /api/motion/preview?dir=` returns a composition folder bundled into one HTML document, `POST /api/motion/export` renders the folder through `ctx.motion` into `renders/<folder>.mp4`, and `GET /api/motion/film?path=` streams that MP4 with byte ranges so the card can seek. A fourth route, `GET /api/motion/replay?sessionId=&callId=`, rebuilds the composition a `show_motion` call showed from the caller's own conversation log, the files its successful `write` and `edit` calls produced inside the folder, and bundles it, so a film shown on another of the account's devices plays where the folder is absent. The three folder routes register only while `ctx.motion` exists and the replay route only while `ctx.sessionController` exists; the desktop Host mounts it beside the renderer, and hosted Web mounts it without one, so hosted serves replays alone.
 
 ## Table of Contents
 
@@ -48,6 +48,7 @@ No tokens pass through these routes, so prefix reuse is unaffected.
 
 <a id="known-limitations-and-deferred-work"></a>
 
+- **Replays see only logged file writes** — a composition file written by a command, an image or font asset, or a file that existed before the conversation is absent from a replay, and a Windows folder path does not resolve on a POSIX Host.
 - **No invariant companion** — No invariant companion is published: the routes hold no state.
 - **Large media is not inlined** — the bundle inlines images and fonts up to HyperFrames' per-asset size ceiling; video and audio a composition references by relative path do not load in the preview, though the export renders them.
 - **Preview scripts load from the network** — GSAP and any other library a composition names by URL load from their CDN inside the preview frame.

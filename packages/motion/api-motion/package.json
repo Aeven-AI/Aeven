@@ -27,16 +27,23 @@
   ],
   "license": "Apache-2.0",
   "dependencies": {
-    "@deepseek-ai/schemastery": "workspace:^"
+    "@deepseek-ai/schemastery": "workspace:^",
+    "@hyperframes/core": "0.9.19"
   },
   "peerDependencies": {
+    "@aeven/api-session-controller": "workspace:^",
+    "@aeven/brand": "workspace:^",
     "@aeven/client-connection": "workspace:^",
     "@aeven/motion": "workspace:^",
+    "@aeven/session": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
+    "@aeven/api-session-controller": "workspace:^",
+    "@aeven/brand": "workspace:^",
     "@aeven/client-connection": "workspace:^",
     "@aeven/motion": "workspace:^",
+    "@aeven/session": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   }
 }

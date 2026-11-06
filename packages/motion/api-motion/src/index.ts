@@ -6,17 +6,28 @@
  * @module @aeven/api-motion
  */
 import { createReadStream } from 'node:fs'
-import { stat } from 'node:fs/promises'
-import { basename, extname, isAbsolute, join } from 'node:path'
+import { mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { basename, dirname, extname, isAbsolute, join } from 'node:path'
 import { Readable } from 'node:stream'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@aeven/client-connection'
 import type { MotionQuality } from '@aeven/motion'
 import type {} from '@aeven/motion'
+import type {} from '@aeven/api-session-controller'
+import { brandString } from '@aeven/brand'
+import type { SessionId } from '@aeven/session'
+import { bundleToSingleHtml } from '@hyperframes/core/compiler'
+import { replayComposition } from './replay.ts'
 
 export const name = 'api-motion'
-export const inject = ['connection', 'motion']
+/**
+ * The connection service carries every route. The preview, export, and film routes read Host paths and register only
+ * while `ctx.motion` exists; the replay route reads only the caller's own conversation and registers while
+ * `ctx.sessionController` exists, so a Host without a renderer, such as hosted Web, serves replays alone.
+ */
+export const inject = ['connection']
 
 /** Route configuration. */
 export interface Config {
@@ -101,11 +112,67 @@ async function serveFilm(request: Request, path: string): Promise<Response> {
 }
 
 /**
- * Register the preview, export, and film routes.
- * @param ctx - context carrying the connection service and the motion renderer.
+ * Bundle a composition rebuilt from the conversation log in a private scratch folder. The bundler inlines only
+ * files inside the folder, so nothing outside the rebuilt files reaches the document.
+ * @param files - the folder's files by slash-separated relative path.
+ * @returns the bundled document.
+ */
+async function bundleFiles(files: ReadonlyMap<string, string>): Promise<string> {
+  const scratch = await mkdtemp(join(tmpdir(), 'avn-motion-replay-'))
+  try {
+    for (const [path, text] of files) {
+      const target = join(scratch, ...path.split('/'))
+      await mkdir(dirname(target), { recursive: true })
+      await writeFile(target, text, { flag: 'wx' })
+    }
+    return await bundleToSingleHtml(scratch, { runtime: 'inline' })
+  } finally {
+    await rm(scratch, { recursive: true, force: true })
+  }
+}
+
+/**
+ * Register the replay route, and the preview, export, and film routes while a motion renderer exists.
+ * @param ctx - context carrying the connection service.
  * @param config - export quality.
  */
 export function apply(ctx: Context, config: Config): void {
+  // A film shown on another of the account's devices: its composition rebuilt from this conversation's log.
+  ctx.inject(['sessionController'], (sessionCtx) => {
+    sessionCtx.effect(() => sessionCtx.connection.fetch.register({
+      path: '/api/motion/replay',
+      methods: ['GET'],
+      fetch: async (request) => {
+        const params = new URL(request.url).searchParams
+        const sessionId = params.get('sessionId')
+        const callId = params.get('callId')
+        if (sessionId === null || sessionId === '' || callId === null || callId === '') return reply(400, 'sessionId and callId required')
+        let events
+        try {
+          events = (await sessionCtx.sessionController.inspect(brandString<SessionId>(sessionId), request.signal)).events
+        } catch {
+          // A missing Session and another account's Session both read as absent.
+          return reply(404, 'not found')
+        }
+        const replay = replayComposition(events, callId)
+        if ('error' in replay) return reply(404, replay.error)
+        try {
+          return reply(200, await bundleFiles(replay.files))
+        } catch (error) {
+          return reply(422, error instanceof Error ? error.message : String(error))
+        }
+      },
+    }), 'api-motion: /api/motion/replay')
+  })
+  ctx.inject(['motion'], (motionCtx) => { registerFolderRoutes(motionCtx, config) })
+}
+
+/**
+ * Register the preview, export, and film routes, which read the Host's own folders.
+ * @param ctx - context carrying the connection service and the motion renderer.
+ * @param config - export quality.
+ */
+function registerFolderRoutes(ctx: Context, config: Config): void {
   // The live preview: the folder bundled into one document, its scene files, runtime, images, and fonts
   // inlined, because the player loads it as `srcdoc` in an opaque-origin frame that resolves no relative URL.
   ctx.effect(() => ctx.connection.fetch.register({

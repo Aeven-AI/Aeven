@@ -268,7 +268,7 @@ export interface Config {
 
 ## `@aeven/api-motion`
 
-需要：`connection` · `motion`
+需要：`connection`
 
 ```ts config-catalog
 /** Route configuration. */

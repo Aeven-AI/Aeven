@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`avn-api-motion` 注册 Motion 卡片调用的三条经过认证的 Host 路由：`GET /api/motion/preview?dir=` 返回打包成单一 HTML 文档的合成文件夹，`POST /api/motion/export` 经由 `ctx.motion` 把文件夹渲染为 `renders/<folder>.mp4`，`GET /api/motion/film?path=` 按字节范围流式提供该 MP4，使卡片可以拖动进度。只有桌面 Host 挂载它，与动态影片渲染器放在一起。
+`avn-api-motion` 注册 Motion 卡片调用的三条经过认证的 Host 路由：`GET /api/motion/preview?dir=` 返回打包成单一 HTML 文档的合成文件夹，`POST /api/motion/export` 经由 `ctx.motion` 把文件夹渲染为 `renders/<folder>.mp4`，`GET /api/motion/film?path=` 按字节范围流式提供该 MP4，使卡片可以拖动进度。第四条路由 `GET /api/motion/replay?sessionId=&callId=` 从调用方自己的对话日志重建某次 `show_motion` 调用展示的合成，即其成功的 `write` 与 `edit` 调用在该文件夹内产生的文件，并将其打包，使在账户另一台设备上展示的影片在缺少文件夹的地方也能播放。三条文件夹路由只在 `ctx.motion` 存在时注册，重放路由只在 `ctx.sessionController` 存在时注册；桌面 Host 将它与渲染器一起挂载，托管 Web 在没有渲染器时挂载它，因此托管部署只提供重放。
 
 ## 目录
 
@@ -48,6 +48,7 @@ kind: "package-reference"
 
 <a id="known-limitations-and-deferred-work"></a>
 
+- **重放只看到日志记录的文件写入** — 由命令写入的合成文件、图片或字体资源，以及对话开始前已存在的文件都不在重放中；Windows 文件夹路径在 POSIX Host 上无法解析。
 - **无不变量伴随包** — 不发布不变量伴随包：这些路由不持有状态。
 - **大型媒体不会内联** — 打包只内联不超过 HyperFrames 单资源大小上限的图片与字体；合成以相对路径引用的视频与音频在预览中不会加载，但导出时会被渲染。
 - **预览脚本从网络加载** — GSAP 及合成以 URL 引用的其他库，会在预览 frame 中从其 CDN 加载。
