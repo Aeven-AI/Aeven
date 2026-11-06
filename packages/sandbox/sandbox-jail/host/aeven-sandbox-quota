@@ -22,10 +22,11 @@ exec 9>"$MAP.lock"; flock 9
 id=$(awk -v a="$account" "\$2==a{print \$1}" "$MAP")
 recorded=$id
 [ -n "$id" ] || id=$(awk "BEGIN{m=999}{if(\$1>m)m=\$1}END{print m+1}" "$MAP")
-# A folder that already carries the id and inheritance keeps it on every file
-# created since, so only an unlabelled folder needs the walk.
+# Until an account is recorded, its folder may hold files from before its first
+# limit or from a walk an interruption cut short, so every unrecorded run walks;
+# a recorded folder walks only if its own label was lost.
 read -r current flags _ < <(lsattr -pd -- "$real")
-if [ "$current" != "$id" ] || [[ $flags != *P* ]]; then
+if [ -z "$recorded" ] || [ "$current" != "$id" ] || [[ $flags != *P* ]]; then
   # Directories inherit the project to new files (+P); existing files take the id.
   # find does not follow symlinks and stays on this filesystem.
   find "$real" -xdev -type d -exec chattr +P -p "$id" -- {} +

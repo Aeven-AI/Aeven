@@ -289,7 +289,14 @@ export class JailSandboxProvider extends SandboxProvider {
       return true
     }
     if (mtimeMs !== this.limited.mtimeMs) {
-      const accounts = new Set(readFileSync(this.quotaRecord, 'utf8').split('\n').map(line => line.trim().split(/\s+/u)[1]).filter(name => name !== undefined))
+      let text: string
+      try {
+        text = readFileSync(this.quotaRecord, 'utf8')
+      } catch {
+        // EACCES or a race with the helper's rewrite: without a readable record the step runs, which stays correct.
+        return true
+      }
+      const accounts = new Set(text.split('\n').map(line => line.trim().split(/\s+/u)[1]).filter(name => name !== undefined))
       this.limited = { mtimeMs, accounts }
     }
     return !this.limited.accounts.has(account)

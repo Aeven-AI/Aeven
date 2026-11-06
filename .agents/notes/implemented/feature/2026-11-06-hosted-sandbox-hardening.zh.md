@@ -16,7 +16,7 @@ Status: implemented
 
 `avn-tool-bash` 对每个输出路径在命令后的解析也加以限定，以相对于工作区的路径记录共享的输出，并按调用（`shareMaxFiles`、`shareMaxBytes`）和按对话（`shareMaxSessionBytes`，按日志统计）限制共享量。`avn-document-extract-video` 新增 `probeDirectory` 与 `probeRunner`；托管版在无网络的 bubblewrap 监狱中运行 `ffprobe`，该监狱只能看到 `/usr`、库的 alternatives 和探测目录。托管版禁用 `vcs` 与 `vcs-git`。
 
-配额辅助程序在每条命令自身的启动步骤中运行，而不是从 Host 运行，因此对文件夹的首次长时间遍历永远不会阻塞 Host 的事件循环；它只在限额设置成功后才记录账户，在文件夹已带有其项目 id 时跳过遍历，监狱则对记录中列出的账户跳过该步骤。托管的 `ffprobe` 监狱还为 x86_64 加载器链接 `/lib64`，并在 `prlimit` 下以 1 GiB 地址空间和 30 秒 CPU 运行。
+配额辅助程序在每条命令自身的启动步骤中运行，而不是从 Host 运行，因此对文件夹的首次长时间遍历永远不会阻塞 Host 的事件循环；它只在限额设置成功后才记录账户，在此之前每次运行都会遍历文件夹，从而补完被中断的遍历；监狱则对记录中列出的账户跳过该步骤，并把无法读取的记录视为未列出这些账户。托管的 `ffprobe` 监狱还为 x86_64 加载器链接 `/lib64`，并在 `prlimit` 下以 1 GiB 地址空间和 30 秒 CPU 运行。
 
 ## 备选方案
 
