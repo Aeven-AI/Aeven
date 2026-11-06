@@ -4,6 +4,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type { PendingSubmission } from '@aeven/api-session-controller/client'
+import type { ImageAttachmentRef } from '@aeven/attachment'
 import type { RenderMessageImages } from '@aeven/client-ui-conversation/client'
 import { Button, IconChevronDownOutline14, Modal, Spinner, TextAnimationContext } from '@aeven/client-ui-primitives'
 import type { ChatViewSlotProps } from '../contract/slots.ts'
@@ -343,6 +344,15 @@ export function ChatView({
     }),
     [loadImage, renderSlot, sessionId, turnImages],
   )
+  // Starting the read is what names the URL: the cache's browser path knows it
+  // at once, so the peek right after answers on the same render.
+  const storedImageUrl = useCallback((attachment: ImageAttachmentRef): string | undefined => {
+    if (loadImage.peek === undefined) return undefined
+    loadImage(attachment).catch(() => {
+      // The session binding is gone; the image keeps its authored source.
+    })
+    return loadImage.peek(attachment)
+  }, [loadImage])
 
   const listRef = useRef<HTMLDivElement | null>(null)
   const columnRef = useRef<HTMLDivElement | null>(null)
@@ -1167,6 +1177,7 @@ export function ChatView({
               retryTurn={queueMutable ? retryTurn : undefined}
               openPlans={openPlans}
               renderMessageImages={renderMessageImages}
+              storedImageUrl={storedImageUrl}
               fileMentions={fileMentions}
               scrollDown={scrollDown}
               onFullscreenChange={onFullscreenChange}

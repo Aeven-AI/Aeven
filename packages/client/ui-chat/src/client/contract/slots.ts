@@ -1,4 +1,5 @@
 /** Chat-owned Slot declarations and composed component props. */
+import type { ImageAttachmentRef } from '@aeven/attachment'
 import type { MessageId } from '@aeven/llm/brand'
 import type { PendingSubmission, SessionFace } from '@aeven/api-session-controller/client'
 import type { SessionSeq } from '@aeven/session/types'
@@ -92,6 +93,11 @@ export interface ChatNodeOwnerProps {
   /** Open the account's plan picker, the remedy a `QUOTA` turn failure names. Omitted where no picker exists. */
   openPlans?: ChatViewInjected['openPlans'] | undefined
   renderMessageImages: RenderMessageImages
+  /**
+   * The displayable URL of one stored image when it can be named without
+   * waiting; undefined while it is not.
+   */
+  storedImageUrl?: ((attachment: ImageAttachmentRef) => string | undefined) | undefined
   /** Generated image calls and artifacts owned by this Turn. */
   generatedImages?: import('./generated-images.ts').GeneratedImages | undefined
   fileMentions: (owner: TurnTailOwnerProps) => MarkdownFileMentions | undefined

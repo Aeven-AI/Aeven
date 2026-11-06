@@ -137,7 +137,11 @@ export class HistoricalImageCache {
     // session binding and minting an object URL.
     if (typeof document !== 'undefined') {
       const desktop = typeof window !== 'undefined' && (window as { avnDesktop?: unknown }).avnDesktop !== undefined
-      return Promise.resolve(durableImageUrl(attachment, desktop ? undefined : entry.sessionId))
+      const url = durableImageUrl(attachment, desktop ? undefined : entry.sessionId)
+      // Known at once, so `peek` answers right after `resolve`; a seeded
+      // preview keeps its place as the current URL.
+      entry.current ??= url
+      return Promise.resolve(url)
     }
     const binding = this.sessions.binding(entry.sessionId)
     if (binding === undefined) return Promise.reject(new Error(`ui-conversation: unknown session "${entry.sessionId}"`))
