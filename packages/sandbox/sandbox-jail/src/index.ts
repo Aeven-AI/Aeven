@@ -10,7 +10,7 @@
  */
 
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
 import { isAbsolute, join, relative, sep } from 'node:path'
 import { LAUNCHER_BIN, LAUNCHER_FAILURE_EXIT, launcherPath, probe } from '@deepseek-ai/node-addon-landlock-run'
 import { Context } from '@deepseek-ai/cordis'
@@ -23,6 +23,7 @@ import type { Session, SessionId } from '@aeven/session'
 import { SessionLogOffset } from '@aeven/session'
 import { AccountCgroups, type CgroupLimits } from './cgroup.ts'
 import { jailArgs, type JailProfile } from './profile.ts'
+import { PythonZygote } from './zygote.ts'
 
 /** cgroup placement for confined commands. */
 export interface CgroupConfig {
@@ -32,6 +33,23 @@ export interface CgroupConfig {
   total: CgroupLimits
   /** Limits for one account's commands. */
   account: CgroupLimits
+}
+
+/** The Python zygote's deployment. */
+export interface PythonZygoteConfig {
+  /** The image's interpreter, the one the shim runs when the zygote does not serve a call, e.g. `/opt/aeven-sandbox/bin/python3`. */
+  python: string
+  /**
+   * Host path of the zygote script `host/install-python-zygote.sh` installs, e.g.
+   * `/opt/aeven-sandbox/shim/python-zygote.py`; a missing file fails startup.
+   */
+  script: string
+  /** Modules imported once before any run, e.g. `numpy`, `pandas`, `matplotlib.pyplot`. */
+  preload: string[]
+  /** Host directory for the zygote's socket, created with mode 0700 and mounted read-only into every jail. */
+  socketDir: string
+  /** Limits of the zygote's own cgroup; each run is charged to its caller's account group. */
+  limits: CgroupLimits
 }
 
 /** Plugin config. */
@@ -84,6 +102,12 @@ export interface Config {
    * command runs the step.
    */
   quotaRecord?: string
+  /**
+   * A preloaded Python interpreter that runs jailed `python3` commands without their import cost. Needs `cgroup`
+   * and `seccompFilter`, and the shim `host/install-python-zygote.sh` builds first on the jail's `PATH`; omitted,
+   * every `python3` starts its own interpreter.
+   */
+  pythonZygote?: PythonZygoteConfig
   /**
    * System-prompt text describing what confined commands can use, such as
    * having no network and which programs and libraries are installed; omitted,
@@ -150,6 +174,13 @@ export class JailSandboxProvider extends SandboxProvider {
     probeTimeoutMs: z.natural().min(1).default(5_000),
     cgroup: z.object({ root: z.string().required(), total: limits.required(), account: limits.required() }),
     seccompFilter: z.string(),
+    pythonZygote: z.object({
+      python: z.string().required(),
+      script: z.string().required(),
+      preload: z.array(z.string()).default([]),
+      socketDir: z.string().required(),
+      limits: limits.required(),
+    }),
     sessionAttachments: z.boolean().default(false),
     quotaCommand: z.array(z.string()),
     quotaRecord: z.string(),
@@ -204,6 +235,33 @@ export class JailSandboxProvider extends SandboxProvider {
       ctx.effect(() => () => {
         cgroups.removeIdle()
       }, 'sandbox-jail account cgroups')
+    }
+    const zygote = config.pythonZygote
+    if (zygote !== undefined) {
+      if (this.cgroups === undefined || this.seccompFilter === undefined) {
+        throw new Error('sandbox-jail: pythonZygote needs cgroup and seccompFilter, which every run joins and loads')
+      }
+      if (!existsSync(zygote.script)) throw new Error(`sandbox-jail: pythonZygote.script "${zygote.script}" does not exist`)
+      if (!isAbsolute(zygote.socketDir)) throw new Error(`sandbox-jail: pythonZygote.socketDir "${zygote.socketDir}" must be absolute`)
+      mkdirSync(join(zygote.socketDir, 'mpl'), { recursive: true, mode: 0o700 })
+      chmodSync(zygote.socketDir, 0o700)
+      this.profile.zygoteDir = canonicalPath(zygote.socketDir)
+      const cgroups = this.cgroups
+      const seccompFilter = this.seccompFilter
+      ctx.effect(() => {
+        const process = new PythonZygote({
+          python: zygote.python,
+          script: zygote.script,
+          preload: zygote.preload,
+          socketDir: zygote.socketDir,
+          group: cgroups.zygoteGroup(zygote.limits),
+          accountsCgroup: cgroups.jail,
+          seccompFilter,
+          env: this.profile.env,
+          log: (level, message) => { ctx.logger('sandbox-jail')[level](message) },
+        })
+        return () => { process.dispose() }
+      }, 'sandbox-jail python zygote')
     }
     const note = config.modelNote
     if (note !== undefined && note.trim() !== '') {

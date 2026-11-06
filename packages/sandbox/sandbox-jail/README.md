@@ -59,6 +59,7 @@ Choose it for a multi-account Linux Host. Choose `avn-sandbox-local` for a perso
 | `modelNote` | none | System-prompt text describing what commands can use |
 | `seccompFilter` | none | Host path of a BPF system-call filter bubblewrap installs; a missing file fails startup |
 | `sessionAttachments` | `false` | Mount the attachments the conversation's user messages and tool results reference, read-only at their store paths |
+| `pythonZygote` | none | `python`, `script`, `preload`, `socketDir`, and cgroup `limits` of a preloaded Python interpreter that runs jailed `python3` commands; needs `cgroup` and `seccompFilter` |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#aevensandbox-jail) is the exhaustive source for every accepted field and its JSDoc.
 
@@ -86,6 +87,7 @@ Each step runs once per machine, as root unless noted.
 6. Write the system-call filter with [`host/seccomp-filter.c`](host/seccomp-filter.c) (`cc -O2 -o seccomp-filter seccomp-filter.c -lseccomp`) and name its output in `seccompFilter`.
 7. Install the read-only programs and libraries commands may use under a path listed in `readOnlyPaths`, such as a Python virtual environment and a Node `node_modules` directory under `/opt/aeven-sandbox`. Precompile Python bytecode with `python3 -m compileall`, because the jail cannot write `.pyc` files and pandas then imports five times slower.
 8. For animation and video, run [`host/install-motion.sh`](host/install-motion.sh) as root. It installs a headless Chromium (`playwright-core`), GSAP, and open-licensed fonts (Google Sans Flex and other Google Fonts families under the SIL Open Font License, plus Noto for every script, CJK, and colour emoji), and puts `render-motion` in the image's `bin`. `render-motion page.html film.mp4` steps a HyperFrames composition through its runtime's player, otherwise the page's GSAP timeline or its `window.seek(seconds)`, frame by frame and encodes the frames with ffmpeg's libx264; a page of `-` is read from stdin, and `--stills` with `--json` returns evenly spaced frames and the film's facts as one JSON line, which [`avn-motion-sandbox`](../../motion/motion-sandbox/README.md) reads. Rerun the script after updating `render-motion`; it serves CDN GSAP requests from the installed copy and fails every other request. List `/var/cache/fontconfig` in `readOnlyPaths` and set `PLAYWRIGHT_BROWSERS_PATH` in `env`.
+9. For fast Python, run [`host/install-python-zygote.sh`](host/install-python-zygote.sh) as root, put `/opt/aeven-sandbox/shim` first on `PATH` in `env`, and set `pythonZygote`. The script builds a static `python3` and `python` shim into `<image>/shim` and installs `python-zygote.py` beside it, which `script` names; rerun it after updating either file. The provider starts one interpreter, outside every jail in `<root>/zygote`, that imports `preload` once; the shim hands it each `python3` call through the socket each jail mounts at `/run/aeven/zygote`. For each call it forks, identifies the caller by the socket's peer pidfd, moves into the caller's account group, joins the caller's namespaces, drops every capability, installs the launcher's Landlock rules for the caller's writable mounts and the jail's system-call filter, and runs the program with the caller's descriptors, directory, environment, and umask. `import pandas, matplotlib.pyplot` then takes about 30 ms instead of 0.9 s. A call the zygote cannot reproduce exactly, such as an interactive session, an unusual flag, a changed `PYTHON*`, locale, thread-count, or Matplotlib variable, or `-c` code that names no preloaded module, runs the image's interpreter instead, as does every call while the zygote is down.
 
 ### Failures and recovery
 
@@ -106,6 +108,7 @@ Startup fails loud when the launcher cannot enforce Landlock, when bubblewrap ca
 | [`src/index.ts`](src/index.ts) | Plugin entry: config, startup probes, account check, per-call wrap |
 | [`src/profile.ts`](src/profile.ts) | bwrap mounts and Landlock grants for one call |
 | [`src/cgroup.ts`](src/cgroup.ts) | Combined and per-account cgroups under the delegated directory |
+| [`src/zygote.ts`](src/zygote.ts) | The Python zygote's process: start in its own group, restart when it ends |
 | — | No runtime invariant companion is published; the provider holds no event sequence or mutable relation that a second observation could contradict. |
 
 ### One call
@@ -114,7 +117,7 @@ Startup fails loud when the launcher cannot enforce Landlock, when bubblewrap ca
 
 ### Host files
 
-[`host/`](host/) holds what the setup steps install: the AppArmor profile, the systemd drop-ins for delegation and the Host's user, the quota helper with its sudoers rule, the system-call filter source, and the motion installer with `render-motion`. The quota helper reads the accounts root from the root-owned `/etc/aeven-sandbox/accounts-root`, so a caller cannot choose the tree it limits.
+[`host/`](host/) holds what the setup steps install: the AppArmor profile, the systemd drop-ins for delegation and the Host's user, the quota helper with its sudoers rule, the system-call filter source, the motion installer with `render-motion`, and the Python zygote (`python-zygote.py`, which documents its protocol), its shim source, and the shim's installer. The quota helper reads the accounts root from the root-owned `/etc/aeven-sandbox/accounts-root`, so a caller cannot choose the tree it limits.
 
 ### Two barriers
 
@@ -151,7 +154,8 @@ No direct invalidation; the named consumers own any request-prefix changes.
 <a id="known-limitations-and-deferred-work"></a>
 
 - **Linux only, shared kernel** — the jail shares the Host's kernel, so a kernel privilege escalation from inside it reaches the machine. Put the Host on a machine that holds nothing beyond what it serves, or move execution to a separate machine.
-- **Every command starts its interpreter** — a Python command pays its imports (about 0.4 s for pandas) on each call; a preloaded interpreter that forks per command is deferred.
+- **Zygote runs share the zygote's start** — every run forked from one zygote has the same string-hash seed, its `os.getppid()` is 0, and modules imported at start-up keep the environment they read then, which is why a changed import-time variable runs the interpreter instead.
+- **Without the zygote every command starts its interpreter** — a Python command then pays its imports (about 0.9 s for pandas and Matplotlib) on each call.
 - **Commands spawn from the Host process** — forking a large Host costs milliseconds per command; spawning from a small executor process is deferred.
 - **Managed `AVN_*` variables do not reach commands** — the jail sets the complete environment from `env`.
 - **The system-call filter is a deny list** — it refuses mount, namespace, tracing, keyring, BPF, module, and handle calls and hides `io_uring` and `clone3`; everything else stays allowed, and the namespaces, dropped capabilities, `no_new_privs`, and Landlock remain the main barriers.

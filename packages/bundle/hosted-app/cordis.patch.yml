@@ -452,7 +452,8 @@
           - /etc/group
           - /etc/nsswitch.conf
         env:
-          PATH: /opt/aeven-sandbox/bin:/usr/bin:/bin
+          # The zygote's python3 shim comes first (host/install-python-zygote.sh).
+          PATH: /opt/aeven-sandbox/shim:/opt/aeven-sandbox/bin:/usr/bin:/bin
           NODE_PATH: /opt/aeven-sandbox/node/node_modules
           NODE_COMPILE_CACHE: /opt/aeven-sandbox/node/compile-cache
           PLAYWRIGHT_BROWSERS_PATH: /opt/aeven-sandbox/ms-playwright
@@ -467,6 +468,18 @@
           PYTHONDONTWRITEBYTECODE: '1'
         tmpSizeMb: 512
         seccompFilter: /opt/aeven-sandbox/seccomp.bpf
+        # One interpreter with the data stack already imported runs every
+        # jailed python3 that uses it, joined to the caller's own jail.
+        pythonZygote:
+          python: /opt/aeven-sandbox/bin/python3
+          script: /opt/aeven-sandbox/shim/python-zygote.py
+          preload: [numpy, pandas, matplotlib, matplotlib.pyplot]
+          socketDir: !!js avnHomePath('sandbox', 'zygote')
+          limits:
+            memoryMax: 2G
+            pidsMax: '128'
+            cpuMax: max 100000
+            cpuWeight: '100'
         sessionAttachments: true
         # 5 GiB and 200,000 files per account folder, as an ext4 project quota on
         # the accounts filesystem; the helper refuses any path that is not one

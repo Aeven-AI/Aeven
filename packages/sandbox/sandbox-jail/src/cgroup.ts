@@ -2,7 +2,8 @@
  * Per-account cgroups beneath a cgroup v2 directory the Host was delegated.
  * The tree is `<root>/jail/acct-<account>`: `jail` caps everything confined
  * commands use together, so the Host in its own sibling group keeps its share,
- * and each account's group caps and weights that account's commands.
+ * and each account's group caps and weights that account's commands. The
+ * Python zygote, when configured, runs in the sibling `<root>/zygote`.
  *
  * @module @aeven/sandbox-jail/cgroup
  */
@@ -37,7 +38,9 @@ function writeLimits(dir: string, limits: CgroupLimits): void {
 
 /** The account groups of one delegated cgroup directory. */
 export class AccountCgroups {
-  private readonly jail: string
+  /** The directory whose `acct-<account>` children are the account groups. */
+  readonly jail: string
+  private readonly root: string
   private readonly accounts = new Map<string, string>()
 
   /**
@@ -48,6 +51,7 @@ export class AccountCgroups {
    * @throws when the directory is not delegated, holds processes, or lacks a controller.
    */
   constructor(root: string, total: CgroupLimits, private readonly account: CgroupLimits) {
+    this.root = root
     this.jail = join(root, 'jail')
     try {
       writeFileSync(join(root, 'cgroup.subtree_control'), CONTROLLERS)
@@ -76,6 +80,18 @@ export class AccountCgroups {
       writeLimits(dir, this.account)
       this.accounts.set(account, dir)
     }
+    return dir
+  }
+
+  /**
+   * The Python zygote's group beside `jail`, created with its limits.
+   * @param limits - the zygote's own limits; each run moves into its caller's account group.
+   * @returns the group directory.
+   */
+  zygoteGroup(limits: CgroupLimits): string {
+    const dir = join(this.root, 'zygote')
+    mkdirSync(dir, { recursive: true })
+    writeLimits(dir, limits)
     return dir
   }
 

@@ -3479,6 +3479,12 @@ export interface Config {
    */
   quotaRecord?: string
   /**
+   * A preloaded Python interpreter that runs jailed `python3` commands without their import cost. Needs `cgroup`
+   * and `seccompFilter`, and the shim `host/install-python-zygote.sh` builds first on the jail's `PATH`; omitted,
+   * every `python3` starts its own interpreter.
+   */
+  pythonZygote?: PythonZygoteConfig
+  /**
    * System-prompt text describing what confined commands can use, such as
    * having no network and which programs and libraries are installed; omitted,
    * the jail adds nothing to the prompt.
@@ -3494,6 +3500,23 @@ export interface CgroupConfig {
   total: CgroupLimits
   /** Limits for one account's commands. */
   account: CgroupLimits
+}
+
+/** The Python zygote's deployment. */
+export interface PythonZygoteConfig {
+  /** The image's interpreter, the one the shim runs when the zygote does not serve a call, e.g. `/opt/aeven-sandbox/bin/python3`. */
+  python: string
+  /**
+   * Host path of the zygote script `host/install-python-zygote.sh` installs, e.g.
+   * `/opt/aeven-sandbox/shim/python-zygote.py`; a missing file fails startup.
+   */
+  script: string
+  /** Modules imported once before any run, e.g. `numpy`, `pandas`, `matplotlib.pyplot`. */
+  preload: string[]
+  /** Host directory for the zygote's socket, created with mode 0700 and mounted read-only into every jail. */
+  socketDir: string
+  /** Limits of the zygote's own cgroup; each run is charged to its caller's account group. */
+  limits: CgroupLimits
 }
 
 /** cgroup v2 interface values written verbatim to one group. */
