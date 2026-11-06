@@ -12,7 +12,7 @@ Aeven brings together the context to understand the task and the capabilities to
 
 **AI can do more. So can you.**
 
-[Get started](#run) · [Documentation](https://docs.aeven.io/) · [Desktop](apps/desktop/README.md) · [Developers](#open-by-design)
+[Get started](#run) · [Documentation](https://helpcenter.aeven.io/) · [Desktop](apps/desktop/README.md) · [Developers](#open-by-design)
 
 Aeven is in developer preview. Features and data formats can change. Read the [safety notice](SAFETY.md) before giving it access to your files, accounts, or computer.
 
