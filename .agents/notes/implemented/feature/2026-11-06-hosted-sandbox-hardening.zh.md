@@ -18,7 +18,7 @@ Status: implemented
 
 配额辅助程序在每条命令自身的启动步骤中运行，而不是从 Host 运行，因此对文件夹的首次长时间遍历永远不会阻塞 Host 的事件循环；它只在限额设置成功后才记录账户，在此之前每次运行都会遍历文件夹，从而补完被中断的遍历；监狱则对记录中列出的账户跳过该步骤，并把无法读取的记录视为未列出这些账户。托管的 `ffprobe` 监狱还为 x86_64 加载器链接 `/lib64`，并在 `prlimit` 下以 1 GiB 地址空间和 30 秒 CPU 运行。
 
-此后，受限的 `read` 与 `read_image` 也接受对话自身内容所引用的附件，即监狱挂载的文件，二者共用 `avn-attachment` 中的同一个收集器；受限读取和声明的输出在任何文件系统调用之前拒绝字面上位于文件夹之外的路径，因此没有错误会描述 Host；共享量还通过 Host 目录中的台账按账户、按 UTC 日设限（`shareLedgerDirectory`、`shareMaxAccountBytesPerDay`）。
+此后，受限的 `read` 与 `read_image` 也接受对话自身内容所引用的附件，即监狱挂载的文件，二者共用 `avn-attachment` 中的同一个收集器；受限读取和声明的输出在任何文件系统调用之前拒绝字面上位于文件夹之外的路径，因此没有错误会描述 Host；共享量还通过 Host 目录中的台账按账户、按 UTC 日设限（`shareLedgerDirectory`、`shareMaxAccountBytesPerDay`）。托管 Host 现在以专用的 `aeven-hosted` 用户运行，其唯一的 sudo 权限是配额辅助程序；部署所用的 `ubuntu` 用户保留管理权，`host/systemd-user.conf` 记录了 unit 的改动。受限读取以配置形式和规范形式两种方式接受工作区根目录与附件，并像监狱一样增量维护每个会话的附件集合。
 
 ## 备选方案
 

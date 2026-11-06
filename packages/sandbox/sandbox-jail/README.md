@@ -81,7 +81,7 @@ Each step runs once per machine, as root unless noted.
    ```
 
 3. Build the Landlock launcher in the deployed checkout, as the Host's user: `pnpm --dir native/landlock-run run build:native`.
-4. Run the Host in a systemd unit with `Delegate=yes` and `DelegateSubgroup=host`. systemd starts the Host in `<unit>/host`, and this provider creates `<unit>/jail/acct-<account>` beside it.
+4. Run the Host in a systemd unit with `Delegate=yes` and `DelegateSubgroup=host`. systemd starts the Host in `<unit>/host`, and this provider creates `<unit>/jail/acct-<account>` beside it. Run it as a dedicated user, such as `aeven-hosted`, that has no sudo rights beyond the quota helper ([`host/systemd-user.conf`](host/systemd-user.conf), [`host/sudoers`](host/sudoers)), so a compromised Host process is not root.
 5. Put `accountsRoot` on its own ext4 filesystem with project quotas, such as a loop image created with `mkfs.ext4 -O quota,project` and mounted `loop,prjquota,nosuid,nodev`, so commands cannot fill the Host's disk. A root-owned helper reached through `sudo -n` as `quotaCommand` gives each account folder a project id (`chattr -R +P -p <id>`) and a limit (`setquota -P`); a jailed process cannot change a project id.
 6. Write the system-call filter with [`host/seccomp-filter.c`](host/seccomp-filter.c) (`cc -O2 -o seccomp-filter seccomp-filter.c -lseccomp`) and name its output in `seccompFilter`.
 7. Install the read-only programs and libraries commands may use under a path listed in `readOnlyPaths`, such as a Python virtual environment and a Node `node_modules` directory under `/opt/aeven-sandbox`. Precompile Python bytecode with `python3 -m compileall`, because the jail cannot write `.pyc` files and pandas then imports five times slower.
@@ -113,7 +113,7 @@ Startup fails loud when the launcher cannot enforce Landlock, when bubblewrap ca
 
 ### Host files
 
-[`host/`](host/) holds what the setup steps install: the AppArmor profile, the systemd drop-in, the quota helper with its sudoers rule, and the system-call filter source. The quota helper reads the accounts root from the root-owned `/etc/aeven-sandbox/accounts-root`, so a caller cannot choose the tree it limits.
+[`host/`](host/) holds what the setup steps install: the AppArmor profile, the systemd drop-ins for delegation and the Host's user, the quota helper with its sudoers rule, and the system-call filter source. The quota helper reads the accounts root from the root-owned `/etc/aeven-sandbox/accounts-root`, so a caller cannot choose the tree it limits.
 
 ### Two barriers
 
