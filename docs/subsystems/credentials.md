@@ -382,7 +382,8 @@ abstract set(ref: CredentialRef, value: string, user?: string): Promise<void>
  * an absent reference is a no-op. Rejects while a read-only source shadows
  * the reference, like {@link set}.
  * @param ref - the reference to remove.
- * @param user - the signed-in account whose own credential to remove, on a provider with account storage; absent removes the shared value.
+ * @param user - the signed-in account whose own credential to remove, on a provider with account storage; absent removes the shared
+ *   value.
  */
 abstract unset(ref: CredentialRef, user?: string): Promise<void>
 
@@ -418,7 +419,8 @@ abstract readRecord(key: CredentialKey, user?: string): Promise<CredentialRecord
  * Describe one record for configuration surfaces without exposing its value.
  * @param key - the record to describe.
  * @returns presence, discriminant, and writability.
- * @param user - the signed-in account whose own record to describe, on a provider with account storage; absent describes the shared record.
+ * @param user - the signed-in account whose own record to describe, on a provider with account storage; absent describes the shared
+ *   record.
  */
 abstract describeRecord(key: CredentialKey, user?: string): Promise<CredentialRecordInfo>
 

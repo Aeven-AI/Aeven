@@ -144,9 +144,6 @@
 - id: ui-cordis
   disabled: true
 
-# The catalog installs skills into the Host's own skill directories.
-- id: skill-catalog
-  disabled: true
 
 # ── no Workspace directories on the Host ────────────────────────────────────
 
