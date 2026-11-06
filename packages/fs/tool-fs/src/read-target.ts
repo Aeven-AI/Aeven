@@ -10,6 +10,9 @@ import type { FsInfo, FsTarget } from '@aeven/fs'
 import type { ToolExecution } from '@aeven/tools'
 import type {} from '@aeven/sandbox-policy'
 import { referencedAttachmentPaths } from '@aeven/attachment'
+import { SessionLogOffset } from '@aeven/session'
+import type { Session } from '@aeven/session'
+import type {} from '@aeven/working-directory'
 import { canonicalPath } from '@aeven/sandbox'
 import { sessionCwd, sessionResolveOptions } from './session-cwd.ts'
 
@@ -25,9 +28,10 @@ import { sessionCwd, sessionResolveOptions } from './session-cwd.ts'
  */
 export async function assertInWorkspace(ctx: Context, exec: ToolExecution, target: FsTarget): Promise<void> {
   const allowed = readableRoots(ctx, exec)
-  const root = allowed === undefined ? undefined : await ctx.fs.resolve(allowed.workspaceRoot, { signal: exec.signal })
-  if (root !== undefined && ctx.fs.contains(root, target)) return
-  if (allowed?.attachments.has(canonicalPath(String(target.targetKey))) === true) return
+  for (const workspaceRoot of allowed?.workspaceRoots ?? []) {
+    if (ctx.fs.contains(await ctx.fs.resolve(workspaceRoot, { signal: exec.signal }), target)) return
+  }
+  if (allowed?.attachments.has(String(target.targetKey)) === true) return
   throw outsideFolder(target.displayPath)
 }
 
@@ -43,26 +47,49 @@ export async function assertInWorkspace(ctx: Context, exec: ToolExecution, targe
 function assertLexicallyInWorkspace(ctx: Context, exec: ToolExecution, requestedPath: string): void {
   const allowed = readableRoots(ctx, exec)
   if (allowed === undefined) throw outsideFolder(requestedPath)
-  const absolute = isAbsolute(requestedPath)
-    ? normalize(requestedPath)
-    : resolvePath(sessionCwd(ctx, exec, requestedPath) ?? allowed.workspaceRoot, requestedPath)
-  const rest = relative(allowed.workspaceRoot, absolute)
-  if (rest === '' || (!rest.startsWith('..') && !isAbsolute(rest))) return
-  if (allowed.attachments.has(absolute)) return
+  const cwd = sessionCwd(ctx, exec, requestedPath)
+  // A relative path is judged both as given and against the canonical working directory.
+  const candidates = isAbsolute(requestedPath)
+    ? [normalize(requestedPath)]
+    : [...new Set([cwd, cwd === undefined ? undefined : canonicalPath(cwd)].filter(dir => dir !== undefined))]
+      .map(dir => resolvePath(dir, requestedPath))
+  for (const absolute of candidates.length > 0 ? candidates : [resolvePath(allowed.workspaceRoots[0] ?? '/', requestedPath)]) {
+    for (const workspaceRoot of allowed.workspaceRoots) {
+      const rest = relative(workspaceRoot, absolute)
+      if (rest === '' || (!rest.startsWith('..') && !isAbsolute(rest))) return
+    }
+    if (allowed.attachments.has(absolute)) return
+  }
   throw outsideFolder(requestedPath)
 }
 
-/** The calling session's workspace root and the attachment files its log references. */
-function readableRoots(ctx: Context, exec: ToolExecution): { workspaceRoot: string; attachments: Set<string> } | undefined {
+/** The attachment files each live session references, and the log position read so far. */
+const sessionAttachments = new WeakMap<Session, { seq: number; files: Set<string> }>()
+
+/**
+ * The calling session's workspace roots and the attachment files its log
+ * references, each in its configured and its canonical form, so a symlinked
+ * data directory neither blocks reads nor widens them.
+ */
+function readableRoots(ctx: Context, exec: ToolExecution): { workspaceRoots: string[]; attachments: Set<string> } | undefined {
   const session = exec.agent?.session
   const policy = session === undefined ? undefined : ctx.get('sandboxPolicy')?.resolve({ session })
   if (session === undefined || policy === undefined) return undefined
+  const configured = ctx.get('workingDirectory')?.rootOf(session)
+  const workspaceRoots = [
+    ...new Set([policy.workspaceRoot, canonicalPath(policy.workspaceRoot), ...configured === undefined ? [] : [configured]]),
+  ]
   const store = ctx.get('attachments')
-  const attachments = new Set<string>()
+  const known = sessionAttachments.get(session) ?? { seq: 0, files: new Set<string>() }
   if (store !== undefined) {
-    for (const path of referencedAttachmentPaths(session.snapshotEvents(), store)) attachments.add(canonicalPath(path))
+    for (const path of referencedAttachmentPaths(session.snapshotEvents(SessionLogOffset(known.seq)), store)) {
+      known.files.add(path)
+      known.files.add(canonicalPath(path))
+    }
+    known.seq = session.seq
+    sessionAttachments.set(session, known)
   }
-  return { workspaceRoot: canonicalPath(policy.workspaceRoot), attachments }
+  return { workspaceRoots, attachments: known.files }
 }
 
 function outsideFolder(path: string): FsError {

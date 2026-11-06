@@ -181,7 +181,6 @@ export class Executor {
     return helper
   }
 
-
   /**
    * Start a command in a ready launcher, or through the fallback spawner.
    * @param program - the program to run.
