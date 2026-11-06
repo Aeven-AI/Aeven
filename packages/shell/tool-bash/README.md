@@ -47,6 +47,7 @@ Two config fields cover background support.
 |---|---|---|
 | `enableRunInBackground` | `true` | Expose `run_in_background`; when `false`, forced background calls are rejected and foreground calls always wait |
 | `detachAfterMs` | `20000` | How long a foreground command may run before it is handed back as a background job |
+| `shareOutputFiles` | `false` | Store produced `output_files` inside the workspace as attachments shown at the call, and refuse declared paths outside the workspace; requires `ctx.attachments` |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#aeventool-bash) is the exhaustive source for every accepted field and its JSDoc; the generated [tool catalog](../../../docs/tool-catalog.md#aeventool-bash) carries the full argument schema.
 
@@ -54,7 +55,7 @@ The generated [configuration catalog](../../../docs/config-catalog.md#aeventool-
 
 The tool executes `bash -c <command>` and returns the combined output. Commands run in a fresh shell every call, so state never persists — pass `workdir` instead of `cd`. A non-zero exit is reported as `[exit code: N]` for the agent to interpret, not surfaced as a tool error. A `description` in active voice (5–10 words) labels the call in the UI; `timeoutMs` overrides the executor's default and cap. Output beyond the executor's stream caps is truncated to its tail, with the full output saved to a spill file whose path is reported.
 
-Commands that generate deliverables declare `output_files`, resolved against `workdir`. The filesystem provider checks each path before and after the foreground command; new or changed regular files enter durable `producedFiles` result metadata with their creation status. The created/edited-files block consumes that metadata without filtering extensions, including PDF, Microsoft Office, OpenDocument, and iWork files. Missing and unchanged paths are excluded. Declared outputs disable automatic detachment and cannot be combined with `run_in_background`; the command retains its normal timeout. A composition using this argument must mount a filesystem provider.
+Commands that generate deliverables declare `output_files`, resolved against `workdir`. The filesystem provider checks each path before and after the foreground command; new or changed regular files enter durable `producedFiles` result metadata with their creation status. The created/edited-files block consumes that metadata without filtering extensions, including PDF, Microsoft Office, OpenDocument, and iWork files. Missing and unchanged paths are excluded. Declared outputs disable automatic detachment and cannot be combined with `run_in_background`; the command retains its normal timeout. A composition using this argument must mount a filesystem provider. With `shareOutputFiles`, a declared path outside the session workspace is refused before any lookup, and each produced file inside it is stored as an attachment: an image displays inline and any other file downloads at the call, while the result text tells the model the user already sees them and lists any file left out with the reason.
 
 ### Running long commands in the background
 

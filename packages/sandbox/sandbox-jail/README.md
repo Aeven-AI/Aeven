@@ -54,6 +54,8 @@ Choose it for a multi-account Linux Host. Choose `avn-sandbox-local` for a perso
 | `env` | `PATH`, `LANG`, `TMPDIR`, one BLAS thread, headless matplotlib | The complete environment of confined commands; `HOME` is the account folder |
 | `tmpSizeMb` | `512` | Size bound of each of `/tmp` and `/dev/shm` |
 | `cgroup` | none | Delegated cgroup directory plus combined and per-account limits |
+| `quotaCommand` | none | Argv run once per account before its first command, with the account folder appended, to limit its disk use; a failure refuses the account's commands |
+| `modelNote` | none | System-prompt text describing what commands can use |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#aevensandbox-jail) is the exhaustive source for every accepted field and its JSDoc.
 
@@ -77,7 +79,8 @@ Each step runs once per machine, as root unless noted.
 
 3. Build the Landlock launcher in the deployed checkout, as the Host's user: `pnpm --dir native/landlock-run run build:native`.
 4. Run the Host in a systemd unit with `Delegate=yes` and `DelegateSubgroup=host`. systemd starts the Host in `<unit>/host`, and this provider creates `<unit>/jail/acct-<account>` beside it.
-5. Install the read-only programs and libraries commands may use under a path listed in `readOnlyPaths`, such as a Python virtual environment and a Node `node_modules` directory under `/opt/aeven-sandbox`. Precompile Python bytecode with `python3 -m compileall`, because the jail cannot write `.pyc` files and pandas then imports five times slower.
+5. Put `accountsRoot` on its own ext4 filesystem with project quotas, such as a loop image created with `mkfs.ext4 -O quota,project` and mounted `loop,prjquota,nosuid,nodev`, so commands cannot fill the Host's disk. A root-owned helper reached through `sudo -n` as `quotaCommand` gives each account folder a project id (`chattr -R +P -p <id>`) and a limit (`setquota -P`); a jailed process cannot change a project id.
+6. Install the read-only programs and libraries commands may use under a path listed in `readOnlyPaths`, such as a Python virtual environment and a Node `node_modules` directory under `/opt/aeven-sandbox`. Precompile Python bytecode with `python3 -m compileall`, because the jail cannot write `.pyc` files and pandas then imports five times slower.
 
 ### Failures and recovery
 

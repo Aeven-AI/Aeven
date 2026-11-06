@@ -40,5 +40,8 @@
     "@aeven/sandbox-policy": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@aeven/session-projection": "workspace:^"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "workspace:^"
   }
 }

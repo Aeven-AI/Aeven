@@ -47,6 +47,7 @@ kind: "package-reference"
 |---|---|---|
 | `enableRunInBackground` | `true` | 暴露 `run_in_background`；为 `false` 时拒绝强制后台调用，前台调用始终等待 |
 | `detachAfterMs` | `20000` | 前台命令在被交还为后台任务之前允许运行多久 |
+| `shareOutputFiles` | `false` | 将工作区内生成的 `output_files` 存为附件并在调用处展示，并拒绝工作区之外的声明路径；需要 `ctx.attachments` |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#aeventool-bash)是每个受支持字段及其 JSDoc 的穷尽式真源；生成的[工具目录](../../../docs/tool-catalog.zh.md#aeventool-bash)携带完整参数 schema。
 
@@ -54,7 +55,7 @@ kind: "package-reference"
 
 工具执行 `bash -c <command>` 并返回合并后的输出。命令每次调用都运行在全新 shell 中，因此状态从不保留——请传 `workdir` 而不是 `cd`。非零退出以 `[exit code: N]` 报告给 agent 解读，而不是作为工具错误抛出。主动语态的 `description`（5–10 个词）在 UI 中标注该调用；`timeoutMs` 覆盖执行器的默认值与上限。超出执行器流上限的输出会被截断为尾部，完整输出保存到 spill 文件并报告其路径。
 
-生成交付文件的命令声明 `output_files`，路径相对于 `workdir` 解析。文件系统提供者在前台命令执行前后检查每个路径；新建或修改的普通文件连同创建状态进入持久的 `producedFiles` 结果元数据。已创建／已编辑文件块消费这些元数据，不按扩展名过滤，覆盖 PDF、Microsoft Office、OpenDocument 和 iWork 文件。缺失或未变化的路径不列出。声明输出会禁用自动转为后台任务，也不能与 `run_in_background` 同用；命令保留正常超时。使用该参数的组合必须挂载文件系统提供者。
+生成交付文件的命令声明 `output_files`，路径相对于 `workdir` 解析。文件系统提供者在前台命令执行前后检查每个路径；新建或修改的普通文件连同创建状态进入持久的 `producedFiles` 结果元数据。已创建／已编辑文件块消费这些元数据，不按扩展名过滤，覆盖 PDF、Microsoft Office、OpenDocument 和 iWork 文件。缺失或未变化的路径不列出。声明输出会禁用自动转为后台任务，也不能与 `run_in_background` 同用；命令保留正常超时。使用该参数的组合必须挂载文件系统提供者。启用 `shareOutputFiles` 时，会话工作区之外的声明路径在任何查找之前即被拒绝，工作区内生成的每个文件都存为附件：图片在调用处内联显示，其他文件在调用处供下载，结果文本告知模型用户已能看到它们，并列出未共享的文件及原因。
 
 ### 后台运行长时间命令
 

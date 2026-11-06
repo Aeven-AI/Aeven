@@ -39,7 +39,7 @@ Load the shared policy service, then this backend, then the tools; the read-befo
 - name: '@aeven/tool-fs'
 ```
 
-The backend's config is the local backend's unchanged (`cwd` resolution default and `diffBasisMaxBytes` overwrite bound); the [configuration catalog](../../../docs/config-catalog.md#aevenfs-sandbox) is the exhaustive source.
+The backend's config is the local backend's (`cwd` resolution default and `diffBasisMaxBytes` overwrite bound) plus `verifyReads` (default `false`, Linux only): with it, every read opens the file without following a final symlink, checks through `/proc/self/fd` that the opened file is the one resolved, and reads through that descriptor, so a confined process swapping a path component for a symlink between resolve and read cannot redirect the read; the [configuration catalog](../../../docs/config-catalog.md#aevenfs-sandbox) is the exhaustive source.
 
 ### How the fence behaves
 

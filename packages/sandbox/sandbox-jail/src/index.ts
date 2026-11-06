@@ -11,12 +11,13 @@
 
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync } from 'node:fs'
-import { isAbsolute, relative, sep } from 'node:path'
+import { isAbsolute, join, relative, sep } from 'node:path'
 import { LAUNCHER_BIN, LAUNCHER_FAILURE_EXIT, launcherPath, probe } from '@deepseek-ai/node-addon-landlock-run'
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { SandboxProvider, SandboxUnavailableError, canonicalPath } from '@aeven/sandbox'
 import type { ConfinedArgv, RunnerFailureRule, SandboxPolicy } from '@aeven/sandbox'
+import type {} from '@aeven/system-prompt'
 import { AccountCgroups, type CgroupLimits } from './cgroup.ts'
 import { jailArgs, type JailProfile } from './profile.ts'
 
@@ -52,6 +53,20 @@ export interface Config {
   probeTimeoutMs?: number
   /** cgroup placement; omitted, confined commands stay in the Host's cgroup. */
   cgroup?: CgroupConfig
+  /**
+   * Argv that limits one account folder's disk use, run once per account
+   * before its first command with the folder appended, such as a root-owned
+   * helper through `sudo -n` that sets a filesystem project quota. A failure
+   * refuses the account's commands. Omitted, account folders have no limit
+   * of their own.
+   */
+  quotaCommand?: string[]
+  /**
+   * System-prompt text describing what confined commands can use, such as
+   * having no network and which programs and libraries are installed; omitted,
+   * the jail adds nothing to the prompt.
+   */
+  modelNote?: string
 }
 
 const limits: z<CgroupLimits> = z.object({
@@ -111,11 +126,17 @@ export class JailSandboxProvider extends SandboxProvider {
     hostname: z.string().default('sandbox'),
     probeTimeoutMs: z.natural().min(1).default(5_000),
     cgroup: z.object({ root: z.string().required(), total: limits.required(), account: limits.required() }),
+    quotaCommand: z.array(z.string()),
+    modelNote: z.string(),
   })
 
   private readonly accountsRoot: string
   private readonly profile: JailProfile
   private readonly cgroups: AccountCgroups | undefined
+  private readonly quotaCommand: readonly string[] | undefined
+  private readonly probeTimeoutMs: number
+  /** Accounts whose folder limit this provider has applied. */
+  private readonly limited = new Set<string>()
 
   constructor(ctx: Context, config: Config) {
     super(ctx)
@@ -134,7 +155,10 @@ export class JailSandboxProvider extends SandboxProvider {
       tmpSizeBytes: (config.tmpSizeMb as number) * 1024 * 1024,
       hostname: config.hostname as string,
     }
-    this.probe(config.probeTimeoutMs as number)
+    this.probeTimeoutMs = config.probeTimeoutMs as number
+    if (config.quotaCommand !== undefined && config.quotaCommand.length === 0) throw new Error('sandbox-jail: quotaCommand must name a program')
+    this.quotaCommand = config.quotaCommand
+    this.probe(this.probeTimeoutMs)
     if (config.cgroup !== undefined) {
       const cgroups = new AccountCgroups(config.cgroup.root, config.cgroup.total, config.cgroup.account)
       cgroups.removeIdle()
@@ -142,6 +166,12 @@ export class JailSandboxProvider extends SandboxProvider {
       ctx.effect(() => () => {
         cgroups.removeIdle()
       }, 'sandbox-jail account cgroups')
+    }
+    const note = config.modelNote
+    if (note !== undefined && note.trim() !== '') {
+      ctx.inject(['systemPrompt'], (scope) => {
+        scope.systemPrompt.section({ name: 'sandbox:environment', order: scope.systemPrompt.getSectionOrder('SANDBOX_ENVIRONMENT'), text: note })
+      })
     }
   }
 
@@ -159,6 +189,7 @@ export class JailSandboxProvider extends SandboxProvider {
     if (account === undefined || additionalWritableRoots.some(root => this.accountOf(root) !== account)) {
       throw new SandboxUnavailableError(policy.mode, `workspace "${workspaceRoot}" is not inside one account directory of "${this.accountsRoot}"`)
     }
+    this.limitFolder(policy.mode, account)
     const jailed = [...jailArgs(this.profile, { ...policy, workspaceRoot, additionalWritableRoots }), '--', ...argv]
     const group = this.cgroups?.groupOf(account)
     return {
@@ -171,6 +202,17 @@ export class JailSandboxProvider extends SandboxProvider {
       denialSignatures: DENIAL_SIGNATURES,
       runnerFailureRules: RUNNER_FAILURE_RULES,
     }
+  }
+
+  /** Apply the configured disk limit to an account folder before its first command. */
+  private limitFolder(mode: SandboxPolicy['mode'], account: string): void {
+    if (this.quotaCommand === undefined || this.limited.has(account)) return
+    const [program, ...args] = this.quotaCommand as [string, ...string[]]
+    const result = spawnSync(program, [...args, join(this.accountsRoot, account)], { encoding: 'utf8', timeout: this.probeTimeoutMs })
+    if (result.status !== 0) {
+      throw new SandboxUnavailableError(mode, `cannot limit the account folder's disk use: ${result.error?.message ?? result.stderr.trim()}`)
+    }
+    this.limited.add(account)
   }
 
   /** The account directory a canonical path lies inside, or undefined outside the accounts root. */

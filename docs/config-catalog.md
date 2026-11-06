@@ -461,6 +461,12 @@ export interface Config {
   readonly searchMaxDirectories: number
   /** Directory names a search never descends into. */
   readonly searchSkip: string[]
+  /**
+   * Whether file previews stay inside the workspace like listings and
+   * searches do (default false: a preview follows the file tools' read
+   * access). A Host whose readers must not see its own files sets true.
+   */
+  readonly confineReads?: boolean
   /** How long `sidebar_files` waits for the window showing the Session to open the explorer. */
   readonly showTimeoutMs: number
 }
@@ -1400,12 +1406,21 @@ Requires: `sandboxPolicy`
 
 ```ts config-catalog
 /**
- * Plugin config: the local backend's knobs verbatim (`cwd` resolution default
- * and `diffBasisMaxBytes` overwrite-presentation bound). The sandbox default
- * (mode + `workspace-write` fallback root) is NOT here — `ctx.sandboxPolicy`
- * resolves each calling session for every enforcing capability.
+ * Plugin config: the local backend's knobs (`cwd` resolution default and
+ * `diffBasisMaxBytes` overwrite-presentation bound) plus read verification.
+ * The sandbox default (mode + `workspace-write` fallback root) is NOT here —
+ * `ctx.sandboxPolicy` resolves each calling session for every enforcing
+ * capability.
  */
-export type Config = LocalConfig
+export interface Config extends LocalConfig {
+  /**
+   * Read every file through a descriptor checked to be the resolved file
+   * (default false; Linux only). A Host whose confined processes share the
+   * directories its own readers serve sets true, so a path component swapped
+   * for a symlink between resolve and read cannot redirect the read.
+   */
+  verifyReads?: boolean
+}
 ```
 
 Depends on: [`LocalConfig`](#aevenfs-local)
@@ -3303,6 +3318,20 @@ export interface Config {
   probeTimeoutMs?: number
   /** cgroup placement; omitted, confined commands stay in the Host's cgroup. */
   cgroup?: CgroupConfig
+  /**
+   * Argv that limits one account folder's disk use, run once per account
+   * before its first command with the folder appended, such as a root-owned
+   * helper through `sudo -n` that sets a filesystem project quota. A failure
+   * refuses the account's commands. Omitted, account folders have no limit
+   * of their own.
+   */
+  quotaCommand?: string[]
+  /**
+   * System-prompt text describing what confined commands can use, such as
+   * having no network and which programs and libraries are installed; omitted,
+   * the jail adds nothing to the prompt.
+   */
+  modelNote?: string
 }
 
 /** cgroup placement for confined commands. */
@@ -4688,6 +4717,14 @@ export interface Config {
    * available and a job runtime is mounted; without one, foreground calls wait.
    */
   detachAfterMs?: number
+  /**
+   * Store each file a command lists in `output_files` and produces inside the
+   * session workspace as an attachment shown at the call: images inline,
+   * other files as downloads (default false). A declared path outside the
+   * workspace is then refused. For deployments whose readers cannot open the
+   * Host's folders; it requires `ctx.attachments`.
+   */
+  shareOutputFiles?: boolean
 }
 ```
 
