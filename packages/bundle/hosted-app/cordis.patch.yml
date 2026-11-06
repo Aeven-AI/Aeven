@@ -440,6 +440,7 @@
           - /etc/ld.so.conf.d
           - /etc/localtime
           - /etc/fonts
+          - /var/cache/fontconfig
           - /etc/ssl/certs
           - /etc/mime.types
           - /etc/passwd
@@ -449,6 +450,7 @@
           PATH: /opt/aeven-sandbox/bin:/usr/bin:/bin
           NODE_PATH: /opt/aeven-sandbox/node/node_modules
           NODE_COMPILE_CACHE: /opt/aeven-sandbox/node/compile-cache
+          PLAYWRIGHT_BROWSERS_PATH: /opt/aeven-sandbox/ms-playwright
           LANG: C.UTF-8
           TMPDIR: /tmp
           OPENBLAS_NUM_THREADS: '1'
@@ -475,7 +477,15 @@
           and marked. The working directory is this account's own folder, and files saved there stay
           between commands and conversations. Files the user uploaded can be opened by commands at the
           path shown with each upload. To give the user a chart, document, or spreadsheet, save it there
-          and list it in output_files; use read_image to look at an image you made.
+          and list it in output_files; use read_image to look at an image you made. To make an animation or
+          short video, write an HTML page animated with GSAP (load it from
+          https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js, which is served from the installed copy) and
+          run `render-motion page.html film.mp4` (options --seconds, --fps, --width, --height, --audio); it
+          steps the GSAP timeline frame by frame, or calls window.seek(seconds) when the page defines it,
+          and writes an MP4 of up to 120 seconds to list in output_files. Node.js also has playwright-core
+          with Chromium for screenshots and PDFs of pages. Installed fonts: Google Sans Flex, Inter, Roboto
+          Flex, Montserrat, Poppins, DM Sans, Space Grotesk, Outfit, Bebas Neue, Oswald, Playfair Display,
+          Lora, JetBrains Mono, and Noto for every script, CJK, and colour emoji; web font links do not load.
         cgroup:
           # The unit's cgroup: the parent of the `host` group systemd starts this process in.
           root: !!js "process.env.AVN_HOSTED_SANDBOX === '1' ? '/sys/fs/cgroup' + process.getBuiltinModule('node:path').dirname(process.getBuiltinModule('node:fs').readFileSync('/proc/self/cgroup', 'utf8').trim().split('::')[1] ?? '/') : ''"

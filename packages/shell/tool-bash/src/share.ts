@@ -26,6 +26,7 @@ const FILE_TYPES: Readonly<Record<string, string>> = {
   '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   '.csv': 'text/csv', '.tsv': 'text/tab-separated-values', '.txt': 'text/plain', '.md': 'text/markdown',
   '.json': 'application/json', '.html': 'text/html', '.svg': 'image/svg+xml', '.zip': 'application/zip',
+  '.mp4': 'video/mp4', '.webm': 'video/webm', '.mov': 'video/quicktime', '.mp3': 'audio/mpeg', '.wav': 'audio/wav',
 }
 
 /** How much one call may still share. */
