@@ -26,10 +26,12 @@ import { MOTION_SKILL } from './skill.ts'
 
 export const name = 'tool-motion'
 /**
- * The renderer, tool registry, durable storage, and the filesystem that resolves workspace paths must exist;
- * `skills` is optional and only adds `/motion`.
+ * The tool registry, durable storage, and the filesystem that resolves workspace paths must exist. The renderer
+ * is optional: the tools and skill register only while `ctx.motion` exists, so a composition without one, such
+ * as hosted Web sharing the `aeven` preset, activates this plugin with nothing registered. `skills` is optional and
+ * only adds `/motion`.
  */
-export const inject = ['motion', 'tools', 'attachments', 'fs']
+export const inject = ['tools', 'attachments', 'fs']
 
 /** Tool limits. */
 export interface Config {
@@ -145,11 +147,20 @@ function checkStills(stills: number | undefined, max: number): void {
 }
 
 /**
- * Register `show_motion`, `render_motion`, and the `motion` skill.
- * @param ctx - context carrying the motion renderer, the tool registry, and attachments.
+ * Register `show_motion`, `render_motion`, and the `motion` skill while a motion renderer exists.
+ * @param ctx - context carrying the tool registry, attachments, and the filesystem.
  * @param config - still limit.
  */
 export function apply(ctx: Context, config: Config): void {
+  ctx.inject(['motion'], (motionCtx) => { registerMotion(motionCtx, config) })
+}
+
+/**
+ * Register the tools and skill on a context that carries `ctx.motion`; they unregister with it.
+ * @param ctx - context carrying the motion renderer, the tool registry, attachments, and the filesystem.
+ * @param config - still limit.
+ */
+function registerMotion(ctx: Context, config: Config): void {
   ctx.inject(['skills'], (skillCtx) => {
     skillCtx.effect(() => skillCtx.skills.register(MOTION_SKILL), 'tool-motion: motion skill')
   })
