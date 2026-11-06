@@ -10,7 +10,7 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { isAbsolute, relative, resolve as resolvePath } from 'node:path'
+import { isAbsolute, normalize, relative, resolve as resolvePath } from 'node:path'
 import { defineTool, TOOL_ABORTED } from '@aeven/tools'
 import type { GenericCallView, TerminalCallView, ToolExecution, ToolResult, ToolResultView } from '@aeven/tools'
 import { HarnessError } from '@aeven/llm'
@@ -29,6 +29,7 @@ import type { ShellProcess, ShellRunResult } from '@aeven/shell'
 import { processOutcome, processSources } from './background.ts'
 import { BACKGROUND_ACK, parseExitStatus, renderResult } from './render.ts'
 import { sharedBytesOf, shareOutputs, type SharedOutputs } from './share.ts'
+import { ShareLedger } from './share-ledger.ts'
 
 export const name = 'tool-bash'
 export const inject = ['tools', 'shell', 'systemPrompt', 'shellEnv']
@@ -60,6 +61,13 @@ export interface Config {
   shareMaxBytes?: number
   /** Most bytes one conversation shares across its calls, counted from its log (default 500 MiB). */
   shareMaxSessionBytes?: number
+  /**
+   * Host directory for per-account daily share totals, out of reach of
+   * confined commands; omitted, accounts have no daily limit of their own.
+   */
+  shareLedgerDirectory?: string
+  /** Most bytes one account shares per UTC day across its conversations (default 2 GiB); needs `shareLedgerDirectory`. */
+  shareMaxAccountBytesPerDay?: number
 }
 
 /** Runtime configuration schema for the bash tool plugin. */
@@ -70,6 +78,8 @@ export const Config: z<Config> = z.object({
   shareMaxFiles: z.natural().min(1).default(10),
   shareMaxBytes: z.natural().min(1).default(100 * 1024 * 1024),
   shareMaxSessionBytes: z.natural().min(1).default(500 * 1024 * 1024),
+  shareLedgerDirectory: z.string(),
+  shareMaxAccountBytesPerDay: z.natural().min(1).default(2 * 1024 * 1024 * 1024),
 })
 
 /* jscpd:ignore-start -- the attachment-reference fields @aeven/tool-fs and @aeven/tool-media declare for their own results */
@@ -309,6 +319,9 @@ const BACKGROUND_OUTPUT_PROPERTIES = {
 export function apply(ctx: Context, config: Config = {}): void {
   const backgroundEnabled = config.enableRunInBackground ?? true
   const shareOutputFiles = config.shareOutputFiles ?? false
+  const ledger = shareOutputFiles && config.shareLedgerDirectory !== undefined
+    ? new ShareLedger(config.shareLedgerDirectory, config.shareMaxAccountBytesPerDay ?? 2 * 1024 * 1024 * 1024)
+    : undefined
   const detachAfterMs = config.detachAfterMs ?? DEFAULT_DETACH_AFTER_MS
   if (!Number.isFinite(detachAfterMs) || detachAfterMs <= 0) {
     throw new Error('tool-bash: detachAfterMs must be a positive finite number')
@@ -564,6 +577,11 @@ export function apply(ctx: Context, config: Config = {}): void {
         const sharingRoot = standingPolicy?.workspaceRoot ?? workdir
         const root = shareOutputFiles && sharingRoot !== undefined ? await fs.resolve(sharingRoot, { signal: exec.signal }) : undefined
         const outputs = await Promise.all([...new Set(args.output_files)].map(async (path) => {
+          // Lexically outside: refused before any lookup, so no filesystem error describes the Host.
+          if (root !== undefined && sharingRoot !== undefined) {
+            const rest = relative(sharingRoot, isAbsolute(path) ? normalize(path) : resolvePath(workdir ?? sharingRoot, path))
+            if (rest.startsWith('..') || isAbsolute(rest)) throw new Error(`output_files: "${path}" is outside the conversation folder`)
+          }
           const target = await fs.resolve(path, { ...workdir === undefined ? {} : { cwd: workdir }, signal: exec.signal })
           if (root !== undefined && !fs.contains(root, target)) throw new Error(`output_files: "${path}" is outside the conversation folder`)
           return { path, before: await fs.stat(target, exec.signal) }
@@ -587,10 +605,19 @@ export function apply(ctx: Context, config: Config = {}): void {
         const attachments = ctx.get('attachments')
         if (attachments === undefined) throw new Error('tool-bash: shareOutputFiles requires an attachment store')
         const sessionBytes = exec.agent === undefined ? 0 : sharedBytesOf(exec.agent.session.snapshotEvents())
-        const shared = await shareOutputs(attachments, fs, root, producedTargets, exec.signal, {
-          files: config.shareMaxFiles ?? 10,
-          bytes: Math.min(config.shareMaxBytes ?? 100 * 1024 * 1024, (config.shareMaxSessionBytes ?? 500 * 1024 * 1024) - sessionBytes),
-        })
+        const sessionRemaining = (config.shareMaxSessionBytes ?? 500 * 1024 * 1024) - sessionBytes
+        const share = (accountRemaining: number): Promise<SharedOutputs> => shareOutputs(
+          attachments, fs, root, producedTargets, exec.signal, {
+            files: config.shareMaxFiles ?? 10,
+            bytes: Math.min(config.shareMaxBytes ?? 100 * 1024 * 1024, sessionRemaining, accountRemaining),
+          })
+        const owner = exec.agent?.session.header.owner
+        const shared = ledger === undefined || owner === undefined
+          ? await share(Number.POSITIVE_INFINITY)
+          : await ledger.spend(owner, async (remaining) => {
+            const outcome = await share(remaining)
+            return { result: outcome, bytes: [...outcome.images, ...outcome.files].reduce((sum, ref) => sum + ref.bytes, 0) }
+          })
         return {
           ...result,
           producedFiles,

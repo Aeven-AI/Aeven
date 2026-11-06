@@ -62,7 +62,7 @@ kind: "package-reference"
 | `readMaxLineLength` | `2000` | 每行截断前保留的字符数 |
 | `readMaxBytes` | `51200` | 一次 `read` 调用所选行的字节上限；溢出时以「已达上限」footer 结束窗口 |
 | `readStreamMinSize` | `10485760` | 大于等于该大小或大小未知的文件采用流式读取，而不是整体加载到内存 |
-| `confineToWorkspace` | `false` | 在符号链接解析后，以 `FS_SANDBOX_DENIED` 拒绝位于调用会话工作区之外的 `read` 与 `read_image` 目标 |
+| `confineToWorkspace` | `false` | 以 `FS_SANDBOX_DENIED` 拒绝位于调用会话工作区及其自身消息与工具结果所引用附件之外的 `read` 与 `read_image` 目标；字面上位于两者之外的路径在任何文件系统调用之前即被拒绝，符号链接在路径解析后检查 |
 | `mutations` | `true` | 注册 `write` 与 `edit` |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#aeventool-fs)是每个受支持字段及其 JSDoc 的穷尽式真源。

@@ -67,7 +67,7 @@ kind: "package-reference"
 
 ### 服务操作
 
-服务族运行同一条准入与存储流程：每个入口都强制执行源批次限制与规范 base64，在发布任何成员前准备提供方无关的规范化附件，再按输入顺序持久提交而不产生部分结果。`readImageRequest` 派生确定性的路由尺寸变体，其身份包含附件 id、变换版本、像素与字节预算及编码参数。纯函数导出 `requestImageDimensions` 会按总像素预算计算每个投影保持宽高比的尺寸，使提供方与请求定价共享同一套几何计算。`imageHostPath` 只向需要执行世界映射的受信任同进程消费方暴露实现拥有的宿主位置。调用方组合有序批次，而实现拥有压缩并发、缓存与 singleflight。读取和投影保留调用方的取消语义。失败带有稳定且机器可读的错误码，运行时即可识别可由调用方修正的准入子集，让每个协议适配器映射自己的词汇；各操作的确切约定见 [`src/index.ts`](src/index.ts) 与 [`src/error.ts`](src/error.ts)。
+服务族运行同一条准入与存储流程：每个入口都强制执行源批次限制与规范 base64，在发布任何成员前准备提供方无关的规范化附件，再按输入顺序持久提交而不产生部分结果。`readImageRequest` 派生确定性的路由尺寸变体，其身份包含附件 id、变换版本、像素与字节预算及编码参数。纯函数导出 `requestImageDimensions` 会按总像素预算计算每个投影保持宽高比的尺寸，使提供方与请求定价共享同一套几何计算。`imageHostPath` 只向需要执行世界映射的受信任同进程消费方暴露实现拥有的宿主位置，`referencedAttachmentPaths` 为对话的用户消息与工具结果中的图片和文件块收集这些位置，从不包括模型编写的参数。调用方组合有序批次，而实现拥有压缩并发、缓存与 singleflight。读取和投影保留调用方的取消语义。失败带有稳定且机器可读的错误码，运行时即可识别可由调用方修正的准入子集，让每个协议适配器映射自己的词汇；各操作的确切约定见 [`src/index.ts`](src/index.ts) 与 [`src/error.ts`](src/error.ts)。
 
 ### 源码地图
 
@@ -78,6 +78,7 @@ kind: "package-reference"
 | [`src/admission.ts`](src/admission.ts) | 浏览器 prompt 准入：强制规范 base64、委托 `saveImages` 并投影持久 prompt part |
 | [`src/error.ts`](src/error.ts) | `AttachmentError` 类与 `isImageAdmissionError` 运行时子集 |
 | [`src/brand.ts`](src/brand.ts) | `AttachmentId` 带类型标记的不透明标识符 |
+| [`src/references.ts`](src/references.ts) | 对话自身内容块所引用附件的宿主路径 |
 | — | 不发布运行时不变式伴生入口；实现负责强制不可变存储检查。 |
 
 </details>

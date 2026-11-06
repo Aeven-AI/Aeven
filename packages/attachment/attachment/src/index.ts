@@ -36,6 +36,7 @@ export { AttachmentError, isImageAdmissionError } from './error.ts'
 export type { AttachmentErrorCode, ImageAdmissionErrorCode } from './error.ts'
 export { admitEncodedImages, admitPromptContent } from './admission.ts'
 export { requestImageDimensions } from './request-projection.ts'
+export { collectAttachmentPaths, referencedAttachmentPaths, REFERENCING_EVENT_TYPES } from './references.ts'
 export type { UploadId as UploadIdType } from './brand.ts'
 export type {
   AttachmentId as AttachmentIdType,

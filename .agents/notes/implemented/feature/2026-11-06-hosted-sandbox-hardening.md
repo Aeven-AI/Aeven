@@ -18,6 +18,8 @@ After [sharing jailed command files](2026-11-06-hosted-sandbox-files.md), a revi
 
 The quota helper runs inside each command's own launch step rather than from the Host, so a long first walk of a folder never blocks the Host's event loop; it records an account only after its limit is set, walks the folder on every run until then so an interrupted walk is finished, and the jail skips the step for accounts the record lists, treating an unreadable record as not listing them. The hosted `ffprobe` jail also links `/lib64` for x86_64 loaders and runs under `prlimit` with 1 GiB of address space and 30 s of CPU.
 
+Later, confined `read` and `read_image` also accept the attachments the conversation's own content references, the files the jail mounts, through one collector in `avn-attachment` that the jail shares; confined reads and declared outputs refuse a path lexically outside the folder before any filesystem call, so no error describes the Host; and sharing is also capped per account per UTC day through a ledger in a Host directory (`shareLedgerDirectory`, `shareMaxAccountBytesPerDay`).
+
 ## Alternatives considered
 
 Copying each referenced attachment into the account folder was rejected: it doubles storage against the folder's quota and needs the copy to exist before the model's request is built, while a per-command read-only mount needs neither. Making Host-side writes race-free with descriptor-relative publication was deferred; jailed commands already write without that race. Counting shared bytes per account would need state beyond one conversation's log; the per-conversation cap is derived from durable data alone.

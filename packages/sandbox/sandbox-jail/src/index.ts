@@ -18,7 +18,7 @@ import z from '@deepseek-ai/schemastery'
 import { SandboxProvider, SandboxUnavailableError, canonicalPath } from '@aeven/sandbox'
 import type { ConfinedArgv, RunnerFailureRule, SandboxPolicy } from '@aeven/sandbox'
 import type {} from '@aeven/system-prompt'
-import type { AttachmentStore, FileAttachmentRef, ImageAttachmentRef } from '@aeven/attachment'
+import { referencedAttachmentPaths } from '@aeven/attachment'
 import type { Session, SessionId } from '@aeven/session'
 import { SessionLogOffset } from '@aeven/session'
 import { AccountCgroups, type CgroupLimits } from './cgroup.ts'
@@ -265,9 +265,7 @@ export class JailSandboxProvider extends SandboxProvider {
     const store = this.ctx.get('attachments')
     if (session === undefined || store === undefined) return []
     const known = this.attachmentFiles.get(session) ?? { seq: 0, files: new Set<string>() }
-    for (const event of session.snapshotEvents(SessionLogOffset(known.seq))) {
-      if (event.type === 'user/message' || event.type === 'tool/result') collectAttachmentFiles(event.data, store, known.files)
-    }
+    referencedAttachmentPaths(session.snapshotEvents(SessionLogOffset(known.seq)), store, known.files)
     known.seq = session.seq
     this.attachmentFiles.set(session, known)
     return [...known.files]
@@ -327,35 +325,6 @@ export class JailSandboxProvider extends SandboxProvider {
       )
     }
   }
-}
-
-/**
- * Add the host path of every image and file content block in a value.
- * @param value - an event payload.
- * @param store - the attachment store that maps references to host paths.
- * @param files - the set the existing paths are added to.
- */
-function collectAttachmentFiles(value: unknown, store: AttachmentStore, files: Set<string>): void {
-  if (Array.isArray(value)) {
-    for (const item of value) collectAttachmentFiles(item, store, files)
-    return
-  }
-  if (value === null || typeof value !== 'object') return
-  const block = value as { type?: unknown; attachment?: unknown }
-  if ((block.type === 'image' || block.type === 'file') && block.attachment !== null && typeof block.attachment === 'object') {
-    let path: string | undefined
-    try {
-      path = block.type === 'image'
-        ? store.imageHostPath(block.attachment as ImageAttachmentRef)
-        : store.fileHostPath(block.attachment as FileAttachmentRef)
-    } catch {
-      // AttachmentError: a malformed reference names no stored object, so there is nothing to mount.
-      path = undefined
-    }
-    if (path !== undefined && existsSync(path)) files.add(path)
-    return
-  }
-  for (const child of Object.values(value)) collectAttachmentFiles(child, store, files)
 }
 
 /**

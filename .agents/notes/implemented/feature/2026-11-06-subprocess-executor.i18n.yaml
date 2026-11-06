@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-06-subprocess-executor.md
-2026-11-06-subprocess-executor.md: fde89d5e71b4969595b2cdebf36766813db71b31
-2026-11-06-subprocess-executor.zh.md: dcf0a7647064f5972a394052587f96b41c802b61
+2026-11-06-subprocess-executor.md: 7692a751dc7970d69d3fdd8a584a855e157ed435
+2026-11-06-subprocess-executor.zh.md: b5e1da6aa25bfe23312764f404fc580fe35f4614

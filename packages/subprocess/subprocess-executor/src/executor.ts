@@ -98,6 +98,20 @@ class LaunchedProcess extends EventEmitter {
     }
   }
 
+  /**
+   * Settle a command whose helper ended: report it killed and, after a short
+   * grace for buffered output, close its streams, which other processes may
+   * still hold open where the platform does not mark handed-over descriptors
+   * close-on-exec.
+   */
+  abandon(): void {
+    this.exit(null, 'SIGKILL')
+    setTimeout(() => {
+      this.stdout.destroy()
+      this.stderr.destroy()
+    }, 1_000).unref()
+  }
+
   /** Record the exit status the helper reported. */
   exit(code: number | null, signal: NodeJS.Signals | null): void {
     if (this.exited) return
@@ -150,10 +164,23 @@ export class Executor {
   }
 
   private attach(helper: ChildProcess): ChildProcess {
-    helper.on('message', (message: HelperMessage, handle?: Socket) => { this.receive(message, handle) })
+    helper.on('message', (message: HelperMessage, handle?: Socket) => {
+      // A helper that was replaced may still deliver queued messages; its ids collide with the new one's.
+      if (helper !== this.helper) {
+        handle?.destroy()
+        return
+      }
+      this.receive(message, handle)
+    })
+    // A failed spawn or a broken channel ends the helper as surely as an exit, and may never be followed by one.
+    helper.on('error', (error) => {
+      this.host.warn(`subprocess executor: helper failed: ${error.message}`)
+      this.helperEnded(helper, null, null)
+    })
     helper.once('exit', (code, signal) => { this.helperEnded(helper, code, signal) })
     return helper
   }
+
 
   /**
    * Start a command in a ready launcher, or through the fallback spawner.
@@ -172,9 +199,11 @@ export class Executor {
       && (stdinMode === 'ignore' || stdinMode === 'pipe')
       && stdio[1] === 'pipe' && stdio[2] === 'pipe'
     const file = served ? executable(program, cwd, env) : undefined
-    const launcher = file !== undefined && !file.includes('=') && isDirectory(cwd) ? this.ready.shift() : undefined
+    const usable = file !== undefined && !file.includes('=') && isDirectory(cwd) && this.helper.connected
+    const launcher = usable ? this.ready.shift() : undefined
     if (launcher === undefined || file === undefined) return this.host.fallback(program, args, options)
-    this.helper.send({ t: 'taken', id: launcher.id })
+    // With a callback, a send on a closing channel reports here instead of emitting 'error'.
+    this.helper.send({ t: 'taken', id: launcher.id }, (error) => { if (error !== null) this.host.warn(`subprocess executor: helper notice failed: ${error.message}`) })
     const assignments = Object.entries(env)
       .filter((entry): entry is [string, string] => entry[1] !== undefined && !entry[0].includes('='))
       .map(([key, value]) => quote(`${key}=${value}`))
@@ -248,6 +277,8 @@ export class Executor {
    */
   private helperEnded(helper: ChildProcess, code: number | null, signal: NodeJS.Signals | null): void {
     if (helper !== this.helper) return
+    // After an 'error' the process may still run; it must not keep launchers nobody will take.
+    helper.kill('SIGKILL')
     for (const launcher of this.ready.splice(0)) {
       for (const stream of [launcher.stdin, launcher.stdout, launcher.stderr, launcher.control]) stream.destroy()
     }
@@ -272,7 +303,7 @@ export class Executor {
           setTimeout(settle, 100).unref()
         } catch {
           // ESRCH: the command's process group is gone.
-          started.exit(null, 'SIGKILL')
+          started.abandon()
         }
       }
       settle()
