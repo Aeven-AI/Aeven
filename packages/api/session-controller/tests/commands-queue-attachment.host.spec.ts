@@ -151,6 +151,30 @@ describe('Session prompt commands', () => {
     }
     await ctx.fiber.dispose()
   })
+
+  it('admits one request once, whichever path delivers it again', async () => {
+    const { ctx, controller, agent } = await commandHarness()
+    ctx.provide('llm', { listProviders: () => [{ id: 'fixture' }] } as never)
+    const followup = vi.spyOn(agent, 'followup')
+    const prompt = (requestId: string) => controller.prompt({
+      requestId: requestId as SessionRequestId,
+      sessionId: agent.id,
+      mode: 'queue',
+      content: [{ type: 'text', text: 'second' }],
+    })
+    // The typing device queued the request and the account inbox carried it to the device running the turn, which
+    // logged it as queued input.
+    agent.session.append('agent/inbox/spliced', {
+      target: 'next-step',
+      start: 0,
+      inserted: [createUserMessage({ content: [{ type: 'text', text: 'second' }], source: { kind: 'user', rpcId: 'request-d' } })],
+    })
+    await expect(prompt('request-d')).resolves.toEqual({ accepted: true })
+    expect(followup).not.toHaveBeenCalled()
+    await expect(prompt('request-e')).resolves.toEqual({ accepted: true })
+    expect(followup).toHaveBeenCalledOnce()
+    await ctx.fiber.dispose()
+  })
 })
 
 function imageRef(id: string): ImageAttachmentRef {

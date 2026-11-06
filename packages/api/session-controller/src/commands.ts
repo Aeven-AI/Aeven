@@ -486,6 +486,9 @@ export class SessionCommandController {
     const owner = await this.claimRunnerAccount(request.sessionId)
     if (owner !== undefined) return await this.forward(owner, request.sessionId, 'prompt', request)
     const agent = await this.resolveAgent(request.sessionId)
+    // One request is one prompt. The same request can reach this device twice: forwarded through the account inbox
+    // to the device running the turn, and again from the typing device's own queue once that turn ends.
+    if (loggedRequest(agent.session.snapshotEvents(), request.requestId)) return { accepted: true }
     this.assertRouteServed(agent)
     const hasImage = request.content.some(part => part.type === 'image')
     const admit = async (): Promise<SessionPromptValue> => {
@@ -1079,6 +1082,23 @@ function referencedAttachment<T extends AttachmentBlockType>(
     if (found !== undefined) return found
   }
   return undefined
+}
+
+/**
+ * Whether a Session log already holds the user input one request admitted, queued or run.
+ * @param events - the Session's committed events.
+ * @param rpcId - the request id the input carries as its source, when the client named one.
+ * @returns true when an input with that request id was admitted before.
+ */
+function loggedRequest(events: readonly SessionEvent[], rpcId: string | undefined): boolean {
+  if (rpcId === undefined) return false
+  const fromRequest = (message: UserMessage): boolean => message.source.kind === 'user' && 'rpcId' in message.source && message.source.rpcId === rpcId
+  for (let index = events.length - 1; index >= 0; index--) {
+    const event = events[index]
+    if (event?.type === 'agent/inbox/spliced' && event.data.inserted.some(fromRequest)) return true
+    if (event?.type === 'user/message' && fromRequest(event.data)) return true
+  }
+  return false
 }
 
 function routeServed(ctx: Context, provider: string): boolean {
