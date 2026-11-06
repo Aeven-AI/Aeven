@@ -5294,7 +5294,7 @@ export interface Config {
 
 ## `@aeven/tool-motion`
 
-需要：`motion` · `tools` · `attachments` · `fs`
+需要：`tools` · `attachments` · `fs`
 
 ```ts config-catalog
 /** Tool limits. */

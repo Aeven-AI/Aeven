@@ -389,7 +389,8 @@
 - id: tool-image-search
   name: '@aeven/tool-image-search'
 # Motion films rendered from HTML compositions. The tool and its `motion` skill
-# wait for `ctx.motion`, which only the desktop Host mounts.
+# register only while `ctx.motion` is mounted, which only the desktop Host does;
+# elsewhere this row activates and contributes nothing.
 - id: tool-motion
   name: '@aeven/tool-motion'
 - id: tool-media

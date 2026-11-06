@@ -46,6 +46,7 @@
     "@aeven/motion": "workspace:^",
     "@aeven/sandbox-policy": "workspace:^",
     "@aeven/skill": "workspace:^",
+    "@aeven/system-prompt": "workspace:^",
     "@aeven/tool-media": "workspace:^",
     "@aeven/tools": "workspace:^",
     "@aeven/working-directory": "workspace:^",

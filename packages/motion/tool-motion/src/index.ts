@@ -26,10 +26,12 @@ import { MOTION_SKILL } from './skill.ts'
 
 export const name = 'tool-motion'
 /**
- * The renderer, tool registry, durable storage, and the filesystem that resolves workspace paths must exist;
- * `skills` is optional and only adds `/motion`.
+ * The tool registry, durable storage, and the filesystem that resolves workspace paths must exist. `motion` is
+ * never injected here: every injected service is required, so injecting it would leave the row waiting in a
+ * composition without a renderer and fail the whole preset mount. The tool and skill register in a nested
+ * `motion` scope instead. `skills` is optional and only adds `/motion`.
  */
-export const inject = ['motion', 'tools', 'attachments', 'fs']
+export const inject = ['tools', 'attachments', 'fs']
 
 /** Tool limits. */
 export interface Config {
@@ -145,11 +147,23 @@ function checkStills(stills: number | undefined, max: number): void {
 }
 
 /**
+ * Register `show_motion`, `render_motion`, and the `motion` skill while a motion renderer is mounted, and remove
+ * them when it unmounts. A composition without a renderer activates this row with no contribution.
+ * @param ctx - context carrying the tool registry, attachments, and filesystem.
+ * @param config - still limit.
+ */
+export function apply(ctx: Context, config: Config): void {
+  ctx.inject(['motion'], (motionCtx) => {
+    install(motionCtx, config)
+  })
+}
+
+/**
  * Register `show_motion`, `render_motion`, and the `motion` skill.
  * @param ctx - context carrying the motion renderer, the tool registry, and attachments.
  * @param config - still limit.
  */
-export function apply(ctx: Context, config: Config): void {
+function install(ctx: Context, config: Config): void {
   ctx.inject(['skills'], (skillCtx) => {
     skillCtx.effect(() => skillCtx.skills.register(MOTION_SKILL), 'tool-motion: motion skill')
   })

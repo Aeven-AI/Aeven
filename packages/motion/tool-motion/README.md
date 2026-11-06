@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-tool-motion` registers `show_motion`, `render_motion`, and the `motion` skill. The skill teaches the model to plan a film, write a [HyperFrames](https://github.com/heygen-com/hyperframes) composition in the workspace, show it, review stills, and revise. `show_motion` hands the composition folder to the Imagine Motion card, which plays it live and exports it to MP4 on the user's request; with `stills`, it also renders a throwaway draft whose frames return to the model. `render_motion` renders the folder to an MP4 inside it and stores the film as a conversation file attachment, for when the user asks the model for the file. Both wait for `ctx.motion`, so a composition without a renderer shows neither.
+`avn-tool-motion` registers `show_motion`, `render_motion`, and the `motion` skill. The skill teaches the model to plan a film, write a [HyperFrames](https://github.com/heygen-com/hyperframes) composition in the workspace, show it, review stills, and revise. `show_motion` hands the composition folder to the Imagine Motion card, which plays it live and exports it to MP4 on the user's request; with `stills`, it also renders a throwaway draft whose frames return to the model. `render_motion` renders the folder to an MP4 inside it and stores the film as a conversation file attachment, for when the user asks the model for the file. Both register only while `ctx.motion` is mounted; in a composition without a renderer the row still activates and contributes neither, so it never blocks a preset mount.
 
 ## Table of Contents
 
@@ -24,7 +24,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount it per session beside a Host composition that provides `ctx.motion`, `ctx.tools`, `ctx.attachments`, and `ctx.fs`; `ctx.skills` is optional and adds the skill, including `/motion`. `maxStills` (default 8, at most 16) caps the stills one call may request.
+Mount it per session beside a Host composition that provides `ctx.tools`, `ctx.attachments`, and `ctx.fs`; `ctx.motion` is optional and adds both tools and the skill; `ctx.skills` is optional and adds the skill, including `/motion`. `maxStills` (default 8, at most 16) caps the stills one call may request.
 
 Both tools take a required `composition`. It resolves through `ctx.fs` the way the filesystem tools resolve paths: against the session's working directory, or, for a chat without one, against the sandbox policy's workspace root. `output` defaults to `renders/<folder>.mp4` inside the composition folder. `show_motion` takes an optional `stills`; `render_motion` takes optional `fps`, `quality`, and `stills`. Both paths must stay inside the session's workspace root, or the policy's when the session has none.
 

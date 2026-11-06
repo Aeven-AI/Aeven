@@ -9809,6 +9809,9 @@ importers:
       '@aeven/skill':
         specifier: workspace:^
         version: link:../../skill/skill
+      '@aeven/system-prompt':
+        specifier: workspace:^
+        version: link:../../core/system-prompt
       '@aeven/tool-media':
         specifier: workspace:^
         version: link:../../media/tool-media

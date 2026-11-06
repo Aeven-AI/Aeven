@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`avn-tool-motion` 注册 `show_motion`、`render_motion` 与 `motion` 技能。技能教模型规划影片、在工作区中编写 [HyperFrames](https://github.com/heygen-com/hyperframes) 合成、展示它、审阅静帧并修改。`show_motion` 把合成文件夹交给 Imagine 的 Motion 卡片，卡片实时播放它，并在用户请求时导出为 MP4；带 `stills` 时，它还会渲染一份用后即弃的草稿，其帧返回给模型。`render_motion` 把文件夹渲染为放在其内部的 MP4，并把影片存为对话文件附件，用于用户向模型索要文件的情形。二者都等待 `ctx.motion`，因此没有渲染器的组合两者都不会出现。
+`avn-tool-motion` 注册 `show_motion`、`render_motion` 与 `motion` 技能。技能教模型规划影片、在工作区中编写 [HyperFrames](https://github.com/heygen-com/hyperframes) 合成、展示它、审阅静帧并修改。`show_motion` 把合成文件夹交给 Imagine 的 Motion 卡片，卡片实时播放它，并在用户请求时导出为 MP4；带 `stills` 时，它还会渲染一份用后即弃的草稿，其帧返回给模型。`render_motion` 把文件夹渲染为放在其内部的 MP4，并把影片存为对话文件附件，用于用户向模型索要文件的情形。二者仅在挂载了 `ctx.motion` 时注册；在没有渲染器的组合中，该条目仍会激活且两者都不提供，因此永不阻塞预设挂载。
 
 ## 目录
 
@@ -24,7 +24,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在提供 `ctx.motion`、`ctx.tools`、`ctx.attachments` 与 `ctx.fs` 的 Host 组合旁按会话挂载；`ctx.skills` 为可选项，用于添加该技能及 `/motion`。`maxStills`（默认 8，最多 16）限制一次调用可请求的静帧数量。
+在提供 `ctx.tools`、`ctx.attachments` 与 `ctx.fs` 的 Host 组合旁按会话挂载；`ctx.motion` 为可选项，提供两个工具与该技能；`ctx.skills` 为可选项，用于添加该技能及 `/motion`。`maxStills`（默认 8，最多 16）限制一次调用可请求的静帧数量。
 
 两个工具都需要必填的 `composition`。它像文件系统工具那样经由 `ctx.fs` 解析：相对会话工作目录，或对于没有工作目录的聊天，相对沙箱策略的工作区根目录。`output` 默认为合成文件夹内的 `renders/<folder>.mp4`。`show_motion` 可选 `stills`；`render_motion` 可选 `fps`、`quality` 与 `stills`。两个路径都必须位于会话的工作区根目录内，会话没有时则位于策略的根目录内。
 

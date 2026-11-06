@@ -5292,7 +5292,7 @@ Source: [`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-mem
 
 ## `@aeven/tool-motion`
 
-Requires: `motion` · `tools` · `attachments` · `fs`
+Requires: `tools` · `attachments` · `fs`
 
 ```ts config-catalog
 /** Tool limits. */
