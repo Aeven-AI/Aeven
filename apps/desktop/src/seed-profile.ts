@@ -114,11 +114,25 @@ function readLayout(seedRoot: string): ProfileLayout {
   return value as unknown as ProfileLayout
 }
 
+/**
+ * Run `write` over every item with up to 64 calls in flight, starting the next item as soon as a call finishes.
+ * No item starts after a failure, and every started call settles before the first failure is thrown.
+ */
 async function writeBatch<T>(items: readonly T[], write: (item: T) => Promise<unknown>): Promise<void> {
-  for (let offset = 0; offset < items.length; offset += 64) {
-    const results = await Promise.allSettled(items.slice(offset, offset + 64).map(write))
-    for (const result of results) if (result.status === 'rejected') throw result.reason
+  let next = 0
+  let failure: { readonly reason: unknown } | undefined
+  const worker = async (): Promise<void> => {
+    while (failure === undefined && next < items.length) {
+      const item = items[next++] as T
+      try {
+        await write(item)
+      } catch (reason) {
+        failure ??= { reason }
+      }
+    }
   }
+  await Promise.all(Array.from({ length: Math.min(64, items.length) }, worker))
+  if (failure !== undefined) throw failure.reason
 }
 
 async function linkProfileFile(source: string, destination: string): Promise<void> {
@@ -136,8 +150,9 @@ async function linkProfileFile(source: string, destination: string): Promise<voi
 
 /**
  * Recreate the packaged Windows dependency tree by hard-linking complete content objects into an empty profile.
- * Each reused writable-store object receives one digest check; freshly verified extraction results retain
- * their archive verification. No dependency resolution or lifecycle script runs. All writers finish before rejection.
+ * Each reused writable-store object receives one digest check, and all checks pass before the first file is linked;
+ * freshly verified extraction results retain their archive verification. No dependency resolution or lifecycle
+ * script runs. All writers finish before rejection.
  * Files whose content object reached the filesystem's hard-link limit are copied with exclusive destination creation.
  * @param seedRoot - Integrity-verified seed containing the layout.
  * @param storeRoot - Persistent store populated from that seed's verified archives, on the profile's volume.
@@ -158,23 +173,15 @@ export async function installSeedProfileLayout(
   const destination = join(stagingProfile, 'node_modules')
   await mkdir(destination)
   await writeBatch(layout.directories, path => mkdir(join(destination, path), { recursive: true }))
-  const verified = new Map<string, Promise<void>>()
-  await writeBatch(layout.files, async (file) => {
-    const source = join(storeRoot, file.content)
-    if (!extracted.has(file.content)) {
-      let verification = verified.get(file.content)
-      if (verification === undefined) {
-        verification = (async () => {
-          const digest = createHash('sha512').update(await readFile(source)).digest('hex')
-          const expected = file.content.split('/').slice(2).join('').replace(/-exec$/u, '')
-          if (digest !== expected) throw new Error(`desktop seed profile: corrupt store content for ${file.path}`)
-        })()
-        verified.set(file.content, verification)
-      }
-      await verification
-    }
-    await linkProfileFile(source, join(destination, file.path))
+  // All checks run before the first link: on Windows, linking a file right after reading it costs several times as
+  // much as the two steps apart (.agents/notes/implemented/bug-fix/2026-11-06-desktop-update-layout-and-health-check-speed.md).
+  const reused = [...new Set(layout.files.filter(file => !extracted.has(file.content)).map(file => file.content))]
+  await writeBatch(reused, async (content) => {
+    const digest = createHash('sha512').update(await readFile(join(storeRoot, content))).digest('hex')
+    const expected = content.split('/').slice(2).join('').replace(/-exec$/u, '')
+    if (digest !== expected) throw new Error(`desktop seed profile: corrupt store content ${content}`)
   })
+  await writeBatch(layout.files, file => linkProfileFile(join(storeRoot, file.content), join(destination, file.path)))
   writeFileSync(join(destination, '.modules.yaml'), `${JSON.stringify({
     ...layout.modules,
     storeDir: join(storeRoot, layout.storeVersion),

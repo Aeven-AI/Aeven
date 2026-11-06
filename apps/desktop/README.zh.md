@@ -47,7 +47,7 @@ Electron 根据应用 locale 选择类型化的英文或中文桌面壳文案，
 
 Windows 最多并发解包十六个已验证的存储分片，因为 `tar` 会在每个 Windows 解包器内部串行写入文件。清理失败的解包目录之前，所有写入器都会完成；POSIX 保留每个解包器内部的文件并发。
 
-Windows 的 seed 准备会先合并经评审的 CommonJS 依赖，再记录 profile 布局。原有模块路径、具名导出与类身份保持不变；原生模块与依赖平台相对路径的资源保留原文件。经评审的 ES module 包把每个原有模块路径保留为同一个共享分片之上的 facade，因此深层导入仍可解析，Host 也只需加载一个模块而不是数百个。Electron 以 `$AVN_HOME/runtime/compile-cache` 下的 `NODE_COMPILE_CACHE` 启动后端，因此之后的启动会为同一模块图复用已编译字节码。该[依赖合并决策](../../.agents/notes/implemented/process/2026-10-30-host-dependency-bundles.zh.md)记录了排除项与验证证据。
+Windows 的 seed 准备会先合并经评审的 CommonJS 依赖，再记录 profile 布局。原有模块路径、具名导出与类身份保持不变；原生模块与依赖平台相对路径的资源保留原文件。经评审的 ES module 包把每个原有模块路径保留为同一个共享分片之上的 facade，因此深层导入仍可解析，Host 也只需加载一个模块而不是数百个。Electron 以 `$AVN_HOME/runtime/compile-cache` 下的 `NODE_COMPILE_CACHE` 启动后端，因此之后的启动会为同一模块图复用已编译字节码。staged 健康检查 Host 不使用该缓存，因为 Node.js 按模块路径为缓存代码建键，而 staging 路径不会再次加载。该[依赖合并决策](../../.agents/notes/implemented/process/2026-10-30-host-dependency-bundles.zh.md)记录了排除项与验证证据。
 
 安装包内的 seed 是安装工具包，不是可以直接运行的 `node_modules` 目录。生成的 pnpm workspace 与仓库策略一致：明确允许必要的原生依赖构建，并拒绝 onnxruntime-node 的 CUDA provider 下载。它的 `overrides` 移除 Host 从不加载的依赖边，即 Web 前端 `dist` 与插件客户端 bundle 已经包含的浏览器库；Transformers.js 与附件读取器共用同一个 `sharp` 版本。打包过程会生成锁文件，在禁用生命周期脚本的情况下在线物化生产依赖图，从存储中裁剪运行时从不加载的第三方文件，删除 `node_modules` 以及所有临时 pnpm cache、配置和 state 目录，然后只使用最终存储完成一次完整离线安装，并验证私有 Desktop Host 的入口与 overlay 均存在。macOS 构建随后暂存 pnpm 内容寻址存储中的每个 Mach-O 对象，最多并发签署四个独立副本，并且只在所有签名成功后才更新受影响的 SHA-512 索引记录。再一次离线安装会在分片前证明重写后的存储；准备过程随后解包最终归档，并验证每个内嵌签名。签名 seed 保留发布身份、本地第一方 tarball 及其描述文件、项目元数据、锁文件、完整性清单，以及在用户机器上重复该安装所需的 pnpm 存储内容。
 
@@ -63,7 +63,7 @@ Windows 的 seed 准备会先合并经评审的 CommonJS 依赖，再记录 prof
 
 1. 恢复中断的激活事务日志，读取 seed 的本地包集描述文件，并要求 seed 版本等于 Electron 应用版本。
 2. 如果活跃 profile 的 `desktop-release.json` 与 `desktop-packages.json` 与 seed 中的文件逐字节相同，且已安装的 avn 与 Desktop Host 版本匹配，则直接复用，既不重新安装，也不对 seed 或任何 tarball 计算哈希。预发布构建会在重新构建与 Host 协议变更之间沿用同一版本号，因此由 tarball 摘要与协议号而非版本号单独决定。
-3. 否则验证完整 seed 清单、本地包集与每个归档条目，把私有存储中缺少（同路径同大小的文件不存在）的存储文件解包到 Desktop 拥有的临时 staging 目录，通过重命名把这些文件移入存储并合并 SQLite 包索引记录，再创建 staging profile。Windows 重建[预计算 profile 布局](../../.agents/notes/implemented/bug-fix/2026-10-29-windows-precomputed-profile-layout.zh.md)；POSIX 通过内置 Node.js 与 pnpm 执行 `pnpm install --offline --frozen-lockfile --trust-lockfile`。Seed 记录替换匹配的索引键，插件专属记录继续保留。
+3. 否则验证完整 seed 清单、本地包集与每个归档条目，把私有存储中缺少（同路径同大小的文件不存在）的存储文件解包到 Desktop 拥有的临时 staging 目录，通过重命名把这些文件移入存储并合并 SQLite 包索引记录，再创建 staging profile。Windows 重建[预计算 profile 布局](../../.agents/notes/implemented/bug-fix/2026-10-29-windows-precomputed-profile-layout.zh.md)，布局未经解包而复用的每个存储对象都会在链接第一个文件之前通过 SHA-512 校验；POSIX 通过内置 Node.js 与 pnpm 执行 `pnpm install --offline --frozen-lockfile --trust-lockfile`。Seed 记录替换匹配的索引键，插件专属记录继续保留。
 4. Electron 升级时，从旧活跃 profile 读取每个插件的名称和精确版本，再通过现有 Desktop pnpm 状态以 `--offline` 把这些版本加入 staging。只读取旧 profile 的 `package.json` bundle 列表与已安装插件清单，因此由较旧 Host 协议或工作区格式写入的 profile 仍可升级。首次安装不执行插件恢复。
 5. 停止活跃后端，启动并停止完整的 staging 后端执行健康检查，再在激活前重新启动活跃后端。这种串行方式避免两个桌面后端共享 `$AVN_HOME`；安装错误或插件不兼容会删除 staging，并保持活跃 profile 不变。macOS 首次安装改为在激活期间从最终 profile 启动一次提供服务的后端；启动失败会拒绝并撤销激活。
 6. 在每次目录移动前先持久化下一个激活阶段，把活跃 profile 移到 `$AVN_HOME/desktop/rollback/profile`，再把 staging 移到 `$AVN_HOME/profiles/desktop`。恢复过程同时检查日志与真实的 profile、rollback 和 staging 目录，因此在写入后、移动前的任一间隙中断后仍会恢复或保留一个完整 profile。
