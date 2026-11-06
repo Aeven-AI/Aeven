@@ -24,7 +24,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount it on a Host that provides `ctx.connection` and `ctx.motion`. `exportQuality` (`draft`, `standard`, or `high`; default `high`) sets the quality of a film the user exports. `folderRoutes` (default `true`) registers the preview, export, and film routes; a Host serving several accounts sets it to `false`, because those routes read any absolute Host path, and its card plays the film stored with the call. `exportWaitMs` (default 20000) bounds how long one call export request waits before answering 202. Each route reads an absolute path from the request, like `/api/file`; the connection service authenticates the request before the route runs, and the account cookie admits the two GET routes so the browser can load and download without a bearer.
+Mount it on a Host that provides `ctx.connection` and `ctx.motion`. `exportQuality` (`draft`, `standard`, or `high`; default `high`) sets the quality of a film the user exports. `folderRoutes` (default `true`) registers the preview, export, and film routes; a Host serving several accounts sets it to `false`, because those routes read any absolute Host path; the preview route then answers 204, and the card plays the film stored with the call. `exportWaitMs` (default 20000) bounds how long one call export request waits before answering 202. Each route reads an absolute path from the request, like `/api/file`; the connection service authenticates the request before the route runs, and the account cookie admits the two GET routes so the browser can load and download without a bearer.
 
 -----
 

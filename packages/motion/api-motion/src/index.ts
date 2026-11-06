@@ -181,6 +181,15 @@ export function apply(ctx: Context, config: Config): void {
     }), 'api-motion: /api/motion/replay')
   })
   if (config.folderRoutes) ctx.inject(['motion'], (motionCtx) => { registerFolderRoutes(motionCtx, config) })
+  // With the folder routes off, the preview answers that no folder is served, so the card plays the stored film
+  // without a failed request.
+  else {
+    ctx.effect(() => ctx.connection.fetch.register({
+      path: '/api/motion/preview',
+      methods: ['GET'],
+      fetch: () => Promise.resolve(new Response(null, { status: 204, headers: BASE_HEADERS })),
+    }), 'api-motion: /api/motion/preview (no folders)')
+  }
   ctx.inject(['motion', 'sessionController', 'fs'], (callCtx) => { registerCallExport(callCtx, config) })
 }
 

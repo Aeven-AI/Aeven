@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/motion/api-motion/README.md
-README.md: 1ed4677377e856bbc13c7ccfde4b6a362d90317b
-README.zh.md: 2b9a55d080477d19dbca2d297cc2b2411fb45f6a
+README.md: 53e37b5e76c9e63e3726e1b8b8044ead786cbdfa
+README.zh.md: d3a63bd9d4162e507d5e05334647fa53f9a4372d

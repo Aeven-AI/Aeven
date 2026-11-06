@@ -168,7 +168,8 @@ export function MotionToolView({ block, sessionId, t }: ToolCallViewProps & Prop
       throw new Error(message)
     }
     hostFetch(url, { signal: controller.signal })
-      .then(async response => response.ok ? await response.text() : await elsewhere(await failureText(response)))
+      // 204: this Host serves no folders, so the film comes from elsewhere without a failure to report.
+      .then(async response => response.status === 200 ? await response.text() : await elsewhere(await failureText(response)))
       .then((text) => { setHtml(text) })
       .catch((error: unknown) => {
         if (!controller.signal.aborted) setLoadError(error instanceof Error ? error.message : String(error))
