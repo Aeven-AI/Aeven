@@ -29,6 +29,8 @@ kind: "package-reference"
 |---|---|---|
 | `ffprobePath` | `ffprobe` | 探测可执行文件，除非给出文件路径，否则经 `PATH` 解析 |
 | `probeTimeoutMs` | `15000` | 单次探测的墙钟上限；超时则退回文件事实 |
+| `probeDirectory` | 操作系统临时目录 | 每个片段为探测写入的目录 |
+| `probeRunner` | 无 | 探测运行时所在的 argv，例如只能看到 `/usr` 与 `probeDirectory` 的 bubblewrap 监狱 |
 
 没有可用的 `ffprobe` 时，读取器仍声明这些格式，只报告容器与字节大小，于是在没有该二进制的部署中片段仍能附上，而不是被拒绝。
 

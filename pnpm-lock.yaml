@@ -9895,9 +9895,15 @@ importers:
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
     devDependencies:
+      '@aeven/attachment':
+        specifier: workspace:^
+        version: link:../../attachment/attachment
       '@aeven/sandbox':
         specifier: workspace:^
         version: link:../sandbox
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
       '@aeven/system-prompt':
         specifier: workspace:^
         version: link:../../core/system-prompt

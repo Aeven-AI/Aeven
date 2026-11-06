@@ -31,6 +31,14 @@ export interface Config {
   readMaxBytes?: number
   /** Files at or above this size stream instead of loading whole into memory. */
   readStreamMinSize?: number
+  /**
+   * Refuse `read` and `read_image` targets outside the calling session's
+   * workspace, after symlinks resolve (default false). For a Host whose
+   * readers must not reach its other files.
+   */
+  confineToWorkspace?: boolean
+  /** Register `write` and `edit` (default true). */
+  mutations?: boolean
 }
 
 export const Config: z<Config> = z.object({
@@ -38,6 +46,8 @@ export const Config: z<Config> = z.object({
   readMaxLineLength: z.number().default(READ_MAX_LINE_LENGTH),
   readMaxBytes: z.number().default(READ_MAX_BYTES),
   readStreamMinSize: z.number().default(STREAM_MIN_SIZE),
+  confineToWorkspace: z.boolean().default(false),
+  mutations: z.boolean().default(true),
 })
 
 /** The shape after schemastery applied the defaults. */
@@ -50,7 +60,7 @@ function assertPositiveInteger(name: string, value: number): void {
   }
 }
 
-/** Register the full `read`/`write`/`edit` filesystem tool suite, plus `read_image` while `attachments` is mounted. */
+/** Register `read`, `write` and `edit` (the last two unless `mutations` is false), plus `read_image` while `attachments` is mounted. */
 export function apply(ctx: Context, config: Config): void {
   // schemastery (Config) has already filled every defaulted field.
   const resolved = config as ResolvedConfig
@@ -63,13 +73,15 @@ export function apply(ctx: Context, config: Config): void {
     maxLineLength: resolved.readMaxLineLength,
     maxBytes: resolved.readMaxBytes,
     streamMinSize: resolved.readStreamMinSize,
+    confineToWorkspace: resolved.confineToWorkspace,
   })
   // read_image is composition-conditional: without a mounted attachment store
   // the deployment cannot durably commit image bytes, so the tool never
   // registers; the execute body keeps a defensive re-check for direct callers.
   ctx.inject(['attachments'], (imageCtx) => {
-    applyReadImageTool(imageCtx)
+    applyReadImageTool(imageCtx, resolved.confineToWorkspace)
   })
+  if (!resolved.mutations) return
   // One escalation API shared by both mutating tools: advertisement gating,
   // per-call policy resolution, and denial-marker mapping, all keyed off whether
   // the mounted ctx.fs confines (ctx.fs.sandboxMode).

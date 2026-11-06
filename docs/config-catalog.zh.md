@@ -1146,6 +1146,14 @@ export interface Config {
   ffprobePath: string
   /** Wall-clock limit for one probe before the reader falls back to file facts. */
   probeTimeoutMs: number
+  /** Directory each clip is written to for the probe; defaults to the OS temp directory. */
+  probeDirectory?: string
+  /**
+   * Argv the probe runs under, such as a bubblewrap jail that sees only
+   * `/usr` and {@link probeDirectory}; the `ffprobe` argv follows it. Omitted,
+   * `ffprobe` runs directly.
+   */
+  probeRunner?: string[]
 }
 ```
 
@@ -3321,6 +3329,20 @@ export interface Config {
   /** cgroup placement; omitted, confined commands stay in the Host's cgroup. */
   cgroup?: CgroupConfig
   /**
+   * Host path of a BPF system-call filter bubblewrap installs before the
+   * command starts, such as one written by `host/seccomp-filter.c`; omitted,
+   * no filter applies. A missing file refuses every command.
+   */
+  seccompFilter?: string
+  /**
+   * Mount the attachments the calling conversation's user messages and tool
+   * results reference, read-only at their attachment-store paths, so a
+   * command can open an uploaded file at the path the model is given
+   * (default false). Attachments named only in model-written arguments are
+   * never mounted.
+   */
+  sessionAttachments?: boolean
+  /**
    * Argv that limits one account folder's disk use, run once per account
    * before its first command with the folder appended, such as a root-owned
    * helper through `sudo -n` that sets a filesystem project quota. A failure
@@ -4727,6 +4749,12 @@ export interface Config {
    * Host's folders; it requires `ctx.attachments`.
    */
   shareOutputFiles?: boolean
+  /** Most produced files one call shares (default 10); the rest are reported, not stored. */
+  shareMaxFiles?: number
+  /** Most bytes one call shares (default 100 MiB). */
+  shareMaxBytes?: number
+  /** Most bytes one conversation shares across its calls, counted from its log (default 500 MiB). */
+  shareMaxSessionBytes?: number
 }
 ```
 
@@ -4884,6 +4912,14 @@ export interface Config {
   readMaxBytes?: number
   /** Files at or above this size stream instead of loading whole into memory. */
   readStreamMinSize?: number
+  /**
+   * Refuse `read` and `read_image` targets outside the calling session's
+   * workspace, after symlinks resolve (default false). For a Host whose
+   * readers must not reach its other files.
+   */
+  confineToWorkspace?: boolean
+  /** Register `write` and `edit` (default true). */
+  mutations?: boolean
 }
 ```
 

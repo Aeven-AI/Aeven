@@ -1,0 +1,31 @@
+#!/bin/bash
+# Limits one Aeven sandbox account folder with an ext4 project quota.
+# Usage: aeven-sandbox-quota <block-limit-KiB> <inode-limit> <account-folder>
+# The folder must be a direct child of the accounts filesystem named in the
+# root-owned $ROOT_FILE, so a caller cannot choose which tree it limits; each
+# account keeps the project id it was first given (recorded in $MAP).
+# Install as root:root 0755 in /usr/local/sbin and allow the Host's user to
+# run it through sudo (see sudoers).
+set -euo pipefail
+ROOT_FILE=/etc/aeven-sandbox/accounts-root
+ROOT=$(realpath -e -- "$(cat "$ROOT_FILE")")
+MAP=/var/lib/aeven-sandbox/projects
+[ $# -eq 3 ] || { echo "aeven-sandbox-quota: usage: <block-limit-KiB> <inode-limit> <account-folder>" >&2; exit 2; }
+blocks=$1; inodes=$2; dir=$3
+[[ $blocks =~ ^[0-9]+$ && $inodes =~ ^[0-9]+$ ]] || { echo "aeven-sandbox-quota: limits must be integers" >&2; exit 2; }
+real=$(realpath -e -- "$dir")
+[ "$(dirname -- "$real")" = "$ROOT" ] && [ ! -L "$dir" ] || { echo "aeven-sandbox-quota: not an account folder: $dir" >&2; exit 2; }
+account=$(basename -- "$real")
+[[ $account =~ ^[A-Za-z0-9_-]{1,128}$ ]] || { echo "aeven-sandbox-quota: bad account name" >&2; exit 2; }
+mkdir -p "$(dirname "$MAP")"; touch "$MAP"
+exec 9>"$MAP.lock"; flock 9
+id=$(awk -v a="$account" "\$2==a{print \$1}" "$MAP")
+if [ -z "$id" ]; then
+  id=$(awk "BEGIN{m=999}{if(\$1>m)m=\$1}END{print m+1}" "$MAP")
+  echo "$id $account" >> "$MAP"
+fi
+# Directories inherit the project to new files (+P); existing files take the id.
+# find does not follow symlinks and stays on this filesystem.
+find "$real" -xdev -type d -exec chattr +P -p "$id" -- {} +
+find "$real" -xdev -type f -exec chattr -p "$id" -- {} +
+setquota -P "$id" 0 "$blocks" 0 "$inodes" "$ROOT"
