@@ -546,8 +546,8 @@ export class SessionMirror {
    * @param persistence - this Host's session persistence.
    * @param tuning - scan interval, batch size, backfill window, and input timing.
    * @param warn - receives failures to publish or import.
-   * @param attachments - this Host's attachment store, when one is mounted.
-   * @param filing - this Host's workspace registry, when one is mounted.
+   * @param attachmentSource - this Host's attachment store, or how to read the current one, when one is mounted.
+   * @param filingSource - this Host's workspace registry, or how to read the current one, when one is mounted.
    * @param deliver - applies inputs other devices forwarded; rejects when this device cannot apply one.
    * @param liveChange - receives sessions whose live state another device changed.
    * @param released - stops and drains a local agent before its log becomes a copy.
@@ -561,8 +561,8 @@ export class SessionMirror {
     private readonly persistence: SessionPersistence,
     private readonly tuning: SessionSyncTuning,
     private readonly warn: (message: string) => void,
-    private readonly attachments?: AttachmentStore,
-    private readonly filing?: SessionFiling,
+    private readonly attachmentSource?: AttachmentStore | (() => AttachmentStore | undefined),
+    private readonly filingSource?: SessionFiling | (() => SessionFiling | undefined),
     private readonly deliver?: SessionInputDelivery,
     private readonly liveChange?: SessionLiveChange,
     private readonly released?: (sessionId: SessionId) => Promise<void>,
@@ -570,6 +570,39 @@ export class SessionMirror {
     private readonly progressChanged?: () => void,
     private readonly imported?: (sessionId: SessionId) => void,
   ) {}
+
+  /**
+   * Where sessions are filed now. Read at each use, because the workspace registry may be provided after this mirror
+   * starts or replaced while it runs; a captured instance would file into, and answer from, one that is gone.
+   * @returns the current filing, or undefined while the device files nothing.
+   */
+  private get filing(): SessionFiling | undefined {
+    return typeof this.filingSource === 'function' ? this.filingSource() : this.filingSource
+  }
+
+  /**
+   * The attachment store, read at each use for the reason {@link filing} is.
+   * @returns the current store, or undefined while none is provided.
+   */
+  private get attachments(): AttachmentStore | undefined {
+    return typeof this.attachmentSource === 'function' ? this.attachmentSource() : this.attachmentSource
+  }
+
+  /** The filing {@link offLateFiling} observes. */
+  private lateFilingSource: SessionFiling | undefined
+
+  /** Observe late filing on the current filing, moving the observation when the filing changed. */
+  private watchLateFiling(): void {
+    const filing = this.filing
+    if (filing === this.lateFilingSource) return
+    this.offLateFiling?.()
+    this.lateFilingSource = filing
+    this.offLateFiling = filing?.onLateFiling(() => {
+      this.catalogChanged?.()
+      this.scheduleImport()
+      this.progressChanged?.()
+    })
+  }
 
   /** Content addresses of attachments the account's devices published, by id. */
   private published(): YMap<{ chunks: number }> {
@@ -992,11 +1025,7 @@ export class SessionMirror {
       return
     }
     this.docs = { index, inbox, names, live }
-    this.offLateFiling = this.filing?.onLateFiling(() => {
-      this.catalogChanged?.()
-      this.scheduleImport()
-      this.progressChanged?.()
-    })
+    this.watchLateFiling()
     this.catalogChanged?.()
     const me = this.device()
     // A turn this device ran before it restarted is not running any more.
@@ -1234,20 +1263,25 @@ export class SessionMirror {
   private async importAll(): Promise<void> {
     const me = this.device()
     if (me === undefined || this.isClosed()) return
+    this.watchLateFiling()
     const snapshots = await this.persistence.listSnapshots()
     const local = new Set(snapshots.map(({ header }) => header.id as string))
     const revisions = new Map(snapshots.map(({ header, revision }) => [header.id as string, String(revision)]))
     // The most recently active conversations arrive first; older history follows.
+    const owned = [...this.entries()]
+      .filter(([, entry]) => entry.header.owner === this.owner)
+      .sort(([, left], [, right]) => recency(right) - recency(left))
     const ordered: [string, IndexEntry][] = []
-    for (const [id, entry] of [...this.entries()].sort(([, left], [, right]) => recency(right) - recency(left))) {
-      if (entry.header.owner !== this.owner) continue
+    for (const [id, entry] of owned) {
       if (this.running.has(id as SessionId)) continue
       if (entry.next > await this.knownHead(id, local, revisions)) ordered.push([id, entry])
     }
     // Every conversation joins its workspace before any body downloads, so the list shows the account's structure first.
     const unfiled = this.filed.size
-    // Filing puts a conversation first in its workspace, so the oldest goes first and the most recent ends on top.
-    for (const [id, entry] of [...ordered].reverse()) {
+    // Filing puts a conversation first in its workspace, so the oldest goes first and the most recent ends on top. Every
+    // unfiled conversation is filed, not only those behind: one that ran elsewhere while its copy here kept up is
+    // never behind afterwards, and filing only those would leave it out of every workspace.
+    for (const [id, entry] of owned.filter(([id]) => !this.filed.has(id)).reverse()) {
       if (this.isClosed()) return
       await this.file(id, entry).catch((error: unknown) => {
         this.warn(`session sync: filing a session into its workspace failed: ${String(error)}`)
