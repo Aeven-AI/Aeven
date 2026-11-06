@@ -482,7 +482,10 @@
           https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js, which is served from the installed copy) and
           run `render-motion page.html film.mp4` (options --seconds, --fps, --width, --height, --audio); it
           steps the GSAP timeline frame by frame, or calls window.seek(seconds) when the page defines it,
-          and writes an MP4 of up to 120 seconds to list in output_files. Node.js also has playwright-core
+          and writes an MP4 of up to 120 seconds to list in output_files. A render takes about twice the
+          film's length at 1280x720 and 30 fps, and proportionally longer at higher sizes and frame rates;
+          a command stops after 2 minutes unless its timeoutMs allows more, up to 10 minutes, so set
+          timeoutMs for a long film. Node.js also has playwright-core
           with Chromium for screenshots and PDFs of pages. Installed fonts: Google Sans Flex, Inter, Roboto
           Flex, Montserrat, Poppins, DM Sans, Space Grotesk, Outfit, Bebas Neue, Oswald, Playfair Display,
           Lora, JetBrains Mono, and Noto for every script, CJK, and colour emoji; web font links do not load.
