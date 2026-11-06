@@ -176,6 +176,8 @@ export interface VideoPlayerProps {
   mirrored?: boolean
   /** How the picture meets its frame: the whole clip, or the frame filled. */
   fit?: 'contain' | 'cover'
+  /** Reports a clip the element cannot load. */
+  onError?: () => void
 }
 
 /**
@@ -183,7 +185,7 @@ export interface VideoPlayerProps {
  * @param props - clip URL, accessible name, save name, translator, and ratio report.
  * @returns the clip with its playback chrome over the lower edge.
  */
-export function VideoPlayer({ src, label, saveName, labels, onRatio, mirrored = false, fit = 'contain' }: VideoPlayerProps) {
+export function VideoPlayer({ src, label, saveName, labels, onRatio, mirrored = false, fit = 'contain', onError }: VideoPlayerProps) {
   const [video, setVideo] = useState<HTMLVideoElement | null>(null)
   return (
     <MediaPlayer
@@ -201,6 +203,7 @@ export function VideoPlayer({ src, label, saveName, labels, onRatio, mirrored = 
         preload="metadata"
         aria-label={label}
         onClick={(event) => { toggleClip(event.currentTarget) }}
+        onError={onError}
         onLoadedMetadata={(event) => {
           const clip = event.currentTarget
           const ratio = clip.videoWidth / clip.videoHeight

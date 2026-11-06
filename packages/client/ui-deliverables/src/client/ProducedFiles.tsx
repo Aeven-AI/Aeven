@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import {
   fileGlyph, fileKindOf, IconChevronDownOutline14, IconChevronUpOutline14, IconLucideFolderOpen, Tooltip,
+  VideoPlayer, videoPlayerLabels,
 } from '@aeven/client-ui-primitives'
 import type { HostObservable, InjectFace, PropsLocale } from '@aeven/client-ui-slots'
 import type { TurnTailOwnerProps } from '@aeven/client-ui-chat/client'
@@ -112,7 +113,7 @@ export function ProducedFiles({
   return (
     <section className={css.root} aria-label={t('produced.label')} data-produced-files-row>
       {media.map(file => (
-        <MediaPlayer key={file.path} path={file.path}
+        <MediaPlayer key={file.path} path={file.path} t={t}
           src={file.attachmentId === undefined ? fileUrl(file.path) : attachmentUrl(file.attachmentId)} />
       ))}
       {edited.length > 0 && (
@@ -127,17 +128,26 @@ export function ProducedFiles({
   )
 }
 
+/** The frame a produced video takes before its metadata reports the clip's own shape. */
+const DEFAULT_RATIO = 16 / 9
+
 /**
- * One produced video or audio file, playable in place. A file this Host cannot serve, such as one another device
+ * One produced video or audio file, playable in place: a video under the product's own player chrome, the same the
+ * conversation's generated clips and motion films wear. A file this Host cannot serve, such as one another device
  * wrote, leaves the player out and keeps only its row.
  */
-function MediaPlayer({ path, src }: { path: string; src: string }) {
+function MediaPlayer({ path, src, t }: { path: string; src: string; t: Translate }) {
   const [failed, setFailed] = useState(false)
+  const [ratio, setRatio] = useState(DEFAULT_RATIO)
   if (failed) return null
   const name = basename(path)
   const onError = () => { setFailed(true) }
   return fileKindOf(name) === 'video'
-    ? <video className={css.video} src={src} controls playsInline preload="metadata" aria-label={name} onError={onError} />
+    ? (
+      <div className={css.videoFrame} style={{ aspectRatio: String(ratio) }}>
+        <VideoPlayer src={src} label={name} saveName={name} labels={videoPlayerLabels(t)} onRatio={setRatio} onError={onError} />
+      </div>
+    )
     : <audio className={css.audio} src={src} controls preload="metadata" aria-label={name} onError={onError} />
 }
 

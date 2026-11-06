@@ -435,6 +435,15 @@
   white-space: nowrap;
 }
 
+/* A video wears the product's player, the same the conversation's clips do. */
+.videoFrame {
+  margin: 12px 0;
+  overflow: hidden;
+  border-radius: var(--dsw-aeven-radius-surface);
+  box-shadow: var(--files-glass-edge);
+  background: #000000;
+}
+
 .image {
   display: block;
   max-width: 100%;
