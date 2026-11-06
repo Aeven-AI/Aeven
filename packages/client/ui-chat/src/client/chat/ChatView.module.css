@@ -267,9 +267,10 @@
   }
 }
 
+/* The top inset stays the wide one at every width: it is what clears the
+   conversation's header controls above the first message. */
 @media (max-width: 640px) {
   .scroll {
-    padding-top: 32px;
     padding-bottom: 32px;
   }
 }

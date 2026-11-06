@@ -70,12 +70,12 @@ export function HandoffModal({ useHandoff, downloadUrl, close, t }: HandoffModal
       closeLabel={t('close')}
       footer={(
         <div className={css.actions}>
+          <Button variant={notOpened ? 'outline' : 'primary'} onClick={open}>{t('open')}</Button>
           {downloadUrl !== undefined && (
             <Button variant={notOpened ? 'primary' : 'outline'} onClick={() => { window.open(downloadUrl, '_blank', 'noopener') }}>
               {t('download')}
             </Button>
           )}
-          <Button variant={notOpened ? 'outline' : 'primary'} onClick={open}>{t('open')}</Button>
         </div>
       )}
     >
