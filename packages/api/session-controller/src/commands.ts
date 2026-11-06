@@ -1041,6 +1041,40 @@ function attachmentBlockIn<Ref extends { readonly attachmentId: unknown }>(
   return undefined
 }
 
+/**
+ * Find a stored file a tool recorded in its result's presentation metadata, such as the film `show_motion` stores
+ * for a device that lacks the composition folder: an object carrying a string `attachmentId` and `mediaType`, not
+ * an image, and a numeric `bytes`.
+ * @param value - the result's `meta`, searched through nested objects and lists.
+ * @param match - whether a candidate reference is the requested one.
+ * @param depth - nesting levels still searched.
+ * @returns the matching reference, or undefined.
+ */
+function fileRefInMeta<Ref extends { readonly attachmentId: unknown }>(
+  value: unknown,
+  match: (ref: Ref) => boolean,
+  depth = 6,
+): Ref | undefined {
+  if (depth < 0 || typeof value !== 'object' || value === null) return undefined
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = fileRefInMeta(item, match, depth - 1)
+      if (found !== undefined) return found
+    }
+    return undefined
+  }
+  const record = value as Record<string, unknown>
+  if (typeof record.attachmentId === 'string' && typeof record.mediaType === 'string'
+    && !record.mediaType.startsWith('image/') && typeof record.bytes === 'number' && match(record as unknown as Ref)) {
+    return record as unknown as Ref
+  }
+  for (const child of Object.values(record)) {
+    const found = fileRefInMeta(child, match, depth - 1)
+    if (found !== undefined) return found
+  }
+  return undefined
+}
+
 function attachmentInEvent<Ref extends { readonly attachmentId: unknown }>(
   event: SessionEvent,
   type: AttachmentBlockType,
@@ -1051,11 +1085,16 @@ function attachmentInEvent<Ref extends { readonly attachmentId: unknown }>(
     readonly message?: { readonly content?: unknown }
     readonly inserted?: readonly { readonly content?: unknown }[]
     readonly chunk?: { readonly type?: unknown; readonly block?: unknown }
+    readonly meta?: unknown
   }
   const direct = attachmentBlockIn(data.content, type, match)
   if (direct !== undefined) return direct
   const message = attachmentBlockIn(data.message?.content, type, match)
   if (message !== undefined) return message
+  if (type === 'file' && event.type === 'tool/result') {
+    const recorded = fileRefInMeta(data.meta, match)
+    if (recorded !== undefined) return recorded
+  }
   for (const inserted of data.inserted ?? []) {
     const found = attachmentBlockIn(inserted.content, type, match)
     if (found !== undefined) return found

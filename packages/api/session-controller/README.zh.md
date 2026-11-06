@@ -29,7 +29,7 @@ kind: "package-reference"
 
 没有工作目录的同步聊天通过会话运行租约在接收输入的设备上继续；缺少本地文件夹不会使它们固定在先前的写入设备上。
 
-经过身份验证的 `/api/file` 路由通过已组合的文件系统提供者提供绝对路径文件。对于无扩展名的栅格文件，包括持久化的附件对象，它会识别 PNG、JPEG、WebP 和 GIF 字节，使 Markdown 图片能够直接引用已存储的路径。
+经过身份验证的 `/api/file` 路由通过已组合的文件系统提供者提供绝对路径文件。对于无扩展名的栅格文件，包括持久化的附件对象，它会识别 PNG、JPEG、WebP 和 GIF 字节，使 Markdown 图片能够直接引用已存储的路径。`/api/attachment-file` 只在 Session 日志引用某个已存储原件时才提供它：作为文件内容块，或作为工具结果在其元数据中记录的非图片文件引用，例如 `show_motion` 存储的影片。
 
 Client adapter 提供 `SessionEventStream`，即绑定到一个普通 Session 或 direct subagent address 的 Gateway `RemoteJournalStream`。它在读取首个 page 前打开 follow，只发布连续的 `replace`、`prepend` 和 `append` 变更，并通过 tail page 修复重连或 seq 缺口。向后分页有两个动词：`loadOlder()` 拉一页 50 条 message，而 `loadThrough(seq)`——轮次跳转加载器——无论目标在多远之前，都只用一个往返安装一个锚定在目标 seq 上的 200 条 message 窗口；重复调用会加入进行中的那一趟并下调共享目标，已安装的窗口覆盖该目标时该趟即结束；忙碌状态复用同一个 `loadingOlder` 快照位。普通 record 覆盖 `[event.seq, event.seq]`，packed row 覆盖 `[event.seq, event.seq + memberCount - 1]`。业务、persistence 或无法恢复的连续性错误会终止 stream，只有物理载体断开才触发自动恢复。`SessionControlStream` 是 Gateway `RemoteSnapshotStream`；每代都以完整的进程本地 baseline 开始，因此重连会替换 queue、jobs 和 projection 状态，而不会把瞬态值当作 durable event。
 
