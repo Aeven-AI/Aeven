@@ -85,6 +85,7 @@ Each step runs once per machine, as root unless noted.
 5. Put `accountsRoot` on its own ext4 filesystem with project quotas, such as a loop image created with `mkfs.ext4 -O quota,project` and mounted `loop,prjquota,nosuid,nodev`, so commands cannot fill the Host's disk. A root-owned helper reached through `sudo -n` as `quotaCommand` gives each account folder a project id (`chattr -R +P -p <id>`) and a limit (`setquota -P`); a jailed process cannot change a project id.
 6. Write the system-call filter with [`host/seccomp-filter.c`](host/seccomp-filter.c) (`cc -O2 -o seccomp-filter seccomp-filter.c -lseccomp`) and name its output in `seccompFilter`.
 7. Install the read-only programs and libraries commands may use under a path listed in `readOnlyPaths`, such as a Python virtual environment and a Node `node_modules` directory under `/opt/aeven-sandbox`. Precompile Python bytecode with `python3 -m compileall`, because the jail cannot write `.pyc` files and pandas then imports five times slower.
+8. For animation and video, run [`host/install-motion.sh`](host/install-motion.sh) as root. It installs a headless Chromium (`playwright-core`), GSAP, and open-licensed fonts (Google Sans Flex and other Google Fonts families under the SIL Open Font License, plus Noto for every script, CJK, and colour emoji), and puts `render-motion` in the image's `bin`. `render-motion page.html film.mp4` steps the page's GSAP timeline, or its `window.seek(seconds)`, frame by frame and encodes the frames with ffmpeg; it serves CDN GSAP requests from the installed copy and fails every other request. List `/var/cache/fontconfig` in `readOnlyPaths` and set `PLAYWRIGHT_BROWSERS_PATH` in `env`.
 
 ### Failures and recovery
 
@@ -113,7 +114,7 @@ Startup fails loud when the launcher cannot enforce Landlock, when bubblewrap ca
 
 ### Host files
 
-[`host/`](host/) holds what the setup steps install: the AppArmor profile, the systemd drop-ins for delegation and the Host's user, the quota helper with its sudoers rule, and the system-call filter source. The quota helper reads the accounts root from the root-owned `/etc/aeven-sandbox/accounts-root`, so a caller cannot choose the tree it limits.
+[`host/`](host/) holds what the setup steps install: the AppArmor profile, the systemd drop-ins for delegation and the Host's user, the quota helper with its sudoers rule, the system-call filter source, and the motion installer with `render-motion`. The quota helper reads the accounts root from the root-owned `/etc/aeven-sandbox/accounts-root`, so a caller cannot choose the tree it limits.
 
 ### Two barriers
 
