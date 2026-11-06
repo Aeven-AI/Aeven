@@ -86,7 +86,7 @@ Append-only; does not invalidate earlier prefix reuse.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **No invariant companion** — the tool owns no durable state; storage and rendering are owned by `ctx.attachments` and `ctx.motion`.
+- **No invariant companion** — No invariant companion is published: the tool owns no durable state; storage and rendering are owned by `ctx.attachments` and `ctx.motion`.
 - **No live preview** — the user sees the rendered MP4, not the composition playing in a scrubbable preview, and edits go through the conversation.
 - **A render holds the call** — the call stays open for the whole render, with no progress shown at the call.
 

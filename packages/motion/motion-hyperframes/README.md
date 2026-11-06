@@ -61,17 +61,17 @@ ffprobe then reads the film's duration and size, and ffmpeg takes the requested 
 <a id="model-experience"></a>
 ## Model Experience
 
-None directly; [`avn-tool-motion`](../tool-motion/README.md) owns what the model sees. Renderer failures, such as a composition HyperFrames rejects or no working encoder, reach the model as that tool's error text.
+Indirectly, through [`avn-tool-motion`](../tool-motion/README.md), which reports renderer failures, such as a composition HyperFrames rejects or no working encoder, as its error text.
 
 #### KV Cache effect
 
-None.
+The renderer writes files and appends nothing to a request, so prefix reuse is unaffected.
 
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **No invariant companion** — the renderer holds only memoized lookups, which no second observer reports.
+- **No invariant companion** — No invariant companion is published: the renderer holds only memoized lookups, which no second observer reports.
 - **Linux arm64 needs an installed Chromium** — Chrome for Testing publishes no Linux arm64 build to download.
 - **The fallback path encodes twice** — the ProRes intermediate is visually lossless at the default profile, but it needs about 3.5 MB per second of 1080p30 in the temporary folder and adds an encode pass.
 - **A Windows N edition without the Media Feature Pack cannot render** — ffmpeg loads `mfplat.dll` only when the Media Foundation encoder opens, so it starts, but finds no encoder.

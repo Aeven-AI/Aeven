@@ -29,6 +29,7 @@ export const inject = ['motion']
 /** ProRes profiles the intermediate may use; all are 4:2:2 without alpha. */
 export type IntermediateProfile = 'hq' | '422' | 'lt'
 
+/** Executables, browser, and fallback encoding of the HyperFrames renderer. */
 export interface Config {
   /** ffmpeg executable; omitted, the bundled `@aeven/ffmpeg-<platform>-<arch>` copy. */
   ffmpegPath?: string

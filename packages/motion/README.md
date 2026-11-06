@@ -30,6 +30,7 @@ The motion group turns an animation the model writes as HTML into an MP4 film. T
 <a id="related-documentation"></a>
 ## Related documentation
 
+- [Motion Films subsystem](../../docs/subsystems/motion.md) — the generated `ctx.motion` API reference.
 - [Capability seams](../../docs/glossary.md#capability-seam) — the Service Definition, Service Provider, and Consumer roles this group is built from.
 - [Bundled ffmpeg](../../.agents/notes/implemented/architecture/2026-10-18-desktop-bundles-ffmpeg.md) — the LGPL-only executables the renderer encodes and probes with.
 - [Motion films decision](../../.agents/notes/implemented/feature/2026-11-06-motion-films.md) — why HyperFrames, the encoder per platform, and the desktop-only scope.

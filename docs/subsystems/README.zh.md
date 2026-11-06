@@ -9,6 +9,7 @@
 | [capability.md](capability.zh.md) | 能力与学习执行 |
 | [device.md](device.zh.md) | 设备会话与主机就绪状态 |
 | [document.md](document.zh.md) | 文档提取提供方 |
+| [motion.md](motion.zh.md) | 由 HTML 合成渲染动态影片 |
 | [mail.md](mail.zh.md) | 邮件账户与消息 |
 | [memory.md](memory.zh.md) | 记忆检索与管理 |
 | [speech.md](speech.zh.md) | 语音转写提供方与选择 |

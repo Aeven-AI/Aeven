@@ -30,6 +30,7 @@ motion 包组把模型以 HTML 写成的动画渲染为 MP4 影片。模型在�
 <a id="related-documentation"></a>
 ## 相关文档
 
+- [动态影片子系统](../../docs/subsystems/motion.zh.md) — 生成的 `ctx.motion` API 参考。
 - [能力接缝](../../docs/glossary.zh.md#capability-seam) — 本包组所依据的 Service Definition、Service Provider 与 Consumer 角色。
 - [随附 ffmpeg](../../.agents/notes/implemented/architecture/2026-10-18-desktop-bundles-ffmpeg.zh.md) — 渲染器用来编码与探测的仅 LGPL 可执行文件。
 - [动态影片决定](../../.agents/notes/implemented/feature/2026-11-06-motion-films.zh.md) — 为何选择 HyperFrames、各平台的编码器，以及仅限桌面的范围。

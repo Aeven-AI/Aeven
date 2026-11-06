@@ -38,17 +38,17 @@ The preview route calls HyperFrames' `bundleToSingleHtml` with the runtime inlin
 <a id="model-experience"></a>
 ## Model Experience
 
-None. The routes serve the browser; nothing they return reaches a model request.
+None, as the routes serve the browser and nothing they return reaches a model request.
 
 #### KV Cache effect
 
-None.
+No tokens pass through these routes, so prefix reuse is unaffected.
 
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **No invariant companion** — the routes hold no state.
+- **No invariant companion** — No invariant companion is published: the routes hold no state.
 - **Large media is not inlined** — the bundle inlines images and fonts up to HyperFrames' per-asset size ceiling; video and audio a composition references by relative path do not load in the preview, though the export renders them.
 - **Preview scripts load from the network** — GSAP and any other library a composition names by URL load from their CDN inside the preview frame.
 

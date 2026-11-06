@@ -9,6 +9,7 @@ One page per subsystem of the Aeven: what it is, the data structures it moves, a
 | [capability.md](capability.md) | Capabilities and learned executions |
 | [device.md](device.md) | Device sessions and host readiness |
 | [document.md](document.md) | Document extraction providers |
+| [motion.md](motion.md) | Motion film rendering from HTML compositions |
 | [mail.md](mail.md) | Mail accounts and messages |
 | [memory.md](memory.md) | Memory retrieval and management |
 | [speech.md](speech.md) | Speech transcription providers and selection |

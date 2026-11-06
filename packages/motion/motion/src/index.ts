@@ -90,7 +90,9 @@ export interface MotionRenderSpec extends MotionRenderInput {
 
 /** Composition defaults for requests that omit a field. */
 export interface Config {
+  /** Frame rate of a request that names none. */
   fps: MotionFps
+  /** Quality tier of a request that names none. */
   quality: MotionQuality
 }
 

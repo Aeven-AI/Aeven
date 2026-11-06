@@ -31,6 +31,7 @@ export const name = 'tool-motion'
  */
 export const inject = ['motion', 'tools', 'attachments', 'fs']
 
+/** Tool limits. */
 export interface Config {
   /** Most stills one call may request. */
   maxStills: number

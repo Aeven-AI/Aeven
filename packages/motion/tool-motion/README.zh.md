@@ -44,7 +44,7 @@ kind: "package-reference"
 
 #### 模型看到的内容
 
-[`render_motion` schema](../../../docs/tool-catalog.md#aeventool-motion)：必填的 `composition` 文件夹，以及可选的 `output`、`fps`、`quality` 与 `stills`。描述说明了文件夹结构、渲染耗时约等于影片时长，以及影片会直接展示给用户、无需复述。
+[`render_motion` schema](../../../docs/tool-catalog.zh.md#aeventool-motion)：必填的 `composition` 文件夹，以及可选的 `output`、`fps`、`quality` 与 `stills`。描述说明了文件夹结构、渲染耗时约等于影片时长，以及影片会直接展示给用户、无需复述。
 
 #### Token 影响
 
@@ -86,7 +86,7 @@ kind: "package-reference"
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **无不变量伴随包** — 工具不持有持久状态；存储与渲染分别由 `ctx.attachments` 与 `ctx.motion` 负责。
+- **无不变量伴随包** — 不发布不变量伴随包：工具不持有持久状态；存储与渲染分别由 `ctx.attachments` 与 `ctx.motion` 负责。
 - **没有实时预览** — 用户看到的是渲染出的 MP4，而不是可拖动预览中播放的合成，修改通过对话进行。
 - **渲染会占住调用** — 整个渲染期间调用保持打开，调用处不显示进度。
 

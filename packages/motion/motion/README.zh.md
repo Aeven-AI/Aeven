@@ -38,17 +38,17 @@ kind: "package-reference"
 <a id="model-experience"></a>
 ## 模型体验
 
-不直接影响。该服务不注册工具，也不向请求添加任何内容；模型看到的一切由 [`avn-tool-motion`](../tool-motion/README.zh.md) 负责。
+间接影响，经由 [`avn-tool-motion`](../tool-motion/README.zh.md)，它负责模型读取的每个 schema、技能与结果。
 
 #### KV Cache 影响
 
-无。
+该服务不向请求添加任何内容，因此前缀复用不受影响。
 
 ## 已知限制与延期工作
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **无不变量伴随包** — 该服务只持有一项注册，没有其他观察者能够与之矛盾的状态。
+- **无不变量伴随包** — 不发布不变量伴随包：该服务只持有一项注册，没有其他观察者能够与之矛盾的状态。
 - **仅限本地路径** — 渲染器从 Host 自身的文件系统读取合成并写出影片，因此工作区位于远程沙箱中的会话无法渲染。
 
 <a id="dev-note"></a>

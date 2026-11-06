@@ -61,17 +61,17 @@ kind: "package-reference"
 <a id="model-experience"></a>
 ## 模型体验
 
-不直接影响；模型看到的内容由 [`avn-tool-motion`](../tool-motion/README.zh.md) 负责。渲染器失败（如 HyperFrames 拒绝某个合成，或没有可用的编码器）会以该工具的错误文本到达模型。
+间接影响，经由 [`avn-tool-motion`](../tool-motion/README.zh.md)，它把渲染器失败（如 HyperFrames 拒绝某个合成，或没有可用的编码器）作为其错误文本报告。
 
 #### KV Cache 影响
 
-无。
+渲染器只写文件，不向请求追加任何内容，因此前缀复用不受影响。
 
 ## 已知限制与延期工作
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **无不变量伴随包** — 渲染器只持有记忆化的查找结果，没有第二个观察者会报告它们。
+- **无不变量伴随包** — 不发布不变量伴随包：渲染器只持有记忆化的查找结果，没有第二个观察者会报告它们。
 - **Linux arm64 需要已安装的 Chromium** — Chrome for Testing 不发布可下载的 Linux arm64 构建。
 - **回退路径会编码两次** — 默认档次下 ProRes 中间文件在视觉上无损，但 1080p30 每秒约需 3.5 MB 临时空间，并多出一次编码。
 - **未安装 Media Feature Pack 的 Windows N 版无法渲染** — ffmpeg 只在 Media Foundation 编码器打开时才加载 `mfplat.dll`，因此能够启动，但找不到编码器。

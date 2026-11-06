@@ -19,6 +19,7 @@ import { bundleToSingleHtml } from '@hyperframes/core/compiler'
 export const name = 'api-motion'
 export const inject = ['connection', 'motion']
 
+/** Route configuration. */
 export interface Config {
   /** Quality of a film the user exports from the card. */
   exportQuality: MotionQuality

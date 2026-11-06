@@ -38,17 +38,17 @@ Mount it with one renderer, such as [`avn-motion-hyperframes`](../motion-hyperfr
 <a id="model-experience"></a>
 ## Model Experience
 
-None directly. The service registers no tool and adds nothing to a request; [`avn-tool-motion`](../tool-motion/README.md) owns everything the model sees.
+Indirectly, through [`avn-tool-motion`](../tool-motion/README.md), which owns every schema, skill, and result the model reads.
 
 #### KV Cache effect
 
-None.
+The service adds nothing to a request, so prefix reuse is unaffected.
 
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **No invariant companion** — the service holds one registration and no state another observer could contradict.
+- **No invariant companion** — No invariant companion is published: the service holds one registration and no state another observer could contradict.
 - **Local paths only** — a renderer reads the composition from and writes the film to the Host's own filesystem, so a session whose workspace lives in a remote sandbox cannot render.
 
 <a id="dev-note"></a>
