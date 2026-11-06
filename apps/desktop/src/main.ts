@@ -818,7 +818,11 @@ async function main(): Promise<void> {
     // The serving Host keeps its profile as the cwd that sessions without a directory fall back to; a staged health
     // check runs from `paths.work`, since its profile is renamed into place as soon as it stops.
     const workDir = projectDir === activeProject ? projectDir : paths.work
-    const next = new DesktopHostProcess(resources.node, projectDir, workDir, hostInspectPort, compileCacheDir)
+    // Node.js keys cached code by module path, and a staged profile's path is never loaded again, so a health check
+    // would only spend seconds at exit writing a cache nothing reads.
+    const next = new DesktopHostProcess(
+      resources.node, projectDir, workDir, hostInspectPort, projectDir === activeProject ? compileCacheDir : undefined,
+    )
     const ready = await next.start()
     if (!ready.ownsHost && projectDir !== activeProject) {
       next.release()
@@ -883,17 +887,19 @@ async function main(): Promise<void> {
   }
 
   if (development === undefined && plan.kind === 'spawn') {
-    const firstMacInstallation = process.platform === 'darwin' && !existsSync(paths.profile)
+    // No Host runs yet at launch, so on POSIX the serving Host validates the final path inside activation: a failed
+    // boot rejects the transaction and restores the rollback profile without a separate staged boot and stop. Windows
+    // keeps the staged boot, because a process left by a failed boot from the profile directory can hold it against
+    // the undo rename.
+    const validateInActivation = process.platform !== 'win32'
     await manager.applyRelease(resources.seed, app.getVersion(), {
       ...hooks,
-      // A fresh Mac profile has no previous installation to protect. Its serving Host validates the final path
-      // inside activation, so a failed boot still rejects the transaction without a separate staged Host boot.
       healthCheck: async (projectDir) => {
-        if (!firstMacInstallation) await hooks.healthCheck(projectDir)
+        if (!validateInActivation) await hooks.healthCheck(projectDir)
       },
       beforeActivate: async () => {},
       afterActivate: async () => {
-        if (firstMacInstallation) await hooks.afterActivate()
+        if (validateInActivation) await hooks.afterActivate()
       },
     })
   }

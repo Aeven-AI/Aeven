@@ -218,6 +218,18 @@ Directory resolution and change for one session.
 local(session: Session): LocalDirectory
 
 /**
+ * The directory pair in force on this device for a session this process
+ * holds no Session object for — an idle one, or a replica another device
+ * runs — from its stored header and folded `workingDirectory` projection.
+ * Answers exactly as {@link local} would for the same log.
+ * @param header - the session's stored header.
+ * @param logged - the folded `workingDirectory` projection of its log, when one was read.
+ * @returns the local directory and workspace root, why this device has none,
+ *   or the fact that the session records no directory at all.
+ */
+observed(header: SessionHeader, logged: WorkingDirectoryProjection | undefined): LocalDirectory
+
+/**
  * The directory in force for a session on this device.
  * @param session - the session whose tool calls resolve paths against it.
  * @returns the local directory, or undefined when this device has none — read
@@ -291,7 +303,7 @@ enterVerified(session: Session, path: string): void
 inherit(child: Session, parent: Session): void
 ```
 
-Types: [Session](session.md)
+Types: [Session](session.md) · [SessionHeader](persistence.md)
 
 Source: [`packages/session/working-directory/src/index.ts`](../../packages/session/working-directory/src/index.ts)
 

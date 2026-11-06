@@ -4,7 +4,7 @@ import { AssistantMarkdown } from './AssistantMarkdown.tsx'
 
 /** Streaming, settled, and interrupted Assistant states share one keyed renderer instance. */
 export const AssistantNodeView = memo(function AssistantNodeView({
-  node, useTurnData, turnProcess, cwd, openFile, renderMessageImages, fileMentions,
+  node, useTurnData, turnProcess, cwd, openFile, renderMessageImages, storedImageUrl, fileMentions,
   scrollDown, onFullscreenChange, t,
 }: ChatNodeViewProps<'assistant-step'>) {
   const data = node.data
@@ -26,6 +26,19 @@ export const AssistantNodeView = memo(function AssistantNodeView({
     const segments = decoded.split(/[/?#]/)
     return !segments.some(segment => generated.attachmentIds.has(segment) || generated.attachmentIds.has(segment.replace(/^image:/, '')))
   }, [cwd, generated])
+  const read = useTurnData('read-images')
+  // An authored image of a file this Turn read with read_image shows the copy
+  // stored then: the file itself may be gone, or on another device's disk.
+  const imageUrl = useCallback((source: string): string | undefined => {
+    if (read === undefined || storedImageUrl === undefined) return undefined
+    let decoded = source
+    try { decoded = decodeURI(source) } catch {
+      // Malformed escapes retain the authored source for exact comparison.
+    }
+    const stored = read.byPath.get(decoded)
+      ?? (cwd === undefined ? undefined : read.byPath.get(`${cwd.replace(/\/$/, '')}/${decoded}`))
+    return stored === undefined ? undefined : storedImageUrl(stored)
+  }, [cwd, read, storedImageUrl])
   const blocks = useMemo(() => generated === undefined ? data.blocks
     : data.blocks.filter(block => block.kind !== 'image' || !generated.attachmentIds.has(String(block.attachment.attachmentId))),
   [data.blocks, generated])
@@ -49,6 +62,7 @@ export const AssistantNodeView = memo(function AssistantNodeView({
     <AssistantMarkdown
       blocks={blocks}
       imageVisible={imageVisible}
+      imageUrl={imageUrl}
       streaming={data.status === 'running'}
       interrupted={data.status === 'interrupted'}
       renderMessageImages={renderMessageImages}

@@ -47,6 +47,7 @@ The `workingDirectory` projection unit folds the same events for clients. While 
 ## Operations
 
 - `local(session)` — the local directory and root, `{ state: 'unresolved', reason }` when this device has no folder for the session's workspace (`workspace-unbound`, `workspace-not-here`), or `{ state: 'absent' }` when the session records no directory. No filesystem access.
+- `observed(header, projection)` — the same answer as `local` for a session this process holds no Session object for (idle, or a replica), from its stored header and folded `workingDirectory` projection.
 - `of(session)` / `rootOf(session)` — the local directory and workspace root, or `undefined`; read `local()` to tell a refusal from a session that records none.
 - `resolve(session, path)` — absolute paths normalize; relative ones resolve against the local directory. A session whose workspace has no local folder throws `WorkingDirectoryUnavailableError` instead of resolving against the process directory. No filesystem access.
 - `change(session, target)` — resolve, require an existing directory, append `session/cwd`, return the absolute path. An empty target, a missing path, or a file throws with a message that names the path. A target already in force appends nothing.

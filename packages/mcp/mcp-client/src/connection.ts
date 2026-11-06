@@ -19,7 +19,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { ToolListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js'
 import type { Context } from '@deepseek-ai/cordis'
 import { MAX_TIMER_DELAY_MS } from '@aeven/timeout'
-import { createTransport } from './transport.ts'
+import { createTransport, terminateStartingServer } from './transport.ts'
 import { syncTools } from './tools.ts'
 import type { ToolBridgeOptions, ToolDisposers } from './tools.ts'
 import type { Config } from './index.ts'
@@ -395,6 +395,7 @@ export function startConnection(ctx: Context, config: Config, policy: ResolvedRe
       client = undefined
       clientClosed = undefined
       if (current !== undefined) {
+        if (state === 'connecting') terminateStartingServer(current.transport)
         try { await current.close() } catch { /* transport already gone */ }
         if (currentClosed !== undefined && !await waitForClose(currentClosed)) {
           ctx.logger.error(`${label}: generation did not close within ${GENERATION_CLOSE_TIMEOUT_MS}ms during disposal — server shutdown may be incomplete`)

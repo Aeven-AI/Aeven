@@ -25,12 +25,13 @@ import { stat } from 'node:fs/promises'
 import { isAbsolute, join, normalize, resolve as resolvePath } from 'node:path'
 import { Service, type Context } from '@deepseek-ai/cordis'
 import Schema from '@deepseek-ai/schemastery'
-import type { Session, SessionId } from '@aeven/session'
+import type { Session, SessionHeader, SessionId } from '@aeven/session'
 import type {} from '@aeven/session-projection'
 import type {} from '@aeven/agent'
 import type {} from '@aeven/system-prompt'
 import type { SessionPlacement } from '@aeven/workspace'
 import { workingDirectoryProjectionDefinition } from './projection.ts'
+import type { WorkingDirectoryProjection } from './types.ts'
 import { localDirectory, type LocalDirectory, type RecordedDirectory, WorkingDirectoryUnavailableError } from './local.ts'
 export type * from './types.ts'
 export * from './local.ts'
@@ -120,32 +121,49 @@ export class WorkingDirectoryService extends Service {
    *   or the fact that the session records no directory at all.
    */
   local(session: Session): LocalDirectory {
-    const logged = this.ctx.sessionProjections.stateOf(session, 'workingDirectory')
-    const cwd = logged?.cwd ?? session.header.cwd
+    return this.place(session.header, this.ctx.sessionProjections.stateOf(session, 'workingDirectory'))
+  }
+
+  /**
+   * The directory pair in force on this device for a session this process
+   * holds no Session object for — an idle one, or a replica another device
+   * runs — from its stored header and folded `workingDirectory` projection.
+   * Answers exactly as {@link local} would for the same log.
+   * @param header - the session's stored header.
+   * @param logged - the folded `workingDirectory` projection of its log, when one was read.
+   * @returns the local directory and workspace root, why this device has none,
+   *   or the fact that the session records no directory at all.
+   */
+  observed(header: SessionHeader, logged: WorkingDirectoryProjection | undefined): LocalDirectory {
+    return this.place(header, logged)
+  }
+
+  private place(header: SessionHeader, logged: WorkingDirectoryProjection | undefined): LocalDirectory {
+    const cwd = logged?.cwd ?? header.cwd
     const registry = this.ctx.get('workspaceRegistry')
-    const placement: SessionPlacement = registry?.placeSession(session.header.id) ?? { state: 'unfiled' }
+    const placement: SessionPlacement = registry?.placeSession(header.id) ?? { state: 'unfiled' }
     const resolved = localDirectory({
       recorded: cwd === undefined ? undefined : { cwd, root: logged?.root ?? cwd },
       placement,
-      replicated: registry?.replicated(session.header.id) ?? false,
-      entered: this.entered.get(session.header.id),
+      replicated: registry?.replicated(header.id) ?? false,
+      entered: this.entered.get(header.id),
     })
     if (this.folders || resolved.state === 'local') return resolved
     // Without folders here, a folder another device recorded is one this Host will never have.
-    const managed = this.managedFolder(session)
+    const managed = this.managedFolder(header)
     return managed === undefined ? { state: 'absent' } : { state: 'local', cwd: managed, root: managed }
   }
 
   /**
    * The managed folder for a session on a Host without folders of its own,
    * created on first use and private to the Host's user.
-   * @param session - the session to place.
+   * @param header - the header of the session to place.
    * @returns the folder, or undefined when no managed root is configured or the session has no usable owner.
    */
-  private managedFolder(session: Session): string | undefined {
-    const owner = session.header.owner
+  private managedFolder(header: SessionHeader): string | undefined {
+    const owner = header.owner
     if (this.managedRoot === undefined || owner === undefined || !PATH_SEGMENT.test(owner)) return undefined
-    const placement = this.ctx.get('workspaceRegistry')?.placeSession(session.header.id)
+    const placement = this.ctx.get('workspaceRegistry')?.placeSession(header.id)
     let path: string
     if (placement?.state === 'filed') {
       const workspaceId = String(placement.workspace.id)

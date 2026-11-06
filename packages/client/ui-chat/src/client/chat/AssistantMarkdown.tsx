@@ -17,6 +17,8 @@ export interface AssistantMarkdownProps {
   /** Render consecutive image blocks through the attachment slot. */
   /** Hide authored image sources already displayed by a generation call. */
   imageVisible?: ((src: string) => boolean) | undefined
+  /** Stored-copy URL for an authored image source, when the Turn holds one. */
+  imageUrl?: ((src: string) => string | undefined) | undefined
   renderMessageImages: ChatNodeOwnerProps['renderMessageImages']
   /** Hide reasoning that belongs to the Turn-level process disclosure. */
   reasoningHidden?: boolean | undefined
@@ -99,7 +101,7 @@ export function runsOf(blocks: readonly AssistantBlock[]): StepRun[] {
  * append extends the tail run instead of remounting the runs before it.
  */
 export const AssistantMarkdown = memo(function AssistantMarkdown({
-  blocks, streaming, interrupted, renderMessageImages, imageVisible,
+  blocks, streaming, interrupted, renderMessageImages, imageVisible, imageUrl,
   reasoningHidden = false, revealProcess, mentions, scrollDown, onFullscreenChange, t,
 }: AssistantMarkdownProps) {
   // Stable per locale revision (t identity changes on switch): a fresh object
@@ -135,6 +137,7 @@ export const AssistantMarkdown = memo(function AssistantMarkdown({
               <MarkdownText
                 text={run.source}
                 imageVisible={imageVisible}
+                imageUrl={imageUrl}
                 streaming={streaming}
                 labels={labels}
                 fileMentions={mentions}

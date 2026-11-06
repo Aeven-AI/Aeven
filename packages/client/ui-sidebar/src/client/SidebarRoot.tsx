@@ -2,7 +2,8 @@
  * Sidebar shell: column geometry only, ported from the Aeven client's sidebar.
  * Collapse is one CSS state (`.visible`). Above 1024px the in-flow column
  * snaps to its new width while its clipped content transitions; below it the
- * column overlays. The shell repositions and remounts nothing.
+ * column overlays, and folds again once a click in it opens a Session or a
+ * surface. The shell repositions and remounts nothing.
  *
  * The header row holds the `sidebar.header.leading` seat at its leading edge —
  * the browsing region's search field (ui-workspace) — and the
@@ -24,7 +25,7 @@
  * entirely (ui-theme's `no-scrollbar`), so nothing here tracks the pointer.
  */
 import clsx from 'clsx'
-import { useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react'
+import { useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react'
 import {
   AevenMark, IconChatPlusAnimated, Tooltip,
 } from '@aeven/client-ui-primitives'
@@ -45,6 +46,29 @@ function isPlainActivation(event: ReactMouseEvent | ReactKeyboardEvent): boolean
   // and rejects a synthetic click; a real primary click reports 0.
   if (!('button' in event) || event.button !== 0) return false
   return !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey
+}
+
+/**
+ * The interactive elements a click inside the column can land on. A row that
+ * opens something is a same-tab link (New Session, Bots, Imagine, a Session, a
+ * Workspace's New Session icon) or a tree row that is not a fold toggle (a
+ * Session row's padding, a search result); everything else — buttons, menus,
+ * folding Workspace rows — keeps the column open.
+ */
+const ACTIVATOR = 'a[href], button, [role="treeitem"]'
+
+/**
+ * Whether a click inside the column opens something in place, so an overlaid
+ * column has done its job and should get out of the way.
+ * @param event - the click, seen in the capture phase.
+ * @returns true when the click's nearest interactive element navigates.
+ */
+function opensInPlace(event: ReactMouseEvent): boolean {
+  if (!isPlainActivation(event) || !(event.target instanceof Element)) return false
+  const activator = event.target.closest(ACTIVATOR)
+  if (activator === null) return false
+  if (activator.matches('a[href]')) return activator.getAttribute('target') !== '_blank'
+  return activator.getAttribute('role') === 'treeitem' && !activator.hasAttribute('aria-expanded')
 }
 
 /**
@@ -87,9 +111,29 @@ export function SidebarRoot({
     setTarget(newSessionHref())
   }
 
+  /**
+   * The content blocker, whose display is the breakpoint's own answer to
+   * whether the column overlays the conversation.
+   */
+  const blocker = useRef<HTMLDivElement | null>(null)
+
+  /**
+   * Fold an overlaid column once a click inside it opens something, so the
+   * opened Session or surface is not left behind the panel. Capture phase,
+   * because row controls such as a Workspace's New Session icon stop
+   * propagation; React carries portaled descendants (the search dialog) here
+   * too.
+   * @param event - the click anywhere in the column.
+   */
+  const foldAfterOpen = (event: ReactMouseEvent): void => {
+    if (collapsed || blocker.current === null) return
+    if (getComputedStyle(blocker.current).display === 'none') return
+    if (opensInPlace(event)) toggleSidebar()
+  }
+
   return (
     <div className={clsx(css.root, !collapsed && css.visible)}>
-      <div className={css.content}>
+      <div className={css.content} onClickCapture={foldAfterOpen}>
         {/* The replaceable brand remains available to deployments; Aeven's
             presentation hides it behind the full-width menu row. */}
         <button
@@ -197,6 +241,7 @@ export function SidebarRoot({
           it covers. Display is a CSS decision, so the node is always mounted;
           above the breakpoint it is `display: none` and reachable by nothing. */}
       <div
+        ref={blocker}
         className={css.contentBlocker}
         role="presentation"
         onClick={() => { toggleSidebar() }}

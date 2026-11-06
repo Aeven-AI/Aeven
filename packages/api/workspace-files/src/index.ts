@@ -24,7 +24,10 @@ import type { Agent } from '@aeven/agent'
 import type {} from '@aeven/fs'
 import type { FsTarget } from '@aeven/fs'
 import type {} from '@aeven/sandbox-policy'
-import { sessionWorkspaceRoot } from '@aeven/working-directory'
+import type {} from '@aeven/identity-user'
+import type { SessionId } from '@aeven/session'
+import type {} from '@aeven/session-query'
+import { sessionWorkspaceRoot, WorkingDirectoryUnavailableError } from '@aeven/working-directory'
 import { Remote, RemoteError, TypertRemoteService } from '@aeven/typert-protocol'
 import { scopeTarget } from '@aeven/scope'
 import { defineTool, jsonStringOutput } from '@aeven/tools'
@@ -191,14 +194,14 @@ export class WorkspaceFiles extends TypertRemoteService {
 
   /**
    * List the direct children of one directory inside the Session's workspace.
-   * @param agent - the Session asking; this device's binding for its workspace names the root.
+   * @param sessionId - the Session asking; this device's binding for its workspace names the root.
    * @param path - workspace-relative or absolute path; empty for the root.
    * @param signal - caller cancellation.
    * @returns the root, the listed path and its children, bounded by the entry cap.
    */
   @Remote
-  async list(agent: Agent, path: string, signal: AbortSignal): Promise<WorkspaceDirectoryListing> {
-    const workspaceRoot = this.workspaceRootOf(agent)
+  async list(sessionId: SessionId, path: string, signal: AbortSignal): Promise<WorkspaceDirectoryListing> {
+    const workspaceRoot = await this.workspaceRootFor(sessionId)
     const root = await this.ctx.fs.resolve(workspaceRoot, { signal })
     const target = await this.confine(root, workspaceRoot, path, signal)
     const info = await this.ctx.fs.stat(target, signal)
@@ -221,15 +224,15 @@ export class WorkspaceFiles extends TypertRemoteService {
 
   /**
    * Read the leading page of one UTF-8 text file.
-   * @param agent - the Session asking; relative paths resolve against its workspace root.
+   * @param sessionId - the Session asking; relative paths resolve against its workspace root.
    * @param path - workspace-relative or absolute path.
    * @param signal - caller cancellation.
    * @returns the file's absolute path, size, first page and whether that page reaches EOF.
    */
   @Remote
-  async read(agent: Agent, path: string, signal: AbortSignal): Promise<WorkspaceFileText> {
+  async read(sessionId: SessionId, path: string, signal: AbortSignal): Promise<WorkspaceFileText> {
     if (path.length === 0) throw new RemoteError('gateway/bad-request', 'path is required', {})
-    const workspaceRoot = this.workspaceRootOf(agent)
+    const workspaceRoot = await this.workspaceRootFor(sessionId)
     const target = this.config.confineReads === true
       ? await this.confine(await this.ctx.fs.resolve(workspaceRoot, { signal }), workspaceRoot, path, signal)
       : await this.ctx.fs.resolve(path, { cwd: workspaceRoot, signal })
@@ -254,16 +257,16 @@ export class WorkspaceFiles extends TypertRemoteService {
   /**
    * Find entries whose name contains `query` (case-insensitive), walking the
    * workspace breadth-first and skipping the configured directory names.
-   * @param agent - the Session asking; this device's binding for its workspace names the root.
+   * @param sessionId - the Session asking; this device's binding for its workspace names the root.
    * @param query - the name fragment to match.
    * @param signal - caller cancellation.
    * @returns the matches in walk order and whether a cap stopped the walk.
    */
   @Remote
-  async search(agent: Agent, query: string, signal: AbortSignal): Promise<WorkspaceSearchResult> {
+  async search(sessionId: SessionId, query: string, signal: AbortSignal): Promise<WorkspaceSearchResult> {
     const needle = query.trim().toLowerCase()
     if (needle.length === 0) return { hits: [], truncated: false }
-    const root = await this.ctx.fs.resolve(this.workspaceRootOf(agent), { signal })
+    const root = await this.ctx.fs.resolve(await this.workspaceRootFor(sessionId), { signal })
     const skip = new Set(this.config.searchSkip)
     const hits: WorkspaceSearchHit[] = []
     const queue: Array<{ target: FsTarget; path: string }> = [{ target: root, path: '' }]
@@ -300,6 +303,50 @@ export class WorkspaceFiles extends TypertRemoteService {
    */
   private workspaceRootOf(agent: Agent): string {
     return sessionWorkspaceRoot(this.ctx, agent.session) ?? this.ctx.sandboxPolicy.workspaceRoot
+  }
+
+  /**
+   * The workspace root of a Session a reader browses, whether or not an Agent
+   * runs it here. Browsing never starts one: an idle Session, and a replica
+   * another device of the account runs, answer from the stored log, so the
+   * explorer neither waits on nor takes over the device running the work.
+   * @param sessionId - the Session the reader browses.
+   * @returns the absolute root listings, previews and searches resolve against.
+   * @throws {RemoteError} `session/not-found` when the Session is absent or the caller may not reach it.
+   * @throws {WorkingDirectoryUnavailableError} when the Session's workspace has no folder on this device.
+   */
+  private async workspaceRootFor(sessionId: SessionId): Promise<string> {
+    const live = this.ctx.get('agents')?.get(sessionId)
+    if (live !== undefined) {
+      this.assertMayAccess(sessionId, live.session.header.owner)
+      return this.workspaceRootOf(live)
+    }
+    const query = this.ctx.get('sessionQuery')
+    if (query === undefined) throw new RemoteError('session/not-found', `session "${sessionId}" not found`, { sessionId })
+    let observation
+    try {
+      observation = await query.observeSession(sessionId)
+    } catch (error: unknown) {
+      if ((error as { code?: unknown } | null)?.code === 'SESSION_QUERY_SESSION_NOT_FOUND') {
+        throw new RemoteError('session/not-found', `session "${sessionId}" not found`, { sessionId })
+      }
+      throw error
+    }
+    using held = observation
+    this.assertMayAccess(sessionId, held.header.owner)
+    const directory = this.ctx.get('workingDirectory')
+    const local = directory === undefined
+      ? (held.header.cwd === undefined ? { state: 'absent' as const } : { state: 'local' as const, cwd: held.header.cwd, root: held.header.cwd })
+      : directory.observed(held.header, held.projections?.values.workingDirectory)
+    if (local.state === 'unresolved') throw new WorkingDirectoryUnavailableError(sessionId, local.reason)
+    return local.state === 'local' ? local.root : this.ctx.sandboxPolicy.workspaceRoot
+  }
+
+  /** Refuse a Session another account owns exactly as an absent one, so a caller cannot learn which exist. */
+  private assertMayAccess(sessionId: SessionId, owner: string | undefined): void {
+    if (this.ctx.get('identityUsers')?.mayAccess(owner) === false) {
+      throw new RemoteError('session/not-found', `session "${sessionId}" not found`, { sessionId })
+    }
   }
 
   /** Resolve `path` against the root and refuse it unless the workspace contains it. */

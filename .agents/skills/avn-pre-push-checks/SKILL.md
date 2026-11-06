@@ -50,7 +50,7 @@ pnpm exec vitest run packages/<group>/<package>/tests/<behavior>.spec.ts \
   --coverage.include='packages/<group>/<package>/src/**/*.ts'
 ```
 
-Use an exact source file when the behavior is truly confined to one module. Repeat `--coverage.include` for multiple affected files or packages, and pass every owning test file needed to exercise that scope. The configured per-file 100% thresholds still apply inside the selected source scope.
+Use an exact source file when the behavior is truly confined to one module. Repeat `--coverage.include` for multiple affected files or packages, and pass every owning test file needed to exercise that scope. The report shows uncovered locations; no percentage is required.
 
 When the owning tests are unclear, use Vitest's dependency graph to discover a candidate set, then inspect the selected tests before treating the run as evidence:
 
@@ -61,7 +61,7 @@ pnpm exec vitest related packages/<group>/<package>/src/<changed>.ts \
   --coverage.include='packages/<group>/<package>/src/<changed>.ts'
 ```
 
-`vitest related` cannot discover behavior reached only through configuration, dynamic loading, subprocesses, workers, built artifacts, or external providers; select those owning tests explicitly. Do not use `--passWithNoTests`, lower coverage thresholds, or narrow `--coverage.include` merely to hide an uncovered affected file. If a selected package scope fails because one focused test does not cover it, add its other relevant owning tests or narrow the source scope only when the excluded modules cannot be affected by the change.
+`vitest related` cannot discover behavior reached only through configuration, dynamic loading, subprocesses, workers, built artifacts, or external providers; select those owning tests explicitly. Do not use `--passWithNoTests` to make an empty selection pass.
 
 ## Full local rehearsal
 

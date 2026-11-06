@@ -40,6 +40,15 @@
     },
     {
       "path": "../../util/crypto"
+    },
+    {
+      "path": "../../preset/agent-presets"
+    },
+    {
+      "path": "../../identity/user"
+    },
+    {
+      "path": "../../session-query/session-query"
     }
   ]
 }

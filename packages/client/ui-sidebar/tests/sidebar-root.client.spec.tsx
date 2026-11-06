@@ -136,6 +136,9 @@ describe('SidebarRoot shell', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Chat' }))
     fireEvent.click(link)
     expect(b.startSession).toHaveBeenCalledTimes(2)
+    // No stylesheet loads here, so the content blocker is displayed and the
+    // column counts as overlaid: the link that opened a chat folds it.
+    expect(b.toggleSidebar).toHaveBeenCalledOnce()
     // Both run the same New Session flow, which reuses the Workspace's
     // never-prompted chat before creating one, so unsent text there comes back.
     expect(b.startSession).toHaveBeenLastCalledWith()
@@ -148,6 +151,23 @@ describe('SidebarRoot shell', () => {
     const blocker = document.querySelector('[role="presentation"]')
     expect(blocker).not.toBeNull()
     fireEvent.click(blocker!)
+    expect(b.toggleSidebar).toHaveBeenCalledTimes(2)
+  })
+
+  it('folds an overlaid column after a click opens something, and only then', () => {
+    const b = mountShell()
+    const blocker = document.querySelector<HTMLElement>('[role="presentation"]')!
+    // A plain button in the column (the hidden wordmark) opens nothing in place.
+    fireEvent.click(screen.getByRole('button', { name: 'Chat' }))
+    expect(b.toggleSidebar).not.toHaveBeenCalled()
+    // A modified click leaves the browser to open the link elsewhere.
+    fireEvent.click(screen.getByRole('link', { name: 'Chat' }), { button: 0, metaKey: true })
+    expect(b.toggleSidebar).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('link', { name: 'Chat' }), { button: 0 })
+    expect(b.toggleSidebar).toHaveBeenCalledOnce()
+    // Above the breakpoint the blocker is not displayed: the in-flow column stays open.
+    blocker.style.display = 'none'
+    fireEvent.click(screen.getByRole('link', { name: 'Chat' }), { button: 0 })
     expect(b.toggleSidebar).toHaveBeenCalledOnce()
   })
 

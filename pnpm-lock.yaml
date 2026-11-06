@@ -1516,9 +1516,18 @@ importers:
       '@aeven/fs':
         specifier: workspace:^
         version: link:../../fs/fs
+      '@aeven/identity-user':
+        specifier: workspace:^
+        version: link:../../identity/user
       '@aeven/sandbox-policy':
         specifier: workspace:^
         version: link:../../sandbox/sandbox-policy
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@aeven/session-query':
+        specifier: workspace:^
+        version: link:../../session-query/session-query
       '@aeven/typert-protocol':
         specifier: workspace:^
         version: link:../../typert/protocol
@@ -8505,12 +8514,18 @@ importers:
       '@aeven/agent':
         specifier: workspace:^
         version: link:../../core/agent
+      '@aeven/agent-presets':
+        specifier: workspace:^
+        version: link:../../preset/agent-presets
       '@aeven/attachment':
         specifier: workspace:^
         version: link:../../attachment/attachment
       '@aeven/brand':
         specifier: workspace:^
         version: link:../../util/brand
+      '@aeven/identity-user':
+        specifier: workspace:^
+        version: link:../../identity/user
       '@aeven/invariants':
         specifier: workspace:^
         version: link:../../runtime-diagnostics/invariants
@@ -8523,6 +8538,9 @@ importers:
       '@aeven/session':
         specifier: workspace:^
         version: link:../../core/session
+      '@aeven/session-query':
+        specifier: workspace:^
+        version: link:../../session-query/session-query
       '@aeven/typert-protocol':
         specifier: workspace:^
         version: link:../../typert/protocol

@@ -12,8 +12,11 @@ import type { ImageBlock } from '@aeven/llm'
 import { NamedEntries, ScopedLayers } from '@aeven/scope'
 import type { ScopeKey, ScopeLayer } from '@aeven/scope'
 import { SessionSeq } from '@aeven/session'
-import type { Session, SessionEvent, SessionEventMap } from '@aeven/session'
-import { TypertRemoteService, Remote } from '@aeven/typert-protocol'
+import type { Session, SessionEvent, SessionEventMap, SessionId } from '@aeven/session'
+import type {} from '@aeven/agent-presets'
+import type {} from '@aeven/identity-user'
+import type {} from '@aeven/session-query'
+import { TypertRemoteService, Remote, RemoteError } from '@aeven/typert-protocol'
 import { CommandId } from './brand.ts'
 import type {
   CommandDescriptor,
@@ -285,9 +288,59 @@ export class CommandRuntime extends TypertRemoteService {
    * @param agent - exact receiving agent and scoped-layer key.
    * @returns name-sorted descriptors after scoped shadowing.
    */
-  @Remote
   list(agent: Agent): readonly CommandDescriptor[] {
-    return Object.freeze([...this.view(agent).values()]
+    return this.describe(agent)
+  }
+
+  /**
+   * List the commands a reader may run in one Session, whether or not an
+   * Agent runs it here. Listing never starts one: an idle Session, and a
+   * replica another device of the account runs, answer from the standing scope
+   * of the preset its stored header records, which is the scope its Agent
+   * resolves commands against.
+   * @param sessionId - the Session the composer addresses.
+   * @returns name-sorted descriptors after scoped shadowing.
+   * @throws {RemoteError} `session/not-found` when the Session is absent or the caller may not reach it.
+   */
+  @Remote('list')
+  async remoteList(sessionId: SessionId): Promise<readonly CommandDescriptor[]> {
+    const live = this.ctx.get('agents')?.get(sessionId)
+    if (live !== undefined) {
+      this.assertMayAccess(sessionId, live.session.header.owner)
+      return this.describe(live)
+    }
+    const query = this.ctx.get('sessionQuery')
+    if (query === undefined) throw new RemoteError('session/not-found', `session "${sessionId}" not found`, { sessionId })
+    let header
+    try {
+      using observation = await query.observeSession(sessionId)
+      header = observation.header
+    } catch (error: unknown) {
+      if ((error as { code?: unknown } | null)?.code === 'SESSION_QUERY_SESSION_NOT_FOUND') {
+        throw new RemoteError('session/not-found', `session "${sessionId}" not found`, { sessionId })
+      }
+      throw error
+    }
+    this.assertMayAccess(sessionId, header.owner)
+    let scope: ScopeKey | undefined
+    try {
+      scope = await this.ctx.get('agentPresets')?.standingKeyFor(header.agentPreset)
+    } catch {
+      // An unknown or unusable recorded preset lists the global commands, as its Agent would fail to mount.
+      scope = undefined
+    }
+    return this.describe(scope)
+  }
+
+  /** Refuse a Session another account owns exactly as an absent one, so a caller cannot learn which exist. */
+  private assertMayAccess(sessionId: SessionId, owner: string | undefined): void {
+    if (this.ctx.get('identityUsers')?.mayAccess(owner) === false) {
+      throw new RemoteError('session/not-found', `session "${sessionId}" not found`, { sessionId })
+    }
+  }
+
+  private describe(scope: ScopeKey | undefined): readonly CommandDescriptor[] {
+    return Object.freeze([...this.layers.merge(scope, layer => layer.commands).values()]
       .map(command => command.descriptor)
       // Names are unique in the effective view, so equality is impossible.
       .sort((left, right) => left.name < right.name ? -1 : 1))
