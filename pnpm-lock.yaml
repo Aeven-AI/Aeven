@@ -1977,6 +1977,9 @@ importers:
       '@aeven/speech-to-text-aeven':
         specifier: workspace:^
         version: link:../../speech/speech-to-text-aeven
+      '@aeven/subprocess-executor':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess-executor
       '@aeven/web-app':
         specifier: workspace:^
         version: link:../web-app
@@ -12350,6 +12353,22 @@ importers:
       '@aeven/launch-environment':
         specifier: workspace:^
         version: link:../../util/launch-environment
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/subprocess/subprocess-executor:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@aeven/subprocess':
+        specifier: workspace:^
+        version: link:../subprocess
+      '@aeven/subprocess-local':
+        specifier: workspace:^
+        version: link:../subprocess-local
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis

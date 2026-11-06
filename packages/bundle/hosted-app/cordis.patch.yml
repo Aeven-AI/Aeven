@@ -391,6 +391,22 @@
           customSkillDirs:
             - !!js "process.getBuiltinModule('node:url').fileURLToPath(new URL('./skills/', baseUrl))"
 
+# ── starting processes without forking the Host ────────────────────────────
+
+# A Host serving many accounts grows large, and every fork of it copies its page
+# tables while its event loop serves no one (about 35 ms at 1.2 GB). The
+# executor's small helper keeps idle launchers that become each command, so
+# the Host never forks for one.
+- id: subprocess
+  disabled: !!js process.platform !== 'win32'
+
+- insert:
+    - id: subprocess-executor
+      name: '@aeven/subprocess-executor'
+      disabled: !!js process.platform === 'win32'
+      config:
+        poolSize: 8
+
 # ── commands in a per-account jail ──────────────────────────────────────────
 
 # AVN_HOSTED_SANDBOX=1 turns on the bash tool, and every command runs in the

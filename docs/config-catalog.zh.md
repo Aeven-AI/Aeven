@@ -4390,6 +4390,20 @@ export interface Config {
 
 来源：[`packages/e2b/subprocess-e2b/src/index.ts`](../packages/e2b/subprocess-e2b/src/index.ts)
 
+<a id="aevensubprocess-executor"></a>
+
+## `@aeven/subprocess-executor`
+
+```ts config-catalog
+/** Plugin config. */
+export interface Config {
+  /** Idle launchers the helper keeps ready; a burst beyond it falls back to ordinary spawns. */
+  poolSize?: number
+}
+```
+
+来源：[`packages/subprocess/subprocess-executor/src/index.ts`](../packages/subprocess/subprocess-executor/src/index.ts)
+
 <a id="aevensubscription-auth"></a>
 
 ## `@aeven/subscription-auth`
