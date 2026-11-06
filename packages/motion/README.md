@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The motion group turns an animation the model writes as HTML into an MP4 film. The model authors a [HyperFrames](https://github.com/heygen-com/hyperframes) composition in the session's workspace and `show_motion` shows it: the conversation plays the composition live under the product's clip controls, and the user exports it to an MP4 from the film's own menu. Nothing here generates footage: every frame is drawn by the composition, so text, data, logos, and the user's images move exactly as written. Only the desktop Host mounts the renderer, because it needs a local Chromium and the bundled ffmpeg.
+The motion group turns an animation the model writes as HTML into an MP4 film. The model authors a [HyperFrames](https://github.com/heygen-com/hyperframes) composition in the session's workspace and `show_motion` shows it: the conversation plays the composition live under the product's clip controls, and the user exports it to an MP4 from the film's own menu. Nothing here generates footage: every frame is drawn by the composition, so text, data, logos, and the user's images move exactly as written. The desktop Host mounts the HyperFrames renderer, which needs a local Chromium and the bundled ffmpeg; hosted Web mounts the preview renderer, which shows films live and renders no MP4.
 
 ## Table of Contents
 
@@ -24,6 +24,7 @@ The motion group turns an animation the model writes as HTML into an MP4 film. T
 |---|---|
 | [`motion`](motion/README.md) | Owns `ctx.motion`: resolves a render request and runs it on the one registered renderer |
 | [`motion-hyperframes`](motion-hyperframes/README.md) | Renders compositions with HyperFrames in Chromium and encodes H.264 through the bundled ffmpeg |
+| [`motion-preview`](motion-preview/README.md) | Bundles compositions for the live player and renders no films, for hosted Web |
 | [`tool-motion`](tool-motion/README.md) | Registers `show_motion`, `render_motion`, and the `motion` skill while a renderer exists |
 | [`api-motion`](api-motion/README.md) | Serves the Motion card's live preview, MP4 export, and film bytes |
 

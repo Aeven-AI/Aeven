@@ -24,7 +24,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在提供 `ctx.tools`、`ctx.attachments` 与 `ctx.fs` 的 Host 组合旁按会话挂载。工具与技能只在 `ctx.motion` 存在时注册，因此没有渲染器的组合会激活该插件但不注册任何内容；`ctx.skills` 为可选项，用于添加该技能及 `/motion`。`maxStills`（默认 8，最多 16）限制一次调用可请求的静帧数量。
+在提供 `ctx.tools`、`ctx.attachments` 与 `ctx.fs` 的 Host 组合旁按会话挂载。工具与技能只在 `ctx.motion` 存在时注册，因此没有渲染器的组合会激活该插件但不注册任何内容；`ctx.skills` 为可选项，用于添加该技能及 `/motion`。`maxStills`（默认 8，最多 16）限制一次调用可请求的静帧数量。`render`（默认 `true`）表示渲染器是否写出影片；设为 `false` 时，对于只打包的渲染器（如 [`avn-motion-preview`](../motion-preview/README.zh.md)），`show_motion` 不接受 `stills`，`render_motion` 不注册，技能只讲授展示，不含审阅静帧与 MP4 导出。
 
 两个工具都需要必填的 `composition`。它像文件系统工具那样经由 `ctx.fs` 解析：相对会话工作目录，或对于没有工作目录的聊天，相对沙箱策略的工作区根目录。`output` 默认为合成文件夹内的 `renders/<folder>.mp4`。`show_motion` 可选 `stills`；`render_motion` 可选 `fps`、`quality` 与 `stills`。两个路径都必须位于会话的工作区根目录内，会话没有时则位于策略的根目录内。
 

@@ -22,7 +22,7 @@ import { FILE_ATTACHMENT_PROPERTIES, fileBlockRef, imageBlockRef } from '@aeven/
 import { defineTool } from '@aeven/tools'
 import type { ToolRunContext } from '@aeven/tools'
 import { sessionDirectory, sessionWorkspaceRoot } from '@aeven/working-directory'
-import { MOTION_SKILL } from './skill.ts'
+import { motionSkill } from './skill.ts'
 
 export const name = 'tool-motion'
 /**
@@ -33,14 +33,21 @@ export const name = 'tool-motion'
  */
 export const inject = ['tools', 'attachments', 'fs']
 
-/** Tool limits. */
+/** Tool limits and the film rendering the deployment offers. */
 export interface Config {
   /** Most stills one call may request. */
   maxStills: number
+  /**
+   * Whether the registered renderer writes films. When false, as on a Host whose renderer only bundles compositions
+   * for the live player, `show_motion` takes no stills, `render_motion` is not registered, and the skill teaches
+   * the show-only loop.
+   */
+  render: boolean
 }
 
 export const Config: z<Config> = z.object({
   maxStills: z.natural().max(16).default(8),
+  render: z.boolean().default(true),
 })
 
 const FPS: readonly MotionFps[] = [24, 30, 60]
@@ -190,15 +197,19 @@ export function apply(ctx: Context, config: Config): void {
  */
 function registerMotion(ctx: Context, config: Config): void {
   ctx.inject(['skills'], (skillCtx) => {
-    skillCtx.effect(() => skillCtx.skills.register(MOTION_SKILL), 'tool-motion: motion skill')
+    skillCtx.effect(() => skillCtx.skills.register(motionSkill(config.render)), 'tool-motion: motion skill')
   })
 
   ctx.tools.register(defineTool({
     name: 'show_motion',
-    description: 'Show a HyperFrames composition folder to the user as a live film they can play, scrub, and export to MP4. Call it after writing or changing a composition. The folder holds index.html, its scene files under compositions/, and assets/. Showing renders nothing and returns at once; requesting stills adds a fast draft render whose evenly spaced frames come back for your review. The film plays directly for the user; do not repeat or embed it in your reply.',
+    description: config.render
+      ? 'Show a HyperFrames composition folder to the user as a live film they can play, scrub, and export to MP4. Call it after writing or changing a composition. The folder holds index.html, its scene files under compositions/, and assets/. Showing renders nothing and returns at once; requesting stills adds a fast draft render whose evenly spaced frames come back for your review. The film plays directly for the user; do not repeat or embed it in your reply.'
+      : 'Show a HyperFrames composition folder to the user as a live film they can play and scrub. Call it after writing or changing a composition. The folder holds index.html, its scene files under compositions/, and assets/. Showing returns at once. The film plays directly for the user; do not repeat or embed it in your reply.',
     parameters: {
       composition: { type: 'string', required: true, description: 'Composition folder, relative to the working directory.' },
-      stills: { type: 'integer', description: `Evenly spaced frames returned to you for review, 0 to ${String(config.maxStills)}. Omit for none.` },
+      ...config.render
+        ? { stills: { type: 'integer', description: `Evenly spaced frames returned to you for review, 0 to ${String(config.maxStills)}. Omit for none.` } }
+        : {},
     },
     output: {
       schema: {
@@ -220,8 +231,10 @@ function registerMotion(ctx: Context, config: Config): void {
         {
           type: 'text',
           text: [
-            `Showing ${value.path} to the user as a live film with an Export to MP4 button${value.durationSeconds === undefined ? '' : ` (${value.durationSeconds.toFixed(2)} s)`}.`,
-            'Do not repeat or embed it in your reply, and do not render an MP4 unless the user asks for the file.',
+            `Showing ${value.path} to the user as a live film${config.render ? ' with an Export to MP4 button' : ''}${value.durationSeconds === undefined ? '' : ` (${value.durationSeconds.toFixed(2)} s)`}.`,
+            config.render
+              ? 'Do not repeat or embed it in your reply, and do not render an MP4 unless the user asks for the file.'
+              : 'Do not repeat or embed it in your reply.',
             ...stillsText(value.stills),
           ].join(' '),
         },
@@ -235,6 +248,8 @@ function registerMotion(ctx: Context, config: Config): void {
       }),
     },
     async execute(args: { composition: string; stills?: number }, exec) {
+      // Undeclared keys are allowed, so schema omission also needs enforcement.
+      if (!config.render && args.stills !== undefined) throw new Error('stills are not available here')
       checkStills(args.stills, config.maxStills)
       const compositionDir = await localPath(ctx, exec, args.composition)
       const index = await stat(join(compositionDir, 'index.html')).catch(() => undefined)
@@ -254,6 +269,7 @@ function registerMotion(ctx: Context, config: Config): void {
     },
   }))
 
+  if (!config.render) return
   ctx.tools.register(defineTool({
     name: 'render_motion',
     description: 'Render a HyperFrames composition folder to an H.264 MP4 file and attach it to the conversation. Call only when the user asks for the video file; show_motion already lets the user watch and export the film. Rendering takes about as long as the film plays, longer at high quality. The film is displayed directly to the user; do not repeat or embed it in your reply.',

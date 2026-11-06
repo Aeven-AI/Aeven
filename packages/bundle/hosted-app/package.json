@@ -37,6 +37,8 @@
     "@aeven/api-motion": "workspace:^",
     "@aeven/client-ui-desktop-handoff": "workspace:^",
     "@aeven/client-ui-workspace-name": "workspace:^",
+    "@aeven/motion": "workspace:^",
+    "@aeven/motion-preview": "workspace:^",
     "@aeven/sandbox-jail": "workspace:^",
     "@aeven/speech-to-text-aeven": "workspace:^",
     "@aeven/subprocess-executor": "workspace:^",

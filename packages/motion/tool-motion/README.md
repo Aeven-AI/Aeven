@@ -24,7 +24,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount it per session beside a Host composition that provides `ctx.tools`, `ctx.attachments`, and `ctx.fs`. The tools and skill register only while `ctx.motion` exists, so a composition without a renderer activates the plugin with nothing registered; `ctx.skills` is optional and adds the skill, including `/motion`. `maxStills` (default 8, at most 16) caps the stills one call may request.
+Mount it per session beside a Host composition that provides `ctx.tools`, `ctx.attachments`, and `ctx.fs`. The tools and skill register only while `ctx.motion` exists, so a composition without a renderer activates the plugin with nothing registered; `ctx.skills` is optional and adds the skill, including `/motion`. `maxStills` (default 8, at most 16) caps the stills one call may request. `render` (default `true`) says whether the renderer writes films; with `false`, for a renderer that only bundles such as [`avn-motion-preview`](../motion-preview/README.md), `show_motion` takes no `stills`, `render_motion` is not registered, and the skill teaches showing without review stills or an MP4 export.
 
 Both tools take a required `composition`. It resolves through `ctx.fs` the way the filesystem tools resolve paths: against the session's working directory, or, for a chat without one, against the sandbox policy's workspace root. `output` defaults to `renders/<folder>.mp4` inside the composition folder. `show_motion` takes an optional `stills`; `render_motion` takes optional `fps`, `quality`, and `stills`. Both paths must stay inside the session's workspace root, or the policy's when the session has none.
 

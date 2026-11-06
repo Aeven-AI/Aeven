@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`avn-api-motion` 注册 Motion 卡片调用的三条经过认证的 Host 路由：`GET /api/motion/preview?dir=` 返回打包成单一 HTML 文档的合成文件夹，`POST /api/motion/export` 经由 `ctx.motion` 把文件夹渲染为 `renders/<folder>.mp4`，`GET /api/motion/film?path=` 按字节范围流式提供该 MP4，使卡片可以拖动进度。第四条路由 `GET /api/motion/replay?sessionId=&callId=` 从调用方自己的对话日志重建某次 `show_motion` 调用展示的合成，即其成功的 `write` 与 `edit` 调用在该文件夹内产生的文件，并将其打包，使在账户另一台设备上展示的影片在缺少文件夹的地方也能播放。三条文件夹路由只在 `ctx.motion` 存在时注册，重放路由只在 `ctx.sessionController` 存在时注册；桌面 Host 将它与渲染器一起挂载，托管 Web 在没有渲染器时挂载它，因此托管部署只提供重放。
+`avn-api-motion` 注册 Motion 卡片调用的三条经过认证的 Host 路由：`GET /api/motion/preview?dir=` 返回打包成单一 HTML 文档的合成文件夹，`POST /api/motion/export` 经由 `ctx.motion` 把文件夹渲染为 `renders/<folder>.mp4`，`GET /api/motion/film?path=` 按字节范围流式提供该 MP4，使卡片可以拖动进度。第四条路由 `GET /api/motion/replay?sessionId=&callId=` 从调用方自己的对话日志重建某次 `show_motion` 调用展示的合成，即其成功的 `write` 与 `edit` 调用在该文件夹内产生的文件，并将其打包，使在账户另一台设备上展示的影片在缺少文件夹的地方也能播放。三条文件夹路由只在 `ctx.motion` 存在且 `folderRoutes` 开启时注册，重放路由只在 `ctx.sessionController` 存在时注册；托管 Web 关闭文件夹路由，因此只提供重放。
 
 ## 目录
 
@@ -24,7 +24,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在提供 `ctx.connection` 与 `ctx.motion` 的 Host 上挂载。`exportQuality`（`draft`、`standard` 或 `high`；默认 `high`）设定用户导出影片的质量。与 `/api/file` 一样，每条路由从请求中读取一个绝对路径；路由运行前由连接服务认证请求，账户 cookie 放行两条 GET 路由，使浏览器无需 bearer 也能加载与下载。
+在提供 `ctx.connection` 与 `ctx.motion` 的 Host 上挂载。`exportQuality`（`draft`、`standard` 或 `high`；默认 `high`）设定用户导出影片的质量。`folderRoutes`（默认 `true`）注册预览、导出与影片路由；服务多个账户的 Host 将其设为 `false`，因为这些路由读取任意 Host 绝对路径，其卡片播放随调用存储的影片。与 `/api/file` 一样，每条路由从请求中读取一个绝对路径；路由运行前由连接服务认证请求，账户 cookie 放行两条 GET 路由，使浏览器无需 bearer 也能加载与下载。
 
 -----
 
