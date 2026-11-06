@@ -37,6 +37,7 @@ harness 由 `packages/` 下的 npm 包组装而成，按能力系列分组：会
 | [`identity/`](identity/README.zh.md) | 共享匿名身份 |
 | [`llm/`](llm/README.zh.md) | LLM 能力系列：抽象服务 + 提供方适配器 |
 | [`media/`](media/README.zh.md) | 生成图像与生成视频 seam + Aeven、DeepInfra、OpenRouter、pi-ai 提供方 |
+| [`motion/`](motion/README.zh.md) | 动态影片 seam：由 HyperFrames 把 HTML 合成渲染为 MP4，外加 `render_motion` |
 | [`speech/`](speech/README.zh.md) | 语音识别注册表、浏览器调用的语音 Remote，以及本地 Whisper 提供方 |
 | [`e2b/`](e2b/README.zh.md) | E2B 远程运行时提供方 |
 | [`subprocess/`](subprocess/README.zh.md) | 子进程能力系列：Service Definition + 本地进程树提供方 |

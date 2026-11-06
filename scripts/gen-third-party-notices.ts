@@ -89,6 +89,12 @@ const OVERRIDES: Record<string, { license?: string; repo?: string }> = {
   '@modelcontextprotocol/server-filesystem': { license: 'MIT / Apache-2.0', repo: 'https://github.com/modelcontextprotocol/servers' },
   // No repository field in the published manifest.
   'node-addon-require-builtin': { repo: 'https://www.npmjs.com/package/node-addon-require-builtin' },
+  // HyperFrames publishes no `license` field; the repository's LICENSE is Apache-2.0.
+  '@hyperframes/engine': { license: 'Apache-2.0' },
+  '@hyperframes/producer': { license: 'Apache-2.0' },
+  '@hyperframes/core': { license: 'Apache-2.0' },
+  // The player's own README states MIT.
+  '@hyperframes/player': { license: 'MIT' },
 }
 
 /**

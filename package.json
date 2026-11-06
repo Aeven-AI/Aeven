@@ -195,7 +195,9 @@
   "devDependencies": {
     "@aeven/atomic-write": "workspace:^",
     "@aeven/media": "workspace:^",
+    "@aeven/motion": "workspace:^",
     "@aeven/tool-media": "workspace:^",
+    "@aeven/tool-motion": "workspace:^",
     "@aeven/tool-session-query": "workspace:^",
     "@aeven/web-fetch-http": "workspace:^",
     "@stylistic/eslint-plugin": "^5.10.0",

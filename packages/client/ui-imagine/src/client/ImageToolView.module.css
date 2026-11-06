@@ -284,3 +284,18 @@
   color: inherit;
   cursor: pointer;
 }
+
+/* A live motion film fills its frame on the clip's own black letterbox, like a
+   generated clip's video element. */
+.motionStage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #000000;
+}
+
+.motionStage > * {
+  display: block;
+  width: 100%;
+  height: 100%;
+}

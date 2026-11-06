@@ -7,7 +7,9 @@ import {
 } from './icons/index.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import type { VideoPlayerLabels } from './VideoPlayer.tsx'
-import { saveClip, seekClip, toggleClip, toggleFullscreen } from './video-playback.ts'
+import { Spinner } from './Spinner.tsx'
+import { seekClip, toggleClip, toggleFullscreen } from './video-playback.ts'
+import type { ClipMedia } from './video-playback.ts'
 import css from './VideoControls.module.css'
 
 /** A run of seconds as `m:ss`; a clip whose metadata has not loaded shows none. */
@@ -18,8 +20,8 @@ function clockTime(seconds: number): string {
 
 /** Props of one clip's playback chrome. */
 export interface VideoControlsProps {
-  /** The clip's own element. */
-  video: HTMLVideoElement
+  /** The clip's own element, or another element with the same playback members. */
+  video: ClipMedia
   /** The element the clip plays in, which takes the full-screen request. */
   player: HTMLDivElement
   /** Whether the element is playing, from its own events. */
@@ -30,8 +32,10 @@ export interface VideoControlsProps {
   current: number
   /** Clip length in seconds, `NaN` until its metadata loads. */
   duration: number
-  /** File name the clip is saved under. */
-  saveName: string
+  /** Runs the save menu's one row: a download, or a feature's own save such as an export. */
+  onDownload: () => void
+  /** Whether that save is still running; the save disc shows progress and stays closed meanwhile. */
+  busy?: boolean
   /** Reports a seek, so the readout and scrubber follow the same position. */
   onSeek: (seconds: number) => void
   /** The owning feature's chrome sentences. */
@@ -47,10 +51,12 @@ export interface VideoControlsProps {
  * @returns the clip's playback chrome.
  */
 export function VideoControls({
-  video, player, playing, idle, current, duration, saveName, onSeek, labels,
+  video, player, playing, idle, current, duration, onDownload, busy = false, onSeek, labels,
 }: VideoControlsProps) {
   const [muted, setMuted] = useState(video.muted)
-  const [volume, setVolume] = useState(video.volume)
+  // A media that carries no level offers mute alone, at full level.
+  const hasLevel = video.volume !== undefined
+  const [volume, setVolume] = useState(video.volume ?? 1)
   const [fullscreen, setFullscreen] = useState(false)
   const [saveOpen, setSaveOpen] = useState(false)
   const [saveCard, setSaveCard] = useState<CSSProperties | null>(null)
@@ -58,7 +64,7 @@ export function VideoControls({
   const cardRef = useRef<HTMLDivElement>(null)
   // The last level the clip had sound at, so leaving silence restores the sound
   // the disc took away rather than leaving the clip quiet at zero.
-  const audible = useRef(video.volume === 0 ? 1 : video.volume)
+  const audible = useRef(video.volume === undefined || video.volume === 0 ? 1 : video.volume)
   // Full screen is a document-level state: the browser's own escape key and
   // gesture leave it without this component running anything.
   useEffect(() => {
@@ -76,7 +82,7 @@ export function VideoControls({
     video.muted = next
     if (!next && video.volume === 0) video.volume = audible.current
     setMuted(video.muted)
-    setVolume(video.volume)
+    setVolume(video.volume ?? 1)
   }
 
   const setLevel = (level: number): void => {
@@ -126,7 +132,7 @@ export function VideoControls({
 
   const download = (): void => {
     setSaveOpen(false)
-    saveClip(video.currentSrc === '' ? video.src : video.currentSrc, saveName)
+    onDownload()
   }
 
   const playLabel = playing ? labels.pause : labels.play
@@ -182,7 +188,7 @@ export function VideoControls({
           {silent ? <IconLucideVolumeX /> : <IconLucideVolume2 />}
         </button>
       </Tooltip>
-      <span className={css.volumeBox}>
+      {hasLevel && <span className={css.volumeBox}>
         <span className={css.trackRail} />
         <span
           className={css.trackFill}
@@ -200,7 +206,7 @@ export function VideoControls({
           aria-label={labels.volume}
           onChange={(event) => { setLevel(Number(event.currentTarget.value)) }}
         />
-      </span>
+      </span>}
       <Tooltip label={labels.save} side="top">
         <button
           ref={saveRef}
@@ -210,9 +216,11 @@ export function VideoControls({
           aria-label={labels.save}
           aria-haspopup="menu"
           aria-expanded={saveOpen}
+          aria-busy={busy}
+          disabled={busy}
           onClick={() => { setSaveOpen(!saveOpen) }}
         >
-          <IconLucideEllipsisVertical />
+          {busy ? <Spinner /> : <IconLucideEllipsisVertical />}
         </button>
       </Tooltip>
       {saveOpen && saveCard !== null && createPortal(

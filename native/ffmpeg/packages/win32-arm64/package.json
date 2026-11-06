@@ -1,7 +1,7 @@
 {
   "name": "@aeven/ffmpeg-win32-arm64",
   "version": "0.1.0",
-  "description": "Bundled LGPL ffmpeg executable for win32-arm64, resolved as a file path by the Aeven Host and never imported",
+  "description": "Bundled LGPL ffmpeg and ffprobe executables for win32-arm64, resolved as a file path by the Aeven Host and never imported",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Aeven-AI/Aeven.git",
@@ -14,7 +14,8 @@
     "arm64"
   ],
   "files": [
-    "bin/ffmpeg.exe"
+    "bin/ffmpeg.exe",
+    "bin/ffprobe.exe"
   ],
   "license": "LGPL-2.1-or-later",
   "publishConfig": {

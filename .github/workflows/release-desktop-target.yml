@@ -87,9 +87,9 @@ jobs:
           sudo apt-get install --yes --no-install-recommends ruby ruby-dev fakeroot cmake
           sudo gem install --no-document fpm
 
-      # ffmpeg builds from its pinned release source on every target, with libopus compiled statically from its
-      # own pinned source. configure needs a POSIX shell, pkg-config, a zlib development package, and nasm for
-      # the x86_64 assembly kernels. Each Windows target installs only its own toolchain: fetching both doubled
+      # ffmpeg builds from its pinned release source on every target, with libopus, and on Linux OpenH264, compiled
+      # statically from their own pinned sources. configure needs a POSIX shell, pkg-config, a zlib development
+      # package, and nasm for the x86_64 assembly kernels; OpenH264 needs a C++ compiler. Each Windows target installs only its own toolchain: fetching both doubled
       # the download, and one slow mirror failed the whole transaction. pacman is retried for the same reason.
       - name: Install ffmpeg build tools (macOS)
         if: startsWith(inputs.target, 'mac-')
@@ -98,7 +98,7 @@ jobs:
       - name: Install ffmpeg build tools (Linux)
         if: startsWith(inputs.target, 'linux-')
         run: |
-          sudo apt-get install --yes --no-install-recommends zlib1g-dev pkg-config nasm libva-dev
+          sudo apt-get install --yes --no-install-recommends zlib1g-dev pkg-config nasm libva-dev g++
 
       # The same MSYS2 setup the ffmpeg-only workflow uses: the action installs the environment, and the package
       # set supplies the compiler, binutils, static libopus, pkgconf, nasm, make, and diffutils.

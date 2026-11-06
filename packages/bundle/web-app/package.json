@@ -169,6 +169,7 @@
     "@aeven/tool-image-search": "workspace:^",
     "@aeven/tool-mail": "workspace:^",
     "@aeven/tool-media": "workspace:^",
+    "@aeven/tool-motion": "workspace:^",
     "@aeven/tool-subagent": "workspace:^",
     "@aeven/web-frontend": "workspace:^",
     "@aeven/workspace": "workspace:^",

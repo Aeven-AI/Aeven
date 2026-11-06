@@ -166,6 +166,10 @@ export const zh = {
   'video.volume': '音量',
   'video.save': '保存选项',
   'video.download': '下载视频',
+  'motion.label': '动态影片预览',
+  'motion.failed': '无法显示动态影片',
+  'motion.export': '导出 MP4',
+  'motion.exportFailed': '导出失败',
 } satisfies Record<string, string>
 
 /** The imagine namespace key union. */
@@ -337,6 +341,10 @@ export const en = {
   'video.volume': 'Volume',
   'video.save': 'Save options',
   'video.download': 'Download video',
+  'motion.label': 'Motion film preview',
+  'motion.failed': 'The motion film could not be shown',
+  'motion.export': 'Export MP4',
+  'motion.exportFailed': 'Export failed',
 } satisfies Record<ImagineKey, string>
 
 declare module '@aeven/client-ui-slots' {
@@ -514,4 +522,8 @@ export const es = {
   'video.volume': 'Volumen',
   'video.save': 'Opciones de guardado',
   'video.download': 'Descargar video',
+  'motion.label': 'Vista previa de la animación',
+  'motion.failed': 'No se pudo mostrar la animación',
+  'motion.export': 'Exportar MP4',
+  'motion.exportFailed': 'La exportación falló',
 } satisfies Record<ImagineKey, string>

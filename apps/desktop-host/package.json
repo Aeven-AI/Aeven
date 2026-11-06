@@ -32,6 +32,9 @@
     "@aeven/file-sync": "workspace:^",
     "@aeven/file-sync-syncthing": "workspace:^",
     "@aeven/workspace-file-sync": "workspace:^",
-    "@aeven/workspace-git-sync": "workspace:^"
+    "@aeven/workspace-git-sync": "workspace:^",
+    "@aeven/motion": "workspace:^",
+    "@aeven/motion-hyperframes": "workspace:^",
+    "@aeven/api-motion": "workspace:^"
   }
 }
