@@ -58,6 +58,9 @@
     },
     {
       "path": "../../fs/fs"
+    },
+    {
+      "path": "../../attachment/attachment"
     }
   ]
 }

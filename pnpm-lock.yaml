@@ -7536,6 +7536,10 @@ importers:
         version: link:../../../vendor/cordis
 
   packages/fs/fs-sandbox:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
     devDependencies:
       '@aeven/fs':
         specifier: workspace:^
@@ -9894,6 +9898,9 @@ importers:
       '@aeven/sandbox':
         specifier: workspace:^
         version: link:../sandbox
+      '@aeven/system-prompt':
+        specifier: workspace:^
+        version: link:../../core/system-prompt
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -11038,6 +11045,9 @@ importers:
       '@aeven/agent-loop-testkit':
         specifier: workspace:^
         version: link:../../test-support/agent-loop-testkit
+      '@aeven/attachment':
+        specifier: workspace:^
+        version: link:../../attachment/attachment
       '@aeven/bash-local':
         specifier: workspace:^
         version: link:../bash-local
