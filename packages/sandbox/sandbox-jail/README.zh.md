@@ -54,7 +54,8 @@ kind: "package-reference"
 | `env` | `PATH`、`LANG`、`TMPDIR`、单线程 BLAS、无界面 matplotlib | 受限命令的完整环境；`HOME` 为账户文件夹 |
 | `tmpSizeMb` | `512` | `/tmp` 与 `/dev/shm` 各自的大小上限 |
 | `cgroup` | 无 | 委派的 cgroup 目录，以及总限制与单账户限制 |
-| `quotaCommand` | 无 | 每个账户第一条命令前运行一次的 argv，末尾追加账户文件夹，用于限制其磁盘用量；失败则拒绝该账户的命令 |
+| `quotaCommand` | 无 | 限制账户文件夹磁盘用量的 argv，末尾追加该文件夹，在命令自身的启动步骤中运行，直到 `quotaRecord` 列出该账户；失败则拒绝该条命令 |
+| `quotaRecord` | 无 | 配额辅助程序记录已受限账户的文件；省略时每条命令都运行配额步骤 |
 | `modelNote` | 无 | 描述命令可用内容的系统提示词文本 |
 | `seccompFilter` | 无 | bubblewrap 安装的 BPF 系统调用过滤器的主机路径；文件不存在则启动失败 |
 | `sessionAttachments` | `false` | 以只读方式在存储路径上挂载对话的用户消息与工具结果引用的附件 |

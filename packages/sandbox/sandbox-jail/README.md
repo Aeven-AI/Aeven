@@ -54,7 +54,8 @@ Choose it for a multi-account Linux Host. Choose `avn-sandbox-local` for a perso
 | `env` | `PATH`, `LANG`, `TMPDIR`, one BLAS thread, headless matplotlib | The complete environment of confined commands; `HOME` is the account folder |
 | `tmpSizeMb` | `512` | Size bound of each of `/tmp` and `/dev/shm` |
 | `cgroup` | none | Delegated cgroup directory plus combined and per-account limits |
-| `quotaCommand` | none | Argv run once per account before its first command, with the account folder appended, to limit its disk use; a failure refuses the account's commands |
+| `quotaCommand` | none | Argv that limits the account folder's disk use, run with the folder appended in a command's own launch step until `quotaRecord` lists the account; a failure refuses that command |
+| `quotaRecord` | none | File the quota helper lists limited accounts in; omitted, every command runs the quota step |
 | `modelNote` | none | System-prompt text describing what commands can use |
 | `seccompFilter` | none | Host path of a BPF system-call filter bubblewrap installs; a missing file fails startup |
 | `sessionAttachments` | `false` | Mount the attachments the conversation's user messages and tool results reference, read-only at their store paths |

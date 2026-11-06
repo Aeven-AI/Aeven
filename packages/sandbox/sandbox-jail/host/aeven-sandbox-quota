@@ -20,12 +20,17 @@ account=$(basename -- "$real")
 mkdir -p "$(dirname "$MAP")"; touch "$MAP"
 exec 9>"$MAP.lock"; flock 9
 id=$(awk -v a="$account" "\$2==a{print \$1}" "$MAP")
-if [ -z "$id" ]; then
-  id=$(awk "BEGIN{m=999}{if(\$1>m)m=\$1}END{print m+1}" "$MAP")
-  echo "$id $account" >> "$MAP"
+recorded=$id
+[ -n "$id" ] || id=$(awk "BEGIN{m=999}{if(\$1>m)m=\$1}END{print m+1}" "$MAP")
+# A folder that already carries the id and inheritance keeps it on every file
+# created since, so only an unlabelled folder needs the walk.
+read -r current flags _ < <(lsattr -pd -- "$real")
+if [ "$current" != "$id" ] || [[ $flags != *P* ]]; then
+  # Directories inherit the project to new files (+P); existing files take the id.
+  # find does not follow symlinks and stays on this filesystem.
+  find "$real" -xdev -type d -exec chattr +P -p "$id" -- {} +
+  find "$real" -xdev -type f -exec chattr -p "$id" -- {} +
 fi
-# Directories inherit the project to new files (+P); existing files take the id.
-# find does not follow symlinks and stays on this filesystem.
-find "$real" -xdev -type d -exec chattr +P -p "$id" -- {} +
-find "$real" -xdev -type f -exec chattr -p "$id" -- {} +
 setquota -P "$id" 0 "$blocks" 0 "$inodes" "$ROOT"
+# Recorded only once limited: the Host skips the helper for accounts listed here.
+[ -n "$recorded" ] || echo "$id $account" >> "$MAP"

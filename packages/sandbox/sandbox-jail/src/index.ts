@@ -10,7 +10,7 @@
  */
 
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
 import { isAbsolute, join, relative, sep } from 'node:path'
 import { LAUNCHER_BIN, LAUNCHER_FAILURE_EXIT, launcherPath, probe } from '@deepseek-ai/node-addon-landlock-run'
 import { Context } from '@deepseek-ai/cordis'
@@ -71,13 +71,19 @@ export interface Config {
    */
   sessionAttachments?: boolean
   /**
-   * Argv that limits one account folder's disk use, run once per account
-   * before its first command with the folder appended, such as a root-owned
-   * helper through `sudo -n` that sets a filesystem project quota. A failure
-   * refuses the account's commands. Omitted, account folders have no limit
-   * of their own.
+   * Argv that limits one account folder's disk use, such as a root-owned
+   * helper through `sudo -n` that sets a filesystem project quota. It runs,
+   * with the folder appended, inside a command's own launch step before the
+   * jail starts, so it never blocks the Host; a failure refuses that command.
+   * Omitted, account folders have no limit of their own.
    */
   quotaCommand?: string[]
+  /**
+   * File the quota helper lists each limited account in, as `<id> <account>`
+   * lines; an account listed there skips the quota step. Omitted, every
+   * command runs the step.
+   */
+  quotaRecord?: string
   /**
    * System-prompt text describing what confined commands can use, such as
    * having no network and which programs and libraries are installed; omitted,
@@ -146,6 +152,7 @@ export class JailSandboxProvider extends SandboxProvider {
     seccompFilter: z.string(),
     sessionAttachments: z.boolean().default(false),
     quotaCommand: z.array(z.string()),
+    quotaRecord: z.string(),
     modelNote: z.string(),
   })
 
@@ -154,8 +161,9 @@ export class JailSandboxProvider extends SandboxProvider {
   private readonly cgroups: AccountCgroups | undefined
   private readonly quotaCommand: readonly string[] | undefined
   private readonly probeTimeoutMs: number
-  /** Accounts whose folder limit this provider has applied. */
-  private readonly limited = new Set<string>()
+  private readonly quotaRecord: string | undefined
+  /** Accounts the quota record lists, with the record's modification time when read. */
+  private limited: { mtimeMs: number; accounts: Set<string> } = { mtimeMs: -1, accounts: new Set() }
   private readonly sessionAttachments: boolean
   private readonly seccompFilter: string | undefined
   /** Attachment files each live session references, and the log position read so far. */
@@ -186,6 +194,7 @@ export class JailSandboxProvider extends SandboxProvider {
     this.probeTimeoutMs = config.probeTimeoutMs as number
     if (config.quotaCommand !== undefined && config.quotaCommand.length === 0) throw new Error('sandbox-jail: quotaCommand must name a program')
     this.quotaCommand = config.quotaCommand
+    this.quotaRecord = config.quotaRecord
     this.sessionAttachments = config.sessionAttachments ?? false
     this.probe(this.probeTimeoutMs)
     if (config.cgroup !== undefined) {
@@ -222,20 +231,22 @@ export class JailSandboxProvider extends SandboxProvider {
     const additionalWritableRoots = (policy.additionalWritableRoots ?? [])
       .map(root => canonicalPath(root))
       .filter(root => this.accountOf(root) === account)
-    this.limitFolder(policy.mode, account)
     const jailed = [
       ...jailArgs(this.profile, { ...policy, workspaceRoot, additionalWritableRoots }, this.attachmentsOf(policy.sessionId)),
       '--', ...argv,
     ]
     const group = this.cgroups?.groupOf(account)
+    const quota = this.needsLimit(account) ? this.quotaCommand : undefined
+    const fail = (what: string): string => `{ echo "${CGROUP_STEP}: ${what}" >&2; exit ${CGROUP_STEP_FAILURE_EXIT}; }`
     const steps = [
-      ...group === undefined ? [] : [`echo 0 > "$1/cgroup.procs" || { echo "${CGROUP_STEP}: cannot join $1" >&2; exit ${CGROUP_STEP_FAILURE_EXIT}; }`],
-      ...this.seccompFilter === undefined ? [] : [`exec 3< "$2" || { echo "${CGROUP_STEP}: cannot open the system-call filter $2" >&2; exit ${CGROUP_STEP_FAILURE_EXIT}; }`],
+      ...group === undefined ? [] : [`echo 0 > "$1/cgroup.procs" || ${fail('cannot join $1')}`],
+      ...quota === undefined ? [] : [`${quota.map(shellQuote).join(' ')} "$3" >/dev/null || ${fail("cannot limit the account folder's disk use")}`],
+      ...this.seccompFilter === undefined ? [] : [`exec 3< "$2" || ${fail('cannot open the system-call filter $2')}`],
     ]
     return {
       argv: steps.length === 0 ? jailed : [
-        '/bin/sh', '-c', `${steps.join('; ')}; shift 2; exec "$@"`,
-        CGROUP_STEP, group ?? '', this.seccompFilter ?? '', ...jailed,
+        '/bin/sh', '-c', `${steps.join('; ')}; shift 3; exec "$@"`,
+        CGROUP_STEP, group ?? '', this.seccompFilter ?? '', join(this.accountsRoot, account), ...jailed,
       ],
       enforcement: 'full',
       denialSignatures: DENIAL_SIGNATURES,
@@ -262,15 +273,26 @@ export class JailSandboxProvider extends SandboxProvider {
     return [...known.files]
   }
 
-  /** Apply the configured disk limit to an account folder before its first command. */
-  private limitFolder(mode: SandboxPolicy['mode'], account: string): void {
-    if (this.quotaCommand === undefined || this.limited.has(account)) return
-    const [program, ...args] = this.quotaCommand as [string, ...string[]]
-    const result = spawnSync(program, [...args, join(this.accountsRoot, account)], { encoding: 'utf8', timeout: this.probeTimeoutMs })
-    if (result.status !== 0) {
-      throw new SandboxUnavailableError(mode, `cannot limit the account folder's disk use: ${result.error?.message ?? result.stderr.trim()}`)
+  /**
+   * Whether a command must run the quota step: a quota command is configured and the record does not list the account yet.
+   * @param account - the account path segment.
+   * @returns true until the quota helper has recorded the account.
+   */
+  private needsLimit(account: string): boolean {
+    if (this.quotaCommand === undefined) return false
+    if (this.quotaRecord === undefined) return true
+    let mtimeMs: number
+    try {
+      mtimeMs = statSync(this.quotaRecord).mtimeMs
+    } catch {
+      // ENOENT: the helper has not limited any account yet, so every account still needs it.
+      return true
     }
-    this.limited.add(account)
+    if (mtimeMs !== this.limited.mtimeMs) {
+      const accounts = new Set(readFileSync(this.quotaRecord, 'utf8').split('\n').map(line => line.trim().split(/\s+/u)[1]).filter(name => name !== undefined))
+      this.limited = { mtimeMs, accounts }
+    }
+    return !this.limited.accounts.has(account)
   }
 
   /** The account directory a canonical path lies inside, or undefined outside the accounts root. */
@@ -327,6 +349,15 @@ function collectAttachmentFiles(value: unknown, store: AttachmentStore, files: S
     return
   }
   for (const child of Object.values(value)) collectAttachmentFiles(child, store, files)
+}
+
+/**
+ * Quote one argument for a POSIX shell.
+ * @param value - the argument.
+ * @returns the single-quoted form.
+ */
+function shellQuote(value: string): string {
+  return '\'' + value.replaceAll('\'', '\'\\\'\'') + '\''
 }
 
 export default JailSandboxProvider
