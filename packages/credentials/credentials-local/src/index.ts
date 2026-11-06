@@ -49,7 +49,7 @@ import { mkdir, readFile, stat } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { Document, isMap, isScalar, parseDocument, type YAMLError } from 'yaml'
 import { withFileLock, writeFileAtomic } from '@aeven/atomic-write'
-import { canonicalizeWatchPath, resolveAvnHome } from '@aeven/home-paths'
+import { accountDirectoryName, canonicalizeWatchPath, resolveAvnHome } from '@aeven/home-paths'
 import { launchEnvironmentOf } from '@aeven/launch-environment'
 import { CredentialProvider, credentialRef, parseCredentialKey } from '@aeven/credentials'
 import type {
@@ -69,6 +69,8 @@ export const CREDENTIALS_FILENAME = '.credentials.yaml'
 
 /** Plugin config: file location and hot-reload behavior. */
 export interface Config {
+  /** Keep personal credentials in separate account documents; defaults to false. */
+  accounts?: boolean
   /** Credentials document path; defaults to `.credentials.yaml` under the harness home. */
   path?: string
   /** Aeven home used when `path` is omitted; defaults to `$AVN_HOME` or `~/.aeven`. */
@@ -522,6 +524,7 @@ export class LocalCredentialProvider extends CredentialProvider {
      settings-file (prefer symmetry for parallel values); extracting the shared
      shape would couple the two providers' teardown semantics across packages. */
   static Config: z<Config> = z.object({
+    accounts: z.boolean().default(false),
     path: z.string(),
     avnHome: z.string(),
     watch: z.boolean().default(true),
@@ -566,6 +569,40 @@ export class LocalCredentialProvider extends CredentialProvider {
     // Programmatic construction may bypass Schemastery normalization; resolve
     // the same defaults in one explicit step either way.
     this.spec = resolveSpec(config)
+  }
+
+  override get accountStorage(): boolean { return this.config.accounts === true }
+
+  private accountFilename(owner: string): string {
+    return join(resolveAvnHome(this.config.avnHome), 'accounts', accountDirectoryName(owner), 'credentials.json')
+  }
+
+  private async accountDocument(owner: string): Promise<CredentialsDocument> {
+    const filename = this.accountFilename(owner)
+    let text: string
+    try { text = await readFile(filename, 'utf8') } catch (error) {
+      if (isENOENT(error)) return { refs: new Map(), records: new Map() }
+      throw error
+    }
+    await assertOwnerOnly(filename)
+    return parseCredentialsDocument(text, filename)
+  }
+
+  private async modifyAccount<T>(owner: string, mutate: (document: CredentialsDocument) => Promise<T>): Promise<T> {
+    if (this.isClosed()) throw new Error('credentials-local is disposed')
+    return this.enqueue(async () => {
+      if (this.isClosed()) throw new Error('credentials-local is disposed')
+      const filename = this.accountFilename(owner)
+      await mkdir(dirname(filename), { recursive: true, mode: 0o700 })
+      return withFileLock(filename, async () => {
+        const document = await this.accountDocument(owner)
+        const result = await mutate(document)
+        const text = JSON.stringify({ version: DOCUMENT_VERSION, refs: Object.fromEntries(document.refs), records: Object.fromEntries(document.records) }) + '\n'
+        parseCredentialsDocument(text, filename)
+        await writeFileAtomic(filename, text, { mode: 0o600, dirMode: 0o700 })
+        return result
+      }, { waitMs: DOCUMENT_LOCK_WAIT_MS })
+    })
   }
 
   /** The inherited-environment value for a reference, or `undefined` when empty or unset. */
@@ -633,7 +670,13 @@ export class LocalCredentialProvider extends CredentialProvider {
     /* jscpd:ignore-end */
   }
 
-  override resolve(ref: CredentialRef, user?: string): Promise<ResolvedCredential | undefined> {
+  override async resolve(ref: CredentialRef, user?: string): Promise<ResolvedCredential | undefined> {
+    if (this.accountStorage && user !== undefined) {
+      const session = this.sessionValues.get(user)?.get(ref)
+      if (session !== undefined) return { value: session, source: 'session' }
+      const value = (await this.accountDocument(user)).refs.get(ref)
+      return value === undefined ? undefined : { value, source: 'file' }
+    }
     const inherited = this.inherited(ref)
     if (inherited !== undefined) return Promise.resolve({ value: inherited, source: 'env' })
     const session = user === undefined ? undefined : this.sessionValues.get(user)?.get(ref)
@@ -645,7 +688,11 @@ export class LocalCredentialProvider extends CredentialProvider {
     return Promise.resolve(undefined)
   }
 
-  override describe(ref: CredentialRef, user?: string): Promise<CredentialInfo> {
+  override async describe(ref: CredentialRef, user?: string): Promise<CredentialInfo> {
+    if (this.accountStorage && user !== undefined) {
+      const hit = await this.resolve(ref, user)
+      return { configured: hit !== undefined, ...hit === undefined ? {} : { source: hit.source }, writable: hit?.source !== 'session' }
+    }
     // Only the inherited environment is unwritable: it is the one layer this
     // process cannot edit. A user `.env` value is writable in the sense that
     // matters — storing a key replaces it as the effective one.
@@ -699,22 +746,38 @@ export class LocalCredentialProvider extends CredentialProvider {
     this.ctx.emit('credentials/session-updated', ref, user)
   }
 
-  override async set(ref: CredentialRef, value: string): Promise<void> {
+  override async set(ref: CredentialRef, value: string, user?: string): Promise<void> {
+    if (this.accountStorage && user !== undefined) {
+      if (value.length === 0) throw new Error('an empty credential cannot be stored')
+      await this.modifyAccount(user, (document) => { document.refs.set(ref, value); return Promise.resolve() })
+      this.ctx.emit('credentials/session-updated', ref, user)
+      return
+    }
     if (value.length === 0) {
       throw new Error(`credentials-local: an empty value cannot be stored for "${ref}"; use unset`)
     }
     await this.write(ref, value)
   }
 
-  override async unset(ref: CredentialRef): Promise<void> {
+  override async unset(ref: CredentialRef, user?: string): Promise<void> {
+    if (this.accountStorage && user !== undefined) {
+      await this.modifyAccount(user, (document) => { document.refs.delete(ref); return Promise.resolve() })
+      this.ctx.emit('credentials/session-updated', ref, user)
+      return
+    }
     await this.write(ref, undefined)
   }
 
-  override readRecord(key: CredentialKey): Promise<CredentialRecord | undefined> {
+  override async readRecord(key: CredentialKey, user?: string): Promise<CredentialRecord | undefined> {
+    if (this.accountStorage && user !== undefined) return (await this.accountDocument(user)).records.get(key)
     return Promise.resolve(this.records.get(key))
   }
 
-  override describeRecord(key: CredentialKey): Promise<CredentialRecordInfo> {
+  override async describeRecord(key: CredentialKey, user?: string): Promise<CredentialRecordInfo> {
+    if (this.accountStorage && user !== undefined) {
+      const stored = await this.readRecord(key, user)
+      return stored === undefined ? { configured: false, writable: true } : { configured: true, kind: stored.kind, writable: true }
+    }
     const stored = this.records.get(key)
     // Presence is the whole fact here: no layer ranks above this document for
     // a record, so nothing can shadow one, and an api-key record carrying
@@ -724,7 +787,11 @@ export class LocalCredentialProvider extends CredentialProvider {
     return Promise.resolve({ configured: true, kind: stored.kind, writable: true })
   }
 
-  override listRecords(): Promise<readonly CredentialRecordEntry[]> {
+  override async listRecords(user?: string): Promise<readonly CredentialRecordEntry[]> {
+    if (this.accountStorage && user !== undefined) {
+      const { records } = await this.accountDocument(user)
+      return [...records].map(([key, record]) => ({ key: parseCredentialKey(key), kind: record.kind }))
+    }
     return Promise.resolve([...this.records].map(([key, record]) => ({
       // The parser has already proven every stored key addressable.
       key: parseCredentialKey(key),
@@ -735,7 +802,14 @@ export class LocalCredentialProvider extends CredentialProvider {
   override async modifyRecord(
     key: CredentialKey,
     mutate: (current: CredentialRecord | undefined) => Promise<CredentialRecord | undefined>,
+    user?: string,
   ): Promise<CredentialRecord | undefined> {
+    if (this.accountStorage && user !== undefined) return this.modifyAccount(user, async (document) => {
+      const current = document.records.get(key)
+      const next = await mutate(current)
+      if (next !== undefined) document.records.set(key, next)
+      return next ?? current
+    })
     if (this.isClosed()) throw new Error(`credentials-local is disposed: cannot modify "${key}"`)
     return this.enqueue(async () => {
       if (this.isClosed()) {
@@ -767,7 +841,13 @@ export class LocalCredentialProvider extends CredentialProvider {
     })
   }
 
-  override async deleteRecord(key: CredentialKey): Promise<void> {
+  override async deleteRecord(key: CredentialKey, user?: string): Promise<void> {
+    if (this.accountStorage && user !== undefined) {
+      return this.modifyAccount(user, (document) => {
+        document.records.delete(key)
+        return Promise.resolve()
+      })
+    }
     if (this.isClosed()) throw new Error(`credentials-local is disposed: cannot delete "${key}"`)
     await this.enqueue(async () => {
       if (this.isClosed()) {

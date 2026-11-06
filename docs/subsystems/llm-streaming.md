@@ -425,8 +425,10 @@ interface AdapterRegistrationHandle {
   /** Release every route this registration currently holds. */
   (): void
   /**
-   * Replace this registration's routes with `providers`, keeping the same
-   * adapter instance. The candidate set is validated in full first — a
+   * Replace this registration's routes with `providers`, served by `adapter`
+   * when one is given and by the same adapter instance otherwise, such as an
+   * account's routes rebuilt after its settings changed. The candidate set is
+   * validated in full first — a
    * conflict with another adapter, an invalid name, or bad provider metadata
    * throws and leaves the current routes untouched — and the swap itself is
    * one synchronous section, so no request can observe a gap. An empty array
@@ -437,8 +439,9 @@ interface AdapterRegistrationHandle {
    * has been released: its routes are gone and its disposer has already run,
    * so anything registered afterwards would have no owner left to release it.
    * @param providers - the complete next route set for this registration.
+   * @param adapter - the adapter that serves the routes from now on; omitted keeps the current one.
    */
-  replace(providers: string[]): void
+  replace(providers: string[], adapter?: LlmAdapter): void
 }
 ```
 
@@ -873,20 +876,38 @@ The abstract `llm` service: an adapter registry plus a streaming model-call API,
 
 ```ts cordis-catalog
 /**
+ * Resolve personal routes for the current caller before asynchronous model operations.
+ * @param owner - reads the account owning this request or Agent.
+ * @param prepare - loads that account's routes without changing other accounts.
+ * @returns disposer for the account resolver.
+ */
+registerAccountSource(owner: () => string | undefined, prepare: (owner: string) => Promise<void>): () => void
+
+/** Load the current account's model routes from every account source; compositions without one do no work. */
+async prepareAccount(): Promise<void>
+
+/**
  * Register an adapter for the given provider routes. Throws `LlmError` with code
  * `DUPLICATE_ADAPTER` if any provider already has an adapter (all-or-nothing).
  * Disposed with the fiber.
  * @param providers - every provider route this adapter should serve.
  * @param adapter - the adapter that streams calls for those providers.
+ * @param owner - restrict these routes to this account; omission registers shared routes.
  * @returns the disposer, carrying {@link AdapterRegistrationHandle.replace}.
  */
-registerAdapter(providers: string[], adapter: LlmAdapter): AdapterRegistrationHandle
+registerAdapter(providers: string[], adapter: LlmAdapter, owner?: string): AdapterRegistrationHandle
 
 /**
  * Describe provider routes with a registered adapter.
  * @returns detached provider metadata in registration order.
  */
-@Remote listProviders(): LlmProviderInfo[]
+listProviders(): LlmProviderInfo[]
+
+/**
+ * Load and list model providers visible to the signed-in caller. @returns detached provider metadata.
+ * @returns the model providers the signed-in caller can use: shared routes and the caller's own.
+ */
+@Remote('listProviders') async remoteListProviders(): Promise<LlmProviderInfo[]>
 
 /**
  * Declare provider routes an adapter plugin can activate through
@@ -895,14 +916,21 @@ registerAdapter(providers: string[], adapter: LlmAdapter): AdapterRegistrationHa
  * `LlmError` without registering the rest. Disposed with the fiber.
  * @param entries - every configurable provider this plugin owns.
  * @returns a handle that withdraws all of them, and can atomically replace them.
+ * @param owner - the account these entries belong to; absent registers entries every account sees.
  */
-registerConfigurableProviders(entries: readonly LlmConfigurableProvider[]): DirectoryRegistrationHandle
+registerConfigurableProviders(entries: readonly LlmConfigurableProvider[], owner?: string): DirectoryRegistrationHandle
 
 /**
  * List every declared configurable provider, registered or dormant.
  * @returns detached directory entries in declaration order.
  */
-@Remote listConfigurableProviders(): LlmConfigurableProvider[]
+listConfigurableProviders(): LlmConfigurableProvider[]
+
+/**
+ * Load and list configurable providers for this account. @returns detached configuration addresses.
+ * @returns the configurable providers the signed-in caller sees: shared entries and the caller's own.
+ */
+@Remote('listConfigurableProviders') async remoteListConfigurableProviders(): Promise<LlmConfigurableProvider[]>
 
 /**
  * Offer to interrogate provider endpoints on behalf of the settings

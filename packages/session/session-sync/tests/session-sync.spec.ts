@@ -550,6 +550,30 @@ class MemoryAttachments {
 }
 
 describe('attachments of synced conversations', () => {
+  it.each(['repeated', 'interleaved'])('recovers a hash-verified attachment from %s publication chunks', async (order) => {
+    const network = new MemorySyncNetwork()
+    const source = new MemoryAttachments()
+    const target = new MemoryAttachments()
+    const id = source.hold(new Uint8Array(5_000).map((_, index) => index % 251))
+    const home = new MemoryPersistence()
+    home.start('video', Date.now(), 1)
+    home.logs.get('video')!.events[0]!.data = { attachmentId: id } as never
+    const a = new SessionMirror(OWNER, network.device().asSync(), home as never, tuning, vi.fn(), source as never)
+    mirrors.push(a)
+    await a.start()
+    await a.publish()
+    await a.dispose()
+    const stream = `attachments/${id}`
+    const chunks = network.streams.get(stream)!
+    const duplicated = order === 'repeated' ? [...chunks, ...chunks] : chunks.flatMap(chunk => [chunk, chunk])
+    network.streams.set(stream, duplicated.map(chunk => ({ ...chunk, seq: network.nextSeq() })))
+    const b = new SessionMirror(OWNER, network.device().asSync(), new MemoryPersistence() as never, tuning, vi.fn(), target as never)
+    mirrors.push(b)
+    await b.start()
+    await expect(b.fetchAttachment(id)).resolves.toBe(true)
+    expect(target.objects.get(id)).toEqual(source.objects.get(id))
+  })
+
   it('sends the attachments a conversation references along with it, once, in chunks', async () => {
     const network = new MemorySyncNetwork()
     const a = network.device()

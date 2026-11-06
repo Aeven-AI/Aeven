@@ -40,10 +40,12 @@
     "@deepseek-ai/schemastery": "workspace:^"
   },
   "peerDependencies": {
+    "@aeven/identity-user": "workspace:^",
     "@aeven/settings": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
+    "@aeven/identity-user": "workspace:^",
     "@aeven/settings": "workspace:^",
     "@aeven/settings-file": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",

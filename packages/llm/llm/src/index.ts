@@ -282,8 +282,10 @@ export interface AdapterRegistrationHandle {
   /** Release every route this registration currently holds. */
   (): void
   /**
-   * Replace this registration's routes with `providers`, keeping the same
-   * adapter instance. The candidate set is validated in full first — a
+   * Replace this registration's routes with `providers`, served by `adapter`
+   * when one is given and by the same adapter instance otherwise, such as an
+   * account's routes rebuilt after its settings changed. The candidate set is
+   * validated in full first — a
    * conflict with another adapter, an invalid name, or bad provider metadata
    * throws and leaves the current routes untouched — and the swap itself is
    * one synchronous section, so no request can observe a gap. An empty array
@@ -294,8 +296,9 @@ export interface AdapterRegistrationHandle {
    * has been released: its routes are gone and its disposer has already run,
    * so anything registered afterwards would have no owner left to release it.
    * @param providers - the complete next route set for this registration.
+   * @param adapter - the adapter that serves the routes from now on; omitted keeps the current one.
    */
-  replace(providers: string[]): void
+  replace(providers: string[], adapter?: LlmAdapter): void
 }
 
 /**
@@ -325,7 +328,48 @@ export interface DirectoryRegistrationHandle {
  */
 export class LlmRuntime extends TypertRemoteService {
   private adapters = new Map<string, AdapterRegistration>()
+  private readonly accountAdapters = new Map<string, Map<string, AdapterRegistration>>()
+  /** Plugins that keep model routes per account, each able to name the account a call is for and to load its routes. */
+  private readonly accountSources = new Set<{ owner: () => string | undefined; prepare: (owner: string) => Promise<void> }>()
+
+  /**
+   * Resolve personal routes for the current caller before asynchronous model operations.
+   * @param owner - reads the account owning this request or Agent.
+   * @param prepare - loads that account's routes without changing other accounts.
+   * @returns disposer for the account resolver.
+   */
+  registerAccountSource(owner: () => string | undefined, prepare: (owner: string) => Promise<void>): () => void {
+    const source = { owner, prepare }
+    const dispose = this.ctx.effect(() => {
+      this.accountSources.add(source)
+      return () => { this.accountSources.delete(source) }
+    }, 'llm account source')
+    return () => { void dispose() }
+  }
+
+  /** The account the current call is for, as the first account source that names one answers. */
+  private currentAccount(): string | undefined {
+    for (const source of this.accountSources) {
+      const owner = source.owner()
+      if (owner !== undefined) return owner
+    }
+    return undefined
+  }
+
+  /** Load the current account's model routes from every account source; compositions without one do no work. */
+  async prepareAccount(): Promise<void> {
+    const owner = this.currentAccount()
+    if (owner === undefined) return
+    await Promise.all([...this.accountSources].map(source => source.prepare(owner)))
+  }
+
+  private callerAdapters(): Map<string, AdapterRegistration> {
+    const owner = this.currentAccount()
+    const own = owner === undefined ? undefined : this.accountAdapters.get(owner)
+    return own === undefined ? this.adapters : new Map([...this.adapters, ...own])
+  }
   private directory = new Map<string, LlmConfigurableProvider>()
+  private readonly accountDirectories = new Map<string, Map<string, LlmConfigurableProvider>>()
   private discoveries = new Map<
     string,
     (request: LlmModelDiscoveryRequest, signal?: AbortSignal) => Promise<readonly LlmDiscoveredModel[]>
@@ -375,9 +419,12 @@ export class LlmRuntime extends TypertRemoteService {
    * Disposed with the fiber.
    * @param providers - every provider route this adapter should serve.
    * @param adapter - the adapter that streams calls for those providers.
+   * @param owner - restrict these routes to this account; omission registers shared routes.
    * @returns the disposer, carrying {@link AdapterRegistrationHandle.replace}.
    */
-  registerAdapter(providers: string[], adapter: LlmAdapter): AdapterRegistrationHandle {
+  registerAdapter(providers: string[], adapter: LlmAdapter, owner?: string): AdapterRegistrationHandle {
+    const adapters = owner === undefined ? this.adapters : this.accountAdapters.get(owner) ?? new Map<string, AdapterRegistration>()
+    if (owner !== undefined) this.accountAdapters.set(owner, adapters)
     // The routes this registration currently holds; `replace` rewrites it, and
     // the disposer releases whatever it holds at disposal time.
     const owned = new Set<string>()
@@ -386,10 +433,10 @@ export class LlmRuntime extends TypertRemoteService {
     let released = false
     const dispose = this.ctx.effect(function* (this: LlmRuntime) {
       if (providers.length === 0) throw new LlmError('an adapter must register at least one provider', 'INVALID_ADAPTER')
-      this.commitRoutes(owned, this.prepareRoutes(providers, adapter, owned))
+      this.commitRoutes(owned, this.prepareRoutes(providers, adapter, owned, adapters), adapters)
       yield () => {
         released = true
-        for (const provider of owned) this.adapters.delete(provider)
+        for (const provider of owned) adapters.delete(provider)
         owned.clear()
         this.emitAdaptersUpdated()
       }
@@ -397,13 +444,13 @@ export class LlmRuntime extends TypertRemoteService {
     // ctx.effect's disposer returns Promise<void>; our disposer API is
     // synchronous fire-and-forget — discard the (always-resolved) promise.
     const handle = (() => void dispose()) as AdapterRegistrationHandle
-    handle.replace = (next: string[]): void => {
+    handle.replace = (next: string[], replacement = adapter): void => {
       // Registering here would leak: the effect's disposer already ran, so
       // nothing remains to release whatever this call would put in the map.
       if (released) {
         throw new LlmError('a disposed adapter registration cannot replace its routes', 'REGISTRATION_DISPOSED')
       }
-      this.commitRoutes(owned, this.prepareRoutes(next, adapter, owned))
+      this.commitRoutes(owned, this.prepareRoutes(next, replacement, owned, adapters), adapters)
     }
     return handle
   }
@@ -413,12 +460,17 @@ export class LlmRuntime extends TypertRemoteService {
    * registration already holds as available. Nothing is mutated: a rejected
    * candidate leaves the registry exactly as it was.
    */
-  private prepareRoutes(providers: string[], adapter: LlmAdapter, owned: ReadonlySet<string>): AdapterRegistration[] {
+  private prepareRoutes(
+    providers: string[],
+    adapter: LlmAdapter,
+    owned: ReadonlySet<string>,
+    adapters = this.adapters,
+  ): AdapterRegistration[] {
     const unique = new Set<string>()
     const registrations: AdapterRegistration[] = []
     for (const provider of providers) {
       if (provider.length === 0) throw new LlmError('adapter provider names must be non-empty', 'INVALID_ADAPTER')
-      if (unique.has(provider) || (this.adapters.has(provider) && !owned.has(provider))) {
+      if (unique.has(provider) || (adapters.has(provider) && !owned.has(provider))) {
         throw new LlmError(`an adapter for provider "${provider}" is already registered`, 'DUPLICATE_ADAPTER')
       }
       const info = adapter.providerInfo(provider)
@@ -444,11 +496,11 @@ export class LlmRuntime extends TypertRemoteService {
    * `llm/adapters-updated` is published, so a `replace` announces itself
    * exactly like a first registration.
    */
-  private commitRoutes(owned: Set<string>, registrations: readonly AdapterRegistration[]): void {
-    for (const provider of owned) this.adapters.delete(provider)
+  private commitRoutes(owned: Set<string>, registrations: readonly AdapterRegistration[], adapters = this.adapters): void {
+    for (const provider of owned) adapters.delete(provider)
     owned.clear()
     for (const registration of registrations) {
-      this.adapters.set(registration.provider.id, registration)
+      adapters.set(registration.provider.id, registration)
       owned.add(registration.provider.id)
     }
     this.emitAdaptersUpdated()
@@ -458,9 +510,18 @@ export class LlmRuntime extends TypertRemoteService {
    * Describe provider routes with a registered adapter.
    * @returns detached provider metadata in registration order.
    */
-  @Remote
   listProviders(): LlmProviderInfo[] {
-    return [...this.adapters.values()].map(({ provider }) => ({ ...provider }))
+    return [...this.callerAdapters().values()].map(({ provider }) => ({ ...provider }))
+  }
+
+  /**
+   * Load and list model providers visible to the signed-in caller. @returns detached provider metadata.
+   * @returns the model providers the signed-in caller can use: shared routes and the caller's own.
+   */
+  @Remote('listProviders')
+  async remoteListProviders(): Promise<LlmProviderInfo[]> {
+    await this.prepareAccount()
+    return this.listProviders()
   }
 
   /**
@@ -470,8 +531,13 @@ export class LlmRuntime extends TypertRemoteService {
    * `LlmError` without registering the rest. Disposed with the fiber.
    * @param entries - every configurable provider this plugin owns.
    * @returns a handle that withdraws all of them, and can atomically replace them.
+   * @param owner - the account these entries belong to; absent registers entries every account sees.
    */
-  registerConfigurableProviders(entries: readonly LlmConfigurableProvider[]): DirectoryRegistrationHandle {
+  registerConfigurableProviders(entries: readonly LlmConfigurableProvider[], owner?: string): DirectoryRegistrationHandle {
+    const directory = owner === undefined
+      ? this.directory
+      : this.accountDirectories.get(owner) ?? new Map<string, LlmConfigurableProvider>()
+    if (owner !== undefined) this.accountDirectories.set(owner, directory)
     let held: LlmConfigurableProvider[] = []
     let disposed = false
     /**
@@ -491,14 +557,14 @@ export class LlmRuntime extends TypertRemoteService {
         if (entry.settingsPath.some(segment => segment.length === 0)) {
           throw new LlmError(`configurable provider "${entry.provider}" has an empty settingsPath segment`, 'INVALID_DIRECTORY')
         }
-        if ((this.directory.has(entry.provider) && !own.has(entry.provider))
+        if ((directory.has(entry.provider) && !own.has(entry.provider))
           || detached.some(seen => seen.provider === entry.provider)) {
           throw new LlmError(`configurable provider "${entry.provider}" is already declared`, 'DUPLICATE_DIRECTORY')
         }
         detached.push({ ...entry, settingsPath: [...entry.settingsPath] })
       }
-      for (const entry of held) this.directory.delete(entry.provider)
-      for (const entry of detached) this.directory.set(entry.provider, entry)
+      for (const entry of held) directory.delete(entry.provider)
+      for (const entry of detached) directory.set(entry.provider, entry)
       held = detached
       this.emitAdaptersUpdated()
     }
@@ -510,7 +576,7 @@ export class LlmRuntime extends TypertRemoteService {
       commit(entries)
       yield () => {
         disposed = true
-        for (const entry of held) this.directory.delete(entry.provider)
+        for (const entry of held) directory.delete(entry.provider)
         held = []
         this.emitAdaptersUpdated()
       }
@@ -530,9 +596,20 @@ export class LlmRuntime extends TypertRemoteService {
    * List every declared configurable provider, registered or dormant.
    * @returns detached directory entries in declaration order.
    */
-  @Remote
   listConfigurableProviders(): LlmConfigurableProvider[] {
-    return [...this.directory.values()].map(entry => ({ ...entry, settingsPath: [...entry.settingsPath] }))
+    const owner = this.currentAccount()
+    const own = owner === undefined ? undefined : this.accountDirectories.get(owner)
+    return [...new Map([...this.directory, ...own ?? []]).values()].map(entry => ({ ...entry, settingsPath: [...entry.settingsPath] }))
+  }
+
+  /**
+   * Load and list configurable providers for this account. @returns detached configuration addresses.
+   * @returns the configurable providers the signed-in caller sees: shared entries and the caller's own.
+   */
+  @Remote('listConfigurableProviders')
+  async remoteListConfigurableProviders(): Promise<LlmConfigurableProvider[]> {
+    await this.prepareAccount()
+    return this.listConfigurableProviders()
   }
 
   /**
@@ -659,7 +736,7 @@ export class LlmRuntime extends TypertRemoteService {
    * @returns the owning adapter's image pricing for the route, when declared.
    */
   imageRequestPricing(provider: string, model: string): LlmImageRequestPricing | undefined {
-    return this.adapters.get(provider)?.adapter.imageRequestPricing(provider, model)
+    return this.callerAdapters().get(provider)?.adapter.imageRequestPricing(provider, model)
   }
 
   /** Detach typed adapter-owned modality metadata. */
@@ -674,6 +751,7 @@ export class LlmRuntime extends TypertRemoteService {
    * @returns detached model metadata in adapter-preferred order.
    */
   async listModels(provider: string): Promise<LlmModelInfo[]> {
+    await this.prepareAccount()
     const adapter = this.registration(provider).adapter
     const models = await adapter.listModels(provider)
     const seen = new Set<string>()
@@ -716,6 +794,7 @@ export class LlmRuntime extends TypertRemoteService {
     model: string,
     signal?: AbortSignal,
   ): Promise<LlmResolvedModelInfo> {
+    await this.prepareAccount()
     return this.resolveModelInfoFor(this.registration(provider), model, signal)
   }
 
@@ -832,6 +911,7 @@ export class LlmRuntime extends TypertRemoteService {
    * @returns a detached config only when a default must be materialized.
    */
   async resolveCallConfig(config: LlmCallConfig, signal?: AbortSignal): Promise<LlmCallConfig> {
+    await this.prepareAccount()
     return (await this.resolveCallFor(this.registration(config.provider), config, signal)).config
   }
 
@@ -890,6 +970,7 @@ export class LlmRuntime extends TypertRemoteService {
    * @returns a prepared config and its registration-bound stream entry point.
    */
   async prepareCall(config: LlmCallConfig, signal?: AbortSignal): Promise<PreparedLlmCall> {
+    await this.prepareAccount()
     const registration = this.registration(config.provider)
     const adapterCall = await registration.adapter.prepareCall(config.provider, config.model, signal)
     const modelInfo = this.normalizeModelInfo(registration, config.model, adapterCall.model)
@@ -937,7 +1018,7 @@ export class LlmRuntime extends TypertRemoteService {
   }
 
   private registration(provider: string): AdapterRegistration {
-    const registration = this.adapters.get(provider)
+    const registration = this.callerAdapters().get(provider)
     if (!registration) throw new LlmError(`no adapter registered for provider "${provider}"`, 'NO_ADAPTER')
     return registration
   }
@@ -971,7 +1052,7 @@ export class LlmRuntime extends TypertRemoteService {
     const messages: Message[] = options.messages.map((message) => {
       const source = message.source
       if (message.role !== 'assistant' || source.kind !== 'model' || source.replayState === undefined) return message
-      if (this.adapters.get(source.provider)?.adapter === adapter) return message
+      if (this.callerAdapters().get(source.provider)?.adapter === adapter) return message
       return freezeMessage({
         ...message,
         source: { kind: 'model', provider: source.provider, model: source.model },
@@ -993,6 +1074,7 @@ export class LlmRuntime extends TypertRemoteService {
   ): AsyncGenerator<StreamChunk> {
     let iterator: AsyncIterator<StreamChunk>
     try {
+      if (prepared === undefined) await this.prepareAccount()
       const registration = prepared?.registration ?? this.registration(options.provider)
       const adapter = registration.adapter
       let modelInfo: LlmResolvedModelInfo

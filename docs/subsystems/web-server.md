@@ -122,9 +122,10 @@ applyIndexTaps(html: string): string
  * read live state (module graph, theme preference) at emit time.
  * @param origin - Origin the request was addressed to, so a subscriber can
  * state deployment URLs under the spelling the reader arrived on.
+ * @param request - The page request's headers, when a request is behind the render.
  * @returns rows in subscriber activation order.
  */
-collectIndexInjections(origin?: string): IndexInjection[]
+collectIndexInjections(origin?: string, request?: IndexRequest): IndexInjection[]
 
 /**
  * Render one index.html body: the structured injection table first, then
@@ -132,9 +133,10 @@ collectIndexInjections(origin?: string): IndexInjection[]
  * @param html - the raw index.html body.
  * @param origin - Origin the request was addressed to, forwarded to the
  * injection table; absent for renders with no request behind them.
+ * @param request - The page request's headers, forwarded to the injection table.
  * @returns the transformed body.
  */
-renderIndex(html: string, origin?: string): string
+renderIndex(html: string, origin?: string, request?: IndexRequest): string
 ```
 
 Source: [`packages/host/webserver/src/index.ts`](../../packages/host/webserver/src/index.ts)
@@ -157,9 +159,12 @@ Collect the structured index injection table. Emitted on every index render and 
  * @param table - Mutable row table; listeners append in activation order.
  * @param origin - Origin the request was addressed to, absent when the
  * emission has no request (a worker boot payload) or it states no host.
+ * @param request - The page request's headers, absent when the emission
+ * has no request; a subscriber that shows the reader's own preference
+ * identifies the reader from them.
  * @mode emit
  */
-'webserver/index-inject'(table: IndexInjection[], origin?: string): void
+'webserver/index-inject'(table: IndexInjection[], origin?: string, request?: IndexRequest): void
 ```
 
 Source: [`packages/host/webserver/src/index.ts`](../../packages/host/webserver/src/index.ts)

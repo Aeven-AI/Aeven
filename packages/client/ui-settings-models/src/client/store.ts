@@ -204,7 +204,7 @@ export class ModelsSettingsStore {
       return
     }
     const providers = joinProviderDirectory(registered.value, declared.value)
-    const writable = mirrored.view.writable
+    const writable = mirrored.view.writable || mirrored.view.namespaces.some(namespace => namespace.writable === true)
     const views: readonly SettingsNamespaceView[] = mirrored.view.namespaces
     const namespaces = new Map(views.map(view => [view.ns, view]))
     const rows: ProviderRow[] = providers.map((entry) => {

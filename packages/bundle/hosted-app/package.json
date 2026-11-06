@@ -44,12 +44,16 @@
     "@deepseek-ai/cordis": "workspace:^",
     "@aeven/agent": "workspace:^",
     "@aeven/identity-user": "workspace:^",
-    "@aeven/llm": "workspace:^"
+    "@aeven/llm": "workspace:^",
+    "@aeven/attachment": "workspace:^",
+    "@aeven/session-handoff": "workspace:^"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
     "@aeven/agent": "workspace:^",
     "@aeven/identity-user": "workspace:^",
-    "@aeven/llm": "workspace:^"
+    "@aeven/llm": "workspace:^",
+    "@aeven/attachment": "workspace:^",
+    "@aeven/session-handoff": "workspace:^"
   }
 }

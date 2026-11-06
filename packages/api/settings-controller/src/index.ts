@@ -132,7 +132,10 @@ export class SettingsController extends TypertRemoteService {
     return {
       writable: settings.writable && this.writable,
       hasDocument: settings.documentPath !== undefined,
-      namespaces: (await settings.describeFor(this.actingOwner(), { redactSecrets: true })).map(namespaceView),
+      namespaces: (await settings.describeFor(this.actingOwner(), { redactSecrets: true })).map(descriptor => ({
+        ...namespaceView(descriptor),
+        ...!this.writable && settings.accountSections ? { writable: this.actingOwner() !== undefined && descriptor.reach === 'account' } : {},
+      })),
     }
   }
 

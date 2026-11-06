@@ -176,7 +176,8 @@ export default class SessionSync extends SessionHandoff {
   }
 
   /** @inheritdoc */
-  override async fetchAttachment(attachmentId: string): Promise<boolean> {
+  override async fetchAttachment(attachmentId: string, owner?: string): Promise<boolean> {
+    if (owner !== undefined) return await this.mirrors.get(owner)?.fetchAttachment(attachmentId) ?? false
     for (const mirror of this.mirrors.values()) if (await mirror.fetchAttachment(attachmentId)) return true
     return false
   }

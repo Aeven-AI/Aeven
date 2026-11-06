@@ -964,6 +964,8 @@ Source: [`packages/extensions/cordis-host-runner/src/index.ts`](../packages/exte
 ```ts config-catalog
 /** Plugin config: file location and hot-reload behavior. */
 export interface Config {
+  /** Keep personal credentials in separate account documents; defaults to false. */
+  accounts?: boolean
   /** Credentials document path; defaults to `.credentials.yaml` under the harness home. */
   path?: string
   /** Aeven home used when `path` is omitted; defaults to `$AVN_HOME` or `~/.aeven`. */
@@ -3819,7 +3821,7 @@ Requires: `speechToText`
 export interface Config {
   /** Unique registration id; consumers select this exact id. */
   providerId: string
-  /** Origin of the Aeven API that serves `/transcribe`. */
+  /** Base URL of the Aeven API, path prefix included (`https://aeven.io/api`); `/transcribe` is appended to it. */
   apiUrl: string
   /** Credential reference holding each signed-in user's Aeven session. */
   apiKeyEnv: string
@@ -4309,6 +4311,12 @@ export interface Config {
    * sign-in; `0` limits it to those two moments.
    */
   modelSyncIntervalMs?: number
+  /**
+   * Keep subscriptions per signed-in account instead of once for this machine: a Host that serves the accounts of
+   * different people sets it. Each account signs in to its own subscriptions, its routes are its own, and the
+   * image, video, and search capabilities, which register once per Host, are not offered.
+   */
+  accounts?: boolean
   /** Owner-only request authorization for loopback, SSH tunnels, and trusted HTTPS proxies. */
   ownerRequest?: {
     /** Whether a loopback caller is the operator directly, or arrives over an SSH tunnel. */
@@ -4413,7 +4421,8 @@ export interface Config {
   keepConnected: boolean
   /**
    * Logical names of documents fetched before the rest of a catch-up when this device holds no state for them, so
-   * a new device shows the account's conversation and workspace lists before the long tail arrives.
+   * a new device shows the account's conversation and workspace lists before the long tail arrives. Defaults to
+   * none, so every document arrives in relay order.
    */
   firstDocuments: string[]
 }
@@ -5705,6 +5714,27 @@ export interface Config {
 
 Source: [`packages/workflow/workflow-worker-thread/src/index.ts`](../packages/workflow/workflow-worker-thread/src/index.ts)
 
+<a id="aevenworking-directory"></a>
+
+## `@aeven/working-directory`
+
+Requires: `sessionProjections`
+
+```ts config-catalog
+/** Working-directory resolution configuration. */
+export interface Config {
+  /**
+   * Whether this Host gives sessions a folder of its own. A Host that serves the
+   * accounts of different people sets `false`: a conversation another device
+   * recorded in a folder continues here without a working directory instead of
+   * waiting for a folder this Host never offers. Defaults to `true`.
+   */
+  readonly folders?: boolean
+}
+```
+
+Source: [`packages/session/working-directory/src/index.ts`](../packages/session/working-directory/src/index.ts)
+
 <a id="aevenworkspace"></a>
 
 ## `@aeven/workspace`
@@ -5718,6 +5748,11 @@ export interface Config {
   seedDefaultWorkspace?: boolean
   /** Display title given to a newly seeded workspace (default: `Chats`). */
   defaultWorkspaceTitle?: string
+  /**
+   * Whether a workspace another device published without a directory is one this Host continues as its own
+   * (default: false). Off, it stays the other device's, as every received workspace does.
+   */
+  pathlessWorkspaces?: boolean
 }
 ```
 
@@ -5978,7 +6013,6 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@aeven/user-questions` ([`packages/interaction/user-questions/src/index.ts`](../packages/interaction/user-questions/src/index.ts))
 - `@aeven/vcs` ([`packages/vcs/vcs/src/index.ts`](../packages/vcs/vcs/src/index.ts))
 - `@aeven/webhook` — requires `agents` · `agentDefaultModel` · `agentPresets` · `permissionPresets` · `sessionTitle` · `workspaceRegistry` ([`packages/webhook/webhook/src/index.ts`](../packages/webhook/webhook/src/index.ts))
-- `@aeven/working-directory` — requires `sessionProjections` ([`packages/session/working-directory/src/index.ts`](../packages/session/working-directory/src/index.ts))
 
 ## Seam packages (not directly loadable)
 

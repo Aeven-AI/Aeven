@@ -36,6 +36,8 @@ export function apply(ctx: Context): void {
     settingsCtx.settings.register(
       ONBOARDING_SETTINGS_NAMESPACE,
       OnboardingSettingsSchema,
+      // Each person's own acknowledgement on a Host that serves many people.
+      { perAccount: true },
     )
     settingsCtx.settings.register(
       DEVELOPER_SETTINGS_NAMESPACE,

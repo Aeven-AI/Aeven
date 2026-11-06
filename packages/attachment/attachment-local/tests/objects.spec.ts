@@ -14,15 +14,50 @@ import LocalAttachmentStore from '../src/index.ts'
 const homes: string[] = []
 afterEach(async () => { for (const home of homes.splice(0)) await rm(home, { recursive: true, force: true }) })
 
-async function store(): Promise<LocalAttachmentStore> {
+async function store(ctx = new Context()): Promise<LocalAttachmentStore> {
   const avnHome = await mkdtemp(join(tmpdir(), 'avn-attachment-objects-'))
   homes.push(avnHome)
-  return new LocalAttachmentStore(new Context(), { avnHome })
+  return new LocalAttachmentStore(ctx, { avnHome })
 }
 
 const addressOf = (data: Uint8Array): AttachmentId => AttachmentId(`sha256:${createHash('sha256').update(data).digest('hex')}`)
 
 describe('attachment objects', () => {
+  it('retrieves a missing object through the registered handler before reading it', async () => {
+    const ctx = new Context()
+    const target = await store(ctx)
+    const data = new Uint8Array([6, 7, 8])
+    const id = addressOf(data)
+    const dispose = ctx.on('attachment/missing', async (missing, _signal, next) => {
+      if (missing !== id) return next()
+      await target.importObject(id, data)
+      return true
+    })
+    try {
+      expect(await target.readObject(id)).toEqual(data)
+    } finally {
+      dispose()
+    }
+  })
+
+  it('retrieves extracted text independently of the original video', async () => {
+    const source = await store()
+    const ctx = new Context()
+    const target = await store(ctx)
+    const saved = await source.saveFile({ data: new Uint8Array([9]), mediaType: 'video/mp4', name: 'video.mp4', text: { text: 'Video description', method: 'native', extractor: 'video@2', truncated: false } })
+    const dispose = ctx.on('attachment/missing', async (id) => {
+      expect(id).toBe(saved.extraction.textId)
+      await target.importObject(id, await source.readObject(id))
+      return true
+    })
+    try {
+      expect(await target.readFileText(saved)).toBe('Video description')
+      expect(await target.hasObject(saved.attachmentId)).toBe(false)
+    } finally {
+      dispose()
+    }
+  })
+
   it('imports an object under its address and reads it back unchanged', async () => {
     const source = await store()
     const target = await store()

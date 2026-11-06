@@ -1115,14 +1115,14 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'configured state, supplying source, and writability.',
       },
       {
-        signature: 'abstract set(ref: CredentialRef, value: string): Promise<void>',
+        signature: 'abstract set(ref: CredentialRef, value: string, user?: string): Promise<void>',
         description: 'Durably store one value in the provider-managed writable source. Rejects while a read-only source shadows the reference — the write would appear to succeed while resolution keeps returning the shadowing value — and rejects an empty value (use unset).',
-        parameters: [{ name: 'ref', description: 'the reference to store.' }, { name: 'value', description: 'the non-empty secret value.' }],
+        parameters: [{ name: 'ref', description: 'the reference to store.' }, { name: 'value', description: 'the non-empty secret value.' }, { name: 'user', description: 'the signed-in account whose own credential to store, on a provider with account storage; absent stores the shared value.' }],
       },
       {
-        signature: 'abstract unset(ref: CredentialRef): Promise<void>',
+        signature: 'abstract unset(ref: CredentialRef, user?: string): Promise<void>',
         description: 'Remove one reference from the provider-managed writable source; removing an absent reference is a no-op. Rejects while a read-only source shadows the reference, like set.',
-        parameters: [{ name: 'ref', description: 'the reference to remove.' }],
+        parameters: [{ name: 'ref', description: 'the reference to remove.' }, { name: 'user', description: 'the signed-in account whose own credential to remove, on a provider with account storage; absent removes the shared value.' }],
       },
       {
         signature: 'setSession?(ref: CredentialRef, user: string, value: string | undefined): void',
@@ -1130,33 +1130,33 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'ref', description: 'the reference the value answers.' }, { name: 'user', description: 'the signed-in user whose session the value belongs to.' }, { name: 'value', description: 'the credential, or `undefined` to withdraw it.' }],
       },
       {
-        signature: 'abstract readRecord(key: CredentialKey): Promise<CredentialRecord | undefined>',
+        signature: 'abstract readRecord(key: CredentialKey, user?: string): Promise<CredentialRecord | undefined>',
         description: 'Read one stored record. The value is returned as its owner wrote it; a GrantRecord payload is not interpreted on the way out.',
-        parameters: [{ name: 'key', description: 'the record to read.' }],
+        parameters: [{ name: 'key', description: 'the record to read.' }, { name: 'user', description: 'the signed-in account whose own record to read, on a provider with account storage; absent reads the shared record.' }],
         returns: 'the record, or `undefined` while none is stored.',
       },
       {
-        signature: 'abstract describeRecord(key: CredentialKey): Promise<CredentialRecordInfo>',
+        signature: 'abstract describeRecord(key: CredentialKey, user?: string): Promise<CredentialRecordInfo>',
         description: 'Describe one record for configuration surfaces without exposing its value.',
-        parameters: [{ name: 'key', description: 'the record to describe.' }],
+        parameters: [{ name: 'key', description: 'the record to describe.' }, { name: 'user', description: 'the signed-in account whose own record to describe, on a provider with account storage; absent describes the shared record.' }],
         returns: 'presence, discriminant, and writability.',
       },
       {
-        signature: 'abstract listRecords(): Promise<readonly CredentialRecordEntry[]>',
+        signature: 'abstract listRecords(user?: string): Promise<readonly CredentialRecordEntry[]>',
         description: 'Enumerate every stored record\'s address and tag. Unlike the reference half, which has no enumeration because configuration surfaces learn which references exist from settings schemas, records have no such discovery path: a surface that cannot list them cannot show what a user is authorized for, nor find an orphan left by an uninstalled plugin.',
-        parameters: [],
+        parameters: [{ name: 'user', description: 'the signed-in account whose own records to list, on a provider with account storage; absent lists the shared records.' }],
         returns: 'every stored record, values excluded.',
       },
       {
-        signature: 'abstract modifyRecord( key: CredentialKey, mutate: (current: CredentialRecord | undefined) => Promise<CredentialRecord | undefined>, ): Promise<CredentialRecord | undefined>',
+        signature: 'abstract modifyRecord( key: CredentialKey, mutate: (current: CredentialRecord | undefined) => Promise<CredentialRecord | undefined>, user?: string, ): Promise<CredentialRecord | undefined>',
         description: 'Serialized read-modify-write over one record — the only write path. `mutate` sees the record as it stands at the moment the write is exclusive, and returning `undefined` leaves the entry untouched. Exclusion holds across processes where the backing store supports it, which is what makes a token refresh safe: two processes rotating one refresh token concurrently would otherwise lose whichever wrote first.',
-        parameters: [{ name: 'key', description: 'the record to modify.' }, { name: 'mutate', description: 'receives the current record and returns its replacement, or `undefined` to leave it.' }],
+        parameters: [{ name: 'key', description: 'the record to modify.' }, { name: 'mutate', description: 'receives the current record and returns its replacement, or `undefined` to leave it.' }, { name: 'user', description: 'the signed-in account whose own record to change, on a provider with account storage; absent changes the shared record.' }],
         returns: 'the record after the write, or the current one when `mutate` declined.',
       },
       {
-        signature: 'abstract deleteRecord(key: CredentialKey): Promise<void>',
+        signature: 'abstract deleteRecord(key: CredentialKey, user?: string): Promise<void>',
         description: 'Remove one record; removing an absent record is a no-op.',
-        parameters: [{ name: 'key', description: 'the record to remove.' }],
+        parameters: [{ name: 'key', description: 'the record to remove.' }, { name: 'user', description: 'the signed-in account whose own record to delete, on a provider with account storage; absent deletes the shared record.' }],
       },
     ],
   },
@@ -1836,28 +1836,51 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'The abstract `llm` service: an adapter registry plus a streaming model-call API, interceptable via the `llm/stream` waterfall.',
     methods: [
       {
-        signature: 'registerAdapter(providers: string[], adapter: LlmAdapter): AdapterRegistrationHandle',
+        signature: 'registerAccountSource(owner: () => string | undefined, prepare: (owner: string) => Promise<void>): () => void',
+        description: 'Resolve personal routes for the current caller before asynchronous model operations.',
+        parameters: [{ name: 'owner', description: 'reads the account owning this request or Agent.' }, { name: 'prepare', description: 'loads that account\'s routes without changing other accounts.' }],
+        returns: 'disposer for the account resolver.',
+      },
+      {
+        signature: 'async prepareAccount(): Promise<void>',
+        description: 'Load the current account\'s model routes from every account source; compositions without one do no work.',
+        parameters: [],
+      },
+      {
+        signature: 'registerAdapter(providers: string[], adapter: LlmAdapter, owner?: string): AdapterRegistrationHandle',
         description: 'Register an adapter for the given provider routes. Throws `LlmError` with code `DUPLICATE_ADAPTER` if any provider already has an adapter (all-or-nothing). Disposed with the fiber.',
-        parameters: [{ name: 'providers', description: 'every provider route this adapter should serve.' }, { name: 'adapter', description: 'the adapter that streams calls for those providers.' }],
+        parameters: [{ name: 'providers', description: 'every provider route this adapter should serve.' }, { name: 'adapter', description: 'the adapter that streams calls for those providers.' }, { name: 'owner', description: 'restrict these routes to this account; omission registers shared routes.' }],
         returns: 'the disposer, carrying {@link AdapterRegistrationHandle.replace}.',
       },
       {
-        signature: '@Remote listProviders(): LlmProviderInfo[]',
+        signature: 'listProviders(): LlmProviderInfo[]',
         description: 'Describe provider routes with a registered adapter.',
         parameters: [],
         returns: 'detached provider metadata in registration order.',
       },
       {
-        signature: 'registerConfigurableProviders(entries: readonly LlmConfigurableProvider[]): DirectoryRegistrationHandle',
+        signature: '@Remote(\'listProviders\') async remoteListProviders(): Promise<LlmProviderInfo[]>',
+        description: 'Load and list model providers visible to the signed-in caller. @returns detached provider metadata.',
+        parameters: [],
+        returns: 'the model providers the signed-in caller can use: shared routes and the caller\'s own.',
+      },
+      {
+        signature: 'registerConfigurableProviders(entries: readonly LlmConfigurableProvider[], owner?: string): DirectoryRegistrationHandle',
         description: 'Declare provider routes an adapter plugin can activate through configuration. Registration is all-or-nothing: an empty list, invalid entry, or a provider already declared by any registration throws `LlmError` without registering the rest. Disposed with the fiber.',
-        parameters: [{ name: 'entries', description: 'every configurable provider this plugin owns.' }],
+        parameters: [{ name: 'entries', description: 'every configurable provider this plugin owns.' }, { name: 'owner', description: 'the account these entries belong to; absent registers entries every account sees.' }],
         returns: 'a handle that withdraws all of them, and can atomically replace them.',
       },
       {
-        signature: '@Remote listConfigurableProviders(): LlmConfigurableProvider[]',
+        signature: 'listConfigurableProviders(): LlmConfigurableProvider[]',
         description: 'List every declared configurable provider, registered or dormant.',
         parameters: [],
         returns: 'detached directory entries in declaration order.',
+      },
+      {
+        signature: '@Remote(\'listConfigurableProviders\') async remoteListConfigurableProviders(): Promise<LlmConfigurableProvider[]>',
+        description: 'Load and list configurable providers for this account. @returns detached configuration addresses.',
+        parameters: [],
+        returns: 'the configurable providers the signed-in caller sees: shared entries and the caller\'s own.',
       },
       {
         signature: 'registerModelDiscovery( settingsNs: string, discover: ( request: LlmModelDiscoveryRequest, signal?: AbortSignal, ) => Promise<readonly LlmDiscoveredModel[]>, ): () => void',
@@ -2611,9 +2634,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'owner', description: 'the account.' }, { name: 'sessionId', description: 'the session.' }, { name: 'running', description: 'whether a turn runs; false lets other devices claim it again.' }],
       },
       {
-        signature: 'fetchAttachment(_attachmentId: string): Promise<boolean>',
+        signature: 'fetchAttachment(_attachmentId: string, _owner?: string): Promise<boolean>',
         description: 'Download an attachment another device of the account published, such as an image, video, or file a synced conversation cites, when this device does not hold it yet.',
-        parameters: [{ name: '_attachmentId', description: 'the attachment\'s content address.' }],
+        parameters: [{ name: '_attachmentId', description: 'the attachment\'s content address.' }, { name: '_owner', description: 'restrict retrieval to this account; omission searches the Host\'s synced accounts.' }],
         returns: 'whether this device holds the attachment now.',
       },
       {
@@ -3149,6 +3172,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       {
         signature: 'async valueFor<const Namespace extends string>( ns: Namespace & SettingsNamespaceInput<Namespace>, owner: string | undefined, ): Promise<unknown>',
         description: 'Resolve one namespace as `owner` sees it; see describeFor.',
+        parameters: [{ name: 'ns', description: 'the namespace.' }, { name: 'owner', description: 'the account, when one is known.' }],
+        returns: 'the resolved value, or undefined for an unregistered namespace.',
+      },
+      {
+        signature: 'cachedValueFor<const Namespace extends string>( ns: Namespace & SettingsNamespaceInput<Namespace>, owner: string | undefined, ): unknown',
+        description: 'Resolve one namespace as `owner` sees it from what is already read, without waiting: an answer for a request that cannot wait, such as a page render. An account whose sections were not read yet answers the document\'s value, and the read starts so the next call answers the account\'s own.',
         parameters: [{ name: 'ns', description: 'the namespace.' }, { name: 'owner', description: 'the account, when one is known.' }],
         returns: 'the resolved value, or undefined for an unregistered namespace.',
       },
@@ -4470,15 +4499,15 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the transformed body.',
       },
       {
-        signature: 'collectIndexInjections(origin?: string): IndexInjection[]',
+        signature: 'collectIndexInjections(origin?: string, request?: IndexRequest): IndexInjection[]',
         description: 'Gather the structured injection table: one `webserver/index-inject` emit, every subscriber pushes its current rows. Fresh per call, so subscribers read live state (module graph, theme preference) at emit time.',
-        parameters: [{ name: 'origin', description: 'Origin the request was addressed to, so a subscriber can state deployment URLs under the spelling the reader arrived on.' }],
+        parameters: [{ name: 'origin', description: 'Origin the request was addressed to, so a subscriber can state deployment URLs under the spelling the reader arrived on.' }, { name: 'request', description: 'The page request\'s headers, when a request is behind the render.' }],
         returns: 'rows in subscriber activation order.',
       },
       {
-        signature: 'renderIndex(html: string, origin?: string): string',
+        signature: 'renderIndex(html: string, origin?: string, request?: IndexRequest): string',
         description: 'Render one index.html body: the structured injection table first, then the raw `tapIndex` transforms over the result.',
-        parameters: [{ name: 'html', description: 'the raw index.html body.' }, { name: 'origin', description: 'Origin the request was addressed to, forwarded to the injection table; absent for renders with no request behind them.' }],
+        parameters: [{ name: 'html', description: 'the raw index.html body.' }, { name: 'origin', description: 'Origin the request was addressed to, forwarded to the injection table; absent for renders with no request behind them.' }, { name: 'request', description: 'The page request\'s headers, forwarded to the injection table.' }],
         returns: 'the transformed body.',
       },
     ],
@@ -5090,6 +5119,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'req', description: 'pending approval request.' }],
   },
   {
+    name: 'attachment/missing',
+    mode: 'waterfall',
+    signature: '\'attachment/missing\'(id: AttachmentId, signal: AbortSignal | undefined, next: () => Promise<boolean>): Promise<boolean>',
+    summary: 'Retrieve a missing durable object before its read is retried.',
+    description: 'Retrieve a missing durable object before its read is retried.',
+    parameters: [{ name: 'id', description: 'content address verified by the attachment store.' }, { name: 'signal', description: 'cancellation of the read.' }, { name: 'next', description: 'delegate to another retriever; the default returns false.' }],
+  },
+  {
     name: 'authorization/settled',
     mode: 'emit',
     signature: '\'authorization/settled\'(key: CredentialKey, settlement: AuthorizationSettlement): void',
@@ -5572,10 +5609,10 @@ export const EVENT_API: readonly EventApiEntry[] = [
   {
     name: 'webserver/index-inject',
     mode: 'emit',
-    signature: '\'webserver/index-inject\'(table: IndexInjection[], origin?: string): void',
+    signature: '\'webserver/index-inject\'(table: IndexInjection[], origin?: string, request?: IndexRequest): void',
     summary: 'Collect the structured index injection table.',
     description: 'Collect the structured index injection table. Emitted on every index render and every worker boot-payload request; listeners push their current rows, so a row\'s data is read fresh at emit time.',
-    parameters: [{ name: 'table', description: 'Mutable row table; listeners append in activation order.' }, { name: 'origin', description: 'Origin the request was addressed to, absent when the emission has no request (a worker boot payload) or it states no host.' }],
+    parameters: [{ name: 'table', description: 'Mutable row table; listeners append in activation order.' }, { name: 'origin', description: 'Origin the request was addressed to, absent when the emission has no request (a worker boot payload) or it states no host.' }, { name: 'request', description: 'The page request\'s headers, absent when the emission has no request; a subscriber that shows the reader\'s own preference identifies the reader from them.' }],
   },
   {
     name: 'workflow/agent-end',
@@ -5695,7 +5732,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AdapterRegistrationHandle',
-    declaration: 'export interface AdapterRegistrationHandle {\n    (): void;\n    replace(providers: string[]): void;\n}',
+    declaration: 'export interface AdapterRegistrationHandle {\n    (): void;\n    replace(providers: string[], adapter?: LlmAdapter): void;\n}',
   },
   {
     name: 'Agent',
@@ -6982,6 +7019,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type IndexInjectionPlacement = \'head\' | \'body\';',
   },
   {
+    name: 'IndexRequest',
+    declaration: 'export interface IndexRequest {\n    readonly headers: Readonly<Record<string, string | readonly string[] | undefined>>;\n}',
+  },
+  {
     name: 'InspectorId',
     declaration: 'export type InspectorId<Role extends string> = Branded<Role>;',
   },
@@ -7267,7 +7308,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'LlmRuntime',
-    declaration: 'export class LlmRuntime extends TypertRemoteService {\n    constructor(ctx: Context);\n    registerAdapter(providers: string[], adapter: LlmAdapter): AdapterRegistrationHandle;\n    @Remote\n    listProviders(): LlmProviderInfo[];\n    registerConfigurableProviders(entries: readonly LlmConfigurableProvider[]): DirectoryRegistrationHandle;\n    @Remote\n    listConfigurableProviders(): LlmConfigurableProvider[];\n    registerModelDiscovery(settingsNs: string, discover: (request: LlmModelDiscoveryRequest, signal?: AbortSignal) => Promise<readonly LlmDiscoveredModel[]>): () => void;\n    async discoverModels(settingsNs: string, request: LlmModelDiscoveryRequest, signal?: AbortSignal): Promise<LlmDiscoveredModel[]>;\n    @Remote(\'discoverModels\')\n    async remoteDiscoverModels(settingsNs: string, request: LlmModelDiscoveryRequest, signal: AbortSignal): Promise<LlmDiscoveredModel[]>;\n    providerRetryPolicy(provider: string): ResolvedRetryPolicy;\n    imageRequestPricing(provider: string, model: string): LlmImageRequestPricing | undefined;\n    async listModels(provider: string): Promise<LlmModelInfo[]>;\n    async resolveModelInfo(provider: string, model: string, signal?: AbortSignal): Promise<LlmResolvedModelInfo>;\n    async resolveCallConfig(config: LlmCallConfig, signal?: AbortSignal): Promise<LlmCallConfig>;\n    async prepareCall(config: LlmCallConfig, signal?: AbortSignal): Promise<PreparedLlmCall>;\n    stream(options: GenerateOptions): AsyncIterable<StreamChunk>;\n}',
+    declaration: 'export class LlmRuntime extends TypertRemoteService {\n    registerAccountSource(owner: () => string | undefined, prepare: (owner: string) => Promise<void>): () => void;\n    async prepareAccount(): Promise<void>;\n    constructor(ctx: Context);\n    registerAdapter(providers: string[], adapter: LlmAdapter, owner?: string): AdapterRegistrationHandle;\n    listProviders(): LlmProviderInfo[];\n    @Remote(\'listProviders\')\n    async remoteListProviders(): Promise<LlmProviderInfo[]>;\n    registerConfigurableProviders(entries: readonly LlmConfigurableProvider[], owner?: string): DirectoryRegistrationHandle;\n    listConfigurableProviders(): LlmConfigurableProvider[];\n    @Remote(\'listConfigurableProviders\')\n    async remoteListConfigurableProviders(): Promise<LlmConfigurableProvider[]>;\n    registerModelDiscovery(settingsNs: string, discover: (request: LlmModelDiscoveryRequest, signal?: AbortSignal) => Promise<readonly LlmDiscoveredModel[]>): () => void;\n    async discoverModels(settingsNs: string, request: LlmModelDiscoveryRequest, signal?: AbortSignal): Promise<LlmDiscoveredModel[]>;\n    @Remote(\'discoverModels\')\n    async remoteDiscoverModels(settingsNs: string, request: LlmModelDiscoveryRequest, signal: AbortSignal): Promise<LlmDiscoveredModel[]>;\n    providerRetryPolicy(provider: string): ResolvedRetryPolicy;\n    imageRequestPricing(provider: string, model: string): LlmImageRequestPricing | undefined;\n    async listModels(provider: string): Promise<LlmModelInfo[]>;\n    async resolve /* …truncated — full shape in source */',
   },
   {
     name: 'LocalDirectory',
@@ -8683,7 +8724,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SettingsNamespaceView',
-    declaration: 'export interface SettingsNamespaceView {\n    ns: string;\n    schema: JsonValue;\n    value: JsonValue;\n    base?: JsonValue;\n    user?: JsonValue;\n    applies: \'live\' | \'restart\';\n    secrets: SettingsSecretView[];\n    revision: number;\n}',
+    declaration: 'export interface SettingsNamespaceView {\n    writable?: boolean;\n    ns: string;\n    schema: JsonValue;\n    value: JsonValue;\n    base?: JsonValue;\n    user?: JsonValue;\n    applies: \'live\' | \'restart\';\n    secrets: SettingsSecretView[];\n    revision: number;\n}',
   },
   {
     name: 'SettingsPathOp',
@@ -8699,7 +8740,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SettingsRegisterOptions',
-    declaration: 'export interface SettingsRegisterOptions<T> {\n    base?: Partial<T>;\n    applies?: SettingsApplies;\n    reach?: SettingsReach;\n    validate?: (value: T) => void;\n}',
+    declaration: 'export interface SettingsRegisterOptions<T> {\n    base?: Partial<T>;\n    applies?: SettingsApplies;\n    reach?: SettingsReach;\n    perAccount?: boolean;\n    validate?: (value: T) => void;\n}',
   },
   {
     name: 'SettingsSecretView',
@@ -8707,7 +8748,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SettingsSectionHooks',
-    declaration: 'export interface SettingsSectionHooks<T> {\n    setSource(current: () => T): void;\n    onChange(): void;\n    validate?: (value: T) => void;\n    reach?: SettingsReach;\n}',
+    declaration: 'export interface SettingsSectionHooks<T> {\n    setSource(current: () => T): void;\n    onChange(): void;\n    validate?: (value: T) => void;\n    reach?: SettingsReach;\n    perAccount?: boolean;\n}',
   },
   {
     name: 'SettingsUpdateSource',

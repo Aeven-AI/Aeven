@@ -27,14 +27,15 @@ interface Bench {
 /**
  * Compose the session store, the projection registry, and the service.
  * @param cwd - the header working directory the session is created in.
+ * @param folders - whether the Host offers local workspace folders.
  * @returns the composed context and its session.
  */
-async function harness(cwd?: string): Promise<Bench> {
+async function harness(cwd?: string, folders = true): Promise<Bench> {
   const ctx = new Context()
   contexts.push(ctx)
   await ctx.plugin(SessionStore)
   await ctx.plugin(SessionProjectionRegistry)
-  await ctx.plugin(WorkingDirectoryService)
+  await ctx.plugin(WorkingDirectoryService, { folders })
   const session = ctx.sessions.create(undefined, cwd === undefined ? {} : { meta: { cwd } })
   return { ctx, session }
 }
@@ -52,6 +53,17 @@ async function benchDirectory(names: readonly string[]): Promise<string> {
 }
 
 describe('working directory', () => {
+  it('continues an imported folder conversation without a directory on a folderless Host', async () => {
+    const bench = await harness('/another-device/project', false)
+    bench.ctx.provide('workspaceRegistry', {
+      placeSession: () => ({ state: 'filed', workspace: { kind: 'virtual' } as Workspace }),
+      replicated: () => true,
+    } as never)
+    expect(bench.ctx.workingDirectory.local(bench.session)).toEqual({ state: 'absent' })
+    expect(sessionDirectory(bench.ctx, bench.session)).toBeUndefined()
+    expect(bench.session.header.cwd).toBe('/another-device/project')
+  })
+
   it('serves the session header cwd before any logged change', async () => {
     const root = await benchDirectory(['a'])
     const bench = await harness(root)

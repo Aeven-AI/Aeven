@@ -17,6 +17,20 @@ import type {
   StoredImageAttachment,
 } from './types.ts'
 
+declare module '@deepseek-ai/cordis' {
+  interface Events {
+    /**
+     * Retrieve a missing durable object before its read is retried.
+     * @param id - content address verified by the attachment store.
+     * @param signal - cancellation of the read.
+     * @param next - delegate to another retriever; the default returns false.
+     * @returns whether the object was retrieved.
+     * @mode waterfall
+     */
+    'attachment/missing'(id: AttachmentId, signal: AbortSignal | undefined, next: () => Promise<boolean>): Promise<boolean>
+  }
+}
+
 export { AttachmentId, ImageVariantId, UploadId } from './brand.ts'
 export { AttachmentError, isImageAdmissionError } from './error.ts'
 export type { AttachmentErrorCode, ImageAdmissionErrorCode } from './error.ts'

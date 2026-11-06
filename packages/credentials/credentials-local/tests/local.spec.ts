@@ -46,6 +46,25 @@ function updates(ctx: Context): CredentialRef[] {
   return seen
 }
 
+describe('personal credentials on a shared Host', () => {
+  it('keeps keys separate from other accounts, Host credentials, and process environment after restart', async () => {
+    const dir = await tempDir()
+    vi.stubEnv(KEY, 'host-environment-key')
+    const ctx = await boot({ avnHome: dir, accounts: true, watch: false })
+    await ctx.credentials.set(KEY, 'alice-key', 'alice')
+    await ctx.credentials.set(KEY, 'bob-key', 'bob')
+    expect((await ctx.credentials.resolve(KEY, 'alice'))?.value).toBe('alice-key')
+    expect((await ctx.credentials.resolve(KEY, 'bob'))?.value).toBe('bob-key')
+    expect(await ctx.credentials.resolve(KEY, 'charlie')).toBeUndefined()
+    expect((await ctx.credentials.resolve(KEY))?.value).toBe('host-environment-key')
+    const restarted = await boot({ avnHome: dir, accounts: true, watch: false })
+    expect((await restarted.credentials.resolve(KEY, 'alice'))?.value).toBe('alice-key')
+    await restarted.credentials.unset(KEY, 'alice')
+    expect(await restarted.credentials.resolve(KEY, 'alice')).toBeUndefined()
+    expect((await restarted.credentials.resolve(KEY, 'bob'))?.value).toBe('bob-key')
+  })
+})
+
 describe('resolveSpec', () => {
   it('defaults to .credentials.yaml under the harness home with watching on', () => {
     const spec = resolveSpec({ avnHome: '/custom/home' })

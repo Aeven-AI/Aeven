@@ -829,23 +829,38 @@ function authorizeManagementPost(
   return decision.accessMode
 }
 
+/** The coding OAuth operations one account's routes answer. */
+export interface CodingOAuthRouteSet {
+  /** Every provider's sign-in status. */
+  status(accessMode: OwnerAccessMode): Promise<CodingOAuthWebStatus>
+  /** Start one provider's sign-in; `method` is the request's own `method` field. */
+  signIn(slug: SubscriptionSlug, method: unknown): Promise<unknown>
+  /** Finish a pending sign-in with a pasted authorization code or redirect URL. */
+  submitCode(slug: SubscriptionSlug, code: string): Promise<void>
+  /** Abandon a pending sign-in. */
+  cancel(slug: SubscriptionSlug): Promise<unknown>
+  /** Sign one provider out. */
+  signOut(slug: SubscriptionSlug): Promise<unknown>
+  /** Store the models one provider keeps on; absent where selection is not offered. */
+  setSelected: ((slug: SubscriptionSlug, ids: readonly string[]) => Promise<void>) | undefined
+  /** Release the pending sign-ins this set holds. */
+  dispose(): Promise<void>
+}
+
 /**
- * Register the unified Coding OAuth API plus the compatibility Grok routes.
- * @param ctx - Cordis context that owns the registration.
- * @param grokSession - Grok session value.
- * @param subscriptionSessions - Subscription sessions value.
- * @param ownerRequestPolicy - Owner request policy value.
- * @param compatibility - Compatibility value.
- * @param selection - model-selection views served to the subscription pickers.
+ * Build the coding OAuth operations of one set of sessions, such as the Host's own or one account's.
+ * @param grokSession - the Grok Build session.
+ * @param subscriptionSessions - the OAuth subscription sessions.
+ * @param compatibility - the compatibility report the status answers with.
+ * @param selection - model selection, when the deployment offers it.
+ * @returns the operations the routes call.
  */
-export function registerCodingOAuthRoutes(
-  ctx: Context,
+export function createCodingOAuthRouteSet(
   grokSession: GrokBuildSession,
   subscriptionSessions: readonly OAuthProviderSession[],
-  ownerRequestPolicy: OwnerRequestPolicy = LOOPBACK_OWNER_REQUEST_POLICY,
   compatibility?: (accessMode: OwnerAccessMode) => AvnCompatibility,
   selection?: CodingOAuthModelSelection,
-): void {
+): CodingOAuthRouteSet & { readonly grok: GrokBuildWebAuth } {
   const views = (slug: SubscriptionSlug): ModelViewsProvider => () => selection?.views(slug) ?? []
   const grok = new GrokBuildWebAuth(grokSession, views('grok'))
   const subscriptions = new Map(
@@ -859,51 +874,104 @@ export function registerCodingOAuthRoutes(
     if (auth === undefined) throw new Error(`OAuth provider "${slug}" is not configured`)
     return auth
   }
-  ctx.effect(
-    () => () =>
-      Promise.all([grok.dispose(), ...[...subscriptions.values()].map(auth => auth.dispose())]).then(() => undefined),
-    'avn-subscription-auth: Coding OAuth auth lifetime',
-  )
-
-  registerGrokBuildAuthRoutes(ctx, grokSession, grok, ownerRequestPolicy)
-
-  const allStatus = async (accessMode: OwnerAccessMode): Promise<CodingOAuthWebStatus> => {
-    const [grokStatus, codex] = await Promise.all([
-      grok.status().catch(
-        async (error: unknown): Promise<GrokBuildWebAuthStatus> => ({
-          status: 'error',
-          message: safeMessage(error),
-          grokImportAvailable: await grokImportAvailable().catch(() => false),
-        }),
-      ),
-      subscription('codex').status(),
-    ])
-    return {
-      accessMode,
-      uiOwner: 'standalone',
-      compatibility: compatibility?.(accessMode) ?? fallbackCompatibility(accessMode),
-      providers: { grok: grokStatus, codex },
-    }
+  return {
+    grok,
+    status: async (accessMode) => {
+      const [grokStatus, codex] = await Promise.all([
+        grok.status().catch(
+          async (error: unknown): Promise<GrokBuildWebAuthStatus> => ({
+            status: 'error',
+            message: safeMessage(error),
+            grokImportAvailable: await grokImportAvailable().catch(() => false),
+          }),
+        ),
+        subscription('codex').status(),
+      ])
+      return {
+        accessMode,
+        uiOwner: 'standalone',
+        compatibility: compatibility?.(accessMode) ?? fallbackCompatibility(accessMode),
+        providers: { grok: grokStatus, codex },
+      }
+    },
+    signIn: async (slug, requested) => {
+      if (slug === 'grok') {
+        const method: GrokBuildLoginMethod = requested === 'device' ? 'device' : 'pkce'
+        return await grok.signIn(method)
+      }
+      const auth = subscription(slug)
+      const method: SubscriptionLoginMethod =
+        requested === 'browser' || requested === 'device'
+          ? requested
+          : auth.session.definition.recommendedLoginMethod
+      return await auth.signIn(method)
+    },
+    submitCode: async (slug, code) => {
+      if (slug === 'grok') await grok.submitCode(code)
+      else await subscription(slug).submitCode(code)
+    },
+    cancel: slug => (slug === 'grok' ? grok.cancel() : subscription(slug).cancel()),
+    signOut: slug => (slug === 'grok' ? grok.signOut() : subscription(slug).signOut()),
+    setSelected: selection === undefined ? undefined : (slug, ids) => selection.setSelected(slug, ids),
+    dispose: () => Promise.all([grok.dispose(), ...[...subscriptions.values()].map(auth => auth.dispose())]).then(() => undefined),
   }
+}
 
-  /**
-   * Handler shared by the cancel and logout routes. Both address one provider
-   * and differ only in the operation they apply before answering with status,
-   * so the guard, body parsing, and error mapping live here once.
-   * @param apply - the lifecycle operation to apply to the addressed slug.
-   * @returns the route handler.
-   */
+/**
+ * Register the coding OAuth web routes over one set of sessions: the Grok-only
+ * routes and the provider-neutral ones the Providers page calls.
+ * @param ctx - plugin context carrying the web server.
+ * @param grokSession - the Grok Build session.
+ * @param subscriptionSessions - the OAuth subscription sessions.
+ * @param ownerRequestPolicy - who may call the routes.
+ * @param compatibility - the compatibility report the status answers with.
+ * @param selection - model selection, when the deployment offers it.
+ */
+export function registerCodingOAuthRoutes(
+  ctx: Context,
+  grokSession: GrokBuildSession,
+  subscriptionSessions: readonly OAuthProviderSession[],
+  ownerRequestPolicy: OwnerRequestPolicy = LOOPBACK_OWNER_REQUEST_POLICY,
+  compatibility?: (accessMode: OwnerAccessMode) => AvnCompatibility,
+  selection?: CodingOAuthModelSelection,
+): void {
+  const set = createCodingOAuthRouteSet(grokSession, subscriptionSessions, compatibility, selection)
+  ctx.effect(() => () => set.dispose(), 'avn-subscription-auth: Coding OAuth auth lifetime')
+  registerGrokBuildAuthRoutes(ctx, grokSession, set.grok, ownerRequestPolicy)
+  registerCodingOAuthRouteHandlers(ctx, ownerRequestPolicy, () => set)
+}
+
+/**
+ * Register the provider-neutral coding OAuth routes, answering each request
+ * from the route set `pick` chooses for it, such as the signed-in account's.
+ * Every answer is marked `no-store`: it describes one account's sign-ins.
+ * @param ctx - plugin context carrying the web server.
+ * @param ownerRequestPolicy - who may call the routes.
+ * @param pick - the route set a request is answered from; undefined answers 403.
+ */
+export function registerCodingOAuthRouteHandlers(
+  ctx: Context,
+  ownerRequestPolicy: OwnerRequestPolicy,
+  pick: (req: IncomingMessage) => CodingOAuthRouteSet | undefined,
+): void {
+  const picked = (req: IncomingMessage, res: ServerResponse): CodingOAuthRouteSet | undefined => {
+    const set = pick(req)
+    if (set === undefined) json(res, 403, { error: 'forbidden' })
+    return set
+  }
   const lifecycleHandler = (
-    apply: (slug: SubscriptionSlug) => Promise<unknown>,
+    apply: (set: CodingOAuthRouteSet, slug: SubscriptionSlug) => Promise<unknown>,
   ): (req: IncomingMessage, res: ServerResponse) => Promise<void> =>
     async (req, res) => {
       const accessMode = authorizeManagementPost(req, res, ownerRequestPolicy)
       if (accessMode === undefined) return
+      const set = picked(req, res)
+      if (set === undefined) return
       try {
         const body = await readJsonRequest(req)
         const slug = providerSlug(body)
-        await apply(slug)
-        json(res, 200, await allStatus(accessMode))
+        await apply(set, slug)
+        json(res, 200, await set.status(accessMode))
       } catch (error: unknown) {
         json(res, requestErrorStatus(error, 500), { error: safeMessage(error) })
       }
@@ -918,8 +986,10 @@ export function registerCodingOAuthRoutes(
           if (req.method !== 'GET') {  json(res, 405, { error: 'method not allowed' }); return }
           const decision = ownerRequestPolicy.authorize(req)
           if (!decision.authorized || decision.accessMode === undefined) {  json(res, 403, { error: 'forbidden' }); return }
+          const set = picked(req, res)
+          if (set === undefined) return
           try {
-            json(res, 200, await allStatus(decision.accessMode))
+            json(res, 200, await set.status(decision.accessMode))
           } catch (error: unknown) {
             json(res, requestErrorStatus(error, 500), { error: safeMessage(error) })
           }
@@ -931,21 +1001,11 @@ export function registerCodingOAuthRoutes(
         handler: async (req, res) => {
           if (req.method !== 'POST') {  json(res, 405, { error: 'method not allowed' }); return }
           if (!ownerRequestPolicy.authorize(req).authorized) {  json(res, 403, { error: 'forbidden' }); return }
+          const set = picked(req, res)
+          if (set === undefined) return
           try {
             const body = await readJsonRequest(req)
-            const slug = providerSlug(body)
-            const value = recordBody(body)
-            if (slug === 'grok') {
-              const method: GrokBuildLoginMethod = value['method'] === 'device' ? 'device' : 'pkce'
-              json(res, 200, await grok.signIn(method)); return
-            }
-            const auth = subscription(slug)
-            const requested = value['method']
-            const method: SubscriptionLoginMethod =
-              requested === 'browser' || requested === 'device'
-                ? requested
-                : auth.session.definition.recommendedLoginMethod
-            json(res, 200, await auth.signIn(method))
+            json(res, 200, await set.signIn(providerSlug(body), recordBody(body)['method']))
           } catch (error: unknown) {
             json(res, requestErrorStatus(error, 500), { error: safeMessage(error) })
           }
@@ -957,13 +1017,14 @@ export function registerCodingOAuthRoutes(
         handler: async (req, res) => {
           if (req.method !== 'POST') {  json(res, 405, { error: 'method not allowed' }); return }
           if (!ownerRequestPolicy.authorize(req).authorized) {  json(res, 403, { error: 'forbidden' }); return }
+          const set = picked(req, res)
+          if (set === undefined) return
           await answerSubmittedCode(res, async () => {
             const body = await readJsonRequest(req)
             const slug = providerSlug(body)
             const code = readSubmittedCode(res, body)
             if (code === undefined) return false
-            if (slug === 'grok') await grok.submitCode(code)
-            else await subscription(slug).submitCode(code)
+            await set.submitCode(slug, code)
             return true
           })
         },
@@ -971,12 +1032,12 @@ export function registerCodingOAuthRoutes(
       webServer.register({
         kind: 'exact',
         path: CODING_OAUTH_LOGIN_CANCEL_PATH,
-        handler: lifecycleHandler(slug => (slug === 'grok' ? grok.cancel() : subscription(slug).cancel())),
+        handler: lifecycleHandler((set, slug) => set.cancel(slug)),
       }),
       webServer.register({
         kind: 'exact',
         path: CODING_OAUTH_LOGOUT_PATH,
-        handler: lifecycleHandler(slug => (slug === 'grok' ? grok.signOut() : subscription(slug).signOut())),
+        handler: lifecycleHandler((set, slug) => set.signOut(slug)),
       }),
       webServer.register({
         kind: 'exact',
@@ -984,11 +1045,13 @@ export function registerCodingOAuthRoutes(
         handler: async (req, res) => {
           const accessMode = authorizeManagementPost(req, res, ownerRequestPolicy)
           if (accessMode === undefined) return
+          const set = picked(req, res)
+          if (set === undefined) return
           try {
-            if (selection === undefined) throw new Error('model selection is not available')
+            if (set.setSelected === undefined) throw new Error('model selection is not available')
             const body = await readJsonRequest(req)
-            await selection.setSelected(providerSlug(body), selectedIds(body))
-            json(res, 200, await allStatus(accessMode))
+            await set.setSelected(providerSlug(body), selectedIds(body))
+            json(res, 200, await set.status(accessMode))
           } catch (error: unknown) {
             json(res, requestErrorStatus(error, 400), { error: safeMessage(error) })
           }

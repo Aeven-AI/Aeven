@@ -92,6 +92,7 @@
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/agent": "workspace:^",
     "@aeven/attachment": "workspace:^",
     "@aeven/client-locale": "workspace:^",
     "@aeven/client-ui-renderer": "workspace:^",
@@ -99,6 +100,7 @@
     "@aeven/client-ui-slots": "workspace:^",
     "@aeven/credentials": "workspace:^",
     "@aeven/host-webserver": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
     "@aeven/invariants": "workspace:^",
     "@aeven/llm": "workspace:^",
     "@types/react": "~18.3.1",

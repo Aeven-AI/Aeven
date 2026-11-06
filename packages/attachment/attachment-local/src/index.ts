@@ -236,11 +236,11 @@ export class LocalAttachmentStore extends AttachmentStore {
   }
 
   override readFile(ref: FileAttachmentRef, signal?: AbortSignal): Promise<StoredFileAttachment> {
-    return readFileObject(this.root, ref, signal)
+    return this.retrieveMissing(ref.attachmentId, signal, () => readFileObject(this.root, ref, signal))
   }
 
   override readFileText(ref: FileAttachmentRef, signal?: AbortSignal): Promise<string> {
-    return readFileTextObject(this.root, ref, signal)
+    return this.retrieveMissing(ref.extraction.textId, signal, () => readFileTextObject(this.root, ref, signal))
   }
 
   override fileHostPath(ref: FileAttachmentRef): string {
@@ -270,7 +270,7 @@ export class LocalAttachmentStore extends AttachmentStore {
 
   /** @inheritdoc */
   override readObject(id: AttachmentId, signal?: AbortSignal): Promise<Uint8Array> {
-    return readObject(this.root, addressOf(id), signal)
+    return this.retrieveMissing(id, signal, () => readObject(this.root, addressOf(id), signal))
   }
 
   /** @inheritdoc */
@@ -288,7 +288,19 @@ export class LocalAttachmentStore extends AttachmentStore {
   }
 
   async readImage(ref: ImageAttachmentRef, signal?: AbortSignal): Promise<StoredImageAttachment> {
-    return readImageFile(this.root, ref, signal)
+    return this.retrieveMissing(ref.attachmentId, signal, () => readImageFile(this.root, ref, signal))
+  }
+
+  private async retrieveMissing<T>(id: AttachmentId, signal: AbortSignal | undefined, read: () => Promise<T>): Promise<T> {
+    try {
+      return await read()
+    } catch (error) {
+      if (!(error instanceof AttachmentError) || error.code !== 'ATTACHMENT_NOT_FOUND') throw error
+      signal?.throwIfAborted()
+      if (!await this.ctx.waterfall('attachment/missing', id, signal, () => Promise.resolve(false))) throw error
+      signal?.throwIfAborted()
+      return await read()
+    }
   }
 
   override imageHostPath(ref: ImageAttachmentRef): string {

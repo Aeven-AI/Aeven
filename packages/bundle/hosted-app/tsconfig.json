@@ -22,6 +22,12 @@
     },
     {
       "path": "../../identity/user"
+    },
+    {
+      "path": "../../attachment/attachment"
+    },
+    {
+      "path": "../../session/session-handoff"
     }
   ]
 }

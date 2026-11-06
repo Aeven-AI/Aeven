@@ -20,6 +20,11 @@ export { renderIndexInjections } from './injections.ts'
 export { isLoopbackHost, requestOrigin, sameHostLoopbackUrl } from './origin.ts'
 export type { IndexInjection, IndexInjectionPlacement } from './injections.ts'
 
+/** The headers of the page request an index render answers. */
+export interface IndexRequest {
+  readonly headers: Readonly<Record<string, string | readonly string[] | undefined>>
+}
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     webServer: WebServer
@@ -32,9 +37,12 @@ declare module '@deepseek-ai/cordis' {
      * @param table - Mutable row table; listeners append in activation order.
      * @param origin - Origin the request was addressed to, absent when the
      * emission has no request (a worker boot payload) or it states no host.
+     * @param request - The page request's headers, absent when the emission
+     * has no request; a subscriber that shows the reader's own preference
+     * identifies the reader from them.
      * @mode emit
      */
-    'webserver/index-inject'(table: IndexInjection[], origin?: string): void
+    'webserver/index-inject'(table: IndexInjection[], origin?: string, request?: IndexRequest): void
   }
 }
 
@@ -367,11 +375,12 @@ export class WebServer extends Service {
    * read live state (module graph, theme preference) at emit time.
    * @param origin - Origin the request was addressed to, so a subscriber can
    * state deployment URLs under the spelling the reader arrived on.
+   * @param request - The page request's headers, when a request is behind the render.
    * @returns rows in subscriber activation order.
    */
-  collectIndexInjections(origin?: string): IndexInjection[] {
+  collectIndexInjections(origin?: string, request?: IndexRequest): IndexInjection[] {
     const table: IndexInjection[] = []
-    this.ctx.emit('webserver/index-inject', table, origin)
+    this.ctx.emit('webserver/index-inject', table, origin, request)
     return table
   }
 
@@ -381,10 +390,11 @@ export class WebServer extends Service {
    * @param html - the raw index.html body.
    * @param origin - Origin the request was addressed to, forwarded to the
    * injection table; absent for renders with no request behind them.
+   * @param request - The page request's headers, forwarded to the injection table.
    * @returns the transformed body.
    */
-  renderIndex(html: string, origin?: string): string {
-    return this.applyIndexTaps(renderIndexInjections(html, this.collectIndexInjections(origin)))
+  renderIndex(html: string, origin?: string, request?: IndexRequest): string {
+    return this.applyIndexTaps(renderIndexInjections(html, this.collectIndexInjections(origin, request)))
   }
 }
 

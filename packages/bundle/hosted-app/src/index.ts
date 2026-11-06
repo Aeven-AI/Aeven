@@ -11,6 +11,8 @@ import z from '@deepseek-ai/schemastery'
 import type {} from '@aeven/agent'
 import type {} from '@aeven/identity-user'
 import type {} from '@aeven/llm'
+import type {} from '@aeven/attachment'
+import type {} from '@aeven/session-handoff'
 import { AccountRequests, type RequestLimits } from './limits.ts'
 
 export const name = 'hosted-runtime'
@@ -32,6 +34,13 @@ export const Config: z<Config> = z.object({
  * @param config - concurrent and queued request bounds.
  */
 export function apply(ctx: Context, config: Config): void {
+  ctx.on('attachment/missing', async (id, signal, next) => {
+    signal?.throwIfAborted()
+    const owner = ctx.agents.currentInitiator()?.session.header.owner ?? ctx.get('identityUsers')?.actingUser()?.id
+    if (owner === undefined) return next()
+    if (await ctx.get('sessionHandoff')?.fetchAttachment(id, owner) === true) return true
+    return next()
+  })
   const requests = new AccountRequests(config)
   const closing = new AbortController()
   ctx.effect(() => () => {

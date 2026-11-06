@@ -217,6 +217,7 @@ export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
  * {@link EVENT_WALK_EXEMPTIONS} names each one with its documentation owner.
  */
 export const EVENT_SCOPE_PAGE: Record<string, string> = {
+  'attachment': 'attachment.md',
   'browser': 'web.md',
   'capabilities': 'capability.md',
   'location': 'computer-use.md',
@@ -678,6 +679,7 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   InvariantInstaller: 'invariants.md',
   WebRoute: 'web-server.md',
   IndexInjection: 'web-server.md',
+  IndexRequest: 'web-server.md',
   StorageBackend: 'storage.md',
   StorageForms: 'storage.md',
   Domain: 'storage.md',

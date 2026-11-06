@@ -3,6 +3,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import IdentityUsers from '@aeven/identity-user'
 import LlmRuntime, { LlmAdapter } from '@aeven/llm'
 import { credentialRef } from '@aeven/credentials'
 import { LocalCredentialProvider } from '@aeven/credentials-local'
@@ -52,6 +53,32 @@ async function boot(
   await ctx.plugin(LlmPiAi, config)
   return ctx
 }
+
+describe('account-owned provider routes', () => {
+  it('loads personal providers without exposing their keys or routes to another account', async () => {
+    const dir = await home()
+    const ctx = new Context()
+    cleanups.push(() => ctx.fiber.dispose())
+    await ctx.plugin(LlmRuntime)
+    await ctx.plugin(IdentityUsers)
+    await ctx.plugin(FileSettingsProvider, { avnHome: dir, accounts: true, watch: false })
+    await ctx.plugin(LocalCredentialProvider, { avnHome: dir, accounts: true, watch: false })
+    await ctx.plugin(LlmPiAi, {})
+    await ctx.settings.writeFor('alice', NS, 'replace', { providers: { openai: { apiKeyEnv: 'PERSONAL_KEY' } } })
+    await ctx.settings.writeFor('bob', NS, 'replace', { providers: { anthropic: { apiKeyEnv: 'PERSONAL_KEY' } } })
+    await ctx.credentials.set(credentialRef('PERSONAL_KEY'), 'alice-secret', 'alice')
+    await ctx.credentials.set(credentialRef('PERSONAL_KEY'), 'bob-secret', 'bob')
+    const run = <T>(id: string, work: () => T): T => ctx.identityUsers.runAs({ id, authority: 'test' } as never, work)
+    expect(await run('alice', () => ctx.llm.remoteListProviders())).toEqual([{ id: 'openai', name: 'OpenAI' }])
+    expect(await run('bob', () => ctx.llm.remoteListProviders())).toEqual([{ id: 'anthropic', name: 'Anthropic' }])
+    expect(ctx.llm.listProviders()).toEqual([])
+    await expect(run('bob', () => ctx.llm.listModels('openai'))).rejects.toMatchObject({ code: 'NO_ADAPTER' })
+    expect(await run('alice', () => ctx.llm.listModels('openai'))).not.toHaveLength(0)
+    await ctx.settings.writeFor('alice', NS, 'replace', { providers: {} })
+    expect(await run('alice', () => ctx.llm.remoteListProviders())).toEqual([])
+    expect(await run('bob', () => ctx.llm.remoteListProviders())).toEqual([{ id: 'anthropic', name: 'Anthropic' }])
+  })
+})
 
 describe('login flows in a real composition', () => {
   it('offers a sign-in for a provider no route names, once the seam is mounted', async () => {

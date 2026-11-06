@@ -1,7 +1,8 @@
 /** Host registration for the browser theme preference and pre-plugin palette. */
 
 import type { Context } from '@deepseek-ai/cordis'
-import type {} from '@aeven/host-webserver'
+import type { IndexRequest } from '@aeven/host-webserver'
+import type {} from '@aeven/identity-user'
 import type {} from '@aeven/settings'
 import { bootThemeInjection } from './boot-theme.ts'
 import {
@@ -18,12 +19,21 @@ export {
 
 const THEME_NAMESPACE = THEME_SETTINGS_NAMESPACE
 
-/** Read the registered theme section or the schema defaults without a settings provider. */
-function readSection(ctx: Context): { preference: ThemePreference; fontSize: number } {
+/**
+ * Read the theme the page is rendered for: the signed-in reader's own on a settings provider that keeps account
+ * sections, else the registered section, else the schema defaults without a settings provider.
+ * @param ctx - Host context that may hold the settings and identity services.
+ * @param request - the page request, whose credential names the reader.
+ * @returns the preference and font size to render.
+ */
+function readSection(ctx: Context, request: IndexRequest | undefined): { preference: ThemePreference; fontSize: number } {
   const fallback = { preference: DEFAULT_PREFERENCE, fontSize: DEFAULT_FONT_SIZE }
   const settings = ctx.get('settings')
   if (settings === undefined) return fallback
-  const section = settings.get(THEME_NAMESPACE) as ThemeSettings | undefined
+  const reader = request === undefined || !settings.accountSections ? undefined : ctx.get('identityUsers')?.resolve(request)?.id
+  const section = (reader === undefined
+    ? settings.get(THEME_NAMESPACE)
+    : settings.cachedValueFor(THEME_NAMESPACE, reader)) as ThemeSettings | undefined
   if (section === undefined) return fallback
   return section
 }
@@ -37,10 +47,11 @@ function readSection(ctx: Context): { preference: ThemePreference; fontSize: num
  */
 export function apply(ctx: Context): void {
   ctx.inject(['settings'], (settingsCtx) => {
-    settingsCtx.settings.register(THEME_NAMESPACE, ThemeSettingsSchema, { reach: 'device' })
+    // One device's theme; each person's own on a Host that serves many people.
+    settingsCtx.settings.register(THEME_NAMESPACE, ThemeSettingsSchema, { reach: 'device', perAccount: true })
   })
-  ctx.on('webserver/index-inject', (table) => {
-    const section = readSection(ctx)
+  ctx.on('webserver/index-inject', (table, _origin, request) => {
+    const section = readSection(ctx, request)
     table.push(bootThemeInjection(section.preference, section.fontSize))
   })
 }

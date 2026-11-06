@@ -19,6 +19,9 @@
     },
     {
       "path": "../../settings/settings"
+    },
+    {
+      "path": "../../identity/user"
     }
   ]
 }
