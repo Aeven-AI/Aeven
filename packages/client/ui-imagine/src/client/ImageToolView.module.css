@@ -305,5 +305,5 @@
 .motionSuperseded {
   margin: 0;
   color: var(--dsw-alias-label-secondary);
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
