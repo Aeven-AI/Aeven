@@ -206,8 +206,9 @@ function imageReadContent(value: ImageReadValue): ContentBlock[] {
  * direct callers and gates on the calling route's declared image input.
  * @param ctx - the registration scope; execution uses its `fs` service plus
  *   the optional `attachments`/`llm` services.
+ * @param confineToWorkspace - refuse images outside the calling session's workspace.
  */
-export function applyReadImageTool(ctx: Context): void {
+export function applyReadImageTool(ctx: Context, confineToWorkspace: boolean = false): void {
   ctx.tools.register(defineTool({
     name: 'read_image',
     description: 'Read a PNG/JPEG/WebP/GIF file and return the image itself. '
@@ -250,7 +251,7 @@ export function applyReadImageTool(ctx: Context): void {
       if (declared !== undefined) assertDeploymentAccepts(attachments, declared, args.file_path)
       await assertImageCapableRoute(ctx, exec, args.file_path)
 
-      const { target, info } = await resolveRegularReadTarget(ctx, exec, args.file_path)
+      const { target, info } = await resolveRegularReadTarget(ctx, exec, args.file_path, confineToWorkspace)
 
       // The tool result is one message carrying one image, so the per-message
       // aggregate bound applies beside the per-image bound.

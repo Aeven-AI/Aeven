@@ -47,7 +47,10 @@ Two config fields cover background support.
 |---|---|---|
 | `enableRunInBackground` | `true` | Expose `run_in_background`; when `false`, forced background calls are rejected and foreground calls always wait |
 | `detachAfterMs` | `20000` | How long a foreground command may run before it is handed back as a background job |
-| `shareOutputFiles` | `false` | Store produced `output_files` inside the workspace as attachments shown at the call, and refuse declared paths outside the workspace; requires `ctx.attachments` |
+| `shareOutputFiles` | `false` | Store produced `output_files` inside the workspace as attachments shown at the call, record their paths relative to the workspace, and refuse declared paths outside it; requires `ctx.attachments` |
+| `shareMaxFiles` | `10` | Most produced files one call shares |
+| `shareMaxBytes` | `104857600` | Most bytes one call shares |
+| `shareMaxSessionBytes` | `524288000` | Most bytes one conversation shares across its calls, counted from its log |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#aeventool-bash) is the exhaustive source for every accepted field and its JSDoc; the generated [tool catalog](../../../docs/tool-catalog.md#aeventool-bash) carries the full argument schema.
 

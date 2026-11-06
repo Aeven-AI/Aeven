@@ -30,11 +30,21 @@ export interface Config {
   ffprobePath: string
   /** Wall-clock limit for one probe before the reader falls back to file facts. */
   probeTimeoutMs: number
+  /** Directory each clip is written to for the probe; defaults to the OS temp directory. */
+  probeDirectory?: string
+  /**
+   * Argv the probe runs under, such as a bubblewrap jail that sees only
+   * `/usr` and {@link probeDirectory}; the `ffprobe` argv follows it. Omitted,
+   * `ffprobe` runs directly.
+   */
+  probeRunner?: string[]
 }
 
 export const Config: z<Partial<Config>, Config> = z.object({
   ffprobePath: z.string().default('ffprobe'),
   probeTimeoutMs: z.natural().min(1).default(15_000),
+  probeDirectory: z.string(),
+  probeRunner: z.array(z.string()),
 })
 
 /** Provider id registered on `ctx.documentExtract`. */
@@ -112,15 +122,17 @@ interface ProbeOutput {
  * @returns facts to describe, never a rejection for a failed probe.
  */
 async function probe(data: Uint8Array, extension: string, config: Config, signal: AbortSignal): Promise<ProbeFacts> {
-  const directory = await mkdtemp(join(tmpdir(), 'avn-clip-'))
+  const directory = await mkdtemp(join(config.probeDirectory ?? tmpdir(), 'avn-clip-'))
   const file = join(directory, `clip.${extension}`)
   try {
     await writeFile(file, data)
-    const { stdout } = await promisify(execFile)(config.ffprobePath, [
-      '-v', 'error', '-select_streams', extension === 'mp3' ? 'a:0' : 'v:0',
+    const probeArgv = [
+      config.ffprobePath, '-v', 'error', '-select_streams', extension === 'mp3' ? 'a:0' : 'v:0',
       '-show_entries', 'stream=width,height,codec_name:format=duration',
       '-of', 'json', file,
-    ], { timeout: config.probeTimeoutMs, signal, maxBuffer: 1 << 20 })
+    ]
+    const [program, ...args] = [...config.probeRunner ?? [], ...probeArgv] as [string, ...string[]]
+    const { stdout } = await promisify(execFile)(program, args, { timeout: config.probeTimeoutMs, signal, maxBuffer: 1 << 20 })
     const parsed = JSON.parse(stdout) as ProbeOutput
     const stream = parsed.streams?.[0]
     const seconds = Number(parsed.format?.duration ?? Number.NaN)

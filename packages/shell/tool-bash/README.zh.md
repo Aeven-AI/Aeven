@@ -47,7 +47,10 @@ kind: "package-reference"
 |---|---|---|
 | `enableRunInBackground` | `true` | 暴露 `run_in_background`；为 `false` 时拒绝强制后台调用，前台调用始终等待 |
 | `detachAfterMs` | `20000` | 前台命令在被交还为后台任务之前允许运行多久 |
-| `shareOutputFiles` | `false` | 将工作区内生成的 `output_files` 存为附件并在调用处展示，并拒绝工作区之外的声明路径；需要 `ctx.attachments` |
+| `shareOutputFiles` | `false` | 将工作区内生成的 `output_files` 存为附件并在调用处展示，以相对于工作区的路径记录它们，并拒绝工作区之外的声明路径；需要 `ctx.attachments` |
+| `shareMaxFiles` | `10` | 单次调用最多共享的生成文件数 |
+| `shareMaxBytes` | `104857600` | 单次调用最多共享的字节数 |
+| `shareMaxSessionBytes` | `524288000` | 一个对话在所有调用中最多共享的字节数，按其日志统计 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#aeventool-bash)是每个受支持字段及其 JSDoc 的穷尽式真源；生成的[工具目录](../../../docs/tool-catalog.zh.md#aeventool-bash)携带完整参数 schema。
 

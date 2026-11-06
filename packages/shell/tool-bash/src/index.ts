@@ -10,7 +10,7 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { isAbsolute, resolve as resolvePath } from 'node:path'
+import { isAbsolute, relative, resolve as resolvePath } from 'node:path'
 import { defineTool, TOOL_ABORTED } from '@aeven/tools'
 import type { GenericCallView, TerminalCallView, ToolExecution, ToolResult, ToolResultView } from '@aeven/tools'
 import { HarnessError } from '@aeven/llm'
@@ -28,7 +28,7 @@ import { AVN_ENV_PREFIX, isDetachedRun } from '@aeven/shell'
 import type { ShellProcess, ShellRunResult } from '@aeven/shell'
 import { processOutcome, processSources } from './background.ts'
 import { BACKGROUND_ACK, parseExitStatus, renderResult } from './render.ts'
-import { shareOutputs, type SharedOutputs } from './share.ts'
+import { sharedBytesOf, shareOutputs, type SharedOutputs } from './share.ts'
 
 export const name = 'tool-bash'
 export const inject = ['tools', 'shell', 'systemPrompt', 'shellEnv']
@@ -54,6 +54,12 @@ export interface Config {
    * Host's folders; it requires `ctx.attachments`.
    */
   shareOutputFiles?: boolean
+  /** Most produced files one call shares (default 10); the rest are reported, not stored. */
+  shareMaxFiles?: number
+  /** Most bytes one call shares (default 100 MiB). */
+  shareMaxBytes?: number
+  /** Most bytes one conversation shares across its calls, counted from its log (default 500 MiB). */
+  shareMaxSessionBytes?: number
 }
 
 /** Runtime configuration schema for the bash tool plugin. */
@@ -61,6 +67,9 @@ export const Config: z<Config> = z.object({
   enableRunInBackground: z.boolean().default(true),
   detachAfterMs: z.number().default(DEFAULT_DETACH_AFTER_MS),
   shareOutputFiles: z.boolean().default(false),
+  shareMaxFiles: z.natural().min(1).default(10),
+  shareMaxBytes: z.natural().min(1).default(100 * 1024 * 1024),
+  shareMaxSessionBytes: z.natural().min(1).default(500 * 1024 * 1024),
 })
 
 /** Output schema of one image attachment shared at the call. */
@@ -562,16 +571,24 @@ export function apply(ctx: Context, config: Config = {}): void {
         const producedTargets: FsTarget[] = []
         for (const output of outputs) {
           const target = await fs.resolve(output.path, { ...workdir === undefined ? {} : { cwd: workdir }, signal: exec.signal })
+          // The command may have replaced a declared path with a symlink out of the workspace.
+          if (root !== undefined && !fs.contains(root, target)) continue
           const after = await fs.stat(target, exec.signal)
           if (after?.type === 'file' && after.version !== output.before?.version) {
-            producedFiles.push({ path: target.displayPath, created: output.before === undefined })
+            // Readers of a sharing deployment know the conversation folder, not the Host's paths.
+            const path = root === undefined ? target.displayPath : relative(root.displayPath, target.displayPath)
+            producedFiles.push({ path, created: output.before === undefined })
             producedTargets.push(target)
           }
         }
         if (root === undefined || producedTargets.length === 0) return { ...result, producedFiles }
         const attachments = ctx.get('attachments')
         if (attachments === undefined) throw new Error('tool-bash: shareOutputFiles requires an attachment store')
-        const shared = await shareOutputs(attachments, fs, root, producedTargets, exec.signal)
+        const sessionBytes = exec.agent === undefined ? 0 : sharedBytesOf(exec.agent.session.snapshotEvents())
+        const shared = await shareOutputs(attachments, fs, root, producedTargets, exec.signal, {
+          files: config.shareMaxFiles ?? 10,
+          bytes: Math.min(config.shareMaxBytes ?? 100 * 1024 * 1024, (config.shareMaxSessionBytes ?? 500 * 1024 * 1024) - sessionBytes),
+        })
         return {
           ...result,
           producedFiles,

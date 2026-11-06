@@ -28,15 +28,18 @@ export interface JailProfile {
   tmpSizeBytes: number
   /** Host name the confined command sees. */
   hostname: string
+  /** Whether bubblewrap reads a system-call filter from descriptor 3. */
+  seccomp: boolean
 }
 
 /**
  * Build the complete jail argv prefix for one call.
  * @param profile - the deployment's jail inputs.
  * @param policy - the call's confined policy; its roots are already checked to belong to one account.
+ * @param readOnlyFiles - further existing host files mounted read-only at the same path, such as the session's attachments.
  * @returns the argv to place before the confined command.
  */
-export function jailArgs(profile: JailProfile, policy: SandboxPolicy): string[] {
+export function jailArgs(profile: JailProfile, policy: SandboxPolicy, readOnlyFiles: readonly string[] = []): string[] {
   const writable = policy.mode === 'workspace-write'
   const roots = [policy.workspaceRoot, ...writable ? policy.additionalWritableRoots ?? [] : []]
   const args = [
@@ -44,6 +47,7 @@ export function jailArgs(profile: JailProfile, policy: SandboxPolicy): string[] 
     '--unshare-user', '--unshare-ipc', '--unshare-pid', '--unshare-net', '--unshare-uts', '--unshare-cgroup',
     '--disable-userns', '--die-with-parent', '--new-session', '--hostname', profile.hostname,
     '--clearenv',
+    ...profile.seccomp ? ['--seccomp', '3'] : [],
   ]
   for (const [name, value] of Object.entries({ ...profile.env, HOME: policy.workspaceRoot })) args.push('--setenv', name, value)
   for (const path of profile.readOnlyPaths) args.push('--ro-bind', path, path)
@@ -51,6 +55,7 @@ export function jailArgs(profile: JailProfile, policy: SandboxPolicy): string[] 
   const size = String(profile.tmpSizeBytes)
   args.push('--dev', '/dev', '--proc', '/proc', '--size', size, '--tmpfs', '/tmp', '--size', size, '--tmpfs', '/dev/shm')
   for (const root of roots) args.push(writable ? '--bind' : '--ro-bind', root, root)
+  for (const file of readOnlyFiles) args.push('--ro-bind', file, file)
   args.push('--ro-bind', profile.launcher, JAIL_LAUNCHER, '--', JAIL_LAUNCHER)
   // The jail root holds only what bwrap mounted, so read access beneath it is
   // the same view; Landlock still denies anything outside it.

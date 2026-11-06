@@ -56,6 +56,8 @@ kind: "package-reference"
 | `cgroup` | 无 | 委派的 cgroup 目录，以及总限制与单账户限制 |
 | `quotaCommand` | 无 | 每个账户第一条命令前运行一次的 argv，末尾追加账户文件夹，用于限制其磁盘用量；失败则拒绝该账户的命令 |
 | `modelNote` | 无 | 描述命令可用内容的系统提示词文本 |
+| `seccompFilter` | 无 | bubblewrap 安装的 BPF 系统调用过滤器的主机路径；文件不存在则启动失败 |
+| `sessionAttachments` | `false` | 以只读方式在存储路径上挂载对话的用户消息与工具结果引用的附件 |
 
 生成的 [配置目录](../../../docs/config-catalog.zh.md#aevensandbox-jail) 是每个可接受字段及其 JSDoc 的完整来源。
 
@@ -80,7 +82,8 @@ kind: "package-reference"
 3. 以 Host 的用户身份，在部署的 checkout 中构建 Landlock launcher：`pnpm --dir native/landlock-run run build:native`。
 4. 在带有 `Delegate=yes` 和 `DelegateSubgroup=host` 的 systemd unit 中运行 Host。systemd 在 `<unit>/host` 中启动 Host，本提供方在其旁边创建 `<unit>/jail/acct-<account>`。
 5. 把 `accountsRoot` 放在带项目配额的独立 ext4 文件系统上，例如用 `mkfs.ext4 -O quota,project` 创建、以 `loop,prjquota,nosuid,nodev` 挂载的 loop 镜像，使命令无法占满 Host 的磁盘。以 `quotaCommand` 通过 `sudo -n` 调用的 root 所有的辅助程序为每个账户文件夹分配项目 id（`chattr -R +P -p <id>`）和限额（`setquota -P`）；监狱中的进程无法更改项目 id。
-6. 把命令可用的只读程序和库安装到 `readOnlyPaths` 列出的路径下，例如 `/opt/aeven-sandbox` 下的 Python 虚拟环境和 Node `node_modules` 目录。用 `python3 -m compileall` 预编译 Python 字节码，因为监狱无法写入 `.pyc` 文件，否则 pandas 的导入会慢五倍。
+6. 用 [`host/seccomp-filter.c`](host/seccomp-filter.c) 生成系统调用过滤器（`cc -O2 -o seccomp-filter seccomp-filter.c -lseccomp`），并在 `seccompFilter` 中填写其输出路径。
+7. 把命令可用的只读程序和库安装到 `readOnlyPaths` 列出的路径下，例如 `/opt/aeven-sandbox` 下的 Python 虚拟环境和 Node `node_modules` 目录。用 `python3 -m compileall` 预编译 Python 字节码，因为监狱无法写入 `.pyc` 文件，否则 pandas 的导入会慢五倍。
 
 ### 失败与恢复
 
@@ -106,6 +109,10 @@ launcher 无法强制执行 Landlock、bubblewrap 无法创建监狱的命名空
 ### 一次调用
 
 `confine()` 规范化工作区根目录，取其在 `accountsRoot` 下的第一个路径分量作为账户，并构建 `bwrap … -- /run/aeven/landlock-run … -- <argv>`。配置了 cgroup 时，先由一个 `/bin/sh` 步骤把自身移入账户的组，再 `exec` bubblewrap，因此监狱及其启动的一切都计入该组。移入失败时以 125 退出并输出一行 `sandbox-jail:`，消费方将其归类为 runner 失败。
+
+### 主机文件
+
+[`host/`](host/) 存放设置步骤安装的内容：AppArmor profile、systemd drop-in、带 sudoers 规则的配额辅助程序，以及系统调用过滤器源码。配额辅助程序从 root 所有的 `/etc/aeven-sandbox/accounts-root` 读取账户根目录，因此调用者无法选择它限制的目录树。
 
 ### 两道屏障
 
@@ -145,7 +152,8 @@ bubblewrap 构建的根目录只包含列出的路径，因此其他账户的文
 - **每条命令都启动自己的解释器** — Python 命令每次调用都要支付导入开销（pandas 约 0.4 秒）；预加载并按命令 fork 的解释器尚未实现。
 - **命令从 Host 进程派生** — fork 一个大的 Host 每条命令要花几毫秒；从小型执行器进程派生尚未实现。
 - **托管的 `AVN_*` 变量不会到达命令** — 监狱用 `env` 设置完整环境。
-- **没有系统调用过滤器** — 监狱依赖命名空间、丢弃的 capability、`no_new_privs` 和 Landlock；seccomp 过滤器尚未实现。
+- **系统调用过滤器是拒绝列表** — 它拒绝挂载、命名空间、跟踪、密钥环、BPF、模块与句柄类调用，并隐藏 `io_uring` 与 `clone3`；其余调用仍被允许，命名空间、丢弃的 capability、`no_new_privs` 和 Landlock 仍是主要屏障。
+- **额外可写根目录留在账户内** — 命令可以影响的根目录（例如链接 git 工作树的共享目录）若位于账户文件夹之外，会被排除。
 
 <a id="dev-note"></a>
 ### 开发备注
