@@ -1980,6 +1980,9 @@ importers:
 
   packages/bundle/hosted-app:
     dependencies:
+      '@aeven/api-motion':
+        specifier: workspace:^
+        version: link:../../motion/api-motion
       '@aeven/client-ui-desktop-handoff':
         specifier: workspace:^
         version: link:../../client/ui-desktop-handoff
@@ -9726,13 +9729,25 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
+      '@hyperframes/core':
+        specifier: 0.9.19
+        version: 0.9.19(@types/node@22.20.1)
     devDependencies:
+      '@aeven/api-session-controller':
+        specifier: workspace:^
+        version: link:../../api/session-controller
+      '@aeven/brand':
+        specifier: workspace:^
+        version: link:../../util/brand
       '@aeven/client-connection':
         specifier: workspace:^
         version: link:../../client/connection
       '@aeven/motion':
         specifier: workspace:^
         version: link:../motion
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis

@@ -530,8 +530,6 @@ flowchart TD
   pkg_anonymous_user_id --> pkg_home_paths
   pkg_lsp --> pkg_brand
   pkg_lsp --> pkg_llm
-  pkg_api_motion --> pkg_client_connection
-  pkg_api_motion --> pkg_motion
   pkg_motion_hyperframes --> pkg_motion
   pkg_api_text_to_speech --> pkg_text_to_speech
   pkg_api_text_to_speech --> pkg_typert_protocol
@@ -1575,6 +1573,11 @@ flowchart TD
   pkg_subagent_fork_in_process --> pkg_subagent_in_process_driver
   pkg_subagent_spawn_in_process --> pkg_subagent
   pkg_subagent_spawn_in_process --> pkg_subagent_in_process_driver
+  pkg_api_motion --> pkg_api_session_controller
+  pkg_api_motion --> pkg_brand
+  pkg_api_motion --> pkg_client_connection
+  pkg_api_motion --> pkg_motion
+  pkg_api_motion --> pkg_session
   pkg_sdk_client --> pkg_llm
   pkg_sdk_client --> pkg_sdk_protocol
   pkg_sdk_client --> pkg_session
@@ -1762,7 +1765,6 @@ flowchart TD
 | [`host-frontend-static`](../packages/host/frontend-static) | `host` | [`client-connection`](../packages/client/connection), [`host-webserver`](../packages/host/webserver) |
 | [`anonymous-user-id`](../packages/identity/anonymous-user-id) | `identity` | [`brand`](../packages/util/brand), [`home-paths`](../packages/util/home-paths) |
 | [`lsp`](../packages/lsp/lsp) | `lsp` | [`brand`](../packages/util/brand), [`llm`](../packages/llm/llm) |
-| [`api-motion`](../packages/motion/api-motion) | `motion` | [`client-connection`](../packages/client/connection), [`motion`](../packages/motion/motion) |
 | [`motion-hyperframes`](../packages/motion/motion-hyperframes) | `motion` | [`motion`](../packages/motion/motion) |
 | [`api-text-to-speech`](../packages/speech/api-text-to-speech) | `speech` | [`text-to-speech`](../packages/speech/text-to-speech), [`typert-protocol`](../packages/typert/protocol) |
 | [`text-to-speech-edge`](../packages/speech/text-to-speech-edge) | `speech` | [`text-to-speech`](../packages/speech/text-to-speech) |
@@ -1976,6 +1978,7 @@ flowchart TD
 | [`workflow-worker-thread`](../packages/workflow/workflow-worker-thread) | `workflow` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent), [`tools`](../packages/core/tools), [`workflow`](../packages/workflow/workflow) |
 | [`subagent-fork-in-process`](../packages/subagent/subagent-fork-in-process) | `subagent` | [`agent`](../packages/core/agent), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent), [`subagent-in-process-driver`](../packages/subagent/subagent-in-process-driver) |
 | [`subagent-spawn-in-process`](../packages/subagent/subagent-spawn-in-process) | `subagent` | [`subagent`](../packages/subagent/subagent), [`subagent-in-process-driver`](../packages/subagent/subagent-in-process-driver) |
+| [`api-motion`](../packages/motion/api-motion) | `motion` | [`api-session-controller`](../packages/api/session-controller), [`brand`](../packages/util/brand), [`client-connection`](../packages/client/connection), [`motion`](../packages/motion/motion), [`session`](../packages/core/session) |
 | [`sdk-client`](../packages/sdk/client) | `sdk` | [`llm`](../packages/llm/llm), [`sdk-protocol`](../packages/sdk/protocol), [`session`](../packages/core/session) |
 | [`sdk-jsonrpc-server`](../packages/sdk/server) | `sdk` | [`agent`](../packages/core/agent), [`attachment`](../packages/attachment/attachment), [`llm`](../packages/llm/llm), [`llm-deepseek`](../packages/llm/llm-deepseek), [`scope`](../packages/core/scope), [`sdk-protocol`](../packages/sdk/protocol), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent) |
 | [`tool-agent-team`](../packages/team/tool-agent-team) | `team` | [`agent`](../packages/core/agent), [`agent-team`](../packages/team/agent-team), [`session`](../packages/core/session), [`tools`](../packages/core/tools) |
