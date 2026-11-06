@@ -85,6 +85,8 @@
 - id: sync-yjs
   config:
     relayUrl: !!js process.env.AEVEN_SYNC_URL ?? 'wss://aeven.io/sync'
+    # The account's other devices list this Host by this name, not its machine host name.
+    deviceName: Aeven Cloud
     keepConnected: true
     # A browser opens on the conversation and workspace lists; the long tail of each account arrives after them.
     firstDocuments: [devices, workspaces, sessions/index, sessions/live, settings/account, personalization, automations]
@@ -210,22 +212,35 @@
       name: '@aeven/client-ui-workspace-name'
 
 # Directory reads that only a folder workspace or a local file reference serve.
+# The HTTP route serves any registered workspace to any signed-in browser.
 - id: workspace-files
   disabled: true
 
+# With the jail, the Files sidebar shows the account folder a session works
+# in: listings, previews and searches all stay inside it, and the Remote
+# answers only for the caller's own sessions.
+# Every file read verifies that the opened file is the one resolved, so a
+# jailed command swapping a path component for a symlink between the check and
+# the read cannot redirect a read the Host makes for its readers.
+- id: fs-sandbox
+  config:
+    verifyReads: !!js process.platform === 'linux'
+
 - id: api-workspace-files
-  disabled: true
+  disabled: !!js process.env.AVN_HOSTED_SANDBOX !== '1'
+  config:
+    confineReads: true
 
 - id: file-reference-local
   disabled: true
 
 - id: ui-sidebar-files
-  disabled: true
+  disabled: !!js process.env.AVN_HOSTED_SANDBOX !== '1'
 
-# The produced-files row under a reply opens files in the Files sidebar; with no
-# file tools a session produces none on this Host.
+# The produced-files row under a reply opens files in the Files sidebar; only
+# jailed commands produce files on this Host.
 - id: ui-deliverables
-  disabled: true
+  disabled: !!js process.env.AVN_HOSTED_SANDBOX !== '1'
 
 # ── nothing runs on the Host's machine ──────────────────────────────────────
 
@@ -298,6 +313,12 @@
 - id: tool-worktrees
   disabled: true
 
+- id: vcs
+  disabled: true
+
+- id: vcs-git
+  disabled: true
+
 - id: tool-vcs
   disabled: true
 
@@ -327,12 +348,23 @@
     default: aeven
     includeUserRoot: false
     patches:
+      # The reader cannot open this Host's folders, so files a command lists
+      # in output_files are stored as attachments and shown at the call.
       - id: tool-bash
         disabled: !!js process.env.AVN_HOSTED_SANDBOX !== '1'
+        config:
+          shareOutputFiles: true
       - id: tool-pwsh
         disabled: true
+      # With the jail, the model reads files and looks at images in the
+      # account folder; it writes through jailed commands, because a Host-side
+      # write could follow a symlink a command swaps in. Search runs ripgrep on
+      # the Host, so it stays off; commands have find and grep.
       - id: tool-fs
-        disabled: true
+        disabled: !!js process.env.AVN_HOSTED_SANDBOX !== '1'
+        config:
+          confineToWorkspace: true
+          mutations: false
       - id: tool-fs-search
         disabled: true
       - id: tool-subagent-codex
@@ -408,6 +440,23 @@
           MPLCONFIGDIR: /tmp
           PYTHONDONTWRITEBYTECODE: '1'
         tmpSizeMb: 512
+        seccompFilter: /opt/aeven-sandbox/seccomp.bpf
+        sessionAttachments: true
+        # 5 GiB and 200,000 files per account folder, as an ext4 project quota on
+        # the accounts filesystem; the helper refuses any path that is not one
+        # account folder directly under that filesystem.
+        quotaCommand: [sudo, -n, /usr/local/sbin/aeven-sandbox-quota, '5242880', '200000']
+        quotaRecord: /var/lib/aeven-sandbox/projects
+        modelNote: >-
+          Commands run in an isolated Linux sandbox without network access, so nothing can be
+          downloaded or installed (no pip, npm, apt, curl, or git clone). Installed: Python 3.12 with
+          numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, seaborn, sympy, pyarrow, openpyxl,
+          xlsxwriter, python-docx, python-pptx, pypdf, reportlab, pillow, beautifulsoup4, lxml, and
+          tabulate; Node.js 22 with lodash, dayjs, exceljs, docx, pptxgenjs, pdf-lib, papaparse, mathjs,
+          and marked. The working directory is this account's own folder, and files saved there stay
+          between commands and conversations. Files the user uploaded can be opened by commands at the
+          path shown with each upload. To give the user a chart, document, or spreadsheet, save it there
+          and list it in output_files; use read_image to look at an image you made.
         cgroup:
           # The unit's cgroup: the parent of the `host` group systemd starts this process in.
           root: !!js "process.env.AVN_HOSTED_SANDBOX === '1' ? '/sys/fs/cgroup' + process.getBuiltinModule('node:path').dirname(process.getBuiltinModule('node:fs').readFileSync('/proc/self/cgroup', 'utf8').trim().split('::')[1] ?? '/') : ''"
@@ -431,6 +480,14 @@
     mode: workspace-write
     ceiling: workspace-write
     workspaceRoot: !!js "(process.getBuiltinModule('node:fs').mkdirSync(avnHomePath('sandbox', 'unowned'), { recursive: true }), avnHomePath('sandbox', 'unowned'))"
+
+# Uploaded clips are untrusted media: ffprobe reads them inside a jail without
+# network that sees only /usr and the directory the clip is written to, capped
+# at 1 GiB of address space and 30 s of CPU.
+- id: document-extract-video
+  config:
+    probeDirectory: !!js "(process.getBuiltinModule('node:fs').mkdirSync(avnHomePath('sandbox', 'probe'), { recursive: true, mode: 0o700 }), avnHomePath('sandbox', 'probe'))"
+    probeRunner: !!js "process.platform === 'linux' ? ['/usr/bin/prlimit', '--as=1073741824', '--cpu=30', '--', '/usr/bin/bwrap', '--unshare-all', '--unshare-user', '--disable-userns', '--die-with-parent', '--new-session', '--clearenv', '--ro-bind', '/usr', '/usr', '--ro-bind', '/etc/alternatives', '/etc/alternatives', '--ro-bind', '/etc/ld.so.cache', '/etc/ld.so.cache', '--symlink', 'usr/lib', '/lib', '--symlink', 'usr/lib64', '/lib64', '--symlink', 'usr/bin', '/bin', '--proc', '/proc', '--dev', '/dev', '--ro-bind', avnHomePath('sandbox', 'probe'), avnHomePath('sandbox', 'probe'), '--'] : undefined"
 
 - id: tools
   config:

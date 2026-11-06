@@ -108,12 +108,14 @@ export class SidebarContentRegistry extends Service {
   }
 
   /**
-   * The launcher for a kind, when one has registered.
+   * The launcher for a kind, when one has registered and no pane answers the
+   * kind: a composed pane outranks a launcher, such as a desktop-handoff
+   * prompt, for the same kind.
    * @param kind - the content kind to resolve.
-   * @returns its launch action, or undefined while the kind has none.
+   * @returns its launch action, or undefined while the kind has none or a pane answers it.
    */
   launcher(kind: SidebarContentKind): SidebarContentLauncher | undefined {
-    return this.launchers.get(kind)
+    return this.entries.has(kind) ? undefined : this.launchers.get(kind)
   }
 
   /**

@@ -24,7 +24,7 @@ The right sidebar shows a session's content as pills — Files, Browser, Termina
 <a id="use-this-package"></a>
 ## Use this package
 
-Compose it wherever the right sidebar should offer content kinds. It needs `slots`, `locale`, and `layout`. `apply` starts the content registry as a plugin, registers `sidebar.right.body` and the frame's corner full screen toggle, and contributes its dictionaries; each content package then calls `ctx.sidebarContent.register(kind, Pane)` or `registerLauncher` from inside its own effect. The shown pills live under `avn.sidebar-right.surfaces` and the pre-pill single choice under `avn.sidebar-right.content`, one record per session.
+Compose it wherever the right sidebar should offer content kinds. It needs `slots`, `locale`, and `layout`. `apply` starts the content registry as a plugin, registers `sidebar.right.body` and the frame's corner full screen toggle, and contributes its dictionaries; each content package then calls `ctx.sidebarContent.register(kind, Pane)` or `registerLauncher` from inside its own effect; a registered pane outranks a launcher for the same kind. The shown pills live under `avn.sidebar-right.surfaces` and the pre-pill single choice under `avn.sidebar-right.content`, one record per session.
 
 -----
 

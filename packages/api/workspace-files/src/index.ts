@@ -57,6 +57,12 @@ export interface Config {
   readonly searchMaxDirectories: number
   /** Directory names a search never descends into. */
   readonly searchSkip: string[]
+  /**
+   * Whether file previews stay inside the workspace like listings and
+   * searches do (default false: a preview follows the file tools' read
+   * access). A Host whose readers must not see its own files sets true.
+   */
+  readonly confineReads?: boolean
   /** How long `sidebar_files` waits for the window showing the Session to open the explorer. */
   readonly showTimeoutMs: number
 }
@@ -129,6 +135,7 @@ export class WorkspaceFiles extends TypertRemoteService {
     searchMaxDirectories: z.number().step(1).min(1).default(5000),
     searchSkip: z.array(z.string()).default(['.git', 'node_modules']),
     showTimeoutMs: z.number().step(1).min(1).default(5_000),
+    confineReads: z.boolean().default(false),
   })
 
   /**
@@ -159,7 +166,9 @@ export class WorkspaceFiles extends TypertRemoteService {
         if (info === undefined) throw new Error(`No file or folder exists at "${path}"`)
         if (info.type === 'other') throw new Error(`"${path}" is neither a file nor a folder`)
         // The explorer lists only inside the workspace; a file preview follows read access, as `read` does.
-        if (info.type === 'directory' && !this.ctx.fs.contains(root, target)) throw new Error(`"${path}" is outside the workspace, which the explorer shows`)
+        if ((info.type === 'directory' || this.config.confineReads === true) && !this.ctx.fs.contains(root, target)) {
+          throw new Error(`"${path}" is outside the workspace, which the explorer shows`)
+        }
         const shownPath = info.type === 'directory' ? workspacePathOf(this.ctx.fs.fileUrl(root), this.ctx.fs.fileUrl(target)) : path
         const bounded = AbortSignal.any([exec.signal, AbortSignal.timeout(this.config.showTimeoutMs)])
         const unanswered = new Promise<WorkspaceFilesShowResult>((resolve) => {
@@ -221,7 +230,9 @@ export class WorkspaceFiles extends TypertRemoteService {
   async read(agent: Agent, path: string, signal: AbortSignal): Promise<WorkspaceFileText> {
     if (path.length === 0) throw new RemoteError('gateway/bad-request', 'path is required', {})
     const workspaceRoot = this.workspaceRootOf(agent)
-    const target = await this.ctx.fs.resolve(path, { cwd: workspaceRoot, signal })
+    const target = this.config.confineReads === true
+      ? await this.confine(await this.ctx.fs.resolve(workspaceRoot, { signal }), workspaceRoot, path, signal)
+      : await this.ctx.fs.resolve(path, { cwd: workspaceRoot, signal })
     const info = await this.ctx.fs.stat(target, signal)
     if (info === undefined) throw new RemoteError('workspace-file/not-found', `no entry at "${path}"`, { path })
     if (info.type !== 'file') {

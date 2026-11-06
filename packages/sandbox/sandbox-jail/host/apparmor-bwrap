@@ -1,0 +1,11 @@
+# /etc/apparmor.d/bwrap: lets bubblewrap create the user namespaces of the
+# Aeven sandbox jail while kernel.apparmor_restrict_unprivileged_userns stays
+# on for every other program. Load with: apparmor_parser -r /etc/apparmor.d/bwrap
+abi <abi/4.0>,
+include <tunables/global>
+
+profile bwrap /usr/bin/bwrap flags=(unconfined) {
+  userns,
+
+  include if exists <local/bwrap>
+}

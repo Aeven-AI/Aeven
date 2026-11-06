@@ -24,7 +24,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-当右侧栏需要提供内容种类时编排本插件。它需要 `slots`、`locale` 与 `layout`。`apply` 以插件形式启动内容注册表，注册 `sidebar.right.body` 与框架角落的全屏切换，并贡献其字典；随后每个内容包在自身的 effect 中调用 `ctx.sidebarContent.register(kind, Pane)` 或 `registerLauncher`。已显示的标签页保存在 `avn.sidebar-right.surfaces` 下，标签页之前的单一选择保存在 `avn.sidebar-right.content` 下，每个会话一条记录。
+当右侧栏需要提供内容种类时编排本插件。它需要 `slots`、`locale` 与 `layout`。`apply` 以插件形式启动内容注册表，注册 `sidebar.right.body` 与框架角落的全屏切换，并贡献其字典；随后每个内容包在自身的 effect 中调用 `ctx.sidebarContent.register(kind, Pane)` 或 `registerLauncher`；同一种类已注册的面板优先于启动器。已显示的标签页保存在 `avn.sidebar-right.surfaces` 下，标签页之前的单一选择保存在 `avn.sidebar-right.content` 下，每个会话一条记录。
 
 -----
 

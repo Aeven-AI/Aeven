@@ -481,6 +481,12 @@ export interface Config {
   readonly searchMaxDirectories: number
   /** Directory names a search never descends into. */
   readonly searchSkip: string[]
+  /**
+   * Whether file previews stay inside the workspace like listings and
+   * searches do (default false: a preview follows the file tools' read
+   * access). A Host whose readers must not see its own files sets true.
+   */
+  readonly confineReads?: boolean
   /** How long `sidebar_files` waits for the window showing the Session to open the explorer. */
   readonly showTimeoutMs: number
 }
@@ -1158,6 +1164,14 @@ export interface Config {
   ffprobePath: string
   /** Wall-clock limit for one probe before the reader falls back to file facts. */
   probeTimeoutMs: number
+  /** Directory each clip is written to for the probe; defaults to the OS temp directory. */
+  probeDirectory?: string
+  /**
+   * Argv the probe runs under, such as a bubblewrap jail that sees only
+   * `/usr` and {@link probeDirectory}; the `ffprobe` argv follows it. Omitted,
+   * `ffprobe` runs directly.
+   */
+  probeRunner?: string[]
 }
 ```
 
@@ -1420,12 +1434,21 @@ export interface Config {
 
 ```ts config-catalog
 /**
- * Plugin config: the local backend's knobs verbatim (`cwd` resolution default
- * and `diffBasisMaxBytes` overwrite-presentation bound). The sandbox default
- * (mode + `workspace-write` fallback root) is NOT here — `ctx.sandboxPolicy`
- * resolves each calling session for every enforcing capability.
+ * Plugin config: the local backend's knobs (`cwd` resolution default and
+ * `diffBasisMaxBytes` overwrite-presentation bound) plus read verification.
+ * The sandbox default (mode + `workspace-write` fallback root) is NOT here —
+ * `ctx.sandboxPolicy` resolves each calling session for every enforcing
+ * capability.
  */
-export type Config = LocalConfig
+export interface Config extends LocalConfig {
+  /**
+   * Read every file through a descriptor checked to be the resolved file
+   * (default false; Linux only). A Host whose confined processes share the
+   * directories its own readers serve sets true, so a path component swapped
+   * for a symlink between resolve and read cannot redirect the read.
+   */
+  verifyReads?: boolean
+}
 ```
 
 依赖：[`LocalConfig`](#aevenfs-local)
@@ -3380,6 +3403,40 @@ export interface Config {
   probeTimeoutMs?: number
   /** cgroup placement; omitted, confined commands stay in the Host's cgroup. */
   cgroup?: CgroupConfig
+  /**
+   * Host path of a BPF system-call filter bubblewrap installs before the
+   * command starts, such as one written by `host/seccomp-filter.c`; omitted,
+   * no filter applies. A missing file refuses every command.
+   */
+  seccompFilter?: string
+  /**
+   * Mount the attachments the calling conversation's user messages and tool
+   * results reference, read-only at their attachment-store paths, so a
+   * command can open an uploaded file at the path the model is given
+   * (default false). Attachments named only in model-written arguments are
+   * never mounted.
+   */
+  sessionAttachments?: boolean
+  /**
+   * Argv that limits one account folder's disk use, such as a root-owned
+   * helper through `sudo -n` that sets a filesystem project quota. It runs,
+   * with the folder appended, inside a command's own launch step before the
+   * jail starts, so it never blocks the Host; a failure refuses that command.
+   * Omitted, account folders have no limit of their own.
+   */
+  quotaCommand?: string[]
+  /**
+   * File the quota helper lists each limited account in, as `<id> <account>`
+   * lines; an account listed there skips the quota step. Omitted, every
+   * command runs the step.
+   */
+  quotaRecord?: string
+  /**
+   * System-prompt text describing what confined commands can use, such as
+   * having no network and which programs and libraries are installed; omitted,
+   * the jail adds nothing to the prompt.
+   */
+  modelNote?: string
 }
 
 /** cgroup placement for confined commands. */
@@ -4765,6 +4822,20 @@ export interface Config {
    * available and a job runtime is mounted; without one, foreground calls wait.
    */
   detachAfterMs?: number
+  /**
+   * Store each file a command lists in `output_files` and produces inside the
+   * session workspace as an attachment shown at the call: images inline,
+   * other files as downloads (default false). A declared path outside the
+   * workspace is then refused. For deployments whose readers cannot open the
+   * Host's folders; it requires `ctx.attachments`.
+   */
+  shareOutputFiles?: boolean
+  /** Most produced files one call shares (default 10); the rest are reported, not stored. */
+  shareMaxFiles?: number
+  /** Most bytes one call shares (default 100 MiB). */
+  shareMaxBytes?: number
+  /** Most bytes one conversation shares across its calls, counted from its log (default 500 MiB). */
+  shareMaxSessionBytes?: number
 }
 ```
 
@@ -4922,6 +4993,14 @@ export interface Config {
   readMaxBytes?: number
   /** Files at or above this size stream instead of loading whole into memory. */
   readStreamMinSize?: number
+  /**
+   * Refuse `read` and `read_image` targets outside the calling session's
+   * workspace, after symlinks resolve (default false). For a Host whose
+   * readers must not reach its other files.
+   */
+  confineToWorkspace?: boolean
+  /** Register `write` and `edit` (default true). */
+  mutations?: boolean
 }
 ```
 

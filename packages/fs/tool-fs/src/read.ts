@@ -33,6 +33,8 @@ export interface ReadToolCaps {
   maxBytes: number
   /** Files at or above this size stream; smaller files read whole into memory. */
   streamMinSize: number
+  /** Refuse files outside the calling session's workspace. */
+  confineToWorkspace?: boolean
 }
 
 /** Validated `read` arguments after defaulting. */
@@ -135,7 +137,7 @@ function readFileArgs(args: ReadToolArgs): ReadFileArgs[] {
 async function readWindow(ctx: Context, exec: ToolExecution, input: ReadInput, caps: ReadToolCaps): Promise<ReadWindowOutcome> {
   // One stat: absence observation OR type check + size routing + present version.
   // A concurrent write can only make a later guarded mutation fail stale and require reread.
-  const { target, info } = await resolveRegularReadTarget(ctx, exec, input.filePath)
+  const { target, info } = await resolveRegularReadTarget(ctx, exec, input.filePath, caps.confineToWorkspace === true)
 
   // Stream when the file is large OR size is unknown, so a size-less backend
   // never buffers an arbitrarily large file.

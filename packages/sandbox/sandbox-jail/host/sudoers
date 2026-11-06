@@ -1,0 +1,3 @@
+# /etc/sudoers.d/aeven-sandbox-quota (root:root 0440): the Host's user may run
+# only the quota helper as root.
+ubuntu ALL=(root) NOPASSWD: /usr/local/sbin/aeven-sandbox-quota

@@ -27,6 +27,7 @@
  */
 
 import { Context } from '@deepseek-ai/cordis'
+import z from '@deepseek-ai/schemastery'
 import { LocalFileSystem } from '@aeven/fs-local'
 import type { Config as LocalConfig } from '@aeven/fs-local'
 import { FsError } from '@aeven/fs'
@@ -35,14 +36,24 @@ import { writableRoots } from '@aeven/sandbox'
 import type { SandboxExecutionPolicy, SandboxMode } from '@aeven/sandbox'
 import type {} from '@aeven/sandbox-policy'
 import { isPathUnder } from './containment.ts'
+import { readVerified, streamVerified } from './verified-read.ts'
 
 /**
- * Plugin config: the local backend's knobs verbatim (`cwd` resolution default
- * and `diffBasisMaxBytes` overwrite-presentation bound). The sandbox default
- * (mode + `workspace-write` fallback root) is NOT here — `ctx.sandboxPolicy`
- * resolves each calling session for every enforcing capability.
+ * Plugin config: the local backend's knobs (`cwd` resolution default and
+ * `diffBasisMaxBytes` overwrite-presentation bound) plus read verification.
+ * The sandbox default (mode + `workspace-write` fallback root) is NOT here —
+ * `ctx.sandboxPolicy` resolves each calling session for every enforcing
+ * capability.
  */
-export type Config = LocalConfig
+export interface Config extends LocalConfig {
+  /**
+   * Read every file through a descriptor checked to be the resolved file
+   * (default false; Linux only). A Host whose confined processes share the
+   * directories its own readers serve sets true, so a path component swapped
+   * for a symlink between resolve and read cannot redirect the read.
+   */
+  verifyReads?: boolean
+}
 
 /**
  * Sandbox-enforcing filesystem backend. Registers as `ctx.fs` (loading it
@@ -55,10 +66,35 @@ export type Config = LocalConfig
 export class SandboxedFileSystem extends LocalFileSystem {
   static inject = ['sandboxPolicy']
 
+  // Inline schema call: the config catalog walks `static Config` statically.
+  static override Config: z<Config> = z.intersect([
+    LocalFileSystem.Config,
+    z.object({ verifyReads: z.boolean().default(false) }),
+  ])
+
   private readonly defaultMode: SandboxMode
+  private readonly verifyReads: boolean
   constructor(ctx: Context, config: Config) {
     super(ctx, config)
     this.defaultMode = ctx.sandboxPolicy.defaultMode
+    this.verifyReads = config.verifyReads ?? false
+    if (this.verifyReads && process.platform !== 'linux') throw new Error('fs-sandbox: verifyReads requires Linux')
+  }
+
+  override async readText(target: FsTarget, signal?: AbortSignal): Promise<string> {
+    return this.verifyReads ? readVerified(target, opened => super.readText(opened, signal)) : super.readText(target, signal)
+  }
+
+  override streamText(target: FsTarget, signal?: AbortSignal): Promise<AsyncIterable<string>> {
+    return this.verifyReads
+      ? Promise.resolve(streamVerified(target, opened => super.streamText(opened, signal)))
+      : super.streamText(target, signal)
+  }
+
+  override async readBytes(target: FsTarget, signal: AbortSignal | undefined, maxBytes: number): Promise<Uint8Array> {
+    return this.verifyReads
+      ? readVerified(target, opened => super.readBytes(opened, signal, maxBytes))
+      : super.readBytes(target, signal, maxBytes)
   }
 
   /** The deployment default mode — the capability fact the tool layer reads to advertise escalation. */

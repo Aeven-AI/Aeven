@@ -51,7 +51,7 @@ None of its own; requests keep whatever caching the remaining tools and the syst
 
 - **No quotas or rate limits for public sign-up** — request admission bounds concurrent streams per account and in total; it does not gate account creation, spend, or request frequency.
 - **Account data is not encrypted at rest** — each account's sessions, memory, and sync database live in its own directory under the deployment's home, readable by whoever operates the Host.
-- **Code runs only in the account's jail** — without `AVN_HOSTED_SANDBOX=1` a hosted session cannot run a command; with it, commands run without network or package installs, and file tools and the browser stay off.
+- **Code runs only in the account's jail** — without `AVN_HOSTED_SANDBOX=1` a hosted session cannot run a command; with it, commands run without network or package installs in a disk-limited account folder, the files they list as outputs are shown at the call, uploads are mounted read-only, the model can read files and images in that folder, and the Files sidebar shows it read-only, while file writes, file search, and the browser stay off.
 - **Images are served per session** — the deployment refuses fingerprint-only reads, so hosted images carry no cache-forever URL.
 - **Memory work is bounded, not isolated** — embeddings run in the Host process, so a large catch-up for one account still costs the others latency.
 

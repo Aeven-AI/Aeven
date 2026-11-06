@@ -54,6 +54,11 @@ Choose it for a multi-account Linux Host. Choose `avn-sandbox-local` for a perso
 | `env` | `PATH`, `LANG`, `TMPDIR`, one BLAS thread, headless matplotlib | The complete environment of confined commands; `HOME` is the account folder |
 | `tmpSizeMb` | `512` | Size bound of each of `/tmp` and `/dev/shm` |
 | `cgroup` | none | Delegated cgroup directory plus combined and per-account limits |
+| `quotaCommand` | none | Argv that limits the account folder's disk use, run with the folder appended in a command's own launch step until `quotaRecord` lists the account; a failure refuses that command |
+| `quotaRecord` | none | File the quota helper lists limited accounts in; omitted, every command runs the quota step |
+| `modelNote` | none | System-prompt text describing what commands can use |
+| `seccompFilter` | none | Host path of a BPF system-call filter bubblewrap installs; a missing file fails startup |
+| `sessionAttachments` | `false` | Mount the attachments the conversation's user messages and tool results reference, read-only at their store paths |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#aevensandbox-jail) is the exhaustive source for every accepted field and its JSDoc.
 
@@ -77,7 +82,9 @@ Each step runs once per machine, as root unless noted.
 
 3. Build the Landlock launcher in the deployed checkout, as the Host's user: `pnpm --dir native/landlock-run run build:native`.
 4. Run the Host in a systemd unit with `Delegate=yes` and `DelegateSubgroup=host`. systemd starts the Host in `<unit>/host`, and this provider creates `<unit>/jail/acct-<account>` beside it.
-5. Install the read-only programs and libraries commands may use under a path listed in `readOnlyPaths`, such as a Python virtual environment and a Node `node_modules` directory under `/opt/aeven-sandbox`. Precompile Python bytecode with `python3 -m compileall`, because the jail cannot write `.pyc` files and pandas then imports five times slower.
+5. Put `accountsRoot` on its own ext4 filesystem with project quotas, such as a loop image created with `mkfs.ext4 -O quota,project` and mounted `loop,prjquota,nosuid,nodev`, so commands cannot fill the Host's disk. A root-owned helper reached through `sudo -n` as `quotaCommand` gives each account folder a project id (`chattr -R +P -p <id>`) and a limit (`setquota -P`); a jailed process cannot change a project id.
+6. Write the system-call filter with [`host/seccomp-filter.c`](host/seccomp-filter.c) (`cc -O2 -o seccomp-filter seccomp-filter.c -lseccomp`) and name its output in `seccompFilter`.
+7. Install the read-only programs and libraries commands may use under a path listed in `readOnlyPaths`, such as a Python virtual environment and a Node `node_modules` directory under `/opt/aeven-sandbox`. Precompile Python bytecode with `python3 -m compileall`, because the jail cannot write `.pyc` files and pandas then imports five times slower.
 
 ### Failures and recovery
 
@@ -103,6 +110,10 @@ Startup fails loud when the launcher cannot enforce Landlock, when bubblewrap ca
 ### One call
 
 `confine()` canonicalizes the workspace root, takes the account from its first path component under `accountsRoot`, and builds `bwrap … -- /run/aeven/landlock-run … -- <argv>`. With cgroups configured, a `/bin/sh` step first moves itself into the account's group and then `exec`s bubblewrap, so the jail and everything it starts are counted there. A failed move exits 125 with a `sandbox-jail:` line, which consumers classify as a runner failure.
+
+### Host files
+
+[`host/`](host/) holds what the setup steps install: the AppArmor profile, the systemd drop-in, the quota helper with its sudoers rule, and the system-call filter source. The quota helper reads the accounts root from the root-owned `/etc/aeven-sandbox/accounts-root`, so a caller cannot choose the tree it limits.
 
 ### Two barriers
 
@@ -142,7 +153,8 @@ No direct invalidation; the named consumers own any request-prefix changes.
 - **Every command starts its interpreter** — a Python command pays its imports (about 0.4 s for pandas) on each call; a preloaded interpreter that forks per command is deferred.
 - **Commands spawn from the Host process** — forking a large Host costs milliseconds per command; spawning from a small executor process is deferred.
 - **Managed `AVN_*` variables do not reach commands** — the jail sets the complete environment from `env`.
-- **No system-call filter** — the jail relies on namespaces, dropped capabilities, `no_new_privs`, and Landlock; a seccomp filter is deferred.
+- **The system-call filter is a deny list** — it refuses mount, namespace, tracing, keyring, BPF, module, and handle calls and hides `io_uring` and `clone3`; everything else stays allowed, and the namespaces, dropped capabilities, `no_new_privs`, and Landlock remain the main barriers.
+- **Extra writable roots stay inside the account** — a root a command can influence, such as a linked git worktree's shared directory, is left out when it lies outside the account folder.
 
 <a id="dev-note"></a>
 ### Dev Note

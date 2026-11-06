@@ -10,12 +10,13 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { isAbsolute, resolve as resolvePath } from 'node:path'
+import { isAbsolute, relative, resolve as resolvePath } from 'node:path'
 import { defineTool, TOOL_ABORTED } from '@aeven/tools'
 import type { GenericCallView, TerminalCallView, ToolExecution, ToolResult, ToolResultView } from '@aeven/tools'
 import { HarnessError } from '@aeven/llm'
 import type { Agent } from '@aeven/agent'
-import type {} from '@aeven/fs'
+import type { FsTarget } from '@aeven/fs'
+import type { FileAttachmentRef, ImageAttachmentRef } from '@aeven/attachment'
 import type { JobId, JobRegistry } from '@aeven/jobs'
 import { sessionDirectory } from '@aeven/working-directory'
 import type {} from '@aeven/user-approval'
@@ -27,6 +28,7 @@ import { AVN_ENV_PREFIX, isDetachedRun } from '@aeven/shell'
 import type { ShellProcess, ShellRunResult } from '@aeven/shell'
 import { processOutcome, processSources } from './background.ts'
 import { BACKGROUND_ACK, parseExitStatus, renderResult } from './render.ts'
+import { sharedBytesOf, shareOutputs, type SharedOutputs } from './share.ts'
 
 export const name = 'tool-bash'
 export const inject = ['tools', 'shell', 'systemPrompt', 'shellEnv']
@@ -44,13 +46,86 @@ export interface Config {
    * available and a job runtime is mounted; without one, foreground calls wait.
    */
   detachAfterMs?: number
+  /**
+   * Store each file a command lists in `output_files` and produces inside the
+   * session workspace as an attachment shown at the call: images inline,
+   * other files as downloads (default false). A declared path outside the
+   * workspace is then refused. For deployments whose readers cannot open the
+   * Host's folders; it requires `ctx.attachments`.
+   */
+  shareOutputFiles?: boolean
+  /** Most produced files one call shares (default 10); the rest are reported, not stored. */
+  shareMaxFiles?: number
+  /** Most bytes one call shares (default 100 MiB). */
+  shareMaxBytes?: number
+  /** Most bytes one conversation shares across its calls, counted from its log (default 500 MiB). */
+  shareMaxSessionBytes?: number
 }
 
 /** Runtime configuration schema for the bash tool plugin. */
 export const Config: z<Config> = z.object({
   enableRunInBackground: z.boolean().default(true),
   detachAfterMs: z.number().default(DEFAULT_DETACH_AFTER_MS),
+  shareOutputFiles: z.boolean().default(false),
+  shareMaxFiles: z.natural().min(1).default(10),
+  shareMaxBytes: z.natural().min(1).default(100 * 1024 * 1024),
+  shareMaxSessionBytes: z.natural().min(1).default(500 * 1024 * 1024),
 })
+
+/* jscpd:ignore-start -- the attachment-reference fields @aeven/tool-fs and @aeven/tool-media declare for their own results */
+/** Output schema of one image attachment shared at the call. */
+const SHARED_IMAGE_SCHEMA = {
+  type: 'object', additionalProperties: false,
+  properties: {
+    attachmentId: { type: 'string', required: true },
+    mediaType: { type: 'string', required: true },
+    bytes: { type: 'integer', required: true },
+    width: { type: 'integer', required: true },
+    height: { type: 'integer', required: true },
+    name: { type: 'string' },
+    originalDimensions: {
+      type: 'object', additionalProperties: false,
+      properties: { width: { type: 'integer', required: true }, height: { type: 'integer', required: true } },
+    },
+  },
+} as const
+
+/** Output schema of one file attachment shared at the call. */
+const SHARED_FILE_SCHEMA = {
+  type: 'object', additionalProperties: false,
+  properties: {
+    attachmentId: { type: 'string', required: true },
+    mediaType: { type: 'string', required: true },
+    bytes: { type: 'integer', required: true },
+    name: { type: 'string', required: true },
+    extraction: {
+      type: 'object', required: true, additionalProperties: false,
+      properties: {
+        textId: { type: 'string', required: true },
+        chars: { type: 'integer', required: true },
+        method: { type: 'string', required: true },
+        extractor: { type: 'string', required: true },
+        truncated: { type: 'boolean', required: true },
+        pages: { type: 'integer' },
+      },
+    },
+  },
+} as const
+/* jscpd:ignore-end */
+
+/**
+ * The text a shared result adds for the model: what the reader already sees,
+ * and which produced files were left out.
+ */
+function sharedText(shared: Pick<SharedOutputs, 'images' | 'files' | 'unshared'>): string {
+  const lines: string[] = []
+  const shown = shared.images.length + shared.files.length
+  if (shown > 0) {
+    lines.push(`Shared ${String(shown)} produced file(s) with the user at this call (images inline, other files as downloads); do not repeat or embed them in your reply.`)
+  }
+  for (const entry of shared.unshared) lines.push(`Not shared: ${entry.path} — ${entry.reason}`)
+  return lines.join('\n')
+}
 
 /** Parsed tool args; execute validates value constraints absent from ParameterSchemaSpec. */
 interface BashToolArgs {
@@ -233,6 +308,7 @@ const BACKGROUND_OUTPUT_PROPERTIES = {
 
 export function apply(ctx: Context, config: Config = {}): void {
   const backgroundEnabled = config.enableRunInBackground ?? true
+  const shareOutputFiles = config.shareOutputFiles ?? false
   const detachAfterMs = config.detachAfterMs ?? DEFAULT_DETACH_AFTER_MS
   if (!Number.isFinite(detachAfterMs) || detachAfterMs <= 0) {
     throw new Error('tool-bash: detachAfterMs must be a positive finite number')
@@ -342,7 +418,9 @@ export function apply(ctx: Context, config: Config = {}): void {
       workdir: { type: 'string', description: 'Working directory for this command. Defaults to the session workspace; a relative path is resolved against it.' },
       output_files: {
         type: 'array', items: { type: 'string' },
-        description: 'For commands generating deliverables (PDF, DOCX, spreadsheets, images, etc.), list every output path here. Paths resolve against workdir. Verified new or changed files appear in the created/edited-files block. Requires foreground execution.',
+        description: 'For commands generating deliverables (PDF, DOCX, spreadsheets, images, etc.), list every output path here. Paths resolve against workdir. Verified new or changed files appear in the created/edited-files block'
+          + (shareOutputFiles ? ' and are shown to the user at this call: images inline, other files as downloads' : '')
+          + '. Requires foreground execution.',
       },
       ...backgroundEnabled ? {
         run_in_background: { type: 'boolean' as const, description: 'Run in the background and return a job id immediately (collect with job_output, stop with job_kill). No timeout applies.' },
@@ -387,6 +465,14 @@ export function apply(ctx: Context, config: Config = {}): void {
                   },
                 },
               },
+              sharedImages: { type: 'array', items: SHARED_IMAGE_SCHEMA },
+              sharedFiles: { type: 'array', items: SHARED_FILE_SCHEMA },
+              unsharedFiles: {
+                type: 'array', items: {
+                  type: 'object', additionalProperties: false,
+                  properties: { path: { type: 'string', required: true }, reason: { type: 'string', required: true } },
+                },
+              },
               stdout: {
                 type: 'object',
                 additionalProperties: false,
@@ -421,14 +507,28 @@ export function apply(ctx: Context, config: Config = {}): void {
           },
         ],
       },
-      render: (_args, value) => [{
-        type: 'text',
-        text: value.kind === 'background'
-          ? value.detached === true
-            ? `${BACKGROUND_ACK}${value.jobId}: still running after ${value.detachAfterMs}ms in the foreground`
-            : `${BACKGROUND_ACK}${value.jobId}`
-          : renderResult(value as { kind: 'foreground' } & ShellRunResult, escalationModes),
-      }],
+      render: (_args, value) => {
+        if (value.kind === 'background') {
+          return [{
+            type: 'text',
+            text: value.detached === true
+              ? `${BACKGROUND_ACK}${value.jobId}: still running after ${value.detachAfterMs}ms in the foreground`
+              : `${BACKGROUND_ACK}${value.jobId}`,
+          }]
+        }
+        const text = renderResult(value as { kind: 'foreground' } & ShellRunResult, escalationModes)
+        if (value.sharedImages === undefined && value.sharedFiles === undefined && value.unsharedFiles === undefined) {
+          return [{ type: 'text', text }]
+        }
+        // The value round-trips through its JSON schema; the stored references keep their branded shapes.
+        const images = (value.sharedImages ?? []) as unknown as ImageAttachmentRef[]
+        const files = (value.sharedFiles ?? []) as unknown as FileAttachmentRef[]
+        return [
+          { type: 'text', text: `${text}\n${sharedText({ images, files, unshared: value.unsharedFiles ?? [] })}` },
+          ...images.map(attachment => ({ type: 'image' as const, attachment })),
+          ...files.map(attachment => ({ type: 'file' as const, attachment })),
+        ]
+      },
       presentationMeta: (_args, value) => value.kind === 'foreground' && value.producedFiles !== undefined
         ? { producedFiles: value.producedFiles }
         : {},
@@ -459,20 +559,45 @@ export function apply(ctx: Context, config: Config = {}): void {
       if (args.output_files?.length) {
         const fs = ctx.get('fs')
         if (fs === undefined) throw new Error('output_files requires a filesystem provider')
+        // A deployment that shares outputs serves readers who must not learn about the Host's
+        // other files, so a declared path outside the workspace is refused before any lookup.
+        const sharingRoot = standingPolicy?.workspaceRoot ?? workdir
+        const root = shareOutputFiles && sharingRoot !== undefined ? await fs.resolve(sharingRoot, { signal: exec.signal }) : undefined
         const outputs = await Promise.all([...new Set(args.output_files)].map(async (path) => {
           const target = await fs.resolve(path, { ...workdir === undefined ? {} : { cwd: workdir }, signal: exec.signal })
+          if (root !== undefined && !fs.contains(root, target)) throw new Error(`output_files: "${path}" is outside the conversation folder`)
           return { path, before: await fs.stat(target, exec.signal) }
         }))
         const result = finishForeground(await ctx.shell.run(ctx.shell.resolve({ ...request, signal: exec.signal })))
         const producedFiles: { path: string; created: boolean }[] = []
+        const producedTargets: FsTarget[] = []
         for (const output of outputs) {
           const target = await fs.resolve(output.path, { ...workdir === undefined ? {} : { cwd: workdir }, signal: exec.signal })
+          // The command may have replaced a declared path with a symlink out of the workspace.
+          if (root !== undefined && !fs.contains(root, target)) continue
           const after = await fs.stat(target, exec.signal)
           if (after?.type === 'file' && after.version !== output.before?.version) {
-            producedFiles.push({ path: target.displayPath, created: output.before === undefined })
+            // Readers of a sharing deployment know the conversation folder, not the Host's paths.
+            const path = root === undefined ? target.displayPath : relative(root.displayPath, target.displayPath)
+            producedFiles.push({ path, created: output.before === undefined })
+            producedTargets.push(target)
           }
         }
-        return { ...result, producedFiles }
+        if (root === undefined || producedTargets.length === 0) return { ...result, producedFiles }
+        const attachments = ctx.get('attachments')
+        if (attachments === undefined) throw new Error('tool-bash: shareOutputFiles requires an attachment store')
+        const sessionBytes = exec.agent === undefined ? 0 : sharedBytesOf(exec.agent.session.snapshotEvents())
+        const shared = await shareOutputs(attachments, fs, root, producedTargets, exec.signal, {
+          files: config.shareMaxFiles ?? 10,
+          bytes: Math.min(config.shareMaxBytes ?? 100 * 1024 * 1024, (config.shareMaxSessionBytes ?? 500 * 1024 * 1024) - sessionBytes),
+        })
+        return {
+          ...result,
+          producedFiles,
+          ...shared.images.length > 0 ? { sharedImages: shared.images } : {},
+          ...shared.files.length > 0 ? { sharedFiles: shared.files } : {},
+          ...shared.unshared.length > 0 ? { unsharedFiles: shared.unshared } : {},
+        }
       }
       if (args.run_in_background === true) {
         // Undeclared keys are allowed, so schema omission also needs enforcement.
