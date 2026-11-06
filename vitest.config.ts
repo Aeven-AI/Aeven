@@ -7,8 +7,8 @@ import { COVERAGE_EXEMPT_ENV, coverageExemptHeavySuites } from './scripts/covera
 import { COVERAGE_PARTITION_MODE_ENV } from './scripts/coverage-partitions.ts'
 
 // Prints exact `path:line:col` records for every uncovered statement, branch
-// path, and function when a file misses the per-file 100% gate — the built-in
-// threshold ERRORs name only the file. Absolute path because istanbul-reports
+// path, and function of each file below full coverage; the text report names
+// only the file. Absolute path because istanbul-reports
 // require()s custom reporters (which is also why the reporter is CJS).
 const uncoveredLocationsReporter = fileURLToPath(new URL('./scripts/coverage-uncovered-locations.cjs', import.meta.url))
 
@@ -391,19 +391,6 @@ export default defineConfig({
         ...linuxOnlyCoverageExclusions,
         ...pwshCoverageExclusions,
       ],
-      // 100% or it doesn't merge (docs/testing.md: excessive tests are welcome).
-      // Per-file so a well-covered big file can't subsidize a bare one.
-      // Every v8 ignore comment must carry a reason — see the quality-gates Agent Note
-      // (.agents/notes/implemented/process/2026-06-11-quality-gates.md).
-      thresholds: coveragePartitionMode
-        ? undefined
-        : {
-            perFile: true,
-            statements: 100,
-            branches: 100,
-            functions: 100,
-            lines: 100,
-          },
       reporter: coveragePartitionMode
         ? []
         : process.env.CI

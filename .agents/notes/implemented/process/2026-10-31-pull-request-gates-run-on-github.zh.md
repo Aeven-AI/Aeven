@@ -13,7 +13,7 @@ Status: implemented
 - **`.github/workflows/ci.yml` 运行三条 lane**：每个进入 `main` 的 pull request、每个 merge queue 条目，以及手动触发，各以 Node 24 运行一个作业：`static` 与 `types-lint` 在 `ubuntu-latest`，`build-verify` 在 `macos-latest`。
 - **`build-verify` 只构建一次工作区**，然后运行所有读取构建产物的门禁：`publint`、NodeNext 消费方类型、已构建包的 invariant，以及无密钥的录制会话回放。回放读取的是本平台的沙箱与进程树行为，因此该作业跑在 macOS 上。
 - **`main` ruleset 要求这三个作业名**——`static`、`types-lint`、`build-verify`——与既有的 pull request、删除、非快进规则并列。
-- **覆盖率留在本地。** `pnpm run test:coverage` 仍是本仓库的门禁覆盖率运行，不进入每次推送的路径：在插桩下逐文件 100% 是矩阵中最慢的 lane，而一个因 runner 容量而非改动本身失败的 lane 只会让贡献者学会忽略该检查。
+- **覆盖率留在本地。** `pnpm run test:coverage` 不进入每次推送的路径：插桩是矩阵中最慢的 lane，而一个因 runner 容量而非改动本身失败的 lane 只会让贡献者学会忽略该检查。它不要求任何百分比（[覆盖率是报告](2026-11-06-coverage-is-a-report.zh.md)）。
 - **其余 lane 同样留在本地**：`check:ci:consumers`（Node 22.19/24/26 兼容性、浏览器 web 快照、doc typecheck）、各 Windows lane、`pnpm run test:e2e`（需要 `DEEPSEEK_API_KEY`，来自 fork 的 pull request 永远拿不到），以及所有文档门禁，它们按政策仅供参考。
 - **重复代码检查与快照回放只报告，不阻塞。** `main` 上仍开着六处克隆，分布在各个包的 `sync.ts` 模块里；此外若干 headless 夹具早于工作目录提示段落，两者都需要一个共享 helper 或一次带密钥的 `test:snapshot:record` 才能成为合并门禁，而 `ci-primary` 仍会因它们失败。
 - **文档门禁在同一个进程里运行。** `pnpm run doc-gates` 在 `static` lane 内用一个 Node 进程执行工作区约束与 Markdown 换行检查，而不是各起一个 `pnpm run` 子进程。

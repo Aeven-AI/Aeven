@@ -591,9 +591,9 @@ function lintGate(options: { needs?: string[] } = {}): Gate {
   })
 }
 
-// The heavy suites run uninstrumented beside the thresholded gate: their
+// The heavy suites run uninstrumented beside the coverage run: their
 // compiler- and subprocess-bound fixtures pay a multiple of their runtime
-// under v8 instrumentation while contributing nothing the thresholds need
+// under v8 instrumentation while contributing nothing the report measures
 // (membership rules in scripts/coverage-exempt.ts).
 //
 // AVN_COVERAGE_MAX_WORKERS is the ordinary lane's worker budget, so the two
