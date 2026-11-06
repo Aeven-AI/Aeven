@@ -6,6 +6,7 @@
  */
 import { Context, Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
+import type { SandboxExecutionPolicy } from '@aeven/sandbox'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -30,6 +31,11 @@ export interface MotionRenderRequest {
   readonly quality?: MotionQuality
   /** Evenly spaced stills to return with the film; omitted, none. */
   readonly stills?: number
+  /**
+   * The calling session's sandbox policy. A renderer that runs inside the account's sandbox requires it and keeps
+   * every path inside its workspace root; a renderer on the Host's own machine ignores it.
+   */
+  readonly sandboxPolicy?: SandboxExecutionPolicy
 }
 
 /** A fully resolved render: every field the renderer reads is present. */
@@ -39,6 +45,8 @@ export interface MotionRenderInput {
   readonly fps: MotionFps
   readonly quality: MotionQuality
   readonly stills: number
+  /** The calling session's sandbox policy, as {@link MotionRenderRequest.sandboxPolicy} describes. */
+  readonly sandboxPolicy?: SandboxExecutionPolicy
 }
 
 /** One PNG frame taken from the finished film. */
@@ -161,6 +169,7 @@ export default class Motion extends Service {
       fps: request.fps ?? this.config.fps,
       quality: request.quality ?? this.config.quality,
       stills: request.stills ?? 0,
+      ...request.sandboxPolicy === undefined ? {} : { sandboxPolicy: request.sandboxPolicy },
     }
   }
 

@@ -1,4 +1,4 @@
-# Agent Note：托管 Web 上的实时动态影片播放器
+# Agent Note：托管 Web 上的动态影片
 
 Status: implemented
 
@@ -10,16 +10,16 @@ Status: implemented
 
 ## 决定
 
-托管挂载 `ctx.motion` 与 [`avn-motion-preview`](../../../../packages/motion/motion-preview/README.zh.md)，这是一个只打包的渲染器：它经由 `ctx.fs` 复制合成文件夹，只保留解析后目标位于该文件夹内的文件，并返回 HyperFrames 的单文档打包结果。`show_motion` 把该文档随调用存储，卡片从附件播放它，与它在账户其他设备上的做法相同。`avn-tool-motion` 新增 `render: false`，去掉静帧与 `render_motion`，并讲授只展示的流程；`avn-api-motion` 新增 `folderRoutes: false`，因为其文件夹路由读取任意 Host 绝对路径。托管关闭 `bash-edit-guard`，模型说明把影片交给 motion 技能，`render-motion` 只用于用户要求的 MP4。
+托管挂载 `ctx.motion` 与 [`avn-motion-sandbox`](../../../../packages/motion/motion-sandbox/README.zh.md)。其 `bundle()` 经由 `ctx.fs` 复制合成文件夹，只保留解析后目标位于该文件夹内的文件，并返回 HyperFrames 的单文档打包结果；`show_motion` 把该文档随调用存储，卡片从附件播放它。其 `render()` 在调用会话的沙箱策略下把同一文档通过管道送入 jail 的 `render-motion`；该策略由 `MotionRenderRequest.sandboxPolicy` 从 `avn-tool-motion` 以及 `avn-api-motion` 的 `POST /api/motion/export-call` 带入。`render-motion` 通过 HyperFrames 合成自身运行时的播放器（`__player.renderSeek`）逐帧推进，因此 MP4 与审阅静帧都与实时影片一致。卡片在没有可指明的文件夹时经由该调用路由导出；路由从调用方自己的日志取得文件夹，渲染超过 `exportWaitMs` 时回答 202，并返回 MP4 字节。`avn-api-motion` 的 `folderRoutes: false` 关闭读取任意 Host 绝对路径的路由，托管关闭 `bash-edit-guard`，模型说明把影片交给 motion 技能。
 
 ## 考虑过的替代方案
 
-在 Host 上用 HyperFrames 渲染器生成静帧与导出被否决：它会在账户 jail 之外用 Chromium 运行模型编写的页面。在 jail 内运行 HyperFrames 渲染被推迟：`render-motion` 驱动页面的 GSAP 全局时间线，而合成需要 HyperFrames 运行时自身的定位，且 `ctx.motion` 收不到用于选择账户 jail 的会话。
+在 Host 上用 HyperFrames 渲染器渲染被否决：它会在账户 jail 之外用 Chromium 运行模型编写的页面。把打包文档写入账户文件夹供 jail 读取被否决：Host 侧写入可能跟随命令放置的符号链接，因此打包文档经由命令的标准输入传递。
 
 ## 影响
 
-托管影片可实时播放与拖动；模型不审阅静帧，卡片菜单下载打包后的页面而非 MP4。打包在 Host 上读取账户文件夹，采用与托管读取工具相同的先解析后读取的包含检查。
+沙箱镜像必须带有读取标准输入并以 JSON 回答的 `render-motion`，由 `host/install-motion.sh` 安装。渲染在账户的 CPU 与内存限制下运行，1080p30 时约为影片时长的三倍。审阅影片写在合成的 `renders/.review.mp4`，每次审阅都会替换它，因为渲染器只能在工作区内写入。
 
 ## 验证
 
-经由 `fs-local`、`motion` 与 `motion-preview` 打包一个合成时，场景与运行时均被内联，经由指向其他文件夹的符号链接到达的文件以及 `renders/` 下 80 MB 的文件被排除，且 `render()` 拒绝。
+经由 `fs-local`、`motion` 与该渲染器打包一个合成时，场景与运行时均被内联，经由指向其他文件夹的符号链接到达的文件以及 `renders/` 下 80 MB 的文件被排除。`render-motion - out.mp4 --stills 3 --json` 在 18 秒内把一个桌面制作的 6 秒合成的打包文档渲染为 1920×1080、6.00 秒的 H.264 MP4，1、3、5 秒处的静帧显示柱形处于脚本设定的高度。

@@ -431,7 +431,7 @@
       "@aeven/message-feedback": ["./packages/feedback/message-feedback/src"],
       "@aeven/motion": ["./packages/motion/motion/src"],
       "@aeven/motion-hyperframes": ["./packages/motion/motion-hyperframes/src"],
-      "@aeven/motion-preview": ["./packages/motion/motion-preview/src"],
+      "@aeven/motion-sandbox": ["./packages/motion/motion-sandbox/src"],
       "@aeven/native-command": ["./packages/util/native-command/src"],
       "@aeven/output-retention": ["./packages/util/output-retention/src"],
       "@aeven/permission-presets": ["./packages/interaction/permission-presets/src"],

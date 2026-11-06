@@ -622,10 +622,10 @@ const TOOL_PACKAGES: ToolPackage[] = [
       await ctx.plugin(CatalogAttachmentStore)
       await ctx.plugin(LocalFileSystem)
       await ctx.plugin(Motion, {})
-      await ctx.plugin(ToolMotion, { maxStills: 8, render: true })
+      await ctx.plugin(ToolMotion, { maxStills: 8 })
     },
     note:
-      'The catalog mounts the service without a renderer; the schemas do not depend on one. The desktop Host mounts the HyperFrames renderer; hosted Web mounts the preview renderer with `render: false`, so it offers `show_motion` without `stills` and no `render_motion`. `show_motion` hands the card the composition folder, which it plays live and exports; `render_motion` stores the film through `ctx.attachments`, so the conversation plays it at the call.',
+      'The catalog mounts the service without a renderer; the schemas do not depend on one. The desktop Host mounts the HyperFrames renderer; hosted Web mounts the sandbox renderer, which renders inside the calling account\'s jail. `show_motion` hands the card the composition folder, which it plays live and exports; `render_motion` stores the film through `ctx.attachments`, so the conversation plays it at the call.',
   },
   {
     pkg: '@aeven/tool-working-directory',

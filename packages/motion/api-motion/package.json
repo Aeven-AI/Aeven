@@ -34,7 +34,9 @@
     "@aeven/api-session-controller": "workspace:^",
     "@aeven/brand": "workspace:^",
     "@aeven/client-connection": "workspace:^",
+    "@aeven/fs": "workspace:^",
     "@aeven/motion": "workspace:^",
+    "@aeven/sandbox-policy": "workspace:^",
     "@aeven/session": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
@@ -42,7 +44,9 @@
     "@aeven/api-session-controller": "workspace:^",
     "@aeven/brand": "workspace:^",
     "@aeven/client-connection": "workspace:^",
+    "@aeven/fs": "workspace:^",
     "@aeven/motion": "workspace:^",
+    "@aeven/sandbox-policy": "workspace:^",
     "@aeven/session": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   }

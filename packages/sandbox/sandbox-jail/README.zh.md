@@ -85,7 +85,7 @@ kind: "package-reference"
 5. 把 `accountsRoot` 放在带项目配额的独立 ext4 文件系统上，例如用 `mkfs.ext4 -O quota,project` 创建、以 `loop,prjquota,nosuid,nodev` 挂载的 loop 镜像，使命令无法占满 Host 的磁盘。以 `quotaCommand` 通过 `sudo -n` 调用的 root 所有的辅助程序为每个账户文件夹分配项目 id（`chattr -R +P -p <id>`）和限额（`setquota -P`）；监狱中的进程无法更改项目 id。
 6. 用 [`host/seccomp-filter.c`](host/seccomp-filter.c) 生成系统调用过滤器（`cc -O2 -o seccomp-filter seccomp-filter.c -lseccomp`），并在 `seccompFilter` 中填写其输出路径。
 7. 把命令可用的只读程序和库安装到 `readOnlyPaths` 列出的路径下，例如 `/opt/aeven-sandbox` 下的 Python 虚拟环境和 Node `node_modules` 目录。用 `python3 -m compileall` 预编译 Python 字节码，因为监狱无法写入 `.pyc` 文件，否则 pandas 的导入会慢五倍。
-8. 如需动画和视频，以 root 身份运行 [`host/install-motion.sh`](host/install-motion.sh)。它安装无头 Chromium（`playwright-core`）、GSAP 和开放许可字体（SIL Open Font License 下的 Google Sans Flex 等 Google Fonts 字体族，以及覆盖所有文字、CJK 和彩色 emoji 的 Noto），并把 `render-motion` 放入镜像的 `bin`。`render-motion page.html film.mp4` 逐帧推进页面的 GSAP 时间线或其 `window.seek(seconds)`，再用 ffmpeg 编码这些帧；它用已安装的副本响应 CDN 上的 GSAP 请求，其他请求一律失败。在 `readOnlyPaths` 中列出 `/var/cache/fontconfig`，并在 `env` 中设置 `PLAYWRIGHT_BROWSERS_PATH`。
+8. 如需动画和视频，以 root 身份运行 [`host/install-motion.sh`](host/install-motion.sh)。它安装无头 Chromium（`playwright-core`）、GSAP 和开放许可字体（SIL Open Font License 下的 Google Sans Flex 等 Google Fonts 字体族，以及覆盖所有文字、CJK 和彩色 emoji 的 Noto），并把 `render-motion` 放入镜像的 `bin`。`render-motion page.html film.mp4` 通过 HyperFrames 合成自身运行时的播放器逐帧推进它，否则逐帧推进页面的 GSAP 时间线或其 `window.seek(seconds)`，再用 ffmpeg 的 libx264 编码这些帧；页面为 `-` 时从标准输入读取，`--stills` 与 `--json` 以一行 JSON 返回均匀分布的帧与影片信息，供 [`avn-motion-sandbox`](../../motion/motion-sandbox/README.zh.md) 读取。更新 `render-motion` 后需重新运行该脚本；它用已安装的副本响应 CDN 上的 GSAP 请求，其他请求一律失败。在 `readOnlyPaths` 中列出 `/var/cache/fontconfig`，并在 `env` 中设置 `PLAYWRIGHT_BROWSERS_PATH`。
 
 ### 失败与恢复
 

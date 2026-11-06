@@ -1,6 +1,6 @@
 {
-  "name": "@aeven/motion-preview",
-  "description": "Motion renderer that bundles compositions for the live player and renders no films, for Hosts that must not run Chromium",
+  "name": "@aeven/motion-sandbox",
+  "description": "Motion renderer that bundles compositions for the live player and renders films inside the calling account's sandbox",
   "version": "0.3.35-alpha",
   "publishConfig": {
     "access": "public"
@@ -8,7 +8,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Aeven-AI/Aeven.git",
-    "directory": "packages/motion/motion-preview"
+    "directory": "packages/motion/motion-sandbox"
   },
   "type": "module",
   "main": "lib/index.js",
@@ -33,11 +33,13 @@
   "peerDependencies": {
     "@aeven/fs": "workspace:^",
     "@aeven/motion": "workspace:^",
+    "@aeven/shell": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
     "@aeven/fs": "workspace:^",
     "@aeven/motion": "workspace:^",
+    "@aeven/shell": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   }
 }

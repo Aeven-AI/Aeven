@@ -362,7 +362,7 @@ flowchart TD
     pkg_api_motion["api-motion"]
     pkg_motion["motion"]
     pkg_motion_hyperframes["motion-hyperframes"]
-    pkg_motion_preview["motion-preview"]
+    pkg_motion_sandbox["motion-sandbox"]
     pkg_tool_motion["tool-motion"]
   end
   subgraph group_preset["packages/preset"]
@@ -531,7 +531,6 @@ flowchart TD
   pkg_anonymous_user_id --> pkg_home_paths
   pkg_lsp --> pkg_brand
   pkg_lsp --> pkg_llm
-  pkg_motion_hyperframes --> pkg_motion
   pkg_api_text_to_speech --> pkg_text_to_speech
   pkg_api_text_to_speech --> pkg_typert_protocol
   pkg_text_to_speech_edge --> pkg_text_to_speech
@@ -647,6 +646,7 @@ flowchart TD
   pkg_message_feedback --> pkg_storage_domain
   pkg_message_feedback --> pkg_sync
   pkg_message_feedback --> pkg_typert_protocol
+  pkg_motion --> pkg_sandbox
   pkg_sandbox_jail --> pkg_attachment
   pkg_sandbox_jail --> pkg_sandbox
   pkg_sandbox_jail --> pkg_session
@@ -808,8 +808,10 @@ flowchart TD
   pkg_media_aeven --> pkg_session
   pkg_memory --> pkg_agent
   pkg_memory --> pkg_session
-  pkg_motion_preview --> pkg_fs
-  pkg_motion_preview --> pkg_motion
+  pkg_motion_hyperframes --> pkg_motion
+  pkg_motion_sandbox --> pkg_fs
+  pkg_motion_sandbox --> pkg_motion
+  pkg_motion_sandbox --> pkg_shell
   pkg_personalization --> pkg_agent
   pkg_personalization --> pkg_identity_user
   pkg_personalization --> pkg_scope
@@ -1536,11 +1538,14 @@ flowchart TD
   pkg_api_motion --> pkg_api_session_controller
   pkg_api_motion --> pkg_brand
   pkg_api_motion --> pkg_client_connection
+  pkg_api_motion --> pkg_fs
   pkg_api_motion --> pkg_motion
+  pkg_api_motion --> pkg_sandbox_policy
   pkg_api_motion --> pkg_session
   pkg_tool_motion --> pkg_attachment
   pkg_tool_motion --> pkg_fs
   pkg_tool_motion --> pkg_motion
+  pkg_tool_motion --> pkg_sandbox
   pkg_tool_motion --> pkg_sandbox_policy
   pkg_tool_motion --> pkg_skill
   pkg_tool_motion --> pkg_tool_media
@@ -1742,7 +1747,6 @@ flowchart TD
 | [`host-webserver`](../packages/host/webserver) | `host` | — |
 | [`mail`](../packages/mail/mail) | `mail` | — |
 | [`memory-invariants`](../packages/memory/memory-invariants) | `memory` | — |
-| [`motion`](../packages/motion/motion) | `motion` | — |
 | [`invariants`](../packages/runtime-diagnostics/invariants) | `runtime-diagnostics` | — |
 | [`sandbox-windows-acl`](../packages/sandbox/sandbox-windows-acl) | `sandbox` | — |
 | [`text-to-speech`](../packages/speech/text-to-speech) | `speech` | — |
@@ -1774,7 +1778,6 @@ flowchart TD
 | [`host-frontend-static`](../packages/host/frontend-static) | `host` | [`client-connection`](../packages/client/connection), [`host-webserver`](../packages/host/webserver) |
 | [`anonymous-user-id`](../packages/identity/anonymous-user-id) | `identity` | [`brand`](../packages/util/brand), [`home-paths`](../packages/util/home-paths) |
 | [`lsp`](../packages/lsp/lsp) | `lsp` | [`brand`](../packages/util/brand), [`llm`](../packages/llm/llm) |
-| [`motion-hyperframes`](../packages/motion/motion-hyperframes) | `motion` | [`motion`](../packages/motion/motion) |
 | [`api-text-to-speech`](../packages/speech/api-text-to-speech) | `speech` | [`text-to-speech`](../packages/speech/text-to-speech), [`typert-protocol`](../packages/typert/protocol) |
 | [`text-to-speech-edge`](../packages/speech/text-to-speech-edge) | `speech` | [`text-to-speech`](../packages/speech/text-to-speech) |
 | [`storage-domain`](../packages/storage/storage-domain) | `storage` | [`invariants`](../packages/runtime-diagnostics/invariants), [`storage`](../packages/storage/storage) |
@@ -1825,6 +1828,7 @@ flowchart TD
 | [`spill-local`](../packages/spill/spill-local) | `spill` | [`spill`](../packages/spill/spill) |
 | [`device-local`](../packages/device/device-local) | `device` | [`device`](../packages/device/device) |
 | [`message-feedback`](../packages/feedback/message-feedback) | `feedback` | [`brand`](../packages/util/brand), [`identity-user`](../packages/identity/user), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-persistence`](../packages/session/session-persistence), [`storage-domain`](../packages/storage/storage-domain), [`sync`](../packages/sync/sync), [`typert-protocol`](../packages/typert/protocol) |
+| [`motion`](../packages/motion/motion) | `motion` | [`sandbox`](../packages/sandbox/sandbox) |
 | [`sandbox-jail`](../packages/sandbox/sandbox-jail) | `sandbox` | [`attachment`](../packages/attachment/attachment), [`sandbox`](../packages/sandbox/sandbox), [`session`](../packages/core/session), [`system-prompt`](../packages/core/system-prompt) |
 | [`sandbox-local`](../packages/sandbox/sandbox-local) | `sandbox` | [`llm`](../packages/llm/llm), [`sandbox`](../packages/sandbox/sandbox), [`session`](../packages/core/session) |
 | [`session-persistence-jsonl`](../packages/session/session-persistence-jsonl) | `session` | [`session`](../packages/core/session), [`session-persistence`](../packages/session/session-persistence) |
@@ -1862,7 +1866,8 @@ flowchart TD
 | [`lsp-stdio`](../packages/lsp/lsp-stdio) | `lsp` | [`brand`](../packages/util/brand), [`fs`](../packages/fs/fs), [`llm`](../packages/llm/llm), [`lsp`](../packages/lsp/lsp), [`subprocess`](../packages/subprocess/subprocess), [`timeout`](../packages/util/timeout) |
 | [`media-aeven`](../packages/media/media-aeven) | `media` | [`agent`](../packages/core/agent), [`credentials`](../packages/credentials/credentials), [`identity-user`](../packages/identity/user), [`media`](../packages/media/media), [`session`](../packages/core/session) |
 | [`memory`](../packages/memory/memory) | `memory` | [`agent`](../packages/core/agent), [`session`](../packages/core/session) |
-| [`motion-preview`](../packages/motion/motion-preview) | `motion` | [`fs`](../packages/fs/fs), [`motion`](../packages/motion/motion) |
+| [`motion-hyperframes`](../packages/motion/motion-hyperframes) | `motion` | [`motion`](../packages/motion/motion) |
+| [`motion-sandbox`](../packages/motion/motion-sandbox) | `motion` | [`fs`](../packages/fs/fs), [`motion`](../packages/motion/motion), [`shell`](../packages/shell/shell) |
 | [`personalization`](../packages/preset/personalization) | `preset` | [`agent`](../packages/core/agent), [`identity-user`](../packages/identity/user), [`scope`](../packages/core/scope), [`sync`](../packages/sync/sync), [`system-prompt`](../packages/core/system-prompt), [`typert-protocol`](../packages/typert/protocol) |
 | [`session-sync`](../packages/session/session-sync) | `session` | [`agent`](../packages/core/agent), [`attachment`](../packages/attachment/attachment), [`session`](../packages/core/session), [`session-handoff`](../packages/session/session-handoff), [`session-persistence`](../packages/session/session-persistence), [`sync`](../packages/sync/sync), [`system-prompt`](../packages/core/system-prompt), [`workspace`](../packages/workspace/workspace) |
 | [`session-telemetry`](../packages/session/session-telemetry) | `session` | [`agent`](../packages/core/agent), [`session`](../packages/core/session) |
@@ -1980,8 +1985,8 @@ flowchart TD
 | [`subagent-spawn-in-process`](../packages/subagent/subagent-spawn-in-process) | `subagent` | [`subagent`](../packages/subagent/subagent), [`subagent-in-process-driver`](../packages/subagent/subagent-in-process-driver) |
 | [`command-compact`](../packages/compaction/command-compact) | `compaction` | [`commands`](../packages/interaction/commands), [`compaction`](../packages/compaction/compaction) |
 | [`session-reference`](../packages/context/session-reference) | `context` | [`agent`](../packages/core/agent), [`compaction`](../packages/compaction/compaction), [`identity-user`](../packages/identity/user), [`llm`](../packages/llm/llm), [`output-retention`](../packages/util/output-retention), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection), [`session-projection-cache`](../packages/session/session-projection-cache), [`session-query`](../packages/session-query/session-query), [`session-title`](../packages/session/session-title), [`typert-protocol`](../packages/typert/protocol) |
-| [`api-motion`](../packages/motion/api-motion) | `motion` | [`api-session-controller`](../packages/api/session-controller), [`brand`](../packages/util/brand), [`client-connection`](../packages/client/connection), [`motion`](../packages/motion/motion), [`session`](../packages/core/session) |
-| [`tool-motion`](../packages/motion/tool-motion) | `motion` | [`attachment`](../packages/attachment/attachment), [`fs`](../packages/fs/fs), [`motion`](../packages/motion/motion), [`sandbox-policy`](../packages/sandbox/sandbox-policy), [`skill`](../packages/skill/skill), [`tool-media`](../packages/media/tool-media), [`tools`](../packages/core/tools), [`working-directory`](../packages/session/working-directory) |
+| [`api-motion`](../packages/motion/api-motion) | `motion` | [`api-session-controller`](../packages/api/session-controller), [`brand`](../packages/util/brand), [`client-connection`](../packages/client/connection), [`fs`](../packages/fs/fs), [`motion`](../packages/motion/motion), [`sandbox-policy`](../packages/sandbox/sandbox-policy), [`session`](../packages/core/session) |
+| [`tool-motion`](../packages/motion/tool-motion) | `motion` | [`attachment`](../packages/attachment/attachment), [`fs`](../packages/fs/fs), [`motion`](../packages/motion/motion), [`sandbox`](../packages/sandbox/sandbox), [`sandbox-policy`](../packages/sandbox/sandbox-policy), [`skill`](../packages/skill/skill), [`tool-media`](../packages/media/tool-media), [`tools`](../packages/core/tools), [`working-directory`](../packages/session/working-directory) |
 | [`sdk-client`](../packages/sdk/client) | `sdk` | [`llm`](../packages/llm/llm), [`sdk-protocol`](../packages/sdk/protocol), [`session`](../packages/core/session) |
 | [`sdk-jsonrpc-server`](../packages/sdk/server) | `sdk` | [`agent`](../packages/core/agent), [`attachment`](../packages/attachment/attachment), [`llm`](../packages/llm/llm), [`llm-deepseek`](../packages/llm/llm-deepseek), [`scope`](../packages/core/scope), [`sdk-protocol`](../packages/sdk/protocol), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent) |
 | [`session-telemetry-otel`](../packages/session/session-telemetry-otel) | `session` | [`anonymous-user-id`](../packages/identity/anonymous-user-id), [`command-feedback`](../packages/feedback/command-feedback), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-telemetry`](../packages/session/session-telemetry) |

@@ -24,7 +24,7 @@ This Service Definition renders an authored animation composition to an H.264 MP
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount it with one renderer, such as [`avn-motion-hyperframes`](../motion-hyperframes/README.md), and a consumer, such as [`avn-tool-motion`](../tool-motion/README.md). `fps` (24, 30, or 60; default 30) and `quality` (`draft`, `standard`, or `high`; default `standard`) fill a request that omits them. Composition and output paths are absolute local paths; confining them to a workspace is the consumer's job.
+Mount it with one renderer, such as [`avn-motion-hyperframes`](../motion-hyperframes/README.md), and a consumer, such as [`avn-tool-motion`](../tool-motion/README.md). `fps` (24, 30, or 60; default 30) and `quality` (`draft`, `standard`, or `high`; default `standard`) fill a request that omits them. Composition and output paths are absolute local paths; confining them to a workspace is the consumer's job. A request may carry the calling session's `sandboxPolicy`: a renderer that runs inside the account's sandbox requires it and keeps every path inside its workspace root, and a renderer on the Host's own machine ignores it.
 
 -----
 

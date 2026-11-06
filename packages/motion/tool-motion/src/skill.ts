@@ -1,15 +1,9 @@
 /** The `motion` skill: HyperFrames composition rules and the author, show, review loop around `show_motion`. @module */
 import type { SkillRegistration } from '@aeven/skill'
 
-/**
- * The skill text.
- * @param render - whether the deployment renders films: review stills, the MP4 export, and `render_motion`.
- * @returns the Markdown body.
- */
-function content(render: boolean): string {
-  return `# Motion
+const CONTENT = `# Motion
 
-You make films the way a motion designer does: an editable HTML composition the user watches live with \`show_motion\`${render ? ' and exports to MP4 themselves' : ''}. Nothing here is generated video footage; every pixel is drawn by the composition, so text, data, logos, and the user's own images move exactly as written.
+You make films the way a motion designer does: an editable HTML composition the user watches live with \`show_motion\` and exports to MP4 themselves. Nothing here is generated video footage; every pixel is drawn by the composition, so text, data, logos, and the user's own images move exactly as written.
 
 ## Plan before building
 
@@ -53,30 +47,16 @@ The renderer seeks a paused timeline frame by frame, so the film is a pure funct
 
 ## Show and review
 
-${render ? REVIEW : SHOW_ONLY}`
-}
-
-const REVIEW = `1. Show the film: \`show_motion\` with the folder and \`stills: 6\`. The user can play and scrub it at once; the stills come back to you.
+1. Show the film: \`show_motion\` with the folder and \`stills: 6\`. The user can play and scrub it at once; the stills come back to you.
 2. Look at every still: layout, overlap, cropping, contrast, and whether each beat reads. Fix the files and call \`show_motion\` again. Expect several rounds; a film you looked at once is unfinished.
 3. Reply with what the film does and offer one or two concrete revisions (timing, copy, color, pacing). The user's requests for changes edit the same files, so keep ids and structure readable.
 4. The user exports the MP4 from the film's own menu. Call \`render_motion\` only when the user asks you for the video file.
 `
 
-const SHOW_ONLY = `1. Before showing, reread every file against the composition rules: matching ids and timeline keys, \`data-start\` and \`data-duration\` on every clip, end states landed inside each clip, and content inside the safe area.
-2. Show the film: \`show_motion\` with the folder. The user plays and scrubs it at once.
-3. Reply with what the film does and offer one or two concrete revisions (timing, copy, color, pacing). The user's requests for changes edit the same files and call \`show_motion\` again, so keep ids and structure readable.
-`
-
-/**
- * Runtime registration for `ctx.skills`; invocable by the model and as `/motion`.
- * @param render - whether the deployment renders films.
- * @returns the skill registration.
- */
-export function motionSkill(render: boolean): SkillRegistration {
-  return {
-    name: 'motion',
-    description: `Make an animated film (launch or promo video, explainer, animated chart, logo reveal, title card, kinetic type, social clip) as an editable HTML composition${render ? ' rendered to MP4' : ' shown as a live film'}. Use whenever someone asks for motion graphics, an animation, or a video built from text, data, shapes, or images.`,
-    source: 'runtime',
-    content: content(render),
-  }
+/** Runtime registration for `ctx.skills`; invocable by the model and as `/motion`. */
+export const MOTION_SKILL: SkillRegistration = {
+  name: 'motion',
+  description: 'Make an animated film (launch or promo video, explainer, animated chart, logo reveal, title card, kinetic type, social clip) as an editable HTML composition rendered to MP4. Use whenever someone asks for motion graphics, an animation, or a video built from text, data, shapes, or images.',
+  source: 'runtime',
+  content: CONTENT,
 }

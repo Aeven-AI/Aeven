@@ -130,7 +130,7 @@ export function MotionToolView({ block, sessionId, t }: ToolCallViewProps & Prop
   const [media, setMedia] = useState<PlayerElement | null>(null)
   const [ratio, setRatio] = useState(DEFAULT_RATIO)
   const [loadError, setLoadError] = useState<string | undefined>(undefined)
-  // The stored film's URL once it plays instead of the folder; the MP4 export needs the Host holding the folder.
+  // The stored film's URL once it plays instead of the folder; the MP4 export then goes through the call.
   const [storedUrl, setStoredUrl] = useState<string | undefined>(undefined)
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState<string | undefined>(undefined)
@@ -224,6 +224,37 @@ export function MotionToolView({ block, sessionId, t }: ToolCallViewProps & Prop
     }
   }
 
+  // Where this Host lacks the folder, the Host renders the film the conversation names in the caller's own
+  // workspace and returns the MP4; a Host where the folder is absent too leaves the stored page to save.
+  const exportCall = async (): Promise<void> => {
+    setExporting(true)
+    setExportError(undefined)
+    try {
+      const ask = (): Promise<Response> => hostFetch(new URL('api/motion/export-call', document.baseURI), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: String(sessionId), callId: block.callId }),
+      })
+      // 202 means the render is still running; asking again joins it.
+      let response = await ask()
+      while (response.status === 202) response = await ask()
+      if (response.status === 404 && storedUrl !== undefined) {
+        saveClip(`${storedUrl}&download=1`, film?.name ?? 'film.html')
+        return
+      }
+      if (!response.ok) throw new Error(await failureText(response))
+      const name = /filename="([^"]+)"/.exec(response.headers.get('Content-Disposition') ?? '')?.[1] ?? 'film.mp4'
+      const url = URL.createObjectURL(await response.blob())
+      saveClip(url, name)
+      // The browser reads the object URL when the download starts.
+      setTimeout(() => { URL.revokeObjectURL(url) }, 60_000)
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setExporting(false)
+    }
+  }
+
   const showError = failed || loadError !== undefined
   const loading = !settled || (dir !== undefined && media === null && !showError)
   if (superseded) {
@@ -252,12 +283,9 @@ export function MotionToolView({ block, sessionId, t }: ToolCallViewProps & Prop
           ) : dir !== undefined ? (
             <MediaPlayer
               media={media}
-              onDownload={() => {
-                if (storedUrl === undefined) void exportFilm()
-                else saveClip(`${storedUrl}&download=1`, film?.name ?? 'film.html')
-              }}
+              onDownload={() => { void (storedUrl === undefined ? exportFilm() : exportCall()) }}
               busy={exporting}
-              labels={storedUrl === undefined ? { ...videoPlayerLabels(t), download: t('motion.export') } : videoPlayerLabels(t)}
+              labels={{ ...videoPlayerLabels(t), download: t('motion.export') }}
             >
               <div ref={stage} className={css.motionStage} role="img" aria-label={t('motion.label')} />
             </MediaPlayer>

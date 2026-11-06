@@ -1,4 +1,4 @@
-# Agent Note: The live motion player on hosted Web
+# Agent Note: Motion films on hosted Web
 
 Status: implemented
 
@@ -10,16 +10,16 @@ Hosted Web mounted no motion renderer, so `show_motion` was never registered the
 
 ## Decision
 
-Hosted mounts `ctx.motion` with [`avn-motion-preview`](../../../../packages/motion/motion-preview/README.md), a renderer that only bundles: it copies the composition folder through `ctx.fs`, keeping files whose resolved target lies inside the folder, and returns HyperFrames' single-document bundle. `show_motion` stores that document with the call, and the card plays it from the attachment, as it already did on the account's other devices. `avn-tool-motion` gains `render: false`, which drops stills and `render_motion` and teaches the show-only loop; `avn-api-motion` gains `folderRoutes: false`, because its folder routes read any absolute Host path. Hosted turns `bash-edit-guard` off, and the model note sends films to the motion skill and keeps `render-motion` for an MP4 the user asks for.
+Hosted mounts `ctx.motion` with [`avn-motion-sandbox`](../../../../packages/motion/motion-sandbox/README.md). Its `bundle()` copies the composition folder through `ctx.fs`, keeping files whose resolved target lies inside the folder, and returns HyperFrames' single-document bundle; `show_motion` stores that document with the call, and the card plays it from the attachment. Its `render()` pipes the same document into the jail's `render-motion` under the calling session's sandbox policy, which `MotionRenderRequest.sandboxPolicy` carries from `avn-tool-motion` and from `avn-api-motion`'s `POST /api/motion/export-call`. `render-motion` steps a HyperFrames composition through its runtime's own player (`__player.renderSeek`), so the MP4 and the review stills match the live film. The card exports through that call route where it has no folder to name; the route takes the folder from the caller's own log, answers 202 while a render runs past `exportWaitMs`, and returns the MP4 bytes. `avn-api-motion`'s `folderRoutes: false` keeps the routes that read any absolute Host path off, hosted turns `bash-edit-guard` off, and the model note sends films to the motion skill.
 
 ## Alternatives considered
 
-Rendering stills and exports on the Host with the HyperFrames renderer was rejected: it runs Chromium over a model-written page outside the account's jail. Running HyperFrames renders inside the jail was deferred: `render-motion` drives a page's GSAP global timeline, while a composition needs the HyperFrames runtime's own seek, and `ctx.motion` receives no session to choose the account's jail.
+Rendering on the Host with the HyperFrames renderer was rejected: it runs Chromium over a model-written page outside the account's jail. Writing the bundle into the account folder for the jail to read was rejected: a Host-side write could follow a symbolic link a command placed there, so the bundle travels on the command's stdin.
 
 ## Consequences
 
-Hosted films play and scrub live; the model reviews no stills, and the card's menu downloads the bundled page rather than an MP4. Bundling reads the account folder on the Host with the same resolve-then-read containment as the hosted read tools.
+The sandbox image must carry the `render-motion` that reads stdin and answers JSON; `host/install-motion.sh` installs it. A render runs under the account's CPU and memory limits, about three times the film's length at 1080p30. Review films land in the composition's `renders/.review.mp4`, replaced by each review, because the renderer may write only inside the workspace.
 
 ## Verification
 
-Bundling a composition through `fs-local`, `motion`, and `motion-preview` inlined its scene and the runtime, left out a file reached through a symbolic link to another folder and an 80 MB file under `renders/`, and `render()` rejected.
+Bundling a composition through `fs-local`, `motion`, and the renderer inlined its scene and the runtime, left out a file reached through a symbolic link to another folder and an 80 MB file under `renders/`. `render-motion - out.mp4 --stills 3 --json` turned a desktop-made 6 s composition's bundle into a 1920×1080 H.264 MP4 of 6.00 s in 18 s, with stills at 1, 3, and 5 s showing the bars at their scripted heights.

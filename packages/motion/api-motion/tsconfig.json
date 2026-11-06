@@ -12,6 +12,12 @@
       "path": "../motion"
     },
     {
+      "path": "../../fs/fs"
+    },
+    {
+      "path": "../../sandbox/sandbox-policy"
+    },
+    {
       "path": "../../api/session-controller/tsconfig.host.json"
     },
     {
