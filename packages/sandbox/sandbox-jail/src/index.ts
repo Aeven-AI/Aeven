@@ -139,7 +139,9 @@ export class JailSandboxProvider extends SandboxProvider {
       const cgroups = new AccountCgroups(config.cgroup.root, config.cgroup.total, config.cgroup.account)
       cgroups.removeIdle()
       this.cgroups = cgroups
-      ctx.effect(() => () => cgroups.removeIdle(), 'sandbox-jail account cgroups')
+      ctx.effect(() => () => {
+        cgroups.removeIdle()
+      }, 'sandbox-jail account cgroups')
     }
   }
 
