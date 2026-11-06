@@ -31,7 +31,9 @@ function readSection(ctx: Context, request: IndexRequest | undefined): { prefere
   const settings = ctx.get('settings')
   if (settings === undefined) return fallback
   const reader = request === undefined ? undefined : ctx.get('identityUsers')?.resolve(request)?.id
-  const section = settings.cachedValueFor(THEME_NAMESPACE, reader) as ThemeSettings | undefined
+  const section = (reader === undefined
+    ? settings.get(THEME_NAMESPACE)
+    : settings.cachedValueFor(THEME_NAMESPACE, reader)) as ThemeSettings | undefined
   if (section === undefined) return fallback
   return section
 }

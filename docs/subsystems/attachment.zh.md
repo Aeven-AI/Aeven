@@ -280,4 +280,28 @@ discardUpload(id: string): boolean
 ```
 
 Source: [`packages/attachment/attachment/src/index.ts`](../../packages/attachment/attachment/src/index.ts)
+
+<a id="attachment-events"></a>
+
+### `attachment/*` events
+
+<a id="attachmentmissing--waterfall"></a>
+
+#### `attachment/missing` — waterfall
+
+Retrieve a missing durable object before its read is retried.
+
+```ts cordis-catalog
+/**
+ * Retrieve a missing durable object before its read is retried.
+ * @param id - content address verified by the attachment store.
+ * @param signal - cancellation of the read.
+ * @param next - delegate to another retriever; the default returns false.
+ * @returns whether the object was retrieved.
+ * @mode waterfall
+ */
+'attachment/missing'(id: AttachmentId, signal: AbortSignal | undefined, next: () => Promise<boolean>): Promise<boolean>
+```
+
+Source: [`packages/attachment/attachment/src/index.ts`](../../packages/attachment/attachment/src/index.ts)
 <!-- END GENERATED cordis-surface -->

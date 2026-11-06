@@ -373,16 +373,18 @@ abstract describe(ref: CredentialRef, user?: string): Promise<CredentialInfo>
  * rejects an empty value (use {@link unset}).
  * @param ref - the reference to store.
  * @param value - the non-empty secret value.
+ * @param user - the signed-in account whose own credential to store, on a provider with account storage; absent stores the shared value.
  */
-abstract set(ref: CredentialRef, value: string): Promise<void>
+abstract set(ref: CredentialRef, value: string, user?: string): Promise<void>
 
 /**
  * Remove one reference from the provider-managed writable source; removing
  * an absent reference is a no-op. Rejects while a read-only source shadows
  * the reference, like {@link set}.
  * @param ref - the reference to remove.
+ * @param user - the signed-in account whose own credential to remove, on a provider with account storage; absent removes the shared value.
  */
-abstract unset(ref: CredentialRef): Promise<void>
+abstract unset(ref: CredentialRef, user?: string): Promise<void>
 
 /**
  * Publish a credential that belongs to one signed-in user's live session
@@ -408,15 +410,17 @@ setSession?(ref: CredentialRef, user: string, value: string | undefined): void
  * {@link GrantRecord} payload is not interpreted on the way out.
  * @param key - the record to read.
  * @returns the record, or `undefined` while none is stored.
+ * @param user - the signed-in account whose own record to read, on a provider with account storage; absent reads the shared record.
  */
-abstract readRecord(key: CredentialKey): Promise<CredentialRecord | undefined>
+abstract readRecord(key: CredentialKey, user?: string): Promise<CredentialRecord | undefined>
 
 /**
  * Describe one record for configuration surfaces without exposing its value.
  * @param key - the record to describe.
  * @returns presence, discriminant, and writability.
+ * @param user - the signed-in account whose own record to describe, on a provider with account storage; absent describes the shared record.
  */
-abstract describeRecord(key: CredentialKey): Promise<CredentialRecordInfo>
+abstract describeRecord(key: CredentialKey, user?: string): Promise<CredentialRecordInfo>
 
 /**
  * Enumerate every stored record's address and tag. Unlike the reference
@@ -425,8 +429,9 @@ abstract describeRecord(key: CredentialKey): Promise<CredentialRecordInfo>
  * path: a surface that cannot list them cannot show what a user is
  * authorized for, nor find an orphan left by an uninstalled plugin.
  * @returns every stored record, values excluded.
+ * @param user - the signed-in account whose own records to list, on a provider with account storage; absent lists the shared records.
  */
-abstract listRecords(): Promise<readonly CredentialRecordEntry[]>
+abstract listRecords(user?: string): Promise<readonly CredentialRecordEntry[]>
 
 /**
  * Serialized read-modify-write over one record — the only write path.
@@ -438,14 +443,16 @@ abstract listRecords(): Promise<readonly CredentialRecordEntry[]>
  * @param key - the record to modify.
  * @param mutate - receives the current record and returns its replacement, or `undefined` to leave it.
  * @returns the record after the write, or the current one when `mutate` declined.
+ * @param user - the signed-in account whose own record to change, on a provider with account storage; absent changes the shared record.
  */
-abstract modifyRecord( key: CredentialKey, mutate: (current: CredentialRecord | undefined) => Promise<CredentialRecord | undefined>, ): Promise<CredentialRecord | undefined>
+abstract modifyRecord( key: CredentialKey, mutate: (current: CredentialRecord | undefined) => Promise<CredentialRecord | undefined>, user?: string, ): Promise<CredentialRecord | undefined>
 
 /**
  * Remove one record; removing an absent record is a no-op.
  * @param key - the record to remove.
+ * @param user - the signed-in account whose own record to delete, on a provider with account storage; absent deletes the shared record.
  */
-abstract deleteRecord(key: CredentialKey): Promise<void>
+abstract deleteRecord(key: CredentialKey, user?: string): Promise<void>
 ```
 
 Source: [`packages/credentials/credentials/src/index.ts`](../../packages/credentials/credentials/src/index.ts)

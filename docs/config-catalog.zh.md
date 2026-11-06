@@ -966,6 +966,8 @@ export interface Config {
 ```ts config-catalog
 /** Plugin config: file location and hot-reload behavior. */
 export interface Config {
+  /** Keep personal credentials in separate account documents; defaults to false. */
+  accounts?: boolean
   /** Credentials document path; defaults to `.credentials.yaml` under the harness home. */
   path?: string
   /** Aeven home used when `path` is omitted; defaults to `$AVN_HOME` or `~/.aeven`. */
@@ -5707,6 +5709,27 @@ export interface Config {
 
 来源：[`packages/workflow/workflow-worker-thread/src/index.ts`](../packages/workflow/workflow-worker-thread/src/index.ts)
 
+<a id="aevenworking-directory"></a>
+
+## `@aeven/working-directory`
+
+需要：`sessionProjections`
+
+```ts config-catalog
+/** Working-directory resolution configuration. */
+export interface Config {
+  /**
+   * Whether this Host gives sessions a folder of its own. A Host that serves the
+   * accounts of different people sets `false`: a conversation another device
+   * recorded in a folder continues here without a working directory instead of
+   * waiting for a folder this Host never offers. Defaults to `true`.
+   */
+  readonly folders?: boolean
+}
+```
+
+来源：[`packages/session/working-directory/src/index.ts`](../packages/session/working-directory/src/index.ts)
+
 <a id="aevenworkspace"></a>
 
 ## `@aeven/workspace`
@@ -5980,7 +6003,6 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@aeven/user-questions` ([`packages/interaction/user-questions/src/index.ts`](../packages/interaction/user-questions/src/index.ts))
 - `@aeven/vcs` ([`packages/vcs/vcs/src/index.ts`](../packages/vcs/vcs/src/index.ts))
 - `@aeven/webhook` — requires `agents` · `agentDefaultModel` · `agentPresets` · `permissionPresets` · `sessionTitle` · `workspaceRegistry` ([`packages/webhook/webhook/src/index.ts`](../packages/webhook/webhook/src/index.ts))
-- `@aeven/working-directory` — requires `sessionProjections` ([`packages/session/working-directory/src/index.ts`](../packages/session/working-directory/src/index.ts))
 
 ## Seam packages (not directly loadable)
 

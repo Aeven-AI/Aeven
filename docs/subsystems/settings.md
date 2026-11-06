@@ -246,6 +246,16 @@ async describeFor(owner: string | undefined, options?: SettingsDescribeOptions):
 async valueFor<const Namespace extends string>( ns: Namespace & SettingsNamespaceInput<Namespace>, owner: string | undefined, ): Promise<unknown>
 
 /**
+ * Resolve one namespace as `owner` sees it from what is already read, without waiting: an answer for a request
+ * that cannot wait, such as a page render. An account whose sections were not read yet answers the document's
+ * value, and the read starts so the next call answers the account's own.
+ * @param ns - the namespace.
+ * @param owner - the account, when one is known.
+ * @returns the resolved value, or undefined for an unregistered namespace.
+ */
+cachedValueFor<const Namespace extends string>( ns: Namespace & SettingsNamespaceInput<Namespace>, owner: string | undefined, ): unknown
+
+/**
  * Read one account's own section of an `account`-reach namespace.
  * @param owner - the account.
  * @param ns - the namespace.

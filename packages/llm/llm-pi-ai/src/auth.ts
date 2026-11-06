@@ -137,6 +137,8 @@ function writableStore(ctx: Context): CredentialProvider {
  * that it did.
  * @param ctx - the plugin context carrying the optional `ctx.credentials`.
  * @returns the store to hand `createModels()`.
+ * @param owner - the account whose own records the store reads and writes; absent follows the acting account on a provider with account
+ *   storage.
  */
 export function credentialStoreFrom(ctx: Context, owner?: string): CredentialStore {
   const account = (): string | undefined => owner ?? (ctx.get('credentials')?.accountStorage === true ? ctx.get('identityUsers')?.actingUser()?.id : undefined)
@@ -200,6 +202,7 @@ export function credentialStoreFrom(ctx: Context, owner?: string): CredentialSto
  * under edit.
  * @param ctx - the plugin context carrying the optional `ctx.credentials`.
  * @returns the auth context to hand `createModels()`.
+ * @param owner - the account whose own credentials resolve; absent resolves shared credentials and the launch environment.
  */
 export function authContextFrom(ctx: Context, owner?: string): AuthContext {
   return {

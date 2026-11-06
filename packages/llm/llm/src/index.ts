@@ -282,8 +282,10 @@ export interface AdapterRegistrationHandle {
   /** Release every route this registration currently holds. */
   (): void
   /**
-   * Replace this registration's routes with `providers`, keeping the same
-   * adapter instance. The candidate set is validated in full first — a
+   * Replace this registration's routes with `providers`, served by `adapter`
+   * when one is given and by the same adapter instance otherwise, such as an
+   * account's routes rebuilt after its settings changed. The candidate set is
+   * validated in full first — a
    * conflict with another adapter, an invalid name, or bad provider metadata
    * throws and leaves the current routes untouched — and the swap itself is
    * one synchronous section, so no request can observe a gap. An empty array
@@ -294,6 +296,7 @@ export interface AdapterRegistrationHandle {
    * has been released: its routes are gone and its disposer has already run,
    * so anything registered afterwards would have no owner left to release it.
    * @param providers - the complete next route set for this registration.
+   * @param adapter - the adapter that serves the routes from now on; omitted keeps the current one.
    */
   replace(providers: string[], adapter?: LlmAdapter): void
 }
@@ -502,7 +505,10 @@ export class LlmRuntime extends TypertRemoteService {
     return [...this.callerAdapters().values()].map(({ provider }) => ({ ...provider }))
   }
 
-  /** Load and list model providers visible to the signed-in caller. @returns detached provider metadata. */
+  /**
+   * Load and list model providers visible to the signed-in caller. @returns detached provider metadata.
+   * @returns the model providers the signed-in caller can use: shared routes and the caller's own.
+   */
   @Remote('listProviders')
   async remoteListProviders(): Promise<LlmProviderInfo[]> {
     await this.prepareAccount()
@@ -516,6 +522,7 @@ export class LlmRuntime extends TypertRemoteService {
    * `LlmError` without registering the rest. Disposed with the fiber.
    * @param entries - every configurable provider this plugin owns.
    * @returns a handle that withdraws all of them, and can atomically replace them.
+   * @param owner - the account these entries belong to; absent registers entries every account sees.
    */
   registerConfigurableProviders(entries: readonly LlmConfigurableProvider[], owner?: string): DirectoryRegistrationHandle {
     const directory = owner === undefined
@@ -586,7 +593,10 @@ export class LlmRuntime extends TypertRemoteService {
     return [...new Map([...this.directory, ...own ?? []]).values()].map(entry => ({ ...entry, settingsPath: [...entry.settingsPath] }))
   }
 
-  /** Load and list configurable providers for this account. @returns detached configuration addresses. */
+  /**
+   * Load and list configurable providers for this account. @returns detached configuration addresses.
+   * @returns the configurable providers the signed-in caller sees: shared entries and the caller's own.
+   */
   @Remote('listConfigurableProviders')
   async remoteListConfigurableProviders(): Promise<LlmConfigurableProvider[]> {
     await this.prepareAccount()

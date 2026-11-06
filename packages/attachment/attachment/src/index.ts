@@ -26,7 +26,6 @@ declare module '@deepseek-ai/cordis' {
      * @param next - delegate to another retriever; the default returns false.
      * @returns whether the object was retrieved.
      * @mode waterfall
-     * @avnScopeScan unsupported
      */
     'attachment/missing'(id: AttachmentId, signal: AbortSignal | undefined, next: () => Promise<boolean>): Promise<boolean>
   }
