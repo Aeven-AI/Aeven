@@ -81,7 +81,7 @@ kind: "package-reference"
    ```
 
 3. 以 Host 的用户身份，在部署的 checkout 中构建 Landlock launcher：`pnpm --dir native/landlock-run run build:native`。
-4. 在带有 `Delegate=yes` 和 `DelegateSubgroup=host` 的 systemd unit 中运行 Host。systemd 在 `<unit>/host` 中启动 Host，本提供方在其旁边创建 `<unit>/jail/acct-<account>`。以专用用户（例如 `aeven-hosted`）运行它，该用户除配额辅助程序外没有任何 sudo 权限（[`host/systemd-user.conf`](host/systemd-user.conf)、[`host/sudoers`](host/sudoers)），因此被攻破的 Host 进程不是 root。
+4. 在带有 `Delegate=yes` 和 `DelegateSubgroup=host` 的 systemd unit 中运行 Host。systemd 在 `<unit>/host` 中启动 Host，本提供方在其旁边创建 `<unit>/jail/acct-<account>`。以专用用户（例如 `aeven-hosted`）运行它，该用户除配额辅助程序外没有任何 sudo 权限（[`host/systemd-user.conf`](host/systemd-user.conf)、[`host/sudoers`](host/sudoers)），因此被攻破的 Host 进程不是 root。在 unit 中把 `AVN_HOME` 设为 Host 此前使用的 Aeven 主目录，并归该用户所有，因为它默认是 `~/.aeven`，否则更换用户会移走所有会话、附件和账户文件夹。
 5. 把 `accountsRoot` 放在带项目配额的独立 ext4 文件系统上，例如用 `mkfs.ext4 -O quota,project` 创建、以 `loop,prjquota,nosuid,nodev` 挂载的 loop 镜像，使命令无法占满 Host 的磁盘。以 `quotaCommand` 通过 `sudo -n` 调用的 root 所有的辅助程序为每个账户文件夹分配项目 id（`chattr -R +P -p <id>`）和限额（`setquota -P`）；监狱中的进程无法更改项目 id。
 6. 用 [`host/seccomp-filter.c`](host/seccomp-filter.c) 生成系统调用过滤器（`cc -O2 -o seccomp-filter seccomp-filter.c -lseccomp`），并在 `seccompFilter` 中填写其输出路径。
 7. 把命令可用的只读程序和库安装到 `readOnlyPaths` 列出的路径下，例如 `/opt/aeven-sandbox` 下的 Python 虚拟环境和 Node `node_modules` 目录。用 `python3 -m compileall` 预编译 Python 字节码，因为监狱无法写入 `.pyc` 文件，否则 pandas 的导入会慢五倍。
