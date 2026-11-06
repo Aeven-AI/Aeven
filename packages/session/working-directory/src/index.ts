@@ -24,6 +24,7 @@ import { existsSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import { isAbsolute, normalize, resolve as resolvePath } from 'node:path'
 import { Service, type Context } from '@deepseek-ai/cordis'
+import Schema from '@deepseek-ai/schemastery'
 import type { Session, SessionId } from '@aeven/session'
 import type {} from '@aeven/session-projection'
 import type {} from '@aeven/agent'
@@ -35,9 +36,24 @@ export type * from './types.ts'
 export * from './local.ts'
 export { sessionDirectory, sessionWorkspaceRoot } from './directory.ts'
 
+/** Working-directory resolution configuration. */
+export interface Config {
+  /**
+   * Whether this Host gives sessions a folder of its own. A Host that serves the
+   * accounts of different people sets `false`: a conversation another device
+   * recorded in a folder continues here without a working directory instead of
+   * waiting for a folder this Host never offers. Defaults to `true`.
+   */
+  readonly folders?: boolean
+}
+
 /** Directory resolution and change for one session. */
 export class WorkingDirectoryService extends Service {
   static inject = ['sessionProjections']
+
+  static Config: Schema<Config> = Schema.object({ folders: Schema.boolean() })
+
+  private readonly folders: boolean
 
   /**
    * Directories this process moved a session into. A replicated session's
@@ -47,8 +63,9 @@ export class WorkingDirectoryService extends Service {
    */
   private readonly entered = new Map<SessionId, RecordedDirectory>()
 
-  constructor(ctx: Context) {
+  constructor(ctx: Context, config: Config = {}) {
     super(ctx, 'workingDirectory')
+    this.folders = config.folders ?? true
     ctx.sessionProjections.register(workingDirectoryProjectionDefinition)
 
     ctx.inject(['systemPrompt'], (scope: Context) => {
@@ -86,12 +103,14 @@ export class WorkingDirectoryService extends Service {
     const cwd = logged?.cwd ?? session.header.cwd
     const registry = this.ctx.get('workspaceRegistry')
     const placement: SessionPlacement = registry?.placeSession(session.header.id) ?? { state: 'unfiled' }
-    return localDirectory({
+    const resolved = localDirectory({
       recorded: cwd === undefined ? undefined : { cwd, root: logged?.root ?? cwd },
       placement,
       replicated: registry?.replicated(session.header.id) ?? false,
       entered: this.entered.get(session.header.id),
     })
+    // Without folders here, a folder another device recorded is one this Host will never have.
+    return !this.folders && resolved.state === 'unresolved' ? { state: 'absent' } : resolved
   }
 
   /**

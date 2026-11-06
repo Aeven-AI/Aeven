@@ -355,6 +355,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   const embeddings = config.embeddingExecution === 'worker' && configured.embedding.provider === 'local'
     ? new HostedEmbeddings({ perAccount: config.embeddingQueuePerAccount, total: config.embeddingQueueTotal })
     : undefined
+  void embeddings?.warm(config.embedding.model, config.embedding.device, config.embedding.dtype)
   const cores = new OwnerCores(async (owner) => {
     const accountRoot = accountHome(config.accounts, owner)
     mkdirSync(accountRoot.dataDir, { recursive: true, mode: 0o700 })

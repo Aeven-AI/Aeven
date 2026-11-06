@@ -52,6 +52,22 @@
 - id: client-hmr
   disabled: true
 
+# Aeven operates this Host, so its sign-in screens offer the production
+# provider sign-ins unless the deployment names others. A provider sign-in
+# leaves this page for the provider and returns to this origin's
+# `/oauth-result`, which the Aeven API must list in OAUTH_CLIENT_ORIGINS.
+- id: identity-user-aeven
+  inject: [identityUsers]
+  config:
+    apiUrl: !!js process.env.AEVEN_API_URL ?? 'https://aeven.io/api'
+    xOAuthUrl: !!js process.env.AEVEN_OAUTH_X_URL ?? 'https://aeven.io/oauth/x'
+    appleOAuthUrl: !!js process.env.AEVEN_OAUTH_APPLE_URL ?? 'https://aeven.io/oauth/apple'
+    googleOAuthUrl: !!js process.env.AEVEN_OAUTH_GOOGLE_URL ?? 'https://aeven.io/oauth/google'
+    oauthFlow: redirect
+    webUrl: !!js process.env.AEVEN_WEB_URL ?? 'https://aeven.io'
+    mediaUrl: !!js process.env.AEVEN_MEDIA_URL ?? 'https://aeven.io'
+    jwksCacheFile: !!js avnHomePath('identity', 'aeven-jwks.json')
+
 # ── account sync ────────────────────────────────────────────────────────────
 
 # A hosted Host is one more device of every account signed in to it: each
@@ -133,6 +149,14 @@
 # Workspaces are created by name and carry no folder: a folder of this Host
 # would expose the Host's files to whoever registered it.
 - id: workspace-controller
+  config:
+    folders: false
+
+# A conversation another device recorded in a folder continues here as a
+# conversation without a working directory once that device stops running it,
+# instead of waiting for a folder this Host never offers. While the device is
+# online and runs the conversation, input still reaches it there.
+- id: working-directory
   config:
     folders: false
 

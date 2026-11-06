@@ -19,6 +19,9 @@ interface Job {
   detach: () => void
 }
 
+/** The queue key of the warm-up request, which no account id can equal. */
+const WARM_OWNER = '\0warm'
+
 /** The queue bounds include the account's running request. */
 export interface EmbeddingWorkerLimits {
   readonly perAccount: number
@@ -38,6 +41,19 @@ export class HostedEmbeddings {
 
   /** @param limits - Maximum unfinished requests per account and for the Host. */
   constructor(private readonly limits: EmbeddingWorkerLimits) {}
+
+  /**
+   * Load the model into the worker before any account asks for an embedding: a cold worker spends longer loading
+   * it than a turn's recall waits, so the first turn after a start would otherwise recall nothing.
+   * @param model - the embedding model id.
+   * @param device - the transformers.js execution device.
+   * @param dtype - the transformers.js weight precision.
+   * @returns when the model answered once, or failed to.
+   */
+  warm(model: string, device: string, dtype: string): Promise<void> {
+    const context = { config: { provider: 'local', model, device, dtype } } as unknown as ProviderCallCtx
+    return this.embed(WARM_OWNER, ['warm'], 'query', context).then(() => undefined, () => undefined)
+  }
 
   /**
    * Bind embedding requests to one account without giving its core ownership of the shared worker.

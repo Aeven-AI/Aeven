@@ -14,7 +14,7 @@
  * running one, writes the input to the synced `sessions/inbox`, and the device that takes the next turn applies it.
  * The relay lease only keeps two devices from running a turn at once; correctness comes from the fold.
  */
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { promisify } from 'node:util'
 import { brotliCompress, brotliDecompress, constants } from 'node:zlib'
 import type { Map as YMap, YMapEvent, Transaction } from 'yjs'
@@ -218,6 +218,34 @@ const DAY_MS = 86_400_000
 
 const streamName = (id: string): string => `sessions/${id}`
 const attachmentStream = (id: string): string => `attachments/${id}`
+
+/**
+ * Rebuild an attachment from its stream's chunks. A stream can hold more than one copy of the chunks: devices that
+ * published the same attachment before either saw the other's index entry, or a publish retried after its chunks
+ * reached the relay. Every copy of a chunk is byte-identical and every publisher appends its chunks in order, so the
+ * chunks at their first appearance are one complete copy; the plain concatenation and the first `expected` chunks
+ * are tried too, and only a candidate whose SHA-256 matches the content address is returned.
+ * @param id - the attachment's content address, `sha256:<hex>`.
+ * @param parts - the stream's payloads in relay order.
+ * @param expected - the chunk count the index records.
+ * @returns the attachment bytes; the plain concatenation when no candidate matches, which the store then refuses.
+ */
+function assembleAttachment(id: string, parts: readonly Uint8Array[], expected: number): Uint8Array {
+  const digest = id.slice('sha256:'.length)
+  const seen = new Set<string>()
+  const distinct = parts.filter((part) => {
+    const key = createHash('sha256').update(part).digest('hex')
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+  const candidates = [parts, parts.slice(0, expected), distinct]
+  for (const candidate of candidates) {
+    const bytes = new Uint8Array(Buffer.concat(candidate))
+    if (createHash('sha256').update(bytes).digest('hex') === digest) return bytes
+  }
+  return new Uint8Array(Buffer.concat(parts))
+}
 const ATTACHMENT_ID = /sha256:[a-f0-9]{64}/g
 
 /** Content addresses of the attachments some events or an input reference: images, files, and files' extracted text. */
@@ -557,16 +585,26 @@ export class SessionMirror {
     if (store === undefined) return
     const published = this.published()
     for (const id of attachmentIds(events)) {
-      if (published.has(id) || !await store.hasObject(AttachmentId(id))) continue
-      const data = await store.readObject(AttachmentId(id))
-      let chunks = 0
-      for (let offset = 0; offset < data.byteLength || chunks === 0; offset += this.tuning.batchBytes) {
-        await this.sync.appendStream(this.owner, attachmentStream(id), data.subarray(offset, offset + this.tuning.batchBytes))
-        chunks++
+      if (published.has(id) || this.publishingAttachments.has(id) || !await store.hasObject(AttachmentId(id))) continue
+      if (published.has(id) || this.publishingAttachments.has(id)) continue
+      // Two event batches citing one attachment publish it once: a second copy would interleave with the first.
+      this.publishingAttachments.add(id)
+      try {
+        const data = await store.readObject(AttachmentId(id))
+        let chunks = 0
+        for (let offset = 0; offset < data.byteLength || chunks === 0; offset += this.tuning.batchBytes) {
+          await this.sync.appendStream(this.owner, attachmentStream(id), data.subarray(offset, offset + this.tuning.batchBytes))
+          chunks++
+        }
+        published.set(id, { chunks })
+      } finally {
+        this.publishingAttachments.delete(id)
       }
-      published.set(id, { chunks })
     }
   }
+
+  /** Attachments this device is appending to their streams right now. */
+  private readonly publishingAttachments = new Set<string>()
 
   /**
    * Fetch the attachments some imported events reference that are missing here and another device published. One
@@ -623,7 +661,7 @@ export class SessionMirror {
         }
         await pause(this.tuning.attachmentRetryMs)
       }
-      await store.importObject(AttachmentId(id), new Uint8Array(Buffer.concat(parts)))
+      await store.importObject(AttachmentId(id), assembleAttachment(id, parts, expected))
       this.awaitedAttachments.delete(id)
     })().finally(() => { this.downloads.delete(id) })
     this.downloads.set(id, download)

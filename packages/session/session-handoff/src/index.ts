@@ -158,9 +158,10 @@ export abstract class SessionHandoff extends Service {
    * Download an attachment another device of the account published, such as an image, video, or file a synced
    * conversation cites, when this device does not hold it yet.
    * @param _attachmentId - the attachment's content address.
+   * @param _owner - restrict retrieval to this account; omission searches the Host's synced accounts.
    * @returns whether this device holds the attachment now.
    */
-  fetchAttachment(_attachmentId: string): Promise<boolean> {
+  fetchAttachment(_attachmentId: string, _owner?: string): Promise<boolean> {
     return Promise.resolve(false)
   }
 
