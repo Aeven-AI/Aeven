@@ -37,6 +37,15 @@
     },
     {
       "path": "../../workspace/workspace"
+    },
+    {
+      "path": "../../identity/user"
+    },
+    {
+      "path": "../../core/session"
+    },
+    {
+      "path": "../../session-query/session-query"
     }
   ]
 }

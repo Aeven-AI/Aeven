@@ -1516,9 +1516,18 @@ importers:
       '@aeven/fs':
         specifier: workspace:^
         version: link:../../fs/fs
+      '@aeven/identity-user':
+        specifier: workspace:^
+        version: link:../../identity/user
       '@aeven/sandbox-policy':
         specifier: workspace:^
         version: link:../../sandbox/sandbox-policy
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@aeven/session-query':
+        specifier: workspace:^
+        version: link:../../session-query/session-query
       '@aeven/typert-protocol':
         specifier: workspace:^
         version: link:../../typert/protocol
