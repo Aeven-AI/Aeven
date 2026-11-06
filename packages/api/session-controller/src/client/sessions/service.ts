@@ -332,6 +332,8 @@ export class ClientSessions implements ISessions {
    */
   open(id: SessionId): void {
     this.manager.select(id)
+    // Selecting the Session already on stage moves no list state, so only this call can retry its failed window.
+    if (this.list.getSnapshot().current === id) this.reopenFailedCurrent()
   }
 
   /**
@@ -453,6 +455,16 @@ export class ClientSessions implements ISessions {
   /** Rebuild the Session baseline and every opened window after connection. */
   handleConnected(): void {
     this.manager.handleConnected()
+    // A window that failed to open, for instance while the page's credential was not yet accepted or the Host was
+    // still starting, has nothing that retries it: the new connection is that chance.
+    this.reopenFailedCurrent()
+  }
+
+  /** Open the current Session's window again when its last open failed. */
+  private reopenFailedCurrent(): void {
+    const current = this.list.getSnapshot().current
+    const record = current === undefined ? undefined : this.resolve(current)
+    if (record?.session.getSnapshot().openState === 'error') void record.session.open()
   }
 
   /**

@@ -39,7 +39,7 @@ import { OAUTH_PROVIDER_DEFINITIONS } from './oauth-providers.ts'
 import { OAuthProviderSession, oauthModelsCachePath } from './oauth-session.ts'
 import { GrokBuildSession, grokModelsCachePath } from './session.ts'
 import { GrokBuildCredentialStore, grokBuildAuthPath, OAuthCredentialFileStore, oauthCredentialPath } from './store.ts'
-import { subscriptionModelViews } from './subscription-models.ts'
+import { subscriptionModelSelection, syncCodexModels } from './subscription-catalog.ts'
 import type { UsageReader } from './usage-reader.ts'
 import type { OwnerRequestPolicy } from './web-origin.ts'
 
@@ -177,21 +177,12 @@ export function applyAccountSubscriptions(ctx: Context, options: AccountSubscrip
         invalidateToken: () => grok.invalidateAccessToken(),
       }),
     }
-    const routes = createCodingOAuthRouteSet(grok, subscriptions, accessMode => host.compatibility({ accessMode, uiOwner: 'standalone' }), {
-      views: slug => subscriptionModelViews(
-        slug,
-        slug === 'grok' ? grok.availableModels() : codex.availableModels(),
-        modelId => selection.isSelected(slug, modelId),
-      ),
-      setSelected: async (slug, selected) => {
-        const available = subscriptionModelViews(
-          slug,
-          slug === 'grok' ? grok.availableModels() : codex.availableModels(),
-          () => true,
-        ).map(model => model.id)
-        await selection.setSelected(slug, available, selected)
-      },
-    })
+    const routes = createCodingOAuthRouteSet(
+      grok,
+      subscriptions,
+      accessMode => host.compatibility({ accessMode, uiOwner: 'standalone' }),
+      subscriptionModelSelection(grok, codex, selection),
+    )
     const adapter = createCodingOAuthAdapter(
       grok,
       subscriptions,
@@ -215,17 +206,7 @@ export function applyAccountSubscriptions(ctx: Context, options: AccountSubscrip
           { isSignedIn: grokSignedIn, sync: signal => grok.refreshLiveCatalog(signal) },
           {
             isSignedIn: codexSignedIn,
-            sync: async (signal) => {
-              const listed = (await codexModels.refresh(signal))
-                .filter(model => model.listed)
-                .sort((left, right) => (left.priority ?? Number.MAX_SAFE_INTEGER) - (right.priority ?? Number.MAX_SAFE_INTEGER))
-              if (listed.length === 0) throw new Error('the Codex model listing returned no models')
-              await codex.setLiveModels(listed.map(model => ({
-                id: model.id,
-                ...(model.name === undefined ? {} : { name: model.name }),
-                ...(model.imageInput === undefined ? {} : { imageInput: model.imageInput }),
-              })))
-            },
+            sync: signal => syncCodexModels(codex, codexModels, signal),
           },
         ],
       })

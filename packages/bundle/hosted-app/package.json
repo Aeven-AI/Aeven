@@ -50,6 +50,7 @@
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/host-webserver": "workspace:^",
     "@aeven/agent": "workspace:^",
     "@aeven/identity-user": "workspace:^",
     "@aeven/llm": "workspace:^",

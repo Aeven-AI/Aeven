@@ -28,6 +28,9 @@
     },
     {
       "path": "../../session/session-handoff"
+    },
+    {
+      "path": "../../host/webserver"
     }
   ]
 }
