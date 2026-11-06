@@ -21,7 +21,11 @@ export function apply(ctx: Context, config: Config): void {
     const existing = engines.get(voiceId)
     if (existing !== undefined) return existing
     const created = (async () => {
-      const tts = new MsEdgeTTS({ synthesisTimeoutMs: config.timeoutMs })
+      const tts = new MsEdgeTTS({
+        synthesisTimeoutMs: config.timeoutMs,
+        throttleRetries: config.throttleRetries,
+        throttleRetryMs: config.throttleRetryMs,
+      })
       await tts.setMetadata(voiceId, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3)
       return tts
     })()

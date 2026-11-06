@@ -46,6 +46,10 @@ export interface EdgeClientOptions {
   synthesisTimeoutMs?: number
   /** Longest wait for the socket handshake, in milliseconds. */
   connectionTimeoutMs?: number
+  /** Further handshakes after the service answers 429; 0 reports the first refusal. */
+  throttleRetries?: number
+  /** Wait before the first further handshake, doubled for each one after it, in milliseconds. */
+  throttleRetryMs?: number
 }
 
 /** One voice as the service lists it. */
@@ -88,13 +92,17 @@ export class MsEdgeTTS {
   private voiceLocale = ''
   private readonly synthesisTimeoutMs: number
   private readonly connectionTimeoutMs: number
+  private readonly throttleRetries: number
+  private readonly throttleRetryMs: number
 
   /**
-   * @param options - handshake and in-turn deadlines.
+   * @param options - handshake and in-turn deadlines, and the retries a throttled handshake gets.
    */
   constructor(options: EdgeClientOptions = {}) {
     this.synthesisTimeoutMs = options.synthesisTimeoutMs ?? 60_000
     this.connectionTimeoutMs = options.connectionTimeoutMs ?? 10_000
+    this.throttleRetries = options.throttleRetries ?? 0
+    this.throttleRetryMs = options.throttleRetryMs ?? 500
   }
 
   /**
@@ -200,7 +208,7 @@ export class MsEdgeTTS {
       await this.opening
       return
     }
-    const opening = this.openSocket().catch(async (error: unknown) => {
+    const opening = this.openThrottled(0).catch(async (error: unknown) => {
       const rejected = error as { statusCode?: number; serverTime?: number }
       if (!retryClock || rejected.statusCode !== 403) throw error
       if (rejected.serverTime !== undefined) clockOffsetMs = rejected.serverTime - Date.now()
@@ -211,6 +219,22 @@ export class MsEdgeTTS {
       await opening
     } finally {
       this.opening = undefined
+    }
+  }
+
+  /**
+   * Open the socket, handshaking again after a 429 while retries remain. The service throttles handshakes per
+   * address, so a Host that reads aloud for many people meets it where one person's machine does not.
+   * @param attempt - further handshakes already made.
+   */
+  private async openThrottled(attempt: number): Promise<void> {
+    try {
+      await this.openSocket()
+    } catch (error) {
+      if ((error as { statusCode?: number }).statusCode !== 429 || attempt >= this.throttleRetries) throw error
+      const delay = this.throttleRetryMs * 2 ** attempt
+      await new Promise<void>((resolve) => { setTimeout(resolve, delay + Math.random() * delay) })
+      await this.openThrottled(attempt + 1)
     }
   }
 

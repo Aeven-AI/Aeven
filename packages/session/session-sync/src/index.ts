@@ -119,7 +119,7 @@ export default class SessionSync extends SessionHandoff {
     const mirror = new SessionMirror(
       owner, this.ctx.sync, this.ctx.sessionPersistence, this.config,
       (message) => { this.ctx.logger.warn(message) },
-      this.ctx.get('attachments'), this.ctx.get('workspaceRegistry'),
+      () => this.ctx.get('attachments'), () => this.ctx.get('workspaceRegistry'),
       (sessionId, input) => this.deliver(owner, sessionId, input),
       (sessionId) => { this.liveChanged(owner, sessionId) },
       sessionId => this.released(owner, sessionId),

@@ -154,13 +154,37 @@
 
 # ── no Workspace directories on the Host ────────────────────────────────────
 
-# Workspaces are created by name and carry no folder: a folder of this Host
-# would expose the Host's files to whoever registered it.
+# Read-aloud for everyone on this Host leaves from one address, and the Edge
+# service refuses bursts of handshakes from one address with 429; the voices
+# are the web bundle's own (a patch replaces the whole row config).
+- id: text-to-speech-edge
+  config:
+    throttleRetries: 4
+    throttleRetryMs: 400
+    voices:
+      - id: en-US-AvaMultilingualNeural
+        name: Ava
+        language: en
+      - id: nl-NL-FennaNeural
+        name: Fenna
+        language: nl
+      - id: es-CO-SalomeNeural
+        name: Salome
+        language: es
+      - id: zh-CN-XiaoxiaoNeural
+        name: Xiaoxiao
+        language: zh
+      - id: de-DE-SeraphinaMultilingualNeural
+        name: Seraphina
+        language: de
+
 # A workspace a desktop made without a folder continues here as the account's own.
 - id: workspace
   config:
     pathlessWorkspaces: true
 
+# Workspaces are created by name and carry no folder: a folder of this Host
+# would expose the Host's files to whoever registered it.
 - id: workspace-controller
   config:
     folders: false
