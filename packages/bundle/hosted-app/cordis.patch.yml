@@ -5,10 +5,12 @@
 #
 # Two rules decide every row here:
 #
-# - Nothing runs on the Host's own machine for a session: no shell, no file
-#   tool, no terminal, no browser, no device, no desktop control, no code the
-#   model writes. The Host's disk and processes belong to every account at
-#   once, so any of these would reach the other accounts' data.
+# - Nothing runs on the Host's own machine for a session outside a per-account
+#   jail: no file tool, no terminal, no browser, no device, no desktop control.
+#   The Host's disk and processes belong to every account at once, so any of
+#   these would reach the other accounts' data. With AVN_HOSTED_SANDBOX=1 the
+#   bash tool runs each command in its account's jail (see "commands in a
+#   per-account jail" below); without it, there is no shell either.
 # - Nothing one account changes applies to another. The settings document and
 #   the credential store belong to the Host, so browser callers cannot write
 #   them, and account settings are not mirrored into them.
@@ -196,6 +198,9 @@
 - id: working-directory
   config:
     folders: false
+    # With the jail, each account's sessions work in a folder this Host creates
+    # for that account, which is the only folder its commands can see.
+    managedRoot: !!js "process.env.AVN_HOSTED_SANDBOX === '1' ? avnHomePath('sandbox', 'accounts') : undefined"
 
 - id: directory-picker
   disabled: true
@@ -323,7 +328,7 @@
     includeUserRoot: false
     patches:
       - id: tool-bash
-        disabled: true
+        disabled: !!js process.env.AVN_HOSTED_SANDBOX !== '1'
       - id: tool-pwsh
         disabled: true
       - id: tool-fs
@@ -353,6 +358,79 @@
           includeDefaultRoots: false
           customSkillDirs:
             - !!js "process.getBuiltinModule('node:url').fileURLToPath(new URL('./skills/', baseUrl))"
+
+# ── commands in a per-account jail ──────────────────────────────────────────
+
+# AVN_HOSTED_SANDBOX=1 turns on the bash tool, and every command runs in the
+# calling account's jail: fresh namespaces without network that see the
+# read-only system and /opt/aeven-sandbox (Python and Node with preinstalled
+# libraries; nothing can be installed), that account's folder, and a private
+# /tmp, under that account's CPU, memory, and process limits. The Host must run
+# in a systemd unit with Delegate=yes and DelegateSubgroup=host; the jail's
+# cgroups are its unit's. packages/sandbox/sandbox-jail/README.md lists the
+# host setup. The jail replaces the local sandbox, whose profiles read the
+# whole disk; without the flag no tool runs a command, and the local provider
+# stays only so the shell service the automations depend on can start.
+- id: sandbox
+  disabled: !!js process.env.AVN_HOSTED_SANDBOX === '1'
+
+- insert:
+    - id: sandbox-jail
+      name: '@aeven/sandbox-jail'
+      disabled: !!js process.env.AVN_HOSTED_SANDBOX !== '1'
+      config:
+        accountsRoot: !!js avnHomePath('sandbox', 'accounts')
+        readOnlyPaths:
+          - /usr
+          - /opt/aeven-sandbox
+          - /etc/alternatives
+          - /etc/ld.so.cache
+          - /etc/ld.so.conf
+          - /etc/ld.so.conf.d
+          - /etc/localtime
+          - /etc/fonts
+          - /etc/ssl/certs
+          - /etc/mime.types
+          - /etc/passwd
+          - /etc/group
+          - /etc/nsswitch.conf
+        env:
+          PATH: /opt/aeven-sandbox/bin:/usr/bin:/bin
+          NODE_PATH: /opt/aeven-sandbox/node/node_modules
+          NODE_COMPILE_CACHE: /opt/aeven-sandbox/node/compile-cache
+          LANG: C.UTF-8
+          TMPDIR: /tmp
+          OPENBLAS_NUM_THREADS: '1'
+          OMP_NUM_THREADS: '1'
+          MKL_NUM_THREADS: '1'
+          NUMEXPR_NUM_THREADS: '1'
+          MPLBACKEND: Agg
+          MPLCONFIGDIR: /tmp
+          PYTHONDONTWRITEBYTECODE: '1'
+        tmpSizeMb: 512
+        cgroup:
+          # The unit's cgroup: the parent of the `host` group systemd starts this process in.
+          root: !!js "process.env.AVN_HOSTED_SANDBOX === '1' ? '/sys/fs/cgroup' + process.getBuiltinModule('node:path').dirname(process.getBuiltinModule('node:fs').readFileSync('/proc/self/cgroup', 'utf8').trim().split('::')[1] ?? '/') : ''"
+          total:
+            memoryMax: 32G
+            pidsMax: '4096'
+            cpuMax: 1200000 100000
+            cpuWeight: '100'
+          account:
+            memoryMax: 2G
+            pidsMax: '256'
+            cpuMax: 200000 100000
+            cpuWeight: '100'
+
+# Commands write only inside their account's folder, and no approval can widen
+# that: an escalation to full access would run on the Host itself. A session
+# with no account folder resolves to a folder outside every account, which the
+# jail refuses.
+- id: sandbox-policy
+  config:
+    mode: workspace-write
+    ceiling: workspace-write
+    workspaceRoot: !!js "(process.getBuiltinModule('node:fs').mkdirSync(avnHomePath('sandbox', 'unowned'), { recursive: true }), avnHomePath('sandbox', 'unowned'))"
 
 - id: tools
   config:

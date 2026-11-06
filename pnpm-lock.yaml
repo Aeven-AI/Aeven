@@ -1971,6 +1971,9 @@ importers:
       '@aeven/client-ui-workspace-name':
         specifier: workspace:^
         version: link:../../client/ui-workspace-name
+      '@aeven/sandbox-jail':
+        specifier: workspace:^
+        version: link:../../sandbox/sandbox-jail
       '@aeven/speech-to-text-aeven':
         specifier: workspace:^
         version: link:../../speech/speech-to-text-aeven
@@ -9875,6 +9878,22 @@ importers:
       '@aeven/session':
         specifier: workspace:^
         version: link:../../core/session
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/sandbox/sandbox-jail:
+    dependencies:
+      '@deepseek-ai/node-addon-landlock-run':
+        specifier: workspace:^
+        version: link:../../../native/landlock-run/packages/entry
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@aeven/sandbox':
+        specifier: workspace:^
+        version: link:../sandbox
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis

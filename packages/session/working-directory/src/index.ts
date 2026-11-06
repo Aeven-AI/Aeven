@@ -20,9 +20,9 @@
  * @module @aeven/working-directory
  */
 
-import { existsSync } from 'node:fs'
+import { existsSync, mkdirSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
-import { isAbsolute, normalize, resolve as resolvePath } from 'node:path'
+import { isAbsolute, join, normalize, resolve as resolvePath } from 'node:path'
 import { Service, type Context } from '@deepseek-ai/cordis'
 import Schema from '@deepseek-ai/schemastery'
 import type { Session, SessionId } from '@aeven/session'
@@ -45,15 +45,31 @@ export interface Config {
    * waiting for a folder this Host never offers. Defaults to `true`.
    */
   readonly folders?: boolean
+  /**
+   * With `folders: false`, the absolute directory under which this Host gives
+   * each account's sessions a folder it creates and manages itself, never one
+   * a person chooses: `<managedRoot>/<owner>/workspaces/<workspace id>` for a
+   * session filed in a workspace, `<managedRoot>/<owner>/chats` otherwise. A
+   * session without an owner, or whose owner or workspace id is not a plain
+   * path segment, gets no folder. Omitted, sessions without a folder of
+   * their own stay without one.
+   */
+  readonly managedRoot?: string
 }
+
+/** An owner or workspace id usable as one directory name. */
+const PATH_SEGMENT = /^[A-Za-z0-9_-]{1,128}$/u
 
 /** Directory resolution and change for one session. */
 export class WorkingDirectoryService extends Service {
   static inject = ['sessionProjections']
 
-  static Config: Schema<Config> = Schema.object({ folders: Schema.boolean() })
+  static Config: Schema<Config> = Schema.object({ folders: Schema.boolean(), managedRoot: Schema.string() })
 
   private readonly folders: boolean
+  private readonly managedRoot: string | undefined
+  /** Managed folders this process has created. */
+  private readonly created = new Set<string>()
 
   /**
    * Directories this process moved a session into. A replicated session's
@@ -66,6 +82,11 @@ export class WorkingDirectoryService extends Service {
   constructor(ctx: Context, config: Config = {}) {
     super(ctx, 'workingDirectory')
     this.folders = config.folders ?? true
+    this.managedRoot = config.managedRoot
+    if (this.managedRoot !== undefined) {
+      if (this.folders) throw new Error('working-directory: managedRoot requires folders: false')
+      if (!isAbsolute(this.managedRoot)) throw new Error(`working-directory: managedRoot "${this.managedRoot}" must be absolute`)
+    }
     ctx.sessionProjections.register(workingDirectoryProjectionDefinition)
 
     ctx.inject(['systemPrompt'], (scope: Context) => {
@@ -109,8 +130,35 @@ export class WorkingDirectoryService extends Service {
       replicated: registry?.replicated(session.header.id) ?? false,
       entered: this.entered.get(session.header.id),
     })
+    if (this.folders || resolved.state === 'local') return resolved
     // Without folders here, a folder another device recorded is one this Host will never have.
-    return !this.folders && resolved.state === 'unresolved' ? { state: 'absent' } : resolved
+    const managed = this.managedFolder(session)
+    return managed === undefined ? { state: 'absent' } : { state: 'local', cwd: managed, root: managed }
+  }
+
+  /**
+   * The managed folder for a session on a Host without folders of its own,
+   * created on first use and private to the Host's user.
+   * @param session - the session to place.
+   * @returns the folder, or undefined when no managed root is configured or the session has no usable owner.
+   */
+  private managedFolder(session: Session): string | undefined {
+    const owner = session.header.owner
+    if (this.managedRoot === undefined || owner === undefined || !PATH_SEGMENT.test(owner)) return undefined
+    const placement = this.ctx.get('workspaceRegistry')?.placeSession(session.header.id)
+    let path: string
+    if (placement?.state === 'filed') {
+      const workspaceId = String(placement.workspace.id)
+      if (!PATH_SEGMENT.test(workspaceId)) return undefined
+      path = join(this.managedRoot, owner, 'workspaces', workspaceId)
+    } else {
+      path = join(this.managedRoot, owner, 'chats')
+    }
+    if (!this.created.has(path)) {
+      mkdirSync(path, { recursive: true, mode: 0o700 })
+      this.created.add(path)
+    }
+    return path
   }
 
   /**

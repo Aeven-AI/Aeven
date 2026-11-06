@@ -1,5 +1,5 @@
 ---
-description: "The avn hosted bundle: the web patch layer narrowed for a Host that Aeven operates for many accounts, which runs no command or file operation on its own machine and keeps no setting one account could change for another."
+description: "The avn hosted bundle: the web patch layer narrowed for a Host that Aeven operates for many accounts, which runs no command outside a per-account jail and no file operation on its own machine and keeps no setting one account could change for another."
 kind: "package-bundle"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@aeven/hosted-app` is the bundle layer for Aeven Web served to many people from one Host. It applies after `@aeven/web-app` and states two rules as rows: nothing runs on the Host's machine for a session, and nothing one account changes applies to another. Shell, filesystem, terminal, browser, device, computer-use, code runtime, workflow workers, code subagents, the skill catalog, and workspace folders are all off; web search and fetch, imagine, attachments, memory, and in-process subagent delegation stay. Account settings resolve per signed-in account, and the sync provider keeps an encrypted connection for every account signed in here.
+`@aeven/hosted-app` is the bundle layer for Aeven Web served to many people from one Host. It applies after `@aeven/web-app` and states two rules as rows: nothing runs on the Host's machine for a session, and nothing one account changes applies to another. Filesystem, terminal, browser, device, computer-use, code runtime, workflow workers, code subagents, the skill catalog, and workspace folders are off, and the shell runs only with `AVN_HOSTED_SANDBOX=1`, each command inside its account's [jail](../../sandbox/sandbox-jail/README.md); web search and fetch, imagine, attachments, memory, and in-process subagent delegation stay. Account settings resolve per signed-in account, and the sync provider keeps an encrypted connection for every account signed in here.
 
 Boot it with `avn hosted`, which composes base, web, and this bundle on port 3085 unless `AVN_HOSTED_PORT` names another. `AVN_HOME` decides where the deployment keeps its state, `AVN_HOSTED_HOST` the address the server binds, and `AVN_HOSTED_TRUSTED_HOSTS` the public names a browser may reach it by; TLS, the public name, and request limits belong to the proxy in front.
 
@@ -51,7 +51,7 @@ None of its own; requests keep whatever caching the remaining tools and the syst
 
 - **No quotas or rate limits for public sign-up** — request admission bounds concurrent streams per account and in total; it does not gate account creation, spend, or request frequency.
 - **Account data is not encrypted at rest** — each account's sessions, memory, and sync database live in its own directory under the deployment's home, readable by whoever operates the Host.
-- **No code execution, at all** — a hosted session cannot run a command, read a file, or open a browser, including for work the model could otherwise do itself.
+- **Code runs only in the account's jail** — without `AVN_HOSTED_SANDBOX=1` a hosted session cannot run a command; with it, commands run without network or package installs, and file tools and the browser stay off.
 - **Images are served per session** — the deployment refuses fingerprint-only reads, so hosted images carry no cache-forever URL.
 - **Memory work is bounded, not isolated** — embeddings run in the Host process, so a large catch-up for one account still costs the others latency.
 

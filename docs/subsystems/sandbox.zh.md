@@ -210,12 +210,21 @@ The sandbox-policy service (`ctx.sandboxPolicy`). Owns the deployment default mo
  * confined to a path its log recorded on another machine. The configured root
  * is the fallback for agentless calls and sessions that record no directory
  * at all. A root that is a linked git worktree also grants the repository's
- * shared git directory.
+ * shared git directory. A session override wider than {@link ceiling}
+ * resolves to the ceiling.
  * @param request - optional session and approved mode override.
  * @returns the fully resolved per-call mode, absolute workspace root, and additional writable roots.
  * @throws {WorkingDirectoryUnavailableError} when the session records a directory but no folder on this device stands for its workspace.
+ * @throws when the approved mode override is wider than {@link ceiling}.
  */
 resolve(request: SandboxPolicyRequest = {}): SandboxExecutionPolicy
+
+/**
+ * Whether a mode is within this deployment's ceiling.
+ * @param mode - the mode a call would run under.
+ * @returns true when the mode is no wider than {@link ceiling}.
+ */
+allows(mode: SandboxMode): boolean
 
 /**
  * Read the session override without applying the deployment default.

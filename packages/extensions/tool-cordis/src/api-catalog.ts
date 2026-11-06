@@ -2408,11 +2408,22 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [],
       },
       {
+        signature: 'readonly ceiling: SandboxMode',
+        description: 'The widest mode any call may resolve to.',
+        parameters: [],
+      },
+      {
         signature: 'resolve(request: SandboxPolicyRequest = {}): SandboxExecutionPolicy',
-        description: 'Resolve the complete policy for one capability call. An approved explicit mode outranks the session\'s last `sandbox/mode` event, which outranks the deployment default. A session\'s workspace root is this device\'s binding for the workspace that session belongs to, and is its workspace-write boundary; a session whose workspace has no folder here is refused rather than confined to a path its log recorded on another machine. The configured root is the fallback for agentless calls and sessions that record no directory at all. A root that is a linked git worktree also grants the repository\'s shared git directory.',
+        description: 'Resolve the complete policy for one capability call. An approved explicit mode outranks the session\'s last `sandbox/mode` event, which outranks the deployment default. A session\'s workspace root is this device\'s binding for the workspace that session belongs to, and is its workspace-write boundary; a session whose workspace has no folder here is refused rather than confined to a path its log recorded on another machine. The configured root is the fallback for agentless calls and sessions that record no directory at all. A root that is a linked git worktree also grants the repository\'s shared git directory. A session override wider than ceiling resolves to the ceiling.',
         parameters: [{ name: 'request', description: 'optional session and approved mode override.' }],
         returns: 'the fully resolved per-call mode, absolute workspace root, and additional writable roots.',
-        throws: ['{WorkingDirectoryUnavailableError} when the session records a directory but no folder on this device stands for its workspace.'],
+        throws: ['{WorkingDirectoryUnavailableError} when the session records a directory but no folder on this device stands for its workspace.', 'when the approved mode override is wider than {@link ceiling}.'],
+      },
+      {
+        signature: 'allows(mode: SandboxMode): boolean',
+        description: 'Whether a mode is within this deployment\'s ceiling.',
+        parameters: [{ name: 'mode', description: 'the mode a call would run under.' }],
+        returns: 'true when the mode is no wider than {@link ceiling}.',
       },
       {
         signature: 'overrideOf(session: Session): SandboxMode | undefined',

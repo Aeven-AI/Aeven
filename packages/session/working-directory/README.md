@@ -40,6 +40,8 @@ Resolution reads two facts: the recorded pair, and where `ctx.workspaceRegistry.
 
 Virtual workspaces such as Chats have no folder binding. A chat written on this device uses its recorded directory; an imported chat uses a directory explicitly entered by this process, and refuses its foreign recorded path otherwise.
 
+A Host that serves many accounts sets `folders: false`, so a session never acts in a folder another device recorded. With `managedRoot` as well, the Host gives each account's sessions a folder it creates itself: `<managedRoot>/<owner>/workspaces/<workspace id>` for a session filed in a workspace, `<managedRoot>/<owner>/chats` otherwise. A session without an owner, or whose owner or workspace id is not a plain path segment, gets no folder.
+
 The `workingDirectory` projection unit folds the same events for clients. While a local directory is in force, the service adds one runtime-context line before each request: `Current working directory: "<path>". Relative paths in file, search, and shell calls resolve against it.` — or a line saying that directory no longer exists. When this device cannot honour the session's workspace, the line says so and asks the model to settle on a folder instead of guessing.
 
 ## Operations
