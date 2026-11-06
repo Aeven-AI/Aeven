@@ -103,7 +103,11 @@ export class CredentialsController extends TypertRemoteService {
     // The caller's own session credential counts; another signed-in user's never does.
     const user = this.ctx.get('identityUsers')?.actingUser()?.id
     const entries = await Promise.all(branded.map(async ([ref, key]) =>
-      [ref, { ...projectCredentialInfo(await credentials.describe(key, user)), ...this.writable ? {} : { writable: false } }] as const))
+      [ref, {
+        ...projectCredentialInfo(await credentials.describe(key, user)),
+        // A person's own keys stay writable on a Host whose shared store is read-only.
+        ...(this.writable || credentials.accountStorage && user !== undefined) ? {} : { writable: false },
+      }] as const))
     return Object.fromEntries(entries)
   }
 
@@ -116,11 +120,12 @@ export class CredentialsController extends TypertRemoteService {
    */
   @Remote
   async set(ref: string, value: string): Promise<void> {
-    if (!this.writable) throw readOnly('credentials.set')
+    const user = this.personalOwner()
+    if (!this.writable && user === undefined) throw readOnly('credentials.set')
     const request = parseRequest('credentials.set', setRequestSchema, { ref, value })
     const branded = credentialRef(request.ref)
     const credentials = this.provider()
-    await this.write(request.ref, () => credentials.set(branded, request.value))
+    await this.write(request.ref, () => credentials.set(branded, request.value, user))
   }
 
   /**
@@ -130,11 +135,16 @@ export class CredentialsController extends TypertRemoteService {
    */
   @Remote
   async unset(ref: string): Promise<void> {
-    if (!this.writable) throw readOnly('credentials.unset')
+    const user = this.personalOwner()
+    if (!this.writable && user === undefined) throw readOnly('credentials.unset')
     const request = parseRequest('credentials.unset', unsetRequestSchema, { ref })
     const branded = credentialRef(request.ref)
     const credentials = this.provider()
-    await this.write(request.ref, () => credentials.unset(branded))
+    await this.write(request.ref, () => credentials.unset(branded, user))
+  }
+
+  private personalOwner(): string | undefined {
+    return !this.writable && this.provider().accountStorage ? this.ctx.get('identityUsers')?.actingUser()?.id : undefined
   }
 
   /** Resolve the optional provider or report how to supply it. */

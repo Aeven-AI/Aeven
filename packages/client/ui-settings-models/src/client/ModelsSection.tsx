@@ -392,7 +392,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                           className={styles['foldoutAction']}
                           aria-label={providerCopy(t('removeProvider'), target)}
                           title={t('remove')}
-                          disabled={!state.writable}
+                          disabled={!(state.namespaces.get(row.entry.settingsNs)?.writable ?? state.writable)}
                           onClick={() => {
                             setDeleteFailure(undefined)
                             setDeleteTarget(target)
@@ -421,7 +421,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                           schema={schema}
                           operations={operations}
                           t={t}
-                          readOnly={!state.writable}
+                          readOnly={!(namespace.writable ?? state.writable)}
                           models={namespace.ns === 'llm-pi-ai'
                             ? (
                               <ProviderModels
@@ -433,7 +433,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                                 schema={schema}
                                 operations={operations}
                                 t={t}
-                                readOnly={!state.writable}
+                                readOnly={!(namespace.writable ?? state.writable)}
                               />
                             )
                             : undefined}

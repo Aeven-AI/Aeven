@@ -5121,6 +5121,9 @@ importers:
       '@aeven/host-webserver':
         specifier: workspace:^
         version: link:../../host/webserver
+      '@aeven/identity-user':
+        specifier: workspace:^
+        version: link:../../identity/user
       '@aeven/settings':
         specifier: workspace:^
         version: link:../../settings/settings
@@ -8879,6 +8882,9 @@ importers:
         specifier: 1.4.0
         version: 1.4.0(@aws-sdk/credential-provider-node@3.972.89)(@modelcontextprotocol/sdk@1.32.0(zod@4.6.5))(@smithy/signature-v4@5.7.4)(undici@8.10.0)(ws@8.21.3)(zod@4.6.5)
     devDependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../../core/agent
       '@aeven/attachment':
         specifier: workspace:^
         version: link:../../attachment/attachment
@@ -8894,6 +8900,9 @@ importers:
       '@aeven/http-proxy':
         specifier: workspace:^
         version: link:../../util/http-proxy
+      '@aeven/identity-user':
+        specifier: workspace:^
+        version: link:../../identity/user
       '@aeven/launch-environment':
         specifier: workspace:^
         version: link:../../util/launch-environment
@@ -11392,6 +11401,9 @@ importers:
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
     devDependencies:
+      '@aeven/identity-user':
+        specifier: workspace:^
+        version: link:../../identity/user
       '@aeven/settings':
         specifier: workspace:^
         version: link:../../settings/settings

@@ -36,6 +36,8 @@ export function apply(ctx: Context): void {
     settingsCtx.settings.register(
       ONBOARDING_SETTINGS_NAMESPACE,
       OnboardingSettingsSchema,
+      // Which notice a person acknowledged is theirs, on every device of the account.
+      { reach: 'account' },
     )
     settingsCtx.settings.register(
       DEVELOPER_SETTINGS_NAMESPACE,

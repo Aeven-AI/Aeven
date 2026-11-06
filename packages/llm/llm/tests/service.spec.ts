@@ -558,6 +558,30 @@ describe('LlmRuntime', () => {
     for await (const _chunk of ctx.llm.stream({ provider: 'test', model: 'test', messages: [] })) break
   })
 
+  it('keeps an account route private while preserving shared providers and atomic adapter replacement', async () => {
+    const ctx = new Context()
+    await ctx.plugin(LlmRuntime)
+    let owner: string | undefined
+    const source = ctx.llm.registerAccountSource(() => owner, () => Promise.resolve())
+    const shared = ctx.llm.registerAdapter(['shared'], new ScriptedAdapter(SCRIPT))
+    const personal = ctx.llm.registerAdapter(['private'], new ScriptedAdapter(SCRIPT), 'alice')
+    owner = 'alice'
+    expect(ctx.llm.listProviders().map(p => p.id)).toEqual(['shared', 'private'])
+    personal.replace(['renamed'], new ScriptedAdapter(SCRIPT))
+    expect(ctx.llm.listProviders().map(p => p.id)).toEqual(['shared', 'renamed'])
+    owner = 'bob'
+    expect(ctx.llm.listProviders().map(p => p.id)).toEqual(['shared'])
+    await expect(ctx.llm.listModels('renamed')).rejects.toMatchObject({ code: 'NO_ADAPTER' })
+    owner = undefined
+    expect(ctx.llm.listProviders().map(p => p.id)).toEqual(['shared'])
+    personal()
+    owner = 'alice'
+    expect(ctx.llm.listProviders().map(p => p.id)).toEqual(['shared'])
+    shared()
+    source()
+    await ctx.fiber.dispose()
+  })
+
   it('unregisters adapters when the owning fiber is disposed (HMR safety)', async () => {
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)

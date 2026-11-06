@@ -59,8 +59,11 @@ import type { Api, Model } from '@earendil-works/pi-ai'
 import type { Context } from '@deepseek-ai/cordis'
 import { launchEnvironmentOf } from '@aeven/launch-environment'
 import { assertUsableApiKey, LlmError, resolveImageAttachmentAccess } from '@aeven/llm'
+import { assertPublicEndpoint } from './endpoint-guard.ts'
 import type { AdapterRegistrationHandle, DirectoryRegistrationHandle, LlmConfigurableProvider } from '@aeven/llm'
 import type {} from '@aeven/fs'
+import type {} from '@aeven/agent'
+import type {} from '@aeven/identity-user'
 import type {} from '@aeven/settings'
 import { deepEqualJson } from '@aeven/util-values'
 import { PiAiAdapter } from './adapter.ts'
@@ -278,11 +281,17 @@ export function apply(ctx: Context, config: Config): void {
   // except the stored credential and deployment-owned headers: the curated UI
   // accepts neither, so an already-configured route supplies both inside the
   // Host rather than widening the discovery request.
-  ctx.llm.registerModelDiscovery(NS, (request, signal) => {
+  ctx.llm.registerModelDiscovery(NS, async (request, signal) => {
+    await ctx.llm.prepareAccount()
     // A configured route asked about as stored answers from what it serves,
     // installed and refreshed models alike, so the Providers page lists every
     // model the route offers with its capabilities and no endpoint call. A
     // draft naming its own endpoint, protocol, or key is still interrogated.
+    const account = ctx.get('settings')?.accountSections === true && ctx.get('identityUsers')?.actingUser()?.id !== undefined
+    const asStored = request.baseURL === undefined && request.api === undefined && request.apiKey === undefined
+    if (account && request.provider !== undefined && asStored) return ctx.llm.listModels(request.provider)
+    // A person's draft endpoint is interrogated by this Host, so it may only reach the public internet.
+    if (account && request.baseURL !== undefined) await assertPublicEndpoint(request.baseURL)
     const configured = request.provider !== undefined && profiles().has(request.provider)
       && request.baseURL === undefined && request.api === undefined && request.apiKey === undefined
     if (configured) return Promise.resolve(adapter.routeModels(request.provider as string))
@@ -442,11 +451,46 @@ export function apply(ctx: Context, config: Config): void {
   const refreshes = new AbortController()
 
   ctx.inject(['settings'], (settingsCtx) => {
+    if (settingsCtx.settings.accountSections) {
+      const accounts = new Map<string, { raw: Config; registration?: AdapterRegistrationHandle; directory?: DirectoryRegistrationHandle }>()
+      const owner = (): string | undefined => ctx.get('agents')?.currentInitiator()?.session.header.owner
+        ?? ctx.get('identityUsers')?.actingUser()?.id
+      ctx.llm.registerAccountSource(owner, async (account) => {
+        const raw = await settingsCtx.settings.valueFor(NS, account) as Config
+        const prior = accounts.get(account)
+        if (prior !== undefined && deepEqualJson(prior.raw, raw)) return
+        const ownProfiles = resolveProfiles(raw.providers, liveModels)
+        const personal = new PiAiAdapter({
+          profiles: () => ownProfiles,
+          resolveApiKey: async (_provider, profile) => {
+            // A person's route is called by this Host on their behalf, so it may only reach the public internet.
+            if (profile.baseURL !== undefined) await assertPublicEndpoint(profile.baseURL)
+            if (profile.apiKeyEnv === undefined) return undefined
+            const hit = await ctx.get('credentials')?.resolve(profile.apiKeyEnv, account)
+            if (hit === undefined) throw new LlmError('No personal API key is stored for this provider', 'MISSING_CREDENTIAL')
+            return assertUsableApiKey(hit.value, 'llm-pi-ai', profile.apiKeyEnv)
+          },
+          auth: { credentials: credentialStoreFrom(ctx, account), authContext: authContextFrom(ctx, account) },
+          resolveAttachments: () => ctx.get('attachments'),
+          resolveImageAccess: (attachments, ref) => resolveImageAttachmentAccess(attachments, () => undefined, ref),
+        })
+        const routes = [...ownProfiles.keys()]
+        // A call already prepared against the previous adapter keeps its frozen profile.
+        let registration = prior?.registration
+        if (registration !== undefined) registration.replace(routes, personal)
+        else if (routes.length > 0) registration = ctx.llm.registerAdapter(routes, personal, account)
+        const entries = directoryEntries(ownProfiles)
+        const directory = prior?.directory ?? ctx.llm.registerConfigurableProviders(entries, account)
+        if (prior?.directory !== undefined) directory.replace(entries)
+        accounts.set(account, { raw, directory, ...registration === undefined ? {} : { registration } })
+      })
+    }
     settingsCtx.settings.installSection(ctx, NS, Config, config, {
       // Refuse an unserviceable section where it is written: without this a
       // schema-valid profile the adapter cannot serve would be stored and then
       // silently disable every route in this namespace.
       validate: assertServiceable,
+      reach: 'account',
       setSource: (source) => {
         current = source
       },

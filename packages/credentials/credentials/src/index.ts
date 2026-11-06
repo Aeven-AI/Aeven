@@ -172,6 +172,9 @@ export abstract class CredentialProvider extends Service {
     super(ctx, 'credentials')
   }
 
+  /** Whether durable credential writes can be restricted to one signed-in account. */
+  get accountStorage(): boolean { return false }
+
   /**
    * Resolve one reference to its current value. Resolution is per call:
    * consumers re-resolve at each operation and must not cache across
@@ -203,7 +206,7 @@ export abstract class CredentialProvider extends Service {
    * @param ref - the reference to store.
    * @param value - the non-empty secret value.
    */
-  abstract set(ref: CredentialRef, value: string): Promise<void>
+  abstract set(ref: CredentialRef, value: string, user?: string): Promise<void>
 
   /**
    * Remove one reference from the provider-managed writable source; removing
@@ -211,7 +214,7 @@ export abstract class CredentialProvider extends Service {
    * the reference, like {@link set}.
    * @param ref - the reference to remove.
    */
-  abstract unset(ref: CredentialRef): Promise<void>
+  abstract unset(ref: CredentialRef, user?: string): Promise<void>
 
   /**
    * Publish a credential that belongs to one signed-in user's live session
@@ -238,14 +241,14 @@ export abstract class CredentialProvider extends Service {
    * @param key - the record to read.
    * @returns the record, or `undefined` while none is stored.
    */
-  abstract readRecord(key: CredentialKey): Promise<CredentialRecord | undefined>
+  abstract readRecord(key: CredentialKey, user?: string): Promise<CredentialRecord | undefined>
 
   /**
    * Describe one record for configuration surfaces without exposing its value.
    * @param key - the record to describe.
    * @returns presence, discriminant, and writability.
    */
-  abstract describeRecord(key: CredentialKey): Promise<CredentialRecordInfo>
+  abstract describeRecord(key: CredentialKey, user?: string): Promise<CredentialRecordInfo>
 
   /**
    * Enumerate every stored record's address and tag. Unlike the reference
@@ -255,7 +258,7 @@ export abstract class CredentialProvider extends Service {
    * authorized for, nor find an orphan left by an uninstalled plugin.
    * @returns every stored record, values excluded.
    */
-  abstract listRecords(): Promise<readonly CredentialRecordEntry[]>
+  abstract listRecords(user?: string): Promise<readonly CredentialRecordEntry[]>
 
   /**
    * Serialized read-modify-write over one record — the only write path.
@@ -271,13 +274,14 @@ export abstract class CredentialProvider extends Service {
   abstract modifyRecord(
     key: CredentialKey,
     mutate: (current: CredentialRecord | undefined) => Promise<CredentialRecord | undefined>,
+    user?: string,
   ): Promise<CredentialRecord | undefined>
 
   /**
    * Remove one record; removing an absent record is a no-op.
    * @param key - the record to remove.
    */
-  abstract deleteRecord(key: CredentialKey): Promise<void>
+  abstract deleteRecord(key: CredentialKey, user?: string): Promise<void>
 
   /**
    * Fan `credentials/reference-updated` out with contained listener failures: every

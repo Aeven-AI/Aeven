@@ -110,6 +110,10 @@
   config:
     accounts: true
 
+- id: credentials
+  config:
+    accounts: true
+
 - id: settings-controller
   config:
     writable: false
@@ -202,7 +206,7 @@
   disabled: true
 
 - id: ui-settings-models
-  disabled: true
+  disabled: false
 
 - id: ui-permission
   disabled: true

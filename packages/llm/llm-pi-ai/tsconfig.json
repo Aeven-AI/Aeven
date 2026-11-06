@@ -46,6 +46,12 @@
     },
     {
       "path": "../../util/http-proxy"
+    },
+    {
+      "path": "../../core/agent"
+    },
+    {
+      "path": "../../identity/user"
     }
   ]
 }

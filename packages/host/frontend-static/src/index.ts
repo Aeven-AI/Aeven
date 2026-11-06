@@ -20,7 +20,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { requestOrigin } from '@aeven/host-webserver'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@aeven/client-connection'
-import type {} from '@aeven/host-webserver'
+import type { IndexRequest } from '@aeven/host-webserver'
 
 /** Stable Cordis plugin name. */
 export const name = 'frontend-static'
@@ -150,8 +150,8 @@ export function apply(ctx: Context, config: Config): void {
   // static directory; served pages also answer deep SPA-fallback paths, where
   // relative asset URLs would resolve under the request directory, so the
   // served form anchors them at the site root ahead of every URL-bearing tag.
-  const renderIndex = async (origin?: string): Promise<string> => {
-    const body = ctx.webServer.renderIndex(await readFile(distIndex, 'utf8'), origin)
+  const renderIndex = async (origin?: string, request?: IndexRequest): Promise<string> => {
+    const body = ctx.webServer.renderIndex(await readFile(distIndex, 'utf8'), origin, request)
     return body.replace(/<head(?:\s[^>]*)?>/i, open => `${open}<base href="/">`)
   }
   ctx.effect(() => ctx.webServer.registerFallback(async (req, res) => {
@@ -170,7 +170,8 @@ export function apply(ctx: Context, config: Config): void {
       distRoot,
       distIndex,
       () => ctx.connection.authorizeIndex(req, res),
-      renderIndex,
+      // The page request rides along so a subscriber can render the reader's own preferences.
+      origin => renderIndex(origin, { headers: req.headers }),
       // The Host knows which spelling the page arrived on; handing it to the
       // injection table is what lets a subscriber state deployment URLs under
       // that spelling instead of the client repairing them afterwards.

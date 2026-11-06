@@ -35,7 +35,9 @@
     "@aeven/launch-environment": "workspace:^",
     "@aeven/llm": "workspace:^",
     "@aeven/settings": "workspace:^",
-    "@aeven/timeout": "workspace:^"
+    "@aeven/timeout": "workspace:^",
+    "@aeven/agent": "workspace:^",
+    "@aeven/identity-user": "workspace:^"
   },
   "dependencies": {
     "@aeven/brand": "workspace:^",
@@ -54,6 +56,8 @@
     "@aeven/llm-deepseek": "workspace:^",
     "@aeven/settings": "workspace:^",
     "@aeven/timeout": "workspace:^",
-    "@aeven/http-proxy": "workspace:^"
+    "@aeven/http-proxy": "workspace:^",
+    "@aeven/agent": "workspace:^",
+    "@aeven/identity-user": "workspace:^"
   }
 }

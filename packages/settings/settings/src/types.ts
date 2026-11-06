@@ -31,6 +31,8 @@ export interface SettingsSecretView {
  * because the Remote boundary admits no unconstrained data.
  */
 export interface SettingsNamespaceView {
+  /** Whether this caller may edit this namespace when Host-wide writes are disabled. */
+  writable?: boolean
   /** Namespace key (`llm-deepseek`, `llm-pi-ai`, …). */
   ns: string
   /** Serialized schemastery schema envelope (`schema.toJSON()`); rehydrate with `new Schema(json)`. */

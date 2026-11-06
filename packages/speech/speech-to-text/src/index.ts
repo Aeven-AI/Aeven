@@ -1,7 +1,9 @@
 /** Named transcription providers with disposable registration and explicit routing. */
 import { Context, Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
+import type SettingsService from '@aeven/settings'
 import type { SettingsScope } from '@aeven/settings'
+import type {} from '@aeven/identity-user'
 import type { SpeechPreparationOptions, SpeechProvider, SpeechProviderId, SpeechProviderInfo, SpeechSnapshot, SpeechSelectionPatch, SpeechRequest, SpeechSpec, Transcript } from './types.ts'
 
 export type * from './types.ts'
@@ -46,17 +48,24 @@ export default class SpeechToText extends Service {
   private readonly lifetime = new AbortController()
   /** Saved preferences layered over `config`; absent while the composition mounts no `settings` service. */
   private preferences: SettingsScope<Config> | undefined
+  /** The settings service behind {@link preferences}, for a person's own preferences on a Host that keeps them per account. */
+  private settings: SettingsService | undefined
 
   constructor(ctx: Context, private readonly config: Config) {
     super(ctx, 'speechToText')
     ctx.inject(['settings'], (settingsCtx) => {
-      const scope = settingsCtx.settings.register(SETTINGS_NAMESPACE, SpeechToText.Config, { base: config })
+      // Whether a person dictates, and in which language, is theirs: the same on every device of the account.
+      const scope = settingsCtx.settings.register(SETTINGS_NAMESPACE, SpeechToText.Config, { base: config, reach: 'account' })
       this.preferences = scope
+      this.settings = settingsCtx.settings
+      const stopAccount = settingsCtx.on('settings/account-updated', (_owner, ns) => { if (ns === SETTINGS_NAMESPACE) this.changed() })
       const stop = scope.watch(() => { this.changed() })
       this.changed()
       settingsCtx.effect(() => () => {
         stop()
+        stopAccount()
         this.preferences = undefined
+        this.settings = undefined
         this.changed()
       }, 'speech-to-text.settings')
     })
@@ -67,8 +76,17 @@ export default class SpeechToText extends Service {
     })
   }
 
-  /** Current selection: saved user preferences over the composition defaults. */
+  /** The signed-in person the current call is for, whose own preferences apply on a Host that keeps them per account. */
+  private owner(): string | undefined {
+    return this.settings?.accountSections === true ? this.ctx.get('identityUsers')?.actingUser()?.id : undefined
+  }
+
+  /** Current selection: the caller's saved preferences over the composition defaults. */
   private selection(): Config {
+    const owner = this.owner()
+    if (owner !== undefined && this.settings !== undefined) {
+      return (this.settings.cachedValueFor(SETTINGS_NAMESPACE, owner) as Config | undefined) ?? this.config
+    }
     return this.preferences?.get() ?? this.config
   }
 
@@ -159,9 +177,12 @@ export default class SpeechToText extends Service {
     if (preferences === undefined) throw new Error('Speech selection requires the settings service')
     const current = this.selection()
     this.selectedProvider(patch.providerId ?? current.defaultProvider as SpeechProviderId, patch.language ?? current.language)
-    await preferences.update({ ...patch.providerId === undefined ? {} : { defaultProvider: patch.providerId },
+    const changes = { ...patch.providerId === undefined ? {} : { defaultProvider: patch.providerId },
       ...patch.language === undefined ? {} : { language: patch.language },
-      ...patch.enabled === undefined ? {} : { enabled: patch.enabled } })
+      ...patch.enabled === undefined ? {} : { enabled: patch.enabled } }
+    const owner = this.owner()
+    if (owner !== undefined && this.settings !== undefined) await this.settings.writeFor(owner, SETTINGS_NAMESPACE, 'merge', changes)
+    else await preferences.update(changes)
   }
 
   private selectedProvider(id: SpeechProviderId, language: string): SpeechProvider {

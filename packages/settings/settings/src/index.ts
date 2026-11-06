@@ -350,6 +350,8 @@ export abstract class SettingsProvider extends Service {
   private readonly writeQueues = new Map<string, Promise<unknown>>()
   /** Each account's own sections, once read; see {@link accountSections}. */
   private readonly accountLoads = new Map<string, Promise<Record<string, unknown>>>()
+  /** The same sections once read, for {@link cachedValueFor}; each holds the object writes update in place. */
+  private readonly accountSnapshots = new Map<string, Record<string, unknown>>()
   /** Revision of each account section, keyed by {@link accountKey}; counted from 0 per process like the document's. */
   private readonly accountRevisions = new Map<string, number>()
   /** In-flight watcher invocation segments, drained by the dispose teardown. */
@@ -607,6 +609,36 @@ export abstract class SettingsProvider extends Service {
   }
 
   /**
+   * Resolve one namespace as `owner` sees it from what is already read, without waiting: an answer for a request
+   * that cannot wait, such as a page render. An account whose sections were not read yet answers the document's
+   * value, and the read starts so the next call answers the account's own.
+   * @param ns - the namespace.
+   * @param owner - the account, when one is known.
+   * @returns the resolved value, or undefined for an unregistered namespace.
+   */
+  cachedValueFor<const Namespace extends string>(
+    ns: Namespace & SettingsNamespaceInput<Namespace>,
+    owner: string | undefined,
+  ): unknown {
+    const registration = this.registrations.get(parseSettingsNamespace(ns))
+    if (registration === undefined) return undefined
+    if (owner === undefined || !this.accountSections || registration.reach !== 'account') return registration.resolved
+    const sections = this.accountSnapshots.get(owner)
+    if (sections === undefined) {
+      void this.accountDocument(owner).catch(() => undefined)
+      return registration.resolved
+    }
+    const own = this.accountSection(sections, registration.ns)
+    if (own === undefined) return registration.resolved
+    try {
+      return deepFreeze(this.resolveFor(registration, own))
+    } catch {
+      // A stored section the schema rejects resolves as the document's value, as describeFor answers it.
+      return registration.resolved
+    }
+  }
+
+  /**
    * Read one account's own section of an `account`-reach namespace.
    * @param owner - the account.
    * @param ns - the namespace.
@@ -682,6 +714,7 @@ export abstract class SettingsProvider extends Service {
     if (loading === undefined) {
       loading = this.loadAccount(owner)
       this.accountLoads.set(owner, loading)
+      void loading.then((sections) => { this.accountSnapshots.set(owner, sections) }, () => undefined)
       // A failed read is retried by the next caller instead of being cached.
       loading.catch(() => { if (this.accountLoads.get(owner) === loading) this.accountLoads.delete(owner) })
     }

@@ -138,16 +138,17 @@ function writableStore(ctx: Context): CredentialProvider {
  * @param ctx - the plugin context carrying the optional `ctx.credentials`.
  * @returns the store to hand `createModels()`.
  */
-export function credentialStoreFrom(ctx: Context): CredentialStore {
+export function credentialStoreFrom(ctx: Context, owner?: string): CredentialStore {
+  const account = (): string | undefined => owner ?? (ctx.get('credentials')?.accountStorage === true ? ctx.get('identityUsers')?.actingUser()?.id : undefined)
   return {
     async read(providerId) {
       const credentials = ctx.get('credentials')
       if (credentials === undefined) return undefined
       if (!isCredentialKeySegment(providerId)) return undefined
-      return toPiCredential(await credentials.readRecord(recordKeyFor(providerId)))
+      return toPiCredential(await credentials.readRecord(recordKeyFor(providerId), account()))
     },
     async list(): Promise<readonly CredentialInfo[]> {
-      const stored = await ctx.get('credentials')?.listRecords() ?? []
+      const stored = await ctx.get('credentials')?.listRecords(account()) ?? []
       const mine: CredentialInfo[] = []
       for (const entry of stored) {
         // Records another plugin owns are not this collection's to report:
@@ -172,7 +173,7 @@ export function credentialStoreFrom(ctx: Context): CredentialStore {
       const stored = await writableStore(ctx).modifyRecord(recordKeyFor(providerId), async (current) => {
         const next = await mutate(toPiCredential(current))
         return next === undefined ? undefined : toRecord(next)
-      })
+      }, account())
       return toPiCredential(stored)
     },
     // `async` so a missing service reaches the caller as a rejection: pi-ai's
@@ -180,7 +181,7 @@ export function credentialStoreFrom(ctx: Context): CredentialStore {
     // escape the `ModelsError` wrapper every other storage failure gets.
     async delete(providerId) {
       if (!isCredentialKeySegment(providerId)) return
-      await writableStore(ctx).deleteRecord(recordKeyFor(providerId))
+      await writableStore(ctx).deleteRecord(recordKeyFor(providerId), account())
     },
   }
 }
@@ -200,7 +201,7 @@ export function credentialStoreFrom(ctx: Context): CredentialStore {
  * @param ctx - the plugin context carrying the optional `ctx.credentials`.
  * @returns the auth context to hand `createModels()`.
  */
-export function authContextFrom(ctx: Context): AuthContext {
+export function authContextFrom(ctx: Context, owner?: string): AuthContext {
   return {
     async env(name) {
       // pi-ai asks about arbitrary provider-declared names; one that is not a
@@ -208,12 +209,13 @@ export function authContextFrom(ctx: Context): AuthContext {
       // the seam would throw instead of answering "not set".
       if (isCredentialRefName(name)) {
         const credentials = ctx.get('credentials')
-        const hit = await credentials?.resolve(credentialRef(name))
+        const hit = await credentials?.resolve(credentialRef(name), owner)
         if (hit !== undefined) return hit.value
       }
-      return launchEnvironmentOf(ctx).get(name)?.value
+      return owner === undefined ? launchEnvironmentOf(ctx).get(name)?.value : undefined
     },
     async fileExists(path) {
+      if (owner !== undefined) return false
       const expanded = path.startsWith('~/') || path === '~'
         ? resolvePath(homedir(), path.slice(1).replace(/^\//, ''))
         : path

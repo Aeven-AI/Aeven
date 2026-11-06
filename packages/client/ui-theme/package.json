@@ -43,7 +43,6 @@
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:^",
     "@aeven/api-remotes": "workspace:^",
     "@aeven/client-connection": "workspace:^",
     "@aeven/client-locale": "workspace:^",
@@ -54,9 +53,11 @@
     "@aeven/client-ui-settings": "workspace:^",
     "@aeven/client-ui-slots": "workspace:^",
     "@aeven/host-webserver": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
+    "@aeven/settings": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^",
     "@types/react": "~18.3.1",
-    "react": "^18.2.0",
-    "@aeven/settings": "workspace:^"
+    "react": "^18.2.0"
   },
   "files": [
     "lib/index.js",
