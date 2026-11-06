@@ -81,6 +81,14 @@ export interface MotionRenderer {
    * @returns the written film.
    */
   render(input: MotionRenderInput, signal: AbortSignal, onProgress?: (progress: MotionProgress) => void): Promise<MotionRenderOutput>
+  /**
+   * Bundle one composition folder into a single HTML document that plays without its folder: scene files,
+   * the player runtime, images, and fonts are inlined, so a player can load it as `srcdoc` in an opaque-origin
+   * frame that resolves no relative URL.
+   * @param compositionDir - absolute folder holding `index.html`.
+   * @returns the document's HTML.
+   */
+  bundle(compositionDir: string): Promise<string>
 }
 
 /** {@link Motion.resolve} output: the renderer it captured plus the resolved input. */
@@ -154,6 +162,18 @@ export default class Motion extends Service {
       quality: request.quality ?? this.config.quality,
       stills: request.stills ?? 0,
     }
+  }
+
+  /**
+   * Bundle a composition folder with the registered renderer.
+   * @param compositionDir - absolute folder holding `index.html`.
+   * @returns the self-contained HTML document described at {@link MotionRenderer.bundle}.
+   * @throws When no renderer is registered.
+   */
+  async bundle(compositionDir: string): Promise<string> {
+    const registration = this.registration
+    if (registration === undefined) throw new Error('No motion renderer is registered')
+    return await registration.renderer.bundle(compositionDir)
   }
 
   /**

@@ -45,6 +45,19 @@ function compositionDir(meta: unknown): string | undefined {
 }
 
 /**
+ * The stored film the settled call reported: the composition bundled into one document, which plays on a Host
+ * that lacks the folder.
+ * @param meta - the result's presentation metadata.
+ * @returns the film's attachment id and name, or undefined when the call stored none.
+ */
+function storedFilm(meta: unknown): { id: string; name: string } | undefined {
+  if (typeof meta !== 'object' || meta === null || !('film' in meta)) return undefined
+  const film = meta.film
+  if (typeof film !== 'object' || film === null || !('attachmentId' in film) || typeof film.attachmentId !== 'string') return undefined
+  return { id: film.attachmentId, name: 'name' in film && typeof film.name === 'string' ? film.name : 'film.html' }
+}
+
+/**
  * Read a Host failure's message from a JSON `message` field or a plain-text body.
  * @param response - the failed response.
  * @returns the message; empty when the body carries none, which the error dialog shows as its own no-detail line.
@@ -100,6 +113,7 @@ export function MotionToolView({ block, sessionId, t }: ToolCallViewProps & Prop
   const settled = 'kind' in block
   const failed = settled && block.isError
   const folder = settled && !failed ? compositionDir(block.meta) : undefined
+  const film = settled && !failed ? storedFilm(block.meta) : undefined
   const callError = failed ? block.content.find(content => content.type === 'text') : undefined
   const key = folder === undefined ? undefined : `${String(sessionId)}\u0000${folder}`
   const seq = settled ? block.seq : -1
@@ -116,25 +130,37 @@ export function MotionToolView({ block, sessionId, t }: ToolCallViewProps & Prop
   const [media, setMedia] = useState<PlayerElement | null>(null)
   const [ratio, setRatio] = useState(DEFAULT_RATIO)
   const [loadError, setLoadError] = useState<string | undefined>(undefined)
+  // The stored film's URL once it plays instead of the folder; the MP4 export needs the Host holding the folder.
+  const [storedUrl, setStoredUrl] = useState<string | undefined>(undefined)
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState<string | undefined>(undefined)
 
-  // The folder's current files, bundled by the Host into one document.
+  // The folder's current files, bundled by the Host into one document; where this Host lacks the folder or the
+  // preview route, the film the call stored.
+  const filmId = film?.id
   useEffect(() => {
     if (dir === undefined) return
     const controller = new AbortController()
     const url = new URL('api/motion/preview', document.baseURI)
     url.searchParams.set('dir', dir)
+    const stored = async (preview: string): Promise<string> => {
+      if (filmId === undefined) throw new Error(preview)
+      const fileUrl = new URL('api/attachment-file', document.baseURI)
+      fileUrl.searchParams.set('sessionId', String(sessionId))
+      fileUrl.searchParams.set('id', filmId)
+      const response = await hostFetch(fileUrl, { signal: controller.signal })
+      if (!response.ok) throw new Error(await failureText(response))
+      setStoredUrl(fileUrl.href)
+      return await response.text()
+    }
     hostFetch(url, { signal: controller.signal })
-      .then(async (response) => {
-        if (!response.ok) throw new Error(await failureText(response))
-        setHtml(await response.text())
-      })
+      .then(async response => response.ok ? await response.text() : await stored(await failureText(response)))
+      .then((text) => { setHtml(text) })
       .catch((error: unknown) => {
         if (!controller.signal.aborted) setLoadError(error instanceof Error ? error.message : String(error))
       })
     return () => { controller.abort() }
-  }, [dir])
+  }, [dir, filmId, sessionId])
 
   // The player is created here rather than in JSX, which has no type for the custom element. Its frame drops
   // `allow-same-origin`, so the composition's scripts run in an opaque origin, apart from the app.
@@ -212,9 +238,12 @@ export function MotionToolView({ block, sessionId, t }: ToolCallViewProps & Prop
           ) : dir !== undefined ? (
             <MediaPlayer
               media={media}
-              onDownload={() => { void exportFilm() }}
+              onDownload={() => {
+                if (storedUrl === undefined) void exportFilm()
+                else saveClip(`${storedUrl}&download=1`, film?.name ?? 'film.html')
+              }}
               busy={exporting}
-              labels={{ ...videoPlayerLabels(t), download: t('motion.export') }}
+              labels={storedUrl === undefined ? { ...videoPlayerLabels(t), download: t('motion.export') } : videoPlayerLabels(t)}
             >
               <div ref={stage} className={css.motionStage} role="img" aria-label={t('motion.label')} />
             </MediaPlayer>

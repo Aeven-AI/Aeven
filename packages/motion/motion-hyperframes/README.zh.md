@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-该提供方把 [HyperFrames](https://github.com/heygen-com/hyperframes)（Apache-2.0）注册为动态影片渲染器。HyperFrames 在无头 Chromium 中加载合成，逐帧定位其已暂停的 GSAP 时间线，并用 ffmpeg 编码这些帧，因此同一组文件每次渲染的结果都相同。编码使用 Aeven 构建的 ffmpeg 与 ffprobe，它们不含任何 GPL 代码，因此 H.264 来自各平台自身提供的编码器。
+该提供方把 [HyperFrames](https://github.com/heygen-com/hyperframes)（Apache-2.0）注册为动态影片渲染器。HyperFrames 在无头 Chromium 中加载合成，逐帧定位其已暂停的 GSAP 时间线，并用 ffmpeg 编码这些帧，因此同一组文件每次渲染的结果都相同。编码使用 Aeven 构建的 ffmpeg 与 ffprobe，它们不含任何 GPL 代码，因此 H.264 来自各平台自身提供的编码器。其 `bundle()` 即内联运行时的 HyperFrames `bundleToSingleHtml`。
 
 ## 目录
 

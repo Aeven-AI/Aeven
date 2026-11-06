@@ -28,6 +28,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@deepseek-ai/schemastery": "workspace:^",
+    "@hyperframes/core": "0.9.19",
     "@hyperframes/engine": "0.9.19",
     "@hyperframes/producer": "0.9.19",
     "@puppeteer/browsers": "^3.2.2"

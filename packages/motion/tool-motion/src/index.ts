@@ -126,6 +126,34 @@ async function saveStills(ctx: Context, name: string, stills: readonly MotionSti
 }
 
 /**
+ * Store the composition bundled into one document, so a device that lacks the folder can still play the film.
+ * @param ctx - context carrying `ctx.motion` and `ctx.attachments`.
+ * @param compositionDir - absolute composition folder.
+ * @param path - the folder as the model named it, for the stored file's description.
+ * @returns the stored reference, or undefined when bundling or storing fails; the folder still plays on this device.
+ */
+async function saveFilm(ctx: Context, compositionDir: string, path: string): Promise<FileAttachmentRef | undefined> {
+  const name = `${basename(compositionDir)}.html`
+  try {
+    return await ctx.attachments.saveFile({
+      data: new TextEncoder().encode(await ctx.motion.bundle(compositionDir)),
+      mediaType: 'text/html',
+      name,
+      text: {
+        text: `Motion film ${name}, bundled from ${path} into one self-contained page.`,
+        method: 'native',
+        extractor: 'tool-motion',
+        truncated: false,
+      },
+    })
+  } catch (error) {
+    // A composition the bundler rejects, or one over the attachment size limit, keeps only its live preview.
+    ctx.logger('tool-motion').warn('show_motion: film not stored for other devices: %s', error instanceof Error ? error.message : String(error))
+    return undefined
+  }
+}
+
+/**
  * The sentence that introduces returned stills, or nothing when there are none.
  * @param stills - stored stills.
  * @returns the sentence as a one-element list, or an empty list.
@@ -180,6 +208,11 @@ function registerMotion(ctx: Context, config: Config): void {
           path: { type: 'string', required: true },
           compositionDir: { type: 'string', required: true },
           durationSeconds: { type: 'number' },
+          film: {
+            type: 'object',
+            additionalProperties: false,
+            properties: FILE_ATTACHMENT_PROPERTIES,
+          },
           stills: STILLS_SCHEMA,
         },
       },
@@ -194,21 +227,27 @@ function registerMotion(ctx: Context, config: Config): void {
         },
         ...value.stills.map(still => ({ type: 'image' as const, attachment: imageBlockRef(still) })),
       ],
-      // The card plays the folder through the Host's preview route, which takes the absolute path.
-      presentationMeta: (_args, value) => ({ compositionDir: value.compositionDir }),
+      // The card plays the folder through the Host's preview route, which takes the absolute path, and plays the
+      // stored film where that Host lacks the folder, such as another of the account's devices.
+      presentationMeta: (_args, value) => ({
+        compositionDir: value.compositionDir,
+        ...value.film === undefined ? {} : { film: value.film },
+      }),
     },
     async execute(args: { composition: string; stills?: number }, exec) {
       checkStills(args.stills, config.maxStills)
       const compositionDir = await localPath(ctx, exec, args.composition)
       const index = await stat(join(compositionDir, 'index.html')).catch(() => undefined)
       if (index?.isFile() !== true) throw new Error(`${args.composition} has no index.html`)
-      if (args.stills === undefined || args.stills === 0) return { path: args.composition, compositionDir, stills: [] }
+      const film = await saveFilm(ctx, compositionDir, args.composition)
+      const shown = { path: args.composition, compositionDir, ...film === undefined ? {} : { film } }
+      if (args.stills === undefined || args.stills === 0) return { ...shown, stills: [] }
       const scratch = await mkdtemp(join(tmpdir(), 'avn-motion-review-'))
       try {
         const spec = ctx.motion.resolve({ compositionDir, outputPath: join(scratch, 'review.mp4'), quality: 'draft', stills: args.stills })
-        const film = await ctx.motion.render(spec, exec.signal)
-        const stills = await saveStills(ctx, basename(compositionDir), film.stills)
-        return { path: args.composition, compositionDir, durationSeconds: film.durationSeconds, stills }
+        const review = await ctx.motion.render(spec, exec.signal)
+        const stills = await saveStills(ctx, basename(compositionDir), review.stills)
+        return { ...shown, durationSeconds: review.durationSeconds, stills }
       } finally {
         await rm(scratch, { recursive: true, force: true })
       }

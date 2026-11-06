@@ -14,7 +14,6 @@ import z from '@deepseek-ai/schemastery'
 import type {} from '@aeven/client-connection'
 import type { MotionQuality } from '@aeven/motion'
 import type {} from '@aeven/motion'
-import { bundleToSingleHtml } from '@hyperframes/core/compiler'
 
 export const name = 'api-motion'
 export const inject = ['connection', 'motion']
@@ -116,7 +115,7 @@ export function apply(ctx: Context, config: Config): void {
       const dir = await compositionFolder(new URL(request.url).searchParams.get('dir'))
       if (dir instanceof Response) return dir
       try {
-        return reply(200, await bundleToSingleHtml(dir, { runtime: 'inline' }))
+        return reply(200, await ctx.motion.bundle(dir))
       } catch (error) {
         return reply(422, error instanceof Error ? error.message : String(error))
       }
