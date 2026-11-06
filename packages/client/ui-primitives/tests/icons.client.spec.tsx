@@ -18,7 +18,7 @@ const iconNames = Object.keys(icons)
 
 describe('ic_ds_ icon set', () => {
   it('exports the complete icon set', () => {
-    expect(iconNames.length).toBe(158)
+    expect(iconNames.length).toBe(160)
     expect(iconNames).toContain('IconBotOutline16')
   })
 

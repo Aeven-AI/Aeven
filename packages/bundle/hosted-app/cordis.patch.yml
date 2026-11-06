@@ -540,11 +540,15 @@
   disabled: true
 
 # The Host is no reader's desktop: it opens no path in a native application,
-# and produced files open from the copies the conversation stored.
+# and produced files open from the copies the conversation stored. Every read a
+# browser makes names a Session of the reader's own account: `/api/file`,
+# which reads any path the Host can, stays off, and the Files sidebar reads
+# through the Session-scoped `/api/workspace-file` route.
 - id: session-controller
   config:
     directImageReads: false
     nativeOpen: false
+    pathReads: false
 
 # Motion films play live in the conversation. The renderer only bundles a
 # composition from the account's folder into the document stored with the

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import {
-  fileGlyph, IconChevronDownOutline14, IconChevronUpOutline14, IconLucideFolderOpen, Tooltip,
+  fileGlyph, fileKindOf, IconChevronDownOutline14, IconChevronUpOutline14, IconLucideFolderOpen, Tooltip,
 } from '@aeven/client-ui-primitives'
 import type { HostObservable, InjectFace, PropsLocale } from '@aeven/client-ui-slots'
 import type { TurnTailOwnerProps } from '@aeven/client-ui-chat/client'
@@ -18,6 +18,17 @@ const GROUPED = new Intl.NumberFormat('en-US')
 export interface ProducedFilesInjected {
   /** Open a produced file in the session's Files sidebar. @param path - Produced file path. */
   previewFile(path: string): Promise<boolean>
+  /**
+   * The URL of one produced file's bytes.
+   * @param path - Produced file path.
+   * @param download - Whether the browser saves the file instead of showing it.
+   */
+  fileUrl(path: string, download?: boolean): string
+  /**
+   * The URL of a produced file's stored copy.
+   * @param attachmentId - the copy the tool result recorded.
+   */
+  attachmentUrl(attachmentId: string): string
   /**
    * Open the stored copy of a produced file in a new browser tab, where media plays and documents display.
    * @param attachmentId - the copy the tool result recorded.
@@ -61,21 +72,35 @@ type Translate = ProducedFilesProps['t']
  * @returns The produced-files section.
  */
 export function ProducedFiles({
-  matched, openFile, previewFile, openAttachment, cwd, isLoopback, ensureWorkspacePathOpen, openFileMenu,
-  useWorkspacePathOpen, t,
+  matched, openFile, previewFile, fileUrl, attachmentUrl, openAttachment, cwd, isLoopback, ensureWorkspacePathOpen,
+  openFileMenu, useWorkspacePathOpen, t,
 }: ProducedFilesProps) {
   useEffect(() => { ensureWorkspacePathOpen() }, [ensureWorkspacePathOpen])
   const hostCanOpenPath = useWorkspacePathOpen(available => available === true)
   const canOpenPath = isLoopback && hostCanOpenPath
   // A file the deployment stored opens from that copy: its reader may not reach the Host's folders, and the Host
-  // opens a path only where it is the reader's own desktop.
+  // opens a path only where it is the reader's own desktop; elsewhere the reader's browser downloads it.
   const openProducedFile = (file: ProducedFile): void => {
     if (file.attachmentId !== undefined) {
       openAttachment(file.attachmentId)
       return
     }
-    void previewFile(file.path).then((previewed) => { if (!previewed && canOpenPath) openFile(file.path) })
+    void previewFile(file.path).then((previewed) => {
+      if (previewed) return
+      if (canOpenPath) {
+        openFile(file.path)
+        return
+      }
+      const link = document.createElement('a')
+      link.href = fileUrl(file.path, true)
+      link.rel = 'noopener'
+      link.click()
+    })
   }
+  const media = matched.filter((file) => {
+    const kind = fileKindOf(basename(file.path))
+    return kind === 'video' || kind === 'audio'
+  })
   const edited = matched.filter(file => !file.created)
   const created = matched.filter(file => file.created)
   const menu = openFileMenu === undefined
@@ -86,6 +111,10 @@ export function ProducedFiles({
     }
   return (
     <section className={css.root} aria-label={t('produced.label')} data-produced-files-row>
+      {media.map(file => (
+        <MediaPlayer key={file.path} path={file.path}
+          src={file.attachmentId === undefined ? fileUrl(file.path) : attachmentUrl(file.attachmentId)} />
+      ))}
       {edited.length > 0 && (
         <FilesTable files={edited} openFile={openProducedFile} menu={menu} t={t}
           openWorkspace={canOpenPath ? () => { openFile('.') } : undefined} />
@@ -96,6 +125,20 @@ export function ProducedFiles({
       )}
     </section>
   )
+}
+
+/**
+ * One produced video or audio file, playable in place. A file this Host cannot serve, such as one another device
+ * wrote, leaves the player out and keeps only its row.
+ */
+function MediaPlayer({ path, src }: { path: string; src: string }) {
+  const [failed, setFailed] = useState(false)
+  if (failed) return null
+  const name = basename(path)
+  const onError = () => { setFailed(true) }
+  return fileKindOf(name) === 'video'
+    ? <video className={css.video} src={src} controls playsInline preload="metadata" aria-label={name} onError={onError} />
+    : <audio className={css.audio} src={src} controls preload="metadata" aria-label={name} onError={onError} />
 }
 
 /** Added and deleted line counts in the card's colors. */
@@ -167,7 +210,9 @@ function FilesTable({ files, created = false, openFile, menu, openWorkspace, t }
   const total = created ? undefined : totalCounts(files)
   const heading = (
     <span className={css.heading}>
-      <span className={css.title}>{t(created ? 'produced.title' : 'changes.title', { count: String(files.length) })}</span>
+      <span className={css.title}>{files.length === 1
+        ? t(created ? 'produced.titleOne' : 'changes.titleOne')
+        : t(created ? 'produced.title' : 'changes.title', { count: String(files.length) })}</span>
       {total !== undefined && <span className={css.counts}><Counts counts={total} t={t} /></span>}
     </span>
   )

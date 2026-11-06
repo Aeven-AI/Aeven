@@ -1506,6 +1506,9 @@ importers:
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
+      mime-types:
+        specifier: ^3.0.2
+        version: 3.0.2
       zod:
         specifier: ^4.4.3
         version: 4.6.5
@@ -1513,6 +1516,12 @@ importers:
       '@aeven/agent':
         specifier: workspace:^
         version: link:../../core/agent
+      '@aeven/brand':
+        specifier: workspace:^
+        version: link:../../util/brand
+      '@aeven/client-connection':
+        specifier: workspace:^
+        version: link:../../client/connection
       '@aeven/fs':
         specifier: workspace:^
         version: link:../../fs/fs
@@ -1537,6 +1546,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
+      '@types/mime-types':
+        specifier: ^3.0.1
+        version: 3.0.1
 
   packages/attachment/attachment:
     devDependencies:

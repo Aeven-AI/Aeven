@@ -47,7 +47,8 @@
     "@aeven/scope": "workspace:^",
     "@aeven/tools": "workspace:^",
     "@deepseek-ai/schemastery": "workspace:^",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "mime-types": "^3.0.2"
   },
   "peerDependencies": {
     "@aeven/agent": "workspace:^",
@@ -58,7 +59,9 @@
     "@aeven/working-directory": "workspace:^",
     "@aeven/identity-user": "workspace:^",
     "@aeven/session": "workspace:^",
-    "@aeven/session-query": "workspace:^"
+    "@aeven/session-query": "workspace:^",
+    "@aeven/client-connection": "workspace:^",
+    "@aeven/brand": "workspace:^"
   },
   "devDependencies": {
     "@aeven/agent": "workspace:^",
@@ -69,6 +72,9 @@
     "@aeven/working-directory": "workspace:^",
     "@aeven/identity-user": "workspace:^",
     "@aeven/session": "workspace:^",
-    "@aeven/session-query": "workspace:^"
+    "@aeven/session-query": "workspace:^",
+    "@aeven/client-connection": "workspace:^",
+    "@types/mime-types": "^3.0.1",
+    "@aeven/brand": "workspace:^"
   }
 }

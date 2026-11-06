@@ -32,9 +32,37 @@ const DOCUMENTS = new Set([
  */
 export async function canPreviewFile(remote: ClientRemote, sessionId: SessionId, path: string): Promise<boolean> {
   if (DOCUMENTS.has(extensionOf(path))) return false
-  if (fileKindOf(path) === 'image') return true
+  const kind = fileKindOf(path)
+  if (kind === 'image' || kind === 'video' || kind === 'audio') return true
   const result = await remote.workspaceFiles.read(sessionId, path)
   return result.ok || result.error.code !== 'workspace-file/not-text'
+}
+
+/**
+ * The URL of one workspace file's bytes, which the Host serves only for a Session of the signed-in account.
+ * @param sessionId - Session owning the workspace.
+ * @param path - workspace-relative or absolute file path.
+ * @param download - whether the browser saves the file instead of showing it.
+ * @returns the absolute URL on this app's origin.
+ */
+export function workspaceFileUrl(sessionId: string, path: string, download = false): string {
+  const url = new URL('api/workspace-file', document.baseURI)
+  url.searchParams.set('sessionId', sessionId)
+  url.searchParams.set('path', path)
+  if (download) url.searchParams.set('download', '1')
+  return url.href
+}
+
+/**
+ * Save one workspace file through the browser.
+ * @param sessionId - Session owning the workspace.
+ * @param path - workspace-relative or absolute file path.
+ */
+export function downloadWorkspaceFile(sessionId: string, path: string): void {
+  const link = document.createElement('a')
+  link.href = workspaceFileUrl(sessionId, path, true)
+  link.rel = 'noopener'
+  link.click()
 }
 
 /** One desktop handoff for a path. */
