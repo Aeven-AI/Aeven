@@ -363,34 +363,34 @@ Host Remote listings, previews and name searches over the composed filesystem.
 ```ts cordis-catalog
 /**
  * List the direct children of one directory inside the Session's workspace.
- * @param agent - the Session asking; this device's binding for its workspace names the root.
+ * @param sessionId - the Session asking; this device's binding for its workspace names the root.
  * @param path - workspace-relative or absolute path; empty for the root.
  * @param signal - caller cancellation.
  * @returns the root, the listed path and its children, bounded by the entry cap.
  */
-@Remote async list(agent: Agent, path: string, signal: AbortSignal): Promise<WorkspaceDirectoryListing>
+@Remote async list(sessionId: SessionId, path: string, signal: AbortSignal): Promise<WorkspaceDirectoryListing>
 
 /**
  * Read the leading page of one UTF-8 text file.
- * @param agent - the Session asking; relative paths resolve against its workspace root.
+ * @param sessionId - the Session asking; relative paths resolve against its workspace root.
  * @param path - workspace-relative or absolute path.
  * @param signal - caller cancellation.
  * @returns the file's absolute path, size, first page and whether that page reaches EOF.
  */
-@Remote async read(agent: Agent, path: string, signal: AbortSignal): Promise<WorkspaceFileText>
+@Remote async read(sessionId: SessionId, path: string, signal: AbortSignal): Promise<WorkspaceFileText>
 
 /**
  * Find entries whose name contains `query` (case-insensitive), walking the
  * workspace breadth-first and skipping the configured directory names.
- * @param agent - the Session asking; this device's binding for its workspace names the root.
+ * @param sessionId - the Session asking; this device's binding for its workspace names the root.
  * @param query - the name fragment to match.
  * @param signal - caller cancellation.
  * @returns the matches in walk order and whether a cap stopped the walk.
  */
-@Remote async search(agent: Agent, query: string, signal: AbortSignal): Promise<WorkspaceSearchResult>
+@Remote async search(sessionId: SessionId, query: string, signal: AbortSignal): Promise<WorkspaceSearchResult>
 ```
 
-Types: [Agent](core.md)
+Types: [SessionId](core.md)
 
 Source: [`packages/api/workspace-files/src/index.ts`](../../packages/api/workspace-files/src/index.ts)
 

@@ -61,7 +61,10 @@
     "@aeven/scope": "workspace:^",
     "@aeven/session": "workspace:^",
     "@aeven/typert-protocol": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/agent-presets": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
+    "@aeven/session-query": "workspace:^"
   },
   "dependencies": {
     "@aeven/util-crypto": "workspace:^",
@@ -76,6 +79,20 @@
     "@aeven/scope": "workspace:^",
     "@aeven/session": "workspace:^",
     "@aeven/typert-protocol": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/agent-presets": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
+    "@aeven/session-query": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@aeven/agent-presets": {
+      "optional": true
+    },
+    "@aeven/identity-user": {
+      "optional": true
+    },
+    "@aeven/session-query": {
+      "optional": true
+    }
   }
 }

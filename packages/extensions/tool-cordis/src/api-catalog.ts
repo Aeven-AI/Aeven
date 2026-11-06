@@ -992,10 +992,17 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the exact effect disposer that unregisters this definition.',
       },
       {
-        signature: '@Remote list(agent: Agent): readonly CommandDescriptor[]',
+        signature: 'list(agent: Agent): readonly CommandDescriptor[]',
         description: 'List the effective immutable command descriptors for one agent.',
         parameters: [{ name: 'agent', description: 'exact receiving agent and scoped-layer key.' }],
         returns: 'name-sorted descriptors after scoped shadowing.',
+      },
+      {
+        signature: '@Remote(\'list\') async remoteList(sessionId: SessionId): Promise<readonly CommandDescriptor[]>',
+        description: 'List the commands a reader may run in one Session, whether or not an Agent runs it here. Listing never starts one: an idle Session, and a replica another device of the account runs, answer from the standing scope of the preset its stored header records, which is the scope its Agent resolves commands against.',
+        parameters: [{ name: 'sessionId', description: 'the Session the composer addresses.' }],
+        returns: 'name-sorted descriptors after scoped shadowing.',
+        throws: ['{RemoteError} `session/not-found` when the Session is absent or the caller may not reach it.'],
       },
       {
         signature: 'find(agent: Agent, name: string): CommandDefinition | undefined',
@@ -4627,6 +4634,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the local directory and workspace root, why this device has none, or the fact that the session records no directory at all.',
       },
       {
+        signature: 'observed(header: SessionHeader, logged: WorkingDirectoryProjection | undefined): LocalDirectory',
+        description: 'The directory pair in force on this device for a session this process holds no Session object for — an idle one, or a replica another device runs — from its stored header and folded `workingDirectory` projection. Answers exactly as local would for the same log.',
+        parameters: [{ name: 'header', description: 'the session\'s stored header.' }, { name: 'logged', description: 'the folded `workingDirectory` projection of its log, when one was read.' }],
+        returns: 'the local directory and workspace root, why this device has none, or the fact that the session records no directory at all.',
+      },
+      {
         signature: 'of(session: Session): string | undefined',
         description: 'The directory in force for a session on this device.',
         parameters: [{ name: 'session', description: 'the session whose tool calls resolve paths against it.' }],
@@ -4774,21 +4787,21 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Host Remote listings, previews and name searches over the composed filesystem.',
     methods: [
       {
-        signature: '@Remote async list(agent: Agent, path: string, signal: AbortSignal): Promise<WorkspaceDirectoryListing>',
+        signature: '@Remote async list(sessionId: SessionId, path: string, signal: AbortSignal): Promise<WorkspaceDirectoryListing>',
         description: 'List the direct children of one directory inside the Session\'s workspace.',
-        parameters: [{ name: 'agent', description: 'the Session asking; this device\'s binding for its workspace names the root.' }, { name: 'path', description: 'workspace-relative or absolute path; empty for the root.' }, { name: 'signal', description: 'caller cancellation.' }],
+        parameters: [{ name: 'sessionId', description: 'the Session asking; this device\'s binding for its workspace names the root.' }, { name: 'path', description: 'workspace-relative or absolute path; empty for the root.' }, { name: 'signal', description: 'caller cancellation.' }],
         returns: 'the root, the listed path and its children, bounded by the entry cap.',
       },
       {
-        signature: '@Remote async read(agent: Agent, path: string, signal: AbortSignal): Promise<WorkspaceFileText>',
+        signature: '@Remote async read(sessionId: SessionId, path: string, signal: AbortSignal): Promise<WorkspaceFileText>',
         description: 'Read the leading page of one UTF-8 text file.',
-        parameters: [{ name: 'agent', description: 'the Session asking; relative paths resolve against its workspace root.' }, { name: 'path', description: 'workspace-relative or absolute path.' }, { name: 'signal', description: 'caller cancellation.' }],
+        parameters: [{ name: 'sessionId', description: 'the Session asking; relative paths resolve against its workspace root.' }, { name: 'path', description: 'workspace-relative or absolute path.' }, { name: 'signal', description: 'caller cancellation.' }],
         returns: 'the file\'s absolute path, size, first page and whether that page reaches EOF.',
       },
       {
-        signature: '@Remote async search(agent: Agent, query: string, signal: AbortSignal): Promise<WorkspaceSearchResult>',
+        signature: '@Remote async search(sessionId: SessionId, query: string, signal: AbortSignal): Promise<WorkspaceSearchResult>',
         description: 'Find entries whose name contains `query` (case-insensitive), walking the workspace breadth-first and skipping the configured directory names.',
-        parameters: [{ name: 'agent', description: 'the Session asking; this device\'s binding for its workspace names the root.' }, { name: 'query', description: 'the name fragment to match.' }, { name: 'signal', description: 'caller cancellation.' }],
+        parameters: [{ name: 'sessionId', description: 'the Session asking; this device\'s binding for its workspace names the root.' }, { name: 'query', description: 'the name fragment to match.' }, { name: 'signal', description: 'caller cancellation.' }],
         returns: 'the matches in walk order and whether a cap stopped the walk.',
       },
     ],
@@ -10069,6 +10082,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WorkflowStopReason',
     declaration: 'export type WorkflowStopReason = \'completed\' | \'cancelled\' | \'error\';',
+  },
+  {
+    name: 'WorkingDirectoryProjection',
+    declaration: 'export interface WorkingDirectoryProjection {\n    cwd: string | null;\n    root: string | null;\n}',
   },
   {
     name: 'Workspace',
