@@ -21,7 +21,8 @@ import type { CommandUiContract } from '@aeven/client-ui-commands/client'
 import { ImageResultView } from './ImageResultView.tsx'
 import { ImageToolView } from './ImageToolView.tsx'
 import { VideoToolView } from './VideoToolView.tsx'
-import { IMAGE_RESULT_TOOLS, IMAGE_TOOLS, VIDEO_TOOLS, registerGeneratedImages } from './generated-images.ts'
+import { MotionToolView } from './MotionToolView.tsx'
+import { IMAGE_RESULT_TOOLS, IMAGE_TOOLS, MOTION_TOOLS, VIDEO_TOOLS, registerGeneratedImages } from './generated-images.ts'
 import type {} from '@aeven/client-ui-tool/client'
 import { imageModelDecoration, videoModelDecoration } from './image-model-picker.ts'
 import { ImaginePrompts } from './ImaginePrompts.tsx'
@@ -72,6 +73,9 @@ export function apply(ctx: ClientContext): void {
     }
     for (const key of VIDEO_TOOLS) {
       yield ctx.slots.register({ name: 'tool.call.toolview', key, locale: NS }, VideoToolView)
+    }
+    for (const key of MOTION_TOOLS) {
+      yield ctx.slots.register({ name: 'tool.call.toolview', key, locale: NS }, MotionToolView)
     }
     // Tools that show photographs found elsewhere: the same lane, the same row,
     // so the images a result carries are visible without unfolding anything.

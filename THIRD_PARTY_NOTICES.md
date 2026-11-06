@@ -45,6 +45,10 @@ External packages that a workspace package resolves at runtime. The tier covers 
 | [`@earendil-works/pi-ai`](https://github.com/earendil-works/pi) | MIT |
 | [`@googleworkspace/cli`](https://github.com/googleworkspace/cli) | Apache-2.0 |
 | [`@huggingface/transformers`](https://github.com/huggingface/transformers.js) | Apache-2.0 |
+| [`@hyperframes/core`](https://github.com/heygen-com/hyperframes) | Apache-2.0 |
+| [`@hyperframes/engine`](https://github.com/heygen-com/hyperframes) | Apache-2.0 |
+| [`@hyperframes/player`](https://github.com/heygen-com/hyperframes) | MIT |
+| [`@hyperframes/producer`](https://github.com/heygen-com/hyperframes) | Apache-2.0 |
 | [`@joplin/turndown-plugin-gfm`](https://github.com/laurent22/joplin-turndown-plugin-gfm) | MIT |
 | [`@jridgewell/gen-mapping`](https://github.com/jridgewell/sourcemaps) | MIT |
 | [`@lexical/history`](https://github.com/facebook/lexical) | MIT |
@@ -62,6 +66,7 @@ External packages that a workspace package resolves at runtime. The tier covers 
 | [`@opentelemetry/otlp-exporter-base`](https://github.com/open-telemetry/opentelemetry-js) | Apache-2.0 |
 | [`@opentelemetry/resources`](https://github.com/open-telemetry/opentelemetry-js) | Apache-2.0 |
 | [`@opentelemetry/sdk-logs`](https://github.com/open-telemetry/opentelemetry-js) | Apache-2.0 |
+| [`@puppeteer/browsers`](https://github.com/puppeteer/puppeteer/tree/main/packages/browsers) | Apache-2.0 |
 | [`@sinclair/typebox`](https://github.com/sinclairzx81/sinclair-typebox) | MIT |
 | [`@softeria/ms-365-mcp-server`](https://github.com/Softeria/ms-365-mcp-server) | MIT |
 | [`@standard-schema/spec`](https://github.com/standard-schema/standard-schema) | MIT |

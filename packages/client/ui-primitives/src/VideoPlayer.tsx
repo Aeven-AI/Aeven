@@ -1,7 +1,8 @@
 /** A clip played in place, wearing the product's own playback chrome. @module */
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { VideoControls } from './VideoControls.tsx'
-import { toggleClip } from './video-playback.ts'
+import { saveClip, toggleClip } from './video-playback.ts'
+import type { ClipMedia } from './video-playback.ts'
 import css from './VideoPlayer.module.css'
 
 /** How long a playing clip is left alone before its chrome clears, in ms. */
@@ -64,40 +65,60 @@ export function videoPlayerLabels(t: (key: VideoPlayerLabelKey) => string): Vide
   }
 }
 
-/** Props of one clip's player. */
-export interface VideoPlayerProps {
-  /** Same-origin URL of the clip. */
-  src: string
-  /** Accessible name of the video element. */
-  label: string
-  /** File name the clip is saved under. */
-  saveName: string
+/** Props of the shared player frame. */
+export interface MediaPlayerProps {
+  /** The playing element once mounted; the frame reads its state from the element's own events. */
+  media: (HTMLElement & ClipMedia) | null
+  /** The playing element's markup, whose ref hands the element back as `media`. */
+  children: ReactNode
+  /** Runs the save menu's row. */
+  onDownload: () => void
+  /** Whether that save is still running. */
+  busy?: boolean
   /** The owning feature's chrome sentences. */
   labels: VideoPlayerLabels
-  /** Reports the clip's own width-to-height ratio once its metadata loads. */
-  onRatio?: (ratio: number) => void
-  /** Mirrors the picture only, leaving the chrome in its reading direction. */
-  mirrored?: boolean
-  /** How the picture meets its frame: the whole clip, or the frame filled. */
-  fit?: 'contain' | 'cover'
 }
 
+/** Events after which the frame re-reads position, length, and playback from the element. */
+const MEDIA_EVENTS = ['play', 'pause', 'timeupdate', 'loadedmetadata', 'durationchange', 'ready', 'seeked'] as const
+
 /**
- * Play the stored clip under the product's own controls. The element's events
- * drive every face, so a keyboard or media-key playback keeps the bar honest.
- * @param props - clip URL, accessible name, save name, translator, and ratio report.
- * @returns the clip with its playback chrome over the lower edge.
+ * The product's player frame: the playback chrome over the lower edge of any element with the playback
+ * members of {@link ClipMedia}, clearing itself while a playing clip is left alone.
+ * @param props - the element and its markup, the save action, and translator.
+ * @returns the element with its playback chrome.
  */
-export function VideoPlayer({ src, label, saveName, labels, onRatio, mirrored = false, fit = 'contain' }: VideoPlayerProps) {
-  // The elements are state, not refs: the controls mount with both in hand, so
-  // no gesture can run against a missing element.
-  const [video, setVideo] = useState<HTMLVideoElement | null>(null)
+export function MediaPlayer({ media, children, onDownload, busy = false, labels }: MediaPlayerProps) {
+  // The frame is state, not a ref: the controls mount with it in hand, so no
+  // gesture can run against a missing element.
   const [player, setPlayer] = useState<HTMLDivElement | null>(null)
   const [playing, setPlaying] = useState(false)
   const [current, setCurrent] = useState(0)
   const [duration, setDuration] = useState(Number.NaN)
   const [idle, setIdle] = useState(false)
   const [gestures, setGestures] = useState(0)
+
+  // The element's own events drive every face, so a keyboard or media-key
+  // playback keeps the bar honest.
+  useEffect(() => {
+    if (media === null) return
+    const read = (): void => {
+      setPlaying(!media.paused)
+      setCurrent(media.currentTime)
+      setDuration(media.duration)
+    }
+    const ended = (): void => {
+      setPlaying(false)
+      setCurrent(media.duration)
+    }
+    read()
+    for (const name of MEDIA_EVENTS) media.addEventListener(name, read)
+    media.addEventListener('ended', ended)
+    return () => {
+      for (const name of MEDIA_EVENTS) media.removeEventListener(name, read)
+      media.removeEventListener('ended', ended)
+    }
+  }, [media])
 
   // A playing clip clears its own chrome once the pointer has left it alone.
   // Any movement over the clip, and any hold or end, brings it straight back;
@@ -120,6 +141,56 @@ export function VideoPlayer({ src, label, saveName, labels, onRatio, mirrored = 
       onPointerMove={() => { setGestures(count => count + 1) }}
       onPointerLeave={() => { if (playing) setIdle(true) }}
     >
+      {children}
+      {media !== null && player !== null && (
+        <VideoControls
+          video={media}
+          player={player}
+          playing={playing}
+          idle={idle}
+          current={current}
+          duration={duration}
+          onDownload={onDownload}
+          busy={busy}
+          onSeek={setCurrent}
+          labels={labels}
+        />
+      )}
+    </div>
+  )
+}
+
+/** Props of one clip's player. */
+export interface VideoPlayerProps {
+  /** Same-origin URL of the clip. */
+  src: string
+  /** Accessible name of the video element. */
+  label: string
+  /** File name the clip is saved under. */
+  saveName: string
+  /** The owning feature's chrome sentences. */
+  labels: VideoPlayerLabels
+  /** Reports the clip's own width-to-height ratio once its metadata loads. */
+  onRatio?: (ratio: number) => void
+  /** Mirrors the picture only, leaving the chrome in its reading direction. */
+  mirrored?: boolean
+  /** How the picture meets its frame: the whole clip, or the frame filled. */
+  fit?: 'contain' | 'cover'
+}
+
+/**
+ * Play the stored clip under the product's own controls.
+ * @param props - clip URL, accessible name, save name, translator, and ratio report.
+ * @returns the clip with its playback chrome over the lower edge.
+ */
+export function VideoPlayer({ src, label, saveName, labels, onRatio, mirrored = false, fit = 'contain' }: VideoPlayerProps) {
+  const [video, setVideo] = useState<HTMLVideoElement | null>(null)
+  return (
+    <MediaPlayer
+      media={video}
+      onDownload={() => { if (video !== null) saveClip(video.currentSrc === '' ? video.src : video.currentSrc, saveName) }}
+      labels={labels}
+    >
       <video
         ref={setVideo}
         className={css.video}
@@ -132,31 +203,10 @@ export function VideoPlayer({ src, label, saveName, labels, onRatio, mirrored = 
         onClick={(event) => { toggleClip(event.currentTarget) }}
         onLoadedMetadata={(event) => {
           const clip = event.currentTarget
-          setDuration(clip.duration)
           const ratio = clip.videoWidth / clip.videoHeight
           if (Number.isFinite(ratio) && ratio > 0) onRatio?.(ratio)
         }}
-        onTimeUpdate={(event) => { setCurrent(event.currentTarget.currentTime) }}
-        onPlay={() => { setPlaying(true) }}
-        onPause={() => { setPlaying(false) }}
-        onEnded={(event) => {
-          setPlaying(false)
-          setCurrent(event.currentTarget.duration)
-        }}
       />
-      {video !== null && player !== null && (
-        <VideoControls
-          video={video}
-          player={player}
-          playing={playing}
-          idle={idle}
-          current={current}
-          duration={duration}
-          saveName={saveName}
-          onSeek={setCurrent}
-          labels={labels}
-        />
-      )}
-    </div>
+    </MediaPlayer>
   )
 }

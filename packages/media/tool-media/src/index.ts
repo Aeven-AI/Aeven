@@ -899,6 +899,30 @@ function installSelection<C extends ModelSelection>(ctx: Context, spec: Selectio
 }
 
 /** The provenance every media tool result reports about the call that produced it. */
+/**
+ * Output-schema properties of one stored file reference, as `ctx.attachments.saveFile` returns it; a tool that
+ * returns a stored clip declares its reference with these and reads it back through {@link fileBlockRef}.
+ */
+export const FILE_ATTACHMENT_PROPERTIES = {
+  attachmentId: { type: 'string', required: true },
+  mediaType: { type: 'string', required: true },
+  bytes: { type: 'integer', required: true },
+  name: { type: 'string', required: true },
+  extraction: {
+    type: 'object',
+    required: true,
+    additionalProperties: false,
+    properties: {
+      textId: { type: 'string', required: true },
+      chars: { type: 'integer', required: true },
+      method: { type: 'string', required: true },
+      extractor: { type: 'string', required: true },
+      truncated: { type: 'boolean', required: true },
+      pages: { type: 'integer' },
+    },
+  },
+} as const
+
 const MEDIA_CALL_PROVENANCE = {
   provider: { type: 'string', required: true },
   model: { type: 'string', required: true },
@@ -1110,25 +1134,7 @@ function registerVideoTool(ctx: Context, config: VideoConfig): void {
             type: 'object',
             required: true,
             additionalProperties: false,
-            properties: {
-              attachmentId: { type: 'string', required: true },
-              mediaType: { type: 'string', required: true },
-              bytes: { type: 'integer', required: true },
-              name: { type: 'string', required: true },
-              extraction: {
-                type: 'object',
-                required: true,
-                additionalProperties: false,
-                properties: {
-                  textId: { type: 'string', required: true },
-                  chars: { type: 'integer', required: true },
-                  method: { type: 'string', required: true },
-                  extractor: { type: 'string', required: true },
-                  truncated: { type: 'boolean', required: true },
-                  pages: { type: 'integer' },
-                },
-              },
-            },
+            properties: FILE_ATTACHMENT_PROPERTIES,
           },
         },
       },

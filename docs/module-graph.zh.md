@@ -358,6 +358,12 @@ flowchart TD
     pkg_memory_memos["memory-memos"]
     pkg_tool_memory["tool-memory"]
   end
+  subgraph group_motion["packages/motion"]
+    pkg_api_motion["api-motion"]
+    pkg_motion["motion"]
+    pkg_motion_hyperframes["motion-hyperframes"]
+    pkg_tool_motion["tool-motion"]
+  end
   subgraph group_preset["packages/preset"]
     pkg_agent_presets["agent-presets"]
     pkg_persona["persona"]
@@ -524,6 +530,9 @@ flowchart TD
   pkg_anonymous_user_id --> pkg_home_paths
   pkg_lsp --> pkg_brand
   pkg_lsp --> pkg_llm
+  pkg_api_motion --> pkg_client_connection
+  pkg_api_motion --> pkg_motion
+  pkg_motion_hyperframes --> pkg_motion
   pkg_api_text_to_speech --> pkg_text_to_speech
   pkg_api_text_to_speech --> pkg_typert_protocol
   pkg_text_to_speech_edge --> pkg_text_to_speech
@@ -1341,6 +1350,14 @@ flowchart TD
   pkg_host_plugin_inventory --> pkg_agent_presets
   pkg_host_plugin_inventory --> pkg_brand
   pkg_host_plugin_inventory --> pkg_typert_protocol
+  pkg_tool_motion --> pkg_attachment
+  pkg_tool_motion --> pkg_fs
+  pkg_tool_motion --> pkg_motion
+  pkg_tool_motion --> pkg_sandbox_policy
+  pkg_tool_motion --> pkg_skill
+  pkg_tool_motion --> pkg_tool_media
+  pkg_tool_motion --> pkg_tools
+  pkg_tool_motion --> pkg_working_directory
   pkg_tool_bash --> pkg_agent
   pkg_tool_bash --> pkg_attachment
   pkg_tool_bash --> pkg_fs
@@ -1709,6 +1726,7 @@ flowchart TD
 | [`host-webserver`](../packages/host/webserver) | `host` | — |
 | [`mail`](../packages/mail/mail) | `mail` | — |
 | [`memory-invariants`](../packages/memory/memory-invariants) | `memory` | — |
+| [`motion`](../packages/motion/motion) | `motion` | — |
 | [`invariants`](../packages/runtime-diagnostics/invariants) | `runtime-diagnostics` | — |
 | [`sandbox-windows-acl`](../packages/sandbox/sandbox-windows-acl) | `sandbox` | — |
 | [`text-to-speech`](../packages/speech/text-to-speech) | `speech` | — |
@@ -1741,6 +1759,8 @@ flowchart TD
 | [`host-frontend-static`](../packages/host/frontend-static) | `host` | [`client-connection`](../packages/client/connection), [`host-webserver`](../packages/host/webserver) |
 | [`anonymous-user-id`](../packages/identity/anonymous-user-id) | `identity` | [`brand`](../packages/util/brand), [`home-paths`](../packages/util/home-paths) |
 | [`lsp`](../packages/lsp/lsp) | `lsp` | [`brand`](../packages/util/brand), [`llm`](../packages/llm/llm) |
+| [`api-motion`](../packages/motion/api-motion) | `motion` | [`client-connection`](../packages/client/connection), [`motion`](../packages/motion/motion) |
+| [`motion-hyperframes`](../packages/motion/motion-hyperframes) | `motion` | [`motion`](../packages/motion/motion) |
 | [`api-text-to-speech`](../packages/speech/api-text-to-speech) | `speech` | [`text-to-speech`](../packages/speech/text-to-speech), [`typert-protocol`](../packages/typert/protocol) |
 | [`text-to-speech-edge`](../packages/speech/text-to-speech-edge) | `speech` | [`text-to-speech`](../packages/speech/text-to-speech) |
 | [`storage-domain`](../packages/storage/storage-domain) | `storage` | [`invariants`](../packages/runtime-diagnostics/invariants), [`storage`](../packages/storage/storage) |
@@ -1924,6 +1944,7 @@ flowchart TD
 | [`tool-cordis`](../packages/extensions/tool-cordis) | `extensions` | [`agent`](../packages/core/agent), [`cordis-host-runner`](../packages/extensions/cordis-host-runner), [`llm`](../packages/llm/llm), [`scope`](../packages/core/scope), [`session`](../packages/core/session), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools) |
 | [`host-account-integrations`](../packages/host/account-integrations) | `host` | [`agent`](../packages/core/agent), [`agent-presets`](../packages/preset/agent-presets), [`credentials`](../packages/credentials/credentials), [`host-webserver`](../packages/host/webserver), [`identity-user`](../packages/identity/user), [`mail`](../packages/mail/mail), [`mcp-client`](../packages/mcp/mcp-client), [`skill`](../packages/skill/skill), [`skill-catalog`](../packages/skill/skill-catalog), [`storage-domain`](../packages/storage/storage-domain), [`tools`](../packages/core/tools), [`typert-protocol`](../packages/typert/protocol), [`workspace`](../packages/workspace/workspace) |
 | [`host-plugin-inventory`](../packages/host/plugin-inventory) | `host` | [`agent-presets`](../packages/preset/agent-presets), [`brand`](../packages/util/brand), [`typert-protocol`](../packages/typert/protocol) |
+| [`tool-motion`](../packages/motion/tool-motion) | `motion` | [`attachment`](../packages/attachment/attachment), [`fs`](../packages/fs/fs), [`motion`](../packages/motion/motion), [`sandbox-policy`](../packages/sandbox/sandbox-policy), [`skill`](../packages/skill/skill), [`tool-media`](../packages/media/tool-media), [`tools`](../packages/core/tools), [`working-directory`](../packages/session/working-directory) |
 | [`tool-bash`](../packages/shell/tool-bash) | `shell` | [`agent`](../packages/core/agent), [`attachment`](../packages/attachment/attachment), [`fs`](../packages/fs/fs), [`jobs`](../packages/jobs/jobs), [`llm`](../packages/llm/llm), [`sandbox`](../packages/sandbox/sandbox), [`sandbox-policy`](../packages/sandbox/sandbox-policy), [`shell`](../packages/shell/shell), [`shell-env`](../packages/shell/shell-env), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools), [`user-approval`](../packages/interaction/user-approval), [`working-directory`](../packages/session/working-directory) |
 | [`tool-pwsh`](../packages/shell/tool-pwsh) | `shell` | [`agent`](../packages/core/agent), [`jobs`](../packages/jobs/jobs), [`llm`](../packages/llm/llm), [`sandbox`](../packages/sandbox/sandbox), [`sandbox-policy`](../packages/sandbox/sandbox-policy), [`shell`](../packages/shell/shell), [`shell-env`](../packages/shell/shell-env), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools), [`user-approval`](../packages/interaction/user-approval), [`working-directory`](../packages/session/working-directory) |
 | [`webhook`](../packages/webhook/webhook) | `webhook` | [`agent`](../packages/core/agent), [`agent-default-model`](../packages/core/agent-default-model), [`agent-presets`](../packages/preset/agent-presets), [`invariants`](../packages/runtime-diagnostics/invariants), [`llm`](../packages/llm/llm), [`permission-presets`](../packages/interaction/permission-presets), [`session`](../packages/core/session), [`session-title`](../packages/session/session-title), [`workspace`](../packages/workspace/workspace) |

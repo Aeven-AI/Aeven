@@ -10,7 +10,10 @@ import type {} from '@aeven/tools/types'
 export const IMAGE_TOOLS = ['generate_image', 'codex_image_generate', 'codex_image_edit', 'grok_imagine_image'] as const
 
 /** Video tools whose atomic views own the displayed clip. */
-export const VIDEO_TOOLS = ['generate_video'] as const
+export const VIDEO_TOOLS = ['generate_video', 'render_motion'] as const
+
+/** Motion tools whose atomic views play the live composition. */
+export const MOTION_TOOLS = ['show_motion'] as const
 
 /**
  * Tools that return photographs from somewhere out in the world. Their images
@@ -23,7 +26,7 @@ export const IMAGE_RESULT_TOOLS = ['find_images'] as const
  * Every generating tool the index records. A recorded call stays visible
  * outside the collapsed process group, so its frame shows at the call.
  */
-const GENERATING_TOOLS: readonly string[] = [...IMAGE_TOOLS, ...VIDEO_TOOLS, ...IMAGE_RESULT_TOOLS]
+const GENERATING_TOOLS: readonly string[] = [...IMAGE_TOOLS, ...VIDEO_TOOLS, ...MOTION_TOOLS, ...IMAGE_RESULT_TOOLS]
 
 interface ImageState extends GeneratedImages {
   readonly names: ReadonlyMap<string, string>

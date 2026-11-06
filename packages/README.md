@@ -37,6 +37,7 @@ Every package lives in exactly one group; new packages join existing groups, and
 | [`identity/`](identity/README.md) | Shared anonymous identity |
 | [`llm/`](llm/README.md) | LLM capability family: abstract service + provider adapters |
 | [`media/`](media/README.md) | Generated-image and generated-video seam + the Aeven, DeepInfra, OpenRouter, and pi-ai providers |
+| [`motion/`](motion/README.md) | Motion-film seam: HTML compositions rendered to MP4 by HyperFrames, plus `render_motion` |
 | [`speech/`](speech/README.md) | Speech-recognition registry, the speech Remote the browser calls, and the local Whisper provider |
 | [`e2b/`](e2b/README.md) | E2B remote-runtime providers |
 | [`subprocess/`](subprocess/README.md) | Subprocess capability family: Service Definition + local process-tree provider |

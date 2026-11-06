@@ -48,6 +48,9 @@ allowBuilds:
   # The Google connectors spawn the Workspace CLI this package downloads into its own bin/; Aeven
   # fetches that binary from the Host's postinstall instead, which covers Windows on ARM too.
   '@googleworkspace/cli': false
+  # HyperFrames' producer depends on full puppeteer, whose postinstall downloads a Chrome build. The motion
+  # renderer resolves its own browser, so the download is denied.
+  puppeteer: false
   esbuild: true
   lefthook: true
   # Cross-platform boundary for the persistent PTY backend, including ConPTY on Windows.
