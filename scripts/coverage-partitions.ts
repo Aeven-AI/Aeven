@@ -9,7 +9,7 @@ import { pnpmInvocation } from './pnpm-invocation.ts'
 /** Environment variable selecting the number of instrumented coverage processes. */
 export const COVERAGE_PARTITIONS_ENV = 'AVN_COVERAGE_PARTITIONS'
 
-/** Internal marker that suppresses reports and thresholds inside a partition process. */
+/** Internal marker that suppresses reports inside a partition process. */
 export const COVERAGE_PARTITION_MODE_ENV = 'AVN_COVERAGE_PARTITION_MODE'
 
 /** Environment variable overriding instrumented test, polling, and hook timeouts. */
@@ -441,7 +441,7 @@ export class CoveragePartitionCoordinator {
   }
 
   /**
-   * Run every partition before one merged threshold check.
+   * Run every partition before one merged coverage report.
    * @returns zero only when every partition and the merge command succeed.
    */
   public async run(): Promise<number> {

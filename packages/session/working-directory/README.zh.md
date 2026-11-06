@@ -49,6 +49,7 @@ Chats 等虚拟工作区没有文件夹绑定。由本设备写入的聊天使�
 ## 操作
 
 - `local(session)` —— 本机目录与根；本机没有该会话工作区的文件夹时返回 `{ state: 'unresolved', reason }`（`workspace-unbound`、`workspace-not-here`），会话没有记录目录时返回 `{ state: 'absent' }`。不访问文件系统。
+- `observed(header, projection)` —— 对本进程未持有 Session 对象的会话（空闲或副本），依据其存储的头与折叠的 `workingDirectory` 投影，给出与 `local` 相同的结果。
 - `of(session)` / `rootOf(session)` —— 本机目录与工作区根，或 `undefined`；读 `local()` 可区分拒绝与会话本身没有记录。
 - `resolve(session, path)` —— 绝对路径做规范化；相对路径相对于本机目录解析。工作区在本机没有文件夹的会话会抛出 `WorkingDirectoryUnavailableError`，而不是相对于进程目录解析。不访问文件系统。
 - `change(session, target)` —— 解析、要求目标存在且是目录、追加 `session/cwd`、返回绝对路径。空目标、缺失路径或普通文件会抛错，错误信息点出该路径。目标已在生效状态时不追加任何事件。

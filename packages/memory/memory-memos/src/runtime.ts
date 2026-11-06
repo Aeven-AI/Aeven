@@ -296,6 +296,10 @@ export class MemosMemory implements MemoryProvider {
       this.options.info(`recall skipped for ${scope.sessionId}: the memory index is being rebuilt`)
       return { hits: [], timedOut: false, degraded: true }
     }
+    // The recent-memory scan reads only the trace table, so it runs beside the search and the first judgment rather
+    // than after them; each reader awaits it where it needs the result and owns its rejection there.
+    const recentScan = turnStart && request.recent !== undefined ? this.recentPersonTraces(request, deadlineAt) : undefined
+    recentScan?.catch(() => undefined)
     try {
       let hits = await this.search(request, deadlineAt, turnStart)
       // An explicit search runs no relevance judgment, so the core's per-tier top-K arrives as-is and each tier
@@ -310,9 +314,11 @@ export class MemosMemory implements MemoryProvider {
         if (topic !== request.query && topic.length > 0) hits = await this.search({ ...request, query: topic }, deadlineAt, turnStart)
       }
       const sharingOnly = request.recent?.sharingOnly === true
-      const recent = request.recent === undefined || sharingOnly ? [] : await this.recentPersonHits(request, hits, deadlineAt)
+      const recent = recentScan === undefined || sharingOnly ? [] : this.recentPersonHits(request, hits, await recentScan)
       const recall = await this.judge(request, [...hits, ...recent], deadlineAt)
-      return sharingOnly && recall.sharing === true ? await this.judgeWithRecent(request, hits, recall, deadlineAt) : recall
+      return sharingOnly && recall.sharing === true && recentScan !== undefined
+        ? await this.judgeWithRecent(request, hits, recall, recentScan, deadlineAt)
+        : recall
     } catch (error) {
       if (!(error instanceof MemoryDeadlineError)) throw error
       return { hits: [], timedOut: true }
@@ -327,11 +333,12 @@ export class MemosMemory implements MemoryProvider {
     request: MemoryRecallRequest,
     hits: readonly MemoryHit[],
     first: MemoryRecall,
+    recentScan: Promise<readonly TraceDTO[]>,
     deadlineAt: number,
   ): Promise<MemoryRecall> {
     let recent: MemoryHit[]
     try {
-      recent = await this.recentPersonHits(request, hits, deadlineAt)
+      recent = this.recentPersonHits(request, hits, await recentScan)
     } catch (error) {
       // The deadline elapsed during the scan; the first judgment is already complete.
       if (!(error instanceof MemoryDeadlineError)) throw error
@@ -343,19 +350,20 @@ export class MemosMemory implements MemoryProvider {
   }
 
   /**
-   * The person's own memories from the last `request.recent.hours`, as candidates: newest first, outside this
-   * session, and not already among `hits`. Superseded, corrected, imported, procedure, and log memories are left
-   * out: an imported fact is the person's history, not something that just happened to them.
+   * The person's own memories from the last `request.recent.hours`, newest first and outside this session.
+   * Superseded, corrected, imported, procedure, and log memories are left out: an imported fact is the person's
+   * history, not something that just happened to them. The scan does not depend on the search, so recall starts it
+   * before the search and {@link recentPersonHits} removes the traces the search already returned.
+   * @returns the eligible traces, or throws {@link MemoryDeadlineError} at the deadline.
    */
-  private async recentPersonHits(request: MemoryRecallRequest, hits: readonly MemoryHit[], deadlineAt: number): Promise<MemoryHit[]> {
+  private async recentPersonTraces(request: MemoryRecallRequest, deadlineAt: number): Promise<TraceDTO[]> {
     const recent = request.recent
     if (recent === undefined || recent.hours <= 0 || recent.items <= 0) return []
     const { scope } = request
     const since = Date.now() - recent.hours * 3_600_000
-    const seen = new Set<string>(hits.map(hit => hit.id))
     const core = await this.options.cores.get(scope.owner)
     const eligible = (trace: TraceDTO): boolean => trace.ts >= since && trace.sessionId !== scope.sessionId
-      && !seen.has(trace.id) && (trace.summary ?? '').trim() !== '' && !trace.userText.startsWith(LEARNED_PROCEDURE_PREFIX)
+      && (trace.summary ?? '').trim() !== '' && !trace.userText.startsWith(LEARNED_PROCEDURE_PREFIX)
       && !(trace.tags ?? []).some(tag => tag === 'outcome:correction' || tag === IMPORT_TAG || tag.startsWith(SUPERSEDED_TAG))
       && !isLogMemory(trace.tags, trace.summary ?? '')
     // Read the whole window: a bulk import or one long conversation fills the newest rows, so the newest few memories
@@ -373,7 +381,22 @@ export class MemosMemory implements MemoryProvider {
       found.push(...traces.filter(eligible))
       if (traces.length < RECENT_PERSON_PAGE || traces.every(trace => trace.ts < since)) break
     }
-    found.sort((a, b) => b.ts - a.ts)
+    return found.sort((a, b) => b.ts - a.ts)
+  }
+
+  /**
+   * The recent-memory candidates: the scanned traces not already among `hits`, sampled so the limit reaches every
+   * recent conversation.
+   * @param request - the turn-start recall request carrying the `recent` limits.
+   * @param hits - the search hits the candidates must not repeat.
+   * @param scanned - {@link recentPersonTraces} for this request.
+   * @returns the candidates, sharing memories first.
+   */
+  private recentPersonHits(request: MemoryRecallRequest, hits: readonly MemoryHit[], scanned: readonly TraceDTO[]): MemoryHit[] {
+    const recent = request.recent
+    if (recent === undefined) return []
+    const seen = new Set<string>(hits.map(hit => hit.id))
+    const found = scanned.filter(trace => !seen.has(trace.id))
     // What the person said about how they are doing comes first. The rest samples every conversation in rounds: each
     // conversation's newest memory first, newest conversations first, then each one's second newest, so the limit
     // reaches every recent conversation before it takes more from one.
@@ -446,7 +469,7 @@ export class MemosMemory implements MemoryProvider {
     const judgment = parseRelevance(answer, candidates.length)
     if (judgment === undefined) return fallback('returned no usable answer')
     const { sessionId } = request.scope
-    this.options.info(`recall judged ${sessionId}: lead=${judgment.lead} kept ${judgment.keep.length} of ${candidates.length}`)
+    this.options.info(`recall judged ${sessionId} in ${Date.now() - now} ms: lead=${judgment.lead} kept ${judgment.keep.length} of ${candidates.length}`)
     const state = this.state(request.scope)
     state.sharing = judgment.sharing
     const hits = judgment.keep.flatMap(index => candidates[index] ?? [])

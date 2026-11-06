@@ -135,6 +135,46 @@
   line-height: inherit;
 }
 
+/* No detail to quote leaves no scroller, so the note follows the question. */
+.body:empty {
+  display: none;
+}
+
+/* Phone width: the takeover spans the composer's own width, the card may use
+   more of the screen, and the quoted command keeps a few lines in view rather
+   than yielding all its height to the note and actions. Whatever still does
+   not fit scrolls inside the card instead of being clipped. The capsules fill
+   their rows, so the wrap reads as two even rows with the grant last. */
+@media (max-width: 640px) {
+  .root {
+    padding: 6px var(--avn-composer-side-clearance) var(--avn-composer-side-clearance);
+  }
+
+  /* Clear of the conversation header above the seat and the dock below it. */
+  .card {
+    max-height: min(calc(100vh - 190px), 520px);
+    overflow-y: auto;
+  }
+
+  .body {
+    flex-shrink: 0;
+    max-height: 10em;
+  }
+
+  .note {
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  .actionRow {
+    gap: 8px;
+  }
+
+  .action {
+    flex: 1 1 auto;
+  }
+}
+
 .reject:hover:not(:disabled) {
   background: var(--dsw-alias-interactive-bg-hover-danger);
   color: var(--dsw-alias-state-error-primary);

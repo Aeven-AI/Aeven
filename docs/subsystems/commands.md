@@ -143,7 +143,19 @@ register(definition: CommandDefinition): () => void
  * @param agent - exact receiving agent and scoped-layer key.
  * @returns name-sorted descriptors after scoped shadowing.
  */
-@Remote list(agent: Agent): readonly CommandDescriptor[]
+list(agent: Agent): readonly CommandDescriptor[]
+
+/**
+ * List the commands a reader may run in one Session, whether or not an
+ * Agent runs it here. Listing never starts one: an idle Session, and a
+ * replica another device of the account runs, answer from the standing scope
+ * of the preset its stored header records, which is the scope its Agent
+ * resolves commands against.
+ * @param sessionId - the Session the composer addresses.
+ * @returns name-sorted descriptors after scoped shadowing.
+ * @throws {RemoteError} `session/not-found` when the Session is absent or the caller may not reach it.
+ */
+@Remote('list') async remoteList(sessionId: SessionId): Promise<readonly CommandDescriptor[]>
 
 /**
  * Resolve one effective command definition.
@@ -182,7 +194,7 @@ find(agent: Agent, name: string): CommandDefinition | undefined
 @Remote async execute( agent: Agent, line: string, images: readonly EncodedImageAttachment[], signal: AbortSignal, ): Promise<CommandExecution | undefined>
 ```
 
-Types: [Agent](core.md) · [EncodedImageAttachment](attachment.md)
+Types: [Agent](core.md) · [EncodedImageAttachment](attachment.md) · [SessionId](core.md)
 
 Source: [`packages/interaction/commands/src/index.ts`](../../packages/interaction/commands/src/index.ts)
 

@@ -60,6 +60,24 @@ export function createTransport(config: Config, onDiagnostic?: (line: string) =>
 }
 
 /**
+ * Send SIGTERM to a stdio server whose connection has not finished starting. Such a server has no session to end,
+ * and a launcher such as `npx` that is still resolving the package does not read stdin, so the SDK's close would
+ * wait its full end-of-input grace before signalling it. Other transports, and a server that already exited, are
+ * left alone.
+ * @param transport - the generation's transport, when it has one.
+ */
+export function terminateStartingServer(transport: Transport | undefined): void {
+  if (!(transport instanceof StdioClientTransport)) return
+  const pid = transport.pid
+  if (pid === null) return
+  try {
+    process.kill(pid, 'SIGTERM')
+  } catch {
+    // ESRCH: the server exited between the pid read and the signal; the SDK's close observes that exit.
+  }
+}
+
+/**
  * Forward a stdio server's stderr to `onDiagnostic`, one complete line at a
  * time, including a last line the server wrote without a trailing newline.
  * @param transport - stdio transport constructed with `stderr: 'pipe'`.

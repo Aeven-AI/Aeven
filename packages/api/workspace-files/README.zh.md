@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`@aeven/api-workspace-files` 拥有 `workspaceFiles` Remote 命名空间，即右侧栏文件浏览器的 Host 半边。`list` 返回某目录的直接子项，`read` 返回 UTF-8 文本文件的起始一页，`search` 以广度优先遍历目录树，寻找名称包含查询串的条目。工作区根目录是 Session 头的 `cwd`，缺失时回退到沙箱策略的根目录；每一次列举、预览与搜索都不越出该根目录，这里也不做任何写入。两侧读取的是与模型文件工具相同的组合文件系统，因此一次部署对浏览器与 Agent 只需要一套访问策略。
+`@aeven/api-workspace-files` 拥有 `workspaceFiles` Remote 命名空间，即右侧栏文件浏览器的 Host 半边。`list` 返回某目录的直接子项，`read` 返回 UTF-8 文本文件的起始一页，`search` 以广度优先遍历目录树，寻找名称包含查询串的条目。每次调用以 id 指明 Session。工作区根目录是本设备上该 Session 的文件夹，缺失时回退到沙箱策略的根目录：有活动 Agent 时通过 `sessionWorkspaceRoot` 解析，空闲的 Session 或副本则通过 `WorkingDirectoryService.observed` 从其存储的日志解析，因此浏览从不启动 Agent，也不会从另一台设备接管 Session。其他账户拥有的 Session 按不存在处理。每一次列举、预览与搜索都不越出该根目录，这里也不做任何写入。两侧读取的是与模型文件工具相同的组合文件系统，因此一次部署对浏览器与 Agent 只需要一套访问策略。
 
 ## 目录
 

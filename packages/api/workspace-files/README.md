@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@aeven/api-workspace-files` owns the `workspaceFiles` Remote namespace, the Host half of the right sidebar's file explorer. `list` returns the direct children of a directory, `read` returns the leading page of a UTF-8 text file, and `search` walks the tree breadth-first for entries whose name contains a query. The workspace root is the Session header's `cwd`, with the sandbox policy's root as the fallback; every listing, preview, and search stays inside that root and nothing here writes. Both halves read the same composed filesystem as the model's file tools, so a deployment keeps one access policy for the explorer and for the agent.
+`@aeven/api-workspace-files` owns the `workspaceFiles` Remote namespace, the Host half of the right sidebar's file explorer. `list` returns the direct children of a directory, `read` returns the leading page of a UTF-8 text file, and `search` walks the tree breadth-first for entries whose name contains a query. Each call names the Session by id. The workspace root is this device's folder for that Session, with the sandbox policy's root as the fallback: a live Agent answers through `sessionWorkspaceRoot`, and an idle Session or a replica answers from its stored log through `WorkingDirectoryService.observed`, so browsing never starts an Agent or takes a Session over from another device. A Session another account owns answers as absent. Every listing, preview, and search stays inside that root and nothing here writes. Both halves read the same composed filesystem as the model's file tools, so a deployment keeps one access policy for the explorer and for the agent.
 
 ## Table of Contents
 

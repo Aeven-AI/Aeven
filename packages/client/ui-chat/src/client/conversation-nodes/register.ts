@@ -6,6 +6,7 @@ import { registerCompactionConversationNode } from './compaction.ts'
 import { registerUnknownConversationFallback } from './fallback.ts'
 import { registerInboxConversationNodes } from './inbox.ts'
 import { registerMessageConversationNode } from './message.ts'
+import { registerReadImages } from './read-images.ts'
 import { registerRequestPromptConversationNode } from './request-prompt.ts'
 import { registerRetryConversationNode } from './retry.ts'
 import { registerToolConversationNode } from './tool.ts'
@@ -31,6 +32,7 @@ export function registerConversationNodes(ctx: Context): void {
   registerTurnErrorConversationNode(ctx)
   registerTurnMaxTokensConversationNode(ctx)
   registerTurnTailConversationNode(ctx)
+  registerReadImages(ctx)
   registerUnknownConversationFallback(ctx)
   registerChatConversationView(ctx)
 }

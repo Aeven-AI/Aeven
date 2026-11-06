@@ -294,6 +294,12 @@ interface MarkdownTextCommonProps {
   fileMentions?: MarkdownFileMentions | undefined
   /** Whether an authored image may render beside separately displayed artifacts. */
   imageVisible?: ((src: string) => boolean) | undefined
+  /**
+   * The URL an authored image loads from in place of its own source, such as
+   * a stored copy of a file the author read; undefined keeps the source's own
+   * resolution.
+   */
+  imageUrl?: ((src: string) => string | undefined) | undefined
   /** Keep an enclosing transcript on its live tail after an engine render. */
   scrollDown?: (() => void) | undefined
   /**
@@ -381,11 +387,15 @@ export function defuseClosingTag(text: string): string {
  */
 export const MarkdownText = memo(function MarkdownText({
   text, streaming = false, labels, controls, fileMentions, scrollDown, onFullscreenChange, variant = 'default',
-  animation: animationProp, imageVisible,
+  animation: animationProp, imageVisible, imageUrl,
 }: MarkdownTextProps) {
   const imageVisibility = useRef(imageVisible)
   imageVisibility.current = imageVisible
-  const imageSource = useCallback((src: string) => imageVisibility.current?.(src) === false ? undefined : resolveImage(src), [])
+  const imageOverride = useRef(imageUrl)
+  imageOverride.current = imageUrl
+  const imageSource = useCallback((src: string) => imageVisibility.current?.(src) === false
+    ? undefined
+    : imageOverride.current?.(src) ?? resolveImage(src), [])
   const preferredAnimation = useTextAnimation()
   const animation = animationProp ?? preferredAnimation
   const handleRef = useRef<HyperMarkdownHandle>(null)
