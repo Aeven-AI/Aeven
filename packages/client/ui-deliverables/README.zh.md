@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-与 `ui-conversation` 一起挂载本插件；已完成轮次随即以产出文件行收尾，位于收尾消息正文与其动作页脚之间。新文件胶囊和编辑文件行通过 `sidebarFiles.open` 在 Files 侧栏预览选定文件；没有侧栏查看器的非文本文件在页面为 loopback 且 Host 能打开路径时于默认应用中打开，否则通过 `sidebarFiles.fileUrl` 下载。产出的视频或音频文件还会在表格上方就地播放，有记录的存储副本时来自该副本，否则来自 `sidebarFiles.fileUrl`；两种来源都无法提供的文件只保留其行。行内提及经 Host 打开器打开文件，相对路径按会话 cwd 解析；该行首次显示时会查询 `session.canOpenWorkspacePath()`，有文件被省略、页面为 loopback 且查询成功返回 `true` 时，**在文件夹中显示**动作才会打开会话工作区。
+与 `ui-conversation` 一起挂载本插件；已完成轮次随即以产出文件行收尾，位于收尾消息正文与其动作页脚之间。新文件胶囊和编辑文件行通过 `sidebarFiles.open` 在 Files 侧栏预览选定文件，结果记录了存储副本时一并交给它，使另一台设备写出的媒体文件也能在那里播放；没有侧栏查看器的非文本文件在页面为 loopback 且 Host 能打开路径时于默认应用中打开，否则通过 `sidebarFiles.fileUrl` 下载。产出的视频或音频文件还会在表格上方就地播放，有记录的存储副本时来自该副本，否则来自 `sidebarFiles.fileUrl`；两种来源都无法提供的文件只保留其行。行内提及经 Host 打开器打开文件，相对路径按会话 cwd 解析；该行首次显示时会查询 `session.canOpenWorkspacePath()`，有文件被省略、页面为 loopback 且查询成功返回 `true` 时，**在文件夹中显示**动作才会打开会话工作区。
 
 ### 该行
 

@@ -27,9 +27,10 @@ declare module '@deepseek-ai/cordis' {
        * Focus the file’s existing Files pane, or open a new pane.
        * @param sessionId - Session owning the workspace.
        * @param path - Workspace-relative or absolute file path.
+       * @param copy - URL of a stored copy an image, video, or audio file plays from, for a file this Host may not hold.
        * @returns Whether the file can be displayed in the sidebar; false for documents and other binary files without a viewer.
        */
-      open(sessionId: SessionId, path: string): Promise<boolean>
+      open(sessionId: SessionId, path: string, copy?: string): Promise<boolean>
       /**
        * The URL of one workspace file's bytes, served only for a Session of the signed-in account.
        * @param sessionId - Session owning the workspace.
@@ -70,8 +71,11 @@ export function apply(ctx: ClientContext): void {
     const openFiles = new Map<string, { sessionId: string; surfaceId: string; path: string | null; root: string | null }>()
     // Mounted panes, which reveal a folder in place instead of opening another pill.
     const revealers = new Map<string, { sessionId: string; surfaceId: string; reveal: (path: string) => void }>()
-    const openFile = async (sessionId: SessionId, path: string): Promise<boolean> => {
+    // Stored copies by session and path, named by the surface that opened the file.
+    const copies = new Map<string, string>()
+    const openFile = async (sessionId: SessionId, path: string, copy?: string): Promise<boolean> => {
       if (!await canPreviewFile(remote, sessionId, path)) return false
+      if (copy !== undefined) copies.set(`${sessionId}\u0000${path}`, copy)
       for (const file of openFiles.values()) {
         if (file.sessionId === sessionId && file.path !== null
           && resolveWorkspacePath(file.root ?? undefined, file.path) === resolveWorkspacePath(file.root ?? undefined, path)) {
@@ -126,6 +130,7 @@ export function apply(ctx: ClientContext): void {
       }, [props.sessionId, requested])
       return createElement(FilesPane, {
         ...props, t, remote, onFileChange, registerReveal,
+        copyOf: (path: string) => copies.get(`${props.sessionId}\u0000${path}`),
         requestedFile: requested?.type === 'file' ? { path: requested.path } : undefined,
         requestedFolder: requested?.type === 'directory' ? { path: requested.path } : undefined,
       })

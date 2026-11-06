@@ -17,8 +17,13 @@ const GROUPED = new Intl.NumberFormat('en-US')
 
 /** Registration-side Host capability facts. */
 export interface ProducedFilesInjected {
-  /** Open a produced file in the session's Files sidebar. @param path - Produced file path. */
-  previewFile(path: string): Promise<boolean>
+  /**
+   * Open a produced file in the session's Files sidebar.
+   * @param path - Produced file path.
+   * @param copy - URL of the file's stored copy, which a media file plays from.
+   * @returns Whether the sidebar can show the file.
+   */
+  previewFile(path: string, copy?: string): Promise<boolean>
   /**
    * The URL of one produced file's bytes.
    * @param path - Produced file path.
@@ -77,7 +82,9 @@ export function ProducedFiles({
   // The sidebar previews the file; the Host opens a path only where it is the reader's own desktop, and elsewhere the
   // reader's browser downloads it.
   const openProducedFile = (file: ProducedFile): void => {
-    void previewFile(file.path).then((previewed) => {
+    // A stored copy plays in the sidebar where this Host lacks the file, such as one another device wrote.
+    const preview = file.attachmentId === undefined ? previewFile(file.path) : previewFile(file.path, attachmentUrl(file.attachmentId))
+    void preview.then((previewed) => {
       if (previewed) return
       if (canOpenPath) {
         openFile(file.path)
