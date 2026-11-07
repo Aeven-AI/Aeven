@@ -1,7 +1,7 @@
 {
   "name": "@aeven/motion-sandbox",
   "description": "Motion renderer that bundles compositions for the live player and renders films inside the calling account's sandbox",
-  "version": "0.3.35-alpha",
+  "version": "0.3.36-alpha",
   "publishConfig": {
     "access": "public"
   },
