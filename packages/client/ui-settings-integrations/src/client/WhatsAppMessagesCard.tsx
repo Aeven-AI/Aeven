@@ -200,7 +200,6 @@ function ChatCard({ chat, source, t }: { chat: WhatsAppCardChat; source: Message
   return (
     <section className={css.card} data-whatsapp-chat={chat.chatJid}>
       <header className={css.header}>
-        <span className={css.mark} aria-hidden="true" />
         <span className={css.chatName}>{chat.chatName}</span>
         <span className={css.count}>{t('messageCount', { count: chat.messages.length })}</span>
       </header>
