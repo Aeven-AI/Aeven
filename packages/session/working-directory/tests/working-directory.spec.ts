@@ -156,7 +156,18 @@ describe('working directory', () => {
     expect(bench.ctx.workingDirectory.resolve(bench.session, 'index.html')).toBe(join(target, 'index.html'))
   })
 
-  it.each(['virtual', 'remote', 'folder'] as const)('refuses an imported directory without a local %s workspace binding', async (kind) => {
+  it('continues an imported chat of a folderless workspace in this device\'s default directory', async () => {
+    const root = await benchDirectory([])
+    const bench = await harness(root)
+    bench.ctx.provide('workspaceRegistry', {
+      placeSession: () => ({ state: 'filed', workspace: { kind: 'virtual' } as Workspace }),
+      replicated: () => true,
+    } as never)
+    expect(() => sessionDirectory(bench.ctx, bench.session)).not.toThrow()
+    expect(sessionWorkspaceRoot(bench.ctx, bench.session)).toBeUndefined()
+  })
+
+  it.each(['remote', 'folder'] as const)('refuses an imported directory without a local %s workspace binding', async (kind) => {
     const root = await benchDirectory([])
     const bench = await harness(root)
     bench.ctx.provide('workspaceRegistry', {

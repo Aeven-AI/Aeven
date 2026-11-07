@@ -89,8 +89,11 @@ export function localDirectory(input: LocalDirectoryInput): LocalDirectory {
       return { state: 'unresolved', reason: 'workspace-not-here' }
     case 'filed': {
       const workspace = placement.workspace
-      if (workspace.kind === 'virtual' && (entered !== undefined || !replicated)) {
-        return localAt(entered ?? recorded)
+      if (workspace.kind === 'virtual') {
+        if (entered !== undefined || !replicated) return localAt(entered ?? recorded)
+        // A folderless workspace such as Chats has no path to translate: a conversation another device wrote in it
+        // continues in this device's own default directory, as a chat without one does.
+        return { state: 'absent' }
       }
       if (workspace.kind !== 'folder' || workspace.path === undefined) {
         return { state: 'unresolved', reason: 'workspace-unbound' }
