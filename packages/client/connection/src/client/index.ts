@@ -172,8 +172,9 @@ interface ConnectionOwner {
 
 interface BrowserNetworkTarget {
   readonly navigator?: { readonly onLine?: boolean }
-  addEventListener(type: 'online' | 'offline', listener: () => void): void
-  removeEventListener(type: 'online' | 'offline', listener: () => void): void
+  readonly document?: { readonly visibilityState?: string }
+  addEventListener(type: 'online' | 'offline' | 'visibilitychange' | 'pageshow', listener: () => void): void
+  removeEventListener(type: 'online' | 'offline' | 'visibilitychange' | 'pageshow', listener: () => void): void
 }
 
 function watchBrowserNetwork(controller: ConnectionController): () => void {
@@ -183,11 +184,19 @@ function watchBrowserNetwork(controller: ConnectionController): () => void {
   const online = (): void => { controller.setNetworkAvailable(true) }
   const offline = (): void => { controller.setNetworkAvailable(false) }
   controller.setNetworkAvailable(initiallyAvailable)
+  // `visibilitychange` fires on the document but bubbles to the window, so one target carries every listener.
+  const visible = (): void => {
+    if (browser.document?.visibilityState === 'visible') controller.retryNow()
+  }
   browser.addEventListener('online', online)
   browser.addEventListener('offline', offline)
+  browser.addEventListener('visibilitychange', visible)
+  browser.addEventListener('pageshow', visible)
   return () => {
     browser.removeEventListener('online', online)
     browser.removeEventListener('offline', offline)
+    browser.removeEventListener('visibilitychange', visible)
+    browser.removeEventListener('pageshow', visible)
   }
 }
 

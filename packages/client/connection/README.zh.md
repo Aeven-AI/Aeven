@@ -45,7 +45,7 @@ cookie 签名密钥是 `ctx.credentials` 中由 `client-connection/browser-sessi
 
 API Gateway Client 把内部 `$events` logical stream 注册为唯一 generation source，与有无 `$on` 订阅无关。Host 在 API Remotes source factory 同步挂好所有增量 listener 后，先发送唯一 `{ type: 'ready', clientId, host: { home } }` 项，再发送事件。`ConnectionController` 仅在收到该 ready 项后发布 generation 并调用 `onConnected`，因此 baseline 不会跑在增量 listener 前面。
 
-`$events` 结束、返回 Remote stream error、收到非 ready 首项或畸形事件项，都会使当前 generation 失效。浏览器报告网络可用时，Controller 发布 `connecting`，并在 500ms、1s、2s、4s、8s 与 10s 上限内采用 50%–100% 抖动重试。它记录每次尝试、要求 Gateway 替换物理 WebSocket，再重开 `$events`；10s 档失败后发布终态 `disconnected`。`ctx.connection.reconnect()` 会中断活动工作、重置序列，并立即开始 retry 1。浏览器 `offline` 会中断活动工作、发布 `disconnected` 并暂停自动尝试；下一次 `online` 转换会重置序列并从 500ms 档开始。ready 项会发布 `connected`。Gateway mux 每次收到请求只做一次物理连接尝试，不再运行另一套重试调度。[连接恢复决策](../../../.agents/notes/implemented/feature/2026-08-28-web-connection-recovery-control.zh.md)规定重试节奏和手动恢复行为。
+`$events` 结束、返回 Remote stream error、收到非 ready 首项或畸形事件项，都会使当前 generation 失效。浏览器报告网络可用时，Controller 发布 `connecting`，并在 500ms、1s、2s、4s、8s 与 10s 上限内采用 50%–100% 抖动重试。它记录每次尝试、要求 Gateway 替换物理 WebSocket，再重开 `$events`；10s 档失败后发布终态 `disconnected`。`ctx.connection.reconnect()` 会中断活动工作、重置序列，并立即开始 retry 1。浏览器 `offline` 会中断活动工作、发布 `disconnected` 并暂停自动尝试；下一次 `online` 转换会重置序列并从 500ms 档开始。页面重新可见（`visibilitychange`、`pageshow`）时若正处于退避等待，会立即重试且不发布新状态，因为手机会挂起后台页面的 socket，较晚才察觉断开。ready 项会发布 `connected`。Gateway mux 每次收到请求只做一次物理连接尝试，不再运行另一套重试调度。[连接恢复决策](../../../.agents/notes/implemented/feature/2026-08-28-web-connection-recovery-control.zh.md)规定重试节奏和手动恢复行为。
 
 <a id="model-experience"></a>
 ## 模型体验

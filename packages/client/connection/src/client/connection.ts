@@ -134,6 +134,18 @@ export class ConnectionController {
   }
 
   /**
+   * Cut a pending backoff wait short without announcing a new state. A phone suspends a backgrounded page and its
+   * socket with it, so the loss is noticed late and the next retry can sit behind a long delay; the reader coming
+   * back is the moment to try again. A live or in-flight attempt and an offline wait are left alone.
+   */
+  retryNow(): void {
+    if (!this.running || this.retryDelay === null || !this.networkAvailable) return
+    this.attempt = 0
+    this.immediateRetry = true
+    this.retryDelay.abort(MANUAL_RECONNECT)
+  }
+
+  /**
    * Suspend automatic retries while offline and restart backoff when the network returns.
    * @param available - whether the browser reports network access.
    */

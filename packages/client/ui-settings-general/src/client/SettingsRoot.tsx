@@ -1,4 +1,19 @@
 /**
+ * Follow the document's visibility. A hidden page is not watched by anyone, so an outage there is not counted.
+ * @returns whether the page is visible; true where the runtime has no document visibility.
+ */
+function usePageVisible(): boolean {
+  const read = (): boolean => typeof document === 'undefined' || document.visibilityState !== 'hidden'
+  const [visible, setVisible] = useState(read)
+  useEffect(() => {
+    const update = (): void => { setVisible(read()) }
+    document.addEventListener('visibilitychange', update)
+    return () => { document.removeEventListener('visibilitychange', update) }
+  }, [])
+  return visible
+}
+
+/**
  * Settings shell root: the connection toast, the sidebar-foot spacing row,
  * and the centered modal panel (figma 501:29947, 1080x700) with the section
  * nav rail, which becomes a horizontal tab strip under the title row on
@@ -32,6 +47,13 @@ import type { SettingsRootComponentProps, SettingsSectionRow } from './shell-con
 import css from './SettingsRoot.module.css'
 
 const RECOVERY_CONFIRMATION_MS = 2_000
+
+/**
+ * How long a visible page stays quietly not-connected before the indicator says so. A phone drops the socket every
+ * time the reader switches apps and reconnects within a moment of returning; announcing that blip as an outage, then
+ * as a recovery, reads as a fault the reader has to act on.
+ */
+const OUTAGE_GRACE_MS = 5_000
 
 /**
  * Sections the nav shows as one entry. The entry sits where its first
@@ -273,6 +295,15 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
     setCompletedOnboarding(new Set())
   }, [onboardingActive])
 
+  // Whether the current outage outlasted the grace on a visible page; only an outage that was shown earns a recovery.
+  const [outageShown, setOutageShown] = useState(false)
+  const pageVisible = usePageVisible()
+  useEffect(() => {
+    if (connectionState === 'connected' || !pageVisible) return
+    const timeout = window.setTimeout(() => { setOutageShown(true) }, OUTAGE_GRACE_MS)
+    return () => { window.clearTimeout(timeout) }
+  }, [connectionState, pageVisible])
+
   useLayoutEffect(() => {
     const previous = previousConnectionState.current
     previousConnectionState.current = connectionState
@@ -281,7 +312,8 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
       return
     }
     setConnectionDismissed(false)
-    if (previous !== 'disconnected' && previous !== 'connecting') return
+    setOutageShown(false)
+    if ((previous !== 'disconnected' && previous !== 'connecting') || !outageShown) return
     setShowRecovery(true)
     const timeout = window.setTimeout(() => { setShowRecovery(false) }, RECOVERY_CONFIRMATION_MS)
     return () => { window.clearTimeout(timeout) }
@@ -300,7 +332,7 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
   }
 
   let connectionIndicator: ConnectionIndicatorState | undefined
-  if (connectionDismissed) {
+  if (connectionDismissed || (connectionState !== 'connected' && !outageShown)) {
     connectionIndicator = undefined
   } else if (connectionState === 'disconnected') {
     connectionIndicator = 'disconnected'
