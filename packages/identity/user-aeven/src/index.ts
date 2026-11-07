@@ -40,6 +40,7 @@ export interface AevenClientConfig {
   readonly googleOAuthUrl?: string
   readonly webUrl?: string
   readonly mediaUrl?: string
+  readonly helpCenterUrl?: string
   readonly oauthFlow?: OAuthFlow
 }
 
@@ -116,6 +117,12 @@ export interface Config {
    */
   mediaUrl?: string
   /**
+   * Origin of the Aeven help center, such as `https://helpcenter.aeven.io`.
+   * The sign-in screens link its Terms of Service and Privacy Policy pages in
+   * the reader's language; absent leaves those names as plain text.
+   */
+  helpCenterUrl?: string
+  /**
    * Credential reference the access token this authority verifies answers to.
    *
    * The token is the caller's Aeven session, and `llm-aeven` presents one to
@@ -141,6 +148,7 @@ export const Config: z<Config> = z.object({
   oauthFlow: z.union(['redirect', 'window']),
   webUrl: z.string(),
   mediaUrl: z.string(),
+  helpCenterUrl: z.string(),
 })
 
 /** Config after schemastery has filled every defaulted field. */
@@ -295,6 +303,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     const googleOAuthUrl = sameHostLoopbackUrl(config.googleOAuthUrl, origin)
     const webUrl = sameHostLoopbackUrl(config.webUrl, origin)
     const mediaUrl = sameHostLoopbackUrl(config.mediaUrl, origin)
+    const helpCenterUrl = sameHostLoopbackUrl(config.helpCenterUrl, origin)
     const value: AevenClientConfig = {
       ...apiUrl === undefined ? {} : { apiUrl },
       ...xOAuthUrl === undefined ? {} : { xOAuthUrl },
@@ -303,6 +312,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       ...oauthFlow === undefined ? {} : { oauthFlow },
       ...webUrl === undefined ? {} : { webUrl },
       ...mediaUrl === undefined ? {} : { mediaUrl },
+      ...helpCenterUrl === undefined ? {} : { helpCenterUrl },
     }
     table.push({ kind: 'global', name: AEVEN_CLIENT_CONFIG_GLOBAL, value })
   })

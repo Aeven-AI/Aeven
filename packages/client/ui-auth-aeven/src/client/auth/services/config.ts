@@ -25,6 +25,7 @@ export interface AevenClientConfig {
   readonly googleOAuthUrl?: string
   readonly webUrl?: string
   readonly mediaUrl?: string
+  readonly helpCenterUrl?: string
   readonly confettiColors?: readonly string[]
   readonly oauthFlow?: OAuthFlow
 }
@@ -91,6 +92,14 @@ export function webUrl(): string | undefined {
  */
 export function mediaUrl(): string | undefined {
   return sameSiteOrigin(aevenConfig().mediaUrl)
+}
+
+/**
+ * The help center's origin, which hosts the Terms of Service and Privacy Policy.
+ * @returns the origin, or undefined when this deployment names no help center.
+ */
+export function helpCenterUrl(): string | undefined {
+  return sameSiteOrigin(aevenConfig().helpCenterUrl)
 }
 
 /**
