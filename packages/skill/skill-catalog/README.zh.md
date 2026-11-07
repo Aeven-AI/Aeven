@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-每个发行版都会在此包内附带一份技能目录：上游 `davila7/claude-code-templates` 集合中经评审的高价值子集，加上为本仓库编写、覆盖该集合未涉及目标的技能（`reverse-engineering`、`leanrea`，以及由 `aicodeking/deepseek-stack` 移植的二十九项 `aeven-stack` 工作流技能），以及来自其他仓库、以相同 `SKILL.md` 布局发布并经评审的技能（目前为 `nexu-io/open-design` 的十项动效技能），以一份索引加每个技能一个 zip 的形式存放。设置页面可按标题顺序浏览整份目录，也可按分类浏览——先列出各分类及其技能数量，再进入某一个分类——并支持搜索，将选中的技能安装到已登录账户自己的库中。在有人安装之前，目录内容不会到达模型。
+每个发行版都会在此包内附带一份技能目录：上游 `davila7/claude-code-templates` 集合中经评审的高价值子集，加上为本仓库编写、覆盖该集合未涉及目标的技能（`reverse-engineering`、`leanrea`，以及由 `aicodeking/deepseek-stack` 移植的二十九项 `aeven-stack` 工作流技能），以及来自其他仓库、以相同 `SKILL.md` 布局发布并经评审的技能（目前为 `nexu-io/open-design` 的十项动效技能，以及取代合集中旧版副本的 `blader/humanizer` 的 `humanizer`），以一份索引加每个技能一个 zip 的形式存放。设置页面可按标题顺序浏览整份目录，也可按分类浏览——先列出各分类及其技能数量，再进入某一个分类——并支持搜索，将选中的技能安装到已登录账户自己的库中。在有人安装之前，目录内容不会到达模型。
 
 宿主在运行时不获取任何内容：索引与包内文件都通过 `ctx.skillCatalog` 从磁盘读取。安装会把内置 zip 交给账户原有的导入路径，因此路径校验、大小上限、资源存储与目录失效行为与手动上传完全一致。
 
@@ -50,7 +50,7 @@ Web 应用 bundle 将此插件与 [`@aeven/host-account-integrations`](../../hos
 
 `authored/` 下的 `aeven-stack` 条目移植自采用 MIT 许可的 `aicodeking/deepseek-stack` 技能包，并按 Aeven 的表述改写：`ds-` 前缀改为 `avn-`，该包的入口技能安装为 `aeven-stack`，凡涉及该包所用模型或技能目录的说法都改为 Aeven 的说法。每个移植后的目录都在 `SKILL.md` 旁带上上游 `LICENSE`，因此每个包都随附其再分发所需的声明。
 
-`catalog/vendored.json` 覆盖第三种来源：其他仓库以相同 `SKILL.md` 布局发布的技能。每条都写明该仓库、技能在其中的目录、分类、署名作者，并在技能自身描述使用其他语言时给出目录行展示的英文摘要。同步会锁定该仓库默认分支的提交，按下载技能的同样方式打包目录，以 `<repo>/<path>` 记录该行的来源，并在技能自身不带许可证时把仓库的 `LICENSE` 加入包中。条目与前两者遵循同一 `curation.json` 价值门槛，因此扩充或撤销某个来源只需改一处。
+`catalog/vendored.json` 覆盖第三种来源：其他仓库以相同 `SKILL.md` 布局发布的技能。每条都写明该仓库、技能在其中的目录、分类、署名作者，并在技能自身描述使用其他语言时给出目录行展示的英文摘要。发布在仓库根目录的技能以 `.` 作为路径，写明其安装名 `name`，并列出要打包的 `files`，使仓库的 README、更新日志、CI 和插件打包文件不进入包中；被它取代的合集技能列入 `curation.json` 的 `exclude`。同步会锁定该仓库默认分支的提交，按下载技能的同样方式打包目录，以 `<repo>/<path>`（根目录技能为 `<repo>`）记录该行的来源，并在技能自身不带许可证时把仓库的 `LICENSE` 加入包中。条目与前两者遵循同一 `curation.json` 价值门槛，因此扩充或撤销某个来源只需改一处。
 
 </details>
 

@@ -44,6 +44,8 @@ const UPSTREAM = 'davila7/claude-code-templates'
 const SKILLS_PREFIX = 'cli-tool/components/skills/'
 const DEFAULT_OUT = 'packages/skill/skill-catalog/catalog'
 const DOWNLOAD_CONCURRENCY = 16
+/** Further attempts for a file the raw host answered with a 5xx. */
+const DOWNLOAD_RETRIES = 3
 /** Every zip entry and directory carries this timestamp, so re-syncing unchanged content gives the same bytes. */
 const FIXED_MTIME_SECONDS = 315_532_800
 
@@ -95,8 +97,15 @@ interface AuthoredSource {
 interface VendoredSource {
   /** Repository in `owner/name` form. */
   readonly repo: string
-  /** Directory holding the skill's `SKILL.md`, relative to the repository root. */
+  /** Directory holding the skill's `SKILL.md`, relative to the repository root; `.` is the root itself. */
   readonly path: string
+  /** Installed name, required when `path` is `.`, where no directory name can supply one. */
+  readonly name?: string
+  /**
+   * Files to bundle, relative to `path`; absent bundles the whole directory. A skill published at its repository's
+   * root lists its own files, so the repository's README, changelog, CI, and plugin packaging stay out of the bundle.
+   */
+  readonly files?: readonly string[]
   /** Catalog category the skill is grouped under, which is also its bundle directory. */
   readonly category: string
   /** Author credited for the skill material. */
@@ -181,10 +190,14 @@ function frontmatterField(markdown: string, field: string): string | undefined {
   const marker = match?.[0]
   const value = match?.[1]?.trim().replace(/^["']|["']$/g, '')
   if (marker === undefined || value === undefined || value === '') return undefined
-  // A block scalar keeps its text on the lines below the marker; the marker alone is not the value.
+  // A block scalar keeps its text on the indented lines below the marker; the marker alone is not
+  // the value. A literal block (`|`) keeps its line breaks and a folded one (`>`) joins them.
   if (/^[|>][-+]?$/.test(value)) {
-    const following = body.slice(body.indexOf(marker) + marker.length).split('\n')
-    return following.map(line => line.trim()).find(line => line !== '')
+    const following = body.slice(body.indexOf(marker) + marker.length).split('\n').slice(1)
+    const end = following.findIndex(line => line.trim() !== '' && !/^\s/.test(line))
+    const block = (end === -1 ? following : following.slice(0, end)).map(line => line.trim())
+    const text = block.join(value.startsWith('|') ? '\n' : ' ').trim()
+    return text === '' ? undefined : text
   }
   return value
 }
@@ -295,7 +308,14 @@ async function pool<T>(items: readonly T[], limit: number, task: (item: T) => Pr
  */
 async function stageFile(request: { repo: string; ref: string; path: string; target: string }): Promise<void> {
   makeDirectory(dirname(request.target))
-  const response = await fetch(`https://raw.githubusercontent.com/${request.repo}/${request.ref}/${request.path}`)
+  const url = `https://raw.githubusercontent.com/${request.repo}/${request.ref}/${request.path}`
+  let response = await fetch(url)
+  // raw.githubusercontent.com answers an occasional 5xx under a sync's thousands of requests; a
+  // commit-pinned file does not change, so asking again is safe.
+  for (let attempt = 1; response.status >= 500 && attempt <= DOWNLOAD_RETRIES; attempt += 1) {
+    await new Promise(resolve => setTimeout(resolve, attempt * 1_000))
+    response = await fetch(url)
+  }
   if (!response.ok) throw new Error(`${request.path} returned ${response.status}`)
   writeFileSync(request.target, rebrandBytes(Buffer.from(await response.arrayBuffer())))
   utimesSync(request.target, FIXED_MTIME_SECONDS, FIXED_MTIME_SECONDS)
@@ -318,6 +338,8 @@ function bundle(request: {
   utimesSync(definition, FIXED_MTIME_SECONDS, FIXED_MTIME_SECONDS)
   const target = join(request.outDir, 'bundles', request.category, `${request.name}.zip`)
   makeDirectory(dirname(target))
+  // `zip` adds to an archive that exists, so a file a skill no longer ships would survive in its bundle.
+  rmSync(target, { force: true })
   // An explicit, sorted file list keeps the archive bytes independent of directory enumeration order.
   execFileSync('zip', ['-X', '-q', target, ...[...request.members].sort()], { cwd: request.directory })
   const bytes = readFileSync(target)
@@ -351,8 +373,10 @@ async function main(): Promise<void> {
   const vendored = existsSync(vendoredFile)
     ? (JSON.parse(readFileSync(vendoredFile, 'utf8')) as { skills?: readonly VendoredSource[] }).skills ?? []
     : []
-  /** The name one vendored entry installs under, which is the directory name it ships from. */
-  const vendoredName = (source: VendoredSource): string => kebab(segmentAt(source.path.split('/'), -1))
+  /** The name one vendored entry installs under: its stated name, else the directory name it ships from. */
+  const vendoredName = (source: VendoredSource): string => source.name ?? kebab(segmentAt(source.path.split('/'), -1))
+  /** Repository-relative prefix of one entry's files; empty for a skill at the repository root. */
+  const vendoredPrefix = (source: VendoredSource): string => source.path === '.' ? '' : `${source.path}/`
   const shippedVendored = vendored.filter(source => (curation.get(vendoredName(source))?.value ?? 0) >= minValue)
   // One tree per repository, fetched once: a repository contributes several reviewed skills.
   const repositories = new Map<string, { commit: string; tree: readonly TreeEntry[] }>()
@@ -468,24 +492,31 @@ async function main(): Promise<void> {
       console.log(`sync-skill-catalog: ${name} authored at ${extra.authored}`)
     }
 
+    // A vendored skill may replace a collection skill of the same name that `exclude` keeps out, so it
+    // collides only with names this run actually ships.
+    const catalogued = new Set(entries.map(entry => entry.name))
     for (const source of shippedVendored) {
       const name = vendoredName(source)
-      if (taken.has(name)) throw new Error(`vendored skill ${name} collides with a catalogued name`)
+      if (catalogued.has(name)) throw new Error(`vendored skill ${name} collides with a catalogued name`)
+      catalogued.add(name)
       taken.add(name)
       const repository = repositories.get(source.repo)
       if (repository === undefined) throw new Error(`no tree was fetched for ${source.repo}`)
-      const files = repository.tree.filter(entry => entry.type === 'blob' && entry.path.startsWith(`${source.path}/`))
+      const prefix = vendoredPrefix(source)
+      const files = repository.tree.filter(entry => entry.type === 'blob' && entry.path.startsWith(prefix)
+        && (source.files === undefined || source.files.includes(entry.path.slice(prefix.length))))
       // A skill that carries no licence of its own is redistributed under its repository's, and the
       // bundle must give each recipient that licence text.
-      const licence = !files.some(entry => entry.path === `${source.path}/LICENSE`)
+      const licence = !files.some(entry => entry.path === `${prefix}LICENSE`)
         && repository.tree.some(entry => entry.type === 'blob' && entry.path === 'LICENSE')
-      if (!files.some(entry => entry.path === `${source.path}/SKILL.md`)) throw new Error(`${source.repo}/${source.path} carries no SKILL.md`)
+      const provenance = source.path === '.' ? source.repo : `${source.repo}/${source.path}`
+      if (!files.some(entry => entry.path === `${prefix}SKILL.md`)) throw new Error(`${provenance} carries no SKILL.md`)
       const directory = join(scratch, `vendored-${name}`)
       await pool(files, DOWNLOAD_CONCURRENCY, async (entry) => {
-        const target = join(directory, relative(source.path, entry.path))
+        const target = join(directory, entry.path.slice(prefix.length))
         await stageFile({ repo: source.repo, ref: repository.commit, path: entry.path, target })
       })
-      const members = files.map(entry => relative(source.path, entry.path))
+      const members = files.map(entry => entry.path.slice(prefix.length))
       if (licence) {
         await stageFile({ repo: source.repo, ref: repository.commit, path: 'LICENSE', target: join(directory, 'LICENSE') })
         members.push('LICENSE')
@@ -500,11 +531,11 @@ async function main(): Promise<void> {
         keywords: [],
         downloads: 0,
         author: source.author,
-        path: `${source.repo}/${source.path}`,
+        path: provenance,
         ...bundled,
         ...curation.get(name) ?? {},
       })
-      console.log(`sync-skill-catalog: ${name} vendored from ${source.repo}/${source.path}`)
+      console.log(`sync-skill-catalog: ${name} vendored from ${provenance}`)
     }
   } finally {
     rmSync(scratch, { recursive: true, force: true })
