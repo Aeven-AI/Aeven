@@ -10,7 +10,7 @@ Status: implemented
 
 ## 决定
 
-`list_messages` 或 `get_message_context` 调用在折叠的过程组之外按聊天各绘制一张卡片：按日期排列的聊天气泡、照片和贴纸、静音循环的 GIF、播放时才加载的视频、可下载的文档，以及带播放按钮和可跳转波形的语音消息。
+`list_messages` 或 `get_message_context` 调用在折叠的过程组之外按聊天各绘制一张卡片：按日期排列的聊天气泡、照片和贴纸、静音循环的 GIF、进入视野时静音自动播放的视频、可下载的文档，以及带播放按钮和可跳转波形的语音消息。
 
 - **数据。** 守护进程在不变的文本旁返回 `structuredContent.messages`（按时间从旧到新、去重、已解析发送者名称）（[`message_cards.go`](../../../../native/whatsapp-mcp/source/internal/mcp/message_cards.go)）。MCP 桥通过 `presentationMeta` 把任何 `structuredContent` 记录为持久化 `tool/result` 的 meta（[`tools.ts`](../../../../packages/mcp/mcp-client/src/tools.ts)），因此卡片可从会话日志重放，而模型仍只读取文本。
 - **媒体。** 守护进程受令牌保护的 `GET /media` 提供一条消息的解密字节，并把语音消息重新编码为 AAC，因为 18.4 之前的 Safari 无法播放 Ogg Opus（[`media_http.go`](../../../../native/whatsapp-mcp/source/internal/mcp/media_http.go)）。`accountIntegrations.whatsAppMessageMedia` 根据调用的工具名确定账户，只响应当前用户自己的号码，并返回 base64，因为 Typert Remote 结果只携带 JSON。

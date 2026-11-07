@@ -3,7 +3,7 @@
  * photos, stickers, looping GIFs, videos, and voice notes playable in place.
  * @module
  */
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode, type SyntheticEvent } from 'react'
 import type { ToolCallViewProps } from '@aeven/client-ui-tool/client'
 import type { PropsLocale } from '@aeven/client-ui-slots'
 import { chatsOf, type WhatsAppCardChat, type WhatsAppCardMessage } from './whatsapp-messages.ts'
@@ -31,6 +31,14 @@ function useSeen<E extends Element>(): [React.RefObject<E>, boolean] {
     return () => { observer.disconnect() }
   }, [seen])
   return [ref, seen]
+}
+
+/**
+ * Mark a photo or video loaded, so the stylesheet fades it in.
+ * @param event - the element's `load` or `loadeddata` event.
+ */
+function shown(event: SyntheticEvent<HTMLElement>): void {
+  event.currentTarget.dataset.loaded = ''
 }
 
 /**
@@ -62,7 +70,7 @@ function PictureMedia({ source, message, t }: { source: MessageMediaSource; mess
   return (
     <div ref={ref} className={sticker ? css.sticker : css.picture} data-loading={media === undefined || undefined}>
       {media === null ? <span className={css.unavailable}>{t('unavailable')}</span>
-        : media !== undefined ? <img src={media.url} alt={t(sticker ? 'sticker' : 'photo')} loading="lazy" /> : null}
+        : media !== undefined ? <img src={media.url} alt={t(sticker ? 'sticker' : 'photo')} loading="lazy" onLoad={shown} /> : null}
     </div>
   )
 }
@@ -74,25 +82,22 @@ function GifMedia({ source, message, t }: { source: MessageMediaSource; message:
   return (
     <div ref={ref} className={css.picture} data-loading={media === undefined || undefined}>
       {media === null ? <span className={css.unavailable}>{t('unavailable')}</span>
-        : media !== undefined ? <video src={media.url} autoPlay loop muted playsInline aria-label={t('gif')} /> : null}
+        : media !== undefined ? <video src={media.url} autoPlay loop muted playsInline aria-label={t('gif')} onLoadedData={shown} /> : null}
       <span className={css.badge}>{t('gif')}</span>
     </div>
   )
 }
 
-/** A video, fetched when the reader presses play. */
+/** A video, loaded once it nears the viewport and played muted, which browsers allow without a press. */
 function VideoMedia({ source, message, t }: { source: MessageMediaSource; message: WhatsAppCardMessage; t: CardT }) {
-  const [requested, setRequested] = useState(false)
-  const media = useMedia(source, message, requested)
-  if (media === null) return <div className={css.picture}><span className={css.unavailable}>{t('unavailable')}</span></div>
-  if (media !== undefined) {
-    return <div className={css.picture}><video src={media.url} controls autoPlay playsInline aria-label={t('video')} /></div>
-  }
+  const [ref, seen] = useSeen<HTMLDivElement>()
+  const media = useMedia(source, message, seen)
   return (
-    <button type="button" className={css.videoPoster} aria-label={t('playVideo')} onClick={() => { setRequested(true) }}
-      data-loading={requested || undefined}>
-      <span className={css.playMark} aria-hidden="true" />
-    </button>
+    <div ref={ref} className={css.picture} data-loading={media === undefined || undefined}>
+      {media === null ? <span className={css.unavailable}>{t('unavailable')}</span>
+        : media !== undefined ? <video src={media.url} controls autoPlay muted playsInline aria-label={t('video')} onLoadedData={shown} />
+          : null}
+    </div>
   )
 }
 
@@ -169,7 +174,8 @@ function Bubble({ message, chat, source, showSender, t }: {
   const bare = message.media === 'sticker' && message.content === ''
   return (
     <div className={css.row} data-from-me={message.fromMe || undefined}>
-      <div className={bare ? css.bareBubble : css.bubble} data-media={message.media}>
+      <div className={bare ? css.bareBubble : css.bubble} data-media={message.media}
+        data-text={message.content !== '' || undefined}>
         {showSender && chat.group && !message.fromMe && <span className={css.sender}>{message.senderName}</span>}
         <MessageMedia source={source} message={message} t={t} />
         {message.content !== '' && <p className={css.text}>{message.content}</p>}
