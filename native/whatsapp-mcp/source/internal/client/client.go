@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/mdp/qrterminal"
@@ -285,3 +286,16 @@ func (c *Client) WA() *whatsmeow.Client { return c.wa }
 
 // Store returns the message cache.
 func (c *Client) Store() *store.Store { return c.store }
+
+// IsOwnJID reports whether jid, in phone or LID form, is the linked account.
+func (c *Client) IsOwnJID(jid string) bool {
+	user, _, _ := strings.Cut(jid, "@")
+	user, _, _ = strings.Cut(user, ":")
+	if user == "" {
+		return false
+	}
+	if id := c.wa.Store.ID; id != nil && id.User == user {
+		return true
+	}
+	return c.wa.Store.LID.User == user
+}

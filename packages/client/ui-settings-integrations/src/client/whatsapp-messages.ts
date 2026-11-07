@@ -4,6 +4,21 @@ import type { ToolCallViewProps } from '@aeven/client-ui-tool/client'
 /** Media kinds the WhatsApp connector records on a message. */
 export type WhatsAppMediaKind = 'image' | 'sticker' | 'video' | 'gif' | 'audio' | 'document'
 
+/** The message a reply quotes, as the reply shows it. */
+export interface WhatsAppCardQuote {
+  readonly senderName: string
+  readonly fromMe: boolean
+  readonly content: string
+  readonly media?: WhatsAppMediaKind | undefined
+}
+
+/** The preview a message shows for a link in its text. */
+export interface WhatsAppCardLink {
+  readonly url: string
+  readonly title: string
+  readonly description: string
+}
+
 /** One message, as a card draws it. */
 export interface WhatsAppCardMessage {
   readonly id: string
@@ -17,6 +32,9 @@ export interface WhatsAppCardMessage {
   readonly content: string
   readonly media?: WhatsAppMediaKind | undefined
   readonly filename?: string | undefined
+  readonly forwarded: boolean
+  readonly reply?: WhatsAppCardQuote | undefined
+  readonly link?: WhatsAppCardLink | undefined
 }
 
 /** One chat's messages, oldest first. */
@@ -30,6 +48,52 @@ export interface WhatsAppCardChat {
 const MEDIA_KINDS: readonly string[] = ['image', 'sticker', 'video', 'gif', 'audio', 'document']
 
 /**
+ * A media kind the connector reported, when it is one the card draws.
+ * @param value - a `media_type` field.
+ * @returns the kind, or undefined.
+ */
+function mediaKindOf(value: unknown): WhatsAppMediaKind | undefined {
+  return typeof value === 'string' && MEDIA_KINDS.includes(value) ? value as WhatsAppMediaKind : undefined
+}
+
+/**
+ * A string field, or the empty string when it is absent.
+ * @param value - the field.
+ * @returns the string.
+ */
+function text(value: unknown): string {
+  return typeof value === 'string' ? value : ''
+}
+
+/**
+ * Narrow the quoted message of a reply.
+ * @param value - a message's `reply` field.
+ * @returns the quote, or undefined when the message quotes none.
+ */
+function quoteOf(value: unknown): WhatsAppCardQuote | undefined {
+  if (typeof value !== 'object' || value === null) return undefined
+  const row = value as Record<string, unknown>
+  return {
+    senderName: text(row.sender_name),
+    fromMe: row.is_from_me === true,
+    content: text(row.content),
+    media: mediaKindOf(row.media_type),
+  }
+}
+
+/**
+ * Narrow a link preview.
+ * @param value - a message's `link` field.
+ * @returns the preview, or undefined when it has neither a title nor a description.
+ */
+function linkOf(value: unknown): WhatsAppCardLink | undefined {
+  if (typeof value !== 'object' || value === null) return undefined
+  const row = value as Record<string, unknown>
+  const link = { url: text(row.url).trim(), title: text(row.title), description: text(row.description) }
+  return link.title === '' && link.description === '' ? undefined : link
+}
+
+/**
  * Narrow one structured message the daemon reported.
  * @param entry - one element of `structuredContent.messages`.
  * @returns the message, or undefined when a required field is missing.
@@ -40,7 +104,7 @@ function messageOf(entry: unknown): WhatsAppCardMessage | undefined {
   if (typeof row.id !== 'string' || typeof row.chat_jid !== 'string' || typeof row.timestamp !== 'string') return undefined
   const time = Date.parse(row.timestamp)
   if (Number.isNaN(time)) return undefined
-  const media = typeof row.media_type === 'string' && MEDIA_KINDS.includes(row.media_type) ? row.media_type as WhatsAppMediaKind : undefined
+  const media = mediaKindOf(row.media_type)
   return {
     id: row.id,
     chatJid: row.chat_jid,
@@ -52,6 +116,9 @@ function messageOf(entry: unknown): WhatsAppCardMessage | undefined {
     content: typeof row.content === 'string' ? row.content : '',
     media,
     filename: typeof row.filename === 'string' && row.filename !== '' ? row.filename : undefined,
+    forwarded: row.forwarded === true,
+    reply: quoteOf(row.reply),
+    link: linkOf(row.link),
   }
 }
 

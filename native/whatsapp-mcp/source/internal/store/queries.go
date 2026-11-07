@@ -9,9 +9,11 @@ import (
 	"time"
 )
 
-// listMessageColumns is the 8-column projection shared by ListMessages and
-// queryContextWindow.
-const listMessageColumns = "messages.timestamp, messages.sender, chats.name, messages.content, messages.is_from_me, chats.jid, messages.id, messages.media_type"
+// listMessageColumns is the projection shared by ListMessages,
+// queryContextWindow, and GetMessageContext; scanListMessageRow reads it.
+const listMessageColumns = "messages.timestamp, messages.sender, chats.name, messages.content, messages.is_from_me, chats.jid, messages.id, messages.media_type, " +
+	"messages.filename, messages.quoted_id, messages.quoted_sender, messages.quoted_content, messages.quoted_media_type, messages.forwarded, " +
+	"messages.link_url, messages.link_title, messages.link_description"
 
 // ListMessagesParams holds the filters accepted by ListMessages. Zero values
 // mean "unset" except for Limit, which defaults to 20 when <= 0.
@@ -258,41 +260,18 @@ func (s *Store) SearchContacts(ctx context.Context, query string) ([]Contact, er
 // windows from the same chat.
 func (s *Store) GetMessageContext(ctx context.Context, messageID string, before, after int) (*MessageContext, error) {
 	row := s.db.QueryRowContext(ctx, `
-		SELECT messages.timestamp, messages.sender, chats.name, messages.content, messages.is_from_me, chats.jid, messages.id, messages.chat_jid, messages.media_type
+		SELECT `+listMessageColumns+`
 		FROM messages
 		JOIN chats ON messages.chat_jid = chats.jid
 		WHERE messages.id = ?`, messageID)
-
-	var (
-		ts        time.Time
-		sender    string
-		chatName  sql.NullString
-		content   sql.NullString
-		isFromMe  bool
-		chatJID   string
-		id        string
-		msgChat   string
-		mediaType sql.NullString
-	)
-	if err := row.Scan(&ts, &sender, &chatName, &content, &isFromMe, &chatJID, &id, &msgChat, &mediaType); err != nil {
+	target, err := s.scanListMessageRow(row)
+	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("message with ID %s not found", messageID)
 		}
 		return nil, fmt.Errorf("get message context: %w", err)
 	}
-
-	target := Message{
-		ID:        id,
-		ChatJID:   chatJID,
-		Sender:    sender,
-		Content:   content.String,
-		Timestamp: ts,
-		IsFromMe:  isFromMe,
-		MediaType: mediaType.String,
-		ChatName:  chatName.String,
-	}
-	target.IsGroup = strings.HasSuffix(target.ChatJID, "@g.us")
-	target.SenderPhone = s.resolveSenderPhone(target.Sender)
+	ts, msgChat := target.Timestamp, target.ChatJID
 
 	beforeMsgs, err := s.queryContextWindow(ctx, msgChat, ts, before, false)
 	if err != nil {
@@ -310,33 +289,45 @@ func (s *Store) GetMessageContext(ctx context.Context, messageID string, before,
 	}, nil
 }
 
-// GetSenderName resolves a sender JID to a display name, preferring the
-// synced address book (whatsmeow_contacts) over the chats table — 1:1 chat
-// names are often just the bare phone number. Falls back to the input value
-// if no name is found.
-func (s *Store) GetSenderName(ctx context.Context, senderJID string) string {
-	if name := s.ContactName(senderJID); name != "" {
-		return name
+// GetSenderName resolves a message sender to a display name: the synced
+// address-book name, else the sender's WhatsApp push name, else a chat named
+// after the sender. sender is either a full JID or the bare user part the
+// messages table stores, which may be a phone number or a LID. An unnamed
+// sender reads as its phone number with a leading "+", or as the input when
+// no phone is known.
+func (s *Store) GetSenderName(ctx context.Context, sender string) string {
+	candidates := senderJIDs(sender)
+	for _, jid := range candidates {
+		if name := s.ContactName(jid); name != "" {
+			return name
+		}
 	}
-	if name := s.chatNameByJID(ctx, senderJID); name != "" {
-		return name
+	for _, jid := range candidates {
+		if strings.HasSuffix(jid, "@s.whatsapp.net") {
+			if name := s.chatNameByJID(ctx, jid); name != "" && name != jidUser(jid) {
+				return name
+			}
+		}
 	}
+	for _, jid := range candidates {
+		if resolved := s.ResolveLIDToJID(jid); strings.HasSuffix(resolved, "@s.whatsapp.net") {
+			return "+" + jidUser(resolved)
+		}
+	}
+	return sender
+}
 
-	phonePart := jidUser(senderJID)
-
-	// Prefer an exact direct-chat match on phone + @s.whatsapp.net before
-	// falling back to a LIKE — the LIKE can cross-match unrelated rows.
-	if name := s.chatNameByJID(ctx, phonePart+"@s.whatsapp.net"); name != "" {
-		return name
+// senderJIDs lists the JIDs a stored sender may stand for: a full JID as is,
+// or a bare user part as both a phone JID and a LID.
+func senderJIDs(sender string) []string {
+	if sender == "" {
+		return nil
 	}
-
-	var name2 sql.NullString
-	err := s.db.QueryRowContext(ctx,
-		"SELECT name FROM chats WHERE jid LIKE ? LIMIT 1", "%"+phonePart+"%").Scan(&name2)
-	if err == nil && name2.Valid && name2.String != "" {
-		return name2.String
+	if strings.Contains(sender, "@") {
+		return []string{sender}
 	}
-	return senderJID
+	user, _, _ := strings.Cut(sender, ":")
+	return []string{user + "@s.whatsapp.net", user + "@lid"}
 }
 
 // chatNameByJID looks up chats.name for an exact jid match. Returns "" if
@@ -384,22 +375,23 @@ func (s *Store) queryContextWindow(ctx context.Context, chatJID string, anchor t
 	return out, rows.Err()
 }
 
-// scanListMessageRow scans the 8-column projection used by list_messages and
-// the context window queries.
+// scanListMessageRow scans the listMessageColumns projection.
 func (s *Store) scanListMessageRow(row interface {
 	Scan(dest ...any) error
 }) (Message, error) {
 	var (
-		ts        time.Time
-		sender    string
-		chatName  sql.NullString
-		content   sql.NullString
-		isFromMe  bool
-		chatJID   string
-		id        string
-		mediaType sql.NullString
+		ts                                       time.Time
+		sender                                   string
+		chatName, content, mediaType, filename   sql.NullString
+		quotedID, quotedSender, quotedContent    sql.NullString
+		quotedMedia, linkURL, linkTitle, linkDoc sql.NullString
+		isFromMe                                 bool
+		forwarded                                sql.NullBool
+		chatJID, id                              string
 	)
-	if err := row.Scan(&ts, &sender, &chatName, &content, &isFromMe, &chatJID, &id, &mediaType); err != nil {
+	if err := row.Scan(&ts, &sender, &chatName, &content, &isFromMe, &chatJID, &id, &mediaType,
+		&filename, &quotedID, &quotedSender, &quotedContent, &quotedMedia, &forwarded,
+		&linkURL, &linkTitle, &linkDoc); err != nil {
 		return Message{}, err
 	}
 	m := Message{
@@ -410,7 +402,15 @@ func (s *Store) scanListMessageRow(row interface {
 		Timestamp: ts,
 		IsFromMe:  isFromMe,
 		MediaType: mediaType.String,
+		Filename:  filename.String,
 		ChatName:  chatName.String,
+		Forwarded: forwarded.Bool,
+	}
+	if quotedID.String != "" {
+		m.Reply = &Reply{ID: quotedID.String, Sender: quotedSender.String, Content: quotedContent.String, MediaType: quotedMedia.String}
+	}
+	if linkTitle.String != "" || linkDoc.String != "" {
+		m.Link = &LinkPreview{URL: linkURL.String, Title: linkTitle.String, Description: linkDoc.String}
 	}
 	m.IsGroup = strings.HasSuffix(m.ChatJID, "@g.us")
 	m.SenderPhone = s.resolveSenderPhone(m.Sender)

@@ -9,19 +9,22 @@ const contactNameExpr = `COALESCE(NULLIF(full_name,''), NULLIF(push_name,''), NU
 
 // ContactName returns the synced address-book name for a JID from the
 // whatsmeow_contacts table, or "" when the contact is unknown or the
-// whatsmeow store is unavailable. LID JIDs are resolved to phone JIDs first.
+// whatsmeow store is unavailable. A LID JID is looked up under its phone JID
+// first, then as itself, where whatsmeow keeps the push names of contacts it
+// only knows by LID.
 func (s *Store) ContactName(jid string) string {
 	if s.whatsmeowDB == nil {
 		return ""
 	}
-	jid = s.ResolveLIDToJID(jid)
-	var name sql.NullString
-	err := s.whatsmeowDB.QueryRow(
-		`SELECT `+contactNameExpr+` FROM whatsmeow_contacts WHERE their_jid = ?`, jid).Scan(&name)
-	if err != nil || !name.Valid {
-		return ""
+	for _, candidate := range []string{s.ResolveLIDToJID(jid), jid} {
+		var name sql.NullString
+		err := s.whatsmeowDB.QueryRow(
+			`SELECT `+contactNameExpr+` FROM whatsmeow_contacts WHERE their_jid = ?`, candidate).Scan(&name)
+		if err == nil && name.Valid && name.String != "" {
+			return name.String
+		}
 	}
-	return name.String
+	return ""
 }
 
 // searchContactNames returns address-book contacts whose name or JID matches

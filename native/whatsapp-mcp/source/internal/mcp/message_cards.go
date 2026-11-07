@@ -14,16 +14,28 @@ import (
 // text, and which media it carries. The bytes of that media are served by the
 // daemon's /media route, keyed by ID and ChatJID.
 type cardMessage struct {
+	ID         string             `json:"id"`
+	ChatJID    string             `json:"chat_jid"`
+	ChatName   string             `json:"chat_name,omitempty"`
+	SenderName string             `json:"sender_name"`
+	IsFromMe   bool               `json:"is_from_me"`
+	IsGroup    bool               `json:"is_group"`
+	Timestamp  string             `json:"timestamp"`
+	Content    string             `json:"content,omitempty"`
+	MediaType  string             `json:"media_type,omitempty"`
+	Filename   string             `json:"filename,omitempty"`
+	Forwarded  bool               `json:"forwarded,omitempty"`
+	Reply      *cardReply         `json:"reply,omitempty"`
+	Link       *store.LinkPreview `json:"link,omitempty"`
+}
+
+// cardReply is the quoted message a reply shows above its own text.
+type cardReply struct {
 	ID         string `json:"id"`
-	ChatJID    string `json:"chat_jid"`
-	ChatName   string `json:"chat_name,omitempty"`
 	SenderName string `json:"sender_name"`
 	IsFromMe   bool   `json:"is_from_me"`
-	IsGroup    bool   `json:"is_group"`
-	Timestamp  string `json:"timestamp"`
 	Content    string `json:"content,omitempty"`
 	MediaType  string `json:"media_type,omitempty"`
-	Filename   string `json:"filename,omitempty"`
 }
 
 // messageCards is the structured content of list_messages and
@@ -59,9 +71,25 @@ func (s *Server) cardsOf(ctx context.Context, msgs []store.Message, focus string
 			ID: m.ID, ChatJID: m.ChatJID, ChatName: m.ChatName, SenderName: sender,
 			IsFromMe: m.IsFromMe, IsGroup: m.IsGroup, Timestamp: m.Timestamp.UTC().Format(time.RFC3339),
 			Content: m.Content, MediaType: m.MediaType, Filename: m.Filename,
+			Forwarded: m.Forwarded, Reply: s.replyOf(ctx, m.Reply), Link: m.Link,
 		})
 	}
 	return messageCards{Messages: cards, Focus: focus}
+}
+
+// replyOf names the sender of a quoted message, or returns nil for none.
+func (s *Server) replyOf(ctx context.Context, quoted *store.Reply) *cardReply {
+	if quoted == nil {
+		return nil
+	}
+	reply := &cardReply{ID: quoted.ID, Content: quoted.Content, MediaType: quoted.MediaType}
+	if s.client.IsOwnJID(quoted.Sender) {
+		reply.IsFromMe = true
+		reply.SenderName = "Me"
+	} else {
+		reply.SenderName = s.client.Store().GetSenderName(ctx, quoted.Sender)
+	}
+	return reply
 }
 
 // withCards attaches the structured messages to a text result. The text block

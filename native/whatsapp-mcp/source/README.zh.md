@@ -229,7 +229,7 @@ WhatsApp 大约每 20 天轮换一次已链接设备会话。在 Docker 之外�
 | 工具 | 用途 |
 |---|---|
 | `search_contacts` | 在缓存的联系人姓名与手机号中做子串搜索 |
-| `list_messages` | 查询并过滤消息；返回带上下文窗口的格式化文本，另附供客户端绘制的 `structuredContent.messages`（按时间从旧到新，已解析发送者名称） |
+| `list_messages` | 查询并过滤消息；返回带上下文窗口的格式化文本，另附供客户端绘制的 `structuredContent.messages`（按时间从旧到新，已解析发送者名称，并含回复所引用的消息、转发标记以及链接预览的标题和描述）；文本中同样标出转发和回复。发送者显示为通讯录名称，其次为 WhatsApp 推送名称，再次为 `+<电话号码>`。回复、转发和链接预览字段只存在于由会记录它们的守护进程缓存的消息中 |
 | `list_chats` | 列出聊天并带最后一条消息预览；按活跃度或名称排序 |
 | `get_chat` | 按 JID 取聊天元数据 |
 | `get_message_context` | 某一特定消息前后的窗口，另附相同的 `structuredContent.messages`，`focus` 指明目标消息 |
