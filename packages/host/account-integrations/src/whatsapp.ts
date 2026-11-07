@@ -116,6 +116,7 @@ export class WhatsAppDaemon extends AccountDaemon {
    * Ask WhatsApp for a phone-number linking code for the pairing in progress.
    * @param phone - the number being linked, in international form.
    * @returns the code, or why none was issued.
+   * @throws when WhatsApp or the daemon refused for another reason, carrying the daemon's diagnostic.
    */
   async pairPhone(phone: string): Promise<WhatsAppPhoneCodeView> {
     const response = await fetch(`http://${this.requireAddress()}/pair/phone`, {
@@ -126,7 +127,7 @@ export class WhatsAppDaemon extends AccountDaemon {
     })
     if (response.status === 400) return { state: 'invalid-phone' }
     if (response.status === 409) return { state: 'expired' }
-    if (!response.ok) return { state: 'failed' }
+    if (!response.ok) throw new Error(`WhatsApp issued no linking code (HTTP ${String(response.status)}): ${(await response.text()).slice(0, 300).trim()}`)
     return { state: 'code', code: phoneCodeSchema.parse(await response.json()).code }
   }
 

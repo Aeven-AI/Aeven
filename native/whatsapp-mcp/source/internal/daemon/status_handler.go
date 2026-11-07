@@ -69,14 +69,9 @@ func (h *statusHandlers) handlePairPhone(w http.ResponseWriter, r *http.Request)
 		http.Error(w, "invalid body", http.StatusBadRequest)
 		return
 	}
-	var digits strings.Builder
-	for _, ch := range req.Phone {
-		if ch >= '0' && ch <= '9' {
-			digits.WriteRune(ch)
-		}
-	}
-	if digits.Len() < 7 || digits.Len() > 15 {
-		http.Error(w, "phone must be an international number of 7 to 15 digits", http.StatusBadRequest)
+	phone, ok := internationalDigits(req.Phone)
+	if !ok {
+		http.Error(w, "phone must be an international number of 7 to 15 digits, with its country code", http.StatusBadRequest)
 		return
 	}
 	if h.cache.Paired() {
@@ -88,9 +83,11 @@ func (h *statusHandlers) handlePairPhone(w http.ResponseWriter, r *http.Request)
 		http.Error(w, "phone pairing unsupported", http.StatusNotImplemented)
 		return
 	}
-	code, err := pairer.PairPhone(r.Context(), digits.String())
+	code, err := pairer.PairPhone(r.Context(), phone)
 	if err != nil {
-		http.Error(w, "phone pairing failed", http.StatusBadGateway)
+		// The supervisor discards this process's stderr, so the reason travels
+		// in the response for the Host to log.
+		http.Error(w, "phone pairing failed: "+err.Error(), http.StatusBadGateway)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -148,4 +145,24 @@ func (h *statusHandlers) handleLogout(w http.ResponseWriter, r *http.Request) {
 	}
 	h.cache.Reset()
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// internationalDigits reduces a typed phone number to the digits WhatsApp
+// expects: country code first, no "+" and no "00" international call prefix.
+// A number starting with a single 0 is a national number whose country code
+// is unknown, so it is refused rather than sent to WhatsApp, which would
+// refuse it without saying why. A "(0)" written after the country code, as in
+// "+31 (0)6 …", is the national trunk prefix and is dropped.
+func internationalDigits(typed string) (string, bool) {
+	var digits strings.Builder
+	for _, ch := range strings.ReplaceAll(typed, "(0)", "") {
+		if ch >= '0' && ch <= '9' {
+			digits.WriteRune(ch)
+		}
+	}
+	phone := strings.TrimPrefix(digits.String(), "00")
+	if strings.HasPrefix(phone, "0") || len(phone) < 7 || len(phone) > 15 {
+		return "", false
+	}
+	return phone, true
 }
