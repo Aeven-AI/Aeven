@@ -1,7 +1,7 @@
 {
   "name": "@aeven/file-sync",
   "description": "Service Definition for file sync: folders kept the same on every device of one account, peer to peer",
-  "version": "0.3.35-alpha",
+  "version": "0.3.36-alpha",
   "publishConfig": {
     "access": "public"
   },

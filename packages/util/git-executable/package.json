@@ -1,7 +1,7 @@
 {
   "name": "@aeven/git-executable",
   "description": "Finds this device's Git executable: PATH first, then each platform's standard install locations",
-  "version": "0.3.35-alpha",
+  "version": "0.3.36-alpha",
   "publishConfig": {
     "access": "public"
   },
