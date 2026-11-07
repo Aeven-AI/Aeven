@@ -63,7 +63,7 @@ export function ContextInjectionRow({ content, source, provenance, form, t }: Co
       expandOnRowClick
       onToggle={() => { setOpen(value => !value) }}
     >
-      <div className={css.body} data-context-injection-body data-context-form={rendered ?? undefined}>
+      <div className={`${css.body} no-scrollbar`} data-context-injection-body data-context-form={rendered ?? undefined}>
         {body}
       </div>
     </DisclosureRow>
