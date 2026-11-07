@@ -179,6 +179,45 @@ div.open {
   transition: opacity 0.3s linear;
 }
 
+/* A video tile is dark until its first frame fades in, so its play mark always reads. */
+.openVideo {
+  background: rgb(28, 28, 30);
+  cursor: pointer;
+}
+
+.openVideo:disabled {
+  cursor: default;
+}
+
+.openVideo .spinnerBox {
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+}
+
+.playMark {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: 50%;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  transform: translate(-50%, -50%);
+}
+
+.playMark::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-style: solid;
+  border-width: 7px 0 7px 11px;
+  border-color: transparent transparent transparent #ffffff;
+  transform: translate(-35%, -50%);
+  content: '';
+}
+
 .thumb {
   display: block;
   position: relative;
