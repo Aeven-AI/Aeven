@@ -89,7 +89,13 @@
 .videoFrame {
   position: relative;
   width: min(100cqw, 100cqh * var(--avn-video-ratio));
+  aspect-ratio: var(--avn-video-ratio);
   overflow: hidden;
+  visibility: hidden;
+}
+
+.videoFrame[data-sized] {
+  visibility: visible;
 }
 
 .videoFrame [data-video-player] {
