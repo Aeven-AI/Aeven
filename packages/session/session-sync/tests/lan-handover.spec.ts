@@ -7,6 +7,9 @@ import type { Context } from '@deepseek-ai/cordis'
 import { MemorySyncNetwork } from '../../../sync/sync/tests/memory.ts'
 import { host } from './harness.ts'
 
+/** Sync between two in-process devices runs on timers and the LAN carrier; suite load can outlast waitFor's 1 s default. */
+const SYNC_WAIT = { timeout: 10_000 }
+
 /**
  * Append one complete turn with a user message.
  * @param session - the log to append to.
@@ -47,8 +50,8 @@ it('continues a conversation on the other device while the relay is unreachable'
   await a.sessionHandoff.holdRunner('account', id, true)
   appendTurn(original, 1, 'from A, online')
   await a.parallel('session/flush', original)
-  await vi.waitFor(async () => { expect((await b.sessionPersistence.list()).map(header => header.id)).toEqual([id]) })
-  await vi.waitFor(async () => { expect(await said(b, id)).toBe(1) })
+  await vi.waitFor(async () => { expect((await b.sessionPersistence.list()).map(header => header.id)).toEqual([id]) }, SYNC_WAIT)
+  await vi.waitFor(async () => { expect(await said(b, id)).toBe(1) }, SYNC_WAIT)
   await a.sessionHandoff.holdRunner('account', id, false)
 
   // Both devices stay on the same network, but the server they sync through stops answering.
@@ -58,11 +61,11 @@ it('continues a conversation on the other device while the relay is unreachable'
   await a.sessionHandoff.holdRunner('account', id, true)
   appendTurn(original, 2, 'from A, no relay')
   await a.parallel('session/flush', original)
-  await vi.waitFor(async () => { expect(await said(b, id)).toBe(2) })
+  await vi.waitFor(async () => { expect(await said(b, id)).toBe(2) }, SYNC_WAIT)
   await a.sessionHandoff.holdRunner('account', id, false)
 
   // B holds the whole log and no turn runs on A, so B continues the same conversation, not a copy.
-  await vi.waitFor(async () => { expect(await b.sessionHandoff.claim('account', id)).toEqual({ claimed: true }) })
+  await vi.waitFor(async () => { expect(await b.sessionHandoff.claim('account', id)).toEqual({ claimed: true }) }, SYNC_WAIT)
   expect((await b.sessionPersistence.list()).map(header => header.id)).toEqual([id])
   await b.sessionHandoff.holdRunner('account', id, true)
   const prepared = await b.sessionPersistence.prepare(id)
@@ -71,7 +74,7 @@ it('continues a conversation on the other device while the relay is unreachable'
   b.on('session-handoff/released', () => { leave() })
   appendTurn(prepared.session, 3, 'from B, no relay')
   await b.parallel('session/flush', prepared.session)
-  await vi.waitFor(async () => { expect(await said(a, id)).toBe(3) })
+  await vi.waitFor(async () => { expect(await said(a, id)).toBe(3) }, SYNC_WAIT)
   await b.sessionHandoff.holdRunner('account', id, false)
 
   expect((await a.sessionPersistence.list()).map(header => header.id)).toEqual([id])
