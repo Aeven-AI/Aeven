@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { VideoPlayer } from './VideoPlayer.tsx'
+import type { VideoPlayerLabels } from './VideoPlayer.tsx'
 import css from './ImageLightbox.module.css'
 
 /** Lightbox strings the owner resolves from its own locale namespace. */
@@ -27,6 +29,8 @@ export interface ImageLightboxLabels {
   unknown: string
   /** Byte size in megabytes; receives the value with two decimals. */
   megabytes: (value: string) => string
+  /** The video player's chrome sentences; absent plays a video entry under the browser's own controls. */
+  video?: VideoPlayerLabels | undefined
 }
 
 /** One image or video the lightbox can show. */
@@ -119,6 +123,26 @@ async function saveImage(image: LightboxImage): Promise<void> {
   }
 }
 
+/** Width-to-height ratio a video frame assumes until the clip reports its own. */
+const DEFAULT_VIDEO_RATIO = 16 / 9
+
+/** A video in the gallery: the product's player in a frame of the clip's own shape, as large as the stage allows. */
+function LightboxVideo({ image, labels }: { image: LightboxImage; labels: VideoPlayerLabels }) {
+  const [ratio, setRatio] = useState(DEFAULT_VIDEO_RATIO)
+  return (
+    <div className={css.videoFrame} style={{ aspectRatio: String(ratio), '--avn-video-ratio': String(ratio) } as React.CSSProperties}>
+      <VideoPlayer
+        src={image.src}
+        label={image.alt}
+        saveName={downloadName(image)}
+        labels={labels}
+        onRatio={setRatio}
+        autoPlay
+      />
+    </div>
+  )
+}
+
 function LightboxIcon({ children }: { children: ReactNode }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -131,8 +155,8 @@ function LightboxIcon({ children }: { children: ReactNode }) {
  * Document-level image gallery (the Aeven web client's Gallery): the selected
  * image fills the viewport over the page surface, with an info popover,
  * download, and close at the top and previous/next at the sides when there is
- * more than one image. A video entry plays in the browser's own player and is
- * not magnified. Escape closes; ArrowLeft and ArrowRight wrap through
+ * more than one image. A video entry plays in the product's video player, sized
+ * to the clip, and is not magnified. Escape closes; ArrowLeft and ArrowRight wrap through
  * the images. Focus moves to the close control and returns to the opener on
  * unmount. Rendered through a body portal: an opener inside a transformed or
  * filtered ancestor would otherwise trap the fixed layer in that ancestor's box.
@@ -406,18 +430,20 @@ export function ImageLightbox({ images, index: startIndex, labels, onClose }: {
           <div key={`${image.src}:${i}`} className={css.imageBox} data-selected={i === index || undefined}>
             {image.kind === 'video'
               // Only the selected video is mounted, so stepping away stops it and no other video loads.
-              ? i === index && (
-                <video
-                  className={css.image}
-                  data-loaded={loaded.has(image.src) || undefined}
-                  src={image.src}
-                  aria-label={image.alt}
-                  controls
-                  autoPlay
-                  playsInline
-                  onLoadedData={() => { setLoaded(previous => new Set(previous).add(image.src)) }}
-                />
-              )
+              ? i === index && (labels.video === undefined
+                ? (
+                  <video
+                    className={css.image}
+                    data-loaded={loaded.has(image.src) || undefined}
+                    src={image.src}
+                    aria-label={image.alt}
+                    controls
+                    autoPlay
+                    playsInline
+                    onLoadedData={() => { setLoaded(previous => new Set(previous).add(image.src)) }}
+                  />
+                )
+                : <LightboxVideo image={image} labels={labels.video} />)
               : (
                 <img
                   className={css.image}
