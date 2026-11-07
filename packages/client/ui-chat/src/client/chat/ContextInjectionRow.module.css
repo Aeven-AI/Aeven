@@ -61,4 +61,7 @@
   background: var(--dsw-specific-input-major);
   color: var(--dsw-alias-label-secondary);
   font: var(--dsw-font-markdown-code-block-small);
+  /* An elevated surface takes the l2 thumb pair wherever a thumb is drawn. */
+  --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
 }
