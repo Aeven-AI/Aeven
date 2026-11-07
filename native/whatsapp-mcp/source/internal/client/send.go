@@ -2,6 +2,8 @@ package client
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -33,20 +35,23 @@ type SendMediaOptions struct {
 	Caption   string
 	MediaPath string
 	ViewOnce  bool
+	// Forwarded marks the message as forwarded, as WhatsApp's Forward does:
+	// recipients see the "Forwarded" label above it.
+	Forwarded bool
 }
 
 // Send sends a text message.
 func (c *Client) Send(ctx context.Context, recipient, message string) SendResult {
-	return c.send(ctx, recipient, message, "", false)
+	return c.send(ctx, recipient, message, "", false, false)
 }
 
 // SendMediaWithOptions is the extensible entry point for media sends.
 func (c *Client) SendMediaWithOptions(ctx context.Context, opts SendMediaOptions) SendResult {
-	return c.send(ctx, opts.Recipient, opts.Caption, opts.MediaPath, opts.ViewOnce)
+	return c.send(ctx, opts.Recipient, opts.Caption, opts.MediaPath, opts.ViewOnce, opts.Forwarded)
 }
 
 // send is the unified implementation shared by Send and SendMediaWithOptions.
-func (c *Client) send(ctx context.Context, recipient, message, mediaPath string, viewOnce bool) SendResult {
+func (c *Client) send(ctx context.Context, recipient, message, mediaPath string, viewOnce, forwarded bool) SendResult {
 	if !c.wa.IsConnected() {
 		return SendResult{Success: false, Message: "Not connected to WhatsApp"}
 	}
@@ -84,8 +89,15 @@ func (c *Client) send(ctx context.Context, recipient, message, mediaPath string,
 		if err := c.attachMedia(ctx, msg, mediaPath, message, viewOnce); err != nil {
 			return SendResult{Success: false, Message: err.Error()}
 		}
+	} else if forwarded {
+		// A plain Conversation carries no ContextInfo, so a forwarded text
+		// travels as extended text, the form WhatsApp's own Forward uses.
+		msg.ExtendedTextMessage = &waProto.ExtendedTextMessage{Text: proto.String(message)}
 	} else {
 		msg.Conversation = proto.String(message)
+	}
+	if forwarded {
+		markForwarded(msg)
 	}
 
 	resp, err := c.wa.SendMessage(ctx, recipientJID, msg)
@@ -101,6 +113,48 @@ func (c *Client) send(ctx context.Context, recipient, message, mediaPath string,
 		Message: fmt.Sprintf("Message sent to %s", recipient),
 		ID:      resp.ID,
 	}
+}
+
+// markForwarded sets WhatsApp's forwarded flag on the message's content.
+func markForwarded(msg *waProto.Message) {
+	info := &waProto.ContextInfo{IsForwarded: proto.Bool(true), ForwardingScore: proto.Uint32(1)}
+	switch {
+	case msg.ExtendedTextMessage != nil:
+		msg.ExtendedTextMessage.ContextInfo = info
+	case msg.ImageMessage != nil:
+		msg.ImageMessage.ContextInfo = info
+	case msg.VideoMessage != nil:
+		msg.VideoMessage.ContextInfo = info
+	case msg.AudioMessage != nil:
+		msg.AudioMessage.ContextInfo = info
+	case msg.DocumentMessage != nil:
+		msg.DocumentMessage.ContextInfo = info
+	}
+}
+
+// ForwardMessage sends a cached message to recipient marked as forwarded,
+// like WhatsApp's Forward. A text message is sent as text; a media message
+// is fetched into the local media cache and sent again, without a caption,
+// because the cache keeps none.
+func (c *Client) ForwardMessage(ctx context.Context, sourceChatJID, messageID, recipient string) SendResult {
+	content, mediaType, err := c.store.GetMessageBody(messageID, sourceChatJID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return SendResult{Success: false, Message: fmt.Sprintf("message %s is not in the local cache of chat %s; use list_messages for its id", messageID, sourceChatJID)}
+	}
+	if err != nil {
+		return SendResult{Success: false, Message: fmt.Sprintf("reading message %s: %v", messageID, err)}
+	}
+	if mediaType == "" {
+		if content == "" {
+			return SendResult{Success: false, Message: "the message has no text or media to forward"}
+		}
+		return c.send(ctx, recipient, content, "", false, true)
+	}
+	media := c.Download(ctx, messageID, sourceChatJID, "")
+	if !media.Success {
+		return SendResult{Success: false, Message: fmt.Sprintf("could not fetch the %s to forward: %s", mediaType, media.Message)}
+	}
+	return c.send(ctx, recipient, "", media.Path, false, true)
 }
 
 // ephemeralContextInfo returns the MessageContextInfo carrying the group's

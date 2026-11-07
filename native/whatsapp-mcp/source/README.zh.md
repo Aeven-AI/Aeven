@@ -7,7 +7,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/Sealjay/mcp-whatsapp)](https://goreportcard.com/report/github.com/Sealjay/mcp-whatsapp)
 [![Go 1.25+](https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go&logoColor=white)](https://go.dev/)
 [![MCP](https://img.shields.io/badge/MCP-protocol-6366f1)](https://modelcontextprotocol.io/)
-[![43 tools](https://img.shields.io/badge/tools-43-blue)]()
+[![44 tools](https://img.shields.io/badge/tools-44-blue)]()
 [![whatsmeow](https://img.shields.io/badge/whatsmeow-multidevice-25D366?logo=whatsapp&logoColor=white)](https://github.com/tulir/whatsmeow)
 [![Sealjay/mcp-whatsapp MCP server](https://glama.ai/mcp/servers/Sealjay/mcp-whatsapp/badges/score.svg?)](https://glama.ai/mcp/servers/Sealjay/mcp-whatsapp)
 [![GitHub issues](https://img.shields.io/github/issues/Sealjay/mcp-whatsapp)](https://github.com/Sealjay/mcp-whatsapp/issues)
@@ -22,7 +22,7 @@
 - **已发送消息存储** —— 出站消息在本地持久化，使对话历史保持完整。
 - **阅后即焚计时器** —— 出站消息自动继承群聊的临时消息计时器。
 - **定向历史同步** —— 通过 `request_sync` 工具按聊天按需回填。
-- **扩展的工具面** —— 43 个工具（见下文）：表情回应、回复、编辑、撤回、标记已读、输入状态、is-on-whatsapp、完整的群管理、黑名单、投票（创建 + 投票 + 计票）、联系人名片、位置图钉、阅后即焚标志、在线状态、隐私设置，以及资料的 “About” 文本。
+- **扩展的工具面** —— 44 个工具（见下文）：表情回应、回复、转发、编辑、撤回、标记已读、输入状态、is-on-whatsapp、完整的群管理、黑名单、投票（创建 + 投票 + 计票）、联系人名片、位置图钉、阅后即焚标志、在线状态、隐私设置，以及资料的 “About” 文本。
 - **单实例强制** —— 在 `store/.lock` 上加 `flock(2)`，防止两个 `serve` 进程在同一批 SQLite 文件上竞争。
 
 ## 安装
@@ -220,7 +220,7 @@ WhatsApp 大约每 20 天轮换一次已链接设备会话。在 Docker 之外�
 
 ## 工具
 
-43 个工具，按用途分组。
+44 个工具，按用途分组。
 
 ### 读取 / 查询
 
@@ -255,6 +255,7 @@ WhatsApp 大约每 20 天轮换一次已链接设备会话。在 Docker 之外�
 | `mark_chat_read` | 确认某个聊天中最近收到的消息并清掉未读标记 |
 | `send_reaction` | 对一条消息做出表情回应（空 emoji 会清除已有回应） |
 | `send_reply` | 引用之前某条消息的文本回复 |
+| `forward_message` | 以 WhatsApp 的“已转发”标签转发缓存中的消息；文本按文本发送，媒体会重新获取并再次发送，不带说明文字 |
 | `edit_message` | 编辑之前发送的消息 |
 | `delete_message` | 撤回（为所有人删除）一条消息 |
 | `send_typing` | 设置按聊天的正在输入 / 正在录音状态 |
