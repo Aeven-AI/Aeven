@@ -137,6 +137,9 @@ const BROWSER_LIBRARY_DEPENDENCIES = [
  * connector never sets; removing them also removes the second MSAL Node release and the browser MSAL build.
  * MemOS embeddings run through Transformers.js, which pins `onnxruntime-node` to a release that ships no Intel
  * macOS binding; 1.23.2 is the newest release that ships one, so the graph substitutes it for the pinned release.
+ * HyperFrames' engine and producer depend on full Puppeteer, which adds only a second `puppeteer-core` and a Chrome
+ * download; both load it in a try/catch that falls back to their own `puppeteer-core`, and the motion renderer always
+ * passes the browser it resolved.
  */
 export const DESKTOP_DEPENDENCY_OVERRIDES: Readonly<Record<string, string>> = Object.fromEntries<string>([
   ...BROWSER_LIBRARY_DEPENDENCIES.map((name): [string, string] => [`@aeven/client-ui-primitives>${name}`, '-']),
@@ -148,6 +151,8 @@ export const DESKTOP_DEPENDENCY_OVERRIDES: Readonly<Record<string, string>> = Ob
   ['@huggingface/transformers>onnxruntime-node', '1.23.2'],
   ...['@azure/identity', '@azure/keyvault-secrets']
     .map((name): [string, string] => [`@softeria/ms-365-mcp-server>${name}`, '-']),
+  ...['@hyperframes/engine', '@hyperframes/producer']
+    .map((name): [string, string] => [`${name}>puppeteer`, '-']),
 ])
 
 function errorOf(reason: unknown, fallback: string): Error {
@@ -172,7 +177,8 @@ function workspaceFile(corePackages: Readonly<Record<string, string>> = {}): str
   // CPU runtime the package ships, so allowing it would put about 300 MB of GPU libraries into every install.
   // The Google connectors spawn the platform CLI the Host installs into the package's own `bin/` from its
   // postinstall, which also covers Windows on ARM; the package's own installer refuses that host.
-  return `packages:\n  - .\n\n${overrideSection}${WORKSPACE_SETTINGS}allowBuilds:\n  '@googleworkspace/cli': false\n  ${JSON.stringify(accountsKey)}: true\n  node-pty: true\n  koffi: true\n  keytar: true\n  fs-ext: true\n  esbuild: true\n  better-sqlite3: true\n  onnxruntime-node: false\n  sharp: true\n  ${JSON.stringify(coreBuildKey)}: true\n  '@google/genai': false\n  protobufjs: false\n  node-addon-require-builtin: false\n  tesseract.js: false\n`
+  // The overrides remove Puppeteer; its Chrome download stays denied should another edge bring it back.
+  return `packages:\n  - .\n\n${overrideSection}${WORKSPACE_SETTINGS}allowBuilds:\n  '@googleworkspace/cli': false\n  puppeteer: false\n  ${JSON.stringify(accountsKey)}: true\n  node-pty: true\n  koffi: true\n  keytar: true\n  fs-ext: true\n  esbuild: true\n  better-sqlite3: true\n  onnxruntime-node: false\n  sharp: true\n  ${JSON.stringify(coreBuildKey)}: true\n  '@google/genai': false\n  protobufjs: false\n  node-addon-require-builtin: false\n  tesseract.js: false\n`
 }
 
 /**

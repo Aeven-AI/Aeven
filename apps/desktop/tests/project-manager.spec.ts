@@ -210,6 +210,12 @@ describe('desktop package policy', () => {
     // Transformers.js pins onnxruntime-node to an exact release, so the override must name an exact release too;
     // 1.23.2 is the newest one that ships the darwin/x64 binding Intel macOS builds load.
     expect(DESKTOP_DEPENDENCY_OVERRIDES['@huggingface/transformers>onnxruntime-node']).toMatch(/^\d+\.\d+\.\d+$/u)
+    // HyperFrames falls back to its own puppeteer-core when full Puppeteer is removed, so each parent must keep one.
+    for (const parent of ['@hyperframes/engine', '@hyperframes/producer']) {
+      expect(DESKTOP_DEPENDENCY_OVERRIDES[`${parent}>puppeteer`]).toBe('-')
+      expect(manifest(join('motion/motion-hyperframes/node_modules', parent)).dependencies, parent)
+        .toHaveProperty(['puppeteer-core'])
+    }
   })
 })
 
