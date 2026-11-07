@@ -150,11 +150,30 @@ func (c *Client) ForwardMessage(ctx context.Context, sourceChatJID, messageID, r
 		}
 		return c.send(ctx, recipient, content, "", false, true)
 	}
-	media := c.Download(ctx, messageID, sourceChatJID, "")
-	if !media.Success {
-		return SendResult{Success: false, Message: fmt.Sprintf("could not fetch the %s to forward: %s", mediaType, media.Message)}
+	// Fetched into the media root, the folder every send may read from, and
+	// removed once sent: the download cache sits outside it.
+	_, filename, _, _, _, _, _, _, err := c.store.GetMediaInfo(messageID, sourceChatJID)
+	if err != nil {
+		return SendResult{Success: false, Message: fmt.Sprintf("reading the %s to forward: %v", mediaType, err)}
 	}
-	return c.send(ctx, recipient, "", media.Path, false, true)
+	staged := filepath.Join(c.allowedMediaRoot, "forward-"+safeFileComponent(messageID)+"-"+filepath.Base(filename))
+	fetched := c.Download(ctx, messageID, sourceChatJID, staged)
+	if !fetched.Success {
+		return SendResult{Success: false, Message: fmt.Sprintf("could not fetch the %s to forward: %s", mediaType, fetched.Message)}
+	}
+	defer os.Remove(staged)
+	return c.send(ctx, recipient, "", staged, false, true)
+}
+
+// safeFileComponent keeps the letters, digits, dashes, and underscores of a
+// message id, so it can name a file.
+func safeFileComponent(id string) string {
+	return strings.Map(func(r rune) rune {
+		if r == '-' || r == '_' || (r >= '0' && r <= '9') || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
+			return r
+		}
+		return -1
+	}, id)
 }
 
 // ephemeralContextInfo returns the MessageContextInfo carrying the group's
@@ -216,12 +235,24 @@ func (c *Client) attachMedia(ctx context.Context, msg *waProto.Message, mediaPat
 	if err != nil {
 		return fmt.Errorf("media_path rejected: %w", err)
 	}
+	mediaType, mimeType := mediaTypeFromExt(safePath)
+	// WhatsApp has no animated-image message: a GIF sent as an image arrives as
+	// a still frame. Its clients convert a GIF to MP4 and send it as a video
+	// with gifPlayback, which plays as a looping GIF, and so does this.
+	gifPlayback := mimeType == "image/gif"
+	if gifPlayback {
+		converted, cerr := media.ConvertGIFToMP4(ctx, safePath)
+		if cerr != nil {
+			return cerr
+		}
+		defer os.Remove(converted)
+		safePath = converted
+		mediaType, mimeType = whatsmeow.MediaVideo, "video/mp4"
+	}
 	mediaData, err := os.ReadFile(safePath)
 	if err != nil {
 		return fmt.Errorf("read media file: %w", err)
 	}
-
-	mediaType, mimeType := mediaTypeFromExt(safePath)
 
 	resp, err := c.wa.Upload(ctx, mediaData, mediaType)
 	if err != nil {
@@ -282,6 +313,9 @@ func (c *Client) attachMedia(ctx context.Context, msg *waProto.Message, mediaPat
 			FileEncSHA256: resp.FileEncSHA256,
 			FileSHA256:    resp.FileSHA256,
 			FileLength:    &resp.FileLength,
+		}
+		if gifPlayback {
+			msg.VideoMessage.GifPlayback = proto.Bool(true)
 		}
 		if viewOnce {
 			msg.VideoMessage.ViewOnce = proto.Bool(true)
