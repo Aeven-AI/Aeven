@@ -46,11 +46,20 @@ export function internationalPhone(callingCode: string, number: string): string 
 }
 
 /**
- * Guess the reader's country calling code from the browser's languages (`nl-NL` → `+31`).
+ * Guess the reader's country calling code: from the country the Host states for the page (`NL` → `+31`), else from
+ * the browser's languages (`nl-NL` → `+31`).
+ * @param country - ISO 3166 alpha-2 country the Host stated, when it stated one.
  * @param languages - the browser's preferred language tags, most preferred first.
- * @returns the calling code with its `+`, or `+` alone when no language names a country.
+ * @returns the calling code with its `+`, or `+` alone when neither names a country.
  */
-export function guessCallingCode(languages: readonly string[]): string {
+export function guessCallingCode(country: string | undefined, languages: readonly string[]): string {
+  if (country !== undefined) {
+    try {
+      return `+${getCountryCallingCode(country as CountryCode)}`
+    } catch {
+      // A country the library has no calling code for; the browser's languages may still name one.
+    }
+  }
   for (const tag of languages) {
     let region: string | undefined
     try {

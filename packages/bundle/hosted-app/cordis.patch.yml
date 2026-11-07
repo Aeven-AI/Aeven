@@ -583,6 +583,8 @@
     - id: hosted-runtime
       name: '@aeven/hosted-app'
       config:
+        # Cloudflare fronts the hosted page and states the visitor's country here.
+        countryHeader: cf-ipcountry
         perAccount: 2
         total: 64
         queuedPerAccount: 8
