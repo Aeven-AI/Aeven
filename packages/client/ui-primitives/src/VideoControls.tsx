@@ -40,6 +40,8 @@ export interface VideoControlsProps {
   onSeek: (seconds: number) => void
   /** The owning feature's chrome sentences. */
   labels: VideoPlayerLabels
+  /** Whether to offer the full-screen disc; a player already filling the screen leaves it out. */
+  fullscreenControl?: boolean
 }
 
 /**
@@ -51,7 +53,7 @@ export interface VideoControlsProps {
  * @returns the clip's playback chrome.
  */
 export function VideoControls({
-  video, player, playing, idle, current, duration, onDownload, busy = false, onSeek, labels,
+  video, player, playing, idle, current, duration, onDownload, busy = false, onSeek, labels, fullscreenControl = true,
 }: VideoControlsProps) {
   const [muted, setMuted] = useState(video.muted)
   // A media that carries no level offers mute alone, at full level.
@@ -243,17 +245,19 @@ export function VideoControls({
         </div>,
         document.body,
       )}
-      <Tooltip label={fullscreenLabel} side="top">
-        <button
-          type="button"
-          className={css.control}
-          data-video-toggle-fullscreen=""
-          aria-label={fullscreenLabel}
-          onClick={() => { toggleFullscreen(player) }}
-        >
-          {fullscreen ? <IconLucideMinimize2 /> : <IconLucideMaximize2 />}
-        </button>
-      </Tooltip>
+      {fullscreenControl && (
+        <Tooltip label={fullscreenLabel} side="top">
+          <button
+            type="button"
+            className={css.control}
+            data-video-toggle-fullscreen=""
+            aria-label={fullscreenLabel}
+            onClick={() => { toggleFullscreen(player) }}
+          >
+            {fullscreen ? <IconLucideMinimize2 /> : <IconLucideMaximize2 />}
+          </button>
+        </Tooltip>
+      )}
     </div>
   )
 }

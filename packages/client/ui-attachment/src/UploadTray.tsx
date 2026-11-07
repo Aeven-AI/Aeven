@@ -163,20 +163,21 @@ function ImageTile({ item, labels, onOpen }: {
 
 function VideoTile({ item, onOpen }: { item: UploadTrayVideoItem; onOpen: () => void }) {
   const [loaded, setLoaded] = useState(false)
+  // Like an image tile: the grey loader until the first frame has loaded, then the frame fades in under its play mark.
+  const waiting = item.pending || (item.posterUrl !== null && !loaded)
   return (
     <button type="button" className={clsx(css.open, css.openVideo)} aria-label={item.alt} onClick={onOpen} disabled={item.pending}>
+      {waiting && (
+        <span className={css.spinnerBox}>
+          <span className={css.spinner}><UploadSpinnerIcon /></span>
+        </span>
+      )}
       {item.posterUrl !== null && (
         <span className={clsx(css.imageBox, loaded && css.imageLoaded)}>
           <img className={css.thumb} src={item.posterUrl} alt="" onLoad={() => { setLoaded(true) }} />
         </span>
       )}
-      {item.pending
-        ? (
-          <span className={css.spinnerBox}>
-            <span className={css.spinner}><UploadSpinnerIcon /></span>
-          </span>
-        )
-        : <span className={css.playMark} aria-hidden="true" />}
+      {!waiting && <span className={css.playMark} aria-hidden="true" />}
     </button>
   )
 }

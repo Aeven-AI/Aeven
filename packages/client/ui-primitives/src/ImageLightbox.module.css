@@ -90,7 +90,6 @@
   position: relative;
   width: min(100cqw, 100cqh * var(--avn-video-ratio));
   overflow: hidden;
-  border-radius: 30px;
 }
 
 .videoFrame [data-video-player] {
