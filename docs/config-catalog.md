@@ -1665,6 +1665,11 @@ export interface Config {
   whatsappStartupTimeoutMs: number
   /** Time a stopping WhatsApp daemon gets to exit cleanly before it is killed. */
   whatsappStopGraceMs: number
+  /**
+   * Log every message of a WhatsApp linking handshake through the daemon's stderr into the Host log, to diagnose a
+   * link WhatsApp refuses. The trace names the account's phone number, so it stays off outside diagnosis.
+   */
+  whatsappPairingTrace: boolean
   /** Interval between pairing-state reads while a QR code is shown. */
   whatsappPairingPollMs: number
   /** First delay before restarting a WhatsApp daemon that exited unexpectedly; doubles per consecutive failure. */

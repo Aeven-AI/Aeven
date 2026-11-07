@@ -102,6 +102,8 @@ Claude Desktop 的 `claude_desktop_config.json` 不像 Claude Code 与 Cursor �
 
 默认允许的根目录是 `./store/uploads/`（相对于你的 `-store` 目录解析）。首次运行时 `serve` 会自动创建它；把你要发送的文件放进去，如果希望从同一处读取收到的媒体，就把 `output_path` 指向这里。
 
+`WHATSAPP_MCP_PAIRING_TRACE=1` 会把关联握手的每个节点（QR ref、手机代码各阶段、passkey 各阶段、pair-success）以 `[Client/Trace WARN]` 行写到 stderr，用于诊断被 WhatsApp 拒绝的关联。记录中含账户手机号，因此除诊断外不要设置。
+
 要允许另一个目录，启动守护进程时设置 `WHATSAPP_MCP_MEDIA_ROOT`（绝对路径）：
 
 ```bash
