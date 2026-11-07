@@ -172,7 +172,7 @@ function workspaceFile(corePackages: Readonly<Record<string, string>> = {}): str
   // CPU runtime the package ships, so allowing it would put about 300 MB of GPU libraries into every install.
   // The Google connectors spawn the platform CLI the Host installs into the package's own `bin/` from its
   // postinstall, which also covers Windows on ARM; the package's own installer refuses that host.
-  return `packages:\n  - .\n\n${overrideSection}${WORKSPACE_SETTINGS}allowBuilds:\n  '@googleworkspace/cli': false\n  ${JSON.stringify(accountsKey)}: true\n  node-pty: true\n  koffi: true\n  keytar: true\n  fs-ext: true\n  esbuild: true\n  better-sqlite3: true\n  onnxruntime-node: false\n  sharp: true\n  ${JSON.stringify(coreBuildKey)}: true\n  '@google/genai': false\n  protobufjs: false\n  node-addon-require-builtin: false\n  tesseract.js: false\n`
+  return `packages:\n  - .\n\n${overrideSection}${WORKSPACE_SETTINGS}allowBuilds:\n  '@googleworkspace/cli': false\n  puppeteer: false\n  ${JSON.stringify(accountsKey)}: true\n  node-pty: true\n  koffi: true\n  keytar: true\n  fs-ext: true\n  esbuild: true\n  better-sqlite3: true\n  onnxruntime-node: false\n  sharp: true\n  ${JSON.stringify(coreBuildKey)}: true\n  '@google/genai': false\n  protobufjs: false\n  node-addon-require-builtin: false\n  tesseract.js: false\n`
 }
 
 /**
