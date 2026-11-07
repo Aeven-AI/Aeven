@@ -49,7 +49,7 @@ export interface UploadTrayVideoItem {
   removeLabel: string
 }
 
-/** One sound file, played in place in a grey bar instead of shown as a tile; strings arrive resolved. */
+/** One sound file: a file-sized tile whose name sits over compact playback controls; strings arrive resolved. */
 export interface UploadTrayAudioItem {
   kind: 'audio'
   id: string
@@ -83,9 +83,9 @@ function titleOf(name: string): string {
 }
 
 /**
- * Wrapping attachment tray. Images and videos come first, then files, then
+ * Wrapping attachment tray. Images and videos come first, then files and
  * sound files, each group in owner order. A video shows its first frame under
- * a play mark; a sound file plays in place in a full-width grey bar. An uploading tile shows a spinner; a failed tile shows a
+ * a play mark; a sound file's tile plays it in place. An uploading tile shows a spinner; a failed tile shows a
  * warning and "Error"; a ready file shows its type icon and name; an image
  * fades in over its spinner once the thumbnail loads.
  *
@@ -108,9 +108,8 @@ export function UploadTray<T extends UploadTrayItem>({ items, labels, onOpen, on
 }) {
   const ordered = [
     ...items.filter(item => item.kind === 'image' || item.kind === 'video'),
-    ...items.filter(item => item.kind === 'file'),
+    ...items.filter(item => item.kind === 'file' || item.kind === 'audio'),
   ]
-  const sounds = items.filter((item): item is T & UploadTrayAudioItem => item.kind === 'audio')
   return (
     <div
       className={clsx(css.tray, variant === 'message' && css.message, align === 'end' && css.end)}
@@ -120,11 +119,14 @@ export function UploadTray<T extends UploadTrayItem>({ items, labels, onOpen, on
       {ordered.map(item => (
         <div
           key={item.id}
-          className={clsx(css.tile, item.kind === 'file' ? css[item.status] : css.image)}
+          className={clsx(css.tile, item.kind === 'file' ? css[item.status] : item.kind === 'audio' ? undefined : css.image)}
         >
           {item.kind === 'image' && <ImageTile item={item} labels={labels} onOpen={() => { onOpen(item) }} />}
           {item.kind === 'video' && <VideoTile item={item} onOpen={() => { onOpen(item) }} />}
           {item.kind === 'file' && <FileTile item={item} labels={labels} onOpen={() => { onOpen(item) }} />}
+          {item.kind === 'audio' && (
+            <AudioPlayer src={item.src} label={item.name} labels={labels.audio} title={titleOf(item.name)} />
+          )}
           {onRemove !== undefined && (
             <Tooltip label={labels.remove} side="top">
               <button
@@ -142,27 +144,6 @@ export function UploadTray<T extends UploadTrayItem>({ items, labels, onOpen, on
               </button>
             </Tooltip>
           )}
-        </div>
-      ))}
-      {sounds.map(item => (
-        <div key={item.id} className={css.audioRow}>
-          <AudioPlayer
-            src={item.src}
-            label={item.name}
-            labels={labels.audio}
-            trailing={onRemove === undefined ? undefined : (
-              <Tooltip label={labels.remove} side="top">
-                <button
-                  type="button"
-                  className={css.audioRemove}
-                  aria-label={item.removeLabel}
-                  onClick={() => { onRemove(item) }}
-                >
-                  <UploadRemoveIcon />
-                </button>
-              </Tooltip>
-            )}
-          />
         </div>
       ))}
     </div>

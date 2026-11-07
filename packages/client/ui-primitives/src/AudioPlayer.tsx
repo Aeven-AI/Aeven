@@ -1,4 +1,8 @@
-/** A sound file played in place: play, elapsed and total time, a scrubber, and mute, in one grey bar. @module */
+/**
+ * A sound file played in place, sized to sit inside an attachment tile: its name over a compact row of play, a
+ * scrubber, the time, and mute. The tile around it supplies the size and background.
+ * @module
+ */
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { IconLucidePause, IconLucidePlay, IconLucideVolume2, IconLucideVolumeX } from './icons/index.tsx'
 import { Spinner } from './Spinner.tsx'
@@ -26,16 +30,16 @@ export interface AudioPlayerProps {
   label: string
   /** The owning feature's sentences. */
   labels: AudioPlayerLabels
-  /** Content after the controls, such as a remove button. */
-  trailing?: ReactNode
+  /** Text over the controls, usually the file name without its extension. */
+  title?: ReactNode
 }
 
 /**
- * Play a sound file under simple controls in a grey bar.
- * @param props - the sound, its name, sentences, and trailing content.
- * @returns the player bar.
+ * Play a sound file under compact controls that fit an attachment tile.
+ * @param props - the sound, its accessible name, sentences, and title.
+ * @returns the player, filling its container.
  */
-export function AudioPlayer({ src, label, labels, trailing }: AudioPlayerProps) {
+export function AudioPlayer({ src, label, labels, title }: AudioPlayerProps) {
   const audio = useRef<HTMLAudioElement>(null)
   const [playing, setPlaying] = useState(false)
   const [current, setCurrent] = useState(0)
@@ -79,44 +83,46 @@ export function AudioPlayer({ src, label, labels, trailing }: AudioPlayerProps) 
           onEnded={() => { setPlaying(false) }}
         />
       )}
-      <button
-        type="button"
-        className={css.button}
-        aria-label={playing ? labels.pause : labels.play}
-        disabled={src === null}
-        onClick={toggle}
-      >
-        {src === null ? <Spinner /> : playing ? <IconLucidePause /> : <IconLucidePlay />}
-      </button>
-      <span className={css.time}>{clock(current)} / {clock(duration)}</span>
-      <input
-        type="range"
-        className={css.seek}
-        aria-label={labels.seek}
-        min={0}
-        max={known ? duration : 1}
-        step="any"
-        value={known ? current : 0}
-        disabled={!known}
-        style={{ '--avn-audio-progress': `${String(progress * 100)}%` } as React.CSSProperties}
-        onChange={(event) => {
-          const element = audio.current
-          const position = Number(event.currentTarget.value)
-          if (element === null || !Number.isFinite(position)) return
-          element.currentTime = position
-          setCurrent(position)
-        }}
-      />
-      <button
-        type="button"
-        className={css.button}
-        aria-label={muted ? labels.unmute : labels.mute}
-        disabled={src === null}
-        onClick={toggleMute}
-      >
-        {muted ? <IconLucideVolumeX /> : <IconLucideVolume2 />}
-      </button>
-      {trailing}
+      {title !== undefined && <span className={css.title}>{title}</span>}
+      <div className={css.controls}>
+        <button
+          type="button"
+          className={css.button}
+          aria-label={playing ? labels.pause : labels.play}
+          disabled={src === null}
+          onClick={toggle}
+        >
+          {src === null ? <Spinner /> : playing ? <IconLucidePause /> : <IconLucidePlay />}
+        </button>
+        <input
+          type="range"
+          className={css.seek}
+          aria-label={labels.seek}
+          min={0}
+          max={known ? duration : 1}
+          step="any"
+          value={known ? current : 0}
+          disabled={!known}
+          style={{ '--avn-audio-progress': `${String(progress * 100)}%` } as React.CSSProperties}
+          onChange={(event) => {
+            const element = audio.current
+            const position = Number(event.currentTarget.value)
+            if (element === null || !Number.isFinite(position)) return
+            element.currentTime = position
+            setCurrent(position)
+          }}
+        />
+        <span className={css.time}>{clock(playing || current > 0 ? current : duration)}</span>
+        <button
+          type="button"
+          className={css.button}
+          aria-label={muted ? labels.unmute : labels.mute}
+          disabled={src === null}
+          onClick={toggleMute}
+        >
+          {muted ? <IconLucideVolumeX /> : <IconLucideVolume2 />}
+        </button>
+      </div>
     </div>
   )
 }
