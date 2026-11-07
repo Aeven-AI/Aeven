@@ -5954,6 +5954,13 @@ html[data-avn-traffic-lights]
   font-size: 0.875rem;
   background-color: rgb(242, 242, 242);
 }
+/* A link inside a sentence is underlined, so it does not rely on its grey
+   alone to stand apart from the black text around it. */
+#app-root .authenticate.view .form .subtext a,
+#app-root .authenticate.view .form-footer a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 @media screen and (max-width: 640px) {
   #app-root
     .view-container

@@ -39,7 +39,7 @@ kind: "package-reference"
 
 ### 服务器强制什么
 
-请求从 dist 根目录（包含 `distIndex` 的目录）提供。dist 根目录、配置的 index 路径与 `/sessions/` 下缺失且无扩展名的路径以 HTTP 200 渲染 `index.html`；任何其他已有文件按自身 MIME 类型直接提供，未知扩展名按 `application/octet-stream` 提供。解析到根目录之外的路径以 403 拒绝，因此精心构造的路径无法读取 dist 之上的文件。dist 根目录内其他缺失或非文件的 target——缺失资产、已有目录、未知路由或配置的 index 缺失——返回空 404。没有匹配具名路由的非 GET／HEAD 请求回答 405。每个成功的 index 响应都经 webserver 的 `renderIndex` 渲染，因此启动 manifest 会到达入口路径与 Session 深链接。
+请求从 dist 根目录（包含 `distIndex` 的目录）提供。dist 根目录、配置的 index 路径与 `/sessions/` 下缺失且无扩展名的路径以 HTTP 200 渲染 `index.html`；任何其他已有文件按自身 MIME 类型直接提供，未知扩展名按 `application/octet-stream` 提供。解析到根目录之外的路径以 403 拒绝，因此精心构造的路径无法读取 dist 之上的文件。dist 根目录内其他缺失或非文件的 target——缺失资产、已有目录、未知路由或配置的 index 缺失——返回空 404。没有匹配具名路由的非 GET／HEAD 请求回答 405。`assets/` 下的文件名带有 Vite 内容哈希，以 `public, max-age=31536000, immutable` 发送；index 响应以 `no-cache` 发送，既不进入共享缓存，又让页面仍可进入往返缓存。单区间 `Range` 请求回答 206（越过末尾时回答 416），使媒体元素可以拖动进度。每个成功的 index 响应都经 webserver 的 `renderIndex` 渲染，因此启动 manifest 会到达入口路径与 Session 深链接。
 
 根路径、配置的 index 与 Session 路由响应会在读取 HTML 前调用 `ctx.connection.authorizeIndex`。有效进程 token 会得到 303 重定向与持久浏览器 cookie；已有有效 cookie 时直接提供 index；其他 index 请求得到 Connection 所有的 401 响应。非 index 文件仍是公开静态资源。Token、cookie、过期时间与签名记录语义都归 Connection 所有。
 
@@ -101,7 +101,7 @@ kind: "package-reference"
 
 这些限制说明某个资产类别何时尚未被覆盖。它们是当前包约束，不是任务积压。
 
-- **初始 MIME 表很精简**：它覆盖 Vite 输出的资产集合及实际交付的 PWA manifest；其他扩展名在相应资产类别发布前都会回退到 `application/octet-stream`。
+- **MIME 表是固定列表**：它覆盖 Vite 输出的资产集合、实际交付的 PWA manifest，以及 Web 应用交付的字体、图标、静态图片与短片；其他扩展名在相应资产类别发布前都会回退到 `application/octet-stream`。多区间请求以整个文件作答。
 - **SPA pathname 路由是显式声明**——对话路径（`/c/:id`）、`/imagine`、`/automations` 及认证路径返回 SPA index。新增其他顶层路由需要匹配的服务器规则与真实组合覆盖，而不是对每次未命中做宽泛回退。
 
 <a id="dev-note"></a>

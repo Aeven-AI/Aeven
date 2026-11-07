@@ -4,7 +4,9 @@
  * routes. A readable index renders at the dist root, configured index path,
  * and missing extensionless paths; missing asset paths return 404, traversal
  * outside the dist root is 403, unknown extensions ship as octet-stream, and
- * non-GET/HEAD is 405. Every
+ * non-GET/HEAD is 405. Content-hashed files under `assets/` are immutable for a
+ * year, index responses always revalidate, and a single `Range` request is
+ * answered with 206 so media elements can seek. Every
  * index response first passes Connection's browser authentication, then the
  * webserver's index render (structured injection rows, then raw taps).
  * Non-index assets stay public. The dist location is workspace knowledge of
@@ -48,6 +50,14 @@ const MIME: Record<string, string> = {
   '.json': 'application/json',
   '.map': 'application/json',
   '.webmanifest': 'application/manifest+json',
+  '.woff2': 'font/woff2',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.ico': 'image/x-icon',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
   // The packed VFS image. Served as its own bytes, never as a Content-Encoding:
   // the worker inflates the body itself, and a transport-level encoding would
   // leave it inflating an already-decoded archive.
@@ -59,6 +69,44 @@ const STATIC_MISS_CODES: ReadonlySet<string | undefined> = new Set([
   'EISDIR',
   'ENOTDIR',
 ])
+
+/** Vite writes content-hashed file names under this dist directory, so a URL there never changes bytes. */
+const HASHED_ASSET_PREFIX = '/assets/'
+
+/** Cache policy for content-hashed dist files. */
+const IMMUTABLE_CACHE = 'public, max-age=31536000, immutable'
+
+/**
+ * Index responses are rendered per request behind authentication, so every use revalidates. `no-cache` rather
+ * than `no-store` keeps the page eligible for the back/forward cache.
+ */
+const INDEX_CACHE = 'no-cache'
+
+/**
+ * Resolve a single-range `Range` header against a file size.
+ * @param header - the request's `Range` header, when present.
+ * @param size - byte length of the file.
+ * @returns the inclusive byte span, `'unsatisfiable'`, or undefined to send the whole file.
+ */
+function byteRange(header: string | undefined, size: number): { start: number; end: number } | 'unsatisfiable' | undefined {
+  if (header === undefined) return undefined
+  const match = /^bytes=(\d*)-(\d*)$/.exec(header.trim())
+  // Multi-range and other units are answered with the whole file, which RFC 9110 permits.
+  if (match === null) return undefined
+  const [, from = '', to = ''] = match
+  if (from === '' && to === '') return undefined
+  let start: number
+  let end: number
+  if (from === '') {
+    start = Math.max(0, size - Number(to))
+    end = size - 1
+  } else {
+    start = Number(from)
+    end = to === '' ? size - 1 : Math.min(Number(to), size - 1)
+  }
+  if (start >= size || start > end) return 'unsatisfiable'
+  return { start, end }
+}
 
 /**
  * Client-owned route roots that resolve to the SPA index: the root itself, as
@@ -87,12 +135,14 @@ function isSpaRoute(pathname: string): boolean {
  * the request was addressed to, absent when it stated no host.
  * @param origin - the origin the request was addressed to, or undefined when it
  * stated no host; handed to `renderIndex`.
+ * @param range - the request's `Range` header, when it sent one.
  */
 export async function serveStatic(
   pathname: string, res: ServerResponse, distRoot: string, distIndex: string,
   authorizeIndex: () => boolean,
   renderIndex: (origin?: string) => Promise<string>,
   origin?: string,
+  range?: string,
 ): Promise<void> {
   const target = resolve(normalize(join(distRoot, pathname)))
   // Traversal rejection: the target must be distRoot itself (`/`) or stay under
@@ -105,11 +155,13 @@ export async function serveStatic(
   }
   let body: string | Buffer
   let type: string
+  let index = false
   try {
     if (target === distRoot || target === distIndex) {
       if (!authorizeIndex()) return
       body = await renderIndex(origin)
       type = HTML_MIME
+      index = true
     } else {
       body = await readFile(target)
       type = MIME[extname(target)] ?? 'application/octet-stream'
@@ -123,7 +175,7 @@ export async function serveStatic(
       if (!authorizeIndex()) return
       body = await renderIndex(origin)
       type = HTML_MIME
-      res.writeHead(200, { 'content-type': type })
+      res.writeHead(200, { 'content-type': type, 'cache-control': INDEX_CACHE })
       res.end(body)
       return
     }
@@ -134,8 +186,27 @@ export async function serveStatic(
     res.end()
     return
   }
-  res.writeHead(200, { 'content-type': type })
-  res.end(body)
+  if (index) {
+    res.writeHead(200, { 'content-type': type, 'cache-control': INDEX_CACHE })
+    res.end(body)
+    return
+  }
+  const headers: Record<string, string> = { 'content-type': type, 'accept-ranges': 'bytes' }
+  if (pathname.startsWith(HASHED_ASSET_PREFIX)) headers['cache-control'] = IMMUTABLE_CACHE
+  const file = body as Buffer
+  const span = byteRange(range, file.length)
+  if (span === 'unsatisfiable') {
+    res.writeHead(416, { ...headers, 'content-range': `bytes */${String(file.length)}` })
+    res.end()
+    return
+  }
+  if (span !== undefined) {
+    res.writeHead(206, { ...headers, 'content-range': `bytes ${String(span.start)}-${String(span.end)}/${String(file.length)}` })
+    res.end(file.subarray(span.start, span.end + 1))
+    return
+  }
+  res.writeHead(200, headers)
+  res.end(file)
 }
 
 /**
@@ -176,6 +247,7 @@ export function apply(ctx: Context, config: Config): void {
       // injection table is what lets a subscriber state deployment URLs under
       // that spelling instead of the client repairing them afterwards.
       requestOrigin(req),
+      req.headers.range,
     )
   }), 'frontend-static: fallback seat')
 }
