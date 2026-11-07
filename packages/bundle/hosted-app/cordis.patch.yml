@@ -580,6 +580,17 @@
   disabled: true
 
 - insert:
+    # Host plugins report through `ctx.logger`; without an exporter those
+    # warnings and errors (a WhatsApp daemon's refusal reason among them)
+    # reach no log. Info, warnings, and errors go to stdout, which the
+    # service appends to hosted.log; debug stays out.
+    - id: logger-console
+      name: '@deepseek-ai/cordis-plugin-logger-console'
+      config:
+        colors: false
+        levels:
+          default: 2
+
     - id: hosted-runtime
       name: '@aeven/hosted-app'
       config:
