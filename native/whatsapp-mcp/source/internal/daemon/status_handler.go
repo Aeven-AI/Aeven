@@ -53,8 +53,10 @@ func (h *statusHandlers) mount(mux *http.ServeMux) {
 
 // handlePairPhone requests a phone-number linking code for the pairing in
 // progress. Body: {"phone":"<international number>"}; answers {"code":"..."}.
-// The QR stays valid beside it, and whichever the phone completes pairs the
-// device. 409 means no pairing is waiting for a scan.
+// The driver opens a fresh login session for the code, so a pairing whose QR
+// expired can still link by phone; the new session's QR stays valid beside the
+// code, and whichever the phone completes pairs the device. 409 means the
+// device is already paired.
 func (h *statusHandlers) handlePairPhone(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST required", http.StatusMethodNotAllowed)
@@ -77,8 +79,8 @@ func (h *statusHandlers) handlePairPhone(w http.ResponseWriter, r *http.Request)
 		http.Error(w, "phone must be an international number of 7 to 15 digits", http.StatusBadRequest)
 		return
 	}
-	if h.cache.Paired() || h.cache.QR() == "" {
-		http.Error(w, "no pairing is waiting", http.StatusConflict)
+	if h.cache.Paired() {
+		http.Error(w, "already paired", http.StatusConflict)
 		return
 	}
 	pairer, ok := h.driver.(phonePairer)
