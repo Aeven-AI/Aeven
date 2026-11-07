@@ -47,12 +47,22 @@ beforeEach(() => { execFile.mockReset() })
 describe('describeClip', () => {
   it('lists every probed fact, then the container and size', () => {
     expect(describeClip('clip.webm', { seconds: 8.24, width: 720, height: 1280, codec: 'vp9', container: 'WebM', bytes: 3_400_000 }))
-      .toBe('Video clip "clip.webm": 8.2 s, 720×1280, vp9, WebM, 3.4 MB. The clip is stored with this session; its frames and sound are not transcribed.')
+      .toBe('Video clip "clip.webm": 8.2 s, 720×1280, vp9, WebM, 3.4 MB. The clip is stored with this session; its sound is not transcribed. Its frames are not described.')
   })
 
   it('reports only what the deployment knows', () => {
     expect(describeClip('clip.mp4', { container: 'MP4', bytes: 820_000 }))
-      .toBe('Video clip "clip.mp4": MP4, 820 kB. The clip is stored with this session; its frames and sound are not transcribed.')
+      .toBe('Video clip "clip.mp4": MP4, 820 kB. The clip is stored with this session; its sound is not transcribed. Its frames are not described.')
+  })
+
+  it('appends the transcript of the sound', () => {
+    expect(describeClip('memo.mp3', { seconds: 4, container: 'MP3', bytes: 40_000 }, { text: ' hola, ¿dónde estás? ' }))
+      .toBe('Audio clip "memo.mp3": 4.0 s, MP3, 40 kB. The clip is stored with this session.\nTranscript of its sound:\nhola, ¿dónde estás?')
+  })
+
+  it('states that no speech was recognized, and how much was transcribed', () => {
+    expect(describeClip('song.mp3', { seconds: 900, container: 'MP3', bytes: 9_000_000 }, { text: '', partialSeconds: 600 }))
+      .toBe('Audio clip "song.mp3": 900.0 s, MP3, 9.0 MB. The clip is stored with this session. No speech was recognized in its sound (first 600 s).')
   })
 })
 

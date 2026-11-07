@@ -75,28 +75,25 @@ function PictureMedia({ source, message, t }: { source: MessageMediaSource; mess
   )
 }
 
-/** A GIF, which loops silently once it nears the viewport, as WhatsApp plays it. */
-function GifMedia({ source, message, t }: { source: MessageMediaSource; message: WhatsAppCardMessage; t: CardT }) {
+/**
+ * A GIF or a video, loaded once it nears the viewport and played muted, which browsers allow without a press: a GIF
+ * loops without controls as WhatsApp plays it, a video plays once under the browser's controls.
+ */
+function MovingMedia({ source, message, gif, t }: { source: MessageMediaSource; message: WhatsAppCardMessage; gif: boolean; t: CardT }) {
   const [ref, seen] = useSeen<HTMLDivElement>()
   const media = useMedia(source, message, seen)
+  let content: ReactNode = null
+  if (media === null) content = <span className={css.unavailable}>{t('unavailable')}</span>
+  else if (media !== undefined) {
+    content = (
+      <video src={media.url} autoPlay muted playsInline loop={gif} controls={!gif} aria-label={t(gif ? 'gif' : 'video')}
+        onLoadedData={shown} />
+    )
+  }
   return (
     <div ref={ref} className={css.picture} data-loading={media === undefined || undefined}>
-      {media === null ? <span className={css.unavailable}>{t('unavailable')}</span>
-        : media !== undefined ? <video src={media.url} autoPlay loop muted playsInline aria-label={t('gif')} onLoadedData={shown} /> : null}
-      <span className={css.badge}>{t('gif')}</span>
-    </div>
-  )
-}
-
-/** A video, loaded once it nears the viewport and played muted, which browsers allow without a press. */
-function VideoMedia({ source, message, t }: { source: MessageMediaSource; message: WhatsAppCardMessage; t: CardT }) {
-  const [ref, seen] = useSeen<HTMLDivElement>()
-  const media = useMedia(source, message, seen)
-  return (
-    <div ref={ref} className={css.picture} data-loading={media === undefined || undefined}>
-      {media === null ? <span className={css.unavailable}>{t('unavailable')}</span>
-        : media !== undefined ? <video src={media.url} controls autoPlay muted playsInline aria-label={t('video')} onLoadedData={shown} />
-          : null}
+      {content}
+      {gif && <span className={css.badge}>{t('gif')}</span>}
     </div>
   )
 }
@@ -129,9 +126,8 @@ function MessageMedia({ source, message, t }: { source: MessageMediaSource; mess
     case 'sticker':
       return <PictureMedia source={source} message={message} t={t} />
     case 'gif':
-      return <GifMedia source={source} message={message} t={t} />
     case 'video':
-      return <VideoMedia source={source} message={message} t={t} />
+      return <MovingMedia source={source} message={message} gif={message.media === 'gif'} t={t} />
     case 'audio':
       return <VoiceNote source={source} message={message} t={t} />
     case 'document':

@@ -81,15 +81,11 @@
   opacity: 1;
 }
 
-/* The stage measures itself so a video frame can take the clip's shape at the largest size it fits. */
-.stack[data-video] .imageBox {
-  container-type: size;
-}
-
+/* The stage is the viewport, so a video frame takes the clip's shape at the largest size the viewport fits. */
 .videoFrame {
   position: relative;
-  width: min(100cqw, 100cqh * var(--avn-video-ratio));
-  aspect-ratio: var(--avn-video-ratio);
+  width: min(100vw, 100vh * var(--avn-video-ratio));
+  height: min(100vh, 100vw / var(--avn-video-ratio));
   overflow: hidden;
   visibility: hidden;
 }
