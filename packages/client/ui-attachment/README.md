@@ -29,7 +29,7 @@ Mount this plugin alongside [`ui-conversation`](../ui-conversation/README.md); i
 
 ### Draft tray
 
-Draft attachments show as 80px tiles, five per row, wrapping: images and videos first as cover thumbnails, a video's being its first frame under a play mark, then files with their type icon and name. Sound files such as MP3 play in place, in the composer and in the sent message, in a grey bar with play, time, a scrubber, and mute. An uploading file shows a spinner and a failed one shows an error tile. Clicking an image opens the gallery over all draft images; clicking a file opens its bytes in a new tab.
+Draft attachments show as 80px tiles, five per row, wrapping: images and videos first as cover thumbnails, a video's being its first frame under a play mark, then files with their type icon and name. Sound files such as MP3 keep a file tile's size and background and play in place, in the composer and in the sent message: the name over a compact row of play, scrubber, time, and mute. An uploading file shows a spinner and a failed one shows an error tile. Clicking an image opens the gallery over all draft images; clicking a file opens its bytes in a new tab.
 
 ### Sent attachments and the gallery
 

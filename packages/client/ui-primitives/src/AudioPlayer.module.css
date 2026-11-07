@@ -1,33 +1,52 @@
-/* A sound file's player: one grey bar holding play, the time, the scrubber, and mute. */
+/* A sound file's player inside an attachment tile: the name on top, then one
+   compact row of play, scrubber, time, and mute. The tile supplies the size
+   and the grey background. */
 .player {
-  --avn-audio-bg: rgb(242, 242, 242);
   --avn-audio-fg: #000000;
+  --avn-audio-muted: rgb(150, 150, 150);
   --avn-audio-rail: rgba(0, 0, 0, 0.15);
 
   display: flex;
+  position: absolute;
+  inset: 0;
   box-sizing: border-box;
-  width: 100%;
   min-width: 0;
-  height: 56px;
-  padding: 0 12px;
-  gap: 8px;
-  align-items: center;
-  border-radius: 22px;
-  background: var(--avn-audio-bg);
+  padding: 10px 6px 6px;
+  flex-direction: column;
+  justify-content: space-between;
   color: var(--avn-audio-fg);
 }
 
 :global(body[data-ds-dark-theme]) .player {
-  --avn-audio-bg: rgb(44, 44, 46);
-  --avn-audio-fg: #ffffff;
+  --avn-audio-fg: rgb(242, 242, 242);
+  --avn-audio-muted: rgb(140, 140, 146);
   --avn-audio-rail: rgba(255, 255, 255, 0.2);
+}
+
+/* Room on the right for the tile's remove control. */
+.title {
+  min-width: 0;
+  padding: 0 22px 0 8px;
+  overflow: hidden;
+  color: var(--avn-audio-muted);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.controls {
+  display: flex;
+  min-width: 0;
+  gap: 2px;
+  align-items: center;
 }
 
 .button {
   display: flex;
   flex: none;
-  width: 36px;
-  height: 36px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -47,13 +66,14 @@
 }
 
 .button svg {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
 }
 
 .time {
   flex: none;
-  font-size: 0.875rem;
+  color: var(--avn-audio-muted);
+  font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -61,9 +81,9 @@
 /* The scrubber: a thin rail filled up to the playing position, with a round handle. */
 .seek {
   flex: 1 1 auto;
-  min-width: 48px;
-  height: 20px;
-  margin: 0;
+  min-width: 16px;
+  height: 16px;
+  margin: 0 2px;
   background: transparent;
   cursor: pointer;
   appearance: none;
@@ -74,29 +94,29 @@
 }
 
 .seek::-webkit-slider-runnable-track {
-  height: 4px;
+  height: 3px;
   border-radius: 999px;
   background: linear-gradient(to right, var(--avn-audio-fg) var(--avn-audio-progress), var(--avn-audio-rail) var(--avn-audio-progress));
 }
 
 .seek::-moz-range-track {
-  height: 4px;
+  height: 3px;
   border-radius: 999px;
   background: linear-gradient(to right, var(--avn-audio-fg) var(--avn-audio-progress), var(--avn-audio-rail) var(--avn-audio-progress));
 }
 
 .seek::-webkit-slider-thumb {
-  width: 12px;
-  height: 12px;
-  margin-top: -4px;
+  width: 10px;
+  height: 10px;
+  margin-top: -3.5px;
   border-radius: 50%;
   background: var(--avn-audio-fg);
   appearance: none;
 }
 
 .seek::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border: 0;
   border-radius: 50%;
   background: var(--avn-audio-fg);
