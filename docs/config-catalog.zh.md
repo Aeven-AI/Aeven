@@ -1856,6 +1856,12 @@ export interface Config {
    */
   mediaUrl?: string
   /**
+   * Origin of the Aeven help center, such as `https://helpcenter.aeven.io`.
+   * The sign-in screens link its Terms of Service and Privacy Policy pages in
+   * the reader's language; absent leaves those names as plain text.
+   */
+  helpCenterUrl?: string
+  /**
    * Credential reference the access token this authority verifies answers to.
    *
    * The token is the caller's Aeven session, and `llm-aeven` presents one to

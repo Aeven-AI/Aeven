@@ -140,6 +140,25 @@ export interface AuthenticateProps {
  * rationale in vitest.config.ts). Clone detection is suppressed for the same
  * decision rather than answered by restructuring the port.
  */
+/**
+ * The agreement line under every sign-in form, linking the help center's legal pages in the reader's language.
+ * @returns the footer; the page names stay plain text when the deployment names no help center.
+ */
+function LegalFooter(): React.JSX.Element {
+  const origin = config.helpCenterUrl()
+  const page = (slug: 'terms' | 'privacy', label: string): React.JSX.Element => origin === undefined
+    ? <span>{label}</span>
+    : <a target="_blank" rel="noopener noreferrer" href={`${origin}/${t('legal.helpCenterLocale')}/docs/${slug}`}>{label}</a>
+  return (
+    <div className="form-footer">
+      <span>{t('legal.prefix')} </span>
+      {page('terms', t('legal.terms'))}{' '}
+      <span>{t('legal.and')}</span>{' '}
+      {page('privacy', t('legal.privacy'))}
+    </div>
+  )
+}
+
 export function Authenticate(props: AuthenticateProps): React.JSX.Element {
   // Identifies this screen's event listeners so unmount removes its own.
   const guidRef = useRef<string | null>(null)
@@ -952,16 +971,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
             </span>
           </div>
         </form>
-        <div className="form-footer">
-          <span>{t('legal.prefix')} </span>
-          <a target="_blank" href="#">
-            {t('legal.terms')}
-          </a>{' '}
-          <span>{t('legal.and')}</span>{' '}
-          <a target="_blank" href="#">
-            {t('legal.privacy')}
-          </a>
-        </div>
+        <LegalFooter />
       </div>
     )
   }
@@ -1077,16 +1087,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
             </span>
           </div>
         </form>
-        <div className="form-footer">
-          <span>{t('legal.prefix')} </span>
-          <a target="_blank" href="#">
-            {t('legal.terms')}
-          </a>{' '}
-          <span>{t('legal.and')}</span>{' '}
-          <a target="_blank" href="#">
-            {t('legal.privacy')}
-          </a>
-        </div>
+        <LegalFooter />
       </div>
     )
   }
@@ -1208,16 +1209,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
             </span>
           </div>
         </form>
-        <div className="form-footer">
-          <span>{t('legal.prefix')} </span>
-          <a target="_blank" href="#">
-            {t('legal.terms')}
-          </a>{' '}
-          <span>{t('legal.and')}</span>{' '}
-          <a target="_blank" href="#">
-            {t('legal.privacy')}
-          </a>
-        </div>
+        <LegalFooter />
       </div>
     )
   }
@@ -1296,16 +1288,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
           </div>
           <div className="subtext"></div>
         </form>
-        <div className="form-footer">
-          <span>{t('legal.prefix')} </span>
-          <a target="_blank" href="#">
-            {t('legal.terms')}
-          </a>{' '}
-          <span>{t('legal.and')}</span>{' '}
-          <a target="_blank" href="#">
-            {t('legal.privacy')}
-          </a>
-        </div>
+        <LegalFooter />
       </div>
     )
   }
@@ -1472,22 +1455,10 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
           </div>
         </div>
       </form>
-      {legalFooter()}
+      <LegalFooter />
     </div>
   )
 
-  const legalFooter = () => (
-    <div className="form-footer">
-      <span>{t('legal.prefix')} </span>
-      <a target="_blank" href="#">
-        {t('legal.terms')}
-      </a>{' '}
-      <span>{t('legal.and')}</span>{' '}
-      <a target="_blank" href="#">
-        {t('legal.privacy')}
-      </a>
-    </div>
-  )
 
   const passwordField = (
     ref: React.RefObject<InputHandle>,
@@ -1565,7 +1536,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
         </div>
         <div className="subtext"></div>
       </form>
-      {legalFooter()}
+      <LegalFooter />
     </div>
   )
 
@@ -1627,7 +1598,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
         </div>
         <div className="subtext"></div>
       </form>
-      {legalFooter()}
+      <LegalFooter />
     </div>
   )
 
@@ -1660,7 +1631,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
         </div>
         <div className="subtext"></div>
       </form>
-      {legalFooter()}
+      <LegalFooter />
     </div>
   )
 

@@ -53,6 +53,7 @@ The row injects the seam and names the API whose keys it verifies against:
 | `apiUrl` | none | Aeven API origin the browser signs in against; absent leaves the client with no authentication surface |
 | `webUrl` | none | Aeven web client origin the account menu links to |
 | `mediaUrl` | none | Origin serving uploaded media that profile-image paths are relative to |
+| `helpCenterUrl` | none | Help center origin; the sign-in screens link its Terms of Service and Privacy Policy in the reader's language, or show the names unlinked when absent |
 | `xOAuthUrl`, `appleOAuthUrl`, `googleOAuthUrl` | none | Provider sign-in URLs; an absent one hides that provider's button |
 | `oauthFlow` | none | How a provider sign-in reaches the provider, stated whenever a provider URL is: `redirect` leaves the reader's document for the provider, `window` reaches it from a window of its own. The plugin refuses to load when a provider is offered without one |
 
