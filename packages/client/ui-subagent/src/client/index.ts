@@ -67,6 +67,9 @@ export function apply(ctx: ClientContext): void {
     setCatalogOpen(parentSessionId: SessionId, open: boolean) {
       sessions.setSubagentCatalogOpen(parentSessionId, open)
     },
+    stopChild(address: SubagentAddress) {
+      return sessions.interruptSubagent(address)
+    },
   })
   ctx.slots.inject(
     'conversation.session.header.lineage',

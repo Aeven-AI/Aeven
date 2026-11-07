@@ -33,7 +33,7 @@ kind: "package-reference"
 
 ### 续接对话
 
-确切 parent 存活时，可继续 child 保留普通输入 chrome：child 运行期间输入和 Send 保持可用，因为每条后续消息都会进入 child 的 FIFO inbox，而独立的 Stop 经由 `subagents/interruptByParent` 路由。确切 parent 不可用且 child 未在运行的可继续 child 会选用说明恢复路径的只读编辑器；此类 child 仍在运行期间，selector 会让位给普通编辑器——输入区与 Send 被禁用，但独立的 Stop 保持可用。
+目录中每个运行中的行都带有一个 Stop，它按该行的 mode 经由 `subagents/interruptByParent` 结束该 child 的当前轮次，无需打开 child。可继续 child 保留其暂存的后续消息；一次性 child 的 run 以 `aborted` 结算，从而结束 parent 的委派调用。在目录报告 child 空闲之前，该行显示“正在停止”，之后显示“已停止”。确切 parent 存活时，可继续 child 保留普通输入 chrome：child 运行期间输入和 Send 保持可用，因为每条后续消息都会进入 child 的 FIFO inbox，而独立的 Stop 经由 `subagents/interruptByParent` 路由。确切 parent 不可用且 child 未在运行的可继续 child 会选用说明恢复路径的只读编辑器；此类 child 仍在运行期间，selector 会让位给普通编辑器——输入区与 Send 被禁用，但独立的 Stop 保持可用。
 
 ### `@` 引用 source
 
@@ -102,7 +102,7 @@ one-shot child 始终选用只读编辑器。可继续 child 仅在其确切 par
 
 这些限制定义目录能显示什么、`@` 引用意味着什么；它们是当前包约束。
 
-- **目录没有持久化结果**：活动状态与计时无法区分完成、失败或取消，且 UI 不公开 Activation 身份；停止能力仅限编辑器上针对运行中可继续 child 的当前轮次 Stop。
+- **目录没有持久化结果**：活动状态与计时无法区分完成、失败或取消，且 UI 不公开 Activation 身份。只有在当前打开的列表中按下 Stop 后，该行才显示“已停止”。行上的 Stop 只结束 child 的当前轮次：可继续 child 保留其暂存的 inbox 与自身正在运行的 children，停止 parent 的轮次也不会停止可继续 child。
 - **`@` 引用仍是显示标题文本**：重复或改名后的 label 会有歧义，因此它们刻意不获得继续执行语义。
 
 <a id="dev-note"></a>

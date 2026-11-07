@@ -203,6 +203,11 @@ export class SubagentRuntime extends TypertRemoteService {
     maxActiveSubagents: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER).default(16),
   }).default({ maxActiveSubagents: 16 })
   private readonly capacity = new WeakMap<Agent, Set<symbol>>()
+  /**
+   * Live one-shot runs by child session id, with the parent session that started each. A browser Stop reaches a
+   * one-shot child through this table; an entry leaves when its run settles or is disposed.
+   */
+  private readonly oneShots = new Map<SessionId, { readonly parentSessionId: SessionId; readonly run: SubagentRun }>()
   private readonly config: Config
   private providers = new Map<string, SubagentProvider>()
   private continuations: SubagentContinuationManager | undefined
@@ -503,7 +508,8 @@ export class SubagentRuntime extends TypertRemoteService {
    * Absent, idle, and already-completed targets are accepted no-ops there.
    * @param childSessionId - durable child session id to interrupt.
    * @param parentSessionId - durable direct parent whose authority is claimed.
-   * @param mode - required continuable-address discriminator.
+   * @param mode - the child's address mode. A one-shot child's current turn is cancelled through its live run, which
+   *   then settles `aborted` and ends the parent's delegation call; an unknown or settled one-shot is a no-op.
    * @returns acknowledgement that the cancel signal was admitted, not that the target is quiescent.
    * @throws {RemoteError} `gateway/bad-request` for an empty id,
    *   `subagent/unauthorized` when the address does not own the live target,
@@ -513,11 +519,27 @@ export class SubagentRuntime extends TypertRemoteService {
   interruptByParent(
     childSessionId: SessionId,
     parentSessionId: SessionId,
-    mode: 'continuable',
+    mode: 'continuable' | 'one-shot',
   ): SubagentInterruptReceipt {
     validateControlRequest('subagent.interrupt', { childSessionId, parentSessionId, mode })
     if (this.ctx.get('identityUsers')?.mayAccess(this.ctx.get('sessions')?.get(parentSessionId)?.header.owner) === false) {
       throw new RemoteError('subagent/unauthorized', 'subagent does not belong to this parent', { childSessionId })
+    }
+    if (mode === 'one-shot') {
+      const live = this.oneShots.get(childSessionId)
+      if (live === undefined) return { accepted: true }
+      if (live.parentSessionId !== parentSessionId) {
+        throw new RemoteError('subagent/unauthorized', 'subagent does not belong to this parent', { childSessionId })
+      }
+      // A local child stops its turn and the run settles `aborted`; a remote run has no turn to cancel, so it is
+      // disposed, which cancels its remaining work.
+      if (live.run.localAgent === undefined) {
+        void live.run.dispose().catch(() => {
+          // A disposal fault also settles the run's result, which the delegating call reports to its parent.
+        })
+      }
+      else live.run.localAgent.cancel({ kind: 'user' })
+      return { accepted: true }
     }
     try {
       this.interrupt(childSessionId, { kind: 'user', parentSessionId })
@@ -605,6 +627,11 @@ export class SubagentRuntime extends TypertRemoteService {
     try {
       const run = await provider.start(resolved)
       manager?.registerOneShot(run.localAgent, root)
+      const live = { parentSessionId: request.parent.session.id, run }
+      this.oneShots.set(run.id, live)
+      const forget = (): void => { if (this.oneShots.get(run.id) === live) this.oneShots.delete(run.id) }
+      void run.result.then(forget, forget)
+      const oneShots = this.oneShots
       let disposal: Promise<void> | undefined
       return observeRun(this.emitLifecycle, name, request.parent, {
         id: run.id,
@@ -615,7 +642,10 @@ export class SubagentRuntime extends TypertRemoteService {
         dispose(): Promise<void> {
           if (disposal !== undefined) return disposal
           disposal = (async () => {
-            try { await run.dispose() } finally { release() }
+            try { await run.dispose() } finally {
+              release()
+              if (oneShots.get(run.id) === live) oneShots.delete(run.id)
+            }
           })()
           return disposal
         },

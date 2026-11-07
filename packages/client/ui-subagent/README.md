@@ -33,7 +33,7 @@ Rows display mode plus `running`/`inactive` activity and an optional log-backed 
 
 ### Continuing a conversation
 
-A continuable child with a live parent keeps the ordinary input chrome: typing and Send stay available while the child runs because every follow-up joins the child's FIFO inbox, and an independent Stop routes through `subagents/interruptByParent`. A continuable child whose exact parent is unavailable and which is not running elects a read-only composer explaining the recovery path; while such a child still runs, the selector yields to the ordinary composer with input and Send disabled but its independent Stop usable.
+Every running row in the catalog carries a Stop that ends that child's current turn through `subagents/interruptByParent` with the row's mode, without opening the child. A continuable child keeps its parked follow-ups; a one-shot child's run settles `aborted`, which ends the parent's delegation call. The row shows Stopping until the catalog reports the child idle, then Stopped. A continuable child with a live parent keeps the ordinary input chrome: typing and Send stay available while the child runs because every follow-up joins the child's FIFO inbox, and an independent Stop routes through `subagents/interruptByParent`. A continuable child whose exact parent is unavailable and which is not running elects a read-only composer explaining the recovery path; while such a child still runs, the selector yields to the ordinary composer with input and Send disabled but its independent Stop usable.
 
 ### The `@` reference source
 
@@ -102,7 +102,7 @@ Append-only. This package never edits earlier request tokens.
 
 These limits define what the catalog can show and what `@` references mean; they are current package constraints.
 
-- **The catalog has no durable outcome** — activity and timing do not distinguish completion, failure, or cancellation, and the UI exposes no Activation identity; stopping is limited to the composer's current-turn Stop for a running continuable child.
+- **The catalog has no durable outcome** — activity and timing do not distinguish completion, failure, or cancellation, and the UI exposes no Activation identity. A row reads "Stopped" only after a Stop pressed in that open list. A row's Stop ends the child's current turn only: a continuable child keeps its parked inbox and its own running children, and stopping the parent's turn does not stop continuable children.
 - **`@` references remain display-title text** — duplicate or renamed labels are ambiguous, so they intentionally do not acquire continuation semantics.
 
 <a id="dev-note"></a>

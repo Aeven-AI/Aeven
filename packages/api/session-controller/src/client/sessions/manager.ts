@@ -356,6 +356,21 @@ export class SessionManager {
   }
 
   /**
+   * Stop a running direct child from its parent's catalog, then refresh that catalog so the row reports the stop.
+   * @param address - catalog-derived parent and child ids with the child's mode.
+   * @returns whether the Host admitted the stop.
+   */
+  async interruptSubagent(address: SubagentAddress): Promise<boolean> {
+    const result = await this.remote.subagents.interruptByParent(
+      address.childSessionId,
+      address.parentSessionId,
+      address.mode,
+    )
+    void this.refreshSubagents(address.parentSessionId)
+    return result.ok
+  }
+
+  /**
    * Refresh one direct-child catalog, reusing its in-flight request.
    * @param parentSessionId - catalog owner.
    */

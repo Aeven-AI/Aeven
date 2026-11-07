@@ -7,7 +7,7 @@ import type { SubagentAddress } from '@aeven/subagent/client'
 import type { SessionId } from '@aeven/session/types'
 import {
   ActivityDetails, ActivityItem, ActivityLink, ActivityMenu, ActivityMessage, ActivityNote, ActivityPill,
-  ActivitySection, formatDuration, type ActivityFact,
+  ActivityRowButton, ActivitySection, IconStopFill16, formatDuration, type ActivityFact,
 } from '@aeven/client-ui-primitives'
 import type { PropsLocale, PropsRuntime, TranslateNS } from '@aeven/client-ui-slots'
 import { NS } from './locales.ts'
@@ -27,6 +27,12 @@ export interface SubagentCatalogInjected {
   openSession: (sessionId: SessionId) => void
   refresh: (parentSessionId: SessionId) => void
   setCatalogOpen: (parentSessionId: SessionId, open: boolean) => void
+  /**
+   * Stop a running direct child's current turn.
+   * @param address - the child's catalog address.
+   * @returns whether the Host admitted the stop.
+   */
+  stopChild: (address: SubagentAddress) => Promise<boolean>
 }
 
 /** Full props for the session-header lineage renderer. */
@@ -124,7 +130,7 @@ function NestedAgents({ parentSessionId, catalogs, summaries, openChild, setCata
  * the way into its conversation, and the agents it started.
  */
 function AgentItem({
-  parentSessionId, entry, current, expanded, onToggle, now, catalogs, summaries, openChild, setCatalogOpen, t,
+  parentSessionId, entry, current, expanded, onToggle, now, catalogs, summaries, openChild, setCatalogOpen, stopChild, t,
 }: {
   parentSessionId: SessionId
   entry: ChildEntry
@@ -136,11 +142,34 @@ function AgentItem({
   summaries: Summaries
   openChild: (address: SubagentAddress) => void
   setCatalogOpen: (parentSessionId: SessionId, open: boolean) => void
+  stopChild: (address: SubagentAddress) => Promise<boolean>
   t: TranslateNS<typeof NS>
 }) {
   const summary = summaries[entry.id]
   const name = agentName(entry, summaries)
   const running = entry.activity === 'running'
+  // The row's own record of a Stop the reader pressed: pending until the catalog reports the child idle, then
+  // `stopped` for as long as this list stays mounted, so a stopped run does not read as a finished one.
+  const [stop, setStop] = useState<'pending' | 'failed' | 'stopped' | undefined>(undefined)
+  useEffect(() => {
+    if (!running && stop === 'pending') setStop('stopped')
+  }, [running, stop])
+  const address: SubagentAddress = { parentSessionId, childSessionId: entry.id, mode: entry.mode }
+  const stopButton = running
+    ? (
+      <ActivityRowButton
+        label={t(stop === 'failed' ? 'stop.failed' : 'stop.label', { label: name })}
+        disabled={stop === 'pending'}
+        failed={stop === 'failed'}
+        onClick={() => {
+          setStop('pending')
+          void stopChild(address).then((accepted) => { setStop(current => (accepted ? current : 'failed')) })
+        }}
+      >
+        <IconStopFill16 size={12} />
+      </ActivityRowButton>
+    )
+    : undefined
   const durationMs = activityDuration(summary, entry.activity, now)
   const duration = durationMs === undefined ? undefined : formatDuration(durationMs, t)
   const tokens = tokenTotal(summary?.projectionValues?.tokenUsage)
@@ -153,8 +182,11 @@ function AgentItem({
   return (
     <ActivityItem
       name={name}
-      state={running ? 'running' : 'done'}
-      status={running ? undefined : (current ? t('status.viewing') : t('status.done'))}
+      state={running ? 'running' : stop === 'stopped' ? 'stopped' : 'done'}
+      status={running
+        ? (stop === 'pending' ? t('status.stopping') : undefined)
+        : current ? t('status.viewing') : stop === 'stopped' ? t('status.stopped') : t('status.done')}
+      trailing={stopButton}
       meta={duration}
       open={expanded}
       onToggle={onToggle}
@@ -167,7 +199,7 @@ function AgentItem({
           : (
             <ActivityLink
               title={t('open.conversation')}
-              onClick={() => { openChild({ parentSessionId, childSessionId: entry.id, mode: entry.mode }) }}
+              onClick={() => { openChild(address) }}
             />
           )}
         {entry.hasChildren
@@ -195,7 +227,7 @@ const NO_DESCENDANTS = { count: 0, runningCount: 0 } as const
  * catalog is observed only while the list is open.
  */
 function AgentsMenu({
-  rootSessionId, currentSessionId, useSessions, openChild, refresh, setCatalogOpen, t,
+  rootSessionId, currentSessionId, useSessions, openChild, refresh, setCatalogOpen, stopChild, t,
 }: {
   rootSessionId: SessionId
   currentSessionId?: SessionId | undefined
@@ -203,6 +235,7 @@ function AgentsMenu({
   openChild: (address: SubagentAddress) => void
   refresh: (parentSessionId: SessionId) => void
   setCatalogOpen: (parentSessionId: SessionId, open: boolean) => void
+  stopChild: (address: SubagentAddress) => Promise<boolean>
   t: TranslateNS<typeof NS>
 }) {
   const catalogs = useSessions(state => state.subagentsByParent)
@@ -267,6 +300,7 @@ function AgentsMenu({
       summaries={summaries}
       openChild={(address) => { setOpen(false); openChild(address) }}
       setCatalogOpen={setCatalogOpen}
+      stopChild={stopChild}
       t={t}
     />
   )
@@ -325,14 +359,14 @@ function AgentsMenu({
  * @returns the header controls, or null when there are no agents to show.
  */
 export function SubagentHeaderLineage({
-  lineageSessionId, useSessions, openChild, openSession, refresh, setCatalogOpen, t,
+  lineageSessionId, useSessions, openChild, openSession, refresh, setCatalogOpen, stopChild, t,
 }: SubagentHeaderLineageProps) {
   const parentId = useSessions((state) => {
     const summary = state.byId[lineageSessionId]
     return summary?.origin === 'subagent' ? summary.parentId : undefined
   })
   const parentTitle = useSessions(state => parentId === undefined ? undefined : state.byId[parentId]?.displayTitle)
-  const shared = { useSessions, openChild, refresh, setCatalogOpen, t }
+  const shared = { useSessions, openChild, refresh, setCatalogOpen, stopChild, t }
   if (parentId === undefined) {
     return <AgentsMenu key={lineageSessionId} rootSessionId={lineageSessionId} {...shared} />
   }
