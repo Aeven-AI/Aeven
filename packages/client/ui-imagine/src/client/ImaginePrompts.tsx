@@ -4,8 +4,9 @@
  * asks the model for; `Try it` there puts the message in the composer, where it can be edited and sent like any
  * message.
  */
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import type { PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
+import { Spinner } from '@aeven/client-ui-primitives'
 import type {} from '@aeven/client-ui-conversation/client'
 import { IMAGINE_PROMPTS, promptClipUrl, promptImageUrl } from './prompts.ts'
 import type { ImaginePromptId } from './prompts.ts'
@@ -21,52 +22,19 @@ import css from './ImaginePrompts.module.css'
  */
 export function ImaginePrompts({ inputActions, t }: PropsRuntime<'conversation.start'> & PropsLocale<'imagine'>) {
   const [open, setOpen] = useState<ImaginePromptId | null>(null)
-  // An example image that has not shipped yet leaves its card title-only
-  // rather than showing a broken frame.
-  const [missing, setMissing] = useState<readonly ImaginePromptId[]>([])
   const opened = IMAGINE_PROMPTS.find(prompt => prompt.id === open)
   return (
     <section className={css.root} aria-label={t('prompts.label')}>
       <div className={css.grid}>
         {IMAGINE_PROMPTS.map(({ id, image, clip }) => (
-          <button
+          <PromptCard
             key={id}
-            type="button"
-            className={css.card}
-            data-prompt={id}
-            onClick={() => { setOpen(id) }}
-          >
-            {clip !== undefined
-              ? (
-                // A card whose example moves plays it in place, silently and on
-                // a loop, over its own still as the poster.
-                <video
-                  className={css.image}
-                  preload="auto"
-                  src={promptClipUrl(clip)}
-                  poster={image === undefined ? undefined : promptImageUrl(image)}
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  aria-hidden="true"
-                  // A card inserted after load can miss the autoplay decision, so
-                  // it asks for playback once its own data is there.
-                  onCanPlay={(event) => { void event.currentTarget.play().catch(() => {}) }}
-                />
-              )
-              : image !== undefined && !missing.includes(id) && (
-                <img
-                  className={css.image}
-                  src={promptImageUrl(image)}
-                  alt=""
-                  loading="lazy"
-                  onError={() => { setMissing(current => current.includes(id) ? current : [...current, id]) }}
-                />
-              )}
-            <span className={css.shade} aria-hidden="true" />
-            <span className={css.title}>{t(`prompt.${id}.title`)}</span>
-          </button>
+            id={id}
+            image={image}
+            clip={clip}
+            title={t(`prompt.${id}.title`)}
+            onOpen={() => { setOpen(id) }}
+          />
         ))}
       </div>
       {opened !== undefined && (opened.id === 'sketch'
@@ -85,5 +53,92 @@ export function ImaginePrompts({ inputActions, t }: PropsRuntime<'conversation.s
           />
         ))}
     </section>
+  )
+}
+
+/** What a card shows: its example still loading, its example on screen, or its title alone. */
+type CardState = 'loading' | 'ready' | 'title-only'
+
+/**
+ * One starter card. While its example loads, a light surface with a spinner and the title in ink covers it; the
+ * surface fades out as the first frame arrives. An example that never shipped, or fails to load, leaves the card
+ * title-only. The whole card stays one click target in every state.
+ * @param props - the prompt's id, example assets, translated title, and the open handler.
+ * @returns the card button.
+ */
+function PromptCard({ id, image, clip, title, onOpen }: {
+  id: ImaginePromptId
+  image: string | undefined
+  clip: string | undefined
+  title: string
+  onOpen: () => void
+}) {
+  // A clip that fails falls back to its still, when it has one.
+  const [clipFailed, setClipFailed] = useState(false)
+  const playClip = clip !== undefined && !clipFailed
+  const hasMedia = playClip || image !== undefined
+  const [state, setState] = useState<CardState>(hasMedia ? 'loading' : 'title-only')
+  const ready = useCallback(() => { setState(current => current === 'loading' ? 'ready' : current) }, [])
+  const failed = useCallback(() => {
+    if (playClip && image !== undefined) {
+      setClipFailed(true)
+      return
+    }
+    setState('title-only')
+  }, [image, playClip])
+  // A cached asset can finish before React attaches its listener, so the element's own state is read on mount.
+  const imageRef = useCallback((element: HTMLImageElement | null) => {
+    if (element !== null && element.complete && element.naturalWidth > 0) ready()
+  }, [ready])
+  const videoRef = useCallback((element: HTMLVideoElement | null) => {
+    if (element !== null && element.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) ready()
+  }, [ready])
+  return (
+    <button type="button" className={css.card} data-prompt={id} data-state={state} onClick={onOpen}>
+      {state !== 'title-only' && (playClip
+        ? (
+          // A card whose example moves plays it in place, silently and on
+          // a loop, over its own still as the poster.
+          <video
+            ref={videoRef}
+            className={css.image}
+            preload="auto"
+            src={promptClipUrl(clip)}
+            poster={image === undefined ? undefined : promptImageUrl(image)}
+            autoPlay
+            muted
+            loop
+            playsInline
+            aria-hidden="true"
+            onLoadedData={ready}
+            // A card inserted after load can miss the autoplay decision, so
+            // it asks for playback once its own data is there.
+            onCanPlay={(event) => {
+              ready()
+              void event.currentTarget.play().catch(() => {})
+            }}
+            onError={failed}
+          />
+        )
+        : image !== undefined && (
+          <img
+            ref={imageRef}
+            className={css.image}
+            src={promptImageUrl(image)}
+            alt=""
+            loading="lazy"
+            onLoad={ready}
+            onError={failed}
+          />
+        ))}
+      <span className={css.shade} aria-hidden="true" />
+      <span className={css.title}>{title}</span>
+      {state !== 'title-only' && (
+        <span className={css.preloader} aria-hidden="true">
+          <Spinner />
+          <span className={css.preloaderTitle}>{title}</span>
+        </span>
+      )}
+    </button>
   )
 }

@@ -55,7 +55,8 @@
   transition: transform 300ms ease;
 }
 
-.card:hover .image {
+/* The lift waits for the example: a loading card has nothing to enlarge. */
+.card[data-state="ready"]:hover .image {
   transform: scale(1.03);
 }
 
@@ -65,6 +66,7 @@
   inset: 55% 0 0;
   background: linear-gradient(to top, rgba(0, 0, 0, 0.5), transparent);
   pointer-events: none;
+  transition: opacity 260ms ease;
 }
 
 .title {
@@ -78,4 +80,53 @@
   font-weight: 500;
   line-height: 1.125rem;
   text-align: left;
+  transition: opacity 260ms ease;
+}
+
+/* While the example loads, the shade and white title wait under the preloader
+   and arrive as it leaves, so the hand-over is one cross-fade. */
+.card[data-state="loading"] .shade,
+.card[data-state="loading"] .title {
+  opacity: 0;
+}
+
+/* The loading surface: white in light, the raised layer in dark, with the
+   spinner centred and the title in ink at the shipped title's own seat. It
+   never takes a click, so the card stays one hit target while it loads. */
+.preloader {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  pointer-events: none;
+  transition: opacity 260ms ease, visibility 0s linear 260ms;
+}
+
+.card[data-state="ready"] .preloader {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.preloaderTitle {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  color: var(--dsw-alias-label-primary);
+  font-family: var(--dsw-font-family);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.125rem;
+  text-align: left;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preloader,
+  .shade,
+  .title {
+    transition: none;
+  }
 }
