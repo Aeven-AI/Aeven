@@ -43,6 +43,16 @@ function rememberedAttempt(): ConnectorId | undefined {
   }
 }
 
+/**
+ * The reader's country as the Host stated it in the page (`__AVN_READER_COUNTRY__`, set by the hosted bundle from the
+ * edge's country header).
+ * @returns the ISO 3166 alpha-2 code, or undefined when the Host stated none.
+ */
+function readerCountry(): string | undefined {
+  const country = (globalThis as { __AVN_READER_COUNTRY__?: unknown }).__AVN_READER_COUNTRY__
+  return typeof country === 'string' ? country : undefined
+}
+
 /** Props from the connector page. */
 export interface WhatsAppAccountsProps extends PairingAccountsProps {
   startWhatsAppPairing: () => Promise<WhatsAppPairingView>
@@ -87,7 +97,7 @@ export function WhatsAppAccounts(props: WhatsAppAccountsProps) {
   }
   useEffect(() => { setCopied(false) }, [phoneCode])
   // The country-code box starts at the browser's own country; a number typed with `+` or `00` replaces it.
-  const [callingCode, setCallingCode] = useState(() => guessCallingCode(navigator.languages))
+  const [callingCode, setCallingCode] = useState(() => guessCallingCode(readerCountry(), navigator.languages))
   const requestCode = (): void => {
     const id = pairing?.id
     if (id === undefined || pairing?.state !== 'qr') return

@@ -24,13 +24,25 @@ import { AccountRequests, type RequestLimits } from './limits.ts'
  */
 export const SETTINGS_PAGE_GLOBAL = '__AVN_SETTINGS__'
 
+/**
+ * Page global holding the reader's country as an ISO 3166 alpha-2 code, read from the request header
+ * {@link Config.countryHeader} names; absent when the header is. `@aeven/client-ui-settings-integrations` starts the
+ * WhatsApp country-code box from it, because a browser's language (`en-US` on a phone in the Netherlands) is a poor
+ * guess of where its reader is.
+ */
+export const READER_COUNTRY_GLOBAL = '__AVN_READER_COUNTRY__'
+
 export const name = 'hosted-runtime'
 export const inject = ['agents', 'llm']
 
-/** Hosted-only admission settings. */
-export type Config = RequestLimits
+/** Hosted-only admission settings, and the request header the edge states the reader's country in. */
+export type Config = RequestLimits & {
+  /** Lower-case request header carrying the reader's ISO 3166 alpha-2 country, such as Cloudflare's `cf-ipcountry`. */
+  countryHeader: string
+}
 
 export const Config: z<Config> = z.object({
+  countryHeader: z.string().default('cf-ipcountry'),
   perAccount: z.natural().min(1).default(2),
   total: z.natural().min(1).default(64),
   queuedPerAccount: z.natural().min(1).default(8),
@@ -43,8 +55,13 @@ export const Config: z<Config> = z.object({
  * @param config - concurrent and queued request bounds.
  */
 export function apply(ctx: Context, config: Config): void {
-  ctx.on('webserver/index-inject', (table) => {
+  ctx.on('webserver/index-inject', (table, _origin, request) => {
     table.push({ kind: 'global', name: SETTINGS_PAGE_GLOBAL, value: { persistence: 'host' } })
+    const country = request?.headers[config.countryHeader]
+    // Cloudflare answers `XX` (unknown) and `T1` (Tor) besides real countries; only a real alpha-2 code is stated.
+    if (typeof country === 'string' && /^[A-Z]{2}$/u.test(country) && country !== 'XX' && country !== 'T1') {
+      table.push({ kind: 'global', name: READER_COUNTRY_GLOBAL, value: country })
+    }
   })
   ctx.on('attachment/missing', async (id, signal, next) => {
     signal?.throwIfAborted()

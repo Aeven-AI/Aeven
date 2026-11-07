@@ -9,7 +9,7 @@ kind: "package-bundle"
 
 ## 概述
 
-`@aeven/hosted-app` 是用一个 Host 向许多人提供 Aeven Web 时的 bundle 层。它叠加在 `@aeven/web-app` 之后，并把两条规则写成行：会话不在 Host 自己的机器上运行任何东西，一个账号改动的任何东西也不作用于另一个账号。文件系统、终端、浏览器、设备、computer-use、代码运行时、workflow 工作线程、代码子代理、技能目录与工作区文件夹关闭，shell 只在 `AVN_HOSTED_SANDBOX=1` 时运行，每条命令都在其账户的[监狱](../../sandbox/sandbox-jail/README.zh.md)中；网页搜索与抓取、imagine、附件、记忆以及同进程内的子代理委派保留。账号设置按登录账号解析，同步提供者为每个在此登录的账号保持一条加密连接。
+`@aeven/hosted-app` 是用一个 Host 向许多人提供 Aeven Web 时的 bundle 层。它叠加在 `@aeven/web-app` 之后，并把两条规则写成行：会话不在 Host 自己的机器上运行任何东西，一个账号改动的任何东西也不作用于另一个账号。文件系统、终端、浏览器、设备、computer-use、代码运行时、workflow 工作线程、代码子代理、技能目录与工作区文件夹关闭，shell 只在 `AVN_HOSTED_SANDBOX=1` 时运行，每条命令都在其账户的[监狱](../../sandbox/sandbox-jail/README.zh.md)中；网页搜索与抓取、imagine、附件、记忆以及同进程内的子代理委派保留。账号设置按登录账号解析，同步提供者为每个在此登录的账号保持一条加密连接。每个页面还会把边缘 `countryHeader`（Cloudflare 的 `cf-ipcountry`）给出的读者国家写成 `__AVN_READER_COUNTRY__`，作为 WhatsApp 国家代码框的初始值。
 
 以 `avn hosted` 启动，它组合 base、web 与这个 bundle，端口默认 3085，除非 `AVN_HOSTED_PORT` 指定另一个。`AVN_HOME` 决定这次部署把状态放在哪里，`AVN_HOSTED_HOST` 决定服务器绑定的地址，`AVN_HOSTED_TRUSTED_HOSTS` 决定浏览器可以用哪些公开名字访问它；TLS、公开名字与请求限制属于前面的代理。
 
