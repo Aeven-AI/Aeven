@@ -4,6 +4,35 @@ import { RemoteError, remoteErrorOf } from '@aeven/typert-protocol'
 import type { ConnectionHandle } from '@aeven/client-connection/client'
 import { RemoteStreamCarrierError } from './stream-client.ts'
 
+/**
+ * How many times a stream reopens while the Host answers that its Service is unavailable, which it does between
+ * accepting connections and activating the Service after a restart. The waits double from 250ms to a 4s ceiling, so
+ * the budget spans about 50 seconds before the failure is terminal; a Service a deployment never mounts still fails.
+ */
+const SERVICE_START_RETRIES = 16
+
+/**
+ * Wait before the next reopen against a Service that is still starting.
+ * @param attempt - 1-based reopen number.
+ * @param signal - generation lifetime; aborting rejects the wait.
+ * @returns when the delay elapsed.
+ */
+function serviceStartDelay(attempt: number, signal: AbortSignal): Promise<void> {
+  const ms = Math.min(4_000, 250 * 2 ** (attempt - 1))
+  return new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', aborted)
+      resolve()
+    }, ms)
+    const aborted = (): void => {
+      clearTimeout(timer)
+      reject(new Error('Remote stream retry aborted', { cause: signal.reason }))
+    }
+    signal.addEventListener('abort', aborted, { once: true })
+    if (signal.aborted) aborted()
+  })
+}
+
 /** One item annotated with the physical Remote-stream generation that delivered it. */
 export interface RemoteStreamItem<Item> {
   /** Monotone physical generation number within this logical stream. */
@@ -94,6 +123,7 @@ export class RemoteStream<Item> implements AsyncIterable<RemoteStreamItem<Item>>
 
   private async * read(): AsyncGenerator<RemoteStreamItem<Item>> {
     let attempt = 0
+    let serviceAttempt = 0
     let generation = 0
     let observedRevision = this.revision
     try {
@@ -120,6 +150,7 @@ export class RemoteStream<Item> implements AsyncIterable<RemoteStreamItem<Item>>
                 if (this.generationAbort !== generationAbort || revision !== this.revision) return
                 accepted = true
                 attempt = 0
+                serviceAttempt = 0
               },
             }
           }
@@ -129,6 +160,15 @@ export class RemoteStream<Item> implements AsyncIterable<RemoteStreamItem<Item>>
         } catch (error) {
           if (isAborted(this.lifetime.signal)) return
           if (revision !== this.revision) continue
+          if (remoteErrorOf(error)?.code === 'gateway/service-unavailable' && serviceAttempt < SERVICE_START_RETRIES) {
+            serviceAttempt++
+            try {
+              await serviceStartDelay(serviceAttempt, signal)
+            } catch {
+              // The wait was aborted by disposal or a restart; the loop head re-reads both and decides.
+            }
+            continue
+          }
           if (!(error instanceof RemoteStreamCarrierError)) throw terminalStreamFailure(error)
           this.options.carrierFailed?.(error)
           if (revision !== this.revision) continue

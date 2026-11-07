@@ -77,6 +77,29 @@ function supervisor<Item>(
 }
 
 describe('RemoteStream', () => {
+  it('reopens while the Host Service is still starting, then gives up on one that never starts', async () => {
+    vi.useFakeTimers()
+    try {
+      const host = hostSource(true)
+      const starting = (): RemoteError => new RemoteError('gateway/service-unavailable', 'active Service "x" is unavailable', { endpoint: 'x/stream' })
+      const warming = supervisor<string>(host.connection, [{ terminal: starting() }, { terminal: starting() }, { values: ['ready'], hold: true }])
+      const iterator = warming[Symbol.asyncIterator]()
+      const first = iterator.next()
+      await vi.advanceTimersByTimeAsync(250 + 500)
+      const item = await first
+      expect(item.done).toBe(false)
+      expect((item.value as { value: string }).value).toBe('ready')
+      await warming.dispose()
+
+      const absent = supervisor<string>(host.connection, Array.from({ length: 17 }, () => ({ terminal: starting() })))
+      const failed = absent[Symbol.asyncIterator]().next().then(() => undefined, (error: unknown) => error)
+      await vi.advanceTimersByTimeAsync(60_000)
+      expect(await failed).toMatchObject({ code: 'gateway/service-unavailable' })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('annotates replacement generations and resets retry state after acceptance', async () => {
     const source = hostSource(true)
     const stream = supervisor(source.connection, [
