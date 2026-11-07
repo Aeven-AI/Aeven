@@ -1696,7 +1696,11 @@ export default class AccountIntegrations extends TypertRemoteService {
       switch (status.state) {
         case 'starting': return
         case 'qr':
-          pairing.view = { id, state: 'qr', ...status.qr_png !== undefined ? { qr: `data:image/png;base64,${status.qr_png}` } : {} }
+          pairing.view = {
+            id, state: 'qr',
+            ...status.qr_png !== undefined ? { qr: `data:image/png;base64,${status.qr_png}` } : {},
+            ...status.phone_code !== undefined ? { phoneCode: status.phone_code } : {},
+          }
           return
         case 'expired':
         case 'failed':

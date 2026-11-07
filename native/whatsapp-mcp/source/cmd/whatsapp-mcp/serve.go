@@ -18,6 +18,9 @@ import (
 	mcpsrv "github.com/sealjay/mcp-whatsapp/internal/mcp"
 	"github.com/sealjay/mcp-whatsapp/internal/security"
 	"github.com/sealjay/mcp-whatsapp/internal/store"
+
+	"go.mau.fi/whatsmeow/proto/waCompanionReg"
+	wastore "go.mau.fi/whatsmeow/store"
 )
 
 func runServe(storeDir string, redactor *security.Redactor, args []string) int {
@@ -92,6 +95,11 @@ func runServe(storeDir string, redactor *security.Redactor, args []string) int {
 	}
 	defer st.Close()
 
+	// The phone lists a linked device by these props, sent once at linking:
+	// whatsmeow's own default names it "whatsmeow". Aeven links as a browser,
+	// matching the "Chrome (Linux)" display a phone code names.
+	wastore.SetOSInfo("Aeven", [3]uint32{1, 0, 0})
+	wastore.DeviceProps.PlatformType = waCompanionReg.DeviceProps_CHROME.Enum()
 	logger := client.NewStderrLogger("Client", "INFO", false)
 	// WHATSAPP_MCP_PAIRING_TRACE=1 writes every linking-handshake node to
 	// stderr. It names the account's number, so it is off unless an operator
@@ -99,6 +107,7 @@ func runServe(storeDir string, redactor *security.Redactor, args []string) int {
 	if os.Getenv("WHATSAPP_MCP_PAIRING_TRACE") == "1" {
 		logger = client.WithPairingTrace(logger)
 	}
+	logger, observer := client.WithNodeObserver(logger)
 	c, err := client.New(ctx, client.Config{
 		StoreDir:         storeDir,
 		Store:            st,
@@ -111,7 +120,7 @@ func runServe(storeDir string, redactor *security.Redactor, args []string) int {
 		return 1
 	}
 
-	drv := newProductionDriver(c)
+	drv := newProductionDriver(c, observer)
 
 	// The daemon owns the pair cache, so build it first, then hand the cache
 	// to the MCP server (so pairing_status can surface the live QR), then

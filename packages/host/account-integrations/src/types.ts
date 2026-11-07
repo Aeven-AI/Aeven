@@ -268,16 +268,22 @@ export interface WhatsAppPairingView {
   state: WhatsAppPairingState
   /** PNG data URL of the current QR code, present only in the `qr` state. */
   qr?: string
+  /**
+   * Phone code currently valid in the `qr` state, once one was issued. WhatsApp replaces it when the phone was given a
+   * code that did not match, so the page shows this rather than the code `whatsAppPhoneCode` first returned.
+   */
+  phoneCode?: string
 }
 
 /**
  * Outcome of asking for a phone-number linking code: the eight-character `code` WhatsApp on that phone asks for,
  * `invalid-phone` when the number is not an international number, `expired` when no attempt is waiting for a scan,
- * or `failed` when WhatsApp refused.
+ * `rate-limited` when WhatsApp refuses new codes for the number for a while after many attempts, or `failed` when
+ * WhatsApp refused for another reason.
  */
 export type WhatsAppPhoneCodeView =
   | { state: 'code'; code: string }
-  | { state: 'invalid-phone' | 'expired' | 'failed' }
+  | { state: 'invalid-phone' | 'expired' | 'rate-limited' | 'failed' }
 
 /** The Telegram account one `telegram` connector is signed in to. */
 export interface TelegramConnectorSettings {

@@ -58,10 +58,13 @@ function pathExecutable(name: string): string | undefined {
   return undefined
 }
 
-/** Daemon `/status` response; `qr_png` is a base64 PNG present only in the `qr` state. */
+/**
+ * Daemon `/status` response; `qr_png` is a base64 PNG present only in the `qr` state, and `phone_code` the phone code
+ * currently valid there once one was issued, which WhatsApp can replace mid-pairing.
+ */
 const statusSchema = z.object({
   state: z.enum(['starting', 'qr', 'paired', 'expired', 'failed']),
-  qr_png: z.string().optional(), phone: z.string().optional(), name: z.string().optional(),
+  qr_png: z.string().optional(), phone_code: z.string().optional(), phone: z.string().optional(), name: z.string().optional(),
 })
 
 /** Daemon `/pair/phone` response. */
@@ -134,6 +137,7 @@ export class WhatsAppDaemon extends AccountDaemon {
     })
     if (response.status === 400) return { state: 'invalid-phone' }
     if (response.status === 409) return { state: 'expired' }
+    if (response.status === 429) return { state: 'rate-limited' }
     if (!response.ok) throw new Error(`WhatsApp issued no linking code (HTTP ${String(response.status)}): ${(await response.text()).slice(0, 300).trim()}`)
     return { state: 'code', code: phoneCodeSchema.parse(await response.json()).code }
   }

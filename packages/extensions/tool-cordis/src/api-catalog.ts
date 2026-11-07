@@ -10031,11 +10031,11 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'WhatsAppPairingView',
-    declaration: 'export interface WhatsAppPairingView {\n    id?: ConnectorId;\n    state: WhatsAppPairingState;\n    qr?: string;\n}',
+    declaration: 'export interface WhatsAppPairingView {\n    id?: ConnectorId;\n    state: WhatsAppPairingState;\n    qr?: string;\n    phoneCode?: string;\n}',
   },
   {
     name: 'WhatsAppPhoneCodeView',
-    declaration: 'export type WhatsAppPhoneCodeView = {\n    state: \'code\';\n    code: string;\n} | {\n    state: \'invalid-phone\' | \'expired\' | \'failed\';\n};',
+    declaration: 'export type WhatsAppPhoneCodeView = {\n    state: \'code\';\n    code: string;\n} | {\n    state: \'invalid-phone\' | \'expired\' | \'rate-limited\' | \'failed\';\n};',
   },
   {
     name: 'WindowTarget',

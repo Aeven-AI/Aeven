@@ -4,15 +4,24 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
+
+	"go.mau.fi/whatsmeow"
 )
 
 // accountReporter is implemented by drivers that can name the paired
 // account. Production wiring satisfies it; test fakes need not.
 type accountReporter interface {
 	Account() (phone, name string)
+}
+
+// phoneCodeReporter is implemented by drivers that know the phone code
+// currently valid for the pairing, which WhatsApp can replace mid-pairing.
+type phoneCodeReporter interface {
+	PhoneCode() string
 }
 
 // phonePairer is implemented by drivers that can link by phone number:
@@ -35,9 +44,12 @@ type phonePairer interface {
 type statusResponse struct {
 	State string `json:"state"`
 	QRPNG string `json:"qr_png,omitempty"`
-	Phone string `json:"phone,omitempty"`
-	Name  string `json:"name,omitempty"`
-	Event string `json:"event,omitempty"`
+	// PhoneCode is the phone code currently valid, present in the "qr" state
+	// once one was issued; it changes when WhatsApp asks for a new one.
+	PhoneCode string `json:"phone_code,omitempty"`
+	Phone     string `json:"phone,omitempty"`
+	Name      string `json:"name,omitempty"`
+	Event     string `json:"event,omitempty"`
 }
 
 type statusHandlers struct {
@@ -56,7 +68,7 @@ func (h *statusHandlers) mount(mux *http.ServeMux) {
 // The driver opens a fresh login session for the code, so a pairing whose QR
 // expired can still link by phone; the new session's QR stays valid beside the
 // code, and whichever the phone completes pairs the device. 409 means the
-// device is already paired.
+// device is already paired, and 429 that WhatsApp is limiting codes for the number.
 func (h *statusHandlers) handlePairPhone(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST required", http.StatusMethodNotAllowed)
@@ -84,6 +96,12 @@ func (h *statusHandlers) handlePairPhone(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	code, err := pairer.PairPhone(r.Context(), phone)
+	if errors.Is(err, whatsmeow.ErrIQRateOverLimit) {
+		// WhatsApp refuses new codes for this number for a while after many
+		// attempts; the caller tells the reader to wait or scan the QR instead.
+		http.Error(w, "WhatsApp is limiting linking codes for this number", http.StatusTooManyRequests)
+		return
+	}
 	if err != nil {
 		// The supervisor discards this process's stderr, so the reason travels
 		// in the response for the Host to log.
@@ -122,6 +140,9 @@ func (h *statusHandlers) handleStatus(w http.ResponseWriter, r *http.Request) {
 		}
 		resp.State = "qr"
 		resp.QRPNG = base64.StdEncoding.EncodeToString(png)
+		if reporter, ok := h.driver.(phoneCodeReporter); ok {
+			resp.PhoneCode = reporter.PhoneCode()
+		}
 	default:
 		resp.State = "starting"
 	}
