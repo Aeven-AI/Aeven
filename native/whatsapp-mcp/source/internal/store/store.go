@@ -204,6 +204,16 @@ func (s *Store) GetMediaInfo(id, chatJID string) (mediaType, filename, url, dire
 	return
 }
 
+// GetMessageBody returns a cached message's text and media type, with
+// sql.ErrNoRows when the cache holds no such message. Text is the message
+// body for a text message; a media message keeps no caption, so its text is
+// empty.
+func (s *Store) GetMessageBody(id, chatJID string) (content, mediaType string, err error) {
+	var c, mt sql.NullString
+	err = s.db.QueryRow("SELECT content, media_type FROM messages WHERE id = ? AND chat_jid = ?", id, chatJID).Scan(&c, &mt)
+	return c.String, mt.String, err
+}
+
 // GetNewestMessage returns the latest message row for a chat, used by the
 // history-sync code to anchor the request.
 func (s *Store) GetNewestMessage(chatJID string) (id string, ts time.Time, isFromMe bool, err error) {

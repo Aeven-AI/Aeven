@@ -7,7 +7,7 @@ English | [中文](README.zh.md)
 [![Go Report Card](https://goreportcard.com/badge/github.com/Sealjay/mcp-whatsapp)](https://goreportcard.com/report/github.com/Sealjay/mcp-whatsapp)
 [![Go 1.25+](https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go&logoColor=white)](https://go.dev/)
 [![MCP](https://img.shields.io/badge/MCP-protocol-6366f1)](https://modelcontextprotocol.io/)
-[![43 tools](https://img.shields.io/badge/tools-43-blue)]()
+[![44 tools](https://img.shields.io/badge/tools-44-blue)]()
 [![whatsmeow](https://img.shields.io/badge/whatsmeow-multidevice-25D366?logo=whatsapp&logoColor=white)](https://github.com/tulir/whatsmeow)
 [![Sealjay/mcp-whatsapp MCP server](https://glama.ai/mcp/servers/Sealjay/mcp-whatsapp/badges/score.svg?)](https://glama.ai/mcp/servers/Sealjay/mcp-whatsapp)
 [![GitHub issues](https://img.shields.io/github/issues/Sealjay/mcp-whatsapp)](https://github.com/Sealjay/mcp-whatsapp/issues)
@@ -22,7 +22,7 @@ This started as a fork of [lharries/whatsapp-mcp](https://github.com/lharries/wh
 - **Sent-message storage** — outgoing messages are persisted locally so conversation history stays complete.
 - **Disappearing-message timers** — outgoing messages inherit the group chat's ephemeral timer automatically.
 - **Targeted history sync** — on-demand per-chat backfill via the `request_sync` tool.
-- **Extended tool surface** — 43 tools (see below): reactions, replies, edits, revoke, mark-read, typing, is-on-whatsapp, full group admin, blocklist, polls (create + vote + tally), contact cards, location pins, view-once flag, presence, privacy settings, and the profile "About" text.
+- **Extended tool surface** — 44 tools (see below): reactions, replies, forwards, edits, revoke, mark-read, typing, is-on-whatsapp, full group admin, blocklist, polls (create + vote + tally), contact cards, location pins, view-once flag, presence, privacy settings, and the profile "About" text.
 - **Single-instance enforcement** — a `flock(2)` on `store/.lock` prevents two `serve` processes racing on the same SQLite files.
 
 ## Setup
@@ -220,7 +220,7 @@ Flags and environment variables for `serve`:
 
 ## Tools
 
-43 tools, grouped by purpose.
+44 tools, grouped by purpose.
 
 ### Read / query
 
@@ -255,6 +255,7 @@ Flags and environment variables for `serve`:
 | `mark_chat_read` | Ack the most recent incoming messages in a chat to clear the unread badge |
 | `send_reaction` | React to a message (empty emoji clears an existing reaction) |
 | `send_reply` | Text reply that quotes a prior message |
+| `forward_message` | Forward a cached message with WhatsApp's "Forwarded" label; text goes as text, and media is fetched and sent again without its caption |
 | `edit_message` | Edit a previously-sent message |
 | `delete_message` | Revoke (delete for everyone) a message |
 | `send_typing` | Set per-chat composing / recording presence |

@@ -12,10 +12,11 @@ import (
 	"github.com/sealjay/mcp-whatsapp/internal/media"
 )
 
-// registerSendTools wires outbound-message tools: send_message, send_file,
-// send_audio_message, send_reaction, send_reply, send_contact_card,
+// registerSendTools wires outbound-message tools: forward_message,
+// send_message, send_file, send_audio_message, send_reaction, send_reply,
 // send_typing.
 func (s *Server) registerSendTools() {
+	s.registerForwardMessage()
 	s.registerSendMessage()
 	s.registerSendFile()
 	s.registerSendAudioMessage()
@@ -232,5 +233,33 @@ func (s *Server) registerSendTyping() {
 			state = "active"
 		}
 		return mcp.NewToolResultText(fmt.Sprintf("Presence %s for %s", state, a.ChatJID)), nil
+	}))
+}
+
+// -- forward_message ----------------------------------------------------------
+
+type forwardMessageArgs struct {
+	ChatJID   string `json:"chat_jid"`
+	MessageID string `json:"message_id"`
+	Recipient string `json:"recipient"`
+}
+
+func (s *Server) registerForwardMessage() {
+	tool := mcp.NewTool("forward_message",
+		mcp.WithDescription("Forward a message from the local cache to a person or group, as WhatsApp's Forward does; recipients see it with the \"Forwarded\" label. A text message is forwarded as text; a photo, video, voice note, or document is fetched and sent again without its caption, which the cache does not keep. Reversible via delete_message (revoke). Returns a JSON object `{Success, Message, ID}` where `ID` is the new message's ID on success."),
+		mcp.WithString("chat_jid", mcp.Required(), mcp.Description("chat the message is in ("+jidDesc+")")),
+		mcp.WithString("message_id", mcp.Required(), mcp.Description("WhatsApp message ID of the message to forward (use `message_id` from list_messages)")),
+		mcp.WithString("recipient", mcp.Required(), mcp.Description(recipientDesc)),
+		mcp.WithReadOnlyHintAnnotation(false),
+		mcp.WithDestructiveHintAnnotation(false),
+		mcp.WithIdempotentHintAnnotation(false),
+		mcp.WithOpenWorldHintAnnotation(true),
+	)
+	s.mcp.AddTool(tool, mcp.NewTypedToolHandler(func(ctx context.Context, req mcp.CallToolRequest, a forwardMessageArgs) (*mcp.CallToolResult, error) {
+		if a.ChatJID == "" || a.MessageID == "" || a.Recipient == "" {
+			return mcp.NewToolResultError("chat_jid, message_id, and recipient are required"), nil
+		}
+		ctx = withRateLimitOverride(ctx, req)
+		return resultJSON(s.client.ForwardMessage(ctx, a.ChatJID, a.MessageID, a.Recipient))
 	}))
 }
