@@ -35,11 +35,39 @@ func (s *Store) FormatMessage(ctx context.Context, m Message, showChatInfo bool)
 	b.WriteString("From: ")
 	b.WriteString(senderName)
 	b.WriteString(": ")
+	if m.Forwarded {
+		b.WriteString("[forwarded] ")
+	}
+	if m.Reply != nil {
+		b.WriteString("[replying to ")
+		b.WriteString(s.GetSenderName(ctx, m.Reply.Sender))
+		b.WriteString(": \"")
+		b.WriteString(quoteSnippet(m.Reply))
+		b.WriteString("\"] ")
+	}
 	b.WriteString(contentPrefix)
 	b.WriteString(m.Content)
+	if m.Link != nil && m.Link.Title != "" {
+		b.WriteString(" [link: ")
+		b.WriteString(m.Link.Title)
+		b.WriteString("]")
+	}
 	b.WriteString("\n")
 
 	return b.String()
+}
+
+// quoteSnippet shortens a quoted message to the first 80 characters of its
+// text, or names its media kind when it has no text.
+func quoteSnippet(r *Reply) string {
+	text := strings.Join(strings.Fields(r.Content), " ")
+	if text == "" {
+		return r.MediaType
+	}
+	if runes := []rune(text); len(runes) > 80 {
+		return string(runes[:80]) + "…"
+	}
+	return text
 }
 
 // FormatMessagesList renders a slice of messages. Returns the literal string

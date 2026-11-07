@@ -3,10 +3,10 @@
  * photos, stickers, looping GIFs, videos, and voice notes playable in place.
  * @module
  */
-import { useEffect, useRef, useState, type ReactNode, type SyntheticEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type SyntheticEvent } from 'react'
 import type { ToolCallViewProps } from '@aeven/client-ui-tool/client'
 import type { PropsLocale } from '@aeven/client-ui-slots'
-import { chatsOf, type WhatsAppCardChat, type WhatsAppCardMessage } from './whatsapp-messages.ts'
+import { chatsOf, type WhatsAppCardChat, type WhatsAppCardLink, type WhatsAppCardMessage, type WhatsAppCardQuote } from './whatsapp-messages.ts'
 import { VoiceNote } from './VoiceNote.tsx'
 import type { MessageMediaSource, LoadedMedia } from './message-media.ts'
 import css from './WhatsAppMessagesCard.module.css'
@@ -163,6 +163,61 @@ function clockTime(time: number): string {
   return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(time)
 }
 
+/**
+ * Whether a bubble's text runs over more than one line, so the bubble takes the full width the way every other
+ * multi-line bubble does.
+ * @returns a ref for the text and whether it spans several lines.
+ */
+function useMultiline(): [React.RefObject<HTMLParagraphElement>, boolean] {
+  const ref = useRef<HTMLParagraphElement>(null)
+  const [multiline, setMultiline] = useState(false)
+  useLayoutEffect(() => {
+    const element = ref.current
+    if (element === null) return
+    const measure = (): void => {
+      const lineHeight = Number.parseFloat(getComputedStyle(element).lineHeight)
+      setMultiline(Number.isFinite(lineHeight) && element.getBoundingClientRect().height > lineHeight * 1.5)
+    }
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(measure)
+    observer.observe(element)
+    return () => { observer.disconnect() }
+  }, [])
+  return [ref, multiline]
+}
+
+/** The message a reply quotes: who wrote it and the start of its text, or its media kind. */
+function Quote({ quote, t }: { quote: WhatsAppCardQuote; t: CardT }) {
+  const media = quote.media === undefined ? '' : t(quote.media === 'audio' ? 'voiceNote' : quote.media === 'image' ? 'photo' : quote.media)
+  return (
+    <div className={css.quote}>
+      <span className={css.quoteSender}>{quote.fromMe ? t('you') : quote.senderName}</span>
+      <span className={css.quoteText}>{quote.content !== '' ? quote.content : media}</span>
+    </div>
+  )
+}
+
+/** The preview of a link in the message's text: title, description, and site. */
+function LinkCard({ link }: { link: WhatsAppCardLink }) {
+  let host = ''
+  try {
+    host = new URL(link.url).hostname
+  } catch {
+    // A preview without a parseable URL shows its title and description only.
+  }
+  const body = (
+    <>
+      {link.title !== '' && <span className={css.linkTitle}>{link.title}</span>}
+      {link.description !== '' && <span className={css.linkDescription}>{link.description}</span>}
+      {host !== '' && <span className={css.linkHost}>{host}</span>}
+    </>
+  )
+  return host === ''
+    ? <div className={css.link}>{body}</div>
+    : <a className={css.link} href={link.url} target="_blank" rel="noreferrer">{body}</a>
+}
+
 /** One message bubble. */
 function Bubble({ message, chat, source, showSender, t }: {
   message: WhatsAppCardMessage
@@ -171,14 +226,18 @@ function Bubble({ message, chat, source, showSender, t }: {
   showSender: boolean
   t: CardT
 }) {
-  const bare = message.media === 'sticker' && message.content === ''
+  const [textRef, multiline] = useMultiline()
+  const bare = message.media === 'sticker' && message.content === '' && message.reply === undefined
   return (
     <div className={css.row} data-from-me={message.fromMe || undefined}>
       <div className={bare ? css.bareBubble : css.bubble} data-media={message.media}
-        data-text={message.content !== '' || undefined}>
+        data-text={message.content !== '' || undefined} data-multiline={multiline || undefined}>
         {showSender && chat.group && !message.fromMe && <span className={css.sender}>{message.senderName}</span>}
+        {message.forwarded && <span className={css.forwarded}>{t('forwarded')}</span>}
+        {message.reply !== undefined && <Quote quote={message.reply} t={t} />}
+        {message.link !== undefined && <LinkCard link={message.link} />}
         <MessageMedia source={source} message={message} t={t} />
-        {message.content !== '' && <p className={css.text}>{message.content}</p>}
+        {message.content !== '' && <p ref={textRef} className={css.text}>{message.content}</p>}
         <time className={css.time} dateTime={new Date(message.time).toISOString()}>{clockTime(message.time)}</time>
       </div>
     </div>

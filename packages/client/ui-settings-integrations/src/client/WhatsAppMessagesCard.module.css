@@ -82,7 +82,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  max-width: min(80%, 360px);
+  max-width: min(80%, 480px);
   min-width: 0;
 }
 
@@ -91,6 +91,11 @@
   border-radius: 30px;
   background: #f2f2f2;
   color: #000000;
+}
+
+/* Every bubble whose text runs over several lines takes the same, full width. */
+.bubble[data-multiline] {
+  width: min(80%, 480px);
 }
 
 /* A bubble holding a photo, GIF, or video: the media fills its top edge to edge, the text and time sit below it,
@@ -119,8 +124,20 @@
 
 .bubble[data-media='image'] .sender,
 .bubble[data-media='gif'] .sender,
-.bubble[data-media='video'] .sender {
-  padding: 8px 16px;
+.bubble[data-media='video'] .sender,
+.bubble[data-media='image'] .forwarded,
+.bubble[data-media='gif'] .forwarded,
+.bubble[data-media='video'] .forwarded {
+  padding: 8px 16px 0;
+}
+
+.bubble[data-media='image'] .quote,
+.bubble[data-media='gif'] .quote,
+.bubble[data-media='video'] .quote,
+.bubble[data-media='image'] .link,
+.bubble[data-media='gif'] .link,
+.bubble[data-media='video'] .link {
+  margin: 8px 8px;
 }
 
 .bubble[data-media='image'] .time,
@@ -146,13 +163,58 @@
 }
 
 .sender {
-  padding: 0 8px;
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--dsw-alias-label-primary);
 }
 
-.sender {
+.forwarded {
   font-size: 1rem;
-  font-weight: 500;
-  color: var(--dsw-alias-label-primary);
+  color: rgba(0, 0, 0, 0.5);
+}
+
+/* The message a reply quotes, inset in the reply's bubble. */
+.quote,
+.link {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 8px 16px;
+  border-radius: 20px;
+  background: rgba(0, 0, 0, 0.06);
+  color: #000000;
+  text-decoration: none;
+}
+
+.quote {
+  box-shadow: inset 4px 0 0 rgba(0, 0, 0, 0.25);
+}
+
+.quoteSender,
+.linkTitle {
+  font-size: 1rem;
+  font-weight: 400;
+}
+
+.quoteText,
+.linkDescription {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 1rem;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.linkTitle {
+  overflow-wrap: anywhere;
+}
+
+.linkHost {
+  font-size: 1rem;
+  color: rgba(0, 0, 0, 0.5);
 }
 
 .text {

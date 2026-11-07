@@ -229,7 +229,7 @@ Flags and environment variables for `serve`:
 | Tool | Purpose |
 |---|---|
 | `search_contacts` | Substring search across cached contact names and phone numbers |
-| `list_messages` | Query + filter messages; returns formatted text with context windows, plus `structuredContent.messages` (oldest first, sender names resolved) for clients that draw them |
+| `list_messages` | Query + filter messages; returns formatted text with context windows, plus `structuredContent.messages` (oldest first, sender names resolved, with the quoted message of a reply, the forwarded flag, and a link preview's title and description) for clients that draw them; the text marks forwards and replies too. A sender reads as its address-book name, else its WhatsApp push name, else `+<phone>`. Reply, forward, and link-preview fields exist only for messages cached by a daemon that records them |
 | `list_chats` | List chats with last-message preview; sort by activity or name |
 | `get_chat` | Chat metadata by JID |
 | `get_message_context` | Before/after window around a specific message, plus the same `structuredContent.messages` with `focus` naming the target |

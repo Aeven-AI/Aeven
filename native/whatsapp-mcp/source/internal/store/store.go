@@ -53,6 +53,31 @@ type Message struct {
 	DirectPath  string `json:"direct_path,omitempty"`
 	ChatName    string `json:"chat_name,omitempty"`
 	PhoneNumber string `json:"phone_number,omitempty"`
+	// Reply is the message this one answers, as the sender's app quoted it;
+	// nil when the message is not a reply.
+	Reply *Reply `json:"reply,omitempty"`
+	// Forwarded is true when the sender forwarded the message from elsewhere.
+	Forwarded bool `json:"forwarded,omitempty"`
+	// Link is the preview the sender's app attached to a URL in the text.
+	Link *LinkPreview `json:"link,omitempty"`
+}
+
+// LinkPreview is the title, description, and URL WhatsApp shows above a
+// message that links somewhere.
+type LinkPreview struct {
+	URL         string `json:"url,omitempty"`
+	Title       string `json:"title,omitempty"`
+	Description string `json:"description,omitempty"`
+}
+
+// Reply is the quoted message a reply carries: its ID, its sender's JID as
+// WhatsApp addressed it (phone or LID form), and its text and media kind at
+// the time it was quoted.
+type Reply struct {
+	ID        string `json:"id"`
+	Sender    string `json:"sender,omitempty"`
+	Content   string `json:"content,omitempty"`
+	MediaType string `json:"media_type,omitempty"`
 }
 
 // Chat is a cached WhatsApp chat.
@@ -170,12 +195,23 @@ func (s *Store) StoreMessage(ctx context.Context, m Message, mediaKey, fileSHA25
 	if m.Content == "" && m.MediaType == "" {
 		return nil
 	}
+	var quoted Reply
+	if m.Reply != nil {
+		quoted = *m.Reply
+	}
+	var link LinkPreview
+	if m.Link != nil {
+		link = *m.Link
+	}
 	_, err := s.db.ExecContext(ctx,
 		`INSERT OR REPLACE INTO messages
-		(id, chat_jid, sender, content, timestamp, is_from_me, media_type, filename, url, direct_path, media_key, file_sha256, file_enc_sha256, file_length)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		(id, chat_jid, sender, content, timestamp, is_from_me, media_type, filename, url, direct_path, media_key, file_sha256, file_enc_sha256, file_length,
+		 quoted_id, quoted_sender, quoted_content, quoted_media_type, forwarded, link_url, link_title, link_description)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		m.ID, m.ChatJID, m.Sender, m.Content, m.Timestamp, m.IsFromMe,
 		m.MediaType, m.Filename, m.URL, m.DirectPath, mediaKey, fileSHA256, fileEncSHA256, fileLength,
+		quoted.ID, quoted.Sender, quoted.Content, quoted.MediaType, m.Forwarded,
+		link.URL, link.Title, link.Description,
 	)
 	return err
 }
@@ -332,6 +368,14 @@ CREATE TABLE IF NOT EXISTS messages (
 	file_enc_sha256 BLOB,
 	file_length INTEGER,
 	poll_options_json TEXT,
+	quoted_id TEXT,
+	quoted_sender TEXT,
+	quoted_content TEXT,
+	quoted_media_type TEXT,
+	forwarded BOOLEAN,
+	link_url TEXT,
+	link_title TEXT,
+	link_description TEXT,
 	PRIMARY KEY (id, chat_jid),
 	FOREIGN KEY (chat_jid) REFERENCES chats(jid)
 );
@@ -356,8 +400,7 @@ func migrateSchema(db *sql.DB) error {
 		return fmt.Errorf("pragma table_info(messages): %w", err)
 	}
 	defer rows.Close()
-	hasPollOptions := false
-	hasDirectPath := false
+	present := map[string]bool{}
 	for rows.Next() {
 		var (
 			cid        int
@@ -370,24 +413,28 @@ func migrateSchema(db *sql.DB) error {
 		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dfltValue, &primaryKey); err != nil {
 			return fmt.Errorf("scan table_info(messages): %w", err)
 		}
-		if name == "poll_options_json" {
-			hasPollOptions = true
-		}
-		if name == "direct_path" {
-			hasDirectPath = true
-		}
+		present[name] = true
 	}
 	if err := rows.Err(); err != nil {
 		return fmt.Errorf("iterate table_info(messages): %w", err)
 	}
-	if !hasPollOptions {
-		if _, err := db.Exec("ALTER TABLE messages ADD COLUMN poll_options_json TEXT"); err != nil {
-			return fmt.Errorf("add column poll_options_json: %w", err)
+	for _, column := range []struct{ name, kind string }{
+		{"poll_options_json", "TEXT"},
+		{"direct_path", "TEXT"},
+		{"quoted_id", "TEXT"},
+		{"quoted_sender", "TEXT"},
+		{"quoted_content", "TEXT"},
+		{"quoted_media_type", "TEXT"},
+		{"forwarded", "BOOLEAN"},
+		{"link_url", "TEXT"},
+		{"link_title", "TEXT"},
+		{"link_description", "TEXT"},
+	} {
+		if present[column.name] {
+			continue
 		}
-	}
-	if !hasDirectPath {
-		if _, err := db.Exec("ALTER TABLE messages ADD COLUMN direct_path TEXT"); err != nil {
-			return fmt.Errorf("add column direct_path: %w", err)
+		if _, err := db.Exec("ALTER TABLE messages ADD COLUMN " + column.name + " " + column.kind); err != nil {
+			return fmt.Errorf("add column %s: %w", column.name, err)
 		}
 	}
 	return nil

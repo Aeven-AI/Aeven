@@ -109,6 +109,7 @@ func (c *Client) normalizeIncomingMessage(
 
 	content := extractTextContent(raw)
 	mediaType, filename, url, directPath, mediaKey, fileSHA256, fileEncSHA256, fileLength := extractMediaInfo(raw)
+	reply, forwarded := extractContext(raw)
 
 	return normalizedMessage{
 		msg: store.Message{
@@ -122,6 +123,9 @@ func (c *Client) normalizeIncomingMessage(
 			Filename:   filename,
 			URL:        url,
 			DirectPath: directPath,
+			Reply:      reply,
+			Forwarded:  forwarded,
+			Link:       extractLinkPreview(raw),
 		},
 		mediaKey:      mediaKey,
 		fileSHA256:    fileSHA256,
@@ -396,7 +400,8 @@ func (c *Client) resolveChatNameFallback(ctx context.Context, jid types.JID, sen
 	return jid.User
 }
 
-// extractTextContent returns the plain-text body of a Message, if any.
+// extractTextContent returns the plain-text body of a Message, if any: its
+// text, or the caption of a photo, video, GIF, or document.
 func extractTextContent(msg *waProto.Message) string {
 	if msg == nil {
 		return ""
@@ -407,7 +412,67 @@ func extractTextContent(msg *waProto.Message) string {
 	if ext := msg.GetExtendedTextMessage(); ext != nil {
 		return ext.GetText()
 	}
+	if img := msg.GetImageMessage(); img != nil {
+		return img.GetCaption()
+	}
+	if vid := msg.GetVideoMessage(); vid != nil {
+		return vid.GetCaption()
+	}
+	if doc := msg.GetDocumentMessage(); doc != nil {
+		return doc.GetCaption()
+	}
 	return ""
+}
+
+// contextInfoOf returns the ContextInfo of whichever payload a Message
+// carries; it holds the quoted message of a reply and the forwarded flag.
+func contextInfoOf(msg *waProto.Message) *waProto.ContextInfo {
+	switch {
+	case msg == nil:
+		return nil
+	case msg.GetExtendedTextMessage() != nil:
+		return msg.GetExtendedTextMessage().GetContextInfo()
+	case msg.GetImageMessage() != nil:
+		return msg.GetImageMessage().GetContextInfo()
+	case msg.GetVideoMessage() != nil:
+		return msg.GetVideoMessage().GetContextInfo()
+	case msg.GetAudioMessage() != nil:
+		return msg.GetAudioMessage().GetContextInfo()
+	case msg.GetStickerMessage() != nil:
+		return msg.GetStickerMessage().GetContextInfo()
+	case msg.GetDocumentMessage() != nil:
+		return msg.GetDocumentMessage().GetContextInfo()
+	case msg.GetLocationMessage() != nil:
+		return msg.GetLocationMessage().GetContextInfo()
+	case msg.GetContactMessage() != nil:
+		return msg.GetContactMessage().GetContextInfo()
+	}
+	return nil
+}
+
+// extractContext returns the message a reply quotes, nil for a message that
+// quotes none, and whether the message was forwarded.
+func extractContext(msg *waProto.Message) (*store.Reply, bool) {
+	info := contextInfoOf(msg)
+	if info == nil {
+		return nil, false
+	}
+	var reply *store.Reply
+	if id := info.GetStanzaID(); id != "" {
+		quoted := info.GetQuotedMessage()
+		mediaType, _, _, _, _, _, _, _ := extractMediaInfo(quoted)
+		reply = &store.Reply{ID: id, Sender: info.GetParticipant(), Content: extractTextContent(quoted), MediaType: mediaType}
+	}
+	return reply, info.GetIsForwarded()
+}
+
+// extractLinkPreview returns the link preview a text message carries, or nil.
+func extractLinkPreview(msg *waProto.Message) *store.LinkPreview {
+	ext := msg.GetExtendedTextMessage()
+	if ext == nil || (ext.GetTitle() == "" && ext.GetDescription() == "") {
+		return nil
+	}
+	return &store.LinkPreview{URL: ext.GetMatchedText(), Title: ext.GetTitle(), Description: ext.GetDescription()}
 }
 
 // extractMediaInfo pulls out the storable media fields from a Message.

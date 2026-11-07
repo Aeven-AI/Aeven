@@ -16,6 +16,7 @@ export const en = {
   loading: 'Loading',
   unavailable: 'Not available on this device',
   messageCount: '{count} messages',
+  forwarded: 'Forwarded',
 }
 
 /** Keys of the connector card dictionary. */
@@ -37,6 +38,7 @@ export const es: Record<ConnectorCardKey, string> = {
   loading: 'Cargando',
   unavailable: 'No disponible en este dispositivo',
   messageCount: '{count} mensajes',
+  forwarded: 'Reenviado',
 }
 
 /** Chinese dictionary. */
@@ -55,4 +57,5 @@ export const zh: Record<ConnectorCardKey, string> = {
   loading: '加载中',
   unavailable: '此设备上不可用',
   messageCount: '{count} 条消息',
+  forwarded: '已转发',
 }
