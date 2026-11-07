@@ -137,9 +137,9 @@ func (c *Client) Download(ctx context.Context, messageID, chatJID, outputPath st
 
 	var waMediaType whatsmeow.MediaType
 	switch mediaType {
-	case "image":
+	case "image", "sticker":
 		waMediaType = whatsmeow.MediaImage
-	case "video":
+	case "video", "gif":
 		waMediaType = whatsmeow.MediaVideo
 	case "audio":
 		waMediaType = whatsmeow.MediaAudio

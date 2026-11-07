@@ -76,3 +76,32 @@ func h264Encoder(ctx context.Context) (string, error) {
 	}
 	return "", errors.New("this ffmpeg build has no H.264 encoder, so a GIF cannot be sent; send an MP4 instead")
 }
+
+// VideoStillJPEG returns one representative frame of a video as a JPEG at
+// most 640 pixels wide, so a reader that takes images but not video can see
+// what a GIF or clip shows. ffmpeg's thumbnail filter picks the frame most
+// like the others among the first frames, which skips a blank first frame.
+func VideoStillJPEG(ctx context.Context, path string) ([]byte, error) {
+	if _, err := exec.LookPath("ffmpeg"); err != nil {
+		return nil, errors.New("ffmpeg not found on PATH")
+	}
+	cmd := exec.CommandContext(ctx, "ffmpeg",
+		"-i", sanitizeFFmpegInputPath(path),
+		"-vf", "thumbnail,scale='min(640,iw)':-2",
+		"-frames:v", "1",
+		"-f", "image2",
+		"-c:v", "mjpeg",
+		"pipe:1",
+	)
+	cmd.Env = minimalEnv()
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("ffmpeg still frame failed: %w: %s", err, sanitizeStderr(stderr.String()))
+	}
+	if stdout.Len() == 0 {
+		return nil, errors.New("ffmpeg produced no frame")
+	}
+	return stdout.Bytes(), nil
+}
