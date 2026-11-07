@@ -465,6 +465,37 @@
   color: var(--dsw-alias-label-secondary);
 }
 
+/* Dark theme: bubbles one step above the card, quotes and link previews at the card's own shade. */
+:global(body[data-ds-dark-theme]) .bubble,
+:global(body[data-ds-dark-theme]) .quote,
+:global(body[data-ds-dark-theme]) .link {
+  color: #ffffff;
+}
+
+:global(body[data-ds-dark-theme]) .bubble {
+  background: #333333;
+}
+
+:global(body[data-ds-dark-theme]) .quote,
+:global(body[data-ds-dark-theme]) .link {
+  background: #222222;
+}
+
+:global(body[data-ds-dark-theme]) .time,
+:global(body[data-ds-dark-theme]) .forwarded,
+:global(body[data-ds-dark-theme]) .linkHost {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+:global(body[data-ds-dark-theme]) .quoteText,
+:global(body[data-ds-dark-theme]) .linkDescription {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+:global(body[data-ds-dark-theme]) .bareBubble .time {
+  color: var(--dsw-alias-label-secondary);
+}
+
 @keyframes pulse {
   50% { opacity: 0.5; }
 }
