@@ -9,7 +9,7 @@
  */
 
 import { execFile } from 'node:child_process'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
@@ -224,14 +224,30 @@ function containerOf(extension: string): string {
   return CONTAINERS[extension] ?? extension.toUpperCase()
 }
 
+/** Bytes in the canonical WAV header `ffmpeg -bitexact` writes, which speech recognizers skip to reach the samples. */
+const WAV_HEADER_BYTES = 44
+
 /**
- * Decode the first seconds of a clip's sound to the 16 kHz mono WAV speech recognizers take.
+ * Fix the sizes in a WAV header written to a pipe, where the encoder could not seek back to fill them in.
+ * @param wav - a canonical 44-byte-header WAV.
+ * @returns the same bytes, with the RIFF and data chunk sizes set to the stream's length.
+ */
+function sealWave(wav: Buffer): Uint8Array {
+  wav.writeUInt32LE(wav.byteLength - 8, 4)
+  wav.writeUInt32LE(wav.byteLength - WAV_HEADER_BYTES, 40)
+  return new Uint8Array(wav)
+}
+
+/**
+ * Decode the first seconds of a clip's sound to the 16 kHz mono WAV speech recognizers take. The WAV is read from the
+ * decoder's standard output, so a jail that mounts the clip read-only still decodes it.
  * @param data - the uploaded bytes.
  * @param extension - lowercase extension without the dot.
  * @param config - decoder path, runner, length, and timeout.
  * @param signal - caller cancellation.
  * @param subprocess - the composed subprocess runtime, or undefined to run through `execFile`.
- * @returns the WAV bytes, or undefined when the clip has no decodable sound.
+ * @returns the WAV bytes, or undefined when the clip has no sound.
+ * @throws when the decoder is absent, fails, or times out.
  */
 async function decodeSpeech(
   data: Uint8Array,
@@ -242,28 +258,67 @@ async function decodeSpeech(
 ): Promise<Uint8Array | undefined> {
   const directory = await mkdtemp(join(config.probeDirectory ?? tmpdir(), 'avn-clip-'))
   const file = join(directory, `clip.${extension}`)
-  const wav = join(directory, 'speech.wav')
+  // 16 kHz mono 16-bit samples, plus the header.
+  const maxBytes = config.transcribeMaxSeconds * 32_000 + WAV_HEADER_BYTES + 4096
   try {
     await writeFile(file, data)
     const decodeArgv = [
       config.ffmpegPath, '-v', 'error', '-nostdin', '-i', file, '-vn', '-ac', '1', '-ar', '16000',
-      '-t', String(config.transcribeMaxSeconds), '-f', 'wav', wav,
+      '-t', String(config.transcribeMaxSeconds), '-map_metadata', '-1', '-fflags', '+bitexact', '-flags:a', '+bitexact',
+      '-c:a', 'pcm_s16le', '-f', 'wav', 'pipe:1',
     ]
     const argv = [...config.probeRunner ?? [], ...decodeArgv] as [string, ...string[]]
-    if (subprocess === undefined) {
-      await promisify(execFile)(argv[0], argv.slice(1), { timeout: config.decodeTimeoutMs, signal, maxBuffer: 1 << 20 })
-    } else {
-      await probeThrough(subprocess, argv, directory, config.decodeTimeoutMs, signal)
-    }
-    const bytes = new Uint8Array(await readFile(wav))
-    // A WAV header alone carries no sound to recognize.
-    return bytes.byteLength > 44 ? bytes : undefined
-  } catch {
-    // A clip without a sound track, or a decoder that is absent or fails, is described without a transcript.
-    return undefined
+    const wav = subprocess === undefined
+      ? (await promisify(execFile)(argv[0], argv.slice(1), {
+        timeout: config.decodeTimeoutMs, signal, maxBuffer: maxBytes, encoding: 'buffer',
+      })).stdout
+      : await decodeThrough(subprocess, argv, directory, config.decodeTimeoutMs, maxBytes, signal)
+    // A header alone carries no sound to recognize.
+    return wav.byteLength > WAV_HEADER_BYTES ? sealWave(wav) : undefined
   } finally {
     await rm(directory, { recursive: true, force: true })
   }
+}
+
+/**
+ * Run the decoder through the subprocess runtime and collect its binary standard output.
+ * @param subprocess - the composed subprocess runtime.
+ * @param argv - the decoder argv, runner first.
+ * @param cwd - the directory the clip was written to.
+ * @param timeoutMs - wall-clock limit for the decode.
+ * @param maxBytes - the most output kept; a longer stream is cut there.
+ * @param signal - caller cancellation.
+ * @returns the decoder's standard output.
+ * @throws when the decoder does not exit with status 0.
+ */
+async function decodeThrough(
+  subprocess: SubprocessRuntime,
+  argv: readonly string[],
+  cwd: string,
+  timeoutMs: number,
+  maxBytes: number,
+  signal: AbortSignal,
+): Promise<Buffer> {
+  const handle = subprocess.spawn({
+    argv,
+    cwd,
+    stdio: { stdin: 'ignore', stdout: 'pipe', stderr: { maxBytes: 64 * 1024 } },
+    graceMs: 1_000,
+    signal: AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]),
+  })
+  const chunks: Buffer[] = []
+  let length = 0
+  handle.stdout?.on('data', (chunk: Buffer) => {
+    if (length >= maxBytes) return
+    chunks.push(chunk)
+    length += chunk.byteLength
+  })
+  const outcome = await handle.done
+  if (outcome.exitCode !== 0) {
+    const stderr = handle.collected.stderr?.readFrom(0).text.trim() ?? ''
+    throw new Error(`ffmpeg exited with ${String(outcome.exitCode ?? outcome.signal)}${stderr === '' ? '' : `: ${stderr.slice(0, 300)}`}`)
+  }
+  return Buffer.concat(chunks).subarray(0, maxBytes)
 }
 
 /**
@@ -283,17 +338,26 @@ async function transcribeClip(
   signal: AbortSignal,
 ): Promise<ClipTranscript | undefined> {
   const speech = ctx.get('speechToText')
-  if (speech === undefined || config.transcribeMaxSeconds === 0) return undefined
-  const audio = await decodeSpeech(input.data, input.extension, config, signal, ctx.get('subprocess'))
-  if (audio === undefined) return undefined
+  const logger = ctx.logger('document-extract-video')
+  if (speech === undefined) {
+    logger.info('clip "%s" not transcribed: no speech-to-text is mounted', input.name)
+    return undefined
+  }
+  if (config.transcribeMaxSeconds === 0) return undefined
   try {
+    const audio = await decodeSpeech(input.data, input.extension, config, signal, ctx.get('subprocess'))
+    if (audio === undefined) {
+      logger.info('clip "%s" not transcribed: it has no sound', input.name)
+      return undefined
+    }
     const transcript = await speech.transcribe(speech.resolve({ audio }), signal)
     const partial = seconds !== undefined && seconds > config.transcribeMaxSeconds
     return { text: transcript.text, ...partial ? { partialSeconds: config.transcribeMaxSeconds } : {} }
   } catch (error) {
     signal.throwIfAborted()
-    // Voice input turned off, an unprepared or failing recognizer: the clip is described without a transcript.
-    ctx.logger('document-extract-video').warn('clip transcription failed: %s', error instanceof Error ? error.message : String(error))
+    // A missing or failing decoder, voice input turned off, or an unprepared or failing recognizer: the clip is
+    // described without a transcript.
+    logger.warn('clip "%s" not transcribed: %s', input.name, error instanceof Error ? error.message : String(error))
     return undefined
   }
 }
