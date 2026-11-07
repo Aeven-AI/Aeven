@@ -279,15 +279,21 @@ func (c *Client) handleHistorySync(historySync *events.HistorySync) {
 			}
 			timestamp := time.Unix(int64(msgTS), 0)
 
-			// Determine sender and isFromMe from the message key.
+			// Determine sender and isFromMe from the message key. A group
+			// message in a history sync may name its sender on the message
+			// itself rather than on the key.
 			var rawSenderJID, senderUser string
 			isFromMe := false
+			participant := msg.Message.GetKey().GetParticipant()
+			if participant == "" {
+				participant = msg.Message.GetParticipant()
+			}
 			if msg.Message.Key != nil {
 				if msg.Message.Key.FromMe != nil {
 					isFromMe = *msg.Message.Key.FromMe
 				}
-				if !isFromMe && msg.Message.Key.Participant != nil && *msg.Message.Key.Participant != "" {
-					rawSenderJID = *msg.Message.Key.Participant
+				if !isFromMe && participant != "" {
+					rawSenderJID = participant
 					senderUser = strings.Split(rawSenderJID, "@")[0]
 				} else if isFromMe {
 					rawSenderJID = ownID + "@s.whatsapp.net"
