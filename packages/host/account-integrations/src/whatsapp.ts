@@ -6,6 +6,7 @@ import { createRequire } from 'node:module'
 import { delimiter, dirname, join } from 'node:path'
 import { z } from 'zod'
 import { AccountDaemon, type AccountDaemonOptions } from './account-daemon.ts'
+import type { WhatsAppPhoneCodeView } from './types.ts'
 
 /**
  * Resolve the daemon from the platform package installed for this host.
@@ -63,6 +64,9 @@ const statusSchema = z.object({
   qr_png: z.string().optional(), phone: z.string().optional(), name: z.string().optional(),
 })
 
+/** Daemon `/pair/phone` response. */
+const phoneCodeSchema = z.object({ code: z.string().min(1) })
+
 /** Pairing state of one daemon. */
 export type WhatsAppDaemonStatus = z.infer<typeof statusSchema>
 
@@ -106,6 +110,24 @@ export class WhatsAppDaemon extends AccountDaemon {
     })
     if (!response.ok) throw new Error(`WhatsApp daemon status failed with HTTP ${String(response.status)}`)
     return statusSchema.parse(await response.json())
+  }
+
+  /**
+   * Ask WhatsApp for a phone-number linking code for the pairing in progress.
+   * @param phone - the number being linked, in international form.
+   * @returns the code, or why none was issued.
+   */
+  async pairPhone(phone: string): Promise<WhatsAppPhoneCodeView> {
+    const response = await fetch(`http://${this.requireAddress()}/pair/phone`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${this.token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone }),
+      signal: AbortSignal.timeout(this.options.requestTimeoutMs),
+    })
+    if (response.status === 400) return { state: 'invalid-phone' }
+    if (response.status === 409) return { state: 'expired' }
+    if (!response.ok) return { state: 'failed' }
+    return { state: 'code', code: phoneCodeSchema.parse(await response.json()).code }
   }
 
   /** Remove this linked device from the WhatsApp account and clear its local session. */

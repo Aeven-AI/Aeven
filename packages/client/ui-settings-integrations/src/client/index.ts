@@ -73,6 +73,7 @@ export function apply(ctx: Context): void {
     startWhatsAppPairing: () => value(remote.startWhatsAppPairing()),
     whatsAppPairing: id => value(remote.whatsAppPairing(id)),
     cancelWhatsAppPairing: id => value(remote.cancelWhatsAppPairing(id)),
+    whatsAppPhoneCode: (id, phone) => value(remote.whatsAppPhoneCode(id, phone)),
     startTelegramPairing: phone => value(remote.startTelegramPairing(phone)),
     startTelegramQrPairing: () => value(remote.startTelegramQrPairing()),
     telegramPairing: id => value(remote.telegramPairing(id)),

@@ -270,6 +270,15 @@ export interface WhatsAppPairingView {
   qr?: string
 }
 
+/**
+ * Outcome of asking for a phone-number linking code: the eight-character `code` WhatsApp on that phone asks for,
+ * `invalid-phone` when the number is not an international number, `expired` when no attempt is waiting for a scan,
+ * or `failed` when WhatsApp refused.
+ */
+export type WhatsAppPhoneCodeView =
+  | { state: 'code'; code: string }
+  | { state: 'invalid-phone' | 'expired' | 'failed' }
+
 /** The Telegram account one `telegram` connector is signed in to. */
 export interface TelegramConnectorSettings {
   /** Telegram user id; two connectors may not carry the same one. */

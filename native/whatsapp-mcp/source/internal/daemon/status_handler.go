@@ -1,15 +1,26 @@
 package daemon
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
+	"io"
 	"net/http"
+	"strings"
 )
 
 // accountReporter is implemented by drivers that can name the paired
 // account. Production wiring satisfies it; test fakes need not.
 type accountReporter interface {
 	Account() (phone, name string)
+}
+
+// phonePairer is implemented by drivers that can link by phone number:
+// WhatsApp on that phone asks for the returned eight-character code instead
+// of scanning a QR, which is the only way to link from the phone's own
+// browser. Production wiring satisfies it; test fakes need not.
+type phonePairer interface {
+	PairPhone(ctx context.Context, phone string) (string, error)
 }
 
 // statusResponse is the machine-readable pairing state served at /status for
@@ -37,6 +48,54 @@ type statusHandlers struct {
 func (h *statusHandlers) mount(mux *http.ServeMux) {
 	mux.HandleFunc("/status", h.handleStatus)
 	mux.HandleFunc("/logout", h.handleLogout)
+	mux.HandleFunc("/pair/phone", h.handlePairPhone)
+}
+
+// handlePairPhone requests a phone-number linking code for the pairing in
+// progress. Body: {"phone":"<international number>"}; answers {"code":"..."}.
+// The QR stays valid beside it, and whichever the phone completes pairs the
+// device. 409 means no pairing is waiting for a scan.
+func (h *statusHandlers) handlePairPhone(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST required", http.StatusMethodNotAllowed)
+		return
+	}
+	var req struct {
+		Phone string `json:"phone"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1024)).Decode(&req); err != nil {
+		http.Error(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+	var digits strings.Builder
+	for _, ch := range req.Phone {
+		if ch >= '0' && ch <= '9' {
+			digits.WriteRune(ch)
+		}
+	}
+	if digits.Len() < 7 || digits.Len() > 15 {
+		http.Error(w, "phone must be an international number of 7 to 15 digits", http.StatusBadRequest)
+		return
+	}
+	if h.cache.Paired() || h.cache.QR() == "" {
+		http.Error(w, "no pairing is waiting", http.StatusConflict)
+		return
+	}
+	pairer, ok := h.driver.(phonePairer)
+	if !ok {
+		http.Error(w, "phone pairing unsupported", http.StatusNotImplemented)
+		return
+	}
+	code, err := pairer.PairPhone(r.Context(), digits.String())
+	if err != nil {
+		http.Error(w, "phone pairing failed", http.StatusBadGateway)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	_ = json.NewEncoder(w).Encode(struct {
+		Code string `json:"code"`
+	}{Code: code})
 }
 
 func (h *statusHandlers) handleStatus(w http.ResponseWriter, r *http.Request) {

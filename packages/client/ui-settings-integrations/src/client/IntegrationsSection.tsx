@@ -1,7 +1,7 @@
 /** Personal skill import and connector account management. */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { AccountIntegrationsView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillReferenceImport, SkillUploadFile, SystemSkillView, WhatsAppPairingView } from '@aeven/api-remotes/client'
+import type { AccountIntegrationsView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillReferenceImport, SkillUploadFile, SystemSkillView, WhatsAppPairingView, WhatsAppPhoneCodeView } from '@aeven/api-remotes/client'
 import { Button, LoadingBlock, SectionHeader, MarkdownText, Menu, Modal, Spinner, Switch, Tabs, IconWarningOutline16, IconChevronLeftOutline14, IconCloseOutline16, IconLucideSettings2 } from '@aeven/client-ui-primitives'
 import type { HostObservable, InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import css from './IntegrationsSection.module.css'
@@ -96,6 +96,7 @@ export interface IntegrationsSectionInjected extends TelegramPairingOperations {
   startWhatsAppPairing: () => Promise<WhatsAppPairingView>
   whatsAppPairing: (id: ConnectorId) => Promise<WhatsAppPairingView>
   cancelWhatsAppPairing: (id: ConnectorId) => Promise<void>
+  whatsAppPhoneCode: (id: ConnectorId, phone: string) => Promise<WhatsAppPhoneCodeView>
 }
 
 /** Settings slot props with locale and account operations. */
@@ -738,6 +739,7 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
               startWhatsAppPairing={props.startWhatsAppPairing}
               whatsAppPairing={props.whatsAppPairing}
               cancelWhatsAppPairing={props.cancelWhatsAppPairing}
+              whatsAppPhoneCode={props.whatsAppPhoneCode}
               setConnectorEnabled={props.setConnectorEnabled}
               disconnect={props.disconnect}
               refresh={refreshList}
