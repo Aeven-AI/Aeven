@@ -27,6 +27,10 @@
      hidden): cap the card against the viewport and scroll the option list
      so header and footer actions stay reachable on long batches. */
   max-height: min(60vh, 520px);
+  /* The visible height where the browser knows it: `vh` is the largest
+     viewport, so on a phone with its address bar or keyboard showing a 60vh
+     card can outgrow the column and lose its footer. */
+  max-height: min(60dvh, 520px);
   padding: 0 0 24px;
   border: 0;
   --dsw-elevation-stroke-color: transparent;
@@ -137,6 +141,7 @@
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .pager {
@@ -463,9 +468,11 @@
 }
 
 /* 24px side inset: the pager and the capsules sit level with the header text
-   and the option fills above them. */
+   and the option fills above them. The capsules move to their own line, kept
+   at the right edge, when they do not fit beside the pager on a narrow card. */
 .footer {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
