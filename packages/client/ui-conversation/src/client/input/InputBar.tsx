@@ -13,7 +13,7 @@
  * trigger instead of a parallel tree.
  */
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { CSSProperties, KeyboardEvent, MouseEvent } from 'react'
 import clsx from 'clsx'
 import {
@@ -38,6 +38,28 @@ import { attachmentErrorText, imageSizeText } from '../image-labels.ts'
 import { ComposerOptions } from './ComposerOptions.tsx'
 import { CameraDialog } from './camera/CameraDialog.tsx'
 import css from './InputBar.module.css'
+
+/**
+ * Where a keyboard-shortcut placeholder is worth showing: a mouse-and-keyboard device with room for it on one line.
+ * A touch screen has no Cmd/Ctrl+Enter, and a narrow composer wraps the hint onto a second line.
+ */
+const SHORTCUT_HINT_QUERY = '(hover: hover) and (pointer: fine) and (min-width: 600px)'
+
+/**
+ * Follow {@link SHORTCUT_HINT_QUERY}. A runtime without `matchMedia` (jsdom) shows the hint.
+ * @returns whether the shortcut placeholder fits this device.
+ */
+function useShortcutHintFits(): boolean {
+  return useSyncExternalStore(
+    (notify) => {
+      if (typeof window.matchMedia !== 'function') return () => {}
+      const query = window.matchMedia(SHORTCUT_HINT_QUERY)
+      query.addEventListener('change', notify)
+      return () => { query.removeEventListener('change', notify) }
+    },
+    () => typeof window.matchMedia !== 'function' || window.matchMedia(SHORTCUT_HINT_QUERY).matches,
+  )
+}
 
 export type InputBarProps = ComposerBarProps
 
@@ -477,6 +499,7 @@ export const InputBar = memo(function InputBar({
     return translated !== hintKey ? translated : rawHint
   })()
 
+  const shortcutHintFits = useShortcutHintFits()
   const placeholderText = placeholder ?? (parentOffline
     ? t('placeholder.parentOffline')
     : disabled
@@ -484,7 +507,7 @@ export const InputBar = memo(function InputBar({
       // The steer hint deliberately outranks the plan placeholder:
       // while it shows, the whole-queue gesture is genuinely available
       // (the gate never consults plan mode), so the actionable hint wins.
-      : canSteerQueue
+      : canSteerQueue && shortcutHintFits
         ? t('placeholder.steerQueue')
         : planActive ? t('placeholder.plan') : t('placeholder.default'))
 
