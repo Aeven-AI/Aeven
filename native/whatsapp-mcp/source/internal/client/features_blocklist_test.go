@@ -31,9 +31,9 @@ func TestUnblockContact_NotConnected(t *testing.T) {
 }
 
 func TestBlocklistJSON_AddsPhones(t *testing.T) {
-	list := &types.Blocklist{DHash: "h", JIDs: []types.JID{
-		{User: "99887766", Server: types.HiddenUserServer},
-		{User: "11112222", Server: types.HiddenUserServer},
+	list := &types.Blocklist{DHash: "h", Items: []types.BlocklistItem{
+		{LID: types.JID{User: "99887766", Server: types.HiddenUserServer}, Active: true},
+		{LID: types.JID{User: "11112222", Server: types.HiddenUserServer}, Active: true},
 	}}
 	phones := map[string]string{"99887766@lid": "447700000002"}
 	b, err := json.Marshal(blocklistJSON(list, func(j string) string { return phones[j] }))

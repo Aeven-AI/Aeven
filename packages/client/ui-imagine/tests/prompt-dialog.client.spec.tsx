@@ -311,7 +311,13 @@ describe('starter prompt grid', () => {
 
   it('leads with the create preset, then the retouch preset', () => {
     mountGrid(inputFace())
-    const cards = screen.getAllByRole('button').map(button => button.textContent)
+    // The loading cover repeats the title for sight only; the card's own caption is what it reads as.
+    const caption = (button: HTMLElement): string => {
+      const copy = button.cloneNode(true) as HTMLElement
+      for (const hidden of copy.querySelectorAll('[aria-hidden="true"]')) hidden.remove()
+      return copy.textContent
+    }
+    const cards = screen.getAllByRole('button').map(caption)
     expect(cards[0]).toBe('Instagram original')
     expect(cards[1]).toBe('Instagram improve')
     expect(cards[2]).toBe('Aerial view')

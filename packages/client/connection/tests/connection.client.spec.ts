@@ -144,6 +144,46 @@ describe('connection lifecycle', () => {
     }
   })
 
+  it('cuts a pending retry delay short when asked to retry now, without announcing a state', async () => {
+    vi.useFakeTimers()
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0)
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const states: ConnectionState[] = []
+    let calls = 0
+    const source: ConnectionGenerationSource = (signal, ready) => {
+      calls++
+      if (calls <= 4) return Promise.reject(new Error('suspended'))
+      ready({ home: '/h' })
+      return new Promise<void>((resolve) => {
+        signal.addEventListener('abort', () => { resolve() }, { once: true })
+      })
+    }
+    const controller = new ConnectionController(source, { onStateChange: state => states.push(state) }, {
+      backoffBaseMs: 1_000, backoffFactor: 2, backoffMaxMs: 10_000, generationReadyTimeoutMs: 500,
+    })
+    controller.retryNow()
+    controller.start()
+    try {
+      // Three failed retries leave the loop waiting out a 4s delay (half the 8s cap at zero jitter).
+      await vi.advanceTimersByTimeAsync(500 + 1_000 + 2_000)
+      expect(calls).toBe(4)
+      const announced = states.length
+      controller.retryNow()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(calls).toBe(5)
+      expect(states.slice(announced)).toEqual(['connected'])
+      // Connected: there is no delay to cut, so nothing restarts.
+      controller.retryNow()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(calls).toBe(5)
+    } finally {
+      controller.stop()
+      randomSpy.mockRestore()
+      warnSpy.mockRestore()
+      vi.useRealTimers()
+    }
+  })
+
   it('pauses retries while offline and restarts the base delay after each recovery', async () => {
     vi.useFakeTimers()
     const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0)

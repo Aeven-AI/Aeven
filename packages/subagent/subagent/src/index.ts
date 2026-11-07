@@ -627,7 +627,7 @@ export class SubagentRuntime extends TypertRemoteService {
     try {
       const run = await provider.start(resolved)
       manager?.registerOneShot(run.localAgent, root)
-      const live = { parentSessionId: request.parent.session.id, run }
+      const live = { parentSessionId: request.parent.id, run }
       this.oneShots.set(run.id, live)
       const forget = (): void => { if (this.oneShots.get(run.id) === live) this.oneShots.delete(run.id) }
       void run.result.then(forget, forget)

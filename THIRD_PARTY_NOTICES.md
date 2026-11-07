@@ -109,6 +109,7 @@ External packages that a workspace package resolves at runtime. The tier covers 
 | [`katex`](https://github.com/KaTeX/KaTeX) | MIT |
 | [`koffi`](https://github.com/Koromix/koffi) | MIT |
 | [`lexical`](https://github.com/facebook/lexical) | MIT |
+| [`libphonenumber-js`](https://gitlab.com/catamphetamine/libphonenumber-js) | MIT |
 | [`luxon`](https://github.com/moment/luxon) | MIT |
 | [`mailparser`](https://github.com/nodemailer/mailparser) | MIT |
 | [`mammoth`](https://github.com/mwilliamson/mammoth.js) | BSD-2-Clause |

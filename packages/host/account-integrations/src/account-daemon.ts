@@ -55,6 +55,12 @@ export interface AccountDaemonOptions {
   requestTimeoutMs: number
   /** Time between closing stdin and SIGKILL. */
   stopGraceMs: number
+  /**
+   * Receives each warning or error line the daemon writes to stderr (a line holding ` WARN] ` or ` ERROR] `, cut to
+   * 500 characters); other stderr output is read and dropped. A provider's refusal is otherwise invisible: the
+   * daemon answers its control request with a generic failure.
+   */
+  onDiagnostic?: (line: string) => void
 }
 
 /** A loopback daemon whose stdin lifetime is owned by the Host. */
@@ -97,10 +103,15 @@ export class AccountDaemon {
   protected async launch(command: string, args: string[], env: Record<string, string>,
     pathDirectories: readonly string[] = []): Promise<void> {
     const child = spawn(command, args, {
-      stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true,
+      stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true,
       env: { ...inheritedEnvironment(pathDirectories), ...env },
     })
     this.child = child
+    // Always drained, so a chatty daemon never blocks on a full stderr pipe.
+    const onDiagnostic = this.options.onDiagnostic
+    createInterface({ input: child.stderr }).on('line', (line) => {
+      if (onDiagnostic !== undefined && /\s(?:WARN|ERROR)\] /u.test(line)) onDiagnostic(line.slice(0, 500))
+    })
     child.once('exit', (code) => { this.markExited(code) })
     // A spawn error has no exit event, so it must also settle exit waiters.
     child.once('error', () => { this.markExited(null) })

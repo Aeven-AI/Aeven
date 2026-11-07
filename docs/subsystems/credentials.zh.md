@@ -218,6 +218,15 @@ Signed-in users manage their own integrations; each agent mounts only its owner'
 @Remote // oxlint-disable-next-line typescript/require-await -- the Remote contract answers with a promise; this read has nothing to await. async whatsAppPairing(id: ConnectorId): Promise<WhatsAppPairingView>
 
 /**
+ * Ask for a phone-number linking code for an open attempt, for a reader who cannot scan the QR: linking from the
+ * phone's own browser shows the code on the same screen WhatsApp would scan. The QR stays valid beside it.
+ * @param id - attempt identity from startWhatsAppPairing.
+ * @param phone - the number being linked, in international form.
+ * @returns the code to type into WhatsApp, or why none was issued.
+ */
+@Remote async whatsAppPhoneCode(id: ConnectorId, phone: string): Promise<WhatsAppPhoneCodeView>
+
+/**
  * Abandon a linking attempt and delete its data directory.
  * @param id - attempt identity from startWhatsAppPairing.
  */

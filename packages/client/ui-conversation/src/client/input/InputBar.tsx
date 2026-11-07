@@ -43,7 +43,7 @@ import css from './InputBar.module.css'
  * Where a keyboard-shortcut placeholder is worth showing: a mouse-and-keyboard device with room for it on one line.
  * A touch screen has no Cmd/Ctrl+Enter, and a narrow composer wraps the hint onto a second line.
  */
-const SHORTCUT_HINT_QUERY = '(hover: hover) and (pointer: fine) and (min-width: 600px)'
+const SHORTCUT_HINT_QUERY = '(hover: hover) and (pointer: fine) and (min-width: 640px)'
 
 /**
  * Follow {@link SHORTCUT_HINT_QUERY}. A runtime without `matchMedia` (jsdom) shows the hint.

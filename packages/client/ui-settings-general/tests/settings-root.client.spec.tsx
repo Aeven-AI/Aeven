@@ -183,12 +183,29 @@ describe('SettingsRoot', () => {
     expect(addressListeners.size).toBe(0)
   })
 
+  it('stays silent through an outage that recovers within the five-second grace', () => {
+    vi.useFakeTimers()
+    const mounted = mount()
+
+    mounted.setConnectionState('disconnected')
+    act(() => { vi.advanceTimersByTime(4_999) })
+    expect(screen.queryByRole('alert')).toBeNull()
+    mounted.setConnectionState('connecting')
+    mounted.setConnectionState('connected')
+    act(() => { vi.advanceTimersByTime(5_000) })
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+
   it('shows outage, retry progress, and a two-second recovery confirmation', () => {
     vi.useFakeTimers()
     const mounted = mount()
     expect(screen.queryByRole('button', { name: 'Disconnected, reconnect now' })).toBeNull()
 
     mounted.setConnectionState('disconnected')
+    act(() => { vi.advanceTimersByTime(4_999) })
+    expect(screen.queryByRole('alert')).toBeNull()
+    act(() => { vi.advanceTimersByTime(1) })
     // The toast states the outage in its own label; the reconnect action beside
     // it carries the state in its accessible name.
     const alert = screen.getByRole('alert')
@@ -217,7 +234,9 @@ describe('SettingsRoot', () => {
   })
 
   it('keeps the reconnect toast out of the sidebar whatever its width', () => {
+    vi.useFakeTimers()
     mount({ wide: false, connectionState: 'disconnected' })
+    act(() => { vi.advanceTimersByTime(5_000) })
     // The toast is portaled to the document body, so a collapsed sidebar — or
     // any transformed ancestor — cannot clip it.
     const alert = screen.getByRole('alert')
