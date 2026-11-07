@@ -22,6 +22,8 @@
   .qrLayout .qrSteps { flex: none; width: fit-content; max-width: 100%; }
   .pairingStatus, .pairingActions { justify-content: center; }
   .pairingHint { text-align: center; }
+  .phoneForm { align-self: center; }
+  .phoneForm .error, .qrLayout .error { text-align: center; }
 }
 /* The phone-code form: the label, a narrow country-code box beside the number, and one full-width action. */
 .phoneForm { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 360px; }

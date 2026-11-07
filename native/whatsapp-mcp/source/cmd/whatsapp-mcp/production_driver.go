@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"sync"
 	"time"
 
 	"go.mau.fi/whatsmeow"
+	waBinary "go.mau.fi/whatsmeow/binary"
 	"go.mau.fi/whatsmeow/types/events"
 
 	"github.com/sealjay/mcp-whatsapp/internal/client"
@@ -31,6 +34,10 @@ type productionDriver struct {
 	// session is the login websocket whose QR channel reports to the
 	// callbacks; a replaced session's events are dropped.
 	session *loginSession
+	// phone is the number the last phone code was issued for, and phoneCode
+	// the code currently valid for it; both empty until PairPhone succeeds.
+	phone     string
+	phoneCode string
 }
 
 // loginSession is one unpaired login websocket and its QR channel.
@@ -40,8 +47,56 @@ type loginSession struct {
 	closed chan struct{}
 }
 
-func newProductionDriver(c *client.Client) *productionDriver {
-	return &productionDriver{c: c}
+// newProductionDriver adapts c, watching received nodes through observer for
+// the phone-code stages whatsmeow does not handle.
+func newProductionDriver(c *client.Client, observer *client.NodeObserver) *productionDriver {
+	p := &productionDriver{c: c}
+	observer.Set(p.observe)
+	return p
+}
+
+// observe answers WhatsApp's `refresh_code` stage. The phone sends it when
+// the code it was given did not produce matching keys (a mistyped or
+// mispasted code); WhatsApp's own web client then shows a new code for the
+// same number on the same login session. whatsmeow reads the notification as
+// a malformed primary_hello, so without this the reader is left with a code
+// WhatsApp has already discarded.
+func (p *productionDriver) observe(node *waBinary.Node) {
+	if node.Tag != "notification" || node.AttrGetter().OptionalString("type") != "link_code_companion_reg" {
+		return
+	}
+	reg, ok := node.GetOptionalChildByTag("link_code_companion_reg")
+	if !ok || reg.AttrGetter().OptionalString("stage") != "refresh_code" {
+		return
+	}
+	go p.refreshPhoneCode()
+}
+
+// refreshPhoneCode issues a new code for the number of the last one, on the
+// current login session.
+func (p *productionDriver) refreshPhoneCode() {
+	p.mu.Lock()
+	phone, ctx := p.phone, p.ctx
+	p.mu.Unlock()
+	if phone == "" || ctx == nil || p.c.IsLoggedIn() {
+		return
+	}
+	code, err := p.c.WA().PairPhone(ctx, phone, true, whatsmeow.PairClientChrome, "Chrome (Linux)")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[Client/PairPhone WARN] WhatsApp asked for a new code and none was issued: %v\n", err)
+		return
+	}
+	p.mu.Lock()
+	p.phoneCode = code
+	p.mu.Unlock()
+}
+
+// PhoneCode reports the phone code currently valid for the pairing, which
+// changes when WhatsApp asks for a new one; empty before PairPhone succeeds.
+func (p *productionDriver) PhoneCode() string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.phoneCode
 }
 
 func (p *productionDriver) IsLoggedIn() bool { return p.c.IsLoggedIn() }
@@ -179,7 +234,14 @@ func (p *productionDriver) PairPhone(ctx context.Context, phone string) (string,
 	case <-ctx.Done():
 		return "", ctx.Err()
 	}
-	return p.c.WA().PairPhone(ctx, phone, true, whatsmeow.PairClientChrome, "Chrome (Linux)")
+	code, err := p.c.WA().PairPhone(ctx, phone, true, whatsmeow.PairClientChrome, "Chrome (Linux)")
+	if err != nil {
+		return "", err
+	}
+	p.mu.Lock()
+	p.phone, p.phoneCode = phone, code
+	p.mu.Unlock()
+	return code, nil
 }
 
 func (p *productionDriver) Disconnect() { p.c.Disconnect() }

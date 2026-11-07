@@ -95,7 +95,14 @@ export function WhatsAppAccounts(props: WhatsAppAccountsProps) {
       // Clipboard refused (insecure context, denied permission): the code stays on screen to type.
     })
   }
-  useEffect(() => { setCopied(false) }, [phoneCode])
+  // The code WhatsApp first issued, and the one valid now: WhatsApp replaces it when the phone was given a code that
+  // did not match, and the Host reports the replacement with the pairing state. Shown and copied as its 8 characters
+  // in capitals, because a pasted dash or lowercase letter is a different code to WhatsApp.
+  const issued = phoneCode?.state === 'code' ? phoneCode.code : undefined
+  const latest = pairing?.phoneCode ?? issued
+  const currentCode = latest === undefined ? undefined : latest.replace(/[^0-9a-z]/giu, '').toUpperCase()
+  const refreshed = issued !== undefined && pairing?.phoneCode !== undefined && pairing.phoneCode !== issued
+  useEffect(() => { setCopied(false) }, [currentCode])
   // The country-code box starts at the browser's own country; a number typed with `+` or `00` replaces it.
   const [callingCode, setCallingCode] = useState(() => guessCallingCode(readerCountry(), navigator.languages))
   const requestCode = (): void => {
@@ -202,10 +209,11 @@ export function WhatsAppAccounts(props: WhatsAppAccountsProps) {
         : failure !== undefined
           ? <p role="alert" className={css.error}>{failure}</p>
           : method === 'phone'
-            ? phoneCode?.state === 'code'
+            ? currentCode !== undefined
               ? <div className={css.qrLayout}>
-                <p className={css.phoneCode} aria-live="polite">{phoneCode.code.length === 8 ? `${phoneCode.code.slice(0, 4)}-${phoneCode.code.slice(4)}` : phoneCode.code}</p>
-                <button type="button" className={css.secondaryAction} onClick={() => { copyCode(phoneCode.code) }}>{t(copied ? 'copied' : 'copy')}</button>
+                {refreshed && <p role="alert" className={css.error}>{t('whatsappCodeRefreshed')}</p>}
+                <p className={css.phoneCode} aria-live="polite">{`${currentCode.slice(0, 4)}-${currentCode.slice(4)}`}</p>
+                <button type="button" className={css.secondaryAction} onClick={() => { copyCode(currentCode) }}>{t(copied ? 'copied' : 'copy')}</button>
                 <ol className={css.qrSteps}>
                   <li>{t('whatsappCodeStepOpen')}</li>
                   <li>{t('whatsappCodeStepLink')}</li>
@@ -228,6 +236,7 @@ export function WhatsAppAccounts(props: WhatsAppAccountsProps) {
                 <button type="submit" className={css.primaryAction} disabled={requesting || pairing.state !== 'qr' || phone.trim() === ''}>{t('whatsappPhoneSubmit')}</button>
                 {phoneCode?.state === 'invalid-phone' && <p role="alert" className={css.error}>{t('whatsappPhoneInvalid')}</p>}
                 {(phoneCode?.state === 'failed' || phoneCode?.state === 'expired') && <p role="alert" className={css.error}>{t('whatsappPhoneFailed')}</p>}
+                {phoneCode?.state === 'rate-limited' && <p role="alert" className={css.error}>{t('whatsappPhoneRateLimited')}</p>}
               </form>
             : <div className={css.qrLayout}>
               <div className={css.qrFrame}>
