@@ -873,24 +873,34 @@ export default class AccountIntegrations extends TypertRemoteService {
   /**
    * Read the media of one WhatsApp message a connector tool listed, so its card in the conversation can show an image,
    * play a video or GIF, or play a voice note.
+   * The call that listed the message may have run on another device of the same account, whose connector this Host
+   * does not hold: the named connector is asked first, then the acting user's other linked numbers, since every
+   * device linked to one phone knows its messages by the same IDs.
    * @param toolName - the listing call's tool name, `mcp__whatsapp_<connector prefix>__<tool>`, naming the account.
    * @param chatJid - chat JID of the message.
    * @param messageId - WhatsApp message ID.
-   * @returns the bytes and their content type (a voice note as `audio/mp4`), or undefined when the account is not the
-   * acting user's linked number, the message has no fetchable media, or the file exceeds {@link Config.whatsappMediaMaxBytes}.
+   * @returns the bytes and their content type (a voice note as `audio/mp4`), or undefined when none of the acting user's
+   * linked numbers can fetch the message's media or the file exceeds {@link Config.whatsappMediaMaxBytes}.
    */
   @Remote
   async whatsAppMessageMedia(toolName: string, chatJid: string, messageId: string): Promise<WhatsAppMessageMedia | undefined> {
     const owner = this.owner()
     const match = CONNECTOR_TOOL_NAME.exec(toolName)
     if (match === null || match[1] !== 'whatsapp' || chatJid.length > 256 || messageId.length > 256) return undefined
-    const entry = [...this.domain.table('connectors').entries()]
-      .find(([id, candidate]) => candidate.owner === owner && candidate.provider === 'whatsapp'
-        && connectorServerName(id, candidate.provider) === `${match[1]}_${match[2]}`)
-    if (entry === undefined) return undefined
-    const daemon = await this.linkedWhatsApp(entry[0], entry[1])
-    if (daemon === undefined) return undefined
-    return daemon.messageMedia(chatJid, messageId, { maxBytes: this.config.whatsappMediaMaxBytes, timeoutMs: this.config.timeoutMs })
+    const named = `${match[1]}_${match[2]}`
+    const linked = [...this.domain.table('connectors').entries()]
+      .filter(([, candidate]) => candidate.owner === owner && candidate.provider === 'whatsapp')
+      .sort(([a, left], [b, right]) =>
+        Number(connectorServerName(b, right.provider) === named) - Number(connectorServerName(a, left.provider) === named))
+    for (const [id, connector] of linked) {
+      const daemon = await this.linkedWhatsApp(id, connector)
+      if (daemon === undefined) continue
+      const media = await daemon.messageMedia(chatJid, messageId, {
+        maxBytes: this.config.whatsappMediaMaxBytes, timeoutMs: this.config.timeoutMs,
+      })
+      if (media !== undefined) return media
+    }
+    return undefined
   }
 
   /**

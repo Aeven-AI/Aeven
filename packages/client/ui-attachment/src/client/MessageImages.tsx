@@ -137,7 +137,7 @@ function MessageAttachmentTray({ images, files, turnImages, loadImage, fileUrl, 
     if (picture.url === undefined || picture.url === null) continue
     entries.push({
       src: picture.url,
-      ...picture.video ? { kind: 'video' as const } : {},
+      ...picture.video ? { kind: 'video' as const, poster: posters.get(picture.url) ?? undefined } : {},
       alt: picture.name,
       name: picture.name,
       mediaType: picture.mediaType,

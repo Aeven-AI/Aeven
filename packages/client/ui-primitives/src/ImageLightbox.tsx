@@ -37,8 +37,10 @@ export interface ImageLightboxLabels {
 export interface LightboxImage {
   /** Original image or video URL; also the download source. */
   src: string
-  /** `video` plays the source with the browser's own player controls; absent shows an image. */
+  /** `video` plays the source in a video player; absent shows an image. */
   kind?: 'image' | 'video' | undefined
+  /** A video's still, shown at once and sizing its frame until the clip itself loads. */
+  poster?: string | undefined
   alt: string
   /** File name shown in the info popover and used for the download. */
   name?: string | undefined
@@ -129,6 +131,16 @@ const DEFAULT_VIDEO_RATIO = 16 / 9
 /** A video in the gallery: the product's player in a frame of the clip's own shape, as large as the stage allows. */
 function LightboxVideo({ image, labels }: { image: LightboxImage; labels: VideoPlayerLabels }) {
   const [ratio, setRatio] = useState(DEFAULT_VIDEO_RATIO)
+  // The poster is already decoded for its tile, so its shape is known before the clip's metadata arrives.
+  useEffect(() => {
+    if (image.poster === undefined) return
+    const still = new Image()
+    still.onload = () => {
+      if (still.naturalHeight <= 0) return
+      setRatio(current => current === DEFAULT_VIDEO_RATIO ? still.naturalWidth / still.naturalHeight : current)
+    }
+    still.src = image.poster
+  }, [image.poster])
   return (
     <div className={css.videoFrame} style={{ aspectRatio: String(ratio), '--avn-video-ratio': String(ratio) } as React.CSSProperties}>
       <VideoPlayer
@@ -137,6 +149,7 @@ function LightboxVideo({ image, labels }: { image: LightboxImage; labels: VideoP
         saveName={downloadName(image)}
         labels={labels}
         onRatio={setRatio}
+        poster={image.poster}
         autoPlay
       />
     </div>
