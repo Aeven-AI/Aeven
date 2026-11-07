@@ -18,7 +18,7 @@ import type { SyncDocument } from '@aeven/sync'
 import type { DeviceId } from '@aeven/sync-vault'
 import type { WorkspaceId } from '@aeven/workspace'
 import type { Git } from './git.ts'
-import { untilFolder } from './wait.ts'
+import { folderComplete, untilFolder } from './wait.ts'
 
 /** One device's latest checkpoint of a repository workspace, as the account's devices read it. */
 export interface Checkpoint {
@@ -79,6 +79,8 @@ export class WorkState {
   private readonly timers = new Map<WorkspaceId, NodeJS.Timeout>()
   private readonly writing = new Map<WorkspaceId, Promise<void>>()
   private applied: Record<string, { id: string; at: number }> | undefined
+  // Checkpoints whose handoff wait ran out on this Host run: later turns check for them once instead of waiting again.
+  private readonly missed = new Set<string>()
   private disposed = false
 
   /**
@@ -138,12 +140,14 @@ export class WorkState {
   /**
    * Apply the newest checkpoint another device published for a workspace, when it is newer than this device's own
    * work there and than what was applied last. Local changes are stashed first, and commits the checkpoint would
-   * leave behind keep a ref, so nothing this device had is lost.
+   * leave behind keep a ref, so nothing this device had is lost. The first turn waits up to `handoffWaitMs` for the
+   * checkpoint to arrive; once that wait runs out, later turns on this Host run check for that checkpoint once and do
+   * not wait for it again.
    * @param owner - the account.
    * @param workspace - the repository workspace.
    * @param path - its work tree here.
-   * @param signal - the turn's abort signal.
-   * @returns when the checkpoint is applied, or the wait for it ran out.
+   * @param signal - the turn's abort signal; aborting ends the wait.
+   * @returns when the checkpoint is applied, or the wait for it ran out or was aborted.
    */
   async apply(owner: string, workspace: WorkspaceId, path: string, signal: AbortSignal): Promise<void> {
     const fileSync = this.ctx.get('fileSync')
@@ -165,13 +169,20 @@ export class WorkState {
     const incoming = join(this.options.transferRoot, 'incoming', newest.folder)
     await fileSync.share({ id: folder, owner, path: incoming, peers: [brandString<FileSyncPeerId>(newest.peer)] })
     const expected = newest.id
-    const arrived = await untilFolder(this.ctx, fileSync, folder, Date.now() + this.options.handoffWaitMs, async () => {
-      return (await readMeta(incoming))?.id === expected
-    })
-    if (!arrived || signal.aborted) {
-      this.warn('the work from another device did not arrive in time; the turn runs without it')
+    const complete = async (): Promise<boolean> => (await readMeta(incoming))?.id === expected
+    const missedBefore = this.missed.has(expected)
+    const arrived = missedBefore
+      ? await folderComplete(fileSync, folder, complete)
+      : await untilFolder(this.ctx, fileSync, folder, Date.now() + this.options.handoffWaitMs, complete, signal)
+    if (signal.aborted) return
+    if (!arrived) {
+      if (!missedBefore) {
+        this.missed.add(expected)
+        this.warn('the work from another device did not arrive in time; this turn and later ones run without it until it arrives')
+      }
       return
     }
+    this.missed.delete(expected)
     const meta = await readMeta(incoming)
     if (meta === undefined) return
     await this.applyFolder(path, incoming, newest, meta)

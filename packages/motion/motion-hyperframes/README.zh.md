@@ -72,7 +72,6 @@ kind: "package-reference"
 <a id="known-limitations-and-deferred-work"></a>
 
 - **无不变量伴随包** — 不发布不变量伴随包：渲染器只持有记忆化的查找结果，没有第二个观察者会报告它们。
-- **Linux arm64 需要已安装的 Chromium** — Chrome for Testing 不发布可下载的 Linux arm64 构建。
 - **回退路径会编码两次** — 默认档次下 ProRes 中间文件在视觉上无损，但 1080p30 每秒约需 3.5 MB 临时空间，并多出一次编码。
 - **未安装 Media Feature Pack 的 Windows N 版无法渲染** — ffmpeg 只在 Media Foundation 编码器打开时才加载 `mfplat.dll`，因此能够启动，但找不到编码器。
 - **没有 NVENC、QSV 或 AMF** — 随附的 ffmpeg 未编入任何厂商 GPU 编码器，因此 Windows 总是走回退路径。
