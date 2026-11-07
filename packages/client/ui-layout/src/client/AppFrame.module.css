@@ -389,7 +389,7 @@
    every layer of its panel reads them through (ui-sidebar-right
    SidebarRightRoot.module.css); the frame's own values stay the reader's
    stored width for when the window widens again. */
-@media screen and (max-width: 640px) {
+@media screen and (max-width: 640px), screen and (pointer: coarse) and (max-height: 500px) {
   .frame:not([data-details-collapsed]) .detailsCol {
     width: 100%;
   }

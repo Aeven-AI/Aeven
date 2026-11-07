@@ -87,7 +87,7 @@
 
 /* At Aeven's small breakpoint the frame opens this panel across its whole
    width (ui-layout AppFrame.module.css), so it has no inner edge to round. */
-@media screen and (max-width: 640px) {
+@media screen and (max-width: 640px), screen and (pointer: coarse) and (max-height: 500px) {
   .panel {
     border-top-left-radius: 0;
   }

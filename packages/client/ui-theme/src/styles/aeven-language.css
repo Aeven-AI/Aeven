@@ -229,13 +229,18 @@ body:not([data-ds-dark-theme]) [data-chat-flow] {
   --dsw-alias-label-caption: var(--dsw-aeven-ink);
 }
 
-@media (max-width: 640px) {
+/* The phone layout: a phone-width window, or a touch screen too short for the
+   wide layout, which is a phone turned sideways, so rotating keeps the layout. */
+@media (max-width: 640px), (pointer: coarse) and (max-height: 500px) {
   body {
     --dsw-aeven-page-inset: 16px;
     --dsw-aeven-sidebar-row-inset: 16px;
     --dsw-aeven-sidebar-bottom-inset: 16px;
     /* Aeven rail button: 16px inset + 20px glyph + 16px inset at ≤640. */
     --dsw-aeven-sidebar-toggle-width: 52px;
+    /* The overlaid sidebar leaves a strip of the conversation beside it: 84% of
+       a 320px screen, 280px from about 333px up. Its rows keep 248px. */
+    --dsw-aeven-sidebar-width: min(280px, 84vw);
   }
 }
 
