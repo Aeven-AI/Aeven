@@ -49,17 +49,16 @@
 
 .body {
   box-sizing: border-box;
-  /* Indent under the title, which starts at leading (16 + delta) + gap 6. */
-  width: calc(100% - 22px);
-  max-height: 141px;
-  margin: 4px 0 0 1.375rem;
+  /* The tool rows' expanded card (the Bash terminal and IN/OUT cards): the same
+     surface, radius, code type, inset, and row rhythm, at full column width. */
+  width: 100%;
+  max-height: 260px;
+  margin: 4px 0;
   overflow: auto;
-  /* The chat's 30px card radius; the padding keeps text clear of its corners. */
-  padding: 14px 22px 16px;
+  padding: 12px 16px;
   border: none;
-  border-radius: 30px;
-  background: var(--dsw-alias-markdown-code-block);
-  color: var(--dsw-alias-label-tertiary);
-  /* Figma 10:2482 code text: the form bodies inherit it from the scrollport. */
-  font: 400 0.6875rem/1rem var(--ds-font-family-code);
+  border-radius: var(--dsw-aeven-radius-surface);
+  background: var(--dsw-specific-input-major);
+  color: var(--dsw-alias-label-secondary);
+  font: var(--dsw-font-markdown-code-block-small);
 }

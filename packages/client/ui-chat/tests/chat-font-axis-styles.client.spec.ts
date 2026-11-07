@@ -104,8 +104,16 @@ describe('chat flow font-size axis', () => {
     const indent = '1.375rem'
     expect(declarationsFrom(read('MessageItem.module.css'), '.compactionBody'))
       .toEqual(expect.arrayContaining([`padding: 4px 0 4px ${indent}`]))
-    expect(declarationsFrom(read('ContextInjectionRow.module.css'), '.body'))
-      .toEqual(expect.arrayContaining([`margin: 4px 0 0 ${indent}`]))
+  })
+
+  it('the expanded context body is the tool rows\' card: full width, same surface, radius, and type', () => {
+    expect(declarationsFrom(read('ContextInjectionRow.module.css'), '.body')).toEqual(expect.arrayContaining([
+      'width: 100%',
+      'margin: 4px 0',
+      'border-radius: var(--dsw-aeven-radius-surface)',
+      'background: var(--dsw-specific-input-major)',
+      'font: var(--dsw-font-markdown-code-block-small)',
+    ]))
   })
 
   it('the usage-details trigger reads the conversation content size', () => {
