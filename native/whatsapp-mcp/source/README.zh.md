@@ -239,7 +239,7 @@ WhatsApp 大约每 20 天轮换一次已链接设备会话。在 Docker 之外�
 | 工具 | 用途 |
 |---|---|
 | `send_message` | 向手机号或 JID 发送文本消息 |
-| `send_file` | 发送图片/视频/文档/原始音频，可带说明文字；`view_once: bool` 把图片/视频/音频子消息标为阅后即焚（对文档无效） |
+| `send_file` | 发送图片/视频/文档/原始音频，可带说明文字；`view_once: bool` 把图片/视频/音频子消息标为阅后即焚（对文档无效）；`.gif` 会用 ffmpeg 转为 H.264 MP4 并带 `gifPlayback` 发送，像从手机发送的 GIF 一样循环播放 |
 | `send_audio_message` | 发送语音消息（不是 `.ogg` Opus 时经 ffmpeg 自动转换）；支持 `view_once: bool` |
 | `send_poll` | 发送带问题与 2 个以上选项的投票；`selectable_count` 控制投票者可选的选项数。生成投票解密所需的 32 字节 `MessageSecret` |
 | `send_poll_vote` | 对之前见过的投票投票；`options` 必须与选项名称完全一致 |

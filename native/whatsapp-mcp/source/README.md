@@ -239,7 +239,7 @@ Flags and environment variables for `serve`:
 | Tool | Purpose |
 |---|---|
 | `send_message` | Send a text message to a phone number or JID |
-| `send_file` | Send image/video/document/raw audio with optional caption; `view_once: bool` marks image/video/audio submessages as view-once (ignored for documents) |
+| `send_file` | Send image/video/document/raw audio with optional caption; `view_once: bool` marks image/video/audio submessages as view-once (ignored for documents); a `.gif` is converted to H.264 MP4 with ffmpeg and sent with `gifPlayback`, so it loops like a GIF sent from a phone |
 | `send_audio_message` | Send a voice note (auto-converts via ffmpeg if not `.ogg` Opus); supports `view_once: bool` |
 | `send_poll` | Send a poll with a question and 2+ options; `selectable_count` controls how many options a voter may pick. Generates the 32-byte `MessageSecret` required for votes to decrypt |
 | `send_poll_vote` | Cast a vote on a previously-seen poll; `options` must match option names exactly |
