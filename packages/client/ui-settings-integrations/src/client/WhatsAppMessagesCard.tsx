@@ -232,7 +232,9 @@ function Bubble({ message, chat, source, showSender, t }: {
     <div className={css.row} data-from-me={message.fromMe || undefined}>
       <div className={bare ? css.bareBubble : css.bubble} data-media={message.media}
         data-text={message.content !== '' || undefined} data-multiline={multiline || undefined}>
-        {showSender && chat.group && !message.fromMe && <span className={css.sender}>{message.senderName}</span>}
+        {showSender && chat.group && !message.fromMe && message.senderName !== '' && (
+          <span className={css.sender}>{message.senderName}</span>
+        )}
         {message.forwarded && <span className={css.forwarded}>{t('forwarded')}</span>}
         {message.reply !== undefined && <Quote quote={message.reply} t={t} />}
         {message.link !== undefined && <LinkCard link={message.link} />}

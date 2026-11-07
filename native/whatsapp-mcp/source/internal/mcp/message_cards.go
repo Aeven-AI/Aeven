@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -17,7 +18,7 @@ type cardMessage struct {
 	ID         string             `json:"id"`
 	ChatJID    string             `json:"chat_jid"`
 	ChatName   string             `json:"chat_name,omitempty"`
-	SenderName string             `json:"sender_name"`
+	SenderName string             `json:"sender_name"` // empty when the cache does not know the sender
 	IsFromMe   bool               `json:"is_from_me"`
 	IsGroup    bool               `json:"is_group"`
 	Timestamp  string             `json:"timestamp"`
@@ -66,6 +67,11 @@ func (s *Server) cardsOf(ctx context.Context, msgs []store.Message, focus string
 		sender := "Me"
 		if !m.IsFromMe {
 			sender = s.client.Store().GetSenderName(ctx, m.Sender)
+		}
+		if m.IsGroup && !m.IsFromMe && m.Sender == strings.Split(m.ChatJID, "@")[0] {
+			// History synced before the daemon read a group sender from the
+			// message itself recorded the group as the sender.
+			sender = ""
 		}
 		cards = append(cards, cardMessage{
 			ID: m.ID, ChatJID: m.ChatJID, ChatName: m.ChatName, SenderName: sender,

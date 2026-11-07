@@ -28,6 +28,9 @@ func (s *Store) FormatMessage(ctx context.Context, m Message, showChatInfo bool)
 	var senderName string
 	if m.IsFromMe {
 		senderName = "Me"
+	} else if m.IsGroup && m.Sender == jidUser(m.ChatJID) {
+		// History synced by an older daemon recorded the group as the sender.
+		senderName = "unknown member"
 	} else {
 		senderName = s.GetSenderName(ctx, m.Sender)
 	}
