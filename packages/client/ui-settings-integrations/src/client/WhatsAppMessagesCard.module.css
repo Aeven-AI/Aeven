@@ -18,7 +18,6 @@
   flex-direction: column;
   min-width: 0;
   border-radius: 30px;
-  border: 1px solid var(--dsw-alias-border-l1);
   background: var(--dsw-alias-bg-layer-1);
   overflow: hidden;
 }
@@ -27,17 +26,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 20px;
-  border-bottom: 1px solid var(--dsw-alias-border-l1);
-}
-
-/* The chat mark: WhatsApp's green, as a speech bubble dot. */
-.mark {
-  flex: 0 0 auto;
-  width: 22px;
-  height: 22px;
-  border-radius: 50% 50% 50% 4px;
-  background: #25d366;
+  padding: 12px 20px 0;
 }
 
 .chatName {
@@ -46,7 +35,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 500;
+  font-size: 1rem;
+  font-weight: 400;
   color: var(--dsw-alias-label-primary);
 }
 
@@ -61,9 +51,6 @@
   flex-direction: column;
   gap: 4px;
   padding: 12px;
-  max-height: 560px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
 }
 
 .day {
