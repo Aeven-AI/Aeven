@@ -10,7 +10,7 @@ Asking Aeven to check WhatsApp showed a generic tool row holding the daemon's te
 
 ## Decision
 
-A `list_messages` or `get_message_context` call draws as one card per chat, outside the folded process group, with chat bubbles by day, photos and stickers, silently looping GIFs, videos that load when played, downloadable documents, and voice notes with a play button and a waveform that seeks.
+A `list_messages` or `get_message_context` call draws as one card per chat, outside the folded process group, with chat bubbles by day, photos and stickers, silently looping GIFs, videos that play muted as they come into view, downloadable documents, and voice notes with a play button and a waveform that seeks.
 
 - **Data.** The daemon returns `structuredContent.messages` (oldest first, deduplicated, sender names resolved) beside the unchanged text ([`message_cards.go`](../../../../native/whatsapp-mcp/source/internal/mcp/message_cards.go)). The MCP bridge records any `structuredContent` as the durable `tool/result` meta through `presentationMeta` ([`tools.ts`](../../../../packages/mcp/mcp-client/src/tools.ts)), so the card replays from the session log and the model still reads only the text.
 - **Media.** The daemon's token-protected `GET /media` serves one message's decrypted bytes and re-encodes a voice note as AAC, because Safari before 18.4 plays no Ogg Opus ([`media_http.go`](../../../../native/whatsapp-mcp/source/internal/mcp/media_http.go)). `accountIntegrations.whatsAppMessageMedia` resolves the account from the call's tool name, answers only for the acting user's own number, and returns base64, since Typert Remote results carry JSON only.

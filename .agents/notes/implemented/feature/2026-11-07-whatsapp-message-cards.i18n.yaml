@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-07-whatsapp-message-cards.md
-2026-11-07-whatsapp-message-cards.md: aa56fc6eda49ef5002367a1c35c1f47d8b822e3f
-2026-11-07-whatsapp-message-cards.zh.md: b8203817663c5552403518960063629a291b71d4
+2026-11-07-whatsapp-message-cards.md: 78ed47f2bd5ec4231d9a9a0cffcf83122627459d
+2026-11-07-whatsapp-message-cards.zh.md: b0fd660509c8900a4ae1a168b315fd0da9d91e00
