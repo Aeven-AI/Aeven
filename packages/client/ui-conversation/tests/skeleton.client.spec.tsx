@@ -23,6 +23,7 @@ import { SessionInputShell } from '../src/client/input/facade.ts'
 import { en, zh } from '../src/client/locales.ts'
 import { ConversationRoot } from '../src/client/skeleton/ConversationRoot.tsx'
 import { ConversationSession, ConversationSessionHeader } from '../src/client/skeleton/ConversationSession.tsx'
+import { INCOMING_PROMPT_KEY } from '../src/client/input/incoming-prompt.ts'
 import { conversationPhase } from '../src/client/contract/snapshot.ts'
 import { greetingKeyOf, HeroShell } from '@aeven/client-ui-primitives'
 import { InputBar } from '../src/client/input/InputBar.tsx'
@@ -622,6 +623,30 @@ describe('ConversationRoot resident composer', () => {
     expect(box.getAttribute('contenteditable')).toBe('true')
     expect(box.getAttribute('data-placeholder')).toBe('问我任何问题')
     expect(b.retargetWorkspace).not.toHaveBeenCalled()
+  })
+
+  it('sends the message a link left for this tab as a blank Session\'s first message, once', () => {
+    window.sessionStorage.setItem(INCOMING_PROMPT_KEY, 'Plan my week')
+    try {
+      const b = mount(sessionSnapshotOf({ blank: true }), undefined, undefined, { summaryBlank: true })
+      expect(b.sink).toHaveBeenCalledTimes(1)
+      expect(b.sink).toHaveBeenCalledWith('Plan my week', [], 'queue', expect.any(AbortSignal))
+      expect(window.sessionStorage.getItem(INCOMING_PROMPT_KEY)).toBeNull()
+    } finally {
+      window.sessionStorage.removeItem(INCOMING_PROMPT_KEY)
+    }
+  })
+
+  it('keeps a link\'s message waiting while the list shows the selected Session has history', () => {
+    window.sessionStorage.setItem(INCOMING_PROMPT_KEY, 'Plan my week')
+    try {
+      // The snapshot still reports blank while history loads; the list does not.
+      const b = mount(sessionSnapshotOf({ blank: true, openState: 'loading' }), undefined, undefined, { summaryBlank: false })
+      expect(b.sink).not.toHaveBeenCalled()
+      expect(window.sessionStorage.getItem(INCOMING_PROMPT_KEY)).toBe('Plan my week')
+    } finally {
+      window.sessionStorage.removeItem(INCOMING_PROMPT_KEY)
+    }
   })
 
   it('keeps a rejected first prompt engaging instead of returning to the Hero', () => {

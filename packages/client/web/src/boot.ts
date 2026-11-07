@@ -16,6 +16,7 @@ import { startStaticModules } from './seed.ts'
 import { STATE_LABELS } from './loader-status.ts'
 import { fontsReady } from './fonts.ts'
 import { hidePreloader, showPreloader } from './preloader.ts'
+import { stashIncomingPrompt } from './incoming-prompt.ts'
 import './base.css'
 
 /** Module transport hook replaced by jsdom tests. */
@@ -73,6 +74,9 @@ export class AppWebEntry {
    * @returns Resolves after application mount or failure rendering.
    */
   async run(): Promise<void> {
+    // Before the gate: a sign-in screen rewrites the address, and a provider
+    // redirect replaces the document, either of which would lose the fragment.
+    stashIncomingPrompt()
     const { table: staticModules, rendering: renderingReady } = startStaticModules()
     const facesReady = fontsReady()
     this.stopFollowingSession = auth.onSessionEnded(() => { this.sessionEnd?.end() })
