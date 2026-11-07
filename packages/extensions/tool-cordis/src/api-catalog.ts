@@ -202,6 +202,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'current QR code or outcome.',
       },
       {
+        signature: '@Remote async whatsAppPhoneCode(id: ConnectorId, phone: string): Promise<WhatsAppPhoneCodeView>',
+        description: 'Ask for a phone-number linking code for an open attempt, for a reader who cannot scan the QR: linking from the phone\'s own browser shows the code on the same screen WhatsApp would scan. The QR stays valid beside it.',
+        parameters: [{ name: 'id', description: 'attempt identity from startWhatsAppPairing.' }, { name: 'phone', description: 'the number being linked, in international form.' }],
+        returns: 'the code to type into WhatsApp, or why none was issued.',
+      },
+      {
         signature: '@Remote async cancelWhatsAppPairing(id: ConnectorId): Promise<void>',
         description: 'Abandon a linking attempt and delete its data directory.',
         parameters: [{ name: 'id', description: 'attempt identity from startWhatsAppPairing.' }],
@@ -3709,9 +3715,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         throws: ['{RemoteError} `gateway/bad-request`, `subagent/attachment-invalid`, `subagent/invalid-time-zone`, `subagent/parent-unavailable`, `subagent/not-resumable`, `subagent/unauthorized`, `subagent/delivery-unavailable`, `gateway/cancelled`, or `gateway/internal`.'],
       },
       {
-        signature: '@Remote(\'interruptByParent\') interruptByParent( childSessionId: SessionId, parentSessionId: SessionId, mode: \'continuable\', ): SubagentInterruptReceipt',
+        signature: '@Remote(\'interruptByParent\') interruptByParent( childSessionId: SessionId, parentSessionId: SessionId, mode: \'continuable\' | \'one-shot\', ): SubagentInterruptReceipt',
         description: 'Remote face of interrupt under one durable parent address. No catalog, history, persistence, or parent Agent lookup runs: the core primitive alone authorizes the address against the live Activation, which is what keeps a live child interruptible while its parent Agent is offline. Absent, idle, and already-completed targets are accepted no-ops there.',
-        parameters: [{ name: 'childSessionId', description: 'durable child session id to interrupt.' }, { name: 'parentSessionId', description: 'durable direct parent whose authority is claimed.' }, { name: 'mode', description: 'required continuable-address discriminator.' }],
+        parameters: [{ name: 'childSessionId', description: 'durable child session id to interrupt.' }, { name: 'parentSessionId', description: 'durable direct parent whose authority is claimed.' }, { name: 'mode', description: 'the child\'s address mode. A one-shot child\'s current turn is cancelled through its live run, which then settles `aborted` and ends the parent\'s delegation call; an unknown or settled one-shot is a no-op.' }],
         returns: 'acknowledgement that the cancel signal was admitted, not that the target is quiescent.',
         throws: ['{RemoteError} `gateway/bad-request` for an empty id, `subagent/unauthorized` when the address does not own the live target, otherwise `gateway/internal`.'],
       },
@@ -9161,7 +9167,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubagentRuntime',
-    declaration: 'export class SubagentRuntime extends TypertRemoteService {\n    static Config;\n    constructor(ctx: Context, config: Config = { maxActiveSubagents: 16 });\n    rootOf(caller: Agent): Agent;\n    async startContinuable(spec: ContinuableStartSpec): Promise<ContinuableStart>;\n    async sendMessage(sender: Agent, targetId: SessionId, content: ContentBlock[], options: SubagentSendMessageOptions): Promise<MessageId>;\n    interrupt(targetSessionId: SessionId, authority: SubagentInterruptAuthority): void;\n    async drainContinuableDescendants(parents: readonly Agent[]): Promise<void>;\n    async drainContinuableChildren(parent: Agent, childIds: readonly SessionId[]): Promise<void>;\n    listChildren(parentSessionId: SessionId, signal?: AbortSignal): Promise<SubagentListEntry[]>;\n    listDescendants(rootSessionId: SessionId, signal?: AbortSignal): Promise<SubagentDescendantListEntry[]>;\n    @Remote(\'list\')\n    async remoteExportList(parentSessionId: SessionId, signal: AbortSignal): Promise<SubagentCatalog>;\n    @Remote(\'prompt\')\n    async prompt(request: SubagentPromptRequest, signal: AbortSignal): Promise<SubagentPromptReceipt>;\n    @Remote(\'interruptByParent\')\n    interruptByParent(childSessionId: SessionId, parentSessionId: SessionId, mode: \'continuable\'): SubagentInterruptReceipt;\n    registerProvider(provider: SubagentProvider): () => void;\n    getProvider(name: string): SubagentProvider | undefined;\n    list(): string[];\n    async start(name: string, request: SubagentStartRequest): P /* …truncated — full shape in source */',
+    declaration: 'export class SubagentRuntime extends TypertRemoteService {\n    static Config;\n    constructor(ctx: Context, config: Config = { maxActiveSubagents: 16 });\n    rootOf(caller: Agent): Agent;\n    async startContinuable(spec: ContinuableStartSpec): Promise<ContinuableStart>;\n    async sendMessage(sender: Agent, targetId: SessionId, content: ContentBlock[], options: SubagentSendMessageOptions): Promise<MessageId>;\n    interrupt(targetSessionId: SessionId, authority: SubagentInterruptAuthority): void;\n    async drainContinuableDescendants(parents: readonly Agent[]): Promise<void>;\n    async drainContinuableChildren(parent: Agent, childIds: readonly SessionId[]): Promise<void>;\n    listChildren(parentSessionId: SessionId, signal?: AbortSignal): Promise<SubagentListEntry[]>;\n    listDescendants(rootSessionId: SessionId, signal?: AbortSignal): Promise<SubagentDescendantListEntry[]>;\n    @Remote(\'list\')\n    async remoteExportList(parentSessionId: SessionId, signal: AbortSignal): Promise<SubagentCatalog>;\n    @Remote(\'prompt\')\n    async prompt(request: SubagentPromptRequest, signal: AbortSignal): Promise<SubagentPromptReceipt>;\n    @Remote(\'interruptByParent\')\n    interruptByParent(childSessionId: SessionId, parentSessionId: SessionId, mode: \'continuable\' | \'one-shot\'): SubagentInterruptReceipt;\n    registerProvider(provider: SubagentProvider): () => void;\n    getProvider(name: string): SubagentProvider | undefined;\n    list(): string[];\n    async start(name: string, request: SubagentSta /* …truncated — full shape in source */',
   },
   {
     name: 'SubagentSendMessageOptions',
@@ -10026,6 +10032,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WhatsAppPairingView',
     declaration: 'export interface WhatsAppPairingView {\n    id?: ConnectorId;\n    state: WhatsAppPairingState;\n    qr?: string;\n}',
+  },
+  {
+    name: 'WhatsAppPhoneCodeView',
+    declaration: 'export type WhatsAppPhoneCodeView = {\n    state: \'code\';\n    code: string;\n} | {\n    state: \'invalid-phone\' | \'expired\' | \'failed\';\n};',
   },
   {
     name: 'WindowTarget',

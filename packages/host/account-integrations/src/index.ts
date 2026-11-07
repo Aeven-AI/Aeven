@@ -1852,6 +1852,7 @@ export default class AccountIntegrations extends TypertRemoteService {
     return new WhatsAppDaemon(binary, this.whatsappDirectory(owner, id), {
       startupTimeoutMs: this.config.whatsappStartupTimeoutMs, requestTimeoutMs: this.config.timeoutMs,
       stopGraceMs: this.config.whatsappStopGraceMs,
+      onDiagnostic: (line) => { this.ctx.logger('account-integrations').warn(`whatsapp ${id.slice(0, 8)}: ${line}`) },
     }, this.ffmpegBinary)
   }
 

@@ -1,11 +1,12 @@
 /** WhatsApp connector page: one row per linked number and the QR card that links another. */
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { ConnectorId, WhatsAppPairingView, WhatsAppPhoneCodeView } from '@aeven/api-remotes/client'
 import { IconTrashOutline16, Spinner } from '@aeven/client-ui-primitives'
 import { ConnectorAccountRows } from './ConnectorAccountRows.tsx'
 import { formatPhone, type PairingAccountsProps } from './connector-page.ts'
 import css from './IntegrationsSection.module.css'
+import { guessCallingCode, internationalPhone, splitPhone } from './whatsapp-phone.ts'
 
 /** Interval between pairing-state reads while the card is open. */
 const POLL_MS = 1500
@@ -73,6 +74,7 @@ export function WhatsAppAccounts(props: WhatsAppAccountsProps) {
   // The phone-number path: the reader's number, then the code WhatsApp issued for it.
   const [method, setMethod] = useState<'qr' | 'phone'>(() => (prefersPhoneCode() ? 'phone' : 'qr'))
   const [phone, setPhone] = useState('')
+  const phoneFieldId = useId()
   const [phoneCode, setPhoneCode] = useState<WhatsAppPhoneCodeView>()
   const [requesting, setRequesting] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -84,14 +86,21 @@ export function WhatsAppAccounts(props: WhatsAppAccountsProps) {
     })
   }
   useEffect(() => { setCopied(false) }, [phoneCode])
+  // The country-code box starts at the browser's own country; a number typed with `+` or `00` replaces it.
+  const [callingCode, setCallingCode] = useState(() => guessCallingCode(navigator.languages))
   const requestCode = (): void => {
     const id = pairing?.id
     if (id === undefined || pairing?.state !== 'qr') return
+    const international = internationalPhone(callingCode, phone)
+    if (international === undefined) {
+      setPhoneCode({ state: 'invalid-phone' })
+      return
+    }
     setRequesting(true)
-    props.whatsAppPhoneCode(id, phone).then(setPhoneCode, () => { setPhoneCode({ state: 'failed' }) })
+    props.whatsAppPhoneCode(id, international).then(setPhoneCode, () => { setPhoneCode({ state: 'failed' }) })
       .finally(() => { setRequesting(false) })
   }
-  useEffect(() => { rememberAttempt(waiting ? pairing?.id : undefined) }, [pairing?.id, waiting])
+  useEffect(() => { rememberAttempt(waiting ? pairing.id : undefined) }, [pairing?.id, waiting])
 
   const start = (): void => {
     setPairing({ state: 'starting' })
@@ -177,7 +186,7 @@ export function WhatsAppAccounts(props: WhatsAppAccountsProps) {
       })}
     </>} />
     {pairing === undefined && <button type="button" className={css.secondaryAction} disabled={busy} onClick={start}>{t('whatsappAdd')}</button>}
-    {pairing !== undefined && <div className={`${css.card} ${css.pairingCard}`}>
+    {pairing !== undefined && <div className={css.card}>
       {pairing.state === 'connected'
         ? <p role="status" className={css.testing}>{t('whatsappConnected')}</p>
         : failure !== undefined
@@ -193,10 +202,19 @@ export function WhatsAppAccounts(props: WhatsAppAccountsProps) {
                   <li>{t('whatsappCodeStepEnter')}</li>
                 </ol>
               </div>
-              : <form className={css.actions} onSubmit={(event) => { event.preventDefault(); requestCode() }}>
-                <label className={css.field}>{t('whatsappPhoneLabel')}
-                  <input type="tel" inputMode="tel" autoComplete="tel" value={phone} placeholder={t('whatsappPhonePlaceholder')} disabled={requesting} onChange={(event) => { setPhone(event.currentTarget.value); setPhoneCode(undefined) }} />
-                </label>
+              : <form className={css.phoneForm} onSubmit={(event) => { event.preventDefault(); requestCode() }}>
+                <div className={css.field}>
+                  <label htmlFor={phoneFieldId}>{t('whatsappPhoneLabel')}</label>
+                  <span className={css.phoneRow}>
+                    <input className={css.callingCode} type="tel" inputMode="tel" aria-label={t('whatsappCountryLabel')} value={callingCode} disabled={requesting} onChange={(event) => { setCallingCode(event.currentTarget.value); setPhoneCode(undefined) }} />
+                    <input id={phoneFieldId} type="tel" inputMode="tel" autoComplete="tel-national" value={phone} placeholder={t('whatsappPhonePlaceholder')} disabled={requesting} onChange={(event) => {
+                      const parts = splitPhone(event.currentTarget.value, callingCode)
+                      setCallingCode(parts.callingCode)
+                      setPhone(parts.number)
+                      setPhoneCode(undefined)
+                    }} />
+                  </span>
+                </div>
                 <button type="submit" className={css.primaryAction} disabled={requesting || pairing.state !== 'qr' || phone.trim() === ''}>{t('whatsappPhoneSubmit')}</button>
                 {phoneCode?.state === 'invalid-phone' && <p role="alert" className={css.error}>{t('whatsappPhoneInvalid')}</p>}
                 {(phoneCode?.state === 'failed' || phoneCode?.state === 'expired') && <p role="alert" className={css.error}>{t('whatsappPhoneFailed')}</p>}

@@ -661,13 +661,14 @@ listDescendants(rootSessionId: SessionId, signal?: AbortSignal): Promise<Subagen
  * Absent, idle, and already-completed targets are accepted no-ops there.
  * @param childSessionId - durable child session id to interrupt.
  * @param parentSessionId - durable direct parent whose authority is claimed.
- * @param mode - required continuable-address discriminator.
+ * @param mode - the child's address mode. A one-shot child's current turn is cancelled through its live run, which
+ *   then settles `aborted` and ends the parent's delegation call; an unknown or settled one-shot is a no-op.
  * @returns acknowledgement that the cancel signal was admitted, not that the target is quiescent.
  * @throws {RemoteError} `gateway/bad-request` for an empty id,
  *   `subagent/unauthorized` when the address does not own the live target,
  *   otherwise `gateway/internal`.
  */
-@Remote('interruptByParent') interruptByParent( childSessionId: SessionId, parentSessionId: SessionId, mode: 'continuable', ): SubagentInterruptReceipt
+@Remote('interruptByParent') interruptByParent( childSessionId: SessionId, parentSessionId: SessionId, mode: 'continuable' | 'one-shot', ): SubagentInterruptReceipt
 
 /**
  * Register a provider under its name. Registration is effect-scoped and HMR

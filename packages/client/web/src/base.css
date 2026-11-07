@@ -6,9 +6,9 @@ body,
 #root {
   /* The dynamic viewport height. With `interactive-widget=resizes-content` in
      the page's viewport meta, an on-screen keyboard shrinks it, so the frame's
-     floor and the composer sticky on it rise above the keyboard. `100%` is the
+     floor and the composer sticky on it rise above the keyboard. `100vh` is the
      fallback for engines without `dvh`. */
-  height: 100%;
+  height: 100vh;
   height: 100dvh;
   margin: 0;
   /* The app frame owns every scroller, so the document itself never scrolls.

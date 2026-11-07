@@ -14,16 +14,21 @@
 .testing { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--dsw-alias-label-secondary); }
 .advancedBody { display: flex; flex-direction: column; gap: 16px; padding-top: 12px; }
 .error { margin: 0; color: var(--dsw-alias-label-primary); }
-/* The WhatsApp linking card: the code sits beside its steps, and a narrow card (a phone) stacks the code, steps,
-   status line, and actions on one centred axis. */
-.pairingCard { container-type: inline-size; }
+/* The WhatsApp linking card: the code sits beside its steps, and a phone-width screen, where the settings panel
+   fills the screen, stacks the code, steps, status line, and actions on one centred axis. */
 .qrLayout { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; }
-@container (max-width: 520px) {
+@media (max-width: 640px) {
   .qrLayout { flex-direction: column; gap: 16px; }
   .qrLayout .qrSteps { flex: none; width: fit-content; max-width: 100%; }
   .pairingStatus, .pairingActions { justify-content: center; }
   .pairingHint { text-align: center; }
 }
+/* The phone-code form: the label, a narrow country-code box beside the number, and one full-width action. */
+.phoneForm { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 360px; }
+.section .phoneForm .primaryAction { width: 100%; }
+.phoneRow { display: flex; gap: 8px; }
+.phoneRow input { min-width: 0; flex: 1; }
+.phoneRow .callingCode { flex: none; width: 4.5em; text-align: center; }
 /* The QR keeps a white quiet zone in both themes so phones can read it. */
 .qrFrame { display: grid; place-items: center; box-sizing: border-box; width: 216px; height: 216px; flex: none; padding: 8px; border-radius: 12px; background: #fff; }
 .qrImage { width: 200px; height: 200px; image-rendering: pixelated; }

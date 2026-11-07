@@ -322,8 +322,8 @@ describe('SubagentHeaderLineage', () => {
     expect(within(list()).getByText('old')).toBeTruthy()
     expect(within(list()).getByText(zh['diagnostic.unsupported'])).toBeTruthy()
     expect(within(list()).getByText(zh['diagnostic.unavailable'])).toBeTruthy()
-    // A record that never loaded has nothing to open.
-    expect(within(list()).getAllByRole('button')).toHaveLength(1)
+    // A record that never loaded has nothing to open; the running row opens and carries its Stop.
+    expect(within(list()).getAllByRole('button')).toHaveLength(2)
   })
 
   it('opens a row into its facts and the way into its conversation', () => {
