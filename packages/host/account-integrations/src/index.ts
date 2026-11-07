@@ -41,7 +41,7 @@ import { isSlackReadTool, slackConnectorId, SLACK_DIRECT_MESSAGE_SCOPES, SLACK_M
 import { isSlackConsentFailure, probeSlackToken, revokeSlackToken, refreshSlackToken, SlackLoginError, startSlackLogin, type SlackLogin, type SlackToken } from './slack-login.ts'
 import { connectorCredential, type PendingConsent } from './oauth.ts'
 import { BrokerError, ConnectorBroker, type ConsentStatus, type IssuedToken } from './broker.ts'
-import type { AccountIntegrationsView, CatalogSkillView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, ConnectorProviderView, DiscordConnectorSettings, PersonalSkillView, EmailConnectionFailure, EmailConnectorSettings, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillReferenceImport, SkillSetup, SkillViewId, SkillUploadFile, SlackConnectorSettings, SystemSkillAgent, SystemSkillView, TelegramConnectorSettings, TelegramPairingView, WhatsAppPairingView, WhatsAppPhoneCodeView } from './types.ts'
+import type { AccountIntegrationsView, CatalogSkillView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, ConnectorProviderView, DiscordConnectorSettings, PersonalSkillView, EmailConnectionFailure, EmailConnectorSettings, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillReferenceImport, SkillSetup, SkillViewId, SkillUploadFile, SlackConnectorSettings, SystemSkillAgent, SystemSkillView, TelegramConnectorSettings, TelegramPairingView, WhatsAppMessageMedia, WhatsAppPairingView, WhatsAppPhoneCodeView } from './types.ts'
 
 export type * from './types.ts'
 
@@ -161,6 +161,8 @@ export interface Config {
   whatsappRestartDelayMs: number
   /** Longest restart delay; a daemon that ran this long resets the failure count. */
   whatsappMaxRestartDelayMs: number
+  /** Largest message media file a WhatsApp card reads through {@link AccountIntegrations.whatsAppMessageMedia}; larger shows no preview. */
+  whatsappMediaMaxBytes: number
 }
 
 const skillSchema = z.object({
@@ -544,6 +546,7 @@ export default class AccountIntegrations extends TypertRemoteService {
     whatsappPairingPollMs: Schema.natural().min(100).default(1_500),
     whatsappRestartDelayMs: Schema.natural().min(1).default(1_000),
     whatsappMaxRestartDelayMs: Schema.natural().min(1).default(60_000),
+    whatsappMediaMaxBytes: Schema.natural().min(1).default(32 * 1024 * 1024),
     apiUrl: Schema.string(),
     credentialRef: Schema.string().default('AEVEN_TOKEN'),
   })
@@ -865,6 +868,29 @@ export default class AccountIntegrations extends TypertRemoteService {
         }),
       })),
     }
+  }
+
+  /**
+   * Read the media of one WhatsApp message a connector tool listed, so its card in the conversation can show an image,
+   * play a video or GIF, or play a voice note.
+   * @param toolName - the listing call's tool name, `mcp__whatsapp_<connector prefix>__<tool>`, naming the account.
+   * @param chatJid - chat JID of the message.
+   * @param messageId - WhatsApp message ID.
+   * @returns the bytes and their content type (a voice note as `audio/mp4`), or undefined when the account is not the
+   * acting user's linked number, the message has no fetchable media, or the file exceeds {@link Config.whatsappMediaMaxBytes}.
+   */
+  @Remote
+  async whatsAppMessageMedia(toolName: string, chatJid: string, messageId: string): Promise<WhatsAppMessageMedia | undefined> {
+    const owner = this.owner()
+    const match = CONNECTOR_TOOL_NAME.exec(toolName)
+    if (match === null || match[1] !== 'whatsapp' || chatJid.length > 256 || messageId.length > 256) return undefined
+    const entry = [...this.domain.table('connectors').entries()]
+      .find(([id, candidate]) => candidate.owner === owner && candidate.provider === 'whatsapp'
+        && connectorServerName(id, candidate.provider) === `${match[1]}_${match[2]}`)
+    if (entry === undefined) return undefined
+    const daemon = await this.linkedWhatsApp(entry[0], entry[1])
+    if (daemon === undefined) return undefined
+    return daemon.messageMedia(chatJid, messageId, { maxBytes: this.config.whatsappMediaMaxBytes, timeoutMs: this.config.timeoutMs })
   }
 
   /**

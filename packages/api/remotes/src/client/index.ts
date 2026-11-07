@@ -35,7 +35,7 @@ export type {
   PersonalSkillView, PersonalConnectorView, SkillCatalogView, SkillReferenceImport, SkillUploadFile,
   SystemSkillAgent, SystemSkillView, TelegramConnectorSettings,
   TelegramLoginFailure, TelegramPairingState, TelegramPairingView, WhatsAppConnectorSettings,
-  WhatsAppPairingState, WhatsAppPairingView, WhatsAppPhoneCodeView,
+  WhatsAppMessageMedia, WhatsAppPairingState, WhatsAppPairingView, WhatsAppPhoneCodeView,
 } from '@aeven/host-account-integrations/types'
 export type { PluginInventorySnapshot } from '@aeven/host-plugin-inventory/types'
 export type {} from '@aeven/agent-presets/remote'

@@ -106,6 +106,8 @@ Claude Desktop 的 `claude_desktop_config.json` 不像 Claude Code 与 Cursor �
 
 `WHATSAPP_MCP_READ_ROOTS` 以与 `PATH` 相同的分隔方式列出更多绝对目录，`send_file` 和 `send_audio_message` 可发送其中的文件；下载仍写入媒体根目录。`download_media` 的 `output_path` 也可写到这些目录，使收到的图片能保存到会话可打开的位置。`pairing_status` 将其列为 `file_roots`。监管进程将其指向账户自己的工作文件夹，使在那里生成的文件无需复制即可发送。
 
+`GET /media?chat=<chat JID>&id=<message ID>` 在与 `/mcp` 相同的 bearer 令牌保护下提供一条已缓存消息的解密媒体，供客户端显示或播放：图片和贴纸原样返回，GIF 与视频为 MP4，语音消息重新编码为 AAC（`audio/mp4`，缓存在下载文件旁），因为 18.4 之前的 Safari 无法播放 Ogg Opus。消息没有守护进程可取得的媒体时返回 404。
+
 `WHATSAPP_MCP_PAIRING_TRACE=1` 会把关联握手的每个节点（QR ref、手机代码各阶段、passkey 各阶段、pair-success）以 `[Client/Trace WARN]` 行写到 stderr，用于诊断被 WhatsApp 拒绝的关联。记录中含账户手机号，因此除诊断外不要设置。
 
 要允许另一个目录，启动守护进程时设置 `WHATSAPP_MCP_MEDIA_ROOT`（绝对路径）：
@@ -227,10 +229,10 @@ WhatsApp 大约每 20 天轮换一次已链接设备会话。在 Docker 之外�
 | 工具 | 用途 |
 |---|---|
 | `search_contacts` | 在缓存的联系人姓名与手机号中做子串搜索 |
-| `list_messages` | 查询并过滤消息；返回带上下文窗口的格式化文本 |
+| `list_messages` | 查询并过滤消息；返回带上下文窗口的格式化文本，另附供客户端绘制的 `structuredContent.messages`（按时间从旧到新，已解析发送者名称） |
 | `list_chats` | 列出聊天并带最后一条消息预览；按活跃度或名称排序 |
 | `get_chat` | 按 JID 取聊天元数据 |
-| `get_message_context` | 某一特定消息前后的窗口 |
+| `get_message_context` | 某一特定消息前后的窗口，另附相同的 `structuredContent.messages`，`focus` 指明目标消息 |
 | `download_media` | 把已持久化的媒体（图片、贴纸、GIF、视频、语音、文档）下载到本地路径；图片、贴纸与语音直接内嵌返回，GIF 或视频返回一帧静态画面 |
 | `request_sync` | 请求 WhatsApp 回填某个聊天的历史 |
 

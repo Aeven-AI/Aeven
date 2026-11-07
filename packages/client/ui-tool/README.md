@@ -39,7 +39,7 @@ ctx.slots.inject('tool.call.toolview', () =>
   }, BusinessToolRow))
 ```
 
-The owner payload is `ToolCallOwnerProps`: `callId`, `toolName`, the frozen `block`, optional `cwd` and `home`, plain `openFile`/`inspect` callbacks, and `renderImages` when the composition mounts an attachment presentation. A Code Dispatch block retains its event's `parentCallId`; a root Session call has no such field, so descendants keep the generic flattened form without another placement flag. Path summaries relativize to the Session cwd first, then replace a leftover POSIX Host home with `~`; `filePath` and Host open keep the authored filesystem path. The registration receives the normal Session slot runtime share but no React node or Runtime service.
+The owner payload is `ToolCallOwnerProps`: `callId`, `toolName`, the frozen `block`, optional `cwd` and `home`, plain `openFile`/`inspect` callbacks, and `renderImages` when the composition mounts an attachment presentation. A Code Dispatch block retains its event's `parentCallId`; a root Session call has no such field, so descendants keep the generic flattened form without another placement flag. Path summaries relativize to the Session cwd first, then replace a leftover POSIX Host home with `~`; `filePath` and Host open keep the authored filesystem path. The registration receives the normal Session slot runtime share but no React node or Runtime service. A connector tool's name carries its account's id prefix (`mcp__<provider>_<8 hex digits>__<tool>`), so the tree looks its view up under `mcp__<provider>__<tool>`, one registration for every account of that provider.
 
 ### Built-in views
 

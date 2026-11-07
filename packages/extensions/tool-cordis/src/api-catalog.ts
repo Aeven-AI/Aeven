@@ -93,6 +93,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the account\'s own skills, personal connections, and deployment sign-in availability.',
       },
       {
+        signature: '@Remote async whatsAppMessageMedia(toolName: string, chatJid: string, messageId: string): Promise<WhatsAppMessageMedia | undefined>',
+        description: 'Read the media of one WhatsApp message a connector tool listed, so its card in the conversation can show an image, play a video or GIF, or play a voice note.',
+        parameters: [{ name: 'toolName', description: 'the listing call\'s tool name, `mcp__whatsapp_<connector prefix>__<tool>`, naming the account.' }, { name: 'chatJid', description: 'chat JID of the message.' }, { name: 'messageId', description: 'WhatsApp message ID.' }],
+        returns: 'the bytes and their content type (a voice note as `audio/mp4`), or undefined when the account is not the acting user\'s linked number, the message has no fetchable media, or the file exceeds {@link Config.whatsappMediaMaxBytes}.',
+      },
+      {
         signature: '@Remote // oxlint-disable-next-line typescript/require-await -- the Remote contract answers with a promise; this read has nothing to await. async catalog(): Promise<SkillCatalogView | undefined>',
         description: 'Read the vendored skill catalog this deployment ships.',
         parameters: [],
@@ -10024,6 +10030,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WhatsAppConnectorSettings',
     declaration: 'export interface WhatsAppConnectorSettings {\n    phone: string;\n    profileName?: string;\n}',
+  },
+  {
+    name: 'WhatsAppMessageMedia',
+    declaration: 'export interface WhatsAppMessageMedia {\n    readonly contentType: string;\n    readonly base64: string;\n}',
   },
   {
     name: 'WhatsAppPairingState',

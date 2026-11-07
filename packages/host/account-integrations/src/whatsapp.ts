@@ -6,7 +6,7 @@ import { createRequire } from 'node:module'
 import { delimiter, dirname, join } from 'node:path'
 import { z } from 'zod'
 import { AccountDaemon, type AccountDaemonOptions } from './account-daemon.ts'
-import type { WhatsAppPhoneCodeView } from './types.ts'
+import type { WhatsAppMessageMedia, WhatsAppPhoneCodeView } from './types.ts'
 
 /**
  * Resolve the daemon from the platform package installed for this host.
@@ -145,6 +145,33 @@ export class WhatsAppDaemon extends AccountDaemon {
     if (response.status === 429) return { state: 'rate-limited' }
     if (!response.ok) throw new Error(`WhatsApp issued no linking code (HTTP ${String(response.status)}): ${(await response.text()).slice(0, 300).trim()}`)
     return { state: 'code', code: phoneCodeSchema.parse(await response.json()).code }
+  }
+
+  /**
+   * Read the media of one cached message, so a Client card can show or play it. A voice note arrives re-encoded as AAC.
+   * @param chat - chat JID of the message.
+   * @param id - WhatsApp message ID.
+   * @param limits - the largest file to read and how long the daemon may take to fetch and convert it.
+   * @returns the bytes and their content type, or undefined when the message has no media the daemon can fetch or the
+   * file exceeds `limits.maxBytes`.
+   */
+  async messageMedia(
+    chat: string, id: string, limits: { readonly maxBytes: number; readonly timeoutMs: number },
+  ): Promise<WhatsAppMessageMedia | undefined> {
+    const query = new URLSearchParams({ chat, id })
+    const response = await fetch(`http://${this.requireAddress()}/media?${query.toString()}`, {
+      headers: { Authorization: `Bearer ${this.token}` }, signal: AbortSignal.timeout(limits.timeoutMs),
+    })
+    if (response.status === 404) return undefined
+    if (!response.ok) throw new Error(`WhatsApp media read failed (HTTP ${String(response.status)}): ${(await response.text()).slice(0, 300).trim()}`)
+    const length = Number(response.headers.get('content-length') ?? Number.NaN)
+    if (!Number.isFinite(length) || length > limits.maxBytes) {
+      await response.body?.cancel()
+      return undefined
+    }
+    const data = Buffer.from(await response.arrayBuffer())
+    if (data.byteLength > limits.maxBytes) return undefined
+    return { contentType: response.headers.get('content-type') ?? 'application/octet-stream', base64: data.toString('base64') }
   }
 
   /** Remove this linked device from the WhatsApp account and clear its local session. */

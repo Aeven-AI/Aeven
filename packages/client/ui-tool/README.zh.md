@@ -39,7 +39,7 @@ ctx.slots.inject('tool.call.toolview', () =>
   }, BusinessToolRow))
 ```
 
-owner 载荷为 `ToolCallOwnerProps`：`callId`、`toolName`、冻结的 `block`、可选 `cwd` 与 `home`、普通的 `openFile`/`inspect` 回调，以及组合挂载了附件展示时的 `renderImages`。Code Dispatch block 保留事件的 `parentCallId`；root Session call 没有该字段，因此 descendant 无需另一项 placement 标志即可保持 generic 压平形态。路径摘要先相对 Session cwd 缩短，再把剩余的 POSIX Host home 写成 `~`；`filePath` 与 Host 打开仍使用作者给出的文件系统路径。注册项会收到常规 Session slot runtime share，但不会收到 React node 或 runtime service。
+owner 载荷为 `ToolCallOwnerProps`：`callId`、`toolName`、冻结的 `block`、可选 `cwd` 与 `home`、普通的 `openFile`/`inspect` 回调，以及组合挂载了附件展示时的 `renderImages`。Code Dispatch block 保留事件的 `parentCallId`；root Session call 没有该字段，因此 descendant 无需另一项 placement 标志即可保持 generic 压平形态。路径摘要先相对 Session cwd 缩短，再把剩余的 POSIX Host home 写成 `~`；`filePath` 与 Host 打开仍使用作者给出的文件系统路径。注册项会收到常规 Session slot runtime share，但不会收到 React node 或 runtime service。连接器工具名带有其账户 id 前缀（`mcp__<provider>_<8 位十六进制>__<tool>`），因此工具树以 `mcp__<provider>__<tool>` 查找其视图，同一提供商的所有账户共用一个注册项。
 
 ### 内置视图
 

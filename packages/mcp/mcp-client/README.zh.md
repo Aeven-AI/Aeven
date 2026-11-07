@@ -132,7 +132,7 @@ kind: "package-reference"
 
 ### 工具执行内部细节
 
-工具调用会发送一次未缓存的 `tools/call` 请求，携带原始 MCP 名称、JSON 参数、中止信号与配置的超时；公开名称绝不会发给服务器，也绝不会被解析还原。规范成功值是 `{ content: JsonValue[], structuredContent? }`，为程序化调用方与 PTC mode 调用方保留完整的 MCP JSON 块。受支持且已声明的 `outputSchema` 会验证 `structuredContent`；不受支持的 schema 词汇回退为不受约束的 `JsonValue`。MCP 的 `isError` 结果会在任何图片持久化之前抛出，使注册表产生失败的工具结果。图片批次会先整体解码并校验，再保存任一成员；任何拒绝都会把每张图片投影为诊断文本。
+工具调用会发送一次未缓存的 `tools/call` 请求，携带原始 MCP 名称、JSON 参数、中止信号与配置的超时；公开名称绝不会发给服务器，也绝不会被解析还原。规范成功值是 `{ content: JsonValue[], structuredContent? }`，为程序化调用方与 PTC mode 调用方保留完整的 MCP JSON 块。受支持且已声明的 `outputSchema` 会验证 `structuredContent`；不受支持的 schema 词汇回退为不受约束的 `JsonValue`。MCP 的 `isError` 结果会在任何图片持久化之前抛出，使注册表产生失败的工具结果。图片批次会先整体解码并校验，再保存任一成员；任何拒绝都会把每张图片投影为诊断文本。携带 `structuredContent` 的结果还会将其记录为持久化 `tool/result` 的 meta `{ structuredContent }`，供客户端卡片读取；模型只看到文本投影。
 
 ### 环境清洗（stdio）
 

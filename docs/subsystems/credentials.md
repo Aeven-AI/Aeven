@@ -75,6 +75,17 @@ Signed-in users manage their own integrations; each agent mounts only its owner'
 @Remote async list(): Promise<AccountIntegrationsView>
 
 /**
+ * Read the media of one WhatsApp message a connector tool listed, so its card in the conversation can show an image,
+ * play a video or GIF, or play a voice note.
+ * @param toolName - the listing call's tool name, `mcp__whatsapp_<connector prefix>__<tool>`, naming the account.
+ * @param chatJid - chat JID of the message.
+ * @param messageId - WhatsApp message ID.
+ * @returns the bytes and their content type (a voice note as `audio/mp4`), or undefined when the account is not the
+ * acting user's linked number, the message has no fetchable media, or the file exceeds {@link Config.whatsappMediaMaxBytes}.
+ */
+@Remote async whatsAppMessageMedia(toolName: string, chatJid: string, messageId: string): Promise<WhatsAppMessageMedia | undefined>
+
+/**
  * Read the vendored skill catalog this deployment ships.
  * @returns the catalog listing, or undefined when the deployment mounts no catalog.
  */

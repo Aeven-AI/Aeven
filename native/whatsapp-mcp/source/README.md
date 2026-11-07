@@ -106,6 +106,8 @@ By default the allowed root is `./store/uploads/` (resolved relative to your `-s
 
 `WHATSAPP_MCP_READ_ROOTS` names further absolute directories, separated like `PATH`, whose files `send_file` and `send_audio_message` may send; downloads still go under the media root. `download_media` may also write its `output_path` there, so a received image can be saved where the session opens it. `pairing_status` lists them as `file_roots`. A supervisor points it at the account's own working folders, so a file made there is sent without a copy.
 
+`GET /media?chat=<chat JID>&id=<message ID>` serves the decrypted media of one cached message behind the same bearer token as `/mcp`, so a client can show or play it: images and stickers as they are, GIFs and videos as MP4, and a voice note re-encoded as AAC (`audio/mp4`, cached beside the download), because Safari before 18.4 plays no Ogg Opus. It answers 404 when the message has no media the daemon can fetch.
+
 `WHATSAPP_MCP_PAIRING_TRACE=1` writes every linking-handshake node (QR refs, phone-code stages, passkey stages, pair-success) to stderr as `[Client/Trace WARN]` lines, to diagnose a link WhatsApp refuses. The trace names the account's phone number, so leave it unset outside diagnosis.
 
 To allow a different directory, set `WHATSAPP_MCP_MEDIA_ROOT` (absolute path) when starting the daemon:
@@ -227,10 +229,10 @@ Flags and environment variables for `serve`:
 | Tool | Purpose |
 |---|---|
 | `search_contacts` | Substring search across cached contact names and phone numbers |
-| `list_messages` | Query + filter messages; returns formatted text with context windows |
+| `list_messages` | Query + filter messages; returns formatted text with context windows, plus `structuredContent.messages` (oldest first, sender names resolved) for clients that draw them |
 | `list_chats` | List chats with last-message preview; sort by activity or name |
 | `get_chat` | Chat metadata by JID |
-| `get_message_context` | Before/after window around a specific message |
+| `get_message_context` | Before/after window around a specific message, plus the same `structuredContent.messages` with `focus` naming the target |
 | `download_media` | Download persisted media (image, sticker, GIF, video, voice note, document) to a local path; images, stickers, and voice notes come back inline, a GIF or video as one still frame |
 | `request_sync` | Ask WhatsApp to backfill history for a chat |
 

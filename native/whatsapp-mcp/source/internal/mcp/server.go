@@ -44,9 +44,11 @@ func NewServer(c *client.Client, cache pairingCache) *Server {
 // MCP returns the underlying mcp-go server (tests only).
 func (s *Server) MCP() *server.MCPServer { return s.mcp }
 
-// AttachHTTP mounts the MCP Streamable HTTP handler on mux at /mcp. The
-// actual listener lifecycle is owned by the caller (internal/daemon).
+// AttachHTTP mounts the MCP Streamable HTTP handler on mux at /mcp and the
+// message media route at /media. The actual listener lifecycle is owned by
+// the caller (internal/daemon).
 func (s *Server) AttachHTTP(mux *http.ServeMux) {
 	httpHandler := server.NewStreamableHTTPServer(s.mcp)
 	mux.Handle("/mcp", httpHandler)
+	mux.HandleFunc("/media", s.handleMedia)
 }

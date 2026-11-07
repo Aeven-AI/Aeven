@@ -8,6 +8,12 @@ import type {} from '@aeven/client-ui-renderer/client'
 import type { AccountIntegrationsView, RemoteResult } from '@aeven/api-remotes/client'
 import { DetailBack, IntegrationsSection, type IntegrationsSectionInjected } from './IntegrationsSection.tsx'
 import { en, es, zh, type IntegrationsLocaleKey } from './locales.ts'
+import { en as cardEn, es as cardEs, zh as cardZh, type ConnectorCardKey } from './card-locales.ts'
+import { CARD_TOOLS, registerConnectorCards } from './connector-cards.ts'
+import { createMessageMediaCache } from './message-media.ts'
+import { createWhatsAppMessagesCard } from './WhatsAppMessagesCard.tsx'
+import type {} from '@aeven/client-ui-tool/client'
+import type {} from '@aeven/client-ui-conversation/client'
 
 export type { IntegrationsSectionInjected, IntegrationsSectionProps } from './IntegrationsSection.tsx'
 export type { IntegrationsLocaleKey } from './locales.ts'
@@ -16,6 +22,8 @@ declare module '@aeven/client-ui-slots' {
   interface LocaleNamespaceMap {
     /** Account-owned skills and connectors copy. */
     'settings.integrations': IntegrationsLocaleKey
+    /** Connector cards drawn at the calls that read them, such as WhatsApp messages. */
+    'connector-cards': ConnectorCardKey
   }
 }
 
@@ -81,6 +89,18 @@ export function apply(ctx: Context): void {
     submitTelegramPassword: (id, password) => value(remote.submitTelegramPassword(id, password)),
     cancelTelegramPairing: id => value(remote.cancelTelegramPairing(id)),
   }
+  // WhatsApp message reads draw as chat cards; their media streams through this account's Host.
+  ctx.effect(() => ctx.locale.register('connector-cards', { en: cardEn, zh: cardZh, es: cardEs }), 'ui-settings-integrations: card dictionaries')
+  const media = createMessageMediaCache((toolName, chatJid, messageId) => value(remote.whatsAppMessageMedia(toolName, chatJid, messageId)))
+  ctx.effect(() => () => { media.dispose() }, 'ui-settings-integrations: card media')
+  const WhatsAppMessagesCard = createWhatsAppMessagesCard(toolName => media.sourceFor(toolName))
+  ctx.slots.inject('tool.call.toolview', function* () {
+    for (const key of CARD_TOOLS) {
+      yield ctx.slots.register({ name: 'tool.call.toolview', key, locale: 'connector-cards' }, WhatsAppMessagesCard)
+    }
+  })
+  ctx.inject(['uiConversation'], (cardsCtx) => { registerConnectorCards(cardsCtx) })
+
   ctx.slots.inject('settings.action', () => ctx.slots.register({
     name: 'settings.action', id: 'detail-back', locale: namespace,
   }, DetailBack))
