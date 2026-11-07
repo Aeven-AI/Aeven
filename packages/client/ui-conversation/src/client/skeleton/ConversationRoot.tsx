@@ -513,7 +513,9 @@ export function ConversationRoot({
               onToggle={toggleSidebar}
             />
           )}
-          {sessionId === undefined ? null : renderSlot('conversation.session.header', {})}
+          {/* A start page, such as Bots, takes the Session's place, so the Session's own
+              header content (its options menu, lineage, actions) gives way with it. */}
+          {sessionId === undefined || startPage ? null : renderSlot('conversation.session.header', {})}
           <div className={css.navigationUtilities}>
             {renderSlot('conversation.navigation.utilities', {})}
           </div>
