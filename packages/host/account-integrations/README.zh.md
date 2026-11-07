@@ -140,6 +140,7 @@ Slack 是唯一不需要在 Aeven API 上保存凭据的提供方：它的 PKCE 
 | `maxTelegramAccounts` | 10 | 一个账户可登录的 Telegram 账户数 |
 | `whatsappBinaryPath` | 平台包 | WhatsApp 守护进程可执行文件；平台包已链接但其二进制从未构建时，WhatsApp 不可用 |
 | `whatsappStartupTimeoutMs`、`whatsappStopGraceMs` | 15000、5000 | 绑定回环端口的时限，以及标准输入关闭后的退出时限 |
+| `whatsappReadRoot` | 无 | 每个账户各有一个工作文件夹的上级目录（`<root>/<owner>`）；关联的 WhatsApp 号码可发送其所有者文件夹中的任意文件。托管 bundle 将其设为监狱的托管根目录，使会话生成的文件可被发送 |
 | `whatsappPairingTrace` | false | 把关联握手的每条消息记入 Host 日志，用于诊断被拒绝的关联；记录中含账户号码 |
 | `whatsappPairingPollMs` | 1500 | 读取二维码状态的间隔 |
 | `whatsappRestartDelayMs`、`whatsappMaxRestartDelayMs` | 1000、60000 | 重启退避的上下限 |

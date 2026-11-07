@@ -38,6 +38,33 @@ func ValidateMediaPath(userPath, allowedRoot string) (string, error) {
 	return resolved, nil
 }
 
+// ValidateMediaPathIn is ValidateMediaPath over several allowed roots: the
+// path is accepted under the first root that holds it. The error for a path
+// no root holds names every root, so the caller can move the file into one.
+func ValidateMediaPathIn(userPath string, allowedRoots []string) (string, error) {
+	if len(allowedRoots) == 1 {
+		return ValidateMediaPath(userPath, allowedRoots[0])
+	}
+	var firstErr error
+	for _, root := range allowedRoots {
+		resolved, err := ValidateMediaPath(userPath, root)
+		if err == nil {
+			return resolved, nil
+		}
+		if firstErr == nil {
+			firstErr = err
+		}
+		// A missing or unreadable file fails the same way under every root.
+		if !strings.Contains(err.Error(), "is outside allowed root") {
+			return "", err
+		}
+	}
+	if firstErr == nil {
+		return "", fmt.Errorf("no allowed media root is configured")
+	}
+	return "", fmt.Errorf("media_path %q is outside every allowed root (%s); place the file under one of them", userPath, strings.Join(allowedRoots, ", "))
+}
+
 // resolveRoot returns allowedRoot absolute, cleaned, and symlink-resolved.
 // A root that does not exist yet falls back to its cleaned absolute form.
 func resolveRoot(allowedRoot string) (string, error) {

@@ -25,11 +25,14 @@ import (
 
 // Config configures a new Client.
 type Config struct {
-	StoreDir         string             // directory holding messages.db and whatsapp.db
-	Store            *store.Store       // initialized message store
-	Logger           waLog.Logger       // optional; defaults to stderr at INFO
-	AllowedMediaRoot string             // absolute path; media_path args must live under this
-	Redactor         *security.Redactor // optional; defaults to a redacting instance
+	StoreDir         string       // directory holding messages.db and whatsapp.db
+	Store            *store.Store // initialized message store
+	Logger           waLog.Logger // optional; defaults to stderr at INFO
+	AllowedMediaRoot string       // absolute path; media_path args must live under this
+	// ReadRoots are further absolute directories media_path may name. They
+	// are read-only: downloads still land under AllowedMediaRoot.
+	ReadRoots []string
+	Redactor  *security.Redactor // optional; defaults to a redacting instance
 	// RateLimiter throttles outbound sends and usync lookups. Optional; New
 	// installs one built from ratelimit.DefaultConfig when nil. Pass an
 	// explicitly-configured limiter to override the defaults, or leave the
@@ -46,6 +49,7 @@ type Client struct {
 	handlerID        uint32
 	handlerInstalled bool
 	allowedMediaRoot string
+	readRoots        []string
 	redactor         *security.Redactor
 	limiter          *ratelimit.Limiter
 }
@@ -134,6 +138,7 @@ func New(ctx context.Context, cfg Config) (*Client, error) {
 		store:            cfg.Store,
 		log:              logger,
 		allowedMediaRoot: cfg.AllowedMediaRoot,
+		readRoots:        cfg.ReadRoots,
 		redactor:         redactor,
 		limiter:          limiter,
 	}, nil
@@ -144,7 +149,7 @@ func New(ctx context.Context, cfg Config) (*Client, error) {
 // root. Callers inside internal/client and internal/mcp should prefer this
 // over calling the package-level helper directly.
 func (c *Client) ValidateMediaPath(userPath string) (string, error) {
-	return security.ValidateMediaPath(userPath, c.allowedMediaRoot)
+	return security.ValidateMediaPathIn(userPath, append([]string{c.allowedMediaRoot}, c.readRoots...))
 }
 
 // ValidateOutputPath is the sister wrapper for paths the daemon is about to
@@ -154,8 +159,11 @@ func (c *Client) ValidateOutputPath(userPath string) (string, error) {
 	return security.ValidateOutputPath(userPath, c.allowedMediaRoot)
 }
 
-// MediaRoot is the only directory media_path and output_path may name.
+// MediaRoot is the directory output_path must name and media_path may name.
 func (c *Client) MediaRoot() string { return c.allowedMediaRoot }
+
+// ReadRoots are the further directories media_path may name.
+func (c *Client) ReadRoots() []string { return c.readRoots }
 
 // IsLoggedIn reports whether the underlying whatsmeow device has a stored
 // session. A false return means the next Connect call will emit QR pairing

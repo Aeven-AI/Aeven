@@ -104,6 +104,8 @@ By default the allowed root is `./store/uploads/` (resolved relative to your `-s
 
 `serve` links as a browser named **Aeven**, which is how the phone's Linked devices list shows it; a device linked before this keeps the name it linked with until it is linked again.
 
+`WHATSAPP_MCP_READ_ROOTS` names further absolute directories, separated like `PATH`, whose files `send_file` and `send_audio_message` may send; downloads still go under the media root. `pairing_status` lists them as `send_roots`. A supervisor points it at the account's own working folders, so a file made there is sent without a copy.
+
 `WHATSAPP_MCP_PAIRING_TRACE=1` writes every linking-handshake node (QR refs, phone-code stages, passkey stages, pair-success) to stderr as `[Client/Trace WARN]` lines, to diagnose a link WhatsApp refuses. The trace names the account's phone number, so leave it unset outside diagnosis.
 
 To allow a different directory, set `WHATSAPP_MCP_MEDIA_ROOT` (absolute path) when starting the daemon:
