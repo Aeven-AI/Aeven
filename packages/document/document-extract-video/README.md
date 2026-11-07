@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@aeven/document-extract-video` registers the provider `video` at priority 10 on `ctx.documentExtract`, so an uploaded or camera-recorded clip (`mp4`, `m4v`, `mov`, `webm`, `mp3`) becomes an admissible file attachment instead of an unsupported type. MP3 uploads use the audio stream and report audio metadata without claiming transcription. The reader probes the clip with the host's own `ffprobe` and stores one sentence describing it; frames and sound are never transcribed, so the sentence says exactly that.
+`@aeven/document-extract-video` registers the provider `video` at priority 10 on `ctx.documentExtract`, so an uploaded or camera-recorded clip (`mp4`, `m4v`, `mov`, `webm`, `mp3`) becomes an admissible file attachment instead of an unsupported type. MP3 uploads use the audio stream and report audio metadata. The reader probes the clip with the host's own `ffprobe` and stores one sentence describing it. When the deployment mounts `ctx.speechToText` and the user's voice input is on, it also decodes the clip's sound with `ffmpeg` and transcribes the first `transcribeMaxSeconds` with the selected speech provider, appending the transcript, or stating that no speech was recognized, as with music; otherwise the sentence says the sound is not transcribed. Frames are never described.
 
 ## Table of Contents
 
@@ -30,7 +30,10 @@ Mount it beside the service: the plugin registers the `video` provider on `ctx.d
 | `ffprobePath` | `ffprobe` | Probe executable, resolved through `PATH` unless it names a file |
 | `probeTimeoutMs` | `15000` | Wall-clock limit for one probe; a timeout falls back to file facts |
 | `probeDirectory` | OS temp directory | Directory each clip is written to for the probe |
-| `probeRunner` | none | Argv the probe runs under, such as a bubblewrap jail that sees only `/usr` and `probeDirectory`; the probe starts through `ctx.subprocess` when one is mounted |
+| `probeRunner` | none | Argv the probe and the sound decoder run under, such as a bubblewrap jail that sees only `/usr` and `probeDirectory`; they start through `ctx.subprocess` when one is mounted |
+| `ffmpegPath` | `ffmpeg` | Decoder that turns a clip's sound into 16 kHz mono WAV for transcription, resolved through `PATH` unless it names a file |
+| `transcribeMaxSeconds` | `600` | Seconds of sound transcribed from the start of a clip; `0` turns transcription off |
+| `decodeTimeoutMs` | `60000` | Wall-clock limit for decoding one clip's sound; a timeout describes the clip without a transcript |
 
 Without a reachable `ffprobe` the reader still claims the formats and reports the container and byte size alone, so a deployment without the binary attaches clips rather than refusing them.
 
@@ -50,7 +53,7 @@ No runtime invariant companion is published: the relationship it could assert �
 
 #### What the model sees
 
-The uploaded file reaches the model as an `<attached_file>` element whose extracted text is one sentence, for example `Video clip "clip-1755000000000.webm": 8.2 s, 720×1280, vp9, WebM, 3.4 MB. The clip is stored with this session; its frames and sound are not transcribed.` The model learns that a clip exists, how long it runs, and its frame size, and the sentence states plainly that the content itself was not read.
+The uploaded file reaches the model as an `<attached_file>` element whose extracted text is one sentence, for example `Video clip "clip-1755000000000.webm": 8.2 s, 720×1280, vp9, WebM, 3.4 MB. The clip is stored with this session; its frames and sound are not transcribed.` The model learns that a clip exists, how long it runs, and its frame size. With transcription, the text continues with `Transcript of its sound:` and the recognized words, or reads `No speech was recognized in its sound.`; a transcript adds its words to the attachment's tokens.
 
 #### Token effect
 
@@ -62,4 +65,4 @@ Append-only: the sentence is stored with the attachment, so replay and a later t
 
 ## Known Limitations and Deferred Work
 
-- **Nothing watches the clip** — no frame and no audio transcription exists, so the model reasons about a clip from its facts alone. A frame-sampling reader is the natural next step, using the same `ffprobe` dependency to choose timestamps.
+- **Nothing watches the frames** — only the sound is transcribed, so the model reasons about a clip's picture from its facts alone. A frame-sampling reader is the natural next step, using the same `ffprobe` dependency to choose timestamps. Sound past `transcribeMaxSeconds` is not transcribed.

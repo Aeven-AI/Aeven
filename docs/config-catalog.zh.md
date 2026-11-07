@@ -1187,10 +1187,16 @@ export interface Config {
   probeDirectory?: string
   /**
    * Argv the probe runs under, such as a bubblewrap jail that sees only
-   * `/usr` and {@link probeDirectory}; the `ffprobe` argv follows it. Omitted,
-   * `ffprobe` runs directly.
+   * `/usr` and {@link probeDirectory}; the `ffprobe` and `ffmpeg` argv follow it. Omitted,
+   * they run directly.
    */
   probeRunner?: string[]
+  /** `ffmpeg` executable that decodes a clip's sound for transcription, resolved through `PATH` unless it names a file. */
+  ffmpegPath: string
+  /** Seconds of a clip's sound that are transcribed, from its start; 0 turns transcription off. */
+  transcribeMaxSeconds: number
+  /** Wall-clock limit for decoding one clip's sound before it is described without a transcript. */
+  decodeTimeoutMs: number
 }
 ```
 
@@ -1684,7 +1690,7 @@ export interface Config {
   whatsappRestartDelayMs: number
   /** Longest restart delay; a daemon that ran this long resets the failure count. */
   whatsappMaxRestartDelayMs: number
-  /** Largest message media file a WhatsApp card reads through {@link AccountIntegrations.whatsAppMessageMedia}; a larger one shows no preview. */
+  /** Largest message media file a WhatsApp card reads through {@link AccountIntegrations.whatsAppMessageMedia}; larger shows no preview. */
   whatsappMediaMaxBytes: number
 }
 

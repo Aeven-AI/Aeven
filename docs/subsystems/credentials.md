@@ -77,11 +77,14 @@ Signed-in users manage their own integrations; each agent mounts only its owner'
 /**
  * Read the media of one WhatsApp message a connector tool listed, so its card in the conversation can show an image,
  * play a video or GIF, or play a voice note.
+ * The call that listed the message may have run on another device of the same account, whose connector this Host
+ * does not hold: the named connector is asked first, then the acting user's other linked numbers, since every
+ * device linked to one phone knows its messages by the same IDs.
  * @param toolName - the listing call's tool name, `mcp__whatsapp_<connector prefix>__<tool>`, naming the account.
  * @param chatJid - chat JID of the message.
  * @param messageId - WhatsApp message ID.
- * @returns the bytes and their content type (a voice note as `audio/mp4`), or undefined when the account is not the
- * acting user's linked number, the message has no fetchable media, or the file exceeds {@link Config.whatsappMediaMaxBytes}.
+ * @returns the bytes and their content type (a voice note as `audio/mp4`), or undefined when none of the acting user's
+ * linked numbers can fetch the message's media or the file exceeds {@link Config.whatsappMediaMaxBytes}.
  */
 @Remote async whatsAppMessageMedia(toolName: string, chatJid: string, messageId: string): Promise<WhatsAppMessageMedia | undefined>
 
