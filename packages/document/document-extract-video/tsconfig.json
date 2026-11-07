@@ -16,6 +16,9 @@
     },
     {
       "path": "../../subprocess/subprocess"
+    },
+    {
+      "path": "../../speech/speech-to-text"
     }
   ]
 }

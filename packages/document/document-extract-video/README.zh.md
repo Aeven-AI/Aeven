@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`@aeven/document-extract-video` 在 `ctx.documentExtract` 上以优先级 10 注册 `video` provider，于是上传或相机录制的片段（`mp4`、`m4v`、`mov`、`webm`、`mp3`）成为一个可用的文件附件，而不是不支持的类型。MP3 上传使用音频流，报告音频元数据，不声称已转录内容。读取器用宿主机自带的 `ffprobe` 探测片段，并存储一句描述；画面与声音从不转录，因此这句话会明确说明这一点。
+`@aeven/document-extract-video` 在 `ctx.documentExtract` 上以优先级 10 注册 `video` provider，于是上传或相机录制的片段（`mp4`、`m4v`、`mov`、`webm`、`mp3`）成为一个可用的文件附件，而不是不支持的类型。MP3 上传使用音频流，报告音频元数据。读取器用宿主机自带的 `ffprobe` 探测片段，并存储一句描述。当部署挂载了 `ctx.speechToText` 且用户开启了语音输入时，它还会用 `ffmpeg` 解码片段的声音，并用所选语音服务转写前 `transcribeMaxSeconds` 秒，附上转写文本，或说明未识别到语音（例如音乐）；否则这句话说明声音未转写。画面从不描述。
 
 ## 目录
 
@@ -30,7 +30,10 @@ kind: "package-reference"
 | `ffprobePath` | `ffprobe` | 探测可执行文件，除非给出文件路径，否则经 `PATH` 解析 |
 | `probeTimeoutMs` | `15000` | 单次探测的墙钟上限；超时则退回文件事实 |
 | `probeDirectory` | 操作系统临时目录 | 每个片段为探测写入的目录 |
-| `probeRunner` | 无 | 探测运行时所在的 argv，例如只能看到 `/usr` 与 `probeDirectory` 的 bubblewrap 监狱；挂载了 `ctx.subprocess` 时探测通过它启动 |
+| `probeRunner` | 无 | 探测与声音解码运行时所在的 argv，例如只能看到 `/usr` 与 `probeDirectory` 的 bubblewrap 监狱；挂载了 `ctx.subprocess` 时它们通过它启动 |
+| `ffmpegPath` | `ffmpeg` | 把片段声音转为 16 kHz 单声道 WAV 以供转写的解码器，除非给出文件路径，否则经 `PATH` 解析 |
+| `transcribeMaxSeconds` | `600` | 从片段开头起转写的声音秒数；`0` 关闭转写 |
+| `decodeTimeoutMs` | `60000` | 解码单个片段声音的墙钟上限；超时则不带转写地描述片段 |
 
 没有可用的 `ffprobe` 时，读取器仍声明这些格式，只报告容器与字节大小，于是在没有该二进制的部署中片段仍能附上，而不是被拒绝。
 
@@ -50,7 +53,7 @@ kind: "package-reference"
 
 #### 模型看到的内容
 
-上传的文件以 `<attached_file>` 元素到达模型，其抽取文本是一句话，例如 `Video clip "clip-1755000000000.webm": 8.2 s, 720×1280, vp9, WebM, 3.4 MB. The clip is stored with this session; its frames and sound are not transcribed.` 模型由此知道存在一个片段、它有多长、画面多大，而这句话也明确说明内容本身没有被读取。
+上传的文件以 `<attached_file>` 元素到达模型，其抽取文本是一句话，例如 `Video clip "clip-1755000000000.webm": 8.2 s, 720×1280, vp9, WebM, 3.4 MB. The clip is stored with this session; its frames and sound are not transcribed.` 模型由此知道存在一个片段、它有多长、画面多大。有转写时，文本接着是 `Transcript of its sound:` 与识别出的文字，或写明 `No speech was recognized in its sound.`；转写文字会计入附件的 token。
 
 #### Token 影响
 
@@ -63,4 +66,4 @@ kind: "package-reference"
 <a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与暂缓事项
 
-- **没有任何东西在观看片段**——既没有抽帧也没有音频转录，模型只能依据事实推断片段内容。抽帧读取器是自然的下一步，可以复用同一个 `ffprobe` 依赖来选择时间点。
+- **没有任何东西在观看画面**——只转写声音，模型只能依据事实推断片段画面。抽帧读取器是自然的下一步，可以复用同一个 `ffprobe` 依赖来选择时间点。超过 `transcribeMaxSeconds` 的声音不转写。

@@ -7049,6 +7049,9 @@ importers:
       '@aeven/document-extract':
         specifier: workspace:^
         version: link:../document-extract
+      '@aeven/speech-to-text':
+        specifier: workspace:^
+        version: link:../../speech/speech-to-text
       '@aeven/subprocess':
         specifier: workspace:^
         version: link:../../subprocess/subprocess
