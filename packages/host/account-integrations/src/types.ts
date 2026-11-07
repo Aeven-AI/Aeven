@@ -285,6 +285,14 @@ export type WhatsAppPhoneCodeView =
   | { state: 'code'; code: string }
   | { state: 'invalid-phone' | 'expired' | 'rate-limited' | 'failed' }
 
+/** The media of one WhatsApp message, read for its card in the conversation. */
+export interface WhatsAppMessageMedia {
+  /** MIME type of the bytes; `audio/mp4` for a voice note, which the daemon re-encodes so every browser plays it. */
+  readonly contentType: string
+  /** The bytes, base64-encoded, since Remote results carry JSON values only. */
+  readonly base64: string
+}
+
 /** The Telegram account one `telegram` connector is signed in to. */
 export interface TelegramConnectorSettings {
   /** Telegram user id; two connectors may not carry the same one. */

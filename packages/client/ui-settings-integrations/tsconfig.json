@@ -31,6 +31,18 @@
     },
     {
       "path": "../store"
+    },
+    {
+      "path": "../ui-chat"
+    },
+    {
+      "path": "../ui-conversation"
+    },
+    {
+      "path": "../ui-tool"
+    },
+    {
+      "path": "../../core/tools"
     }
   ]
 }

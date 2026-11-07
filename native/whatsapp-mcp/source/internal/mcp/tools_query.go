@@ -122,7 +122,7 @@ func (s *Server) registerListMessages() {
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
-		return mcp.NewToolResultText(s.client.Store().FormatMessagesList(ctx, msgs, true)), nil
+		return withCards(mcp.NewToolResultText(s.client.Store().FormatMessagesList(ctx, msgs, true)), s.cardsOf(ctx, msgs, "")), nil
 	}))
 }
 
@@ -224,7 +224,12 @@ func (s *Server) registerGetMessageContext() {
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
-		return resultJSON(ctxResult)
+		result, err := resultJSON(ctxResult)
+		if err != nil || result.IsError {
+			return result, err
+		}
+		ordered := append(append(append([]store.Message{}, ctxResult.Before...), ctxResult.Message), ctxResult.After...)
+		return withCards(result, s.cardsOf(ctx, ordered, ctxResult.Message.ID)), nil
 	}))
 }
 

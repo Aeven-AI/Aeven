@@ -8,7 +8,7 @@ import { TURN_PROCESS_INDEPENDENT_KINDS } from '../contract/turn-process.ts'
 import { hasAssistantReplyContent } from '../contract/assistant-content.ts'
 import { storedTurnProcessEntry } from '../stores.ts'
 import { useSearchableHidden } from './searchable-hidden.ts'
-import { hasGeneratedImageCall } from '../contract/generated-images.ts'
+import { hasGeneratedImageCall, withConnectorCards } from '../contract/generated-images.ts'
 import { useTurnDataValue } from './use-turn-data.ts'
 import css from './ChatView.module.css'
 
@@ -138,7 +138,9 @@ export const ChatNodeSeat = memo(function ChatNodeSeat({
     && foldable
     && processPresentation.compactAnswer
     && !processOpen
-  const generatedImages = useTurnDataValue(turnDataOf(routedNode), 'generated-images')
+  const turnImages = useTurnDataValue(turnDataOf(routedNode), 'generated-images')
+  const connectorCards = useTurnDataValue(turnDataOf(routedNode), 'connector-cards')
+  const generatedImages = useMemo(() => withConnectorCards(turnImages, connectorCards), [turnImages, connectorCards])
   const imageLane = routedNode?.kind === 'tool-call' && hasGeneratedImageCall(routedNode.data.root, generatedImages)
   const processHidden = controllerInactive || (foldable && processMember && !processOpen && !imageLane)
   const revealProcess = useCallback(() => {

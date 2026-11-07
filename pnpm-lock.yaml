@@ -4448,6 +4448,12 @@ importers:
       '@aeven/client-store':
         specifier: workspace:^
         version: link:../store
+      '@aeven/client-ui-chat':
+        specifier: workspace:^
+        version: link:../ui-chat
+      '@aeven/client-ui-conversation':
+        specifier: workspace:^
+        version: link:../ui-conversation
       '@aeven/client-ui-primitives':
         specifier: workspace:^
         version: link:../ui-primitives
@@ -4460,6 +4466,12 @@ importers:
       '@aeven/client-ui-slots':
         specifier: workspace:^
         version: link:../ui-slots
+      '@aeven/client-ui-tool':
+        specifier: workspace:^
+        version: link:../ui-tool
+      '@aeven/tools':
+        specifier: workspace:^
+        version: link:../../core/tools
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis

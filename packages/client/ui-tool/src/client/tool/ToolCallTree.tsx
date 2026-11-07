@@ -4,6 +4,7 @@ import type { GeneratedImages, ToolCallBlock } from '@aeven/client-ui-chat/clien
 import type { ToolCallOwnerProps, ToolTreeProps } from '../contract/slots.ts'
 import { GenericToolCard } from './toolviews/GenericToolCard.tsx'
 import css from './ToolCallTree.module.css'
+import { toolViewKey } from './tool-view-key.ts'
 
 /** Resolve a Tool call's wire name from either lifecycle form. */
 function callName(node: ToolCallBlock): string {
@@ -52,7 +53,7 @@ const ToolCall = memo(function ToolCall({
     >
       <div hidden={collapsed && !generatedImages?.callIds.has(callId)}>
         {renderSlot('tool.call.toolview', owner, {
-          entryKey: toolName,
+          entryKey: toolViewKey(toolName),
           fallback: <GenericToolCard {...owner} t={t} />,
         })}
       </div>

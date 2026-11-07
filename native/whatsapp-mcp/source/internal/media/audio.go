@@ -234,3 +234,30 @@ func sanitizeStderr(s string) string {
 	}
 	return s
 }
+
+// ConvertToM4A shells out to ffmpeg to re-encode a voice note as AAC in an
+// MP4 container at outputPath, which every browser plays and decodes; Safari
+// before 18.4 plays no Ogg Opus, the format WhatsApp records voice notes in.
+func ConvertToM4A(ctx context.Context, inputPath, outputPath string) error {
+	if _, lookErr := exec.LookPath("ffmpeg"); lookErr != nil {
+		return errors.New("ffmpeg not found on PATH; install ffmpeg to play voice notes in a browser")
+	}
+	cmd := exec.CommandContext(ctx, "ffmpeg",
+		"-i", sanitizeFFmpegInputPath(inputPath),
+		"-vn",
+		"-c:a", "aac",
+		"-b:a", "64k",
+		"-movflags", "+faststart",
+		"-f", "mp4",
+		"-y",
+		outputPath,
+	)
+	cmd.Env = minimalEnv()
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		os.Remove(outputPath)
+		return fmt.Errorf("ffmpeg voice note conversion failed: %w: %s", err, sanitizeStderr(stderr.String()))
+	}
+	return nil
+}

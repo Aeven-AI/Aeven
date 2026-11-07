@@ -933,6 +933,7 @@ export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   WebTerminalInfo: 'package-owned type is documented in packages/api/terminal-controller/src/types.ts',
   WhatsAppPairingView: 'package-owned type is documented in packages/host/account-integrations/src/types.ts',
   WhatsAppPhoneCodeView: 'package-owned type is documented in packages/host/account-integrations/src/types.ts',
+  WhatsAppMessageMedia: 'package-owned type is documented in packages/host/account-integrations/src/types.ts',
   CreateWorktreeRequest: 'package-owned type is documented in packages/session/worktrees/src/types.ts',
   CreatedWorktree: 'package-owned type is documented in packages/session/worktrees/src/types.ts',
   RemovedWorktree: 'package-owned type is documented in packages/session/worktrees/src/types.ts',

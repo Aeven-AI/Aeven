@@ -284,7 +284,7 @@ function createDefinition(
   }
 }
 
-/** Build the canonical result schema and existing Native text projection. */
+/** Build the canonical result schema, the Native text projection, and the structured-result presentation meta. */
 function createOutput(rawName: string, structuredSchema: JsonSchemaNode | undefined): ToolDefinition['output'] {
   return {
     schema: {
@@ -299,6 +299,12 @@ function createOutput(rawName: string, structuredSchema: JsonSchemaNode | undefi
     render(_args: unknown, value: JsonValue) {
       const result = value as unknown as McpResult
       return [{ type: 'text', text: extractText(result.content, rawName) }]
+    },
+    // The server's structured result reaches Client cards through the durable
+    // `tool/result` meta; the model reads only the rendered text.
+    presentationMeta(_args: unknown, value: JsonValue) {
+      const result = value as unknown as McpResult
+      return result.structuredContent === undefined ? {} : { structuredContent: result.structuredContent }
     },
   }
 }

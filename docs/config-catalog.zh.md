@@ -1684,6 +1684,8 @@ export interface Config {
   whatsappRestartDelayMs: number
   /** Longest restart delay; a daemon that ran this long resets the failure count. */
   whatsappMaxRestartDelayMs: number
+  /** Largest message media file a WhatsApp card reads through {@link AccountIntegrations.whatsAppMessageMedia}; a larger one shows no preview. */
+  whatsappMediaMaxBytes: number
 }
 
 /** Versions and process budgets for the deployment's private analysis runtime. */
