@@ -258,13 +258,8 @@ export function MotionToolView({ block, sessionId, t }: ToolCallViewProps & Prop
 
   const showError = failed || loadError !== undefined
   const loading = !settled || (dir !== undefined && media === null && !showError)
-  if (superseded) {
-    return (
-      <figure className={css.root} data-motion-call={block.callId} data-state="superseded">
-        <p className={css.motionSuperseded}>{t('motion.superseded')}</p>
-      </figure>
-    )
-  }
+  // The newest card for the same folder below shows the current film, so an earlier one leaves no trace.
+  if (superseded) return null
   return (
     <figure className={css.root} data-motion-call={block.callId} data-state={showError ? 'error' : settled ? 'settled' : 'running'}>
       <div className={css.frames} data-frames={1}>

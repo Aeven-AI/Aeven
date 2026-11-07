@@ -170,7 +170,6 @@ export const zh = {
   'motion.failed': '无法显示动态影片',
   'motion.export': '导出 MP4',
   'motion.exportFailed': '导出失败',
-  'motion.superseded': '此影片已在下方更新',
 } satisfies Record<string, string>
 
 /** The imagine namespace key union. */
@@ -346,7 +345,6 @@ export const en = {
   'motion.failed': 'The motion film could not be shown',
   'motion.export': 'Export MP4',
   'motion.exportFailed': 'Export failed',
-  'motion.superseded': 'This film was updated below',
 } satisfies Record<ImagineKey, string>
 
 declare module '@aeven/client-ui-slots' {
@@ -528,5 +526,4 @@ export const es = {
   'motion.failed': 'No se pudo mostrar la animación',
   'motion.export': 'Exportar MP4',
   'motion.exportFailed': 'La exportación falló',
-  'motion.superseded': 'Esta animación se actualizó más abajo',
 } satisfies Record<ImagineKey, string>
