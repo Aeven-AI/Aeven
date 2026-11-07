@@ -43,6 +43,7 @@
     "@aeven/speech-to-text-aeven": "workspace:^",
     "@aeven/subprocess-executor": "workspace:^",
     "@aeven/web-app": "workspace:^",
+    "@deepseek-ai/cordis-plugin-logger-console": "workspace:^",
     "@deepseek-ai/schemastery": "workspace:^"
   },
   "peerDependencies": {
