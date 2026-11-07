@@ -198,8 +198,43 @@ function Quote({ quote, t }: { quote: WhatsAppCardQuote; t: CardT }) {
   )
 }
 
-/** The preview of a link in the message's text: title, description, and site. */
-function LinkCard({ link }: { link: WhatsAppCardLink }) {
+/** URLs in message text. */
+const URL_PATTERN = /https?:\/\/[^\s<>"]+[^\s<>".,;:!?)\]']/g
+
+/**
+ * Message text as WhatsApp shows it: each line without its leading spaces, and every URL a link that opens in a new
+ * window.
+ * @param content - the message text.
+ * @returns the text with its links.
+ */
+function linkedText(content: string): ReactNode[] {
+  const text = content.replace(/^[ \t]+/gm, '')
+  const parts: ReactNode[] = []
+  let last = 0
+  for (const match of text.matchAll(URL_PATTERN)) {
+    const start = match.index
+    if (start > last) parts.push(text.slice(last, start))
+    parts.push(<a key={start} className={css.textLink} href={match[0]} target="_blank" rel="noreferrer">{match[0]}</a>)
+    last = start + match[0].length
+  }
+  if (last < text.length) parts.push(text.slice(last))
+  return parts
+}
+
+/** The image of a link preview, loaded once it nears the viewport. */
+function LinkImage({ source, message }: { source: MessageMediaSource; message: WhatsAppCardMessage }) {
+  const [ref, seen] = useSeen<HTMLDivElement>()
+  const media = useMedia(source, message, seen)
+  if (media === null) return null
+  return (
+    <div ref={ref} className={css.linkImage} data-loading={media === undefined || undefined}>
+      {media !== undefined && <img src={media.url} alt="" loading="lazy" onLoad={shown} />}
+    </div>
+  )
+}
+
+/** The preview of a link in the message's text: image, title, description, and site. */
+function LinkCard({ link, source, message }: { link: WhatsAppCardLink; source: MessageMediaSource; message: WhatsAppCardMessage }) {
   let host = ''
   try {
     host = new URL(link.url).hostname
@@ -208,6 +243,7 @@ function LinkCard({ link }: { link: WhatsAppCardLink }) {
   }
   const body = (
     <>
+      {link.hasImage && <LinkImage source={source} message={message} />}
       {link.title !== '' && <span className={css.linkTitle}>{link.title}</span>}
       {link.description !== '' && <span className={css.linkDescription}>{link.description}</span>}
       {host !== '' && <span className={css.linkHost}>{host}</span>}
@@ -231,15 +267,16 @@ function Bubble({ message, chat, source, showSender, t }: {
   return (
     <div className={css.row} data-from-me={message.fromMe || undefined}>
       <div className={bare ? css.bareBubble : css.bubble} data-media={message.media}
-        data-text={message.content !== '' || undefined} data-multiline={multiline || undefined}>
+        data-text={message.content !== '' || undefined}
+        data-multiline={multiline || message.link !== undefined || message.reply !== undefined || undefined}>
         {showSender && chat.group && !message.fromMe && message.senderName !== '' && (
           <span className={css.sender}>{message.senderName}</span>
         )}
         {message.forwarded && <span className={css.forwarded}>{t('forwarded')}</span>}
         {message.reply !== undefined && <Quote quote={message.reply} t={t} />}
-        {message.link !== undefined && <LinkCard link={message.link} />}
+        {message.link !== undefined && <LinkCard link={message.link} source={source} message={message} />}
         <MessageMedia source={source} message={message} t={t} />
-        {message.content !== '' && <p ref={textRef} className={css.text}>{message.content}</p>}
+        {message.content !== '' && <p ref={textRef} className={css.text}>{linkedText(message.content)}</p>}
         <time className={css.time} dateTime={new Date(message.time).toISOString()}>{clockTime(message.time)}</time>
       </div>
     </div>

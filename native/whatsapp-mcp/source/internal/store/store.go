@@ -62,12 +62,42 @@ type Message struct {
 	Link *LinkPreview `json:"link,omitempty"`
 }
 
-// LinkPreview is the title, description, and URL WhatsApp shows above a
-// message that links somewhere.
+// LinkPreview is the title, description, URL, and image WhatsApp shows above
+// a message that links somewhere.
 type LinkPreview struct {
 	URL         string `json:"url,omitempty"`
 	Title       string `json:"title,omitempty"`
 	Description string `json:"description,omitempty"`
+	// HasImage is true when the preview carries an image, which LinkImage
+	// returns.
+	HasImage bool `json:"has_image,omitempty"`
+	// Image locates the preview image; it is stored, never listed.
+	Image LinkImage `json:"-"`
+}
+
+// LinkImage is a link preview's image: the small JPEG the message embeds, and
+// the CDN location and keys of the full-size one when the sender uploaded it.
+type LinkImage struct {
+	Inline        []byte
+	DirectPath    string
+	FileSHA256    []byte
+	FileEncSHA256 []byte
+	MediaKey      []byte
+}
+
+// LinkImage returns the stored preview image of a message, or an empty
+// LinkImage when it has none.
+func (s *Store) LinkImage(ctx context.Context, id, chatJID string) (LinkImage, error) {
+	var (
+		image LinkImage
+		path  sql.NullString
+	)
+	err := s.db.QueryRowContext(ctx,
+		`SELECT link_thumbnail, link_thumb_path, link_thumb_sha256, link_thumb_enc_sha256, link_media_key
+		FROM messages WHERE id = ? AND chat_jid = ?`, id, chatJID).
+		Scan(&image.Inline, &path, &image.FileSHA256, &image.FileEncSHA256, &image.MediaKey)
+	image.DirectPath = path.String
+	return image, err
 }
 
 // Reply is the quoted message a reply carries: its ID, its sender's JID as
@@ -206,12 +236,14 @@ func (s *Store) StoreMessage(ctx context.Context, m Message, mediaKey, fileSHA25
 	_, err := s.db.ExecContext(ctx,
 		`INSERT OR REPLACE INTO messages
 		(id, chat_jid, sender, content, timestamp, is_from_me, media_type, filename, url, direct_path, media_key, file_sha256, file_enc_sha256, file_length,
-		 quoted_id, quoted_sender, quoted_content, quoted_media_type, forwarded, link_url, link_title, link_description)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		 quoted_id, quoted_sender, quoted_content, quoted_media_type, forwarded, link_url, link_title, link_description,
+		 link_thumbnail, link_thumb_path, link_thumb_sha256, link_thumb_enc_sha256, link_media_key)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		m.ID, m.ChatJID, m.Sender, m.Content, m.Timestamp, m.IsFromMe,
 		m.MediaType, m.Filename, m.URL, m.DirectPath, mediaKey, fileSHA256, fileEncSHA256, fileLength,
 		quoted.ID, quoted.Sender, quoted.Content, quoted.MediaType, m.Forwarded,
 		link.URL, link.Title, link.Description,
+		link.Image.Inline, link.Image.DirectPath, link.Image.FileSHA256, link.Image.FileEncSHA256, link.Image.MediaKey,
 	)
 	return err
 }
@@ -376,6 +408,11 @@ CREATE TABLE IF NOT EXISTS messages (
 	link_url TEXT,
 	link_title TEXT,
 	link_description TEXT,
+	link_thumbnail BLOB,
+	link_thumb_path TEXT,
+	link_thumb_sha256 BLOB,
+	link_thumb_enc_sha256 BLOB,
+	link_media_key BLOB,
 	PRIMARY KEY (id, chat_jid),
 	FOREIGN KEY (chat_jid) REFERENCES chats(jid)
 );
@@ -429,6 +466,11 @@ func migrateSchema(db *sql.DB) error {
 		{"link_url", "TEXT"},
 		{"link_title", "TEXT"},
 		{"link_description", "TEXT"},
+		{"link_thumbnail", "BLOB"},
+		{"link_thumb_path", "TEXT"},
+		{"link_thumb_sha256", "BLOB"},
+		{"link_thumb_enc_sha256", "BLOB"},
+		{"link_media_key", "BLOB"},
 	} {
 		if present[column.name] {
 			continue
