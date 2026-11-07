@@ -125,30 +125,46 @@ async function saveImage(image: LightboxImage): Promise<void> {
   }
 }
 
-/** Width-to-height ratio a video frame assumes until the clip reports its own. */
-const DEFAULT_VIDEO_RATIO = 16 / 9
+/**
+ * The width-to-height ratio of a decoded still.
+ * @param src - the still's URL.
+ * @returns the ratio, or undefined when the still is not decoded yet or has no size.
+ */
+function decodedRatio(src: string | undefined): number | undefined {
+  if (src === undefined) return undefined
+  const still = new Image()
+  still.src = src
+  return still.complete && still.naturalHeight > 0 ? still.naturalWidth / still.naturalHeight : undefined
+}
 
-/** A video in the gallery: the product's player in a frame of the clip's own shape, as large as the stage allows. */
+/**
+ * A video in the gallery: the product's player in a frame of the clip's own shape, as large as the stage allows. The
+ * frame stays hidden until that shape is known, from the tile's poster or the clip's own metadata, so it never opens
+ * at a guessed size and resizes.
+ */
 function LightboxVideo({ image, labels }: { image: LightboxImage; labels: VideoPlayerLabels }) {
-  const [ratio, setRatio] = useState(DEFAULT_VIDEO_RATIO)
-  // The poster is already decoded for its tile, so its shape is known before the clip's metadata arrives.
+  // A poster the tile already drew is decoded, so its shape is usually known on the first render.
+  const [ratio, setRatio] = useState<number | undefined>(() => decodedRatio(image.poster))
   useEffect(() => {
-    if (image.poster === undefined) return
+    if (image.poster === undefined || ratio !== undefined) return
     const still = new Image()
     still.onload = () => {
-      if (still.naturalHeight <= 0) return
-      setRatio(current => current === DEFAULT_VIDEO_RATIO ? still.naturalWidth / still.naturalHeight : current)
+      if (still.naturalHeight > 0) setRatio(current => current ?? still.naturalWidth / still.naturalHeight)
     }
     still.src = image.poster
-  }, [image.poster])
+  }, [image.poster, ratio])
   return (
-    <div className={css.videoFrame} style={{ aspectRatio: String(ratio), '--avn-video-ratio': String(ratio) } as React.CSSProperties}>
+    <div
+      className={css.videoFrame}
+      data-sized={ratio !== undefined || undefined}
+      style={{ '--avn-video-ratio': String(ratio ?? 1) } as React.CSSProperties}
+    >
       <VideoPlayer
         src={image.src}
         label={image.alt}
         saveName={downloadName(image)}
         labels={labels}
-        onRatio={setRatio}
+        onRatio={(clip) => { setRatio(clip) }}
         poster={image.poster}
         fullscreenControl={false}
         autoPlay
