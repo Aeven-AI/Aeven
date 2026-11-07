@@ -4,7 +4,9 @@
 html,
 body,
 #root {
-  height: 100%;
+  /* The visible height (visual-viewport.ts), so an on-screen keyboard lifts
+     the frame's floor instead of covering it; 100% until the follower runs. */
+  height: var(--avn-viewport-height, 100%);
   margin: 0;
   /* The app frame owns every scroller, so the document itself never scrolls.
      Stated rather than left to `visible`: while the roster activates, a
@@ -13,6 +15,20 @@ body,
      app — the transcript column, which is sized from its container and
      centred in it, both narrows and shifts sideways before settling back. */
   overflow: hidden;
+}
+
+/* The page asks for the whole screen (`viewport-fit=cover`), so the mount
+   keeps the app out of the notch, the status bar, and the home indicator in
+   both orientations; the strips show the mount's own background. An open
+   on-screen keyboard already covers the home indicator. */
+#root {
+  box-sizing: border-box;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px)
+    env(safe-area-inset-left, 0px);
+}
+
+html[data-avn-keyboard] #root {
+  padding-bottom: 0;
 }
 
 body {
