@@ -50,10 +50,10 @@ const RECOVERY_CONFIRMATION_MS = 2_000
 
 /**
  * How long a visible page stays quietly not-connected before the indicator says so. A phone drops the socket every
- * time the reader switches apps and reconnects within a moment of returning; announcing that blip as an outage, then
- * as a recovery, reads as a fault the reader has to act on.
+ * time the reader switches apps and reconnects within a few seconds of returning, and a Host restart takes longer;
+ * announcing that blip as an outage, then as a recovery, reads as a fault the reader has to act on.
  */
-const OUTAGE_GRACE_MS = 5_000
+const OUTAGE_GRACE_MS = 15_000
 
 /**
  * Sections the nav shows as one entry. The entry sits where its first
