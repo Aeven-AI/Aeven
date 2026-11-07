@@ -6,27 +6,30 @@ import type { LightboxImage } from '@aeven/client-ui-primitives'
 import { imageKey, resolvedUrl, useImageResolutions } from '../image-resolutions.ts'
 import { ImageGallery } from '../MessageImage.tsx'
 import { UploadTray } from '../UploadTray.tsx'
-import type { UploadTrayFileItem, UploadTrayImageItem } from '../UploadTray.tsx'
+import type { UploadTrayFileItem, UploadTrayImageItem, UploadTrayVideoItem } from '../UploadTray.tsx'
 import { messageImageEntry } from '../message-image-entry.ts'
 import { isSvgAttachment } from '../svg-attachment.ts'
+import { isVideoAttachment, useVideoPosters } from '../video-poster.ts'
 import { lightboxLabels, messageImageLabels, uploadTrayLabels } from './labels.ts'
 
 /** Sent-message tray tile retaining what its open action needs. */
 type MessageTrayItem =
   | UploadTrayImageItem & { image: MessageImageSource }
   | UploadTrayImageItem & { picture: MessageFileSource }
+  | UploadTrayVideoItem & { src: string | null }
   | UploadTrayFileItem & { file: MessageFileSource }
 
 /**
  * One sent file as the tray presents it. An SVG original is a picture the
  * browser renders even though the harness stores it as a file, so its tile
- * shows the bytes and opens the preview; a file the tray keeps as a file
- * reports no URL.
+ * shows the bytes and opens the preview; a video shows its first frame and
+ * plays in the preview; a file the tray keeps as a file reports no URL.
  */
 interface SentFile {
   readonly file: MessageFileSource
   readonly name: string
   readonly mediaType: string
+  readonly video: boolean
   /** Picture URL, or null while a submission echo's original is not yet stored. */
   readonly url: string | null | undefined
 }
@@ -38,11 +41,13 @@ function sentFiles(
 ): readonly SentFile[] {
   return (files ?? []).map((file) => {
     const { name, mediaType } = 'attachment' in file ? file.attachment : file.preview
-    if (!isSvgAttachment(name, mediaType)) return { file, name, mediaType, url: undefined }
+    const video = isVideoAttachment(name, mediaType)
+    if (!video && !isSvgAttachment(name, mediaType)) return { file, name, mediaType, video, url: undefined }
     return {
       file,
       name,
       mediaType,
+      video,
       url: 'attachment' in file && fileUrl !== undefined ? fileUrl(file.attachment) : null,
     }
   })
@@ -60,6 +65,7 @@ function MessageAttachmentTray({ images, files, turnImages, loadImage, fileUrl, 
   const [previewSrc, setPreviewSrc] = useState<string | null>(null)
   const closePreview = useCallback(() => { setPreviewSrc(null) }, [])
   const pictures = useMemo(() => sentFiles(files, fileUrl), [files, fileUrl])
+  const posters = useVideoPosters(useMemo(() => pictures.flatMap(picture => picture.video ? [picture.url ?? null] : []), [pictures]))
   const items = useMemo<MessageTrayItem[]>(() => [
     ...images.map((image, index): MessageTrayItem => {
       if ('preview' in image) {
@@ -84,6 +90,19 @@ function MessageAttachmentTray({ images, files, turnImages, loadImage, fileUrl, 
       }
     }),
     ...pictures.map((picture, index): MessageTrayItem => {
+      if (picture.video) {
+        const src = picture.url ?? null
+        const poster = src === null ? undefined : posters.get(src)
+        return {
+          kind: 'video',
+          id: `video:${picture.name}:${index}`,
+          posterUrl: poster ?? null,
+          pending: src === null || poster === undefined,
+          alt: t('file.open', { name: picture.name }),
+          removeLabel: '',
+          src,
+        }
+      }
       if (picture.url === undefined) {
         return {
           kind: 'file',
@@ -107,7 +126,7 @@ function MessageAttachmentTray({ images, files, turnImages, loadImage, fileUrl, 
         picture: picture.file,
       }
     }),
-  ], [images, pictures, resolutions, loadImage, t])
+  ], [images, pictures, posters, resolutions, loadImage, t])
   const entries: LightboxImage[] = []
   for (const image of scope) {
     const src = resolvedUrl(image, resolutions, loadImage)
@@ -118,6 +137,7 @@ function MessageAttachmentTray({ images, files, turnImages, loadImage, fileUrl, 
     if (picture.url === undefined || picture.url === null) continue
     entries.push({
       src: picture.url,
+      ...picture.video ? { kind: 'video' as const } : {},
       alt: picture.name,
       name: picture.name,
       mediaType: picture.mediaType,
@@ -137,6 +157,10 @@ function MessageAttachmentTray({ images, files, turnImages, loadImage, fileUrl, 
           if (item.kind === 'file') {
             // A submission echo's file has no stored original to open until admission.
             if (fileUrl !== undefined && 'attachment' in item.file) window.open(fileUrl(item.file.attachment), '_blank', 'noopener')
+            return
+          }
+          if (item.kind === 'video') {
+            if (item.src !== null) setPreviewSrc(item.src)
             return
           }
           if ('image' in item && item.failed === true && 'attachment' in item.image) {

@@ -8,6 +8,7 @@ import { DropOverlay } from '../DropOverlay.tsx'
 import { ImageLightbox } from '@aeven/client-ui-primitives'
 import type { LightboxImage } from '@aeven/client-ui-primitives'
 import { isSvgAttachment } from '../svg-attachment.ts'
+import { isVideoAttachment, useVideoPosters } from '../video-poster.ts'
 import { dropOverlayLabels, lightboxLabels, uploadTrayLabels } from './labels.ts'
 
 /** Tray item retaining its browser-owned attachment for callbacks. */
@@ -26,12 +27,12 @@ function openDraftFile(file: File): void {
   setTimeout(() => { URL.revokeObjectURL(url) }, 60_000)
 }
 
-/** Draft files the tray shows as pictures: an SVG original, until its upload failed. */
+/** Draft files the tray shows from their own bytes: an SVG original or a video, until its upload failed. */
 function pictureDrafts(attachments: readonly ComposerAttachment[]): readonly ComposerFileAttachment[] {
   return attachments.filter((attachment): attachment is ComposerFileAttachment =>
     attachment.kind === 'file'
     && attachment.status !== 'error'
-    && isSvgAttachment(attachment.file.name, attachment.file.type))
+    && (isSvgAttachment(attachment.file.name, attachment.file.type) || isVideoAttachment(attachment.file.name, attachment.file.type)))
 }
 
 /**
@@ -80,6 +81,10 @@ export function ComposerAttachments({
   }, [attachments, preview])
   const pictures = useMemo(() => pictureDrafts(attachments), [attachments])
   const pictureUrls = useDraftPictureUrls(pictures)
+  const videoUrls = useMemo(() => pictures
+    .filter(draft => isVideoAttachment(draft.file.name, draft.file.type))
+    .map(draft => pictureUrls.get(draft.id) ?? null), [pictures, pictureUrls])
+  const posters = useVideoPosters(videoUrls)
 
   useEffect(() => {
     const fileTransfer = (event: globalThis.DragEvent): DataTransfer | null => {
@@ -145,6 +150,18 @@ export function ComposerAttachments({
       }
     }
     const picture = pictureUrls.get(attachment.id)
+    if (picture !== undefined && isVideoAttachment(attachment.file.name, attachment.file.type)) {
+      const poster = posters.get(picture)
+      return {
+        kind: 'video',
+        id: attachment.id,
+        posterUrl: poster ?? null,
+        pending: attachment.status === 'uploading' || poster === undefined,
+        alt: t('file.open', { name: attachment.file.name }),
+        removeLabel: t('file.removeLabel', { name: attachment.file.name }),
+        attachment,
+      }
+    }
     // A stored SVG is a picture here too: its tile shows the bytes the browser
     // renders, and only once the upload that makes the draft sendable is done.
     if (picture !== undefined) {
@@ -169,23 +186,25 @@ export function ComposerAttachments({
       removeLabel: t('file.removeLabel', { name: attachment.file.name }),
       attachment,
     }
-  }), [attachments, pictureUrls, t])
+  }), [attachments, pictureUrls, posters, t])
 
   // The preview steps through exactly the tiles that open it, in rail order.
   const previews = useMemo<DraftPreview[]>(() => trayItems.flatMap((item): DraftPreview[] => {
-    if (item.kind !== 'image' || item.previewUrl === null) return []
+    const src = item.kind === 'image' ? item.previewUrl : item.kind === 'video' ? pictureUrls.get(item.attachment.id) ?? null : null
+    if (src === null) return []
     const { name, type, size } = item.attachment.file
     return [{
       id: item.attachment.id,
       image: {
-        src: item.previewUrl,
+        src,
+        ...item.kind === 'video' ? { kind: 'video' as const } : {},
         alt: name || t('image.original'),
         name,
         ...type === '' ? {} : { mediaType: type },
         bytes: size,
       },
     }]
-  }), [trayItems, t])
+  }), [trayItems, pictureUrls, t])
   const previewIndex = previews.findIndex(entry => entry.id === preview)
 
   return (
@@ -203,6 +222,10 @@ export function ComposerAttachments({
           onOpen={(item) => {
             if (item.kind === 'image') {
               if (item.previewUrl !== null) setPreview(item.attachment.id)
+              return
+            }
+            if (item.kind === 'video') {
+              setPreview(item.attachment.id)
               return
             }
             openDraftFile(item.attachment.file)

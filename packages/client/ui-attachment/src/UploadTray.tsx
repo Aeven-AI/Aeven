@@ -34,8 +34,22 @@ export interface UploadTrayFileItem {
   removeLabel: string
 }
 
+/** One video tile: the video's first frame under a play mark; strings arrive resolved. */
+export interface UploadTrayVideoItem {
+  kind: 'video'
+  id: string
+  /** First-frame JPEG, or null while it is made or when the browser could not make it. */
+  posterUrl: string | null
+  /** Whether the video is still uploading or its poster is still being made; the tile shows a spinner. */
+  pending: boolean
+  /** Accessible label of the tile's play action. */
+  alt: string
+  /** Accessible label of the tile's remove control. */
+  removeLabel: string
+}
+
 /** One tray tile. */
-export type UploadTrayItem = UploadTrayImageItem | UploadTrayFileItem
+export type UploadTrayItem = UploadTrayImageItem | UploadTrayVideoItem | UploadTrayFileItem
 
 /** Tray-level strings the owner resolves from its own locale namespace. */
 export interface UploadTrayLabels {
@@ -54,8 +68,8 @@ function titleOf(name: string): string {
 }
 
 /**
- * Wrapping attachment tray. Images come first, then files, each group in
- * owner order. An uploading tile shows a spinner; a failed tile shows a
+ * Wrapping attachment tray. Images and videos come first, then files, each
+ * group in owner order. A video shows its first frame under a play mark. An uploading tile shows a spinner; a failed tile shows a
  * warning and "Error"; a ready file shows its type icon and name; an image
  * fades in over its spinner once the thumbnail loads.
  *
@@ -76,7 +90,7 @@ export function UploadTray<T extends UploadTrayItem>({ items, labels, onOpen, on
   /** Composer tray above the editor, or the tray of a sent message. */
   variant?: 'composer' | 'message'
 }) {
-  const ordered = [...items.filter(item => item.kind === 'image'), ...items.filter(item => item.kind === 'file')]
+  const ordered = [...items.filter(item => item.kind !== 'file'), ...items.filter(item => item.kind === 'file')]
   return (
     <div
       className={clsx(css.tray, variant === 'message' && css.message, align === 'end' && css.end)}
@@ -86,11 +100,11 @@ export function UploadTray<T extends UploadTrayItem>({ items, labels, onOpen, on
       {ordered.map(item => (
         <div
           key={item.id}
-          className={clsx(css.tile, item.kind === 'image' ? css.image : css[item.status])}
+          className={clsx(css.tile, item.kind === 'file' ? css[item.status] : css.image)}
         >
-          {item.kind === 'image'
-            ? <ImageTile item={item} labels={labels} onOpen={() => { onOpen(item) }} />
-            : <FileTile item={item} labels={labels} onOpen={() => { onOpen(item) }} />}
+          {item.kind === 'image' && <ImageTile item={item} labels={labels} onOpen={() => { onOpen(item) }} />}
+          {item.kind === 'video' && <VideoTile item={item} onOpen={() => { onOpen(item) }} />}
+          {item.kind === 'file' && <FileTile item={item} labels={labels} onOpen={() => { onOpen(item) }} />}
           {onRemove !== undefined && (
             <Tooltip label={labels.remove} side="top">
               <button
@@ -143,6 +157,26 @@ function ImageTile({ item, labels, onOpen }: {
           <img className={css.thumb} src={previewUrl} alt="" onLoad={() => { setLoaded(true) }} />
         </span>
       )}
+    </button>
+  )
+}
+
+function VideoTile({ item, onOpen }: { item: UploadTrayVideoItem; onOpen: () => void }) {
+  const [loaded, setLoaded] = useState(false)
+  return (
+    <button type="button" className={clsx(css.open, css.openVideo)} aria-label={item.alt} onClick={onOpen} disabled={item.pending}>
+      {item.posterUrl !== null && (
+        <span className={clsx(css.imageBox, loaded && css.imageLoaded)}>
+          <img className={css.thumb} src={item.posterUrl} alt="" onLoad={() => { setLoaded(true) }} />
+        </span>
+      )}
+      {item.pending
+        ? (
+          <span className={css.spinnerBox}>
+            <span className={css.spinner}><UploadSpinnerIcon /></span>
+          </span>
+        )
+        : <span className={css.playMark} aria-hidden="true" />}
     </button>
   )
 }

@@ -29,10 +29,12 @@ export interface ImageLightboxLabels {
   megabytes: (value: string) => string
 }
 
-/** One image the lightbox can show. */
+/** One image or video the lightbox can show. */
 export interface LightboxImage {
-  /** Original image URL; also the download source when no `href` is given. */
+  /** Original image or video URL; also the download source. */
   src: string
+  /** `video` plays the source with the browser's own player controls; absent shows an image. */
+  kind?: 'image' | 'video' | undefined
   alt: string
   /** File name shown in the info popover and used for the download. */
   name?: string | undefined
@@ -129,7 +131,8 @@ function LightboxIcon({ children }: { children: ReactNode }) {
  * Document-level image gallery (the Aeven web client's Gallery): the selected
  * image fills the viewport over the page surface, with an info popover,
  * download, and close at the top and previous/next at the sides when there is
- * more than one image. Escape closes; ArrowLeft and ArrowRight wrap through
+ * more than one image. A video entry plays in the browser's own player and is
+ * not magnified. Escape closes; ArrowLeft and ArrowRight wrap through
  * the images. Focus moves to the close control and returns to the opener on
  * unmount. Rendered through a body portal: an opener inside a transformed or
  * filtered ancestor would otherwise trap the fixed layer in that ancestor's box.
@@ -279,9 +282,9 @@ export function ImageLightbox({ images, index: startIndex, labels, onClose }: {
       view.current = { scale: MIN_ZOOM, x: 0, y: 0 }
       paint(settle)
     }
-    /** Controls keep their own pointer and wheel behaviour. */
+    /** Controls, and a video's own player, keep their own pointer and wheel behaviour. */
     const onControl = (target: EventTarget | null): boolean =>
-      target instanceof Element && target.closest('button') !== null
+      target instanceof Element && target.closest('button, video') !== null
     const onWheel = (event: WheelEvent): void => {
       if (onControl(event.target)) return
       if (event.ctrlKey) {
@@ -398,17 +401,33 @@ export function ImageLightbox({ images, index: startIndex, labels, onClose }: {
       aria-label={labels.dialog}
       onAnimationEnd={(event) => { if (closing && event.target === event.currentTarget) onClose() }}
     >
-      <div className={css.stack}>
+      <div className={css.stack} data-video={selected.kind === 'video' || undefined}>
         {images.map((image, i) => (
           <div key={`${image.src}:${i}`} className={css.imageBox} data-selected={i === index || undefined}>
-            <img
-              className={css.image}
-              data-loaded={loaded.has(image.src) || undefined}
-              src={image.src}
-              alt={i === index ? image.alt : ''}
-              draggable={false}
-              onLoad={() => { setLoaded(previous => new Set(previous).add(image.src)) }}
-            />
+            {image.kind === 'video'
+              // Only the selected video is mounted, so stepping away stops it and no other video loads.
+              ? i === index && (
+                <video
+                  className={css.image}
+                  data-loaded={loaded.has(image.src) || undefined}
+                  src={image.src}
+                  aria-label={image.alt}
+                  controls
+                  autoPlay
+                  playsInline
+                  onLoadedData={() => { setLoaded(previous => new Set(previous).add(image.src)) }}
+                />
+              )
+              : (
+                <img
+                  className={css.image}
+                  data-loaded={loaded.has(image.src) || undefined}
+                  src={image.src}
+                  alt={i === index ? image.alt : ''}
+                  draggable={false}
+                  onLoad={() => { setLoaded(previous => new Set(previous).add(image.src)) }}
+                />
+              )}
           </div>
         ))}
       </div>

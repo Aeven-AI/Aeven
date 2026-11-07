@@ -61,6 +61,11 @@
   touch-action: none;
 }
 
+/* A video is not magnified; its own player takes touch gestures such as scrubbing. */
+.stack[data-video] {
+  touch-action: auto;
+}
+
 .imageBox {
   display: flex;
   position: absolute;
