@@ -180,6 +180,8 @@ export interface VideoPlayerProps {
   onError?: () => void
   /** Starts playback once the clip can play. */
   autoPlay?: boolean
+  /** Still shown in the frame until the clip's first frame is ready. */
+  poster?: string | undefined
 }
 
 /**
@@ -187,7 +189,7 @@ export interface VideoPlayerProps {
  * @param props - clip URL, accessible name, save name, translator, and ratio report.
  * @returns the clip with its playback chrome over the lower edge.
  */
-export function VideoPlayer({ src, label, saveName, labels, onRatio, mirrored = false, fit = 'contain', onError, autoPlay = false }: VideoPlayerProps) {
+export function VideoPlayer({ src, label, saveName, labels, onRatio, mirrored = false, fit = 'contain', onError, autoPlay = false, poster }: VideoPlayerProps) {
   const [video, setVideo] = useState<HTMLVideoElement | null>(null)
   return (
     <MediaPlayer
@@ -203,6 +205,7 @@ export function VideoPlayer({ src, label, saveName, labels, onRatio, mirrored = 
         src={src}
         playsInline
         autoPlay={autoPlay}
+        poster={poster}
         preload={autoPlay ? 'auto' : 'metadata'}
         aria-label={label}
         onClick={(event) => { toggleClip(event.currentTarget) }}

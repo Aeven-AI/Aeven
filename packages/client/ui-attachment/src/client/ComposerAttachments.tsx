@@ -197,7 +197,7 @@ export function ComposerAttachments({
       id: item.attachment.id,
       image: {
         src,
-        ...item.kind === 'video' ? { kind: 'video' as const } : {},
+        ...item.kind === 'video' ? { kind: 'video' as const, poster: item.posterUrl ?? undefined } : {},
         alt: name || t('image.original'),
         name,
         ...type === '' ? {} : { mediaType: type },
