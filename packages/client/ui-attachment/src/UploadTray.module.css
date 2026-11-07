@@ -179,20 +179,13 @@ div.open {
   transition: opacity 0.3s linear;
 }
 
-/* A video tile is dark until its first frame fades in, so its play mark always reads. */
+/* A video tile opens the gallery, where it plays. */
 .openVideo {
-  background: rgb(28, 28, 30);
   cursor: pointer;
 }
 
 .openVideo:disabled {
   cursor: default;
-}
-
-.openVideo .spinnerBox {
-  z-index: 2;
-  width: 100%;
-  height: 100%;
 }
 
 .playMark {
@@ -205,6 +198,11 @@ div.open {
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.5);
   transform: translate(-50%, -50%);
+  animation: play-mark-in 0.3s linear;
+}
+
+@keyframes play-mark-in {
+  from { opacity: 0; }
 }
 
 .playMark::after {
@@ -316,5 +314,9 @@ div.open {
 
   .imageLoaded {
     transition: none;
+  }
+
+  .playMark {
+    animation: none;
   }
 }

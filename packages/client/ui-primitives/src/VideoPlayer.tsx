@@ -77,6 +77,8 @@ export interface MediaPlayerProps {
   busy?: boolean
   /** The owning feature's chrome sentences. */
   labels: VideoPlayerLabels
+  /** Whether to offer the full-screen disc. */
+  fullscreenControl?: boolean
 }
 
 /** Events after which the frame re-reads position, length, and playback from the element. */
@@ -88,7 +90,7 @@ const MEDIA_EVENTS = ['play', 'pause', 'timeupdate', 'loadedmetadata', 'duration
  * @param props - the element and its markup, the save action, and translator.
  * @returns the element with its playback chrome.
  */
-export function MediaPlayer({ media, children, onDownload, busy = false, labels }: MediaPlayerProps) {
+export function MediaPlayer({ media, children, onDownload, busy = false, labels, fullscreenControl = true }: MediaPlayerProps) {
   // The frame is state, not a ref: the controls mount with it in hand, so no
   // gesture can run against a missing element.
   const [player, setPlayer] = useState<HTMLDivElement | null>(null)
@@ -154,6 +156,7 @@ export function MediaPlayer({ media, children, onDownload, busy = false, labels 
           busy={busy}
           onSeek={setCurrent}
           labels={labels}
+          fullscreenControl={fullscreenControl}
         />
       )}
     </div>
@@ -182,6 +185,8 @@ export interface VideoPlayerProps {
   autoPlay?: boolean
   /** Still shown in the frame until the clip's first frame is ready. */
   poster?: string | undefined
+  /** Whether to offer the full-screen disc; a player already filling the screen leaves it out. */
+  fullscreenControl?: boolean
 }
 
 /**
@@ -189,13 +194,14 @@ export interface VideoPlayerProps {
  * @param props - clip URL, accessible name, save name, translator, and ratio report.
  * @returns the clip with its playback chrome over the lower edge.
  */
-export function VideoPlayer({ src, label, saveName, labels, onRatio, mirrored = false, fit = 'contain', onError, autoPlay = false, poster }: VideoPlayerProps) {
+export function VideoPlayer({ src, label, saveName, labels, onRatio, mirrored = false, fit = 'contain', onError, autoPlay = false, poster, fullscreenControl = true }: VideoPlayerProps) {
   const [video, setVideo] = useState<HTMLVideoElement | null>(null)
   return (
     <MediaPlayer
       media={video}
       onDownload={() => { if (video !== null) saveClip(video.currentSrc === '' ? video.src : video.currentSrc, saveName) }}
       labels={labels}
+      fullscreenControl={fullscreenControl}
     >
       <video
         ref={setVideo}

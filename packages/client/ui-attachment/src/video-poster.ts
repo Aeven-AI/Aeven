@@ -27,6 +27,52 @@ export function isVideoAttachment(name: string | undefined, mediaType: string | 
 /** Posters already made or in progress, by video URL. */
 const posters = new Map<string, Promise<string>>()
 
+/** Browser-storage key prefix of a stored original's poster, so a revisit draws it without fetching the video. */
+const STORED_POSTER_PREFIX = 'avn-video-poster:'
+
+/**
+ * The poster stored for a URL in an earlier visit.
+ * @param src - a stored original's URL.
+ * @returns the poster, or undefined when none is stored or storage is unavailable.
+ */
+function storedPoster(src: string): string | undefined {
+  try {
+    return localStorage.getItem(STORED_POSTER_PREFIX + src) ?? undefined
+  } catch {
+    // Storage blocked or unavailable: the poster is made from the video instead.
+    return undefined
+  }
+}
+
+/**
+ * Keep a stored original's poster for later visits; an object URL lives only for this page, so it is never kept.
+ * @param src - the video URL.
+ * @param poster - its poster.
+ */
+function keepPoster(src: string, poster: string): void {
+  if (src.startsWith('blob:')) return
+  try {
+    localStorage.setItem(STORED_POSTER_PREFIX + src, poster)
+  } catch {
+    // Storage full or blocked: the poster is made again on the next visit.
+  }
+}
+
+/**
+ * Whether a video URL is served from another origin, which needs a CORS request for its frame to be readable.
+ * @param src - the video URL.
+ * @returns true for a cross-origin URL.
+ */
+function crossOrigin(src: string): boolean {
+  if (src.startsWith('blob:') || src.startsWith('data:')) return false
+  try {
+    return new URL(src, document.baseURI).origin !== window.location.origin
+  } catch {
+    // An unparseable URL is treated as same-origin; the browser reports the failure as a load error.
+    return false
+  }
+}
+
 /**
  * The first frame of a video as a JPEG data URL, made once per URL.
  * @param src - an object URL or a same-origin URL of the video.
@@ -35,6 +81,12 @@ const posters = new Map<string, Promise<string>>()
 export function videoPoster(src: string): Promise<string> {
   const known = posters.get(src)
   if (known !== undefined) return known
+  const stored = storedPoster(src)
+  if (stored !== undefined) {
+    const ready = Promise.resolve(stored)
+    posters.set(src, ready)
+    return ready
+  }
   const made = new Promise<string>((resolve, reject) => {
     const video = document.createElement('video')
     const timer = window.setTimeout(() => { finish(new Error('video poster timed out')) }, POSTER_TIMEOUT_MS)
@@ -48,7 +100,8 @@ export function videoPoster(src: string): Promise<string> {
     video.muted = true
     video.playsInline = true
     video.preload = 'auto'
-    video.crossOrigin = 'anonymous'
+    // A same-origin request keeps the browser's ordinary cache, so the gallery's player reuses these bytes.
+    if (crossOrigin(src)) video.crossOrigin = 'anonymous'
     // A frame a moment in avoids the black first frame many encoders start with.
     video.addEventListener('loadedmetadata', () => {
       video.currentTime = Number.isFinite(video.duration) ? Math.min(0.1, video.duration / 2) : 0
@@ -70,7 +123,7 @@ export function videoPoster(src: string): Promise<string> {
     video.src = src
   })
   posters.set(src, made)
-  made.catch(() => { posters.delete(src) })
+  made.then((poster) => { keepPoster(src, poster) }, () => { posters.delete(src) })
   return made
 }
 
@@ -80,7 +133,11 @@ export function videoPoster(src: string): Promise<string> {
  * @returns each finished URL's poster, or null when the browser could not make it; a URL still in progress is absent.
  */
 export function useVideoPosters(sources: readonly (string | null)[]): ReadonlyMap<string, string | null> {
-  const [states, setStates] = useState<ReadonlyMap<string, string | null>>(() => new Map())
+  // A poster stored in an earlier visit is drawn on the first render, with no loader in between.
+  const [states, setStates] = useState<ReadonlyMap<string, string | null>>(() => new Map(sources.flatMap((src) => {
+    const stored = src === null ? undefined : storedPoster(src)
+    return src === null || stored === undefined ? [] : [[src, stored] as const]
+  })))
   const key = sources.filter((src): src is string => src !== null).join('\n')
   useEffect(() => {
     const wanted = key === '' ? [] : key.split('\n')

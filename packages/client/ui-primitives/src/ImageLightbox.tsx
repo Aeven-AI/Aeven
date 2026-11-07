@@ -150,6 +150,7 @@ function LightboxVideo({ image, labels }: { image: LightboxImage; labels: VideoP
         labels={labels}
         onRatio={setRatio}
         poster={image.poster}
+        fullscreenControl={false}
         autoPlay
       />
     </div>
