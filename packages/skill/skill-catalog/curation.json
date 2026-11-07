@@ -4,6 +4,7 @@
  "exclude": [
   "database",
   "deploy",
+  "humanizer",
   "new",
   "twilio-communications"
  ],

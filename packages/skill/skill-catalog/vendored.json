@@ -63,6 +63,16 @@
    "path": "skills/ui-animation",
    "category": "animation-motion",
    "author": "Matthew Blode"
+  },
+  {
+   "repo": "blader/humanizer",
+   "path": ".",
+   "name": "humanizer",
+   "files": [
+    "SKILL.md"
+   ],
+   "category": "productivity",
+   "author": "blader"
   }
  ]
 }

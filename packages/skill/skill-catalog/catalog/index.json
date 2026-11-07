@@ -2,7 +2,7 @@
   "upstream": {
     "repo": "davila7/claude-code-templates",
     "commit": "8293bc3e6130e49391c1a3530cd73212f01aec83",
-    "synced": "2026-10-31"
+    "synced": "2026-11-07"
   },
   "sources": [
     {
@@ -1140,14 +1140,14 @@
       "name": "humanizer",
       "displayName": "humanizer",
       "category": "productivity",
-      "description": "Remove signs of AI-generated writing from text. Use when editing or reviewing\ntext to make it sound more natural and human-written. Based on Wikipedia's\ncomprehensive \"Signs of AI writing\" guide. Detects and fixes patterns including:\ninflated symbolism, promotional language, superficial -ing analyses, vague\nattributions, em dash overuse, rule of three, AI vocabulary words, negative\nparallelisms, and excessive conjunctive phrases.\n\nCredits: Original skill by @blader - https://github.com/blader/humanizer",
+      "description": "Rewrite AI-sounding text so it reads like the writer without changing what it says.\nUse when editing or reviewing prose for AI tells: not-X-but-Y contrasts, one-line\nclosers, staged openers, forced triads, dashes everywhere, inflated claims, sales\nlanguage, stock AI words, bold labels, or filler. Based on Wikipedia's \"Signs of AI writing.\"",
       "keywords": [],
-      "downloads": 1205,
-      "author": "",
-      "path": "productivity/humanizer",
+      "downloads": 0,
+      "author": "blader",
+      "path": "blader/humanizer",
       "files": 2,
-      "bytes": 10192,
-      "sha256": "4eb20bdc776d4be2e7da303cea848f93a7c5e5c6d7b79a249b10691b83f126ec",
+      "bytes": 13443,
+      "sha256": "296c963fe3d5e670e5b45dc507511cf94fc55027a34dc01b8a39e4b96bb26968",
       "verdict": "partial",
       "value": 4
     },

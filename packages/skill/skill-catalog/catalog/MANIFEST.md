@@ -2,6 +2,7 @@
 
 Upstream: davila7/claude-code-templates at 8293bc3e6130e49391c1a3530cd73212f01aec83
 Vendored repository: nexu-io/open-design at 12d970eacc8971150e3c76470d2a9afe16dc2ed1
+Vendored repository: blader/humanizer at 0ef9fe5bc3572734fd3ae6c448fe00a30cd5dcf0
 Authored source: packages/skill/skill-catalog/authored/aeven-stack (aeven-stack)
 Authored source: packages/skill/skill-catalog/authored/avn-adopt (aeven-stack)
 Authored source: packages/skill/skill-catalog/authored/avn-best-of-n (aeven-stack)
@@ -33,8 +34,8 @@ Authored source: packages/skill/skill-catalog/authored/avn-verify-loop (aeven-st
 Authored source: packages/skill/skill-catalog/authored/avn-watch-pr (aeven-stack)
 Authored source: packages/skill/skill-catalog/authored/reverse-engineering (reverse-engineering)
 Authored source: packages/skill/skill-catalog/authored/leanrea (reverse-engineering)
-Synced: 2026-10-31
-Skills: 99 in 14 categories (value >= 4 of the reviewed catalog, plus 31 authored here, plus 10 vendored from other repositories)
+Synced: 2026-11-07
+Skills: 99 in 14 categories (value >= 4 of the reviewed catalog, plus 31 authored here, plus 11 vendored from other repositories)
 Reviewed but not vendored: 828
 Rewritten: every reference to the other harness, its product, its model identifiers, and its
 skill directory reads as Aeven’s. The upstream repository name, and the Anthropic SDK, API key,

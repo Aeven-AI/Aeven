@@ -8,6 +8,8 @@ const CATALOG = join(import.meta.dirname, '..', 'packages/skill/skill-catalog')
 interface VendoredEntry {
   readonly repo: string
   readonly path: string
+  readonly name?: string
+  readonly files?: readonly string[]
   readonly category: string
   readonly author: string
   readonly description?: string
@@ -21,8 +23,8 @@ const entries = (): readonly VendoredEntry[] =>
 const reviewed = (): Readonly<Record<string, { verdict?: string; value?: number }>> =>
   (JSON.parse(readFileSync(join(CATALOG, 'curation.json'), 'utf8')) as { skills?: Record<string, { verdict?: string; value?: number }> }).skills ?? {}
 
-/** The name one entry installs under, which is the directory it ships from. */
-const nameOf = (entry: VendoredEntry): string => entry.path.split('/').at(-1) ?? ''
+/** The name one entry installs under: its stated name, else the directory it ships from. */
+const nameOf = (entry: VendoredEntry): string => entry.name ?? entry.path.split('/').at(-1) ?? ''
 
 describe('vendored skill catalog', () => {
   it('names one kebab-case directory per entry, unique across the list', () => {
@@ -36,6 +38,9 @@ describe('vendored skill catalog', () => {
     for (const entry of entries()) {
       expect(entry.repo).toMatch(/^[\w.-]+\/[\w.-]+$/)
       expect(entry.path).toMatch(/^[^/]+(?:\/[^/]+)*$/)
+      // A skill at its repository's root has no directory to name it.
+      if (entry.path === '.') expect(entry.name).toBeDefined()
+      for (const file of entry.files ?? []) expect(file).toMatch(/^(?!\.\.?\/)[^/]+(?:\/[^/]+)*$/)
       expect(entry.category).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
       expect(entry.author.trim()).not.toBe('')
     }
