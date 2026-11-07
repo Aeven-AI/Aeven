@@ -7,9 +7,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import { apply, inject } from '../src/client/index.ts'
 import { en, es, zh } from '../src/client/locales.ts'
-import { ENABLED_KEY, STORAGE_KEY } from '../src/client/voices.ts'
+import { STORAGE_KEY } from '../src/client/voices.ts'
 import { MessageReadAloud } from '../src/client/MessageReadAloud.tsx'
-import { ReadAloudToggle } from '../src/client/ReadAloud.tsx'
+import { AgentReadAloud } from '../src/client/AgentReadAloud.tsx'
 import { SystemVoice } from '../src/client/SystemVoice.tsx'
 import type { ReadAloudSnapshot } from '../src/client/engine.ts'
 
@@ -131,14 +131,14 @@ describe('plugin registration', () => {
     expect(harness.dictionaries).toEqual([{ namespace: 'read-aloud', entries: { zh, en, es } }])
   })
 
-  it('contributes the toggle, the voice row and the message action to their slots', () => {
+  it('contributes the agent reading follower, the voice row and the message action to their slots', () => {
     const harness = makeCtx()
     harness.boot()
 
     expect(harness.registrations.map(registration => [
       registration.name, registration.id, registration.locale, registration.Component,
     ])).toEqual([
-      ['conversation.input.left', 'read-aloud', 'read-aloud', ReadAloudToggle],
+      ['conversation.input.left', 'read-aloud', undefined, AgentReadAloud],
       ['conversation.input.options', 'read-aloud-voice', 'read-aloud', SystemVoice],
       ['conversation.chat.assistant-actions', 'read-aloud-message', 'read-aloud', MessageReadAloud],
     ])
@@ -160,7 +160,6 @@ describe('the toggle\u2019s face', () => {
     face.setEnabled('s1', true, '1.1', 'Dankjewel.')
     await flush()
 
-    expect(localStorage.getItem(ENABLED_KEY)).toBe('on')
     expect(harness.synthesize).toHaveBeenCalledWith({ text: 'Dankjewel.', language: 'nl' }, expect.anything())
     expect(face.hooks.readAloud.getSnapshot()).toEqual({
       enabled: ['s1'], loading: [], speaking: ['s1'], failed: [],
@@ -215,7 +214,6 @@ describe('the toggle\u2019s face', () => {
     await flush()
     face.setEnabled('s1', false, '1.1', 'Hello there.')
 
-    expect(localStorage.getItem(ENABLED_KEY)).toBe('off')
     expect(face.hooks.readAloud.getSnapshot()).toEqual({ enabled: [], loading: [], speaking: [], failed: [] })
   })
 

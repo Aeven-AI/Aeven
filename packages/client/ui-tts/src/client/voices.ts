@@ -15,31 +15,6 @@ export interface ReadAloudCatalog {
 /** Storage key holding the language-to-voice preference. */
 export const STORAGE_KEY = 'aeven.read-aloud.voices'
 
-/** Storage key holding whether reading was switched on, which outlives the Session it was switched on in. */
-export const ENABLED_KEY = 'aeven.read-aloud.enabled'
-
-/**
- * Read the reader's standing choice of whether replies are read aloud.
- * @returns whether reading was on when the reader last touched the toggle.
- */
-export function readEnabled(): boolean {
-  if (typeof localStorage === 'undefined') return false
-  return localStorage.getItem(ENABLED_KEY) === 'on'
-}
-
-/**
- * Store the reader's standing choice, so the next Session — or the next launch — starts the same way.
- * @param enabled - whether reading is on.
- */
-export function writeEnabled(enabled: boolean): void {
-  if (typeof localStorage === 'undefined') return
-  try {
-    localStorage.setItem(ENABLED_KEY, enabled ? 'on' : 'off')
-  } catch {
-    // Private-mode storage rejects writes; the choice then lasts for this page only.
-  }
-}
-
 /**
  * Read the stored preference map.
  * @returns language subtag to voice id, empty when storage holds nothing usable.

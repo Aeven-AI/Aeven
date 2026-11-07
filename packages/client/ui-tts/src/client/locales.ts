@@ -5,9 +5,6 @@ export const NS = 'read-aloud'
 
 /** Simplified Chinese dictionary (the key-set source of truth). */
 export const zh = {
-  read: '朗读回复',
-  stop: '停止朗读',
-  failed: '朗读失败',
   'voice.row': '系统语音',
   'voice.default': '默认',
   'voice.count': '{count} 个声音',
@@ -23,9 +20,6 @@ export type ReadAloudKey = keyof typeof zh
 
 /** English dictionary with the same complete key set. */
 export const en: Record<ReadAloudKey, string> = {
-  read: 'Read replies aloud',
-  stop: 'Stop reading aloud',
-  failed: 'Reading aloud failed',
   'voice.row': 'System voice',
   'voice.default': 'Default',
   'voice.count': '{count} voices',
@@ -38,9 +32,6 @@ export const en: Record<ReadAloudKey, string> = {
 
 /** Spanish dictionary with the same complete key set. */
 export const es: Record<ReadAloudKey, string> = {
-  read: 'Leer las respuestas en voz alta',
-  stop: 'Dejar de leer en voz alta',
-  failed: 'No se pudo leer en voz alta',
   'voice.row': 'Voz del sistema',
   'voice.default': 'Predeterminada',
   'voice.count': '{count} voces',

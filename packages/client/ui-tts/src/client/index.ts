@@ -1,6 +1,6 @@
 /**
- * Read-aloud plugin, browser half: the composer toggle and the sentence queue that speaks assistant
- * replies through the Host `tts` Remote. Reading is session-scoped and starts switched off.
+ * Read-aloud plugin, browser half: the per-message read action, the agent-switched reply reading that
+ * follows `read_aloud` calls, and the sentence queue that speaks both through the Host `tts` Remote.
  */
 import type { Context } from '@deepseek-ai/cordis'
 import type { HostObservable } from '@aeven/client-ui-slots'
@@ -12,25 +12,24 @@ import type {} from '@aeven/client-ui-renderer/client'
 import { ReadAloud, type ReadAloudSnapshot } from './engine.ts'
 import { en, es, NS, zh, type ReadAloudKey } from './locales.ts'
 import { MessageReadAloud, type MessageReadAloudInjected } from './MessageReadAloud.tsx'
-import { ReadAloudToggle, type ReadAloudInjected } from './ReadAloud.tsx'
+import { AgentReadAloud, type AgentReadAloudInjected } from './AgentReadAloud.tsx'
 import { SystemVoice, type SystemVoiceInjected } from './SystemVoice.tsx'
-import { writeEnabled } from './voices.ts'
 import type { TtsVoiceId } from '@aeven/text-to-speech/types'
 
 declare module '@aeven/client-ui-slots' {
   interface LocaleNamespaceMap {
-    /** Read-aloud toggle copy. */
+    /** Read-aloud action and voice picker copy. */
     'read-aloud': ReadAloudKey
   }
 }
 
-export type { ReadAloudInjected, ReadAloudProps } from './ReadAloud.tsx'
+export type { AgentReadAloudInjected, AgentReadAloudProps } from './AgentReadAloud.tsx'
 
 /** Required services: the synthesis Remote, the slot registry, and dictionaries. */
 export const inject = ['remote', 'remote.tts', 'slots', 'locale']
 
 /**
- * Register the dictionaries and the composer toggle.
+ * Register the dictionaries, the agent-switched reading follower, the voice picker, and the message action.
  * @param ctx - client root context.
  */
 export function apply(ctx: Context): void {
@@ -55,18 +54,15 @@ export function apply(ctx: Context): void {
       return () => { listeners.delete(listener) }
     },
   }
-  const face: ReadAloudInjected = {
+  const face: AgentReadAloudInjected = {
     hooks: { readAloud },
-    setEnabled: (sessionId, enabled, key, shown) => {
-      writeEnabled(enabled)
-      engine.setEnabled(sessionId, enabled, key, shown)
-    },
+    setEnabled: (sessionId, enabled, key, shown) => { engine.setEnabled(sessionId, enabled, key, shown) },
     sync: (sessionId, key, text) => { engine.sync(sessionId, key, text) },
     finish: (sessionId) => { engine.finish(sessionId) },
   }
   ctx.slots.inject('conversation.input.left', () => ctx.slots.register({
-    name: 'conversation.input.left', id: 'read-aloud', order: 200, locale: NS, inject: () => face,
-  }, ReadAloudToggle))
+    name: 'conversation.input.left', id: 'read-aloud', order: 200, inject: () => face,
+  }, AgentReadAloud))
   const voiceFace: SystemVoiceInjected = {
     loadCatalog: async () => {
       const result = await ctx.remote.tts.catalog()

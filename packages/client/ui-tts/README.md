@@ -1,5 +1,5 @@
 ---
-description: "Composer read-aloud toggle over the Host speech synthesis Remote."
+description: "Per-message read-aloud action and agent-switched reply reading over the Host speech synthesis Remote."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This browser plugin adds a speaker toggle to the composer's leading control row. While it is on, each assistant reply is read aloud fragment by fragment, from audio the Host synthesizes and this browser plays.
+This browser plugin adds a read-aloud action to each assistant message's action strip, which speaks that message fragment by fragment from audio the Host synthesizes and this browser plays. It also reads live replies aloud while an agent's `read_aloud` call has switched reading on for the Session. The composer carries no read-aloud control; the voice picker sits in the composer's options menu.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ This browser plugin adds a speaker toggle to the composer's leading control row.
 <a id="use-this-package"></a>
 ## Use this package
 
-Load beside the Host's [`text-to-speech`](../../speech/text-to-speech/README.md) rows. Reading is per Session and starts off: the toggle switches it on for the open Session only, and a reload returns to off. Turning it on mid-reply reads from that point on, not the text already on screen.
+Load beside the Host's [`text-to-speech`](../../speech/text-to-speech/README.md) rows. The message action reads one settled message from its start; pressing it again stops it. Live reply reading is per Session, starts off, and follows only the newest settled `read_aloud` call in that Session's log; switching it on mid-reply reads from that point on, not the text already on screen.
 
 -----
 
@@ -35,7 +35,7 @@ Load beside the Host's [`text-to-speech`](../../speech/text-to-speech/README.md)
 <details>
 <summary>Maintainer details — click to expand</summary>
 
-The toggle reads the live step through the standard `useChat` seat, flattens its text blocks (code and tables are dropped), and hands the growing text to one engine per Session. The engine cuts fragments at a finished sentence, or at a clause once that clause carries enough text to speak on its own (12 characters, 4 for Chinese), and never hands the Host more than 120 characters, because Edge spends roughly 50ms per character before it returns audio. Four fragments synthesize in parallel ahead of playback, and decoded buffers are scheduled on a single `AudioContext` with a gapless start time per fragment; the click that switches reading on also resumes that context, so the first fragment does not wait for an unsuspend. A fragment the Host cannot synthesize is retried once and then skipped, so one failure does not silence the rest of the reply. A new step or a disabled toggle stops every scheduled source and aborts the syntheses in flight.
+A headless follower in the composer's `conversation.input.left` seat applies the newest settled `read_aloud` call, reads the live step through the standard `useChat` seat, flattens its text blocks (code and tables are dropped), and hands the growing text to one engine per Session. The engine cuts fragments at a finished sentence, or at a clause once that clause carries enough text to speak on its own (12 characters, 4 for Chinese), and never hands the Host more than 120 characters, because Edge spends roughly 50ms per character before it returns audio. Four fragments synthesize in parallel ahead of playback, and decoded buffers are scheduled on a single `AudioContext` with a gapless start time per fragment; the message action's click also resumes that context, so the first fragment does not wait for an unsuspend. A fragment the Host cannot synthesize is retried once and then skipped, so one failure does not silence the rest of the reply. Switching reading off stops every scheduled source and aborts the syntheses in flight.
 
 The spoken language is chosen per fragment: the script decides Japanese, Korean, Chinese, Arabic, Hebrew, Russian, Greek, Hindi, and Thai outright; otherwise a language's own letters and stopword scores separate the Latin languages, and the language already being read breaks ties. Every other language reaches the Host's full Edge catalogue, where the language's home region speaks it, so a reply in a language this plugin does not score still gets its own voice.
 
@@ -55,7 +55,7 @@ The spoken language is chosen per fragment: the script decides Japanese, Korean,
 
 Three decisions hold the reader together. The engine schedules decoded buffers back to back through `AudioBufferSourceNode`s, so the queue rather than the player decides what is missing: `pump()` keeps four fragments prefetched and twelve seconds scheduled ahead, and `drain()` re-pumps in its `finally`. A stop interrupts the drain while its clause is still in flight; without that re-pump the next request would find the channel pumping and play nothing.
 
-The per-message action runs on its own channel, `message:<id>`, so reading one message cannot disturb a running reply and a reply cannot cut a message off. The session toggle keeps the plain session channel.
+The per-message action runs on its own channel, `message:<id>`, so reading one message cannot disturb a running reply and a reply cannot cut a message off. Agent-switched reading keeps the plain session channel.
 
 `toSpeechText()` strips Markdown emphasis and then any residual emphasis or table marker, because a reader that receives one announces it — "asterisk" for bold text, for example.
 
@@ -74,4 +74,4 @@ Nothing here enters a model request, so provider cache reuse is unaffected.
 
 ## Known Limitations and Deferred Work
 
-- The toggle is Session-scoped: a reload restores the flag, but two Sessions read at once and the composer row has no global stop. The voice picker writes a per-language preference in this browser only.
+- Agent-switched reading has no on-screen stop: the agent turns it off when asked, and starting a message read silences it until the next streamed text. Two Sessions can read at once. The voice picker writes a per-language preference in this browser only.
