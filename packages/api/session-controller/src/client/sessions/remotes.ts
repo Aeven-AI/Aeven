@@ -34,7 +34,7 @@ export interface SessionSubagentsRemote {
   interruptByParent(
     childSessionId: SessionId,
     parentSessionId: SessionId,
-    mode: 'continuable',
+    mode: 'continuable' | 'one-shot',
   ): Promise<RemoteResult<SubagentInterruptReceipt>>
 }
 

@@ -229,7 +229,7 @@ export class TestSessions implements ISessions {
 
   /** Calls observed on the service-level face, newest last. */
   readonly calls: {
-    method: 'create' | 'open' | 'openSubagent' | 'setSubagentCatalogOpen' | 'refreshSubagents'
+    method: 'create' | 'open' | 'openSubagent' | 'setSubagentCatalogOpen' | 'refreshSubagents' | 'interruptSubagent'
       | 'clear' | 'refresh' | 'search' | 'fork' | 'move'
     args: unknown[]
   }[] = []
@@ -501,6 +501,12 @@ export class TestSessions implements ISessions {
   refreshSubagents(parentSessionId: SessionId): Promise<void> {
     this.calls.push({ method: 'refreshSubagents', args: [parentSessionId] })
     return Promise.resolve()
+  }
+
+  /** Record a catalog Stop; the fixture Host admits every stop. */
+  interruptSubagent(address: SubagentAddress): Promise<boolean> {
+    this.calls.push({ method: 'interruptSubagent', args: [address] })
+    return Promise.resolve(true)
   }
 
   /** Clear the current selection (recorded; the production no-session flow). */

@@ -65,6 +65,13 @@ export interface ISessions {
    * @returns completion of the current or newly started refresh.
    */
   refreshSubagents(parentSessionId: SessionId): Promise<void>
+  /**
+   * Stop a running direct child's current turn from its parent's catalog, for either address mode. A continuable
+   * child keeps its parked inbox; a one-shot child's run settles `aborted`, which ends the parent's delegation call.
+   * @param address - catalog-derived parent and child ids with the child's mode.
+   * @returns whether the Host admitted the stop; a refusal is not retried.
+   */
+  interruptSubagent(address: SubagentAddress): Promise<boolean>
 
   /** Clear the current selection into the no-session view state. */
   clear(): void

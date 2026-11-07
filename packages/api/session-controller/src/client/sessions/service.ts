@@ -372,6 +372,15 @@ export class ClientSessions implements ISessions {
   }
 
   /**
+   * Stop a running direct child's current turn from its parent's catalog.
+   * @param address - catalog-derived parent and child ids with the child's mode.
+   * @returns whether the Host admitted the stop.
+   */
+  interruptSubagent(address: SubagentAddress): Promise<boolean> {
+    return this.manager.interruptSubagent(address)
+  }
+
+  /**
    * Clear the current selection so the layout shows the no-session empty
    * state (new-session affordance and the workspace preselection flow).
    * Wipes the persisted selection too — a reload stays on empty until the
