@@ -15,7 +15,6 @@
  * tokens (`/plan。`) stay plain even for a loaded name.
  */
 import type { ReactNode } from 'react'
-import clsx from 'clsx'
 import { ReferenceIcon } from './ReferenceIcon.tsx'
 import css from './user-text.module.css'
 
@@ -110,7 +109,7 @@ export function projectUserText(
     parts.push(
       <span
         key={tokenStart}
-        className={clsx(css.refChip, referenceKind === undefined && css.slashChip)}
+        className={css.refChip}
         data-ref-chip={referenceKind ?? slashKind}
         title={label}
       >
