@@ -1,0 +1,103 @@
+/* A sound file's player: one grey bar holding play, the time, the scrubber, and mute. */
+.player {
+  --avn-audio-bg: rgb(242, 242, 242);
+  --avn-audio-fg: #000000;
+  --avn-audio-rail: rgba(0, 0, 0, 0.15);
+
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 56px;
+  padding: 0 12px;
+  gap: 8px;
+  align-items: center;
+  border-radius: 22px;
+  background: var(--avn-audio-bg);
+  color: var(--avn-audio-fg);
+}
+
+:global(body[data-ds-dark-theme]) .player {
+  --avn-audio-bg: rgb(44, 44, 46);
+  --avn-audio-fg: #ffffff;
+  --avn-audio-rail: rgba(255, 255, 255, 0.2);
+}
+
+.button {
+  display: flex;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled) {
+  background: var(--avn-audio-rail);
+}
+
+.button:disabled {
+  cursor: default;
+}
+
+.button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.time {
+  flex: none;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The scrubber: a thin rail filled up to the playing position, with a round handle. */
+.seek {
+  flex: 1 1 auto;
+  min-width: 48px;
+  height: 20px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  appearance: none;
+}
+
+.seek:disabled {
+  cursor: default;
+}
+
+.seek::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--avn-audio-fg) var(--avn-audio-progress), var(--avn-audio-rail) var(--avn-audio-progress));
+}
+
+.seek::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--avn-audio-fg) var(--avn-audio-progress), var(--avn-audio-rail) var(--avn-audio-progress));
+}
+
+.seek::-webkit-slider-thumb {
+  width: 12px;
+  height: 12px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: var(--avn-audio-fg);
+  appearance: none;
+}
+
+.seek::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--avn-audio-fg);
+}

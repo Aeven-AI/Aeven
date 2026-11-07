@@ -73,5 +73,12 @@ export function uploadTrayLabels(t: TranslateNS<'conversation'>, group: 'draft' 
     group: group === 'draft' ? t('file.pending') : t('file.attached'),
     remove: t('file.remove'),
     error: t('file.error'),
+    audio: {
+      play: t('video.play'),
+      pause: t('video.pause'),
+      mute: t('video.mute'),
+      unmute: t('video.unmute'),
+      seek: t('video.seek'),
+    },
   }
 }
