@@ -6,6 +6,7 @@
  * @module @aeven/sandbox-jail/profile
  */
 
+import { join, relative } from 'node:path'
 import { grantArgs } from '@deepseek-ai/node-addon-landlock-run'
 import type { SandboxPolicy } from '@aeven/sandbox'
 import { JAIL_ZYGOTE_DIR } from './zygote.ts'
@@ -33,6 +34,23 @@ export interface JailProfile {
   seccomp: boolean
   /** Host directory of the Python zygote's socket, mounted read-only at {@link JAIL_ZYGOTE_DIR}; absent without a zygote. */
   zygoteDir?: string | undefined
+  /**
+   * Set when bubblewrap runs as a sandbox user, who cannot enter the Host's data directory: roots are mounted from
+   * the second mount of the accounts root at `accountsPath`, and read-only files are copied in from descriptors the
+   * launch step opens.
+   */
+  sandboxUser?: { readonly accountsRoot: string; readonly accountsPath: string } | undefined
+}
+
+/** First descriptor number {@link jailArgs} assigns to a file the launch step opens; 3 carries the seccomp filter. */
+export const FIRST_BIND_DESCRIPTOR = 10
+
+/** The jail argv prefix of one call and the paths its launch step opens for it. */
+export interface JailArgs {
+  /** The argv to place before the confined command. */
+  args: string[]
+  /** Host files the launch step opens read-only at these descriptor numbers before bubblewrap starts. */
+  opens: { fd: number; path: string }[]
 }
 
 /**
@@ -40,9 +58,9 @@ export interface JailProfile {
  * @param profile - the deployment's jail inputs.
  * @param policy - the call's confined policy; its roots are already checked to belong to one account.
  * @param readOnlyFiles - further existing host files mounted read-only at the same path, such as the session's attachments.
- * @returns the argv to place before the confined command.
+ * @returns the argv prefix and the descriptors its launch step must open.
  */
-export function jailArgs(profile: JailProfile, policy: SandboxPolicy, readOnlyFiles: readonly string[] = []): string[] {
+export function jailArgs(profile: JailProfile, policy: SandboxPolicy, readOnlyFiles: readonly string[] = []): JailArgs {
   const writable = policy.mode === 'workspace-write'
   const roots = [policy.workspaceRoot, ...writable ? policy.additionalWritableRoots ?? [] : []]
   const args = [
@@ -57,12 +75,25 @@ export function jailArgs(profile: JailProfile, policy: SandboxPolicy, readOnlyFi
   for (const [link, target] of Object.entries(profile.symlinks)) args.push('--symlink', target, link)
   const size = String(profile.tmpSizeBytes)
   args.push('--dev', '/dev', '--proc', '/proc', '--size', size, '--tmpfs', '/tmp', '--size', size, '--tmpfs', '/dev/shm')
-  for (const root of roots) args.push(writable ? '--bind' : '--ro-bind', root, root)
-  for (const file of readOnlyFiles) args.push('--ro-bind', file, file)
+  const opens: JailArgs['opens'] = []
+  const user = profile.sandboxUser
+  for (const root of roots) {
+    const source = user === undefined ? root : join(user.accountsPath, relative(user.accountsRoot, root))
+    args.push(writable ? '--bind' : '--ro-bind', source, root)
+  }
+  for (const file of readOnlyFiles) {
+    if (user === undefined) {
+      args.push('--ro-bind', file, file)
+      continue
+    }
+    const fd = FIRST_BIND_DESCRIPTOR + opens.length
+    opens.push({ fd, path: file })
+    args.push('--ro-bind-data', String(fd), file)
+  }
   if (profile.zygoteDir !== undefined) args.push('--ro-bind', profile.zygoteDir, JAIL_ZYGOTE_DIR)
   args.push('--ro-bind', profile.launcher, JAIL_LAUNCHER, '--', JAIL_LAUNCHER)
   // The jail root holds only what bwrap mounted, so read access beneath it is
   // the same view; Landlock still denies anything outside it.
   args.push(...grantArgs({ readOnly: ['/'], readWrite: ['/dev/null', '/dev/shm', ...writable ? ['/tmp', ...roots] : []] }))
-  return args
+  return { args, opens }
 }

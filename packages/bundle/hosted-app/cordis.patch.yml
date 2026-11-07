@@ -468,13 +468,19 @@
           PYTHONDONTWRITEBYTECODE: '1'
         tmpSizeMb: 512
         seccompFilter: /opt/aeven-sandbox/seccomp.bpf
+        # Commands and the zygote run as aeven-sandbox, which cannot enter this
+        # Host's data directory (host/install-sandbox-user.sh prepares it).
+        commandUser:
+          exec: /usr/local/libexec/aeven-sandbox-exec
+          group: aeven-sandbox
+          accountsPath: /srv/aeven-accounts
         # One interpreter with the data stack already imported runs every
         # jailed python3 that uses it, joined to the caller's own jail.
         pythonZygote:
           python: /opt/aeven-sandbox/bin/python3
           script: /opt/aeven-sandbox/shim/python-zygote.py
           preload: [numpy, pandas, matplotlib, matplotlib.pyplot]
-          socketDir: !!js avnHomePath('sandbox', 'zygote')
+          socketDir: /var/lib/aeven-zygote
           limits:
             memoryMax: 2G
             pidsMax: '128'

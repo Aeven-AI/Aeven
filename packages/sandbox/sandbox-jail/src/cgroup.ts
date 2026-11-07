@@ -3,12 +3,12 @@
  * The tree is `<root>/jail/acct-<account>`: `jail` caps everything confined
  * commands use together, so the Host in its own sibling group keeps its share,
  * and each account's group caps and weights that account's commands. The
- * Python zygote, when configured, runs in the sibling `<root>/zygote`.
+ * Python zygote, when configured, runs in `<root>/jail/zygote` beside them.
  *
  * @module @aeven/sandbox-jail/cgroup
  */
 
-import { existsSync, mkdirSync, readdirSync, rmdirSync, writeFileSync } from 'node:fs'
+import { chmodSync, chownSync, existsSync, mkdirSync, readdirSync, rmdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 /** cgroup v2 interface values written verbatim to one group. */
@@ -40,7 +40,6 @@ function writeLimits(dir: string, limits: CgroupLimits): void {
 export class AccountCgroups {
   /** The directory whose `acct-<account>` children are the account groups. */
   readonly jail: string
-  private readonly root: string
   private readonly accounts = new Map<string, string>()
 
   /**
@@ -48,16 +47,18 @@ export class AccountCgroups {
    * @param root - a cgroup v2 directory delegated to this process that holds no processes itself.
    * @param total - limits for all confined commands together.
    * @param account - limits for one account's commands.
+   * @param procsGroup - a group the Host's user belongs to whose members may move processes into account groups,
+   * such as the sandbox user the Python zygote runs as; omitted, only the Host's user may.
    * @throws when the directory is not delegated, holds processes, or lacks a controller.
    */
-  constructor(root: string, total: CgroupLimits, private readonly account: CgroupLimits) {
-    this.root = root
+  constructor(root: string, total: CgroupLimits, private readonly account: CgroupLimits, private readonly procsGroup?: number) {
     this.jail = join(root, 'jail')
     try {
       writeFileSync(join(root, 'cgroup.subtree_control'), CONTROLLERS)
       mkdirSync(this.jail, { recursive: true })
       writeLimits(this.jail, total)
       writeFileSync(join(this.jail, 'cgroup.subtree_control'), CONTROLLERS)
+      this.shareProcs(this.jail)
     } catch (error) {
       throw new Error(
         `sandbox-jail: cannot manage cgroups under "${root}": ${String(error)}. `
@@ -78,6 +79,7 @@ export class AccountCgroups {
       dir = join(this.jail, `acct-${account}`)
       mkdirSync(dir, { recursive: true })
       writeLimits(dir, this.account)
+      this.shareProcs(dir)
       this.accounts.set(account, dir)
     }
     return dir
@@ -89,10 +91,22 @@ export class AccountCgroups {
    * @returns the group directory.
    */
   zygoteGroup(limits: CgroupLimits): string {
-    const dir = join(this.root, 'zygote')
+    // Inside `jail`, so `jail` is the common ancestor a run's move into its account group needs write access to.
+    const dir = join(this.jail, 'zygote')
     mkdirSync(dir, { recursive: true })
     writeLimits(dir, limits)
     return dir
+  }
+
+  /**
+   * Let {@link procsGroup} write a group's `cgroup.procs`. `jail` itself can hold no process, because it enables
+   * controllers for its children, so its file only serves as the common ancestor of a move between its children.
+   */
+  private shareProcs(dir: string): void {
+    if (this.procsGroup === undefined) return
+    const procs = join(dir, 'cgroup.procs')
+    chownSync(procs, -1, this.procsGroup)
+    chmodSync(procs, 0o664)
   }
 
   /** Remove every account group that no process still occupies. */

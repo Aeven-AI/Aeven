@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-11-07-jailed-commands-run-as-sandbox-user.md
+2026-11-07-jailed-commands-run-as-sandbox-user.md: 6492353516eee651534422f6a70b551e916c574b
+2026-11-07-jailed-commands-run-as-sandbox-user.zh.md: 0db67a0f8e9ad3e1a1e7a123340b35bdc660a7f0
