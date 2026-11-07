@@ -238,9 +238,10 @@ body:not([data-ds-dark-theme]) [data-chat-flow] {
     --dsw-aeven-sidebar-bottom-inset: 16px;
     /* Aeven rail button: 16px inset + 20px glyph + 16px inset at ≤640. */
     --dsw-aeven-sidebar-toggle-width: 52px;
-    /* The overlaid sidebar leaves a strip of the conversation beside it: 84% of
-       a 320px screen, 280px from about 333px up. Its rows keep 248px. */
-    --dsw-aeven-sidebar-width: min(280px, 84vw);
+    /* The overlaid sidebar grows until its close toggle, which rides 16px
+       beyond its edge, sits 16px from the screen edge: 16px gap + 30px toggle
+       + 16px margin. From a 362px screen up it has the wide layout's 300px. */
+    --dsw-aeven-sidebar-width: min(300px, calc(100vw - 62px));
   }
 }
 
