@@ -1451,8 +1451,9 @@ export default class AccountIntegrations extends TypertRemoteService {
     if (phone.length > 32) return { state: 'invalid-phone' }
     try {
       return await pairing.daemon.pairPhone(phone)
-    } catch {
-      // The daemon's own diagnostics are not shown; Settings offers the QR and a new attempt.
+    } catch (error) {
+      // The diagnostic goes to the Host log, not the reader; Settings offers the QR and a new attempt.
+      this.ctx.logger('account-integrations').warn(error instanceof Error ? error.message : String(error))
       return { state: 'failed' }
     }
   }
