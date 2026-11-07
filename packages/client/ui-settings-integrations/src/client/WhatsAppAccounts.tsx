@@ -75,7 +75,15 @@ export function WhatsAppAccounts(props: WhatsAppAccountsProps) {
   const [phone, setPhone] = useState('')
   const [phoneCode, setPhoneCode] = useState<WhatsAppPhoneCodeView>()
   const [requesting, setRequesting] = useState(false)
+  const [copied, setCopied] = useState(false)
   useEffect(() => { setPhoneCode(undefined) }, [pairing?.id])
+  // On the phone being linked the code is typed into WhatsApp on the same screen, so it can be carried there.
+  const copyCode = (code: string): void => {
+    void navigator.clipboard.writeText(code).then(() => { setCopied(true) }, () => {
+      // Clipboard refused (insecure context, denied permission): the code stays on screen to type.
+    })
+  }
+  useEffect(() => { setCopied(false) }, [phoneCode])
   const requestCode = (): void => {
     const id = pairing?.id
     if (id === undefined || pairing?.state !== 'qr') return
@@ -169,7 +177,7 @@ export function WhatsAppAccounts(props: WhatsAppAccountsProps) {
       })}
     </>} />
     {pairing === undefined && <button type="button" className={css.secondaryAction} disabled={busy} onClick={start}>{t('whatsappAdd')}</button>}
-    {pairing !== undefined && <div className={css.card}>
+    {pairing !== undefined && <div className={`${css.card} ${css.pairingCard}`}>
       {pairing.state === 'connected'
         ? <p role="status" className={css.testing}>{t('whatsappConnected')}</p>
         : failure !== undefined
@@ -178,6 +186,7 @@ export function WhatsAppAccounts(props: WhatsAppAccountsProps) {
             ? phoneCode?.state === 'code'
               ? <div className={css.qrLayout}>
                 <p className={css.phoneCode} aria-live="polite">{phoneCode.code.length === 8 ? `${phoneCode.code.slice(0, 4)}-${phoneCode.code.slice(4)}` : phoneCode.code}</p>
+                <button type="button" className={css.secondaryAction} onClick={() => { copyCode(phoneCode.code) }}>{t(copied ? 'copied' : 'copy')}</button>
                 <ol className={css.qrSteps}>
                   <li>{t('whatsappCodeStepOpen')}</li>
                   <li>{t('whatsappCodeStepLink')}</li>
@@ -202,13 +211,13 @@ export function WhatsAppAccounts(props: WhatsAppAccountsProps) {
                 <li>{t('whatsappStepScan')}</li>
               </ol>
             </div>}
-      {(pairing.state === 'starting' || pairing.state === 'qr') && (method === 'qr' || pairing.qr === undefined || phoneCode?.state === 'code') && <p role="status" className={css.testing}><Spinner />{t(pairing.qr === undefined ? 'whatsappPreparing' : method === 'phone' ? 'whatsappCodeWaiting' : 'whatsappWaiting')}</p>}
-      {(pairing.state === 'starting' || pairing.state === 'qr') && <button type="button" className={css.secondaryAction} onClick={() => { setMethod(method === 'phone' ? 'qr' : 'phone') }}>{t(method === 'phone' ? 'whatsappUseQr' : 'whatsappUsePhone')}</button>}
-      {pairing.state !== 'connected' && <div className={css.actions}>
+      {(pairing.state === 'starting' || pairing.state === 'qr') && (method === 'qr' || pairing.qr === undefined || phoneCode?.state === 'code') && <p role="status" className={`${css.testing} ${css.pairingStatus}`}><Spinner />{t(pairing.qr === undefined ? 'whatsappPreparing' : method === 'phone' ? 'whatsappCodeWaiting' : 'whatsappWaiting')}</p>}
+      {pairing.state !== 'connected' && <div className={`${css.actions} ${css.pairingActions}`}>
+        {(pairing.state === 'starting' || pairing.state === 'qr') && <button type="button" className={css.secondaryAction} onClick={() => { setMethod(method === 'phone' ? 'qr' : 'phone') }}>{t(method === 'phone' ? 'whatsappUseQr' : 'whatsappUsePhone')}</button>}
         {failure !== undefined && pairing.state !== 'limit' && pairing.state !== 'unavailable' && <button type="button" className={css.primaryAction} disabled={busy} onClick={start}>{t('whatsappRetry')}</button>}
         <button type="button" className={css.secondaryAction} disabled={busy} onClick={cancel}>{t(failure === undefined ? 'cancel' : 'close')}</button>
       </div>}
-      <p className={css.hint}>{t('whatsappPrivacy')}</p>
+      <p className={`${css.hint} ${css.pairingHint}`}>{t('whatsappPrivacy')}</p>
     </div>}
   </>
 }
