@@ -178,6 +178,8 @@ export interface VideoPlayerProps {
   fit?: 'contain' | 'cover'
   /** Reports a clip the element cannot load. */
   onError?: () => void
+  /** Starts playback once the clip can play. */
+  autoPlay?: boolean
 }
 
 /**
@@ -185,7 +187,7 @@ export interface VideoPlayerProps {
  * @param props - clip URL, accessible name, save name, translator, and ratio report.
  * @returns the clip with its playback chrome over the lower edge.
  */
-export function VideoPlayer({ src, label, saveName, labels, onRatio, mirrored = false, fit = 'contain', onError }: VideoPlayerProps) {
+export function VideoPlayer({ src, label, saveName, labels, onRatio, mirrored = false, fit = 'contain', onError, autoPlay = false }: VideoPlayerProps) {
   const [video, setVideo] = useState<HTMLVideoElement | null>(null)
   return (
     <MediaPlayer
@@ -200,7 +202,8 @@ export function VideoPlayer({ src, label, saveName, labels, onRatio, mirrored = 
         data-fit={fit}
         src={src}
         playsInline
-        preload="metadata"
+        autoPlay={autoPlay}
+        preload={autoPlay ? 'auto' : 'metadata'}
         aria-label={label}
         onClick={(event) => { toggleClip(event.currentTarget) }}
         onError={onError}

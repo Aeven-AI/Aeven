@@ -1,6 +1,7 @@
 import type { TranslateNS } from '@aeven/client-ui-slots'
 import type { UploadTrayLabels } from '../UploadTray.tsx'
 import type { DropOverlayLabels } from '../DropOverlay.tsx'
+import { videoPlayerLabels } from '@aeven/client-ui-primitives'
 import type { ImageLightboxLabels } from '@aeven/client-ui-primitives'
 import type { MessageImageLabels } from '../MessageImage.tsx'
 
@@ -22,6 +23,7 @@ export function lightboxLabels(t: TranslateNS<'conversation'>): ImageLightboxLab
     infoName: t('image.infoName'),
     unknown: t('image.infoUnknown'),
     megabytes: value => t('image.megabytes', { value }),
+    video: videoPlayerLabels(key => t(key)),
   }
 }
 
