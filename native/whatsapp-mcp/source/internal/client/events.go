@@ -425,7 +425,13 @@ func extractMediaInfo(msg *waProto.Message) (mediaType, filename, url, directPat
 			img.GetMediaKey(), img.GetFileSHA256(), img.GetFileEncSHA256(), img.GetFileLength()
 	}
 	if vid := msg.GetVideoMessage(); vid != nil {
-		return "video", generatedMediaFilename("video", vid.GetFileSHA256(), ".mp4"),
+		// A GIF arrives as a looping MP4 with gifPlayback set; recording it as
+		// "gif" lets list_messages name it and a forward keep it looping.
+		kind := "video"
+		if vid.GetGifPlayback() {
+			kind = "gif"
+		}
+		return kind, generatedMediaFilename(kind, vid.GetFileSHA256(), ".mp4"),
 			vid.GetURL(), vid.GetDirectPath(),
 			vid.GetMediaKey(), vid.GetFileSHA256(), vid.GetFileEncSHA256(), vid.GetFileLength()
 	}
@@ -433,6 +439,11 @@ func extractMediaInfo(msg *waProto.Message) (mediaType, filename, url, directPat
 		return "audio", generatedMediaFilename("audio", aud.GetFileSHA256(), ".ogg"),
 			aud.GetURL(), aud.GetDirectPath(),
 			aud.GetMediaKey(), aud.GetFileSHA256(), aud.GetFileEncSHA256(), aud.GetFileLength()
+	}
+	if st := msg.GetStickerMessage(); st != nil {
+		return "sticker", generatedMediaFilename("sticker", st.GetFileSHA256(), ".webp"),
+			st.GetURL(), st.GetDirectPath(),
+			st.GetMediaKey(), st.GetFileSHA256(), st.GetFileEncSHA256(), st.GetFileLength()
 	}
 	if doc := msg.GetDocumentMessage(); doc != nil {
 		fname := security.SafeFilename(doc.GetFileName())

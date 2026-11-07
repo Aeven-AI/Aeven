@@ -272,7 +272,7 @@ func (s *Server) registerGetStatus() {
 			"media_root": s.client.MediaRoot(),
 		}
 		if roots := s.client.ReadRoots(); len(roots) > 0 {
-			status["send_roots"] = roots
+			status["file_roots"] = roots
 		}
 		if wa := s.client.WA(); wa != nil && wa.Store != nil && wa.Store.ID != nil {
 			status["own_jid"] = wa.Store.ID.String()

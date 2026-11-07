@@ -1,14 +1,17 @@
 package mcp
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
 
 	"github.com/sealjay/mcp-whatsapp/internal/client"
+	"github.com/sealjay/mcp-whatsapp/internal/media"
 )
 
 // resultJSON serialises v to JSON and wraps it in a text tool result.
@@ -38,6 +41,10 @@ const inlineMediaMaxBytes = 5 * 1024 * 1024
 // If the file is missing or oversized, the call still succeeds with just the
 // JSON block — the tool is still useful and the caller can fetch the file
 // out of band via Path.
+// stillFrameTimeout bounds the ffmpeg run that extracts a GIF or video's
+// still frame; a slow or stuck run drops the frame, not the download.
+const stillFrameTimeout = 15 * time.Second
+
 func downloadMediaResult(r client.DownloadResult) (*mcp.CallToolResult, error) {
 	b, err := json.MarshalIndent(r, "", "  ")
 	if err != nil {
@@ -45,9 +52,23 @@ func downloadMediaResult(r client.DownloadResult) (*mcp.CallToolResult, error) {
 	}
 	contents := []mcp.Content{mcp.NewTextContent(string(b))}
 
-	if r.Success && (r.MediaType == "image" || r.MediaType == "audio") && r.Path != "" {
-		if inlined, ok := readInlineMedia(r.Path, r.MediaType); ok {
-			contents = append(contents, inlined)
+	if r.Success && r.Path != "" {
+		switch r.MediaType {
+		case "image", "sticker", "audio":
+			if inlined, ok := readInlineMedia(r.Path, r.MediaType); ok {
+				contents = append(contents, inlined)
+			}
+		case "gif", "video":
+			// A reader that takes images but not video still sees what a GIF
+			// or clip shows: one representative frame.
+			ctx, cancel := context.WithTimeout(context.Background(), stillFrameTimeout)
+			still, err := media.VideoStillJPEG(ctx, r.Path)
+			cancel()
+			if err == nil {
+				contents = append(contents,
+					mcp.NewTextContent("A still frame from the "+r.MediaType+":"),
+					mcp.NewImageContent(base64.StdEncoding.EncodeToString(still), "image/jpeg"))
+			}
 		}
 	}
 
@@ -75,7 +96,7 @@ func readInlineMedia(path, mediaType string) (mcp.Content, bool) {
 	mimeType := sniffResourceMIME(data, mediaType)
 	encoded := base64.StdEncoding.EncodeToString(data)
 	switch mediaType {
-	case "image":
+	case "image", "sticker":
 		return mcp.NewImageContent(encoded, mimeType), true
 	case "audio":
 		return mcp.NewAudioContent(encoded, mimeType), true

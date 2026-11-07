@@ -38,20 +38,24 @@ type SendMediaOptions struct {
 	// Forwarded marks the message as forwarded, as WhatsApp's Forward does:
 	// recipients see the "Forwarded" label above it.
 	Forwarded bool
+	// GifPlayback sends an MP4 as a GIF that loops, the form a received GIF
+	// takes, so forwarding one keeps it looping. A .gif file loops anyway.
+	GifPlayback bool
 }
 
 // Send sends a text message.
 func (c *Client) Send(ctx context.Context, recipient, message string) SendResult {
-	return c.send(ctx, recipient, message, "", false, false)
+	return c.send(ctx, SendMediaOptions{Recipient: recipient, Caption: message})
 }
 
 // SendMediaWithOptions is the extensible entry point for media sends.
 func (c *Client) SendMediaWithOptions(ctx context.Context, opts SendMediaOptions) SendResult {
-	return c.send(ctx, opts.Recipient, opts.Caption, opts.MediaPath, opts.ViewOnce, opts.Forwarded)
+	return c.send(ctx, opts)
 }
 
 // send is the unified implementation shared by Send and SendMediaWithOptions.
-func (c *Client) send(ctx context.Context, recipient, message, mediaPath string, viewOnce, forwarded bool) SendResult {
+func (c *Client) send(ctx context.Context, opts SendMediaOptions) SendResult {
+	recipient, message, mediaPath, forwarded := opts.Recipient, opts.Caption, opts.MediaPath, opts.Forwarded
 	if !c.wa.IsConnected() {
 		return SendResult{Success: false, Message: "Not connected to WhatsApp"}
 	}
@@ -86,7 +90,7 @@ func (c *Client) send(ctx context.Context, recipient, message, mediaPath string,
 	}
 
 	if mediaPath != "" {
-		if err := c.attachMedia(ctx, msg, mediaPath, message, viewOnce); err != nil {
+		if err := c.attachMedia(ctx, msg, mediaPath, message, opts.ViewOnce, opts.GifPlayback); err != nil {
 			return SendResult{Success: false, Message: err.Error()}
 		}
 	} else if forwarded {
@@ -148,7 +152,7 @@ func (c *Client) ForwardMessage(ctx context.Context, sourceChatJID, messageID, r
 		if content == "" {
 			return SendResult{Success: false, Message: "the message has no text or media to forward"}
 		}
-		return c.send(ctx, recipient, content, "", false, true)
+		return c.send(ctx, SendMediaOptions{Recipient: recipient, Caption: content, Forwarded: true})
 	}
 	// Fetched into the media root, the folder every send may read from, and
 	// removed once sent: the download cache sits outside it.
@@ -162,7 +166,7 @@ func (c *Client) ForwardMessage(ctx context.Context, sourceChatJID, messageID, r
 		return SendResult{Success: false, Message: fmt.Sprintf("could not fetch the %s to forward: %s", mediaType, fetched.Message)}
 	}
 	defer os.Remove(staged)
-	return c.send(ctx, recipient, "", staged, false, true)
+	return c.send(ctx, SendMediaOptions{Recipient: recipient, MediaPath: staged, Forwarded: true, GifPlayback: mediaType == "gif"})
 }
 
 // safeFileComponent keeps the letters, digits, dashes, and underscores of a
@@ -230,7 +234,7 @@ func parseRecipient(recipient string) (types.JID, error) {
 // When viewOnce is true, the resulting Image/Video/Audio submessage is flagged
 // as view-once. DocumentMessage has no view-once support in WhatsApp clients,
 // so the flag is silently ignored for documents.
-func (c *Client) attachMedia(ctx context.Context, msg *waProto.Message, mediaPath, caption string, viewOnce bool) error {
+func (c *Client) attachMedia(ctx context.Context, msg *waProto.Message, mediaPath, caption string, viewOnce, loop bool) error {
 	safePath, err := c.ValidateMediaPath(mediaPath)
 	if err != nil {
 		return fmt.Errorf("media_path rejected: %w", err)
@@ -314,7 +318,7 @@ func (c *Client) attachMedia(ctx context.Context, msg *waProto.Message, mediaPat
 			FileSHA256:    resp.FileSHA256,
 			FileLength:    &resp.FileLength,
 		}
-		if gifPlayback {
+		if gifPlayback || loop {
 			msg.VideoMessage.GifPlayback = proto.Bool(true)
 		}
 		if viewOnce {

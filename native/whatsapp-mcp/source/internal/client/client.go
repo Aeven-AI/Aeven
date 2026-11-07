@@ -29,8 +29,9 @@ type Config struct {
 	Store            *store.Store // initialized message store
 	Logger           waLog.Logger // optional; defaults to stderr at INFO
 	AllowedMediaRoot string       // absolute path; media_path args must live under this
-	// ReadRoots are further absolute directories media_path may name. They
-	// are read-only: downloads still land under AllowedMediaRoot.
+	// ReadRoots are further absolute directories media_path and output_path
+	// may name: the account's own folders, so a session can send a file it
+	// made and save a received one where it can open it.
 	ReadRoots []string
 	Redactor  *security.Redactor // optional; defaults to a redacting instance
 	// RateLimiter throttles outbound sends and usync lookups. Optional; New
@@ -156,13 +157,13 @@ func (c *Client) ValidateMediaPath(userPath string) (string, error) {
 // *write* to (e.g. download_media's output_path). Parent dir must exist; the
 // final file does not.
 func (c *Client) ValidateOutputPath(userPath string) (string, error) {
-	return security.ValidateOutputPath(userPath, c.allowedMediaRoot)
+	return security.ValidateOutputPathIn(userPath, append([]string{c.allowedMediaRoot}, c.readRoots...))
 }
 
 // MediaRoot is the directory output_path must name and media_path may name.
 func (c *Client) MediaRoot() string { return c.allowedMediaRoot }
 
-// ReadRoots are the further directories media_path may name.
+// ReadRoots are the further directories media_path and output_path may name.
 func (c *Client) ReadRoots() []string { return c.readRoots }
 
 // IsLoggedIn reports whether the underlying whatsmeow device has a stored

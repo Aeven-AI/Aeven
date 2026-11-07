@@ -104,7 +104,7 @@ By default the allowed root is `./store/uploads/` (resolved relative to your `-s
 
 `serve` links as a browser named **Aeven**, which is how the phone's Linked devices list shows it; a device linked before this keeps the name it linked with until it is linked again.
 
-`WHATSAPP_MCP_READ_ROOTS` names further absolute directories, separated like `PATH`, whose files `send_file` and `send_audio_message` may send; downloads still go under the media root. `pairing_status` lists them as `send_roots`. A supervisor points it at the account's own working folders, so a file made there is sent without a copy.
+`WHATSAPP_MCP_READ_ROOTS` names further absolute directories, separated like `PATH`, whose files `send_file` and `send_audio_message` may send; downloads still go under the media root. `download_media` may also write its `output_path` there, so a received image can be saved where the session opens it. `pairing_status` lists them as `file_roots`. A supervisor points it at the account's own working folders, so a file made there is sent without a copy.
 
 `WHATSAPP_MCP_PAIRING_TRACE=1` writes every linking-handshake node (QR refs, phone-code stages, passkey stages, pair-success) to stderr as `[Client/Trace WARN]` lines, to diagnose a link WhatsApp refuses. The trace names the account's phone number, so leave it unset outside diagnosis.
 
@@ -231,7 +231,7 @@ Flags and environment variables for `serve`:
 | `list_chats` | List chats with last-message preview; sort by activity or name |
 | `get_chat` | Chat metadata by JID |
 | `get_message_context` | Before/after window around a specific message |
-| `download_media` | Download persisted media to a local path |
+| `download_media` | Download persisted media (image, sticker, GIF, video, voice note, document) to a local path; images, stickers, and voice notes come back inline, a GIF or video as one still frame |
 | `request_sync` | Ask WhatsApp to backfill history for a chat |
 
 ### Send

@@ -121,6 +121,24 @@ func ValidateOutputPath(userPath, allowedRoot string) (string, error) {
 	return resolved, nil
 }
 
+// ValidateOutputPathIn is ValidateOutputPath over several allowed roots: the
+// path is accepted under the first root that holds it.
+func ValidateOutputPathIn(userPath string, allowedRoots []string) (string, error) {
+	if len(allowedRoots) == 1 {
+		return ValidateOutputPath(userPath, allowedRoots[0])
+	}
+	for _, root := range allowedRoots {
+		resolved, err := ValidateOutputPath(userPath, root)
+		if err == nil {
+			return resolved, nil
+		}
+		if !strings.Contains(err.Error(), "is outside allowed root") {
+			return "", err
+		}
+	}
+	return "", fmt.Errorf("output_path %q is outside every allowed root (%s); choose a path under one of them", userPath, strings.Join(allowedRoots, ", "))
+}
+
 // SafeFilename returns filepath.Base(raw) unless the base is one of the
 // degenerate values that could escape a join or hit special-case behaviour
 // ("", ".", "..", "/", or contains a null byte), in which case it returns
