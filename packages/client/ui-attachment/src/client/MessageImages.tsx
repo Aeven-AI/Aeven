@@ -6,10 +6,11 @@ import type { LightboxImage } from '@aeven/client-ui-primitives'
 import { imageKey, resolvedUrl, useImageResolutions } from '../image-resolutions.ts'
 import { ImageGallery } from '../MessageImage.tsx'
 import { UploadTray } from '../UploadTray.tsx'
-import type { UploadTrayFileItem, UploadTrayImageItem, UploadTrayVideoItem } from '../UploadTray.tsx'
+import type { UploadTrayAudioItem, UploadTrayFileItem, UploadTrayImageItem, UploadTrayVideoItem } from '../UploadTray.tsx'
 import { messageImageEntry } from '../message-image-entry.ts'
 import { isSvgAttachment } from '../svg-attachment.ts'
 import { isVideoAttachment, useVideoPosters } from '../video-poster.ts'
+import { isAudioAttachment } from '../audio-attachment.ts'
 import { lightboxLabels, messageImageLabels, uploadTrayLabels } from './labels.ts'
 
 /** Sent-message tray tile retaining what its open action needs. */
@@ -17,19 +18,22 @@ type MessageTrayItem =
   | UploadTrayImageItem & { image: MessageImageSource }
   | UploadTrayImageItem & { picture: MessageFileSource }
   | UploadTrayVideoItem & { src: string | null }
+  | UploadTrayAudioItem
   | UploadTrayFileItem & { file: MessageFileSource }
 
 /**
  * One sent file as the tray presents it. An SVG original is a picture the
  * browser renders even though the harness stores it as a file, so its tile
  * shows the bytes and opens the preview; a video shows its first frame and
- * plays in the preview; a file the tray keeps as a file reports no URL.
+ * plays in the preview; a sound plays in place; a file the tray keeps as a
+ * file reports no URL.
  */
 interface SentFile {
   readonly file: MessageFileSource
   readonly name: string
   readonly mediaType: string
   readonly video: boolean
+  readonly audio: boolean
   /** Picture URL, or null while a submission echo's original is not yet stored. */
   readonly url: string | null | undefined
 }
@@ -42,12 +46,14 @@ function sentFiles(
   return (files ?? []).map((file) => {
     const { name, mediaType } = 'attachment' in file ? file.attachment : file.preview
     const video = isVideoAttachment(name, mediaType)
-    if (!video && !isSvgAttachment(name, mediaType)) return { file, name, mediaType, video, url: undefined }
+    const audio = !video && isAudioAttachment(name, mediaType)
+    if (!video && !audio && !isSvgAttachment(name, mediaType)) return { file, name, mediaType, video, audio, url: undefined }
     return {
       file,
       name,
       mediaType,
       video,
+      audio,
       url: 'attachment' in file && fileUrl !== undefined ? fileUrl(file.attachment) : null,
     }
   })
@@ -90,6 +96,9 @@ function MessageAttachmentTray({ images, files, turnImages, loadImage, fileUrl, 
       }
     }),
     ...pictures.map((picture, index): MessageTrayItem => {
+      if (picture.audio) {
+        return { kind: 'audio', id: `audio:${picture.name}:${index}`, src: picture.url ?? null, name: picture.name, removeLabel: '' }
+      }
       if (picture.video) {
         const src = picture.url ?? null
         const poster = src === null ? undefined : posters.get(src)
@@ -134,7 +143,7 @@ function MessageAttachmentTray({ images, files, turnImages, loadImage, fileUrl, 
     entries.push(messageImageEntry(image, src, t('image.label')))
   }
   for (const picture of pictures) {
-    if (picture.url === undefined || picture.url === null) continue
+    if (picture.url === undefined || picture.url === null || picture.audio) continue
     entries.push({
       src: picture.url,
       ...picture.video ? { kind: 'video' as const, poster: posters.get(picture.url) ?? undefined } : {},
@@ -163,6 +172,8 @@ function MessageAttachmentTray({ images, files, turnImages, loadImage, fileUrl, 
             if (item.src !== null) setPreviewSrc(item.src)
             return
           }
+          // A sound plays in its own bar and opens nothing.
+          if (item.kind === 'audio') return
           if ('image' in item && item.failed === true && 'attachment' in item.image) {
             retry(item.image.attachment)
             return

@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import clsx from 'clsx'
-import { Tooltip } from '@aeven/client-ui-primitives'
+import { AudioPlayer, Tooltip } from '@aeven/client-ui-primitives'
+import type { AudioPlayerLabels } from '@aeven/client-ui-primitives'
 import { FileTypeIcon, UploadErrorIcon, UploadRemoveIcon, UploadSpinnerIcon, fileIconKind } from './FileIcons.tsx'
 import css from './UploadTray.module.css'
 
@@ -48,8 +49,20 @@ export interface UploadTrayVideoItem {
   removeLabel: string
 }
 
+/** One sound file, played in place in a grey bar instead of shown as a tile; strings arrive resolved. */
+export interface UploadTrayAudioItem {
+  kind: 'audio'
+  id: string
+  /** URL of the sound, or null while it uploads or is not yet stored; the bar then shows a spinner. */
+  src: string | null
+  /** Display name including its extension, the player's accessible name. */
+  name: string
+  /** Accessible label of the bar's remove control. */
+  removeLabel: string
+}
+
 /** One tray tile. */
-export type UploadTrayItem = UploadTrayImageItem | UploadTrayVideoItem | UploadTrayFileItem
+export type UploadTrayItem = UploadTrayImageItem | UploadTrayVideoItem | UploadTrayAudioItem | UploadTrayFileItem
 
 /** Tray-level strings the owner resolves from its own locale namespace. */
 export interface UploadTrayLabels {
@@ -59,6 +72,8 @@ export interface UploadTrayLabels {
   remove: string
   /** Label shown on a failed tile. */
   error: string
+  /** The sound player's sentences. */
+  audio: AudioPlayerLabels
 }
 
 /** Display title: the name without its final extension. */
@@ -68,8 +83,9 @@ function titleOf(name: string): string {
 }
 
 /**
- * Wrapping attachment tray. Images and videos come first, then files, each
- * group in owner order. A video shows its first frame under a play mark. An uploading tile shows a spinner; a failed tile shows a
+ * Wrapping attachment tray. Images and videos come first, then files, then
+ * sound files, each group in owner order. A video shows its first frame under
+ * a play mark; a sound file plays in place in a full-width grey bar. An uploading tile shows a spinner; a failed tile shows a
  * warning and "Error"; a ready file shows its type icon and name; an image
  * fades in over its spinner once the thumbnail loads.
  *
@@ -90,7 +106,11 @@ export function UploadTray<T extends UploadTrayItem>({ items, labels, onOpen, on
   /** Composer tray above the editor, or the tray of a sent message. */
   variant?: 'composer' | 'message'
 }) {
-  const ordered = [...items.filter(item => item.kind !== 'file'), ...items.filter(item => item.kind === 'file')]
+  const ordered = [
+    ...items.filter(item => item.kind === 'image' || item.kind === 'video'),
+    ...items.filter(item => item.kind === 'file'),
+  ]
+  const sounds = items.filter((item): item is T & UploadTrayAudioItem => item.kind === 'audio')
   return (
     <div
       className={clsx(css.tray, variant === 'message' && css.message, align === 'end' && css.end)}
@@ -122,6 +142,27 @@ export function UploadTray<T extends UploadTrayItem>({ items, labels, onOpen, on
               </button>
             </Tooltip>
           )}
+        </div>
+      ))}
+      {sounds.map(item => (
+        <div key={item.id} className={css.audioRow}>
+          <AudioPlayer
+            src={item.src}
+            label={item.name}
+            labels={labels.audio}
+            trailing={onRemove === undefined ? undefined : (
+              <Tooltip label={labels.remove} side="top">
+                <button
+                  type="button"
+                  className={css.audioRemove}
+                  aria-label={item.removeLabel}
+                  onClick={() => { onRemove(item) }}
+                >
+                  <UploadRemoveIcon />
+                </button>
+              </Tooltip>
+            )}
+          />
         </div>
       ))}
     </div>

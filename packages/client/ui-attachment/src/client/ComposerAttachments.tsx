@@ -9,6 +9,7 @@ import { ImageLightbox } from '@aeven/client-ui-primitives'
 import type { LightboxImage } from '@aeven/client-ui-primitives'
 import { isSvgAttachment } from '../svg-attachment.ts'
 import { isVideoAttachment, useVideoPosters } from '../video-poster.ts'
+import { isAudioAttachment } from '../audio-attachment.ts'
 import { dropOverlayLabels, lightboxLabels, uploadTrayLabels } from './labels.ts'
 
 /** Tray item retaining its browser-owned attachment for callbacks. */
@@ -27,12 +28,14 @@ function openDraftFile(file: File): void {
   setTimeout(() => { URL.revokeObjectURL(url) }, 60_000)
 }
 
-/** Draft files the tray shows from their own bytes: an SVG original or a video, until its upload failed. */
+/** Draft files the tray shows or plays from their own bytes: an SVG original, a video, or a sound, until its upload failed. */
 function pictureDrafts(attachments: readonly ComposerAttachment[]): readonly ComposerFileAttachment[] {
   return attachments.filter((attachment): attachment is ComposerFileAttachment =>
     attachment.kind === 'file'
     && attachment.status !== 'error'
-    && (isSvgAttachment(attachment.file.name, attachment.file.type) || isVideoAttachment(attachment.file.name, attachment.file.type)))
+    && (isSvgAttachment(attachment.file.name, attachment.file.type)
+      || isVideoAttachment(attachment.file.name, attachment.file.type)
+      || isAudioAttachment(attachment.file.name, attachment.file.type)))
 }
 
 /**
@@ -150,6 +153,16 @@ export function ComposerAttachments({
       }
     }
     const picture = pictureUrls.get(attachment.id)
+    if (picture !== undefined && isAudioAttachment(attachment.file.name, attachment.file.type)) {
+      return {
+        kind: 'audio',
+        id: attachment.id,
+        src: picture,
+        name: attachment.file.name,
+        removeLabel: t('file.removeLabel', { name: attachment.file.name }),
+        attachment,
+      }
+    }
     if (picture !== undefined && isVideoAttachment(attachment.file.name, attachment.file.type)) {
       const poster = posters.get(picture)
       return {
