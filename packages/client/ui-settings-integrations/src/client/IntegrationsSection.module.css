@@ -18,6 +18,8 @@
 .qrLayout { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; }
 .qrFrame { display: grid; place-items: center; box-sizing: border-box; width: 216px; height: 216px; flex: none; padding: 8px; border-radius: 12px; background: #fff; }
 .qrImage { width: 200px; height: 200px; image-rendering: pixelated; }
+/* A phone-number linking code, read off one screen and typed into another. */
+.phoneCode { margin: 0; font-family: var(--dsw-font-markdown-code-font-family); font-size: 1.75rem; font-weight: 500; letter-spacing: 0.12em; }
 .qrSteps { flex: 1; min-width: 200px; margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; color: var(--dsw-alias-label-secondary); }
 /* The section's own controls. A menu row carries its own primitive's chrome, so it is excluded;
    :where keeps this rule's specificity at the bare element pair, as the per-control rules above rely on. */

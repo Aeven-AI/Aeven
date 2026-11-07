@@ -1,7 +1,7 @@
 /** WhatsApp connector page: one row per linked number and the QR card that links another. */
 
 import { useEffect, useRef, useState } from 'react'
-import type { ConnectorId, WhatsAppPairingView } from '@aeven/api-remotes/client'
+import type { ConnectorId, WhatsAppPairingView, WhatsAppPhoneCodeView } from '@aeven/api-remotes/client'
 import { IconTrashOutline16, Spinner } from '@aeven/client-ui-primitives'
 import { ConnectorAccountRows } from './ConnectorAccountRows.tsx'
 import { formatPhone, type PairingAccountsProps } from './connector-page.ts'
@@ -47,6 +47,16 @@ export interface WhatsAppAccountsProps extends PairingAccountsProps {
   startWhatsAppPairing: () => Promise<WhatsAppPairingView>
   whatsAppPairing: (id: ConnectorId) => Promise<WhatsAppPairingView>
   cancelWhatsAppPairing: (id: ConnectorId) => Promise<void>
+  whatsAppPhoneCode: (id: ConnectorId, phone: string) => Promise<WhatsAppPhoneCodeView>
+}
+
+/**
+ * Whether linking should open on the phone-number path: a touch screen is most likely the phone being linked,
+ * which cannot scan a QR code shown on its own screen.
+ * @returns true on a coarse primary pointer.
+ */
+function prefersPhoneCode(): boolean {
+  return typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches
 }
 
 /**
@@ -60,6 +70,19 @@ export function WhatsAppAccounts(props: WhatsAppAccountsProps) {
   const [confirming, setConfirming] = useState<ConnectorId>()
   const { whatsAppPairing, cancelWhatsAppPairing, refresh } = props
   const waiting = pairing?.state === 'starting' || pairing?.state === 'qr'
+  // The phone-number path: the reader's number, then the code WhatsApp issued for it.
+  const [method, setMethod] = useState<'qr' | 'phone'>(() => (prefersPhoneCode() ? 'phone' : 'qr'))
+  const [phone, setPhone] = useState('')
+  const [phoneCode, setPhoneCode] = useState<WhatsAppPhoneCodeView>()
+  const [requesting, setRequesting] = useState(false)
+  useEffect(() => { setPhoneCode(undefined) }, [pairing?.id])
+  const requestCode = (): void => {
+    const id = pairing?.id
+    if (id === undefined || pairing?.state !== 'qr') return
+    setRequesting(true)
+    props.whatsAppPhoneCode(id, phone).then(setPhoneCode, () => { setPhoneCode({ state: 'failed' }) })
+      .finally(() => { setRequesting(false) })
+  }
   useEffect(() => { rememberAttempt(waiting ? pairing?.id : undefined) }, [pairing?.id, waiting])
 
   const start = (): void => {
@@ -151,17 +174,36 @@ export function WhatsAppAccounts(props: WhatsAppAccountsProps) {
         ? <p role="status" className={css.testing}>{t('whatsappConnected')}</p>
         : failure !== undefined
           ? <p role="alert" className={css.error}>{failure}</p>
-          : <div className={css.qrLayout}>
-            <div className={css.qrFrame}>
-              {pairing.qr === undefined ? <Spinner /> : <img className={css.qrImage} src={pairing.qr} alt={t('whatsappQrAlt')} />}
-            </div>
-            <ol className={css.qrSteps}>
-              <li>{t('whatsappStepOpen')}</li>
-              <li>{t('whatsappStepLinked')}</li>
-              <li>{t('whatsappStepScan')}</li>
-            </ol>
-          </div>}
-      {(pairing.state === 'starting' || pairing.state === 'qr') && <p role="status" className={css.testing}><Spinner />{t(pairing.qr === undefined ? 'whatsappPreparing' : 'whatsappWaiting')}</p>}
+          : method === 'phone'
+            ? phoneCode?.state === 'code'
+              ? <div className={css.qrLayout}>
+                <p className={css.phoneCode} aria-live="polite">{phoneCode.code.length === 8 ? `${phoneCode.code.slice(0, 4)}-${phoneCode.code.slice(4)}` : phoneCode.code}</p>
+                <ol className={css.qrSteps}>
+                  <li>{t('whatsappCodeStepOpen')}</li>
+                  <li>{t('whatsappCodeStepLink')}</li>
+                  <li>{t('whatsappCodeStepEnter')}</li>
+                </ol>
+              </div>
+              : <form className={css.actions} onSubmit={(event) => { event.preventDefault(); requestCode() }}>
+                <label className={css.field}>{t('whatsappPhoneLabel')}
+                  <input type="tel" inputMode="tel" autoComplete="tel" value={phone} placeholder={t('whatsappPhonePlaceholder')} disabled={requesting} onChange={(event) => { setPhone(event.currentTarget.value); setPhoneCode(undefined) }} />
+                </label>
+                <button type="submit" className={css.primaryAction} disabled={requesting || pairing.state !== 'qr' || phone.trim() === ''}>{t('whatsappPhoneSubmit')}</button>
+                {phoneCode?.state === 'invalid-phone' && <p role="alert" className={css.error}>{t('whatsappPhoneInvalid')}</p>}
+                {(phoneCode?.state === 'failed' || phoneCode?.state === 'expired') && <p role="alert" className={css.error}>{t('whatsappPhoneFailed')}</p>}
+              </form>
+            : <div className={css.qrLayout}>
+              <div className={css.qrFrame}>
+                {pairing.qr === undefined ? <Spinner /> : <img className={css.qrImage} src={pairing.qr} alt={t('whatsappQrAlt')} />}
+              </div>
+              <ol className={css.qrSteps}>
+                <li>{t('whatsappStepOpen')}</li>
+                <li>{t('whatsappStepLinked')}</li>
+                <li>{t('whatsappStepScan')}</li>
+              </ol>
+            </div>}
+      {(pairing.state === 'starting' || pairing.state === 'qr') && <p role="status" className={css.testing}><Spinner />{t(pairing.qr === undefined ? 'whatsappPreparing' : method === 'phone' && phoneCode?.state === 'code' ? 'whatsappCodeWaiting' : 'whatsappWaiting')}</p>}
+      {(pairing.state === 'starting' || pairing.state === 'qr') && <button type="button" className={css.secondaryAction} onClick={() => { setMethod(method === 'phone' ? 'qr' : 'phone') }}>{t(method === 'phone' ? 'whatsappUseQr' : 'whatsappUsePhone')}</button>}
       {pairing.state !== 'connected' && <div className={css.actions}>
         {failure !== undefined && pairing.state !== 'limit' && pairing.state !== 'unavailable' && <button type="button" className={css.primaryAction} disabled={busy} onClick={start}>{t('whatsappRetry')}</button>}
         <button type="button" className={css.secondaryAction} disabled={busy} onClick={cancel}>{t(failure === undefined ? 'cancel' : 'close')}</button>

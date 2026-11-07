@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 
+	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/types/events"
 
 	"github.com/sealjay/mcp-whatsapp/internal/client"
@@ -56,6 +57,12 @@ func (p *productionDriver) Connect(ctx context.Context, onLoggedOut func()) erro
 }
 
 func (p *productionDriver) Logout(ctx context.Context) error { return p.c.Logout(ctx) }
+
+// PairPhone asks WhatsApp for a phone-number linking code for the pairing in
+// progress; the phone shows a notification that opens the code entry screen.
+func (p *productionDriver) PairPhone(ctx context.Context, phone string) (string, error) {
+	return p.c.WA().PairPhone(ctx, phone, true, whatsmeow.PairClientChrome, "Chrome (Linux)")
+}
 
 func (p *productionDriver) Disconnect() { p.c.Disconnect() }
 

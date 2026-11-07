@@ -41,7 +41,7 @@ import { isSlackReadTool, slackConnectorId, SLACK_DIRECT_MESSAGE_SCOPES, SLACK_M
 import { isSlackConsentFailure, probeSlackToken, revokeSlackToken, refreshSlackToken, SlackLoginError, startSlackLogin, type SlackLogin, type SlackToken } from './slack-login.ts'
 import { connectorCredential, type PendingConsent } from './oauth.ts'
 import { BrokerError, ConnectorBroker, type ConsentStatus, type IssuedToken } from './broker.ts'
-import type { AccountIntegrationsView, CatalogSkillView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, ConnectorProviderView, DiscordConnectorSettings, PersonalSkillView, EmailConnectionFailure, EmailConnectorSettings, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillReferenceImport, SkillSetup, SkillViewId, SkillUploadFile, SlackConnectorSettings, SystemSkillAgent, SystemSkillView, TelegramConnectorSettings, TelegramPairingView, WhatsAppPairingView } from './types.ts'
+import type { AccountIntegrationsView, CatalogSkillView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, ConnectorProviderView, DiscordConnectorSettings, PersonalSkillView, EmailConnectionFailure, EmailConnectorSettings, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillReferenceImport, SkillSetup, SkillViewId, SkillUploadFile, SlackConnectorSettings, SystemSkillAgent, SystemSkillView, TelegramConnectorSettings, TelegramPairingView, WhatsAppPairingView, WhatsAppPhoneCodeView } from './types.ts'
 
 export type * from './types.ts'
 
@@ -1435,6 +1435,26 @@ export default class AccountIntegrations extends TypertRemoteService {
     }
     if (pairing.done) this.pairings.delete(id)
     return pairing.view
+  }
+
+  /**
+   * Ask for a phone-number linking code for an open attempt, for a reader who cannot scan the QR: linking from the
+   * phone's own browser shows the code on the same screen WhatsApp would scan. The QR stays valid beside it.
+   * @param id - attempt identity from startWhatsAppPairing.
+   * @param phone - the number being linked, in international form.
+   * @returns the code to type into WhatsApp, or why none was issued.
+   */
+  @Remote
+  async whatsAppPhoneCode(id: ConnectorId, phone: string): Promise<WhatsAppPhoneCodeView> {
+    const pairing = this.pairings.get(id)
+    if (pairing === undefined || pairing.owner !== this.owner() || pairing.done) return { state: 'expired' }
+    if (phone.length > 32) return { state: 'invalid-phone' }
+    try {
+      return await pairing.daemon.pairPhone(phone)
+    } catch {
+      // The daemon's own diagnostics are not shown; Settings offers the QR and a new attempt.
+      return { state: 'failed' }
+    }
   }
 
   /**
