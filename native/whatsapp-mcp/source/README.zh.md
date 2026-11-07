@@ -7,7 +7,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/Sealjay/mcp-whatsapp)](https://goreportcard.com/report/github.com/Sealjay/mcp-whatsapp)
 [![Go 1.25+](https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go&logoColor=white)](https://go.dev/)
 [![MCP](https://img.shields.io/badge/MCP-protocol-6366f1)](https://modelcontextprotocol.io/)
-[![42 tools](https://img.shields.io/badge/tools-42-blue)]()
+[![43 tools](https://img.shields.io/badge/tools-43-blue)]()
 [![whatsmeow](https://img.shields.io/badge/whatsmeow-multidevice-25D366?logo=whatsapp&logoColor=white)](https://github.com/tulir/whatsmeow)
 [![Sealjay/mcp-whatsapp MCP server](https://glama.ai/mcp/servers/Sealjay/mcp-whatsapp/badges/score.svg?)](https://glama.ai/mcp/servers/Sealjay/mcp-whatsapp)
 [![GitHub issues](https://img.shields.io/github/issues/Sealjay/mcp-whatsapp)](https://github.com/Sealjay/mcp-whatsapp/issues)
@@ -22,7 +22,7 @@
 - **已发送消息存储** —— 出站消息在本地持久化，使对话历史保持完整。
 - **阅后即焚计时器** —— 出站消息自动继承群聊的临时消息计时器。
 - **定向历史同步** —— 通过 `request_sync` 工具按聊天按需回填。
-- **扩展的工具面** —— 42 个工具（见下文）：表情回应、回复、编辑、撤回、标记已读、输入状态、is-on-whatsapp、完整的群管理、黑名单、投票（创建 + 投票 + 计票）、联系人名片、阅后即焚标志、在线状态、隐私设置，以及资料的 “About” 文本。
+- **扩展的工具面** —— 43 个工具（见下文）：表情回应、回复、编辑、撤回、标记已读、输入状态、is-on-whatsapp、完整的群管理、黑名单、投票（创建 + 投票 + 计票）、联系人名片、位置图钉、阅后即焚标志、在线状态、隐私设置，以及资料的 “About” 文本。
 - **单实例强制** —— 在 `store/.lock` 上加 `flock(2)`，防止两个 `serve` 进程在同一批 SQLite 文件上竞争。
 
 ## 安装
@@ -220,7 +220,7 @@ WhatsApp 大约每 20 天轮换一次已链接设备会话。在 Docker 之外�
 
 ## 工具
 
-42 个工具，按用途分组。
+43 个工具，按用途分组。
 
 ### 读取 / 查询
 
@@ -245,6 +245,7 @@ WhatsApp 大约每 20 天轮换一次已链接设备会话。在 Docker 之外�
 | `send_poll_vote` | 对之前见过的投票投票；`options` 必须与选项名称完全一致 |
 | `get_poll_results` | 返回我们已缓存的某次投票的计票（含 0 票选项） |
 | `send_contact_card` | 发送联系人名片；由 `name` + `phone` 合成 vCard 3.0，或传入原始 `vcard` 跳过合成 |
+| `send_location` | 在 `latitude`/`longitude` 处发送位置图钉，可附 `name` 与 `address`；为固定位置，不是实时共享 |
 
 ### 消息操作
 

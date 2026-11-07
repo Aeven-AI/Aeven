@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write native/whatsapp-mcp/source/README.md
-README.md: f8dbacb8f44c29f04083569ef2eeda7c21268eb6
-README.zh.md: e2c7f8bdfe4d9786494461487d676af48eb379b4
+README.md: 85e4017b560096f18be53491f65ab70353c2bd47
+README.zh.md: 52dc0c7c551301cc49cbcc7167ac41da34107642
