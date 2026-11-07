@@ -596,8 +596,11 @@ describe('attachments of synced conversations', () => {
     homeA.logs.get('also-references-image')!.events[0]!.data = { images: [{ attachmentId: image }] } as never
     await mirrorA.start()
     await mirrorA.publish()
-    await vi.waitFor(() => { expect(storeB.objects.get(image)).toEqual(storeA.objects.get(image)) })
-    expect(storeB.objects.get(empty)).toEqual(new Uint8Array(0))
+    // The two attachments arrive independently, so each is awaited.
+    await vi.waitFor(() => {
+      expect(storeB.objects.get(image)).toEqual(storeA.objects.get(image))
+      expect(storeB.objects.get(empty)).toEqual(new Uint8Array(0))
+    })
     expect(storeB.objects.has(absent)).toBe(false)
     expect(network.streams.get(`attachments/${image}`)!.length).toBe(3)
     homeA.add('s', 1)

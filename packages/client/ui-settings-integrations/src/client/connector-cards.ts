@@ -38,13 +38,21 @@ function record(state: ConnectorCards, callId: string, name: string): ConnectorC
   return { callIds: new Set(state.callIds).add(callId) }
 }
 
+/**
+ * The Turn a projected location belongs to.
+ * @param location - a matched event's location, or undefined.
+ * @returns the Turn number, or undefined outside a Turn.
+ */
+function turnOf(location: { readonly kind: string; readonly turn?: { readonly turn: number } } | undefined): number | undefined {
+  return location !== undefined && (location.kind === 'turn' || location.kind === 'step') ? location.turn?.turn : undefined
+}
+
 const definition: ConversationNodeDefinition<ConnectorCards> = {
   kind: 'connector-cards',
   match: (event, location) => {
     if (event.type === 'turn/start') return { id: String(event.data.turn), role: 'start' }
-    if (event.type !== 'tool/call' && event.type !== 'tool/code-dispatch-start') return null
-    if (location.kind !== 'turn' && location.kind !== 'step') return null
-    return { id: String(location.turn.turn), role: 'update' }
+    const turn = event.type === 'tool/call' || event.type === 'tool/code-dispatch-start' ? turnOf(location) : undefined
+    return turn === undefined ? null : { id: String(turn), role: 'update' }
   },
   start: () => empty(),
   update: ({ state }, { event }) => {
@@ -54,14 +62,16 @@ const definition: ConversationNodeDefinition<ConnectorCards> = {
   },
   buildLocationData: (context, scope, previous) => {
     if (scope !== 'turn') return null
-    const state = context.state ?? context.matches.reduce(
-      (current, match) => definition.update({ ...context, state: current }, match),
-      empty(),
-    )
-    if (previous?.kind === 'turn' && previous.key === 'connector-cards' && previous.value.callIds === state.callIds) return previous
-    const location = context.start?.location ?? context.matches[0]?.location
-    if (location?.kind !== 'turn' && location?.kind !== 'step') return null
-    return { kind: 'turn', turn: location.turn.turn, key: 'connector-cards', value: state }
+    let state = context.state
+    if (state === undefined) {
+      // Without a running state, the Turn's matches are replayed from an empty index.
+      state = empty()
+      for (const match of context.matches) state = definition.update({ ...context, state }, match)
+    }
+    const same = previous?.kind === 'turn' && previous.key === 'connector-cards' && previous.value.callIds === state.callIds
+    if (same) return previous
+    const turn = turnOf(context.start?.location ?? context.matches[0]?.location)
+    return turn === undefined ? null : { kind: 'turn', turn, key: 'connector-cards', value: state }
   },
 }
 
