@@ -5,8 +5,8 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  ENABLED_KEY, groupVoices, latestReadAloudRequest, messageText, preferredVoice, readEnabled,
-  readPreferences, STORAGE_KEY, writeEnabled, writePreference, type ReadAloudCatalog,
+  groupVoices, latestReadAloudRequest, messageText, preferredVoice,
+  readPreferences, STORAGE_KEY, writePreference, type ReadAloudCatalog,
 } from '../src/client/voices.ts'
 import { assistantNode, toolResultNode } from './harness.client.ts'
 
@@ -14,23 +14,6 @@ beforeEach(() => { localStorage.clear() })
 
 afterEach(() => {
   vi.restoreAllMocks()
-})
-
-describe('readEnabled / writeEnabled', () => {
-  it('starts off and remembers the switch across reloads', () => {
-    expect(readEnabled()).toBe(false)
-    writeEnabled(true)
-    expect(localStorage.getItem(ENABLED_KEY)).toBe('on')
-    expect(readEnabled()).toBe(true)
-    writeEnabled(false)
-    expect(localStorage.getItem(ENABLED_KEY)).toBe('off')
-    expect(readEnabled()).toBe(false)
-  })
-
-  it('keeps the choice for this page when storage refuses the write', () => {
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('quota') })
-    expect(() => { writeEnabled(true) }).not.toThrow()
-  })
 })
 
 describe('readPreferences / writePreference / preferredVoice', () => {
