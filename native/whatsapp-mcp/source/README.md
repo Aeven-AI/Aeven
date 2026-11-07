@@ -7,7 +7,7 @@ English | [中文](README.zh.md)
 [![Go Report Card](https://goreportcard.com/badge/github.com/Sealjay/mcp-whatsapp)](https://goreportcard.com/report/github.com/Sealjay/mcp-whatsapp)
 [![Go 1.25+](https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go&logoColor=white)](https://go.dev/)
 [![MCP](https://img.shields.io/badge/MCP-protocol-6366f1)](https://modelcontextprotocol.io/)
-[![42 tools](https://img.shields.io/badge/tools-42-blue)]()
+[![43 tools](https://img.shields.io/badge/tools-43-blue)]()
 [![whatsmeow](https://img.shields.io/badge/whatsmeow-multidevice-25D366?logo=whatsapp&logoColor=white)](https://github.com/tulir/whatsmeow)
 [![Sealjay/mcp-whatsapp MCP server](https://glama.ai/mcp/servers/Sealjay/mcp-whatsapp/badges/score.svg?)](https://glama.ai/mcp/servers/Sealjay/mcp-whatsapp)
 [![GitHub issues](https://img.shields.io/github/issues/Sealjay/mcp-whatsapp)](https://github.com/Sealjay/mcp-whatsapp/issues)
@@ -22,7 +22,7 @@ This started as a fork of [lharries/whatsapp-mcp](https://github.com/lharries/wh
 - **Sent-message storage** — outgoing messages are persisted locally so conversation history stays complete.
 - **Disappearing-message timers** — outgoing messages inherit the group chat's ephemeral timer automatically.
 - **Targeted history sync** — on-demand per-chat backfill via the `request_sync` tool.
-- **Extended tool surface** — 42 tools (see below): reactions, replies, edits, revoke, mark-read, typing, is-on-whatsapp, full group admin, blocklist, polls (create + vote + tally), contact cards, view-once flag, presence, privacy settings, and the profile "About" text.
+- **Extended tool surface** — 43 tools (see below): reactions, replies, edits, revoke, mark-read, typing, is-on-whatsapp, full group admin, blocklist, polls (create + vote + tally), contact cards, location pins, view-once flag, presence, privacy settings, and the profile "About" text.
 - **Single-instance enforcement** — a `flock(2)` on `store/.lock` prevents two `serve` processes racing on the same SQLite files.
 
 ## Setup
@@ -220,7 +220,7 @@ Flags and environment variables for `serve`:
 
 ## Tools
 
-42 tools, grouped by purpose.
+43 tools, grouped by purpose.
 
 ### Read / query
 
@@ -245,6 +245,7 @@ Flags and environment variables for `serve`:
 | `send_poll_vote` | Cast a vote on a previously-seen poll; `options` must match option names exactly |
 | `get_poll_results` | Return the tally for a poll we have cached (includes 0-vote options) |
 | `send_contact_card` | Send a contact card; synthesises a vCard 3.0 from `name` + `phone`, or pass a raw `vcard` to skip synthesis |
+| `send_location` | Send a location pin at `latitude`/`longitude`, with an optional `name` and `address`; a fixed point, not a live share |
 
 ### Message actions
 

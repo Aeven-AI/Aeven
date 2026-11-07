@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 
 	"google.golang.org/protobuf/proto"
@@ -219,4 +220,58 @@ func (c *Client) SendContactCard(ctx context.Context, recipient, name, phone, vc
 		Message: fmt.Sprintf("Contact card sent to %s", recipient),
 		ID:      resp.ID,
 	}
+}
+
+// SendLocation sends a location pin: recipients see a map card at the given
+// coordinates, labelled with name and address when supplied. It is a fixed
+// point, like WhatsApp's "Send your current location"; a live share needs the
+// sender to keep reporting the position, which this daemon does not do.
+func (c *Client) SendLocation(ctx context.Context, recipient string, latitude, longitude float64, name, address string) SendResult {
+	if !c.wa.IsConnected() {
+		return SendResult{Success: false, Message: "Not connected to WhatsApp"}
+	}
+	if err := validCoordinates(latitude, longitude); err != nil {
+		return SendResult{Success: false, Message: err.Error()}
+	}
+	recipientJID, err := parseRecipient(recipient)
+	if err != nil {
+		return SendResult{Success: false, Message: err.Error()}
+	}
+	location := &waE2E.LocationMessage{
+		DegreesLatitude:  proto.Float64(latitude),
+		DegreesLongitude: proto.Float64(longitude),
+	}
+	if name != "" {
+		location.Name = proto.String(name)
+	}
+	if address != "" {
+		location.Address = proto.String(address)
+	}
+	msg := &waE2E.Message{LocationMessage: location}
+	resp, err := c.wa.SendMessage(ctx, recipientJID, msg)
+	if err != nil {
+		return SendResult{Success: false, Message: fmt.Sprintf("Error sending location: %v", err)}
+	}
+	label := name
+	if label == "" {
+		label = fmt.Sprintf("%.5f, %.5f", latitude, longitude)
+	}
+	c.persistSent(ctx, recipientJID, resp.ID, label+" (location)", "", msg)
+	return SendResult{
+		Success: true,
+		Message: fmt.Sprintf("Location sent to %s", recipient),
+		ID:      resp.ID,
+	}
+}
+
+// validCoordinates rejects a latitude or longitude outside the globe, and
+// the 0,0 point a missing value would otherwise send.
+func validCoordinates(latitude, longitude float64) error {
+	if math.IsNaN(latitude) || math.IsNaN(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180 {
+		return errors.New("latitude must be within -90..90 and longitude within -180..180")
+	}
+	if latitude == 0 && longitude == 0 {
+		return errors.New("latitude and longitude are both 0; pass the real coordinates")
+	}
+	return nil
 }

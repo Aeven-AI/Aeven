@@ -36,6 +36,7 @@ var expectedToolNames = []string{
 	"send_audio_message",
 	"send_contact_card",
 	"send_file",
+	"send_location",
 	"send_message",
 	"send_poll",
 	"send_poll_vote",
@@ -116,7 +117,7 @@ func TestNewServer_RegistersAllTools(t *testing.T) {
 
 func TestNewServer_ToolCount(t *testing.T) {
 	s := NewServer(nil, nil)
-	const want = 42
+	const want = 43
 	if got := len(s.MCP().ListTools()); got != want {
 		t.Errorf("tool count = %d, want %d", got, want)
 	}
@@ -139,7 +140,7 @@ func TestToolsByDomain(t *testing.T) {
 		"tools_send.go":    {"send_message", "send_file"},
 		"tools_message.go": {"edit_message", "mark_read"},
 		"tools_groups.go":  {"create_group", "leave_group"},
-		"tools_media.go":   {"send_poll", "send_contact_card"},
+		"tools_media.go":   {"send_poll", "send_contact_card", "send_location"},
 		"tools_privacy.go": {"get_blocklist", "send_presence"},
 	}
 

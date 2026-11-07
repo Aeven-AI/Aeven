@@ -8,12 +8,13 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
-// registerMediaTools wires the poll + contact-card tools.
+// registerMediaTools wires the poll, contact-card, and location tools.
 func (s *Server) registerMediaTools() {
 	s.registerSendPoll()
 	s.registerSendPollVote()
 	s.registerGetPollResults()
 	s.registerSendContactCard()
+	s.registerSendLocation()
 }
 
 type sendPollArgs struct {
@@ -148,6 +149,37 @@ func (s *Server) registerSendContactCard() {
 			return mcp.NewToolResultError("name: required when vcard is not provided"), nil
 		}
 		r := s.client.SendContactCard(ctx, a.Recipient, a.Name, a.Phone, a.VCard)
+		return resultJSON(r)
+	}))
+}
+
+type sendLocationArgs struct {
+	Recipient string  `json:"recipient"`
+	Latitude  float64 `json:"latitude"`
+	Longitude float64 `json:"longitude"`
+	Name      string  `json:"name,omitempty"`
+	Address   string  `json:"address,omitempty"`
+}
+
+func (s *Server) registerSendLocation() {
+	tool := mcp.NewTool("send_location",
+		mcp.WithDescription("Send a WhatsApp location pin; recipients see a map card at the coordinates they can open in their maps app, and the outgoing message is persisted to the local cache. It is a fixed point, like WhatsApp's \"Send your current location\", not a live share. To send where the user is, get their location first. Reversible via delete_message (revoke). Returns a JSON object `{Success, Message, ID}` where `ID` is the WhatsApp message ID on success."),
+		mcp.WithString("recipient", mcp.Required(), mcp.Description(recipientDesc)),
+		mcp.WithNumber("latitude", mcp.Required(), mcp.Description("latitude in decimal degrees, -90 to 90")),
+		mcp.WithNumber("longitude", mcp.Required(), mcp.Description("longitude in decimal degrees, -180 to 180")),
+		mcp.WithString("name", mcp.Description("place name shown on the card, such as a restaurant or \"My location\"")),
+		mcp.WithString("address", mcp.Description("street address shown under the name")),
+		mcp.WithReadOnlyHintAnnotation(false),
+		mcp.WithDestructiveHintAnnotation(false),
+		mcp.WithIdempotentHintAnnotation(false),
+		mcp.WithOpenWorldHintAnnotation(true),
+	)
+	s.mcp.AddTool(tool, mcp.NewTypedToolHandler(func(ctx context.Context, req mcp.CallToolRequest, a sendLocationArgs) (*mcp.CallToolResult, error) {
+		if r := requireNonEmpty("recipient", a.Recipient); r != nil {
+			return r, nil
+		}
+		ctx = withRateLimitOverride(ctx, req)
+		r := s.client.SendLocation(ctx, a.Recipient, a.Latitude, a.Longitude, a.Name, a.Address)
 		return resultJSON(r)
 	}))
 }
