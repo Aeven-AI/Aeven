@@ -15,6 +15,7 @@ import (
 
 	"github.com/sealjay/mcp-whatsapp/internal/security"
 	"go.mau.fi/whatsmeow"
+	"go.mau.fi/whatsmeow/proto/waE2E"
 )
 
 // DownloadResult is the public return value from Download.
@@ -321,4 +322,28 @@ func extractDirectPathFromURL(url string) string {
 		return url
 	}
 	return "/" + parts[1]
+}
+
+// LinkPreviewImage returns the image of a message's link preview: the
+// full-size image from WhatsApp's CDN when the sender uploaded one, else the
+// small JPEG embedded in the message. found is false when the preview has no
+// image.
+func (c *Client) LinkPreviewImage(ctx context.Context, messageID, chatJID string) (image []byte, found bool, err error) {
+	stored, err := c.store.LinkImage(ctx, messageID, chatJID)
+	if err != nil {
+		return nil, false, err
+	}
+	if stored.DirectPath != "" && len(stored.MediaKey) > 0 {
+		full, downloadErr := c.wa.DownloadThumbnail(ctx, &waE2E.ExtendedTextMessage{
+			ThumbnailDirectPath: &stored.DirectPath,
+			ThumbnailSHA256:     stored.FileSHA256,
+			ThumbnailEncSHA256:  stored.FileEncSHA256,
+			MediaKey:            stored.MediaKey,
+		})
+		if downloadErr == nil && len(full) > 0 {
+			return full, true, nil
+		}
+		c.log.Warnf("link preview image download failed for %s: %v", messageID, downloadErr)
+	}
+	return stored.Inline, len(stored.Inline) > 0, nil
 }

@@ -478,7 +478,14 @@ func extractLinkPreview(msg *waProto.Message) *store.LinkPreview {
 	if ext == nil || (ext.GetTitle() == "" && ext.GetDescription() == "") {
 		return nil
 	}
-	return &store.LinkPreview{URL: ext.GetMatchedText(), Title: ext.GetTitle(), Description: ext.GetDescription()}
+	return &store.LinkPreview{
+		URL: ext.GetMatchedText(), Title: ext.GetTitle(), Description: ext.GetDescription(),
+		Image: store.LinkImage{
+			Inline:     ext.GetJPEGThumbnail(),
+			DirectPath: ext.GetThumbnailDirectPath(), FileSHA256: ext.GetThumbnailSHA256(),
+			FileEncSHA256: ext.GetThumbnailEncSHA256(), MediaKey: ext.GetMediaKey(),
+		},
+	}
 }
 
 // extractMediaInfo pulls out the storable media fields from a Message.

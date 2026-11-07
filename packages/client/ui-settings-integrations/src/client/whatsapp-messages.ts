@@ -17,6 +17,8 @@ export interface WhatsAppCardLink {
   readonly url: string
   readonly title: string
   readonly description: string
+  /** Whether the preview has an image, loaded through the message's media. */
+  readonly hasImage: boolean
 }
 
 /** One message, as a card draws it. */
@@ -89,7 +91,7 @@ function quoteOf(value: unknown): WhatsAppCardQuote | undefined {
 function linkOf(value: unknown): WhatsAppCardLink | undefined {
   if (typeof value !== 'object' || value === null) return undefined
   const row = value as Record<string, unknown>
-  const link = { url: text(row.url).trim(), title: text(row.title), description: text(row.description) }
+  const link = { url: text(row.url).trim(), title: text(row.title), description: text(row.description), hasImage: row.has_image === true }
   return link.title === '' && link.description === '' ? undefined : link
 }
 

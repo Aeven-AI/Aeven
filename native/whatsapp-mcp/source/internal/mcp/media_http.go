@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"bytes"
 	"context"
 	"mime"
 	"net/http"
@@ -28,7 +29,8 @@ var mediaContentTypes = map[string]string{
 }
 
 // handleMedia serves the decrypted media of one cached message, so a client
-// can show an image, play a video or GIF, or play a voice note. Query
+// can show an image, play a video or GIF, or play a voice note; for a text
+// message it serves the image of its link preview. Query
 // parameters: chat (chat JID) and id (message ID). A voice note is served
 // re-encoded as AAC, cached beside the download. The route sits behind the
 // daemon's bearer-token middleware like every other route.
@@ -45,7 +47,17 @@ func (s *Server) handleMedia(w http.ResponseWriter, r *http.Request) {
 	}
 	result := s.client.Download(r.Context(), id, chat, "")
 	if !result.Success {
-		http.Error(w, result.Message, http.StatusNotFound)
+		// A text message with a link preview has no media of its own; its
+		// preview image is served in its place.
+		image, found, err := s.client.LinkPreviewImage(r.Context(), id, chat)
+		if err != nil || !found {
+			http.Error(w, result.Message, http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", http.DetectContentType(image))
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Media-Type", "link")
+		http.ServeContent(w, r, "", time.Time{}, bytes.NewReader(image))
 		return
 	}
 	path := result.Path

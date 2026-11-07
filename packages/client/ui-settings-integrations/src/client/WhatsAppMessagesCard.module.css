@@ -88,7 +88,7 @@
 
 .bubble {
   padding: 8px 16px;
-  border-radius: 30px;
+  border-radius: 22px;
   background: #f2f2f2;
   color: #000000;
 }
@@ -180,7 +180,7 @@
   flex-direction: column;
   min-width: 0;
   padding: 8px 16px;
-  border-radius: 20px;
+  border-radius: 16px;
   background: rgba(0, 0, 0, 0.06);
   color: #000000;
   text-decoration: none;
@@ -209,6 +209,41 @@
 }
 
 .linkTitle {
+  overflow-wrap: anywhere;
+}
+
+.link {
+  overflow: hidden;
+}
+
+/* The preview image runs edge to edge across the top of the link card. */
+.linkImage {
+  margin: -8px -16px 8px;
+  min-height: 120px;
+  background: var(--dsw-alias-bg-skeleton);
+}
+
+.linkImage:not([data-loading]) {
+  min-height: 0;
+  background: none;
+}
+
+.linkImage > img {
+  display: block;
+  width: 100%;
+  max-height: 360px;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 300ms ease-out;
+}
+
+.linkImage > img[data-loaded] {
+  opacity: 1;
+}
+
+.textLink {
+  color: inherit;
+  text-decoration: underline;
   overflow-wrap: anywhere;
 }
 
@@ -247,7 +282,7 @@
   width: 280px;
   max-width: 100%;
   min-height: 160px;
-  border-radius: 30px;
+  border-radius: 22px;
   overflow: hidden;
   background: var(--dsw-alias-bg-skeleton);
 }
@@ -321,7 +356,7 @@
   max-width: 280px;
   padding: 10px 12px;
   border: 0;
-  border-radius: 30px;
+  border-radius: 22px;
   background: var(--dsw-alias-interactive-bg-hover);
   color: inherit;
   text-align: left;
@@ -447,7 +482,8 @@
 
   .picture > img,
   .picture > video,
-  .sticker > img {
+  .sticker > img,
+  .linkImage > img {
     transition: none;
   }
 }

@@ -13,7 +13,8 @@ import (
 // queryContextWindow, and GetMessageContext; scanListMessageRow reads it.
 const listMessageColumns = "messages.timestamp, messages.sender, chats.name, messages.content, messages.is_from_me, chats.jid, messages.id, messages.media_type, " +
 	"messages.filename, messages.quoted_id, messages.quoted_sender, messages.quoted_content, messages.quoted_media_type, messages.forwarded, " +
-	"messages.link_url, messages.link_title, messages.link_description"
+	"messages.link_url, messages.link_title, messages.link_description, " +
+	"(length(messages.link_thumbnail) > 0 OR coalesce(messages.link_thumb_path, '') != '')"
 
 // ListMessagesParams holds the filters accepted by ListMessages. Zero values
 // mean "unset" except for Limit, which defaults to 20 when <= 0.
@@ -386,12 +387,12 @@ func (s *Store) scanListMessageRow(row interface {
 		quotedID, quotedSender, quotedContent    sql.NullString
 		quotedMedia, linkURL, linkTitle, linkDoc sql.NullString
 		isFromMe                                 bool
-		forwarded                                sql.NullBool
+		forwarded, linkImage                     sql.NullBool
 		chatJID, id                              string
 	)
 	if err := row.Scan(&ts, &sender, &chatName, &content, &isFromMe, &chatJID, &id, &mediaType,
 		&filename, &quotedID, &quotedSender, &quotedContent, &quotedMedia, &forwarded,
-		&linkURL, &linkTitle, &linkDoc); err != nil {
+		&linkURL, &linkTitle, &linkDoc, &linkImage); err != nil {
 		return Message{}, err
 	}
 	m := Message{
@@ -410,7 +411,7 @@ func (s *Store) scanListMessageRow(row interface {
 		m.Reply = &Reply{ID: quotedID.String, Sender: quotedSender.String, Content: quotedContent.String, MediaType: quotedMedia.String}
 	}
 	if linkTitle.String != "" || linkDoc.String != "" {
-		m.Link = &LinkPreview{URL: linkURL.String, Title: linkTitle.String, Description: linkDoc.String}
+		m.Link = &LinkPreview{URL: linkURL.String, Title: linkTitle.String, Description: linkDoc.String, HasImage: linkImage.Bool}
 	}
 	m.IsGroup = strings.HasSuffix(m.ChatJID, "@g.us")
 	m.SenderPhone = s.resolveSenderPhone(m.Sender)
