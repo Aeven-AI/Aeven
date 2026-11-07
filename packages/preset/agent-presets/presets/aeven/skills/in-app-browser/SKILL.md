@@ -29,18 +29,46 @@ Call `preview_status` first. It reports the page beside the session, the Chromiu
 this Host runs, and which of the two to drive.
 
 Then `preview_navigate`, `preview_snapshot`, `preview_click`, `preview_type`,
-`preview_press`, `preview_scroll`, `preview_evaluate`, `preview_reload`,
-`preview_back`, `preview_forward`, `preview_upload`, and `preview_sequence`. Take selectors from `preview_snapshot`'s
-`interactiveElements` rather than coordinates. Retry a call that failed with an
+`preview_press`, `preview_scroll`, `preview_hover`, `preview_drag`,
+`preview_select`, `preview_check`, `preview_read`, `preview_wait`,
+`preview_content`, `preview_evaluate`, `preview_reload`, `preview_back`,
+`preview_forward`, `preview_upload`, and `preview_sequence`. Take selectors from `preview_snapshot`'s
+`interactiveElements` rather than coordinates, or use a locator: `text=Sign in`,
+`role=button[name="Save"]`, `label=Email`, `placeholder=Search`, `testid=submit`;
+join parts with `>>` and pick one of several matches with `>> nth=0`. A target
+inside an iframe takes `frame` with the iframe's selector. Retry a call that failed with an
 actionable error and corrected arguments; do not retry a page that answers
 automated reads with a block page.
+
+Read a whole article or document with `preview_content` (markdown by default;
+`youtube_transcript` on a YouTube video) instead of scrolling through snapshots.
+On an open Google Docs, Sheets, or Slides document, `preview_export_document`
+saves it to the user's Downloads folder. `preview_console` shows the page's
+console errors. A click that opens a JavaScript alert, confirm, or prompt returns
+with the dialog; answer it with `preview_dialog` before anything else.
+
+The pane's own toolbar is `preview_browser_control`: copy a screenshot to the
+clipboard (`capture`), open the page in Chrome, hard reload, DevTools, zoom, and
+appearance. The pointer presses each control, opening the three-dot menu when the
+control lives there. Clearing cookies or cache asks the user first.
+
+The browser can hold several tabs, each a Browser pill in the sidebar. `preview_tabs`
+lists, opens, shows, and closes them; every other tool acts on the current tab.
+`preview_history` searches pages the user visited in this browser (it asks first).
+`preview_page_tools` lists the tools a page offers agents through WebMCP and invokes
+one (it asks first); a page tool does the page's own work more reliably than clicks.
+
+When a step is the user's to do — signing in, a captcha or verification code,
+confirming a payment — call `preview_handoff` with the reason and one sentence
+saying what to do. The user sees it as a modal; end your turn and continue when
+they reply. Never type their credentials.
 
 Use `preview_type` for a whole caption, including paragraph breaks; it inserts the text in one native action. Use `preview_upload` with absolute paths on the Electron computer and an explicit file-input selector, or the Upload button selector. The button's chooser is intercepted and answered within that upload call. When no selector is supplied, exactly one file input must exist. Remote uploads request approval naming the destination origin and files; localhost is exempt. Do not use clipboard paste, a temporary HTTP server, or a native file dialog for these uploads.
 
 Use `preview_sequence` for known consecutive actions. Include `wait` actions for visible/enabled or hidden elements between page transitions, rather than sleeps. It stops at the first failure and returns the completed count and failed action index. Inspect the resulting editor or attachment before submitting; include a submission only when the user authorized it.
 
-There is no `preview_screenshot` and no `preview_open`: capture through the pane
-as below, and ask the user to open the pane when `preview_status` reports no page.
+`preview_screenshot` returns the page's pixels to you. There is no `preview_open`:
+ask the user to open the pane when `preview_status` reports no page.
 
 ## Capture what the user sees
 

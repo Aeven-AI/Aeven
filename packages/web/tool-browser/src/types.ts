@@ -8,6 +8,7 @@ import type { JsonValue } from '@aeven/util-values'
 export type BrowserAutomationOperation =
   | 'status' | 'navigate' | 'back' | 'forward' | 'reload'
   | 'snapshot' | 'screenshot' | 'click' | 'type' | 'press' | 'scroll' | 'evaluate' | 'upload' | 'wait' | 'sequence'
+  | 'hover' | 'drag' | 'select' | 'check' | 'read' | 'content' | 'export' | 'clipboard' | 'console' | 'dialog' | 'handoff' | 'control' | 'tabs' | 'history' | 'webmcp'
 
 /** Client-safe payload declared for the browser automation waterfall. */
 export interface BrowserAutomationRequestEvent {

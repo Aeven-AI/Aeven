@@ -37,6 +37,13 @@ export const en = {
   'browser.engine.description': 'Used when an address-bar entry is not a web address.',
   'engine.google': 'Google',
   'engine.duckduckgo': 'DuckDuckGo',
+  'handoff.title.authentication': 'Sign in to continue',
+  'handoff.title.captcha': 'Complete the check',
+  'handoff.title.confirmation': 'Your confirmation is needed',
+  'handoff.title.other': 'Your turn in the browser',
+  'handoff.ok': 'OK',
+  'handoff.decline': 'Not now',
+  'handoff.close': 'Close',
 }
 
 /** Dictionary key union owned by this plugin. */
@@ -90,6 +97,13 @@ export const zh: Record<SidebarBrowserKey, string> = {
   'browser.engine.description': '当地址栏输入的不是网址时使用。',
   'engine.google': 'Google',
   'engine.duckduckgo': 'DuckDuckGo',
+  'handoff.title.authentication': '请登录以继续',
+  'handoff.title.captcha': '请完成验证',
+  'handoff.title.confirmation': '需要你的确认',
+  'handoff.title.other': '轮到你操作浏览器',
+  'handoff.ok': '好的',
+  'handoff.decline': '暂不',
+  'handoff.close': '关闭',
 }
 
 /**
@@ -130,4 +144,11 @@ export const es = {
   'browser.engine.description': 'Se usa cuando lo escrito en la barra de direcciones no es una dirección web.',
   'engine.google': 'Google',
   'engine.duckduckgo': 'DuckDuckGo',
+  'handoff.title.authentication': 'Inicia sesión para continuar',
+  'handoff.title.captcha': 'Completa la verificación',
+  'handoff.title.confirmation': 'Se necesita tu confirmación',
+  'handoff.title.other': 'Tu turno en el navegador',
+  'handoff.ok': 'De acuerdo',
+  'handoff.decline': 'Ahora no',
+  'handoff.close': 'Cerrar',
 } satisfies Record<SidebarBrowserKey, string>

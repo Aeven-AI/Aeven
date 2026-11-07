@@ -21,8 +21,11 @@ import { writeClipboard } from '@aeven/client-ui-primitives'
 import { BrowserPane } from './BrowserPane.tsx'
 import { SearchEngineRow, type SearchEngineRowInjected } from './SearchEngineRow.tsx'
 import { automate, navigateClosed } from './automation.ts'
+import { resolveAddress } from './url.ts'
+import { handoffs } from './handoff.ts'
+import { searchHistory } from './history.ts'
 import {
-  desktopBrowser, desktopLinks, desktopMenus, isDesktopShell, liveGuests, setPointerHold, writeLastUrl,
+  desktopBrowser, desktopLinks, desktopMenus, isDesktopShell, liveGuests, livePaneCursors, setPointerHold, writeLastUrl, type BrowserGuest,
 } from './guest.ts'
 import { installLinkHandling } from './links.ts'
 import { en, es, zh, type SidebarBrowserKey } from './locales.ts'
@@ -45,6 +48,100 @@ declare module '@aeven/client-ui-slots' {
 
 /** Dictionary namespace owned by this plugin. */
 const NS = 'sidebarBrowser'
+
+/** How long a tab opened at an address is given to finish loading, in ms. */
+const NEW_TAB_LOAD_TIMEOUT_MS = 10_000
+
+/**
+ * Resolve once a new tab has loaded its first address, or after {@link NEW_TAB_LOAD_TIMEOUT_MS}.
+ * A fast page can finish before a listener attaches, so the state is sampled.
+ * @param guest - the new tab's guest.
+ * @param signal - abandons the wait.
+ */
+async function loaded(guest: BrowserGuest, signal: AbortSignal | undefined): Promise<void> {
+  const deadline = Date.now() + NEW_TAB_LOAD_TIMEOUT_MS
+  while (Date.now() < deadline) {
+    signal?.throwIfAborted()
+    try {
+      if (!guest.isLoading() && guest.getURL() !== 'about:blank' && guest.getURL() !== '') return
+    } catch {
+      // A guest that has not attached its contents yet answers neither call; it is still loading.
+    }
+    await new Promise(resolve => setTimeout(resolve, 100))
+  }
+}
+
+/**
+ * Answer the agent's tab command for a session: list its browser tabs, open a new
+ * one (optionally at an address), show one, or close one.
+ * @param sessionId - the session whose tabs are addressed.
+ * @param request - the `tabs` request; `input.action` is list, new, select, or close.
+ * @param content - the sidebar column that opens and shows pills.
+ * @returns the session's tabs after the command, and the opened tab's id for `new`.
+ * @throws {Error} when the action is unknown or names no open tab.
+ */
+async function browserTabs(
+  sessionId: string,
+  request: { readonly input: { readonly [key: string]: unknown }; readonly signal?: AbortSignal | undefined },
+  content: { requestOpen(sessionId: string, kind: 'browser', newSurface?: boolean, surfaceId?: string): void },
+  browserLabel: string,
+): Promise<{ [key: string]: unknown }> {
+  // The pointer of the tab shown presses the column's own pills and plus menu, as
+  // the reader would; without a shown tab the column is asked directly.
+  const current = liveGuests.current(sessionId)
+  const pane = current === undefined ? undefined : livePaneCursors.get(current.guest)
+  const pill = (tabId: string, part: string): HTMLElement | null =>
+    document.querySelector<HTMLElement>(`[data-sidebar-right-surface="${CSS.escape(tabId)}"] ${part}`)
+  const list = (): Array<{ tabId: string; url: string; title: string; current: boolean }> => {
+    const current = liveGuests.current(sessionId)?.tabId
+    return liveGuests.tabs(sessionId).map(tab => ({ tabId: tab.tabId, url: tab.guest.getURL(), title: tab.guest.getTitle(), current: tab.tabId === current }))
+  }
+  const action = request.input.action ?? 'list'
+  const tabId = typeof request.input.tabId === 'string' ? request.input.tabId : undefined
+  const named = (): NonNullable<ReturnType<typeof liveGuests.current>> => {
+    const tab = liveGuests.tabs(sessionId).find(candidate => candidate.tabId === tabId)
+    if (tab === undefined) throw new Error(`no open tab ${String(tabId)}; list the tabs first`)
+    return tab
+  }
+  switch (action) {
+    case 'list':
+      return { tabs: list() }
+    case 'new': {
+      const address = typeof request.input.url === 'string' ? request.input.url : undefined
+      const url = address === undefined ? undefined : resolveAddress(address)
+      if (address !== undefined && url === undefined) throw new Error(`not a navigable address: ${address}`)
+      const mounted = liveGuests.whenTab(sessionId, request.signal, true)
+      if (url !== undefined) writeLastUrl(sessionId, url)
+      const plus = (): HTMLElement | null => document.querySelector<HTMLElement>('[data-sidebar-right-surfaces] button[aria-haspopup="menu"]')
+      const row = (): HTMLElement | null => [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(item => item.textContent?.trim() === browserLabel) ?? null
+      if (pane !== undefined && plus() !== null) {
+        await pane.pressElement(plus, request.signal)
+        await pane.pressElement(row, request.signal)
+      } else {
+        content.requestOpen(sessionId, 'browser', true)
+      }
+      const tab = await mounted
+      liveGuests.activate(sessionId, tab.tabId)
+      if (url !== undefined) await loaded(tab.guest, request.signal)
+      return { tabId: tab.tabId, tabs: list() }
+    }
+    case 'select': {
+      const tab = named()
+      if (pane !== undefined && pill(tab.tabId, '[role="tab"]') !== null) await pane.pressElement(() => pill(tab.tabId, '[role="tab"]'), request.signal)
+      else content.requestOpen(sessionId, 'browser', false, tab.tabId)
+      liveGuests.activate(sessionId, tab.tabId)
+      return { tabs: list() }
+    }
+    case 'close': {
+      const tab = named()
+      if (pane !== undefined && pill(tab.tabId, 'button[aria-label]') !== null) await pane.pressElement(() => pill(tab.tabId, 'button[aria-label]'), request.signal)
+      else tab.close()
+      return { tabs: list().filter(entry => entry.tabId !== tab.tabId) }
+    }
+    default:
+      throw new Error('tabs action must be list, new, select, or close')
+  }
+}
 
 /** Services required by the browser plugin. */
 export const inject = ['slots', 'locale', 'settingsScope']
@@ -102,6 +199,8 @@ export function apply(ctx: ClientContext): void {
   // A pane receives only its session, so it translates through this plugin's
   // own dictionary.
   const t = ctx.locale.bind(NS)
+  // The sidebar's plus menu names the browser kind in its own dictionary.
+  const browserLabel = (): string => ctx.locale.bind('sidebarSelect')('browser.tab')
   const openInChrome = (sessionId: string, url: string): void => {
     if (openChromium === null) console.error('ui-sidebar-browser: the Host provides no Chromium to open in')
     else void openChromium(sessionId, url)
@@ -130,7 +229,7 @@ export function apply(ctx: ClientContext): void {
           console.error('ui-sidebar-browser: the sidebar browser refused an address', error)
         })
         // Asking for the kind also shows the column it belongs to.
-        scoped.sidebarContent.requestOpen(sessionId, 'browser')
+        scoped.sidebarContent.requestOpen(sessionId, 'browser', false, liveGuests.current(sessionId)?.tabId)
       }
       const openInSystemBrowser = (url: string): void => {
         const sessionId = (scoped.sessions).list.getSnapshot().current
@@ -181,8 +280,8 @@ export function apply(ctx: ClientContext): void {
     }),
   }, SearchEngineRow))
 
-  const Pane = ({ sessionId, visible }: SidebarContentPaneProps) =>
-    createElement(BrowserPane, { sessionId, t, openInChrome, visible, search: searchEngines })
+  const Pane = ({ sessionId, surfaceId, active, visible, closeSurface }: SidebarContentPaneProps) =>
+    createElement(BrowserPane, { sessionId, tabId: surfaceId, active, closeTab: closeSurface, t, openInChrome, visible, search: searchEngines })
   // The agent's browser_* tools reach this session's page. A session whose
   // pane is not mounted reports that it can open one, and a navigation opens
   // the pane at the address; every other action passes on and the tool reports
@@ -198,7 +297,35 @@ export function apply(ctx: ClientContext): void {
       const sessionId = (scoped.sessions).scopeOf(this)
       if (sessionId === undefined) return next()
       const guest = liveGuests.get(sessionId)
-      if (guest !== undefined) return automate(guest, request) as ReturnType<typeof next>
+      /** Bring the session's current tab, or its browser when none is mounted, into view. */
+      const showCurrent = (): void => { ctx.get('sidebarContent')?.requestOpen(sessionId, 'browser', false, liveGuests.current(sessionId)?.tabId) }
+      if (request.operation === 'history') {
+        const limit = typeof request.input.limit === 'number' && Number.isInteger(request.input.limit) && request.input.limit > 0 ? Math.min(request.input.limit, 200) : 20
+        const entries = searchHistory(typeof request.input.query === 'string' ? request.input.query : '', limit)
+        return Promise.resolve({ entries: entries.map(entry => ({ ...entry, visitedAt: new Date(entry.visitedAt).toISOString() })) }) as ReturnType<typeof next>
+      }
+      if (request.operation === 'tabs') {
+        const content = ctx.get('sidebarContent')
+        if (content === undefined) return next()
+        return browserTabs(sessionId, request, content, browserLabel()) as ReturnType<typeof next>
+      }
+      if (request.operation === 'handoff') {
+        // The handoff is the pane's modal, so a closed pane opens first.
+        const content = ctx.get('sidebarContent')
+        if (guest === undefined && content === undefined) return next()
+        return (async () => {
+          showCurrent()
+          if (guest === undefined) await liveGuests.whenMounted(sessionId, request.signal)
+          const accepted = await handoffs.open(sessionId, request.input.reason, String(request.input.message ?? ''), request.signal)
+          return { accepted }
+        })() as ReturnType<typeof next>
+      }
+      if (guest !== undefined) {
+        // A pane stays mounted while its column is hidden: a navigation or a pressed
+        // control is the agent using the browser, so the column comes into view first.
+        if (request.operation === 'navigate' || request.operation === 'control') showCurrent()
+        return automate(guest, request) as ReturnType<typeof next>
+      }
       const content = ctx.get('sidebarContent')
       if (content === undefined) return next()
       if (request.operation === 'status') return Promise.resolve({ open: false, openable: true })

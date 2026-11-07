@@ -1,7 +1,8 @@
 /** Answers the agent's `browser_*` tools with the session's own browser guest. */
 import type { BrowserAutomationRequestEvent } from '@aeven/tool-browser/types'
 import {
-  desktopBrowser, liveGuests, livePaneCursors, webContentsIdOf, writeLastUrl, type BrowserGuest, type DesktopBrowserRequestId,
+  desktopBrowser, liveGuests, livePaneCursors, PANE_CONTROLS, webContentsIdOf, writeLastUrl, type BrowserGuest, type DesktopBrowserRequestId,
+  type PaneControl,
 } from './guest.ts'
 import { resolveAddress } from './url.ts'
 
@@ -31,7 +32,7 @@ function status(guest: BrowserGuest) {
  * @returns after `did-stop-loading`.
  * @throws the signal's reason when it aborts first.
  */
-function firstLoad(guest: BrowserGuest, signal: AbortSignal | undefined): Promise<void> {
+export function firstLoad(guest: BrowserGuest, signal: AbortSignal | undefined): Promise<void> {
   return new Promise((resolve, reject) => {
     const done = (): void => {
       signal?.removeEventListener('abort', abort)
@@ -47,6 +48,47 @@ function firstLoad(guest: BrowserGuest, signal: AbortSignal | undefined): Promis
     }
     signal?.addEventListener('abort', abort, { once: true })
     guest.addEventListener('did-stop-loading', done, { once: true })
+  })
+}
+
+/** How long after a history step or reload a load must have started, in ms (ChatGPT `classificationTimeoutMs`). */
+const LOAD_CLASSIFICATION_MS = 250
+/** How long a started load is given to finish, in ms (ChatGPT `navigate_tab_*` default `timeout_ms`). */
+const LOAD_TIMEOUT_MS = 10_000
+
+/**
+ * Watch for the load a history step or reload starts, as ChatGPT's browser agent waits on it:
+ * a load that starts within {@link LOAD_CLASSIFICATION_MS} is waited for until its DOM is ready
+ * or it stops, up to {@link LOAD_TIMEOUT_MS}; a same-document navigation settles at once.
+ * @param guest - the guest that navigates.
+ * @param signal - abandons the wait.
+ * @returns a promise that settles when the load does or the window passes; it never rejects.
+ */
+function settleLoad(guest: BrowserGuest, signal: AbortSignal | undefined): Promise<void> {
+  return new Promise((resolve) => {
+    let started = false
+    let timer = setTimeout(() => { finish() }, LOAD_CLASSIFICATION_MS)
+    const start = (): void => {
+      if (started) return
+      started = true
+      clearTimeout(timer)
+      timer = setTimeout(() => { finish() }, LOAD_TIMEOUT_MS)
+    }
+    const loaded = (): void => { if (started) finish() }
+    const finish = (): void => {
+      clearTimeout(timer)
+      guest.removeEventListener('did-start-loading', start)
+      guest.removeEventListener('dom-ready', loaded)
+      guest.removeEventListener('did-stop-loading', loaded)
+      guest.removeEventListener('did-navigate-in-page', finish)
+      signal?.removeEventListener('abort', finish)
+      resolve()
+    }
+    guest.addEventListener('did-start-loading', start)
+    guest.addEventListener('dom-ready', loaded)
+    guest.addEventListener('did-stop-loading', loaded)
+    guest.addEventListener('did-navigate-in-page', finish)
+    signal?.addEventListener('abort', finish, { once: true })
   })
 }
 
@@ -111,14 +153,41 @@ export async function automate(guest: BrowserGuest, request: Pick<BrowserAutomat
       const pane = livePaneCursors.get(guest)
       await pane?.announceControl(request.operation === 'reload' ? 'refresh' : request.operation, request.signal)
       request.signal?.throwIfAborted()
+      if (request.operation === 'back' && !guest.canGoBack()) throw new Error('cannot go back: no previous page in history')
+      if (request.operation === 'forward' && !guest.canGoForward()) throw new Error('cannot go forward: no next page in history')
+      const load = settleLoad(guest, request.signal)
       if (request.operation === 'back') guest.goBack()
       else if (request.operation === 'forward') guest.goForward()
       else guest.reload()
-      return { ok: true }
+      await load
+      request.signal?.throwIfAborted()
+      return status(guest)
+    }
+    case 'control': {
+      const control = request.input.control
+      if (typeof control !== 'string' || !(PANE_CONTROLS as readonly string[]).includes(control)) throw new Error(`control must be one of ${PANE_CONTROLS.join(', ')}`)
+      const pane = livePaneCursors.get(guest)
+      if (pane === undefined) throw new Error('the browser pane is not showing; open it from the right sidebar')
+      const load = control === 'hard-reload' ? settleLoad(guest, request.signal) : undefined
+      await pane.pressControl(control as PaneControl, request.signal)
+      await load
+      request.signal?.throwIfAborted()
+      return { ok: true, ...status(guest) }
     }
     case 'upload':
     case 'wait':
     case 'sequence':
+    case 'hover':
+    case 'drag':
+    case 'select':
+    case 'check':
+    case 'read':
+    case 'content':
+    case 'export':
+    case 'clipboard':
+    case 'console':
+    case 'dialog':
+    case 'webmcp':
     case 'snapshot':
     case 'screenshot':
     case 'click':

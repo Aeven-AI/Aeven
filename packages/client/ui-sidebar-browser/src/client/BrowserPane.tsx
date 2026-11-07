@@ -22,11 +22,13 @@ import type { TranslateNS } from '@aeven/client-locale/client'
 import { ChromeRow } from './ChromeRow.tsx'
 import {
   browserPartition, desktopBrowser, liveGuests, livePaneCursors, onPointerHold, readColorScheme, readLastUrl, webContentsIdOf,
-  writeColorScheme, writeLastUrl, type BrowserColorScheme, type BrowserGuest, type PaneCursorPresentation,
+  writeColorScheme, writeLastUrl, PANE_CONTROLS, type BrowserColorScheme, type BrowserGuest, type PaneControl, type PaneCursorPresentation,
 } from './guest.ts'
 import { SEARCH_PLACEHOLDER_KEYS } from './locales.ts'
 import type { SearchEnginePreference } from './search-engine.ts'
 import { MoreMenu } from './MoreMenu.tsx'
+import { HandoffModal } from './HandoffModal.tsx'
+import { recordTitle, recordVisit, searchHistory } from './history.ts'
 import { centreOf, leftOf, type AimBox } from './aim.ts'
 import { parseSuggestions } from '../search-engines.ts'
 import { resolveTarget } from './url.ts'
@@ -59,6 +61,17 @@ const SUGGEST_DEBOUNCE_MS = 120
  * ends its stay; closing the column ends it at once.
  */
 const CURSOR_IDLE_HIDE_MS = 30_000
+/** Visited pages the address bar's suggestions lead with. */
+const HISTORY_SUGGESTION_LIMIT = 3
+/** How long a pointer gesture through the three-dot menu waits for a row to render, in ms. */
+const MENU_WAIT_MS = 1500
+/** Three-dot menu rows by control, as their labels read. */
+const MENU_ROW_KEYS = {
+  'hard-reload': 'menu.hardReload',
+  'devtools': 'menu.devtools',
+  'clear-cache': 'menu.clearCache',
+  'clear-cookies': 'menu.clearCookies',
+} as const
 
 /**
  * How long the layout is left to settle before the pointer is re-projected onto
@@ -94,6 +107,12 @@ interface GuestState {
 export interface BrowserPaneProps {
   /** Session whose storage partition and last address the guest uses. */
   readonly sessionId: string
+  /** The tab's pill id, under which its address is remembered and the agent names it. */
+  readonly tabId: string
+  /** Whether this tab's pill is shown, which makes it the session's current tab. */
+  readonly active: boolean
+  /** Close this tab's pill. */
+  readonly closeTab: () => void
   /** Translate function bound to the `sidebarBrowser` dictionary. */
   readonly t: TranslateNS<'sidebarBrowser'>
   /** Open an address in the Host's Chrome, the profile the agent's DevTools tools drive. */
@@ -105,12 +124,15 @@ export interface BrowserPaneProps {
 }
 
 /**
- * Render the browser for one session.
+ * Render one browser tab of a session.
  * @param props - see {@link BrowserPaneProps}.
  * @returns the browser element tree.
  */
-export function BrowserPane({ sessionId, t, openInChrome, visible, search }: BrowserPaneProps): ReactNode {
+export function BrowserPane({ sessionId, tabId, active, closeTab, t, openInChrome, visible, search }: BrowserPaneProps): ReactNode {
   const guestRef = useRef<BrowserGuest | null>(null)
+  // The column hands a fresh callback each render; the guest's registration reads the latest.
+  const closeTabRef = useRef(closeTab)
+  closeTabRef.current = closeTab
   const rootRef = useRef<HTMLDivElement | null>(null)
   /** The pane's own layer the agent pointer draws in. */
   const cursorLayerRef = useRef<HTMLDivElement | null>(null)
@@ -163,8 +185,10 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
       const url = guest.getURL()
       const shown = url === 'about:blank' ? '' : url
       setState({ url: shown, loading, canGoBack: guest.canGoBack(), canGoForward: guest.canGoForward() })
-      if (shown !== '') writeLastUrl(sessionId, shown)
+      if (shown !== '') writeLastUrl(sessionId, shown, tabId)
     }
+    const visit = (): void => { recordVisit(guest.getURL(), guest.getTitle()) }
+    const title = (): void => { recordTitle(guest.getURL(), guest.getTitle()) }
     const listeners: Array<[string, () => void]> = [
       // The shell forces the appearance on the guest's own web contents, so a
       // guest the pane has just created has no override yet: re-apply the stored
@@ -174,14 +198,23 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
       ['did-stop-loading', sync(false)],
       ['did-navigate', sync(true)],
       ['did-navigate-in-page', sync(false)],
+      ['did-navigate', visit],
+      ['did-navigate-in-page', visit],
+      ['page-title-updated', title],
+      ['did-stop-loading', title],
     ]
     for (const [name, listener] of listeners) guest.addEventListener(name, listener)
-    liveGuests.set(sessionId, guest)
+    const unmount = liveGuests.mount(sessionId, { tabId, guest, close: () => { closeTabRef.current() } })
     return () => {
       for (const [name, listener] of listeners) guest.removeEventListener(name, listener)
-      if (liveGuests.get(sessionId) === guest) liveGuests.delete(sessionId)
+      unmount()
     }
-  }, [sessionId, applyScheme])
+  }, [sessionId, tabId, applyScheme])
+
+  // The tab shown is the session's current one, which agent actions address.
+  useEffect(() => {
+    if (active) liveGuests.activate(sessionId, tabId)
+  }, [active, sessionId, tabId])
 
   // The agent pointer is drawn by this window over the guest, as ChatGPT's
   // in-app browser draws it, so it holds its place across the guest's
@@ -202,7 +235,9 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
     // rect: a fixed layer does not inherit the pane's position, and a resize or a scroll of
     // the surrounding layout has to move it with the pane.
     const place = (): void => {
-      const root = rootRef.current
+      // The layer spans the sidebar column, pills included, so the pointer can press a
+      // tab or the plus button as well as the page and its toolbar.
+      const root = rootRef.current?.closest('[data-sidebar-right-surfaces]') ?? rootRef.current
       if (root === null) return
       const box = root.getBoundingClientRect()
       layer.style.left = `${String(box.left)}px`
@@ -262,7 +297,86 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
       const anywhere = document.querySelector(`[data-control="${name}"]`)
       return anywhere instanceof HTMLElement && anywhere.getClientRects().length > 0 ? anywhere : null
     }
+    /** Glide the pointer onto an element of the pane's chrome, show the press, then press it. */
+    const pressAt = async (element: HTMLElement, signal?: AbortSignal): Promise<void> => {
+      const point = aimedCentre(element)
+      if (point !== null && visibleRef.current) {
+        overlay.click(point)
+        await overlay.arrived(signal)
+      }
+      signal?.throwIfAborted()
+      element.click()
+    }
+    /**
+     * An element once a menu has placed it: on screen and at the same box for two
+     * frames, because a portaled menu renders a measuring frame off screen first and
+     * the pointer must aim at where the row ends up. Null after {@link MENU_WAIT_MS}.
+     */
+    const waitForElement = async (find: () => HTMLElement | null, signal?: AbortSignal): Promise<HTMLElement | null> => {
+      const deadline = performance.now() + MENU_WAIT_MS
+      let previous = ''
+      for (;;) {
+        const element = find()
+        if (element !== null) {
+          const box = element.getBoundingClientRect()
+          const onScreen = box.width > 0 && box.height > 0 && box.left >= 0 && box.top >= 0 && box.right <= window.innerWidth && box.bottom <= window.innerHeight
+          const key = `${String(box.left)},${String(box.top)},${String(box.width)},${String(box.height)}`
+          if (onScreen && key === previous) return element
+          previous = onScreen ? key : ''
+        }
+        if (performance.now() > deadline) return null
+        await new Promise<void>((resolve) => { requestAnimationFrame(() => { resolve() }) })
+        signal?.throwIfAborted()
+      }
+    }
+    /** A visible menu row by its label. */
+    const menuRow = (label: string): HTMLElement | null => {
+      for (const row of document.querySelectorAll('[role="menuitem"]')) {
+        if (row instanceof HTMLElement && row.getClientRects().length > 0 && row.textContent?.trim() === label) return row
+      }
+      return null
+    }
+    const pressControl = async (control: PaneControl, signal?: AbortSignal): Promise<void> => {
+      const unavailable = (): Error => new Error(`the ${control} control is unavailable now`)
+      const direct = control === 'back' || control === 'forward' || control === 'refresh' || control === 'capture' || control === 'open-in-chrome'
+      if (direct) {
+        const element = findControl(control)
+        if (element === null || (element instanceof HTMLButtonElement && element.disabled)) throw unavailable()
+        await pressAt(element, signal)
+        return
+      }
+      const more = findControl('more')
+      if (more === null) throw unavailable()
+      if (more.getAttribute('aria-expanded') !== 'true') await pressAt(more, signal)
+      if (control.startsWith('zoom-')) {
+        const stepper = await waitForElement(() => findControl(control), signal)
+        if (stepper === null) throw unavailable()
+        await pressAt(stepper, signal)
+        // The zoom row keeps the menu open for further steps; the reader's own menu closes on Escape.
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+        return
+      }
+      if (control.startsWith('appearance:')) {
+        const parent = await waitForElement(() => menuRow(t('menu.appearance')), signal)
+        if (parent === null || (parent as HTMLButtonElement).disabled) throw unavailable()
+        await pressAt(parent, signal)
+        const scheme = control.slice('appearance:'.length) as BrowserColorScheme
+        const row = await waitForElement(() => menuRow(t(`scheme.${scheme}`)), signal)
+        if (row === null) throw unavailable()
+        await pressAt(row, signal)
+        return
+      }
+      const row = await waitForElement(() => menuRow(t(MENU_ROW_KEYS[control as keyof typeof MENU_ROW_KEYS])), signal)
+      if (row === null || (row as HTMLButtonElement).disabled) throw unavailable()
+      await pressAt(row, signal)
+    }
     const presentation: PaneCursorPresentation = {
+      pressControl,
+      async pressElement(find, signal) {
+        const element = await waitForElement(find, signal)
+        if (element === null) throw new Error('the control to press is not on screen')
+        await pressAt(element, signal)
+      },
       async announceControl(controlName, signal) {
         const control = findControl(controlName)
         const point = aimedCentre(control)
@@ -401,7 +515,12 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
           }, acknowledge)
           return
         }
-        const control = findControl(cursor.control ?? 'refresh')
+        const name = cursor.control ?? 'refresh'
+        if ((PANE_CONTROLS as readonly string[]).includes(name) && name !== 'back' && name !== 'forward' && name !== 'refresh' && name !== 'capture') {
+          void pressControl(name as PaneControl, chromeAction.signal).then(acknowledge, acknowledge)
+          return
+        }
+        const control = findControl(name)
         const spot = aimedCentre(control)
         if (shown && spot !== null) overlay.click(spot)
         void (shown ? overlay.arrived(chromeAction.signal) : Promise.resolve()).then(() => {
@@ -482,12 +601,14 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
       setSuggestions([])
       return
     }
+    // Pages visited before lead the list, then the engine's completions.
+    const visited = searchHistory(query, HISTORY_SUGGESTION_LIMIT).map(entry => entry.url)
     suggestTimer.current = window.setTimeout(() => {
       bridge.suggest(search.suggest(query)).then((body) => {
-        if (seq === suggestSeq.current) setSuggestions(parseSuggestions(body).slice(0, SUGGESTION_LIMIT))
+        if (seq === suggestSeq.current) setSuggestions([...visited, ...parseSuggestions(body).filter(entry => !visited.includes(entry))].slice(0, SUGGESTION_LIMIT))
       }, (error: unknown) => {
         console.error('ui-sidebar-browser: completions failed', error)
-        if (seq === suggestSeq.current) setSuggestions([])
+        if (seq === suggestSeq.current) setSuggestions(visited)
       })
     }, SUGGEST_DEBOUNCE_MS)
   }, [search])
@@ -567,8 +688,9 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
           the DOM rather than declared as an intrinsic element React knows. */}
       <div
         className={css.stage}
-        ref={(node) => { guestRef.current = attachGuest(node, sessionId) }}
+        ref={(node) => { guestRef.current = attachGuest(node, sessionId, tabId) }}
       />
+      {active && <HandoffModal sessionId={sessionId} t={t} />}
       {captureToast !== null && (
         <Toast
           key={captureToast.seq}
@@ -587,9 +709,10 @@ export function BrowserPane({ sessionId, t, openInChrome, visible, search }: Bro
  * Create the guest inside its stage, once per mount.
  * @param stage - the element that holds the guest, or null on unmount.
  * @param sessionId - session whose last address the guest reopens.
+ * @param tabId - the tab whose own last address the guest reopens.
  * @returns the guest element, or null when there is no stage.
  */
-function attachGuest(stage: HTMLDivElement | null, sessionId: string): BrowserGuest | null {
+function attachGuest(stage: HTMLDivElement | null, sessionId: string, tabId: string): BrowserGuest | null {
   if (stage === null) return null
   const existing = stage.firstElementChild
   if (existing !== null) return existing as BrowserGuest
@@ -602,7 +725,7 @@ function attachGuest(stage: HTMLDivElement | null, sessionId: string): BrowserGu
   guest.setAttribute('allowpopups', '')
   // A guest with no `src` never attaches its web contents, so `loadURL` and the
   // history methods throw until one is set.
-  guest.setAttribute('src', readLastUrl(sessionId) ?? 'about:blank')
+  guest.setAttribute('src', readLastUrl(sessionId, tabId) ?? 'about:blank')
   guest.className = css.guest ?? ''
   stage.append(guest)
   return guest

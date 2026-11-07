@@ -97,6 +97,11 @@ function errorOf(reason: unknown, fallback: string): Error {
   return reason instanceof Error ? reason : new Error(fallback)
 }
 
+// WebMCP (`document.modelContext`) lets a page offer tools to an agent; the
+// sidebar browser's agent lists and invokes them. Chromium ships it behind this
+// feature, which must be set before the app is ready.
+app.commandLine.appendSwitch('enable-features', 'WebMCP')
+
 protocol.registerSchemesAsPrivileged([{
   scheme: SCHEME,
   privileges: {

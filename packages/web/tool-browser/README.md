@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@aeven/tool-browser` lets the model read and drive the browser the user sees beside a session. It registers fourteen `preview_*` tools and, on the first step of each turn, adds the open page to the request as a logged plugin message. The plugin performs no browser work itself: every call is a `browser/automation` waterfall that the Client holding the session's browser answers, except `preview_status`, which also reports the Chromium the Host runs. Every wait on that waterfall is bounded, so a turn never waits on a browser that no connected Client holds.
+`@aeven/tool-browser` lets the model read and drive the browser the user sees beside a session. It registers thirty `preview_*` tools and, on the first step of each turn, adds the open page to the request as a logged plugin message. The plugin performs no browser work itself: every call is a `browser/automation` waterfall that the Client holding the session's browser answers, except `preview_status`, which also reports the Chromium the Host runs. Every wait on that waterfall is bounded, so a turn never waits on a browser that no connected Client holds.
 
 ## Table of Contents
 
@@ -30,6 +30,25 @@ Mount the plugin in an agent composition whose Client can host a browser, such a
 `preview_snapshot` accepts `mode: dom` (the default) or `mode: ax`. The accessibility mode reads Chromium's accessibility tree, including shadow DOM, and returns `snapshotId`, indexed `nodes`, and `truncated`. Nodes use the desktop element fields `index`, `token`, `role`, `title`, `value`, and `editable`. Pass a returned token to `preview_click` or `preview_type` instead of a selector. Tokens expire on the next observation or browser action, and navigation or detached, hidden, or disabled targets are refused. Re-observe after acting; accessibility targets inside frames remain outside this milestone.
 
 `preview_screenshot` captures the visible viewport as JPEG under `actionTimeoutMs` and stores it as a durable image attachment in the tool result. The screenshot enters the session log and model history through the ordinary image result path; attachment storage is required.
+
+Every `selector` argument accepts CSS or a locator part: `text=`, `role=` with `name`, `checked`, `disabled`, `expanded`, `pressed`, `selected`, and `level` filters, `label=`, `placeholder=`, `alt=`, `title=`, `testid=`, and `xpath=`; `>>` searches inside the previous match, and `nth=` and `visible=` filter matches. A selector that matches more than one element is refused. A `frame` argument names the iframe the target is in. The Electron engine (desktop `browser-automation.ts`, `browser-page-scripts.ts`) owns the locator semantics.
+
+| Tool | What it does |
+| --- | --- |
+| `preview_click` | Click, double-click (`clickCount`), right- or middle-click (`button`), with modifiers. Returns once a navigation the click started has loaded, or at once with the dialog it opened. |
+| `preview_hover`, `preview_drag` | Move the pointer over a target; press, move, and release between two targets. |
+| `preview_select`, `preview_check` | Choose `<select>` options by value or label; set a checkbox, radio, or `aria-checked` control, clicking only when its state differs. |
+| `preview_read`, `preview_wait` | Read text, HTML, value, an attribute, count, visibility, enabled or checked state, or box of one or all matches; wait for an element state, an address, or a load state. |
+| `preview_content` | The page as markdown, text, or HTML, or the captions of an open YouTube video, truncated past 100,000 characters. |
+| `preview_export_document` | Download the open Google Docs, Sheets, or Slides document into the user's Downloads folder with the guest session's cookies; text formats also return their content. |
+| `preview_clipboard`, `preview_console`, `preview_dialog` | Read (with approval) or write clipboard text; the page's last 500 console entries and uncaught exceptions; inspect or answer a JavaScript dialog. |
+| `preview_browser_control` | Press the pane's own toolbar and three-dot menu with the pointer: capture, open in Chrome, hard reload, DevTools, zoom, appearance, and clearing cache or cookies (with approval). |
+| `preview_tabs` | List, open, show, or close the session's browser tabs; each tab is a Browser pill in the sidebar, and the other tools act on the current one. The pointer presses the pill, the plus menu, or the pill's close button. |
+| `preview_history` | Search the pages visited in the in-app browser by words in the address or title (with approval, remembered for the session). |
+| `preview_page_tools` | List the WebMCP tools the open page registered through `document.modelContext`, or invoke one (with approval per site and tool). |
+| `preview_handoff` | Show the user a modal naming a browser step that is theirs, then tell the model to end its turn; without a pane the chat asks the same question. |
+
+Pointer actions follow ChatGPT's browser agent timing: the drawn cursor arrives (at most 1500 ms) before the page's mouse moves and presses; a click waits up to 3000 ms for a navigation that began within 250 ms of the action; back, forward, reload, and hard reload wait up to 10,000 ms for a load that began within 250 ms; a drag waits for the cursor only at its first point; a scroll sends one wheel event after the cursor arrives and returns once the scrolled position settles.
 
 ### Configuration
 
@@ -75,7 +94,7 @@ Task routing: a request to open, visit, or read a website is this pane's ("open 
 Use preview_sequence for known consecutive actions; it runs locally in order and waits for specified elements without another model request between actions. Use preview_upload to attach files directly; never use clipboard tricks, a local HTTP server, or a native picker for a supported upload.
 For browser work, first call preview_status. Then use preview_navigate, preview_snapshot, and the focused interaction tools. Prefer snapshot-provided selectors over coordinates.
 A page served from this machine (localhost or 127.0.0.1) is an application under development: open it in the Chrome DevTools browser (mcp__chrome_devtools__*), not this pane. Use the headless browser tools for it only when that browser and this pane are both unavailable, and say that the check ran in a headless copy.
-Correct an actionable error in this browser. If this browser needs authentication, ask the user to sign in here; never type credentials or switch browsers to bypass sign-in. Prefer preview_snapshot and focused actions over writing JavaScript for ordinary clicks or text entry.
+Correct an actionable error in this browser. If this browser needs authentication, a captcha, or the user's confirmation, call preview_handoff and end your turn; never type credentials or switch browsers to bypass sign-in. Prefer preview_snapshot and focused actions over writing JavaScript for ordinary clicks or text entry; read a whole article with preview_content.
 ```
 
 #### Token effect
@@ -119,6 +138,9 @@ Prefix-stable while the visible tool set is unchanged.
 - **A Client that answers after `statusTimeoutMs` is ignored for that turn** — the model does not learn the open page until the next turn's first step.
 - **Without a connected Client, each new turn waits `statusTimeoutMs`** — the gateway cannot tell the plugin that no Client is connected, so the lookup waits out its deadline before the first step.
 - **A browser surface that no plugin reports stays invisible** — the report lists the page beside the session and the Host's Chromium, so any other automation backend the composition mounts is named to the model only once a plugin reports it.
+- **JavaScript `prompt()` never reaches the agent** — Electron answers it with null before the page or the debugger sees a dialog, so only `alert`, `confirm`, and `beforeunload` can be answered with `preview_dialog`.
+- **No bookmarks, and only the in-app browser's own history** — history is kept in the desktop window's storage; the user's Chrome history, bookmarks, and open tabs are not read.
+- **WebMCP needs Chromium's `WebMCP` feature** — the desktop shell enables it at startup; a page that offers tools only through another script API is not listed.
 - **No invariant companion** — No runtime invariant companion is published because this package's own specs already exercise each relation it owns: the first-step lookup against a stub waterfall, the bounded waits under `statusTimeoutMs` and `actionTimeoutMs`, and the surface selection in the status report.
 
 <a id="dev-note"></a>

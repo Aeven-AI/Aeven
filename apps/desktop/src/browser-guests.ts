@@ -17,7 +17,7 @@ import {
   type IpcMainInvokeEvent,
   type WebContents,
 } from 'electron'
-import { acknowledgeBrowserCursor, automate } from './browser-automation.ts'
+import { acknowledgeBrowserCursor, automate, observePage } from './browser-automation.ts'
 import { fetchSuggestions } from './browser-search.ts'
 import { DESKTOP_IPC, type DesktopBrowserColorScheme, type DesktopBrowserDataKind } from './ipc.ts'
 
@@ -179,6 +179,8 @@ async function reportPageScroll(guest: WebContents): Promise<void> {
     // The binding must exist before the reporter calls it.
     await guest.debugger.sendCommand('Runtime.addBinding', { name: PAGE_SCROLL_BINDING })
     await guest.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: PAGE_SCROLL_REPORTER })
+    // Dialog events, and the navigation events an action's wait reads, come from the page domain.
+    await guest.debugger.sendCommand('Page.enable')
   } catch (error) {
     // A guest that closed mid-attach takes its debugger with it; a later attach
     // of the same guest installs the reporter then.
@@ -186,8 +188,10 @@ async function reportPageScroll(guest: WebContents): Promise<void> {
     reportingGuests.delete(guest)
     return
   }
+  const stopObserving = observePage(guest)
   guest.debugger.once('detach', () => {
     reportingGuests.delete(guest)
+    stopObserving()
     guest.debugger.off('message', report)
     guest.off('did-navigate', installReporter)
     guest.off('did-finish-load', installReporter)

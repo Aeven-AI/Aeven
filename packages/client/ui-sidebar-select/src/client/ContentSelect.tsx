@@ -82,12 +82,8 @@ export function ContentSelect(props: ContentSelectComponentProps) {
       return
     }
     if (registry.resolve(kind) === undefined) return
-    // A session has one browser page, which the agent's browser tools address
-    // by session, so picking the browser again shows the pill already open.
-    update((current) => {
-      const existing = kind === 'browser' ? current.surfaces.find(surface => surface.kind === kind) : undefined
-      return existing === undefined ? openSurface(current, kind).state : { ...current, active: existing.id }
-    })
+    // Every pick opens a new pill, the browser's included: each browser pill is a tab.
+    update(current => openSurface(current, kind).state)
   }, [registry, sessionId, update])
   const activate = useCallback((id: string) => { update(current => ({ ...current, active: id })) }, [update])
   const close = useCallback((ids: readonly string[]) => {
@@ -205,6 +201,7 @@ export function ContentSelect(props: ContentSelectComponentProps) {
                   className={css.pill}
                   data-active={active || undefined}
                   data-sidebar-right-pill={surface.kind}
+                  data-sidebar-right-surface={surface.id}
                   onMouseDown={(event) => { if (event.button === 1) event.preventDefault() }}
                   onAuxClick={(event) => {
                     if (event.button !== 1) return
