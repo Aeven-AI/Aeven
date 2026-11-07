@@ -21,6 +21,8 @@ const RESTART_WINDOW_MS = 60_000
 
 /** Everything one zygote process starts from. */
 export interface ZygoteOptions {
+  /** The helper that switches to the sandbox user, when commands run as one; the zygote must share their user. */
+  exec?: string | undefined
   /** The image's interpreter, the same one the shim falls back to. */
   python: string
   /** Host path of `python-zygote.py`, as `host/install-python-zygote.sh` installs it. */
@@ -72,7 +74,7 @@ export class PythonZygote {
     // The shell step joins the zygote's group before the interpreter starts, so its imports are charged there.
     const child = spawn('/bin/sh', [
       '-c', 'echo 0 > "$1/cgroup.procs" || exit 125; shift; exec "$@"', 'python-zygote',
-      options.group, options.python, options.script, config,
+      options.group, ...options.exec === undefined ? [] : [options.exec], options.python, options.script, config,
     ], {
       env: { ...options.env, HOME: options.socketDir, MPLCONFIGDIR: join(options.socketDir, 'mpl') },
       stdio: ['ignore', 'ignore', 'pipe'],

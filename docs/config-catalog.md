@@ -3485,6 +3485,12 @@ export interface Config {
    */
   pythonZygote?: PythonZygoteConfig
   /**
+   * Run confined commands, and the Python zygote, as a separate sandbox user, so a command that escapes its jail
+   * holds no access to the Host's data. The account folders need ACLs granting both users access and a second mount
+   * the sandbox user can traverse, and attachments are copied into each jail; omitted, commands run as the Host's user.
+   */
+  commandUser?: CommandUserConfig
+  /**
    * System-prompt text describing what confined commands can use, such as
    * having no network and which programs and libraries are installed; omitted,
    * the jail adds nothing to the prompt.
@@ -3517,6 +3523,23 @@ export interface PythonZygoteConfig {
   socketDir: string
   /** Limits of the zygote's own cgroup; each run is charged to its caller's account group. */
   limits: CgroupLimits
+}
+
+/** The user confined commands run as, apart from the Host's own. */
+export interface CommandUserConfig {
+  /**
+   * Host path of the helper `host/sandbox-exec.c` builds, which only the Host's user may execute and which switches
+   * to the sandbox user before bubblewrap starts, e.g. `/usr/local/libexec/aeven-sandbox-exec`.
+   */
+  exec: string
+  /** The sandbox user's group, which the Host's user belongs to; it may move runs into account cgroups. */
+  group: string
+  /**
+   * A second mount of `accountsRoot` the sandbox user can traverse but not list, e.g. `/srv/aeven-accounts`, from
+   * which bubblewrap mounts each command's folder at its usual path; the usual path lies inside the Host's data
+   * directory, which the sandbox user cannot enter.
+   */
+  accountsPath: string
 }
 
 /** cgroup v2 interface values written verbatim to one group. */

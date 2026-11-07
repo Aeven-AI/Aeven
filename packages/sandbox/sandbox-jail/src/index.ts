@@ -11,7 +11,7 @@
 
 import { spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
-import { isAbsolute, join, relative, sep } from 'node:path'
+import { dirname, isAbsolute, join, relative, sep } from 'node:path'
 import { LAUNCHER_BIN, LAUNCHER_FAILURE_EXIT, launcherPath, probe } from '@deepseek-ai/node-addon-landlock-run'
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
@@ -33,6 +33,23 @@ export interface CgroupConfig {
   total: CgroupLimits
   /** Limits for one account's commands. */
   account: CgroupLimits
+}
+
+/** The user confined commands run as, apart from the Host's own. */
+export interface CommandUserConfig {
+  /**
+   * Host path of the helper `host/sandbox-exec.c` builds, which only the Host's user may execute and which switches
+   * to the sandbox user before bubblewrap starts, e.g. `/usr/local/libexec/aeven-sandbox-exec`.
+   */
+  exec: string
+  /** The sandbox user's group, which the Host's user belongs to; it may move runs into account cgroups. */
+  group: string
+  /**
+   * A second mount of `accountsRoot` the sandbox user can traverse but not list, e.g. `/srv/aeven-accounts`, from
+   * which bubblewrap mounts each command's folder at its usual path; the usual path lies inside the Host's data
+   * directory, which the sandbox user cannot enter.
+   */
+  accountsPath: string
 }
 
 /** The Python zygote's deployment. */
@@ -109,6 +126,12 @@ export interface Config {
    */
   pythonZygote?: PythonZygoteConfig
   /**
+   * Run confined commands, and the Python zygote, as a separate sandbox user, so a command that escapes its jail
+   * holds no access to the Host's data. The account folders need ACLs granting both users access and a second mount
+   * the sandbox user can traverse, and attachments are copied into each jail; omitted, commands run as the Host's user.
+   */
+  commandUser?: CommandUserConfig
+  /**
    * System-prompt text describing what confined commands can use, such as
    * having no network and which programs and libraries are installed; omitted,
    * the jail adds nothing to the prompt.
@@ -136,6 +159,7 @@ const RUNNER_FAILURE_RULES: readonly RunnerFailureRule[] = [
   { fatalSignatures: ['bwrap: '] },
   { allowedExitCodes: [LAUNCHER_FAILURE_EXIT], fatalSignatures: [`${LAUNCHER_BIN}: `] },
   { allowedExitCodes: [CGROUP_STEP_FAILURE_EXIT], fatalSignatures: [`${CGROUP_STEP}: `] },
+  { allowedExitCodes: [CGROUP_STEP_FAILURE_EXIT], fatalSignatures: ['aeven-sandbox-exec: '] },
 ]
 
 /** Under bwrap a write outside the writable binds fails with EROFS; under Landlock with EACCES. */
@@ -174,6 +198,7 @@ export class JailSandboxProvider extends SandboxProvider {
     probeTimeoutMs: z.natural().min(1).default(5_000),
     cgroup: z.object({ root: z.string().required(), total: limits.required(), account: limits.required() }),
     seccompFilter: z.string(),
+    commandUser: z.object({ exec: z.string().required(), group: z.string().required(), accountsPath: z.string().required() }),
     pythonZygote: z.object({
       python: z.string().required(),
       script: z.string().required(),
@@ -197,6 +222,10 @@ export class JailSandboxProvider extends SandboxProvider {
   private limited: { mtimeMs: number; accounts: Set<string> } = { mtimeMs: -1, accounts: new Set() }
   private readonly sessionAttachments: boolean
   private readonly seccompFilter: string | undefined
+  /** The helper that switches a launch to the sandbox user, when commands run as one. */
+  private readonly commandExec: string | undefined
+  /** Folders whose ACL mask this provider already opened for the sandbox user. */
+  private readonly sharedFolders = new Set<string>()
   /** Attachment files each live session references, and the log position read so far. */
   private readonly attachmentFiles = new WeakMap<Session, { seq: number; files: Set<string> }>()
 
@@ -218,6 +247,17 @@ export class JailSandboxProvider extends SandboxProvider {
       hostname: config.hostname as string,
       seccomp: config.seccompFilter !== undefined,
     }
+    const commandUser = config.commandUser
+    if (commandUser !== undefined) {
+      if (!existsSync(commandUser.accountsPath)) {
+        throw new Error(`sandbox-jail: commandUser.accountsPath "${commandUser.accountsPath}" does not exist; mount accountsRoot there too`)
+      }
+      this.profile.sandboxUser = { accountsRoot: this.accountsRoot, accountsPath: commandUser.accountsPath }
+    }
+    if (commandUser !== undefined && !existsSync(commandUser.exec)) {
+      throw new Error(`sandbox-jail: commandUser.exec "${commandUser.exec}" does not exist; build it from host/sandbox-exec.c`)
+    }
+    this.commandExec = commandUser?.exec
     this.seccompFilter = config.seccompFilter
     if (this.seccompFilter !== undefined && !existsSync(this.seccompFilter)) {
       throw new Error(`sandbox-jail: seccompFilter "${this.seccompFilter}" does not exist`)
@@ -229,7 +269,10 @@ export class JailSandboxProvider extends SandboxProvider {
     this.sessionAttachments = config.sessionAttachments ?? false
     this.probe(this.probeTimeoutMs)
     if (config.cgroup !== undefined) {
-      const cgroups = new AccountCgroups(config.cgroup.root, config.cgroup.total, config.cgroup.account)
+      const cgroups = new AccountCgroups(
+        config.cgroup.root, config.cgroup.total, config.cgroup.account,
+        commandUser === undefined ? undefined : groupId(commandUser.group),
+      )
       cgroups.removeIdle()
       this.cgroups = cgroups
       ctx.effect(() => () => {
@@ -243,13 +286,18 @@ export class JailSandboxProvider extends SandboxProvider {
       }
       if (!existsSync(zygote.script)) throw new Error(`sandbox-jail: pythonZygote.script "${zygote.script}" does not exist`)
       if (!isAbsolute(zygote.socketDir)) throw new Error(`sandbox-jail: pythonZygote.socketDir "${zygote.socketDir}" must be absolute`)
-      mkdirSync(join(zygote.socketDir, 'mpl'), { recursive: true, mode: 0o700 })
-      chmodSync(zygote.socketDir, 0o700)
+      if (this.commandExec === undefined) {
+        mkdirSync(join(zygote.socketDir, 'mpl'), { recursive: true, mode: 0o700 })
+        chmodSync(zygote.socketDir, 0o700)
+      } else if (!existsSync(zygote.socketDir)) {
+        throw new Error(`sandbox-jail: pythonZygote.socketDir "${zygote.socketDir}" must exist, owned by the sandbox user`)
+      }
       this.profile.zygoteDir = canonicalPath(zygote.socketDir)
       const cgroups = this.cgroups
       const seccompFilter = this.seccompFilter
       ctx.effect(() => {
         const process = new PythonZygote({
+          exec: this.commandExec,
           python: zygote.python,
           script: zygote.script,
           preload: zygote.preload,
@@ -289,10 +337,9 @@ export class JailSandboxProvider extends SandboxProvider {
     const additionalWritableRoots = (policy.additionalWritableRoots ?? [])
       .map(root => canonicalPath(root))
       .filter(root => this.accountOf(root) === account)
-    const jailed = [
-      ...jailArgs(this.profile, { ...policy, workspaceRoot, additionalWritableRoots }, this.attachmentsOf(policy.sessionId)),
-      '--', ...argv,
-    ]
+    if (this.commandExec !== undefined) this.shareFolders(account, [workspaceRoot, ...additionalWritableRoots])
+    const jail = jailArgs(this.profile, { ...policy, workspaceRoot, additionalWritableRoots }, this.attachmentsOf(policy.sessionId))
+    const jailed = [...this.commandExec === undefined ? [] : [this.commandExec], ...jail.args, '--', ...argv]
     const group = this.cgroups?.groupOf(account)
     const quota = this.needsLimit(account) ? this.quotaCommand : undefined
     const fail = (what: string): string => `{ echo "${CGROUP_STEP}: ${what}" >&2; exit ${CGROUP_STEP_FAILURE_EXIT}; }`
@@ -300,10 +347,12 @@ export class JailSandboxProvider extends SandboxProvider {
       ...group === undefined ? [] : [`echo 0 > "$1/cgroup.procs" || ${fail('cannot join $1')}`],
       ...quota === undefined ? [] : [`${quota.map(shellQuote).join(' ')} "$3" >/dev/null || ${fail("cannot limit the account folder's disk use")}`],
       ...this.seccompFilter === undefined ? [] : [`exec 3< "$2" || ${fail('cannot open the system-call filter $2')}`],
+      // The sandbox user cannot reach these by path, so bubblewrap copies them in from the Host user's descriptors.
+      ...jail.opens.map(({ fd, path }) => `exec ${String(fd)}< ${shellQuote(path)} || ${fail(`cannot open ${shellQuote(path)}`)}`),
     ]
     return {
       argv: steps.length === 0 ? jailed : [
-        '/bin/sh', '-c', `${steps.join('; ')}; shift 3; exec "$@"`,
+        jail.opens.length === 0 ? '/bin/sh' : '/bin/bash', '-c', `${steps.join('; ')}; shift 3; exec "$@"`,
         CGROUP_STEP, group ?? '', this.seccompFilter ?? '', join(this.accountsRoot, account), ...jailed,
       ],
       enforcement: 'full',
@@ -358,6 +407,29 @@ export class JailSandboxProvider extends SandboxProvider {
     return !this.limited.accounts.has(account)
   }
 
+  /**
+   * Open the ACL mask of each folder from the account folder down to every root, so the sandbox user's inherited
+   * grant applies. The Host creates these folders with mode 0700, and under a default ACL a folder's group bits are
+   * its mask; folders the sandbox user created already carry it.
+   * @param account - the account path segment.
+   * @param roots - canonical roots inside that account.
+   */
+  private shareFolders(account: string, roots: readonly string[]): void {
+    const top = join(this.accountsRoot, account)
+    for (const root of roots) {
+      for (let folder = root; folder.startsWith(top); folder = dirname(folder)) {
+        if (this.sharedFolders.has(folder)) break
+        try {
+          if (statSync(folder).uid === process.getuid?.()) chmodSync(folder, 0o770)
+        } catch {
+          // ENOENT: the folder appears with the command that creates it, which then holds the grant itself.
+        }
+        this.sharedFolders.add(folder)
+        if (folder === top) break
+      }
+    }
+  }
+
   /** The account directory a canonical path lies inside, or undefined outside the accounts root. */
   private accountOf(path: string): string | undefined {
     const rest = relative(this.accountsRoot, path)
@@ -383,6 +455,20 @@ export class JailSandboxProvider extends SandboxProvider {
       )
     }
   }
+}
+
+/**
+ * The numeric id of a group from `/etc/group`.
+ * @param name - the group's name.
+ * @returns its gid.
+ * @throws when no such group exists.
+ */
+function groupId(name: string): number {
+  for (const line of readFileSync('/etc/group', 'utf8').split('\n')) {
+    const [group, , gid] = line.split(':')
+    if (group === name && gid !== undefined) return Number(gid)
+  }
+  throw new Error(`sandbox-jail: commandUser.group "${name}" is not a group on this Host`)
 }
 
 /**
