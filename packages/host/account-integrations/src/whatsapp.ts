@@ -1,21 +1,25 @@
 /** Bundled `whatsapp-mcp` daemon processes: binary resolution, launch, pairing status, and teardown. */
 
+import { existsSync } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
 import { createRequire } from 'node:module'
-import { dirname, join } from 'node:path'
+import { delimiter, dirname, join } from 'node:path'
 import { z } from 'zod'
 import { AccountDaemon, type AccountDaemonOptions } from './account-daemon.ts'
 
 /**
  * Resolve the daemon from the platform package installed for this host.
  * @param override - explicit binary path from deployment configuration.
- * @returns absolute executable path, or undefined when this host has no platform package.
+ * @returns absolute executable path, or undefined when this host has no platform package or its binary is unbuilt.
  */
 export function resolveWhatsAppBinary(override: string | undefined): string | undefined {
   if (override !== undefined) return override
   try {
     const manifest = createRequire(import.meta.url).resolve(`@aeven/whatsapp-mcp-${process.platform}-${process.arch}/package.json`)
-    return join(dirname(manifest), 'bin', process.platform === 'win32' ? 'whatsapp-mcp.exe' : 'whatsapp-mcp')
+    const binary = join(dirname(manifest), 'bin', process.platform === 'win32' ? 'whatsapp-mcp.exe' : 'whatsapp-mcp')
+    // A workspace checkout links the platform package before its git-ignored binary is built; without the file
+    // every start would fail, so the host reports WhatsApp as not configured instead.
+    return existsSync(binary) ? binary : undefined
   } catch {
     // An absent optional platform package means WhatsApp is unsupported on this host; Settings reports it as not configured.
     return undefined
@@ -23,17 +27,34 @@ export function resolveWhatsAppBinary(override: string | undefined): string | un
 }
 
 /**
- * Resolve the bundled ffmpeg executable from the platform package installed for this host.
- * @returns absolute executable path, or undefined when this host has no platform package.
+ * Resolve the bundled ffmpeg executable from the platform package installed for this host, else an ffmpeg on PATH.
+ * @returns absolute executable path, or undefined when neither exists.
  */
 export function resolveFfmpegBinary(): string | undefined {
   try {
     const manifest = createRequire(import.meta.url).resolve(`@aeven/ffmpeg-${process.platform}-${process.arch}/package.json`)
-    return join(dirname(manifest), 'bin', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg')
+    const binary = join(dirname(manifest), 'bin', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg')
+    if (existsSync(binary)) return binary
   } catch {
-    // An absent optional platform package leaves voice notes to fail with the converter's own diagnostic.
-    return undefined
+    // No platform package for this host: the system's own ffmpeg, if any, is used below.
   }
+  // A host without the bundled build (a server checkout that never built it) converts with an ffmpeg on PATH;
+  // with neither, voice notes fail with the converter's own diagnostic.
+  return pathExecutable(process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg')
+}
+
+/**
+ * Find an executable on PATH.
+ * @param name - file name to look for.
+ * @returns its absolute path, or undefined when no PATH directory holds it.
+ */
+function pathExecutable(name: string): string | undefined {
+  for (const dir of (process.env.PATH ?? '').split(delimiter)) {
+    if (dir === '') continue
+    const candidate = join(dir, name)
+    if (existsSync(candidate)) return candidate
+  }
+  return undefined
 }
 
 /** Daemon `/status` response; `qr_png` is a base64 PNG present only in the `qr` state. */

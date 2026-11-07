@@ -10,6 +10,38 @@ import css from './IntegrationsSection.module.css'
 /** Interval between pairing-state reads while the card is open. */
 const POLL_MS = 1500
 
+/**
+ * Session-storage key holding the open attempt's id. Scanning the code means leaving the page for WhatsApp, and a
+ * phone browser may discard the backgrounded tab; a reload then resumes the same attempt instead of starting over.
+ */
+const ATTEMPT_KEY = 'aeven.whatsapp.pairing'
+
+/**
+ * Remember or forget the open attempt for this tab.
+ * @param id - the attempt to remember, or undefined to forget it.
+ */
+function rememberAttempt(id: ConnectorId | undefined): void {
+  try {
+    if (id === undefined) sessionStorage.removeItem(ATTEMPT_KEY)
+    else sessionStorage.setItem(ATTEMPT_KEY, id)
+  } catch {
+    // Storage refused (private mode, quota): a discarded tab then starts a new attempt.
+  }
+}
+
+/**
+ * Read the attempt this tab left open.
+ * @returns the attempt id, or undefined when none is remembered.
+ */
+function rememberedAttempt(): ConnectorId | undefined {
+  try {
+    return (sessionStorage.getItem(ATTEMPT_KEY) ?? undefined) as ConnectorId | undefined
+  } catch {
+    // Storage unreadable: nothing to resume.
+    return undefined
+  }
+}
+
 /** Props from the connector page. */
 export interface WhatsAppAccountsProps extends PairingAccountsProps {
   startWhatsAppPairing: () => Promise<WhatsAppPairingView>
@@ -26,31 +58,55 @@ export function WhatsAppAccounts(props: WhatsAppAccountsProps) {
   const { t, busy } = props
   const [pairing, setPairing] = useState<WhatsAppPairingView>()
   const [confirming, setConfirming] = useState<ConnectorId>()
-  const pairingId = useRef<ConnectorId>()
-  pairingId.current = pairing !== undefined && (pairing.state === 'starting' || pairing.state === 'qr') ? pairing.id : undefined
   const { whatsAppPairing, cancelWhatsAppPairing, refresh } = props
+  const waiting = pairing?.state === 'starting' || pairing?.state === 'qr'
+  useEffect(() => { rememberAttempt(waiting ? pairing?.id : undefined) }, [pairing?.id, waiting])
 
   const start = (): void => {
     setPairing({ state: 'starting' })
     props.startWhatsAppPairing().then(setPairing, () => { setPairing({ state: 'failed' }) })
   }
-  useEffect(() => { if (props.startWithPairing) start() }, [])
-  // An attempt left open when the page closes is abandoned rather than left waiting for a scan.
-  useEffect(() => () => { if (pairingId.current !== undefined) void cancelWhatsAppPairing(pairingId.current) }, [cancelWhatsAppPairing])
+  // The attempt belongs to the Host, which retires an unscanned one on its own: leaving the page for WhatsApp, or a
+  // phone discarding the tab meanwhile, must not cancel the scan in progress. Only Cancel/Close does.
   useEffect(() => {
+    const resumed = rememberedAttempt()
+    if (resumed === undefined) {
+      if (props.startWithPairing) start()
+      return
+    }
+    setPairing({ id: resumed, state: 'starting' })
+    whatsAppPairing(resumed).then((next) => {
+      setPairing(next)
+      if (next.state === 'connected') refresh()
+    }, () => { setPairing({ id: resumed, state: 'expired' }) })
+  }, [])
+  const read = useRef<() => void>(() => {})
+  read.current = () => {
     const id = pairing?.id
-    const waiting = pairing?.state === 'starting' || pairing?.state === 'qr'
     if (id === undefined || !waiting) return
-    const timer = setInterval(() => {
-      void whatsAppPairing(id).then((next) => {
-        setPairing(next)
-        if (next.state === 'connected') refresh()
-      }, () => {
-        // A failed read is retried on the next interval.
-      })
-    }, POLL_MS)
+    void whatsAppPairing(id).then((next) => {
+      setPairing(next)
+      if (next.state === 'connected') refresh()
+    }, () => {
+      // A failed read is retried on the next interval or the next return to the page.
+    })
+  }
+  useEffect(() => {
+    if (pairing?.id === undefined || !waiting) return
+    const timer = setInterval(() => { read.current() }, POLL_MS)
     return () => { clearInterval(timer) }
-  }, [pairing?.id, pairing?.state, whatsAppPairing, refresh])
+  }, [pairing?.id, waiting])
+  // A background tab's interval is throttled or suspended, so coming back from WhatsApp reads the live state at once
+  // rather than painting a stale code first.
+  useEffect(() => {
+    const resume = (): void => { if (document.visibilityState === 'visible') read.current() }
+    document.addEventListener('visibilitychange', resume)
+    window.addEventListener('pageshow', resume)
+    return () => {
+      document.removeEventListener('visibilitychange', resume)
+      window.removeEventListener('pageshow', resume)
+    }
+  }, [])
   useEffect(() => {
     if (pairing?.state !== 'connected') return
     const timer = setTimeout(() => { setPairing(undefined) }, 2_000)
