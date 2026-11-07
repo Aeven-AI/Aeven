@@ -48,7 +48,7 @@ The renderer seeks a paused timeline frame by frame, so the film is a pure funct
 ## Show and review
 
 1. Show the film: \`show_motion\` with the folder and \`stills: 6\`. The user can play and scrub it at once; the stills come back to you.
-2. Look at every still: layout, overlap, cropping, contrast, and whether each beat reads. Fix the files and call \`show_motion\` again. Expect several rounds; a film you looked at once is unfinished.
+2. Look at every still: layout, overlap, cropping, contrast, and whether each beat reads. Make every fix the stills call for, then call \`show_motion\` once for that round. Each call replaces the film already on screen, so a round ends with one call, never one call per edit. Expect several rounds; a film you looked at once is unfinished.
 3. Reply with what the film does and offer one or two concrete revisions (timing, copy, color, pacing). The user's requests for changes edit the same files, so keep ids and structure readable.
 4. The user exports the MP4 from the film's own menu. Call \`render_motion\` only when the user asks you for the video file.
 `

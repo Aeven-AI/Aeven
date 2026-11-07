@@ -70,6 +70,26 @@
   background: #ffffff;
 }
 
+/* A motion film still loading: the player builds inside a frame that takes no
+   height and cannot be seen, because a hidden (display: none) frame may never
+   report ready. The compact row above stands in for it. */
+.frames[data-pending] {
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* The compact row a motion card shows until its film can play. */
+.motionPending {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 0.875rem;
+}
+
 .status {
   display: flex;
   align-items: center;

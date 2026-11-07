@@ -74,24 +74,86 @@ async function failureText(response: Response): Promise<string> {
 }
 
 /**
- * The newest `show_motion` call per session and composition folder, by its position in the conversation. Every
- * card plays the folder's current files, so only the newest call stays a live player; earlier calls for the same
- * folder would show the same film.
+ * The folder a call names, read from its own `composition` argument so the running and settled forms of one call
+ * agree from the call's first frame. Relative folders are anchored at the Session's workspace root.
+ * @param argsRaw - the call's arguments as the model sent them.
+ * @param cwd - the Session's workspace root, when known.
+ * @returns a normalized folder key, or undefined when the arguments name none.
  */
-const newestCalls = new Map<string, { callId: string; seq: number }>()
-const newestListeners = new Set<() => void>()
+function compositionArg(argsRaw: string, cwd: string | undefined): string | undefined {
+  let composition: unknown
+  try {
+    composition = (JSON.parse(argsRaw) as { composition?: unknown }).composition
+  } catch {
+    // Unreadable arguments name no folder; the card then keys on the settled result's folder.
+    return undefined
+  }
+  if (typeof composition !== 'string' || composition.trim() === '') return undefined
+  const path = composition.trim().replaceAll('\\', '/')
+  const absolute = path.startsWith('/') || /^[A-Za-z]:\//.test(path)
+  const joined = absolute || cwd === undefined ? path : `${cwd.replaceAll('\\', '/')}/${path}`
+  const parts: string[] = []
+  for (const part of joined.split('/')) {
+    if (part === '' || part === '.') continue
+    if (part === '..') parts.pop()
+    else parts.push(part)
+  }
+  return `${joined.startsWith('/') ? '/' : ''}${parts.join('/')}`
+}
 
 /**
- * Record a settled call as the newest for its folder when nothing later is recorded.
+ * Every mounted `show_motion` card's claim on its session and composition folder, by its position in the
+ * conversation. Every card plays the folder's current files, so only the newest claim stays a live player. A
+ * running call claims with an infinite position, so a re-show hides the previous film from its first frame; a
+ * card releases its claim when it unmounts or fails, which also keeps the map to the cards on screen.
+ */
+const claims = new Map<string, Map<string, number>>()
+const newestListeners = new Set<() => void>()
+
+/** Notify every card that the newest claim of some folder may have changed. */
+function publishNewest(): void {
+  for (const listener of newestListeners) listener()
+}
+
+/**
+ * Record a card's claim on a folder.
  * @param key - session and folder.
  * @param callId - the call.
- * @param seq - the call's position in the conversation.
+ * @param seq - the call's position in the conversation; Infinity while it runs.
+ * @returns the disposer releasing the claim.
  */
-function claimNewest(key: string, callId: string, seq: number): void {
-  const current = newestCalls.get(key)
-  if (current !== undefined && current.seq >= seq) return
-  newestCalls.set(key, { callId, seq })
-  for (const listener of newestListeners) listener()
+function claim(key: string, callId: string, seq: number): () => void {
+  let folder = claims.get(key)
+  if (folder === undefined) {
+    folder = new Map()
+    claims.set(key, folder)
+  }
+  folder.set(callId, seq)
+  publishNewest()
+  return () => {
+    const current = claims.get(key)
+    if (current?.get(callId) !== seq) return
+    current.delete(callId)
+    if (current.size === 0) claims.delete(key)
+    publishNewest()
+  }
+}
+
+/**
+ * The newest claim on a folder.
+ * @param key - session and folder.
+ * @returns the call id holding the highest position, or undefined when nothing claims the folder.
+ */
+function newestClaim(key: string): string | undefined {
+  let newest: string | undefined
+  let top = -1
+  for (const [callId, seq] of claims.get(key) ?? []) {
+    if (seq > top) {
+      top = seq
+      newest = callId
+    }
+  }
+  return newest
 }
 
 /**
@@ -105,22 +167,24 @@ function subscribeNewest(listener: () => void): () => void {
 }
 
 /**
- * Render a running call's loader, the live film with its playback and export chrome, or the call's failure.
- * @param props - atomic call and Imagine translator.
- * @returns the film frame retained at this call's transcript position.
+ * Render a compact loading row while the call runs or its film loads, then the live film with its playback and
+ * export chrome, or the call's failure. A later call for the same folder replaces this card from its first frame.
+ * @param props - atomic call, workspace root, and Imagine translator.
+ * @returns the film card retained at this call's transcript position.
  */
-export function MotionToolView({ block, sessionId, t }: ToolCallViewProps & PropsLocale<'imagine'>) {
+export function MotionToolView({ block, cwd, sessionId, t }: ToolCallViewProps & PropsLocale<'imagine'>) {
   const settled = 'kind' in block
   const failed = settled && block.isError
   const folder = settled && !failed ? compositionDir(block.meta) : undefined
   const film = settled && !failed ? storedFilm(block.meta) : undefined
   const callError = failed ? block.content.find(content => content.type === 'text') : undefined
-  const key = folder === undefined ? undefined : `${String(sessionId)}\u0000${folder}`
-  const seq = settled ? block.seq : -1
-  useEffect(() => {
-    if (key !== undefined) claimNewest(key, block.callId, seq)
-  }, [key, block.callId, seq])
-  const newest = useSyncExternalStore(subscribeNewest, () => (key === undefined ? undefined : newestCalls.get(key)?.callId))
+  const argsRaw = settled ? block.call?.argsRaw : block.argsRaw
+  const named = (argsRaw === undefined ? undefined : compositionArg(argsRaw, cwd)) ?? folder
+  // A failed call shows its failure and leaves the previous film live.
+  const key = named === undefined || failed ? undefined : `${String(sessionId)}\u0000${named}`
+  const seq = settled ? block.seq : Number.POSITIVE_INFINITY
+  useEffect(() => (key === undefined ? undefined : claim(key, block.callId, seq)), [key, block.callId, seq])
+  const newest = useSyncExternalStore(subscribeNewest, () => (key === undefined ? undefined : newestClaim(key)))
   const superseded = key !== undefined && newest !== undefined && newest !== block.callId
   // A superseded card neither fetches nor plays; the newest card below it shows the folder's current film.
   const dir = superseded ? undefined : folder
@@ -129,6 +193,8 @@ export function MotionToolView({ block, sessionId, t }: ToolCallViewProps & Prop
   const [html, setHtml] = useState<string | undefined>(undefined)
   const [media, setMedia] = useState<PlayerElement | null>(null)
   const [ratio, setRatio] = useState(DEFAULT_RATIO)
+  // The film frame takes its size only once the player has a composition to show.
+  const [ready, setReady] = useState(false)
   const [loadError, setLoadError] = useState<string | undefined>(undefined)
   // The stored film's URL once it plays instead of the folder; the MP4 export then goes through the call.
   const [storedUrl, setStoredUrl] = useState<string | undefined>(undefined)
@@ -190,6 +256,7 @@ export function MotionToolView({ block, sessionId, t }: ToolCallViewProps & Prop
       const width = detail.compositionWidth ?? 0
       const height = detail.compositionHeight ?? 0
       if (width > 0 && height > 0) setRatio(width / height)
+      setReady(true)
     })
     // The player reports a failed load as a CustomEvent named `error`, not a DOM ErrorEvent.
     player.addEventListener('error', (event: Event) => {
@@ -200,6 +267,7 @@ export function MotionToolView({ block, sessionId, t }: ToolCallViewProps & Prop
     return () => {
       player.remove()
       setMedia(null)
+      setReady(false)
     }
   }, [html])
 
@@ -257,12 +325,20 @@ export function MotionToolView({ block, sessionId, t }: ToolCallViewProps & Prop
   }
 
   const showError = failed || loadError !== undefined
-  const loading = !settled || (dir !== undefined && media === null && !showError)
+  // Until the player is ready the card is one compact row: a running call, or a film still on its way from the
+  // folder, the stored copy, or the replay, never reserves a player-sized frame.
+  const loading = !showError && (!settled || (dir !== undefined && !ready))
   // The newest card for the same folder below shows the current film, so an earlier one leaves no trace.
   if (superseded) return null
   return (
-    <figure className={css.root} data-motion-call={block.callId} data-state={showError ? 'error' : settled ? 'settled' : 'running'}>
-      <div className={css.frames} data-frames={1}>
+    <figure className={css.root} data-motion-call={block.callId} data-state={showError ? 'error' : loading ? 'running' : 'settled'}>
+      {loading && (
+        <span className={css.motionPending} role="status">
+          <Spinner />
+          <span>{t('motion.pending')}</span>
+        </span>
+      )}
+      <div className={css.frames} data-frames={1} data-pending={loading ? '' : undefined}>
         <div
           className={css.frame}
           data-generated-video-frame=""
@@ -288,11 +364,6 @@ export function MotionToolView({ block, sessionId, t }: ToolCallViewProps & Prop
           ) : null}
           {exportError !== undefined && !showError && (
             <ErrorDetailControl title={t('motion.exportFailed')} message={exportError} t={t} />
-          )}
-          {loading && (
-            <span className={css.loader} role="status" aria-label={t('motion.label')}>
-              <Spinner />
-            </span>
           )}
         </div>
       </div>
