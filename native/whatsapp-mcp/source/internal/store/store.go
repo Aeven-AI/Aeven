@@ -123,7 +123,7 @@ func Open(dir string) (*Store, error) {
 	}
 
 	// whatsapp.db may not yet exist on first run; open lazily in read-only mode.
-	waDB, err := sql.Open("sqlite3", "file:"+waPath+"?mode=ro")
+	waDB, err := sql.Open("sqlite3", "file:"+waPath+"?mode=ro&_pragma=busy_timeout(10000)")
 	if err != nil {
 		// Non-fatal: LID resolution falls through to identity.
 		waDB = nil

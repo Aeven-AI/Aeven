@@ -92,10 +92,17 @@ func runServe(storeDir string, redactor *security.Redactor, args []string) int {
 	}
 	defer st.Close()
 
+	logger := client.NewStderrLogger("Client", "INFO", false)
+	// WHATSAPP_MCP_PAIRING_TRACE=1 writes every linking-handshake node to
+	// stderr. It names the account's number, so it is off unless an operator
+	// diagnosing a failed link turns it on.
+	if os.Getenv("WHATSAPP_MCP_PAIRING_TRACE") == "1" {
+		logger = client.WithPairingTrace(logger)
+	}
 	c, err := client.New(ctx, client.Config{
 		StoreDir:         storeDir,
 		Store:            st,
-		Logger:           client.NewStderrLogger("Client", "INFO", false),
+		Logger:           logger,
 		AllowedMediaRoot: allowedMediaRoot,
 		Redactor:         redactor,
 	})

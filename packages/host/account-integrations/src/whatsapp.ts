@@ -71,7 +71,10 @@ const phoneCodeSchema = z.object({ code: z.string().min(1) })
 export type WhatsAppDaemonStatus = z.infer<typeof statusSchema>
 
 /** Process and network budgets for one daemon; all fields come from validated deployment configuration. */
-export interface WhatsAppDaemonOptions extends AccountDaemonOptions {}
+export interface WhatsAppDaemonOptions extends AccountDaemonOptions {
+  /** Log every linking-handshake message the daemon sends and receives; names the account's number, so diagnosis only. */
+  pairingTrace: boolean
+}
 
 /**
  * One `whatsapp-mcp serve` process bound to a loopback port chosen by the operating system.
@@ -87,7 +90,10 @@ export class WhatsAppDaemon extends AccountDaemon {
   constructor(private readonly binary: string, directory: string, options: WhatsAppDaemonOptions,
     private readonly ffmpeg?: string) {
     super('WhatsApp', directory, options)
+    this.pairingTrace = options.pairingTrace
   }
+
+  private readonly pairingTrace: boolean
 
   /** Spawn the daemon and wait for its bound loopback address. */
   async start(): Promise<void> {
@@ -97,6 +103,7 @@ export class WhatsAppDaemon extends AccountDaemon {
     await mkdir(media, { recursive: true, mode: 0o700 })
     await this.launch(this.binary, ['-store', store, 'serve', '-addr', '127.0.0.1:0', '-exit-on-stdin-eof'], {
       WHATSAPP_MCP_TOKEN: this.token, WHATSAPP_MCP_MEDIA_ROOT: media,
+      ...this.pairingTrace ? { WHATSAPP_MCP_PAIRING_TRACE: '1' } : {},
     }, this.ffmpeg === undefined ? [] : [dirname(this.ffmpeg)])
   }
 

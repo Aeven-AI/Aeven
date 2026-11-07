@@ -98,7 +98,12 @@ func New(ctx context.Context, cfg Config) (*Client, error) {
 
 	dbLog := NewStderrLogger("Database", "INFO", true)
 	waPath := filepath.Join(cfg.StoreDir, "whatsapp.db")
-	container, err := sqlstore.New(ctx, "sqlite3", "file:"+waPath+"?_pragma=foreign_keys(1)", dbLog)
+	// WAL lets the message store's read-only connection read while whatsmeow
+	// writes, and the busy timeout makes a contended write wait instead of
+	// failing: right after linking, history sync, message decryption, and the
+	// app-state fetch all write at once, and SQLITE_BUSY there loses messages
+	// to "undecryptable" and the first contact sync.
+	container, err := sqlstore.New(ctx, "sqlite3", "file:"+waPath+"?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)", dbLog)
 	if err != nil {
 		return nil, fmt.Errorf("open whatsmeow sqlstore: %w", err)
 	}

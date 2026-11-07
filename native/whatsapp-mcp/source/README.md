@@ -102,6 +102,8 @@ Restart the client. WhatsApp appears as an available integration. Closing and re
 
 By default the allowed root is `./store/uploads/` (resolved relative to your `-store` directory). On first run, `serve` creates it automatically; drop files you intend to send into it and point `output_path` here if you want to read incoming media from the same place.
 
+`WHATSAPP_MCP_PAIRING_TRACE=1` writes every linking-handshake node (QR refs, phone-code stages, passkey stages, pair-success) to stderr as `[Client/Trace WARN]` lines, to diagnose a link WhatsApp refuses. The trace names the account's phone number, so leave it unset outside diagnosis.
+
 To allow a different directory, set `WHATSAPP_MCP_MEDIA_ROOT` (absolute path) when starting the daemon:
 
 ```bash

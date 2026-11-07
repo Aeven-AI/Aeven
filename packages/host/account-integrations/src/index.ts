@@ -144,6 +144,11 @@ export interface Config {
   whatsappStartupTimeoutMs: number
   /** Time a stopping WhatsApp daemon gets to exit cleanly before it is killed. */
   whatsappStopGraceMs: number
+  /**
+   * Log every message of a WhatsApp linking handshake through the daemon's stderr into the Host log, to diagnose a
+   * link WhatsApp refuses. The trace names the account's phone number, so it stays off outside diagnosis.
+   */
+  whatsappPairingTrace: boolean
   /** Interval between pairing-state reads while a QR code is shown. */
   whatsappPairingPollMs: number
   /** First delay before restarting a WhatsApp daemon that exited unexpectedly; doubles per consecutive failure. */
@@ -528,6 +533,7 @@ export default class AccountIntegrations extends TypertRemoteService {
     telegramMaxRestartDelayMs: Schema.natural().min(1).default(60_000),
     whatsappStartupTimeoutMs: Schema.natural().min(1).default(15_000),
     whatsappStopGraceMs: Schema.natural().min(1).default(5_000),
+    whatsappPairingTrace: Schema.boolean().default(false),
     whatsappPairingPollMs: Schema.natural().min(100).default(1_500),
     whatsappRestartDelayMs: Schema.natural().min(1).default(1_000),
     whatsappMaxRestartDelayMs: Schema.natural().min(1).default(60_000),
@@ -1852,6 +1858,7 @@ export default class AccountIntegrations extends TypertRemoteService {
     return new WhatsAppDaemon(binary, this.whatsappDirectory(owner, id), {
       startupTimeoutMs: this.config.whatsappStartupTimeoutMs, requestTimeoutMs: this.config.timeoutMs,
       stopGraceMs: this.config.whatsappStopGraceMs,
+      pairingTrace: this.config.whatsappPairingTrace,
       onDiagnostic: (line) => { this.ctx.logger('account-integrations').warn(`whatsapp ${id.slice(0, 8)}: ${line}`) },
     }, this.ffmpegBinary)
   }
