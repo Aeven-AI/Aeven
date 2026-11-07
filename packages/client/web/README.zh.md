@@ -31,7 +31,7 @@ kind: "package-library"
 
 ### 启动过程是怎样的
 
-认证代码和样式属于外壳的初始依赖图，因此下载入口时也会发现登录资源。外壳求值时，渲染家族通过顶层动态导入立即开始加载，而认证流程不等待它。认证成功的启动会先把 UI primitives 实体化到平台表，再构造模块系统并求值任何插件 bundle。
+认证代码和样式属于外壳的初始依赖图，因此下载入口时也会发现登录资源。外壳求值时，渲染家族通过顶层动态导入立即开始加载，而认证流程不等待它。认证成功的启动会先把 UI primitives 实体化到平台表，再构造模块系统并求值任何插件 bundle。认证之前，`run()` 会把地址栏中的 `#q=` 消息移入该标签页的 `sessionStorage`（[`src/incoming-prompt.ts`](src/incoming-prompt.ts)），因此链接携带的消息能经过登录界面与提供方重定向而保留；由 `avn-client-ui-conversation` 发送它。
 
 启动分两个阶段：模块阶段接纳 parser 已加载的 bootstrap 批次，从 Host 提供的启动图构建模块系统，并通过只执行一次的共享 application 批次 URL 预取 `immediately` 层级。插件阶段随后激活每个图 entry 并等待全部就绪，之后才把带标记的启动 DOM 交给 UI 渲染器，由它 hydrate 并切换到完整 UI。
 

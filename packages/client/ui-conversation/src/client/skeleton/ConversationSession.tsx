@@ -6,6 +6,7 @@ import type {
 } from '../contract/slots.ts'
 import { conversationPhase } from '../contract/snapshot.ts'
 import { resolveActiveView } from '../view-selection.ts'
+import { takeIncomingPrompt } from '../input/incoming-prompt.ts'
 import { NavigationOptions } from './NavigationOptions.tsx'
 import css from './ConversationRoot.module.css'
 
@@ -71,7 +72,7 @@ export function ConversationSessionHeader({
  * @returns the active view area, or null while the Session remains blank.
  */
 export function ConversationSession({
-  useSession, useConversation, useConversationViews, useInput, inputActions, useStore, actions,
+  sessionId, useSession, useSessions, useConversation, useConversationViews, useInput, inputActions, useStore, actions,
   renderSlot, bindDraftMirror,
 }: ConversationSessionProps) {
   const tabs = useConversationViews(value => value)
@@ -81,6 +82,10 @@ export function ConversationSession({
   const conversation = useConversation(s => s)
   const inputState = useInput(s => s)
   const storedDraft = useStore(s => s.draft)
+  // The list's fact, as the Hero reads it: a Session snapshot still loading its
+  // history also reports blank.
+  const listBlank = useSessions(s => s.byId[sessionId]?.blank) === true
+  const promptAttempted = session.promptAttempted
 
   useEffect(() => {
     if (inputState.draft === '' && storedDraft !== '') inputActions.setDraft(storedDraft)
@@ -89,6 +94,16 @@ export function ConversationSession({
     // Mount-only (deps pinned to inputActions): later store writes come from
     // the machine mirror, not this seed effect.
   }, [inputActions])
+
+  // A message a link handed the chat is the first message of the blank Session
+  // it opens on; it waits in storage while the selected Session has history.
+  useEffect(() => {
+    if (!listBlank || promptAttempted) return
+    const incoming = takeIncomingPrompt()
+    if (incoming === undefined) return
+    inputActions.setDraft(incoming)
+    inputActions.submit()
+  }, [listBlank, promptAttempted, inputActions])
 
   if (session.blank && conversationPhase(session, conversation) === 'blank') return null
   return (
