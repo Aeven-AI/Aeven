@@ -3,7 +3,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { rename, rm, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, isAbsolute, join } from 'node:path'
 import { mkdir } from 'node:fs/promises'
 import { Context, Service, type Fiber } from '@deepseek-ai/cordis'
 import Schema from '@deepseek-ai/schemastery'
@@ -149,6 +149,12 @@ export interface Config {
    * link WhatsApp refuses. The trace names the account's phone number, so it stays off outside diagnosis.
    */
   whatsappPairingTrace: boolean
+  /**
+   * Folder holding one working folder per account (`<root>/<owner>`), such as the managed root a jailed Host files
+   * each account's sessions under. A linked WhatsApp number may send any file in its owner's folder there, so a file a
+   * session made reaches `send_file` without a copy; absent, it sends only from its own media folder.
+   */
+  whatsappReadRoot?: string
   /** Interval between pairing-state reads while a QR code is shown. */
   whatsappPairingPollMs: number
   /** First delay before restarting a WhatsApp daemon that exited unexpectedly; doubles per consecutive failure. */
@@ -534,6 +540,7 @@ export default class AccountIntegrations extends TypertRemoteService {
     whatsappStartupTimeoutMs: Schema.natural().min(1).default(15_000),
     whatsappStopGraceMs: Schema.natural().min(1).default(5_000),
     whatsappPairingTrace: Schema.boolean().default(false),
+    whatsappReadRoot: Schema.string(),
     whatsappPairingPollMs: Schema.natural().min(100).default(1_500),
     whatsappRestartDelayMs: Schema.natural().min(1).default(1_000),
     whatsappMaxRestartDelayMs: Schema.natural().min(1).default(60_000),
@@ -591,6 +598,9 @@ export default class AccountIntegrations extends TypertRemoteService {
     this.discordEntry = resolveDiscordEntry(config.discordEntryPath)
     if (config.discordPermissions !== undefined && !/^\d+$/.test(config.discordPermissions)) {
       throw new Error('discordPermissions must be a base-10 permission bitfield')
+    }
+    if (config.whatsappReadRoot !== undefined && !isAbsolute(config.whatsappReadRoot)) {
+      throw new Error(`whatsappReadRoot "${config.whatsappReadRoot}" must be absolute`)
     }
     const ref = credentialRef(config.credentialRef)
     this.broker = config.apiUrl === undefined ? undefined : new ConnectorBroker({
@@ -1863,6 +1873,9 @@ export default class AccountIntegrations extends TypertRemoteService {
       startupTimeoutMs: this.config.whatsappStartupTimeoutMs, requestTimeoutMs: this.config.timeoutMs,
       stopGraceMs: this.config.whatsappStopGraceMs,
       pairingTrace: this.config.whatsappPairingTrace,
+      // Only an owner id that is one plain path segment names a folder under the root.
+      readRoots: this.config.whatsappReadRoot !== undefined && /^[A-Za-z0-9_-]{1,128}$/u.test(owner)
+        ? [join(this.config.whatsappReadRoot, owner)] : [],
       onDiagnostic: (line) => { this.ctx.logger('account-integrations').warn(`whatsapp ${id.slice(0, 8)}: ${line}`) },
     }, this.ffmpegBinary)
   }

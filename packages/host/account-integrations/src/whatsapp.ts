@@ -77,6 +77,8 @@ export type WhatsAppDaemonStatus = z.infer<typeof statusSchema>
 export interface WhatsAppDaemonOptions extends AccountDaemonOptions {
   /** Log every linking-handshake message the daemon sends and receives; names the account's number, so diagnosis only. */
   pairingTrace: boolean
+  /** Absolute folders whose files `send_file` may send besides the daemon's own media folder. */
+  readRoots: readonly string[]
 }
 
 /**
@@ -94,9 +96,11 @@ export class WhatsAppDaemon extends AccountDaemon {
     private readonly ffmpeg?: string) {
     super('WhatsApp', directory, options)
     this.pairingTrace = options.pairingTrace
+    this.readRoots = options.readRoots
   }
 
   private readonly pairingTrace: boolean
+  private readonly readRoots: readonly string[]
 
   /** Spawn the daemon and wait for its bound loopback address. */
   async start(): Promise<void> {
@@ -107,6 +111,7 @@ export class WhatsAppDaemon extends AccountDaemon {
     await this.launch(this.binary, ['-store', store, 'serve', '-addr', '127.0.0.1:0', '-exit-on-stdin-eof'], {
       WHATSAPP_MCP_TOKEN: this.token, WHATSAPP_MCP_MEDIA_ROOT: media,
       ...this.pairingTrace ? { WHATSAPP_MCP_PAIRING_TRACE: '1' } : {},
+      ...this.readRoots.length > 0 ? { WHATSAPP_MCP_READ_ROOTS: this.readRoots.join(delimiter) } : {},
     }, this.ffmpeg === undefined ? [] : [dirname(this.ffmpeg)])
   }
 

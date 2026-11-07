@@ -1670,6 +1670,12 @@ export interface Config {
    * link WhatsApp refuses. The trace names the account's phone number, so it stays off outside diagnosis.
    */
   whatsappPairingTrace: boolean
+  /**
+   * Folder holding one working folder per account (`<root>/<owner>`), such as the managed root a jailed Host files
+   * each account's sessions under. A linked WhatsApp number may send any file in its owner's folder there, so a file a
+   * session made reaches `send_file` without a copy; absent, it sends only from its own media folder.
+   */
+  whatsappReadRoot?: string
   /** Interval between pairing-state reads while a QR code is shown. */
   whatsappPairingPollMs: number
   /** First delay before restarting a WhatsApp daemon that exited unexpectedly; doubles per consecutive failure. */

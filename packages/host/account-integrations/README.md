@@ -140,6 +140,7 @@ Register the client id and the callback port in the profile that serves the conn
 | `maxTelegramAccounts` | 10 | Telegram accounts one account may sign in |
 | `whatsappBinaryPath` | platform package | WhatsApp daemon executable; a linked platform package whose binary was never built leaves WhatsApp unavailable |
 | `whatsappStartupTimeoutMs`, `whatsappStopGraceMs` | 15000, 5000 | Time to bind the loopback port, and to exit after stdin closes |
+| `whatsappReadRoot` | none | Folder holding one working folder per account (`<root>/<owner>`); a linked WhatsApp number may send any file in its owner's folder there. The hosted bundle sets the jail's managed root, so a file a session made can be sent |
 | `whatsappPairingTrace` | false | Log every linking-handshake message into the Host log to diagnose a refused link; the trace names the account's number |
 | `whatsappPairingPollMs` | 1500 | Interval between QR-state reads |
 | `whatsappRestartDelayMs`, `whatsappMaxRestartDelayMs` | 1000, 60000 | Restart backoff bounds |

@@ -81,6 +81,15 @@ func runServe(storeDir string, redactor *security.Redactor, args []string) int {
 		allowedMediaRoot = filepath.Join(absStore, "uploads")
 	}
 	allowedMediaRoot = filepath.Clean(allowedMediaRoot)
+	// WHATSAPP_MCP_READ_ROOTS names further directories send_file may read
+	// from, separated like PATH; a supervisor points it at the account's own
+	// working folders, so a file made there can be sent without a copy.
+	var readRoots []string
+	for _, root := range filepath.SplitList(os.Getenv("WHATSAPP_MCP_READ_ROOTS")) {
+		if root != "" && filepath.IsAbs(root) {
+			readRoots = append(readRoots, filepath.Clean(root))
+		}
+	}
 	if mkErr := os.MkdirAll(allowedMediaRoot, 0o755); mkErr != nil {
 		fmt.Fprintf(os.Stderr, "warn: could not create media root %q: %v\n", allowedMediaRoot, mkErr)
 	}
@@ -113,6 +122,7 @@ func runServe(storeDir string, redactor *security.Redactor, args []string) int {
 		Store:            st,
 		Logger:           logger,
 		AllowedMediaRoot: allowedMediaRoot,
+		ReadRoots:        readRoots,
 		Redactor:         redactor,
 	})
 	if err != nil {

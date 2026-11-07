@@ -205,6 +205,16 @@
     # for that account, which is the only folder its commands can see.
     managedRoot: !!js "process.env.AVN_HOSTED_SANDBOX === '1' ? avnHomePath('sandbox', 'accounts') : undefined"
 
+# A WhatsApp number may send a file the account's own sessions made: the
+# account's managed folder, the one its jailed commands see, is a root the
+# number's daemon reads from. The row restates the keys web-app gives it.
+- id: account-integrations
+  config:
+    apiUrl: !!js process.env.AEVEN_API_URL ?? 'http://localhost:9000'
+    slackClientId: !!js process.env.SLACK_CLIENT_ID
+    slackCallbackPort: 12751
+    whatsappReadRoot: !!js "process.env.AVN_HOSTED_SANDBOX === '1' ? avnHomePath('sandbox', 'accounts') : undefined"
+
 - id: directory-picker
   disabled: true
 

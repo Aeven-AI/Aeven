@@ -104,6 +104,8 @@ Claude Desktop 的 `claude_desktop_config.json` 不像 Claude Code 与 Cursor �
 
 `serve` 以名为 **Aeven** 的浏览器身份关联，手机的“已关联的设备”列表即以此显示；此前关联的设备保留关联时的名称，直到重新关联。
 
+`WHATSAPP_MCP_READ_ROOTS` 以与 `PATH` 相同的分隔方式列出更多绝对目录，`send_file` 和 `send_audio_message` 可发送其中的文件；下载仍写入媒体根目录。`pairing_status` 将其列为 `send_roots`。监管进程将其指向账户自己的工作文件夹，使在那里生成的文件无需复制即可发送。
+
 `WHATSAPP_MCP_PAIRING_TRACE=1` 会把关联握手的每个节点（QR ref、手机代码各阶段、passkey 各阶段、pair-success）以 `[Client/Trace WARN]` 行写到 stderr，用于诊断被 WhatsApp 拒绝的关联。记录中含账户手机号，因此除诊断外不要设置。
 
 要允许另一个目录，启动守护进程时设置 `WHATSAPP_MCP_MEDIA_ROOT`（绝对路径）：
