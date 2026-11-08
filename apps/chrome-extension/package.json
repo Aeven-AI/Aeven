@@ -1,0 +1,15 @@
+{
+  "name": "@aeven/chrome-extension",
+  "description": "The Aeven browser extension: drives the agent's tabs in any Chromium browser through the Aeven desktop app",
+  "version": "0.3.37-alpha",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsdown"
+  },
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@aeven/browser-engine": "workspace:^",
+    "@aeven/experimental-browser-overlay": "workspace:^"
+  }
+}

@@ -3,17 +3,18 @@
  * the endpoints that section resolves to. The pane reads the engine through
  * the mirror, so a change made on the Settings page reaches an open pane.
  */
-import { createSnapshotStore, type SnapshotStore } from '@aeven/client-store'
+import type { SnapshotStore } from '@aeven/client-store'
 import type { SettingsScope } from '@aeven/client-ui-settings/client'
 import { SEARCH_ENGINE_FIELD, type BrowserSettings } from '../browser-settings.ts'
 import { DEFAULT_SEARCH_ENGINE, searchUrl, suggestUrl, type SearchEngineId } from '../search-engines.ts'
+import { SettingMirror } from './setting-mirror.ts'
 
 /** Live search-engine choice for one browser plugin instance. */
 export class SearchEnginePreference {
-  /** Reactive current engine; the default until the Host section arrives. */
-  readonly engine: SnapshotStore<SearchEngineId> = createSnapshotStore(DEFAULT_SEARCH_ENGINE)
+  readonly #mirror = new SettingMirror(SEARCH_ENGINE_FIELD, DEFAULT_SEARCH_ENGINE)
 
-  private host: SettingsScope<BrowserSettings> | undefined
+  /** Reactive current engine; the default until the Host section arrives. */
+  get engine(): SnapshotStore<SearchEngineId> { return this.#mirror.value }
 
   /**
    * Follow one Host settings section.
@@ -21,13 +22,7 @@ export class SearchEnginePreference {
    * @returns disposer that stops following it.
    */
   attach(host: SettingsScope<BrowserSettings>): () => void {
-    this.host = host
-    const off = host.subscribe(() => { this.adopt() })
-    this.adopt()
-    return () => {
-      off()
-      this.host = undefined
-    }
+    return this.#mirror.attach(host)
   }
 
   /**
@@ -35,9 +30,7 @@ export class SearchEnginePreference {
    * @param engine - engine the reader picked.
    */
   setEngine(engine: SearchEngineId): void {
-    if (this.engine.getSnapshot() === engine) return
-    this.engine.set(engine)
-    void this.host?.set(SEARCH_ENGINE_FIELD, engine)
+    this.#mirror.set(engine)
   }
 
   /**
@@ -56,12 +49,5 @@ export class SearchEnginePreference {
    */
   suggest(query: string): string {
     return suggestUrl(this.engine.getSnapshot(), query)
-  }
-
-  /** Adopt the latest accepted Host section without writing it back. */
-  private adopt(): void {
-    const section = this.host?.getSnapshot().value
-    if (section === undefined || this.engine.getSnapshot() === section.searchEngine) return
-    this.engine.set(section.searchEngine)
   }
 }

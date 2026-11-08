@@ -40,6 +40,7 @@ export const API_REMOTE_FORWARDED_EVENTS = [
   { event: 'skills/change', mode: 'emit' },
   { event: 'sync/devices', mode: 'emit' },
   { event: 'sync/status', mode: 'emit' },
+  { event: 'terminal/present', mode: 'waterfall' },
   { event: 'terminal/show', mode: 'waterfall' },
   { event: 'user-questions/request', mode: 'waterfall' },
   { event: 'workspace-files/show', mode: 'waterfall' },

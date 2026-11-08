@@ -25,6 +25,7 @@ import { AevenSession } from './aeven-session.ts'
 import { installContextMenu, registerContextMenuIpc } from './context-menu.ts'
 import { listenForPageLinks, openContentAddress } from './external-links.ts'
 import { hardenBrowserGuests, registerBrowserIpc } from './browser-guests.ts'
+import { startExtensionBridge } from './browser-extension.ts'
 import { acquireHostClientLease, resolveAvnHome } from '@aeven/home-paths'
 import { planDesktopBackend } from './attached-host.ts'
 import { resolveDesktopPaths } from './paths.ts'
@@ -96,6 +97,11 @@ function appPathUrl(path: string): string {
 function errorOf(reason: unknown, fallback: string): Error {
   return reason instanceof Error ? reason : new Error(fallback)
 }
+
+// WebMCP (`document.modelContext`) lets a page offer tools to an agent; the
+// sidebar browser's agent lists and invokes them. Chromium ships it behind this
+// feature, which must be set before the app is ready.
+app.commandLine.appendSwitch('enable-features', 'WebMCP')
 
 protocol.registerSchemesAsPrivileged([{
   scheme: SCHEME,
@@ -1005,6 +1011,8 @@ async function main(): Promise<void> {
   registerBrowserIpc(event => mainWindow !== undefined
     && event.sender === mainWindow.webContents
     && event.senderFrame === event.sender.mainFrame)
+  // The Aeven browser extension reaches the agent through this app's native messaging host.
+  void startExtensionBridge(resolveAvnHome()).catch((error: unknown) => { console.error('avn desktop: browser extension bridge failed', error) })
   registerContextMenuIpc(event => mainWindow !== undefined
     && event.sender === mainWindow.webContents
     && event.senderFrame === event.sender.mainFrame)

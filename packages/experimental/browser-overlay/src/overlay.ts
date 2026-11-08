@@ -18,7 +18,9 @@ import {
   overlayStyles,
 } from './styles.ts'
 import { CURSOR_ASSET_URL } from './cursor-asset.ts'
+import { spriteCanvas } from './sprite-canvas.ts'
 import { CursorMotion, cursorTransform, visibilityStyles } from './motion.ts'
+import { FRAME_SECONDS, jumpSpring } from './springs.ts'
 
 /**
  * Which moment of an action the pointer is showing.
@@ -197,6 +199,11 @@ export class BrowserOverlay {
     sprite.draggable = false
     sprite.decoding = 'sync'
     sprite.dataset.aevenBrowserOverlaySprite = ''
+    // A page whose Content-Security-Policy refuses data: images gets the same
+    // pixels painted on a canvas instead.
+    sprite.addEventListener('error', () => {
+      void spriteCanvas(CURSOR_ASSET_URL).then((canvas) => { sprite.replaceWith(canvas) }, () => undefined)
+    }, { once: true })
     sprite.src = CURSOR_ASSET_URL
     wrapper.append(sprite)
     cursor.append(wrapper)
@@ -539,7 +546,9 @@ export class BrowserOverlay {
     const motion = this.#motion
     if (cursor === undefined || root === undefined || motion === undefined) return
     const target = this.#clampPoint(point)
-    const first = this.#point === undefined
+    // A pointer that is not on screen reappears at its target at full visibility,
+    // as the reference does, instead of gliding in from where it faded.
+    const first = this.#point === undefined || motion.visibility.value <= 0.001
     this.#point = { ...target }
     cursor.dataset.visible = 'true'
     root.dataset.visible = 'true'
@@ -547,7 +556,7 @@ export class BrowserOverlay {
     motion.setVisible(true)
     if (first) {
       motion.jumpTo(target.x, target.y)
-      motion.visibility.value = motion.visibility.target = 1
+      jumpSpring(motion.visibility, 1)
       this.#settleArrivals()
     } else {
       motion.travelTo(target.x, target.y, {
@@ -575,7 +584,9 @@ export class BrowserOverlay {
         this.#frame = undefined
         return
       }
-      const seconds = Math.max(0, (now - this.#lastFrameAt) / 1000)
+      // The reference never advances a frame by less than one 60Hz frame, and the
+      // first frame of a long move by exactly one.
+      const seconds = motion.takeJourneyStart() ? FRAME_SECONDS : Math.max(FRAME_SECONDS, (now - this.#lastFrameAt) / 1000)
       this.#lastFrameAt = now
       const moving = motion.step(seconds)
       const visibility = visibilityStyles(motion.visibility.value)

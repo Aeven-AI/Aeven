@@ -5,6 +5,9 @@
  * one rhythm.
  */
 import type { ReactNode } from 'react'
+import { useState } from 'react'
+import { IconQuestionOutline14 } from './icons/index.tsx'
+import { Modal } from './Modal.tsx'
 import css from './SettingsRow.module.css'
 
 /** Props of {@link SettingsGroup}. */
@@ -44,8 +47,13 @@ export function SettingsGroup({ title, description, aside, children }: SettingsG
 export interface SettingsRowProps {
   /** The setting's name. */
   title: ReactNode
-  /** Supporting text under the name; absent renders none. */
+  /** Supporting text under the name, one line; absent renders none. */
   description?: ReactNode
+  /**
+   * The longer explanation, opened in a modal from a question icon beside the name,
+   * as Sync's passkey row does; absent renders none.
+   */
+  info?: { readonly title: string; readonly body: string; readonly closeLabel: string }
   /** Trailing control: a select, switch, or button; absent renders none. */
   control?: ReactNode
   /** Content under the row, such as an inline form or a progress line; absent renders none. */
@@ -57,17 +65,31 @@ export interface SettingsRowProps {
  * @param props - see {@link SettingsRowProps}.
  * @returns the row element.
  */
-export function SettingsRow({ title, description, control, children }: SettingsRowProps) {
+export function SettingsRow({ title, description, info, control, children }: SettingsRowProps) {
+  const [infoOpen, setInfoOpen] = useState(false)
   return (
     <div className={css.row}>
       <div className={css.rowHead}>
         <div className={css.rowText}>
-          <div className={css.rowTitle}>{title}</div>
+          <div className={css.rowTitle}>
+            {title}
+            {info !== undefined && (
+              <button type="button" className={css.rowInfo} aria-label={info.title} aria-haspopup="dialog" onClick={() => { setInfoOpen(true) }}>
+                <IconQuestionOutline14 />
+              </button>
+            )}
+          </div>
           {description !== undefined && <div className={css.rowDescription}>{description}</div>}
         </div>
         {control !== undefined && <div className={css.rowControl}>{control}</div>}
       </div>
       {children}
+      {info !== undefined && (
+        <Modal
+          open={infoOpen} onClose={() => { setInfoOpen(false) }}
+          title={info.title} description={info.body} closeLabel={info.closeLabel}
+        />
+      )}
     </div>
   )
 }

@@ -17,7 +17,10 @@ import {
   type IpcMainInvokeEvent,
   type WebContents,
 } from 'electron'
-import { acknowledgeBrowserCursor, automate } from './browser-automation.ts'
+import { automate, observePage } from '@aeven/browser-engine'
+import { acknowledgeBrowserCursor, DESKTOP_ENGINE_HOST, guestTarget } from './browser-guest-target.ts'
+import { chromeCloseTab, chromeOpenTab, chromeTabs, chromeTarget, type ChromeKind } from './browser-chrome.ts'
+import { extensionBookmarks, extensionBrowsers, extensionCloseTab, extensionHistory, extensionOpenTab, extensionOperate, extensionTabs } from './browser-extension.ts'
 import { fetchSuggestions } from './browser-search.ts'
 import { DESKTOP_IPC, type DesktopBrowserColorScheme, type DesktopBrowserDataKind } from './ipc.ts'
 
@@ -179,6 +182,8 @@ async function reportPageScroll(guest: WebContents): Promise<void> {
     // The binding must exist before the reporter calls it.
     await guest.debugger.sendCommand('Runtime.addBinding', { name: PAGE_SCROLL_BINDING })
     await guest.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: PAGE_SCROLL_REPORTER })
+    // Dialog events, and the navigation events an action's wait reads, come from the page domain.
+    await guest.debugger.sendCommand('Page.enable')
   } catch (error) {
     // A guest that closed mid-attach takes its debugger with it; a later attach
     // of the same guest installs the reporter then.
@@ -186,8 +191,10 @@ async function reportPageScroll(guest: WebContents): Promise<void> {
     reportingGuests.delete(guest)
     return
   }
+  const stopObserving = observePage(guestTarget(guest))
   guest.debugger.once('detach', () => {
     reportingGuests.delete(guest)
+    stopObserving()
     guest.debugger.off('message', report)
     guest.off('did-navigate', installReporter)
     guest.off('did-finish-load', installReporter)
@@ -256,54 +263,146 @@ export function registerBrowserIpc(isAppSender: (event: IpcMainEvent | IpcMainIn
     if (!isAppSender(event) || typeof guestId !== 'number' || typeof sequence !== 'number' || !Number.isSafeInteger(sequence)) return
     acknowledgeBrowserCursor(event.sender, guestId, sequence)
   })
-  const pending = new Map<string, { guest: Electron.WebContents; controller: AbortController }>()
+  const pending = new Map<string, { id: number | string; controller: AbortController }>()
   ipcMain.on(DESKTOP_IPC.browserCancelAutomation, (event, webContentsId: unknown, requestId: unknown) => {
     if (!isAppSender(event) || typeof requestId !== 'string') return
     const request = pending.get(`${String(event.sender.id)}:${requestId}`)
-    if (request !== undefined && request.guest.id === webContentsId) request.controller.abort(new Error('browser action cancelled'))
+    if (request !== undefined && request.id === webContentsId) request.controller.abort(new Error('browser action cancelled'))
   })
-  ipcMain.handle(DESKTOP_IPC.browserAutomate, async (
-    event, webContentsId: unknown, operation: unknown, input: unknown, requestId: unknown, timeoutMs: unknown,
-  ) => {
-    assertApp(event)
+  /**
+   * Run one engine operation on a target under the request's deadline and cancellation.
+   * @param event - the invoking renderer's event.
+   * @param guest - the target acted on.
+   * @param operation - the engine operation.
+   * @param input - the tool's arguments.
+   * @param requestId - id the renderer cancels with.
+   * @param timeoutMs - execution deadline.
+   * @param prepare - work before the operation, such as attaching a guest's observers.
+   * @param release - releases pending debugger replies when the request is cancelled.
+   * @param closed - aborts when the target goes away.
+   * @returns the operation's result.
+   */
+  const run = async (
+    event: IpcMainInvokeEvent, id: number | string, operation: unknown, input: unknown, requestId: unknown, timeoutMs: unknown,
+    perform: (operation: string, input: Record<string, unknown>, signal: AbortSignal) => Promise<unknown>,
+    prepare: () => Promise<void>, release: () => void, closed?: AbortSignal,
+  ): Promise<unknown> => {
     if (typeof operation !== 'string') throw new Error('avn desktop: browser operation must be a string')
     if (typeof input !== 'object' || input === null) throw new Error('avn desktop: browser input must be an object')
     if (requestId !== undefined && typeof requestId !== 'string') throw new Error('browser request id must be a string')
     if (timeoutMs !== undefined && (typeof timeoutMs !== 'number' || !Number.isFinite(timeoutMs) || timeoutMs <= 0)) throw new Error('browser timeout must be positive')
-    const guest = hostedGuest(event, webContentsId)
     const controller = new AbortController()
     const key = `${String(event.sender.id)}:${String(requestId)}`
     if (requestId !== undefined && pending.has(key)) throw new Error('browser request id is already pending')
-    if (requestId !== undefined) pending.set(key, { guest, controller })
+    if (requestId !== undefined) pending.set(key, { id, controller })
     const duration = typeof timeoutMs === 'number' ? timeoutMs : 20_000
     const timer = setTimeout(() => { controller.abort(new Error(`browser action timed out after ${String(duration)}ms`)) }, duration)
-    const destroyed = (): void => { controller.abort(new Error('browser page closed')) }
-    guest.once('destroyed', destroyed)
+    const gone = (): void => { controller.abort(new Error('browser page closed')) }
+    closed?.addEventListener('abort', gone, { once: true })
     let abort: () => void = () => {}
     const cancelled = new Promise<never>((_resolve, reject) => {
       abort = (): void => {
-        if (!guest.isDestroyed() && guest.debugger.isAttached()) {
-          // Detaching releases pending CDP replies; it does not undo page timers or completed input.
-          void guest.debugger.sendCommand('Runtime.terminateExecution').catch(() => { /* Detachment can reject the termination reply. */ })
-          guest.debugger.detach()
-        }
+        release()
         reject(controller.signal.reason as Error)
       }
       controller.signal.addEventListener('abort', abort, { once: true })
     })
     try {
       const work = async (): Promise<unknown> => {
-        if (!guest.debugger.isAttached()) await reportPageScroll(guest)
+        await prepare()
         controller.signal.throwIfAborted()
-        return automate(guest, operation, input as Record<string, unknown>, controller.signal)
+        return await perform(operation, input as Record<string, unknown>, controller.signal)
       }
       return await Promise.race([work(), cancelled])
     } finally {
       clearTimeout(timer)
-      guest.off('destroyed', destroyed)
+      closed?.removeEventListener('abort', gone)
       controller.signal.removeEventListener('abort', abort)
       if (requestId !== undefined) pending.delete(key)
     }
+  }
+  ipcMain.handle(DESKTOP_IPC.browserAutomate, async (
+    event, webContentsId: unknown, operation: unknown, input: unknown, requestId: unknown, timeoutMs: unknown,
+  ) => {
+    assertApp(event)
+    const guest = hostedGuest(event, webContentsId)
+    const closed = new AbortController()
+    const destroyed = (): void => { closed.abort() }
+    guest.once('destroyed', destroyed)
+    try {
+      const target = guestTarget(guest)
+      return await run(event, guest.id, operation, input, requestId, timeoutMs,
+        async (name, values, signal) => await automate(target, name, values, signal, DESKTOP_ENGINE_HOST),
+        async () => { if (!guest.debugger.isAttached()) await reportPageScroll(guest) },
+        () => {
+          if (!guest.isDestroyed() && guest.debugger.isAttached()) {
+            // Detaching releases pending CDP replies; it does not undo page timers or completed input.
+            void guest.debugger.sendCommand('Runtime.terminateExecution').catch(() => { /* Detachment can reject the termination reply. */ })
+            guest.debugger.detach()
+          }
+        }, closed.signal)
+    } finally {
+      guest.off('destroyed', destroyed)
+    }
+  })
+  const chromeKind = (kind: unknown): ChromeKind | 'extension' => {
+    if (kind !== 'aeven' && kind !== 'user' && kind !== 'extension') throw new Error('avn desktop: Chrome must be aeven, user, or extension')
+    return kind
+  }
+  const chromeUrl = (browserUrl: unknown): string | undefined => {
+    if (browserUrl === undefined || browserUrl === null) return undefined
+    if (typeof browserUrl !== 'string' || !/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(browserUrl)) throw new Error("avn desktop: Aeven's Chrome endpoint must be a local http address")
+    return browserUrl
+  }
+  ipcMain.handle(DESKTOP_IPC.browserChromeTabs, async (event, kind: unknown, browserUrl: unknown) => {
+    assertApp(event)
+    const chrome = chromeKind(kind)
+    if (chrome === 'extension') return await extensionTabs()
+    return await chromeTabs(chrome, chromeUrl(browserUrl))
+  })
+  ipcMain.handle(DESKTOP_IPC.browserChromeOpen, async (event, kind: unknown, browserUrl: unknown, url: unknown, browserName: unknown) => {
+    assertApp(event)
+    if (typeof url !== 'string') throw new Error('avn desktop: Chrome tab address must be a string')
+    if (browserName !== undefined && typeof browserName !== 'string') throw new Error('avn desktop: a browser name must be a string')
+    const chrome = chromeKind(kind)
+    if (chrome === 'extension') return await extensionOpenTab(url, browserName ?? '')
+    return await chromeOpenTab(chrome, chromeUrl(browserUrl), url)
+  })
+  ipcMain.handle(DESKTOP_IPC.browserChromeClose, async (event, kind: unknown, browserUrl: unknown, targetId: unknown) => {
+    assertApp(event)
+    if (typeof targetId !== 'string') throw new Error('avn desktop: Chrome tab id must be a string')
+    const chrome = chromeKind(kind)
+    if (chrome === 'extension') await extensionCloseTab(targetId)
+    else await chromeCloseTab(chrome, chromeUrl(browserUrl), targetId)
+  })
+  ipcMain.handle(DESKTOP_IPC.browserExtensionStatus, (event) => {
+    assertApp(event)
+    return extensionBrowsers()
+  })
+  ipcMain.handle(DESKTOP_IPC.browserExtensionRead, async (event, what: unknown, query: unknown, limit: unknown) => {
+    assertApp(event)
+    if (typeof query !== 'string' || typeof limit !== 'number' || !Number.isInteger(limit) || limit < 1 || limit > 200) throw new Error('avn desktop: a search needs a query and a limit of 1 to 200')
+    if (what === 'history') return await extensionHistory(query, limit)
+    if (what === 'bookmarks') return await extensionBookmarks(query, limit)
+    throw new Error('avn desktop: the extension reads history or bookmarks')
+  })
+  ipcMain.handle(DESKTOP_IPC.browserChromeAutomate, async (
+    event, kind: unknown, browserUrl: unknown, targetId: unknown, operation: unknown, input: unknown,
+    requestId: unknown, timeoutMs: unknown,
+  ) => {
+    assertApp(event)
+    if (typeof targetId !== 'string') throw new Error('avn desktop: Chrome tab id must be a string')
+    const chrome = chromeKind(kind)
+    if (chrome === 'extension') {
+      // The extension runs the engine itself; the app sends it the whole operation.
+      return await run(event, targetId, operation, input, requestId, timeoutMs,
+        async (name, values, signal) => await extensionOperate(targetId, name, values, signal), async () => {}, () => {})
+    }
+    const tab = await chromeTarget(chrome, chromeUrl(browserUrl), targetId)
+    return await run(event, targetId, operation, input, requestId, timeoutMs,
+      async (name, values, signal) => await automate(tab, name, values, signal, DESKTOP_ENGINE_HOST), async () => {}, () => {
+        void tab.debugger.sendCommand('Runtime.terminateExecution').catch(() => { /* A closed tab rejects the termination reply. */ })
+      })
   })
   ipcMain.handle(DESKTOP_IPC.browserSuggest, async (event, url: unknown) => {
     assertApp(event)

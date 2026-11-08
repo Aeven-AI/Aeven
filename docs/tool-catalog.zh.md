@@ -50,7 +50,7 @@
 | `@aeven/tool-todo` | `todo_write` | `ctx.tools`、`owning Agent session` | `tool/call`、`todo/write`、`tool/result` | - | todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为检查清单。`allowParallelInProgress` 是没有默认值的必填项，因此本目录明确选择 `true`，对应描述允许同时存在多个 `in_progress` 项。选择 `false` 的部署会获得同一工具，但描述会要求只能有 1 个活动任务。 |
 | `@aeven/tool-workflow` | `workflow` | `ctx.tools`、`ctx.workflowEngine`、`ctx.systemPrompt`、`a calling Agent (exec.agent parents the script children)` | `tool/call`、`tool/result` | - | - |
 | `@aeven/tool-web` | `web_fetch`、`web_search` | `ctx.tools`、`ctx.web`、`ctx.systemPrompt` | `tool/call`、`tool/result` | - | web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可见 schema 在更换后端时保持稳定。 |
-| `@aeven/tool-browser` | `preview_back`、`preview_click`、`preview_evaluate`、`preview_forward`、`preview_navigate`、`preview_press`、`preview_reload`、`preview_screenshot`、`preview_scroll`、`preview_sequence`、`preview_snapshot`、`preview_status`、`preview_type`、`preview_upload` | `ctx.tools`、`ctx.agents`、`a browser/automation listener (execution time)` | `tool/call`、`tool/result` | - | preview_* 调用由持有该会话浏览器的客户端应答；每次调用都受工具超时上限约束。 |
+| `@aeven/tool-browser` | `preview_back`, `preview_bookmarks`, `preview_browser_control`, `preview_check`, `preview_click`, `preview_clipboard`, `preview_console`, `preview_content`, `preview_dialog`, `preview_drag`, `preview_evaluate`, `preview_export_document`, `preview_forward`, `preview_handoff`, `preview_history`, `preview_hover`, `preview_navigate`, `preview_page_tools`, `preview_press`, `preview_read`, `preview_reload`, `preview_screenshot`, `preview_scroll`, `preview_select`, `preview_sequence`, `preview_snapshot`, `preview_status`, `preview_tabs`, `preview_type`, `preview_upload`, `preview_wait` | `ctx.tools`, `ctx.agents`, `a browser/automation listener (execution time)` | `tool/call`, `tool/result` | - | preview_* calls are answered by the Client holding the session's browser; each call is bounded by the tool timeout. |
 | `@aeven/tool-read-aloud` | `read_aloud` | `ctx.tools` | `tool/call`, `tool/result` | - | The tool is a pure instruction: it logs the switch it was given and speaks nothing on the Host. The Web Surface reads the settled call and moves its own reader, so the model can start language practice without a Session event of its own. |
 | `@aeven/tool-location` | `get_location` | `ctx.tools`、`ctx.agents`、`a location/request listener (execution time)` | `tool/call`、`tool/result` | - | get_location 由显示该会话的客户端在读者做出选择后应答；该调用受工具超时上限约束。 |
 | `@aeven/tool-capability` | `capability_manage` | `ctx.tools`、`ctx.systemPrompt`、`ctx.capabilities`、`ctx.llm`、`ctx.memory (default store)`、`an Agent whose session has an owner at execution time` | `tool/call`、`tool/result`、`capabilities/changed for the capabilities store`、`long-term memory for a learned procedure under the default store` | - | 注册的 action 取决于加载时的 `store` 配置：默认的 `memory` 会把学到的流程保存为长期记忆，且只注册 `learn` 与 `import`；`capabilities` 则把它保存为能力文件，并注册 list、view、learn、update、write_file、report、retire 与 restore。学习器与流程回忆都运行在同一包内，本身不贡献任何工具。 |
@@ -2762,9 +2762,66 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 
 来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
 
-### `preview_click`
+### `preview_bookmarks`
 
-在协作浏览器标签页中点击恰好一个目标。优先使用 preview_snapshot 返回的选择器；x 与 y 必须同时提供。
+Search the user's bookmarks in their own browser, through the Aeven extension, by words in the title or address. Asks the user first.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "Words to match; empty lists recent bookmarks."
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Most bookmarks to return, 1 to 200. Defaults to 20."
+    }
+  }
+}
+```
+
+来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_browser_control`
+
+Press a control of the browser itself with the pointer, as the user would: copy a screenshot of the page to the clipboard (capture), open the page in Chrome, hard reload, open DevTools, zoom in, out, or reset, switch the page's appearance, or clear cookies or cache (asks the user first; clearing cookies signs them out of every site).
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "control": {
+      "type": "string",
+      "description": "The control to press.",
+      "enum": [
+        "capture",
+        "open-in-chrome",
+        "hard-reload",
+        "devtools",
+        "zoom-in",
+        "zoom-out",
+        "zoom-reset",
+        "appearance:system",
+        "appearance:light",
+        "appearance:dark",
+        "clear-cache",
+        "clear-cookies"
+      ]
+    }
+  },
+  "required": [
+    "control"
+  ]
+}
+```
+
+来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_check`
+
+Set a checkbox, radio button, or switch to checked or unchecked, clicking it only when its state differs.
 
 ```json
 {
@@ -2772,11 +2829,61 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
   "properties": {
     "selector": {
       "type": "string",
-      "description": "CSS selector such as button[type='submit'], from preview_snapshot's interactiveElements."
+      "description": "Element selector: CSS such as button[type='submit'] (from preview_snapshot's interactiveElements), or a locator such as text=Sign in, role=button[name=\"Save\"], label=Email, placeholder=Search, testid=submit, or xpath=//a. Join parts with >> to search inside a match; append >> nth=0 to pick one of several matches."
     },
     "token": {
       "type": "string",
       "description": "Element token from the latest preview_snapshot with mode ax. Valid until the next browser action; do not combine with selector or coordinates."
+    },
+    "frame": {
+      "type": "string",
+      "description": "Selector of the iframe the target is in. Omit for the top document."
+    },
+    "checked": {
+      "type": "boolean",
+      "description": "The state the control should end in."
+    }
+  },
+  "required": [
+    "checked"
+  ]
+}
+```
+
+来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_click`
+
+Click exactly one target in the collaborative browser tab: the pointer moves there first, and the call returns once a navigation the click started has loaded. Prefer a selector from preview_snapshot; x and y must be supplied together. clickCount 2 double-clicks; button right opens a context menu.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "selector": {
+      "type": "string",
+      "description": "Element selector: CSS such as button[type='submit'] (from preview_snapshot's interactiveElements), or a locator such as text=Sign in, role=button[name=\"Save\"], label=Email, placeholder=Search, testid=submit, or xpath=//a. Join parts with >> to search inside a match; append >> nth=0 to pick one of several matches."
+    },
+    "token": {
+      "type": "string",
+      "description": "Element token from the latest preview_snapshot with mode ax. Valid until the next browser action; do not combine with selector or coordinates."
+    },
+    "frame": {
+      "type": "string",
+      "description": "Selector of the iframe the target is in. Omit for the top document."
+    },
+    "modifiers": {
+      "type": "array",
+      "description": "Modifier keys held during the action.",
+      "items": {
+        "type": "string",
+        "enum": [
+          "Alt",
+          "Control",
+          "Meta",
+          "Shift"
+        ]
+      }
     },
     "x": {
       "type": "number",
@@ -2785,8 +2892,207 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
     "y": {
       "type": "number",
       "description": "Viewport-relative Y coordinate in CSS pixels. Must be paired with x."
+    },
+    "clickCount": {
+      "type": "integer",
+      "description": "Clicks in a row: 1 (default), 2 for a double-click, 3 for a triple-click.",
+      "enum": [
+        1,
+        2,
+        3
+      ]
+    },
+    "button": {
+      "type": "string",
+      "description": "Mouse button. Defaults to left.",
+      "enum": [
+        "left",
+        "right",
+        "middle"
+      ]
     }
   }
+}
+```
+
+来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_clipboard`
+
+Read or write the computer's clipboard text, for example to paste into a page with preview_press Meta+v after writing. Reading asks the user first.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "action": {
+      "type": "string",
+      "description": "read or write.",
+      "enum": [
+        "read",
+        "write"
+      ]
+    },
+    "text": {
+      "type": "string",
+      "description": "Text to write."
+    }
+  },
+  "required": [
+    "action"
+  ]
+}
+```
+
+来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_console`
+
+Read the page's recent console messages and uncaught exceptions, newest last, to debug a page that misbehaves.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "levels": {
+      "type": "array",
+      "description": "Only these levels.",
+      "items": {
+        "type": "string",
+        "enum": [
+          "log",
+          "info",
+          "warning",
+          "error",
+          "debug",
+          "exception"
+        ]
+      }
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Most recent entries to return, 1 to 500. Defaults to 100."
+    },
+    "clear": {
+      "type": "boolean",
+      "description": "Forget the returned entries afterwards."
+    }
+  }
+}
+```
+
+来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_content`
+
+Read the open page's content in one call: markdown (default) for articles and documents, text, html, or youtube_transcript for the captions of an open YouTube video. Output past 100000 characters is truncated.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "format": {
+      "type": "string",
+      "description": "Output format. Defaults to markdown.",
+      "enum": [
+        "markdown",
+        "text",
+        "html",
+        "youtube_transcript"
+      ]
+    }
+  }
+}
+```
+
+来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_dialog`
+
+Inspect or answer the JavaScript alert, confirm, prompt, or beforeunload dialog that blocks the page. Without action it reports the open dialog.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "action": {
+      "type": "string",
+      "description": "accept presses OK, dismiss presses Cancel.",
+      "enum": [
+        "accept",
+        "dismiss"
+      ]
+    },
+    "promptText": {
+      "type": "string",
+      "description": "Text entered into a prompt dialog before accepting."
+    }
+  }
+}
+```
+
+来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_drag`
+
+Press the mouse on one point, move to another, and release: drag a slider, a card, or a file between targets.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "from": {
+      "type": "object",
+      "description": "A selector, or viewport x and y in CSS pixels.",
+      "additionalProperties": false,
+      "properties": {
+        "selector": {
+          "type": "string",
+          "description": "Element selector: CSS such as button[type='submit'] (from preview_snapshot's interactiveElements), or a locator such as text=Sign in, role=button[name=\"Save\"], label=Email, placeholder=Search, testid=submit, or xpath=//a. Join parts with >> to search inside a match; append >> nth=0 to pick one of several matches."
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      }
+    },
+    "to": {
+      "type": "object",
+      "description": "A selector, or viewport x and y in CSS pixels.",
+      "additionalProperties": false,
+      "properties": {
+        "selector": {
+          "type": "string",
+          "description": "Element selector: CSS such as button[type='submit'] (from preview_snapshot's interactiveElements), or a locator such as text=Sign in, role=button[name=\"Save\"], label=Email, placeholder=Search, testid=submit, or xpath=//a. Join parts with >> to search inside a match; append >> nth=0 to pick one of several matches."
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      }
+    },
+    "modifiers": {
+      "type": "array",
+      "description": "Modifier keys held during the action.",
+      "items": {
+        "type": "string",
+        "enum": [
+          "Alt",
+          "Control",
+          "Meta",
+          "Shift"
+        ]
+      }
+    }
+  },
+  "required": [
+    "from",
+    "to"
+  ]
 }
 ```
 
@@ -2803,11 +3109,33 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
     "expression": {
       "type": "string",
       "description": "JavaScript expression evaluated in the page's main frame, for example document.title or (() => ({href: location.href}))()."
+    },
+    "frame": {
+      "type": "string",
+      "description": "Selector of the iframe the target is in. Omit for the top document."
     }
   },
   "required": [
     "expression"
   ]
+}
+```
+
+来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_export_document`
+
+Download the open Google Docs, Sheets, or Slides document into the user's Downloads folder with the user's own access. Docs: docx, pdf, md, txt, odt, rtf, epub; Sheets: xlsx, csv (the open sheet), pdf, ods, tsv; Slides: pptx, pdf, txt, odp. Text formats also return the content.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "format": {
+      "type": "string",
+      "description": "Export format; defaults to docx, xlsx, or pptx for the document kind."
+    }
+  }
 }
 ```
 
@@ -2821,6 +3149,116 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 {
   "type": "object",
   "properties": {}
+}
+```
+
+来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_handoff`
+
+Tell the user a browser step is theirs to do: signing in, a captcha or verification code, confirming a payment or purchase, or anything they asked to do themselves. The browser shows your message in a modal; then end your turn and continue when the user replies. Never type their credentials.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "reason": {
+      "type": "string",
+      "description": "Why the user takes over.",
+      "enum": [
+        "authentication",
+        "captcha",
+        "confirmation",
+        "user_requested",
+        "other"
+      ]
+    },
+    "message": {
+      "type": "string",
+      "description": "One sentence telling the user what to do, for example \"Sign in to your Google account here, then tell me when you are done.\""
+    }
+  },
+  "required": [
+    "reason",
+    "message"
+  ]
+}
+```
+
+来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_history`
+
+Search the pages the user visited, newest first, by words in the address or title, to find something they read earlier: in the browser beside the chat, or with source browser in every browser of theirs the Aeven extension is connected in. Asks the user first.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "source": {
+      "type": "string",
+      "description": "aeven (default) searches the browser beside the chat; browser searches the user's own browser through the Aeven extension.",
+      "enum": [
+        "aeven",
+        "browser"
+      ]
+    },
+    "query": {
+      "type": "string",
+      "description": "Words that must all appear in the address or title; empty lists the newest pages."
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Most pages to return, 1 to 200. Defaults to 20."
+    }
+  }
+}
+```
+
+来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_hover`
+
+Move the pointer over one target without clicking, to open a hover menu or tooltip.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "selector": {
+      "type": "string",
+      "description": "Element selector: CSS such as button[type='submit'] (from preview_snapshot's interactiveElements), or a locator such as text=Sign in, role=button[name=\"Save\"], label=Email, placeholder=Search, testid=submit, or xpath=//a. Join parts with >> to search inside a match; append >> nth=0 to pick one of several matches."
+    },
+    "token": {
+      "type": "string",
+      "description": "Element token from the latest preview_snapshot with mode ax. Valid until the next browser action; do not combine with selector or coordinates."
+    },
+    "frame": {
+      "type": "string",
+      "description": "Selector of the iframe the target is in. Omit for the top document."
+    },
+    "modifiers": {
+      "type": "array",
+      "description": "Modifier keys held during the action.",
+      "items": {
+        "type": "string",
+        "enum": [
+          "Alt",
+          "Control",
+          "Meta",
+          "Shift"
+        ]
+      }
+    },
+    "x": {
+      "type": "number",
+      "description": "Viewport X in CSS pixels, with y."
+    },
+    "y": {
+      "type": "number",
+      "description": "Viewport Y in CSS pixels, with x."
+    }
+  }
 }
 ```
 
@@ -2841,6 +3279,40 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
   },
   "required": [
     "url"
+  ]
+}
+```
+
+来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_page_tools`
+
+Use the tools the open page offers to agents through WebMCP: list them, or invoke one with JSON input. A page tool does the page's own work directly (search, add to cart, fill a form) and is more reliable than clicking. Invoking asks the user first.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "action": {
+      "type": "string",
+      "description": "list the page tools, or invoke one.",
+      "enum": [
+        "list",
+        "invoke"
+      ]
+    },
+    "name": {
+      "type": "string",
+      "description": "The page tool to invoke, from list."
+    },
+    "input": {
+      "type": "object",
+      "description": "Arguments matching the tool's inputSchema.",
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "action"
   ]
 }
 ```
@@ -2881,6 +3353,56 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 
 来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
 
+### `preview_read`
+
+Read from elements without changing the page: their text, innerText, html, value, an attribute, the count of matches, whether they are visible, enabled, or checked, or their box. all=true reads every match.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "selector": {
+      "type": "string",
+      "description": "Element selector: CSS such as button[type='submit'] (from preview_snapshot's interactiveElements), or a locator such as text=Sign in, role=button[name=\"Save\"], label=Email, placeholder=Search, testid=submit, or xpath=//a. Join parts with >> to search inside a match; append >> nth=0 to pick one of several matches."
+    },
+    "token": {
+      "type": "string",
+      "description": "Element token from the latest preview_snapshot with mode ax. Valid until the next browser action; do not combine with selector or coordinates."
+    },
+    "frame": {
+      "type": "string",
+      "description": "Selector of the iframe the target is in. Omit for the top document."
+    },
+    "property": {
+      "type": "string",
+      "description": "What to read. Defaults to text.",
+      "enum": [
+        "text",
+        "innerText",
+        "html",
+        "value",
+        "attribute",
+        "count",
+        "visible",
+        "enabled",
+        "checked",
+        "box"
+      ]
+    },
+    "name": {
+      "type": "string",
+      "description": "Attribute name, for property attribute."
+    },
+    "all": {
+      "type": "boolean",
+      "description": "Read every match instead of exactly one."
+    }
+  }
+}
+```
+
+来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
 ### `preview_reload`
 
 重新加载协作浏览器标签页中的页面，并显示按下该控件的指针。
@@ -2909,7 +3431,7 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 
 ### `preview_scroll`
 
-滚动协作浏览器标签页。deltaY 为正时向下滚动，deltaX 为正时向右滚动；传入选择器可指定某个容器。
+Scroll the collaborative browser tab with the mouse wheel at the pointer. Positive deltaY scrolls down and positive deltaX scrolls right; a selector or x and y scrolls the container under that point.
 
 ```json
 {
@@ -2925,9 +3447,61 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
     },
     "selector": {
       "type": "string",
-      "description": "CSS selector such as button[type='submit'], from preview_snapshot's interactiveElements."
+      "description": "Element selector: CSS such as button[type='submit'] (from preview_snapshot's interactiveElements), or a locator such as text=Sign in, role=button[name=\"Save\"], label=Email, placeholder=Search, testid=submit, or xpath=//a. Join parts with >> to search inside a match; append >> nth=0 to pick one of several matches."
+    },
+    "token": {
+      "type": "string",
+      "description": "Element token from the latest preview_snapshot with mode ax. Valid until the next browser action; do not combine with selector or coordinates."
+    },
+    "frame": {
+      "type": "string",
+      "description": "Selector of the iframe the target is in. Omit for the top document."
+    },
+    "x": {
+      "type": "number",
+      "description": "Viewport X in CSS pixels, with y."
+    },
+    "y": {
+      "type": "number",
+      "description": "Viewport Y in CSS pixels, with x."
     }
   }
+}
+```
+
+来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_select`
+
+Choose options in a native &lt;select> by option value or visible label. For a custom dropdown, click it open and click the option instead.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "selector": {
+      "type": "string",
+      "description": "Element selector: CSS such as button[type='submit'] (from preview_snapshot's interactiveElements), or a locator such as text=Sign in, role=button[name=\"Save\"], label=Email, placeholder=Search, testid=submit, or xpath=//a. Join parts with >> to search inside a match; append >> nth=0 to pick one of several matches."
+    },
+    "token": {
+      "type": "string",
+      "description": "Element token from the latest preview_snapshot with mode ax. Valid until the next browser action; do not combine with selector or coordinates."
+    },
+    "frame": {
+      "type": "string",
+      "description": "Selector of the iframe the target is in. Omit for the top document."
+    },
+    "values": {
+      "type": "array",
+      "description": "Option values or labels; more than one only for a multiple select.",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "values"
+  ]
 }
 ```
 
@@ -2943,7 +3517,7 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
   "properties": {
     "actions": {
       "type": "array",
-      "description": "1 to 20 ordered actions. wait defaults to visible and enabled, with a 5000ms deadline; timeoutMs must be 1 to 60000.",
+      "description": "1 to 20 ordered actions. wait needs a selector, url, or load; a selector wait defaults to visible and enabled, with a 5000ms deadline; timeoutMs must be 1 to 60000.",
       "items": {
         "oneOf": [
           {
@@ -2956,7 +3530,7 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
               },
               "selector": {
                 "type": "string",
-                "description": "CSS selector such as button[type='submit'], from preview_snapshot's interactiveElements."
+                "description": "Element selector: CSS such as button[type='submit'] (from preview_snapshot's interactiveElements), or a locator such as text=Sign in, role=button[name=\"Save\"], label=Email, placeholder=Search, testid=submit, or xpath=//a. Join parts with >> to search inside a match; append >> nth=0 to pick one of several matches."
               }
             },
             "required": [
@@ -2974,7 +3548,7 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
               },
               "selector": {
                 "type": "string",
-                "description": "CSS selector such as button[type='submit'], from preview_snapshot's interactiveElements."
+                "description": "Element selector: CSS such as button[type='submit'] (from preview_snapshot's interactiveElements), or a locator such as text=Sign in, role=button[name=\"Save\"], label=Email, placeholder=Search, testid=submit, or xpath=//a. Join parts with >> to search inside a match; append >> nth=0 to pick one of several matches."
               },
               "text": {
                 "type": "string"
@@ -3027,7 +3601,7 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
               },
               "selector": {
                 "type": "string",
-                "description": "CSS selector such as button[type='submit'], from preview_snapshot's interactiveElements."
+                "description": "Element selector: CSS such as button[type='submit'] (from preview_snapshot's interactiveElements), or a locator such as text=Sign in, role=button[name=\"Save\"], label=Email, placeholder=Search, testid=submit, or xpath=//a. Join parts with >> to search inside a match; append >> nth=0 to pick one of several matches."
               },
               "paths": {
                 "type": "array",
@@ -3051,13 +3625,25 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
               },
               "selector": {
                 "type": "string",
-                "description": "CSS selector such as button[type='submit'], from preview_snapshot's interactiveElements."
+                "description": "Element selector: CSS such as button[type='submit'] (from preview_snapshot's interactiveElements), or a locator such as text=Sign in, role=button[name=\"Save\"], label=Email, placeholder=Search, testid=submit, or xpath=//a. Join parts with >> to search inside a match; append >> nth=0 to pick one of several matches."
+              },
+              "url": {
+                "type": "string"
+              },
+              "load": {
+                "type": "string",
+                "enum": [
+                  "load",
+                  "domcontentloaded"
+                ]
               },
               "state": {
                 "type": "string",
                 "enum": [
                   "visible",
-                  "hidden"
+                  "hidden",
+                  "attached",
+                  "detached"
                 ]
               },
               "timeoutMs": {
@@ -3065,8 +3651,95 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
               }
             },
             "required": [
+              "operation"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "operation": {
+                "type": "string",
+                "const": "hover"
+              },
+              "selector": {
+                "type": "string",
+                "description": "Element selector: CSS such as button[type='submit'] (from preview_snapshot's interactiveElements), or a locator such as text=Sign in, role=button[name=\"Save\"], label=Email, placeholder=Search, testid=submit, or xpath=//a. Join parts with >> to search inside a match; append >> nth=0 to pick one of several matches."
+              }
+            },
+            "required": [
               "operation",
               "selector"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "operation": {
+                "type": "string",
+                "const": "select"
+              },
+              "selector": {
+                "type": "string",
+                "description": "Element selector: CSS such as button[type='submit'] (from preview_snapshot's interactiveElements), or a locator such as text=Sign in, role=button[name=\"Save\"], label=Email, placeholder=Search, testid=submit, or xpath=//a. Join parts with >> to search inside a match; append >> nth=0 to pick one of several matches."
+              },
+              "values": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "operation",
+              "selector",
+              "values"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "operation": {
+                "type": "string",
+                "const": "check"
+              },
+              "selector": {
+                "type": "string",
+                "description": "Element selector: CSS such as button[type='submit'] (from preview_snapshot's interactiveElements), or a locator such as text=Sign in, role=button[name=\"Save\"], label=Email, placeholder=Search, testid=submit, or xpath=//a. Join parts with >> to search inside a match; append >> nth=0 to pick one of several matches."
+              },
+              "checked": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "operation",
+              "selector",
+              "checked"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "operation": {
+                "type": "string",
+                "const": "scroll"
+              },
+              "selector": {
+                "type": "string",
+                "description": "Element selector: CSS such as button[type='submit'] (from preview_snapshot's interactiveElements), or a locator such as text=Sign in, role=button[name=\"Save\"], label=Email, placeholder=Search, testid=submit, or xpath=//a. Join parts with >> to search inside a match; append >> nth=0 to pick one of several matches."
+              },
+              "deltaX": {
+                "type": "number"
+              },
+              "deltaY": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "operation"
             ]
           }
         ]
@@ -3096,6 +3769,10 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
         "dom",
         "ax"
       ]
+    },
+    "frame": {
+      "type": "string",
+      "description": "Selector of the iframe the target is in. Omit for the top document."
     }
   }
 }
@@ -3116,9 +3793,58 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
 
 来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
 
+### `preview_tabs`
+
+List, open, select, or close browser tabs: the sidebar browser's tabs beside the session, Aeven's own Chrome (browser chrome), the user's everyday Chrome (browser my-chrome) when they allowed it, and the tabs Aeven opened through its extension in any of the user's browsers (browser extension; each tab names its browserName). Every other preview_* tool acts on the current tab: new opens a tab (at url when given) and makes it current, select makes another tab current. Use the sidebar browser unless the task needs a full Chrome or the user's own Chrome and its sign-ins.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "action": {
+      "type": "string",
+      "description": "What to do.",
+      "enum": [
+        "list",
+        "new",
+        "select",
+        "close"
+      ]
+    },
+    "tabId": {
+      "type": "string",
+      "description": "The tab to select or close, from list."
+    },
+    "url": {
+      "type": "string",
+      "description": "Address a new tab opens at."
+    },
+    "browser": {
+      "type": "string",
+      "description": "Where new opens the tab: sidebar (default), chrome (Aeven's own Chrome), my-chrome (the user's Chrome over remote debugging), or extension (the user's browser through the Aeven extension, in its Aeven tab group; Aeven starts that browser when it is closed).",
+      "enum": [
+        "sidebar",
+        "chrome",
+        "my-chrome",
+        "extension"
+      ]
+    },
+    "browserName": {
+      "type": "string",
+      "description": "With browser extension, which of the connected browsers new opens the tab in, such as Brave, as tab lists name it; omitted picks the most recently connected."
+    }
+  },
+  "required": [
+    "action"
+  ]
+}
+```
+
+来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
 ### `preview_type`
 
-向协作浏览器标签页中的一个输入框插入字面文本。传入选择器时输入到该选择器，省略时输入到当前获得焦点的元素；设置 clear=true 可替换已有文本。
+Insert literal text into one input in the collaborative browser tab. Types into selector, or into the currently focused element when omitted; set clear=true to replace existing text. sequential=true types one character at a time for inputs that react to each keystroke, such as autocomplete.
 
 ```json
 {
@@ -3130,15 +3856,23 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
     },
     "selector": {
       "type": "string",
-      "description": "CSS selector such as button[type='submit'], from preview_snapshot's interactiveElements."
+      "description": "Element selector: CSS such as button[type='submit'] (from preview_snapshot's interactiveElements), or a locator such as text=Sign in, role=button[name=\"Save\"], label=Email, placeholder=Search, testid=submit, or xpath=//a. Join parts with >> to search inside a match; append >> nth=0 to pick one of several matches."
     },
     "token": {
       "type": "string",
       "description": "Element token from the latest preview_snapshot with mode ax. Valid until the next browser action; do not combine with selector or coordinates."
     },
+    "frame": {
+      "type": "string",
+      "description": "Selector of the iframe the target is in. Omit for the top document."
+    },
     "clear": {
       "type": "boolean",
       "description": "Clear the existing input value before inserting text. Defaults to false."
+    },
+    "sequential": {
+      "type": "boolean",
+      "description": "Type one character at a time with key events for line breaks and tabs. Defaults to false."
     }
   },
   "required": [
@@ -3159,7 +3893,7 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
   "properties": {
     "selector": {
       "type": "string",
-      "description": "CSS selector such as button[type='submit'], from preview_snapshot's interactiveElements."
+      "description": "Element selector: CSS such as button[type='submit'] (from preview_snapshot's interactiveElements), or a locator such as text=Sign in, role=button[name=\"Save\"], label=Email, placeholder=Search, testid=submit, or xpath=//a. Join parts with >> to search inside a match; append >> nth=0 to pick one of several matches."
     },
     "paths": {
       "type": "array",
@@ -3172,6 +3906,54 @@ web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可�
   "required": [
     "paths"
   ]
+}
+```
+
+来源：[`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/src/index.ts)
+
+### `preview_wait`
+
+Wait until an element reaches a state, the address matches, or the page has loaded. Use it after an action that changes the page later, not fixed sleeps.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "selector": {
+      "type": "string",
+      "description": "Element selector: CSS such as button[type='submit'] (from preview_snapshot's interactiveElements), or a locator such as text=Sign in, role=button[name=\"Save\"], label=Email, placeholder=Search, testid=submit, or xpath=//a. Join parts with >> to search inside a match; append >> nth=0 to pick one of several matches."
+    },
+    "frame": {
+      "type": "string",
+      "description": "Selector of the iframe the target is in. Omit for the top document."
+    },
+    "state": {
+      "type": "string",
+      "description": "Element state to wait for. Defaults to visible and enabled.",
+      "enum": [
+        "visible",
+        "hidden",
+        "attached",
+        "detached"
+      ]
+    },
+    "url": {
+      "type": "string",
+      "description": "Text the address must contain, or a /regular expression/."
+    },
+    "load": {
+      "type": "string",
+      "description": "Document load state to wait for.",
+      "enum": [
+        "load",
+        "domcontentloaded"
+      ]
+    },
+    "timeoutMs": {
+      "type": "number",
+      "description": "Deadline, 1 to 60000 ms. Defaults to 5000."
+    }
+  }
 }
 ```
 

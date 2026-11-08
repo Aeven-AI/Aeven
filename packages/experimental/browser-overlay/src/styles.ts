@@ -14,8 +14,11 @@
 /** Resting model angle, compensated by the sprite's 44-degree rotation. */
 export const BASE_ROTATION_DEG = -44
 
-/** Accent used for selection boxes, labels, and the cursor's glow. */
+/** Accent used for selection boxes and labels. */
 export const ACCENT = '#0069FB'
+
+/** The cursor's glow colour, the reference's. */
+export const CURSOR_GLOW = '#339cff'
 
 /** The square cursor box, in CSS pixels. */
 export const CURSOR_BOX = 24
@@ -39,11 +42,11 @@ export const CURSOR_NUDGE = { x: 12, y: -2.5 } as const
  * overlay root to re-tint it.
  */
 export const CURSOR_GLOW_FILTER =
-  'drop-shadow(0 0 6px color-mix(in srgb, var(--aeven-browser-overlay-glow, #0069FB) 90%, transparent)) ' +
-  'drop-shadow(0 0 15px color-mix(in srgb, var(--aeven-browser-overlay-glow, #0069FB) 48%, transparent))'
+  `drop-shadow(0 0 6px color-mix(in srgb, var(--aeven-browser-overlay-glow, ${CURSOR_GLOW}) 90%, transparent)) ` +
+  `drop-shadow(0 0 15px color-mix(in srgb, var(--aeven-browser-overlay-glow, ${CURSOR_GLOW}) 48%, transparent))`
 
 /**
- * Distance at or above which a move uses the long-range path, in CSS pixels.
+ * Distance above which a move uses the long-range path, in CSS pixels.
  *
  * The reference switches behavior at this threshold: short hops slide, longer
  * ones travel a curve. The overlay only needs the number to pick its easing.
@@ -82,7 +85,7 @@ export function overlayStyles(): string {
 ${root} {
   position: fixed;
   inset: 0;
-  z-index: 2147483647;
+  z-index: 2147483646;
   pointer-events: none;
   /* NOT contain: strict — paint containment would anchor fixed descendants here. */
   contain: layout style;
@@ -143,7 +146,8 @@ ${root} .${cls('cursor-sprite')} {
   transform: translate3d(${CURSOR_NUDGE.x}px, ${CURSOR_NUDGE.y}px, 0);
 }
 
-${root} .${cls('cursor-sprite')} img {
+${root} .${cls('cursor-sprite')} img,
+${root} .${cls('cursor-sprite')} canvas {
   display: block;
   /* Pin against a page's global img (max-width/box-sizing) rules. */
   box-sizing: content-box;

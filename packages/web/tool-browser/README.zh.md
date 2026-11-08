@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`@aeven/tool-browser` 让模型读取并操作用户在会话旁看到的浏览器。它注册十四个 `preview_*` 工具，并在每轮的第一步把当前打开的页面作为一条记录在日志中的插件消息加入请求。插件本身不执行任何浏览器操作：每次调用都是一个 `browser/automation` waterfall，由持有该会话浏览器的 Client 应答；`preview_status` 例外，它同时报告 Host 运行的 Chromium。对该 waterfall 的每次等待都有上限，因此轮次永远不会等待一个没有任何已连接 Client 持有的浏览器。
+`@aeven/tool-browser` 让模型读取并操作用户在会话旁看到的浏览器。它注册三十个 `preview_*` 工具，并在每轮的第一步把当前打开的页面作为一条记录在日志中的插件消息加入请求。插件本身不执行任何浏览器操作：每次调用都是一个 `browser/automation` waterfall，由持有该会话浏览器的 Client 应答；`preview_status` 例外，它同时报告 Host 运行的 Chromium。对该 waterfall 的每次等待都有上限，因此轮次永远不会等待一个没有任何已连接 Client 持有的浏览器。
 
 ## 目录
 
@@ -25,9 +25,30 @@ kind: "package-reference"
 
 在其 Client 能够承载浏览器的代理组合中挂载本插件，例如 `@aeven/client-ui-sidebar-browser` 的右侧边栏浏览器。随附的 `cordis`、`standard` 与 `ptc` 预设都会挂载它。
 
+`preview_upload` 接受 Electron 所在计算机上的绝对路径，以及文件输入框或上传按钮的选择器；省略选择器时页面必须恰好有一个文件输入框。远程上传会请求以目标源和路径为范围的审批，localhost 除外。`preview_sequence` 在本地运行 1–20 个类型化操作，按条件等待，并返回第一个失败。上传和序列执行需要写权限。这些操作为 Electron 实现；嵌入框架中的上传选择器不受支持。
+
 `preview_snapshot` 接受 `mode: dom`（默认）或 `mode: ax`。无障碍模式读取 Chromium 的无障碍树，包括 shadow DOM，并返回 `snapshotId`、带索引的 `nodes` 和 `truncated`。节点采用桌面元素字段 `index`、`token`、`role`、`title`、`value` 和 `editable`。将返回的令牌传给 `preview_click` 或 `preview_type`，代替选择器。令牌在下一次观察或浏览器操作时过期；导航后以及目标已分离、隐藏或禁用时会拒绝操作。操作后重新观察；框架内的无障碍目标不属于本阶段。
 
 `preview_screenshot` 在 `actionTimeoutMs` 内将可见视口捕获为 JPEG，并把它存为工具结果中的持久图像附件。截图经普通图像结果路径进入会话日志和模型历史；此工具需要附件存储。
+
+每个 `selector` 参数都接受 CSS 或定位器片段：`text=`、带 `name`、`checked`、`disabled`、`expanded`、`pressed`、`selected` 和 `level` 过滤的 `role=`、`label=`、`placeholder=`、`alt=`、`title=`、`testid=` 以及 `xpath=`；`>>` 在前一个匹配内部继续查找，`nth=` 和 `visible=` 过滤匹配。匹配多个元素的选择器会被拒绝。`frame` 参数指明目标所在的 iframe。[浏览器引擎](../browser-engine/README.zh.md)负责定位器语义。
+
+| 工具 | 作用 |
+| --- | --- |
+| `preview_click` | 单击、双击（`clickCount`）、右键或中键单击（`button`），可带修饰键。点击触发的导航加载完成后返回，若点击打开了对话框则立即连同该对话框返回。 |
+| `preview_hover`、`preview_drag` | 把指针移到目标上；在两个目标之间按下、移动并松开。 |
+| `preview_select`、`preview_check` | 按值或标签选择 `<select>` 选项；设置复选框、单选框或 `aria-checked` 控件，仅在状态不同时点击。 |
+| `preview_read`、`preview_wait` | 读取一个或全部匹配的文本、HTML、值、属性、数量、可见性、启用或选中状态或边框；等待元素状态、地址或加载状态。 |
+| `preview_content` | 以 markdown、纯文本或 HTML 返回页面，或返回已打开 YouTube 视频的字幕，超过 100,000 个字符时截断。 |
+| `preview_export_document` | 用访客会话的 cookie 把打开的 Google Docs、Sheets 或 Slides 文档下载到用户的“下载”文件夹；文本格式还会返回其内容。 |
+| `preview_clipboard`、`preview_console`、`preview_dialog` | 读取（需审批）或写入剪贴板文本；页面最近 500 条控制台记录和未捕获的异常；查看或应答 JavaScript 对话框。 |
+| `preview_browser_control` | 用指针按下窗格自己的工具栏和三点菜单：截图、在 Chrome 中打开、强制重新加载、DevTools、缩放、外观，以及清除缓存或 cookie（需审批）。 |
+| `preview_tabs` | 列出、打开、显示或关闭会话的浏览器标签页；每个标签页是侧边栏中的一个 Browser 胶囊，其他工具作用于当前标签页。指针会按下胶囊、加号菜单或胶囊的关闭按钮。`browser` 在 Aeven 的 Chrome、用户的 Chrome，或通过 Aeven 扩展在用户的某个浏览器中打开标签页（`browserName` 选择哪一个）。 |
+| `preview_history`、`preview_bookmarks` | 按地址或标题中的词搜索应用内浏览器访问过的页面，或在 `source` 为 browser 时通过 Aeven 扩展搜索用户浏览器的历史记录；通过扩展搜索用户的书签（需审批，在会话内记住）。 |
+| `preview_page_tools` | 列出打开的页面通过 `document.modelContext` 注册的 WebMCP 工具，或调用其中一个（按站点和工具审批）。 |
+| `preview_handoff` | 向用户显示一个模态框，写明一个应由用户完成的浏览器步骤，然后让模型结束本轮；没有窗格时由聊天提出同样的问题。 |
+
+指针操作遵循 ChatGPT 浏览器代理的时序：绘制的光标先到达（最多 1500 ms），然后才发送页面的鼠标移动和按下；点击最多等待 3000 ms，等待在操作后 250 ms 内开始的导航；后退、前进、重新加载和强制重新加载最多等待 10,000 ms，等待在 250 ms 内开始的加载；拖动只在第一个点等待光标；滚动在光标到达后发送一次滚轮事件，并在滚动位置稳定后返回。
 
 ### 配置
 
@@ -73,7 +94,7 @@ Task routing: a request to open, visit, or read a website is this pane's ("open 
 Use preview_sequence for known consecutive actions; it runs locally in order and waits for specified elements without another model request between actions. Use preview_upload to attach files directly; never use clipboard tricks, a local HTTP server, or a native picker for a supported upload.
 For browser work, first call preview_status. Then use preview_navigate, preview_snapshot, and the focused interaction tools. Prefer snapshot-provided selectors over coordinates.
 A page served from this machine (localhost or 127.0.0.1) is an application under development: open it in the Chrome DevTools browser (mcp__chrome_devtools__*), not this pane. Use the headless browser tools for it only when that browser and this pane are both unavailable, and say that the check ran in a headless copy.
-Correct an actionable error in this browser. If this browser needs authentication, ask the user to sign in here; never type credentials or switch browsers to bypass sign-in. Prefer preview_snapshot and focused actions over writing JavaScript for ordinary clicks or text entry.
+Correct an actionable error in this browser. If this browser needs authentication, a captcha, or the user's confirmation, call preview_handoff and end your turn; never type credentials or switch browsers to bypass sign-in. Prefer preview_snapshot and focused actions over writing JavaScript for ordinary clicks or text entry; read a whole article with preview_content.
 ```
 
 #### Token effect
@@ -117,6 +138,9 @@ Correct an actionable error in this browser. If this browser needs authenticatio
 - **在 `statusTimeoutMs` 之后才应答的 Client 在该轮被忽略** —— 模型直到下一轮第一步才得知当前打开的页面。
 - **没有已连接的 Client 时，每个新轮次都要等待 `statusTimeoutMs`** —— 网关无法告知插件没有 Client 连接，因此查询会在第一步之前等满其截止时间。
 - **没有任何插件报告过的浏览器界面仍然不可见** —— 该报告只列出会话旁的页面与 Host 的 Chromium，因此组合挂载的其他自动化后端，只有在某个插件报告它之后才会被告知模型。
+- **JavaScript `prompt()` 永远到不了代理** —— Electron 在页面或调试器看到对话框之前就以 null 应答它，因此只有 `alert`、`confirm` 和 `beforeunload` 可以用 `preview_dialog` 应答。
+- **用户自己的历史记录和书签需要 Aeven 扩展** —— 没有扩展时只搜索保存在桌面窗口存储中的应用内浏览器历史；从不读取用户打开的标签页。
+- **WebMCP 需要 Chromium 的 `WebMCP` 功能** —— 桌面外壳在启动时启用它；只通过其他脚本 API 提供工具的页面不会被列出。
 - **无 invariant 伴随模块**——不发布运行时 invariant 伴随模块，因为本包自己的 spec 已经逐一验证了它拥有的关系：针对桩 waterfall 的第一步查询、`statusTimeoutMs` 与 `actionTimeoutMs` 之下的有界等待，以及状态报告中的界面选择。
 
 <a id="开发备注"></a>

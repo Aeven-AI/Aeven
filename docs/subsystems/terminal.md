@@ -287,6 +287,29 @@ Source: [`packages/terminal/terminal/src/index.ts`](../../packages/terminal/term
 
 ### `terminal/*` events
 
+<a id="terminalpresent--waterfall"></a>
+
+#### `terminal/present` — waterfall
+
+Present an agent action on a terminal shown beside its session: the client displaying that session brings the terminal's pill into view and draws the agent pointer acting on it, then returns true; for `close` the pointer's press closes the pill. A listener without that terminal calls `next()`. Scope-filtered dispatch (`@aeven/scope`): agent-scoped listeners receive only that agent.
+
+```ts cordis-catalog
+/**
+ * Present an agent action on a terminal shown beside its session: the client
+ * displaying that session brings the terminal's pill into view and draws the
+ * agent pointer acting on it, then returns true; for `close` the pointer's
+ * press closes the pill. A listener without that terminal calls `next()`.
+ * Scope-filtered dispatch (`@aeven/scope`): agent-scoped listeners receive only that agent.
+ * @param request - the terminal and the action.
+ * @mode waterfall
+ */
+'terminal/present'( this: Scoped<Agent>, request: TerminalPresentRequestEvent, next: () => Promise<boolean>, ): Promise<boolean>
+```
+
+Types: [Agent](core.md) · [Scoped](scope.md)
+
+Source: [`packages/api/terminal-controller/src/types.ts`](../../packages/api/terminal-controller/src/types.ts)
+
 <a id="terminalshow--waterfall"></a>
 
 #### `terminal/show` — waterfall

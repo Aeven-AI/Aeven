@@ -27,6 +27,9 @@
       "path": "../ui-theme"
     },
     {
+      "path": "../../experimental/browser-overlay"
+    },
+    {
       "path": "../../api/remotes/tsconfig.client.json"
     },
     {

@@ -77,6 +77,18 @@
   color: var(--dsw-alias-label-primary);
 }
 
+/* The question icon beside a row's name, which opens its longer explanation in a modal. */
+.rowInfo {
+  display: inline-flex;
+  vertical-align: -2px;
+  margin-left: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
 .rowDescription {
   font-size: 0.75rem;
   line-height: 1.125rem;

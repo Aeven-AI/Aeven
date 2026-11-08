@@ -21,6 +21,12 @@ function runMotion(motion: CursorMotion, ms: number): void {
   for (let i = 0; i < frames; i += 1) motion.step(1 / 60)
 }
 
+/** Scoot the cursor 50px right and run it until it arrives, which arms the idle wobble. */
+function arrive(motion: CursorMotion): void {
+  motion.travelTo(motion.point.x + 50, motion.point.y)
+  for (let i = 0; i < 600 && !motion.isThinking; i += 1) motion.step(1 / 60)
+}
+
 describe('springs', () => {
   it('arrives sooner for a smaller response', () => {
     // Compared as time-to-95% rather than value-at-an-instant: a spring with more
@@ -43,7 +49,8 @@ describe('springs', () => {
     spring.target = 1
     for (let i = 0; i < 120; i += 1) stepSpring(spring, 1 / 60)
     expect(spring.value).toBe(1)
-    expect(spring.velocity).toBe(0)
+    // The snap keeps the residual velocity, as the reference's solver does; it is negligible.
+    expect(Math.abs(spring.velocity)).toBeLessThan(1e-9)
     expect(isAtRest(spring)).toBe(true)
   })
 
@@ -158,7 +165,8 @@ describe('cursor motion', () => {
     const at = motion.point
     expect(at.x).toBeCloseTo(distance, 0)
     expect(at.y).toBeCloseTo(0, 0)
-    expect(motion.rotation.value).toBeCloseTo(BASE_ROTATION_DEG, 3)
+    // The arc ends on the base angle, normalized to [0, 360).
+    expect(normalizeDegrees(motion.rotation.value)).toBeCloseTo(normalizeDegrees(BASE_ROTATION_DEG), 3)
     // `isResting` stays false through the post-arrival think window, so arrival is
     // asserted on position and rotation rather than on that flag.
     expect(banked).toBeGreaterThan(0)
@@ -213,7 +221,8 @@ describe('cursor motion', () => {
     const motion = new CursorMotion()
     motion.jumpTo(10, 10)
     motion.setVisible(true)
-    runMotion(motion, 40)
+    // The wobble is armed by arriving, not by showing.
+    arrive(motion)
     // Mid-window the displayed rotation wanders from the settled value.
     const displayed = [
       displayRotationFor(motion, performance.now()),
@@ -241,17 +250,16 @@ describe('arrival epsilon boundary', () => {
     const motion = new CursorMotion()
     motion.jumpTo(0, 0)
     expect(motion.travelTo(ARRIVAL_EPSILON_PX / 2, 0)).toBe(0)
-    // The target still moves, so the next frame's spring carries the cursor the
-    // sub-epsilon distance without a travel path.
-    expect(motion.positionX.target).toBe(ARRIVAL_EPSILON_PX / 2)
-    expect(motion.isResting).toBe(false)
+    // The cursor is placed there at once, with nothing left in flight.
+    expect(motion.point.x).toBe(ARRIVAL_EPSILON_PX / 2)
+    expect(motion.isResting).toBe(true)
   })
 
   it('reports a wait budget for each travel regime', () => {
     // The budget is the caller's only signal for how long to wait, so each
-    // regime is pinned at its own boundary: at or below the arrival epsilon the
-    // move is instant, the scoot regime runs from that epsilon up to
-    // LONG_MOVE_PX, and the arc regime from LONG_MOVE_PX on. Every scooter the
+    // regime is pinned at its own boundary: below the arrival epsilon the
+    // move is instant, the scoot regime runs from that epsilon up to and
+    // including LONG_MOVE_PX, and the arc regime beyond it. Every scooter the
     // model builds therefore spans at least ARRIVAL_EPSILON_PX.
     const budget = (x: number): number => {
       const motion = new CursorMotion()
@@ -260,8 +268,8 @@ describe('arrival epsilon boundary', () => {
     }
     expect(budget(ARRIVAL_EPSILON_PX / 2)).toBe(0)
     expect(budget(ARRIVAL_EPSILON_PX)).toBe(420)
-    expect(budget(LONG_MOVE_PX - 1)).toBe(420)
-    expect(budget(LONG_MOVE_PX)).toBe(700)
+    expect(budget(LONG_MOVE_PX)).toBe(420)
+    expect(budget(LONG_MOVE_PX + 1)).toBe(700)
   })
 })
 
@@ -286,6 +294,7 @@ describe('idle wobble control', () => {
   it('stops drawing the wobble once it is disabled', () => {
     const motion = new CursorMotion()
     motion.setVisible(true)
+    arrive(motion)
     const armed = performance.now()
     // Mid-window the wobble displaces the drawn rotation from the settled value.
     expect(displayRotationFor(motion, armed + 200)).not.toBe(motion.rotation.value)
@@ -293,16 +302,19 @@ describe('idle wobble control', () => {
     expect(displayRotationFor(motion, armed + 200)).toBe(motion.rotation.value)
   })
 
-  it('re-arms the wobble only on the next show', () => {
+  it('re-arms the wobble only on the next arrival', () => {
     // Disabling clears the window instead of pausing it, and enabling does not
-    // reopen one: only a show does, so a re-enable under an already-visible
-    // cursor draws nothing.
+    // reopen one: only an arrival does, so a re-enable under a resting cursor
+    // draws nothing, and neither does showing it again.
     const motion = new CursorMotion()
     motion.setVisible(true)
+    arrive(motion)
     motion.setThinkEnabled(false)
     motion.setThinkEnabled(true)
     expect(displayRotationFor(motion, performance.now() + 200)).toBe(motion.rotation.value)
     motion.setVisible(true)
+    expect(displayRotationFor(motion, performance.now() + 200)).toBe(motion.rotation.value)
+    arrive(motion)
     expect(Math.abs(displayRotationFor(motion, performance.now() + 200) - motion.rotation.value)).toBeGreaterThan(1)
   })
 })

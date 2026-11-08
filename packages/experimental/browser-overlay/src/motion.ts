@@ -1,9 +1,9 @@
 /** Spring-driven browser pointer paths, rotation, stretch, and finite idle motion. @module */
 
 import { BASE_ROTATION_DEG } from './styles.ts'
-import { CURSOR_SPRINGS, createSpring, isAtRest, jumpSpring, stepSpring } from './springs.ts'
+import { CURSOR_SPRINGS, createSpring, isAtRest, jumpSpring, retargetAngle, stepSpring } from './springs.ts'
 
-/** At or above this distance a move arcs instead of scooting, in CSS pixels. */
+/** Above this distance a move arcs instead of scooting, in CSS pixels; at or below it the move scoots. */
 export const LONG_MOVE_PX = 196
 
 /** Largest lean toward a curve's tangent, in degrees. */
@@ -280,6 +280,18 @@ export class CursorMotion {
   #scootRotationTarget = 0
   #thinkStartedAt: number | undefined
   #thinkEnabled = true
+  #journeyStarted = false
+
+  /**
+   * Whether a long move started since the last call. The reference advances the
+   * first frame of a long move by exactly one 60Hz frame, whatever time passed.
+   * @returns true once per started long move.
+   */
+  takeJourneyStart(): boolean {
+    const started = this.#journeyStarted
+    this.#journeyStarted = false
+    return started
+  }
 
   /** Current position, in viewport coordinates. */
   get point(): { x: number; y: number } {
@@ -313,7 +325,8 @@ export class CursorMotion {
     if (this.#path !== undefined) return false
     if (this.#thinkEnabled && this.#thinkStartedAt !== undefined) return false
     return isAtRest(this.positionX) && isAtRest(this.positionY) && isAtRest(this.rotation)
-      && isAtRest(this.stretch) && isAtRest(this.visibility) && isAtRest(this.scootStretch)
+      && isAtRest(this.scootAxis) && isAtRest(this.scootRotation) && isAtRest(this.scootStretch)
+      && isAtRest(this.stretch) && isAtRest(this.visibility)
   }
 
   /**
@@ -338,11 +351,11 @@ export class CursorMotion {
 
   /**
    * Set the visibility target; the caller hides the cursor by animating to 0.
-   * @param visible - whether the cursor should end up shown; showing also arms the idle wobble.
+   * The idle wobble is armed by arrival, not by showing.
+   * @param visible - whether the cursor should end up shown.
    */
   setVisible(visible: boolean): void {
     this.visibility.target = visible ? 1 : 0
-    if (visible) this.#thinkStartedAt = performance.now()
   }
 
   /**
@@ -375,20 +388,19 @@ export class CursorMotion {
     const from: PathPoint = { x: this.positionX.value, y: this.positionY.value, tangent: 0 }
     const distance = Math.hypot(x - from.x, y - from.y)
     if (distance < ARRIVAL_EPSILON_PX) {
-      this.positionX.target = x
-      this.positionY.target = y
+      this.jumpTo(x, y)
       return 0
     }
-    if (distance >= LONG_MOVE_PX) {
+    if (distance > LONG_MOVE_PX) {
+      this.#scootFrom = undefined
+      this.#scootTo = undefined
       this.#path = createArcPath(from, { x, y, tangent: 0 }, bounds)
       const response = pathResponse(this.#path)
       this.progress.config = { response, dampingFraction: 0.9 }
       jumpSpring(this.progress, 0)
       this.progress.target = 1
       this.positionX.config = this.positionY.config = { response: clamp(response * 0.18, 0.035, 0.12), dampingFraction: 0.9 }
-      this.scootAxis.target = 0
-      this.scootRotation.target = 0
-      this.scootStretch.target = 1
+      this.#journeyStarted = true
     } else {
       this.#path = undefined
       this.positionX.config = this.positionY.config = CURSOR_SPRINGS.position
@@ -403,12 +415,12 @@ export class CursorMotion {
       // Small overshoot whose direction depends on which way the move leans.
       this.#scootRotationTarget = clamp(((x - from.x) * 0.75 - (y - from.y) * 0.62)
         / Math.hypot(x - from.x, y - from.y), -1, 1) * MAX_LEAN_DEG
-      this.scootAxis.target = this.#scootAxisTarget
-      this.scootRotation.target = this.#scootRotationTarget
+      retargetAngle(this.rotation, BASE_ROTATION_DEG)
+      retargetAngle(this.scootAxis, this.#scootAxisTarget)
       this.positionX.target = x
       this.positionY.target = y
     }
-    return distance >= LONG_MOVE_PX ? 700 : 420
+    return distance > LONG_MOVE_PX ? 700 : 420
   }
 
   /**
@@ -422,15 +434,16 @@ export class CursorMotion {
     if (this.#path !== undefined) this.#stepArc(seconds)
     else if (this.#scootFrom !== undefined) this.#stepScoot(seconds)
     else {
-      stepSpring(this.positionX, seconds)
-      stepSpring(this.positionY, seconds)
-      stepSpring(this.rotation, seconds)
-      stepSpring(this.stretch, seconds)
+      // At rest the reference relaxes only the secondary springs; position and
+      // rotation hold until the next move or jump.
+      this.stretch.target = 1
+      this.scootStretch.target = 1
+      this.scootRotation.target = 0
     }
 
-    stepSpring(this.scootAxis, seconds)
-    stepSpring(this.scootRotation, seconds)
+    stepSpring(this.stretch, seconds)
     stepSpring(this.scootStretch, seconds)
+    stepSpring(this.scootRotation, seconds)
     return !this.isResting
   }
 
@@ -438,26 +451,29 @@ export class CursorMotion {
     const path = this.#path
     /* v8 ignore next -- narrows for the compiler only: the sole call site tests #path !== undefined, and nothing writes it in between. */
     if (path === undefined) return
+    this.scootStretch.target = 1
+    this.scootRotation.target = 0
     stepSpring(this.progress, seconds)
     const t = clamp(this.progress.value, 0, 1)
     const at = samplePath(path, t)
     this.positionX.target = at.x
     this.positionY.target = at.y
-    this.rotation.target = this.rotation.value + shortestAngleDelta(this.rotation.value, at.tangent)
-    this.scootAxis.target = 0
-    this.scootRotation.target = 0
-    this.scootStretch.target = 1
+    retargetAngle(this.rotation, at.tangent)
+    retargetAngle(this.scootAxis, 0)
     const previous = this.point
     stepSpring(this.positionX, seconds)
     stepSpring(this.positionY, seconds)
     stepSpring(this.rotation, seconds)
+    stepSpring(this.scootAxis, seconds)
     const speed = Math.hypot(this.positionX.value - previous.x, this.positionY.value - previous.y) / Math.max(seconds, 1 / 240)
     this.stretch.target = clamp(1 - speed / STRETCH_SPEED_PX_PER_SECOND, MIN_STRETCH, 1)
-    stepSpring(this.stretch, seconds)
     if (t >= 0.999 && Math.abs(this.progress.velocity) < 0.01 && this.#near(at)) {
       const end = samplePath(path, 1)
-      this.jumpTo(end.x, end.y)
-      jumpSpring(this.rotation, end.tangent)
+      jumpSpring(this.positionX, end.x)
+      jumpSpring(this.positionY, end.y)
+      jumpSpring(this.rotation, normalizeDegrees(end.tangent))
+      jumpSpring(this.scootAxis, 0)
+      jumpSpring(this.stretch, 1)
       this.#path = undefined
       this.#thinkStartedAt = performance.now()
     }
@@ -469,10 +485,14 @@ export class CursorMotion {
     /* v8 ignore next -- narrowing only: the sole call site tests #scootFrom, and the pair is written and cleared together. */
     if (from === undefined || to === undefined) return
     stepSpring(this.progress, seconds)
-    this.rotation.target = this.rotation.value + shortestAngleDelta(this.rotation.value, BASE_ROTATION_DEG)
+    this.positionX.target = to.x
+    this.positionY.target = to.y
+    retargetAngle(this.scootAxis, this.#scootAxisTarget)
+    retargetAngle(this.rotation, BASE_ROTATION_DEG)
     stepSpring(this.positionX, seconds)
     stepSpring(this.positionY, seconds)
     stepSpring(this.rotation, seconds)
+    stepSpring(this.scootAxis, seconds)
     const at = {
       x: this.positionX.value,
       y: this.positionY.value,
@@ -486,6 +506,7 @@ export class CursorMotion {
       : clamp(((at.x - from.x) * spanX + (at.y - from.y) * spanY) / lengthSquared, 0, 1)
     const bell = Math.sin(Math.min(1, travelled) * Math.PI)
     // The overshoot rotation peaks mid-move, then unwinds.
+    this.stretch.target = 1
     this.scootRotation.target = this.#scootRotationTarget * bell
     this.scootStretch.target = 1 - 0.15 * bell
     if (travelled >= 0.999 && Math.abs(this.progress.velocity) < 0.01 && this.#near(to)) {

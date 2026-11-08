@@ -80,7 +80,22 @@ export interface DesktopBrowserBridge {
     timeoutMs?: number,
   ) => Promise<unknown>
   /** Cancel the owned browser request. */
-  cancelAutomation: (webContentsId: number, requestId: DesktopBrowserRequestId) => void
+  cancelAutomation: (webContentsId: number | string, requestId: DesktopBrowserRequestId) => void
+  /** List a Chrome's web tabs (desktop `chromeTabs`). */
+  chromeTabs: (kind: ChromeKind, browserUrl?: string) => Promise<Array<{ targetId: string; url: string; title: string; browser?: string }>>
+  /** Open a Chrome tab and return its id; `browserName` picks among the extension's browsers (desktop `chromeOpen`). */
+  chromeOpen: (kind: ChromeKind, browserUrl: string | undefined, url: string, browserName?: string) => Promise<string>
+  /** Close a Chrome tab (desktop `chromeClose`). */
+  chromeClose: (kind: ChromeKind, browserUrl: string | undefined, targetId: string) => Promise<void>
+  /** Search the extension browsers' history or bookmarks (desktop `extensionRead`). */
+  extensionRead: (what: 'history' | 'bookmarks', query: string, limit: number) => Promise<unknown>
+  /** The browsers whose Aeven extension is connected (desktop `extensionStatus`). */
+  extensionStatus: () => Promise<Array<{ instance: string; browser: string }>>
+  /** Run one engine operation on a Chrome tab (desktop `chromeAutomate`). */
+  chromeAutomate: (
+    kind: ChromeKind, browserUrl: string | undefined, targetId: string, operation: string, input: Record<string, unknown>,
+    requestId?: DesktopBrowserRequestId, timeoutMs?: number,
+  ) => Promise<unknown>
   /**
    * Acknowledge a cursor step after arrival or when the pane is invisible.
    * @param webContentsId - guest id.
@@ -169,41 +184,138 @@ export interface BrowserCursor {
   readonly url?: string
 }
 
-/** Guests by session, with a wait for a pane that has not mounted yet. */
-export class LiveGuests extends Map<string, BrowserGuest> {
-  /** Callers waiting for a session's pane to mount its guest. */
-  readonly #waiters = new Map<string, Set<(guest: BrowserGuest) => void>>()
+/**
+ * Which Chrome a tab lives in: Aeven's own profile, the reader's everyday Chrome over
+ * remote debugging, or any Chromium through the Aeven extension.
+ */
+export type ChromeKind = 'aeven' | 'user' | 'extension'
+
+/** A Chrome tab the agent's current tab can be, instead of a sidebar tab. */
+export interface ChromeTabRef {
+  readonly kind: ChromeKind
+  readonly targetId: string
+}
+
+/** One open browser tab: the pill that shows it and the guest it holds. */
+export interface BrowserTab {
+  /** The tab's pill id, which the agent's tab commands name. */
+  readonly tabId: string
+  readonly guest: BrowserGuest
+  /** Close the tab's pill. */
+  readonly close: () => void
+}
+
+/**
+ * Browser tabs by session: each pill of the browser kind mounts one guest, and
+ * the session's current tab is the one last shown, which agent actions address.
+ */
+export class LiveGuests {
+  readonly #tabs = new Map<string, Map<string, BrowserTab>>()
+  readonly #current = new Map<string, string>()
+  readonly #waiters = new Map<string, Set<(tab: BrowserTab) => void>>()
+  readonly #chrome = new Map<string, ChromeTabRef>()
 
   /**
-   * Record the session's guest and hand it to that session's waiters.
-   * @param sessionId - session whose pane mounted the guest.
-   * @param guest - the mounted guest.
-   * @returns this map.
+   * Make a Chrome tab the session's current tab; agent actions then address it.
+   * @param sessionId - the session.
+   * @param tab - the Chrome tab, or undefined to return to the sidebar's tab.
    */
-  override set(sessionId: string, guest: BrowserGuest): this {
-    super.set(sessionId, guest)
-    const waiters = this.#waiters.get(sessionId)
-    this.#waiters.delete(sessionId)
-    for (const resolve of waiters ?? []) resolve(guest)
-    return this
+  selectChrome(sessionId: string, tab: ChromeTabRef | undefined): void {
+    if (tab === undefined) this.#chrome.delete(sessionId)
+    else this.#chrome.set(sessionId, tab)
   }
 
   /**
-   * The session's guest, once its pane mounts one.
-   * @param sessionId - session whose guest is awaited.
+   * The Chrome tab that is the session's current tab, when one is.
+   * @param sessionId - the session.
+   * @returns the tab, or undefined while a sidebar tab is current.
+   */
+  chrome(sessionId: string): ChromeTabRef | undefined {
+    return this.#chrome.get(sessionId)
+  }
+
+  /**
+   * Record a mounted tab and hand it to that session's waiters.
+   * @param sessionId - session whose pane mounted the guest.
+   * @param tab - the mounted tab.
+   * @returns disposer removing the tab when its pane unmounts.
+   */
+  mount(sessionId: string, tab: BrowserTab): () => void {
+    const tabs = this.#tabs.get(sessionId) ?? new Map<string, BrowserTab>()
+    this.#tabs.set(sessionId, tabs)
+    tabs.set(tab.tabId, tab)
+    if (!this.#current.has(sessionId)) this.#current.set(sessionId, tab.tabId)
+    const waiters = this.#waiters.get(sessionId)
+    this.#waiters.delete(sessionId)
+    for (const resolve of waiters ?? []) resolve(tab)
+    return () => {
+      if (tabs.get(tab.tabId) !== tab) return
+      tabs.delete(tab.tabId)
+      if (this.#current.get(sessionId) === tab.tabId) {
+        const next = [...tabs.keys()].at(-1)
+        if (next === undefined) this.#current.delete(sessionId)
+        else this.#current.set(sessionId, next)
+      }
+      if (tabs.size === 0) this.#tabs.delete(sessionId)
+    }
+  }
+
+  /**
+   * Make a tab the session's current one, as its pill is shown.
+   * @param sessionId - the session.
+   * @param tabId - the tab shown.
+   */
+  activate(sessionId: string, tabId: string): void {
+    if (this.#tabs.get(sessionId)?.has(tabId) !== true) return
+    this.#current.set(sessionId, tabId)
+    this.#chrome.delete(sessionId)
+  }
+
+  /**
+   * The session's current tab's guest.
+   * @param sessionId - the session.
+   * @returns the guest, or undefined while no browser tab is mounted.
+   */
+  get(sessionId: string): BrowserGuest | undefined {
+    return this.current(sessionId)?.guest
+  }
+
+  /**
+   * The session's current tab.
+   * @param sessionId - the session.
+   * @returns the tab, or undefined while none is mounted.
+   */
+  current(sessionId: string): BrowserTab | undefined {
+    const id = this.#current.get(sessionId)
+    return id === undefined ? undefined : this.#tabs.get(sessionId)?.get(id)
+  }
+
+  /**
+   * The session's open tabs in mount order.
+   * @param sessionId - the session.
+   * @returns the tabs.
+   */
+  tabs(sessionId: string): readonly BrowserTab[] {
+    return [...this.#tabs.get(sessionId)?.values() ?? []]
+  }
+
+  /**
+   * The next tab a session mounts, or its current one when `fresh` is false and one is mounted.
+   * @param sessionId - session whose tab is awaited.
    * @param signal - abandons the wait.
-   * @returns the mounted guest.
+   * @param fresh - wait for a tab mounted after this call even when one is mounted.
+   * @returns the tab.
    * @throws the signal's reason when it aborts first.
    */
-  whenMounted(sessionId: string, signal?: AbortSignal): Promise<BrowserGuest> {
-    const mounted = this.get(sessionId)
-    if (mounted !== undefined) return Promise.resolve(mounted)
+  whenTab(sessionId: string, signal?: AbortSignal, fresh = false): Promise<BrowserTab> {
+    const mounted = this.current(sessionId)
+    if (mounted !== undefined && !fresh) return Promise.resolve(mounted)
     return new Promise((resolve, reject) => {
       const waiters = this.#waiters.get(sessionId) ?? new Set()
       this.#waiters.set(sessionId, waiters)
-      const settle = (guest: BrowserGuest): void => {
+      const settle = (tab: BrowserTab): void => {
         signal?.removeEventListener('abort', abort)
-        resolve(guest)
+        resolve(tab)
       }
       const abort = (): void => {
         waiters.delete(settle)
@@ -217,11 +329,21 @@ export class LiveGuests extends Map<string, BrowserGuest> {
       waiters.add(settle)
     })
   }
+
+  /**
+   * The session's current guest, once a pane mounts one.
+   * @param sessionId - session whose guest is awaited.
+   * @param signal - abandons the wait.
+   * @returns the mounted guest.
+   */
+  async whenMounted(sessionId: string, signal?: AbortSignal): Promise<BrowserGuest> {
+    return (await this.whenTab(sessionId, signal)).guest
+  }
 }
 
 /**
- * The guest each session's pane holds while it is mounted, so an agent action
- * addressed to a session reaches the page its user sees.
+ * The browser tabs each session's panes hold while they are mounted, so an agent
+ * action addressed to a session reaches the tab its user sees.
  */
 export const liveGuests = new LiveGuests()
 
@@ -230,6 +352,19 @@ export const liveGuests = new LiveGuests()
  * shows the pointer pressing.
  */
 export type PaneCursorControl = 'back' | 'forward' | 'refresh' | 'stop'
+
+/**
+ * Everything in the pane's chrome the agent can press with the pointer: the
+ * toolbar buttons, the three-dot menu's rows and zoom steppers, and the
+ * appearance submenu's schemes.
+ */
+export const PANE_CONTROLS = [
+  'back', 'forward', 'refresh', 'capture', 'open-in-chrome', 'hard-reload', 'devtools', 'clear-cache', 'clear-cookies',
+  'zoom-in', 'zoom-out', 'zoom-reset', 'appearance:system', 'appearance:light', 'appearance:dark',
+] as const
+
+/** One control of {@link PANE_CONTROLS}. */
+export type PaneControl = typeof PANE_CONTROLS[number]
 
 /**
  * What a pane can draw for the agent outside its guest.
@@ -256,6 +391,25 @@ export interface PaneCursorPresentation {
    * @returns once the address has been typed and the gesture has settled.
    */
   announceNavigation(url: string, signal?: AbortSignal): Promise<void>
+  /**
+   * Press a pane control with the pointer: a toolbar button directly, a menu row
+   * or zoom stepper after opening the three-dot menu, a scheme after opening the
+   * appearance submenu. Each press waits for the pointer to arrive first.
+   * @param control - the control to press.
+   * @param signal - cancels the gesture.
+   * @returns once the control has been pressed.
+   * @throws {Error} when the control is missing or disabled.
+   */
+  pressControl(control: PaneControl, signal?: AbortSignal): Promise<void>
+  /**
+   * Press an element of the sidebar column with the pointer, such as a tab's pill
+   * or the plus button, once it is placed on screen.
+   * @param find - finds the element; polled until it is placed.
+   * @param signal - cancels the gesture.
+   * @returns once the element has been pressed.
+   * @throws {Error} when the element does not appear.
+   */
+  pressElement(find: () => HTMLElement | null, signal?: AbortSignal): Promise<void>
 }
 
 /**
@@ -387,13 +541,22 @@ export function browserPartition(): string {
 const LAST_URL_PREFIX = 'avn.sidebar-right.browser.url'
 
 /**
- * The address a session's guest last showed, so a remounted pane reopens it.
+ * The address a tab opens at: an address written for its session before any tab
+ * mounted, taken once, or else the address that tab last showed.
  * @param sessionId - session whose address is read.
+ * @param tabId - the tab mounting; omitted reads only the session's pending address.
  * @returns the address, or undefined when none is saved or storage is unavailable.
  */
-export function readLastUrl(sessionId: string): string | undefined {
+export function readLastUrl(sessionId: string, tabId?: string): string | undefined {
   try {
-    return localStorage.getItem(`${LAST_URL_PREFIX}.${sessionId}`) ?? undefined
+    const pending = localStorage.getItem(`${LAST_URL_PREFIX}.${sessionId}`)
+    if (tabId === undefined) return pending ?? undefined
+    // An address written for the session before its tab mounted opens in that tab once.
+    if (pending !== null) {
+      localStorage.removeItem(`${LAST_URL_PREFIX}.${sessionId}`)
+      return pending
+    }
+    return localStorage.getItem(`${LAST_URL_PREFIX}.${sessionId}.${tabId}`) ?? undefined
   } catch {
     // Storage unavailable (private mode, blocked site data): the guest opens blank.
     return undefined
@@ -401,13 +564,15 @@ export function readLastUrl(sessionId: string): string | undefined {
 }
 
 /**
- * Remember the address a session's guest shows.
+ * Remember an address: the one a tab shows, or with no tab, the address the
+ * session's next mounting tab opens at.
  * @param sessionId - session whose address is written.
- * @param url - the committed address.
+ * @param url - the address.
+ * @param tabId - the tab that shows it; omitted makes it the session's pending address.
  */
-export function writeLastUrl(sessionId: string, url: string): void {
+export function writeLastUrl(sessionId: string, url: string, tabId?: string): void {
   try {
-    localStorage.setItem(`${LAST_URL_PREFIX}.${sessionId}`, url)
+    localStorage.setItem(tabId === undefined ? `${LAST_URL_PREFIX}.${sessionId}` : `${LAST_URL_PREFIX}.${sessionId}.${tabId}`, url)
   } catch {
     // Same unavailable storage as readLastUrl: the address is not restored.
   }

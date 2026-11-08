@@ -63,6 +63,12 @@ const MAX_STIFFNESS = 1 / (2 * STEP_SECONDS ** 2)
 const REST_VELOCITY = 0.001 * 60
 
 /**
+ * One display frame at 60Hz, in seconds: the simulation clock restarts this far
+ * behind the script clock after a stall, and the frame loop never advances by less.
+ */
+export const FRAME_SECONDS = 1 / 60
+
+/**
  * Create a spring already at `value`, so nothing animates on first paint.
  * @param value - the starting value, which is also the spring's first target.
  * @param config - the spring's feel.
@@ -85,29 +91,25 @@ export function createSpring(value: number, config: SpringConfig): Spring {
  *
  * The strategy is React Spring's: track time on a `scriptTime` clock, and run the
  * simulation in fixed `STEP_SECONDS` steps until it catches up. When the two
- * clocks drift by more than a step — which is what a dropped frame looks like —
- * the simulation clock is pulled back one step rather than asked to catch up,
- * so a stall cannot produce a visible jump.
+ * clocks drift by more than a second, the simulation clock restarts one
+ * {@link FRAME_SECONDS} behind instead of catching up, so a stall cannot produce
+ * a visible jump. A settled spring snaps its value to the target and keeps its
+ * residual velocity and force, as the reference's solver does.
  * @param spring - mutated in place.
- * @param seconds - elapsed wall time; values <= 0 are ignored.
+ * @param seconds - elapsed wall time; negative values count as 0.
  */
 export function stepSpring(spring: Spring, seconds: number): void {
-  if (!(seconds > 0)) return
   const response = Math.max(0.001, spring.config.response)
   const stiffness = Math.min((Math.PI * 2) ** 2 / response ** 2, MAX_STIFFNESS)
   const damping = Math.sqrt(stiffness) * 2 * spring.config.dampingFraction
 
-  spring.scriptTime += seconds
-  if (spring.scriptTime - spring.simulationTime > 1) spring.simulationTime = spring.scriptTime - STEP_SECONDS
+  spring.scriptTime += Math.max(0, seconds)
+  if (spring.scriptTime - spring.simulationTime > 1) spring.simulationTime = spring.scriptTime - FRAME_SECONDS
   while (spring.simulationTime < spring.scriptTime) {
     integrate(spring, stiffness, damping)
     spring.simulationTime += STEP_SECONDS
   }
-  if (hasSettled(spring)) {
-    spring.value = spring.target
-    spring.velocity = 0
-    spring.force = 0
-  }
+  if (hasSettled(spring)) spring.value = spring.target
 }
 
 /**
@@ -140,10 +142,22 @@ function hasSettled(spring: Spring): boolean {
 /**
  * Whether a spring has arrived and stopped.
  * @param spring - the spring to test.
- * @returns true when its velocity and force are near zero and it sits within tolerance of its target.
+ * @returns true when it sits exactly on its target with velocity and force near zero.
  */
 export function isAtRest(spring: Spring): boolean {
-  return hasSettled(spring)
+  return spring.value === spring.target && hasSettled(spring)
+}
+
+/**
+ * Aim an angle spring at `degrees` the short way around, keeping its velocity.
+ * @param spring - the angle spring, in degrees.
+ * @param degrees - the angle to reach; any equivalent angle is accepted.
+ */
+export function retargetAngle(spring: Spring, degrees: number): void {
+  let delta = degrees - spring.value
+  while (delta > 180) delta -= 360
+  while (delta < -180) delta += 360
+  spring.target = spring.value + delta
 }
 
 /**

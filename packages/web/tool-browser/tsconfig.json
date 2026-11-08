@@ -45,6 +45,9 @@
       "path": "../../interaction/user-approval"
     },
     {
+      "path": "../../interaction/user-questions"
+    },
+    {
       "path": "../../sandbox/sandbox-policy"
     },
     {

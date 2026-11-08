@@ -17,6 +17,7 @@
  */
 
 import type {} from '@aeven/user-approval'
+import type {} from '@aeven/user-questions'
 import type {} from '@aeven/sandbox-policy'
 import type { ImageAttachmentRef } from '@aeven/attachment'
 import type { Context } from '@deepseek-ai/cordis'
@@ -143,7 +144,7 @@ const BROWSER_INSTRUCTIONS = [
   'Use preview_sequence for known consecutive actions; it runs locally in order and waits for specified elements without another model request between actions. Use preview_upload to attach files directly; never use clipboard tricks, a local HTTP server, or a native picker for a supported upload.',
   'For browser work, first call preview_status. Then use preview_navigate, preview_snapshot, and the focused interaction tools. Prefer snapshot-provided selectors over coordinates.',
   'A page served from this machine (localhost or 127.0.0.1) is an application under development: open it in the Chrome DevTools browser (mcp__chrome_devtools__*), not this pane. Use the headless browser tools for it only when that browser and this pane are both unavailable, and say that the check ran in a headless copy.',
-  'Correct an actionable error in this browser. If this browser needs authentication, ask the user to sign in here; never type credentials or switch browsers to bypass sign-in. Prefer preview_snapshot and focused actions over writing JavaScript for ordinary clicks or text entry.',
+  'Correct an actionable error in this browser. If this browser needs authentication, a captcha, or the user\'s confirmation, call preview_handoff and end your turn; never type credentials or switch browsers to bypass sign-in. Prefer preview_snapshot and focused actions over writing JavaScript for ordinary clicks or text entry; read a whole article with preview_content.',
 ].join('\n')
 
 /**
@@ -240,8 +241,11 @@ function nextStepFor(pageOpen: boolean, openable: boolean, host: HostBrowserRepo
   return `No page is open beside this session. The Chromium on this Host is the browser the user can see and sign in to, and the ${host.toolPrefix}* tools drive it, starting it when it is not running. A page served from this machine (localhost or 127.0.0.1) is an application under development: verify it there first, and in the headless browser only when this one cannot start. Use it for remote pages too, preserving the user's signed-in browser session; use headless browsing only when neither visible surface is available.`
 }
 
-const selector = { type: 'string', description: "CSS selector such as button[type='submit'], from preview_snapshot's interactiveElements." } as const
+const selector = { type: 'string', description: "Element selector: CSS such as button[type='submit'] (from preview_snapshot's interactiveElements), or a locator such as text=Sign in, role=button[name=\"Save\"], label=Email, placeholder=Search, testid=submit, or xpath=//a. Join parts with >> to search inside a match; append >> nth=0 to pick one of several matches." } as const
 const token = { type: 'string', description: 'Element token from the latest preview_snapshot with mode ax. Valid until the next browser action; do not combine with selector or coordinates.' } as const
+const frame = { type: 'string', description: 'Selector of the iframe the target is in. Omit for the top document.' } as const
+const modifiers = { type: 'array', items: { type: 'string', enum: ['Alt', 'Control', 'Meta', 'Shift'] }, description: 'Modifier keys held during the action.' } as const
+const point = { type: 'object', additionalProperties: false, properties: { selector, x: { type: 'number' }, y: { type: 'number' } }, description: 'A selector, or viewport x and y in CSS pixels.' } as const
 const text = { render: (_args: unknown, value: string) => [{ type: 'text' as const, text: value }] }
 
 /**
@@ -359,6 +363,126 @@ export function apply(ctx: Context, config: Config): void {
     return { ...input, origin: url.origin }
   }
 
+  /** What the model is told once the person has seen the handoff. */
+  const HANDOFF_DONE = 'The user saw your request and will do it. End your turn now with one short sentence; continue when they reply, and re-inspect the page first.'
+  /** What the model is told when the person declines the handoff. */
+  const HANDOFF_DECLINED = 'The user declined this step. Do not continue it or work around it; end your turn and say briefly what remains undone.'
+
+  /**
+   * Tell the person which browser step is theirs: the browser beside the session
+   * shows it as a modal; without one, the chat asks it as a question.
+   * @param input - the reason and what the person should do.
+   * @param exec - the running tool call.
+   * @returns the instruction that ends the agent's turn.
+   */
+  const handoff = async (input: { [key: string]: JsonValue }, exec: ToolRunContext): Promise<string> => {
+    const agent = callingAgent(exec)
+    const shown = await unlessAborted(ctx.waterfall(
+      scopeTarget(agent, agent),
+      'browser/automation',
+      { operation: 'handoff', input: { reason: input.reason ?? 'other', message: input.message ?? '' }, agent, signal: exec.signal },
+      () => Promise.resolve(null),
+    ), exec.signal)
+    if (shown !== null) {
+      const accepted = typeof shown === 'object' && !Array.isArray(shown) && shown.accepted === true
+      return accepted ? HANDOFF_DONE : HANDOFF_DECLINED
+    }
+    const questions = ctx.get('userQuestions')
+    if (questions === undefined) throw new HarnessError('handing the browser to the person needs the browser beside the session or the user-questions service', 'BROWSER_HANDOFF_UNAVAILABLE')
+    const answer = await questions.ask({
+      agent,
+      signal: exec.signal,
+      questions: [{ id: 'handoff', question: typeof input.message === 'string' ? input.message : '', options: [{ label: 'OK' }, { label: 'Not now' }] }],
+    })
+    return answer.answers.find(item => item.id === 'handoff')?.selected.includes('OK') === true ? HANDOFF_DONE : HANDOFF_DECLINED
+  }
+
+  /**
+   * Require the person's approval before the page's computer clipboard is read.
+   * @param exec - the running tool call.
+   * @throws {HarnessError} when approval is unavailable or refused.
+   */
+  const approveClipboardRead = async (exec: ToolRunContext): Promise<void> => {
+    const approval = ctx.get('approval')
+    if (approval === undefined) throw new HarnessError('reading the clipboard requires user approval', 'BROWSER_CLIPBOARD_APPROVAL_UNAVAILABLE')
+    const outcome = await approval.request({
+      agent: callingAgent(exec), toolName: exec.name, callId: exec.callId, signal: exec.signal,
+      reason: 'Read the text on your clipboard', allowSession: 'clipboard-read',
+    })
+    if (outcome !== 'allowed-once') throw new HarnessError('reading the clipboard was not approved', 'BROWSER_CLIPBOARD_DENIED')
+  }
+
+  /**
+   * Require the person's approval before a page's WebMCP tool runs: the tool acts
+   * with the person's session on that site. An approval for the session covers
+   * the same tool on the same site.
+   * @param tool - the page tool's name.
+   * @param args - the arguments it runs with.
+   * @param exec - the running tool call.
+   * @throws {HarnessError} when approval is unavailable or refused.
+   */
+  const approveWebMcp = async (tool: string, args: JsonValue, exec: ToolRunContext): Promise<void> => {
+    const approval = ctx.get('approval')
+    if (approval === undefined) throw new HarnessError('running a page tool requires user approval', 'BROWSER_WEBMCP_APPROVAL_UNAVAILABLE')
+    const page = await run('status', {}, exec)
+    const origin = typeof page === 'object' && page !== null && !Array.isArray(page) && typeof page.url === 'string' ? new URL(page.url).origin : 'this page'
+    const outcome = await approval.request({
+      agent: callingAgent(exec), toolName: exec.name, callId: exec.callId, signal: exec.signal,
+      reason: `Run the page tool ${tool} on ${origin} with ${JSON.stringify(args)}`,
+      allowSession: JSON.stringify({ webmcp: origin, tool }),
+    })
+    if (outcome !== 'allowed-once') throw new HarnessError('running the page tool was not approved', 'BROWSER_WEBMCP_DENIED')
+  }
+
+  /**
+   * Require the person's approval before their browsing history is read; an
+   * approval for the session covers later searches.
+   * @param exec - the running tool call.
+   * @throws {HarnessError} when approval is unavailable or refused.
+   */
+  const approveHistoryRead = async (exec: ToolRunContext, source: 'aeven' | 'browser'): Promise<void> => {
+    const approval = ctx.get('approval')
+    if (approval === undefined) throw new HarnessError('reading browsing history requires user approval', 'BROWSER_HISTORY_APPROVAL_UNAVAILABLE')
+    const outcome = await approval.request({
+      agent: callingAgent(exec), toolName: exec.name, callId: exec.callId, signal: exec.signal,
+      reason: source === 'browser' ? 'Search the history of your browser, through the Aeven extension' : 'Search the history of the browser beside the chat',
+      allowSession: `browser-history:${source}`,
+    })
+    if (outcome !== 'allowed-once') throw new HarnessError('reading browsing history was not approved', 'BROWSER_HISTORY_DENIED')
+  }
+
+  /**
+   * Require the person's approval before their bookmarks are read; an approval for the session covers later searches.
+   * @param exec - the running tool call.
+   * @throws {HarnessError} when approval is unavailable or refused.
+   */
+  const approveBookmarksRead = async (exec: ToolRunContext): Promise<void> => {
+    const approval = ctx.get('approval')
+    if (approval === undefined) throw new HarnessError('reading bookmarks requires user approval', 'BROWSER_BOOKMARKS_APPROVAL_UNAVAILABLE')
+    const outcome = await approval.request({
+      agent: callingAgent(exec), toolName: exec.name, callId: exec.callId, signal: exec.signal,
+      reason: 'Search the bookmarks of your browser, through the Aeven extension', allowSession: 'browser-bookmarks',
+    })
+    if (outcome !== 'allowed-once') throw new HarnessError('reading bookmarks was not approved', 'BROWSER_BOOKMARKS_DENIED')
+  }
+
+  /**
+   * Require the person's approval before the browser's cookies or cache are cleared:
+   * clearing cookies signs the person out of every site in this browser.
+   * @param control - `clear-cookies` or `clear-cache`.
+   * @param exec - the running tool call.
+   * @throws {HarnessError} when approval is unavailable or refused.
+   */
+  const approveClearing = async (control: string, exec: ToolRunContext): Promise<void> => {
+    const approval = ctx.get('approval')
+    if (approval === undefined) throw new HarnessError('clearing browser data requires user approval', 'BROWSER_CLEAR_APPROVAL_UNAVAILABLE')
+    const outcome = await approval.request({
+      agent: callingAgent(exec), toolName: exec.name, callId: exec.callId, signal: exec.signal,
+      reason: control === 'clear-cookies' ? 'Clear the browser\'s cookies, which signs you out of every site in it' : 'Clear the browser\'s cache',
+    })
+    if (outcome !== 'allowed-once') throw new HarnessError('clearing browser data was not approved', 'BROWSER_CLEAR_DENIED')
+  }
+
   // The first step of each turn carries the open page, so the model knows what
   // the user is looking at before it decides whether a request is about it.
   // The context is an ordinary plugin user message, so it is logged. The page
@@ -434,6 +558,16 @@ export function apply(ctx: Context, config: Config): void {
         }
       }
       if (operation === 'upload') input = await uploadInput(input, exec)
+      if (operation === 'clipboard' && input.action === 'read') await approveClipboardRead(exec)
+      if (operation === 'history') await approveHistoryRead(exec, input.source === 'browser' ? 'browser' : 'aeven')
+      if (operation === 'bookmarks') await approveBookmarksRead(exec)
+      // Tab commands also reach Aeven's own Chrome, whose endpoint the Host knows.
+      if (operation === 'tabs') {
+        const chromium = await ctx.get('browserChromium')?.status(exec.signal).catch(() => undefined)
+        if (chromium !== undefined) input = { ...input, chromium: chromium.browserUrl }
+      }
+      if (operation === 'webmcp' && input.action === 'invoke') await approveWebMcp(typeof input.name === 'string' ? input.name : '', input.input ?? {}, exec)
+      if (operation === 'control' && (input.control === 'clear-cookies' || input.control === 'clear-cache')) await approveClearing(input.control, exec)
       if (operation === 'sequence' && (!Array.isArray(input.actions) || input.actions.length === 0 || input.actions.length > 20)) throw new HarnessError('sequence requires 1 to 20 actions', 'BROWSER_SEQUENCE_ACTION')
       if (operation === 'sequence' && Array.isArray(input.actions)) {
         const actions: JsonValue[] = []
@@ -506,18 +640,108 @@ export function apply(ctx: Context, config: Config): void {
     action('preview_forward', 'forward',
       'Go forward one page in the collaborative browser tab, showing the pointer pressing the control.',
       {}),
+    action('preview_browser_control', 'control',
+      "Press a control of the browser itself with the pointer, as the user would: copy a screenshot of the page to the clipboard (capture), open the page in Chrome, hard reload, open DevTools, zoom in, out, or reset, switch the page's appearance, or clear cookies or cache (asks the user first; clearing cookies signs them out of every site).",
+      { control: { type: 'string', required: true, enum: ['capture', 'open-in-chrome', 'hard-reload', 'devtools', 'zoom-in', 'zoom-out', 'zoom-reset', 'appearance:system', 'appearance:light', 'appearance:dark', 'clear-cache', 'clear-cookies'], description: 'The control to press.' } }),
+    action('preview_tabs', 'tabs',
+      "List, open, select, or close browser tabs: the sidebar browser's tabs beside the session, Aeven's own Chrome (browser chrome), the user's everyday Chrome (browser my-chrome) when they allowed it, and the tabs Aeven opened through its extension in any of the user's browsers (browser extension; each tab names its browserName). Every other preview_* tool acts on the current tab: new opens a tab (at url when given) and makes it current, select makes another tab current. Use the sidebar browser unless the task needs a full Chrome or the user's own Chrome and its sign-ins.",
+      {
+        action: { type: 'string', required: true, enum: ['list', 'new', 'select', 'close'], description: 'What to do.' },
+        tabId: { type: 'string', description: 'The tab to select or close, from list.' },
+        url: { type: 'string', description: 'Address a new tab opens at.' },
+        browser: { type: 'string', enum: ['sidebar', 'chrome', 'my-chrome', 'extension'], description: "Where new opens the tab: sidebar (default), chrome (Aeven's own Chrome), my-chrome (the user's Chrome over remote debugging), or extension (the user's browser through the Aeven extension, in its Aeven tab group; Aeven starts that browser when it is closed)." },
+        browserName: { type: 'string', description: 'With browser extension, which of the connected browsers new opens the tab in, such as Brave, as tab lists name it; omitted picks the most recently connected.' },
+      }),
+    action('preview_history', 'history',
+      'Search the pages the user visited, newest first, by words in the address or title, to find something they read earlier: in the browser beside the chat, or with source browser in every browser of theirs the Aeven extension is connected in. Asks the user first.',
+      {
+        source: { type: 'string', enum: ['aeven', 'browser'], description: "aeven (default) searches the browser beside the chat; browser searches the user's own browser through the Aeven extension." },
+        query: { type: 'string', description: 'Words that must all appear in the address or title; empty lists the newest pages.' },
+        limit: { type: 'integer', description: 'Most pages to return, 1 to 200. Defaults to 20.' },
+      }),
+    action('preview_bookmarks', 'bookmarks',
+      "Search the user's bookmarks in their own browser, through the Aeven extension, by words in the title or address. Asks the user first.",
+      {
+        query: { type: 'string', description: 'Words to match; empty lists recent bookmarks.' },
+        limit: { type: 'integer', description: 'Most bookmarks to return, 1 to 200. Defaults to 20.' },
+      }),
+    action('preview_page_tools', 'webmcp',
+      "Use the tools the open page offers to agents through WebMCP: list them, or invoke one with JSON input. A page tool does the page's own work directly (search, add to cart, fill a form) and is more reliable than clicking. Invoking asks the user first.",
+      {
+        action: { type: 'string', required: true, enum: ['list', 'invoke'], description: 'list the page tools, or invoke one.' },
+        name: { type: 'string', description: 'The page tool to invoke, from list.' },
+        input: { type: 'object', additionalProperties: true, description: "Arguments matching the tool's inputSchema." },
+      }),
     action('preview_reload', 'reload',
       'Reload the page in the collaborative browser tab, showing the pointer pressing the control.',
       {}),
     action('preview_snapshot', 'snapshot',
       'Inspect a page before interacting. mode dom returns visible text and CSS selectors. mode ax reads the browser accessibility tree, including shadow DOM, and returns indexed nodes with snapshot-scoped tokens. Refresh after every action; truncated means nodes were omitted.',
-      { mode: { type: 'string', enum: ['dom', 'ax'], description: 'Observation mode. Defaults to dom.' } }),
+      { mode: { type: 'string', enum: ['dom', 'ax'], description: 'Observation mode. Defaults to dom.' }, frame }),
     action('preview_click', 'click',
-      'Click exactly one target in the collaborative browser tab. Prefer a selector from preview_snapshot; x and y must be supplied together.',
-      { selector, token, x: { type: 'number', description: 'Viewport-relative X coordinate in CSS pixels. Must be paired with y.' }, y: { type: 'number', description: 'Viewport-relative Y coordinate in CSS pixels. Must be paired with x.' } }),
+      'Click exactly one target in the collaborative browser tab: the pointer moves there first, and the call returns once a navigation the click started has loaded. Prefer a selector from preview_snapshot; x and y must be supplied together. clickCount 2 double-clicks; button right opens a context menu.',
+      {
+        selector, token, frame, modifiers,
+        x: { type: 'number', description: 'Viewport-relative X coordinate in CSS pixels. Must be paired with y.' },
+        y: { type: 'number', description: 'Viewport-relative Y coordinate in CSS pixels. Must be paired with x.' },
+        clickCount: { type: 'integer', enum: [1, 2, 3], description: 'Clicks in a row: 1 (default), 2 for a double-click, 3 for a triple-click.' },
+        button: { type: 'string', enum: ['left', 'right', 'middle'], description: 'Mouse button. Defaults to left.' },
+      }),
     action('preview_type', 'type',
-      'Insert literal text into one input in the collaborative browser tab. Types into selector, or into the currently focused element when omitted; set clear=true to replace existing text.',
-      { text: { type: 'string', required: true, description: 'Literal text to insert.' }, selector, token, clear: { type: 'boolean', description: 'Clear the existing input value before inserting text. Defaults to false.' } }),
+      'Insert literal text into one input in the collaborative browser tab. Types into selector, or into the currently focused element when omitted; set clear=true to replace existing text. sequential=true types one character at a time for inputs that react to each keystroke, such as autocomplete.',
+      {
+        text: { type: 'string', required: true, description: 'Literal text to insert.' }, selector, token, frame,
+        clear: { type: 'boolean', description: 'Clear the existing input value before inserting text. Defaults to false.' },
+        sequential: { type: 'boolean', description: 'Type one character at a time with key events for line breaks and tabs. Defaults to false.' },
+      }),
+    action('preview_hover', 'hover',
+      'Move the pointer over one target without clicking, to open a hover menu or tooltip.',
+      { selector, token, frame, modifiers, x: { type: 'number', description: 'Viewport X in CSS pixels, with y.' }, y: { type: 'number', description: 'Viewport Y in CSS pixels, with x.' } }),
+    action('preview_drag', 'drag',
+      'Press the mouse on one point, move to another, and release: drag a slider, a card, or a file between targets.',
+      { from: { ...point, required: true }, to: { ...point, required: true }, modifiers }),
+    action('preview_select', 'select',
+      'Choose options in a native <select> by option value or visible label. For a custom dropdown, click it open and click the option instead.',
+      { selector, token, frame, values: { type: 'array', required: true, items: { type: 'string' }, description: 'Option values or labels; more than one only for a multiple select.' } }),
+    action('preview_check', 'check',
+      'Set a checkbox, radio button, or switch to checked or unchecked, clicking it only when its state differs.',
+      { selector, token, frame, checked: { type: 'boolean', required: true, description: 'The state the control should end in.' } }),
+    action('preview_read', 'read',
+      'Read from elements without changing the page: their text, innerText, html, value, an attribute, the count of matches, whether they are visible, enabled, or checked, or their box. all=true reads every match.',
+      {
+        selector, token, frame,
+        property: { type: 'string', enum: ['text', 'innerText', 'html', 'value', 'attribute', 'count', 'visible', 'enabled', 'checked', 'box'], description: 'What to read. Defaults to text.' },
+        name: { type: 'string', description: 'Attribute name, for property attribute.' },
+        all: { type: 'boolean', description: 'Read every match instead of exactly one.' },
+      }),
+    action('preview_wait', 'wait',
+      'Wait until an element reaches a state, the address matches, or the page has loaded. Use it after an action that changes the page later, not fixed sleeps.',
+      {
+        selector, frame,
+        state: { type: 'string', enum: ['visible', 'hidden', 'attached', 'detached'], description: 'Element state to wait for. Defaults to visible and enabled.' },
+        url: { type: 'string', description: 'Text the address must contain, or a /regular expression/.' },
+        load: { type: 'string', enum: ['load', 'domcontentloaded'], description: 'Document load state to wait for.' },
+        timeoutMs: { type: 'number', description: 'Deadline, 1 to 60000 ms. Defaults to 5000.' },
+      }),
+    action('preview_content', 'content',
+      "Read the open page's content in one call: markdown (default) for articles and documents, text, html, or youtube_transcript for the captions of an open YouTube video. Output past 100000 characters is truncated.",
+      { format: { type: 'string', enum: ['markdown', 'text', 'html', 'youtube_transcript'], description: 'Output format. Defaults to markdown.' } }),
+    action('preview_export_document', 'export',
+      "Download the open Google Docs, Sheets, or Slides document into the user's Downloads folder with the user's own access. Docs: docx, pdf, md, txt, odt, rtf, epub; Sheets: xlsx, csv (the open sheet), pdf, ods, tsv; Slides: pptx, pdf, txt, odp. Text formats also return the content.",
+      { format: { type: 'string', description: 'Export format; defaults to docx, xlsx, or pptx for the document kind.' } }),
+    action('preview_clipboard', 'clipboard',
+      "Read or write the computer's clipboard text, for example to paste into a page with preview_press Meta+v after writing. Reading asks the user first.",
+      { action: { type: 'string', enum: ['read', 'write'], required: true, description: 'read or write.' }, text: { type: 'string', description: 'Text to write.' } }),
+    action('preview_console', 'console',
+      "Read the page's recent console messages and uncaught exceptions, newest last, to debug a page that misbehaves.",
+      {
+        levels: { type: 'array', items: { type: 'string', enum: ['log', 'info', 'warning', 'error', 'debug', 'exception'] }, description: 'Only these levels.' },
+        limit: { type: 'integer', description: 'Most recent entries to return, 1 to 500. Defaults to 100.' },
+        clear: { type: 'boolean', description: 'Forget the returned entries afterwards.' },
+      }),
+    action('preview_dialog', 'dialog',
+      'Inspect or answer the JavaScript alert, confirm, prompt, or beforeunload dialog that blocks the page. Without action it reports the open dialog.',
+      { action: { type: 'string', enum: ['accept', 'dismiss'], description: 'accept presses OK, dismiss presses Cancel.' }, promptText: { type: 'string', description: 'Text entered into a prompt dialog before accepting.' } }),
     action('preview_press', 'press',
       "Press one keyboard key in the collaborative browser tab. Examples: {key:'Enter'}, {key:'Escape'}, or {key:'a',modifiers:['Meta']}.",
       {
@@ -525,8 +749,13 @@ export function apply(ctx: Context, config: Config): void {
         modifiers: { type: 'array', items: { type: 'string', enum: ['Alt', 'Control', 'Meta', 'Shift'] }, description: 'Modifier keys held while pressing key.' },
       }),
     action('preview_scroll', 'scroll',
-      'Scroll the collaborative browser tab. Positive deltaY scrolls down and positive deltaX scrolls right; a selector targets a container.',
-      { deltaX: { type: 'number', description: 'Horizontal scroll delta in CSS pixels. Positive scrolls right. Defaults to 0.' }, deltaY: { type: 'number', description: 'Vertical scroll delta in CSS pixels. Positive scrolls down. Defaults to 0.' }, selector }),
+      'Scroll the collaborative browser tab with the mouse wheel at the pointer. Positive deltaY scrolls down and positive deltaX scrolls right; a selector or x and y scrolls the container under that point.',
+      {
+        deltaX: { type: 'number', description: 'Horizontal scroll delta in CSS pixels. Positive scrolls right. Defaults to 0.' },
+        deltaY: { type: 'number', description: 'Vertical scroll delta in CSS pixels. Positive scrolls down. Defaults to 0.' },
+        selector, token, frame,
+        x: { type: 'number', description: 'Viewport X in CSS pixels, with y.' }, y: { type: 'number', description: 'Viewport Y in CSS pixels, with x.' },
+      }),
     action('preview_upload', 'upload',
       'Attach local files in this browser. Prefer the file input selector; an Upload button selector opens and answers its chooser in the same action. Paths must be absolute paths on the Electron computer. Remote uploads require approval.',
       { selector, paths: { type: 'array', required: true, items: { type: 'string' }, description: 'Absolute local file paths to attach.' } }),
@@ -549,12 +778,40 @@ export function apply(ctx: Context, config: Config): void {
           paths: { type: 'array', required: true, items: { type: 'string' } },
         } },
         { type: 'object', additionalProperties: false, properties: {
-          operation: { type: 'string', const: 'wait', required: true }, selector: { ...selector, required: true },
-          state: { type: 'string', enum: ['visible', 'hidden'] }, timeoutMs: { type: 'number' },
+          operation: { type: 'string', const: 'wait', required: true }, selector, url: { type: 'string' },
+          load: { type: 'string', enum: ['load', 'domcontentloaded'] },
+          state: { type: 'string', enum: ['visible', 'hidden', 'attached', 'detached'] }, timeoutMs: { type: 'number' },
         } },
-      ] }, description: '1 to 20 ordered actions. wait defaults to visible and enabled, with a 5000ms deadline; timeoutMs must be 1 to 60000.' } }),
+        { type: 'object', additionalProperties: false, properties: {
+          operation: { type: 'string', const: 'hover', required: true }, selector: { ...selector, required: true },
+        } },
+        { type: 'object', additionalProperties: false, properties: {
+          operation: { type: 'string', const: 'select', required: true }, selector: { ...selector, required: true },
+          values: { type: 'array', required: true, items: { type: 'string' } },
+        } },
+        { type: 'object', additionalProperties: false, properties: {
+          operation: { type: 'string', const: 'check', required: true }, selector: { ...selector, required: true },
+          checked: { type: 'boolean', required: true },
+        } },
+        { type: 'object', additionalProperties: false, properties: {
+          operation: { type: 'string', const: 'scroll', required: true }, selector,
+          deltaX: { type: 'number' }, deltaY: { type: 'number' },
+        } },
+      ] }, description: '1 to 20 ordered actions. wait needs a selector, url, or load; a selector wait defaults to visible and enabled, with a 5000ms deadline; timeoutMs must be 1 to 60000.' } }),
     action('preview_evaluate', 'evaluate',
       'Evaluate JavaScript in the collaborative browser tab. Returns {value} with a serializable result up to 64 KB; the expression may mutate page state.',
-      { expression: { type: 'string', required: true, description: "JavaScript expression evaluated in the page's main frame, for example document.title or (() => ({href: location.href}))()." } }),
+      { expression: { type: 'string', required: true, description: "JavaScript expression evaluated in the page's main frame, for example document.title or (() => ({href: location.href}))()." }, frame }),
+    defineTool({
+      name: 'preview_handoff',
+      description: 'Tell the user a browser step is theirs to do: signing in, a captcha or verification code, confirming a payment or purchase, or anything they asked to do themselves. The browser shows your message in a modal; then end your turn and continue when the user replies. Never type their credentials.',
+      parameters: {
+        reason: { type: 'string', required: true, enum: ['authentication', 'captcha', 'confirmation', 'user_requested', 'other'], description: 'Why the user takes over.' },
+        message: { type: 'string', required: true, description: 'One sentence telling the user what to do, for example "Sign in to your Google account here, then tell me when you are done."' },
+      },
+      output: { schema: { type: 'string' }, ...text },
+      async execute(args, exec) {
+        return await handoff(args as { [key: string]: JsonValue }, exec)
+      },
+    }),
   ]) ctx.tools.register(tool)
 }

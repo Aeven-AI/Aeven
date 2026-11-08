@@ -40,6 +40,7 @@
     "@aeven/tools": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@aeven/user-approval": "workspace:^",
+    "@aeven/user-questions": "workspace:^",
     "@aeven/sandbox-policy": "workspace:^",
     "@aeven/attachment": "workspace:^"
   },
@@ -56,6 +57,7 @@
     "@aeven/util-values": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@aeven/user-approval": "workspace:^",
+    "@aeven/user-questions": "workspace:^",
     "@aeven/sandbox-policy": "workspace:^",
     "@aeven/attachment": "workspace:^"
   }

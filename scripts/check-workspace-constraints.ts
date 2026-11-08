@@ -54,9 +54,14 @@ const experimentalPackageDirectory = /^packages\/experimental\/[^/]+$/
 /** npm namespace reserved for private experimental packages. */
 const experimentalPackageNamePrefix = '@aeven/experimental-'
 /** Directories whose packages this repository publishes: one release member each. */
-const releaseMemberDirectory = /^(?:packages\/(?!experimental\/)[^/]+\/[^/]+|apps\/(?!desktop(?:-host)?$)[^/]+|vendor\/[^/]+)$/
-/** Installable application assembled by electron-builder rather than published to npm. */
-const desktopApplicationDirectory = 'apps/desktop'
+const releaseMemberDirectory
+  = /^(?:packages\/(?!experimental\/)[^/]+\/[^/]+|apps\/(?!desktop(?:-host)?$|chrome-extension$)[^/]+|vendor\/[^/]+)$/
+/**
+ * Installable applications that are not published to npm: the desktop app,
+ * assembled by electron-builder, and the browser extension, loaded unpacked or
+ * from the Chrome Web Store.
+ */
+const unpublishedApplicationDirectories: ReadonlySet<string> = new Set(['apps/desktop', 'apps/chrome-extension'])
 const localArtifactDirs = new Set(['node_modules'])
 const appPackageFiles: Readonly<Record<string, readonly string[]>> = {
   '@aeven/cli': ['lib/*.js'],
@@ -351,7 +356,7 @@ export function checkWorkspaceManifest({ dir, manifest }: WorkspaceManifest): st
     }
   }
 
-  if (dir.startsWith('apps/') && dir !== desktopApplicationDirectory && manifest.name?.startsWith('@aeven/')) {
+  if (dir.startsWith('apps/') && !unpublishedApplicationDirectories.has(dir) && manifest.name?.startsWith('@aeven/')) {
     const expectedFiles = appPackageFiles[manifest.name]
     if (expectedFiles === undefined) {
       errors.push(`${label}: app package has no publication files policy`)
@@ -510,7 +515,7 @@ function fixPublicationFiles(manifests: WorkspaceManifest[]): number {
     const name = manifest.name
     const expectedFiles = name === undefined
       ? undefined
-      : dir.startsWith('apps/') && dir !== desktopApplicationDirectory
+      : dir.startsWith('apps/') && !unpublishedApplicationDirectories.has(dir)
         ? appPackageFiles[name]
         : dir.startsWith('packages/') && name.startsWith('@aeven/')
           ? expectedAvnPackageFiles(manifest)

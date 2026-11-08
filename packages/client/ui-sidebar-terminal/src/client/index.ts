@@ -16,6 +16,7 @@ import type { SidebarContentPaneProps } from '@aeven/client-ui-sidebar-select/cl
 import type {} from '@aeven/client-ui-theme/client'
 import type { SessionId } from '@aeven/session/types'
 import { createElement } from 'react'
+import { presentTerminal } from './present.ts'
 import { TerminalPane, type TerminalHolds, type ThemeSource } from './TerminalPane.tsx'
 import { en, es, zh } from './locales.ts'
 
@@ -72,6 +73,15 @@ export function apply(ctx: ClientContext): void {
         opened.set(sessionId, request.terminalId)
         shown.sidebarContent.requestOpen(sessionId, 'terminal', true)
         return Promise.resolve(true)
+      })
+      // The model's `sidebar_terminal` send and close reach the window showing its session, whose pointer is drawn
+      // acting on that terminal first; a window without the terminal's pill delegates.
+      shown.remote.$on('terminal/present', function (request, next) {
+        const sessionId = shown.sessions.scopeOf(this)
+        if (sessionId === undefined) return next()
+        const terminalOf = (session: SessionId, contentId: string) => terminals.terminalOf(session, contentId)
+        return presentTerminal(sessionId, request.terminalId, request.action, terminalOf, request.signal)
+          .then(drawn => drawn ? true : next())
       })
     })
     const Pane = (props: SidebarContentPaneProps) => createElement(TerminalPane, { ...props, t, terminals, theme, holds, adopt })

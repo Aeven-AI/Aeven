@@ -13,9 +13,9 @@ Draws the agent's pointer and action feedback into a page the model is operating
 
 The cursor sprite, its rotation, its two-stop glow, and its motion model are the Codex desktop app's browser-agent cursor, read out of its extracted bundle. The sprite itself is the extracted asset, embedded verbatim.
 
-Long moves select among 20 cubic and segmented-arc candidates using viewport bounds, path length, turn smoothness, and approach direction. Path complexity determines spring timing; short moves use axis-aligned scoot stretch. Travel stretch, rotation, visibility blur, and appearance scale share one frame loop. The idle wobble finishes after 1.41 seconds; holding the pointer keeps it visible without repeating the wobble.
+Moves longer than 196px select among 20 cubic and segmented-arc candidates using viewport bounds, path length, turn smoothness, and approach direction. Path complexity determines spring timing; short moves use axis-aligned scoot stretch. Travel stretch, rotation, visibility blur, and appearance scale share one frame loop. The idle wobble finishes after 1.41 seconds; holding the pointer keeps it visible without repeating the wobble.
 
-The sprite uses the reference's `(12, -2.5)` offset and 44-degree artwork rotation, compensated by a -44-degree resting model angle. Hosts pass the cursor's target coordinate directly. First appearance can jump to the target; layout corrections replace position without starting a journey.
+The sprite uses the reference's `(12, -2.5)` offset and 44-degree artwork rotation, compensated by a -44-degree resting model angle, and its `#339cff` glow. Hosts pass the cursor's target coordinate directly. A pointer that is not on screen appears at its target at full visibility; layout corrections replace position without starting a journey. The spring solver restarts one 60 Hz frame behind after a stall longer than a second and keeps residual velocity when it snaps to a target; each frame advances at least 1/60 s, and the first frame of a long move exactly 1/60 s, as the reference's loop does.
 
 The Electron sidebar waits for numbered cursor-arrival acknowledgements before discrete input. Hidden panes acknowledge immediately; waits are bounded to 1500ms and cancellation prevents queued chrome input. Scrolling does not wait for arrival or synthesize pointer drift.
 
@@ -41,7 +41,7 @@ await session.send('Runtime.evaluate', { expression: 'window.__aevenOverlay.clic
 
 | Call | What it draws |
 |---|---|
-| `moveTo(point, { mode, label })` | Glides the pointer to a point and names the action; a first appearance fades in 120px short of the point and glides onto it |
+| `moveTo(point, { mode, label })` | Glides the pointer to a point and names the action; a pointer not on screen appears at the point |
 | `arrived(signal?)` | Resolves at arrival, hide, destruction, or 1500ms; cancellation rejects |
 | `click(point, { label })` | Arrives, expands a ring, flashes, and dwells briefly |
 | `type(point, { label })` | Blinks a caret at a point — visually distinct from a click |

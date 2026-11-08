@@ -30,6 +30,7 @@ interface SentenceContract {
  * so an absent section cannot be mistaken for forgotten documentation.
  */
 const NO_MODEL_EXPERIENCE_SECTION: Readonly<Record<string, string>> = {
+  'packages/web/browser-engine': 'The package performs browser operations behind the browser/automation listeners; it registers no tool, schema, or prompt section, and @aeven/tool-browser owns the tool schemas and results the model sees.',
   'packages/experimental/browser-overlay': 'The package draws a pointer into a page a model is operating; it registers no tool, schema, or prompt section and never touches a model request.',
   'packages/computer-use/computer-use': 'The package only records one provider name and registers nothing model-facing; the provider packages own every model-visible tool and prompt section.',
   'packages/computer-use/computer-use-desktop': 'The package only declares the desktop adapter contract and its validation guards; the session surface that reaches a model is owned by the consumer that exposes it.',

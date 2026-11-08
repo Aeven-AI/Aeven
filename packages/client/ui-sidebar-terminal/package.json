@@ -59,6 +59,7 @@
     "@aeven/client-ui-sidebar-select": "workspace:^",
     "@aeven/client-ui-slots": "workspace:^",
     "@aeven/client-ui-theme": "workspace:^",
+    "@aeven/experimental-browser-overlay": "workspace:^",
     "@aeven/session": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@types/react": "~18.3.1",

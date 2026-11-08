@@ -168,7 +168,7 @@ export function ChromeRow(props: ChromeRowProps): ReactNode {
           {!focused && url !== '' && (
             <span className={css.addressAddon}>
               <Tooltip label={t('openInChrome')} side="bottom">
-                <button type="button" className={css.control} aria-label={t('openInChrome')} onClick={props.onOpenInChrome}>
+                <button type="button" className={css.control} data-control="open-in-chrome" aria-label={t('openInChrome')} onClick={props.onOpenInChrome}>
                   <IconLucideSquareArrowOutUpRight />
                 </button>
               </Tooltip>
