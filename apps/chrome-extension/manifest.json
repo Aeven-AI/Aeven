@@ -31,5 +31,13 @@
     "nativeMessaging",
     "storage",
     "alarms"
-  ]
+  ],
+  "externally_connectable": {
+    "matches": [
+      "https://aeven.io/*",
+      "https://*.aeven.io/*",
+      "http://localhost/*",
+      "http://127.0.0.1/*"
+    ]
+  }
 }

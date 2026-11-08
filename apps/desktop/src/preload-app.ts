@@ -70,9 +70,10 @@ const api: AvnDesktopAppApi = {
       ipcRenderer.invoke(DESKTOP_IPC.browserAutomate, webContentsId, operation, input, requestId, timeoutMs) as Promise<unknown>,
     cancelAutomation: (webContentsId, requestId) => { ipcRenderer.send(DESKTOP_IPC.browserCancelAutomation, webContentsId, requestId) },
     chromeTabs: (kind, browserUrl) => ipcRenderer.invoke(DESKTOP_IPC.browserChromeTabs, kind, browserUrl) as Promise<Array<{ targetId: string; url: string; title: string }>>,
-    chromeOpen: (kind, browserUrl, url) => ipcRenderer.invoke(DESKTOP_IPC.browserChromeOpen, kind, browserUrl, url) as Promise<string>,
+    chromeOpen: (kind, browserUrl, url, browserName) => ipcRenderer.invoke(DESKTOP_IPC.browserChromeOpen, kind, browserUrl, url, browserName) as Promise<string>,
     chromeClose: (kind, browserUrl, targetId) => ipcRenderer.invoke(DESKTOP_IPC.browserChromeClose, kind, browserUrl, targetId) as Promise<void>,
     extensionRead: (what, query, limit) => ipcRenderer.invoke(DESKTOP_IPC.browserExtensionRead, what, query, limit),
+    extensionStatus: () => ipcRenderer.invoke(DESKTOP_IPC.browserExtensionStatus) as Promise<Array<{ instance: string; browser: string }>>,
     chromeAutomate: (kind, browserUrl, targetId, operation, input, requestId, timeoutMs) =>
       ipcRenderer.invoke(DESKTOP_IPC.browserChromeAutomate, kind, browserUrl, targetId, operation, input, requestId, timeoutMs) as Promise<unknown>,
     suggest: url => ipcRenderer.invoke(DESKTOP_IPC.browserSuggest, url) as Promise<string>,

@@ -2034,29 +2034,41 @@ async function prepareTab(tab, overlayScript) {
 * "started debugging this browser" bar while a debugger is attached, so a tab is
 * detached once the agent has left it idle for `IDLE_DETACH_MS`. History
 * and bookmarks are read on request; the app asks the user before it requests them.
-* Messages are `{ id, method, params }` requests answered with `{ id, result }`
-* or `{ id, error }`, and `{ event, ... }` notifications.
+* Two kinds of connection carry the same messages: the desktop app's native
+* host, and an Aeven web page (`externally_connectable`), which is how hosted
+* Aeven reaches this browser; localhost pages may connect only to an unpacked
+* development install. Messages are `{ id, method, params }` requests answered on
+* the asking connection with `{ id, result }` or `{ id, error }`, and
+* `{ event, ... }` notifications sent to every connection.
 */
 /** The native messaging host the Aeven desktop app registers. */
 const HOST = "io.aeven.browser";
 /** The request and event set this extension speaks; the app refuses an older one. */
-const PROTOCOL = 2;
+const PROTOCOL = 3;
 /** Title of the tab group the agent's tabs live in. */
 const GROUP_TITLE = "Aeven";
 /** Session-storage key of the agent's tab ids, which survive the worker restarting. */
 const TABS_KEY = "agentTabs";
+/** Local-storage key of this install's id, which tells the app's connections from different browsers apart. */
+const INSTANCE_KEY = "instance";
+/** Origins of Aeven's own web pages, which may connect in any install. */
+const AEVEN_ORIGIN = /^https:\/\/([a-z\d-]+\.)*aeven\.io$/;
 /** Longest wait before reconnecting to the app, in ms. */
 const MAX_RETRY_MS = 6e4;
 /** How long an agent tab stays attached after its last operation, in ms; a task's steps follow within it. */
 const IDLE_DETACH_MS = 1e4;
 let port;
+/** Connected Aeven web pages. */
+const pages = /* @__PURE__ */ new Set();
 let retryMs = 1e3;
 let retryTimer;
 const agentTabs = /* @__PURE__ */ new Set();
 const attached = /* @__PURE__ */ new Set();
 /** Engine targets of the agent's tabs, attached on their first operation. */
 const targets = /* @__PURE__ */ new Map();
-/** Operations in flight, by request id, so the app can cancel one. */
+/** Number of the next connection, which keeps request ids of different connections apart. */
+let nextConnection = 1;
+/** Operations in flight, by connection and request id, so the asking connection can cancel one. */
 const running = /* @__PURE__ */ new Map();
 /** Pending detaches of idle agent tabs. */
 const idleTimers = /* @__PURE__ */ new Map();
@@ -2065,13 +2077,49 @@ let overlayScript;
 const loading = chrome.storage.session.get(TABS_KEY).then((stored) => {
 	for (const id of stored[TABS_KEY] ?? []) agentTabs.add(id);
 });
+/** This install's id, made once and kept. */
+const instance = chrome.storage.local.get(INSTANCE_KEY).then(async (stored) => {
+	const kept = stored[INSTANCE_KEY];
+	if (typeof kept === "string") return kept;
+	const made = crypto.randomUUID().replaceAll("-", "").slice(0, 12);
+	await chrome.storage.local.set({ [INSTANCE_KEY]: made });
+	return made;
+});
 /** Persist the agent's tab ids. */
 function saveTabs() {
 	chrome.storage.session.set({ [TABS_KEY]: [...agentTabs] });
 }
-/** Send one message to the app, when connected. */
+/** Send one notification to every connection. */
 function post(message) {
 	port?.postMessage(message);
+	for (const page of pages) page.postMessage(message);
+}
+/** What this install says about itself on connecting and when asked. */
+async function info() {
+	return {
+		instance: await instance,
+		browser: browserName(),
+		version: chrome.runtime.getManifest().version,
+		protocol: PROTOCOL
+	};
+}
+/**
+* Serve one connection's requests, which must be listened for as soon as it opens.
+* @param connection - the native host's or a web page's port.
+* @param admitted - settles true once the connection may be served; false leaves its requests unanswered.
+*/
+function serve(connection, admitted = Promise.resolve(true)) {
+	const serial = nextConnection++;
+	connection.onMessage.addListener((message) => {
+		if (message.event === "unavailable") return;
+		const { id, method } = message;
+		if (typeof id !== "number" || typeof method !== "string") return;
+		admitted.then((allowed) => {
+			if (allowed) answer(serial, id, method, message.params ?? {}, (reply) => {
+				connection.postMessage(reply);
+			});
+		});
+	});
 }
 /** The browser this extension runs in, as the app names it to the user. */
 function browserName() {
@@ -2091,39 +2139,34 @@ function connect() {
 	clearTimeout(retryTimer);
 	const opened = chrome.runtime.connectNative(HOST);
 	port = opened;
-	opened.onMessage.addListener((message) => {
-		if (message.event === "unavailable") return;
-		if (typeof message.id === "number" && typeof message.method === "string") answer(message.id, message.method, message.params ?? {}, post);
-	});
+	serve(opened);
 	opened.onDisconnect.addListener(() => {
 		if (port !== opened) return;
 		port = void 0;
-		for (const tabId of [...attached]) {
-			forget(tabId);
-			chrome.debugger.detach({ tabId }).catch(() => void 0);
-		}
+		if (pages.size === 0) detachAll();
 		retryTimer = setTimeout(connect, retryMs);
 		retryMs = Math.min(retryMs * 2, MAX_RETRY_MS);
 	});
-	post({
-		event: "hello",
-		browser: browserName(),
-		version: chrome.runtime.getManifest().version,
-		protocol: PROTOCOL
+	info().then((about) => {
+		if (port === opened) opened.postMessage({
+			event: "hello",
+			...about
+		});
 	});
 }
 /**
-* Answer one request from the app.
+* Answer one request from a connection.
+* @param connection - the asking connection's number.
 * @param id - the request id.
 * @param method - the request.
 * @param params - its parameters.
 */
-async function answer(id, method, params, reply) {
+async function answer(connection, id, method, params, reply) {
 	try {
 		await loading;
 		reply({
 			id,
-			result: await handle(method, params, id)
+			result: await handle(method, params, `${String(connection)}:${String(id)}`, connection)
 		});
 		retryMs = 1e3;
 	} catch (error) {
@@ -2190,6 +2233,13 @@ function detachWhenIdle(tabId) {
 		chrome.debugger.detach({ tabId }).catch(() => void 0);
 	}, IDLE_DETACH_MS));
 }
+/** Detach every agent tab: without a connection nothing drives them, so Chrome's debugging bar goes too. */
+function detachAll() {
+	for (const tabId of [...attached]) {
+		forget(tabId);
+		chrome.debugger.detach({ tabId }).catch(() => void 0);
+	}
+}
 /**
 * A tab the agent opened, refusing any other.
 * @param value - the tab id the app named.
@@ -2223,33 +2273,31 @@ async function group(tab) {
 * Perform one request.
 * @param method - the request.
 * @param params - its parameters.
+* @param key - the request's connection and id, under which an operation can be cancelled.
+* @param connection - the asking connection's number.
 * @returns the result.
 */
-async function handle(method, params, id) {
+async function handle(method, params, key, connection) {
 	switch (method) {
-		case "info": return {
-			protocol: PROTOCOL,
-			browser: browserName(),
-			version: chrome.runtime.getManifest().version
-		};
+		case "info": return await info();
 		case "operate": {
 			const tabId = agentTab(params.tabId);
 			if (typeof params.operation !== "string") throw new Error("operate needs an operation");
 			const controller = new AbortController();
 			clearTimeout(idleTimers.get(tabId));
-			running.set(id, {
+			running.set(key, {
 				controller,
 				tabId
 			});
 			try {
 				return await automate(await target(tabId), params.operation, params.input ?? {}, controller.signal, {});
 			} finally {
-				running.delete(id);
+				running.delete(key);
 				detachWhenIdle(tabId);
 			}
 		}
 		case "operate.cancel":
-			running.get(params.requestId)?.controller.abort(/* @__PURE__ */ new Error("the agent cancelled the action"));
+			running.get(`${String(connection)}:${String(params.requestId)}`)?.controller.abort(/* @__PURE__ */ new Error("the agent cancelled the action"));
 			return {};
 		case "tabs.list": {
 			const listed = [];
@@ -2327,6 +2375,33 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 		event: "tabs.removed",
 		tabId
 	});
+});
+chrome.runtime.onConnectExternal.addListener((page) => {
+	const origin = page.sender?.origin ?? "";
+	const local = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+	const admitted = AEVEN_ORIGIN.test(origin) ? Promise.resolve(true) : local ? chrome.management.getSelf().then((self) => self.installType === "development", () => false) : Promise.resolve(false);
+	serve(page, admitted);
+	page.onDisconnect.addListener(() => {
+		pages.delete(page);
+		if (port === void 0 && pages.size === 0) detachAll();
+	});
+	admitted.then(async (allowed) => {
+		if (!allowed) {
+			page.disconnect();
+			return;
+		}
+		pages.add(page);
+		page.postMessage({
+			event: "hello",
+			...await info()
+		});
+	});
+});
+chrome.runtime.onMessage.addListener((message, sender) => {
+	if (message.wake !== true) return;
+	retryMs = 1e3;
+	connect();
+	if (sender.tab?.id !== void 0) chrome.tabs.remove(sender.tab.id).catch(() => void 0);
 });
 chrome.alarms.create("aeven-connect", { periodInMinutes: 1 });
 chrome.alarms.onAlarm.addListener(() => {

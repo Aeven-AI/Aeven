@@ -4,12 +4,17 @@
  */
 declare namespace chrome {
   export namespace runtime {
+    interface MessageSender { tab?: tabs.Tab; origin?: string }
     interface Port {
       postMessage(message: unknown): void
       disconnect(): void
+      readonly sender?: MessageSender
       readonly onMessage: { addListener(callback: (message: any) => void): void }
       readonly onDisconnect: { addListener(callback: () => void): void }
     }
+    function sendMessage(message: unknown): Promise<unknown>
+    const onMessage: { addListener(callback: (message: any, sender: MessageSender) => void): void }
+    const onConnectExternal: { addListener(callback: (port: Port) => void): void }
     function connectNative(application: string): Port
     function getManifest(): { version: string }
     function getURL(path: string): string
@@ -52,6 +57,10 @@ declare namespace chrome {
   }
   export namespace storage {
     const session: { get(key: string): Promise<Record<string, unknown>>; set(items: Record<string, unknown>): Promise<void> }
+    const local: { get(key: string): Promise<Record<string, unknown>>; set(items: Record<string, unknown>): Promise<void> }
+  }
+  export namespace management {
+    function getSelf(): Promise<{ installType: 'admin' | 'development' | 'normal' | 'sideload' | 'other' }>
   }
   export namespace alarms {
     function create(name: string, info: { periodInMinutes: number }): void

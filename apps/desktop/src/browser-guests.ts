@@ -20,7 +20,7 @@ import {
 import { automate, observePage } from '@aeven/browser-engine'
 import { acknowledgeBrowserCursor, DESKTOP_ENGINE_HOST, guestTarget } from './browser-guest-target.ts'
 import { chromeCloseTab, chromeOpenTab, chromeTabs, chromeTarget, type ChromeKind } from './browser-chrome.ts'
-import { extensionBookmarks, extensionCloseTab, extensionHistory, extensionOpenTab, extensionOperate, extensionTabs } from './browser-extension.ts'
+import { extensionBookmarks, extensionBrowsers, extensionCloseTab, extensionHistory, extensionOpenTab, extensionOperate, extensionTabs } from './browser-extension.ts'
 import { fetchSuggestions } from './browser-search.ts'
 import { DESKTOP_IPC, type DesktopBrowserColorScheme, type DesktopBrowserDataKind } from './ipc.ts'
 
@@ -349,11 +349,6 @@ export function registerBrowserIpc(isAppSender: (event: IpcMainEvent | IpcMainIn
     if (kind !== 'aeven' && kind !== 'user' && kind !== 'extension') throw new Error('avn desktop: Chrome must be aeven, user, or extension')
     return kind
   }
-  const extensionTab = (targetId: string): number => {
-    const tabId = Number(targetId)
-    if (!Number.isSafeInteger(tabId)) throw new Error('avn desktop: an extension tab id is a number')
-    return tabId
-  }
   const chromeUrl = (browserUrl: unknown): string | undefined => {
     if (browserUrl === undefined || browserUrl === null) return undefined
     if (typeof browserUrl !== 'string' || !/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(browserUrl)) throw new Error("avn desktop: Aeven's Chrome endpoint must be a local http address")
@@ -362,22 +357,27 @@ export function registerBrowserIpc(isAppSender: (event: IpcMainEvent | IpcMainIn
   ipcMain.handle(DESKTOP_IPC.browserChromeTabs, async (event, kind: unknown, browserUrl: unknown) => {
     assertApp(event)
     const chrome = chromeKind(kind)
-    if (chrome === 'extension') return (await extensionTabs()).map(tab => ({ targetId: String(tab.tabId), url: tab.url, title: tab.title }))
+    if (chrome === 'extension') return await extensionTabs()
     return await chromeTabs(chrome, chromeUrl(browserUrl))
   })
-  ipcMain.handle(DESKTOP_IPC.browserChromeOpen, async (event, kind: unknown, browserUrl: unknown, url: unknown) => {
+  ipcMain.handle(DESKTOP_IPC.browserChromeOpen, async (event, kind: unknown, browserUrl: unknown, url: unknown, browserName: unknown) => {
     assertApp(event)
     if (typeof url !== 'string') throw new Error('avn desktop: Chrome tab address must be a string')
+    if (browserName !== undefined && typeof browserName !== 'string') throw new Error('avn desktop: a browser name must be a string')
     const chrome = chromeKind(kind)
-    if (chrome === 'extension') return String(await extensionOpenTab(url))
+    if (chrome === 'extension') return await extensionOpenTab(url, browserName ?? '')
     return await chromeOpenTab(chrome, chromeUrl(browserUrl), url)
   })
   ipcMain.handle(DESKTOP_IPC.browserChromeClose, async (event, kind: unknown, browserUrl: unknown, targetId: unknown) => {
     assertApp(event)
     if (typeof targetId !== 'string') throw new Error('avn desktop: Chrome tab id must be a string')
     const chrome = chromeKind(kind)
-    if (chrome === 'extension') await extensionCloseTab(extensionTab(targetId))
+    if (chrome === 'extension') await extensionCloseTab(targetId)
     else await chromeCloseTab(chrome, chromeUrl(browserUrl), targetId)
+  })
+  ipcMain.handle(DESKTOP_IPC.browserExtensionStatus, (event) => {
+    assertApp(event)
+    return extensionBrowsers()
   })
   ipcMain.handle(DESKTOP_IPC.browserExtensionRead, async (event, what: unknown, query: unknown, limit: unknown) => {
     assertApp(event)
@@ -394,9 +394,8 @@ export function registerBrowserIpc(isAppSender: (event: IpcMainEvent | IpcMainIn
     const chrome = chromeKind(kind)
     if (chrome === 'extension') {
       // The extension runs the engine itself; the app sends it the whole operation.
-      const tabId = extensionTab(targetId)
       return await run(event, targetId, operation, input, requestId, timeoutMs,
-        async (name, values, signal) => await extensionOperate(tabId, name, values, signal), async () => {}, () => {})
+        async (name, values, signal) => await extensionOperate(targetId, name, values, signal), async () => {}, () => {})
     }
     const tab = await chromeTarget(chrome, chromeUrl(browserUrl), targetId)
     return await run(event, targetId, operation, input, requestId, timeoutMs,

@@ -82,14 +82,16 @@ export interface DesktopBrowserBridge {
   /** Cancel the owned browser request. */
   cancelAutomation: (webContentsId: number | string, requestId: DesktopBrowserRequestId) => void
   /** List a Chrome's web tabs (desktop `chromeTabs`). */
-  chromeTabs: (kind: ChromeKind, browserUrl?: string) => Promise<Array<{ targetId: string; url: string; title: string }>>
-  /** Open a background Chrome tab and return its id (desktop `chromeOpen`). */
-  chromeOpen: (kind: ChromeKind, browserUrl: string | undefined, url: string) => Promise<string>
+  chromeTabs: (kind: ChromeKind, browserUrl?: string) => Promise<Array<{ targetId: string; url: string; title: string; browser?: string }>>
+  /** Open a Chrome tab and return its id; `browserName` picks among the extension's browsers (desktop `chromeOpen`). */
+  chromeOpen: (kind: ChromeKind, browserUrl: string | undefined, url: string, browserName?: string) => Promise<string>
   /** Close a Chrome tab (desktop `chromeClose`). */
   chromeClose: (kind: ChromeKind, browserUrl: string | undefined, targetId: string) => Promise<void>
-  /** Run one engine operation on a Chrome tab (desktop `chromeAutomate`). */
-  /** Search the extension browser's history or bookmarks (desktop `extensionRead`). */
+  /** Search the extension browsers' history or bookmarks (desktop `extensionRead`). */
   extensionRead: (what: 'history' | 'bookmarks', query: string, limit: number) => Promise<unknown>
+  /** The browsers whose Aeven extension is connected (desktop `extensionStatus`). */
+  extensionStatus: () => Promise<Array<{ instance: string; browser: string }>>
+  /** Run one engine operation on a Chrome tab (desktop `chromeAutomate`). */
   chromeAutomate: (
     kind: ChromeKind, browserUrl: string | undefined, targetId: string, operation: string, input: Record<string, unknown>,
     requestId?: DesktopBrowserRequestId, timeoutMs?: number,

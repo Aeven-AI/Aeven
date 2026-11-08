@@ -23,6 +23,7 @@ export const DESKTOP_IPC = {
   browserChromeClose: 'avn-desktop:browser-chrome-close',
   browserChromeAutomate: 'avn-desktop:browser-chrome-automate',
   browserExtensionRead: 'avn-desktop:browser-extension-read',
+  browserExtensionStatus: 'avn-desktop:browser-extension-status',
   browserSuggest: 'avn-desktop:browser-suggest',
   browserCursor: 'avn-desktop:browser-cursor',
   browserCursorArrived: 'avn-desktop:browser-cursor-arrived',
@@ -157,13 +158,14 @@ export interface AvnDesktopBrowserApi {
    * @param browserUrl - Aeven's Chrome's debugging endpoint, for `aeven`.
    * @returns each tab's id, address, and title.
    */
-  chromeTabs(kind: 'aeven' | 'user' | 'extension', browserUrl?: string): Promise<Array<{ targetId: string; url: string; title: string }>>
+  chromeTabs(kind: 'aeven' | 'user' | 'extension', browserUrl?: string): Promise<Array<{ targetId: string; url: string; title: string; browser?: string }>>
   /**
-   * Open a background tab in a Chrome.
+   * Open a tab in a Chrome.
    * @param kind - which Chrome. @param browserUrl - Aeven's Chrome's endpoint. @param url - first address, or empty.
+   * @param browserName - for the extension, which connected browser by name; absent picks the newest connection.
    * @returns the new tab's id.
    */
-  chromeOpen(kind: 'aeven' | 'user' | 'extension', browserUrl: string | undefined, url: string): Promise<string>
+  chromeOpen(kind: 'aeven' | 'user' | 'extension', browserUrl: string | undefined, url: string, browserName?: string): Promise<string>
   /** Close a Chrome tab. @param kind - which Chrome. @param browserUrl - Aeven's Chrome's endpoint. @param targetId - the tab. */
   chromeClose(kind: 'aeven' | 'user' | 'extension', browserUrl: string | undefined, targetId: string): Promise<void>
   /**
@@ -178,11 +180,16 @@ export interface AvnDesktopBrowserApi {
     requestId?: DesktopBrowserRequestId, timeoutMs?: number,
   ): Promise<unknown>
   /**
-   * Search the history or bookmarks of the browser the Aeven extension runs in.
+   * Search the history or bookmarks of the browsers the Aeven extension runs in.
    * @param what - `history` or `bookmarks`. @param query - words to match. @param limit - most entries.
    * @returns the matching entries.
    */
   extensionRead(what: 'history' | 'bookmarks', query: string, limit: number): Promise<unknown>
+  /**
+   * The browsers whose Aeven extension is connected.
+   * @returns each install's id and browser name.
+   */
+  extensionStatus(): Promise<Array<{ instance: string; browser: string }>>
   /**
    * Ask a search engine to complete a query: the endpoint's response body.
    * @param url - the engine's completion endpoint.

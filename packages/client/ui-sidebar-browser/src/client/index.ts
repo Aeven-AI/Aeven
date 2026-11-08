@@ -30,6 +30,8 @@ import {
   desktopBrowser, desktopLinks, desktopMenus, isDesktopShell, liveGuests, livePaneCursors, setPointerHold, writeLastUrl, type BrowserGuest, type ChromeKind, type ChromeTabRef,
 } from './guest.ts'
 import { installLinkHandling } from './links.ts'
+import { PageExtensionLink, pageConnector, pageExtensionBridge, type PageExtensionBridge } from './extension-page.ts'
+import { ExtensionRow, type ExtensionRowInjected } from './ExtensionRow.tsx'
 import { en, es, zh, type SidebarBrowserKey } from './locales.ts'
 import { SearchEnginePreference } from './search-engine.ts'
 import { BROWSER_SETTINGS_NAMESPACE, type BrowserSettings } from '../browser-settings.ts'
@@ -53,6 +55,8 @@ const NS = 'sidebarBrowser'
 
 /** Chrome access for the agent's tab commands and actions. */
 interface ChromeAccess {
+  /** The bridge that reaches the Chromes: the desktop shell's, or in the web app the page's link to the extension. */
+  bridge(): PageExtensionBridge | undefined
   /** Aeven's Chrome's debugging endpoint, when the Host runs one. */
   aevenUrl(): string | undefined
   /** Whether the reader allowed their own Chrome. */
@@ -60,7 +64,7 @@ interface ChromeAccess {
   /** Make sure Aeven's Chrome runs, launching it on the Host. */
   launch(sessionId: string): Promise<boolean>
   /** The Chrome tabs the session may use, as listed to the agent. */
-  list(sessionId: string): Promise<Array<{ tabId: string; browser: string; url: string; title: string; current: boolean }>>
+  list(sessionId: string): Promise<Array<{ tabId: string; browser: string; url: string; title: string; browserName?: string; current: boolean }>>
 }
 
 /** Tab-id prefix of each Chrome. */
@@ -82,6 +86,31 @@ function parseChromeTabId(tabId: string | undefined): ChromeTabRef | undefined {
 }
 
 /**
+ * List the tabs of the Chromes a session may use.
+ * @param sessionId - the session.
+ * @param bridge - reaches the Chromes.
+ * @param kinds - the Chromes to list.
+ * @param aevenUrl - Aeven's Chrome's endpoint, when it runs.
+ * @returns the tabs as listed to the agent.
+ */
+async function listChromeTabs(
+  sessionId: string, bridge: PageExtensionBridge, kinds: readonly ChromeKind[], aevenUrl: string | undefined,
+): Promise<Array<{ tabId: string; browser: string; url: string; title: string; browserName?: string; current: boolean }>> {
+  const current = liveGuests.chrome(sessionId)
+  const listed = []
+  for (const kind of kinds) {
+    // A Chrome that is not running, or does not allow debugging, lists no tabs.
+    const tabs = await bridge.chromeTabs(kind, aevenUrl).catch(() => [])
+    listed.push(...tabs.map(tab => ({
+      tabId: `${CHROME_PREFIX[kind]}${tab.targetId}`, browser: CHROME_BROWSER[kind], url: tab.url, title: tab.title,
+      ...tab.browser === undefined ? {} : { browserName: tab.browser },
+      current: current?.kind === kind && current.targetId === tab.targetId,
+    })))
+  }
+  return listed
+}
+
+/**
  * Answer a tab command that names a Chrome tab or opens one.
  * @param sessionId - the session.
  * @param request - the `tabs` request.
@@ -95,7 +124,7 @@ async function chromeTabs(
   chrome: ChromeAccess,
   tab: ChromeTabRef | undefined,
 ): Promise<{ [key: string]: unknown }> {
-  const bridge = desktopBrowser()
+  const bridge = chrome.bridge()
   if (bridge === undefined) throw new Error('Chrome tabs are driven from the desktop app')
   const action = request.input.action
   const kind: ChromeKind = tab?.kind ?? (request.input.browser === 'my-chrome' ? 'user' : request.input.browser === 'extension' ? 'extension' : 'aeven')
@@ -108,13 +137,15 @@ async function chromeTabs(
   switch (action) {
     case 'new': {
       const url = typeof request.input.url === 'string' ? request.input.url : ''
+      const browserName = kind === 'extension' && typeof request.input.browserName === 'string' ? request.input.browserName : undefined
       let targetId: string
       try {
-        targetId = await bridge.chromeOpen(kind, chrome.aevenUrl(), url)
+        targetId = await bridge.chromeOpen(kind, chrome.aevenUrl(), url, browserName)
       } catch (error) {
-        // Aeven's Chrome starts on demand; the reader's Chrome is theirs to start.
+        // Aeven's Chrome starts on demand; the reader's Chrome is theirs to start, and the
+        // extension's browser is started by the shell itself.
         if (kind !== 'aeven' || !await chrome.launch(sessionId)) throw error
-        targetId = await bridge.chromeOpen(kind, chrome.aevenUrl(), url)
+        targetId = await bridge.chromeOpen(kind, chrome.aevenUrl(), url, browserName)
       }
       liveGuests.selectChrome(sessionId, { kind, targetId })
       if (url !== '') await bridge.chromeAutomate(kind, chrome.aevenUrl(), targetId, 'wait', { load: 'load', timeoutMs: 10_000 }).catch(() => undefined)
@@ -238,6 +269,49 @@ async function browserTabs(
   }
 }
 
+/**
+ * Serve the agent's extension tabs from a web page: its tab commands for
+ * `browser extension`, its actions in the extension tab it selected, and history
+ * and bookmarks from the reader's browser. Everything else passes on.
+ * @param ctx - Client root context.
+ * @param bridge - the page's link to the extension.
+ */
+function installPageExtension(ctx: ClientContext, bridge: PageExtensionBridge): void {
+  const chrome: ChromeAccess = {
+    bridge: () => bridge,
+    aevenUrl: () => undefined,
+    userAllowed: () => false,
+    launch: async () => false,
+    list: async sessionId => await listChromeTabs(sessionId, bridge, ['extension'], undefined),
+  }
+  ctx.inject(['remote', 'sessions'], (scoped) => {
+    scoped.remote.$on('browser/automation', function (request, next) {
+      const sessionId = (scoped.sessions).scopeOf(this)
+      if (sessionId === undefined) return next()
+      if (request.operation === 'bookmarks' || (request.operation === 'history' && request.input.source === 'browser')) {
+        const limit = typeof request.input.limit === 'number' && Number.isInteger(request.input.limit) && request.input.limit > 0 ? Math.min(request.input.limit, 200) : 20
+        return bridge.extensionRead(request.operation === 'bookmarks' ? 'bookmarks' : 'history', typeof request.input.query === 'string' ? request.input.query : '', limit)
+          .then(entries => ({ entries })) as ReturnType<typeof next>
+      }
+      if (request.operation === 'tabs') {
+        const tab = parseChromeTabId(typeof request.input.tabId === 'string' ? request.input.tabId : undefined)
+        if (tab?.kind === 'extension' || (request.input.action === 'new' && request.input.browser === 'extension')) {
+          return chromeTabs(sessionId, request, chrome, tab) as ReturnType<typeof next>
+        }
+        if ((request.input.action ?? 'list') === 'list') return chrome.list(sessionId).then(tabs => ({ tabs })) as ReturnType<typeof next>
+        return next()
+      }
+      const chromeTab = liveGuests.chrome(sessionId)
+      if (chromeTab?.kind !== 'extension' || request.operation === 'handoff' || request.operation === 'control') return next()
+      const requestId = mintRequestId()
+      const cancel = (): void => { bridge.cancelAutomation(chromeTab.targetId, requestId) }
+      request.signal?.addEventListener('abort', cancel, { once: true })
+      return bridge.chromeAutomate('extension', undefined, chromeTab.targetId, request.operation, request.input, requestId, request.timeoutMs)
+        .finally(() => { request.signal?.removeEventListener('abort', cancel) }) as ReturnType<typeof next>
+    })
+  })
+}
+
 /** Services required by the browser plugin. */
 export const inject = ['slots', 'locale', 'settingsScope']
 
@@ -281,6 +355,18 @@ export function apply(ctx: ClientContext): void {
     }, 'ui-sidebar-browser: Host Chromium')
   })
 
+  // The desktop app reaches the extension through its native host; a web page
+  // connects to the extension in the browser it runs in.
+  const pageBridge = pageExtensionBridge(new PageExtensionLink(pageConnector))
+  const extensionStatus = desktopBrowser()?.extensionStatus ?? pageBridge.extensionStatus
+  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+    name: 'settings.general.item',
+    id: 'browser-extension',
+    order: 32,
+    locale: NS,
+    inject: (): ExtensionRowInjected => ({ extensionStatus }),
+  }, ExtensionRow))
+
   if (!isDesktopShell()) {
     ctx.inject(['sidebarContent', 'remote.browserChromium'], (scoped) => {
       scoped.effect(
@@ -288,6 +374,7 @@ export function apply(ctx: ClientContext): void {
         'ui-sidebar-browser: web launcher',
       )
     })
+    installPageExtension(ctx, pageBridge)
     return
   }
 
@@ -392,25 +479,16 @@ export function apply(ctx: ClientContext): void {
   // Aeven's Chrome's debugging endpoint, as the Host last reported it with a tab command.
   let aevenChromeUrl: string | undefined
   const chrome: ChromeAccess = {
+    bridge: desktopBrowser,
     aevenUrl: () => aevenChromeUrl,
     userAllowed: () => userChrome.allowed.getSnapshot(),
     launch: async sessionId => await (openChromium?.(sessionId, '') ?? Promise.resolve(false)),
     async list(sessionId) {
       const bridge = desktopBrowser()
       if (bridge === undefined) return []
-      const current = liveGuests.chrome(sessionId)
-      const listed = []
-      for (const kind of ['aeven', 'user', 'extension'] as const) {
-        if (kind === 'aeven' && aevenChromeUrl === undefined) continue
-        if (kind === 'user' && !userChrome.allowed.getSnapshot()) continue
-        // A Chrome that is not running, or does not allow debugging, lists no tabs.
-        const tabs = await bridge.chromeTabs(kind, aevenChromeUrl).catch(() => [])
-        listed.push(...tabs.map(tab => ({
-          tabId: `${CHROME_PREFIX[kind]}${tab.targetId}`, browser: CHROME_BROWSER[kind], url: tab.url, title: tab.title,
-          current: current?.kind === kind && current.targetId === tab.targetId,
-        })))
-      }
-      return listed
+      const kinds = (['aeven', 'user', 'extension'] as const).filter(kind =>
+        (kind !== 'aeven' || aevenChromeUrl !== undefined) && (kind !== 'user' || userChrome.allowed.getSnapshot()))
+      return await listChromeTabs(sessionId, bridge, kinds, aevenChromeUrl)
     },
   }
 
