@@ -7,7 +7,9 @@ import { connect, type Socket } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { EXTENSION_ID, ExtensionLinks, hasExtension, serveExtensions } from '../src/browser-extension.ts'
+import { EXTENSION_IDS, ExtensionLinks, hasExtension, serveExtensions } from '../src/browser-extension.ts'
+
+const [EXTENSION_ID] = EXTENSION_IDS
 
 interface FakeInfo { instance?: string; browser: string; protocol: number }
 
