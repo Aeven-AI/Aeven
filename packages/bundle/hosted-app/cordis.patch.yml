@@ -526,6 +526,11 @@
           with Chromium for screenshots and PDFs of pages. Installed fonts: Google Sans Flex, Inter, Roboto
           Flex, Montserrat, Poppins, DM Sans, Space Grotesk, Outfit, Bebas Neue, Oswald, Playfair Display,
           Lora, JetBrains Mono, and Noto for every script, CJK, and colour emoji; web font links do not load.
+          Each command runs in its own network namespace, so a port a command listens on is reachable
+          only from inside that same command: nobody else can open it, not the user, not the browser
+          panel, and not a later command, so never start a server for the user to visit. To show a page,
+          save the HTML and list it in output_files, or screenshot it with playwright-core. A background
+          command is stopped 15 minutes after it starts.
         cgroup:
           # The unit's cgroup: the parent of the `host` group systemd starts this process in.
           root: !!js "process.env.AVN_HOSTED_SANDBOX === '1' ? '/sys/fs/cgroup' + process.getBuiltinModule('node:path').dirname(process.getBuiltinModule('node:fs').readFileSync('/proc/self/cgroup', 'utf8').trim().split('::')[1] ?? '/') : ''"
@@ -549,6 +554,15 @@
     mode: workspace-write
     ceiling: workspace-write
     workspaceRoot: !!js "(process.getBuiltinModule('node:fs').mkdirSync(avnHomePath('sandbox', 'unowned'), { recursive: true }), avnHomePath('sandbox', 'unowned'))"
+
+# A background command keeps its account's CPU, memory, and process share
+# while it runs, and nothing else ends it before the Host restarts, so bash jobs
+# stop 15 minutes after they start. The sandbox-jail modelNote states the same
+# limit to the model.
+- id: jobs
+  config:
+    runtimeLimitMs:
+      bash: 900000
 
 # Uploaded clips are untrusted media: ffprobe reads them inside a jail without
 # network that sees only /usr and the directory the clip is written to, capped
