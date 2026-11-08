@@ -13,6 +13,7 @@
  * once the scrolled position has settled.
  */
 
+import { randomUUID } from '@aeven/util-crypto'
 import { LOCATOR_PRELUDE, MAX_CONTENT_LENGTH, PAGE_MARKDOWN, YOUTUBE_TRANSCRIPT } from './page-scripts.ts'
 
 /** One step of the agent pointer: where it goes and what it shows there. */
@@ -78,9 +79,13 @@ export interface BrowserTarget {
   readonly debugger: {
     attach(protocolVersion?: string): void
     isAttached(): boolean
+    // CDP results and event parameters differ per method; each caller states the fields it reads.
+    // oxlint-disable-next-line typescript/no-explicit-any -- the result's type depends on the method name
     sendCommand(method: string, commandParams?: object): Promise<any>
-    on(event: 'message', listener: (event: any, method: string, params: any) => void): unknown
-    off(event: 'message', listener: (event: any, method: string, params: any) => void): unknown
+    // oxlint-disable-next-line typescript/no-explicit-any -- the parameters' type depends on the event name
+    on(event: 'message', listener: (event: unknown, method: string, params: any) => void): unknown
+    // oxlint-disable-next-line typescript/no-explicit-any -- the parameters' type depends on the event name
+    off(event: 'message', listener: (event: unknown, method: string, params: any) => void): unknown
   }
   getURL(): string
   getTitle(): string
@@ -192,7 +197,7 @@ export function observePage(guest: BrowserTarget): () => void {
       case 'Page.javascriptDialogOpening':
         openDialogs.set(guest, {
           type: String(values.type),
-          message: String(values.message ?? ''),
+          message: textOf(values.message),
           ...typeof values.defaultPrompt === 'string' ? { defaultPrompt: values.defaultPrompt } : {},
           ...typeof values.url === 'string' ? { url: values.url } : {},
         })
@@ -208,7 +213,8 @@ export function observePage(guest: BrowserTarget): () => void {
         return
       }
       case 'Runtime.exceptionThrown': {
-        const details = values.exceptionDetails as { text?: string; url?: string; lineNumber?: number; exception?: { description?: string } } | undefined
+        const details = values.exceptionDetails as
+          { text?: string; url?: string; lineNumber?: number; exception?: { description?: string } } | undefined
         record(guest, { level: 'exception', text: details?.exception?.description ?? details?.text ?? 'uncaught exception', ...details?.url === undefined ? {} : { url: details.url }, ...details?.lineNumber === undefined ? {} : { line: details.lineNumber + 1 }, time: Date.now() })
         return
       }
@@ -248,6 +254,18 @@ async function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 
 /** An action's arguments, as the tool validated them. */
 export type BrowserAutomationInput = { readonly [key: string]: unknown }
+
+/**
+ * Text of a value a page or a tool call reported, without Object's default `[object Object]`.
+ * @param value - the value.
+ * @returns a string as is, JSON for anything else, and empty for nothing.
+ */
+function textOf(value: unknown): string {
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return String(value)
+  if (value === undefined || value === null) return ''
+  return JSON.stringify(value)
+}
 
 /** t3code `captureAutomationSnapshot`'s page expression, with each control's value and checked state. */
 const SNAPSHOT = `(() => {
@@ -424,7 +442,8 @@ function press(guest: BrowserTarget, input: BrowserAutomationInput): void {
  * @returns the CDP modifier bits.
  */
 function modifierMask(input: BrowserAutomationInput): number {
-  return (Array.isArray(input.modifiers) ? input.modifiers : []).reduce<number>((mask, name) => mask | (MODIFIER_BITS[String(name)] ?? 0), 0)
+  return (Array.isArray(input.modifiers) ? input.modifiers : [])
+    .reduce<number>((mask, name) => mask | (MODIFIER_BITS[textOf(name)] ?? 0), 0)
 }
 
 /**
@@ -437,7 +456,9 @@ function modifierMask(input: BrowserAutomationInput): number {
  * @param signal - abandons the watch.
  * @returns the settlement, which never rejects, and a cancel that settles it early.
  */
-export function watchNavigation(guest: BrowserTarget, mainFrameId: string, signal: AbortSignal): { settled: Promise<void>; cancel: () => void } {
+export function watchNavigation(
+  guest: BrowserTarget, mainFrameId: string, signal: AbortSignal,
+): { settled: Promise<void>; cancel: () => void } {
   let finish: () => void = () => {}
   const settled = new Promise<void>((resolve) => {
     let started = false
@@ -493,7 +514,7 @@ function watchDialog(guest: BrowserTarget): { opened: Promise<OpenDialog>; dispo
     const listen = (_event: unknown, method: string, params: unknown): void => {
       if (method !== 'Page.javascriptDialogOpening') return
       const values = params as { type?: unknown; message?: unknown }
-      resolve({ type: String(values.type), message: String(values.message ?? '') })
+      resolve({ type: textOf(values.type), message: textOf(values.message) })
     }
     guest.debugger.on('message', listen)
     dispose = (): void => { guest.debugger.off('message', listen) }
@@ -626,7 +647,7 @@ export async function automate(
     }
     if (typeof target.token !== 'string' && typeof target.selector !== 'string' && fallback === null) throw new Error('name the target with selector, token, or x and y')
     const point = await evaluate(pointExpression(targetOf(target, fallback ?? 'null'), actionable)) as Point | null
-    if (point === null) throw new Error(`no element matches ${String(target.selector ?? 'the target')}; call preview_snapshot for current selectors`)
+    if (point === null) throw new Error(`no element matches ${textOf(target.selector) || 'the target'}; call preview_snapshot for current selectors`)
     return await toTop(point)
   }
   /** Discrete actions wait for the pointer to arrive; continuous updates do not. */
@@ -807,7 +828,10 @@ export async function automate(
             })()`) === true
           }
           if (ready) return { ok: true, url: guest.getURL() }
-          if (Date.now() >= deadline) throw new Error(`timed out after ${String(timeoutMs)}ms waiting for ${[hasSelector ? String(input.selector) : '', hasUrl ? `url ${String(input.url)}` : '', input.load === undefined ? '' : `${String(input.load)}`].filter(part => part !== '').join(', ')}`)
+          if (Date.now() >= deadline) {
+            const awaited = [hasSelector ? textOf(input.selector) : '', hasUrl ? `url ${textOf(input.url)}` : '', textOf(input.load)]
+            throw new Error(`timed out after ${String(timeoutMs)}ms waiting for ${awaited.filter(part => part !== '').join(', ')}`)
+          }
           await sleep(25, signal)
         }
       }
@@ -848,7 +872,7 @@ export async function automate(
         const tree = await send('Page.getFrameTree') as { frameTree: { frame: { loaderId: string } } }
         await send('Accessibility.enable')
         const result = await send('Accessibility.getFullAXTree') as { nodes: BrowserAxNode[] }
-        const snapshotId = crypto.randomUUID()
+        const snapshotId = randomUUID()
         const targets = new Map<string, number>()
         const visible = result.nodes.filter(node => !node.ignored)
         const nodes = visible.slice(0, MAX_INTERACTIVE_ELEMENTS).map((node, index) => {
@@ -880,8 +904,8 @@ export async function automate(
         return { ok: true }
       }
       case 'drag': {
-        const from = input.from as BrowserAutomationInput | undefined
-        const to = input.to as BrowserAutomationInput | undefined
+        const from = input.from as BrowserAutomationInput | null | undefined
+        const to = input.to as BrowserAutomationInput | null | undefined
         if (typeof from !== 'object' || from === null || typeof to !== 'object' || to === null) throw new Error('drag requires from and to, each a selector or x and y')
         const start = await pointFor(from, null, false)
         const end = await pointFor(to, null, false)
@@ -960,7 +984,7 @@ export async function automate(
       }
       case 'read': {
         const property = input.property ?? 'text'
-        if (!['text', 'innerText', 'html', 'value', 'attribute', 'count', 'visible', 'enabled', 'checked', 'box'].includes(String(property))) throw new Error('read property must be text, innerText, html, value, attribute, count, visible, enabled, checked, or box')
+        if (typeof property !== 'string' || !['text', 'innerText', 'html', 'value', 'attribute', 'count', 'visible', 'enabled', 'checked', 'box'].includes(property)) throw new Error('read property must be text, innerText, html, value, attribute, count, visible, enabled, checked, or box')
         if (property === 'attribute' && typeof input.name !== 'string') throw new Error('read attribute requires name')
         if (targetObjectId === undefined && typeof input.selector !== 'string') throw new Error('read requires a selector or token')
         const value = await evaluate(`(() => {
@@ -992,18 +1016,25 @@ export async function automate(
       case 'content': {
         const format = input.format ?? 'markdown'
         if (format === 'youtube_transcript') {
-          const transcript = await evaluate(YOUTUBE_TRANSCRIPT) as { title: string; language: string | null; lines: Array<{ seconds: number; text: string }> }
+          const transcript = await evaluate(YOUTUBE_TRANSCRIPT) as
+            { title: string; language: string | null; lines: Array<{ seconds: number; text: string }> }
           const stamp = (seconds: number): string => `${String(Math.floor(seconds / 60))}:${String(seconds % 60).padStart(2, '0')}`
           const text = transcript.lines.map(line => `[${stamp(line.seconds)}] ${line.text}`).join('\n')
-          return { title: transcript.title, language: transcript.language, text: text.slice(0, MAX_CONTENT_LENGTH), truncated: text.length > MAX_CONTENT_LENGTH }
+          return {
+            title: transcript.title, language: transcript.language,
+            text: text.slice(0, MAX_CONTENT_LENGTH), truncated: text.length > MAX_CONTENT_LENGTH,
+          }
         }
         const expression = format === 'markdown' ? PAGE_MARKDOWN
           : format === 'text' ? '(document.body?.innerText ?? "")'
             : format === 'html' ? 'document.documentElement.outerHTML'
               : undefined
         if (expression === undefined) throw new Error('content format must be markdown, text, html, or youtube_transcript')
-        const text = String(await evaluate(expression) ?? '')
-        return { url: guest.getURL(), title: guest.getTitle(), format, text: text.slice(0, MAX_CONTENT_LENGTH), truncated: text.length > MAX_CONTENT_LENGTH, length: text.length }
+        const text = textOf(await evaluate(expression))
+        return {
+          url: guest.getURL(), title: guest.getTitle(), format,
+          text: text.slice(0, MAX_CONTENT_LENGTH), truncated: text.length > MAX_CONTENT_LENGTH, length: text.length,
+        }
       }
       case 'export': {
         const page = new URL(guest.getURL())
@@ -1045,7 +1076,9 @@ export async function automate(
         const levels = Array.isArray(input.levels) ? input.levels.map(String) : undefined
         const limit = typeof input.limit === 'number' && Number.isInteger(input.limit) && input.limit > 0 ? Math.min(input.limit, MAX_CONSOLE_ENTRIES) : 100
         const matching = entries.filter(entry => levels === undefined || levels.includes(entry.level))
-        const result = { entries: matching.slice(-limit).map(entry => ({ ...entry, text: entry.text.slice(0, 2000) })), total: matching.length }
+        const result = {
+          entries: matching.slice(-limit).map(entry => ({ ...entry, text: entry.text.slice(0, 2000) })), total: matching.length,
+        }
         if (input.clear === true) consoleEntries.delete(guest)
         return result
       }

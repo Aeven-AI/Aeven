@@ -16,12 +16,10 @@ every relative path below against the base directory reported in
 | --- | --- |
 | Read or interact with the page | the `preview_*` tools |
 | Pixels of the pane | `scripts/pane.mjs capture --out <file>` |
-| The pane's chrome: back, forward, reload, address, zoom, options | `scripts/pane.mjs click "<label>"` |
+| The pane's toolbar and menu | `preview_browser_control` |
 | A page that refuses automated reads, or needs the user's own session | the escalation order under [When the pane cannot serve](#when-the-pane-cannot-serve) |
 
-The `preview_*` tools are the supported surface and the only one that leaves the
-pane where the user put it. The script covers the two things the tools do not do:
-capturing pixels and pressing the pane's toolbar.
+The `preview_*` tools are the supported surface; the script only captures pixels.
 
 ## Read and drive the page
 
@@ -67,8 +65,7 @@ Use `preview_type` for a whole caption, including paragraph breaks; it inserts t
 
 Use `preview_sequence` for known consecutive actions. Include `wait` actions for visible/enabled or hidden elements between page transitions, rather than sleeps. It stops at the first failure and returns the completed count and failed action index. Inspect the resulting editor or attachment before submitting; include a submission only when the user authorized it.
 
-`preview_screenshot` returns the page's pixels to you. There is no `preview_open`:
-ask the user to open the pane when `preview_status` reports no page.
+`preview_screenshot` returns the page's pixels to you.
 
 ## Capture what the user sees
 

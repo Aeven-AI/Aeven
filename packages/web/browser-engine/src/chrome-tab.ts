@@ -33,12 +33,15 @@ function keyFields(name: string): { key: string; code: string; windowsVirtualKey
   return { key: name, code, windowsVirtualKeyCode: name.length === 1 ? upper.charCodeAt(0) : 0 }
 }
 
+/** A listener of a target's CDP events, as the engine registers it. */
+type CdpListener = Parameters<BrowserTarget['debugger']['on']>[1]
+
 /** How a tab target reaches its page: one CDP session, through a debugging connection or the extension. */
 export interface TabChannel {
   /** Send one CDP command to the tab. */
-  send(method: string, params: object): Promise<any>
+  send(method: string, params: object): Promise<unknown>
   /** Observe the tab's CDP events; returns the disposer. */
-  subscribe(listener: (method: string, params: any) => void): () => void
+  subscribe(listener: (method: string, params: unknown) => void): () => void
   /** Whether the channel still reaches the tab. */
   isOpen(): boolean
 }
@@ -51,14 +54,15 @@ export class ChromeTab implements BrowserTarget {
   #title: string
   #detached = false
   #overlayReady = false
-  readonly #listeners = new Map<(event: any, method: string, params: any) => void, () => void>()
+  readonly #listeners = new Map<CdpListener, () => void>()
   readonly #overlayScript: string
   readonly #unsubscribe: () => void
 
   /**
    * @param channel - the tab's CDP session.
    * @param id - the id the agent's tab commands name it by.
-   * @param url - its address now. @param title - its title now.
+   * @param url - its address now.
+   * @param title - its title now.
    * @param overlayScript - the agent pointer as a classic page script (the overlay package's IIFE bundle).
    */
   constructor(channel: TabChannel, id: string, url: string, title: string, overlayScript: string) {
@@ -68,13 +72,14 @@ export class ChromeTab implements BrowserTarget {
     this.#url = url
     this.#title = title
     this.#unsubscribe = channel.subscribe((method, params) => {
-      if (method === 'Page.frameNavigated' && params.frame?.parentId === undefined) this.#overlayReady = false
+      if (method === 'Page.frameNavigated' && (params as { frame?: { parentId?: string } }).frame?.parentId === undefined) this.#overlayReady = false
     })
   }
 
   /**
    * Record the tab's address and title as its browser reports them.
-   * @param url - the address. @param title - the title.
+   * @param url - the address.
+   * @param title - the title.
    */
   setInfo(url: string, title: string): void {
     this.#url = url
@@ -92,11 +97,11 @@ export class ChromeTab implements BrowserTarget {
   readonly debugger = {
     attach: (): void => {},
     isAttached: (): boolean => !this.#detached && this.#channel.isOpen(),
-    sendCommand: (method: string, params?: object): Promise<any> => this.#channel.send(method, params ?? {}),
-    on: (_event: 'message', listener: (event: any, method: string, params: any) => void): void => {
+    sendCommand: async (method: string, params?: object) => await this.#channel.send(method, params ?? {}),
+    on: (_event: 'message', listener: CdpListener): void => {
       this.#listeners.set(listener, this.#channel.subscribe((method, params) => { listener(undefined, method, params) }))
     },
-    off: (_event: 'message', listener: (event: any, method: string, params: any) => void): void => {
+    off: (_event: 'message', listener: CdpListener): void => {
       this.#listeners.get(listener)?.()
       this.#listeners.delete(listener)
     },
@@ -129,6 +134,10 @@ export class ChromeTab implements BrowserTarget {
     await this.debugger.sendCommand('Input.insertText', { text })
   }
 
+  /**
+   * Send one key event, as Electron's `sendInputEvent` takes it, through CDP.
+   * @param input - the event: down, char, or up, with the key and its modifiers.
+   */
   sendInputEvent(input: { type: 'keyDown' | 'char' | 'keyUp'; keyCode: string; modifiers?: Array<'alt' | 'control' | 'meta' | 'shift'> }): void {
     const modifiers = (input.modifiers ?? []).reduce((bits, name) => bits | MODIFIER_BITS[name], 0)
     const params = input.type === 'char'
@@ -218,6 +227,7 @@ export class ChromeTab implements BrowserTarget {
  * Make a newly attached tab ready for the engine: the domains its events come
  * from, and the overlay installed in every document it opens.
  * @param tab - the attached tab.
+ * @param overlayScript - the agent pointer as a classic page script.
  */
 export async function prepareTab(tab: ChromeTab, overlayScript: string): Promise<void> {
   // Dialogs, console output, and navigation events come from these domains.

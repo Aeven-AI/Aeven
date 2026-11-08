@@ -956,6 +956,7 @@ export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   AgentPresetDocument: 'preset composition view is owned by packages/preset/agent-presets/README.md',
   BrowserAutomationRequestEvent: 'event-local request contract is owned by packages/web/tool-browser/src/types.ts',
   TerminalShowRequestEvent: 'event-local request contract is owned by packages/api/terminal-controller/src/types.ts',
+  TerminalPresentRequestEvent: 'event-local request contract is owned by packages/api/terminal-controller/src/types.ts',
   WorkspaceFilesShowRequestEvent: 'event-local request contract is owned by packages/api/workspace-files/src/types.ts',
   WorkspaceFilesShowResult: 'event-local answer is owned by packages/api/workspace-files/src/types.ts',
   LocationAnswer: 'client-face location answer is owned by packages/interaction/tool-location/src/types.ts',

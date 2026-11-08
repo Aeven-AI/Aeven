@@ -1,7 +1,8 @@
 /** Answers the agent's `browser_*` tools with the session's own browser guest. */
 import type { BrowserAutomationRequestEvent } from '@aeven/tool-browser/types'
 import {
-  desktopBrowser, liveGuests, livePaneCursors, PANE_CONTROLS, webContentsIdOf, writeLastUrl, type BrowserGuest, type DesktopBrowserRequestId,
+  desktopBrowser, liveGuests, livePaneCursors, PANE_CONTROLS, webContentsIdOf, writeLastUrl,
+  type BrowserGuest, type DesktopBrowserRequestId,
   type PaneControl,
 } from './guest.ts'
 import { resolveAddress } from './url.ts'
@@ -208,6 +209,17 @@ export async function automate(guest: BrowserGuest, request: Pick<BrowserAutomat
       } finally {
         request.signal?.removeEventListener('abort', cancel)
       }
+    }
+    // The plugin answers these before a guest is chosen: tabs, history, and bookmarks
+    // address the session's browsers, and the handoff is the pane's modal.
+    case 'tabs':
+    case 'history':
+    case 'bookmarks':
+    case 'handoff':
+      throw new Error(`${request.operation} is not an action on one tab`)
+    default: {
+      const unknown: never = request.operation
+      throw new Error(`unknown browser operation ${String(unknown)}`)
     }
   }
 }

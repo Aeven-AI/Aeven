@@ -31,7 +31,7 @@ Mount the plugin in an agent composition whose Client can host a browser, such a
 
 `preview_screenshot` captures the visible viewport as JPEG under `actionTimeoutMs` and stores it as a durable image attachment in the tool result. The screenshot enters the session log and model history through the ordinary image result path; attachment storage is required.
 
-Every `selector` argument accepts CSS or a locator part: `text=`, `role=` with `name`, `checked`, `disabled`, `expanded`, `pressed`, `selected`, and `level` filters, `label=`, `placeholder=`, `alt=`, `title=`, `testid=`, and `xpath=`; `>>` searches inside the previous match, and `nth=` and `visible=` filter matches. A selector that matches more than one element is refused. A `frame` argument names the iframe the target is in. The Electron engine (desktop `browser-automation.ts`, `browser-page-scripts.ts`) owns the locator semantics.
+Every `selector` argument accepts CSS or a locator part: `text=`, `role=` with `name`, `checked`, `disabled`, `expanded`, `pressed`, `selected`, and `level` filters, `label=`, `placeholder=`, `alt=`, `title=`, `testid=`, and `xpath=`; `>>` searches inside the previous match, and `nth=` and `visible=` filter matches. A selector that matches more than one element is refused. A `frame` argument names the iframe the target is in. The [browser engine](../browser-engine/README.md) owns the locator semantics.
 
 | Tool | What it does |
 | --- | --- |
@@ -43,8 +43,8 @@ Every `selector` argument accepts CSS or a locator part: `text=`, `role=` with `
 | `preview_export_document` | Download the open Google Docs, Sheets, or Slides document into the user's Downloads folder with the guest session's cookies; text formats also return their content. |
 | `preview_clipboard`, `preview_console`, `preview_dialog` | Read (with approval) or write clipboard text; the page's last 500 console entries and uncaught exceptions; inspect or answer a JavaScript dialog. |
 | `preview_browser_control` | Press the pane's own toolbar and three-dot menu with the pointer: capture, open in Chrome, hard reload, DevTools, zoom, appearance, and clearing cache or cookies (with approval). |
-| `preview_tabs` | List, open, show, or close the session's browser tabs; each tab is a Browser pill in the sidebar, and the other tools act on the current one. The pointer presses the pill, the plus menu, or the pill's close button. |
-| `preview_history` | Search the pages visited in the in-app browser by words in the address or title (with approval, remembered for the session). |
+| `preview_tabs` | List, open, show, or close the session's browser tabs; each tab is a Browser pill in the sidebar, and the other tools act on the current one. The pointer presses the pill, the plus menu, or the pill's close button. `browser` opens the tab in Aeven's Chrome, the user's Chrome, or through the Aeven extension in one of the user's browsers (`browserName` picks which). |
+| `preview_history`, `preview_bookmarks` | Search the pages visited in the in-app browser, or with `source` browser the history of the user's browsers through the Aeven extension, by words in the address or title; search the user's bookmarks through the extension (with approval, remembered for the session). |
 | `preview_page_tools` | List the WebMCP tools the open page registered through `document.modelContext`, or invoke one (with approval per site and tool). |
 | `preview_handoff` | Show the user a modal naming a browser step that is theirs, then tell the model to end its turn; without a pane the chat asks the same question. |
 
@@ -139,7 +139,7 @@ Prefix-stable while the visible tool set is unchanged.
 - **Without a connected Client, each new turn waits `statusTimeoutMs`** — the gateway cannot tell the plugin that no Client is connected, so the lookup waits out its deadline before the first step.
 - **A browser surface that no plugin reports stays invisible** — the report lists the page beside the session and the Host's Chromium, so any other automation backend the composition mounts is named to the model only once a plugin reports it.
 - **JavaScript `prompt()` never reaches the agent** — Electron answers it with null before the page or the debugger sees a dialog, so only `alert`, `confirm`, and `beforeunload` can be answered with `preview_dialog`.
-- **No bookmarks, and only the in-app browser's own history** — history is kept in the desktop window's storage; the user's Chrome history, bookmarks, and open tabs are not read.
+- **The user's own history and bookmarks need the Aeven extension** — without it only the in-app browser's history, kept in the desktop window's storage, is searched; the user's open tabs are never read.
 - **WebMCP needs Chromium's `WebMCP` feature** — the desktop shell enables it at startup; a page that offers tools only through another script API is not listed.
 - **No invariant companion** — No runtime invariant companion is published because this package's own specs already exercise each relation it owns: the first-step lookup against a stub waterfall, the bounded waits under `statusTimeoutMs` and `actionTimeoutMs`, and the surface selection in the status report.
 

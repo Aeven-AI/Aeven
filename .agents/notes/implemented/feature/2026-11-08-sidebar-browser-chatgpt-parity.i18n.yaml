@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-08-sidebar-browser-chatgpt-parity.md
+2026-11-08-sidebar-browser-chatgpt-parity.md: 73d219daa0cf2034e7b704ba6c5ff4d4766c3b7a
+2026-11-08-sidebar-browser-chatgpt-parity.zh.md: f21141a165c87151681d797c38650f5e02128fc3

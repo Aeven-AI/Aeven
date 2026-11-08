@@ -85,7 +85,10 @@ export function SettingsRow({ title, description, info, control, children }: Set
       </div>
       {children}
       {info !== undefined && (
-        <Modal open={infoOpen} onClose={() => { setInfoOpen(false) }} title={info.title} description={info.body} closeLabel={info.closeLabel} />
+        <Modal
+          open={infoOpen} onClose={() => { setInfoOpen(false) }}
+          title={info.title} description={info.body} closeLabel={info.closeLabel}
+        />
       )}
     </div>
   )

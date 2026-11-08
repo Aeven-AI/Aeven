@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   ACCENT,
+  CURSOR_GLOW,
   BASE_ROTATION_DEG,
   CLASS_PREFIX,
   cls,
@@ -95,7 +96,7 @@ describe('stylesheet', () => {
 
   it('glows through two drop shadows a host can re-tint', () => {
     expect(CURSOR_GLOW_FILTER.match(/drop-shadow\(/g)).toHaveLength(2)
-    expect(CURSOR_GLOW_FILTER).toContain(`var(--${CLASS_PREFIX}-glow, ${ACCENT})`)
+    expect(CURSOR_GLOW_FILTER).toContain(`var(--${CLASS_PREFIX}-glow, ${CURSOR_GLOW})`)
   })
 
   it('rings a hover target in the accent and flattens a text selection', () => {

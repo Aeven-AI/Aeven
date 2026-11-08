@@ -387,7 +387,8 @@ export function registerBrowserIpc(isAppSender: (event: IpcMainEvent | IpcMainIn
     throw new Error('avn desktop: the extension reads history or bookmarks')
   })
   ipcMain.handle(DESKTOP_IPC.browserChromeAutomate, async (
-    event, kind: unknown, browserUrl: unknown, targetId: unknown, operation: unknown, input: unknown, requestId: unknown, timeoutMs: unknown,
+    event, kind: unknown, browserUrl: unknown, targetId: unknown, operation: unknown, input: unknown,
+    requestId: unknown, timeoutMs: unknown,
   ) => {
     assertApp(event)
     if (typeof targetId !== 'string') throw new Error('avn desktop: Chrome tab id must be a string')

@@ -2,7 +2,9 @@
   "name": "@aeven/browser-engine",
   "description": "The agent's browser engine: preview_* operations with ChatGPT's pointer timing, for the sidebar browser, Chrome over CDP, and the Aeven extension",
   "version": "0.3.37-alpha",
-  "private": true,
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Aeven-AI/Aeven.git",
@@ -23,5 +25,14 @@
     "lib/index.js",
     "lib/types/**/*.d.ts"
   ],
-  "license": "Apache-2.0"
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "dependencies": {
+    "@aeven/util-crypto": "workspace:^"
+  }
 }

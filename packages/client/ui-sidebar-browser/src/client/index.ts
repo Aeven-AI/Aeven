@@ -27,7 +27,8 @@ import { resolveAddress } from './url.ts'
 import { handoffs } from './handoff.ts'
 import { searchHistory } from './history.ts'
 import {
-  desktopBrowser, desktopLinks, desktopMenus, isDesktopShell, liveGuests, livePaneCursors, setPointerHold, writeLastUrl, type BrowserGuest, type ChromeKind, type ChromeTabRef,
+  desktopBrowser, desktopLinks, desktopMenus, isDesktopShell, liveGuests, livePaneCursors, setPointerHold, writeLastUrl,
+  type BrowserGuest, type ChromeKind, type ChromeTabRef,
 } from './guest.ts'
 import { installLinkHandling } from './links.ts'
 import { PageExtensionLink, pageConnector, pageExtensionBridge, type PageExtensionBridge } from './extension-page.ts'
@@ -53,6 +54,16 @@ declare module '@aeven/client-ui-slots' {
 /** Dictionary namespace owned by this plugin. */
 const NS = 'sidebarBrowser'
 
+/** A Chrome tab as listed to the agent; a type alias, so it is JSON the tool result can carry. */
+type ListedChromeTab = {
+  tabId: string
+  browser: string
+  url: string
+  title: string
+  browserName?: string
+  current: boolean
+}
+
 /** Chrome access for the agent's tab commands and actions. */
 interface ChromeAccess {
   /** The bridge that reaches the Chromes: the desktop shell's, or in the web app the page's link to the extension. */
@@ -64,7 +75,7 @@ interface ChromeAccess {
   /** Make sure Aeven's Chrome runs, launching it on the Host. */
   launch(sessionId: string): Promise<boolean>
   /** The Chrome tabs the session may use, as listed to the agent. */
-  list(sessionId: string): Promise<Array<{ tabId: string; browser: string; url: string; title: string; browserName?: string; current: boolean }>>
+  list(sessionId: string): Promise<ListedChromeTab[]>
 }
 
 /** Tab-id prefix of each Chrome. */
@@ -95,7 +106,7 @@ function parseChromeTabId(tabId: string | undefined): ChromeTabRef | undefined {
  */
 async function listChromeTabs(
   sessionId: string, bridge: PageExtensionBridge, kinds: readonly ChromeKind[], aevenUrl: string | undefined,
-): Promise<Array<{ tabId: string; browser: string; url: string; title: string; browserName?: string; current: boolean }>> {
+): Promise<ListedChromeTab[]> {
   const current = liveGuests.chrome(sessionId)
   const listed = []
   for (const kind of kinds) {
@@ -128,8 +139,8 @@ async function chromeTabs(
   if (bridge === undefined) throw new Error('Chrome tabs are driven from the desktop app')
   const action = request.input.action
   const kind: ChromeKind = tab?.kind ?? (request.input.browser === 'my-chrome' ? 'user' : request.input.browser === 'extension' ? 'extension' : 'aeven')
-  if (kind === 'user' && !chrome.userAllowed()) throw new Error("the user has not allowed Aeven to use their Chrome; they can turn on Settings > General > Use your Chrome")
-  if (kind === 'aeven' && chrome.aevenUrl() === undefined) throw new Error("this Host runs no Chrome for Aeven")
+  if (kind === 'user' && !chrome.userAllowed()) throw new Error('the user has not allowed Aeven to use their Chrome; they can turn on Settings > General > Use your Chrome')
+  if (kind === 'aeven' && chrome.aevenUrl() === undefined) throw new Error('this Host runs no Chrome for Aeven')
   const all = async (): Promise<unknown[]> => [
     ...liveGuests.tabs(sessionId).map(entry => ({ tabId: entry.tabId, browser: 'sidebar', url: entry.guest.getURL(), title: entry.guest.getTitle(), current: false })),
     ...await chrome.list(sessionId),
@@ -217,7 +228,7 @@ async function browserTabs(
   if (chromeTab !== undefined || (action === 'new' && (request.input.browser === 'chrome' || request.input.browser === 'my-chrome' || request.input.browser === 'extension'))) {
     return await chromeTabs(sessionId, request, chrome, chromeTab)
   }
-  const list = async (): Promise<Array<{ tabId: string; browser: string; url: string; title: string; current: boolean }>> => {
+  const list = async (): Promise<ListedChromeTab[]> => {
     const current = liveGuests.chrome(sessionId) === undefined ? liveGuests.current(sessionId)?.tabId : undefined
     return [
       ...liveGuests.tabs(sessionId).map(tab => ({ tabId: tab.tabId, browser: 'sidebar', url: tab.guest.getURL(), title: tab.guest.getTitle(), current: tab.tabId === current })),
@@ -239,7 +250,8 @@ async function browserTabs(
       const mounted = liveGuests.whenTab(sessionId, request.signal, true)
       if (url !== undefined) writeLastUrl(sessionId, url)
       const plus = (): HTMLElement | null => document.querySelector<HTMLElement>('[data-sidebar-right-surfaces] button[aria-haspopup="menu"]')
-      const row = (): HTMLElement | null => [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(item => item.textContent?.trim() === browserLabel) ?? null
+      const row = (): HTMLElement | null =>
+        [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(item => item.textContent.trim() === browserLabel) ?? null
       if (pane !== undefined && plus() !== null) {
         await pane.pressElement(plus, request.signal)
         await pane.pressElement(row, request.signal)
@@ -281,7 +293,7 @@ function installPageExtension(ctx: ClientContext, bridge: PageExtensionBridge): 
     bridge: () => bridge,
     aevenUrl: () => undefined,
     userAllowed: () => false,
-    launch: async () => false,
+    launch: () => Promise.resolve(false),
     list: async sessionId => await listChromeTabs(sessionId, bridge, ['extension'], undefined),
   }
   ctx.inject(['remote', 'sessions'], (scoped) => {
@@ -298,7 +310,7 @@ function installPageExtension(ctx: ClientContext, bridge: PageExtensionBridge): 
         if (tab?.kind === 'extension' || (request.input.action === 'new' && request.input.browser === 'extension')) {
           return chromeTabs(sessionId, request, chrome, tab) as ReturnType<typeof next>
         }
-        if ((request.input.action ?? 'list') === 'list') return chrome.list(sessionId).then(tabs => ({ tabs })) as ReturnType<typeof next>
+        if ((request.input.action ?? 'list') === 'list') return chrome.list(sessionId).then(tabs => ({ tabs }))
         return next()
       }
       const chromeTab = liveGuests.chrome(sessionId)
@@ -493,7 +505,9 @@ export function apply(ctx: ClientContext): void {
   }
 
   const Pane = ({ sessionId, surfaceId, active, visible, closeSurface }: SidebarContentPaneProps) =>
-    createElement(BrowserPane, { sessionId, tabId: surfaceId, active, closeTab: closeSurface, t, openInChrome, visible, search: searchEngines })
+    createElement(BrowserPane, {
+      sessionId, tabId: surfaceId, active, closeTab: closeSurface, t, openInChrome, visible, search: searchEngines,
+    })
   // The agent's browser_* tools reach this session's page. A session whose
   // pane is not mounted reports that it can open one, and a navigation opens
   // the pane at the address; every other action passes on and the tool reports
@@ -521,7 +535,7 @@ export function apply(ctx: ClientContext): void {
       if (request.operation === 'history') {
         const limit = typeof request.input.limit === 'number' && Number.isInteger(request.input.limit) && request.input.limit > 0 ? Math.min(request.input.limit, 200) : 20
         const entries = searchHistory(typeof request.input.query === 'string' ? request.input.query : '', limit)
-        return Promise.resolve({ entries: entries.map(entry => ({ ...entry, visitedAt: new Date(entry.visitedAt).toISOString() })) }) as ReturnType<typeof next>
+        return Promise.resolve({ entries: entries.map(entry => ({ ...entry, visitedAt: new Date(entry.visitedAt).toISOString() })) })
       }
       if (request.operation === 'tabs') {
         const content = ctx.get('sidebarContent')
@@ -532,13 +546,14 @@ export function apply(ctx: ClientContext): void {
       // A Chrome tab the agent selected is its current tab: its actions run there.
       const chromeTab = liveGuests.chrome(sessionId)
       if (chromeTab !== undefined && request.operation !== 'handoff') {
-        if (request.operation === 'control') return Promise.reject(new Error("preview_browser_control presses the sidebar browser's own toolbar; select a sidebar tab first")) as ReturnType<typeof next>
+        if (request.operation === 'control') return Promise.reject(new Error("preview_browser_control presses the sidebar browser's own toolbar; select a sidebar tab first"))
         const bridge = desktopBrowser()
         if (bridge === undefined) return next()
         const requestId = mintRequestId()
         const cancel = (): void => { bridge.cancelAutomation(chromeTab.targetId, requestId) }
         request.signal?.addEventListener('abort', cancel, { once: true })
-        return bridge.chromeAutomate(chromeTab.kind, aevenChromeUrl, chromeTab.targetId, request.operation, request.input, requestId, request.timeoutMs)
+        const { kind, targetId } = chromeTab
+        return bridge.chromeAutomate(kind, aevenChromeUrl, targetId, request.operation, request.input, requestId, request.timeoutMs)
           .finally(() => { request.signal?.removeEventListener('abort', cancel) }) as ReturnType<typeof next>
       }
       if (request.operation === 'handoff') {
@@ -548,9 +563,10 @@ export function apply(ctx: ClientContext): void {
         return (async () => {
           showCurrent()
           if (guest === undefined) await liveGuests.whenMounted(sessionId, request.signal)
-          const accepted = await handoffs.open(sessionId, request.input.reason, String(request.input.message ?? ''), request.signal)
+          const message = typeof request.input.message === 'string' ? request.input.message : ''
+          const accepted = await handoffs.open(sessionId, request.input.reason, message, request.signal)
           return { accepted }
-        })() as ReturnType<typeof next>
+        })()
       }
       if (guest !== undefined) {
         // A pane stays mounted while its column is hidden: a navigation or a pressed

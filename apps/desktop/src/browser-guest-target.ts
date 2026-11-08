@@ -80,7 +80,7 @@ export function guestTarget(guest: WebContents): BrowserTarget {
       insertText: text => guest.insertText(text),
       sendInputEvent: (event) => { guest.sendInputEvent(event) },
       session: { fetch: (input, init) => guest.session.fetch(input, init) },
-      emit: event => guest.emit(event as never),
+      emit: event => guest.emit(event),
       presentCursor: (cursor, wait, timeoutMs, signal) => presentCursor(guest, cursor, wait, timeoutMs, signal),
     }
     targets.set(guest, target)
@@ -124,6 +124,6 @@ export const DESKTOP_ENGINE_HOST: EngineHost = {
   },
   clipboard: {
     readText: () => clipboard.readText(),
-    writeText: (text) => { clipboard.writeText(text) },
+    writeText: (text) => { void clipboard.writeText(text) },
   },
 }

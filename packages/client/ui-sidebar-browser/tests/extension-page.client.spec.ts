@@ -7,18 +7,22 @@ import { PageExtensionLink, pageExtensionBridge, type ExtensionPort } from '../s
 import type { DesktopBrowserRequestId } from '../src/client/guest.ts'
 
 /** A port to a fake extension: answers by method, and records what the page sent. */
-function fakePort(answer: (method: string, params: any) => unknown, options: { hold?: string[] } = {}) {
-  const sent: Array<{ id: number; method: string; params: any }> = []
-  const messageListeners: Array<(message: any) => void> = []
+/** A request as the page sent it. */
+interface SentRequest { id: number; method: string; params: Record<string, unknown> }
+
+function fakePort(answer: (method: string, params: Record<string, unknown>) => unknown, options: { hold?: string[] } = {}) {
+  const sent: SentRequest[] = []
+  const messageListeners: Array<(message: unknown) => void> = []
   const disconnectListeners: Array<() => void> = []
   const port: ExtensionPort = {
     postMessage(message) {
-      const request = message as { id: number; method: string; params: any }
+      const request = message as SentRequest
       sent.push(request)
       if (options.hold?.includes(request.method) === true) return
       queueMicrotask(() => {
         const result = answer(request.method, request.params)
-        for (const listener of messageListeners) listener(result instanceof Error ? { id: request.id, error: result.message } : { id: request.id, result })
+        const reply = result instanceof Error ? { id: request.id, error: result.message } : { id: request.id, result }
+        for (const listener of messageListeners) listener(reply)
       })
     },
     disconnect() {},

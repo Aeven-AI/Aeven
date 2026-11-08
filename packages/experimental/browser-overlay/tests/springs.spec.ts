@@ -73,13 +73,17 @@ describe('a stalled simulation clock', () => {
     const stalled = createSpring(0, CURSOR_SPRINGS.position)
     stalled.target = 1
     stalled.simulationTime -= 10
+    const steady = createSpring(0, CURSOR_SPRINGS.position)
+    steady.target = 1
 
     stepSpring(stalled, FRAME)
+    stepSpring(steady, FRAME)
 
     expect(stalled.scriptTime - stalled.simulationTime).toBeLessThanOrEqual(STEP_SECONDS)
-    // Ten seconds of integration would have converged on the target; one fixed
-    // step has barely left the start.
-    expect(stalled.value).toBeLessThan(0.01)
+    // Ten seconds of integration would have converged on the target; the stalled
+    // spring restarts one frame behind, so it moves exactly as far as one that never stalled.
+    expect(stalled.value).toBeCloseTo(steady.value, 9)
+    expect(stalled.value).toBeLessThan(0.5)
     expect(stalled.velocity).toBeGreaterThan(0)
   })
 })

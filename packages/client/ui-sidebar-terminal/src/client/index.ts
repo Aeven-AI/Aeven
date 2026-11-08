@@ -79,7 +79,8 @@ export function apply(ctx: ClientContext): void {
       shown.remote.$on('terminal/present', function (request, next) {
         const sessionId = shown.sessions.scopeOf(this)
         if (sessionId === undefined) return next()
-        return presentTerminal(sessionId, request.terminalId, request.action, (session, contentId) => terminals.terminalOf(session, contentId), request.signal)
+        const terminalOf = (session: SessionId, contentId: string) => terminals.terminalOf(session, contentId)
+        return presentTerminal(sessionId, request.terminalId, request.action, terminalOf, request.signal)
           .then(drawn => drawn ? true : next())
       })
     })

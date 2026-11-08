@@ -1,5 +1,7 @@
 # Aeven browser extension
 
+English | [中文](README.zh.md)
+
 Lets the Aeven agent use the browser you browse with — Chrome, Brave, Edge, Arc, or another Chromium browser — from the Aeven desktop app or from Aeven on the web.
 
 - The agent opens its own tabs in front, in an open **Aeven** tab group, and drives only those, with the same tools, waits, and pointer as the sidebar browser. The extension runs each whole operation itself.

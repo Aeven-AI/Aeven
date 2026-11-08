@@ -431,7 +431,7 @@ export interface Config {
   readonly openCols: number
   /** Rows of a shell the model opens, until the pane that shows it fits it to its height. */
   readonly openRows: number
-  /** How long a model open waits for the window showing the Session to open its Terminal pill. */
+  /** How long a model open waits for the window showing the Session to open its Terminal pill, and a send or close for its pointer. */
   readonly showTimeoutMs: number
 }
 ```
@@ -6442,6 +6442,7 @@ Imported as libraries by other packages; a `cordis.yml` cannot load them.
 - `@aeven/base` ([`packages/bundle/base/src/index.ts`](../packages/bundle/base/src/index.ts))
 - `@aeven/brand` ([`packages/util/brand/src/index.ts`](../packages/util/brand/src/index.ts))
 - `@aeven/brand-page` ([`packages/util/brand-page/src/index.ts`](../packages/util/brand-page/src/index.ts))
+- `@aeven/browser-engine` ([`packages/web/browser-engine/src/index.ts`](../packages/web/browser-engine/src/index.ts))
 - `@aeven/client-hypermarkdown` ([`packages/client/hypermarkdown/src/index.ts`](../packages/client/hypermarkdown/src/index.ts))
 - `@aeven/client-store` ([`packages/client/store/src/index.ts`](../packages/client/store/src/index.ts))
 - `@aeven/client-test-runtime` ([`packages/test-support/client-runtime/src/index.ts`](../packages/test-support/client-runtime/src/index.ts))

@@ -301,7 +301,8 @@ export function BrowserPane({ sessionId, tabId, active, closeTab, t, openInChrom
         const element = find()
         if (element !== null) {
           const box = element.getBoundingClientRect()
-          const onScreen = box.width > 0 && box.height > 0 && box.left >= 0 && box.top >= 0 && box.right <= window.innerWidth && box.bottom <= window.innerHeight
+          const onScreen = box.width > 0 && box.height > 0 && box.left >= 0 && box.top >= 0
+            && box.right <= window.innerWidth && box.bottom <= window.innerHeight
           const key = `${String(box.left)},${String(box.top)},${String(box.width)},${String(box.height)}`
           if (onScreen && key === previous) return element
           previous = onScreen ? key : ''
@@ -314,7 +315,7 @@ export function BrowserPane({ sessionId, tabId, active, closeTab, t, openInChrom
     /** A visible menu row by its label. */
     const menuRow = (label: string): HTMLElement | null => {
       for (const row of document.querySelectorAll('[role="menuitem"]')) {
-        if (row instanceof HTMLElement && row.getClientRects().length > 0 && row.textContent?.trim() === label) return row
+        if (row instanceof HTMLElement && row.getClientRects().length > 0 && row.textContent.trim() === label) return row
       }
       return null
     }
@@ -580,7 +581,8 @@ export function BrowserPane({ sessionId, tabId, active, closeTab, t, openInChrom
     const visited = searchHistory(query, HISTORY_SUGGESTION_LIMIT).map(entry => entry.url)
     suggestTimer.current = window.setTimeout(() => {
       bridge.suggest(search.suggest(query)).then((body) => {
-        if (seq === suggestSeq.current) setSuggestions([...visited, ...parseSuggestions(body).filter(entry => !visited.includes(entry))].slice(0, SUGGESTION_LIMIT))
+        const engine = parseSuggestions(body).filter(entry => !visited.includes(entry))
+        if (seq === suggestSeq.current) setSuggestions([...visited, ...engine].slice(0, SUGGESTION_LIMIT))
       }, (error: unknown) => {
         console.error('ui-sidebar-browser: completions failed', error)
         if (seq === suggestSeq.current) setSuggestions(visited)

@@ -13480,7 +13480,15 @@ importers:
         specifier: workspace:^
         version: link:../../../vendor/cordis
 
-  packages/web/browser-engine: {}
+  packages/web/browser-engine:
+    dependencies:
+      '@aeven/util-crypto':
+        specifier: workspace:^
+        version: link:../../util/crypto
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
 
   packages/web/tool-browser:
     devDependencies:

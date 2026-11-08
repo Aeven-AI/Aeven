@@ -392,7 +392,7 @@ export function apply(ctx: Context, config: Config): void {
     const answer = await questions.ask({
       agent,
       signal: exec.signal,
-      questions: [{ id: 'handoff', question: String(input.message), options: [{ label: 'OK' }, { label: 'Not now' }] }],
+      questions: [{ id: 'handoff', question: typeof input.message === 'string' ? input.message : '', options: [{ label: 'OK' }, { label: 'Not now' }] }],
     })
     return answer.answers.find(item => item.id === 'handoff')?.selected.includes('OK') === true ? HANDOFF_DONE : HANDOFF_DECLINED
   }
@@ -566,8 +566,8 @@ export function apply(ctx: Context, config: Config): void {
         const chromium = await ctx.get('browserChromium')?.status(exec.signal).catch(() => undefined)
         if (chromium !== undefined) input = { ...input, chromium: chromium.browserUrl }
       }
-      if (operation === 'webmcp' && input.action === 'invoke') await approveWebMcp(String(input.name), input.input ?? {}, exec)
-      if (operation === 'control' && (input.control === 'clear-cookies' || input.control === 'clear-cache')) await approveClearing(String(input.control), exec)
+      if (operation === 'webmcp' && input.action === 'invoke') await approveWebMcp(typeof input.name === 'string' ? input.name : '', input.input ?? {}, exec)
+      if (operation === 'control' && (input.control === 'clear-cookies' || input.control === 'clear-cache')) await approveClearing(input.control, exec)
       if (operation === 'sequence' && (!Array.isArray(input.actions) || input.actions.length === 0 || input.actions.length > 20)) throw new HarnessError('sequence requires 1 to 20 actions', 'BROWSER_SEQUENCE_ACTION')
       if (operation === 'sequence' && Array.isArray(input.actions)) {
         const actions: JsonValue[] = []
@@ -707,7 +707,7 @@ export function apply(ctx: Context, config: Config): void {
       'Set a checkbox, radio button, or switch to checked or unchecked, clicking it only when its state differs.',
       { selector, token, frame, checked: { type: 'boolean', required: true, description: 'The state the control should end in.' } }),
     action('preview_read', 'read',
-      "Read from elements without changing the page: their text, innerText, html, value, an attribute, the count of matches, whether they are visible, enabled, or checked, or their box. all=true reads every match.",
+      'Read from elements without changing the page: their text, innerText, html, value, an attribute, the count of matches, whether they are visible, enabled, or checked, or their box. all=true reads every match.',
       {
         selector, token, frame,
         property: { type: 'string', enum: ['text', 'innerText', 'html', 'value', 'attribute', 'count', 'visible', 'enabled', 'checked', 'box'], description: 'What to read. Defaults to text.' },

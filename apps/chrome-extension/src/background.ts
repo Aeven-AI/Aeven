@@ -60,7 +60,7 @@ const loading = chrome.storage.session.get(TABS_KEY).then((stored) => {
 const instance = chrome.storage.local.get(INSTANCE_KEY).then(async (stored) => {
   const kept = stored[INSTANCE_KEY]
   if (typeof kept === 'string') return kept
-  const made = crypto.randomUUID().replaceAll('-', '').slice(0, 12)
+  const made = Array.from(crypto.getRandomValues(new Uint8Array(6)), byte => byte.toString(16).padStart(2, '0')).join('')
   await chrome.storage.local.set({ [INSTANCE_KEY]: made })
   return made
 })
@@ -88,7 +88,8 @@ async function info(): Promise<{ instance: string; browser: string; version: str
  */
 function serve(connection: chrome.runtime.Port, admitted: Promise<boolean> = Promise.resolve(true)): void {
   const serial = nextConnection++
-  connection.onMessage.addListener((message: { id?: number; method?: string; params?: Record<string, unknown>; event?: string }) => {
+  connection.onMessage.addListener((received) => {
+    const message = received as { id?: number; method?: string; params?: Record<string, unknown>; event?: string }
     if (message.event === 'unavailable') return
     const { id, method } = message
     if (typeof id !== 'number' || typeof method !== 'string') return
@@ -100,7 +101,8 @@ function serve(connection: chrome.runtime.Port, admitted: Promise<boolean> = Pro
 
 /** The browser this extension runs in, as the app names it to the user. */
 function browserName(): string {
-  const brands = (navigator as Navigator & { userAgentData?: { brands: Array<{ brand: string }> } }).userAgentData?.brands.map(brand => brand.brand) ?? []
+  const agent = (navigator as Navigator & { userAgentData?: { brands: Array<{ brand: string }> } }).userAgentData
+  const brands = agent?.brands.map(brand => brand.brand) ?? []
   return ['Microsoft Edge', 'Brave', 'Opera', 'Vivaldi', 'Google Chrome', 'Chromium'].find(name => brands.includes(name)) ?? 'Chromium'
 }
 
@@ -129,7 +131,10 @@ function connect(): void {
  * @param method - the request.
  * @param params - its parameters.
  */
-async function answer(connection: number, id: number, method: string, params: Record<string, unknown>, reply: (message: { id: number; result?: unknown; error?: string }) => void): Promise<void> {
+async function answer(
+  connection: number, id: number, method: string, params: Record<string, unknown>,
+  reply: (message: { id: number; result?: unknown; error?: string }) => void,
+): Promise<void> {
   try {
     await loading
     reply({ id, result: await handle(method, params, `${String(connection)}:${String(id)}`, connection) })
@@ -157,7 +162,9 @@ async function target(tabId: number): Promise<ChromeTab> {
   const created = new ChromeTab({
     send: async (method, params) => await chrome.debugger.sendCommand({ tabId }, method, params),
     subscribe: (listener) => {
-      const forward = (source: chrome.debugger.Debuggee, method: string, params?: unknown): void => { if (source.tabId === tabId) listener(method, params) }
+      const forward = (source: chrome.debugger.Debuggee, method: string, params?: unknown): void => {
+        if (source.tabId === tabId) listener(method, params)
+      }
       chrome.debugger.onEvent.addListener(forward)
       return () => { chrome.debugger.onEvent.removeListener(forward) }
     },
@@ -345,8 +352,8 @@ chrome.runtime.onConnectExternal.addListener((page) => {
   })
 })
 // The page the app opens when it starts the browser wakes this worker; it connects and closes that page.
-chrome.runtime.onMessage.addListener((message: { wake?: boolean }, sender) => {
-  if (message.wake !== true) return
+chrome.runtime.onMessage.addListener((message, sender) => {
+  if ((message as { wake?: unknown }).wake !== true) return
   retryMs = 1000
   connect()
   if (sender.tab?.id !== undefined) void chrome.tabs.remove(sender.tab.id).catch(() => undefined)

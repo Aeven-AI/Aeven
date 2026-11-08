@@ -17,7 +17,10 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { ChromeTab, prepareTab } from '@aeven/browser-engine'
 
-/** The overlay page script, read once from the bundle built beside the main process (tsdown `overlay-page` entry, `overlay-page.iife.js`). */
+/**
+ * The overlay page script, read once from the bundle built beside the main process
+ * (tsdown `overlay-page` entry, `overlay-page.iife.js`).
+ */
 let overlayPage: string | undefined
 
 /**
@@ -40,17 +43,22 @@ export interface ChromeTabInfo {
 }
 
 /** One browser-level CDP connection. */
+
+/** A listener of CDP events on a browser connection, with the session each came from. */
+// oxlint-disable-next-line typescript/no-explicit-any -- event parameters depend on the method; each listener narrows them
+type CdpEventListener = (method: string, params: any, sessionId: string | undefined) => void
 class ChromeConnection {
   readonly #socket: WebSocket
   #nextId = 1
   readonly #pending = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void }>()
-  readonly #listeners = new Set<(method: string, params: any, sessionId: string | undefined) => void>()
+  readonly #listeners = new Set<CdpEventListener>()
   #closed = false
 
   private constructor(socket: WebSocket) {
     this.#socket = socket
     socket.addEventListener('message', (event) => {
-      const message = JSON.parse(String(event.data)) as { id?: number; result?: unknown; error?: { message: string }; method?: string; params?: unknown; sessionId?: string }
+      const message = JSON.parse(String(event.data)) as
+        { id?: number; result?: unknown; error?: { message: string }; method?: string; params?: unknown; sessionId?: string }
       if (message.id !== undefined) {
         const pending = this.#pending.get(message.id)
         this.#pending.delete(message.id)
@@ -93,6 +101,7 @@ class ChromeConnection {
    * @param sessionId - the tab session it addresses; absent for the browser.
    * @returns the command's result.
    */
+  // oxlint-disable-next-line typescript/no-explicit-any -- a CDP result depends on the method; each caller narrows it
   send(method: string, params: object = {}, sessionId?: string): Promise<any> {
     if (this.#closed) return Promise.reject(new Error('Chrome closed the debugging connection'))
     const id = this.#nextId++
@@ -107,7 +116,7 @@ class ChromeConnection {
    * @param listener - receives each event with the session it belongs to.
    * @returns disposer.
    */
-  onEvent(listener: (method: string, params: any, sessionId: string | undefined) => void): () => void {
+  onEvent(listener: CdpEventListener): () => void {
     this.#listeners.add(listener)
     return () => { this.#listeners.delete(listener) }
   }
@@ -225,8 +234,9 @@ export async function chromeTarget(kind: ChromeKind, browserUrl: string | undefi
       isOpen: () => !open.closed,
     }, targetId, targetInfo.url, targetInfo.title, overlayScript())
     open.onEvent((method, params) => {
-      if (method === 'Target.targetInfoChanged' && params.targetInfo?.targetId === targetId) tab.setInfo(String(params.targetInfo.url), String(params.targetInfo.title))
-      if (method === 'Target.detachedFromTarget' && params.sessionId === sessionId) tab.markDetached()
+      const event = params as { targetInfo?: { targetId?: string; url?: string; title?: string }; sessionId?: string }
+      if (method === 'Target.targetInfoChanged' && event.targetInfo?.targetId === targetId) tab.setInfo(event.targetInfo.url ?? '', event.targetInfo.title ?? '')
+      if (method === 'Target.detachedFromTarget' && event.sessionId === sessionId) tab.markDetached()
     })
     await prepareTab(tab, overlayScript())
     return tab

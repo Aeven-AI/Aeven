@@ -22,7 +22,7 @@ const OPERATION_TIMEOUT_MS = 120_000
 export interface ExtensionPort {
   postMessage(message: unknown): void
   disconnect(): void
-  readonly onMessage: { addListener(callback: (message: any) => void): void }
+  readonly onMessage: { addListener(callback: (message: unknown) => void): void }
   readonly onDisconnect: { addListener(callback: () => void): void }
 }
 
@@ -43,6 +43,23 @@ export function pageConnector(): ExtensionPort | undefined {
   return runtime.connect(AEVEN_EXTENSION_ID)
 }
 
+/** A request waiting for the extension's answer. */
+interface PendingRequest {
+  resolve: (value: unknown) => void
+  reject: (error: Error) => void
+  timer: ReturnType<typeof setTimeout>
+}
+
+/** A message from the extension: an answer to a request, or an event. */
+interface ExtensionMessage {
+  id?: number
+  result?: unknown
+  error?: string
+  event?: string
+  instance?: unknown
+  browser?: unknown
+}
+
 /** One connection to the extension, reopened on the next request after it closes. */
 export class PageExtensionLink {
   readonly #connector: ExtensionConnector
@@ -50,7 +67,7 @@ export class PageExtensionLink {
   #instance: string | undefined
   #browser = ''
   #nextId = 1
-  readonly #pending = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> }>()
+  readonly #pending = new Map<number, PendingRequest>()
   /** Extension request ids of running operations, by the tool's request id. */
   readonly #operations = new Map<DesktopBrowserRequestId, number>()
 
@@ -66,7 +83,8 @@ export class PageExtensionLink {
     const port = this.#connector()
     if (port === undefined) throw new Error('the Aeven browser extension is not installed in this browser; install it to let Aeven use your browser')
     this.#port = port
-    port.onMessage.addListener((message: { id?: number; result?: unknown; error?: string; event?: string; instance?: unknown; browser?: unknown }) => {
+    port.onMessage.addListener((received) => {
+      const message = received as ExtensionMessage
       if (message.event === 'hello') {
         if (typeof message.instance === 'string') this.#instance = message.instance
         if (typeof message.browser === 'string') this.#browser = message.browser
@@ -101,12 +119,12 @@ export class PageExtensionLink {
    * @returns the extension's result.
    * @throws {Error} when the extension is not installed, disconnects, fails the request, or does not answer in time.
    */
-  request(method: string, params: object = {}, timeoutMs = REQUEST_TIMEOUT_MS, started?: (id: number) => void): Promise<any> {
+  request(method: string, params: object = {}, timeoutMs = REQUEST_TIMEOUT_MS, started?: (id: number) => void): Promise<unknown> {
     let port: ExtensionPort
     try {
       port = this.#open()
     } catch (error) {
-      return Promise.reject(error as Error)
+      return Promise.reject(error instanceof Error ? error : new Error(String(error)))
     }
     const id = this.#nextId++
     return new Promise((resolve, reject) => {
@@ -149,7 +167,8 @@ export class PageExtensionLink {
 
   /**
    * Remember a running operation's extension request id, for cancelling it.
-   * @param requestId - the tool's request id. @param id - the extension request id; undefined forgets it.
+   * @param requestId - the tool's request id.
+   * @param id - the extension request id; undefined forgets it.
    */
   track(requestId: DesktopBrowserRequestId, id: number | undefined): void {
     if (id === undefined) this.#operations.delete(requestId)

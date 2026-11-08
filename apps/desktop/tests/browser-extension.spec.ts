@@ -36,7 +36,9 @@ afterEach(async () => {
  * @param options - whether it answers `info`, sends a hello, and what it answers other requests with.
  * @returns the host-side socket.
  */
-async function fakeExtension(info: FakeInfo, options: { answerInfo?: boolean; hello?: boolean; answers?: Record<string, unknown> } = {}): Promise<Socket> {
+async function fakeExtension(
+  info: FakeInfo, options: { answerInfo?: boolean; hello?: boolean; answers?: Record<string, unknown> } = {},
+): Promise<Socket> {
   const socket = connect(socketPath)
   clients.push(socket)
   await new Promise<void>((resolve) => { socket.once('connect', resolve) })

@@ -61,6 +61,20 @@ export interface ExtensionInfo {
   readonly protocol: number
 }
 
+/** A request waiting for the extension's answer. */
+interface PendingRequest {
+  resolve: (value: unknown) => void
+  reject: (error: Error) => void
+  timer: ReturnType<typeof setTimeout>
+}
+
+/** How long a request may wait, and how its abort is reported. */
+interface RequestOptions {
+  timeoutMs?: number
+  signal?: AbortSignal
+  onCancel?: (id: number) => void
+}
+
 /**
  * One connected extension: the socket of the native host its browser started.
  * Requests are matched to answers by id; the socket closing fails what is pending.
@@ -70,8 +84,8 @@ export class ExtensionLink {
   #info: ExtensionInfo | undefined
   #nextId = 1
   #closed = false
-  readonly #pending = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> }>()
-  readonly #listeners = new Set<(event: string, payload: any) => void>()
+  readonly #pending = new Map<number, PendingRequest>()
+  readonly #listeners = new Set<(event: string, payload: unknown) => void>()
   readonly #closeListeners = new Set<() => void>()
 
   /**
@@ -162,7 +176,7 @@ export class ExtensionLink {
    * @returns the extension's result.
    * @throws {Error} when the connection closed, the extension fails the request, or it does not answer in time.
    */
-  request(method: string, params: object = {}, options: { timeoutMs?: number; signal?: AbortSignal; onCancel?: (id: number) => void } = {}): Promise<any> {
+  request(method: string, params: object = {}, options: RequestOptions = {}): Promise<unknown> {
     if (this.#closed) return Promise.reject(new Error('the Aeven extension disconnected'))
     const id = this.#nextId++
     return new Promise((resolve, reject) => {
@@ -181,7 +195,7 @@ export class ExtensionLink {
    * @param listener - receives each event and its payload.
    * @returns disposer.
    */
-  onEvent(listener: (event: string, payload: any) => void): () => void {
+  onEvent(listener: (event: string, payload: unknown) => void): () => void {
     this.#listeners.add(listener)
     return () => { this.#listeners.delete(listener) }
   }
@@ -219,13 +233,13 @@ export class ExtensionLinks {
       earlier?.close()
       for (const waiter of this.#waiters) waiter()
     }
-    link.onEvent((event, payload: { instance?: unknown; browser?: unknown; protocol?: unknown }) => { if (event === 'hello') register(payload) })
+    link.onEvent((event, payload) => { if (event === 'hello') register(payload as { instance?: unknown; browser?: unknown; protocol?: unknown }) })
     link.onClose(() => {
       const instance = link.info?.instance
       if (instance !== undefined && this.#links.get(instance) === link) this.#links.delete(instance)
     })
     // The hello can precede this socket being served, so the extension is also asked.
-    link.request('info', {}, { timeoutMs: INFO_TIMEOUT_MS }).then(register, () => {
+    link.request('info', {}, { timeoutMs: INFO_TIMEOUT_MS }).then((value) => { register(value as { instance?: unknown }) }, () => {
       // An extension that never answers `info` stays unregistered; its socket closing drops it.
     })
     return link
@@ -547,7 +561,9 @@ const REQUIRED_PROTOCOL = 2
  * @returns the operation's result.
  * @throws {Error} when the extension is too old to run operations.
  */
-export async function extensionOperate(targetId: string, operation: string, input: Record<string, unknown>, signal: AbortSignal): Promise<unknown> {
+export async function extensionOperate(
+  targetId: string, operation: string, input: Record<string, unknown>, signal: AbortSignal,
+): Promise<unknown> {
   const { link, tabId } = extensionTarget(targetId)
   if ((link.info?.protocol ?? 0) < REQUIRED_PROTOCOL) throw new Error('the Aeven browser extension is out of date; update it from the browser\'s extensions page')
   // The operation's own deadline is the caller's; the link only stops waiting a little after it.
@@ -555,6 +571,15 @@ export async function extensionOperate(targetId: string, operation: string, inpu
     timeoutMs: 120_000, signal,
     onCancel: (id) => { void link.request('operate.cancel', { requestId: id }).catch(() => undefined) },
   })
+}
+
+/**
+ * The text an entry is ordered by: its ISO date, or empty when it has none.
+ * @param value - the entry's ordering field.
+ * @returns the text.
+ */
+function orderKey(value: unknown): string {
+  return typeof value === 'string' ? value : ''
 }
 
 /**
@@ -573,7 +598,7 @@ async function searchAll(method: string, params: object, limit: number, order: s
     return entries.map((entry): Record<string, unknown> => ({ ...entry, browser: link.info?.browser ?? 'Chromium' }))
   }))
   return answers.flat()
-    .sort((left, right) => String(right[order] ?? '').localeCompare(String(left[order] ?? '')))
+    .sort((left, right) => orderKey(right[order]).localeCompare(orderKey(left[order])))
     .slice(0, limit)
 }
 

@@ -341,6 +341,7 @@
       "@aeven/brand": ["./packages/util/brand/src"],
       "@aeven/brand-page": ["./packages/util/brand-page/src"],
       "@aeven/browser-chromium": ["./packages/web/browser-chromium/src"],
+      "@aeven/browser-engine": ["./packages/web/browser-engine/src"],
       "@aeven/cmdline": ["./packages/boot/cmdline/src"],
       "@aeven/code-runtime": ["./packages/code-runtime/code-runtime/src"],
       "@aeven/code-runtime-worker-thread": ["./packages/code-runtime/code-runtime-worker-thread/src"],

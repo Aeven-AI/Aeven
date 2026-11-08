@@ -9,11 +9,11 @@ declare namespace chrome {
       postMessage(message: unknown): void
       disconnect(): void
       readonly sender?: MessageSender
-      readonly onMessage: { addListener(callback: (message: any) => void): void }
+      readonly onMessage: { addListener(callback: (message: unknown) => void): void }
       readonly onDisconnect: { addListener(callback: () => void): void }
     }
     function sendMessage(message: unknown): Promise<unknown>
-    const onMessage: { addListener(callback: (message: any, sender: MessageSender) => void): void }
+    const onMessage: { addListener(callback: (message: unknown, sender: MessageSender) => void): void }
     const onConnectExternal: { addListener(callback: (port: Port) => void): void }
     function connectNative(application: string): Port
     function getManifest(): { version: string }
@@ -28,7 +28,8 @@ declare namespace chrome {
     function get(tabId: number): Promise<Tab>
     function remove(tabId: number): Promise<void>
     function group(options: { tabIds: number | number[]; groupId?: number }): Promise<number>
-    const onUpdated: { addListener(callback: (tabId: number, change: { url?: string; title?: string; status?: string }, tab: Tab) => void): void }
+    interface TabChange { url?: string; title?: string; status?: string }
+    const onUpdated: { addListener(callback: (tabId: number, change: TabChange, tab: Tab) => void): void }
     const onRemoved: { addListener(callback: (tabId: number) => void): void }
   }
   export namespace tabGroups {
@@ -42,7 +43,8 @@ declare namespace chrome {
     function attach(target: Debuggee, requiredVersion: string): Promise<void>
     function detach(target: Debuggee): Promise<void>
     function sendCommand(target: Debuggee, method: string, commandParams?: object): Promise<unknown>
-    const onEvent: { addListener(callback: (source: Debuggee, method: string, params?: any) => void): void; removeListener(callback: (source: Debuggee, method: string, params?: any) => void): void }
+    type EventListener = (source: Debuggee, method: string, params?: unknown) => void
+    const onEvent: { addListener(callback: EventListener): void; removeListener(callback: EventListener): void }
     const onDetach: { addListener(callback: (source: Debuggee, reason: string) => void): void }
   }
   export { _debugger as debugger }

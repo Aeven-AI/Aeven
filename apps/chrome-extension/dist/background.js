@@ -1,3 +1,16 @@
+//#region ../../packages/util/crypto/lib/index.js
+/**
+* Random v4 UUID, minted from `crypto.getRandomValues`.
+* @returns the UUID string.
+*/
+function randomUUID() {
+	const bytes = globalThis.crypto.getRandomValues(/* @__PURE__ */ new Uint8Array(16));
+	const hex = Array.from(bytes, (byte, index) => {
+		return (index === 6 ? byte & 15 | 64 : index === 8 ? byte & 63 | 128 : byte).toString(16).padStart(2, "0");
+	}).join("");
+	return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+//#endregion
 //#region ../../packages/web/browser-engine/src/page-scripts.ts
 /**
 * Page-side JavaScript the sidebar browser's agent actions evaluate in a guest.
@@ -388,7 +401,7 @@ function observePage(guest) {
 			case "Page.javascriptDialogOpening":
 				openDialogs.set(guest, {
 					type: String(values.type),
-					message: String(values.message ?? ""),
+					message: textOf(values.message),
 					...typeof values.defaultPrompt === "string" ? { defaultPrompt: values.defaultPrompt } : {},
 					...typeof values.url === "string" ? { url: values.url } : {}
 				});
@@ -455,6 +468,17 @@ async function sleep(ms, signal) {
 		};
 		signal?.addEventListener("abort", abort, { once: true });
 	});
+}
+/**
+* Text of a value a page or a tool call reported, without Object's default `[object Object]`.
+* @param value - the value.
+* @returns a string as is, JSON for anything else, and empty for nothing.
+*/
+function textOf(value) {
+	if (typeof value === "string") return value;
+	if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") return String(value);
+	if (value === void 0 || value === null) return "";
+	return JSON.stringify(value);
 }
 /** t3code `captureAutomationSnapshot`'s page expression, with each control's value and checked state. */
 const SNAPSHOT = `(() => {
@@ -652,7 +676,7 @@ function press(guest, input) {
 * @returns the CDP modifier bits.
 */
 function modifierMask(input) {
-	return (Array.isArray(input.modifiers) ? input.modifiers : []).reduce((mask, name) => mask | (MODIFIER_BITS$1[String(name)] ?? 0), 0);
+	return (Array.isArray(input.modifiers) ? input.modifiers : []).reduce((mask, name) => mask | (MODIFIER_BITS$1[textOf(name)] ?? 0), 0);
 }
 /**
 * Watch for a navigation an action starts, as ChatGPT's `waitForPageLoadEvent` does:
@@ -727,8 +751,8 @@ function watchDialog(guest) {
 				if (method !== "Page.javascriptDialogOpening") return;
 				const values = params;
 				resolve({
-					type: String(values.type),
-					message: String(values.message ?? "")
+					type: textOf(values.type),
+					message: textOf(values.message)
 				});
 			};
 			guest.debugger.on("message", listen);
@@ -885,7 +909,7 @@ async function automate(guest, operation, input, signal = new AbortController().
 		};
 		if (typeof target.token !== "string" && typeof target.selector !== "string" && fallback === null) throw new Error("name the target with selector, token, or x and y");
 		const point = await evaluate(pointExpression(targetOf(target, fallback ?? "null"), actionable));
-		if (point === null) throw new Error(`no element matches ${String(target.selector ?? "the target")}; call preview_snapshot for current selectors`);
+		if (point === null) throw new Error(`no element matches ${textOf(target.selector) || "the target"}; call preview_snapshot for current selectors`);
 		return await toTop(point);
 	};
 	/** Discrete actions wait for the pointer to arrive; continuous updates do not. */
@@ -1112,11 +1136,14 @@ async function automate(guest, operation, input, signal = new AbortController().
 						ok: true,
 						url: guest.getURL()
 					};
-					if (Date.now() >= deadline) throw new Error(`timed out after ${String(timeoutMs)}ms waiting for ${[
-						hasSelector ? String(input.selector) : "",
-						hasUrl ? `url ${String(input.url)}` : "",
-						input.load === void 0 ? "" : `${String(input.load)}`
-					].filter((part) => part !== "").join(", ")}`);
+					if (Date.now() >= deadline) {
+						const awaited = [
+							hasSelector ? textOf(input.selector) : "",
+							hasUrl ? `url ${textOf(input.url)}` : "",
+							textOf(input.load)
+						];
+						throw new Error(`timed out after ${String(timeoutMs)}ms waiting for ${awaited.filter((part) => part !== "").join(", ")}`);
+					}
 					await sleep(25, signal);
 				}
 			}
@@ -1182,7 +1209,7 @@ async function automate(guest, operation, input, signal = new AbortController().
 				const tree = await send("Page.getFrameTree");
 				await send("Accessibility.enable");
 				const result = await send("Accessibility.getFullAXTree");
-				const snapshotId = crypto.randomUUID();
+				const snapshotId = randomUUID();
 				const targets = /* @__PURE__ */ new Map();
 				const visible = result.nodes.filter((node) => !node.ignored);
 				const nodes = visible.slice(0, MAX_INTERACTIVE_ELEMENTS).map((node, index) => {
@@ -1357,7 +1384,7 @@ async function automate(guest, operation, input, signal = new AbortController().
 			}
 			case "read": {
 				const property = input.property ?? "text";
-				if (![
+				if (typeof property !== "string" || ![
 					"text",
 					"innerText",
 					"html",
@@ -1368,7 +1395,7 @@ async function automate(guest, operation, input, signal = new AbortController().
 					"enabled",
 					"checked",
 					"box"
-				].includes(String(property))) throw new Error("read property must be text, innerText, html, value, attribute, count, visible, enabled, checked, or box");
+				].includes(property)) throw new Error("read property must be text, innerText, html, value, attribute, count, visible, enabled, checked, or box");
 				if (property === "attribute" && typeof input.name !== "string") throw new Error("read attribute requires name");
 				if (targetObjectId === void 0 && typeof input.selector !== "string") throw new Error("read requires a selector or token");
 				const value = await evaluate(`(() => {
@@ -1412,7 +1439,7 @@ async function automate(guest, operation, input, signal = new AbortController().
 				}
 				const expression = format === "markdown" ? PAGE_MARKDOWN : format === "text" ? "(document.body?.innerText ?? \"\")" : format === "html" ? "document.documentElement.outerHTML" : void 0;
 				if (expression === void 0) throw new Error("content format must be markdown, text, html, or youtube_transcript");
-				const text = String(await evaluate(expression) ?? "");
+				const text = textOf(await evaluate(expression));
 				return {
 					url: guest.getURL(),
 					title: guest.getTitle(),
@@ -1845,7 +1872,8 @@ var ChromeTab = class {
 	/**
 	* @param channel - the tab's CDP session.
 	* @param id - the id the agent's tab commands name it by.
-	* @param url - its address now. @param title - its title now.
+	* @param url - its address now.
+	* @param title - its title now.
 	* @param overlayScript - the agent pointer as a classic page script (the overlay package's IIFE bundle).
 	*/
 	constructor(channel, id, url, title, overlayScript) {
@@ -1860,7 +1888,8 @@ var ChromeTab = class {
 	}
 	/**
 	* Record the tab's address and title as its browser reports them.
-	* @param url - the address. @param title - the title.
+	* @param url - the address.
+	* @param title - the title.
 	*/
 	setInfo(url, title) {
 		this.#url = url;
@@ -1876,7 +1905,7 @@ var ChromeTab = class {
 	debugger = {
 		attach: () => {},
 		isAttached: () => !this.#detached && this.#channel.isOpen(),
-		sendCommand: (method, params) => this.#channel.send(method, params ?? {}),
+		sendCommand: async (method, params) => await this.#channel.send(method, params ?? {}),
 		on: (_event, listener) => {
 			this.#listeners.set(listener, this.#channel.subscribe((method, params) => {
 				listener(void 0, method, params);
@@ -1916,6 +1945,10 @@ var ChromeTab = class {
 	async insertText(text) {
 		await this.debugger.sendCommand("Input.insertText", { text });
 	}
+	/**
+	* Send one key event, as Electron's `sendInputEvent` takes it, through CDP.
+	* @param input - the event: down, char, or up, with the key and its modifiers.
+	*/
 	sendInputEvent(input) {
 		const modifiers = (input.modifiers ?? []).reduce((bits, name) => bits | MODIFIER_BITS[name], 0);
 		const params = input.type === "char" ? {
@@ -2014,6 +2047,7 @@ var ChromeTab = class {
 * Make a newly attached tab ready for the engine: the domains its events come
 * from, and the overlay installed in every document it opens.
 * @param tab - the attached tab.
+* @param overlayScript - the agent pointer as a classic page script.
 */
 async function prepareTab(tab, overlayScript) {
 	await tab.debugger.sendCommand("Page.enable");
@@ -2081,7 +2115,7 @@ const loading = chrome.storage.session.get(TABS_KEY).then((stored) => {
 const instance = chrome.storage.local.get(INSTANCE_KEY).then(async (stored) => {
 	const kept = stored[INSTANCE_KEY];
 	if (typeof kept === "string") return kept;
-	const made = crypto.randomUUID().replaceAll("-", "").slice(0, 12);
+	const made = Array.from(crypto.getRandomValues(/* @__PURE__ */ new Uint8Array(6)), (byte) => byte.toString(16).padStart(2, "0")).join("");
 	await chrome.storage.local.set({ [INSTANCE_KEY]: made });
 	return made;
 });
@@ -2110,7 +2144,8 @@ async function info() {
 */
 function serve(connection, admitted = Promise.resolve(true)) {
 	const serial = nextConnection++;
-	connection.onMessage.addListener((message) => {
+	connection.onMessage.addListener((received) => {
+		const message = received;
 		if (message.event === "unavailable") return;
 		const { id, method } = message;
 		if (typeof id !== "number" || typeof method !== "string") return;

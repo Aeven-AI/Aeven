@@ -714,19 +714,16 @@ describe('BrowserOverlay animation frame loop', () => {
     frames.shift()!(now)
     expect(cursor.style.opacity).toBe('1')
 
-    // A later appearance fades: hidden first, then sent somewhere else.
+    // A later appearance also starts at its target, fully visible: hidden first,
+    // then sent somewhere else, it does not glide in from where it was.
     overlay.hide({ immediate: true })
     overlay.moveTo({ x: 300, y: 200 })
     now += 16
     frames.shift()!(now)
 
-    expect(cursor.style.transform).toContain('translate3d(')
+    expect(cursor.style.transform).toContain('translate3d(288px, 188px, 0)')
     expect(cursor.style.transform).toContain('rotate(')
-    // The fade has started but has not finished, so the pointer is part way in.
-    expect(Number(cursor.style.opacity)).toBeGreaterThan(0)
-    expect(Number(cursor.style.opacity)).toBeLessThan(1)
-    // Still travelling, so the loop asked for another frame.
-    expect(frames).toHaveLength(1)
+    expect(cursor.style.opacity).toBe('1')
     expect(cancelledFrames).toHaveLength(0)
   })
 
@@ -747,7 +744,7 @@ describe('BrowserOverlay animation frame loop', () => {
     const ran = runFramesUntilRest()
 
     expect(frames).toHaveLength(0)
-    expect(ran).toBeGreaterThan(1)
+    expect(ran).toBeGreaterThanOrEqual(1)
     expect(cursor.style.opacity).toBe('1')
     // The sprite carries the artwork's own rotation, so the model settles on its
     // negative base angle and the transform emits the normalized equivalent.

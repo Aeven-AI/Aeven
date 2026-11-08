@@ -184,7 +184,10 @@ export interface BrowserCursor {
   readonly url?: string
 }
 
-/** Which Chrome a tab lives in: Aeven's own profile, the reader's everyday Chrome over remote debugging, or any Chromium through the Aeven extension. */
+/**
+ * Which Chrome a tab lives in: Aeven's own profile, the reader's everyday Chrome over
+ * remote debugging, or any Chromium through the Aeven extension.
+ */
 export type ChromeKind = 'aeven' | 'user' | 'extension'
 
 /** A Chrome tab the agent's current tab can be, instead of a sidebar tab. */

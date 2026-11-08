@@ -5612,6 +5612,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [],
   },
   {
+    name: 'terminal/present',
+    mode: 'waterfall',
+    signature: '\'terminal/present\'( this: Scoped<Agent>, request: TerminalPresentRequestEvent, next: () => Promise<boolean>, ): Promise<boolean>',
+    summary: 'Present an agent action on a terminal shown beside its session: the client displaying that session brings the terminal\'s pill into view and draws the agent pointer acting on it, then returns true; for `close` the pointer\'s press closes the pill.',
+    description: 'Present an agent action on a terminal shown beside its session: the client displaying that session brings the terminal\'s pill into view and draws the agent pointer acting on it, then returns true; for `close` the pointer\'s press closes the pill. A listener without that terminal calls `next()`. Scope-filtered dispatch (`@aeven/scope`): agent-scoped listeners receive only that agent.',
+    parameters: [{ name: 'request', description: 'the terminal and the action.' }],
+  },
+  {
     name: 'terminal/show',
     mode: 'waterfall',
     signature: '\'terminal/show\'( this: Scoped<Agent>, request: TerminalShowRequestEvent, next: () => Promise<boolean>, ): Promise<boolean>',
@@ -6085,7 +6093,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'BrowserAutomationOperation',
-    declaration: 'export type BrowserAutomationOperation = \'status\' | \'navigate\' | \'back\' | \'forward\' | \'reload\' | \'snapshot\' | \'screenshot\' | \'click\' | \'type\' | \'press\' | \'scroll\' | \'evaluate\' | \'upload\' | \'wait\' | \'sequence\';',
+    declaration: 'export type BrowserAutomationOperation = \'status\' | \'navigate\' | \'back\' | \'forward\' | \'reload\' | \'snapshot\' | \'screenshot\' | \'click\' | \'type\' | \'press\' | \'scroll\' | \'evaluate\' | \'upload\' | \'wait\' | \'sequence\' | \'hover\' | \'drag\' | \'select\' | \'check\' | \'read\' | \'content\' | \'export\' | \'clipboard\' | \'console\' | \'dialog\' | \'handoff\' | \'control\' | \'tabs\' | \'history\' | \'webmcp\' | \'bookmarks\';',
   },
   {
     name: 'BrowserAutomationRequestEvent',
@@ -9422,6 +9430,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'TerminalFrame',
     declaration: 'export type TerminalFrame = {\n    readonly type: \'snapshot\';\n    readonly sequence: number;\n    readonly screen: string;\n    readonly info: WebTerminalInfo;\n} | {\n    readonly type: \'output\';\n    readonly sequence: number;\n    readonly data: string;\n} | {\n    readonly type: \'state\';\n    readonly info: WebTerminalInfo;\n};',
+  },
+  {
+    name: 'TerminalPresentRequestEvent',
+    declaration: 'export interface TerminalPresentRequestEvent {\n    readonly terminalId: WebTerminalId;\n    readonly action: \'send\' | \'close\';\n    agent?: Agent;\n    signal?: AbortSignal;\n}',
   },
   {
     name: 'TerminalReadRequest',
