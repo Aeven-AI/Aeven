@@ -6,6 +6,8 @@
  * shell (index.ts). The pill carries the shell's title. A pill that must start
  * a shell with none remembered stops at the launch guide and asks.
  */
+import { acquireColumnPointer } from '@aeven/experimental-browser-overlay/src/column-pointer.ts'
+import { POINTER_IDLE_HIDE_MS } from './present.ts'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
@@ -268,6 +270,14 @@ function TerminalScreen({ state, model, visible, label, theme }: {
     terminal.current!.textarea?.setAttribute('aria-label', label)
   }, [label])
   useEffect(() => { if (visible && state.writable) terminal.current!.focus() }, [visible, state.writable])
+  // The agent's pointer is the sidebar column's shared one; this pane holds it so
+  // the cursor stays drawn between the agent's actions on the terminal.
+  useEffect(() => {
+    const column = element.current?.closest<HTMLElement>('[data-sidebar-right-surfaces]')
+    if (column === null || column === undefined) return
+    const pointer = acquireColumnPointer(column, POINTER_IDLE_HIDE_MS)
+    return () => { pointer.release() }
+  }, [])
   return <div className={css.screen} ref={element} data-ready={ready || undefined} />
 }
 /* oxlint-enable typescript/no-non-null-assertion */

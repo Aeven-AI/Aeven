@@ -15,8 +15,8 @@
  */
 import type { ReactNode } from 'react'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { createPortal } from 'react-dom'
-import { BrowserOverlay } from '@aeven/experimental-browser-overlay/src/overlay.ts'
+import type { BrowserOverlay } from '@aeven/experimental-browser-overlay/src/overlay.ts'
+import { acquireColumnPointer } from '@aeven/experimental-browser-overlay/src/column-pointer.ts'
 import { IconWarningOutline16, Toast } from '@aeven/client-ui-primitives'
 import type { TranslateNS } from '@aeven/client-locale/client'
 import { ChromeRow } from './ChromeRow.tsx'
@@ -134,8 +134,6 @@ export function BrowserPane({ sessionId, tabId, active, closeTab, t, openInChrom
   const closeTabRef = useRef(closeTab)
   closeTabRef.current = closeTab
   const rootRef = useRef<HTMLDivElement | null>(null)
-  /** The pane's own layer the agent pointer draws in. */
-  const cursorLayerRef = useRef<HTMLDivElement | null>(null)
   /** Whether the agent is working, which holds the pointer on screen. */
   const holdRef = useRef(false)
   /** Selector of the element the pointer is on, when the last action named one. */
@@ -229,31 +227,15 @@ export function BrowserPane({ sessionId, tabId, active, closeTab, t, openInChrom
   useEffect(() => {
     const bridge = desktopBrowser()
     const guest = guestRef.current
-    const layer = cursorLayerRef.current
-    if (bridge === undefined || guest === null || layer === null) return
-    // The layer is drawn from the page's own top layer, so its box is placed from the pane's
-    // rect: a fixed layer does not inherit the pane's position, and a resize or a scroll of
-    // the surrounding layout has to move it with the pane.
-    const place = (): void => {
-      // The layer spans the sidebar column, pills included, so the pointer can press a
-      // tab or the plus button as well as the page and its toolbar.
-      const root = rootRef.current?.closest('[data-sidebar-right-surfaces]') ?? rootRef.current
-      if (root === null) return
-      const box = root.getBoundingClientRect()
-      layer.style.left = `${String(box.left)}px`
-      layer.style.top = `${String(box.top)}px`
-      layer.style.width = `${String(box.width)}px`
-      layer.style.height = `${String(box.height)}px`
-    }
-    place()
-    window.addEventListener('resize', place)
-    window.addEventListener('scroll', place, true)
-    // The overlay draws inside the pane, not over the window: the panel is the
-    // region the agent acts in, its own address bar included, and filling the
-    // layer is what keeps the pointer inside it.
-    // The pointer is the only thing drawn over the page: the reader is reading it,
-    // and a box, ring, or caret the agent put there is a mark on someone else's page.
-    const overlay = new BrowserOverlay().attach({ container: layer, idleHideMs: CURSOR_IDLE_HIDE_MS, decorations: false })
+    const column = rootRef.current?.closest<HTMLElement>('[data-sidebar-right-surfaces]') ?? rootRef.current
+    if (bridge === undefined || guest === null || column === null) return
+    // One pointer serves the whole sidebar column, shared with its other panes, so
+    // the cursor the reader follows travels from the page to a pill or a terminal.
+    // It draws the pointer alone: a box, ring, or caret the agent put on the page
+    // would be a mark on someone else's page.
+    const pointer = acquireColumnPointer(column, CURSOR_IDLE_HIDE_MS)
+    const layer = pointer.layer
+    const overlay = pointer.overlay
     overlayRef.current = overlay
     // The agent working is what keeps the pointer on screen: the idle fade
     // applies once it has stopped, so a long action never loses its pointer.
@@ -396,9 +378,10 @@ export function BrowserPane({ sessionId, tabId, active, closeTab, t, openInChrom
     }
     livePaneCursors.set(guest, presentation)
     let onScreen = false
+    // The shared pointer hides itself when the column closes; this tab only tracks
+    // whether its page is the one on screen.
     const visibility = new IntersectionObserver((entries) => {
       onScreen = entries.at(-1)?.isIntersecting ?? false
-      if (!onScreen) overlay.hide()
     })
     visibility.observe(guest)
     // A resize reflows the page, so the pointer goes back to the element it is on
@@ -463,7 +446,7 @@ export function BrowserPane({ sessionId, tabId, active, closeTab, t, openInChrom
      */
     const followAnchor = async (): Promise<void> => {
       const selector = anchorRef.current
-      if (selector === undefined || !overlay.showing) return
+      if (selector === undefined || !overlay.showing || !visibleRef.current) return
       const box = await boxOf(selector)
       if (box === null) return
       overlay.reposition({
@@ -550,28 +533,20 @@ export function BrowserPane({ sessionId, tabId, active, closeTab, t, openInChrom
       stop()
       stopHold()
       stopPageScroll()
-      window.removeEventListener('resize', place)
-      window.removeEventListener('scroll', place, true)
       livePaneCursors.delete(guest)
       visibility.disconnect()
       resizes.disconnect()
       if (settle !== undefined) clearTimeout(settle)
       overlayRef.current = null
-      overlay.destroy()
+      pointer.release()
     }
   }, [sessionId])
 
-  // Closing the column fades the pointer out on the same spring as its idle
-  // fade, so the reader sees it leave rather than blink away with the pane. A
-  // re-show while the agent is still working brings it back where it was, since
-  // the reader who closed the column to make room has not ended the work.
+  // A re-show while the agent is still working brings the pointer back where it
+  // was, since the reader who closed the column to make room has not ended the work.
   useEffect(() => {
     const overlay = overlayRef.current
-    if (overlay === null) return
-    if (!visible) {
-      overlay.hide()
-      return
-    }
+    if (overlay === null || !visible) return
     const spot = overlay.point
     if (spot === undefined || !holdRef.current) return
     overlay.moveTo(spot)
@@ -620,10 +595,6 @@ export function BrowserPane({ sessionId, tabId, active, closeTab, t, openInChrom
 
   return (
     <div ref={rootRef} className={css.root} data-sidebar-right-browser="">
-      {createPortal(
-        <div ref={cursorLayerRef} className={css.cursorLayer} aria-hidden="true" />,
-        document.body,
-      )}
       <ChromeRow
         typing={typingUrl}
         addressRef={addressRef}

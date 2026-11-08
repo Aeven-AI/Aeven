@@ -96,6 +96,16 @@ export class ClientTerminals extends Service {
   }
 
   /**
+   * The Host terminal a content identity names.
+   * @param sessionId - owning Session.
+   * @param contentId - terminal content identity.
+   * @returns the terminal id, or undefined while the content names none.
+   */
+  terminalOf(sessionId: SessionId, contentId: string): WebTerminalId | undefined {
+    return this.bindings.get(sessionId, contentId)
+  }
+
+  /**
    * Save a close intent and release the tab immediately; cleanup outlives DOM unmount and reload.
    * @param sessionId - owning Session.
    * @param key - sidebar occurrence key, including an inactive restored tab.

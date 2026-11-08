@@ -24,7 +24,7 @@ English | [中文](README.zh.md)
 
 #### What the model sees
 
-The tool `sidebar_terminal` with `open`, `list`, `read`, `send`, `rename`, `resize`, and `close`: `open` starts a shell in the Session's workspace and asks the window showing the Session, through the `terminal/show` waterfall, to open a Terminal pill on it, returning the terminal's info, or closes the shell again and fails when no window answers within `showTimeoutMs`; a read returns the terminal's info and bounded rendered screen and history text, and every other action names the terminal id it acts on.
+The tool `sidebar_terminal` with `open`, `list`, `read`, `send`, `rename`, `resize`, and `close`: `open` starts a shell in the Session's workspace and asks the window showing the Session, through the `terminal/show` waterfall, to open a Terminal pill on it, returning the terminal's info, or closes the shell again and fails when no window answers within `showTimeoutMs`; `send` and `close` first ask that window, through the `terminal/present` waterfall and for at most `showTimeoutMs`, to draw the agent pointer pressing the terminal's pill and pointing at its text cursor, or pressing the pill's close button; a read returns the terminal's info and bounded rendered screen and history text, and every other action names the terminal id it acts on.
 
 #### Token effect
 

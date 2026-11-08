@@ -25,6 +25,9 @@
       "path": "../ui-sidebar-select"
     },
     {
+      "path": "../../experimental/browser-overlay"
+    },
+    {
       "path": "../../api/remotes/tsconfig.client.json"
     },
     {

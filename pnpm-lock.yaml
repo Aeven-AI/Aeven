@@ -4902,6 +4902,9 @@ importers:
       '@aeven/client-ui-slots':
         specifier: workspace:^
         version: link:../ui-slots
+      '@aeven/experimental-browser-overlay':
+        specifier: workspace:^
+        version: link:../../experimental/browser-overlay
       '@aeven/typert-protocol':
         specifier: workspace:^
         version: link:../../typert/protocol
@@ -5028,6 +5031,9 @@ importers:
       '@aeven/client-ui-theme':
         specifier: workspace:^
         version: link:../ui-theme
+      '@aeven/experimental-browser-overlay':
+        specifier: workspace:^
+        version: link:../../experimental/browser-overlay
       '@aeven/session':
         specifier: workspace:^
         version: link:../../core/session

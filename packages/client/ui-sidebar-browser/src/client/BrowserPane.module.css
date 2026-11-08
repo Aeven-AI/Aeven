@@ -8,23 +8,7 @@
   flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
-  /* Anchors the pointer layer to the pane, so the agent pointer draws over the
-     pane's own chrome and the guest alike rather than over the window. */
   position: relative;
-}
-
-/* The agent pointer's drawing region: the pane's box, drawn from the page's own
-   top layer rather than from inside the pane. The three-dot menu is portaled to
-   that layer at 1100, and a popup's backdrop blur smears whatever is painted
-   below it — a pointer inside the pane subtree is behind the menu no matter what
-   z-index it carries, because the menu's layer is a sibling of the whole pane.
-   Fixed placement (inline left/top/width/height) keeps the pane's coordinates,
-   and 1300 keeps the pointer above every surface, as a real cursor is. */
-.cursorLayer {
-  position: fixed;
-  overflow: hidden;
-  pointer-events: none;
-  z-index: 1300;
 }
 
 .chrome {

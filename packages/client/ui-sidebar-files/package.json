@@ -52,6 +52,7 @@
     "@aeven/api-remotes": "workspace:^",
     "@aeven/api-session-controller": "workspace:^",
     "@aeven/api-workspace-files": "workspace:^",
+    "@aeven/experimental-browser-overlay": "workspace:^",
     "@aeven/client-locale": "workspace:^",
     "@aeven/client-ui-primitives": "workspace:^",
     "@aeven/client-ui-sidebar-select": "workspace:^",

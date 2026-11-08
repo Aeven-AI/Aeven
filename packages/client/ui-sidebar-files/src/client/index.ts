@@ -13,6 +13,7 @@ import type { SidebarContentPaneProps } from '@aeven/client-ui-sidebar-select/cl
 import { createElement, useCallback, useEffect, useState } from 'react'
 import { resolveWorkspacePath } from '@aeven/util-workspace-path'
 import { FilesPane } from './FilesPane.tsx'
+import { pointAtPath } from './point.ts'
 import { canPreviewFile, workspaceFileUrl } from './open-with.tsx'
 import { en, es, zh, type SidebarFilesKey } from './locales.ts'
 
@@ -103,8 +104,15 @@ export function apply(ctx: ClientContext): void {
       shown.remote.$on('workspace-files/show', function (request, next) {
         const sessionId = shown.sessions.scopeOf(this)
         if (sessionId === undefined) return next()
-        if (request.type === 'file') return openFile(sessionId, request.path).then(opened => opened ? 'shown' : 'not-previewable')
+        // The agent's pointer then shows the row it opened, drawn without delaying the answer.
+        if (request.type === 'file') {
+          return openFile(sessionId, request.path).then((opened) => {
+            if (opened) void pointAtPath(request.path)
+            return opened ? 'shown' : 'not-previewable'
+          })
+        }
         openFolder(sessionId, request.path)
+        void pointAtPath(request.path)
         return Promise.resolve('shown')
       })
     })

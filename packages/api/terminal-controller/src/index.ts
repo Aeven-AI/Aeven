@@ -67,7 +67,7 @@ export interface Config {
   readonly openCols: number
   /** Rows of a shell the model opens, until the pane that shows it fits it to its height. */
   readonly openRows: number
-  /** How long a model open waits for the window showing the Session to open its Terminal pill. */
+  /** How long a model open waits for the window showing the Session to open its Terminal pill, and a send or close for its pointer. */
   readonly showTimeoutMs: number
 }
 
@@ -355,6 +355,7 @@ export class TerminalController extends TypertRemoteService {
             if (args.text === undefined) throw new Error('text is required for send')
             const data = args.text + (args.submit === false ? '' : '\r')
             if (Buffer.byteLength(data, 'utf8') > this.config.maxInputBytes) throw new Error('Terminal input exceeds the configured limit')
+            await this.present(ctx, agent, id, 'send', exec.signal)
             await terminal.send(data)
             return JSON.stringify({ accepted: true, info: terminal.info })
           }
@@ -368,6 +369,9 @@ export class TerminalController extends TypertRemoteService {
             await terminal.setDimensions(args.cols, args.rows)
             return JSON.stringify(terminal.info)
           case 'close':
+            // The pointer's press on the pill's close button closes it the way the reader would; the shell is closed
+            // here either way, so a window that does not answer still loses nothing.
+            await this.present(ctx, agent, id, 'close', exec.signal)
             await this.close(agent, id)
             return JSON.stringify({ closed: id })
           default: return assertNever(args.action)
@@ -379,6 +383,29 @@ export class TerminalController extends TypertRemoteService {
         rawInput: args.text ?? args.terminalId,
       }),
     })), 'terminal-controller.model-tool')
+  }
+
+  /**
+   * Have the window showing the Session draw the agent pointer acting on one terminal, waiting at most
+   * `showTimeoutMs`: an action never waits on a window that does not answer.
+   * @param ctx - the context the tool is registered in, which dispatches the request.
+   * @param agent - the Session the terminal belongs to.
+   * @param terminalId - the terminal acted on.
+   * @param action - what the pointer shows.
+   * @param signal - the tool call's cancellation.
+   */
+  private async present(ctx: Context, agent: Agent, terminalId: WebTerminalId, action: 'send' | 'close', signal: AbortSignal): Promise<void> {
+    const bounded = AbortSignal.any([signal, AbortSignal.timeout(this.config.showTimeoutMs)])
+    const unanswered = new Promise<boolean>((resolve) => {
+      if (bounded.aborted) resolve(false)
+      else bounded.addEventListener('abort', () => { resolve(false) }, { once: true })
+    })
+    await Promise.race([
+      ctx.waterfall(scopeTarget(agent, agent), 'terminal/present', { terminalId, action, agent, signal: bounded }, () => Promise.resolve(false))
+        .catch(() => false),
+      unanswered,
+    ])
+    signal.throwIfAborted()
   }
 
   /**
