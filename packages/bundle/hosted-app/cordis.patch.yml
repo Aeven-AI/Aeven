@@ -540,16 +540,20 @@
           # ioMax applies to the disk holding the accounts root, which Mongo and
           # the Host share (about 165 MB/s sequential write and 309 MB/s read
           # direct on pink), so all jails together take about a quarter of it.
+          # On pink (18 cores, 105 GB) the jails together get 14 cores and
+          # 48 GB beside the Host's 16 GB heap and Mongo's 16 GB cache. Each
+          # account may burst to four idle cores; equal weights share them
+          # fairly once the jails are busy.
           total:
-            memoryMax: 32G
-            pidsMax: '4096'
-            cpuMax: 1200000 100000
+            memoryMax: 48G
+            pidsMax: '8192'
+            cpuMax: 1400000 100000
             cpuWeight: '100'
             ioMax: rbps=83886080 wbps=41943040 riops=3000 wiops=1000
           account:
             memoryMax: 2G
             pidsMax: '256'
-            cpuMax: 200000 100000
+            cpuMax: 400000 100000
             cpuWeight: '100'
             ioMax: rbps=31457280 wbps=10485760 riops=1000 wiops=300
 
