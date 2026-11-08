@@ -409,20 +409,41 @@ body[data-ds-dark-theme] .markdown.markdown {
   margin-left: auto;
 }
 
-/* A run of videos tiles the way a row of images does: a lone video spans the
-   column, two share it in halves, three take thirds, and four or more wrap two
-   to a row. Every tile is 3:2 and carries the transcript's 30px corner. */
+/* A run of videos shares the column in equal tiles: one spans it, two take
+   halves, three take thirds, and four or more go two to a row. A tile never
+   narrows below 200px, the width at which the providers' players still offer
+   seeking, so a narrow column drops to two tiles a row and then to one, and a
+   tile left alone on a row grows to the full width. Three tiles fill rows from
+   the end, so when they split it is the first that spans the column above the
+   other two; the reversed order and direction cancel, keeping the tiles in
+   reading order. The 1px under each share keeps sub-pixel rounding from
+   wrapping a row that fits. Every tile is 3:2 and carries the transcript's
+   30px corner. */
 .markdown :global(.markdown-video-grid) {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  --video-tile-min: 200px;
+  --video-gap: 12px;
+  --video-tile-share: calc((100% - var(--video-gap)) / 2 - 1px);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--video-gap);
   margin: 16px 0;
 }
 
-.markdown :global(.markdown-video-grid[data-count='1']) {
-  grid-template-columns: minmax(0, 1fr);
+.markdown :global(.markdown-video-grid[data-count='3']) {
+  --video-tile-share: calc((100% - 2 * var(--video-gap)) / 3 - 1px);
+  flex-flow: row-reverse wrap-reverse;
 }
 
-.markdown :global(.markdown-video-grid[data-count='3']) {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.markdown :global(.markdown-video-grid[data-count='3'] > .markdown-video:nth-child(1)) {
+  order: 1;
+}
+
+.markdown :global(.markdown-video-grid[data-count='3'] > .markdown-video:nth-child(3)) {
+  order: -1;
+}
+
+.markdown :global(.markdown-video-grid > .markdown-video) {
+  flex: 1 1 max(var(--video-tile-min), var(--video-tile-share));
 }
 
 .markdown :global(.markdown-video) {
