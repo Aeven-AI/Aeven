@@ -140,11 +140,20 @@ class ChromeConnection {
   }
 }
 
+/** How a tab target reaches its page: one CDP session, through a debugging connection or the extension. */
+export interface TabChannel {
+  /** Send one CDP command to the tab. */
+  send(method: string, params: object): Promise<any>
+  /** Observe the tab's CDP events; returns the disposer. */
+  subscribe(listener: (method: string, params: any) => void): () => void
+  /** Whether the channel still reaches the tab. */
+  isOpen(): boolean
+}
+
 /** A Chrome tab as an engine target. */
-class ChromeTab implements BrowserTarget {
+export class ChromeTab implements BrowserTarget {
   readonly id: string
-  readonly #connection: ChromeConnection
-  readonly #sessionId: string
+  readonly #channel: TabChannel
   #url: string
   #title: string
   #detached = false
@@ -152,30 +161,36 @@ class ChromeTab implements BrowserTarget {
   readonly #listeners = new Map<(event: any, method: string, params: any) => void, () => void>()
   readonly hostWebContents = null
 
-  constructor(connection: ChromeConnection, targetId: string, sessionId: string, url: string, title: string) {
-    this.id = targetId
-    this.#connection = connection
-    this.#sessionId = sessionId
+  constructor(channel: TabChannel, id: string, url: string, title: string) {
+    this.id = id
+    this.#channel = channel
     this.#url = url
     this.#title = title
-    connection.onEvent((method, params, session) => {
-      if (method === 'Target.targetInfoChanged' && params.targetInfo?.targetId === targetId) {
-        this.#url = String(params.targetInfo.url)
-        this.#title = String(params.targetInfo.title)
-      }
-      if (method === 'Target.detachedFromTarget' && params.sessionId === sessionId) this.#detached = true
-      if (method === 'Page.frameNavigated' && session === sessionId && params.frame?.parentId === undefined) this.#overlayReady = false
+    channel.subscribe((method, params) => {
+      if (method === 'Page.frameNavigated' && params.frame?.parentId === undefined) this.#overlayReady = false
     })
+  }
+
+  /**
+   * Record the tab's address and title as its browser reports them.
+   * @param url - the address. @param title - the title.
+   */
+  setInfo(url: string, title: string): void {
+    this.#url = url
+    this.#title = title
+  }
+
+  /** Mark the tab unreachable, as its browser reported its debugger detached. */
+  markDetached(): void {
+    this.#detached = true
   }
 
   readonly debugger = {
     attach: (): void => {},
-    isAttached: (): boolean => !this.#detached && !this.#connection.closed,
-    sendCommand: (method: string, params?: object): Promise<any> => this.#connection.send(method, params ?? {}, this.#sessionId),
+    isAttached: (): boolean => !this.#detached && this.#channel.isOpen(),
+    sendCommand: (method: string, params?: object): Promise<any> => this.#channel.send(method, params ?? {}),
     on: (_event: 'message', listener: (event: any, method: string, params: any) => void): void => {
-      this.#listeners.set(listener, this.#connection.onEvent((method, params, session) => {
-        if (session === this.#sessionId) listener(undefined, method, params)
-      }))
+      this.#listeners.set(listener, this.#channel.subscribe((method, params) => { listener(undefined, method, params) }))
     },
     off: (_event: 'message', listener: (event: any, method: string, params: any) => void): void => {
       this.#listeners.get(listener)?.()
@@ -241,8 +256,12 @@ class ChromeTab implements BrowserTarget {
               : undefined
     if (call === undefined) return
     await this.#overlay()
-    await this.debugger.sendCommand('Runtime.evaluate', { expression: `window.__aevenOverlay?.${call}`, returnByValue: true })
-    if (!wait) return
+    // As ChatGPT's agent does, a tab nobody can see gets no pointer to wait for:
+    // a background tab barely animates, so every wait would run to its cap.
+    const drawn = await this.debugger.sendCommand('Runtime.evaluate', {
+      expression: `document.visibilityState === "visible" ? (window.__aevenOverlay?.${call}, true) : false`, returnByValue: true,
+    }) as { result?: { value?: boolean } }
+    if (!wait || drawn.result?.value !== true) return
     await Promise.race([
       this.debugger.sendCommand('Runtime.evaluate', { expression: 'window.__aevenOverlay?.arrived()', awaitPromise: true, returnByValue: true }),
       new Promise((resolve) => { setTimeout(resolve, timeoutMs) }),
@@ -289,6 +308,21 @@ class ChromeTab implements BrowserTarget {
     await loaded
     signal.throwIfAborted()
   }
+}
+
+/**
+ * Make a newly attached tab ready for the engine: the domains its events come
+ * from, and the overlay installed in every document it opens.
+ * @param tab - the attached tab.
+ */
+export async function prepareTab(tab: ChromeTab): Promise<void> {
+  // Dialogs, console output, and navigation events come from these domains.
+  await tab.debugger.sendCommand('Page.enable')
+  await tab.debugger.sendCommand('Runtime.enable')
+  // The script installs the overlay once the document can hold it; the pointer's first step
+  // switches it to drawing the pointer alone.
+  await tab.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: overlayScript() })
+  observePage(tab)
 }
 
 /** Live connections and attached tabs by Chrome. */
@@ -397,14 +431,16 @@ export async function chromeTarget(kind: ChromeKind, browserUrl: string | undefi
     const open = await connection(kind, browserUrl)
     const { targetInfo } = await open.send('Target.getTargetInfo', { targetId }) as { targetInfo: { url: string; title: string } }
     const { sessionId } = await open.send('Target.attachToTarget', { targetId, flatten: true }) as { sessionId: string }
-    const tab = new ChromeTab(open, targetId, sessionId, targetInfo.url, targetInfo.title)
-    // Dialogs, console output, and navigation events come from these domains.
-    await tab.debugger.sendCommand('Page.enable')
-    await tab.debugger.sendCommand('Runtime.enable')
-    // The script installs the overlay once the document can hold it; the pointer's first step
-    // switches it to drawing the pointer alone.
-    await tab.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: overlayScript() })
-    observePage(tab)
+    const tab = new ChromeTab({
+      send: (method, params) => open.send(method, params, sessionId),
+      subscribe: listener => open.onEvent((method, params, session) => { if (session === sessionId) listener(method, params) }),
+      isOpen: () => !open.closed,
+    }, targetId, targetInfo.url, targetInfo.title)
+    open.onEvent((method, params) => {
+      if (method === 'Target.targetInfoChanged' && params.targetInfo?.targetId === targetId) tab.setInfo(String(params.targetInfo.url), String(params.targetInfo.title))
+      if (method === 'Target.detachedFromTarget' && params.sessionId === sessionId) tab.markDetached()
+    })
+    await prepareTab(tab)
     return tab
   })()
   tabs.set(key, attaching)

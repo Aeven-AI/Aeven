@@ -64,7 +64,10 @@ interface ChromeAccess {
 }
 
 /** Tab-id prefix of each Chrome. */
-const CHROME_PREFIX: Readonly<Record<ChromeKind, string>> = { aeven: 'chrome:', user: 'my-chrome:' }
+const CHROME_PREFIX: Readonly<Record<ChromeKind, string>> = { aeven: 'chrome:', user: 'my-chrome:', extension: 'ext:' }
+
+/** How each Chrome is named to the agent. */
+const CHROME_BROWSER: Readonly<Record<ChromeKind, string>> = { aeven: 'chrome', user: 'my-chrome', extension: 'extension' }
 
 /**
  * Read a Chrome tab id the agent names.
@@ -72,6 +75,7 @@ const CHROME_PREFIX: Readonly<Record<ChromeKind, string>> = { aeven: 'chrome:', 
  * @returns the Chrome tab, or undefined for a sidebar tab id.
  */
 function parseChromeTabId(tabId: string | undefined): ChromeTabRef | undefined {
+  if (tabId?.startsWith(CHROME_PREFIX.extension) === true) return { kind: 'extension', targetId: tabId.slice(CHROME_PREFIX.extension.length) }
   if (tabId?.startsWith(CHROME_PREFIX.user) === true) return { kind: 'user', targetId: tabId.slice(CHROME_PREFIX.user.length) }
   if (tabId?.startsWith(CHROME_PREFIX.aeven) === true) return { kind: 'aeven', targetId: tabId.slice(CHROME_PREFIX.aeven.length) }
   return undefined
@@ -94,7 +98,7 @@ async function chromeTabs(
   const bridge = desktopBrowser()
   if (bridge === undefined) throw new Error('Chrome tabs are driven from the desktop app')
   const action = request.input.action
-  const kind: ChromeKind = tab?.kind ?? (request.input.browser === 'my-chrome' ? 'user' : 'aeven')
+  const kind: ChromeKind = tab?.kind ?? (request.input.browser === 'my-chrome' ? 'user' : request.input.browser === 'extension' ? 'extension' : 'aeven')
   if (kind === 'user' && !chrome.userAllowed()) throw new Error("the user has not allowed Aeven to use their Chrome; they can turn on Settings > General > Use your Chrome")
   if (kind === 'aeven' && chrome.aevenUrl() === undefined) throw new Error("this Host runs no Chrome for Aeven")
   const all = async (): Promise<unknown[]> => [
@@ -179,7 +183,7 @@ async function browserTabs(
   const action = request.input.action ?? 'list'
   const tabId = typeof request.input.tabId === 'string' ? request.input.tabId : undefined
   const chromeTab = parseChromeTabId(tabId)
-  if (chromeTab !== undefined || (action === 'new' && (request.input.browser === 'chrome' || request.input.browser === 'my-chrome'))) {
+  if (chromeTab !== undefined || (action === 'new' && (request.input.browser === 'chrome' || request.input.browser === 'my-chrome' || request.input.browser === 'extension'))) {
     return await chromeTabs(sessionId, request, chrome, chromeTab)
   }
   const list = async (): Promise<Array<{ tabId: string; browser: string; url: string; title: string; current: boolean }>> => {
@@ -396,13 +400,13 @@ export function apply(ctx: ClientContext): void {
       if (bridge === undefined) return []
       const current = liveGuests.chrome(sessionId)
       const listed = []
-      for (const kind of ['aeven', 'user'] as const) {
+      for (const kind of ['aeven', 'user', 'extension'] as const) {
         if (kind === 'aeven' && aevenChromeUrl === undefined) continue
         if (kind === 'user' && !userChrome.allowed.getSnapshot()) continue
         // A Chrome that is not running, or does not allow debugging, lists no tabs.
         const tabs = await bridge.chromeTabs(kind, aevenChromeUrl).catch(() => [])
         listed.push(...tabs.map(tab => ({
-          tabId: `${CHROME_PREFIX[kind]}${tab.targetId}`, browser: kind === 'aeven' ? 'chrome' : 'my-chrome', url: tab.url, title: tab.title,
+          tabId: `${CHROME_PREFIX[kind]}${tab.targetId}`, browser: CHROME_BROWSER[kind], url: tab.url, title: tab.title,
           current: current?.kind === kind && current.targetId === tab.targetId,
         })))
       }
@@ -429,6 +433,13 @@ export function apply(ctx: ClientContext): void {
       const guest = liveGuests.get(sessionId)
       /** Bring the session's current tab, or its browser when none is mounted, into view. */
       const showCurrent = (): void => { ctx.get('sidebarContent')?.requestOpen(sessionId, 'browser', false, liveGuests.current(sessionId)?.tabId) }
+      if (request.operation === 'bookmarks' || (request.operation === 'history' && request.input.source === 'browser')) {
+        const bridge = desktopBrowser()
+        if (bridge === undefined) return next()
+        const limit = typeof request.input.limit === 'number' && Number.isInteger(request.input.limit) && request.input.limit > 0 ? Math.min(request.input.limit, 200) : 20
+        return bridge.extensionRead(request.operation === 'bookmarks' ? 'bookmarks' : 'history', typeof request.input.query === 'string' ? request.input.query : '', limit)
+          .then(entries => ({ entries })) as ReturnType<typeof next>
+      }
       if (request.operation === 'history') {
         const limit = typeof request.input.limit === 'number' && Number.isInteger(request.input.limit) && request.input.limit > 0 ? Math.min(request.input.limit, 200) : 20
         const entries = searchHistory(typeof request.input.query === 'string' ? request.input.query : '', limit)

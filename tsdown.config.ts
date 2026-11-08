@@ -18,7 +18,7 @@ export default defineConfig(({ env }) => {
   return {
     workspace: client
       ? ['vendor/*', 'packages/*/*', 'apps/cli']
-      : ['vendor/*', 'packages/*/*', 'apps/cli', 'apps/desktop', 'apps/desktop-host'],
+      : ['vendor/*', 'packages/*/*', 'apps/cli', 'apps/desktop', 'apps/desktop-host', 'apps/chrome-extension'],
     entry: client ? '' : ['lib/types/{index,invariant,startup,surface}.js'],
     outDir: 'lib',
     format: ['esm'],

@@ -440,14 +440,30 @@ export function apply(ctx: Context, config: Config): void {
    * @param exec - the running tool call.
    * @throws {HarnessError} when approval is unavailable or refused.
    */
-  const approveHistoryRead = async (exec: ToolRunContext): Promise<void> => {
+  const approveHistoryRead = async (exec: ToolRunContext, source: 'aeven' | 'browser'): Promise<void> => {
     const approval = ctx.get('approval')
     if (approval === undefined) throw new HarnessError('reading browsing history requires user approval', 'BROWSER_HISTORY_APPROVAL_UNAVAILABLE')
     const outcome = await approval.request({
       agent: callingAgent(exec), toolName: exec.name, callId: exec.callId, signal: exec.signal,
-      reason: 'Search the history of the browser beside the chat', allowSession: 'browser-history',
+      reason: source === 'browser' ? 'Search the history of your browser, through the Aeven extension' : 'Search the history of the browser beside the chat',
+      allowSession: `browser-history:${source}`,
     })
     if (outcome !== 'allowed-once') throw new HarnessError('reading browsing history was not approved', 'BROWSER_HISTORY_DENIED')
+  }
+
+  /**
+   * Require the person's approval before their bookmarks are read; an approval for the session covers later searches.
+   * @param exec - the running tool call.
+   * @throws {HarnessError} when approval is unavailable or refused.
+   */
+  const approveBookmarksRead = async (exec: ToolRunContext): Promise<void> => {
+    const approval = ctx.get('approval')
+    if (approval === undefined) throw new HarnessError('reading bookmarks requires user approval', 'BROWSER_BOOKMARKS_APPROVAL_UNAVAILABLE')
+    const outcome = await approval.request({
+      agent: callingAgent(exec), toolName: exec.name, callId: exec.callId, signal: exec.signal,
+      reason: 'Search the bookmarks of your browser, through the Aeven extension', allowSession: 'browser-bookmarks',
+    })
+    if (outcome !== 'allowed-once') throw new HarnessError('reading bookmarks was not approved', 'BROWSER_BOOKMARKS_DENIED')
   }
 
   /**
@@ -543,7 +559,8 @@ export function apply(ctx: Context, config: Config): void {
       }
       if (operation === 'upload') input = await uploadInput(input, exec)
       if (operation === 'clipboard' && input.action === 'read') await approveClipboardRead(exec)
-      if (operation === 'history') await approveHistoryRead(exec)
+      if (operation === 'history') await approveHistoryRead(exec, input.source === 'browser' ? 'browser' : 'aeven')
+      if (operation === 'bookmarks') await approveBookmarksRead(exec)
       // Tab commands also reach Aeven's own Chrome, whose endpoint the Host knows.
       if (operation === 'tabs') {
         const chromium = await ctx.get('browserChromium')?.status(exec.signal).catch(() => undefined)
@@ -632,13 +649,20 @@ export function apply(ctx: Context, config: Config): void {
         action: { type: 'string', required: true, enum: ['list', 'new', 'select', 'close'], description: 'What to do.' },
         tabId: { type: 'string', description: 'The tab to select or close, from list.' },
         url: { type: 'string', description: 'Address a new tab opens at.' },
-        browser: { type: 'string', enum: ['sidebar', 'chrome', 'my-chrome'], description: 'Where new opens the tab. Defaults to sidebar.' },
+        browser: { type: 'string', enum: ['sidebar', 'chrome', 'my-chrome', 'extension'], description: "Where new opens the tab: sidebar (default), chrome (Aeven's own Chrome), my-chrome (the user's Chrome over remote debugging), or extension (the user's browser through the Aeven extension, in its Aeven tab group)." },
       }),
     action('preview_history', 'history',
-      'Search the pages the user visited in the browser beside the chat, newest first, by words in the address or title, to find something they read earlier. Asks the user first.',
+      'Search the pages the user visited, newest first, by words in the address or title, to find something they read earlier: in the browser beside the chat, or with source browser in their own browser through the Aeven extension. Asks the user first.',
       {
+        source: { type: 'string', enum: ['aeven', 'browser'], description: "aeven (default) searches the browser beside the chat; browser searches the user's own browser through the Aeven extension." },
         query: { type: 'string', description: 'Words that must all appear in the address or title; empty lists the newest pages.' },
         limit: { type: 'integer', description: 'Most pages to return, 1 to 200. Defaults to 20.' },
+      }),
+    action('preview_bookmarks', 'bookmarks',
+      "Search the user's bookmarks in their own browser, through the Aeven extension, by words in the title or address. Asks the user first.",
+      {
+        query: { type: 'string', description: 'Words to match; empty lists recent bookmarks.' },
+        limit: { type: 'integer', description: 'Most bookmarks to return, 1 to 200. Defaults to 20.' },
       }),
     action('preview_page_tools', 'webmcp',
       "Use the tools the open page offers to agents through WebMCP: list them, or invoke one with JSON input. A page tool does the page's own work directly (search, add to cart, fill a form) and is more reliable than clicking. Invoking asks the user first.",

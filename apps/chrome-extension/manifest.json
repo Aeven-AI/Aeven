@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Aeven",
+  "description": "Let Aeven use your browser: it drives its own tabs in an Aeven tab group and, when you allow it, searches your history and bookmarks.",
+  "version": "0.3.37",
+  "minimum_chrome_version": "116",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAv3fC7GkhZyDAxnh+Rcsxnce0XtbQZ8tKc6i/FX7NkhblzFvAYg8XMEhoGf8d6CP+eEQFYRTepbafVXLWrANxdcNnha2+6ZKFfD0i7RW3+1vblXZ/f27oOYNnwNLF4SsFKJecQ4wzK+0edd8Z0ZyahakUNoI3KDM4QrPTkfPo6tW2NNsitNYH7C6G02Y9AO2kLEipejsmKEeFnseaCEKyW8AyHgqGmSbqM4vnKN7JnvSMkolSFmwCDuHeRe/knqdphkODHWT9SKO5peGlb5N9UTC9p51qoTaw+d+YgiCesJ+m9xMgg0D1eBqEeWJOAHAl5/8b16D0b3ueK5mZ8xzrMwIDAQAB",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_title": "Aeven",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "permissions": [
+    "debugger",
+    "tabs",
+    "tabGroups",
+    "history",
+    "bookmarks",
+    "nativeMessaging",
+    "storage",
+    "alarms"
+  ]
+}

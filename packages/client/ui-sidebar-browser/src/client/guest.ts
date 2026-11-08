@@ -88,6 +88,8 @@ export interface DesktopBrowserBridge {
   /** Close a Chrome tab (desktop `chromeClose`). */
   chromeClose: (kind: ChromeKind, browserUrl: string | undefined, targetId: string) => Promise<void>
   /** Run one engine operation on a Chrome tab (desktop `chromeAutomate`). */
+  /** Search the extension browser's history or bookmarks (desktop `extensionRead`). */
+  extensionRead: (what: 'history' | 'bookmarks', query: string, limit: number) => Promise<unknown>
   chromeAutomate: (
     kind: ChromeKind, browserUrl: string | undefined, targetId: string, operation: string, input: Record<string, unknown>,
     requestId?: DesktopBrowserRequestId, timeoutMs?: number,
@@ -180,8 +182,8 @@ export interface BrowserCursor {
   readonly url?: string
 }
 
-/** Which Chrome a tab lives in: Aeven's own profile, or the reader's everyday browser. */
-export type ChromeKind = 'aeven' | 'user'
+/** Which Chrome a tab lives in: Aeven's own profile, the reader's everyday Chrome over remote debugging, or any Chromium through the Aeven extension. */
+export type ChromeKind = 'aeven' | 'user' | 'extension'
 
 /** A Chrome tab the agent's current tab can be, instead of a sidebar tab. */
 export interface ChromeTabRef {
