@@ -33,7 +33,7 @@ Choose it when jobs should live in the harness process and die with it. Avoid it
 
 ### Minimal configuration
 
-Loading the plugin registers `ctx.jobs`; `maxConcurrentJobsPerOwner` is optional and defaults to `10`.
+Loading the plugin registers `ctx.jobs`; every field is optional.
 
 ```yaml
 - name: '@aeven/jobs-local'
@@ -42,8 +42,9 @@ Loading the plugin registers `ctx.jobs`; `maxConcurrentJobsPerOwner` is optional
 | Field | Default | Meaning |
 |---|---|---|
 | `maxConcurrentJobsPerOwner` | `10` | Maximum `running` plus `stopping` jobs per exact owner, or in the shared unowned bucket |
+| `runtimeLimitMs` | `{}` | Longest a job of each listed kind may run, in milliseconds, keyed by kind, such as `{ bash: 900000 }`; unlisted kinds have no limit |
 
-The generated [configuration catalog](../../../docs/config-catalog.md#aevenjobs-local) is the exhaustive source for the accepted field.
+The generated [configuration catalog](../../../docs/config-catalog.md#aevenjobs-local) is the exhaustive source for every accepted field.
 
 ### What each owner gets
 
@@ -51,7 +52,7 @@ The limit counts the exact owner's `running` and `stopping` records; all unowned
 
 ### Lifecycle
 
-Jobs belong to their owner and backend, not to the producer tool, so producer or controller reloads do not stop them. When an agent that owns jobs is disposed, its jobs are cancelled, their producers awaited, and their snapshots removed; service disposal does the same for every remaining job. A cancellation that throws during teardown force-fails the record and warns that the work may be orphaned, so teardown never deadlocks.
+Jobs belong to their owner and backend, not to the producer tool, so producer or controller reloads do not stop them. When an agent that owns jobs is disposed, its jobs are cancelled, their producers awaited, and their snapshots removed; service disposal does the same for every remaining job. A cancellation that throws during teardown force-fails the record and warns that the work may be orphaned, so teardown never deadlocks. A job of a kind listed in `runtimeLimitMs` that is still running at its limit is killed with the detail `stopped at the 15-minute runtime limit for bash jobs` (the limit and kind it hit); a cancel that throws there force-fails the record with the same warning.
 
 ### What can go wrong
 

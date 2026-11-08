@@ -33,7 +33,7 @@ kind: "package-reference"
 
 ### 最小配置
 
-加载插件即注册 `ctx.jobs`；`maxConcurrentJobsPerOwner` 可选，默认为 `10`。
+加载插件即注册 `ctx.jobs`；每个字段均可选。
 
 ```yaml
 - name: '@aeven/jobs-local'
@@ -42,6 +42,7 @@ kind: "package-reference"
 | 字段 | 默认值 | 含义 |
 |---|---|---|
 | `maxConcurrentJobsPerOwner` | `10` | 每个精确所有者，或共享的无主桶中，`running` 加 `stopping` 任务的最大数量 |
+| `runtimeLimitMs` | `{}` | 按任务种类给出的最长运行时间（毫秒），例如 `{ bash: 900000 }`；未列出的种类不受限制 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#aevenjobs-local)是每个受支持字段的穷尽式真源。
 
@@ -51,7 +52,7 @@ kind: "package-reference"
 
 ### 生命周期
 
-任务属于其所有者和后端，而非生产方工具，因此重载生产方或控制器不会停止任务。拥有任务的 agent 被释放时，其任务会被取消、生产方会被等待、快照会被移除；服务释放对每个剩余任务执行同样的操作。销毁期间抛出的取消会强制失败记录并警告工作可能成为孤立工作，因此销毁永远不会死锁。
+任务属于其所有者和后端，而非生产方工具，因此重载生产方或控制器不会停止任务。拥有任务的 agent 被释放时，其任务会被取消、生产方会被等待、快照会被移除；服务释放对每个剩余任务执行同样的操作。销毁期间抛出的取消会强制失败记录并警告工作可能成为孤立工作，因此销毁永远不会死锁。`runtimeLimitMs` 中列出种类的任务到达限制时仍在运行，会被终止，详情为 `stopped at the 15-minute runtime limit for bash jobs`（即它触及的限制与种类）；此时抛出的取消会以同样的警告强制失败记录。
 
 ### 可能出什么问题
 

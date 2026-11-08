@@ -58,6 +58,13 @@ export interface Config {
   settledRetainBytes?: number
   /** Poll interval for a job's pull sources, in milliseconds; omission defaults to 150. */
   pumpPollMs?: number
+  /**
+   * Longest a job may run, in milliseconds, keyed by job kind. A job of a
+   * listed kind still running at its limit is killed with a reason naming the
+   * limit; unlisted kinds run until they settle, are killed, or their owner is
+   * disposed. Omission limits no kind.
+   */
+  runtimeLimitMs?: Record<string, number>
 }
 
 /**
@@ -99,6 +106,8 @@ interface TrackedJob {
   killReason: string | undefined
   /** Set once a kill or teardown cancel ran; settlement reports it as the cause. */
   settleCause: JobSettleCause | undefined
+  /** Timer that kills the job at its kind's runtime limit; cleared at settlement. */
+  runtimeTimer: ReturnType<typeof setTimeout> | undefined
   /** Resolves once the terminal record is committed and announced. */
   settled: Promise<void>
   /** Resolver for {@link settled}, called by the first effective settlement. */
@@ -114,6 +123,19 @@ interface TrackedJob {
    * follows a source that withdraws its file.
    */
   spillPaths: (string | undefined)[]
+}
+
+/**
+ * Render a millisecond limit in the largest whole unit that divides it.
+ * @param ms - positive integer milliseconds.
+ * @returns the limit as an adjective such as `15-minute`, or `N ms` below whole seconds.
+ */
+function formatDuration(ms: number): string {
+  const units: readonly [number, string][] = [[3_600_000, 'hour'], [60_000, 'minute'], [1_000, 'second']]
+  for (const [size, unit] of units) {
+    if (ms % size === 0) return `${ms / size}-${unit}`
+  }
+  return `${ms} ms`
 }
 
 /** True for the three terminal {@link JobStatus} values. */
@@ -148,6 +170,11 @@ export class LocalJobRegistry extends JobRegistry {
       .min(1)
       .max(Number.MAX_SAFE_INTEGER)
       .default(DEFAULT_PUMP_POLL_MS),
+    runtimeLimitMs: z.dict(z.number()
+      .step(1)
+      .min(1)
+      .max(2 ** 31 - 1))
+      .default({}),
   })
 
   /** Schemastery-defaulted active-job limit. */
@@ -158,6 +185,8 @@ export class LocalJobRegistry extends JobRegistry {
   private readonly settledRetainBytes: number
   /** Schemastery-defaulted pull-source poll interval. */
   private readonly pumpPollMs: number
+  /** Schemastery-defaulted runtime limits by job kind. */
+  private readonly runtimeLimitMs: Readonly<Record<string, number>>
   private store = new Map<JobId, TrackedJob>()
   private counters = new Map<string, number>()
   /**
@@ -188,6 +217,7 @@ export class LocalJobRegistry extends JobRegistry {
     this.retainBytes = resolved.retainBytes
     this.settledRetainBytes = resolved.settledRetainBytes
     this.pumpPollMs = resolved.pumpPollMs
+    this.runtimeLimitMs = resolved.runtimeLimitMs
     this.selfCtx = ctx
     this.hub = new JobEventHub(this.layers, (message) => { ctx.logger.warn(message) })
     ctx.effect(() => () => this.disposeAll(), 'jobs teardown')
@@ -260,6 +290,7 @@ export class LocalJobRegistry extends JobRegistry {
       finishedAt: undefined,
       killReason: undefined,
       settleCause: undefined,
+      runtimeTimer: undefined,
       settled,
       markSettled,
       waitResolvers: new Set(),
@@ -276,6 +307,8 @@ export class LocalJobRegistry extends JobRegistry {
     // pump drains its sources once synchronously, and that drain may append
     // and announce output: a job's first event is always `registered`.
     this.emit({ type: 'registered', job: this.view(job) }, owner)
+    const limitMs = Object.hasOwn(this.runtimeLimitMs, spec.kind) ? this.runtimeLimitMs[spec.kind] : undefined
+    if (limitMs !== undefined) job.runtimeTimer = setTimeout(() => { this.killAtRuntimeLimit(job, limitMs) }, limitMs)
 
     // The producer's settlement or a registry-forced one ends the pump; the
     // pump's final drain then lands before this registry trims the ring.
@@ -470,6 +503,22 @@ export class LocalJobRegistry extends JobRegistry {
     return 'requested'
   }
 
+  /**
+   * Kill a job that reached its kind's runtime limit. The timer has no caller
+   * to report to, so a throwing cancel force-fails the record like a teardown
+   * cancel and warns that the work may be orphaned.
+   */
+  private killAtRuntimeLimit(job: TrackedJob, limitMs: number): void {
+    job.runtimeTimer = undefined
+    const reason = `stopped at the ${formatDuration(limitMs)} runtime limit for ${job.kind} jobs`
+    try {
+      this.killJob(job, reason)
+    } catch (error) {
+      this.selfCtx.logger.warn(`jobs: job ${job.id} cancel threw at its runtime limit; the work may be orphaned: ${String(error)}`)
+      this.settle(job, { status: 'failed', detail: `${reason}; cancel failed: ${String(error)}` }, 'kill')
+    }
+  }
+
   private async waitJob(job: TrackedJob, timeoutMs: number, signal?: AbortSignal): Promise<JobView> {
     if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
       throw new Error(`invalid wait timeout: expected a positive number of milliseconds, got ${JSON.stringify(timeoutMs)}`)
@@ -579,6 +628,8 @@ export class LocalJobRegistry extends JobRegistry {
    */
   private settle(job: TrackedJob, outcome: JobOutcome, cause: JobSettleCause): void {
     if (isTerminal(job.status)) return
+    clearTimeout(job.runtimeTimer)
+    job.runtimeTimer = undefined
     job.status = outcome.status
     // A killed settlement carries the recorded kill reason in its detail:
     // producer facts first (`signal: SIGTERM; cancelled by the user`). A job

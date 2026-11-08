@@ -1953,6 +1953,13 @@ export interface Config {
   settledRetainBytes?: number
   /** Poll interval for a job's pull sources, in milliseconds; omission defaults to 150. */
   pumpPollMs?: number
+  /**
+   * Longest a job may run, in milliseconds, keyed by job kind. A job of a
+   * listed kind still running at its limit is killed with a reason naming the
+   * limit; unlisted kinds run until they settle, are killed, or their owner is
+   * disposed. Omission limits no kind.
+   */
+  runtimeLimitMs?: Record<string, number>
 }
 ```
 
