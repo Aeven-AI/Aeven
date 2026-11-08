@@ -1,7 +1,7 @@
 {
   "name": "@aeven/sandbox-jail",
   "description": "Per-account process jail for a Linux Host that runs the commands of many accounts: bubblewrap namespaces without network, the Landlock launcher, and per-account cgroups, behind the Aeven sandbox seam",
-  "version": "0.3.37-alpha",
+  "version": "0.3.38-alpha",
   "publishConfig": {
     "access": "public"
   },

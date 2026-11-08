@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-desktop-handoff",
   "description": "Desktop hand-off for the web version: what needs the reader's own computer opens the \"Available in Aeven Desktop\" dialog, which continues in the installed app or offers the download",
-  "version": "0.3.37-alpha",
+  "version": "0.3.38-alpha",
   "publishConfig": {
     "access": "public"
   },
