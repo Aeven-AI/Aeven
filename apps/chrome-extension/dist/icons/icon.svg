@@ -1,13 +1,29 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="62.4 62 676 676">
-  <!-- The Æven tulip from apps/web/public/favicon.svg, cropped to the mark so it fills the icon; transparent around it. -->
-  <g fill="#222222">
-			<path d="m290.301 110 305.5 529.142-43.301 25L247 135z" />
-			<path d="M205 639.141 510.5 110l43.302 25-305.5 529.141z" />
-			<path d="M232.901 640.059h335v50h-335z" />
-			<path d="m108.302 374.5 167.5 290.119-43.302 25L65 399.5zM568.302 110l167.5 290.119-43.302 25L525 135z" />
-			<path d="M525 664.618 692.5 374.5l43.301 25-167.5 290.118zM65 400.118 232.5 110l43.301 25-167.5 290.118z" />
-			<path d="M232.5 110h57.8v50h-57.8zM510.5 110h57.8v50h-57.8zM137.5 515.3l234-405.3 43.302 25-234 405.3z" />
-			<path d="m429.301 110 234 405.3-43.3 25L386 135z" />
-			<path d="M371.5 110h57.8v50h-57.8z" />
-  </g>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="100%" height="100%" viewBox="61.5 61.5 677 677" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>image-logo</title>
+    <g id="logo" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="image-logo" transform="translate(-200, -200)">
+            <rect id="Rectangle" fill-opacity="0" fill="#FFFFFF" x="200" y="200" width="800" height="800"></rect>
+            <g id="logo-large" transform="translate(265, 310)" fill="#222222">
+                <g id="Group-2" transform="translate(140, -0)">
+                    <rect id="Rectangle" transform="translate(216.4006, 277.0708) rotate(60) translate(-216.4006, -277.0708)" x="-89.0993649" y="252.070761" width="611" height="50"></rect>
+                    <rect id="Rectangle" transform="translate(174.4006, 277.0708) rotate(-60) translate(-174.4006, -277.0708)" x="-131.099365" y="252.070761" width="611" height="50"></rect>
+                </g>
+                <g id="Group">
+                    <rect id="Rectangle" x="167.900635" y="530.059255" width="335" height="50"></rect>
+                    <rect id="Rectangle" transform="translate(105.4006, 422.0593) rotate(60) translate(-105.4006, -422.0593)" x="-62.0993649" y="397.059255" width="335" height="50"></rect>
+                    <rect id="Rectangle" transform="translate(565.4006, 157.5593) rotate(60) translate(-565.4006, -157.5593)" x="397.900635" y="132.559255" width="335" height="50"></rect>
+                    <rect id="Rectangle" transform="translate(565.4006, 422.0593) rotate(-60) translate(-565.4006, -422.0593)" x="397.900635" y="397.059255" width="335" height="50"></rect>
+                    <rect id="Rectangle" transform="translate(105.4006, 157.5593) rotate(-60) translate(-105.4006, -157.5593)" x="-62.0993649" y="132.559255" width="335" height="50"></rect>
+                </g>
+                <rect id="Rectangle" x="167.5" y="0" width="57.8" height="50"></rect>
+                <rect id="Rectangle" x="445.5" y="0" width="57.8" height="50"></rect>
+                <g id="Group-3" transform="translate(72.5, 0)">
+                    <rect id="Rectangle" transform="translate(138.6506, 215.1499) rotate(-60) translate(-138.6506, -215.1499)" x="-95.3493649" y="190.149944" width="468" height="50"></rect>
+                    <rect id="Rectangle" transform="translate(387.1506, 215.1499) rotate(60) translate(-387.1506, -215.1499)" x="153.150635" y="190.149944" width="468" height="50"></rect>
+                </g>
+                <rect id="Rectangle" x="306.5" y="0" width="57.8" height="50"></rect>
+            </g>
+        </g>
+    </g>
 </svg>
