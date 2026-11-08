@@ -44,7 +44,8 @@ kind: "package-reference"
 | `cwd` | `process.cwd()` | 命令的默认工作目录 |
 | `timeoutMs` | `120,000` | 默认前台超时，单位为毫秒 |
 | `maxTimeoutMs` | `600,000` | 每次调用超时覆盖值的上限 |
-| `maxOutputBytes` | `64,000` | 每流内存输出上限；溢出后 spill 到临时文件 |
+| `maxOutputBytes` | `64,000` | 每流内存输出上限；`spillOutput` 开启时溢出后 spill 到临时文件 |
+| `spillOutput` | `true` | 把超出 `maxOutputBytes` 的流保存在 Host 临时目录的文件中，直到 Host 退出；关闭时只保留内存中的尾部 |
 | `maxSpillBytes` | `67,108,864` | 每流完整输出的 spill 上限 |
 | `graceMs` | `3,000` | 终止升级与退出后管道排空的宽限时间 |
 

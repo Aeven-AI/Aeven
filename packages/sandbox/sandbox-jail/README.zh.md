@@ -53,7 +53,7 @@ kind: "package-reference"
 | `symlinks` | `/bin`、`/sbin`、`/lib`、`/lib64` 指向 `/usr` | 在监狱根目录中创建的符号链接 |
 | `env` | `PATH`、`LANG`、`TMPDIR`、单线程 BLAS、无界面 matplotlib | 受限命令的完整环境；`HOME` 为账户文件夹 |
 | `tmpSizeMb` | `512` | `/tmp` 与 `/dev/shm` 各自的大小上限 |
-| `cgroup` | 无 | 委派的 cgroup 目录，以及总限制与单账户限制 |
+| `cgroup` | 无 | 委派的 cgroup 目录，以及总限制与单账户限制；任一限制中可选的 `ioMax` 限制磁盘 I/O |
 | `quotaCommand` | 无 | 限制账户文件夹磁盘用量的 argv，末尾追加该文件夹，在命令自身的启动步骤中运行，直到 `quotaRecord` 列出该账户；失败则拒绝该条命令 |
 | `quotaRecord` | 无 | 配额辅助程序记录已受限账户的文件；省略时每条命令都运行配额步骤 |
 | `modelNote` | 无 | 描述命令可用内容的系统提示词文本 |
@@ -85,10 +85,10 @@ kind: "package-reference"
 3. 以 Host 的用户身份，在部署的 checkout 中构建 Landlock launcher：`pnpm --dir native/landlock-run run build:native`。
 4. 在带有 `Delegate=yes` 和 `DelegateSubgroup=host` 的 systemd unit 中运行 Host。systemd 在 `<unit>/host` 中启动 Host，本提供方在其旁边创建 `<unit>/jail/acct-<account>`。以专用用户（例如 `aeven-hosted`）运行它，该用户除配额辅助程序外没有任何 sudo 权限（[`host/systemd-user.conf`](host/systemd-user.conf)、[`host/sudoers`](host/sudoers)），因此被攻破的 Host 进程不是 root。在 unit 中把 `AVN_HOME` 设为 Host 此前使用的 Aeven 主目录，并归该用户所有，因为它默认是 `~/.aeven`，否则更换用户会移走所有会话、附件和账户文件夹。
 5. 把 `accountsRoot` 放在带项目配额的独立 ext4 文件系统上，例如用 `mkfs.ext4 -O quota,project` 创建、以 `loop,prjquota,nosuid,nodev` 挂载的 loop 镜像，使命令无法占满 Host 的磁盘。以 `quotaCommand` 通过 `sudo -n` 调用的 root 所有的辅助程序为每个账户文件夹分配项目 id（`chattr -R +P -p <id>`）和限额（`setquota -P`）；监狱中的进程无法更改项目 id。
-6. 用 [`host/seccomp-filter.c`](host/seccomp-filter.c) 生成系统调用过滤器（`cc -O2 -o seccomp-filter seccomp-filter.c -lseccomp`），并在 `seccompFilter` 中填写其输出路径。
+6. 用 [`host/seccomp-filter.c`](host/seccomp-filter.c) 生成系统调用过滤器（`apt-get install libseccomp-dev`，然后 `cc -O2 -o seccomp-filter seccomp-filter.c -lseccomp`），并在 `seccompFilter` 中填写其输出路径。更新源码后重新运行并重启 Host；正在运行的命令保留其启动时的过滤器。
 7. 把命令可用的只读程序和库安装到 `readOnlyPaths` 列出的路径下，例如 `/opt/aeven-sandbox` 下的 Python 虚拟环境和 Node `node_modules` 目录。用 `python3 -m compileall` 预编译 Python 字节码，因为监狱无法写入 `.pyc` 文件，否则 pandas 的导入会慢五倍。
 8. 如需动画和视频，以 root 身份运行 [`host/install-motion.sh`](host/install-motion.sh)。它安装无头 Chromium（`playwright-core`）、GSAP 和开放许可字体（SIL Open Font License 下的 Google Sans Flex 等 Google Fonts 字体族，以及覆盖所有文字、CJK 和彩色 emoji 的 Noto），并把 `render-motion` 放入镜像的 `bin`。`render-motion page.html film.mp4` 通过 HyperFrames 合成自身运行时的播放器逐帧推进它，否则逐帧推进页面的 GSAP 时间线或其 `window.seek(seconds)`，再用 ffmpeg 的 libx264 编码这些帧；页面为 `-` 时从标准输入读取，`--stills` 与 `--json` 以一行 JSON 返回均匀分布的帧与影片信息，供 [`avn-motion-sandbox`](../../motion/motion-sandbox/README.zh.md) 读取。更新 `render-motion` 后需重新运行该脚本；它用已安装的副本响应 CDN 上的 GSAP 请求，其他请求一律失败。在 `readOnlyPaths` 中列出 `/var/cache/fontconfig`，并在 `env` 中设置 `PLAYWRIGHT_BROWSERS_PATH`。
-9. 如需快速的 Python，以 root 身份运行 [`host/install-python-zygote.sh`](host/install-python-zygote.sh)，在 `env` 的 `PATH` 中把 `/opt/aeven-sandbox/shim` 放在最前，并设置 `pythonZygote`。该脚本把静态的 `python3` 与 `python` shim 构建到 `<image>/shim`，并在其旁安装 `script` 所指的 `python-zygote.py`；更新这两个文件后需重新运行它。提供者在所有监狱之外、`<root>/zygote` 中启动一个解释器，它只导入一次 `preload`；shim 通过每个监狱挂载在 `/run/aeven/zygote` 的套接字把每次 `python3` 调用交给它。每次调用时它会 fork，通过套接字对端的 pidfd 识别调用者，移入调用者的账户组，加入调用者的命名空间，丢弃所有 capability，为调用者的可写挂载安装启动器的 Landlock 规则并加载监狱的系统调用过滤器，再以调用者的描述符、目录、环境与 umask 运行程序。这样 `import pandas, matplotlib.pyplot` 约需 30 毫秒而不是 0.9 秒。zygote 无法精确重现的调用，例如交互会话、不常见的参数、被改动的 `PYTHON*`、区域设置、线程数或 Matplotlib 变量，或未提及任何预加载模块的 `-c` 代码，改由镜像的解释器运行；zygote 停止期间的所有调用也是如此。
+9. 如需快速的 Python，以 root 身份运行 [`host/install-python-zygote.sh`](host/install-python-zygote.sh)，在 `env` 的 `PATH` 中把 `/opt/aeven-sandbox/shim` 放在最前，并设置 `pythonZygote`。该脚本把静态的 `python3` 与 `python` shim 构建到 `<image>/shim`，并在其旁安装 `script` 所指的 `python-zygote.py`；更新这两个文件后需重新运行它。提供者在所有监狱之外、`<root>/zygote` 中启动一个解释器，它只导入一次 `preload`；shim 通过每个监狱挂载在 `/run/aeven/zygote` 的套接字把每次 `python3` 调用交给它。每次调用时它会 fork，通过套接字对端的 pidfd 识别调用者，移入调用者的账户组，加入调用者的命名空间，丢弃所有 capability，为调用者的可写挂载安装启动器的 Landlock 规则并加载监狱的系统调用过滤器，再以调用者的描述符、目录、环境与 umask 运行程序。这样 `import pandas, matplotlib.pyplot` 约需 30 毫秒而不是 0.9 秒。zygote 无法精确重现的调用，例如交互会话、不常见的参数、被改动的 `PYTHON*`、区域设置、线程数或 Matplotlib 变量，或未提及任何预加载模块的 `-c` 代码，改由镜像的解释器运行；zygote 停止期间的所有调用也是如此。超出单个账户 8 个、或总计 256 个等待请求的连接同样如此，因此泛洪套接字的账户只会拖慢它自己的调用。zygote 结束后一秒重启；一分钟内结束五次后，下一次重启等待五分钟。
 10. 如需以不同于 Host 的用户运行命令，以 root 身份运行 [`host/install-sandbox-user.sh`](host/install-sandbox-user.sh) `<accountsRoot>`，在 Host 的 unit 中要求两个账户挂载（[`host/systemd-dropin.conf`](host/systemd-dropin.conf)），设置 `commandUser`，然后重启 Host。该脚本创建 `aeven-sandbox` 并把 Host 的用户加入其组。它把 [`host/sandbox-exec.c`](host/sandbox-exec.c) 构建为 `/usr/local/libexec/aeven-sandbox-exec`，只有 Host 的组可以执行它，且它只持有 `cap_setuid` 与 `cap_setgid`。它还为两个用户在每个账户文件夹及任一方之后在其中创建的内容上设置 ACL，把账户根目录再挂载一次到 `/srv/aeven-accounts`（沙箱用户可以穿过但不能列出），并创建 zygote 的套接字目录 `/var/lib/aeven-zygote`。此后每次启动都在 bubblewrap 之前切换到沙箱用户。bubblewrap 从第二个挂载点挂载账户的文件夹，附件则从 Host 打开的描述符复制进来。逃出监狱的命令会发现 Host 的数据目录是关闭的。切换每条命令约耗时 1.6 毫秒。
 
 ### 失败与恢复
@@ -127,7 +127,7 @@ bubblewrap 构建的根目录只包含列出的路径，因此其他账户的文
 
 ### cgroup
 
-`<root>/jail` 为全部受限命令设置总上限，因此 `<root>/host` 中的 Host 保有其 CPU 份额和内存。每个 `acct-<account>` 组为一个账户设置上限和权重。组在账户第一条命令时创建，在销毁时若为空则删除。
+`<root>/jail` 为全部受限命令设置总上限，因此 `<root>/host` 中的 Host 保有其 CPU 份额和内存。每个 `acct-<account>` 组为一个账户设置上限和权重。组在账户第一条命令时创建，在销毁时若为空则删除。任一限制中的 `ioMax` 会为容纳 `accountsRoot` 的整块磁盘写入 `io.max`（分区解析为其所在磁盘）并启用 `io` 控制器；与内存控制器一同启用时，缓冲写入计入弄脏页面的账户。`accountsRoot` 不在块设备上时启动失败。
 
 </details>
 
@@ -160,7 +160,9 @@ bubblewrap 构建的根目录只包含列出的路径，因此其他账户的文
 - **没有 zygote 时每条命令都启动自己的解释器** — Python 命令每次调用都要支付导入开销（pandas 与 Matplotlib 约 0.9 秒）。
 - **命令从 Host 进程派生** — fork 一个大的 Host 每条命令要花几毫秒；从小型执行器进程派生尚未实现。
 - **托管的 `AVN_*` 变量不会到达命令** — 监狱用 `env` 设置完整环境。
-- **系统调用过滤器是拒绝列表** — 它拒绝挂载、命名空间、跟踪、密钥环、BPF、模块与句柄类调用，并隐藏 `io_uring` 与 `clone3`；其余调用仍被允许，命名空间、丢弃的 capability、`no_new_privs` 和 Landlock 仍是主要屏障。
+- **系统调用过滤器是拒绝列表** — 它拒绝挂载、命名空间、跟踪、密钥环、BPF、模块与句柄类调用，隐藏 `io_uring` 与 `clone3`，并且只允许 Unix、IPv4、IPv6 与路由 netlink 套接字；其余调用仍被允许，命名空间、丢弃的 capability、`no_new_privs` 和 Landlock 仍是主要屏障。
+- **内核属于 Host** — 从监狱发起的内核提权会触及所有账户以及机器上的其他一切。让 Host 运行在不存放其他内容的机器上，或把执行移到单独的机器或 gVisor 这样的用户态内核中。
+- **按用户计的内核限制是共享的** — 内核把 inotify 实例（默认 128 个）等按用户计的资源算在沙箱用户名下、跨所有监狱累计，因此一个账户就能耗尽所有账户的份额。在服务许多账户的 Host 上调高 `fs.inotify.max_user_instances` 与 `fs.inotify.max_user_watches`。
 - **一个沙箱用户服务所有账户** — 启用 `commandUser` 后，逃出监狱的命令无法访问 Host 的数据，但仍持有沙箱用户对其能找到名称的账户文件夹的访问权；在监狱内，命名空间把各账户隔开。
 - **未授予组权限创建的文件对 Host 不可读** — 在账户文件夹的 ACL 下，命令以 `0600` 模式创建的文件不给 Host 的用户任何访问权，因此 Host 无法分享或预览它。
 - **附件被复制进每个监狱** — 启用 `commandUser` 后，每条命令都以副本形式在其监狱根目录中收到对话的附件，耗费的时间与内存与其大小成正比。

@@ -133,7 +133,14 @@ int main(int argc, char **argv) {
   char reply[16];
   for (;;) {
     ssize_t got = read_reply(sock, reply, sizeof reply);
-    if (got <= 0) _exit(126);
+    if (got <= 0) {
+      /* Before `P` no run exists (the helper's death kills a starting run), so the real interpreter takes it. */
+      if (run_pid == 0) {
+        close(sock);
+        real_python();
+      }
+      _exit(126);
+    }
     if (reply[0] == 'F') {
       close(sock);
       real_python();

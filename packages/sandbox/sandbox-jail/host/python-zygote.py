@@ -25,7 +25,7 @@ import json
 import os
 import re
 import runpy
-import select
+import selectors
 import signal
 import site
 import socket
@@ -42,6 +42,10 @@ MAX_MESSAGE = 512 * 1024
 MAX_FDS = 250
 # Seconds a connected shim has to send its request.
 REQUEST_TIMEOUT = 2
+# Connections awaiting their request, per account and in total; a connection beyond either is answered `F` at once,
+# so one account flooding the socket sends only its own runs to the real interpreter.
+MAX_PENDING_PER_ACCOUNT = 8
+MAX_PENDING = 256
 SO_PEERPIDFD = 77
 NAMESPACES = (os.CLONE_NEWUSER | os.CLONE_NEWNS | os.CLONE_NEWIPC | os.CLONE_NEWUTS | os.CLONE_NEWNET
               | os.CLONE_NEWCGROUP | os.CLONE_NEWPID)
@@ -414,8 +418,11 @@ def run(conn, config, seccomp, request):
         conn.sendall(b'P' + started)
         STATE['started'] = True
     child_fd = os.pidfd_open(child)
+    waiter = selectors.DefaultSelector()
+    waiter.register(conn, selectors.EVENT_READ)
+    waiter.register(child_fd, selectors.EVENT_READ)
     while True:
-        readable, _, _ = select.select([conn, child_fd], [], [])
+        readable = {key.fileobj for key, _ in waiter.select()}
         if child_fd in readable:
             break
         if conn in readable and conn.recv(16) == b'':
@@ -433,6 +440,66 @@ def run(conn, config, seccomp, request):
     else:
         refuse(conn)
     return 0
+
+
+def caller_account(conn):
+    """The cgroup name of a connected peer, such as `acct-<id>`, or None when its process cannot be read."""
+    pid = struct.unpack('=iII', conn.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, struct.calcsize('=iII')))[0]
+    try:
+        with open(f'/proc/{pid}/cgroup') as cgroup_file:
+            return os.path.basename(cgroup_file.read().strip().split('::', 1)[-1])
+    except OSError:
+        # The peer already exited; its connection is answered like any other.
+        return None
+
+
+def answer_fallback(conn):
+    """Answer `F` and close: the shim then runs the real interpreter."""
+    try:
+        conn.setblocking(False)
+        conn.sendall(b'F')
+    except OSError:
+        # The shim is gone or its buffer is full; it falls back when the connection closes before a run starts.
+        pass
+    conn.close()
+
+
+def serve(conn, config, seccomp, preloaded, inherited):
+    """Plan one connection whose request arrived and fork its helper; every failure answers `F`.
+
+    `inherited` holds the listener, the selector, and the other pending connections, which the helper closes.
+    """
+    request = None
+    try:
+        request = receive(conn, config['pinned'], preloaded)
+        if request is None:
+            answer_fallback(conn)
+            return
+        helper = os.fork()
+    except OSError as error:
+        # A failed fork, such as EAGAIN at the zygote group's pids.max, sends this run to the real interpreter.
+        log(f'cannot serve a request: {error}')
+        answer_fallback(conn)
+        if request is not None:
+            for fd in [request[3], *(fd for _, fd in request[4])]:
+                os.close(fd)
+        return
+    if helper == 0:
+        status = 1
+        try:
+            for item in inherited:
+                item.close()
+            signal.signal(signal.SIGCHLD, signal.SIG_DFL)
+            conn.setblocking(True)
+            status = run(conn, config, seccomp, request)
+        except BaseException:
+            traceback.print_exc()
+            if not STATE['started']:
+                status = refuse(conn)
+        os._exit(status)
+    conn.close()
+    for fd in [request[3], *(fd for _, fd in request[4])]:
+        os.close(fd)
 
 
 def main():
@@ -454,57 +521,64 @@ def main():
     listener.bind(path)
     os.chmod(path, 0o600)
     listener.listen(128)
-    signal.signal(signal.SIGCHLD, signal.SIG_IGN)
-    log(f'ready with {", ".join(config["preload"]) or "no modules"}')
     listener.setblocking(False)
-    # Connections whose request has not arrived yet, with the time each must arrive by.
+    signal.signal(signal.SIGCHLD, signal.SIG_IGN)
+    # epoll has no descriptor-number ceiling, unlike select().
+    selector = selectors.DefaultSelector()
+    selector.register(listener, selectors.EVENT_READ)
+    log(f'ready with {", ".join(config["preload"]) or "no modules"}')
+    # Connections whose request has not arrived yet: the time each must arrive by, and its account.
     pending = {}
+    per_account = {}
+
+    def forget(conn):
+        _, account = pending.pop(conn)
+        selector.unregister(conn)
+        left = per_account[account] - 1
+        if left > 0:
+            per_account[account] = left
+        else:
+            del per_account[account]
+
     while True:
         now = time.monotonic()
-        for conn, deadline in list(pending.items()):
+        for conn, (deadline, _) in list(pending.items()):
             if deadline <= now:
-                del pending[conn]
+                forget(conn)
                 conn.close()
-        timeout = min(pending.values()) - now if pending else None
-        readable, _, _ = select.select([listener, *pending], [], [], timeout)
-        for ready in readable:
+        timeout = max(0.0, min(deadline for deadline, _ in pending.values()) - now) if pending else None
+        for key, _ in selector.select(timeout):
+            ready = key.fileobj
             if ready is listener:
                 try:
                     conn, _ = listener.accept()
                 except BlockingIOError:
                     continue
-                conn.setblocking(False)
-                pending[conn] = time.monotonic() + REQUEST_TIMEOUT
-                continue
-            del pending[ready]
-            try:
-                request = receive(ready, config['pinned'], preloaded)
-                if request is None:
-                    ready.sendall(b'F')
-                    ready.close()
+                except OSError as error:
+                    # EMFILE or ENFILE: the connection stays queued; pause instead of spinning on the ready listener.
+                    log(f'cannot accept: {error}')
+                    time.sleep(0.05)
                     continue
-            except OSError:
-                ready.close()
-                continue
-            helper = os.fork()
-            if helper == 0:
-                status = 1
                 try:
-                    listener.close()
-                    for other in pending:
-                        other.close()
-                    signal.signal(signal.SIGCHLD, signal.SIG_DFL)
-                    ready.setblocking(True)
-                    status = run(ready, config, seccomp, request)
-                except BaseException:
-                    traceback.print_exc()
-                    if not STATE['started']:
-                        status = refuse(ready)
-                os._exit(status)
-            ready.close()
-            for fd in [request[3], *(fd for _, fd in request[4])]:
-                os.close(fd)
-
+                    account = caller_account(conn)
+                except OSError:
+                    conn.close()
+                    continue
+                if len(pending) >= MAX_PENDING or per_account.get(account, 0) >= MAX_PENDING_PER_ACCOUNT:
+                    answer_fallback(conn)
+                    continue
+                conn.setblocking(False)
+                pending[conn] = (time.monotonic() + REQUEST_TIMEOUT, account)
+                per_account[account] = per_account.get(account, 0) + 1
+                selector.register(conn, selectors.EVENT_READ)
+                continue
+            forget(ready)
+            try:
+                serve(ready, config, seccomp, preloaded, [listener, selector, *pending])
+            except Exception:
+                # One malformed request must not end the interpreter every account's runs share.
+                traceback.print_exc()
+                answer_fallback(ready)
 
 if __name__ == '__main__':
     main()
