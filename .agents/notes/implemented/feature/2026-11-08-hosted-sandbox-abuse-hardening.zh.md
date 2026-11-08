@@ -16,7 +16,7 @@ Status: implemented
 ## 决策
 
 - `avn-bash-local` 新增 `spillOutput`（默认 true）；托管补丁将其关闭，因此长输出只保留内存尾部，并告诉模型把输出重定向到工作目录中的文件以读取全部内容。
-- `avn-sandbox-jail` 的限制新增可选的 `ioMax`，写入容纳 `accountsRoot` 的整块磁盘的 `io.max`，并启用 `io` 控制器。托管补丁为每个账户设置读 100 MiB/s、写 50 MiB/s、读 2000 与写 1000 IOPS，所有监狱合计为其三倍。在 pink 的 `loop2` 上实测：直接写入 55.6 MB/s，带 fsync 的缓冲写入 33.9 MB/s，直接读取 111 MB/s，不限速时为 2.3 GB/s。
+- `avn-sandbox-jail` 的限制新增可选的 `ioMax`，写入容纳 `accountsRoot` 的整块磁盘的 `io.max`，并启用 `io` 控制器。容纳账户的磁盘同时存放 Mongo，在 pink 上顺序写入约 165 MB/s、读取约 309 MB/s，因此托管补丁给所有监狱合计写 40 MiB/s、读 80 MiB/s、写 1000 与读 3000 IOPS，约为磁盘的四分之一；每个账户写 10 MiB/s、读 30 MiB/s、写 300 与读 1000 IOPS。在 pink 的 `loop2` 上以写 50 MiB/s、读 100 MiB/s 的限制实测：直接写入 55.6 MB/s，带 fsync 的缓冲写入 33.9 MB/s，直接读取 111 MB/s，不限速时为 2.3 GB/s。
 - zygote 改用 epoll 等待；单个账户超过 8 个、或总计超过 256 个等待中的连接时回答 `F`；规划或 fork 失败时回答 `F`；任何单个请求的错误都不会使其结束。连接在运行开始前结束时，shim 运行真实解释器。反复结束的 zygote 在五分钟后重启，而不再一直停止。在 pink 上，新 zygote 承受了一个账户的 3000 个连接，同时另一个 cgroup 中的调用方在 0.4 ms 内得到应答。托管 zygote 自身的组限制为四个 CPU。
 - 过滤器只允许 `AF_UNIX`、`AF_INET`、`AF_INET6` 与路由 netlink，拒绝 `AF_UNIX` 之外的 socketpair，并编译为二叉树。Python 循环中的一次系统调用耗时 291 ns，此前为 279 ns。
 

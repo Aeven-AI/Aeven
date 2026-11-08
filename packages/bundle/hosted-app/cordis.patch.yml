@@ -537,20 +537,21 @@
         cgroup:
           # The unit's cgroup: the parent of the `host` group systemd starts this process in.
           root: !!js "process.env.AVN_HOSTED_SANDBOX === '1' ? '/sys/fs/cgroup' + process.getBuiltinModule('node:path').dirname(process.getBuiltinModule('node:fs').readFileSync('/proc/self/cgroup', 'utf8').trim().split('::')[1] ?? '/') : ''"
-          # ioMax applies to the disk holding the accounts root, so commands
-          # cannot take the disk's bandwidth from the Host and Mongo.
+          # ioMax applies to the disk holding the accounts root, which Mongo and
+          # the Host share (about 165 MB/s sequential write and 309 MB/s read
+          # direct on pink), so all jails together take about a quarter of it.
           total:
             memoryMax: 32G
             pidsMax: '4096'
             cpuMax: 1200000 100000
             cpuWeight: '100'
-            ioMax: rbps=314572800 wbps=157286400 riops=6000 wiops=3000
+            ioMax: rbps=83886080 wbps=41943040 riops=3000 wiops=1000
           account:
             memoryMax: 2G
             pidsMax: '256'
             cpuMax: 200000 100000
             cpuWeight: '100'
-            ioMax: rbps=104857600 wbps=52428800 riops=2000 wiops=1000
+            ioMax: rbps=31457280 wbps=10485760 riops=1000 wiops=300
 
 # Commands write only inside their account's folder, and no approval can widen
 # that: an escalation to full access would run on the Host itself. A session
