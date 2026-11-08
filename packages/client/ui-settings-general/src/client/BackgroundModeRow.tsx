@@ -31,6 +31,7 @@ export function BackgroundModeRow({ useBackgroundMode, setBackgroundMode, t }: B
     <SettingsRow
       title={t('background.title')}
       description={t('background.description')}
+      info={{ title: t('background.title'), body: t('background.info'), closeLabel: t('close') }}
       control={<Switch checked={enabled} onChange={setBackgroundMode} label={t('background.title')} />}
     />
   )

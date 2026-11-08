@@ -31,6 +31,7 @@ export function UserChromeRow({ useUserChrome, setUserChrome, t }: UserChromeRow
     <SettingsRow
       title={t('browser.userChrome')}
       description={t('browser.userChrome.description')}
+      info={{ title: t('browser.userChrome'), body: t('browser.userChrome.info'), closeLabel: t('handoff.close') }}
       control={<Switch checked={allowed} onChange={setUserChrome} label={t('browser.userChrome')} />}
     />
   )
