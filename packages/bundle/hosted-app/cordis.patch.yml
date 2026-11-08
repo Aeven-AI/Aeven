@@ -6,7 +6,8 @@
 # Two rules decide every row here:
 #
 # - Nothing runs on the Host's own machine for a session outside a per-account
-#   jail: no file tool, no terminal, no browser, no device, no desktop control.
+#   jail: no file tool, no terminal, no Host browser, no device, no desktop
+#   control. The reader's own browser, through the Aeven extension, is theirs.
 #   The Host's disk and processes belong to every account at once, so any of
 #   these would reach the other accounts' data. With AVN_HOSTED_SANDBOX=1 the
 #   bash tool runs each command in its account's jail (see "commands in a
@@ -290,8 +291,12 @@
 - id: mcp-playwright
   disabled: true
 
+# The reader's own browser, through the Aeven extension, is theirs, not the
+# Host's: the page connects to the extension and runs the agent's tab commands
+# there. The Host's Chromium stays off, so the right sidebar's Browser entry
+# still opens the desktop dialog.
 - id: ui-sidebar-browser
-  disabled: true
+  disabled: false
 
 - id: device
   disabled: true
@@ -396,8 +401,10 @@
         disabled: true
       - id: tool-ralph
         disabled: true
+      # preview_* only forward to the reader's page, which answers through the
+      # Aeven extension in their own browser; nothing runs on the Host.
       - id: tool-browser
-        disabled: true
+        disabled: false
       - id: tool-device
         disabled: true
       - id: tool-cordis

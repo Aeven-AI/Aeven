@@ -9,7 +9,7 @@ kind: "package-bundle"
 
 ## 概述
 
-`@aeven/hosted-app` 是用一个 Host 向许多人提供 Aeven Web 时的 bundle 层。它叠加在 `@aeven/web-app` 之后，并把两条规则写成行：会话不在 Host 自己的机器上运行任何东西，一个账号改动的任何东西也不作用于另一个账号。文件系统、终端、浏览器、设备、computer-use、代码运行时、workflow 工作线程、代码子代理、技能目录与工作区文件夹关闭，shell 只在 `AVN_HOSTED_SANDBOX=1` 时运行，每条命令都在其账户的[监狱](../../sandbox/sandbox-jail/README.zh.md)中；网页搜索与抓取、imagine、附件、记忆以及同进程内的子代理委派保留。账号设置按登录账号解析，同步提供者为每个在此登录的账号保持一条加密连接。每个页面还会把边缘 `countryHeader`（Cloudflare 的 `cf-ipcountry`）给出的读者国家写成 `__AVN_READER_COUNTRY__`，作为 WhatsApp 国家代码框的初始值。本 bundle 以 info 级别挂载控制台日志器，使 Host 插件的警告与错误进入服务日志。
+`@aeven/hosted-app` 是用一个 Host 向许多人提供 Aeven Web 时的 bundle 层。它叠加在 `@aeven/web-app` 之后，并把两条规则写成行：会话不在 Host 自己的机器上运行任何东西，一个账号改动的任何东西也不作用于另一个账号。文件系统、终端、Host 的浏览器、设备、computer-use、代码运行时、workflow 工作线程、代码子代理、技能目录与工作区文件夹关闭；`preview_*` 浏览器工具保留，并通过 Aeven 扩展作用于读者自己的浏览器，shell 只在 `AVN_HOSTED_SANDBOX=1` 时运行，每条命令都在其账户的[监狱](../../sandbox/sandbox-jail/README.zh.md)中；网页搜索与抓取、imagine、附件、记忆以及同进程内的子代理委派保留。账号设置按登录账号解析，同步提供者为每个在此登录的账号保持一条加密连接。每个页面还会把边缘 `countryHeader`（Cloudflare 的 `cf-ipcountry`）给出的读者国家写成 `__AVN_READER_COUNTRY__`，作为 WhatsApp 国家代码框的初始值。本 bundle 以 info 级别挂载控制台日志器，使 Host 插件的警告与错误进入服务日志。
 
 以 `avn hosted` 启动，它组合 base、web 与这个 bundle，端口默认 3085，除非 `AVN_HOSTED_PORT` 指定另一个。`AVN_HOME` 决定这次部署把状态放在哪里，`AVN_HOSTED_HOST` 决定服务器绑定的地址，`AVN_HOSTED_TRUSTED_HOSTS` 决定浏览器可以用哪些公开名字访问它；TLS、公开名字与请求限制属于前面的代理。
 
@@ -54,7 +54,7 @@ kind: "package-bundle"
 
 - **公开注册尚无配额与速率限制**——请求准入只限制每账号与总量的并发流，不限制建号、花费或请求频率。
 - **账号数据没有静态加密**——每个账号的会话、记忆与同步数据库都在部署家目录下各自的目录里，运营 Host 的人可以读取。
-- **代码只在账户的监狱中运行**——没有 `AVN_HOSTED_SANDBOX=1` 时，托管会话不能运行命令；有它时，命令在没有网络、不能安装软件包、磁盘受限的账户文件夹中运行，命令列为输出的文件在调用处展示，上传的文件以只读方式挂载，模型可以读取该文件夹中的文件与图片，Files 侧栏以只读方式显示它，而文件写入、文件搜索和浏览器保持关闭。
+- **代码只在账户的监狱中运行**——没有 `AVN_HOSTED_SANDBOX=1` 时，托管会话不能运行命令；有它时，命令在没有网络、不能安装软件包、磁盘受限的账户文件夹中运行，命令列为输出的文件在调用处展示，上传的文件以只读方式挂载，模型可以读取该文件夹中的文件与图片，Files 侧栏以只读方式显示它，而文件写入、文件搜索和 Host 的浏览器保持关闭。
 - **图片按会话提供**——部署拒绝仅凭指纹的读取，因此托管图片没有永久缓存 URL。
 - **记忆工作只是受限而非隔离**——嵌入在 Host 进程内运行，一个账号的大量追平仍会占用其他账号的时延。
 
