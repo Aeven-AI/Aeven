@@ -31,8 +31,11 @@ import { execFile } from 'node:child_process'
 /** The native messaging host name the extension connects to. */
 export const NATIVE_HOST_NAME = 'io.aeven.browser'
 
-/** The Aeven extension's id, fixed by the public key in its manifest. */
-export const EXTENSION_ID = 'jagdfmhjejiccpmnfieenehhijhjjgnf'
+/**
+ * The Aeven extension's ids: the Chrome Web Store item's, then the development
+ * build's, which the public key in the repository manifest fixes.
+ */
+export const EXTENSION_IDS = ['cpgmlafibkmklfnpjpjbdgoegpljfofa', 'jagdfmhjejiccpmnfieenehhijhjjgnf'] as const
 
 /** How long one request to the extension may take, in ms. */
 const REQUEST_TIMEOUT_MS = 30_000
@@ -350,7 +353,7 @@ async function installHost(avnHome: string): Promise<void> {
     : `#!/bin/sh\nELECTRON_RUN_AS_NODE=1 exec "${process.execPath}" "${script}" "${socket}"\n`)
   if (!windows) await chmod(launcher, 0o755)
   const manifest = `${JSON.stringify({
-    name: NATIVE_HOST_NAME, description: 'Aeven', path: launcher, type: 'stdio', allowed_origins: [`chrome-extension://${EXTENSION_ID}/`],
+    name: NATIVE_HOST_NAME, description: 'Aeven', path: launcher, type: 'stdio', allowed_origins: EXTENSION_IDS.map(id => `chrome-extension://${id}/`),
   }, null, 2)}\n`
   if (windows) {
     const file = join(runtime, `${NATIVE_HOST_NAME}.json`)
@@ -499,11 +502,13 @@ export async function hasExtension(data: string, extensionId: string): Promise<b
  */
 async function launchExtensionBrowser(): Promise<string | undefined> {
   for (const install of browserInstalls()) {
-    if (!await hasExtension(install.data, EXTENSION_ID)) continue
+    let extensionId: string | undefined
+    for (const id of EXTENSION_IDS) if (extensionId === undefined && await hasExtension(install.data, id)) extensionId = id
+    if (extensionId === undefined) continue
     const [command, ...args] = install.launch
     if (command === undefined) continue
     const started = await new Promise<boolean>((resolve) => {
-      execFile(command, [...args, `chrome-extension://${EXTENSION_ID}/connect.html`], { windowsHide: true }, (error) => { resolve(error === null) })
+      execFile(command, [...args, `chrome-extension://${extensionId}/connect.html`], { windowsHide: true }, (error) => { resolve(error === null) })
     })
     if (started) return install.name
   }

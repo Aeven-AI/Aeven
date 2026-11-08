@@ -10,8 +10,8 @@
 
 import type { ChromeKind, DesktopBrowserBridge, DesktopBrowserRequestId } from './guest.ts'
 
-/** The Aeven extension's id, fixed by the public key in its manifest. */
-export const AEVEN_EXTENSION_ID = 'jagdfmhjejiccpmnfieenehhijhjjgnf'
+/** The Aeven extension's ids: the Chrome Web Store item's, then the development build's. */
+export const AEVEN_EXTENSION_IDS = ['cpgmlafibkmklfnpjpjbdgoegpljfofa', 'jagdfmhjejiccpmnfieenehhijhjjgnf'] as const
 
 /** How long a request other than an operation may take, in ms. */
 const REQUEST_TIMEOUT_MS = 30_000
@@ -34,13 +34,53 @@ export type PageExtensionBridge = Pick<DesktopBrowserBridge,
   'chromeTabs' | 'chromeOpen' | 'chromeClose' | 'chromeAutomate' | 'cancelAutomation' | 'extensionRead' | 'extensionStatus'>
 
 /**
- * Connect to the extension through this page's `chrome.runtime`.
- * @returns the port, or undefined when the extension is not installed for this page.
+ * Connect to the extension through this page's `chrome.runtime`, trying every id
+ * it is published under: the install that greets first is the one used.
+ * @returns the port, or undefined when no Aeven extension is installed for this page.
  */
 export function pageConnector(): ExtensionPort | undefined {
   const runtime = (globalThis as { chrome?: { runtime?: { connect?: (id: string) => ExtensionPort } } }).chrome?.runtime
   if (runtime?.connect === undefined) return undefined
-  return runtime.connect(AEVEN_EXTENSION_ID)
+  const connect = runtime.connect.bind(runtime)
+  return firstGreeting(AEVEN_EXTENSION_IDS.map(id => connect(id)))
+}
+
+/**
+ * One port over several candidate connections: messages wait until one of them
+ * sends its `hello`, then go to that one alone, and the others are closed.
+ * @param ports - the candidate connections.
+ * @returns the combined port, which disconnects when the chosen one does, or when every candidate has.
+ */
+export function firstGreeting(ports: readonly ExtensionPort[]): ExtensionPort {
+  let chosen: ExtensionPort | undefined
+  let closed = 0
+  const queue: unknown[] = []
+  const messageListeners: Array<(message: unknown) => void> = []
+  const disconnectListeners: Array<() => void> = []
+  const disconnect = (): void => { for (const listener of disconnectListeners) listener() }
+  for (const port of ports) {
+    port.onMessage.addListener((message) => {
+      if (chosen === undefined && (message as { event?: unknown }).event === 'hello') {
+        chosen = port
+        for (const other of ports) if (other !== port) other.disconnect()
+        for (const queued of queue.splice(0)) port.postMessage(queued)
+      }
+      if (port === chosen) for (const listener of messageListeners) listener(message)
+    })
+    port.onDisconnect.addListener(() => {
+      closed++
+      if (port === chosen || (chosen === undefined && closed === ports.length)) disconnect()
+    })
+  }
+  return {
+    postMessage(message) {
+      if (chosen === undefined) queue.push(message)
+      else chosen.postMessage(message)
+    },
+    disconnect() { for (const port of ports) port.disconnect() },
+    onMessage: { addListener(callback) { messageListeners.push(callback) } },
+    onDisconnect: { addListener(callback) { disconnectListeners.push(callback) } },
+  }
 }
 
 /** A request waiting for the extension's answer. */
