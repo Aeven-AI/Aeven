@@ -13,15 +13,59 @@
  * once the scrolled position has settled.
  */
 
-import { app, clipboard, type WebContents } from 'electron'
-import { randomUUID } from 'node:crypto'
-import { basename, extname, isAbsolute, join } from 'node:path'
-import { access, realpath, stat, writeFile } from 'node:fs/promises'
-import { DESKTOP_IPC, type DesktopBrowserCursor } from './ipc.ts'
-import { LOCATOR_PRELUDE, MAX_CONTENT_LENGTH, PAGE_MARKDOWN, YOUTUBE_TRANSCRIPT } from './browser-page-scripts.ts'
+import { LOCATOR_PRELUDE, MAX_CONTENT_LENGTH, PAGE_MARKDOWN, YOUTUBE_TRANSCRIPT } from './page-scripts.ts'
 
-/** A cursor step a target draws: the shape the sidebar pane's IPC carries. */
-export type CursorStep = Omit<DesktopBrowserCursor, 'webContentsId' | 'sequence'>
+/** One step of the agent pointer: where it goes and what it shows there. */
+export interface CursorStep {
+  readonly action: 'move' | 'click' | 'type' | 'scroll' | 'control' | 'cancel'
+  readonly x: number
+  readonly y: number
+  readonly deltaY?: number
+  /** Selector of the element the step names, for a host that keeps the pointer on it. */
+  readonly selector?: string
+  /** A browser chrome control a sidebar pane presses, by name. */
+  readonly control?: string
+  /** Address a `navigate` control types. */
+  readonly url?: string
+}
+
+/**
+ * What the place the engine runs in provides beyond the page: local files,
+ * the Downloads folder, and the clipboard. An operation needing a missing
+ * capability fails with a message that says so.
+ */
+export interface EngineHost {
+  /**
+   * Canonical paths of local regular files an upload attaches.
+   * @param paths - absolute paths the agent named.
+   * @returns the files' canonical paths.
+   */
+  resolveFiles?(paths: readonly string[]): Promise<string[]>
+  /**
+   * Save an exported document where the user keeps downloads.
+   * @param name - the preferred file name.
+   * @param bytes - the file's contents.
+   * @returns where it was saved.
+   */
+  saveDownload?(name: string, bytes: Uint8Array): Promise<string>
+  /** The computer's clipboard text. */
+  readonly clipboard?: { readText(): string | Promise<string>; writeText(text: string): void | Promise<void> }
+}
+
+/** Whether a path is absolute on any platform the engine runs on. */
+function isAbsolutePath(path: string): boolean {
+  return /^(\/|[A-Za-z]:[\\/]|\\\\)/.test(path)
+}
+
+/** The last segment of a path. */
+function baseName(path: string): string {
+  return path.split(/[\\/]/).pop() ?? path
+}
+
+/** Bytes a value's JSON takes in UTF-8. */
+function jsonBytes(value: unknown): number {
+  return new TextEncoder().encode(JSON.stringify(value ?? null)).length
+}
 
 /**
  * What the engine drives: the slice of Electron's `WebContents` it uses, so a
@@ -42,20 +86,18 @@ export interface BrowserTarget {
   getTitle(): string
   insertText(text: string): Promise<void>
   sendInputEvent(inputEvent: { type: 'keyDown' | 'char' | 'keyUp'; keyCode: string; modifiers?: Array<'alt' | 'control' | 'meta' | 'shift'> }): void
-  /** The window that draws a sidebar guest's pointer; absent for a target that draws its own. */
-  readonly hostWebContents?: WebContents | null
   /** Requests with the target's own cookies. */
   readonly session: { fetch(input: string, init?: { signal?: AbortSignal }): Promise<Response> }
   /** Emit an Electron internal event; a non-Electron target ignores it. */
   emit(event: string): boolean
   /**
-   * Draw one cursor step in the target's own page, for a target without a host window.
+   * Draw one pointer step: in the target's own page, or in the window that shows it.
    * @param step - the step.
    * @param wait - whether to wait for the pointer to arrive.
    * @param timeoutMs - the most the wait takes.
    * @param signal - cancels the wait.
    */
-  presentCursor?(step: CursorStep, wait: boolean, timeoutMs: number, signal: AbortSignal): Promise<void>
+  presentCursor(step: CursorStep, wait: boolean, timeoutMs: number, signal: AbortSignal): Promise<void>
   /** Navigate the target itself; a sidebar guest navigates through its pane instead. */
   navigate?(operation: 'navigate' | 'back' | 'forward' | 'reload', url: string, signal: AbortSignal): Promise<void>
 }
@@ -137,22 +179,6 @@ const BUTTON_MASK = { left: 1, right: 2, middle: 4 } as const
 /** Modifier bits for `Input.dispatchMouseEvent` `modifiers`. */
 const MODIFIER_BITS: Readonly<Record<string, number>> = { Alt: 1, Control: 2, Meta: 4, Shift: 8 }
 
-/** Number of the next pointer step. */
-let nextCursorSequence = 1
-/** Arrival waiters belong to the guest and app renderer that announced the move. */
-const cursorArrivals = new Map<number, { guest: BrowserTarget; finish: () => void }>()
-
-/**
- * Acknowledge an owned cursor step from its app renderer.
- * @param sender - renderer reporting arrival.
- * @param guestId - guest receiving the action.
- * @param sequence - step that settled or became invisible.
- */
-export function acknowledgeBrowserCursor(sender: WebContents, guestId: number, sequence: number): void {
-  const pending = cursorArrivals.get(sequence)
-  if (pending?.guest.id === guestId && pending.guest.hostWebContents === sender) pending.finish()
-}
-
 /**
  * Record a guest's console output and JavaScript dialogs from its debugger events.
  * The caller enables the Runtime and Page domains on the debugger session.
@@ -160,7 +186,7 @@ export function acknowledgeBrowserCursor(sender: WebContents, guestId: number, s
  * @returns disposer removing the listener.
  */
 export function observePage(guest: BrowserTarget): () => void {
-  const listen = (_event: Electron.Event, method: string, params: unknown): void => {
+  const listen = (_event: unknown, method: string, params: unknown): void => {
     const values = params as Record<string, unknown>
     switch (method) {
       case 'Page.javascriptDialogOpening':
@@ -416,7 +442,7 @@ export function watchNavigation(guest: BrowserTarget, mainFrameId: string, signa
   const settled = new Promise<void>((resolve) => {
     let started = false
     let timer = setTimeout(() => { finish() }, NAVIGATION_CLASSIFICATION_MS)
-    const listen = (_event: Electron.Event, method: string, params: unknown): void => {
+    const listen = (_event: unknown, method: string, params: unknown): void => {
       const values = params as { frameId?: string; frame?: { id?: string; parentId?: string }; type?: string }
       switch (method) {
         case 'Page.navigatedWithinDocument':
@@ -464,7 +490,7 @@ export function watchNavigation(guest: BrowserTarget, mainFrameId: string, signa
 function watchDialog(guest: BrowserTarget): { opened: Promise<OpenDialog>; dispose: () => void } {
   let dispose: () => void = () => {}
   const opened = new Promise<OpenDialog>((resolve) => {
-    const listen = (_event: Electron.Event, method: string, params: unknown): void => {
+    const listen = (_event: unknown, method: string, params: unknown): void => {
       if (method !== 'Page.javascriptDialogOpening') return
       const values = params as { type?: unknown; message?: unknown }
       resolve({ type: String(values.type), message: String(values.message ?? '') })
@@ -488,31 +514,12 @@ const GOOGLE_EXPORTS: Readonly<Record<string, readonly string[]>> = {
 }
 
 /**
- * A path in the user's Downloads folder that no file holds yet.
- * @param name - the preferred file name.
- * @returns the absolute path.
- */
-async function freeDownloadPath(name: string): Promise<string> {
-  const folder = app.getPath('downloads')
-  const extension = extname(name)
-  const stem = name.slice(0, name.length - extension.length)
-  for (let attempt = 0; ; attempt++) {
-    const candidate = join(folder, attempt === 0 ? name : `${stem} (${String(attempt)})${extension}`)
-    try {
-      await access(candidate)
-    } catch {
-      // No file at this path, so the export takes it.
-      return candidate
-    }
-  }
-}
-
-/**
  * Perform one agent action on a guest.
  * @param guest - the browser guest; its debugger is attached here when needed.
  * @param operation - browser operation named by the tool or pane.
  * @param input - the tool's arguments.
- * @param signal - execution lifetime supplied by the owning IPC request.
+ * @param signal - execution lifetime supplied by the owning request.
+ * @param host - local files, downloads, and clipboard where the engine runs.
  * @returns the action's JSON result.
  * @throws {Error} when the operation is unknown or the page refuses the action.
  */
@@ -521,6 +528,7 @@ export async function automate(
   operation: string,
   input: BrowserAutomationInput,
   signal: AbortSignal = new AbortController().signal,
+  host: EngineHost = {},
 ): Promise<unknown> {
   signal.throwIfAborted()
   if (!guest.debugger.isAttached()) guest.debugger.attach('1.3')
@@ -621,36 +629,10 @@ export async function automate(
     if (point === null) throw new Error(`no element matches ${String(target.selector ?? 'the target')}; call preview_snapshot for current selectors`)
     return await toTop(point)
   }
-  /** Discrete actions wait for a visible renderer; continuous updates do not. */
+  /** Discrete actions wait for the pointer to arrive; continuous updates do not. */
   const show = (cursor: CursorStep, wait = false, timeoutMs = CURSOR_ARRIVAL_TIMEOUT_MS): Promise<void> => {
     signal.throwIfAborted()
-    if (guest.presentCursor !== undefined) return guest.presentCursor(cursor, wait, timeoutMs, signal)
-    const sequence = nextCursorSequence++
-    const host = guest.hostWebContents
-    if (host == null || host.isDestroyed()) return Promise.resolve()
-    // A target with a host window is a sidebar guest, whose id is its web contents id.
-    const webContentsId = Number(guest.id)
-    return new Promise((resolve, reject) => {
-      const finish = (): void => {
-        clearTimeout(timer)
-        cursorArrivals.delete(sequence)
-        signal.removeEventListener('abort', abort)
-        resolve()
-      }
-      const abort = (): void => {
-        if (!host.isDestroyed()) host.send(DESKTOP_IPC.browserCursor, { webContentsId, sequence, action: 'cancel', x: 0, y: 0 } satisfies DesktopBrowserCursor)
-        // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- the aborting caller's own reason is propagated intact.
-        reject(signal.reason)
-        finish()
-      }
-      const timer = setTimeout(finish, timeoutMs)
-      if (wait) {
-        cursorArrivals.set(sequence, { guest, finish })
-        signal.addEventListener('abort', abort, { once: true })
-      }
-      host.send(DESKTOP_IPC.browserCursor, { webContentsId, sequence, ...cursor } satisfies DesktopBrowserCursor)
-      if (!wait) finish()
-    })
+    return guest.presentCursor(cursor, wait, timeoutMs, signal)
   }
   /** ChatGPT `dispatchMouseMove`: the drawn cursor arrives, then the page's mouse moves there. */
   const moveTo = async (point: Point, anchor: { selector?: string } = {}, modifiers = 0): Promise<void> => {
@@ -714,14 +696,11 @@ export async function automate(
       case 'upload': {
         if (frameContextId !== undefined) throw new Error('upload inside an iframe is unsupported; use a main-page file input')
         const requested = input.paths
-        if (!Array.isArray(requested) || requested.length === 0 || !requested.every(path => typeof path === 'string' && isAbsolute(path))) {
+        if (!Array.isArray(requested) || requested.length === 0 || !requested.every(path => typeof path === 'string' && isAbsolutePath(path))) {
           throw new Error('upload requires absolute file paths on the computer running this browser')
         }
-        const files = await Promise.all(requested.map(async (path) => {
-          const canonical = await realpath(String(path))
-          if (!(await stat(canonical)).isFile()) throw new Error(`not a regular file: ${basename(canonical)}`)
-          return canonical
-        }))
+        if (host.resolveFiles === undefined) throw new Error('this browser cannot attach files from the computer')
+        const files = await host.resolveFiles(requested as string[])
         signal.throwIfAborted()
         if (typeof input.origin !== 'string' || new URL(guest.getURL()).origin !== input.origin) throw new Error('the page origin changed; request upload approval again')
         const selector = typeof input.selector === 'string' ? input.selector : 'input[type=file]'
@@ -736,7 +715,7 @@ export async function automate(
         const chooser = new Promise<void>((resolve, reject) => { resolveChooser = resolve; rejectChooser = reject })
         void chooser.catch(() => { /* The action reports cancellation through its own signal checks. */ })
         const cancelChooser = (): void => { rejectChooser?.(signal.reason) }
-        const opened = (_event: Electron.Event, method: string, params: unknown): void => {
+        const opened = (_event: unknown, method: string, params: unknown): void => {
           if (method !== 'Page.fileChooserOpened' || typeof params !== 'object' || params === null || !('backendNodeId' in params) || typeof params.backendNodeId !== 'number') return
           backendNodeId = params.backendNodeId
           chooserFrame = 'frameId' in params && typeof params.frameId === 'string' ? params.frameId : undefined
@@ -782,7 +761,7 @@ export async function automate(
             }
             if (new URL(guest.getURL()).origin !== input.origin) throw new Error('the page origin changed before upload')
             await send('DOM.setFileInputFiles', { backendNodeId, files })
-            return { ok: true, files: files.map(file => basename(file)) }
+            return { ok: true, files: files.map(file => baseName(file)) }
           } finally {
             if (guest.debugger.isAttached()) await guest.debugger.sendCommand('Runtime.releaseObject', { objectId })
           }
@@ -844,12 +823,12 @@ export async function automate(
           if (values.operation === 'press' && typeof values.key !== 'string') throw new Error('press requires a key')
           if (values.operation === 'select' && !Array.isArray(values.values)) throw new Error('select requires values')
           if (values.operation === 'check' && typeof values.checked !== 'boolean') throw new Error('check requires checked')
-          if (values.operation === 'upload' && (!Array.isArray(values.paths) || values.paths.length === 0 || !values.paths.every(path => typeof path === 'string' && isAbsolute(path)))) throw new Error('upload requires absolute file paths')
+          if (values.operation === 'upload' && (!Array.isArray(values.paths) || values.paths.length === 0 || !values.paths.every(path => typeof path === 'string' && isAbsolutePath(path)))) throw new Error('upload requires absolute file paths')
         }
         let completed = 0
         for (const action of input.actions) {
           try {
-            await automate(guest, String((action as BrowserAutomationInput).operation), action as BrowserAutomationInput, signal)
+            await automate(guest, String((action as BrowserAutomationInput).operation), action as BrowserAutomationInput, signal, host)
             completed++
           } catch (error) {
             signal.throwIfAborted()
@@ -869,7 +848,7 @@ export async function automate(
         const tree = await send('Page.getFrameTree') as { frameTree: { frame: { loaderId: string } } }
         await send('Accessibility.enable')
         const result = await send('Accessibility.getFullAXTree') as { nodes: BrowserAxNode[] }
-        const snapshotId = randomUUID()
+        const snapshotId = crypto.randomUUID()
         const targets = new Map<string, number>()
         const visible = result.nodes.filter(node => !node.ignored)
         const nodes = visible.slice(0, MAX_INTERACTIVE_ELEMENTS).map((node, index) => {
@@ -1007,7 +986,7 @@ export async function automate(
           if (nodes.length > 1) throw new Error(nodes.length + " elements match; pass all: true or refine the selector");
           return { value: read(nodes[0]) };
         })()`)
-        if (Buffer.byteLength(JSON.stringify(value ?? null), 'utf8') > MAX_EVALUATION_BYTES) throw new Error(`the result is larger than ${String(MAX_EVALUATION_BYTES)} bytes; narrow the selector`)
+        if (jsonBytes(value) > MAX_EVALUATION_BYTES) throw new Error(`the result is larger than ${String(MAX_EVALUATION_BYTES)} bytes; narrow the selector`)
         return typeof value === 'number' ? { count: value } : value
       }
       case 'content': {
@@ -1040,21 +1019,23 @@ export async function automate(
         const response = await guest.session.fetch(url, { signal })
         if (!response.ok) throw new Error(`Google answered the export with HTTP ${String(response.status)}; the document may not allow downloads`)
         if ((response.headers.get('content-type') ?? '').startsWith('text/html')) throw new Error('Google answered with a page instead of the file; sign in or ask the owner for download access')
-        const bytes = Buffer.from(await response.arrayBuffer())
+        const bytes = new Uint8Array(await response.arrayBuffer())
         const title = guest.getTitle().replace(/ - Google (Docs|Sheets|Slides)$/, '').replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'export'
-        const path = await freeDownloadPath(`${title}.${format}`)
-        await writeFile(path, bytes)
         const textual = ['md', 'txt', 'csv', 'tsv'].includes(format)
+        const text = textual ? new TextDecoder().decode(bytes) : undefined
+        if (host.saveDownload === undefined && text === undefined) throw new Error('this browser cannot save files; export as md, txt, csv, or tsv to read the content')
+        const path = host.saveDownload === undefined ? undefined : await host.saveDownload(`${title}.${format}`, bytes)
         return {
-          ok: true, path, format, bytes: bytes.length,
-          ...textual ? { text: bytes.toString('utf8').slice(0, MAX_CONTENT_LENGTH), truncated: bytes.length > MAX_CONTENT_LENGTH } : {},
+          ok: true, format, bytes: bytes.length, ...path === undefined ? {} : { path },
+          ...text === undefined ? {} : { text: text.slice(0, MAX_CONTENT_LENGTH), truncated: text.length > MAX_CONTENT_LENGTH },
         }
       }
       case 'clipboard': {
-        if (input.action === 'read') return { text: clipboard.readText() }
+        if (host.clipboard === undefined) throw new Error("this browser cannot reach the computer's clipboard")
+        if (input.action === 'read') return { text: await host.clipboard.readText() }
         if (input.action === 'write') {
           if (typeof input.text !== 'string') throw new Error('clipboard write requires text')
-          clipboard.writeText(input.text)
+          await host.clipboard.writeText(input.text)
           return { ok: true }
         }
         throw new Error('clipboard action must be read or write')
@@ -1113,7 +1094,7 @@ export async function automate(
           if (typeof result === "string") { try { result = JSON.parse(result) } catch {} }
           return { supported: true, result: result ?? null };
         })()`)
-        if (Buffer.byteLength(JSON.stringify(value ?? null), 'utf8') > MAX_EVALUATION_BYTES) throw new Error(`the result is larger than ${String(MAX_EVALUATION_BYTES)} bytes`)
+        if (jsonBytes(value) > MAX_EVALUATION_BYTES) throw new Error(`the result is larger than ${String(MAX_EVALUATION_BYTES)} bytes`)
         return { origin: new URL(guest.getURL()).origin, ...value as object }
       }
       case 'type': {
@@ -1250,7 +1231,7 @@ export async function automate(
           return { value: null, ...dialogReport(opened) }
         }
         const value = await evaluation
-        if (Buffer.byteLength(JSON.stringify(value ?? null), 'utf8') > MAX_EVALUATION_BYTES) {
+        if (jsonBytes(value) > MAX_EVALUATION_BYTES) {
           throw new Error(`the result is larger than ${String(MAX_EVALUATION_BYTES)} bytes`)
         }
         return { value: value ?? null }

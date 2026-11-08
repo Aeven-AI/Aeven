@@ -12,6 +12,7 @@ declare namespace chrome {
     }
     function connectNative(application: string): Port
     function getManifest(): { version: string }
+    function getURL(path: string): string
     const lastError: { message?: string } | undefined
     const onStartup: { addListener(callback: () => void): void }
     const onInstalled: { addListener(callback: () => void): void }
@@ -36,7 +37,7 @@ declare namespace chrome {
     function attach(target: Debuggee, requiredVersion: string): Promise<void>
     function detach(target: Debuggee): Promise<void>
     function sendCommand(target: Debuggee, method: string, commandParams?: object): Promise<unknown>
-    const onEvent: { addListener(callback: (source: Debuggee, method: string, params?: unknown) => void): void }
+    const onEvent: { addListener(callback: (source: Debuggee, method: string, params?: any) => void): void; removeListener(callback: (source: Debuggee, method: string, params?: any) => void): void }
     const onDetach: { addListener(callback: (source: Debuggee, reason: string) => void): void }
   }
   export { _debugger as debugger }

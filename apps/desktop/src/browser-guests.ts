@@ -17,9 +17,10 @@ import {
   type IpcMainInvokeEvent,
   type WebContents,
 } from 'electron'
-import { acknowledgeBrowserCursor, automate, observePage, type BrowserTarget } from './browser-automation.ts'
+import { automate, observePage } from '@aeven/browser-engine'
+import { acknowledgeBrowserCursor, DESKTOP_ENGINE_HOST, guestTarget } from './browser-guest-target.ts'
 import { chromeCloseTab, chromeOpenTab, chromeTabs, chromeTarget, type ChromeKind } from './browser-chrome.ts'
-import { extensionBookmarks, extensionCloseTab, extensionHistory, extensionOpenTab, extensionTabs, extensionTarget } from './browser-extension.ts'
+import { extensionBookmarks, extensionCloseTab, extensionHistory, extensionOpenTab, extensionOperate, extensionTabs } from './browser-extension.ts'
 import { fetchSuggestions } from './browser-search.ts'
 import { DESKTOP_IPC, type DesktopBrowserColorScheme, type DesktopBrowserDataKind } from './ipc.ts'
 
@@ -190,7 +191,7 @@ async function reportPageScroll(guest: WebContents): Promise<void> {
     reportingGuests.delete(guest)
     return
   }
-  const stopObserving = observePage(guest)
+  const stopObserving = observePage(guestTarget(guest))
   guest.debugger.once('detach', () => {
     reportingGuests.delete(guest)
     stopObserving()
@@ -262,11 +263,11 @@ export function registerBrowserIpc(isAppSender: (event: IpcMainEvent | IpcMainIn
     if (!isAppSender(event) || typeof guestId !== 'number' || typeof sequence !== 'number' || !Number.isSafeInteger(sequence)) return
     acknowledgeBrowserCursor(event.sender, guestId, sequence)
   })
-  const pending = new Map<string, { guest: BrowserTarget; controller: AbortController }>()
+  const pending = new Map<string, { id: number | string; controller: AbortController }>()
   ipcMain.on(DESKTOP_IPC.browserCancelAutomation, (event, webContentsId: unknown, requestId: unknown) => {
     if (!isAppSender(event) || typeof requestId !== 'string') return
     const request = pending.get(`${String(event.sender.id)}:${requestId}`)
-    if (request !== undefined && request.guest.id === webContentsId) request.controller.abort(new Error('browser action cancelled'))
+    if (request !== undefined && request.id === webContentsId) request.controller.abort(new Error('browser action cancelled'))
   })
   /**
    * Run one engine operation on a target under the request's deadline and cancellation.
@@ -282,7 +283,8 @@ export function registerBrowserIpc(isAppSender: (event: IpcMainEvent | IpcMainIn
    * @returns the operation's result.
    */
   const run = async (
-    event: IpcMainInvokeEvent, guest: BrowserTarget, operation: unknown, input: unknown, requestId: unknown, timeoutMs: unknown,
+    event: IpcMainInvokeEvent, id: number | string, operation: unknown, input: unknown, requestId: unknown, timeoutMs: unknown,
+    perform: (operation: string, input: Record<string, unknown>, signal: AbortSignal) => Promise<unknown>,
     prepare: () => Promise<void>, release: () => void, closed?: AbortSignal,
   ): Promise<unknown> => {
     if (typeof operation !== 'string') throw new Error('avn desktop: browser operation must be a string')
@@ -292,7 +294,7 @@ export function registerBrowserIpc(isAppSender: (event: IpcMainEvent | IpcMainIn
     const controller = new AbortController()
     const key = `${String(event.sender.id)}:${String(requestId)}`
     if (requestId !== undefined && pending.has(key)) throw new Error('browser request id is already pending')
-    if (requestId !== undefined) pending.set(key, { guest, controller })
+    if (requestId !== undefined) pending.set(key, { id, controller })
     const duration = typeof timeoutMs === 'number' ? timeoutMs : 20_000
     const timer = setTimeout(() => { controller.abort(new Error(`browser action timed out after ${String(duration)}ms`)) }, duration)
     const gone = (): void => { controller.abort(new Error('browser page closed')) }
@@ -309,7 +311,7 @@ export function registerBrowserIpc(isAppSender: (event: IpcMainEvent | IpcMainIn
       const work = async (): Promise<unknown> => {
         await prepare()
         controller.signal.throwIfAborted()
-        return automate(guest, operation, input as Record<string, unknown>, controller.signal)
+        return await perform(operation, input as Record<string, unknown>, controller.signal)
       }
       return await Promise.race([work(), cancelled])
     } finally {
@@ -328,7 +330,9 @@ export function registerBrowserIpc(isAppSender: (event: IpcMainEvent | IpcMainIn
     const destroyed = (): void => { closed.abort() }
     guest.once('destroyed', destroyed)
     try {
-      return await run(event, guest, operation, input, requestId, timeoutMs,
+      const target = guestTarget(guest)
+      return await run(event, guest.id, operation, input, requestId, timeoutMs,
+        async (name, values, signal) => await automate(target, name, values, signal, DESKTOP_ENGINE_HOST),
         async () => { if (!guest.debugger.isAttached()) await reportPageScroll(guest) },
         () => {
           if (!guest.isDestroyed() && guest.debugger.isAttached()) {
@@ -388,10 +392,17 @@ export function registerBrowserIpc(isAppSender: (event: IpcMainEvent | IpcMainIn
     assertApp(event)
     if (typeof targetId !== 'string') throw new Error('avn desktop: Chrome tab id must be a string')
     const chrome = chromeKind(kind)
-    const tab = chrome === 'extension' ? await extensionTarget(extensionTab(targetId)) : await chromeTarget(chrome, chromeUrl(browserUrl), targetId)
-    return await run(event, tab, operation, input, requestId, timeoutMs, async () => {}, () => {
-      void tab.debugger.sendCommand('Runtime.terminateExecution').catch(() => { /* A closed tab rejects the termination reply. */ })
-    })
+    if (chrome === 'extension') {
+      // The extension runs the engine itself; the app sends it the whole operation.
+      const tabId = extensionTab(targetId)
+      return await run(event, targetId, operation, input, requestId, timeoutMs,
+        async (name, values, signal) => await extensionOperate(tabId, name, values, signal), async () => {}, () => {})
+    }
+    const tab = await chromeTarget(chrome, chromeUrl(browserUrl), targetId)
+    return await run(event, targetId, operation, input, requestId, timeoutMs,
+      async (name, values, signal) => await automate(tab, name, values, signal, DESKTOP_ENGINE_HOST), async () => {}, () => {
+        void tab.debugger.sendCommand('Runtime.terminateExecution').catch(() => { /* A closed tab rejects the termination reply. */ })
+      })
   })
   ipcMain.handle(DESKTOP_IPC.browserSuggest, async (event, url: unknown) => {
     assertApp(event)

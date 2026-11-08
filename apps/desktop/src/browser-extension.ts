@@ -9,10 +9,11 @@
  * here. Only the extension id named in the host manifest may start the host, and
  * no network port is opened.
  *
- * Requests from the app: `tabs.list`, `tabs.create`, `tabs.close`,
- * `debugger.send`, `history.search`, `bookmarks.search`; the extension answers
- * `{ id, result }` or `{ id, error }`. Events from the extension:
- * `debugger.event`, `debugger.detach`, `tabs.updated`, `tabs.removed`, `hello`.
+ * Requests from the app: `tabs.list`, `tabs.create`, `tabs.close`, `operate`
+ * (one whole engine operation, run by the extension), `operate.cancel`,
+ * `history.search`, `bookmarks.search`; the extension answers `{ id, result }`
+ * or `{ id, error }`. Events from the extension: `hello` (with its protocol),
+ * `tabs.updated`, `tabs.removed`.
  */
 
 import { createServer, type Server, type Socket } from 'node:net'
@@ -21,7 +22,6 @@ import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { execFile } from 'node:child_process'
-import { ChromeTab, prepareTab } from './browser-chrome.ts'
 
 /** The native messaging host name the extension connects to. */
 export const NATIVE_HOST_NAME = 'io.aeven.browser'
@@ -43,6 +43,7 @@ export interface ExtensionTabInfo {
 class ExtensionLink {
   #socket: Socket | undefined
   #browser = ''
+  #protocol = 0
   #nextId = 1
   readonly #pending = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> }>()
   readonly #listeners = new Set<(event: string, payload: any) => void>()
@@ -52,6 +53,9 @@ class ExtensionLink {
 
   /** The browser the connected extension runs in, as it reported itself. */
   get browser(): string { return this.#browser }
+
+  /** The request set the connected extension speaks, 0 before it says. */
+  get protocol(): number { return this.#protocol }
 
   /**
    * Take over a newly connected host socket.
@@ -76,6 +80,7 @@ class ExtensionLink {
       if (this.#socket !== socket) return
       this.#socket = undefined
       this.#browser = ''
+      this.#protocol = 0
       for (const pending of this.#pending.values()) {
         clearTimeout(pending.timer)
         pending.reject(new Error('the Aeven extension disconnected'))
@@ -106,6 +111,7 @@ class ExtensionLink {
     }
     if (typeof message.event !== 'string') return
     if (message.event === 'hello' && typeof message.browser === 'string') this.#browser = message.browser
+    if (message.event === 'hello') this.#protocol = typeof message.protocol === 'number' ? message.protocol : 1
     for (const listener of this.#listeners) listener(message.event, message)
   }
 
@@ -116,7 +122,7 @@ class ExtensionLink {
    * @returns the extension's result.
    * @throws {Error} when no extension is connected, it fails the request, or it does not answer in time.
    */
-  request(method: string, params: object = {}): Promise<any> {
+  request(method: string, params: object = {}, options: { timeoutMs?: number; signal?: AbortSignal; onCancel?: (id: number) => void } = {}): Promise<any> {
     const socket = this.#socket
     if (socket === undefined) return Promise.reject(new Error('the Aeven browser extension is not connected; install it and keep the browser open'))
     const id = this.#nextId++
@@ -124,8 +130,9 @@ class ExtensionLink {
       const timer = setTimeout(() => {
         this.#pending.delete(id)
         reject(new Error(`the Aeven extension did not answer ${method}`))
-      }, REQUEST_TIMEOUT_MS)
+      }, options.timeoutMs ?? REQUEST_TIMEOUT_MS)
       this.#pending.set(id, { resolve, reject, timer })
+      options.signal?.addEventListener('abort', () => { options.onCancel?.(id) }, { once: true })
       socket.write(`${JSON.stringify({ id, method, params })}\n`)
     })
   }
@@ -142,7 +149,6 @@ class ExtensionLink {
 }
 
 const link = new ExtensionLink()
-const tabs = new Map<number, ChromeTab>()
 let server: Server | undefined
 
 /**
@@ -227,22 +233,6 @@ export async function startExtensionBridge(avnHome: string): Promise<() => void>
     await mkdir(dirname(path), { recursive: true })
     await rm(path, { force: true })
   }
-  link.onEvent((event, payload) => {
-    if (event === 'debugger.event') {
-      // Delivered to the tab's own subscribers through its channel.
-      return
-    }
-    const tab = typeof payload.tabId === 'number' ? tabs.get(payload.tabId) : undefined
-    if (event === 'tabs.updated' && tab !== undefined) tab.setInfo(String(payload.url ?? ''), String(payload.title ?? ''))
-    if ((event === 'debugger.detach' || event === 'tabs.removed') && tab !== undefined) {
-      tab.markDetached()
-      tabs.delete(payload.tabId)
-    }
-    if (event === 'disconnected') {
-      for (const open of tabs.values()) open.markDetached()
-      tabs.clear()
-    }
-  })
   server = createServer((socket) => { link.adopt(socket) })
   await new Promise<void>((resolve, reject) => {
     server?.once('error', reject)
@@ -284,29 +274,31 @@ export async function extensionOpenTab(url: string): Promise<number> {
  * @param tabId - the tab.
  */
 export async function extensionCloseTab(tabId: number): Promise<void> {
-  tabs.delete(tabId)
   await link.request('tabs.close', { tabId })
 }
 
+/** The request set the app needs from the extension: whole engine operations. */
+const REQUIRED_PROTOCOL = 2
+
 /**
- * An extension tab as an engine target, attached through `chrome.debugger` on first use.
+ * Run one engine operation in an agent tab: the extension runs the engine itself.
  * @param tabId - the tab.
- * @returns the target.
+ * @param operation - the engine operation.
+ * @param input - the tool's arguments.
+ * @param signal - cancels the operation in the extension.
+ * @returns the operation's result.
+ * @throws {Error} when the extension is too old to run operations.
  */
-export async function extensionTarget(tabId: number): Promise<ChromeTab> {
-  const live = tabs.get(tabId)
-  if (live?.debugger.isAttached() === true) return live
-  const info = await link.request('debugger.attach', { tabId }) as { url: string; title: string }
-  const tab = new ChromeTab({
-    send: (method, params) => link.request('debugger.send', { tabId, method, params }),
-    subscribe: listener => link.onEvent((event, payload) => {
-      if (event === 'debugger.event' && payload.tabId === tabId) listener(String(payload.method), payload.params)
-    }),
-    isOpen: () => link.connected,
-  }, `ext:${String(tabId)}`, info.url, info.title)
-  tabs.set(tabId, tab)
-  await prepareTab(tab)
-  return tab
+export async function extensionOperate(tabId: number, operation: string, input: Record<string, unknown>, signal: AbortSignal): Promise<unknown> {
+  // The protocol comes with the extension's hello; when that was not recorded, the extension is asked.
+  const protocol = link.protocol >= REQUIRED_PROTOCOL ? link.protocol
+    : await link.request('info').then((info: { protocol?: unknown }) => typeof info.protocol === 'number' ? info.protocol : 1, () => 1)
+  if (protocol < REQUIRED_PROTOCOL) throw new Error('the Aeven browser extension is out of date; update it from chrome://extensions or the Chrome Web Store')
+  // The operation's own deadline is the caller's; the link only stops waiting a little after it.
+  return await link.request('operate', { tabId, operation, input }, {
+    timeoutMs: 120_000, signal,
+    onCancel: (id) => { void link.request('operate.cancel', { requestId: id }).catch(() => undefined) },
+  })
 }
 
 /**

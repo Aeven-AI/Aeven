@@ -137,7 +137,14 @@ importers:
         specifier: ^4.1.8
         version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(@vitest/coverage-v8@4.1.8)(happy-dom@20.11.6)(jsdom@29.1.1(@noble/hashes@2.3.0))(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
 
-  apps/chrome-extension: {}
+  apps/chrome-extension:
+    devDependencies:
+      '@aeven/browser-engine':
+        specifier: workspace:^
+        version: link:../../packages/web/browser-engine
+      '@aeven/experimental-browser-overlay':
+        specifier: workspace:^
+        version: link:../../packages/experimental/browser-overlay
 
   apps/cli:
     dependencies:
@@ -536,6 +543,9 @@ importers:
       '@aeven/brand':
         specifier: workspace:^
         version: link:../../packages/util/brand
+      '@aeven/browser-engine':
+        specifier: workspace:^
+        version: link:../../packages/web/browser-engine
       '@aeven/experimental-browser-overlay':
         specifier: workspace:^
         version: link:../../packages/experimental/browser-overlay
@@ -13469,6 +13479,8 @@ importers:
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
+
+  packages/web/browser-engine: {}
 
   packages/web/tool-browser:
     devDependencies:

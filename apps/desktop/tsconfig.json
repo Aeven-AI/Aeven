@@ -16,6 +16,9 @@
     },
     {
       "path": "../../packages/util/brand-page"
+    },
+    {
+      "path": "../../packages/web/browser-engine"
     }
   ]
 }

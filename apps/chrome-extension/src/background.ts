@@ -3,27 +3,44 @@
  * through the app's native messaging host and serves the agent's requests on the
  * browser it runs in.
  *
- * The agent works only in tabs it opened, kept in a collapsed "Aeven" tab group
- * in the background; it attaches `chrome.debugger` to those tabs alone. History
+ * The agent works only in tabs it opened, kept in an "Aeven" tab group and
+ * brought to the front so the user watches it work; it attaches
+ * `chrome.debugger` to those tabs alone, and only while it acts: Chrome shows its
+ * "started debugging this browser" bar while a debugger is attached, so a tab is
+ * detached once the agent has left it idle for `IDLE_DETACH_MS`. History
  * and bookmarks are read on request; the app asks the user before it requests them.
  * Messages are `{ id, method, params }` requests answered with `{ id, result }`
  * or `{ id, error }`, and `{ event, ... }` notifications.
  */
 
+import { automate, ChromeTab, prepareTab, type BrowserAutomationInput } from '@aeven/browser-engine'
+
 /** The native messaging host the Aeven desktop app registers. */
 const HOST = 'io.aeven.browser'
+/** The request and event set this extension speaks; the app refuses an older one. */
+const PROTOCOL = 2
 /** Title of the tab group the agent's tabs live in. */
 const GROUP_TITLE = 'Aeven'
 /** Session-storage key of the agent's tab ids, which survive the worker restarting. */
 const TABS_KEY = 'agentTabs'
 /** Longest wait before reconnecting to the app, in ms. */
 const MAX_RETRY_MS = 60_000
+/** How long an agent tab stays attached after its last operation, in ms; a task's steps follow within it. */
+const IDLE_DETACH_MS = 10_000
 
 let port: chrome.runtime.Port | undefined
 let retryMs = 1000
 let retryTimer: ReturnType<typeof setTimeout> | undefined
 const agentTabs = new Set<number>()
 const attached = new Set<number>()
+/** Engine targets of the agent's tabs, attached on their first operation. */
+const targets = new Map<number, ChromeTab>()
+/** Operations in flight, by request id, so the app can cancel one. */
+const running = new Map<number, { controller: AbortController; tabId: number }>()
+/** Pending detaches of idle agent tabs. */
+const idleTimers = new Map<number, ReturnType<typeof setTimeout>>()
+/** The agent pointer as a page script, bundled beside this worker. */
+let overlayScript: Promise<string> | undefined
 const loading = chrome.storage.session.get(TABS_KEY).then((stored) => {
   for (const id of (stored[TABS_KEY] as number[] | undefined) ?? []) agentTabs.add(id)
 })
@@ -52,16 +69,20 @@ function connect(): void {
   port = opened
   opened.onMessage.addListener((message: { id?: number; method?: string; params?: Record<string, unknown>; event?: string }) => {
     if (message.event === 'unavailable') return
-    if (typeof message.id === 'number' && typeof message.method === 'string') void answer(message.id, message.method, message.params ?? {})
+    if (typeof message.id === 'number' && typeof message.method === 'string') void answer(message.id, message.method, message.params ?? {}, post)
   })
   opened.onDisconnect.addListener(() => {
     if (port !== opened) return
     port = undefined
-    attached.clear()
+    // Without the app nothing drives the tabs, so the debugger and Chrome's bar go too.
+    for (const tabId of [...attached]) {
+      forget(tabId)
+      void chrome.debugger.detach({ tabId }).catch(() => undefined)
+    }
     retryTimer = setTimeout(connect, retryMs)
     retryMs = Math.min(retryMs * 2, MAX_RETRY_MS)
   })
-  post({ event: 'hello', browser: browserName(), version: chrome.runtime.getManifest().version })
+  post({ event: 'hello', browser: browserName(), version: chrome.runtime.getManifest().version, protocol: PROTOCOL })
 }
 
 /**
@@ -70,14 +91,71 @@ function connect(): void {
  * @param method - the request.
  * @param params - its parameters.
  */
-async function answer(id: number, method: string, params: Record<string, unknown>): Promise<void> {
+async function answer(id: number, method: string, params: Record<string, unknown>, reply: (message: unknown) => void): Promise<void> {
   try {
     await loading
-    post({ id, result: await handle(method, params) })
+    reply({ id, result: await handle(method, params, id) })
     retryMs = 1000
   } catch (error) {
-    post({ id, error: error instanceof Error ? error.message : String(error) })
+    reply({ id, error: error instanceof Error ? error.message : String(error) })
   }
+}
+
+/**
+ * One of the agent's tabs as an engine target, attaching the debugger on first use.
+ * @param tabId - the tab.
+ * @returns the target.
+ */
+async function target(tabId: number): Promise<ChromeTab> {
+  const live = targets.get(tabId)
+  if (live !== undefined && attached.has(tabId)) return live
+  if (!attached.has(tabId)) {
+    await chrome.debugger.attach({ tabId }, '1.3')
+    attached.add(tabId)
+  }
+  overlayScript ??= fetch(chrome.runtime.getURL('overlay-page.iife.js')).then(async response => await response.text())
+  const script = await overlayScript
+  const tab = await chrome.tabs.get(tabId)
+  const created = new ChromeTab({
+    send: async (method, params) => await chrome.debugger.sendCommand({ tabId }, method, params),
+    subscribe: (listener) => {
+      const forward = (source: chrome.debugger.Debuggee, method: string, params?: unknown): void => { if (source.tabId === tabId) listener(method, params) }
+      chrome.debugger.onEvent.addListener(forward)
+      return () => { chrome.debugger.onEvent.removeListener(forward) }
+    },
+    isOpen: () => attached.has(tabId),
+  }, `ext:${String(tabId)}`, tab.url ?? '', tab.title ?? '', script)
+  targets.set(tabId, created)
+  await prepareTab(created, script)
+  return created
+}
+
+/**
+ * Forget a tab's debugger session, after it detached or the extension detached it.
+ * @param tabId - the tab.
+ */
+function forget(tabId: number): void {
+  clearTimeout(idleTimers.get(tabId))
+  idleTimers.delete(tabId)
+  attached.delete(tabId)
+  targets.get(tabId)?.markDetached()
+  targets.delete(tabId)
+}
+
+/**
+ * Detach the debugger from a tab once no operation runs on it, which removes Chrome's debugging bar.
+ * @param tabId - the tab.
+ */
+function detachWhenIdle(tabId: number): void {
+  clearTimeout(idleTimers.get(tabId))
+  if ([...running.values()].some(operation => operation.tabId === tabId)) return
+  idleTimers.set(tabId, setTimeout(() => {
+    idleTimers.delete(tabId)
+    if (!attached.has(tabId) || [...running.values()].some(operation => operation.tabId === tabId)) return
+    forget(tabId)
+    // The tab may have closed or detached since; either way it is no longer attached.
+    void chrome.debugger.detach({ tabId }).catch(() => undefined)
+  }, IDLE_DETACH_MS))
 }
 
 /**
@@ -98,7 +176,8 @@ async function group(tab: chrome.tabs.Tab): Promise<void> {
   if (tab.id === undefined) return
   const [existing] = await chrome.tabGroups.query({ title: GROUP_TITLE, windowId: tab.windowId })
   const groupId = await chrome.tabs.group(existing === undefined ? { tabIds: tab.id } : { tabIds: tab.id, groupId: existing.id })
-  if (existing === undefined) await chrome.tabGroups.update(groupId, { title: GROUP_TITLE, color: 'grey', collapsed: true })
+  // The group stays open, so the agent's tabs are in view rather than folded away.
+  await chrome.tabGroups.update(groupId, existing === undefined ? { title: GROUP_TITLE, color: 'grey', collapsed: false } : { collapsed: false })
 }
 
 /**
@@ -107,8 +186,29 @@ async function group(tab: chrome.tabs.Tab): Promise<void> {
  * @param params - its parameters.
  * @returns the result.
  */
-async function handle(method: string, params: Record<string, unknown>): Promise<unknown> {
+async function handle(method: string, params: Record<string, unknown>, id: number): Promise<unknown> {
   switch (method) {
+    case 'info':
+      return { protocol: PROTOCOL, browser: browserName(), version: chrome.runtime.getManifest().version }
+    case 'operate': {
+      const tabId = agentTab(params.tabId)
+      if (typeof params.operation !== 'string') throw new Error('operate needs an operation')
+      const controller = new AbortController()
+      clearTimeout(idleTimers.get(tabId))
+      running.set(id, { controller, tabId })
+      try {
+        const tab = await target(tabId)
+        // This browser has no access to the computer's files, Downloads folder, or clipboard.
+        return await automate(tab, params.operation, (params.input as BrowserAutomationInput | undefined) ?? {}, controller.signal, {})
+      } finally {
+        running.delete(id)
+        detachWhenIdle(tabId)
+      }
+    }
+    case 'operate.cancel': {
+      running.get(params.requestId as number)?.controller.abort(new Error('the agent cancelled the action'))
+      return {}
+    }
     case 'tabs.list': {
       const listed = []
       for (const tabId of agentTabs) {
@@ -123,7 +223,8 @@ async function handle(method: string, params: Record<string, unknown>): Promise<
       return listed
     }
     case 'tabs.create': {
-      const tab = await chrome.tabs.create({ url: typeof params.url === 'string' ? params.url : 'about:blank', active: false })
+      // The tab comes to the front so the user sees the agent work in it.
+      const tab = await chrome.tabs.create({ url: typeof params.url === 'string' ? params.url : 'about:blank', active: true })
       if (tab.id === undefined) throw new Error('the browser did not open a tab')
       agentTabs.add(tab.id)
       saveTabs()
@@ -134,20 +235,6 @@ async function handle(method: string, params: Record<string, unknown>): Promise<
       const tabId = agentTab(params.tabId)
       await chrome.tabs.remove(tabId)
       return {}
-    }
-    case 'debugger.attach': {
-      const tabId = agentTab(params.tabId)
-      if (!attached.has(tabId)) {
-        await chrome.debugger.attach({ tabId }, '1.3')
-        attached.add(tabId)
-      }
-      const tab = await chrome.tabs.get(tabId)
-      return { url: tab.url ?? '', title: tab.title ?? '' }
-    }
-    case 'debugger.send': {
-      const tabId = agentTab(params.tabId)
-      if (typeof params.method !== 'string') throw new Error('debugger.send needs a method')
-      return await chrome.debugger.sendCommand({ tabId }, params.method, (params.params as object | undefined) ?? {})
     }
     case 'history.search': {
       const items = await chrome.history.search({
@@ -172,20 +259,17 @@ async function handle(method: string, params: Record<string, unknown>): Promise<
   }
 }
 
-chrome.debugger.onEvent.addListener((source, method, params) => {
-  if (source.tabId !== undefined && attached.has(source.tabId)) post({ event: 'debugger.event', tabId: source.tabId, method, params })
-})
 chrome.debugger.onDetach.addListener((source) => {
-  if (source.tabId === undefined) return
-  attached.delete(source.tabId)
-  post({ event: 'debugger.detach', tabId: source.tabId })
+  if (source.tabId !== undefined) forget(source.tabId)
 })
 chrome.tabs.onUpdated.addListener((tabId, change, tab) => {
-  if (agentTabs.has(tabId) && (change.url !== undefined || change.title !== undefined)) post({ event: 'tabs.updated', tabId, url: tab.url ?? '', title: tab.title ?? '' })
+  if (!agentTabs.has(tabId) || (change.url === undefined && change.title === undefined)) return
+  targets.get(tabId)?.setInfo(tab.url ?? '', tab.title ?? '')
+  post({ event: 'tabs.updated', tabId, url: tab.url ?? '', title: tab.title ?? '' })
 })
 chrome.tabs.onRemoved.addListener((tabId) => {
   if (!agentTabs.delete(tabId)) return
-  attached.delete(tabId)
+  forget(tabId)
   saveTabs()
   post({ event: 'tabs.removed', tabId })
 })
