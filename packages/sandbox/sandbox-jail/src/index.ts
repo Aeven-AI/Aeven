@@ -144,6 +144,7 @@ const limits: z<CgroupLimits> = z.object({
   pidsMax: z.string().required(),
   cpuMax: z.string().required(),
   cpuWeight: z.string().required(),
+  ioMax: z.string(),
 })
 
 /** An account directory name usable as one path segment. */
@@ -272,6 +273,7 @@ export class JailSandboxProvider extends SandboxProvider {
       const cgroups = new AccountCgroups(
         config.cgroup.root, config.cgroup.total, config.cgroup.account,
         commandUser === undefined ? undefined : groupId(commandUser.group),
+        this.accountsRoot,
       )
       cgroups.removeIdle()
       this.cgroups = cgroups

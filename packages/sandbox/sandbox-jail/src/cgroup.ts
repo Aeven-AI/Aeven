@@ -8,8 +8,8 @@
  * @module @aeven/sandbox-jail/cgroup
  */
 
-import { chmodSync, chownSync, existsSync, mkdirSync, readdirSync, rmdirSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { chmodSync, chownSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmdirSync, statSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 
 /** cgroup v2 interface values written verbatim to one group. */
 export interface CgroupLimits {
@@ -21,19 +21,46 @@ export interface CgroupLimits {
   cpuMax: string
   /** `cpu.weight`, 1–10000. */
   cpuWeight: string
+  /**
+   * `io.max` keys for the disk that holds the accounts root, e.g. `rbps=104857600 wbps=52428800 riops=2000 wiops=1000`;
+   * omitted, the group's disk I/O is unlimited.
+   */
+  ioMax?: string
 }
 
-/** Controllers every group below the delegated root enables for its children. */
+/**
+ * The whole disk holding a path, as the `MAJ:MIN` that `io.max` accepts: a partition resolves to its disk.
+ * @param path - an existing path on a block-device filesystem.
+ * @returns the disk's device number.
+ * @throws when the path's filesystem is not on a block device.
+ */
+export function diskOf(path: string): string {
+  const dev = statSync(path, { bigint: true }).dev
+  // glibc's major()/minor() split of a 64-bit dev_t.
+  const major = ((dev >> 8n) & 0xfffn) | ((dev >> 32n) & ~0xfffn)
+  const minor = (dev & 0xffn) | ((dev >> 12n) & ~0xffn)
+  const id = `${major}:${minor}`
+  let sys: string
+  try {
+    sys = realpathSync(`/sys/dev/block/${id}`)
+  } catch (error) {
+    throw new Error(`sandbox-jail: "${path}" is not on a block device (${id}), so io.max cannot limit it`, { cause: error })
+  }
+  return existsSync(join(sys, 'partition')) ? readFileSync(join(dirname(sys), 'dev'), 'utf8').trim() : id
+}
+
+/** Controllers every group below the delegated root enables for its children; `+io` joins when a limit sets `ioMax`. */
 const CONTROLLERS = '+cpu +memory +pids'
 
-/** Write each limit to its interface file. */
-function writeLimits(dir: string, limits: CgroupLimits): void {
+/** Write each limit to its interface file; `disk` is the `MAJ:MIN` that `ioMax` applies to. */
+function writeLimits(dir: string, limits: CgroupLimits, disk: string | undefined): void {
   writeFileSync(join(dir, 'memory.max'), limits.memoryMax)
   writeFileSync(join(dir, 'pids.max'), limits.pidsMax)
   writeFileSync(join(dir, 'cpu.max'), limits.cpuMax)
   writeFileSync(join(dir, 'cpu.weight'), limits.cpuWeight)
   // Swap would let an account exceed memory.max on a host that has swap.
   if (existsSync(join(dir, 'memory.swap.max'))) writeFileSync(join(dir, 'memory.swap.max'), '0')
+  if (limits.ioMax !== undefined && disk !== undefined) writeFileSync(join(dir, 'io.max'), `${disk} ${limits.ioMax}`)
 }
 
 /** The account groups of one delegated cgroup directory. */
@@ -41,6 +68,8 @@ export class AccountCgroups {
   /** The directory whose `acct-<account>` children are the account groups. */
   readonly jail: string
   private readonly accounts = new Map<string, string>()
+  /** The disk `ioMax` limits apply to; undefined when no limit sets `ioMax`. */
+  private readonly disk: string | undefined
 
   /**
    * Prepare `<root>/jail` with the combined limits.
@@ -49,15 +78,26 @@ export class AccountCgroups {
    * @param account - limits for one account's commands.
    * @param procsGroup - a group the Host's user belongs to whose members may move processes into account groups,
    * such as the sandbox user the Python zygote runs as; omitted, only the Host's user may.
-   * @throws when the directory is not delegated, holds processes, or lacks a controller.
+   * @param accountsRoot - the directory whose disk `ioMax` limits apply to.
+   * @throws when the directory is not delegated, holds processes, or lacks a controller, or when an `ioMax` is set and
+   * the accounts root is not on a block device.
    */
-  constructor(root: string, total: CgroupLimits, private readonly account: CgroupLimits, private readonly procsGroup?: number) {
+  constructor(
+    root: string,
+    total: CgroupLimits,
+    private readonly account: CgroupLimits,
+    private readonly procsGroup: number | undefined,
+    accountsRoot: string,
+  ) {
     this.jail = join(root, 'jail')
+    const limitsIo = total.ioMax !== undefined || account.ioMax !== undefined
+    this.disk = limitsIo ? diskOf(accountsRoot) : undefined
+    const controllers = limitsIo ? `${CONTROLLERS} +io` : CONTROLLERS
     try {
-      writeFileSync(join(root, 'cgroup.subtree_control'), CONTROLLERS)
+      writeFileSync(join(root, 'cgroup.subtree_control'), controllers)
       mkdirSync(this.jail, { recursive: true })
-      writeLimits(this.jail, total)
-      writeFileSync(join(this.jail, 'cgroup.subtree_control'), CONTROLLERS)
+      writeLimits(this.jail, total, this.disk)
+      writeFileSync(join(this.jail, 'cgroup.subtree_control'), controllers)
       this.shareProcs(this.jail)
     } catch (error) {
       throw new Error(
@@ -78,7 +118,7 @@ export class AccountCgroups {
     if (dir === undefined) {
       dir = join(this.jail, `acct-${account}`)
       mkdirSync(dir, { recursive: true })
-      writeLimits(dir, this.account)
+      writeLimits(dir, this.account, this.disk)
       this.shareProcs(dir)
       this.accounts.set(account, dir)
     }
@@ -94,7 +134,7 @@ export class AccountCgroups {
     // Inside `jail`, so `jail` is the common ancestor a run's move into its account group needs write access to.
     const dir = join(this.jail, 'zygote')
     mkdirSync(dir, { recursive: true })
-    writeLimits(dir, limits)
+    writeLimits(dir, limits, this.disk)
     return dir
   }
 

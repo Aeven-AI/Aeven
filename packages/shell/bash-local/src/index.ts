@@ -45,8 +45,14 @@ export interface Config {
   timeoutMs?: number
   /** Upper bound for per-call timeout overrides. */
   maxTimeoutMs?: number
-  /** Per-stream in-memory output cap; overflow spills to a temp file. */
+  /** Per-stream in-memory output cap; overflow spills to a temp file when `spillOutput` is on. */
   maxOutputBytes?: number
+  /**
+   * Write a stream that outgrows `maxOutputBytes` to a file in the Host's temp directory (default true). The file stays
+   * until the Host exits. Off, a long stream keeps only its in-memory tail, for Hosts whose commands cannot read the
+   * Host's temp directory or whose disk must not grow with command output.
+   */
+  spillOutput?: boolean
   /** Per-stream spill-file cap; larger streams retain only their in-memory tail. */
   maxSpillBytes?: number
   /** Grace period for kill escalation and inherited pipes; at most `MAX_TIMER_DELAY_MS`. */
@@ -124,6 +130,7 @@ export class LocalBashExecutor extends ShellExecutor {
     timeoutMs: z.number().default(120_000),
     maxTimeoutMs: z.number().default(600_000),
     maxOutputBytes: z.number().default(64_000),
+    spillOutput: z.boolean().default(true),
     maxSpillBytes: z.number().default(DEFAULT_MAX_SPILL_BYTES),
     graceMs: z.number().default(DEFAULT_GRACE_MS),
   })
@@ -201,8 +208,9 @@ export class LocalBashExecutor extends ShellExecutor {
     stdoutMaxBytes: number,
     signal: AbortSignal | undefined,
   ): SubprocessSpawnSpec {
-    const collect = (maxBytes: number): SubprocessCollect =>
-      ({ maxBytes, spill: { maxBytes: this.config.maxSpillBytes } })
+    const collect = (maxBytes: number): SubprocessCollect => this.config.spillOutput
+      ? { maxBytes, spill: { maxBytes: this.config.maxSpillBytes } }
+      : { maxBytes }
     return {
       argv,
       cwd: spec.workdir,

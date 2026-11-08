@@ -44,7 +44,8 @@ Load the executor with the budgets you want; every field has a default, so the s
 | `cwd` | `process.cwd()` | Default working directory for commands |
 | `timeoutMs` | `120,000` | Default foreground timeout, in milliseconds |
 | `maxTimeoutMs` | `600,000` | Cap for per-call timeout overrides |
-| `maxOutputBytes` | `64,000` | Per-stream in-memory output cap; overflow spills to a temp file |
+| `maxOutputBytes` | `64,000` | Per-stream in-memory output cap; overflow spills to a temp file when `spillOutput` is on |
+| `spillOutput` | `true` | Keep a stream that outgrows `maxOutputBytes` in a file in the Host's temp directory until the Host exits; off, only the in-memory tail stays |
 | `maxSpillBytes` | `67,108,864` | Per-stream full-output spill cap |
 | `graceMs` | `3,000` | Grace period for kill escalation and post-exit pipe draining |
 

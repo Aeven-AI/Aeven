@@ -626,8 +626,14 @@ export interface Config {
   timeoutMs?: number
   /** Upper bound for per-call timeout overrides. */
   maxTimeoutMs?: number
-  /** Per-stream in-memory output cap; overflow spills to a temp file. */
+  /** Per-stream in-memory output cap; overflow spills to a temp file when `spillOutput` is on. */
   maxOutputBytes?: number
+  /**
+   * Write a stream that outgrows `maxOutputBytes` to a file in the Host's temp directory (default true). The file stays
+   * until the Host exits. Off, a long stream keeps only its in-memory tail, for Hosts whose commands cannot read the
+   * Host's temp directory or whose disk must not grow with command output.
+   */
+  spillOutput?: boolean
   /** Per-stream spill-file cap; larger streams retain only their in-memory tail. */
   maxSpillBytes?: number
   /** Grace period for kill escalation and inherited pipes; at most `MAX_TIMER_DELAY_MS`. */
@@ -3587,6 +3593,11 @@ export interface CgroupLimits {
   cpuMax: string
   /** `cpu.weight`, 1–10000. */
   cpuWeight: string
+  /**
+   * `io.max` keys for the disk that holds the accounts root, e.g. `rbps=104857600 wbps=52428800 riops=2000 wiops=1000`;
+   * omitted, the group's disk I/O is unlimited.
+   */
+  ioMax?: string
 }
 ```
 

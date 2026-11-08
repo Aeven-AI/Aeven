@@ -499,10 +499,12 @@
           script: /opt/aeven-sandbox/shim/python-zygote.py
           preload: [numpy, pandas, matplotlib, matplotlib.pyplot]
           socketDir: /var/lib/aeven-zygote
+          # The zygote's own group holds only its accept loop and each helper until
+          # the helper joins its caller's account group.
           limits:
             memoryMax: 2G
             pidsMax: '128'
-            cpuMax: max 100000
+            cpuMax: 400000 100000
             cpuWeight: '100'
         sessionAttachments: true
         # 5 GiB and 200,000 files per account folder, as an ext4 project quota on
@@ -530,20 +532,26 @@
           only from inside that same command: nobody else can open it, not the user, not the browser
           panel, and not a later command, so never start a server for the user to visit. To show a page,
           save the HTML and list it in output_files, or screenshot it with playwright-core. A background
-          command is stopped 15 minutes after it starts.
+          command is stopped 15 minutes after it starts. A long output keeps only its last part; to read all
+          of it, redirect it to a file in the working directory.
         cgroup:
           # The unit's cgroup: the parent of the `host` group systemd starts this process in.
           root: !!js "process.env.AVN_HOSTED_SANDBOX === '1' ? '/sys/fs/cgroup' + process.getBuiltinModule('node:path').dirname(process.getBuiltinModule('node:fs').readFileSync('/proc/self/cgroup', 'utf8').trim().split('::')[1] ?? '/') : ''"
+          # ioMax applies to the disk holding the accounts root, which Mongo and
+          # the Host share (about 165 MB/s sequential write and 309 MB/s read
+          # direct on pink), so all jails together take about a quarter of it.
           total:
             memoryMax: 32G
             pidsMax: '4096'
             cpuMax: 1200000 100000
             cpuWeight: '100'
+            ioMax: rbps=83886080 wbps=41943040 riops=3000 wiops=1000
           account:
             memoryMax: 2G
             pidsMax: '256'
             cpuMax: 200000 100000
             cpuWeight: '100'
+            ioMax: rbps=31457280 wbps=10485760 riops=1000 wiops=300
 
 # Commands write only inside their account's folder, and no approval can widen
 # that: an escalation to full access would run on the Host itself. A session
@@ -554,6 +562,15 @@
     mode: workspace-write
     ceiling: workspace-write
     workspaceRoot: !!js "(process.getBuiltinModule('node:fs').mkdirSync(avnHomePath('sandbox', 'unowned'), { recursive: true }), avnHomePath('sandbox', 'unowned'))"
+
+# Command output beyond the in-memory tail stays as a tail: a spill file would
+# land in the Host's temp directory, outside every account's disk quota and
+# unreadable to jailed commands. A patch replaces the whole config, so the
+# base timeout is restated.
+- id: bash-sandbox
+  config:
+    timeoutMs: 60000
+    spillOutput: false
 
 # A background command keeps its account's CPU, memory, and process share
 # while it runs, and nothing else ends it before the Host restarts, so bash jobs

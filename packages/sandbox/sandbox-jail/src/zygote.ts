@@ -15,9 +15,11 @@ import { join } from 'node:path'
 /** Where every jail mounts the zygote's socket directory, read-only; the shim connects to `python.sock` in it. */
 export const JAIL_ZYGOTE_DIR = '/run/aeven/zygote'
 
-/** Restarts allowed within {@link RESTART_WINDOW_MS} before the zygote stays down and the shim runs the interpreter. */
+/** Restarts allowed within {@link RESTART_WINDOW_MS} one second apart; beyond them the next waits {@link RESTART_COOLDOWN_MS}. */
 const MAX_RESTARTS = 5
 const RESTART_WINDOW_MS = 60_000
+/** Wait before restarting a zygote that kept ending, while the shim runs the interpreter for every command. */
+const RESTART_COOLDOWN_MS = 300_000
 
 /** Everything one zygote process starts from. */
 export interface ZygoteOptions {
@@ -90,13 +92,15 @@ export class PythonZygote {
       this.child = undefined
       const now = Date.now()
       while (this.restarts.length > 0 && now - (this.restarts[0] ?? now) > RESTART_WINDOW_MS) this.restarts.shift()
-      if (this.restarts.length >= MAX_RESTARTS) {
-        options.log('warn', `python-zygote: ended (${String(code ?? signal)}) ${String(MAX_RESTARTS)} times within a minute; python3 now starts the interpreter for every command`)
-        return
+      const cooling = this.restarts.length >= MAX_RESTARTS
+      if (cooling) {
+        options.log('warn', `python-zygote: ended (${String(code ?? signal)}) ${String(MAX_RESTARTS)} times within a minute; python3 starts the interpreter for every command until the restart in ${String(RESTART_COOLDOWN_MS / 60_000)} minutes`)
+        this.restarts.length = 0
+      } else {
+        options.log('warn', `python-zygote: ended (${String(code ?? signal)}); restarting`)
       }
       this.restarts.push(now)
-      options.log('warn', `python-zygote: ended (${String(code ?? signal)}); restarting`)
-      this.restartTimer = setTimeout(() => { if (!this.disposed) this.start() }, 1_000)
+      this.restartTimer = setTimeout(() => { if (!this.disposed) this.start() }, cooling ? RESTART_COOLDOWN_MS : 1_000)
     })
   }
 }
