@@ -22,6 +22,9 @@ export const FONT_SIZE_FIELD = 'fontSize'
  */
 export const THEME_PREFERENCE_ATTRIBUTE = 'data-avn-theme-preference'
 
+/** Id of the `theme-color` meta the index bootstrap inserts and ui-layout's ThemePresenter adopts, which states it too. */
+export const THEME_COLOR_META_ID = 'avn-theme-color'
+
 /** Theme preference persisted by the product Appearance row. */
 export type ThemePreference = typeof THEME_PREFERENCES[number]
 

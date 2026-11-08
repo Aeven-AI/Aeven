@@ -100,6 +100,7 @@ function mount(
     renameSession: vi.fn(async () => {}),
     clearSessionRenameRequest: vi.fn(),
     forkSession: vi.fn(),
+    publishGroupOrder: vi.fn(),
     renameWorkspace: vi.fn(async () => {}),
     deleteWorkspace: vi.fn(async () => {}),
     bindWorkspace: vi.fn(),

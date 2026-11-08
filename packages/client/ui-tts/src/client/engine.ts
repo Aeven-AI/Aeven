@@ -10,6 +10,8 @@ export interface ReadAloudSnapshot {
   readonly loading: readonly string[]
   readonly speaking: readonly string[]
   readonly failed: readonly string[]
+  /** Readings held mid-fragment by {@link ReadAloud.pause}; a paused channel still counts as speaking. */
+  readonly paused: readonly string[]
 }
 
 /** Owning plugin capabilities the engine needs. */
@@ -34,6 +36,8 @@ interface Channel {
   enabled: boolean
   failed: boolean
   speaking: boolean
+  /** Held by a pause: the audio context is suspended, and the drain waits for a resume. */
+  paused: boolean
   /** Live step identity; a new value means a new assistant step or turn. */
   key: string
   /** Language the reply is being read in, which decides the voice of a fragment carrying no signal. */
@@ -48,9 +52,14 @@ interface Channel {
   readonly pending: PendingFragment[]
   /** Aborts every synthesis this channel started. */
   readonly controllers: Set<AbortController>
+  /** Whether a drain of the current generation runs; a stop clears it, so the next request starts its own drain at once. */
   pumping: boolean
   /** Bumped by every stop, so an abandoned synthesis cannot report itself as a failure. */
   generation: number
+  /** Aborts the waits of the running drain, so a stop releases it without waiting for the Host or the decoder. */
+  drainAbort: AbortController | undefined
+  /** Resolvers of a drain held by a pause; a resume or a stop releases them. */
+  readonly resumeWaiters: Set<() => void>
   /** Earliest start time of the next scheduled fragment, which keeps playback gapless. */
   nextStart: number
   readonly sources: Set<AudioBufferSourceNode>
@@ -74,7 +83,7 @@ const AHEAD_SECONDS = 12
  */
 export class ReadAloud {
   private readonly channels = new Map<string, Channel>()
-  private snapshot: ReadAloudSnapshot = { enabled: [], loading: [], speaking: [], failed: [] }
+  private snapshot: ReadAloudSnapshot = { enabled: [], loading: [], speaking: [], failed: [], paused: [] }
   private context: AudioContext | undefined
 
   constructor(private readonly deps: ReadAloudDeps) {}
@@ -225,6 +234,33 @@ export class ReadAloud {
     this.stop(channel)
   }
 
+  /**
+   * Hold one playing reading where it is. The shared audio context is suspended, which freezes every scheduled
+   * fragment in place, so a resume continues from the same sample without synthesizing anything again; one reading
+   * plays at a time, so no other channel is held with it.
+   * @param id - channel identity.
+   */
+  pause(id: string): void {
+    const channel = this.channels.get(id)
+    if (channel === undefined || !channel.enabled || !channel.speaking || channel.paused) return
+    channel.paused = true
+    void this.context?.suspend()
+    this.publish()
+  }
+
+  /**
+   * Continue a reading {@link pause} held.
+   * @param id - channel identity.
+   */
+  resume(id: string): void {
+    const channel = this.channels.get(id)
+    if (channel === undefined || !channel.paused) return
+    channel.paused = false
+    void this.context?.resume()
+    this.release(channel)
+    this.publish()
+  }
+
   /** Stop every Session and close the audio context. */
   dispose(): void {
     for (const channel of this.channels.values()) this.stop(channel)
@@ -236,10 +272,10 @@ export class ReadAloud {
   private channel(sessionId: string): Channel {
     const existing = this.channels.get(sessionId)
     if (existing !== undefined) return existing
-    const created: Channel = { id: sessionId, enabled: false, failed: false, speaking: false, key: '',
+    const created: Channel = { id: sessionId, enabled: false, failed: false, speaking: false, paused: false, key: '',
       language: undefined, consumed: 0,
-      buffer: '', queue: [], pending: [], controllers: new Set(), pumping: false, generation: 0, nextStart: 0,
-      sources: new Set() }
+      buffer: '', queue: [], pending: [], controllers: new Set(), pumping: false, generation: 0, drainAbort: undefined,
+      resumeWaiters: new Set(), nextStart: 0, sources: new Set() }
     this.channels.set(sessionId, created)
     return created
   }
@@ -250,16 +286,26 @@ export class ReadAloud {
     void this.drain(channel)
   }
 
+  /**
+   * Play the channel's fragments in order until its queue is empty. A drain belongs to the generation it started in:
+   * once a stop bumps the generation, the drain is abandoned and exits without touching `pumping` or the snapshot,
+   * which by then belong to the drain the next request started.
+   * @param channel - channel being read.
+   */
   private async drain(channel: Channel): Promise<void> {
     const generation = channel.generation
+    const abort = new AbortController()
+    channel.drainAbort = abort
+    const live = (): boolean => channel.enabled && channel.generation === generation
     let spoken = false
     try {
       for (;;) {
         this.fill(channel)
         const next = channel.pending.shift()
         if (next === undefined) break
-        const audio = await this.settle(channel, next, generation, spoken)
-        if (!channel.enabled || channel.generation !== generation) return
+        const audio = await this.settle(channel, next, generation, spoken, abort.signal)
+        // Decoding cannot be cancelled, so the generation is checked again once it settles and before scheduling.
+        if (!live()) return
         if (audio === undefined) {
           this.publish()
           continue
@@ -267,15 +313,17 @@ export class ReadAloud {
         this.fill(channel)
         this.schedule(channel, audio)
         spoken = true
-        await this.room(channel)
+        await this.room(channel, abort.signal)
+        if (!live()) return
       }
     } finally {
-      channel.pumping = false
-      channel.speaking = channel.sources.size > 0
-      this.publish()
-      // A stop() taken mid-synthesis leaves the next request queued with no drain running, because the
-      // interrupted drain was still the one holding the flag; picking the work up here starts it.
-      if (channel.enabled && (channel.queue.length > 0 || channel.pending.length > 0)) this.pump(channel)
+      if (channel.generation === generation) {
+        channel.pumping = false
+        channel.drainAbort = undefined
+        channel.speaking = channel.sources.size > 0
+        this.publish()
+        if (channel.enabled && (channel.queue.length > 0 || channel.pending.length > 0)) this.pump(channel)
+      }
     }
   }
 
@@ -294,15 +342,16 @@ export class ReadAloud {
     fragment: PendingFragment,
     generation: number,
     spoken: boolean,
+    signal: AbortSignal,
   ): Promise<AudioBuffer | undefined> {
     try {
-      return await fragment.work
+      return await abortable(fragment.work, signal)
     } catch {
       // A withdrawn synthesis belongs to a stop() that already reset the channel; only a live failure is retried.
       if (channel.generation !== generation) return undefined
     }
     try {
-      return await this.render(channel, fragment.text)
+      return await abortable(this.render(channel, fragment.text), signal)
     } catch {
       if (channel.generation !== generation) return undefined
       channel.failed = !spoken
@@ -360,17 +409,48 @@ export class ReadAloud {
 
   /**
    * Hold the pipeline back once enough audio is already scheduled.
+   * The wait is measured from the audio clock each time round, so a pause, which freezes that clock, never lets the
+   * drain run ahead: a held drain waits for the resume and measures again.
    * @param channel - Session being read.
-   * @returns a promise that settles when the scheduled tail comes within reach.
+   * @param signal - the drain's abort, which a stop fires.
+   * @returns a promise that settles when the scheduled tail comes within reach, or when the drain is abandoned.
    */
-  private async room(channel: Channel): Promise<void> {
-    const ahead = channel.nextStart - this.audio().currentTime
-    if (ahead <= AHEAD_SECONDS) return
-    await new Promise<void>((resolve) => { setTimeout(resolve, (ahead - AHEAD_SECONDS) * 1000) })
+  private async room(channel: Channel, signal: AbortSignal): Promise<void> {
+    while (!signal.aborted) {
+      if (channel.paused) {
+        await new Promise<void>((resolve) => {
+          channel.resumeWaiters.add(resolve)
+          signal.addEventListener('abort', () => { resolve() }, { once: true })
+        })
+        continue
+      }
+      const ahead = channel.nextStart - this.audio().currentTime
+      if (ahead <= AHEAD_SECONDS) return
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, (ahead - AHEAD_SECONDS) * 1000)
+        signal.addEventListener('abort', () => { clearTimeout(timer); resolve() }, { once: true })
+      })
+    }
+  }
+
+  /** Release a drain a pause holds. */
+  private release(channel: Channel): void {
+    const waiters = [...channel.resumeWaiters]
+    channel.resumeWaiters.clear()
+    for (const resolve of waiters) resolve()
   }
 
   private stop(channel: Channel): void {
     channel.generation += 1
+    // The abandoned drain may still be awaiting work that ignores its signal; the next request must not wait for it.
+    channel.pumping = false
+    channel.drainAbort?.abort()
+    channel.drainAbort = undefined
+    if (channel.paused) {
+      channel.paused = false
+      void this.context?.resume()
+    }
+    this.release(channel)
     for (const controller of channel.controllers) controller.abort()
     channel.controllers.clear()
     channel.queue.length = 0
@@ -400,12 +480,35 @@ export class ReadAloud {
     const loading = channels.filter(channel => channel.enabled && channel.pending.length > 0).map(channel => channel.id)
     const speaking = channels.filter(channel => channel.enabled && channel.speaking).map(channel => channel.id)
     const failed = channels.filter(channel => channel.enabled && channel.failed).map(channel => channel.id)
+    const paused = channels.filter(channel => channel.enabled && channel.paused).map(channel => channel.id)
     const previous = this.snapshot
     if (same(previous.enabled, enabled) && same(previous.loading, loading)
-      && same(previous.speaking, speaking) && same(previous.failed, failed)) return
-    this.snapshot = { enabled, loading, speaking, failed }
+      && same(previous.speaking, speaking) && same(previous.failed, failed) && same(previous.paused, paused)) return
+    this.snapshot = { enabled, loading, speaking, failed, paused }
     this.deps.publish()
   }
+}
+
+/**
+ * Settle with `work`, or reject as soon as `signal` aborts, whichever comes first.
+ * @param work - the awaited operation, which may ignore cancellation.
+ * @param signal - the drain's abort.
+ * @returns the operation's result.
+ */
+function abortable<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
+  const aborted = (): Error => new Error('read-aloud drain abandoned')
+  if (signal.aborted) return Promise.reject(aborted())
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = (): void => { reject(aborted()) }
+    signal.addEventListener('abort', onAbort, { once: true })
+    work.then(
+      (value) => { signal.removeEventListener('abort', onAbort); resolve(value) },
+      (error: unknown) => {
+        signal.removeEventListener('abort', onAbort)
+        reject(error instanceof Error ? error : new Error(String(error)))
+      },
+    )
+  })
 }
 
 /**

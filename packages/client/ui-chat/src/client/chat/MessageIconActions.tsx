@@ -27,6 +27,11 @@ export interface MessageIconActionsProps {
   /** Parent layout class composed onto the actions row. */
   className?: string | undefined
   /**
+   * Slot-rendered actions owned by independent plugins, placed immediately
+   * before the copy control (after edit), as the user row's read aloud is.
+   */
+  beforeCopy?: ReactNode
+  /**
    * Slot-rendered actions owned by independent plugins, placed between the
    * built-in copy and branch controls.
    */
@@ -53,7 +58,7 @@ function chatColumn(reference: Element): Element | null {
  */
 export function MessageIconActions({
   text, time, clock, onEdit, onBranch, branchUnavailable = false, className,
-  extraActions, usageAction, t,
+  beforeCopy, extraActions, usageAction, t,
 }: MessageIconActionsProps) {
   const day = useCalendarDay()
   const reasonId = useId()
@@ -103,6 +108,7 @@ export function MessageIconActions({
           </button>
         </Tooltip>
       )}
+      {beforeCopy}
       <Tooltip label={copied ? t('copied') : t('copy')} side={copySide} boundary={chatColumn}>
         <button type="button" className={css.action} aria-label={copied ? t('copied') : t('copy')} onClick={onCopy}>
           {copied ? <IconCheckOutline16 /> : <IconCopyOutline16 />}

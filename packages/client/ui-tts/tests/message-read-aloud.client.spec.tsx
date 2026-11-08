@@ -4,10 +4,12 @@
  * channel of its own, and turns into the stop control while the message is being read.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { SessionId } from '@aeven/session/types'
 import { en } from '../src/client/locales.ts'
-import { MessageReadAloud, type MessageReadAloudProps } from '../src/client/MessageReadAloud.tsx'
+import {
+  MessageReadAloud, UserReadAloud, type MessageReadAloudProps, type UserReadAloudProps,
+} from '../src/client/MessageReadAloud.tsx'
 import {
   assistantNode, chatSnapshot, makeT, readAloudState, useChatOf, useReadAloudOf,
 } from './harness.client.ts'
@@ -121,5 +123,101 @@ describe('stopping one message', () => {
     fireEvent.click(screen.getByRole('button', { name: en.loading }))
 
     expect(stop).toHaveBeenCalledWith(CHANNEL)
+  })
+})
+
+describe('pause and stop while playing', () => {
+  /** The controls for `m1` while it plays, paused or not. */
+  function playing(paused: boolean) {
+    const pause = vi.fn()
+    const resume = vi.fn()
+    const stop = vi.fn()
+    const props = {
+      messageId: 'm1',
+      sessionId: SID,
+      useChat: useChatOf(chatSnapshot(null, [assistantNode('m1', [{ kind: 'text', text: 'Spoken.' }])])),
+      read: vi.fn(),
+      stop,
+      pause,
+      resume,
+      useReadAloud: useReadAloudOf(readAloudState({ enabled: [CHANNEL], speaking: [CHANNEL], paused: paused ? [CHANNEL] : [] })),
+      t,
+    } as unknown as MessageReadAloudProps
+    render(<MessageReadAloud {...props} />)
+    return { pause, resume, stop }
+  }
+
+  it('shows pause before stop, and pause holds the reading', () => {
+    const { pause } = playing(false)
+    const buttons = screen.getAllByRole('button')
+    expect(buttons.map(button => button.getAttribute('aria-label'))).toEqual([en['message.pause'], en['message.stop']])
+    expect(buttons[0]?.getAttribute('aria-pressed')).toBe('false')
+    fireEvent.click(buttons[0]!)
+    expect(pause).toHaveBeenCalledWith(CHANNEL)
+  })
+
+  it('offers resume while paused, pressed, and stop ends the reading', () => {
+    const { resume, stop } = playing(true)
+    const hold = screen.getByRole('button', { name: en['message.resume'] })
+    expect(hold.getAttribute('aria-pressed')).toBe('true')
+    fireEvent.click(hold)
+    expect(resume).toHaveBeenCalledWith(CHANNEL)
+    fireEvent.click(screen.getByRole('button', { name: en['message.stop'] }))
+    expect(stop).toHaveBeenCalledWith(CHANNEL)
+  })
+})
+
+describe('a reading that fails', () => {
+  it('returns to the read glyph with the reason instead of spinning', () => {
+    const { props, rerender } = action()
+    fireEvent.click(screen.getByRole('button', { name: en['message.read'] }))
+    rerender(<MessageReadAloud {...{
+      ...props,
+      useReadAloud: useReadAloudOf(readAloudState({ enabled: [CHANNEL], failed: [CHANNEL] })),
+    } as unknown as MessageReadAloudProps} />)
+
+    const idle = screen.getByRole('button', { name: en['message.failed'] })
+    expect(idle.getAttribute('aria-busy')).toBeNull()
+  })
+
+  it('leaves the spinner when the engine never reports anything', () => {
+    vi.useFakeTimers()
+    try {
+      action()
+      fireEvent.click(screen.getByRole('button', { name: en['message.read'] }))
+      expect(screen.getByRole('button', { name: en.loading })).toBeDefined()
+      act(() => { vi.advanceTimersByTime(8_000) })
+      expect(screen.getByRole('button', { name: en['message.read'] })).toBeDefined()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
+
+describe('a user prompt', () => {
+  it('reads the prompt text on a channel named by its sequence', () => {
+    const read = vi.fn()
+    const props = {
+      seq: 7,
+      text: '  Read my prompt.  ',
+      sessionId: SID,
+      read,
+      stop: vi.fn(),
+      pause: vi.fn(),
+      resume: vi.fn(),
+      useReadAloud: useReadAloudOf(readAloudState()),
+      t,
+    } as unknown as UserReadAloudProps
+    render(<UserReadAloud {...props} />)
+    fireEvent.click(screen.getByRole('button', { name: en['message.read'] }))
+    expect(read).toHaveBeenCalledWith('prompt:7', 'Read my prompt.')
+  })
+
+  it('renders nothing for a prompt with no prose', () => {
+    render(<UserReadAloud {...{
+      seq: 8, text: '   ', sessionId: SID, read: vi.fn(), stop: vi.fn(), pause: vi.fn(), resume: vi.fn(),
+      useReadAloud: useReadAloudOf(readAloudState()), t,
+    } as unknown as UserReadAloudProps} />)
+    expect(screen.queryByRole('button')).toBeNull()
   })
 })

@@ -3,12 +3,20 @@
  * document — `html { color-scheme }` for native UA chrome (scrollbars, form
  * controls), `body[data-ds-dark-theme]` for the token palette, the active
  * theme's alias-token overrides as inline CSS variables on body, the content
- * font-size axis (`--avn-content-font-size`), and one presenter-owned
- * `meta[name="theme-color"]` for surrounding browser UI. Pure DOM writes, no
+ * font-size axis (`--avn-content-font-size`), the root background, which owns
+ * the document canvas a mobile keyboard or a live resize uncovers, and one
+ * presenter-owned `meta[name="theme-color"]` for surrounding browser UI,
+ * adopted from the index bootstrap when it inserted one. Pure DOM writes, no
  * React involvement; the presenter only ever retracts what it wrote itself,
  * so foreign attributes, metadata, and inline styles survive.
  */
 import type { ThemeSnapshot } from '@aeven/client-ui-theme/client'
+
+/**
+ * Id of the `theme-color` meta ui-theme's index bootstrap inserts (its `THEME_COLOR_META_ID`), which the presenter
+ * adopts instead of adding a second one. Plugins share no values at runtime, so the id is stated on both sides.
+ */
+const THEME_COLOR_META_ID = 'avn-theme-color'
 
 /** Body attribute selecting the dark base palette in the token stylesheets. */
 export const DARK_ATTRIBUTE = 'data-ds-dark-theme'
@@ -30,10 +38,16 @@ export class ThemePresenter {
   /** The single metadata node this presenter inserts and removes. */
   private readonly themeColorMeta: HTMLMetaElement
 
-  /** Create the presenter-owned metadata node before the first snapshot arrives. */
+  /** Adopt the bootstrap's metadata node, or create one, before the first snapshot arrives. */
   constructor() {
-    this.themeColorMeta = document.createElement('meta')
-    this.themeColorMeta.name = 'theme-color'
+    const booted = document.getElementById(THEME_COLOR_META_ID)
+    if (booted instanceof HTMLMetaElement) {
+      this.themeColorMeta = booted
+    } else {
+      this.themeColorMeta = document.createElement('meta')
+      this.themeColorMeta.name = 'theme-color'
+      this.themeColorMeta.id = THEME_COLOR_META_ID
+    }
   }
 
   /**
@@ -63,14 +77,17 @@ export class ThemePresenter {
       body.style.setProperty(name, value)
       this.appliedTokens.push(name)
     }
-    this.themeColorMeta.content = getComputedStyle(body).backgroundColor
+    const canvas = getComputedStyle(body).backgroundColor
+    document.documentElement.style.backgroundColor = canvas
+    this.themeColorMeta.content = canvas
     if (!this.themeColorMeta.isConnected) document.head.append(this.themeColorMeta)
   }
 
-  /** Retract root color-scheme, the palette attribute, token variables, the font-size axis, and the owned metadata node. */
+  /** Retract root color-scheme and background, the palette attribute, token variables, the font-size axis, and the owned metadata node. */
   dispose(): void {
     document.documentElement.style.removeProperty('color-scheme')
     document.documentElement.style.removeProperty('font-size')
+    document.documentElement.style.removeProperty('background-color')
     const body = document.body
     body.removeAttribute(DARK_ATTRIBUTE)
     body.style.removeProperty(CONTENT_FONT_SIZE_VARIABLE)

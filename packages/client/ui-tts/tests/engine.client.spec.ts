@@ -37,9 +37,11 @@ class FakeAudioContext {
   readonly sources: FakeSource[] = []
   currentTime = 0
   resumes = 0
+  suspends = 0
   closed = false
   constructor() { FakeAudioContext.instances.push(this) }
   async resume(): Promise<void> { this.resumes += 1 }
+  async suspend(): Promise<void> { this.suspends += 1 }
   createBufferSource(): FakeSource {
     const source = new FakeSource()
     this.sources.push(source)
@@ -139,7 +141,7 @@ describe('switching reading on', () => {
     expect(h.syntheses[0]?.voiceId).toBeUndefined()
     expect(h.syntheses[0]?.signal.aborted).toBe(false)
     expect(h.context().resumes).toBe(1)
-    expect(h.engine.view).toEqual({ enabled: ['s1'], loading: [], speaking: ['s1'], failed: [] })
+    expect(h.engine.view).toEqual({ enabled: ['s1'], loading: [], speaking: ['s1'], failed: [], paused: [] })
   })
 
   it('does not speak a second time when the switch is already on', async () => {
@@ -160,7 +162,7 @@ describe('switching reading on', () => {
     await flush()
 
     expect(h.syntheses).toEqual([])
-    expect(h.engine.view).toEqual({ enabled: [], loading: [], speaking: [], failed: [] })
+    expect(h.engine.view).toEqual({ enabled: [], loading: [], speaking: [], failed: [], paused: [] })
     expect(hasContext()).toBe(false)
   })
 })
@@ -291,6 +293,8 @@ describe('playback', () => {
     await vi.advanceTimersByTimeAsync(8019)
     expect(h.context().sources).toHaveLength(1)
 
+    // The drain measures the audio clock again after its wait, so the clock moves with the timers.
+    h.context().currentTime = 8.02
     await vi.advanceTimersByTimeAsync(1)
     expect(h.context().sources).toHaveLength(2)
   })
@@ -373,7 +377,7 @@ describe('stop and restart', () => {
 
     h.engine.setEnabled('s1', false, '1.1', 'First sentence.')
     expect(played?.stopped).toBe(true)
-    expect(h.engine.view).toEqual({ enabled: [], loading: [], speaking: [], failed: [] })
+    expect(h.engine.view).toEqual({ enabled: [], loading: [], speaking: [], failed: [], paused: [] })
 
     h.engine.sync('s1', '1.1', 'Second sentence.')
     await flush()
@@ -424,11 +428,12 @@ describe('reading one message on its own channel', () => {
 
     h.engine.speakOnce('message:m1', 'Second sentence.')
     await flush()
-    expect(h.syntheses).toHaveLength(1)
+    // The new request starts its own synthesis at once instead of waiting for the abandoned one.
+    expect(h.syntheses.map(synthesis => synthesis.text)).toEqual(['First sentence.', 'Second sentence.'])
+    expect(h.syntheses[0]?.signal.aborted).toBe(true)
 
     h.syntheses[0]?.resolve()
     await flush()
-    expect(h.syntheses.map(synthesis => synthesis.text)).toEqual(['First sentence.', 'Second sentence.'])
     expect(h.context().sources).toHaveLength(0)
 
     h.syntheses[1]?.resolve()
@@ -463,7 +468,7 @@ describe('reading one message on its own channel', () => {
     h.engine.stopChannel('message:m1')
 
     expect(h.context().sources[0]?.stopped).toBe(true)
-    expect(h.engine.view).toEqual({ enabled: [], loading: [], speaking: [], failed: [] })
+    expect(h.engine.view).toEqual({ enabled: [], loading: [], speaking: [], failed: [], paused: [] })
 
     h.engine.stopChannel('nobody')
     expect(h.engine.view.enabled).toEqual([])
@@ -497,7 +502,7 @@ describe('disposal', () => {
 describe('publication', () => {
   it('publishes only when a reported fact moves', async () => {
     const h = makeEngine()
-    expect(h.engine.view).toEqual({ enabled: [], loading: [], speaking: [], failed: [] })
+    expect(h.engine.view).toEqual({ enabled: [], loading: [], speaking: [], failed: [], paused: [] })
 
     h.engine.setEnabled('s1', true, '1.1', '')
     await flush()
@@ -518,5 +523,102 @@ describe('publication', () => {
 
     expect(FakeAudioContext.instances).toHaveLength(1)
     expect(h.context().resumes).toBe(2)
+  })
+})
+
+describe('quick presses on one message', () => {
+  it('plays the newest reading although the synthesis a stop abandoned never settles', async () => {
+    const h = makeEngine({ instant: false })
+    h.engine.speakOnce('message:m1', 'First reading.')
+    await flush()
+    // The Host never answers the first synthesis and ignores its abort.
+    h.engine.stopChannel('message:m1')
+    h.engine.speakOnce('message:m1', 'Second reading.')
+    await flush()
+
+    const second = h.syntheses.find(synthesis => synthesis.text === 'Second reading.')
+    expect(second).toBeDefined()
+    second?.resolve()
+    await flush()
+    expect(h.context().sources.filter(source => source.started !== undefined)).toHaveLength(1)
+    expect(h.engine.view.speaking).toEqual(['message:m1'])
+  })
+
+  it('settles on the last of ten rapid read and stop presses', async () => {
+    const h = makeEngine({ instant: false })
+    for (let press = 0; press < 10; press += 1) {
+      if (press % 2 === 0) h.engine.speakOnce('message:m1', `Reading ${String(press)}.`)
+      else h.engine.stopChannel('message:m1')
+      await flush()
+    }
+    h.engine.speakOnce('message:m1', 'Last reading.')
+    await flush()
+    h.syntheses.at(-1)?.resolve()
+    await flush()
+
+    expect(h.syntheses.at(-1)?.text).toBe('Last reading.')
+    expect(h.engine.view.loading).toEqual([])
+    expect(h.engine.view.speaking).toEqual(['message:m1'])
+  })
+
+  it('reports a reading whose synthesis fails, without leaving it loading', async () => {
+    const h = makeEngine({ instant: false })
+    h.engine.speakOnce('message:m1', 'Never heard.')
+    await flush()
+    h.syntheses[0]?.reject()
+    await flush()
+    // The engine retries a failed fragment once.
+    h.syntheses[1]?.reject()
+    await flush()
+
+    expect(h.engine.view.failed).toEqual(['message:m1'])
+    expect(h.engine.view.loading).toEqual([])
+    expect(h.engine.view.speaking).toEqual([])
+  })
+})
+
+describe('pausing a reading', () => {
+  it('suspends the audio and reports the channel paused, then resumes from the same place', async () => {
+    const h = makeEngine()
+    h.engine.speakOnce('message:m1', 'Hold this sentence.')
+    await flush()
+    expect(h.engine.view.speaking).toEqual(['message:m1'])
+
+    h.engine.pause('message:m1')
+    expect(h.context().suspends).toBe(1)
+    expect(h.engine.view.paused).toEqual(['message:m1'])
+    expect(h.engine.view.speaking).toEqual(['message:m1'])
+    const started = h.context().sources.map(source => source.started)
+
+    const resumes = h.context().resumes
+    h.engine.resume('message:m1')
+    expect(h.context().resumes).toBe(resumes + 1)
+    expect(h.engine.view.paused).toEqual([])
+    // Nothing is synthesized or scheduled again.
+    expect(h.syntheses).toHaveLength(1)
+    expect(h.context().sources.map(source => source.started)).toEqual(started)
+  })
+
+  it('drops the paused state with the reading when it stops or another message starts', async () => {
+    const h = makeEngine()
+    h.engine.speakOnce('message:m1', 'First message.')
+    await flush()
+    h.engine.pause('message:m1')
+    h.engine.speakOnce('message:m2', 'Second message.')
+    await flush()
+
+    expect(h.engine.view.paused).toEqual([])
+    expect(h.engine.view.speaking).toEqual(['message:m2'])
+    h.engine.pause('message:m2')
+    h.engine.stopChannel('message:m2')
+    expect(h.engine.view.paused).toEqual([])
+    expect(h.engine.view.speaking).toEqual([])
+  })
+
+  it('ignores a pause of a channel that is not playing', () => {
+    const h = makeEngine()
+    h.engine.pause('message:m1')
+    expect(h.engine.view.paused).toEqual([])
+    expect(hasContext()).toBe(false)
   })
 })

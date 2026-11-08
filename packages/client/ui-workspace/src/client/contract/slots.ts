@@ -133,6 +133,12 @@ export type WorkspaceBrowserInjected = {
   clearSessionRenameRequest: () => void
   /** Fork a Session at its last completed turn and open the child. */
   forkSession: (sessionId: SessionId) => void
+  /**
+   * Report the Workspace groups in the order the browser shows them, top to bottom, so other surfaces that list
+   * Workspaces, such as the Session menu's Move to workspace, list them the same way.
+   * @param workspaceIds - every listed Workspace in display order.
+   */
+  publishGroupOrder: (workspaceIds: readonly WorkspaceId[]) => void
   /** Rename a Host Workspace (rejects on name conflict; resolves on durability). */
   renameWorkspace: (workspaceId: WorkspaceId, title: string) => Promise<void>
   /** Delete only a Host Workspace registration; directory and Session logs remain. */

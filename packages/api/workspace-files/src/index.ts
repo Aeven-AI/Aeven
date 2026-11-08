@@ -7,7 +7,19 @@
  * the sandbox policy's root as the fallback for a Session that records no
  * directory. Listings and searches stay inside that root; a preview follows the
  * composed filesystem's read access, as the authenticated `/api/file` route
- * already does for bytes. Nothing here writes.
+ * already does for bytes. Listings mark, and searches skip, the names in
+ * `searchSkip`.
+ *
+ * The explorer's write actions (new file, new folder, rename, duplicate,
+ * delete) and its change stream work on the Host's own filesystem, so they are
+ * available only when the composed filesystem maps the workspace's paths
+ * one-to-one onto the Host's, and the writes only while the Session's file
+ * policy is wider than read-only. Each write resolves the entry's folder inside
+ * the workspace exactly as a listing does and validates the new name, so
+ * nothing is created, renamed or removed outside the root, through `..` or a
+ * symbolic link alike; the entry itself is named, never followed. A delete
+ * moves the entry to the platform's trash where one exists and removes it
+ * otherwise, which {@link WorkspaceFilesAccess.trash} reports beforehand.
  *
  * A preview page is cut from `streamText`, which decodes as it goes, so a file
  * is read only up to the first character past the page and is never held whole
@@ -24,6 +36,9 @@
  * @module @aeven/api-workspace-files
  */
 
+import { copyFile, lstat, mkdir, readdir, rename, rm, writeFile } from 'node:fs/promises'
+import { constants as fsConstants } from 'node:fs'
+import { extname, join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import mime from 'mime-types'
@@ -41,9 +56,10 @@ import { scopeTarget } from '@aeven/scope'
 import { defineTool, jsonStringOutput } from '@aeven/tools'
 import type {} from './types.ts'
 import type {
-  WorkspaceDirectoryEntry, WorkspaceDirectoryListing, WorkspaceFileText, WorkspaceFilesShowResult, WorkspaceSearchHit,
-  WorkspaceSearchResult,
+  WorkspaceDirectoryEntry, WorkspaceDirectoryListing, WorkspaceEntryCount, WorkspaceEntryRef, WorkspaceFileChanges,
+  WorkspaceFilesAccess, WorkspaceFileText, WorkspaceFilesShowResult, WorkspaceSearchHit, WorkspaceSearchResult,
 } from './types.ts'
+import { hasTrash, invalidName, moveToTrash, watchRoot } from './host.ts'
 
 export type * from './types.ts'
 
@@ -66,7 +82,7 @@ export interface Config {
   readonly searchMaxHits: number
   /** Cap on the directories one search lists before it stops. */
   readonly searchMaxDirectories: number
-  /** Directory names a search never descends into. */
+  /** Directory names a search never descends into, which listings mark ignored and the change stream leaves out. */
   readonly searchSkip: string[]
   /**
    * Whether file previews stay inside the workspace like listings and
@@ -78,6 +94,10 @@ export interface Config {
   readonly maxFileBytes: number
   /** How long `sidebar_files` waits for the window showing the Session to open the explorer. */
   readonly showTimeoutMs: number
+  /** Delay gathering a burst of filesystem changes into one change-stream batch. */
+  readonly watchDelayMs: number
+  /** Cap on the entries one delete confirmation counts inside a folder. */
+  readonly countMaxItems: number
 }
 
 /** The byte text never carries: its presence marks a page as binary. */
@@ -187,6 +207,49 @@ function workspacePathOf(rootUrl: string, targetUrl: string): string {
   return target.slice(root.length + 1).split('/').map(decodeURIComponent).join('/')
 }
 
+/** One workspace entry named inside its folder on the Host's filesystem. */
+interface HostEntry {
+  /** Absolute Host path of the entry itself, never followed. */
+  readonly host: string
+  /** Absolute Host path of its folder. */
+  readonly parentHost: string
+  /** Workspace path of its folder; empty for the root. */
+  readonly folder: string
+  /** Its name in that folder. */
+  readonly name: string
+  /** Its workspace path. */
+  readonly path: string
+}
+
+/** The `code` of a Node.js system error, or undefined for anything else. */
+function errnoOf(error: unknown): string | undefined {
+  return typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string' ? error.code : undefined
+}
+
+/**
+ * A Host filesystem write's failure in the explorer's codes.
+ * @param path - the workspace path the write concerned.
+ * @param error - the failure.
+ * @returns the error to throw.
+ */
+function writeFailure(path: string, error: unknown): Error {
+  switch (errnoOf(error)) {
+    case 'EEXIST':
+    case 'ENOTEMPTY':
+      return new RemoteError('workspace-file/exists', `"${path}" already exists`, { path })
+    case 'ENOENT':
+      return new RemoteError('workspace-file/not-found', `no entry at "${path}"`, { path })
+    case 'EACCES':
+    case 'EPERM':
+    case 'EBUSY':
+      return new RemoteError('workspace-file/permission-denied', `the system refused to change "${path}"`, { path })
+    case 'EROFS':
+      return new RemoteError('workspace-file/read-only', `"${path}" is on a read-only filesystem`, { path })
+    default:
+      return error instanceof Error ? error : new Error(String(error))
+  }
+}
+
 /** The backend's non-text refusal, recognized by its code across package instances. */
 function isNotTextRefusal(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === 'FS_NOT_TEXT'
@@ -206,6 +269,8 @@ export class WorkspaceFiles extends TypertRemoteService {
     showTimeoutMs: z.number().step(1).min(1).default(5_000),
     confineReads: z.boolean().default(false),
     maxFileBytes: z.number().step(1).min(1).default(512 * 1024 * 1024),
+    watchDelayMs: z.number().step(1).min(0).default(150),
+    countMaxItems: z.number().step(1).min(1).default(10_000),
   })
 
   /**
@@ -330,6 +395,7 @@ export class WorkspaceFiles extends TypertRemoteService {
       throw new RemoteError('workspace-file/not-directory', `"${path}" is a ${info.type}`, { path, kind: info.type })
     }
     const children = await this.ctx.fs.listDir(target, signal)
+    const ignored = new Set(this.config.searchSkip)
     return {
       root: this.ctx.fs.processPath(root),
       path: workspacePathOf(this.ctx.fs.fileUrl(root), this.ctx.fs.fileUrl(target)),
@@ -337,6 +403,7 @@ export class WorkspaceFiles extends TypertRemoteService {
         name: child.name,
         type: child.type,
         size: child.size ?? null,
+        ignored: ignored.has(child.name),
       })),
       truncated: children.length > this.config.maxEntries,
     }
@@ -353,8 +420,9 @@ export class WorkspaceFiles extends TypertRemoteService {
   async read(sessionId: SessionId, path: string, signal: AbortSignal): Promise<WorkspaceFileText> {
     if (path.length === 0) throw new RemoteError('gateway/bad-request', 'path is required', {})
     const workspaceRoot = await this.workspaceRootFor(sessionId)
+    const root = await this.ctx.fs.resolve(workspaceRoot, { signal })
     const target = this.config.confineReads === true
-      ? await this.confine(await this.ctx.fs.resolve(workspaceRoot, { signal }), workspaceRoot, path, signal)
+      ? await this.confine(root, workspaceRoot, path, signal)
       : await this.ctx.fs.resolve(path, { cwd: workspaceRoot, signal })
     const info = await this.ctx.fs.stat(target, signal)
     if (info === undefined) throw new RemoteError('workspace-file/not-found', `no entry at "${path}"`, { path })
@@ -371,12 +439,291 @@ export class WorkspaceFiles extends TypertRemoteService {
       throw error
     }
     if (page.text.includes(NUL)) throw new RemoteError('workspace-file/not-text', `"${path}" contains NUL bytes`, { path })
-    return { absolutePath: this.ctx.fs.processPath(target), bytes: info.size ?? null, text: page.text, eof: page.eof }
+    return {
+      absolutePath: this.ctx.fs.processPath(target),
+      bytes: info.size ?? null,
+      text: page.text,
+      eof: page.eof,
+      outsideWorkspace: !this.ctx.fs.contains(root, target),
+    }
   }
 
   /**
-   * Find entries whose name contains `query` (case-insensitive), walking the
-   * workspace breadth-first and skipping the configured directory names.
+   * Say what the explorer may change in the Session's workspace, so it shows unavailable actions disabled.
+   * @param sessionId - the Session asking.
+   * @param signal - caller cancellation.
+   * @returns whether writes are allowed and why not, whether a delete is recoverable, and whether changes stream.
+   */
+  @Remote
+  async access(sessionId: SessionId, signal: AbortSignal): Promise<WorkspaceFilesAccess> {
+    const { root, mode } = await this.placeFor(sessionId)
+    const host = this.hostPathOf(await this.ctx.fs.resolve(root, { signal }))
+    if (host === undefined) return { writable: false, reason: 'unsupported', trash: false, watch: false }
+    const writable = mode !== 'read-only'
+    return { writable, reason: writable ? null : 'read-only', trash: hasTrash(), watch: true }
+  }
+
+  /**
+   * Create one empty file.
+   * @param sessionId - the Session whose workspace changes.
+   * @param folder - workspace-relative folder to create it in; empty for the root.
+   * @param name - the new file's name.
+   * @param signal - caller cancellation.
+   * @returns the new file's workspace path.
+   */
+  @Remote
+  async createFile(sessionId: SessionId, folder: string, name: string, signal: AbortSignal): Promise<WorkspaceEntryRef> {
+    const place = await this.writableFolder(sessionId, folder, signal)
+    const path = this.childPath(place.path, name)
+    await this.hostWrite(path, () => writeFile(join(place.host, name), '', { flag: 'wx', signal }))
+    return { path }
+  }
+
+  /**
+   * Create one empty folder.
+   * @param sessionId - the Session whose workspace changes.
+   * @param folder - workspace-relative folder to create it in; empty for the root.
+   * @param name - the new folder's name.
+   * @param signal - caller cancellation.
+   * @returns the new folder's workspace path.
+   */
+  @Remote
+  async createFolder(sessionId: SessionId, folder: string, name: string, signal: AbortSignal): Promise<WorkspaceEntryRef> {
+    const place = await this.writableFolder(sessionId, folder, signal)
+    const path = this.childPath(place.path, name)
+    signal.throwIfAborted()
+    await this.hostWrite(path, () => mkdir(join(place.host, name)))
+    return { path }
+  }
+
+  /**
+   * Rename one entry inside its folder. A symbolic link is renamed itself, never the entry it points to.
+   * @param sessionId - the Session whose workspace changes.
+   * @param path - workspace-relative path of the entry.
+   * @param name - the entry's new name.
+   * @param signal - caller cancellation.
+   * @returns the entry's new workspace path.
+   */
+  @Remote
+  async rename(sessionId: SessionId, path: string, name: string, signal: AbortSignal): Promise<WorkspaceEntryRef> {
+    const entry = await this.writableEntry(sessionId, path, signal)
+    const renamed = this.childPath(entry.folder, name)
+    if (name === entry.name) return { path: renamed }
+    const to = join(entry.parentHost, name)
+    // A change of letter case only is allowed on a case-insensitive filesystem, where the destination is the entry.
+    if (name.toLowerCase() !== entry.name.toLowerCase() && await lstat(to).then(() => true, () => false)) {
+      throw new RemoteError('workspace-file/exists', `"${renamed}" already exists`, { path: renamed })
+    }
+    signal.throwIfAborted()
+    await this.hostWrite(renamed, () => rename(entry.host, to))
+    return { path: renamed }
+  }
+
+  /**
+   * Copy one file beside itself as "name copy", "name copy 2" and so on.
+   * @param sessionId - the Session whose workspace changes.
+   * @param path - workspace-relative path of the file.
+   * @param signal - caller cancellation.
+   * @returns the copy's workspace path.
+   */
+  @Remote
+  async duplicate(sessionId: SessionId, path: string, signal: AbortSignal): Promise<WorkspaceEntryRef> {
+    const entry = await this.writableEntry(sessionId, path, signal)
+    const info = await lstat(entry.host).catch(() => undefined)
+    if (info === undefined) throw new RemoteError('workspace-file/not-found', `no entry at "${path}"`, { path })
+    if (!info.isFile()) {
+      throw new RemoteError('workspace-file/not-regular-file', `"${path}" is not a regular file`, { path, kind: info.isDirectory() ? 'directory' : 'other' })
+    }
+    const extension = extname(entry.name)
+    const stem = extension === '' || extension === entry.name ? entry.name : entry.name.slice(0, -extension.length)
+    const suffix = extension === entry.name ? '' : extension
+    for (let attempt = 1; attempt < 1000; attempt += 1) {
+      signal.throwIfAborted()
+      const name = `${stem} copy${attempt === 1 ? '' : ` ${String(attempt)}`}${suffix}`
+      const copy = this.childPath(entry.folder, name)
+      try {
+        await copyFile(entry.host, join(entry.parentHost, name), fsConstants.COPYFILE_EXCL)
+        return { path: copy }
+      } catch (error: unknown) {
+        if (errnoOf(error) !== 'EEXIST') throw writeFailure(copy, error)
+      }
+    }
+    throw new RemoteError('workspace-file/exists', `every copy name of "${path}" is taken`, { path })
+  }
+
+  /**
+   * Count what deleting one entry takes with it, for the confirmation that names the number.
+   * @param sessionId - the Session asking.
+   * @param path - workspace-relative path of the entry.
+   * @param signal - caller cancellation.
+   * @returns the files and folders inside it, bounded by the count cap.
+   */
+  @Remote
+  async count(sessionId: SessionId, path: string, signal: AbortSignal): Promise<WorkspaceEntryCount> {
+    const entry = await this.hostEntry(sessionId, path, signal)
+    const info = await lstat(entry.host).catch(() => undefined)
+    if (info === undefined) throw new RemoteError('workspace-file/not-found', `no entry at "${path}"`, { path })
+    if (!info.isDirectory()) return { items: 0, capped: false }
+    let items = 0
+    const queue = [entry.host]
+    while (queue.length > 0) {
+      signal.throwIfAborted()
+      const next = queue.shift() as string
+      const children = await readdir(next, { withFileTypes: true }).catch(() => [])
+      for (const child of children) {
+        items += 1
+        if (items >= this.config.countMaxItems) return { items, capped: true }
+        if (child.isDirectory()) queue.push(join(next, child.name))
+      }
+    }
+    return { items, capped: false }
+  }
+
+  /**
+   * Delete one entry: move it to the platform's trash where one exists, otherwise remove it and everything inside it.
+   * @param sessionId - the Session whose workspace changes.
+   * @param path - workspace-relative path of the entry; the root itself is refused.
+   * @param signal - caller cancellation.
+   * @returns whether the entry went to the trash rather than being removed.
+   */
+  @Remote
+  async deleteEntry(sessionId: SessionId, path: string, signal: AbortSignal): Promise<{ readonly trashed: boolean }> {
+    const entry = await this.writableEntry(sessionId, path, signal)
+    if (await lstat(entry.host).then(() => false, () => true)) {
+      throw new RemoteError('workspace-file/not-found', `no entry at "${path}"`, { path })
+    }
+    if (hasTrash()) {
+      try {
+        await moveToTrash(entry.host, signal)
+      } catch (error: unknown) {
+        signal.throwIfAborted()
+        throw new RemoteError('workspace-file/permission-denied', `"${path}" could not be moved to the trash: ${String(error)}`, { path })
+      }
+      return { trashed: true }
+    }
+    signal.throwIfAborted()
+    await this.hostWrite(entry.path, () => rm(entry.host, { recursive: true }))
+    return { trashed: false }
+  }
+
+  /**
+   * Follow changes anywhere in the Session's workspace, other than inside the names `searchSkip` lists. The opening
+   * batch is empty and confirms the watch; each later one gathers a burst of changes.
+   * @param sessionId - the Session whose workspace is watched.
+   * @param signal - the reader's observation lifetime.
+   * @returns the change batches, until the reader stops or the watcher fails.
+   */
+  @Remote({ mode: 'stream' })
+  async *changes(sessionId: SessionId, signal: AbortSignal): AsyncIterable<WorkspaceFileChanges> {
+    const root = await this.ctx.fs.resolve(await this.workspaceRootFor(sessionId), { signal })
+    const host = this.hostPathOf(root)
+    if (host === undefined) {
+      throw new RemoteError('workspace-file/unsupported', 'this Host cannot watch the workspace', { operation: 'watch' })
+    }
+    const batches: WorkspaceFileChanges[] = []
+    let failure: Error | undefined
+    let wake: (() => void) | undefined
+    const notify = (): void => { wake?.(); wake = undefined }
+    const unsubscribe = watchRoot(host, { ignore: new Set(this.config.searchSkip), delayMs: this.config.watchDelayMs },
+      (changes) => { batches.push({ changes }); notify() },
+      (error) => { failure = error; notify() })
+    signal.addEventListener('abort', notify, { once: true })
+    try {
+      yield { changes: [] }
+      while (!signal.aborted) {
+        const batch = batches.shift()
+        if (batch !== undefined) {
+          yield batch
+          continue
+        }
+        if (failure !== undefined) throw failure
+        await new Promise<void>((resolve) => { wake = resolve })
+      }
+    } finally {
+      unsubscribe()
+      signal.removeEventListener('abort', notify)
+    }
+  }
+
+  /** The Host path of a target when the composed filesystem shares the Host's paths, else undefined. */
+  private hostPathOf(target: FsTarget): string | undefined {
+    const path = this.ctx.fs.processPath(target)
+    return this.ctx.fs.processPathFromHostPath(path) === path ? path : undefined
+  }
+
+  /** Workspace path of a new child of `folder`, after refusing a name no platform accepts. */
+  private childPath(folder: string, name: string): string {
+    const reason = invalidName(name)
+    if (reason !== undefined) throw new RemoteError('workspace-file/invalid-name', `"${name}": ${reason}`, { name, reason })
+    return folder === '' ? name : `${folder}/${name}`
+  }
+
+  /**
+   * One folder inside the workspace on the Host's filesystem, under a policy that allows writing.
+   * @throws {RemoteError} `workspace-file/read-only`, `workspace-file/unsupported`, or a listing's own refusals.
+   */
+  private async writableFolder(sessionId: SessionId, folder: string, signal: AbortSignal): Promise<{ host: string; path: string }> {
+    const { root: workspaceRoot, mode } = await this.placeFor(sessionId)
+    if (mode === 'read-only') {
+      throw new RemoteError('workspace-file/read-only', 'this Session\'s file policy is read-only', { path: folder })
+    }
+    const root = await this.ctx.fs.resolve(workspaceRoot, { signal })
+    const target = await this.confine(root, workspaceRoot, folder, signal)
+    const info = await this.ctx.fs.stat(target, signal)
+    if (info === undefined) throw new RemoteError('workspace-file/not-found', `no entry at "${folder}"`, { path: folder })
+    if (info.type !== 'directory') {
+      throw new RemoteError('workspace-file/not-directory', `"${folder}" is a ${info.type}`, { path: folder, kind: info.type })
+    }
+    const host = this.hostPathOf(target)
+    if (host === undefined) {
+      throw new RemoteError('workspace-file/unsupported', 'this Host cannot change the workspace\'s files', { operation: 'write' })
+    }
+    return { host, path: workspacePathOf(this.ctx.fs.fileUrl(root), this.ctx.fs.fileUrl(target)) }
+  }
+
+  /** One existing entry named inside its confined folder, never followed, so a link is the entry itself. */
+  private async hostEntry(sessionId: SessionId, path: string, signal: AbortSignal, writable = false): Promise<HostEntry> {
+    const parts = path.split('/').filter(part => part !== '')
+    const name = parts.pop()
+    if (name === undefined || name === '.' || name === '..') {
+      throw new RemoteError('workspace-file/outside-workspace', `"${path}" names no entry inside the workspace`, { path })
+    }
+    const folderPath = parts.join('/')
+    const place = writable
+      ? await this.writableFolder(sessionId, folderPath, signal)
+      : await this.readableFolder(sessionId, folderPath, signal)
+    return { host: join(place.host, name), parentHost: place.host, folder: place.path, name, path: this.childPath(place.path, name) }
+  }
+
+  private writableEntry(sessionId: SessionId, path: string, signal: AbortSignal): ReturnType<WorkspaceFiles['hostEntry']> {
+    return this.hostEntry(sessionId, path, signal, true)
+  }
+
+  /** One folder inside the workspace on the Host's filesystem, for a read. */
+  private async readableFolder(sessionId: SessionId, folder: string, signal: AbortSignal): Promise<{ host: string; path: string }> {
+    const workspaceRoot = await this.workspaceRootFor(sessionId)
+    const root = await this.ctx.fs.resolve(workspaceRoot, { signal })
+    const target = await this.confine(root, workspaceRoot, folder, signal)
+    const host = this.hostPathOf(target)
+    if (host === undefined) {
+      throw new RemoteError('workspace-file/unsupported', 'this Host cannot reach the workspace\'s files', { operation: 'count' })
+    }
+    return { host, path: workspacePathOf(this.ctx.fs.fileUrl(root), this.ctx.fs.fileUrl(target)) }
+  }
+
+  /** Run one Host filesystem write, reporting its failure in the explorer's codes. */
+  private async hostWrite(path: string, write: () => Promise<unknown>): Promise<void> {
+    try {
+      await write()
+    } catch (error: unknown) {
+      throw writeFailure(path, error)
+    }
+  }
+
+  /**
+   * Find entries whose name contains `query` (case-insensitive), or whose
+   * relative path does when `query` holds a `/`, walking the workspace
+   * breadth-first and skipping the configured directory names.
    * @param sessionId - the Session asking; this device's binding for its workspace names the root.
    * @param query - the name fragment to match.
    * @param signal - caller cancellation.
@@ -388,6 +735,7 @@ export class WorkspaceFiles extends TypertRemoteService {
     if (needle.length === 0) return { hits: [], truncated: false }
     const root = await this.ctx.fs.resolve(await this.workspaceRootFor(sessionId), { signal })
     const skip = new Set(this.config.searchSkip)
+    const byPath = needle.includes('/')
     const hits: WorkspaceSearchHit[] = []
     const queue: Array<{ target: FsTarget; path: string }> = [{ target: root, path: '' }]
     let listed = 0
@@ -405,7 +753,9 @@ export class WorkspaceFiles extends TypertRemoteService {
       for (const child of children) {
         const path = next.path === '' ? child.name : `${next.path}/${child.name}`
         if (child.type === 'directory' && !skip.has(child.name)) queue.push({ target: child.target, path })
-        if (child.type !== 'other' && child.name.toLowerCase().includes(needle)) {
+        // A query naming a folder (`src/app`) matches the whole relative path; any other matches the name.
+        const haystack = byPath ? path.toLowerCase() : child.name.toLowerCase()
+        if (child.type !== 'other' && haystack.includes(needle)) {
           hits.push({ path, type: child.type })
           if (hits.length >= this.config.searchMaxHits) return { hits, truncated: true }
         }
@@ -423,6 +773,19 @@ export class WorkspaceFiles extends TypertRemoteService {
    */
   private workspaceRootOf(agent: Agent): string {
     return sessionWorkspaceRoot(this.ctx, agent.session) ?? this.ctx.sandboxPolicy.workspaceRoot
+  }
+
+  /**
+   * The Session's workspace root and the file policy mode writes from the explorer run under: a running Session's
+   * resolved mode, or the deployment default for a Session no Agent runs here.
+   * @param sessionId - the Session the reader browses.
+   * @returns the absolute root and the mode.
+   */
+  private async placeFor(sessionId: SessionId): Promise<{ root: string; mode: Context['sandboxPolicy']['defaultMode'] }> {
+    const live = this.ctx.get('agents')?.get(sessionId)
+    const root = await this.workspaceRootFor(sessionId)
+    const mode = live === undefined ? this.ctx.sandboxPolicy.defaultMode : this.ctx.sandboxPolicy.resolve({ session: live.session }).mode
+    return { root, mode }
   }
 
   /**

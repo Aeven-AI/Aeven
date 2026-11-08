@@ -380,8 +380,83 @@ Host Remote listings, previews and name searches over the composed filesystem.
 @Remote async read(sessionId: SessionId, path: string, signal: AbortSignal): Promise<WorkspaceFileText>
 
 /**
- * Find entries whose name contains `query` (case-insensitive), walking the
- * workspace breadth-first and skipping the configured directory names.
+ * Say what the explorer may change in the Session's workspace, so it shows unavailable actions disabled.
+ * @param sessionId - the Session asking.
+ * @param signal - caller cancellation.
+ * @returns whether writes are allowed and why not, whether a delete is recoverable, and whether changes stream.
+ */
+@Remote async access(sessionId: SessionId, signal: AbortSignal): Promise<WorkspaceFilesAccess>
+
+/**
+ * Create one empty file.
+ * @param sessionId - the Session whose workspace changes.
+ * @param folder - workspace-relative folder to create it in; empty for the root.
+ * @param name - the new file's name.
+ * @param signal - caller cancellation.
+ * @returns the new file's workspace path.
+ */
+@Remote async createFile(sessionId: SessionId, folder: string, name: string, signal: AbortSignal): Promise<WorkspaceEntryRef>
+
+/**
+ * Create one empty folder.
+ * @param sessionId - the Session whose workspace changes.
+ * @param folder - workspace-relative folder to create it in; empty for the root.
+ * @param name - the new folder's name.
+ * @param signal - caller cancellation.
+ * @returns the new folder's workspace path.
+ */
+@Remote async createFolder(sessionId: SessionId, folder: string, name: string, signal: AbortSignal): Promise<WorkspaceEntryRef>
+
+/**
+ * Rename one entry inside its folder. A symbolic link is renamed itself, never the entry it points to.
+ * @param sessionId - the Session whose workspace changes.
+ * @param path - workspace-relative path of the entry.
+ * @param name - the entry's new name.
+ * @param signal - caller cancellation.
+ * @returns the entry's new workspace path.
+ */
+@Remote async rename(sessionId: SessionId, path: string, name: string, signal: AbortSignal): Promise<WorkspaceEntryRef>
+
+/**
+ * Copy one file beside itself as "name copy", "name copy 2" and so on.
+ * @param sessionId - the Session whose workspace changes.
+ * @param path - workspace-relative path of the file.
+ * @param signal - caller cancellation.
+ * @returns the copy's workspace path.
+ */
+@Remote async duplicate(sessionId: SessionId, path: string, signal: AbortSignal): Promise<WorkspaceEntryRef>
+
+/**
+ * Count what deleting one entry takes with it, for the confirmation that names the number.
+ * @param sessionId - the Session asking.
+ * @param path - workspace-relative path of the entry.
+ * @param signal - caller cancellation.
+ * @returns the files and folders inside it, bounded by the count cap.
+ */
+@Remote async count(sessionId: SessionId, path: string, signal: AbortSignal): Promise<WorkspaceEntryCount>
+
+/**
+ * Delete one entry: move it to the platform's trash where one exists, otherwise remove it and everything inside it.
+ * @param sessionId - the Session whose workspace changes.
+ * @param path - workspace-relative path of the entry; the root itself is refused.
+ * @param signal - caller cancellation.
+ * @returns whether the entry went to the trash rather than being removed.
+ */
+@Remote async deleteEntry(sessionId: SessionId, path: string, signal: AbortSignal): Promise<{ readonly trashed: boolean }>
+
+/**
+ * Follow changes anywhere in the Session's workspace, other than inside the names `searchSkip` lists. The opening
+ * batch is empty and confirms the watch; each later one gathers a burst of changes.
+ * @param sessionId - the Session whose workspace is watched.
+ * @param signal - the reader's observation lifetime.
+ * @returns the change batches, until the reader stops or the watcher fails.
+ */
+@Remote({ mode: 'stream' }) async *changes(sessionId: SessionId, signal: AbortSignal): AsyncIterable<WorkspaceFileChanges>
+
+/**
+ * Find entries whose name contains `query` (case-insensitive), or whose
+ * relative path does when `query` holds a `/`, walking the workspace
+ * breadth-first and skipping the configured directory names.
  * @param sessionId - the Session asking; this device's binding for its workspace names the root.
  * @param query - the name fragment to match.
  * @param signal - caller cancellation.

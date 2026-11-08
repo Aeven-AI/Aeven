@@ -496,7 +496,7 @@ export interface Config {
   readonly searchMaxHits: number
   /** Cap on the directories one search lists before it stops. */
   readonly searchMaxDirectories: number
-  /** Directory names a search never descends into. */
+  /** Directory names a search never descends into, which listings mark ignored and the change stream leaves out. */
   readonly searchSkip: string[]
   /**
    * Whether file previews stay inside the workspace like listings and
@@ -508,6 +508,10 @@ export interface Config {
   readonly maxFileBytes: number
   /** How long `sidebar_files` waits for the window showing the Session to open the explorer. */
   readonly showTimeoutMs: number
+  /** Delay gathering a burst of filesystem changes into one change-stream batch. */
+  readonly watchDelayMs: number
+  /** Cap on the entries one delete confirmation counts inside a folder. */
+  readonly countMaxItems: number
 }
 ```
 

@@ -8,10 +8,12 @@ body,
   overflow: hidden;
 }
 
-/* Only body and #root carry a background, so the document canvas takes body's
-   color. An `html` background would own the canvas instead and keep the light
-   base under the dark palette, which is the strip a live window resize exposes
-   while the renderer commits the new size. */
+/* The stylesheet gives body and #root the palette background; the theme
+   bootstrap and ThemePresenter copy body's computed colour onto `html` inline,
+   so the document canvas follows the palette even where a mobile keyboard, the
+   URL bar, or a live window resize uncovers it before the renderer commits the
+   new size. A stylesheet `html` background would stay light under the dark
+   palette. */
 body,
 #root {
   background-color: rgb(242, 242, 242);
@@ -20,6 +22,18 @@ body,
 body[data-ds-dark-theme],
 body[data-ds-dark-theme] #root {
   background-color: #111111;
+}
+
+/* A backdrop in the palette colour, fixed behind the shell and reaching a
+   viewport's height past each edge, covers whatever the visual viewport reveals
+   around the layout during a keyboard or overscroll transition. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -100vh 0;
+  z-index: -1;
+  background-color: inherit;
+  pointer-events: none;
 }
 
 

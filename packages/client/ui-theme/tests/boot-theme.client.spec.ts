@@ -14,19 +14,32 @@ function mockSystemDark(matches: boolean): void {
 function executeBootstrap(preference?: ThemePreference, fontSize?: number): void {
   const row = bootThemeInjection(preference, fontSize)
   if (row.kind !== 'script') throw new Error('theme bootstrap row is not a script')
-  runInNewContext(row.text, { document, matchMedia: globalThis.matchMedia })
+  runInNewContext(row.text, { document, matchMedia: globalThis.matchMedia, getComputedStyle })
 }
 
 afterEach(() => {
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
   document.documentElement.style.removeProperty('color-scheme')
+  document.documentElement.style.removeProperty('background-color')
+  document.getElementById('avn-theme-color')?.remove()
   document.body.removeAttribute(DARK_ATTRIBUTE)
   document.body.style.removeProperty('--avn-content-font-size')
   document.body.style.removeProperty('--avn-content-font-size-secondary')
 })
 
 describe('theme bootstrap row', () => {
+  it('paints the document canvas and the browser chrome in the body background from first paint', () => {
+    mockSystemDark(false)
+    document.body.style.backgroundColor = 'rgb(17, 17, 17)'
+    executeBootstrap('dark')
+    expect(document.documentElement.style.backgroundColor).toBe('rgb(17, 17, 17)')
+    const meta = document.getElementById('avn-theme-color')
+    expect(meta?.getAttribute('name')).toBe('theme-color')
+    expect(meta?.getAttribute('content')).toBe('rgb(17, 17, 17)')
+    document.body.style.removeProperty('background-color')
+  })
+
   it('is a body script row, so it runs before the shell mount', () => {
     mockSystemDark(false)
     const row = bootThemeInjection('dark')

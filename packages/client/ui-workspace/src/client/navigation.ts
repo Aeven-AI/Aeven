@@ -14,7 +14,7 @@ import type { SessionId } from '@aeven/session/types'
 import { randomUUID } from '@aeven/util-crypto'
 import { createSnapshotStore, type ObservableSnapshot } from '@aeven/client-store'
 import { sessionPathOf, type SessionUrlNavigation } from './session-url.ts'
-import { isManagedWorkspace } from './tree.ts'
+import { isManagedWorkspace, orderGroupsByRecency } from './tree.ts'
 
 type InitialNavigation = 'waiting' | 'connecting' | 'done'
 
@@ -136,7 +136,10 @@ export interface UiWorkspace {
   readonly archivedSessionIds: ObservableSnapshot<readonly SessionId[]>
   /**
    * Workspaces a Session can move into: every listed Workspace that does not
-   * already account for it, in list order. The source is stable per Session.
+   * already account for it, in the order the workspace browser shows its
+   * groups. Before the browser has reported an order, the built-in Workspace
+   * comes first and the rest follow by last activity, which is the browser's
+   * default order. The source is stable per Session.
    * @param sessionId - Session that would move.
    * @returns the observable target list.
    */
@@ -485,32 +488,77 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   }
 
   private readonly moveTargetSources = new Map<SessionId, ObservableSnapshot<readonly SessionMoveTarget[]>>()
+  /** Workspace groups in the browser's display order, or undefined before a browser reported one. */
+  private groupOrder: readonly WorkspaceId[] | undefined
+  private readonly groupOrderListeners = new Set<() => void>()
+
+  /**
+   * Record the workspace browser's group order, which the Move to workspace targets follow.
+   * @param workspaceIds - every listed Workspace, top to bottom.
+   */
+  setGroupOrder(workspaceIds: readonly WorkspaceId[]): void {
+    const previous = this.groupOrder
+    if (previous !== undefined && previous.length === workspaceIds.length
+      && previous.every((id, index) => id === workspaceIds[index])) return
+    this.groupOrder = [...workspaceIds]
+    for (const listener of this.groupOrderListeners) listener()
+  }
+
+  /** Workspaces in the browser's group order; unreported ones keep registry order after the reported ones. */
+  private displayOrder(items: readonly WorkspaceView[]): readonly WorkspaceView[] {
+    const order = this.groupOrder
+    if (order === undefined) return orderGroupsByRecency(items, this.sessions.list.getSnapshot())
+    const rank = new Map(order.map((id, index) => [id, index]))
+    return items
+      .map((item, index) => ({ item, index, rank: rank.get(item.workspaceId) ?? order.length + index }))
+      .sort((left, right) => left.rank - right.rank)
+      .map(entry => entry.item)
+  }
 
   moveTargets(sessionId: SessionId): ObservableSnapshot<readonly SessionMoveTarget[]> {
     const existing = this.moveTargetSources.get(sessionId)
     if (existing !== undefined) return existing
     let items: readonly WorkspaceView[] | undefined
+    let order: readonly WorkspaceId[] | undefined
+    let sessionList: unknown
     let targets: readonly SessionMoveTarget[] = []
     const source: ObservableSnapshot<readonly SessionMoveTarget[]> = {
       getSnapshot: () => {
         const next = this.workspaces.list.getSnapshot().items
-        if (next !== items) {
+        // Recency is read from the sessions list only while no browser reported its order.
+        const nextSessions = this.groupOrder === undefined ? this.sessions.list.getSnapshot() : undefined
+        if (next !== items || this.groupOrder !== order || nextSessions !== sessionList) {
           items = next
+          order = this.groupOrder
+          sessionList = nextSessions
           // A managed Workspace such as Automations holds only the Sessions its
           // plugin creates: none moves in, and one of its own moves nowhere (it
           // can still be archived). With a single Workspace besides those there
           // is nowhere to go, and the move row stays hidden.
           const destinations = next.filter(item => !isManagedWorkspace(item))
           const inManaged = next.some(item => isManagedWorkspace(item) && item.sessionIds.includes(sessionId))
-          targets = inManaged || destinations.length < 2
+          const shown = inManaged || destinations.length < 2
             ? []
-            : destinations
+            : this.displayOrder(destinations)
               .filter(item => !item.sessionIds.includes(sessionId))
               .map(item => ({ workspaceId: item.workspaceId, title: item.title }))
+          const same = shown.length === targets.length
+            && shown.every((target, index) =>
+              target.workspaceId === targets.at(index)?.workspaceId && target.title === targets.at(index)?.title)
+          if (!same) targets = shown
         }
         return targets
       },
-      subscribe: listener => this.workspaces.list.subscribe(listener),
+      subscribe: (listener) => {
+        const workspaces = this.workspaces.list.subscribe(listener)
+        const sessions = this.sessions.list.subscribe(listener)
+        this.groupOrderListeners.add(listener)
+        return () => {
+          workspaces()
+          sessions()
+          this.groupOrderListeners.delete(listener)
+        }
+      },
     }
     this.moveTargetSources.set(sessionId, source)
     return source

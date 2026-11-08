@@ -1648,6 +1648,47 @@ export const IconLucideVolumeX = ({ className }: LucideGlyphProps) => (
   </LucideSvg>
 )
 
+/** lucide `circle-pause`: hold a reading where it is. */
+export const IconLucideCirclePause = ({ className }: LucideGlyphProps) => (
+  <LucideSvg className={className}>
+    <circle cx="12" cy="12" r="10" />
+    <line x1="10" x2="10" y1="15" y2="9" />
+    <line x1="14" x2="14" y1="15" y2="9" />
+  </LucideSvg>
+)
+
+/** lucide `circle-play`: continue a held reading. */
+export const IconLucideCirclePlay = ({ className }: LucideGlyphProps) => (
+  <LucideSvg className={className}>
+    <path d="M9 9.003a1 1 0 0 1 1.517-.859l4.997 2.997a1 1 0 0 1 0 1.718l-4.997 2.997A1 1 0 0 1 9 14.996z" />
+    <circle cx="12" cy="12" r="10" />
+  </LucideSvg>
+)
+
+/** lucide `circle-stop`: end a reading. */
+export const IconLucideCircleStop = ({ className }: LucideGlyphProps) => (
+  <LucideSvg className={className}>
+    <circle cx="12" cy="12" r="10" />
+    <rect x="9" y="9" width="6" height="6" rx="1" />
+  </LucideSvg>
+)
+
+/** lucide `eye`: show a document rendered. */
+export const IconLucideEye = ({ className }: LucideGlyphProps) => (
+  <LucideSvg className={className}>
+    <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+    <circle cx="12" cy="12" r="3" />
+  </LucideSvg>
+)
+
+/** lucide `code`: show a document's source. */
+export const IconLucideCode = ({ className }: LucideGlyphProps) => (
+  <LucideSvg className={className}>
+    <path d="m16 18 6-6-6-6" />
+    <path d="m8 6-6 6 6 6" />
+  </LucideSvg>
+)
+
 /** lucide `download`: save a produced file. */
 export const IconLucideDownload = ({ className }: LucideGlyphProps) => (
   <LucideSvg className={className}>

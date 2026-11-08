@@ -1,5 +1,5 @@
 /**
- * Read-aloud plugin, browser half: the per-message read action, the agent-switched reply reading that
+ * Read-aloud plugin, browser half: the per-message read action on assistant replies and user prompts, the agent-switched reply reading that
  * follows `read_aloud` calls, and the sentence queue that speaks both through the Host `tts` Remote.
  */
 import type { Context } from '@deepseek-ai/cordis'
@@ -11,7 +11,7 @@ import type {} from '@aeven/client-ui-conversation/client'
 import type {} from '@aeven/client-ui-renderer/client'
 import { ReadAloud, type ReadAloudSnapshot } from './engine.ts'
 import { en, es, NS, zh, type ReadAloudKey } from './locales.ts'
-import { MessageReadAloud, type MessageReadAloudInjected } from './MessageReadAloud.tsx'
+import { MessageReadAloud, UserReadAloud, type MessageReadAloudInjected } from './MessageReadAloud.tsx'
 import { AgentReadAloud, type AgentReadAloudInjected } from './AgentReadAloud.tsx'
 import { SystemVoice, type SystemVoiceInjected } from './SystemVoice.tsx'
 import type { TtsVoiceId } from '@aeven/text-to-speech/types'
@@ -77,9 +77,15 @@ export function apply(ctx: Context): void {
     hooks: { readAloud },
     read: (channel, text) => { engine.speakOnce(channel, text) },
     stop: (channel) => { engine.stopChannel(channel) },
+    pause: (channel) => { engine.pause(channel) },
+    resume: (channel) => { engine.resume(channel) },
   }
   ctx.slots.inject('conversation.chat.assistant-actions', () => ctx.slots.register({
     name: 'conversation.chat.assistant-actions', id: 'read-aloud-message', order: 20, locale: NS,
     inject: (): MessageReadAloudInjected => messageFace,
   }, MessageReadAloud))
+  ctx.slots.inject('conversation.chat.user-actions', () => ctx.slots.register({
+    name: 'conversation.chat.user-actions', id: 'read-aloud-prompt', order: 20, locale: NS,
+    inject: (): MessageReadAloudInjected => messageFace,
+  }, UserReadAloud))
 }
