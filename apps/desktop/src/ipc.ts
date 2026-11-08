@@ -18,6 +18,10 @@ export const DESKTOP_IPC = {
   browserCapture: 'avn-desktop:browser-capture',
   browserAutomate: 'avn-desktop:browser-automate',
   browserCancelAutomation: 'avn-desktop:browser-cancel-automation',
+  browserChromeTabs: 'avn-desktop:browser-chrome-tabs',
+  browserChromeOpen: 'avn-desktop:browser-chrome-open',
+  browserChromeClose: 'avn-desktop:browser-chrome-close',
+  browserChromeAutomate: 'avn-desktop:browser-chrome-automate',
   browserSuggest: 'avn-desktop:browser-suggest',
   browserCursor: 'avn-desktop:browser-cursor',
   browserCursorArrived: 'avn-desktop:browser-cursor-arrived',
@@ -144,8 +148,34 @@ export interface AvnDesktopBrowserApi {
     webContentsId: number, operation: string, input: Record<string, unknown>,
     requestId?: DesktopBrowserRequestId, timeoutMs?: number,
   ): Promise<unknown>
-  /** Cancel the owned browser request. @param webContentsId - guest id. @param requestId - pending request id. */
-  cancelAutomation(webContentsId: number, requestId: DesktopBrowserRequestId): void
+  /** Cancel the owned browser request. @param webContentsId - guest id, or a Chrome tab id. @param requestId - pending request id. */
+  cancelAutomation(webContentsId: number | string, requestId: DesktopBrowserRequestId): void
+  /**
+   * List the ordinary web tabs of a Chrome the agent may drive.
+   * @param kind - `aeven` for Aeven's own Chrome, `user` for the reader's Chrome.
+   * @param browserUrl - Aeven's Chrome's debugging endpoint, for `aeven`.
+   * @returns each tab's id, address, and title.
+   */
+  chromeTabs(kind: 'aeven' | 'user', browserUrl?: string): Promise<Array<{ targetId: string; url: string; title: string }>>
+  /**
+   * Open a background tab in a Chrome.
+   * @param kind - which Chrome. @param browserUrl - Aeven's Chrome's endpoint. @param url - first address, or empty.
+   * @returns the new tab's id.
+   */
+  chromeOpen(kind: 'aeven' | 'user', browserUrl: string | undefined, url: string): Promise<string>
+  /** Close a Chrome tab. @param kind - which Chrome. @param browserUrl - Aeven's Chrome's endpoint. @param targetId - the tab. */
+  chromeClose(kind: 'aeven' | 'user', browserUrl: string | undefined, targetId: string): Promise<void>
+  /**
+   * Perform one agent action on a Chrome tab with the sidebar browser's engine.
+   * @param kind - which Chrome. @param browserUrl - Aeven's Chrome's endpoint. @param targetId - the tab.
+   * @param operation - the engine operation. @param input - the tool's arguments.
+   * @param requestId - id used to cancel. @param timeoutMs - execution deadline.
+   * @returns the action's JSON result.
+   */
+  chromeAutomate(
+    kind: 'aeven' | 'user', browserUrl: string | undefined, targetId: string, operation: string, input: Record<string, unknown>,
+    requestId?: DesktopBrowserRequestId, timeoutMs?: number,
+  ): Promise<unknown>
   /**
    * Ask a search engine to complete a query: the endpoint's response body.
    * @param url - the engine's completion endpoint.

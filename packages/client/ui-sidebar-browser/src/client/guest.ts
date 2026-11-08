@@ -80,7 +80,18 @@ export interface DesktopBrowserBridge {
     timeoutMs?: number,
   ) => Promise<unknown>
   /** Cancel the owned browser request. */
-  cancelAutomation: (webContentsId: number, requestId: DesktopBrowserRequestId) => void
+  cancelAutomation: (webContentsId: number | string, requestId: DesktopBrowserRequestId) => void
+  /** List a Chrome's web tabs (desktop `chromeTabs`). */
+  chromeTabs: (kind: ChromeKind, browserUrl?: string) => Promise<Array<{ targetId: string; url: string; title: string }>>
+  /** Open a background Chrome tab and return its id (desktop `chromeOpen`). */
+  chromeOpen: (kind: ChromeKind, browserUrl: string | undefined, url: string) => Promise<string>
+  /** Close a Chrome tab (desktop `chromeClose`). */
+  chromeClose: (kind: ChromeKind, browserUrl: string | undefined, targetId: string) => Promise<void>
+  /** Run one engine operation on a Chrome tab (desktop `chromeAutomate`). */
+  chromeAutomate: (
+    kind: ChromeKind, browserUrl: string | undefined, targetId: string, operation: string, input: Record<string, unknown>,
+    requestId?: DesktopBrowserRequestId, timeoutMs?: number,
+  ) => Promise<unknown>
   /**
    * Acknowledge a cursor step after arrival or when the pane is invisible.
    * @param webContentsId - guest id.
@@ -169,6 +180,15 @@ export interface BrowserCursor {
   readonly url?: string
 }
 
+/** Which Chrome a tab lives in: Aeven's own profile, or the reader's everyday browser. */
+export type ChromeKind = 'aeven' | 'user'
+
+/** A Chrome tab the agent's current tab can be, instead of a sidebar tab. */
+export interface ChromeTabRef {
+  readonly kind: ChromeKind
+  readonly targetId: string
+}
+
 /** One open browser tab: the pill that shows it and the guest it holds. */
 export interface BrowserTab {
   /** The tab's pill id, which the agent's tab commands name. */
@@ -186,6 +206,26 @@ export class LiveGuests {
   readonly #tabs = new Map<string, Map<string, BrowserTab>>()
   readonly #current = new Map<string, string>()
   readonly #waiters = new Map<string, Set<(tab: BrowserTab) => void>>()
+  readonly #chrome = new Map<string, ChromeTabRef>()
+
+  /**
+   * Make a Chrome tab the session's current tab; agent actions then address it.
+   * @param sessionId - the session.
+   * @param tab - the Chrome tab, or undefined to return to the sidebar's tab.
+   */
+  selectChrome(sessionId: string, tab: ChromeTabRef | undefined): void {
+    if (tab === undefined) this.#chrome.delete(sessionId)
+    else this.#chrome.set(sessionId, tab)
+  }
+
+  /**
+   * The Chrome tab that is the session's current tab, when one is.
+   * @param sessionId - the session.
+   * @returns the tab, or undefined while a sidebar tab is current.
+   */
+  chrome(sessionId: string): ChromeTabRef | undefined {
+    return this.#chrome.get(sessionId)
+  }
 
   /**
    * Record a mounted tab and hand it to that session's waiters.
@@ -219,7 +259,9 @@ export class LiveGuests {
    * @param tabId - the tab shown.
    */
   activate(sessionId: string, tabId: string): void {
-    if (this.#tabs.get(sessionId)?.has(tabId) === true) this.#current.set(sessionId, tabId)
+    if (this.#tabs.get(sessionId)?.has(tabId) !== true) return
+    this.#current.set(sessionId, tabId)
+    this.#chrome.delete(sessionId)
   }
 
   /**

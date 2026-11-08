@@ -544,6 +544,11 @@ export function apply(ctx: Context, config: Config): void {
       if (operation === 'upload') input = await uploadInput(input, exec)
       if (operation === 'clipboard' && input.action === 'read') await approveClipboardRead(exec)
       if (operation === 'history') await approveHistoryRead(exec)
+      // Tab commands also reach Aeven's own Chrome, whose endpoint the Host knows.
+      if (operation === 'tabs') {
+        const chromium = await ctx.get('browserChromium')?.status(exec.signal).catch(() => undefined)
+        if (chromium !== undefined) input = { ...input, chromium: chromium.browserUrl }
+      }
       if (operation === 'webmcp' && input.action === 'invoke') await approveWebMcp(String(input.name), input.input ?? {}, exec)
       if (operation === 'control' && (input.control === 'clear-cookies' || input.control === 'clear-cache')) await approveClearing(String(input.control), exec)
       if (operation === 'sequence' && (!Array.isArray(input.actions) || input.actions.length === 0 || input.actions.length > 20)) throw new HarnessError('sequence requires 1 to 20 actions', 'BROWSER_SEQUENCE_ACTION')
@@ -622,11 +627,12 @@ export function apply(ctx: Context, config: Config): void {
       "Press a control of the browser itself with the pointer, as the user would: copy a screenshot of the page to the clipboard (capture), open the page in Chrome, hard reload, open DevTools, zoom in, out, or reset, switch the page's appearance, or clear cookies or cache (asks the user first; clearing cookies signs them out of every site).",
       { control: { type: 'string', required: true, enum: ['capture', 'open-in-chrome', 'hard-reload', 'devtools', 'zoom-in', 'zoom-out', 'zoom-reset', 'appearance:system', 'appearance:light', 'appearance:dark', 'clear-cache', 'clear-cookies'], description: 'The control to press.' } }),
     action('preview_tabs', 'tabs',
-      "List, open, show, or close the browser's tabs beside the session. Every other preview_* tool acts on the current tab, the one shown; new opens a tab (at url when given) and makes it current, select shows another tab and makes it current.",
+      "List, open, select, or close browser tabs: the sidebar browser's tabs beside the session, Aeven's own Chrome (browser chrome), and the user's everyday Chrome (browser my-chrome) when they allowed it. Every other preview_* tool acts on the current tab: new opens a tab (at url when given) and makes it current, select makes another tab current. Use the sidebar browser unless the task needs a full Chrome or the user's own Chrome and its sign-ins.",
       {
         action: { type: 'string', required: true, enum: ['list', 'new', 'select', 'close'], description: 'What to do.' },
         tabId: { type: 'string', description: 'The tab to select or close, from list.' },
         url: { type: 'string', description: 'Address a new tab opens at.' },
+        browser: { type: 'string', enum: ['sidebar', 'chrome', 'my-chrome'], description: 'Where new opens the tab. Defaults to sidebar.' },
       }),
     action('preview_history', 'history',
       'Search the pages the user visited in the browser beside the chat, newest first, by words in the address or title, to find something they read earlier. Asks the user first.',

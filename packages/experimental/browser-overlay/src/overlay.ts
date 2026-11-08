@@ -18,6 +18,7 @@ import {
   overlayStyles,
 } from './styles.ts'
 import { CURSOR_ASSET_URL } from './cursor-asset.ts'
+import { spriteCanvas } from './sprite-canvas.ts'
 import { CursorMotion, cursorTransform, visibilityStyles } from './motion.ts'
 import { FRAME_SECONDS, jumpSpring } from './springs.ts'
 
@@ -198,6 +199,11 @@ export class BrowserOverlay {
     sprite.draggable = false
     sprite.decoding = 'sync'
     sprite.dataset.aevenBrowserOverlaySprite = ''
+    // A page whose Content-Security-Policy refuses data: images gets the same
+    // pixels painted on a canvas instead.
+    sprite.addEventListener('error', () => {
+      void spriteCanvas(CURSOR_ASSET_URL).then((canvas) => { sprite.replaceWith(canvas) }, () => undefined)
+    }, { once: true })
     sprite.src = CURSOR_ASSET_URL
     wrapper.append(sprite)
     cursor.append(wrapper)

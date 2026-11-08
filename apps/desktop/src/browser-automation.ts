@@ -20,8 +20,48 @@ import { access, realpath, stat, writeFile } from 'node:fs/promises'
 import { DESKTOP_IPC, type DesktopBrowserCursor } from './ipc.ts'
 import { LOCATOR_PRELUDE, MAX_CONTENT_LENGTH, PAGE_MARKDOWN, YOUTUBE_TRANSCRIPT } from './browser-page-scripts.ts'
 
+/** A cursor step a target draws: the shape the sidebar pane's IPC carries. */
+export type CursorStep = Omit<DesktopBrowserCursor, 'webContentsId' | 'sequence'>
+
+/**
+ * What the engine drives: the slice of Electron's `WebContents` it uses, so a
+ * sidebar guest is passed as is and a Chrome tab implements the same calls over
+ * its own CDP session. A target without a host window draws its own pointer.
+ */
+export interface BrowserTarget {
+  /** Identity the shell's cancel requests name. */
+  readonly id: number | string
+  readonly debugger: {
+    attach(protocolVersion?: string): void
+    isAttached(): boolean
+    sendCommand(method: string, commandParams?: object): Promise<any>
+    on(event: 'message', listener: (event: any, method: string, params: any) => void): unknown
+    off(event: 'message', listener: (event: any, method: string, params: any) => void): unknown
+  }
+  getURL(): string
+  getTitle(): string
+  insertText(text: string): Promise<void>
+  sendInputEvent(inputEvent: { type: 'keyDown' | 'char' | 'keyUp'; keyCode: string; modifiers?: Array<'alt' | 'control' | 'meta' | 'shift'> }): void
+  /** The window that draws a sidebar guest's pointer; absent for a target that draws its own. */
+  readonly hostWebContents?: WebContents | null
+  /** Requests with the target's own cookies. */
+  readonly session: { fetch(input: string, init?: { signal?: AbortSignal }): Promise<Response> }
+  /** Emit an Electron internal event; a non-Electron target ignores it. */
+  emit(event: string): boolean
+  /**
+   * Draw one cursor step in the target's own page, for a target without a host window.
+   * @param step - the step.
+   * @param wait - whether to wait for the pointer to arrive.
+   * @param timeoutMs - the most the wait takes.
+   * @param signal - cancels the wait.
+   */
+  presentCursor?(step: CursorStep, wait: boolean, timeoutMs: number, signal: AbortSignal): Promise<void>
+  /** Navigate the target itself; a sidebar guest navigates through its pane instead. */
+  navigate?(operation: 'navigate' | 'back' | 'forward' | 'reload', url: string, signal: AbortSignal): Promise<void>
+}
+
 /** Accessibility handles belong to one observation and one document. */
-const accessibilityTargets = new WeakMap<WebContents, { snapshotId: string; loaderId: string; nodes: Map<string, number> }>()
+const accessibilityTargets = new WeakMap<BrowserTarget, { snapshotId: string; loaderId: string; nodes: Map<string, number> }>()
 
 /** Chromium accessibility node fields used by the browser snapshot. */
 interface BrowserAxNode {
@@ -73,22 +113,22 @@ const SEQUENTIAL_TYPE_DELAY_MS = 50
 /** How far inside the page's top edge a scroll's pointer enters when it was outside the page, in CSS pixels. */
 const SCROLL_ENTRY_INSET_PX = 24
 /** Where the pointer last arrived in each guest, in its viewport CSS pixels. */
-const pointerAt = new WeakMap<WebContents, Point>()
+const pointerAt = new WeakMap<BrowserTarget, Point>()
 /**
  * Guests whose pointer is currently drawn inside the page. A chrome action leaves the pointer on
  * the pane's own controls, where its page coordinates mean nothing: without this, a later scroll
  * would start from a stale in-page point and the pointer would jump out of the chrome row.
  */
-const pointerInPage = new WeakSet<WebContents>()
+const pointerInPage = new WeakSet<BrowserTarget>()
 
 /** A JavaScript dialog the page is showing, as `Page.javascriptDialogOpening` reported it. */
 interface OpenDialog { type: string; message: string; defaultPrompt?: string; url?: string }
 /** Dialogs the guests are showing now. */
-const openDialogs = new WeakMap<WebContents, OpenDialog>()
+const openDialogs = new WeakMap<BrowserTarget, OpenDialog>()
 /** One console entry a guest's page logged. */
 interface ConsoleEntry { level: string; text: string; url?: string; line?: number; time: number }
 /** Console entries per guest, newest last. */
-const consoleEntries = new WeakMap<WebContents, ConsoleEntry[]>()
+const consoleEntries = new WeakMap<BrowserTarget, ConsoleEntry[]>()
 /** Operations that still answer while a JavaScript dialog blocks the page. */
 const DIALOG_SAFE = new Set(['dialog', 'console', 'screenshot', 'clipboard'])
 
@@ -100,7 +140,7 @@ const MODIFIER_BITS: Readonly<Record<string, number>> = { Alt: 1, Control: 2, Me
 /** Number of the next pointer step. */
 let nextCursorSequence = 1
 /** Arrival waiters belong to the guest and app renderer that announced the move. */
-const cursorArrivals = new Map<number, { guest: WebContents; finish: () => void }>()
+const cursorArrivals = new Map<number, { guest: BrowserTarget; finish: () => void }>()
 
 /**
  * Acknowledge an owned cursor step from its app renderer.
@@ -119,7 +159,7 @@ export function acknowledgeBrowserCursor(sender: WebContents, guestId: number, s
  * @param guest - the guest whose page is observed.
  * @returns disposer removing the listener.
  */
-export function observePage(guest: WebContents): () => void {
+export function observePage(guest: BrowserTarget): () => void {
   const listen = (_event: Electron.Event, method: string, params: unknown): void => {
     const values = params as Record<string, unknown>
     switch (method) {
@@ -160,7 +200,7 @@ export function observePage(guest: WebContents): () => void {
  * @param guest - the guest that logged it.
  * @param entry - the entry.
  */
-function record(guest: WebContents, entry: ConsoleEntry): void {
+function record(guest: BrowserTarget, entry: ConsoleEntry): void {
   const entries = consoleEntries.get(guest) ?? []
   entries.push(entry)
   if (entries.length > MAX_CONSOLE_ENTRIES) entries.splice(0, entries.length - MAX_CONSOLE_ENTRIES)
@@ -335,7 +375,7 @@ const NAMED_KEYS: Readonly<Record<string, { readonly key: string; readonly text?
  * @param guest - the guest to type into.
  * @param input - `key` and optional `modifiers`.
  */
-function press(guest: WebContents, input: BrowserAutomationInput): void {
+function press(guest: BrowserTarget, input: BrowserAutomationInput): void {
   const named = NAMED_KEYS[input.key === ' ' ? 'Space' : String(input.key)]
   const requested = (Array.isArray(input.modifiers) ? input.modifiers : []).map(String)
   const shifted = requested.includes('Shift')
@@ -371,7 +411,7 @@ function modifierMask(input: BrowserAutomationInput): number {
  * @param signal - abandons the watch.
  * @returns the settlement, which never rejects, and a cancel that settles it early.
  */
-function watchNavigation(guest: WebContents, mainFrameId: string, signal: AbortSignal): { settled: Promise<void>; cancel: () => void } {
+export function watchNavigation(guest: BrowserTarget, mainFrameId: string, signal: AbortSignal): { settled: Promise<void>; cancel: () => void } {
   let finish: () => void = () => {}
   const settled = new Promise<void>((resolve) => {
     let started = false
@@ -421,7 +461,7 @@ function watchNavigation(guest: WebContents, mainFrameId: string, signal: AbortS
  * @param guest - the guest whose page is watched.
  * @returns the dialog once one opens, and the disposer of the watch.
  */
-function watchDialog(guest: WebContents): { opened: Promise<OpenDialog>; dispose: () => void } {
+function watchDialog(guest: BrowserTarget): { opened: Promise<OpenDialog>; dispose: () => void } {
   let dispose: () => void = () => {}
   const opened = new Promise<OpenDialog>((resolve) => {
     const listen = (_event: Electron.Event, method: string, params: unknown): void => {
@@ -477,7 +517,7 @@ async function freeDownloadPath(name: string): Promise<string> {
  * @throws {Error} when the operation is unknown or the page refuses the action.
  */
 export async function automate(
-  guest: WebContents,
+  guest: BrowserTarget,
   operation: string,
   input: BrowserAutomationInput,
   signal: AbortSignal = new AbortController().signal,
@@ -582,11 +622,14 @@ export async function automate(
     return await toTop(point)
   }
   /** Discrete actions wait for a visible renderer; continuous updates do not. */
-  const show = (cursor: Omit<DesktopBrowserCursor, 'webContentsId' | 'sequence'>, wait = false, timeoutMs = CURSOR_ARRIVAL_TIMEOUT_MS): Promise<void> => {
+  const show = (cursor: CursorStep, wait = false, timeoutMs = CURSOR_ARRIVAL_TIMEOUT_MS): Promise<void> => {
     signal.throwIfAborted()
+    if (guest.presentCursor !== undefined) return guest.presentCursor(cursor, wait, timeoutMs, signal)
     const sequence = nextCursorSequence++
     const host = guest.hostWebContents
     if (host == null || host.isDestroyed()) return Promise.resolve()
+    // A target with a host window is a sidebar guest, whose id is its web contents id.
+    const webContentsId = Number(guest.id)
     return new Promise((resolve, reject) => {
       const finish = (): void => {
         clearTimeout(timer)
@@ -595,7 +638,7 @@ export async function automate(
         resolve()
       }
       const abort = (): void => {
-        if (!host.isDestroyed()) host.send(DESKTOP_IPC.browserCursor, { webContentsId: guest.id, sequence, action: 'cancel', x: 0, y: 0 } satisfies DesktopBrowserCursor)
+        if (!host.isDestroyed()) host.send(DESKTOP_IPC.browserCursor, { webContentsId, sequence, action: 'cancel', x: 0, y: 0 } satisfies DesktopBrowserCursor)
         // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- the aborting caller's own reason is propagated intact.
         reject(signal.reason)
         finish()
@@ -605,7 +648,7 @@ export async function automate(
         cursorArrivals.set(sequence, { guest, finish })
         signal.addEventListener('abort', abort, { once: true })
       }
-      host.send(DESKTOP_IPC.browserCursor, { webContentsId: guest.id, sequence, ...cursor } satisfies DesktopBrowserCursor)
+      host.send(DESKTOP_IPC.browserCursor, { webContentsId, sequence, ...cursor } satisfies DesktopBrowserCursor)
       if (!wait) finish()
     })
   }
@@ -1033,7 +1076,7 @@ export async function automate(
         await send('Page.handleJavaScriptDialog', { accept: input.action === 'accept', ...typeof input.promptText === 'string' ? { promptText: input.promptText } : {} })
         // The page is answered, but Electron's own message box for it stays on screen:
         // its `-cancel-dialogs` handler (lib/browser/api/web-contents.ts) aborts that box.
-        ;(guest as unknown as NodeJS.EventEmitter).emit('-cancel-dialogs')
+        guest.emit('-cancel-dialogs')
         openDialogs.delete(guest)
         return { ok: true, handled: { ...open, action: input.action } }
       }
@@ -1159,21 +1202,31 @@ export async function automate(
         pointerInPage.add(guest)
         return { ok: true }
       }
+      case 'status':
+        return { open: true, url: guest.getURL(), title: guest.getTitle() }
       case 'back':
       case 'forward':
       case 'reload':
-      case 'capture': {
+      case 'navigate':
+        if (guest.navigate !== undefined) {
+          await guest.navigate(operation, typeof input.url === 'string' ? input.url : '', signal)
+          return { ok: true, url: guest.getURL(), title: guest.getTitle() }
+        }
+        if (operation === 'navigate') {
+          // The address field belongs to the pane's chrome row: the pane types the
+          // address there, then loads it, exactly as the reader doing it by hand.
+          leavePage()
+          await show({ action: 'control', control: 'navigate', url: typeof input.url === 'string' ? input.url : '', x: 0, y: 0 }, true, CONTROL_GESTURE_TIMEOUT_MS)
+          return { ok: true }
+        }
         // The app renderer owns chrome input and acknowledges it after cursor arrival.
         leavePage()
         await show({ action: 'control', control: operation === 'reload' ? 'refresh' : operation, x: 0, y: 0 }, true, CONTROL_GESTURE_TIMEOUT_MS)
         return { ok: true }
-      }
-      case 'navigate': {
-        // The address field belongs to the pane's chrome row: the pane types the
-        // address there, then loads it, exactly as the reader doing it by hand.
+      case 'capture': {
+        // The app renderer owns chrome input and acknowledges it after cursor arrival.
         leavePage()
-        const url = typeof input.url === 'string' ? input.url : ''
-        await show({ action: 'control', control: 'navigate', url, x: 0, y: 0 }, true, CONTROL_GESTURE_TIMEOUT_MS)
+        await show({ action: 'control', control: 'capture', x: 0, y: 0 }, true, CONTROL_GESTURE_TIMEOUT_MS)
         return { ok: true }
       }
       case 'control': {

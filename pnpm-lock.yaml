@@ -534,6 +534,9 @@ importers:
       '@aeven/brand':
         specifier: workspace:^
         version: link:../../packages/util/brand
+      '@aeven/experimental-browser-overlay':
+        specifier: workspace:^
+        version: link:../../packages/experimental/browser-overlay
       '@aeven/home-paths':
         specifier: workspace:^
         version: link:../../packages/util/home-paths

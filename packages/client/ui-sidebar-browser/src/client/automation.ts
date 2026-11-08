@@ -11,7 +11,7 @@ import { resolveAddress } from './url.ts'
  * secure-context-only API, so the bytes come from `getRandomValues`, which every context has.
  * @returns a fresh opaque request id.
  */
-function mintRequestId(): DesktopBrowserRequestId {
+export function mintRequestId(): DesktopBrowserRequestId {
   const bytes = globalThis.crypto.getRandomValues(new Uint8Array(16))
   return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('') as DesktopBrowserRequestId
 }

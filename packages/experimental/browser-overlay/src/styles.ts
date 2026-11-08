@@ -146,7 +146,8 @@ ${root} .${cls('cursor-sprite')} {
   transform: translate3d(${CURSOR_NUDGE.x}px, ${CURSOR_NUDGE.y}px, 0);
 }
 
-${root} .${cls('cursor-sprite')} img {
+${root} .${cls('cursor-sprite')} img,
+${root} .${cls('cursor-sprite')} canvas {
   display: block;
   /* Pin against a page's global img (max-width/box-sizing) rules. */
   box-sizing: content-box;
