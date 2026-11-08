@@ -387,6 +387,12 @@ body[data-ds-dark-theme] .markdown.markdown {
   transition: opacity 240ms ease;
 }
 
+/* A video's poster loads under a tile one layer above the page: white in the
+   light scheme, the dark card in the dark one. */
+.markdown :global(.markdown-video .image-loader) {
+  background: var(--dsw-alias-bg-layer-1);
+}
+
 .markdown :global(.markdown-image-grid [data-loaded]) .image-loader,
 .markdown :global(.markdown-video[data-loaded] .image-loader) {
   opacity: 0;
