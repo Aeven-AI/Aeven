@@ -1,7 +1,7 @@
 {
   "name": "@aeven/workspace-file-sync",
   "description": "File sync Consumer for workspaces: folder workspaces follow the account to its other devices",
-  "version": "0.3.39-alpha",
+  "version": "0.3.40-alpha",
   "publishConfig": {
     "access": "public"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@aeven/tool-motion",
   "description": "Model-facing render_motion tool and motion skill over the motion rendering service",
-  "version": "0.3.39-alpha",
+  "version": "0.3.40-alpha",
   "publishConfig": {
     "access": "public"
   },
