@@ -261,6 +261,35 @@ class Renderer {
     this.options = { ...this.options, ...next }
   }
 
+  /** Bumped by {@link setImageResolver}; images read it to re-resolve their sources. */
+  imageRevision = 0
+
+  private readonly imageListeners = new Set<() => void>()
+
+  /**
+   * Observe image-resolver changes.
+   * @param listener - called after each change.
+   * @returns the unsubscribe function.
+   */
+  subscribeImages(listener: () => void): () => void {
+    this.imageListeners.add(listener)
+    return () => { this.imageListeners.delete(listener) }
+  }
+
+  /**
+   * Replace the host's image resolver. Every rendered image, including those
+   * in cached blocks, re-resolves its source, so a URL the host can only name
+   * later (a stored copy that arrives with older history) replaces the one it
+   * named first; cached output is otherwise untouched.
+   * @param resolveImage - the host's current resolver.
+   */
+  setImageResolver(resolveImage: RendererOptions['resolveImage']): void {
+    if (this.options.resolveImage === resolveImage) return
+    this.options = { ...this.options, resolveImage }
+    this.imageRevision++
+    for (const listener of [...this.imageListeners]) listener()
+  }
+
   /** Render a complete document, replacing anything shown before. */
   setMarkdown(md: string): void {
     if (this.state.md === md && this.cachedData?.length) {

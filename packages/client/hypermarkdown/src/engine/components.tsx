@@ -21,6 +21,14 @@ export interface RendererHost {
   readonly options: RendererOptions
   readonly events: Emitter
   readonly ui: UiConfig
+  /** Bumped whenever the host's `resolveImage` changes, so a cached image re-resolves its source. */
+  readonly imageRevision: number
+  /**
+   * Observe image-resolver changes.
+   * @param listener - called after each change.
+   * @returns the unsubscribe function.
+   */
+  subscribeImages(listener: () => void): () => void
 }
 
 /**

@@ -222,6 +222,11 @@ const HyperMarkdown = forwardRef<HyperMarkdownHandle, HyperMarkdownProps>(
     // Late-bound props the engine reads while rendering.
     store.setOptions({ scrollDown, animation, streaming })
 
+    // A new image resolver re-resolves images already rendered, after commit so
+    // their re-render is not scheduled from inside this one.
+    const { resolveImage } = props
+    useEffect(() => { store.setImageResolver(resolveImage) }, [store, resolveImage])
+
     // write() is called from timers and network callbacks, so it reads the
     // props through a ref rather than closing over the ones it was built with.
     const latest = useRef({ streaming, animation })
