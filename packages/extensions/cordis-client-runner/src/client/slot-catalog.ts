@@ -2208,6 +2208,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     occupants: [
       'client-ui-desktop-handoff HandoffModal id \'desktop-handoff\'',
       'client-ui-settings-sync SyncPasskeyPopup id \'sync-passkey\'',
+      'client-ui-sidebar-browser ExtensionPromptModal id \'browser-extension-prompt\'',
       'client-ui-update UpdatePopup id \'update\'',
     ],
     replaceRisk: 'none',

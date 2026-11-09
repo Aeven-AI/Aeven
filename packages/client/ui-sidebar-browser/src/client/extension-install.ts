@@ -86,6 +86,7 @@ export function browserLabel(): string | undefined {
 
 /** The page's extension prompt and the tool calls waiting on it. */
 export class ExtensionPrompt {
+  /** What the prompt shows now, which the modal renders. */
   readonly state: SnapshotStore<ExtensionPromptState> = createSnapshotStore<ExtensionPromptState>({ kind: 'closed' })
   readonly #connected: () => Promise<ReadonlyArray<{ readonly browser: string }>>
   readonly #waiters = new Set<Waiter>()
