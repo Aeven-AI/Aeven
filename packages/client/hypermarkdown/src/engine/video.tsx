@@ -18,6 +18,12 @@ interface VideoProps {
 /** Widest still YouTube serves in place of a `maxresdefault` it does not have, in pixels. */
 const YOUTUBE_MISSING_STILL_WIDTH = 120
 
+/**
+ * Milliseconds the poster stays over a player whose frame has loaded, so the
+ * provider paints its own first frame before the poster fades.
+ */
+const PLAYER_SETTLE_MS = 250
+
 /** Milliseconds a Vimeo id must hold still before its poster is looked up, so a streaming link does not look up each prefix of its id. */
 const POSTER_LOOKUP_DELAY_MS = 300
 
@@ -49,7 +55,9 @@ async function vimeoPoster(video: VideoRef, signal: AbortSignal): Promise<string
  * YouTube's player requires before it will play. The tile keeps one shape
  * whether it shows the poster or the player, and shows the same loading
  * surface an image tile does until its poster arrives, carrying `data-loaded`
- * once it has.
+ * once it has. After the click the player loads under the poster, which stays
+ * on top (`data-covering`) until the player's frame has loaded and settled,
+ * then fades (`data-revealed`), so the tile never shows its empty background.
  */
 function MarkdownVideo(props: VideoProps) {
   const provider = props['data-provider']
@@ -68,6 +76,9 @@ function MarkdownVideo(props: VideoProps) {
   // Keyed by the video, so a link that changes while streaming never keeps
   // playing the previous one.
   const [playing, setPlaying] = useState<string | undefined>(undefined)
+  const [playerLoaded, setPlayerLoaded] = useState<string | undefined>(undefined)
+  const [revealed, setRevealed] = useState<string | undefined>(undefined)
+  const [gone, setGone] = useState<string | undefined>(undefined)
   const key = video === undefined ? undefined : `${video.provider}:${video.id}:${video.hash ?? ''}`
   const [vimeoStill, setVimeoStill] = useState<{ key: string; src: string } | undefined>(undefined)
   const [loadedPoster, setLoadedPoster] = useState<string | undefined>(undefined)
@@ -92,6 +103,12 @@ function MarkdownVideo(props: VideoProps) {
     }
   }, [video, key])
 
+  useEffect(() => {
+    if (playerLoaded === undefined || playerLoaded !== playing) return
+    const timer = setTimeout(() => { setRevealed(playerLoaded) }, PLAYER_SETTLE_MS)
+    return () => { clearTimeout(timer) }
+  }, [playerLoaded, playing])
+
   if (video === undefined || key === undefined) return null
 
   const poster = video.provider === 'youtube'
@@ -108,7 +125,7 @@ function MarkdownVideo(props: VideoProps) {
       data-provider={video.provider}
       data-loaded={poster !== undefined && loadedPoster === poster ? true : undefined}
     >
-      {playing === key ? (
+      {playing === key && (
         <iframe
           className="markdown-video-player"
           src={videoPlayerUrl(video)}
@@ -116,14 +133,22 @@ function MarkdownVideo(props: VideoProps) {
           allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
           allowFullScreen
           referrerPolicy="strict-origin-when-cross-origin"
+          onLoad={() => { setPlayerLoaded(key) }}
         />
-      ) : (
+      )}
+      {gone !== key && (
         <button
           type="button"
           className="markdown-video-poster"
           aria-label={label}
+          aria-busy={playing === key ? true : undefined}
           title={title}
+          data-covering={playing === key ? true : undefined}
+          data-revealed={revealed === key ? true : undefined}
           onClick={() => { setPlaying(key) }}
+          onTransitionEnd={(event) => {
+            if (event.target === event.currentTarget && revealed === key) setGone(key)
+          }}
         >
           {poster !== undefined && (
             <img
