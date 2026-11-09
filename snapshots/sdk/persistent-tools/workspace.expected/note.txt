@@ -1,2 +1,2 @@
-target:
-	new
+This line has been replaced.
+This line does not.

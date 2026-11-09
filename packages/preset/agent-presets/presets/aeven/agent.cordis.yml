@@ -246,6 +246,17 @@
         nestingSettings: true
         backgroundMode: continuable
         maxDepth: 2
+        # Without a rule for when to split, a large task such as fixing a whole
+        # test suite runs serially in one context. The text reaches only agents
+        # whose depth budget lets them start a child.
+        splitGuidance: >-
+          Split a large task across subagents when it breaks into independent parts that each take many steps:
+          failing tests spread over several packages or test files, one change repeated across several modules,
+          or research on several separate questions. When many failures share one cause, such as a common helper,
+          fix that cause yourself first and split what remains. Give each subagent its own set of files that no
+          other subagent changes, the exact command that reproduces its part, and everything else it needs in the
+          prompt. When they settle, review their changes and run the full check once yourself before reporting.
+          Do a task you can finish in a few steps, or one whose parts change the same files, yourself.
 
     # Fork omits model selection so provider/model stay equal to the parent and
     # the inherited history remains eligible for KV Cache reuse. This preset

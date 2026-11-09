@@ -53,6 +53,22 @@ describe('workspace snapshots', () => {
     ])
   })
 
+  it('reads a nested expected-empty marker as an empty directory, but keeps it in a runtime workspace', async () => {
+    const directory = await root()
+    await mkdir(join(directory, 'kept'))
+    await writeFile(join(directory, 'kept', EMPTY_WORKSPACE_MARKER), '')
+    await writeFile(join(directory, 'note.txt'), 'note')
+
+    expect(await captureExpectedWorkspaceSnapshot(directory)).toEqual([
+      { path: 'kept', kind: 'empty-directory' },
+      { path: 'note.txt', kind: 'text', content: 'note' },
+    ])
+    expect(await captureWorkspaceSnapshot(directory)).toEqual([
+      { path: 'kept/.empty', kind: 'text', content: '' },
+      { path: 'note.txt', kind: 'text', content: 'note' },
+    ])
+  })
+
   it('treats NUL-bearing UTF-8 as binary workspace state', async () => {
     const directory = await root()
     await writeFile(join(directory, 'nul.bin'), Buffer.from([0x61, 0x00, 0x62]))
