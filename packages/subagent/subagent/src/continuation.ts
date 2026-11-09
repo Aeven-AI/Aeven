@@ -485,11 +485,11 @@ export class SubagentContinuationManager {
       this.assertAdmitting(parent)
       this.assertChildIdAvailable(childId)
       if (spec.childId !== undefined) {
-        const persisted = await persistence.listSnapshots(spec.signal)
+        const persisted = await persistence.snapshot(childId, spec.signal)
         spec.signal.throwIfAborted()
         this.assertAdmitting(parent)
         this.assertChildIdAvailable(childId)
-        if (persisted.some(snapshot => snapshot.header.id === childId)) {
+        if (persisted !== undefined) {
           throw new SubagentError(`subagent "${childId}" already exists`, 'DUPLICATE_CHILD')
         }
       }

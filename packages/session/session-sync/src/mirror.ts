@@ -19,7 +19,7 @@ import { promisify } from 'node:util'
 import { brotliCompress, brotliDecompress, constants } from 'node:zlib'
 import type { Map as YMap, YMapEvent, Transaction } from 'yjs'
 import { SessionLogOffset, type SessionEvent, type SessionHeader, type SessionId } from '@aeven/session'
-import type { SessionPersistence } from '@aeven/session-persistence'
+import type { SessionPersistence, SessionPersistenceSnapshot } from '@aeven/session-persistence'
 import { LeaseHolder, type Sync, type SyncDocument, type SyncProgress, type LeaseHolderTiming } from '@aeven/sync'
 import { AttachmentId, type AttachmentStore } from '@aeven/attachment'
 import type { SessionClaim, SessionHandoffInput, SessionRunner, SharedSession } from '@aeven/session-handoff'
@@ -126,8 +126,17 @@ interface Fold {
 export interface SessionSyncTuning {
   /** Session runner lease lifetime and renewal interval. */
   runnerLease?: LeaseHolderTiming
-  /** Interval between scans for changed local sessions, in milliseconds. */
+  /**
+   * Pause before a session whose publication failed, or whose workspace changed, is published, and between checks
+   * of a full outbox, in milliseconds.
+   */
   publishMs: number
+  /**
+   * Interval between scans of every stored session for changes this process committed no event for, such as a
+   * session another process wrote into the shared session root, in milliseconds; `0` scans only when the mirror
+   * starts and when the account reconnects. Sessions this process writes publish from their commit events.
+   */
+  scanMs: number
   /** Uncompressed JSON bytes per published batch before a new batch starts. */
   batchBytes: number
   /** Maximum history batches compressed concurrently; one conversation log is loaded at a time. */
@@ -162,6 +171,40 @@ export interface SessionSyncTuning {
 
 const compress = promisify(brotliCompress)
 const decompress = promisify(brotliDecompress)
+
+/** Which sessions are stored here, with their log revisions. */
+interface StoredSessions {
+  readonly local: ReadonlySet<string>
+  readonly revisions: ReadonlyMap<string, string>
+}
+
+/** @returns the stored sessions some snapshots name. */
+function storedOf(snapshots: readonly SessionPersistenceSnapshot[]): StoredSessions {
+  return {
+    local: new Set(snapshots.map(({ header }) => header.id as string)),
+    revisions: new Map(snapshots.map(({ header, revision }) => [header.id as string, String(revision)])),
+  }
+}
+
+/** Listings of every stored session in flight, by persistence, so the mirrors of every account share one. */
+const listings = new WeakMap<SessionPersistence, Promise<SessionPersistenceSnapshot[]>>()
+
+/**
+ * List every stored session, joining a listing that is already in flight. Joining loses no change: a session
+ * committed after that listing began reaches its mirror through its commit event, and one a mirror creates while
+ * importing is in that mirror's own record of created sessions.
+ * @param persistence - this Host's session persistence.
+ * @returns the snapshots; callers only read them.
+ */
+function listStored(persistence: SessionPersistence): Promise<SessionPersistenceSnapshot[]> {
+  const inFlight = listings.get(persistence)
+  if (inFlight !== undefined) return inFlight
+  const listing = persistence.listSnapshots().finally(() => {
+    if (listings.get(persistence) === listing) listings.delete(persistence)
+  })
+  listings.set(persistence, listing)
+  return listing
+}
 
 /** Yield the event loop with a real timer, so background history work never starves a turn or a request. */
 function pause(ms: number): Promise<void> {
@@ -313,15 +356,23 @@ export class SessionMirror {
   private inputTimer: ReturnType<typeof setInterval> | undefined
   private liveTimer: ReturnType<typeof setInterval> | undefined
   private publishing: Promise<void> | undefined
+  /** A publication pass over every stored session was requested. */
+  private publishFull = false
+  /** Sessions waiting for a publication pass that reads only their own snapshots. */
+  private readonly marked = new Set<string>()
+  /** Starts the pass over {@link marked} once {@link SessionSyncTuning.publishMs} passed. */
+  private markTimer: ReturnType<typeof setTimeout> | undefined
+  /** The pass over {@link marked} is due. */
+  private markedDue = false
+  /** Repeats a full publication pass that could not read the stored sessions. */
+  private fullRetryTimer: ReturnType<typeof setTimeout> | undefined
   private readonly publicationProgress: SyncProgress = { sessionsPending: 0, sessionsTotal: 0 }
   private importing: Promise<void> | undefined
-  private importAgain = false
+  /** An import pass over every session of the account was requested. */
+  private importFull = false
+  /** Sessions whose index entries another device changed since the last import pass. */
+  private readonly importIds = new Set<string>()
   private closed = false
-
-  /** Opaque read of {@link importAgain}, set by a concurrent schedule while a pass awaits. */
-  private repeatImport(): boolean {
-    return this.importAgain
-  }
   /** Claims this device holds, by session. */
   private readonly claims = new Map<SessionId, Claim>()
   private readonly releases = new Map<string, Promise<void>>()
@@ -395,9 +446,12 @@ export class SessionMirror {
             this.warn(`session sync: reading ${sessionId} before a turn failed; continuing on the local log: ${String(error)}`)
           })
         }
-        const stored = (await this.persistence.list()).find(header => header.id === sessionId)
+        const snapshot = await this.persistence.snapshot(sessionId)
+        const stored = snapshot?.header
         if (stored !== undefined && stored.owner !== this.owner) throw new Error('session does not belong to this account')
-        const localNext = stored === undefined ? 0 : await this.next(sessionId, new Set([sessionId]))
+        const localNext = snapshot === undefined
+          ? 0
+          : await this.next(sessionId, new Set([sessionId]), new Map([[sessionId, String(snapshot.revision)]]))
         const fold = this.folds.get(sessionId)
         const previous = this.claims.get(sessionId)
         // A claim continues when nothing was accepted after it; otherwise a new one starts at the accepted head.
@@ -441,6 +495,7 @@ export class SessionMirror {
       if (claim !== undefined) {
         await this.serialize(sessionId, () => this.publishSession(sessionId)).catch((error: unknown) => {
           this.warn(`session sync: publishing a finished turn failed: ${String(error)}`)
+          this.mark(sessionId)
         })
         await this.sync.synchronize(this.owner).catch((error: unknown) => {
           // Without a relay the batches already took the local network; the fold settles them later.
@@ -479,9 +534,8 @@ export class SessionMirror {
       this.running.delete(sessionId)
       await this.released?.(sessionId)
       await claim?.holder?.dispose()
-      if ((await this.persistence.list()).some(header => header.id === sessionId && header.replica !== true)) {
-        await this.persistence.setReplica(sessionId, true)
-      }
+      const stored = await this.persistence.snapshot(sessionId)
+      if (stored !== undefined && stored.header.replica !== true) await this.persistence.setReplica(sessionId, true)
       this.localNext.delete(sessionId)
       this.appendedNext.delete(sessionId)
     })().finally(() => {
@@ -591,10 +645,13 @@ export class SessionMirror {
   /** The filing {@link offLateFiling} observes. */
   private lateFilingSource: SessionFiling | undefined
 
-  /** Observe late filing on the current filing, moving the observation when the filing changed. */
-  private watchLateFiling(): void {
+  /**
+   * Observe late filing on the current filing, moving the observation when the filing changed.
+   * @returns whether the filing changed since the last call.
+   */
+  private watchLateFiling(): boolean {
     const filing = this.filing
-    if (filing === this.lateFilingSource) return
+    if (filing === this.lateFilingSource) return false
     this.offLateFiling?.()
     this.lateFilingSource = filing
     this.offLateFiling = filing?.onLateFiling(() => {
@@ -602,6 +659,7 @@ export class SessionMirror {
       this.scheduleImport()
       this.progressChanged?.()
     })
+    return true
   }
 
   /** Content addresses of attachments the account's devices published, by id. */
@@ -828,10 +886,10 @@ export class SessionMirror {
       entry = this.entries().get(sessionId)
       if (entry === undefined) throw new Error('session disappeared while opening history')
     }
-    const local = new Set((await this.persistence.list()).map(header => header.id as string))
+    const { local, revisions } = await this.storedAmong([sessionId])
     const opened = entry
     const stored = local.has(sessionId) || this.created.has(sessionId)
-    if (stored && await this.knownHead(sessionId, local) >= opened.next) return
+    if (stored && await this.knownHead(sessionId, local, revisions) >= opened.next) return
     const importing = this.fold(sessionId, opened).then(async () => {
       await this.file(sessionId, opened)
     })
@@ -1038,10 +1096,11 @@ export class SessionMirror {
     // A device that starts while another device runs a turn reads the state already published, not
     // only later changes, so the turn shows as running here from the first frame.
     for (const id of live.doc.getMap<LiveEntry>('sessions').keys()) this.liveChange?.(id as SessionId)
-    this.entries().observe((_event: YMapEvent<IndexEntry>, transaction: Transaction) => {
+    this.entries().observe((event: YMapEvent<IndexEntry>, transaction: Transaction) => {
       if (transaction.local) return
       this.catalogChanged?.()
-      this.scheduleImport()
+      // Only the sessions another device changed can have new history to fold.
+      this.scheduleImport(event.keysChanged)
       this.progressChanged?.()
     })
     this.pending().observe((_event: YMapEvent<InboxEntry>, transaction: Transaction) => {
@@ -1062,7 +1121,10 @@ export class SessionMirror {
     this.consumeInbox()
     this.scheduleImport()
     this.progressChanged?.()
-    this.timer = setInterval(() => { void this.publish() }, this.tuning.publishMs)
+    // Sessions this process writes publish from their commit events; the scan finds what another process wrote.
+    if (this.tuning.scanMs > 0) this.timer = setInterval(() => { void this.publish() }, this.tuning.scanMs)
+    // Sessions committed while the mirror started publish in their own pass after the first full one.
+    if (this.marked.size > 0) this.markedDue = true
     // Inputs wait on timing (the typing device's first chance, expiry), so the inbox is revisited while any wait.
     this.inputTimer = setInterval(() => { if (this.pending().size > 0) this.consumeInbox() }, this.tuning.inputGraceMs)
     // A running turn keeps confirming its live state, so a device that sleeps mid-turn stops reading as running.
@@ -1083,7 +1145,10 @@ export class SessionMirror {
   reconnected(): void {
     this.scheduleSettle()
     this.scheduleImport()
-    if (this.docs !== undefined) this.consumeInbox()
+    if (this.docs !== undefined) {
+      this.consumeInbox()
+      void this.publish()
+    }
   }
 
   /** The running settle pass, if any. */
@@ -1122,9 +1187,8 @@ export class SessionMirror {
     const me = this.device()
     if (me === undefined || this.isClosed()) return
     const online = this.sync.status(this.owner).state === 'online'
-    const snapshots = await this.persistence.listSnapshots()
-    const local = new Set(snapshots.map(({ header }) => header.id as string))
-    const revisions = new Map(snapshots.map(({ header, revision }) => [header.id as string, String(revision)]))
+    const snapshots = await listStored(this.persistence)
+    const { local, revisions } = storedOf(snapshots)
     // The most recently active conversations settle first.
     const ordered = [...snapshots].sort((left, right) => {
       const l = this.entries().get(left.header.id)
@@ -1175,25 +1239,58 @@ export class SessionMirror {
     }
   }
 
-  private scheduleImport(): void {
+  /**
+   * Request an import pass, one at a time.
+   * @param ids - the sessions whose index entries another device changed; omitted, every session of the account.
+   */
+  private scheduleImport(ids?: Iterable<string>): void {
     if (this.docs === undefined || this.isClosed()) return
-    if (this.importing !== undefined) {
-      this.importAgain = true
-      return
-    }
+    if (ids === undefined) this.importFull = true
+    else for (const id of ids) this.importIds.add(id)
+    this.pumpImport()
+  }
+
+  /** Run requested import passes until none is left; a full request covers the sessions requested with it. */
+  private pumpImport(): void {
+    if (this.importing !== undefined) return
     this.importing = (async () => {
-      do {
-        this.importAgain = false
-        await this.importAll()
-      } while (this.repeatImport() && !this.isClosed())
+      while (!this.isClosed() && (this.importFull || this.importIds.size > 0)) {
+        const ids = this.importFull ? undefined : new Set(this.importIds)
+        this.importFull = false
+        this.importIds.clear()
+        await this.importAll(ids)
+      }
     })().catch((error: unknown) => {
       // Importing runs in the background, so a failed pass is reported here instead of becoming an unhandled rejection.
       this.warn(`session sync: importing sessions failed: ${String(error)}`)
     }).finally(() => {
       this.importing = undefined
-      // A change that arrived after the loop's last check but before this point still needs its pass.
-      if (this.repeatImport() && !this.isClosed()) this.scheduleImport()
+      // A request that arrived after the loop's last check but before this point still needs its pass.
+      if (!this.isClosed() && (this.importFull || this.importIds.size > 0)) this.pumpImport()
     })
+  }
+
+  /**
+   * Read which of some sessions are stored here, one session at a time.
+   * @param ids - the sessions.
+   * @returns the stored ones and their log revisions.
+   */
+  private async storedAmong(ids: Iterable<string>): Promise<StoredSessions> {
+    return storedOf(await this.snapshotsOf(ids))
+  }
+
+  /**
+   * Read the snapshots of some sessions one session at a time, so no lookup reads every stored session.
+   * @param ids - the sessions.
+   * @returns the snapshots of those stored here.
+   */
+  private async snapshotsOf(ids: Iterable<string>): Promise<SessionPersistenceSnapshot[]> {
+    const snapshots: SessionPersistenceSnapshot[] = []
+    for (const id of ids) {
+      const snapshot = await this.persistence.snapshot(id as SessionId)
+      if (snapshot !== undefined) snapshots.push(snapshot)
+    }
+    return snapshots
   }
 
   private async next(id: string, local: ReadonlySet<string>, revisions?: ReadonlyMap<string, string>): Promise<number> {
@@ -1260,15 +1357,26 @@ export class SessionMirror {
     })
   }
 
-  private async importAll(): Promise<void> {
+  /**
+   * Fold the account's sessions that another device continued, and file imported sessions into their workspaces.
+   * @param only - the sessions to consider; omitted, every session of the account.
+   */
+  private async importAll(only?: ReadonlySet<string>): Promise<void> {
     const me = this.device()
     if (me === undefined || this.isClosed()) return
-    this.watchLateFiling()
-    const snapshots = await this.persistence.listSnapshots()
-    const local = new Set(snapshots.map(({ header }) => header.id as string))
-    const revisions = new Map(snapshots.map(({ header, revision }) => [header.id as string, String(revision)]))
+    // A filing provided since the last pass files every session the earlier passes could not.
+    const ids = this.watchLateFiling() ? undefined : only
+    const candidates: [string, IndexEntry][] = ids === undefined
+      ? [...this.entries()]
+      : [...ids].flatMap((id) => {
+        const entry = this.entries().get(id)
+        return entry === undefined ? [] : [[id, entry]]
+      })
+    const { local, revisions } = ids === undefined
+      ? storedOf(await listStored(this.persistence))
+      : await this.storedAmong(candidates.filter(([, entry]) => entry.header.owner === this.owner).map(([id]) => id))
     // The most recently active conversations arrive first; older history follows.
-    const owned = [...this.entries()]
+    const owned = candidates
       .filter(([, entry]) => entry.header.owner === this.owner)
       .sort(([, left], [, right]) => recency(right) - recency(left))
     const ordered: [string, IndexEntry][] = []
@@ -1310,6 +1418,7 @@ export class SessionMirror {
     // fold compares the two, so a claim the accepted history superseded ends here rather than at the next turn.
     const imported = new Set(ordered.map(([id]) => id))
     for (const id of [...this.claims.keys()]) {
+      if (ids !== undefined && !ids.has(id)) continue
       const entry = this.entries().get(id)
       if (entry === undefined || imported.has(id) || !local.has(id) || this.running.has(id)) continue
       await this.releases.get(id)
@@ -1329,11 +1438,12 @@ export class SessionMirror {
   /** Run one change to a session's stored log after every earlier one, whether it came from the relay or the local network. */
   private serialImport(id: string, work: () => Promise<void>): Promise<void> {
     const run = (this.imports.get(id) ?? Promise.resolve()).then(async () => {
-      const pending = this.progress().sessionsPending
+      // Only this session's download state can change here, so comparing it alone tells whether progress moved.
+      const before = this.downloadPendingOf(id)
       try {
         await work()
       } finally {
-        if (this.progress().sessionsPending !== pending) this.progressChanged?.()
+        if (this.downloadPendingOf(id) !== before) this.progressChanged?.()
       }
     })
     this.imports.set(id, run.catch(() => {}))
@@ -1399,10 +1509,12 @@ export class SessionMirror {
    */
   private fold(id: string, entry: IndexEntry, revisions?: ReadonlyMap<string, string>): Promise<void> {
     return this.serialImport(id, async () => {
-      const headers = await this.persistence.list()
-      const local = new Set(headers.map(header => header.id as string))
-      const replica = headers.find(header => header.id === id)?.replica === true
-      const fold = { ...await this.foldStart(id, entry, local, replica, revisions) }
+      const snapshot = await this.persistence.snapshot(id as SessionId)
+      const local = new Set(snapshot === undefined ? [] : [id])
+      const replica = snapshot?.header.replica === true
+      // The revision read now is current; one a caller listed earlier may predate an append made since.
+      const current = snapshot === undefined ? revisions : new Map([[id, String(snapshot.revision)]])
+      const fold = { ...await this.foldStart(id, entry, local, replica, current) }
       // The stored log, read once per pass for comparing accepted events with what this device holds.
       const held: { events?: readonly SessionEvent[] } = {}
       let stored = false
@@ -1435,7 +1547,7 @@ export class SessionMirror {
             fold.head = after(events, fold.head)
             if (batch.claim !== undefined) fold.claim = batch.claim
             if (fold.head < entry.inherited) continue
-            const accepted = await this.applyAccepted(id, entry, pending, batch.claim, local, held, revisions)
+            const accepted = await this.applyAccepted(id, entry, pending, batch.claim, local, held, current)
             if (accepted === 'gap') {
               // The stored log is shorter than the recorded head: fold again from the stream's start.
               this.folds.delete(id)
@@ -1595,15 +1707,40 @@ export class SessionMirror {
     if (this.docs === undefined) return progress
     const homes = this.filing?.sessionHomes()
     for (const [id, entry] of this.entries()) {
-      if (entry.header.owner !== this.owner || this.claims.has(id as SessionId)) continue
-      const next = Math.max(this.localNext.get(id) ?? 0, this.folds.get(id)?.head ?? 0)
-      const local = this.localNext.has(id) || this.created.has(id)
-      if (!local && homes !== undefined && !homes.has(id as SessionId)) continue
-      if (!local && this.tuning.backfillDays > 0 && entry.header.createdAt < Date.now() - this.tuning.backfillDays * DAY_MS) continue
+      const pending = this.downloadPending(id, entry, homes === undefined ? undefined : homes.has(id as SessionId))
+      if (pending === undefined) continue
       progress.sessionsTotal += 1
-      if (entry.next > next) progress.sessionsPending += 1
+      if (pending) progress.sessionsPending += 1
     }
     return progress
+  }
+
+  /**
+   * Whether one session's history download is pending, as {@link progress} counts it.
+   * @param id - the session.
+   * @param entry - its index entry.
+   * @param filed - whether a workspace here holds it; undefined while this device files nothing.
+   * @returns whether it is pending, or undefined when progress does not count it.
+   */
+  private downloadPending(id: string, entry: IndexEntry, filed: boolean | undefined): boolean | undefined {
+    if (entry.header.owner !== this.owner || this.claims.has(id as SessionId)) return undefined
+    const next = Math.max(this.localNext.get(id) ?? 0, this.folds.get(id)?.head ?? 0)
+    const local = this.localNext.has(id) || this.created.has(id)
+    if (!local && filed === false) return undefined
+    if (!local && this.tuning.backfillDays > 0 && entry.header.createdAt < Date.now() - this.tuning.backfillDays * DAY_MS) return undefined
+    return entry.next > next
+  }
+
+  /**
+   * {@link downloadPending} for a session looked up by id.
+   * @param id - the session.
+   * @returns whether it is pending, or undefined when progress does not count it.
+   */
+  private downloadPendingOf(id: string): boolean | undefined {
+    const entry = this.docs?.index.doc.getMap<IndexEntry>('sessions').get(id)
+    if (entry === undefined) return undefined
+    const filing = this.filing
+    return this.downloadPending(id, entry, filing === undefined ? undefined : filing.sessionHome(id as SessionId) !== undefined)
   }
 
   /**
@@ -1613,14 +1750,86 @@ export class SessionMirror {
   publish(): Promise<void> {
     const me = this.device()
     if (me === undefined || this.isClosed()) return Promise.resolve()
-    this.publishing ??= this.publishAll().finally(() => { this.publishing = undefined })
+    this.publishFull = true
+    return this.pumpPublication()
+  }
+
+  /**
+   * Publish a session in a pass that reads only the sessions marked for it, once
+   * {@link SessionSyncTuning.publishMs} passed; the pause keeps a failing publication from retrying at once.
+   * @param id - the session.
+   */
+  private mark(id: string): void {
+    if (this.isClosed()) return
+    this.marked.add(id)
+    this.markTimer ??= setTimeout(() => {
+      this.markTimer = undefined
+      this.markedDue = true
+      if (this.device() !== undefined) void this.pumpPublication()
+    }, this.tuning.publishMs)
+  }
+
+  /**
+   * A workspace changed on this device: publish the sessions whose workspace here differs from the one their index
+   * entry names. A session no workspace holds here any more publishes at the next full scan.
+   */
+  workspacesChanged(): void {
+    if (this.docs === undefined || this.isClosed()) return
+    const homes = this.filing?.sessionHomes()
+    if (homes === undefined) return
+    for (const [id, entry] of this.entries()) {
+      const home = homes.get(id as SessionId)
+      if (entry.header.owner === this.owner && home !== undefined && entry.workspace !== home) this.mark(id)
+    }
+  }
+
+  /**
+   * Run requested publication passes, one at a time. Marked sessions keep their own pass after a full one, because a
+   * full pass may read a listing another account's mirror started before they changed.
+   */
+  private pumpPublication(): Promise<void> {
+    this.publishing ??= (async () => {
+      while (!this.isClosed() && (this.publishFull || this.markedDue)) {
+        const full = this.publishFull
+        const ids = full ? [] : [...this.marked]
+        if (full) {
+          this.publishFull = false
+        } else {
+          this.markedDue = false
+          this.marked.clear()
+        }
+        await this.publishAll(full
+          ? async () => {
+            try {
+              return await listStored(this.persistence)
+            } catch (error) {
+              // A scan that could not read the stored sessions runs again after the pause.
+              this.fullRetryTimer ??= setTimeout(() => {
+                this.fullRetryTimer = undefined
+                void this.publish()
+              }, this.tuning.publishMs)
+              throw error
+            }
+          }
+          : () => this.snapshotsOf(ids))
+      }
+    })().finally(() => {
+      this.publishing = undefined
+      // A request that arrived after the loop's last check but before this point still needs its pass.
+      if (!this.isClosed() && (this.publishFull || this.markedDue)) void this.pumpPublication()
+    })
     return this.publishing
   }
 
-  private async publishAll(): Promise<void> {
+  /**
+   * Publish the sessions among some stored ones that have changes no device received yet.
+   * @param read - reads the stored sessions to consider.
+   */
+  private async publishAll(read: () => Promise<readonly SessionPersistenceSnapshot[]>): Promise<void> {
+    let remaining: string[] = []
     try {
       const entries = this.entries()
-      const snapshots = await this.persistence.listSnapshots()
+      const snapshots = await read()
       const homes = this.filing?.sessionHomes()
       const pending = snapshots.filter(({ header, revision }) => {
         const id = header.id as string
@@ -1645,11 +1854,13 @@ export class SessionMirror {
         this.progressChanged?.()
       }
       pending.sort((left, right) => right.header.createdAt - left.header.createdAt)
+      remaining = pending.map(({ header }) => header.id as string)
       for (const { header, revision } of pending) {
         if (this.isClosed()) return
         const id = header.id as string
         await pause(this.tuning.pauseMs)
         await this.serialize(id, () => this.publishSession(header.id, true))
+        remaining.shift()
         this.revisions.set(id, String(revision))
         this.record(id, { revision: String(revision) })
         this.publicationProgress.sessionsPending -= 1
@@ -1657,6 +1868,8 @@ export class SessionMirror {
       }
     } catch (error) {
       this.warn(`session sync: publishing sessions failed: ${String(error)}`)
+      // The failed session and those after it publish again after the pause instead of waiting for a full scan.
+      for (const id of remaining) this.mark(id)
     }
   }
 
@@ -1698,7 +1911,12 @@ export class SessionMirror {
     // The stored length the fold compares with follows every commit, including this device's own turns.
     const committed = events.at(-1)
     if (committed !== undefined && this.localNext.has(id)) this.localNext.set(id, committed.seq + 1)
-    if (header.replica || header.owner !== this.owner || this.docs === undefined) return
+    if (header.replica || header.owner !== this.owner) return
+    if (this.docs === undefined) {
+      // The pass that follows the mirror's start publishes it.
+      if (!this.isClosed()) this.marked.add(id)
+      return
+    }
     const last = events.at(-1)
     if (last !== undefined) this.appendedNext.set(id, last.seq + 1)
     if (this.live.has(id)) return
@@ -1708,6 +1926,7 @@ export class SessionMirror {
       if (this.entries().has(id) && !this.claims.has(header.id)) return
       this.serialize(id, () => this.publishSession(header.id)).catch((error: unknown) => {
         this.warn(`session sync: publishing a running session failed: ${String(error)}`)
+        this.mark(id)
       })
     }, this.tuning.liveMs))
   }
@@ -1829,6 +2048,8 @@ export class SessionMirror {
     this.offLateFiling?.()
     for (const resume of this.openingDone.splice(0)) resume()
     for (const timer of [this.timer, this.inputTimer, this.liveTimer]) if (timer !== undefined) clearInterval(timer)
+    for (const timer of [this.markTimer, this.fullRetryTimer]) if (timer !== undefined) clearTimeout(timer)
+    this.marked.clear()
     for (const off of this.watchers.values()) off()
     this.watchers.clear()
     for (const timer of this.live.values()) clearTimeout(timer)

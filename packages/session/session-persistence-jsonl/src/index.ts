@@ -64,6 +64,9 @@ const ZSTD_DECODE_YIELD_INTERVAL_MS = 500
  */
 const LIST_READ_CONCURRENCY = 32
 
+/** File beside a session's log that marks it a received copy (`true`) or this device's own (`false`). */
+const REPLICA_MARKER = 'replica.json'
+
 /**
  * Map `items` through `run` with at most `limit` in flight, preserving input
  * order in the result. The first rejection wins and the remaining queue is
@@ -209,6 +212,8 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
    * header rewrite replaces the file, so a changed header always arrives with a changed revision.
    */
   private readonly listed = new Map<string, { readonly revision: PersistenceRevision; readonly artifact: ListedArtifact }>()
+  /** The log path each listed or looked-up session was last read at, so {@link snapshot} reads one directory. */
+  private readonly listedPaths = new Map<SessionId, string>()
 
   constructor(ctx: Context, public config: Config) {
     super(ctx)
@@ -299,7 +304,7 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
   }
 
   private async writeReplica(path: string, replica: boolean): Promise<void> {
-    const target = join(dirname(path), 'replica.json')
+    const target = join(dirname(path), REPLICA_MARKER)
     const tmp = await this.writeSyncedTempFile(target, JSON.stringify(replica) + '\n')
     try {
       if (process.platform === 'win32') {
@@ -316,7 +321,7 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
   private async replicaMeta(path: string, meta: SessionHeader): Promise<SessionHeader> {
     let value: unknown
     try {
-      value = JSON.parse(await readFile(join(dirname(path), 'replica.json'), 'utf8'))
+      value = JSON.parse(await readFile(join(dirname(path), REPLICA_MARKER), 'utf8'))
     } catch (error) {
       if (isENOENT(error)) return meta
       throw error
@@ -328,7 +333,7 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
 
   private async replicaRevision(path: string, revision: PersistenceRevision): Promise<PersistenceRevision> {
     try {
-      const marker = await stat(join(dirname(path), 'replica.json'), { bigint: true })
+      const marker = await stat(join(dirname(path), REPLICA_MARKER), { bigint: true })
       return SessionPersistenceRevision(`${revision}:replica:${fileRevision(marker)}`)
     } catch (error) {
       if (isENOENT(error)) return revision
@@ -629,25 +634,34 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
     }))
   }
 
-  /** List metadata plus a stat-derived identity for each append-only log. */
+  /**
+   * List metadata plus a stat-derived identity for each append-only log. Each revision is the one the listing read
+   * the header at, so a log appended during the listing reports its change at the next observation.
+   */
   async listSnapshots(signal?: AbortSignal): Promise<SessionPersistenceSnapshot[]> {
-    const snapshots: SessionPersistenceSnapshot[] = []
-    for (const artifact of await this.listArtifacts(signal)) {
-      signal?.throwIfAborted()
-      try {
-        const identity = await stat(artifact.path, { bigint: true })
-        signal?.throwIfAborted()
-        snapshots.push({
-          header: artifact.header,
-          revision: await this.replicaRevision(artifact.path, fileRevision(identity)),
-        })
-      } catch (error: unknown) {
-        signal?.throwIfAborted()
-        if (!isENOENT(error)) throw error
-      }
-    }
+    const artifacts = await this.listArtifacts(signal)
     signal?.throwIfAborted()
-    return snapshots
+    return artifacts.map(artifact => ({ header: artifact.header, revision: artifact.revision }))
+  }
+
+  /**
+   * Read one session's header and revision from the directory the last listing or lookup found it in, and search
+   * the project directories only when that directory no longer holds it.
+   * @param id - the session to read.
+   * @param signal - optional cancellation for the directory reads.
+   * @returns the session's header and revision, or `undefined` when no log of it is stored.
+   */
+  override async snapshot(id: SessionId, signal?: AbortSignal): Promise<SessionPersistenceSnapshot | undefined> {
+    signal?.throwIfAborted()
+    await this.ensureRootEncoding()
+    signal?.throwIfAborted()
+    const known = this.listedPaths.get(id)
+    const cached = known === undefined ? undefined : await this.readArtifactHeader(dirname(known), signal)
+    if (cached?.header.id === id) return { header: cached.header, revision: cached.revision }
+    const path = await this.findLog(id, signal)
+    if (path === undefined) return undefined
+    const found = await this.readArtifactHeader(dirname(path), signal)
+    return found === undefined ? undefined : { header: found.header, revision: found.revision }
   }
 
   private async listArtifacts(signal?: AbortSignal): Promise<ListedArtifact[]> {
@@ -672,7 +686,11 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
       dir => this.readArtifactHeader(dir, signal),
     )
     const present = new Set(read.flatMap(artifact => artifact === undefined ? [] : [artifact.path]))
-    for (const path of this.listed.keys()) if (!present.has(path)) this.listed.delete(path)
+    for (const [path, entry] of this.listed) {
+      if (present.has(path)) continue
+      this.listed.delete(path)
+      if (this.listedPaths.get(entry.artifact.header.id) === path) this.listedPaths.delete(entry.artifact.header.id)
+    }
     // Ordering and duplicate detection stay sequential over the directory
     // order, so the result is identical to reading them one at a time.
     for (const artifact of read) {
@@ -697,23 +715,32 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
    */
   private async readArtifactHeader(dir: string, signal?: AbortSignal): Promise<ListedArtifact | undefined> {
     signal?.throwIfAborted()
-    const opposite = join(dir, `session${logSuffix(this.oppositeCompression())}`)
-    const path = join(dir, `session${logSuffix(this.compression)}`)
-    const [oppositeExists, identity] = await Promise.all([
-      this.exists(opposite),
-      stat(path, { bigint: true }).catch((error: unknown) => {
-        // An absent log means the directory holds no session; every other failure surfaces.
-        if (isENOENT(error)) return undefined
-        throw error
-      }),
-    ])
+    const logName = `session${logSuffix(this.compression)}`
+    const oppositeName = `session${logSuffix(this.oppositeCompression())}`
+    const path = join(dir, logName)
+    // One directory read answers which of the log, the opposite encoding's log, and the replica marker exist, so
+    // listing a session costs no failed open or stat of a file that is absent.
+    const names = await this.sessionDirNames(dir)
     signal?.throwIfAborted()
-    if (oppositeExists) throw this.encodingMismatch(opposite)
+    if (names === undefined) return undefined
+    if (names.includes(oppositeName)) throw this.encodingMismatch(join(dir, oppositeName))
+    if (!names.includes(logName)) return undefined
+    const identity = await stat(path, { bigint: true }).catch((error: unknown) => {
+      // A log removed since the directory read means the directory holds no session.
+      if (isENOENT(error)) return undefined
+      throw error
+    })
+    signal?.throwIfAborted()
     if (identity === undefined) return undefined
-    const revision = await this.replicaRevision(path, fileRevision(identity))
+    const revision = names.includes(REPLICA_MARKER)
+      ? await this.replicaRevision(path, fileRevision(identity))
+      : fileRevision(identity)
     const cached = this.listed.get(path)
     // Callers own the header they receive, so a cache hit hands out a copy.
-    if (cached?.revision === revision) return { ...cached.artifact, header: { ...cached.artifact.header } }
+    if (cached?.revision === revision) {
+      this.listedPaths.set(cached.artifact.header.id, path)
+      return { ...cached.artifact, header: { ...cached.artifact.header } }
+    }
     // Read only headers so listing scales with session count, not log size.
     const first = this.compression === 'zstd'
       ? await this.readFirstZstdLine(path, signal)
@@ -736,6 +763,7 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
       revision,
     }
     this.listed.set(path, { revision, artifact: { ...artifact, header: { ...meta } } })
+    this.listedPaths.set(meta.id, path)
     return artifact
   }
 
@@ -1021,14 +1049,13 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
       await this.rejectLegacyFlatArtifact(project, id, signal)
       signal?.throwIfAborted()
       const dir = join(project, encodeSegment(id))
-      const path = join(dir, `session${logSuffix(this.compression)}`)
-      const opposite = join(dir, `session${logSuffix(this.oppositeCompression())}`)
-      const oppositeExists = await this.exists(opposite)
+      const names = await this.sessionDirNames(dir)
       signal?.throwIfAborted()
-      if (oppositeExists) throw this.encodingMismatch(opposite)
-      const pathExists = await this.exists(path)
-      signal?.throwIfAborted()
-      if (pathExists) matches.push(path)
+      if (names === undefined) continue
+      const oppositeName = `session${logSuffix(this.oppositeCompression())}`
+      if (names.includes(oppositeName)) throw this.encodingMismatch(join(dir, oppositeName))
+      const logName = `session${logSuffix(this.compression)}`
+      if (names.includes(logName)) matches.push(join(dir, logName))
     }
     if (matches.length > 1) {
       throw new Error(`duplicate JSONL session id "${id}" appears in multiple project directories`)
@@ -1122,11 +1149,26 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
   }
 
   private async checkRootEncoding(): Promise<void> {
+    const oppositeName = `session${logSuffix(this.oppositeCompression())}`
     for (const project of await this.listProjectDirs()) {
       for (const dir of await this.listSessionDirs(project)) {
-        const incompatible = join(dir, `session${logSuffix(this.oppositeCompression())}`)
-        if (await this.exists(incompatible)) throw this.encodingMismatch(incompatible)
+        if ((await this.sessionDirNames(dir))?.includes(oppositeName) === true) throw this.encodingMismatch(join(dir, oppositeName))
       }
+    }
+  }
+
+  /**
+   * Read the entry names of one session directory.
+   * @param dir - the session directory.
+   * @returns its entry names, or `undefined` when the directory is absent.
+   */
+  private async sessionDirNames(dir: string): Promise<string[] | undefined> {
+    try {
+      return await readdir(dir)
+    } catch (error) {
+      // Only an absent directory means no session; a file in its place or an unreadable directory surfaces.
+      if (isENOENT(error)) return undefined
+      throw error
     }
   }
 

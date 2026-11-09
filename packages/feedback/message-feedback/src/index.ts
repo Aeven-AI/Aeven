@@ -386,9 +386,8 @@ export class MessageFeedbackService extends TypertRemoteService {
    */
   private async inspectSession(sessionId: SessionId): Promise<KnownSession> {
     if (this.ctx.sessions.get(sessionId) === undefined) {
-      const snapshots = await this.ctx.sessionPersistence.listSnapshots()
-      if (!snapshots.some(snapshot => snapshot.header.id === sessionId)
-        && this.ctx.sessions.get(sessionId) === undefined) {
+      const stored = await this.ctx.sessionPersistence.snapshot(sessionId)
+      if (stored === undefined && this.ctx.sessions.get(sessionId) === undefined) {
         return rejected({ code: 'session-not-found', sessionId })
       }
     }

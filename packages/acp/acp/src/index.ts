@@ -244,7 +244,7 @@ export function apply(ctx: Context, config: AcpConfig): void {
       }
       activating.add(sessionId)
       return (async (): Promise<ResumeSessionResponse> => {
-        const persisted = (await persistence.list(signal)).find(header => header.id === sessionId)
+        const persisted = (await persistence.snapshot(sessionId, signal))?.header
         if (persisted === undefined || persisted.origin === 'subagent' || persisted.parentSession !== undefined) {
           throw invalidParams(`session is not resumable: ${sessionId}`)
         }

@@ -514,7 +514,7 @@ export class AgentLoop extends Service implements AgentFactory {
       // A load is the per-id serialization barrier for eager write-behind and
       // lifecycle retirement. Only a genuinely absent artifact falls back to
       // first creation; corruption and backend failures stay loud.
-      const exists = (await persistence.list()).some(header => header.id === sessionId)
+      const exists = await persistence.snapshot(sessionId) !== undefined
       if (exists) throw error
     }
     this.create(sessionId, agentOptions, meta)

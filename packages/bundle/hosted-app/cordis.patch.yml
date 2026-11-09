@@ -93,6 +93,14 @@
     # A browser opens on the conversation and workspace lists; the long tail of each account arrives after them.
     firstDocuments: [devices, workspaces, sessions/index, sessions/live, settings/account, personalization, automations]
 
+# Every session in this Host's session root is written by this process, so each
+# publishes from its commit events; the scan of every stored session, which
+# costs one directory read per session of every account, is only a rare
+# backstop here.
+- id: session-sync
+  config:
+    scanMs: 300000
+
 - id: memory-memos
   config:
     home: !!js avnHomePath('memory')
