@@ -1683,6 +1683,12 @@ export interface Config {
   agentSkillExclusions: string[]
   /** MCP discovery, tool, and OAuth request budget. */
   timeoutMs: number
+  /**
+   * Time a conversation's connector child processes keep running after its last step or tool call. A Google,
+   * Microsoft, or Discord connector is one Node process per conversation; past this, the processes stop and the
+   * conversation's next step starts them again. Must exceed `timeoutMs`, so a tool call in flight never loses its server.
+   */
+  connectorIdleMs: number
   /** Maximum time between starting a consent and the provider returning to the Aeven API. */
   consentLifetimeMs: number
   /**
