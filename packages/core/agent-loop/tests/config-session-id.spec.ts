@@ -231,7 +231,7 @@ describe('config-driven session id', () => {
     ctx.on('agent-loop/config-start-failed', ({ sessionId, error }) => {
       failures.push({ sessionId, error })
     })
-    vi.spyOn(ctx.sessionPersistence, 'list').mockRejectedValue(failure)
+    vi.spyOn(ctx.sessionPersistence, 'snapshot').mockRejectedValue(failure)
     const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => undefined)
 
     await ctx.plugin(AgentLoop, {
@@ -269,7 +269,7 @@ describe('config-driven session id', () => {
     // oxlint-disable-next-line typescript/prefer-promise-reject-errors
     ctx.on('agent-loop/config-start-failed', () => Promise.reject(unrenderable) as never)
     ctx.on('agent-loop/config-start-failed', ({ error }) => { failures.push(error) })
-    vi.spyOn(ctx.sessionPersistence, 'list').mockRejectedValue(unrenderable)
+    vi.spyOn(ctx.sessionPersistence, 'snapshot').mockRejectedValue(unrenderable)
     const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => undefined)
 
     await ctx.plugin(AgentLoop, {

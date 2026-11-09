@@ -165,7 +165,7 @@ Read these pages when the package-level contract is not enough. They move from t
 
 #### What the model sees
 
-After initial discovery succeeds, every advertised MCP tool appears as a native tool named `mcp__<serverName>__<rawName>` (or its deterministic normalized form) with the server-provided description and input schema. A successful re-sync — including the one after an automatic reconnect — replaces the generation; plugin disposal or an exhausted reconnect budget removes it.
+After initial discovery succeeds, every advertised MCP tool appears as a native tool named `mcp__<serverName>__<rawName>` (or its deterministic normalized form) with the server-provided description and input schema. A successful re-sync — including the one after an automatic reconnect — replaces the generation; plugin disposal or an exhausted reconnect budget removes it. The usage instructions a server sends in its `initialize` result are reported with the server through `mcp/servers` while it is connected; [tool search](../../core/tool-search/README.md) shows them to the model when it first loads that server's tools.
 
 #### Token effect
 

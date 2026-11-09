@@ -6076,16 +6076,6 @@ importers:
         specifier: workspace:^
         version: link:../../../vendor/cordis
 
-  packages/computer-use/computer-use-linux:
-    dependencies:
-      '@aeven/computer-use-desktop':
-        specifier: workspace:^
-        version: link:../computer-use-desktop
-    devDependencies:
-      '@deepseek-ai/cordis':
-        specifier: workspace:^
-        version: link:../../../vendor/cordis
-
   packages/computer-use/computer-use-macos:
     dependencies:
       '@aeven/computer-use-desktop':

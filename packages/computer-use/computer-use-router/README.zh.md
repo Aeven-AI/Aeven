@@ -111,7 +111,7 @@ router.resolve({ task: 'document.setFont', platform: 'darwin', availableRungs: [
 ## 延伸阅读
 
 - [`@aeven/computer-use-desktop`](../computer-use-desktop/README.zh.md) —— 配方的 `verify` 所使用期望所属的契约。
-- [`@aeven/computer-use-macos`](../computer-use-macos/README.zh.md)、[`@aeven/computer-use-windows`](../computer-use-windows/README.zh.md) 与 [`@aeven/computer-use-linux`](../computer-use-linux/README.zh.md) —— 各层级解析到的适配器。
+- [`@aeven/computer-use-macos`](../computer-use-macos/README.zh.md) 与 [`@aeven/computer-use-windows`](../computer-use-windows/README.zh.md) —— 各层级解析到的适配器。
 
 <a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与后续工作

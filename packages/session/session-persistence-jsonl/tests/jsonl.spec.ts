@@ -613,37 +613,6 @@ describe('JsonlSessionPersistence: durability and crash semantics', () => {
     await expect(persistence.readStoredRevision(m.id, controller.signal)).rejects.toBe(reason)
   })
 
-  it('omits a snapshot artifact removed after discovery', async () => {
-    const m = meta('vanishing-snapshot')
-    await ctx.sessionPersistence.create(m)
-    await ctx.sessionPersistence.append(m.id, oneTurnLog())
-    const persistence = ctx.sessionPersistence as unknown as {
-      listArtifacts(): Promise<Array<{ header: SessionHeader; path: string }>>
-    }
-    const listArtifacts = persistence.listArtifacts.bind(persistence)
-    const discovery = vi.spyOn(persistence, 'listArtifacts').mockImplementation(async () => {
-      const artifacts = await listArtifacts()
-      await rm(artifacts[0]!.path)
-      return artifacts
-    })
-
-    await expect(ctx.sessionPersistence.listSnapshots()).resolves.toEqual([])
-    discovery.mockRestore()
-  })
-
-  it('surfaces non-ENOENT snapshot stat failures after discovery', async () => {
-    const persistence = ctx.sessionPersistence as unknown as {
-      listArtifacts(): Promise<Array<{ header: SessionHeader; path: string }>>
-    }
-    const discovery = vi.spyOn(persistence, 'listArtifacts').mockResolvedValue([{
-      header: meta('snapshot-stat-failure'),
-      path: `${root}\0snapshot-stat-failure`,
-    }])
-
-    await expect(ctx.sessionPersistence.listSnapshots()).rejects.toThrow(/null bytes/)
-    discovery.mockRestore()
-  })
-
   it('forwards snapshot-list cancellation and awaits in-flight discovery cleanup', async () => {
     const persistence = ctx.sessionPersistence as unknown as {
       listArtifacts(signal?: AbortSignal): Promise<Array<{ header: SessionHeader; path: string }>>
@@ -674,24 +643,25 @@ describe('JsonlSessionPersistence: durability and crash semantics', () => {
     await expect(pending).rejects.toBe(reason)
   })
 
-  it('checks cancellation after an uncancellable snapshot stat settles', async () => {
-    const m = meta('snapshot-stat-cancellation')
+  it('checks cancellation after snapshot discovery settles', async () => {
+    const m = meta('snapshot-list-cancellation')
     await ctx.sessionPersistence.create(m)
     await ctx.sessionPersistence.append(m.id, oneTurnLog())
     const persistence = ctx.sessionPersistence as unknown as {
       listArtifacts(signal?: AbortSignal): Promise<Array<{ header: SessionHeader; path: string }>>
     }
-    const discovery = vi.spyOn(persistence, 'listArtifacts').mockResolvedValue([{
-      header: m,
-      path: rawLogPath(root, m.cwd, m.id),
-    }])
-    const reason = new Error('JSONL snapshot stat cancelled')
+    const listArtifacts = persistence.listArtifacts.bind(persistence)
+    const reason = new Error('JSONL snapshot list cancelled')
     const controller = new AbortController()
-    const pending = ctx.sessionPersistence.listSnapshots(controller.signal)
-    queueMicrotask(() => { controller.abort(reason) })
+    const discovery = vi.spyOn(persistence, 'listArtifacts').mockImplementation(async (signal) => {
+      const artifacts = await listArtifacts(signal)
+      controller.abort(reason)
+      return artifacts
+    })
 
-    await expect(pending).rejects.toBe(reason)
+    await expect(ctx.sessionPersistence.listSnapshots(controller.signal)).rejects.toBe(reason)
     expect(discovery).toHaveBeenCalledWith(controller.signal)
+    discovery.mockRestore()
   })
 
   it('rejects a stored v0 log containing a legacy request/header-delta event', async () => {

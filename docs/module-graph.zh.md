@@ -235,7 +235,6 @@ flowchart TD
     pkg_computer_use_executor["computer-use-executor"]
     pkg_computer_use_formats["computer-use-formats"]
     pkg_computer_use_layout["computer-use-layout"]
-    pkg_computer_use_linux["computer-use-linux"]
     pkg_computer_use_macos["computer-use-macos"]
     pkg_computer_use_macos_apple_events["computer-use-macos-apple-events"]
     pkg_computer_use_macos_provider["computer-use-macos-provider"]
@@ -1732,7 +1731,6 @@ flowchart TD
 | [`computer-use-executor`](../packages/computer-use/computer-use-executor) | `computer-use` | — |
 | [`computer-use-formats`](../packages/computer-use/computer-use-formats) | `computer-use` | — |
 | [`computer-use-layout`](../packages/computer-use/computer-use-layout) | `computer-use` | — |
-| [`computer-use-linux`](../packages/computer-use/computer-use-linux) | `computer-use` | — |
 | [`computer-use-macos`](../packages/computer-use/computer-use-macos) | `computer-use` | — |
 | [`computer-use-macos-apple-events`](../packages/computer-use/computer-use-macos-apple-events) | `computer-use` | — |
 | [`computer-use-macos-provider`](../packages/computer-use/computer-use-macos-provider) | `computer-use` | — |

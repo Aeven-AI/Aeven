@@ -109,7 +109,7 @@ An unknown task reports the tasks the book knows. A platform with no recipe repo
 ## Further Exploration
 
 - [`@aeven/computer-use-desktop`](../computer-use-desktop/README.md) — the contract whose expectations a recipe's `verify` uses.
-- [`@aeven/computer-use-macos`](../computer-use-macos/README.md), [`@aeven/computer-use-windows`](../computer-use-windows/README.md), and [`@aeven/computer-use-linux`](../computer-use-linux/README.md) — the adapters the rungs resolve to.
+- [`@aeven/computer-use-macos`](../computer-use-macos/README.md) and [`@aeven/computer-use-windows`](../computer-use-windows/README.md) — the adapters the rungs resolve to.
 
 <a id="known-limitations-and-deferred-work"></a>
 ## Known Limitations and Deferred Work

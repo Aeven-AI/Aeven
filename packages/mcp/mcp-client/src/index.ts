@@ -211,14 +211,15 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   // answers only for that agent.
   ctx.on('mcp/servers', async (_request, next) => {
     const reports = await next()
-    const report = (status: ConnectionStatus): McpServerReport => ({
+    const report = (status: ConnectionStatus, instructions: string | undefined): McpServerReport => ({
       serverName: config.serverName,
       toolPrefix: `mcp__${config.serverName}__`,
       ...config.title === undefined ? {} : { title: config.title },
+      ...instructions === undefined ? {} : { instructions },
       ...status,
       restart: () => connection.restart(),
     })
-    return [...reports, report(connection.status())]
+    return [...reports, report(connection.status(), connection.instructions())]
   })
 
   // Block plugin activation on the initial connection + tool discovery so

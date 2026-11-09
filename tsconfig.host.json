@@ -399,7 +399,6 @@
     { "path": "./packages/computer-use/computer-use-windows" },
     { "path": "./packages/computer-use/computer-use-windows-com" },
     { "path": "./packages/computer-use/computer-use-windows-provider" },
-    { "path": "./packages/computer-use/computer-use-linux" },
     { "path": "./packages/computer-use/computer-use-router" },
     { "path": "./packages/computer-use/computer-use-executor" },
     { "path": "./packages/computer-use/computer-use-macos-apple-events" },

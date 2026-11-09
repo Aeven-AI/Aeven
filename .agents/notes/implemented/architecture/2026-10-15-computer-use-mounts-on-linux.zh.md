@@ -6,7 +6,7 @@ Status: implemented
 
 ## 问题
 
-Web 和 Electron 组合只在 macOS 和 Windows 上挂载计算机操作：[`packages/bundle/web-app/cordis.patch.yml`](../../../../packages/bundle/web-app/cordis.patch.yml) 用 `darwin` 与 `win32` 关闭了 `computer-use` 服务行和 `computer-use-cua-driver` 行，且每个平台的行各自带有驱动的安装位置。在 Linux 上，各包已安装在桌面配置中，却没有 `cua-driver-mcp` MCP 服务器服务于会话，因此 Linux 会话既没有 `mcp__cua-driver-mcp__*` 工具，也没有 `computer_use_setup`；安装驱动也不会有任何变化，因为没有行挂载它。已发布的 Linux 桌面适配器 [`@aeven/computer-use-linux`](../../../../packages/computer-use/computer-use-linux/README.zh.md) 不是提供方——其自有测试之外没有任何代码引用它——因此无法顶替该行。
+Web 和 Electron 组合只在 macOS 和 Windows 上挂载计算机操作：[`packages/bundle/web-app/cordis.patch.yml`](../../../../packages/bundle/web-app/cordis.patch.yml) 用 `darwin` 与 `win32` 关闭了 `computer-use` 服务行和 `computer-use-cua-driver` 行，且每个平台的行各自带有驱动的安装位置。在 Linux 上，各包已安装在桌面配置中，却没有 `cua-driver-mcp` MCP 服务器服务于会话，因此 Linux 会话既没有 `mcp__cua-driver-mcp__*` 工具，也没有 `computer_use_setup`；安装驱动也不会有任何变化，因为没有行挂载它。当时发布的 Linux 桌面适配器 `@aeven/computer-use-linux` 不是提供方——其自有测试之外没有任何代码引用它——因此无法顶替该行。
 
 ## 决策
 
@@ -23,7 +23,7 @@ Linux 只挂载驱动的工具集。两个批量提供方在那里都不可用�
 
 ## 备选方案
 
-**改为挂载已发布的 Linux 桌面适配器。** [`@aeven/computer-use-linux`](../../../../packages/computer-use/computer-use-linux/README.zh.md) 实现了桌面契约但不注册提供方，因此该路线需要新建一个一方包。在 GNOME Wayland 上它还找不到窗口后端——没有 `hyprctl`、没有 `i3-msg`，而 `wmctrl` 无法读取 Wayland 合成器——无障碍树、点击和截图均未实现，会在驱动可用之处报告阻塞。
+**改为挂载已发布的 Linux 桌面适配器。** `@aeven/computer-use-linux` 实现了桌面契约但不注册提供方（[现已移除](2026-11-09-computer-use-follows-the-driver.zh.md)），因此该路线需要新建一个一方包。在 GNOME Wayland 上它还找不到窗口后端——没有 `hyprctl`、没有 `i3-msg`，而 `wmctrl` 无法读取 Wayland 合成器——无障碍树、点击和截图均未实现，会在驱动可用之处报告阻塞。
 
 **将 Linux 的 `command` 默认设为裸 `cua-driver` PATH 命令名。** 提供方对 PATH 命令不做检查就启动，因此在未安装驱动的机器上会使该行失败，而不是提供安装指引；这正是 macOS 与 Windows 行都给出绝对安装位置的原因。
 

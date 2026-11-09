@@ -74,7 +74,7 @@ The provider owns no timers, no listeners and no processes of its own. Everythin
 
 - **No COM task has been run on a real host.** The adapter and the handler are unit-tested, and the Office recipes are tagged `documented` rather than `verified`. Driving a live Excel, Word, or PowerPoint is the missing evidence, and it is why the Web bundle mounts this row behind `register: false` rather than as the only provider.
 - **The default recipe book is the starter book.** A deployment supplies its own through `recipes`.
-- **No Linux provider exists.** [`@aeven/computer-use-linux`](../computer-use-linux/README.md) has an adapter and no composition-facing half, so a Linux host reaches computer use through the Cua Driver MCP provider alone.
+- **No Linux batch provider exists.** A Linux host reaches computer use through the [Cua Driver MCP provider](../computer-use-cua-driver-mcp/README.md) alone.
 - **Nothing in this package can run on a non-Windows host.** PowerShell and UI Automation are the mechanisms, so the batch tool is registered wherever the row loads but a task fails there; the composition guards the row with `process.platform !== 'win32'`.
 
 <a id="dev-note"></a>

@@ -39,6 +39,7 @@ const { mockConnect, mockClose, mockListTools, mockCallTool, mockSetNotification
     callTool = mockCallTool
     request = mockRequest
     setNotificationHandler = mockSetNotificationHandler
+    getInstructions(): string | undefined { return undefined }
   }
   return { mockConnect, mockClose, mockListTools, mockCallTool, mockSetNotificationHandler, MockClient }
 })

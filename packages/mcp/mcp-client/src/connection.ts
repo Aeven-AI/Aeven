@@ -124,6 +124,11 @@ export interface ConnectionHandle {
   /** Current connection state and the last error while down. */
   status(): ConnectionStatus
   /**
+   * Usage instructions the connected server sent in its `initialize` result.
+   * @returns the instructions while connected; `undefined` while down or when the server sent none.
+   */
+  instructions(): string | undefined
+  /**
    * Connect now with a fresh attempt budget: cancels a scheduled retry, or
    * starts a `failed` supervisor again. A connected or connecting server is
    * left alone. Resolves when that attempt settles; never rejects.
@@ -372,6 +377,11 @@ export function startConnection(ctx: Context, config: Config, policy: ResolvedRe
   return {
     ready,
     status,
+    instructions(): string | undefined {
+      if (state !== 'connected') return undefined
+      const text = client?.getInstructions()?.trim()
+      return text === undefined || text === '' ? undefined : text
+    },
     async restart(): Promise<ConnectionStatus> {
       if (disposed || state === 'connected' || state === 'connecting') return status()
       if (reconnectTimer !== undefined) {

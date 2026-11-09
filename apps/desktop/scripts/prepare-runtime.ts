@@ -17,7 +17,7 @@ import { installSyncthing, SYNCTHING_VERSION } from './syncthing-runtime.ts'
 
 const NODE_VERSION = '24.17.0'
 /** Upstream Cua Driver release shipped beside Node.js; its tag is `cua-driver-rs-v<version>`. */
-const CUA_DRIVER_VERSION = '0.35.4'
+const CUA_DRIVER_VERSION = '0.45.2'
 const BUILD_PATHS = resolveDesktopTargetBuildPaths()
 const RUNTIME_ROOT = BUILD_PATHS.runtime
 const DOWNLOAD_ROOT = BUILD_PATHS.downloads

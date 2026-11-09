@@ -74,7 +74,7 @@ macOS 提供程序发布的是 `ctx.computerUseProvider`；本提供程序发布
 
 - **没有任何 COM 任务在真实主机上运行过。** 适配器与处理器都有单元测试，Office 配方标记为 `documented` 而非 `verified`。驱动真实的 Excel、Word 或 PowerPoint 正是缺失的证据，这也是 Web bundle 以 `register: false` 挂载该行、而不是把它当作唯一提供程序的原因。
 - **默认配方书就是起始配方书。** 部署通过 `recipes` 提供自己的配方。
-- **尚不存在 Linux 提供程序。** [`@aeven/computer-use-linux`](../computer-use-linux/README.zh.md) 有适配器而没有面向组合的那一半，因此 Linux 主机只能通过 Cua Driver MCP 提供程序使用计算机操作。
+- **尚不存在 Linux 批处理提供程序。** Linux 主机只能通过 [Cua Driver MCP 提供程序](../computer-use-cua-driver-mcp/README.zh.md)使用计算机操作。
 - **本包中没有任何东西能在非 Windows 主机上运行。** PowerShell 与 UI Automation 就是其机制，因此批量工具会随该行一起注册，但任务在那里会失败；组合用 `process.platform !== 'win32'` 守卫该行。
 
 <a id="dev-note"></a>

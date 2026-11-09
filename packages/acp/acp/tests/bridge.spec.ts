@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { AttachmentError } from '@aeven/attachment'
 import { ToolCallId, type StreamChunk } from '@aeven/llm'
 import { SessionId } from '@aeven/session'
+import { SessionPersistenceRevision } from '@aeven/session-persistence'
 import { defineContentToolFixture } from '@aeven/tools'
 import { makeBridgeHarness, textResponse, type BridgeHarness } from './harness.ts'
 import { startHttpMcpFixture } from '../../../mcp/mcp-client/tests/http-fixture.ts'
@@ -363,7 +364,7 @@ describe('automation-only ACP bridge', () => {
     await harness.client.initialize({ protocolVersion: PROTOCOL_VERSION, clientCapabilities: {} })
     const active = await harness.client.newSession({ cwd: process.cwd(), mcpServers: [] })
     const persistence = harness.ctx.get('sessionPersistence')!
-    vi.spyOn(persistence, 'list').mockResolvedValue([
+    const headers = [
       { version: 0, id: SessionId(active.sessionId), createdAt: 9, cwd: process.cwd(), isSeeded: false },
       { version: 0, id: SessionId('subagent'), createdAt: 8, cwd: '/missing/filter', isSeeded: false, origin: 'subagent' },
       { version: 0, id: SessionId('fork'), createdAt: 7, cwd: '/missing/filter', isSeeded: true, parentSession: SessionId('parent') },
@@ -372,7 +373,12 @@ describe('automation-only ACP bridge', () => {
       { version: 0, id: SessionId('other'), createdAt: 4, cwd: '/missing/other', isSeeded: false },
       { version: 0, id: SessionId('valid-b'), createdAt: 3, cwd: '/missing/filter', isSeeded: false },
       { version: 0, id: SessionId('valid-a'), createdAt: 3, cwd: '/missing/filter', isSeeded: false },
-    ])
+    ] as const
+    vi.spyOn(persistence, 'list').mockResolvedValue([...headers])
+    vi.spyOn(persistence, 'snapshot').mockImplementation(async (id) => {
+      const header = headers.find(candidate => candidate.id === id)
+      return header === undefined ? undefined : { header, revision: SessionPersistenceRevision(`fixture:${id}`) }
+    })
 
     await expect(harness.client.listSessions({ cwd: 'relative' })).rejects.toThrow(/absolute path/)
     await expect(harness.client.listSessions({ cwd: '/missing/filter' })).resolves.toEqual({

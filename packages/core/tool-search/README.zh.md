@@ -52,7 +52,7 @@ MCP 服务器的 namespace 标题取其 [`@aeven/mcp-client`](../../mcp/mcp-clie
 `tool_search` 接收一个 `query` 字符串：
 
 - **关键词**：列出至多 `maxResults` 个匹配的工具及各自描述的第一句话，不加载任何工具。工具名称或 namespace 标题的匹配优先于描述的匹配；以 `+` 开头的关键词必须出现在名称或标题中；唯一证据只是描述中一个词的工具不会被列出。
-- **`select:<name>[,<name>...]`**：从索引中加载确切的工具。非延迟工具的名称会与已加载的工具一并报告；属于未在服务的服务器的名称会报告该服务器的状态与重启查询。
+- **`select:<name>[,<name>...]`**：从索引中加载确切的工具。非延迟工具的名称会与已加载的工具一并报告；属于未在服务的服务器的名称会报告该服务器的状态与重启查询。代理启动或压缩后，第一次加载某个 MCP 服务器工具的 `select:` 会附上该服务器连接时发送的使用说明，标题为 `How to use <title> (<prefix>*), from that server:`。
 - **`restart:<server>`**：连接索引中列为未在服务的 MCP 服务器，并报告它注册的工具。
 
 ### 加载到请求中或加载到 `run_code` 中
@@ -132,7 +132,7 @@ The deferred tools changed. This index replaces the one in the system prompt and
 
 #### Token 影响
 
-关键词结果每个列出的工具花费一短行。`select:` 结果在历史中花费一次所选 schema 或声明；原生加载还会把这些 schema 加入之后的每次请求。
+关键词结果每个列出的工具花费一短行。`select:` 结果在历史中花费一次所选 schema 或声明；原生加载还会把这些 schema 加入之后的每次请求。服务器使用说明按其长度每个服务器计入一次，压缩后再计入一次。
 
 #### KV 缓存影响
 

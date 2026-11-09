@@ -7627,7 +7627,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'McpServerReport',
-    declaration: 'export interface McpServerReport extends ConnectionStatus {\n    serverName: string;\n    toolPrefix: string;\n    title?: string;\n    restart(): Promise<ConnectionStatus>;\n}',
+    declaration: 'export interface McpServerReport extends ConnectionStatus {\n    serverName: string;\n    toolPrefix: string;\n    title?: string;\n    instructions?: string;\n    restart(): Promise<ConnectionStatus>;\n}',
   },
   {
     name: 'MechanismHandler',

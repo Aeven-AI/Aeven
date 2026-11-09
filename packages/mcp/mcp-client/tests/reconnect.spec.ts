@@ -40,6 +40,7 @@ const { mockConnect, mockClose, mockListTools, mockCallTool, mockSetNotification
     close = mockClose
     request = mockRequest
     setNotificationHandler = mockSetNotificationHandler
+    getInstructions(): string | undefined { return undefined }
     constructor() { instances.push(this) }
   }
   const instances: MockClient[] = []
