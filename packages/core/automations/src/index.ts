@@ -19,10 +19,11 @@ import { LeaseHolder } from '@aeven/sync'
 import type { Domain } from '@aeven/storage-domain'
 import { setApprovalPolicy, type ApprovalRequestId } from '@aeven/user-approval'
 import { automationDomain, webhookDomain, inputSchema, patchSchema } from './domain.ts'
+import { eligibility, resolvePlacement } from './placement.ts'
 import { latestDueOccurrence, nextOccurrence, SCHEDULE_KINDS } from './recurrence.ts'
 import { DefinitionSync, type SyncedDefinition } from './sync.ts'
 import { registerAutomationTools } from './tools.ts'
-import type { AutomationDefinition, AutomationId, AutomationInput, AutomationRun, AutomationRunId, AutomationRunnerId, AutomationSchedule, AutomationTrigger } from './types.ts'
+import type { AutomationDefinition, AutomationId, AutomationInput, AutomationPlacement, AutomationRun, AutomationRunId, AutomationRunnerId, AutomationSchedule, AutomationTrigger, DeviceCapability, HostProfile } from './types.ts'
 
 export type * from './types.ts'
 
@@ -134,12 +135,27 @@ export interface Config {
    * before it is read, and the accepted body becomes the run's untrusted payload.
    */
   readonly webhookMaxBodyBytes: number
+  /**
+   * What this Host is and which device capabilities its runs can use. A `cloud` Host runs the definitions that
+   * need nothing from a computer; a `device` Host runs the ones whose requirements it provides.
+   */
+  readonly placement: {
+    /** `cloud` for a Host on Aeven's infrastructure, `device` for one on the owner's computer. */
+    readonly kind: HostProfile['kind']
+    /** The device capabilities runs on this Host can use: any of `files`, `browser`, and `computer-use`. */
+    readonly provides: DeviceCapability[]
+  }
   /** How this device claims one automation for its scheduled runs while account sync serves its owner. */
   readonly sync: {
     /** Lifetime requested on each renewal of an automation's claim, in milliseconds. */
     readonly leaseTtlMs: number
     /** Interval between renewals of that claim, in milliseconds. */
     readonly leaseRenewMs: number
+    /**
+     * How long after a scheduled instant a `device` Host waits before it admits a run that the account's
+     * cloud Host should have admitted, in milliseconds.
+     */
+    readonly fallbackDelayMs: number
   }
 }
 /** Built-in automation service; schedules never authorize additional tool access. */
@@ -149,10 +165,15 @@ export class Automations extends Service<Config> {
     maxConcurrentRuns: z.number().step(1).min(1).required(), runTimeoutMinutes: z.number().min(1).required(),
     misfireGraceMinutes: z.number().min(0).required(), historyLimit: z.number().step(1).min(1).required(),
     workspaceTitle: z.string().required(), webhookMaxBodyBytes: z.number().step(1).min(1).required(),
+    placement: z.object({
+      kind: z.union(['cloud', 'device'] as const).required(),
+      provides: z.array(z.union(['files', 'browser', 'computer-use'] as const)).required(),
+    }).required(),
     sync: z.object({
       leaseTtlMs: z.natural().min(1_000).default(180_000),
       leaseRenewMs: z.natural().min(100).default(60_000),
-    }).default({ leaseTtlMs: 180_000, leaseRenewMs: 60_000 }),
+      fallbackDelayMs: z.natural().default(120_000),
+    }).default({ leaseTtlMs: 180_000, leaseRenewMs: 60_000, fallbackDelayMs: 120_000 }),
   })
   private readonly ready: Promise<Domain<typeof automationDomain>>
   private readonly hooks: Promise<Domain<typeof webhookDomain>>
@@ -179,6 +200,9 @@ export class Automations extends Service<Config> {
           if (definition.owner === owner && !present.has(id)) await this.synced.publish(owner, definition)
         }
       },
+      async () => ({ id: this.runnerId(await this.ready), profile: this.config.placement }),
+      // Another Host of the account changes which of them runs a definition; the scheduler looks again.
+      () => { this.rearm() },
     )
     // Inbound secrets open before definitions, so a rejected trigger record cannot
     // leave the definition domain open without its owner.
@@ -287,10 +311,11 @@ export class Automations extends Service<Config> {
    * History leaves out runs whose conversation is archived, so it lists what the sidebar's Automations
    * workspace shows; unarchiving the conversation lists the run again. Each definition's `lastRun` is its
    * latest retained run either way.
-   * @returns owned definitions, latest run records, and the triggers this Host evaluates. A definition's
-   * `webhook` says an inbound credential exists; the secret itself never enters this projection.
+   * @returns owned definitions, latest run records, and this Host's kind and the triggers it evaluates. A
+   * definition's `placement` says where it runs among the account's registered Hosts, and its `webhook` says
+   * an inbound credential exists; the secret itself never enters this projection.
    */
-  async list(): Promise<{ definitions: (AutomationDefinition & { nextRunAt: string | null; lastRun: AutomationRun | null; webhook: boolean })[]; runs: AutomationRun[]; capabilities: { executionTarget: 'local'; triggers: readonly AutomationSchedule['kind'][]; webhook: boolean } }> {
+  async list(): Promise<{ definitions: (AutomationDefinition & { placement: AutomationPlacement; nextRunAt: string | null; lastRun: AutomationRun | null; webhook: boolean })[]; runs: AutomationRun[]; capabilities: { host: HostProfile['kind']; triggers: readonly AutomationSchedule['kind'][]; webhook: boolean } }> {
     const domain = await this.ready
     const hooks = await this.hooks
     const definitions = [...domain.table('definitions').entries()].map(([, value]) => value).filter(value => this.ctx.identityUsers.mayAccess(value.owner))
@@ -300,10 +325,12 @@ export class Automations extends Service<Config> {
     const archived = new Set(this.ctx.workspaceRegistry.archivedSessionIds)
     const now = new Date().toISOString()
     return { definitions: definitions.map(definition => ({ ...definition,
+      placement: resolvePlacement(definition, this.hostsOf(definition.owner)),
       nextRunAt: definition.status === 'paused' ? null : nextOccurrence(definition.schedule, now),
       lastRun: runs.find(run => run.definition.id === definition.id) ?? null,
       webhook: hooks.table('webhooks').get(definition.id) !== undefined,
-    })), runs: runs.filter(run => run.sessionId === null || !archived.has(run.sessionId)), capabilities: { executionTarget: 'local', triggers: SCHEDULE_KINDS, webhook: true } }
+    })), runs: runs.filter(run => run.sessionId === null || !archived.has(run.sessionId)),
+    capabilities: { host: this.config.placement.kind, triggers: SCHEDULE_KINDS, webhook: true } }
   }
 
   /** Give one owned automation an inbound trigger credential, keeping an existing one.
@@ -376,7 +403,7 @@ export class Automations extends Service<Config> {
       }
       const model = this.ctx.agentDefaultModel.currentSelection(owner)
       const definition: AutomationDefinition = {
-        ...parsed, id, ...owner === undefined ? {} : { owner }, revision: 1, status: 'active', agentPreset, grants: [],
+        ...parsed, runOn: parsed.runOn ?? 'auto', id, ...owner === undefined ? {} : { owner }, revision: 1, status: 'active', agentPreset, grants: [],
         model, createdAt: now, updatedAt: now, lastAdmittedAt: null, executionTarget: { kind: 'local', runnerId: this.runnerId(domain) },
       }
       await this.store(domain, definition)
@@ -385,7 +412,7 @@ export class Automations extends Service<Config> {
     })
   }
 
-  /** Revise or pause an owned automation without changing earlier run snapshots.
+  /** Revise or pause an owned automation, or change where it may run, without changing earlier run snapshots.
    * @param id - owned definition identity.
    * @param patch - replacement editable fields or status.
    * @returns durably revised definition.
@@ -396,10 +423,12 @@ export class Automations extends Service<Config> {
       const parsed = inputSchema.parse({
         name: patch.name ?? current.name, prompt: patch.prompt ?? current.prompt,
         schedule: patch.schedule ?? current.schedule, permission: patch.permission ?? current.permission,
+        requires: patch.requires ?? current.requires, runOn: patch.runOn ?? current.runOn,
       })
       const status = patch.status ?? current.status
       const next: AutomationDefinition = {
-        ...current, ...parsed, status, revision: current.revision + 1, updatedAt: new Date().toISOString(),
+        ...current, ...parsed, runOn: parsed.runOn ?? current.runOn, status,
+        revision: current.revision + 1, updatedAt: new Date().toISOString(),
       }
       await this.store(domain, next)
       this.arm(domain)
@@ -423,7 +452,7 @@ export class Automations extends Service<Config> {
   /**
    * Admit one run from an authenticated inbound request.
    * The presented key is the whole authority, so this path reads no acting account.
-   * A paused automation refuses the request; work already in flight records the
+   * A paused automation, or one this Host may not run, refuses the request; work already in flight records the
    * occurrence as skipped rather than queueing behind it.
    * @param id - automation named by the request path.
    * @param key - bearer credential presented by the caller.
@@ -438,6 +467,7 @@ export class Automations extends Service<Config> {
       const definition = domain.table('definitions').get(id)
       if (definition === undefined) throw new WebhookRefusal(401, 'Unknown inbound trigger.')
       if (definition.status !== 'active') throw new WebhookRefusal(409, 'This automation is paused.')
+      if (!this.runsHere(domain, definition)) throw new WebhookRefusal(409, 'This automation runs on another device.')
       const admitted = await this.admit(domain, definition, 'webhook', new Date().toISOString(), null, payload)
       this.drain(domain)
       return admitted
@@ -674,18 +704,32 @@ export class Automations extends Service<Config> {
     }
   }
 
+  /**
+   * The latest scheduled occurrence of an active definition that neither a run record of this Host nor the
+   * definition's admission watermark, which the account's Hosts share, covers.
+   */
+  private unadmitted(domain: Domain<typeof automationDomain>, definition: AutomationDefinition, now: string): string | null {
+    if (definition.status !== 'active') return null
+    const latest = latestDueOccurrence(definition.schedule, now)
+    if (latest === null) return null
+    const watermark = definition.lastAdmittedAt === null ? -Infinity : Date.parse(definition.lastAdmittedAt)
+    const admitted = Math.max(Date.parse(definition.updatedAt), watermark)
+    return Date.parse(latest) > admitted && domain.table('runs').get(this.occurrenceId(definition.id, latest)) === undefined ? latest : null
+  }
+
   private arm(domain: Domain<typeof automationDomain>): void {
     clearTimeout(this.timer)
     if (this.stopped) return
     const now = new Date().toISOString()
     const due = [...domain.table('definitions').entries()].flatMap(([, value]) => {
       if (value.status !== 'active') return []
-      const latest = latestDueOccurrence(value.schedule, now)
-      const key = latest === null ? undefined : this.occurrenceId(value.id, latest)
-      const admitted = Math.max(Date.parse(value.updatedAt), value.lastAdmittedAt === null ? -Infinity : Date.parse(value.lastAdmittedAt))
-      // An occurrence another device's claim covers is due again only once this device's claim changes.
-      if (latest !== null && Date.parse(latest) > admitted && key !== undefined && domain.table('runs').get(key) === undefined
-        && this.deferred.get(value.id) !== latest) return [Date.now()]
+      const latest = this.unadmitted(domain, value, now)
+      // An occurrence another device's claim covers is due again only once this device's claim changes, and
+      // one this Host may never admit is not due here at all.
+      if (latest !== null && this.deferred.get(value.id) !== latest) {
+        const from = this.admitsFrom(value, latest)
+        if (from !== Infinity) return [Math.max(Date.now(), from)]
+      }
       const next = nextOccurrence(value.schedule, now)
       return next === null ? [] : [Date.parse(next)]
     })
@@ -694,12 +738,11 @@ export class Automations extends Service<Config> {
       void this.transaction(async (current) => {
         const at = new Date().toISOString()
         for (const [, definition] of current.table('definitions').entries()) {
-          if (definition.status !== 'active') continue
-          const occurrence = latestDueOccurrence(definition.schedule, at)
-          const lastAdmitted = definition.lastAdmittedAt === null ? -Infinity : Date.parse(definition.lastAdmittedAt)
-          if (occurrence === null || Date.parse(occurrence) <= Math.max(Date.parse(definition.updatedAt), lastAdmitted)) continue
-          const id = this.occurrenceId(definition.id, occurrence)
-          if (current.table('runs').get(id) !== undefined) continue
+          const occurrence = this.unadmitted(current, definition, at)
+          if (occurrence === null) continue
+          const from = this.admitsFrom(definition, occurrence)
+          if (from === Infinity) { await this.release(definition); continue }
+          if (Date.now() < from) continue
           // While the account is served here, one of its devices runs an automation's occurrence.
           if (!await this.claimsScheduler(definition)) {
             this.deferred.set(definition.id, occurrence)
@@ -707,11 +750,58 @@ export class Automations extends Service<Config> {
           }
           this.deferred.delete(definition.id)
           await this.admit(current, definition, 'schedule', occurrence)
+          // The cloud Host takes the next occurrence back once it can.
+          if (this.yields(definition)) await this.release(definition)
         }
         this.drain(current)
         this.arm(current)
       }).catch((error: unknown) => { this.stopped = true; clearTimeout(this.timer); this.ctx.logger.error(error) })
     }, Math.min(2_147_483_647, Math.max(0, Math.min(...due) - Date.now())))
+  }
+
+  /** Look at the schedule again after something outside a transaction changed what is due here. */
+  private rearm(): void {
+    void this.transaction((domain) => { this.arm(domain); return Promise.resolve() }).catch(() => {
+      // A stopping Host refuses the transaction; nothing remains to schedule.
+    })
+  }
+
+  /**
+   * The registered Hosts of an account, this one included.
+   * @param owner - the account, or undefined for a definition without one.
+   * @returns the profiles placement reads; only this Host's while sync does not serve the account here.
+   */
+  private hostsOf(owner: string | undefined): readonly HostProfile[] {
+    const hosts = owner === undefined ? [] : this.synced.hosts(owner)
+    return hosts.length === 0 ? [this.config.placement] : hosts
+  }
+
+  /**
+   * Whether this Host leaves a definition's scheduled runs to the account's cloud Host first: it is a
+   * `fallback` for the definition and a cloud Host registered for the account.
+   */
+  private yields(definition: AutomationDefinition): boolean {
+    return eligibility(definition, this.config.placement) === 'fallback' && this.hostsOf(definition.owner).some(host => host.kind === 'cloud')
+  }
+
+  /**
+   * The earliest instant this Host may admit one scheduled occurrence.
+   * @param definition - the automation that is due.
+   * @param occurrence - the scheduled instant.
+   * @returns milliseconds since the Unix epoch, or `Infinity` when this Host may never run the definition.
+   */
+  private admitsFrom(definition: AutomationDefinition, occurrence: string): number {
+    if (eligibility(definition, this.config.placement) === 'never') return Infinity
+    return Date.parse(occurrence) + (this.yields(definition) ? this.config.sync.fallbackDelayMs : 0)
+  }
+
+  /** Give up this device's claim on one automation's scheduled runs, when it holds or awaits one. */
+  private async release(definition: AutomationDefinition): Promise<void> {
+    const key = `${definition.owner ?? ''}\n${definition.id}`
+    const holder = this.leases.get(key)
+    if (holder === undefined) return
+    this.leases.delete(key)
+    await holder.dispose()
   }
 
   /**
@@ -781,11 +871,17 @@ export class Automations extends Service<Config> {
       holder = new LeaseHolder(sync, owner, `automations/${id}`, {
         ttlMs: this.config.sync.leaseTtlMs, renewMs: this.config.sync.leaseRenewMs,
       }, {
-        // Gaining the claim makes a waiting occurrence due here; the scheduler looks again.
+        // Gaining the claim makes a waiting occurrence due here; the scheduler looks again. A claim gained
+        // with nothing left to admit goes back to the cloud Host this device yields to.
         changed: (held) => {
           if (!held) return
           this.deferred.delete(id)
-          void this.transaction((domain) => { this.arm(domain); return Promise.resolve() }).catch(() => {
+          void this.transaction(async (domain) => {
+            const current = domain.table('definitions').get(id)
+            const idle = current !== undefined && this.unadmitted(domain, current, new Date().toISOString()) === null
+            if (current !== undefined && idle && this.yields(current)) await this.release(current)
+            this.arm(domain)
+          }).catch(() => {
             // A stopping Host refuses the transaction; nothing remains to schedule.
           })
         },
@@ -798,13 +894,15 @@ export class Automations extends Service<Config> {
   }
 
   /**
-   * Whether this device may execute an automation: any device of an account that sync serves here, since its
-   * definitions are the account's; otherwise only the device that created it.
+   * Whether this device may execute an automation: a Host whose profile the definition's placement accepts, on
+   * any device of an account that sync serves here, since its definitions are the account's; otherwise only on
+   * the device that created it.
    * @param domain - the open definition domain.
    * @param definition - the automation.
    * @returns whether this device may admit its runs.
    */
   private runsHere(domain: Domain<typeof automationDomain>, definition: AutomationDefinition): boolean {
+    if (eligibility(definition, this.config.placement) === 'never') return false
     const owner = definition.owner
     const state = owner === undefined ? undefined : this.ctx.get('sync')?.status(owner).state
     if (state !== undefined && state !== 'disabled' && state !== 'starting') return true
@@ -823,7 +921,11 @@ export class Automations extends Service<Config> {
     retryOfRunId: AutomationRunId | null = null,
     payload: string | null = null,
   ): Promise<AutomationRun> {
-    if (!this.runsHere(domain, definition)) throw new Error('This automation belongs to another execution target.')
+    if (!this.runsHere(domain, definition)) {
+      throw new Error(this.config.placement.kind === 'cloud'
+        ? 'This bot needs your computer. Run it from Aeven on that computer.'
+        : 'This bot cannot run on this computer.')
+    }
     const overlapping = [...domain.table('runs').entries()].some(([, run]) => run.definition.id === definition.id && (run.status === 'queued' || run.status === 'running'))
     const stale = trigger === 'schedule' && Date.now() - Date.parse(scheduledFor) > this.config.misfireGraceMinutes * 60_000
     const skipped = overlapping || stale

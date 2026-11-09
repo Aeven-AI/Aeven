@@ -3,7 +3,8 @@
  * The tree is `<root>/jail/acct-<account>`: `jail` caps everything confined
  * commands use together, so the Host in its own sibling group keeps its share,
  * and each account's group caps and weights that account's commands. The
- * Python zygote, when configured, runs in `<root>/jail/zygote` beside them.
+ * Python zygote and the egress proxy, when configured, run in `<root>/jail/zygote`
+ * and `<root>/jail/egress` beside them.
  *
  * @module @aeven/sandbox-jail/cgroup
  */
@@ -15,6 +16,11 @@ import { dirname, join } from 'node:path'
 export interface CgroupLimits {
   /** `memory.max`, e.g. `2G` or `max`. */
   memoryMax: string
+  /**
+   * `memory.high`, e.g. `1536M`: above it the kernel reclaims the group's memory and slows its allocations, so a
+   * command nearing `memoryMax` loses speed before the kernel kills it; omitted, nothing slows it first.
+   */
+  memoryHigh?: string
   /** `pids.max`, e.g. `256`. */
   pidsMax: string
   /** `cpu.max` as `<quota> <period>` in microseconds, e.g. `200000 100000` for two cores. */
@@ -55,6 +61,7 @@ const CONTROLLERS = '+cpu +memory +pids'
 /** Write each limit to its interface file; `disk` is the `MAJ:MIN` that `ioMax` applies to. */
 function writeLimits(dir: string, limits: CgroupLimits, disk: string | undefined): void {
   writeFileSync(join(dir, 'memory.max'), limits.memoryMax)
+  if (limits.memoryHigh !== undefined) writeFileSync(join(dir, 'memory.high'), limits.memoryHigh)
   writeFileSync(join(dir, 'pids.max'), limits.pidsMax)
   writeFileSync(join(dir, 'cpu.max'), limits.cpuMax)
   writeFileSync(join(dir, 'cpu.weight'), limits.cpuWeight)
@@ -119,6 +126,8 @@ export class AccountCgroups {
       dir = join(this.jail, `acct-${account}`)
       mkdirSync(dir, { recursive: true })
       writeLimits(dir, this.account, this.disk)
+      // Out of memory, an account's commands end together: a half-killed pipeline keeps its memory and its job slot.
+      writeFileSync(join(dir, 'memory.oom.group'), '1')
       this.shareProcs(dir)
       this.accounts.set(account, dir)
     }
@@ -126,13 +135,14 @@ export class AccountCgroups {
   }
 
   /**
-   * The Python zygote's group beside `jail`, created with its limits.
-   * @param limits - the zygote's own limits; each run moves into its caller's account group.
+   * The group of a helper process that serves every account, created with its limits beside the account groups.
+   * @param name - the group's directory name, e.g. `zygote` or `egress`.
+   * @param limits - the helper's own limits.
    * @returns the group directory.
    */
-  zygoteGroup(limits: CgroupLimits): string {
-    // Inside `jail`, so `jail` is the common ancestor a run's move into its account group needs write access to.
-    const dir = join(this.jail, 'zygote')
+  helperGroup(name: string, limits: CgroupLimits): string {
+    // Inside `jail`, so `jail` is the common ancestor a zygote run's move into its account group needs write access to.
+    const dir = join(this.jail, name)
     mkdirSync(dir, { recursive: true })
     writeLimits(dir, limits, this.disk)
     return dir

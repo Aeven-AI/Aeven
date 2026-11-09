@@ -18,6 +18,9 @@ import css from './AutomationsPanel.module.css'
 let lastList: AutomationList | null = null
 
 /** Locale key of each service group's Connect action. */
+/** Locale key of each thing a bot can need from the owner's computer. */
+const NEED_LABELS = { 'files': 'needFiles', 'browser': 'needBrowser', 'computer-use': 'needComputerUse' } as const
+
 const CONNECT_LABELS = { mail: 'connectMail', calendar: 'connectCalendar', github: 'connectGithub' } as const satisfies Record<ServiceNeed, string>
 
 /** The page's own confirmation, in place of the browser's, for every action that
@@ -76,6 +79,12 @@ export interface Task {
   lastRun: Run | null
   /** Whether an inbound trigger credential exists; the key itself never arrives in this list. */
   webhook: boolean
+  /** What the task needs from the owner's computer; absent on a bot stored before that was declared. */
+  requires?: (keyof typeof NEED_LABELS)[] | undefined
+  /** `device` when the owner keeps every run on their own computer. */
+  runOn: 'auto' | 'device'
+  /** Where the Host places the bot, and whether a Host of the account can run it. */
+  placement: { runsOn: 'cloud' | 'device' | 'any'; available: boolean }
 }
 /** Durable execution record; its conversation holds the actual result. */
 export interface Run {
@@ -91,7 +100,7 @@ export interface Run {
 export interface AutomationList {
   definitions: Task[]
   runs: Run[]
-  capabilities: { executionTarget: 'local'; triggers: TaskSchedule['kind'][]; webhook: boolean }
+  capabilities: { host: 'cloud' | 'device'; triggers: TaskSchedule['kind'][]; webhook: boolean }
 }
 /** Inbound trigger address and key, read on demand so the list never carries the secret. */
 export interface WebhookCredential {
@@ -236,6 +245,14 @@ export function AutomationsPanel({ t, inputActions, list, call, openRun, view, s
       })}${until}`
       case 'cron': return `${t('scheduleCron', { expression: schedule.expression })}${until}`
     }
+  }
+  /** Why a bot runs where it does, for the open card. */
+  const placementDetail = (task: Task): string => {
+    if (!task.placement.available) return t('placementUnavailable')
+    if (task.placement.runsOn === 'cloud') return t('placementCloud')
+    if (task.runOn === 'device') return t('placementDeviceChosen')
+    const needs = task.requires ?? []
+    return needs.length === 0 ? t('placementDeviceNoCloud') : t('placementDeviceNeeds', { needs: needs.map(need => t(NEED_LABELS[need])).join(', ') })
   }
   /** Absolute address an outside service posts to; a non-HTTP shell shows the path it can reach. */
   const address = (path: string): string => window.location.protocol.startsWith('http') ? `${window.location.origin}${path}` : path
@@ -408,6 +425,14 @@ export function AutomationsPanel({ t, inputActions, list, call, openRun, view, s
                             {task.lastRun === null ? t('noRuns') : `${t(task.lastRun.status)} · ${date(task.lastRun.scheduledFor)}`}
                           </span>
                         </span>
+                        {task.placement.runsOn !== 'any' && (
+                          <span className={css.fact}>
+                            <span className={css.factLabel}>{t('runsOn')}</span>
+                            <span className={css.factValue}>
+                              {t(!task.placement.available ? 'runsOnMissing' : task.placement.runsOn === 'cloud' ? 'runsOnCloud' : 'runsOnDevice')}
+                            </span>
+                          </span>
+                        )}
                       </span>
                     </button>
                     {expanded === task.id && (
@@ -415,6 +440,22 @@ export function AutomationsPanel({ t, inputActions, list, call, openRun, view, s
                         <p className={css.schedule}>{describe(task.schedule)}</p>
                         <p className={css.prompt}>{task.prompt}</p>
                       </div>
+                    )}
+                    {expanded === task.id && task.placement.runsOn !== 'any' && (
+                      <>
+                        <h3 className={css.detailTitle}>{t('runsOn')}</h3>
+                        <p className={css.triggerText}>{placementDetail(task)}</p>
+                        {task.requires?.length === 0 && (
+                          <div className={css.triggerActions}>
+                            <Button
+                              variant="ghost" size="sm" disabled={unavailable}
+                              onClick={() => { act('update', task.id, { runOn: task.runOn === 'device' ? 'auto' : 'device' }) }}
+                            >
+                              {t(task.runOn === 'device' ? 'allowCloud' : 'keepOnDevice')}
+                            </Button>
+                          </div>
+                        )}
+                      </>
                     )}
                     {expanded === task.id && data.capabilities.webhook && (
                       <>

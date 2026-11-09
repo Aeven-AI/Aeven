@@ -41,6 +41,26 @@ export interface AutomationGrant {
   readonly scope: string
   readonly grantedAt: string
 }
+/** Something a task needs from one of its owner's own computers; everything else is available on every Host. */
+export type DeviceCapability = 'files' | 'browser' | 'computer-use'
+/** Where the owner lets a task run: wherever it can, or only on their own computers. */
+export type RunOn = 'auto' | 'device'
+/** What one Host of an account is and offers, as the account's other Hosts read it. */
+export interface HostProfile {
+  /** `cloud` for a Host on Aeven's infrastructure, `device` for one on the owner's computer. */
+  readonly kind: 'cloud' | 'device'
+  /** The device capabilities runs on this Host can use. */
+  readonly provides: readonly DeviceCapability[]
+}
+/**
+ * Where a definition runs, derived from its requirements, its owner's choice, and the account's Hosts.
+ * `any` is a definition whose requirements were never declared: every Host of the account may run it.
+ */
+export interface AutomationPlacement {
+  readonly runsOn: 'cloud' | 'device' | 'any'
+  /** Whether a Host the account has registered, the answering one included, can run the definition. */
+  readonly available: boolean
+}
 /** How a run came to be admitted. */
 export type AutomationTrigger = 'schedule' | 'manual' | 'webhook'
 /** User-approved task and execution settings. */
@@ -57,6 +77,9 @@ export interface AutomationDefinition {
   readonly permission: 'read-only' | 'workspace-write'
   /** Approvals answered without asking again in every later run. */
   readonly grants: readonly AutomationGrant[]
+  /** Device capabilities the task needs; absent on a definition stored before requirements were declared. */
+  readonly requires?: readonly DeviceCapability[] | undefined
+  readonly runOn: RunOn
   readonly executionTarget: { readonly kind: 'local'; readonly runnerId: AutomationRunnerId }
   readonly lastAdmittedAt: string | null
   readonly createdAt: string
@@ -97,4 +120,7 @@ export interface AutomationInput {
   readonly prompt: string
   readonly schedule: AutomationSchedule
   readonly permission: 'read-only' | 'workspace-write'
+  readonly requires?: readonly DeviceCapability[] | undefined
+  /** `auto` when omitted at creation. */
+  readonly runOn?: RunOn | undefined
 }

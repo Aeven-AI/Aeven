@@ -6,7 +6,7 @@ import type { ToolDefinition } from '@aeven/tools'
 import { z } from 'zod'
 import type Automations from './index.ts'
 import type { AutomationId, AutomationRunId } from './types.ts'
-import { inputSchema, patchSchema } from './domain.ts'
+import { inputSchema, patchSchema, requiresSchema } from './domain.ts'
 
 const taskFields = {
   name: { type: 'string', description: 'Short name describing the outcome.' },
@@ -30,9 +30,13 @@ const taskFields = {
     until: { type: 'string', description: 'Optional inclusive ISO end time. Omit for a recurring task without an end date.' },
   }, required: ['kind', 'timeZone'], additionalProperties: false },
   permission: { type: 'string', enum: ['read-only', 'workspace-write'], description: 'Read-only inspection or permission to create and edit files. External connector writes still require approval.' },
+  requires: { type: 'array', items: { type: 'string', enum: ['files', 'browser', 'computer-use'] }, description: 'What the task needs from the user’s own computer: files for files or folders stored on it, browser for the user’s own browser and its signed-in sites, computer-use for operating its apps. Leave empty when the task needs only the web, connected accounts, and files it creates itself; it then also runs while the computer is off.' },
+  runOn: { type: 'string', enum: ['auto', 'device'], description: 'device keeps every run on the user’s own computer; use it only when the user asks for that. auto, the default, lets the task run wherever it can.' },
 }
 const idSchema = z.string().min(1).transform(value => brandString<AutomationId>(value))
 const updateSchema = patchSchema.extend({ id: idSchema })
+/** Creation through a conversation always declares what the task needs from a computer. */
+const createSchema = inputSchema.extend({ requires: requiresSchema })
 const runIdSchema = z.object({ id: z.string().min(1).transform(value => brandString<AutomationRunId>(value)) }).strict()
 
 /** Register management on one root agent and remove all contributions on disposal.
@@ -47,9 +51,12 @@ export function registerAutomationTools(service: Automations, agent: Agent, iden
   const tools: ToolDefinition[] = [
     {
       name: 'automation_create', description: 'Create a built-in automation after human confirmation. Translate the user’s request into a self-contained task and explicit local schedule. Ask only for missing requirements. Future runs start fresh conversations with this account’s capabilities. An external action that needs approval asks the user in the run conversation; once the user approves it there, later runs perform it without asking.',
-      parameters: { type: 'object', properties: taskFields, required: ['name', 'prompt', 'schedule', 'permission'], additionalProperties: false },
+      parameters: { type: 'object', properties: taskFields, required: ['name', 'prompt', 'schedule', 'permission', 'requires'], additionalProperties: false },
       output: { schema: { type: 'object', additionalProperties: true }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
-      execute: async (args, exec) => { exec.signal.throwIfAborted(); return asOwner(() => service.create(inputSchema.parse(args), agent)) },
+      execute: async (args, exec) => {
+        exec.signal.throwIfAborted()
+        return asOwner(() => service.create(createSchema.parse(args), agent))
+      },
       presentCall: args => ({ card: 'generic', title: 'Create bot', kind: 'other', rawInput: args }),
     },
     {
@@ -60,7 +67,7 @@ export function registerAutomationTools(service: Automations, agent: Agent, iden
       presentCall: () => ({ card: 'generic', title: 'Bots', kind: 'read' }),
     },
     {
-      name: 'automation_update', description: 'Adjust a task, schedule, or file permissions after confirmation, or pause an automation immediately. Omitted fields remain unchanged.',
+      name: 'automation_update', description: 'Adjust a task, schedule, file permissions, or what the task needs from the user’s computer after confirmation, or pause an automation immediately. Omitted fields remain unchanged. When a changed task needs something different from the computer, send the new requires list.',
       parameters: { type: 'object', properties: { id: { type: 'string' }, ...taskFields, status: { type: 'string', enum: ['active', 'paused'] } }, required: ['id'], additionalProperties: false },
       output: { schema: { type: 'object', additionalProperties: true }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
       execute: async (args, exec) => {

@@ -9,17 +9,11 @@
  */
 
 import { spawn } from 'node:child_process'
-import type { ChildProcess } from 'node:child_process'
 import { join } from 'node:path'
+import { SupervisedProcess } from './supervised.ts'
 
 /** Where every jail mounts the zygote's socket directory, read-only; the shim connects to `python.sock` in it. */
 export const JAIL_ZYGOTE_DIR = '/run/aeven/zygote'
-
-/** Restarts allowed within {@link RESTART_WINDOW_MS} one second apart; beyond them the next waits {@link RESTART_COOLDOWN_MS}. */
-const MAX_RESTARTS = 5
-const RESTART_WINDOW_MS = 60_000
-/** Wait before restarting a zygote that kept ending, while the shim runs the interpreter for every command. */
-const RESTART_COOLDOWN_MS = 300_000
 
 /** Everything one zygote process starts from. */
 export interface ZygoteOptions {
@@ -47,25 +41,9 @@ export interface ZygoteOptions {
 
 /** One supervised zygote process. */
 export class PythonZygote {
-  private child: ChildProcess | undefined
-  private readonly restarts: number[] = []
-  private disposed = false
-  private restartTimer: NodeJS.Timeout | undefined
+  private readonly process: SupervisedProcess
 
-  constructor(private readonly options: ZygoteOptions) {
-    this.start()
-  }
-
-  /** Stop the zygote and every later restart; runs already started end with their commands. */
-  dispose(): void {
-    this.disposed = true
-    clearTimeout(this.restartTimer)
-    this.child?.kill('SIGTERM')
-    this.child = undefined
-  }
-
-  private start(): void {
-    const { options } = this
+  constructor(options: ZygoteOptions) {
     const config = JSON.stringify({
       socket: join(options.socketDir, 'python.sock'),
       preload: options.preload,
@@ -73,34 +51,23 @@ export class PythonZygote {
       seccompFilter: options.seccompFilter,
       pinned: options.env,
     })
-    // The shell step joins the zygote's group before the interpreter starts, so its imports are charged there.
-    const child = spawn('/bin/sh', [
-      '-c', 'echo 0 > "$1/cgroup.procs" || exit 125; shift; exec "$@"', 'python-zygote',
-      options.group, ...options.exec === undefined ? [] : [options.exec], options.python, options.script, config,
-    ], {
-      env: { ...options.env, HOME: options.socketDir, MPLCONFIGDIR: join(options.socketDir, 'mpl') },
-      stdio: ['ignore', 'ignore', 'pipe'],
+    this.process = new SupervisedProcess({
+      name: 'python-zygote',
+      whileDown: 'python3 starts the interpreter for every command',
+      log: options.log,
+      // The shell step joins the zygote's group before the interpreter starts, so its imports are charged there.
+      spawn: () => spawn('/bin/sh', [
+        '-c', 'echo 0 > "$1/cgroup.procs" || exit 125; shift; exec "$@"', 'python-zygote',
+        options.group, ...options.exec === undefined ? [] : [options.exec], options.python, options.script, config,
+      ], {
+        env: { ...options.env, HOME: options.socketDir, MPLCONFIGDIR: join(options.socketDir, 'mpl') },
+        stdio: ['ignore', 'ignore', 'pipe'],
+      }),
     })
-    this.child = child
-    child.stderr.setEncoding('utf8')
-    child.stderr.on('data', (chunk: string) => {
-      for (const line of chunk.split('\n')) if (line.trim() !== '') options.log(line.startsWith('python-zygote: ready') ? 'info' : 'warn', line)
-    })
-    child.on('error', (error) => { options.log('warn', `python-zygote: cannot start: ${error.message}`) })
-    child.on('exit', (code, signal) => {
-      if (this.child !== child || this.disposed) return
-      this.child = undefined
-      const now = Date.now()
-      while (this.restarts.length > 0 && now - (this.restarts[0] ?? now) > RESTART_WINDOW_MS) this.restarts.shift()
-      const cooling = this.restarts.length >= MAX_RESTARTS
-      if (cooling) {
-        options.log('warn', `python-zygote: ended (${String(code ?? signal)}) ${String(MAX_RESTARTS)} times within a minute; python3 starts the interpreter for every command until the restart in ${String(RESTART_COOLDOWN_MS / 60_000)} minutes`)
-        this.restarts.length = 0
-      } else {
-        options.log('warn', `python-zygote: ended (${String(code ?? signal)}); restarting`)
-      }
-      this.restarts.push(now)
-      this.restartTimer = setTimeout(() => { if (!this.disposed) this.start() }, cooling ? RESTART_COOLDOWN_MS : 1_000)
-    })
+  }
+
+  /** Stop the zygote and every later restart; runs already started end with their commands. */
+  dispose(): void {
+    this.process.dispose()
   }
 }

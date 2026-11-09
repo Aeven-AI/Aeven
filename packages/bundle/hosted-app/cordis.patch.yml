@@ -224,6 +224,21 @@
     slackCallbackPort: 12751
     whatsappReadRoot: !!js "process.env.AVN_HOSTED_SANDBOX === '1' ? avnHomePath('sandbox', 'accounts') : undefined"
 
+# This Host is each account's cloud Host: it runs the bots that need nothing
+# from the user's computer, and leaves every other bot to the account's
+# devices. The row restates the keys web-app gives it.
+- id: automations
+  config:
+    maxConcurrentRuns: 2
+    runTimeoutMinutes: 60
+    misfireGraceMinutes: 15
+    historyLimit: 200
+    workspaceTitle: Automations
+    webhookMaxBodyBytes: 8192
+    placement:
+      kind: cloud
+      provides: []
+
 - id: directory-picker
   disabled: true
 
@@ -444,10 +459,11 @@
 # ── commands in a per-account jail ──────────────────────────────────────────
 
 # AVN_HOSTED_SANDBOX=1 turns on the bash tool, and every command runs in the
-# calling account's jail: fresh namespaces without network that see the
-# read-only system and /opt/aeven-sandbox (Python and Node with preinstalled
-# libraries; nothing can be installed), that account's folder, and a private
-# /tmp, under that account's CPU, memory, and process limits. The Host must run
+# calling account's jail: fresh namespaces that see the read-only system and
+# /opt/aeven-sandbox (Python and Node with preinstalled libraries), that
+# account's folder, and a private /tmp, under that account's CPU, memory, and
+# process limits. A jail has no network of its own; commands reach the listed
+# package registries and GitHub through the egress proxy. The Host must run
 # in a systemd unit with Delegate=yes and DelegateSubgroup=host; the jail's
 # cgroups are its unit's. packages/sandbox/sandbox-jail/README.md lists the
 # host setup. The jail replaces the local sandbox, whose profiles read the
@@ -492,6 +508,17 @@
           MPLBACKEND: Agg
           MPLCONFIGDIR: /tmp
           PYTHONDONTWRITEBYTECODE: '1'
+          # Installs take prebuilt packages only: compiling from source and
+          # package install scripts are the CPU-heavy part of an install.
+          PIP_ONLY_BINARY: ':all:'
+          PIP_NO_CACHE_DIR: '1'
+          PIP_DISABLE_PIP_VERSION_CHECK: '1'
+          npm_config_ignore_scripts: 'true'
+          npm_config_update_notifier: 'false'
+          npm_config_audit: 'false'
+          npm_config_fund: 'false'
+          # No terminal answers a credential prompt.
+          GIT_TERMINAL_PROMPT: '0'
         tmpSizeMb: 512
         seccompFilter: /opt/aeven-sandbox/seccomp.bpf
         # Commands and the zygote run as aeven-sandbox, which cannot enter this
@@ -515,14 +542,57 @@
             cpuMax: 400000 100000
             cpuWeight: '100'
         sessionAttachments: true
+        # Commands reach these hosts over HTTPS and nothing else; the proxy
+        # refuses a name that resolves to this machine or a private network.
+        # host/install-egress.sh installs the proxy, the relay, and the socket
+        # directory. One account may hold 32 connections, move 8 MiB/s, and
+        # 2 GiB per UTC day; all accounts together move 50 MiB/s.
+        egress:
+          node: /usr/bin/node
+          script: /opt/aeven-sandbox/shim/egress-proxy.mjs
+          relay: /opt/aeven-sandbox/shim/aeven-egress-relay
+          socketDir: /var/lib/aeven-egress
+          port: 3128
+          allow:
+            - github.com
+            - codeload.github.com
+            - raw.githubusercontent.com
+            - objects.githubusercontent.com
+            - registry.npmjs.org
+            - pypi.org
+            - files.pythonhosted.org
+          ports: [443]
+          # git reaches GitHub with the account's connected GitHub account,
+          # whose token stays in the proxy; a tag push or a branch deletion
+          # asks the user first.
+          gitHosts: [github.com]
+          accountConnections: 32
+          connections: 4096
+          accountBytesPerSecond: 8388608
+          bytesPerSecond: 52428800
+          accountBytesPerDay: 2147483648
+          connectTimeoutMs: 10000
+          idleTimeoutMs: 120000
+          limits:
+            memoryMax: 1G
+            pidsMax: '64'
+            cpuMax: 200000 100000
+            cpuWeight: '100'
         # 5 GiB and 200,000 files per account folder, as an ext4 project quota on
         # the accounts filesystem; the helper refuses any path that is not one
         # account folder directly under that filesystem.
         quotaCommand: [sudo, -n, /usr/local/sbin/aeven-sandbox-quota, '5242880', '200000']
         quotaRecord: /var/lib/aeven-sandbox/projects
         modelNote: >-
-          Commands run in an isolated Linux sandbox without network access, so nothing can be
-          downloaded or installed (no pip, npm, apt, curl, or git clone). Installed: Python 3.12 with
+          Commands run in an isolated Linux sandbox. The network reaches only github.com, the npm
+          registry, and PyPI, over HTTPS; every other address is refused, so apt and downloads from
+          other sites fail. git works with https://github.com/ URLs: public repositories always, and
+          private repositories and git push when the user has connected GitHub in Settings → Connectors,
+          with no token in the command. Pushing a tag or deleting a branch asks the user for approval
+          and fails with HTTP 403 when they decline. npm install runs without package install scripts, and pip
+          install takes prebuilt wheels only and adds packages beside the preinstalled ones without
+          replacing them. Installed packages stay in the working directory's folder between commands.
+          Network use is limited in speed and to 2 GB a day. Installed: Python 3.12 with
           numpy, pandas, scipy, scikit-learn, statsmodels, matplotlib, seaborn, sympy, pyarrow, openpyxl,
           xlsxwriter, python-docx, python-pptx, pypdf, reportlab, pillow, beautifulsoup4, lxml, and
           tabulate; Node.js 22 with lodash, dayjs, exceljs, docx, pptxgenjs, pdf-lib, papaparse, mathjs,
@@ -540,7 +610,7 @@
           only from inside that same command: nobody else can open it, not the user, not the browser
           panel, and not a later command, so never start a server for the user to visit. To show a page,
           save the HTML and list it in output_files, or screenshot it with playwright-core. A background
-          command is stopped 15 minutes after it starts. A long output keeps only its last part; to read all
+          command is stopped 30 minutes after it starts. A long output keeps only its last part; to read all
           of it, redirect it to a file in the working directory.
         cgroup:
           # The unit's cgroup: the parent of the `host` group systemd starts this process in.
@@ -550,18 +620,20 @@
           # direct on pink), so all jails together take about a quarter of it.
           # On pink (18 cores, 105 GB) the jails together get 14 cores and
           # 48 GB beside the Host's 16 GB heap and Mongo's 16 GB cache. Each
-          # account may burst to four idle cores; equal weights share them
-          # fairly once the jails are busy.
+          # account may use two cores, so seven busy accounts fill the share
+          # before equal weights divide it. Above 1.5 GB an account's commands
+          # are slowed by reclaim; at 2 GB they end together.
           total:
             memoryMax: 48G
-            pidsMax: '8192'
+            pidsMax: '16384'
             cpuMax: 1400000 100000
             cpuWeight: '100'
             ioMax: rbps=83886080 wbps=41943040 riops=3000 wiops=1000
           account:
             memoryMax: 2G
+            memoryHigh: 1536M
             pidsMax: '256'
-            cpuMax: 400000 100000
+            cpuMax: 200000 100000
             cpuWeight: '100'
             ioMax: rbps=31457280 wbps=10485760 riops=1000 wiops=300
 
@@ -586,12 +658,12 @@
 
 # A background command keeps its account's CPU, memory, and process share
 # while it runs, and nothing else ends it before the Host restarts, so bash jobs
-# stop 15 minutes after they start. The sandbox-jail modelNote states the same
+# stop 30 minutes after they start. The sandbox-jail modelNote states the same
 # limit to the model.
 - id: jobs
   config:
     runtimeLimitMs:
-      bash: 900000
+      bash: 1800000
 
 # Uploaded clips are untrusted media: ffprobe reads them inside a jail without
 # network that sees only /usr and the directory the clip is written to, capped

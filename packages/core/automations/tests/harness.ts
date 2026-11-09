@@ -215,7 +215,8 @@ export const TEST_CONFIG: Config = {
   historyLimit: 200,
   workspaceTitle: 'Automations',
   webhookMaxBodyBytes: 32,
-  sync: { leaseTtlMs: 180_000, leaseRenewMs: 60_000 },
+  placement: { kind: 'device', provides: ['files', 'browser', 'computer-use'] },
+  sync: { leaseTtlMs: 180_000, leaseRenewMs: 60_000, fallbackDelayMs: 120_000 },
 }
 
 /**
