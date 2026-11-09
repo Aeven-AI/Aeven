@@ -2,7 +2,7 @@
 
 Status: implemented
 
-English
+English | [中文](2026-11-10-idle-conversations-stop-connector-processes.zh.md)
 
 ## Problem
 
