@@ -20,6 +20,7 @@ import type { JsonValue } from '@aeven/util-values'
 import { SessionSeq } from '@aeven/session'
 import {
   assertSubagentMaxDepth,
+  delegationDepthOf,
   parentAgentOptionsForDelegation,
   settleRun,
 } from '@aeven/subagent'
@@ -45,8 +46,9 @@ export const name = 'tool-subagent'
 export const inject = ['tools', 'subagents', 'systemPrompt', 'sessionProjections']
 
 // Definition identity keeps shared guidance scoped to the actual visible tools,
-// including scoped overrides and independently loaded tool registries.
-const delegationTools = new Set<ToolDefinition>()
+// including scoped overrides and independently loaded tool registries. Each
+// definition maps to its instance's split guidance for the prompting agent.
+const delegationTools = new Map<ToolDefinition, (agent: Agent | undefined) => string | undefined>()
 
 /** Config: which registered provider this tool delegates to, plus child defaults. */
 export interface Config {
@@ -112,6 +114,14 @@ export interface Config {
    * budget belongs to the child runtime or its own deployment.
    */
   maxDepth?: number | 'provider-managed'
+  /**
+   * When and how to split a large task across several delegations, appended to
+   * the shared delegation guidance. Requires background `continuable` mode.
+   * Every visible instance contributes its distinct text, and an agent that
+   * this instance's depth budget forbids from delegating receives none.
+   * Omission adds nothing.
+   */
+  splitGuidance?: string
 }
 
 export const Config: z<Config> = z.object({
@@ -140,6 +150,7 @@ export const Config: z<Config> = z.object({
     deny: z.array(z.string()).default(undefined as unknown as string[]),
   }).default(undefined as unknown as { allow: string[]; deny: string[] }),
   maxDepth: z.union([z.natural().max(Number.MAX_SAFE_INTEGER), z.const('provider-managed' as const)]).default(3),
+  splitGuidance: z.string(),
 })
 
 /** Render text blocks from the canonical JSON block array without trusting arbitrary values. */
@@ -341,6 +352,13 @@ export function apply(ctx: Context, config: Config): void {
   const toolName = config.toolName ?? 'subagent'
   // Only background continuable instances carry the shared delegation sentence.
   const sharedGuidance = backgroundEnabled && continuable
+  const splitGuidance = config.splitGuidance
+  if (splitGuidance !== undefined && splitGuidance.trim().length === 0) {
+    throw new Error('tool-subagent: `splitGuidance` is blank — remove the key or write the guidance')
+  }
+  if (splitGuidance !== undefined && !sharedGuidance) {
+    throw new Error('tool-subagent: `splitGuidance` requires `backgroundMode: continuable` with background runs enabled')
+  }
 
   /**
    * Depth the calling agent's child may reach. Without `nestingSettings` the
@@ -602,9 +620,15 @@ export function apply(ctx: Context, config: Config): void {
         },
       })
       const unregister = runtimeCtx.tools.register(definition)
+      // A child this instance would refuse to start gets no advice to split work.
+      const splitGuidanceFor = (agent: Agent | undefined): string | undefined => {
+        if (splitGuidance === undefined || agent === undefined) return splitGuidance
+        const maxDepth = delegationMaxDepth(runtimeCtx)
+        return maxDepth === undefined || delegationDepthOf(agent) < maxDepth ? splitGuidance : undefined
+      }
       const untrack = sharedGuidance
         ? runtimeCtx.effect(() => {
-          delegationTools.add(definition)
+          delegationTools.set(definition, splitGuidanceFor)
           return () => { delegationTools.delete(definition) }
         })
         : () => {}
@@ -648,12 +672,15 @@ export function apply(ctx: Context, config: Config): void {
         text: (context) => {
           if (mounted === undefined) return ''
           const visible = [...delegationTools]
-            .filter(tool => runtimeCtx.tools.get(tool.name, context.scope) === tool)
-            .map(tool => tool.name)
-            .sort()
-          if (visible[0] !== toolName) return ''
-          const names = visible.map(name => `\`${name}\``).join(' or ')
-          return `Start independent delegations with ${names} together in one assistant message and continue useful work while they run.`
+            .filter(([tool]) => runtimeCtx.tools.get(tool.name, context.scope) === tool)
+            .sort(([a], [b]) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0)
+          if (visible[0]?.[0].name !== toolName) return ''
+          const names = visible.map(([tool]) => `\`${tool.name}\``).join(' or ')
+          const split = new Set(visible.map(([, guidanceFor]) => guidanceFor(context.agent)).filter(text => text !== undefined))
+          return [
+            `Start independent delegations with ${names} together in one assistant message and continue useful work while they run.`,
+            ...split,
+          ].join(' ')
         },
       })
     }

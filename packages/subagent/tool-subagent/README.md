@@ -52,6 +52,7 @@ Load the subagent service, an in-process or remote backend, and this tool; then 
 | `persona` | — | Per-child persona; requires the provider's `persona` capability |
 | `toolFilter` | — | Per-child global-tool restriction; requires the `toolFilter` capability |
 | `maxDepth` | `3` | Absolute delegation-depth cap (`0` forbids delegation); `'provider-managed'` sends no cap to an out-of-process provider |
+| `splitGuidance` | — | When and how to split a large task across delegations, appended to the shared tool-guidance section; requires `backgroundMode: continuable` with background runs enabled, and a blank value fails at load |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#aeventool-subagent) is the exhaustive source for every accepted field and its JSDoc.
 
@@ -69,7 +70,7 @@ Set `modelSelectionSettings: true` to sample the Host's `subagent-model-selectio
 
 ### Enabling nested delegation
 
-Set `nestingSettings: true` to let the Host's `subagent-nesting` switch decide whether a child agent may delegate in turn. The switch is read at every start instead of being sampled once, so flipping it in Plugin settings applies to the agents already running and to the children they start afterwards, and it needs no Session event because no tool schema or prompt text follows it. Switched off, the calling agent's children are leaves: each start is pinned to depth one whatever `maxDepth` allows. Switched on, `maxDepth` is the ceiling — with `maxDepth: 2` a depth-1 child may start a depth-2 grandchild, which cannot delegate in turn. The switch requires `@aeven/tool-subagent/nesting-settings` composed in the Host scope and a numeric `maxDepth`; an out-of-process provider owns its own recursion budget, so `maxDepth: 'provider-managed'` with `nestingSettings` fails at load.
+Set `nestingSettings: true` to let the Host's `subagent-nesting` switch decide whether a child agent may delegate in turn. The switch is read at every start instead of being sampled once, so flipping it in Plugin settings applies to the agents already running and to the children they start afterwards, and it needs no Session event of its own: no tool schema follows it, and the `splitGuidance` text it withholds from leaf agents reaches the model only through the logged request system prompt. Switched off, the calling agent's children are leaves: each start is pinned to depth one whatever `maxDepth` allows. Switched on, `maxDepth` is the ceiling — with `maxDepth: 2` a depth-1 child may start a depth-2 grandchild, which cannot delegate in turn. The switch requires `@aeven/tool-subagent/nesting-settings` composed in the Host scope and a numeric `maxDepth`; an out-of-process provider owns its own recursion budget, so `maxDepth: 'provider-managed'` with `nestingSettings` fails at load.
 
 A call supplies `provider` and `model` together, or supplies only an effort when configured, parent, or provider-owned defaults provide the route. Static `provider.agentRouteDefaults`, when present, form the provider/model baseline; tool configuration and model fields overlay it before route-aware effort merging and exact-route preflight. Providers without these defaults use compatible values from the parent's latest logged request, then the parent's creation options before its first request, while retaining the configured `maxTokens`. Changing the route without an explicit effort clears the inherited route-owned effort, so the selected model resolves its default. The live LLM adapter validates the effective route before child creation. Catalog membership remains advisory, so a model can use an unlisted id when its adapter accepts it.
 
@@ -164,7 +165,7 @@ The schema is prefix-stable across adapter registration and catalog changes. Eac
 
 #### What the model sees
 
-When `enableRunInBackground` and `backgroundMode: continuable` are both set, the model additionally reads a `tool:<toolName>` system-prompt section telling it to start independent continuable delegations together and keep working while they run. With the default tool name `subagent`, the section text is:
+When `enableRunInBackground` and `backgroundMode: continuable` are both set, the model additionally reads a `tool:<toolName>` system-prompt section telling it to start independent continuable delegations together and keep working while they run. The alphabetically first visible delegation tool renders the one section for all of them. Each visible instance with `splitGuidance` appends its text once (identical texts appear once), except to an agent whose delegation that instance's depth budget, including the `subagent-nesting` switch, would reject. Without `splitGuidance`, the section text with the tools `subagent` and `subagent_fork` is:
 
 ##### Tool-guidance section
 
@@ -172,13 +173,15 @@ When `enableRunInBackground` and `backgroundMode: continuable` are both set, the
 Start independent delegations with `subagent` or `subagent_fork` together in one assistant message and continue useful work while they run.
 ```
 
+The shipped `aeven` composition sets `splitGuidance` on its `subagent` instance; that text follows the sentence above for every agent allowed to delegate.
+
 #### Token effect
 
-One short fixed section per continuable instance, paid on every parent request while the tool is in scope.
+One short section shared by the visible continuable instances, paid on every parent request while a tool is in scope; each distinct `splitGuidance` adds its own length.
 
 #### KV Cache effect
 
-Prefix-stable while the section text and tool presence are unchanged; removing the tool or changing the section establishes a different parent prefix.
+Prefix-stable while the section text and tool presence are unchanged; removing a tool, changing `splitGuidance`, or flipping the `subagent-nesting` switch for a depth-1 agent establishes a different prefix.
 
 ### Foreground result
 

@@ -21,6 +21,7 @@ import * as ToolTasks from '@aeven/tool-jobs'
 import { MockAdapter, textResponse } from '../../../core/agent-loop/tests/mock-adapter.ts'
 import * as mock from './scripted-provider.ts'
 import * as tool from '../src/index.ts'
+import SubagentNestingConfig from '../src/nesting-settings.ts'
 import { Session, SessionId } from '@aeven/session'
 import {
   callSubagent,
@@ -1468,5 +1469,163 @@ describe('depth budget configuration', () => {
     await callSubagent(ctx, { description: 'd', prompt: 'p' })
     expect(requests[0]?.maxDepth).toBeUndefined()
     expect(requests[0]?.toolFilter).toBeUndefined()
+  })
+})
+
+describe('avn-tool-subagent split guidance', () => {
+  const roots: string[] = []
+  afterEach(() => {
+    for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
+  })
+
+  const SPLIT = 'Split a large task across subagents.'
+
+  /**
+   * Boot the real continuable stack with one or more delegation instances on
+   * the `spawn` provider, optionally beside the Host nesting switch.
+   */
+  async function splitSetup(
+    instances: Partial<tool.Config>[],
+    options: { nesting?: boolean } = {},
+  ) {
+    const ctx = await projectedContext()
+    await mountAgentLoopTestDependencies(ctx)
+    const root = mkdtempSync(path.join(tmpdir(), 'avn-tool-subagent-split-'))
+    roots.push(root)
+    await ctx.plugin(JsonlSessionPersistence, { root })
+    await ctx.plugin(AgentLoop, { agents: [] })
+    await ctx.plugin(SubagentRuntime)
+    await ctx.plugin(SubagentSpawn, { providerName: 'spawn' })
+    if (options.nesting !== undefined) await ctx.plugin(SubagentNestingConfig, { enabled: options.nesting })
+    for (const instance of instances) {
+      await ctx.plugin(tool, { provider: 'spawn', backgroundMode: 'continuable', ...instance })
+    }
+    return ctx
+  }
+
+  /** Assemble the shared delegation section for an agent at the given delegation depth. */
+  async function guidanceAt(ctx: Context, depth: number, sectionName = 'tool:subagent'): Promise<string | undefined> {
+    const agent = ctx.agentLoop.create(
+      SessionId(`split-depth-${depth}-${Math.random().toString(36).slice(2)}`),
+      { provider: 'mock', model: 'mock', subagentDepth: depth },
+    )
+    const assembly = await ctx.systemPrompt.assemble(assembleContextFor(agent))
+    return assembly.sections.find(section => section.name === sectionName)?.text
+  }
+
+  it('appends the configured text after the shared delegation sentence', async () => {
+    const ctx = await splitSetup([{ splitGuidance: SPLIT, maxDepth: 2 }])
+    expect(await guidanceAt(ctx, 0)).toBe(
+      'Start independent delegations with `subagent` together in one assistant message and continue useful work while they run. '
+      + SPLIT,
+    )
+  })
+
+  it('leaves the shared sentence unchanged without splitGuidance', async () => {
+    const ctx = await splitSetup([{ maxDepth: 2 }])
+    expect(await guidanceAt(ctx, 0)).toBe(
+      'Start independent delegations with `subagent` together in one assistant message and continue useful work while they run.',
+    )
+  })
+
+  it('withholds the text from an agent whose children the depth budget refuses', async () => {
+    const ctx = await splitSetup([{ splitGuidance: SPLIT, maxDepth: 2 }])
+    expect(await guidanceAt(ctx, 1)).toContain(SPLIT)
+    const atCap = await guidanceAt(ctx, 2)
+    expect(atCap).toContain('Start independent delegations')
+    expect(atCap).not.toContain(SPLIT)
+  })
+
+  it('follows the Host nesting switch: off makes depth-1 agents leaves, on restores maxDepth', async () => {
+    const off = await splitSetup([{ splitGuidance: SPLIT, maxDepth: 2, nestingSettings: true }], { nesting: false })
+    expect(await guidanceAt(off, 0)).toContain(SPLIT)
+    expect(await guidanceAt(off, 1)).not.toContain(SPLIT)
+
+    const on = await splitSetup([{ splitGuidance: SPLIT, maxDepth: 2, nestingSettings: true }], { nesting: true })
+    expect(await guidanceAt(on, 1)).toContain(SPLIT)
+  })
+
+  it('renders identical texts from several visible instances once, in the first tool section only', async () => {
+    const ctx = await splitSetup([
+      { splitGuidance: SPLIT, maxDepth: 2 },
+      { toolName: 'subagent_fork', splitGuidance: SPLIT, maxDepth: 2 },
+    ])
+    const text = await guidanceAt(ctx, 0)
+    expect(text).toBe(
+      'Start independent delegations with `subagent` or `subagent_fork` together in one assistant message and continue useful work while they run. '
+      + SPLIT,
+    )
+    expect(await guidanceAt(ctx, 0, 'tool:subagent_fork')).toBe('')
+  })
+
+  it('renders distinct texts of several instances in tool-name order', async () => {
+    const ctx = await splitSetup([
+      { toolName: 'subagent_fork', splitGuidance: 'Fork rule.', maxDepth: 2 },
+      { splitGuidance: 'Spawn rule.', maxDepth: 2 },
+    ])
+    expect(await guidanceAt(ctx, 0)).toMatch(/while they run\. Spawn rule\. Fork rule\.$/)
+  })
+
+  it('keeps an instance without splitGuidance from suppressing a sibling\'s text', async () => {
+    const ctx = await splitSetup([
+      { maxDepth: 2 },
+      { toolName: 'subagent_fork', splitGuidance: SPLIT, maxDepth: 2 },
+    ])
+    expect(await guidanceAt(ctx, 0)).toMatch(/while they run\. Split a large task across subagents\.$/)
+  })
+
+  it('applies each instance\'s own depth budget to its own text', async () => {
+    const ctx = await splitSetup([
+      { splitGuidance: 'Spawn rule.', maxDepth: 1 },
+      { toolName: 'subagent_fork', splitGuidance: 'Fork rule.', maxDepth: 2 },
+    ])
+    const text = await guidanceAt(ctx, 1)
+    expect(text).not.toContain('Spawn rule.')
+    expect(text).toContain('Fork rule.')
+  })
+
+  it('withdraws the text with its tool when the agent cannot see that tool', async () => {
+    const ctx = await splitSetup([
+      { maxDepth: 2 },
+      { toolName: 'subagent_fork', splitGuidance: SPLIT, maxDepth: 2 },
+    ])
+    const agent = ctx.agentLoop.create(SessionId('split-restricted'), { provider: 'mock', model: 'mock' })
+    agent.ctx.tools.restrict({ deny: ['subagent_fork'] })
+    const assembly = await ctx.systemPrompt.assemble(assembleContextFor(agent))
+    expect(assembly.sections.find(section => section.name === 'tool:subagent')?.text).toBe(
+      'Start independent delegations with `subagent` together in one assistant message and continue useful work while they run.',
+    )
+  })
+
+  it('removes the text when the instance fiber is disposed', async () => {
+    const ctx = await projectedContext()
+    await mountAgentLoopTestDependencies(ctx)
+    const root = mkdtempSync(path.join(tmpdir(), 'avn-tool-subagent-split-'))
+    roots.push(root)
+    await ctx.plugin(JsonlSessionPersistence, { root })
+    await ctx.plugin(AgentLoop, { agents: [] })
+    await ctx.plugin(SubagentRuntime)
+    await ctx.plugin(SubagentSpawn, { providerName: 'spawn' })
+    await ctx.plugin(tool, { provider: 'spawn', backgroundMode: 'continuable', maxDepth: 2 })
+    const fork = await ctx.plugin(tool, {
+      provider: 'spawn', backgroundMode: 'continuable', toolName: 'subagent_fork', splitGuidance: SPLIT, maxDepth: 2,
+    })
+    expect(await guidanceAt(ctx, 0)).toContain(SPLIT)
+    await fork.dispose()
+    expect(await guidanceAt(ctx, 0)).toBe(
+      'Start independent delegations with `subagent` together in one assistant message and continue useful work while they run.',
+    )
+  })
+
+  it.each([
+    ['a blank text', { backgroundMode: 'continuable' as const, splitGuidance: '  ' }, /`splitGuidance` is blank/],
+    ['one-shot mode', { backgroundMode: 'one-shot' as const, splitGuidance: SPLIT }, /`splitGuidance` requires `backgroundMode: continuable`/],
+    ['background runs disabled', { backgroundMode: 'continuable' as const, enableRunInBackground: false, splitGuidance: SPLIT }, /`splitGuidance` requires `backgroundMode: continuable`/],
+  ])('fails at load for %s', async (_label, config, message) => {
+    const ctx = await projectedContext()
+    await ctx.plugin(SystemPrompt)
+    await ctx.plugin(ToolRuntime)
+    await ctx.plugin(SubagentRuntime)
+    expect(() => { tool.apply(ctx, { provider: 'spawn', ...config }) }).toThrow(message)
   })
 })
