@@ -821,10 +821,11 @@ Built-in automation service; schedules never authorize additional tool access.
  * History leaves out runs whose conversation is archived, so it lists what the sidebar's Automations
  * workspace shows; unarchiving the conversation lists the run again. Each definition's `lastRun` is its
  * latest retained run either way.
- * @returns owned definitions, latest run records, and the triggers this Host evaluates. A definition's
- * `webhook` says an inbound credential exists; the secret itself never enters this projection.
+ * @returns owned definitions, latest run records, and this Host's kind and the triggers it evaluates. A
+ * definition's `placement` says where it runs among the account's registered Hosts, and its `webhook` says
+ * an inbound credential exists; the secret itself never enters this projection.
  */
-async list(): Promise<{ definitions: (AutomationDefinition & { nextRunAt: string | null; lastRun: AutomationRun | null; webhook: boolean })[]; runs: AutomationRun[]; capabilities: { executionTarget: 'local'; triggers: readonly AutomationSchedule['kind'][]; webhook: boolean } }>
+async list(): Promise<{ definitions: (AutomationDefinition & { placement: AutomationPlacement; nextRunAt: string | null; lastRun: AutomationRun | null; webhook: boolean })[]; runs: AutomationRun[]; capabilities: { host: HostProfile['kind']; triggers: readonly AutomationSchedule['kind'][]; webhook: boolean } }>
 
 /** Give one owned automation an inbound trigger credential, keeping an existing one.
  * @param id - owned definition identity.
@@ -857,7 +858,7 @@ async webhookSecret(id: AutomationId): Promise<{ path: string; keyId: string; se
  */
 create(input: AutomationInput, agent?: Agent): Promise<AutomationDefinition>
 
-/** Revise or pause an owned automation without changing earlier run snapshots.
+/** Revise or pause an owned automation, or change where it may run, without changing earlier run snapshots.
  * @param id - owned definition identity.
  * @param patch - replacement editable fields or status.
  * @returns durably revised definition.
@@ -873,7 +874,7 @@ runNow(id: AutomationId): Promise<AutomationRun>
 /**
  * Admit one run from an authenticated inbound request.
  * The presented key is the whole authority, so this path reads no acting account.
- * A paused automation refuses the request; work already in flight records the
+ * A paused automation, or one this Host may not run, refuses the request; work already in flight records the
  * occurrence as skipped rather than queueing behind it.
  * @param id - automation named by the request path.
  * @param key - bearer credential presented by the caller.

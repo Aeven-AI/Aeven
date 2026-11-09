@@ -194,6 +194,35 @@ abstract confine(argv: readonly string[], policy: SandboxPolicy): ConfinedArgv
 
 Source: [`packages/sandbox/sandbox/src/index.ts`](../../packages/sandbox/sandbox/src/index.ts)
 
+<a id="ctxsandboxgitcredentials--gitcredentials"></a>
+
+### `ctx.sandboxGitCredentials` — `GitCredentials`
+
+The sources registered on one Host, published as `ctx.sandboxGitCredentials`.
+
+```ts cordis-catalog
+/**
+ * Add a source.
+ * @param source - consulted for every Git request the proxy forwards, with the account path segment of the jail
+ * that made the request and the Git host, e.g. `github.com`. It returns a token the host accepts as the password
+ * of `x-access-token`, or undefined when it has none for that account and host.
+ * @returns the disposer that removes it.
+ */
+register(source: (account: string, host: string) => Promise<string | undefined>): () => void
+
+/**
+ * The first credential any source holds; a source that throws is skipped, so one failing integration leaves a
+ * public repository reachable.
+ * @param account - the account path segment.
+ * @param host - the Git host.
+ * @param onError - reports a source that threw.
+ * @returns the token, or undefined when no source has one.
+ */
+async resolve(account: string, host: string, onError: (error: unknown) => void): Promise<string | undefined>
+```
+
+Source: [`packages/sandbox/sandbox-jail/src/git-credentials.ts`](../../packages/sandbox/sandbox-jail/src/git-credentials.ts)
+
 <a id="ctxsandboxpolicy--sandboxpolicyservice"></a>
 
 ### `ctx.sandboxPolicy` — `SandboxPolicyService`
