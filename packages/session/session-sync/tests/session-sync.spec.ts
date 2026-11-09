@@ -36,6 +36,11 @@ class MemoryPersistence {
     return Promise.resolve([...this.logs.values()].filter(log => log.events.length > 0).map(log => ({ header: log.header, revision: `r${String(log.revision)}` })))
   }
 
+  snapshot(id: string): Promise<{ header: SessionHeader; revision: string } | undefined> {
+    const log = this.logs.get(id)
+    return Promise.resolve(log === undefined || log.events.length === 0 ? undefined : { header: log.header, revision: `r${String(log.revision)}` })
+  }
+
   create(header: SessionHeader, inherited?: number): Promise<void> {
     if (!this.logs.has(header.id)) this.logs.set(header.id, { header, inherited: inherited ?? 0, events: [], revision: 0 })
     return Promise.resolve()
@@ -82,7 +87,7 @@ class MemoryPersistence {
 
 const tuning: SessionSyncTuning = {
   publishConcurrency: 4, compressionQuality: 4,
-  publishMs: 20, batchBytes: 2_000, backfillDays: 30, liveMs: 5, pauseMs: 0, outboxLimit: 1000,
+  publishMs: 20, scanMs: 20, batchBytes: 2_000, backfillDays: 30, liveMs: 5, pauseMs: 0, outboxLimit: 1000,
   publishTimeoutMs: 120_000,
   runnerLease: { ttlMs: 30_000, renewMs: 10_000 },
   inputGraceMs: 100, inputExpiryMs: 1_000, attachmentWaitMs: 1_000, attachmentRetryMs: 10,
@@ -135,7 +140,7 @@ describe('session mirror', () => {
       return original(id, from)
     })
     const a = new SessionMirror(OWNER, network.device().asSync(), home as never,
-      { ...tuning, publishMs: 60_000 }, vi.fn())
+      { ...tuning, publishMs: 60_000, scanMs: 60_000 }, vi.fn())
     mirrors.push(a)
     try {
       await a.start()
@@ -613,7 +618,7 @@ describe('attachments of synced conversations', () => {
 describe('session-sync plugin', () => {
   it('publishes a running session\'s new events right after they commit, without waiting for the next scan', async () => {
     const network = new MemorySyncNetwork()
-    const slow = { ...tuning, publishMs: 60_000 }
+    const slow = { ...tuning, publishMs: 60_000, scanMs: 60_000 }
     const homeA = new MemoryPersistence()
     homeA.start('live', Date.now(), 1)
     const a = new SessionMirror(OWNER, network.device().asSync(), homeA as never, slow, vi.fn())
@@ -653,7 +658,7 @@ describe('session-sync plugin', () => {
     const home = new MemoryPersistence()
     home.start('live', Date.now(), 1)
     const warn = vi.fn()
-    const a = new SessionMirror(OWNER, network.device().asSync(), home as never, { ...tuning, publishMs: 60_000 }, warn)
+    const a = new SessionMirror(OWNER, network.device().asSync(), home as never, { ...tuning, publishMs: 60_000, scanMs: 60_000 }, warn)
     mirrors.push(a)
     await a.start()
     await vi.waitFor(() => { expect(network.streams.get('sessions/live')).toBeDefined() })
@@ -842,7 +847,7 @@ describe('session-sync plugin', () => {
     const spy = vi.spyOn(ctx.logger, 'warn').mockImplementation((message: unknown) => { warnings.push(String(message)) })
     const fiber = ctx.plugin(SessionSync, {
       publishConcurrency: 4, compressionQuality: 4,
-      publishMs: 250, batchBytes: 2_000, backfillDays: 30, liveMs: 5, pauseMs: 0, outboxLimit: 1000,
+      publishMs: 250, scanMs: 250, batchBytes: 2_000, backfillDays: 30, liveMs: 5, pauseMs: 0, outboxLimit: 1000,
       publishTimeoutMs: 120_000,
       runnerLease: { ttlMs: 30_000, renewMs: 10_000 },
       inputGraceMs: 100, inputExpiryMs: 1_000, attachmentWaitMs: 1_000, attachmentRetryMs: 10,

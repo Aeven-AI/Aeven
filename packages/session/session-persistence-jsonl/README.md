@@ -88,7 +88,7 @@ This section explains the physical encoding and write path; the observable contr
 
 ### Design concept
 
-The backend is a thin storage layer over the shared [PersistenceCoordinator](../session-persistence/README.md#understand-the-implementation): it loads stored records, appends batches, commits repairs, and delegates lifecycle orchestration to the coordinator. Its physical identity is a file revision: device, inode, size, and nanosecond timestamps identify one log and change after append or repair, which is what `listSnapshots` and retained-preparation validation use.
+The backend is a thin storage layer over the shared [PersistenceCoordinator](../session-persistence/README.md#understand-the-implementation): it loads stored records, appends batches, commits repairs, and delegates lifecycle orchestration to the coordinator. Its physical identity is a file revision: device, inode, size, and nanosecond timestamps identify one log and change after append or repair, which is what `listSnapshots`, `snapshot`, and retained-preparation validation use. Listing reads each session directory once to learn which of the log, the other encoding's log, and the replica marker exist, so an absent file costs no failed open; `snapshot(id)` reads the directory the last listing or lookup found the session in and searches the project directories only when that directory no longer holds it.
 
 ### Physical encoding
 

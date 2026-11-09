@@ -478,6 +478,16 @@ abstract list(signal?: AbortSignal): Promise<SessionHeader[]>
 abstract listSnapshots(signal?: AbortSignal): Promise<SessionPersistenceSnapshot[]>
 
 /**
+ * Read one materialized session's header and revision. The revision equals the one {@link listSnapshots} reports
+ * for the same unchanged log. The default scans {@link listSnapshots}; a backend that can address one session
+ * directly overrides it, so a caller that asks about one session does not pay for a listing of every session.
+ * @param id - the session to read.
+ * @param signal - optional cancellation for backend read work.
+ * @returns the session's header and revision, or `undefined` when no log of it is materialized.
+ */
+async snapshot(id: SessionId, signal?: AbortSignal): Promise<SessionPersistenceSnapshot | undefined>
+
+/**
  * List materialized sessions together with a seeded Session's inherited cut.
  *
  * A {@link SessionHeader} cannot express the cut (`isSeeded` records only that

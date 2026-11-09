@@ -88,7 +88,7 @@ kind: "package-reference"
 
 ### 设计理念
 
-该后端是共享 [PersistenceCoordinator](../session-persistence/README.zh.md#understand-the-implementation) 之上的一层薄存储：它加载已存储记录、追加批次、提交修复，并把生命周期编排委托给协调器。其物理身份是文件修订值：device、inode、size 与纳秒时间戳标识一份日志，并在追加或修复后改变，这正是 `listSnapshots` 与保留准备结果校验所使用的身份。
+该后端是共享 [PersistenceCoordinator](../session-persistence/README.zh.md#understand-the-implementation) 之上的一层薄存储：它加载已存储记录、追加批次、提交修复，并把生命周期编排委托给协调器。其物理身份是文件修订值：device、inode、size 与纳秒时间戳标识一份日志，并在追加或修复后改变，这正是 `listSnapshots`、`snapshot` 与保留准备结果校验所使用的身份。列举时每个会话目录只读取一次，以得知日志、另一种编码的日志和副本标记中哪些存在，因此不存在的文件不会产生失败的打开操作；`snapshot(id)` 读取上一次列举或查找发现该会话的目录，只有该目录不再包含它时才搜索各项目目录。
 
 ### 物理编码
 

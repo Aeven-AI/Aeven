@@ -45,7 +45,7 @@ const { meta, inheritedEventCount, events } = await ctx.sessionPersistence.load(
 const headers = await ctx.sessionPersistence.list()        // every stored session
 ```
 
-`append` 只在批次持久后返回，因此成功返回的写入在操作系统崩溃或断电后依然存在。普通 `create(meta, inheritedEventCount)` 保持惰性；`meta.isSeeded: true` 要求单独的精确 cut，unseeded metadata 可以省略它并拒绝非零值。seeded 会话的首个物化批次必须到达完整继承前缀，因此存储绝不公开 cut 超过日志的 metadata。只有当空会话本身必须出现在持久列表中时，生命周期前端才调用 `ensureMaterialized`，且不会虚构事件。`load` 返回不可变的平衡日志并提交任何需要的崩溃恢复；`inspect` 读取同一份完整视图但不提交恢复。`readFrom` 接受 `SessionLogOffset`，并返回分离的 `SessionEventSuffix`，其中携带该 `fromSeq`、不变的继承 cut，以及 cut 位置或之后的存储事件。会话的产物位置（`locate`）不经文件系统 I/O 即可解析。
+`append` 只在批次持久后返回，因此成功返回的写入在操作系统崩溃或断电后依然存在。普通 `create(meta, inheritedEventCount)` 保持惰性；`meta.isSeeded: true` 要求单独的精确 cut，unseeded metadata 可以省略它并拒绝非零值。seeded 会话的首个物化批次必须到达完整继承前缀，因此存储绝不公开 cut 超过日志的 metadata。只有当空会话本身必须出现在持久列表中时，生命周期前端才调用 `ensureMaterialized`，且不会虚构事件。`load` 返回不可变的平衡日志并提交任何需要的崩溃恢复；`inspect` 读取同一份完整视图但不提交恢复。`readFrom` 接受 `SessionLogOffset`，并返回分离的 `SessionEventSuffix`，其中携带该 `fromSeq`、不变的继承 cut，以及 cut 位置或之后的存储事件。会话的产物位置（`locate`）不经文件系统 I/O 即可解析。`snapshot(id)` 读取单个会话的 header 以及 `listSnapshots` 为它报告的修订值；只关心一个会话的调用方使用它而不是在列表中查找，能够直接定位单个会话的后端无需读取所有会话即可回答。
 
 ### 恢复与崩溃恢复
 

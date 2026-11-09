@@ -2809,6 +2809,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'one header and opaque revision per materialized session without loading full logs.',
       },
       {
+        signature: 'async snapshot(id: SessionId, signal?: AbortSignal): Promise<SessionPersistenceSnapshot | undefined>',
+        description: 'Read one materialized session\'s header and revision. The revision equals the one listSnapshots reports for the same unchanged log. The default scans listSnapshots; a backend that can address one session directly overrides it, so a caller that asks about one session does not pay for a listing of every session.',
+        parameters: [{ name: 'id', description: 'the session to read.' }, { name: 'signal', description: 'optional cancellation for backend read work.' }],
+        returns: 'the session\'s header and revision, or `undefined` when no log of it is materialized.',
+      },
+      {
         signature: 'listWithInheritedCuts?(signal?: AbortSignal): Promise<SessionInheritedCut[]>',
         description: 'List materialized sessions together with a seeded Session\'s inherited cut.\n\nA SessionHeader cannot express the cut (`isSeeded` records only that fork lineage exists), yet a seeded Session\'s projection-cache identity is keyed by it — so a consumer resolving cached projections from a listed Session needs it, and cannot reconstruct it without reading the body. Optional: a backend that cannot expose the cut while listing omits this method, and listings fall back to list without one.',
         parameters: [{ name: 'signal', description: 'optional cancellation for backend listing work.' }],

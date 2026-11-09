@@ -25,6 +25,7 @@ export default class SessionSync extends SessionHandoff {
 
   static Config: z<Config> = z.object({
     publishMs: z.natural().min(250).default(3_000),
+    scanMs: z.natural().default(30_000),
     liveMs: z.natural().default(100),
     batchBytes: z.natural().min(1_024).default(512 * 1024),
     publishConcurrency: z.natural().min(1).default(4),
@@ -53,6 +54,9 @@ export default class SessionSync extends SessionHandoff {
     if (config.runnerLease === undefined || config.runnerLease.renewMs >= config.runnerLease.ttlMs) {
       throw new Error('session runner lease renewal must be shorter than its lifetime')
     }
+    if (config.scanMs !== 0 && config.scanMs < config.publishMs) {
+      throw new Error('session sync scanMs must be 0 or at least publishMs')
+    }
     ctx.on('sync/status', (owner) => { this.track(owner) })
     ctx.on('sync/progress', (owner, progress) => {
       const current = this.mirrors.get(owner)?.progress()
@@ -78,6 +82,10 @@ export default class SessionSync extends SessionHandoff {
     // A running turn reaches the account's other devices as it streams, not at the next scan.
     ctx.on('session-persistence/append', (header, events) => {
       if (header.owner !== undefined) this.mirrors.get(header.owner)?.appended(header, events)
+    })
+    // A conversation moved to another workspace here publishes its new workspace to the account's other devices.
+    ctx.on('workspace/changed', () => {
+      for (const mirror of this.mirrors.values()) mirror.workspacesChanged()
     })
     // The account's documents started over under a new key; the next mirror publishes every conversation again.
     ctx.on('sync/reset', (owner) => {
