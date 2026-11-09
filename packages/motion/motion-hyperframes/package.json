@@ -1,7 +1,7 @@
 {
   "name": "@aeven/motion-hyperframes",
   "description": "HyperFrames renderer for the motion service: headless Chromium capture and H.264 MP4 encoding through the bundled ffmpeg",
-  "version": "0.3.39-alpha",
+  "version": "0.3.40-alpha",
   "publishConfig": {
     "access": "public"
   },
