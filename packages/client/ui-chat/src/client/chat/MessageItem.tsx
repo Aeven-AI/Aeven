@@ -643,7 +643,7 @@ function MessageEditorInput({ value, minHeight, busy, onChange, onCancel, onSend
  * from the prompt and holds non-whitespace text.
  */
 export const UserMessageNodeView = memo(function UserMessageNodeView({
-  node, submission, renderMessageImages, useSession, t, extendedTranscript, editMessage,
+  node, submission, renderMessageImages, useSession, t, extendedTranscript, editMessage, renderUserActions,
 }: ChatNodeViewProps<'user' | 'steering'>) {
   const data = node.data
   const rpcId = sourceRpcId(data.source)
@@ -723,6 +723,7 @@ export const UserMessageNodeView = memo(function UserMessageNodeView({
             onEdit={edit === undefined ? undefined : () => {
               setEditing({ draft: original, minHeight: bubbleRef.current?.getBoundingClientRect().height })
             }}
+            beforeCopy={submission === undefined ? renderUserActions?.({ seq: data.seq, text: original }) : undefined}
             className={css.actions}
             t={t}
           />

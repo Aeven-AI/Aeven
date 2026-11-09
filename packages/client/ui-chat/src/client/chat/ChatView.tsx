@@ -7,7 +7,7 @@ import type { PendingSubmission } from '@aeven/api-session-controller/client'
 import type { ImageAttachmentRef } from '@aeven/attachment'
 import type { RenderMessageImages } from '@aeven/client-ui-conversation/client'
 import { Button, IconChevronDownOutline14, Modal, Spinner, TextAnimationContext } from '@aeven/client-ui-primitives'
-import type { ChatViewSlotProps } from '../contract/slots.ts'
+import type { ChatViewSlotProps, UserActionOwnerProps } from '../contract/slots.ts'
 import type { ChatSnapshot } from '../contract/snapshot.ts'
 import type { ChatNode } from '../contract/chat-nodes.ts'
 import { turnImagesOf } from '../contract/turn-images.ts'
@@ -343,6 +343,10 @@ export function ChatView({
       },
     }),
     [loadImage, renderSlot, sessionId, turnImages],
+  )
+  const renderUserActions = useCallback(
+    (owner: UserActionOwnerProps) => renderSlot('conversation.chat.user-actions', owner),
+    [renderSlot],
   )
   // Starting the read is what names the URL: the cache's browser path knows it
   // at once, so the peek right after answers on the same render.
@@ -1177,6 +1181,7 @@ export function ChatView({
               retryTurn={queueMutable ? retryTurn : undefined}
               openPlans={openPlans}
               renderMessageImages={renderMessageImages}
+              renderUserActions={renderUserActions}
               storedImageUrl={storedImageUrl}
               fileMentions={fileMentions}
               scrollDown={scrollDown}

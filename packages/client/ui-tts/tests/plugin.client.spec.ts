@@ -8,7 +8,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { apply, inject } from '../src/client/index.ts'
 import { en, es, zh } from '../src/client/locales.ts'
 import { STORAGE_KEY } from '../src/client/voices.ts'
-import { MessageReadAloud } from '../src/client/MessageReadAloud.tsx'
+import { MessageReadAloud, UserReadAloud } from '../src/client/MessageReadAloud.tsx'
 import { AgentReadAloud } from '../src/client/AgentReadAloud.tsx'
 import { SystemVoice } from '../src/client/SystemVoice.tsx'
 import type { ReadAloudSnapshot } from '../src/client/engine.ts'
@@ -131,7 +131,7 @@ describe('plugin registration', () => {
     expect(harness.dictionaries).toEqual([{ namespace: 'read-aloud', entries: { zh, en, es } }])
   })
 
-  it('contributes the agent reading follower, the voice row and the message action to their slots', () => {
+  it('contributes the agent reading follower, the voice row and the message actions to their slots', () => {
     const harness = makeCtx()
     harness.boot()
 
@@ -141,6 +141,7 @@ describe('plugin registration', () => {
       ['conversation.input.left', 'read-aloud', undefined, AgentReadAloud],
       ['conversation.input.options', 'read-aloud-voice', 'read-aloud', SystemVoice],
       ['conversation.chat.assistant-actions', 'read-aloud-message', 'read-aloud', MessageReadAloud],
+      ['conversation.chat.user-actions', 'read-aloud-prompt', 'read-aloud', UserReadAloud],
     ])
   })
 })
@@ -162,7 +163,7 @@ describe('the toggle\u2019s face', () => {
 
     expect(harness.synthesize).toHaveBeenCalledWith({ text: 'Dankjewel.', language: 'nl' }, expect.anything())
     expect(face.hooks.readAloud.getSnapshot()).toEqual({
-      enabled: ['s1'], loading: [], speaking: ['s1'], failed: [],
+      enabled: ['s1'], loading: [], speaking: ['s1'], failed: [], paused: [],
     })
   })
 
@@ -214,7 +215,7 @@ describe('the toggle\u2019s face', () => {
     await flush()
     face.setEnabled('s1', false, '1.1', 'Hello there.')
 
-    expect(face.hooks.readAloud.getSnapshot()).toEqual({ enabled: [], loading: [], speaking: [], failed: [] })
+    expect(face.hooks.readAloud.getSnapshot()).toEqual({ enabled: [], loading: [], speaking: [], failed: [], paused: [] })
   })
 
   it('reports a reply the Host could not synthesize', async () => {
@@ -306,6 +307,6 @@ describe('the message action\u2019s face', () => {
     expect(harness.synthesize).toHaveBeenCalledWith({ text: 'Read this.', language: 'en' }, expect.anything())
 
     face.stop('message:m1')
-    expect(face.hooks.readAloud.getSnapshot()).toEqual({ enabled: [], loading: [], speaking: [], failed: [] })
+    expect(face.hooks.readAloud.getSnapshot()).toEqual({ enabled: [], loading: [], speaking: [], failed: [], paused: [] })
   })
 })

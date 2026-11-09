@@ -12,7 +12,10 @@ export const zh = {
   'voice.unavailable': '无法加载声音列表',
   loading: '正在生成朗读',
   'message.read': '朗读这条消息',
-  'message.stop': '停止朗读这条消息',
+  'message.stop': '停止朗读',
+  'message.pause': '暂停朗读',
+  'message.resume': '继续朗读',
+  'message.failed': '无法朗读这条消息，点击重试',
 }
 
 /** Keys of the read-aloud dictionaries. */
@@ -27,7 +30,10 @@ export const en: Record<ReadAloudKey, string> = {
   'voice.unavailable': 'Could not load the voice list',
   loading: 'Preparing the reading',
   'message.read': 'Read this message aloud',
-  'message.stop': 'Stop reading this message',
+  'message.stop': 'Stop reading',
+  'message.pause': 'Pause reading',
+  'message.resume': 'Resume reading',
+  'message.failed': 'Could not read this message aloud; click to try again',
 }
 
 /** Spanish dictionary with the same complete key set. */
@@ -39,5 +45,8 @@ export const es: Record<ReadAloudKey, string> = {
   'voice.unavailable': 'No se pudo cargar la lista de voces',
   loading: 'Preparando la lectura',
   'message.read': 'Leer este mensaje en voz alta',
-  'message.stop': 'Dejar de leer este mensaje',
+  'message.stop': 'Detener la lectura',
+  'message.pause': 'Pausar la lectura',
+  'message.resume': 'Reanudar la lectura',
+  'message.failed': 'No se pudo leer este mensaje en voz alta; haz clic para reintentar',
 }

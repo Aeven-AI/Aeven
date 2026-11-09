@@ -140,7 +140,7 @@ function workspaceGroupHalf(e: { clientY: number; currentTarget: HTMLElement }):
 type SessionTreeProps = Pick<
   WorkspaceBrowserProps,
   'useSessions' | 'useSessionPendingInteraction' | 'startSession' | 'newSessionHref' | 'open' | 'forkSession'
-  | 'insertWorkspaceBefore' | 'insertSessionBefore' | 't'
+  | 'insertWorkspaceBefore' | 'insertSessionBefore' | 'publishGroupOrder' | 't'
 > & {
   workspaces: readonly WorkspaceView[]
   /** Whether the current Workspace stream has a complete Host baseline. */
@@ -191,7 +191,7 @@ function SessionTree({
   archivedSessionIds, hideManaged, archivedSection,
   workspaceReady,
   onRenameRequest, onDeleteRequest, onBindRequest, onInstallGitRequest, onCompareRequest, onSessionRename, onSessionArchive,
-  insertWorkspaceBefore, insertSessionBefore, orderBy,
+  insertWorkspaceBefore, insertSessionBefore, publishGroupOrder, orderBy,
   groupExpansion, setGroupExpanded,
   sessionOrderByAccount, sessionUpdatedAtByAccount, syncSessionOrderAccount, setSessionOrder, t,
   revealSessionId, onSessionRevealed,
@@ -268,6 +268,11 @@ function SessionTree({
     () => (orderBy === 'updated' ? orderGroupsByRecency(orderedWorkspaces, list) : orderedWorkspaces),
     [orderBy, orderedWorkspaces, list],
   )
+  const groupOrderKey = groupOrder.map(workspace => workspace.workspaceId).join('\u0000')
+  useEffect(() => {
+    publishGroupOrder(groupOrder.map(workspace => workspace.workspaceId))
+    // The key carries the order; a new array with the same ids publishes nothing.
+  }, [groupOrderKey, publishGroupOrder])
   const groups = useMemo(
     () => deriveGroups(list, groupOrder, archivedSessionIds, pendingInteractions, {
       expandedGroups,
@@ -768,6 +773,7 @@ export function WorkspaceBrowser({
   archiveSession,
   unarchiveSession,
   insertSessionBefore,
+  publishGroupOrder,
   t,
 }: WorkspaceBrowserProps) {
   const workspaces = useWorkspaces(state => state.items)
@@ -1063,6 +1069,7 @@ export function WorkspaceBrowser({
           : (
             <SessionTree
               useSessions={useSessions}
+              publishGroupOrder={publishGroupOrder}
               useSessionPendingInteraction={useSessionPendingInteraction}
               onSessionRename={onSessionRename}
               onSessionArchive={onSessionArchive}

@@ -4811,8 +4811,56 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the file\'s absolute path, size, first page and whether that page reaches EOF.',
       },
       {
+        signature: '@Remote async access(sessionId: SessionId, signal: AbortSignal): Promise<WorkspaceFilesAccess>',
+        description: 'Say what the explorer may change in the Session\'s workspace, so it shows unavailable actions disabled.',
+        parameters: [{ name: 'sessionId', description: 'the Session asking.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'whether writes are allowed and why not, whether a delete is recoverable, and whether changes stream.',
+      },
+      {
+        signature: '@Remote async createFile(sessionId: SessionId, folder: string, name: string, signal: AbortSignal): Promise<WorkspaceEntryRef>',
+        description: 'Create one empty file.',
+        parameters: [{ name: 'sessionId', description: 'the Session whose workspace changes.' }, { name: 'folder', description: 'workspace-relative folder to create it in; empty for the root.' }, { name: 'name', description: 'the new file\'s name.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the new file\'s workspace path.',
+      },
+      {
+        signature: '@Remote async createFolder(sessionId: SessionId, folder: string, name: string, signal: AbortSignal): Promise<WorkspaceEntryRef>',
+        description: 'Create one empty folder.',
+        parameters: [{ name: 'sessionId', description: 'the Session whose workspace changes.' }, { name: 'folder', description: 'workspace-relative folder to create it in; empty for the root.' }, { name: 'name', description: 'the new folder\'s name.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the new folder\'s workspace path.',
+      },
+      {
+        signature: '@Remote async rename(sessionId: SessionId, path: string, name: string, signal: AbortSignal): Promise<WorkspaceEntryRef>',
+        description: 'Rename one entry inside its folder. A symbolic link is renamed itself, never the entry it points to.',
+        parameters: [{ name: 'sessionId', description: 'the Session whose workspace changes.' }, { name: 'path', description: 'workspace-relative path of the entry.' }, { name: 'name', description: 'the entry\'s new name.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the entry\'s new workspace path.',
+      },
+      {
+        signature: '@Remote async duplicate(sessionId: SessionId, path: string, signal: AbortSignal): Promise<WorkspaceEntryRef>',
+        description: 'Copy one file beside itself as "name copy", "name copy 2" and so on.',
+        parameters: [{ name: 'sessionId', description: 'the Session whose workspace changes.' }, { name: 'path', description: 'workspace-relative path of the file.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the copy\'s workspace path.',
+      },
+      {
+        signature: '@Remote async count(sessionId: SessionId, path: string, signal: AbortSignal): Promise<WorkspaceEntryCount>',
+        description: 'Count what deleting one entry takes with it, for the confirmation that names the number.',
+        parameters: [{ name: 'sessionId', description: 'the Session asking.' }, { name: 'path', description: 'workspace-relative path of the entry.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the files and folders inside it, bounded by the count cap.',
+      },
+      {
+        signature: '@Remote async deleteEntry(sessionId: SessionId, path: string, signal: AbortSignal): Promise<{ readonly trashed: boolean }>',
+        description: 'Delete one entry: move it to the platform\'s trash where one exists, otherwise remove it and everything inside it.',
+        parameters: [{ name: 'sessionId', description: 'the Session whose workspace changes.' }, { name: 'path', description: 'workspace-relative path of the entry; the root itself is refused.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'whether the entry went to the trash rather than being removed.',
+      },
+      {
+        signature: '@Remote({ mode: \'stream\' }) async *changes(sessionId: SessionId, signal: AbortSignal): AsyncIterable<WorkspaceFileChanges>',
+        description: 'Follow changes anywhere in the Session\'s workspace, other than inside the names `searchSkip` lists. The opening batch is empty and confirms the watch; each later one gathers a burst of changes.',
+        parameters: [{ name: 'sessionId', description: 'the Session whose workspace is watched.' }, { name: 'signal', description: 'the reader\'s observation lifetime.' }],
+        returns: 'the change batches, until the reader stops or the watcher fails.',
+      },
+      {
         signature: '@Remote async search(sessionId: SessionId, query: string, signal: AbortSignal): Promise<WorkspaceSearchResult>',
-        description: 'Find entries whose name contains `query` (case-insensitive), walking the workspace breadth-first and skipping the configured directory names.',
+        description: 'Find entries whose name contains `query` (case-insensitive), or whose relative path does when `query` holds a `/`, walking the workspace breadth-first and skipping the configured directory names.',
         parameters: [{ name: 'sessionId', description: 'the Session asking; this device\'s binding for its workspace names the root.' }, { name: 'query', description: 'the name fragment to match.' }, { name: 'signal', description: 'caller cancellation.' }],
         returns: 'the matches in walk order and whether a cap stopped the walk.',
       },
@@ -10181,15 +10229,35 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'WorkspaceDirectoryEntry',
-    declaration: 'export interface WorkspaceDirectoryEntry {\n    readonly name: string;\n    readonly type: \'file\' | \'directory\' | \'other\';\n    readonly size: number | null;\n}',
+    declaration: 'export interface WorkspaceDirectoryEntry {\n    readonly name: string;\n    readonly type: \'file\' | \'directory\' | \'other\';\n    readonly size: number | null;\n    readonly ignored: boolean;\n}',
   },
   {
     name: 'WorkspaceDirectoryListing',
     declaration: 'export interface WorkspaceDirectoryListing {\n    readonly root: string;\n    readonly path: string;\n    readonly entries: readonly WorkspaceDirectoryEntry[];\n    readonly truncated: boolean;\n}',
   },
   {
+    name: 'WorkspaceEntryCount',
+    declaration: 'export interface WorkspaceEntryCount {\n    readonly items: number;\n    readonly capped: boolean;\n}',
+  },
+  {
+    name: 'WorkspaceEntryRef',
+    declaration: 'export interface WorkspaceEntryRef {\n    readonly path: string;\n}',
+  },
+  {
+    name: 'WorkspaceFileChange',
+    declaration: 'export interface WorkspaceFileChange {\n    readonly path: string;\n    readonly kind: \'created\' | \'changed\' | \'deleted\';\n}',
+  },
+  {
+    name: 'WorkspaceFileChanges',
+    declaration: 'export interface WorkspaceFileChanges {\n    readonly changes: readonly WorkspaceFileChange[];\n}',
+  },
+  {
     name: 'WorkspaceFileFailure',
     declaration: 'export type WorkspaceFileFailure = \'access\' | \'network\' | \'disk\' | \'folder\' | \'git-install\' | \'unstorable\' | \'unknown\';',
+  },
+  {
+    name: 'WorkspaceFilesAccess',
+    declaration: 'export interface WorkspaceFilesAccess {\n    readonly writable: boolean;\n    readonly reason: \'read-only\' | \'unsupported\' | null;\n    readonly trash: boolean;\n    readonly watch: boolean;\n}',
   },
   {
     name: 'WorkspaceFilesEntry',
@@ -10229,7 +10297,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'WorkspaceFileText',
-    declaration: 'export interface WorkspaceFileText {\n    readonly absolutePath: string;\n    readonly bytes: number | null;\n    readonly text: string;\n    readonly eof: boolean;\n}',
+    declaration: 'export interface WorkspaceFileText {\n    readonly absolutePath: string;\n    readonly bytes: number | null;\n    readonly text: string;\n    readonly eof: boolean;\n    readonly outsideWorkspace: boolean;\n}',
   },
   {
     name: 'WorkspaceFollowFrame',

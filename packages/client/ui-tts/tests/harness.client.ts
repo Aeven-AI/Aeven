@@ -78,6 +78,7 @@ export function readAloudState(states: Partial<ReadAloudSnapshot> = {}): ReadAlo
     loading: states.loading ?? [],
     speaking: states.speaking ?? [],
     failed: states.failed ?? [],
+    paused: states.paused ?? [],
   }
 }
 

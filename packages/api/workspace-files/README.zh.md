@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`@aeven/api-workspace-files` 拥有 `workspaceFiles` Remote 命名空间，即右侧栏文件浏览器的 Host 半边。`list` 返回某目录的直接子项，`read` 返回 UTF-8 文本文件的起始一页，`search` 以广度优先遍历目录树，寻找名称包含查询串的条目。每次调用以 id 指明 Session。工作区根目录是本设备上该 Session 的文件夹，缺失时回退到沙箱策略的根目录：有活动 Agent 时通过 `sessionWorkspaceRoot` 解析，空闲的 Session 或副本则通过 `WorkingDirectoryService.observed` 从其存储的日志解析，因此浏览从不启动 Agent，也不会从另一台设备接管 Session。其他账户拥有的 Session 按不存在处理。每一次列举、预览与搜索都不越出该根目录，这里也不做任何写入。两侧读取的是与模型文件工具相同的组合文件系统，因此一次部署对浏览器与 Agent 只需要一套访问策略。
+`@aeven/api-workspace-files` 拥有 `workspaceFiles` Remote 命名空间，即右侧栏文件浏览器的 Host 半边。`list` 返回某目录的直接子项，`read` 返回 UTF-8 文本文件的起始一页，`search` 以广度优先遍历目录树，寻找名称包含查询串的条目。每次调用以 id 指明 Session。工作区根目录是本设备上该 Session 的文件夹，缺失时回退到沙箱策略的根目录：有活动 Agent 时通过 `sessionWorkspaceRoot` 解析，空闲的 Session 或副本则通过 `WorkingDirectoryService.observed` 从其存储的日志解析，因此浏览从不启动 Agent，也不会从另一台设备接管 Session。其他账户拥有的 Session 按不存在处理。每一次列举、预览与搜索都不越出该根目录。`createFile`、`createFolder`、`rename`、`duplicate` 与 `deleteEntry` 从浏览器修改它，`changes` 以流的形式报告其中的变化；只有当组合文件系统把工作区映射到 Host 自身的磁盘时它们才可用，写入还要求该 Session 的文件策略宽于只读（`access` 报告这两点，以及 `deleteEntry` 是移到系统废纸篓还是永久删除）。每次写入都在按列举方式解析的文件夹内指明条目，从不跟随符号链接。两侧读取的是与模型文件工具相同的组合文件系统，因此一次部署对浏览器与 Agent 只需要一套访问策略。
 
 ## 目录
 
@@ -39,7 +39,7 @@ kind: "package-reference"
 ## 已知限制与待办
 
 - **预览是文本文件的开头** —— `read` 最多返回 `maxLines` 行，超过 `maxBytes` 的页面会被拒绝而不是截断，含 NUL 字节或文件系统拒绝作为文本的文件会报告为非文本而不解码。
-- **搜索匹配名称而非内容** —— 它以广度优先遍历目录、按大小写不敏感比较条目名，在 `searchMaxDirectories` 或 `searchMaxHits` 处停止并报告截断，且从不深入 `searchSkip` 中的名称。
+- **搜索匹配名称而非内容** —— 它以广度优先遍历目录、按大小写不敏感比较条目名（查询含 `/` 时比较相对路径），在 `searchMaxDirectories` 或 `searchMaxHits` 处停止并报告截断，且从不深入 `searchSkip` 中的名称。
 - **预览默认遵循读取权限** —— 默认情况下，`read` 或 `sidebar_files` 的文件预览遵循文件工具的读取权限，可能到达工作区之外；`confineReads: true` 让预览像列表与搜索一样保持在工作区内，适用于其读者不得看到 Host 自身文件的 Host。
 - **`/api/workspace-file` 在内存中持有整个文件** —— 该路由按与预览相同的读取规则，提供调用者自己 Session 中的一个文件，上限为 `maxFileBytes`（默认 512 MiB）；每个请求，包括媒体播放器请求的每个字节范围，都会通过已组合的文件系统完整读取该文件。
 - **不变量省略** —— 不发布运行时不变量伴随模块，因为每次调用都从组合文件系统重新计算结果而不保留任何东西：工作区限定、条目与行数上限、字节拒绝都在构造该值的操作内强制执行，因此没有第二个观察可比对，也没有可在调用之间漂移的状态。

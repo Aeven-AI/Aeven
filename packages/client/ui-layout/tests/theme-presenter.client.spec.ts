@@ -30,6 +30,7 @@ function themeColorMeta(): HTMLMetaElement | null {
 beforeEach(() => {
   clearThemePresentation()
   document.documentElement.style.removeProperty('color-scheme')
+  document.documentElement.style.removeProperty('background-color')
   document.body.removeAttribute(DARK_ATTRIBUTE)
   document.body.removeAttribute('style')
   const style = document.createElement('style')
@@ -44,6 +45,28 @@ beforeEach(() => {
 afterEach(clearThemePresentation)
 
 describe('ThemePresenter', () => {
+  it('paints the document canvas in the palette and follows a theme switch', () => {
+    const presenter = new ThemePresenter()
+    presenter.apply(snapshot('dark'))
+    expect(document.documentElement.style.backgroundColor).toBe(DARK_THEME_COLOR)
+    presenter.apply(snapshot('light'))
+    expect(document.documentElement.style.backgroundColor).toBe(LIGHT_THEME_COLOR)
+    presenter.dispose()
+    expect(document.documentElement.style.backgroundColor).toBe('')
+  })
+
+  it('adopts the theme-color meta the index bootstrap inserted instead of adding a second', () => {
+    const booted = document.createElement('meta')
+    booted.name = 'theme-color'
+    booted.id = 'avn-theme-color'
+    booted.content = LIGHT_THEME_COLOR
+    document.head.append(booted)
+    const presenter = new ThemePresenter()
+    presenter.apply(snapshot('dark'))
+    expect(document.head.querySelectorAll('meta[name="theme-color"]')).toHaveLength(1)
+    expect(booted.content).toBe(DARK_THEME_COLOR)
+  })
+
   it('light scheme sets root color-scheme and leaves the dark attribute absent', () => {
     const presenter = new ThemePresenter()
     presenter.apply(snapshot('light'))

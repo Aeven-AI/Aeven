@@ -993,3 +993,56 @@ describe('UiWorkspaceService.whenInitialDataReady', () => {
     await wait.ready
   })
 })
+
+describe('Move to workspace targets', () => {
+  /** A Session in `home`, with `older` and `newer` Workspaces whose own Sessions were last active at 10 and 20. */
+  function threeWorkspaces() {
+    const moving = summary('moving', { updatedAt: 5 })
+    const olderChat = summary('older-chat', { updatedAt: 10 })
+    const newerChat = summary('newer-chat', { updatedAt: 20 })
+    return bench({
+      sessions: sessionState([moving, olderChat, newerChat], moving.id),
+      workspaces: workspaceState([
+        chats(),
+        workspace('home', [moving.id]),
+        workspace('older', [olderChat.id]),
+        workspace('newer', [newerChat.id]),
+      ]),
+    })
+  }
+
+  it('lists the built-in Workspace first, then the rest by last activity, before the browser reports its order', () => {
+    const b = threeWorkspaces()
+    const targets = b.uiWorkspace.moveTargets(sid('moving')).getSnapshot()
+    expect(targets.map(target => target.workspaceId)).toEqual([wid('chats'), wid('newer'), wid('older')])
+  })
+
+  it('follows the group order the browser reports, as in manual order', () => {
+    const b = threeWorkspaces()
+    const source = b.uiWorkspace.moveTargets(sid('moving'))
+    const listener = vi.fn()
+    const unsubscribe = source.subscribe(listener)
+    b.uiWorkspace.setGroupOrder([wid('chats'), wid('older'), wid('home'), wid('newer')])
+
+    expect(listener).toHaveBeenCalled()
+    expect(source.getSnapshot().map(target => target.workspaceId)).toEqual([wid('chats'), wid('older'), wid('newer')])
+    unsubscribe()
+  })
+
+  it('re-orders when activity moves while no browser order is reported', () => {
+    const b = threeWorkspaces()
+    const source = b.uiWorkspace.moveTargets(sid('moving'))
+    const first = source.getSnapshot()
+    b.sessions.list.update(state => ({
+      ...state,
+      byId: { ...state.byId, [sid('older-chat')]: summary('older-chat', { updatedAt: 30 }) },
+    }))
+
+    expect(source.getSnapshot().map(target => target.workspaceId)).toEqual([wid('chats'), wid('older'), wid('newer')])
+    expect(source.getSnapshot()).not.toBe(first)
+    // An unchanged order keeps the same array, so the menu does not re-render.
+    const settled = source.getSnapshot()
+    b.sessions.list.update(state => ({ ...state }))
+    expect(source.getSnapshot()).toBe(settled)
+  })
+})

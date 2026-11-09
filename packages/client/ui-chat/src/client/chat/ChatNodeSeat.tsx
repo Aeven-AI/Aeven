@@ -55,7 +55,8 @@ function turnOf(node: ChatNode | undefined): number | undefined {
 export const ChatNodeSeat = memo(function ChatNodeSeat({
   nodeKey, submission, highlightedNodeKey, useChatNode, useChatNodeProcess, historyIncomplete, extendedTranscript,
   selectedCallId, cwd, openFile, forkAt, editMessage, retryTurn, openPlans,
-  renderMessageImages, storedImageUrl, fileMentions, scrollDown, onFullscreenChange, useStore, actions, renderSlot, t,
+  renderMessageImages, renderUserActions, storedImageUrl, fileMentions, scrollDown, onFullscreenChange, useStore, actions,
+  renderSlot, t,
 }: ChatNodeSeatProps) {
   const durableNode = useChatNode(nodeKey)
   const node = useMemo(() => durableNode ?? (submission === undefined ? undefined : {
@@ -159,6 +160,7 @@ export const ChatNodeSeat = memo(function ChatNodeSeat({
       retryTurn,
       openPlans,
       renderMessageImages,
+      renderUserActions,
       storedImageUrl,
       generatedImages,
       fileMentions,
@@ -168,7 +170,8 @@ export const ChatNodeSeat = memo(function ChatNodeSeat({
       turnProcess,
     }, [
     node, durableNode, submission, selectedCallId, cwd, openFile, forkAt, editMessage, retryTurn, openPlans,
-    renderMessageImages, storedImageUrl, generatedImages, fileMentions, scrollDown, onFullscreenChange, extendedTranscript, turnProcess,
+    renderMessageImages, renderUserActions, storedImageUrl, generatedImages, fileMentions, scrollDown, onFullscreenChange,
+    extendedTranscript, turnProcess,
   ])
   if (routedNode === undefined || owner === null) return null
   const turnData = turnDataOf(routedNode)

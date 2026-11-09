@@ -12,6 +12,8 @@ export interface WorkspaceDirectoryEntry {
   readonly type: 'file' | 'directory' | 'other'
   /** Byte size of a regular file, or null when the backend cannot report it. */
   readonly size: number | null
+  /** Whether the name is one the deployment's ignore list hides by default, such as `.git` or `node_modules`. */
+  readonly ignored: boolean
 }
 
 /** One directory's direct children. */
@@ -36,6 +38,48 @@ export interface WorkspaceFileText {
   readonly text: string
   /** Whether `text` reaches the last line; false when the page cap cut it. */
   readonly eof: boolean
+  /** Whether the file lies outside the Session's workspace root, which a preview may read but the tree never lists. */
+  readonly outsideWorkspace: boolean
+}
+
+/** What a reader may change in one Session's workspace from the explorer. */
+export interface WorkspaceFilesAccess {
+  /** Whether the explorer may create, rename, duplicate and delete entries. */
+  readonly writable: boolean
+  /** Why writing is unavailable: the Session's file policy is read-only, or this Host cannot reach the files itself. */
+  readonly reason: 'read-only' | 'unsupported' | null
+  /** Whether a delete moves the entry to a trash the reader can restore it from; false means a delete is permanent. */
+  readonly trash: boolean
+  /** Whether {@link WorkspaceFileChange} batches stream for this workspace. */
+  readonly watch: boolean
+}
+
+/** One entry the explorer created or renamed to. */
+export interface WorkspaceEntryRef {
+  /** Path relative to the workspace root, `/`-joined. */
+  readonly path: string
+}
+
+/** How much a delete takes with it. */
+export interface WorkspaceEntryCount {
+  /** Files and folders inside the entry, the entry itself excluded; zero for a file. */
+  readonly items: number
+  /** Whether the count stopped at its cap, so `items` is a lower bound. */
+  readonly capped: boolean
+}
+
+/** One change a watcher saw in the workspace. */
+export interface WorkspaceFileChange {
+  /** Path relative to the workspace root, `/`-joined. */
+  readonly path: string
+  /** An entry appeared, its content changed, or it went away; a rename reports both ends. */
+  readonly kind: 'created' | 'changed' | 'deleted'
+}
+
+/** One batch of the workspace change stream; the opening batch is empty and confirms the watch. */
+export interface WorkspaceFileChanges {
+  /** The changes gathered since the previous batch. */
+  readonly changes: readonly WorkspaceFileChange[]
 }
 
 /** One path a name search found. */
@@ -68,6 +112,16 @@ declare module '@aeven/typert-protocol' {
     'workspace-file/not-regular-file': { readonly path: string; readonly kind: 'directory' | 'other' }
     /** The path is not a directory, so it has no children to list. */
     'workspace-file/not-directory': { readonly path: string; readonly kind: 'file' | 'other' }
+    /** An entry with that name already exists in the folder. */
+    'workspace-file/exists': { readonly path: string }
+    /** The name cannot be used for a file or folder. */
+    'workspace-file/invalid-name': { readonly name: string; readonly reason: string }
+    /** The Session's file policy is read-only, so the explorer may not change the workspace. */
+    'workspace-file/read-only': { readonly path: string }
+    /** The operating system refused the change. */
+    'workspace-file/permission-denied': { readonly path: string }
+    /** This Host does not hold the workspace's files itself, so it cannot change or watch them. */
+    'workspace-file/unsupported': { readonly operation: string }
   }
 }
 
