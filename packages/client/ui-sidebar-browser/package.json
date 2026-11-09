@@ -33,7 +33,9 @@
         "@aeven/client-ui-renderer",
         "@aeven/client-ui-sidebar-right",
         "@aeven/client-locale",
-        "@aeven/client-ui-sidebar-select"
+        "@aeven/client-ui-sidebar-select",
+        "@aeven/client-ui-layout",
+        "@aeven/client-ui-conversation"
       ],
       "platform": "web"
     }
@@ -73,7 +75,9 @@
     "@types/react-dom": "~18.3.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "@aeven/brand": "workspace:^"
+    "@aeven/brand": "workspace:^",
+    "@aeven/client-ui-layout": "workspace:^",
+    "@aeven/client-ui-conversation": "workspace:^"
   },
   "files": [
     "lib/index.js",

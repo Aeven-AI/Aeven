@@ -9,6 +9,7 @@ Lets the Aeven agent use the browser you browse with — Chrome, Brave, Edge, Ar
 - With your approval, the agent searches your history and bookmarks.
 - The desktop app reaches the extension through its native messaging host (`io.aeven.browser`), which it registers with each installed Chromium browser when it starts. Several browsers can be connected at once; each install has its own id, which agent tab ids carry. When none is connected and the agent opens a tab, the app starts the browser that has the extension and opens `connect.html`, which wakes the extension. No network port is opened.
 - An Aeven web page on `aeven.io` reaches the extension directly (`externally_connectable`), which is how hosted Aeven uses your browser. Localhost pages may connect only to an unpacked development install.
+- Install it from the [Chrome Web Store](https://chromewebstore.google.com/detail/aeven/cpgmlafibkmklfnpjpjbdgoegpljfofa) (id `cpgmlafibkmklfnpjpjbdgoegpljfofa`). When hosted Aeven needs your browser and the extension is missing, the page links this store page and continues as soon as the extension is added; the page sees a new install without reloading.
 
 ## Build and load
 

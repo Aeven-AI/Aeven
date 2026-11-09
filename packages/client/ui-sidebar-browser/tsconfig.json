@@ -64,6 +64,12 @@
     },
     {
       "path": "../../util/brand"
+    },
+    {
+      "path": "../ui-layout"
+    },
+    {
+      "path": "../ui-conversation"
     }
   ]
 }

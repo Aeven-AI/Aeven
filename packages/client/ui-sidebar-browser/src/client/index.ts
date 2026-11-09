@@ -16,6 +16,10 @@ import type { SidebarContentPaneProps } from '@aeven/client-ui-sidebar-select/cl
 // Type-only: pulls the settings scope's Context merge (ctx.settingsScope) and
 // the settings slots this plugin's Browser section registers into.
 import type {} from '@aeven/client-ui-settings/client'
+// Type-only: the `shell.overlay` declaration the extension prompt registers into.
+import type {} from '@aeven/client-ui-layout/client'
+// Type-only: pulls the conversation service the extension prompt's continue sends through.
+import type {} from '@aeven/client-ui-conversation/client'
 import { createElement } from 'react'
 import { writeClipboard } from '@aeven/client-ui-primitives'
 import { BrowserPane } from './BrowserPane.tsx'
@@ -33,6 +37,8 @@ import {
 import { installLinkHandling } from './links.ts'
 import { PageExtensionLink, pageConnector, pageExtensionBridge, type PageExtensionBridge } from './extension-page.ts'
 import { ExtensionRow, type ExtensionRowInjected } from './ExtensionRow.tsx'
+import { AEVEN_EXTENSION_STORE_URL, browserLabel as extensionBrowserLabel, canInstallExtension, ExtensionPrompt } from './extension-install.ts'
+import { ExtensionPromptModal, type ExtensionPromptInjected } from './ExtensionPromptModal.tsx'
 import { en, es, zh, type SidebarBrowserKey } from './locales.ts'
 import { SearchEnginePreference } from './search-engine.ts'
 import { BROWSER_SETTINGS_NAMESPACE, type BrowserSettings } from '../browser-settings.ts'
@@ -282,13 +288,51 @@ async function browserTabs(
 }
 
 /**
- * Serve the agent's extension tabs from a web page: its tab commands for
- * `browser extension`, its actions in the extension tab it selected, and history
- * and bookmarks from the reader's browser. Everything else passes on.
+ * The download page of this deployment's Aeven site, which the served page states as
+ * `__AVN_AEVEN__.webUrl`; a deployment that names none offers no download.
+ * @returns the page, or undefined.
+ */
+function downloadPage(): string | undefined {
+  const site = (globalThis as { __AVN_AEVEN__?: { readonly webUrl?: string } }).__AVN_AEVEN__?.webUrl
+  return site === undefined || !URL.canParse(site) ? undefined : new URL('/downloads', site).href
+}
+
+/**
+ * Open an address for the agent in a new tab of the reader's browser, through the extension,
+ * and make it the session's current tab.
+ * @param sessionId - the session.
+ * @param request - the `navigate` request.
+ * @param chrome - extension access.
+ * @returns the loaded page, as a navigation reports it.
+ */
+async function navigateInNewExtensionTab(
+  sessionId: string,
+  request: { readonly input: { readonly [key: string]: unknown }; readonly signal?: AbortSignal | undefined },
+  chrome: ChromeAccess,
+): Promise<{ [key: string]: unknown }> {
+  const address = typeof request.input.url === 'string' ? request.input.url : ''
+  const url = resolveAddress(address)
+  if (url === undefined) throw new Error(`not a navigable address: ${address}`)
+  const opened = await chromeTabs(sessionId, { input: { action: 'new', browser: 'extension', url }, signal: request.signal }, chrome, undefined)
+  // The browser's own tab list carries the loaded address and title; the engine's target keeps what the tab
+  // showed when the debugger attached, which is empty for a tab still loading.
+  const listed = (await chrome.list(sessionId)).find(entry => entry.tabId === opened.tabId)
+  return { ok: true, url: listed?.url || url, title: listed?.title ?? '', tabId: opened.tabId }
+}
+
+/**
+ * Serve the agent's browser from a web page, where the reader's own browser,
+ * reached through the Aeven extension, is the only one: the session's status, a
+ * navigation that opens a new extension tab when none is current, its tab
+ * commands for `browser extension`, its actions in the extension tab it selected,
+ * and history and bookmarks from the reader's browser. A request that needs the
+ * extension while it is missing waits on the install prompt. Everything else
+ * passes on.
  * @param ctx - Client root context.
  * @param bridge - the page's link to the extension.
+ * @param prompt - the page's extension install prompt.
  */
-function installPageExtension(ctx: ClientContext, bridge: PageExtensionBridge): void {
+function installPageExtension(ctx: ClientContext, bridge: PageExtensionBridge, prompt: ExtensionPrompt): void {
   const chrome: ChromeAccess = {
     bridge: () => bridge,
     aevenUrl: () => undefined,
@@ -296,30 +340,77 @@ function installPageExtension(ctx: ClientContext, bridge: PageExtensionBridge): 
     launch: () => Promise.resolve(false),
     list: async sessionId => await listChromeTabs(sessionId, bridge, ['extension'], undefined),
   }
+  /**
+   * Run work that needs the extension once it is connected, prompting the reader to add it.
+   * @param sessionId - the session whose agent asks.
+   * @param request - the pending request, whose signal and deadline bound the prompt.
+   * @param work - the request's own work.
+   * @returns what the work returns.
+   */
+  const withExtension = async <T>(
+    sessionId: string,
+    request: { readonly signal?: AbortSignal | undefined; readonly timeoutMs?: number | undefined },
+    work: () => Promise<T>,
+  ): Promise<T> => {
+    await prompt.require(sessionId, request.signal, request.timeoutMs)
+    return await work()
+  }
   ctx.inject(['remote', 'sessions'], (scoped) => {
     scoped.remote.$on('browser/automation', function (request, next) {
       const sessionId = (scoped.sessions).scopeOf(this)
       if (sessionId === undefined) return next()
-      if (request.operation === 'bookmarks' || (request.operation === 'history' && request.input.source === 'browser')) {
+      // The page has no browser of its own beside the chat, so every history search reads the reader's browser.
+      if (request.operation === 'bookmarks' || request.operation === 'history') {
         const limit = typeof request.input.limit === 'number' && Number.isInteger(request.input.limit) && request.input.limit > 0 ? Math.min(request.input.limit, 200) : 20
-        return bridge.extensionRead(request.operation === 'bookmarks' ? 'bookmarks' : 'history', typeof request.input.query === 'string' ? request.input.query : '', limit)
-          .then(entries => ({ entries })) as ReturnType<typeof next>
+        return withExtension(sessionId, request, async () => ({
+          entries: await bridge.extensionRead(request.operation === 'bookmarks' ? 'bookmarks' : 'history', typeof request.input.query === 'string' ? request.input.query : '', limit),
+        })) as ReturnType<typeof next>
       }
       if (request.operation === 'tabs') {
         const tab = parseChromeTabId(typeof request.input.tabId === 'string' ? request.input.tabId : undefined)
         if (tab?.kind === 'extension' || (request.input.action === 'new' && request.input.browser === 'extension')) {
-          return chromeTabs(sessionId, request, chrome, tab) as ReturnType<typeof next>
+          return withExtension(sessionId, request, async () => await chromeTabs(sessionId, request, chrome, tab)) as ReturnType<typeof next>
         }
         if ((request.input.action ?? 'list') === 'list') return chrome.list(sessionId).then(tabs => ({ tabs }))
         return next()
       }
       const chromeTab = liveGuests.chrome(sessionId)
-      if (chromeTab?.kind !== 'extension' || request.operation === 'handoff' || request.operation === 'control') return next()
-      const requestId = mintRequestId()
-      const cancel = (): void => { bridge.cancelAutomation(chromeTab.targetId, requestId) }
-      request.signal?.addEventListener('abort', cancel, { once: true })
-      return bridge.chromeAutomate('extension', undefined, chromeTab.targetId, request.operation, request.input, requestId, request.timeoutMs)
-        .finally(() => { request.signal?.removeEventListener('abort', cancel) }) as ReturnType<typeof next>
+      if (chromeTab?.kind !== 'extension') {
+        // Without a current extension tab, the session's browser is the one a navigation opens through the extension.
+        if (request.operation === 'status') {
+          return Promise.resolve(canInstallExtension()
+            ? { open: false, openable: true, opensIn: 'user-browser', surface: 'user-browser' }
+            : { open: false, openable: false, unavailable: 'browser-unsupported', surface: 'user-browser' })
+        }
+        if (request.operation === 'navigate') {
+          const opened = withExtension(sessionId, request, async () => await navigateInNewExtensionTab(sessionId, request, chrome))
+          return opened as ReturnType<typeof next>
+        }
+        return next()
+      }
+      if (request.operation === 'handoff' || request.operation === 'control') return next()
+      const operate = async (): Promise<unknown> => {
+        const requestId = mintRequestId()
+        const cancel = (): void => { bridge.cancelAutomation(chromeTab.targetId, requestId) }
+        request.signal?.addEventListener('abort', cancel, { once: true })
+        try {
+          return await bridge.chromeAutomate('extension', undefined, chromeTab.targetId, request.operation, request.input, requestId, request.timeoutMs)
+        } finally {
+          request.signal?.removeEventListener('abort', cancel)
+        }
+      }
+      // Every status answer from this page says the session's browser is the reader's own.
+      if (request.operation === 'status') {
+        return operate().then(page => typeof page === 'object' && page !== null ? { ...page, surface: 'user-browser' } : page) as ReturnType<typeof next>
+      }
+      if (request.operation !== 'navigate') return operate() as ReturnType<typeof next>
+      // The reader may have closed the current tab; a navigation then opens a new one.
+      return (async () => {
+        const open = (await chrome.list(sessionId)).some(entry => entry.tabId === `${CHROME_PREFIX.extension}${chromeTab.targetId}`)
+        if (open) return await operate()
+        liveGuests.selectChrome(sessionId, undefined)
+        return await withExtension(sessionId, request, async () => await navigateInNewExtensionTab(sessionId, request, chrome))
+      })() as ReturnType<typeof next>
     })
   })
 }
@@ -371,12 +462,14 @@ export function apply(ctx: ClientContext): void {
   // connects to the extension in the browser it runs in.
   const pageBridge = pageExtensionBridge(new PageExtensionLink(pageConnector))
   const extensionStatus = desktopBrowser()?.extensionStatus ?? pageBridge.extensionStatus
+  // A web page in a browser that can install the extension offers the store from the row.
+  const installUrl = !isDesktopShell() && canInstallExtension() ? AEVEN_EXTENSION_STORE_URL : undefined
   ctx.slots.inject('settings.general.item', () => ctx.slots.register({
     name: 'settings.general.item',
     id: 'browser-extension',
     order: 32,
     locale: NS,
-    inject: (): ExtensionRowInjected => ({ extensionStatus }),
+    inject: (): ExtensionRowInjected => ({ extensionStatus, installUrl }),
   }, ExtensionRow))
 
   if (!isDesktopShell()) {
@@ -386,7 +479,34 @@ export function apply(ctx: ClientContext): void {
         'ui-sidebar-browser: web launcher',
       )
     })
-    installPageExtension(ctx, pageBridge)
+    const prompt = new ExtensionPrompt(pageBridge.extensionStatus)
+    ctx.effect(() => () => { prompt.close() }, 'ui-sidebar-browser: extension prompt')
+    const downloadUrl = downloadPage()
+    ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+      name: 'shell.overlay',
+      id: 'browser-extension-prompt',
+      locale: NS,
+      inject: (): ExtensionPromptInjected => ({
+        hooks: { prompt: prompt.state },
+        storeUrl: AEVEN_EXTENSION_STORE_URL,
+        browser: extensionBrowserLabel(),
+        downloadUrl,
+        dismiss: () => { prompt.dismiss() },
+        check: () => { prompt.check() },
+        close: () => { prompt.close() },
+        continueTask: (sessionId, text) => {
+          const conversation = ctx.get('sessions')?.scope(sessionId as SessionId)?.get('conversation')
+          if (conversation === undefined) {
+            console.error(`ui-sidebar-browser: session "${sessionId}" has no conversation to continue in`)
+            return
+          }
+          conversation.send(text).catch((error: unknown) => {
+            console.error('ui-sidebar-browser: continuing the task failed', error)
+          })
+        },
+      }),
+    }, ExtensionPromptModal))
+    installPageExtension(ctx, pageBridge, prompt)
     return
   }
 

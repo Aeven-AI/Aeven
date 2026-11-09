@@ -141,6 +141,9 @@ export class PageExtensionLink {
     port.onDisconnect.addListener(() => {
       if (this.#port !== port) return
       this.#port = undefined
+      // The extension may have been removed or turned off; the next `about` asks again.
+      this.#instance = undefined
+      this.#browser = ''
       for (const pending of this.#pending.values()) {
         clearTimeout(pending.timer)
         pending.reject(new Error('the Aeven extension disconnected'))

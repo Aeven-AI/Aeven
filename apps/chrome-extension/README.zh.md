@@ -9,6 +9,7 @@
 - 经你审批后，代理会搜索你的历史记录和书签。
 - 桌面应用通过其原生消息主机（`io.aeven.browser`）连接扩展，并在启动时向每个已安装的 Chromium 浏览器注册该主机。可以同时连接多个浏览器；每个安装都有自己的 id，代理标签页的 id 带有它。没有连接且代理要打开标签页时，应用会启动装有扩展的浏览器并打开 `connect.html`，以唤醒扩展。不会打开任何网络端口。
 - `aeven.io` 上的 Aeven 网页直接连接扩展（`externally_connectable`），托管版 Aeven 由此使用你的浏览器。localhost 页面只能连接未打包的开发版安装。
+- 从 [Chrome 应用商店](https://chromewebstore.google.com/detail/aeven/cpgmlafibkmklfnpjpjbdgoegpljfofa)安装（id `cpgmlafibkmklfnpjpjbdgoegpljfofa`）。托管版 Aeven 需要你的浏览器而扩展缺失时，页面会链接到这个商店页面，并在扩展添加后立即继续；页面无需重新加载即可发现新安装。
 
 ## 构建与加载
 
