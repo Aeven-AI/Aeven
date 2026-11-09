@@ -60,9 +60,14 @@ export interface MotionStill {
 /** One progress observation; `fraction` runs from 0 to 1. */
 export interface MotionProgress {
   readonly fraction: number
-  /** Renderer-named stage, such as capture or encode. */
+  /** Renderer-named stage, such as capture or encode, or {@link MOTION_QUEUED_STAGE}. */
   readonly stage?: string
 }
+
+export { currentRender, recordRender, type RenderedFilm } from './renders.ts'
+
+/** The stage a renderer reports while a render waits for another render to finish before it starts. */
+export const MOTION_QUEUED_STAGE = 'queued'
 
 /** The finished film. */
 export interface MotionRenderOutput {

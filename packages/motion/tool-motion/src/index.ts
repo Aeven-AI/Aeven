@@ -15,7 +15,7 @@ import z from '@deepseek-ai/schemastery'
 import type { FileAttachmentRef, ImageAttachmentRef } from '@aeven/attachment'
 import type {} from '@aeven/attachment'
 import type {} from '@aeven/fs'
-import type { MotionFps, MotionQuality, MotionStill } from '@aeven/motion'
+import { recordRender, type MotionFps, type MotionQuality, type MotionStill } from '@aeven/motion'
 import type {} from '@aeven/motion'
 import type {} from '@aeven/sandbox-policy'
 import type { SandboxExecutionPolicy } from '@aeven/sandbox'
@@ -47,12 +47,18 @@ export interface Config {
    * `force`: a film cut that far is usually mid-edit, such as an index trimmed for a check.
    */
   shrinkRatio: number
+  /**
+   * Quality of a `review_motion` render. Matching the export quality lets the user's export reuse the last review
+   * of an unchanged folder instead of rendering it again; capture, not encoding, sets the render time.
+   */
+  reviewQuality: MotionQuality
 }
 
 export const Config: z<Config> = z.object({
   maxStills: z.natural().max(16).default(8),
   maxReviewStills: z.natural().min(1).max(16).default(12),
   shrinkRatio: z.number().min(0).max(1).default(0.5),
+  reviewQuality: z.union(['draft', 'standard', 'high'] as const).default('high'),
 })
 
 const FPS: readonly MotionFps[] = [24, 30, 60]
@@ -331,7 +337,7 @@ function registerMotion(ctx: Context, config: Config): void {
 
   ctx.tools.register(defineTool({
     name: 'review_motion',
-    description: 'Render a draft of a HyperFrames composition folder and return stills to you alone, to check your work; the user sees nothing of it and the film on their screen stays as it is. Take stills at exact film times, spread through one scene, or spread through the whole film. Rendering takes about as long as the film plays. Review after every round of edits, and call show_motion only once the stills look right.',
+    description: 'Render a HyperFrames composition folder and return stills to you alone, to check your work; the user sees nothing of it and the film on their screen stays as it is. Take stills at exact film times, spread through one scene, or spread through the whole film. Rendering takes about as long as the film plays. Review after every round of edits, and call show_motion only once the stills look right.',
     parameters: {
       composition: { type: 'string', required: true, description: 'Composition folder, relative to the working directory.' },
       times: { type: 'array', items: { type: 'number' }, description: `Film times in seconds to take stills at, 1 to ${String(config.maxReviewStills)}. Use alone, without scene or stills.` },
@@ -369,11 +375,12 @@ function registerMotion(ctx: Context, config: Config): void {
       const spec = ctx.motion.resolve({
         compositionDir,
         outputPath: join(compositionDir, 'renders', '.review.mp4'),
-        quality: 'draft',
+        quality: config.reviewQuality,
         stillTimes: times,
         ...policy === undefined ? {} : { sandboxPolicy: policy },
       })
       const review = await ctx.motion.render(spec, exec.signal)
+      await recordRender(review, config.reviewQuality)
       const stills = await saveStills(ctx, basename(compositionDir), review.stills)
       return { path: args.composition, durationSeconds: review.durationSeconds, stills }
     },
@@ -441,6 +448,7 @@ function registerMotion(ctx: Context, config: Config): void {
         ...args.stills === undefined ? {} : { stillTimes: spacedTimes(0, facts.durationSeconds, args.stills) },
       })
       const film = await ctx.motion.render(spec, exec.signal)
+      await recordRender(film, spec.quality)
       const name = basename(film.outputPath)
       let video: FileAttachmentRef | undefined
       let storageError: string | undefined
