@@ -9,7 +9,6 @@ import os
 import site
 
 os.environ.setdefault('PIP_PREFIX', os.path.join(os.path.expanduser('~'), '.local'))
-# A virtual environment without system packages disables the user site; the zygote reads this flag per run.
-site.ENABLE_USER_SITE = True
+# The image is a virtual environment without system packages, which disables Python's own user site.
 if os.path.isdir(site.getusersitepackages()):
     site.addsitedir(site.getusersitepackages())
