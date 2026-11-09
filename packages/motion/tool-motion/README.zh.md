@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`avn-tool-motion` 注册 `show_motion`、`render_motion` 与 `motion` 技能。技能教模型规划影片、在工作区中编写 [HyperFrames](https://github.com/heygen-com/hyperframes) 合成、展示它、审阅静帧并修改。`show_motion` 把合成文件夹交给 Imagine 的 Motion 卡片，卡片实时播放它，并在用户请求时导出为 MP4；它还把文件夹打包成一个 HTML 文档存为文件附件，使缺少该文件夹的账户其他设备也能播放同一部影片；带 `stills` 时，它还会把一份草稿渲染到文件夹内的 `renders/.review.mp4`（每次审阅都会替换它），其帧返回给模型。`render_motion` 把文件夹渲染为放在其内部的 MP4，并把影片存为对话文件附件，用于用户向模型索要文件的情形。二者都等待 `ctx.motion`，因此没有渲染器的组合两者都不会出现。
+`avn-tool-motion` 注册 `show_motion`、`review_motion`、`render_motion` 与 `motion` 技能。技能教模型规划影片、在工作区中编写 [HyperFrames](https://github.com/heygen-com/hyperframes) 合成、审阅、修改，并展示每一轮完成的结果。`show_motion` 不做任何渲染：它把合成文件夹交给 Imagine 的 Motion 卡片，卡片实时播放它，并在用户请求时导出为 MP4；它还把文件夹打包成一个 HTML 文档存为文件附件，使缺少该文件夹的账户其他设备也能播放同一部影片。`review_motion` 把一份草稿渲染到文件夹内的 `renders/.review.mp4`（每次审阅都会替换它），并只把静帧返回给模型：可指定影片时间、在某个场景的时间窗内均匀分布，或在整部影片中均匀分布；用户看到的影片保持不变。二者都会先读取 `index.html`，拒绝无法按原样渲染的合成：根元素没有时长、场景文件不存在，或场景超出影片末尾。`show_motion` 还会拒绝比同一会话中同一文件夹上次展示的时长短于 `shrinkRatio` 的影片，除非调用传入 `force`。`render_motion` 把文件夹渲染为放在其内部的 MP4，并把影片存为对话文件附件，用于用户向模型索要文件的情形。它们都等待 `ctx.motion`，因此没有渲染器的组合都不会出现。
 
 ## 目录
 
@@ -24,9 +24,9 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在提供 `ctx.tools`、`ctx.attachments` 与 `ctx.fs` 的 Host 组合旁按会话挂载。工具与技能只在 `ctx.motion` 存在时注册，因此没有渲染器的组合会激活该插件但不注册任何内容；`ctx.skills` 为可选项，用于添加该技能及 `/motion`。`maxStills`（默认 8，最多 16）限制一次调用可请求的静帧数量。每次渲染都携带会话的沙箱策略，限定在账户沙箱内的渲染器（如 [`avn-motion-sandbox`](../motion-sandbox/README.zh.md)）需要它。
+在提供 `ctx.tools`、`ctx.attachments` 与 `ctx.fs` 的 Host 组合旁按会话挂载。工具与技能只在 `ctx.motion` 存在时注册，因此没有渲染器的组合会激活该插件但不注册任何内容；`ctx.skills` 为可选项，用于添加该技能及 `/motion`。`maxStills`（默认 8，最多 16）限制一次 `render_motion` 调用可请求的静帧数量，`maxReviewStills`（默认 12，最多 16）限制一次审阅的静帧数量，`shrinkRatio`（默认 0.5）决定重新展示的影片可比上次展示的短多少，超出则需要 `force`。每次渲染都携带会话的沙箱策略，限定在账户沙箱内的渲染器（如 [`avn-motion-sandbox`](../motion-sandbox/README.zh.md)）需要它。
 
-两个工具都需要必填的 `composition`。它像文件系统工具那样经由 `ctx.fs` 解析：相对会话工作目录，或对于没有工作目录的聊天，相对沙箱策略的工作区根目录。`output` 默认为合成文件夹内的 `renders/<folder>.mp4`。`show_motion` 可选 `stills`；`render_motion` 可选 `fps`、`quality` 与 `stills`。两个路径都必须位于会话的工作区根目录内，会话没有时则位于策略的根目录内。
+两个工具都需要必填的 `composition`。它像文件系统工具那样经由 `ctx.fs` 解析：相对会话工作目录，或对于没有工作目录的聊天，相对沙箱策略的工作区根目录。`output` 默认为合成文件夹内的 `renders/<folder>.mp4`。`show_motion` 可选 `force`；`review_motion` 可选 `times`，或 `scene` 与 `stills`；`render_motion` 可选 `fps`、`quality` 与 `stills`。两个路径都必须位于会话的工作区根目录内，会话没有时则位于策略的根目录内。
 
 -----
 

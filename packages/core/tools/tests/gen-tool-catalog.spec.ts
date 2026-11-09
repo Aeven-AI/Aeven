@@ -43,7 +43,7 @@ describe('gen-tool-catalog collectToolCatalog', () => {
       'preview_reload', 'preview_screenshot', 'preview_scroll', 'preview_select', 'preview_sequence',
       'preview_snapshot', 'preview_status', 'preview_tabs', 'preview_type', 'preview_upload', 'preview_wait',
       'pwsh', 'pwsh', 'ralph',
-      'read', 'read_aloud', 'read_image', 'remove_worktree', 'render_motion', 'run_code', 'schedule_create', 'schedule_delete',
+      'read', 'read_aloud', 'read_image', 'remove_worktree', 'render_motion', 'review_motion', 'run_code', 'schedule_create', 'schedule_delete',
       'schedule_list', 'send_message', 'session_event_read', 'session_event_search',
       'session_event_trace', 'session_search', 'session_trace', 'show_motion', 'skill',
       'str_replace_editor', 'subagent', 'team_task_create',

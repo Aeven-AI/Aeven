@@ -103,23 +103,27 @@ export async function probeFilm(ffprobe: string, path: string, signal: AbortSign
   return { durationSeconds: Number(parsed.format?.duration ?? 0), width: stream.width, height: stream.height }
 }
 
+/** Seconds before a film's end that its last still is taken at, so the seek still lands on a frame. */
+const LAST_FRAME_MARGIN = 0.05
+
 /**
- * Take evenly spaced PNG stills from a film, at `duration * i / (count + 1)` for `i` in `1..count`.
+ * Take PNG stills from a film at the requested times. A time at or past the film's end takes its last frame.
  * @param ffmpeg - ffmpeg executable.
  * @param path - film path.
  * @param durationSeconds - film length.
- * @param count - number of stills.
+ * @param times - film times in seconds, in the order the stills are returned.
  * @param width - still width in pixels; height follows the film's aspect ratio.
  * @param signal - cancellation.
- * @returns the stills in film order.
+ * @returns the stills, each with the time it shows.
  * @throws When ffmpeg fails to decode a frame.
  */
 export async function takeStills(
-  ffmpeg: string, path: string, durationSeconds: number, count: number, width: number, signal: AbortSignal,
+  ffmpeg: string, path: string, durationSeconds: number, times: readonly number[], width: number, signal: AbortSignal,
 ): Promise<{ seconds: number; png: Uint8Array }[]> {
   const stills: { seconds: number; png: Uint8Array }[] = []
-  for (let index = 1; index <= count; index++) {
-    const seconds = Math.round(durationSeconds * index / (count + 1) * 1000) / 1000
+  const last = Math.max(0, durationSeconds - LAST_FRAME_MARGIN)
+  for (const time of times) {
+    const seconds = Math.round(Math.min(Math.max(0, time), last) * 1000) / 1000
     const png = await new Promise<Uint8Array>((resolve, reject) => {
       const child = spawn(ffmpeg, [
         '-hide_banner', '-loglevel', 'error', '-ss', String(seconds), '-i', path,

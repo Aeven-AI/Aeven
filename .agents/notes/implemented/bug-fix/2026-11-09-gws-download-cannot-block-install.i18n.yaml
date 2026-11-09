@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-11-09-gws-download-cannot-block-install.md
-2026-11-09-gws-download-cannot-block-install.md: dd1c3778e5ccaa198f00ac3f757f2219b88f0bb5
-2026-11-09-gws-download-cannot-block-install.zh.md: 17aa9482497e2b52d4b4b4d391540d558a757484
+2026-11-09-gws-download-cannot-block-install.md: 1ec1a0f1b28981c232676d33a8fdd5d8fb6f9b3f
+2026-11-09-gws-download-cannot-block-install.zh.md: 6851a86691b3a0dadc575f8acf4c6e9c2b7ae343

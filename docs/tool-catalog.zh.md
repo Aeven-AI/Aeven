@@ -44,7 +44,7 @@
 | `@aeven/tool-jobs` | `job_kill`、`job_list`、`job_output` | `ctx.tools`、`ctx.jobs`、`ctx.systemPrompt` | `tool/call`、`tool/result`、`user/message via agent.inject() for background completion notices` | - | 与任务种类无关的后台任务控制器：后台 bash 命令、PTY 发送和 subagent 都通过相同的 3 个工具读取、列出和终止。加载该插件会挂接控制器，从而启用生产方的 `ctx.jobs.start()`。 |
 | `@aeven/tool-agent-team` | `team_task_create`, `team_task_get`, `team_task_list`, `team_task_update` | `ctx.tools`, `ctx.agentTeams`, `a calling Agent in a subagent tree` | `tool/call`, `team/task in the tree root Session`, `tool/result` | - | The four task tools are registered for every agent; the aeven preset defers them behind `tool_search`, so a session pays for their schemas only after loading them. Every agent in one subagent tree reads and changes the board stored in the tree root Session. |
 | `@aeven/tool-media` | `generate_image`、`generate_video` | `ctx.tools`、`ctx.media`、`ctx.attachments` | `tool/call`、`tool/result carrying one image block per stored image` | - | 本目录以未配置模型的形态挂载该工具，这种形态要求每次调用自行指明模型。设置了 `model` 的部署得到的是同一份 Schema；默认值不会进入描述。生成的字节经 `ctx.attachments` 存储，因此结果携带的图像块无需在此注册任何东西即可被会话卡片渲染。 |
-| `@aeven/tool-motion` | `render_motion`, `show_motion` | `ctx.tools`, `ctx.motion`, `ctx.attachments`, `ctx.fs`, `owning Agent session` | `tool/call`, `tool/result carrying review stills (show_motion) or the film and its stills (render_motion)` | - | The catalog mounts the service without a renderer; the schemas do not depend on one. The desktop Host mounts the HyperFrames renderer; hosted Web mounts the sandbox renderer, which renders inside the calling account's jail. `show_motion` hands the card the composition folder, which it plays live and exports; `render_motion` stores the film through `ctx.attachments`, so the conversation plays it at the call. |
+| `@aeven/tool-motion` | `render_motion`, `review_motion`, `show_motion` | `ctx.tools`, `ctx.motion`, `ctx.attachments`, `ctx.fs`, `owning Agent session` | `tool/call`, `tool/result carrying the shown folder (show_motion), review stills (review_motion), or the film and its stills (render_motion)` | - | The catalog mounts the service without a renderer; the schemas do not depend on one. The desktop Host mounts the HyperFrames renderer; hosted Web mounts the sandbox renderer, which renders inside the calling account's jail. `show_motion` hands the card the composition folder, which it plays live and exports; `review_motion` returns draft stills to the model alone; `render_motion` stores the film through `ctx.attachments`, so the conversation plays it at the call. |
 | `@aeven/tool-working-directory` | `working_directory` | `ctx.tools`、`ctx.workingDirectory`、`owning Agent session` | `tool/call`、`session/cwd`、`tool/result` | - | 本目录同时挂载该容量与该工具，因为工具读取的目录由服务解析。一次变更追加 `session/cwd`，按最后一条重放：恢复或分叉的会话继续在日志记录的目录中，下一次调用相对于它解析相对路径。 |
 | `@aeven/tool-worktrees` | `create_worktree`, `remove_worktree` | `ctx.tools`、`ctx.subprocess`、`ctx.workingDirectory`、`ctx.worktrees`、`owning Agent session` | `tool/call`、`session/cwd`、`worktree/entered`、`worktree/removed`、`tool/result` | - | 本目录同时挂载该能力与工具，因为 `create_worktree` 和 `remove_worktree` 通过 `workingDirectory` 移动会话，而同一次调用随后报告该目录。检出目录、分支前缀、git 宽限期、子智能体隔离和依赖准备都是无默认值的 Config；基础 bundle 把检出放在 `$AVN_HOME/worktrees` 下，为分支添加 `avn/` 前缀，隔离子智能体，并用检出中锁文件对应的包管理器安装依赖。 |
 | `@aeven/tool-todo` | `todo_write` | `ctx.tools`、`owning Agent session` | `tool/call`、`todo/write`、`tool/result` | - | todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为检查清单。`allowParallelInProgress` 是没有默认值的必填项，因此本目录明确选择 `true`，对应描述允许同时存在多个 `in_progress` 项。选择 `false` 的部署会获得同一工具，但描述会要求只能有 1 个活动任务。 |
@@ -2448,9 +2448,9 @@ Render a HyperFrames composition folder to an H.264 MP4 file and attach it to th
 
 Source: [`packages/motion/tool-motion/src/index.ts`](../packages/motion/tool-motion/src/index.ts)
 
-### `show_motion`
+### `review_motion`
 
-Show a HyperFrames composition folder to the user as a live film they can play, scrub, and export to MP4. Call it after writing or changing a composition. The folder holds index.html, its scene files under compositions/, and assets/. Showing renders nothing and returns at once; requesting stills adds a fast draft render whose evenly spaced frames come back for your review. The film plays directly for the user; do not repeat or embed it in your reply.
+Render a draft of a HyperFrames composition folder and return stills to you alone, to check your work; the user sees nothing of it and the film on their screen stays as it is. Take stills at exact film times, spread through one scene, or spread through the whole film. Rendering takes about as long as the film plays. Review after every round of edits, and call show_motion only once the stills look right.
 
 ```json
 {
@@ -2460,9 +2460,20 @@ Show a HyperFrames composition folder to the user as a live film they can play, 
       "type": "string",
       "description": "Composition folder, relative to the working directory."
     },
+    "times": {
+      "type": "array",
+      "description": "Film times in seconds to take stills at, 1 to 12. Use alone, without scene or stills.",
+      "items": {
+        "type": "number"
+      }
+    },
+    "scene": {
+      "type": "string",
+      "description": "Id of one scene index.html hosts; the stills spread through its window only."
+    },
     "stills": {
       "type": "integer",
-      "description": "Evenly spaced frames returned to you for review, 0 to 8. Omit for none."
+      "description": "How many evenly spaced stills, 1 to 12. Omit for 8."
     }
   },
   "required": [
@@ -2473,7 +2484,32 @@ Show a HyperFrames composition folder to the user as a live film they can play, 
 
 Source: [`packages/motion/tool-motion/src/index.ts`](../packages/motion/tool-motion/src/index.ts)
 
-The catalog mounts the service without a renderer; the schemas do not depend on one. The desktop Host mounts the HyperFrames renderer; hosted Web mounts the sandbox renderer, which renders inside the calling account's jail. `show_motion` hands the card the composition folder, which it plays live and exports; `render_motion` stores the film through `ctx.attachments`, so the conversation plays it at the call.
+### `show_motion`
+
+Show a HyperFrames composition folder to the user as a live film they can play, scrub, and export to MP4. The folder holds index.html, its scene files under compositions/, and assets/. Call it once a round of changes is finished and checked with review_motion: each call replaces the film on the user's screen. Showing renders nothing and returns at once. A film far shorter than the one last shown from the same folder is refused as mid-edit; pass force when the cut is intended. The film plays directly for the user; do not repeat or embed it in your reply.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "composition": {
+      "type": "string",
+      "description": "Composition folder, relative to the working directory."
+    },
+    "force": {
+      "type": "boolean",
+      "description": "Show the film even though it is far shorter than the one last shown from this folder. Omit unless the cut is intended."
+    }
+  },
+  "required": [
+    "composition"
+  ]
+}
+```
+
+Source: [`packages/motion/tool-motion/src/index.ts`](../packages/motion/tool-motion/src/index.ts)
+
+The catalog mounts the service without a renderer; the schemas do not depend on one. The desktop Host mounts the HyperFrames renderer; hosted Web mounts the sandbox renderer, which renders inside the calling account's jail. `show_motion` hands the card the composition folder, which it plays live and exports; `review_motion` returns draft stills to the model alone; `render_motion` stores the film through `ctx.attachments`, so the conversation plays it at the call.
 
 <a id="aeventool-working-directory"></a>
 

@@ -29,8 +29,8 @@ export interface MotionRenderRequest {
   readonly outputPath: string
   readonly fps?: MotionFps
   readonly quality?: MotionQuality
-  /** Evenly spaced stills to return with the film; omitted, none. */
-  readonly stills?: number
+  /** Film times, in seconds, of the stills to return with the film; omitted, none. */
+  readonly stillTimes?: readonly number[]
   /**
    * The calling session's sandbox policy. A renderer that runs inside the account's sandbox requires it and keeps
    * every path inside its workspace root; a renderer on the Host's own machine ignores it.
@@ -44,7 +44,8 @@ export interface MotionRenderInput {
   readonly outputPath: string
   readonly fps: MotionFps
   readonly quality: MotionQuality
-  readonly stills: number
+  /** Film times, in seconds, of the stills to return; a time past the film's end takes its last frame. */
+  readonly stillTimes: readonly number[]
   /** The calling session's sandbox policy, as {@link MotionRenderRequest.sandboxPolicy} describes. */
   readonly sandboxPolicy?: SandboxExecutionPolicy
 }
@@ -155,7 +156,7 @@ export default class Motion extends Service {
 
   /**
    * Apply the configured defaults and capture the registered renderer.
-   * @param request - composition, output, and optional fps, quality, and still count.
+   * @param request - composition, output, and optional fps, quality, and still times.
    * @returns renderer-pinned input for {@link render}.
    * @throws When no renderer is registered.
    */
@@ -168,7 +169,7 @@ export default class Motion extends Service {
       outputPath: request.outputPath,
       fps: request.fps ?? this.config.fps,
       quality: request.quality ?? this.config.quality,
-      stills: request.stills ?? 0,
+      stillTimes: request.stillTimes ?? [],
       ...request.sandboxPolicy === undefined ? {} : { sandboxPolicy: request.sandboxPolicy },
     }
   }

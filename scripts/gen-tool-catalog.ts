@@ -617,15 +617,15 @@ const TOOL_PACKAGES: ToolPackage[] = [
     dir: 'tool-motion',
     source: 'packages/motion/tool-motion/src/index.ts',
     requires: ['ctx.tools', 'ctx.motion', 'ctx.attachments', 'ctx.fs', 'owning Agent session'],
-    writes: ['tool/call', 'tool/result carrying review stills (show_motion) or the film and its stills (render_motion)'],
+    writes: ['tool/call', 'tool/result carrying the shown folder (show_motion), review stills (review_motion), or the film and its stills (render_motion)'],
     async mount(ctx) {
       await ctx.plugin(CatalogAttachmentStore)
       await ctx.plugin(LocalFileSystem)
       await ctx.plugin(Motion, {})
-      await ctx.plugin(ToolMotion, { maxStills: 8 })
+      await ctx.plugin(ToolMotion, { maxStills: 8, maxReviewStills: 12, shrinkRatio: 0.5 })
     },
     note:
-      'The catalog mounts the service without a renderer; the schemas do not depend on one. The desktop Host mounts the HyperFrames renderer; hosted Web mounts the sandbox renderer, which renders inside the calling account\'s jail. `show_motion` hands the card the composition folder, which it plays live and exports; `render_motion` stores the film through `ctx.attachments`, so the conversation plays it at the call.',
+      'The catalog mounts the service without a renderer; the schemas do not depend on one. The desktop Host mounts the HyperFrames renderer; hosted Web mounts the sandbox renderer, which renders inside the calling account\'s jail. `show_motion` hands the card the composition folder, which it plays live and exports; `review_motion` returns draft stills to the model alone; `render_motion` stores the film through `ctx.attachments`, so the conversation plays it at the call.',
   },
   {
     pkg: '@aeven/tool-working-directory',

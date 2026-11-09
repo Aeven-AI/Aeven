@@ -1,12 +1,14 @@
 /**
- * Model-facing `render_motion` tool and the `motion` skill over `ctx.motion`. The tool renders a HyperFrames
- * composition folder from the session's workspace into an MP4 inside it, stores the film as a file attachment
- * that the conversation plays at the call, and returns optional stills the model reviews its work from. The
- * skill teaches the composition rules and the author-render-review loop. Both register only while a motion
- * renderer exists, so a composition without one shows neither.
+ * Model-facing motion tools and the `motion` skill over `ctx.motion`. `show_motion` presents a HyperFrames
+ * composition folder to the user as a live film and renders nothing; `review_motion` renders a draft and returns
+ * stills at chosen times to the model alone, so checking a film never replaces the one on the user's screen;
+ * `render_motion` writes an MP4 the user asked for. Both showing and reviewing first read the folder statically
+ * and refuse a composition that cannot render as written, and showing refuses a film far shorter than the one
+ * last shown from the same folder unless the call says the cut is intended. The skill teaches the composition
+ * rules and the author, review, show loop. Everything registers only while a motion renderer exists, so a
+ * composition without one shows none of it.
  * @module @aeven/tool-motion
  */
-import { stat } from 'node:fs/promises'
 import { basename, isAbsolute, join, relative } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
@@ -22,6 +24,7 @@ import { FILE_ATTACHMENT_PROPERTIES, fileBlockRef, imageBlockRef } from '@aeven/
 import { defineTool } from '@aeven/tools'
 import type { ToolRunContext } from '@aeven/tools'
 import { sessionDirectory, sessionWorkspaceRoot } from '@aeven/working-directory'
+import { readComposition, spacedTimes, type CompositionFacts } from './composition.ts'
 import { MOTION_SKILL } from './skill.ts'
 
 export const name = 'tool-motion'
@@ -35,16 +38,36 @@ export const inject = ['tools', 'attachments', 'fs']
 
 /** Tool limits. */
 export interface Config {
-  /** Most stills one call may request. */
+  /** Most stills one `render_motion` call may request. */
   maxStills: number
+  /** Most stills one `review_motion` call may request. */
+  maxReviewStills: number
+  /**
+   * Share of the length last shown from a folder below which `show_motion` refuses a film unless the call passes
+   * `force`: a film cut that far is usually mid-edit, such as an index trimmed for a check.
+   */
+  shrinkRatio: number
 }
 
 export const Config: z<Config> = z.object({
   maxStills: z.natural().max(16).default(8),
+  maxReviewStills: z.natural().min(1).max(16).default(12),
+  shrinkRatio: z.number().min(0).max(1).default(0.5),
 })
 
 const FPS: readonly MotionFps[] = [24, 30, 60]
 const QUALITIES: readonly MotionQuality[] = ['draft', 'standard', 'high']
+
+/** Arguments of `review_motion`. */
+interface ReviewMotionArgs {
+  composition: string
+  times?: number[]
+  scene?: string
+  stills?: number
+}
+
+/** Stills a review takes when the call names neither times nor a count. */
+const DEFAULT_REVIEW_STILLS = 8
 
 /** Arguments the model passes. */
 interface RenderMotionArgs {
@@ -186,7 +209,53 @@ function checkStills(stills: number | undefined, max: number): void {
 }
 
 /**
- * Register `show_motion`, `render_motion`, and the `motion` skill while a motion renderer exists.
+ * Read a composition folder, naming the folder as the model wrote it in a refusal.
+ * @param compositionDir - absolute folder.
+ * @param path - the folder as the model named it.
+ * @returns the film's length and scenes.
+ * @throws When the folder cannot render as written.
+ */
+async function compositionFacts(compositionDir: string, path: string): Promise<CompositionFacts> {
+  try {
+    return await readComposition(compositionDir)
+  } catch (error) {
+    throw new Error(`${path}: ${error instanceof Error ? error.message : String(error)}`)
+  }
+}
+
+/**
+ * The film times a review takes stills at: the call's own times, else evenly spaced through one scene's window
+ * or the whole film.
+ * @param args - the call's arguments.
+ * @param facts - the composition's length and scenes.
+ * @param max - most stills one review returns.
+ * @returns the times, in seconds.
+ * @throws When the arguments combine times with a scene, name an unknown scene, or ask for times outside the film
+ *   or more stills than `max`.
+ */
+function reviewTimes(args: ReviewMotionArgs, facts: CompositionFacts, max: number): number[] {
+  if (args.times !== undefined) {
+    if (args.scene !== undefined || args.stills !== undefined) throw new Error('pass times on their own, without scene or stills')
+    if (args.times.length === 0 || args.times.length > max) throw new Error(`times takes 1 to ${String(max)} values`)
+    for (const time of args.times) {
+      if (!Number.isFinite(time) || time < 0 || time > facts.durationSeconds) {
+        throw new Error(`each time must lie within the film, 0 to ${String(facts.durationSeconds)} s`)
+      }
+    }
+    return args.times
+  }
+  const count = args.stills ?? DEFAULT_REVIEW_STILLS
+  if (!Number.isInteger(count) || count < 1 || count > max) throw new Error(`stills must be an integer from 1 to ${String(max)}`)
+  if (args.scene === undefined) return spacedTimes(0, facts.durationSeconds, count)
+  const scene = facts.scenes.find(candidate => candidate.id === args.scene)
+  if (scene === undefined) {
+    throw new Error(`no scene "${args.scene}"; the film hosts ${facts.scenes.map(candidate => candidate.id).join(', ') || 'none'}`)
+  }
+  return spacedTimes(scene.start, scene.duration, count)
+}
+
+/**
+ * Register `show_motion`, `review_motion`, `render_motion`, and the `motion` skill while a motion renderer exists.
  * @param ctx - context carrying the tool registry, attachments, and the filesystem.
  * @param config - still limit.
  */
@@ -204,12 +273,15 @@ function registerMotion(ctx: Context, config: Config): void {
     skillCtx.effect(() => skillCtx.skills.register(MOTION_SKILL), 'tool-motion: motion skill')
   })
 
+  // The length each folder was last shown at, per session, which a far shorter re-show is checked against.
+  const shown = new Map<string, number>()
+
   ctx.tools.register(defineTool({
     name: 'show_motion',
-    description: 'Show a HyperFrames composition folder to the user as a live film they can play, scrub, and export to MP4. Call it after writing or changing a composition. The folder holds index.html, its scene files under compositions/, and assets/. Showing renders nothing and returns at once; requesting stills adds a fast draft render whose evenly spaced frames come back for your review. The film plays directly for the user; do not repeat or embed it in your reply.',
+    description: 'Show a HyperFrames composition folder to the user as a live film they can play, scrub, and export to MP4. The folder holds index.html, its scene files under compositions/, and assets/. Call it once a round of changes is finished and checked with review_motion: each call replaces the film on the user\'s screen. Showing renders nothing and returns at once. A film far shorter than the one last shown from the same folder is refused as mid-edit; pass force when the cut is intended. The film plays directly for the user; do not repeat or embed it in your reply.',
     parameters: {
       composition: { type: 'string', required: true, description: 'Composition folder, relative to the working directory.' },
-      stills: { type: 'integer', description: `Evenly spaced frames returned to you for review, 0 to ${String(config.maxStills)}. Omit for none.` },
+      force: { type: 'boolean', description: 'Show the film even though it is far shorter than the one last shown from this folder. Omit unless the cut is intended.' },
     },
     output: {
       schema: {
@@ -218,12 +290,61 @@ function registerMotion(ctx: Context, config: Config): void {
         properties: {
           path: { type: 'string', required: true },
           compositionDir: { type: 'string', required: true },
-          durationSeconds: { type: 'number' },
+          durationSeconds: { type: 'number', required: true },
           film: {
             type: 'object',
             additionalProperties: false,
             properties: FILE_ATTACHMENT_PROPERTIES,
           },
+        },
+      },
+      render: (_args, value) => [
+        {
+          type: 'text',
+          text: [
+            `Showing ${value.path} to the user as a live film with an Export to MP4 button (${value.durationSeconds.toFixed(2)} s).`,
+            'Do not repeat or embed it in your reply, and do not render an MP4 unless the user asks for the file.',
+          ].join(' '),
+        },
+      ],
+      // The card plays the folder through the Host's preview route, which takes the absolute path, and plays the
+      // stored film where that Host lacks the folder, such as another of the account's devices.
+      presentationMeta: (_args, value) => ({
+        compositionDir: value.compositionDir,
+        durationSeconds: value.durationSeconds,
+        ...value.film === undefined ? {} : { film: value.film },
+      }),
+    },
+    async execute(args: { composition: string; force?: boolean }, exec) {
+      const compositionDir = await localPath(ctx, exec, args.composition)
+      const facts = await compositionFacts(compositionDir, args.composition)
+      const key = `${exec.agent?.session.id ?? ''}\u0000${compositionDir}`
+      const previous = shown.get(key)
+      if (previous !== undefined && args.force !== true && facts.durationSeconds < previous * config.shrinkRatio) {
+        throw new Error(`${args.composition} is ${String(facts.durationSeconds)} s long; it was ${String(previous)} s when last shown. A film cut this far is usually mid-edit, such as an index trimmed for a check, which review_motion does without touching the film. Restore the film, or pass force: true if the shorter cut is intended.`)
+      }
+      const film = await saveFilm(ctx, compositionDir, args.composition)
+      shown.set(key, facts.durationSeconds)
+      return { path: args.composition, compositionDir, durationSeconds: facts.durationSeconds, ...film === undefined ? {} : { film } }
+    },
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'review_motion',
+    description: 'Render a draft of a HyperFrames composition folder and return stills to you alone, to check your work; the user sees nothing of it and the film on their screen stays as it is. Take stills at exact film times, spread through one scene, or spread through the whole film. Rendering takes about as long as the film plays. Review after every round of edits, and call show_motion only once the stills look right.',
+    parameters: {
+      composition: { type: 'string', required: true, description: 'Composition folder, relative to the working directory.' },
+      times: { type: 'array', items: { type: 'number' }, description: `Film times in seconds to take stills at, 1 to ${String(config.maxReviewStills)}. Use alone, without scene or stills.` },
+      scene: { type: 'string', description: 'Id of one scene index.html hosts; the stills spread through its window only.' },
+      stills: { type: 'integer', description: `How many evenly spaced stills, 1 to ${String(config.maxReviewStills)}. Omit for ${String(DEFAULT_REVIEW_STILLS)}.` },
+    },
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          path: { type: 'string', required: true },
+          durationSeconds: { type: 'number', required: true },
           stills: STILLS_SCHEMA,
         },
       },
@@ -231,28 +352,17 @@ function registerMotion(ctx: Context, config: Config): void {
         {
           type: 'text',
           text: [
-            `Showing ${value.path} to the user as a live film with an Export to MP4 button${value.durationSeconds === undefined ? '' : ` (${value.durationSeconds.toFixed(2)} s)`}.`,
-            'Do not repeat or embed it in your reply, and do not render an MP4 unless the user asks for the file.',
+            `Reviewed ${value.path} (${value.durationSeconds.toFixed(2)} s); the user does not see this review.`,
             ...stillsText(value.stills),
           ].join(' '),
         },
         ...value.stills.map(still => ({ type: 'image' as const, attachment: imageBlockRef(still) })),
       ],
-      // The card plays the folder through the Host's preview route, which takes the absolute path, and plays the
-      // stored film where that Host lacks the folder, such as another of the account's devices.
-      presentationMeta: (_args, value) => ({
-        compositionDir: value.compositionDir,
-        ...value.film === undefined ? {} : { film: value.film },
-      }),
     },
-    async execute(args: { composition: string; stills?: number }, exec) {
-      checkStills(args.stills, config.maxStills)
+    async execute(args: ReviewMotionArgs, exec) {
       const compositionDir = await localPath(ctx, exec, args.composition)
-      const index = await stat(join(compositionDir, 'index.html')).catch(() => undefined)
-      if (index?.isFile() !== true) throw new Error(`${args.composition} has no index.html`)
-      const film = await saveFilm(ctx, compositionDir, args.composition)
-      const shown = { path: args.composition, compositionDir, ...film === undefined ? {} : { film } }
-      if (args.stills === undefined || args.stills === 0) return { ...shown, stills: [] }
+      const facts = await compositionFacts(compositionDir, args.composition)
+      const times = reviewTimes(args, facts, config.maxReviewStills)
       // The review film stays inside the composition, where a renderer confined to the workspace can write it;
       // each review replaces it.
       const policy = sandboxPolicyOf(ctx, exec)
@@ -260,12 +370,12 @@ function registerMotion(ctx: Context, config: Config): void {
         compositionDir,
         outputPath: join(compositionDir, 'renders', '.review.mp4'),
         quality: 'draft',
-        stills: args.stills,
+        stillTimes: times,
         ...policy === undefined ? {} : { sandboxPolicy: policy },
       })
       const review = await ctx.motion.render(spec, exec.signal)
       const stills = await saveStills(ctx, basename(compositionDir), review.stills)
-      return { ...shown, durationSeconds: review.durationSeconds, stills }
+      return { path: args.composition, durationSeconds: review.durationSeconds, stills }
     },
   }))
 
@@ -320,6 +430,7 @@ function registerMotion(ctx: Context, config: Config): void {
       if (args.fps !== undefined && !FPS.includes(args.fps as MotionFps)) throw new Error('fps must be 24, 30, or 60')
       if (args.quality !== undefined && !QUALITIES.includes(args.quality as MotionQuality)) throw new Error("quality must be 'draft', 'standard', or 'high'")
       checkStills(args.stills, config.maxStills)
+      const facts = await compositionFacts(compositionDir, args.composition)
       const policy = sandboxPolicyOf(ctx, exec)
       const spec = ctx.motion.resolve({
         compositionDir,
@@ -327,7 +438,7 @@ function registerMotion(ctx: Context, config: Config): void {
         ...policy === undefined ? {} : { sandboxPolicy: policy },
         ...args.fps === undefined ? {} : { fps: args.fps as MotionFps },
         ...args.quality === undefined ? {} : { quality: args.quality as MotionQuality },
-        ...args.stills === undefined ? {} : { stills: args.stills },
+        ...args.stills === undefined ? {} : { stillTimes: spacedTimes(0, facts.durationSeconds, args.stills) },
       })
       const film = await ctx.motion.render(spec, exec.signal)
       const name = basename(film.outputPath)
