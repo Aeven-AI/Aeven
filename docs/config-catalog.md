@@ -5458,8 +5458,15 @@ export interface Config {
    * `force`: a film cut that far is usually mid-edit, such as an index trimmed for a check.
    */
   shrinkRatio: number
+  /**
+   * Quality of a `review_motion` render. Matching the export quality lets the user's export reuse the last review
+   * of an unchanged folder instead of rendering it again; capture, not encoding, sets the render time.
+   */
+  reviewQuality: MotionQuality
 }
 ```
+
+Depends on: [`MotionQuality`](../packages/motion/motion/src/index.ts)
 
 Source: [`packages/motion/tool-motion/src/index.ts`](../packages/motion/tool-motion/src/index.ts)
 

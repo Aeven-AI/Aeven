@@ -2446,7 +2446,7 @@ Source: [`packages/motion/tool-motion/src/index.ts`](../packages/motion/tool-mot
 
 ### `review_motion`
 
-Render a draft of a HyperFrames composition folder and return stills to you alone, to check your work; the user sees nothing of it and the film on their screen stays as it is. Take stills at exact film times, spread through one scene, or spread through the whole film. Rendering takes about as long as the film plays. Review after every round of edits, and call show_motion only once the stills look right.
+Render a HyperFrames composition folder and return stills to you alone, to check your work; the user sees nothing of it and the film on their screen stays as it is. Take stills at exact film times, spread through one scene, or spread through the whole film. Rendering takes about as long as the film plays. Review after every round of edits, and call show_motion only once the stills look right.
 
 ```json
 {

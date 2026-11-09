@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`avn-tool-motion` 注册 `show_motion`、`review_motion`、`render_motion` 与 `motion` 技能。技能教模型规划影片、在工作区中编写 [HyperFrames](https://github.com/heygen-com/hyperframes) 合成、审阅、修改，并展示每一轮完成的结果。`show_motion` 不做任何渲染：它把合成文件夹交给 Imagine 的 Motion 卡片，卡片实时播放它，并在用户请求时导出为 MP4；它还把文件夹打包成一个 HTML 文档存为文件附件，使缺少该文件夹的账户其他设备也能播放同一部影片。`review_motion` 把一份草稿渲染到文件夹内的 `renders/.review.mp4`（每次审阅都会替换它），并只把静帧返回给模型：可指定影片时间、在某个场景的时间窗内均匀分布，或在整部影片中均匀分布；用户看到的影片保持不变。二者都会先读取 `index.html`，拒绝无法按原样渲染的合成：根元素没有时长、场景文件不存在，或场景超出影片末尾。`show_motion` 还会拒绝比同一会话中同一文件夹上次展示的时长短于 `shrinkRatio` 的影片，除非调用传入 `force`。`render_motion` 把文件夹渲染为放在其内部的 MP4，并把影片存为对话文件附件，用于用户向模型索要文件的情形。它们都等待 `ctx.motion`，因此没有渲染器的组合都不会出现。
+`avn-tool-motion` 注册 `show_motion`、`review_motion`、`render_motion` 与 `motion` 技能。技能教模型规划影片、在工作区中编写 [HyperFrames](https://github.com/heygen-com/hyperframes) 合成、审阅、修改，并展示每一轮完成的结果。`show_motion` 不做任何渲染：它把合成文件夹交给 Imagine 的 Motion 卡片，卡片实时播放它，并在用户请求时导出为 MP4；它还把文件夹打包成一个 HTML 文档存为文件附件，使缺少该文件夹的账户其他设备也能播放同一部影片。`review_motion` 以 `reviewQuality`（默认 `high`）把影片渲染到文件夹内的 `renders/.review.mp4`（每次审阅都会替换它，并会被记录下来，使用户对未改动文件夹的导出直接复用它），并只把静帧返回给模型：可指定影片时间、在某个场景的时间窗内均匀分布，或在整部影片中均匀分布；用户看到的影片保持不变。二者都会先读取 `index.html`，拒绝无法按原样渲染的合成：根元素没有时长、场景文件不存在，或场景超出影片末尾。`show_motion` 还会拒绝比同一会话中同一文件夹上次展示的时长短于 `shrinkRatio` 的影片，除非调用传入 `force`。`render_motion` 把文件夹渲染为放在其内部的 MP4，并把影片存为对话文件附件，用于用户向模型索要文件的情形。它们都等待 `ctx.motion`，因此没有渲染器的组合都不会出现。
 
 ## 目录
 

@@ -6,14 +6,14 @@
  * @module @aeven/api-motion
  */
 import { createReadStream } from 'node:fs'
-import { mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, extname, isAbsolute, join } from 'node:path'
 import { Readable } from 'node:stream'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@aeven/client-connection'
-import type { MotionQuality } from '@aeven/motion'
+import { currentRender, recordRender, type MotionQuality } from '@aeven/motion'
 import type {} from '@aeven/motion'
 import type {} from '@aeven/api-session-controller'
 import type {} from '@aeven/fs'
@@ -21,7 +21,7 @@ import type {} from '@aeven/sandbox-policy'
 import { brandString } from '@aeven/brand'
 import type { SessionId } from '@aeven/session'
 import { bundleToSingleHtml } from '@hyperframes/core/compiler'
-import { ExportJobs, freshExport, recordExport, type ExportedFilm, type ExportOutcome } from './exports.ts'
+import { ExportJobs, type ExportedFilm, type ExportOutcome } from './exports.ts'
 import { replayComposition } from './replay.ts'
 
 export const name = 'api-motion'
@@ -194,9 +194,14 @@ export function apply(ctx: Context, config: Config): void {
   ctx.inject(['motion', 'sessionController', 'fs'], (callCtx) => { registerCallExport(callCtx, config) })
 }
 
+/** The film each `review_motion` call renders inside the composition folder, replaced by the next review. */
+const REVIEW_FILM = join('renders', '.review.mp4')
+
 /**
  * Export a composition folder into `renders/<folder>.mp4` at the configured quality, joining a render already
- * running under `key` and reusing an export no file of the folder changed since.
+ * running under `key`. A current film is used instead of a render: the last export, else the agent's last review
+ * render made at the same quality, which is copied into place; either counts only while no file of the folder
+ * changed since it was rendered.
  * @param ctx - context carrying the motion renderer.
  * @param jobs - the route's running exports.
  * @param key - the folder or call the export is for.
@@ -212,11 +217,19 @@ function exportFolder(
 ): Promise<ExportOutcome> {
   const outputPath = join(dir, 'renders', `${basename(dir)}.mp4`)
   return jobs.request(key, async (onProgress): Promise<ExportedFilm> => {
-    const fresh = await freshExport(dir, outputPath, quality)
-    if (fresh !== undefined) return fresh
+    const exported = await currentRender(dir, outputPath, quality)
+    if (exported !== undefined) return exported
+    const reviewed = await currentRender(dir, join(dir, REVIEW_FILM), quality)
+    if (reviewed !== undefined) {
+      await mkdir(dirname(outputPath), { recursive: true })
+      await copyFile(reviewed.outputPath, outputPath)
+      const copied = { ...reviewed, outputPath }
+      await recordRender(copied, quality)
+      return copied
+    }
     const spec = ctx.motion.resolve({ compositionDir: dir, outputPath, quality, ...sandboxPolicy === undefined ? {} : { sandboxPolicy } })
     const film = await ctx.motion.render(spec, signal, onProgress)
-    await recordExport(film, quality)
+    await recordRender(film, quality)
     return film
   })
 }

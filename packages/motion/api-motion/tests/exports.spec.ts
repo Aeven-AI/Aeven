@@ -1,13 +1,13 @@
 /**
  * The user's MP4 exports: requests join one render and read its progress while it runs, a render waiting for
- * another reports so, and an export is reused only while no file of its folder changed since it was written.
+ * another reports so, and a rendered film is reused only while no file of its folder changed since it was made.
  */
 import { mkdir, mkdtemp, rm, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { MOTION_QUEUED_STAGE, type MotionProgress } from '@aeven/motion'
-import { ExportJobs, freshExport, recordExport, type ExportedFilm } from '../src/exports.ts'
+import { currentRender, MOTION_QUEUED_STAGE, recordRender, type MotionProgress } from '@aeven/motion'
+import { ExportJobs, type ExportedFilm } from '../src/exports.ts'
 
 let dir: string | undefined
 
@@ -58,7 +58,7 @@ describe('ExportJobs', () => {
   })
 })
 
-describe('freshExport', () => {
+describe('currentRender', () => {
   async function exported(): Promise<{ folder: string; output: string }> {
     dir = await mkdtemp(join(tmpdir(), 'avn-motion-export-'))
     await mkdir(join(dir, 'compositions'))
@@ -70,27 +70,27 @@ describe('freshExport', () => {
     await utimes(join(dir, 'compositions', 'intro.html'), past, past)
     const output = join(dir, 'renders', 'film.mp4')
     await writeFile(output, 'MP4')
-    await recordExport({ outputPath: output, bytes: 3, durationSeconds: 4, width: 1920, height: 1080 }, 'high')
+    await recordRender({ outputPath: output, bytes: 3, durationSeconds: 4, width: 1920, height: 1080 }, 'high')
     return { folder: dir, output }
   }
 
   it('reuses an export no file of its folder changed since', async () => {
     const { folder, output } = await exported()
-    expect(await freshExport(folder, output, 'high')).toEqual({ outputPath: output, bytes: 3, durationSeconds: 4, width: 1920, height: 1080 })
+    expect(await currentRender(folder, output, 'high')).toEqual({ outputPath: output, bytes: 3, durationSeconds: 4, width: 1920, height: 1080 })
   })
 
   it('renders again after a scene changes, or at another quality', async () => {
     const { folder, output } = await exported()
-    expect(await freshExport(folder, output, 'standard')).toBeUndefined()
+    expect(await currentRender(folder, output, 'standard')).toBeUndefined()
     const later = new Date(Date.now() + 60_000)
     await utimes(join(folder, 'compositions', 'intro.html'), later, later)
-    expect(await freshExport(folder, output, 'high')).toBeUndefined()
+    expect(await currentRender(folder, output, 'high')).toBeUndefined()
   })
 
   it('renders again when the export was replaced by another render', async () => {
     const { folder, output } = await exported()
     const later = new Date(Date.now() + 60_000)
     await utimes(output, later, later)
-    expect(await freshExport(folder, output, 'high')).toBeUndefined()
+    expect(await currentRender(folder, output, 'high')).toBeUndefined()
   })
 })

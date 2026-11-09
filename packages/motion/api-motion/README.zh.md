@@ -31,7 +31,7 @@ kind: "package-reference"
 <a id="understand-the-implementation"></a>
 ## 理解实现
 
-预览路由返回 `ctx.motion.bundle()`，因此场景文件、运行时、图片与字体都在同一个文档中送达。卡片在没有 `allow-same-origin` 的 frame 中以 `srcdoc` 加载该文档，那里无法解析任何相对 URL。每个响应都带有 `Content-Security-Policy: sandbox`，因此在标签页中直接打开某条路由时，不会在应用的源上运行任何内容。两条导出路由为每个文件夹或调用只运行一次渲染，运行期间的每个请求都会加入它：等待超过 `exportWaitMs` 的请求得到 202 与 `{ pending, fraction, queued }`（渲染完成的比例，以及是否在等待另一个渲染），并再次请求。只要导出旁的附属文件（`renders/.<film>.mp4.json`）记录了相同的质量与修改时间，且文件夹中 `renders/` 之外没有文件在此之后改动，导出就会直接复用而不重新渲染。导出路由以 JSON 返回影片的路径、大小、时长与尺寸；渲染失败时返回状态 500 与 `{ message }` 正文。影片路由只接受 `.mp4` 路径，并支持一个 `Range: bytes=` 区间。`POST /api/motion/export-call` 接受 `{ sessionId, callId }`，在卡片无法指明文件夹时导出影片：它从调用方自己的对话读取该调用记录的文件夹，在该对话的沙箱策略下渲染到 `renders/<folder>.mp4`，并以 MP4 字节回答；渲染期间回答带进度的 202；文件夹不在本 Host 上时回答 404 与 `FOLDER_ABSENT`。它在 `ctx.motion`、`ctx.sessionController` 与 `ctx.fs` 存在时注册，与 `folderRoutes` 无关。
+预览路由返回 `ctx.motion.bundle()`，因此场景文件、运行时、图片与字体都在同一个文档中送达。卡片在没有 `allow-same-origin` 的 frame 中以 `srcdoc` 加载该文档，那里无法解析任何相对 URL。每个响应都带有 `Content-Security-Policy: sandbox`，因此在标签页中直接打开某条路由时，不会在应用的源上运行任何内容。两条导出路由为每个文件夹或调用只运行一次渲染，运行期间的每个请求都会加入它：等待超过 `exportWaitMs` 的请求得到 202 与 `{ pending, fraction, queued }`（渲染完成的比例，以及是否在等待另一个渲染），并再次请求。当前有效的影片会代替渲染：先是上次的导出，否则是智能体上次 `review_motion` 的渲染（复制到位）；二者都只在其旁边的附属文件（`renders/.<film>.mp4.json`）记录了导出质量与该影片的修改时间，且文件夹中 `renders/` 之外没有文件在此之后改动时才算有效。导出路由以 JSON 返回影片的路径、大小、时长与尺寸；渲染失败时返回状态 500 与 `{ message }` 正文。影片路由只接受 `.mp4` 路径，并支持一个 `Range: bytes=` 区间。`POST /api/motion/export-call` 接受 `{ sessionId, callId }`，在卡片无法指明文件夹时导出影片：它从调用方自己的对话读取该调用记录的文件夹，在该对话的沙箱策略下渲染到 `renders/<folder>.mp4`，并以 MP4 字节回答；渲染期间回答带进度的 202；文件夹不在本 Host 上时回答 404 与 `FOLDER_ABSENT`。它在 `ctx.motion`、`ctx.sessionController` 与 `ctx.fs` 存在时注册，与 `folderRoutes` 无关。
 
 -----
 

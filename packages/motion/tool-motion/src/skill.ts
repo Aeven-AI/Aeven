@@ -47,7 +47,7 @@ The renderer seeks a paused timeline frame by frame, so the film is a pure funct
 
 ## Review, then show
 
-Two tools, two audiences: \`review_motion\` renders a draft and returns stills to you alone; \`show_motion\` puts the film on the user's screen and replaces the one already there. Checking never goes through \`show_motion\`.
+Two tools, two audiences: \`review_motion\` renders the film and returns stills to you alone; \`show_motion\` puts the film on the user's screen and replaces the one already there. Checking never goes through \`show_motion\`.
 
 1. Review: \`review_motion\` with the folder. Spread stills through the whole film for a first pass (\`stills\`), through one scene's window when a scene changed (\`scene\` with the host id), or at exact moments (\`times\` in seconds) to check a transition, an overlap, or the last frame. Never edit \`index.html\` or build a separate folder just to look at part of the film; \`scene\` and \`times\` reach any moment.
 2. Look at every still: layout, overlap, cropping, overflowing text, contrast, and whether each beat reads. Fix what the stills show and review again. Expect several rounds; a film you looked at once is unfinished.

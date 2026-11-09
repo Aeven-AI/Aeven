@@ -12,12 +12,12 @@ Exporting a film to MP4 from the Motion card showed only a busy button until the
 
 - **Both export routes report progress.** [`avn-api-motion`](../../../../packages/motion/api-motion/README.md) runs one render per folder or call; each request waits at most `exportWaitMs` (now 1500 ms) and otherwise answers 202 with `{ fraction, queued }`. The card polls and shows "Exporting MP4… n%", "Exporting MP4…" while a renderer has reported nothing, or "Waiting for another render to finish…".
 - **A render behind another one says so.** `ctx.motion` names a `MOTION_QUEUED_STAGE`, which the HyperFrames renderer reports while a render waits its turn.
-- **An unchanged film is not rendered again.** A sidecar beside the export records its quality and modification time; while they match and no file outside `renders/` is newer, the export is returned at once.
+- **An unchanged film is not rendered again.** `ctx.motion` records each render's quality and modification time in a sidecar beside it (`recordRender`, `currentRender`). An export returns the last export, else the agent's last `review_motion` render copied into place, while its sidecar matches the export quality and no file outside `renders/` is newer. `review_motion` renders at `reviewQuality` (default `high`, the export quality), so the review the agent makes before showing a film is the export the user then asks for.
 - **The export quality stays `high`**, since it costs no measurable time over `draft` on that film.
 
 ## Alternatives considered
 
-**Lowering the export quality** was rejected: the three tiers rendered the same film within a second of each other. **Letting a user export jump ahead of queued agent renders** was deferred: a running render cannot be preempted, and the queued state now tells the user why the export waits. **Streaming progress over a server-sent event** was rejected for the existing 202 polling, which the call export already used and which stays inside a proxy's read timeout.
+**Lowering the export quality** was rejected: the three tiers rendered the same film within a second of each other. **Keeping draft reviews** was rejected for the same reason: a draft review could not stand in for the export, and it saved no time. **Letting a user export jump ahead of queued agent renders** was deferred: a running render cannot be preempted, and the queued state now tells the user why the export waits. **Streaming progress over a server-sent event** was rejected for the existing 202 polling, which the call export already used and which stays inside a proxy's read timeout.
 
 ## Consequences
 

@@ -64,6 +64,8 @@ export interface MotionProgress {
   readonly stage?: string
 }
 
+export { currentRender, recordRender, type RenderedFilm } from './renders.ts'
+
 /** The stage a renderer reports while a render waits for another render to finish before it starts. */
 export const MOTION_QUEUED_STAGE = 'queued'
 
