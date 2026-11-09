@@ -3889,8 +3889,17 @@ export type Config = SessionSyncTuning
 export interface SessionSyncTuning {
   /** Session runner lease lifetime and renewal interval. */
   runnerLease?: LeaseHolderTiming
-  /** Interval between scans for changed local sessions, in milliseconds. */
+  /**
+   * Pause before a session whose publication failed, or whose workspace changed, is published, and between checks
+   * of a full outbox, in milliseconds.
+   */
   publishMs: number
+  /**
+   * Interval between scans of every stored session for changes this process committed no event for, such as a
+   * session another process wrote into the shared session root, in milliseconds; `0` scans only when the mirror
+   * starts and when the account reconnects. Sessions this process writes publish from their commit events.
+   */
+  scanMs: number
   /** Uncompressed JSON bytes per published batch before a new batch starts. */
   batchBytes: number
   /** Maximum history batches compressed concurrently; one conversation log is loaded at a time. */
