@@ -280,8 +280,8 @@ export interface Config {
    */
   folderRoutes: boolean
   /**
-   * How long one export request waits for its render, in milliseconds, before answering 202 so the card asks again;
-   * keeps each request inside a proxy's read timeout while the render continues.
+   * How long one export request waits for its render, in milliseconds, before answering 202 with the render's
+   * progress so the card shows it and asks again; also keeps each request inside a proxy's read timeout.
    */
   exportWaitMs: number
 }

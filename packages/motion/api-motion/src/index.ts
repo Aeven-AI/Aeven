@@ -13,7 +13,7 @@ import { Readable } from 'node:stream'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@aeven/client-connection'
-import type { MotionQuality, MotionRenderOutput } from '@aeven/motion'
+import type { MotionQuality } from '@aeven/motion'
 import type {} from '@aeven/motion'
 import type {} from '@aeven/api-session-controller'
 import type {} from '@aeven/fs'
@@ -21,6 +21,7 @@ import type {} from '@aeven/sandbox-policy'
 import { brandString } from '@aeven/brand'
 import type { SessionId } from '@aeven/session'
 import { bundleToSingleHtml } from '@hyperframes/core/compiler'
+import { ExportJobs, freshExport, recordExport, type ExportedFilm, type ExportOutcome } from './exports.ts'
 import { replayComposition } from './replay.ts'
 
 export const name = 'api-motion'
@@ -42,8 +43,8 @@ export interface Config {
    */
   folderRoutes: boolean
   /**
-   * How long one export request waits for its render, in milliseconds, before answering 202 so the card asks again;
-   * keeps each request inside a proxy's read timeout while the render continues.
+   * How long one export request waits for its render, in milliseconds, before answering 202 with the render's
+   * progress so the card shows it and asks again; also keeps each request inside a proxy's read timeout.
    */
   exportWaitMs: number
 }
@@ -51,7 +52,7 @@ export interface Config {
 export const Config: z<Config> = z.object({
   exportQuality: z.union(['draft', 'standard', 'high'] as const).default('high'),
   folderRoutes: z.boolean().default(true),
-  exportWaitMs: z.natural().min(1_000).default(20_000),
+  exportWaitMs: z.natural().min(250).default(1_500),
 })
 
 /** Exported film facts the card reads. */
@@ -194,6 +195,42 @@ export function apply(ctx: Context, config: Config): void {
 }
 
 /**
+ * Export a composition folder into `renders/<folder>.mp4` at the configured quality, joining a render already
+ * running under `key` and reusing an export no file of the folder changed since.
+ * @param ctx - context carrying the motion renderer.
+ * @param jobs - the route's running exports.
+ * @param key - the folder or call the export is for.
+ * @param dir - absolute composition folder.
+ * @param quality - export quality.
+ * @param signal - the export's lifetime, which outlasts the requests asking for it.
+ * @param sandboxPolicy - the caller's sandbox policy, for a renderer confined to the account's sandbox.
+ * @returns the film, the render's failure, or its progress.
+ */
+function exportFolder(
+  ctx: Context, jobs: ExportJobs, key: string, dir: string, quality: MotionQuality, signal: AbortSignal,
+  sandboxPolicy?: ReturnType<Context['sandboxPolicy']['resolve']>,
+): Promise<ExportOutcome> {
+  const outputPath = join(dir, 'renders', `${basename(dir)}.mp4`)
+  return jobs.request(key, async (onProgress): Promise<ExportedFilm> => {
+    const fresh = await freshExport(dir, outputPath, quality)
+    if (fresh !== undefined) return fresh
+    const spec = ctx.motion.resolve({ compositionDir: dir, outputPath, quality, ...sandboxPolicy === undefined ? {} : { sandboxPolicy } })
+    const film = await ctx.motion.render(spec, signal, onProgress)
+    await recordExport(film, quality)
+    return film
+  })
+}
+
+/**
+ * The 202 answer of an export still rendering: how far it has come, and whether it waits for another render.
+ * @param progress - the render's latest progress.
+ * @returns the response the card polls on.
+ */
+function pending(progress: { fraction: number; queued: boolean }): Response {
+  return reply(202, { pending: true, fraction: progress.fraction, queued: progress.queued })
+}
+
+/**
  * Register the preview, export, and film routes, which read the Host's own folders.
  * @param ctx - context carrying the connection service and the motion renderer.
  * @param config - export quality.
@@ -215,7 +252,12 @@ function registerFolderRoutes(ctx: Context, config: Config): void {
     },
   }), 'api-motion: /api/motion/preview')
 
-  // The user's export: one render at the configured quality into `renders/<folder>.mp4`.
+  // The user's export into `renders/<folder>.mp4`: one render per folder, joined by every request while it runs, each
+  // answered with the render's progress until it finishes. A render outlives the requests and ends with this
+  // registration.
+  const jobs = new ExportJobs(config.exportWaitMs)
+  const lifetime = new AbortController()
+  ctx.effect(() => () => { lifetime.abort() }, 'api-motion: folder export renders')
   ctx.effect(() => ctx.connection.fetch.register({
     path: '/api/motion/export',
     methods: ['POST'],
@@ -229,24 +271,17 @@ function registerFolderRoutes(ctx: Context, config: Config): void {
       }
       const dir = await compositionFolder(body.dir)
       if (dir instanceof Response) return dir
-      try {
-        const spec = ctx.motion.resolve({
-          compositionDir: dir,
-          outputPath: join(dir, 'renders', `${basename(dir)}.mp4`),
-          quality: config.exportQuality,
-        })
-        const film = await ctx.motion.render(spec, request.signal)
-        const response: MotionExportResponse = {
-          path: film.outputPath,
-          bytes: film.bytes,
-          durationSeconds: film.durationSeconds,
-          width: film.width,
-          height: film.height,
-        }
-        return reply(200, response)
-      } catch (error) {
-        return reply(500, { message: error instanceof Error ? error.message : String(error) })
+      const outcome = await exportFolder(ctx, jobs, dir, dir, config.exportQuality, lifetime.signal)
+      if ('pending' in outcome) return pending(outcome.pending)
+      if ('error' in outcome) return reply(500, { message: outcome.error instanceof Error ? outcome.error.message : String(outcome.error) })
+      const response: MotionExportResponse = {
+        path: outcome.film.outputPath,
+        bytes: outcome.film.bytes,
+        durationSeconds: outcome.film.durationSeconds,
+        width: outcome.film.width,
+        height: outcome.film.height,
       }
+      return reply(200, response)
     },
   }), 'api-motion: /api/motion/export')
 
@@ -291,7 +326,7 @@ function recordedFolder(events: readonly { readonly type: string; readonly data?
  */
 function registerCallExport(ctx: Context, config: Config): void {
   // Renders in progress by conversation and call, so a repeated request joins the running render.
-  const exports = new Map<string, Promise<MotionRenderOutput>>()
+  const jobs = new ExportJobs(config.exportWaitMs)
   // A render outlives the request that started it and ends with this registration.
   const lifetime = new AbortController()
   ctx.effect(() => () => { lifetime.abort() }, 'api-motion: export renders')
@@ -317,30 +352,9 @@ function registerCallExport(ctx: Context, config: Config): void {
       if (dir === undefined) return reply(404, 'the conversation shows no film for this call')
       const index = await stat(join(dir, 'index.html')).catch(() => undefined)
       if (index?.isFile() !== true) return reply(404, { code: 'FOLDER_ABSENT', message: 'the film\'s folder is not on this device' })
-      const key = `${body.sessionId}\u0000${body.callId}`
-      let job = exports.get(key)
-      if (job === undefined) {
-        const policy = ctx.get('sandboxPolicy')?.resolve({ session })
-        const spec = ctx.motion.resolve({
-          compositionDir: dir,
-          outputPath: join(dir, 'renders', `${basename(dir)}.mp4`),
-          quality: config.exportQuality,
-          ...policy === undefined ? {} : { sandboxPolicy: policy },
-        })
-        const started = ctx.motion.render(spec, lifetime.signal)
-        job = started
-        exports.set(key, started)
-        // A finished render nobody asks for again is dropped once a waiting card would have asked.
-        void started.catch(() => undefined).finally(() => {
-          setTimeout(() => { if (exports.get(key) === started) exports.delete(key) }, config.exportWaitMs * 3)
-        })
-      }
-      const waited = await Promise.race([
-        job.then(film => ({ film }), (error: unknown) => ({ error })),
-        new Promise<undefined>((settle) => { setTimeout(settle, config.exportWaitMs) }),
-      ])
-      if (waited === undefined) return reply(202, { pending: true })
-      if (exports.get(key) === job) exports.delete(key)
+      const policy = ctx.get('sandboxPolicy')?.resolve({ session })
+      const waited = await exportFolder(ctx, jobs, `${body.sessionId}\u0000${body.callId}`, dir, config.exportQuality, lifetime.signal, policy)
+      if ('pending' in waited) return pending(waited.pending)
       if ('error' in waited) return reply(500, { message: waited.error instanceof Error ? waited.error.message : String(waited.error) })
       try {
         const film = waited.film

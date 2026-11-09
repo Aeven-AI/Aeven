@@ -71,6 +71,32 @@ function filmLength(meta: unknown): number | undefined {
   return typeof meta.durationSeconds === 'number' ? meta.durationSeconds : undefined
 }
 
+/** How far a running export has come, as a 202 answer reports it. */
+interface ExportProgress {
+  /** Share of the render done, from 0 to 1. */
+  readonly fraction: number
+  /** Whether the render waits for another render to finish. */
+  readonly queued: boolean
+}
+
+/**
+ * Read a running export's progress from its 202 answer.
+ * @param response - the 202 response.
+ * @returns the progress; an answer without it reads as just started.
+ */
+async function progressOf(response: Response): Promise<ExportProgress> {
+  try {
+    const body = await response.json() as { fraction?: unknown; queued?: unknown }
+    return {
+      fraction: typeof body.fraction === 'number' ? Math.min(1, Math.max(0, body.fraction)) : 0,
+      queued: body.queued === true,
+    }
+  } catch {
+    // A 202 from a Host that reports no progress reads as just started.
+    return { fraction: 0, queued: false }
+  }
+}
+
 /**
  * Read a Host failure's message from a JSON `message` field or a plain-text body.
  * @param response - the failed response.
@@ -227,6 +253,8 @@ export function MotionToolView({ block, cwd, sessionId, t }: ToolCallViewProps &
   // The stored film's URL once it plays instead of the folder; the MP4 export then goes through the call.
   const [storedUrl, setStoredUrl] = useState<string | undefined>(undefined)
   const [exporting, setExporting] = useState(false)
+  // How far a running export has come, as the Host reports it while it renders.
+  const [exportProgress, setExportProgress] = useState<ExportProgress | undefined>(undefined)
   const [exportError, setExportError] = useState<string | undefined>(undefined)
 
   // The folder's current files, bundled by the Host into one document. Where this Host lacks the folder or the
@@ -310,11 +338,17 @@ export function MotionToolView({ block, cwd, sessionId, t }: ToolCallViewProps &
     setExporting(true)
     setExportError(undefined)
     try {
-      const response = await hostFetch(new URL('api/motion/export', document.baseURI), {
+      const ask = (): Promise<Response> => hostFetch(new URL('api/motion/export', document.baseURI), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dir }),
       })
+      // 202 means the render is still running and reports how far it has come; asking again joins it.
+      let response = await ask()
+      while (response.status === 202) {
+        setExportProgress(await progressOf(response))
+        response = await ask()
+      }
       if (!response.ok) throw new Error(await failureText(response))
       const film = await response.json() as { path: string }
       const url = new URL('api/motion/film', document.baseURI)
@@ -324,6 +358,7 @@ export function MotionToolView({ block, cwd, sessionId, t }: ToolCallViewProps &
       setExportError(error instanceof Error ? error.message : String(error))
     } finally {
       setExporting(false)
+      setExportProgress(undefined)
     }
   }
 
@@ -338,9 +373,12 @@ export function MotionToolView({ block, cwd, sessionId, t }: ToolCallViewProps &
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId: String(sessionId), callId: block.callId }),
       })
-      // 202 means the render is still running; asking again joins it.
+      // 202 means the render is still running and reports how far it has come; asking again joins it.
       let response = await ask()
-      while (response.status === 202) response = await ask()
+      while (response.status === 202) {
+        setExportProgress(await progressOf(response))
+        response = await ask()
+      }
       if (response.status === 404 && storedUrl !== undefined) {
         saveClip(`${storedUrl}&download=1`, film?.name ?? 'film.html')
         return
@@ -355,6 +393,7 @@ export function MotionToolView({ block, cwd, sessionId, t }: ToolCallViewProps &
       setExportError(error instanceof Error ? error.message : String(error))
     } finally {
       setExporting(false)
+      setExportProgress(undefined)
     }
   }
 
@@ -416,6 +455,19 @@ export function MotionToolView({ block, cwd, sessionId, t }: ToolCallViewProps &
           )}
         </div>
       </div>
+      {exporting && (
+        <span className={css.motionPending} role="status">
+          <Spinner />
+          <span>
+            {exportProgress?.queued === true
+              ? t('motion.exportQueued')
+              // A renderer that reports no progress, such as the sandboxed one, shows no number.
+              : exportProgress === undefined || exportProgress.fraction === 0
+                ? t('motion.exportStarting')
+                : t('motion.exporting', { percent: String(Math.round(exportProgress.fraction * 100)) })}
+          </span>
+        </span>
+      )}
     </figure>
   )
 }

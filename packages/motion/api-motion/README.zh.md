@@ -24,14 +24,14 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在提供 `ctx.connection` 与 `ctx.motion` 的 Host 上挂载。`exportQuality`（`draft`、`standard` 或 `high`；默认 `high`）设定用户导出影片的质量。`folderRoutes`（默认 `true`）注册预览、导出与影片路由；服务多个账户的 Host 将其设为 `false`，因为这些路由读取任意 Host 绝对路径；此时预览路由回答 204，卡片播放随调用存储的影片。`exportWaitMs`（默认 20000）限定一次按调用导出的请求在回答 202 之前等待的时长。与 `/api/file` 一样，每条路由从请求中读取一个绝对路径；路由运行前由连接服务认证请求，账户 cookie 放行两条 GET 路由，使浏览器无需 bearer 也能加载与下载。
+在提供 `ctx.connection` 与 `ctx.motion` 的 Host 上挂载。`exportQuality`（`draft`、`standard` 或 `high`；默认 `high`）设定用户导出影片的质量。`folderRoutes`（默认 `true`）注册预览、导出与影片路由；服务多个账户的 Host 将其设为 `false`，因为这些路由读取任意 Host 绝对路径；此时预览路由回答 204，卡片播放随调用存储的影片。`exportWaitMs`（默认 1500）限定一次导出请求在以渲染进度回答 202 之前等待的时长。与 `/api/file` 一样，每条路由从请求中读取一个绝对路径；路由运行前由连接服务认证请求，账户 cookie 放行两条 GET 路由，使浏览器无需 bearer 也能加载与下载。
 
 -----
 
 <a id="understand-the-implementation"></a>
 ## 理解实现
 
-预览路由返回 `ctx.motion.bundle()`，因此场景文件、运行时、图片与字体都在同一个文档中送达。卡片在没有 `allow-same-origin` 的 frame 中以 `srcdoc` 加载该文档，那里无法解析任何相对 URL。每个响应都带有 `Content-Security-Policy: sandbox`，因此在标签页中直接打开某条路由时，不会在应用的源上运行任何内容。导出路由以 JSON 返回影片的路径、大小、时长与尺寸；渲染失败时返回状态 500 与 `{ message }` 正文。影片路由只接受 `.mp4` 路径，并支持一个 `Range: bytes=` 区间。`POST /api/motion/export-call` 接受 `{ sessionId, callId }`，在卡片无法指明文件夹时导出影片：它从调用方自己的对话读取该调用记录的文件夹，在该对话的沙箱策略下渲染到 `renders/<folder>.mp4`，并以 MP4 字节回答；渲染超过 `exportWaitMs` 时回答 202（再次请求会加入同一渲染）；文件夹不在本 Host 上时回答 404 与 `FOLDER_ABSENT`。它在 `ctx.motion`、`ctx.sessionController` 与 `ctx.fs` 存在时注册，与 `folderRoutes` 无关。
+预览路由返回 `ctx.motion.bundle()`，因此场景文件、运行时、图片与字体都在同一个文档中送达。卡片在没有 `allow-same-origin` 的 frame 中以 `srcdoc` 加载该文档，那里无法解析任何相对 URL。每个响应都带有 `Content-Security-Policy: sandbox`，因此在标签页中直接打开某条路由时，不会在应用的源上运行任何内容。两条导出路由为每个文件夹或调用只运行一次渲染，运行期间的每个请求都会加入它：等待超过 `exportWaitMs` 的请求得到 202 与 `{ pending, fraction, queued }`（渲染完成的比例，以及是否在等待另一个渲染），并再次请求。只要导出旁的附属文件（`renders/.<film>.mp4.json`）记录了相同的质量与修改时间，且文件夹中 `renders/` 之外没有文件在此之后改动，导出就会直接复用而不重新渲染。导出路由以 JSON 返回影片的路径、大小、时长与尺寸；渲染失败时返回状态 500 与 `{ message }` 正文。影片路由只接受 `.mp4` 路径，并支持一个 `Range: bytes=` 区间。`POST /api/motion/export-call` 接受 `{ sessionId, callId }`，在卡片无法指明文件夹时导出影片：它从调用方自己的对话读取该调用记录的文件夹，在该对话的沙箱策略下渲染到 `renders/<folder>.mp4`，并以 MP4 字节回答；渲染期间回答带进度的 202；文件夹不在本 Host 上时回答 404 与 `FOLDER_ABSENT`。它在 `ctx.motion`、`ctx.sessionController` 与 `ctx.fs` 存在时注册，与 `folderRoutes` 无关。
 
 -----
 

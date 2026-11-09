@@ -13,7 +13,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import type { MotionProgress, MotionQuality, MotionRenderInput, MotionRenderOutput } from '@aeven/motion'
+import { MOTION_QUEUED_STAGE, type MotionProgress, type MotionQuality, type MotionRenderInput, type MotionRenderOutput } from '@aeven/motion'
 import type {} from '@aeven/motion'
 import { bundleToSingleHtml } from '@hyperframes/core/compiler'
 import { detectGpuEncoder } from '@hyperframes/engine'
@@ -157,6 +157,8 @@ export function apply(ctx: Context, config: Config): void {
 
   // One render at a time: each one runs a Chromium capture and an encoder that already use every core.
   let queue: Promise<unknown> = Promise.resolve()
+  // Renders accepted and not yet settled, the running one included.
+  let inFlight = 0
 
   const render = async (
     input: MotionRenderInput, signal: AbortSignal, onProgress?: (progress: MotionProgress) => void,
@@ -205,7 +207,10 @@ export function apply(ctx: Context, config: Config): void {
   ctx.effect(() => ctx.motion.register({
     name: 'HyperFrames',
     render: (input, signal, onProgress) => {
-      const next = queue.then(() => render(input, signal, onProgress))
+      // A render behind another one says so until its own turn comes.
+      if (inFlight > 0) onProgress?.({ fraction: 0, stage: MOTION_QUEUED_STAGE })
+      inFlight += 1
+      const next = queue.then(() => render(input, signal, onProgress)).finally(() => { inFlight -= 1 })
       queue = next.catch(() => {})
       return next
     },
