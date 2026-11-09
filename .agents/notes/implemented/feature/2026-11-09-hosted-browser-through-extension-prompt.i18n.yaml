@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-09-hosted-browser-through-extension-prompt.md
-2026-11-09-hosted-browser-through-extension-prompt.md: 3c83b7b2aae31fb6270396c6deea1ac24859bd17
-2026-11-09-hosted-browser-through-extension-prompt.zh.md: 4746a30fbeb081028de2576303574fb0e2c01cd7
+2026-11-09-hosted-browser-through-extension-prompt.md: 0f1a219d9c72c188c76e9c485f8f35bab7f1f4ba
+2026-11-09-hosted-browser-through-extension-prompt.zh.md: cf9ea53c9b9f4354651bfd097d6337d460cbc348

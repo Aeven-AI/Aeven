@@ -359,7 +359,8 @@ function installPageExtension(ctx: ClientContext, bridge: PageExtensionBridge, p
     scoped.remote.$on('browser/automation', function (request, next) {
       const sessionId = (scoped.sessions).scopeOf(this)
       if (sessionId === undefined) return next()
-      if (request.operation === 'bookmarks' || (request.operation === 'history' && request.input.source === 'browser')) {
+      // The page has no browser of its own beside the chat, so every history search reads the reader's browser.
+      if (request.operation === 'bookmarks' || request.operation === 'history') {
         const limit = typeof request.input.limit === 'number' && Number.isInteger(request.input.limit) && request.input.limit > 0 ? Math.min(request.input.limit, 200) : 20
         return withExtension(sessionId, request, async () => ({
           entries: await bridge.extensionRead(request.operation === 'bookmarks' ? 'bookmarks' : 'history', typeof request.input.query === 'string' ? request.input.query : '', limit),
@@ -378,8 +379,8 @@ function installPageExtension(ctx: ClientContext, bridge: PageExtensionBridge, p
         // Without a current extension tab, the session's browser is the one a navigation opens through the extension.
         if (request.operation === 'status') {
           return Promise.resolve(canInstallExtension()
-            ? { open: false, openable: true, opensIn: 'user-browser' }
-            : { open: false, openable: false, unavailable: 'browser-unsupported' })
+            ? { open: false, openable: true, opensIn: 'user-browser', surface: 'user-browser' }
+            : { open: false, openable: false, unavailable: 'browser-unsupported', surface: 'user-browser' })
         }
         if (request.operation === 'navigate') {
           const opened = withExtension(sessionId, request, async () => await navigateInNewExtensionTab(sessionId, request, chrome))
@@ -397,6 +398,10 @@ function installPageExtension(ctx: ClientContext, bridge: PageExtensionBridge, p
         } finally {
           request.signal?.removeEventListener('abort', cancel)
         }
+      }
+      // Every status answer from this page says the session's browser is the reader's own.
+      if (request.operation === 'status') {
+        return operate().then(page => typeof page === 'object' && page !== null ? { ...page, surface: 'user-browser' } : page) as ReturnType<typeof next>
       }
       if (request.operation !== 'navigate') return operate() as ReturnType<typeof next>
       // The reader may have closed the current tab; a navigation then opens a new one.

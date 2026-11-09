@@ -186,6 +186,16 @@ function openableIn(value: JsonValue): OpensIn | null {
 }
 
 /**
+ * Whether a status answer comes from a Client whose only browser is the user's own, reached through the Aeven
+ * extension, which an Aeven web page answers: that browser's history is then the only history there is.
+ * @param value - the Client's answer.
+ * @returns true for an answer carrying `surface: 'user-browser'`.
+ */
+function isUserBrowserSurface(value: JsonValue): boolean {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) && value.surface === 'user-browser'
+}
+
+/**
  * Whether a status answer reports that the user's browser cannot run the Aeven extension, which an Aeven web page
  * answers when it is the session's only browser.
  * @param value - the Client's answer.
@@ -580,7 +590,14 @@ export function apply(ctx: Context, config: Config): void {
       }
       if (operation === 'upload') input = await uploadInput(input, exec)
       if (operation === 'clipboard' && input.action === 'read') await approveClipboardRead(exec)
-      if (operation === 'history') await approveHistoryRead(exec, input.source === 'browser' ? 'browser' : 'aeven')
+      if (operation === 'history') {
+        // A session whose only browser is the user's own has no browser beside the chat to search.
+        if (input.source !== 'browser') {
+          const lookup = await readSessionTab(callingAgent(exec), exec.signal)
+          if (lookup.kind === 'page' && isUserBrowserSurface(lookup.page)) input = { ...input, source: 'browser' }
+        }
+        await approveHistoryRead(exec, input.source === 'browser' ? 'browser' : 'aeven')
+      }
       if (operation === 'bookmarks') await approveBookmarksRead(exec)
       // Tab commands also reach Aeven's own Chrome, whose endpoint the Host knows.
       if (operation === 'tabs') {
