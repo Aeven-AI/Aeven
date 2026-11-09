@@ -173,7 +173,11 @@ When `enableRunInBackground` and `backgroundMode: continuable` are both set, the
 Start independent delegations with `subagent` or `subagent_fork` together in one assistant message and continue useful work while they run.
 ```
 
-The shipped `aeven` composition sets `splitGuidance` on its `subagent` instance; that text follows the sentence above for every agent allowed to delegate.
+##### Split guidance appended by the `aeven` composition
+
+```markdown
+Split a large task across subagents when it breaks into independent parts that each take many steps: failing tests spread over several packages or test files, one change repeated across several modules, or research on several separate questions. When many failures share one cause, such as a common helper, fix that cause yourself first and split what remains. Give each subagent its own set of files that no other subagent changes, the exact command that reproduces its part, and everything else it needs in the prompt. When they settle, review their changes and run the full check once yourself before reporting. Do a task you can finish in a few steps, or one whose parts change the same files, yourself.
+```
 
 #### Token effect
 

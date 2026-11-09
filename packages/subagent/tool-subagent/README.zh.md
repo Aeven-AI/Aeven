@@ -173,7 +173,11 @@ Session 携带策略的 settings 控制实例会公开子级 LLM 选择字段与
 Start independent delegations with `subagent` or `subagent_fork` together in one assistant message and continue useful work while they run.
 ```
 
-随附的 `aeven` 组合在其 `subagent` 实例上设置了 `splitGuidance`；对每个允许委派的 agent，该文本紧随上面这句话。
+##### `aeven` 组合追加的拆分指导
+
+```markdown
+Split a large task across subagents when it breaks into independent parts that each take many steps: failing tests spread over several packages or test files, one change repeated across several modules, or research on several separate questions. When many failures share one cause, such as a common helper, fix that cause yourself first and split what remains. Give each subagent its own set of files that no other subagent changes, the exact command that reproduces its part, and everything else it needs in the prompt. When they settle, review their changes and run the full check once yourself before reporting. Do a task you can finish in a few steps, or one whose parts change the same files, yourself.
+```
 
 #### Token 影响
 
