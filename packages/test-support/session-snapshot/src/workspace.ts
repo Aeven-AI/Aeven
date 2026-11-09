@@ -51,10 +51,12 @@ export type WorkspaceSnapshotEntry =
   | WorkspaceSymlinkSnapshot
   | WorkspaceEmptyDirectorySnapshot
 
-/** Options for excluding harness-owned root entries from a runtime workspace. */
+/** Options for excluding harness-owned entries from a captured workspace. */
 export interface CaptureWorkspaceSnapshotOptions {
   /** Exact immediate children of the workspace root to omit. */
   readonly ignoredRootEntries?: readonly string[]
+  /** Exact entry names to omit at every depth; a directory left with no other entry captures as empty. */
+  readonly ignoredEntries?: readonly string[]
 }
 
 function textContent(bytes: Buffer): string | undefined {
@@ -74,10 +76,11 @@ export async function captureWorkspaceSnapshot(
   options: CaptureWorkspaceSnapshotOptions = {},
 ): Promise<WorkspaceSnapshotEntry[]> {
   const ignoredRootEntries = new Set(options.ignoredRootEntries ?? [])
+  const ignoredEntries = new Set(options.ignoredEntries ?? [])
 
   const visit = async (directory: string, segments: readonly string[]): Promise<WorkspaceSnapshotEntry[]> => {
     const entries = (await readdir(directory, { withFileTypes: true }))
-      .filter(entry => segments.length > 0 || !ignoredRootEntries.has(entry.name))
+      .filter(entry => !ignoredEntries.has(entry.name) && (segments.length > 0 || !ignoredRootEntries.has(entry.name)))
       .sort((left, right) => Buffer.compare(Buffer.from(left.name), Buffer.from(right.name)))
     const captured: WorkspaceSnapshotEntry[] = []
     for (const entry of entries) {
@@ -104,10 +107,11 @@ export async function captureWorkspaceSnapshot(
 }
 
 /**
- * Capture a committed `workspace.expected/` tree, excluding its Git-only empty marker.
+ * Capture a committed `workspace.expected/` tree, excluding its Git-only empty
+ * markers: a `.empty` file stands for an empty root or an empty subdirectory.
  * @param root - Absolute expected-workspace directory.
  * @returns Stable expected entries.
  */
 export function captureExpectedWorkspaceSnapshot(root: string): Promise<WorkspaceSnapshotEntry[]> {
-  return captureWorkspaceSnapshot(root, { ignoredRootEntries: [EMPTY_WORKSPACE_MARKER] })
+  return captureWorkspaceSnapshot(root, { ignoredEntries: [EMPTY_WORKSPACE_MARKER] })
 }

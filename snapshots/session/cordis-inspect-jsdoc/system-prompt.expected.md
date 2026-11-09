@@ -392,9 +392,9 @@ interface ToolArgsMap {
     /** Max wait in milliseconds with wait: true. Defaults to and is capped by configuration. */
     timeout_ms?: number;
   } & Record<string, JsonValue>;
-  /** List your continuable background subagents by durable id and label. Use it to recall which ones you started, not to poll for completion — you are told when one finishes. Status comes from the live registry: running means the agent is working right now, idle means it is loaded but between turns (it may be waiting on agents it started), and ready means it exists only in storage — resumable, not terminal, and not a result waiting to be collected; a `send_message` steers a running child at its nearest step boundary or starts a turn for an idle or ready child, and a direct child remains a `send_message` candidate in every status. The snapshot is not a delivery promise — `send_message` performs the authoritative check and may still fail. Children that could not be read are reported as diagnostics instead of being silently dropped. Scope `descendants` walks the whole tree below you in stable pre-order, annotating each entry with its durable direct-parent session id and depth. You may use `send_message` only for depth-1 entries; deeper entries are candidates for `interrupt_agent` only. */
+  /** List the root and continuable members of your subagent tree by agent id. Use send_message to contact another member. Status describes current activity, not task completion: running means working, idle means loaded between turns, and ready means stored and resumable. Unreadable branches appear as diagnostics. Scope descendants (default) lists the complete tree; children lists the root and its direct children. Listing never activates an agent and does not guarantee later delivery. */
   list_agents: {
-    /** children (default) lists direct children only; descendants walks the complete tree below you. */
+    /** descendants (default) lists the whole tree; children lists only the root and its direct children. */
     scope?: "children" | "descendants";
   } & Record<string, JsonValue>;
   /** Run a foreground fresh-agent Ralph loop toward one immutable objective. Use only when the direct human explicitly asks for Ralph or fresh-agent iteration. Each round opens a new child with no parent conversation or prior child session; the shared workspace is long-term memory, and only a bounded structured report crosses rounds. The call returns when a worker reports completion or a concrete blocker, or at the round limit. Ordinary long-running same-session work belongs to goal tools. */
@@ -439,9 +439,9 @@ interface ToolArgsMap {
     /** Also delete the worktree's branch. Git refuses while the branch is not merged. */
     delete_branch?: boolean;
   } & Record<string, JsonValue>;
-  /** Send a message to a direct continuable child by its agent id. If you are a resident continuable child, you may also target your direct parent. If the target is still working, the message steers its nearest step; if it is idle, the message starts a turn. This call returns no answer from the agent — only confirmation that the message was delivered. A failure means the message was NOT delivered. */
+  /** Send a message to another agent in your subagent tree by its agent id, including the root, siblings, and continuable descendants. If the target is still working, the message steers its nearest step; if it is idle, the message starts a turn. This call returns no answer from the agent — only confirmation that the message was delivered. A failure means the message was NOT delivered. */
   send_message: {
-    /** The agent id of your direct continuable child, or your direct parent when you are a resident continuable child. */
+    /** The agent id of the root or another continuable member of your subagent tree, from list_agents. */
     agent_id: string;
     /** The message to deliver to the agent. */
     message: string;
@@ -484,6 +484,54 @@ interface ToolArgsMap {
     /** The task for the subagent. It already sees this conversation's completed turns, so build on them freely and state only what is new. */
     prompt: string;
   } & Record<string, JsonValue>;
+  /** Create one unowned pending task on the task board shared by your whole agent tree: the root agent and every subagent under it. Use the board to split parallel work: give tasks disjoint write scopes and list the tasks that must complete first. Agents then claim ready tasks with team_task_update. */
+  team_task_create: {
+    /** Concise task title. */
+    subject: string;
+    /** Complete task details and acceptance criteria. */
+    description: string;
+    /** Task ids that must complete first. */
+    blocked_by?: string[];
+    /** Workspace-relative file or directory prefixes this task expects to modify. Overlaps with other in-progress tasks are reported as warnings, never locked. */
+    write_scopes?: string[];
+  } & Record<string, JsonValue>;
+  /** Read the complete latest value of one shared task before changing or executing it. */
+  team_task_get: {
+    /** Shared task id. */
+    task_id: string;
+  } & Record<string, JsonValue>;
+  /** List the shared tasks of your agent tree, including readiness, owner agent id, revision, blockers, and write-scope warnings. */
+  team_task_list: {
+    /** Optional exact status filter. */
+    status?: "pending" | "in_progress" | "completed";
+    /** Optional exact ownerId filter; use unowned for tasks without an owner. */
+    owner?: string;
+    /** Optional readiness filter. */
+    ready?: boolean;
+    /** Zero-based result offset. Defaults to 0. */
+    cursor?: number;
+    /** Number of rows, 1 through 100. Defaults to 50. */
+    limit?: number;
+  } & Record<string, JsonValue>;
+  /** Change one shared task, using its latest revision from team_task_get or team_task_list; a stale revision is rejected. Claim a ready task, do the work, then complete it. The owner or the root agent may release, edit, set_dependencies, complete, reopen, or delete; only the root agent may reassign. Task changes never notify or start another agent; use send_message when an agent must act on one. */
+  team_task_update: {
+    /** Shared task id. */
+    task_id: string;
+    /** Current task revision; the change applies only if it still matches. */
+    expected_revision: number;
+    /** Task transition to apply. */
+    action: "claim" | "release" | "edit" | "set_dependencies" | "complete" | "reopen" | "reassign" | "delete";
+    /** Replacement title for edit. */
+    subject?: string;
+    /** Replacement details for edit. */
+    description?: string;
+    /** Complete blocker list for set_dependencies. */
+    blocked_by?: string[];
+    /** Replacement write scopes for edit. */
+    write_scopes?: string[];
+    /** For reassign: the agent id, from list_agents, of the root agent or any continuable subagent; omit to unassign. */
+    owner?: string;
+  } & Record<string, JsonValue>;
   /** Record and update a task list to plan multi-step work and show progress; skip it for trivial single-step tasks. Add one todo per concrete step before you start. While work remains, keep the todos being worked on `in_progress`, several only when work runs in parallel. Mark each todo `completed` as soon as it is done. */
   todo_write: {
     /** The COMPLETE task list, replacing any previous list. */
@@ -508,6 +556,11 @@ interface ToolArgsMap {
     max_goal_rounds?: number;
     /** Required only with action blocked: the concrete condition that persisted across rounds and blocks progress. */
     blocked_reason?: string;
+  } & Record<string, JsonValue>;
+  /** Wait for input at your next step, including agent messages, completion notifications, and user steering. Returns immediately when that input is already pending. */
+  wait_agent: {
+    /** Wait duration in milliseconds, from 10000 through 3600000. Defaults to 30000. */
+    timeout_ms?: number;
   } & Record<string, JsonValue>;
   /** Fetch the content of a specific HTTP(S) URL and return it decoded to text. Runs no JavaScript, so a page that builds itself in a browser may return little or nothing. */
   web_fetch: {
@@ -580,6 +633,37 @@ interface ToolOutputMap {
     producedFiles?: {
       path: string;
       created: boolean;
+      attachmentId?: string;
+    }[];
+    sharedImages?: {
+      attachmentId: string;
+      mediaType: string;
+      bytes: number;
+      width: number;
+      height: number;
+      name?: string;
+      originalDimensions?: {
+        width: number;
+        height: number;
+      };
+    }[];
+    sharedFiles?: {
+      attachmentId: string;
+      mediaType: string;
+      bytes: number;
+      name: string;
+      extraction: {
+        textId: string;
+        chars: number;
+        method: string;
+        extractor: string;
+        truncated: boolean;
+        pages?: number;
+      };
+    }[];
+    unsharedFiles?: {
+      path: string;
+      reason: string;
     }[];
     stdout: {
       text: string;
@@ -765,7 +849,7 @@ interface ToolOutputMap {
     };
   };
   list_agents: ({
-    kind: "child";
+    kind: "child" | "root";
     id: string;
     label: string;
     status: "running" | "idle" | "ready";
@@ -862,6 +946,57 @@ interface ToolOutputMap {
     runId: string;
     output: JsonValue[];
   };
+  team_task_create: {
+    id: string;
+    revision: number;
+    subject: string;
+    description: string;
+    status: "pending" | "in_progress" | "completed" | "deleted";
+    ownerId?: string;
+    blockedBy: string[];
+    writeScopes: string[];
+    ready: boolean;
+    writeScopeWarnings: string[];
+  };
+  team_task_get: {
+    id: string;
+    revision: number;
+    subject: string;
+    description: string;
+    status: "pending" | "in_progress" | "completed" | "deleted";
+    ownerId?: string;
+    blockedBy: string[];
+    writeScopes: string[];
+    ready: boolean;
+    writeScopeWarnings: string[];
+  };
+  team_task_list: {
+    tasks: ({
+      id: string;
+      revision: number;
+      subject: string;
+      description: string;
+      status: "pending" | "in_progress" | "completed" | "deleted";
+      ownerId?: string;
+      blockedBy: string[];
+      writeScopes: string[];
+      ready: boolean;
+      writeScopeWarnings: string[];
+    })[];
+    nextCursor?: number;
+  };
+  team_task_update: {
+    id: string;
+    revision: number;
+    subject: string;
+    description: string;
+    status: "pending" | "in_progress" | "completed" | "deleted";
+    ownerId?: string;
+    blockedBy: string[];
+    writeScopes: string[];
+    ready: boolean;
+    writeScopeWarnings: string[];
+  };
   todo_write: {
     todos: ({
       content: string;
@@ -889,6 +1024,9 @@ interface ToolOutputMap {
       };
     };
     activation: "armed" | "disarmed";
+  };
+  wait_agent: {
+    timedOut: boolean;
   };
   web_fetch: {
     url: string;

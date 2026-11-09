@@ -78,6 +78,39 @@ class BashOutput1(TypedDict):
 class BashOutput2ProducedFiles(TypedDict):
     path: str
     created: bool
+    attachmentId: NotRequired[str]
+
+class BashOutput2SharedImagesOriginalDimensions(TypedDict):
+    width: int
+    height: int
+
+class BashOutput2SharedImages(TypedDict):
+    attachmentId: str
+    mediaType: str
+    bytes: int
+    width: int
+    height: int
+    name: NotRequired[str]
+    originalDimensions: NotRequired[BashOutput2SharedImagesOriginalDimensions]
+
+class BashOutput2SharedFilesExtraction(TypedDict):
+    textId: str
+    chars: int
+    method: str
+    extractor: str
+    truncated: bool
+    pages: NotRequired[int]
+
+class BashOutput2SharedFiles(TypedDict):
+    attachmentId: str
+    mediaType: str
+    bytes: int
+    name: str
+    extraction: BashOutput2SharedFilesExtraction
+
+class BashOutput2UnsharedFiles(TypedDict):
+    path: str
+    reason: str
 
 class BashOutput2Stdout(TypedDict):
     text: str
@@ -103,6 +136,9 @@ class BashOutput2(TypedDict):
     aborted: bool
     timeoutMs: float
     producedFiles: NotRequired[list[BashOutput2ProducedFiles]]
+    sharedImages: NotRequired[list[BashOutput2SharedImages]]
+    sharedFiles: NotRequired[list[BashOutput2SharedFiles]]
+    unsharedFiles: NotRequired[list[BashOutput2UnsharedFiles]]
     stdout: BashOutput2Stdout
     stderr: BashOutput2Stderr
     sandbox: NotRequired[BashOutput2Sandbox]
@@ -401,12 +437,12 @@ class JobOutputOutput(TypedDict):
     job: JobOutputOutputJob
 
 class ListAgentsArgs(TypedDict):
-    # children (default) lists direct children only; descendants walks the complete tree below you.
+    # descendants (default) lists the whole tree; children lists only the root and its direct children.
     scope: NotRequired[Literal["children", "descendants"]]
     # Additional keys beyond those declared are allowed.
 
 class ListAgentsOutput1(TypedDict):
-    kind: Literal["child"]
+    kind: Literal["child", "root"]
     id: str
     label: str
     status: Literal["running", "idle", "ready"]
@@ -512,7 +548,7 @@ class RemoveWorktreeOutput(TypedDict):
     cwd: NotRequired[str]
 
 class SendMessageArgs(TypedDict):
-    # The agent id of your direct continuable child, or your direct parent when you are a resident continuable child.
+    # The agent id of the root or another continuable member of your subagent tree, from list_agents.
     agent_id: str
     # The message to deliver to the agent.
     message: str
@@ -603,6 +639,106 @@ class SubagentForkOutput3(TypedDict):
     runId: str
     output: list[Any]
 
+class TeamTaskCreateArgs(TypedDict):
+    # Concise task title.
+    subject: str
+    # Complete task details and acceptance criteria.
+    description: str
+    # Task ids that must complete first.
+    blocked_by: NotRequired[list[str]]
+    # Workspace-relative file or directory prefixes this task expects to modify. Overlaps with other in-progress tasks are reported as warnings, never locked.
+    write_scopes: NotRequired[list[str]]
+    # Additional keys beyond those declared are allowed.
+
+class TeamTaskCreateOutput(TypedDict):
+    id: str
+    revision: int
+    subject: str
+    description: str
+    status: Literal["pending", "in_progress", "completed", "deleted"]
+    ownerId: NotRequired[str]
+    blockedBy: list[str]
+    writeScopes: list[str]
+    ready: bool
+    writeScopeWarnings: list[str]
+
+class TeamTaskGetArgs(TypedDict):
+    # Shared task id.
+    task_id: str
+    # Additional keys beyond those declared are allowed.
+
+class TeamTaskGetOutput(TypedDict):
+    id: str
+    revision: int
+    subject: str
+    description: str
+    status: Literal["pending", "in_progress", "completed", "deleted"]
+    ownerId: NotRequired[str]
+    blockedBy: list[str]
+    writeScopes: list[str]
+    ready: bool
+    writeScopeWarnings: list[str]
+
+class TeamTaskListArgs(TypedDict):
+    # Optional exact status filter.
+    status: NotRequired[Literal["pending", "in_progress", "completed"]]
+    # Optional exact ownerId filter; use unowned for tasks without an owner.
+    owner: NotRequired[str]
+    # Optional readiness filter.
+    ready: NotRequired[bool]
+    # Zero-based result offset. Defaults to 0.
+    cursor: NotRequired[int]
+    # Number of rows, 1 through 100. Defaults to 50.
+    limit: NotRequired[int]
+    # Additional keys beyond those declared are allowed.
+
+class TeamTaskListOutputTasks(TypedDict):
+    id: str
+    revision: int
+    subject: str
+    description: str
+    status: Literal["pending", "in_progress", "completed", "deleted"]
+    ownerId: NotRequired[str]
+    blockedBy: list[str]
+    writeScopes: list[str]
+    ready: bool
+    writeScopeWarnings: list[str]
+
+class TeamTaskListOutput(TypedDict):
+    tasks: list[TeamTaskListOutputTasks]
+    nextCursor: NotRequired[int]
+
+class TeamTaskUpdateArgs(TypedDict):
+    # Shared task id.
+    task_id: str
+    # Current task revision; the change applies only if it still matches.
+    expected_revision: int
+    # Task transition to apply.
+    action: Literal["claim", "release", "edit", "set_dependencies", "complete", "reopen", "reassign", "delete"]
+    # Replacement title for edit.
+    subject: NotRequired[str]
+    # Replacement details for edit.
+    description: NotRequired[str]
+    # Complete blocker list for set_dependencies.
+    blocked_by: NotRequired[list[str]]
+    # Replacement write scopes for edit.
+    write_scopes: NotRequired[list[str]]
+    # For reassign: the agent id, from list_agents, of the root agent or any continuable subagent; omit to unassign.
+    owner: NotRequired[str]
+    # Additional keys beyond those declared are allowed.
+
+class TeamTaskUpdateOutput(TypedDict):
+    id: str
+    revision: int
+    subject: str
+    description: str
+    status: Literal["pending", "in_progress", "completed", "deleted"]
+    ownerId: NotRequired[str]
+    blockedBy: list[str]
+    writeScopes: list[str]
+    ready: bool
+    writeScopeWarnings: list[str]
+
 class TodoWriteArgsTodos(TypedDict):
     # What the task is — a short imperative line.
     content: str
@@ -661,6 +797,14 @@ class UpdateGoalOutput2Goal(TypedDict):
 class UpdateGoalOutput2(TypedDict):
     goal: UpdateGoalOutput2Goal
     activation: Literal["armed", "disarmed"]
+
+class WaitAgentArgs(TypedDict):
+    # Wait duration in milliseconds, from 10000 through 3600000. Defaults to 30000.
+    timeout_ms: NotRequired[int]
+    # Additional keys beyond those declared are allowed.
+
+class WaitAgentOutput(TypedDict):
+    timedOut: bool
 
 class WebFetchArgs(TypedDict):
     # The HTTP(S) URL to fetch.
@@ -799,7 +943,7 @@ class Tools(Protocol):
     async def job_output(self, args: JobOutputArgs) -> JobOutputOutput:
         """Read a background job: output since the previous read for stream jobs, or the result of a finished final-output job."""
     async def list_agents(self, args: ListAgentsArgs) -> list[ListAgentsOutput1 | ListAgentsOutput2]:
-        """List your continuable background subagents by durable id and label. Use it to recall which ones you started, not to poll for completion — you are told when one finishes. Status comes from the live registry: running means the agent is working right now, idle means it is loaded but between turns (it may be waiting on agents it started), and ready means it exists only in storage — resumable, not terminal, and not a result waiting to be collected; a `send_message` steers a running child at its nearest step boundary or starts a turn for an idle or ready child, and a direct child remains a `send_message` candidate in every status. The snapshot is not a delivery promise — `send_message` performs the authoritative check and may still fail. Children that could not be read are reported as diagnostics instead of being silently dropped. Scope `descendants` walks the whole tree below you in stable pre-order, annotating each entry with its durable direct-parent session id and depth. You may use `send_message` only for depth-1 entries; deeper entries are candidates for `interrupt_agent` only."""
+        """List the root and continuable members of your subagent tree by agent id. Use send_message to contact another member. Status describes current activity, not task completion: running means working, idle means loaded between turns, and ready means stored and resumable. Unreadable branches appear as diagnostics. Scope descendants (default) lists the complete tree; children lists the root and its direct children. Listing never activates an agent and does not guarantee later delivery."""
     async def ralph(self, args: RalphArgs) -> RalphOutput:
         """Run a foreground fresh-agent Ralph loop toward one immutable objective. Use only when the direct human explicitly asks for Ralph or fresh-agent iteration. Each round opens a new child with no parent conversation or prior child session; the shared workspace is long-term memory, and only a bounded structured report crosses rounds. The call returns when a worker reports completion or a concrete blocker, or at the round limit. Ordinary long-running same-session work belongs to goal tools."""
     async def read(self, args: ReadArgs) -> ReadOutput:
@@ -811,7 +955,7 @@ class Tools(Protocol):
     async def remove_worktree(self, args: RemoveWorktreeArgs) -> RemoveWorktreeOutput:
         """Remove a git worktree created by create_worktree or for a subagent, once its branch is merged or no longer needed. Without a name, removes the worktree this session works in and moves the session back to the repository's main checkout. Fails while the worktree has uncommitted changes. With delete_branch, also deletes its branch, which git refuses while the branch is unmerged."""
     async def send_message(self, args: SendMessageArgs) -> SendMessageOutput:
-        """Send a message to a direct continuable child by its agent id. If you are a resident continuable child, you may also target your direct parent. If the target is still working, the message steers its nearest step; if it is idle, the message starts a turn. This call returns no answer from the agent — only confirmation that the message was delivered. A failure means the message was NOT delivered."""
+        """Send a message to another agent in your subagent tree by its agent id, including the root, siblings, and continuable descendants. If the target is still working, the message steers its nearest step; if it is idle, the message starts a turn. This call returns no answer from the agent — only confirmation that the message was delivered. A failure means the message was NOT delivered."""
     async def skill(self, args: SkillArgs) -> SkillOutput:
         """Load the full instructions for an available skill. Call this with the exact skill name from the session skill catalog before acting on a task that names or clearly matches that skill."""
     async def str_replace_editor(self, args: StrReplaceEditorArgs) -> str:
@@ -820,10 +964,20 @@ class Tools(Protocol):
         """Delegate a self-contained task to a subagent (a separate agent that works in its own context) to offload focused, independent work — research, a scoped implementation, an analysis — so it does not consume this conversation's context. The subagent returns its result, not its intermediate steps. Give it a complete, standalone prompt: it does not see this conversation. This tool runs in the background by default, immediately returns a durable subagent id, and keeps the child conversation available for later turns. When that run settles, the runtime sends the parent a notice containing its outcome and any final assistant message; `send_message` steers the child's nearest step while it is running and starts a turn while it is idle. Set `run_in_background: false` only when your next action depends on receiving the result."""
     async def subagent_fork(self, args: SubagentForkArgs) -> SubagentForkOutput1 | SubagentForkOutput2 | SubagentForkOutput3:
         """Delegate a task to a subagent that inherits this conversation: a child agent seeded with all completed turns so far (it does not see the current in-flight turn). Use this when the subtask builds on this conversation's context — a follow-up analysis, a review, a continuation — without consuming this conversation's context for the work itself. You receive its result, not its intermediate steps. This call waits for the subagent and returns its result."""
+    async def team_task_create(self, args: TeamTaskCreateArgs) -> TeamTaskCreateOutput:
+        """Create one unowned pending task on the task board shared by your whole agent tree: the root agent and every subagent under it. Use the board to split parallel work: give tasks disjoint write scopes and list the tasks that must complete first. Agents then claim ready tasks with team_task_update."""
+    async def team_task_get(self, args: TeamTaskGetArgs) -> TeamTaskGetOutput:
+        """Read the complete latest value of one shared task before changing or executing it."""
+    async def team_task_list(self, args: TeamTaskListArgs) -> TeamTaskListOutput:
+        """List the shared tasks of your agent tree, including readiness, owner agent id, revision, blockers, and write-scope warnings."""
+    async def team_task_update(self, args: TeamTaskUpdateArgs) -> TeamTaskUpdateOutput:
+        """Change one shared task, using its latest revision from team_task_get or team_task_list; a stale revision is rejected. Claim a ready task, do the work, then complete it. The owner or the root agent may release, edit, set_dependencies, complete, reopen, or delete; only the root agent may reassign. Task changes never notify or start another agent; use send_message when an agent must act on one."""
     async def todo_write(self, args: TodoWriteArgs) -> TodoWriteOutput:
         """Record and update a task list to plan multi-step work and show progress; skip it for trivial single-step tasks. Add one todo per concrete step before you start. While work remains, keep the todos being worked on `in_progress`, several only when work runs in parallel. Mark each todo `completed` as soon as it is done."""
     async def update_goal(self, args: UpdateGoalArgs) -> UpdateGoalOutput1 | UpdateGoalOutput2:
         """Update the current goal."""
+    async def wait_agent(self, args: WaitAgentArgs) -> WaitAgentOutput:
+        """Wait for input at your next step, including agent messages, completion notifications, and user steering. Returns immediately when that input is already pending."""
     async def web_fetch(self, args: WebFetchArgs) -> WebFetchOutput:
         """Fetch the content of a specific HTTP(S) URL and return it decoded to text. Runs no JavaScript, so a page that builds itself in a browser may return little or nothing."""
     async def web_search(self, args: WebSearchArgs) -> WebSearchOutput:
