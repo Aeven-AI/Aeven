@@ -30,6 +30,8 @@ fi
 
 if [ -x "$IMAGE/bin/python3" ]; then
   "$IMAGE/bin/python3" -m pip --version >/dev/null 2>&1 || "$IMAGE/bin/python3" -m ensurepip >/dev/null
+  # ensurepip installs pip3 only; commands and the model call `pip`.
+  [ -e "$IMAGE/bin/pip" ] || ln -s pip3 "$IMAGE/bin/pip"
   SITE=$("$IMAGE/bin/python3" -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')
   install -m 0644 "$HERE/aeven_user_site.py" "$SITE/aeven_user_site.py"
   echo 'import aeven_user_site' > "$SITE/aeven-user-site.pth"

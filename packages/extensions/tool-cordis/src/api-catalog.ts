@@ -741,10 +741,10 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Built-in automation service; schedules never authorize additional tool access.',
     methods: [
       {
-        signature: 'async list(): Promise<{ definitions: (AutomationDefinition & { nextRunAt: string | null; lastRun: AutomationRun | null; webhook: boolean })[]; runs: AutomationRun[]; capabilities: { executionTarget: \'local\'; triggers: readonly AutomationSchedule[\'kind\'][]; webhook: boolean } }>',
+        signature: 'async list(): Promise<{ definitions: (AutomationDefinition & { placement: AutomationPlacement; nextRunAt: string | null; lastRun: AutomationRun | null; webhook: boolean })[]; runs: AutomationRun[]; capabilities: { host: HostProfile[\'kind\']; triggers: readonly AutomationSchedule[\'kind\'][]; webhook: boolean } }>',
         description: 'Read the acting account\'s definitions, newest created first, and bounded execution history, newest scheduled first. History leaves out runs whose conversation is archived, so it lists what the sidebar\'s Automations workspace shows; unarchiving the conversation lists the run again. Each definition\'s `lastRun` is its latest retained run either way.',
         parameters: [],
-        returns: 'owned definitions, latest run records, and the triggers this Host evaluates. A definition\'s `webhook` says an inbound credential exists; the secret itself never enters this projection.',
+        returns: 'owned definitions, latest run records, and this Host\'s kind and the triggers it evaluates. A definition\'s `placement` says where it runs among the account\'s registered Hosts, and its `webhook` says an inbound credential exists; the secret itself never enters this projection.',
       },
       {
         signature: 'async enableWebhook(id: AutomationId): Promise<{ path: string; keyId: string; secret: string }>',
@@ -778,7 +778,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'update(id: AutomationId, patch: { [K in keyof AutomationInput]?: AutomationInput[K] | undefined } & { status?: \'active\' | \'paused\' | undefined }): Promise<AutomationDefinition>',
-        description: 'Revise or pause an owned automation without changing earlier run snapshots.',
+        description: 'Revise or pause an owned automation, or change where it may run, without changing earlier run snapshots.',
         parameters: [{ name: 'id', description: 'owned definition identity.' }, { name: 'patch', description: 'replacement editable fields or status.' }],
         returns: 'durably revised definition.',
       },
@@ -790,7 +790,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'async requestRun(id: AutomationId, key: string, payload: string | null): Promise<AutomationRun>',
-        description: 'Admit one run from an authenticated inbound request. The presented key is the whole authority, so this path reads no acting account. A paused automation refuses the request; work already in flight records the occurrence as skipped rather than queueing behind it.',
+        description: 'Admit one run from an authenticated inbound request. The presented key is the whole authority, so this path reads no acting account. A paused automation, or one this Host may not run, refuses the request; work already in flight records the occurrence as skipped rather than queueing behind it.',
         parameters: [{ name: 'id', description: 'automation named by the request path.' }, { name: 'key', description: 'bearer credential presented by the caller.' }, { name: 'payload', description: 'accepted request body, marked untrusted in the run notice.' }],
         returns: 'the admitted or skipped run; its execution proceeds in the background.',
       },
@@ -2441,6 +2441,25 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Wrap `argv` so it executes confined under `policy` on this host; the caller spawns the returned argv in place of its own.',
         parameters: [{ name: 'argv', description: 'the exact argv the caller is about to spawn (program plus arguments), NOT a shell string — a shell-shaped consumer passes `[\'bash\', \'-c\', command]`.' }, { name: 'policy', description: 'the file-effect policy this execution runs under, carried per call (see {@link SandboxPolicy}).' }],
         returns: 'the argv to spawn instead, plus the enforcement completeness the selected backend achieves for it.',
+      },
+    ],
+  },
+  {
+    key: 'sandboxGitCredentials',
+    summary: 'The sources registered on one Host, published as `ctx.sandboxGitCredentials`.',
+    description: 'The sources registered on one Host, published as `ctx.sandboxGitCredentials`.',
+    methods: [
+      {
+        signature: 'register(source: (account: string, host: string) => Promise<string | undefined>): () => void',
+        description: 'Add a source.',
+        parameters: [{ name: 'source', description: 'consulted for every Git request the proxy forwards, with the account path segment of the jail that made the request and the Git host, e.g. `github.com`. It returns a token the host accepts as the password of `x-access-token`, or undefined when it has none for that account and host.' }],
+        returns: 'the disposer that removes it.',
+      },
+      {
+        signature: 'async resolve(account: string, host: string, onError: (error: unknown) => void): Promise<string | undefined>',
+        description: 'The first credential any source holds; a source that throws is skipped, so one failing integration leaves a public repository reachable.',
+        parameters: [{ name: 'account', description: 'the account path segment.' }, { name: 'host', description: 'the Git host.' }, { name: 'onError', description: 'reports a source that threw.' }],
+        returns: 'the token, or undefined when no source has one.',
       },
     ],
   },
@@ -6071,7 +6090,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AutomationDefinition',
-    declaration: 'export interface AutomationDefinition {\n    readonly id: AutomationId;\n    readonly owner?: string | undefined;\n    readonly revision: number;\n    readonly name: string;\n    readonly prompt: string;\n    readonly schedule: AutomationSchedule;\n    readonly status: \'active\' | \'paused\';\n    readonly agentPreset: string;\n    readonly model: ModelSelection;\n    readonly permission: \'read-only\' | \'workspace-write\';\n    readonly grants: readonly AutomationGrant[];\n    readonly executionTarget: {\n        readonly kind: \'local\';\n        readonly runnerId: AutomationRunnerId;\n    };\n    readonly lastAdmittedAt: string | null;\n    readonly createdAt: string;\n    readonly updatedAt: string;\n}',
+    declaration: 'export interface AutomationDefinition {\n    readonly id: AutomationId;\n    readonly owner?: string | undefined;\n    readonly revision: number;\n    readonly name: string;\n    readonly prompt: string;\n    readonly schedule: AutomationSchedule;\n    readonly status: \'active\' | \'paused\';\n    readonly agentPreset: string;\n    readonly model: ModelSelection;\n    readonly permission: \'read-only\' | \'workspace-write\';\n    readonly grants: readonly AutomationGrant[];\n    readonly requires?: readonly DeviceCapability[] | undefined;\n    readonly runOn: RunOn;\n    readonly executionTarget: {\n        readonly kind: \'local\';\n        readonly runnerId: AutomationRunnerId;\n    };\n    readonly lastAdmittedAt: string | null;\n    readonly createdAt: string;\n    readonly updatedAt: string;\n}',
   },
   {
     name: 'AutomationGrant',
@@ -6083,7 +6102,11 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AutomationInput',
-    declaration: 'export interface AutomationInput {\n    readonly name: string;\n    readonly prompt: string;\n    readonly schedule: AutomationSchedule;\n    readonly permission: \'read-only\' | \'workspace-write\';\n}',
+    declaration: 'export interface AutomationInput {\n    readonly name: string;\n    readonly prompt: string;\n    readonly schedule: AutomationSchedule;\n    readonly permission: \'read-only\' | \'workspace-write\';\n    readonly requires?: readonly DeviceCapability[] | undefined;\n    readonly runOn?: RunOn | undefined;\n}',
+  },
+  {
+    name: 'AutomationPlacement',
+    declaration: 'export interface AutomationPlacement {\n    readonly runsOn: \'cloud\' | \'device\' | \'any\';\n    readonly available: boolean;\n}',
   },
   {
     name: 'AutomationRun',
@@ -6602,6 +6625,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface DeviceBooting extends DeviceSummary {\n    readonly sessionId: SessionId;\n}',
   },
   {
+    name: 'DeviceCapability',
+    declaration: 'export type DeviceCapability = \'files\' | \'browser\' | \'computer-use\';',
+  },
+  {
     name: 'DeviceCloseRequest',
     declaration: 'export interface DeviceCloseRequest {\n    readonly hostId?: DeviceHostId;\n    readonly deviceId?: DeviceId;\n    readonly shutdown?: boolean;\n}',
   },
@@ -7104,6 +7131,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'GrantRecord',
     declaration: 'export interface GrantRecord {\n    readonly kind: \'grant\';\n    readonly payload: unknown;\n}',
+  },
+  {
+    name: 'HostProfile',
+    declaration: 'export interface HostProfile {\n    readonly kind: \'cloud\' | \'device\';\n    readonly provides: readonly DeviceCapability[];\n}',
   },
   {
     name: 'IdentityRequest',
@@ -8296,6 +8327,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'RunnerFailureRule',
     declaration: 'export interface RunnerFailureRule {\n    allowedExitCodes?: readonly number[];\n    fatalSignatures: readonly string[];\n    informationalLines?: readonly string[];\n}',
+  },
+  {
+    name: 'RunOn',
+    declaration: 'export type RunOn = \'auto\' | \'device\';',
   },
   {
     name: 'SandboxEnforcement',

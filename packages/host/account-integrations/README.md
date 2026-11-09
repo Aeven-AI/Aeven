@@ -131,6 +131,7 @@ Register the client id and the callback port in the profile that serves the conn
 | `bundledSkillDir` | `AVN_BUNDLED_SKILL_DIR` | Skill root Aeven ships, whose names an import keeps |
 | `agentSkillExclusions` | `['computer-use']` | Agent skill names Aeven already serves through its own tools, left out of the picker |
 | `timeoutMs` | 60000 | OAuth, MCP discovery, daemon control, and tool request budget |
+| `connectorIdleMs` | 300000 | Time a conversation's Google, Microsoft, and Discord connector processes keep running after its last step or tool call; its next step starts them again. Must exceed `timeoutMs` |
 | `consentLifetimeMs` | 600000 | Maximum consent or sign-in duration |
 | `consentPollMs` | 2000 | Interval for checking pending sign-ins with the Aeven API, so a completed one connects without reopening Settings |
 | `apiUrl` | none | Aeven API origin whose connector broker holds every provider credential; absent leaves Google, Microsoft, GitHub, Discord, and Telegram unavailable |

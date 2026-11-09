@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-11-10-idle-conversations-stop-connector-processes.md
+2026-11-10-idle-conversations-stop-connector-processes.md: 281b427cf2ca933a73177aa2b99170640ab21e60
+2026-11-10-idle-conversations-stop-connector-processes.zh.md: a3b5d21406ea016d2a303ab39e59155da1d115ae

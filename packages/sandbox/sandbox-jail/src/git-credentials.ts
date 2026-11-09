@@ -6,25 +6,21 @@
  * @module @aeven/sandbox-jail/git-credentials
  */
 
-/**
- * One source of Git credentials.
- * @param account - the account path segment of the jail that made the request.
- * @param host - the Git host, e.g. `github.com`.
- * @returns a token the host accepts as the password of `x-access-token`, or undefined when this source has none
- * for that account and host.
- */
-export type GitCredentialSource = (account: string, host: string) => Promise<string | undefined>
+/** One source: given an account path segment and a Git host, the token it holds for them, or undefined. */
+type Source = (account: string, host: string) => Promise<string | undefined>
 
 /** The sources registered on one Host, published as `ctx.sandboxGitCredentials`. */
 export class GitCredentials {
-  private readonly sources = new Set<GitCredentialSource>()
+  private readonly sources = new Set<Source>()
 
   /**
    * Add a source.
-   * @param source - consulted for every Git request the proxy forwards.
+   * @param source - consulted for every Git request the proxy forwards, with the account path segment of the jail
+   * that made the request and the Git host, e.g. `github.com`. It returns a token the host accepts as the password
+   * of `x-access-token`, or undefined when it has none for that account and host.
    * @returns the disposer that removes it.
    */
-  register(source: GitCredentialSource): () => void {
+  register(source: (account: string, host: string) => Promise<string | undefined>): () => void {
     this.sources.add(source)
     return () => { this.sources.delete(source) }
   }

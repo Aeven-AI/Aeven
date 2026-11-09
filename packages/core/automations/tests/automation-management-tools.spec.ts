@@ -61,7 +61,7 @@ describe('automation management tools', () => {
       properties: Record<string, unknown> & { schedule: ScheduleProperties }
       required: string[]
     }
-    expect(parameters.required).toEqual(['name', 'prompt', 'schedule', 'permission'])
+    expect(parameters.required).toEqual(['name', 'prompt', 'schedule', 'permission', 'requires'])
     expect(parameters.additionalProperties).toBe(false)
     const schedule = parameters.properties.schedule
     expect(schedule.required).toEqual(['kind', 'timeZone'])
@@ -142,7 +142,7 @@ describe('automation management tools', () => {
       'Create a built-in automation after human confirmation. Translate the user’s request into a self-contained task and explicit local schedule. Ask only for missing requirements. Future runs start fresh conversations with this account’s capabilities. An external action that needs approval asks the user in the run conversation; once the user approves it there, later runs perform it without asking.',
     )
     expect(tool(harness, 'automation_update').description).toBe(
-      'Adjust a task, schedule, or file permissions after confirmation, or pause an automation immediately. Omitted fields remain unchanged.',
+      'Adjust a task, schedule, file permissions, or what the task needs from the user’s computer after confirmation, or pause an automation immediately. Omitted fields remain unchanged. When a changed task needs something different from the computer, send the new requires list.',
     )
     expect(tool(harness, 'automation_list').description).toBe(
       'List this account’s automations and recent run history. Use the stable IDs for subsequent changes.',
@@ -164,6 +164,7 @@ describe('automation management tools', () => {
         prompt: 'Do the scheduled work and report the evidence.',
         schedule,
         permission: 'read-only',
+        requires: [],
       }) as { schedule: AutomationSchedule; status: string; revision: number }
       expect(created.schedule).toEqual(schedule)
       expect(created.status).toBe('active')
@@ -179,7 +180,7 @@ describe('automation management tools', () => {
 
   it('rejects an argument the schedule cannot evaluate before storing anything', async () => {
     const harness = await mount()
-    const base = { name: 'Broken', prompt: 'Work.', permission: 'read-only' }
+    const base = { name: 'Broken', prompt: 'Work.', permission: 'read-only', requires: [] }
     await expect(call(harness, 'automation_create', { ...base, schedule: { kind: 'cron', expression: '0 6 * *', timeZone: 'UTC' } }))
       .rejects.toThrow(/must have five fields/)
     await expect(call(harness, 'automation_create', { ...base, schedule: { kind: 'cron', expression: '30 6 * * 1-5', timeZone: 'Mars/Olympus' } }))

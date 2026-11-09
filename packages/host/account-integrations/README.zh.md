@@ -131,6 +131,7 @@ Slack 是唯一不需要在 Aeven API 上保存凭据的提供方：它的 PKCE 
 | `bundledSkillDir` | `AVN_BUNDLED_SKILL_DIR` | Aeven 随附的 skill 根目录，导入会保留其中的名称 |
 | `agentSkillExclusions` | `['computer-use']` | Aeven 已通过自身工具提供的 agent skill 名称，不列入选择器 |
 | `timeoutMs` | 60000 | OAuth、MCP 发现、守护进程控制及工具请求的时限 |
+| `connectorIdleMs` | 300000 | 对话在最后一次步骤或工具调用之后，其 Google、Microsoft 和 Discord 连接器进程继续运行的时间；对话的下一步会重新启动它们。必须大于 `timeoutMs` |
 | `consentLifetimeMs` | 600000 | 授权或登录操作的最大持续时间 |
 | `consentPollMs` | 2000 | 向 Aeven API 检查待完成登录的间隔，登录完成后无需重新打开设置即可连接 |
 | `apiUrl` | 无 | 由其连接器代理持有所有提供商凭据的 Aeven API 源；缺省时 Google、Microsoft、GitHub、Discord 和 Telegram 不可用 |

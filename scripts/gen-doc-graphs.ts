@@ -568,6 +568,15 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Consumers hand over the exact argv they are about to spawn; same-world backends wrap it under a per-call policy and report enforcement.',
   },
   {
+    key: 'sandboxGitCredentials',
+    pkg: 'sandbox-jail',
+    title: 'Jail Git credential sources',
+    mode: 'core',
+    implementations: [],
+    consumers: ['host-account-integrations'],
+    note: 'Present while the jail provider runs an egress proxy. A plugin that holds an account\'s credential for a Git host registers a source; the proxy sends the credential upstream, so it never enters a jail.',
+  },
+  {
     key: 'sandboxPolicy',
     pkg: 'sandbox-policy',
     title: 'Sandbox policy home',

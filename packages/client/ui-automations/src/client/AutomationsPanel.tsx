@@ -545,7 +545,7 @@ export function AutomationsPanel({ t, inputActions, list, call, openRun, view, s
                           />
                         </span>
                       </Tooltip>
-                      <span className={css.status} data-tone={task.status}>{t(task.status)}</span>
+                      {task.status === 'active' && <span className={css.status} data-tone={task.status}>{t(task.status)}</span>}
                     </div>
                   </article>
                 )

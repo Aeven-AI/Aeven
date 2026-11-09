@@ -79,6 +79,12 @@ export interface Config {
   agentSkillExclusions: string[]
   /** MCP discovery, tool, and OAuth request budget. */
   timeoutMs: number
+  /**
+   * Time a conversation's connector child processes keep running after its last step or tool call. A Google,
+   * Microsoft, or Discord connector is one Node process per conversation; past this, the processes stop and the
+   * conversation's next step starts them again. Must exceed `timeoutMs`, so a tool call in flight never loses its server.
+   */
+  connectorIdleMs: number
   /** Maximum time between starting a consent and the provider returning to the Aeven API. */
   consentLifetimeMs: number
   /**
@@ -518,6 +524,7 @@ export default class AccountIntegrations extends TypertRemoteService {
     bundledSkillDir: Schema.string(),
     agentSkillExclusions: Schema.array(Schema.string()).default(['computer-use']),
     timeoutMs: Schema.natural().min(1).default(60_000),
+    connectorIdleMs: Schema.natural().min(1).default(300_000),
     consentLifetimeMs: Schema.natural().min(1).default(600_000),
     consentPollMs: Schema.natural().min(100).default(2_000),
     maxEmailAccounts: Schema.natural().min(1).default(20),
@@ -587,7 +594,12 @@ export default class AccountIntegrations extends TypertRemoteService {
   private readonly syncing = new Map<Agent, Promise<void>>()
   private readonly mounts = new Map<Agent, {
     scope: Scope
-    connections: Map<ConnectorId, { key: string; fiber: Fiber }>
+    /** `process` marks a connection served by a child process of its own, which {@link releaseIdle} stops. */
+    connections: Map<ConnectorId, { key: string; fiber: Fiber; process: boolean }>
+    /** Stops the child processes once `connectorIdleMs` pass without a step or tool call. */
+    idle?: ReturnType<typeof setTimeout> | undefined
+    /** An idle stop in progress; the next synchronization waits for it before it mounts. */
+    releasing?: Promise<void> | undefined
   }>()
 
   /**
@@ -602,6 +614,9 @@ export default class AccountIntegrations extends TypertRemoteService {
     this.discordEntry = resolveDiscordEntry(config.discordEntryPath)
     if (config.discordPermissions !== undefined && !/^\d+$/.test(config.discordPermissions)) {
       throw new Error('discordPermissions must be a base-10 permission bitfield')
+    }
+    if (config.connectorIdleMs <= config.timeoutMs) {
+      throw new Error(`connectorIdleMs (${String(config.connectorIdleMs)}) must exceed timeoutMs (${String(config.timeoutMs)})`)
     }
     if (config.whatsappReadRoot !== undefined && !isAbsolute(config.whatsappReadRoot)) {
       throw new Error(`whatsappReadRoot "${config.whatsappReadRoot}" must be absolute`)
@@ -718,7 +733,13 @@ export default class AccountIntegrations extends TypertRemoteService {
       }
       return next()
     })
+    // A tool call counts as use at both ends, so a connector process outlives the call it serves.
+    this.ctx.on('tools/post-execute', (exec, _result, next) => {
+      if (exec.agent !== undefined) this.touch(exec.agent)
+      return next()
+    })
     this.ctx.on('tools/pre-execute', async (exec, next) => {
+      if (exec.agent !== undefined) this.touch(exec.agent)
       const match = CONNECTOR_TOOL_NAME.exec(exec.name)
       if (match !== null) {
         const connector = [...this.domain.table('connectors').entries()]
@@ -802,6 +823,7 @@ export default class AccountIntegrations extends TypertRemoteService {
       this.discordPresence.clear()
       for (const [, pending] of this.slackLogins) pending.cancel()
       this.slackLogins.clear()
+      for (const owned of this.mounts.values()) clearTimeout(owned.idle)
       this.mounts.clear()
     }, 'account-integrations: connector scopes')
   }
@@ -2610,11 +2632,15 @@ export default class AccountIntegrations extends TypertRemoteService {
       owned = { scope: createScope(this.ctx, agent), connections: new Map() }
       this.mounts.set(agent, owned)
       const scope = owned.scope
+      const entry = owned
       agent.ctx.effect(() => async () => {
+        clearTimeout(entry.idle)
         await scope.dispose()
         this.mounts.delete(agent)
       }, 'account-integrations: agent connections')
     }
+    await owned.releasing
+    this.touch(agent)
     const mounts = owned.connections
     // Email rows have no MCP server; their tools come from the mail capability. WhatsApp and
     // Telegram rows get their endpoint and bearer token from their running daemon, and a Discord
@@ -2701,8 +2727,39 @@ export default class AccountIntegrations extends TypertRemoteService {
         this.ctx.logger('account-integrations').warn(`connector ${id} could not connect: ${error instanceof Error ? error.message : String(error)}`)
         return
       }
-      mounts.set(id, { key, fiber })
+      mounts.set(id, { key, fiber, process: stdio !== undefined || microsoft !== undefined || google !== undefined })
     }))
+  }
+
+  /**
+   * Record that a conversation used its connectors, restarting its idle countdown.
+   * @param agent - the agent that stepped or ran a tool.
+   */
+  private touch(agent: Agent): void {
+    const owned = this.mounts.get(agent)
+    if (owned === undefined) return
+    clearTimeout(owned.idle)
+    owned.idle = setTimeout(() => { this.releaseIdle(agent) }, this.config.connectorIdleMs)
+    // A countdown never keeps the Host process alive.
+    owned.idle.unref()
+  }
+
+  /**
+   * Stop an idle conversation's connector child processes. Remote servers stay mounted: they hold no process.
+   * The conversation's next step mounts the stopped connectors again, before the model is asked.
+   * @param agent - the agent whose countdown ran out.
+   */
+  private releaseIdle(agent: Agent): void {
+    const owned = this.mounts.get(agent)
+    if (owned === undefined) return
+    owned.idle = undefined
+    // A synchronization in flight is use; it restarts the countdown when it runs.
+    if (this.syncing.has(agent) || owned.releasing !== undefined) return
+    const stopped = [...owned.connections].filter(([, connection]) => connection.process)
+    for (const [id] of stopped) owned.connections.delete(id)
+    owned.releasing = Promise.all(stopped.map(([id, connection]) => connection.fiber.dispose().catch((error: unknown) => {
+      this.ctx.logger('account-integrations').warn(`stopping idle connector ${id} failed: ${error instanceof Error ? error.message : String(error)}`)
+    }))).then(() => { owned.releasing = undefined })
   }
 
   private async verifyMcp(url: string, token?: string): Promise<void> {

@@ -74,7 +74,6 @@ export interface PythonZygoteConfig {
   limits: CgroupLimits
 }
 
-export type { GitCredentialSource } from './git-credentials.ts'
 export { GitCredentials } from './git-credentials.ts'
 
 declare module '@deepseek-ai/cordis' {
