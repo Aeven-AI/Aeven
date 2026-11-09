@@ -111,6 +111,8 @@ Correct an actionable error in this browser. If this browser needs authenticatio
 
 `preview_status` 以一个 JSON 对象应答，并且不会因浏览器缺失而失败。`sessionTab` 是会话旁的浏览器当前显示的页面，或为 null。`hostBrowser` 是本 Host 运行的 Chromium —— 其调试端点、是否已有浏览器在该端点应答、是否找到了可执行文件，以及驱动它的工具名前缀 —— 当组合未挂载任何 Host 浏览器时为 null。当本会话注册的工具中没有任何一个带有该前缀时，`hostBrowser.toolsUnavailable` 依据 MCP 服务器的 `mcp/servers` 报告（其状态、最近一次错误以及 `tool_search` 重启查询）说明原因，`nextStep` 也会说明这些工具未在服务，而不是让模型去调用它们。`nextStep` 指明应当驱动什么：只访问站点的任务用会话旁的页面，开发与调试以及任何 `localhost` 页面用 Chrome DevTools，没有打开页面时用 Host 的 Chromium，两者皆无时说明需要向用户请求什么。被 `web_fetch` 拒绝的页面正是这份报告存在的理由：会话旁的浏览器此时不可用，而 Host 的 Chromium 仍然可达。
 
+在 Aeven 网页上，Client 代表通过 Aeven 扩展到达的用户自己的浏览器应答。没有当前扩展标签页时，`nextStep` 告诉模型：`preview_navigate` 会在用户浏览器的新标签页中打开该地址，用户在那里保持登录；扩展缺失时会向用户提供安装，调用在此期间等待。无法运行扩展的浏览器会使 `nextStep` 说明没有可用的浏览器，用户可改用 Chrome、Edge、Brave 或桌面版。等待扩展的调用会在用户拒绝、其浏览器无法运行扩展，或 `actionTimeoutMs` 到期前 5 秒时失败，并指示模型结束本轮。
+
 #### Token effect
 
 约 110 个 token，每次调用一次，而非每个请求一次。

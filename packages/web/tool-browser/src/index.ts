@@ -169,12 +169,30 @@ function asSessionTabPage(value: JsonValue): { readonly url: string; readonly ti
 }
 
 /**
- * Whether a status answer reports a closed browser the client opens on a navigation.
- * @param value - the Client's answer.
- * @returns true for the `{ open: false, openable: true }` answer.
+ * Where a navigation opens the browser the status answer reports closed: `pane`
+ * is the browser beside the session; `user-browser` is a new tab of the user's
+ * own browser through the Aeven extension, which an Aeven web page answers.
  */
-function isOpenable(value: JsonValue): boolean {
-  return typeof value === 'object' && value !== null && !Array.isArray(value) && value.open === false && value.openable === true
+type OpensIn = 'pane' | 'user-browser'
+
+/**
+ * Read a status answer that reports a closed browser the client opens on a navigation.
+ * @param value - the Client's answer.
+ * @returns where the navigation opens it, for the `{ open: false, openable: true }` answer; null otherwise.
+ */
+function openableIn(value: JsonValue): OpensIn | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value) || value.open !== false || value.openable !== true) return null
+  return value.opensIn === 'user-browser' ? 'user-browser' : 'pane'
+}
+
+/**
+ * Whether a status answer reports that the user's browser cannot run the Aeven extension, which an Aeven web page
+ * answers when it is the session's only browser.
+ * @param value - the Client's answer.
+ * @returns true for the `{ unavailable: 'browser-unsupported' }` answer.
+ */
+function isUnsupportedBrowser(value: JsonValue): boolean {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) && value.unavailable === 'browser-unsupported'
 }
 
 /**
@@ -218,14 +236,17 @@ type HostBrowserReport = {
  * report that named only a closed pane is what leaves a model believing no
  * browser exists on the machine at all.
  * @param pageOpen - whether the browser beside the session shows a page.
- * @param openable - whether the client holding the session can open that browser on a navigation.
+ * @param opensIn - where a navigation opens the closed browser of the client holding the session, or null when it opens none.
+ * @param unsupported - whether the client reports that the user's browser cannot run the Aeven extension.
  * @param host - the Host's Chromium as sampled, or null when the composition mounts none.
  * @returns the sentence the model acts on.
  */
-function nextStepFor(pageOpen: boolean, openable: boolean, host: HostBrowserReport | null): string {
+function nextStepFor(pageOpen: boolean, opensIn: OpensIn | null, unsupported: boolean, host: HostBrowserReport | null): string {
   const devtools = host?.toolPrefix === undefined ? 'the Chrome DevTools browser' : `the Chrome DevTools browser (${host.toolPrefix}*)`
   if (pageOpen) return `Drive the page beside this session with the preview_* tools when the task is to open, visit, or read a site. Development and debugging, a localhost or 127.0.0.1 page included, belong to ${devtools}, not this pane.`
-  if (openable) return `No page is open beside this session yet. preview_navigate opens the collaborative browser beside it at an address; use it whenever the user asks to open, visit, or go to a website or URL, then drive the page with the other preview_* tools. Open a local dev server in ${devtools} instead.`
+  if (opensIn === 'user-browser') return 'No page is open yet. preview_navigate opens an address in a new tab of the user\'s own browser, through the Aeven extension, where they are signed in to their sites; when the extension is missing, the user is asked to add it and the call continues once they have. Use it whenever the user asks to open, visit, or read a website, then drive the page with the other preview_* tools.'
+  if (opensIn === 'pane') return `No page is open beside this session yet. preview_navigate opens the collaborative browser beside it at an address; use it whenever the user asks to open, visit, or go to a website or URL, then drive the page with the other preview_* tools. Open a local dev server in ${devtools} instead.`
+  if (unsupported) return 'No browser is available in this session: the user\'s browser cannot run the Aeven extension, which needs Chrome, Edge, Brave, or another Chromium browser on a computer. If the task needs a browser, tell the user to open Aeven in one of those browsers or to use the Aeven desktop app.'
   if (host === null) {
     return 'No browser is open beside this session, and this deployment mounts none on the Host. Ask the user to open one from the right sidebar (Browser).'
   }
@@ -594,12 +615,13 @@ export function apply(ctx: Context, config: Config): void {
     async execute(_args, exec) {
       const lookup = await readSessionTab(callingAgent(exec), exec.signal)
       const page = lookup.kind === 'page' ? asSessionTabPage(lookup.page) : null
-      const openable = lookup.kind === 'page' && isOpenable(lookup.page)
+      const opensIn = lookup.kind === 'page' ? openableIn(lookup.page) : null
+      const unsupported = lookup.kind === 'page' && isUnsupportedBrowser(lookup.page)
       const host = await readHostBrowser(callingAgent(exec), exec.signal)
       const report: { [key: string]: JsonValue } = {
         sessionTab: page,
         hostBrowser: host === null ? null : { ...host },
-        nextStep: nextStepFor(page !== null, openable, host),
+        nextStep: nextStepFor(page !== null, opensIn, unsupported, host),
       }
       return JSON.stringify(report)
     },
