@@ -52,6 +52,7 @@ kind: "package-reference"
 | `persona` | — | 每个子 agent 独立的 persona；要求提供方具备 `persona` 能力 |
 | `toolFilter` | — | 每个子 agent 独立的全局工具限制；要求提供方具备 `toolFilter` 能力 |
 | `maxDepth` | `3` | 绝对委派深度上限（`0` 禁止委派）；`'provider-managed'` 不向进程外提供方发送上限 |
+| `splitGuidance` | — | 何时以及如何把大任务拆分给多个委派，追加到共享的工具指导 section；要求 `backgroundMode: continuable` 且启用后台运行，空白值会在加载时失败 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#aeventool-subagent)是每个受支持字段及其 JSDoc 的穷尽式真源。
 
@@ -69,7 +70,7 @@ kind: "package-reference"
 
 ### 启用嵌套委派
 
-设置 `nestingSettings: true`，即可由宿主的 `subagent-nesting` 开关决定子 agent 能否继续委派。该开关在每次启动时读取，而不是一次性采样，因此在插件设置中切换会立即作用于已在运行的 agent 及其随后启动的子 agent；它不需要 Session 事件，因为没有任何工具 schema 或提示文本随之变化。关闭时，调用方的子 agent 都是叶子：无论 `maxDepth` 允许多少，每次启动都被固定到深度一。开启时 `maxDepth` 即上限——`maxDepth: 2` 时，深度 1 的子 agent 可以启动深度 2 的孙 agent，而后者无法再委派。该开关要求宿主作用域内组装 `@aeven/tool-subagent/nesting-settings` 并使用数值型 `maxDepth`；进程外提供方拥有自己的递归预算，因此 `maxDepth: 'provider-managed'` 与 `nestingSettings` 同时出现会在加载时失败。
+设置 `nestingSettings: true`，即可由宿主的 `subagent-nesting` 开关决定子 agent 能否继续委派。该开关在每次启动时读取，而不是一次性采样，因此在插件设置中切换会立即作用于已在运行的 agent 及其随后启动的子 agent；它不需要自己的 Session 事件：没有工具 schema 随之变化，而它对叶子 agent 隐去的 `splitGuidance` 文本只经由已记录的请求系统提示词到达模型。关闭时，调用方的子 agent 都是叶子：无论 `maxDepth` 允许多少，每次启动都被固定到深度一。开启时 `maxDepth` 即上限——`maxDepth: 2` 时，深度 1 的子 agent 可以启动深度 2 的孙 agent，而后者无法再委派。该开关要求宿主作用域内组装 `@aeven/tool-subagent/nesting-settings` 并使用数值型 `maxDepth`；进程外提供方拥有自己的递归预算，因此 `maxDepth: 'provider-managed'` 与 `nestingSettings` 同时出现会在加载时失败。
 
 一次调用需同时提供 `provider` 与 `model`；当配置值、父 agent 值或提供方持有的默认值能提供路由时，也可只提供推理等级。静态的 `provider.agentRouteDefaults` 在存在时构成提供方／模型基线；工具配置与模型字段会在路由相关强度合并和确切路由预检前覆盖它。没有这些默认值的提供方会使用父 agent 最新已记录请求中的兼容值，再使用父级首次请求前的创建选项，并保留配置的 `maxTokens`。更改路由但未显式提供推理等级时，会清除继承的路由自有等级，使所选模型解析自己的默认值。实时 LLM 适配器在创建子 agent 前校验有效路由。目录成员资格只提供建议，因此适配器接受时，模型可以使用未列出的 id。
 
@@ -164,7 +165,7 @@ Session 携带策略的 settings 控制实例会公开子级 LLM 选择字段与
 
 #### 模型看到什么
 
-当 `enableRunInBackground` 与 `backgroundMode: continuable` 同时设置时，模型还会读到 `tool:<toolName>` 系统提示词 section，指示它把相互独立的可继续委派一起启动，并在它们运行时继续工作。使用默认工具名 `subagent` 时，section 文本为：
+当 `enableRunInBackground` 与 `backgroundMode: continuable` 同时设置时，模型还会读到 `tool:<toolName>` 系统提示词 section，指示它把相互独立的可继续委派一起启动，并在它们运行时继续工作。按字母顺序排在最前的可见委派工具为所有委派工具渲染这一个 section。每个设置了 `splitGuidance` 的可见实例都会追加一次其文本（相同文本只出现一次），但若该实例的深度预算（包括 `subagent-nesting` 开关）会拒绝某个 agent 的委派，则不向该 agent 追加。未设置 `splitGuidance` 且工具为 `subagent` 与 `subagent_fork` 时，section 文本为：
 
 ##### 工具指导 section
 
@@ -172,13 +173,19 @@ Session 携带策略的 settings 控制实例会公开子级 LLM 选择字段与
 Start independent delegations with `subagent` or `subagent_fork` together in one assistant message and continue useful work while they run.
 ```
 
+##### `aeven` 组合追加的拆分指导
+
+```markdown
+Split a large task across subagents when it breaks into independent parts that each take many steps: failing tests spread over several packages or test files, one change repeated across several modules, or research on several separate questions. When many failures share one cause, such as a common helper, fix that cause yourself first and split what remains. Give each subagent its own set of files that no other subagent changes, the exact command that reproduces its part, and everything else it needs in the prompt. When they settle, review their changes and run the full check once yourself before reporting. Do a task you can finish in a few steps, or one whose parts change the same files, yourself.
+```
+
 #### Token 影响
 
-每个可继续实例一个简短固定 section，只要工具在作用域内，就由每个父级请求支付。
+可见的可继续实例共享一个简短 section，只要有工具在作用域内，就由每个父级请求支付；每段不同的 `splitGuidance` 再加上其自身长度。
 
 #### KV Cache 影响
 
-只要 section 文本与工具存在性不变，前缀就保持稳定；移除工具或更改 section 会建立不同的父级前缀。
+只要 section 文本与工具存在性不变，前缀就保持稳定；移除工具、更改 `splitGuidance`，或为深度 1 的 agent 切换 `subagent-nesting` 开关，都会建立不同的前缀。
 
 ### 前台结果
 

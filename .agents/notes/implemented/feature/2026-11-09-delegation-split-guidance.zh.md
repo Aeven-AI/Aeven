@@ -1,0 +1,23 @@
+# Agent Note：委派指导说明何时拆分大任务
+
+Status: implemented
+
+[English](2026-11-09-delegation-split-guidance.md) | 中文
+
+## 问题
+
+`aeven` 组合始终提供 `subagent` 与 `subagent_fork`，但没有任何内容告诉模型何时为一个大任务使用它们。工具描述只说把"聚焦、独立的工作"交出去，共享提示词 section 也只说把相互独立的委派一起启动。因此，像修复整个失败测试套件这样的请求会在同一个上下文中串行完成。也没有任何内容提醒模型避免两个子 agent 在共享工作区中修改同一个文件。
+
+## 决定
+
+- **`splitGuidance` 是 `tool-subagent` 的配置字段**（[`avn-tool-subagent`](../../../../packages/subagent/tool-subagent/README.zh.md)）。它追加到唯一的共享 `tool:<toolName>` section。每个可见的可继续实例贡献一次其文本，相同文本只出现一次。它要求 `backgroundMode: continuable` 且启用后台运行；空白值或其他模式会在加载时失败。
+- **只有可以委派的 agent 才会读到它。** 每个实例都把发起提示词的 agent 的委派深度与自身预算（包括 `subagent-nesting` 开关）比较，因此不会让叶子子 agent 去拆分那些委派调用会被拒绝的工作。
+- **`aeven` 组合在其 `subagent` 实例上设置该文本。** 文本说明何时拆分：各自需要许多步骤的独立部分，例如分布在多个包或测试文件中的失败。它要求模型先修复共同原因，为每个子 agent 指定它独有的文件集合、复现其部分的命令和完整提示词，并在报告前自己运行一次完整检查。小任务以及会修改相同文件的部分留给父 agent。
+
+## 考虑过的替代方案
+
+**写进 persona 或主提示词** 被否决：persona 只承载语气，委派行为属于拥有该工具的插件。**在代码中写死一句话** 被否决，因为措辞是部署层面的选择。**允许在没有明确请求时使用 `workflow`** 被推迟：普通的并行子 agent 已能拆分一个任务，而编写 workflow 脚本对模型而言更重。
+
+## 后果
+
+在 `aeven` 组合中，父级提示词增加了这段指导文本的长度。切换 `subagent-nesting` 会改变深度 1 agent 的系统提示词，该变化经由请求系统提示词进入 Session 日志。模型现在是否会拆分大任务，尚无已记录 Session 的覆盖。

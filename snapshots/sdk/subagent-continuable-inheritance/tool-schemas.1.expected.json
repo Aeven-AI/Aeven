@@ -792,6 +792,153 @@
       }
     },
     {
+      "name": "team_task_create",
+      "description": "Create one unowned pending task on the task board shared by your whole agent tree: the root agent and every subagent under it. Use the board to split parallel work: give tasks disjoint write scopes and list the tasks that must complete first. Agents then claim ready tasks with team_task_update.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string",
+            "description": "Concise task title."
+          },
+          "description": {
+            "type": "string",
+            "description": "Complete task details and acceptance criteria."
+          },
+          "blocked_by": {
+            "type": "array",
+            "description": "Task ids that must complete first.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "write_scopes": {
+            "type": "array",
+            "description": "Workspace-relative file or directory prefixes this task expects to modify. Overlaps with other in-progress tasks are reported as warnings, never locked.",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "subject",
+          "description"
+        ]
+      }
+    },
+    {
+      "name": "team_task_get",
+      "description": "Read the complete latest value of one shared task before changing or executing it.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "description": "Shared task id."
+          }
+        },
+        "required": [
+          "task_id"
+        ]
+      }
+    },
+    {
+      "name": "team_task_list",
+      "description": "List the shared tasks of your agent tree, including readiness, owner agent id, revision, blockers, and write-scope warnings.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "Optional exact status filter.",
+            "enum": [
+              "pending",
+              "in_progress",
+              "completed"
+            ]
+          },
+          "owner": {
+            "type": "string",
+            "description": "Optional exact ownerId filter; use unowned for tasks without an owner."
+          },
+          "ready": {
+            "type": "boolean",
+            "description": "Optional readiness filter."
+          },
+          "cursor": {
+            "type": "integer",
+            "description": "Zero-based result offset. Defaults to 0."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Number of rows, 1 through 100. Defaults to 50."
+          }
+        }
+      }
+    },
+    {
+      "name": "team_task_update",
+      "description": "Change one shared task, using its latest revision from team_task_get or team_task_list; a stale revision is rejected. Claim a ready task, do the work, then complete it. The owner or the root agent may release, edit, set_dependencies, complete, reopen, or delete; only the root agent may reassign. Task changes never notify or start another agent; use send_message when an agent must act on one.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "description": "Shared task id."
+          },
+          "expected_revision": {
+            "type": "integer",
+            "description": "Current task revision; the change applies only if it still matches."
+          },
+          "action": {
+            "type": "string",
+            "description": "Task transition to apply.",
+            "enum": [
+              "claim",
+              "release",
+              "edit",
+              "set_dependencies",
+              "complete",
+              "reopen",
+              "reassign",
+              "delete"
+            ]
+          },
+          "subject": {
+            "type": "string",
+            "description": "Replacement title for edit."
+          },
+          "description": {
+            "type": "string",
+            "description": "Replacement details for edit."
+          },
+          "blocked_by": {
+            "type": "array",
+            "description": "Complete blocker list for set_dependencies.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "write_scopes": {
+            "type": "array",
+            "description": "Replacement write scopes for edit.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "owner": {
+            "type": "string",
+            "description": "For reassign: the agent id, from list_agents, of the root agent or any continuable subagent; omit to unassign."
+          }
+        },
+        "required": [
+          "task_id",
+          "expected_revision",
+          "action"
+        ]
+      }
+    },
+    {
       "name": "todo_write",
       "description": "Record and update a task list to plan multi-step work and show progress; skip it for trivial single-step tasks. Add one todo per concrete step before you start. While work remains, keep the todos being worked on `in_progress`, several only when work runs in parallel. Mark each todo `completed` as soon as it is done.",
       "parameters": {

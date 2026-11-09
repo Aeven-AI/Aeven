@@ -46,6 +46,28 @@
   name: '@aeven/tool-pwsh'
   disabled: true
 
+# Rows added to the shipped bundles after this scenario was written; the
+# scenario pins the minimal bash + str_replace_editor tool set.
+- id: tool-vcs
+  name: '@aeven/tool-vcs'
+  disabled: true
+
+- id: tool-worktrees
+  name: '@aeven/tool-worktrees'
+  disabled: true
+
+- id: tool-agent-team
+  name: '@aeven/tool-agent-team'
+  disabled: true
+
+- id: tool-read-aloud
+  name: '@aeven/tool-read-aloud'
+  disabled: true
+
+- id: tool-working-directory
+  name: '@aeven/tool-working-directory'
+  disabled: true
+
 - id: agent-instructions
   name: '@aeven/agent-instructions'
   disabled: true
