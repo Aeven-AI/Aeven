@@ -28,6 +28,6 @@ export default defineConfig([
     dts: false,
     clean: false,
     deps: { onlyBundle: ['xlsx'] },
-    outputOptions: { inlineDynamicImports: true },
+    outputOptions: { codeSplitting: false },
   },
 ])

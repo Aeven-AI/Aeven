@@ -27,6 +27,8 @@ export default defineConfig(({ env }) => {
     fixedExtension: false,
     dts: false,
     clean: false,
+    // Applies to every workspace package config: tsdown merges this root config into each one.
+    checks: { pluginTimings: false },
     plugins: client ? [] : [typertPlugin({ mode: 'workspace', faces: ['host'] })],
   }
 })
