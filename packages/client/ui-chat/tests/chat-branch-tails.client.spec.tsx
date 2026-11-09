@@ -46,10 +46,11 @@ interface MessageItemProps {
   readonly t: ChatNodeViewProps['t']
   readonly referenceLabels?: readonly string[]
   readonly skillNames?: readonly string[]
+  readonly renderUserActions?: ChatNodeViewProps['renderUserActions']
 }
 
 /** Legacy-node fixture adapter for the independently registered renderers. */
-function MessageItem({ node, t: translate, referenceLabels, skillNames }: MessageItemProps) {
+function MessageItem({ node, t: translate, referenceLabels, skillNames, renderUserActions }: MessageItemProps) {
   const kind = node.kind === 'assistant' ? 'assistant-step' : node.kind
   const viewNode: ChatConversationViewNode = {
     key: `fixture:${node.kind}:${node.seq}`,
@@ -73,7 +74,7 @@ function MessageItem({ node, t: translate, referenceLabels, skillNames }: Messag
   // cases describe, and production shows the clock in the Extended transcript.
   const props = {
     node: viewNode, t: translate, renderMessageImages, useChat: useDetachedChat,
-    useSession: useDetachedSession, extendedTranscript: true,
+    useSession: useDetachedSession, extendedTranscript: true, renderUserActions,
   } as ChatNodeViewProps
   switch (node.kind) {
     case 'user':
@@ -91,6 +92,25 @@ function MessageItem({ node, t: translate, referenceLabels, skillNames }: Messag
       throw new Error(`unsupported MessageItem fixture kind: ${node.kind}`)
   }
 }
+
+describe('actions seated before copy', () => {
+  it.each([
+    ['user', { kind: 'user', seq: 4, time: 1_000, content: [{ type: 'text', text: 'Read me.' }], source: null }],
+    ['steering', { kind: 'steering', messageId: 'm-4', seq: 4, time: 1_000, content: [{ type: 'text', text: 'Read me.' }], source: null }],
+  ] as const)('render on a %s prompt with its sequence and text, before copy', (_kind, node) => {
+    const owners: unknown[] = []
+    const view = render(
+      <MessageItem
+        t={t}
+        node={node as never}
+        renderUserActions={(owner) => { owners.push(owner); return <button type="button" aria-label="seated" /> }}
+      />,
+    )
+    const labels = view.getAllByRole('button').map(button => button.getAttribute('aria-label'))
+    expect(labels.indexOf('seated')).toBe(labels.indexOf(t('copy')) - 1)
+    expect(owners.at(-1)).toEqual({ seq: 4, text: 'Read me.' })
+  })
+})
 
 describe('MessageItem arms', () => {
   it('renders an adjacent session mention as a chip even without trailing whitespace', () => {

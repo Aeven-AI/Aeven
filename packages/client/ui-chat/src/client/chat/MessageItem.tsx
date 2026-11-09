@@ -1,5 +1,4 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { PropsRenderSlots } from '@aeven/client-ui-slots'
 import type { CSSProperties, ReactNode, Ref } from 'react'
 import type { PendingSubmission, SessionSnapshot } from '@aeven/api-session-controller/client'
 import type {
@@ -10,9 +9,7 @@ import {
   Button, IconCheckOutline16, IconCloseOutline16, IconEditOutline16, IconRefreshOutline16, IconSendOutline14, IconTrashOutline16,
   JsonBlock, Modal, projectUserText, StateDot, Tooltip, useTextAnimation,
 } from '@aeven/client-ui-primitives'
-import type {
-  ChatNodeOwnerProps, ChatNodeViewProps, ChatViewInjected, ChatViewSlotProps, UserActionOwnerProps,
-} from '../contract/slots.ts'
+import type { ChatNodeOwnerProps, ChatNodeViewProps, ChatViewInjected, ChatViewSlotProps } from '../contract/slots.ts'
 import type { ChatKey } from '../locale.ts'
 import { CompactionItem } from './CompactionItem.tsx'
 import { ContextInjectionRow } from './ContextInjectionRow.tsx'
@@ -640,16 +637,6 @@ function MessageEditorInput({ value, minHeight, busy, onChange, onCancel, onSend
   )
 }
 
-/** A user or steering row's props, with the actions a registration seats before copy. */
-type UserNodeViewProps = ChatNodeViewProps<'user' | 'steering'> & {
-  /**
-   * Render the plugin actions seated before copy for a durable prompt; absent renders none.
-   * @param owner - the prompt's sequence and typed text.
-   * @returns the actions.
-   */
-  readonly renderUserActions?: ((owner: UserActionOwnerProps) => ReactNode) | undefined
-}
-
 /**
  * User and admitted-steering keyed Chat renderer. Both offer inline editing: the bubble becomes a text field and its icon row becomes
  * confirm / cancel, where confirm stays unavailable until the text differs
@@ -657,7 +644,7 @@ type UserNodeViewProps = ChatNodeViewProps<'user' | 'steering'> & {
  */
 export const UserMessageNodeView = memo(function UserMessageNodeView({
   node, submission, renderMessageImages, useSession, t, extendedTranscript, editMessage, renderUserActions,
-}: UserNodeViewProps) {
+}: ChatNodeViewProps<'user' | 'steering'>) {
   const data = node.data
   const rpcId = sourceRpcId(data.source)
   const echo = useSession(state => rpcId === undefined
@@ -743,18 +730,6 @@ export const UserMessageNodeView = memo(function UserMessageNodeView({
         )}
     />
   )
-})
-
-/**
- * The durable user prompt's keyed Chat renderer: the shared user row, with the `conversation.chat.user-actions` seat
- * this registration declares rendered before copy. A steering row declares no seat, since one slot has one declaring
- * registration.
- */
-export const UserPromptNodeView = memo(function UserPromptNodeView(
-  props: ChatNodeViewProps<'user'> & PropsRenderSlots<'conversation.chat.user-actions'>,
-) {
-  const { renderSlot } = props
-  return <UserMessageNodeView {...props} renderUserActions={owner => renderSlot('conversation.chat.user-actions', owner)} />
 })
 
 /** Injected-context keyed Chat renderer. */

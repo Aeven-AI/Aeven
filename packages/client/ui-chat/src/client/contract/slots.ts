@@ -1,4 +1,5 @@
 /** Chat-owned Slot declarations and composed component props. */
+import type { ReactNode } from 'react'
 import type { ImageAttachmentRef } from '@aeven/attachment'
 import type { MessageId } from '@aeven/llm/brand'
 import type { PendingSubmission, SessionFace } from '@aeven/api-session-controller/client'
@@ -101,6 +102,14 @@ export interface ChatNodeOwnerProps {
   /** Open the account's plan picker, the remedy a `QUOTA` turn failure names. Omitted where no picker exists. */
   openPlans?: ChatViewInjected['openPlans'] | undefined
   renderMessageImages: RenderMessageImages
+  /**
+   * Render the plugin actions seated before a user prompt's copy action
+   * (`conversation.chat.user-actions`, declared by the Chat view). Omitted
+   * where no actions are seated.
+   * @param owner - the prompt's sequence and typed text.
+   * @returns the actions.
+   */
+  renderUserActions?: ((owner: UserActionOwnerProps) => ReactNode) | undefined
   /**
    * The displayable URL of one stored image when it can be named without
    * waiting; undefined while it is not.
@@ -251,7 +260,7 @@ export interface ChatViewInjected {
 /** Full Chat view props. */
 export type ChatViewSlotProps =
   PropsRuntime<'conversation.view'>
-  & PropsRenderSlots<'conversation.chat.node' | 'conversation.message.images'>
+  & PropsRenderSlots<'conversation.chat.node' | 'conversation.message.images' | 'conversation.chat.user-actions'>
   & PropsStore<ChatStore>
   & InjectFace<ChatViewInjected>
   & PropsLocale<'chat'>
@@ -322,8 +331,8 @@ declare module '@aeven/client-ui-slots' {
      */
     'conversation.chat.assistant-actions': { kind: 'list'; scope: 'session'; owner: AssistantActionOwnerProps }
     /**
-     * Ordered actions for one durable user prompt (not a steering message),
-     * placed immediately before its copy action. Each entry receives the prompt's sequence and typed text; a
+     * Ordered actions for one durable user prompt, including one admitted
+     * while a turn ran, placed immediately before its copy action. Each entry receives the prompt's sequence and typed text; a
      * fresh `id` adds an action and reusing one replaces that entry. With no
      * entries, the prompt's action row is unchanged.
      */
