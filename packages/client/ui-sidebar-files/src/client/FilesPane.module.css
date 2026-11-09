@@ -55,8 +55,8 @@
   padding: 0 3px 0 12px;
   box-sizing: border-box;
   border-radius: 15px;
-  background: var(--files-glass-fill);
-  color: var(--dsw-alias-label-primary);
+  background: #f2f2f2;
+  color: #000;
 }
 
 .searchGlyph {
@@ -184,74 +184,28 @@
   display: none;
 }
 
-/* A row's fill starts 8px left of its glyph column, which its inline left
-   padding adds back. Hover and selection take two distinct fills, so the open
-   file reads apart from the row under the pointer. */
+/* A highlighted row paints no fill: hover and selection read as the row's
+   own opacity, so the highlight follows the row's content. */
 .row {
+  outline: none;
   display: flex;
   align-items: center;
   gap: 10px;
   height: 40px;
   margin-bottom: 1px;
-  margin-left: -8px;
   padding-right: 10px;
-  border-radius: 10px;
-  outline: none;
   cursor: pointer;
   user-select: none;
-  transition: background-color 120ms ease;
+  transition: opacity 120ms ease;
 }
 
-.row:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-}
-
+.row:hover,
 .row[data-selected] {
-  background: var(--dsw-alias-interactive-bg-active);
+  opacity: 0.3;
 }
 
-.row:focus-visible {
+.row[data-focused]:focus-visible {
   box-shadow: inset 0 0 0 1.5px var(--dsw-alias-state-business-primary);
-}
-
-/* A name being typed: the field takes the name's place on the row. */
-.nameField {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.nameInput {
-  min-width: 0;
-  height: 28px;
-  margin: 0;
-  padding: 0 8px;
-  box-sizing: border-box;
-  border: 1px solid var(--dsw-alias-state-business-primary);
-  border-radius: 6px;
-  outline: none;
-  background: var(--dsw-alias-bg-base);
-  color: var(--dsw-alias-label-primary);
-  font: inherit;
-}
-
-.nameInput[aria-invalid] {
-  border-color: var(--dsw-alias-state-error-primary);
-}
-
-.nameProblem {
-  overflow: hidden;
-  color: var(--dsw-alias-state-error-primary);
-  font-size: 0.75rem;
-  line-height: 1rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* The refresh control's spinner keeps the 16px glyph metric. */
-.spinner {
-  --avn-spinner-size: 16px;
 }
 
 .glyph {
@@ -290,51 +244,10 @@
 }
 
 .note {
-  box-sizing: border-box;
-  height: 32px;
-  overflow: hidden;
   padding: 6px 10px 6px 0;
   color: var(--dsw-alias-label-tertiary);
   font-size: 0.875rem;
   line-height: 1.25rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.noteError {
-  color: var(--dsw-alias-state-error-primary);
-}
-
-/* A failed write reports itself under the toolbar until the next action. */
-.actionError {
-  height: auto;
-  padding: 6px 24px 0;
-  white-space: normal;
-}
-
-/* A file-view line above the content, on the file body's inset. */
-.fileNote {
-  height: auto;
-  padding: 0 24px;
-  white-space: normal;
-}
-
-/* The rendered page fills the pane under the file bar. */
-.preview {
-  flex: 1 1 auto;
-  min-height: 0;
-  width: 100%;
-  border: none;
-  background: #ffffff;
-}
-
-.scrollFrame[hidden] {
-  display: none;
-}
-
-.copy {
-  display: flex;
-  flex: none;
 }
 
 /* An open file with the tree docked on its right. */
@@ -360,19 +273,18 @@
   width: clamp(240px, 36%, 340px);
   min-height: 0;
   overflow: hidden;
-  /* The base surface of the theme. Its toolbar keeps the tree view's 5px top
-     inset, so search and refresh line up with the controls centered in the
-     40px file bar, and the first row sits at the same height as in the tree
-     view. The 8px left inset leaves room for a row's fill. */
-  background: var(--dsw-alias-bg-base);
+  /* White pane. Its toolbar keeps the tree view's 5px top inset, so search and
+     refresh line up with the controls centered in the 40px file bar, and the
+     first row sits at the same height as in the tree view. */
+  background: #fff;
 }
 
 .dock .toolbar {
-  padding: 5px 24px 0 8px;
+  padding: 5px 24px 0 0;
 }
 
 .dock .rows {
-  padding: 5px 24px 40px 8px;
+  padding: 5px 24px 40px 0;
 }
 
 .fileBar {
@@ -452,7 +364,7 @@
 }
 
 /* File-bar controls carry the 18px glyph metric; their glyph tone comes from
-   `.lightButton` below, and the close control's disc from `.disc`. */
+   `.lightButton` below, and the close control's disc from `.fileClose`. */
 .fileBar > .iconButton svg {
   width: 18px;
   height: 18px;
@@ -467,17 +379,18 @@
   color: var(--dsw-alias-label-primary);
 }
 
-/* The file bar's close control and collapse-all sit on the pane's glass fill at
-   rest and on hover, with the primary label tone, so their glyphs read in both
-   themes. */
-.iconButton.disc,
-.iconButton.disc:hover:not(:disabled) {
+/* The file bar's close control sits on the pane's glass fill with the primary
+   label tone, including on hover, so its glyph reads in both themes. */
+.iconButton.fileClose,
+.iconButton.fileClose:hover:not(:disabled) {
   background: var(--files-glass-fill);
   color: var(--dsw-alias-label-primary);
 }
 
-.lightButton:disabled {
-  opacity: 0.35;
+/* Collapse-all keeps the hover fill at rest. */
+.iconButton.collapseAll,
+.iconButton.collapseAll:hover:not(:disabled) {
+  background: #f2f2f2;
 }
 
 .fileBody {
@@ -499,6 +412,38 @@
    no further left padding, so the source starts on that line. */
 .code :global(pre) {
   padding-left: 0;
+}
+
+/* The open file's type and copy control. It spans 40px to 80px of the pane,
+   as the docked tree's first row does, so the two share a centre line. The
+   right padding puts the copy glyph's edge 24px in, under the file bar's. */
+.codeBar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 40px;
+  padding: 0 24px;
+}
+
+/* The HTML preview toggle and the copy control, at the bar's right end. */
+.codeActions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+}
+
+.codeLang {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary);
+  font-family: var(--ds-font-family-code);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* A video wears the product's player, the same the conversation's clips do. */
@@ -525,15 +470,15 @@
   margin: 12px auto;
 }
 
-/* The open file's "Open with" split button sits on the pane's glass fill, including on hover. */
+/* The open file's "Open with" split button stays a light pill, including on hover. */
 .openWith {
   display: flex;
   flex: none;
   align-items: center;
   height: 30px;
   border-radius: 15px;
-  background: var(--files-glass-fill);
-  color: var(--dsw-alias-label-primary);
+  background: #f2f2f2;
+  color: #fff;
 }
 
 .openWithMain,
@@ -576,11 +521,74 @@
 .openWithMore svg {
   width: 12px;
   height: 12px;
-  color: var(--dsw-alias-label-secondary);
+  color: #000;
 }
 
 .appIcon {
   display: block;
   width: 18px;
   height: 18px;
+}
+
+/* A name being typed: the field takes the name's place on the row. */
+.nameField {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.nameInput {
+  min-width: 0;
+  height: 28px;
+  margin: 0;
+  padding: 0 8px;
+  box-sizing: border-box;
+  border: 1px solid var(--dsw-alias-state-business-primary);
+  border-radius: 6px;
+  outline: none;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+}
+
+.nameInput[aria-invalid] {
+  border-color: var(--dsw-alias-state-error-primary);
+}
+
+.nameProblem {
+  overflow: hidden;
+  color: var(--dsw-alias-state-error-primary);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The refresh control's spinner keeps the 16px glyph metric. */
+.spinner {
+  --avn-spinner-size: 16px;
+}
+
+/* A failed write reports itself under the toolbar until the next action. */
+.actionError {
+  padding: 6px 24px 0;
+}
+
+/* A file-view line above the content, on the file body's inset. */
+.fileNote {
+  padding: 0 24px;
+}
+
+/* The rendered page fills the pane under the file bars. */
+.preview {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  border: none;
+  background: #ffffff;
+}
+
+.scrollFrame[hidden] {
+  display: none;
 }

@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-09-files-pane-writes-live-tree-and-read-aloud-controls.md
-2026-11-09-files-pane-writes-live-tree-and-read-aloud-controls.md: b2c29062db0f7dc75cb300fb47e14b26f5403044
-2026-11-09-files-pane-writes-live-tree-and-read-aloud-controls.zh.md: 22dcb91668e83102091a197bfd1e0033ad3a5182
+2026-11-09-files-pane-writes-live-tree-and-read-aloud-controls.md: f3221d76b8532cfa4945bcd4af48fb867a5aac31
+2026-11-09-files-pane-writes-live-tree-and-read-aloud-controls.zh.md: 4736d68b03c25cccb4b6b03eead59743fb6184fc

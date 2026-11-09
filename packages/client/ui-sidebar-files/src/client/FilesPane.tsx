@@ -97,7 +97,7 @@ type Row =
     readonly position: number
     readonly siblings: number
   }
-  | { readonly kind: 'note'; readonly key: string; readonly text: string; readonly depth: number; readonly error?: boolean }
+  | { readonly kind: 'note'; readonly key: string; readonly text: string; readonly depth: number }
   | { readonly kind: 'draft'; readonly key: string; readonly folder: string; readonly type: 'file' | 'directory'; readonly depth: number }
 
 /** A row's or the tree's right-click menu, anchored at the pointer. */
@@ -788,7 +788,7 @@ export function FilesPane({
     switch (row.kind) {
       case 'note':
         return (
-          <div key={row.key} className={clsx(css.note, row.error === true && css.noteError)} style={{ paddingLeft: noteIndent(row.depth) }}>
+          <div key={row.key} className={css.note} style={{ paddingLeft: noteIndent(row.depth) }}>
             {row.text}
           </div>
         )
@@ -855,7 +855,7 @@ export function FilesPane({
         </button>
         <button
           type="button"
-          className={clsx(css.iconButton, css.disc)}
+          className={clsx(css.iconButton, css.collapseAll)}
           aria-label={t('collapseAll')}
           title={t('collapseAll')}
           disabled={memory.expanded.size === 0}
@@ -864,7 +864,7 @@ export function FilesPane({
           <IconLucideChevronsDownUp />
         </button>
       </div>
-      {actionError !== null && <div className={clsx(css.note, css.noteError, css.actionError)} role="alert">{actionError}</div>}
+      {actionError !== null && <div className={clsx(css.note, css.actionError)} role="alert">{actionError}</div>}
       <div className={css.scrollFrame}>
         <div
           ref={rowsRef}
@@ -951,9 +951,9 @@ export function FilesPane({
   )
 }
 
-/** Left padding of an entry row at `depth`: the row's fill reaches 8px left of its glyph's column. */
+/** Left padding of an entry row at `depth`. Depth 0 starts on the toolbar's left edge. */
 function rowIndent(depth: number): string {
-  return `${String(depth * 16 + 8)}px`
+  return `${String(depth * 16)}px`
 }
 
 /** Left padding of a note at `depth`, on its row's glyph column. */
@@ -1015,10 +1015,10 @@ function visibleRows(
       return
     }
     if (folder.status === 'error') {
-      rows.push({ kind: 'note', key: `${path}\u0000error`, text: folder.message, depth, error: true })
+      rows.push({ kind: 'note', key: `${path}\u0000error`, text: folder.message, depth })
       return
     }
-    if (folder.failure !== undefined) rows.push({ kind: 'note', key: `${path}\u0000failure`, text: folder.failure, depth, error: true })
+    if (folder.failure !== undefined) rows.push({ kind: 'note', key: `${path}\u0000failure`, text: folder.failure, depth })
     if (editing?.kind === 'create' && editing.folder === path) {
       rows.push({ kind: 'draft', key: `${path}\u0000draft`, folder: path, type: editing.type, depth })
     }
@@ -1208,7 +1208,7 @@ function SearchRows({ search, focus, tabStop, openFile, t, onOpen, onFocus, onMe
   )
 }
 
-/** The open file: its history steps, breadcrumbs and actions in one bar, and its content by kind. */
+/** The open file: its history steps, breadcrumbs and actions, its type and copy bar, and its content by kind. */
 function FileView({
   path, version, copy, root, canOpenNative, treeVisible, htmlView, remote, sessionId, t,
   onReveal, onToggleTree, onHtmlView, onRefresh, onBack, onForward, onClose,
@@ -1372,26 +1372,6 @@ function FileView({
             )
           })}
         </nav>
-        {isHtml && (
-          <button
-            type="button"
-            className={clsx(css.iconButton, css.lightButton)}
-            aria-pressed={showPreview}
-            aria-label={previewLabel}
-            title={previewLabel}
-            onClick={() => {
-              if (!showPreview) sourceScroll.current = bodyRef.current?.scrollTop ?? 0
-              onHtmlView(showPreview ? 'source' : 'preview')
-            }}
-          >
-            <IconLucideEye />
-          </button>
-        )}
-        {isCode && content.status === 'ready' && (
-          <span className={css.copy}>
-            <CopyIconButton text={content.file.text} label={t('code.copy')} copiedLabel={t('code.copied')} />
-          </span>
-        )}
         {!treeVisible && !media && (
           <button type="button" className={clsx(css.iconButton, css.lightButton)} aria-label={t('file.refresh')} title={t('file.refresh')} onClick={onRefresh}>
             <IconLucideRefreshCw />
@@ -1418,10 +1398,41 @@ function FileView({
         >
           <IconLucideFolderSearch />
         </button>
-        <button type="button" className={clsx(css.iconButton, css.disc)} aria-label={t('file.close')} title={t('file.close')} onClick={onClose}>
+        <button
+          type="button"
+          className={clsx(css.iconButton, css.lightButton, css.fileClose)}
+          aria-label={t('file.close')}
+          title={t('file.close')}
+          onClick={onClose}
+        >
           <IconLucideX />
         </button>
       </div>
+      {isCode && (
+        <div className={css.codeBar}>
+          <span className={css.codeLang}>{extension}</span>
+          <span className={css.codeActions}>
+            {isHtml && (
+              <button
+                type="button"
+                className={clsx(css.iconButton, css.lightButton)}
+                aria-pressed={showPreview}
+                aria-label={previewLabel}
+                title={previewLabel}
+                onClick={() => {
+                  if (!showPreview) sourceScroll.current = bodyRef.current?.scrollTop ?? 0
+                  onHtmlView(showPreview ? 'source' : 'preview')
+                }}
+              >
+                <IconLucideEye />
+              </button>
+            )}
+            {content.status === 'ready' && (
+              <CopyIconButton text={content.file.text} label={t('code.copy')} copiedLabel={t('code.copied')} />
+            )}
+          </span>
+        </div>
+      )}
       {content.status === 'ready' && content.file.outsideWorkspace && <div className={clsx(css.note, css.fileNote)}>{t('file.outside')}</div>}
       {showPreview && (
         page === null
