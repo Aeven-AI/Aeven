@@ -171,6 +171,8 @@ Node API 需要一个支持工作及个人账户并注册了 Web 回调的应用
 
 账户 domain 保存元数据和经过验证的技能资源；凭据提供方保存秘密。技能提供方按所属账户筛选每次查询。连接器 scope 属于此插件，并在其对话结束时释放；现有 MCP 客户端将发现的工具注册到所属 agent 的 scope。技能变化通过转发的注册表事件使浏览器斜杠菜单缓存失效。由于操作直接使用存储、身份、凭据、技能和工具注册表，因此不发布 invariant 伴随插件。
 
+Google 连接器通过 `GWS_BIN` 启动 Workspace CLI 二进制文件。本包的 postinstall `scripts/ensure-gws.mjs --optional` 从 `@googleworkspace/cli` 指定的发布中安装该二进制文件，因此该包自身安装程序拒绝的主机三元组（Windows on ARM）改为在模拟下运行 x64 构建；工作区和打包的 Desktop seed 都禁止该包的构建脚本，已存在的二进制文件保持不变。每个资源下载先尝试 GitHub 的浏览器下载路径，再尝试其 REST 资源路径，共三轮，归档必须与其发布的 `.sha256` 一致。仍然失败的 postinstall 打印警告并以 0 退出，因此 GitHub 故障不会使工作区安装或 Desktop 更新失败；随后首次 Google 连接会在不带 `--optional` 的情况下运行该脚本，每个 Host 进程只安装一次，失败只会使该连接失败。
+
 </details>
 
 ## Model Experience

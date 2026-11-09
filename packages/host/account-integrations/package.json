@@ -44,7 +44,7 @@
     "lib/typert.remote-client.d.ts"
   ],
   "scripts": {
-    "postinstall": "node scripts/ensure-gws.mjs"
+    "postinstall": "node scripts/ensure-gws.mjs --optional"
   },
   "license": "Apache-2.0",
   "dependencies": {

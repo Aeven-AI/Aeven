@@ -1,7 +1,10 @@
 /** Account-scoped Workspace MCP bridge; delegated scopes follow OpenAI plugins at 5fd93af4cd0c623e020d0cc7e9ce178b4ac1f70f. */
 
+import { execFile } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
+import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
 import type { StdioConfig } from '@aeven/mcp-client'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
@@ -69,8 +72,28 @@ export function googleService(provider: ConnectorProvider): typeof googleConnect
   }
 }
 
+/** In-flight or settled install of a missing `gws` binary; a failed install clears it so the next connection retries. */
+let gwsInstall: Promise<void> | undefined
+
 /**
- * Build a private, account-bound Workspace MCP process configuration.
+ * Install the `gws` binary through the package's `ensure-gws.mjs` when its postinstall could not.
+ * @param binary - Path `GWS_BIN` names.
+ * @returns nothing; the binary exists once this settles, or it rejects with the installer's output.
+ */
+async function ensureGws(binary: string): Promise<void> {
+  if (existsSync(binary)) return
+  const packageRoot = dirname(fileURLToPath(import.meta.resolve('@aeven/host-account-integrations/package.json')))
+  gwsInstall ??= promisify(execFile)(process.execPath, [join(packageRoot, 'scripts', 'ensure-gws.mjs')])
+    .then(() => undefined, (error: unknown) => {
+      gwsInstall = undefined
+      const stderr = typeof error === 'object' && error !== null && 'stderr' in error ? String(error.stderr).trim() : ''
+      throw new Error(`the Google Workspace CLI could not be installed${stderr === '' ? '' : `: ${stderr}`}`, { cause: error })
+    })
+  await gwsInstall
+}
+
+/**
+ * Build a private, account-bound Workspace MCP process configuration; installs a missing `gws` binary first.
  * @param provider - connected Google provider.
  * @param token - refreshed account access token, supplied only to the child environment.
  * @param directory - account-owned working and discovery-cache directory.
@@ -82,12 +105,14 @@ export async function googleConnection(provider: ConnectorProvider, token: strin
   if (service === undefined) throw new Error('not a Google connector')
   await mkdir(directory, { recursive: true, mode: 0o700 })
   const cliRoot = dirname(fileURLToPath(import.meta.resolve('@googleworkspace/cli/package.json')))
+  const gws = join(cliRoot, 'bin', process.platform === 'win32' ? 'gws.exe' : 'gws')
+  await ensureGws(gws)
   return {
     transport: 'stdio', command: process.execPath,
     args: [fileURLToPath(import.meta.resolve('@thenavidm/google-workspace-mcp-cli'))],
     cwd: directory,
     env: {
-      GWS_BIN: join(cliRoot, 'bin', process.platform === 'win32' ? 'gws.exe' : 'gws'),
+      GWS_BIN: gws,
       GWS_SERVICES: service.services,
       GOOGLE_WORKSPACE_CLI_TOKEN: token,
       GOOGLE_WORKSPACE_CLI_CONFIG_DIR: directory,
