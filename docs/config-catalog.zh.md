@@ -5691,6 +5691,14 @@ export interface Config {
    * budget belongs to the child runtime or its own deployment.
    */
   maxDepth?: number | 'provider-managed'
+  /**
+   * When and how to split a large task across several delegations, appended to
+   * the shared delegation guidance. Requires background `continuable` mode.
+   * Every visible instance contributes its distinct text, and an agent that
+   * this instance's depth budget forbids from delegating receives none.
+   * Omission adds nothing.
+   */
+  splitGuidance?: string
 }
 ```
 
