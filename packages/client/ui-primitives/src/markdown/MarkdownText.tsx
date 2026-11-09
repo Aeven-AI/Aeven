@@ -389,13 +389,11 @@ export const MarkdownText = memo(function MarkdownText({
   text, streaming = false, labels, controls, fileMentions, scrollDown, onFullscreenChange, variant = 'default',
   animation: animationProp, imageVisible, imageUrl,
 }: MarkdownTextProps) {
-  const imageVisibility = useRef(imageVisible)
-  imageVisibility.current = imageVisible
-  const imageOverride = useRef(imageUrl)
-  imageOverride.current = imageUrl
-  const imageSource = useCallback((src: string) => imageVisibility.current?.(src) === false
+  // A new override (the turn learned of a stored copy, for instance when older
+  // history arrived) re-resolves every image already shown.
+  const imageSource = useCallback((src: string) => imageVisible?.(src) === false
     ? undefined
-    : imageOverride.current?.(src) ?? resolveImage(src), [])
+    : imageUrl?.(src) ?? resolveImage(src), [imageUrl, imageVisible])
   const preferredAnimation = useTextAnimation()
   const animation = animationProp ?? preferredAnimation
   const handleRef = useRef<HyperMarkdownHandle>(null)

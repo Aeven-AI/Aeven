@@ -1,4 +1,4 @@
-import { memo, useState, type ImgHTMLAttributes } from 'react'
+import { memo, useCallback, useState, useSyncExternalStore, type ImgHTMLAttributes } from 'react'
 
 import type { RendererHost } from './components.tsx'
 
@@ -19,6 +19,12 @@ interface ImageProps extends ImgHTMLAttributes<HTMLImageElement> {
  */
 function MarkdownImage(props: ImageProps) {
   const { src, alt, title, renderer } = props
+  // A host resolver that changes after this image rendered (cached blocks never re-render) re-resolves it.
+  const subscribe = useCallback(
+    (listener: () => void) => renderer?.subscribeImages(listener) ?? (() => undefined),
+    [renderer],
+  )
+  useSyncExternalStore(subscribe, () => renderer?.imageRevision ?? 0, () => renderer?.imageRevision ?? 0)
   const options = renderer?.options
   const resolved = src === undefined || options?.resolveImage === undefined
     ? src
