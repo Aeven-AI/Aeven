@@ -117,6 +117,7 @@ export const SERVICE_PAGE: Record<string, string> = {
   planMode: 'plan.md',
   terminals: 'terminal.md',
   sandbox: 'sandbox.md',
+  sandboxGitCredentials: 'sandbox.md',
   sandboxPolicy: 'sandbox.md',
   sessionPersistence: 'persistence.md',
   sessionQuery: 'session-query.md',
