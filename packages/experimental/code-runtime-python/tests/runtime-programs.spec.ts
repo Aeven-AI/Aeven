@@ -497,10 +497,13 @@ describe('PythonCodeRuntime — programs and bindings', () => {
     // budget's worth of RAW bytes before flushing — a ~3x undercount that near a
     // large maxLogBytes retains hundreds of MiB then expands toward a ~1 GiB peak
     // in flushStray's concat + toString. Paced single-byte writes (each its own
-    // `data` chunk, like the sealing case) expose the sub-chunk accrual: charged
-    // at 3 the residual crosses a 3072-byte budget after ~1024 bytes and flushes;
-    // charged at 1 it would need ~3072 bytes, so the peak residual triples. The
-    // largest merged buffer is the discriminator.
+    // `data` chunk) expose the sub-chunk accrual: charged at 3 the residual
+    // crosses a 3072-byte budget after ~1024 bytes and flushes; charged at 1 it
+    // would need ~3072 bytes, so the peak residual triples. The largest merged
+    // buffer is the discriminator. A 1 ms sleep paces the writes: a bare
+    // `sched_yield` lets a loaded host coalesce thousands of bytes into one
+    // chunk, which no accrual can split. 2500 writes keep an undercount's peak
+    // above the 2048 bound.
     const realConcat = Buffer.concat.bind(Buffer)
     let maxConcat = 0
     Buffer.concat = (list: readonly Uint8Array[], total?: number): Buffer<ArrayBuffer> => {
@@ -513,10 +516,10 @@ describe('PythonCodeRuntime — programs and bindings', () => {
       const { runtime } = await setup({ maxLogBytes: 3072, maxWallMs: 30_000 })
       result = await runtime.run({
         program: [
-          'import os',
-          'for _ in range(6000):',
+          'import os, time',
+          'for _ in range(2500):',
           '    os.write(1, b"\\xff")',
-          '    os.sched_yield()',
+          '    time.sleep(0.001)',
           'return None',
         ].join('\n'),
         bindings: [],
