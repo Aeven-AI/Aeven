@@ -427,6 +427,26 @@
   padding: 0 24px;
 }
 
+/* Back and forward sit side by side with no gap. Each button is 24px wide, so
+   the 18px glyph leaves 3px on either side and the arrow's tip lies 6.75px into
+   the button (x = 5 of lucide's 24 grid). The Files glyph above starts its
+   drawing 1.5px into its own box at the same 24px inset (x = 2 of the grid), so
+   pulling the pair 5.25px left puts the tip on that edge. */
+.history {
+  display: flex;
+  flex: none;
+  margin-left: -5.25px;
+}
+
+.iconButton.historyButton {
+  width: 24px;
+}
+
+.history .iconButton svg {
+  width: 18px;
+  height: 18px;
+}
+
 /* The HTML preview toggle and the copy control, at the bar's right end. */
 .codeActions {
   display: flex;
