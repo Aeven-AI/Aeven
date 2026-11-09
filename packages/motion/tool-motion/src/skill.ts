@@ -1,9 +1,9 @@
-/** The `motion` skill: HyperFrames composition rules and the author, show, review loop around `show_motion`. @module */
+/** The `motion` skill: HyperFrames composition rules and the author, review, show loop around `review_motion` and `show_motion`. @module */
 import type { SkillRegistration } from '@aeven/skill'
 
 const CONTENT = `# Motion
 
-You make films the way a motion designer does: an editable HTML composition the user watches live with \`show_motion\` and exports to MP4 themselves. Nothing here is generated video footage; every pixel is drawn by the composition, so text, data, logos, and the user's own images move exactly as written.
+You make films the way a motion designer does: an editable HTML composition you check with \`review_motion\`, which the user watches live with \`show_motion\` and exports to MP4 themselves. Nothing here is generated video footage; every pixel is drawn by the composition, so text, data, logos, and the user's own images move exactly as written.
 
 ## Plan before building
 
@@ -45,12 +45,15 @@ The renderer seeks a paused timeline frame by frame, so the film is a pure funct
 - Type for video: headlines 72 px and up, body 32 px and up, at most two families, high contrast.
 - Numbers count up, charts draw on, and the final frame states the takeaway.
 
-## Show and review
+## Review, then show
 
-1. Show the film: \`show_motion\` with the folder and \`stills: 6\`. The user can play and scrub it at once; the stills come back to you.
-2. Look at every still: layout, overlap, cropping, contrast, and whether each beat reads. Make every fix the stills call for, then call \`show_motion\` once for that round. Each call replaces the film already on screen, so a round ends with one call, never one call per edit. Expect several rounds; a film you looked at once is unfinished.
-3. Reply with what the film does and offer one or two concrete revisions (timing, copy, color, pacing). The user's requests for changes edit the same files, so keep ids and structure readable.
-4. The user exports the MP4 from the film's own menu. Call \`render_motion\` only when the user asks you for the video file.
+Two tools, two audiences: \`review_motion\` renders a draft and returns stills to you alone; \`show_motion\` puts the film on the user's screen and replaces the one already there. Checking never goes through \`show_motion\`.
+
+1. Review: \`review_motion\` with the folder. Spread stills through the whole film for a first pass (\`stills\`), through one scene's window when a scene changed (\`scene\` with the host id), or at exact moments (\`times\` in seconds) to check a transition, an overlap, or the last frame. Never edit \`index.html\` or build a separate folder just to look at part of the film; \`scene\` and \`times\` reach any moment.
+2. Look at every still: layout, overlap, cropping, overflowing text, contrast, and whether each beat reads. Fix what the stills show and review again. Expect several rounds; a film you looked at once is unfinished.
+3. Show: when a round of the user's requests is done and the latest review looks right, call \`show_motion\` once. Show only the film the user asked for, never a scratch composition, and never mid-edit: \`show_motion\` refuses a composition that cannot render, and a film far shorter than the one last shown unless you pass \`force\` for an intended cut.
+4. Reply with what changed and offer one or two concrete revisions (timing, copy, color, pacing). The user's requests for changes edit the same files, so keep ids and structure readable.
+5. The user exports the MP4 from the film's own menu. Call \`render_motion\` only when the user asks you for the video file.
 `
 
 /** Runtime registration for `ctx.skills`; invocable by the model and as `/motion`. */

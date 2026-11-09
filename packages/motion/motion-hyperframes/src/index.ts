@@ -198,7 +198,7 @@ export function apply(ctx: Context, config: Config): void {
     }
     const facts = await probeFilm(ff.ffprobe, input.outputPath, signal)
     const { size } = await stat(input.outputPath)
-    const stills = await takeStills(ff.ffmpeg, input.outputPath, facts.durationSeconds, input.stills, config.stillWidth, signal)
+    const stills = await takeStills(ff.ffmpeg, input.outputPath, facts.durationSeconds, input.stillTimes, config.stillWidth, signal)
     return { outputPath: input.outputPath, bytes: size, encoder: path.encoder, stills, ...facts }
   }
 

@@ -1,12 +1,16 @@
 /**
  * A motion film shown live at its `show_motion` call: the composition plays in the HyperFrames player under the
- * product's own clip chrome, and the save menu exports it to an MP4 the browser downloads. @module
+ * product's own clip chrome, and the save menu exports it to an MP4 the browser downloads. A later call for the
+ * same folder takes over only once its own film is ready, and the earlier card then folds into one line that
+ * opens the film as that call stored it. @module
  */
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 // Side-effect import: registers the `hyperframes-player` custom element. Client modules load as one bundle each,
 // so the player ships inside this module rather than as a lazily loaded chunk.
 import '@hyperframes/player'
-import { MediaPlayer, Spinner, saveClip, videoPlayerLabels, type ClipMedia } from '@aeven/client-ui-primitives'
+import {
+  IconLucideChevronDown, IconLucideChevronRight, MediaPlayer, Spinner, saveClip, videoPlayerLabels, type ClipMedia,
+} from '@aeven/client-ui-primitives'
 import type { ToolCallViewProps } from '@aeven/client-ui-tool/client'
 import type { PropsLocale } from '@aeven/client-ui-slots'
 // Type-only: pulls the session-scoped standard props (`sessionId`).
@@ -58,6 +62,16 @@ function storedFilm(meta: unknown): { id: string; name: string } | undefined {
 }
 
 /**
+ * The film length the settled call reported.
+ * @param meta - the result's presentation metadata.
+ * @returns the length in seconds, or undefined for a call that reported none.
+ */
+function filmLength(meta: unknown): number | undefined {
+  if (typeof meta !== 'object' || meta === null || !('durationSeconds' in meta)) return undefined
+  return typeof meta.durationSeconds === 'number' ? meta.durationSeconds : undefined
+}
+
+/**
  * Read a Host failure's message from a JSON `message` field or a plain-text body.
  * @param response - the failed response.
  * @returns the message; empty when the body carries none, which the error dialog shows as its own no-detail line.
@@ -104,8 +118,9 @@ function compositionArg(argsRaw: string, cwd: string | undefined): string | unde
 /**
  * Every mounted `show_motion` card's claim on its session and composition folder, by its position in the
  * conversation. Every card plays the folder's current files, so only the newest claim stays a live player. A
- * running call claims with an infinite position, so a re-show hides the previous film from its first frame; a
- * card releases its claim when it unmounts or fails, which also keeps the map to the cards on screen.
+ * card already settled when it mounts claims at once; one that runs while on screen claims only once its film is
+ * ready, so the film it replaces keeps playing through the render, and a call that fails never replaces it. A
+ * card releases its claim when it unmounts, which also keeps the map to the cards on screen.
  */
 const claims = new Map<string, Map<string, number>>()
 const newestListeners = new Set<() => void>()
@@ -119,7 +134,7 @@ function publishNewest(): void {
  * Record a card's claim on a folder.
  * @param key - session and folder.
  * @param callId - the call.
- * @param seq - the call's position in the conversation; Infinity while it runs.
+ * @param seq - the call's position in the conversation.
  * @returns the disposer releasing the claim.
  */
 function claim(key: string, callId: string, seq: number): () => void {
@@ -168,7 +183,8 @@ function subscribeNewest(listener: () => void): () => void {
 
 /**
  * Render a compact loading row while the call runs or its film loads, then the live film with its playback and
- * export chrome, or the call's failure. A later call for the same folder replaces this card from its first frame.
+ * export chrome, or the call's failure. Once a later call for the same folder has its film ready, this card folds
+ * into an "Earlier version" line that opens this call's stored film.
  * @param props - atomic call, workspace root, and Imagine translator.
  * @returns the film card retained at this call's transcript position.
  */
@@ -182,19 +198,31 @@ export function MotionToolView({ block, cwd, sessionId, t }: ToolCallViewProps &
   const named = (argsRaw === undefined ? undefined : compositionArg(argsRaw, cwd)) ?? folder
   // A failed call shows its failure and leaves the previous film live.
   const key = named === undefined || failed ? undefined : `${String(sessionId)}\u0000${named}`
-  const seq = settled ? block.seq : Number.POSITIVE_INFINITY
-  useEffect(() => (key === undefined ? undefined : claim(key, block.callId, seq)), [key, block.callId, seq])
+  // Whether this card watched its own call run, rather than mounting on a settled one from history.
+  const [mountedRunning] = useState(!settled)
+  // The film frame takes its size only once the player has a composition to show.
+  const [ready, setReady] = useState(false)
+  const [wasReady, setWasReady] = useState(false)
+  useEffect(() => { if (ready) setWasReady(true) }, [ready])
+  const claiming = key !== undefined && settled && (!mountedRunning || wasReady)
+  const resultSeq = settled ? block.seq : 0
+  useEffect(
+    () => (claiming ? claim(key, block.callId, resultSeq) : undefined),
+    [claiming, key, block.callId, resultSeq],
+  )
   const newest = useSyncExternalStore(subscribeNewest, () => (key === undefined ? undefined : newestClaim(key)))
-  const superseded = key !== undefined && newest !== undefined && newest !== block.callId
-  // A superseded card neither fetches nor plays; the newest card below it shows the folder's current film.
-  const dir = superseded ? undefined : folder
+  const superseded = claiming && newest !== undefined && newest !== block.callId
+  // Another card already shows a film from this folder while this one renders or loads.
+  const replacing = !claiming && newest !== undefined
+  const [earlierOpen, setEarlierOpen] = useState(false)
+  // A live card plays the folder's current files; an opened earlier version plays the film its call stored.
+  const source = superseded ? (earlierOpen ? 'stored' : undefined) : folder === undefined ? undefined : 'folder'
+  const dir = source === 'folder' ? folder : undefined
 
   const stage = useRef<HTMLDivElement>(null)
   const [html, setHtml] = useState<string | undefined>(undefined)
   const [media, setMedia] = useState<PlayerElement | null>(null)
   const [ratio, setRatio] = useState(DEFAULT_RATIO)
-  // The film frame takes its size only once the player has a composition to show.
-  const [ready, setReady] = useState(false)
   const [loadError, setLoadError] = useState<string | undefined>(undefined)
   // The stored film's URL once it plays instead of the folder; the MP4 export then goes through the call.
   const [storedUrl, setStoredUrl] = useState<string | undefined>(undefined)
@@ -206,10 +234,13 @@ export function MotionToolView({ block, cwd, sessionId, t }: ToolCallViewProps &
   const filmId = film?.id
   const callId = block.callId
   useEffect(() => {
-    if (dir === undefined) return
+    if (source === undefined) return
+    setHtml(undefined)
+    setStoredUrl(undefined)
+    setLoadError(undefined)
     const controller = new AbortController()
     const url = new URL('api/motion/preview', document.baseURI)
-    url.searchParams.set('dir', dir)
+    if (dir !== undefined) url.searchParams.set('dir', dir)
     const elsewhere = async (preview: string): Promise<string> => {
       const sources: URL[] = []
       if (filmId !== undefined) {
@@ -233,15 +264,18 @@ export function MotionToolView({ block, cwd, sessionId, t }: ToolCallViewProps &
       }
       throw new Error(message)
     }
-    hostFetch(url, { signal: controller.signal })
-      // 204: this Host serves no folders, so the film comes from elsewhere without a failure to report.
-      .then(async response => response.status === 200 ? await response.text() : await elsewhere(await failureText(response)))
+    const loaded = source === 'stored' || dir === undefined
+      ? elsewhere('')
+      : hostFetch(url, { signal: controller.signal })
+        // 204: this Host serves no folders, so the film comes from elsewhere without a failure to report.
+        .then(async response => response.status === 200 ? await response.text() : await elsewhere(await failureText(response)))
+    loaded
       .then((text) => { setHtml(text) })
       .catch((error: unknown) => {
         if (!controller.signal.aborted) setLoadError(error instanceof Error ? error.message : String(error))
       })
     return () => { controller.abort() }
-  }, [dir, filmId, sessionId, callId])
+  }, [source, dir, filmId, sessionId, callId])
 
   // The player is created here rather than in JSX, which has no type for the custom element. Its frame drops
   // `allow-same-origin`, so the composition's scripts run in an opaque origin, apart from the app.
@@ -327,15 +361,30 @@ export function MotionToolView({ block, cwd, sessionId, t }: ToolCallViewProps &
   const showError = failed || loadError !== undefined
   // Until the player is ready the card is one compact row: a running call, or a film still on its way from the
   // folder, the stored copy, or the replay, never reserves a player-sized frame.
-  const loading = !showError && (!settled || (dir !== undefined && !ready))
-  // The newest card for the same folder below shows the current film, so an earlier one leaves no trace.
-  if (superseded) return null
+  const loading = !showError && (!settled || (source !== undefined && !ready))
+  const earlier = superseded && 'kind' in block ? earlierLine(block.time, filmLength(block.meta), t) : undefined
+  const earlierToggle = earlier === undefined ? null : (
+    <button
+      type="button"
+      className={css.motionEarlier}
+      aria-expanded={earlierOpen}
+      onClick={() => { setEarlierOpen(open => !open) }}
+    >
+      {earlierOpen ? <IconLucideChevronDown /> : <IconLucideChevronRight />}
+      <span>{earlier}</span>
+    </button>
+  )
+  // The newest card for the same folder below shows the current film; an earlier one keeps one line to reopen it.
+  if (superseded && !earlierOpen) {
+    return <figure className={css.root} data-motion-call={block.callId} data-state="earlier">{earlierToggle}</figure>
+  }
   return (
     <figure className={css.root} data-motion-call={block.callId} data-state={showError ? 'error' : loading ? 'running' : 'settled'}>
+      {earlierToggle}
       {loading && (
         <span className={css.motionPending} role="status">
           <Spinner />
-          <span>{t('motion.pending')}</span>
+          <span>{replacing ? t('motion.updating') : t('motion.pending')}</span>
         </span>
       )}
       <div className={css.frames} data-frames={1} data-pending={loading ? '' : undefined}>
@@ -352,7 +401,7 @@ export function MotionToolView({ block, cwd, sessionId, t }: ToolCallViewProps &
               message={loadError ?? (callError?.type === 'text' ? callError.text : '')}
               t={t}
             />
-          ) : dir !== undefined ? (
+          ) : source !== undefined ? (
             <MediaPlayer
               media={media}
               onDownload={() => { void (storedUrl === undefined ? exportFilm() : exportCall()) }}
@@ -369,4 +418,17 @@ export function MotionToolView({ block, cwd, sessionId, t }: ToolCallViewProps &
       </div>
     </figure>
   )
+}
+
+/**
+ * The line an earlier version folds into: when its call settled and, when known, how long its film runs.
+ * @param time - Unix epoch ms the call settled at.
+ * @param length - film length in seconds.
+ * @param t - Imagine translator.
+ * @returns the line's text.
+ */
+function earlierLine(time: number, length: number | undefined, t: PropsLocale<'imagine'>['t']): string {
+  const clock = new Date(time).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+  if (length === undefined) return t('motion.earlier', { time: clock })
+  return t('motion.earlierLength', { time: clock, length: String(Math.round(length)) })
 }

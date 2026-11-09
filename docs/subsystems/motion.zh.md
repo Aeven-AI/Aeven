@@ -28,7 +28,7 @@ register(renderer: MotionRenderer): () => Promise<void>
 
 /**
  * Apply the configured defaults and capture the registered renderer.
- * @param request - composition, output, and optional fps, quality, and still count.
+ * @param request - composition, output, and optional fps, quality, and still times.
  * @returns renderer-pinned input for {@link render}.
  * @throws When no renderer is registered.
  */

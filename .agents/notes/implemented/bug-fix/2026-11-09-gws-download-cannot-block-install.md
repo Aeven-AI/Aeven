@@ -14,6 +14,10 @@ On 2026-11-09, Desktop 0.3.39-alpha could not start after an update on macOS x64
 
 **The postinstall is optional; the connector installs on demand.** The postinstall passes `--optional`, so a failed install prints a warning and exits 0. `googleConnection` runs the script without `--optional` when the `GWS_BIN` path is missing. Concurrent connections in one Host process share one install, and a failed install fails only that connection and is retried on the next one.
 
+## Alternatives considered
+
+**Keeping the postinstall strict** was the behavior that failed: one unreachable asset failed `pnpm install` and stopped Desktop startup, although only the Google connectors run `gws`. **Retrying the browser download route alone** did not help, because that route kept answering 504 for some assets that the REST asset route served.
+
 ## Verification
 
 On macOS arm64: a fresh run installed `gws 0.22.5`. With the network blocked through an unreachable `HTTPS_PROXY`, `--optional` exited 0 with the warning and the strict run exited 1. Two concurrent `googleConnection` calls with the binary removed reinstalled one binary byte-identical to the original. The x64 macOS asset that the browser route answered 504 for downloaded through the REST route and passed its checksum.

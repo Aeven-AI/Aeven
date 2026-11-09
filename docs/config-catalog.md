@@ -5449,8 +5449,15 @@ Requires: `tools` · `attachments` · `fs`
 ```ts config-catalog
 /** Tool limits. */
 export interface Config {
-  /** Most stills one call may request. */
+  /** Most stills one `render_motion` call may request. */
   maxStills: number
+  /** Most stills one `review_motion` call may request. */
+  maxReviewStills: number
+  /**
+   * Share of the length last shown from a folder below which `show_motion` refuses a film unless the call passes
+   * `force`: a film cut that far is usually mid-edit, such as an index trimmed for a check.
+   */
+  shrinkRatio: number
 }
 ```
 

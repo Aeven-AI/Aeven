@@ -147,7 +147,8 @@ async function render(ctx: Context, input: MotionRenderInput, signal: AbortSigna
     `mkdir -p ${quote(dirname(output.displayPath))} &&`,
     config.command, '-', quote(output.displayPath),
     '--fps', String(input.fps), '--crf', String(config.crf[input.quality]),
-    '--stills', String(input.stills), '--still-width', String(config.stillWidth), '--json',
+    ...input.stillTimes.length === 0 ? [] : ['--still-times', input.stillTimes.map(String).join(',')],
+    '--still-width', String(config.stillWidth), '--json',
   ].join(' ')
   const result = await ctx.shell.run(ctx.shell.resolve({
     command,

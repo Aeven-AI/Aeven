@@ -2,7 +2,7 @@
  * render-motion: turn an animated HTML page into an MP4, inside the sandbox.
  *
  *   render-motion <page.html | -> <out.mp4> [--seconds N] [--fps N] [--width N] [--height N] [--audio FILE]
- *                 [--crf N] [--stills N] [--still-width N] [--json]
+ *                 [--crf N] [--still-times S,S,...] [--still-width N] [--json]
  *
  * The page is driven frame by frame. A page carrying a HyperFrames composition
  * bundled with its runtime, as the Motion card plays it, is sought through the
@@ -15,7 +15,8 @@
  * installed families. Frames stream straight into ffmpeg's libx264 at `--crf`
  * (default 23).
  *
- * `--stills N` also takes N evenly spaced frames, scaled to `--still-width`
+ * `--still-times S,S,...` also takes a frame at each of those film times (up to
+ * 16; a time past the end takes the last frame), scaled to `--still-width`
  * pixels wide (default 960). `--json` replaces the summary line with one JSON
  * line: `{ seconds, width, height, fps, frames, encoder, stills: [{ seconds, png }] }`,
  * each still's PNG in base64.
@@ -35,15 +36,17 @@ process.env.PLAYWRIGHT_BROWSERS_PATH ??= `${IMAGE}/ms-playwright`
 const { chromium } = require(`${IMAGE}/node/node_modules/playwright-core`)
 const GSAP_DIR = `${IMAGE}/node/node_modules/gsap/dist`
 
-const LIMITS = { seconds: 120, fps: 60, width: 1920, height: 1920, crf: 51, stills: 16, 'still-width': 1920 }
+const LIMITS = { seconds: 120, fps: 60, width: 1920, height: 1920, crf: 51, 'still-width': 1920 }
+/** Most stills one render returns. */
+const MAX_STILLS = 16
 const NUMERIC = Object.keys(LIMITS)
-const usage = 'usage: render-motion <page.html | -> <out.mp4> [--seconds N] [--fps N] [--width N] [--height N] [--audio FILE] [--crf N] [--stills N] [--still-width N] [--json]'
+const usage = 'usage: render-motion <page.html | -> <out.mp4> [--seconds N] [--fps N] [--width N] [--height N] [--audio FILE] [--crf N] [--still-times S,S,...] [--still-width N] [--json]'
 /** How long a HyperFrames composition may take to report ready, in milliseconds. */
 const READY_MS = 30_000
 
 function parse(argv) {
   const positional = []
-  const options = { fps: 30, crf: 23, stills: 0, 'still-width': 960, json: false }
+  const options = { fps: 30, crf: 23, 'still-width': 960, json: false, stillTimes: [] }
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
     if (arg === '-' || !arg.startsWith('--')) { positional.push(arg); continue }
@@ -52,6 +55,7 @@ function parse(argv) {
     const value = argv[++i]
     if (value === undefined) throw new Error(`${arg} needs a value`)
     if (key === 'audio') options.audio = value
+    else if (key === 'still-times') options.stillTimes = value.split(',').map(Number)
     else if (NUMERIC.includes(key)) options[key] = Number(value)
     else throw new Error(`unknown option ${arg}`)
   }
@@ -59,12 +63,14 @@ function parse(argv) {
   for (const key of NUMERIC) {
     const value = options[key]
     if (value === undefined) continue
-    const zeroAllowed = key === 'crf' || key === 'stills'
+    const zeroAllowed = key === 'crf'
     if (!Number.isFinite(value) || (zeroAllowed ? value < 0 : value <= 0) || value > LIMITS[key]) {
       throw new Error(`--${key} must be ${zeroAllowed ? 'from 0' : 'above 0'} up to ${LIMITS[key]}`)
     }
   }
-  if (!Number.isInteger(options.stills)) throw new Error('--stills must be a whole number')
+  if (options.stillTimes.length > MAX_STILLS || options.stillTimes.some(time => !Number.isFinite(time) || time < 0)) {
+    throw new Error(`--still-times takes up to ${MAX_STILLS} times of 0 seconds or more`)
+  }
   return { ...options, page: positional[0] === '-' ? '-' : resolve(positional[0]), out: resolve(positional[1]) }
 }
 
@@ -178,9 +184,11 @@ async function render(browser, job, pagePath) {
   ffmpeg.stdin.end()
   await finished
 
+  // A time at or past the end takes the film's last frame.
+  const last = Math.max(0, frames - 1) / job.fps
   const stills = []
-  for (let i = 0; i < job.stills; i++) {
-    const at = Math.round(((i + 0.5) * seconds / job.stills) * 100) / 100
+  for (const time of job.stillTimes) {
+    const at = Math.round(Math.min(time, last) * 1000) / 1000
     await seekTo(at)
     const png = await page.screenshot({ type: 'png' })
     const scaled = job['still-width'] < job.width ? await scalePng(png, even(job['still-width'])) : png
