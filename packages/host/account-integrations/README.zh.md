@@ -29,7 +29,7 @@ Web bundle 将此插件与[技能和连接器页面](../../client/ui-settings-in
 
 账户启用已安装的 `reverse-engineering` 技能时，该启用动作会在后台于 `$AVN_HOME/runtimes/reverse-engineering` 内准备 REA 与兼容的分析引擎，因此其后的首次对话请求已经拥有这些工具。初始化先询问宿主：`rea doctor` 认证通过的 Ghidra 与 JDK 就地使用，不下载任何内容；没有可用引擎的机器才会把 Ghidra 与 JDK 归档下载一次，存入按内容寻址的缓存供后续尝试复用。Ghidra 的发布归档不含 macOS 反编译器，因此在 macOS 上初始化会用它自带的源码构建一个，这需要 Xcode 命令行工具。任何请求都不会等待初始化，初始化失败也绝不会让请求失败：设置显示进度与失败详情，并提供显式重试；自动重试等待 `retryDelayMs`，随后按 agent 连接 REA 工具。`reverseEngineering` 配置选择版本、安装预算与重试延迟。引擎发现与下载需要网络。Ghidra 之外的专用引擎仍需另行准备。
 
-自定义连接接受 Streamable HTTP MCP 地址和可选 bearer token；GitHub 还接受用于其官方远程地址的个人访问令牌。创建连接会先验证 MCP 发现，再保存。令牌仅可写入，并由凭据提供方按账户派生的键保存。即使对话仍持有旧工具目录，禁用或断开连接也会拒绝后续调用。
+自定义连接接受 Streamable HTTP MCP 地址和可选 bearer token；GitHub 还接受用于其官方远程地址的个人访问令牌。创建连接会先验证 MCP 发现，再保存。令牌仅可写入，并由凭据提供方按账户派生的键保存。即使对话仍持有旧工具目录，禁用或断开连接也会拒绝后续调用。在[进程监狱](../../sandbox/sandbox-jail/README.zh.md)转发 Git 请求的 Host 上，已启用且已登录的 GitHub 连接同时是该账户自己的 `git` 命令访问 `github.com` 的凭据：由监狱的出站代理发送，任何命令都拿不到它。
 
 Gmail、Google 云端硬盘和 Google 日历使用维护中的 Google Workspace MCP 桥接及各服务的 Google OAuth 权限。OAuth 应用、其权限范围和所有授权都保存在 `apiUrl` 指定的 Aeven API 上；宿主不持有任何客户端密钥或刷新令牌。授权在保存前验证 API 访问。Drive 包含文档、表格、幻灯片、表单及评论。为这些技能启用 Drive、Docs、Sheets、Slides 和 Forms API；评论使用 Drive API。Forms 复用现有 Drive 授权权限。表单创建和问题编辑遵循普通文档编辑的权限处理；其他原始 Google 写入仍须显式批准。发现的 MCP 工具决定可用操作；技能指令不会添加工具。
 

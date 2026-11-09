@@ -585,14 +585,40 @@ export interface Config {
    * before it is read, and the accepted body becomes the run's untrusted payload.
    */
   readonly webhookMaxBodyBytes: number
+  /**
+   * What this Host is and which device capabilities its runs can use. A `cloud` Host runs the definitions that
+   * need nothing from a computer; a `device` Host runs the ones whose requirements it provides.
+   */
+  readonly placement: {
+    /** `cloud` for a Host on Aeven's infrastructure, `device` for one on the owner's computer. */
+    readonly kind: HostProfile['kind']
+    /** The device capabilities runs on this Host can use: any of `files`, `browser`, and `computer-use`. */
+    readonly provides: DeviceCapability[]
+  }
   /** How this device claims one automation for its scheduled runs while account sync serves its owner. */
   readonly sync: {
     /** Lifetime requested on each renewal of an automation's claim, in milliseconds. */
     readonly leaseTtlMs: number
     /** Interval between renewals of that claim, in milliseconds. */
     readonly leaseRenewMs: number
+    /**
+     * How long after a scheduled instant a `device` Host waits before it admits a run that the account's
+     * cloud Host should have admitted, in milliseconds.
+     */
+    readonly fallbackDelayMs: number
   }
 }
+
+/** What one Host of an account is and offers, as the account's other Hosts read it. */
+export interface HostProfile {
+  /** `cloud` for a Host on Aeven's infrastructure, `device` for one on the owner's computer. */
+  readonly kind: 'cloud' | 'device'
+  /** The device capabilities runs on this Host can use. */
+  readonly provides: readonly DeviceCapability[]
+}
+
+/** Something a task needs from one of its owner's own computers; everything else is available on every Host. */
+export type DeviceCapability = 'files' | 'browser' | 'computer-use'
 ```
 
 Source: [`packages/core/automations/src/index.ts`](../packages/core/automations/src/index.ts)
@@ -3570,6 +3596,11 @@ export interface Config {
    */
   pythonZygote?: PythonZygoteConfig
   /**
+   * Network access for confined commands through one proxy that allows listed hosts only and bounds every account's
+   * connections and bytes. Needs `cgroup`; omitted, confined commands have no network.
+   */
+  egress?: EgressConfig
+  /**
    * Run confined commands, and the Python zygote, as a separate sandbox user, so a command that escapes its jail
    * holds no access to the Host's data. The account folders need ACLs granting both users access and a second mount
    * the sandbox user can traverse, and attachments are copied into each jail; omitted, commands run as the Host's user.
@@ -3610,6 +3641,22 @@ export interface PythonZygoteConfig {
   limits: CgroupLimits
 }
 
+/** The egress proxy's deployment: what jailed commands may reach on the network, and how much. */
+export interface EgressConfig extends EgressLimits {
+  /** Host path of the Node.js that runs the proxy, readable by the user confined commands run as, e.g. `/usr/bin/node`. */
+  node: string
+  /** Host path of the proxy `host/install-egress.sh` installs, e.g. `<image>/shim/egress-proxy.mjs`; a missing file fails startup. */
+  script: string
+  /** Host path of the static relay the same script builds, e.g. `<image>/shim/aeven-egress-relay`; a missing file fails startup. */
+  relay: string
+  /** Host directory of the proxy's socket, mounted read-only into every jail; with `commandUser` it must exist, owned by that user. */
+  socketDir: string
+  /** Loopback port the relay listens on inside each jail, which the proxy variables of confined commands name. */
+  port: number
+  /** Limits of the proxy's own cgroup. */
+  limits: CgroupLimits
+}
+
 /** The user confined commands run as, apart from the Host's own. */
 export interface CommandUserConfig {
   /**
@@ -3631,6 +3678,11 @@ export interface CommandUserConfig {
 export interface CgroupLimits {
   /** `memory.max`, e.g. `2G` or `max`. */
   memoryMax: string
+  /**
+   * `memory.high`, e.g. `1536M`: above it the kernel reclaims the group's memory and slows its allocations, so a
+   * command nearing `memoryMax` loses speed before the kernel kills it; omitted, nothing slows it first.
+   */
+  memoryHigh?: string
   /** `pids.max`, e.g. `256`. */
   pidsMax: string
   /** `cpu.max` as `<quota> <period>` in microseconds, e.g. `200000 100000` for two cores. */
@@ -3642,6 +3694,34 @@ export interface CgroupLimits {
    * omitted, the group's disk I/O is unlimited.
    */
   ioMax?: string
+}
+
+/** What the proxy enforces, written to it as configuration. */
+export interface EgressLimits {
+  /** Host names a command may reach, or `*.suffix` for every name beneath one. */
+  allow: string[]
+  /** Destination ports a connection may open, e.g. `[443]`. */
+  ports: number[]
+  /**
+   * Hosts whose Git requests the proxy forwards with the calling account's credential, e.g. `github.com`: `git`
+   * inside a jail is pointed at the proxy for `https://<host>/` URLs, and a push that touches anything but a
+   * branch, or deletes one, waits for the user's approval.
+   */
+  gitHosts: string[]
+  /** Open connections per account. */
+  accountConnections: number
+  /** Open connections for all accounts together. */
+  connections: number
+  /** Bytes per second per account, both directions together. */
+  accountBytesPerSecond: number
+  /** Bytes per second for all accounts together. */
+  bytesPerSecond: number
+  /** Bytes per UTC day per account; the count starts over when the proxy restarts. */
+  accountBytesPerDay: number
+  /** Milliseconds allowed to resolve and reach a destination. */
+  connectTimeoutMs: number
+  /** Milliseconds a connection may carry nothing before the proxy closes it. */
+  idleTimeoutMs: number
 }
 ```
 

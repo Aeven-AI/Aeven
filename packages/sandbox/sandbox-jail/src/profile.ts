@@ -1,7 +1,8 @@
 /**
  * The jail's bwrap and Landlock argument builders: a fresh root holding only
  * the configured read-only system paths, one account's workspace, a private
- * `/tmp` and `/dev/shm`, and no network, with the Landlock launcher re-confining the same view.
+ * `/tmp` and `/dev/shm`, and no network beyond the egress proxy's socket, with the Landlock launcher re-confining
+ * the same view.
  *
  * @module @aeven/sandbox-jail/profile
  */
@@ -9,6 +10,7 @@
 import { join, relative } from 'node:path'
 import { grantArgs } from '@deepseek-ai/node-addon-landlock-run'
 import type { SandboxPolicy } from '@aeven/sandbox'
+import { JAIL_EGRESS_DIR, JAIL_EGRESS_RELAY, relayEnv } from './egress.ts'
 import { JAIL_ZYGOTE_DIR } from './zygote.ts'
 
 /** Where the Landlock launcher is mounted inside every jail. */
@@ -34,6 +36,13 @@ export interface JailProfile {
   seccomp: boolean
   /** Host directory of the Python zygote's socket, mounted read-only at {@link JAIL_ZYGOTE_DIR}; absent without a zygote. */
   zygoteDir?: string | undefined
+  /**
+   * Set when an egress proxy runs: its socket directory is mounted read-only at {@link JAIL_EGRESS_DIR}, the relay
+   * program at {@link JAIL_EGRESS_RELAY}, and the proxy variables and the Git URL rewrites of `gitHosts` name the
+   * relay's loopback `port`. The caller
+   * places the relay's argv before the command.
+   */
+  egress?: { readonly socketDir: string; readonly relay: string; readonly port: number; readonly gitHosts: readonly string[] } | undefined
   /**
    * Set when bubblewrap runs as a sandbox user, who cannot enter the Host's data directory: roots are mounted from
    * the second mount of the accounts root at `accountsPath`, and read-only files are copied in from descriptors the
@@ -70,7 +79,9 @@ export function jailArgs(profile: JailProfile, policy: SandboxPolicy, readOnlyFi
     '--clearenv',
     ...profile.seccomp ? ['--seccomp', '3'] : [],
   ]
-  for (const [name, value] of Object.entries({ ...profile.env, HOME: policy.workspaceRoot })) args.push('--setenv', name, value)
+  const egressEnv = profile.egress === undefined ? {} : relayEnv(profile.egress.port, profile.egress.gitHosts)
+  const env = { ...profile.env, ...egressEnv, HOME: policy.workspaceRoot }
+  for (const [name, value] of Object.entries(env)) args.push('--setenv', name, value)
   for (const path of profile.readOnlyPaths) args.push('--ro-bind', path, path)
   for (const [link, target] of Object.entries(profile.symlinks)) args.push('--symlink', target, link)
   const size = String(profile.tmpSizeBytes)
@@ -91,6 +102,7 @@ export function jailArgs(profile: JailProfile, policy: SandboxPolicy, readOnlyFi
     args.push('--ro-bind-data', String(fd), file)
   }
   if (profile.zygoteDir !== undefined) args.push('--ro-bind', profile.zygoteDir, JAIL_ZYGOTE_DIR)
+  if (profile.egress !== undefined) args.push('--ro-bind', profile.egress.socketDir, JAIL_EGRESS_DIR, '--ro-bind', profile.egress.relay, JAIL_EGRESS_RELAY)
   args.push('--ro-bind', profile.launcher, JAIL_LAUNCHER, '--', JAIL_LAUNCHER)
   // The jail root holds only what bwrap mounted, so read access beneath it is
   // the same view; Landlock still denies anything outside it.

@@ -24,6 +24,7 @@ import type {} from '@aeven/agent-presets'
 import type {} from '@aeven/skill-catalog'
 import { isSkillName, type SkillCandidate } from '@aeven/skill'
 import type { MailAccount, MailAccountId, MailError, MailSecret } from '@aeven/mail'
+import type {} from '@aeven/sandbox-jail'
 import * as mcp from '@aeven/mcp-client'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
@@ -676,6 +677,10 @@ export default class AccountIntegrations extends TypertRemoteService {
       (connectorSkillNames.has(name) || options.owner === undefined || this.domain.table('skill_preferences').get(`${accountDirectory(options.owner)}:${name}`)?.enabled !== false)
         && this.skillConnectorAvailable(name, options.owner)),
     'account-integrations: skill invocation preferences')
+    // A jailed command's Git requests to GitHub carry the account's own connector token, sent by the jail's egress proxy.
+    this.ctx.inject(['sandboxGitCredentials'], (ctx) => {
+      ctx.effect(() => ctx.sandboxGitCredentials.register((account, host) => this.gitHubToken(account, host)), 'account-integrations: git credentials')
+    })
     this.ctx.inject(['mail'], (ctx) => {
       ctx.effect(() => ctx.mail.registerSource({
         id: 'account-integrations',
@@ -2384,6 +2389,22 @@ export default class AccountIntegrations extends TypertRemoteService {
     if (provider === undefined) return true
     return owner !== undefined && [...this.domain.table('connectors').entries()].some(([id, connector]) =>
       connector.owner === owner && connector.provider === provider && connector.enabled && this.connected.has(id))
+  }
+
+  /**
+   * The token of an account's enabled, signed-in GitHub connector.
+   * @param owner - the account whose command makes the Git request.
+   * @param host - the Git host of that request.
+   * @returns the token, or undefined for another host or an account without a usable GitHub connector.
+   */
+  private async gitHubToken(owner: string, host: string): Promise<string | undefined> {
+    if (host !== 'github.com') return undefined
+    for (const [, connector] of this.domain.table('connectors').entries()) {
+      if (connector.owner !== owner || connector.provider !== 'github' || !connector.enabled || !await this.isConnected(connector)) continue
+      const token = await this.accessToken(owner, connector)
+      if (token !== '') return token
+    }
+    return undefined
   }
 
   private async isConnected(connector: z.infer<typeof connectorSchema>): Promise<boolean> {

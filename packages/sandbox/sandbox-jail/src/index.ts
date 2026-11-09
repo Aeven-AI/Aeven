@@ -3,7 +3,8 @@
  * accounts. Each confined command runs under bubblewrap in fresh user, mount,
  * PID, IPC, UTS, cgroup, and network namespaces that see only the configured
  * read-only system paths, the calling account's workspace, and a private
- * `/tmp` and `/dev/shm`; the Landlock launcher re-confines that view, and the command joins
+ * `/tmp` and `/dev/shm`, and reach the network only through the egress proxy
+ * when one is configured; the Landlock launcher re-confines that view, and the command joins
  * its account's cgroup. A workspace root outside the accounts root, or one
  * spanning two accounts, fails closed with `SANDBOX_UNAVAILABLE`.
  * @module @aeven/sandbox-jail
@@ -20,8 +21,12 @@ import type { ConfinedArgv, RunnerFailureRule, SandboxPolicy } from '@aeven/sand
 import type {} from '@aeven/system-prompt'
 import { referencedAttachmentPaths } from '@aeven/attachment'
 import type { Session, SessionId } from '@aeven/session'
-import { SessionLogOffset } from '@aeven/session'
+import { SessionId as toSessionId, SessionLogOffset } from '@aeven/session'
 import { AccountCgroups, type CgroupLimits } from './cgroup.ts'
+import type {} from '@aeven/agent'
+import type {} from '@aeven/user-approval'
+import { EgressProxy, relayArgs, type EgressAnswer, type EgressLimits, type EgressQuestion } from './egress.ts'
+import { GitCredentials } from './git-credentials.ts'
 import { jailArgs, type JailProfile } from './profile.ts'
 import { PythonZygote } from './zygote.ts'
 
@@ -66,6 +71,32 @@ export interface PythonZygoteConfig {
   /** Host directory for the zygote's socket, created with mode 0700 and mounted read-only into every jail. */
   socketDir: string
   /** Limits of the zygote's own cgroup; each run is charged to its caller's account group. */
+  limits: CgroupLimits
+}
+
+export type { GitCredentialSource } from './git-credentials.ts'
+export { GitCredentials } from './git-credentials.ts'
+
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    /** Sources of the Git credentials the jail's egress proxy sends for an account; present while `egress` is configured. */
+    sandboxGitCredentials: GitCredentials
+  }
+}
+
+/** The egress proxy's deployment: what jailed commands may reach on the network, and how much. */
+export interface EgressConfig extends EgressLimits {
+  /** Host path of the Node.js that runs the proxy, readable by the user confined commands run as, e.g. `/usr/bin/node`. */
+  node: string
+  /** Host path of the proxy `host/install-egress.sh` installs, e.g. `<image>/shim/egress-proxy.mjs`; a missing file fails startup. */
+  script: string
+  /** Host path of the static relay the same script builds, e.g. `<image>/shim/aeven-egress-relay`; a missing file fails startup. */
+  relay: string
+  /** Host directory of the proxy's socket, mounted read-only into every jail; with `commandUser` it must exist, owned by that user. */
+  socketDir: string
+  /** Loopback port the relay listens on inside each jail, which the proxy variables of confined commands name. */
+  port: number
+  /** Limits of the proxy's own cgroup. */
   limits: CgroupLimits
 }
 
@@ -126,6 +157,11 @@ export interface Config {
    */
   pythonZygote?: PythonZygoteConfig
   /**
+   * Network access for confined commands through one proxy that allows listed hosts only and bounds every account's
+   * connections and bytes. Needs `cgroup`; omitted, confined commands have no network.
+   */
+  egress?: EgressConfig
+  /**
    * Run confined commands, and the Python zygote, as a separate sandbox user, so a command that escapes its jail
    * holds no access to the Host's data. The account folders need ACLs granting both users access and a second mount
    * the sandbox user can traverse, and attachments are copied into each jail; omitted, commands run as the Host's user.
@@ -141,11 +177,18 @@ export interface Config {
 
 const limits: z<CgroupLimits> = z.object({
   memoryMax: z.string().required(),
+  memoryHigh: z.string(),
   pidsMax: z.string().required(),
   cpuMax: z.string().required(),
   cpuWeight: z.string().required(),
   ioMax: z.string(),
 })
+
+/** The session part of a jail's identity when a call names no conversation. */
+const NO_SESSION = '-'
+
+/** The tool an approval for a gated push is recorded under: the tool whose command pushes. */
+const PUSH_APPROVAL_TOOL = 'bash'
 
 /** An account directory name usable as one path segment. */
 const ACCOUNT_SEGMENT = /^[A-Za-z0-9_-]{1,128}$/u
@@ -207,6 +250,24 @@ export class JailSandboxProvider extends SandboxProvider {
       socketDir: z.string().required(),
       limits: limits.required(),
     }),
+    egress: z.object({
+      node: z.string().required(),
+      script: z.string().required(),
+      relay: z.string().required(),
+      socketDir: z.string().required(),
+      port: z.natural().min(1).max(65535).required(),
+      limits: limits.required(),
+      allow: z.array(z.string()).required(),
+      ports: z.array(z.natural().min(1).max(65535)).required(),
+      gitHosts: z.array(z.string()).required(),
+      accountConnections: z.natural().min(1).required(),
+      connections: z.natural().min(1).required(),
+      accountBytesPerSecond: z.natural().min(1).required(),
+      bytesPerSecond: z.natural().min(1).required(),
+      accountBytesPerDay: z.natural().min(1).required(),
+      connectTimeoutMs: z.natural().min(1).required(),
+      idleTimeoutMs: z.natural().min(1).required(),
+    }),
     sessionAttachments: z.boolean().default(false),
     quotaCommand: z.array(z.string()),
     quotaRecord: z.string(),
@@ -227,6 +288,9 @@ export class JailSandboxProvider extends SandboxProvider {
   private readonly commandExec: string | undefined
   /** Folders whose ACL mask this provider already opened for the sandbox user. */
   private readonly sharedFolders = new Set<string>()
+  /** The egress proxy and the relay port of its jails, when commands have network. */
+  private egress: { readonly proxy: EgressProxy; readonly port: number } | undefined
+  private readonly gitCredentials = new GitCredentials()
   /** Attachment files each live session references, and the log position read so far. */
   private readonly attachmentFiles = new WeakMap<Session, { seq: number; files: Set<string> }>()
 
@@ -304,7 +368,7 @@ export class JailSandboxProvider extends SandboxProvider {
           script: zygote.script,
           preload: zygote.preload,
           socketDir: zygote.socketDir,
-          group: cgroups.zygoteGroup(zygote.limits),
+          group: cgroups.helperGroup('zygote', zygote.limits),
           accountsCgroup: cgroups.jail,
           seccompFilter,
           env: this.profile.env,
@@ -312,6 +376,52 @@ export class JailSandboxProvider extends SandboxProvider {
         })
         return () => { process.dispose() }
       }, 'sandbox-jail python zygote')
+    }
+    const egress = config.egress
+    if (egress !== undefined) {
+      if (this.cgroups === undefined) throw new Error('sandbox-jail: egress needs cgroup, which bounds the proxy')
+      for (const path of [egress.node, egress.script, egress.relay]) {
+        if (!existsSync(path)) throw new Error(`sandbox-jail: egress file "${path}" does not exist; run host/install-egress.sh`)
+      }
+      if (!isAbsolute(egress.socketDir)) throw new Error(`sandbox-jail: egress.socketDir "${egress.socketDir}" must be absolute`)
+      if (this.commandExec === undefined) {
+        mkdirSync(egress.socketDir, { recursive: true, mode: 0o700 })
+        chmodSync(egress.socketDir, 0o700)
+      } else if (!existsSync(egress.socketDir)) {
+        throw new Error(`sandbox-jail: egress.socketDir "${egress.socketDir}" must exist, owned by the sandbox user`)
+      }
+      const socketDir = canonicalPath(egress.socketDir)
+      this.profile.egress = { socketDir, relay: canonicalPath(egress.relay), port: egress.port, gitHosts: egress.gitHosts }
+      const cgroups = this.cgroups
+      ctx.effect(() => ctx.provide('sandboxGitCredentials', this.gitCredentials), 'sandbox-jail git credentials')
+      ctx.effect(() => {
+        const proxy = new EgressProxy({
+          exec: this.commandExec,
+          node: egress.node,
+          script: egress.script,
+          socketDir,
+          group: cgroups.helperGroup('egress', egress.limits),
+          limits: {
+            allow: egress.allow,
+            ports: egress.ports,
+            gitHosts: egress.gitHosts,
+            accountConnections: egress.accountConnections,
+            connections: egress.connections,
+            accountBytesPerSecond: egress.accountBytesPerSecond,
+            bytesPerSecond: egress.bytesPerSecond,
+            accountBytesPerDay: egress.accountBytesPerDay,
+            connectTimeoutMs: egress.connectTimeoutMs,
+            idleTimeoutMs: egress.idleTimeoutMs,
+          },
+          answer: (question, signal) => this.answerEgress(question, signal),
+          log: (level, message) => { ctx.logger('sandbox-jail')[level](message) },
+        })
+        this.egress = { proxy, port: egress.port }
+        return () => {
+          this.egress = undefined
+          proxy.dispose()
+        }
+      }, 'sandbox-jail egress proxy')
     }
     const note = config.modelNote
     if (note !== undefined && note.trim() !== '') {
@@ -341,7 +451,9 @@ export class JailSandboxProvider extends SandboxProvider {
       .filter(root => this.accountOf(root) === account)
     if (this.commandExec !== undefined) this.shareFolders(account, [workspaceRoot, ...additionalWritableRoots])
     const jail = jailArgs(this.profile, { ...policy, workspaceRoot, additionalWritableRoots }, this.attachmentsOf(policy.sessionId))
-    const jailed = [...this.commandExec === undefined ? [] : [this.commandExec], ...jail.args, '--', ...argv]
+    const egress = this.egress
+    const relay = egress === undefined ? [] : relayArgs(egress.port, egress.proxy.identity(account, policy.sessionId ?? NO_SESSION))
+    const jailed = [...this.commandExec === undefined ? [] : [this.commandExec], ...jail.args, '--', ...relay, ...argv]
     const group = this.cgroups?.groupOf(account)
     const quota = this.needsLimit(account) ? this.quotaCommand : undefined
     const fail = (what: string): string => `{ echo "${CGROUP_STEP}: ${what}" >&2; exit ${CGROUP_STEP_FAILURE_EXIT}; }`
@@ -361,6 +473,33 @@ export class JailSandboxProvider extends SandboxProvider {
       denialSignatures: DENIAL_SIGNATURES,
       runnerFailureRules: RUNNER_FAILURE_RULES,
     }
+  }
+
+  /**
+   * Answer one question of the egress proxy.
+   * @param question - a credential or approval question about one account's Git request.
+   * @param signal - aborts when the request that asked ended first.
+   * @returns the credential any registered source holds, or whether the user approved the push.
+   */
+  private async answerEgress(question: EgressQuestion, signal: AbortSignal): Promise<EgressAnswer> {
+    if (question.type === 'git-token') {
+      const token = await this.gitCredentials.resolve(question.account, question.host, (error) => {
+        this.ctx.logger('sandbox-jail').warn(`a Git credential source failed for ${question.host}: ${error instanceof Error ? error.message : String(error)}`)
+      })
+      return { token }
+    }
+    // The approval is asked in the conversation whose command pushes, and only when that conversation is the account's own.
+    const agent = question.session === NO_SESSION ? undefined : this.ctx.get('agents')?.get(toSessionId(question.session))
+    const approval = this.ctx.get('approval')
+    if (agent === undefined || approval === undefined || agent.session.header.owner !== question.account) return { approved: false }
+    const changes = question.updates.map(update => `${update.kind} ${update.ref}`).join(', ')
+    const outcome = await approval.request({
+      agent,
+      toolName: PUSH_APPROVAL_TOOL,
+      signal,
+      reason: `Push to ${question.host}/${question.repository}: ${changes}`,
+    })
+    return { approved: outcome === 'allowed-once' }
   }
 
   /**

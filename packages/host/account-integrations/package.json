@@ -87,6 +87,7 @@
     "@aeven/identity-user": "workspace:^",
     "@aeven/mail": "workspace:^",
     "@aeven/mcp-client": "workspace:^",
+    "@aeven/sandbox-jail": "workspace:^",
     "@aeven/skill": "workspace:^",
     "@aeven/skill-catalog": "workspace:^",
     "@aeven/storage-domain": "workspace:^",
@@ -105,6 +106,7 @@
     "@aeven/identity-user": "workspace:^",
     "@aeven/mail": "workspace:^",
     "@aeven/mcp-client": "workspace:^",
+    "@aeven/sandbox-jail": "workspace:^",
     "@aeven/skill": "workspace:^",
     "@aeven/skill-catalog": "workspace:^",
     "@aeven/storage-domain": "workspace:^",
@@ -120,6 +122,9 @@
       "optional": true
     },
     "@aeven/mail": {
+      "optional": true
+    },
+    "@aeven/sandbox-jail": {
       "optional": true
     }
   }

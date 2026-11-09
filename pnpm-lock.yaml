@@ -8279,6 +8279,9 @@ importers:
       '@aeven/mcp-client':
         specifier: workspace:^
         version: link:../../mcp/mcp-client
+      '@aeven/sandbox-jail':
+        specifier: workspace:^
+        version: link:../../sandbox/sandbox-jail
       '@aeven/skill':
         specifier: workspace:^
         version: link:../../skill/skill
@@ -10150,6 +10153,9 @@ importers:
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
     devDependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../../core/agent
       '@aeven/attachment':
         specifier: workspace:^
         version: link:../../attachment/attachment
@@ -10162,6 +10168,9 @@ importers:
       '@aeven/system-prompt':
         specifier: workspace:^
         version: link:../../core/system-prompt
+      '@aeven/user-approval':
+        specifier: workspace:^
+        version: link:../../interaction/user-approval
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis

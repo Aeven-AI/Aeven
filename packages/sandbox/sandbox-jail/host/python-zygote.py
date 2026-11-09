@@ -265,6 +265,8 @@ def execute(planned, env):
     else:
         sys.path.insert(0, '')
     if site.ENABLE_USER_SITE:
+        # As aeven_user_site.py does at an interpreter's start, for this run's own home.
+        os.environ.setdefault('PIP_PREFIX', os.path.join(os.path.expanduser('~'), '.local'))
         site.USER_BASE = None
         site.USER_SITE = None
         if os.path.isdir(site.getusersitepackages()):
