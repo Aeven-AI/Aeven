@@ -1337,16 +1337,16 @@ function FileView({
     <div className={css.file}>
       <div className={css.fileBar}>
         {(onBack !== undefined || onForward !== undefined) && (
-          <>
-            <button type="button" className={clsx(css.iconButton, css.lightButton)} aria-label={t('file.back')} title={t('file.back')}
-              disabled={onBack === undefined} onClick={onBack}>
+          <span className={css.history}>
+            <button type="button" className={clsx(css.iconButton, css.lightButton, css.historyButton)} aria-label={t('file.back')}
+              title={t('file.back')} disabled={onBack === undefined} onClick={onBack}>
               <IconLucideArrowLeft />
             </button>
-            <button type="button" className={clsx(css.iconButton, css.lightButton)} aria-label={t('file.forward')} title={t('file.forward')}
-              disabled={onForward === undefined} onClick={onForward}>
+            <button type="button" className={clsx(css.iconButton, css.lightButton, css.historyButton)} aria-label={t('file.forward')}
+              title={t('file.forward')} disabled={onForward === undefined} onClick={onForward}>
               <IconLucideArrowRight />
             </button>
-          </>
+          </span>
         )}
         <nav
           className={clsx(css.crumbs, fadeLeft && css.fadeLeft, fadeRight && css.fadeRight)}
