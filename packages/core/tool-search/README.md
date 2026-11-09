@@ -52,7 +52,7 @@ An MCP server's namespace title is the `title` its [`@aeven/mcp-client`](../../m
 `tool_search` takes one `query` string:
 
 - **Keywords** list up to `maxResults` matching tools with the first sentence of each description, and load nothing. A tool name or namespace title match outranks a description match, a keyword prefixed with `+` must appear in the name or title, and a tool whose only evidence is one description word is not listed.
-- **`select:<name>[,<name>...]`** loads exact tools from the index. Names that are not deferred are reported beside the loaded ones; a name under a server that is not serving reports that server's state and the restart query.
+- **`select:<name>[,<name>...]`** loads exact tools from the index. Names that are not deferred are reported beside the loaded ones; a name under a server that is not serving reports that server's state and the restart query. The first `select:` that loads an MCP server's tools after the agent starts or compacts appends the usage instructions that server sent when it connected, under `How to use <title> (<prefix>*), from that server:`.
 - **`restart:<server>`** connects an MCP server that the index lists as not serving and reports the tools it registered.
 
 ### Loading into the request or into `run_code`
@@ -132,7 +132,7 @@ The `tool_search` schema registered in [`src/index.ts`](src/index.ts). Keyword r
 
 #### Token effect
 
-A keyword result costs one short line per listed tool. A `select:` result costs the selected schemas or declarations once in history; native loading also adds the schemas to every following request.
+A keyword result costs one short line per listed tool. A `select:` result costs the selected schemas or declarations once in history; native loading also adds the schemas to every following request. Server instructions add their length once per server, again after compaction.
 
 #### KV Cache effect
 

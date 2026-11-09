@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-11-09-computer-use-follows-the-driver.md
+2026-11-09-computer-use-follows-the-driver.md: 69d9c78187779e6b44c3456a8bb8c13742349629
+2026-11-09-computer-use-follows-the-driver.zh.md: 01e9a77865b23ce5de07925e6eda7849a7dfb764

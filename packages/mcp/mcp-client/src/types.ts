@@ -16,6 +16,8 @@ export interface McpServerReport extends ConnectionStatus {
   toolPrefix: string
   /** Configured description of what the server's tools act on. */
   title?: string
+  /** Usage instructions the connected server sent in its `initialize` result; absent while down or when it sent none. */
+  instructions?: string
   /** Connect now with a fresh attempt budget; resolves with the resulting status and never rejects. */
   restart(): Promise<ConnectionStatus>
 }

@@ -904,7 +904,9 @@ export interface Config {
    * instead of as the standalone CuaDriver app. On macOS the driver then holds
    * no permission identity of its own: Accessibility and Screen Recording are
    * the host application's grants, and the setup tool requests them for it.
-   * Defaults to `false`.
+   * On macOS the provider starts the driver as a `serve --embedded` daemon of
+   * its own, which draws the agent cursor; elsewhere the MCP child owns the
+   * runtime with `--direct`. Defaults to `false`.
    */
   embedded: boolean
   /** Per-call timeout in milliseconds; omission uses the MCP client's default. */
@@ -917,6 +919,44 @@ export interface Config {
    * logged while the client keeps reconnecting. Defaults to `true`.
    */
   awaitStartup: boolean
+  /**
+   * Raw driver tool names the model may call; every other discovered tool gets no executor. Defaults to
+   * {@link DEFAULT_ALLOWED_TOOLS}, which leaves out driver configuration, updates, extension installs, process
+   * killing, trajectory recording and replay, cursor styling, and deprecated tools.
+   */
+  allowedTools: string[]
+  /** Let the driver send its usage telemetry to Cua. Off sets `DO_NOT_TRACK=1` for the driver. Defaults to `false`. */
+  telemetry: boolean
+  /**
+   * Oldest driver version this provider accepts, as `major.minor.patch`. An older driver is not started; the
+   * setup tool tells the person to update it. Defaults to `0.35.0`, the first release with the batched
+   * `run_steps` and `run_script` tools the computer-use skill uses.
+   */
+  minimumVersion: string
+  /**
+   * How long the driver watches for a window an action opened, in milliseconds (0 to 10000). Shorter is faster
+   * but ends the driver's protection against apps stealing focus sooner. Applies only where the driver runtime
+   * runs in this child (`embedded`, or `--direct` in `args`). Omitted keeps the driver's default.
+   */
+  windowChangeTimeoutMs?: number
+  /**
+   * Gap between synthesized key events on macOS, in milliseconds (2 to 100). Shorter types faster; some apps
+   * drop keys that arrive back to back. Same runtime condition as `windowChangeTimeoutMs`. Omitted keeps the
+   * driver's default.
+   */
+  keyGapMs?: number
+  /**
+   * Hold a driver call that brings a window forward or moves the pointer while the person has used their
+   * mouse or keyboard within this many milliseconds. Input that arrives while a driver call runs, or before
+   * the last driver call ended, counts as the driver's own. Background calls are never held. `0` turns the
+   * hold off. Defaults to `3000`.
+   */
+  holdForegroundWhileActiveMs: number
+  /**
+   * How long a held call waits for the person to pause before it is refused, in milliseconds. `0` refuses at
+   * once. Defaults to `10000`.
+   */
+  foregroundWaitMs: number
 }
 ```
 
@@ -6511,7 +6551,6 @@ Imported as libraries by other packages; a `cordis.yml` cannot load them.
 - `@aeven/computer-use-executor` ([`packages/computer-use/computer-use-executor/src/index.ts`](../packages/computer-use/computer-use-executor/src/index.ts))
 - `@aeven/computer-use-formats` ([`packages/computer-use/computer-use-formats/src/index.ts`](../packages/computer-use/computer-use-formats/src/index.ts))
 - `@aeven/computer-use-layout` ([`packages/computer-use/computer-use-layout/src/index.ts`](../packages/computer-use/computer-use-layout/src/index.ts))
-- `@aeven/computer-use-linux` ([`packages/computer-use/computer-use-linux/src/index.ts`](../packages/computer-use/computer-use-linux/src/index.ts))
 - `@aeven/computer-use-macos` ([`packages/computer-use/computer-use-macos/src/index.ts`](../packages/computer-use/computer-use-macos/src/index.ts))
 - `@aeven/computer-use-macos-apple-events` ([`packages/computer-use/computer-use-macos-apple-events/src/index.ts`](../packages/computer-use/computer-use-macos-apple-events/src/index.ts))
 - `@aeven/computer-use-router` ([`packages/computer-use/computer-use-router/src/index.ts`](../packages/computer-use/computer-use-router/src/index.ts))

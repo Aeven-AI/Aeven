@@ -58,8 +58,7 @@ export interface ReadinessProbe {
 }
 
 /**
- * A host readiness report. Mirrors the `doctor` shape used by
- * `computer-use-linux`: machine-readable, with explicit blockers and a
+ * A host readiness report: machine-readable, with explicit blockers and a
  * recommended next step, so a caller can render a real explanation instead of
  * guessing why an operation produced nothing.
  */

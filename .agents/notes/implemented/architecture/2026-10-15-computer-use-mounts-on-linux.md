@@ -6,7 +6,7 @@ English | [中文](2026-10-15-computer-use-mounts-on-linux.zh.md)
 
 ## Problem
 
-The Web and Electron compositions mounted computer use on macOS and Windows and nowhere else: [`packages/bundle/web-app/cordis.patch.yml`](../../../../packages/bundle/web-app/cordis.patch.yml) gated the `computer-use` service row and the `computer-use-cua-driver` row on `darwin` and `win32`, and each platform's row carried its own install layout for the driver. On Linux the packages sat installed in the desktop profile while no `cua-driver-mcp` MCP server served a Session, so a Linux Session had no `mcp__cua-driver-mcp__*` tools and no `computer_use_setup`, and installing the driver changed nothing because no row mounted it. The shipped Linux desktop adapter, [`@aeven/computer-use-linux`](../../../../packages/computer-use/computer-use-linux/README.md), is not a provider — nothing outside its own tests imports it — so it could not take the row's place.
+The Web and Electron compositions mounted computer use on macOS and Windows and nowhere else: [`packages/bundle/web-app/cordis.patch.yml`](../../../../packages/bundle/web-app/cordis.patch.yml) gated the `computer-use` service row and the `computer-use-cua-driver` row on `darwin` and `win32`, and each platform's row carried its own install layout for the driver. On Linux the packages sat installed in the desktop profile while no `cua-driver-mcp` MCP server served a Session, so a Linux Session had no `mcp__cua-driver-mcp__*` tools and no `computer_use_setup`, and installing the driver changed nothing because no row mounted it. The Linux desktop adapter then shipped, `@aeven/computer-use-linux`, was not a provider — nothing outside its own tests imported it — so it could not take the row's place.
 
 ## Decision
 
@@ -23,7 +23,7 @@ Linux mounts the driver's tool surface alone. Neither batch provider is availabl
 
 ## Alternatives considered
 
-**Mount the shipped Linux desktop adapter instead.** [`@aeven/computer-use-linux`](../../../../packages/computer-use/computer-use-linux/README.md) implements the desktop contract but registers no provider, so this route needs a new first-party package. On GNOME Wayland it also finds no window backend — no `hyprctl`, no `i3-msg`, and `wmctrl` cannot read a Wayland compositor — leaves the accessibility tree, clicks, and screenshots unimplemented, and reports blockers where the driver works.
+**Mount the shipped Linux desktop adapter instead.** `@aeven/computer-use-linux` implemented the desktop contract but registered no provider ([since removed](2026-11-09-computer-use-follows-the-driver.md)), so this route needs a new first-party package. On GNOME Wayland it also finds no window backend — no `hyprctl`, no `i3-msg`, and `wmctrl` cannot read a Wayland compositor — leaves the accessibility tree, clicks, and screenshots unimplemented, and reports blockers where the driver works.
 
 **Default the Linux `command` to the bare `cua-driver` PATH name.** The provider spawns a PATH command without checking it, so a machine without the driver would fail the row instead of offering install guidance, which is why the macOS and Windows rows name absolute install locations.
 

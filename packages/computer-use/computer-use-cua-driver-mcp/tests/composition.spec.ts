@@ -81,6 +81,7 @@ async function load(mode?: string): Promise<{ ctx: Context; root: string; model:
       ? {
         command: process.execPath,
         args: [fixture, root, ...(mode === undefined ? [] : [mode])],
+        allowedTools: ['screenshot', 'disconnect'],
         reconnect: { initialDelayMs: 20, maxDelayMs: 40, maxAttempts: 2 },
       }
       : name === '@aeven/attachment-local'

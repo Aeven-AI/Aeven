@@ -16,8 +16,10 @@
  * receives their SDK declarations in the result and calls them inside a
  * program, so its request tool list never changes; any other agent receives
  * their schemas and has them added to its following requests, refused when the
- * request would exceed `maxRequestTools`. `restart:` reconnects an MCP server
- * that is down.
+ * request would exceed `maxRequestTools`. The first `select:` that loads an MCP
+ * server's tools after the agent starts or compacts also carries the usage
+ * instructions that server sent when it connected, so they enter the session
+ * log as part of that result. `restart:` reconnects an MCP server that is down.
  *
  * The request header logs each request's tool list, so what the model saw
  * stays reconstructable from the session log. The loaded set is rebuilt from
@@ -130,6 +132,8 @@ interface AgentState {
   section: string | undefined
   /** Index text the model last received, by the section or an update message; undefined before the first request. */
   announced?: string
+  /** MCP servers whose usage instructions a `select:` result carried since the agent started or last compacted. */
+  guided: Set<string>
 }
 
 /**
@@ -282,7 +286,7 @@ export function apply(ctx: Context, config: Config): void {
   const stateOf = (agent: Agent): AgentState => {
     let state = states.get(agent)
     if (state === undefined) {
-      state = { loaded: loadedFromLog(agent.session), ptc: false, baseTools: 0, section: undefined }
+      state = { loaded: loadedFromLog(agent.session), ptc: false, baseTools: 0, section: undefined, guided: new Set() }
       states.set(agent, state)
     }
     return state
@@ -338,12 +342,14 @@ export function apply(ctx: Context, config: Config): void {
   }
 
   ctx.on('agent/session-start', ({ agent, source }) => {
-    // Compaction drops the update messages, so the next request freezes a fresh index.
+    // Compaction drops the update messages and earlier select results, so the
+    // next request freezes a fresh index and the next select repeats server instructions.
     if (source !== 'compact') return
     const state = states.get(agent)
     if (state === undefined) return
     state.section = undefined
     delete state.announced
+    state.guided.clear()
   })
 
   ctx.on('agent/pre-step', async (payload, next) => {
@@ -417,7 +423,8 @@ export function apply(ctx: Context, config: Config): void {
     }
     const note = missing.length === 0 ? '' : `\nNot deferred tools: ${missing.join(', ')}.`
     if (state.ptc) {
-      return `${DECLARED_PREFIX}${found.map(tool => tool.name).join(', ')}\nCall them inside ${RUN_CODE_NAME} as tools["<name>"](args).${note}\n${declarations(agent, found)}`
+      const guide = await guidance(agent, found)
+      return `${DECLARED_PREFIX}${found.map(tool => tool.name).join(', ')}\nCall them inside ${RUN_CODE_NAME} as tools["<name>"](args).${note}\n${declarations(agent, found)}${guide}`
     }
     const adding = found.filter(tool => !state.loaded.has(tool.name))
     const total = state.baseTools + state.loaded.size + adding.length
@@ -425,10 +432,32 @@ export function apply(ctx: Context, config: Config): void {
       throw new HarnessError(`Loading ${adding.length} more tools would declare ${total} tools in one request; the provider accepts at most ${maxRequestTools}. Load only the tools this task needs.`, 'TOOL_SEARCH_LIMIT')
     }
     for (const tool of adding) state.loaded.add(tool.name)
+    const guide = await guidance(agent, found)
     return [
       `${LOADED_PREFIX}${found.map(tool => tool.name).join(', ')}${note}`,
       ...found.map(tool => `<function>${JSON.stringify(tool)}</function>`),
-    ].join('\n')
+    ].join('\n') + guide
+  }
+
+  /**
+   * Usage instructions of the MCP servers that own loaded tools, for each
+   * server whose instructions this agent has not received since it started or
+   * last compacted. Marks those servers as guided.
+   * @param agent - the agent loading the tools.
+   * @param found - the tools this select loads or declares.
+   * @returns text to append to the select result, empty when no server has new instructions.
+   */
+  const guidance = async (agent: Agent, found: readonly ToolSchema[]): Promise<string> => {
+    const state = stateOf(agent)
+    const reports = await servers(agent)
+    const blocks: string[] = []
+    for (const report of reports) {
+      if (report.instructions === undefined || state.guided.has(report.serverName)) continue
+      if (!found.some(tool => tool.name.startsWith(report.toolPrefix))) continue
+      state.guided.add(report.serverName)
+      blocks.push(`\n\nHow to use ${report.title ?? report.serverName} (${report.toolPrefix}*), from that server:\n${report.instructions}`)
+    }
+    return blocks.join('')
   }
 
   const search = async (agent: Agent, query: string, limit: number): Promise<string> => {
