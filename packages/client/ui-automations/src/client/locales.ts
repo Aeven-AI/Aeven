@@ -72,6 +72,14 @@ export const en = {
   pricesDraft: 'Create a bot that runs every day at {time} ({zone}) and checks the current prices of the products on my wish list at the shops I name. Report only the products whose price fell below my target, with the link; otherwise reply in one line that nothing changed. Never buy anything. Ask for the products, shops, and target prices. Show me the task, schedule, and permissions before creating it.',
   languageTitle: 'Language practice', languageDescription: 'A ten-minute daily lesson with new words, grammar, and a quiz.',
   languageDraft: 'Create a bot that runs every day at {time} ({zone}) and gives me a ten-minute lesson in the language I am learning, at my level: eight useful words with example sentences, one grammar point, a short reading passage, and a five-question quiz with the answers at the end. Ask which language and level if you do not know. Show me the task, schedule, and permissions before creating it.',
+  runsOn: 'Runs on', runsOnCloud: 'Aeven Cloud', runsOnDevice: 'Your computer', runsOnMissing: 'Your computer (not set up)',
+  placementCloud: 'This bot runs in Aeven Cloud, so it keeps working while your computer is off.',
+  placementDeviceNeeds: 'This bot runs on your computer because it uses {needs}. It runs while Aeven is open there.',
+  placementDeviceChosen: 'You keep this bot on your computer. It runs while Aeven is open there.',
+  placementDeviceNoCloud: 'This bot runs on your computer while Aeven is open there.',
+  placementUnavailable: 'None of your computers runs Aeven yet. Install the Aeven app and sign in to run this bot.',
+  needFiles: 'your files', needBrowser: 'your browser', needComputerUse: 'your apps',
+  keepOnDevice: 'Only run on my computer', allowCloud: 'Allow Aeven Cloud',
 } as const
 /** Dictionary keys shared by the page and the typed starter catalogue. */
 export type AutomationKey = keyof typeof en
@@ -145,6 +153,14 @@ export const zh: Record<AutomationKey, string> = {
   pricesDraft: '创建一个每天 {time}（{zone}）执行的Bot，在我指定的商店检查心愿单商品的当前价格。只报告价格低于我目标价的商品并附链接；否则用一句话说明没有变化。不要购买任何东西。询问我要追踪的商品、商店和目标价格。创建前向我展示任务、计划和权限。',
   languageTitle: '语言练习', languageDescription: '每天十分钟：新词汇、语法和小测验。',
   languageDraft: '创建一个每天 {time}（{zone}）执行的Bot，按我的水平为我正在学习的语言上一节十分钟的课：八个实用单词及例句、一个语法点、一段短文阅读，以及一个五题小测验，答案放在最后。如果不知道我学的语言和水平，请询问我。创建前向我展示任务、计划和权限。',
+  runsOn: '运行位置', runsOnCloud: 'Aeven 云端', runsOnDevice: '你的电脑', runsOnMissing: '你的电脑（尚未设置）',
+  placementCloud: '此Bot在 Aeven 云端运行，电脑关机时也会继续工作。',
+  placementDeviceNeeds: '此Bot会用到{needs}，因此在你的电脑上运行。电脑上的 Aeven 打开时才会执行。',
+  placementDeviceChosen: '你已将此Bot限定在自己的电脑上运行。电脑上的 Aeven 打开时才会执行。',
+  placementDeviceNoCloud: '此Bot在你的电脑上运行，电脑上的 Aeven 打开时才会执行。',
+  placementUnavailable: '你还没有运行 Aeven 的电脑。请安装 Aeven 应用并登录后再运行此Bot。',
+  needFiles: '你的文件', needBrowser: '你的浏览器', needComputerUse: '你的应用',
+  keepOnDevice: '仅在我的电脑上运行', allowCloud: '允许在 Aeven 云端运行',
 }
 
 /**
@@ -219,4 +235,12 @@ export const es = {
   pricesDraft: 'Crea un bot que se ejecute todos los días a las {time} ({zone}) y revise los precios actuales de los productos de mi lista de deseos en las tiendas que yo indique. Informa solo de los productos cuyo precio bajó de mi objetivo, con el enlace; si no, responde en una línea que nada cambió. Nunca compres nada. Pide los productos, las tiendas y los precios objetivo. Muéstrame la tarea, la programación y los permisos antes de crearla.',
   languageTitle: 'Práctica de idiomas', languageDescription: 'Una lección diaria de diez minutos con palabras nuevas, gramática y un test.',
   languageDraft: 'Crea un bot que se ejecute todos los días a las {time} ({zone}) y me dé una lección de diez minutos del idioma que estoy aprendiendo, a mi nivel: ocho palabras útiles con frases de ejemplo, un punto de gramática, un texto corto de lectura y un test de cinco preguntas con las respuestas al final. Pregunta qué idioma y qué nivel si no lo sabes. Muéstrame la tarea, la programación y los permisos antes de crearla.',
+  runsOn: 'Se ejecuta en', runsOnCloud: 'Aeven Cloud', runsOnDevice: 'Tu ordenador', runsOnMissing: 'Tu ordenador (sin configurar)',
+  placementCloud: 'Este bot se ejecuta en Aeven Cloud, así que sigue funcionando con tu ordenador apagado.',
+  placementDeviceNeeds: 'Este bot se ejecuta en tu ordenador porque usa {needs}. Se ejecuta mientras Aeven está abierto allí.',
+  placementDeviceChosen: 'Mantienes este bot en tu ordenador. Se ejecuta mientras Aeven está abierto allí.',
+  placementDeviceNoCloud: 'Este bot se ejecuta en tu ordenador mientras Aeven está abierto allí.',
+  placementUnavailable: 'Ninguno de tus ordenadores tiene Aeven todavía. Instala la app de Aeven e inicia sesión para ejecutar este bot.',
+  needFiles: 'tus archivos', needBrowser: 'tu navegador', needComputerUse: 'tus apps',
+  keepOnDevice: 'Ejecutar solo en mi ordenador', allowCloud: 'Permitir Aeven Cloud',
 } satisfies Record<AutomationKey, string>

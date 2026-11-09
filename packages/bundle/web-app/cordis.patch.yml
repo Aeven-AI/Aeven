@@ -904,6 +904,10 @@
         historyLimit: 200
         workspaceTitle: Automations
         webhookMaxBodyBytes: 8192
+        # This Host is the user's computer: its runs reach the files, browser, and apps there.
+        placement:
+          kind: device
+          provides: [files, browser, computer-use]
 
     - id: ui-automations
       name: '@aeven/client-ui-automations'

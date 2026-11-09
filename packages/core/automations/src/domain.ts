@@ -24,13 +24,22 @@ export const scheduleSchema = z.discriminatedUnion('kind', [
 ]).superRefine((value, ctx) => {
   try { assertValidSchedule(value) } catch (error) { ctx.addIssue({ code: 'custom', message: String(error) }) }
 })
+const capability = z.enum(['files', 'browser', 'computer-use'])
+/** Declared device capabilities, stored without repeats in a fixed order. */
+export const requiresSchema = z.array(capability).max(8).transform(value => capability.options.filter(option => value.includes(option)))
+const runOn = z.enum(['auto', 'device'])
 /** Editable management fields, also validated at the RPC and durable boundaries. */
-export const inputSchema = z.object({ name: text.max(160), prompt: text.max(32_000), schedule: scheduleSchema, permission: z.enum(['read-only', 'workspace-write']) }).strict()
+export const inputSchema = z.object({
+  name: text.max(160), prompt: text.max(32_000), schedule: scheduleSchema, permission: z.enum(['read-only', 'workspace-write']),
+  requires: requiresSchema.optional(), runOn: runOn.optional(),
+}).strict()
 /** Editable fields accepted by authenticated update requests. */
 export const patchSchema = inputSchema.partial().extend({ status: z.enum(['active', 'paused']).optional() }).strict()
 const definitionSchema: z.ZodType<AutomationDefinition> = inputSchema.extend({
   id: text.transform(value => brandString<AutomationId>(value)), owner: text.optional(), revision: z.number().int().positive(),
   status: z.enum(['active', 'paused']), agentPreset: text,
+  // A definition stored before owners could choose keeps running wherever it can.
+  runOn: runOn.default('auto'),
   grants: z.array(z.object({ toolName: text, scope: text, grantedAt: instant }).strict()),
   executionTarget: z.object({ kind: z.literal('local'), runnerId: text.transform(value => brandString<AutomationRunnerId>(value)) }).strict(),
   lastAdmittedAt: instant.nullable(),
