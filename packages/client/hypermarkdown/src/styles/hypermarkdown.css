@@ -656,6 +656,18 @@
     padding: 0;
     cursor: pointer;
     background: transparent;
+    transition: opacity 200ms var(--hm-ease);
+  }
+
+  /* After the click the poster stays over the loading player, then fades once
+     the player has painted, so the tile never shows its empty background. */
+  .markdown-video-poster[data-covering] {
+    cursor: progress;
+    pointer-events: none;
+  }
+
+  .markdown-video-poster[data-revealed] {
+    opacity: 0;
   }
 
   .markdown-video-still {
