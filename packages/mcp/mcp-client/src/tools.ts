@@ -219,7 +219,7 @@ interface McpContentBlock {
   name?: string
   uri?: string
   /** An embedded resource's contents: `text` for a text resource, base64 `blob` for a binary one. */
-  resource?: { uri?: unknown; mimeType?: unknown; text?: unknown; blob?: unknown }
+  resource?: { uri?: unknown; mimeType?: unknown; text?: unknown; blob?: unknown } | null
 }
 
 /**
@@ -227,7 +227,7 @@ interface McpContentBlock {
  * placeholder for a binary or malformed one.
  */
 function embeddedResourceText(resource: McpContentBlock['resource']): string {
-  if (resource === undefined || typeof resource !== 'object' || resource === null) {
+  if (typeof resource !== 'object' || resource === null) {
     return '[embedded resource unavailable: the MCP block carries no resource]'
   }
   const uri = typeof resource.uri === 'string' ? resource.uri : 'unnamed resource'
