@@ -31,7 +31,7 @@ The field is optional; an invalid value fails plugin load.
 
 | Field | Default | Effect |
 | --- | --- | --- |
-| `answerTimeoutMs` | `10000` | Milliseconds a window showing the session has to open the dialog, declared as the tool's `timeoutMs`; past it the offer counts as unanswered. |
+| `answerTimeoutMs` | `10000` | Milliseconds a window showing the session has to open the dialog; past it the offer counts as unanswered and the model reads the no-window result. |
 
 ```yaml
 - id: tool-desktop-handoff

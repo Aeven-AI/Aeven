@@ -76,8 +76,9 @@ export function apply(ctx: Context, config: Config): void {
         description: 'What the request needs: computer (apps and computer use), files (their own files and folders), terminal, device (phone simulators and emulators), or models (models that run on their machine).',
       },
     },
+    // No tool timeout of its own: one equal to the answer window would race it and report an unanswered offer as a
+    // timeout instead of `no-window`.
     /* jscpd:ignore-start -- the string-answer tool shape tool-location shares; each tool owns its own contract. */
-    timeoutMs: answerTimeoutMs,
     output: {
       schema: { type: 'string' },
       render: (_args: unknown, value: string) => [{ type: 'text' as const, text: value }],
