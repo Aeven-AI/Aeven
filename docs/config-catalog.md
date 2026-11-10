@@ -571,7 +571,7 @@ export interface Config {
    * Most runs of one account that may execute at once on this Host; that account's next queued run starts when one
    * of them finishes. Each account counts only its own runs. Absent, every queued run starts at once.
    */
-  readonly maxConcurrentRunsPerAccount?: number | undefined
+  readonly maxConcurrentRunsPerAccount?: number
   /** Budget of one run in minutes, counted from its start; a run still active at the deadline is cancelled. */
   readonly runTimeoutMinutes: number
   /**
