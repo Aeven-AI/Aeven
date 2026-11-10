@@ -32,10 +32,14 @@ export type DefinitionSeed = (owner: string, present: ReadonlySet<string>) => Pr
 /** This Host's runner id and profile, read once its definition domain is open. */
 export type HostSelf = () => Promise<{ id: AutomationRunnerId; profile: HostProfile }>
 
-/** A manual admission addressed to one cloud Host, with the approved failed run for a retry. */
+/**
+ * A manual admission addressed to one cloud Host, with the approved failed run for a retry. `stop` is the
+ * owner's request to stop the run; the addressed Host cancels it, or records it as cancelled before it starts.
+ */
 export interface CloudRunRequest {
   readonly run: AutomationRun
   readonly original?: AutomationRun
+  readonly stop?: true
 }
 
 /** Mirror between the definition table and each account's synced document. */
@@ -120,7 +124,8 @@ export class DefinitionSync {
           const run = parsed.data
           const original = parsedOriginal?.data
           if (run.id !== key || run.definition.owner !== owner || (original !== undefined && original.definition.owner !== owner)) { this.warn('automations: cloud request belongs to another account or run'); continue }
-          this.receiveRun(owner, run.id, { run, ...original === undefined ? {} : { original } })
+          const stop = value.stop === true ? { stop: true as const } : {}
+          this.receiveRun(owner, run.id, { run, ...original === undefined ? {} : { original }, ...stop })
         }
       }
       takeRequests(requests.keys())
@@ -206,6 +211,23 @@ export class DefinitionSync {
     const handle = await this.attach(owner)
     if (handle === undefined) throw new Error('Account sync must be connected to run this bot in the cloud.')
     handle.doc.getMap<CloudRunRequest | null>('run-requests').set(request.run.id, request)
+    const sync = this.ctx.get('sync')
+    if (sync === undefined) throw new Error('Account sync is unavailable.')
+    await sync.synchronize(owner)
+  }
+
+  /**
+   * Ask the addressed cloud Host to stop a requested run and flush the account outbox before acknowledging it.
+   * @param run - a queued or running cloud run of this account.
+   * @returns when the relay has acknowledged the stop.
+   */
+  async stopRun(run: AutomationRun): Promise<void> {
+    const owner = run.definition.owner
+    const handle = owner === undefined ? undefined : await this.attach(owner)
+    const requests = handle?.doc.getMap<CloudRunRequest | null>('run-requests')
+    const request = requests?.get(run.id)
+    if (owner === undefined || requests === undefined || request == null) throw new Error('Account sync must be connected to stop this run.')
+    requests.set(run.id, { ...request, stop: true })
     const sync = this.ctx.get('sync')
     if (sync === undefined) throw new Error('Account sync is unavailable.')
     await sync.synchronize(owner)

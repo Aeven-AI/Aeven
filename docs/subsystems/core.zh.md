@@ -882,6 +882,13 @@ update(id: AutomationId, patch: { [K in keyof AutomationInput]?: AutomationInput
  */
 runNow(id: AutomationId): Promise<AutomationRun>
 
+/** Stop one queued or running run of the acting account.
+ * A run of this Host stops here; a cloud run is asked to stop through account sync and ends on its cloud Host.
+ * @param id - owned run identity.
+ * @returns the run as stored once the stop is recorded or, for a cloud run, acknowledged by the relay.
+ */
+stopRun(id: AutomationRunId): Promise<AutomationRun>
+
 /**
  * Admit one run from an authenticated inbound request.
  * The presented key is the whole authority, so this path reads no acting account.

@@ -789,6 +789,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'durable run admission.',
       },
       {
+        signature: 'stopRun(id: AutomationRunId): Promise<AutomationRun>',
+        description: 'Stop one queued or running run of the acting account. A run of this Host stops here; a cloud run is asked to stop through account sync and ends on its cloud Host.',
+        parameters: [{ name: 'id', description: 'owned run identity.' }],
+        returns: 'the run as stored once the stop is recorded or, for a cloud run, acknowledged by the relay.',
+      },
+      {
         signature: 'async requestRun(id: AutomationId, key: string, payload: string | null): Promise<AutomationRun>',
         description: 'Admit one run from an authenticated inbound request. The presented key is the whole authority, so this path reads no acting account. A paused automation, or one this Host may not run, refuses the request; work already in flight records the occurrence as skipped rather than queueing behind it.',
         parameters: [{ name: 'id', description: 'automation named by the request path.' }, { name: 'key', description: 'bearer credential presented by the caller.' }, { name: 'payload', description: 'accepted request body, marked untrusted in the run notice.' }],

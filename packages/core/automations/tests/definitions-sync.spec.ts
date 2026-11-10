@@ -2,7 +2,8 @@
  * Automations across two devices of one account: a definition created on one device reaches the other, an
  * edit travels with a newer timestamp, a removal travels as a tombstone, an occurrence that comes due is
  * admitted by one device of the account rather than by each of them, whichever device holds the claim runs an
- * automation another device created, and a device without the claim waits for it instead of retrying.
+ * automation another device created, a device without the claim waits for it instead of retrying, and a
+ * manual run stops on the Host that executes it.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SessionId } from '@aeven/session'
@@ -134,6 +135,36 @@ describe('automation definitions across devices', () => {
     const next = await desktop.automations.runNow(created.id)
     await advanceUntil(0, async () => (await listAutomations(desktop)).runs.find(run => run.id === next.id && run.status === 'succeeded'), 'cloud execution after reattachment')
     expect(cloud.agents.conversations).toHaveLength(2)
+  })
+
+  it('stops a manual run executing on this desktop', async () => {
+    const network = new MemorySyncNetwork()
+    const desktop = await device(network, network.device())
+    const created = await create(desktop, { requires: ['files'] })
+    desktop.agents.holdNextRun()
+    const requested = await desktop.automations.runNow(created.id)
+    await advanceUntil(0, async () => (await listAutomations(desktop)).runs.find(run => run.id === requested.id && run.status === 'running'), 'desktop execution')
+    await desktop.automations.stopRun(requested.id)
+    const stopped = await advanceUntil(0, async () => (await listAutomations(desktop)).runs.find(run => run.id === requested.id && run.status === 'cancelled'), 'the stopped run')
+    expect(stopped.error).toBe('Stopped by its owner.')
+    expect(desktop.agents.conversations[0]?.agent.sent).toHaveLength(0)
+    await expect(desktop.automations.stopRun(requested.id)).rejects.toThrow('already finished')
+  })
+
+  it('stops a cloud run from the desktop that requested it', async () => {
+    const network = new MemorySyncNetwork()
+    const desktop = await device(network, network.device())
+    const cloud = await device(network, network.device(), true)
+    const created = await create(desktop, { requires: [] })
+    await advanceUntil(0, async () => (await names(cloud)).includes(created.name) ? true : undefined, 'the cloud definition')
+    cloud.agents.holdNextRun()
+    const requested = await desktop.automations.runNow(created.id)
+    await advanceUntil(0, async () => (await listAutomations(cloud)).runs.find(run => run.id === requested.id && run.status === 'running'), 'cloud execution')
+    await desktop.automations.stopRun(requested.id)
+    const stopped = await advanceUntil(0, async () => (await listAutomations(desktop)).runs.find(run => run.id === requested.id && run.status === 'cancelled'), 'the stop reported by the cloud Host')
+    expect(stopped.error).toBe('Stopped by its owner.')
+    expect(desktop.agents.conversations).toHaveLength(0)
+    expect(cloud.agents.conversations[0]?.agent.sent).toHaveLength(0)
   })
 
   it('keeps a device bot on its desktop when a cloud Host is registered', async () => {
