@@ -322,6 +322,13 @@
 - id: tool-location
   name: '@aeven/tool-location'
 
+# Offers the Aeven desktop app when a request needs the reader's own computer
+# and this Host cannot reach it. Aeven Web enables it; a desktop Host does that
+# work itself.
+- id: tool-desktop-handoff
+  name: '@aeven/tool-desktop-handoff'
+  disabled: true
+
 # The simulators and emulators beside the session in the right sidebar. Each
 # call reports device support or model access that the user has not enabled.
 - id: tool-device

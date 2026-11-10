@@ -60,6 +60,9 @@
       "path": "../../interaction/tool-location"
     },
     {
+      "path": "../../interaction/tool-desktop-handoff"
+    },
+    {
       "path": "../session-controller/tsconfig.host.json"
     },
     {

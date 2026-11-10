@@ -260,6 +260,7 @@
     { "path": "./packages/web/tool-browser" },
     { "path": "./packages/web/tool-image-search" },
     { "path": "./packages/interaction/tool-location" },
+    { "path": "./packages/interaction/tool-desktop-handoff" },
     { "path": "./packages/web/browser-chromium" },
     { "path": "./packages/device/device" },
     { "path": "./packages/device/device-local" },

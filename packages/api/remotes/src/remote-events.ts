@@ -11,6 +11,7 @@ import type {} from '@aeven/skill'
 import type {} from '@aeven/sync'
 import type {} from '@aeven/api-terminal-controller/types'
 import type {} from '@aeven/api-workspace-files/types'
+import type {} from '@aeven/tool-desktop-handoff/types'
 import type { TypertForwardableEventEntry } from '@aeven/typert-protocol'
 
 /**
@@ -28,6 +29,7 @@ export const API_REMOTE_FORWARDED_EVENTS = [
   { event: 'api-session/status', mode: 'emit' },
   { event: 'commands/change', mode: 'emit' },
   { event: 'credentials/reference-updated', mode: 'emit' },
+  { event: 'desktop-handoff/offer', mode: 'waterfall' },
   { event: 'cordis/request-run', mode: 'emit' },
   { event: 'cordis/request-run-resolved', mode: 'emit' },
   { event: 'cordis/dynamic-package', mode: 'emit' },

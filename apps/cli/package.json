@@ -84,6 +84,7 @@
     "@aeven/tool-fs-search": "workspace:^",
     "@aeven/tool-goal": "workspace:^",
     "@aeven/tool-jobs": "workspace:^",
+    "@aeven/tool-desktop-handoff": "workspace:^",
     "@aeven/tool-location": "workspace:^",
     "@aeven/tool-memory": "workspace:^",
     "@aeven/tool-pwsh": "workspace:^",

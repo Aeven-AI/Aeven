@@ -28,6 +28,8 @@
   "avn": {
     "client": {
       "inject": [
+        "@aeven/api-remotes",
+        "@aeven/api-session-controller",
         "@aeven/client-locale",
         "@aeven/client-ui-primitives",
         "@aeven/client-ui-layout",
@@ -46,6 +48,8 @@
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
+    "@aeven/api-remotes": "workspace:^",
+    "@aeven/api-session-controller": "workspace:^",
     "@aeven/client-locale": "workspace:^",
     "@aeven/client-store": "workspace:^",
     "@aeven/client-ui-conversation": "workspace:^",
@@ -55,6 +59,7 @@
     "@aeven/client-ui-sidebar-select": "workspace:^",
     "@aeven/client-ui-slots": "workspace:^",
     "@aeven/session": "workspace:^",
+    "@aeven/tool-desktop-handoff": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@types/react": "~18.3.1",
     "@types/react-dom": "~18.3.1",

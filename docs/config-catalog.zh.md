@@ -617,11 +617,18 @@ export interface HostProfile {
   readonly kind: 'cloud' | 'device'
   /** The device capabilities runs on this Host can use. */
   readonly provides: readonly DeviceCapability[]
+  /** The Host's device id in the account's vault; absent on a Host registered by a build that did not record it. */
+  readonly device?: HostDevice | undefined
 }
 
 /** Something a task needs from one of its owner's own computers; everything else is available on every Host. */
 export type DeviceCapability = 'files' | 'browser' | 'computer-use'
+
+/** A device's id in its account's sync vault. */
+export type HostDevice = NonNullable<SyncStatus['device']>
 ```
+
+依赖：[`SyncStatus`](../packages/sync/sync/src/index.ts)
 
 来源：[`packages/core/automations/src/index.ts`](../packages/core/automations/src/index.ts)
 
@@ -5317,6 +5324,22 @@ export interface Config {
 ```
 
 来源：[`packages/capability/tool-capability/src/index.ts`](../packages/capability/tool-capability/src/index.ts)
+
+<a id="aeventool-desktop-handoff"></a>
+
+## `@aeven/tool-desktop-handoff`
+
+需要：`tools` · `agents`
+
+```ts config-catalog
+/** How long the tool waits for a window to answer. Invalid values fail plugin load. */
+export interface Config {
+  /** Milliseconds a window showing the session has to open the dialog before the offer counts as unanswered. */
+  answerTimeoutMs?: number
+}
+```
+
+来源：[`packages/interaction/tool-desktop-handoff/src/index.ts`](../packages/interaction/tool-desktop-handoff/src/index.ts)
 
 <a id="aeventool-elevation"></a>
 

@@ -77,6 +77,7 @@ import * as ToolSubagent from '@aeven/tool-subagent'
 import { registerListSubagentModels } from '../packages/subagent/tool-subagent/src/list-models.ts'
 import * as ToolWeb from '@aeven/tool-web'
 import * as ToolBrowser from '@aeven/tool-browser'
+import * as ToolDesktopHandoff from '@aeven/tool-desktop-handoff'
 import * as ToolLocation from '@aeven/tool-location'
 import VmWorkflowEngine from '@aeven/workflow-worker-thread'
 import * as ToolRalph from '@aeven/tool-ralph'
@@ -731,6 +732,19 @@ const TOOL_PACKAGES: ToolPackage[] = [
     },
     note:
       'The tool is a pure instruction: it logs the switch it was given and speaks nothing on the Host. The Web Surface reads the settled call and moves its own reader, so the model can start language practice without a Session event of its own.',
+  },
+  {
+    pkg: '@aeven/tool-desktop-handoff',
+    dir: 'tool-desktop-handoff',
+    source: 'packages/interaction/tool-desktop-handoff/src/index.ts',
+    requires: ['ctx.tools', 'ctx.agents', 'a desktop-handoff/offer listener (execution time)'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(AgentRegistry)
+      await ctx.plugin(ToolDesktopHandoff)
+    },
+    note:
+      'Aeven Web mounts it: the call opens the Available in Aeven Desktop dialog in the window showing the session and changes nothing on the Host.',
   },
   {
     pkg: '@aeven/tool-location',

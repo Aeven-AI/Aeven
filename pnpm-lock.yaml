@@ -301,6 +301,9 @@ importers:
       '@aeven/tool-cordis':
         specifier: workspace:^
         version: link:../../packages/extensions/tool-cordis
+      '@aeven/tool-desktop-handoff':
+        specifier: workspace:^
+        version: link:../../packages/interaction/tool-desktop-handoff
       '@aeven/tool-device':
         specifier: workspace:^
         version: link:../../packages/device/tool-device
@@ -1150,6 +1153,9 @@ importers:
       '@aeven/tool-browser':
         specifier: workspace:^
         version: link:../../web/tool-browser
+      '@aeven/tool-desktop-handoff':
+        specifier: workspace:^
+        version: link:../../interaction/tool-desktop-handoff
       '@aeven/tool-location':
         specifier: workspace:^
         version: link:../../interaction/tool-location
@@ -3525,6 +3531,12 @@ importers:
 
   packages/client/ui-desktop-handoff:
     devDependencies:
+      '@aeven/api-remotes':
+        specifier: workspace:^
+        version: link:../../api/remotes
+      '@aeven/api-session-controller':
+        specifier: workspace:^
+        version: link:../../api/session-controller
       '@aeven/client-locale':
         specifier: workspace:^
         version: link:../locale
@@ -3552,6 +3564,9 @@ importers:
       '@aeven/session':
         specifier: workspace:^
         version: link:../../core/session
+      '@aeven/tool-desktop-handoff':
+        specifier: workspace:^
+        version: link:../../interaction/tool-desktop-handoff
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
@@ -8662,6 +8677,24 @@ importers:
       '@aeven/user-questions':
         specifier: workspace:^
         version: link:../user-questions
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/interaction/tool-desktop-handoff:
+    devDependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../../core/agent
+      '@aeven/scope':
+        specifier: workspace:^
+        version: link:../../core/scope
+      '@aeven/timeout':
+        specifier: workspace:^
+        version: link:../../util/timeout
+      '@aeven/tools':
+        specifier: workspace:^
+        version: link:../../core/tools
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
