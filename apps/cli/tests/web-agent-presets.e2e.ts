@@ -995,7 +995,11 @@ describe('cloud bot execution in the shipped Web composition', () => {
     const contexts: Context[] = []
     const homes: string[] = []
     const network = new MemorySyncNetwork()
-    const owner = 'cloud-bot-composition-owner'
+    const owner = `cloud-bot-composition-${randomUUID()}`
+    const previousHome = process.env.AVN_HOME
+    const accountHome = await mkdtemp(join(tmpdir(), 'avn-bot-accounts-'))
+    homes.push(accountHome)
+    process.env.AVN_HOME = accountHome
     let release = (): void => {}
     let modelStarted = false
     const finishModel = new Promise<void>((resolve) => { release = resolve })
@@ -1066,6 +1070,8 @@ describe('cloud bot execution in the shipped Web composition', () => {
     } finally {
       release()
       await Promise.all(contexts.map(host => host.fiber.dispose()))
+      if (previousHome === undefined) delete process.env.AVN_HOME
+      else process.env.AVN_HOME = previousHome
       await Promise.all(homes.map(home => rm(home, { recursive: true, force: true })))
     }
   })
