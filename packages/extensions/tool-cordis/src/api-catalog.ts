@@ -7180,8 +7180,12 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface GrantRecord {\n    readonly kind: \'grant\';\n    readonly payload: unknown;\n}',
   },
   {
+    name: 'HandoffDesktop',
+    declaration: 'export interface HandoffDesktop extends SessionRunner {\n    readonly present: boolean;\n    readonly seenAt?: number;\n}',
+  },
+  {
     name: 'HandoffPlacement',
-    declaration: 'export interface HandoffPlacement {\n    readonly device: string;\n    readonly alwaysOnHere: boolean;\n    readonly home?: SessionRunner & {\n        readonly alwaysOn: boolean;\n    };\n    readonly alwaysOn?: SessionRunner;\n    readonly desktop?: SessionRunner;\n}',
+    declaration: 'export interface HandoffPlacement {\n    readonly device: string;\n    readonly alwaysOnHere: boolean;\n    readonly home?: SessionRunner & {\n        readonly alwaysOn: boolean;\n    };\n    readonly alwaysOn?: SessionRunner;\n    readonly desktops: readonly HandoffDesktop[];\n}',
   },
   {
     name: 'HostProfile',
@@ -8489,7 +8493,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SessionContinueOnRequest',
-    declaration: 'export interface SessionContinueOnRequest {\n    readonly sessionId: SessionId;\n    readonly target: \'here\' | \'always-on\' | \'desktop\';\n}',
+    declaration: 'export interface SessionContinueOnRequest {\n    readonly sessionId: SessionId;\n    readonly target: \'here\' | \'always-on\' | \'desktop\';\n    readonly device?: string;\n}',
   },
   {
     name: 'SessionContinueOnValue',
@@ -8510,6 +8514,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SessionCreateValue',
     declaration: 'export interface SessionCreateValue {\n    readonly sessionId: SessionId;\n    readonly agentPreset?: string;\n}',
+  },
+  {
+    name: 'SessionDesktopValue',
+    declaration: 'export interface SessionDesktopValue {\n    readonly device: string;\n    readonly name: string;\n    readonly present: boolean;\n    readonly seenAt?: number;\n    readonly home: boolean;\n}',
   },
   {
     name: 'SessionEditRequest',
@@ -8721,7 +8729,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SessionPlacementValue',
-    declaration: 'export interface SessionPlacementValue {\n    readonly here: boolean;\n    readonly alwaysOn?: string;\n    readonly desktop?: string;\n}',
+    declaration: 'export interface SessionPlacementValue {\n    readonly here: boolean;\n    readonly alwaysOn?: string;\n    readonly desktops?: readonly SessionDesktopValue[];\n}',
   },
   {
     name: 'SessionPreparation',

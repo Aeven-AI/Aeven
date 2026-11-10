@@ -374,18 +374,31 @@ export interface SessionPlacementValue {
   readonly here: boolean
   /** Name of the always-on device, such as "Aeven Cloud", to offer the Session to; absent when there is none to move to. */
   readonly alwaysOn?: string
-  /** Name of the account's desktop to offer the Session to from an always-on Host such as Aeven Web; absent when there is none. */
-  readonly desktop?: string
+  /** The account's desktops to offer the Session to from an always-on Host such as Aeven Web; absent elsewhere. */
+  readonly desktops?: readonly SessionDesktopValue[]
+}
+
+/** One desktop of the account a Session can move to. */
+export interface SessionDesktopValue {
+  /** Its device id in the account's vault; the `device` of a `desktop` move. */
+  readonly device: string
+  /** The name it gave itself, such as its host name; empty until it wrote one. */
+  readonly name: string
+  /** Whether its relay connection is open now, so a forwarded message runs there at once. */
+  readonly present: boolean
+  /** When its relay connection was last seen open, in milliseconds since the Unix epoch; absent when never. */
+  readonly seenAt?: number
+  /** Whether the Session's next turns already run on it. */
+  readonly home: boolean
 }
 
 /** Session device move request. */
 export interface SessionContinueOnRequest {
   readonly sessionId: SessionId
-  /**
-   * `here` runs the next turns on this device; `always-on` on the account's always-on device; `desktop` on the
-   * account's most recently seen desktop.
-   */
+  /** `here` runs the next turns on this device; `always-on` on the account's always-on device; `desktop` on `device`. */
   readonly target: 'here' | 'always-on' | 'desktop'
+  /** The desktop a `desktop` move goes to, one of the placement's `desktops`; required with that target only. */
+  readonly device?: string
 }
 
 /** Accepted device move. */

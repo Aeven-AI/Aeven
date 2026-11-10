@@ -22,7 +22,7 @@ import { SessionLogOffset, type SessionEvent, type SessionHeader, type SessionId
 import type { SessionPersistence, SessionPersistenceSnapshot } from '@aeven/session-persistence'
 import { LeaseHolder, type Sync, type SyncDocument, type SyncProgress, type LeaseHolderTiming } from '@aeven/sync'
 import { AttachmentId, type AttachmentStore } from '@aeven/attachment'
-import type { HandoffPlacement, SessionClaim, SessionHandoffInput, SessionRunner, SharedSession } from '@aeven/session-handoff'
+import type { HandoffDesktop, HandoffPlacement, SessionClaim, SessionHandoffInput, SessionRunner, SharedSession } from '@aeven/session-handoff'
 
 /** One session as the index records it: metadata only; the stream is the history. */
 interface IndexEntry {
@@ -1097,11 +1097,24 @@ export class SessionMirror {
         ? {}
         : { home: { device: writer, name: devices.get(writer)?.name ?? '', alwaysOn: devices.get(writer)?.alwaysOn === true } },
       ...always === undefined ? {} : { alwaysOn: { device: always[0], name: always[1].name } },
-      ...((): Partial<HandoffPlacement> => {
-        const desktop = this.latestDesktop()
-        return desktop === undefined ? {} : { desktop: { device: desktop, name: devices.get(desktop)?.name ?? '' } }
-      })(),
+      desktops: this.desktops(),
     }
+  }
+
+  /**
+   * The account's devices without `alwaysOn`, other than this one.
+   * @returns them with their presence, present ones first, then most recently stamped; never-stamped ones last.
+   */
+  private desktops(): HandoffDesktop[] {
+    const me = this.device()
+    const now = Date.now()
+    const listed: HandoffDesktop[] = []
+    for (const [id, entry] of this.devices()?.entries() ?? []) {
+      if (id === me || entry.alwaysOn === true) continue
+      const present = entry.seenAt !== undefined && now - entry.seenAt <= this.tuning.presenceWindowMs
+      listed.push({ device: id, name: entry.name, present, ...entry.seenAt === undefined ? {} : { seenAt: entry.seenAt } })
+    }
+    return listed.sort((a, b) => Number(b.present) - Number(a.present) || (b.seenAt ?? 0) - (a.seenAt ?? 0))
   }
 
   /**

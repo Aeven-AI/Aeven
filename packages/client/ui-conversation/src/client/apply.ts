@@ -360,7 +360,7 @@ export function apply(ctx: Context): void {
         return result.ok ? result.value : { here: false }
       },
       continueOn: async (target) => {
-        const result = await ctx.remote.session.continueOn({ sessionId, target })
+        const result = await ctx.remote.session.continueOn({ sessionId, ...target })
         if (!result.ok) throw new Error(result.error.message)
       },
       moveSession: workspaceNavigation.moveSession === undefined

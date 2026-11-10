@@ -33,8 +33,16 @@ export interface HandoffPlacement {
   readonly home?: SessionRunner & { readonly alwaysOn: boolean }
   /** An always-on device of the account other than the asking one, which the session can move to. */
   readonly alwaysOn?: SessionRunner
-  /** The account's most recently seen desktop other than the asking device, which the session can move to. */
-  readonly desktop?: SessionRunner
+  /** The account's desktops other than the asking device, which the session can move to: present ones first, then most recently seen. */
+  readonly desktops: readonly HandoffDesktop[]
+}
+
+/** A desktop of the account, as the asking device sees it. */
+export interface HandoffDesktop extends SessionRunner {
+  /** Whether it stamped its open relay connection within the presence window, so it takes forwarded input now. */
+  readonly present: boolean
+  /** When it last stamped its open relay connection, in milliseconds since the Unix epoch; absent when it never did. */
+  readonly seenAt?: number
 }
 
 /** Conversation metadata available before this device downloads the log body. */
