@@ -1282,8 +1282,17 @@ export class SessionMirror {
         // first chance to run it. The always-on device waits longer for a desktop, which may read by the older rule.
         const first = entry.to ?? this.preferredDevice(sessionId) ?? entry.from
         const alwaysOnHere = this.devices()?.get(me)?.alwaysOn === true
-        // An input sent to one desktop runs there or, after the fallback, on the always-on device; never on another desktop.
-        if (entry.to !== undefined && entry.to !== me && !alwaysOnHere) continue
+        // An input sent to one desktop runs there or, after the fallback, on the always-on device; never on another
+        // desktop. An account without an always-on device, one never signed in to Aeven Web, has no such fallback, so
+        // the desktop the input was typed on runs it itself after the same wait, and an input nobody took in
+        // `inputExpiryMs` is dropped rather than running hours later when its desktop returns.
+        const noAlwaysOn = ![...this.devices()?.values() ?? []].some(device => device.alwaysOn === true)
+        if (entry.to !== undefined && noAlwaysOn && entry.at + this.tuning.inputExpiryMs < now) {
+          inputs.delete(key)
+          continue
+        }
+        if (entry.to !== undefined && entry.to !== me && !alwaysOnHere
+          && (!noAlwaysOn || entry.from !== me || entry.at + this.tuning.remoteFallbackMs > now)) continue
         const waitMs = alwaysOnHere && this.devices()?.get(first)?.alwaysOn !== true
           ? this.tuning.remoteFallbackMs
           : this.tuning.inputGraceMs
