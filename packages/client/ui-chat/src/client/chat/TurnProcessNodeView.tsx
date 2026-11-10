@@ -54,10 +54,12 @@ export const TurnProcessNodeView = memo(function TurnProcessNodeView({
   const duration = elapsedMs === undefined ? undefined : formatRunDuration(elapsedMs, t)
   const label = running
     ? duration === undefined ? t('chat.deepDiving') : t('message.turnProcess.deepDivingFor', { duration })
-    : interrupted || reason === 'aborted' ? t('message.stopped')
-      : reason === 'error' ? t('message.turnProcess.failed')
-        : duration === undefined ? t('message.turnProcess.worked')
-          : t('message.turnProcess.took', { duration })
+    // The Host closes a turn it was running when it stopped as `interrupted`; the reader's own Stop is `aborted`.
+    : interrupted || reason === 'interrupted' ? t('message.turnProcess.interrupted')
+      : reason === 'aborted' ? t('message.stopped')
+        : reason === 'error' ? t('message.turnProcess.failed')
+          : duration === undefined ? t('message.turnProcess.worked')
+            : t('message.turnProcess.took', { duration })
   return (
     <>
       <button
