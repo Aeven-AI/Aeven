@@ -3,6 +3,7 @@ import type { EmbeddingVector, EpisodeId, SessionId, ShareScope, TraceId, TraceR
 import type { StorageDb, TraceListFilter } from "../types.js";
 import { buildInClause, buildInsert, buildUpdate } from "../tx.js";
 import { scanAndTopK, topKCosine, type VectorHit, type VectorRow } from "../vector.js";
+import { indexedTopK, invalidateVectorIndex } from "../vector-index.js";
 import {
   buildPageClauses,
   fromBlob,
@@ -552,29 +553,32 @@ export function makeTracesRepo(db: StorageDb) {
         });
         whereParts.push(`(${tagOrs.join(" OR ")})`);
       }
-      return scanAndTopK<TraceSearchMeta>(
-        db,
-        "traces",
-        [
-          "ts",
-          "priority",
-          "value",
-          "episode_id",
-          "session_id",
-          "owner_agent_kind",
-          "owner_profile_id",
-          "owner_workspace_id",
-          "tags_json",
-        ],
-        query,
-        k,
-        {
+      const selectExtra = [
+        "ts",
+        "priority",
+        "value",
+        "episode_id",
+        "session_id",
+        "owner_agent_kind",
+        "owner_profile_id",
+        "owner_workspace_id",
+        "tags_json",
+      ];
+      // Without an explicit cap the search covers every trace through the
+      // in-memory index; a capped scan reads at most `hardCap` rows.
+      if (opts.hardCap === undefined) {
+        return indexedTopK<TraceSearchMeta>(db, "traces", selectExtra, query, k, {
           vecColumn,
           where: whereParts.join(" AND "),
           params,
-          hardCap: opts.hardCap,
-        },
-      );
+        });
+      }
+      return scanAndTopK<TraceSearchMeta>(db, "traces", selectExtra, query, k, {
+        vecColumn,
+        where: whereParts.join(" AND "),
+        params,
+        hardCap: opts.hardCap,
+      });
     },
 
     /**
@@ -818,6 +822,7 @@ export function makeTracesRepo(db: StorageDb) {
       const res = db.prepare<{ id: string; vec: Buffer }>(
         `UPDATE traces SET ${column}=@vec WHERE id=@id`,
       ).run({ id, vec: toBlob(vec)! });
+      if (res.changes > 0) invalidateVectorIndex(db, "traces");
       return res.changes > 0;
     },
 
