@@ -524,7 +524,8 @@
           # pnpm runs a full install before `pnpm run` when dependencies are
           # missing; in the jail that is unasked heavy work, and a fresh clone's
           # native builds need hosts the proxy refuses. Commands install explicitly.
-          npm_config_verify_deps_before_run: 'false'
+          # pnpm 11 reads this setting from pnpm_config_*, not npm_config_*.
+          pnpm_config_verify_deps_before_run: 'false'
           # No terminal answers a credential prompt.
           GIT_TERMINAL_PROMPT: '0'
         tmpSizeMb: 512
