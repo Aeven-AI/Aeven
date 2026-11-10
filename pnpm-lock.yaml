@@ -8692,9 +8692,15 @@ importers:
       '@aeven/agent':
         specifier: workspace:^
         version: link:../../core/agent
+      '@aeven/llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
       '@aeven/scope':
         specifier: workspace:^
         version: link:../../core/scope
+      '@aeven/system-prompt':
+        specifier: workspace:^
+        version: link:../../core/system-prompt
       '@aeven/timeout':
         specifier: workspace:^
         version: link:../../util/timeout

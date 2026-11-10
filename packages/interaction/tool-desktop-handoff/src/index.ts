@@ -76,7 +76,8 @@ export function apply(ctx: Context, config: Config): void {
         description: 'What the request needs: computer (apps and computer use), files (their own files and folders), terminal, device (phone simulators and emulators), or models (models that run on their machine).',
       },
     },
-    timeoutMs: answerTimeoutMs,
+    // No tool timeout of its own: one equal to the answer window would race it and report an unanswered offer as a
+    // timeout instead of `no-window`.
     output: {
       schema: { type: 'string' },
       render: (_args: unknown, value: string) => [{ type: 'text' as const, text: value }],

@@ -31,7 +31,7 @@ kind: "package-reference"
 
 | 字段 | 默认值 | 作用 |
 | --- | --- | --- |
-| `answerTimeoutMs` | `10000` | 显示该会话的窗口打开对话框的时限（毫秒），声明为工具的 `timeoutMs`；超过后该推荐视为无人应答。 |
+| `answerTimeoutMs` | `10000` | 显示该会话的窗口打开对话框的时限（毫秒）；超过后该推荐视为无人应答，模型读到无窗口结果。 |
 
 ```yaml
 - id: tool-desktop-handoff
@@ -78,7 +78,7 @@ No window is showing this conversation, so nothing opened. Tell the user that th
 - **无不变量伴随包** —— 不发布运行时不变量伴随包，因为该工具自身不持有状态：一次调用分发有作用域的 `desktop-handoff/offer` waterfall，`renderDesktopHandoffResult` 是客户端插件给出的单个应答的纯函数，没有第二个可比较的观察。
 
 <a id="dev-note"></a>
-### 开发笔记
+### 开发备注
 
 <details>
 <summary>维护者工作上下文 —— 点击展开</summary>

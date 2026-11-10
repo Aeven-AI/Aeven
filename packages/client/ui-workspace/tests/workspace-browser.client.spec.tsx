@@ -414,30 +414,30 @@ describe('WorkspaceBrowser', () => {
     fireEvent.click(screen.getByRole('button', { name: '收起' }))
     expect(screen.queryByText('session-6')).toBeNull()
 
-    // Its first prompt makes it an ordinary row: the account keeps it last, so
-    // the fold takes the five leading rows and the just-prompted chat waits
-    // behind the overflow control with the sixth.
+    // Its first prompt makes it an ordinary row that keeps the head of the
+    // account, so the fold takes it and the next four rows, and the fifth and
+    // sixth wait behind the overflow control.
     rerender(b, {
       useSessions: hook(sessionState([{ ...blank, blank: false }, ...ordinary], { current: blank.id })),
     })
     expect(b.store.getSnapshot().sessionOrderByAccount.alpha).toEqual([
-      'session-1', 'session-2', 'session-3', 'session-4', 'session-5', 'session-6', 'blank',
+      'blank', 'session-1', 'session-2', 'session-3', 'session-4', 'session-5', 'session-6',
     ])
-    expect(screen.queryByText('blank')).toBeNull()
-    expect(screen.getByText('session-5')).toBeTruthy()
+    expect(screen.getByText('blank')).toBeTruthy()
+    expect(screen.getByText('session-4')).toBeTruthy()
+    expect(screen.queryByText('session-5')).toBeNull()
     expect(screen.getByRole('button', { name: '显示全部' })).toBeTruthy()
 
     // Nothing is lost: the overflow control still reveals both hidden rows.
     fireEvent.click(screen.getByRole('button', { name: '显示全部' }))
-    expect(screen.getByText('blank')).toBeTruthy()
+    expect(screen.getByText('session-5')).toBeTruthy()
     expect(screen.getByText('session-6')).toBeTruthy()
   })
 
-  // Divergence: same cause as the case above — the account holds the blank last,
-  // not first, so the collapsed drag starts from the boundary the fold renders
-  // last. The drag policy it covers (boundaries follow rendered rows and the
-  // source stays visible) is unchanged.
-  it('anchors collapsed drags before hidden rows so the source stays visible, with the blank New Session ordered last', async () => {
+  // The blank New Session leads the account, so the collapsed fold renders
+  // session-5 last and session-6 stays hidden. The drag policy it covers
+  // (boundaries follow rendered rows and the source stays visible) holds.
+  it('anchors collapsed drags before hidden rows so the source stays visible, with the blank New Session leading', async () => {
     const ordinary = Array.from({ length: 6 }, (_, index) => summary(`session-${index + 1}`, 6 - index))
     const blank = summary('blank', 7, { blank: true })
     const insertSessionBefore = vi.fn(async () => {})
@@ -448,40 +448,26 @@ describe('WorkspaceBrowser', () => {
     })
     await waitFor(() => {
       expect(b.store.getSnapshot().sessionOrderByAccount.alpha)
-        .toEqual(['session-1', 'session-2', 'session-3', 'session-4', 'session-5', 'session-6', 'blank'])
+        .toEqual(['blank', 'session-1', 'session-2', 'session-3', 'session-4', 'session-5', 'session-6'])
     })
-
-    fireEvent.click(screen.getByRole('button', { name: '显示全部' }))
-    const blankRow = screen.getByText('新会话').closest('[role="treeitem"]') as HTMLElement
-    const session6 = screen.getByText('session-6').closest('[role="treeitem"]') as HTMLElement
-    session6.getBoundingClientRect = () => ({
-      top: 200, bottom: 234, left: 0, right: 200, width: 200, height: 34,
-      x: 0, y: 200, toJSON: () => ({}),
-    })
-    fireEvent.dragStart(blankRow, { dataTransfer: dragData() })
-    fireDrag(session6, 'drop', 230)
-    // The blank was already last: the drop on the last row's lower half keeps
-    // it there.
-    expect(b.store.getSnapshot().sessionOrderByAccount.alpha)
-      .toEqual(['session-1', 'session-2', 'session-3', 'session-4', 'session-5', 'session-6', 'blank'])
-
-    insertSessionBefore.mockClear()
-    fireEvent.click(screen.getByRole('button', { name: '收起' }))
-    const collapsedBlank = screen.getByText('新会话').closest('[role="treeitem"]') as HTMLElement
-    collapsedBlank.getBoundingClientRect = () => ({
-      top: 200, bottom: 234, left: 0, right: 200, width: 200, height: 34,
-      x: 0, y: 200, toJSON: () => ({}),
-    })
+    expect(screen.queryByText('session-6')).toBeNull()
     const session5 = screen.getByText('session-5').closest('[role="treeitem"]') as HTMLElement
+    session5.getBoundingClientRect = () => ({
+      top: 200, bottom: 234, left: 0, right: 200, width: 200, height: 34,
+      x: 0, y: 200, toJSON: () => ({}),
+    })
+    // The last rendered row dropped on its own lower half stays where it is.
     fireEvent.dragStart(session5, { dataTransfer: dragData() })
-    fireDrag(collapsedBlank, 'drop', 205)
+    fireDrag(session5, 'drop', 230)
     expect(insertSessionBefore).not.toHaveBeenCalled()
 
+    // A drop below the last rendered row lands before the hidden session-6, so
+    // the moved row stays visible.
     const session4 = screen.getByText('session-4').closest('[role="treeitem"]') as HTMLElement
     fireEvent.dragStart(session4, { dataTransfer: dragData() })
-    fireDrag(collapsedBlank, 'drop', 205)
+    fireDrag(session5, 'drop', 230)
     expect(b.store.getSnapshot().sessionOrderByAccount.alpha)
-      .toEqual(['session-1', 'session-2', 'session-3', 'session-5', 'session-4', 'session-6', 'blank'])
+      .toEqual(['blank', 'session-1', 'session-2', 'session-3', 'session-5', 'session-4', 'session-6'])
     expect(insertSessionBefore).toHaveBeenCalledWith(wid('alpha'), sid('session-4'), sid('session-6'))
     expect(screen.getByText('session-4')).toBeTruthy()
     expect(screen.queryByText('session-6')).toBeNull()
@@ -685,7 +671,7 @@ describe('WorkspaceBrowser', () => {
       startSession,
     })
     await waitFor(() => {
-      expect(b.store.getSnapshot().sessionOrderByAccount.alpha).toEqual(['old', 'blank', 'mid'])
+      expect(b.store.getSnapshot().sessionOrderByAccount.alpha).toEqual(['blank', 'old', 'mid'])
     })
     startSession.mockImplementation(() => {
       rerender(b, { useSessions: hook(sessionState(items, { current: sid('blank') })) })
@@ -704,12 +690,10 @@ describe('WorkspaceBrowser', () => {
     ])
   })
 
-  // Divergence: as in the case above, the account keeps the blank where the
-  // stored order puts it, so its promotion is not what holds the blank's
-  // position. What the case covers — one order across the drag and the first
-  // prompt, with no second reordering and the Host told where it went — is
-  // unchanged.
-  it('holds one order through a blank New Session\'s drag and first prompt, without reordering it again', async () => {
+  // The blank leads the account from the start. What the case covers — one
+  // order across a drag and the blank's first prompt, with no second
+  // reordering and the Host told where the dragged row went — is unchanged.
+  it('holds one order through a drag and a blank New Session\'s first prompt, without reordering it again', async () => {
     const insertSessionBefore = vi.fn(async () => {})
     const b = mount({
       useSessions: hook(sessionState([
@@ -721,21 +705,21 @@ describe('WorkspaceBrowser', () => {
       insertSessionBefore,
     })
     await waitFor(() => {
-      expect(b.store.getSnapshot().sessionOrderByAccount.alpha).toEqual(['old', 'mid', 'blank'])
+      expect(b.store.getSnapshot().sessionOrderByAccount.alpha).toEqual(['blank', 'old', 'mid'])
     })
-    const blank = screen.getByText('新会话').closest('[role="treeitem"]') as HTMLElement
+    const mid = screen.getByText('mid').closest('[role="treeitem"]') as HTMLElement
     const old = screen.getByText('old').closest('[role="treeitem"]') as HTMLElement
     old.getBoundingClientRect = () => ({
       top: 150, bottom: 184, left: 0, right: 200, width: 200, height: 34, x: 0, y: 150, toJSON: () => ({}),
     })
-    // The reader drags the blank row above "old": the arrangement is theirs now,
-    // and the Host is told where it went.
-    fireEvent.dragStart(blank, { dataTransfer: dragData() })
+    // The reader drags "mid" above "old": the arrangement is theirs now, and
+    // the Host is told where it went.
+    fireEvent.dragStart(mid, { dataTransfer: dragData() })
     fireDrag(old, 'drop', 155)
-    expect(b.store.getSnapshot().sessionOrderByAccount.alpha).toEqual(['blank', 'old', 'mid'])
-    expect(insertSessionBefore).toHaveBeenCalledWith(wid('alpha'), sid('blank'), sid('old'))
+    expect(b.store.getSnapshot().sessionOrderByAccount.alpha).toEqual(['blank', 'mid', 'old'])
+    expect(insertSessionBefore).toHaveBeenCalledWith(wid('alpha'), sid('mid'), sid('old'))
 
-    // Its first prompt leaves that arrangement alone: nothing promotes it again.
+    // The blank's first prompt leaves that arrangement alone: nothing reorders it again.
     rerender(b, {
       useSessions: hook(sessionState([
         summary('old', 100),
@@ -744,12 +728,12 @@ describe('WorkspaceBrowser', () => {
       ], { current: sid('blank') })),
     })
     await waitFor(() => {
-      expect(b.store.getSnapshot().sessionOrderByAccount.alpha).toEqual(['blank', 'old', 'mid'])
+      expect(b.store.getSnapshot().sessionOrderByAccount.alpha).toEqual(['blank', 'mid', 'old'])
     })
     expect(screen.getAllByRole('treeitem').slice(1).map(row => row.textContent)).toEqual([
       expect.stringContaining('blank'),
-      expect.stringContaining('old'),
       expect.stringContaining('mid'),
+      expect.stringContaining('old'),
     ])
   })
 
