@@ -300,6 +300,7 @@ flowchart TD
     pkg_turn_review["turn-review"]
   end
   subgraph group_host["packages/host"]
+    pkg_cloud_meter["cloud-meter"]
     pkg_host_account_integrations["host-account-integrations"]
     pkg_host_directory_picker["host-directory-picker"]
     pkg_host_directory_picker_auto["host-directory-picker-auto"]
@@ -778,6 +779,9 @@ flowchart TD
   pkg_turn_review --> pkg_llm
   pkg_turn_review --> pkg_session
   pkg_turn_review --> pkg_timeout
+  pkg_cloud_meter --> pkg_agent
+  pkg_cloud_meter --> pkg_credentials
+  pkg_cloud_meter --> pkg_sandbox_jail
   pkg_host_workspace_files --> pkg_client_connection
   pkg_host_workspace_files --> pkg_host_webserver
   pkg_host_workspace_files --> pkg_workspace
@@ -1869,6 +1873,7 @@ flowchart TD
 | [`document-extract-video`](../packages/document/document-extract-video) | `document` | [`document-extract`](../packages/document/document-extract), [`speech-to-text`](../packages/speech/speech-to-text), [`subprocess`](../packages/subprocess/subprocess) |
 | [`fs-e2b`](../packages/e2b/fs-e2b) | `e2b` | [`e2b`](../packages/e2b/e2b), [`fs`](../packages/fs/fs) |
 | [`turn-review`](../packages/guard/turn-review) | `guard` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`timeout`](../packages/util/timeout) |
+| [`cloud-meter`](../packages/host/cloud-meter) | `host` | [`agent`](../packages/core/agent), [`credentials`](../packages/credentials/credentials), [`sandbox-jail`](../packages/sandbox/sandbox-jail) |
 | [`host-workspace-files`](../packages/host/workspace-files) | `host` | [`client-connection`](../packages/client/connection), [`host-webserver`](../packages/host/webserver), [`workspace`](../packages/workspace/workspace) |
 | [`user-approval`](../packages/interaction/user-approval) | `interaction` | [`agent`](../packages/core/agent), [`brand`](../packages/util/brand), [`invariants`](../packages/runtime-diagnostics/invariants), [`llm`](../packages/llm/llm), [`scope`](../packages/core/scope), [`session`](../packages/core/session), [`system-prompt`](../packages/core/system-prompt) |
 | [`user-questions`](../packages/interaction/user-questions) | `interaction` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`scope`](../packages/core/scope) |

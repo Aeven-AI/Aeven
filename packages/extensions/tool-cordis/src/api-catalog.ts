@@ -5530,6 +5530,22 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'change', description: 'the session, message, and stored item after the change.' }],
   },
   {
+    name: 'sandbox-jail/admit',
+    mode: 'bail',
+    signature: '\'sandbox-jail/admit\'(account: string): string | undefined',
+    summary: 'Ask whether an account may start a confined command.',
+    description: 'Ask whether an account may start a confined command. A listener returns the reason it may not, which the caller reads as the `SANDBOX_UNAVAILABLE` message; no answer admits the command. Synchronous, because confinement is: an answer that needs I/O comes from the listener\'s own cache.',
+    parameters: [{ name: 'account', description: 'the account path segment, which is the owner of the account\'s sessions.' }],
+  },
+  {
+    name: 'sandbox-jail/usage',
+    mode: 'emit',
+    signature: '\'sandbox-jail/usage\'(usage: { account: string; cpuSeconds: number }): void',
+    summary: 'CPU time an account\'s confined commands used, reported every `usageIntervalMs` for each account that used any, and once more when the provider stops.',
+    description: 'CPU time an account\'s confined commands used, reported every `usageIntervalMs` for each account that used any, and once more when the provider stops. Emitted only while `cgroup` is configured, since the account cgroup is what counts it.',
+    parameters: [{ name: 'usage', description: '`account`, the account path segment, which is the owner of the account\'s sessions, and `cpuSeconds`, the CPU time summed over every process of its cgroup since the previous report.' }],
+  },
+  {
     name: 'session-handoff/catalog',
     mode: 'emit',
     signature: '\'session-handoff/catalog\'(owner: string): void',

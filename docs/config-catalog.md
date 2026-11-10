@@ -813,6 +813,36 @@ export interface Config {
 
 Source: [`packages/client/modules/src/index.ts`](../packages/client/modules/src/index.ts)
 
+<a id="aevencloud-meter"></a>
+
+## `@aeven/cloud-meter`
+
+Requires: `credentials`
+
+```ts config-catalog
+/** Where reports go, how often, and which turns are already billed through inference. */
+export interface Config {
+  /** Aeven API origin, e.g. `https://aeven.io`. */
+  apiUrl: string
+  /** Credential holding each owner's Aeven session; defaults to `AEVEN_TOKEN`. */
+  credentialRef?: string
+  /** Milliseconds between sends of the queued reports. */
+  flushIntervalMs?: number
+  /** Milliseconds a quote of an owner's funding stays fresh. */
+  quoteTtlMs?: number
+  /** Directory whose direct children are account folders named by owner; omitted, storage is not metered. */
+  accountsRoot?: string
+  /** Milliseconds between storage measurements of every account folder. */
+  storageIntervalMs?: number
+  /** Providers whose turns the Aeven API already bills as inference; a turn on any other provider is metered. */
+  billedProviders?: string[]
+  /** Most reports kept per owner while the API is unreachable; older reports are dropped first. */
+  maxQueuedPerOwner?: number
+}
+```
+
+Source: [`packages/host/cloud-meter/src/index.ts`](../packages/host/cloud-meter/src/index.ts)
+
 <a id="aevencode-runtime-worker-thread"></a>
 
 ## `@aeven/code-runtime-worker-thread`
@@ -3648,6 +3678,8 @@ export interface Config {
    * the jail adds nothing to the prompt.
    */
   modelNote?: string
+  /** Milliseconds between `sandbox-jail/usage` reports of each account's CPU time; read only with `cgroup`. */
+  usageIntervalMs?: number
 }
 
 /** cgroup placement for confined commands. */

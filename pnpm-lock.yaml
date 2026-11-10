@@ -2034,6 +2034,9 @@ importers:
       '@aeven/client-ui-workspace-name':
         specifier: workspace:^
         version: link:../../client/ui-workspace-name
+      '@aeven/cloud-meter':
+        specifier: workspace:^
+        version: link:../../host/cloud-meter
       '@aeven/motion':
         specifier: workspace:^
         version: link:../../motion/motion
@@ -8373,6 +8376,25 @@ importers:
       '@aeven/whatsapp-mcp-win32-x64':
         specifier: workspace:^
         version: link:../../../native/whatsapp-mcp/packages/win32-x64
+
+  packages/host/cloud-meter:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../../core/agent
+      '@aeven/credentials':
+        specifier: workspace:^
+        version: link:../../credentials/credentials
+      '@aeven/sandbox-jail':
+        specifier: workspace:^
+        version: link:../../sandbox/sandbox-jail
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
 
   packages/host/directory-picker:
     devDependencies:

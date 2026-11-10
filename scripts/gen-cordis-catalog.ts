@@ -225,6 +225,7 @@ export const EVENT_SCOPE_PAGE: Record<string, string> = {
   'desktop-handoff': 'computer-use.md',
   'location': 'computer-use.md',
   'mcp': 'extensions.md',
+  'sandbox-jail': 'sandbox.md',
   'message-feedback': 'feedback.md',
   'agent': 'core.md',
   'agent-loop': 'core.md',

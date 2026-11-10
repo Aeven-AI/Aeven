@@ -665,6 +665,19 @@
             cpuWeight: '100'
             ioMax: rbps=31457280 wbps=10485760 riops=1000 wiops=300
 
+# Cloud work is billed to the account that runs it: the CPU time of its jailed
+# commands, its folder's storage once a day, and each turn on a provider whose
+# inference aeven.io never sees. An account whose credit is spent starts no
+# jailed command and no such turn. AVN_CLOUD_BILLING=1 turns it on once the
+# API serves /api/cloud/meter.
+- insert:
+    - id: cloud-meter
+      name: '@aeven/cloud-meter'
+      disabled: !!js process.env.AVN_CLOUD_BILLING !== '1'
+      config:
+        apiUrl: !!js process.env.AEVEN_API_URL ?? 'http://localhost:9000'
+        accountsRoot: !!js "process.env.AVN_HOSTED_SANDBOX === '1' ? avnHomePath('sandbox', 'accounts') : undefined"
+
 # Commands write only inside their account's folder, and no approval can widen
 # that: an escalation to full access would run on the Host itself. A session
 # with no account folder resolves to a folder outside every account, which the
