@@ -4,8 +4,8 @@
  * relay connection is open now, and a press moves the Session's next turns to
  * that desktop.
  */
-import { useMemo } from 'react'
-import { IconLucideLaptopMinimal, IconLucideMonitorCheck, Modal, relativeTime } from '@aeven/client-ui-primitives'
+import { useMemo, useState } from 'react'
+import { Button, IconLucideLaptopMinimal, IconLucideMonitorCheck, Modal, relativeTime } from '@aeven/client-ui-primitives'
 import type { SessionDesktop } from '../contract/slots.ts'
 import type { ConversationSessionHeaderProps } from './ConversationSession.tsx'
 import css from './DesktopChooser.module.css'
@@ -58,10 +58,31 @@ function status(desktop: SessionDesktop, now: number, t: DesktopChooserProps['t'
 export function DesktopChooser({ open, desktops, onClose, onChoose, t }: DesktopChooserProps) {
   // Dated once per opening, so the status lines stay put while the dialog shows.
   const now = useMemo(() => Date.now(), [open])
+  // An offline desktop's row explains why it cannot take the conversation instead of moving it.
+  const [offline, setOffline] = useState<SessionDesktop | undefined>(undefined)
+  // On Aeven Web there is no row for this computer, and the conversation runs in Aeven Cloud while its desktop is away.
+  const onWeb = !desktops.some(desktop => desktop.self)
+  const close = (): void => {
+    setOffline(undefined)
+    onClose()
+  }
+  if (open && offline !== undefined) {
+    const name = offline.name === '' ? t('desktops.unnamed') : offline.name
+    return (
+      <Modal
+        open
+        onClose={() => { setOffline(undefined) }}
+        title={t('desktops.offlineTitle', { name })}
+        description={t(onWeb ? 'desktops.offlineCloud' : 'desktops.offlineStays')}
+        closeLabel={t('desktops.close')}
+        footer={<Button variant="primary" autoFocus onClick={() => { setOffline(undefined) }}>{t('desktops.ok')}</Button>}
+      />
+    )
+  }
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={close}
       title={t('desktops.title')}
       description={t('desktops.description')}
       closeLabel={t('desktops.close')}
@@ -77,7 +98,10 @@ export function DesktopChooser({ open, desktops, onClose, onChoose, t }: Desktop
                   className={css.row}
                   disabled={desktop.home}
                   aria-current={desktop.home ? 'true' : undefined}
-                  onClick={() => { onChoose(desktop) }}
+                  onClick={() => {
+                    if (!desktop.present && !desktop.self) setOffline(desktop)
+                    else onChoose(desktop)
+                  }}
                 >
                   <IconLucideLaptopMinimal className={css.icon} />
                   <span className={css.text}>
