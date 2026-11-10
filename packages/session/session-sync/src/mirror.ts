@@ -1096,7 +1096,6 @@ export class SessionMirror {
     const devices = this.devices()
     if (me === undefined || devices === undefined || !this.shared(sessionId)) return undefined
     const writer = this.entries().get(sessionId)?.writer
-    const always = [...devices.entries()].find(([id, entry]) => id !== me && entry.alwaysOn === true)
     return {
       device: me,
       alwaysOnHere: devices.get(me)?.alwaysOn === true,
@@ -1110,7 +1109,6 @@ export class SessionMirror {
             pinned: this.entries().get(sessionId)?.pinned === true,
           },
         },
-      ...always === undefined ? {} : { alwaysOn: { device: always[0], name: always[1].name } },
       desktops: this.desktops(),
     }
   }

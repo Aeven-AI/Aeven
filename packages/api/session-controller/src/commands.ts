@@ -367,17 +367,14 @@ export class SessionCommandController {
     if (placement.alwaysOnHere) {
       return { here: false, desktops: desktopsOf(placement) }
     }
-    const always = placement.alwaysOn
     return {
       here: placement.home?.alwaysOn === true || placement.home?.pinned === true,
-      ...always === undefined || placement.home?.device === always.device ? {} : { alwaysOn: always.name },
       ...placement.desktops.length === 0 ? {} : { desktops: desktopsOf(placement) },
     }
   }
 
   /**
-   * Make this device, the account's always-on device, or one of its desktops the home of a synced Session, so its
-   * next turns run there.
+   * Make this device or one of the account's desktops the home of a synced Session, so its next turns run there.
    * @param request - Session identity and the device to continue on.
    * @returns acceptance.
    * @throws RemoteError `session/agent-busy` while another device runs a turn of the Session, and
@@ -392,13 +389,9 @@ export class SessionCommandController {
     }
     const device = request.target === 'here'
       ? placement.device
-      : request.target === 'desktop'
-        ? placement.desktops.find(desktop => desktop.device === request.device)?.device
-        : placement.alwaysOn?.device
+      : placement.desktops.find(desktop => desktop.device === request.device)?.device
     if (device === undefined) {
-      throw new RemoteError('gateway/bad-request', request.target === 'desktop'
-        ? 'that desktop is not one of your account\'s devices'
-        : 'your account has no always-on device to continue on', {})
+      throw new RemoteError('gateway/bad-request', 'that desktop is not one of your account\'s devices', {})
     }
     if (handoff.runnerOf(owner, request.sessionId) !== undefined) {
       throw new RemoteError('session/agent-busy', 'another device of this account is running a turn of this conversation; move it once that turn ends', { reason: 'remote-turn' })

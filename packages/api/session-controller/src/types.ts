@@ -370,10 +370,8 @@ export interface SessionPlacementRequest {
  * on offers any: on an always-on device such as Aeven Cloud, typing already runs the next turn there.
  */
 export interface SessionPlacementValue {
-  /** Offer to run the Session's next turns on this device: its latest turn ran on an always-on device. */
+  /** Offer to run the Session's next turns on this device: they run on an always-on device or a desktop it was moved to. */
   readonly here: boolean
-  /** Name of the always-on device, such as "Aeven Cloud", to offer the Session to; absent when there is none to move to. */
-  readonly alwaysOn?: string
   /** The account's desktops to offer the Session to from an always-on Host such as Aeven Web; absent elsewhere. */
   readonly desktops?: readonly SessionDesktopValue[]
 }
@@ -395,8 +393,8 @@ export interface SessionDesktopValue {
 /** Session device move request. */
 export interface SessionContinueOnRequest {
   readonly sessionId: SessionId
-  /** `here` runs the next turns on this device; `always-on` on the account's always-on device; `desktop` on `device`. */
-  readonly target: 'here' | 'always-on' | 'desktop'
+  /** `here` runs the next turns on this device; `desktop` on `device`. */
+  readonly target: 'here' | 'desktop'
   /** The desktop a `desktop` move goes to, one of the placement's `desktops`; required with that target only. */
   readonly device?: string
 }

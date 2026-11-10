@@ -34,8 +34,6 @@ export interface HandoffPlacement {
    * the asking device. `pinned` marks a desktop it was moved to, which keeps it while that desktop is present.
    */
   readonly home?: SessionRunner & { readonly alwaysOn: boolean; readonly pinned: boolean }
-  /** An always-on device of the account other than the asking one, which the session can move to. */
-  readonly alwaysOn?: SessionRunner
   /** The account's desktops other than the asking device, which the session can move to: present ones first, then most recently seen. */
   readonly desktops: readonly HandoffDesktop[]
 }
