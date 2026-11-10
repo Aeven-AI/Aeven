@@ -2,6 +2,7 @@
 import type { Branded } from '@aeven/brand'
 import type { SessionId } from '@aeven/session'
 import type { ModelSelection } from '@aeven/agent'
+import type { SyncStatus } from '@aeven/sync'
 
 /** Identifies a persistent automation. */
 export type AutomationId = Branded<'AutomationId'>
@@ -43,14 +44,35 @@ export interface AutomationGrant {
 }
 /** Something a task needs from one of its owner's own computers; everything else is available on every Host. */
 export type DeviceCapability = 'files' | 'browser' | 'computer-use'
-/** Where the owner lets a task run: wherever it can, or only on their own computers. */
-export type RunOn = 'auto' | 'device'
+/**
+ * Where the owner lets a task run: `auto` wherever its requirements allow, `cloud` only on Aeven Cloud, `device` only
+ * on their own computers, or on the one desktop a definition's `desktop` names.
+ */
+export type RunOn = 'auto' | 'cloud' | 'device'
+/** A device's id in its account's sync vault. */
+export type HostDevice = NonNullable<SyncStatus['device']>
 /** What one Host of an account is and offers, as the account's other Hosts read it. */
 export interface HostProfile {
   /** `cloud` for a Host on Aeven's infrastructure, `device` for one on the owner's computer. */
   readonly kind: 'cloud' | 'device'
   /** The device capabilities runs on this Host can use. */
   readonly provides: readonly DeviceCapability[]
+  /** The Host's device id in the account's vault; absent on a Host registered by a build that did not record it. */
+  readonly device?: HostDevice | undefined
+}
+/** One desktop of an account a bot can be placed on, as the bots page lists it. */
+export interface AutomationDesktop {
+  readonly device: HostDevice
+  /** The name it gave itself; empty until it wrote one. */
+  readonly name: string
+  /** Whether its relay connection is open now. */
+  readonly present: boolean
+  /** When its relay connection was last seen open, in milliseconds since the Unix epoch; absent when never. */
+  readonly seenAt?: number | undefined
+  /** Whether it is the Host answering the list. */
+  readonly self: boolean
+  /** The device capabilities its Host offers bots; absent while it has not registered a Host that can run bots. */
+  readonly provides?: readonly DeviceCapability[] | undefined
 }
 /**
  * Where a definition runs, derived from its requirements, its owner's choice, and the account's Hosts.
@@ -80,6 +102,8 @@ export interface AutomationDefinition {
   /** Device capabilities the task needs; absent on a definition stored before requirements were declared. */
   readonly requires?: readonly DeviceCapability[] | undefined
   readonly runOn: RunOn
+  /** With `runOn: device`, the one desktop that runs the task; absent lets every desktop that provides `requires` run it. */
+  readonly desktop?: HostDevice | undefined
   readonly executionTarget: { readonly kind: 'local'; readonly runnerId: AutomationRunnerId }
   readonly lastAdmittedAt: string | null
   readonly createdAt: string
@@ -123,4 +147,6 @@ export interface AutomationInput {
   readonly requires?: readonly DeviceCapability[] | undefined
   /** `auto` when omitted at creation. */
   readonly runOn?: RunOn | undefined
+  /** The vault device id of the one desktop that runs the task; accepted only with `runOn: device`. */
+  readonly desktop?: string | undefined
 }

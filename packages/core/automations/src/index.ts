@@ -9,6 +9,7 @@ import type {} from '@aeven/agent-presets'
 import type {} from '@aeven/identity-user'
 import type {} from '@aeven/permission-presets'
 import type {} from '@aeven/session-title'
+import type {} from '@aeven/session-handoff'
 import type { Workspace } from '@aeven/workspace'
 import type {} from '@aeven/client-connection'
 import type {} from '@aeven/host-webserver'
@@ -19,16 +20,26 @@ import { LeaseHolder } from '@aeven/sync'
 import type { Domain } from '@aeven/storage-domain'
 import { setApprovalPolicy, type ApprovalRequestId } from '@aeven/user-approval'
 import { automationDomain, webhookDomain, inputSchema, patchSchema } from './domain.ts'
-import { eligibility, resolvePlacement } from './placement.ts'
+import { eligibility, placementMode, placementRefusal, resolvePlacement } from './placement.ts'
 import { latestDueOccurrence, nextOccurrence, SCHEDULE_KINDS } from './recurrence.ts'
 import { DefinitionSync, type CloudRunRequest, type SyncedDefinition } from './sync.ts'
 import { registerAutomationTools } from './tools.ts'
-import type { AutomationDefinition, AutomationId, AutomationInput, AutomationPlacement, AutomationRun, AutomationRunId, AutomationRunnerId, AutomationSchedule, AutomationTrigger, DeviceCapability, HostProfile } from './types.ts'
+import type { AutomationDefinition, AutomationDesktop, AutomationId, AutomationInput, AutomationPlacement, AutomationRun, AutomationRunId, AutomationRunnerId, AutomationSchedule, AutomationTrigger, DeviceCapability, HostDevice, HostProfile } from './types.ts'
 
 export type * from './types.ts'
 
 /** Absolute path prefix of the inbound trigger endpoint; one automation per trailing segment. */
 const WEBHOOK_PATH = '/automation-webhook'
+/**
+ * Brand the desktop of validated management input.
+ * @param input - input that passed {@link inputSchema}.
+ * @returns the same input with its desktop typed as a vault device id.
+ */
+function withDesktop<T extends { desktop?: string | undefined }>(input: T): Omit<T, 'desktop'> & { desktop?: HostDevice } {
+  const { desktop, ...rest } = input
+  return desktop === undefined ? rest : { ...rest, desktop: brandString<HostDevice>(desktop) }
+}
+
 /** Error recorded on a run its owner stopped. */
 const STOPPED = 'Stopped by its owner.'
 
@@ -196,6 +207,8 @@ export class Automations extends Service<Config> {
   private readonly leases = new Map<string, LeaseHolder>()
   /** The due occurrence of each automation another device holds the claim for; it waits for a lease change. */
   private readonly deferred = new Map<AutomationId, string>()
+  /** This device's vault id per account, as account sync last reported it. */
+  private readonly devices = new Map<string, HostDevice>()
 
   constructor(ctx: Context, private readonly config: Config) {
     super(ctx, 'automations')
@@ -209,7 +222,7 @@ export class Automations extends Service<Config> {
           if (definition.owner === owner && !present.has(id)) await this.synced.publish(owner, definition)
         }
       },
-      async () => ({ id: this.runnerId(await this.ready), profile: this.config.placement }),
+      async owner => ({ id: this.runnerId(await this.ready), profile: this.here(owner) }),
       // Another Host of the account changes which of them runs a definition; the scheduler looks again.
       () => { this.rearm() },
       (owner, id, request) => { this.receiveCloudRun(owner, id, request) },
@@ -274,7 +287,16 @@ export class Automations extends Service<Config> {
       }
     })
     // Each account's automations follow it to every device its sync vault holds, once that vault is served here.
-    this.ctx.on('sync/status', (owner) => { void this.synced.attach(owner) })
+    this.ctx.on('sync/status', (owner) => {
+      void this.synced.attach(owner)
+      // A bot placed on one desktop becomes due here once account sync names this device.
+      const device = this.ctx.get('sync')?.status(owner).device
+      if (device !== undefined && this.devices.get(owner) !== device) {
+        this.devices.set(owner, device)
+        void this.synced.reregister(owner).catch((error: unknown) => { ctx.logger.warn(`automations: this device's profile was not updated: ${String(error)}`) })
+        this.rearm()
+      }
+    })
     this.ctx.on('sync/reset', (owner) => { void this.synced.reset(owner) })
     this.ctx.effect(() => async () => {
       await this.synced.dispose()
@@ -331,7 +353,7 @@ export class Automations extends Service<Config> {
    * definition's `placement` says where it runs among the account's registered Hosts, and its `webhook` says
    * an inbound credential exists; the secret itself never enters this projection.
    */
-  async list(): Promise<{ definitions: (AutomationDefinition & { placement: AutomationPlacement; nextRunAt: string | null; lastRun: AutomationRun | null; webhook: boolean })[]; runs: AutomationRun[]; capabilities: { host: HostProfile['kind']; triggers: readonly AutomationSchedule['kind'][]; webhook: boolean } }> {
+  async list(): Promise<{ definitions: (AutomationDefinition & { placement: AutomationPlacement; nextRunAt: string | null; lastRun: AutomationRun | null; webhook: boolean })[]; runs: AutomationRun[]; capabilities: { host: HostProfile['kind']; triggers: readonly AutomationSchedule['kind'][]; webhook: boolean }; hosts: { cloud: boolean; desktops: AutomationDesktop[] } }> {
     const domain = await this.ready
     const hooks = await this.hooks
     const definitions = [...domain.table('definitions').entries()].map(([, value]) => value).filter(value => this.ctx.identityUsers.mayAccess(value.owner))
@@ -346,7 +368,32 @@ export class Automations extends Service<Config> {
       lastRun: runs.find(run => run.definition.id === definition.id) ?? null,
       webhook: hooks.table('webhooks').get(definition.id) !== undefined,
     })), runs: runs.filter(run => run.sessionId === null || !archived.has(run.sessionId)),
-    capabilities: { host: this.config.placement.kind, triggers: SCHEDULE_KINDS, webhook: true } }
+    capabilities: { host: this.config.placement.kind, triggers: SCHEDULE_KINDS, webhook: true },
+    hosts: this.accountHosts(this.ctx.identityUsers.actingUser()?.id) }
+  }
+
+  /**
+   * Where the acting account's bots can be placed: whether it has registered a cloud Host, and its desktops.
+   * @param owner - the acting account, or undefined without one.
+   * @returns this desktop first when this Host is one, then the account's other desktops as account sync lists
+   * them; each desktop carries what its registered Host offers bots.
+   */
+  private accountHosts(owner: string | undefined): { cloud: boolean; desktops: AutomationDesktop[] } {
+    const hosts = this.hostsOf(owner)
+    const cloud = hosts.some(host => host.kind === 'cloud')
+    const devices = owner === undefined ? undefined : this.ctx.get('sessionHandoff')?.devicesOf(owner)
+    if (devices === undefined) return { cloud, desktops: [] }
+    const offers = (device: string): readonly DeviceCapability[] | undefined =>
+      hosts.find(host => host.kind === 'device' && host.device === device)?.provides
+    const others = devices.desktops.map((desktop): AutomationDesktop => ({
+      device: desktop.device as HostDevice, name: desktop.name, present: desktop.present,
+      ...desktop.seenAt === undefined ? {} : { seenAt: desktop.seenAt }, self: false, provides: offers(desktop.device),
+    }))
+    if (devices.alwaysOnHere) return { cloud, desktops: others }
+    const self: AutomationDesktop = {
+      device: devices.device as HostDevice, name: devices.name, present: true, self: true, provides: this.config.placement.provides,
+    }
+    return { cloud, desktops: [self, ...others] }
   }
 
   /** Give one owned automation an inbound trigger credential, keeping an existing one.
@@ -409,9 +456,11 @@ export class Automations extends Service<Config> {
     const owner = agent?.session.header.owner ?? this.ctx.identityUsers.actingUser()?.id
     if (!this.ctx.identityUsers.mayAccess(owner)) return Promise.reject(new Error('Sign in to create an automation.'))
     return this.transaction(async (domain) => {
-      const parsed = inputSchema.parse(input)
+      const parsed = withDesktop(inputSchema.parse(input))
       const now = new Date().toISOString()
       if (nextOccurrence(parsed.schedule, now) === null) throw new Error('Choose a schedule with a future occurrence.')
+      const refusal = placementRefusal({ ...parsed, runOn: parsed.runOn ?? 'auto' }, this.hostsOf(owner))
+      if (refusal !== undefined) throw new Error(refusal)
       const id = brandString<AutomationId>(randomUUID())
       const agentPreset = agent?.session.header.agentPreset ?? this.ctx.agentPresets.defaultId
       if (owner !== undefined && this.ctx.get('settings')?.accountSections === true) {
@@ -436,16 +485,21 @@ export class Automations extends Service<Config> {
   update(id: AutomationId, patch: { [K in keyof AutomationInput]?: AutomationInput[K] | undefined } & { status?: 'active' | 'paused' | undefined }): Promise<AutomationDefinition> {
     return this.transaction(async (domain) => {
       const current = this.owned(domain, id)
-      const parsed = inputSchema.parse({
+      const parsed = withDesktop(inputSchema.parse({
         name: patch.name ?? current.name, prompt: patch.prompt ?? current.prompt,
         schedule: patch.schedule ?? current.schedule, permission: patch.permission ?? current.permission,
         requires: patch.requires ?? current.requires, runOn: patch.runOn ?? current.runOn,
-      })
+        // A new choice of where the bot runs replaces its desktop; an edit that names neither keeps it.
+        desktop: patch.runOn === undefined && patch.desktop === undefined ? current.desktop : patch.desktop,
+      }))
       const status = patch.status ?? current.status
+      const { desktop: _replaced, ...kept } = current
       const next: AutomationDefinition = {
-        ...current, ...parsed, runOn: parsed.runOn ?? current.runOn, status,
+        ...kept, ...parsed, runOn: parsed.runOn ?? current.runOn, status,
         revision: current.revision + 1, updatedAt: new Date().toISOString(),
       }
+      const refusal = placementRefusal(next, this.hostsOf(current.owner))
+      if (refusal !== undefined) throw new Error(refusal)
       await this.store(domain, next)
       this.arm(domain)
       return next
@@ -682,7 +736,7 @@ export class Automations extends Service<Config> {
     domain: Domain<typeof automationDomain>, definition: AutomationDefinition, original?: AutomationRun,
   ): Promise<AutomationRun | undefined> {
     const owner = definition.owner
-    if (owner === undefined || this.config.placement.kind !== 'device' || eligibility(definition, this.config.placement) !== 'fallback') return undefined
+    if (owner === undefined || this.config.placement.kind !== 'device' || placementMode(definition) !== 'cloud' || eligibility(definition, this.here(owner)) === 'preferred') return undefined
     await this.synced.attach(owner)
     const target = this.synced.cloudRunner(owner)
     if (target === undefined) return undefined
@@ -724,7 +778,7 @@ export class Automations extends Service<Config> {
         return
       }
       try {
-        if (run.trigger !== 'manual' || run.status !== 'queued' || run.sessionId !== null || eligibility(run.definition, this.config.placement) !== 'preferred') throw new Error('This bot cannot run in the cloud.')
+        if (run.trigger !== 'manual' || run.status !== 'queued' || run.sessionId !== null || eligibility(run.definition, this.here(owner)) !== 'preferred') throw new Error('This bot cannot run in the cloud.')
         if (original !== undefined) {
           if (original.id !== run.retryOfRunId || JSON.stringify(original.definition) !== JSON.stringify(run.definition) || original.status === 'running' || original.status === 'queued' || original.status === 'succeeded' || original.resolution !== null) throw new Error('Choose an unresolved failed run.')
           const storedOriginal = domain.table('runs').get(original.id)
@@ -909,7 +963,18 @@ export class Automations extends Service<Config> {
    */
   private hostsOf(owner: string | undefined): readonly HostProfile[] {
     const hosts = owner === undefined ? [] : this.synced.hosts(owner)
-    return hosts.length === 0 ? [this.config.placement] : hosts
+    return hosts.length === 0 ? [this.here(owner)] : hosts
+  }
+
+  /**
+   * This Host's profile for one account: the configured placement and, while account sync serves the account here,
+   * this device's id in the account's vault.
+   * @param owner - the account, or undefined for a definition without one.
+   * @returns the profile placement reads for this Host.
+   */
+  private here(owner: string | undefined): HostProfile {
+    const device = owner === undefined ? undefined : this.ctx.get('sync')?.status(owner).device
+    return device === undefined ? this.config.placement : { ...this.config.placement, device }
   }
 
   /**
@@ -917,7 +982,7 @@ export class Automations extends Service<Config> {
    * `fallback` for the definition and a cloud Host registered for the account.
    */
   private yields(definition: AutomationDefinition): boolean {
-    return eligibility(definition, this.config.placement) === 'fallback' && this.hostsOf(definition.owner).some(host => host.kind === 'cloud')
+    return eligibility(definition, this.here(definition.owner)) === 'fallback' && this.hostsOf(definition.owner).some(host => host.kind === 'cloud')
   }
 
   /**
@@ -927,7 +992,7 @@ export class Automations extends Service<Config> {
    * @returns milliseconds since the Unix epoch, or `Infinity` when this Host may never run the definition.
    */
   private admitsFrom(definition: AutomationDefinition, occurrence: string): number {
-    if (eligibility(definition, this.config.placement) === 'never') return Infinity
+    if (eligibility(definition, this.here(definition.owner)) === 'never') return Infinity
     return Date.parse(occurrence) + (this.yields(definition) ? this.config.sync.fallbackDelayMs : 0)
   }
 
@@ -1038,7 +1103,7 @@ export class Automations extends Service<Config> {
    * @returns whether this device may admit its runs.
    */
   private runsHere(domain: Domain<typeof automationDomain>, definition: AutomationDefinition): boolean {
-    if (eligibility(definition, this.config.placement) === 'never') return false
+    if (eligibility(definition, this.here(definition.owner)) === 'never') return false
     const owner = definition.owner
     const state = owner === undefined ? undefined : this.ctx.get('sync')?.status(owner).state
     if (state !== undefined && state !== 'disabled' && state !== 'starting') return true

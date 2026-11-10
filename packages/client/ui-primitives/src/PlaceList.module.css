@@ -1,5 +1,5 @@
-/* The desktop chooser's rows: the shared Menu primitive's item, at two lines,
-   so a desktop reads like the options row that opened the dialog. */
+/* Rows of a place chooser: the shared Menu primitive's item, at two lines,
+   so a place reads like the options row that opened the dialog. */
 .list {
   display: flex;
   flex-direction: column;
@@ -32,7 +32,7 @@
   outline-offset: -2px;
 }
 
-/* The desktop the Session already runs on stays legible; only the press is off. */
+/* The current place and a place that cannot be chosen stay legible; only the press is off. */
 .row:disabled {
   cursor: default;
 }
@@ -68,7 +68,7 @@
   color: var(--dsw-alias-state-success-primary);
 }
 
-/* The desktop the conversation runs on: a mark at the row's end, no label. */
+/* The current place: a mark at the row's end, no label. */
 .current {
   display: flex;
   flex: none;

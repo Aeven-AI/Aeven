@@ -50,6 +50,7 @@
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
+    "@aeven/client-test-runtime": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@aeven/client-connection": "workspace:^",
     "@aeven/client-locale": "workspace:^",
