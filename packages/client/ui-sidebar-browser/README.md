@@ -38,7 +38,7 @@ None; the pane draws state the session already logged.
 
 ## Known Limitations and Deferred Work
 
-- **The embedded guest requires the desktop shell** — a web page has no `<webview>` and no shell bridge, so the browser kind opens the Host's Chromium instead and the pane's link menu is not installed.
+- **The embedded guest requires the desktop shell** — a web page has no `<webview>` and no shell bridge, so the sidebar's Browser launcher opens the Host's Chromium when the Host has one, and otherwise, as on Aeven Web, a new tab of the reader's own browser through the extension, showing the install modal or the unsupported-browser modal when needed; the pane's link menu is not installed.
 - **A session with no mounted pane has no page** — the automation event passes on and the tool reports the browser closed, so the agent drives this pane only while the reader has it open.
 - **Invariant omission** — No invariant companion is published because this package keeps no host-side state: the Host half registers one settings namespace and reads one Remote, while the guest, its link handling, and the automation replies exist only in the page and leave with it.
 

@@ -331,8 +331,14 @@ async function navigateInNewExtensionTab(
  * @param ctx - Client root context.
  * @param bridge - the page's link to the extension.
  * @param prompt - the page's extension install prompt.
+ * @returns the sidebar launcher's opener: a new tab of the reader's browser through the extension, after the prompt
+ * when the extension is missing or the browser cannot run it.
  */
-function installPageExtension(ctx: ClientContext, bridge: PageExtensionBridge, prompt: ExtensionPrompt): void {
+function installPageExtension(
+  ctx: ClientContext,
+  bridge: PageExtensionBridge,
+  prompt: ExtensionPrompt,
+): (sessionId: string) => Promise<void> {
   const chrome: ChromeAccess = {
     bridge: () => bridge,
     aevenUrl: () => undefined,
@@ -413,6 +419,11 @@ function installPageExtension(ctx: ClientContext, bridge: PageExtensionBridge, p
       })() as ReturnType<typeof next>
     })
   })
+  // The sidebar's Browser launcher: a new tab of the reader's own browser, through the extension, which prompts
+  // the reader to add it when it is missing or says the browser cannot run it.
+  return async (sessionId) => {
+    await withExtension(sessionId, {}, async () => await chromeTabs(sessionId, { input: { action: 'new', browser: 'extension' } }, chrome, undefined))
+  }
 }
 
 /** Services required by the browser plugin. */
@@ -473,12 +484,6 @@ export function apply(ctx: ClientContext): void {
   }, ExtensionRow))
 
   if (!isDesktopShell()) {
-    ctx.inject(['sidebarContent', 'remote.browserChromium'], (scoped) => {
-      scoped.effect(
-        () => scoped.sidebarContent.registerLauncher('browser', (sessionId) => { void openChromium?.(sessionId, '') }),
-        'ui-sidebar-browser: web launcher',
-      )
-    })
     const prompt = new ExtensionPrompt(pageBridge.extensionStatus)
     ctx.effect(() => () => { prompt.close() }, 'ui-sidebar-browser: extension prompt')
     const downloadUrl = downloadPage()
@@ -506,7 +511,24 @@ export function apply(ctx: ClientContext): void {
         },
       }),
     }, ExtensionPromptModal))
-    installPageExtension(ctx, pageBridge, prompt)
+    const openUserTab = installPageExtension(ctx, pageBridge, prompt)
+    // A Host with its own Chromium opens it; Aeven Web has none, so the launcher opens the reader's browser
+    // through the extension, and the prompt explains a missing extension or a browser that cannot run one.
+    ctx.inject(['sidebarContent'], (scoped) => {
+      scoped.effect(
+        () => scoped.sidebarContent.registerLauncher('browser', (sessionId) => {
+          if (openChromium !== null) {
+            void openChromium(sessionId, '')
+            return
+          }
+          openUserTab(sessionId).catch((error: unknown) => {
+            // The prompt already shows why: the browser cannot run the extension, or the reader closed the prompt.
+            console.warn('ui-sidebar-browser: opening a browser tab through the extension did not complete', error)
+          })
+        }),
+        'ui-sidebar-browser: web launcher',
+      )
+    })
     return
   }
 
