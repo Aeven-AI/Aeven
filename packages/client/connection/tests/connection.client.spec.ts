@@ -42,7 +42,7 @@ describe('connection lifecycle', () => {
     expect(source.activeCount).toBe(0)
   })
 
-  it('uses jittered exponential backoff and stops after the capped retry fails', async () => {
+  it('uses jittered exponential backoff and keeps retrying in the capped tier', async () => {
     vi.useFakeTimers()
     const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0)
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
@@ -72,8 +72,13 @@ describe('connection lifecycle', () => {
       expect(warnSpy).toHaveBeenCalledTimes(6)
       expect(warnSpy).toHaveBeenLastCalledWith('[connection] connection lost, retry #6')
       expect(states.at(-1)).toBe('disconnected')
-      await vi.advanceTimersByTimeAsync(60_000)
-      expect(calls).toBe(7)
+      // The capped tier repeats at its jittered cap, announcing nothing new.
+      await vi.advanceTimersByTimeAsync(5_000)
+      expect(calls).toBe(8)
+      expect(warnSpy).toHaveBeenLastCalledWith('[connection] connection lost, retry #6')
+      await vi.advanceTimersByTimeAsync(55_000)
+      expect(calls).toBe(19)
+      expect(states.at(-1)).toBe('disconnected')
     } finally {
       controller.stop()
       randomSpy.mockRestore()
@@ -82,7 +87,7 @@ describe('connection lifecycle', () => {
     }
   })
 
-  it('treats a non-growing backoff as one terminal retry tier', async () => {
+  it('treats a non-growing backoff as one repeating capped tier', async () => {
     vi.useFakeTimers()
     const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0)
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
@@ -105,7 +110,8 @@ describe('connection lifecycle', () => {
       expect(calls).toBe(2)
       expect(states).toEqual(['connecting', 'disconnected'])
       await vi.advanceTimersByTimeAsync(1_000)
-      expect(calls).toBe(2)
+      expect(calls).toBe(202)
+      expect(states).toEqual(['connecting', 'disconnected'])
     } finally {
       controller.stop()
       randomSpy.mockRestore()
@@ -283,7 +289,7 @@ describe('connection lifecycle', () => {
     }
   })
 
-  it('does not lose a reconnect requested synchronously from the terminal state sink', async () => {
+  it('runs a reconnect requested synchronously from the disconnected state sink at once', async () => {
     vi.useFakeTimers()
     const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0)
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)

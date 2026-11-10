@@ -22,6 +22,8 @@ export interface ConnectionConfig {
   backoffMaxMs?: number
   /** Maximum wait for the registered generation source's ready signal. */
   generationReadyTimeoutMs?: number
+  /** How long a probe of a connected generation waits for the Host's answer before the socket counts as dead. */
+  probeTimeoutMs?: number
 }
 
 const CONNECTION_DEFAULTS: Required<ConnectionConfig> = {
@@ -29,6 +31,7 @@ const CONNECTION_DEFAULTS: Required<ConnectionConfig> = {
   backoffFactor: 2,
   backoffMaxMs: 10_000,
   generationReadyTimeoutMs: 3_000,
+  probeTimeoutMs: 8_000,
 }
 
 const MANUAL_RECONNECT = new Error('connection: manual reconnect requested')
@@ -67,6 +70,12 @@ export interface ConnectionSinks {
   onStateChange?: (state: ConnectionState) => void
   /** Start one fresh physical-carrier attempt before each logical retry. */
   onReconnectRequested?: () => void
+  /**
+   * Ask the Host to answer over the current physical carrier.
+   * @param timeoutMs - how long to wait for the answer.
+   * @returns whether the carrier answered; false makes the controller reconnect.
+   */
+  probe?: (timeoutMs: number) => Promise<boolean>
 }
 
 /**
@@ -94,6 +103,7 @@ export class ConnectionController {
   private retryDelay: AbortController | null = null
   private running = false
   private immediateRetry = false
+  private probing = false
   private networkAvailable = true
   private lastState: ConnectionState | undefined
   private readonly config: Required<ConnectionConfig>
@@ -143,6 +153,27 @@ export class ConnectionController {
     this.attempt = 0
     this.immediateRetry = true
     this.retryDelay.abort(MANUAL_RECONNECT)
+  }
+
+  /**
+   * Check a connected generation's carrier and reconnect at once when it stays silent. A suspended page's socket can
+   * die without a close event, so the page coming back, the network changing, or the browser reporting it online is
+   * the moment to ask. One probe runs at a time; a disconnected or connecting controller is left to its retry loop.
+   */
+  probe(): void {
+    const ask = this.sinks.probe
+    if (!this.running || this.probing || this.lastState !== 'connected' || ask === undefined) return
+    const generation = this.current
+    this.probing = true
+    void Promise.resolve()
+      .then(() => ask(this.config.probeTimeoutMs))
+      .catch(() => false)
+      .then((alive) => {
+        this.probing = false
+        if (alive || !this.isRunning() || this.current !== generation || this.lastState !== 'connected') return
+        console.warn('[connection] the connection did not answer a probe; reconnecting')
+        this.reconnect()
+      })
   }
 
   /**
@@ -211,12 +242,13 @@ export class ConnectionController {
         // earlier tiers add up to, and a page that stopped retrying stays dead until the reader reloads it.
         const finalTier = !immediate && this.attempt > 0 && this.isFinalBackoffTier(this.attempt)
         const attempt = finalTier ? this.attempt : ++this.attempt
+        // The delay is armed before the state is announced, so a reconnect a state sink requests cancels it.
+        const retryDelay = immediate ? undefined : new AbortController()
+        if (retryDelay !== undefined) this.retryDelay = retryDelay
         this.emitState(finalTier ? 'disconnected' : 'connecting')
         if (!this.isRunning()) return
-        if (!immediate) {
-          const retryDelay = new AbortController()
-          this.retryDelay = retryDelay
-          await sleep(this.backoffDelay(attempt), retryDelay.signal)
+        if (retryDelay !== undefined) {
+          if (!retryDelay.signal.aborted) await sleep(this.backoffDelay(attempt), retryDelay.signal)
           if (this.retryDelay === retryDelay) this.retryDelay = null
           if (!this.isRunning()) return
           if (retryDelay.signal.aborted) continue

@@ -57,6 +57,8 @@ interface DeviceEntry {
   alwaysOn?: boolean
   /** When a device without `alwaysOn` last stamped its open relay connection, in milliseconds since the Unix epoch. */
   seenAt?: number
+  /** Set by a device that shut down cleanly; it is away whatever its stamp says, until its next stamp removes the mark. */
+  offline?: boolean
 }
 
 /** Where sessions are filed on this device; the workspace registry provides it. */
@@ -1023,7 +1025,8 @@ export class SessionMirror {
       // unless that desktop's presence stamp is stale. A desktop that never stamps gets it, with the inbox fallback.
       // A desktop the session was moved to keeps it while its stamp is fresh.
       const entry = devices.get(writer)
-      const stale = entry?.seenAt !== undefined && Date.now() - entry.seenAt > this.tuning.presenceWindowMs
+      const stale = entry?.offline === true
+        || (entry?.seenAt !== undefined && Date.now() - entry.seenAt > this.tuning.presenceWindowMs)
       const pinnedHere = this.entries().get(sessionId)?.pinned === true && entry?.seenAt !== undefined && !stale
       if (entry?.alwaysOn === true || pinnedHere || (devices.get(me)?.alwaysOn === true && !stale)) home = writer
     } else if (writer === undefined && devices.get(me)?.alwaysOn === true) {
@@ -1056,7 +1059,7 @@ export class SessionMirror {
     for (const [id, entry] of this.devices()?.entries() ?? []) {
       if (id === me || entry.alwaysOn === true) continue
       const seenAt = entry.seenAt ?? 0
-      if (withinMs !== undefined && (entry.seenAt === undefined || now - seenAt > withinMs)) continue
+      if (withinMs !== undefined && (entry.seenAt === undefined || entry.offline === true || now - seenAt > withinMs)) continue
       if (best === undefined || seenAt > best.seenAt) best = { id, seenAt }
     }
     return best?.id
@@ -1072,7 +1075,8 @@ export class SessionMirror {
     const now = Date.now()
     const present = new Set<string>()
     for (const [id, entry] of this.devices()?.entries() ?? []) {
-      if (id !== me && entry.alwaysOn !== true && entry.seenAt !== undefined && now - entry.seenAt <= this.tuning.presenceWindowMs) {
+      if (id !== me && entry.alwaysOn !== true && entry.seenAt !== undefined && entry.offline !== true
+        && now - entry.seenAt <= this.tuning.presenceWindowMs) {
         present.add(id)
       }
     }
@@ -1125,7 +1129,7 @@ export class SessionMirror {
     const listed: HandoffDesktop[] = []
     for (const [id, entry] of this.devices()?.entries() ?? []) {
       if (id === me || entry.alwaysOn === true) continue
-      const present = entry.seenAt !== undefined && now - entry.seenAt <= this.tuning.presenceWindowMs
+      const present = entry.seenAt !== undefined && entry.offline !== true && now - entry.seenAt <= this.tuning.presenceWindowMs
       listed.push({ device: id, name: entry.name, present, ...entry.seenAt === undefined ? {} : { seenAt: entry.seenAt } })
     }
     listed.sort((a, b) => Number(b.present) - Number(a.present) || (b.seenAt ?? 0) - (a.seenAt ?? 0))

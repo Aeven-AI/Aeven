@@ -171,6 +171,8 @@ class ClientRemoteService extends Service implements ClientRemote {
         onReconnectRequested: () => {
           if (connection.rpc.open === undefined) this.streams.reconnect()
         },
+        // A transport that opens streams itself has no shared socket to probe.
+        probe: timeoutMs => connection.rpc.open === undefined ? this.streams.probe(timeoutMs) : Promise.resolve(true),
       })
     }
     const loader = ctx.get('loader') as LoaderReadiness | undefined

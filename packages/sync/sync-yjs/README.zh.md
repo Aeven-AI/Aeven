@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`ctx.sync` 的提供方。每个账户在 `accounts/<hash>/sync/sync.db` 中保存设备 id、账户密钥及其持有方、文档更新、发件箱和重放计数器，并在该账户的客户端持有 Host 会话期间保持一条中转连接。帧按中转顺序应用；文档在本地压缩并生成快照，以便中转服务器裁剪已覆盖的更新；未确认的帧保留在发件箱中。中转服务器暂时拒绝时，连接会关闭，发布通过已配置的重连循环恢复；其他拒绝会显示为上传失败。本地网络上互相连接的两台设备直接交换文档更新和流批次，因此中转服务器不可达时，正在流出的会话仍会到达另一台设备。设置了 `keepConnected` 的设备会在账户的设备列表中把自己标记为始终在线，会话同步据此把对话留在它上面。配置：`relayUrl`、`credentialRef`、`deviceName`、`reconnectMs`、`connectTimeoutMs`、`compactAfter` 和 `snapshotAfter`。见[账户同步分组](../README.zh.md)。
+`ctx.sync` 的提供方。每个账户在 `accounts/<hash>/sync/sync.db` 中保存设备 id、账户密钥及其持有方、文档更新、发件箱和重放计数器，并在该账户的客户端持有 Host 会话期间保持一条中转连接。帧按中转顺序应用；文档在本地压缩并生成快照，以便中转服务器裁剪已覆盖的更新；未确认的帧保留在发件箱中。中转服务器暂时拒绝时，连接会关闭，发布通过已配置的重连循环恢复；其他拒绝会显示为上传失败。本地网络上互相连接的两台设备直接交换文档更新和流批次，因此中转服务器不可达时，正在流出的会话仍会到达另一台设备。设备通过 mDNS 互相发现；每台未设置 `keepConnected` 的设备还会在每次存在标记时，把自己的私有和 Tailscale IPv4 地址写入其设备条目；设备会拨打在 `routeWindowMs` 内打过标记的设备的这些地址，因此在丢弃组播的网络、跨子网和跨 tailnet 时也能建立连接。握手证明账户密钥，且只接受来自回环、私有、链路本地和 tailnet 地址的连接。设置了 `keepConnected` 的设备会在账户的设备列表中把自己标记为始终在线，会话同步据此把对话留在它上面；其他设备每隔 `presenceMs` 打一次 `seenAt` 标记，并在正常关闭时把自己标记为 `offline`，最多等待 `leaveMs` 让该标记到达中转服务器，因此始终在线设备会立即停止向它发送对话。配置：`relayUrl`、`credentialRef`、`deviceName`、`reconnectMs`、`connectTimeoutMs`、`compactAfter` 和 `snapshotAfter`。见[账户同步分组](../README.zh.md)。
 
 尚未取得账户密钥的设备（包括等待通行密钥解锁的设备，以及等待用户接受中转服务器收回的密钥的设备）保持 `starting` 状态；`connecting`、`online` 和 `offline` 状态允许打开本地文档。
 
