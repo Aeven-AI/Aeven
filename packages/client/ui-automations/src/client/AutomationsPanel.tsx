@@ -1,5 +1,5 @@
 /** Composer-first automation management at the registered /automations address. */
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Button, IconBotFaceAnimated, IconBotFaceLooping, IconChevronDownOutline14, IconCopyOutline16, IconEditOutline16, IconLucideCheck,
   IconLucideClock, IconLucideMinus,
@@ -44,6 +44,26 @@ export interface ServiceState {
  * @param status - run status.
  * @returns the glyph shown in the run's leading tile.
  */
+/** Width in rem at or below which a bot card stacks its third recurrence fact on its own row. */
+const NARROW_CARD_REM = 30
+
+/**
+ * Mark each bot card whose summary is at most {@link NARROW_CARD_REM} wide with `data-narrow`, measured on the
+ * card itself: the Safari 14.5 baseline has no container queries.
+ *
+ * @param list - the element holding the cards.
+ * @returns a cleanup that stops observing, or `undefined` before the list mounts.
+ */
+function markNarrowCards(list: HTMLElement | null): (() => void) | undefined {
+  if (list === null) return undefined
+  const observer = new ResizeObserver((entries) => {
+    const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
+    for (const entry of entries) entry.target.toggleAttribute('data-narrow', entry.contentRect.width <= NARROW_CARD_REM * rem)
+  })
+  for (const toggle of list.querySelectorAll(`.${css.toggle}`)) observer.observe(toggle)
+  return () => { observer.disconnect() }
+}
+
 function statusIcon(status: Run['status']) {
   switch (status) {
     case 'queued': return <IconLucideClock />
@@ -166,6 +186,8 @@ export function AutomationsPanel({ t, inputActions, list, call, openRun, view, s
   const [copied, setCopied] = useState(false)
   /** Runs whose stop was sent; a cloud run stays active until its cloud Host reports the stop. */
   const [stopping, setStopping] = useState<ReadonlySet<string>>(new Set())
+  const cardList = useRef<HTMLDivElement>(null)
+  useEffect(() => markNarrowCards(cardList.current), [data, tab])
   useEffect(() => {
     if (!connected) return
     let alive = true
@@ -406,7 +428,7 @@ export function AutomationsPanel({ t, inputActions, list, call, openRun, view, s
                 <p className={css.emptyText}>{t('emptyDetail')}</p>
               </div>
             )}
-            <div className={css.list}>
+            <div className={css.list} ref={cardList}>
               {data.definitions.map((task) => {
                 const hook = credential?.id === task.id ? credential.value : null
                 const current = data.runs.find(run => run.definition.id === task.id && (run.status === 'queued' || run.status === 'running'))
