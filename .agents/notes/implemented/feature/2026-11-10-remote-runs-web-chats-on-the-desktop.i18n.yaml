@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-10-remote-runs-web-chats-on-the-desktop.md
-2026-11-10-remote-runs-web-chats-on-the-desktop.md: 50148d9780dee746798af7c2f992b88d9563a58b
-2026-11-10-remote-runs-web-chats-on-the-desktop.zh.md: 225ee5e418797624ea745cbe87b684239b4443f0
+2026-11-10-remote-runs-web-chats-on-the-desktop.md: 1d7fd08a71b845b95cbed0df9e1e4b3405ff7ee3
+2026-11-10-remote-runs-web-chats-on-the-desktop.zh.md: b6dfec68f53b439b7e8beb8f00ee4b07e4c2dedd
