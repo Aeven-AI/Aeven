@@ -84,7 +84,7 @@ declare module '@deepseek-ai/cordis' {
 }
 
 /** The egress proxy's deployment: what jailed commands may reach on the network, and how much. */
-export interface EgressConfig extends EgressLimits {
+export interface EgressConfig extends Omit<EgressLimits, 'unlimitedAccounts'> {
   /** Host path of the Node.js that runs the proxy, readable by the user confined commands run as, e.g. `/usr/bin/node`. */
   node: string
   /** Host path of the proxy `host/install-egress.sh` installs, e.g. `<image>/shim/egress-proxy.mjs`; a missing file fails startup. */
@@ -166,6 +166,12 @@ export interface Config {
    * the sandbox user can traverse, and attachments are copied into each jail; omitted, commands run as the Host's user.
    */
   commandUser?: CommandUserConfig
+  /**
+   * Account path segments exempt from the per-account bounds: their cgroup gets the combined `cgroup.total` limits
+   * and the egress proxy applies only its combined bounds to them, such as the operator's own account. Every other
+   * protection stays: the jail, the disk quota, and the bounds all accounts share.
+   */
+  unlimitedAccounts?: string[]
   /**
    * System-prompt text describing what confined commands can use, such as
    * having no network and which programs and libraries are installed; omitted,
@@ -270,6 +276,7 @@ export class JailSandboxProvider extends SandboxProvider {
     sessionAttachments: z.boolean().default(false),
     quotaCommand: z.array(z.string()),
     quotaRecord: z.string(),
+    unlimitedAccounts: z.array(z.string()).default([]),
     modelNote: z.string(),
   })
 
@@ -337,6 +344,7 @@ export class JailSandboxProvider extends SandboxProvider {
         config.cgroup.root, config.cgroup.total, config.cgroup.account,
         commandUser === undefined ? undefined : groupId(commandUser.group),
         this.accountsRoot,
+        new Set(config.unlimitedAccounts),
       )
       cgroups.removeIdle()
       this.cgroups = cgroups
@@ -411,6 +419,7 @@ export class JailSandboxProvider extends SandboxProvider {
             accountBytesPerDay: egress.accountBytesPerDay,
             connectTimeoutMs: egress.connectTimeoutMs,
             idleTimeoutMs: egress.idleTimeoutMs,
+            unlimitedAccounts: config.unlimitedAccounts as string[],
           },
           answer: (question, signal) => this.answerEgress(question, signal),
           log: (level, message) => { ctx.logger('sandbox-jail')[level](message) },

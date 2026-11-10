@@ -56,6 +56,7 @@ Choose it for a multi-account Linux Host. Choose `avn-sandbox-local` for a perso
 | `cgroup` | none | Delegated cgroup directory plus combined and per-account limits; an optional `ioMax` in either limits disk I/O, and an optional `memoryHigh` slows a group before `memoryMax` ends it |
 | `quotaCommand` | none | Argv that limits the account folder's disk use, run with the folder appended in a command's own launch step until `quotaRecord` lists the account; a failure refuses that command |
 | `quotaRecord` | none | File the quota helper lists limited accounts in; omitted, every command runs the quota step |
+| `unlimitedAccounts` | `[]` | Account folder names whose cgroup gets the combined `total` limits and to which the egress proxy applies only its combined bounds, such as the operator's own account; the jail and the disk quota still apply |
 | `modelNote` | none | System-prompt text describing what commands can use |
 | `seccompFilter` | none | Host path of a BPF system-call filter bubblewrap installs; a missing file fails startup |
 | `sessionAttachments` | `false` | Mount the attachments the conversation's user messages and tool results reference, read-only at their store paths |

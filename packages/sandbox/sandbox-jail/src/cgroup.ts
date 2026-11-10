@@ -75,6 +75,7 @@ export class AccountCgroups {
   /** The directory whose `acct-<account>` children are the account groups. */
   readonly jail: string
   private readonly accounts = new Map<string, string>()
+  private readonly total: CgroupLimits
   /** The disk `ioMax` limits apply to; undefined when no limit sets `ioMax`. */
   private readonly disk: string | undefined
 
@@ -86,6 +87,7 @@ export class AccountCgroups {
    * @param procsGroup - a group the Host's user belongs to whose members may move processes into account groups,
    * such as the sandbox user the Python zygote runs as; omitted, only the Host's user may.
    * @param accountsRoot - the directory whose disk `ioMax` limits apply to.
+   * @param unlimited - accounts whose group gets the combined `total` limits instead of `account`.
    * @throws when the directory is not delegated, holds processes, or lacks a controller, or when an `ioMax` is set and
    * the accounts root is not on a block device.
    */
@@ -95,7 +97,9 @@ export class AccountCgroups {
     private readonly account: CgroupLimits,
     private readonly procsGroup: number | undefined,
     accountsRoot: string,
+    private readonly unlimited: ReadonlySet<string> = new Set(),
   ) {
+    this.total = total
     this.jail = join(root, 'jail')
     const limitsIo = total.ioMax !== undefined || account.ioMax !== undefined
     this.disk = limitsIo ? diskOf(accountsRoot) : undefined
@@ -125,7 +129,7 @@ export class AccountCgroups {
     if (dir === undefined) {
       dir = join(this.jail, `acct-${account}`)
       mkdirSync(dir, { recursive: true })
-      writeLimits(dir, this.account, this.disk)
+      writeLimits(dir, this.unlimited.has(account) ? this.total : this.account, this.disk)
       // Out of memory, an account's commands end together: a half-killed pipeline keeps its memory and its job slot.
       writeFileSync(join(dir, 'memory.oom.group'), '1')
       this.shareProcs(dir)

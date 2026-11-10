@@ -22,6 +22,8 @@ The same change prepares the machine for about two thousand simultaneous users: 
 
 A request beyond a connection bound waits up to `connectTimeoutMs` for a slot instead of being refused at once. On pink, a release rehearsal's `pnpm install` held all 32 of its account's connections, and a `fetch` from another command in the same account failed immediately with 429.
 
+A full `pnpm install` of this repository in a hosted account ran past twelve minutes at its 1.5 GiB `memoryHigh`, so `memoryHigh` equals `memoryMax` at 2 GiB, and `unlimitedAccounts`, set from `AVN_HOSTED_UNLIMITED_ACCOUNTS`, gives named accounts such as the operator's the jail-wide limits and only the proxy's combined bounds.
+
 ## Alternatives considered
 
 A relay-free design, in which the launch step passes a listening socket to the proxy over the Unix socket, would cost no process per command, but Node.js cannot receive a descriptor from a socket's ancillary data, and a Python or C proxy would mean writing the HTTP and DNS handling by hand. The relay costs 0.3 MB and one fork per command.
