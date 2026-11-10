@@ -1,6 +1,6 @@
 /**
- * The "Continue on a desktop" dialog the options foldout opens on an always-on
- * Host such as Aeven Web: one row per desktop of the account, with whether its
+ * The "Continue on a desktop" dialog the options foldout opens: one row per
+ * desktop of the account, this computer first on a desktop, with whether its
  * relay connection is open now, and a press moves the Session's next turns to
  * that desktop.
  */
@@ -20,9 +20,9 @@ export interface DesktopChooserProps {
   onClose: () => void
   /**
    * Move the Session's next turns to one desktop.
-   * @param device - its device id.
+   * @param desktop - the chosen row's desktop, which may be this computer.
    */
-  onChoose: (device: string) => void
+  onChoose: (desktop: SessionDesktop) => void
   /** The header's locale seat. */
   t: ConversationSessionHeaderProps['t']
 }
@@ -32,9 +32,10 @@ export interface DesktopChooserProps {
  * @param desktop - the desktop.
  * @param now - current epoch ms.
  * @param t - the header's locale seat.
- * @returns "Online", "Last seen …", or "Offline" when it never stamped its connection.
+ * @returns "This computer", "Online", "Last seen …", or "Offline" when it never stamped its connection.
  */
 function status(desktop: SessionDesktop, now: number, t: DesktopChooserProps['t']): string {
+  if (desktop.self) return t('desktops.self')
   if (desktop.present) return t('desktops.online')
   if (desktop.seenAt === undefined) return t('desktops.offline')
   const { unit, n } = relativeTime(desktop.seenAt, now)
@@ -76,12 +77,12 @@ export function DesktopChooser({ open, desktops, onClose, onChoose, t }: Desktop
                   className={css.row}
                   disabled={desktop.home}
                   aria-current={desktop.home ? 'true' : undefined}
-                  onClick={() => { onChoose(desktop.device) }}
+                  onClick={() => { onChoose(desktop) }}
                 >
                   <IconLucideLaptopMinimal className={css.icon} />
                   <span className={css.text}>
                     <span className={css.name}>{desktop.name === '' ? t('desktops.unnamed') : desktop.name}</span>
-                    <span className={css.status} data-present={desktop.present ? '' : undefined}>
+                    <span className={css.status} data-present={desktop.present && !desktop.self ? '' : undefined}>
                       {status(desktop, now, t)}
                     </span>
                   </span>

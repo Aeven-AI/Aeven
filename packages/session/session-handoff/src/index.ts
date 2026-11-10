@@ -27,6 +27,8 @@ export interface SessionHandoffInput {
 export interface HandoffPlacement {
   /** The asking device's id in the account's vault. */
   readonly device: string
+  /** The name the asking device gave itself; empty until it wrote one. */
+  readonly name: string
   /** Whether the asking device keeps its relay connection without a client, such as Aeven Cloud. */
   readonly alwaysOnHere: boolean
   /**

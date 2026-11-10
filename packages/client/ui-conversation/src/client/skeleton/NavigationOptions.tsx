@@ -77,7 +77,7 @@ export function NavigationOptions({
 }: NavigationOptionsProps) {
   const [open, setOpen] = useState(false)
   // Read each time the options open, so a turn that ran on another device since shows its move.
-  const [placement, setPlacement] = useState<SessionDevicePlacement>({ here: false })
+  const [placement, setPlacement] = useState<SessionDevicePlacement>({})
   const [choosing, setChoosing] = useState(false)
   // Transient failure banner: the seq keys the Toast so an identical repeated
   // message restarts the hold-then-fade cycle instead of reusing the faded one.
@@ -88,7 +88,7 @@ export function NavigationOptions({
     setToast({ seq: toastSeq.current, text: error instanceof Error ? error.message : String(error) })
   }
   const toggle = (): void => {
-    if (!open) void devicePlacement().then(setPlacement, () => { setPlacement({ here: false }) })
+    if (!open) void devicePlacement().then(setPlacement, () => { setPlacement({}) })
     setOpen(!open)
   }
   const runExport = (): void => {
@@ -125,9 +125,6 @@ export function NavigationOptions({
           ? {}
           : { submenu: moveTargets.map(target => ({ id: `${MOVE_PREFIX}${target.workspaceId}`, label: target.title })) },
       }],
-    ...placement.here
-      ? [{ id: 'continue-here', label: t('nav.continueHere'), icon: <IconLucideLaptopMinimal className={css.rowIcon} />, disabled: moveDisabled }]
-      : [],
     ...activeId === undefined
       ? []
       : views
@@ -150,7 +147,6 @@ export function NavigationOptions({
           if (id === 'fork') onFork()
           else if (id === 'export') runExport()
           else if (id.startsWith(MOVE_PREFIX)) onMove(id.slice(MOVE_PREFIX.length) as WorkspaceId)
-          else if (id === 'continue-here') void onContinueOn({ target: 'here' }).catch(fail)
           else if (id === 'choose-desktop') setChoosing(true)
           // A remaining id is a View: the roster supplies exactly those.
           else onSelect(id)
@@ -176,9 +172,9 @@ export function NavigationOptions({
         open={choosing}
         desktops={placement.desktops ?? []}
         onClose={() => { setChoosing(false) }}
-        onChoose={(device) => {
+        onChoose={(desktop) => {
           setChoosing(false)
-          void onContinueOn({ target: 'desktop', device }).catch(fail)
+          void onContinueOn(desktop.self ? { target: 'here' } : { target: 'desktop', device: desktop.device }).catch(fail)
         }}
         t={t}
       />

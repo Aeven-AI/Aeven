@@ -1098,6 +1098,7 @@ export class SessionMirror {
     const writer = this.entries().get(sessionId)?.writer
     return {
       device: me,
+      name: devices.get(me)?.name ?? '',
       alwaysOnHere: devices.get(me)?.alwaysOn === true,
       ...writer === undefined || writer === me
         ? {}
@@ -1128,7 +1129,9 @@ export class SessionMirror {
       listed.push({ device: id, name: entry.name, present, ...entry.seenAt === undefined ? {} : { seenAt: entry.seenAt } })
     }
     listed.sort((a, b) => Number(b.present) - Number(a.present) || (b.seenAt ?? 0) - (a.seenAt ?? 0))
-    const named = new Set<string>()
+    // This device's own earlier installs share its name.
+    const own = me === undefined ? undefined : this.devices()?.get(me)?.name
+    const named = new Set<string>(own === undefined || own === '' ? [] : [own])
     return listed.filter((desktop) => {
       if (desktop.name === '') return true
       if (named.has(desktop.name)) return false

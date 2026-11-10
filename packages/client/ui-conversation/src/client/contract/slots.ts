@@ -368,9 +368,7 @@ export interface ConversationSessionHeaderInjected {
 
 /** Device moves the header offers for a synced Session. */
 export interface SessionDevicePlacement {
-  /** Offer "Continue on this computer": the Session's next turns run on an always-on device or a desktop it was moved to. */
-  readonly here: boolean
-  /** The account's other desktops to offer, present ones first; absent when there are none. */
+  /** The desktops to offer in the chooser, this computer first on a desktop; absent when there is no choice. */
   readonly desktops?: readonly SessionDesktop[]
 }
 
@@ -386,6 +384,8 @@ export interface SessionDesktop {
   readonly seenAt?: number
   /** Whether the Session's next turns already run on it. */
   readonly home: boolean
+  /** Whether it is this computer. */
+  readonly self: boolean
 }
 
 /** A device move the header asks the Host for. */

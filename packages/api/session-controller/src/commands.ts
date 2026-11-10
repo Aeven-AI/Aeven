@@ -83,6 +83,7 @@ function desktopsOf(placement: HandoffPlacement): SessionDesktopValue[] {
     present: desktop.present,
     ...desktop.seenAt === undefined ? {} : { seenAt: desktop.seenAt },
     home: placement.home?.device === desktop.device,
+    self: false,
   }))
 }
 
@@ -361,16 +362,17 @@ export class SessionCommandController {
     const handoff = this.ctx.get('sessionHandoff')
     const owner = this.ctx.get('identityUsers')?.actingUser()?.id
     const placement = handoff === undefined || owner === undefined ? undefined : handoff.placementOf(owner, request.sessionId)
-    if (placement === undefined) return { here: false }
-    // An always-on Host such as Aeven Web offers the account's desktops; a desktop offers itself, the always-on device,
-    // and the account's other desktops.
-    if (placement.alwaysOnHere) {
-      return { here: false, desktops: desktopsOf(placement) }
+    if (placement === undefined) return {}
+    // An always-on Host such as Aeven Web offers the account's desktops. A desktop offers itself and the other
+    // desktops; its own row takes back a Session whose next turns run on an always-on device or on a desktop it was
+    // moved to, and otherwise marks where they run.
+    if (placement.alwaysOnHere) return { desktops: desktopsOf(placement) }
+    const elsewhere = placement.home?.alwaysOn === true || placement.home?.pinned === true
+    if (!elsewhere && placement.desktops.length === 0) return {}
+    const self: SessionDesktopValue = {
+      device: placement.device, name: placement.name, present: true, home: !elsewhere, self: true,
     }
-    return {
-      here: placement.home?.alwaysOn === true || placement.home?.pinned === true,
-      ...placement.desktops.length === 0 ? {} : { desktops: desktopsOf(placement) },
-    }
+    return { desktops: [self, ...desktopsOf(placement)] }
   }
 
   /**
