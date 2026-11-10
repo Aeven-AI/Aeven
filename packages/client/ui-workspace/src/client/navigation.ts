@@ -801,7 +801,9 @@ class UiWorkspaceService extends Service implements UiWorkspace {
         ?? this.sessions.subagentAddress(requested.replace(/^session-/u, '') as SessionId)
       : undefined
     if (sessions.byId[requested] === undefined && address === undefined) return false
-    if (sessions.current === requested || sessions.current === address?.childSessionId) return true
+    // A listed chat has no subagent address, so its target is the requested id itself; comparing against
+    // `address?.childSessionId` there would match an empty selection and report a chat open that never was.
+    if (sessions.current === (address?.childSessionId ?? requested)) return true
     if (address === undefined) this.sessions.open(requested)
     else this.sessions.openSubagent(address)
     return true
@@ -819,7 +821,8 @@ class UiWorkspaceService extends Service implements UiWorkspace {
    * @param requested - the Session id the address names.
    * @param claim - marks the address as initialised. Called synchronously, so a
    * reconcile triggered by the creation itself cannot adopt it a second time.
-   * @param failed - called once the Host refuses the id, after initial navigation returns to waiting.
+   * @param failed - called once the Host refuses the id or the selection refuses the Session it returned, after
+   * initial navigation returns to waiting.
    * @returns true when the address was claimed, so the caller keeps the URL.
    */
   private adoptRequestedSession(requested: SessionId, claim: () => void, failed: () => void): boolean {
@@ -827,19 +830,20 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     if (workspace === undefined) return false
     claim()
     this.markInitialNav('connecting')
-    void this.connectWorkspace(workspace, requested).then(
-      (opened) => {
-        this.sessions.open(opened)
-        this.markInitialNav('done')
-      },
-      (reason: unknown) => {
-        // The id could not be claimed, so it is not an address this client can
-        // honour; drop it rather than presenting a browser URL naming nothing.
-        this.markInitialNav('waiting')
-        console.warn('address-named session failed:', reason)
-        failed()
-      },
-    )
+    // A refused create and a refused selection both settle here: an exception left in the success callback
+    // would keep initial navigation `connecting` with nothing selected, which leaves the composer disabled.
+    void this.connectWorkspace(workspace, requested)
+      .then((opened) => { this.sessions.open(opened) })
+      .then(
+        () => { this.markInitialNav('done') },
+        (reason: unknown) => {
+          // The id could not be claimed or selected, so it is not an address this
+          // client can honour; drop it rather than presenting a browser URL naming nothing.
+          this.markInitialNav('waiting')
+          console.warn('address-named session failed:', reason)
+          failed()
+        },
+      )
     return true
   }
 

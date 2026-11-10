@@ -76,6 +76,12 @@
   cursor: pointer;
 }
 
+/* The Help center row is a link that opens a new window; the vendored row
+   style is written for a button, so this drops the link underline. */
+.link {
+  text-decoration: none;
+}
+
 /* The plan line: metadata under the name, at the scale the account page uses
    for the same fact. */
 .plan {

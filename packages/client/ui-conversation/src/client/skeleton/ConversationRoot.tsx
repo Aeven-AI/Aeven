@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import clsx from 'clsx'
-import { Button, HeroShell, Tooltip } from '@aeven/client-ui-primitives'
+import { Button, HeroShell, IconLucideArchiveArrowUp, Tooltip } from '@aeven/client-ui-primitives'
 import type { SessionId } from '@aeven/session/types'
 import type { ConversationSlotProps, InputZone } from '../contract/slots.ts'
 import { useContentCover } from './content-cover.ts'
@@ -387,9 +387,20 @@ export function ConversationRoot({
   const archivedBar = (
     <div className={css.archivedFrame}>
       <div className={css.archivedBar} role="status">
-        <span>{t('archived.body')}</span>
+        <span className={css.archivedText}>{t('archived.body')}</span>
         {unarchiveSession !== undefined && (
-          <Button variant="primary" size="sm" onClick={unarchiveSession}>{t('archived.unarchive')}</Button>
+          // Button does not forward a ref, so the span is the tooltip's anchor.
+          <Tooltip label={t('archived.unarchive')} side="top" anchor="icon">
+            <span className={css.unarchiveAnchor}>
+              <Button
+                variant="primary"
+                className={css.unarchive}
+                aria-label={t('archived.unarchive')}
+                icon={<IconLucideArchiveArrowUp className={css.unarchiveIcon} />}
+                onClick={unarchiveSession}
+              />
+            </span>
+          </Tooltip>
         )}
       </div>
     </div>

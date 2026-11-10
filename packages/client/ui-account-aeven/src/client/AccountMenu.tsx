@@ -12,7 +12,7 @@ import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slo
 // Type-only: pulls the ui-layout SlotMap merge (the frame's corner seat).
 import type {} from '@aeven/client-ui-layout/client'
 import { Avatar } from './Avatar.tsx'
-import { LANGUAGE_ICON, LOGOUT_ICON, SETTINGS_ICON } from './icons.ts'
+import { HELP_CENTER_ICON, LANGUAGE_ICON, LOGOUT_ICON, SETTINGS_ICON } from './icons.ts'
 import { NS } from './locales.ts'
 import css from './AccountMenu.module.css'
 import '../vendor/aeven-account.css'
@@ -27,6 +27,8 @@ export interface AccountReader {
   email?: string
   /** Absolute URL of the uploaded picture, absent until the reader sets one. */
   imageUrl?: string
+  /** The help center's origin, absent when this deployment names no help center. */
+  helpCenterUrl?: string
 }
 
 /** The plan the account is on, as the menu names it. */
@@ -277,6 +279,20 @@ export function AccountMenu({
                     </button>
                   )}
                 />
+
+                {person.helpCenterUrl !== undefined && (
+                  <a
+                    className={`menu-button ${css.link}`}
+                    role="menuitem"
+                    href={`${person.helpCenterUrl}/${t('helpCenter.locale')}/`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => { setOpen(false) }}
+                  >
+                    <span className="icon" dangerouslySetInnerHTML={{ __html: HELP_CENTER_ICON }} />
+                    <span className="txt">{t('helpCenter')}</span>
+                  </a>
+                )}
 
                 <button type="button" className="menu-button" role="menuitem" onClick={signOut}>
                   <span className="icon" dangerouslySetInnerHTML={{ __html: LOGOUT_ICON }} />

@@ -920,7 +920,43 @@
   padding: 10px 12px 10px 16px;
   border-radius: var(--dsw-aeven-radius-surface);
   background: var(--dsw-specific-input-major);
-  color: var(--dsw-alias-label-secondary);
-  font-size: 0.875rem;
-  line-height: 1.25rem;
+  color: var(--dsw-alias-label-primary);
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
+/* One line beside the Unarchive button; a narrow column truncates it rather than wrapping. */
+.archivedText {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.archivedBar > :last-child {
+  flex: none;
+}
+
+/* Unarchive is a 32px icon disc; its name is the tooltip and the accessible label. */
+.unarchiveAnchor {
+  display: inline-flex;
+  flex: none;
+}
+
+.archivedBar .unarchive {
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+/* The disc keeps its fill under the pointer; the tooltip is its hover feedback. */
+.archivedBar .unarchive:hover:not(:disabled) {
+  background: var(--dsw-alias-button-primary-fill);
+}
+
+.unarchiveIcon {
+  width: 16px;
+  height: 16px;
 }

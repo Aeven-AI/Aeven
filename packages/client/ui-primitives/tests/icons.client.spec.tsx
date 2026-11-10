@@ -18,7 +18,7 @@ const iconNames = Object.keys(icons)
 
 describe('ic_ds_ icon set', () => {
   it('exports the complete icon set', () => {
-    expect(iconNames.length).toBe(165)
+    expect(iconNames.length).toBe(166)
     expect(iconNames).toContain('IconBotOutline16')
   })
 
@@ -41,7 +41,7 @@ describe('ic_ds_ icon set', () => {
     'IconLucideCamera', 'IconLucideMinus', 'IconLucideRotateCcw', 'IconLucideTimer', 'IconLucideVideo', 'IconLucideSwitchCamera',
     'IconLucidePlay', 'IconLucidePause', 'IconLucideVolume2', 'IconLucideVolumeX', 'IconLucideDownload',
     'IconLucideCirclePause', 'IconLucideCirclePlay', 'IconLucideCircleStop', 'IconLucideEye', 'IconLucideCode',
-    'IconLucidePlug', 'IconLucideScrollText',
+    'IconLucidePlug', 'IconLucideScrollText', 'IconLucideArchiveArrowUp',
   ])(
     '%s leaves sizing to CSS: viewBox only, no width or height attribute',
     (name) => {

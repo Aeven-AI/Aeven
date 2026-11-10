@@ -31,7 +31,8 @@ type ModalProps = ModalBaseProps & (
  * @param props.closeLabel - localized accessible close-button label.
  * @param props.description - optional supporting sentence under the title.
  * @param props.children - body (inputs, etc.).
- * @param props.footer - action row (Cancel / Create).
+ * @param props.footer - action row (Cancel / Create); three or more actions
+ * stack full-width, one per row, in DOM order.
  * @param props.contentClassName - optional class for a scrollable content region.
  * @param props.width - optional CSS width for the card, for dialogs that carry a
  * full-bleed surface instead of a form column.

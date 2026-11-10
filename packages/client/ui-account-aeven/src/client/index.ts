@@ -63,6 +63,7 @@ function currentReader(): AccountReader | undefined {
     ...reader.displayName === undefined ? {} : { displayName: reader.displayName },
     ...reader.email === undefined ? {} : { email: reader.email },
     ...reader.imageUrl === undefined ? {} : { imageUrl: reader.imageUrl },
+    ...reader.helpCenterUrl === undefined ? {} : { helpCenterUrl: reader.helpCenterUrl },
   }
 }
 
