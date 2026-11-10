@@ -498,9 +498,10 @@
           PATH: /opt/aeven-sandbox/shim:/opt/aeven-sandbox/bin:/usr/bin:/bin
           NODE_PATH: /opt/aeven-sandbox/node/node_modules
           NODE_COMPILE_CACHE: /opt/aeven-sandbox/node/compile-cache
-          # The jail's proxy variables make Node.js print an experimental-feature
-          # warning on every start, which would open the output of each command.
-          NODE_OPTIONS: --disable-warning=ExperimentalWarning
+          # NODE_USE_ENV_PROXY makes Node.js print undici's EnvHttpProxyAgent
+          # warning (code UNDICI-EHPA, type Warning) on every start, which would
+          # open the output of each command.
+          NODE_OPTIONS: --disable-warning=UNDICI-EHPA
           PLAYWRIGHT_BROWSERS_PATH: /opt/aeven-sandbox/ms-playwright
           LANG: C.UTF-8
           TMPDIR: /tmp

@@ -218,6 +218,25 @@ interface McpContentBlock {
   data?: string
   name?: string
   uri?: string
+  /** An embedded resource's contents: `text` for a text resource, base64 `blob` for a binary one. */
+  resource?: { uri?: unknown; mimeType?: unknown; text?: unknown; blob?: unknown }
+}
+
+/**
+ * The model-visible text of one embedded resource: a text resource's contents under a line naming it, or a
+ * placeholder for a binary or malformed one.
+ */
+function embeddedResourceText(resource: McpContentBlock['resource']): string {
+  if (resource === undefined || typeof resource !== 'object' || resource === null) {
+    return '[embedded resource unavailable: the MCP block carries no resource]'
+  }
+  const uri = typeof resource.uri === 'string' ? resource.uri : 'unnamed resource'
+  const mimeType = typeof resource.mimeType === 'string' ? ` (${resource.mimeType})` : ''
+  if (typeof resource.text === 'string') return `Resource ${uri}${mimeType}:\n${resource.text}`
+  if (typeof resource.blob === 'string') {
+    return `[binary resource ${uri}${mimeType}, ${String(Math.floor(resource.blob.length * 3 / 4))} bytes, not shown; raw resource data remains available to programmatic callers]`
+  }
+  return `[embedded resource ${uri}${mimeType} unavailable: it carries neither text nor a blob]`
 }
 
 /** Async rich projection staged for one exact ToolRuntime execution. */
@@ -508,7 +527,8 @@ async function prepareImageProjection(
 /**
  * Extract text from an MCP content array into a single string.
  * - text blocks: join with '\n'
- * - image/audio/resource blocks: replaced with a placeholder
+ * - text resources: their contents under a line naming the resource
+ * - image/audio blocks and binary resources: replaced with a placeholder
  *
  * Defensive: fields that the MCP spec declares required (mimeType, text) are
  * guarded with fallbacks because this is a network trust boundary.
@@ -565,7 +585,7 @@ function projectContent(
         text.push(`[audio result unsupported: ${block.mimeType ?? 'unknown media type'}; raw audio data remains available to programmatic callers]`)
         break
       case 'resource':
-        text.push('[embedded resource unsupported; raw resource data remains available to programmatic callers]')
+        text.push(embeddedResourceText(block.resource))
         break
       default:
         text.push(`[unsupported MCP content type: ${block.type}]`)
