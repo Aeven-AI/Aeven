@@ -57,7 +57,7 @@ Files are stored at `<root>/session-<hash>/<random>-<safeName>`, where `session-
 
 One best-effort sweep starts after activation without delaying service availability. It scans the configured root and prior default `avn-spill-*` roots under the OS temp directory, deletes regular files whose modification time is strictly older than the configured cutoff, prunes empty session directories, and removes only empty prior-default roots. A long-lived process does not sweep again until restart. Disposal waits for the sweep, and a concurrent write recreates a session directory if cleanup removes it.
 
-The sweep resolves filesystem identities, never follows or deletes symlinks, and skips unrelated entries. On POSIX it admits only roots and session directories owned by the current user, not writable by group or others, and protected from replacement through their ancestor path; writable sticky temporary directories such as `/tmp` are permitted. Unsafe paths produce a warning and remain untouched. Filesystem and warning-sink failures are contained, so cleanup cannot fail activation or a concurrent spill write.
+The sweep resolves filesystem identities, never follows or deletes symlinks, and skips unrelated entries. On POSIX it admits only roots and session directories owned by the current user, not writable by group or others, and protected from replacement through their ancestor path; writable sticky temporary directories such as `/tmp` are permitted. Unsafe paths produce a warning and remain untouched; a discovered `avn-spill-*` root owned by another OS user is that user's own root and is skipped without a warning. Filesystem and warning-sink failures are contained, so cleanup cannot fail activation or a concurrent spill write.
 
 ### Failures and recovery
 
