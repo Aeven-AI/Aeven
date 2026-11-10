@@ -20,6 +20,8 @@ The hosted patch allows `github.com`, `codeload.github.com`, `raw.githubusercont
 
 The same change prepares the machine for about two thousand simultaneous users: an account's CPU limit drops from four cores to two, `memoryHigh` slows an account at 1.5 GiB before `memoryMax` ends it at 2 GiB, account groups set `memory.oom.group`, the combined process limit rises to 16384, and background commands may run 30 minutes.
 
+A request beyond a connection bound waits up to `connectTimeoutMs` for a slot instead of being refused at once. On pink, a release rehearsal's `pnpm install` held all 32 of its account's connections, and a `fetch` from another command in the same account failed immediately with 429.
+
 ## Alternatives considered
 
 A relay-free design, in which the launch step passes a listening socket to the proxy over the Unix socket, would cost no process per command, but Node.js cannot receive a descriptor from a socket's ancillary data, and a Python or C proxy would mean writing the HTTP and DNS handling by hand. The relay costs 0.3 MB and one fork per command.
