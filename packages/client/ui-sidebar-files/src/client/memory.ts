@@ -31,7 +31,7 @@ export interface ExplorerMemory {
 /** A surface the explorer has not shown before. */
 export const FRESH_MEMORY: ExplorerMemory = {
   expanded: new Set(), openFile: null, treeVisible: false, query: '', history: [], historyIndex: -1, showIgnored: false,
-  htmlView: 'preview',
+  htmlView: 'source',
 }
 
 /**

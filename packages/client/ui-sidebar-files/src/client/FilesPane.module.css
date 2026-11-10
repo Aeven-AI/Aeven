@@ -459,7 +459,7 @@
   min-width: 0;
   overflow: hidden;
   color: var(--dsw-alias-label-primary);
-  font-family: var(--ds-font-family-code);
+  font-family: var(--dsw-font-family);
   font-size: 0.875rem;
   line-height: 1.25rem;
   text-overflow: ellipsis;
