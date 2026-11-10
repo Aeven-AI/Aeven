@@ -118,7 +118,16 @@ export async function googleConnection(provider: ConnectorProvider, token: strin
       GOOGLE_WORKSPACE_CLI_CONFIG_DIR: directory,
     },
     toolCallTimeoutMs: timeoutMs, failOnStartupError: true, reconnect: { enabled: false },
+    ...provider === 'google-calendar' ? { resultNotes: CALENDAR_RESULT_NOTES } : {},
   }
+}
+
+/**
+ * The window and calendar an event listing covers, appended to its result: an empty listing proves that window on
+ * that calendar holds no events and nothing about any other day or calendar.
+ */
+const CALENDAR_RESULT_NOTES: Readonly<Record<string, string>> = {
+  calendar_list_events: 'This listing covers only {timeMin|the earliest event} to {timeMax|the latest event} on calendar {calendarId|primary}, and only the events this page holds. It says nothing about any other time or calendar: query those before stating anything about them.',
 }
 
 /**

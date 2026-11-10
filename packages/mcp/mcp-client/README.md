@@ -61,6 +61,7 @@ Add one entry per server; nothing else is required. After the harness starts, th
 | `allowedTools` | all discovered tools | stdio: raw tool names admitted on every discovery; excluded tools have no harness executor |
 | `url` / `headers` | — | streamable-http: endpoint URL and extra request headers |
 | `toolCallTimeoutMs` | `60,000` | Timeout per `tools/call` invocation |
+| `resultNotes` | none | A note appended to a successful result, by raw tool name; `{arg}` and `{arg\|fallback}` are filled from the call's arguments, so a result covering only the range it was asked for says which range |
 | `failOnStartupError` | `false` | Reject plugin activation when the initial connection or tool synchronization fails |
 | `awaitStartup` | `true` | Wait for initial discovery; false activates before tools arrive and requires `failOnStartupError: false` |
 | `reconnect.enabled` | `true` | Reconnect automatically after a lost connection |

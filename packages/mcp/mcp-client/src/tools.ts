@@ -34,6 +34,23 @@ export interface ToolBridgeOptions {
   /** Raw tool allowlist enforced during every discovery generation. */
   allowedTools?: readonly string[]
   toolCallTimeoutMs: number
+  /** Notes appended to results, by raw tool name; see `StdioConfig.resultNotes`. */
+  resultNotes?: Readonly<Record<string, string>>
+}
+
+/**
+ * Fill a result note's placeholders from the call's arguments.
+ * @param template - the note, with `{arg}` and `{arg|fallback}` placeholders.
+ * @param args - the call's arguments.
+ * @returns the note with every placeholder replaced; an absent argument without a fallback reads `unspecified`.
+ */
+export function fillResultNote(template: string, args: Readonly<Record<string, unknown>>): string {
+  return template.replace(/\{([A-Za-z0-9_]+)(?:\|([^}]*))?\}/g, (_match, name: string, fallback: string | undefined) => {
+    const value = args[name]
+    if (typeof value === 'string' && value !== '') return value
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+    return fallback ?? 'unspecified'
+  })
 }
 
 /** State for one sync generation: the current set of disposers keyed by public name. */
@@ -375,7 +392,10 @@ function createExecutor(
     // Trust boundary: the SDK's return type erases to `any[]` due to the
     // union of CallToolResult | CompatibilityCallToolResult; extractText
     // validates each element.
-    const content = result.content as unknown as JsonValue[]
+    const note = opts.resultNotes?.[rawName]
+    const content = note === undefined || result.isError === true
+      ? result.content as unknown as JsonValue[]
+      : [...result.content as unknown as JsonValue[], { type: 'text', text: fillResultNote(note, argsObj) }]
     const text = extractText(content, rawName)
 
     // MCP isError → throw so ToolRuntime produces an isError result for the model.

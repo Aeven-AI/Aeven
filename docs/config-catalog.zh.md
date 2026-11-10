@@ -2748,6 +2748,12 @@ export interface StdioConfig {
   allowedTools?: string[]
   /** Per-tool-call timeout in milliseconds. */
   toolCallTimeoutMs: number
+  /**
+   * A note appended to a tool's result, by raw tool name: `{arg}` is replaced by that call argument and
+   * `{arg|fallback}` by the argument or, when it is absent or empty, the fallback. For a tool whose result covers
+   * only the range it was asked for, the note says which range, so the result cannot be read as wider than it is.
+   */
+  resultNotes?: Record<string, string>
   /** Fail plugin activation when the initial connection or tool synchronization fails. */
   failOnStartupError: boolean
   /**
@@ -2778,6 +2784,12 @@ export interface StreamableHttpConfig {
   headers: Record<string, string>
   /** Per-tool-call timeout in milliseconds. */
   toolCallTimeoutMs: number
+  /**
+   * A note appended to a tool's result, by raw tool name: `{arg}` is replaced by that call argument and
+   * `{arg|fallback}` by the argument or, when it is absent or empty, the fallback. For a tool whose result covers
+   * only the range it was asked for, the note says which range, so the result cannot be read as wider than it is.
+   */
+  resultNotes?: Record<string, string>
   /** Fail plugin activation when the initial connection or tool synchronization fails. */
   failOnStartupError: boolean
   /**
@@ -4946,6 +4958,16 @@ export interface Config {
    * open, so the account's always-on device can tell a desktop that is on from one that is asleep or closed.
    */
   presenceMs: number
+  /**
+   * How recent another device's `seenAt` must be for this device to dial the routes it advertises; a device that
+   * stamped longer ago, or marked itself offline, is not dialed by route.
+   */
+  routeWindowMs: number
+  /**
+   * How long a device without `keepConnected` waits, when it shuts down cleanly, for its `offline` mark to reach the
+   * relay before it closes the connection anyway.
+   */
+  leaveMs: number
   /**
    * Logical names of documents fetched before the rest of a catch-up when this device holds no state for them, so
    * a new device shows the account's conversation and workspace lists before the long tail arrives. Defaults to
