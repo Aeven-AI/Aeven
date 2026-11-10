@@ -7185,7 +7185,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'HandoffPlacement',
-    declaration: 'export interface HandoffPlacement {\n    readonly device: string;\n    readonly alwaysOnHere: boolean;\n    readonly home?: SessionRunner & {\n        readonly alwaysOn: boolean;\n    };\n    readonly alwaysOn?: SessionRunner;\n    readonly desktops: readonly HandoffDesktop[];\n}',
+    declaration: 'export interface HandoffPlacement {\n    readonly device: string;\n    readonly alwaysOnHere: boolean;\n    readonly home?: SessionRunner & {\n        readonly alwaysOn: boolean;\n        readonly pinned: boolean;\n    };\n    readonly alwaysOn?: SessionRunner;\n    readonly desktops: readonly HandoffDesktop[];\n}',
   },
   {
     name: 'HostProfile',

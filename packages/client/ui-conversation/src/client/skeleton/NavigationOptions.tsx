@@ -99,11 +99,19 @@ export function NavigationOptions({
     })
   }
   // The Session's own actions, in the order its row menu lists them (fork),
-  // then the export, then the move destinations and the device moves, followed by the Views the
-  // reader is not in.
+  // then the export, the desktop choice, the move destinations and the other device moves, followed by the Views
+  // the reader is not in.
   const items: MenuEntry[] = [
     { id: 'fork', label: t('nav.fork'), icon: <IconBranchOutline16 /> },
     { id: 'export', label: t('nav.export'), icon: <IconDownloadOutline16 /> },
+    ...placement.desktops === undefined
+      ? []
+      : [{
+        id: 'choose-desktop',
+        label: t('nav.chooseDesktop'),
+        icon: <IconLucideLaptopMinimal className={css.rowIcon} />,
+        disabled: moveDisabled,
+      }],
     ...moveTargets.length === 0
       ? []
       : [{
@@ -120,14 +128,6 @@ export function NavigationOptions({
     ...placement.here
       ? [{ id: 'continue-here', label: t('nav.continueHere'), icon: <IconLucideLaptopMinimal className={css.rowIcon} />, disabled: moveDisabled }]
       : [],
-    ...placement.desktops === undefined
-      ? []
-      : [{
-        id: 'choose-desktop',
-        label: t('nav.chooseDesktop'),
-        icon: <IconLucideLaptopMinimal className={css.rowIcon} />,
-        disabled: moveDisabled,
-      }],
     ...placement.alwaysOn === undefined
       ? []
       : [{

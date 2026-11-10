@@ -19,7 +19,7 @@ import { canonicalClientTimeZone } from '@aeven/util-time'
 import { RemoteError, remoteErrorOf } from '@aeven/typert-protocol'
 import type { Workspace } from '@aeven/workspace'
 import { WorkingDirectoryUnavailableError, sessionDirectory } from '@aeven/working-directory'
-import type { SessionHandoffInput } from '@aeven/session-handoff'
+import type { HandoffPlacement, SessionHandoffInput } from '@aeven/session-handoff'
 import {
   ApiSessionAgentController,
   ApiSessionCwdConflict,
@@ -45,6 +45,7 @@ import type {
   SessionForkRequest,
   SessionForkValue,
   SessionPlacementRequest,
+  SessionDesktopValue,
   SessionPlacementValue,
   SessionMoveRequest,
   SessionMoveValue,
@@ -69,6 +70,21 @@ interface SessionReadState {
 type PromptContentCandidate =
   | SessionPromptRequest['content'][number]
   | Extract<SessionUpdateQueueRequest['action'], { readonly kind: 'edit' }>['content'][number]
+
+/**
+ * The account's desktops a Session can move to, as the placement RPC reports them.
+ * @param placement - the Session's placement on this device.
+ * @returns each desktop with its presence and whether the Session's next turns run on it.
+ */
+function desktopsOf(placement: HandoffPlacement): SessionDesktopValue[] {
+  return placement.desktops.map(desktop => ({
+    device: desktop.device,
+    name: desktop.name,
+    present: desktop.present,
+    ...desktop.seenAt === undefined ? {} : { seenAt: desktop.seenAt },
+    home: placement.home?.device === desktop.device,
+  }))
+}
 
 function hasPromptContent(content: readonly PromptContentCandidate[]): boolean {
   return content.some(part => part.type !== 'text' || part.text.trim().length > 0)
@@ -346,23 +362,16 @@ export class SessionCommandController {
     const owner = this.ctx.get('identityUsers')?.actingUser()?.id
     const placement = handoff === undefined || owner === undefined ? undefined : handoff.placementOf(owner, request.sessionId)
     if (placement === undefined) return { here: false }
-    // An always-on Host such as Aeven Web offers the account's desktops; a desktop offers itself and the always-on device.
+    // An always-on Host such as Aeven Web offers the account's desktops; a desktop offers itself, the always-on device,
+    // and the account's other desktops.
     if (placement.alwaysOnHere) {
-      return {
-        here: false,
-        desktops: placement.desktops.map(desktop => ({
-          device: desktop.device,
-          name: desktop.name,
-          present: desktop.present,
-          ...desktop.seenAt === undefined ? {} : { seenAt: desktop.seenAt },
-          home: placement.home?.device === desktop.device,
-        })),
-      }
+      return { here: false, desktops: desktopsOf(placement) }
     }
     const always = placement.alwaysOn
     return {
-      here: placement.home?.alwaysOn === true,
+      here: placement.home?.alwaysOn === true || placement.home?.pinned === true,
       ...always === undefined || placement.home?.device === always.device ? {} : { alwaysOn: always.name },
+      ...placement.desktops.length === 0 ? {} : { desktops: desktopsOf(placement) },
     }
   }
 

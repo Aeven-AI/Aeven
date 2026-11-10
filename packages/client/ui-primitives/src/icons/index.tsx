@@ -1518,6 +1518,16 @@ export const IconLucideLaptopMinimalCheck = ({ className }: LucideGlyphProps) =>
   </LucideSvg>
 )
 
+/** Lucide `monitor-check`: the desktop a conversation runs on. */
+export const IconLucideMonitorCheck = ({ className }: LucideGlyphProps) => (
+  <LucideSvg className={className}>
+    <path d="m9 10 2 2 4-4" />
+    <rect width="20" height="14" x="2" y="3" rx="2" />
+    <path d="M12 17v4" />
+    <path d="M8 21h8" />
+  </LucideSvg>
+)
+
 /** lucide `laptop-minimal`: another synced device. */
 export const IconLucideLaptopMinimal = ({ className }: LucideGlyphProps) => (
   <LucideSvg className={className}>

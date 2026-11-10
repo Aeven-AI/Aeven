@@ -5,7 +5,7 @@
  * that desktop.
  */
 import { useMemo } from 'react'
-import { IconLucideCheck, IconLucideLaptopMinimal, Modal, relativeTime } from '@aeven/client-ui-primitives'
+import { IconLucideLaptopMinimal, IconLucideMonitorCheck, Modal, relativeTime } from '@aeven/client-ui-primitives'
 import type { SessionDesktop } from '../contract/slots.ts'
 import type { ConversationSessionHeaderProps } from './ConversationSession.tsx'
 import css from './DesktopChooser.module.css'
@@ -86,9 +86,8 @@ export function DesktopChooser({ open, desktops, onClose, onChoose, t }: Desktop
                     </span>
                   </span>
                   {desktop.home && (
-                    <span className={css.current}>
-                      <IconLucideCheck className={css.icon} />
-                      {t('desktops.current')}
+                    <span className={css.current} role="img" aria-label={t('desktops.current')}>
+                      <IconLucideMonitorCheck className={css.icon} />
                     </span>
                   )}
                 </button>
