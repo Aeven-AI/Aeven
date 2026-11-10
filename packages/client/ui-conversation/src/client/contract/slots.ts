@@ -357,8 +357,11 @@ export interface ConversationSessionHeaderInjected {
    * Session that is not synced, or a Host that is always on, offers none.
    */
   devicePlacement: () => Promise<SessionDevicePlacement>
-  /** Run this Session's next turns on this computer, on the account's always-on device, or on its desktop. */
-  continueOn: (target: 'here' | 'always-on' | 'desktop') => Promise<void>
+  /**
+   * Run this Session's next turns on this computer, on the account's always-on device, or on one of its desktops.
+   * @param target - the move; `device` names one of the placement's `desktops`.
+   */
+  continueOn: (target: SessionContinueTarget) => Promise<void>
   /** Select and activate one registered Conversation View. */
   selectView: (view: string) => void
 }
@@ -369,9 +372,28 @@ export interface SessionDevicePlacement {
   readonly here: boolean
   /** Name of the always-on device to offer "Continue in …", such as "Aeven Cloud". */
   readonly alwaysOn?: string
-  /** Name of the account's desktop to offer "Continue on …" from Aeven Web. */
-  readonly desktop?: string
+  /** The account's desktops to offer from Aeven Web, present ones first; absent elsewhere. */
+  readonly desktops?: readonly SessionDesktop[]
 }
+
+/** One desktop of the account the header offers as a move destination. */
+export interface SessionDesktop {
+  /** Its device id in the account's vault. */
+  readonly device: string
+  /** The name it gave itself; empty until it wrote one. */
+  readonly name: string
+  /** Whether its relay connection is open now. */
+  readonly present: boolean
+  /** When its relay connection was last seen open, in milliseconds since the Unix epoch; absent when never. */
+  readonly seenAt?: number
+  /** Whether the Session's next turns already run on it. */
+  readonly home: boolean
+}
+
+/** A device move the header asks the Host for. */
+export type SessionContinueTarget =
+  | { readonly target: 'here' | 'always-on' }
+  | { readonly target: 'desktop'; readonly device: string }
 
 /** One Workspace the header offers as a move destination. */
 export interface SessionMoveTarget {

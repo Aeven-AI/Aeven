@@ -21,9 +21,10 @@ import {
 } from '@aeven/client-ui-primitives'
 import type { WorkspaceId } from '@aeven/workspace/types'
 import type { ReactNode } from 'react'
-import type { SessionDevicePlacement, SessionMoveTarget } from '../contract/slots.ts'
+import type { SessionContinueTarget, SessionDevicePlacement, SessionMoveTarget } from '../contract/slots.ts'
 import type { ViewTab } from '../contract/views.ts'
 import type { ConversationSessionHeaderProps } from './ConversationSession.tsx'
+import { DesktopChooser } from './DesktopChooser.tsx'
 import css from './NavigationOptions.module.css'
 
 /**
@@ -60,8 +61,8 @@ export interface NavigationOptionsProps {
   onMove: (workspaceId: WorkspaceId) => void
   /** The device moves this Host offers for this Session, read each time the options open. */
   devicePlacement: () => Promise<SessionDevicePlacement>
-  /** Run this Session's next turns on this computer, or on the account's always-on device. */
-  onContinueOn: (target: 'here' | 'always-on' | 'desktop') => Promise<void>
+  /** Run this Session's next turns on this computer, on the account's always-on device, or on one of its desktops. */
+  onContinueOn: (target: SessionContinueTarget) => Promise<void>
   /** The header's locale seat. */
   t: ConversationSessionHeaderProps['t']
 }
@@ -77,6 +78,7 @@ export function NavigationOptions({
   const [open, setOpen] = useState(false)
   // Read each time the options open, so a turn that ran on another device since shows its move.
   const [placement, setPlacement] = useState<SessionDevicePlacement>({ here: false })
+  const [choosing, setChoosing] = useState(false)
   // Transient failure banner: the seq keys the Toast so an identical repeated
   // message restarts the hold-then-fade cycle instead of reusing the faded one.
   const [toast, setToast] = useState<{ seq: number; text: string } | null>(null)
@@ -118,11 +120,11 @@ export function NavigationOptions({
     ...placement.here
       ? [{ id: 'continue-here', label: t('nav.continueHere'), icon: <IconLucideLaptopMinimal className={css.rowIcon} />, disabled: moveDisabled }]
       : [],
-    ...placement.desktop === undefined
+    ...placement.desktops === undefined
       ? []
       : [{
-        id: 'continue-desktop',
-        label: t('nav.continueOn', { name: placement.desktop }),
+        id: 'choose-desktop',
+        label: t('nav.chooseDesktop'),
         icon: <IconLucideLaptopMinimal className={css.rowIcon} />,
         disabled: moveDisabled,
       }],
@@ -156,9 +158,10 @@ export function NavigationOptions({
           if (id === 'fork') onFork()
           else if (id === 'export') runExport()
           else if (id.startsWith(MOVE_PREFIX)) onMove(id.slice(MOVE_PREFIX.length) as WorkspaceId)
-          else if (id === 'continue-here' || id === 'continue-always-on' || id === 'continue-desktop') {
-            void onContinueOn(id === 'continue-here' ? 'here' : id === 'continue-desktop' ? 'desktop' : 'always-on').catch(fail)
+          else if (id === 'continue-here' || id === 'continue-always-on') {
+            void onContinueOn({ target: id === 'continue-here' ? 'here' : 'always-on' }).catch(fail)
           }
+          else if (id === 'choose-desktop') setChoosing(true)
           // A remaining id is a View: the roster supplies exactly those.
           else onSelect(id)
         }}
@@ -178,6 +181,16 @@ export function NavigationOptions({
             </button>
           </Tooltip>
         )}
+      />
+      <DesktopChooser
+        open={choosing}
+        desktops={placement.desktops ?? []}
+        onClose={() => { setChoosing(false) }}
+        onChoose={(device) => {
+          setChoosing(false)
+          void onContinueOn({ target: 'desktop', device }).catch(fail)
+        }}
+        t={t}
       />
       {toast !== null && (
         <Toast

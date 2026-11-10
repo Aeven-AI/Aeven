@@ -346,10 +346,18 @@ export class SessionCommandController {
     const owner = this.ctx.get('identityUsers')?.actingUser()?.id
     const placement = handoff === undefined || owner === undefined ? undefined : handoff.placementOf(owner, request.sessionId)
     if (placement === undefined) return { here: false }
-    // An always-on Host such as Aeven Web offers the account's desktop; a desktop offers itself and the always-on device.
+    // An always-on Host such as Aeven Web offers the account's desktops; a desktop offers itself and the always-on device.
     if (placement.alwaysOnHere) {
-      const desktop = placement.desktop
-      return desktop === undefined || placement.home?.device === desktop.device ? { here: false } : { here: false, desktop: desktop.name }
+      return {
+        here: false,
+        desktops: placement.desktops.map(desktop => ({
+          device: desktop.device,
+          name: desktop.name,
+          present: desktop.present,
+          ...desktop.seenAt === undefined ? {} : { seenAt: desktop.seenAt },
+          home: placement.home?.device === desktop.device,
+        })),
+      }
     }
     const always = placement.alwaysOn
     return {
@@ -359,11 +367,12 @@ export class SessionCommandController {
   }
 
   /**
-   * Make this device or the account's always-on device the home of a synced Session, so its next turns run there.
+   * Make this device, the account's always-on device, or one of its desktops the home of a synced Session, so its
+   * next turns run there.
    * @param request - Session identity and the device to continue on.
    * @returns acceptance.
    * @throws RemoteError `session/agent-busy` while another device runs a turn of the Session, and
-   *   `gateway/bad-request` when the Session is not synced or the account has no always-on device.
+   *   `gateway/bad-request` when the Session is not synced, or the target device is not the account's.
    */
   async continueOn(request: SessionContinueOnRequest): Promise<SessionContinueOnValue> {
     const handoff = this.ctx.get('sessionHandoff')
@@ -374,9 +383,13 @@ export class SessionCommandController {
     }
     const device = request.target === 'here'
       ? placement.device
-      : request.target === 'desktop' ? placement.desktop?.device : placement.alwaysOn?.device
+      : request.target === 'desktop'
+        ? placement.desktops.find(desktop => desktop.device === request.device)?.device
+        : placement.alwaysOn?.device
     if (device === undefined) {
-      throw new RemoteError('gateway/bad-request', `your account has no ${request.target === 'desktop' ? 'desktop' : 'always-on device'} to continue on`, {})
+      throw new RemoteError('gateway/bad-request', request.target === 'desktop'
+        ? 'that desktop is not one of your account\'s devices'
+        : 'your account has no always-on device to continue on', {})
     }
     if (handoff.runnerOf(owner, request.sessionId) !== undefined) {
       throw new RemoteError('session/agent-busy', 'another device of this account is running a turn of this conversation; move it once that turn ends', { reason: 'remote-turn' })
