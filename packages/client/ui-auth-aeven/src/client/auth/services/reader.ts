@@ -8,7 +8,7 @@
  * @module
  */
 
-import { mediaUrl, webUrl } from './config.ts'
+import { helpCenterUrl, mediaUrl, webUrl } from './config.ts'
 import { cloud, mfa, removeAvatar, setDisplayName, setLocale as storeLocale, signOut, uploadAvatar } from './api.ts'
 import { session } from './session.ts'
 
@@ -24,6 +24,8 @@ export interface AevenReader {
   readonly imageUrl?: string
   /** The Aeven account page, absent when this deployment names no web client. */
   readonly accountUrl?: string
+  /** The help center's origin, absent when this deployment names no help center. */
+  readonly helpCenterUrl?: string
   /**
    * True when the reader signed in through an authentication screen of this page; absent when the page restored
    * an earlier session. A surface that greets a new sign-in reads it.
@@ -96,6 +98,7 @@ export function publishReader(): void {
     return
   }
   const web = webUrl()
+  const help = helpCenterUrl()
   const imageUrl = imageUrlOf()
   scope.__AVN_AEVEN_READER__ = {
     userId: session.userId,
@@ -103,6 +106,7 @@ export function publishReader(): void {
     ...session.email === undefined ? {} : { email: session.email },
     ...imageUrl === undefined ? {} : { imageUrl },
     ...web === undefined ? {} : { accountUrl: `${web}/account/` },
+    ...help === undefined ? {} : { helpCenterUrl: help },
     ...signedInThisPage ? { signedInThisPage: true as const } : {},
     signOut,
     setDisplayName: async (displayName: string) => {

@@ -387,7 +387,7 @@ export function ConversationRoot({
   const archivedBar = (
     <div className={css.archivedFrame}>
       <div className={css.archivedBar} role="status">
-        <span>{t('archived.body')}</span>
+        <span className={css.archivedText}>{t('archived.body')}</span>
         {unarchiveSession !== undefined && (
           <Button variant="primary" size="sm" onClick={unarchiveSession}>{t('archived.unarchive')}</Button>
         )}
