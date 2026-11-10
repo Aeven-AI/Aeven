@@ -45,7 +45,7 @@ Choose it when you want full-text recall over prior sessions with ranking and pa
 | `path` | required | Dedicated derived-index SQLite path, or `:memory:`; missing paths are created owner-only on POSIX |
 | `openAt` | `startup` | `startup` opens at activation; `first-search` defers the SQLite module until the first search; `never` disables full-text search while inherited reads stay available |
 | `warmAfter` | unset | Milliseconds after activation at which the index opens and reconciles in the background; unset leaves that work to the first search |
-| `journalMode` | `wal` | `wal`, `delete`, `truncate`, or `persist` |
+| `journalMode` | `wal` | `wal`, `delete`, `truncate`, or `persist`. The index always runs with `synchronous = NORMAL`, since it rebuilds from the session logs and need not fsync each commit |
 | `busyTimeout` | `5000` | Milliseconds a statement waits for another process's write lock on a shared index file |
 | `defaultLimit` | `20` | Page size when a request omits `limit` |
 | `maxLimit` | `100` | Largest accepted request page size |
@@ -86,7 +86,7 @@ This section explains the design decisions behind the backend and points at the 
 The backend is built on one separation and three commitments:
 
 - **Derived index, never the source store.** The FTS rows live in a dedicated disposable database; the session-persistence database is never opened here.
-- **Live-preferred observation.** One serialized state machine compares persistence snapshot revisions, inspects only new or changed logs, and reconciles in one transaction, so a search reflects the newest stable state.
+- **Live-preferred observation.** One serialized state machine compares persistence snapshot revisions, inspects only new or changed logs, and reconciles in one transaction, so a search reflects the newest stable state. When sessions keep changing through a retry, as on a Host serving many accounts, the search answers from the last attempt, which is correct as of its first listing, instead of failing.
 - **Generation-bound cursors.** Every corpus change bumps a generation; cursors carry the generation they were created under and fail stale rather than returning a shifted page.
 - **Literal phrases as data.** Caller query text is quoted into one FTS5 phrase so query syntax stays inert, and reserved highlight markers are stripped from documents before indexing.
 

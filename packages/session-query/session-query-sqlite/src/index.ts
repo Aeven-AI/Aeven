@@ -91,7 +91,7 @@ export const SESSION_QUERY_SQLITE_SNIPPET_CHARS = 240
 /** Default milliseconds a write waits for another process's lock on a shared index. */
 export const SESSION_QUERY_SQLITE_BUSY_TIMEOUT = 5000
 
-// One transient source change gets a retry; repeated churn fails rather than monopolizing the queue.
+// One transient source change gets a retry; repeated churn returns the last attempt rather than monopolizing the queue.
 const STABLE_OBSERVATION_ATTEMPTS = 2
 
 /** SQLite module/handle opening phase; `never` disables full-text search entirely. */
@@ -609,6 +609,9 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
       const persistence = persistenceBinding.service
       const initiallyLive = new Set(this.ctx.sessions.list().map(session => session.id))
       let persisted = new Map<SessionId, ObservedPersistedSession>()
+      // Whether sessions changed while this attempt observed them. Rows are keyed by revision, so an attempt that saw
+      // churn is still correct as of its first listing; the next reconcile picks up what changed after it.
+      let churned = false
       if (persistence !== undefined) {
         try {
           const canReuseIndexed = this._lastPersistenceIdentity === undefined
@@ -638,8 +641,8 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
           const afterSnapshots = await persistence.listSnapshots(signal)
           assertNotAborted(signal)
           const after = materializePersistenceSnapshots(afterSnapshots)
-          if (!samePersistenceSnapshots(persisted, after)) continue
           if (this._persistenceBinding !== persistenceBinding) continue
+          churned = !samePersistenceSnapshots(persisted, after)
         } catch (error: unknown) {
           if (isAbort(error) || signal?.aborted) {
             throw new SessionQueryError('session-search aborted', 'SESSION_QUERY_ABORTED', {
@@ -662,11 +665,14 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
         if (durable !== undefined) assertSessionHeadersCompatible(observed.header, durable.header)
         live.set(session.id, observed)
       }
-      if (!sameSessionIds(initiallyLive, live)) continue
+      churned ||= !sameSessionIds(initiallyLive, live)
+      // A Host serving many accounts writes sessions continuously, so churn on the last attempt returns this
+      // observation instead of failing the search.
+      if (churned && attempt + 1 < STABLE_OBSERVATION_ATTEMPTS) continue
       return { persistenceBinding, persisted, live }
     }
     throw new SessionQueryError(
-      'session-search persistence observation did not stabilize after one retry',
+      'session-search persistence binding did not settle after one retry',
       'SESSION_QUERY_PERSISTENCE_FAILED',
     )
   }

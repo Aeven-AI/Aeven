@@ -1140,7 +1140,7 @@ describe('SQLite reconciliation and source lifecycle', () => {
     expect(TestPersistence.inspections.get(added.id)).toBe(1)
   })
 
-  it('fails after one retry when persistence snapshots keep changing', async () => {
+  it('answers from the last attempt when persistence snapshots keep changing', async () => {
     const durable = header('continuous-mutation')
     TestPersistence.reset([{ meta: durable, events: messageEvents('durable needle') }])
     const ctx = await liveContext()
@@ -1151,8 +1151,8 @@ describe('SQLite reconciliation and source lifecycle', () => {
       TestPersistence.set({ meta: durable, events: messageEvents(`durable needle ${lists}`) })
     }
 
-    await expect(ctx.sessionQuery.searchSessions({ query: 'needle' }))
-      .rejects.toThrow(expectCode('SESSION_QUERY_PERSISTENCE_FAILED'))
+    const page = await ctx.sessionQuery.searchSessions({ query: 'needle' })
+    expect(page.items.map(item => item.header.id)).toEqual([durable.id])
     expect(lists).toBe(4)
   })
 
