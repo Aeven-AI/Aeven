@@ -521,6 +521,10 @@
           npm_config_update_notifier: 'false'
           npm_config_audit: 'false'
           npm_config_fund: 'false'
+          # pnpm runs a full install before `pnpm run` when dependencies are
+          # missing; in the jail that is unasked heavy work, and a fresh clone's
+          # native builds need hosts the proxy refuses. Commands install explicitly.
+          npm_config_verify_deps_before_run: 'false'
           # No terminal answers a credential prompt.
           GIT_TERMINAL_PROMPT: '0'
         tmpSizeMb: 512
@@ -596,7 +600,8 @@
           other sites fail. git works with https://github.com/ URLs: public repositories always, and
           private repositories and git push when the user has connected GitHub in Settings → Connectors,
           with no token in the command. Pushing a tag or deleting a branch asks the user for approval
-          and fails with HTTP 403 when they decline. npm install runs without package install scripts, and pip
+          and fails with HTTP 403 when they decline. npm install runs without package install scripts, pnpm run does not install
+          missing dependencies first, and pip
           install takes prebuilt wheels only and adds packages beside the preinstalled ones without
           replacing them. Installed packages stay in the working directory's folder between commands.
           Network use is limited in speed and to 2 GB a day. Installed: Python 3.12 with
