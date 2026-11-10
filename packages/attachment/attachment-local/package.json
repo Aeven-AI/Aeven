@@ -1,7 +1,7 @@
 {
   "name": "@aeven/attachment-local",
   "description": "Private content-addressed AVN_HOME attachment storage",
-  "version": "0.3.40-alpha",
+  "version": "0.3.41-alpha",
   "publishConfig": {
     "access": "public"
   },
