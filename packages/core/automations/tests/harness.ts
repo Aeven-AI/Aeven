@@ -143,12 +143,16 @@ export class RecordingAgents {
   /** Arm the next created run so its first idle wait stays pending until `release`. */
   holdNextRun(): void { this.holdNext = true }
 
+  /** Arm every run created from now on so its first idle wait stays pending until `release`. */
+  holdEveryRun(): void { this.holdEvery = true }
+
   /** Release every run conversation created so far. */
   release(): void {
     for (const conversation of this.conversations) conversation.agent.release()
   }
 
   private holdNext = false
+  private holdEvery = false
 
   async create(options: {
     readonly sessionId: SessionId
@@ -156,7 +160,7 @@ export class RecordingAgents {
   }): Promise<{ readonly agent: RunAgent }> {
     const session = new RunSession(options.sessionId)
     const agent = new RunAgent(session)
-    if (this.holdNext) {
+    if (this.holdNext || this.holdEvery) {
       this.holdNext = false
       agent.holdNextIdle()
     }
@@ -209,7 +213,7 @@ export interface AutomationHarness {
 
 /** Limits the built-in Web profile ships, with a small body cap so a suite can reach it. */
 export const TEST_CONFIG: Config = {
-  maxConcurrentRuns: 2,
+  maxConcurrentRunsPerAccount: 2,
   runTimeoutMinutes: 60,
   misfireGraceMinutes: 15,
   historyLimit: 200,

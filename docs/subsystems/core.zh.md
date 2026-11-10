@@ -835,7 +835,7 @@ Built-in automation service; schedules never authorize additional tool access.
  * definition's `placement` says where it runs among the account's registered Hosts, and its `webhook` says
  * an inbound credential exists; the secret itself never enters this projection.
  */
-async list(): Promise<{ definitions: (AutomationDefinition & { placement: AutomationPlacement; nextRunAt: string | null; lastRun: AutomationRun | null; webhook: boolean })[]; runs: AutomationRun[]; capabilities: { host: HostProfile['kind']; triggers: readonly AutomationSchedule['kind'][]; webhook: boolean } }>
+async list(): Promise<{ definitions: (AutomationDefinition & { placement: AutomationPlacement; nextRunAt: string | null; lastRun: AutomationRun | null; webhook: boolean })[]; runs: AutomationRun[]; capabilities: { host: HostProfile['kind']; triggers: readonly AutomationSchedule['kind'][]; webhook: boolean }; hosts: { cloud: boolean; desktops: AutomationDesktop[] } }>
 
 /** Give one owned automation an inbound trigger credential, keeping an existing one.
  * @param id - owned definition identity.

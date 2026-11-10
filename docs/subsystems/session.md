@@ -963,6 +963,13 @@ abstract holdRunner(owner: string, sessionId: SessionId, running: boolean): Prom
 abstract placementOf(owner: string, sessionId: SessionId): HandoffPlacement | undefined
 
 /**
+ * The account's devices, for offering the user where work runs outside one session.
+ * @param owner - the account.
+ * @returns them, or undefined while account sync has not started.
+ */
+abstract devicesOf(owner: string): HandoffDevices | undefined
+
+/**
  * Make a device of the account the session's home, so its next turn runs there: this device, or an always-on device
  * a later input is forwarded to. The session's log does not change.
  * @param owner - the account.

@@ -1030,7 +1030,7 @@ describe('cloud bot execution in the shipped Web composition', () => {
           { id: 'agent-default-model', config: { provider: 'cloud-bot-test', model: 'cloud-bot-test' } },
           { id: 'session-persistence-jsonl', config: { root: join(home, 'sessions'), compression: 'none' } },
           { id: 'automations', disabled: false, config: {
-            maxConcurrentRuns: 2, runTimeoutMinutes: 60, misfireGraceMinutes: 15, historyLimit: 200,
+            maxConcurrentRunsPerAccount: 2, runTimeoutMinutes: 60, misfireGraceMinutes: 15, historyLimit: 200,
             workspaceTitle: 'Automations', webhookMaxBodyBytes: 8192,
             placement: { kind, provides: kind === 'device' ? ['files'] : [] },
           } },
