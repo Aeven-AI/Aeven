@@ -79,6 +79,11 @@ export async function openSearchDatabase(
     // Apply mutating pragmas only after refusing foreign or canonical files.
     // journalMode is a validated closed union, not caller-controlled SQL.
     db.exec(`PRAGMA journal_mode = ${journalMode.toUpperCase()}`)
+    // The index is derived and rebuilds from the session logs, so a commit need not wait for fsync: each indexed
+    // session commits on its own, and FULL would sync once per session on a startup refresh. Live rows sit in
+    // TEMP tables, which stay in memory.
+    db.exec('PRAGMA synchronous = NORMAL')
+    db.exec('PRAGMA temp_store = MEMORY')
     ensurePersistentSchema(db)
     ensureTemporarySchema(db)
     return db
