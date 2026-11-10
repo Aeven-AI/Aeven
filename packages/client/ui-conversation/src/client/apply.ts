@@ -354,6 +354,15 @@ export function apply(ctx: Context): void {
           })
       },
       exportSession: () => exportSessionLog(ctx.remote.session, sessionId),
+      devicePlacement: async () => {
+        const result = await ctx.remote.session.placement({ sessionId })
+        // A Host that cannot answer offers no move; the menu keeps its other rows.
+        return result.ok ? result.value : { here: false }
+      },
+      continueOn: async (target) => {
+        const result = await ctx.remote.session.continueOn({ sessionId, target })
+        if (!result.ok) throw new Error(result.error.message)
+      },
       moveSession: workspaceNavigation.moveSession === undefined
         ? undefined
         : (workspaceId) => {

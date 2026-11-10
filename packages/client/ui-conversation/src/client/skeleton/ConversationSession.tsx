@@ -27,7 +27,7 @@ export type ConversationSessionHeaderProps = ConversationSessionHeaderSlotProps
  */
 export function ConversationSessionHeader({
   sessionId, useSessions, useConversationViews, useSelectedView, useMoveTargets, useStore, renderSlot,
-  forkSession, exportSession, moveSession, selectView, t,
+  forkSession, exportSession, moveSession, devicePlacement, continueOn, selectView, t,
 }: ConversationSessionHeaderProps) {
   const displayTitle = useSessions(state => state.byId[sessionId]?.displayTitle)
   const views = useConversationViews(value => value)
@@ -52,6 +52,8 @@ export function ConversationSessionHeader({
           moveTargets={moveSession === undefined ? [] : moveTargets}
           moveDisabled={running}
           onMove={moveSession ?? (() => {})}
+          devicePlacement={devicePlacement}
+          onContinueOn={continueOn}
           t={t}
         />
         {renderSlot(

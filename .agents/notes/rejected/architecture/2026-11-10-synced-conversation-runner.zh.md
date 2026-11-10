@@ -1,6 +1,6 @@
 # Agent Note：由哪台设备运行同步对话
 
-Status: proposed
+Status: rejected — 第 1、2 阶段已作为 synced-conversation-home 记录交付；第 3–5 阶段（无窗口运行的桌面设备、默认远程、文件夹会话路由）因超出问题所需而放弃。
 
 [English](2026-11-10-synced-conversation-runner.md) | 中文
 

@@ -779,6 +779,20 @@ async inspect( sessionId: SessionId, signal?: AbortSignal, ): Promise<SessionIns
 @Remote('rename') rename(request: SessionRenameRequest): Promise<SessionRenameValue>
 
 /**
+ * The moves between the account's devices this device offers for one synced Session.
+ * @param request - Session identity.
+ * @returns the offered moves.
+ */
+@Remote('placement') placement(request: SessionPlacementRequest): Promise<SessionPlacementValue>
+
+/**
+ * Run a synced Session's next turns on this device or on the account's always-on device.
+ * @param request - Session identity and the device to continue on.
+ * @returns acceptance.
+ */
+@Remote('continueOn') continueOn(request: SessionContinueOnRequest): Promise<SessionContinueOnValue>
+
+/**
  * Fork one cold-readable completed-turn prefix into a new Session.
  * @param request - source Session and optional event anchor.
  * @returns the new Session identity.
@@ -943,6 +957,24 @@ abstract claim(owner: string, sessionId: SessionId): Promise<SessionClaim>
  * @param running - whether a turn runs; false lets other devices claim it again.
  */
 abstract holdRunner(owner: string, sessionId: SessionId, running: boolean): Promise<void>
+
+/**
+ * Where a synced session runs, for offering the user to move it.
+ * @param owner - the account.
+ * @param sessionId - the session.
+ * @returns the placement, or undefined when the session is not synced or account sync has not started.
+ */
+abstract placementOf(owner: string, sessionId: SessionId): HandoffPlacement | undefined
+
+/**
+ * Make a device of the account the session's home, so its next turn runs there: this device, or an always-on device
+ * a later input is forwarded to. The session's log does not change.
+ * @param owner - the account.
+ * @param sessionId - the session.
+ * @param device - the device id, this device's or an always-on device's.
+ * @throws when another device runs a turn of the session now, or the device is neither.
+ */
+abstract moveTo(owner: string, sessionId: SessionId, device: string): Promise<void>
 
 /**
  * Give back the hold a claim for a change took, such as a rename or a model selection, once the change is applied

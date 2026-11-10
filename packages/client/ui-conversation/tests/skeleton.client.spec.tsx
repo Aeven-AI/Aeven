@@ -294,6 +294,8 @@ function mount(
           open={open}
           forkSession={vi.fn()}
           exportSession={() => Promise.resolve()}
+          devicePlacement={() => Promise.resolve({ here: false })}
+          continueOn={() => Promise.resolve()}
           moveSession={undefined}
           selectView={(view) => { store.actions.setView(view) }}
           t={t}

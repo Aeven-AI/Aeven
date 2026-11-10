@@ -22,7 +22,7 @@ import { SessionLogOffset, type SessionEvent, type SessionHeader, type SessionId
 import type { SessionPersistence, SessionPersistenceSnapshot } from '@aeven/session-persistence'
 import { LeaseHolder, type Sync, type SyncDocument, type SyncProgress, type LeaseHolderTiming } from '@aeven/sync'
 import { AttachmentId, type AttachmentStore } from '@aeven/attachment'
-import type { SessionClaim, SessionHandoffInput, SessionRunner, SharedSession } from '@aeven/session-handoff'
+import type { HandoffPlacement, SessionClaim, SessionHandoffInput, SessionRunner, SharedSession } from '@aeven/session-handoff'
 
 /** One session as the index records it: metadata only; the stream is the history. */
 interface IndexEntry {
@@ -1010,6 +1010,47 @@ export class SessionMirror {
   private preferredDevice(sessionId: SessionId): string | undefined {
     const writer = this.docs?.index.doc.getMap<IndexEntry>('sessions').get(sessionId)?.writer
     return writer !== undefined && this.devices()?.get(writer)?.alwaysOn === true ? writer : undefined
+  }
+
+  /**
+   * Where a session runs, as this device sees it.
+   * @param sessionId - the session.
+   * @returns the placement, or undefined when the session is not synced or sync has not started.
+   */
+  placementOf(sessionId: SessionId): HandoffPlacement | undefined {
+    const me = this.device()
+    const devices = this.devices()
+    if (me === undefined || devices === undefined || !this.shared(sessionId)) return undefined
+    const writer = this.entries().get(sessionId)?.writer
+    const always = [...devices.entries()].find(([id, entry]) => id !== me && entry.alwaysOn === true)
+    return {
+      device: me,
+      alwaysOnHere: devices.get(me)?.alwaysOn === true,
+      ...writer === undefined || writer === me
+        ? {}
+        : { home: { device: writer, name: devices.get(writer)?.name ?? '', alwaysOn: devices.get(writer)?.alwaysOn === true } },
+      ...always === undefined ? {} : { alwaysOn: { device: always[0], name: always[1].name } },
+    }
+  }
+
+  /**
+   * Make this device or an always-on device the session's home. Only the index entry changes: the next turn-starting
+   * input runs here, or is forwarded to that device.
+   * @param sessionId - the session.
+   * @param device - this device's id or an always-on device's.
+   * @throws when another device runs a turn of the session, or the device is neither this one nor always on.
+   */
+  async moveTo(sessionId: SessionId, device: string): Promise<void> {
+    await this.starting
+    const me = this.device()
+    if (me === undefined || this.docs === undefined) throw new Error('account sync has not started on this device')
+    if (device !== me && this.devices()?.get(device)?.alwaysOn !== true) {
+      throw new Error(`device ${device} is neither this device nor always on`)
+    }
+    if (this.runnerOf(sessionId) !== undefined) throw new Error('another device runs a turn of this session now')
+    const entry = this.entries().get(sessionId)
+    if (entry === undefined) throw new Error('the session is not synced')
+    if (entry.writer !== device) this.entries().set(sessionId, { ...entry, writer: device })
   }
 
   private devices(): YMap<DeviceEntry> | undefined {

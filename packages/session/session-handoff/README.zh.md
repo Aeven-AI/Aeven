@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`ctx.sessionHandoff` Service Definition。已同步账户的对话同一时刻只有一台设备在编写，而持有副本的其他设备仍然接收用户对它的输入：`forward` 把提示词、审批决定或取消发送给编写的设备，由它通过 `session-handoff/input` 作为自己的输入应用；`publishLive`/`liveOf` 把该设备的运行状态和队列传给其余设备。`catalog` 在正文到达前列出账户的对话元数据，`fetch` 在打开时下载单个对话，`runnerOf` 指出正在编写的设备，`homeOf` 指出运行了对话最近一回合的始终在线设备（例如 Aeven Cloud），对话与其文件和后台任务一起留在那里：其他设备把新回合的输入转发给它，由它优先运行，`endChange` 交还重命名或切换模型时取得的占用，让其他设备能立即接手下一回合，`claim` 在该设备没有轮次运行时把本机变为编写方，接管时会在停止编写的设备上发布 `session-handoff/released`。由 `@aeven/session-sync` 提供。见[账户同步分组](../../sync/README.zh.md)。
+`ctx.sessionHandoff` Service Definition。已同步账户的对话同一时刻只有一台设备在编写，而持有副本的其他设备仍然接收用户对它的输入：`forward` 把提示词、审批决定或取消发送给编写的设备，由它通过 `session-handoff/input` 作为自己的输入应用；`publishLive`/`liveOf` 把该设备的运行状态和队列传给其余设备。`catalog` 在正文到达前列出账户的对话元数据，`fetch` 在打开时下载单个对话，`runnerOf` 指出正在编写的设备，`homeOf` 指出运行了对话最近一回合的始终在线设备（例如 Aeven Cloud），对话与其文件和后台任务一起留在那里：其他设备把新回合的输入转发给它，由它优先运行，`endChange` 交还重命名或切换模型时取得的占用，让其他设备能立即接手下一回合，`placementOf` 报告本设备的 id、本设备是否始终在线、对话的归属设备以及另一台始终在线设备，`moveTo` 在没有回合运行时把本设备或一台始终在线设备设为对话的归属设备，转发的输入可以携带发送者的会话 `credentials`，让接收设备以发送者的模型访问权限运行该回合，`claim` 在该设备没有轮次运行时把本机变为编写方，接管时会在停止编写的设备上发布 `session-handoff/released`。由 `@aeven/session-sync` 提供。见[账户同步分组](../../sync/README.zh.md)。
 
 ## 目录
 

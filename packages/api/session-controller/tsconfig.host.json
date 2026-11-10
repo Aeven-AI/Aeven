@@ -34,6 +34,7 @@
     { "path": "../../identity/user" },
     { "path": "../../context/file-reference" },
     { "path": "../../attachment/attachment" },
+    { "path": "../../credentials/credentials" },
     { "path": "../../document/document-extract" },
     { "path": "../../fs/fs" },
     { "path": "../../client/connection/tsconfig.host.json" },

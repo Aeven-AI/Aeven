@@ -16,12 +16,12 @@
 import { useRef, useState } from 'react'
 import {
   IconBranchOutline16, IconDownloadOutline16, IconInspectOutline12, IconLucideEllipsisVertical,
-  IconLucideFolder, IconLucideMessageCircle,
+  IconLucideFolder, IconLucideGlobe, IconLucideLaptopMinimal, IconLucideMessageCircle,
   IconWarningOutline16, Menu, Toast, Tooltip, type MenuEntry,
 } from '@aeven/client-ui-primitives'
 import type { WorkspaceId } from '@aeven/workspace/types'
 import type { ReactNode } from 'react'
-import type { SessionMoveTarget } from '../contract/slots.ts'
+import type { SessionDevicePlacement, SessionMoveTarget } from '../contract/slots.ts'
 import type { ViewTab } from '../contract/views.ts'
 import type { ConversationSessionHeaderProps } from './ConversationSession.tsx'
 import css from './NavigationOptions.module.css'
@@ -58,6 +58,10 @@ export interface NavigationOptionsProps {
   moveDisabled: boolean
   /** Move this Session into one Workspace. */
   onMove: (workspaceId: WorkspaceId) => void
+  /** The device moves this Host offers for this Session, read each time the options open. */
+  devicePlacement: () => Promise<SessionDevicePlacement>
+  /** Run this Session's next turns on this computer, or on the account's always-on device. */
+  onContinueOn: (target: 'here' | 'always-on') => Promise<void>
   /** The header's locale seat. */
   t: ConversationSessionHeaderProps['t']
 }
@@ -68,13 +72,23 @@ export interface NavigationOptionsProps {
  * @returns the options anchor with its conditional foldout, or null when no View lies beyond the current one.
  */
 export function NavigationOptions({
-  views, activeId, onSelect, onFork, onExport, moveTargets, moveDisabled, onMove, t,
+  views, activeId, onSelect, onFork, onExport, moveTargets, moveDisabled, onMove, devicePlacement, onContinueOn, t,
 }: NavigationOptionsProps) {
   const [open, setOpen] = useState(false)
+  // Read each time the options open, so a turn that ran on another device since shows its move.
+  const [placement, setPlacement] = useState<SessionDevicePlacement>({ here: false })
   // Transient failure banner: the seq keys the Toast so an identical repeated
   // message restarts the hold-then-fade cycle instead of reusing the faded one.
   const [toast, setToast] = useState<{ seq: number; text: string } | null>(null)
   const toastSeq = useRef(0)
+  const fail = (error: unknown): void => {
+    toastSeq.current += 1
+    setToast({ seq: toastSeq.current, text: error instanceof Error ? error.message : String(error) })
+  }
+  const toggle = (): void => {
+    if (!open) void devicePlacement().then(setPlacement, () => { setPlacement({ here: false }) })
+    setOpen(!open)
+  }
   const runExport = (): void => {
     toastSeq.current += 1
     const seq = toastSeq.current
@@ -83,7 +97,7 @@ export function NavigationOptions({
     })
   }
   // The Session's own actions, in the order its row menu lists them (fork),
-  // then the export, then the move destinations, followed by the Views the
+  // then the export, then the move destinations and the device moves, followed by the Views the
   // reader is not in.
   const items: MenuEntry[] = [
     { id: 'fork', label: t('nav.fork'), icon: <IconBranchOutline16 /> },
@@ -100,6 +114,17 @@ export function NavigationOptions({
         ...moveDisabled
           ? {}
           : { submenu: moveTargets.map(target => ({ id: `${MOVE_PREFIX}${target.workspaceId}`, label: target.title })) },
+      }],
+    ...placement.here
+      ? [{ id: 'continue-here', label: t('nav.continueHere'), icon: <IconLucideLaptopMinimal className={css.rowIcon} />, disabled: moveDisabled }]
+      : [],
+    ...placement.alwaysOn === undefined
+      ? []
+      : [{
+        id: 'continue-always-on',
+        label: t('nav.continueIn', { name: placement.alwaysOn }),
+        icon: <IconLucideGlobe className={css.rowIcon} />,
+        disabled: moveDisabled,
       }],
     ...activeId === undefined
       ? []
@@ -123,6 +148,9 @@ export function NavigationOptions({
           if (id === 'fork') onFork()
           else if (id === 'export') runExport()
           else if (id.startsWith(MOVE_PREFIX)) onMove(id.slice(MOVE_PREFIX.length) as WorkspaceId)
+          else if (id === 'continue-here' || id === 'continue-always-on') {
+            void onContinueOn(id === 'continue-here' ? 'here' : 'always-on').catch(fail)
+          }
           // A remaining id is a View: the roster supplies exactly those.
           else onSelect(id)
         }}
@@ -136,7 +164,7 @@ export function NavigationOptions({
               aria-label={label}
               aria-haspopup="menu"
               aria-expanded={open}
-              onClick={() => { setOpen(value => !value) }}
+              onClick={toggle}
             >
               <IconLucideEllipsisVertical className={css.optionsIcon} />
             </button>

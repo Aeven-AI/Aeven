@@ -40,8 +40,12 @@ import type {
   SessionCreateValue,
   SessionEditRequest,
   SessionEditValue,
+  SessionContinueOnRequest,
+  SessionContinueOnValue,
   SessionForkRequest,
   SessionForkValue,
+  SessionPlacementRequest,
+  SessionPlacementValue,
   SessionMoveRequest,
   SessionMoveValue,
   SessionPromptRequest,
@@ -330,6 +334,48 @@ export class SessionCommandController {
         {},
       )
     }
+  }
+
+  /**
+   * The moves between the account's devices this device offers for one synced Session.
+   * @param request - Session identity.
+   * @returns the offered moves; none on an always-on device, or for a Session that is not synced.
+   */
+  placement(request: SessionPlacementRequest): SessionPlacementValue {
+    const handoff = this.ctx.get('sessionHandoff')
+    const owner = this.ctx.get('identityUsers')?.actingUser()?.id
+    const placement = handoff === undefined || owner === undefined ? undefined : handoff.placementOf(owner, request.sessionId)
+    if (placement === undefined || placement.alwaysOnHere) return { here: false }
+    const always = placement.alwaysOn
+    return {
+      here: placement.home?.alwaysOn === true,
+      ...always === undefined || placement.home?.device === always.device ? {} : { alwaysOn: always.name },
+    }
+  }
+
+  /**
+   * Make this device or the account's always-on device the home of a synced Session, so its next turns run there.
+   * @param request - Session identity and the device to continue on.
+   * @returns acceptance.
+   * @throws RemoteError `session/agent-busy` while another device runs a turn of the Session, and
+   *   `gateway/bad-request` when the Session is not synced or the account has no always-on device.
+   */
+  async continueOn(request: SessionContinueOnRequest): Promise<SessionContinueOnValue> {
+    const handoff = this.ctx.get('sessionHandoff')
+    const owner = this.ctx.get('identityUsers')?.actingUser()?.id
+    const placement = handoff === undefined || owner === undefined ? undefined : handoff.placementOf(owner, request.sessionId)
+    if (handoff === undefined || owner === undefined || placement === undefined) {
+      throw new RemoteError('gateway/bad-request', 'this conversation is not shared across your devices', {})
+    }
+    const device = request.target === 'here' ? placement.device : placement.alwaysOn?.device
+    if (device === undefined) {
+      throw new RemoteError('gateway/bad-request', 'your account has no always-on device to continue on', {})
+    }
+    if (handoff.runnerOf(owner, request.sessionId) !== undefined) {
+      throw new RemoteError('session/agent-busy', 'another device of this account is running a turn of this conversation; move it once that turn ends', { reason: 'remote-turn' })
+    }
+    await handoff.moveTo(owner, request.sessionId, device)
+    return { moved: true }
   }
 
   /**
@@ -888,11 +934,31 @@ export class SessionCommandController {
     try {
       const handoff = this.ctx.get('sessionHandoff')
       if (handoff === undefined) throw new Error('session handoff is not mounted')
-      await handoff.forward(owner, sessionId, { operation, request })
+      const credentials = await this.sessionCredentials(owner)
+      await handoff.forward(owner, sessionId, { operation, request, ...credentials === undefined ? {} : { credentials } })
     } catch (error) {
       throw new RemoteError('session/agent-busy', 'the device running this conversation could not take the input', { reason: String(error) })
     }
     return { accepted: true }
+  }
+
+  /**
+   * The session credentials a signed-in client of this user gave this device, which travel with a forwarded input so
+   * the device that runs it can make the turn's model requests; a value from the launch environment or a stored file
+   * belongs to this device and never travels.
+   * @param owner - the forwarding user.
+   * @returns the credentials by reference, or undefined when this device holds none for the user.
+   */
+  private async sessionCredentials(owner: string): Promise<Record<string, string> | undefined> {
+    const identity = this.ctx.get('identityUsers')
+    const credentials = this.ctx.get('credentials')
+    if (identity === undefined || credentials === undefined) return undefined
+    const found: Record<string, string> = {}
+    for (const ref of identity.credentialRefs()) {
+      const hit = await credentials.resolve(ref, owner)
+      if (hit?.source === 'session') found[ref] = hit.value
+    }
+    return Object.keys(found).length === 0 ? undefined : found
   }
 
   /**

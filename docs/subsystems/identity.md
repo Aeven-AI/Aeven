@@ -116,6 +116,12 @@ mayAccess(owner: string | undefined, caller: User | undefined = this.actingUser(
  * the authority declared none.
  */
 credentialRefFor(request: IdentityRequest): CredentialRef | undefined
+
+/**
+ * The credential references every registered authority names, once each.
+ * @returns the references, for a caller that hands a signed-in user's session credentials to another device.
+ */
+credentialRefs(): CredentialRef[]
 ```
 
 Types: [CredentialRef](credentials.md)

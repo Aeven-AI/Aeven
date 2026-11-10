@@ -13,7 +13,7 @@ import type {} from '@aeven/attachment'
 import type {} from '@aeven/workspace'
 import type {} from '@aeven/system-prompt'
 import type { SessionId } from '@aeven/session'
-import { SessionHandoff, type SessionClaim, type SessionHandoffInput, type SessionRunner, type SharedSession } from '@aeven/session-handoff'
+import { SessionHandoff, type SessionClaim, type HandoffPlacement, type SessionHandoffInput, type SessionRunner, type SharedSession } from '@aeven/session-handoff'
 import { SessionMirror, type SessionSyncTuning } from './mirror.ts'
 
 /** Provider configuration. */
@@ -171,6 +171,18 @@ export default class SessionSync extends SessionHandoff {
   /** @inheritdoc */
   runnerOf(owner: string, sessionId: SessionId): SessionRunner | undefined {
     return this.mirrors.get(owner)?.runnerOf(sessionId)
+  }
+
+  /** @inheritdoc */
+  placementOf(owner: string, sessionId: SessionId): HandoffPlacement | undefined {
+    return this.mirrors.get(owner)?.placementOf(sessionId)
+  }
+
+  /** @inheritdoc */
+  async moveTo(owner: string, sessionId: SessionId, device: string): Promise<void> {
+    const mirror = this.mirrors.get(owner)
+    if (mirror === undefined) throw new Error('account sync has not started on this device')
+    await mirror.moveTo(sessionId, device)
   }
 
   /** @inheritdoc */

@@ -1208,6 +1208,9 @@ importers:
       '@aeven/commands':
         specifier: workspace:^
         version: link:../../interaction/commands
+      '@aeven/credentials':
+        specifier: workspace:^
+        version: link:../../credentials/credentials
       '@aeven/document-extract':
         specifier: workspace:^
         version: link:../../document/document-extract

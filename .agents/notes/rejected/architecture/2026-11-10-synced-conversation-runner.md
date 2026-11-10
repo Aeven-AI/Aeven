@@ -1,6 +1,6 @@
 # Agent Note: Which device runs a synced conversation
 
-Status: proposed
+Status: rejected — phases 1 and 2 shipped as the synced-conversation-home note; phases 3–5 (a windowless desktop runner, remote by default, folder-session routing) were dropped as more machinery than the problem needs.
 
 English | [中文](2026-11-10-synced-conversation-runner.zh.md)
 

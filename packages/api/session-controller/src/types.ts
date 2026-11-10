@@ -360,6 +360,34 @@ export interface SessionRenameValue {
   readonly seq: number
 }
 
+/** Session placement request. */
+export interface SessionPlacementRequest {
+  readonly sessionId: SessionId
+}
+
+/**
+ * The moves between the account's devices this device offers for a synced Session. Only a device that is not always
+ * on offers any: on an always-on device such as Aeven Cloud, typing already runs the next turn there.
+ */
+export interface SessionPlacementValue {
+  /** Offer to run the Session's next turns on this device: its latest turn ran on an always-on device. */
+  readonly here: boolean
+  /** Name of the always-on device, such as "Aeven Cloud", to offer the Session to; absent when there is none to move to. */
+  readonly alwaysOn?: string
+}
+
+/** Session device move request. */
+export interface SessionContinueOnRequest {
+  readonly sessionId: SessionId
+  /** `here` runs the next turns on this device; `always-on` on the account's always-on device. */
+  readonly target: 'here' | 'always-on'
+}
+
+/** Accepted device move. */
+export interface SessionContinueOnValue {
+  readonly moved: true
+}
+
 /** Session fork request. */
 export interface SessionForkRequest {
   readonly sessionId: SessionId

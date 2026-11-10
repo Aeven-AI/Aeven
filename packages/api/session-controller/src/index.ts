@@ -24,6 +24,8 @@ import { SessionHistoryController } from './history.ts'
 import { SessionFileReferences } from './file-references.ts'
 import { SessionMediaReferences } from './media-references.ts'
 import { readFetchedAttachment, registerFileReadRoute, registerFileUploadRoutes, registerImageReadRoute } from './file-uploads.ts'
+import { credentialRef } from '@aeven/credentials'
+import type {} from '@aeven/credentials'
 import { ApiSessionList } from './list.ts'
 import { buildModelCatalog } from './catalog.ts'
 import {
@@ -46,8 +48,12 @@ import type {
   SessionRetryValue,
   SessionFollowFrame,
   SessionFollowRequest,
+  SessionContinueOnRequest,
+  SessionContinueOnValue,
   SessionForkRequest,
   SessionForkValue,
+  SessionPlacementRequest,
+  SessionPlacementValue,
   SessionMoveRequest,
   SessionMoveValue,
   SessionListRequest,
@@ -207,6 +213,9 @@ export class SessionController extends TypertRemoteService {
         if (typeof answer.id === 'string') this.controlState.interactions.answer(answer.id, answer.answer)
         return
       }
+      // The forwarding user's session credentials stand in for a client of theirs connected here, for this turn's model requests.
+      const credentials = ctx.get('credentials')
+      for (const [ref, value] of Object.entries(input.credentials ?? {})) credentials?.setSession?.(credentialRef(ref), owner, value)
       const apply = () => this.commands.applyForwarded(sessionId, input)
       await (identity === undefined ? apply() : identity.runAs({ id: owner }, apply))
     })
@@ -513,6 +522,26 @@ The user's account display name is ${JSON.stringify(source.clientDisplayName)}.
   @Remote('rename')
   rename(request: SessionRenameRequest): Promise<SessionRenameValue> {
     return this.commands.rename(request)
+  }
+
+  /**
+   * The moves between the account's devices this device offers for one synced Session.
+   * @param request - Session identity.
+   * @returns the offered moves.
+   */
+  @Remote('placement')
+  placement(request: SessionPlacementRequest): Promise<SessionPlacementValue> {
+    return Promise.resolve(this.commands.placement(request))
+  }
+
+  /**
+   * Run a synced Session's next turns on this device or on the account's always-on device.
+   * @param request - Session identity and the device to continue on.
+   * @returns acceptance.
+   */
+  @Remote('continueOn')
+  continueOn(request: SessionContinueOnRequest): Promise<SessionContinueOnValue> {
+    return this.commands.continueOn(request)
   }
 
   /**
