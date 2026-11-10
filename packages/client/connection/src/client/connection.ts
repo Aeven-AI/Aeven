@@ -207,16 +207,11 @@ export class ConnectionController {
         this.immediateRetry = false
         if (immediate) this.attempt = 0
         manualAttempt = immediate
-        if (!immediate && this.attempt > 0 && this.isFinalBackoffTier(this.attempt)) {
-          const retryDelay = new AbortController()
-          this.retryDelay = retryDelay
-          this.emitState('disconnected')
-          await waitForAbort(retryDelay.signal)
-          if (this.retryDelay === retryDelay) this.retryDelay = null
-          continue
-        }
-        const attempt = ++this.attempt
-        this.emitState('connecting')
+        // The final tier keeps retrying at its cap and reports the loss: a restarting Host can take longer than the
+        // earlier tiers add up to, and a page that stopped retrying stays dead until the reader reloads it.
+        const finalTier = !immediate && this.attempt > 0 && this.isFinalBackoffTier(this.attempt)
+        const attempt = finalTier ? this.attempt : ++this.attempt
+        this.emitState(finalTier ? 'disconnected' : 'connecting')
         if (!this.isRunning()) return
         if (!immediate) {
           const retryDelay = new AbortController()
