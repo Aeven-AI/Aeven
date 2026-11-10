@@ -8801,7 +8801,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SessionResultFilter',
-    declaration: 'export type SessionResultFilter = {\n    kind: \'id\';\n    values: readonly SessionId[];\n} | {\n    kind: \'cwd\';\n    values: readonly (string | null)[];\n} | ({\n    kind: \'created-at\';\n} & SessionResultRange) | {\n    kind: \'parent\';\n    values: readonly (SessionId | null)[];\n} | {\n    kind: \'availability\';\n    values: readonly SessionAvailability[];\n};',
+    declaration: 'export type SessionResultFilter = {\n    kind: \'id\';\n    values: readonly SessionId[];\n} | {\n    kind: \'cwd\';\n    values: readonly (string | null)[];\n} | ({\n    kind: \'created-at\';\n} & SessionResultRange) | {\n    kind: \'parent\';\n    values: readonly (SessionId | null)[];\n} | {\n    kind: \'availability\';\n    values: readonly SessionAvailability[];\n} | {\n    kind: \'owner\';\n    values: readonly string[];\n};',
   },
   {
     name: 'SessionResultRange',

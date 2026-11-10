@@ -375,6 +375,9 @@ export class ApiSessionList {
       signal.throwIfAborted()
       const visibleIds = new Set(visible.map(record => record.header.id))
       if (visibleIds.size === 0) return { items: [], hasMore: false }
+      // Where access is limited to the owner, the provider ranks only the caller's sessions, so another account's
+      // matches cannot crowd the caller's out of a page; the authorization below still checks every hit.
+      const ownerScoped = caller !== undefined && this.ctx.get('identityUsers')?.mayAccess(undefined, caller) === false
       const authorized: SessionSearchItem[] = []
       const acceptedIds = new Set<SessionId>()
       const seenCursors = new Set<SessionSearchCursor>()
@@ -398,6 +401,7 @@ export class ApiSessionList {
               { kind: 'type', values: ['user/message', 'assistant/message'] },
               { kind: 'surface', values: ['current'] },
             ],
+            ...(ownerScoped ? { sessionFilters: [{ kind: 'owner' as const, values: [caller.id] }] } : {}),
             limit: requestedLimit,
             ...(requestedCursor === undefined ? {} : { cursor: requestedCursor }),
           }, { signal })

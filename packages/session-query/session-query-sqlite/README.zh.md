@@ -50,6 +50,7 @@ kind: "package-reference"
 | `defaultLimit` | `20` | 请求省略 `limit` 时的分页大小 |
 | `maxLimit` | `100` | 接受的最大请求分页大小 |
 | `snippetChars` | `240` | 按 Unicode 码点计算的最大 snippet 长度 |
+| `prefixMinChars` | `3` | 最后一个查询 token 也按前缀匹配所需的最少字符数；`0` 关闭前缀匹配 |
 | `readWindowMax` | `50` | 继承的 `readEvent()` 的 `before`/`after` 原始事件数上限 |
 | `persistedInspectConcurrency` | `4` | 继承批量读取的并发持久化日志检查数 |
 
@@ -57,9 +58,9 @@ kind: "package-reference"
 
 ### 搜索行为
 
-`searchSessions` 搜索整个语料库，并按每个会话匹配最强的事件分组结果；`searchEvents` 搜索一个逻辑会话。查询是字面短语：首尾空白会被移除、内部空白会被规范化，引号、`OR`、`NEAR` 和 `*` 等 FTS5 语法被视为数据，绝不作为可执行查询语法。元数据过滤器（会话 id、cwd、创建时间、父级、可用性、事件 seq/时间/类型/表层）在排序前缩小结果。默认搜索全部 `current`、`shadowed` 与 `log-only` 事件；传入表层过滤器可缩小范围。
+`searchSessions` 搜索整个语料库，并按每个会话匹配最强的事件分组结果；`searchEvents` 搜索一个逻辑会话。查询匹配包含其全部 token 的文档，顺序不限；最后一个 token 达到 `prefixMinChars` 个字符后，也匹配以它开头的更长 token，因此用户输入 `rele` 时就能找到 `release`。首尾空白会被移除、内部空白会被规范化，引号、`OR`、`NEAR` 和 `*` 等 FTS5 语法被视为数据，绝不作为可执行查询语法：每个 token 都被单独加引号。元数据过滤器（会话 id、cwd、创建时间、父级、可用性、事件 seq/时间/类型/表层）在排序前缩小结果。默认搜索全部 `current`、`shadowed` 与 `log-only` 事件；传入表层过滤器可缩小范围。
 
-排序是确定性的：实际 FTS5 高亮匹配 span 更多的在前，然后文档更短的在前，事件时间、会话 id 与 seq 打破平局。结果携带按 `snippetChars` 个 Unicode 码点截断的纯文本摘录，没有提供方专用数值分数。分页通过不透明 `SessionSearchCursor` 延续，游标绑定到规范化后的确切请求；相关语料库变化时游标变为陈旧（`SESSION_QUERY_STALE_CURSOR`），会话内游标可在不相关会话变化后延续，跨会话游标则不能。
+排序是确定性的，并在同一尺度上比较实时文档与持久化文档：完全短语 span（token 相邻且按顺序）更多的在前，然后 token 命中更多的在前，再然后文档更短的在前，事件时间、会话 id 与 seq 打破平局。不使用 FTS5 `bm25()`，因为它的分数依赖各表自身的统计，无法在持久化表与实时表之间比较。结果携带按 `snippetChars` 个 Unicode 码点截断的纯文本摘录，没有提供方专用数值分数。分页通过不透明 `SessionSearchCursor` 延续，游标绑定到规范化后的确切请求；相关语料库变化时游标变为陈旧（`SESSION_QUERY_STALE_CURSOR`），会话内游标可在不相关会话变化后延续，跨会话游标则不能。
 
 `unicode61` tokenizer 匹配 token 与短语，而非任意子字符串：`AI` 不匹配 token `BRAID`。需要执行字面、空白灵活的字符串子串扫描时，使用带 `text` 子句的 `ctx.sessionQuery.filterEvents()`。
 
@@ -88,7 +89,7 @@ kind: "package-reference"
 - **派生索引，绝不动源存储。** FTS 行存放在专用可丢弃数据库中；这里的代码从不打开 session-persistence 数据库。
 - **实时优先的观察。** 一个串行化状态机比较持久化快照修订，只检查新增或已更改日志，并在一个事务中对账，因此搜索反映最新的稳定状态。如果会话在重试期间持续变化（例如在服务多个账户的 Host 上），搜索会以最后一次尝试作答——它截至其第一次列举时是正确的——而不是失败。
 - **世代绑定的游标。** 每次语料库变化都会递增世代；游标携带其创建时的世代，宁可陈旧失败也不返回偏移后的页面。
-- **字面短语即数据。** 调用方查询文本被引成一个 FTS5 短语，查询语法保持惰性；保留高亮标记在索引前从文档中剥离。
+- **token 即数据。** 调用方查询的每个 token 都被单独加引号，查询语法保持惰性；保留高亮标记在索引前从文档中剥离。
 
 设计历史记录在 [SQLite FTS5 会话搜索笔记](../../../.agents/notes/implemented/feature/2026-07-10-sqlite-session-query-provider.zh.md)与[统一服务决策](../../../.agents/notes/archived/architecture/2026-07-23-unified-session-query-service.md)中。
 

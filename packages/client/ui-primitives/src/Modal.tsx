@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { Children, Fragment, isValidElement, useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import clsx from 'clsx'
@@ -22,6 +22,20 @@ type ModalProps = ModalBaseProps & (
   | { headless: true; closeLabel?: never }
   | { headless?: false; closeLabel: string }
 )
+
+/**
+ * Count the actions a footer renders as direct children of its row, looking through fragments.
+ * @param node - the footer content.
+ * @returns the number of rendered top-level elements and text runs.
+ */
+function footerActionCount(node: ReactNode): number {
+  return Children.toArray(node).reduce<number>((count, child) => {
+    if (isValidElement<{ children?: ReactNode }>(child) && child.type === Fragment) {
+      return count + footerActionCount(child.props.children)
+    }
+    return count + 1
+  }, 0)
+}
 
 /**
  * Render a centered, body-portaled modal over a blurred page mask.
@@ -80,7 +94,9 @@ export function Modal({
                 )}
                 {children !== undefined && <div className={css.body}>{children}</div>}
               </div>
-              {footer !== undefined && <div className={css.footer}>{footer}</div>}
+              {footer !== undefined && (
+                <div className={css.footer} data-stacked={footerActionCount(footer) >= 3 ? '' : undefined}>{footer}</div>
+              )}
             </>
           )}
       </div>
