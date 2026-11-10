@@ -5,9 +5,16 @@
  * device whose link closed or was refused is tried again while it stays found.
  * A linked device receives each local update the moment it is made. The relay still carries every update, so
  * the direct link only makes delivery faster and keeps it working without internet.
+ *
+ * A device also advertises its private and Tailscale IPv4 addresses on its entry in the account's devices
+ * document, and the transport dials those of a present device that mDNS did not report: a network that drops
+ * multicast, separate subnets, and a tailnet across sites still link. The handshake proves each peer, so an
+ * address that now belongs to another machine never links.
  */
 import { randomBytes } from 'node:crypto'
+import type { IncomingMessage } from 'node:http'
 import type { AddressInfo } from 'node:net'
+import { networkInterfaces } from 'node:os'
 import { Bonjour, type Service } from 'bonjour-service'
 import { WebSocket, WebSocketServer, type RawData } from 'ws'
 
@@ -74,6 +81,78 @@ export interface LanVault {
    * @param frame - the sealed frame.
    */
   receive(frame: Uint8Array): void
+}
+
+/** An address another device of the account advertised for its links. */
+export interface LanRoute {
+  /** An IPv4 address. */
+  host: string
+  /** Its link port. */
+  port: number
+}
+
+/**
+ * Parse a dotted IPv4 address.
+ * @param address - the text.
+ * @returns its four octets, or undefined when it is not an IPv4 address.
+ */
+function octets(address: string): number[] | undefined {
+  const plain = address.startsWith('::ffff:') ? address.slice(7) : address
+  const parts = plain.split('.').map(Number)
+  return parts.length === 4 && parts.every(part => Number.isInteger(part) && part >= 0 && part <= 255) ? parts : undefined
+}
+
+/**
+ * Whether an IPv4 address is private (RFC 1918) or link-local.
+ * @param address - the address.
+ * @returns whether it is.
+ */
+function isPrivateIpv4(address: string): boolean {
+  const [a, b] = octets(address) ?? []
+  return a === 10 || (a === 172 && b !== undefined && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 169 && b === 254)
+}
+
+/**
+ * Whether an IPv4 address is in Tailscale's range, 100.64.0.0/10.
+ * @param address - the address.
+ * @returns whether it is.
+ */
+function isTailnetIpv4(address: string): boolean {
+  const [a, b] = octets(address) ?? []
+  return a === 100 && b !== undefined && b >= 64 && b <= 127
+}
+
+/**
+ * Whether a link may come from this source: loopback, a private or link-local address, or the tailnet. A public
+ * source is refused before the handshake.
+ * @param address - the peer's address as the socket reports it.
+ * @returns whether the source is accepted.
+ */
+export function isLinkSource(address: string | undefined): boolean {
+  if (address === undefined) return false
+  if (address === '::1' || address.startsWith('fe80:')) return true
+  const parts = octets(address)
+  if (parts === undefined) return false
+  return parts[0] === 127 || isPrivateIpv4(address) || isTailnetIpv4(address)
+}
+
+/**
+ * This machine's addresses other devices of the account can link to: private IPv4 addresses first, then
+ * Tailscale ones.
+ * @param port - the link port.
+ * @returns the routes, without duplicates.
+ */
+export function localRoutes(port: number): LanRoute[] {
+  const lan: string[] = []
+  const tailnet: string[] = []
+  for (const addresses of Object.values(networkInterfaces())) {
+    for (const address of addresses ?? []) {
+      if (address.family !== 'IPv4' || address.internal) continue
+      if (isTailnetIpv4(address.address)) tailnet.push(address.address)
+      else if (isPrivateIpv4(address.address) && !address.address.startsWith('169.254.')) lan.push(address.address)
+    }
+  }
+  return [...new Set([...lan, ...tailnet])].map(host => ({ host, port }))
 }
 
 /** Link tuning the provider configures. */
@@ -165,6 +244,8 @@ function parse(data: RawData): Message | undefined {
 export class LanTransport {
   private readonly links = new Set<Link>()
   private readonly known = new Map<string, LanPeer>()
+  /** Advertised routes of present devices, and which one the next dial to each tries. */
+  private readonly routed = new Map<string, { routes: LanRoute[]; next: number }>()
   private readonly retries = new Map<string, ReturnType<typeof setTimeout>>()
   private stopDiscovery: (() => void) | undefined
   private closed = false
@@ -189,7 +270,13 @@ export class LanTransport {
       server.once('error', reject)
     })
     const transport = new LanTransport(vault, server, tuning)
-    server.on('connection', (socket) => { transport.adopt(socket, '') })
+    server.on('connection', (socket, request: IncomingMessage) => {
+      if (!isLinkSource(request.socket.remoteAddress)) {
+        socket.terminate()
+        return
+      }
+      transport.adopt(socket, '')
+    })
     const { port } = server.address() as AddressInfo
     transport.stopDiscovery = discovery.start(
       { device: vault.device(), tag: vault.tag(), port },
@@ -197,6 +284,30 @@ export class LanTransport {
       (device) => { transport.known.delete(device) },
     )
     return transport
+  }
+
+  /**
+   * The port this device accepts links on.
+   * @returns the bound port.
+   */
+  port(): number {
+    return (this.server.address() as AddressInfo).port
+  }
+
+  /**
+   * Replace the advertised routes of the account's present devices; devices left out are no longer dialed by route.
+   * @param routes - each present device's routes, by device id.
+   */
+  setRoutes(routes: ReadonlyMap<string, readonly LanRoute[]>): void {
+    for (const device of this.routed.keys()) if (!routes.has(device)) this.routed.delete(device)
+    for (const [device, list] of routes) {
+      if (device === this.vault.device() || list.length === 0) continue
+      const previous = this.routed.get(device)
+      const same = previous !== undefined && previous.routes.length === list.length
+        && previous.routes.every((route, index) => route.host === list[index]?.host && route.port === list[index]?.port)
+      if (!same) this.routed.set(device, { routes: [...list], next: 0 })
+      if (!this.linked(device)) this.dial(device)
+    }
   }
 
   /**
@@ -228,7 +339,7 @@ export class LanTransport {
         link.socket.close()
       }
     }
-    for (const device of this.known.keys()) if (!this.linked(device)) this.dial(device)
+    for (const device of new Set([...this.known.keys(), ...this.routed.keys()])) if (!this.linked(device)) this.dial(device)
   }
 
   private found(peer: LanPeer): void {
@@ -240,15 +351,22 @@ export class LanTransport {
     return [...this.links].some(link => link.device === device)
   }
 
+  /** Dial a device at the address mDNS reported, else at its next advertised route, rotating on each attempt. */
   private dial(device: string): void {
-    const peer = this.known.get(device)
-    if (this.closed || peer === undefined) return
-    const socket = new WebSocket(`ws://${peer.host}:${String(peer.port)}`, { maxPayload: this.tuning.maxBytes })
+    if (this.closed) return
+    let target: LanRoute | undefined = this.known.get(device)
+    const routed = this.routed.get(device)
+    if (target === undefined && routed !== undefined) {
+      target = routed.routes[routed.next % routed.routes.length]
+      routed.next += 1
+    }
+    if (target === undefined) return
+    const socket = new WebSocket(`ws://${target.host}:${String(target.port)}`, { maxPayload: this.tuning.maxBytes })
     this.adopt(socket, this.vault.device(), device)
   }
 
   private retry(device: string): void {
-    if (this.closed || this.retries.has(device) || !this.known.has(device)) return
+    if (this.closed || this.retries.has(device) || (!this.known.has(device) && !this.routed.has(device))) return
     this.retries.set(device, setTimeout(() => {
       this.retries.delete(device)
       if (!this.linked(device)) this.dial(device)

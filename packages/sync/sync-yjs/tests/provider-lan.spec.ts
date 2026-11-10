@@ -69,6 +69,7 @@ async function host(options: { lanPort?: number } = {}): Promise<{ ctx: Context;
     requestTimeoutMs: 2000, publishFrames: 100, publishBytes: 2_097_152, compactAfter: 50, snapshotAfter: 50,
     applyFrames: 200, applyPauseMs: 0, pageFrames: 500, statusMs: 0, lan: true, lanPort: options.lanPort ?? 0,
     lanRetryMs: 100, lanMaxBytes: 1_048_576, keepConnected: false, presenceMs: 60_000, firstDocuments: [],
+    leaveMs: 1_500, routeWindowMs: 150_000,
   })
   await fiber
   cleanups.push(() => fiber.dispose())

@@ -50,6 +50,7 @@ async function host(options: { home?: string; relayUrl?: string; deviceName?: st
     reconnectMs: 100, connectTimeoutMs: 2000, requestTimeoutMs: 2000, compactAfter: 50, snapshotAfter: 50, applyFrames: 200,
     applyPauseMs: 0, pageFrames: 500, statusMs: 0, publishFrames: 100, publishBytes: 2_097_152,
     lan: false, lanPort: 0, lanRetryMs: 100, lanMaxBytes: 65_536, keepConnected: false, presenceMs: 60_000, firstDocuments: [],
+    leaveMs: 1_500, routeWindowMs: 150_000,
   })
   await fiber
   cleanups.push(() => fiber.dispose())

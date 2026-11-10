@@ -32,6 +32,9 @@ interface SocketWaiter {
   reject(error: unknown): void
 }
 
+/** A stream endpoint no Host registers, which `probe` opens to draw an `error` frame. */
+const PROBE_ENDPOINT = '$probe'
+
 /** Keep one physical WebSocket and share it among independently cancellable Remote streams. */
 export class RemoteStreamMuxClient {
   private socket: WebSocket | undefined
@@ -125,6 +128,27 @@ export class RemoteStreamMuxClient {
       if (opened && !terminal && carrier?.readyState === WebSocket.OPEN) {
         this.send(carrier, { type: 'cancel', streamId })
       }
+    }
+  }
+
+  /**
+   * Ask the Host for one frame over the open socket: a stream to an endpoint no Host serves draws an `error` frame
+   * from every Host version, so an answer proves the socket delivers and silence until the deadline proves it does
+   * not. A socket the operating system killed during a suspension raises no close event, which only this notices.
+   * @param timeoutMs - how long to wait for the answer.
+   * @returns false when an open socket stayed silent or failed; true when it answered or no socket is open.
+   */
+  async probe(timeoutMs: number): Promise<boolean> {
+    if (this.socket?.readyState !== WebSocket.OPEN) return true
+    const deadline = new AbortController()
+    const timer = setTimeout(() => { deadline.abort(new Error('api gateway: Remote stream probe timed out')) }, timeoutMs)
+    try {
+      for await (const _item of this.open(PROBE_ENDPOINT, null, deadline.signal)) return true
+      return true
+    } catch (error) {
+      return error instanceof RemoteError
+    } finally {
+      clearTimeout(timer)
     }
   }
 

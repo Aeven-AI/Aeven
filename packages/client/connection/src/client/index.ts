@@ -171,7 +171,11 @@ interface ConnectionOwner {
 }
 
 interface BrowserNetworkTarget {
-  readonly navigator?: { readonly onLine?: boolean }
+  readonly navigator?: {
+    readonly onLine?: boolean
+    /** Network Information API, where the browser has it; its `change` event reports a different network. */
+    readonly connection?: { addEventListener(type: 'change', listener: () => void): void; removeEventListener(type: 'change', listener: () => void): void }
+  }
   readonly document?: { readonly visibilityState?: string }
   addEventListener(type: 'online' | 'offline' | 'visibilitychange' | 'pageshow', listener: () => void): void
   removeEventListener(type: 'online' | 'offline' | 'visibilitychange' | 'pageshow', listener: () => void): void
@@ -181,18 +185,27 @@ function watchBrowserNetwork(controller: ConnectionController): () => void {
   const browser = (globalThis as { readonly window?: BrowserNetworkTarget }).window
   const initiallyAvailable = browser?.navigator?.onLine
   if (browser === undefined || initiallyAvailable === undefined) return () => {}
-  const online = (): void => { controller.setNetworkAvailable(true) }
+  // A network that came back or changed can leave the socket dead without a close event, so the carrier is probed.
+  const online = (): void => {
+    controller.setNetworkAvailable(true)
+    controller.probe()
+  }
+  const changed = (): void => { controller.probe() }
   const offline = (): void => { controller.setNetworkAvailable(false) }
   controller.setNetworkAvailable(initiallyAvailable)
   // `visibilitychange` fires on the document but bubbles to the window, so one target carries every listener.
   const visible = (): void => {
-    if (browser.document?.visibilityState === 'visible') controller.retryNow()
+    if (browser.document?.visibilityState !== 'visible') return
+    controller.retryNow()
+    controller.probe()
   }
   browser.addEventListener('online', online)
   browser.addEventListener('offline', offline)
   browser.addEventListener('visibilitychange', visible)
   browser.addEventListener('pageshow', visible)
+  browser.navigator?.connection?.addEventListener('change', changed)
   return () => {
+    browser.navigator?.connection?.removeEventListener('change', changed)
     browser.removeEventListener('online', online)
     browser.removeEventListener('offline', offline)
     browser.removeEventListener('visibilitychange', visible)

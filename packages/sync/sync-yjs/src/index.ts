@@ -20,7 +20,7 @@ import {
 } from '@aeven/sync'
 import type { DeviceId } from '@aeven/sync-vault'
 import { SyncOffload } from './offload.ts'
-import { LanTransport, MdnsDiscovery } from './lan.ts'
+import { LanTransport, localRoutes, MdnsDiscovery, type LanRoute } from './lan.ts'
 import { RELAY_MAX_MESSAGE_BYTES, RelayConnection, type RelayCredential, RelayError } from './relay.ts'
 import { SyncStore } from './store.ts'
 import { AccountVault } from './vault.ts'
@@ -76,6 +76,16 @@ export interface Config {
    */
   presenceMs: number
   /**
+   * How recent another device's `seenAt` must be for this device to dial the routes it advertises; a device that
+   * stamped longer ago, or marked itself offline, is not dialed by route.
+   */
+  routeWindowMs: number
+  /**
+   * How long a device without `keepConnected` waits, when it shuts down cleanly, for its `offline` mark to reach the
+   * relay before it closes the connection anyway.
+   */
+  leaveMs: number
+  /**
    * Logical names of documents fetched before the rest of a catch-up when this device holds no state for them, so
    * a new device shows the account's conversation and workspace lists before the long tail arrives. Defaults to
    * none, so every document arrives in relay order.
@@ -88,6 +98,30 @@ const STORE_SEGMENTS = ['sync', 'sync.db'] as const
 /** The document holding each device's name, keyed by device id. */
 const DEVICES = 'devices'
 
+/** One device's entry in the devices document. */
+interface DeviceName {
+  name: string
+  /** Set by a device that stays connected without a client, such as Aeven Cloud. */
+  alwaysOn?: boolean
+  /** When a device without `alwaysOn` last stamped its open relay connection, in milliseconds since the Unix epoch. */
+  seenAt?: number
+  /** Set by a device without `alwaysOn` that shut down cleanly; its next stamp removes it. */
+  offline?: true
+  /** Addresses a device without `alwaysOn` accepts local-network links on, rewritten with each stamp. */
+  routes?: LanRoute[]
+}
+
+/**
+ * Whether a value another device wrote is a usable route; the devices document crosses a durable boundary.
+ * @param value - the value.
+ * @returns whether it names an IPv4 host and a port.
+ */
+function isRoute(value: unknown): value is LanRoute {
+  const route = value as Partial<LanRoute> | null
+  return typeof route === 'object' && route !== null && typeof route.host === 'string'
+    && typeof route.port === 'number' && Number.isInteger(route.port) && route.port > 0 && route.port <= 65_535
+}
+
 interface Account {
   store: SyncStore
   loop?: Promise<void>
@@ -98,6 +132,8 @@ interface Account {
   wake: () => void
   /** The local-network links while this device holds the account key; undefined when they failed to start. */
   lan?: Promise<LanTransport | undefined>
+  /** The started links' port, which this device advertises with its routes. */
+  lanPort?: number
 }
 
 /** Yjs account sync provider. */
@@ -125,6 +161,8 @@ export default class YjsSync extends Sync {
     lanMaxBytes: Schema.natural().min(1_024).default(8_388_608),
     keepConnected: Schema.boolean().default(false),
     presenceMs: Schema.natural().min(1_000).default(60_000),
+    leaveMs: Schema.natural().default(1_500),
+    routeWindowMs: Schema.natural().min(1_000).default(150_000),
     firstDocuments: Schema.array(Schema.string()).default([]),
   })
 
@@ -146,6 +184,8 @@ export default class YjsSync extends Sync {
   /** Open every stored account's store, start its connection loop, and start an account once one of its clients signs in. */
   [Service.init](): void {
     this.ctx.effect(() => async () => {
+      // A desktop that shuts down cleanly says so first, so the always-on device stops sending it new conversations.
+      await Promise.all([...this.accounts.values()].map(account => this.leave(account)))
       this.disposed = true
       for (const account of this.accounts.values()) {
         account.relay?.close()
@@ -198,7 +238,10 @@ export default class YjsSync extends Sync {
       },
       (id) => {
         this.notifyDocument(owner, id)
-        if (vault.ready() && id === vault.documentId(DEVICES)) this.ctx.emit('sync/devices', owner)
+        if (vault.ready() && id === vault.documentId(DEVICES)) {
+          this.routeLan(owner)
+          this.ctx.emit('sync/devices', owner)
+        }
       },
       (message, error) => {
         this.ctx.logger.warn(message)
@@ -234,6 +277,9 @@ export default class YjsSync extends Sync {
         maxBytes: this.config.lanMaxBytes,
       }).then((transport) => {
         vault.setLanSender((frame) => { transport.send(frame) })
+        account.lanPort = transport.port()
+        this.nameDevice(owner, account)
+        this.routeLan(owner, transport)
         return transport
       }, (error: unknown) => {
         this.ctx.logger.warn('sync: local-network links for %s could not start: %s', owner, error)
@@ -242,6 +288,7 @@ export default class YjsSync extends Sync {
     } else if (!ready && account.lan !== undefined) {
       const stopping = account.lan
       delete account.lan
+      delete account.lanPort
       vault.setLanSender(undefined)
       void stopping.then(transport => transport?.close())
     } else {
@@ -305,19 +352,65 @@ export default class YjsSync extends Sync {
     const device = account.vault.status().device
     if (!account.vault.ready() || device === undefined) return
     const names = account.vault.openDocument(DEVICES)
-    const map = names.doc.getMap<{ name: string; alwaysOn?: boolean; seenAt?: number }>('names')
+    const map = names.doc.getMap<DeviceName>('names')
     const current = map.get(device)
     // A device that stays connected without a client, such as Aeven Cloud, says so; older builds read only `name`.
     // Any other device stamps when it was last connected, which the always-on device reads as presence.
     const changed = current?.name !== this.config.deviceName || (current.alwaysOn === true) !== this.config.keepConnected
     if (changed || !this.config.keepConnected) {
+      // Only a device without `keepConnected` advertises routes: an always-on server's addresses are not on the
+      // account's networks.
+      const port = this.config.keepConnected ? undefined : account.lanPort
       map.set(device, {
         name: this.config.deviceName,
         ...this.config.keepConnected ? { alwaysOn: true } : { seenAt: Date.now() },
+        ...port === undefined ? {} : { routes: localRoutes(port) },
       })
     }
     if (changed) this.ctx.emit('sync/devices', owner)
     names.close()
+  }
+
+  /**
+   * Hand the local-network links the routes of the account's present devices, so they dial the ones mDNS missed.
+   * @param owner - the account.
+   * @param started - the links, when the caller already holds them.
+   */
+  private routeLan(owner: string, started?: LanTransport): void {
+    const account = this.accounts.get(owner)
+    if (this.config.keepConnected || account === undefined || !account.vault.ready()) return
+    const names = account.vault.openDocument(DEVICES)
+    const now = Date.now()
+    const routes = new Map<string, LanRoute[]>()
+    for (const [device, entry] of names.doc.getMap<DeviceName>('names').entries()) {
+      const present = entry.alwaysOn !== true && entry.offline !== true && entry.seenAt !== undefined
+        && now - entry.seenAt <= this.config.routeWindowMs
+      if (present && Array.isArray(entry.routes)) routes.set(device, entry.routes.filter(isRoute))
+    }
+    names.close()
+    if (started !== undefined) started.setRoutes(routes)
+    else void account.lan?.then((transport) => { transport?.setRoutes(routes) })
+  }
+
+  /**
+   * Mark this device offline on its device entry and wait, at most `leaveMs`, for the mark to reach the relay. The
+   * next presence stamp rewrites the entry without it.
+   * @param account - an account whose relay connection may be open.
+   */
+  private async leave(account: Account): Promise<void> {
+    const device = account.vault.status().device
+    if (this.config.keepConnected || account.relay === undefined || !account.vault.ready() || device === undefined) return
+    const names = account.vault.openDocument(DEVICES)
+    const map = names.doc.getMap<DeviceName>('names')
+    const current = map.get(device)
+    map.set(device, { name: this.config.deviceName, ...current?.seenAt === undefined ? {} : { seenAt: current.seenAt }, offline: true })
+    names.close()
+    let timer: NodeJS.Timeout | undefined
+    await Promise.race([
+      account.vault.flush(),
+      new Promise<void>((resolve) => { timer = setTimeout(resolve, this.config.leaveMs) }),
+    ])
+    clearTimeout(timer)
   }
 
   private live(owner: string, account: Account): boolean {
@@ -361,7 +454,11 @@ export default class YjsSync extends Sync {
     if (!account.vault.enabled()) relay.close()
     const presence = this.config.keepConnected
       ? undefined
-      : setInterval(() => { if (this.live(owner, account)) this.nameDevice(owner, account) }, this.config.presenceMs)
+      : setInterval(() => {
+        if (!this.live(owner, account)) return
+        this.nameDevice(owner, account)
+        this.routeLan(owner)
+      }, this.config.presenceMs)
     presence?.unref()
     await relay.closed
     clearInterval(presence)
