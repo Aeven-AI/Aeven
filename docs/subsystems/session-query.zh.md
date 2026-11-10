@@ -132,6 +132,8 @@ type SessionResultFilter =
   | ({ kind: 'created-at' } & SessionResultRange)
   | { kind: 'parent'; values: readonly (SessionId | null)[] }
   | { kind: 'availability'; values: readonly SessionAvailability[] }
+  /** Accounts that own the session; a session without an owner matches no value. */
+  | { kind: 'owner'; values: readonly string[] }
 ```
 
 ```ts type-equiv

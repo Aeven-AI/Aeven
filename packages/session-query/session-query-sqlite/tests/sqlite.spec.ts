@@ -604,7 +604,7 @@ describe('SQLite session search', () => {
       .resolves.toMatchObject({ items: [{ header: { id: overlap.id } }] })
   })
 
-  it('uses literal phrase tokens, stable ties, and bounded Unicode snippets', async () => {
+  it('matches every token in any order, ranks exact phrases first, and keeps query syntax inert', async () => {
     const ctx = await liveContext({ path: ':memory:', defaultLimit: 10, maxLimit: 10, snippetChars: 5 })
     ctx.sessions.create(SessionId('a'), { seed: messageEvents('😀😀 alpha beta BRAID 😀😀', 10), meta: { createdAt: 1 } })
     ctx.sessions.create(SessionId('b'), { seed: messageEvents('alpha beta', 10), meta: { createdAt: 1 } })
@@ -615,7 +615,12 @@ describe('SQLite session search', () => {
     ctx.sessions.create(SessionId('quote'), { seed: messageEvents('say "needle" exactly', 10), meta: { createdAt: 1 } })
 
     const phrase = await ctx.sessionQuery.searchSessions({ query: 'alpha beta' })
-    expect(phrase.items.map(item => item.header.id)).toEqual([SessionId('b'), SessionId('d'), SessionId('a')])
+    expect(phrase.items.map(item => item.header.id)).toEqual([SessionId('b'), SessionId('d'), SessionId('a'), SessionId('c')])
+    const reversed = await ctx.sessionQuery.searchSessions({ query: 'beta alpha' })
+    expect(reversed.items.map(item => item.header.id).sort()).toEqual([SessionId('a'), SessionId('b'), SessionId('c'), SessionId('d')])
+    const prefix = await ctx.sessionQuery.searchSessions({ query: 'alpha bet' })
+    expect(prefix.items.map(item => item.header.id)).toEqual([SessionId('b'), SessionId('d'), SessionId('a'), SessionId('c')])
+    await expect(ctx.sessionQuery.searchSessions({ query: 'alpha be' })).resolves.toEqual({ items: [] })
     expect(phrase.items.every(item => Array.from(item.bestMatch.snippet).length <= 5)).toBe(true)
     await expect(ctx.sessionQuery.searchSessions({ query: 'AI' })).resolves.toEqual({ items: [] })
     await expect(ctx.sessionQuery.searchSessions({ query: 'needle OR absent' }))

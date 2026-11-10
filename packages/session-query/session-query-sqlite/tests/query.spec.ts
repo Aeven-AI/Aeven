@@ -10,7 +10,7 @@ import {
   mergedSpanCount,
   normalizeEventRequest,
   normalizeSessionRequest,
-  quoteFtsData,
+  tokenMatchExpression,
   requestFingerprint,
   SQLITE_FTS5_OUTER_PREDICATE_LIMIT,
   SQLITE_MAX_PAGE_LIMIT,
@@ -205,7 +205,9 @@ describe('SQLite search predicate compilation', () => {
 
 describe('SQLite query identity and presentation', () => {
   it('quotes all caller MATCH syntax as data', () => {
-    expect(quoteFtsData('say "needle" OR *')).toBe('"say ""needle"" OR *"')
+    expect(tokenMatchExpression(['say', 'needle', 'or'], () => false)).toBe('"say" "needle" "or"')
+    expect(tokenMatchExpression(['say', 'nee'], token => token.length >= 3)).toBe('"say" "nee"*')
+    expect(tokenMatchExpression(['a"b'], () => false)).toBe('"a""b"')
   })
 
   it('canonicalizes request and filter ordering in both scopes', () => {

@@ -211,9 +211,19 @@ function ensureTemporarySchema(db: DatabaseSync): void {
   `)
   db.exec(`
     CREATE TABLE IF NOT EXISTS temp.match_counts (
-      source      TEXT NOT NULL,
-      doc_rowid   INTEGER NOT NULL,
-      match_count INTEGER NOT NULL
+      source       TEXT NOT NULL,
+      doc_rowid    INTEGER NOT NULL,
+      phrase_count INTEGER NOT NULL,
+      match_count  INTEGER NOT NULL
+    )
+  `)
+  db.exec('CREATE TABLE IF NOT EXISTS temp.match_candidates (doc INTEGER PRIMARY KEY)')
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS temp.term_hits (
+      position INTEGER NOT NULL,
+      source   TEXT NOT NULL,
+      doc      INTEGER NOT NULL,
+      hits     INTEGER NOT NULL
     )
   `)
 }

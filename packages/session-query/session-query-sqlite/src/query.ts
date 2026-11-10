@@ -159,6 +159,9 @@ export function buildSessionWhere(filters: readonly SessionResultFilter[]): SqlW
       case 'parent':
         addNullableList(clauses, params, 'parent_session', filter.values)
         break
+      case 'owner':
+        addList(clauses, params, 'owner', filter.values)
+        break
       case 'availability': {
         const availability = [...new Set(filter.values)]
         if (availability.length === 0) clauses.push('0')
@@ -216,12 +219,16 @@ export function buildEventWhere(filters: readonly SessionEventMetadataFilter[]):
 }
 
 /**
- * Quote caller text as one FTS5 phrase so query syntax remains inert data.
- * @param query - normalized caller query.
- * @returns FTS5 expression containing one escaped literal phrase.
+ * FTS5 expression requiring every query token, in any order, each quoted so query syntax stays inert data.
+ * @param tokens - the query's unicode61 tokens.
+ * @param isPrefix - whether the final token also matches the longer tokens it begins.
+ * @returns an implicit-AND FTS5 expression; the final token carries `*` when it is a prefix.
  */
-export function quoteFtsData(query: string): string {
-  return `"${query.replaceAll('"', '""')}"`
+export function tokenMatchExpression(tokens: readonly string[], isPrefix: (token: string) => boolean): string {
+  return tokens.map((token, index) => {
+    const quoted = `"${token.replaceAll('"', '""')}"`
+    return index === tokens.length - 1 && isPrefix(token) ? `${quoted}*` : quoted
+  }).join(' ')
 }
 
 /**

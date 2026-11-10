@@ -3983,6 +3983,12 @@ export interface Config extends SessionQueryConfig {
   maxLimit?: number
   /** Maximum snippet length in Unicode code points. Defaults to 240. */
   snippetChars?: number
+  /**
+   * Shortest final query token, in characters, that also matches as a prefix, so `rele` finds `release` while the
+   * user types. Shorter tokens match whole tokens only, since a short prefix expands to most of the vocabulary.
+   * `0` disables prefix matching. Defaults to 3.
+   */
+  prefixMinChars?: number
   /** Maximum concurrent persisted-log inspections in one inherited batch read. Defaults to 4. */
   persistedInspectConcurrency?: number
 }

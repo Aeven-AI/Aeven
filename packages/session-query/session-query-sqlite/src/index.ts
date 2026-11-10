@@ -37,6 +37,7 @@ import type {
   SessionEventSearchHit,
   SessionEventSearchPage,
   SessionEventSearchRequest,
+  SessionResultFilter,
   SessionSearchExecContext,
   SessionSearchHit,
   SessionSearchCursor as SessionSearchCursorValue,
@@ -60,7 +61,7 @@ import {
   mergedSpanCount,
   normalizeEventRequest,
   normalizeSessionRequest,
-  quoteFtsData,
+  tokenMatchExpression,
   requestFingerprint,
   sanitizeFtsText,
   SQLITE_MAX_PAGE_LIMIT,
@@ -88,6 +89,8 @@ export const SESSION_QUERY_SQLITE_DEFAULT_LIMIT = 20
 export const SESSION_QUERY_SQLITE_MAX_LIMIT = 100
 /** Default maximum snippet length in Unicode code points. */
 export const SESSION_QUERY_SQLITE_SNIPPET_CHARS = 240
+/** Default shortest final query token searched as a prefix. */
+export const SESSION_QUERY_SQLITE_PREFIX_MIN_CHARS = 3
 /** Default milliseconds a write waits for another process's lock on a shared index. */
 export const SESSION_QUERY_SQLITE_BUSY_TIMEOUT = 5000
 
@@ -148,6 +151,12 @@ export interface Config extends SessionQueryConfig {
   maxLimit?: number
   /** Maximum snippet length in Unicode code points. Defaults to 240. */
   snippetChars?: number
+  /**
+   * Shortest final query token, in characters, that also matches as a prefix, so `rele` finds `release` while the
+   * user types. Shorter tokens match whole tokens only, since a short prefix expands to most of the vocabulary.
+   * `0` disables prefix matching. Defaults to 3.
+   */
+  prefixMinChars?: number
   /** Maximum concurrent persisted-log inspections in one inherited batch read. Defaults to 4. */
   persistedInspectConcurrency?: number
 }
@@ -161,6 +170,7 @@ interface ResolvedConfig {
   defaultLimit: number
   maxLimit: number
   snippetChars: number
+  prefixMinChars: number
   readWindowMax: number
   persistedInspectConcurrency: number
 }
@@ -232,6 +242,7 @@ interface SearchRow extends SessionHeaderRow {
   time: number
   surface: string
   marked_text: string
+  phrase_count: number
   match_count: number
   document_length: number
 }
@@ -258,6 +269,7 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
     defaultLimit: z.number().step(1).min(1).max(SQLITE_MAX_PAGE_LIMIT).default(SESSION_QUERY_SQLITE_DEFAULT_LIMIT),
     maxLimit: z.number().step(1).min(1).max(SQLITE_MAX_PAGE_LIMIT).default(SESSION_QUERY_SQLITE_MAX_LIMIT),
     snippetChars: z.number().step(1).min(1).default(SESSION_QUERY_SQLITE_SNIPPET_CHARS),
+    prefixMinChars: z.number().step(1).min(0).default(SESSION_QUERY_SQLITE_PREFIX_MIN_CHARS),
     readWindowMax: z.number().step(1).min(0).default(SESSION_QUERY_READ_WINDOW_MAX),
     persistedInspectConcurrency: z.number()
       .step(1)
@@ -797,6 +809,7 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
       persistenceVisible: persistenceBinding.service !== undefined,
       where,
       whereParams: [...sessionWhere.params, ...eventWhere.params],
+      scope: ownerScope(request.sessionFilters),
       partitionBySession: true,
       limit: request.limit,
       offset,
@@ -816,6 +829,7 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
       persistenceVisible: persistenceBinding.service !== undefined,
       where,
       whereParams: [request.sessionId, ...eventWhere.params],
+      scope: { kind: 'session', sessionId: request.sessionId },
       partitionBySession: false,
       limit: request.limit,
       offset,
@@ -834,13 +848,14 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
     persistenceVisible: boolean
     where: string
     whereParams: readonly (string | number)[]
+    scope: CandidateScope | undefined
     partitionBySession: boolean
     limit: number
     offset: number
   }): SearchRow[] {
     const tokens = this._queryTokens(request.query)
     if (tokens.length === 0) return []
-    this._fillMatchCounts(tokens)
+    this._fillMatchCounts(tokens, request.scope)
     const visible = request.persistenceVisible ? 1 : 0
     const bindings = [
       visible,
@@ -868,39 +883,65 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
     return rows.map(row => row.term)
   }
 
-  /** Fill `temp.match_counts` for one tokenized phrase. */
-  private _fillMatchCounts(tokens: readonly string[]): void {
+  /**
+   * Fill `temp.match_counts` with every document holding all query tokens, in any order.
+   *
+   * `match_count` is the number of token instances the document holds; `phrase_count` is the number of merged
+   * exact-phrase spans, so documents with the tokens adjacent and in order rank first. The final token also matches
+   * as a prefix once it reaches `prefixMinChars`. Both counts come from the token index and compare across the
+   * persisted and live tables.
+   */
+  private _fillMatchCounts(tokens: readonly string[], scope: CandidateScope | undefined): void {
     const db = this._requireDb()
     db.prepare('DELETE FROM temp.match_counts').run()
-    const term = tokens.length === 1 ? tokens[0] : undefined
-    if (term !== undefined) {
-      // The row vocabulary's `doc` column is a table-wide frequency, not a
-      // rowid. Instance rows name the document, and one token is one span.
+    db.prepare('DELETE FROM temp.term_hits').run()
+    const last = tokens.length - 1
+    const prefix = this._isPrefixToken(tokens[last] as string)
+    const expression = tokenMatchExpression(tokens, () => prefix)
+    const sources = [
+      ['persisted', 'persisted_docs', 'persisted_docs', 'persisted_docs_inst'],
+      ['live', 'temp.live_docs', 'live_docs', 'temp.live_docs_inst'],
+    ] as const
+    for (const [source, table, name, vocab] of sources) {
+      // FTS5 intersects the token doclists to find the documents holding every token; the instance vocabulary then
+      // counts hits only for those candidates.
+      db.prepare('DELETE FROM temp.match_candidates').run()
+      db.prepare(`INSERT INTO temp.match_candidates(doc) SELECT rowid FROM ${table} WHERE ${name} MATCH ?`).run(expression)
+      this._pruneCandidates(source, scope)
+      const exact = db.prepare(`
+        INSERT INTO temp.term_hits(position, source, doc, hits)
+        SELECT ?, ?, i.doc, COUNT(*) FROM ${vocab} AS i JOIN temp.match_candidates AS c ON c.doc = i.doc
+        WHERE i.term = ? AND i.col = 'text' GROUP BY i.doc
+      `)
+      // The vocabulary orders terms by byte, so every term starting with the token sorts below token + U+10FFFF.
+      const ranged = db.prepare(`
+        INSERT INTO temp.term_hits(position, source, doc, hits)
+        SELECT ?, ?, i.doc, COUNT(*) FROM ${vocab} AS i JOIN temp.match_candidates AS c ON c.doc = i.doc
+        WHERE i.term >= ? AND i.term < ? AND i.col = 'text' GROUP BY i.doc
+      `)
+      tokens.forEach((token, position) => {
+        if (position === last && prefix) ranged.run(position, source, token, `${token}\u{10FFFF}`)
+        else exact.run(position, source, token)
+      })
       db.prepare(`
-        INSERT INTO temp.match_counts(source, doc_rowid, match_count)
-        SELECT 'persisted', doc, COUNT(*)
-        FROM persisted_docs_inst
-        WHERE term = ? AND col = 'text'
-        GROUP BY doc
-      `).run(term)
-      db.prepare(`
-        INSERT INTO temp.match_counts(source, doc_rowid, match_count)
-        SELECT 'live', doc, COUNT(*)
-        FROM temp.live_docs_inst
-        WHERE term = ? AND col = 'text'
-        GROUP BY doc
-      `).run(term)
+        INSERT INTO temp.match_counts(source, doc_rowid, phrase_count, match_count)
+        SELECT ?, doc, 0, SUM(hits) FROM temp.term_hits WHERE source = ? GROUP BY doc
+        HAVING COUNT(DISTINCT position) = ?
+      `).run(source, source, tokens.length)
+    }
+    if (tokens.length === 1) {
+      db.prepare('UPDATE temp.match_counts SET phrase_count = match_count').run()
       return
     }
-    const insert = db.prepare(
-      'INSERT INTO temp.match_counts(source, doc_rowid, match_count) VALUES (?, ?, ?)',
+    const update = db.prepare(
+      'UPDATE temp.match_counts SET phrase_count = ? WHERE source = ? AND doc_rowid = ?',
     )
     const write = (source: 'persisted' | 'live', starts: readonly PhraseStart[]): void => {
       let doc = -1
       let offsets: number[] = []
       const flush = (): void => {
         if (doc === -1) return
-        insert.run(source, doc, mergedSpanCount(offsets, tokens.length))
+        update.run(mergedSpanCount(offsets, tokens.length), source, doc)
       }
       for (const start of starts) {
         if (start.doc !== doc) {
@@ -912,8 +953,41 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
       }
       flush()
     }
-    write('persisted', this._phraseStarts('persisted_docs_inst', tokens))
-    write('live', this._phraseStarts('temp.live_docs_inst', tokens))
+    write('persisted', this._phraseStarts('persisted_docs_inst', tokens, prefix))
+    write('live', this._phraseStarts('temp.live_docs_inst', tokens, prefix))
+  }
+
+  /**
+   * Drop candidates outside the request's owner or session scope before their hits are counted. The rank query
+   * applies the same filter again, so pruning only saves work.
+   *
+   * @param source - which document table the candidates came from.
+   * @param scope - the owners or the one session the request is limited to.
+   */
+  private _pruneCandidates(source: 'persisted' | 'live', scope: CandidateScope | undefined): void {
+    if (scope === undefined) return
+    const meta = source === 'persisted' ? 'persisted_doc_meta' : 'temp.live_doc_meta'
+    const sessions = source === 'persisted' ? 'persisted_sessions' : 'temp.live_sessions'
+    const db = this._requireDb()
+    if (scope.kind === 'session') {
+      db.prepare(`
+        DELETE FROM temp.match_candidates WHERE NOT EXISTS (
+          SELECT 1 FROM ${meta} AS m WHERE m.doc_rowid = temp.match_candidates.doc AND m.session_id = ?
+        )
+      `).run(scope.sessionId)
+      return
+    }
+    db.prepare(`
+      DELETE FROM temp.match_candidates WHERE NOT EXISTS (
+        SELECT 1 FROM ${meta} AS m JOIN ${sessions} AS s ON s.id = m.session_id
+        WHERE m.doc_rowid = temp.match_candidates.doc AND s.owner IN (SELECT value FROM json_each(?))
+      )
+    `).run(JSON.stringify(scope.owners))
+  }
+
+  /** Whether the final query token also matches longer tokens it begins. */
+  private _isPrefixToken(token: string): boolean {
+    return this.config.prefixMinChars > 0 && Array.from(token).length >= this.config.prefixMinChars
   }
 
   /**
@@ -922,17 +996,28 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
    * Each later token's instances are read once into a keyed temp table, and
    * the first token's instances probe it. Joining the vocabulary table to
    * itself instead rescans a whole token instance list for every outer row.
+   *
+   * @param vocab - the instance vocabulary of the document table.
+   * @param tokens - the query tokens, in order.
+   * @param lastIsPrefix - whether the final token also matches the longer tokens it begins.
+   * @returns phrase starts, by document then offset.
    */
-  private _phraseStarts(vocab: string, tokens: readonly string[]): PhraseStart[] {
+  private _phraseStarts(vocab: string, tokens: readonly string[], lastIsPrefix: boolean): PhraseStart[] {
     const db = this._requireDb()
     db.prepare('DELETE FROM temp.phrase_terms').run()
     const fill = db.prepare(`
-      INSERT INTO temp.phrase_terms(position, doc, token_offset)
+      INSERT OR IGNORE INTO temp.phrase_terms(position, doc, token_offset)
       SELECT ?, doc, offset FROM ${vocab} WHERE term = ? AND col = 'text'
+    `)
+    const fillPrefix = db.prepare(`
+      INSERT OR IGNORE INTO temp.phrase_terms(position, doc, token_offset)
+      SELECT ?, doc, offset FROM ${vocab} WHERE term >= ? AND term < ? AND col = 'text'
     `)
     const joins: string[] = []
     for (let index = 1; index < tokens.length; index += 1) {
-      fill.run(index, tokens[index] as string)
+      const token = tokens[index] as string
+      if (index === tokens.length - 1 && lastIsPrefix) fillPrefix.run(index, token, `${token}\u{10FFFF}`)
+      else fill.run(index, token)
       const alias = `t${index}`
       // CROSS JOIN keeps the vocabulary scan as the outer loop.
       joins.push(
@@ -985,7 +1070,7 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
     const marked = new Map<number, string>()
     if (rowids.length === 0) return marked
     const db = this._requireDb()
-    const expression = quoteFtsData(query)
+    const expression = tokenMatchExpression(this._queryTokens(query), this._isPrefixToken.bind(this))
     const from = table === 'live_docs' ? 'temp.live_docs' : 'persisted_docs'
     // Three bindings plus the rowid list stay under SQLite's variable limit.
     const batchSize = 500
@@ -1102,6 +1187,7 @@ interface RankedDocument extends SessionHeaderRow {
   type: string
   time: number
   surface: string
+  phrase_count: number
   match_count: number
   document_length: number
 }
@@ -1109,6 +1195,25 @@ interface RankedDocument extends SessionHeaderRow {
 interface PhraseStart {
   doc: number
   offset: number
+}
+
+/** The owners or the single session a search is limited to, used to prune candidates before counting. */
+type CandidateScope =
+  | { kind: 'owners'; owners: readonly string[] }
+  | { kind: 'session'; sessionId: string }
+
+/**
+ * The first owner filter of a session search, as a candidate scope. Filters are ANDed, so any one owner filter
+ * admits a superset of the result.
+ *
+ * @param filters - the request's logical-session filters.
+ * @returns the owner scope, or `undefined` when the search names no owner.
+ */
+function ownerScope(filters: readonly SessionResultFilter[]): CandidateScope | undefined {
+  for (const filter of filters) {
+    if (filter.kind === 'owner') return { kind: 'owners', owners: filter.values }
+  }
+  return undefined
 }
 
 /**
@@ -1125,20 +1230,21 @@ function documentRankSql(partitionBySession: boolean, where: string): string {
       ranked AS (
         SELECT *, ROW_NUMBER() OVER (
           PARTITION BY session_id
-          ORDER BY match_count DESC, document_length ASC, time DESC, seq DESC
+          ORDER BY phrase_count DESC, match_count DESC, document_length ASC, time DESC, seq DESC
         ) AS event_rank
         FROM filtered
       )
       SELECT * FROM ranked
       WHERE event_rank = 1
-      ORDER BY match_count DESC, document_length ASC, time DESC, session_id ASC, seq DESC`
+      ORDER BY phrase_count DESC, match_count DESC, document_length ASC, time DESC, session_id ASC, seq DESC`
     : `
       SELECT * FROM filtered
-      ORDER BY match_count DESC, document_length ASC, time DESC, seq DESC`
+      ORDER BY phrase_count DESC, match_count DESC, document_length ASC, time DESC, seq DESC`
   return `WITH persisted_hits AS (
       SELECT
         m.doc_rowid AS doc_rowid,
         'persisted' AS source,
+        c.phrase_count AS phrase_count,
         c.match_count AS match_count,
         ps.version AS version,
         ps.created_at AS created_at,
@@ -1167,6 +1273,7 @@ function documentRankSql(partitionBySession: boolean, where: string): string {
       SELECT
         m.doc_rowid AS doc_rowid,
         'live' AS source,
+        c.phrase_count AS phrase_count,
         c.match_count AS match_count,
         ls.version AS version,
         ls.created_at AS created_at,
@@ -1409,6 +1516,7 @@ function resolveConfig(config: Config): ResolvedConfig {
     defaultLimit: config.defaultLimit ?? SESSION_QUERY_SQLITE_DEFAULT_LIMIT,
     maxLimit: config.maxLimit ?? SESSION_QUERY_SQLITE_MAX_LIMIT,
     snippetChars: config.snippetChars ?? SESSION_QUERY_SQLITE_SNIPPET_CHARS,
+    prefixMinChars: config.prefixMinChars ?? SESSION_QUERY_SQLITE_PREFIX_MIN_CHARS,
     readWindowMax: config.readWindowMax ?? SESSION_QUERY_READ_WINDOW_MAX,
     persistedInspectConcurrency: config.persistedInspectConcurrency
       ?? SESSION_QUERY_DEFAULT_PERSISTED_INSPECT_CONCURRENCY,
@@ -1426,6 +1534,9 @@ function resolveConfig(config: Config): ResolvedConfig {
   }
   if (!Number.isSafeInteger(resolved.busyTimeout) || resolved.busyTimeout < 0) {
     throw invalidConfig('busyTimeout must be a non-negative integer')
+  }
+  if (!Number.isInteger(resolved.prefixMinChars) || resolved.prefixMinChars < 0) {
+    throw invalidConfig('prefixMinChars must be a non-negative integer')
   }
   if (!Number.isInteger(resolved.readWindowMax) || resolved.readWindowMax < 0) {
     throw invalidConfig('readWindowMax must be a non-negative integer')

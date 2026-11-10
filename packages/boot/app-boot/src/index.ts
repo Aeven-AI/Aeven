@@ -7,7 +7,7 @@
  */
 
 import { pathToFileURL } from 'node:url'
-import { readFileSync } from 'node:fs'
+import { readFileSync, statSync } from 'node:fs'
 import { parseEnv } from 'node:util'
 import { basename, dirname, isAbsolute, resolve } from 'node:path'
 import * as yaml from 'js-yaml'
@@ -232,6 +232,32 @@ export function loadLayeredEnv(
 
 const bootstrapIncludes = new WeakMap<Context, Entry>()
 
+/**
+ * How long after the watcher reports ready the patch file's identity is also polled. Chokidar emits `ready` before
+ * its directory watch delivers: under twelve-way contention a file created at `ready` went unannounced in 28 of 480
+ * runs and was never delivered later, and a creation 50 ms after `ready` was announced in all 480. The window is
+ * twenty times that.
+ */
+const WATCH_ARMING_WINDOW_MS = 1_000
+/** Interval of the identity poll during {@link WATCH_ARMING_WINDOW_MS}. */
+const WATCH_ARMING_POLL_MS = 25
+/**
+ * How long a changed identity must stay unannounced before the poll applies it, so a write the armed watcher does
+ * announce is applied once, by the watcher, and a failing candidate is broadcast once.
+ */
+const WATCH_ARMING_GRACE_MS = 300
+
+/** Existence, size, modification time, and inode of a file, compared to notice a write no watcher announced. */
+function fileIdentity(file: string): string {
+  try {
+    const stats = statSync(file, { bigint: true })
+    return `${String(stats.ino)}:${String(stats.size)}:${String(stats.mtimeNs)}`
+  } catch {
+    // A missing or unreadable file has no identity; reading it reports why.
+    return 'absent'
+  }
+}
+
 // The include's YAML dialect (`!!js` scalars become expression nodes the
 // Loader interpolates against each entry's injection-ready context), imported
 // from the include itself so patch parsing and config dumping can never drift
@@ -262,7 +288,9 @@ export interface UserPatchWatchOptions {
  * its notification stream delivering: a write landing between the two is announced by nothing, and
  * the layer booted with then stays stale for the rest of the process with no diagnostic. One
  * reconciliation read after readiness closes that window, so the file as it stands when this
- * resolves is the layer that is applied and every later write is announced.
+ * resolves is the layer that is applied. Chokidar also reports ready before its directory watch delivers, so for
+ * {@link WATCH_ARMING_WINDOW_MS} the file's identity is polled and a write left unannounced for
+ * {@link WATCH_ARMING_GRACE_MS} is applied; every later write is announced by the watcher.
  * @param ctx - settled app context containing the root Include and an active HMR service.
  * @param options - diagnostic, file, and patch-composition inputs.
  * @returns an asynchronous disposer after the exact-path watcher is ready and the layer on disk is applied.
@@ -315,13 +343,48 @@ export async function watchUserPatches(
     }
   }
 
-  const register = hmr.registerConfig(filename, refresh)
+  /** Identity of the file the last refresh read, announced or reconciled. */
+  let applied = fileIdentity(filename)
+  const announced = async (): Promise<void> => {
+    applied = fileIdentity(filename)
+    await refresh()
+  }
+  const register = hmr.registerConfig(filename, announced)
   try {
     const dispose = await register
-    // Every later write is announced; the write that raced the watcher's own startup may not
-    // be, so the layer on disk is reconciled once before the caller can rely on readiness.
+    // The write that raced the watcher's own startup may not be announced, so the layer on disk is
+    // reconciled once before the caller can rely on readiness, and a write landing while the watch is
+    // still arming is applied once it has gone unannounced for the grace, until the arming window ends.
+    applied = fileIdentity(filename)
     await reconcile()
-    return dispose
+    const windowEnds = Date.now() + WATCH_ARMING_WINDOW_MS
+    let pending: { identity: string; since: number } | undefined
+    let checking = false
+    const timer = setInterval(() => {
+      if (checking) return
+      const now = Date.now()
+      const current = fileIdentity(filename)
+      if (current === applied) {
+        pending = undefined
+        if (now >= windowEnds) clearInterval(timer)
+        return
+      }
+      if (pending?.identity !== current) {
+        pending = { identity: current, since: now }
+        return
+      }
+      if (now - pending.since < WATCH_ARMING_GRACE_MS) return
+      applied = current
+      pending = undefined
+      checking = true
+      void reconcile().finally(() => { checking = false })
+    }, WATCH_ARMING_POLL_MS)
+    timer.unref()
+    const stopPolling = ctx.effect(() => () => { clearInterval(timer) }, 'watchUserPatches arming poll')
+    return async () => {
+      await stopPolling()
+      await dispose()
+    }
   } catch (error) {
     // A surface can dispose the whole tree while the watcher is still opening;
     // the HMR effect registration then fails with INACTIVE_EFFECT. That is the

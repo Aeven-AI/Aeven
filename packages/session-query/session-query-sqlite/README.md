@@ -50,6 +50,7 @@ Choose it when you want full-text recall over prior sessions with ranking and pa
 | `defaultLimit` | `20` | Page size when a request omits `limit` |
 | `maxLimit` | `100` | Largest accepted request page size |
 | `snippetChars` | `240` | Maximum snippet length in Unicode code points |
+| `prefixMinChars` | `3` | Shortest final query token, in characters, that also matches as a prefix; `0` disables prefix matching |
 | `readWindowMax` | `50` | Maximum `before`/`after` raw events for the inherited `readEvent()` |
 | `persistedInspectConcurrency` | `4` | Concurrent persisted-log inspections for inherited batch reads |
 
@@ -57,9 +58,9 @@ The generated [configuration catalog](../../../docs/config-catalog.md#aevensessi
 
 ### Search behavior
 
-`searchSessions` searches the whole corpus and groups results by each session's strongest matching event; `searchEvents` searches one logical session. Queries are literal phrases: they are trimmed and whitespace-normalized, and FTS5 syntax such as quotes, `OR`, `NEAR`, and `*` is treated as data, never as executable query syntax. Metadata filters (session id, cwd, created-at, parent, availability, event seq/time/type/surface) narrow results before ranking. All `current`, `shadowed`, and `log-only` events are searchable by default; pass a surface filter to narrow.
+`searchSessions` searches the whole corpus and groups results by each session's strongest matching event; `searchEvents` searches one logical session. A query matches documents that hold every one of its tokens, in any order; the final token also matches the longer tokens it begins once it reaches `prefixMinChars` characters, so `rele` finds `release` while the user types. Queries are trimmed and whitespace-normalized, and FTS5 syntax such as quotes, `OR`, `NEAR`, and `*` is treated as data, never as executable query syntax: each token is quoted on its own. Metadata filters (session id, cwd, created-at, parent, availability, event seq/time/type/surface) narrow results before ranking. All `current`, `shadowed`, and `log-only` events are searchable by default; pass a surface filter to narrow.
 
-Ranking is deterministic: more actual FTS5 highlighted-match spans first, then shorter documents, with event time, session id, and seq breaking ties. Results carry plain-text snippets bounded by `snippetChars` Unicode code points, with no provider-specific numeric score. Pages continue through an opaque `SessionSearchCursor` bound to the exact normalized request; a cursor becomes stale when its relevant corpus changes (`SESSION_QUERY_STALE_CURSOR`), and a within-session cursor survives changes to unrelated sessions while a cross-session cursor does not.
+Ranking is deterministic and compares live and persisted documents on one scale: more exact-phrase spans (the tokens adjacent and in order) first, then more token hits, then shorter documents, with event time, session id, and seq breaking ties. FTS5 `bm25()` is not used because its scores depend on each table's own statistics and would not compare across the persisted and live tables. Results carry plain-text snippets bounded by `snippetChars` Unicode code points, with no provider-specific numeric score. Pages continue through an opaque `SessionSearchCursor` bound to the exact normalized request; a cursor becomes stale when its relevant corpus changes (`SESSION_QUERY_STALE_CURSOR`), and a within-session cursor survives changes to unrelated sessions while a cross-session cursor does not.
 
 The `unicode61` tokenizer matches tokens and phrases, not arbitrary substrings: `AI` does not match the token `BRAID`. Use `ctx.sessionQuery.filterEvents()` with a `text` clause when a literal whitespace-flexible substring scan is required.
 
@@ -88,7 +89,7 @@ The backend is built on one separation and three commitments:
 - **Derived index, never the source store.** The FTS rows live in a dedicated disposable database; the session-persistence database is never opened here.
 - **Live-preferred observation.** One serialized state machine compares persistence snapshot revisions, inspects only new or changed logs, and reconciles in one transaction, so a search reflects the newest stable state. When sessions keep changing through a retry, as on a Host serving many accounts, the search answers from the last attempt, which is correct as of its first listing, instead of failing.
 - **Generation-bound cursors.** Every corpus change bumps a generation; cursors carry the generation they were created under and fail stale rather than returning a shifted page.
-- **Literal phrases as data.** Caller query text is quoted into one FTS5 phrase so query syntax stays inert, and reserved highlight markers are stripped from documents before indexing.
+- **Tokens as data.** Each caller query token is quoted on its own so query syntax stays inert, and reserved highlight markers are stripped from documents before indexing.
 
 The design history lives in the [SQLite FTS5 session search note](../../../.agents/notes/implemented/feature/2026-07-10-sqlite-session-query-provider.md) and the [unified service decision](../../../.agents/notes/archived/architecture/2026-07-23-unified-session-query-service.md).
 

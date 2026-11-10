@@ -1592,27 +1592,52 @@ function searchTokenSpans(value: string): { text: string; tokens: FixtureSearchT
   return { text, tokens }
 }
 
-interface FixturePhraseMatch {
-  count: number
+interface FixtureTokenMatch {
+  phraseCount: number
+  hits: number
   start: number
   end: number
 }
 
-/** Count exact contiguous token-phrase occurrences and retain the first display span. */
-function phraseMatch(document: readonly FixtureSearchToken[], phrase: readonly string[]): FixturePhraseMatch {
-  if (phrase.length === 0 || phrase.length > document.length) return { count: 0, start: 0, end: 0 }
-  let count = 0
-  let firstStart = 0
-  let firstEnd = 0
-  for (let start = 0; start <= document.length - phrase.length; start++) {
-    if (!phrase.every((token, offset) => document[start + offset]?.value === token)) continue
-    count++
-    if (count === 1) {
-      firstStart = document[start]?.start ?? 0
-      firstEnd = document[start + phrase.length - 1]?.end ?? firstStart
+/** Shortest final query token that also matches as a prefix; mirrors the SQLite engine's `prefixMinChars` default. */
+const FIXTURE_PREFIX_MIN_CHARS = 3
+
+/**
+ * Match every query token in any order, the final one also as a prefix once it reaches
+ * {@link FIXTURE_PREFIX_MIN_CHARS}; count exact-phrase occurrences and token hits, and keep the first display span.
+ */
+function tokenMatch(document: readonly FixtureSearchToken[], query: readonly string[]): FixtureTokenMatch | undefined {
+  if (query.length === 0) return undefined
+  const last = query.length - 1
+  const prefix = Array.from(query[last] ?? '').length >= FIXTURE_PREFIX_MIN_CHARS
+  const matches = (value: string | undefined, index: number): boolean => {
+    const token = query[index]
+    if (value === undefined || token === undefined) return false
+    return value === token || (index === last && prefix && value.startsWith(token))
+  }
+  let hits = 0
+  for (let index = 0; index < query.length; index++) {
+    const count = document.filter(token => matches(token.value, index)).length
+    if (count === 0) return undefined
+    hits += count
+  }
+  let phraseCount = 0
+  let start = -1
+  let end = -1
+  for (let at = 0; at <= document.length - query.length; at++) {
+    if (!query.every((_token, offset) => matches(document[at + offset]?.value, offset))) continue
+    phraseCount++
+    if (start === -1) {
+      start = document[at]?.start ?? 0
+      end = document[at + last]?.end ?? start
     }
   }
-  return { count, start: firstStart, end: firstEnd }
+  if (start === -1) {
+    const first = document.find(token => query.some((_token, index) => matches(token.value, index)))
+    start = first?.start ?? 0
+    end = first?.end ?? start
+  }
+  return { phraseCount, hits, start, end }
 }
 
 /** Match-centered fixture excerpt, bounded by Unicode code points for the sidebar. */
@@ -1643,6 +1668,7 @@ interface FixtureSearchCandidate {
   seq: number
   time: number
   text: string
+  phraseCount: number
   matchCount: number
   matchStart: number
   matchEnd: number
@@ -1651,6 +1677,7 @@ interface FixtureSearchCandidate {
 
 /** Mirrors `packages/session-query/session-query-sqlite/src/index.ts`; update both together. */
 function compareSearchCandidates(a: FixtureSearchCandidate, b: FixtureSearchCandidate): number {
+  if (a.phraseCount !== b.phraseCount) return b.phraseCount - a.phraseCount
   if (a.matchCount !== b.matchCount) return b.matchCount - a.matchCount
   if (a.documentLength !== b.documentLength) return a.documentLength - b.documentLength
   if (a.time !== b.time) return b.time - a.time
@@ -2783,14 +2810,15 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
           if (!current.has(event.seq)) return []
           const eventText = searchEventText(event)
           const document = searchTokenSpans(eventText)
-          const match = phraseMatch(document.tokens, query)
-          if (match.count === 0) return []
+          const match = tokenMatch(document.tokens, query)
+          if (match === undefined) return []
           return [{
             sessionId: summary.sessionId,
             seq: event.seq,
             time: event.time,
             text: document.text,
-            matchCount: match.count,
+            phraseCount: match.phraseCount,
+            matchCount: match.hits,
             matchStart: match.start,
             matchEnd: match.end,
             documentLength: Array.from(eventText).length,

@@ -103,12 +103,13 @@
 }
 
 /* Three or more actions do not fit the 332px column on one row, so they stack
-   full-width, one per row, in DOM order (primary last, as on the single row). */
-.footer:has(> :nth-child(3)) {
+   full-width, one per row, in DOM order (primary last, as on the single row).
+   The component marks the row, since the Safari 14.5 baseline has no :has(). */
+.footer[data-stacked] {
   flex-direction: column;
   align-items: stretch;
 }
 
-.footer:has(> :nth-child(3)) > * {
+.footer[data-stacked] > * {
   width: 100%;
 }
