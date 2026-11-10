@@ -898,7 +898,7 @@
     - id: automations
       name: '@aeven/automations'
       config:
-        maxConcurrentRunsPerAccount: 2
+        maxConcurrentRunsPerAccount: 16
         runTimeoutMinutes: 60
         misfireGraceMinutes: 15
         historyLimit: 200
