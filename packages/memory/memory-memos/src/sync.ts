@@ -14,11 +14,16 @@ import Database from 'better-sqlite3'
 import type { Map as YMap } from 'yjs'
 import type { Sync, SyncDocument } from '@aeven/sync'
 
-/** A replicated table: its key columns, the shard prefix length, and its vector columns. */
+/** A replicated table: its key columns, the shard prefix length, its vector columns, and a unique index besides the key. */
 interface TableSpec {
   readonly key: readonly string[]
   readonly prefix: number
   readonly vectors: readonly string[]
+  /**
+   * Columns of a unique index other than the key. Two devices can write rows with different keys that collide
+   * on it; every device keeps the row whose encoded key sorts first and drops the other, so they converge.
+   */
+  readonly unique?: readonly string[]
 }
 
 /** Tables whose rows are the account's memory; every other MemOS table is local bookkeeping or derived. */
@@ -29,7 +34,7 @@ const TABLES: Readonly<Record<string, TableSpec>> = {
   policies: { key: ['id'], prefix: 1, vectors: ['vec'] },
   trace_policy_links: { key: ['trace_id', 'policy_id'], prefix: 2, vectors: [] },
   world_model: { key: ['id'], prefix: 1, vectors: ['vec'] },
-  skills: { key: ['id'], prefix: 1, vectors: ['vec'] },
+  skills: { key: ['id'], prefix: 1, vectors: ['vec'], unique: ['owner_agent_kind', 'owner_profile_id', 'name'] },
   skill_trials: { key: ['id'], prefix: 1, vectors: [] },
   feedback: { key: ['id'], prefix: 1, vectors: [] },
   decision_repairs: { key: ['id'], prefix: 1, vectors: [] },
@@ -322,6 +327,7 @@ export class MemorySyncMirror {
         const same = (column: string): boolean =>
           JSON.stringify(encode({ [column]: local?.[column] }, this.model)[column]) === JSON.stringify(row[column])
         if (local !== undefined && present.every(same)) continue
+        if (this.yieldsToRival(table, spec, key, row)) continue
         const updates = present.filter(column => !spec.key.includes(column)).map(column => `${column} = excluded.${column}`)
         this.db.prepare(
           `INSERT INTO ${table} (${present.join(', ')}) VALUES (${present.map(() => '?').join(', ')})
@@ -330,6 +336,27 @@ export class MemorySyncMirror {
       }
       this.db.prepare('DELETE FROM sync_applying').run()
     })()
+  }
+
+  /**
+   * Resolve a collision on the table's unique index: when a local row with another key holds the same unique
+   * values, the row whose encoded key sorts first stays. A losing local row is deleted under the applying
+   * marker, so the deletion is not published; other devices drop it by the same rule.
+   *
+   * @returns `true` when the incoming row loses and must not be written.
+   */
+  private yieldsToRival(table: string, spec: TableSpec, key: string, row: SyncedRow): boolean {
+    if (spec.unique === undefined || !spec.unique.every(column => column in row)) return false
+    const keyValues = JSON.parse(key) as unknown[]
+    const rival = this.db.prepare(
+      `SELECT ${spec.key.join(', ')} FROM ${table} WHERE ${spec.unique.map(column => `${column} = ?`).join(' AND ')}
+       AND NOT (${spec.key.map(column => `${column} = ?`).join(' AND ')})`,
+    ).get(...spec.unique.map(column => decode(row[column])), ...keyValues) as Record<string, unknown> | undefined
+    if (rival === undefined) return false
+    const rivalValues = spec.key.map(column => rival[column])
+    if (JSON.stringify(rivalValues) < key) return true
+    this.db.prepare(`DELETE FROM ${table} WHERE ${spec.key.map(column => `${column} = ?`).join(' AND ')}`).run(...rivalValues)
+    return false
   }
 
   /** Stop draining and applying, then close the connection. */
