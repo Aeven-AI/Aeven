@@ -2728,6 +2728,11 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'owner', description: 'the account.' }, { name: 'sessionId', description: 'the session.' }, { name: 'running', description: 'whether a turn runs; false lets other devices claim it again.' }],
       },
       {
+        signature: 'abstract endChange(owner: string, sessionId: SessionId): Promise<void>',
+        description: 'Give back the hold a claim for a change took, such as a rename or a model selection, once the change is applied and no turn runs here; the session stays writable here, and another device may take its next turn at once.',
+        parameters: [{ name: 'owner', description: 'the account.' }, { name: 'sessionId', description: 'the session.' }],
+      },
+      {
         signature: 'fetchAttachment(_attachmentId: string, _owner?: string): Promise<boolean>',
         description: 'Download an attachment another device of the account published, such as an image, video, or file a synced conversation cites, when this device does not hold it yet.',
         parameters: [{ name: '_attachmentId', description: 'the attachment\'s content address.' }, { name: '_owner', description: 'restrict retrieval to this account; omission searches the Host\'s synced accounts.' }],

@@ -532,6 +532,24 @@ export class SessionMirror {
   }
 
   /**
+   * Give back the runner lease a claim for a change took while no turn runs here. The claim stays, so the change
+   * publishes; the lease alone would keep every other device, including the session's always-on home, from taking
+   * the next turn until it expired.
+   * @param sessionId - the session.
+   */
+  endChange(sessionId: SessionId): Promise<void> {
+    if (this.running.has(sessionId) || this.claims.get(sessionId)?.holder === undefined) return Promise.resolve()
+    return this.own(sessionId, async () => {
+      const claim = this.claims.get(sessionId)
+      const holder = claim?.holder
+      if (this.running.has(sessionId) || claim === undefined || holder === undefined) return
+      delete claim.holder
+      await holder.dispose()
+      this.consumeInbox()
+    })
+  }
+
+  /**
    * Stop continuing a session on this device: stop and drain its local agent, and keep its log as a copy that
    * follows the stream.
    * @param sessionId - the session.

@@ -159,6 +159,12 @@ function editedContent(content: UserMessage['content'], text: string): UserMessa
 /** Implements Session business commands delegated by the Session Controller Remote service. */
 export class SessionCommandController {
   /**
+   * Sessions this device is applying an input for that it took from the account's inbox: it already claimed them,
+   * so the input runs here and is never forwarded back to the session's always-on home.
+   */
+  private readonly applyingForwarded = new Map<SessionId, number>()
+
+  /**
    * @param ctx - Host context carrying Agent, model, attachment, title, and Workspace services.
    * @param agents - sole owner of create, resume, and Session-local model selection.
    * @param defaultCwd - project directory used when create names neither a Workspace nor a cwd.
@@ -244,6 +250,14 @@ export class SessionCommandController {
         },
       }
     }
+    try {
+      return await this.installModel(request)
+    } finally {
+      await this.endChange(request.sessionId)
+    }
+  }
+
+  private async installModel(request: SessionSelectModelRequest): Promise<SessionSelectModelValue> {
     const agent = await this.resolveAgent(request.sessionId)
     return this.agents.serializeImageAdmission(agent, async () => {
       try {
@@ -290,6 +304,14 @@ export class SessionCommandController {
     if (await this.claimForChange(request.sessionId) !== undefined) {
       throw new RemoteError('session/agent-busy', 'another device of this account is running a turn of this conversation; rename it once that turn ends', { reason: 'remote-turn' })
     }
+    try {
+      return await this.applyRename(request)
+    } finally {
+      await this.endChange(request.sessionId)
+    }
+  }
+
+  private async applyRename(request: SessionRenameRequest): Promise<SessionRenameValue> {
     const agent = await this.resolveAgent(request.sessionId)
     const titles = this.ctx.get('sessionTitle')
     if (titles === undefined) {
@@ -787,7 +809,7 @@ export class SessionCommandController {
     // A session whose latest turn ran on an always-on device, such as Aeven Cloud, stays there with its files and
     // background jobs: the input is forwarded, that device takes it first, and this device runs it only when that
     // device does not pick it up within the account's input grace.
-    if (handoff.homeOf(owner, sessionId) !== undefined) return owner
+    if (!this.applyingForwarded.has(sessionId) && handoff.homeOf(owner, sessionId) !== undefined) return owner
     const runner = handoff.runnerOf(owner, sessionId)
     // Directoryless chats can move between devices without a local folder binding.
     const recordedCwd = runner === undefined
@@ -834,6 +856,20 @@ export class SessionCommandController {
   }
 
   /**
+   * Give back the hold a change claimed, so the session's next turn can start on any device, including its
+   * always-on home. A failure leaves the hold to expire on its own.
+   * @param sessionId - the changed Session.
+   */
+  private async endChange(sessionId: SessionId): Promise<void> {
+    const handoff = this.ctx.get('sessionHandoff')
+    const owner = this.ctx.get('identityUsers')?.actingUser()?.id
+    if (handoff === undefined || owner === undefined) return
+    await handoff.endChange(owner, sessionId).catch((error: unknown) => {
+      this.ctx.logger('session-controller').warn(`giving back a change's hold on ${sessionId} failed: ${String(error)}`)
+    })
+  }
+
+  /**
    * Whether this device holds a directory to run a Session in, asked before a
    * claim: the folder of a workspace filed here, or, for a Session this device's
    * own log accounts for and no workspace names, the directory it recorded. An
@@ -866,6 +902,17 @@ export class SessionCommandController {
    * @returns when the input was admitted.
    */
   async applyForwarded(sessionId: SessionId, input: SessionHandoffInput): Promise<void> {
+    this.applyingForwarded.set(sessionId, (this.applyingForwarded.get(sessionId) ?? 0) + 1)
+    try {
+      await this.applyForwardedInput(sessionId, input)
+    } finally {
+      const left = (this.applyingForwarded.get(sessionId) ?? 1) - 1
+      if (left === 0) this.applyingForwarded.delete(sessionId)
+      else this.applyingForwarded.set(sessionId, left)
+    }
+  }
+
+  private async applyForwardedInput(sessionId: SessionId, input: SessionHandoffInput): Promise<void> {
     const request = { ...(input.request as object), sessionId }
     switch (input.operation) {
       // A prompt from another device never joins the turn running here: it becomes its own turn with its own answer,

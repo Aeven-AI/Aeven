@@ -66,6 +66,7 @@ describe('summary blank = conversation not started', () => {
         // Nothing in this account runs the shared conversation on another device.
         runnerOf: () => undefined,
         homeOf: () => undefined,
+        endChange: () => Promise.resolve(),
       } as never)
       const result = await remote.list({})
       expect(result).toMatchObject({ ok: true, value: { items: [{

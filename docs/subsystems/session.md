@@ -941,6 +941,14 @@ abstract claim(owner: string, sessionId: SessionId): Promise<SessionClaim>
 abstract holdRunner(owner: string, sessionId: SessionId, running: boolean): Promise<void>
 
 /**
+ * Give back the hold a claim for a change took, such as a rename or a model selection, once the change is applied
+ * and no turn runs here; the session stays writable here, and another device may take its next turn at once.
+ * @param owner - the account.
+ * @param sessionId - the session.
+ */
+abstract endChange(owner: string, sessionId: SessionId): Promise<void>
+
+/**
  * Download an attachment another device of the account published, such as an image, video, or file a synced
  * conversation cites, when this device does not hold it yet.
  * @param _attachmentId - the attachment's content address.

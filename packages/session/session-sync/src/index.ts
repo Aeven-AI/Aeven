@@ -174,6 +174,11 @@ export default class SessionSync extends SessionHandoff {
   }
 
   /** @inheritdoc */
+  async endChange(owner: string, sessionId: SessionId): Promise<void> {
+    await this.mirrors.get(owner)?.endChange(sessionId)
+  }
+
+  /** @inheritdoc */
   homeOf(owner: string, sessionId: SessionId): SessionRunner | undefined {
     return this.mirrors.get(owner)?.homeOf(sessionId)
   }
