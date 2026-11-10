@@ -601,7 +601,9 @@
           other sites fail. git works with https://github.com/ URLs: public repositories always, and
           private repositories and git push when the user has connected GitHub in Settings → Connectors,
           with no token in the command. Pushing a tag or deleting a branch asks the user for approval
-          and fails with HTTP 403 when they decline. npm install runs without package install scripts, pnpm run does not install
+          and fails with HTTP 403 when they decline. git has no author identity configured: before committing, set
+          user.name and user.email in the repository with git config, using the user's GitHub name and
+          noreply email from the GitHub connector's get_me, or asking the user. npm install runs without package install scripts, pnpm run does not install
           missing dependencies first, and pip
           install takes prebuilt wheels only and adds packages beside the preinstalled ones without
           replacing them. Installed packages stay in the working directory's folder between commands.
