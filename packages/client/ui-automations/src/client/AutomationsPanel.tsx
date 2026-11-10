@@ -218,6 +218,17 @@ export function AutomationsPanel({ t, inputActions, list, call, openRun, view, s
       .catch((reason: unknown) => { setError(reason instanceof Error ? reason.message : t('error')) })
       .finally(() => { setBusy(false) })
   }
+  /** Send one stop; the bot's pill spins from the click until the run is no longer queued or running. */
+  const stop = (id: string): void => {
+    if (stopping.has(id)) return
+    setStopping(value => new Set(value).add(id)); setError('')
+    void call('stop', { id })
+      .then(() => { setRefresh(value => value + 1) })
+      .catch((reason: unknown) => {
+        setStopping((value) => { const next = new Set(value); next.delete(id); return next })
+        setError(reason instanceof Error ? reason.message : t('error'))
+      })
+  }
   const date = (at: string): string => new Date(at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
   /** Local sentence for one stored recurrence, shown above the task it runs. */
   const describe = (schedule: TaskSchedule): string => {
@@ -524,8 +535,7 @@ export function AutomationsPanel({ t, inputActions, list, call, openRun, view, s
                       ) : (
                         <Button
                           variant="primary" size="sm" className={css.runNow} icon={<IconStopFill16 />}
-                          disabled={unavailable || stopping.has(current.id)}
-                          onClick={() => { setStopping(value => new Set(value).add(current.id)); act('stop', current.id) }}
+                          disabled={!connected} onClick={() => { stop(current.id) }}
                         >
                           {t('stop')}
                         </Button>
@@ -558,7 +568,11 @@ export function AutomationsPanel({ t, inputActions, list, call, openRun, view, s
                           />
                         </span>
                       </Tooltip>
-                      <span className={css.status}>{t(task.status)}</span>
+                      {current !== undefined && stopping.has(current.id) ? (
+                        <span className={css.status} role="status"><Spinner />{t('stopping')}</span>
+                      ) : (
+                        <span className={css.status}>{t(task.status)}</span>
+                      )}
                     </div>
                   </article>
                 )
