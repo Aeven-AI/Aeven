@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-10-connection-retries-past-the-final-tier.md
+2026-11-10-connection-retries-past-the-final-tier.md: 0a2da8024e32b1fe5aeb3b01f9cb37d3d664e132
+2026-11-10-connection-retries-past-the-final-tier.zh.md: 66978e4c1a6de6a1b1c5068f1c8b75a1bbc75d4e
