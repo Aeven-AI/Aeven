@@ -43,6 +43,11 @@ interface IndexEntry {
    * session without a preferred device.
    */
   writer?: string
+  /**
+   * The writer is a desktop someone moved the session to: every other device forwards its input there while that
+   * desktop's presence stamp is fresh. A turn run by any other device drops it; older builds drop it when they publish.
+   */
+  pinned?: boolean
 }
 
 /** One device's entry in the synced device list, as the sync provider writes it. */
@@ -1016,9 +1021,11 @@ export class SessionMirror {
     if (writer !== undefined && writer !== me) {
       // An always-on writer keeps its conversations; the always-on device sends a desktop's conversation back to it
       // unless that desktop's presence stamp is stale. A desktop that never stamps gets it, with the inbox fallback.
+      // A desktop the session was moved to keeps it while its stamp is fresh.
       const entry = devices.get(writer)
       const stale = entry?.seenAt !== undefined && Date.now() - entry.seenAt > this.tuning.presenceWindowMs
-      if (entry?.alwaysOn === true || (devices.get(me)?.alwaysOn === true && !stale)) home = writer
+      const pinnedHere = this.entries().get(sessionId)?.pinned === true && entry?.seenAt !== undefined && !stale
+      if (entry?.alwaysOn === true || pinnedHere || (devices.get(me)?.alwaysOn === true && !stale)) home = writer
     } else if (writer === undefined && devices.get(me)?.alwaysOn === true) {
       // A conversation no device has run yet goes to the account's desktop that is on now, else stays here.
       home = this.presentDesktop()
@@ -1089,20 +1096,27 @@ export class SessionMirror {
     const devices = this.devices()
     if (me === undefined || devices === undefined || !this.shared(sessionId)) return undefined
     const writer = this.entries().get(sessionId)?.writer
-    const always = [...devices.entries()].find(([id, entry]) => id !== me && entry.alwaysOn === true)
     return {
       device: me,
+      name: devices.get(me)?.name ?? '',
       alwaysOnHere: devices.get(me)?.alwaysOn === true,
       ...writer === undefined || writer === me
         ? {}
-        : { home: { device: writer, name: devices.get(writer)?.name ?? '', alwaysOn: devices.get(writer)?.alwaysOn === true } },
-      ...always === undefined ? {} : { alwaysOn: { device: always[0], name: always[1].name } },
+        : {
+          home: {
+            device: writer,
+            name: devices.get(writer)?.name ?? '',
+            alwaysOn: devices.get(writer)?.alwaysOn === true,
+            pinned: this.entries().get(sessionId)?.pinned === true,
+          },
+        },
       desktops: this.desktops(),
     }
   }
 
   /**
-   * The account's devices without `alwaysOn`, other than this one.
+   * The account's devices without `alwaysOn`, other than this one. A reinstall registers a new device under the same
+   * host name and the old entry stays in the list, so only the most recently stamped device of each name is listed.
    * @returns them with their presence, present ones first, then most recently stamped; never-stamped ones last.
    */
   private desktops(): HandoffDesktop[] {
@@ -1114,7 +1128,16 @@ export class SessionMirror {
       const present = entry.seenAt !== undefined && now - entry.seenAt <= this.tuning.presenceWindowMs
       listed.push({ device: id, name: entry.name, present, ...entry.seenAt === undefined ? {} : { seenAt: entry.seenAt } })
     }
-    return listed.sort((a, b) => Number(b.present) - Number(a.present) || (b.seenAt ?? 0) - (a.seenAt ?? 0))
+    listed.sort((a, b) => Number(b.present) - Number(a.present) || (b.seenAt ?? 0) - (a.seenAt ?? 0))
+    // This device's own earlier installs share its name.
+    const own = me === undefined ? undefined : this.devices()?.get(me)?.name
+    const named = new Set<string>(own === undefined || own === '' ? [] : [own])
+    return listed.filter((desktop) => {
+      if (desktop.name === '') return true
+      if (named.has(desktop.name)) return false
+      named.add(desktop.name)
+      return true
+    })
   }
 
   /**
@@ -1134,7 +1157,12 @@ export class SessionMirror {
     if (this.runnerOf(sessionId) !== undefined) throw new Error('another device runs a turn of this session now')
     const entry = this.entries().get(sessionId)
     if (entry === undefined) throw new Error('the session is not synced')
-    if (entry.writer !== device) this.entries().set(sessionId, { ...entry, writer: device })
+    // Moving to another desktop pins the session there; moving to this device or an always-on device unpins it.
+    const pinned = device !== me && this.devices()?.get(device)?.alwaysOn !== true
+    if (entry.writer !== device || (entry.pinned === true) !== pinned) {
+      const { pinned: _previous, ...rest } = entry
+      this.entries().set(sessionId, { ...rest, writer: device, ...pinned ? { pinned: true } : {} })
+    }
   }
 
   private devices(): YMap<DeviceEntry> | undefined {
@@ -1186,7 +1214,7 @@ export class SessionMirror {
     // A conversation created here is unknown to the device it is sent to until its events are published, so it
     // publishes them before the input travels.
     if (to !== undefined && this.claims.has(sessionId)) {
-      await this.serialize(sessionId, () => this.publishSession(sessionId)).catch((error: unknown) => {
+      await this.serialize(sessionId, () => this.publishSession(sessionId, false, true)).catch((error: unknown) => {
         this.warn(`session sync: publishing ${sessionId} before forwarding its input failed: ${String(error)}`)
       })
     }
@@ -2140,8 +2168,10 @@ export class SessionMirror {
    * Publish a session's events after its claim's published position, and its metadata.
    * @param sessionId - the session.
    * @param history - whether this is history publication, which waits for room in the outbox between batches.
+   * @param forwarding - whether the session's first input is about to be forwarded, which publishes it even when it
+   *   holds initialization events only.
    */
-  private async publishSession(sessionId: SessionId, history = false): Promise<void> {
+  private async publishSession(sessionId: SessionId, history = false, forwarding = false): Promise<void> {
     const me = this.device()
     if (me === undefined) return
     let entry = this.entries().get(sessionId)
@@ -2177,8 +2207,9 @@ export class SessionMirror {
       }
       return
     }
-    if (!suffix.events.some(event => !INITIALIZATION_EVENTS.has(event.type))) {
-      // Initialization events wait for conversation activity, so an unwritten draft never reaches the stream.
+    if (!forwarding && !suffix.events.some(event => !INITIALIZATION_EVENTS.has(event.type))) {
+      // Initialization events wait for conversation activity, so an unwritten draft never reaches the stream. A
+      // conversation whose first input is forwarded has nothing else here: the device it goes to writes the rest.
       if (entry === undefined) this.claims.delete(sessionId)
       return
     }
@@ -2231,6 +2262,7 @@ export class SessionMirror {
     const previous = this.entries().get(sessionId)
     // Only a turn moves the session's home; a rename or model change published from another device does not.
     const writer = suffix.events.some(event => event.type === 'turn/start') ? this.device() : previous?.writer
+    const pinned = previous?.pinned === true && writer === previous.writer
     const title = titleOf(suffix.events) ?? previous?.title
     this.entries().set(sessionId, {
       header: suffix.meta,
@@ -2242,6 +2274,7 @@ export class SessionMirror {
       next: Math.max(previous?.next ?? 0, active.published),
       ...home === undefined ? {} : { workspace: home },
       ...writer === undefined ? {} : { writer },
+      ...pinned ? { pinned: true } : {},
     })
   }
 

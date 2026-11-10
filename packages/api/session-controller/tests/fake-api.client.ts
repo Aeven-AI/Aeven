@@ -233,7 +233,7 @@ export class FakeApiClient {
         ),
         rename: payload => this.record('session.rename', payload, this.onRename(payload)),
         fork: payload => this.record('session.fork', payload, this.onFork(payload)),
-        placement: payload => this.record('session.placement', payload, Promise.resolve(ok({ here: false }))),
+        placement: payload => this.record('session.placement', payload, Promise.resolve(ok({}))),
         continueOn: payload => this.record('session.continueOn', payload, Promise.resolve(ok({ moved: true as const }))),
         move: payload => this.record('session.move', payload, this.onFork(payload)),
         prompt: payload => this.record('session.prompt', payload, this.onPrompt(payload)),

@@ -358,7 +358,7 @@ export interface ConversationSessionHeaderInjected {
    */
   devicePlacement: () => Promise<SessionDevicePlacement>
   /**
-   * Run this Session's next turns on this computer, on the account's always-on device, or on one of its desktops.
+   * Run this Session's next turns on this computer or on one of the account's desktops.
    * @param target - the move; `device` names one of the placement's `desktops`.
    */
   continueOn: (target: SessionContinueTarget) => Promise<void>
@@ -368,11 +368,7 @@ export interface ConversationSessionHeaderInjected {
 
 /** Device moves the header offers for a synced Session. */
 export interface SessionDevicePlacement {
-  /** Offer "Continue on this computer": the Session's latest turn ran on an always-on device. */
-  readonly here: boolean
-  /** Name of the always-on device to offer "Continue in …", such as "Aeven Cloud". */
-  readonly alwaysOn?: string
-  /** The account's desktops to offer from Aeven Web, present ones first; absent elsewhere. */
+  /** The desktops to offer in the chooser, this computer first on a desktop; absent when there is no choice. */
   readonly desktops?: readonly SessionDesktop[]
 }
 
@@ -388,11 +384,13 @@ export interface SessionDesktop {
   readonly seenAt?: number
   /** Whether the Session's next turns already run on it. */
   readonly home: boolean
+  /** Whether it is this computer. */
+  readonly self: boolean
 }
 
 /** A device move the header asks the Host for. */
 export type SessionContinueTarget =
-  | { readonly target: 'here' | 'always-on' }
+  | { readonly target: 'here' }
   | { readonly target: 'desktop'; readonly device: string }
 
 /** One Workspace the header offers as a move destination. */

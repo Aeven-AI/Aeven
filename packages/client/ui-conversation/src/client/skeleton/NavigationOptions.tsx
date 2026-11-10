@@ -16,7 +16,7 @@
 import { useRef, useState } from 'react'
 import {
   IconBranchOutline16, IconDownloadOutline16, IconInspectOutline12, IconLucideEllipsisVertical,
-  IconLucideFolder, IconLucideGlobe, IconLucideLaptopMinimal, IconLucideMessageCircle,
+  IconLucideFolder, IconLucideLaptopMinimal, IconLucideMessageCircle,
   IconWarningOutline16, Menu, Toast, Tooltip, type MenuEntry,
 } from '@aeven/client-ui-primitives'
 import type { WorkspaceId } from '@aeven/workspace/types'
@@ -61,7 +61,7 @@ export interface NavigationOptionsProps {
   onMove: (workspaceId: WorkspaceId) => void
   /** The device moves this Host offers for this Session, read each time the options open. */
   devicePlacement: () => Promise<SessionDevicePlacement>
-  /** Run this Session's next turns on this computer, on the account's always-on device, or on one of its desktops. */
+  /** Run this Session's next turns on this computer or on one of the account's desktops. */
   onContinueOn: (target: SessionContinueTarget) => Promise<void>
   /** The header's locale seat. */
   t: ConversationSessionHeaderProps['t']
@@ -77,7 +77,7 @@ export function NavigationOptions({
 }: NavigationOptionsProps) {
   const [open, setOpen] = useState(false)
   // Read each time the options open, so a turn that ran on another device since shows its move.
-  const [placement, setPlacement] = useState<SessionDevicePlacement>({ here: false })
+  const [placement, setPlacement] = useState<SessionDevicePlacement>({})
   const [choosing, setChoosing] = useState(false)
   // Transient failure banner: the seq keys the Toast so an identical repeated
   // message restarts the hold-then-fade cycle instead of reusing the faded one.
@@ -88,7 +88,7 @@ export function NavigationOptions({
     setToast({ seq: toastSeq.current, text: error instanceof Error ? error.message : String(error) })
   }
   const toggle = (): void => {
-    if (!open) void devicePlacement().then(setPlacement, () => { setPlacement({ here: false }) })
+    if (!open) void devicePlacement().then(setPlacement, () => { setPlacement({}) })
     setOpen(!open)
   }
   const runExport = (): void => {
@@ -99,11 +99,19 @@ export function NavigationOptions({
     })
   }
   // The Session's own actions, in the order its row menu lists them (fork),
-  // then the export, then the move destinations and the device moves, followed by the Views the
-  // reader is not in.
+  // then the export, the desktop choice, the move destinations and the other device moves, followed by the Views
+  // the reader is not in.
   const items: MenuEntry[] = [
     { id: 'fork', label: t('nav.fork'), icon: <IconBranchOutline16 /> },
     { id: 'export', label: t('nav.export'), icon: <IconDownloadOutline16 /> },
+    ...placement.desktops === undefined
+      ? []
+      : [{
+        id: 'choose-desktop',
+        label: t('nav.chooseDesktop'),
+        icon: <IconLucideLaptopMinimal className={css.rowIcon} />,
+        disabled: moveDisabled,
+      }],
     ...moveTargets.length === 0
       ? []
       : [{
@@ -116,25 +124,6 @@ export function NavigationOptions({
         ...moveDisabled
           ? {}
           : { submenu: moveTargets.map(target => ({ id: `${MOVE_PREFIX}${target.workspaceId}`, label: target.title })) },
-      }],
-    ...placement.here
-      ? [{ id: 'continue-here', label: t('nav.continueHere'), icon: <IconLucideLaptopMinimal className={css.rowIcon} />, disabled: moveDisabled }]
-      : [],
-    ...placement.desktops === undefined
-      ? []
-      : [{
-        id: 'choose-desktop',
-        label: t('nav.chooseDesktop'),
-        icon: <IconLucideLaptopMinimal className={css.rowIcon} />,
-        disabled: moveDisabled,
-      }],
-    ...placement.alwaysOn === undefined
-      ? []
-      : [{
-        id: 'continue-always-on',
-        label: t('nav.continueIn', { name: placement.alwaysOn }),
-        icon: <IconLucideGlobe className={css.rowIcon} />,
-        disabled: moveDisabled,
       }],
     ...activeId === undefined
       ? []
@@ -158,9 +147,6 @@ export function NavigationOptions({
           if (id === 'fork') onFork()
           else if (id === 'export') runExport()
           else if (id.startsWith(MOVE_PREFIX)) onMove(id.slice(MOVE_PREFIX.length) as WorkspaceId)
-          else if (id === 'continue-here' || id === 'continue-always-on') {
-            void onContinueOn({ target: id === 'continue-here' ? 'here' : 'always-on' }).catch(fail)
-          }
           else if (id === 'choose-desktop') setChoosing(true)
           // A remaining id is a View: the roster supplies exactly those.
           else onSelect(id)
@@ -186,9 +172,9 @@ export function NavigationOptions({
         open={choosing}
         desktops={placement.desktops ?? []}
         onClose={() => { setChoosing(false) }}
-        onChoose={(device) => {
+        onChoose={(desktop) => {
           setChoosing(false)
-          void onContinueOn({ target: 'desktop', device }).catch(fail)
+          void onContinueOn(desktop.self ? { target: 'here' } : { target: 'desktop', device: desktop.device }).catch(fail)
         }}
         t={t}
       />

@@ -68,13 +68,11 @@
   color: var(--dsw-alias-state-success-primary);
 }
 
+/* The desktop the conversation runs on: a mark at the row's end, no label. */
 .current {
   display: flex;
   flex: none;
   align-items: center;
-  gap: 4px;
-  font-size: 0.75rem;
-  line-height: 1.125rem;
   color: var(--dsw-alias-label-secondary);
 }
 

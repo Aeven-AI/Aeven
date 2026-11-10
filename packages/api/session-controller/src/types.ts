@@ -365,16 +365,12 @@ export interface SessionPlacementRequest {
   readonly sessionId: SessionId
 }
 
-/**
- * The moves between the account's devices this device offers for a synced Session. Only a device that is not always
- * on offers any: on an always-on device such as Aeven Cloud, typing already runs the next turn there.
- */
+/** The desktops this device offers a synced Session to. */
 export interface SessionPlacementValue {
-  /** Offer to run the Session's next turns on this device: its latest turn ran on an always-on device. */
-  readonly here: boolean
-  /** Name of the always-on device, such as "Aeven Cloud", to offer the Session to; absent when there is none to move to. */
-  readonly alwaysOn?: string
-  /** The account's desktops to offer the Session to from an always-on Host such as Aeven Web; absent elsewhere. */
+  /**
+   * The desktops to offer: on an always-on Host such as Aeven Web, every desktop of the account; on a desktop, this
+   * desktop first and then the account's other desktops, absent when there is nowhere else the Session runs or can go.
+   */
   readonly desktops?: readonly SessionDesktopValue[]
 }
 
@@ -390,13 +386,15 @@ export interface SessionDesktopValue {
   readonly seenAt?: number
   /** Whether the Session's next turns already run on it. */
   readonly home: boolean
+  /** Whether it is the asking device, which a `here` move goes to. */
+  readonly self: boolean
 }
 
 /** Session device move request. */
 export interface SessionContinueOnRequest {
   readonly sessionId: SessionId
-  /** `here` runs the next turns on this device; `always-on` on the account's always-on device; `desktop` on `device`. */
-  readonly target: 'here' | 'always-on' | 'desktop'
+  /** `here` runs the next turns on this device; `desktop` on `device`. */
+  readonly target: 'here' | 'desktop'
   /** The desktop a `desktop` move goes to, one of the placement's `desktops`; required with that target only. */
   readonly device?: string
 }

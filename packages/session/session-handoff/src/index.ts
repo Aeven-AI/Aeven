@@ -27,12 +27,15 @@ export interface SessionHandoffInput {
 export interface HandoffPlacement {
   /** The asking device's id in the account's vault. */
   readonly device: string
+  /** The name the asking device gave itself; empty until it wrote one. */
+  readonly name: string
   /** Whether the asking device keeps its relay connection without a client, such as Aeven Cloud. */
   readonly alwaysOnHere: boolean
-  /** The device that ran the session's latest turn, when one is recorded and it is not the asking device. */
-  readonly home?: SessionRunner & { readonly alwaysOn: boolean }
-  /** An always-on device of the account other than the asking one, which the session can move to. */
-  readonly alwaysOn?: SessionRunner
+  /**
+   * The device that ran the session's latest turn, or the device it was moved to, when one is recorded and it is not
+   * the asking device. `pinned` marks a desktop it was moved to, which keeps it while that desktop is present.
+   */
+  readonly home?: SessionRunner & { readonly alwaysOn: boolean; readonly pinned: boolean }
   /** The account's desktops other than the asking device, which the session can move to: present ones first, then most recently seen. */
   readonly desktops: readonly HandoffDesktop[]
 }
