@@ -36,6 +36,8 @@ export default class SessionSync extends SessionHandoff {
     outboxLimit: z.natural().min(1).default(200),
     runnerLease: z.object({ ttlMs: z.natural().min(1_000).default(30_000), renewMs: z.natural().min(1).default(10_000) }),
     inputGraceMs: z.natural().min(100).default(3_000),
+    remoteFallbackMs: z.natural().min(100).default(10_000),
+    presenceWindowMs: z.natural().min(1_000).default(150_000),
     inputExpiryMs: z.natural().min(1_000).default(60_000),
     attachmentWaitMs: z.natural().default(30_000),
     attachmentRetryMs: z.natural().min(10).default(500),

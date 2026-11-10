@@ -33,6 +33,8 @@ export interface HandoffPlacement {
   readonly home?: SessionRunner & { readonly alwaysOn: boolean }
   /** An always-on device of the account other than the asking one, which the session can move to. */
   readonly alwaysOn?: SessionRunner
+  /** The account's most recently seen desktop other than the asking device, which the session can move to. */
+  readonly desktop?: SessionRunner
 }
 
 /** Conversation metadata available before this device downloads the log body. */

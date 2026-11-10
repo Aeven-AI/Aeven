@@ -374,13 +374,18 @@ export interface SessionPlacementValue {
   readonly here: boolean
   /** Name of the always-on device, such as "Aeven Cloud", to offer the Session to; absent when there is none to move to. */
   readonly alwaysOn?: string
+  /** Name of the account's desktop to offer the Session to from an always-on Host such as Aeven Web; absent when there is none. */
+  readonly desktop?: string
 }
 
 /** Session device move request. */
 export interface SessionContinueOnRequest {
   readonly sessionId: SessionId
-  /** `here` runs the next turns on this device; `always-on` on the account's always-on device. */
-  readonly target: 'here' | 'always-on'
+  /**
+   * `here` runs the next turns on this device; `always-on` on the account's always-on device; `desktop` on the
+   * account's most recently seen desktop.
+   */
+  readonly target: 'here' | 'always-on' | 'desktop'
 }
 
 /** Accepted device move. */

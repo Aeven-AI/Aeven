@@ -357,8 +357,8 @@ export interface ConversationSessionHeaderInjected {
    * Session that is not synced, or a Host that is always on, offers none.
    */
   devicePlacement: () => Promise<SessionDevicePlacement>
-  /** Run this Session's next turns on this computer, or on the account's always-on device. */
-  continueOn: (target: 'here' | 'always-on') => Promise<void>
+  /** Run this Session's next turns on this computer, on the account's always-on device, or on its desktop. */
+  continueOn: (target: 'here' | 'always-on' | 'desktop') => Promise<void>
   /** Select and activate one registered Conversation View. */
   selectView: (view: string) => void
 }
@@ -369,6 +369,8 @@ export interface SessionDevicePlacement {
   readonly here: boolean
   /** Name of the always-on device to offer "Continue in …", such as "Aeven Cloud". */
   readonly alwaysOn?: string
+  /** Name of the account's desktop to offer "Continue on …" from Aeven Web. */
+  readonly desktop?: string
 }
 
 /** One Workspace the header offers as a move destination. */

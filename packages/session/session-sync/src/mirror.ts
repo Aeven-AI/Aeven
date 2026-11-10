@@ -50,6 +50,8 @@ interface DeviceEntry {
   name: string
   /** Set by a device that keeps its relay connection open while no client is attached, such as Aeven Cloud. */
   alwaysOn?: boolean
+  /** When a device without `alwaysOn` last stamped its open relay connection, in milliseconds since the Unix epoch. */
+  seenAt?: number
 }
 
 /** Where sessions are filed on this device; the workspace registry provides it. */
@@ -174,6 +176,13 @@ export interface SessionSyncTuning {
   outboxLimit: number
   /** How long a forwarded input waits for the device it was typed on before any other device may run it. */
   inputGraceMs: number
+  /**
+   * How long the always-on device waits for a desktop to take an input forwarded to it before running the input
+   * itself. Longer than `inputGraceMs`, so a desktop that reads the inbox by the older rule still takes it first.
+   */
+  remoteFallbackMs: number
+  /** How recent a desktop's `seenAt` must be for the always-on device to send it a new conversation. */
+  presenceWindowMs: number
   /** How long a cancel, queue change, or answer waits for a running turn before it is discarded. */
   inputExpiryMs: number
   /** How long a read of an attachment a synced conversation cites waits for another device to publish it. */
@@ -264,6 +273,8 @@ interface InboxEntry {
   input: SessionHandoffInput
   /** The device that forwarded it. */
   from: string
+  /** The device the input was forwarded to, when the forwarding device chose one; older builds ignore it. */
+  to?: string
   /** When it was forwarded, in milliseconds since the Unix epoch; inputs apply in this order. */
   at: number
 }
@@ -997,19 +1008,75 @@ export class SessionMirror {
    * @returns that device, or undefined when this device is it, the writer is not always on, or none is recorded.
    */
   homeOf(sessionId: SessionId): SessionRunner | undefined {
-    const home = this.preferredDevice(sessionId)
-    if (home === undefined || home === this.device()) return undefined
-    return { device: home, name: this.devices()?.get(home)?.name ?? '' }
+    const me = this.device()
+    const devices = this.devices()
+    if (me === undefined || devices === undefined) return undefined
+    const writer = this.docs?.index.doc.getMap<IndexEntry>('sessions').get(sessionId)?.writer
+    let home: string | undefined
+    if (writer !== undefined && writer !== me) {
+      // An always-on writer keeps its conversations; the always-on device sends a desktop's conversation back to it
+      // unless that desktop's presence stamp is stale. A desktop that never stamps gets it, with the inbox fallback.
+      const entry = devices.get(writer)
+      const stale = entry?.seenAt !== undefined && Date.now() - entry.seenAt > this.tuning.presenceWindowMs
+      if (entry?.alwaysOn === true || (devices.get(me)?.alwaysOn === true && !stale)) home = writer
+    } else if (writer === undefined && devices.get(me)?.alwaysOn === true) {
+      // A conversation no device has run yet goes to the account's desktop that is on now, else stays here.
+      home = this.presentDesktop()
+    }
+    if (home === undefined) return undefined
+    return { device: home, name: devices.get(home)?.name ?? '' }
   }
 
   /**
-   * The device that gets the first chance at a session's forwarded input: its last writer when that device is always on.
+   * The device that gets the first chance at a session's forwarded input: its last writer.
    * @param sessionId - the session.
-   * @returns the device id, which may be this device, or undefined when the session has no always-on writer.
+   * @returns the device id, which may be this device, or undefined when no device has run the session.
    */
   private preferredDevice(sessionId: SessionId): string | undefined {
     const writer = this.docs?.index.doc.getMap<IndexEntry>('sessions').get(sessionId)?.writer
-    return writer !== undefined && this.devices()?.get(writer)?.alwaysOn === true ? writer : undefined
+    return writer !== undefined && this.devices()?.has(writer) === true ? writer : undefined
+  }
+
+  /**
+   * The account's most recently seen device without `alwaysOn`, other than this one.
+   * @param withinMs - how recent its `seenAt` must be; undefined accepts any, and devices that never stamped come last.
+   * @returns the device id, or undefined when there is none.
+   */
+  private latestDesktop(withinMs?: number): string | undefined {
+    const me = this.device()
+    const now = Date.now()
+    let best: { id: string; seenAt: number } | undefined
+    for (const [id, entry] of this.devices()?.entries() ?? []) {
+      if (id === me || entry.alwaysOn === true) continue
+      const seenAt = entry.seenAt ?? 0
+      if (withinMs !== undefined && (entry.seenAt === undefined || now - seenAt > withinMs)) continue
+      if (best === undefined || seenAt > best.seenAt) best = { id, seenAt }
+    }
+    return best?.id
+  }
+
+  /**
+   * The account's desktop to send a new conversation to: among the desktops that stamped their connection within the
+   * presence window, the one that ran the most recently updated conversation, else the most recently stamped one.
+   * Every open desktop stamps once per `presenceMs`, so the stamp alone does not say which one the user is at.
+   */
+  private presentDesktop(): string | undefined {
+    const me = this.device()
+    const now = Date.now()
+    const present = new Set<string>()
+    for (const [id, entry] of this.devices()?.entries() ?? []) {
+      if (id !== me && entry.alwaysOn !== true && entry.seenAt !== undefined && now - entry.seenAt <= this.tuning.presenceWindowMs) {
+        present.add(id)
+      }
+    }
+    if (present.size === 0) return undefined
+    let used: { id: string; at: number } | undefined
+    for (const entry of this.entries().values()) {
+      if (entry.writer === undefined || !present.has(entry.writer)) continue
+      const at = entry.updatedAt ?? 0
+      if (used === undefined || at > used.at) used = { id: entry.writer, at }
+    }
+    return used?.id ?? this.latestDesktop(this.tuning.presenceWindowMs)
   }
 
   /**
@@ -1030,6 +1097,10 @@ export class SessionMirror {
         ? {}
         : { home: { device: writer, name: devices.get(writer)?.name ?? '', alwaysOn: devices.get(writer)?.alwaysOn === true } },
       ...always === undefined ? {} : { alwaysOn: { device: always[0], name: always[1].name } },
+      ...((): Partial<HandoffPlacement> => {
+        const desktop = this.latestDesktop()
+        return desktop === undefined ? {} : { desktop: { device: desktop, name: devices.get(desktop)?.name ?? '' } }
+      })(),
     }
   }
 
@@ -1037,15 +1108,15 @@ export class SessionMirror {
    * Make this device or an always-on device the session's home. Only the index entry changes: the next turn-starting
    * input runs here, or is forwarded to that device.
    * @param sessionId - the session.
-   * @param device - this device's id or an always-on device's.
-   * @throws when another device runs a turn of the session, or the device is neither this one nor always on.
+   * @param device - the id of this device or another device of the account.
+   * @throws when another device runs a turn of the session, or the device is not one of the account's.
    */
   async moveTo(sessionId: SessionId, device: string): Promise<void> {
     await this.starting
     const me = this.device()
     if (me === undefined || this.docs === undefined) throw new Error('account sync has not started on this device')
-    if (device !== me && this.devices()?.get(device)?.alwaysOn !== true) {
-      throw new Error(`device ${device} is neither this device nor always on`)
+    if (device !== me && this.devices()?.has(device) !== true) {
+      throw new Error(`device ${device} is not a device of this account`)
     }
     if (this.runnerOf(sessionId) !== undefined) throw new Error('another device runs a turn of this session now')
     const entry = this.entries().get(sessionId)
@@ -1098,12 +1169,12 @@ export class SessionMirror {
       // The input still travels; its attachments upload again with the events that reference them.
       this.warn(`session sync: publishing a forwarded input's attachments failed: ${String(error)}`)
     })
-    this.enqueue(sessionId, input, me)
+    this.enqueue(sessionId, input, me, this.homeOf(sessionId)?.device)
     this.consumeInbox()
   }
 
-  private enqueue(sessionId: SessionId | string, input: SessionHandoffInput, from: string): void {
-    const entry: InboxEntry = { session: sessionId, input, from, at: Date.now() }
+  private enqueue(sessionId: SessionId | string, input: SessionHandoffInput, from: string, to?: string): void {
+    const entry: InboxEntry = { session: sessionId, input, from, at: Date.now(), ...to === undefined ? {} : { to } }
     this.pending().set(`${String(entry.at).padStart(16, '0')}:${randomUUID()}`, entry)
   }
 
@@ -1140,8 +1211,16 @@ export class SessionMirror {
           continue
         }
       } else if (!runsHere) {
-        // The session's always-on writer gets the first chance to run it, otherwise the device it was typed on.
-        if ((this.preferredDevice(sessionId) ?? entry.from) !== me && entry.at + this.tuning.inputGraceMs > now) continue
+        // The device the input was sent to, else the session's writer, else the device it was typed on, gets the
+        // first chance to run it. The always-on device waits longer for a desktop, which may read by the older rule.
+        const first = entry.to ?? this.preferredDevice(sessionId) ?? entry.from
+        const alwaysOnHere = this.devices()?.get(me)?.alwaysOn === true
+        // An input sent to one desktop runs there or, after the fallback, on the always-on device; never on another desktop.
+        if (entry.to !== undefined && entry.to !== me && !alwaysOnHere) continue
+        const waitMs = alwaysOnHere && this.devices()?.get(first)?.alwaysOn !== true
+          ? this.tuning.remoteFallbackMs
+          : this.tuning.inputGraceMs
+        if (first !== me && entry.at + waitMs > now) continue
         if (this.runnerOf(sessionId) !== undefined) continue
         const claimed = await this.claim(sessionId).catch((error: unknown) => {
           this.warn(`session sync: taking a session for forwarded input failed: ${String(error)}`)

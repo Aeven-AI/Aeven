@@ -71,6 +71,11 @@ export interface Config {
    */
   keepConnected: boolean
   /**
+   * How often a device without `keepConnected` stamps `seenAt` on its device entry while its relay connection is
+   * open, so the account's always-on device can tell a desktop that is on from one that is asleep or closed.
+   */
+  presenceMs: number
+  /**
    * Logical names of documents fetched before the rest of a catch-up when this device holds no state for them, so
    * a new device shows the account's conversation and workspace lists before the long tail arrives. Defaults to
    * none, so every document arrives in relay order.
@@ -119,6 +124,7 @@ export default class YjsSync extends Sync {
     lanRetryMs: Schema.natural().min(100).default(5_000),
     lanMaxBytes: Schema.natural().min(1_024).default(8_388_608),
     keepConnected: Schema.boolean().default(false),
+    presenceMs: Schema.natural().min(1_000).default(60_000),
     firstDocuments: Schema.array(Schema.string()).default([]),
   })
 
@@ -299,13 +305,18 @@ export default class YjsSync extends Sync {
     const device = account.vault.status().device
     if (!account.vault.ready() || device === undefined) return
     const names = account.vault.openDocument(DEVICES)
-    const map = names.doc.getMap<{ name: string; alwaysOn?: boolean }>('names')
+    const map = names.doc.getMap<{ name: string; alwaysOn?: boolean; seenAt?: number }>('names')
     const current = map.get(device)
     // A device that stays connected without a client, such as Aeven Cloud, says so; older builds read only `name`.
-    if (current?.name !== this.config.deviceName || (current.alwaysOn === true) !== this.config.keepConnected) {
-      map.set(device, { name: this.config.deviceName, ...this.config.keepConnected ? { alwaysOn: true } : {} })
-      this.ctx.emit('sync/devices', owner)
+    // Any other device stamps when it was last connected, which the always-on device reads as presence.
+    const changed = current?.name !== this.config.deviceName || (current.alwaysOn === true) !== this.config.keepConnected
+    if (changed || !this.config.keepConnected) {
+      map.set(device, {
+        name: this.config.deviceName,
+        ...this.config.keepConnected ? { alwaysOn: true } : { seenAt: Date.now() },
+      })
     }
+    if (changed) this.ctx.emit('sync/devices', owner)
     names.close()
   }
 
@@ -348,7 +359,12 @@ export default class YjsSync extends Sync {
     }
     // The user turned sync off while the connection opened.
     if (!account.vault.enabled()) relay.close()
+    const presence = this.config.keepConnected
+      ? undefined
+      : setInterval(() => { if (this.live(owner, account)) this.nameDevice(owner, account) }, this.config.presenceMs)
+    presence?.unref()
     await relay.closed
+    clearInterval(presence)
     delete account.relay
   }
 
