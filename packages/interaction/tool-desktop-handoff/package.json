@@ -40,7 +40,9 @@
   },
   "devDependencies": {
     "@aeven/agent": "workspace:^",
+    "@aeven/llm": "workspace:^",
     "@aeven/scope": "workspace:^",
+    "@aeven/system-prompt": "workspace:^",
     "@aeven/timeout": "workspace:^",
     "@aeven/tools": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
