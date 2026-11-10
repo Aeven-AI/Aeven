@@ -784,7 +784,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'runNow(id: AutomationId): Promise<AutomationRun>',
-        description: 'Admit a manual run; paused tasks can be run manually.',
+        description: 'Admit a manual run on its execution Host; paused tasks can be run manually. Cloud requests are durable in account sync and continue after the requesting client stops.',
         parameters: [{ name: 'id', description: 'owned automation identity.' }],
         returns: 'durable run admission.',
       },
@@ -816,7 +816,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         signature: 'retry(id: AutomationRunId): Promise<AutomationRun>',
         description: 'Deliberately retry one unresolved failed run using its original approved task.',
         parameters: [{ name: 'id', description: 'owned failed, skipped, or cancelled run identity.' }],
-        returns: 'a new linked admission; no earlier conversation or grant is inherited.',
+        returns: 'a new linked admission or durable cloud request; execution follows the original task placement. No earlier conversation or grant is inherited.',
       },
     ],
   },

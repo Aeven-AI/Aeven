@@ -865,7 +865,8 @@ create(input: AutomationInput, agent?: Agent): Promise<AutomationDefinition>
  */
 update(id: AutomationId, patch: { [K in keyof AutomationInput]?: AutomationInput[K] | undefined } & { status?: 'active' | 'paused' | undefined }): Promise<AutomationDefinition>
 
-/** Admit a manual run; paused tasks can be run manually.
+/** Admit a manual run on its execution Host; paused tasks can be run manually.
+ * Cloud requests are durable in account sync and continue after the requesting client stops.
  * @param id - owned automation identity.
  * @returns durable run admission.
  */
@@ -904,7 +905,8 @@ removeRun(id: AutomationRunId): Promise<void>
 
 /** Deliberately retry one unresolved failed run using its original approved task.
  * @param id - owned failed, skipped, or cancelled run identity.
- * @returns a new linked admission; no earlier conversation or grant is inherited.
+ * @returns a new linked admission or durable cloud request; execution follows the original task placement.
+ * No earlier conversation or grant is inherited.
  */
 retry(id: AutomationRunId): Promise<AutomationRun>
 ```
