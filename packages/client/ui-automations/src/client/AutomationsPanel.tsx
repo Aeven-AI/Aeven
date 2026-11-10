@@ -558,7 +558,7 @@ export function AutomationsPanel({ t, inputActions, list, call, openRun, view, s
                           />
                         </span>
                       </Tooltip>
-                      <span className={css.status} data-tone={task.status}>{t(task.status)}</span>
+                      <span className={css.status}>{t(task.status)}</span>
                     </div>
                   </article>
                 )
