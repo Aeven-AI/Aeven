@@ -67,19 +67,32 @@ function useNativeDragAcceptance(active: boolean): void {
   }, [active])
 }
 
-/** Reconcile a stored view order with the Workspace's current session account. */
-function reconciledSessionOrder(sessionIds: readonly SessionId[], stored: readonly string[] | undefined): SessionId[] {
-  if (stored === undefined) return [...sessionIds]
-  const byId = new Map(sessionIds.map(id => [id as string, id]))
+/**
+ * Lift blank Sessions to the head of an order, keeping the rest in place. New Session reuses a Workspace's
+ * blank Session wherever its slot sits, and a New Session row always leads its Workspace.
+ */
+function blankFirst(order: readonly SessionId[], byId: SessionListState['byId']): SessionId[] {
+  const blank = order.filter(id => byId[id]?.blank === true)
+  return blank.length === 0 ? [...order] : [...blank, ...order.filter(id => byId[id]?.blank !== true)]
+}
+
+/** Reconcile a stored view order with the Workspace's current session account; blank Sessions lead. */
+function reconciledSessionOrder(
+  sessionIds: readonly SessionId[],
+  stored: readonly string[] | undefined,
+  byId: SessionListState['byId'],
+): SessionId[] {
+  if (stored === undefined) return blankFirst(sessionIds, byId)
+  const known = new Map(sessionIds.map(id => [id as string, id]))
   const ordered: SessionId[] = []
   const included = new Set<string>()
   for (const key of stored) {
-    const id = byId.get(key)
+    const id = known.get(key)
     if (id === undefined || included.has(key)) continue
     ordered.push(id)
     included.add(key)
   }
-  return [...sessionIds.filter(id => !included.has(id)), ...ordered]
+  return blankFirst([...sessionIds.filter(id => !included.has(id)), ...ordered], byId)
 }
 
 /** Newest update first with stable Session identity as the tie-break. */
@@ -101,8 +114,10 @@ function nextSessionOrderAccount({
   // "Latest" orders every device the same way: by each session's last activity, never by what this window saw first.
   sortByRecency: boolean
 }): { order: SessionId[]; updatedAt: Record<string, number>; changed: boolean } {
-  const order = reconciledSessionOrder(sessionIds, previousOrder)
-  if (sortByRecency) order.sort((a, b) => compareSessionRecency(a, b, list.byId))
+  const reconciled = reconciledSessionOrder(sessionIds, previousOrder, list.byId)
+  const order = sortByRecency
+    ? blankFirst(reconciled.sort((a, b) => compareSessionRecency(a, b, list.byId)), list.byId)
+    : reconciled
   const updatedAt: Record<string, number> = {}
   for (const id of sessionIds) {
     const session = list.byId[id]
@@ -253,13 +268,13 @@ function SessionTree({
   const orderedWorkspaces = useMemo(() => {
     return workspaces.map((workspace) => {
       const stored = sessionOrderByAccount[workspace.workspaceId as string]
-      const sessionIds = reconciledSessionOrder(workspace.sessionIds, stored)
+      const sessionIds = reconciledSessionOrder(workspace.sessionIds, stored, list.byId)
       return { ...workspace, sessionIds }
     })
-  }, [sessionOrderByAccount, workspaces])
+  }, [list.byId, sessionOrderByAccount, workspaces])
   const orderedUngroupedSessionIds = useMemo(
-    () => reconciledSessionOrder(ungroupedSessionIds, sessionOrderByAccount[UNGROUPED_KEY]),
-    [sessionOrderByAccount, ungroupedSessionIds],
+    () => reconciledSessionOrder(ungroupedSessionIds, sessionOrderByAccount[UNGROUPED_KEY], list.byId),
+    [list.byId, sessionOrderByAccount, ungroupedSessionIds],
   )
   // Group order follows the session order mode: activity ranks the groups while
   // the list is ordered by last update, and the durable registry order — what a
