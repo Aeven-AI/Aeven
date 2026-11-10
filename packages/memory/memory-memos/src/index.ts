@@ -304,7 +304,8 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   const logger = ctx.logger('memory-memos')
   const home = resolveHome(MEMOS_AGENT, config.home)
   const loaded = await loadConfig(home, MEMOS_AGENT)
-  for (const warning of loaded.warnings) logger.warn(warning)
+  // `config.yaml` is optional, so MemOS's missing-file notice is not a fault here.
+  for (const warning of loaded.warnings) if (loaded.fromDisk || !warning.startsWith('config file not found')) logger.warn(warning)
   const configured = withLocalEmbedding(withHostLlm(loaded.config, config.hostLlm), config.embedding)
   const fingerprint = {
     version: REINDEX_VERSION,

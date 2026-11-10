@@ -362,6 +362,25 @@ export async function sweepSpillRoots(options: SweepOptions): Promise<void> {
 }
 
 /**
+ * Whether a discovered entry belongs to another OS user. On a shared tmpdir such
+ * a root is that user's own spill root, never this process's to sweep, so
+ * discovery skips it without a warning.
+ */
+async function isOtherUsersEntry(path: string): Promise<boolean> {
+  /* v8 ignore next -- POSIX ownership has no Windows equivalent. */
+  if (process.platform === 'win32' || process.geteuid === undefined) return false
+  let stats: Stats
+  try {
+    stats = await lstat(path)
+  } catch {
+    // An entry readdir just returned can only fail lstat by racing away or by a
+    // host ACL fault; resolveRoot inspects it again and reports a real failure.
+    return false
+  }
+  return stats.uid !== process.geteuid()
+}
+
+/**
  * Discover prior default spill roots: the `avn-spill-<6 chars>` directories
  * directly under `base` (the OS tmpdir) that earlier default-root runs created.
  * A long-lived deployment
@@ -370,7 +389,8 @@ export async function sweepSpillRoots(options: SweepOptions): Promise<void> {
  * is the EXACT `mkdtemp` shape (see {@link DEFAULT_ROOT_RE}), not the bare
  * prefix, so an unrelated `avn-spill-test-*` fixture or a foreign
  * differently-shaped directory is never swept; symlinks and non-directories are
- * excluded too — only real directories the backend could have created.
+ * excluded too — only real directories the backend could have created. Roots
+ * owned by another OS user are skipped silently.
  *
  * @param warn Sink for a failure reading `base` (returns `[]` on failure).
  * @param base The directory to scan; defaults to the OS tmpdir (a test seam).
@@ -388,6 +408,7 @@ async function discoverDefaultRootRecords(warn: WarnFn, base: string): Promise<R
   for (const name of entries) {
     if (!DEFAULT_ROOT_RE.test(name)) continue
     const path = join(base, name)
+    if (await isOtherUsersEntry(path)) continue
     const resolved = await resolveRoot(path, false, warn)
     if (resolved !== undefined) roots.push(resolved)
   }
