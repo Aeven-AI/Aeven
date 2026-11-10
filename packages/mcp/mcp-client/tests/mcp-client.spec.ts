@@ -992,10 +992,14 @@ describe('tool execution edge cases', () => {
     })
   })
 
-  it('reports unsupported embedded resources without discarding the raw block', async () => {
+  it('shows a text resource\'s contents and names a binary one without its bytes', async () => {
     const client = createMockClient(
       [{ name: 'res_tool', inputSchema: { type: 'object' } }],
-      { content: [{ type: 'resource' }] },
+      { content: [
+        { type: 'resource', resource: { uri: 'repo://a/package.json', mimeType: 'application/json', text: '{"version":"1.0.0"}' } },
+        { type: 'resource', resource: { uri: 'repo://a/logo.png', mimeType: 'image/png', blob: 'AAAA' } },
+        { type: 'resource' },
+      ] },
     )
 
     await syncTools(client as never, ctx, defaultOpts, new Map())
@@ -1003,7 +1007,9 @@ describe('tool execution edge cases', () => {
 
     expect(result.content[0]).toEqual({
       type: 'text',
-      text: '[embedded resource unsupported; raw resource data remains available to programmatic callers]',
+      text: 'Resource repo://a/package.json (application/json):\n{"version":"1.0.0"}\n'
+        + '[binary resource repo://a/logo.png (image/png), 3 bytes, not shown; raw resource data remains available to programmatic callers]\n'
+        + '[embedded resource unavailable: the MCP block carries no resource]',
     })
   })
 
