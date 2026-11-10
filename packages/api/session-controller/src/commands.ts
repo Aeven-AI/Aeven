@@ -862,7 +862,12 @@ export class SessionCommandController {
     // A session whose latest turn ran on an always-on device, such as Aeven Cloud, stays there with its files and
     // background jobs: the input is forwarded, that device takes it first, and this device runs it only when that
     // device does not pick it up within the account's input grace.
-    if (!this.applyingForwarded.has(sessionId) && handoff.homeOf(owner, sessionId) !== undefined) return owner
+    if (!this.applyingForwarded.has(sessionId) && handoff.homeOf(owner, sessionId) !== undefined) {
+      // Creating the session here took a claim whose lease the relay still holds for this device; the home device
+      // could not take the session while it is held, so the lease goes back before the input travels.
+      await handoff.endChange(owner, sessionId)
+      return owner
+    }
     const runner = handoff.runnerOf(owner, sessionId)
     // Directoryless chats can move between devices without a local folder binding.
     const recordedCwd = runner === undefined
