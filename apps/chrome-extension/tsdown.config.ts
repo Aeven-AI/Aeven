@@ -10,7 +10,8 @@ export default defineConfig([
     target: 'es2022',
     fixedExtension: false,
     dts: false,
-    clean: true,
+    // dist/ is tracked in git; builds overwrite it in place so a stale output shows in `git status`.
+    clean: false,
     copy: ['manifest.json', 'icons', 'src/connect.html'],
   },
   // The page Aeven opens to wake the worker when it starts the browser.
