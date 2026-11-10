@@ -979,7 +979,7 @@ class Tools(Protocol):
     async def wait_agent(self, args: WaitAgentArgs) -> WaitAgentOutput:
         """Wait for input at your next step, including agent messages, completion notifications, and user steering. Returns immediately when that input is already pending."""
     async def web_fetch(self, args: WebFetchArgs) -> WebFetchOutput:
-        """Fetch the content of a specific HTTP(S) URL and return it decoded to text. Runs no JavaScript, so a page that builds itself in a browser may return little or nothing."""
+        """Fetch the content of a specific HTTP(S) URL and return it decoded to text. Runs no JavaScript and carries no sign-in, so a page that builds itself in a browser or sits behind a login returns little or only its sign-in page; open such a page with preview_navigate when that tool is available."""
     async def web_search(self, args: WebSearchArgs) -> WebSearchOutput:
         """Search the web for current information. Returns an optional summary answer and a list of source URLs."""
     async def workflow(self, args: WorkflowArgs) -> WorkflowOutput:
