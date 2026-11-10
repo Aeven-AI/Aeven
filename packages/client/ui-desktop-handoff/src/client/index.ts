@@ -2,8 +2,8 @@
  * Browser half of the desktop hand-off. On a web client served by a Host that has no access to the reader's
  * computer, the right sidebar's Files, Browser, Terminal and Devices entries stay where they are and open the
  * "Available in Aeven Desktop" dialog, and so does a prompt the Host refuses because the conversation works in a
- * folder of a device that is not running it. The desktop app's own window never mounts it: there those entries are
- * real panes.
+ * folder of a device that is not running it, and so does the model's `offer_desktop` call for a request that needs
+ * the reader's computer. The desktop app's own window never mounts it: there those entries are real panes.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pulls ctx.locale into this program.
@@ -17,6 +17,10 @@ import type {} from '@aeven/client-ui-sidebar-select/client'
 import type { SidebarContentKind } from '@aeven/client-ui-sidebar-select/client'
 // Type-only: the conversation service's refusal handlers.
 import type {} from '@aeven/client-ui-conversation/client'
+// Type-only: the Remote Context merge (ctx.remote) and its forwarded `desktop-handoff/offer` request.
+import type {} from '@aeven/api-remotes/client'
+// Type-only: the sessions service that maps a scoped request to the session it belongs to.
+import type {} from '@aeven/api-session-controller/client'
 import type { SessionId } from '@aeven/session/types'
 import { HandoffModal, type HandoffModalInjected } from './HandoffModal.tsx'
 import { createHandoffStore } from './store.ts'
@@ -73,6 +77,16 @@ export function apply(ctx: ClientContext): void {
       () => scoped.uiConversation.registerRefusalHandler(NO_LOCAL_DIRECTORY, (sessionId: SessionId) => { store.show('folder', sessionId) }),
       'ui-desktop-handoff: folder refusal',
     )
+  })
+  ctx.inject(['remote', 'sessions'], (shown) => {
+    // The model's `offer_desktop` reaches the window showing its session; a window showing another session delegates.
+    // It arrives as a live event, so a conversation loaded from its history never reopens the dialog.
+    shown.remote.$on('desktop-handoff/offer', function (request, next) {
+      const sessionId = shown.sessions.scopeOf(this)
+      if (sessionId === undefined) return next()
+      store.show(request.reason, sessionId)
+      return Promise.resolve('shown')
+    })
   })
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay',

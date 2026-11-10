@@ -48,6 +48,7 @@ This table connects model-visible tool names to the plugin package and service s
 | `@aeven/tool-web` | `web_fetch`, `web_search` | `ctx.tools`, `ctx.web`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps. |
 | `@aeven/tool-browser` | `preview_back`, `preview_bookmarks`, `preview_browser_control`, `preview_check`, `preview_click`, `preview_clipboard`, `preview_console`, `preview_content`, `preview_dialog`, `preview_drag`, `preview_evaluate`, `preview_export_document`, `preview_forward`, `preview_handoff`, `preview_history`, `preview_hover`, `preview_navigate`, `preview_page_tools`, `preview_press`, `preview_read`, `preview_reload`, `preview_screenshot`, `preview_scroll`, `preview_select`, `preview_sequence`, `preview_snapshot`, `preview_status`, `preview_tabs`, `preview_type`, `preview_upload`, `preview_wait` | `ctx.tools`, `ctx.agents`, `a browser/automation listener (execution time)` | `tool/call`, `tool/result` | - | preview_* calls are answered by the Client holding the session's browser; each call is bounded by the tool timeout. |
 | `@aeven/tool-read-aloud` | `read_aloud` | `ctx.tools` | `tool/call`, `tool/result` | - | The tool is a pure instruction: it logs the switch it was given and speaks nothing on the Host. The Web Surface reads the settled call and moves its own reader, so the model can start language practice without a Session event of its own. |
+| `@aeven/tool-desktop-handoff` | `offer_desktop` | `ctx.tools`, `ctx.agents`, `a desktop-handoff/offer listener (execution time)` | `tool/call`, `tool/result` | - | Aeven Web mounts it: the call opens the Available in Aeven Desktop dialog in the window showing the session and changes nothing on the Host. |
 | `@aeven/tool-location` | `get_location` | `ctx.tools`, `ctx.agents`, `a location/request listener (execution time)` | `tool/call`, `tool/result` | - | get_location is answered by the Client showing the session, after the reader chooses; the call is bounded by the tool timeout. |
 | `@aeven/tool-capability` | `capability_manage` | `ctx.tools`, `ctx.systemPrompt`, `ctx.capabilities`, `ctx.llm`, `ctx.memory (default store)`, `an Agent whose session has an owner at execution time` | `tool/call`, `tool/result`, `capabilities/changed for the capabilities store`, `long-term memory for a learned procedure under the default store` | - | The registered actions depend on the load-time `store` config: the default `memory` stores a learned procedure as a long-term memory and registers only `learn` and `import`, while `capabilities` keeps it as a capability file and registers list, view, learn, update, write_file, report, retire, and restore. The learner and procedure recall run behind the same package and contribute no tool of their own. |
 | `@aeven/tool-device` | `device_close`, `device_list`, `device_open`, `device_screenshot` | `ctx.tools`, `ctx.devices (execution time)`, `ctx.attachments + ctx.llm on an image-capable route (device_screenshot)`, `a calling Agent for per-session device ownership` | `tool/call`, `tool/result`, `the session's device pane state`, `a durable image attachment for a screenshot` | - | All four tools register on every host; a deployment without `ctx.devices`, with device support turned off, or without agent access answers with its own fixed sentence instead of hiding the tool. Driving a device goes through the agent-device CLI that `device_open` returns, not through a tool per device operation. |
@@ -4019,6 +4020,40 @@ Turn spoken read-aloud of your replies on or off for this session. Switch it on 
 Source: [`packages/speech/tool-read-aloud/src/index.ts`](../packages/speech/tool-read-aloud/src/index.ts)
 
 The tool is a pure instruction: it logs the switch it was given and speaks nothing on the Host. The Web Surface reads the settled call and moves its own reader, so the model can start language practice without a Session event of its own.
+
+<a id="aeventool-desktop-handoff"></a>
+
+## `@aeven/tool-desktop-handoff`
+
+### `offer_desktop`
+
+Offer the user the Aeven desktop app when their request needs their own computer and this environment cannot do it: controlling apps on their computer (computer use), their own files and folders, a terminal on their machine, phone simulators, or local models. A dialog opens in the user's window with a button that continues this conversation in Aeven Desktop. Call it once, at the point where you would otherwise say the request cannot be done here, and never for something this environment can do.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "reason": {
+      "type": "string",
+      "description": "What the request needs: computer (apps and computer use), files (their own files and folders), terminal, device (phone simulators and emulators), or models (models that run on their machine).",
+      "enum": [
+        "computer",
+        "files",
+        "terminal",
+        "device",
+        "models"
+      ]
+    }
+  },
+  "required": [
+    "reason"
+  ]
+}
+```
+
+Source: [`packages/interaction/tool-desktop-handoff/src/index.ts`](../packages/interaction/tool-desktop-handoff/src/index.ts)
+
+Aeven Web mounts it: the call opens the Available in Aeven Desktop dialog in the window showing the session and changes nothing on the Host.
 
 <a id="aeventool-location"></a>
 

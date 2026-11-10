@@ -1,8 +1,11 @@
 /** What the hand-off dialog shows: whether it is open, why, and for which conversation. */
 import { createSnapshotStore, type SnapshotStore } from '@aeven/client-store'
 
-/** Why the reader needs the desktop app: a sidebar pane, or a conversation whose folder is on their computer. */
-export type HandoffReason = 'files' | 'browser' | 'terminal' | 'device' | 'folder'
+/**
+ * Why the reader needs the desktop app: a sidebar pane, a conversation whose folder is on their computer, or a request
+ * the model offered the desktop app for (`computer`, `models`, and the panes' own reasons).
+ */
+export type HandoffReason = 'files' | 'browser' | 'terminal' | 'device' | 'folder' | 'computer' | 'models'
 
 /** The dialog's state. */
 export interface HandoffState {

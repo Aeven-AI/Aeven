@@ -430,6 +430,10 @@
         disabled: false
       - id: tool-device
         disabled: true
+      # A request that needs the reader's own computer opens the "Available in
+      # Aeven Desktop" dialog in their window instead of a dead end.
+      - id: tool-desktop-handoff
+        disabled: false
       - id: tool-cordis
         disabled: true
       - id: tool-presentation

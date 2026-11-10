@@ -319,6 +319,7 @@ flowchart TD
     pkg_commands["commands"]
     pkg_permission_presets["permission-presets"]
     pkg_tool_ask_user["tool-ask-user"]
+    pkg_tool_desktop_handoff["tool-desktop-handoff"]
     pkg_tool_location["tool-location"]
     pkg_user_approval["user-approval"]
     pkg_user_questions["user-questions"]
@@ -1071,6 +1072,10 @@ flowchart TD
   pkg_tool_ask_user --> pkg_agent
   pkg_tool_ask_user --> pkg_tools
   pkg_tool_ask_user --> pkg_user_questions
+  pkg_tool_desktop_handoff --> pkg_agent
+  pkg_tool_desktop_handoff --> pkg_scope
+  pkg_tool_desktop_handoff --> pkg_timeout
+  pkg_tool_desktop_handoff --> pkg_tools
   pkg_tool_location --> pkg_agent
   pkg_tool_location --> pkg_llm
   pkg_tool_location --> pkg_scope
@@ -1921,6 +1926,7 @@ flowchart TD
 | [`tool-call-access-policy`](../packages/guard/access-policy) | `guard` | [`sandbox`](../packages/sandbox/sandbox), [`sandbox-policy`](../packages/sandbox/sandbox-policy), [`tools`](../packages/core/tools) |
 | [`tool-call-timeout-policy`](../packages/guard/timeout-policy) | `guard` | [`llm`](../packages/llm/llm), [`timeout`](../packages/util/timeout), [`tools`](../packages/core/tools) |
 | [`tool-ask-user`](../packages/interaction/tool-ask-user) | `interaction` | [`agent`](../packages/core/agent), [`tools`](../packages/core/tools), [`user-questions`](../packages/interaction/user-questions) |
+| [`tool-desktop-handoff`](../packages/interaction/tool-desktop-handoff) | `interaction` | [`agent`](../packages/core/agent), [`scope`](../packages/core/scope), [`timeout`](../packages/util/timeout), [`tools`](../packages/core/tools) |
 | [`tool-location`](../packages/interaction/tool-location) | `interaction` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`scope`](../packages/core/scope), [`timeout`](../packages/util/timeout), [`tools`](../packages/core/tools) |
 | [`tool-jobs`](../packages/jobs/tool-jobs) | `jobs` | [`agent`](../packages/core/agent), [`jobs`](../packages/jobs/jobs), [`llm`](../packages/llm/llm), [`output-retention`](../packages/util/output-retention), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools) |
 | [`tool-lsp`](../packages/lsp/tool-lsp) | `lsp` | [`llm`](../packages/llm/llm), [`lsp`](../packages/lsp/lsp), [`system-prompt`](../packages/core/system-prompt), [`timeout`](../packages/util/timeout), [`tools`](../packages/core/tools), [`working-directory`](../packages/session/working-directory) |
