@@ -4,7 +4,7 @@ import {
   Button, IconBotFaceAnimated, IconBotFaceLooping, IconChevronDownOutline14, IconCopyOutline16, IconEditOutline16, IconLucideCheck,
   IconLucideClock, IconLucideMinus,
   IconLucidePause, IconLucidePlay,
-  IconLucideRotateCcw, IconLucideX, IconTrashOutline16, Modal, Spinner, Tooltip, writeClipboard,
+  IconLucideRotateCcw, IconLucideX, IconStopFill16, IconTrashOutline16, Modal, Spinner, Tooltip, writeClipboard,
 } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import type {} from '@aeven/client-ui-conversation/client'
@@ -164,6 +164,8 @@ export function AutomationsPanel({ t, inputActions, list, call, openRun, view, s
   /** Credential of the one expanded automation, read on demand and dropped when it folds. */
   const [credential, setCredential] = useState<{ id: string; value: WebhookCredential } | null>(null)
   const [copied, setCopied] = useState(false)
+  /** Runs whose stop was sent; a cloud run stays active until its cloud Host reports the stop. */
+  const [stopping, setStopping] = useState<ReadonlySet<string>>(new Set())
   useEffect(() => {
     if (!connected) return
     let alive = true
@@ -396,6 +398,7 @@ export function AutomationsPanel({ t, inputActions, list, call, openRun, view, s
             <div className={css.list}>
               {data.definitions.map((task) => {
                 const hook = credential?.id === task.id ? credential.value : null
+                const current = data.runs.find(run => run.definition.id === task.id && (run.status === 'queued' || run.status === 'running'))
                 return (
                   <article className={css.card} key={task.id}>
                     <button
@@ -511,12 +514,22 @@ export function AutomationsPanel({ t, inputActions, list, call, openRun, view, s
                       </>
                     )}
                     <div className={css.cardActions}>
-                      <Button
-                        variant="primary" size="sm" className={css.runNow} icon={<IconLucidePlay />}
-                        disabled={unavailable} onClick={() => { act('run', task.id) }}
-                      >
-                        {t('run')}
-                      </Button>
+                      {current === undefined ? (
+                        <Button
+                          variant="primary" size="sm" className={css.runNow} icon={<IconLucidePlay />}
+                          disabled={unavailable} onClick={() => { act('run', task.id) }}
+                        >
+                          {t('run')}
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="primary" size="sm" className={css.runNow} icon={<IconStopFill16 />}
+                          disabled={unavailable || stopping.has(current.id)}
+                          onClick={() => { setStopping(value => new Set(value).add(current.id)); act('stop', current.id) }}
+                        >
+                          {t('stop')}
+                        </Button>
+                      )}
                       <Tooltip label={t(task.status === 'active' ? 'pause' : 'resume')} side="top" anchor="icon">
                         <span className={css.tip}>
                           <Button
@@ -545,7 +558,7 @@ export function AutomationsPanel({ t, inputActions, list, call, openRun, view, s
                           />
                         </span>
                       </Tooltip>
-                      {task.status === 'active' && <span className={css.status} data-tone={task.status}>{t(task.status)}</span>}
+                      <span className={css.status} data-tone={task.status}>{t(task.status)}</span>
                     </div>
                   </article>
                 )
