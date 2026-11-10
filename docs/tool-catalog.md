@@ -2732,7 +2732,7 @@ Source: [`packages/workflow/tool-workflow/src/index.ts`](../packages/workflow/to
 
 ### `web_fetch`
 
-Fetch the content of a specific HTTP(S) URL and return it decoded to text. Runs no JavaScript, so a page that builds itself in a browser may return little or nothing.
+Fetch the content of a specific HTTP(S) URL and return it decoded to text. Runs no JavaScript and carries no sign-in, so a page that builds itself in a browser or sits behind a login returns little or only its sign-in page; open such a page with preview_navigate when that tool is available.
 
 ```json
 {
@@ -3298,7 +3298,7 @@ Source: [`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/
 
 ### `preview_navigate`
 
-Navigate the collaborative browser tab, opening that browser beside the session when it is closed. Use it whenever the user asks to open, visit, or go to a website or URL, rather than a shell command that opens another browser. Pass {url:'https://t3.chat'} for a website. A localhost or loopback address opens here only when the person's own request names it; a page you are building belongs to the Chrome DevTools browser.
+Navigate the collaborative browser tab: in the desktop app the browser beside the session, opened when it is closed; on Aeven Web a tab of the user's own browser, opened through the Aeven extension, where they are signed in to their sites. It reads pages web_fetch cannot, such as a page behind a sign-in or one that builds itself with JavaScript. Use it whenever the user asks to open, visit, or go to a website or URL, rather than a shell command that opens another browser. Pass {url:'https://t3.chat'} for a website. A localhost or loopback address opens here only when the person's own request names it; a page you are building belongs to the Chrome DevTools browser.
 
 ```json
 {

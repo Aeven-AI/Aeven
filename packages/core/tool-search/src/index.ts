@@ -464,13 +464,29 @@ export function apply(ctx: Context, config: Config): void {
     const reports = await servers(agent)
     const candidates = deferredTools(agent).map(tool => ({ tool, title: titleOf(tool.name, reports) }))
     const found = searchTools(candidates, query, limit)
+    // A tool the model already holds is invisible to the deferred index, so a search for it would otherwise answer
+    // that nothing matches and the model would conclude the capability is missing.
+    const loaded = searchTools(
+      ctx.tools.schemas(agent)
+        .filter(tool => tool.name !== TOOL_NAME && !deferred(tool.name))
+        .map(tool => ({ tool, title: 'loaded' })),
+      query,
+      limit,
+    )
+    const loadedLines = loaded.length === 0
+      ? []
+      : ['Already loaded, call directly:', ...loaded.map(({ tool }) => `- ${tool.name}: ${summary(tool.description)}`)]
     if (found.length === 0) {
       const titles = [...new Set(candidates.map(candidate => candidate.title))].sort()
-      return `No deferred tool matches "${query}". Deferred namespaces: ${titles.length === 0 ? 'none' : titles.join('; ')}.`
+      return [
+        `No deferred tool matches "${query}". Deferred namespaces: ${titles.length === 0 ? 'none' : titles.join('; ')}.`,
+        ...loadedLines,
+      ].join('\n')
     }
     return [
       ...found.map(({ tool, title }) => `- ${tool.name} (${title}): ${summary(tool.description)}`),
       `Nothing was loaded. Load tools with ${TOOL_NAME} "select:${found.map(({ tool }) => tool.name).join(',')}" or a subset.`,
+      ...loadedLines,
     ].join('\n')
   }
 

@@ -493,7 +493,7 @@ export function applyWebFetchTool(ctx: Context, timeoutMs: number, maxOutputChar
 
   ctx.tools.register(defineTool({
     name: 'web_fetch',
-    description: 'Fetch the content of a specific HTTP(S) URL and return it decoded to text. Runs no JavaScript, so a page that builds itself in a browser may return little or nothing.',
+    description: 'Fetch the content of a specific HTTP(S) URL and return it decoded to text. Runs no JavaScript and carries no sign-in, so a page that builds itself in a browser or sits behind a login returns little or only its sign-in page; open such a page with preview_navigate when that tool is available.',
     parameters: {
       url: { type: 'string', required: true, description: 'The HTTP(S) URL to fetch.' },
     },

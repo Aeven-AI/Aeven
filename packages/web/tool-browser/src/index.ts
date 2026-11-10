@@ -671,7 +671,7 @@ export function apply(ctx: Context, config: Config): void {
       },
     }),
     action('preview_navigate', 'navigate',
-      "Navigate the collaborative browser tab, opening that browser beside the session when it is closed. Use it whenever the user asks to open, visit, or go to a website or URL, rather than a shell command that opens another browser. Pass {url:'https://t3.chat'} for a website. A localhost or loopback address opens here only when the person's own request names it; a page you are building belongs to the Chrome DevTools browser.",
+      "Navigate the collaborative browser tab: in the desktop app the browser beside the session, opened when it is closed; on Aeven Web a tab of the user's own browser, opened through the Aeven extension, where they are signed in to their sites. It reads pages web_fetch cannot, such as a page behind a sign-in or one that builds itself with JavaScript. Use it whenever the user asks to open, visit, or go to a website or URL, rather than a shell command that opens another browser. Pass {url:'https://t3.chat'} for a website. A localhost or loopback address opens here only when the person's own request names it; a page you are building belongs to the Chrome DevTools browser.",
       { url: { type: 'string', required: true, description: 'Website URL. Use this for public pages and directly reachable URLs.' } }),
     action('preview_back', 'back',
       'Go back one page in the collaborative browser tab, showing the pointer pressing the control.',

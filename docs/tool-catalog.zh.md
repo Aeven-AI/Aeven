@@ -2736,7 +2736,7 @@ todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为
 
 ### `web_fetch`
 
-获取指定 HTTP(S) URL 的内容，并将其解码为文本后返回。
+Fetch the content of a specific HTTP(S) URL and return it decoded to text. Runs no JavaScript and carries no sign-in, so a page that builds itself in a browser or sits behind a login returns little or only its sign-in page; open such a page with preview_navigate when that tool is available.
 
 ```json
 {
@@ -3302,7 +3302,7 @@ Move the pointer over one target without clicking, to open a hover menu or toolt
 
 ### `preview_navigate`
 
-在协作浏览器标签页中导航。该浏览器处于关闭状态时，会在会话旁将其打开。当用户要求打开、访问或前往某个网站或 URL 时都应使用该工具，而不是用会另开一个浏览器的 shell 命令。传入 {url:'https://t3.chat'} 访问网站，或传入本地开发服务器 URL 访问本地开发服务器。
+Navigate the collaborative browser tab: in the desktop app the browser beside the session, opened when it is closed; on Aeven Web a tab of the user's own browser, opened through the Aeven extension, where they are signed in to their sites. It reads pages web_fetch cannot, such as a page behind a sign-in or one that builds itself with JavaScript. Use it whenever the user asks to open, visit, or go to a website or URL, rather than a shell command that opens another browser. Pass {url:'https://t3.chat'} for a website. A localhost or loopback address opens here only when the person's own request names it; a page you are building belongs to the Chrome DevTools browser.
 
 ```json
 {
