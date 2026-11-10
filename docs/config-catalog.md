@@ -615,18 +615,11 @@ export interface HostProfile {
   readonly kind: 'cloud' | 'device'
   /** The device capabilities runs on this Host can use. */
   readonly provides: readonly DeviceCapability[]
-  /** The Host's device id in the account's vault; absent on a Host registered by a build that did not record it. */
-  readonly device?: HostDevice | undefined
 }
 
 /** Something a task needs from one of its owner's own computers; everything else is available on every Host. */
 export type DeviceCapability = 'files' | 'browser' | 'computer-use'
-
-/** A device's id in its account's sync vault. */
-export type HostDevice = NonNullable<SyncStatus['device']>
 ```
-
-Depends on: [`SyncStatus`](../packages/sync/sync/src/index.ts)
 
 Source: [`packages/core/automations/src/index.ts`](../packages/core/automations/src/index.ts)
 

@@ -43,6 +43,7 @@ kind: "package-reference"
 
 工具以调用它的 agent 为作用域分发 `desktop-handoff/offer`，携带模型给出的 `reason`（`computer`、`files`、`terminal`、`device` 或 `models`）以及受 `answerTimeoutMs` 限制的信号。`@aeven/api-remotes` 把它转发给显示该会话的窗口，窗口用对应原因的说明打开对话框并应答 `shown`；显示其他会话的窗口调用 `next()`，最终的回退应答 `no-window`。由于推荐以实时事件传递，之后从历史加载的对话不会再次打开对话框。
 
+<a id="model-experience"></a>
 ## 模型体验
 
 ### 工具模式
@@ -71,6 +72,7 @@ No window is showing this conversation, so nothing opened. Tell the user that th
 
 可见工具集不变时前缀稳定；结果追加在后。
 
+<a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与延后工作
 
 - **对话框中没有桌面路由** —— 读者有桌面设备在线时，Aeven Web 上的对话本来就在那里运行；推荐只出现在 Aeven Cloud 中运行的轮次里，对话框还不会列出在线的桌面设备。

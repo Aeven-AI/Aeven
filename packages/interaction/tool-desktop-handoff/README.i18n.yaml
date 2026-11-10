@@ -3,4 +3,4 @@
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/interaction/tool-desktop-handoff/README.md
 README.md: 7afbbe29615ebd36499d67c8efb8fb38aad39256
-README.zh.md: d155ccbbadbb97eeb3b82ec80d1886a4a19b1cfd
+README.zh.md: 336c8ce2f407157c39df59524ec770ff3288f5d5

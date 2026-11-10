@@ -78,6 +78,7 @@ export function apply(ctx: Context, config: Config): void {
     },
     // No tool timeout of its own: one equal to the answer window would race it and report an unanswered offer as a
     // timeout instead of `no-window`.
+    /* jscpd:ignore-start -- the string-answer tool shape tool-location shares; each tool owns its own contract. */
     output: {
       schema: { type: 'string' },
       render: (_args: unknown, value: string) => [{ type: 'text' as const, text: value }],
@@ -85,6 +86,7 @@ export function apply(ctx: Context, config: Config): void {
     async execute(args, exec) {
       const agent = exec.agent
       if (agent === undefined) throw new Error('offer_desktop needs a calling agent')
+      /* jscpd:ignore-end */
       const raw = (args as { reason?: unknown }).reason
       // The schema enumerates the reasons; a value outside it is the model's JSON, so it falls back to computer.
       const reason = REASONS.find(candidate => candidate === raw) ?? 'computer'

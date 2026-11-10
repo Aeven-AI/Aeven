@@ -143,6 +143,15 @@ const Reconnect: z<ReconnectConfig> = z.object({
   maxAttempts: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(RECONNECT_DEFAULTS.maxAttempts),
 })
 
+/** Fields both transports accept, after each transport's own connection fields. */
+const serverFields = {
+  toolCallTimeoutMs: z.number().default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
+  resultNotes: z.dict(String).default(undefined as unknown as Record<string, string>),
+  failOnStartupError: z.boolean().default(false),
+  awaitStartup: z.boolean().default(true),
+  reconnect: Reconnect,
+}
+
 export const Config = z.union([
   z.object({
     transport: z.const('stdio'),
@@ -154,11 +163,7 @@ export const Config = z.union([
     cwd: z.string().default(''),
     // Omitted must stay absent: a schemastery array otherwise defaults to [], which admits no tool.
     allowedTools: z.array(String).default(undefined as unknown as string[]),
-    toolCallTimeoutMs: z.number().default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
-    resultNotes: z.dict(String).default(undefined as unknown as Record<string, string>),
-    failOnStartupError: z.boolean().default(false),
-    awaitStartup: z.boolean().default(true),
-    reconnect: Reconnect,
+    ...serverFields,
   }),
   z.object({
     transport: z.const('streamable-http'),
@@ -166,11 +171,7 @@ export const Config = z.union([
     title: z.string(),
     url: z.string().required(),
     headers: z.dict(String).default({}),
-    toolCallTimeoutMs: z.number().default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
-    resultNotes: z.dict(String).default(undefined as unknown as Record<string, string>),
-    failOnStartupError: z.boolean().default(false),
-    awaitStartup: z.boolean().default(true),
-    reconnect: Reconnect,
+    ...serverFields,
   }),
 ]) as unknown as z<ConfigInput, Config>
 
