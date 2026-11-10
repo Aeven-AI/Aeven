@@ -10,6 +10,7 @@
 
 import { spawn } from 'node:child_process'
 import { createHmac, randomBytes } from 'node:crypto'
+import { chmodSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 import { SupervisedProcess } from './supervised.ts'
@@ -58,6 +59,8 @@ export interface GitRefUpdate {
   /** The full ref name, e.g. `refs/tags/v1.0.0`. */
   ref: string
   kind: 'create' | 'update' | 'delete'
+  /** What made the update need approval, e.g. `protected branch` or `first push to this repository in this conversation`. */
+  why: string
 }
 
 /** What the proxy asks the provider while a Git request waits. */
@@ -70,13 +73,13 @@ export type EgressAnswer = { token?: string | undefined } | { approved: boolean 
 
 /** Everything one proxy process starts from. */
 export interface EgressOptions {
-  /** The helper that switches to the sandbox user, when commands run as one; the proxy then shares their user. */
+  /** The helper that switches the proxy to its own user, apart from the Host's and the jails'; omitted, it runs as the Host's user. */
   exec?: string | undefined
   /** Host path of the Node.js that runs the proxy. */
   node: string
   /** Host path of `egress-proxy.mjs`, as `host/install-egress.sh` installs it. */
   script: string
-  /** Host directory holding the socket, mounted into every jail. */
+  /** Host directory holding one subdirectory per account, each mounted into that account's jails. */
   socketDir: string
   /** The cgroup directory the proxy runs in. */
   group: string
@@ -97,9 +100,12 @@ export class EgressProxy {
   /** Lives as long as this object, so a restarted proxy accepts the tokens of commands already running. */
   private readonly secret = randomBytes(32)
   private readonly process: SupervisedProcess
+  /** Accounts the proxy listens for, named again to each restarted proxy. */
+  private readonly accounts = new Set<string>()
+  private stdin: NodeJS.WritableStream | undefined
 
-  constructor(options: EgressOptions) {
-    const config = JSON.stringify({ socket: join(options.socketDir, SOCKET_NAME), secret: this.secret.toString('hex'), ...options.limits })
+  constructor(private readonly options: EgressOptions) {
+    const config = JSON.stringify({ socketDir: options.socketDir, secret: this.secret.toString('hex'), ...options.limits })
     this.process = new SupervisedProcess({
       name: 'egress-proxy',
       whileDown: 'jailed commands have no network',
@@ -113,6 +119,8 @@ export class EgressProxy {
         child.stdin.on('error', () => { /* EPIPE: the process ended; its exit is reported and it restarts. */ })
         // The configuration carries the token key, so it travels on stdin instead of an argument other users can list.
         child.stdin.write(`${config}\n`)
+        for (const account of this.accounts) child.stdin.write(`${JSON.stringify({ type: 'listen', account })}\n`)
+        this.stdin = child.stdin
         const asked = new Map<number, AbortController>()
         createInterface({ input: child.stdout }).on('line', (line) => {
           const message = parseMessage(line)
@@ -135,6 +143,24 @@ export class EgressProxy {
         return child
       },
     })
+  }
+
+  /**
+   * The socket directory of one account, created on first use, with the proxy listening in it; a jail mounts only its
+   * own account's directory, so it cannot reach another account's socket.
+   * @param account - the account path segment.
+   * @returns the host directory to mount at {@link JAIL_EGRESS_DIR}.
+   */
+  accountDir(account: string): string {
+    const dir = join(this.options.socketDir, account)
+    if (!this.accounts.has(account)) {
+      // Others may traverse to mount it; the proxy's group, which owns the parent with setgid, creates the socket.
+      mkdirSync(dir, { recursive: true })
+      chmodSync(dir, 0o2771)
+      this.accounts.add(account)
+      this.stdin?.write(`${JSON.stringify({ type: 'listen', account })}\n`)
+    }
+    return dir
   }
 
   /**
@@ -173,9 +199,9 @@ function parseMessage(line: string): { id: number; question?: EgressQuestion } |
   const refs: GitRefUpdate[] = []
   for (const update of updates as unknown[]) {
     if (typeof update !== 'object' || update === null) return undefined
-    const { ref, kind } = update as Record<string, unknown>
-    if (typeof ref !== 'string' || (kind !== 'create' && kind !== 'update' && kind !== 'delete')) return undefined
-    refs.push({ ref, kind })
+    const { ref, kind, why } = update as Record<string, unknown>
+    if (typeof ref !== 'string' || typeof why !== 'string' || (kind !== 'create' && kind !== 'update' && kind !== 'delete')) return undefined
+    refs.push({ ref, kind, why })
   }
   return { id, question: { type, account, session, host, repository, updates: refs } }
 }

@@ -37,12 +37,12 @@ export interface JailProfile {
   /** Host directory of the Python zygote's socket, mounted read-only at {@link JAIL_ZYGOTE_DIR}; absent without a zygote. */
   zygoteDir?: string | undefined
   /**
-   * Set when an egress proxy runs: its socket directory is mounted read-only at {@link JAIL_EGRESS_DIR}, the relay
+   * Set when an egress proxy runs: the call's account socket directory is mounted read-only at {@link JAIL_EGRESS_DIR}, the relay
    * program at {@link JAIL_EGRESS_RELAY}, and the proxy variables and the Git URL rewrites of `gitHosts` name the
    * relay's loopback `port`. The caller
    * places the relay's argv before the command.
    */
-  egress?: { readonly socketDir: string; readonly relay: string; readonly port: number; readonly gitHosts: readonly string[] } | undefined
+  egress?: { readonly relay: string; readonly port: number; readonly gitHosts: readonly string[] } | undefined
   /**
    * Set when bubblewrap runs as a sandbox user, who cannot enter the Host's data directory: roots are mounted from
    * the second mount of the accounts root at `accountsPath`, and read-only files are copied in from descriptors the
@@ -67,9 +67,10 @@ export interface JailArgs {
  * @param profile - the deployment's jail inputs.
  * @param policy - the call's confined policy; its roots are already checked to belong to one account.
  * @param readOnlyFiles - further existing host files mounted read-only at the same path, such as the session's attachments.
+ * @param egressDir - the calling account's egress socket directory; required when `profile.egress` is set.
  * @returns the argv prefix and the descriptors its launch step must open.
  */
-export function jailArgs(profile: JailProfile, policy: SandboxPolicy, readOnlyFiles: readonly string[] = []): JailArgs {
+export function jailArgs(profile: JailProfile, policy: SandboxPolicy, readOnlyFiles: readonly string[] = [], egressDir?: string): JailArgs {
   const writable = policy.mode === 'workspace-write'
   const roots = [policy.workspaceRoot, ...writable ? policy.additionalWritableRoots ?? [] : []]
   const args = [
@@ -102,7 +103,9 @@ export function jailArgs(profile: JailProfile, policy: SandboxPolicy, readOnlyFi
     args.push('--ro-bind-data', String(fd), file)
   }
   if (profile.zygoteDir !== undefined) args.push('--ro-bind', profile.zygoteDir, JAIL_ZYGOTE_DIR)
-  if (profile.egress !== undefined) args.push('--ro-bind', profile.egress.socketDir, JAIL_EGRESS_DIR, '--ro-bind', profile.egress.relay, JAIL_EGRESS_RELAY)
+  if (profile.egress !== undefined && egressDir !== undefined) {
+    args.push('--ro-bind', egressDir, JAIL_EGRESS_DIR, '--ro-bind', profile.egress.relay, JAIL_EGRESS_RELAY)
+  }
   args.push('--ro-bind', profile.launcher, JAIL_LAUNCHER, '--', JAIL_LAUNCHER)
   // The jail root holds only what bwrap mounted, so read access beneath it is
   // the same view; Landlock still denies anything outside it.

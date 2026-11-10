@@ -91,8 +91,17 @@ export interface EgressConfig extends Omit<EgressLimits, 'unlimitedAccounts'> {
   script: string
   /** Host path of the static relay the same script builds, e.g. `<image>/shim/aeven-egress-relay`; a missing file fails startup. */
   relay: string
-  /** Host directory of the proxy's socket, mounted read-only into every jail; with `commandUser` it must exist, owned by that user. */
+  /**
+   * Host directory of the per-account socket directories; each account's is mounted read-only into its jails. With
+   * `exec` it must exist, owned by the proxy's user and group with setgid, and the Host's user must belong to that group.
+   */
   socketDir: string
+  /**
+   * Host path of a helper that switches the proxy to its own user, such as the one `host/install-egress.sh` builds,
+   * so a command that escapes its jail holds no access to the proxy or the credentials it carries; omitted, the proxy
+   * runs as the Host's user.
+   */
+  exec?: string
   /** Loopback port the relay listens on inside each jail, which the proxy variables of confined commands name. */
   port: number
   /** Limits of the proxy's own cgroup. */
@@ -260,6 +269,7 @@ export class JailSandboxProvider extends SandboxProvider {
       script: z.string().required(),
       relay: z.string().required(),
       socketDir: z.string().required(),
+      exec: z.string(),
       port: z.natural().min(1).max(65535).required(),
       limits: limits.required(),
       allow: z.array(z.string()).required(),
@@ -387,23 +397,23 @@ export class JailSandboxProvider extends SandboxProvider {
     const egress = config.egress
     if (egress !== undefined) {
       if (this.cgroups === undefined) throw new Error('sandbox-jail: egress needs cgroup, which bounds the proxy')
-      for (const path of [egress.node, egress.script, egress.relay]) {
+      for (const path of [egress.node, egress.script, egress.relay, ...egress.exec === undefined ? [] : [egress.exec]]) {
         if (!existsSync(path)) throw new Error(`sandbox-jail: egress file "${path}" does not exist; run host/install-egress.sh`)
       }
       if (!isAbsolute(egress.socketDir)) throw new Error(`sandbox-jail: egress.socketDir "${egress.socketDir}" must be absolute`)
-      if (this.commandExec === undefined) {
-        mkdirSync(egress.socketDir, { recursive: true, mode: 0o700 })
-        chmodSync(egress.socketDir, 0o700)
+      if (egress.exec === undefined) {
+        mkdirSync(egress.socketDir, { recursive: true, mode: 0o711 })
+        chmodSync(egress.socketDir, 0o711)
       } else if (!existsSync(egress.socketDir)) {
-        throw new Error(`sandbox-jail: egress.socketDir "${egress.socketDir}" must exist, owned by the sandbox user`)
+        throw new Error(`sandbox-jail: egress.socketDir "${egress.socketDir}" must exist, owned by the proxy's user; run host/install-egress.sh`)
       }
       const socketDir = canonicalPath(egress.socketDir)
-      this.profile.egress = { socketDir, relay: canonicalPath(egress.relay), port: egress.port, gitHosts: egress.gitHosts }
+      this.profile.egress = { relay: canonicalPath(egress.relay), port: egress.port, gitHosts: egress.gitHosts }
       const cgroups = this.cgroups
       ctx.effect(() => ctx.provide('sandboxGitCredentials', this.gitCredentials), 'sandbox-jail git credentials')
       ctx.effect(() => {
         const proxy = new EgressProxy({
-          exec: this.commandExec,
+          exec: egress.exec,
           node: egress.node,
           script: egress.script,
           socketDir,
@@ -458,7 +468,9 @@ export class JailSandboxProvider extends SandboxProvider {
       .map(root => canonicalPath(root))
       .filter(root => this.accountOf(root) === account)
     if (this.commandExec !== undefined) this.shareFolders(account, [workspaceRoot, ...additionalWritableRoots])
-    const jail = jailArgs(this.profile, { ...policy, workspaceRoot, additionalWritableRoots }, this.attachmentsOf(policy.sessionId))
+    const egressDir = this.egress?.proxy.accountDir(account)
+    const attachments = this.attachmentsOf(policy.sessionId)
+    const jail = jailArgs(this.profile, { ...policy, workspaceRoot, additionalWritableRoots }, attachments, egressDir)
     const egress = this.egress
     const relay = egress === undefined ? [] : relayArgs(egress.port, egress.proxy.identity(account, policy.sessionId ?? NO_SESSION))
     const jailed = [...this.commandExec === undefined ? [] : [this.commandExec], ...jail.args, '--', ...relay, ...argv]
@@ -500,7 +512,7 @@ export class JailSandboxProvider extends SandboxProvider {
     const agent = question.session === NO_SESSION ? undefined : this.ctx.get('agents')?.get(toSessionId(question.session))
     const approval = this.ctx.get('approval')
     if (agent === undefined || approval === undefined || agent.session.header.owner !== question.account) return { approved: false }
-    const changes = question.updates.map(update => `${update.kind} ${update.ref}`).join(', ')
+    const changes = question.updates.map(update => `${update.kind} ${update.ref} (${update.why})`).join(', ')
     const outcome = await approval.request({
       agent,
       toolName: PUSH_APPROVAL_TOOL,

@@ -3,19 +3,24 @@
  *
  * The sandbox-jail provider starts it outside every jail, in its own cgroup. Its standard input carries one JSON
  * document per line: first the configuration, then the provider's answers; its standard output carries its
- * questions to the provider, one JSON document per line. It ends when standard input closes. It listens on a Unix
- * socket that every jail mounts; `egress-relay.c` inside a jail copies the command's loopback connections to it.
+ * questions to the provider, one JSON document per line. It ends when standard input closes. For each account the
+ * provider names in a `{ type: 'listen', account }` line it listens on `<socketDir>/<account>/proxy.sock`, the one
+ * socket that account's jails mount; `egress-relay.c` inside a jail copies the command's loopback connections to it.
+ * The socket a connection arrives on names its account, so one account can hold at most its own bound of open
+ * connections, identified or not, and cannot exhaust the proxy for the others.
  *
- * Each connection opens with `AEVEN <account> <session> <token>\n`, where the token is the hex HMAC-SHA256 of
- * `<account> <session>` under `secret`, and continues as HTTP/1.1 with one of two kinds of request:
+ * Each connection opens with `AEVEN <account> <session> <token>\n`, where the account matches the socket's, and the
+ * token is the hex HMAC-SHA256 of `<account> <session>` under `secret`, and continues as HTTP/1.1 with one of two
+ * kinds of request:
  *
  *   - `CONNECT <host>:<port>`: after `200`, bytes are copied both ways. A tunnel opens only to a host name on
  *     `allow` and a port in `ports`.
  *   - `GET|POST /git/<host>/<owner>/<repository>/…`: Git's smart HTTP requests, forwarded to `https://<host>/` for a
  *     host in `gitHosts`. The proxy asks the provider for the account's credential for that host and sends it
- *     upstream, so the credential never enters a jail. Before forwarding a push it reads the ref updates; one that
- *     creates, moves, or deletes anything but a branch, or deletes a branch, is forwarded only after the provider
- *     reports the user's approval.
+ *     upstream, so the credential never enters a jail. Before forwarding a push it reads the ref updates and asks the
+ *     provider for the user's approval when the push is the conversation's first to that repository, or touches the
+ *     repository's default branch, `main`, or `master`, a ref outside `refs/heads/`, or deletes a ref; after one
+ *     approval, later pushes of other branches to the same repository in the same conversation pass.
  *
  * Either way the proxy resolves the name itself and connects only to an address that is not loopback, private,
  * link-local, or otherwise internal, so a name cannot point a jail at this machine's own services. Every refusal is
@@ -26,7 +31,8 @@
  * `connectTimeoutMs` before it is refused. Counters live in this process and start over when it restarts.
  *
  * Questions: `{ id, type: 'git-token', account, host }` answered `{ id, token? }`;
- * `{ id, type: 'git-approve', account, session, host, repository, updates }` answered `{ id, approved }`;
+ * `{ id, type: 'git-approve', account, session, host, repository, updates }` answered `{ id, approved }`, where each
+ * update is `{ ref, kind, why }` and `why` names what made it need approval;
  * `{ id, type: 'cancel' }` withdraws a question whose request ended and has no answer.
  *
  * Run: node egress-proxy.mjs   (configuration and answers on standard input)
@@ -34,6 +40,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { lookup } from 'node:dns/promises'
 import { chmodSync, rmSync } from 'node:fs'
+import { join } from 'node:path'
 import http from 'node:http'
 import https from 'node:https'
 import net from 'node:net'
@@ -41,7 +48,8 @@ import { createInterface } from 'node:readline'
 
 /**
  * @typedef {object} Config
- * @property {string} socket - path of the Unix socket to listen on.
+ * @property {string} socketDir - directory holding one subdirectory per account, which the provider creates and this
+ *   process listens in.
  * @property {string} secret - hex key of the connection tokens.
  * @property {string[]} allow - host names a tunnel may reach, or `*.suffix` for every name beneath one.
  * @property {number[]} ports - destination ports a tunnel may open.
@@ -58,6 +66,8 @@ import { createInterface } from 'node:readline'
 
 const TICK_MS = 100
 const HELLO_LIMIT = 1024
+/** Time a new connection has to send its identifying line, which the relay writes before any request. */
+const HELLO_TIMEOUT_MS = 2000
 /** A push's ref updates precede its pack; one that needs more than this is refused. */
 const COMMANDS_LIMIT = 1024 * 1024
 const LOG_LINES_PER_SECOND = 20
@@ -412,6 +422,58 @@ function readCommands(request) {
   })
 }
 
+/** `<account> <session> <host>/<repository>` keys the user approved a push for. */
+const approvedPushes = new Set()
+
+/** Default branches read from the host's API, kept for {@link DEFAULT_BRANCH_TTL_MS}. */
+const defaultBranches = new Map()
+const DEFAULT_BRANCH_TTL_MS = 600_000
+
+/**
+ * The branches of a repository a push always needs approval for: `main`, `master`, and its default branch, read from
+ * the GitHub API with the account's credential when the host is `github.com`.
+ * @returns {Promise<Set<string>>} full ref names.
+ */
+async function protectedBranches(name, host, repository, response) {
+  const refs = new Set(['refs/heads/main', 'refs/heads/master'])
+  if (host !== 'github.com') return refs
+  const key = `${name} ${repository.toLowerCase()}`
+  const known = defaultBranches.get(key)
+  if (known !== undefined && known.expires > Date.now()) {
+    if (known.ref !== undefined) refs.add(known.ref)
+    return refs
+  }
+  const token = await credential(name, host, response)
+  let ref
+  if (token !== null) {
+    ref = await new Promise((resolve) => {
+      const request = https.get({
+        host: 'api.github.com', path: `/repos/${repository}`, lookup: checkedLookup, timeout: config.connectTimeoutMs,
+        headers: { 'user-agent': 'aeven-egress-proxy', accept: 'application/vnd.github+json', ...token === undefined ? {} : { authorization: `Bearer ${token}` } },
+      }, (answer) => {
+        let body = ''
+        answer.setEncoding('utf8')
+        answer.on('data', (chunk) => { if (body.length < 1_000_000) body += chunk })
+        answer.on('end', () => {
+          try {
+            const branch = JSON.parse(body).default_branch
+            resolve(typeof branch === 'string' ? `refs/heads/${branch}` : undefined)
+          } catch {
+            // SyntaxError: an error page instead of JSON; main and master stay protected.
+            resolve(undefined)
+          }
+        })
+      })
+      request.on('timeout', () => { request.destroy() })
+      request.on('error', () => { resolve(undefined) })
+    })
+  }
+  if (defaultBranches.size > 4096) defaultBranches.clear()
+  defaultBranches.set(key, { ref, expires: Date.now() + DEFAULT_BRANCH_TTL_MS })
+  if (ref !== undefined) refs.add(ref)
+  return refs
+}
+
 /** Credentials the provider answered with, kept for {@link TOKEN_TTL_MS}. */
 const tokens = new Map()
 
@@ -472,7 +534,17 @@ async function git(request, response) {
       deny(response, 400, commands.reason)
       return
     }
-    const gated = commands.updates.filter(update => update.kind === 'delete' || !update.ref.startsWith('refs/heads/'))
+    const pushKey = `${name} ${session} ${host}/${repository.toLowerCase()}`
+    const first = !approvedPushes.has(pushKey)
+    const protectedRefs = await protectedBranches(name, host, repository, response)
+    if (response.destroyed) return
+    const gated = commands.updates.flatMap((update) => {
+      const why = update.kind === 'delete' ? 'deletes a ref'
+        : !update.ref.startsWith('refs/heads/') ? 'not a branch'
+          : protectedRefs.has(update.ref) ? 'protected branch'
+            : first ? 'first push to this repository in this conversation' : undefined
+      return why === undefined ? [] : [{ ...update, why }]
+    })
     if (gated.length > 0) {
       const answer = await ask({ type: 'git-approve', account: name, session, host, repository, updates: gated }, response)
       if (answer === undefined) return
@@ -481,6 +553,8 @@ async function git(request, response) {
         deny(response, 403, `the user did not approve pushing ${gated.map(update => `${update.kind} ${update.ref}`).join(', ')}`)
         return
       }
+      if (approvedPushes.size > 65536) approvedPushes.clear()
+      approvedPushes.add(pushKey)
     }
     head = commands.buffered
   }
@@ -503,10 +577,43 @@ async function git(request, response) {
   request.resume()
 }
 
+/** Account listeners by account, each counting the connections open on it. */
+const listeners = new Map()
+
+/**
+ * Listen on `<socketDir>/<account>/proxy.sock`, once per account; the provider creates the directory first.
+ * @param {import('node:http').Server} web - the HTTP server each identified connection is handed to.
+ * @param {string} account - the account path segment.
+ */
+function listen(web, account) {
+  if (listeners.has(account) || !/^[A-Za-z0-9_-]{1,128}$/u.test(account)) return
+  const path = join(config.socketDir, account, 'proxy.sock')
+  const entry = { open: 0 }
+  // Active requests plus as many waiting for a slot; beyond that a connection is closed before it is read.
+  const cap = unlimited.has(account) ? config.connections : config.accountConnections * 2
+  const server = net.createServer((client) => {
+    if (entry.open >= cap) {
+      client.destroy()
+      return
+    }
+    entry.open += 1
+    client.once('close', () => { entry.open -= 1 })
+    accept(web, client, account)
+  })
+  server.on('error', (error) => {
+    listeners.delete(account)
+    log(`cannot listen for ${account}: ${error.message}`)
+  })
+  listeners.set(account, entry)
+  rmSync(path, { force: true })
+  server.listen(path, () => { chmodSync(path, 0o666) })
+}
+
 /** Read the identifying line, then let the HTTP server parse what follows on the same connection. */
-function accept(web, client) {
+function accept(web, client, account) {
   let buffered = Buffer.alloc(0)
-  client.setTimeout(config.connectTimeoutMs, () => { client.destroy() })
+  // The relay sends its identifying line at once, so a connection that stays silent is closed quickly.
+  client.setTimeout(HELLO_TIMEOUT_MS, () => { client.destroy() })
   client.on('error', () => { client.destroy() })
   const onData = (chunk) => {
     buffered = Buffer.concat([buffered, chunk])
@@ -520,7 +627,7 @@ function accept(web, client) {
     const [word, name, session, token] = buffered.toString('latin1', 0, end).split(' ')
     const expected = createHmac('sha256', secret).update(`${name ?? ''} ${session ?? ''}`).digest()
     const given = Buffer.from(token ?? '', 'hex')
-    if (word !== 'AEVEN' || name === undefined || given.length !== expected.length || !timingSafeEqual(given, expected)) {
+    if (word !== 'AEVEN' || name !== account || given.length !== expected.length || !timingSafeEqual(given, expected)) {
       client.destroy()
       return
     }
@@ -567,17 +674,15 @@ function start() {
   web.on('request', (request, response) => { void git(request, response) })
   web.on('clientError', (_error, client) => { client.destroy() })
 
-  rmSync(config.socket, { force: true })
-  const listener = net.createServer(client => { accept(web, client) })
-  listener.on('error', (error) => {
-    process.stderr.write(`egress-proxy: ${error.message}\n`)
-    process.exit(1)
-  })
-  listener.listen(config.socket, () => {
-    chmodSync(config.socket, 0o600)
-    process.stderr.write(`egress-proxy: ready on ${config.socket}\n`)
-  })
+  webServer = web
+  for (const account of pendingListens) listen(web, account)
+  pendingListens.length = 0
+  process.stderr.write(`egress-proxy: ready in ${config.socketDir}\n`)
 }
+
+let webServer
+/** Accounts named before the configuration line was read. */
+const pendingListens = []
 
 const input = createInterface({ input: process.stdin })
 input.on('line', (line) => {
@@ -585,6 +690,11 @@ input.on('line', (line) => {
   if (config === undefined) {
     config = message
     start()
+    return
+  }
+  if (message.type === 'listen') {
+    if (webServer === undefined) pendingListens.push(message.account)
+    else listen(webServer, message.account)
     return
   }
   const answer = pending.get(message.id)

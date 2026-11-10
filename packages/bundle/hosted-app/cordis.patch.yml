@@ -564,9 +564,13 @@
           script: /opt/aeven-sandbox/shim/egress-proxy.mjs
           relay: /opt/aeven-sandbox/shim/aeven-egress-relay
           socketDir: /var/lib/aeven-egress
+          # The proxy runs as aeven-egress, apart from this Host and the jails.
+          exec: /usr/local/libexec/aeven-egress-exec
           port: 3128
+          # github.com itself is reached only through the Git route below, which
+          # sends the account's own credential and drops any a command supplies,
+          # so a command cannot push to a repository with someone else's token.
           allow:
-            - github.com
             - codeload.github.com
             - raw.githubusercontent.com
             - objects.githubusercontent.com
@@ -575,8 +579,9 @@
             - files.pythonhosted.org
           ports: [443]
           # git reaches GitHub with the account's connected GitHub account,
-          # whose token stays in the proxy; a tag push or a branch deletion
-          # asks the user first.
+          # whose token stays in the proxy. The user approves the first push to
+          # each repository in a conversation, and every push to its default
+          # branch, main, or master, of a tag, or of a deletion.
           gitHosts: [github.com]
           accountConnections: 32
           connections: 4096
@@ -600,8 +605,11 @@
           registry, and PyPI, over HTTPS; every other address is refused, so apt and downloads from
           other sites fail. git works with https://github.com/ URLs: public repositories always, and
           private repositories and git push when the user has connected GitHub in Settings → Connectors,
-          with no token in the command. Pushing a tag or deleting a branch asks the user for approval
-          and fails with HTTP 403 when they decline. git has no author identity configured: before committing, set
+          with no token in the command; a URL carrying its own credentials does not reach GitHub. The
+          user approves the first push to each repository in a conversation, and every push to its
+          default branch, main, or master, of a tag, or that deletes a ref; a declined push fails with
+          HTTP 403. Other github.com downloads fail: fetch archives from codeload.github.com and files
+          from raw.githubusercontent.com. git has no author identity configured: before committing, set
           user.name and user.email in the repository with git config, using the user's GitHub name and
           noreply email from the GitHub connector's get_me, or asking the user. npm install runs without package install scripts, pnpm run does not install
           missing dependencies first, and pip

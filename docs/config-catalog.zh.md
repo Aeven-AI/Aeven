@@ -3663,8 +3663,17 @@ export interface EgressConfig extends Omit<EgressLimits, 'unlimitedAccounts'> {
   script: string
   /** Host path of the static relay the same script builds, e.g. `<image>/shim/aeven-egress-relay`; a missing file fails startup. */
   relay: string
-  /** Host directory of the proxy's socket, mounted read-only into every jail; with `commandUser` it must exist, owned by that user. */
+  /**
+   * Host directory of the per-account socket directories; each account's is mounted read-only into its jails. With
+   * `exec` it must exist, owned by the proxy's user and group with setgid, and the Host's user must belong to that group.
+   */
   socketDir: string
+  /**
+   * Host path of a helper that switches the proxy to its own user, such as the one `host/install-egress.sh` builds,
+   * so a command that escapes its jail holds no access to the proxy or the credentials it carries; omitted, the proxy
+   * runs as the Host's user.
+   */
+  exec?: string
   /** Loopback port the relay listens on inside each jail, which the proxy variables of confined commands name. */
   port: number
   /** Limits of the proxy's own cgroup. */
