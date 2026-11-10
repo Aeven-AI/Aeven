@@ -61,6 +61,7 @@ kind: "package-reference"
 | `allowedTools` | 所有发现的工具 | stdio：每次发现时允许注册的原始工具名称；排除的工具没有 harness 执行器 |
 | `url` / `headers` | — | streamable-http：端点 URL 与额外请求标头 |
 | `toolCallTimeoutMs` | `60,000` | 每次 `tools/call` 调用的超时 |
+| `resultNotes` | 无 | 按原始工具名追加到成功结果后的说明；`{arg}` 和 `{arg\|fallback}` 由调用参数填充，使只覆盖所请求范围的结果说明它覆盖的是哪个范围 |
 | `failOnStartupError` | `false` | 初始连接或工具同步失败时拒绝插件激活 |
 | `awaitStartup` | `true` | 等待首次发现；false 在工具就绪前激活，且要求 `failOnStartupError: false` |
 | `reconnect.enabled` | `true` | 连接丢失后自动重新连接 |

@@ -73,6 +73,12 @@ export interface StdioConfig {
   allowedTools?: string[]
   /** Per-tool-call timeout in milliseconds. */
   toolCallTimeoutMs: number
+  /**
+   * A note appended to a tool's result, by raw tool name: `{arg}` is replaced by that call argument and
+   * `{arg|fallback}` by the argument or, when it is absent or empty, the fallback. For a tool whose result covers
+   * only the range it was asked for, the note says which range, so the result cannot be read as wider than it is.
+   */
+  resultNotes?: Record<string, string>
   /** Fail plugin activation when the initial connection or tool synchronization fails. */
   failOnStartupError: boolean
   /**
@@ -103,6 +109,12 @@ export interface StreamableHttpConfig {
   headers: Record<string, string>
   /** Per-tool-call timeout in milliseconds. */
   toolCallTimeoutMs: number
+  /**
+   * A note appended to a tool's result, by raw tool name: `{arg}` is replaced by that call argument and
+   * `{arg|fallback}` by the argument or, when it is absent or empty, the fallback. For a tool whose result covers
+   * only the range it was asked for, the note says which range, so the result cannot be read as wider than it is.
+   */
+  resultNotes?: Record<string, string>
   /** Fail plugin activation when the initial connection or tool synchronization fails. */
   failOnStartupError: boolean
   /**
@@ -143,6 +155,7 @@ export const Config = z.union([
     // Omitted must stay absent: a schemastery array otherwise defaults to [], which admits no tool.
     allowedTools: z.array(String).default(undefined as unknown as string[]),
     toolCallTimeoutMs: z.number().default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
+    resultNotes: z.dict(String).default(undefined as unknown as Record<string, string>),
     failOnStartupError: z.boolean().default(false),
     awaitStartup: z.boolean().default(true),
     reconnect: Reconnect,
@@ -154,6 +167,7 @@ export const Config = z.union([
     url: z.string().required(),
     headers: z.dict(String).default({}),
     toolCallTimeoutMs: z.number().default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
+    resultNotes: z.dict(String).default(undefined as unknown as Record<string, string>),
     failOnStartupError: z.boolean().default(false),
     awaitStartup: z.boolean().default(true),
     reconnect: Reconnect,

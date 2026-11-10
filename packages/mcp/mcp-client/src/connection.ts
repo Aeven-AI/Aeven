@@ -158,6 +158,7 @@ export function startConnection(ctx: Context, config: Config, policy: ResolvedRe
     serverName: config.serverName,
     ...config.transport === 'stdio' && config.allowedTools !== undefined ? { allowedTools: config.allowedTools } : {},
     toolCallTimeoutMs: config.toolCallTimeoutMs,
+    ...config.resultNotes === undefined ? {} : { resultNotes: config.resultNotes },
   }
   // The initial sync uses 'throw' when failOnStartupError is configured, so
   // a registration conflict propagates to the startup-await path. Re-syncs
