@@ -61,7 +61,7 @@ export interface NavigationOptionsProps {
   /** The device moves this Host offers for this Session, read each time the options open. */
   devicePlacement: () => Promise<SessionDevicePlacement>
   /** Run this Session's next turns on this computer, or on the account's always-on device. */
-  onContinueOn: (target: 'here' | 'always-on') => Promise<void>
+  onContinueOn: (target: 'here' | 'always-on' | 'desktop') => Promise<void>
   /** The header's locale seat. */
   t: ConversationSessionHeaderProps['t']
 }
@@ -118,6 +118,14 @@ export function NavigationOptions({
     ...placement.here
       ? [{ id: 'continue-here', label: t('nav.continueHere'), icon: <IconLucideLaptopMinimal className={css.rowIcon} />, disabled: moveDisabled }]
       : [],
+    ...placement.desktop === undefined
+      ? []
+      : [{
+        id: 'continue-desktop',
+        label: t('nav.continueOn', { name: placement.desktop }),
+        icon: <IconLucideLaptopMinimal className={css.rowIcon} />,
+        disabled: moveDisabled,
+      }],
     ...placement.alwaysOn === undefined
       ? []
       : [{
@@ -148,8 +156,8 @@ export function NavigationOptions({
           if (id === 'fork') onFork()
           else if (id === 'export') runExport()
           else if (id.startsWith(MOVE_PREFIX)) onMove(id.slice(MOVE_PREFIX.length) as WorkspaceId)
-          else if (id === 'continue-here' || id === 'continue-always-on') {
-            void onContinueOn(id === 'continue-here' ? 'here' : 'always-on').catch(fail)
+          else if (id === 'continue-here' || id === 'continue-always-on' || id === 'continue-desktop') {
+            void onContinueOn(id === 'continue-here' ? 'here' : id === 'continue-desktop' ? 'desktop' : 'always-on').catch(fail)
           }
           // A remaining id is a View: the roster supplies exactly those.
           else onSelect(id)

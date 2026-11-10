@@ -345,7 +345,12 @@ export class SessionCommandController {
     const handoff = this.ctx.get('sessionHandoff')
     const owner = this.ctx.get('identityUsers')?.actingUser()?.id
     const placement = handoff === undefined || owner === undefined ? undefined : handoff.placementOf(owner, request.sessionId)
-    if (placement === undefined || placement.alwaysOnHere) return { here: false }
+    if (placement === undefined) return { here: false }
+    // An always-on Host such as Aeven Web offers the account's desktop; a desktop offers itself and the always-on device.
+    if (placement.alwaysOnHere) {
+      const desktop = placement.desktop
+      return desktop === undefined || placement.home?.device === desktop.device ? { here: false } : { here: false, desktop: desktop.name }
+    }
     const always = placement.alwaysOn
     return {
       here: placement.home?.alwaysOn === true,
@@ -367,9 +372,11 @@ export class SessionCommandController {
     if (handoff === undefined || owner === undefined || placement === undefined) {
       throw new RemoteError('gateway/bad-request', 'this conversation is not shared across your devices', {})
     }
-    const device = request.target === 'here' ? placement.device : placement.alwaysOn?.device
+    const device = request.target === 'here'
+      ? placement.device
+      : request.target === 'desktop' ? placement.desktop?.device : placement.alwaysOn?.device
     if (device === undefined) {
-      throw new RemoteError('gateway/bad-request', 'your account has no always-on device to continue on', {})
+      throw new RemoteError('gateway/bad-request', `your account has no ${request.target === 'desktop' ? 'desktop' : 'always-on device'} to continue on`, {})
     }
     if (handoff.runnerOf(owner, request.sessionId) !== undefined) {
       throw new RemoteError('session/agent-busy', 'another device of this account is running a turn of this conversation; move it once that turn ends', { reason: 'remote-turn' })

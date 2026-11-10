@@ -4075,6 +4075,13 @@ export interface SessionSyncTuning {
   outboxLimit: number
   /** How long a forwarded input waits for the device it was typed on before any other device may run it. */
   inputGraceMs: number
+  /**
+   * How long the always-on device waits for a desktop to take an input forwarded to it before running the input
+   * itself. Longer than `inputGraceMs`, so a desktop that reads the inbox by the older rule still takes it first.
+   */
+  remoteFallbackMs: number
+  /** How recent a desktop's `seenAt` must be for the always-on device to send it a new conversation. */
+  presenceWindowMs: number
   /** How long a cancel, queue change, or answer waits for a running turn before it is discarded. */
   inputExpiryMs: number
   /** How long a read of an attachment a synced conversation cites waits for another device to publish it. */
@@ -4932,6 +4939,11 @@ export interface Config {
    * sessions sets it, so the account is current before the browser opens.
    */
   keepConnected: boolean
+  /**
+   * How often a device without `keepConnected` stamps `seenAt` on its device entry while its relay connection is
+   * open, so the account's always-on device can tell a desktop that is on from one that is asleep or closed.
+   */
+  presenceMs: number
   /**
    * Logical names of documents fetched before the rest of a catch-up when this device holds no state for them, so
    * a new device shows the account's conversation and workspace lists before the long tail arrives. Defaults to
