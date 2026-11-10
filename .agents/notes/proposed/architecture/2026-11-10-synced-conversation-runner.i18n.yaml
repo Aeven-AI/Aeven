@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/proposed/architecture/2026-11-10-synced-conversation-runner.md
-2026-11-10-synced-conversation-runner.md: 81207ded092b640ffbbd5670661692004a198abf
-2026-11-10-synced-conversation-runner.zh.md: f1e5325fd16d03f7cee4819b4560e259437672f0
+2026-11-10-synced-conversation-runner.md: 7810bafa6ed3ff043509a827886832578d5c9425
+2026-11-10-synced-conversation-runner.zh.md: a01f06d499739e8551f5f2b1807581269125ae4c

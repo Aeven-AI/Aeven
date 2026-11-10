@@ -40,7 +40,7 @@ Input never blocks. The device the user typed on forwards the input through the 
 
 ### Phases
 
-1. **Sticky last device.** Steps 1, 4, and 6, with Aeven Cloud as the only always-on device. A conversation that last ran in Aeven Cloud keeps running there when the user types on another device. The model's runtime context says when files from an earlier turn stayed on another device. No UI. This fixes the 2026-11-10 failure.
+1. **Sticky last device.** Implemented; see [the phase 1 note](../../implemented/architecture/2026-11-10-synced-conversation-home.md). Steps 1, 4, and 6, with Aeven Cloud as the only always-on device. A conversation that last ran in Aeven Cloud keeps running there when the user types on another device. The model's runtime context says when files from an earlier turn stayed on another device. No UI. This fixes the 2026-11-10 failure.
 2. **Explicit moves.** Step 2, through the two "Continue …" actions in the options menu, after UI sign-off.
 3. **A desktop that runs without a window.** The desktop keeps its sync connection when no window is open (`keepConnected` is hosted-only today, `packages/sync/sync-yjs/src/index.ts`). It stores a per-user model credential, such as a refresh token in the OS keychain keyed by user id, because `llm-aeven` holds the user's token only while a client is signed in. Each device publishes presence: its kind (desktop or cloud), build and forwarding-protocol version, and whether it may run turns. Liveness comes from the relay seeing the socket, with ping and pong every 10–15 s so a sleeping Mac stops counting as online, and not from a heartbeat in a synced document.
 4. **Remote by default.** Steps 3 and 5 for chats without a folder. This phase ships only together with its protections:
