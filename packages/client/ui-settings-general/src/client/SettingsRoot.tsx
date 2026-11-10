@@ -53,7 +53,7 @@ const RECOVERY_CONFIRMATION_MS = 2_000
  * time the reader switches apps and reconnects within a few seconds of returning, and a Host restart takes longer;
  * announcing that blip as an outage, then as a recovery, reads as a fault the reader has to act on.
  */
-const OUTAGE_GRACE_MS = 15_000
+const OUTAGE_GRACE_MS = 60_000
 
 /**
  * Sections the nav shows as one entry. The entry sits where its first
@@ -295,14 +295,21 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
     setCompletedOnboarding(new Set())
   }, [onboardingActive])
 
-  // Whether the current outage outlasted the grace on a visible page; only an outage that was shown earns a recovery.
-  const [outageShown, setOutageShown] = useState(false)
+  // Whether the current outage outlasted the grace on a visible page.
+  const [graceElapsed, setGraceElapsed] = useState(false)
+  // Whether the toast has said "disconnected" during the current outage. The retry loop alternates between
+  // disconnected (backoff wait) and connecting (attempt); the connecting and recovered toasts only follow a shown
+  // disconnected toast, so an outage always opens with "disconnected".
+  const [disconnectedShown, setDisconnectedShown] = useState(false)
   const pageVisible = usePageVisible()
   useEffect(() => {
     if (connectionState === 'connected' || !pageVisible) return
-    const timeout = window.setTimeout(() => { setOutageShown(true) }, OUTAGE_GRACE_MS)
+    const timeout = window.setTimeout(() => { setGraceElapsed(true) }, OUTAGE_GRACE_MS)
     return () => { window.clearTimeout(timeout) }
   }, [connectionState, pageVisible])
+  useEffect(() => {
+    if (graceElapsed && connectionState === 'disconnected' && !connectionDismissed) setDisconnectedShown(true)
+  }, [graceElapsed, connectionState, connectionDismissed])
 
   useLayoutEffect(() => {
     const previous = previousConnectionState.current
@@ -312,8 +319,9 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
       return
     }
     setConnectionDismissed(false)
-    setOutageShown(false)
-    if ((previous !== 'disconnected' && previous !== 'connecting') || !outageShown) return
+    setGraceElapsed(false)
+    setDisconnectedShown(false)
+    if ((previous !== 'disconnected' && previous !== 'connecting') || !disconnectedShown) return
     setShowRecovery(true)
     const timeout = window.setTimeout(() => { setShowRecovery(false) }, RECOVERY_CONFIRMATION_MS)
     return () => { window.clearTimeout(timeout) }
@@ -332,11 +340,12 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
   }
 
   let connectionIndicator: ConnectionIndicatorState | undefined
-  if (connectionDismissed || (connectionState !== 'connected' && !outageShown)) {
+  if (connectionDismissed || (connectionState !== 'connected' && !graceElapsed)) {
     connectionIndicator = undefined
   } else if (connectionState === 'disconnected') {
     connectionIndicator = 'disconnected'
   } else if (connectionState === 'connecting') {
+    if (disconnectedShown) connectionIndicator = 'connecting'
     connectionIndicator = 'connecting'
   } else if (showRecovery) {
     connectionIndicator = 'recovered'
