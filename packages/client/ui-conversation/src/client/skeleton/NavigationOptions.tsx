@@ -176,6 +176,10 @@ export function NavigationOptions({
           setChoosing(false)
           void onContinueOn(desktop.self ? { target: 'here' } : { target: 'desktop', device: desktop.device }).catch(fail)
         }}
+        onRelease={() => {
+          setChoosing(false)
+          void onContinueOn({ target: 'here' }).catch(fail)
+        }}
         t={t}
       />
       {toast !== null && (

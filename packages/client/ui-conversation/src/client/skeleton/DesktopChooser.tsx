@@ -23,6 +23,8 @@ export interface DesktopChooserProps {
    * @param desktop - the chosen row's desktop, which may be this computer.
    */
   onChoose: (desktop: SessionDesktop) => void
+  /** Deselect the desktop the conversation runs on, so its next turns run where the reader is. */
+  onRelease: () => void
   /** The header's locale seat. */
   t: ConversationSessionHeaderProps['t']
 }
@@ -55,7 +57,7 @@ function status(desktop: SessionDesktop, now: number, t: DesktopChooserProps['t'
  * @param props - the desktops, the dialog's open state, its close and choose actions, and the locale seat.
  * @returns the dialog, or null while closed.
  */
-export function DesktopChooser({ open, desktops, onClose, onChoose, t }: DesktopChooserProps) {
+export function DesktopChooser({ open, desktops, onClose, onChoose, onRelease, t }: DesktopChooserProps) {
   // Dated once per opening, so the status lines stay put while the dialog shows.
   const now = useMemo(() => Date.now(), [open])
   // An offline desktop's row explains why it cannot take the conversation instead of moving it.
@@ -96,10 +98,12 @@ export function DesktopChooser({ open, desktops, onClose, onChoose, t }: Desktop
                 <button
                   type="button"
                   className={css.row}
-                  disabled={desktop.home}
+                  // Pressing the current desktop again deselects it; this computer cannot deselect itself.
+                  disabled={desktop.home && desktop.self}
                   aria-current={desktop.home ? 'true' : undefined}
                   onClick={() => {
-                    if (!desktop.present && !desktop.self) setOffline(desktop)
+                    if (desktop.home) onRelease()
+                    else if (!desktop.present && !desktop.self) setOffline(desktop)
                     else onChoose(desktop)
                   }}
                 >
