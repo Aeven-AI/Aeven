@@ -75,7 +75,8 @@ export function DesktopChooser({ open, desktops, onClose, onChoose, t }: Desktop
                 <button
                   type="button"
                   className={css.row}
-                  disabled={desktop.home}
+                  // The current desktop needs no move, and an offline one cannot take the conversation.
+                  disabled={desktop.home || (!desktop.present && !desktop.self)}
                   aria-current={desktop.home ? 'true' : undefined}
                   onClick={() => { onChoose(desktop) }}
                 >
