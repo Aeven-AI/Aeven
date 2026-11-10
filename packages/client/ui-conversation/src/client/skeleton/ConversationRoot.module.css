@@ -951,6 +951,11 @@
   border-radius: 50%;
 }
 
+/* The disc keeps its fill under the pointer; the tooltip is its hover feedback. */
+.archivedBar .unarchive:hover:not(:disabled) {
+  background: var(--dsw-alias-button-primary-fill);
+}
+
 .unarchiveIcon {
   width: 16px;
   height: 16px;
