@@ -22,7 +22,8 @@
  * an HTTP response whose body names the reason.
  *
  * Each account is bounded in open requests, bytes per second, and bytes per UTC day; all accounts together are
- * bounded in requests and bytes per second. Counters live in this process and start over when it restarts.
+ * bounded in requests and bytes per second. A request beyond a request bound waits for a free slot for up to
+ * `connectTimeoutMs` before it is refused. Counters live in this process and start over when it restarts.
  *
  * Questions: `{ id, type: 'git-token', account, host }` answered `{ id, token? }`;
  * `{ id, type: 'git-approve', account, session, host, repository, updates }` answered `{ id, approved }`;
@@ -50,7 +51,7 @@ import { createInterface } from 'node:readline'
  * @property {number} accountBytesPerSecond - bytes per second per account, both directions together.
  * @property {number} bytesPerSecond - bytes per second for all accounts together.
  * @property {number} accountBytesPerDay - bytes per UTC day per account.
- * @property {number} connectTimeoutMs - time allowed to resolve and reach a destination.
+ * @property {number} connectTimeoutMs - time allowed to wait for a free request slot, and again to resolve and reach a destination.
  * @property {number} idleTimeoutMs - time a connection may carry nothing before it is closed.
  */
 
@@ -193,25 +194,66 @@ function checkedLookup(host, options, callback) {
   })
 }
 
-/**
- * Count one more open request for an account.
- * @returns the account's state, or undefined when the account or the proxy is at its bound.
- */
-function enter(name) {
-  let account = accounts.get(name)
-  if (account === undefined) {
-    account = { connections: 0, bucket: new Bucket(config.accountBytesPerSecond) }
-    accounts.set(name, account)
-  }
-  if (account.connections >= config.accountConnections || connections >= config.connections) return undefined
+/** Requests waiting for a free slot, oldest first. */
+const waiting = []
+
+function hasRoom(account) {
+  return account.connections < config.accountConnections && connections < config.connections
+}
+
+function take(account) {
   account.connections += 1
   connections += 1
   return account
 }
 
+/**
+ * Take one request slot for an account. At its bound, the request waits up to `connectTimeoutMs` behind the
+ * account's earlier waiters for a slot to free, so a large install slows the account's other commands instead of
+ * failing them.
+ * @param {string} name - the account.
+ * @param {import('node:events').EventEmitter} closer - the socket or response whose `close` abandons the wait.
+ * @returns {Promise<object | undefined>} the account's state, or undefined when no slot freed in time or the request closed.
+ */
+function enter(name, closer) {
+  let account = accounts.get(name)
+  if (account === undefined) {
+    account = { connections: 0, waiting: 0, bucket: new Bucket(config.accountBytesPerSecond) }
+    accounts.set(name, account)
+  }
+  if (account.waiting === 0 && hasRoom(account)) return Promise.resolve(take(account))
+  return new Promise((resolve) => {
+    const entry = { account, settle: undefined }
+    const abandon = () => {
+      const index = waiting.indexOf(entry)
+      if (index >= 0) waiting.splice(index, 1)
+      entry.settle(undefined)
+    }
+    const timer = setTimeout(abandon, config.connectTimeoutMs)
+    entry.settle = (value) => {
+      clearTimeout(timer)
+      closer.off('close', abandon)
+      entry.account.waiting -= 1
+      resolve(value)
+    }
+    closer.once('close', abandon)
+    account.waiting += 1
+    waiting.push(entry)
+  })
+}
+
 function leave(account) {
   account.connections -= 1
   connections -= 1
+  for (let index = 0; index < waiting.length && connections < config.connections;) {
+    const entry = waiting[index]
+    if (!hasRoom(entry.account)) {
+      index += 1
+      continue
+    }
+    waiting.splice(index, 1)
+    entry.settle(take(entry.account))
+  }
 }
 
 function overDay(name) {
@@ -239,7 +281,7 @@ function copy(source, sink, name, account) {
 }
 
 const DAY_LIMIT = 'this account reached its daily network limit; it resets at 00:00 UTC'
-const BUSY = 'too many open connections; retry when one has closed'
+const BUSY = 'every connection this account may open stayed busy; retry when a running download has finished'
 
 /** Answer a tunnel request the proxy does not serve and close the connection. */
 function refuse(socket, status, reason) {
@@ -272,9 +314,13 @@ async function tunnel(request, client, head) {
     refuse(client, '429 Too Many Requests', DAY_LIMIT)
     return
   }
-  let account = enter(name)
+  let account = await enter(name, client)
   if (account === undefined) {
-    refuse(client, '429 Too Many Requests', BUSY)
+    if (!client.destroyed) refuse(client, '429 Too Many Requests', BUSY)
+    return
+  }
+  if (client.destroyed) {
+    leave(account)
     return
   }
   let upstream
@@ -398,9 +444,13 @@ async function git(request, response) {
     deny(response, 429, DAY_LIMIT)
     return
   }
-  const account = enter(name)
+  const account = await enter(name, response)
   if (account === undefined) {
-    deny(response, 429, BUSY)
+    if (!response.destroyed) deny(response, 429, BUSY)
+    return
+  }
+  if (response.destroyed) {
+    leave(account)
     return
   }
   let upstream
@@ -504,7 +554,7 @@ function start() {
     total.refill()
     for (const [name, account] of accounts) {
       account.bucket.refill()
-      if (account.connections === 0 && account.bucket.paused.size === 0) accounts.delete(name)
+      if (account.connections === 0 && account.waiting === 0 && account.bucket.paused.size === 0) accounts.delete(name)
     }
   }, TICK_MS).unref()
 

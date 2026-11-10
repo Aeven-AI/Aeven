@@ -45,7 +45,7 @@ export interface EgressLimits {
   bytesPerSecond: number
   /** Bytes per UTC day per account; the count starts over when the proxy restarts. */
   accountBytesPerDay: number
-  /** Milliseconds allowed to resolve and reach a destination. */
+  /** Milliseconds a request may wait for a free connection slot, and again to resolve and reach a destination. */
   connectTimeoutMs: number
   /** Milliseconds a connection may carry nothing before the proxy closes it. */
   idleTimeoutMs: number
