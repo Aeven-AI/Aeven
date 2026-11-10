@@ -22,7 +22,7 @@ import { SessionLogOffset, type SessionEvent, type SessionHeader, type SessionId
 import type { SessionPersistence, SessionPersistenceSnapshot } from '@aeven/session-persistence'
 import { LeaseHolder, type Sync, type SyncDocument, type SyncProgress, type LeaseHolderTiming } from '@aeven/sync'
 import { AttachmentId, type AttachmentStore } from '@aeven/attachment'
-import type { SessionClaim, SessionHandoffInput, SessionRunner, SharedSession } from '@aeven/session-handoff'
+import type { HandoffPlacement, SessionClaim, SessionHandoffInput, SessionRunner, SharedSession } from '@aeven/session-handoff'
 
 /** One session as the index records it: metadata only; the stream is the history. */
 interface IndexEntry {
@@ -37,6 +37,19 @@ interface IndexEntry {
   title?: string
   updatedAt?: number
   running?: boolean
+  /**
+   * The device that ran the session's latest turn; a rename or model change from another device leaves it. Absent on
+   * entries an older build wrote, and such a build rebuilds the entry without it when it publishes, which leaves the
+   * session without a preferred device.
+   */
+  writer?: string
+}
+
+/** One device's entry in the synced device list, as the sync provider writes it. */
+interface DeviceEntry {
+  name: string
+  /** Set by a device that keeps its relay connection open while no client is attached, such as Aeven Cloud. */
+  alwaysOn?: boolean
 }
 
 /** Where sessions are filed on this device; the workspace registry provides it. */
@@ -519,6 +532,24 @@ export class SessionMirror {
   }
 
   /**
+   * Give back the runner lease a claim for a change took while no turn runs here. The claim stays, so the change
+   * publishes; the lease alone would keep every other device, including the session's always-on home, from taking
+   * the next turn until it expired.
+   * @param sessionId - the session.
+   */
+  endChange(sessionId: SessionId): Promise<void> {
+    if (this.running.has(sessionId) || this.claims.get(sessionId)?.holder === undefined) return Promise.resolve()
+    return this.own(sessionId, async () => {
+      const claim = this.claims.get(sessionId)
+      const holder = claim?.holder
+      if (this.running.has(sessionId) || claim === undefined || holder === undefined) return
+      delete claim.holder
+      await holder.dispose()
+      this.consumeInbox()
+    })
+  }
+
+  /**
    * Stop continuing a session on this device: stop and drain its local agent, and keep its log as a copy that
    * follows the stream.
    * @param sessionId - the session.
@@ -961,6 +992,72 @@ export class SessionMirror {
   }
 
   /**
+   * The always-on device that ran a session's latest turn, when it is another device.
+   * @param sessionId - the session.
+   * @returns that device, or undefined when this device is it, the writer is not always on, or none is recorded.
+   */
+  homeOf(sessionId: SessionId): SessionRunner | undefined {
+    const home = this.preferredDevice(sessionId)
+    if (home === undefined || home === this.device()) return undefined
+    return { device: home, name: this.devices()?.get(home)?.name ?? '' }
+  }
+
+  /**
+   * The device that gets the first chance at a session's forwarded input: its last writer when that device is always on.
+   * @param sessionId - the session.
+   * @returns the device id, which may be this device, or undefined when the session has no always-on writer.
+   */
+  private preferredDevice(sessionId: SessionId): string | undefined {
+    const writer = this.docs?.index.doc.getMap<IndexEntry>('sessions').get(sessionId)?.writer
+    return writer !== undefined && this.devices()?.get(writer)?.alwaysOn === true ? writer : undefined
+  }
+
+  /**
+   * Where a session runs, as this device sees it.
+   * @param sessionId - the session.
+   * @returns the placement, or undefined when the session is not synced or sync has not started.
+   */
+  placementOf(sessionId: SessionId): HandoffPlacement | undefined {
+    const me = this.device()
+    const devices = this.devices()
+    if (me === undefined || devices === undefined || !this.shared(sessionId)) return undefined
+    const writer = this.entries().get(sessionId)?.writer
+    const always = [...devices.entries()].find(([id, entry]) => id !== me && entry.alwaysOn === true)
+    return {
+      device: me,
+      alwaysOnHere: devices.get(me)?.alwaysOn === true,
+      ...writer === undefined || writer === me
+        ? {}
+        : { home: { device: writer, name: devices.get(writer)?.name ?? '', alwaysOn: devices.get(writer)?.alwaysOn === true } },
+      ...always === undefined ? {} : { alwaysOn: { device: always[0], name: always[1].name } },
+    }
+  }
+
+  /**
+   * Make this device or an always-on device the session's home. Only the index entry changes: the next turn-starting
+   * input runs here, or is forwarded to that device.
+   * @param sessionId - the session.
+   * @param device - this device's id or an always-on device's.
+   * @throws when another device runs a turn of the session, or the device is neither this one nor always on.
+   */
+  async moveTo(sessionId: SessionId, device: string): Promise<void> {
+    await this.starting
+    const me = this.device()
+    if (me === undefined || this.docs === undefined) throw new Error('account sync has not started on this device')
+    if (device !== me && this.devices()?.get(device)?.alwaysOn !== true) {
+      throw new Error(`device ${device} is neither this device nor always on`)
+    }
+    if (this.runnerOf(sessionId) !== undefined) throw new Error('another device runs a turn of this session now')
+    const entry = this.entries().get(sessionId)
+    if (entry === undefined) throw new Error('the session is not synced')
+    if (entry.writer !== device) this.entries().set(sessionId, { ...entry, writer: device })
+  }
+
+  private devices(): YMap<DeviceEntry> | undefined {
+    return this.docs?.names.doc.getMap<DeviceEntry>('names')
+  }
+
+  /**
    * Publish the live state of a session whose turn runs here; a turn running on another device is left to it.
    * @param sessionId - the session.
    * @param live - the state, or undefined to clear it.
@@ -1043,8 +1140,8 @@ export class SessionMirror {
           continue
         }
       } else if (!runsHere) {
-        // The device the input was typed on gets the first chance to run it.
-        if (entry.from !== me && entry.at + this.tuning.inputGraceMs > now) continue
+        // The session's always-on writer gets the first chance to run it, otherwise the device it was typed on.
+        if ((this.preferredDevice(sessionId) ?? entry.from) !== me && entry.at + this.tuning.inputGraceMs > now) continue
         if (this.runnerOf(sessionId) !== undefined) continue
         const claimed = await this.claim(sessionId).catch((error: unknown) => {
           this.warn(`session sync: taking a session for forwarded input failed: ${String(error)}`)
@@ -2029,6 +2126,8 @@ export class SessionMirror {
     if (this.isClosed()) return
     active.published = after(suffix.events, from)
     const previous = this.entries().get(sessionId)
+    // Only a turn moves the session's home; a rename or model change published from another device does not.
+    const writer = suffix.events.some(event => event.type === 'turn/start') ? this.device() : previous?.writer
     const title = titleOf(suffix.events) ?? previous?.title
     this.entries().set(sessionId, {
       header: suffix.meta,
@@ -2039,6 +2138,7 @@ export class SessionMirror {
       inherited: suffix.inheritedEventCount,
       next: Math.max(previous?.next ?? 0, active.published),
       ...home === undefined ? {} : { workspace: home },
+      ...writer === undefined ? {} : { writer },
     })
   }
 

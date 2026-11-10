@@ -434,6 +434,8 @@ function mount(fixture: Awaited<ReturnType<typeof bench>>) {
         open={vi.fn()}
         forkSession={vi.fn()}
         exportSession={() => Promise.resolve()}
+        devicePlacement={() => Promise.resolve({ here: false })}
+        continueOn={() => Promise.resolve()}
         moveSession={undefined}
         selectView={conversation.actions.setView}
         t={tConversation}

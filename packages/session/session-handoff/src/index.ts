@@ -15,6 +15,24 @@ export interface SessionHandoffInput {
   readonly operation: string
   /** The operation's request, as JSON. */
   readonly request: unknown
+  /**
+   * The forwarding user's session credentials by reference, such as the Aeven access token: the device that applies
+   * the input has no client of that user connected and makes the turn's model requests with them. It holds them in
+   * memory only, as it would hold a connected client's; absent on input from older builds.
+   */
+  readonly credentials?: Readonly<Record<string, string>>
+}
+
+/** Where a synced session runs, as the asking device sees it. */
+export interface HandoffPlacement {
+  /** The asking device's id in the account's vault. */
+  readonly device: string
+  /** Whether the asking device keeps its relay connection without a client, such as Aeven Cloud. */
+  readonly alwaysOnHere: boolean
+  /** The device that ran the session's latest turn, when one is recorded and it is not the asking device. */
+  readonly home?: SessionRunner & { readonly alwaysOn: boolean }
+  /** An always-on device of the account other than the asking one, which the session can move to. */
+  readonly alwaysOn?: SessionRunner
 }
 
 /** Conversation metadata available before this device downloads the log body. */
@@ -128,6 +146,17 @@ export abstract class SessionHandoff extends Service {
   abstract runnerOf(owner: string, sessionId: SessionId): SessionRunner | undefined
 
   /**
+   * The always-on device, such as Aeven Cloud, that ran a session's latest turn, when it is another device.
+   * A session stays on that device, where its files and background jobs live: this device forwards a turn-starting
+   * input to it instead of claiming the session, and it gets the first chance to run the input.
+   * @param owner - the account.
+   * @param sessionId - the session.
+   * @returns that device, or undefined when this device ran the latest turn, that device is not always on, or an
+   *   older build published the session without recording it.
+   */
+  abstract homeOf(owner: string, sessionId: SessionId): SessionRunner | undefined
+
+  /**
    * Forward one input to the device writing a session. Input reaches it in the order it was forwarded and waits
    * while that device is unreachable.
    * @param owner - the account.
@@ -153,6 +182,32 @@ export abstract class SessionHandoff extends Service {
    * @param running - whether a turn runs; false lets other devices claim it again.
    */
   abstract holdRunner(owner: string, sessionId: SessionId, running: boolean): Promise<void>
+
+  /**
+   * Where a synced session runs, for offering the user to move it.
+   * @param owner - the account.
+   * @param sessionId - the session.
+   * @returns the placement, or undefined when the session is not synced or account sync has not started.
+   */
+  abstract placementOf(owner: string, sessionId: SessionId): HandoffPlacement | undefined
+
+  /**
+   * Make a device of the account the session's home, so its next turn runs there: this device, or an always-on device
+   * a later input is forwarded to. The session's log does not change.
+   * @param owner - the account.
+   * @param sessionId - the session.
+   * @param device - the device id, this device's or an always-on device's.
+   * @throws when another device runs a turn of the session now, or the device is neither.
+   */
+  abstract moveTo(owner: string, sessionId: SessionId, device: string): Promise<void>
+
+  /**
+   * Give back the hold a claim for a change took, such as a rename or a model selection, once the change is applied
+   * and no turn runs here; the session stays writable here, and another device may take its next turn at once.
+   * @param owner - the account.
+   * @param sessionId - the session.
+   */
+  abstract endChange(owner: string, sessionId: SessionId): Promise<void>
 
   /**
    * Download an attachment another device of the account published, such as an image, video, or file a synced

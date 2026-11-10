@@ -1727,6 +1727,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'request', description: 'the credential-bearing headers.' }],
         returns: 'the reference, or undefined when nobody recognized the request or the authority declared none.',
       },
+      {
+        signature: 'credentialRefs(): CredentialRef[]',
+        description: 'The credential references every registered authority names, once each.',
+        parameters: [],
+        returns: 'the references, for a caller that hands a signed-in user\'s session credentials to another device.',
+      },
     ],
   },
   {
@@ -2596,6 +2602,18 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the accepted title and durable event sequence.',
       },
       {
+        signature: '@Remote(\'placement\') placement(request: SessionPlacementRequest): Promise<SessionPlacementValue>',
+        description: 'The moves between the account\'s devices this device offers for one synced Session.',
+        parameters: [{ name: 'request', description: 'Session identity.' }],
+        returns: 'the offered moves.',
+      },
+      {
+        signature: '@Remote(\'continueOn\') continueOn(request: SessionContinueOnRequest): Promise<SessionContinueOnValue>',
+        description: 'Run a synced Session\'s next turns on this device or on the account\'s always-on device.',
+        parameters: [{ name: 'request', description: 'Session identity and the device to continue on.' }],
+        returns: 'acceptance.',
+      },
+      {
         signature: '@Remote(\'fork\') fork(request: SessionForkRequest): Promise<SessionForkValue>',
         description: 'Fork one cold-readable completed-turn prefix into a new Session.',
         parameters: [{ name: 'request', description: 'source Session and optional event anchor.' }],
@@ -2706,6 +2724,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the writing device, or undefined when this device writes the session or it is not synced.',
       },
       {
+        signature: 'abstract homeOf(owner: string, sessionId: SessionId): SessionRunner | undefined',
+        description: 'The always-on device, such as Aeven Cloud, that ran a session\'s latest turn, when it is another device. A session stays on that device, where its files and background jobs live: this device forwards a turn-starting input to it instead of claiming the session, and it gets the first chance to run the input.',
+        parameters: [{ name: 'owner', description: 'the account.' }, { name: 'sessionId', description: 'the session.' }],
+        returns: 'that device, or undefined when this device ran the latest turn, that device is not always on, or an older build published the session without recording it.',
+      },
+      {
         signature: 'abstract forward(owner: string, sessionId: SessionId, input: SessionHandoffInput): Promise<void>',
         description: 'Forward one input to the device writing a session. Input reaches it in the order it was forwarded and waits while that device is unreachable.',
         parameters: [{ name: 'owner', description: 'the account.' }, { name: 'sessionId', description: 'the session.' }, { name: 'input', description: 'the input.' }],
@@ -2720,6 +2744,23 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         signature: 'abstract holdRunner(owner: string, sessionId: SessionId, running: boolean): Promise<void>',
         description: 'Hold a session for this device while it runs a turn, so no other device claims it meanwhile.',
         parameters: [{ name: 'owner', description: 'the account.' }, { name: 'sessionId', description: 'the session.' }, { name: 'running', description: 'whether a turn runs; false lets other devices claim it again.' }],
+      },
+      {
+        signature: 'abstract placementOf(owner: string, sessionId: SessionId): HandoffPlacement | undefined',
+        description: 'Where a synced session runs, for offering the user to move it.',
+        parameters: [{ name: 'owner', description: 'the account.' }, { name: 'sessionId', description: 'the session.' }],
+        returns: 'the placement, or undefined when the session is not synced or account sync has not started.',
+      },
+      {
+        signature: 'abstract moveTo(owner: string, sessionId: SessionId, device: string): Promise<void>',
+        description: 'Make a device of the account the session\'s home, so its next turn runs there: this device, or an always-on device a later input is forwarded to. The session\'s log does not change.',
+        parameters: [{ name: 'owner', description: 'the account.' }, { name: 'sessionId', description: 'the session.' }, { name: 'device', description: 'the device id, this device\'s or an always-on device\'s.' }],
+        throws: ['when another device runs a turn of the session now, or the device is neither.'],
+      },
+      {
+        signature: 'abstract endChange(owner: string, sessionId: SessionId): Promise<void>',
+        description: 'Give back the hold a claim for a change took, such as a rename or a model selection, once the change is applied and no turn runs here; the session stays writable here, and another device may take its next turn at once.',
+        parameters: [{ name: 'owner', description: 'the account.' }, { name: 'sessionId', description: 'the session.' }],
       },
       {
         signature: 'fetchAttachment(_attachmentId: string, _owner?: string): Promise<boolean>',
@@ -7139,6 +7180,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface GrantRecord {\n    readonly kind: \'grant\';\n    readonly payload: unknown;\n}',
   },
   {
+    name: 'HandoffPlacement',
+    declaration: 'export interface HandoffPlacement {\n    readonly device: string;\n    readonly alwaysOnHere: boolean;\n    readonly home?: SessionRunner & {\n        readonly alwaysOn: boolean;\n    };\n    readonly alwaysOn?: SessionRunner;\n}',
+  },
+  {
     name: 'HostProfile',
     declaration: 'export interface HostProfile {\n    readonly kind: \'cloud\' | \'device\';\n    readonly provides: readonly DeviceCapability[];\n}',
   },
@@ -8443,6 +8488,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type SessionClaim = {\n    readonly claimed: true;\n} | {\n    readonly claimed: false;\n};',
   },
   {
+    name: 'SessionContinueOnRequest',
+    declaration: 'export interface SessionContinueOnRequest {\n    readonly sessionId: SessionId;\n    readonly target: \'here\' | \'always-on\';\n}',
+  },
+  {
+    name: 'SessionContinueOnValue',
+    declaration: 'export interface SessionContinueOnValue {\n    readonly moved: true;\n}',
+  },
+  {
     name: 'SessionControlBaseline',
     declaration: 'export interface SessionControlBaseline {\n    readonly queues: Readonly<Record<SessionId, readonly SessionQueuedItem[]>>;\n    readonly jobs: Readonly<Record<SessionId, readonly SessionJob[]>>;\n    readonly projections: Readonly<Record<SessionId, SessionProjectionBaseline>>;\n}',
   },
@@ -8564,7 +8617,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SessionHandoffInput',
-    declaration: 'export interface SessionHandoffInput {\n    readonly operation: string;\n    readonly request: unknown;\n}',
+    declaration: 'export interface SessionHandoffInput {\n    readonly operation: string;\n    readonly request: unknown;\n    readonly credentials?: Readonly<Record<string, string>>;\n}',
   },
   {
     name: 'SessionHeader',
@@ -8661,6 +8714,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SessionPlacement',
     declaration: 'export type SessionPlacement = {\n    readonly state: \'filed\';\n    readonly workspace: Workspace;\n} | {\n    readonly state: \'pending\';\n    readonly home: string;\n} | {\n    readonly state: \'unfiled\';\n};',
+  },
+  {
+    name: 'SessionPlacementRequest',
+    declaration: 'export interface SessionPlacementRequest {\n    readonly sessionId: SessionId;\n}',
+  },
+  {
+    name: 'SessionPlacementValue',
+    declaration: 'export interface SessionPlacementValue {\n    readonly here: boolean;\n    readonly alwaysOn?: string;\n}',
   },
   {
     name: 'SessionPreparation',

@@ -352,8 +352,23 @@ export interface ConversationSessionHeaderInjected {
    * replaces it; absent in an assembly without a Workspace surface.
    */
   moveSession: ((workspaceId: WorkspaceId) => void) | undefined
+  /**
+   * The moves between the account's devices this Host offers for this Session, read when the options open; a
+   * Session that is not synced, or a Host that is always on, offers none.
+   */
+  devicePlacement: () => Promise<SessionDevicePlacement>
+  /** Run this Session's next turns on this computer, or on the account's always-on device. */
+  continueOn: (target: 'here' | 'always-on') => Promise<void>
   /** Select and activate one registered Conversation View. */
   selectView: (view: string) => void
+}
+
+/** Device moves the header offers for a synced Session. */
+export interface SessionDevicePlacement {
+  /** Offer "Continue on this computer": the Session's latest turn ran on an always-on device. */
+  readonly here: boolean
+  /** Name of the always-on device to offer "Continue in …", such as "Aeven Cloud". */
+  readonly alwaysOn?: string
 }
 
 /** One Workspace the header offers as a move destination. */

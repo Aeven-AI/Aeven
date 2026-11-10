@@ -46,6 +46,10 @@ async function harness(options: {
     ctx.provide('sessionHandoff', {
       catalog: () => [{ header: { ...copy.header, ...(options.directoryless ? {} : { cwd: '/other-device/project' }) } }],
       runnerOf: (_owner: string, id: SessionId) => (id === REMOTE ? { device: 'laptop-id', name: 'laptop' } : undefined),
+      homeOf: () => undefined,
+      endChange: () => Promise.resolve(),
+      placementOf: () => undefined,
+      moveTo: () => Promise.resolve(),
       forward,
       fetch: () => Promise.resolve(),
       claim: vi.fn((_owner: string, id: SessionId) => Promise.resolve({ claimed: id !== REMOTE || options.claim === true })),

@@ -77,6 +77,10 @@ describe('sessions.list cold merge', () => {
       ctx.provide('sessionHandoff', {
         catalog: () => [{ header: meta, next: 10, updatedAt: 100, title: 'Already shared' }],
         runnerOf: () => undefined,
+        homeOf: () => undefined,
+        endChange: () => Promise.resolve(),
+        placementOf: () => undefined,
+        moveTo: () => Promise.resolve(),
       } as never)
       ctx.provide('sessionProjectionCache', { cachedSnapshot: () => undefined } as never)
       const remote = createSessionTestRemote(ctx, {

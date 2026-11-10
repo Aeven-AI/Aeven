@@ -140,6 +140,16 @@ export class IdentityUsers extends Service {
     }
     return undefined
   }
+
+  /**
+   * The credential references every registered authority names, once each.
+   * @returns the references, for a caller that hands a signed-in user's session credentials to another device.
+   */
+  credentialRefs(): CredentialRef[] {
+    const refs = new Set<CredentialRef>()
+    for (const resolver of this.resolvers.values()) if (resolver.credentialRef !== undefined) refs.add(resolver.credentialRef)
+    return [...refs]
+  }
 }
 
 export default IdentityUsers
