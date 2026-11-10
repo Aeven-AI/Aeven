@@ -1211,9 +1211,9 @@ export class SessionMirror {
       this.warn(`session sync: publishing a forwarded input's attachments failed: ${String(error)}`)
     })
     const to = this.homeOf(sessionId)?.device
-    // A conversation created here is unknown to the device it is sent to until its events are published, so it
-    // publishes them before the input travels.
-    if (to !== undefined && this.claims.has(sessionId)) {
+    // A conversation no device has published is unknown to the device it is sent to until its events are, so they
+    // are published before the input travels, whether or not this device has claimed it yet.
+    if (to !== undefined && this.entries().get(sessionId) === undefined) {
       await this.serialize(sessionId, () => this.publishSession(sessionId, false, true)).catch((error: unknown) => {
         this.warn(`session sync: publishing ${sessionId} before forwarding its input failed: ${String(error)}`)
       })
