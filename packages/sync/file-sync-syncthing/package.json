@@ -1,7 +1,7 @@
 {
   "name": "@aeven/file-sync-syncthing",
   "description": "Syncthing provider for file sync: one supervised Syncthing process configured through its loopback REST API",
-  "version": "0.3.41-alpha",
+  "version": "0.3.42-alpha",
   "publishConfig": {
     "access": "public"
   },

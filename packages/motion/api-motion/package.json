@@ -1,7 +1,7 @@
 {
   "name": "@aeven/api-motion",
   "description": "Browser routes behind the Motion card: live composition preview, MP4 export, and film streaming",
-  "version": "0.3.41-alpha",
+  "version": "0.3.42-alpha",
   "publishConfig": {
     "access": "public"
   },

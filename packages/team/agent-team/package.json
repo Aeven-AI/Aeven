@@ -1,7 +1,7 @@
 {
   "name": "@aeven/agent-team",
   "description": "Shared task board for subagent trees: owners, dependencies, compare-and-set claims, and write-scope warnings",
-  "version": "0.3.41-alpha",
+  "version": "0.3.42-alpha",
   "publishConfig": {
     "access": "public"
   },
