@@ -56,6 +56,7 @@ kind: "package-reference"
 | `cgroup` | 无 | 委派的 cgroup 目录，以及总限制与单账户限制；任一限制中可选的 `ioMax` 限制磁盘 I/O，可选的 `memoryHigh` 在 `memoryMax` 终止一个组之前先让它变慢 |
 | `quotaCommand` | 无 | 限制账户文件夹磁盘用量的 argv，末尾追加该文件夹，在命令自身的启动步骤中运行，直到 `quotaRecord` 列出该账户；失败则拒绝该条命令 |
 | `quotaRecord` | 无 | 配额辅助程序记录已受限账户的文件；省略时每条命令都运行配额步骤 |
+| `unlimitedAccounts` | `[]` | 其 cgroup 使用合计 `total` 限制、出站代理只对其应用合计上限的账户文件夹名，例如运营者自己的账户；监狱与磁盘配额仍然适用 |
 | `modelNote` | 无 | 描述命令可用内容的系统提示词文本 |
 | `seccompFilter` | 无 | bubblewrap 安装的 BPF 系统调用过滤器的主机路径；文件不存在则启动失败 |
 | `sessionAttachments` | `false` | 以只读方式在存储路径上挂载对话的用户消息与工具结果引用的附件 |

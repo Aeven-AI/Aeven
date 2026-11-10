@@ -53,6 +53,7 @@ import { createInterface } from 'node:readline'
  * @property {number} accountBytesPerDay - bytes per UTC day per account.
  * @property {number} connectTimeoutMs - time allowed to wait for a free request slot, and again to resolve and reach a destination.
  * @property {number} idleTimeoutMs - time a connection may carry nothing before it is closed.
+ * @property {string[]} unlimitedAccounts - accounts the per-account bounds do not apply to; the combined bounds still do.
  */
 
 const TICK_MS = 100
@@ -125,6 +126,7 @@ let exact
 let suffixes
 let ports
 let gitHosts
+let unlimited
 let total
 /** @type {Map<string, { connections: number, bucket: Bucket }>} */
 const accounts = new Map()
@@ -198,7 +200,7 @@ function checkedLookup(host, options, callback) {
 const waiting = []
 
 function hasRoom(account) {
-  return account.connections < config.accountConnections && connections < config.connections
+  return (account.unlimited || account.connections < config.accountConnections) && connections < config.connections
 }
 
 function take(account) {
@@ -218,7 +220,8 @@ function take(account) {
 function enter(name, closer) {
   let account = accounts.get(name)
   if (account === undefined) {
-    account = { connections: 0, waiting: 0, bucket: new Bucket(config.accountBytesPerSecond) }
+    const exempt = unlimited.has(name)
+    account = { connections: 0, waiting: 0, unlimited: exempt, bucket: new Bucket(exempt ? config.bytesPerSecond : config.accountBytesPerSecond) }
     accounts.set(name, account)
   }
   if (account.waiting === 0 && hasRoom(account)) return Promise.resolve(take(account))
@@ -257,7 +260,7 @@ function leave(account) {
 }
 
 function overDay(name) {
-  return (dayBytes.get(name) ?? 0) > config.accountBytesPerDay
+  return !unlimited.has(name) && (dayBytes.get(name) ?? 0) > config.accountBytesPerDay
 }
 
 /** Copy `source` to `sink`, charging the account, and pass on the end of the stream. */
@@ -539,6 +542,7 @@ function start() {
   suffixes = config.allow.filter(name => name.startsWith('*.')).map(name => name.slice(1).toLowerCase())
   ports = new Set(config.ports)
   gitHosts = new Set(config.gitHosts)
+  unlimited = new Set(config.unlimitedAccounts ?? [])
   total = new Bucket(config.bytesPerSecond)
   upstreamAgent = new https.Agent({ keepAlive: true, maxSockets: 256, timeout: config.idleTimeoutMs })
 

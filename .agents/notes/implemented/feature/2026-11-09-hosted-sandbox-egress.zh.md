@@ -22,6 +22,8 @@ Status: implemented
 
 超出连接上限的请求最多等待 `connectTimeoutMs` 以获得名额，而不是立即被拒绝。在 pink 上，一次发布演练的 `pnpm install` 占满了其账户的全部 32 个连接，同一账户另一条命令中的 `fetch` 立即以 429 失败。
 
+在托管账户中对本仓库执行完整 `pnpm install`，在 1.5 GiB 的 `memoryHigh` 下运行超过十二分钟，因此 `memoryHigh` 与 `memoryMax` 一样设为 2 GiB；`unlimitedAccounts`（取自 `AVN_HOSTED_UNLIMITED_ACCOUNTS`）让运营者自己等指定账户使用监狱整体限制，并只受代理的合计上限约束。
+
 ## 考虑过的替代方案
 
 不用中继的设计由启动步骤通过 Unix 套接字把监听套接字传给代理，每条命令不多一个进程，但 Node.js 无法从套接字的辅助数据中接收描述符，而 Python 或 C 代理意味着手写 HTTP 和 DNS 处理。中继每条命令占用 0.3 MB 和一次 fork。

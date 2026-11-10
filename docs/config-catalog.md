@@ -3613,6 +3613,12 @@ export interface Config {
    */
   commandUser?: CommandUserConfig
   /**
+   * Account path segments exempt from the per-account bounds: their cgroup gets the combined `cgroup.total` limits
+   * and the egress proxy applies only its combined bounds to them, such as the operator's own account. Every other
+   * protection stays: the jail, the disk quota, and the bounds all accounts share.
+   */
+  unlimitedAccounts?: string[]
+  /**
    * System-prompt text describing what confined commands can use, such as
    * having no network and which programs and libraries are installed; omitted,
    * the jail adds nothing to the prompt.
@@ -3648,7 +3654,7 @@ export interface PythonZygoteConfig {
 }
 
 /** The egress proxy's deployment: what jailed commands may reach on the network, and how much. */
-export interface EgressConfig extends EgressLimits {
+export interface EgressConfig extends Omit<EgressLimits, 'unlimitedAccounts'> {
   /** Host path of the Node.js that runs the proxy, readable by the user confined commands run as, e.g. `/usr/bin/node`. */
   node: string
   /** Host path of the proxy `host/install-egress.sh` installs, e.g. `<image>/shim/egress-proxy.mjs`; a missing file fails startup. */
@@ -3724,10 +3730,12 @@ export interface EgressLimits {
   bytesPerSecond: number
   /** Bytes per UTC day per account; the count starts over when the proxy restarts. */
   accountBytesPerDay: number
-  /** Milliseconds allowed to resolve and reach a destination. */
+  /** Milliseconds a request may wait for a free connection slot, and again to resolve and reach a destination. */
   connectTimeoutMs: number
   /** Milliseconds a connection may carry nothing before the proxy closes it. */
   idleTimeoutMs: number
+  /** Accounts the per-account connection and byte bounds do not apply to; the combined bounds still do. */
+  unlimitedAccounts: string[]
 }
 ```
 

@@ -49,6 +49,8 @@ export interface EgressLimits {
   connectTimeoutMs: number
   /** Milliseconds a connection may carry nothing before the proxy closes it. */
   idleTimeoutMs: number
+  /** Accounts the per-account connection and byte bounds do not apply to; the combined bounds still do. */
+  unlimitedAccounts: string[]
 }
 
 /** One ref a push changes that needs the user's approval. */

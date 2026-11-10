@@ -546,6 +546,9 @@
             cpuMax: 400000 100000
             cpuWeight: '100'
         sessionAttachments: true
+        # Accounts with the jail-wide limits instead of per-account ones, such
+        # as the operator's own, comma separated in AVN_HOSTED_UNLIMITED_ACCOUNTS.
+        unlimitedAccounts: !!js "(process.env.AVN_HOSTED_UNLIMITED_ACCOUNTS ?? '').split(',').map(account => account.trim()).filter(account => account !== '')"
         # Commands reach these hosts over HTTPS and nothing else; the proxy
         # refuses a name that resolves to this machine or a private network.
         # host/install-egress.sh installs the proxy, the relay, and the socket
@@ -625,8 +628,8 @@
           # On pink (18 cores, 105 GB) the jails together get 14 cores and
           # 48 GB beside the Host's 16 GB heap and Mongo's 16 GB cache. Each
           # account may use two cores, so seven busy accounts fill the share
-          # before equal weights divide it. Above 1.5 GB an account's commands
-          # are slowed by reclaim; at 2 GB they end together.
+          # before equal weights divide it. An account's commands are slowed by
+          # reclaim and end together at 2 GB.
           total:
             memoryMax: 48G
             pidsMax: '16384'
@@ -635,7 +638,7 @@
             ioMax: rbps=83886080 wbps=41943040 riops=3000 wiops=1000
           account:
             memoryMax: 2G
-            memoryHigh: 1536M
+            memoryHigh: 2G
             pidsMax: '256'
             cpuMax: 200000 100000
             cpuWeight: '100'

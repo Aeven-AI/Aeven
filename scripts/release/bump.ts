@@ -13,6 +13,10 @@
  *
  * The version lands in the manifests, the lockfile follows, and a human creates
  * the tag after the commit merges. CI never writes to the repository.
+ *
+ * `release:avn` and `release:vendor` run this file under plain Node, so a fresh
+ * clone bumps without installing the workspace; it and everything it imports
+ * use only `node:` modules and erasable TypeScript syntax.
  */
 
 import { globSync, readFileSync, writeFileSync } from 'node:fs'
