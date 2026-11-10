@@ -24,7 +24,7 @@ Status: implemented
 
 在托管账户中对本仓库执行完整 `pnpm install`，在 1.5 GiB 的 `memoryHigh` 下运行超过十二分钟，因此 `memoryHigh` 与 `memoryMax` 一样设为 2 GiB；`unlimitedAccounts`（取自 `AVN_HOSTED_UNLIMITED_ACCOUNTS`）让运营者自己等指定账户使用监狱整体限制，并只受代理的合计上限约束。
 
-监狱设置 `npm_config_verify_deps_before_run=false`：否则依赖缺失时 pnpm 11 会在 `pnpm run` 之前执行完整安装；在本仓库的新克隆中，这会从 `nodejs.org` 和 GitHub release 资源构建原生模块，而代理拒绝这些主机。设置之后，在 pink 上对新克隆执行 `pnpm release:avn` 用时 24 秒、占用 613 MB。
+监狱设置 `pnpm_config_verify_deps_before_run=false`：否则依赖缺失时 pnpm 11 会在 `pnpm run` 之前执行完整安装；在本仓库的新克隆中，这会从 `nodejs.org` 和 GitHub release 资源构建原生模块，而代理拒绝这些主机。设置之后，在 pink 上对新克隆执行 `pnpm release:avn` 用时 24 秒、占用 613 MB。
 
 ## 考虑过的替代方案
 

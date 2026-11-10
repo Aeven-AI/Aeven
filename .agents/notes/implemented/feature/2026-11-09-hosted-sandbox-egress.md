@@ -24,7 +24,7 @@ A request beyond a connection bound waits up to `connectTimeoutMs` for a slot in
 
 A full `pnpm install` of this repository in a hosted account ran past twelve minutes at its 1.5 GiB `memoryHigh`, so `memoryHigh` equals `memoryMax` at 2 GiB, and `unlimitedAccounts`, set from `AVN_HOSTED_UNLIMITED_ACCOUNTS`, gives named accounts such as the operator's the jail-wide limits and only the proxy's combined bounds.
 
-The jail sets `npm_config_verify_deps_before_run=false`: pnpm 11 otherwise runs a full install before `pnpm run` when dependencies are missing, which in a fresh clone of this repository builds native modules from `nodejs.org` and GitHub release assets, hosts the proxy refuses. With it, `pnpm release:avn` on a fresh clone took 24 seconds at 613 MB on pink.
+The jail sets `pnpm_config_verify_deps_before_run=false`: pnpm 11 otherwise runs a full install before `pnpm run` when dependencies are missing, which in a fresh clone of this repository builds native modules from `nodejs.org` and GitHub release assets, hosts the proxy refuses. With it, `pnpm release:avn` on a fresh clone took 24 seconds at 613 MB on pink.
 
 ## Alternatives considered
 
