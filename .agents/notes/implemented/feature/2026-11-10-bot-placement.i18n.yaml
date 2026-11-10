@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-10-bot-placement.md
-2026-11-10-bot-placement.md: 92eb1fa2e19f3b80d7af504301776f8f7fafda08
-2026-11-10-bot-placement.zh.md: 3c9933661ec6e30427f897aa6f41fb0f07a23cb9
+2026-11-10-bot-placement.md: 9474a95daf64ac1a520825a2591cdee989d4c92f
+2026-11-10-bot-placement.zh.md: 7d29c173a9a841047cff6d83fa885c9d5a8bca8b

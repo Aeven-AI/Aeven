@@ -18,6 +18,7 @@ A definition carries what its task needs from the owner's own computer and the o
 - **Derived placement.** No requirements and `runOn: auto` place a bot on the cloud Host. Any requirement, or `runOn: device`, places it on a device Host that provides every requirement. A definition without `requires`, stored before this change, runs on any Host as before. Cloud, device, and hybrid are results of this derivation; no definition stores one.
 - **Enforcement.** `admit` refuses a scheduled, manual, or inbound run on a Host the placement excludes, and the scheduler does not claim the lease there.
 - **Cloud first, device as fallback.** Every Host writes its profile to the `hosts` map of the account's synced `automations` document. A device Host admits a cloud-placed bot at once while that map names no cloud Host. Otherwise it waits `sync.fallbackDelayMs` (two minutes) and admits only when the definition's synced `lastAdmittedAt` shows that the cloud Host did not, then gives the lease up.
+- **Manual cloud runs.** Run-now and retry requests target one registered cloud runner through the account document. The relay acknowledges the request before the client receives its queued run. Only that runner admits it, using the request id as the durable run id so reattaching sync cannot replay it. Execution snapshots return through the same document; deleting finished history leaves a request tombstone so a disconnected Host cannot restore it. Client shutdown does not cancel cloud work.
 - **Page.** Each bot card shows a third fact, "Runs on", and the open card explains why and offers the `runOn` switch.
 
 The `automations` domain stays at version 3: the two fields are optional or defaulted when a stored definition is read, so existing bots open unchanged.
@@ -38,12 +39,14 @@ Placement trusts the declaration. A bot declared without `files` that reads a lo
 
 A bot that needs a computer does not start in the cloud, and the hosted page refuses to run it manually. A cloud run that uses a device's files is the next change on this path; see the [remaining phases](../../proposed/feature/2026-10-12-automations-next-phases.md).
 
-An account whose cloud Host is registered but stopped gets its cloud-placed bots two minutes late, from a device. A Host is never removed from the `hosts` map.
+An account whose cloud Host is registered but stopped gets scheduled cloud-placed bots two minutes late, from a device. Manual cloud requests wait for the addressed cloud Host rather than starting on the requesting device. A Host is never removed from the `hosts` map.
 
 An older build rejects a definition that carries `requires` or `runOn`, so a device that has not updated stops receiving bots created or edited on an updated one.
 
 The generated cordis API catalog was not regenerated in this change: `gen-cordis-api` stops at a type of the uncommitted sandbox work in the same checkout.
 
 ## Verification
+
+The keyless automation suites cover cloud completion after requester shutdown, offline cloud requests, retries of interrupted local runs, admission deduplication after sync reattachment, shared-history removal, and device-only execution. Live desktop checks at 320, 496, and 900 CSS pixels confirm that the card keeps Runs on left-aligned on its own row at narrow widths and right-aligned alongside the other facts at wide widths, without horizontal page overflow.
 
 In the dev desktop app, signed in to a synced account, the Host opened the existing version 3 `automations` domain. One message asked for two bots: the model declared `requires: []` for a daily web news brief and `requires: ["files"]` for a daily check of the Downloads folder, and both were created after approval. The `/bots` page showed "Runs on: Your computer" on both cards. The open news card read "This bot runs on your computer while Aeven is open there.", because no cloud Host has registered for the account, and its switch changed `runOn` to `device` and back with the text following. The Downloads card named "your files" as the reason and offered no switch. `pnpm run build` is green. A cloud Host running this change was not observed: the hosted deployment does not carry it yet, so cloud-first admission and the two-minute fallback are unverified on real Hosts.

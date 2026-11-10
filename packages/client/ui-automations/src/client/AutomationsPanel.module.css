@@ -104,6 +104,7 @@
 /* The card's whole summary — the name, the chevron, and the recurrence facts —
    is one toggle, so the name states what opens and the facts state when. */
 .toggle {
+  container: bot-summary / inline-size;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -168,8 +169,8 @@
 }
 
 .facts {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr) max-content;
   gap: 12px 40px;
 }
 
@@ -178,6 +179,21 @@
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+}
+
+.fact:nth-child(3) {
+  text-align: right;
+}
+
+@container bot-summary (max-width: 30rem) {
+  .facts {
+    grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  }
+
+  .fact:nth-child(3) {
+    grid-column: 1 / -1;
+    text-align: left;
+  }
 }
 
 /* The pair states its own weight: neither label nor value is a definition

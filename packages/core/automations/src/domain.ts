@@ -50,7 +50,8 @@ const definitionSchema: z.ZodType<AutomationDefinition> = inputSchema.extend({
   })),
   createdAt: instant, updatedAt: instant,
 })
-const runSchema: z.ZodType<AutomationRun> = z.object({
+/** Validate a stored or account-synced run snapshot. */
+export const runSchema: z.ZodType<AutomationRun> = z.object({
   id: text.transform(value => brandString<AutomationRunId>(value)), definition: definitionSchema,
   trigger: z.enum(['schedule', 'manual', 'webhook']), scheduledFor: instant,
   status: z.enum(['queued', 'running', 'succeeded', 'failed', 'skipped', 'cancelled']),

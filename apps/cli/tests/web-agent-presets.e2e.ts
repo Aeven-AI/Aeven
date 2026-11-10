@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { mkdir, mkdtemp, readFile, stat, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
@@ -13,7 +13,9 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { SUBAGENT_MODEL_SELECTION_SETTINGS_NAMESPACE } from '@aeven/tool-subagent/model-selection-settings'
 import { SETTINGS_NAMESPACE, SHIPPED_PRESET_ROOT } from '@aeven/agent-presets'
 import { applyChildComposition, childSessionMeta } from '@aeven/subagent'
-import { ToolCallId } from '@aeven/llm'
+import { LlmAdapter, ToolCallId, type GenerateOptions, type StreamChunk } from '@aeven/llm'
+import type {} from '@aeven/automations'
+import { MemorySyncNetwork } from '../../../packages/sync/sync/tests/memory.ts'
 import type {} from '@aeven/compaction-basic'
 import type {} from '@aeven/skill'
 import type {} from '@aeven/tools'
@@ -83,6 +85,13 @@ async function bootWeb(
     { id: 'skill-badge', disabled: false },
     { id: 'modules', disabled: true },
     { id: 'connection', disabled: true },
+    { id: 'automations', disabled: true },
+    { id: 'sync-yjs', disabled: true },
+    { id: 'session-sync', disabled: true },
+    { id: 'settings-sync', disabled: true },
+    { id: 'api-sync-controller', disabled: true },
+    { id: 'llm-grok-build-oauth', disabled: true },
+    { id: 'workspace-files', disabled: true },
     // Export owns a Connection Fetch route, so this Host-only composition
     // disables it with the transport service above.
     { id: 'session-log-download', disabled: true },
@@ -976,6 +985,94 @@ describe('a composition that configures its own preset roots', () => {
       expect(toolNames(rootsCtx, handle.agent)).toEqual(['bash', 'str_replace_editor'])
     } finally {
       await handle.dispose()
+    }
+  })
+})
+
+
+describe('cloud bot execution in the shipped Web composition', () => {
+  it('finishes a manual cloud run after its requesting Host shuts down', async () => {
+    const contexts: Context[] = []
+    const homes: string[] = []
+    const network = new MemorySyncNetwork()
+    const owner = `cloud-bot-composition-${randomUUID()}`
+    const previousHome = process.env.AVN_HOME
+    const accountHome = await mkdtemp(join(tmpdir(), 'avn-bot-accounts-'))
+    homes.push(accountHome)
+    process.env.AVN_HOME = accountHome
+    let release = (): void => {}
+    let modelStarted = false
+    const finishModel = new Promise<void>((resolve) => { release = resolve })
+    class CloudModel extends LlmAdapter {
+      async * stream(_options: GenerateOptions): AsyncIterable<StreamChunk> {
+        modelStarted = true
+        await finishModel
+        const text = 'Cloud bot completed after the desktop stopped.'
+        yield { type: 'block-start', index: 0, blockType: 'text' }
+        yield { type: 'text-delta', index: 0, text }
+        yield { type: 'block-end', index: 0, block: { type: 'text', text } }
+        yield { type: 'finish', reason: { kind: 'stop' } }
+      }
+    }
+    try {
+      for (const kind of ['device', 'cloud'] as const) {
+        const home = await mkdtemp(join(tmpdir(), `avn-bot-${kind}-`))
+        homes.push(home)
+        const host = await bootWeb(join(home, 'settings.yaml'), [
+          { id: 'webserver', disabled: false, config: { host: '127.0.0.1', port: 0 } },
+          { id: 'connection', disabled: false, inject: [], config: { trustedHosts: [] } },
+          { id: 'sync-yjs', disabled: true },
+          { id: 'api-sync-controller', disabled: true },
+          { id: 'session-sync', disabled: true },
+          { id: 'settings-sync', disabled: true },
+          { id: 'identity-user-aeven', disabled: true },
+          { id: 'agent-presets', config: { default: 'aeven', includeUserRoot: false } },
+          { id: 'agent-default-model', config: { provider: 'cloud-bot-test', model: 'cloud-bot-test' } },
+          { id: 'session-persistence-jsonl', config: { root: join(home, 'sessions'), compression: 'none' } },
+          { id: 'automations', disabled: false, config: {
+            maxConcurrentRuns: 2, runTimeoutMinutes: 60, misfireGraceMinutes: 15, historyLimit: 200,
+            workspaceTitle: 'Automations', webhookMaxBodyBytes: 8192,
+            placement: { kind, provides: kind === 'device' ? ['files'] : [] },
+          } },
+        ])
+        contexts.push(host)
+        host.llm.registerAdapter(['cloud-bot-test'], new CloudModel())
+        host.provide('sync', network.device().asSync())
+        host.emit('sync/status', owner)
+      }
+      const desktop = contexts[0]!
+      const cloud = contexts[1]!
+      const definition = await desktop.identityUsers.runAs({ id: owner }, () => desktop.automations.create({
+        name: 'Cloud completion check', prompt: 'Report that the cloud bot completed.', requires: [],
+        permission: 'read-only', schedule: { kind: 'daily', time: '09:00', timeZone: 'UTC' },
+      }))
+      await vi.waitFor(async () => {
+        const tasks = await cloud.identityUsers.runAs({ id: owner }, () => cloud.automations.list())
+        expect(tasks.definitions.some(task => task.id === definition.id)).toBe(true)
+      })
+      const requested = await desktop.identityUsers.runAs({ id: owner }, () => desktop.automations.runNow(definition.id))
+      await vi.waitFor(async () => {
+        const history = await cloud.identityUsers.runAs({ id: owner }, () => cloud.automations.list())
+        expect(history.runs.find(candidate => candidate.id === requested.id)?.error).toBeNull()
+        expect(modelStarted).toBe(true)
+      }, { timeout: 10_000 })
+      expect(desktop.agents.roots()).toHaveLength(0)
+      await desktop.fiber.dispose()
+      contexts.splice(contexts.indexOf(desktop), 1)
+      release()
+      await vi.waitFor(async () => {
+        const history = await cloud.identityUsers.runAs({ id: owner }, () => cloud.automations.list())
+        const run = history.runs.find(candidate => candidate.id === requested.id)
+        expect(run).toMatchObject({ status: 'succeeded', summary: 'Cloud bot completed after the desktop stopped.' })
+        const session = run?.sessionId == null ? undefined : cloud.sessions.get(run.sessionId)
+        expect(session?.snapshotEvents().filter(event => event.type === 'turn/end').at(-1)?.data).toMatchObject({ reason: { kind: 'completed' } })
+      }, { timeout: 10_000 })
+    } finally {
+      release()
+      await Promise.all(contexts.map(host => host.fiber.dispose()))
+      if (previousHome === undefined) delete process.env.AVN_HOME
+      else process.env.AVN_HOME = previousHome
+      await Promise.all(homes.map(home => rm(home, { recursive: true, force: true })))
     }
   })
 })
