@@ -1,7 +1,7 @@
 {
   "name": "@aeven/motion",
   "description": "Motion rendering service: one registered renderer turns an HTML animation composition into an MP4 film",
-  "version": "0.3.41-alpha",
+  "version": "0.3.42-alpha",
   "publishConfig": {
     "access": "public"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@aeven/browser-engine",
   "description": "The agent's browser engine: preview_* operations with ChatGPT's pointer timing, for the sidebar browser, Chrome over CDP, and the Aeven extension",
-  "version": "0.3.41-alpha",
+  "version": "0.3.42-alpha",
   "publishConfig": {
     "access": "public"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@aeven/file-reference",
   "description": "File-reference discovery contract and shared @file grammar",
-  "version": "0.3.41-alpha",
+  "version": "0.3.42-alpha",
   "publishConfig": {
     "access": "public"
   },
