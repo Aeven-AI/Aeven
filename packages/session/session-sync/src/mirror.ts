@@ -1169,7 +1169,15 @@ export class SessionMirror {
       // The input still travels; its attachments upload again with the events that reference them.
       this.warn(`session sync: publishing a forwarded input's attachments failed: ${String(error)}`)
     })
-    this.enqueue(sessionId, input, me, this.homeOf(sessionId)?.device)
+    const to = this.homeOf(sessionId)?.device
+    // A conversation created here is unknown to the device it is sent to until its events are published, so it
+    // publishes them before the input travels.
+    if (to !== undefined && this.claims.has(sessionId)) {
+      await this.serialize(sessionId, () => this.publishSession(sessionId)).catch((error: unknown) => {
+        this.warn(`session sync: publishing ${sessionId} before forwarding its input failed: ${String(error)}`)
+      })
+    }
+    this.enqueue(sessionId, input, me, to)
     this.consumeInbox()
   }
 
@@ -1221,6 +1229,9 @@ export class SessionMirror {
           ? this.tuning.remoteFallbackMs
           : this.tuning.inputGraceMs
         if (first !== me && entry.at + waitMs > now) continue
+        // A conversation another device just created arrives in the index after its input may; this device waits
+        // for it rather than declining an input it cannot open yet.
+        if (this.entries().get(sessionId) === undefined && entry.from !== me) continue
         if (this.runnerOf(sessionId) !== undefined) continue
         const claimed = await this.claim(sessionId).catch((error: unknown) => {
           this.warn(`session sync: taking a session for forwarded input failed: ${String(error)}`)
