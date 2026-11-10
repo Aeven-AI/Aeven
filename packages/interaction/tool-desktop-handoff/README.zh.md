@@ -31,7 +31,7 @@ kind: "package-reference"
 
 | 字段 | 默认值 | 作用 |
 | --- | --- | --- |
-| `answerTimeoutMs` | `10000` | 显示该会话的窗口打开对话框的时限（毫秒），声明为工具的 `timeoutMs`；超过后该推荐视为无人应答。 |
+| `answerTimeoutMs` | `10000` | 显示该会话的窗口打开对话框的时限（毫秒）；超过后该推荐视为无人应答，模型读到无窗口结果。 |
 
 ```yaml
 - id: tool-desktop-handoff
