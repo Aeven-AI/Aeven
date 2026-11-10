@@ -9,6 +9,8 @@
  * its AppArmor domain, which clears that signal. The Host user may not signal the sandbox user's processes itself.
  * Every process ends with the command's status.
  *
+ * install-egress.sh builds a second copy with SANDBOX_USER set to the egress proxy's own user.
+ *
  * Build: cc -O2 -Wall -DSANDBOX_USER='"aeven-sandbox"' -o aeven-sandbox-exec sandbox-exec.c
  * Install: install -o root -g aeven-hosted -m 0750 aeven-sandbox-exec /usr/local/libexec/
  *          setcap cap_setuid,cap_setgid=ep /usr/local/libexec/aeven-sandbox-exec

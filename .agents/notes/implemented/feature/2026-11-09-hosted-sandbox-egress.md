@@ -26,6 +26,8 @@ A full `pnpm install` of this repository in a hosted account ran past twelve min
 
 The jail sets `pnpm_config_verify_deps_before_run=false`: pnpm 11 otherwise runs a full install before `pnpm run` when dependencies are missing, which in a fresh clone of this repository builds native modules from `nodejs.org` and GitHub release assets, hosts the proxy refuses. With it, `pnpm release:avn` on a fresh clone took 24 seconds at 613 MB on pink.
 
+A security review on 2026-11-10 changed four things. The user approves a conversation's first push to each repository and every push to `main`, `master`, or the default branch, because the proxy cannot tell a force push from a fast-forward. Each account gets its own proxy socket, mounted only in its jails, capped at twice its connection bound and closing connections silent for two seconds, because one account could otherwise open enough connections to the shared socket to exhaust the proxy's file limit. `github.com` left the tunnel list, so every request to it takes the Git route, which drops credentials a command supplies, closing pushes of the user's data to an attacker's repository. The proxy runs as its own `aeven-egress` user, so escaping a jail no longer reaches the process holding every account's token.
+
 ## Alternatives considered
 
 A relay-free design, in which the launch step passes a listening socket to the proxy over the Unix socket, would cost no process per command, but Node.js cannot receive a descriptor from a socket's ancillary data, and a Python or C proxy would mean writing the HTTP and DNS handling by hand. The relay costs 0.3 MB and one fork per command.
