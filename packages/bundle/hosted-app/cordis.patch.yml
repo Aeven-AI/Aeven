@@ -226,11 +226,11 @@
 
 # This Host is each account's cloud Host: it runs the bots that need nothing
 # from the user's computer, and leaves every other bot to the account's
-# devices. The row restates the keys web-app gives it, except that every
-# account's bots share this Host's run slots, so it runs sixteen at once.
+# devices. The row restates the keys web-app gives it, except that it runs up
+# to sixteen of each account's bots at once.
 - id: automations
   config:
-    maxConcurrentRuns: 16
+    maxConcurrentRunsPerAccount: 16
     runTimeoutMinutes: 60
     misfireGraceMinutes: 15
     historyLimit: 200

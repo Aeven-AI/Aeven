@@ -567,8 +567,11 @@ Requires: `storageDomain` · `agents` · `sessions` · `agentDefaultModel` · `a
 ```ts config-catalog
 /** Deployment limits for unattended local agent work. */
 export interface Config {
-  /** Most runs of this host that may execute at once; a queued run starts when one of them finishes. */
-  readonly maxConcurrentRuns: number
+  /**
+   * Most runs of one account that may execute at once on this Host; that account's next queued run starts when one
+   * of them finishes. Each account counts only its own runs.
+   */
+  readonly maxConcurrentRunsPerAccount: number
   /** Budget of one run in minutes, counted from its start; a run still active at the deadline is cancelled. */
   readonly runTimeoutMinutes: number
   /**
