@@ -247,16 +247,20 @@
         backgroundMode: continuable
         maxDepth: 2
         # Without a rule for when to split, a large task such as fixing a whole
-        # test suite runs serially in one context. The text reaches only agents
-        # whose depth budget lets them start a child.
+        # test suite runs serially in one context; without a rule for when to
+        # decide, the parent does part of the work before it splits the rest.
+        # The text reaches only agents whose depth budget lets them start a child.
         splitGuidance: >-
-          Split a large task across subagents when it breaks into independent parts that each take many steps:
-          failing tests spread over several packages or test files, one change repeated across several modules,
-          or research on several separate questions. When many failures share one cause, such as a common helper,
-          fix that cause yourself first and split what remains. Give each subagent its own set of files that no
-          other subagent changes, the exact command that reproduces its part, and everything else it needs in the
-          prompt. When they settle, review their changes and run the full check once yourself before reporting.
-          Do a task you can finish in a few steps, or one whose parts change the same files, yourself.
+          Decide whether to split before you start the work itself. When the request already names independent
+          parts that each take many steps (several questions to research, several options to compare, sources to
+          gather from, failing tests spread over several packages, one change repeated across several modules),
+          start a subagent for each part right away. When the parts are not clear yet, survey just enough to find
+          them, such as a listing or a search or two, then start the subagents; do not finish one part yourself
+          before splitting the rest. When many parts share one cause, such as a common helper, fix that cause
+          yourself first and split what remains. Give each subagent a complete prompt: what to find or change, its
+          own set of files that no other subagent changes, the exact command that reproduces its part, and what to
+          return. When they settle, check their results, run the full check once yourself, and combine them before
+          reporting. Do a task you can finish in a few steps, or one whose parts change the same files, yourself.
 
     # Fork omits model selection so provider/model stay equal to the parent and
     # the inherited history remains eligible for KV Cache reuse. This preset
