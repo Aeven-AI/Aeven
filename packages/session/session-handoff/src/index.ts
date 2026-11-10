@@ -23,21 +23,25 @@ export interface SessionHandoffInput {
   readonly credentials?: Readonly<Record<string, string>>
 }
 
-/** Where a synced session runs, as the asking device sees it. */
-export interface HandoffPlacement {
+/** The account's devices, as the asking device sees them. */
+export interface HandoffDevices {
   /** The asking device's id in the account's vault. */
   readonly device: string
   /** The name the asking device gave itself; empty until it wrote one. */
   readonly name: string
   /** Whether the asking device keeps its relay connection without a client, such as Aeven Cloud. */
   readonly alwaysOnHere: boolean
+  /** The account's desktops other than the asking device: present ones first, then most recently seen. */
+  readonly desktops: readonly HandoffDesktop[]
+}
+
+/** Where a synced session runs, as the asking device sees it. */
+export interface HandoffPlacement extends HandoffDevices {
   /**
    * The device that ran the session's latest turn, or the device it was moved to, when one is recorded and it is not
    * the asking device. `pinned` marks a desktop it was moved to, which keeps it while that desktop is present.
    */
   readonly home?: SessionRunner & { readonly alwaysOn: boolean; readonly pinned: boolean }
-  /** The account's desktops other than the asking device, which the session can move to: present ones first, then most recently seen. */
-  readonly desktops: readonly HandoffDesktop[]
 }
 
 /** A desktop of the account, as the asking device sees it. */
@@ -203,6 +207,13 @@ export abstract class SessionHandoff extends Service {
    * @returns the placement, or undefined when the session is not synced or account sync has not started.
    */
   abstract placementOf(owner: string, sessionId: SessionId): HandoffPlacement | undefined
+
+  /**
+   * The account's devices, for offering the user where work runs outside one session.
+   * @param owner - the account.
+   * @returns them, or undefined while account sync has not started.
+   */
+  abstract devicesOf(owner: string): HandoffDevices | undefined
 
   /**
    * Make a device of the account the session's home, so its next turn runs there: this device, or an always-on device

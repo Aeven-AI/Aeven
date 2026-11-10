@@ -2,9 +2,10 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   Button, IconBotFaceAnimated, IconBotFaceLooping, IconChevronDownOutline14, IconCopyOutline16, IconEditOutline16, IconLucideCheck,
-  IconLucideClock, IconLucideMinus,
+  IconLucideClock, IconLucideCloud, IconLucideLaptopMinimal, IconLucideMinus,
   IconLucidePause, IconLucidePlay,
-  IconLucideRotateCcw, IconLucideX, IconStopFill16, IconTrashOutline16, Modal, Spinner, Tooltip, writeClipboard,
+  IconLucideRotateCcw, IconLucideX, IconStopFill16, IconTrashOutline16, Modal, PlaceList, relativeTime, Spinner, Tooltip, writeClipboard,
+  type PlaceListItem,
 } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import type {} from '@aeven/client-ui-conversation/client'
@@ -17,10 +18,13 @@ import css from './AutomationsPanel.module.css'
 /** Last management projection, so switching between the two view addresses shows it instead of a loading state. */
 let lastList: AutomationList | null = null
 
-/** Locale key of each service group's Connect action. */
+/** Row id of Aeven Cloud in the place chooser; desktop rows use their vault device id. */
+const CLOUD_PLACE = 'cloud'
+
 /** Locale key of each thing a bot can need from the owner's computer. */
 const NEED_LABELS = { 'files': 'needFiles', 'browser': 'needBrowser', 'computer-use': 'needComputerUse' } as const
 
+/** Locale key of each service group's Connect action. */
 const CONNECT_LABELS = { mail: 'connectMail', calendar: 'connectCalendar', github: 'connectGithub' } as const satisfies Record<ServiceNeed, string>
 
 /** The page's own confirmation, in place of the browser's, for every action that
@@ -101,8 +105,10 @@ export interface Task {
   webhook: boolean
   /** What the task needs from the owner's computer; absent on a bot stored before that was declared. */
   requires?: (keyof typeof NEED_LABELS)[] | undefined
-  /** `device` when the owner keeps every run on their own computer. */
-  runOn: 'auto' | 'device'
+  /** `cloud` or `device` when the owner chose where every run happens; `device` with `desktop` names one desktop. */
+  runOn: 'auto' | 'cloud' | 'device'
+  /** Vault device id of the one desktop the owner placed the bot on. */
+  desktop?: string | undefined
   /** Where the Host places the bot, and whether a Host of the account can run it. */
   placement: { runsOn: 'cloud' | 'device' | 'any'; available: boolean }
 }
@@ -121,6 +127,21 @@ export interface AutomationList {
   definitions: Task[]
   runs: Run[]
   capabilities: { host: 'cloud' | 'device'; triggers: TaskSchedule['kind'][]; webhook: boolean }
+  /** Where the account's bots can be placed; absent from a Host that does not list them. */
+  hosts?: { cloud: boolean; desktops: Desktop[] } | undefined
+}
+/** One desktop of the account a bot can be placed on. */
+export interface Desktop {
+  device: string
+  /** The name it gave itself; empty until it wrote one. */
+  name: string
+  present: boolean
+  /** When its relay connection was last seen open, in milliseconds since the Unix epoch. */
+  seenAt?: number | undefined
+  /** Whether it is the computer this page talks to. */
+  self: boolean
+  /** What its Host offers bots; absent while it runs a build that cannot run bots placed on it. */
+  provides?: (keyof typeof NEED_LABELS)[] | undefined
 }
 /** Inbound trigger address and key, read on demand so the list never carries the secret. */
 export interface WebhookCredential {
@@ -184,6 +205,8 @@ export function AutomationsPanel({ t, inputActions, list, call, openRun, view, s
   /** Credential of the one expanded automation, read on demand and dropped when it folds. */
   const [credential, setCredential] = useState<{ id: string; value: WebhookCredential } | null>(null)
   const [copied, setCopied] = useState(false)
+  /** The bot whose place chooser is open. */
+  const [placing, setPlacing] = useState<string | null>(null)
   /** Runs whose stop was sent; a cloud run stays active until its cloud Host reports the stop. */
   const [stopping, setStopping] = useState<ReadonlySet<string>>(new Set())
   const cardList = useRef<HTMLDivElement>(null)
@@ -281,13 +304,63 @@ export function AutomationsPanel({ t, inputActions, list, call, openRun, view, s
       case 'cron': return `${t('scheduleCron', { expression: schedule.expression })}${until}`
     }
   }
+  /** The desktop a bot is placed on, and its display name; undefined for a bot not placed on one desktop. */
+  const chosenDesktop = (task: Task): { desktop: Desktop | undefined; name: string } | undefined => {
+    if (task.runOn !== 'device' || task.desktop === undefined) return undefined
+    const desktop = data?.hosts?.desktops.find(candidate => candidate.device === task.desktop)
+    return { desktop, name: desktop === undefined || desktop.name === '' ? t('placeUnnamed') : desktop.name }
+  }
   /** Why a bot runs where it does, for the open card. */
   const placementDetail = (task: Task): string => {
+    const chosen = chosenDesktop(task)
+    if (chosen !== undefined) return chosen.desktop === undefined ? t('placementDesktopGone') : t('placementDesktopChosen', { name: chosen.name })
     if (!task.placement.available) return t('placementUnavailable')
     if (task.placement.runsOn === 'cloud') return t('placementCloud')
     if (task.runOn === 'device') return t('placementDeviceChosen')
     const needs = task.requires ?? []
     return needs.length === 0 ? t('placementDeviceNoCloud') : t('placementDeviceNeeds', { needs: needs.map(need => t(NEED_LABELS[need])).join(', ') })
+  }
+  const placingTask = placing === null ? undefined : data?.definitions.find(task => task.id === placing)
+  /** The status line under one desktop's name in the place chooser. */
+  const seen = (desktop: Desktop, now: number): string => {
+    if (desktop.self) return t('placeSelf')
+    if (desktop.present) return t('placeOnline')
+    if (desktop.seenAt === undefined) return t('placeOffline')
+    const { unit, n } = relativeTime(desktop.seenAt, now)
+    const count = { n: String(n) }
+    switch (unit) {
+      case 'now': return t('placeSeen', { when: t('placeTimeNow') })
+      case 'minutes': return t('placeSeen', { when: t('placeTimeMinutes', count) })
+      case 'hours': return t('placeSeen', { when: t('placeTimeHours', count) })
+      case 'days': return t('placeSeen', { when: t('placeTimeDays', count) })
+      case 'months': return t('placeSeen', { when: t('placeTimeMonths', count) })
+      case 'years': return t('placeSeen', { when: t('placeTimeYears', count) })
+    }
+  }
+  /**
+   * The place chooser's rows for one bot: Aeven Cloud first when the account has it, then each desktop. A place
+   * that cannot give the bot what it uses stays listed with the reason; an offline desktop can be chosen.
+   */
+  const placeItems = (task: Task, hosts: NonNullable<AutomationList['hosts']>): PlaceListItem[] => {
+    const needs = task.requires ?? []
+    const names = (list: readonly (keyof typeof NEED_LABELS)[]): string => list.map(need => t(NEED_LABELS[need])).join(', ')
+    const now = Date.now()
+    const cloud: PlaceListItem[] = !hosts.cloud ? [] : [{
+      id: CLOUD_PLACE, icon: IconLucideCloud, name: t('runsOnCloud'),
+      status: needs.length > 0 ? t('placeNeeds', { needs: names(needs) }) : t('placeCloudStatus'),
+      current: task.placement.runsOn === 'cloud', disabled: needs.length > 0,
+    }]
+    return [...cloud, ...hosts.desktops.map((desktop): PlaceListItem => {
+      const missing = desktop.provides === undefined ? [] : needs.filter(need => desktop.provides?.includes(need) !== true)
+      return {
+        id: desktop.device, icon: IconLucideLaptopMinimal,
+        name: desktop.name === '' ? t('placeUnnamed') : desktop.name,
+        status: desktop.provides === undefined ? t('placeUpdate') : missing.length > 0 ? t('placeNeeds', { needs: names(missing) }) : seen(desktop, now),
+        present: desktop.present && !desktop.self && desktop.provides !== undefined && missing.length === 0,
+        current: task.runOn === 'device' && task.desktop === desktop.device,
+        disabled: desktop.provides === undefined || missing.length > 0,
+      }
+    })]
   }
   /** Absolute address an outside service posts to; a non-HTTP shell shows the path it can reach. */
   const address = (path: string): string => window.location.protocol.startsWith('http') ? `${window.location.origin}${path}` : path
@@ -465,7 +538,7 @@ export function AutomationsPanel({ t, inputActions, list, call, openRun, view, s
                           <span className={css.fact}>
                             <span className={css.factLabel}>{t('runsOn')}</span>
                             <span className={css.factValue}>
-                              {t(!task.placement.available ? 'runsOnMissing' : task.placement.runsOn === 'cloud' ? 'runsOnCloud' : 'runsOnDevice')}
+                              {chosenDesktop(task)?.name ?? t(!task.placement.available ? 'runsOnMissing' : task.placement.runsOn === 'cloud' ? 'runsOnCloud' : 'runsOnDevice')}
                             </span>
                           </span>
                         )}
@@ -481,13 +554,10 @@ export function AutomationsPanel({ t, inputActions, list, call, openRun, view, s
                       <>
                         <h3 className={css.detailTitle}>{t('runsOn')}</h3>
                         <p className={css.triggerText}>{placementDetail(task)}</p>
-                        {task.requires?.length === 0 && (
+                        {data.hosts !== undefined && (data.hosts.cloud || data.hosts.desktops.length > 0) && (
                           <div className={css.triggerActions}>
-                            <Button
-                              variant="ghost" size="sm" disabled={unavailable}
-                              onClick={() => { act('update', task.id, { runOn: task.runOn === 'device' ? 'auto' : 'device' }) }}
-                            >
-                              {t(task.runOn === 'device' ? 'allowCloud' : 'keepOnDevice')}
+                            <Button variant="ghost" size="sm" disabled={unavailable} onClick={() => { setPlacing(task.id) }}>
+                              {t('placeChoose')}
                             </Button>
                           </div>
                         )}
@@ -659,6 +729,22 @@ export function AutomationsPanel({ t, inputActions, list, call, openRun, view, s
             </>
           )}
         />
+      )}
+      {placingTask !== undefined && data?.hosts !== undefined && (
+        <Modal
+          open onClose={() => { setPlacing(null) }} closeLabel={t('placeClose')}
+          title={t('placeTitle')} description={t('placeDescription')}
+        >
+          <PlaceList
+            currentLabel={t('placeCurrent')}
+            items={placeItems(placingTask, data.hosts)}
+            onChoose={(item) => {
+              setPlacing(null)
+              if (item.current === true) return
+              act('update', placingTask.id, item.id === CLOUD_PLACE ? { runOn: 'cloud' } : { runOn: 'device', desktop: item.id })
+            }}
+          />
+        </Modal>
       )}
     </section>
   )

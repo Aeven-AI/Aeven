@@ -21,9 +21,9 @@ Host 使用现有的账户身份、智能体预设、模型选择、工作区、
 
 ## 运行位置
 
-定义记录 `requires`，即任务需要从所有者自己的电脑获得的能力（`files`、`browser`、`computer-use`），以及 `runOn`，即所有者在 `auto` 与 `device` 之间的选择。模型在创建 Bot 时声明 `requires`，所有者随任务一并确认；`/bots` 页面修改 `runOn`。每台 Host 的画像是 `placement.kind`（`cloud` 或 `device`）和 `placement.provides`，即其运行可使用的设备能力。服务据此推导定义的运行位置，每台 Host 的推导结果相同：不需要任何设备能力且 `runOn: auto` 的定义在账户的云端 Host 上运行；需要设备能力或 `runOn: device` 的定义只在提供全部所需能力的设备 Host 上运行；在声明需求之前保存的定义可在任意 Host 上运行。不得运行某个定义的 Host 会拒绝它的计划运行、手动运行和入站运行。
+定义记录 `requires`，即任务需要从所有者自己的电脑获得的能力（`files`、`browser`、`computer-use`），以及 `runOn`，即所有者在 `auto`、`cloud` 与 `device` 之间的选择；在 `device` 下，`desktop` 以保险库设备 ID 指定一台桌面设备。模型在创建 Bot 时声明 `requires`，所有者随任务一并确认；`/bots` 页面选择 Aeven Cloud 或一台桌面设备。每台 Host 的画像是 `placement.kind`（`cloud` 或 `device`）、`placement.provides`（其运行可使用的设备能力），以及同步为账户服务时它的保险库设备 ID。服务据此推导定义的运行位置，每台 Host 的推导结果相同：`runOn: cloud` 的定义，或不需要任何设备能力且 `runOn: auto` 的定义，在账户的云端 Host 上运行，只有 `auto` 的定义会回退到设备；需要设备能力或 `runOn: device` 的定义只在提供全部所需能力的设备 Host 上运行，带 `desktop` 时只在那台桌面设备上运行；在声明需求之前保存的定义可在任意 Host 上运行。保存时会拒绝需要设备能力的 `runOn: cloud`、没有 `runOn: device` 的 `desktop`，以及其已登记 Host 缺少所需能力的桌面设备。不得运行某个定义的 Host 会拒绝它的计划运行、手动运行和入站运行；计划时刻处于关机状态的桌面设备在恢复后把该次运行记为已跳过。
 
-当同步为账户服务时，每台 Host 都把自己的画像写入账户 `automations` 文档的 `hosts` 映射。设备 Host 仅作为后备受理云端定义的计划运行：账户没有登记云端 Host 时立即受理；否则在计划时刻之后等待 `sync.fallbackDelayMs`，并且只在定义的共享受理水位显示云端 Host 未受理时受理。完成这样一次运行后，设备会放弃它的占用。`list` 返回每个定义的 `placement`：`runsOn` 以及是否有已登记的 Host 可以运行它。
+当同步为账户服务时，每台 Host 都把自己的画像写入账户 `automations` 文档的 `hosts` 映射。设备 Host 仅作为后备受理云端定义的计划运行：账户没有登记云端 Host 时立即受理；否则在计划时刻之后等待 `sync.fallbackDelayMs`，并且只在定义的共享受理水位显示云端 Host 未受理时受理。完成这样一次运行后，设备会放弃它的占用。`list` 返回每个定义的 `placement`：`runsOn` 以及是否有已登记的 Host 可以运行它。其 `hosts` 说明账户是否登记了云端 Host，并通过 `ctx.sessionHandoff` 列出账户的桌面设备（这台桌面设备在前），每台附带在线状态和其已登记 Host 为 Bot 提供的能力。
 
 ## 配置
 

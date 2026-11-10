@@ -5,10 +5,9 @@
  * that desktop.
  */
 import { useMemo, useState } from 'react'
-import { Button, IconLucideLaptopMinimal, IconLucideMonitorCheck, Modal, relativeTime } from '@aeven/client-ui-primitives'
+import { Button, IconLucideLaptopMinimal, Modal, PlaceList, placeListEmptyClass, relativeTime } from '@aeven/client-ui-primitives'
 import type { SessionDesktop } from '../contract/slots.ts'
 import type { ConversationSessionHeaderProps } from './ConversationSession.tsx'
-import css from './DesktopChooser.module.css'
 
 /** What the dialog needs from the options foldout. */
 export interface DesktopChooserProps {
@@ -90,39 +89,28 @@ export function DesktopChooser({ open, desktops, onClose, onChoose, onRelease, t
       closeLabel={t('desktops.close')}
     >
       {desktops.length === 0
-        ? <p className={css.empty}>{t('desktops.empty')}</p>
+        ? <p className={placeListEmptyClass}>{t('desktops.empty')}</p>
         : (
-          <ul className={css.list}>
-            {desktops.map(desktop => (
-              <li key={desktop.device}>
-                <button
-                  type="button"
-                  className={css.row}
-                  // Pressing the current desktop again deselects it; this computer cannot deselect itself.
-                  disabled={desktop.home && desktop.self}
-                  aria-current={desktop.home ? 'true' : undefined}
-                  onClick={() => {
-                    if (desktop.home) onRelease()
-                    else if (!desktop.present && !desktop.self) setOffline(desktop)
-                    else onChoose(desktop)
-                  }}
-                >
-                  <IconLucideLaptopMinimal className={css.icon} />
-                  <span className={css.text}>
-                    <span className={css.name}>{desktop.name === '' ? t('desktops.unnamed') : desktop.name}</span>
-                    <span className={css.status} data-present={desktop.present && !desktop.self ? '' : undefined}>
-                      {status(desktop, now, t)}
-                    </span>
-                  </span>
-                  {desktop.home && (
-                    <span className={css.current} role="img" aria-label={t('desktops.current')}>
-                      <IconLucideMonitorCheck className={css.icon} />
-                    </span>
-                  )}
-                </button>
-              </li>
-            ))}
-          </ul>
+          <PlaceList
+            currentLabel={t('desktops.current')}
+            items={desktops.map(desktop => ({
+              id: desktop.device,
+              icon: IconLucideLaptopMinimal,
+              name: desktop.name === '' ? t('desktops.unnamed') : desktop.name,
+              status: status(desktop, now, t),
+              present: desktop.present && !desktop.self,
+              current: desktop.home,
+              // Pressing the current desktop again deselects it; this computer cannot deselect itself.
+              disabled: desktop.home && desktop.self,
+            }))}
+            onChoose={(item) => {
+              const desktop = desktops.find(candidate => candidate.device === item.id)
+              if (desktop === undefined) return
+              if (desktop.home) onRelease()
+              else if (!desktop.present && !desktop.self) setOffline(desktop)
+              else onChoose(desktop)
+            }}
+          />
         )}
     </Modal>
   )

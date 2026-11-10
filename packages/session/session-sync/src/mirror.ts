@@ -22,7 +22,7 @@ import { SessionLogOffset, type SessionEvent, type SessionHeader, type SessionId
 import type { SessionPersistence, SessionPersistenceSnapshot } from '@aeven/session-persistence'
 import { LeaseHolder, type Sync, type SyncDocument, type SyncProgress, type LeaseHolderTiming } from '@aeven/sync'
 import { AttachmentId, type AttachmentStore } from '@aeven/attachment'
-import type { HandoffDesktop, HandoffPlacement, SessionClaim, SessionHandoffInput, SessionRunner, SharedSession } from '@aeven/session-handoff'
+import type { HandoffDesktop, HandoffDevices, HandoffPlacement, SessionClaim, SessionHandoffInput, SessionRunner, SharedSession } from '@aeven/session-handoff'
 
 /** One session as the index records it: metadata only; the stream is the history. */
 interface IndexEntry {
@@ -1096,14 +1096,13 @@ export class SessionMirror {
    * @returns the placement, or undefined when the session is not synced or sync has not started.
    */
   placementOf(sessionId: SessionId): HandoffPlacement | undefined {
-    const me = this.device()
+    const view = this.devicesView()
     const devices = this.devices()
-    if (me === undefined || devices === undefined || !this.shared(sessionId)) return undefined
+    if (view === undefined || devices === undefined || !this.shared(sessionId)) return undefined
+    const me = view.device
     const writer = this.entries().get(sessionId)?.writer
     return {
-      device: me,
-      name: devices.get(me)?.name ?? '',
-      alwaysOnHere: devices.get(me)?.alwaysOn === true,
+      ...view,
       ...writer === undefined || writer === me
         ? {}
         : {
@@ -1114,6 +1113,21 @@ export class SessionMirror {
             pinned: this.entries().get(sessionId)?.pinned === true,
           },
         },
+    }
+  }
+
+  /**
+   * The account's devices, as this device sees them.
+   * @returns this device and the account's desktops, or undefined when sync has not started.
+   */
+  devicesView(): HandoffDevices | undefined {
+    const me = this.device()
+    const devices = this.devices()
+    if (me === undefined || devices === undefined) return undefined
+    return {
+      device: me,
+      name: devices.get(me)?.name ?? '',
+      alwaysOnHere: devices.get(me)?.alwaysOn === true,
       desktops: this.desktops(),
     }
   }

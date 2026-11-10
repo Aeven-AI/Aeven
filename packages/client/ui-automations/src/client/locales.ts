@@ -79,7 +79,15 @@ export const en = {
   placementDeviceNoCloud: 'This bot runs on your computer while Aeven is open there.',
   placementUnavailable: 'None of your computers runs Aeven yet. Install the Aeven app and sign in to run this bot.',
   needFiles: 'your files', needBrowser: 'your browser', needComputerUse: 'your apps',
-  keepOnDevice: 'Only run on my computer', allowCloud: 'Allow Aeven Cloud',
+  placementDesktopChosen: 'This bot runs on {name} while Aeven is open there.',
+  placementDesktopGone: 'The desktop this bot ran on is no longer on your account. Choose where it runs.',
+  placeChoose: 'Choose where it runs', placeTitle: 'Where this bot runs',
+  placeDescription: 'Aeven Cloud runs it while your computers are off. A desktop runs it while Aeven is open there.',
+  placeClose: 'Close', placeCurrent: 'Current', placeCloudStatus: 'Runs even when your computers are off',
+  placeNeeds: 'Needs {needs}', placeUpdate: 'Update Aeven there to run bots', placeUnnamed: 'Unnamed device',
+  placeSelf: 'This computer', placeOnline: 'Online', placeOffline: 'Offline', placeSeen: 'Last seen {when}',
+  placeTimeNow: 'just now', placeTimeMinutes: '{n} min ago', placeTimeHours: '{n} h ago', placeTimeDays: '{n} days ago',
+  placeTimeMonths: '{n} months ago', placeTimeYears: '{n} years ago',
 } as const
 /** Dictionary keys shared by the page and the typed starter catalogue. */
 export type AutomationKey = keyof typeof en
@@ -160,7 +168,15 @@ export const zh: Record<AutomationKey, string> = {
   placementDeviceNoCloud: '此Bot在你的电脑上运行，电脑上的 Aeven 打开时才会执行。',
   placementUnavailable: '你还没有运行 Aeven 的电脑。请安装 Aeven 应用并登录后再运行此Bot。',
   needFiles: '你的文件', needBrowser: '你的浏览器', needComputerUse: '你的应用',
-  keepOnDevice: '仅在我的电脑上运行', allowCloud: '允许在 Aeven 云端运行',
+  placementDesktopChosen: '此Bot在 {name} 上运行，那台电脑上的 Aeven 打开时才会执行。',
+  placementDesktopGone: '此Bot之前运行的桌面设备已不在你的账户中。请选择运行位置。',
+  placeChoose: '选择运行位置', placeTitle: '此Bot的运行位置',
+  placeDescription: 'Aeven Cloud 在你的电脑关机时也会运行它。桌面设备在 Aeven 打开时运行它。',
+  placeClose: '关闭', placeCurrent: '当前', placeCloudStatus: '电脑关机时也会运行',
+  placeNeeds: '需要{needs}', placeUpdate: '请在那台电脑上更新 Aeven 以运行Bot', placeUnnamed: '未命名设备',
+  placeSelf: '这台电脑', placeOnline: '在线', placeOffline: '离线', placeSeen: '最后在线：{when}',
+  placeTimeNow: '刚刚', placeTimeMinutes: '{n} 分钟前', placeTimeHours: '{n} 小时前', placeTimeDays: '{n} 天前',
+  placeTimeMonths: '{n} 个月前', placeTimeYears: '{n} 年前',
 }
 
 /**
@@ -242,5 +258,13 @@ export const es = {
   placementDeviceNoCloud: 'Este bot se ejecuta en tu ordenador mientras Aeven está abierto allí.',
   placementUnavailable: 'Ninguno de tus ordenadores tiene Aeven todavía. Instala la app de Aeven e inicia sesión para ejecutar este bot.',
   needFiles: 'tus archivos', needBrowser: 'tu navegador', needComputerUse: 'tus apps',
-  keepOnDevice: 'Ejecutar solo en mi ordenador', allowCloud: 'Permitir Aeven Cloud',
+  placementDesktopChosen: 'Este bot se ejecuta en {name} mientras Aeven está abierto allí.',
+  placementDesktopGone: 'El escritorio donde se ejecutaba este bot ya no está en tu cuenta. Elige dónde se ejecuta.',
+  placeChoose: 'Elegir dónde se ejecuta', placeTitle: 'Dónde se ejecuta este bot',
+  placeDescription: 'Aeven Cloud lo ejecuta aunque tus ordenadores estén apagados. Un escritorio lo ejecuta mientras Aeven está abierto allí.',
+  placeClose: 'Cerrar', placeCurrent: 'Actual', placeCloudStatus: 'Se ejecuta aunque tus ordenadores estén apagados',
+  placeNeeds: 'Necesita {needs}', placeUpdate: 'Actualiza Aeven allí para ejecutar bots', placeUnnamed: 'Dispositivo sin nombre',
+  placeSelf: 'Este equipo', placeOnline: 'En línea', placeOffline: 'Desconectado', placeSeen: 'Visto por última vez {when}',
+  placeTimeNow: 'ahora mismo', placeTimeMinutes: 'hace {n} min', placeTimeHours: 'hace {n} h', placeTimeDays: 'hace {n} días',
+  placeTimeMonths: 'hace {n} meses', placeTimeYears: 'hace {n} años',
 } satisfies Record<AutomationKey, string>

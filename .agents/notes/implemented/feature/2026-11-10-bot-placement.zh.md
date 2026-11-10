@@ -13,7 +13,7 @@ Bot 的定义会同步到其账户的每一台 Host，而托管 Host 也是其�
 定义携带任务需要从所有者自己的电脑获得的能力以及所有者的选择，每台 Host 用同一个纯函数由此推导运行位置（[`placement.ts`](../../../../packages/core/automations/src/placement.ts)）。
 
 - **需求。** `requires` 列出设备能力：`files`、`browser`、`computer-use`。`automation_create` 要求模型声明它，所有者在已经覆盖任务的那次批准中确认它。运行使用的其他一切（网页搜索、已连接的账户、运行自己创建的文件）在每台 Host 上都存在，无需声明。
-- **所有者的选择。** `runOn` 为 `auto` 或 `device`。对于不需要电脑上任何能力的 Bot，`/bots` 页面可以切换它。
+- **所有者的选择。** `runOn` 为 `auto`、`cloud` 或 `device`，`desktop` 以保险库设备 ID 把 `device` Bot 固定到一台桌面设备。`/bots` 页面在一个与“选择桌面设备”相同的选择框中提供 Aeven Cloud 和账户的每台桌面设备。每台 Host 的画像带有其保险库设备 ID，因此固定的 Bot 只在那里运行；明确选择的 `cloud` 不会回退到设备。计划时刻处于关机状态的桌面设备在恢复后把该次运行记为已跳过。混合运行（云端运行调用设备上的工具）不在范围内。
 - **Host 画像。** 组合配置为每台 Host 提供 `placement.kind`（`cloud` 或 `device`）和 `placement.provides`。Web bundle 是提供全部三种能力的 `device`；托管 bundle 是不提供任何能力的 `cloud` Host。
 - **推导出的运行位置。** 没有需求且 `runOn: auto` 的 Bot 在云端 Host 上运行。有任何需求或 `runOn: device` 的 Bot 在提供全部需求的设备 Host 上运行。在本次变更之前保存、没有 `requires` 的定义仍像以前一样可在任意 Host 上运行。云端、设备和混合都是这一推导的结果；定义不保存其中任何一个。
 - **强制执行。** `admit` 在运行位置排除的 Host 上拒绝计划运行、手动运行和入站运行，调度器也不会在那里申请租约。

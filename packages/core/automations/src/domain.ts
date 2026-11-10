@@ -4,7 +4,7 @@ import { brandString } from '@aeven/brand'
 import { domainTable, defineDomain } from '@aeven/storage-domain'
 import type { SessionId } from '@aeven/session'
 import { ReasoningEffortId } from '@aeven/llm'
-import type { AutomationDefinition, AutomationId, AutomationRun, AutomationRunId, AutomationRunnerId, AutomationWebhook } from './types.ts'
+import type { AutomationDefinition, AutomationId, AutomationRun, AutomationRunId, AutomationRunnerId, AutomationWebhook, HostDevice } from './types.ts'
 import { assertValidSchedule } from './recurrence.ts'
 
 const text = z.string().trim().min(1)
@@ -27,11 +27,11 @@ export const scheduleSchema = z.discriminatedUnion('kind', [
 const capability = z.enum(['files', 'browser', 'computer-use'])
 /** Declared device capabilities, stored without repeats in a fixed order. */
 export const requiresSchema = z.array(capability).max(8).transform(value => capability.options.filter(option => value.includes(option)))
-const runOn = z.enum(['auto', 'device'])
+const runOn = z.enum(['auto', 'cloud', 'device'])
 /** Editable management fields, also validated at the RPC and durable boundaries. */
 export const inputSchema = z.object({
   name: text.max(160), prompt: text.max(32_000), schedule: scheduleSchema, permission: z.enum(['read-only', 'workspace-write']),
-  requires: requiresSchema.optional(), runOn: runOn.optional(),
+  requires: requiresSchema.optional(), runOn: runOn.optional(), desktop: text.optional(),
 }).strict()
 /** Editable fields accepted by authenticated update requests. */
 export const patchSchema = inputSchema.partial().extend({ status: z.enum(['active', 'paused']).optional() }).strict()
@@ -40,6 +40,7 @@ const definitionSchema: z.ZodType<AutomationDefinition> = inputSchema.extend({
   status: z.enum(['active', 'paused']), agentPreset: text,
   // A definition stored before owners could choose keeps running wherever it can.
   runOn: runOn.default('auto'),
+  desktop: text.transform(value => brandString<HostDevice>(value)).optional(),
   grants: z.array(z.object({ toolName: text, scope: text, grantedAt: instant }).strict()),
   executionTarget: z.object({ kind: z.literal('local'), runnerId: text.transform(value => brandString<AutomationRunnerId>(value)) }).strict(),
   lastAdmittedAt: instant.nullable(),

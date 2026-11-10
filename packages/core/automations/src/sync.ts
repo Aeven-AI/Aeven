@@ -29,8 +29,8 @@ export type DefinitionApply = (id: AutomationId, entry: SyncedDefinition) => voi
 /** Publishes the account's definitions on this device that the document does not name. */
 export type DefinitionSeed = (owner: string, present: ReadonlySet<string>) => Promise<void>
 
-/** This Host's runner id and profile, read once its definition domain is open. */
-export type HostSelf = () => Promise<{ id: AutomationRunnerId; profile: HostProfile }>
+/** This Host's runner id and its profile for one account, read once its definition domain is open. */
+export type HostSelf = (owner: string) => Promise<{ id: AutomationRunnerId; profile: HostProfile }>
 
 /**
  * A manual admission addressed to one cloud Host, with the approved failed run for a retry. `stop` is the
@@ -94,7 +94,7 @@ export class DefinitionSync {
     if (sync === undefined || state === 'disabled' || state === 'starting') return Promise.resolve(undefined)
     const opening = sync.openDocument(owner, DOCUMENT).then(async (handle) => {
       const hosts = handle.doc.getMap<HostProfile>('hosts')
-      const { id, profile } = await this.self()
+      const { id, profile } = await this.self(owner)
       if (this.open.get(owner) !== opening) return handle
       if (JSON.stringify(hosts.get(id)) !== JSON.stringify(profile)) hosts.set(id, profile)
       this.registered.set(owner, hosts)
@@ -168,6 +168,17 @@ export class DefinitionSync {
       if (entry === undefined) continue
       this.apply(key as AutomationId, entry)
     }
+  }
+
+  /**
+   * Write this Host's profile for an account again, such as once account sync names this device.
+   * @param owner - the account; nothing happens while its document is not open here.
+   */
+  async reregister(owner: string): Promise<void> {
+    const hosts = this.registered.get(owner)
+    if (hosts === undefined) return
+    const { id, profile } = await this.self(owner)
+    if (JSON.stringify(hosts.get(id)) !== JSON.stringify(profile)) hosts.set(id, profile)
   }
 
   /**

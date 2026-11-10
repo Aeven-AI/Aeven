@@ -13,7 +13,7 @@ import type {} from '@aeven/attachment'
 import type {} from '@aeven/workspace'
 import type {} from '@aeven/system-prompt'
 import type { SessionId } from '@aeven/session'
-import { SessionHandoff, type SessionClaim, type HandoffPlacement, type SessionHandoffInput, type SessionRunner, type SharedSession } from '@aeven/session-handoff'
+import { SessionHandoff, type SessionClaim, type HandoffDevices, type HandoffPlacement, type SessionHandoffInput, type SessionRunner, type SharedSession } from '@aeven/session-handoff'
 import { SessionMirror, type SessionSyncTuning } from './mirror.ts'
 
 /** Provider configuration. */
@@ -178,6 +178,11 @@ export default class SessionSync extends SessionHandoff {
   /** @inheritdoc */
   placementOf(owner: string, sessionId: SessionId): HandoffPlacement | undefined {
     return this.mirrors.get(owner)?.placementOf(sessionId)
+  }
+
+  /** @inheritdoc */
+  devicesOf(owner: string): HandoffDevices | undefined {
+    return this.mirrors.get(owner)?.devicesView()
   }
 
   /** @inheritdoc */
