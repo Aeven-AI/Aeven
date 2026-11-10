@@ -2706,6 +2706,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the writing device, or undefined when this device writes the session or it is not synced.',
       },
       {
+        signature: 'abstract homeOf(owner: string, sessionId: SessionId): SessionRunner | undefined',
+        description: 'The always-on device, such as Aeven Cloud, that ran a session\'s latest turn, when it is another device. A session stays on that device, where its files and background jobs live: this device forwards a turn-starting input to it instead of claiming the session, and it gets the first chance to run the input.',
+        parameters: [{ name: 'owner', description: 'the account.' }, { name: 'sessionId', description: 'the session.' }],
+        returns: 'that device, or undefined when this device ran the latest turn, that device is not always on, or an older build published the session without recording it.',
+      },
+      {
         signature: 'abstract forward(owner: string, sessionId: SessionId, input: SessionHandoffInput): Promise<void>',
         description: 'Forward one input to the device writing a session. Input reaches it in the order it was forwarded and waits while that device is unreachable.',
         parameters: [{ name: 'owner', description: 'the account.' }, { name: 'sessionId', description: 'the session.' }, { name: 'input', description: 'the input.' }],

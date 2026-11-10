@@ -784,6 +784,10 @@ export class SessionCommandController {
     const handoff = this.ctx.get('sessionHandoff')
     const owner = this.ctx.get('identityUsers')?.actingUser()?.id
     if (handoff === undefined || owner === undefined) return undefined
+    // A session whose latest turn ran on an always-on device, such as Aeven Cloud, stays there with its files and
+    // background jobs: the input is forwarded, that device takes it first, and this device runs it only when that
+    // device does not pick it up within the account's input grace.
+    if (handoff.homeOf(owner, sessionId) !== undefined) return owner
     const runner = handoff.runnerOf(owner, sessionId)
     // Directoryless chats can move between devices without a local folder binding.
     const recordedCwd = runner === undefined

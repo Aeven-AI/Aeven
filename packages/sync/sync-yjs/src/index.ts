@@ -299,9 +299,11 @@ export default class YjsSync extends Sync {
     const device = account.vault.status().device
     if (!account.vault.ready() || device === undefined) return
     const names = account.vault.openDocument(DEVICES)
-    const map = names.doc.getMap<{ name: string }>('names')
-    if (map.get(device)?.name !== this.config.deviceName) {
-      map.set(device, { name: this.config.deviceName })
+    const map = names.doc.getMap<{ name: string; alwaysOn?: boolean }>('names')
+    const current = map.get(device)
+    // A device that stays connected without a client, such as Aeven Cloud, says so; older builds read only `name`.
+    if (current?.name !== this.config.deviceName || (current.alwaysOn === true) !== this.config.keepConnected) {
+      map.set(device, { name: this.config.deviceName, ...this.config.keepConnected ? { alwaysOn: true } : {} })
       this.ctx.emit('sync/devices', owner)
     }
     names.close()

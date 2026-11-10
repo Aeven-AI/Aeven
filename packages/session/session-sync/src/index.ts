@@ -174,6 +174,11 @@ export default class SessionSync extends SessionHandoff {
   }
 
   /** @inheritdoc */
+  homeOf(owner: string, sessionId: SessionId): SessionRunner | undefined {
+    return this.mirrors.get(owner)?.homeOf(sessionId)
+  }
+
+  /** @inheritdoc */
   publishLive(owner: string, sessionId: SessionId, live: unknown): void {
     this.mirrors.get(owner)?.publishLive(sessionId, live)
   }

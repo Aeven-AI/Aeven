@@ -37,6 +37,19 @@ interface IndexEntry {
   title?: string
   updatedAt?: number
   running?: boolean
+  /**
+   * The device that ran the session's latest turn; a rename or model change from another device leaves it. Absent on
+   * entries an older build wrote, and such a build rebuilds the entry without it when it publishes, which leaves the
+   * session without a preferred device.
+   */
+  writer?: string
+}
+
+/** One device's entry in the synced device list, as the sync provider writes it. */
+interface DeviceEntry {
+  name: string
+  /** Set by a device that keeps its relay connection open while no client is attached, such as Aeven Cloud. */
+  alwaysOn?: boolean
 }
 
 /** Where sessions are filed on this device; the workspace registry provides it. */
@@ -961,6 +974,31 @@ export class SessionMirror {
   }
 
   /**
+   * The always-on device that ran a session's latest turn, when it is another device.
+   * @param sessionId - the session.
+   * @returns that device, or undefined when this device is it, the writer is not always on, or none is recorded.
+   */
+  homeOf(sessionId: SessionId): SessionRunner | undefined {
+    const home = this.preferredDevice(sessionId)
+    if (home === undefined || home === this.device()) return undefined
+    return { device: home, name: this.devices()?.get(home)?.name ?? '' }
+  }
+
+  /**
+   * The device that gets the first chance at a session's forwarded input: its last writer when that device is always on.
+   * @param sessionId - the session.
+   * @returns the device id, which may be this device, or undefined when the session has no always-on writer.
+   */
+  private preferredDevice(sessionId: SessionId): string | undefined {
+    const writer = this.docs?.index.doc.getMap<IndexEntry>('sessions').get(sessionId)?.writer
+    return writer !== undefined && this.devices()?.get(writer)?.alwaysOn === true ? writer : undefined
+  }
+
+  private devices(): YMap<DeviceEntry> | undefined {
+    return this.docs?.names.doc.getMap<DeviceEntry>('names')
+  }
+
+  /**
    * Publish the live state of a session whose turn runs here; a turn running on another device is left to it.
    * @param sessionId - the session.
    * @param live - the state, or undefined to clear it.
@@ -1043,8 +1081,8 @@ export class SessionMirror {
           continue
         }
       } else if (!runsHere) {
-        // The device the input was typed on gets the first chance to run it.
-        if (entry.from !== me && entry.at + this.tuning.inputGraceMs > now) continue
+        // The session's always-on writer gets the first chance to run it, otherwise the device it was typed on.
+        if ((this.preferredDevice(sessionId) ?? entry.from) !== me && entry.at + this.tuning.inputGraceMs > now) continue
         if (this.runnerOf(sessionId) !== undefined) continue
         const claimed = await this.claim(sessionId).catch((error: unknown) => {
           this.warn(`session sync: taking a session for forwarded input failed: ${String(error)}`)
@@ -2029,6 +2067,8 @@ export class SessionMirror {
     if (this.isClosed()) return
     active.published = after(suffix.events, from)
     const previous = this.entries().get(sessionId)
+    // Only a turn moves the session's home; a rename or model change published from another device does not.
+    const writer = suffix.events.some(event => event.type === 'turn/start') ? this.device() : previous?.writer
     const title = titleOf(suffix.events) ?? previous?.title
     this.entries().set(sessionId, {
       header: suffix.meta,
@@ -2039,6 +2079,7 @@ export class SessionMirror {
       inherited: suffix.inheritedEventCount,
       next: Math.max(previous?.next ?? 0, active.published),
       ...home === undefined ? {} : { workspace: home },
+      ...writer === undefined ? {} : { writer },
     })
   }
 
