@@ -1,7 +1,7 @@
 {
   "name": "@aeven/tool-agent-team",
   "description": "Model-facing team_task_* tools over the shared subagent-tree task board",
-  "version": "0.3.42-alpha",
+  "version": "0.3.43-alpha",
   "publishConfig": {
     "access": "public"
   },

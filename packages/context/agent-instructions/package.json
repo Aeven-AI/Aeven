@@ -1,7 +1,7 @@
 {
   "name": "@aeven/agent-instructions",
   "description": "Workspace context loader for AGENTS.md/CLAUDE.md instruction files",
-  "version": "0.3.42-alpha",
+  "version": "0.3.43-alpha",
   "publishConfig": {
     "access": "public"
   },
