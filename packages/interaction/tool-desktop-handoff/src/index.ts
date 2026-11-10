@@ -76,6 +76,7 @@ export function apply(ctx: Context, config: Config): void {
         description: 'What the request needs: computer (apps and computer use), files (their own files and folders), terminal, device (phone simulators and emulators), or models (models that run on their machine).',
       },
     },
+    /* jscpd:ignore-start -- the string-answer tool shape tool-location shares; each tool owns its own contract. */
     timeoutMs: answerTimeoutMs,
     output: {
       schema: { type: 'string' },
@@ -84,6 +85,7 @@ export function apply(ctx: Context, config: Config): void {
     async execute(args, exec) {
       const agent = exec.agent
       if (agent === undefined) throw new Error('offer_desktop needs a calling agent')
+      /* jscpd:ignore-end */
       const raw = (args as { reason?: unknown }).reason
       // The schema enumerates the reasons; a value outside it is the model's JSON, so it falls back to computer.
       const reason = REASONS.find(candidate => candidate === raw) ?? 'computer'

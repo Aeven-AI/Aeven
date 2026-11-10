@@ -131,6 +131,33 @@ tasks(): string[]
 
 Source: [`packages/computer-use/computer-use-windows-provider/src/index.ts`](../../packages/computer-use/computer-use-windows-provider/src/index.ts)
 
+<a id="desktop-handoff-events"></a>
+
+### `desktop-handoff/*` events
+
+<a id="desktop-handoffoffer--waterfall"></a>
+
+#### `desktop-handoff/offer` — waterfall
+
+Offer the reader of a session the Aeven desktop app. The client showing that session opens the "Available in Aeven Desktop" dialog and answers; a listener without that session calls `next()` to delegate. Scope-filtered dispatch (`@aeven/scope`): agent-scoped listeners receive only that agent.
+
+```ts cordis-catalog
+/**
+ * Offer the reader of a session the Aeven desktop app. The client showing
+ * that session opens the "Available in Aeven Desktop" dialog and answers;
+ * a listener without that session calls `next()` to delegate.
+ * Scope-filtered dispatch (`@aeven/scope`): agent-scoped listeners receive
+ * only that agent.
+ * @param request - what the request needs from the reader's computer.
+ * @mode waterfall
+ */
+'desktop-handoff/offer'( this: Scoped<Agent>, request: DesktopHandoffOfferEvent, next: () => Promise<DesktopHandoffResult>, ): Promise<DesktopHandoffResult>
+```
+
+Types: [Agent](core.zh.md) · [Scoped](scope.zh.md)
+
+Source: [`packages/interaction/tool-desktop-handoff/src/types.ts`](../../packages/interaction/tool-desktop-handoff/src/types.ts)
+
 <a id="location-events"></a>
 
 ### `location/*` events

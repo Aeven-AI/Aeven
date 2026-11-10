@@ -304,7 +304,7 @@ export class LanTransport {
       if (device === this.vault.device() || list.length === 0) continue
       const previous = this.routed.get(device)
       const same = previous !== undefined && previous.routes.length === list.length
-        && previous.routes.every((route, index) => route.host === list[index]?.host && route.port === list[index]?.port)
+        && previous.routes.every((route, index) => route.host === list.at(index)?.host && route.port === list.at(index)?.port)
       if (!same) this.routed.set(device, { routes: [...list], next: 0 })
       if (!this.linked(device)) this.dial(device)
     }
