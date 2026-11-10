@@ -90,6 +90,7 @@ describe('automation definitions across devices', () => {
     cloudSync.setState('online')
     await advanceUntil(0, async () => (await listAutomations(desktop)).runs.find(run => run.id === requested.id && run.status === 'succeeded'), 'the returned cloud result')
     expect(cloud.agents.conversations).toHaveLength(1)
+    expect(desktop.medium.table('automations', 'runs')[requested.id]).toMatchObject({ status: 'succeeded' })
     await desktop.automations.removeRun(requested.id)
     await advanceUntil(0, async () => (await listAutomations(cloud)).runs.length === 0 ? true : undefined, 'removed cloud history')
     expect((await listAutomations(desktop)).runs).toHaveLength(0)

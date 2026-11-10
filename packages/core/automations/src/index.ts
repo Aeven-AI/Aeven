@@ -204,6 +204,12 @@ export class Automations extends Service<Config> {
       // Another Host of the account changes which of them runs a definition; the scheduler looks again.
       () => { this.rearm() },
       (owner, id, request) => { this.receiveCloudRun(owner, id, request) },
+      (owner, run) => {
+        void this.transaction(async (domain) => {
+          if (run.admittedBy === this.runnerId(domain) || run.definition.owner !== owner) return
+          await domain.table('runs').put(run.id, run)
+        }).catch((error: unknown) => { ctx.logger.warn(`automations: the cloud result was not stored: ${String(error)}`) })
+      },
     )
     // Inbound secrets open before definitions, so a rejected trigger record cannot
     // leave the definition domain open without its owner.
@@ -226,7 +232,7 @@ export class Automations extends Service<Config> {
         await ctx.workspaceRegistry.archiveSession(sessionId).catch((error: unknown) => { ctx.logger.warn(`automations: run conversation ${sessionId} was not archived: ${String(error)}`) })
       }
       for (const [id, run] of domain.table('runs').entries()) {
-        if (run.status === 'queued' || run.status === 'running') await domain.table('runs').put(id, {
+        if (run.admittedBy === this.runnerId(domain) && (run.status === 'queued' || run.status === 'running')) await domain.table('runs').put(id, {
           ...run, status: 'failed', finishedAt: new Date().toISOString(), error: 'Execution was interrupted. External changes may already exist; inspect the conversation before retrying.',
         })
         if (run.trigger === 'schedule') await this.advanceAdmission(domain, run.definition.id, run.scheduledFor)
@@ -627,7 +633,7 @@ export class Automations extends Service<Config> {
   }
 
   private runs(domain: Domain<typeof automationDomain>): AutomationRun[] {
-    return [...new Map([...this.synced.runs(), ...[...domain.table('runs').entries()].map(([, run]) => run)].map(run => [run.id, run])).values()]
+    return [...new Map([...[...domain.table('runs').entries()].map(([, run]) => run), ...this.synced.runs()].map(run => [run.id, run])).values()]
   }
 
   private async storeRun(domain: Domain<typeof automationDomain>, run: AutomationRun): Promise<void> {
@@ -650,6 +656,7 @@ export class Automations extends Service<Config> {
       retryOfRunId: original?.id ?? null, payload: null, resolution: null,
     }
     await this.synced.requestRun(owner, { run, ...original === undefined ? {} : { original } })
+    await domain.table('runs').put(run.id, run)
     if (original !== undefined) {
       const resolved = { ...original, resolution: { kind: 'retried' as const, at: run.scheduledFor, retryRunId: run.id } }
       if (domain.table('runs').get(original.id) !== undefined) await this.storeRun(domain, resolved)
@@ -658,7 +665,7 @@ export class Automations extends Service<Config> {
   }
 
   private receiveCloudRun(owner: string, id: AutomationRunId, request: CloudRunRequest | undefined): void {
-    if (this.config.placement.kind !== 'cloud') return
+    if (request !== undefined && this.config.placement.kind !== 'cloud') return
     void this.ctx.identityUsers.runAs({ id: owner }, () => this.transaction(async (domain) => {
       const existing = domain.table('runs').get(id)
       if (existing !== undefined && existing.definition.owner !== owner) throw new Error('Run not found.')
@@ -1029,7 +1036,7 @@ export class Automations extends Service<Config> {
     if (this.stopped) return
     for (const [, run] of domain.table('runs').entries()) {
       if (this.active.size >= this.config.maxConcurrentRuns) return
-      if (run.status !== 'queued' || this.active.has(run.id)) continue
+      if (run.admittedBy !== this.runnerId(domain) || run.status !== 'queued' || this.active.has(run.id)) continue
       const entry: { promise: Promise<void>; handle?: AgentHandle } = { promise: Promise.resolve() }
       this.active.set(run.id, entry)
       entry.promise = this.ctx.identityUsers.runAs(

@@ -54,6 +54,7 @@ export class DefinitionSync {
    * @param self - reads this Host's runner id and profile.
    * @param hostsChanged - called when another device changes the account's registered Hosts.
    * @param receiveRun - admits or removes a cloud request on its addressed Host.
+   * @param receiveResult - retains remote execution snapshots across client restarts.
    */
   constructor(
     private readonly ctx: Context,
@@ -63,6 +64,7 @@ export class DefinitionSync {
     private readonly self: HostSelf,
     private readonly hostsChanged: (owner: string) => void,
     private readonly receiveRun: (owner: string, id: AutomationRunId, request: CloudRunRequest | undefined) => void,
+    private readonly receiveResult: (owner: string, run: AutomationRun) => void,
   ) {}
 
   /**
@@ -126,7 +128,24 @@ export class DefinitionSync {
         if (!transaction.local) takeRequests(event.keysChanged)
       }
       requests.observe(onRequests)
-      this.unobserve.set(handle, () => { hosts.unobserve(onHosts); map.unobserve(onDefinitions); requests.unobserve(onRequests) })
+      const results = handle.doc.getMap<AutomationRun>('run-results')
+      const takeResults = (keys: Iterable<string>): void => {
+        for (const key of keys) {
+          const value = results.get(key)
+          if (value === undefined) continue
+          const run = runSchema.parse(value)
+          if (run.id !== key || run.definition.owner !== owner) throw new Error('Automation result belongs to another account or run.')
+          this.receiveResult(owner, run)
+        }
+      }
+      takeResults(results.keys())
+      const onResults = (event: YMapEvent<AutomationRun>, transaction: Transaction): void => {
+        if (!transaction.local) takeResults(event.keysChanged)
+      }
+      results.observe(onResults)
+      this.unobserve.set(handle, () => {
+        hosts.unobserve(onHosts); map.unobserve(onDefinitions); requests.unobserve(onRequests); results.unobserve(onResults)
+      })
       return handle
     }).catch((error: unknown) => {
       this.open.delete(owner)
