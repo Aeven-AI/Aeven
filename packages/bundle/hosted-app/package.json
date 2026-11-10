@@ -1,7 +1,7 @@
 {
   "name": "@aeven/hosted-app",
   "description": "The avn hosted bundle: the web patch layer narrowed for a Host that Aeven operates for many accounts, which runs no command or file operation on its own machine and keeps no setting one account could change for another",
-  "version": "0.3.42-alpha",
+  "version": "0.3.43-alpha",
   "publishConfig": {
     "access": "public"
   },

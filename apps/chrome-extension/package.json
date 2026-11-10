@@ -1,7 +1,7 @@
 {
   "name": "@aeven/chrome-extension",
   "description": "The Aeven browser extension: drives the agent's tabs in any Chromium browser through the Aeven desktop app",
-  "version": "0.3.42-alpha",
+  "version": "0.3.43-alpha",
   "private": true,
   "type": "module",
   "scripts": {

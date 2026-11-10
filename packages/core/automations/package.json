@@ -1,6 +1,6 @@
 {
   "name": "@aeven/automations",
-  "version": "0.3.42-alpha",
+  "version": "0.3.43-alpha",
   "description": "Built-in durable local automations",
   "publishConfig": {
     "access": "public"
