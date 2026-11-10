@@ -141,9 +141,9 @@ declare module '@deepseek-ai/cordis' {
 export interface Config {
   /**
    * Most runs of one account that may execute at once on this Host; that account's next queued run starts when one
-   * of them finishes. Each account counts only its own runs.
+   * of them finishes. Each account counts only its own runs. Absent, every queued run starts at once.
    */
-  readonly maxConcurrentRunsPerAccount: number
+  readonly maxConcurrentRunsPerAccount?: number | undefined
   /** Budget of one run in minutes, counted from its start; a run still active at the deadline is cancelled. */
   readonly runTimeoutMinutes: number
   /**
@@ -187,7 +187,7 @@ export interface Config {
 export class Automations extends Service<Config> {
   static inject = ['storageDomain', 'agents', 'sessions', 'agentDefaultModel', 'agentPresets', 'permissionPresets', 'workspaceRegistry', 'identityUsers', 'connection', 'webServer', 'tools', 'sessionTitle']
   static Config = z.object({
-    maxConcurrentRunsPerAccount: z.number().step(1).min(1).required(), runTimeoutMinutes: z.number().min(1).required(),
+    maxConcurrentRunsPerAccount: z.number().step(1).min(1), runTimeoutMinutes: z.number().min(1).required(),
     misfireGraceMinutes: z.number().min(0).required(), historyLimit: z.number().step(1).min(1).required(),
     workspaceTitle: z.string().required(), webhookMaxBodyBytes: z.number().step(1).min(1).required(),
     placement: z.object({
@@ -1157,7 +1157,8 @@ export class Automations extends Service<Config> {
       if (run.admittedBy !== this.runnerId(domain) || run.status !== 'queued' || this.active.has(run.id)) continue
       const owner = run.definition.owner
       // An account at its limit waits for one of its own runs; other accounts' queued runs still start.
-      if ([...this.active.values()].filter(entry => entry.owner === owner).length >= this.config.maxConcurrentRunsPerAccount) continue
+      const limit = this.config.maxConcurrentRunsPerAccount
+      if (limit !== undefined && [...this.active.values()].filter(entry => entry.owner === owner).length >= limit) continue
       const entry: ActiveRun = { owner, promise: Promise.resolve() }
       this.active.set(run.id, entry)
       entry.promise = this.ctx.identityUsers.runAs(
