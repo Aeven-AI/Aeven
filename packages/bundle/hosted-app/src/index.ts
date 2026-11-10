@@ -35,14 +35,17 @@ export const READER_COUNTRY_GLOBAL = '__AVN_READER_COUNTRY__'
 export const name = 'hosted-runtime'
 export const inject = ['agents', 'llm']
 
-/** Hosted-only admission settings, and the request header the edge states the reader's country in. */
+/** Hosted-only admission settings, the request header the edge states the reader's country in, and page analytics. */
 export type Config = RequestLimits & {
   /** Lower-case request header carrying the reader's ISO 3166 alpha-2 country, such as Cloudflare's `cf-ipcountry`. */
   countryHeader: string
+  /** Google Analytics 4 measurement id, such as `G-XXXXXXXXXX`, whose gtag every served page loads; absent loads none. */
+  googleAnalyticsId?: string
 }
 
 export const Config: z<Config> = z.object({
   countryHeader: z.string().default('cf-ipcountry'),
+  googleAnalyticsId: z.string().pattern(/^G-[A-Z0-9]+$/u).required(false),
   perAccount: z.natural().min(1).default(2),
   total: z.natural().min(1).default(64),
   queuedPerAccount: z.natural().min(1).default(8),
@@ -61,6 +64,16 @@ export function apply(ctx: Context, config: Config): void {
     // Cloudflare answers `XX` (unknown) and `T1` (Tor) besides real countries; only a real alpha-2 code is stated.
     if (typeof country === 'string' && /^[A-Z]{2}$/u.test(country) && country !== 'XX' && country !== 'T1') {
       table.push({ kind: 'global', name: READER_COUNTRY_GLOBAL, value: country })
+    }
+    const analytics = config.googleAnalyticsId
+    if (analytics !== undefined) {
+      // The queue and its config call come first; gtag.js drains `dataLayer` whenever it arrives.
+      table.push({
+        kind: 'script',
+        placement: 'head',
+        text: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config',${JSON.stringify(analytics)})`,
+      })
+      table.push({ kind: 'script-src', placement: 'head', src: `https://www.googletagmanager.com/gtag/js?id=${analytics}` })
     }
   })
   ctx.on('attachment/missing', async (id, signal, next) => {

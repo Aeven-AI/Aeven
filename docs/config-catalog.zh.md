@@ -1878,10 +1878,12 @@ export interface Config {
 需要：`agents` · `llm`
 
 ```ts config-catalog
-/** Hosted-only admission settings, and the request header the edge states the reader's country in. */
+/** Hosted-only admission settings, the request header the edge states the reader's country in, and page analytics. */
 export type Config = RequestLimits & {
   /** Lower-case request header carrying the reader's ISO 3166 alpha-2 country, such as Cloudflare's `cf-ipcountry`. */
   countryHeader: string
+  /** Google Analytics 4 measurement id, such as `G-XXXXXXXXXX`, whose gtag every served page loads; absent loads none. */
+  googleAnalyticsId?: string
 }
 
 /** Deployment limits for active streams and their waiting requests. */

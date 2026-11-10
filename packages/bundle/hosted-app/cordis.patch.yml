@@ -751,6 +751,8 @@
       config:
         # Cloudflare fronts the hosted page and states the visitor's country here.
         countryHeader: cf-ipcountry
+        # The aeven.io Google Analytics property; only hosted pages load its gtag.
+        googleAnalyticsId: G-VJCZ4RHZ92
         perAccount: 2
         total: 64
         queuedPerAccount: 8
