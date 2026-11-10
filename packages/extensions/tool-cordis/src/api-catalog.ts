@@ -5420,6 +5420,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     parameters: [{ name: 'ref', description: 'the reference the value answers.' }, { name: 'user', description: 'the signed-in user.' }],
   },
   {
+    name: 'desktop-handoff/offer',
+    mode: 'waterfall',
+    signature: '\'desktop-handoff/offer\'( this: Scoped<Agent>, request: DesktopHandoffOfferEvent, next: () => Promise<DesktopHandoffResult>, ): Promise<DesktopHandoffResult>',
+    summary: 'Offer the reader of a session the Aeven desktop app.',
+    description: 'Offer the reader of a session the Aeven desktop app. The client showing that session opens the "Available in Aeven Desktop" dialog and answers; a listener without that session calls `next()` to delegate. Scope-filtered dispatch (`@aeven/scope`): agent-scoped listeners receive only that agent.',
+    parameters: [{ name: 'request', description: 'what the request needs from the reader\'s computer.' }],
+  },
+  {
     name: 'domain/changed',
     mode: 'emit',
     signature: '\'domain/changed\'(change: DomainChanged): void',
@@ -6630,6 +6638,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'DesktopAppId',
     declaration: 'export interface DesktopAppId {\n    id: string;\n    displayName?: string;\n}',
+  },
+  {
+    name: 'DesktopHandoffOfferEvent',
+    declaration: 'export interface DesktopHandoffOfferEvent {\n    reason: DesktopHandoffReason;\n    agent?: Agent;\n    signal?: AbortSignal;\n}',
+  },
+  {
+    name: 'DesktopHandoffReason',
+    declaration: 'export type DesktopHandoffReason = \'computer\' | \'files\' | \'terminal\' | \'device\' | \'models\';',
+  },
+  {
+    name: 'DesktopHandoffResult',
+    declaration: 'export type DesktopHandoffResult = \'shown\' | \'no-window\';',
   },
   {
     name: 'DesktopNode',
