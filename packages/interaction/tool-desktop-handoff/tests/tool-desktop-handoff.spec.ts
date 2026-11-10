@@ -60,10 +60,9 @@ describe('offer_desktop tool', () => {
 
     const result = await offer(ctx, 'computer')
 
-    expect(result).toMatchObject({
-      isError: false,
-      content: [{ type: 'text', text: expect.stringContaining('A dialog in the user\'s window now offers to continue this conversation in Aeven Desktop') }],
-    })
+    expect(result.isError).toBe(false)
+    expect(result.content).toEqual([{ type: 'text', text: expect.any(String) as string }])
+    expect(JSON.stringify(result.content)).toContain('A dialog in the user\'s window now offers to continue this conversation in Aeven Desktop')
     expect(seen.map(request => request.reason)).toEqual(['computer'])
   })
 
@@ -73,10 +72,9 @@ describe('offer_desktop tool', () => {
 
     const result = await offer(ctx, 'files')
 
-    expect(result).toMatchObject({
-      isError: false,
-      content: [{ type: 'text', text: expect.stringContaining('No window is showing this conversation') }],
-    })
+    expect(result.isError).toBe(false)
+    expect(result.content).toEqual([{ type: 'text', text: expect.any(String) as string }])
+    expect(JSON.stringify(result.content)).toContain('No window is showing this conversation')
   })
 
   it('reports no window when no window answers within answerTimeoutMs', async () => {
@@ -85,9 +83,8 @@ describe('offer_desktop tool', () => {
 
     const result = await offer(ctx, 'terminal')
 
-    expect(result).toMatchObject({
-      isError: false,
-      content: [{ type: 'text', text: expect.stringContaining('No window is showing this conversation') }],
-    })
+    expect(result.isError).toBe(false)
+    expect(result.content).toEqual([{ type: 'text', text: expect.any(String) as string }])
+    expect(JSON.stringify(result.content)).toContain('No window is showing this conversation')
   })
 })

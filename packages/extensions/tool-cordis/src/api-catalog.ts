@@ -741,7 +741,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Built-in automation service; schedules never authorize additional tool access.',
     methods: [
       {
-        signature: 'async list(): Promise<{ definitions: (AutomationDefinition & { placement: AutomationPlacement; nextRunAt: string | null; lastRun: AutomationRun | null; webhook: boolean })[]; runs: AutomationRun[]; capabilities: { host: HostProfile[\'kind\']; triggers: readonly AutomationSchedule[\'kind\'][]; webhook: boolean } }>',
+        signature: 'async list(): Promise<{ definitions: (AutomationDefinition & { placement: AutomationPlacement; nextRunAt: string | null; lastRun: AutomationRun | null; webhook: boolean })[]; runs: AutomationRun[]; capabilities: { host: HostProfile[\'kind\']; triggers: readonly AutomationSchedule[\'kind\'][]; webhook: boolean }; hosts: { cloud: boolean; desktops: AutomationDesktop[] } }>',
         description: 'Read the acting account\'s definitions, newest created first, and bounded execution history, newest scheduled first. History leaves out runs whose conversation is archived, so it lists what the sidebar\'s Automations workspace shows; unarchiving the conversation lists the run again. Each definition\'s `lastRun` is its latest retained run either way.',
         parameters: [],
         returns: 'owned definitions, latest run records, and this Host\'s kind and the triggers it evaluates. A definition\'s `placement` says where it runs among the account\'s registered Hosts, and its `webhook` says an inbound credential exists; the secret itself never enters this projection.',
@@ -2750,6 +2750,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Where a synced session runs, for offering the user to move it.',
         parameters: [{ name: 'owner', description: 'the account.' }, { name: 'sessionId', description: 'the session.' }],
         returns: 'the placement, or undefined when the session is not synced or account sync has not started.',
+      },
+      {
+        signature: 'abstract devicesOf(owner: string): HandoffDevices | undefined',
+        description: 'The account\'s devices, for offering the user where work runs outside one session.',
+        parameters: [{ name: 'owner', description: 'the account.' }],
+        returns: 'them, or undefined while account sync has not started.',
       },
       {
         signature: 'abstract moveTo(owner: string, sessionId: SessionId, device: string): Promise<void>',
@@ -6145,7 +6151,11 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AutomationDefinition',
-    declaration: 'export interface AutomationDefinition {\n    readonly id: AutomationId;\n    readonly owner?: string | undefined;\n    readonly revision: number;\n    readonly name: string;\n    readonly prompt: string;\n    readonly schedule: AutomationSchedule;\n    readonly status: \'active\' | \'paused\';\n    readonly agentPreset: string;\n    readonly model: ModelSelection;\n    readonly permission: \'read-only\' | \'workspace-write\';\n    readonly grants: readonly AutomationGrant[];\n    readonly requires?: readonly DeviceCapability[] | undefined;\n    readonly runOn: RunOn;\n    readonly executionTarget: {\n        readonly kind: \'local\';\n        readonly runnerId: AutomationRunnerId;\n    };\n    readonly lastAdmittedAt: string | null;\n    readonly createdAt: string;\n    readonly updatedAt: string;\n}',
+    declaration: 'export interface AutomationDefinition {\n    readonly id: AutomationId;\n    readonly owner?: string | undefined;\n    readonly revision: number;\n    readonly name: string;\n    readonly prompt: string;\n    readonly schedule: AutomationSchedule;\n    readonly status: \'active\' | \'paused\';\n    readonly agentPreset: string;\n    readonly model: ModelSelection;\n    readonly permission: \'read-only\' | \'workspace-write\';\n    readonly grants: readonly AutomationGrant[];\n    readonly requires?: readonly DeviceCapability[] | undefined;\n    readonly runOn: RunOn;\n    readonly desktop?: HostDevice | undefined;\n    readonly executionTarget: {\n        readonly kind: \'local\';\n        readonly runnerId: AutomationRunnerId;\n    };\n    readonly lastAdmittedAt: string | null;\n    readonly createdAt: string;\n    readonly updatedAt: string;\n}',
+  },
+  {
+    name: 'AutomationDesktop',
+    declaration: 'export interface AutomationDesktop {\n    readonly device: HostDevice;\n    readonly name: string;\n    readonly present: boolean;\n    readonly seenAt?: number | undefined;\n    readonly self: boolean;\n    readonly provides?: readonly DeviceCapability[] | undefined;\n}',
   },
   {
     name: 'AutomationGrant',
@@ -6157,7 +6167,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AutomationInput',
-    declaration: 'export interface AutomationInput {\n    readonly name: string;\n    readonly prompt: string;\n    readonly schedule: AutomationSchedule;\n    readonly permission: \'read-only\' | \'workspace-write\';\n    readonly requires?: readonly DeviceCapability[] | undefined;\n    readonly runOn?: RunOn | undefined;\n}',
+    declaration: 'export interface AutomationInput {\n    readonly name: string;\n    readonly prompt: string;\n    readonly schedule: AutomationSchedule;\n    readonly permission: \'read-only\' | \'workspace-write\';\n    readonly requires?: readonly DeviceCapability[] | undefined;\n    readonly runOn?: RunOn | undefined;\n    readonly desktop?: string | undefined;\n}',
   },
   {
     name: 'AutomationPlacement',
@@ -7204,12 +7214,20 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface HandoffDesktop extends SessionRunner {\n    readonly present: boolean;\n    readonly seenAt?: number;\n}',
   },
   {
+    name: 'HandoffDevices',
+    declaration: 'export interface HandoffDevices {\n    readonly device: string;\n    readonly name: string;\n    readonly alwaysOnHere: boolean;\n    readonly desktops: readonly HandoffDesktop[];\n}',
+  },
+  {
     name: 'HandoffPlacement',
-    declaration: 'export interface HandoffPlacement {\n    readonly device: string;\n    readonly name: string;\n    readonly alwaysOnHere: boolean;\n    readonly home?: SessionRunner & {\n        readonly alwaysOn: boolean;\n        readonly pinned: boolean;\n    };\n    readonly desktops: readonly HandoffDesktop[];\n}',
+    declaration: 'export interface HandoffPlacement extends HandoffDevices {\n    readonly home?: SessionRunner & {\n        readonly alwaysOn: boolean;\n        readonly pinned: boolean;\n    };\n}',
+  },
+  {
+    name: 'HostDevice',
+    declaration: 'export type HostDevice = NonNullable<SyncStatus[\'device\']>;',
   },
   {
     name: 'HostProfile',
-    declaration: 'export interface HostProfile {\n    readonly kind: \'cloud\' | \'device\';\n    readonly provides: readonly DeviceCapability[];\n}',
+    declaration: 'export interface HostProfile {\n    readonly kind: \'cloud\' | \'device\';\n    readonly provides: readonly DeviceCapability[];\n    readonly device?: HostDevice | undefined;\n}',
   },
   {
     name: 'IdentityRequest',
@@ -8405,7 +8423,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'RunOn',
-    declaration: 'export type RunOn = \'auto\' | \'device\';',
+    declaration: 'export type RunOn = \'auto\' | \'cloud\' | \'device\';',
   },
   {
     name: 'SandboxEnforcement',

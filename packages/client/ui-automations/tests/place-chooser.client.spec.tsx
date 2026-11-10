@@ -63,20 +63,20 @@ function mount(bot: Task) {
 }
 
 /** Open the bot's card and its place chooser. */
-async function openChooser(name: string) {
+async function openChooser(name: string): Promise<HTMLElement> {
   fireEvent.click(await screen.findByRole('button', { name: new RegExp(name) }))
   fireEvent.click(screen.getByRole('button', { name: en.placeChoose }))
-  return within(await screen.findByRole('dialog'))
+  return screen.findByRole('dialog')
 }
 
 /** The row button of one place in the open chooser. */
-const row = (dialog: ReturnType<typeof within>, name: string) => dialog.getByRole('button', { name: new RegExp(name) })
+const row = (dialog: HTMLElement, name: string): HTMLElement => within(dialog).getByRole('button', { name: new RegExp(name) })
 
 describe('bot place chooser', () => {
   it('offers Aeven Cloud first and each desktop with its status', async () => {
     mount(task())
     const dialog = await openChooser('Morning news')
-    const rows = dialog.getAllByRole('button').filter(button => button.closest('li') !== null)
+    const rows = within(dialog).getAllByRole('button').filter(button => button.closest('li') !== null)
     expect(rows.map(button => button.textContent)).toEqual([
       `${en.runsOnCloud}${en.placeCloudStatus}`,
       `MacBook${en.placeSelf}`,
