@@ -1,7 +1,7 @@
 /**
- * Recall of the person's recent memories on a turn that is not a session's first. The first relevance judgment runs
- * without them, so a work turn never pays for a scan of the person's life; when that judgment reports the person
- * sharing it, a second judgment runs with them and replaces the first unless it is degraded.
+ * Recall of the person's recent memories on a turn that is not a session's first. One relevance judgment runs without
+ * them and, when there are any, a second one runs with them at the same time; the second replaces the first only when
+ * the first reports the person sharing and the second is not degraded.
  */
 import { describe, expect, it, vi } from 'vitest'
 import type { MemoryRecall } from '@aeven/memory'
@@ -81,14 +81,39 @@ describe('recall of the person\'s recent memories on a later turn', () => {
     }
   })
 
-  it('judges the turn without the person\'s recent memories first', async () => {
-    const { judged, recall } = sharingTurn([WORK_ONLY])
-    expect((await recall).hits.map(hit => hit.id)).toEqual(['tr_work'])
-    expect(judged).toHaveLength(1)
+  it('keeps the judgment without the person\'s recent memories on a work turn', async () => {
+    const { judged, recall } = sharingTurn([WORK_ONLY, '{"lead":"person","sharing":true,"keep":[2]}'])
+    const result = await recall
+    expect(result.hits.map(hit => hit.id)).toEqual(['tr_work'])
+    expect(result.sharing).toBe(false)
+    expect(judged).toHaveLength(2)
     expect(judged[0]).not.toContain('in hospital in Delft')
+    expect(judged[1]).toContain('in hospital in Delft')
   })
 
-  it('judges again with them when the first judgment finds the person sharing, and replaces it', async () => {
+  it('runs both judgments at once, so the turn waits for the slower one rather than both in a row', async () => {
+    const releases: Array<() => void> = []
+    const answers = [SHARED, '{"lead":"person","sharing":true,"keep":[2]}']
+    const harness = recallHarness([work], {
+      recent: [person],
+      relevance: {
+        timeoutMs: 4000,
+        run: () => new Promise<string>((resolve) => {
+          const answer = answers[releases.length] ?? ''
+          releases.push(() => { resolve(answer) })
+        }),
+      },
+    })
+    const recall = harness.memory.recall({
+      scope: SCOPE, query: REQUEST, request: REQUEST, purpose: 'turn-start', timeoutMs: 5000, signal,
+      recent: { ...RECENT, sharingOnly: true },
+    })
+    await vi.waitFor(() => { expect(releases).toHaveLength(2) })
+    for (const release of releases) release()
+    expect((await recall).hits.map(hit => hit.id)).toEqual(['tr_person'])
+  })
+
+  it('uses the judgment with them when the first judgment finds the person sharing', async () => {
     const { judged, recall } = sharingTurn([SHARED, '{"lead":"person","sharing":true,"keep":[2]}'])
     const result = await recall
     expect(judged).toHaveLength(2)

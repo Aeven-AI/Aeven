@@ -313,12 +313,11 @@ export class MemosMemory implements MemoryProvider {
         const topic = withoutExactIdentifiers(request.query)
         if (topic !== request.query && topic.length > 0) hits = await this.search({ ...request, query: topic }, deadlineAt, turnStart)
       }
-      const sharingOnly = request.recent?.sharingOnly === true
-      const recent = recentScan === undefined || sharingOnly ? [] : this.recentPersonHits(request, hits, await recentScan)
-      const recall = await this.judge(request, [...hits, ...recent], deadlineAt)
-      return sharingOnly && recall.sharing === true && recentScan !== undefined
-        ? await this.judgeWithRecent(request, hits, recall, recentScan, deadlineAt)
-        : recall
+      if (request.recent?.sharingOnly !== true || recentScan === undefined) {
+        const recent = recentScan === undefined ? [] : this.recentPersonHits(request, hits, await recentScan)
+        return await this.judge(request, [...hits, ...recent], deadlineAt)
+      }
+      return await this.judgeSharingTurn(request, hits, recentScan, deadlineAt)
     } catch (error) {
       if (!(error instanceof MemoryDeadlineError)) throw error
       return { hits: [], timedOut: true }
@@ -326,27 +325,36 @@ export class MemosMemory implements MemoryProvider {
   }
 
   /**
-   * Judge a personal turn again with the person's recent memories among the candidates. The first judgment stands
-   * when there are none, or when the second one fails or runs out of time.
+   * Judge a later turn, whose recent memories count only when the turn is personal. The judgment without them and the
+   * one with them run at once: the one with them is used when the first finds the person sharing and it is not
+   * degraded, otherwise the first stands. Running them together gives the result of judging one after the other in
+   * the time of the slower call.
+   * @param request - the turn-start recall.
+   * @param hits - the search's candidates.
+   * @param recentScan - the person's recent memories.
+   * @param deadlineAt - epoch milliseconds the whole recall must finish within.
+   * @returns the chosen judgment.
    */
-  private async judgeWithRecent(
+  private async judgeSharingTurn(
     request: MemoryRecallRequest,
     hits: readonly MemoryHit[],
-    first: MemoryRecall,
     recentScan: Promise<readonly TraceDTO[]>,
     deadlineAt: number,
   ): Promise<MemoryRecall> {
-    let recent: MemoryHit[]
+    // A judgment never rejects: a failed or late one resolves to its fallback.
+    const first = this.judge(request, hits, deadlineAt)
+    let recent: MemoryHit[] = []
     try {
       recent = this.recentPersonHits(request, hits, await recentScan)
     } catch (error) {
-      // The deadline elapsed during the scan; the first judgment is already complete.
+      // The deadline elapsed during the scan; the first judgment runs on.
       if (!(error instanceof MemoryDeadlineError)) throw error
-      return first
     }
-    if (recent.length === 0) return first
-    const second = await this.judge(request, [...hits, ...recent], deadlineAt)
-    return second.degraded === true ? first : second
+    if (recent.length === 0) return await first
+    const [without, withRecent] = await Promise.all([first, this.judge(request, [...hits, ...recent], deadlineAt)])
+    const chosen = without.sharing === true && withRecent.degraded !== true ? withRecent : without
+    this.state(request.scope).sharing = chosen.sharing === true
+    return chosen
   }
 
   /**
