@@ -560,6 +560,7 @@ function SessionTree({
         })}
         {archivedSection}
       </div>
+      <span className={css.fadeTop} />
       <span className={css.fade} />
     </div>
   )
@@ -754,6 +755,7 @@ function StatusList({
         })}
         {archivedSection}
       </div>
+      <span className={css.fadeTop} />
       <span className={css.fade} />
     </div>
   )
