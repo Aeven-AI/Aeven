@@ -42,7 +42,7 @@ The `avn-hosted-app` bundle mounts it when `AVN_CLOUD_BILLING=1`, with `apiUrl` 
 | `quoteTtlMs` | `60000` | Milliseconds an owner's funding answer stays fresh. |
 | `accountsRoot` | none | Directory whose children are account folders named by owner; omitted, storage is not metered. |
 | `storageIntervalMs` | `86400000` | Milliseconds between storage measurements; the first runs one minute after start. |
-| `billedProviders` | `['aeven']` | Providers whose turns the Aeven API bills as inference; turns on any other provider are metered. |
+| `billedProviders` | the `@aeven/llm-aeven` provider (`aeven-cloud`) | Providers whose turns the Aeven API bills as inference; turns on any other provider are metered. The default is read from `llm-aeven`'s own constant. |
 | `maxQueuedPerOwner` | `10000` | Reports kept per owner while the API is unreachable; the oldest are dropped first. |
 
 ### What an unfunded account sees

@@ -8389,6 +8389,9 @@ importers:
       '@aeven/credentials':
         specifier: workspace:^
         version: link:../../credentials/credentials
+      '@aeven/llm-aeven':
+        specifier: workspace:^
+        version: link:../../llm/llm-aeven
       '@aeven/sandbox-jail':
         specifier: workspace:^
         version: link:../../sandbox/sandbox-jail

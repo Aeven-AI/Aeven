@@ -781,9 +781,6 @@ flowchart TD
   pkg_turn_review --> pkg_llm
   pkg_turn_review --> pkg_session
   pkg_turn_review --> pkg_timeout
-  pkg_cloud_meter --> pkg_agent
-  pkg_cloud_meter --> pkg_credentials
-  pkg_cloud_meter --> pkg_sandbox_jail
   pkg_host_workspace_files --> pkg_client_connection
   pkg_host_workspace_files --> pkg_host_webserver
   pkg_host_workspace_files --> pkg_workspace
@@ -1075,6 +1072,10 @@ flowchart TD
   pkg_tool_call_timeout_policy --> pkg_llm
   pkg_tool_call_timeout_policy --> pkg_timeout
   pkg_tool_call_timeout_policy --> pkg_tools
+  pkg_cloud_meter --> pkg_agent
+  pkg_cloud_meter --> pkg_credentials
+  pkg_cloud_meter --> pkg_llm_aeven
+  pkg_cloud_meter --> pkg_sandbox_jail
   pkg_tool_ask_user --> pkg_agent
   pkg_tool_ask_user --> pkg_tools
   pkg_tool_ask_user --> pkg_user_questions
@@ -1875,7 +1876,6 @@ flowchart TD
 | [`document-extract-video`](../packages/document/document-extract-video) | `document` | [`document-extract`](../packages/document/document-extract), [`speech-to-text`](../packages/speech/speech-to-text), [`subprocess`](../packages/subprocess/subprocess) |
 | [`fs-e2b`](../packages/e2b/fs-e2b) | `e2b` | [`e2b`](../packages/e2b/e2b), [`fs`](../packages/fs/fs) |
 | [`turn-review`](../packages/guard/turn-review) | `guard` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`timeout`](../packages/util/timeout) |
-| [`cloud-meter`](../packages/host/cloud-meter) | `host` | [`agent`](../packages/core/agent), [`credentials`](../packages/credentials/credentials), [`sandbox-jail`](../packages/sandbox/sandbox-jail) |
 | [`host-workspace-files`](../packages/host/workspace-files) | `host` | [`client-connection`](../packages/client/connection), [`host-webserver`](../packages/host/webserver), [`workspace`](../packages/workspace/workspace) |
 | [`user-approval`](../packages/interaction/user-approval) | `interaction` | [`agent`](../packages/core/agent), [`brand`](../packages/util/brand), [`invariants`](../packages/runtime-diagnostics/invariants), [`llm`](../packages/llm/llm), [`scope`](../packages/core/scope), [`session`](../packages/core/session), [`system-prompt`](../packages/core/system-prompt) |
 | [`user-questions`](../packages/interaction/user-questions) | `interaction` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`scope`](../packages/core/scope) |
@@ -1933,6 +1933,7 @@ flowchart TD
 | [`repeat-tool-reminder`](../packages/guard/repeat-tool-reminder) | `guard` | [`agent`](../packages/core/agent), [`tools`](../packages/core/tools) |
 | [`tool-call-access-policy`](../packages/guard/access-policy) | `guard` | [`sandbox`](../packages/sandbox/sandbox), [`sandbox-policy`](../packages/sandbox/sandbox-policy), [`tools`](../packages/core/tools) |
 | [`tool-call-timeout-policy`](../packages/guard/timeout-policy) | `guard` | [`llm`](../packages/llm/llm), [`timeout`](../packages/util/timeout), [`tools`](../packages/core/tools) |
+| [`cloud-meter`](../packages/host/cloud-meter) | `host` | [`agent`](../packages/core/agent), [`credentials`](../packages/credentials/credentials), [`llm-aeven`](../packages/llm/llm-aeven), [`sandbox-jail`](../packages/sandbox/sandbox-jail) |
 | [`tool-ask-user`](../packages/interaction/tool-ask-user) | `interaction` | [`agent`](../packages/core/agent), [`tools`](../packages/core/tools), [`user-questions`](../packages/interaction/user-questions) |
 | [`tool-desktop-handoff`](../packages/interaction/tool-desktop-handoff) | `interaction` | [`agent`](../packages/core/agent), [`scope`](../packages/core/scope), [`timeout`](../packages/util/timeout), [`tools`](../packages/core/tools) |
 | [`tool-location`](../packages/interaction/tool-location) | `interaction` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`scope`](../packages/core/scope), [`timeout`](../packages/util/timeout), [`tools`](../packages/core/tools) |

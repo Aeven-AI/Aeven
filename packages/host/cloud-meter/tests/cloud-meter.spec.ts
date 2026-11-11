@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@aeven/agent'
 import * as cloudMeter from '@aeven/cloud-meter'
+import { PROVIDER as AEVEN_PROVIDER } from '@aeven/llm-aeven'
 import type { Config } from '@aeven/cloud-meter'
 
 interface Call { url: string; method: string; authorization: string | undefined; body: unknown }
@@ -105,7 +106,7 @@ describe('cloud-meter reports', () => {
 
     expect(await request('alice', 'grok-build')).toEqual({ provider: 'grok-build', model: 'm' })
     await request('alice', 'grok-build', 2)
-    await request('alice', 'aeven')
+    await request('alice', AEVEN_PROVIDER)
     await request(undefined, 'grok-build')
     await vi.advanceTimersByTimeAsync(60_000)
 
@@ -195,6 +196,13 @@ describe('cloud-meter reports', () => {
   })
 })
 
+describe('cloud-meter defaults', () => {
+  it('bills no turn on the provider llm-aeven registers, by its own name', () => {
+    expect(cloudMeter.Config({ apiUrl: 'https://api.test' }).billedProviders).toEqual([AEVEN_PROVIDER])
+    expect(AEVEN_PROVIDER).toBe('aeven-cloud')
+  })
+})
+
 describe('cloud-meter funding gate', () => {
   it('refuses jailed commands and unbilled turns once the API reports the owner unfunded', async () => {
     api(() => ({ status: 200, body: { funded: false } }))
@@ -204,7 +212,7 @@ describe('cloud-meter funding gate', () => {
     await vi.advanceTimersByTimeAsync(0)
     expect(admit('alice')).toMatch(/credit is used up/u)
     await expect(request('alice', 'byok')).rejects.toThrow(/credit is used up/u)
-    expect(await request('alice', 'aeven')).toEqual({ provider: 'aeven', model: 'm' })
+    expect(await request('alice', AEVEN_PROVIDER)).toEqual({ provider: AEVEN_PROVIDER, model: 'm' })
   })
 
   it('takes the funding answer from a send, and caches a quote for quoteTtlMs', async () => {

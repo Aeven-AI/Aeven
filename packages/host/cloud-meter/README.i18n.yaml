@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/host/cloud-meter/README.md
-README.md: 02b539b2def140913b1e394474bfdf6410438a74
-README.zh.md: 1ca57029a49d8fceb483c1dde19301d7ff1ae686
+README.md: 439259404453ce81b653401b90445c5a38fc52d8
+README.zh.md: f16c8cd959cbdfe3657be87200deedb840faefb8

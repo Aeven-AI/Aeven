@@ -21,6 +21,9 @@
       "path": "../../credentials/credentials"
     },
     {
+      "path": "../../llm/llm-aeven"
+    },
+    {
       "path": "../../sandbox/sandbox-jail"
     }
   ]
