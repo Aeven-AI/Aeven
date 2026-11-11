@@ -37,6 +37,7 @@ export const zh = {
   'json.expandNode': '展开 JSON 节点',
   'json.label': 'JSON',
   'markdown.footnotes': '脚注',
+  'markdown.imageUnavailable': '图片未显示',
   'markdown.imagePreview': '图片预览',
   'markdown.closeImagePreview': '关闭图片预览',
   'markdown.imagePrevious': '上一张图片',

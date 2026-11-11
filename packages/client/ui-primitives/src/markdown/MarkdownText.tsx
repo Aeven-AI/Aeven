@@ -51,6 +51,8 @@ export interface MarkdownLabels {
   image?: ImageLightboxLabels | undefined
   /** A video's play button; the engine's English labels apply when absent. */
   video?: MarkdownVideoLabels | undefined
+  /** Shown in place of an image this app could not load, beside the source it names. */
+  imageUnavailable: string
 }
 
 /** Accessible names for the play button over a video written on its own line. */
@@ -502,6 +504,8 @@ export const MarkdownText = memo(function MarkdownText({
         {...scrollDown === undefined ? {} : { scrollDown }}
         {...onFullscreenChange === undefined ? {} : { onFullscreenChange }}
         resolveImage={imageSource}
+        imageUnavailableLabel={labels.imageUnavailable}
+        {...imageVisible === undefined ? {} : { imageVisible }}
         {...labels.image === undefined ? {} : { onImageOpen: openImage }}
       />
       {enlarged !== null && labels.image !== undefined && (

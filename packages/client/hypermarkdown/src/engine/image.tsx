@@ -10,8 +10,10 @@ interface ImageProps extends ImgHTMLAttributes<HTMLImageElement> {
 /**
  * Images rendered from markdown, wrapped so a host can style loading and error
  * states around them. The host's `resolveImage` maps the authored source to
- * the URL that loads (an unresolvable source shows the alt text), and its
- * `onImageOpen` makes the image a control that opens it enlarged.
+ * the URL that loads; a source it cannot resolve shows the host's
+ * `imageUnavailableLabel` and the source it failed to load, or the alt text
+ * alone when the host supplies no label or suppressed the source itself. Its `onImageOpen` makes the image a
+ * control that opens it enlarged.
  *
  * A loaded image also reports its own orientation, which is what lets a host
  * lay a row of images out in the shape each one actually has. Until the bytes
@@ -33,7 +35,24 @@ function MarkdownImage(props: ImageProps) {
   const [loaded, setLoaded] = useState(false)
 
   if (resolved === undefined) {
-    return <span className="markdown-image-alt">{alt ?? ''}</span>
+    const unavailable = options?.imageUnavailableLabel
+    // The host may have dropped the source on purpose, showing the same image
+    // elsewhere; that is not a failure and must not read as one.
+    const suppressed = src !== undefined && options?.imageVisible?.(src) === false
+
+    // Without copy from the host this renderer has no language to speak, so
+    // the older alt-only rendering stands rather than inventing English.
+    if (unavailable === undefined || suppressed) {
+      return <span className="markdown-image-alt">{alt ?? ''}</span>
+    }
+
+    return (
+      <span className="markdown-image-unavailable" role="note" title={src}>
+        <span className="markdown-image-unavailable-label">{unavailable}</span>
+        {src === undefined ? null : <span className="markdown-image-unavailable-source">{src}</span>}
+        {alt === undefined || alt === '' ? null : <span className="markdown-image-unavailable-alt">{alt}</span>}
+      </span>
+    )
   }
 
   const open = options?.onImageOpen

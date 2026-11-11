@@ -1278,6 +1278,7 @@ function FileView({
   const labels = useMemo<MarkdownLabels>(() => ({
     code: { copyLabel: t('code.copy'), copiedLabel: t('code.copied') },
     footnotes: t('markdown.footnotes'),
+    imageUnavailable: t('markdown.imageUnavailable'),
   }), [t])
 
   // Toggling to the page and back returns the source to where the reader left it.

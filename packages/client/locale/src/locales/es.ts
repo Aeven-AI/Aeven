@@ -38,6 +38,7 @@ export const es = {
   'json.expandNode': 'Expandir nodo JSON',
   'json.label': 'JSON',
   'markdown.footnotes': 'Notas al pie',
+  'markdown.imageUnavailable': 'Imagen no mostrada',
   'markdown.imagePreview': 'Vista previa de la imagen',
   'markdown.closeImagePreview': 'Cerrar la vista previa',
   'markdown.imagePrevious': 'Imagen anterior',

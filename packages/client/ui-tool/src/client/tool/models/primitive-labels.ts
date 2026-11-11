@@ -20,6 +20,7 @@ export function markdownLabels(t: T): MarkdownLabels {
   return {
     code: { copyLabel: t('copy'), copiedLabel: t('copied') },
     footnotes: t('markdown.footnotes'),
+    imageUnavailable: t('markdown.imageUnavailable'),
   }
 }
 

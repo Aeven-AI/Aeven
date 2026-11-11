@@ -373,6 +373,20 @@ describe('MarkdownText', () => {
     }
   })
 
+  it('keeps a suppressed image silent, which is not the unloadable state', () => {
+    // The transcript shows this artifact beside the reply, so dropping it here
+    // is deliberate: it must not read as a source that failed to load.
+    const { container } = render(
+      <MarkdownText
+        text={'![generated chart](https://example.com/chart.png)'}
+        imageVisible={() => false}
+      />,
+    )
+
+    expect(container.querySelector('.markdown-image-unavailable')).toBeNull()
+    expect(container.querySelector('.markdown-image-alt')?.textContent).toBe('generated chart')
+  })
+
   it('neutralizes raw HTML, unsafe or relative links, and unsupported images', () => {
     const markdown = [
       '<script>globalThis.compromised = true</script>',

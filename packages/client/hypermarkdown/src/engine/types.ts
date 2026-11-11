@@ -107,6 +107,18 @@ export interface RendererOptions extends UiOptions {
    */
   resolveImage?: ((src: string) => string | undefined) | undefined
   /**
+   * Copy shown in place of an image whose source the host could not resolve,
+   * naming the source it could not load. Absent, only the alt text is shown —
+   * which is nothing at all when the author wrote none.
+   */
+  imageUnavailableLabel?: string | undefined
+  /**
+   * Whether the host still shows this image here. `false` means it shows the
+   * same artifact elsewhere, so dropping it is deliberate rather than a
+   * failure: the alt text stands and the unavailable state is not used.
+   */
+  imageVisible?: ((src: string) => boolean) | undefined
+  /**
    * Open an image the reader clicked, for a host that shows it enlarged.
    * Absent, images are not clickable.
    */
