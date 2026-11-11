@@ -201,10 +201,12 @@ export abstract class SessionHandoff extends Service {
   abstract holdRunner(owner: string, sessionId: SessionId, running: boolean): Promise<void>
 
   /**
-   * Where a synced session runs, for offering the user to move it.
+   * Where a synced session runs, for offering the user to move it. On an always-on device a session not yet synced
+   * has one too: its home is the desktop its first input would be forwarded to.
    * @param owner - the account.
    * @param sessionId - the session.
-   * @returns the placement, or undefined when the session is not synced or account sync has not started.
+   * @returns the placement, or undefined when account sync has not started, or the session is not synced and this
+   *   device is not always on.
    */
   abstract placementOf(owner: string, sessionId: SessionId): HandoffPlacement | undefined
 
@@ -217,7 +219,8 @@ export abstract class SessionHandoff extends Service {
 
   /**
    * Make a device of the account the session's home, so its next turn runs there: this device, or an always-on device
-   * a later input is forwarded to. The session's log does not change.
+   * a later input is forwarded to. The session's log does not change. On an always-on device a session not yet
+   * synced keeps the choice for its first input.
    * @param owner - the account.
    * @param sessionId - the session.
    * @param device - the device id, this device's or an always-on device's.

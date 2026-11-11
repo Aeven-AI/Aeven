@@ -356,7 +356,8 @@ export class SessionCommandController {
   /**
    * The moves between the account's devices this device offers for one synced Session.
    * @param request - Session identity.
-   * @returns the offered moves; none on an always-on device, or for a Session that is not synced.
+   * @returns the offered moves; none for a Session that is not synced, except on an always-on device, which offers
+   *   the desktops a new conversation's first input can go to.
    */
   placement(request: SessionPlacementRequest): SessionPlacementValue {
     const handoff = this.ctx.get('sessionHandoff')
@@ -380,7 +381,8 @@ export class SessionCommandController {
    * @param request - Session identity and the device to continue on.
    * @returns acceptance.
    * @throws RemoteError `session/agent-busy` while another device runs a turn of the Session, and
-   *   `gateway/bad-request` when the Session is not synced, or the target desktop is not the account's or is offline.
+   *   `gateway/bad-request` when the Session is not synced on a device that is not always on, or the target desktop is
+   *   not the account's or is offline.
    */
   async continueOn(request: SessionContinueOnRequest): Promise<SessionContinueOnValue> {
     const handoff = this.ctx.get('sessionHandoff')

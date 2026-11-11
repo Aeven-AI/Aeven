@@ -2009,6 +2009,11 @@ export interface Config {
    */
   helpCenterUrl?: string
   /**
+   * Page the sign-in screens' brand mark links to, such as the Aeven website;
+   * absent leaves the mark unlinked.
+   */
+  brandUrl?: string
+  /**
    * Credential reference the access token this authority verifies answers to.
    *
    * The token is the caller's Aeven session, and `llm-aeven` presents one to
