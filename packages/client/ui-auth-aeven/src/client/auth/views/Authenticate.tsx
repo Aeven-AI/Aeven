@@ -217,6 +217,18 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
     for (const provider of [loginX, loginApple, loginGoogle]) provider.current?.loadingStatus(false)
   }
 
+  // A page restored from the back/forward cache after leaving for the provider in
+  // this tab has no sign-in in progress: the provider page was this document's.
+  useEffect(() => {
+    const onPageShow = (event: PageTransitionEvent): void => {
+      if (!event.persisted || providerAttempt.current === undefined) return
+      providerAttempt.current.abort()
+      releaseProviderForm()
+    }
+    window.addEventListener('pageshow', onPageShow)
+    return () => { window.removeEventListener('pageshow', onPageShow) }
+  }, [props.cover])
+
   // A provider sign-in an embedding shell ran and lost leaves nothing in progress.
   useEffect(() => oauthService.onEnded(() => {
     providerAttempt.current?.abort()
@@ -531,8 +543,9 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
    * pressing any provider starts over.
    * A `redirect` start with `handoff` also covers a provider whose installed app
    * takes the page over on a phone, as the X app does: this page stays where it
-   * is, and the sign-in the app finishes in another browser is collected here and
-   * finished through `/oauth-result` as a redirected one is.
+   * is under the cover, and the sign-in the app finishes in another browser is
+   * collected here and finished through `/oauth-result` as a redirected one is. A
+   * reader who comes back without finishing gets the form back as under `window`.
    * @param url - the provider's sign-in URL, absent when the deployment offers that provider.
    * @param button - the button that was pressed.
    * @param handoff - whether the provider's app can finish the sign-in in another browser.
@@ -548,11 +561,15 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
       providerAttempt.current?.abort()
       const attempt = new AbortController()
       providerAttempt.current = attempt
+      props.cover?.show()
       void oauthService.prepareHandoff(url).then(async (start) => {
         location.href = start.url
+        oauthService.watchReturn(releaseProviderForm, attempt.signal)
         const result = await oauthService.awaitHandoff(start, attempt.signal)
         if (result === undefined || attempt.signal.aborted) return
         attempt.abort()
+        // A result that arrives after the form came back raises the cover again for the exchange.
+        props.cover?.show()
         routeService.navigateRoute('error' in result
           ? '/oauth-result/error'
           : `/oauth-result/${encodeURIComponent(result.session)}/${encodeURIComponent(result.challenge)}`)
