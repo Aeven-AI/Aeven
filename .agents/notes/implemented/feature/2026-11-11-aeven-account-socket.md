@@ -10,7 +10,7 @@ The Aeven website (aeven.io) and the web client (chat.aeven.io) share one Aeven 
 
 ## Decision
 
-The client holds the Aeven API's account socket for as long as a page's session stands. `watchSession` opens it through `openAccountSocket` and closes it in its disposer. The socket URL is a deployment fact: `identity-user-aeven` takes `socketUrl` and states it in `__AVN_AEVEN__` beside `apiUrl`, under the request's loopback spelling. Without it the client opens nothing and behaves as before.
+The client holds the Aeven API's account socket for as long as a page's session stands. `watchSession` opens it through `openAccountSocket` and closes it in its disposer. The socket URL is a deployment fact: `identity-user-aeven` takes `socketUrl` and states it in `__AVN_AEVEN__` beside `apiUrl`, under the request's loopback spelling. The hosted bundle sets it from `AEVEN_SOCKET_URL`, defaulting to `wss://aeven.io/socket`, the API's socket, not the Host's own `/socket`. Without it the client opens nothing and behaves as before.
 
 A browser cannot set `Authorization` on a WebSocket, so the page offers its access token as the subprotocol `aeven.bearer.<token>` beside `aeven.account`. The API answers with `aeven.account` and never echoes the token. The Remote stream socket uses the same shape. The refresh cookie is not used, because it belongs to whichever host set it and names whichever account signed in last.
 

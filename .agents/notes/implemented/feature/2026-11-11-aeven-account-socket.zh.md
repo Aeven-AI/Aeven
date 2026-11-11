@@ -10,7 +10,7 @@ Aeven 网站（aeven.io）与 web 客户端（chat.aeven.io）共用同一个 Ae
 
 ## Decision
 
-只要页面的会话存在，客户端就持有 Aeven API 的账户 socket。`watchSession` 通过 `openAccountSocket` 打开它，并在自身的 disposer 中关闭。socket URL 是部署层面的事实：`identity-user-aeven` 接收 `socketUrl`，并按请求所用的 loopback 写法，把它与 `apiUrl` 一起写入 `__AVN_AEVEN__`。未配置时客户端不打开任何连接，行为与以前相同。
+只要页面的会话存在，客户端就持有 Aeven API 的账户 socket。`watchSession` 通过 `openAccountSocket` 打开它，并在自身的 disposer 中关闭。socket URL 是部署层面的事实：`identity-user-aeven` 接收 `socketUrl`，并按请求所用的 loopback 写法，把它与 `apiUrl` 一起写入 `__AVN_AEVEN__`。hosted bundle 从 `AEVEN_SOCKET_URL` 读取它，默认为 `wss://aeven.io/socket`，即 API 的 socket，而不是 Host 自己的 `/socket`。未配置时客户端不打开任何连接，行为与以前相同。
 
 浏览器无法在 WebSocket 上设置 `Authorization`，因此页面把 access token 作为子协议 `aeven.bearer.<token>`，与 `aeven.account` 一起提供。API 以 `aeven.account` 应答，从不回显 token。Remote stream socket 采用同样的形式。不使用 refresh cookie，因为它属于设置它的那个主机，并指向最后登录的账户。
 

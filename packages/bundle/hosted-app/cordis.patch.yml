@@ -63,6 +63,9 @@
   inject: [identityUsers]
   config:
     apiUrl: !!js process.env.AEVEN_API_URL ?? 'https://aeven.io/api'
+    # The API's account socket, which signs every open page out the moment its
+    # session ends elsewhere and carries the account's language.
+    socketUrl: !!js process.env.AEVEN_SOCKET_URL ?? 'wss://aeven.io/socket'
     xOAuthUrl: !!js process.env.AEVEN_OAUTH_X_URL ?? 'https://aeven.io/oauth/x'
     appleOAuthUrl: !!js process.env.AEVEN_OAUTH_APPLE_URL ?? 'https://aeven.io/oauth/apple'
     googleOAuthUrl: !!js process.env.AEVEN_OAUTH_GOOGLE_URL ?? 'https://aeven.io/oauth/google'

@@ -26,7 +26,7 @@ kind: "package-bundle"
 <a id="use-this-package"></a>
 ## 使用本包
 
-只支持用 `avn hosted` 启动。部署把 `AEVEN_API_URL` 与 `AEVEN_SYNC_URL` 指向它服务的 API 与中继，在 `AVN_HOSTED_TRUSTED_HOSTS` 中写明公开主机名，并让代理指向绑定地址，同时为 `/sync` 与客户端 socket 打开 WebSocket 升级。会话、工作区、记忆、个人化、自动化、连接器、邮件与同步都按登录账号归属；通过浏览器发起的设置写入会被拒绝，因为设置文档属于 Host。
+只支持用 `avn hosted` 启动。部署把 `AEVEN_API_URL` 与 `AEVEN_SYNC_URL` 指向它服务的 API 与中继，并把 `AEVEN_SOCKET_URL` 指向 API 的账户 socket（默认 `wss://aeven.io/socket`），在 `AVN_HOSTED_TRUSTED_HOSTS` 中写明公开主机名，并让代理指向绑定地址，同时为 `/sync` 与客户端 socket 打开 WebSocket 升级。会话、工作区、记忆、个人化、自动化、连接器、邮件与同步都按登录账号归属；通过浏览器发起的设置写入会被拒绝，因为设置文档属于 Host。
 
 <a id="understand-the-implementation"></a>
 ## 理解实现
