@@ -126,8 +126,16 @@ export function apply(ctx: Context, config: Config): void {
     queued.set(owner, list)
   }
 
-  const token = async (owner: string): Promise<string | undefined> =>
-    (await ctx.credentials.resolve(ref, owner).catch(() => undefined))?.value
+  // Read once while the plugin is active: the final send runs from the disposer, when `ctx.credentials` throws.
+  const credentials = ctx.credentials
+  const token = async (owner: string): Promise<string | undefined> => {
+    try {
+      return (await credentials.resolve(ref, owner))?.value
+    } catch {
+      // A locked or already stopped credential store: the owner's reports wait for a send that can read a token.
+      return undefined
+    }
+  }
 
   /** Ask the API whether an owner may start cloud work; an unreachable API admits it. */
   const quote = (owner: string): Promise<boolean> => {
@@ -199,7 +207,14 @@ export function apply(ctx: Context, config: Config): void {
     flushing ??= (async () => {
       for (const [owner, seconds] of sandboxSeconds) enqueue(owner, { id: `sandbox:${randomUUID()}`, kind: 'sandbox', quantity: seconds })
       sandboxSeconds.clear()
-      for (const [owner, list] of [...queued]) await send(owner, list)
+      for (const [owner, list] of [...queued]) {
+        try {
+          await send(owner, list)
+        } catch (error) {
+          // A send that throws must not reject the flush: the disposer's flush has no caller to receive it.
+          logger.warn(`cannot report cloud usage of ${owner}: ${messageOf(error)}`)
+        }
+      }
     })().finally(() => { flushing = undefined })
     return flushing
   }

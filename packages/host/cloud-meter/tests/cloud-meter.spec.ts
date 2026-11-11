@@ -203,6 +203,49 @@ describe('cloud-meter defaults', () => {
   })
 })
 
+describe('cloud-meter shutdown', () => {
+  it('sends its last reports when the credential store stops first, as on Host shutdown', async () => {
+    const calls = api(() => ({ status: 200, body: { funded: true } }))
+    const ctx = new Context()
+    const store = ctx.plugin({
+      name: 'credentials-under-test',
+      apply: (inner: Context) => {
+        inner.provide('credentials', { resolve: () => Promise.resolve({ value: 'token-alice' }) })
+      },
+    })
+    await store
+    await ctx.plugin(cloudMeter, { apiUrl: 'https://api.test' })
+    ;(ctx.emit as unknown as (name: string, payload: unknown) => void)('sandbox-jail/usage', { account: 'alice', cpuSeconds: 1 })
+
+    // Stopping the store stops the meter, which injects it; the meter's last send must still read a token.
+    await store.dispose()
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(calls.map(call => call.authorization)).toEqual(['Bearer token-alice'])
+  })
+
+  it('logs a send that throws instead of rejecting the flush', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ status: 200, ok: true, json: () => Promise.reject(new Error('bad json')) })))
+    const { ctx, fiber, usage } = await setup()
+    const warnings = logLines(ctx, 'warn')
+    usage('alice', 1)
+
+    await fiber.dispose()
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(warnings.some(line => line.includes('cannot report cloud usage of alice: bad json'))).toBe(true)
+  })
+
+  it('reads a store that throws while resolving as no token', async () => {
+    const calls = api(() => ({ status: 200, body: { funded: true } }))
+    const { usage } = await setup({}, () => { throw new Error('stopped') })
+    usage('alice', 1)
+
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(calls).toHaveLength(0)
+  })
+})
+
 describe('cloud-meter funding gate', () => {
   it('refuses jailed commands and unbilled turns once the API reports the owner unfunded', async () => {
     api(() => ({ status: 200, body: { funded: false } }))
