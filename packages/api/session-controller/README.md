@@ -67,7 +67,7 @@ None; no prompt input originates here.
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- `list()` serves cold rows from the durable projection cache, and refolds at most 20 title-less rows per call from their logs. A home whose cache is wholly unreadable — an older build facing records a newer one wrote — therefore recovers a slice of its titles per listing rather than all at once, though each refold writes its row back, so repeated listings converge.
+- `list()` serves cold rows from the durable projection cache, and refolds at most 20 rows per call from their logs: title-less rows, and blank rows whose account catalog history is longer than the cached row. A home whose cache is wholly unreadable — an older build facing records a newer one wrote — therefore recovers a slice of its titles per listing rather than all at once, though each refold writes its row back, so repeated listings converge.
 - Control baselines represent process-local state and therefore cannot reconstruct jobs after a Host restart.
 - A failed follow resumption remains visible to the caller instead of retrying indefinitely.
 - File-reference completion uses the shared Agent lookup and can resume a cold Session; the `skills/list` catalog is the non-activating alternative for skill metadata.
