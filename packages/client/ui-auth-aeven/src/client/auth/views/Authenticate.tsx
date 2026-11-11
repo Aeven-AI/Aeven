@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from 'react'
+import { Fragment, useEffect, useRef, useState, type RefObject } from 'react'
 import type React from 'react'
 
 import JSConfetti from '../../../vendor/confetti/index.ts'
@@ -1751,7 +1751,9 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
             <HeaderMenu onLocaleChange={() => { setLocaleRevision(revision => revision + 1) }} />
           </div>
           <div className="content-container">
-            {renderAuthComponent()}
+            {/* Keyed per route so each view mounts fresh inputs: views share layouts, and a reused
+                new-password Input would otherwise carry the password into the sign-in email field. */}
+            <Fragment key={`${getAuthPath()}/${getAuthType()}`}>{renderAuthComponent()}</Fragment>
             <div className="graphics-container">
               <MarkBackdrop />
             </div>
