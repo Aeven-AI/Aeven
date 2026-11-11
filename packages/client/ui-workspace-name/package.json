@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-workspace-name",
   "description": "Workspace naming surface: the workspace directory-flow occupant that creates a Workspace with no directory under a title the reader types",
-  "version": "0.3.44-alpha",
+  "version": "0.3.45-alpha",
   "publishConfig": {
     "access": "public"
   },
