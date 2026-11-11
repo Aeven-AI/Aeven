@@ -6,6 +6,7 @@ import JSConfetti from '../../../vendor/confetti/index.ts'
 import Input, { type InputHandle } from '../com/Input.tsx'
 import Button, { type ButtonHandle } from '../com/Button.tsx'
 import { MarkBackdrop } from '../com/MarkBackdrop.tsx'
+import { LanguageMenu } from '../com/LanguageMenu.tsx'
 
 import * as api from '../services/api.ts'
 import * as events from '../services/events.ts'
@@ -92,6 +93,8 @@ const oauthService = {
   awaitSession: oauth.awaitProviderSession,
   watchReturn: oauth.watchProviderReturn,
   onEnded: oauth.onProviderSignInEnded,
+  prepareHandoff: oauth.prepareProviderHandoff,
+  awaitHandoff: oauth.awaitHandedOffSignIn,
 }
 const utilityService = utility
 const storageService = storage
@@ -219,6 +222,9 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
     providerAttempt.current?.abort()
     releaseProviderForm()
   }), [props.cover])
+
+  // Bumped by a language pick so every line of copy renders again in the new language.
+  const [, setLocaleRevision] = useState(0)
 
   /** The screen's root class, which the stylesheet keys on. */
   const componentName = 'authenticate'
@@ -523,14 +529,34 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
    * who comes back without finishing gets the form back as it was; the wait goes
    * on unseen, so finishing in the browser afterwards still signs them in, and
    * pressing any provider starts over.
+   * A `redirect` start with `handoff` also covers a provider whose installed app
+   * takes the page over on a phone, as the X app does: this page stays where it
+   * is, and the sign-in the app finishes in another browser is collected here and
+   * finished through `/oauth-result` as a redirected one is.
    * @param url - the provider's sign-in URL, absent when the deployment offers that provider.
    * @param button - the button that was pressed.
+   * @param handoff - whether the provider's app can finish the sign-in in another browser.
    */
-  const beginProviderSignIn = (url: string | undefined, button: RefObject<ButtonHandle | null>): void => {
+  const beginProviderSignIn = (url: string | undefined, button: RefObject<ButtonHandle | null>, handoff = false): void => {
     if (url === undefined) return
     for (const provider of [loginX, loginApple, loginGoogle]) provider.current?.loadingStatus(provider === button)
     if (configService.oauthFlow() === 'redirect') {
-      location.href = url
+      if (!handoff) {
+        location.href = url
+        return
+      }
+      providerAttempt.current?.abort()
+      const attempt = new AbortController()
+      providerAttempt.current = attempt
+      void oauthService.prepareHandoff(url).then(async (start) => {
+        location.href = start.url
+        const result = await oauthService.awaitHandoff(start, attempt.signal)
+        if (result === undefined || attempt.signal.aborted) return
+        attempt.abort()
+        routeService.navigateRoute('error' in result
+          ? '/oauth-result/error'
+          : `/oauth-result/${encodeURIComponent(result.session)}/${encodeURIComponent(result.challenge)}`)
+      })
       return
     }
     providerAttempt.current?.abort()
@@ -555,7 +581,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
 
       case 'x':
         {
-          beginProviderSignIn(configService.oauth.xOAuth, loginX)
+          beginProviderSignIn(configService.oauth.xOAuth, loginX, true)
         }
         break
 
@@ -1669,6 +1695,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
   }
 
   const backTarget = getBackTarget()
+  const brandUrl = config.brandUrl()
 
   return (
     <>
@@ -1676,11 +1703,17 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
         <div id="main-content" className="main-content">
           <div className="auth-header">
             {backTarget === undefined
-              ? (
-                <span className="auth-mark">
-                  <AevenMark />
-                </span>
-              )
+              ? (brandUrl === undefined
+                ? (
+                  <span className="auth-mark">
+                    <AevenMark />
+                  </span>
+                )
+                : (
+                  <a className="auth-mark" href={brandUrl} aria-label={t('brand.home')}>
+                    <AevenMark />
+                  </a>
+                ))
               : (
                 <button
                   type="button"
@@ -1698,6 +1731,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
                   <span dangerouslySetInnerHTML={{ __html: BACK_ICON }} />
                 </button>
               )}
+            <LanguageMenu onChange={() => { setLocaleRevision(revision => revision + 1) }} />
           </div>
           <div className="content-container">
             {renderAuthComponent()}

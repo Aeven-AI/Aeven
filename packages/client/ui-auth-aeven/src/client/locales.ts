@@ -46,6 +46,8 @@ export const zh = {
   'action.ok': '好的',
   'action.continue': '继续',
   'action.back': '返回',
+  'action.language': '语言',
+  'brand.home': '前往 Æven 主页',
   'action.signIn': '登录',
   'action.signUp': '注册',
   'action.verify': '验证',
@@ -155,6 +157,8 @@ export const en: Record<AuthAevenKey, string> = {
   'action.ok': 'Ok',
   'action.continue': 'Continue',
   'action.back': 'Back',
+  'action.language': 'Language',
+  'brand.home': 'Go to the Æven homepage',
   'action.signIn': 'Sign in',
   'action.signUp': 'Sign up',
   'action.verify': 'Verify',
@@ -264,6 +268,8 @@ export const es: Record<AuthAevenKey, string> = {
   'action.ok': 'Aceptar',
   'action.continue': 'Continuar',
   'action.back': 'Atrás',
+  'action.language': 'Idioma',
+  'brand.home': 'Ir a la página de Æven',
   'action.signIn': 'Iniciar sesión',
   'action.signUp': 'Crear cuenta',
   'action.verify': 'Verificar',
@@ -351,8 +357,60 @@ const DICTIONARIES: Readonly<Record<string, Record<AuthAevenKey, string>>> = { e
 /** Language used when the browser asks for none this surface ships. */
 const FALLBACK = 'en'
 
+/** One language the sign-in screens offer, named in itself. */
+export interface AuthLanguage {
+  readonly id: string
+  /** The language's own name; it is never translated. */
+  readonly label: string
+}
+
+/** The languages the sign-in screens offer, in menu order. */
+export const AUTH_LANGUAGES: readonly AuthLanguage[] = [
+  { id: 'en', label: 'English' },
+  { id: 'zh', label: '中文' },
+  { id: 'es', label: 'Español' },
+]
+
+/** Browser storage key of the language a reader picked on these screens. */
+const CHOSEN_LOCALE_KEY = 'aeven.auth.locale'
+
 /**
- * The shipped dictionary the browser asks for.
+ * The language a reader picked on these screens, if any.
+ * @returns a shipped locale id, or undefined when none was picked or storage is unavailable.
+ */
+function chosenLocale(): string | undefined {
+  try {
+    const chosen = localStorage.getItem(CHOSEN_LOCALE_KEY)
+    return chosen !== null && Object.hasOwn(DICTIONARIES, chosen) ? chosen : undefined
+  } catch {
+    // Storage blocked (private mode, disabled site data): the browser's languages decide.
+    return undefined
+  }
+}
+
+/**
+ * Keep a reader's pick of language for these screens, in this browser only.
+ * @param id - a locale id from {@link AUTH_LANGUAGES}.
+ */
+export function chooseAuthLocale(id: string): void {
+  try {
+    localStorage.setItem(CHOSEN_LOCALE_KEY, id)
+  } catch {
+    // Storage blocked: the pick holds for nothing beyond this render, which reads the browser's languages.
+  }
+}
+
+/**
+ * The language these screens show.
+ * @returns the locale id copy is read from.
+ */
+export function authLocale(): string {
+  return activeLocale()
+}
+
+/**
+ * The shipped dictionary the reader picked on these screens, else the one the
+ * browser asks for.
  *
  * Each requested tag matches a dictionary id exactly, then by primary subtag,
  * so `zh-CN` reaches the `zh` dictionary. `window` is the browser test, not
@@ -362,6 +420,8 @@ const FALLBACK = 'en'
  */
 function activeLocale(): string {
   if (typeof window === 'undefined') return FALLBACK
+  const chosen = chosenLocale()
+  if (chosen !== undefined) return chosen
   // Embedders and older WebViews may omit the DOM-typed `languages` property.
   const languages = (navigator as { readonly languages?: readonly string[] }).languages
   for (const tag of [...languages ?? [], navigator.language]) {

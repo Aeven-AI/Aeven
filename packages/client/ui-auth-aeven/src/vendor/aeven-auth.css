@@ -5369,6 +5369,77 @@ body .mermaid-render-sandbox {
     padding-right: 16px;
   }
 }
+/* The language control at the band's far end. Over the black graphics panel
+   on a wide screen it is a white circle with a black glyph; where the form
+   takes the whole width it matches the brand seat, black with a white glyph. */
+#app-root .view-container .authenticate.view .main-content .auth-header .auth-language {
+  position: relative;
+  z-index: 1;
+  margin-left: auto;
+}
+#app-root .view-container .authenticate.view .main-content .auth-header .auth-language-button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0px;
+  border: none;
+  border-radius: 15px;
+  background: #ffffff;
+  color: #000000;
+  cursor: pointer;
+}
+#app-root .view-container .authenticate.view .main-content .auth-header .auth-language-button:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+#app-root .view-container .authenticate.view .main-content .auth-header .auth-language-button svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+@media screen and (max-width: 1024px) {
+  #app-root .view-container .authenticate.view .main-content .auth-header .auth-language-button {
+    background: #000000;
+    color: #ffffff;
+  }
+  #app-root .view-container .authenticate.view .main-content .auth-header .auth-language-button:focus-visible {
+    outline-color: #000000;
+  }
+}
+#app-root .view-container .authenticate.view .main-content .auth-header .auth-language-menu {
+  position: absolute;
+  top: 38px;
+  right: 0px;
+  min-width: 148px;
+  margin: 0px;
+  padding: 6px;
+  list-style: none;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.16);
+}
+#app-root .view-container .authenticate.view .main-content .auth-header .auth-language-option {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: rgb(10, 10, 10);
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+}
+#app-root .view-container .authenticate.view .main-content .auth-header .auth-language-option:hover,
+#app-root .view-container .authenticate.view .main-content .auth-header .auth-language-option:focus-visible {
+  background: rgb(242, 242, 242);
+  outline: none;
+}
+#app-root .view-container .authenticate.view .main-content .auth-header .auth-language-option[aria-checked="true"] {
+  font-weight: 600;
+}
 /* The desktop shell insets its window controls over the page's top-left, on this
    band's own row (desktop main.ts `trafficLightPosition`): the seat stands one
    page inset past their gutter, which is the line the shell's own headers put
@@ -5954,12 +6025,10 @@ html[data-avn-traffic-lights]
   font-size: 0.875rem;
   background-color: rgb(242, 242, 242);
 }
-/* A link inside a sentence is underlined, so it does not rely on its grey
-   alone to stand apart from the black text around it. */
-#app-root .authenticate.view .form .subtext a,
-#app-root .authenticate.view .form-footer a {
-  text-decoration: underline;
-  text-underline-offset: 2px;
+/* Links on these screens carry no underline; a link inside a sentence stands
+   apart by its tone. */
+#app-root .authenticate.view a {
+  text-decoration: none;
 }
 @media screen and (max-width: 640px) {
   #app-root

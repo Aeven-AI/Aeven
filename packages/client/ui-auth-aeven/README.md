@@ -54,6 +54,8 @@ The screens report success by leaving the authentication surface, and the boot g
 
 A provider sign-in follows the flow the deployment states ([`oauthFlow`](../../identity/user-aeven/README.md#provider-sign-in-flow)). Under `redirect` this document goes to the provider and the provider returns it to `/oauth-result`, where the exchange runs. Under `window` a window of its own reaches the provider, exchanges the answer on its landing, and closes; this document keeps the page the reader asked for and picks the session up by reading it, so nothing about the application's document changes. The gate lends the screen its cover (`mountAuthScreen`'s `cover`), which rises from the press on. The pressed provider button shows progress, and pressing any provider again starts over. A reader who comes back without finishing gets the form back as it was, with no provider in progress, once this document has held focus for 0.75 seconds after losing it, or for five seconds without ever losing it; finishing in the other window afterwards still signs them in. A sign-in that finished in another window resolves `authenticated` with `elsewhere`, and the gate then raises the cover without fading it in. A shell that runs the provider sign-in itself, as the desktop app does in the default browser, dispatches `aeven:provider-signed-in` on `window` once the session exists, which makes this document read it at once, and `aeven:provider-sign-in-ended` when the sign-in ended without one, which puts the form back the same way.
 
+X starts with a handoff under `redirect`. On a phone the X app opens for x.com and finishes the sign-in in whatever browser it prefers, which holds none of this browser's session, while this document stays where it was. The start therefore carries `app=web` and the SHA-256 of a verifier drawn on the press, and this document asks the Aeven server's `/oauth/desktop/claim` once a second for up to ten minutes. A sign-in the X app finished elsewhere is stored there for this document, which finishes it through `/oauth-result` as a redirected one; the other browser ends on the server's signed-in page. A sign-in that finishes in this browser redirects as before, and the wait ends with the document.
+
 -----
 
 <a id="understand-the-implementation"></a>
@@ -71,6 +73,10 @@ The screens are carried over from the Aeven client as they stand, so the service
 ### The mark on the black half
 
 The screens' dark column carries the Aeven website's own mark and motion: `MarkBackdrop` renders the website's layer tree into `.graphics-container` and runs the same GSAP timelines with the same values, so the two surfaces move identically. The styling lives in the vendored stylesheet, scoped to the auth view's selector chain so no rule reaches the header's own `.auth-mark`. A reader who asks for reduced motion sees the settled picture with nothing running. The values are the website's, so a change to that motion is mirrored here.
+
+### The header's brand link and language
+
+A deployment that states `brandUrl` makes the header's monogram a link to that page, such as the Aeven website on the hosted app; without it the monogram is not a link. The header's far end holds a language control that lists English, 中文 and Español in their own names. A pick is kept in this browser's storage under `aeven.auth.locale` and outranks the browser's languages on these screens only; the application after sign-in resolves its language on its own. The control is a white circle with a black globe over the black panel of a wide screen, and a black circle with a white globe, as the monogram is, where the form takes the whole width (1024px and below).
 
 ### Reading back a password
 
