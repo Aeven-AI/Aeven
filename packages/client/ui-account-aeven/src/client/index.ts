@@ -123,6 +123,9 @@ export function apply(ctx: ClientContext): void {
       const reader = publishedReader()
       if (reader !== undefined) void reader.setLocale(id).catch(() => undefined)
     },
+    installOffer: () => publishedReader()?.installOffer(),
+    // The row only shows while a reader is published; without one there are only steps to show.
+    installApp: () => publishedReader()?.installApp() ?? Promise.resolve('android'),
   })
 
   // The frame's corner, not a Session header seat: whether a reader is signed

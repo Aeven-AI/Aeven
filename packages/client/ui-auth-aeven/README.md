@@ -76,7 +76,11 @@ The screens' dark column carries the Aeven website's own mark and motion: `MarkB
 
 ### The header's brand link and language
 
-A deployment that states `brandUrl` makes the header's monogram a link to that page, such as the Aeven website on the hosted app; without it the monogram is not a link. The header's far end holds a language control that lists English, 中文 and Español in their own names. A pick is kept in this browser's storage under `aeven.auth.locale` and outranks the browser's languages on these screens only; the application after sign-in resolves its language on its own. The control is a white circle with a black globe over the black panel of a wide screen, and a black circle with a white globe, as the monogram is, where the form takes the whole width (1024px and below).
+A deployment that states `brandUrl` makes the header's monogram a link to that page, such as the Aeven website on the hosted app; without it the monogram is not a link. The header's far end holds a vertical-ellipsis button whose popup is the account menu's own markup and card. It offers Install app on Android and iOS outside the installed app, and Language, which opens the account menu's ui-primitives language list (loaded on first use, as the screens' popup is) with English, 中文 and Español in their own names. A pick is kept in this browser's storage under `aeven.auth.locale` and outranks the browser's languages on these screens only; the application after sign-in resolves its language on its own. The button is a white circle with a black glyph over the black panel of a wide screen, and a black circle with a white glyph, as the monogram is, where the form takes the whole width (1024px and below).
+
+### Installing to the home screen
+
+`services/install.ts` captures Chromium's `beforeinstallprompt` from the moment the boot kernel loads this package and keeps it for an Install item, which the header menu and, through the published reader's `installOffer`/`installApp`, the account menu show. On Android the item opens the browser's install dialog. iOS offers no install API, so there, and on an Android browser that never fired the event, the item shows the platform's manual steps: Share then Add to Home Screen on iOS, the browser menu's Install app or Add to Home screen on Android. Off a phone, or inside the installed app (`display-mode` standalone, fullscreen or minimal-ui, or iOS `navigator.standalone`), no item is shown.
 
 ### Reading back a password
 

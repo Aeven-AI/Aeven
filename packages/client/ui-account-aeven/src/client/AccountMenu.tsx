@@ -7,12 +7,13 @@
  */
 
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { Menu, useDismissOnOutsidePointer } from '@aeven/client-ui-primitives'
+import { Button, Menu, Modal, useDismissOnOutsidePointer } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
+import type { InstallOffer, InstallOutcome } from '@aeven/client-ui-auth-aeven'
 // Type-only: pulls the ui-layout SlotMap merge (the frame's corner seat).
 import type {} from '@aeven/client-ui-layout/client'
 import { Avatar } from './Avatar.tsx'
-import { HELP_CENTER_ICON, LANGUAGE_ICON, LOGOUT_ICON, SETTINGS_ICON } from './icons.ts'
+import { HELP_CENTER_ICON, INSTALL_ICON, LANGUAGE_ICON, LOGOUT_ICON, SETTINGS_ICON } from './icons.ts'
 import { NS } from './locales.ts'
 import css from './AccountMenu.module.css'
 import '../vendor/aeven-account.css'
@@ -80,6 +81,16 @@ export interface AccountMenuInjected {
    * @param id - a selectable locale id.
    */
   setLocale: (id: string) => void
+  /**
+   * What the Install row would do on this page.
+   * @returns the offer, or undefined off a phone and inside the installed app, where the row is absent.
+   */
+  installOffer: () => InstallOffer | undefined
+  /**
+   * Install the app to the home screen.
+   * @returns the browser dialog's answer, or the platform whose manual steps to show.
+   */
+  installApp: () => Promise<InstallOutcome>
 }
 
 /** Full component props. */
@@ -100,13 +111,15 @@ const ACCOUNT_SECTION = 'account'
  * @returns the menu, or null when nobody is signed in.
  */
 export function AccountMenu({
-  reader, openSettings, accountType, signOut, useLocale, setLocale, t,
+  reader, openSettings, accountType, signOut, useLocale, setLocale, installOffer, installApp, t,
 }: AccountMenuProps) {
   const person = reader()
   const signedIn = person !== undefined
   const [open, setOpen] = useState(false)
   const [type, setType] = useState<AccountType | undefined>(undefined)
   const [languageOpen, setLanguageOpen] = useState(false)
+  // The platform whose manual install steps are showing, while they are.
+  const [installSteps, setInstallSteps] = useState<'ios' | 'android' | undefined>(undefined)
   const languages = useLocale(state => state.locales)
   const activeLanguage = useLocale(state => state.active)
   const root = useRef<HTMLDivElement | null>(null)
@@ -195,6 +208,14 @@ export function AccountMenu({
     openSettings(ACCOUNT_SECTION)
   }, [openSettings])
 
+  const install = useCallback(() => {
+    setOpen(false)
+    void installApp().then((outcome) => {
+      if (outcome === 'ios' || outcome === 'android') setInstallSteps(outcome)
+    })
+  }, [installApp])
+  const closeInstallSteps = useCallback(() => { setInstallSteps(undefined) }, [])
+
   // Nobody signed in means no Aeven authority on this page at all; the shell
   // keeps the shape it has without this plugin.
   if (person === undefined) return null
@@ -252,6 +273,13 @@ export function AccountMenu({
                   {profile}
                 </button>
 
+                {installOffer() !== undefined && (
+                  <button type="button" className="menu-button" role="menuitem" onClick={install}>
+                    <span className="icon" dangerouslySetInnerHTML={{ __html: INSTALL_ICON }} />
+                    <span className="txt">{t('install')}</span>
+                  </button>
+                )}
+
                 <button type="button" className="menu-button" role="menuitem" onClick={settings}>
                   <span className="icon" dangerouslySetInnerHTML={{ __html: SETTINGS_ICON }} />
                   <span className="txt">{t('settings')}</span>
@@ -304,6 +332,14 @@ export function AccountMenu({
           </div>
         </div>
       )}
+      <Modal
+        open={installSteps !== undefined}
+        onClose={closeInstallSteps}
+        title={t('install.title')}
+        closeLabel={t('install.close')}
+        description={t(installSteps === 'ios' ? 'install.ios' : 'install.android')}
+        footer={<Button variant="primary" onClick={closeInstallSteps}>{t('install.ok')}</Button>}
+      />
     </div>
   )
 }
