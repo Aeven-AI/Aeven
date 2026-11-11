@@ -180,6 +180,51 @@ describe('renewing the Aeven session', () => {
     }
   })
 
+  it('leaves at once when the account socket reports the session ended on another page, and follows the account language', async () => {
+    const opened: (EventTarget & { protocols: string[]; closed: number[] })[] = []
+    vi.stubGlobal('WebSocket', class extends EventTarget {
+      readonly closed: number[] = []
+      constructor(readonly url: string, readonly protocols: string[]) {
+        super()
+        opened.push(this)
+      }
+
+      close(code: number): void { this.closed.push(code) }
+    })
+    ;(globalThis as { __AVN_AEVEN__?: unknown }).__AVN_AEVEN__ = { apiUrl: 'http://api.test', socketUrl: 'ws://api.test:9010' }
+    const { watchSession, session, onSessionEnded, onAccountLocale } = await load()
+    stubNavigation('/')
+    const ended = vi.fn()
+    const languages = vi.fn()
+    const stopEnded = onSessionEnded(ended)
+    const stopLanguages = onAccountLocale(languages)
+    const bearer = token('u-1', 7200)
+    window.localStorage.setItem('userId', 'u-1')
+    window.localStorage.setItem('appBearers', JSON.stringify({ 'u-1': bearer }))
+    vi.stubGlobal('fetch', vi.fn())
+    try {
+      const stop = watchSession(() => {})
+      await vi.waitFor(() => { expect(opened).toHaveLength(1) })
+      const socket = opened[0]!
+      expect(socket.protocols).toEqual(['aeven.account', `aeven.bearer.${bearer}`])
+
+      socket.dispatchEvent(new MessageEvent('message', { data: JSON.stringify({ type: 'account.locale', locale: 'zh' }) }))
+      expect(languages).toHaveBeenCalledWith('zh')
+      expect(session.locale).toBe('zh')
+
+      socket.dispatchEvent(new MessageEvent('message', { data: JSON.stringify({ type: 'session.ended' }) }))
+      expect(ended).toHaveBeenCalledOnce()
+      // The bearer goes too, so the other tabs of this page follow through their storage listener.
+      expect(held()).toEqual({})
+
+      stop()
+      expect(socket.closed).toEqual([1000])
+    } finally {
+      stopEnded()
+      stopLanguages()
+    }
+  })
+
   it('ignores storage changes that leave this reader signed in', async () => {
     const { watchSession, session } = await load()
     const assign = stubNavigation('/')

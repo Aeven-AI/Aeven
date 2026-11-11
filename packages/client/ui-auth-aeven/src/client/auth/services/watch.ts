@@ -9,9 +9,15 @@
  * kernel is that owner: it disposes the plugin tree and runs its gate again, so
  * the reader reaches the sign-in screen — or the account the browser now holds
  * — in the document they are in.
+ *
+ * The API's account socket shortens both waits: a session signed out on another
+ * page — the Aeven website, or another tab of the same session — ends here the
+ * moment the API reports it, and the account's language follows a change made
+ * anywhere.
  * @module
  */
 
+import { openAccountSocket } from './account-socket.ts'
 import { isIdentityChange, isSessionRefusal } from './errors.ts'
 import { session, storage } from './session.ts'
 import { bearerRenewalTime, bearerToken, currentBearer, deleteBearerToken } from './tokens.ts'
@@ -38,6 +44,28 @@ const sessionEnded = new Set<() => void>()
 export function onSessionEnded(listener: () => void): () => void {
   sessionEnded.add(listener)
   return () => { sessionEnded.delete(listener) }
+}
+
+/** Listeners told the account's language, in the order they were added. */
+const accountLocale = new Set<(locale: string) => void>()
+
+/**
+ * Follow the account's language as the account socket reports it.
+ * @param listener - called with the language id whenever the account's changes.
+ * @returns disposer removing the listener.
+ */
+export function onAccountLocale(listener: (locale: string) => void): () => void {
+  accountLocale.add(listener)
+  return () => { accountLocale.delete(listener) }
+}
+
+/**
+ * Record the account's new language and tell every listener.
+ * @param locale - the language id the API stored.
+ */
+function adoptAccountLocale(locale: string): void {
+  session.locale = locale
+  for (const listener of [...accountLocale]) listener(locale)
 }
 
 /**
@@ -198,10 +226,15 @@ export function watchSession(handOver: (token: string) => void): () => void {
   window.addEventListener('online', onOnline)
   window.addEventListener('storage', onStorage)
   void check()
+  const closeAccountSocket = openAccountSocket(sessionBearer, {
+    sessionEnded: leaveForSignIn,
+    locale: adoptAccountLocale,
+  })
 
   return () => {
     stopped = true
     clearTimeout(timer)
+    closeAccountSocket()
     document.removeEventListener('visibilitychange', onVisibility)
     window.removeEventListener('online', onOnline)
     window.removeEventListener('storage', onStorage)

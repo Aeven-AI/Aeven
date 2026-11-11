@@ -87,6 +87,16 @@ describe('published Aeven reader', () => {
     expect(publishedReader()?.imageUrl).toBeUndefined()
   })
 
+  it('states the account language and follows it as the account socket reports it', async () => {
+    const { onAccountLocale } = await import('../src/client/auth/services/watch.ts')
+    session.adoptProfile({ userId: 'u-4', locale: 'es' })
+    publishReader()
+
+    expect(publishedReader()?.locale).toBe('es')
+    // The reader's listener seat is the watcher's, so a change the socket reports reaches it.
+    expect(publishedReader()?.onLocale).toBe(onAccountLocale)
+  })
+
   it('carries a sign-out the caller can await', () => {
     session.adoptProfile({ userId: 'u-4' })
     publishReader()

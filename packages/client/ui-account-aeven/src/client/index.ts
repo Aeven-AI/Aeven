@@ -149,6 +149,20 @@ export function apply(ctx: ClientContext): void {
   // when the gate stated a reader, so a deployment without Aeven has no tab.
   const reader = publishedReader()
   if (reader === undefined) return
+
+  // The account's language is the reader's wherever they set it — here, on the
+  // Aeven website, or on another device — so the app takes it when it boots and
+  // whenever the account socket reports a change. A language this app does not
+  // offer, or the one already active, changes nothing; switching writes the Host
+  // preference too, so the next boot starts in it.
+  const followAccountLocale = (locale: string | undefined): void => {
+    const snapshot = ctx.locale.getSnapshot()
+    if (locale === undefined || locale === snapshot.active) return
+    if (!snapshot.locales.some(entry => entry.id === locale)) return
+    ctx.locale.setLocale(locale)
+  }
+  followAccountLocale(reader.locale)
+  ctx.effect(() => reader.onLocale(followAccountLocale), 'ui-account-aeven: account language')
   const t = ctx.locale.bind(NS)
   // The two-factor status changes only when the reader changes it, and that happens
   // on this page, so the answer outlives the visit: a return to Account paints the

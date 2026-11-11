@@ -11,6 +11,7 @@
 import { helpCenterUrl, mediaUrl, webUrl } from './config.ts'
 import { cloud, mfa, removeAvatar, setDisplayName, setLocale as storeLocale, signOut, uploadAvatar } from './api.ts'
 import { session } from './session.ts'
+import { onAccountLocale } from './watch.ts'
 import { installApp, installOffer, type InstallOffer, type InstallOutcome } from './install.ts'
 
 /** What a plugin may know about the signed-in reader. */
@@ -27,6 +28,15 @@ export interface AevenReader {
   readonly accountUrl?: string
   /** The help center's origin, absent when this deployment names no help center. */
   readonly helpCenterUrl?: string
+  /** The language the account reads in, `en`, `es` or `zh`; absent until the reader chooses one. */
+  readonly locale?: string
+  /**
+   * Follow the account's language as it changes on any page of the account, the
+   * Aeven website included.
+   * @param listener - called with the language id the API stored.
+   * @returns disposer removing the listener.
+   */
+  readonly onLocale: (listener: (locale: string) => void) => () => void
   /**
    * True when the reader signed in through an authentication screen of this page; absent when the page restored
    * an earlier session. A surface that greets a new sign-in reads it.
@@ -118,6 +128,8 @@ export function publishReader(): void {
     ...imageUrl === undefined ? {} : { imageUrl },
     ...web === undefined ? {} : { accountUrl: `${web}/account/` },
     ...help === undefined ? {} : { helpCenterUrl: help },
+    ...session.locale === undefined ? {} : { locale: session.locale },
+    onLocale: onAccountLocale,
     ...signedInThisPage ? { signedInThisPage: true as const } : {},
     signOut,
     setDisplayName: async (displayName: string) => {

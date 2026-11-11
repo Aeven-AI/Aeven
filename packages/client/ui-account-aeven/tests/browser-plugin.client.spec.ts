@@ -101,6 +101,7 @@ describe('ui-account-aeven browser half', () => {
       signOut: () => Promise.resolve(),
       setDisplayName: () => Promise.reject(new Error('unused')),
       setLocale: () => Promise.reject(new Error('unused')),
+      onLocale: () => () => {},
       setImage: () => Promise.reject(new Error('unused')),
       removeImage: () => Promise.reject(new Error('unused')),
       mfa: () => Promise.resolve({ enabled: false }),
@@ -123,6 +124,7 @@ describe('ui-account-aeven browser half', () => {
       signOut: () => Promise.resolve(),
       setDisplayName: () => Promise.reject(new Error('unused')),
       setLocale: () => Promise.reject(new Error('unused')),
+      onLocale: () => () => {},
       setImage: () => Promise.reject(new Error('unused')),
       removeImage: () => Promise.reject(new Error('unused')),
       mfa: () => Promise.resolve({ enabled: false }),
@@ -137,7 +139,7 @@ describe('ui-account-aeven browser half', () => {
 
   it('leaves the Account page unlinked when the deployment names no web client', async () => {
     const ctx = await baseContext()
-    scope.__AVN_AEVEN_READER__ = { userId: 'u-5', signOut: () => Promise.resolve(), setDisplayName: () => Promise.reject(new Error('unused')), setLocale: () => Promise.reject(new Error('unused')), setImage: () => Promise.reject(new Error('unused')), removeImage: () => Promise.reject(new Error('unused')), mfa: () => Promise.resolve({ enabled: false }), cloud: () => Promise.reject(new Error('unused')), installOffer: () => undefined, installApp: () => Promise.reject(new Error('unused')) }
+    scope.__AVN_AEVEN_READER__ = { userId: 'u-5', signOut: () => Promise.resolve(), setDisplayName: () => Promise.reject(new Error('unused')), setLocale: () => Promise.reject(new Error('unused')), onLocale: () => () => {}, setImage: () => Promise.reject(new Error('unused')), removeImage: () => Promise.reject(new Error('unused')), mfa: () => Promise.resolve({ enabled: false }), cloud: () => Promise.reject(new Error('unused')), installOffer: () => undefined, installApp: () => Promise.reject(new Error('unused')) }
     await ctx.plugin({ inject: [...inject], apply }).await()
     declareSeats(ctx)
     expect(sectionFace(ctx)).not.toHaveProperty('accountUrl')
@@ -147,7 +149,7 @@ describe('ui-account-aeven browser half', () => {
     const ctx = await baseContext()
     await ctx.plugin({ inject: [...inject], apply }).await()
     declareSeats(ctx)
-    scope.__AVN_AEVEN_READER__ = { userId: 'u-2', signOut: () => Promise.resolve(), setDisplayName: () => Promise.reject(new Error('unused')), setLocale: () => Promise.reject(new Error('unused')), setImage: () => Promise.reject(new Error('unused')), removeImage: () => Promise.reject(new Error('unused')), mfa: () => Promise.resolve({ enabled: false }), cloud: () => Promise.reject(new Error('unused')), installOffer: () => undefined, installApp: () => Promise.reject(new Error('unused')) }
+    scope.__AVN_AEVEN_READER__ = { userId: 'u-2', signOut: () => Promise.resolve(), setDisplayName: () => Promise.reject(new Error('unused')), setLocale: () => Promise.reject(new Error('unused')), onLocale: () => () => {}, setImage: () => Promise.reject(new Error('unused')), removeImage: () => Promise.reject(new Error('unused')), mfa: () => Promise.resolve({ enabled: false }), cloud: () => Promise.reject(new Error('unused')), installOffer: () => undefined, installApp: () => Promise.reject(new Error('unused')) }
     expect(injectedFace(ctx).reader()).toEqual({ userId: 'u-2' })
   })
 
@@ -174,12 +176,65 @@ describe('ui-account-aeven browser half', () => {
     injectedFace(ctx).signOut()
     expect(signOut).not.toHaveBeenCalled()
 
-    scope.__AVN_AEVEN_READER__ = { userId: 'u-3', signOut, setDisplayName: () => Promise.reject(new Error('unused')), setLocale: () => Promise.reject(new Error('unused')), setImage: () => Promise.reject(new Error('unused')), removeImage: () => Promise.reject(new Error('unused')), mfa: () => Promise.resolve({ enabled: false }), cloud: () => Promise.reject(new Error('unused')), installOffer: () => undefined, installApp: () => Promise.reject(new Error('unused')) }
+    scope.__AVN_AEVEN_READER__ = { userId: 'u-3', signOut, setDisplayName: () => Promise.reject(new Error('unused')), setLocale: () => Promise.reject(new Error('unused')), onLocale: () => () => {}, setImage: () => Promise.reject(new Error('unused')), removeImage: () => Promise.reject(new Error('unused')), mfa: () => Promise.resolve({ enabled: false }), cloud: () => Promise.reject(new Error('unused')), installOffer: () => undefined, installApp: () => Promise.reject(new Error('unused')) }
     injectedFace(ctx).signOut()
     await Promise.resolve()
     await Promise.resolve()
     expect(signOut).toHaveBeenCalledOnce()
     expect(assign).toHaveBeenCalledWith('/')
     vi.unstubAllGlobals()
+  })
+
+  describe('the account language', () => {
+    /** A reader for these cases, with the account's language and a listener seat. */
+    function readerWith(locale: string | undefined): { follow: (locale: string) => void; stopped: () => boolean } {
+      const state = { listener: undefined as ((locale: string) => void) | undefined, stopped: false }
+      scope.__AVN_AEVEN_READER__ = {
+        userId: 'u-7',
+        ...locale === undefined ? {} : { locale },
+        onLocale: (listener) => {
+          state.listener = listener
+          return () => { state.stopped = true }
+        },
+        signOut: () => Promise.resolve(),
+        setDisplayName: () => Promise.reject(new Error('unused')),
+        setLocale: () => Promise.reject(new Error('unused')),
+        setImage: () => Promise.reject(new Error('unused')),
+        removeImage: () => Promise.reject(new Error('unused')),
+        mfa: () => Promise.resolve({ enabled: false }),
+        cloud: () => Promise.reject(new Error('unused')),
+        installOffer: () => undefined,
+        installApp: () => Promise.reject(new Error('unused')),
+      }
+      return {
+        follow: (next) => { state.listener?.(next) },
+        stopped: () => state.stopped,
+      }
+    }
+
+    it('boots in the language the account reads in', async () => {
+      readerWith('es')
+      const ctx = await baseContext()
+      await ctx.plugin({ inject: [...inject], apply }).await()
+
+      expect(ctx.locale.getSnapshot().active).toBe('es')
+    })
+
+    it('follows a language the account socket reports, until the plugin is disposed', async () => {
+      const reader = readerWith(undefined)
+      const ctx = await baseContext()
+      const fiber = ctx.plugin({ inject: [...inject], apply })
+      await fiber.await()
+
+      reader.follow('zh')
+      expect(ctx.locale.getSnapshot().active).toBe('zh')
+
+      // A language this app does not offer leaves the active one in place.
+      reader.follow('fr')
+      expect(ctx.locale.getSnapshot().active).toBe('zh')
+
+      await fiber.dispose()
+      expect(reader.stopped()).toBe(true)
+    })
   })
 })

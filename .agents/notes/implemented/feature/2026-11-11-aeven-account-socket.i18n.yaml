@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-11-aeven-account-socket.md
+2026-11-11-aeven-account-socket.md: 47388eaae051d70ee67aaf6ba86f63c15af8a39c
+2026-11-11-aeven-account-socket.zh.md: c20473464dae910b28195d29454b9d352de7c14e
