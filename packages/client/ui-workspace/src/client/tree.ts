@@ -315,14 +315,26 @@ function buildGroup(
   members: readonly SessionSummary[],
   order: 'account' | 'recency',
 ): Group {
-  const sessions = [...members]
   // Real Workspace order comes from sessionIds. Ungrouped falls back to
-  // recency until the browser supplies its persisted local order.
-  if (order === 'recency') sessions.sort(byRecency)
+  // recency until the browser supplies its persisted local order; the
+  // provisional New Session row leads either way.
+  const sessions = order === 'recency' ? blankLead([...members].sort(byRecency)) : [...members]
   return { ...shape, sessions }
 }
 
-/** Apply a stored Ungrouped order and append newly loose Sessions by recency. */
+/**
+ * Lift blank Sessions ahead of the rest, keeping each part's order: a New Session row always leads its group.
+ * @param sessions - a group's members in their order.
+ * @returns the same members, blank ones first.
+ */
+function blankLead(sessions: readonly SessionSummary[]): SessionSummary[] {
+  return [...sessions.filter(session => session.blank), ...sessions.filter(session => !session.blank)]
+}
+
+/**
+ * Apply a stored Ungrouped order. Newly loose Sessions lead by recency, as new Sessions lead a Workspace's stored
+ * order, and the New Session row leads them all.
+ */
 function orderedUngrouped(members: readonly SessionSummary[], stored: readonly string[]): SessionSummary[] {
   const byId = new Map(members.map(session => [session.id as string, session]))
   const included = new Set<string>()
@@ -333,11 +345,8 @@ function orderedUngrouped(members: readonly SessionSummary[], stored: readonly s
     ordered.push(session)
     included.add(key)
   }
-  for (const session of [...members].sort(byRecency)) {
-    if (included.has(session.id)) continue
-    ordered.push(session)
-  }
-  return ordered
+  const unseen = members.filter(session => !included.has(session.id)).sort(byRecency)
+  return blankLead([...unseen, ...ordered])
 }
 
 /**

@@ -120,7 +120,7 @@ describe('deriveGroups', () => {
     expect(groups[1]!.sessions.map(session => session.id)).toEqual([sid('loose')])
   })
 
-  it('applies stored Ungrouped order and appends new loose Sessions by recency', () => {
+  it('applies stored Ungrouped order with new loose Sessions leading by recency', () => {
     const sessions = list(summary('one', 3), summary('two', 2), summary('new', 4))
     const groups = deriveGroups(
       sessions,
@@ -130,8 +130,17 @@ describe('deriveGroups', () => {
       view([UNGROUPED_KEY], ['two', 'stale', 'two']),
     )
     expect(groups[0]!.sessions.map(session => session.id)).toEqual([
-      sid('two'), sid('new'), sid('one'),
+      sid('new'), sid('one'), sid('two'),
     ])
+  })
+
+  it('leads the Ungrouped group with the current New Session row', () => {
+    const blank = { ...summary('blank', 1), blank: true }
+    const sessions = { ...list(summary('one', 3), summary('two', 2), blank), current: blank.id }
+    const stored = deriveGroups(sessions, [], noArchive, noAttention, view([UNGROUPED_KEY], ['one', 'two', 'blank']))
+    const unstored = deriveGroups(sessions, [], noArchive, noAttention, view([UNGROUPED_KEY]))
+    expect(stored[0]!.sessions.map(session => session.id)).toEqual([sid('blank'), sid('one'), sid('two')])
+    expect(unstored[0]!.sessions.map(session => session.id)).toEqual([sid('blank'), sid('one'), sid('two')])
   })
 
   it('shows only the current blank session in its Workspace count and tree', () => {

@@ -490,7 +490,10 @@ export class SessionManager {
         if (result.ok) {
           const baseline: SessionSummary[] = this.listPhase === 'pending'
             ? [...result.value.items]
-            : mergeOrderedBaseline(established, result.value.items, summary => summary.sessionId)
+            : withLatestActivity(
+              mergeOrderedBaseline(established, result.value.items, summary => summary.sessionId),
+              established,
+            )
           // Seed first observations from the pull-time baseline BEFORE replaying
           // in-flight mutations, then reconcile the reminders after EVERY
           // replayed mutation: an edge that happens entirely between mutations
@@ -1025,6 +1028,21 @@ function sameRecord<V>(
   return Object.fromEntries(source)
 }
 
+/**
+ * Keep each row's later last activity across a list refresh. The Host records a first turn's prompt only once the
+ * turn's pre-step chain has run, so a refresh in that window would put a just-sent chat back at its creation time.
+ * @param baseline - rows the Host listed, in display order.
+ * @param established - rows this client held before the refresh.
+ * @returns the baseline, with any later activity the client already held.
+ */
+function withLatestActivity(baseline: readonly SessionSummary[], established: readonly SessionSummary[]): SessionSummary[] {
+  const held = new Map(established.map(summary => [summary.sessionId, summary.updatedAt]))
+  return baseline.map((summary) => {
+    const updatedAt = held.get(summary.sessionId)
+    return updatedAt !== undefined && updatedAt > summary.updatedAt ? { ...summary, updatedAt } : summary
+  })
+}
+
 /** Apply one list mutation without deriving display order. */
 function applyMutation(summaries: readonly SessionSummary[], mutation: SessionListMutation): SessionSummary[] {
   switch (mutation.kind) {
@@ -1036,6 +1054,9 @@ function applyMutation(summaries: readonly SessionSummary[], mutation: SessionLi
         // Blank only lowers: a stale true (session-added racing the local
         // first send) never re-hides an already-surfaced session.
         blank: existing.blank && mutation.summary.blank,
+        // Last activity only advances: a catalog summary carries another device's newer prompt, while a summary
+        // built before this client's first-send stamp must not move the row back.
+        updatedAt: Math.max(existing.updatedAt, mutation.summary.updatedAt),
         ...(mutation.summary.replica ? { replica: true as const } : {}),
         ...(existing.cwd === undefined && mutation.summary.cwd !== undefined ? { cwd: mutation.summary.cwd } : {}),
         ...(existing.parentSessionId === undefined && mutation.summary.parentSessionId !== undefined
@@ -1045,6 +1066,7 @@ function applyMutation(summaries: readonly SessionSummary[], mutation: SessionLi
       }
       if (filled.cwd === existing.cwd && filled.parentSessionId === existing.parentSessionId
         && filled.origin === existing.origin && filled.blank === existing.blank && filled.replica === existing.replica
+        && filled.updatedAt === existing.updatedAt
       ) return [...summaries]
       return summaries.map(summary => summary.sessionId === mutation.summary.sessionId ? filled : summary)
     }

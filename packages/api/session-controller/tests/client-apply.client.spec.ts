@@ -144,6 +144,14 @@ describe('Session Controller Client apply', () => {
     })
     expect(error).toHaveBeenCalledWith(sid('session-1'), 'agent failed')
 
+    // A summary only advances the row's last activity: another device's newer prompt moves it, an older one never.
+    bench.dispatch('api-session/added', { sessionId: sid('session-1'), updatedAt: 20, running: true, blank: false })
+    await flush()
+    expect(bench.sessions.list.getSnapshot().byId[sid('session-1')]).toMatchObject({ updatedAt: 20 })
+    bench.dispatch('api-session/added', { sessionId: sid('session-1'), updatedAt: 3, running: true, blank: false })
+    await flush()
+    expect(bench.sessions.list.getSnapshot().byId[sid('session-1')]).toMatchObject({ updatedAt: 20 })
+
     bench.dispatch('api-session/removed', sid('session-1'))
     await flush()
     expect(bench.sessions.list.getSnapshot().byId[sid('session-1')]).toBeUndefined()
