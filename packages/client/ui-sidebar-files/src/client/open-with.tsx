@@ -10,7 +10,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ClientRemote, SessionId } from '@aeven/api-remotes/client'
 import type { SessionWorkspacePathApplication } from '@aeven/api-session-controller/types'
 import {
-  extensionOf, fileKindOf, workspaceFileUrl, IconLucideChevronDown, IconLucideFolderOpen, IconLucideSquareArrowOutUpRight, Menu, type MenuItem,
+  extensionOf, fileKindOf, workspaceFileUrl, IconLucideChevronDown, IconLucideFolderOpen,
+  IconLucideSquareArrowOutUpRight, Menu, type MenuItem,
 } from '@aeven/client-ui-primitives'
 import type { TranslateNS } from '@aeven/client-ui-slots'
 import css from './FilesPane.module.css'

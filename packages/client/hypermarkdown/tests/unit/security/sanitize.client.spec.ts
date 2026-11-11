@@ -68,6 +68,7 @@ describe('buildSchema', () => {
       allowedLinkPrefixes: ['*'],
       allowedImagePrefixes: ['*'],
       allowDataImages: true,
+      allowRelativeImages: false,
     })
 
     expect(schema.protocols?.href).toEqual(['https', 'ipfs'])
