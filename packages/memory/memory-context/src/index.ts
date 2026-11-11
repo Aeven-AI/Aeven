@@ -415,20 +415,83 @@ export function apply(ctx: Context, config: Config): void {
     }
   }
 
+  /**
+   * Start one turn-start recall.
+   * @param session - the session whose turn it is.
+   * @param scope - the memory scope of the turn.
+   * @param userText - the turn's request.
+   * @param turn - the turn number.
+   * @param signal - cancels the recall.
+   * @returns the recall.
+   */
+  const turnRecall = (session: Session, scope: MemoryScope, userText: string, turn: number, signal: AbortSignal) => {
+    const context = recallContext(session, userText, config.queryContextChars)
+    return ctx.memory.recall({
+      scope,
+      // Retrieval reads the conversation; the relevance judgment reads the request whole and the context apart.
+      query: context ? `${context}\n\n${userText}` : userText,
+      request: userText,
+      context,
+      ...config.recentPersonHours > 0 && config.recentPersonItems > 0
+        ? {
+          recent: {
+            hours: config.recentPersonHours,
+            items: config.recentPersonItems,
+            perSession: config.recentPersonPerSession,
+            // A new session always needs them; a later turn needs them once it turns personal.
+            sharingOnly: turn !== 1,
+          },
+        }
+        : {},
+      purpose: 'turn-start',
+      timeoutMs: config.recallTimeoutMs,
+      signal,
+    })
+  }
+
+  /**
+   * Start a turn's recall and profile read from the claimed input, before the rest of the pre-step chain runs, so
+   * memory work overlaps it rather than following it. Used only when the chain's decision carries the same request;
+   * otherwise it is cancelled and the turn recalls for the request the chain decided on.
+   * @param payload - the pre-step payload.
+   * @returns the started work, or undefined when this step recalls nothing.
+   */
+  const startEarly = (payload: { agent: Agent; messages: UserMessage[]; turn: number; step: number; signal: AbortSignal }) => {
+    if (payload.step !== 1 || !config.recall || !ctx.memory.active) return undefined
+    const scope = memoryScopeOf(payload.agent)
+    const userText = userTextOf(payload.messages)
+    if (scope === undefined || !userText || turns.ensure(payload.agent.session, payload.turn, scope).recallAttempted) return undefined
+    const cancel = new AbortController()
+    const signal = AbortSignal.any([payload.signal, cancel.signal])
+    const recall = turnRecall(payload.agent.session, scope, userText, payload.turn, signal)
+    const profiled = profileMessage(payload.agent.session, scope, payload.messages, signal)
+    // Owned by the step that uses them; an unused early start is cancelled and its outcome discarded.
+    recall.catch(() => undefined)
+    return { userText, recall, profiled, cancel: () => { cancel.abort() } }
+  }
+
   ctx.on('agent/pre-step', async (payload, next): Promise<PreStepDecision> => {
+    const early = startEarly(payload)
     const decision = await next()
     const scope = memoryScopeOf(payload.agent)
+    // The downstream decision is authoritative: a policy may have rewritten or removed claimed input.
+    const decided = decision.kind === 'enter' ? userTextOf(decision.messages) : ''
+    if (early !== undefined && early.userText !== decided) early.cancel()
     if (scope === undefined) return decision
     ownSessions.set(payload.agent.session.id, payload.agent.session)
     const state = turns.ensure(payload.agent.session, payload.turn, scope)
     if (payload.step !== 1) return decision
     state.scope = scope
-    // The downstream decision is authoritative: a policy may have rewritten or removed claimed input.
-    state.userText = decision.kind === 'enter' ? userTextOf(decision.messages) : ''
+    state.userText = decided
     state.promptResolved = true
-    if (decision.kind === 'reject' || !state.userText || state.recallAttempted || !ctx.memory.active) return decision
+    if (decision.kind === 'reject' || !state.userText || state.recallAttempted || !ctx.memory.active) {
+      early?.cancel()
+      return decision
+    }
     state.recallAttempted = true
-    const profiled = profileMessage(payload.agent.session, state.scope, decision.messages, payload.signal)
+    const profiled = early?.userText === state.userText
+      ? early.profiled
+      : profileMessage(payload.agent.session, state.scope, decision.messages, payload.signal)
     if (!config.recall) return withMessages(decision, await profiled)
     const recalledBefore = recalledProcedures.get(payload.agent.session.id)
     const previous = recalledBefore === undefined ? undefined : Math.max(...[...recalledBefore.keys()].filter(turn => turn < payload.turn))
@@ -443,28 +506,9 @@ export function apply(ctx: Context, config: Config): void {
       recalledBefore?.delete(previous)
     }
     try {
-      const context = recallContext(payload.agent.session, state.userText, config.queryContextChars)
-      const recall = await ctx.memory.recall({
-        scope: state.scope,
-        // Retrieval reads the conversation; the relevance judgment reads the request whole and the context apart.
-        query: context ? `${context}\n\n${state.userText}` : state.userText,
-        request: state.userText,
-        context,
-        ...config.recentPersonHours > 0 && config.recentPersonItems > 0
-          ? {
-            recent: {
-              hours: config.recentPersonHours,
-              items: config.recentPersonItems,
-              perSession: config.recentPersonPerSession,
-              // A new session always needs them; a later turn needs them once it turns personal.
-              sharingOnly: payload.turn !== 1,
-            },
-          }
-          : {},
-        purpose: 'turn-start',
-        timeoutMs: config.recallTimeoutMs,
-        signal: payload.signal,
-      })
+      const recall = await (early?.userText === state.userText
+        ? early.recall
+        : turnRecall(payload.agent.session, state.scope, state.userText, payload.turn, payload.signal))
       if (recall.degraded === true) logger.warn(`recall for session ${payload.agent.session.id} turn ${payload.turn} is degraded: its memories were not judged for relevance`)
       const hits = rankMemoryHits(recall.hits)
       const judged = recall.lead !== undefined && recall.degraded !== true
