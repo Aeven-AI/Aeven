@@ -1,16 +1,32 @@
 <div class="hypermarkdown _markdown_404681">
-  <p>
+  <div class="markdown-image-grid" data-count="2">
     <span class="markdown-image-container">
       <span class="markdown-image">
         <span class="image-error">
         <span class="image-loader">
         <img alt="https image" class="image" decoding="async" loading="lazy" referrerpolicy="no-referrer" src="https://example.com/secure.png" title="img title">
+    <span class="markdown-image-unavailable" role="note" title="http://example.com/plain.png">
+      <span class="markdown-image-unavailable-label">
+        #text "Image not shown"
+      <span class="markdown-image-unavailable-source">
+        #text "http://example.com/plain.png"
+      <span class="markdown-image-unavailable-alt">
+        #text "http image"
   <p>
-    #text "http image"
-  <p>
-    <span class="markdown-image-alt">
-      #text "relative not resolved"
-    #text " and inline bad scheme end."
+    <span class="markdown-image-unavailable" role="note" title="private.png">
+      <span class="markdown-image-unavailable-label">
+        #text "Image not shown"
+      <span class="markdown-image-unavailable-source">
+        #text "private.png"
+      <span class="markdown-image-unavailable-alt">
+        #text "relative not resolved"
+    #text " and inline "
+    <span class="markdown-image-unavailable" role="note">
+      <span class="markdown-image-unavailable-label">
+        #text "Image not shown"
+      <span class="markdown-image-unavailable-alt">
+        #text "bad scheme"
+    #text " end."
   <p>
     <span class="markdown-image-container">
       <span class="markdown-image">

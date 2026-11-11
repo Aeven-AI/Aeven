@@ -26,7 +26,7 @@ The engine owns no language, so the label is a `RendererOptions` field: absent, 
 
 ## Consequences
 
-An image that fails to load now names the source that failed, in the reader's language, on both Hosts and wherever else `MarkdownText` renders — skill instructions in the Integrations page included. A deliberate alt-only image (`![](…)` with a URL that loads) is unchanged: the state appears only when resolution returns nothing.
+An image that fails to load now names the source that failed, in the reader's language, on both Hosts and wherever else `MarkdownText` renders — skill instructions in the Integrations page included. A deliberate alt-only image (`![](…)` with a URL that loads) is unchanged: the state appears when link safety refuses the source, resolution returns nothing, or the URL fails to load ([refused and failed images](2026-11-11-refused-and-failed-images-say-so.md)).
 
 The block is structure and copy only: it carries no retry control, and it does not tell the reader *why* the source failed (an outside-the-workspace path and a deleted file look the same). Both are deferred; naming the source is what makes either diagnosable.
 

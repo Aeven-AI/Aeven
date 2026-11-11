@@ -5,22 +5,25 @@ import type { RendererHost } from './components.tsx'
 interface ImageProps extends ImgHTMLAttributes<HTMLImageElement> {
   renderer?: RendererHost | undefined
   scrollDown?: unknown
+  /** The authored source link safety refused; such an image arrives without `src`. */
+  'data-blocked-src'?: string | undefined
 }
 
 /**
  * Images rendered from markdown, wrapped so a host can style loading and error
  * states around them. The host's `resolveImage` maps the authored source to
- * the URL that loads; a source it cannot resolve shows the host's
- * `imageUnavailableLabel` and the source it failed to load, or the alt text
- * alone when the host supplies no label or suppressed the source itself. Its `onImageOpen` makes the image a
- * control that opens it enlarged.
+ * the URL that loads. A source link safety refused, a source the host cannot
+ * resolve, and a URL whose bytes fail to load all show the host's
+ * `imageUnavailableLabel` and the authored source, or the alt text alone when
+ * the host supplies no label or suppressed the source itself. Its
+ * `onImageOpen` makes the image a control that opens it enlarged.
  *
  * A loaded image also reports its own orientation, which is what lets a host
  * lay a row of images out in the shape each one actually has. Until the bytes
  * arrive nothing is stamped, so the host's own default holds.
  */
 function MarkdownImage(props: ImageProps) {
-  const { src, alt, title, renderer } = props
+  const { src, alt, title, renderer, 'data-blocked-src': blocked } = props
   // A host resolver that changes after this image rendered (cached blocks never re-render) re-resolves it.
   const subscribe = useCallback(
     (listener: () => void) => renderer?.subscribeImages(listener) ?? (() => undefined),
@@ -33,8 +36,11 @@ function MarkdownImage(props: ImageProps) {
     : options.resolveImage(src)
   const [orientation, setOrientation] = useState<'portrait' | 'landscape' | undefined>(undefined)
   const [loaded, setLoaded] = useState(false)
+  // The URL whose load failed; a later resolver naming another URL tries again.
+  const [failed, setFailed] = useState<string | undefined>(undefined)
 
-  if (resolved === undefined) {
+  if (resolved === undefined || resolved === failed) {
+    const authored = blocked ?? src
     const unavailable = options?.imageUnavailableLabel
     // The host may have dropped the source on purpose, showing the same image
     // elsewhere; that is not a failure and must not read as one.
@@ -47,9 +53,9 @@ function MarkdownImage(props: ImageProps) {
     }
 
     return (
-      <span className="markdown-image-unavailable" role="note" title={src}>
+      <span className="markdown-image-unavailable" role="note" title={authored}>
         <span className="markdown-image-unavailable-label">{unavailable}</span>
-        {src === undefined ? null : <span className="markdown-image-unavailable-source">{src}</span>}
+        {authored === undefined ? null : <span className="markdown-image-unavailable-source">{authored}</span>}
         {alt === undefined || alt === '' ? null : <span className="markdown-image-unavailable-alt">{alt}</span>}
       </span>
     )
@@ -89,6 +95,7 @@ function MarkdownImage(props: ImageProps) {
             setOrientation(image.naturalHeight > image.naturalWidth ? 'portrait' : 'landscape')
             setLoaded(true)
           }}
+          onError={() => { setFailed(resolved) }}
           onKeyDown={onOpen === undefined ? undefined : (event) => {
             if (event.key !== 'Enter' && event.key !== ' ') return
             event.preventDefault()
@@ -100,10 +107,10 @@ function MarkdownImage(props: ImageProps) {
   )
 }
 
-// Re-renders only when the source changes, as the class did.
+// Re-renders only when the source, or the refused source, changes.
 const MemoMarkdownImage = memo(
   MarkdownImage,
-  (prev, next) => prev.src === next.src,
+  (prev, next) => prev.src === next.src && prev['data-blocked-src'] === next['data-blocked-src'],
 )
 
 MemoMarkdownImage.displayName = 'MarkdownImage'

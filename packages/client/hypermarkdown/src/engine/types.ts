@@ -107,9 +107,10 @@ export interface RendererOptions extends UiOptions {
    */
   resolveImage?: ((src: string) => string | undefined) | undefined
   /**
-   * Copy shown in place of an image whose source the host could not resolve,
-   * naming the source it could not load. Absent, only the alt text is shown —
-   * which is nothing at all when the author wrote none.
+   * Copy shown in place of an image that link safety refused, the host could
+   * not resolve, or whose URL failed to load, naming the authored source.
+   * Absent, only the alt text is shown — which is nothing at all when the
+   * author wrote none.
    */
   imageUnavailableLabel?: string | undefined
   /**

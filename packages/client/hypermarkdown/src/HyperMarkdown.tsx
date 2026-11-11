@@ -86,8 +86,9 @@ export interface HyperMarkdownProps {
    */
   resolveImage?: ((src: string) => string | undefined) | undefined
   /**
-   * Copy shown in place of an image whose source `resolveImage` could not
-   * resolve, naming the source. Absent, the alt text alone is shown.
+   * Copy shown in place of an image that link safety refused, `resolveImage`
+   * could not resolve, or whose URL failed to load, naming the authored
+   * source. Absent, the alt text alone is shown.
    */
   imageUnavailableLabel?: string | undefined
   /**
