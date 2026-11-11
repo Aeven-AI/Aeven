@@ -176,7 +176,7 @@ async function callFillByTyping(
   if (filled.length > 0) {
     const result = await callToolUncached(client, 'fill_form', { ...page, elements: filled }, exec, opts)
     if (result.isError === true || !Array.isArray(result.content)) return result
-    content.push(...result.content)
+    content.push(...result.content as unknown[])
   }
   // The browser runs on this machine, so its select-all chord is this platform's.
   const selectAll = process.platform === 'darwin' ? 'Meta+A' : 'Control+A'
@@ -195,9 +195,9 @@ async function callFillByTyping(
   if (args.includeSnapshot === true) {
     const snapshot = await callToolUncached(client, 'take_snapshot', page, exec, opts)
     if (snapshot.isError === true || !Array.isArray(snapshot.content)) return snapshot
-    content.push(...snapshot.content)
+    content.push(...snapshot.content as unknown[])
   }
-  return { content } as Awaited<ReturnType<typeof callToolUncached>>
+  return { content }
 }
 
 /**
