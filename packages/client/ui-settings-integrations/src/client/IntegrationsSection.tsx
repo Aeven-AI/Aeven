@@ -668,7 +668,7 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
                 key={selectedSkill.id}
                 text={selectedSkill.content}
                 animation={false}
-                labels={{ code: { copyLabel: t('copy'), copiedLabel: t('copied') }, footnotes: t('footnotes') }}
+                labels={{ code: { copyLabel: t('copy'), copiedLabel: t('copied') }, footnotes: t('footnotes'), imageUnavailable: t('imageUnavailable') }}
               />
             </div>
             {selectedSkill.files.length > 0 && <div>
@@ -692,7 +692,7 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
                     text={preview.text}
                     animation={false}
                     controls={{ table: false }}
-                    labels={{ code: { copyLabel: t('copy'), copiedLabel: t('copied') }, footnotes: t('footnotes') }}
+                    labels={{ code: { copyLabel: t('copy'), copiedLabel: t('copied') }, footnotes: t('footnotes'), imageUnavailable: t('imageUnavailable') }}
                   />
                   : <LoadingBlock label={t('loading')} />}
               </div>
@@ -844,7 +844,7 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
           contentClassName={`${css.skillModalContent ?? ''} ${css.skillContent ?? ''} no-scrollbar`}
         >
           <p className={css.detailDescription}>{connectorSkill.description}</p>
-          <MarkdownText key={connectorSkill.id} text={connectorSkill.content} animation={false} controls={{ table: false }} labels={{ code: { copyLabel: t('copy'), copiedLabel: t('copied') }, footnotes: t('footnotes') }} />
+          <MarkdownText key={connectorSkill.id} text={connectorSkill.content} animation={false} controls={{ table: false }} labels={{ code: { copyLabel: t('copy'), copiedLabel: t('copied') }, footnotes: t('footnotes'), imageUnavailable: t('imageUnavailable') }} />
         </Modal>}
       </article>}
       {consent !== undefined && <div ref={consentCard} className={css.card}><a href={consent} target="_blank" rel="noreferrer" onClick={(event) => {

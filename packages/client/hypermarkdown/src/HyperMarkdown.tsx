@@ -80,10 +80,22 @@ export interface HyperMarkdownProps {
   linkSafety?: LinkSafetyConfig | undefined
   /**
    * Map an image's authored source to the URL it loads from. Called for every
-   * image that passed link safety; returning undefined shows the image's alt
-   * text instead. Absent, sources load as authored.
+   * image that passed link safety; returning undefined shows the image's
+   * {@link imageUnavailableLabel} and that source, or its alt text alone when
+   * no label is given. Absent, sources load as authored.
    */
   resolveImage?: ((src: string) => string | undefined) | undefined
+  /**
+   * Copy shown in place of an image whose source `resolveImage` could not
+   * resolve, naming the source. Absent, the alt text alone is shown.
+   */
+  imageUnavailableLabel?: string | undefined
+  /**
+   * Whether the host still shows this image here. `false` means the same
+   * artifact appears elsewhere, so its alt text stands and the unavailable
+   * state is not used.
+   */
+  imageVisible?: ((src: string) => boolean) | undefined
   /**
    * Open an image the reader clicked, for a host that shows it enlarged.
    * Absent, images are not clickable.
@@ -222,10 +234,14 @@ const HyperMarkdown = forwardRef<HyperMarkdownHandle, HyperMarkdownProps>(
     // Late-bound props the engine reads while rendering.
     store.setOptions({ scrollDown, animation, streaming })
 
-    // A new image resolver re-resolves images already rendered, after commit so
-    // their re-render is not scheduled from inside this one.
-    const { resolveImage } = props
-    useEffect(() => { store.setImageResolver(resolveImage) }, [store, resolveImage])
+    // A new image resolver, or new copy for an unresolved one, re-renders images
+    // already on screen; after commit, so that re-render is not scheduled from
+    // inside this one.
+    const { resolveImage, imageUnavailableLabel } = props
+    useEffect(
+      () => { store.setImageOptions(resolveImage, imageUnavailableLabel) },
+      [store, resolveImage, imageUnavailableLabel],
+    )
 
     // write() is called from timers and network callbacks, so it reads the
     // props through a ref rather than closing over the ones it was built with.

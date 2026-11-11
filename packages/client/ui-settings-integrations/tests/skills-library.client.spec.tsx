@@ -22,7 +22,7 @@ const COPY: Partial<Record<IntegrationsLocaleKey, string>> = {
   skills: 'Skills', skillsIntro: 'Skills you add by importing a SKILL.md, .skill, or ZIP bundle.',
   import: 'Import skill', importHint: 'Choose a SKILL.md.',
   searchSkills: 'Search skills', personalSkill: 'Personal import', removeSkill: 'Remove skill',
-  files: 'Bundle files', copy: 'Copy', copied: 'Copied', footnotes: 'References', noMatches: 'No skills match your search.',
+  files: 'Bundle files', copy: 'Copy', copied: 'Copied', footnotes: 'References', imageUnavailable: 'Image not shown', noMatches: 'No skills match your search.',
   catalogDownloads: 'installs', searchCatalog: 'Search the catalog', displayOptions: 'Display',
   optionAll: 'All', optionCategory: 'By category', allCategories: 'All categories', skillsWord: 'skills',
 }

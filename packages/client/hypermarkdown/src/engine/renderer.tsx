@@ -261,7 +261,7 @@ class Renderer {
     this.options = { ...this.options, ...next }
   }
 
-  /** Bumped by {@link setImageResolver}; images read it to re-resolve their sources. */
+  /** Bumped by {@link setImageOptions}; images read it to re-resolve their sources and copy. */
   imageRevision = 0
 
   private readonly imageListeners = new Set<() => void>()
@@ -277,15 +277,26 @@ class Renderer {
   }
 
   /**
-   * Replace the host's image resolver. Every rendered image, including those
-   * in cached blocks, re-resolves its source, so a URL the host can only name
-   * later (a stored copy that arrives with older history) replaces the one it
-   * named first; cached output is otherwise untouched.
+   * Replace the host's image resolver and the copy it shows when a source does
+   * not resolve. Every rendered image, including those in cached blocks,
+   * re-renders, so a URL the host can only name later (a stored copy that
+   * arrives with older history) replaces the one it named first, and copy that
+   * follows the reader's language redraws in it; cached output is otherwise
+   * untouched.
    * @param resolveImage - the host's current resolver.
+   * @param imageUnavailableLabel - the host's current copy for an unresolved source.
    */
-  setImageResolver(resolveImage: RendererOptions['resolveImage']): void {
-    if (this.options.resolveImage === resolveImage) return
-    this.options = { ...this.options, resolveImage }
+  setImageOptions(
+    resolveImage: RendererOptions['resolveImage'],
+    imageUnavailableLabel: RendererOptions['imageUnavailableLabel'],
+  ): void {
+    if (
+      this.options.resolveImage === resolveImage
+      && this.options.imageUnavailableLabel === imageUnavailableLabel
+    ) {
+      return
+    }
+    this.options = { ...this.options, resolveImage, imageUnavailableLabel }
     this.imageRevision++
     for (const listener of [...this.imageListeners]) listener()
   }

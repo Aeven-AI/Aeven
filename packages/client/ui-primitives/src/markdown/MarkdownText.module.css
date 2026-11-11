@@ -328,6 +328,36 @@ body[data-ds-dark-theme] .markdown.markdown {
   font-style: italic;
 }
 
+/* A source this app could not turn into a URL. The reader sees that an image
+   stood here and which source failed, instead of a gap that looks deliberate. */
+.markdown :global(.markdown-image-unavailable) {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  max-width: 100%;
+  padding: 6px 10px;
+  border: 1px dashed var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 0.9em;
+}
+
+.markdown :global(.markdown-image-unavailable-label) {
+  font-style: italic;
+}
+
+.markdown :global(.markdown-image-unavailable-source),
+.markdown :global(.markdown-image-unavailable-alt) {
+  font-family: var(--ds-font-family-code);
+  overflow-wrap: anywhere;
+}
+
+.markdown :global(.markdown-image-unavailable-alt) {
+  color: var(--dsw-alias-label-caption);
+}
+
 /* A run of images the engine grouped: the generated-image lane's own geometry,
    so a reply's photographs tile exactly the way generated ones do. Two share
    the column in halves, three take equal thirds, and four or more wrap two to a
