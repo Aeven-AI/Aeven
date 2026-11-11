@@ -1,7 +1,7 @@
 {
   "name": "@aeven/tool-desktop-handoff",
   "description": "Model-facing offer_desktop tool that opens the Available in Aeven Desktop dialog in the window showing a session",
-  "version": "0.3.43-alpha",
+  "version": "0.3.44-alpha",
   "publishConfig": {
     "access": "public"
   },
