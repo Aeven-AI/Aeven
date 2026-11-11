@@ -47,6 +47,8 @@ export interface LinkSafetyConfig {
   allowedImagePrefixes?: string[] | undefined
   /** Permit `data:` image sources, which prefixes alone cannot express. */
   allowDataImages?: boolean | undefined
+  /** Permit a scheme-less, rootless image source such as `shot.png`, which no prefix list can express. */
+  allowRelativeImages?: boolean | undefined
 }
 
 /** The same settings once defaults have been filled in. */
@@ -55,6 +57,7 @@ export interface ResolvedLinkSafety {
   allowedLinkPrefixes: string[]
   allowedImagePrefixes: string[]
   allowDataImages: boolean
+  allowRelativeImages: boolean
 }
 
 /**
@@ -66,6 +69,7 @@ export const defaultLinkSafety: ResolvedLinkSafety = {
   allowedLinkPrefixes: ['*'],
   allowedImagePrefixes: ['*'],
   allowDataImages: true,
+  allowRelativeImages: false,
 }
 
 /**
@@ -153,6 +157,8 @@ export function resolveLinkSafety(
       config?.allowedLinkPrefixes ?? defaultLinkSafety.allowedLinkPrefixes,
     allowedImagePrefixes:
       config?.allowedImagePrefixes ?? defaultLinkSafety.allowedImagePrefixes,
+    allowRelativeImages:
+      config?.allowRelativeImages ?? defaultLinkSafety.allowRelativeImages,
     allowDataImages:
       config?.allowDataImages ?? defaultLinkSafety.allowDataImages,
   }

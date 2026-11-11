@@ -23,6 +23,7 @@ describe('resolveLinkSafety', () => {
       allowedLinkPrefixes: ['*'],
       allowedImagePrefixes: ['*'],
       allowDataImages: false,
+      allowRelativeImages: false,
     })
   })
 })

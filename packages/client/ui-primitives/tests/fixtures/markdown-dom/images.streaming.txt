@@ -8,7 +8,9 @@
   <p>
     #text "http image"
   <p>
-    #text "relative dropped and inline bad scheme end."
+    <span class="markdown-image-alt">
+      #text "relative not resolved"
+    #text " and inline bad scheme end."
   <p>
     <span class="markdown-image-container">
       <span class="markdown-image">

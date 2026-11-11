@@ -10,7 +10,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ClientRemote, SessionId } from '@aeven/api-remotes/client'
 import type { SessionWorkspacePathApplication } from '@aeven/api-session-controller/types'
 import {
-  extensionOf, fileKindOf, IconLucideChevronDown, IconLucideFolderOpen, IconLucideSquareArrowOutUpRight, Menu, type MenuItem,
+  extensionOf, fileKindOf, workspaceFileUrl, IconLucideChevronDown, IconLucideFolderOpen, IconLucideSquareArrowOutUpRight, Menu, type MenuItem,
 } from '@aeven/client-ui-primitives'
 import type { TranslateNS } from '@aeven/client-ui-slots'
 import css from './FilesPane.module.css'
@@ -38,20 +38,8 @@ export async function canPreviewFile(remote: ClientRemote, sessionId: SessionId,
   return result.ok || result.error.code !== 'workspace-file/not-text'
 }
 
-/**
- * The URL of one workspace file's bytes, which the Host serves only for a Session of the signed-in account.
- * @param sessionId - Session owning the workspace.
- * @param path - workspace-relative or absolute file path.
- * @param download - whether the browser saves the file instead of showing it.
- * @returns the absolute URL on this app's origin.
- */
-export function workspaceFileUrl(sessionId: string, path: string, download = false): string {
-  const url = new URL('api/workspace-file', document.baseURI)
-  url.searchParams.set('sessionId', sessionId)
-  url.searchParams.set('path', path)
-  if (download) url.searchParams.set('download', '1')
-  return url.href
-}
+/** The Session-scoped URL of one workspace file's bytes; `@aeven/client-ui-primitives` owns its shape. */
+export { workspaceFileUrl }
 
 /**
  * Save one workspace file through the browser.

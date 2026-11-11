@@ -14,8 +14,9 @@ import type { ResolvedLinkSafety } from '../sanitize.ts'
  * would render as a broken-image placeholder carrying nothing at all.
  *
  * @param config - The resolved rules that decide what is allowed through: the
- *   permitted protocols, link prefixes, image prefixes, and whether a
- *   `data:image/` URL may stand in for an image source.
+ *   permitted protocols, link prefixes, image prefixes, whether a
+ *   `data:image/` URL may stand in for an image source, and whether a
+ *   scheme-less, rootless image source is the host's to resolve.
  * @returns The rehype transform that removes a disallowed destination, and
  *   replaces a rejected image with its alt text.
  */
@@ -77,6 +78,13 @@ export function rehypeLinkSafety(
       if (!config.allowedProtocols.includes(protocol)) {
         return false
       }
+    }
+
+    // A scheme-less, rootless source is a workspace path in the author's head;
+    // only a host that resolves those itself may keep one. Protocol-relative
+    // sources name another host and stay out.
+    if (isImage && config.allowRelativeImages && scheme === null && !trimmed.startsWith('//')) {
+      return true
     }
 
     const prefixes = isImage

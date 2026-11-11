@@ -177,7 +177,7 @@ const CORPUS: Record<string, string> = {
     '',
     '![http image](http://example.com/plain.png)',
     '',
-    '![relative dropped](private.png) and inline ![bad scheme](javascript:alert(1)) end.',
+    '![relative not resolved](private.png) and inline ![bad scheme](javascript:alert(1)) end.',
     '',
     '![](https://example.com/empty-alt.png)',
   ].join('\n'),

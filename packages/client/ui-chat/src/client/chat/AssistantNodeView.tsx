@@ -1,13 +1,14 @@
 import { memo, useCallback, useMemo } from 'react'
 import type { ChatNodeViewProps, TurnTailOwnerProps } from '../contract/slots.ts'
 import { AssistantMarkdown } from './AssistantMarkdown.tsx'
+import { assistantImageUrl } from './workspace-images.ts'
 
 /** A file of the Host's content-addressed attachment store (`attachments/v1/objects/<xx>/<sha256>`). */
 const ATTACHMENT_OBJECT_PATH = /\/attachments\/v1\/objects\/[0-9a-f]{2}\/([0-9a-f]{64})$/
 
 /** Streaming, settled, and interrupted Assistant states share one keyed renderer instance. */
 export const AssistantNodeView = memo(function AssistantNodeView({
-  node, useTurnData, turnProcess, cwd, openFile, renderMessageImages, storedImageUrl, fileMentions,
+  node, sessionId, useTurnData, turnProcess, cwd, openFile, renderMessageImages, storedImageUrl, fileMentions,
   scrollDown, onFullscreenChange, t,
 }: ChatNodeViewProps<'assistant-step'>) {
   const data = node.data
@@ -33,18 +34,21 @@ export const AssistantNodeView = memo(function AssistantNodeView({
   // An authored image of a file this Turn read with read_image shows the copy
   // stored then: the file itself may be gone, or on another device's disk. A
   // path into the Host's attachment store names a stored image by its hash.
-  const imageUrl = useCallback((source: string): string | undefined => {
-    if (read === undefined || storedImageUrl === undefined) return undefined
-    let decoded = source
-    try { decoded = decodeURI(source) } catch {
-      // Malformed escapes retain the authored source for exact comparison.
-    }
-    const objectHash = ATTACHMENT_OBJECT_PATH.exec(decoded)?.[1]
-    const stored = read.byPath.get(decoded)
-      ?? (cwd === undefined ? undefined : read.byPath.get(`${cwd.replace(/\/$/, '')}/${decoded}`))
-      ?? (objectHash === undefined ? undefined : read.byAttachment.get(`sha256:${objectHash}`))
-    return stored === undefined ? undefined : storedImageUrl(stored)
-  }, [cwd, read, storedImageUrl])
+  // Every other local source loads through the Session's workspace route: a
+  // Host serving several accounts mounts no `/api/file` to read it by path.
+  const imageUrl = useCallback((source: string): string | undefined => assistantImageUrl(source, {
+    sessionId,
+    cwd,
+    ...(read === undefined || storedImageUrl === undefined ? {} : {
+      stored: (decoded: string) => {
+        const objectHash = ATTACHMENT_OBJECT_PATH.exec(decoded)?.[1]
+        const stored = read.byPath.get(decoded)
+          ?? (cwd === undefined ? undefined : read.byPath.get(`${cwd.replace(/\/$/, '')}/${decoded}`))
+          ?? (objectHash === undefined ? undefined : read.byAttachment.get(`sha256:${objectHash}`))
+        return stored === undefined ? undefined : storedImageUrl(stored)
+      },
+    }),
+  }), [cwd, read, sessionId, storedImageUrl])
   const blocks = useMemo(() => generated === undefined ? data.blocks
     : data.blocks.filter(block => block.kind !== 'image' || !generated.attachmentIds.has(String(block.attachment.attachmentId))),
   [data.blocks, generated])
