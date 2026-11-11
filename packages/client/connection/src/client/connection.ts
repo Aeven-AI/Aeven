@@ -20,8 +20,14 @@ export interface ConnectionConfig {
   backoffFactor?: number
   /** Upper bound for the backoff cap in ms. */
   backoffMaxMs?: number
-  /** Maximum wait for the registered generation source's ready signal. */
+  /** How long a generation may wait for its source's ready signal before the wait is reported as slow. */
   generationReadyTimeoutMs?: number
+  /**
+   * How long a generation may wait for its source's ready signal before it is abandoned and a new one starts. A
+   * socket a Host accepted while it was starting or stopping can stay open without ever answering, so without this
+   * bound the client would wait on it forever.
+   */
+  generationReadyAbortMs?: number
   /** How long a probe of a connected generation waits for the Host's answer before the socket counts as dead. */
   probeTimeoutMs?: number
 }
@@ -31,6 +37,7 @@ const CONNECTION_DEFAULTS: Required<ConnectionConfig> = {
   backoffFactor: 2,
   backoffMaxMs: 10_000,
   generationReadyTimeoutMs: 3_000,
+  generationReadyAbortMs: 15_000,
   probeTimeoutMs: 8_000,
 }
 
@@ -306,7 +313,7 @@ export class ConnectionController {
 
       try {
         const host = await Promise.race([
-          waitForReady(ready, this.config.generationReadyTimeoutMs, ac.signal),
+          waitForReady(ready, this.config.generationReadyTimeoutMs, this.config.generationReadyAbortMs, ac.signal),
           sourceLost,
         ])
         if (ac.signal.aborted) throw new Error('generation aborted during readiness handshake')
@@ -317,7 +324,9 @@ export class ConnectionController {
           this.callSink(() => { this.sinks.onConnected?.(host) })
         }
       } catch {
-        // Source settlement and controller cancellation already abort the generation.
+        // Source settlement and controller cancellation already abort the generation; a readiness wait that ran out
+        // has not, so the generation is aborted here and the loop retries with a new one.
+        if (gen === this.generation && !ac.signal.aborted) ac.abort()
       }
 
       await failed
@@ -344,13 +353,24 @@ export class ConnectionController {
   }
 }
 
-/** Await source readiness while reporting, but not cancelling, a slow Host. */
-function waitForReady<T>(ready: Promise<T>, timeoutMs: number, signal: AbortSignal): Promise<T> {
+/**
+ * Await source readiness, reporting a slow Host after `timeoutMs` and giving up after `abortMs`.
+ * @param ready - settles with the source's readiness.
+ * @param timeoutMs - when the wait is reported as slow.
+ * @param abortMs - when the wait rejects, so the caller abandons the generation.
+ * @param signal - the generation's cancellation.
+ * @returns the Host information the source reported.
+ */
+function waitForReady<T>(ready: Promise<T>, timeoutMs: number, abortMs: number, signal: AbortSignal): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     let settled = false
     const timeout = setTimeout(() => {
       console.warn(`[connection] generation is still not ready after ${String(timeoutMs)}ms`)
     }, timeoutMs)
+    const deadline = setTimeout(() => {
+      console.warn(`[connection] generation never reported ready within ${String(abortMs)}ms; reconnecting`)
+      finish({ error: new Error('connection generation never reported ready') })
+    }, abortMs)
     const aborted = (): void => {
       finish({ error: new Error('connection generation aborted', { cause: signal.reason }) })
     }
@@ -358,6 +378,7 @@ function waitForReady<T>(ready: Promise<T>, timeoutMs: number, signal: AbortSign
       if (settled) return
       settled = true
       clearTimeout(timeout)
+      clearTimeout(deadline)
       signal.removeEventListener('abort', aborted)
       if ('error' in outcome) reject(outcome.error)
       else resolve(outcome.value)

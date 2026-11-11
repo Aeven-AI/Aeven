@@ -640,6 +640,37 @@ describe('connection lifecycle', () => {
     }
   })
 
+  it('abandons a generation that never reports ready and connects on a new one', async () => {
+    vi.useFakeTimers()
+    const source = new FakeGenerationSource()
+    source.suppressReady = true
+    let connected = 0
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const controller = new ConnectionController(
+      source.source,
+      { onConnected: () => { connected++ } },
+      { ...FAST, generationReadyTimeoutMs: 20, generationReadyAbortMs: 200 },
+    )
+    controller.start()
+    try {
+      await vi.advanceTimersByTimeAsync(199)
+      expect(connected).toBe(0)
+      expect(source.activeCount).toBe(1)
+
+      // The Host answers the next socket, as a Host that finished starting does.
+      source.suppressReady = false
+      await vi.advanceTimersByTimeAsync(1)
+      await vi.advanceTimersByTimeAsync(FAST.backoffMaxMs)
+      expect(connected).toBe(1)
+      expect(source.activeCount).toBe(1)
+      expect(warnSpy).toHaveBeenCalledWith('[connection] generation never reported ready within 200ms; reconnecting')
+    } finally {
+      controller.stop()
+      warnSpy.mockRestore()
+      vi.useRealTimers()
+    }
+  })
+
   it('emits the disconnected, retry-attempt, and connected transitions', async () => {
     const source = new FakeGenerationSource()
     const states: ConnectionState[] = []

@@ -489,7 +489,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ConnectionConfig',
-    declaration: 'export interface ConnectionConfig {\n    backoffBaseMs?: number;\n    backoffFactor?: number;\n    backoffMaxMs?: number;\n    generationReadyTimeoutMs?: number;\n    probeTimeoutMs?: number;\n}',
+    declaration: 'export interface ConnectionConfig {\n    backoffBaseMs?: number;\n    backoffFactor?: number;\n    backoffMaxMs?: number;\n    generationReadyTimeoutMs?: number;\n    generationReadyAbortMs?: number;\n    probeTimeoutMs?: number;\n}',
   },
   {
     name: 'ConnectionGeneration',
