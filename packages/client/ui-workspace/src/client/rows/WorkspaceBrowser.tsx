@@ -560,8 +560,7 @@ function SessionTree({
         })}
         {archivedSection}
       </div>
-      <span className={css.fadeTop} />
-      <span className={css.fade} />
+      <ListFades />
     </div>
   )
 }
@@ -755,8 +754,7 @@ function StatusList({
         })}
         {archivedSection}
       </div>
-      <span className={css.fadeTop} />
-      <span className={css.fade} />
+      <ListFades />
     </div>
   )
 }
@@ -1291,6 +1289,20 @@ export function WorkspaceBrowser({
         )}
       </Modal>
     </div>
+  )
+}
+
+/**
+ * The fades over the top and bottom edges of a scrolling Session list, shared by
+ * the tree and the status list.
+ * @returns the two fade overlays.
+ */
+function ListFades(): ReactNode {
+  return (
+    <>
+      <span className={css.fadeTop} />
+      <span className={css.fade} />
+    </>
   )
 }
 
