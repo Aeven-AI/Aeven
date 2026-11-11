@@ -230,6 +230,9 @@ The feature is one [capability seam](../../../../docs/glossary.md#capability-sea
 The `workspaces` document grows these fields per record, all inside the account's end-to-end encryption:
 
 ```ts
+import type { FileSyncFolderId } from '@aeven/file-sync'
+import type { DeviceId } from '@aeven/sync-vault'
+
 interface SyncedWorkspaceFiles {
   /** How a device materializes the workspace's files. */
   source:

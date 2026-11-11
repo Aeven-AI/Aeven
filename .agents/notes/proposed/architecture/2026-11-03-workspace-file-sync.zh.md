@@ -230,6 +230,9 @@ Aeven 服务器使用 Syncthing 的不受信任设备模式，为每个文件夹
 `workspaces` 文档的每条记录增加以下字段，全部位于账户的端到端加密之内：
 
 ```ts
+import type { FileSyncFolderId } from '@aeven/file-sync'
+import type { DeviceId } from '@aeven/sync-vault'
+
 interface SyncedWorkspaceFiles {
   /** How a device materializes the workspace's files. */
   source:
