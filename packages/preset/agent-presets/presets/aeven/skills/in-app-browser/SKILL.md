@@ -63,7 +63,7 @@ they reply. Never type their credentials.
 
 Use `preview_type` for a whole caption, including paragraph breaks; it inserts the text in one native action. Use `preview_upload` with absolute paths on the Electron computer and an explicit file-input selector, or the Upload button selector. The button's chooser is intercepted and answered within that upload call. When no selector is supplied, exactly one file input must exist. Remote uploads request approval naming the destination origin and files; localhost is exempt. Do not use clipboard paste, a temporary HTTP server, or a native file dialog for these uploads.
 
-Use `preview_sequence` for known consecutive actions. Include `wait` actions for visible/enabled or hidden elements between page transitions, rather than sleeps. It stops at the first failure and returns the completed count and failed action index. Inspect the resulting editor or attachment before submitting; include a submission only when the user authorized it.
+Use `preview_sequence` for known consecutive actions. Between page transitions, use `wait` actions for visible/enabled or hidden elements, not sleeps. It stops at the first failure and reports the completed count and failed index. Inspect the resulting editor or attachment before submitting; submit only when the user authorized it.
 
 `preview_screenshot` returns the page's pixels to you.
 
