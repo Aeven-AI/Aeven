@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { apiUrl, confettiColors, mediaUrl, oauthFlow, oauthUrls, webUrl } from '../src/client/auth/services/config.ts'
+import { apiUrl, confettiColors, mediaUrl, oauthFlow, oauthUrls, socketUrl, webUrl } from '../src/client/auth/services/config.ts'
 
 interface Scope {
   __AVN_AEVEN__?: Record<string, unknown>
@@ -97,6 +97,15 @@ describe('Aeven deployment configuration', () => {
     servedFrom('localhost')
     scope.__AVN_AEVEN__ = { googleOAuthUrl: 'not a url' }
     expect(oauthUrls()).toEqual({ google: 'not a url' })
+  })
+
+  it('addresses the account socket under the page own loopback name, keeping its path', () => {
+    servedFrom('localhost')
+    expect(socketUrl()).toBeUndefined()
+    scope.__AVN_AEVEN__ = { socketUrl: 'ws://127.0.0.1:9010/socket' }
+    expect(socketUrl()).toBe('ws://localhost:9010/socket')
+    scope.__AVN_AEVEN__ = { socketUrl: 'wss://aeven.test/socket' }
+    expect(socketUrl()).toBe('wss://aeven.test/socket')
   })
 
   it('reaches a provider by the flow the deployment states', () => {

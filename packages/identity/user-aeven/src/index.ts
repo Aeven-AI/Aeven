@@ -35,6 +35,7 @@ export const AEVEN_CLIENT_CONFIG_GLOBAL = '__AVN_AEVEN__'
 /** Deployment endpoints the Host states in the served page; each is absent when unconfigured. */
 export interface AevenClientConfig {
   readonly apiUrl?: string
+  readonly socketUrl?: string
   readonly xOAuthUrl?: string
   readonly appleOAuthUrl?: string
   readonly googleOAuthUrl?: string
@@ -90,6 +91,13 @@ export interface Config {
    * authentication surface, which is how a harness without Aeven behaves.
    */
   apiUrl?: string
+  /**
+   * The Aeven API's account socket, such as `ws://localhost:9010`. A page opens
+   * it with its access token and learns at once when its session ends on another
+   * page or the account's language changes; absent, a page learns of an ended
+   * session only when it next renews its token.
+   */
+  socketUrl?: string
   /** Provider sign-in URL; absent hides that provider's button. */
   xOAuthUrl?: string
   /** Provider sign-in URL; absent hides that provider's button. */
@@ -148,6 +156,7 @@ export const Config: z<Config> = z.object({
   refreshCookieName: z.string().default('refreshToken'),
   credentialRef: z.string().default('AEVEN_TOKEN'),
   apiUrl: z.string(),
+  socketUrl: z.string(),
   xOAuthUrl: z.string(),
   appleOAuthUrl: z.string(),
   googleOAuthUrl: z.string(),
@@ -305,6 +314,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   // through as configured.
   ctx.on('webserver/index-inject', (table, origin) => {
     const apiUrl = sameHostLoopbackUrl(config.apiUrl, origin)
+    const socketUrl = sameHostLoopbackUrl(config.socketUrl, origin)
     const xOAuthUrl = sameHostLoopbackUrl(config.xOAuthUrl, origin)
     const appleOAuthUrl = sameHostLoopbackUrl(config.appleOAuthUrl, origin)
     const googleOAuthUrl = sameHostLoopbackUrl(config.googleOAuthUrl, origin)
@@ -314,6 +324,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     const brandUrl = sameHostLoopbackUrl(config.brandUrl, origin)
     const value: AevenClientConfig = {
       ...apiUrl === undefined ? {} : { apiUrl },
+      ...socketUrl === undefined ? {} : { socketUrl },
       ...xOAuthUrl === undefined ? {} : { xOAuthUrl },
       ...appleOAuthUrl === undefined ? {} : { appleOAuthUrl },
       ...googleOAuthUrl === undefined ? {} : { googleOAuthUrl },

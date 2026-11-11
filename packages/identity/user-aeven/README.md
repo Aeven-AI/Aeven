@@ -51,6 +51,7 @@ The row injects the seam and names the API whose keys it verifies against:
 | `jwksCacheFile` | none | File keeping the last key set fetched; a Host that starts with it verifies at once and refreshes the set in the background, and absent keeps the keys in memory only |
 | `refreshCookieName` | `refreshToken` | Cookie carrying the refresh token for a request that presents no bearer |
 | `apiUrl` | none | Aeven API origin the browser signs in against; absent leaves the client with no authentication surface |
+| `socketUrl` | none | Aeven API account socket, such as `wss://aeven.io/socket`; a page opens it with its access token to learn at once that its session ended on another page or the account's language changed, and absent it learns of an ended session only when it next renews its token |
 | `webUrl` | none | Aeven web client origin the account menu links to |
 | `mediaUrl` | none | Origin serving uploaded media that profile-image paths are relative to |
 | `helpCenterUrl` | none | Help center origin; the sign-in screens link its Terms of Service and Privacy Policy in the reader's language, or show the names unlinked when absent |

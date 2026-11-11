@@ -20,6 +20,7 @@ export type OAuthFlow = 'redirect' | 'window'
 /** What the Host injects; absent in a harness with no Aeven authority. */
 export interface AevenClientConfig {
   readonly apiUrl?: string
+  readonly socketUrl?: string
   readonly xOAuthUrl?: string
   readonly appleOAuthUrl?: string
   readonly googleOAuthUrl?: string
@@ -132,6 +133,19 @@ function followingPage(configured: string): string {
   } catch {
     return configured
   }
+}
+
+/**
+ * The Aeven API's account socket, which tells this page at once when its session
+ * ends on another page or the account's language changes.
+ *
+ * Through {@link followingPage}, like the provider URLs: the socket URL carries a
+ * path, and a loopback deployment follows the page's own spelling of loopback.
+ * @returns the socket URL, or undefined when this deployment names none.
+ */
+export function socketUrl(): string | undefined {
+  const configured = aevenConfig().socketUrl
+  return configured === undefined ? undefined : followingPage(configured)
 }
 
 /**

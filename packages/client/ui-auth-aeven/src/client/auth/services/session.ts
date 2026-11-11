@@ -29,6 +29,8 @@ export interface AevenProfile {
   readonly displayNameSet?: boolean
   readonly profile?: AevenProfileMedia
   readonly roles?: readonly string[]
+  /** The language the account reads in, `en`, `es` or `zh`; absent until the reader chooses one. */
+  readonly locale?: string
 }
 
 /** The bundle the OAuth-result screen hands to its children. */
@@ -128,6 +130,7 @@ class Session {
   displayName: string | undefined
   displayNameSet: boolean | undefined
   profile: AevenProfileMedia | undefined
+  locale: string | undefined
 
   /** The bundle the OAuth-result screen passes down. */
   get userConfig(): UserConfig {
@@ -151,6 +154,7 @@ class Session {
     this.displayName = data.displayName
     this.displayNameSet = data.displayNameSet
     this.profile = data.profile
+    this.locale = data.locale
     this.userSignedIn = true
     cacheProfile(data)
   }
@@ -195,6 +199,7 @@ class Session {
     this.displayName = undefined
     this.displayNameSet = undefined
     this.profile = undefined
+    this.locale = undefined
   }
 }
 

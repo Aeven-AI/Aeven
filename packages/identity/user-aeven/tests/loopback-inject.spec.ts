@@ -19,6 +19,7 @@ async function injected(config: Parameters<typeof Config>[0], origin?: string): 
 
 const LOOPBACK_CONFIG = {
   apiUrl: 'http://127.0.0.1:9000',
+  socketUrl: 'ws://127.0.0.1:9010',
   webUrl: 'http://127.0.0.1:9020',
   mediaUrl: 'http://127.0.0.1:9040/media',
   googleOAuthUrl: 'http://127.0.0.1:9000/oauth/google',
@@ -32,6 +33,7 @@ describe('loopback spellings in the injected page config', () => {
     // different site than the page and the session cookie does not travel.
     expect(await injected(LOOPBACK_CONFIG, 'http://localhost:3060')).toEqual({
       apiUrl: 'http://localhost:9000',
+      socketUrl: 'ws://localhost:9010',
       webUrl: 'http://localhost:9020',
       mediaUrl: 'http://localhost:9040/media',
       googleOAuthUrl: 'http://localhost:9000/oauth/google',
@@ -49,6 +51,7 @@ describe('loopback spellings in the injected page config', () => {
   it('leaves a real deployment and a provider domain untouched', async () => {
     const deployment = {
       apiUrl: 'https://aeven.ai',
+      socketUrl: 'wss://aeven.ai/socket',
       googleOAuthUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
       oauthFlow: 'redirect' as const,
     }

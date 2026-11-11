@@ -1975,6 +1975,13 @@ export interface Config {
    * authentication surface, which is how a harness without Aeven behaves.
    */
   apiUrl?: string
+  /**
+   * The Aeven API's account socket, such as `ws://localhost:9010`. A page opens
+   * it with its access token and learns at once when its session ends on another
+   * page or the account's language changes; absent, a page learns of an ended
+   * session only when it next renews its token.
+   */
+  socketUrl?: string
   /** Provider sign-in URL; absent hides that provider's button. */
   xOAuthUrl?: string
   /** Provider sign-in URL; absent hides that provider's button. */
