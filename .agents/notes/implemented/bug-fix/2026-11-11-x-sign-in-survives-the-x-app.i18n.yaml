@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-11-11-x-sign-in-survives-the-x-app.md
-2026-11-11-x-sign-in-survives-the-x-app.md: 594a19060d606c37f3bc246ab8b7a1b14dca577f
-2026-11-11-x-sign-in-survives-the-x-app.zh.md: b41d6eda8fed55254bdbea7703ec38c683b6f942
+2026-11-11-x-sign-in-survives-the-x-app.md: 68f1d165dda8b80b3c6190e47cb9895650651f39
+2026-11-11-x-sign-in-survives-the-x-app.zh.md: 5b2a05022b8004ea2df5910ce3e75043e439a2fb

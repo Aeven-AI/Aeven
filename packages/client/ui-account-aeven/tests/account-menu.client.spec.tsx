@@ -29,6 +29,9 @@ function props(overrides: Partial<AccountMenuProps> = {}): AccountMenuProps {
     signOut: () => {},
     useLocale: localeHook(LOCALE),
     setLocale: () => {},
+    // Off a phone: the Install row is absent, as on the desktop browsers these cases describe.
+    installOffer: () => undefined,
+    installApp: () => Promise.resolve('android'),
     t: (key: string) => key,
     ...overrides,
   } as AccountMenuProps

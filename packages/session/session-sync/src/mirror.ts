@@ -406,6 +406,13 @@ export class SessionMirror {
   private closed = false
   /** Claims this device holds, by session. */
   private readonly claims = new Map<SessionId, Claim>()
+
+  /**
+   * The device a not yet published conversation's first input goes to, as the user chose it on this always-on device:
+   * a desktop's id, or null for this device. A conversation stays unpublished until it has activity, so the choice
+   * waits here and is dropped once the conversation reaches the index, whose writer then says where it runs.
+   */
+  private readonly chosenHome = new Map<SessionId, string | null>()
   private readonly releases = new Map<string, Promise<void>>()
   /** Direct local-network subscriptions to sessions this device holds. */
   private readonly watchers = new Map<string, () => void>()
@@ -1030,11 +1037,23 @@ export class SessionMirror {
       const pinnedHere = this.entries().get(sessionId)?.pinned === true && entry?.seenAt !== undefined && !stale
       if (entry?.alwaysOn === true || pinnedHere || (devices.get(me)?.alwaysOn === true && !stale)) home = writer
     } else if (writer === undefined && devices.get(me)?.alwaysOn === true) {
-      // A conversation no device has run yet goes to the account's desktop that is on now, else stays here.
-      home = this.presentDesktop()
+      // A conversation no device has run yet goes to the desktop the user chose for it, else to the account's desktop
+      // that is on now, else stays here.
+      home = this.firstHome(sessionId)
     }
     if (home === undefined) return undefined
     return { device: home, name: devices.get(home)?.name ?? '' }
+  }
+
+  /**
+   * Where a conversation no device has run yet sends its first input from this always-on device.
+   * @param sessionId - the session.
+   * @returns the chosen desktop, or the present desktop when none was chosen; undefined when this device runs it.
+   */
+  private firstHome(sessionId: SessionId): string | undefined {
+    if (!this.chosenHome.has(sessionId)) return this.presentDesktop()
+    const chosen = this.chosenHome.get(sessionId)
+    return chosen === null || chosen === undefined || this.devices()?.has(chosen) !== true ? undefined : chosen
   }
 
   /**
@@ -1091,14 +1110,28 @@ export class SessionMirror {
   }
 
   /**
-   * Where a session runs, as this device sees it.
+   * Where a session runs, as this device sees it. On an always-on device a conversation not yet published has one
+   * too: its home is the desktop its first input would go to.
    * @param sessionId - the session.
-   * @returns the placement, or undefined when the session is not synced or sync has not started.
+   * @returns the placement, or undefined when sync has not started, or the session is not synced and this device is
+   *   not always on.
    */
   placementOf(sessionId: SessionId): HandoffPlacement | undefined {
     const view = this.devicesView()
     const devices = this.devices()
-    if (view === undefined || devices === undefined || !this.shared(sessionId)) return undefined
+    if (view === undefined || devices === undefined) return undefined
+    if (!this.shared(sessionId)) {
+      // An always-on device routes a conversation's first input, so it offers the choice before anything is published;
+      // the conversation's home is where that input would go now.
+      if (!view.alwaysOnHere) return undefined
+      const next = this.firstHome(sessionId)
+      return {
+        ...view,
+        ...next === undefined
+          ? {}
+          : { home: { device: next, name: devices.get(next)?.name ?? '', alwaysOn: false, pinned: false } },
+      }
+    }
     const me = view.device
     const writer = this.entries().get(sessionId)?.writer
     return {
@@ -1160,7 +1193,8 @@ export class SessionMirror {
 
   /**
    * Make this device or an always-on device the session's home. Only the index entry changes: the next turn-starting
-   * input runs here, or is forwarded to that device.
+   * input runs here, or is forwarded to that device. On an always-on device, a conversation not yet published keeps
+   * the choice for its first input instead.
    * @param sessionId - the session.
    * @param device - the id of this device or another device of the account.
    * @throws when another device runs a turn of the session, or the device is not one of the account's.
@@ -1174,7 +1208,12 @@ export class SessionMirror {
     }
     if (this.runnerOf(sessionId) !== undefined) throw new Error('another device runs a turn of this session now')
     const entry = this.entries().get(sessionId)
-    if (entry === undefined) throw new Error('the session is not synced')
+    if (entry === undefined) {
+      // A conversation nothing was published for yet: an always-on device keeps the choice for its first input.
+      if (this.devices()?.get(me)?.alwaysOn !== true) throw new Error('the session is not synced')
+      this.chosenHome.set(sessionId, device === me ? null : device)
+      return
+    }
     // Moving to another desktop pins the session there; moving to this device or an always-on device unpins it.
     const pinned = device !== me && this.devices()?.get(device)?.alwaysOn !== true
     if (entry.writer !== device || (entry.pinned === true) !== pinned) {
@@ -2244,6 +2283,8 @@ export class SessionMirror {
     if (entry === undefined) {
       entry = { header: suffix.meta, next: 0, inherited: suffix.inheritedEventCount, ...home === undefined ? {} : { workspace: home } }
       this.entries().set(sessionId, entry)
+      // From here the index entry's writer says where the conversation runs.
+      this.chosenHome.delete(sessionId)
     }
     this.record(sessionId, { mine: { claim: active.id, base: active.base } })
     let batch: SessionEvent[] = []

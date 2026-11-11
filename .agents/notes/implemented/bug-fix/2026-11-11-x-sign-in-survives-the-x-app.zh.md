@@ -24,4 +24,4 @@ X 策略把 PKCE 验证串以 `state` 为键保存在 Redis 中（servers/node �
 
 ## 验证
 
-servers/node 的 passport 单元测试（157 个）通过，其中包括一个回调来自没有会话 Cookie 的新浏览器的完整 X 流程。aeven 客户端类型检查与构建通过。在本地 `avn web` 上，按下 X 会轮询取回路由，并经 `aeven.io/oauth/x?app=web&nonce=…` 跳转；徽记链接到 https://aeven.io/；语言控件在手机宽度下由白色变为黑色。完整的手机流程有待 servers/node 部署后验证。
+servers/node 的 passport 单元测试（157 个）通过，其中包括一个回调来自没有会话 Cookie 的新浏览器的完整 X 流程。aeven 客户端类型检查与构建通过。在本地 `avn web` 上，按下 X 会轮询取回路由，并经 `aeven.io/oauth/x?app=web&nonce=…` 跳转；徽记链接到 `https://aeven.io/`；语言控件在手机宽度下由白色变为黑色。完整的手机流程有待 servers/node 部署后验证。

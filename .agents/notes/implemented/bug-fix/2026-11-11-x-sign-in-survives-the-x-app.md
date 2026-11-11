@@ -24,4 +24,4 @@ An X sign-in whose callback arrives in another browser no longer signs that brow
 
 ## Verification
 
-servers/node passport unit tests (157) pass, including a full X flow whose callback comes from a fresh browser with no session cookie. The aeven client typechecks and builds. On a local `avn web`, pressing X polled the claim route and navigated through `aeven.io/oauth/x?app=web&nonce=…`, the logo linked to https://aeven.io/, and the language control flipped from white to black at phone width. The full phone flow awaits deployment of servers/node.
+servers/node passport unit tests (157) pass, including a full X flow whose callback comes from a fresh browser with no session cookie. The aeven client typechecks and builds. On a local `avn web`, pressing X polled the claim route and navigated through `aeven.io/oauth/x?app=web&nonce=…`, the logo linked to `https://aeven.io/`, and the language control flipped from white to black at phone width. The full phone flow awaits deployment of servers/node.
