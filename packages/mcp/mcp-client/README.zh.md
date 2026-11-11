@@ -62,6 +62,7 @@ kind: "package-reference"
 | `url` / `headers` | — | streamable-http：端点 URL 与额外请求标头 |
 | `toolCallTimeoutMs` | `60,000` | 每次 `tools/call` 调用的超时 |
 | `resultNotes` | 无 | 按原始工具名追加到成功结果后的说明；`{arg}` 和 `{arg\|fallback}` 由调用参数填充，使只覆盖所请求范围的结果说明它覆盖的是哪个范围 |
+| `fillByTyping` | `false` | 仅用于 chrome-devtools-mcp：`fill` / `fill_form` 中 100 个字符及以上的文本值会被其直接赋值，受框架控制的字段在下次渲染时丢弃；开启后改为依次发送 `click`、全选 `press_key` 和 `type_text`，更短的值仍走单次填写调用 |
 | `failOnStartupError` | `false` | 初始连接或工具同步失败时拒绝插件激活 |
 | `awaitStartup` | `true` | 等待首次发现；false 在工具就绪前激活，且要求 `failOnStartupError: false` |
 | `reconnect.enabled` | `true` | 连接丢失后自动重新连接 |

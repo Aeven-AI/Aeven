@@ -36,6 +36,8 @@ export interface ToolBridgeOptions {
   toolCallTimeoutMs: number
   /** Notes appended to results, by raw tool name; see `StdioConfig.resultNotes`. */
   resultNotes?: Readonly<Record<string, string>>
+  /** Type long chrome-devtools-mcp fill values with keystrokes; see `StdioConfig.fillByTyping`. */
+  fillByTyping?: boolean
 }
 
 /**
@@ -112,6 +114,90 @@ function callToolUncached(
       timeout: opts.toolCallTimeoutMs,
     },
   )
+}
+
+/**
+ * Value length from which chrome-devtools-mcp's fill (puppeteer `Locator.fill`, `typingThreshold`) stops typing
+ * and assigns the value directly.
+ */
+const FILL_TYPING_THRESHOLD = 100
+
+/** One `fill_form` element, or the `fill` arguments, as chrome-devtools-mcp names them. */
+interface FillElement {
+  readonly uid: string
+  readonly value: string
+}
+
+/**
+ * Read the elements a chrome-devtools-mcp `fill` or `fill_form` call fills.
+ * @param rawName - the raw tool name.
+ * @param args - the call's arguments, as the model sent them.
+ * @returns the elements, or undefined when the arguments are not that shape and the server should report them.
+ */
+function fillElements(rawName: string, args: Record<string, unknown>): FillElement[] | undefined {
+  const raw = rawName === 'fill' ? [args] : args.elements
+  if (!Array.isArray(raw)) return undefined
+  const elements: FillElement[] = []
+  for (const entry of raw as unknown[]) {
+    if (typeof entry !== 'object' || entry === null) return undefined
+    const { uid, value } = entry as Record<string, unknown>
+    if (typeof uid !== 'string' || typeof value !== 'string') return undefined
+    elements.push({ uid, value })
+  }
+  return elements
+}
+
+/**
+ * Run a chrome-devtools-mcp `fill` or `fill_form`, typing each value its fill would assign directly.
+ *
+ * Short values go to the server's `fill_form` in one call; each long value is entered as a click on its element,
+ * select-all, and `type_text`, so the field receives the key events a framework-controlled input records. The
+ * typed text is not echoed back. The first failing call ends the sequence and its error is returned.
+ * @param client - the connected MCP client.
+ * @param rawName - `fill` or `fill_form`.
+ * @param args - the call's arguments.
+ * @param exec - the dispatch, for its signal.
+ * @param opts - bridge options, for the call timeout.
+ * @returns the combined result, shaped as the server's own.
+ */
+async function callFillByTyping(
+  client: Client,
+  rawName: string,
+  args: Record<string, unknown>,
+  exec: ToolExecution,
+  opts: ToolBridgeOptions,
+): Promise<Awaited<ReturnType<typeof callToolUncached>>> {
+  const elements = fillElements(rawName, args)
+  const typed = elements?.filter(element => element.value.length >= FILL_TYPING_THRESHOLD) ?? []
+  if (elements === undefined || typed.length === 0) return await callToolUncached(client, rawName, args, exec, opts)
+  const page = typeof args.pageId === 'number' ? { pageId: args.pageId } : {}
+  const content: unknown[] = []
+  const filled = elements.filter(element => element.value.length < FILL_TYPING_THRESHOLD)
+  if (filled.length > 0) {
+    const result = await callToolUncached(client, 'fill_form', { ...page, elements: filled }, exec, opts)
+    if (result.isError === true || !Array.isArray(result.content)) return result
+    content.push(...result.content)
+  }
+  // The browser runs on this machine, so its select-all chord is this platform's.
+  const selectAll = process.platform === 'darwin' ? 'Meta+A' : 'Control+A'
+  for (const element of typed) {
+    const steps: Array<[string, Record<string, unknown>]> = [
+      ['click', { uid: element.uid }],
+      ['press_key', { key: selectAll }],
+      ['type_text', { text: element.value }],
+    ]
+    for (const [name, stepArgs] of steps) {
+      const result = await callToolUncached(client, name, { ...page, ...stepArgs }, exec, opts)
+      if (result.isError === true) return result
+    }
+  }
+  content.push({ type: 'text', text: `Typed ${String(typed.length)} long value(s) with keystrokes into ${typed.map(element => element.uid).join(', ')}.` })
+  if (args.includeSnapshot === true) {
+    const snapshot = await callToolUncached(client, 'take_snapshot', page, exec, opts)
+    if (snapshot.isError === true || !Array.isArray(snapshot.content)) return snapshot
+    content.push(...snapshot.content)
+  }
+  return { content } as Awaited<ReturnType<typeof callToolUncached>>
 }
 
 /**
@@ -372,7 +458,9 @@ function createExecutor(
     // string/number/null). Fallback to {} lets the MCP server produce a
     // specific "missing required param" error the model can learn from.
     const argsObj = (typeof args === 'object' && args !== null ? args : {}) as Record<string, unknown>
-    const result = await callToolUncached(client, rawName, argsObj, exec, opts)
+    const result = opts.fillByTyping === true && (rawName === 'fill' || rawName === 'fill_form')
+      ? await callFillByTyping(client, rawName, argsObj, exec, opts)
+      : await callToolUncached(client, rawName, argsObj, exec, opts)
 
     // The SDK may return a legacy `toolResult` shape; normalize to content array.
     if (!Array.isArray(result.content)) {
