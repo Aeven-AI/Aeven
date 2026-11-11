@@ -143,6 +143,12 @@ export function watchProviderReturn(onReturned: () => void, signal: AbortSignal)
 /** How long a waiting page asks for a handed-off sign-in; the server keeps one for ten minutes. */
 const HANDOFF_WAIT_MS = 10 * 60 * 1000
 
+/**
+ * How long one claim request may take. A phone freezes a background page's
+ * requests, so a request in flight when the reader left can hang past their return.
+ */
+const CLAIM_TIMEOUT_MS = 5000
+
 /** The server route a waiting page collects a handed-off sign-in from. */
 const HANDOFF_CLAIM_PATH = '/oauth/desktop/claim'
 
@@ -185,6 +191,10 @@ export async function prepareProviderHandoff(url: string): Promise<ProviderHando
 
 /**
  * Wait for a sign-in another browser finished for this page.
+ *
+ * The page asks once a second, and at once when it becomes visible or takes
+ * focus again, so a reader returning from the provider's app meets the result
+ * before {@link watchProviderReturn} counts them as back without finishing.
  * @param handoff - the start {@link prepareProviderHandoff} returned.
  * @param signal - abandons the wait.
  * @returns the stored result, or undefined when abandoned or after the server's ten minutes.
@@ -198,10 +208,17 @@ export async function awaitHandedOffSignIn(handoff: ProviderHandoff, signal: Abo
       const wake = (): void => {
         clearTimeout(timer)
         signal.removeEventListener('abort', wake)
+        document.removeEventListener('visibilitychange', onVisible)
+        window.removeEventListener('focus', wake)
         resolve()
+      }
+      const onVisible = (): void => {
+        if (document.visibilityState === 'visible') wake()
       }
       const timer = setTimeout(wake, SESSION_POLL_MS)
       signal.addEventListener('abort', wake)
+      document.addEventListener('visibilitychange', onVisible)
+      window.addEventListener('focus', wake)
     })
   }
   return undefined
@@ -213,11 +230,14 @@ export async function awaitHandedOffSignIn(handoff: ProviderHandoff, signal: Abo
  * @returns the result once stored, undefined while pending or unreachable.
  */
 async function claimHandoff(handoff: ProviderHandoff): Promise<HandedOffSignIn | undefined> {
+  const timeout = new AbortController()
+  const timer = setTimeout(() => { timeout.abort() }, CLAIM_TIMEOUT_MS)
   try {
     const response = await fetch(handoff.claimUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ verifier: handoff.verifier }),
+      signal: timeout.signal,
     })
     if (response.status !== 200) return undefined
     const body = await response.json() as { session?: unknown; challenge?: unknown }
@@ -226,8 +246,11 @@ async function claimHandoff(handoff: ProviderHandoff): Promise<HandedOffSignIn |
     }
     return { error: true }
   } catch {
-    // An unreachable server says nothing about a sign-in still in progress; the next read asks again.
+    // An unreachable server or a timed-out request says nothing about a sign-in
+    // still in progress; the next read asks again.
     return undefined
+  } finally {
+    clearTimeout(timer)
   }
 }
 
