@@ -2809,6 +2809,13 @@ export interface StdioConfig {
    * only the range it was asked for, the note says which range, so the result cannot be read as wider than it is.
    */
   resultNotes?: Record<string, string>
+  /**
+   * Type long `fill` / `fill_form` text values with keystrokes. chrome-devtools-mcp only: its fill assigns a value of
+   * 100 characters or more to the element directly, which a framework-controlled field (React, HubSpot forms) drops
+   * on its next render. On, each such value is sent as `click`, select-all `press_key`, then `type_text`; shorter
+   * values and other elements keep the single fill call. Absent or false sends every call unchanged.
+   */
+  fillByTyping?: boolean
   /** Fail plugin activation when the initial connection or tool synchronization fails. */
   failOnStartupError: boolean
   /**
@@ -2845,6 +2852,13 @@ export interface StreamableHttpConfig {
    * only the range it was asked for, the note says which range, so the result cannot be read as wider than it is.
    */
   resultNotes?: Record<string, string>
+  /**
+   * Type long `fill` / `fill_form` text values with keystrokes. chrome-devtools-mcp only: its fill assigns a value of
+   * 100 characters or more to the element directly, which a framework-controlled field (React, HubSpot forms) drops
+   * on its next render. On, each such value is sent as `click`, select-all `press_key`, then `type_text`; shorter
+   * values and other elements keep the single fill call. Absent or false sends every call unchanged.
+   */
+  fillByTyping?: boolean
   /** Fail plugin activation when the initial connection or tool synchronization fails. */
   failOnStartupError: boolean
   /**

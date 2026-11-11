@@ -402,6 +402,9 @@
           - '--workspace'
           - !!js "process.env.HOME ?? process.env.USERPROFILE"
         failOnStartupError: false
+        # Its fill assigns values of 100+ characters directly, and React-style
+        # form fields drop them on the next render; type those instead.
+        fillByTyping: true
         # A pinned version skips the `latest` dist-tag lookup; the tools
         # register when the server connects instead of holding up readiness.
         awaitStartup: false
