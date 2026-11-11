@@ -17,12 +17,11 @@ Cloud work is billed on top of inference, from the same credit: the plan allowan
 - `@aeven/cloud-meter` sends the sandbox, storage and turn reports to `POST /api/cloud/meter/charges` with the owner's `AEVEN_TOKEN`, under ids that make a resent report charge once. An account the API reports as unfunded starts no jailed command and no turn on an unbilled provider. The hosted bundle mounts it when `AVN_CLOUD_BILLING=1`, so it is turned on only after the API serves the meter.
 - An unreachable API admits cloud work and keeps the reports queued, the same choice the inference gateway makes when Redis is unreachable.
 
+## Alternatives considered
+
 - **Bill sandbox time by wall clock** — `confine()` never sees a command exit, so wall-clock time cannot be measured per command, while the account cgroup's `cpu.stat` counts CPU time exactly, including Python zygote runs.
 - **A separate cloud balance** — accounts would fund two balances, and the plan allowance could not cover cloud work; one credit charged in one order keeps a single number to top up.
 - **Refuse cloud work while the API is unreachable** — an API outage would stop every hosted command and turn, including funded ones; admitting and queueing matches the inference gateway's choice when Redis is unreachable.
-
-## Alternatives considered
-
 - **A flat monthly cloud fee.** Rejected: it charges light users for heavy users' compute and does not stop an account with no credit from running work.
 - **Gate cloud work in the Host without reporting usage.** Rejected: it closes the free ride only for accounts at zero and leaves every funded account's cloud work unbilled.
 
