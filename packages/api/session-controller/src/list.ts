@@ -184,8 +184,13 @@ export class ApiSessionList {
    * @returns its current list summary without activating an agent.
    */
   async summaryForStored(id: SessionId): Promise<SessionSummary> {
-    using source = await this.ctx.sessionQuery.observeSession(id)
-    const snapshot = source.projections
+    // Imported events reach the stored log without a live Session, so no write-behind checkpoint sees them. The
+    // cold fold writes the cache row back; without it every later listing serves the row from before the import.
+    const cache = this.ctx.sessions.get(id) === undefined ? this.ctx.get('sessionProjectionCache') : undefined
+    using source = await this.ctx.sessionQuery.observeSession(id, cache === undefined ? {} : { projectionMode: 'none' })
+    const snapshot = cache === undefined || source.source === 'live'
+      ? source.projections
+      : cache.coldSnapshot(source.header, source.inheritedEventCount, source.events)
     const values = snapshot?.values as SessionProjectionValues | undefined
     const metadata = values?.sessionListMetadata
     const owner = source.header.owner
@@ -244,13 +249,18 @@ export class ApiSessionList {
       })
     }
     for (const entry of cold) items.push(this.summarizeCold(entry))
+    const behind = new Set<SessionId>()
     if (caller !== undefined) {
       const catalog = new Map((this.ctx.get('sessionHandoff')?.catalog(caller.id) ?? []).map(entry => [entry.header.id, entry]))
-      for (const [index, item] of items.entries()) items[index] = withCatalogTitle(item, catalog.get(item.sessionId))
+      for (const [index, item] of items.entries()) {
+        const entry = catalog.get(item.sessionId)
+        if (entry !== undefined && entry.next - 1 > (item.projections?.asOfSeq ?? -1)) behind.add(item.sessionId)
+        items[index] = withCatalogTitle(item, catalog.get(item.sessionId))
+      }
       const present = new Set(items.map(item => item.sessionId))
       for (const summary of this.sharedFor(caller.id)) if (!present.has(summary.sessionId)) items.push(summary)
     }
-    await this.recoverMissingTitles(items, cold, signal)
+    await this.recoverMissingTitles(items, cold, behind, signal)
     items.sort((left, right) => right.updatedAt - left.updatedAt)
     return items
   }
@@ -273,11 +283,14 @@ export class ApiSessionList {
    * cache-only summary in place.
    * @param items - summaries built so far; repaired rows are replaced in place.
    * @param cold - the cold entries `items` was built from.
+   * @param behind - sessions whose account history is longer than their cache row: a blank row among them may predate
+   * turns another device ran and this device imported.
    * @param signal - cancellation for the persistence reads.
    */
   private async recoverMissingTitles(
     items: SessionSummary[],
     cold: readonly ColdListEntry[],
+    behind: ReadonlySet<SessionId>,
     signal?: AbortSignal,
   ): Promise<void> {
     const cache = this.ctx.get('sessionProjectionCache')
@@ -286,8 +299,7 @@ export class ApiSessionList {
     const byId = new Map(cold.map(entry => [entry.header.id, entry]))
     const missing = items.filter(item =>
       byId.has(item.sessionId)
-      && !item.blank
-      && item.projections?.values.title === undefined)
+      && (item.blank ? behind.has(item.sessionId) : item.projections?.values.title === undefined))
     for (const item of missing.slice(0, COLD_TITLE_REFOLD_LIMIT)) {
       signal?.throwIfAborted()
       const entry = byId.get(item.sessionId)
@@ -306,8 +318,11 @@ export class ApiSessionList {
         continue
       }
       const index = items.indexOf(item)
+      const metadata = (snapshot.values as SessionProjectionValues).sessionListMetadata
       items[index] = {
         ...item,
+        blank: metadata?.blank ?? item.blank,
+        updatedAt: Math.max(item.updatedAt, updatedAt(entry.header, metadata)),
         projections: {
           asOfSeq: snapshot.asOfSeq,
           values: snapshot.values as SessionProjectionValues,
