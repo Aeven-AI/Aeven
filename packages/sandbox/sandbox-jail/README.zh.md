@@ -63,6 +63,7 @@ kind: "package-reference"
 | `commandUser` | 无 | 以独立沙箱用户运行被隔离命令与 zygote 的 `exec`、`group` 与 `accountsPath` |
 | `egress` | 无 | 被隔离命令的网络访问：代理的 `node`、`script`、`relay`、`socketDir`，以专用用户运行它的可选 `exec` 辅助程序，中继的 `port`，`allow` 主机列表与 `ports`，其 Git 请求携带账户凭据的 `gitHosts`，单账户与总体的连接数和字节数上限、超时，以及代理的 cgroup `limits`；需要 `cgroup` |
 | `pythonZygote` | 无 | 运行被隔离 `python3` 命令的预加载 Python 解释器的 `python`、`script`、`preload`、`socketDir` 与 cgroup `limits`；需要 `cgroup` 和 `seccompFilter` |
+| `usageIntervalMs` | `60000` | 两次 `sandbox-jail/usage` 报告各账户 CPU 时间之间的毫秒数；仅在配置 `cgroup` 时读取 |
 
 生成的 [配置目录](../../../docs/config-catalog.zh.md#aevensandbox-jail) 是每个可接受字段及其 JSDoc 的完整来源。
 
@@ -96,7 +97,7 @@ kind: "package-reference"
 
 ### 失败与恢复
 
-launcher 无法强制执行 Landlock、bubblewrap 无法创建监狱的命名空间（缺少 AppArmor profile）或 cgroup 目录未被委派时，启动会明确失败。工作区根目录不在某个账户文件夹内的调用抛出 `SANDBOX_UNAVAILABLE`。命令在其文件夹、`/tmp` 或 `/dev/shm` 之外写入时，以 `Read-only file system` 或 `Permission denied` 失败，bash 工具将其报告为沙箱拒绝。
+launcher 无法强制执行 Landlock、bubblewrap 无法创建监狱的命名空间（缺少 AppArmor profile）或 cgroup 目录未被委派时，启动会明确失败。工作区根目录不在某个账户文件夹内的调用抛出 `SANDBOX_UNAVAILABLE`。账户被某个 `sandbox-jail/admit` 监听器拒绝的调用同样抛出 `SANDBOX_UNAVAILABLE`，消息为该监听器给出的原因。命令在其文件夹、`/tmp` 或 `/dev/shm` 之外写入时，以 `Read-only file system` 或 `Permission denied` 失败，bash 工具将其报告为沙箱拒绝。
 
 -----
 
@@ -122,6 +123,8 @@ launcher 无法强制执行 Landlock、bubblewrap 无法创建监狱的命名空
 ### 一次调用
 
 `confine()` 规范化工作区根目录，取其在 `accountsRoot` 下的第一个路径分量作为账户，并构建 `bwrap … -- /run/aeven/landlock-run … -- <argv>`。配置了 cgroup 时，先由一个 `/bin/sh` 步骤把自身移入账户的组，再 `exec` bubblewrap，因此监狱及其启动的一切都计入该组。移入失败时以 125 退出并输出一行 `sandbox-jail:`，消费方将其归类为 runner 失败。
+
+包装调用之前，`confine()` 携带账户分发同步的 `sandbox-jail/admit` bail 事件；返回原因即拒绝该调用。配置了 cgroup 时，提供方每隔 `usageIntervalMs` 读取本次 Host 生命周期内创建的每个账户组 `cpu.stat` 中的 `usage_usec`，停止时再读一次，并发出 `sandbox-jail/usage`，携带该账户自上次报告以来使用的 CPU 秒数。[`@aeven/cloud-meter`](../../host/cloud-meter/README.zh.md) 监听这两个事件。
 
 ### 主机文件
 

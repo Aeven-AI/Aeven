@@ -163,6 +163,27 @@ export class AccountCgroups {
     chmodSync(procs, 0o664)
   }
 
+  /**
+   * CPU time each account group created in this Host lifetime has used, from its `cpu.stat`. A group still left from
+   * an earlier lifetime is absent: its counter includes time already reported then.
+   * @returns microseconds per account path segment.
+   */
+  cpuUsec(): Map<string, number> {
+    const usage = new Map<string, number>()
+    for (const [account, dir] of this.accounts) {
+      let stat: string
+      try {
+        stat = readFileSync(join(dir, 'cpu.stat'), 'utf8')
+      } catch {
+        // ENOENT: removeIdle took the group between runs; its last reading was the final one.
+        continue
+      }
+      const match = /^usage_usec (\d+)$/mu.exec(stat)
+      if (match?.[1] !== undefined) usage.set(account, Number(match[1]))
+    }
+    return usage
+  }
+
   /** Remove every account group that no process still occupies. */
   removeIdle(): void {
     for (const name of readdirSync(this.jail)) {

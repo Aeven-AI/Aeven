@@ -158,6 +158,7 @@
       "@aeven/host-webserver": ["./packages/host/webserver/src"],
       "@aeven/host-frontend-static": ["./packages/host/frontend-static/src"],
       "@aeven/host-workspace-files": ["./packages/host/workspace-files/src"],
+      "@aeven/cloud-meter": ["./packages/host/cloud-meter/src"],
       "@aeven/host-plugin-inventory": ["./packages/host/plugin-inventory/src"],
       "@aeven/host-plugin-inventory/types": ["./packages/host/plugin-inventory/src/types.ts"],
       "@aeven/client-ui-slots": ["./packages/client/ui-slots/src"],
