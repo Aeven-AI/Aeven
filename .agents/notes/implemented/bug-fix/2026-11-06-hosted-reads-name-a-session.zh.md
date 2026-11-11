@@ -18,7 +18,7 @@ Status: implemented
 
 ## 影响
 
-在托管版上，指向 Host 绝对路径的 Markdown 图片不再加载。每个媒体字节范围都会完整读取文件，上限为 `maxFileBytes`。桌面版保留 `/api/file`，其 Files 侧栏现在也能播放视频和音频。
+托管版没有 `/api/file`，因此媒体读取都要指明 Session：指向工作区之外的 Host 绝对路径的 Markdown 图片不加载，而工作区内的图片通过 `/api/workspace-file` 解析（[工作区路由图片](2026-11-11-markdown-images-load-through-the-workspace-route.zh.md)）。每个媒体字节范围都会完整读取文件，上限为 `maxFileBytes`。桌面版保留 `/api/file`，其 Files 侧栏现在也能播放视频和音频。
 
 ## 验证
 

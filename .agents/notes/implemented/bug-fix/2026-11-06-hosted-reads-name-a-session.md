@@ -18,7 +18,7 @@ Confining `/api/file` to the caller's account folders was rejected: the route ca
 
 ## Consequences
 
-On hosted, a Markdown image that names an absolute Host path no longer loads. Each media byte range reads the whole file, up to `maxFileBytes`. Desktop keeps `/api/file`, and its Files sidebar now also plays video and audio.
+On hosted, `/api/file` is absent, so media reads name a Session: a Markdown image that names an absolute Host path outside the workspace does not load, while one inside it resolves through `/api/workspace-file` ([workspace-route images](2026-11-11-markdown-images-load-through-the-workspace-route.md)). Each media byte range reads the whole file, up to `maxFileBytes`. Desktop keeps `/api/file`, and its Files sidebar now also plays video and audio.
 
 ## Verification
 

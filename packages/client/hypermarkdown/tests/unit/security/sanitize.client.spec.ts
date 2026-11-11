@@ -23,6 +23,7 @@ describe('resolveLinkSafety', () => {
       allowedLinkPrefixes: ['*'],
       allowedImagePrefixes: ['*'],
       allowDataImages: false,
+      allowRelativeImages: false,
     })
   })
 })
@@ -67,6 +68,7 @@ describe('buildSchema', () => {
       allowedLinkPrefixes: ['*'],
       allowedImagePrefixes: ['*'],
       allowDataImages: true,
+      allowRelativeImages: false,
     })
 
     expect(schema.protocols?.href).toEqual(['https', 'ipfs'])

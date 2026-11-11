@@ -33,6 +33,7 @@ function applyPolicy(
     allowedLinkPrefixes: ['*'],
     allowedImagePrefixes: ['*'],
     allowDataImages: true,
+    allowRelativeImages: false,
     ...overrides,
   }
 
@@ -86,6 +87,28 @@ describe('rehypeLinkSafety', () => {
     applyPolicy(tree, { allowedImagePrefixes: ['https://images.example/'] })
 
     expect(tree.children).toEqual([{ type: 'text', value: '' }])
+  })
+
+  it('keeps a workspace-relative image source only when the host resolves it', () => {
+    const source = 'logo-out/aeven-mark.png'
+
+    const disabled = root([element('img', { src: source, alt: 'the mark' })])
+    applyPolicy(disabled, { allowedImagePrefixes: ['https://', '/'] })
+    expect(disabled.children).toEqual([{ type: 'text', value: 'the mark' }])
+
+    const enabled = root([element('img', { src: source })])
+    applyPolicy(enabled, { allowedImagePrefixes: ['https://', '/'], allowRelativeImages: true })
+    expect((enabled.children[0] as HastElement).properties.src).toBe(source)
+  })
+
+  it('does not let the relative allowance cover a protocol-relative source', () => {
+    // `//cdn.example/x.png` names another host, so it stays subject to the
+    // prefix list rather than borrowing the scheme-less allowance.
+    const tree = root([element('img', { src: '//cdn.example/x.png', alt: 'x' })])
+
+    applyPolicy(tree, { allowedImagePrefixes: ['https://'], allowRelativeImages: true })
+
+    expect(tree.children).toEqual([{ type: 'text', value: 'x' }])
   })
 
   it('allows only image data URLs when explicitly enabled', () => {

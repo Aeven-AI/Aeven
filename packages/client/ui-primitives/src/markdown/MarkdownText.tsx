@@ -151,11 +151,13 @@ const PLUGINS = {
 const LINK_SAFETY = {
   allowedProtocols: ['http', 'https', 'mailto'],
   allowedLinkPrefixes: ['*'],
-  // Remote `https:` images, and absolute local paths, which `resolveImage`
-  // turns into this app's authenticated file route. Plain `http:` stays out:
-  // it is only ever this app's own origin.
+  // Remote `https:` images, absolute local paths, and — with
+  // `allowRelativeImages` — a bare workspace path, which the conversation's
+  // resolver turns into the Session's authenticated workspace route. Plain
+  // `http:` stays out: it is only ever this app's own origin.
   allowedImagePrefixes: ['https://', '/'],
   allowDataImages: false,
+  allowRelativeImages: true,
 }
 
 /**
