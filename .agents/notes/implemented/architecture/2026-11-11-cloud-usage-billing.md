@@ -23,6 +23,12 @@ Cloud work is billed on top of inference, from the same credit: the plan allowan
 - **A separate cloud balance** — accounts would fund two balances, and the plan allowance could not cover cloud work; one credit charged in one order keeps a single number to top up.
 - **Refuse cloud work while the API is unreachable** — an API outage would stop every hosted command and turn, including funded ones; admitting and queueing matches the inference gateway's choice when Redis is unreachable.
 
+## Alternatives considered
+
+- **Bill wall-clock sandbox time.** Rejected: `confine()` returns an argv and never sees the command exit, so wall-clock time needs a new exit hook in every consumer, while the account cgroup already counts CPU time exactly.
+- **A flat monthly cloud fee.** Rejected: it charges light users for heavy users' compute and does not stop an account with no credit from running work.
+- **Gate cloud work in the Host without reporting usage.** Rejected: it closes the free ride only for accounts at zero and leaves every funded account's cloud work unbilled.
+
 ## Consequences
 
 Remote turns that run on the user's desktop are not cloud work and are not metered. Queued reports live in memory, so a Host restart loses at most one interval of CPU seconds.

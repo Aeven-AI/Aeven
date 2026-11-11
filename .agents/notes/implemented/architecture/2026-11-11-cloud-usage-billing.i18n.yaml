@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-11-11-cloud-usage-billing.md
-2026-11-11-cloud-usage-billing.md: 12f01d9899d8fc455839e6413b37db4fc7772952
-2026-11-11-cloud-usage-billing.zh.md: 188217407ca1cc1fd0127388997054646850c3ae
+2026-11-11-cloud-usage-billing.md: 36067143a0e35c90bf6455eb885fed6a1959b286
+2026-11-11-cloud-usage-billing.zh.md: caeebf28262df1c4f8858476cbff8dd9c56bec1a

@@ -21,6 +21,7 @@ kind: "package-reference"
 
 - [使用此包](#use-this-package)
 - [理解实现](#understand-the-implementation)
+- [模型体验](#model-experience)
 - [已知限制与延后工作](#known-limitations-and-deferred-work)
 - [开发备注](#dev-note)
 
@@ -58,7 +59,7 @@ kind: "package-reference"
 
 ### 报告与 id
 
-CPU 秒数按所有者累加，直到下次发送时合成一条带随机 id 的 `sandbox` 报告。轮次的 id 是 `turn:<session id>:<turn>`，存储报告标明其 UTC 日期。报告在 API 接受之前保持其 id，因此请求失败后重发的报告只计费一次；API 的账本以账户和该 id 为键，存储则以日期为键。`400` 答复会丢弃该批次，因为重发不可能成功；其他失败会保留它。
+CPU 秒数按所有者累加，直到下次发送时合成一条带随机 id 的 `sandbox` 报告。轮次的 id 是 `turn:<session id>:<turn>`，存储报告标明其 UTC 日期；某天的报告仍在等待时，当天之后的测量不再添加报告。报告在 API 接受之前保持其 id，因此请求失败后重发的报告只计费一次；API 的账本以账户和该 id 为键，存储则以日期为键。`400` 答复会丢弃该批次，因为重发不可能成功；其他失败会保留它。
 
 ### 付费状态
 
@@ -69,18 +70,42 @@ CPU 秒数按所有者累加，直到下次发送时合成一条带随机 id 的
 | 文件 | 作用 |
 | --- | --- |
 | [`src/index.ts`](src/index.ts) | 插件入口：配置、报告队列、报价、沙箱与轮次监听器、存储测量 |
+| [`tests/cloud-meter.spec.ts`](tests/cloud-meter.spec.ts) | 针对脚本化 API 和替身 `du` 测试报告、重发、付费拦截和存储 |
 | — | 不发布运行时不变量伴随包；插件保存的发送队列和报价缓存以 Aeven API 的账本为权威，本地没有第二个观察可以与之矛盾。 |
 
 </details>
 
 -----
 
+<a id="model-experience"></a>
+## 模型体验
+
+### 拒绝未付费账户
+
+#### 模型看到什么
+
+插件不注册工具、模式或提示词段落。对于 Aeven API 报告为未付费的账户，沙箱命令的工具结果带有 `SANDBOX_UNAVAILABLE` 和这条消息，不计费提供方上的轮次在其模型请求之前以同样的文本失败：
+
+##### 拒绝消息
+
+```markdown
+This account's Aeven credit is used up, so Aeven Cloud cannot run this. Add credit or upgrade the plan in Settings, Account, to continue.
+```
+
+#### Token 影响
+
+账户已付费时没有影响；被拒绝的命令在其工具结果中追加这一句话。
+
+#### KV Cache 影响
+
+前缀稳定：插件不改变请求内容，拒绝作为工具结果追加。
+
 <a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与延后工作
 
 - **排队的报告保存在内存中**：Host 重启最多丢失一个间隔的 CPU 秒数，以及 API 尚未接受的报告。
 - **按 CPU 时间而非墙钟时间**：等待或休眠的命令在等待期间不计费，用满账户上限两个 CPU 的命令按双倍计。
-- **存储用 `du` 测量**：每个账户文件夹每天遍历一次，文件夹越大耗时越长。
+- **存储用 `du -sk` 测量**，即文件夹占用的磁盘空间：每个账户文件夹每天遍历一次，文件夹越大耗时越长。
 
 <a id="dev-note"></a>
 ### 开发备注

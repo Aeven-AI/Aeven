@@ -84,6 +84,15 @@ const UNFUNDED_MESSAGE = 'This account\'s Aeven credit is used up, so Aeven Clou
 const run = promisify(execFile)
 
 /**
+ * The text of a caught failure.
+ * @param error - what was thrown.
+ * @returns its message, or its string form when it is not an `Error`.
+ */
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+/**
  * Meter cloud work and gate new work on the owner's funding.
  * @param ctx - the plugin context.
  * @param config - validated {@link Config}.
@@ -136,7 +145,7 @@ export function apply(ctx: Context, config: Config): void {
         quotes.set(owner, { funded, at: Date.now() })
         return funded
       } catch (error) {
-        logger.warn(`cannot quote cloud funding for ${owner}: ${error instanceof Error ? error.message : String(error)}`)
+        logger.warn(`cannot quote cloud funding for ${owner}: ${messageOf(error)}`)
         return cached?.funded ?? true
       } finally {
         quoting.delete(owner)
@@ -147,10 +156,9 @@ export function apply(ctx: Context, config: Config): void {
   }
 
   /** Send one owner's queued reports, keeping them when the API does not answer. */
-  const send = async (owner: string) => {
+  const send = async (owner: string, list: Charge[]) => {
     const bearer = await token(owner)
     if (bearer === undefined) return
-    const list = queued.get(owner) ?? []
     while (list.length > 0) {
       const batch = list.slice(0, BATCH_LIMIT)
       let response: Response
@@ -162,7 +170,7 @@ export function apply(ctx: Context, config: Config): void {
           signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         })
       } catch (error) {
-        logger.warn(`cannot report cloud usage of ${owner}: ${error instanceof Error ? error.message : String(error)}`)
+        logger.warn(`cannot report cloud usage of ${owner}: ${messageOf(error)}`)
         return
       }
       if (response.status === 400) {
@@ -179,6 +187,7 @@ export function apply(ctx: Context, config: Config): void {
       quotes.set(owner, { funded: body.funded !== false, at: Date.now() })
       list.splice(0, batch.length)
     }
+    // Reports queued while this send ran were pushed onto `list` and sent by the loop above.
     queued.delete(owner)
   }
 
@@ -186,7 +195,7 @@ export function apply(ctx: Context, config: Config): void {
     flushing ??= (async () => {
       for (const [owner, seconds] of sandboxSeconds) enqueue(owner, { id: `sandbox:${randomUUID()}`, kind: 'sandbox', quantity: seconds })
       sandboxSeconds.clear()
-      for (const owner of [...queued.keys()]) await send(owner)
+      for (const [owner, list] of [...queued]) await send(owner, list)
     })().finally(() => { flushing = undefined })
     return flushing
   }
@@ -198,16 +207,19 @@ export function apply(ctx: Context, config: Config): void {
     try {
       owners = readdirSync(root).filter(entry => OWNER_SEGMENT.test(entry))
     } catch (error) {
-      logger.warn(`cannot list account folders in ${root}: ${error instanceof Error ? error.message : String(error)}`)
+      logger.warn(`cannot list account folders in ${root}: ${messageOf(error)}`)
       return
     }
     for (const owner of owners) {
       try {
-        const { stdout } = await run('du', ['-sb', join(root, owner)], { timeout: 300_000 })
-        const bytes = Number(stdout.split('\t')[0])
-        if (Number.isFinite(bytes) && bytes > 0) enqueue(owner, { id: `storage:${day}`, kind: 'storage', day, quantity: bytes })
+        // POSIX `-k`: the disk space the folder takes, in KiB.
+        const { stdout } = await run('du', ['-sk', join(root, owner)], { timeout: 300_000 })
+        const bytes = Number(stdout.split('\t')[0]) * 1024
+        // One report per day: the API bills the first it receives, so a later measurement adds nothing.
+        if (!(bytes > 0) || queued.get(owner)?.some(charge => charge.id === `storage:${day}`) === true) continue
+        enqueue(owner, { id: `storage:${day}`, kind: 'storage', day, quantity: bytes })
       } catch (error) {
-        logger.warn(`cannot measure the folder of ${owner}: ${error instanceof Error ? error.message : String(error)}`)
+        logger.warn(`cannot measure the folder of ${owner}: ${messageOf(error)}`)
       }
     }
   }

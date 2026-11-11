@@ -21,6 +21,7 @@ It sends them to `POST /api/cloud/meter/charges`, where the Aeven API prices the
 
 - [Use this package](#use-this-package)
 - [Understand the implementation](#understand-the-implementation)
+- [Model Experience](#model-experience)
 - [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
 - [Dev Note](#dev-note)
 
@@ -58,7 +59,7 @@ A jailed command fails with `SANDBOX_UNAVAILABLE`, and a turn on an unbilled pro
 
 ### Reports and ids
 
-CPU seconds add up per owner until the next send, which turns them into one `sandbox` report with a random id. A turn's id is `turn:<session id>:<turn>`, and a storage report names its UTC day. A report keeps its id until the API accepts it, so a report resent after a failed request is charged once; the API's ledger is keyed on the account and that id, and on the day for storage. A `400` answer drops the batch, because resending it cannot succeed; any other failure keeps it.
+CPU seconds add up per owner until the next send, which turns them into one `sandbox` report with a random id. A turn's id is `turn:<session id>:<turn>`, and a storage report names its UTC day; a day's report still waiting makes a later measurement of that day add nothing. A report keeps its id until the API accepts it, so a report resent after a failed request is charged once; the API's ledger is keyed on the account and that id, and on the day for storage. A `400` answer drops the batch, because resending it cannot succeed; any other failure keeps it.
 
 ### Funding
 
@@ -69,18 +70,41 @@ CPU seconds add up per owner until the next send, which turns them into one `san
 | File | Role |
 | --- | --- |
 | [`src/index.ts`](src/index.ts) | Plugin entry: config, the report queue, quotes, the jail and turn listeners, storage measurement |
+| [`tests/cloud-meter.spec.ts`](tests/cloud-meter.spec.ts) | Reports, resends, the funding gate and storage against a scripted API and a stand-in `du` |
 | — | No runtime invariant companion is published; the plugin keeps a send queue and a quote cache whose authority is the Aeven API's ledger, so no second local observation can contradict them. |
 
 </details>
 
 -----
 
-<a id="known-limitations-and-deferred-work"></a>
+<a id="model-experience"></a>
+## Model Experience
+
+### Refusal of an unfunded account
+
+#### What the model sees
+
+The plugin registers no tool, schema, or prompt section. For an account the Aeven API reports as unfunded, a jailed command's tool result carries `SANDBOX_UNAVAILABLE` with this message, and a turn on an unbilled provider fails before its model request with the same text:
+
+##### Refusal message
+
+```markdown
+This account's Aeven credit is used up, so Aeven Cloud cannot run this. Add credit or upgrade the plan in Settings, Account, to continue.
+```
+
+#### Token effect
+
+None while the account is funded; a refused command adds this one sentence to its tool result.
+
+#### KV Cache effect
+
+Prefix-stable: the plugin changes no request content, and a refusal is appended as a tool result.
+
 ## Known Limitations and Deferred Work
 
 - **Queued reports live in memory**: a Host restart loses at most one interval of CPU seconds and any reports the API had not accepted.
 - **CPU time, not wall-clock**: a command that waits or sleeps costs nothing while it waits, and a command using both CPUs of its account's limit counts double.
-- **Storage is measured with `du`**: each account folder is walked once a day, which takes longer as folders grow.
+- **Storage is measured with `du -sk`**, the disk space a folder takes: each account folder is walked once a day, which takes longer as folders grow.
 
 <a id="dev-note"></a>
 ### Dev Note
