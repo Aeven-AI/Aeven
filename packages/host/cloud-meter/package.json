@@ -32,6 +32,7 @@
   "peerDependencies": {
     "@aeven/agent": "workspace:^",
     "@aeven/credentials": "workspace:^",
+    "@aeven/llm-aeven": "workspace:^",
     "@aeven/sandbox-jail": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
@@ -43,6 +44,7 @@
   "devDependencies": {
     "@aeven/agent": "workspace:^",
     "@aeven/credentials": "workspace:^",
+    "@aeven/llm-aeven": "workspace:^",
     "@aeven/sandbox-jail": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   }

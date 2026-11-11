@@ -23,6 +23,7 @@ import { promisify } from 'node:util'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { credentialRef } from '@aeven/credentials'
+import { PROVIDER as AEVEN_PROVIDER } from '@aeven/llm-aeven'
 import type {} from '@aeven/agent'
 import type {} from '@aeven/sandbox-jail'
 
@@ -43,7 +44,10 @@ export interface Config {
   accountsRoot?: string
   /** Milliseconds between storage measurements of every account folder. */
   storageIntervalMs?: number
-  /** Providers whose turns the Aeven API already bills as inference; a turn on any other provider is metered. */
+  /**
+   * Providers whose turns the Aeven API already bills as inference; a turn on any other provider is metered. Defaults to
+   * the provider `@aeven/llm-aeven` registers, read from its own constant so a rename there cannot bill Aeven turns.
+   */
   billedProviders?: string[]
   /** Most reports kept per owner while the API is unreachable; older reports are dropped first. */
   maxQueuedPerOwner?: number
@@ -57,7 +61,7 @@ export const Config: z<Config> = z.object({
   quoteTtlMs: z.natural().min(1000).default(60_000),
   accountsRoot: z.string(),
   storageIntervalMs: z.natural().min(60_000).default(86_400_000),
-  billedProviders: z.array(z.string()).default(['aeven']),
+  billedProviders: z.array(z.string()).default([AEVEN_PROVIDER]),
   maxQueuedPerOwner: z.natural().min(1).default(10_000),
 })
 

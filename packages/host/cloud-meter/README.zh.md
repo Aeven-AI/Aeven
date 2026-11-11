@@ -42,7 +42,7 @@ kind: "package-reference"
 | `quoteTtlMs` | `60000` | 所有者付费状态答复保持有效的毫秒数。 |
 | `accountsRoot` | 无 | 其子目录为以所有者命名的账户文件夹的目录；省略时不计量存储。 |
 | `storageIntervalMs` | `86400000` | 两次存储测量之间的毫秒数；首次测量在启动一分钟后进行。 |
-| `billedProviders` | `['aeven']` | Aeven API 作为推理计费其轮次的提供方；其他提供方上的轮次会被计量。 |
+| `billedProviders` | `@aeven/llm-aeven` 的提供方（`aeven-cloud`） | Aeven API 作为推理计费其轮次的提供方；其他提供方上的轮次会被计量。默认值读取自 `llm-aeven` 自身的常量。 |
 | `maxQueuedPerOwner` | `10000` | API 不可达时每个所有者保留的报告数；最旧的先被丢弃。 |
 
 ### 未付费账户看到什么

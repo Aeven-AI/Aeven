@@ -836,7 +836,10 @@ export interface Config {
   accountsRoot?: string
   /** Milliseconds between storage measurements of every account folder. */
   storageIntervalMs?: number
-  /** Providers whose turns the Aeven API already bills as inference; a turn on any other provider is metered. */
+  /**
+   * Providers whose turns the Aeven API already bills as inference; a turn on any other provider is metered. Defaults to
+   * the provider `@aeven/llm-aeven` registers, read from its own constant so a rename there cannot bill Aeven turns.
+   */
   billedProviders?: string[]
   /** Most reports kept per owner while the API is unreachable; older reports are dropped first. */
   maxQueuedPerOwner?: number
