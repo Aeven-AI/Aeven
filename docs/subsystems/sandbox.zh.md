@@ -266,4 +266,47 @@ overrideOf(session: Session): SandboxMode | undefined
 Types: [Session](session.zh.md)
 
 Source: [`packages/sandbox/sandbox-policy/src/index.ts`](../../packages/sandbox/sandbox-policy/src/index.ts)
+
+<a id="sandbox-jail-events"></a>
+
+### `sandbox-jail/*` events
+
+<a id="sandbox-jailadmit--bail"></a>
+
+#### `sandbox-jail/admit` — bail
+
+Ask whether an account may start a confined command. A listener returns the reason it may not, which the caller reads as the `SANDBOX_UNAVAILABLE` message; no answer admits the command. Synchronous, because confinement is: an answer that needs I/O comes from the listener's own cache.
+
+```ts cordis-catalog
+/**
+ * Ask whether an account may start a confined command. A listener returns the reason it may not, which the
+ * caller reads as the `SANDBOX_UNAVAILABLE` message; no answer admits the command. Synchronous, because
+ * confinement is: an answer that needs I/O comes from the listener's own cache.
+ * @param account - the account path segment, which is the owner of the account's sessions.
+ * @mode bail
+ */
+'sandbox-jail/admit'(account: string): string | undefined
+```
+
+Source: [`packages/sandbox/sandbox-jail/src/index.ts`](../../packages/sandbox/sandbox-jail/src/index.ts)
+
+<a id="sandbox-jailusage--emit"></a>
+
+#### `sandbox-jail/usage` — emit
+
+CPU time an account's confined commands used, reported every `usageIntervalMs` for each account that used any, and once more when the provider stops. Emitted only while `cgroup` is configured, since the account cgroup is what counts it.
+
+```ts cordis-catalog
+/**
+ * CPU time an account's confined commands used, reported every `usageIntervalMs` for each account that used any,
+ * and once more when the provider stops. Emitted only while `cgroup` is configured, since the account cgroup is
+ * what counts it.
+ * @param usage - `account`, the account path segment, which is the owner of the account's sessions, and
+ *   `cpuSeconds`, the CPU time summed over every process of its cgroup since the previous report.
+ * @mode emit
+ */
+'sandbox-jail/usage'(usage: { account: string; cpuSeconds: number }): void
+```
+
+Source: [`packages/sandbox/sandbox-jail/src/index.ts`](../../packages/sandbox/sandbox-jail/src/index.ts)
 <!-- END GENERATED cordis-surface -->

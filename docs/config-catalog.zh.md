@@ -569,8 +569,11 @@ export interface Config {
 ```ts config-catalog
 /** Deployment limits for unattended local agent work. */
 export interface Config {
-  /** Most runs of this host that may execute at once; a queued run starts when one of them finishes. */
-  readonly maxConcurrentRuns: number
+  /**
+   * Most runs of one account that may execute at once on this Host; that account's next queued run starts when one
+   * of them finishes. Each account counts only its own runs. Absent, every queued run starts at once.
+   */
+  readonly maxConcurrentRunsPerAccount?: number
   /** Budget of one run in minutes, counted from its start; a run still active at the deadline is cancelled. */
   readonly runTimeoutMinutes: number
   /**
@@ -617,11 +620,18 @@ export interface HostProfile {
   readonly kind: 'cloud' | 'device'
   /** The device capabilities runs on this Host can use. */
   readonly provides: readonly DeviceCapability[]
+  /** The Host's device id in the account's vault; absent on a Host registered by a build that did not record it. */
+  readonly device?: HostDevice | undefined
 }
 
 /** Something a task needs from one of its owner's own computers; everything else is available on every Host. */
 export type DeviceCapability = 'files' | 'browser' | 'computer-use'
+
+/** A device's id in its account's sync vault. */
+export type HostDevice = NonNullable<SyncStatus['device']>
 ```
+
+依赖：[`SyncStatus`](../packages/sync/sync/src/index.ts)
 
 来源：[`packages/core/automations/src/index.ts`](../packages/core/automations/src/index.ts)
 
@@ -804,6 +814,36 @@ export interface Config {
 ```
 
 来源：[`packages/client/modules/src/index.ts`](../packages/client/modules/src/index.ts)
+
+<a id="aevencloud-meter"></a>
+
+## `@aeven/cloud-meter`
+
+需要：`credentials`
+
+```ts config-catalog
+/** Where reports go, how often, and which turns are already billed through inference. */
+export interface Config {
+  /** Aeven API origin, e.g. `https://aeven.io`. */
+  apiUrl: string
+  /** Credential holding each owner's Aeven session; defaults to `AEVEN_TOKEN`. */
+  credentialRef?: string
+  /** Milliseconds between sends of the queued reports. */
+  flushIntervalMs?: number
+  /** Milliseconds a quote of an owner's funding stays fresh. */
+  quoteTtlMs?: number
+  /** Directory whose direct children are account folders named by owner; omitted, storage is not metered. */
+  accountsRoot?: string
+  /** Milliseconds between storage measurements of every account folder. */
+  storageIntervalMs?: number
+  /** Providers whose turns the Aeven API already bills as inference; a turn on any other provider is metered. */
+  billedProviders?: string[]
+  /** Most reports kept per owner while the API is unreachable; older reports are dropped first. */
+  maxQueuedPerOwner?: number
+}
+```
+
+来源：[`packages/host/cloud-meter/src/index.ts`](../packages/host/cloud-meter/src/index.ts)
 
 <a id="aevencode-runtime-worker-thread"></a>
 
@@ -3640,6 +3680,8 @@ export interface Config {
    * the jail adds nothing to the prompt.
    */
   modelNote?: string
+  /** Milliseconds between `sandbox-jail/usage` reports of each account's CPU time; read only with `cgroup`. */
+  usageIntervalMs?: number
 }
 
 /** cgroup placement for confined commands. */

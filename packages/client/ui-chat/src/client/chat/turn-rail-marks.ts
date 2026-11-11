@@ -2,9 +2,10 @@
  * The turn rail's marks: the host outline joined with the loaded window, then
  * sampled to what the rail can actually show.
  *
- * The outline names every turn of the session; the loaded window knows which
- * of them have rendered rows. A loaded mark scrolls locally, an unloaded one
- * anchors a new window on its `turn/start` seq — so every turn is reachable
+ * The outline names every human message of the session — each turn's opening
+ * prompt and every message that steered a running turn — and the loaded window
+ * knows which turns have rendered rows. A loaded mark scrolls locally, an
+ * unloaded one anchors a new window on its seq — so every message is reachable
  * whatever the client holds.
  *
  * @module
@@ -13,16 +14,24 @@
 import { SessionSeq } from '@aeven/session/types'
 import type {} from '@aeven/session-turn-outline/client'
 
-/** One rail mark: a turn, and how the rail reaches it. */
+/** One rail mark: a human message, and how the rail reaches it. */
 export interface TurnRailMark {
+  /** The turn the message belongs to. */
   readonly turn: number
-  /** The turn's `turn/start` seq — the jump anchor, and a stable React key. */
+  /** The message's 1-based position among every human message of the session. */
+  readonly message: number
+  /** The message opened its turn, rather than steering it while it ran. */
+  readonly opener: boolean
+  /**
+   * The jump anchor and a stable React key: the turn's `turn/start` seq for an
+   * opener, the message's own `user/message` seq otherwise.
+   */
   readonly seq: SessionSeq
-  /** Rows for this turn are in the loaded window, so the rail scrolls to them. */
+  /** Rows for the message's turn are in the loaded window, so the rail scrolls to them. */
   readonly loaded: boolean
-  /** Bounded prompt preview; `''` when the turn opened with no eligible text. */
+  /** Bounded message preview; `''` when the message carries no eligible text. */
   readonly prompt: string
-  /** Bounded response preview; `''` until the turn produces assistant text. */
+  /** Bounded response preview; `''` until the message is answered with assistant text. */
   readonly response: string
 }
 
@@ -30,7 +39,7 @@ export interface TurnRailMark {
  * Most marks the rail will render.
  *
  * The band is a fixed height and a mark needs its own pixels, so past this
- * count the rail samples instead of showing every turn: 200 marks in a ~420px
+ * count the rail samples instead of showing every message: 200 marks in a ~420px
  * band sit ~2px apart, a 1px line and a 1px gap, and the rail's hover
  * magnifier spreads the ones under the pointer apart. Sampling above it keeps
  * the rail a scrubber over the whole session rather than an unreadable comb,
@@ -71,20 +80,29 @@ function outlineEntry(value: unknown): { turn: number; seq: SessionSeq; prompt: 
  * Sampling is derived from the outline's length alone, never from what is
  * loaded, so paging history in changes a mark's `loaded` flag but never the
  * set of marks or their order: marks do not move under the reader as pages
- * arrive. The newest turn is always kept — it is the one a reader returns to.
+ * arrive. The newest message is always kept — it is the one a reader returns to.
  * @param outline - the `turnOutline` projection value, treated as wire data.
  * @param loadedTurns - turns with rendered rows in the current window.
- * @returns marks in ascending turn order; a stable empty array when none.
+ * @returns marks in ascending seq order; a stable empty array when none.
  */
 export function turnRailMarks(
   outline: unknown,
   loadedTurns: ReadonlySet<number>,
 ): readonly TurnRailMark[] {
   if (!Array.isArray(outline) || outline.length === 0) return EMPTY_MARKS
-  const entries: { turn: number; seq: SessionSeq; prompt: string; response: string }[] = []
+  const entries: Omit<TurnRailMark, 'loaded'>[] = []
   for (const raw of outline) {
     const entry = outlineEntry(raw)
-    if (entry !== undefined) entries.push(entry)
+    if (entry === undefined) continue
+    const previous = entries.at(-1)
+    // The outline is ordered by seq; a damaged entry out of that order cannot
+    // be placed on the ladder.
+    if (previous !== undefined && (entry.seq <= previous.seq || entry.turn < previous.turn)) continue
+    entries.push({
+      ...entry,
+      message: entries.length + 1,
+      opener: previous === undefined || previous.turn !== entry.turn,
+    })
   }
   if (entries.length === 0) return EMPTY_MARKS
   const stride = Math.ceil(entries.length / MAX_RAIL_MARKS)
@@ -93,10 +111,10 @@ export function turnRailMarks(
     const entry = entries[index] as (typeof entries)[number]
     marks.push({ ...entry, loaded: loadedTurns.has(entry.turn) })
   }
-  // A stride that does not divide the outline evenly leaves the newest turn
+  // A stride that does not divide the outline evenly leaves the newest message
   // off the ladder; the rail must always offer the live end.
   const newest = entries[entries.length - 1] as (typeof entries)[number]
-  if (marks[marks.length - 1]?.turn !== newest.turn) {
+  if (marks[marks.length - 1]?.seq !== newest.seq) {
     marks.push({ ...newest, loaded: loadedTurns.has(newest.turn) })
   }
   return marks

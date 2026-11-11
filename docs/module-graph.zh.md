@@ -302,6 +302,7 @@ flowchart TD
     pkg_turn_review["turn-review"]
   end
   subgraph group_host["packages/host"]
+    pkg_cloud_meter["cloud-meter"]
     pkg_host_account_integrations["host-account-integrations"]
     pkg_host_directory_picker["host-directory-picker"]
     pkg_host_directory_picker_auto["host-directory-picker-auto"]
@@ -780,6 +781,9 @@ flowchart TD
   pkg_turn_review --> pkg_llm
   pkg_turn_review --> pkg_session
   pkg_turn_review --> pkg_timeout
+  pkg_cloud_meter --> pkg_agent
+  pkg_cloud_meter --> pkg_credentials
+  pkg_cloud_meter --> pkg_sandbox_jail
   pkg_host_workspace_files --> pkg_client_connection
   pkg_host_workspace_files --> pkg_host_webserver
   pkg_host_workspace_files --> pkg_workspace
@@ -1521,6 +1525,7 @@ flowchart TD
   pkg_automations --> pkg_llm
   pkg_automations --> pkg_permission_presets
   pkg_automations --> pkg_session
+  pkg_automations --> pkg_session_handoff
   pkg_automations --> pkg_session_title
   pkg_automations --> pkg_storage_domain
   pkg_automations --> pkg_sync
@@ -1870,6 +1875,7 @@ flowchart TD
 | [`document-extract-video`](../packages/document/document-extract-video) | `document` | [`document-extract`](../packages/document/document-extract), [`speech-to-text`](../packages/speech/speech-to-text), [`subprocess`](../packages/subprocess/subprocess) |
 | [`fs-e2b`](../packages/e2b/fs-e2b) | `e2b` | [`e2b`](../packages/e2b/e2b), [`fs`](../packages/fs/fs) |
 | [`turn-review`](../packages/guard/turn-review) | `guard` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`timeout`](../packages/util/timeout) |
+| [`cloud-meter`](../packages/host/cloud-meter) | `host` | [`agent`](../packages/core/agent), [`credentials`](../packages/credentials/credentials), [`sandbox-jail`](../packages/sandbox/sandbox-jail) |
 | [`host-workspace-files`](../packages/host/workspace-files) | `host` | [`client-connection`](../packages/client/connection), [`host-webserver`](../packages/host/webserver), [`workspace`](../packages/workspace/workspace) |
 | [`user-approval`](../packages/interaction/user-approval) | `interaction` | [`agent`](../packages/core/agent), [`brand`](../packages/util/brand), [`invariants`](../packages/runtime-diagnostics/invariants), [`llm`](../packages/llm/llm), [`scope`](../packages/core/scope), [`session`](../packages/core/session), [`system-prompt`](../packages/core/system-prompt) |
 | [`user-questions`](../packages/interaction/user-questions) | `interaction` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`scope`](../packages/core/scope) |
@@ -1992,7 +1998,7 @@ flowchart TD
 | [`tool-ralph`](../packages/workflow/tool-ralph) | `workflow` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`subagent`](../packages/subagent/subagent), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools), [`workflow`](../packages/workflow/workflow) |
 | [`workflow-worker-thread`](../packages/workflow/workflow-worker-thread) | `workflow` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent), [`tools`](../packages/core/tools), [`workflow`](../packages/workflow/workflow) |
 | [`token-meter`](../packages/llm/token-meter) | `llm` | [`compaction`](../packages/compaction/compaction), [`llm`](../packages/llm/llm), [`llm-cache-warm`](../packages/llm/llm-cache-warm), [`llm-retry`](../packages/llm/llm-retry), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection) |
-| [`automations`](../packages/core/automations) | `core` | [`agent`](../packages/core/agent), [`agent-default-model`](../packages/core/agent-default-model), [`agent-presets`](../packages/preset/agent-presets), [`brand`](../packages/util/brand), [`client-connection`](../packages/client/connection), [`identity-user`](../packages/identity/user), [`llm`](../packages/llm/llm), [`permission-presets`](../packages/interaction/permission-presets), [`session`](../packages/core/session), [`session-title`](../packages/session/session-title), [`storage-domain`](../packages/storage/storage-domain), [`sync`](../packages/sync/sync), [`tools`](../packages/core/tools), [`user-approval`](../packages/interaction/user-approval), [`workspace`](../packages/workspace/workspace) |
+| [`automations`](../packages/core/automations) | `core` | [`agent`](../packages/core/agent), [`agent-default-model`](../packages/core/agent-default-model), [`agent-presets`](../packages/preset/agent-presets), [`brand`](../packages/util/brand), [`client-connection`](../packages/client/connection), [`identity-user`](../packages/identity/user), [`llm`](../packages/llm/llm), [`permission-presets`](../packages/interaction/permission-presets), [`session`](../packages/core/session), [`session-handoff`](../packages/session/session-handoff), [`session-title`](../packages/session/session-title), [`storage-domain`](../packages/storage/storage-domain), [`sync`](../packages/sync/sync), [`tools`](../packages/core/tools), [`user-approval`](../packages/interaction/user-approval), [`workspace`](../packages/workspace/workspace) |
 | [`subagent-fork-in-process`](../packages/subagent/subagent-fork-in-process) | `subagent` | [`agent`](../packages/core/agent), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent), [`subagent-in-process-driver`](../packages/subagent/subagent-in-process-driver) |
 | [`subagent-spawn-in-process`](../packages/subagent/subagent-spawn-in-process) | `subagent` | [`subagent`](../packages/subagent/subagent), [`subagent-in-process-driver`](../packages/subagent/subagent-in-process-driver) |
 | [`command-compact`](../packages/compaction/command-compact) | `compaction` | [`commands`](../packages/interaction/commands), [`compaction`](../packages/compaction/compaction) |

@@ -81,6 +81,26 @@ declare module '@deepseek-ai/cordis' {
     /** Sources of the Git credentials the jail's egress proxy sends for an account; present while `egress` is configured. */
     sandboxGitCredentials: GitCredentials
   }
+
+  interface Events {
+    /**
+     * CPU time an account's confined commands used, reported every `usageIntervalMs` for each account that used any,
+     * and once more when the provider stops. Emitted only while `cgroup` is configured, since the account cgroup is
+     * what counts it.
+     * @param usage - `account`, the account path segment, which is the owner of the account's sessions, and
+     *   `cpuSeconds`, the CPU time summed over every process of its cgroup since the previous report.
+     * @mode emit
+     */
+    'sandbox-jail/usage'(usage: { account: string; cpuSeconds: number }): void
+    /**
+     * Ask whether an account may start a confined command. A listener returns the reason it may not, which the
+     * caller reads as the `SANDBOX_UNAVAILABLE` message; no answer admits the command. Synchronous, because
+     * confinement is: an answer that needs I/O comes from the listener's own cache.
+     * @param account - the account path segment, which is the owner of the account's sessions.
+     * @mode bail
+     */
+    'sandbox-jail/admit'(account: string): string | undefined
+  }
 }
 
 /** The egress proxy's deployment: what jailed commands may reach on the network, and how much. */
@@ -187,6 +207,8 @@ export interface Config {
    * the jail adds nothing to the prompt.
    */
   modelNote?: string
+  /** Milliseconds between `sandbox-jail/usage` reports of each account's CPU time; read only with `cgroup`. */
+  usageIntervalMs?: number
 }
 
 const limits: z<CgroupLimits> = z.object({
@@ -288,6 +310,7 @@ export class JailSandboxProvider extends SandboxProvider {
     quotaRecord: z.string(),
     unlimitedAccounts: z.array(z.string()).default([]),
     modelNote: z.string(),
+    usageIntervalMs: z.natural().min(1000).default(60_000),
   })
 
   private readonly accountsRoot: string
@@ -361,6 +384,23 @@ export class JailSandboxProvider extends SandboxProvider {
       ctx.effect(() => () => {
         cgroups.removeIdle()
       }, 'sandbox-jail account cgroups')
+      // Registered after the cgroup effect so it is disposed first and reads the groups before they are removed.
+      const reported = new Map<string, number>()
+      const report = () => {
+        for (const [account, usec] of cgroups.cpuUsec()) {
+          const previous = reported.get(account) ?? 0
+          if (usec <= previous) continue
+          reported.set(account, usec)
+          ctx.emit('sandbox-jail/usage', { account, cpuSeconds: (usec - previous) / 1_000_000 })
+        }
+      }
+      ctx.effect(() => {
+        const timer = setInterval(report, config.usageIntervalMs as number)
+        return () => {
+          clearInterval(timer)
+          report()
+        }
+      }, 'sandbox-jail usage reports')
     }
     const zygote = config.pythonZygote
     if (zygote !== undefined) {
@@ -462,6 +502,8 @@ export class JailSandboxProvider extends SandboxProvider {
     if (account === undefined) {
       throw new SandboxUnavailableError(policy.mode, `workspace "${workspaceRoot}" is not inside one account directory of "${this.accountsRoot}"`)
     }
+    const refusal = this.ctx.bail('sandbox-jail/admit', account)
+    if (refusal !== undefined) throw new SandboxUnavailableError(policy.mode, refusal)
     // Extra roots come from files a command can write, such as a `.git` naming a shared git
     // directory; one outside the account is left out rather than refusing the folder for good.
     const additionalWritableRoots = (policy.additionalWritableRoots ?? [])

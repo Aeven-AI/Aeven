@@ -63,6 +63,7 @@ Choose it for a multi-account Linux Host. Choose `avn-sandbox-local` for a perso
 | `commandUser` | none | `exec`, `group`, and `accountsPath` that run confined commands and the zygote as a separate sandbox user |
 | `egress` | none | Network access for confined commands: the proxy's `node`, `script`, `relay`, `socketDir`, optional `exec` helper that runs it as its own user, the relay `port`, the `allow` host list and `ports`, the `gitHosts` whose Git requests carry the account's credential, per-account and combined connection and byte bounds, timeouts, and the proxy's cgroup `limits`; needs `cgroup` |
 | `pythonZygote` | none | `python`, `script`, `preload`, `socketDir`, and cgroup `limits` of a preloaded Python interpreter that runs jailed `python3` commands; needs `cgroup` and `seccompFilter` |
+| `usageIntervalMs` | `60000` | Milliseconds between `sandbox-jail/usage` reports of each account's CPU time; read only with `cgroup` |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#aevensandbox-jail) is the exhaustive source for every accepted field and its JSDoc.
 
@@ -96,7 +97,7 @@ Each step runs once per machine, as root unless noted.
 
 ### Failures and recovery
 
-Startup fails loud when the launcher cannot enforce Landlock, when bubblewrap cannot create the jail's namespaces (the AppArmor profile is missing), or when the cgroup directory is not delegated. A call whose workspace root is outside one account folder throws `SANDBOX_UNAVAILABLE`. A command that writes outside its folder, `/tmp`, or `/dev/shm` fails with `Read-only file system` or `Permission denied`, which the bash tool reports as a sandbox denial.
+Startup fails loud when the launcher cannot enforce Landlock, when bubblewrap cannot create the jail's namespaces (the AppArmor profile is missing), or when the cgroup directory is not delegated. A call whose workspace root is outside one account folder throws `SANDBOX_UNAVAILABLE`. A call whose account a `sandbox-jail/admit` listener refuses also throws `SANDBOX_UNAVAILABLE`, with that listener's reason as its message. A command that writes outside its folder, `/tmp`, or `/dev/shm` fails with `Read-only file system` or `Permission denied`, which the bash tool reports as a sandbox denial.
 
 -----
 
@@ -122,6 +123,8 @@ Startup fails loud when the launcher cannot enforce Landlock, when bubblewrap ca
 ### One call
 
 `confine()` canonicalizes the workspace root, takes the account from its first path component under `accountsRoot`, and builds `bwrap … -- /run/aeven/landlock-run … -- <argv>`. With cgroups configured, a `/bin/sh` step first moves itself into the account's group and then `exec`s bubblewrap, so the jail and everything it starts are counted there. A failed move exits 125 with a `sandbox-jail:` line, which consumers classify as a runner failure.
+
+Before it wraps the call, `confine()` dispatches the synchronous `sandbox-jail/admit` bail event with the account; a returned reason refuses the call. With cgroups configured, the provider reads `usage_usec` from `cpu.stat` of every account group it created in this Host lifetime every `usageIntervalMs`, and once more when it stops, and emits `sandbox-jail/usage` with the CPU seconds an account used since its previous report. [`@aeven/cloud-meter`](../../host/cloud-meter/README.md) listens to both.
 
 ### Host files
 

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The `host/` group provides the web GUI's plain HTTP server, the SPA dist server that serves the built Web shell, the workspace-directory picking seam with its native, browse, and adaptive composition packages, and the read-only plugin inventory projection. All seven packages are product packages; the browser transport lives in [`client/`](../client/README.md), and the composed application is [`apps/cli`](../../apps/cli/README.md) booting the [`avn-base` bundle](../bundle/base/cordis.patch.yml) that serves the web app under `apps/web/`. The picker backends replace one another behind the shared seam.
+The `host/` group provides the web GUI's plain HTTP server, the SPA dist server that serves the built Web shell, the workspace-directory picking seam with its native, browse, and adaptive composition packages, the read-only plugin inventory projection, and the hosted Host's cloud usage meter. All eight packages are product packages; the browser transport lives in [`client/`](../client/README.md), and the composed application is [`apps/cli`](../../apps/cli/README.md) booting the [`avn-base` bundle](../bundle/base/cordis.patch.yml) that serves the web app under `apps/web/`. The picker backends replace one another behind the shared seam.
 
 ## Table of Contents
 
@@ -22,7 +22,7 @@ The `host/` group provides the web GUI's plain HTTP server, the SPA dist server 
 <a id="packages"></a>
 ## Packages
 
-Seven packages play the host roles; each package README owns its contract and configuration.
+Eight packages play the host roles; each package README owns its contract and configuration.
 
 | Package | Role | ctx key |
 |---|---|---|
@@ -33,6 +33,7 @@ Seven packages play the host roles; each package README owns its contract and co
 | [`directory-picker-browse/`](directory-picker-browse/README.md) | In-app directory-browser backend, including for remote clients | registers `ctx.directoryPicker` |
 | [`directory-picker-auto/`](directory-picker-auto/README.md) | Host-adaptive chooser that mounts the matching backend at boot | mounts a backend |
 | [`plugin-inventory/`](plugin-inventory/README.md) | Read-only projection of current Loader entries | Remote `pluginInventory/list` |
+| [`cloud-meter/`](cloud-meter/README.md) | Hosted-Host metering of jailed CPU time, storage and own-model turns, and the gate on unfunded accounts | listens to `sandbox-jail/usage`, `sandbox-jail/admit`, `agent/request` |
 
 -----
 

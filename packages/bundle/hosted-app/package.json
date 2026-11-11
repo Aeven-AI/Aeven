@@ -36,6 +36,7 @@
   "dependencies": {
     "@aeven/api-motion": "workspace:^",
     "@aeven/client-ui-desktop-handoff": "workspace:^",
+    "@aeven/cloud-meter": "workspace:^",
     "@aeven/client-ui-workspace-name": "workspace:^",
     "@aeven/motion": "workspace:^",
     "@aeven/motion-sandbox": "workspace:^",

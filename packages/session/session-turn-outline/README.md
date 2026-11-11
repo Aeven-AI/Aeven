@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-session-turn-outline` serves the whole-log turn outline — every started turn with its `turn/start` seq and bounded prompt and final-response previews — as the `turnOutline` projection unit. A client that pages history in windows reads the outline to offer every turn of the session (loaded or not) and to target its backwards paging at the exact seq that brings a turn's events in. Choose it in compositions that already mount the projection registry, such as the web app bundle whose chat turn rail is the reference consumer; assemblies without the registry are unaffected and their consumers fall back to loaded-window navigation. Setup and entry semantics come first; the fold internals live in a collapsible developer section below.
+`avn-session-turn-outline` serves the whole-log turn outline — one entry per human message of every started turn, including messages that steer a running turn, each with its jump seq and bounded message and response previews — as the `turnOutline` projection unit. A client that pages history in windows reads the outline to offer every message of the session (loaded or not) and to target its backwards paging at the exact seq that brings that message's events in. Choose it in compositions that already mount the projection registry, such as the web app bundle whose chat turn rail is the reference consumer; assemblies without the registry are unaffected and their consumers fall back to loaded-window navigation. Setup and entry semantics come first; the fold internals live in a collapsible developer section below.
 
 ## Table of Contents
 
@@ -39,12 +39,12 @@ Mount the plugin beside the session store and the projection registry when clien
 
 | Field | Meaning |
 |---|---|
-| `turn` | Host-assigned turn number from the `turn/start` payload |
-| `seq` | The turn's `turn/start` event seq — paging a window back through this seq loads the whole turn |
-| `prompt` | Preview of the turn's first human prompt (space-joined text blocks, collapsed whitespace, 50-character cap with a trailing ellipsis when clipped — one rail-card line); `''` until an eligible prompt lands |
-| `response` | Preview of the turn's final text-bearing assistant message (same normalization, 120-character cap — up to three rail-card lines); `''` until the turn ends with assistant text |
+| `turn` | Host-assigned number of the turn the message belongs to, from the `turn/start` payload |
+| `seq` | Jump anchor: the turn's `turn/start` seq for its opening entry — paging a window back through it loads the whole turn — and the message's own `user/message` seq for a steering entry |
+| `prompt` | Preview of the message text (space-joined text blocks, collapsed whitespace, 50-character cap with a trailing ellipsis when clipped — one rail-card line); `''` until the opening prompt lands, and for an images-only message |
+| `response` | Preview of the newest text-bearing assistant message after this message and before the next one (same normalization, 120-character cap — up to three rail-card lines); `''` until such text lands |
 
-The wire value is the complete entry array, strictly increasing by `turn` (whole-value rule): consumers replace, never merge. Prompts fill only from `user/message` events with the human `user` source, so injected context and tool results never leak into navigation; a turn whose prompt is images-only keeps `''` and consumers label it by number. The response tracks the newest text-bearing `assistant/message` on the open turn, so an interrupted turn keeps the text it reached. Preview budgets match the chat rail's loaded-turn previews, so a turn shows the same words before and after its events load.
+The wire value is the complete entry array, strictly increasing by `seq` and non-decreasing by `turn` (whole-value rule): consumers replace, never merge. Entries come only from `user/message` events with the human `user` source, so injected context and tool results never leak into navigation; an images-only message keeps `''` and consumers label it by number. The response tracks the newest text-bearing `assistant/message` on the open entry, so an interrupted turn keeps the text it reached. Preview budgets match the chat rail's loaded-turn previews, so a message shows the same words before and after its events load.
 
 ### Failures and recovery
 
@@ -62,7 +62,7 @@ This section explains the fold behind the outline; the observable behavior is fu
 
 ### Design concept
 
-The unit is a pure fold over committed session events. `turn/start` — not the prompt `user/message` — anchors each entry because its seq is the load-through target for a jump: the agent loop logs `turn/start` before the turn's prompt and steps, so a window paged back through that seq contains the whole turn. The prompt fills from the first human `user/message`, and only while the newest entry is still empty — later human messages in the same turn (steering) keep the first preview. The response cannot fill the same way (`turn/end` carries no text), so each text-bearing `assistant/message` overwrites the open turn's response — the newest text wins, which is the loaded rail's `findLast` semantic.
+The unit is a pure fold over committed session events. A turn's opening entry is anchored on `turn/start` — not the prompt `user/message` — because its seq is the load-through target for a jump: the agent loop logs `turn/start` before the turn's prompt and steps, so a window paged back through that seq contains the whole turn. The turn's first human `user/message` fills that entry's prompt; every later human message in the same turn (steering) settles the open entry and opens one of its own, anchored on its own seq. The response cannot fill from the message (`turn/end` carries no text), so each text-bearing `assistant/message` overwrites the open entry's response — the newest text wins, which is the loaded rail's `findLast` semantic.
 
 ### Source map
 
@@ -77,7 +77,7 @@ The unit is a pure fold over committed session events. `turn/start` — not the 
 
 - Uninteresting events return the same state reference, and the wire view is memoized per state, so the registry's two `Object.is` gates suppress republication when nothing the client reads has changed.
 - A `turn/start` that does not advance the turn number is skipped, keeping the outline sorted; a retried boundary's previews then land on the standing entry.
-- State keeps the open turn apart from the settled ones: previews change several times within a turn and rewrite one small object, while the outline array is rebuilt once per turn, when the open turn closes. The wire view concatenates the two and is cached per state.
+- State keeps the open entry apart from the settled ones: previews change several times per entry and rewrite one small object, while the outline array is rebuilt once per entry, when the open entry closes. The wire view concatenates the two and is cached per state.
 
 </details>
 
@@ -110,9 +110,9 @@ None; the package never assembles or sends provider requests.
 
 These limits define what the outline describes and when the unit is absent. They are current package constraints.
 
-- **The wire value grows with the session** — every push carries the complete outline (whole-value rule), up to ~600 bytes per turn at full CJK budgets and typically far less; splitting previews into an on-demand read is deferred until sessions with many thousands of turns need it.
-- **An open turn's response preview moves while it streams** — it follows the newest text-bearing assistant message, so the words can change until `turn/end`.
-- **A turn without eligible text keeps `''`** — images-only and command-only turns are navigable but labeled by number, and a turn whose steps emit no text gets no response preview.
+- **The wire value grows with the session** — every push carries the complete outline (whole-value rule), up to ~600 bytes per message at full CJK budgets and typically far less; splitting previews into an on-demand read is deferred until sessions with many thousands of messages need it.
+- **An open entry's response preview moves while it streams** — it follows the newest text-bearing assistant message, so the words can change until the next message or `turn/end`.
+- **A message without eligible text keeps `''`** — images-only and command-only messages are navigable but labeled by number, and an entry whose steps emit no text gets no response preview.
 - **Mounted only where the projection registry is composed** — other assemblies serve no `turnOutline` key, and their consumers fall back to loaded-window navigation.
 
 <a id="dev-note"></a>

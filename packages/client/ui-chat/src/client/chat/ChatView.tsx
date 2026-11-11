@@ -16,6 +16,7 @@ import { latestTranscriptSend, TurnPendingRow } from './TurnProcessNodeView.tsx'
 import { ChatNodeSeat } from './ChatNodeSeat.tsx'
 import { TurnRail } from './TurnRail.tsx'
 import { turnRailMarks, type TurnRailMark } from './turn-rail-marks.ts'
+import type { SessionSeq } from '@aeven/session/types'
 import a11yCss from './accessibility.module.css'
 import css from './ChatView.module.css'
 
@@ -73,6 +74,54 @@ function turnHead(row: HTMLElement): { readonly row: HTMLElement; readonly first
     head = sibling
   }
   return { row: head, first: true }
+}
+
+/**
+ * Seq of the human message a row reads under: the nearest user or steering
+ * row at or before it within its Turn. Seats are contiguous flow siblings, as
+ * {@link turnHead} relies on.
+ * @param row - a rendered seat carrying `data-chat-turn`.
+ * @returns the message row's anchor seq, or undefined when none precedes it in the Turn.
+ */
+function messageSeqAt(row: HTMLElement): number | undefined {
+  for (let sibling: Element | null = row; sibling !== null; sibling = sibling.previousElementSibling) {
+    if (!(sibling instanceof HTMLElement) || sibling.dataset.chatTurn !== row.dataset.chatTurn) return undefined
+    const kind = sibling.dataset.chatFlowKind
+    if (kind !== 'user' && kind !== 'steering') continue
+    const seq = Number(sibling.dataset.chatAnchorSeq)
+    return Number.isSafeInteger(seq) ? seq : undefined
+  }
+  return undefined
+}
+
+/**
+ * Rail mark for a reading position: the newest mark of `turn` whose message
+ * is at or before `messageSeq`, falling back to the Turn's first mark, then to
+ * the nearest earlier Turn's when sampling left `turn` without one.
+ * @param marks - the rail's marks in ascending seq order.
+ * @param turn - the Turn being read.
+ * @param messageSeq - seq of the message being read, or undefined for the Turn's opening.
+ * @returns the mark, or undefined when no mark is at or before `turn`.
+ */
+function markAt(marks: readonly TurnRailMark[], turn: number, messageSeq: number | undefined): TurnRailMark | undefined {
+  let best: TurnRailMark | undefined
+  for (const mark of marks) {
+    if (mark.turn > turn) break
+    const opensTurn = best === undefined || best.turn < turn
+    if (mark.turn < turn || opensTurn || (messageSeq !== undefined && mark.seq <= messageSeq)) best = mark
+  }
+  return best
+}
+
+/**
+ * Rail mark for a rendered row.
+ * @param marks - the rail's marks in ascending seq order.
+ * @param row - a rendered seat carrying `data-chat-turn`.
+ * @returns the mark the row reads under, or undefined when none applies.
+ */
+function markForRow(marks: readonly TurnRailMark[], row: HTMLElement): TurnRailMark | undefined {
+  const turn = Number(row.dataset.chatTurn)
+  return Number.isSafeInteger(turn) ? markAt(marks, turn, messageSeqAt(row)) : undefined
 }
 
 /** Select a visible stable node/call identity, falling back only when layout
@@ -232,11 +281,14 @@ export function ChatView({
   const detached = useSession(s => s.detached)
   const pendingLive = useSession(s => s.pendingLive)
   const loadingOlder = useSession(s => s.loadingOlder)
-  // Host-computed whole-log outline: every turn of the session, including the
-  // ones outside the loaded window. The merge below is view-layer only — the
+  // Host-computed whole-log outline: every human message of the session,
+  // including the ones outside the loaded window. The merge below is view-layer only — the
   // conversation snapshot never carries projection values.
   const turnOutline = useProjection('turnOutline')
-  const [activeTurn, setActiveTurn] = useState<number | null>(null)
+  /** Seq of the rail mark the reader is on; see {@link TurnRailMark.seq}. */
+  const [activeMark, setActiveMark] = useState<SessionSeq | null>(null)
+  /** Latest rail marks, read by the mount-once tracking effect and the navigation paths. */
+  const railMarksRef = useRef<readonly TurnRailMark[]>([])
   const turnNavigationRef = useRef<TurnRailMark | null>(null)
   const selectedCallId = useStore(s => s.selection?.callId)
   // Normal folds a completed Turn's process and omits its timing and usage
@@ -493,9 +545,16 @@ export function ChatView({
   const landOnRowRef = useRef<
     (local: HTMLElement, el: HTMLElement, row: HTMLElement, origin: boolean) => void
   >(() => {})
+  /**
+   * Scroll offset a navigation landed at. The navigation's mark holds while the
+   * view stays there, so a Turn that lands at the floor keeps its own mark
+   * rather than the floor's last Turn; the reader's next movement clears it.
+   */
+  const landedTopRef = useRef<number | null>(null)
   landOnRowRef.current = (local, el, row, origin) => {
     el.scrollTop = origin ? 0 : el.scrollTop + flowTop(row, el) - 24
     observedTopRef.current = el.scrollTop
+    landedTopRef.current = el.scrollTop
     anchorRef.current = readingAnchor(local, el)
     const isAtBottom = !detached && el.scrollHeight - el.scrollTop - el.clientHeight <= FOLLOW_THRESHOLD + 1
     atBottomRef.current = isAtBottom
@@ -774,8 +833,9 @@ export function ChatView({
     const local = listRef.current
     if (local === null) return
     const el = scrollerOf(local)
-    const targetTurn = turnNavigationRef.current?.seq === eventNavigation.seq
-      ? turnNavigationRef.current.turn : null
+    const railTarget = turnNavigationRef.current?.seq === eventNavigation.seq ? turnNavigationRef.current : null
+    // An opener lands on its Turn; a steering message lands on its own row.
+    const targetTurn = railTarget?.opener === true ? railTarget.turn : null
     const turnRow = targetTurn === null ? null
       : local.querySelector<HTMLElement>(`[data-chat-turn="${String(targetTurn)}"]:not([hidden])`)
     const exactKey = targetTurn === null
@@ -792,7 +852,7 @@ export function ChatView({
         // destination lands the row it named.
         if (targetTurn === null) landOnRowRef.current(local, el, exactRow, false)
         else landOnTurnRef.current(local, el, exactRow)
-        setActiveTurn(turn)
+        setActiveMark(railTarget?.seq ?? markForRow(railMarksRef.current, exactRow)?.seq ?? null)
         turnNavigationRef.current = null
         setHighlightedNodeKey(eventNavigation.highlight ? exactKey : null)
         completedEventNavigationRef.current = eventNavigation.requestId
@@ -836,8 +896,8 @@ export function ChatView({
         landOnRowRef.current(local, el, row, false)
         // The mark follows what landed: a projection that dropped the requested
         // event leaves the reader on the nearest row, and the rail says so
-        // rather than naming a Turn the flow cannot show.
-        setActiveTurn(turn)
+        // rather than naming a message the flow cannot show.
+        setActiveMark(markForRow(railMarksRef.current, row)?.seq ?? null)
         setHighlightedNodeKey(eventNavigation.highlight ? fallback.key : null)
       }
     }
@@ -858,6 +918,10 @@ export function ChatView({
     () => turnRailMarks(turnOutline, new Set(timeline.turnOrder)),
     [turnOutline, timeline.turnOrder],
   )
+  railMarksRef.current = railMarks
+  /** The tracking effect's mark resolver, rerun when the marks it resolves against change. */
+  const publishMarkRef = useRef<() => void>(() => {})
+  useEffect(() => { publishMarkRef.current() }, [railMarks])
 
   // Active mark tracking. An IntersectionObserver over the turn rows reports
   // crossings off the main thread and costs no layout read; the reading-line
@@ -867,26 +931,44 @@ export function ChatView({
     const local = listRef.current
     if (local === null || typeof IntersectionObserver === 'undefined') return
     const scroller = scrollerOf(local)
-    const visible = new Map<HTMLElement, number>()
+    const visible = new Set<HTMLElement>()
     /**
      * Highest turn number present in the flow. Read from the rows rather than
      * the outline because the mark must name a row the reader can see.
      */
     let lastTurn: number | null = null
+    /** Last row in flow order the band reported; the reader off the floor reads under its message. */
+    let bandRow: HTMLElement | null = null
+    /** `bandRow`'s mark, kept until the row or the marks change so scroll frames walk no rows. */
+    let bandResolved: { row: HTMLElement; marks: readonly TurnRailMark[]; seq: SessionSeq | null } | null = null
+    const bandMark = (): SessionSeq | null => {
+      const marks = railMarksRef.current
+      if (bandRow === null) return null
+      if (bandResolved?.row !== bandRow || bandResolved.marks !== marks) {
+        bandResolved = { row: bandRow, marks, seq: markForRow(marks, bandRow)?.seq ?? null }
+      }
+      return bandResolved.seq
+    }
     /**
      * Publish the mark, resolving the floor case the reading band cannot serve.
      *
      * The band sits near the top of the viewport, so at the end of a transcript
-     * it covers older turns while the tail occupies the bottom: the last turn is
-     * the one turn that can never be inside it, and the newest intersecting turn
-     * is therefore always an earlier one. A reader pinned to the floor is reading
-     * the last turn, so that is the turn marked.
-     * @param bandTurn - the newest turn the band reported, or null when nothing crossed.
+     * it covers older rows while the tail occupies the bottom: the newest
+     * message is the one that can never be inside it. A reader pinned to the
+     * floor is reading the last turn's newest message, so that is the mark.
      */
-    const publishMark = (bandTurn: number | null): void => {
-      const next = atBottomRef.current ? lastTurn : bandTurn
-      if (next !== null) setActiveTurn(current => current === next ? current : next)
+    const publishMark = (): void => {
+      const landedTop = landedTopRef.current
+      if (landedTop !== null) {
+        if (Math.abs(scroller.scrollTop - landedTop) <= 1) return
+        landedTopRef.current = null
+      }
+      const next = atBottomRef.current
+        ? lastTurn === null ? null : markAt(railMarksRef.current, lastTurn, Number.POSITIVE_INFINITY)?.seq ?? null
+        : bandMark()
+      if (next !== null) setActiveMark(current => current === next ? current : next)
     }
+    publishMarkRef.current = publishMark
     const noteTurn = (turn: number): void => {
       if (Number.isSafeInteger(turn) && (lastTurn === null || turn > lastTurn)) lastTurn = turn
     }
@@ -896,21 +978,22 @@ export function ChatView({
         const turn = Number(row.dataset.chatTurn)
         if (!Number.isSafeInteger(turn)) continue
         noteTurn(turn)
-        if (entry.isIntersecting) visible.set(row, turn)
+        if (entry.isIntersecting) visible.add(row)
         else visible.delete(row)
       }
-      // Several turns can cross the band at once; the newest one owns the mark,
-      // matching a reader travelling down the transcript.
-      let next: number | null = null
-      for (const [row, turn] of visible) {
+      // Several rows can cross the band at once; the last in flow order owns
+      // the mark, matching a reader travelling down the transcript.
+      let next: HTMLElement | null = null
+      for (const row of visible) {
         if (!local.contains(row)) {
           visible.delete(row)
           observer.unobserve(row)
           continue
         }
-        if (next === null || turn > next) next = turn
+        if (next === null || (next.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0) next = row
       }
-      publishMark(next)
+      if (next !== null) bandRow = next
+      publishMark()
     }, {
       root: scroller === local ? null : scroller,
       // Collapse the scrollport to a band near its top: the reading line.
@@ -949,44 +1032,59 @@ export function ChatView({
       }
       // A turn that appeared at the floor is the one being read, and the band
       // reports nothing for it: the mark is resolved here instead.
-      publishMark(null)
+      publishMark()
     })
     rows.observe(local, {
       childList: true,
       subtree: true,
       attributeFilter: ['data-chat-turn'],
     })
-    // The band stays silent while nothing crosses it, so a reader who reaches the
-    // floor is still inside the crossing they arrived with and nothing would
-    // correct the mark. Resolving on every commit covers that, a turn appended at
-    // the floor, and a transcript's first rows. State is written only on a change.
-    publishMark(null)
+    // The band stays silent while nothing crosses it, so a reader who scrolls
+    // onto or off the floor is still inside the crossing they arrived with.
+    // Scroll resolves the mark against the floor state the follow listener
+    // keeps; `scrollend` repeats it for the case where that listener was
+    // re-attached after this one and so had not yet updated on the last
+    // `scroll`. State is written only on a change.
+    const target = scroller === local ? window : scroller
+    target.addEventListener('scroll', publishMark, { passive: true })
+    target.addEventListener('scrollend', publishMark, { passive: true })
+    publishMark()
     return () => {
+      target.removeEventListener('scroll', publishMark)
+      target.removeEventListener('scrollend', publishMark)
       rows.disconnect()
       observer.disconnect()
+      publishMarkRef.current = () => {}
     }
   }, [])
 
-  /** Rail jump: a loaded turn scrolls now, an unloaded one anchors a window first. */
+  /**
+   * Rail jump: a loaded message scrolls now, an unloaded one anchors a window
+   * first. An opener lands on its Turn's head; a steering message lands on its
+   * own row.
+   */
   const navigateToTurn = useCallback((mark: TurnRailMark): void => {
-    setActiveTurn(mark.turn)
-    // A Turn destination marks no row, and supersedes a search match that was
+    setActiveMark(mark.seq)
+    // A rail destination marks no row, and supersedes a search match that was
     // still lit from an earlier navigation.
     setHighlightedNodeKey(null)
     forwardPagingArmedRef.current = false
     const local = listRef.current
     if (local === null) return
-    const row = local.querySelector<HTMLElement>(`[data-chat-turn="${String(mark.turn)}"]:not([hidden])`)
+    const row = mark.opener
+      ? local.querySelector<HTMLElement>(`[data-chat-turn="${String(mark.turn)}"]:not([hidden])`)
+      : local.querySelector<HTMLElement>(`[data-chat-anchor-seq="${String(mark.seq)}"]:not([hidden])`)
     if (mark.loaded && row !== null) {
       atBottomRef.current = false
-      landOnTurnRef.current(local, scrollerOf(local), row)
+      if (mark.opener) landOnTurnRef.current(local, scrollerOf(local), row)
+      else landOnRowRef.current(local, scrollerOf(local), row, false)
       return
     }
     // Not in the window: the existing event-navigation path pages history to
     // the seq and lands the row, reporting progress through the head spinner.
     turnNavigationRef.current = mark
     atBottomRef.current = false
-    // No highlight: the reader chose a Turn, not a row inside it.
+    // No highlight: the reader chose a rail mark, not a search match.
     navigateToEvent(mark.seq, { highlight: false })
   }, [navigateToEvent])
 
@@ -1152,7 +1250,7 @@ export function ChatView({
               under it and adds nothing to the scrollable range. */}
           <TurnRail
             marks={railMarks}
-            activeTurn={activeTurn}
+            activeMark={activeMark}
             onNavigate={navigateToTurn}
             t={t}
           />
