@@ -34,7 +34,8 @@
   padding-left: 0;
 }
 
-/* Relative for the bottom fade overlay. */
+/* Relative for the fade overlays; scopes the list's scroll timeline so the
+   sibling top fade can read it. */
 .treeBody {
   flex: 1;
   min-width: 0;
@@ -43,6 +44,7 @@
   display: flex;
   flex-direction: column;
   position: relative;
+  timeline-scope: --session-list;
 }
 
 /* Bottom fade: compact overlay pinned to the visible bottom,
@@ -55,6 +57,37 @@
   height: 24px;
   background: linear-gradient(to bottom, transparent, var(--dsw-specific-sidebar-fill));
   pointer-events: none;
+}
+
+/* Top fade: the bottom fade mirrored, shown only once the list scrolls so the
+   first row is not dimmed at rest. It ramps in over the first 24px of scroll;
+   engines without scroll-driven animations keep it hidden. */
+.fadeTop {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 24px;
+  background: linear-gradient(to top, transparent, var(--dsw-specific-sidebar-fill));
+  pointer-events: none;
+  opacity: 0;
+}
+
+@supports (animation-timeline: scroll()) {
+  .fadeTop {
+    animation: fade-top-in linear both;
+    animation-range: 0 24px;
+  }
+
+  /* A separate, more specific rule: in the same block the minifier folds the
+     timeline into the `animation` shorthand, which Chromium rejects whole. */
+  .treeBody > .fadeTop {
+    animation-timeline: --session-list;
+  }
+}
+
+@keyframes fade-top-in {
+  to { opacity: 1; }
 }
 
 /* Wide-only content fades back in on expand remount (mirrors the shell). */
@@ -78,6 +111,7 @@
   width: 100%;
   overflow-y: auto;
   overflow-x: hidden;
+  scroll-timeline: --session-list y;
   margin: 0;
   padding-left: 0;
   padding-right: 0;
