@@ -10,21 +10,23 @@ import type { ResolvedLinkSafety } from '../sanitize.ts'
  * Sanitization already removes scripting attributes; this is the separate
  * question of *where* a URL may point. Nothing silently vanishes from what the
  * reader was sent: a disallowed link keeps its text and loses its destination,
- * and a disallowed image becomes its alt text — an `<img>` stripped of `src`
- * would render as a broken-image placeholder carrying nothing at all.
+ * and a disallowed image keeps its alt text but loses `src`, carrying the
+ * refused source as `data-blocked-src` so the image component can name it in
+ * its unavailable state. Every component map this renderer builds draws `img`
+ * through that component, so no bare `<img>` without `src` reaches the page.
  *
  * @param config - The resolved rules that decide what is allowed through: the
  *   permitted protocols, link prefixes, image prefixes, whether a
  *   `data:image/` URL may stand in for an image source, and whether a
  *   scheme-less, rootless image source is the host's to resolve.
  * @returns The rehype transform that removes a disallowed destination, and
- *   replaces a rejected image with its alt text.
+ *   moves a rejected image's source to `data-blocked-src`.
  */
 export function rehypeLinkSafety(
   config: ResolvedLinkSafety,
 ): (tree: HastRoot) => void {
   return (tree: HastRoot) => {
-    visit(tree, 'element', (node, index, parent) => {
+    visit(tree, 'element', (node) => {
       if (node.tagName === 'a') {
         const href = node.properties?.['href']
 
@@ -40,25 +42,10 @@ export function rehypeLinkSafety(
         const rejected = typeof src === 'string' ? !allowed(src, true) : true
 
         if (rejected) {
-          if (parent === undefined || index === undefined) {
-            // No parent to splice into (a root-level image is not something
-            // remark produces); dropping the destination is all that is left.
-            delete node.properties['src']
-            return
-          }
-
-          const alt = node.properties?.['alt']
-
-          parent.children.splice(index, 1, {
-            type: 'text',
-            value: typeof alt === 'string' ? alt : '',
-          })
-
-          return index
+          delete node.properties['src']
+          if (typeof src === 'string') node.properties['dataBlockedSrc'] = src
         }
       }
-
-      return undefined
     })
   }
 

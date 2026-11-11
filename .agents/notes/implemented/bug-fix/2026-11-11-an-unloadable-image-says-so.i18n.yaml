@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-11-11-an-unloadable-image-says-so.md
-2026-11-11-an-unloadable-image-says-so.md: 3e43b92eaba4320d32064b916f9341a079a06844
-2026-11-11-an-unloadable-image-says-so.zh.md: e988c42b50270b3f499e607c24ceedbd37bae52c
+2026-11-11-an-unloadable-image-says-so.md: 3ff7a07d3f61545c518c7abc23ebef6e0fd6e7af
+2026-11-11-an-unloadable-image-says-so.zh.md: bb93dade431735b9ad55e1a7cc1fd09d0af47f5a
