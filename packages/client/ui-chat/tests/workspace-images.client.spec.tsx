@@ -42,9 +42,10 @@ describe('workspace image sources', () => {
     expect(workspaceImagePath(cwd, `${cwd.replace(/\/w$/, '')}/other-workspace/shot.png`)).toBeUndefined()
   })
 
-  it('takes a relative path even when the projection knows no workspace root', () => {
+  it('hands any local path to the workspace route when the projection knows no workspace root', () => {
+    // The Host confines the path to the workspace and refuses one outside it.
     expect(workspaceImagePath(undefined, 'shot.png')).toBe('shot.png')
-    expect(workspaceImagePath(undefined, '/tmp/shot.png')).toBeUndefined()
+    expect(workspaceImagePath(undefined, '/tmp/shot.png')).toBe('/tmp/shot.png')
   })
 
   it('leaves remote, embedded and protocol-relative sources to their own resolver', () => {

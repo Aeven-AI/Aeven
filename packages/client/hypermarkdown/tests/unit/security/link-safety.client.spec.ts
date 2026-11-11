@@ -38,9 +38,19 @@ function applyPolicy(
   }
 
   // The transform visits elements and their children, so a bare element stands
-  // in for a whole document on the branch that has no parent to splice into.
+  // in for a whole document.
   rehypeLinkSafety(policy)(tree as HastRoot)
   return tree
+}
+
+/** Assert what a refused image leaves: an `img` without `src` that names the refused source. */
+function expectBlocked(node: RootContent | HastElement | undefined, source: string | undefined, alt?: string): void {
+  expect(node).toMatchObject({ type: 'element', tagName: 'img' })
+  const image = node as HastElement
+  expect(image.properties).not.toHaveProperty('src')
+  if (source === undefined) expect(image.properties).not.toHaveProperty('dataBlockedSrc')
+  else expect(image.properties['dataBlockedSrc']).toBe(source)
+  if (alt !== undefined) expect(image.properties['alt']).toBe(alt)
 }
 
 describe('rehypeLinkSafety', () => {
@@ -76,17 +86,17 @@ describe('rehypeLinkSafety', () => {
     })
 
     expect(link.properties.href).toBe('https://docs.example/page')
-    // A disallowed image becomes its alt text: an <img> with the src removed
-    // would render as a broken-image placeholder carrying nothing.
-    expect(tree.children[1]).toEqual({ type: 'text', value: 'chart' })
+    // A disallowed image loses its src and keeps the refused source, which
+    // the image component names in its unavailable state.
+    expectBlocked(tree.children[1], 'https://cdn.example/image.png', 'chart')
   })
 
-  it('leaves empty text where a disallowed image had no alt', () => {
+  it('keeps the refused source of a disallowed image that had no alt', () => {
     const tree = root([element('img', { src: 'https://cdn.example/x.png' })])
 
     applyPolicy(tree, { allowedImagePrefixes: ['https://images.example/'] })
 
-    expect(tree.children).toEqual([{ type: 'text', value: '' }])
+    expectBlocked(tree.children[0], 'https://cdn.example/x.png')
   })
 
   it('keeps a workspace-relative image source only when the host resolves it', () => {
@@ -94,7 +104,7 @@ describe('rehypeLinkSafety', () => {
 
     const disabled = root([element('img', { src: source, alt: 'the mark' })])
     applyPolicy(disabled, { allowedImagePrefixes: ['https://', '/'] })
-    expect(disabled.children).toEqual([{ type: 'text', value: 'the mark' }])
+    expectBlocked(disabled.children[0], source, 'the mark')
 
     const enabled = root([element('img', { src: source })])
     applyPolicy(enabled, { allowedImagePrefixes: ['https://', '/'], allowRelativeImages: true })
@@ -108,7 +118,7 @@ describe('rehypeLinkSafety', () => {
 
     applyPolicy(tree, { allowedImagePrefixes: ['https://'], allowRelativeImages: true })
 
-    expect(tree.children).toEqual([{ type: 'text', value: 'x' }])
+    expectBlocked(tree.children[0], '//cdn.example/x.png', 'x')
   })
 
   it('allows only image data URLs when explicitly enabled', () => {
@@ -134,20 +144,21 @@ describe('rehypeLinkSafety', () => {
       allowedProtocols: ['https'],
     })
 
-    expect(tree.children).toEqual([{ type: 'text', value: 'logo' }])
+    expectBlocked(tree.children[0], 'data:image/svg+xml;base64,AAAA', 'logo')
   })
 
   it('treats an image whose src sanitization already stripped as rejected', () => {
     // hast-util-sanitize runs first and removes a disallowed scheme outright,
-    // so this stage sees an <img> with no src at all — the same verdict.
+    // so this stage sees an <img> with no src at all — the same verdict, with
+    // no source left to name.
     const tree = root([element('img', { alt: 'diagram' })])
 
     applyPolicy(tree)
 
-    expect(tree.children).toEqual([{ type: 'text', value: 'diagram' }])
+    expectBlocked(tree.children[0], undefined, 'diagram')
   })
 
-  it('removes the source from a rejected image with no parent to replace', () => {
+  it('removes the source from a rejected root-level image', () => {
     const image = element('img', {
       src: 'javascript:alert(1)',
       alt: 'diagram',
@@ -155,8 +166,7 @@ describe('rehypeLinkSafety', () => {
 
     applyPolicy(image)
 
-    expect(image.properties).not.toHaveProperty('src')
-    expect(image.properties.alt).toBe('diagram')
+    expectBlocked(image, 'javascript:alert(1)', 'diagram')
   })
 
   it('ignores unrelated elements and non-string URL properties', () => {
