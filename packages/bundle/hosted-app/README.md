@@ -26,7 +26,7 @@ Boot it with `avn hosted`, which composes base, web, and this bundle on port 308
 <a id="use-this-package"></a>
 ## Use this package
 
-`avn hosted` is the only supported launch. A deployment sets `AVN_API_URL` and `AEVEN_SYNC_URL` to the API and relay it serves, names its public hosts in `AVN_HOSTED_TRUSTED_HOSTS`, and points its proxy at the bound address with WebSocket upgrade for `/sync` and the client socket. Sessions, workspaces, memory, personalization, automations, connectors, mail, and sync key by the signed-in account; settings written through the browser are refused, because the settings document belongs to the Host.
+`avn hosted` is the only supported launch. A deployment sets `AVN_API_URL` and `AEVEN_SYNC_URL` to the API and relay it serves, and `AEVEN_SOCKET_URL` to the API's account socket (default `wss://aeven.io/socket`), names its public hosts in `AVN_HOSTED_TRUSTED_HOSTS`, and points its proxy at the bound address with WebSocket upgrade for `/sync` and the client socket. Sessions, workspaces, memory, personalization, automations, connectors, mail, and sync key by the signed-in account; settings written through the browser are refused, because the settings document belongs to the Host.
 
 ## Understand the implementation
 
