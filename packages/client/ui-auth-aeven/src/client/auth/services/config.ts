@@ -26,6 +26,7 @@ export interface AevenClientConfig {
   readonly webUrl?: string
   readonly mediaUrl?: string
   readonly helpCenterUrl?: string
+  readonly brandUrl?: string
   readonly confettiColors?: readonly string[]
   readonly oauthFlow?: OAuthFlow
 }
@@ -76,6 +77,14 @@ function sameSiteOrigin(configured: string | undefined): string | undefined {
  */
 export function apiUrl(): string {
   return sameSiteOrigin(aevenConfig().apiUrl) ?? ''
+}
+
+/**
+ * The page the sign-in screens' brand mark links to.
+ * @returns the URL, or undefined when this deployment names none and the mark stays unlinked.
+ */
+export function brandUrl(): string | undefined {
+  return aevenConfig().brandUrl
 }
 
 /**

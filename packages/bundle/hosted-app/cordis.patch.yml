@@ -70,6 +70,7 @@
     webUrl: !!js process.env.AEVEN_WEB_URL ?? 'https://aeven.io'
     mediaUrl: !!js process.env.AEVEN_MEDIA_URL ?? 'https://aeven.io'
     helpCenterUrl: !!js process.env.AEVEN_HELP_CENTER_URL ?? 'https://helpcenter.aeven.io'
+    brandUrl: !!js process.env.AEVEN_BRAND_URL ?? 'https://aeven.io'
     jwksCacheFile: !!js avnHomePath('identity', 'aeven-jwks.json')
 
 # ── account sync ────────────────────────────────────────────────────────────

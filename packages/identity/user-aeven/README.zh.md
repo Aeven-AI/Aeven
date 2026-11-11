@@ -54,6 +54,7 @@ kind: "package-reference"
 | `webUrl` | 无 | 账户菜单链接到的 Aeven web 客户端 origin |
 | `mediaUrl` | 无 | 提供已上传媒体的 origin，头像路径相对于它 |
 | `helpCenterUrl` | 无 | 帮助中心 origin；登录界面按读者语言链接其服务条款与隐私政策，缺省时只显示名称不加链接 |
+| `brandUrl` | 无 | 登录界面品牌徽记链接到的页面，例如 Aeven 官网；缺省时徽记不加链接 |
 | `xOAuthUrl`、`appleOAuthUrl`、`googleOAuthUrl` | 无 | 各提供方的登录 URL；缺失某个会隐藏该提供方的按钮 |
 | `oauthFlow` | 无 | 提供方登录如何抵达提供方，配置了任一提供方 URL 时必须声明：`redirect` 让读者的文档前往提供方，`window` 从独立窗口抵达。配置了提供方却未声明时，插件拒绝加载 |
 

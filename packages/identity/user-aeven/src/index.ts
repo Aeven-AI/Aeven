@@ -41,6 +41,7 @@ export interface AevenClientConfig {
   readonly webUrl?: string
   readonly mediaUrl?: string
   readonly helpCenterUrl?: string
+  readonly brandUrl?: string
   readonly oauthFlow?: OAuthFlow
 }
 
@@ -123,6 +124,11 @@ export interface Config {
    */
   helpCenterUrl?: string
   /**
+   * Page the sign-in screens' brand mark links to, such as the Aeven website;
+   * absent leaves the mark unlinked.
+   */
+  brandUrl?: string
+  /**
    * Credential reference the access token this authority verifies answers to.
    *
    * The token is the caller's Aeven session, and `llm-aeven` presents one to
@@ -149,6 +155,7 @@ export const Config: z<Config> = z.object({
   webUrl: z.string(),
   mediaUrl: z.string(),
   helpCenterUrl: z.string(),
+  brandUrl: z.string(),
 })
 
 /** Config after schemastery has filled every defaulted field. */
@@ -304,6 +311,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     const webUrl = sameHostLoopbackUrl(config.webUrl, origin)
     const mediaUrl = sameHostLoopbackUrl(config.mediaUrl, origin)
     const helpCenterUrl = sameHostLoopbackUrl(config.helpCenterUrl, origin)
+    const brandUrl = sameHostLoopbackUrl(config.brandUrl, origin)
     const value: AevenClientConfig = {
       ...apiUrl === undefined ? {} : { apiUrl },
       ...xOAuthUrl === undefined ? {} : { xOAuthUrl },
@@ -313,6 +321,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       ...webUrl === undefined ? {} : { webUrl },
       ...mediaUrl === undefined ? {} : { mediaUrl },
       ...helpCenterUrl === undefined ? {} : { helpCenterUrl },
+      ...brandUrl === undefined ? {} : { brandUrl },
     }
     table.push({ kind: 'global', name: AEVEN_CLIENT_CONFIG_GLOBAL, value })
   })

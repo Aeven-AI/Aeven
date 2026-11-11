@@ -140,6 +140,106 @@ export function watchProviderReturn(onReturned: () => void, signal: AbortSignal)
   signal.addEventListener('abort', () => { clearInterval(timer) }, { once: true })
 }
 
+/** How long a waiting page asks for a handed-off sign-in; the server keeps one for ten minutes. */
+const HANDOFF_WAIT_MS = 10 * 60 * 1000
+
+/** The server route a waiting page collects a handed-off sign-in from. */
+const HANDOFF_CLAIM_PATH = '/oauth/desktop/claim'
+
+/** A redirect-flow provider start that can also finish in another browser. */
+export interface ProviderHandoff {
+  /** The provider's sign-in URL, carrying `app=web` and the verifier's hash. */
+  readonly url: string
+  /** Where the page collects the result. */
+  readonly claimUrl: string
+  /** The secret whose hash the start URL carries; it collects the result. */
+  readonly verifier: string
+}
+
+/** A sign-in another browser finished for this page. */
+export type HandedOffSignIn =
+  | { readonly session: string; readonly challenge: string }
+  | { readonly error: true }
+
+/**
+ * Prepare a provider start for a page that stays open while an installed app
+ * takes the provider page over.
+ *
+ * On a phone the X app opens for x.com and finishes in whatever browser it
+ * prefers, which holds none of this page's session. The start carries the
+ * SHA-256 of a verifier drawn here; the server stores a sign-in finished in
+ * another browser under it, and {@link awaitHandedOffSignIn} collects it. A
+ * sign-in that finishes in this browser redirects as usual and never reaches
+ * the store.
+ * @param url - the provider's sign-in URL as the deployment states it.
+ * @returns the start URL, the claim URL on the same server, and the verifier.
+ */
+export async function prepareProviderHandoff(url: string): Promise<ProviderHandoff> {
+  const verifier = base64Url(crypto.getRandomValues(new Uint8Array(32)))
+  const nonce = base64Url(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))))
+  const start = new URL(url)
+  start.searchParams.set('app', 'web')
+  start.searchParams.set('nonce', nonce)
+  return { url: start.href, claimUrl: new URL(HANDOFF_CLAIM_PATH, start).href, verifier }
+}
+
+/**
+ * Wait for a sign-in another browser finished for this page.
+ * @param handoff - the start {@link prepareProviderHandoff} returned.
+ * @param signal - abandons the wait.
+ * @returns the stored result, or undefined when abandoned or after the server's ten minutes.
+ */
+export async function awaitHandedOffSignIn(handoff: ProviderHandoff, signal: AbortSignal): Promise<HandedOffSignIn | undefined> {
+  const deadline = Date.now() + HANDOFF_WAIT_MS
+  while (!signal.aborted && Date.now() < deadline) {
+    const result = await claimHandoff(handoff)
+    if (result !== undefined) return result
+    await new Promise<void>((resolve) => {
+      const wake = (): void => {
+        clearTimeout(timer)
+        signal.removeEventListener('abort', wake)
+        resolve()
+      }
+      const timer = setTimeout(wake, SESSION_POLL_MS)
+      signal.addEventListener('abort', wake)
+    })
+  }
+  return undefined
+}
+
+/**
+ * Ask the server once for a handed-off sign-in.
+ * @param handoff - the start whose verifier collects the result.
+ * @returns the result once stored, undefined while pending or unreachable.
+ */
+async function claimHandoff(handoff: ProviderHandoff): Promise<HandedOffSignIn | undefined> {
+  try {
+    const response = await fetch(handoff.claimUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ verifier: handoff.verifier }),
+    })
+    if (response.status !== 200) return undefined
+    const body = await response.json() as { session?: unknown; challenge?: unknown }
+    if (typeof body.session === 'string' && typeof body.challenge === 'string') {
+      return { session: body.session, challenge: body.challenge }
+    }
+    return { error: true }
+  } catch {
+    // An unreachable server says nothing about a sign-in still in progress; the next read asks again.
+    return undefined
+  }
+}
+
+/**
+ * Encode bytes as unpadded base64url.
+ * @param bytes - the bytes to encode.
+ * @returns the encoded text.
+ */
+function base64Url(bytes: Uint8Array): string {
+  return btoa(String.fromCharCode(...bytes)).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '')
+}
+
 /**
  * Follow the end of a provider sign-in that produced no session.
  * @param listener - called each time an embedding shell reports one.
