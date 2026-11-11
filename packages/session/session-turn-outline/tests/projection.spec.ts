@@ -1,8 +1,9 @@
 /**
  * The `turnOutline` projection unit: mounting the plugin beside the projection
- * registry serves the whole-log outline — one entry per started turn with its
- * `turn/start` seq and bounded prompt/response previews — and clients read it
- * as the `SessionProjectionMap` wire value.
+ * registry serves the whole-log outline — one entry per human message of every
+ * started turn, the opener anchored on its `turn/start` seq and each steering
+ * message on its own seq, with bounded prompt/response previews — and clients
+ * read it as the `SessionProjectionMap` wire value.
  *
  * The registry drive covers the shipping path (real session, real append,
  * change feed, checkpoint/viewCheckpoint); the fold's own branch coverage for
@@ -87,7 +88,7 @@ describe('turnOutline projection unit (registry drive)', () => {
     expect(snapshot.values.turnOutline).toEqual([])
     expect(snapshot.asOfSeq).toBe(-1)
     expect(ctx.sessionProjections.checkpoint(session).turnOutline)
-      .toEqual({ ver: 3, seq: -1, val: { settled: [], open: null } })
+      .toEqual({ ver: 4, seq: -1, val: { settled: [], open: null, awaitingPrompt: false } })
   })
 
   it('anchors each turn on its turn/start seq and fills prompt then response', async () => {
@@ -131,17 +132,20 @@ describe('turnOutline projection unit (registry drive)', () => {
     expect(changes).toHaveLength(3)
   })
 
-  it('keeps the newest assistant text and the first human prompt for the open turn', async () => {
+  it('opens an entry per steering message, anchored on its own seq, with the newest answer to it', async () => {
     const { ctx, session } = await harness()
     session.append('turn/start', { turn: 1 })
     appendPrompt(session, 'opening prompt')
-    // Steering inside the same turn keeps the first preview: the rail labels a
-    // turn by what opened it.
-    appendPrompt(session, 'steering note')
-    appendResponse(session, 1, 1, 'first answer')
-    appendResponse(session, 1, 2, 'final answer')
-    expect(ctx.sessionProjections.snapshot(session).values.turnOutline)
-      .toEqual([entry(1, 0, 'opening prompt', 'final answer')])
+    appendResponse(session, 1, 1, 'answer to the opening')
+    // Steering inside the same turn is a message of its own: the rail offers
+    // every human message, and the answers after it belong to it.
+    const steerSeq = appendPrompt(session, 'steering note')
+    appendResponse(session, 1, 2, 'first answer')
+    appendResponse(session, 1, 3, 'final answer')
+    expect(ctx.sessionProjections.snapshot(session).values.turnOutline).toEqual([
+      entry(1, 0, 'opening prompt', 'answer to the opening'),
+      entry(1, steerSeq, 'steering note', 'final answer'),
+    ])
   })
 
   it('keeps the text an interrupted turn reached and settles it at the next boundary', async () => {
@@ -230,7 +234,7 @@ describe('turnOutline projection unit (registry drive)', () => {
     expect(outline?.prompt).toBe(`${'x'.repeat(PROMPT_LIMIT - 1)}…`)
   })
 
-  it('serves the version-3 checkpoint through viewCheckpoint with no log read', async () => {
+  it('serves the version-4 checkpoint through viewCheckpoint with no log read', async () => {
     const { ctx, session } = await harness()
     session.append('turn/start', { turn: 1 })
     appendPrompt(session, 'cached prompt')
@@ -241,12 +245,12 @@ describe('turnOutline projection unit (registry drive)', () => {
       .toEqual([entry(1, 0, 'cached prompt', 'cached answer')])
   })
 
-  it('discards a persisted row whose turns are not strictly increasing', async () => {
+  it('discards a persisted row whose entries are not strictly increasing', async () => {
     const { ctx, session } = await harness()
     const checkpoint = ctx.sessionProjections.checkpoint(session)
     const row = checkpoint.turnOutline
     expect(row).toBeDefined()
-    const descending = { settled: [entry(2, 9), entry(1, 3)], open: null }
+    const descending = { settled: [entry(2, 9), entry(1, 3)], open: null, awaitingPrompt: false }
     // The schema rejects it, so the key is absent from the served values: a
     // cold consumer refolds instead of trusting an impossible outline.
     expect(ctx.sessionProjections.viewCheckpoint({
@@ -256,7 +260,7 @@ describe('turnOutline projection unit (registry drive)', () => {
     // A well-formed row of the same shape does serve.
     expect(ctx.sessionProjections.viewCheckpoint({
       ...checkpoint,
-      turnOutline: { ...row!, val: { settled: [entry(1, 3), entry(2, 9)], open: null } },
+      turnOutline: { ...row!, val: { settled: [entry(1, 3), entry(2, 9)], open: null, awaitingPrompt: false } },
     }).turnOutline).toEqual([entry(1, 3), entry(2, 9)])
   })
 
@@ -301,19 +305,20 @@ describe('turnOutline fold (definition, synthetic events)', () => {
 
   it('opens the first turn with empty previews on the first event of the log', () => {
     const state = fold([at(0, 'turn/start', { turn: 1 })])
-    expect(state).toEqual({ settled: [], open: entry(1, 0) })
+    expect(state).toEqual({ settled: [], open: entry(1, 0), awaitingPrompt: true })
   })
 
   it('skips a boundary that does not advance the turn number', () => {
     // A retried or replayed boundary must not reorder the outline; the
-    // standing entry keeps its seq and its previews.
+    // standing entry keeps its seq and its previews, and the message after it
+    // reads as a further message of the same turn.
     const state = fold([
       at(0, 'turn/start', { turn: 1 }),
       at(1, 'user/message', { source: { kind: 'user' }, content: [{ type: 'text', text: 'kept' }] }),
       at(2, 'turn/start', { turn: 1 }),
-      at(3, 'user/message', { source: { kind: 'user' }, content: [{ type: 'text', text: 'ignored' }] }),
+      at(3, 'user/message', { source: { kind: 'user' }, content: [{ type: 'text', text: 'retried' }] }),
     ])
-    expect(state.open).toEqual(entry(1, 0, 'kept'))
+    expect(view(state)).toEqual([entry(1, 0, 'kept'), entry(1, 3, 'retried')])
   })
 
   it('skips a boundary below the newest settled turn', () => {
@@ -332,7 +337,7 @@ describe('turnOutline fold (definition, synthetic events)', () => {
     const outside = fold([
       at(0, 'user/message', { source: { kind: 'user' }, content: [{ type: 'text', text: 'stray' }] }),
     ])
-    expect(outside).toEqual({ settled: [], open: null })
+    expect(outside).toEqual({ settled: [], open: null, awaitingPrompt: false })
 
     const injected = fold([
       at(0, 'turn/start', { turn: 1 }),
@@ -344,14 +349,15 @@ describe('turnOutline fold (definition, synthetic events)', () => {
   it('leaves the prompt empty for content that normalizes to no text', () => {
     const state = fold([
       at(0, 'turn/start', { turn: 1 }),
-      // Non-text blocks and an all-whitespace text block both read as ''.
+      // Non-text blocks and an all-whitespace text block both read as '', and
+      // each is still a message with an entry of its own.
       at(1, 'user/message', { source: { kind: 'user' }, content: [{ type: 'image' }] }),
       at(2, 'user/message', { source: { kind: 'user' }, content: [{ type: 'text', text: '   \n\t  ' }] }),
     ])
-    expect(state.open).toEqual(entry(1, 0))
+    expect(view(state)).toEqual([entry(1, 0), entry(1, 2)])
   })
 
-  it('keeps the standing prompt when a later human message arrives', () => {
+  it('settles the opener and opens a steering entry when a later human message arrives', () => {
     const state = fold([
       at(0, 'turn/start', { turn: 1 }),
       at(1, 'user/message', { source: { kind: 'user' }, content: [{ type: 'text', text: 'first' }] }),
@@ -359,7 +365,18 @@ describe('turnOutline fold (definition, synthetic events)', () => {
     expect(turnOutlineProjectionDefinition.apply(
       state,
       at(2, 'user/message', { source: { kind: 'user' }, content: [{ type: 'text', text: 'steering' }] }),
-    )).toBe(state)
+    )).toEqual({ settled: [entry(1, 0, 'first')], open: entry(1, 2, 'steering'), awaitingPrompt: false })
+  })
+
+  it('drops rewound steering entries with the turns a rewind discarded', () => {
+    const state = fold([
+      at(0, 'turn/start', { turn: 1 }),
+      at(1, 'user/message', { source: { kind: 'user' }, content: [{ type: 'text', text: 'opening' }] }),
+      at(2, 'user/message', { source: { kind: 'user' }, content: [{ type: 'text', text: 'steer' }] }),
+      at(3, 'turn/end', { turn: 1, reason: { kind: 'completed' } }),
+      at(4, 'session/rewind', { seq: 2 }),
+    ])
+    expect(state).toEqual({ settled: [entry(1, 0, 'opening')], open: null, awaitingPrompt: false })
   })
 
   it('publishes a preview of `` when the read budget holds only whitespace', () => {
@@ -475,7 +492,7 @@ describe('turnOutline fold (definition, synthetic events)', () => {
       at(0, 'turn/start', { turn: 1 }),
       at(1, 'turn/end', { turn: 1, reason: { kind: 'completed' } }),
     ])
-    expect(closed).toEqual({ settled: [entry(1, 0)], open: null })
+    expect(closed).toEqual({ settled: [entry(1, 0)], open: null, awaitingPrompt: false })
     expect(turnOutlineProjectionDefinition.apply(
       closed,
       at(2, 'turn/end', { turn: 2, reason: { kind: 'completed' } }),
@@ -515,21 +532,27 @@ describe('turnOutline wire view', () => {
     ])
     expect(schema.parse(view(open))).toEqual([entry(1, 0, 'prompt')])
     expect(schema.safeParse([entry(2, 0), entry(1, 4)]).success).toBe(false)
-    expect(schema.safeParse([entry(1, 0), entry(1, 4)]).success).toBe(false)
+    expect(schema.safeParse([entry(1, 4), entry(1, 4)]).success).toBe(false)
+    // Two messages of one turn are ordered by seq.
+    expect(schema.safeParse([entry(1, 0), entry(1, 4)]).success).toBe(true)
   })
 
-  it('rejects a persisted state whose settled turns are not strictly increasing', () => {
+  it('rejects a persisted state whose settled entries are out of seq or turn order', () => {
     const schema = turnOutlineProjectionDefinition.stateSchema
-    expect(schema.safeParse({ settled: [entry(1, 3), entry(2, 9)], open: null }).success).toBe(true)
-    expect(schema.safeParse({ settled: [entry(2, 9), entry(1, 3)], open: null }).success).toBe(false)
-    expect(schema.safeParse({ settled: [entry(1, 3), entry(1, 9)], open: null }).success).toBe(false)
+    const state = (settled: TurnOutlineEntry[]) => ({ settled, open: null, awaitingPrompt: false })
+    expect(schema.safeParse(state([entry(1, 3), entry(2, 9)])).success).toBe(true)
+    expect(schema.safeParse(state([entry(1, 3), entry(1, 9)])).success).toBe(true)
+    expect(schema.safeParse(state([entry(2, 9), entry(1, 3)])).success).toBe(false)
+    expect(schema.safeParse(state([entry(2, 3), entry(1, 9)])).success).toBe(false)
+    expect(schema.safeParse(state([entry(1, 9), entry(1, 9)])).success).toBe(false)
   })
 
   it('rejects a persisted state whose previews exceed the rail budgets', () => {
     const schema = turnOutlineProjectionDefinition.stateSchema
-    expect(schema.safeParse({ settled: [], open: entry(1, 0, 'p'.repeat(PROMPT_LIMIT)) }).success).toBe(true)
-    expect(schema.safeParse({ settled: [], open: entry(1, 0, 'p'.repeat(PROMPT_LIMIT + 1)) }).success).toBe(false)
-    expect(schema.safeParse({ settled: [], open: entry(1, 0, '', 'r'.repeat(RESPONSE_LIMIT)) }).success).toBe(true)
-    expect(schema.safeParse({ settled: [], open: entry(1, 0, '', 'r'.repeat(RESPONSE_LIMIT + 1)) }).success).toBe(false)
+    const state = (open: TurnOutlineEntry) => ({ settled: [], open, awaitingPrompt: false })
+    expect(schema.safeParse(state(entry(1, 0, 'p'.repeat(PROMPT_LIMIT)))).success).toBe(true)
+    expect(schema.safeParse(state(entry(1, 0, 'p'.repeat(PROMPT_LIMIT + 1)))).success).toBe(false)
+    expect(schema.safeParse(state(entry(1, 0, '', 'r'.repeat(RESPONSE_LIMIT)))).success).toBe(true)
+    expect(schema.safeParse(state(entry(1, 0, '', 'r'.repeat(RESPONSE_LIMIT + 1)))).success).toBe(false)
   })
 })

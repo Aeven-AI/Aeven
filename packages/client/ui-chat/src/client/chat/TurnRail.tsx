@@ -1,12 +1,13 @@
 import { memo, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent } from 'react'
 import type { ChatViewSlotProps } from '../contract/slots.ts'
 import type { TurnRailMark } from './turn-rail-marks.ts'
+import type { SessionSeq } from '@aeven/session/types'
 import css from './TurnRail.module.css'
 
 interface TurnRailProps {
   readonly marks: readonly TurnRailMark[]
-  /** Turn at the reader's line, from the parent's intersection tracking. */
-  readonly activeTurn: number | null
+  /** Seq of the mark at the reader's line, from the parent's intersection tracking. */
+  readonly activeMark: SessionSeq | null
   /** Jump to a mark: scroll locally when loaded, anchor a new window otherwise. */
   readonly onNavigate: (mark: TurnRailMark) => void
   readonly t: ChatViewSlotProps['t']
@@ -134,8 +135,8 @@ function tickOffsets(count: number, pitch: number, focus: number | null): number
   })
 }
 
-function TurnRailLadder({ marks, activeTurn, onNavigate, t }: TurnRailProps) {
-  const [previewTurn, setPreviewTurn] = useState<number | null>(null)
+function TurnRailLadder({ marks, activeMark, onNavigate, t }: TurnRailProps) {
+  const [previewMark, setPreviewMark] = useState<SessionSeq | null>(null)
   const [focus, setFocus] = useState<number | null>(null)
   const previewId = useId()
   const pitch = pitchFor(marks.length)
@@ -150,7 +151,7 @@ function TurnRailLadder({ marks, activeTurn, onNavigate, t }: TurnRailProps) {
     '--avn-turn-pitch': `${String(pitch)}px`,
     '--avn-turn-band': `${String((marks.length - 1) * pitch)}px`,
   }
-  const preview = marks.find(mark => mark.turn === previewTurn)
+  const preview = marks.find(mark => mark.seq === previewMark)
   const previewIndex = preview === undefined ? -1 : marks.indexOf(preview)
 
   return (
@@ -166,18 +167,18 @@ function TurnRailLadder({ marks, activeTurn, onNavigate, t }: TurnRailProps) {
         onPointerMove={(event: PointerEvent<HTMLElement>) => {
           const fraction = pointerFraction(event.currentTarget, event.clientY)
           setFocus(fraction)
-          setPreviewTurn(markAtFraction(marks, fraction)?.turn ?? null)
+          setPreviewMark(markAtFraction(marks, fraction)?.seq ?? null)
         }}
         onPointerLeave={() => {
           setFocus(null)
-          setPreviewTurn(null)
+          setPreviewMark(null)
         }}
       >
         {marks.map((mark, index) => {
-          const active = mark.turn === activeTurn
+          const active = mark.seq === activeMark
           const classes = [css.tick]
           if (active) classes.push(css.tickActive)
-          else if (mark.turn === previewTurn) classes.push(css.tickPreview)
+          else if (mark.seq === previewMark) classes.push(css.tickPreview)
           if (!mark.loaded) classes.push(css.tickUnloaded)
           return (
             <button
@@ -185,15 +186,15 @@ function TurnRailLadder({ marks, activeTurn, onNavigate, t }: TurnRailProps) {
               type="button"
               className={classes.join(' ')}
               style={{ top: `${String(offsets[index] ?? 0)}px` }}
-              aria-label={t(mark.loaded ? 'chat.turnNavigation.jump' : 'chat.turnNavigation.jumpLoad', { turn: mark.turn })}
+              aria-label={t(mark.loaded ? 'chat.turnNavigation.jump' : 'chat.turnNavigation.jumpLoad', { message: mark.message })}
               aria-current={active ? 'true' : undefined}
-              aria-describedby={mark.turn === previewTurn ? previewId : undefined}
+              aria-describedby={mark.seq === previewMark ? previewId : undefined}
               onClick={(event) => {
                 event.stopPropagation()
                 onNavigate(mark)
               }}
-              onFocus={() => { setPreviewTurn(mark.turn) }}
-              onBlur={() => { setPreviewTurn(null) }}
+              onFocus={() => { setPreviewMark(mark.seq) }}
+              onBlur={() => { setPreviewMark(null) }}
             />
           )
         })}
@@ -206,7 +207,7 @@ function TurnRailLadder({ marks, activeTurn, onNavigate, t }: TurnRailProps) {
           >
             <div className={css.previewPrompt}>
               {preview.prompt === ''
-                ? t('chat.turnNavigation.turn', { turn: preview.turn })
+                ? t('chat.turnNavigation.message', { message: preview.message })
                 : preview.prompt}
             </div>
             {preview.response !== '' && (
@@ -220,9 +221,9 @@ function TurnRailLadder({ marks, activeTurn, onNavigate, t }: TurnRailProps) {
 }
 
 /**
- * Fixed-pitch tick ladder over every turn of the session: loaded turns scroll,
- * unloaded turns anchor a window on their `turn/start` seq first. Hovering or
- * focusing a tick shows that turn's prompt and response previews.
+ * Fixed-pitch tick ladder over every human message of the session: loaded
+ * messages scroll, unloaded ones anchor a window on their seq first. Hovering
+ * or focusing a tick shows that message and its response preview.
  *
  * Memoized because it renders one host element per mark while the enclosing
  * view re-renders on every streaming delta; its props must stay referentially

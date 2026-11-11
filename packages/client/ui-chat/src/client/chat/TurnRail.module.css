@@ -47,6 +47,15 @@
   pointer-events: auto;
 }
 
+/* The first and last ticks sit on the band's edges, so half of each would fall
+   outside the pointer column. This box carries the column past both ends;
+   the pointer's band fraction clamps there to the end mark. */
+.rail::after {
+  position: absolute;
+  inset: -8px 0;
+  content: '';
+}
+
 /* A tick is a keyboard destination that paints one line — never a mouse target
    of its own, since the rail owns pointer input for the whole column. The box
    spans the full pointer band so focus rings wrap the line's own row. */

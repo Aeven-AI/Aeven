@@ -1,19 +1,20 @@
 /**
- * The `turnOutline` projection unit: a fold of `turn/start` boundaries, first
- * human prompts, and final assistant responses into the whole-log turn
- * outline the chat turn rail renders for turns outside a client's paged event
- * window. Turns a `session/rewind` discarded leave the outline.
+ * The `turnOutline` projection unit: a fold of `turn/start` boundaries, human
+ * messages, and assistant responses into the whole-log outline the chat turn
+ * rail renders, one entry per human message, including messages that steer a
+ * turn already running. Entries a `session/rewind` discarded leave the outline.
  *
- * `turn/start` — not the prompt `user/message` — anchors each entry because
- * its seq is the jump target: the loop logs `turn/start` before the turn's
- * prompt and steps, so a window anchored there contains the whole turn.
+ * A turn's opening entry is anchored on `turn/start` — not the prompt
+ * `user/message` — because its seq is the jump target: the loop logs
+ * `turn/start` before the turn's prompt and steps, so a window anchored there
+ * contains the whole turn. A steering entry is anchored on its own
+ * `user/message` seq, which is the row a jump lands on.
  *
- * The state holds the open turn apart from the settled ones. Previews change
- * only on the open turn, and they change many times per turn — once per
- * prompt and once per assistant message — so keeping it separate makes each
- * of those a write to one small object instead of a copy of the whole
- * outline. The outline itself is copied once per turn, when the open turn
- * settles.
+ * The state holds the open entry apart from the settled ones. Previews change
+ * only on the open entry, and they change many times — once per assistant
+ * message — so keeping it separate makes each of those a write to one small
+ * object instead of a copy of the whole outline. The outline itself is copied
+ * once per entry, when the open entry settles.
  *
  * @module @aeven/session-turn-outline/projection
  */
@@ -77,26 +78,30 @@ const turnOutlineEntrySchema = z.object({
 }).strict()
 
 const turnOutlineEntriesSchema: ZodType<readonly TurnOutlineEntry[]> = z.array(turnOutlineEntrySchema)
-  .superRefine((turns, context) => {
-    let previous = -1
-    for (const entry of turns) {
-      if (entry.turn <= previous) {
-        context.addIssue({ code: 'custom', message: 'turn outline entries must be strictly increasing by turn' })
+  .superRefine((entries, context) => {
+    let previous: TurnOutlineEntry | undefined
+    for (const entry of entries) {
+      if (previous !== undefined && (entry.seq <= previous.seq || entry.turn < previous.turn)) {
+        context.addIssue({
+          code: 'custom',
+          message: 'turn outline entries must be strictly increasing by seq and non-decreasing by turn',
+        })
         return
       }
-      previous = entry.turn
+      previous = entry
     }
   })
 
 const turnOutlineStateSchema: ZodType<TurnOutlineState> = z.object({
   settled: turnOutlineEntriesSchema,
   open: turnOutlineEntrySchema.nullable(),
+  awaitingPrompt: z.boolean(),
 }).strict()
 
-const EMPTY_OUTLINE: TurnOutlineState = { settled: [], open: null }
+const EMPTY_OUTLINE: TurnOutlineState = { settled: [], open: null, awaitingPrompt: false }
 
 /**
- * Published view: the settled turns plus the open one.
+ * Published view: the settled entries plus the open one.
  *
  * Memoized on the state that produced it. The drive holds the two latest raw
  * view results and compares them with `Object.is`, so a fresh array for an
@@ -121,7 +126,7 @@ function outlineView(state: TurnOutlineState): readonly TurnOutlineEntry[] {
 /** The `turnOutline` unit registered on `ctx.sessionProjections` (exported for the unit spec). */
 export const turnOutlineProjectionDefinition = {
   key: 'turnOutline',
-  stateVersion: 3,
+  stateVersion: 4,
   stateSchema: turnOutlineStateSchema,
   init: () => EMPTY_OUTLINE,
   apply: (state, event) => {
@@ -140,40 +145,47 @@ export const turnOutlineProjectionDefinition = {
         return {
           settled,
           open: { turn: event.data.turn, seq: event.seq, prompt: '', response: '' },
+          awaitingPrompt: true,
         }
       }
       case 'user/message': {
-        // Only the open turn can still be waiting for its opening human
-        // prompt; later human messages in the same turn (steering) keep the
-        // first preview.
+        // The turn's first human message fills the opening entry; every later
+        // one (steering) opens an entry of its own in the same turn, anchored
+        // on its own seq. An images-only message keeps `''` either way.
         if (event.data.source.kind !== 'user') return state
         const open = state.open
-        if (open === null || open.prompt !== '') return state
+        if (open === null) return state
         const prompt = preview(event.data.content, PROMPT_PREVIEW_LIMIT)
-        if (prompt === '') return state
-        return { settled: state.settled, open: { ...open, prompt } }
+        if (state.awaitingPrompt) {
+          return { settled: state.settled, open: { ...open, prompt }, awaitingPrompt: false }
+        }
+        return {
+          settled: [...state.settled, open],
+          open: { turn: open.turn, seq: event.seq, prompt, response: '' },
+          awaitingPrompt: false,
+        }
       }
       case 'assistant/message': {
-        // Newest text-bearing message wins: the open turn's response tracks
-        // the latest answer directly, so an interrupted turn keeps the text it
-        // had reached.
+        // Newest text-bearing message wins: the open entry's response tracks
+        // the latest answer to that message, so an interrupted turn keeps the
+        // text it had reached.
         const open = state.open
         if (open === null) return state
         const response = preview(event.data.message.content, RESPONSE_PREVIEW_LIMIT)
         if (response === '' || response === open.response) return state
-        return { settled: state.settled, open: { ...open, response } }
+        return { settled: state.settled, open: { ...open, response }, awaitingPrompt: state.awaitingPrompt }
       }
       case 'turn/end': {
         const open = state.open
         if (open === null) return state
-        return { settled: [...state.settled, open], open: null }
+        return { settled: [...state.settled, open], open: null, awaitingPrompt: false }
       }
       case 'session/rewind': {
-        // Discarded turns leave the outline; a rewind is appended between turns.
+        // Discarded entries leave the outline; a rewind is appended between turns.
         const target = event.data.seq
         const settled = state.settled.filter(entry => entry.seq < target)
         if (settled.length === state.settled.length && state.open === null) return state
-        return { settled, open: null }
+        return { settled, open: null, awaitingPrompt: false }
       }
       default:
         return state
