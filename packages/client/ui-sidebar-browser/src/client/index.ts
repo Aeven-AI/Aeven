@@ -447,9 +447,10 @@ export function apply(ctx: ClientContext): void {
   // Host's Chromium window, which the model drives through
   // chrome-devtools-mcp, and adds no pill.
   // The Host's Chromium: the profile chrome-devtools-mcp drives, where the
-  // agent's DevTools tools see what the reader opens. Null while the Host
-  // does not provide it; `false` when it refused to come up, which is when the
-  // address belongs to the operating system's browser instead.
+  // agent's DevTools tools see what the reader opens. Null until the remote
+  // mounts, which the client does whatever the Host loads; resolves `false`
+  // when the Host has no such service or the browser refused to come up, which
+  // is when the address belongs to the reader's own browser instead.
   let openChromium: ((sessionId: string, url: string) => Promise<boolean>) | null = null
   ctx.inject(['remote', 'remote.browserChromium'], (scoped) => {
     const remote = scoped.remote
@@ -512,16 +513,16 @@ export function apply(ctx: ClientContext): void {
       }),
     }, ExtensionPromptModal))
     const openUserTab = installPageExtension(ctx, pageBridge, prompt)
-    // A Host with its own Chromium opens it; Aeven Web has none, so the launcher opens the reader's browser
-    // through the extension, and the prompt explains a missing extension or a browser that cannot run one.
+    // A Host with its own Chromium opens it; Aeven Web's Host has none and fails the call, so the launcher opens the
+    // reader's browser through the extension, and the prompt explains a missing extension or a browser that cannot
+    // run one.
     ctx.inject(['sidebarContent'], (scoped) => {
       scoped.effect(
         () => scoped.sidebarContent.registerLauncher('browser', (sessionId) => {
-          if (openChromium !== null) {
-            void openChromium(sessionId, '')
-            return
-          }
-          openUserTab(sessionId).catch((error: unknown) => {
+          void (async () => {
+            if (openChromium !== null && await openChromium(sessionId, '')) return
+            await openUserTab(sessionId)
+          })().catch((error: unknown) => {
             // The prompt already shows why: the browser cannot run the extension, or the reader closed the prompt.
             console.warn('ui-sidebar-browser: opening a browser tab through the extension did not complete', error)
           })

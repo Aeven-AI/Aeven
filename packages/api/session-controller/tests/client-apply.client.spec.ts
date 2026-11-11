@@ -124,7 +124,17 @@ describe('Session Controller Client apply', () => {
       updatedAt: 1,
     })
 
+    // A blank row's first running frame stamps its activity with the time this client saw it start.
+    const now = vi.spyOn(Date, 'now').mockReturnValue(5)
     bench.dispatch('api-session/status', sid('session-1'), true)
+    await flush()
+    now.mockRestore()
+    expect(bench.sessions.list.getSnapshot().byId[sid('session-1')]).toMatchObject({
+      running: true,
+      blank: false,
+      updatedAt: 5,
+    })
+
     bench.dispatch('api-session/activity', sid('session-1'), 9)
     bench.dispatch('api-session/error', sid('session-1'), 'agent failed')
     await flush()
@@ -133,6 +143,14 @@ describe('Session Controller Client apply', () => {
       updatedAt: 9,
     })
     expect(error).toHaveBeenCalledWith(sid('session-1'), 'agent failed')
+
+    // A summary only advances the row's last activity: another device's newer prompt moves it, an older one never.
+    bench.dispatch('api-session/added', { sessionId: sid('session-1'), updatedAt: 20, running: true, blank: false })
+    await flush()
+    expect(bench.sessions.list.getSnapshot().byId[sid('session-1')]).toMatchObject({ updatedAt: 20 })
+    bench.dispatch('api-session/added', { sessionId: sid('session-1'), updatedAt: 3, running: true, blank: false })
+    await flush()
+    expect(bench.sessions.list.getSnapshot().byId[sid('session-1')]).toMatchObject({ updatedAt: 20 })
 
     bench.dispatch('api-session/removed', sid('session-1'))
     await flush()

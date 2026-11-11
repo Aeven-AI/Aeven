@@ -88,10 +88,14 @@ interface CatalogInflight {
 type SessionListMutation =
   | { kind: 'upsert'; summary: SessionSummary }
   | { kind: 'remove'; sessionId: SessionId }
-  | { kind: 'status'; sessionId: SessionId; running: boolean }
+  /** `at` is when this client saw the change: a blank Session's first turn counts as its latest activity from then. */
+  | { kind: 'status'; sessionId: SessionId; running: boolean; at: number }
   | { kind: 'activity'; sessionId: SessionId; updatedAt: number }
-  /** Local first-send flip: the sender clears blank without waiting for a host frame. */
-  | { kind: 'engaged'; sessionId: SessionId }
+  /**
+   * Local first-send flip: the sender clears blank without waiting for a host frame, and `at`, the send time, becomes
+   * the row's latest activity until the Host reports the logged message.
+   */
+  | { kind: 'engaged'; sessionId: SessionId; at: number }
 
 /** Instance cluster + frame entry + the session list. */
 export class SessionManager {
@@ -335,7 +339,7 @@ export class SessionManager {
       // The sender's local first-send flip mirrors into the list row so the
       // session surfaces (lists filter on blank) before any host frame lands.
       onEngaged: (engaged) => {
-        this.recordMutation({ kind: 'engaged', sessionId: engaged.sessionId })
+        this.recordMutation({ kind: 'engaged', sessionId: engaged.sessionId, at: Date.now() })
       },
       projections: this.projectionStore(sessionId),
     })
@@ -486,7 +490,10 @@ export class SessionManager {
         if (result.ok) {
           const baseline: SessionSummary[] = this.listPhase === 'pending'
             ? [...result.value.items]
-            : mergeOrderedBaseline(established, result.value.items, summary => summary.sessionId)
+            : withLatestActivity(
+              mergeOrderedBaseline(established, result.value.items, summary => summary.sessionId),
+              established,
+            )
           // Seed first observations from the pull-time baseline BEFORE replaying
           // in-flight mutations, then reconcile the reminders after EVERY
           // replayed mutation: an edge that happens entirely between mutations
@@ -777,7 +784,7 @@ export class SessionManager {
     const summary = this.summaries.find(candidate => candidate.sessionId === sessionId)
     const durableSubagent = summary?.origin === 'subagent' || this.addresses.has(sessionId)
     this.recordMutation(durableSubagent
-      ? { kind: 'status', sessionId, running: false }
+      ? { kind: 'status', sessionId, running: false, at: Date.now() }
       : { kind: 'remove', sessionId })
     this.updateCatalogActivity(sessionId, false)
     if (durableSubagent) this.sessions.get(sessionId)?.handleRunning(false)
@@ -807,7 +814,7 @@ export class SessionManager {
    * @param running - current Agent running state.
    */
   handleSessionStatus(sessionId: SessionId, running: boolean): void {
-    this.recordMutation({ kind: 'status', sessionId, running })
+    this.recordMutation({ kind: 'status', sessionId, running, at: Date.now() })
     this.sessions.get(sessionId)?.handleRunning(running)
     this.updateCatalogActivity(sessionId, running)
   }
@@ -1021,6 +1028,21 @@ function sameRecord<V>(
   return Object.fromEntries(source)
 }
 
+/**
+ * Keep each row's later last activity across a list refresh. The Host records a first turn's prompt only once the
+ * turn's pre-step chain has run, so a refresh in that window would put a just-sent chat back at its creation time.
+ * @param baseline - rows the Host listed, in display order.
+ * @param established - rows this client held before the refresh.
+ * @returns the baseline, with any later activity the client already held.
+ */
+function withLatestActivity(baseline: readonly SessionSummary[], established: readonly SessionSummary[]): SessionSummary[] {
+  const held = new Map(established.map(summary => [summary.sessionId, summary.updatedAt]))
+  return baseline.map((summary) => {
+    const updatedAt = held.get(summary.sessionId)
+    return updatedAt !== undefined && updatedAt > summary.updatedAt ? { ...summary, updatedAt } : summary
+  })
+}
+
 /** Apply one list mutation without deriving display order. */
 function applyMutation(summaries: readonly SessionSummary[], mutation: SessionListMutation): SessionSummary[] {
   switch (mutation.kind) {
@@ -1032,6 +1054,9 @@ function applyMutation(summaries: readonly SessionSummary[], mutation: SessionLi
         // Blank only lowers: a stale true (session-added racing the local
         // first send) never re-hides an already-surfaced session.
         blank: existing.blank && mutation.summary.blank,
+        // Last activity only advances: a catalog summary carries another device's newer prompt, while a summary
+        // built before this client's first-send stamp must not move the row back.
+        updatedAt: Math.max(existing.updatedAt, mutation.summary.updatedAt),
         ...(mutation.summary.replica ? { replica: true as const } : {}),
         ...(existing.cwd === undefined && mutation.summary.cwd !== undefined ? { cwd: mutation.summary.cwd } : {}),
         ...(existing.parentSessionId === undefined && mutation.summary.parentSessionId !== undefined
@@ -1041,6 +1066,7 @@ function applyMutation(summaries: readonly SessionSummary[], mutation: SessionLi
       }
       if (filled.cwd === existing.cwd && filled.parentSessionId === existing.parentSessionId
         && filled.origin === existing.origin && filled.blank === existing.blank && filled.replica === existing.replica
+        && filled.updatedAt === existing.updatedAt
       ) return [...summaries]
       return summaries.map(summary => summary.sessionId === mutation.summary.sessionId ? filled : summary)
     }
@@ -1048,10 +1074,17 @@ function applyMutation(summaries: readonly SessionSummary[], mutation: SessionLi
       return summaries.filter(summary => summary.sessionId !== mutation.sessionId)
     case 'status':
       // running:true doubles as the cross-client blank flip (a blank session
-      // never runs, so the first running frame proves a message landed).
+      // never runs, so the first running frame proves a message landed). A
+      // first input another device runs reaches this Host only when that
+      // device's events import, so the flip also stamps the row's activity.
       return summaries.map(summary => summary.sessionId === mutation.sessionId
         && (summary.running !== mutation.running || (mutation.running && summary.blank))
-        ? { ...summary, running: mutation.running, blank: summary.blank && !mutation.running }
+        ? {
+          ...summary,
+          running: mutation.running,
+          blank: summary.blank && !mutation.running,
+          ...mutation.running && summary.blank ? { updatedAt: Math.max(summary.updatedAt, mutation.at) } : {},
+        }
         : summary)
     case 'activity':
       return summaries.map(summary => summary.sessionId === mutation.sessionId
@@ -1060,7 +1093,7 @@ function applyMutation(summaries: readonly SessionSummary[], mutation: SessionLi
         : summary)
     case 'engaged':
       return summaries.map(summary => summary.sessionId === mutation.sessionId && summary.blank
-        ? { ...summary, blank: false }
+        ? { ...summary, blank: false, updatedAt: Math.max(summary.updatedAt, mutation.at) }
         : summary)
   }
 }
