@@ -11,6 +11,7 @@
 import { helpCenterUrl, mediaUrl, webUrl } from './config.ts'
 import { cloud, mfa, removeAvatar, setDisplayName, setLocale as storeLocale, signOut, uploadAvatar } from './api.ts'
 import { session } from './session.ts'
+import { takePendingAuthLocale } from '../../locales.ts'
 import { onAccountLocale } from './watch.ts'
 import { installApp, installOffer, type InstallOffer, type InstallOutcome } from './install.ts'
 
@@ -98,6 +99,24 @@ let signedInThisPage = false
 /** Record that an authentication screen of this page finished with the reader signed in. */
 export function markSignedInThisPage(): void {
   signedInThisPage = true
+}
+
+/**
+ * Give the signed-in account the language the reader picked on the sign-in
+ * screens, when one is pending.
+ *
+ * That pick is newer than the language the account holds, which the profile
+ * carries and the app follows once it boots; without this, signing in would
+ * switch the app back to the account's older language. The account write is
+ * not awaited: the published reader already carries the pick, and a failed
+ * write leaves only mail in the older language until the next switch.
+ */
+export function adoptPendingLocale(): void {
+  if (!session.userSignedIn) return
+  const picked = takePendingAuthLocale()
+  if (picked === undefined || picked === session.locale) return
+  session.locale = picked
+  void storeLocale(picked).catch(() => undefined)
 }
 
 /** Page global carrying the reader. */

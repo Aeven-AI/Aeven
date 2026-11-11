@@ -393,6 +393,13 @@ export const AUTH_LANGUAGES: readonly AuthLanguage[] = [
 const CHOSEN_LOCALE_KEY = 'aeven.auth.locale'
 
 /**
+ * Browser storage key marking that pick as not yet carried into an account.
+ * It is cleared when a sign-in takes the pick, so a later sign-in keeps the
+ * account's own language unless the reader picks again on these screens.
+ */
+const PENDING_LOCALE_KEY = 'aeven.auth.locale.pending'
+
+/**
  * The language a reader picked on these screens, if any.
  * @returns a shipped locale id, or undefined when none was picked or storage is unavailable.
  */
@@ -413,9 +420,26 @@ function chosenLocale(): string | undefined {
 export function chooseAuthLocale(id: string): void {
   try {
     localStorage.setItem(CHOSEN_LOCALE_KEY, id)
+    localStorage.setItem(PENDING_LOCALE_KEY, '1')
   } catch {
     // Storage blocked: the pick holds for nothing beyond this render, which reads the browser's languages.
   }
+}
+
+/**
+ * Take the language picked on these screens that no account has received yet.
+ * Each pick is returned once: taking it clears the pending mark.
+ * @returns a shipped locale id, or undefined when nothing is pending or storage is unavailable.
+ */
+export function takePendingAuthLocale(): string | undefined {
+  try {
+    if (localStorage.getItem(PENDING_LOCALE_KEY) === null) return undefined
+    localStorage.removeItem(PENDING_LOCALE_KEY)
+  } catch {
+    // Storage blocked: chooseAuthLocale could not have marked a pick either.
+    return undefined
+  }
+  return chosenLocale()
 }
 
 /**
