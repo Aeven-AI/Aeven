@@ -88,10 +88,14 @@ interface CatalogInflight {
 type SessionListMutation =
   | { kind: 'upsert'; summary: SessionSummary }
   | { kind: 'remove'; sessionId: SessionId }
-  | { kind: 'status'; sessionId: SessionId; running: boolean }
+  /** `at` is when this client saw the change: a blank Session's first turn counts as its latest activity from then. */
+  | { kind: 'status'; sessionId: SessionId; running: boolean; at: number }
   | { kind: 'activity'; sessionId: SessionId; updatedAt: number }
-  /** Local first-send flip: the sender clears blank without waiting for a host frame. */
-  | { kind: 'engaged'; sessionId: SessionId }
+  /**
+   * Local first-send flip: the sender clears blank without waiting for a host frame, and `at`, the send time, becomes
+   * the row's latest activity until the Host reports the logged message.
+   */
+  | { kind: 'engaged'; sessionId: SessionId; at: number }
 
 /** Instance cluster + frame entry + the session list. */
 export class SessionManager {
@@ -335,7 +339,7 @@ export class SessionManager {
       // The sender's local first-send flip mirrors into the list row so the
       // session surfaces (lists filter on blank) before any host frame lands.
       onEngaged: (engaged) => {
-        this.recordMutation({ kind: 'engaged', sessionId: engaged.sessionId })
+        this.recordMutation({ kind: 'engaged', sessionId: engaged.sessionId, at: Date.now() })
       },
       projections: this.projectionStore(sessionId),
     })
@@ -777,7 +781,7 @@ export class SessionManager {
     const summary = this.summaries.find(candidate => candidate.sessionId === sessionId)
     const durableSubagent = summary?.origin === 'subagent' || this.addresses.has(sessionId)
     this.recordMutation(durableSubagent
-      ? { kind: 'status', sessionId, running: false }
+      ? { kind: 'status', sessionId, running: false, at: Date.now() }
       : { kind: 'remove', sessionId })
     this.updateCatalogActivity(sessionId, false)
     if (durableSubagent) this.sessions.get(sessionId)?.handleRunning(false)
@@ -807,7 +811,7 @@ export class SessionManager {
    * @param running - current Agent running state.
    */
   handleSessionStatus(sessionId: SessionId, running: boolean): void {
-    this.recordMutation({ kind: 'status', sessionId, running })
+    this.recordMutation({ kind: 'status', sessionId, running, at: Date.now() })
     this.sessions.get(sessionId)?.handleRunning(running)
     this.updateCatalogActivity(sessionId, running)
   }
@@ -1048,10 +1052,17 @@ function applyMutation(summaries: readonly SessionSummary[], mutation: SessionLi
       return summaries.filter(summary => summary.sessionId !== mutation.sessionId)
     case 'status':
       // running:true doubles as the cross-client blank flip (a blank session
-      // never runs, so the first running frame proves a message landed).
+      // never runs, so the first running frame proves a message landed). A
+      // first input another device runs reaches this Host only when that
+      // device's events import, so the flip also stamps the row's activity.
       return summaries.map(summary => summary.sessionId === mutation.sessionId
         && (summary.running !== mutation.running || (mutation.running && summary.blank))
-        ? { ...summary, running: mutation.running, blank: summary.blank && !mutation.running }
+        ? {
+          ...summary,
+          running: mutation.running,
+          blank: summary.blank && !mutation.running,
+          ...mutation.running && summary.blank ? { updatedAt: Math.max(summary.updatedAt, mutation.at) } : {},
+        }
         : summary)
     case 'activity':
       return summaries.map(summary => summary.sessionId === mutation.sessionId
@@ -1060,7 +1071,7 @@ function applyMutation(summaries: readonly SessionSummary[], mutation: SessionLi
         : summary)
     case 'engaged':
       return summaries.map(summary => summary.sessionId === mutation.sessionId && summary.blank
-        ? { ...summary, blank: false }
+        ? { ...summary, blank: false, updatedAt: Math.max(summary.updatedAt, mutation.at) }
         : summary)
   }
 }
