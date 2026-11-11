@@ -777,8 +777,8 @@ describe('ChatView', () => {
     // the band is the distance between their centres.
     expect(navigation.style.getPropertyValue('--avn-turn-pitch')).toBe('10px')
     expect(navigation.style.getPropertyValue('--avn-turn-band')).toBe('10px')
-    const first = view.getByRole('button', { name: '跳转到第 1 轮' })
-    const second = view.getByRole('button', { name: '跳转到第 2 轮' })
+    const first = view.getByRole('button', { name: '跳转到第 1 条消息' })
+    const second = view.getByRole('button', { name: '跳转到第 2 条消息' })
     expect(first.style.top).toBe('0px')
     expect(second.style.top).toBe('10px')
     // Pinned to the tail on open, the reader is reading the last Turn.
@@ -821,7 +821,7 @@ describe('ChatView', () => {
       act(() => {
         band?.([crossing(secondRow as HTMLElement, true)], {} as IntersectionObserver)
       })
-      expect(view.getByRole('button', { name: '跳转到第 2 轮' }).getAttribute('aria-current')).toBe('true')
+      expect(view.getByRole('button', { name: '跳转到第 2 条消息' }).getAttribute('aria-current')).toBe('true')
 
       act(() => {
         band?.(
@@ -829,7 +829,7 @@ describe('ChatView', () => {
           {} as IntersectionObserver,
         )
       })
-      expect(view.getByRole('button', { name: '跳转到第 1 轮' }).getAttribute('aria-current')).toBe('true')
+      expect(view.getByRole('button', { name: '跳转到第 1 条消息' }).getAttribute('aria-current')).toBe('true')
       // The slow path has not run: restoration persistence waits for its
       // existing interval or scrollend instead of joining the mark's update.
       expect(h.chatScroll.read()).toBeNull()
@@ -845,9 +845,11 @@ describe('ChatView', () => {
       userInTurn(7, 'third prompt', 3), assistant(8, 'third response', 3),
     ]
     const h = makeHarness({ nodes: later }, { hasMore: true })
+    // The outline names messages by their place in it, so a window that starts
+    // at turn 2 still numbers that turn's message 1.
     h.setOutline(turnOutline([{ turn: 2, seq: 4 }, { turn: 3, seq: 7 }]))
     const view = render(<h.ChatView {...h.props} />)
-    const second = view.getByRole('button', { name: '跳转到第 2 轮' })
+    const second = view.getByRole('button', { name: '跳转到第 1 条消息' })
     expect(second.style.top).toBe('0px')
 
     const scroller = view.container.querySelector('[class*="scroll"]') as HTMLDivElement
@@ -869,10 +871,10 @@ describe('ChatView', () => {
     // The ladder is built from the outline alone, so an older page arriving
     // changes a mark's loaded state but never the set of marks or their slots:
     // the mark the reader just jumped to keeps its node and its place.
-    const movedSecond = view.getByRole('button', { name: '跳转到第 2 轮' })
+    const movedSecond = view.getByRole('button', { name: '跳转到第 1 条消息' })
     expect(movedSecond).toBe(second)
     expect(movedSecond.style.top).toBe('0px')
-    expect(view.getByRole('button', { name: '跳转到第 3 轮' }).style.top).toBe('10px')
+    expect(view.getByRole('button', { name: '跳转到第 2 条消息' }).style.top).toBe('10px')
   })
 
   it('lands a jump to the first Turn at the conversation start, above its System prompt row', () => {
@@ -889,7 +891,7 @@ describe('ChatView', () => {
     const metrics = installScrollMetrics(scroller, 1_000, 300)
     metrics.setLayout(1_000, 700)
     vi.spyOn(scroller, 'getBoundingClientRect').mockReturnValue({ top: 0, bottom: 300 } as DOMRect)
-    const first = view.getByRole('button', { name: '跳转到第 1 轮' })
+    const first = view.getByRole('button', { name: '跳转到第 1 条消息' })
     fireEvent.click(first)
     // History is complete, so the first Turn's earliest row is the start of
     // the conversation: the view reaches the scroll origin.
@@ -917,7 +919,7 @@ describe('ChatView', () => {
     expect(view.container.querySelector('[data-chat-flow-key="fixture:system-prompt:4"]')).toBeNull()
     const anchorRow = view.container.querySelector('[data-chat-flow-key="fixture:user:5"]') as HTMLElement
     vi.spyOn(anchorRow, 'getBoundingClientRect').mockReturnValue({ top: -440, bottom: -380 } as DOMRect)
-    fireEvent.click(view.getByRole('button', { name: '跳转到第 2 轮' }))
+    fireEvent.click(view.getByRole('button', { name: '跳转到第 2 条消息' }))
     expect(scroller.scrollTop).toBe(236)
   })
 
@@ -932,9 +934,9 @@ describe('ChatView', () => {
     installIntersectionObserver()
     const view = render(<h.ChatView {...h.props} />)
     // Every outline Turn is a mark; the two the window does not hold say so.
-    const first = view.getByRole('button', { name: '加载并跳转到第 1 轮' })
-    view.getByRole('button', { name: '加载并跳转到第 2 轮' })
-    const third = view.getByRole('button', { name: '跳转到第 3 轮' })
+    const first = view.getByRole('button', { name: '加载并跳转到第 1 条消息' })
+    view.getByRole('button', { name: '加载并跳转到第 2 条消息' })
+    const third = view.getByRole('button', { name: '跳转到第 3 条消息' })
     expect(third.getAttribute('aria-current')).toBe('true')
     fireEvent.focus(first)
     // An unloaded turn previews both sides from the outline.
@@ -954,7 +956,7 @@ describe('ChatView', () => {
     await act(async () => {})
     expect(h.loadThrough.mock.calls).toEqual([[0]])
     expect(h.completeEventNavigation).toHaveBeenCalledTimes(1)
-    expect(view.getByRole('button', { name: '跳转到第 3 轮' }).getAttribute('aria-current')).toBe('true')
+    expect(view.getByRole('button', { name: '跳转到第 3 条消息' }).getAttribute('aria-current')).toBe('true')
   })
 
   it('a jump from the pinned tail releases bottom ownership so the follow snap cannot cancel it', async () => {
@@ -971,7 +973,7 @@ describe('ChatView', () => {
     // Pinned to the tail on open: the back-to-bottom control is faded out.
     expect(backToBottomHidden(view)).toBe(true)
 
-    const first = view.getByRole('button', { name: '加载并跳转到第 1 轮' })
+    const first = view.getByRole('button', { name: '加载并跳转到第 1 条消息' })
     fireEvent.click(first)
     // The click itself leaves the tail, and the sentinel the control watches
     // reports the tail out of view.
@@ -1003,7 +1005,7 @@ describe('ChatView', () => {
       { turn: 3, seq: 8, prompt: 'third prompt', response: '' },
     ])
     const view = render(<h.ChatView {...h.props} />)
-    const first = view.getByRole('button', { name: '加载并跳转到第 1 轮' })
+    const first = view.getByRole('button', { name: '加载并跳转到第 1 条消息' })
     fireEvent.click(first)
     // The pull in flight owns the pager, so the jump waits instead of sharing
     // it — and it stays the reader's destination rather than degrading to the
@@ -1048,7 +1050,7 @@ describe('ChatView', () => {
     // The whole column is the target, not only the ticks; the window holds
     // turn 25, so its mark jumps without paging.
     fireEvent.click(nav, { clientY: 240 })
-    expect(view.getByRole('button', { name: '跳转到第 25 轮' }).getAttribute('aria-current')).toBe('true')
+    expect(view.getByRole('button', { name: '跳转到第 25 条消息' }).getAttribute('aria-current')).toBe('true')
   })
 
   it('tightens the rail pitch and samples the marks so a long session fits its band', () => {
@@ -1094,9 +1096,9 @@ describe('ChatView', () => {
     expect(marks.length).toBeLessThanOrEqual(MAX_RAIL_MARKS)
     // Past the cap the ladder samples with a stride of three: turns 1, 4, 7 …
     // plus the end, which the stride cannot divide evenly.
-    expect(marks[0]?.getAttribute('aria-label')).toBe('加载并跳转到第 1 轮')
-    expect(marks[1]?.getAttribute('aria-label')).toBe('加载并跳转到第 4 轮')
-    expect(nav.lastElementChild?.getAttribute('aria-label')).toBe(`跳转到第 ${String(turns)} 轮`)
+    expect(marks[0]?.getAttribute('aria-label')).toBe('加载并跳转到第 1 条消息')
+    expect(marks[1]?.getAttribute('aria-label')).toBe('加载并跳转到第 4 条消息')
+    expect(nav.lastElementChild?.getAttribute('aria-label')).toBe(`跳转到第 ${String(turns)} 条消息`)
   })
 
   it('lands a jump on its turn once the paged rows commit', async () => {
@@ -1110,7 +1112,7 @@ describe('ChatView', () => {
     h.loadThrough.mockImplementation(() => new Promise<void>((resolve) => { releaseJump = resolve }))
     const view = render(<h.ChatView {...h.props} />)
 
-    fireEvent.click(view.getByRole('button', { name: '加载并跳转到第 1 轮' }))
+    fireEvent.click(view.getByRole('button', { name: '加载并跳转到第 1 条消息' }))
     expect(h.loadThrough).toHaveBeenCalledWith(0)
 
     // The paged window commits: turn 1's rows and rail item enter the snapshot.
@@ -1120,7 +1122,7 @@ describe('ChatView', () => {
         turnTimings: new Map([[1, { startTime: 1_000 }], [3, { startTime: 8_000 }]]),
       })
     })
-    const first = view.getByRole('button', { name: '跳转到第 1 轮' })
+    const first = view.getByRole('button', { name: '跳转到第 1 条消息' })
     expect(first.getAttribute('aria-current')).toBe('true')
     // The jump has landed its exact row: the navigation is acknowledged, and
     // the loader's completion only closes a pass that is already done.
@@ -1129,7 +1131,7 @@ describe('ChatView', () => {
     // Settlement leaves the landing alone: the mark stays on the Turn the
     // reader asked for, and the paged rows keep it loaded.
     expect(first.getAttribute('aria-current')).toBe('true')
-    expect(view.getByRole('button', { name: '跳转到第 1 轮' })).toBe(first)
+    expect(view.getByRole('button', { name: '跳转到第 1 条消息' })).toBe(first)
   })
 
   it('reports a jump in flight through the head spinner it already shows for paging', async () => {
@@ -1146,7 +1148,7 @@ describe('ChatView', () => {
       view.container.querySelector('[data-earlier-history]')?.getAttribute('data-earlier-history') ?? null
 
     expect(head()).toBe('idle')
-    fireEvent.click(view.getByRole('button', { name: '加载并跳转到第 1 轮' }))
+    fireEvent.click(view.getByRole('button', { name: '加载并跳转到第 1 条消息' }))
     // A jump pages history, and paging history is what the head spinner already
     // reports: the jump reads the same as a mouse gesture at the head, never as
     // the Session-switch cover. `loadingOlder` is the session-side bit every
@@ -1166,7 +1168,7 @@ describe('ChatView', () => {
     await act(async () => { releaseJump?.() })
     act(() => { h.setSession({ loadingOlder: false }) })
     await act(async () => {})
-    expect(view.getByRole('button', { name: '跳转到第 1 轮' }).getAttribute('aria-busy')).toBeNull()
+    expect(view.getByRole('button', { name: '跳转到第 1 条消息' }).getAttribute('aria-busy')).toBeNull()
     // The pull settled, so the boundary drops its spinner. (The boundary itself
     // can remain: it is present whenever older pages exist, which is why the
     // spinner is keyed to the request rather than to the boundary.)
@@ -3058,7 +3060,7 @@ describe('ChatView', () => {
     })
 
     expect(scroller.scrollTop).toBe(900)
-    expect(view.getByRole('button', { name: '跳转到第 2 轮' }).getAttribute('aria-current')).toBe('true')
+    expect(view.getByRole('button', { name: '跳转到第 2 条消息' }).getAttribute('aria-current')).toBe('true')
     // Pinned follow reads scrollHeight; the mark comes from the crossing. No
     // row geometry was measured for either.
     expect(rect).not.toHaveBeenCalled()
@@ -3353,7 +3355,7 @@ describe('ChatView', () => {
     const view = render(<h.ChatView {...h.props} />)
     h.loadOlder.mockClear()
     h.loadThrough.mockImplementation(() => new Promise<void>(() => {}))
-    fireEvent.click(view.getByRole('button', { name: '加载并跳转到第 1 轮' }))
+    fireEvent.click(view.getByRole('button', { name: '加载并跳转到第 1 条消息' }))
     const scroller = view.container.querySelector('[class*="scroll"]') as HTMLDivElement
     Object.defineProperty(scroller, 'scrollHeight', { value: 4_000, writable: true })
     Object.defineProperty(scroller, 'clientHeight', { value: 400, writable: true })
@@ -3506,7 +3508,7 @@ describe('ChatView', () => {
 
     /** The rail button for a turn. It carries `aria-current` while it is the mark. */
     function tickFor(view: ReturnType<typeof render>, turn: number): HTMLElement {
-      return view.getByRole('button', { name: `跳转到第 ${String(turn)} 轮` })
+      return view.getByRole('button', { name: `跳转到第 ${String(turn)} 条消息` })
     }
 
     afterEach(() => {

@@ -11,40 +11,53 @@ import type { SessionSeq } from '@aeven/session/types'
 
 export {}
 
-/** One started turn's outline facts, independent of what a client has paged in. */
+/**
+ * One human message's outline facts, independent of what a client has paged
+ * in. Each started turn has one opening entry, plus one entry per human
+ * message that steered it while it ran.
+ */
 export interface TurnOutlineEntry {
-  /** Host-assigned turn number (the `turn/start` payload). */
+  /** Host-assigned number of the turn the message belongs to (the `turn/start` payload). */
   readonly turn: number
-  /** The turn's `turn/start` event seq — the anchor a jump installs its window on. */
+  /**
+   * The jump anchor: the turn's `turn/start` seq for its opening entry, so a
+   * window anchored there holds the whole turn; the message's own
+   * `user/message` seq for a steering entry.
+   */
   readonly seq: SessionSeq
-  /** Bounded first-human-prompt preview; `''` until an eligible prompt lands. */
+  /** Bounded message-text preview; `''` until the opening prompt lands, or for an images-only message. */
   readonly prompt: string
-  /** Bounded final-response preview; `''` until the turn ends with assistant text. */
+  /** Bounded preview of the newest assistant text after this message and before the next one. */
   readonly response: string
 }
 
 /**
- * Fold state: the settled turns plus the open turn, held apart.
+ * Fold state: the settled entries plus the open entry, held apart.
  *
- * Only the open turn's previews can still change, and they change several
- * times within a turn, so keeping it out of `settled` makes each of those a
- * field write on one small object instead of a copy of the whole outline.
- * `settled` is rebuilt once per turn, when the open turn closes.
+ * Only the open entry's previews can still change, and they change several
+ * times, so keeping it out of `settled` makes each of those a field write on
+ * one small object instead of a copy of the whole outline. `settled` is
+ * rebuilt once per entry, when the open entry closes.
  */
 export interface TurnOutlineState {
-  /** Ended turns in ascending turn order; never rewritten after a turn closes. */
+  /** Closed entries in ascending seq order; never rewritten after an entry closes. */
   readonly settled: readonly TurnOutlineEntry[]
-  /** The turn currently open, or null outside one. */
+  /** The entry still collecting previews — the newest message of the running turn — or null outside a turn. */
   readonly open: TurnOutlineEntry | null
+  /** The open entry is a turn opener whose first human message has not landed yet. */
+  readonly awaitingPrompt: boolean
 }
 
 declare module '@aeven/session-projection/types' {
   interface SessionProjectionStateMap {
-    /** Whole-log turn outline fold state (settled turns plus the open one). */
+    /** Whole-log turn outline fold state (settled entries plus the open one). */
     turnOutline: TurnOutlineState
   }
   interface SessionProjectionMap {
-    /** Every started turn with its `turn/start` seq and bounded previews, strictly increasing by turn; see {@link TurnOutlineEntry}. */
+    /**
+     * One entry per human message of every started turn, with its jump seq and
+     * bounded previews, strictly increasing by seq; see {@link TurnOutlineEntry}.
+     */
     turnOutline: readonly TurnOutlineEntry[]
   }
 }
