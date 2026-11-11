@@ -30,7 +30,7 @@ import { getProfile } from './auth/services/api.ts'
 import { aevenConfig } from './auth/services/config.ts'
 import { isSessionRefusal } from './auth/services/errors.ts'
 import { AUTH_ROUTES, isAuthRoute, navigateRoute } from './auth/services/routes.ts'
-import { publishReader } from './auth/services/reader.ts'
+import { adoptPendingLocale, publishReader } from './auth/services/reader.ts'
 import { cachedProfile, session, storage, type AevenProfile } from './auth/services/session.ts'
 import { sessionBearer, watchSession, hostRefusedSession, leaveForSignIn, noteHostRefusal, pageIsLeaving } from './auth/services/watch.ts'
 
@@ -81,6 +81,7 @@ export async function restoreSession(): Promise<AuthGateResult> {
   if (aevenConfig().apiUrl === undefined) return { state: 'disabled' }
   try {
     const profile = await getProfile()
+    adoptPendingLocale()
     publishReader()
     return gateResultFor(profile)
   } catch (error) {
