@@ -2747,9 +2747,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'abstract placementOf(owner: string, sessionId: SessionId): HandoffPlacement | undefined',
-        description: 'Where a synced session runs, for offering the user to move it.',
+        description: 'Where a synced session runs, for offering the user to move it. On an always-on device a session not yet synced has one too: its home is the desktop its first input would be forwarded to.',
         parameters: [{ name: 'owner', description: 'the account.' }, { name: 'sessionId', description: 'the session.' }],
-        returns: 'the placement, or undefined when the session is not synced or account sync has not started.',
+        returns: 'the placement, or undefined when account sync has not started, or the session is not synced and this device is not always on.',
       },
       {
         signature: 'abstract devicesOf(owner: string): HandoffDevices | undefined',
@@ -2759,7 +2759,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'abstract moveTo(owner: string, sessionId: SessionId, device: string): Promise<void>',
-        description: 'Make a device of the account the session\'s home, so its next turn runs there: this device, or an always-on device a later input is forwarded to. The session\'s log does not change.',
+        description: 'Make a device of the account the session\'s home, so its next turn runs there: this device, or an always-on device a later input is forwarded to. The session\'s log does not change. On an always-on device a session not yet synced keeps the choice for its first input.',
         parameters: [{ name: 'owner', description: 'the account.' }, { name: 'sessionId', description: 'the session.' }, { name: 'device', description: 'the device id, this device\'s or an always-on device\'s.' }],
         throws: ['when another device runs a turn of the session now, or the device is neither.'],
       },
