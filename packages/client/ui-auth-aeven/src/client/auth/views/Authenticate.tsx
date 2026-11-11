@@ -6,7 +6,7 @@ import JSConfetti from '../../../vendor/confetti/index.ts'
 import Input, { type InputHandle } from '../com/Input.tsx'
 import Button, { type ButtonHandle } from '../com/Button.tsx'
 import { MarkBackdrop } from '../com/MarkBackdrop.tsx'
-import { LanguageMenu } from '../com/LanguageMenu.tsx'
+import { HeaderMenu } from '../com/HeaderMenu.tsx'
 
 import * as api from '../services/api.ts'
 import * as events from '../services/events.ts'
@@ -1748,7 +1748,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
                   <span dangerouslySetInnerHTML={{ __html: BACK_ICON }} />
                 </button>
               )}
-            <LanguageMenu onChange={() => { setLocaleRevision(revision => revision + 1) }} />
+            <HeaderMenu onLocaleChange={() => { setLocaleRevision(revision => revision + 1) }} />
           </div>
           <div className="content-container">
             {renderAuthComponent()}

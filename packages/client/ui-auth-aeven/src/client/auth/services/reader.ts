@@ -11,6 +11,7 @@
 import { helpCenterUrl, mediaUrl, webUrl } from './config.ts'
 import { cloud, mfa, removeAvatar, setDisplayName, setLocale as storeLocale, signOut, uploadAvatar } from './api.ts'
 import { session } from './session.ts'
+import { installApp, installOffer, type InstallOffer, type InstallOutcome } from './install.ts'
 
 /** What a plugin may know about the signed-in reader. */
 export interface AevenReader {
@@ -69,6 +70,16 @@ export interface AevenReader {
    * @returns the decoded response body.
    */
   readonly cloud: <T>(path: string, init?: RequestInit) => Promise<T>
+  /**
+   * What an Install item would do on this page.
+   * @returns the offer, or undefined off a phone and inside the installed app.
+   */
+  readonly installOffer: () => InstallOffer | undefined
+  /**
+   * Install the app to the home screen.
+   * @returns the browser dialog's answer, or the platform whose manual steps to show.
+   */
+  readonly installApp: () => Promise<InstallOutcome>
 }
 
 /** Whether an authentication screen of this page was left signed in. */
@@ -126,6 +137,8 @@ export function publishReader(): void {
     },
     cloud,
     mfa,
+    installOffer,
+    installApp,
   }
 }
 

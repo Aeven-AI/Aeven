@@ -5369,15 +5369,15 @@ body .mermaid-render-sandbox {
     padding-right: 16px;
   }
 }
-/* The language control at the band's far end. Over the black graphics panel
-   on a wide screen it is a white circle with a black glyph; where the form
+/* The header menu at the band's far end. Over the black graphics panel on a
+   wide screen its button is a white circle with a black glyph; where the form
    takes the whole width it matches the brand seat, black with a white glyph. */
-#app-root .view-container .authenticate.view .main-content .auth-header .auth-language {
+#app-root .view-container .authenticate.view .main-content .auth-header .auth-menu {
   position: relative;
   z-index: 1;
   margin-left: auto;
 }
-#app-root .view-container .authenticate.view .main-content .auth-header .auth-language-button {
+#app-root .view-container .authenticate.view .main-content .auth-header .auth-menu-button {
   display: grid;
   place-items: center;
   width: 30px;
@@ -5389,56 +5389,71 @@ body .mermaid-render-sandbox {
   color: #000000;
   cursor: pointer;
 }
-#app-root .view-container .authenticate.view .main-content .auth-header .auth-language-button:focus-visible {
+#app-root .view-container .authenticate.view .main-content .auth-header .auth-menu-button:focus-visible {
   outline: 2px solid #ffffff;
   outline-offset: 2px;
 }
-#app-root .view-container .authenticate.view .main-content .auth-header .auth-language-button svg {
+#app-root .view-container .authenticate.view .main-content .auth-header .auth-menu-button svg {
   display: block;
   width: 18px;
   height: 18px;
 }
 @media screen and (max-width: 1024px) {
-  #app-root .view-container .authenticate.view .main-content .auth-header .auth-language-button {
+  #app-root .view-container .authenticate.view .main-content .auth-header .auth-menu-button {
     background: #000000;
     color: #ffffff;
   }
-  #app-root .view-container .authenticate.view .main-content .auth-header .auth-language-button:focus-visible {
+  #app-root .view-container .authenticate.view .main-content .auth-header .auth-menu-button:focus-visible {
     outline-color: #000000;
   }
 }
-#app-root .view-container .authenticate.view .main-content .auth-header .auth-language-menu {
+/* The header menu's card is the account menu's popup: the same markup, and the
+   rules below are aeven-account.css's `.tippy-box[data-theme~="menu"]` pair,
+   carried here because that sheet loads with the application, after sign-in. */
+#app-root .view-container .authenticate.view .main-content .auth-header .auth-menu-popover {
   position: absolute;
-  top: 38px;
-  right: 0px;
-  min-width: 148px;
-  margin: 0px;
-  padding: 6px;
-  list-style: none;
-  border-radius: 12px;
-  background: #ffffff;
-  box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.16);
+  top: 100%;
+  right: 0;
 }
-#app-root .view-container .authenticate.view .main-content .auth-header .auth-language-option {
+#app-root .view-container .authenticate.view .main-content .auth-header .auth-menu .tippy-box[data-theme~="menu"] {
   display: block;
-  width: 100%;
-  padding: 8px 12px;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: rgb(10, 10, 10);
-  font: inherit;
-  font-size: 0.875rem;
-  text-align: left;
-  cursor: pointer;
-}
-#app-root .view-container .authenticate.view .main-content .auth-header .auth-language-option:hover,
-#app-root .view-container .authenticate.view .main-content .auth-header .auth-language-option:focus-visible {
-  background: rgb(242, 242, 242);
+  position: relative;
+  min-width: 250px;
   outline: none;
+  padding-top: 5px;
+  color: #000;
+  white-space: normal;
+  font-size: 0.875rem;
+  font-weight: 400;
+  font-family: "Google Sans Flex", sans-serif;
+  background-color: transparent;
 }
-#app-root .view-container .authenticate.view .main-content .auth-header .auth-language-option[aria-checked="true"] {
-  font-weight: 600;
+#app-root .view-container .authenticate.view .main-content .auth-header .auth-menu .tippy-box[data-theme~="menu"] .tippy-content {
+  display: block;
+  position: relative;
+  z-index: 1;
+  padding-left: 0px;
+  padding-right: 0px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  border-radius: 30px;
+  backdrop-filter: blur(4px);
+  background-color: rgba(255, 255, 255, 0.7);
+  box-shadow:
+    inset 1px 1px 0px 0px rgba(255, 255, 255, 0.8),
+    inset 0px 0px 1px 1px rgba(255, 255, 255, 0.8),
+    0px 2px 20px rgba(0, 0, 0, 0.1);
+  transition: backdrop-filter 0.4s ease-out;
+}
+#app-root .view-container .authenticate.view .main-content .auth-header .auth-menu .menu-container {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+}
+#app-root .view-container .authenticate.view .main-content .auth-header .auth-menu .menu-button {
+  border: none;
+  background: none;
+  cursor: pointer;
 }
 /* The desktop shell insets its window controls over the page's top-left, on this
    band's own row (desktop main.ts `trafficLightPosition`): the seat stands one
