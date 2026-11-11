@@ -1,7 +1,7 @@
 {
   "name": "@aeven/cloud-meter",
   "description": "Meters an account's Aeven Cloud work on a hosted Host and stops new cloud work once its credit is spent",
-  "version": "0.3.44-alpha",
+  "version": "0.3.45-alpha",
   "publishConfig": {
     "access": "public"
   },

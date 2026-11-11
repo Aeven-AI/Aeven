@@ -1,7 +1,7 @@
 {
   "name": "@aeven/fs-e2b",
   "description": "E2B filesystem implementation for Aeven",
-  "version": "0.3.44-alpha",
+  "version": "0.3.45-alpha",
   "publishConfig": {
     "access": "public"
   },
