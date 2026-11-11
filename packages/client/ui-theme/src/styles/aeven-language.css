@@ -142,7 +142,7 @@ body {
 
   /* Translucent tints. Stated per theme because a percentage of a token is not
      a value the floor can compute: `color-mix()` needs Safari 16.2. */
-  --dsw-tint-menu: rgba(255, 255, 255, 0.7);
+  --dsw-tint-menu: rgba(255, 255, 255, 0.9);
   --dsw-tint-surface-fade: rgba(242, 242, 242, 0.6);
   --dsw-tint-layer-1-58: rgba(255, 255, 255, 0.58);
   --dsw-tint-layer-1-75: rgba(255, 255, 255, 0.75);
