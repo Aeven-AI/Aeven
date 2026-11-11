@@ -88,6 +88,7 @@ export const en = {
   'file.refresh': 'Reload file',
   'file.outside': 'This file is outside the workspace',
   'markdown.footnotes': 'Footnotes',
+  'markdown.imageUnavailable': 'Image not shown',
 }
 
 /** Dictionary key union owned by this plugin. */
@@ -181,6 +182,7 @@ export const zh: Record<SidebarFilesKey, string> = {
   'file.refresh': '重新加载文件',
   'file.outside': '此文件不在工作区内',
   'markdown.footnotes': '脚注',
+  'markdown.imageUnavailable': '图片未显示',
 }
 
 /**
@@ -273,4 +275,5 @@ export const es = {
   'file.refresh': 'Recargar archivo',
   'file.outside': 'Este archivo está fuera del espacio de trabajo',
   'markdown.footnotes': 'Notas al pie',
+  'markdown.imageUnavailable': 'Imagen no mostrada',
 } satisfies Record<SidebarFilesKey, string>

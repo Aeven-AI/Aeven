@@ -28,6 +28,7 @@ export function PlanReviewPanel({ pending, review, t }: PlanReviewPanelProps) {
   const markdownLabels = useMemo(() => ({
     code: { copyLabel: t('copy'), copiedLabel: t('copied') },
     footnotes: t('markdown.footnotes'),
+    imageUnavailable: t('markdown.imageUnavailable'),
   }), [t])
   // The panel waits for the host's resolved frame before leaving, so repeated
   // clicks must not resubmit. A failed send re-enables it and shows the error.

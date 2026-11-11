@@ -882,7 +882,7 @@ function ProcedureCard({
                 </p>
                 <Fold label={t('procedure')} open={steps} onToggle={() => { setSteps(!steps) }}>
                   <div className={css.prose}>
-                    <MarkdownText text={ready.content} variant="compact" labels={{ code: { copyLabel: t('copy'), copiedLabel: t('copied') }, footnotes: t('footnotes') }} />
+                    <MarkdownText text={ready.content} variant="compact" labels={{ code: { copyLabel: t('copy'), copiedLabel: t('copied') }, footnotes: t('footnotes'), imageUnavailable: t('imageUnavailable') }} />
                   </div>
                 </Fold>
               </>

@@ -72,6 +72,7 @@ export const en = {
   copy: 'Copy',
   copied: 'Copied',
   footnotes: 'Footnotes',
+  imageUnavailable: 'Image not shown',
 }
 
 /** Key set of the Memory section's dictionaries. */
@@ -149,6 +150,7 @@ export const zh: Record<MemoryLocaleKey, string> = {
   copy: '复制',
   copied: '已复制',
   footnotes: '脚注',
+  imageUnavailable: '图片未显示',
 }
 
 /**
@@ -225,4 +227,5 @@ export const es = {
   copy: 'Copiar',
   copied: 'Copiado',
   footnotes: 'Notas al pie',
+  imageUnavailable: 'Imagen no mostrada',
 } satisfies Record<MemoryLocaleKey, string>
