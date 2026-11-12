@@ -72,6 +72,7 @@ The kernel packages boot and serve the page; the UI feature packages present it.
 | [`ui-settings-plugin-inventory/`](ui-settings-plugin-inventory/README.md) | Contributes the read-only Host Loader inventory tab to Plugins settings | — |
 | [`ui-deliverables/`](ui-deliverables/README.md) | Produces the produced-files turn tail and clickable final-response file references | — |
 | [`ui-message-feedback/`](ui-message-feedback/README.md) | Contributes per-message feedback controls to the assistant-message action strip | — |
+| [`ui-message-share/`](ui-message-share/README.md) | Contributes the share action, share dialog, and shared-link manager to the assistant-message action strip | — |
 | [`ui-directory-picker-browse/`](ui-directory-picker-browse/README.md) | In-app directory browsing surface for the workspace directory flow | — |
 | [`ui-directory-picker-native/`](ui-directory-picker-native/README.md) | Native directory-picker surface driving the host's OS chooser | — |
 

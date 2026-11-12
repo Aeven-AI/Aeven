@@ -114,6 +114,8 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/client/ui-location': { kind: 'none', reason: 'Browser-side location consent; the get_location tool owns what the model sees.' },
   'packages/client/ui-chat': { kind: 'none', reason: 'Browser-side Chat presentation; registers nothing model-facing.' },
   'packages/client/ui-message-feedback': { kind: 'none', reason: 'Browser-side controls over the message-feedback sidecar; ratings and notes never enter the Session log, model context, or telemetry.' },
+  'packages/client/ui-message-share': { kind: 'none', reason: 'Browser-side share dialog and link manager; shared links never enter the Session log, model context, or telemetry.' },
+  'packages/host/message-share': { kind: 'none', reason: 'Publishes a snapshot read from the Session log to the Aeven API; it appends nothing and changes no model request.' },
   'packages/client/ui-tool': { kind: 'none', reason: 'Browser-side Tool presentation layer; renders logged calls without changing model context.' },
   'packages/client/ui-jobs': { kind: 'none', reason: 'Browser-side read-only projection of ctx.jobs records; avn-tool-jobs owns the model-facing behavior.' },
   'packages/client/ui-workflow-run': { kind: 'none', reason: 'Browser-side UI plugin layer; renders durable workflow records without changing model context.' },

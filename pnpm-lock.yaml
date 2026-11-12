@@ -1117,6 +1117,9 @@ importers:
       '@aeven/host-account-integrations':
         specifier: workspace:^
         version: link:../../host/account-integrations
+      '@aeven/host-message-share':
+        specifier: workspace:^
+        version: link:../../host/message-share
       '@aeven/host-plugin-inventory':
         specifier: workspace:^
         version: link:../../host/plugin-inventory
@@ -2322,6 +2325,9 @@ importers:
       '@aeven/client-ui-message-feedback':
         specifier: workspace:^
         version: link:../../client/ui-message-feedback
+      '@aeven/client-ui-message-share':
+        specifier: workspace:^
+        version: link:../../client/ui-message-share
       '@aeven/client-ui-model-selection':
         specifier: workspace:^
         version: link:../../client/ui-model-selection
@@ -2487,6 +2493,9 @@ importers:
       '@aeven/host-frontend-static':
         specifier: workspace:^
         version: link:../../host/frontend-static
+      '@aeven/host-message-share':
+        specifier: workspace:^
+        version: link:../../host/message-share
       '@aeven/host-plugin-inventory':
         specifier: workspace:^
         version: link:../../host/plugin-inventory
@@ -4032,6 +4041,60 @@ importers:
       '@testing-library/react':
         specifier: ^16.1.0
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@types/react':
+        specifier: ~18.3.1
+        version: 18.3.31
+      '@types/react-dom':
+        specifier: ~18.3.0
+        version: 18.3.7(@types/react@18.3.31)
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.2.0
+        version: 18.3.1(react@18.3.1)
+
+  packages/client/ui-message-share:
+    devDependencies:
+      '@aeven/api-remotes':
+        specifier: workspace:^
+        version: link:../../api/remotes
+      '@aeven/client-connection':
+        specifier: workspace:^
+        version: link:../connection
+      '@aeven/client-locale':
+        specifier: workspace:^
+        version: link:../locale
+      '@aeven/client-ui-chat':
+        specifier: workspace:^
+        version: link:../ui-chat
+      '@aeven/client-ui-conversation':
+        specifier: workspace:^
+        version: link:../ui-conversation
+      '@aeven/client-ui-primitives':
+        specifier: workspace:^
+        version: link:../ui-primitives
+      '@aeven/client-ui-renderer':
+        specifier: workspace:^
+        version: link:../ui-renderer
+      '@aeven/client-ui-session':
+        specifier: workspace:^
+        version: link:../ui-session
+      '@aeven/client-ui-slots':
+        specifier: workspace:^
+        version: link:../ui-slots
+      '@aeven/host-message-share':
+        specifier: workspace:^
+        version: link:../../host/message-share
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@aeven/typert-protocol':
+        specifier: workspace:^
+        version: link:../../typert/protocol
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
       '@types/react':
         specifier: ~18.3.1
         version: 18.3.31
@@ -8488,6 +8551,46 @@ importers:
       '@deepseek-ai/cordis-plugin-loader':
         specifier: workspace:^
         version: link:../../../vendor/loader
+
+  packages/host/message-share:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+      zod:
+        specifier: ^4.4.3
+        version: 4.6.5
+    devDependencies:
+      '@aeven/attachment':
+        specifier: workspace:^
+        version: link:../../attachment/attachment
+      '@aeven/brand':
+        specifier: workspace:^
+        version: link:../../util/brand
+      '@aeven/credentials':
+        specifier: workspace:^
+        version: link:../../credentials/credentials
+      '@aeven/identity-user':
+        specifier: workspace:^
+        version: link:../../identity/user
+      '@aeven/llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@aeven/session-persistence':
+        specifier: workspace:^
+        version: link:../../session/session-persistence
+      '@aeven/typert-protocol':
+        specifier: workspace:^
+        version: link:../../typert/protocol
+      '@aeven/workspace':
+        specifier: workspace:^
+        version: link:../../workspace/workspace
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
 
   packages/host/plugin-inventory:
     dependencies:

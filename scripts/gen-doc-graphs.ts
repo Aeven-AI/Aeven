@@ -358,6 +358,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Owns local per-assistant-message feedback, lifecycle and target validation, per-item compare-and-set, and the Host unary Remote contract without entering Session history or telemetry.',
   },
   {
+    key: 'messageShare',
+    pkg: 'message-share',
+    title: 'Public links to shared messages',
+    mode: 'core',
+    consumers: ['ui-message-share'],
+    note: 'Builds a snapshot of one finalized assistant message from the persisted Session log and files it under the signed-in account on the Aeven API, which serves the public link; it lists and deletes that account\'s links.',
+  },
+  {
     key: 'workspaceRegistry',
     pkg: 'workspace',
     title: 'Workspace entity registry',

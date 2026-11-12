@@ -1,0 +1,83 @@
+{
+  "name": "@aeven/host-message-share",
+  "description": "Public links to shared assistant messages, stored by the Aeven API per signed-in account",
+  "version": "0.3.45-alpha",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Aeven.git",
+    "directory": "packages/host/message-share"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./types": {
+      "types": "./lib/types/types.d.ts",
+      "default": "./lib/types/types.js"
+    },
+    "./typert": {
+      "types": "./lib/typert.host.d.ts",
+      "default": "./lib/typert.host.js"
+    },
+    "./remote": {
+      "types": "./lib/typert.remote-client.d.ts",
+      "default": "./lib/typert.remote-client.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.js",
+    "lib/types/**/*.d.ts",
+    "lib/typert.host.js",
+    "lib/typert.host.d.ts",
+    "lib/typert.remote-client.js",
+    "lib/typert.remote-client.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@deepseek-ai/schemastery": "workspace:^",
+    "zod": "^4.4.3"
+  },
+  "peerDependencies": {
+    "@aeven/attachment": "workspace:^",
+    "@aeven/brand": "workspace:^",
+    "@aeven/credentials": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/session-persistence": "workspace:^",
+    "@aeven/typert-protocol": "workspace:^",
+    "@aeven/workspace": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@aeven/attachment": {
+      "optional": true
+    },
+    "@aeven/workspace": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@aeven/attachment": "workspace:^",
+    "@aeven/brand": "workspace:^",
+    "@aeven/credentials": "workspace:^",
+    "@aeven/identity-user": "workspace:^",
+    "@aeven/llm": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/session-persistence": "workspace:^",
+    "@aeven/typert-protocol": "workspace:^",
+    "@aeven/workspace": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:^"
+  }
+}

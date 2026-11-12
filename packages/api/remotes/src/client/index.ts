@@ -24,6 +24,7 @@ import memoryManagerRemote from '@aeven/api-memory-manager/remote'
 import syncRemote from '@aeven/api-sync-controller/remote'
 import personalizationRemote from '@aeven/personalization/remote'
 import accountIntegrationsRemote from '@aeven/host-account-integrations/remote'
+import messageShareRemote from '@aeven/host-message-share/remote'
 import type { ClientRemote } from '@aeven/api-gateway/client'
 
 export type { ClientRemote } from '@aeven/api-gateway/client'
@@ -61,6 +62,7 @@ export type {} from '@aeven/api-speech-to-text/remote'
 export type * from '@aeven/api-speech-to-text/types'
 export type {} from '@aeven/api-memory-manager/remote'
 export type {} from '@aeven/host-account-integrations/remote'
+export type {} from '@aeven/host-message-share/remote'
 export type {} from '@aeven/skill'
 export type {} from '@aeven/sync'
 export type * from '@aeven/api-memory-manager/types'
@@ -190,7 +192,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       pluginInventoryRemote, messageFeedbackRemote, sessionReferencesRemote,
       subagentsRemote, sessionRemote, jobRemote, workspaceRemote, browserChromiumRemote, workspaceFilesRemote,
       terminalRemote, deviceRemote, speechRemote, ttsRemote, memoryManagerRemote, personalizationRemote, accountIntegrationsRemote,
-      syncRemote,
+      messageShareRemote, syncRemote,
     ]) {
       disposers.push(await ctx.remote.$mount(contribution))
     }

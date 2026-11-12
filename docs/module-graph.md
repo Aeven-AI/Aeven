@@ -177,6 +177,7 @@ flowchart TD
     pkg_client_ui_layout["client-ui-layout"]
     pkg_client_ui_location["client-ui-location"]
     pkg_client_ui_message_feedback["client-ui-message-feedback"]
+    pkg_client_ui_message_share["client-ui-message-share"]
     pkg_client_ui_model_selection["client-ui-model-selection"]
     pkg_client_ui_permission_presets["client-ui-permission-presets"]
     pkg_client_ui_plan["client-ui-plan"]
@@ -307,6 +308,7 @@ flowchart TD
     pkg_host_directory_picker_browse["host-directory-picker-browse"]
     pkg_host_directory_picker_native["host-directory-picker-native"]
     pkg_host_frontend_static["host-frontend-static"]
+    pkg_host_message_share["host-message-share"]
     pkg_host_plugin_inventory["host-plugin-inventory"]
     pkg_host_webserver["host-webserver"]
     pkg_host_workspace_files["host-workspace-files"]
@@ -779,6 +781,15 @@ flowchart TD
   pkg_turn_review --> pkg_llm
   pkg_turn_review --> pkg_session
   pkg_turn_review --> pkg_timeout
+  pkg_host_message_share --> pkg_attachment
+  pkg_host_message_share --> pkg_brand
+  pkg_host_message_share --> pkg_credentials
+  pkg_host_message_share --> pkg_identity_user
+  pkg_host_message_share --> pkg_llm
+  pkg_host_message_share --> pkg_session
+  pkg_host_message_share --> pkg_session_persistence
+  pkg_host_message_share --> pkg_typert_protocol
+  pkg_host_message_share --> pkg_workspace
   pkg_host_workspace_files --> pkg_client_connection
   pkg_host_workspace_files --> pkg_host_webserver
   pkg_host_workspace_files --> pkg_workspace
@@ -1699,6 +1710,7 @@ flowchart TD
 | [`client-ui-layout`](../packages/client/ui-layout) | `client` | — |
 | [`client-ui-location`](../packages/client/ui-location) | `client` | — |
 | [`client-ui-message-feedback`](../packages/client/ui-message-feedback) | `client` | — |
+| [`client-ui-message-share`](../packages/client/ui-message-share) | `client` | — |
 | [`client-ui-model-selection`](../packages/client/ui-model-selection) | `client` | — |
 | [`client-ui-permission-presets`](../packages/client/ui-permission-presets) | `client` | — |
 | [`client-ui-plan`](../packages/client/ui-plan) | `client` | — |
@@ -1874,6 +1886,7 @@ flowchart TD
 | [`document-extract-video`](../packages/document/document-extract-video) | `document` | [`document-extract`](../packages/document/document-extract), [`speech-to-text`](../packages/speech/speech-to-text), [`subprocess`](../packages/subprocess/subprocess) |
 | [`fs-e2b`](../packages/e2b/fs-e2b) | `e2b` | [`e2b`](../packages/e2b/e2b), [`fs`](../packages/fs/fs) |
 | [`turn-review`](../packages/guard/turn-review) | `guard` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`timeout`](../packages/util/timeout) |
+| [`host-message-share`](../packages/host/message-share) | `host` | [`attachment`](../packages/attachment/attachment), [`brand`](../packages/util/brand), [`credentials`](../packages/credentials/credentials), [`identity-user`](../packages/identity/user), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-persistence`](../packages/session/session-persistence), [`typert-protocol`](../packages/typert/protocol), [`workspace`](../packages/workspace/workspace) |
 | [`host-workspace-files`](../packages/host/workspace-files) | `host` | [`client-connection`](../packages/client/connection), [`host-webserver`](../packages/host/webserver), [`workspace`](../packages/workspace/workspace) |
 | [`user-approval`](../packages/interaction/user-approval) | `interaction` | [`agent`](../packages/core/agent), [`brand`](../packages/util/brand), [`invariants`](../packages/runtime-diagnostics/invariants), [`llm`](../packages/llm/llm), [`scope`](../packages/core/scope), [`session`](../packages/core/session), [`system-prompt`](../packages/core/system-prompt) |
 | [`user-questions`](../packages/interaction/user-questions) | `interaction` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`scope`](../packages/core/scope) |

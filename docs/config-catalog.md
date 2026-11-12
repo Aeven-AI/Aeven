@@ -1868,6 +1868,36 @@ export interface Config {
 
 Source: [`packages/host/frontend-static/src/index.ts`](../packages/host/frontend-static/src/index.ts)
 
+<a id="aevenhost-message-share"></a>
+
+## `@aeven/host-message-share`
+
+Requires: `sessionPersistence` · `sessions` · `credentials` · `identityUsers`
+
+```ts config-catalog
+/** Deployment settings. */
+export interface Config {
+  /** Aeven API origin that stores and serves share links, such as `https://api.aeven.io`. */
+  readonly apiUrl: string
+  /** Credential holding each user's Aeven access token. */
+  readonly credentialRef: string
+  /** Budget for one API call, in milliseconds. */
+  readonly timeoutMs: number
+  /** Path prefix of the workspace-files route, so a Markdown image served from it is published; absent when that route is not mounted. */
+  readonly workspaceMount?: string
+  /** Images one share carries at most; the Aeven API's own ceiling must be at least this. */
+  readonly maxImages: number
+  /** Largest image one share carries, in bytes; the Aeven API's own ceiling must be at least this. */
+  readonly maxImageBytes: number
+  /** Pixel budget an image content block is scaled down to before it is sent. */
+  readonly imageMaxPixels: number
+  /** Encoded size an image content block is compressed toward before it is sent, in bytes. */
+  readonly imageTargetBytes: number
+}
+```
+
+Source: [`packages/host/message-share/src/index.ts`](../packages/host/message-share/src/index.ts)
+
 <a id="aevenhost-webserver"></a>
 
 ## `@aeven/host-webserver`
@@ -6656,6 +6686,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@aeven/client-ui-layout` ([`packages/client/ui-layout/src/index.ts`](../packages/client/ui-layout/src/index.ts))
 - `@aeven/client-ui-location` ([`packages/client/ui-location/src/index.ts`](../packages/client/ui-location/src/index.ts))
 - `@aeven/client-ui-message-feedback` ([`packages/client/ui-message-feedback/src/index.ts`](../packages/client/ui-message-feedback/src/index.ts))
+- `@aeven/client-ui-message-share` ([`packages/client/ui-message-share/src/index.ts`](../packages/client/ui-message-share/src/index.ts))
 - `@aeven/client-ui-model-selection` ([`packages/client/ui-model-selection/src/index.ts`](../packages/client/ui-model-selection/src/index.ts))
 - `@aeven/client-ui-permission-presets` ([`packages/client/ui-permission-presets/src/index.ts`](../packages/client/ui-permission-presets/src/index.ts))
 - `@aeven/client-ui-plan` ([`packages/client/ui-plan/src/index.ts`](../packages/client/ui-plan/src/index.ts))

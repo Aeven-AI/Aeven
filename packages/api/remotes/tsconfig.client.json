@@ -120,6 +120,9 @@
       "path": "../../host/account-integrations"
     },
     {
+      "path": "../../host/message-share"
+    },
+    {
       "path": "../../skill/skill"
     },
     {

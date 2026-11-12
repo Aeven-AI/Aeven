@@ -418,6 +418,7 @@
     { "path": "./packages/host/frontend-static" },
     { "path": "./packages/host/workspace-files" },
     { "path": "./packages/host/cloud-meter" },
+    { "path": "./packages/host/message-share" },
     { "path": "./packages/host/plugin-inventory" },
     { "path": "./packages/llm/plugin-package-inventory-deepseek" },
     { "path": "./packages/host/webserver" },

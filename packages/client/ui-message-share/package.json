@@ -1,0 +1,71 @@
+{
+  "name": "@aeven/client-ui-message-share",
+  "description": "Share action in the assistant-message action strip, its share dialog, and the shared-link manager, backed by the messageShare Host Remote",
+  "version": "0.3.45-alpha",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Aeven.git",
+    "directory": "packages/client/ui-message-share"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "avn": {
+    "client": {
+      "inject": [
+        "@aeven/api-remotes",
+        "@aeven/client-locale",
+        "@aeven/client-ui-conversation",
+        "@aeven/client-ui-renderer"
+      ],
+      "platform": "web"
+    }
+  },
+  "scripts": {
+    "bundle": "tsdown",
+    "watch": "tsdown --watch"
+  },
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@aeven/api-remotes": "workspace:^",
+    "@aeven/client-connection": "workspace:^",
+    "@aeven/client-locale": "workspace:^",
+    "@aeven/client-ui-chat": "workspace:^",
+    "@aeven/client-ui-conversation": "workspace:^",
+    "@aeven/client-ui-primitives": "workspace:^",
+    "@aeven/client-ui-renderer": "workspace:^",
+    "@aeven/client-ui-session": "workspace:^",
+    "@aeven/client-ui-slots": "workspace:^",
+    "@aeven/host-message-share": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@aeven/typert-protocol": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^",
+    "@types/react": "~18.3.1",
+    "@types/react-dom": "~18.3.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "lib/types/**/*.d.ts"
+  ]
+}
