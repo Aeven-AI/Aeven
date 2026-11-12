@@ -43,8 +43,10 @@ const UPDATE_ACTIONS: UpdateAction[] = ['edit', 'pause', 'resume', 'complete', '
 
 const CREATE_DESCRIPTION =
   'Create a persisted goal that keeps this session working across automatic continuation rounds. '
-  + 'Use it when the direct human request is a long-running objective, even if the user did not say "goal"; '
-  + 'not for single-turn work.'
+  + 'Without a goal, the work stops as soon as you reply and waits for the person\'s next message. '
+  + 'Use it when the direct human request is a long-running objective, even if the user did not say "goal": '
+  + 'work over many items or files, or a request to keep going until done. '
+  + 'Not for single-turn work.'
 
 const GET_DESCRIPTION =
   'Read the current session goal, including the id and revision that update_goal requires.'
@@ -108,6 +110,9 @@ const GOAL_VALUE_SCHEMA = {
 /** Render policy guidance with its deployment-selected blocked threshold. */
 function guidance(blockedAfter: number): string {
   return 'create_goal may infer goal intent from a direct human request in any language. '
+    + 'Ending a reply ends the work unless a goal is active, so call create_goal before starting work that '
+    + 'will not finish in this turn, and call it at once when the person tells you to keep going until done '
+    + 'or asks why you stopped. '
     + 'After session resume or fork, an active goal is disarmed: when '
     + 'a human asks to continue or resume in any wording or language, use update_goal action '
     + 'resume to rearm it. Mark complete only when the objective is actually achieved. Mark '

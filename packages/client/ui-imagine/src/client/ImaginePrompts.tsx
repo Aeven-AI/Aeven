@@ -1,42 +1,84 @@
 /**
- * Imagine's start page: a grid of starter prompts with example images, shown in place of a blank chat's Hero
- * while the address is `/imagine`. Choosing one opens its popup, which previews what the prompt makes and what it
- * asks the model for; `Try it` there puts the message in the composer, where it can be edited and sent like any
- * message.
+ * The Inspiration start page, shown in place of a blank chat's Hero while the address is `/inspiration`: category
+ * pills over a grid of cards. `Image & video` cards are starter prompts with example images; choosing one opens its
+ * popup, which previews what the prompt makes, and `Try it` there puts the message in the composer. `Slides` cards
+ * are presentation templates; choosing one opens its slides, and `Use template` puts a request for a deck in that
+ * template in the composer. Either message is edited and sent like any other.
  */
 import { useCallback, useState } from 'react'
+import clsx from 'clsx'
 import type { PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import { Spinner } from '@aeven/client-ui-primitives'
 import type {} from '@aeven/client-ui-conversation/client'
 import { IMAGINE_PROMPTS, promptClipUrl, promptImageUrl } from './prompts.ts'
 import type { ImaginePromptId } from './prompts.ts'
 import { PromptDialog } from './PromptDialog.tsx'
+import { SlideDialog } from './SlideDialog.tsx'
+import { SLIDE_TEMPLATES, slideAssetUrl, slideFile } from './slides.ts'
+import type { SlideTemplateId } from './slides.ts'
 import { SketchCanvas } from './SketchCanvas.tsx'
 import type {} from './locales.ts'
+import { CATEGORIES } from './categories.ts'
+import type { InspirationInjected } from './categories.ts'
 import css from './ImaginePrompts.module.css'
 
+
 /**
- * Render the starter prompts.
- * @param props - the Session's input actions and the translator.
- * @returns the prompt grid and, while one is open, its popup.
+ * Render the category pills and the shown category's content; a pill opens its category's own address.
+ * @param props - the Session's input actions, the address's category and its navigation, and the translator.
+ * @returns the pills, the prompt grid and, while one is open, its popup.
  */
-export function ImaginePrompts({ inputActions, t }: PropsRuntime<'conversation.start'> & PropsLocale<'imagine'>) {
+export function ImaginePrompts({ inputActions, category, showCategory, t }:
+  PropsRuntime<'conversation.start'> & InspirationInjected & PropsLocale<'imagine'>) {
   const [open, setOpen] = useState<ImaginePromptId | null>(null)
+  const [openTemplate, setOpenTemplate] = useState<SlideTemplateId | null>(null)
   const opened = IMAGINE_PROMPTS.find(prompt => prompt.id === open)
   return (
-    <section className={css.root} aria-label={t('prompts.label')}>
-      <div className={css.grid}>
-        {IMAGINE_PROMPTS.map(({ id, image, clip }) => (
-          <PromptCard
-            key={id}
-            id={id}
-            image={image}
-            clip={clip}
-            title={t(`prompt.${id}.title`)}
-            onOpen={() => { setOpen(id) }}
-          />
-        ))}
+    <section className={css.root} aria-label={t('title')}>
+      <div className={css.content}>
+        <nav className={css.tabs} aria-label={t('categories.label')}>
+          {CATEGORIES.map(id => (
+            <button key={id} type="button" className={css.tab} aria-pressed={category === id} onClick={() => { showCategory(id) }}>
+              {t(`category.${id}`)}
+            </button>
+          ))}
+        </nav>
+        {category === 'image-video' && (
+          <div className={css.grid} role="group" aria-label={t('prompts.label')}>
+            {IMAGINE_PROMPTS.map(({ id, image, clip }) => (
+              <PromptCard
+                key={id}
+                id={id}
+                image={image}
+                clip={clip}
+                title={t(`prompt.${id}.title`)}
+                onOpen={() => { setOpen(id) }}
+              />
+            ))}
+          </div>
+        )}
+        {category === 'slides' && (
+          <div className={css.wideGrid} role="group" aria-label={t('slides.label')}>
+            {SLIDE_TEMPLATES.map(({ id }) => (
+              <button
+                key={id}
+                type="button"
+                className={clsx(css.card, css.slideCard)}
+                data-template={id}
+                data-state="ready"
+                onClick={() => { setOpenTemplate(id) }}
+              >
+                <img className={css.image} src={slideAssetUrl(id, slideFile(0))} alt="" loading="lazy" />
+                <span className={css.shade} aria-hidden="true" />
+                <span className={css.title}>{t(`slides.${id}.title`)}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
+      {openTemplate !== null && (
+        <SlideDialog key={openTemplate} id={openTemplate} inputActions={inputActions} t={t} onClose={() => { setOpenTemplate(null) }} />
+      )}
       {opened !== undefined && (opened.id === 'sketch'
         ? (
           // The sketch starts as a drawing, not as a description: its card

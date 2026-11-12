@@ -1,4 +1,4 @@
-/** The sidebar's Imagine row: a link to the `/imagine` start address, opened in place on a plain click. */
+/** The sidebar's Imagine row: a link to the `/inspiration` start address, opened in place on a plain click. */
 import type { MouseEvent as ReactMouseEvent } from 'react'
 import { IconStackedImagesAnimated } from '@aeven/client-ui-primitives'
 import type { PropsLocale } from '@aeven/client-ui-slots'

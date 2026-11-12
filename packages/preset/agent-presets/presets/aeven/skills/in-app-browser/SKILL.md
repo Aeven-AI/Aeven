@@ -1,11 +1,11 @@
 ---
 name: in-app-browser
-description: Control the sidebar browser beside the session — open, visit, and read pages with the preview_* tools, press the pane's own toolbar, and capture what the user sees. A site the user names ("open linkedin") opens here; localhost, development, and debugging pages belong to Chrome DevTools. Use for screenshots of the pane, and when the pane is closed, refuses an automated read, or hides behind a consent wall.
+description: Control the sidebar browser beside the session — open, visit, and read pages with the preview_* tools, press the pane's own toolbar, and capture what the user sees. Simple browsing ("open linkedin") opens here; development work on any site, local or deployed, belongs to Chrome DevTools, and an unclear request is a question for the person. Use for screenshots of the pane, and when the pane is closed, refuses an automated read, or hides behind a consent wall.
 ---
 
 # Control the in-app browser
 
-The in-app browser is available in Electron. A request to open, visit, or read a website is this pane's: open it here and keep the task here, including a local address the person names. Development and debugging belong to the Chrome DevTools browser instead — a `localhost` or `127.0.0.1` page you are building, and any task that changes the code behind a page — and `preview_navigate` refuses such an address unless the person's own request names it, pointing at the `new_page` call to make instead. Serve that pane:
+The in-app browser is available in Electron. Simple browsing is this pane's — opening, reading, or using a site for the person — so open it here and keep the task here, including a local address the person names. Development belongs to the Chrome DevTools browser instead: building, changing, testing, or debugging a site or web app, local or deployed; inspecting a page's DOM, styles, console, or network; and reading a page or design file as the source for code you write. `preview_navigate` refuses a `localhost` or `127.0.0.1` address unless the person's own request names it, pointing at the `new_page` call to make instead. When a request could be either, ask the person which browser to use before opening one. Serve that pane:
 read it, drive it, capture it, and say plainly when it cannot be driven. Resolve
 every relative path below against the base directory reported in
 `<skill_resources>`.

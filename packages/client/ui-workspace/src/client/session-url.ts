@@ -67,10 +67,10 @@ export interface SessionUrlNavigation {
   /** Observe browser Back and Forward navigation. */
   subscribe(listener: () => void): () => void
   /**
-   * Claim a start address, such as `/imagine`: an address of the chat that
+   * Claim a start address, such as `/inspiration`: an address of the chat that
    * names no Session. A blank Session is shown under it, and the address moves
    * to that Session's own once the Session is no longer blank.
-   * @param path - absolute path, such as `/imagine` or `/automations/runs`.
+   * @param path - absolute path, such as `/inspiration` or `/automations/runs`.
    * @returns disposer releasing the claim.
    */
   registerStart(path: string): () => void

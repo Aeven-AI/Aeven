@@ -196,6 +196,14 @@ export interface SessionInput extends InputTarget {
    * @returns the notice a caller surfaces, or null when the images joined the draft.
    */
   addImageFiles(files: readonly File[]): string | null
+  /**
+   * Register chosen files of any type (documents, presentations, archives…)
+   * as this draft's file attachments, uploading each one, through the same
+   * intake the composer's own file attach control uses.
+   * @param files - the chosen files, in order.
+   * @returns the notice a caller surfaces, or null when the files joined the draft.
+   */
+  addFiles(files: readonly File[]): string | null
   /** Remove one browser-owned image id; busy admission phases refuse. */
   removeImage(id: DraftAttachmentId): void
   /** Drop ids whose browser-owned objects no longer exist. */
@@ -232,7 +240,7 @@ export interface SessionInputResolver {
  * paste/…) stay InputBar-private and never ride this face.
  */
 export interface InputActions extends Pick<SessionInput,
-  'setDraft' | 'appendText' | 'addImages' | 'addImageFiles' | 'removeImage' | 'pruneImages'> {
+  'setDraft' | 'appendText' | 'addImages' | 'addImageFiles' | 'addFiles' | 'removeImage' | 'pruneImages'> {
   /** Enter submission (adjudication / claim transaction / default sink inside). */
   submit(): void
 }

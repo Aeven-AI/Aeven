@@ -440,9 +440,12 @@ export function presentFetchResult(args: { url: string }, result: ToolResult): W
  * non-browser client, so a page that builds its content in a browser, or that
  * filters automated reads, returns nothing usable.
  *
- * A selected sidebar stays the task's browser. External Chrome/CDP is next;
- * headless browsing serves tasks neither visible browser can perform.
- * Each browser is named only while its tools are registered for the scope.
+ * With the attached Chrome registered, the work picks the browser: development
+ * goes to Chrome DevTools, simple browsing to the sidebar, and an unclear request
+ * is a question for the person. Without it, the `preview_*` tools are the browser,
+ * which on Aeven Web is the user's own browser through the Aeven extension.
+ * Headless browsing serves tasks neither visible browser can perform. Each
+ * browser is named only while its tools are registered for the scope.
  * @param browsers - which browser surfaces the scope can reach.
  * @param browsers.preview - whether this composition registers the browser tools.
  * @param browsers.headless - whether the headless browser's `mcp__playwright__*` tools are registered.
@@ -452,14 +455,14 @@ export function presentFetchResult(args: { url: string }, result: ToolResult): W
 function fetchEscalation(browsers: { preview: boolean; headless: boolean; attached: boolean }): string {
   const limit = ' It runs no JavaScript, so a page that builds itself in a browser, or that answers non-browser requests with a block page, returns little or nothing.'
   if (!browsers.preview) return limit
-  const visible = limit + ' Call preview_status to see the available browser surfaces. Opening, visiting, or reading a website stays in the Electron in-app browser when the session has one ("open linkedin"); development, debugging, and localhost pages belong to the Chrome DevTools browser. Correct actionable errors in the surface you are using and ask the user to sign in there when needed. Never switch browsers merely because a click or text insertion failed.'
+  const visible = limit + ' Call preview_status to see the available browser surfaces. Correct actionable errors in the surface you are using and ask the user to sign in there when needed. Never switch browsers merely because a click or text insertion failed.'
+  const headless = browsers.headless
+    ? ' Use the headless browser tools (mcp__playwright__*) only when no visible browser can serve the task, and say that the check ran in a headless copy; they cannot use the user\'s signed-in session.'
+    : ''
   if (browsers.attached) {
-    return visible + " If the selected pane cannot perform the required operation, or no pane is selected, use the Chrome attached to the user's browser (mcp__chrome_devtools__*). Use headless browsing only when neither visible browser can serve the task."
+    return visible + " Choose the browser by the work. Development goes to the Chrome DevTools browser (mcp__chrome_devtools__*): building, changing, testing, or debugging a site or web app, local or deployed; inspecting a page's DOM, styles, console, or network; and reading a page or design file as the source for code you write. Simple browsing goes to the in-app browser beside the session: opening, reading, or using a site for the person (\"open linkedin\"). When a request could be either, ask the person which browser to use before opening one. Use the Chrome DevTools browser as well when the in-app browser cannot perform the required operation." + headless
   }
-  if (browsers.headless) {
-    return visible + ' Use the headless browser tools (mcp__playwright__*) only when the visible browser cannot serve the task; they cannot use the user\'s signed-in session.'
-  }
-  return visible
+  return visible + ' When a task needs a browser, use preview_navigate and the other preview_* tools; on Aeven Web they drive the user\'s own browser through the Aeven extension and ask the user to add the extension when it is missing.' + headless
 
 }
 

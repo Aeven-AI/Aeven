@@ -1,0 +1,46 @@
+{
+  "id": "mid-mod",
+  "name": "Mid Mod",
+  "label": "Mid Mod",
+  "source": "https://www.figma.com/community/file/1384575847926903516/mid-mod",
+  "measuredFrom": "16 exported frames at 1000×563, palette sampled per frame with PIL, geometry scaled ×1.28",
+  "motif": "flat mid-century colour blocks: olive title bands in a heavy extended face, pink serif note boxes, stacked part bands with huge numerals, sky semicircles and yellow squares",
+  "colors": {
+    "olive": "#B6B246",
+    "moss": "#7C7930",
+    "sky": "#A2D8FB",
+    "pink": "#F0BECA",
+    "yellow": "#FDF972",
+    "cream": "#EBEBE0",
+    "red": "#A7271B",
+    "orange": "#EC623D",
+    "black": "#000000"
+  },
+  "type": {
+    "titleCover": 160,
+    "titleBand": 64,
+    "serifTitle": 96,
+    "lead": 80,
+    "body": 24,
+    "meta": 14,
+    "fonts": {
+      "text": "IBM Plex Serif",
+      "display": "Syne",
+      "extra": ["Unbounded"],
+      "source": "Titles in a heavy extended grotesque (Monument Extended–like); numerals, metric values and corner meta in a wide grotesque; parts, statements and body copy in an IBM Plex Serif–like text serif (identified visually)"
+    }
+  },
+  "geometry": {
+    "margin": 24,
+    "coverBand": 416,
+    "rule": 3
+  },
+  "palette": {
+    "paper": "#EBEBE0",
+    "ink": "#000000",
+    "muted": "#55553F",
+    "rule": "rgba(0,0,0,.22)",
+    "onAccent": "#000000",
+    "accents": ["#EC623D", "#7C7930", "#A7271B", "#B6B246"]
+  }
+}

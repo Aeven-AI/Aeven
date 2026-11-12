@@ -441,6 +441,7 @@ describe('DetailsPanel diff Output section', () => {
           appendText: () => true,
           addImages: () => true,
           addImageFiles: () => null,
+          addFiles: () => null,
           removeImage: () => {},
           pruneImages: () => {},
           submit: () => {},

@@ -1,0 +1,50 @@
+{
+  "id": "clean-zine",
+  "name": "Clean Zine",
+  "label": "Clean Zine",
+  "source": "https://www.figma.com/community/file/1384585873127672544/clean-zine",
+  "measuredFrom": "16 Figma Community thumbnails at 1000×563, palette sampled per frame with PIL",
+  "motif": "pale mint pages with brown alternates, tall condensed serif caps titles, italic serif labels with roman numerals, thin plus and dash marks, framed duotone pictures, quiet corner meta",
+  "tone": {
+    "mint": "#C9EFC2",
+    "brown": "#694E33",
+    "olive": "#766647",
+    "sage": "#ABBD96",
+    "sageLight": "#B9CBA3"
+  },
+  "rhythm": "mint throughout; brown for every second section, the statement, the big number and the closing",
+  "type": {
+    "family": "condensed serif caps titles, italic serif labels, humanist grotesque body and meta",
+    "titleCaps": true,
+    "fonts": {
+      "text": "Work Sans",
+      "display": "Instrument Serif",
+      "extra": [
+        "Noto Serif"
+      ],
+      "source": "Noto Serif Display Condensed–style caps titles (Instrument Serif is the closest static Google family), Noto Serif italic labels, Work Sans corner meta and body (identified visually)",
+      "italic": [
+        "Noto Serif"
+      ]
+    }
+  },
+  "geometry": {
+    "marginLeft": 46,
+    "metaTop": 30,
+    "metaRight": 105,
+    "hairline": 1.5
+  },
+  "palette": {
+    "paper": "#C9EFC2",
+    "ink": "#694E33",
+    "muted": "#7E6A4C",
+    "rule": "rgba(105,78,51,.32)",
+    "onAccent": "#C9EFC2",
+    "accents": [
+      "#694E33",
+      "#8E9264",
+      "#3E4A30",
+      "#B0875A"
+    ]
+  }
+}

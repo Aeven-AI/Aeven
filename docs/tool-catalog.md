@@ -1129,7 +1129,7 @@ The six terminal tools are opt-in and complement one-shot shell/filesystem tools
 
 ### `create_goal`
 
-Create a persisted goal that keeps this session working across automatic continuation rounds. Use it when the direct human request is a long-running objective, even if the user did not say "goal"; not for single-turn work.
+Create a persisted goal that keeps this session working across automatic continuation rounds. Without a goal, the work stops as soon as you reply and waits for the person's next message. Use it when the direct human request is a long-running objective, even if the user did not say "goal": work over many items or files, or a request to keep going until done. Not for single-turn work.
 
 ```json
 {

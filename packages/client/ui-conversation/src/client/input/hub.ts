@@ -46,6 +46,8 @@ interface ConversationAttachmentFace {
   serializeDraftImages(imageIds: readonly DraftAttachmentId[]): Promise<readonly SubmitImageAttachment[]>
   /** Register browser files as draft images; rejects an unsupported media type. */
   createDraftImages(files: readonly File[]): readonly { readonly id: DraftAttachmentId }[]
+  /** Register browser files as draft file attachments and start their uploads. */
+  createDraftFiles(files: readonly File[]): readonly { readonly id: DraftAttachmentId }[]
   releaseDraftImage(id: DraftAttachmentId): void
 }
 
@@ -121,6 +123,9 @@ export class InputHub implements SessionInputResolver {
         },
         release: (ids) => { this.releaseDraftImages(ids) },
         busyNotice: () => this.t('file.busy'),
+      },
+      draftFiles: {
+        create: files => this.conversation().createDraftFiles(files).map(draft => draft.id),
       },
     })
     this.shells.set(id, shell)

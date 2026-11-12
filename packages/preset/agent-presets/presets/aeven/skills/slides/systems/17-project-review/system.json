@@ -1,0 +1,49 @@
+{
+  "id": "project-review",
+  "name": "Project Review",
+  "label": "Project Review",
+  "source": "https://www.figma.com/community/file/1382450143708596592/project-review",
+  "measuredFrom": "14 ripped frames at 1000×563, scaled ×1.28 to 1280×720",
+  "motif": "grey and cream report pages, spaced caps header over a heavy black rule, ruled grid cells, serif caps statements, small corner meta",
+  "surface": {
+    "page": "#F0F0F0",
+    "cream": "#FDF5D5",
+    "placeholder": ["#EBEBEB", "#FAFAFA"]
+  },
+  "ink": {
+    "primary": "#000000",
+    "body": "#161616",
+    "muted": "#5A5A5A"
+  },
+  "rule": {
+    "heavy": "#000000",
+    "hair": "#6E6E6E"
+  },
+  "status": ["#7EBF76", "#ECCA59", "#DE7A47"],
+  "geometry": {
+    "band": 90,
+    "heavyRule": 3,
+    "footer": 47,
+    "gutter": 27
+  },
+  "type": {
+    "fonts": {
+      "text": "Inter Tight",
+      "display": "Old Standard TT",
+      "extra": ["Space Grotesk"],
+      "source": "Century Schoolbook–style serif caps, Space Grotesk–style spaced caps sans, neo-grotesque body (measured visually)"
+    },
+    "band": 34,
+    "label": 20,
+    "body": 22,
+    "meta": 15
+  },
+  "palette": {
+    "paper": "#F0F0F0",
+    "ink": "#000000",
+    "muted": "#5A5A5A",
+    "rule": "#8A8A8A",
+    "onAccent": "#FFFFFF",
+    "accents": ["#111111", "#DE7A47", "#7EBF76", "#E2B93B"]
+  }
+}
