@@ -2329,6 +2329,37 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'messageShare',
+    summary: 'Remote service behind the share button and the link manager.',
+    description: 'Remote service behind the share button and the link manager. It reads persisted Session history and never creates or resumes an Agent or Session.',
+    methods: [
+      {
+        signature: '@Remote(\'create\') async create(request: MessageShareCreateRequest): Promise<MessageShareResult<MessageShareLink>>',
+        description: 'Publish one finalized assistant message, or refresh the snapshot behind the link the message already has.',
+        parameters: [{ name: 'request', description: 'Session and message to share.' }],
+        returns: 'the link, or why it was refused.',
+      },
+      {
+        signature: '@Remote(\'list\') async list(request: MessageShareListRequest): Promise<MessageShareResult<MessageShareListValue>>',
+        description: 'Read one page of the signed-in account\'s links, newest first.',
+        parameters: [{ name: 'request', description: 'the previous page\'s cursor, if any.' }],
+        returns: 'the page, or why it was refused.',
+      },
+      {
+        signature: '@Remote(\'delete\') async delete(request: MessageShareDeleteRequest): Promise<MessageShareResult<MessageShareDeleteValue>>',
+        description: 'Delete one of the signed-in account\'s links; its public page then says the link no longer exists.',
+        parameters: [{ name: 'request', description: 'the link to delete.' }],
+        returns: 'the removal, or why it was refused.',
+      },
+      {
+        signature: '@Remote(\'deleteAll\') async deleteAll(): Promise<MessageShareResult<MessageShareDeleteAllValue>>',
+        description: 'Delete every link of the signed-in account.',
+        parameters: [],
+        returns: 'how many links were deleted, or why it was refused.',
+      },
+    ],
+  },
+  {
     key: 'motion',
     summary: 'Holds the sole motion renderer of one Host composition.',
     description: 'Holds the sole motion renderer of one Host composition.',
@@ -8016,6 +8047,62 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'MessageId',
     declaration: 'export type MessageId = Branded<\'MessageId\'>;',
+  },
+  {
+    name: 'MessageShareCreateRequest',
+    declaration: 'export interface MessageShareCreateRequest {\n    readonly sessionId: SessionId;\n    readonly messageId: MessageId;\n}',
+  },
+  {
+    name: 'MessageShareCursor',
+    declaration: 'export type MessageShareCursor = Branded<\'MessageShareCursor\'>;',
+  },
+  {
+    name: 'MessageShareDeleteAllValue',
+    declaration: 'export interface MessageShareDeleteAllValue {\n    readonly removed: number;\n}',
+  },
+  {
+    name: 'MessageShareDeleteRequest',
+    declaration: 'export interface MessageShareDeleteRequest {\n    readonly shareId: MessageShareId;\n}',
+  },
+  {
+    name: 'MessageShareDeleteValue',
+    declaration: 'export interface MessageShareDeleteValue {\n    readonly removed: true;\n}',
+  },
+  {
+    name: 'MessageShareFailure',
+    declaration: 'export interface MessageShareFailure {\n    readonly code: MessageShareFailureCode;\n}',
+  },
+  {
+    name: 'MessageShareFailureCode',
+    declaration: 'export type MessageShareFailureCode = \'signed-out\' | \'session-not-found\' | \'target-not-found\' | \'too-large\' | \'share-limit\' | \'not-found\' | \'unavailable\';',
+  },
+  {
+    name: 'MessageShareId',
+    declaration: 'export type MessageShareId = Branded<\'MessageShareId\'>;',
+  },
+  {
+    name: 'MessageShareLink',
+    declaration: 'export interface MessageShareLink {\n    readonly shareId: MessageShareId;\n    readonly url: string;\n    readonly title: string;\n    readonly sessionId: SessionId;\n    readonly messageId: MessageId;\n    readonly createdAt: number;\n    readonly updatedAt: number;\n}',
+  },
+  {
+    name: 'MessageShareListRequest',
+    declaration: 'export interface MessageShareListRequest {\n    readonly cursor?: MessageShareCursor;\n}',
+  },
+  {
+    name: 'MessageShareListValue',
+    declaration: 'export interface MessageShareListValue {\n    readonly items: readonly MessageShareLink[];\n    readonly nextCursor: MessageShareCursor | null;\n}',
+  },
+  {
+    name: 'MessageShareRejected',
+    declaration: 'export interface MessageShareRejected {\n    readonly ok: false;\n    readonly error: MessageShareFailure;\n}',
+  },
+  {
+    name: 'MessageShareResult',
+    declaration: 'export type MessageShareResult<T> = MessageShareSuccess<T> | MessageShareRejected;',
+  },
+  {
+    name: 'MessageShareSuccess',
+    declaration: 'export interface MessageShareSuccess<T> {\n    readonly ok: true;\n    readonly value: T;\n}',
   },
   {
     name: 'MessageSource',

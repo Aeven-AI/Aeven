@@ -113,6 +113,7 @@ export const SERVICE_PAGE: Record<string, string> = {
   lsp: 'lsp.md',
   vcs: 'vcs.md',
   messageFeedback: 'feedback.md',
+  messageShare: 'feedback.md',
   permissionPresets: 'permission-presets.md',
   planMode: 'plan.md',
   terminals: 'terminal.md',

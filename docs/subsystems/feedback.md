@@ -264,6 +264,44 @@ Storage-domain sidecar service. It inspects persisted Session history and never 
 
 Source: [`packages/feedback/message-feedback/src/index.ts`](../../packages/feedback/message-feedback/src/index.ts)
 
+<a id="ctxmessageshare--messageshareservice"></a>
+
+### `ctx.messageShare` — `MessageShareService`
+
+Remote service behind the share button and the link manager. It reads persisted Session history and never creates or resumes an Agent or Session.
+
+```ts cordis-catalog
+/**
+ * Publish one finalized assistant message, or refresh the snapshot behind the link the
+ * message already has.
+ * @param request - Session and message to share.
+ * @returns the link, or why it was refused.
+ */
+@Remote('create') async create(request: MessageShareCreateRequest): Promise<MessageShareResult<MessageShareLink>>
+
+/**
+ * Read one page of the signed-in account's links, newest first.
+ * @param request - the previous page's cursor, if any.
+ * @returns the page, or why it was refused.
+ */
+@Remote('list') async list(request: MessageShareListRequest): Promise<MessageShareResult<MessageShareListValue>>
+
+/**
+ * Delete one of the signed-in account's links; its public page then says the link no longer exists.
+ * @param request - the link to delete.
+ * @returns the removal, or why it was refused.
+ */
+@Remote('delete') async delete(request: MessageShareDeleteRequest): Promise<MessageShareResult<MessageShareDeleteValue>>
+
+/**
+ * Delete every link of the signed-in account.
+ * @returns how many links were deleted, or why it was refused.
+ */
+@Remote('deleteAll') async deleteAll(): Promise<MessageShareResult<MessageShareDeleteAllValue>>
+```
+
+Source: [`packages/host/message-share/src/index.ts`](../../packages/host/message-share/src/index.ts)
+
 <a id="message-feedback-events"></a>
 
 ### `message-feedback/*` events
