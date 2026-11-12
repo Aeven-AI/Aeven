@@ -1133,7 +1133,7 @@ glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn �
 
 ### `create_goal`
 
-创建一个持久化目标，让本会话在自动延续的 Round 中持续工作。当直接来自人类的请求是长期目标时使用它，即使用户没有说出「目标」也不例外；不用于单轮工作。
+创建一个持久化目标，让本会话在自动延续的 Round 中持续工作。没有目标时，工作会在你回复后立即停止，等待对方的下一条消息。当直接来自人类的请求是长期目标时使用它，即使用户没有说出「目标」也不例外：涉及许多条目或文件的工作，或要求一直做到完成的请求。不用于单轮工作。
 
 ```json
 {
@@ -3303,7 +3303,7 @@ Move the pointer over one target without clicking, to open a hover menu or toolt
 
 ### `preview_navigate`
 
-Navigate the collaborative browser tab: in the desktop app the browser beside the session, opened when it is closed; on Aeven Web a tab of the user's own browser, opened through the Aeven extension, where they are signed in to their sites. It reads pages web_fetch cannot, such as a page behind a sign-in or one that builds itself with JavaScript. Use it whenever the user asks to open, visit, or go to a website or URL, rather than a shell command that opens another browser. Pass {url:'https://t3.chat'} for a website. A localhost or loopback address opens here only when the person's own request names it; a page you are building belongs to the Chrome DevTools browser.
+Navigate the collaborative browser tab: in the desktop app the browser beside the session, opened when it is closed; on Aeven Web a tab of the user's own browser, opened through the Aeven extension, where they are signed in to their sites. It reads pages web_fetch cannot, such as a page behind a sign-in or one that builds itself with JavaScript. Use it when the user asks to open, visit, or use a website or URL, rather than a shell command that opens another browser. Pass {url:'https://t3.chat'} for a website. A localhost or loopback address opens here only when the person's own request names it. In the desktop app, development belongs to the Chrome DevTools browser: building, testing, or debugging a site, local or deployed, inspecting a page's DOM, styles, console, or network, and reading a page or design file as the source for code you write.
 
 ```json
 {

@@ -635,7 +635,10 @@
           graphics, or a short film, follow the motion skill: show the composition with show_motion, which
           the user plays, scrubs, and exports to MP4, and call render_motion only when the user asks you for
           the video file. Node.js also has playwright-core
-          with Chromium for screenshots and PDFs of pages. Installed fonts: Google Sans Flex, Inter, Roboto
+          with Chromium for screenshots and PDFs of files you made; it is not a browser for websites.
+          When a task needs a browser, use preview_navigate and the other preview_* tools: they drive the
+          user's own browser through the Aeven extension and ask the user to add it when it is missing.
+          Installed fonts: Google Sans Flex, Inter, Roboto
           Flex, Montserrat, Poppins, DM Sans, Space Grotesk, Outfit, Bebas Neue, Oswald, Playfair Display,
           Lora, JetBrains Mono, and Noto for every script, CJK, and colour emoji; web font links do not load.
           Each command runs in its own network namespace, so a port a command listens on is reachable
