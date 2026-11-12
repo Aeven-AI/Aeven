@@ -72,6 +72,7 @@ kind: "package-group"
 | [`ui-settings-plugin-inventory/`](ui-settings-plugin-inventory/README.zh.md) | 向“插件”设置贡献只读的 Host Loader 清单标签页 | — |
 | [`ui-deliverables/`](ui-deliverables/README.zh.md) | 生成已产出文件的轮次尾部与可点击的最终响应文件引用 | — |
 | [`ui-message-feedback/`](ui-message-feedback/README.zh.md) | 向助手消息操作条贡献逐消息反馈控件 | — |
+| [`ui-message-share/`](ui-message-share/README.zh.md) | 向助手消息操作条贡献分享操作、分享对话框和已分享链接管理器 | — |
 | [`ui-directory-picker-browse/`](ui-directory-picker-browse/README.zh.md) | 面向工作区目录流程的应用内目录浏览界面 | — |
 | [`ui-directory-picker-native/`](ui-directory-picker-native/README.zh.md) | 驱动宿主 OS 选择器的原生目录选择界面 | — |
 

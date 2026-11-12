@@ -1,0 +1,252 @@
+/* The share action matches its siblings in the host row (ui-chat
+   MessageIconActions and the feedback thumbs): a 28px button on the Settings
+   font-size axis, a fixed 16px glyph, the row's own ink, no hover fill. */
+.action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 6px;
+  border: none;
+  border-radius: 28px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+}
+
+.action svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Thumbnail: the rendered response at half size inside a framed
+   sheet, faded out at the bottom so a long answer reads as a preview. */
+.thumb {
+  position: relative;
+  height: 188px;
+  overflow: hidden;
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: 14px;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.thumb::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 56px;
+  background: linear-gradient(to bottom, transparent, var(--dsw-alias-bg-layer-1));
+  pointer-events: none;
+}
+
+.thumbCanvas {
+  width: 200%;
+  padding: 24px 28px;
+  transform: scale(0.5);
+  transform-origin: top left;
+  pointer-events: none;
+  user-select: none;
+}
+
+.thumbEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.thumbEmpty svg {
+  width: 32px;
+  height: 32px;
+}
+
+/* The dialogs' black actions (Create link, Delete all links): black with white
+   ink on either theme, like the card's close disc. */
+.solidButton,
+.solidButton:hover:not(:disabled),
+.createButton,
+.createButton:hover:not(:disabled) {
+  background: var(--dsw-static-neutral-1000);
+  color: var(--dsw-static-neutral-00);
+}
+
+.solidButton:hover:not(:disabled),
+.createButton:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+/* Create link: the label on the left, the link glyph or the spinner on the
+   right. While the link is created the button keeps its look and ignores
+   presses instead of dimming. */
+.createButton {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.createButton[aria-busy] {
+  cursor: progress;
+}
+
+.createLabels {
+  display: grid;
+  text-align: left;
+}
+
+.createLabels > span {
+  grid-area: 1 / 1;
+  visibility: hidden;
+}
+
+.createLabels > span[data-current] {
+  visibility: visible;
+}
+
+.createGlyph {
+  --avn-spinner-size: 16px;
+  --avn-spinner-color: currentColor;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+
+.createGlyph > svg {
+  width: 16px;
+  height: 16px;
+}
+
+.linkField {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.failure {
+  margin: 12px 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  color: var(--dsw-alias-state-error-primary);
+}
+
+/* Link manager: a scrolling column of rows inside the dialog body. Rows span
+   the body's full width, so their buttons line up under the close disc. */
+.list {
+  display: flex;
+  flex-direction: column;
+  max-height: min(60vh, 480px);
+  overflow-y: auto;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 6px 0;
+}
+
+.row[data-removing] {
+  opacity: 0.5;
+}
+
+.rowMain {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.rowTitle {
+  overflow: hidden;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--dsw-alias-label-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowDate {
+  font-size: 0.75rem;
+  line-height: 1.125rem;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.rowActions {
+  display: inline-flex;
+  flex: none;
+  gap: 8px;
+}
+
+/* Row buttons copy the card's close disc: 28px, black, a white 14px glyph. */
+.iconButton {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 28px;
+  background: var(--dsw-static-neutral-1000);
+  color: var(--dsw-static-neutral-00);
+  cursor: pointer;
+}
+
+.iconButton:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.iconButton:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.iconButton svg {
+  width: 14px;
+  height: 14px;
+}
+
+.empty {
+  margin: 8px 0;
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0;
+}
+
+.listFailure {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.sentinel {
+  flex: none;
+  height: 1px;
+}
+
+.dangerFill,
+.dangerFill:hover:not(:disabled) {
+  background: var(--dsw-alias-state-error-primary);
+  color: #fff;
+}
+
+.dangerFill:hover:not(:disabled) {
+  opacity: 0.88;
+}

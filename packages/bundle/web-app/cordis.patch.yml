@@ -142,6 +142,15 @@
         slackClientId: !!js process.env.SLACK_CLIENT_ID
         slackCallbackPort: 12751
 
+    # Share links: publishes one assistant message, without its prompt, to the Aeven API,
+    # which serves it at a public URL; each link is filed under the signed-in user's own
+    # account. Markdown images served by the workspace-files row above are published too.
+    - id: message-share
+      name: '@aeven/host-message-share'
+      config:
+        apiUrl: !!js process.env.AEVEN_API_URL ?? 'http://localhost:9000'
+        workspaceMount: /workspace
+
     # ── the authenticated reader ────────────────────────────────────────────────
 
     # The seam every authority registers into. Mounted before the authority so
@@ -715,6 +724,11 @@
     # assistant-message action strip, over the messageFeedback Remote.
     - id: ui-message-feedback
       name: '@aeven/client-ui-message-feedback'
+
+    # Share: the share action before branch in the assistant-message action strip, the
+    # share dialog, and the shared-link manager, over the messageShare Remote.
+    - id: ui-message-share
+      name: '@aeven/client-ui-message-share'
 
     # Model selection: the /model popupSelect + composer seat over session.models.
     - id: ui-model-selection

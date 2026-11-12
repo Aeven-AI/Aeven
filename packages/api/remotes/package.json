@@ -95,6 +95,7 @@
     "@aeven/user-questions": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@aeven/host-account-integrations": "workspace:^",
+    "@aeven/host-message-share": "workspace:^",
     "@aeven/skill": "workspace:^",
     "@aeven/session": "workspace:^"
   }
