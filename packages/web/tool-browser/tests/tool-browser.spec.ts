@@ -364,7 +364,7 @@ describe('tool-browser status report', () => {
 
     expect(report.sessionTab).toEqual({ url: PAGE.url, title: PAGE.title })
     expect(report.hostBrowser).not.toBeNull()
-    expect(report.nextStep).toBe('Drive the page beside this session with the preview_* tools when the task is to open, visit, or read a site. Development and debugging, a localhost or 127.0.0.1 page included, belong to the Chrome DevTools browser (mcp__chrome_devtools__*), not this pane.')
+    expect(report.nextStep).toBe("Drive the page beside this session with the preview_* tools when the task is simple browsing: opening, reading, or using a site for the person. Development belongs to the Chrome DevTools browser (mcp__chrome_devtools__*), not this pane: building, changing, testing, or debugging a site or web app, local or deployed; inspecting a page's DOM, styles, console, or network; and reading a page or design file as the source for code you write. When a request could be either, ask the person which browser to use.")
   })
 })
 
