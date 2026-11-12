@@ -1,0 +1,56 @@
+{
+  "id": "startup-pitch",
+  "name": "Startup Pitch",
+  "label": "Startup Pitch",
+  "source": "https://www.figma.com/community/file/1382483546106051977/startup-pitch",
+  "measuredFrom": "16 Figma Community thumbnails at 1000×563, palette sampled with ImageMagick histograms, sizes scaled ×1.28",
+  "motif": "bright yellow cover with a huge grotesque title and outlined pill tags, light grey content slides under a caps label and black rule, large sentence-case headings, outlined white cards, stepped grey bars with one yellow bar, company and date pills in the corner",
+  "rhythm": "yellow cover and closing; mid-grey section and statement slides; light-grey content slides; yellow big number",
+  "surface": {
+    "yellow": "#FBE750",
+    "light": "#F1F1F1",
+    "mid": "#C7C7C7",
+    "bar": "#D9D9D9",
+    "card": "#FFFFFF",
+    "checkA": "#FAFAFA",
+    "checkB": "#EBEBEB"
+  },
+  "type": {
+    "family": "neutral grotesque, regular weight only, sentence-case headings, small caps-set labels",
+    "cover": 214,
+    "section": 200,
+    "hero": 112,
+    "title": 58,
+    "body": 21,
+    "label": 20,
+    "pill": 15,
+    "fonts": {
+      "text": "Wix Madefor Display",
+      "display": "Wix Madefor Display",
+      "extra": [
+        "Inter Tight"
+      ],
+      "source": "a grotesque with single-storey a and flat-tailed g for headings and copy, and a neo-grotesque display cut with a double-storey a for the cover title (identified visually; not a Google family)"
+    }
+  },
+  "geometry": {
+    "margin": 24,
+    "ruleY": 51,
+    "rule": 1.5,
+    "cardRadius": 15,
+    "footerTop": 659
+  },
+  "palette": {
+    "paper": "#F1F1F1",
+    "ink": "#000000",
+    "muted": "#5E5E5E",
+    "rule": "#000000",
+    "onAccent": "#000000",
+    "accents": [
+      "#FBE750",
+      "#BDBDBD",
+      "#1A1A1A",
+      "#7A7A7A"
+    ]
+  }
+}

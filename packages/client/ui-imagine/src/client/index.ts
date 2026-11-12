@@ -1,9 +1,9 @@
 /**
- * Imagine plugin, browser half. Imagine is a way to start an ordinary chat: `/imagine` is a start address of the
+ * Imagine plugin, browser half. Imagine is a way to start an ordinary chat: `/inspiration` is a start address of the
  * chat, which shows a blank Session with a gallery of starter prompts in place of the Hero and the regular composer
  * on the floor below it. Choosing a prompt puts it in the composer; sending it is an ordinary first message, after
  * which the address becomes the chat's own and `generate_image` makes the images. The sidebar's Imagine row opens
- * `/imagine`.
+ * `/inspiration`.
  *
  * The same plugin renders generated images and videos at their tool call, and hangs the `/image-model` and
  * `/video-model` popups on the host commands in the chat composer.
@@ -28,11 +28,11 @@ import { imageModelDecoration, videoModelDecoration } from './image-model-picker
 import { ImaginePrompts } from './ImaginePrompts.tsx'
 import { ImagineRow, type ImagineRowInjected } from './ImagineRow.tsx'
 import { en, es, zh } from './locales.ts'
+import { CATEGORY_PATHS } from './categories.ts'
+import type { Category, InspirationInjected } from './categories.ts'
 
 export type { ImagineKey } from './locales.ts'
 
-/** Imagine's start address. */
-const IMAGINE_PATH = '/imagine'
 
 /** The Workspace UI's start-address face. */
 interface StartAddresses {
@@ -84,18 +84,28 @@ export function apply(ctx: ClientContext): void {
     }
   })
 
-  // `/imagine` is a start address of the chat: the Workspace UI keeps it over a blank Session, and while it is the
-  // address the conversation shows this plugin's gallery in place of the Hero.
+  // Each category is a start address of the chat (`/inspiration`, `/inspiration/slides`, …): the Workspace UI keeps it
+  // over a blank Session, and while it is the address the conversation shows that category in place of the Hero.
   ctx.inject(['uiWorkspace'], (startCtx: ClientContext) => {
     const addresses = startCtx.get('uiWorkspace') as unknown as StartAddresses
-    startCtx.effect(() => addresses.registerStartAddress(IMAGINE_PATH, {
-      // The page's own composer prompt: what the reader describes here is an
-      // image or a video, not a question.
-      composerPlaceholder: () => t('composer.placeholder'),
-    }), 'ui-imagine: /imagine start address')
+    const showCategory = (category: Category): void => { addresses.openStartAddress(CATEGORY_PATHS[category]) }
+    for (const [category, path] of Object.entries(CATEGORY_PATHS) as [Category, string][]) {
+      startCtx.effect(() => addresses.registerStartAddress(path, {
+        // The page's own composer prompt: what the reader describes here is
+        // that category's work, not a question.
+        composerPlaceholder: () => t(category === 'image-video' ? 'composer.placeholder' : `composer.${category}`),
+      }), `ui-imagine: ${path} start address`)
+      const injected: InspirationInjected = { category, showCategory }
+      startCtx.slots.inject('conversation.start', () => startCtx.slots.register({
+        name: 'conversation.start',
+        key: path,
+        locale: NS,
+        inject: () => injected,
+      }, ImaginePrompts))
+    }
     const row: ImagineRowInjected = {
-      href: IMAGINE_PATH,
-      open: () => { addresses.openStartAddress(IMAGINE_PATH) },
+      href: CATEGORY_PATHS['image-video'],
+      open: () => { addresses.openStartAddress(CATEGORY_PATHS['image-video']) },
     }
     startCtx.slots.inject('sidebar.nav', () => startCtx.slots.register({
       name: 'sidebar.nav',
@@ -107,10 +117,4 @@ export function apply(ctx: ClientContext): void {
       inject: () => row,
     }, ImagineRow))
   })
-
-  ctx.slots.inject('conversation.start', () => ctx.slots.register({
-    name: 'conversation.start',
-    key: IMAGINE_PATH,
-    locale: NS,
-  }, ImaginePrompts))
 }

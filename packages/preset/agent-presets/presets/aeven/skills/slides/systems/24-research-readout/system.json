@@ -1,0 +1,63 @@
+{
+  "id": "research-readout",
+  "name": "Research Readout",
+  "label": "Research Readout",
+  "source": "https://www.figma.com/community/file/1382481559228932486/research-readout",
+  "measuredFrom": "16 Figma Community thumbnails at 1000×563, palette sampled per frame with PIL, scaled ×1.28",
+  "motif": "pastel blue, butter yellow and lavender pages inside a hairline margin frame with vertical typewriter meta, light grotesque titles, coloured outlined tag pills, rounded outlined pastel cards rising from the baseline",
+  "rhythm": "blue cover on yellow margins, yellow agenda, purple section, yellow statement, blue text, white methodology columns, white split with a purple picture panel, yellow stat blocks, lavender and purple split, white timeline steps, yellow quote card, blue table, yellow big number, blue closing",
+  "surface": {
+    "blue": "#E1EAFC",
+    "yellow": "#FFFEE2",
+    "white": "#FFFFFF",
+    "lavender": "#EFE3FB",
+    "grey": "#F5F5F5",
+    "stone": "#D9D9D9",
+    "peach": "#FAE5E0",
+    "checkerLight": "#F8F8F8",
+    "checkerDark": "#EBEBEB"
+  },
+  "pill": {
+    "purple": "#BC80F6",
+    "green": "#CDE281",
+    "orange": "#F0AE3C"
+  },
+  "ink": {
+    "primary": "#000000",
+    "muted": "#4D4D4D",
+    "rule": "#8A8A8A",
+    "outline": "#5A5A5A"
+  },
+  "type": {
+    "family": "light grotesque titles, regular grotesque body, monospace caps labels",
+    "hero": 92,
+    "statement": 100,
+    "title": 50,
+    "lead": 36,
+    "body": 20,
+    "label": 19,
+    "meta": 13,
+    "fonts": {
+      "text": "Public Sans",
+      "display": "Public Sans",
+      "extra": ["DM Mono"],
+      "source": "Figma Sans and Figma Mono-style grotesque and monospace (identified visually)"
+    }
+  },
+  "geometry": {
+    "strip": 52,
+    "foot": 54,
+    "inset": 82,
+    "right": 58,
+    "radius": 28,
+    "checker": 37
+  },
+  "palette": {
+    "paper": "#FFFFFF",
+    "ink": "#000000",
+    "muted": "#4D4D4D",
+    "rule": "#B5B5B5",
+    "onAccent": "#000000",
+    "accents": ["#BC80F6", "#F0AE3C", "#A9C94E", "#7FA3EA"]
+  }
+}

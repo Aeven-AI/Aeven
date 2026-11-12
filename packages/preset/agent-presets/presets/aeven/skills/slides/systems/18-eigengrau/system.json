@@ -1,0 +1,50 @@
+{
+  "id": "eigengrau",
+  "name": "Eigengrau",
+  "label": "Eigengrau",
+  "motif": "near-black blue-grey slides, light IBM Plex type set small with wide space, dashed hairlines splitting dark and slate panels, small uppercase corner labels",
+  "measuredFrom": "16 exported frames at 1000×563, scaled ×1.28 to 1280×720; colours sampled per frame",
+  "surface": {
+    "page": "#16171C",
+    "panel": "#292A3C"
+  },
+  "ink": {
+    "primary": "#F8F9FB",
+    "lavender": "#DCD8F9",
+    "muted": "#8C8D92",
+    "quote": "#B3DCF6",
+    "quoteMark": "#485663",
+    "deepBlue": "#306A97"
+  },
+  "accent": {
+    "blue": "#AAD3F0",
+    "yellow": "#F7E5AA",
+    "pink": "#F7D3D3",
+    "mint": "#B9E7D4"
+  },
+  "geometry": {
+    "margin": 66,
+    "labelTop": 56,
+    "dash": "#4F4E61",
+    "dashLength": 5
+  },
+  "type": {
+    "label": 17,
+    "title": 42,
+    "cover": 97,
+    "lead": 38,
+    "body": 20,
+    "fonts": {
+      "text": "IBM Plex Sans",
+      "source": "IBM Plex Sans: ExtraLight cover title, Light headings, Regular body, Medium labels, Bold figures"
+    }
+  },
+  "palette": {
+    "paper": "#16171C",
+    "ink": "#F8F9FB",
+    "muted": "#8C8D92",
+    "rule": "#4F4E61",
+    "onAccent": "#16171C",
+    "accents": ["#AAD3F0", "#F7E5AA", "#F7D3D3", "#B9E7D4", "#DCD8F9"]
+  }
+}

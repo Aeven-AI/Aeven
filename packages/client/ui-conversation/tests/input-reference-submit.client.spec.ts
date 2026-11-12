@@ -21,6 +21,7 @@ const draftImages = {
   release: () => {},
   busyNotice: () => 'file-busy',
 }
+const draftFiles = { create: () => [] as readonly DraftAttachmentId[] }
 
 function chip(shell: SessionInputShell): void {
   shell.setDraft('@res')
@@ -45,6 +46,7 @@ describe('reference submission', () => {
       defaultSink: vi.fn(),
       commandImages,
       draftImages,
+      draftFiles,
     })
     first.bindMirror(mirror)
     first.setDraft('@res')
@@ -70,6 +72,7 @@ describe('reference submission', () => {
       defaultSink: sink,
       commandImages,
       draftImages,
+      draftFiles,
     })
     restored.setDraft(mirror.mock.calls.at(-1)?.[0] as string)
     restored.submit()
@@ -99,6 +102,7 @@ describe('reference submission', () => {
       defaultSink: sink,
       commandImages,
       draftImages,
+      draftFiles,
     })
     chip(shell)
     expect(shell.snapshot).toMatchObject({
@@ -146,6 +150,7 @@ describe('reference submission', () => {
       defaultSink: sink,
       commandImages,
       draftImages,
+      draftFiles,
     })
     chip(shell)
     shell.submit()
@@ -171,6 +176,7 @@ describe('reference submission', () => {
       },
       commandImages,
       draftImages,
+      draftFiles,
     })
     shell.setDraft('send this')
     shell.submit()
@@ -189,6 +195,7 @@ describe('reference submission', () => {
       defaultSink: () => Promise.resolve({ kind: 'error' }),
       commandImages,
       draftImages,
+      draftFiles,
     })
     shell.setDraft('retry this')
     shell.submit()
@@ -206,6 +213,7 @@ describe('reference submission', () => {
       defaultSink: () => new Promise<SubmitOutcome>((resolve) => { settlements.push(resolve) }),
       commandImages,
       draftImages,
+      draftFiles,
     })
     shell.setDraft('first')
     shell.submit()
@@ -229,6 +237,7 @@ describe('submit transaction hardening', () => {
       defaultSink: sink,
       commandImages,
       draftImages,
+      draftFiles,
     })
     expect(shell.addImages(['img-1' as DraftAttachmentId])).toBe(true)
     shell.submit('queue')
@@ -251,6 +260,7 @@ describe('submit transaction hardening', () => {
       defaultSink: sink,
       commandImages,
       draftImages,
+      draftFiles,
     })
     const imageId = 'img-1' as DraftAttachmentId
     shell.addImages([imageId])
@@ -272,6 +282,7 @@ describe('submit transaction hardening', () => {
       },
       commandImages,
       draftImages,
+      draftFiles,
     })
     shell.addImages([imageId])
     shell.submit()
@@ -289,6 +300,7 @@ describe('submit transaction hardening', () => {
       defaultSink: vi.fn(),
       commandImages,
       draftImages,
+      draftFiles,
     })
     shell.setDraft('@sr')
     const applied = shell.insertText('@src/', { start: 0, end: 3, draftRev: shell.snapshot.draftRev }, true)

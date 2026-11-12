@@ -1,0 +1,37 @@
+{
+  "id": "sales-pitch",
+  "name": "Sales Pitch",
+  "label": "Sales Pitch",
+  "motif": "black cover with a mint and green two-tone title, flat grey, mint and green half panels, light DM Sans subtitles, round placeholders and a running company/deck footer",
+  "measuredFrom": "15 ripped slides (1000×563), palette sampled per slide, geometry scaled ×1.28 to 1280×720",
+  "surface": {
+    "black": "#000000",
+    "grey": "#E2E2E2",
+    "mint": "#E4EFE7",
+    "green": "#5DCC97",
+    "check": ["#F8F9F7", "#EAECE9"]
+  },
+  "type": {
+    "family": "geometric grotesque, semibold headers over light subtitles",
+    "header": 33,
+    "lead": 44,
+    "body": 22,
+    "meta": 14,
+    "fonts": {
+      "text": "DM Sans",
+      "source": "DM Sans"
+    }
+  },
+  "geometry": {
+    "margin": 28,
+    "footer": 16
+  },
+  "palette": {
+    "paper": "#E2E2E2",
+    "ink": "#000000",
+    "muted": "#5E605C",
+    "rule": "rgba(0,0,0,.22)",
+    "onAccent": "#FFFFFF",
+    "accents": ["#000000", "#5DCC97", "#8A8D88", "#2F8A5F"]
+  }
+}

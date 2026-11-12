@@ -91,6 +91,7 @@ const kit: Omit<QuestionComposerProps, 'matched'> = {
     appendText: () => { throw new Error('unused') },
     addImages: () => { throw new Error('unused') },
     addImageFiles: () => null,
+    addFiles: () => null,
     removeImage: () => { throw new Error('unused') },
     pruneImages: () => { throw new Error('unused') },
     submit: () => { throw new Error('unused') },

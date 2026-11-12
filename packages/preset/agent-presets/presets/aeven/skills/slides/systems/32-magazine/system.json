@@ -1,0 +1,37 @@
+{
+  "id": "magazine",
+  "name": "Magazine Style Black and White Large Headline Slides",
+  "label": "Magazine",
+  "preset": "editorial",
+  "source": "https://www.figma.com/community/file/1557950648080393686/no-134-magazine-style-black-and-white-large-headline-slides-template-12p",
+  "measuredFrom": "one 1000×600 Figma Community collage of the 12 frames, each frame cropped and enlarged 6× with PIL; palette sampled per frame",
+  "motif": "strict black and white, enormous condensed caps headlines set to the slide edge, hairline editorial grids, circled index letters and numerals, high-contrast grey photo blocks",
+  "rhythm": "white sheets with ruled grids; section, two-column, quote and closing slides turn black like the source's About Me and Institution pages",
+  "surface": { "paper": "#FFFFFF", "night": "#171717", "photo": ["#D9D9D9", "#8C8C8C", "#2B2B2B"] },
+  "ink": { "primary": "#171717", "headline": "#1C1C1C", "muted": "#6E6E6E", "onNight": "#FFFFFF", "mutedOnNight": "#A3A3A3" },
+  "rule": { "paper": "#D4D4D4", "ring": "#BDBDBD", "night": "rgba(255,255,255,.22)" },
+  "type": {
+    "family": "heavy condensed grotesque caps headlines, neutral grotesque small text",
+    "titleCaps": true,
+    "cover": 250,
+    "section": 128,
+    "title": 120,
+    "body": 18,
+    "label": 11,
+    "lineHeight": 0.9,
+    "fonts": {
+      "text": "Inter",
+      "display": "Anton",
+      "source": "Heavy condensed grotesque headlines (Anton / Bebas-class, identified visually) with a small neutral sans for body and meta"
+    }
+  },
+  "geometry": { "margin": 32, "sideColumn": 300, "ring": 58, "hairline": 1 },
+  "palette": {
+    "paper": "#FFFFFF",
+    "ink": "#171717",
+    "muted": "#6E6E6E",
+    "rule": "#D4D4D4",
+    "onAccent": "#FFFFFF",
+    "accents": ["#171717", "#8C8C8C", "#C4C4C4", "#4D4D4D"]
+  }
+}

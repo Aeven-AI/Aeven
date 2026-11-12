@@ -1,0 +1,58 @@
+{
+  "id": "chuckle",
+  "name": "Digital Agency Pitch Deck",
+  "label": "Chuckle",
+  "motif": "heavy condensed caps with a last word in purple, orange or lime, tilted stickers, notched white frames over pictures, rounded colour cards on white, purple, orange and lime slides",
+  "source": "https://www.figma.com/community/file/1458748396350547827/digital-agency-pitch-deck",
+  "measuredFrom": "12 ripped slides (1000×563), palette sampled per slide, geometry scaled ×1.28 to 1280×720",
+  "surface": {
+    "white": "#FFFFFF",
+    "mist": "#F1F3F2",
+    "charcoal": "#3F3F3F",
+    "purple": "#5A24D2",
+    "deep": "#370BAF",
+    "orange": "#E75228",
+    "lime": "#C3E84A"
+  },
+  "ink": {
+    "primary": "#0B0B0B",
+    "muted": "#8F8F8F",
+    "rule": "#888A8A",
+    "onColour": "#FFFFFF"
+  },
+  "type": {
+    "family": "heavy condensed grotesque caps + quirky grotesque body + fat rounded wordmark",
+    "titleCaps": true,
+    "title": 120,
+    "titleCover": 176,
+    "body": 19,
+    "meta": 14,
+    "lineHeight": 1.4,
+    "fonts": {
+      "text": "Bricolage Grotesque",
+      "display": "Barlow Condensed",
+      "extra": ["Bagel Fat One"],
+      "roles": {
+        "Barlow Condensed": "heavy condensed caps titles, numbers, statement stickers",
+        "Bricolage Grotesque": "body copy, light caps card titles, names and meta",
+        "Bagel Fat One": "the fat rounded wordmark on lime stickers and the cover badge"
+      },
+      "source": "Measured visually: a heavy condensed grotesque caps face, a wide grotesque body with curved-tail y, and a custom fat rounded wordmark"
+    }
+  },
+  "geometry": {
+    "margin": 67,
+    "cardRadius": 30,
+    "frameRing": 32,
+    "notchRadius": 30,
+    "stickerTilt": -4
+  },
+  "palette": {
+    "paper": "#FFFFFF",
+    "ink": "#0B0B0B",
+    "muted": "#8F8F8F",
+    "rule": "rgba(11,11,11,.2)",
+    "onAccent": "#FFFFFF",
+    "accents": ["#5A24D2", "#E75228", "#3F3F3F", "#370BAF"]
+  }
+}

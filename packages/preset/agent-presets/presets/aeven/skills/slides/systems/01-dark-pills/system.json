@@ -1,0 +1,82 @@
+{
+  "id": "dark-pills",
+  "preset": "contrast",
+  "name": "Design Presentation Deck",
+  "label": "Dark Pills",
+  "source": "https://www.figma.com/design/dzRN7x0uzKr3UqQWumW80b/Design-Presentation-Deck--Community-",
+  "measuredFrom": "24 exported frames at 1280×720, palette sampled per frame",
+  "surface": {
+    "page": "#0E1821",
+    "cover": "#080E1F",
+    "light": "#DCE0E6",
+    "card": "#16222C",
+    "white": "#FFFFFF"
+  },
+  "ink": {
+    "primary": "#FAFAFA",
+    "muted": "#BAC1CC",
+    "onLight": "#525761"
+  },
+  "accent": {
+    "primary": "#5864FF",
+    "art": [
+      "#2B1B8A",
+      "#7C6BFF"
+    ]
+  },
+  "type": {
+    "family": "grotesque",
+    "titleCaps": true,
+    "title": 64,
+    "titleContent": 52,
+    "titleCover": 84,
+    "lead": 30,
+    "body": 17,
+    "caption": 15,
+    "tag": 11,
+    "lineHeight": 1.36,
+    "fonts": {
+      "text": "Inter",
+      "display": "Inter Tight",
+      "source": "Neue Haas–style grotesque (measured visually)"
+    }
+  },
+  "geometry": {
+    "margin": 52,
+    "pill": {
+      "height": 34,
+      "padding": 18,
+      "radius": 999,
+      "size": 13
+    },
+    "radius": 10,
+    "hairline": "rgba(255,255,255,.14)"
+  },
+  "motif": "sparkle marks, pill labels, hairline rows",
+  "layouts": [
+    "cover",
+    "light-stage",
+    "section-divider",
+    "pill-and-paragraph",
+    "sparkle-rows",
+    "three-cards",
+    "four-metrics",
+    "timeline",
+    "quote-card",
+    "wireframe",
+    "end"
+  ],
+  "palette": {
+    "paper": "#0E1821",
+    "ink": "#FAFAFA",
+    "muted": "#BAC1CC",
+    "rule": "rgba(255,255,255,.14)",
+    "onAccent": "#FFFFFF",
+    "accents": [
+      "#5864FF",
+      "#DCE0E6",
+      "#9AA2FF",
+      "#3A44B8"
+    ]
+  }
+}

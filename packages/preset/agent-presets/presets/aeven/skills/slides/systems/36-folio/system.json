@@ -1,0 +1,66 @@
+{
+  "id": "folio",
+  "name": "Folio Presentation Template",
+  "label": "Folio",
+  "source": "https://www.figma.com/community/file/1314109500973819358/folio-presentation-template",
+  "measuredFrom": "one 1000×596 Figma Community collage (eight slides at about 300 px wide), cropped per slide and sampled with ImageMagick",
+  "motif": "near-black designer-portfolio slides, huge tight geometric titles, numbered index rows on hairlines, peach-to-violet gradient type and fields, orange, sage and blue colour tiles, small logo mark and dark pill labels in the corners",
+  "surface": {
+    "page": "#000000",
+    "pill": "#111214",
+    "pillLine": "rgba(255,255,255,.08)",
+    "card": "#0A0A0B",
+    "glow": "#4A3378"
+  },
+  "ink": {
+    "primary": "#FFFFFF",
+    "muted": "#8A8A93",
+    "soft": "#C9C9CF",
+    "dark": "#0B0B0C"
+  },
+  "gradient": {
+    "peach": "#F2C4A8",
+    "violet": "#8B63F0",
+    "deep": "#5638B2",
+    "lilac": "#E2C3D6"
+  },
+  "tiles": {
+    "orange": "#EC7647",
+    "orangeDeep": "#E2643A",
+    "amber": "#EE8A3C",
+    "sageLight": "#EDE6D5",
+    "sage": "#7F9170",
+    "sageDeep": "#36604A",
+    "blue": "#2D35D4",
+    "cream": "#F1F1EF"
+  },
+  "type": {
+    "family": "geometric sans, medium weight, tight tracking on display sizes",
+    "cover": 200,
+    "section": 140,
+    "statement": 76,
+    "title": 60,
+    "lead": 24,
+    "body": 18,
+    "meta": 12,
+    "fonts": {
+      "text": "Poppins",
+      "source": "Poppins (identified visually: double-storey a, circular o, straight-tailed y in \"Case Study\" and \"Folio\")"
+    }
+  },
+  "geometry": {
+    "margin": 44,
+    "chromeTop": 32,
+    "pill": { "height": 34, "padding": 16, "radius": 999, "size": 12 },
+    "indexLeft": 222,
+    "hairline": "rgba(255,255,255,.14)"
+  },
+  "palette": {
+    "paper": "#000000",
+    "ink": "#FFFFFF",
+    "muted": "#8A8A93",
+    "rule": "rgba(255,255,255,.16)",
+    "onAccent": "#FFFFFF",
+    "accents": ["#EC7647", "#8B63F0", "#F2C4A8", "#4A55F0", "#7F9170"]
+  }
+}

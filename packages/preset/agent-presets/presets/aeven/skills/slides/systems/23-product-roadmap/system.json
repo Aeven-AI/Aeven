@@ -1,0 +1,46 @@
+{
+  "id": "product-roadmap",
+  "name": "Product Roadmap",
+  "label": "Product Roadmap",
+  "source": "https://www.figma.com/community/file/1382445842871959915/product-roadmap",
+  "measuredFrom": "15 ripped frames at 1000×563, palette sampled with ImageMagick, geometry scaled ×1.28 to 1280×720",
+  "motif": "black cover and black half-splits on warm cream, large grotesk titles top-left, mono numbered caps rows on grey hairlines, centred condensed caps labels, team and date in tiny mono corners",
+  "surface": {
+    "cream": "#F5F1EB",
+    "black": "#000000",
+    "checker": ["#FAFAFA", "#EBEBEB"]
+  },
+  "ink": {
+    "primary": "#000000",
+    "onBlack": "#F5F1EB"
+  },
+  "rule": "#8C8884",
+  "geometry": {
+    "margin": 28,
+    "column": 557,
+    "gutterColumn": 905,
+    "split": 546
+  },
+  "type": {
+    "title": 82,
+    "cover": 132,
+    "label": 38,
+    "mono": 34,
+    "body": 21,
+    "meta": 12,
+    "fonts": {
+      "text": "Space Grotesk",
+      "display": "Space Grotesk",
+      "extra": ["JetBrains Mono", "Inter Tight"],
+      "source": "Space Grotesk-style grotesk (titles, body; its u-shaped y and flat-tailed g), a narrow mono for numbered caps headers and corner meta, and a slightly condensed grotesk for centred caps labels; identified visually"
+    }
+  },
+  "palette": {
+    "paper": "#F5F1EB",
+    "ink": "#000000",
+    "muted": "#6B6762",
+    "rule": "#8C8884",
+    "onAccent": "#F5F1EB",
+    "accents": ["#000000", "#8C8884", "#4A4744", "#C4BEB5"]
+  }
+}

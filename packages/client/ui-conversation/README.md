@@ -38,7 +38,7 @@ Target packages declaration-merge their snapshot and Location data maps, then re
 <a id="shell-and-standard-props"></a>
 ## Shell and standard props
 
-Registered start addresses select keyed `conversation.start` entries while a blank session retains the ordinary composer. Each address owns one page, so `/imagine` and `/automations` cannot render each other’s content.
+Registered start addresses select keyed `conversation.start` entries while a blank session retains the ordinary composer. Each address owns one page, so `/inspiration` and `/automations` cannot render each other’s content.
 
 The package registers the optional-Session `conversation` shell, strict Session header/body entries, the resident navigation band and its utilities, View list, composer chain and bar, input regions, Hero regions, queue dock, draft persistence, and phase calculation. `ctx.uiSession.provide()` materializes the Conversation and input sources from the same Session binding and supplies `inputActions` as a stable standard prop.
 

@@ -126,6 +126,7 @@ function bench(over?: BenchOptions) {
     defaultSink: sink,
     commandImages: { serialize: () => Promise.resolve([]), release: () => {}, unsupportedNotice: (token: string) => `${token.trim()} images-unsupported` },
     draftImages: { create: () => ({ kind: 'created', ids: [] }), release: () => {}, busyNotice: () => 'file-busy' },
+    draftFiles: { create: () => [] },
     queue: {
       getSnapshot: () => session.getSnapshot().queue,
       subscribe: fn => session.subscribe(fn),

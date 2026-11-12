@@ -110,9 +110,9 @@ function byteRange(header: string | undefined, size: number): { start: number; e
 
 /**
  * Client-owned route roots that resolve to the SPA index: the root itself, as
- * in `/c` or `/imagine`, and every path beneath it, as in `/c/<session>`.
+ * in `/c` or `/inspiration`, and every path beneath it, as in `/c/<session>`.
  */
-const SPA_ROUTE_ROOTS = ['/c', '/imagine', '/bots', '/sign-in', '/sign-up', '/oauth-result'] as const
+const SPA_ROUTE_ROOTS = ['/c', '/inspiration', '/bots', '/sign-in', '/sign-up', '/oauth-result'] as const
 
 /**
  * Whether a pathname is one of the client's own routes.

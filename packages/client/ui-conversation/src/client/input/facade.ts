@@ -94,6 +94,15 @@ export interface SessionInputDeps {
     /** Localized notice for a draft that cannot take images while a submit is in flight. */
     busyNotice(): string
   }
+  /**
+   * File intake for a slot component's own upload: registers browser files as
+   * draft file attachments and starts their uploads, as the composer's file
+   * attach control does. Refusals and release ride {@link draftImages}.
+   */
+  draftFiles: {
+    /** Register browser files as draft attachments; returns their ids in order. */
+    create(files: readonly File[]): readonly DraftAttachmentId[]
+  }
 }
 
 /** Guard tier from the machine phase. */
@@ -156,6 +165,7 @@ export class SessionInputShell implements SessionInput {
     appendText: text => this.appendText(text),
     addImages: ids => this.addImages(ids),
     addImageFiles: files => this.addImageFiles(files),
+    addFiles: files => this.addFiles(files),
     removeImage: (id) => { this.removeImage(id) },
     pruneImages: (ids) => { this.pruneImages(ids) },
     submit: () => { this.submit('queue') },
@@ -342,6 +352,21 @@ export class SessionInputShell implements SessionInput {
     if (this.addImages(intake.ids)) return null
     // A locked draft keeps nothing: the descriptors' preview URLs die with them.
     this.deps.draftImages.release(intake.ids)
+    return this.deps.draftImages.busyNotice()
+  }
+
+  /**
+   * Append files of any type, registering and uploading them through the same
+   * intake the composer's file attach control uses (a slot component's own
+   * upload, such as the slide template popup's existing-presentation picker).
+   * @param files - the chosen files, in order.
+   * @returns the notice the caller surfaces, or null when the files joined the draft.
+   */
+  addFiles(files: readonly File[]): string | null {
+    if (files.length === 0) return null
+    const ids = this.deps.draftFiles.create(files)
+    if (this.addImages(ids)) return null
+    this.deps.draftImages.release(ids)
     return this.deps.draftImages.busyNotice()
   }
 

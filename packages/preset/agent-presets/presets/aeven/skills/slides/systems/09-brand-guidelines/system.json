@@ -1,0 +1,59 @@
+{
+  "id": "brand-guidelines",
+  "name": "Brand Guidelines",
+  "label": "Brand Guidelines",
+  "source": "https://www.figma.com/community/file/1384583858299822814/brand-guidelines",
+  "measuredFrom": "16 Figma Community thumbnails at 1000×563, palette sampled per frame with ImageMagick histograms",
+  "motif": "lime and deep olive fields under a big italic serif display, stacked rounded caps label blocks in black, olive and lime, a round version badge, and guideline pages with a lime section tag, small caps heading and one large rounded panel",
+  "colors": {
+    "lime": "#C5FD90",
+    "olive": "#566A3E",
+    "field": "#627345",
+    "shadow": "#2B3A22",
+    "black": "#000000",
+    "paper": "#F8F8F8",
+    "grey": "#CECECE",
+    "cross": "#D9534F"
+  },
+  "type": {
+    "family": "italic serif display, regular grotesque caps labels, geometric sans body",
+    "fonts": {
+      "text": "Epilogue",
+      "display": "Newsreader",
+      "extra": [
+        "Inter Tight"
+      ],
+      "source": "Editorial-style italic serif with flared terminals (wordmark and {Company}), a narrow neo-grotesque for the caps label blocks, and Epilogue-like geometric sans for body copy; identified visually",
+      "italic": [
+        "Newsreader"
+      ]
+    },
+    "body": 17,
+    "heading": 20,
+    "tag": 15,
+    "meta": 16
+  },
+  "geometry": {
+    "margin": 24,
+    "sideWidth": 276,
+    "panelLeft": 335,
+    "panelRadius": 14,
+    "blockRadius": 18,
+    "blockGap": 13,
+    "badge": 128
+  },
+  "rhythm": "olive cover, paper agenda of colour blocks, lime then olive section fields, olive statement, paper guideline pages whose panel rotates black, lime, grey, lime|olive|black bands, lime quote field, lime closing",
+  "palette": {
+    "paper": "#F8F8F8",
+    "ink": "#000000",
+    "muted": "#5B5B5B",
+    "rule": "rgba(0,0,0,.18)",
+    "onAccent": "#FFFFFF",
+    "accents": [
+      "#566A3E",
+      "#000000",
+      "#8CCB4E",
+      "#A2A2A2"
+    ]
+  }
+}

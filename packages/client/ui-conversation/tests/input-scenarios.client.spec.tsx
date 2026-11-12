@@ -131,6 +131,7 @@ async function scopedBench(register?: (inputTriggers: InputTriggerService) => vo
     defaultSink: sink,
     commandImages: { serialize, release, unsupportedNotice: (token: string) => `${token.trim()} images-unsupported` },
     draftImages: { create: () => ({ kind: 'created', ids: [] }), release: () => {}, busyNotice: () => 'file-busy' },
+    draftFiles: { create: () => [] },
   })
   // The hub's listener wiring, verbatim.
   actx.on('slash/input-begin-command', req => shell.beginCommand(req.claim, req.span) ? true : undefined)
