@@ -62,6 +62,7 @@ kind: "package-reference"
 
 无；分享不触及任何请求内容。
 
+<a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与延后工作
 
 - **缩略图需要已渲染的行**：当回复行不在 DOM 中时，缩略图改为显示分享图标。

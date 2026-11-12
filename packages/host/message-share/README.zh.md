@@ -89,6 +89,7 @@ Markdown 用 `share-image:n` 指代第 `n` 张图片，字节以 base64 编码�
 
 无；分享不触及任何请求内容。
 
+<a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与延后工作
 
 - **仅最后一步**：回复是该轮次的收尾助手消息，与复制操作取用的文本相同；模型在该轮次较早步骤中写的文本不会发布。

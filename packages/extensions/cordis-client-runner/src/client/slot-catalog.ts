@@ -201,6 +201,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     declaredBy: 'an entry in \'conversation.chat.node\' (client-ui-chat), so it exists while that entry is mounted',
     occupants: [
       'client-ui-message-feedback MessageFeedbackActions id \'feedback\'',
+      'client-ui-message-share ShareAction id \'share\'',
       'client-ui-tts MessageReadAloud id \'read-aloud-message\'',
     ],
     replaceRisk: 'none',

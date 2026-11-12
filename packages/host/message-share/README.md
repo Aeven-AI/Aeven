@@ -83,12 +83,13 @@ The Markdown names image `n` as `share-image:n`, and the bytes travel base64-enc
 <a id="model-experience"></a>
 ## Model Experience
 
-None; sharing reads the Session log and never adds to it, so no request the model receives changes.
+None, as sharing reads the Session log and never adds to it, so no request the model receives changes.
 
 #### KV Cache effect
 
 None; sharing touches no request content.
 
+<a id="known-limitations-and-deferred-work"></a>
 ## Known Limitations and Deferred Work
 
 - **The final step only**: the response is the turn's closing assistant message, the same text the copy action takes; text the model wrote in earlier steps of the turn is not published.

@@ -56,12 +56,13 @@ The package registers the `share` entry (order 30) of `conversation.chat.assista
 <a id="model-experience"></a>
 ## Model Experience
 
-None; sharing never enters the Session log, the model context, or telemetry.
+None, as sharing never enters the Session log, the model context, or telemetry.
 
 #### KV Cache effect
 
 None; sharing touches no request content.
 
+<a id="known-limitations-and-deferred-work"></a>
 ## Known Limitations and Deferred Work
 
 - **The thumbnail needs the rendered rows**: when the response row is not in the DOM, the thumbnail shows the share glyph instead.
