@@ -7,7 +7,7 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
-## 摘要
+## 概述
 
 `@aeven/host-message-share` 让已登录用户把一条已完成的助手消息发布到一个公开 URL，不含引出它的提问。Host 从持久化的 Session 日志构建快照，从不使用浏览器发来的文本，并用该用户自己的 `AEVEN_TOKEN` 发送到 Aeven API 的 `/api/shares` 路由；API 把每个链接归到该账户名下，并在 `/s/<shareId>` 提供页面。再次分享同一条消息会刷新同一个链接背后的快照。`messageShare` Remote 还能分页列出账户的链接，并删除其中一个或全部；浏览器一侧是 [ui-message-share](../../client/ui-message-share/README.zh.md)。
 
@@ -17,7 +17,7 @@ kind: "package-reference"
 - [了解实现](#understand-the-implementation)
 - [模型体验](#model-experience)
 - [已知限制与延后工作](#known-limitations-and-deferred-work)
-- [开发说明](#dev-note)
+- [开发备注](#dev-note)
 
 -----
 
@@ -95,7 +95,7 @@ Markdown 用 `share-image:n` 指代第 `n` 张图片，字节以 base64 编码�
 - **已删除的链接可能留在缓存中**：聊天应用和社交网站会保留它们抓取的预览卡片，API 提供的图片带有一小时缓存。
 
 <a id="dev-note"></a>
-### 开发说明
+### 开发备注
 
 <details>
 <summary>维护者工作背景 — 点击展开</summary>

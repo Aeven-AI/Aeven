@@ -107,26 +107,32 @@ export class ShareApi {
     return removedCountSchema.parse(await this.call(owner, 'DELETE', '/api/shares')).removed
   }
 
-  private async call(owner: string, method: string, path: string, body?: unknown): Promise<unknown> {
+  /** Send one request with the owner's token, or refuse when the owner is signed out. */
+  private async send(owner: string, method: string, path: string, body: unknown): Promise<Response> {
     const token = await this.options.sessionToken(owner)
     if (token === undefined || token === '') throw new ShareApiError('signed-out')
-    let response: Response
+    const headers: Record<string, string> = { Authorization: `Bearer ${token}`, Accept: 'application/json' }
+    const init: RequestInit = { method, headers, signal: AbortSignal.timeout(this.options.timeoutMs), redirect: 'error' }
+    if (body !== undefined) {
+      headers['Content-Type'] = 'application/json'
+      init.body = JSON.stringify(body)
+    }
     try {
-      response = await fetch(`${this.options.apiUrl.replace(/\/+$/, '')}${path}`, {
-        method,
-        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', ...body === undefined ? {} : { 'Content-Type': 'application/json' } },
-        ...body === undefined ? {} : { body: JSON.stringify(body) },
-        signal: AbortSignal.timeout(this.options.timeoutMs),
-        redirect: 'error',
-      })
+      return await fetch(`${this.options.apiUrl.replace(/\/+$/, '')}${path}`, init)
     } catch {
       // A network failure or timeout carries no detail worth surfacing; the caller reports the API as unavailable.
       throw new ShareApiError('unavailable')
     }
+  }
+
+  /** Send one request and read its JSON, mapping a refusal to its failure code. */
+  private async call(owner: string, method: string, path: string, body?: unknown): Promise<unknown> {
+    const response = await this.send(owner, method, path, body)
     if (response.ok) return await response.json()
-    const error = await response.json().then(value => (value as { error?: unknown } | null)?.error, () => undefined)
     if (response.status === 401) throw new ShareApiError('signed-out')
     if (response.status === 404) throw new ShareApiError('not-found')
+    const refusal: unknown = await response.json().catch(() => null)
+    const error = typeof refusal === 'object' && refusal !== null ? (refusal as { error?: unknown }).error : undefined
     // Only the shares API's own codes mean too large; a bare 413 comes from a proxy or an API without these routes.
     if (typeof error === 'string' && /too-large|too-many-images/.test(error)) throw new ShareApiError('too-large')
     if (error === 'share-limit') throw new ShareApiError('share-limit')

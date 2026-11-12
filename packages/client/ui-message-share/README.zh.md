@@ -7,7 +7,7 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
-## 摘要
+## 概述
 
 本包为 Web GUI 添加分享功能。它向已完成助手消息的操作条贡献 `share` 条目，即紧挨分支之前的 lucide `share-2` 按钮。按钮打开一个对话框，说明链接会公开这条回复，显示回复的缩略图，并提供 **管理** 和 **创建链接**。创建链接通过 [host-message-share](../../host/message-share/README.zh.md) 的 `messageShare` Remote 发布消息并复制 URL，在触屏设备上则打开系统分享面板；处理期间，旋转图标取代其链接图标，按钮保持宽度。管理的标题为 **已创建的链接**，列出已登录账户创建的所有链接，随列表滚动加载更多，每个链接都有删除操作，另有需确认的 **删除所有链接**。
 
@@ -17,7 +17,7 @@ kind: "package-reference"
 - [了解实现](#understand-the-implementation)
 - [模型体验](#model-experience)
 - [已知限制与延后工作](#known-limitations-and-deferred-work)
-- [开发说明](#dev-note)
+- [开发备注](#dev-note)
 
 -----
 
@@ -68,7 +68,7 @@ kind: "package-reference"
 - **仅聊天视图**：轨迹视图和瀑布视图不渲染分享操作。
 
 <a id="dev-note"></a>
-### 开发说明
+### 开发备注
 
 <details>
 <summary>维护者工作背景 — 点击展开</summary>
