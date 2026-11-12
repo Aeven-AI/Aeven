@@ -1,0 +1,52 @@
+{
+  "id": "two-tone",
+  "name": "Two Tone",
+  "label": "Two Tone",
+  "source": "https://www.figma.com/community/file/1383228713911823264/two-tone",
+  "measuredFrom": "16 ripped frames at 1000×563, scaled ×1.28 to 1280×720",
+  "motif": "flat grey pages split against acid yellow, rust or mint fields, huge semibold grotesque titles and numerals, regular caps headings, hairline-ruled rows, small company and date footers",
+  "surface": {
+    "grey": "#B5B5B5",
+    "yellow": "#EFFD59",
+    "rust": "#9F5321",
+    "mint": "#9FE0C7",
+    "slot": "#8C8C8C"
+  },
+  "rule": {
+    "hair": "#767676",
+    "thick": "#000000"
+  },
+  "geometry": {
+    "margin": 24,
+    "half": 648,
+    "split": 411,
+    "panel": 841,
+    "rowsTop": 175,
+    "rowsBottom": 668,
+    "row": 164
+  },
+  "type": {
+    "fonts": {
+      "text": "Inter",
+      "display": "Inter",
+      "source": "Inter (Figma Community template; measured visually)"
+    },
+    "coverTitle": 190,
+    "coverMeta": 81,
+    "sectionTitle": 83,
+    "title": 63,
+    "statement": 64,
+    "lede": 27,
+    "label": 26,
+    "body": 19,
+    "meta": 14
+  },
+  "palette": {
+    "paper": "#B5B5B5",
+    "ink": "#000000",
+    "muted": "#3C3C3C",
+    "rule": "#767676",
+    "onAccent": "#000000",
+    "accents": ["#9F5321", "#000000", "#EFFD59", "#9FE0C7"]
+  }
+}

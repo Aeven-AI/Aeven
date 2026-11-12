@@ -35,6 +35,7 @@ function bench(intake: DraftImageIntake, options?: { locked?: boolean }) {
       unsupportedNotice: (token: string) => `${token.trim()} images-unsupported`,
     },
     draftImages: { create, release, busyNotice },
+    draftFiles: { create: () => [] },
   })
   if (options?.locked === true) {
     // A claimed enter whose submit never settles is the cheapest real lock:

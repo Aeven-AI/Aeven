@@ -1,0 +1,62 @@
+{
+  "id": "bold-blobs",
+  "name": "Bold Blobs",
+  "label": "Bold Blobs",
+  "preset": "paper",
+  "source": "https://www.figma.com/community/file/1383226814656651166/bold-blobs",
+  "measuredFrom": "16 Figma Community thumbnails at 1000×563, palette sampled per frame with PIL",
+  "field": {
+    "paper": "#F0EDE7",
+    "periwinkle": "#93A1F8",
+    "yellow": "#F9DA4B",
+    "green": "#59A083",
+    "pink": "#F7CCF9",
+    "tan": "#BCA987",
+    "black": "#000000",
+    "pill": "#C2C2C2"
+  },
+  "ink": {
+    "primary": "#000000",
+    "onBlack": "#59A083",
+    "tick": "#D9D0C0"
+  },
+  "type": {
+    "family": "rounded condensed heavy caps titles, letter-spaced old-style serif body",
+    "titleCaps": true,
+    "cover": 150,
+    "section": 158,
+    "statement": 84,
+    "title": 66,
+    "list": 60,
+    "body": 22,
+    "meta": 13,
+    "fonts": {
+      "text": "Old Standard TT",
+      "display": "Asap Condensed",
+      "source": "a heavy rounded condensed grotesque for titles and a light letter-spaced serif for body copy (identified visually; Asap Condensed 800 and Old Standard TT are the closest Google Fonts)"
+    }
+  },
+  "geometry": {
+    "margin": 56,
+    "tileRadius": 64,
+    "panelRadius": 24,
+    "footerBaseline": 30
+  },
+  "motif": "chunky periwinkle, yellow and green colour fields, heavy rounded caps titles with bold arrows, butted rounded colour tiles, a 3D bubble-blob picture panel, small caps corner meta",
+  "rhythm": "periwinkle cover, paper agenda, yellow|green sections, green statement, paper content, black metrics with colour tiles, pink quote, yellow big number, periwinkle closing",
+  "palette": {
+    "paper": "#F0EDE7",
+    "ink": "#000000",
+    "muted": "#5E574C",
+    "rule": "#CFC6B6",
+    "onAccent": "#000000",
+    "accents": [
+      "#59A083",
+      "#93A1F8",
+      "#000000",
+      "#F9DA4B",
+      "#F7CCF9",
+      "#BCA987"
+    ]
+  }
+}

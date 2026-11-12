@@ -89,6 +89,7 @@ function sessionProps(current?: SessionId) {
       appendText: vi.fn(() => true),
       addImages: vi.fn(() => true),
       addImageFiles: () => null,
+      addFiles: () => null,
       removeImage: vi.fn(),
       pruneImages: vi.fn(),
       submit: vi.fn(),

@@ -102,7 +102,7 @@ kind: "package-reference"
 这些限制说明某个资产类别何时尚未被覆盖。它们是当前包约束，不是任务积压。
 
 - **MIME 表是固定列表**：它覆盖 Vite 输出的资产集合、实际交付的 PWA manifest，以及 Web 应用交付的字体、图标、静态图片与短片；其他扩展名在相应资产类别发布前都会回退到 `application/octet-stream`。多区间请求以整个文件作答。
-- **SPA pathname 路由是显式声明**——对话路径（`/c/:id`）、`/imagine`、`/automations` 及认证路径返回 SPA index。新增其他顶层路由需要匹配的服务器规则与真实组合覆盖，而不是对每次未命中做宽泛回退。
+- **SPA pathname 路由是显式声明**——对话路径（`/c/:id`）、`/inspiration`、`/automations` 及认证路径返回 SPA index。新增其他顶层路由需要匹配的服务器规则与真实组合覆盖，而不是对每次未命中做宽泛回退。
 
 <a id="dev-note"></a>
 

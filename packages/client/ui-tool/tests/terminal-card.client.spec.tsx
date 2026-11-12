@@ -567,7 +567,7 @@ describe('DetailsPanel Output section', () => {
         useTrajectory={useEmptyTrajectory}
         useInput={(() => { throw new Error('unused') })}
         inputActions={{
-          setDraft: () => {}, appendText: () => true, addImages: () => true, addImageFiles: () => null,
+          setDraft: () => {}, appendText: () => true, addImages: () => true, addImageFiles: () => null, addFiles: () => null,
           removeImage: () => {}, pruneImages: () => {}, submit: () => {},
         }}
         useProjection={(() => undefined)}
@@ -757,7 +757,7 @@ describe('DetailsPanel Output section', () => {
         useTrajectory={useEmptyTrajectory}
         useInput={(() => { throw new Error('unused') })}
         inputActions={{
-          setDraft: () => {}, appendText: () => true, addImages: () => true, addImageFiles: () => null,
+          setDraft: () => {}, appendText: () => true, addImages: () => true, addImageFiles: () => null, addFiles: () => null,
           removeImage: () => {}, pruneImages: () => {}, submit: () => {},
         }}
         useProjection={(() => undefined)}

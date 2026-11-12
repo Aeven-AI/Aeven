@@ -1,0 +1,38 @@
+{
+  "id": "night-shapes",
+  "name": "Dark Themed Simple Slide Deck",
+  "label": "Night Shapes",
+  "motif": "near-black slides with bold white grotesque titles and italic sub-lines, flat orange, royal-blue and yellow shapes (four-lobe blob, tilted square, circle grids, big discs), traffic-light dots, hairline dividers, company and page number in the corners",
+  "measuredFrom": "one collage frame (1000×611) showing the cover and parts of eight slides; colours sampled from the PNG",
+  "type": {
+    "family": "neo-grotesque bold titles, regular and italic sub-lines",
+    "cover": 128,
+    "title": 52,
+    "lead": 30,
+    "body": 19,
+    "meta": 13,
+    "fonts": {
+      "text": "Inter",
+      "display": "Inter Tight",
+      "italic": ["Inter Tight"],
+      "source": "Helvetica Neue (Bold titles, Oblique sub-lines), identified visually"
+    }
+  },
+  "surface": {
+    "night": "#121212",
+    "black": "#000000",
+    "blue": "#3131DC",
+    "orange": "#EB5528",
+    "yellow": "#CFC540",
+    "yellowDeep": "#BCB33A",
+    "dotYellow": "#EBDF4A"
+  },
+  "palette": {
+    "paper": "#121212",
+    "ink": "#FFFFFF",
+    "muted": "#A3A3A3",
+    "rule": "rgba(255,255,255,.55)",
+    "onAccent": "#FFFFFF",
+    "accents": ["#EB5528", "#CFC540", "#3131DC", "#FFFFFF"]
+  }
+}

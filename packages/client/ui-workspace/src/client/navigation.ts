@@ -82,13 +82,13 @@ export interface UiWorkspace {
    */
   newSessionHref(): { href: string; sessionId: SessionId }
   /**
-   * Claim a start address, such as `/imagine`: a chat address that names no
+   * Claim a start address, such as `/inspiration`: a chat address that names no
    * Session. A blank Session is shown under it, and the address moves to that
    * Session's own `/c/<uuid>` once the Session is no longer blank.
    *
    * The claim carries the page's own copy, so the address and what the shared
    * shell says about it are registered together and cannot disagree.
-   * @param path - absolute path, such as `/imagine` or `/automations/runs`.
+   * @param path - absolute path, such as `/inspiration` or `/automations/runs`.
    * @param copy - copy this page contributes to the shell; absent claims none.
    * @returns disposer releasing the claim.
    */

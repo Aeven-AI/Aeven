@@ -1,11 +1,72 @@
-/* The composer's own horizontal box: the side clearance outside, the card's max-width inside, so the grid's edges
-   are the composer card's edges at every column width. The top clears the 56px navigation band. */
+/* The composer's own horizontal box: the side clearance outside, the card's max-width inside, so the pills and the
+   grid edges are the composer card's edges at every column width. The top matches the Bots page, so both pages'
+   pills sit on the same line below the 56px navigation band. */
 .root {
   box-sizing: border-box;
   display: flex;
   justify-content: center;
   width: 100%;
-  padding: 72px var(--avn-composer-side-clearance) 24px;
+  padding: 53px var(--avn-composer-side-clearance) 24px;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 32px;
+  width: 100%;
+  max-width: var(--avn-composer-card-max-width);
+}
+
+/* Category switcher in the Bots page's view-switcher style: 30px pills on one track, the selected one the surface
+   colour. A track wider than the column scrolls sideways instead of wrapping. */
+.tabs {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  height: 30px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-radius: 15px;
+  background: var(--dsw-alias-bg-module-platform);
+  /* The track is an elevated surface: a scrollbar shown on it takes the l2 thumb pair. */
+  --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+.tab {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 15px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.875rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tab:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.tab[aria-pressed='true'] {
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: -2px;
 }
 
 /* Equal 4:5 cards, four to a row at most so each example stays big enough to
@@ -15,7 +76,6 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
   width: 100%;
-  max-width: var(--avn-composer-card-max-width);
 }
 
 @media (max-width: 768px) {
@@ -128,5 +188,50 @@
   .shade,
   .title {
     transition: none;
+  }
+}
+
+/* Slide templates read as presentations: wide covers, two to a row, on the
+   image card itself (its shade and its title over the picture). A cover is
+   exactly as tall as an image card on the Image & video grid at the same width:
+   an image card is a quarter of the row at 4:5, which for a half-row card of
+   width w is 0.625w - 7.5px; percentage padding resolves against the card's own
+   width, so the sizer below sets that height without container queries. */
+.wideGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+.slideCard {
+  aspect-ratio: auto;
+}
+
+.slideCard::before {
+  content: '';
+  display: block;
+  padding-top: calc(62.5% - 7.5px);
+}
+
+/* The card is a little narrower than 16:9, so the crop comes off the right:
+   most covers start their title on the left margin. */
+.slideCard .image {
+  position: absolute;
+  inset: 0;
+  object-position: left center;
+}
+
+/* Below the four-card row an image card is too tall for a slide to match
+   without cutting its title, so covers keep their own 16:9 shape there. */
+@media (max-width: 768px) {
+  .slideCard::before {
+    padding-top: 56.25%;
+  }
+}
+
+@media (max-width: 480px) {
+  .wideGrid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

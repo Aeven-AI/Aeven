@@ -1,0 +1,54 @@
+{
+  "id": "course-syllabus",
+  "name": "University Course Syllabus",
+  "label": "Course Syllabus",
+  "source": "https://www.figma.com/community/file/1387224289567509942/university-course-syllabus",
+  "measuredFrom": "16 ripped frames at 1000×563, scaled ×1.28 to 1280×720, palette sampled with PIL",
+  "motif": "flat charcoal slides, large white high-contrast serif titles and numbered lists, one coloured dot top right that changes colour slide to slide, a row of five overlapping dots on the cover, small sans footer meta",
+  "surface": {
+    "page": "#383838",
+    "placeholder": "#454545"
+  },
+  "ink": {
+    "primary": "#FFFFFF",
+    "soft": "#E6E6E6"
+  },
+  "dots": {
+    "orange": "#EE935E",
+    "purple": "#AC68E9",
+    "pink": "#E591E4",
+    "yellow": "#FEFA6C",
+    "green": "#B6DD7D",
+    "blue": "#7AB8EB"
+  },
+  "rhythm": "cover row orange, purple, pink, yellow, green; single dot per slide cycles green, pink, yellow, purple, orange, blue",
+  "geometry": {
+    "margin": 72,
+    "dot": 80,
+    "dotTop": 79,
+    "rowStep": 48,
+    "footerCentre": 676
+  },
+  "type": {
+    "fonts": {
+      "text": "Inter",
+      "display": "Playfair Display",
+      "source": "Playfair Display (titles, lists, quotes, body paragraphs) and Inter (column copy, footer meta), identified visually"
+    },
+    "cover": 208,
+    "title": 94,
+    "label": 38,
+    "body": 38,
+    "copy": 19,
+    "small": 15,
+    "meta": 13
+  },
+  "palette": {
+    "paper": "#383838",
+    "ink": "#FFFFFF",
+    "muted": "#C4C4C4",
+    "rule": "rgba(255,255,255,.22)",
+    "onAccent": "#383838",
+    "accents": ["#B6DD7D", "#E591E4", "#FEFA6C", "#EE935E", "#AC68E9", "#7AB8EB"]
+  }
+}

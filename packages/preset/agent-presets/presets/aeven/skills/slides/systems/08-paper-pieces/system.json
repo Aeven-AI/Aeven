@@ -1,0 +1,78 @@
+{
+  "id": "paper-pieces",
+  "preset": "playful",
+  "name": "Paper Pieces",
+  "label": "Paper Pieces",
+  "source": "https://www.figma.com/community/file/1383225175733773213/paper-pieces",
+  "measuredFrom": "16 exported frames at 1000×563, palette sampled per frame, shapes traced from the frames",
+  "surface": {
+    "page": "#E3E5EA",
+    "dark": "#000000"
+  },
+  "paper": {
+    "butter": "#E3E17F",
+    "lavender": "#C1C8E6",
+    "peach": "#F4C8B1",
+    "khaki": "#AA9A78",
+    "grey": "#E3E5EA"
+  },
+  "ink": {
+    "primary": "#050505",
+    "onDark": "#FFFFFF",
+    "outline": "#000000"
+  },
+  "type": {
+    "family": "grotesque titles, typewriter body",
+    "titleCaps": false,
+    "title": 46,
+    "titleCover": 104,
+    "titleSection": 92,
+    "statement": 62,
+    "body": 18,
+    "meta": 13,
+    "lineHeight": 1.3,
+    "fonts": {
+      "text": "Courier Prime",
+      "display": "Chivo",
+      "source": "Titles in a Chivo-like grotesque (cover frames use a Helvetica-like grotesque); body, lists and meta in Courier New (measured visually)"
+    }
+  },
+  "geometry": {
+    "margin": 46,
+    "outline": 2.4,
+    "titleSlant": -13
+  },
+  "motif": "torn and cut paper pieces (flowers, jagged polygons, torn strips) with slanted titles, typewriter meta, hand-drawn arrow, oval and wobbly rules",
+  "layouts": [
+    "flower-cover",
+    "shard-agenda",
+    "torn-panel-section",
+    "gem-statement",
+    "torn-panel-text",
+    "torn-band-points",
+    "paper-picture",
+    "paper-scrap-metrics",
+    "ridge-columns",
+    "wobble-timeline",
+    "lavender-quote",
+    "torn-paper-table",
+    "oval-number",
+    "star-list",
+    "paper-faces",
+    "gem-picture",
+    "collage-closing"
+  ],
+  "palette": {
+    "paper": "#E3E5EA",
+    "ink": "#050505",
+    "muted": "#6B6D73",
+    "rule": "#000000",
+    "onAccent": "#050505",
+    "accents": [
+      "#E3E17F",
+      "#C1C8E6",
+      "#F4C8B1",
+      "#AA9A78"
+    ]
+  }
+}

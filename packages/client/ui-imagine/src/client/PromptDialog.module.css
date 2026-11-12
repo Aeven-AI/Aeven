@@ -426,6 +426,17 @@
     flex: 1 1 auto;
     min-height: 0;
   }
+
+  /* Stacked, the example spans the card, so its close disc rides the example's
+     own upper-right corner, one inset from the top and from the right: the
+     same right edge as the action button below. Side by side, the control
+     stays in the title row where every other popup puts it. */
+  .dialog.media .close {
+    position: absolute;
+    top: var(--im-pad);
+    right: var(--im-pad);
+    z-index: 3;
+  }
 }
 
 /* Phone width: the card keeps its shape but takes the product's phone inset on
@@ -438,16 +449,6 @@
     --im-block: 16px;
     width: calc(100% + 16px);
     margin-inline: -8px;
-  }
-
-  /* Stacked on a phone the example spans the card, so its close disc rides the
-     example's own upper-right corner; wider windows keep the control in the
-     title row where every other popup puts it. */
-  .dialog.media .close {
-    position: absolute;
-    top: 16px;
-    right: 16px;
-    z-index: 3;
   }
 
   .artLabel {

@@ -106,6 +106,7 @@ function bench(over?: {
     defaultSink: sink,
     commandImages: { serialize, release, unsupportedNotice: (token: string) => `${token.trim()} images-unsupported` },
     draftImages: { create: () => ({ kind: 'created', ids: [] }), release: () => {}, busyNotice: () => 'file-busy' },
+    draftFiles: { create: () => [] },
   })
   const wiring = shell
   const view = mountBar(shell, over)

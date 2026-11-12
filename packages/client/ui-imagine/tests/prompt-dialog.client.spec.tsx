@@ -59,6 +59,7 @@ function inputFace() {
     appendText: vi.fn(() => true),
     addImages: vi.fn(() => true),
     addImageFiles: vi.fn<(files: readonly File[]) => string | null>(() => null),
+    addFiles: vi.fn<(files: readonly File[]) => string | null>(() => null),
     removeImage: vi.fn(),
     pruneImages: vi.fn(),
     submit: vi.fn(),
@@ -294,6 +295,8 @@ describe('starter prompt grid', () => {
     return render(
       <ImaginePrompts
         inputActions={actions}
+        category="image-video"
+        showCategory={() => {}}
         useSession={bindSnapshotSelector(source(sessionSnapshot(SID)))}
         sessionId={SID}
         useConversation={bindSnapshotSelector(source(conversationSnapshot()))}
@@ -317,7 +320,8 @@ describe('starter prompt grid', () => {
       for (const hidden of copy.querySelectorAll('[aria-hidden="true"]')) hidden.remove()
       return copy.textContent
     }
-    const cards = screen.getAllByRole('button').map(caption)
+    // The category pills come first; the cards are the buttons that carry a prompt.
+    const cards = screen.getAllByRole('button').filter(button => button.hasAttribute('data-prompt')).map(caption)
     expect(cards[0]).toBe('Instagram original')
     expect(cards[1]).toBe('Instagram improve')
     expect(cards[2]).toBe('Aerial view')

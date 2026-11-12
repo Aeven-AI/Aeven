@@ -1,0 +1,248 @@
+/* The slide template popup, on the image prompt popup's shell: wider, because a
+   16:9 slide needs the room, with the slide on show above a strip of every
+   slide on the stage's own surface, and the shell's reading column beside it. */
+
+.dialog[role='dialog'] {
+  width: min(1180px, 100%);
+}
+
+.layout {
+  grid-template-columns: minmax(0, 1fr) 340px;
+}
+
+.stage {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
+  /* One inset on every side, so the slide's top and left edges and the strip's
+     left and bottom edges all sit the same distance from the card's edge. */
+  padding: var(--im-pad);
+  background: var(--dsw-alias-bg-layer-3);
+}
+
+.view {
+  position: relative;
+  border-radius: var(--dsw-aeven-radius-compact);
+  overflow: hidden;
+}
+
+.slide {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+/* Paging discs ride the slide's own edges and stay out of the way until the
+   pointer is on the slide. */
+.step {
+  position: absolute;
+  top: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin-top: -18px;
+  padding: 0 0 3px;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.9);
+  color: var(--dsw-static-neutral-1000);
+  font-size: 1.5rem;
+  line-height: 1;
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 150ms ease;
+}
+
+.prev {
+  left: 12px;
+}
+
+.next {
+  right: 12px;
+}
+
+.view:hover .step:not(:disabled),
+.step:focus-visible {
+  opacity: 1;
+}
+
+.step:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+
+/* The strip clips its overflow, so a thumbnail's rings sit inside its own edge. */
+.thumb:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: -2px;
+}
+
+.strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  /* The stage is an elevated surface: its scrollbar takes the l2 thumb pair. */
+  --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+.thumb {
+  flex: none;
+  width: 104px;
+  padding: 0;
+  border: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  background: none;
+  opacity: 0.62;
+  cursor: pointer;
+  transition: opacity 150ms ease;
+}
+
+.thumb img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.thumb:hover {
+  opacity: 1;
+}
+
+.thumb[aria-pressed='true'] {
+  opacity: 1;
+}
+
+/* What using the template gives: three short lines, each on a small ink dot. */
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.facts li {
+  position: relative;
+  padding-left: 16px;
+  color: var(--dsw-alias-label-primary);
+  font-family: var(--dsw-font-family);
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+}
+
+.facts li::before {
+  content: '';
+  position: absolute;
+  top: 9px;
+  left: 2px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--dsw-alias-label-primary);
+}
+
+@media (max-width: 1024px) {
+  .stage {
+    flex: none;
+    width: 100%;
+  }
+
+  .step {
+    opacity: 1;
+  }
+}
+
+/* The material picker: staged files as rows, then one wide add tile that also
+   takes a drop anywhere on the section; a file dragged over it rings the tile. */
+.material[data-dragging='true'] .addFile {
+  outline: 1px dashed var(--dsw-alias-label-primary);
+  outline-offset: -1px;
+}
+
+.fileInput {
+  display: none;
+}
+
+.file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 6px 0 12px;
+  border-radius: var(--dsw-aeven-radius-compact);
+  background: var(--dsw-alias-bg-layer-3);
+}
+
+.fileName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary);
+  font-family: var(--dsw-font-family);
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileRemove {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.fileRemove:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.addFile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: var(--dsw-aeven-radius-compact);
+  background: #f2f2f2;
+  color: var(--dsw-alias-label-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.addFile:focus-visible,
+.fileRemove:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+
+.addText {
+  display: flex;
+  flex-direction: column;
+  font-family: var(--dsw-font-family);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.375rem;
+}
+
+.addHint {
+  color: var(--dsw-alias-label-tertiary);
+  font-weight: 400;
+}

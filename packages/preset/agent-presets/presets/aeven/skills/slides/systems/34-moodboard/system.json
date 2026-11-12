@@ -1,0 +1,111 @@
+{
+  "id": "moodboard",
+  "name": "Mood – Moodboard Template",
+  "label": "Moodboard",
+  "source": "https://www.figma.com/community/file/1352097452799334634/mood-moodboard-template-figma-slides",
+  "measuredFrom": "6 Figma Community preview images (1000 px wide collages of the slides), palette sampled with PIL, geometry scaled to 1280×720",
+  "motif": "white, pale blue and violet-black slides, huge bold Inter titles with gradient fills and an en-dash sign-off, pastel holographic ribbons, frosted cards, gradient pill badges, rounded image-led moodboard grids",
+  "surface": {
+    "white": "#FFFFFF",
+    "night": "#080112",
+    "sky": "#BAD7E3",
+    "lilac": "#E9E5EF",
+    "frost": "rgba(255,255,255,.72)"
+  },
+  "ink": {
+    "primary": "#080112",
+    "muted": "#5E5B68",
+    "onNight": "#FFFFFF",
+    "label": "#7A3CF0"
+  },
+  "gradients": {
+    "violet": [
+      "#8220D0",
+      "#B04ED6",
+      "#E86AAE",
+      "#E043C4"
+    ],
+    "ember": [
+      "#C62F22",
+      "#E35A55",
+      "#E342A9",
+      "#C348DD"
+    ],
+    "coral": [
+      "#DC6A45",
+      "#E8907E",
+      "#DF7971"
+    ],
+    "holo": [
+      "#E5B5E1",
+      "#8EB5D9",
+      "#B79BE0",
+      "#9DC6E3"
+    ],
+    "pill": [
+      "#9F27AD",
+      "#CC557D"
+    ],
+    "sky": [
+      "#B9DDEB",
+      "#86BEDB",
+      "#3E7FC4",
+      "#8FC2DE",
+      "#B6DAE9"
+    ],
+    "title": [
+      "#A52AA0",
+      "#D04F9A"
+    ]
+  },
+  "ribbons": {
+    "aqua": [
+      "#F4FBFD",
+      "#7FDCE6",
+      "#3FBCD8",
+      "#3F7CE6"
+    ],
+    "magenta": [
+      "#8A2BE2",
+      "#C94FC4",
+      "#E66F86",
+      "#F6E2EA"
+    ]
+  },
+  "geometry": {
+    "margin": 54,
+    "footer": 40,
+    "radius": 26,
+    "cardRadius": 24,
+    "pillHeight": 52
+  },
+  "type": {
+    "family": "neo-grotesque, bold titles with tight tracking",
+    "section": 156,
+    "cover": 150,
+    "title": 64,
+    "subhead": 40,
+    "body": 17,
+    "meta": 14,
+    "fonts": {
+      "text": "Inter",
+      "display": "Inter",
+      "source": "Inter (titles in Bold with tight tracking, body and corner meta in Regular), identified visually"
+    }
+  },
+  "rhythm": "sky cover with aqua ribbon; white pages with date and company in the footer corners; white gradient-title sections alternating with night sections; sky field for cards and quotes; night closing with the en-dash sign-off",
+  "palette": {
+    "paper": "#FFFFFF",
+    "ink": "#080112",
+    "muted": "#5E5B68",
+    "rule": "#D6D3DC",
+    "onAccent": "#FFFFFF",
+    "accents": [
+      "#8220D0",
+      "#E043C4",
+      "#3F8FC6",
+      "#DC6A45",
+      "#9279B4"
+    ]
+  }
+}
