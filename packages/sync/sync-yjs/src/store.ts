@@ -278,11 +278,25 @@ export class SyncStore {
   }
 
   /**
-   * List every document this device stores updates for.
-   * @returns their opaque ids.
+   * List every document this device stores updates for, with the version of its stored state.
+   * @returns each document's version by opaque id; see {@link documentVersion}.
    */
-  storedDocuments(): OpaqueId[] {
-    return (this.statement('SELECT DISTINCT id FROM doc_updates').all() as Array<{ id: string }>).map(row => row.id as OpaqueId)
+  storedDocuments(): Map<OpaqueId, string> {
+    const device = this.deviceId()
+    const rows = this.statement('SELECT id, MAX(seq) AS seq FROM doc_updates GROUP BY id').all() as Array<{ id: string; seq: number }>
+    return new Map(rows.map(row => [row.id as OpaqueId, `${device}:${String(row.seq)}`]))
+  }
+
+  /**
+   * The version of a document's stored state: this store's id and the newest update sequence number. Every stored
+   * update, including a compaction's replacement, takes a sequence number never used before in this store, so the
+   * version changes whenever the stored state changes, and a recreated store yields versions of another store id.
+   * @param id - the document.
+   * @returns the version, or undefined when no update is stored for it.
+   */
+  documentVersion(id: OpaqueId): string | undefined {
+    const row = this.statement('SELECT MAX(seq) AS seq FROM doc_updates WHERE id = ?').get(id) as { seq: number | null }
+    return row.seq === null ? undefined : `${this.deviceId()}:${String(row.seq)}`
   }
 
   private readonly statements = new Map<string, Database.Statement>()

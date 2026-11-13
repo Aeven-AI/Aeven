@@ -17,7 +17,6 @@ import type {} from '@aeven/fs'
 import type { MotionQuality, MotionRenderInput, MotionRenderOutput, MotionRenderer } from '@aeven/motion'
 import type {} from '@aeven/motion'
 import type {} from '@aeven/shell'
-import { bundleToSingleHtml } from '@hyperframes/core/compiler'
 
 export const name = 'motion-sandbox'
 /** The service the renderer registers into, the filesystem it reads compositions through, and the sandboxed shell it renders in. */
@@ -118,6 +117,8 @@ async function bundle(ctx: Context, compositionDir: string, config: Config): Pro
   const scratch = await mkdtemp(join(tmpdir(), 'avn-motion-bundle-'))
   try {
     await copyFolder(ctx, root, scratch, config)
+    // Loaded on first use: the compiler's module graph is large and most Hosts never bundle a composition.
+    const { bundleToSingleHtml } = await import('@hyperframes/core/compiler')
     return await bundleToSingleHtml(scratch, { runtime: 'inline' })
   } finally {
     await rm(scratch, { recursive: true, force: true })

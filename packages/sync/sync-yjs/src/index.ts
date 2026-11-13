@@ -18,7 +18,7 @@ import { accountHomePath, avnHomePath, ACCOUNTS_DIR_NAME } from '@aeven/home-pat
 import {
   Sync, type SyncDevice, type SyncDocument, type SyncLease, type SyncPasskey, type SyncStatus, type SyncStreamBatch,
 } from '@aeven/sync'
-import type { DeviceId } from '@aeven/sync-vault'
+import type { DeviceId, OpaqueId } from '@aeven/sync-vault'
 import { SyncOffload } from './offload.ts'
 import { LanTransport, localRoutes, MdnsDiscovery, type LanRoute } from './lan.ts'
 import { RELAY_MAX_MESSAGE_BYTES, RelayConnection, type RelayCredential, RelayError } from './relay.ts'
@@ -617,10 +617,17 @@ export default class YjsSync extends Sync {
   }
 
   /** @inheritdoc */
-  storedDocuments(owner: string): readonly string[] {
+  storedDocuments(owner: string): ReadonlyMap<string, string> {
     const account = this.accounts.get(owner)
     if (account === undefined) throw new Error('this device does not sync the account')
     return account.store.storedDocuments()
+  }
+
+  /** @inheritdoc */
+  documentVersion(owner: string, id: string): string | undefined {
+    const account = this.accounts.get(owner)
+    if (account === undefined) throw new Error('this device does not sync the account')
+    return account.store.documentVersion(id as OpaqueId)
   }
 
   /** @inheritdoc */

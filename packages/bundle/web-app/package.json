@@ -26,6 +26,10 @@
       "types": "./lib/types/surface.d.ts",
       "default": "./lib/surface.js"
     },
+    "./node-mcp": {
+      "types": "./lib/types/node-mcp.d.ts",
+      "default": "./lib/node-mcp.js"
+    },
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./src/*": "./src/*",
     "./package.json": "./package.json"
@@ -35,6 +39,7 @@
     "lib/startup.js",
     "lib/surface.js",
     "cordis.patch.yml",
+    "lib/node-mcp.js",
     "lib/types/**/*.d.ts"
   ],
   "license": "Apache-2.0",
@@ -179,6 +184,8 @@
     "@aeven/web-frontend": "workspace:^",
     "@aeven/workspace": "workspace:^",
     "@deepseek-ai/schemastery": "workspace:^",
+    "@playwright/mcp": "0.0.83",
+    "chrome-devtools-mcp": "1.12.0",
     "commander": "^15.0.0",
     "open": "^11.0.0",
     "@aeven/automations": "workspace:^",

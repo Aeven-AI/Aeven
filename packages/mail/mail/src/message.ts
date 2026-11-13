@@ -1,6 +1,6 @@
 /** MIME parsing shared by the receive providers. */
 
-import mailparser, { type AddressObject, type ParsedMail } from 'mailparser'
+import type { AddressObject, ParsedMail } from 'mailparser'
 import type { MailAttachment, MailMessage, MailMessageRef } from './types.ts'
 
 /** Parsing bounds for one message. */
@@ -26,7 +26,9 @@ export function addressText(value: AddressObject | AddressObject[] | undefined):
  * @returns the parsed message, with its attachments left in place.
  */
 export async function parseSource(source: Buffer | string): Promise<ParsedMail> {
-  return mailparser.simpleParser(source, { skipImageLinks: true, skipTextToHtml: true, skipTextLinks: true })
+  // Loaded on the first parse, so a Host without a mail account never loads it.
+  const { default: mailparser } = await import('mailparser')
+  return await mailparser.simpleParser(source, { skipImageLinks: true, skipTextToHtml: true, skipTextLinks: true })
 }
 
 /**

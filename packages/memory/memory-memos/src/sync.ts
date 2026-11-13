@@ -157,13 +157,14 @@ export class MemorySyncMirror {
   }
 
   /**
-   * Install the triggers, record existing rows once, queue the shard documents this device already holds, and
-   * start draining. Applying and publishing run in the background, one bounded step at a time.
+   * Install the triggers, record existing rows once, queue the shard documents this device holds whose state changed
+   * since this mirror last applied them, and start draining. Applying and publishing run in the background, one
+   * bounded step at a time.
    * @param republish - record every existing row again, because the account's documents started over.
    */
   start(republish = false): void {
     this.installTriggers()
-    if (republish) this.db.prepare("DELETE FROM sync_state WHERE key = 'seeded'").run()
+    if (republish) this.db.prepare("DELETE FROM sync_state WHERE key = 'seeded' OR key LIKE 'applied:%'").run()
     const seeded = this.db.prepare("SELECT value FROM sync_state WHERE key = 'seeded'").get() as { value: string } | undefined
     if (seeded === undefined) {
       this.db.transaction(() => {
@@ -174,9 +175,27 @@ export class MemorySyncMirror {
         this.db.prepare("INSERT INTO sync_state (key, value) VALUES ('seeded', '1')").run()
       })()
     }
-    for (const id of this.sync.storedDocuments(this.owner)) this.documentChanged(id)
+    const applied = new Map((this.db.prepare("SELECT key, value FROM sync_state WHERE key LIKE 'applied:%'").all() as Array<{ key: string; value: string }>)
+      .map(row => [row.key.slice('applied:'.length), row.value]))
+    for (const [id, version] of this.sync.storedDocuments(this.owner)) {
+      const name = this.names.get(id)
+      if (name !== undefined && applied.get(id) !== this.appliedStamp(name, version)) this.documentChanged(id)
+    }
     this.timer = setInterval(() => { void this.drain() }, this.tuning.drainMs)
     void this.drain()
+  }
+
+  /**
+   * What applying a shard document depended on: its version, this device's embedding model, which decides whether
+   * received vectors are kept, and the local table's columns, which decide which received fields land. A start
+   * applies the document again when any of them differs from the stamp recorded when it was last applied.
+   * @param name - the shard document's logical name.
+   * @param version - the document's version, as the sync service reports it.
+   * @returns the stamp.
+   */
+  private appliedStamp(name: string, version: string): string {
+    const [, table = ''] = name.split('/')
+    return JSON.stringify([version, this.model, this.columns.get(table) ?? []])
   }
 
   private *tables(): Generator<[string, TableSpec]> {
@@ -293,6 +312,10 @@ export class MemorySyncMirror {
     if (columns === undefined) return
     let handle: SyncDocument
     if (this.isClosed()) return
+    // Read before opening: a change stored after this read gives the document another version, so the next start
+    // applies it again instead of taking it as applied.
+    const id = this.sync.documentId(this.owner, name)
+    const version = this.sync.documentVersion(this.owner, id)
     try {
       handle = await this.sync.openDocument(this.owner, name)
     } catch (error) {
@@ -302,8 +325,12 @@ export class MemorySyncMirror {
     try {
       const rows = handle.doc.getMap<SyncedRow>('rows')
       const forgotten = handle.doc.getMap<boolean>('forgotten')
-      if (this.isClosed() || (rows.size === 0 && forgotten.size === 0)) return
-      this.apply(table, columns, rows, forgotten)
+      if (this.isClosed()) return
+      if (rows.size > 0 || forgotten.size > 0) this.apply(table, columns, rows, forgotten)
+      if (version !== undefined) {
+        this.db.prepare('INSERT INTO sync_state (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value')
+          .run(`applied:${id}`, this.appliedStamp(name, version))
+      }
     } catch (error) {
       this.warn(`memory sync: applying ${name} failed: ${String(error)}`)
     } finally {

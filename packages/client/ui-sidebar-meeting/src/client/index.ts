@@ -1,7 +1,7 @@
 /**
  * Registers the Recorder as a right sidebar content kind. Opening a Recorder pane downloads the
- * Host's speaker diarization models when they are missing, so speaker labels are ready by the
- * first meeting.
+ * Host's speech recognition model and speaker diarization models when they are missing, so both
+ * are ready by the first meeting.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pulls the Client Remote's Context merge (ctx.remote) with the speech namespace.
@@ -17,8 +17,9 @@ import type {} from '@aeven/client-ui-sidebar-select/client'
 import type { SidebarContentPaneProps } from '@aeven/client-ui-sidebar-select/client'
 import type { SessionId } from '@aeven/session/types'
 import { createElement } from 'react'
-import type { RecordingId } from '@aeven/api-speech-to-text/types'
-import { observeDiarization } from './diarization.ts'
+import type { DiarizationState, RecordingId, SpeechCatalog } from '@aeven/api-speech-to-text/types'
+import type { SpeechProviderId } from '@aeven/speech-to-text/types'
+import { observeHostState } from './host-state.ts'
 import { formatDate } from './format.ts'
 import { RecordingLibrary } from './library.ts'
 import { en, es, zh } from './locales.ts'
@@ -57,8 +58,16 @@ export function apply(ctx: ClientContext): void {
   const t = ctx.locale.bind(NS)
   ctx.inject(['sidebarContent', 'remote', 'remote.speech'], (scoped) => {
     const speech = scoped.remote.speech
-    const diarization = observeDiarization(scoped)
+    const diarization = observeHostState<DiarizationState>(scoped, {
+      name: 'Speaker diarization', open: signal => speech.followDiarization(signal),
+      // A Host without a diarizer answers once and ends; there is nothing to reopen for.
+      final: value => value.phase === 'unavailable',
+    })
     scoped.effect(() => diarization.dispose, 'ui-sidebar-meeting: diarization state')
+    const recognition = observeHostState<SpeechCatalog>(scoped, {
+      name: 'Speech readiness', open: signal => speech.follow(signal),
+    })
+    scoped.effect(() => recognition.dispose, 'ui-sidebar-meeting: speech readiness')
     const library = new RecordingLibrary({
       recordingsList: async () => await speech.recordingsList(),
       recordingGet: async request => await speech.recordingGet(request),
@@ -90,6 +99,7 @@ export function apply(ctx: ClientContext): void {
     }, () => diarization.state.getSnapshot()?.phase === 'ready', persist)
     scoped.effect(() => () => { recorder.dispose() }, 'ui-sidebar-meeting: recorder')
     const prepareDiarization = (): void => { void speech.prepareDiarization() }
+    const prepareSpeech = (providerId: SpeechProviderId): void => { void speech.prepare(providerId) }
 
     const addToChat = (sessionId: string, text: string): boolean => {
       const sessions = ctx.get('sessions')
@@ -101,7 +111,8 @@ export function apply(ctx: ClientContext): void {
 
     const Pane = (props: SidebarContentPaneProps) =>
       createElement(MeetingPane, {
-        ...props, t, recorder, library, diarization: diarization.state, prepareDiarization, addToChat, openVoiceSettings,
+        ...props, t, recorder, library, diarization: diarization.state, prepareDiarization,
+        speech: recognition.state, prepareSpeech, addToChat, openVoiceSettings,
       })
     scoped.effect(() => scoped.sidebarContent.register('meeting', Pane), 'ui-sidebar-meeting: meeting content kind')
     // Closing the pill stops the recording rather than leaving the microphone

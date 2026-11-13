@@ -15,9 +15,6 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { MOTION_QUEUED_STAGE, type MotionProgress, type MotionQuality, type MotionRenderInput, type MotionRenderOutput } from '@aeven/motion'
 import type {} from '@aeven/motion'
-import { bundleToSingleHtml } from '@hyperframes/core/compiler'
-import { detectGpuEncoder } from '@hyperframes/engine'
-import { createRenderJob, executeRenderJob, resolveConfig } from '@hyperframes/producer'
 import type { ProducerLogger, RenderJob } from '@hyperframes/producer'
 import { resolveFfBinaries } from './binaries.ts'
 import type { FfBinaries } from './binaries.ts'
@@ -145,6 +142,7 @@ export function apply(ctx: Context, config: Config): void {
   }
 
   const chooseEncodePath = async (ffmpeg: string, signal: AbortSignal): Promise<EncodePath> => {
+    const { detectGpuEncoder } = await import('@hyperframes/engine')
     const gpu = await detectGpuEncoder()
     if (gpu !== null) return { kind: 'direct', encoder: `h264_${gpu}` }
     const fallback = await firstWorkingEncoder(ffmpeg, config.fallbackEncoders, signal)
@@ -163,6 +161,8 @@ export function apply(ctx: Context, config: Config): void {
   const render = async (
     input: MotionRenderInput, signal: AbortSignal, onProgress?: (progress: MotionProgress) => void,
   ): Promise<MotionRenderOutput> => {
+    // HyperFrames loads on the first render: its engine, producer and font tooling are large, and most Hosts never render.
+    const { createRenderJob, executeRenderJob, resolveConfig } = await import('@hyperframes/producer')
     const ff = ffBinaries()
     const chromePath = await memo(browser, async () => resolveBrowser({
       browserPath: config.browserPath,
@@ -214,6 +214,9 @@ export function apply(ctx: Context, config: Config): void {
       queue = next.catch(() => {})
       return next
     },
-    bundle: compositionDir => bundleToSingleHtml(compositionDir, { runtime: 'inline' }),
+    bundle: async (compositionDir) => {
+      const { bundleToSingleHtml } = await import('@hyperframes/core/compiler')
+      return await bundleToSingleHtml(compositionDir, { runtime: 'inline' })
+    },
   }), 'motion-hyperframes: renderer')
 }

@@ -137,7 +137,7 @@ describe('SyncStore', () => {
     expect(store.setAccountKey(new Uint8Array(32).fill(2), 'server')).toBe(true)
     expect(store.relayCursor()).toBe(0)
     expect(store.pending()).toBe(0)
-    expect(store.storedDocuments()).toEqual([])
+    expect([...store.storedDocuments().keys()]).toEqual([])
     expect(store.deviceId()).toBe(deviceId)
     store.close()
   })
@@ -148,7 +148,7 @@ describe('SyncStore', () => {
     store.appendDocUpdate(id, Uint8Array.of(2))
     expect(store.docUpdateCount(id)).toBe(2)
     expect(store.docUpdates(id)).toEqual([Uint8Array.of(1), Uint8Array.of(2)])
-    expect(store.storedDocuments()).toEqual([id])
+    expect([...store.storedDocuments().keys()]).toEqual([id])
     store.close()
   })
 

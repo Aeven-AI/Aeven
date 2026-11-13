@@ -7,13 +7,15 @@
  * A finished recording with speech is saved automatically; the idle view's bottom button opens the
  * saved recordings in a modal.
  *
- * Opening the pane downloads the Host's speaker diarization models when they are missing, with a
- * progress bar at the top until they are ready.
+ * Opening the pane downloads the Host's speech recognition model, while voice input is on, and its
+ * speaker diarization models when they are missing, with a progress bar at the top for each until it is
+ * ready. Pressing record while the speech model is missing, failed or cancelled starts its download.
  */
 import type { ReactNode } from 'react'
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Button, IconLucideCheck, IconLucideCopy, IconLucideMic, IconLucideX, Spinner, TextShimmer, Tooltip } from '@aeven/client-ui-primitives'
-import type { DiarizationState } from '@aeven/api-speech-to-text/types'
+import type { DiarizationState, SpeechCatalog } from '@aeven/api-speech-to-text/types'
+import type { SpeechPreparationState, SpeechProviderId } from '@aeven/speech-to-text/types'
 import type { ObservableSnapshot } from '@aeven/client-store'
 import type { SidebarContentPaneProps } from '@aeven/client-ui-sidebar-select/client'
 import { formatDuration, groupTurns, speakerLabel, transcriptText, type MeetingTranslate, type TranscriptLine } from './format.ts'
@@ -35,6 +37,10 @@ export interface MeetingPaneProps extends SidebarContentPaneProps {
   readonly diarization: ObservableSnapshot<DiarizationState | null>
   /** Start or join the diarizer's model download. */
   readonly prepareDiarization: () => void
+  /** The Host speech providers and the voice input selection; null until first observed. */
+  readonly speech: ObservableSnapshot<SpeechCatalog | null>
+  /** Start or join a speech provider's model preparation. */
+  readonly prepareSpeech: (providerId: SpeechProviderId) => void
   /**
    * Append text to a session's composer draft.
    * @returns false when the session has no composer to receive it.
@@ -65,10 +71,17 @@ function linesOf(state: RecorderSnapshot): TranscriptLine[] {
  * @returns the pane.
  */
 export function MeetingPane(props: MeetingPaneProps): ReactNode {
-  const { t, recorder, library, sessionId, visible, addToChat, openVoiceSettings, diarization, prepareDiarization } = props
+  const { t, recorder, library, sessionId, visible, addToChat, openVoiceSettings } = props
+  const { diarization, prepareDiarization, speech, prepareSpeech } = props
   const [libraryOpen, setLibraryOpen] = useState(false)
   const state = useSyncExternalStore(recorder.subscribe, recorder.getSnapshot)
   const diarizer = useSyncExternalStore(listener => diarization.subscribe(listener), () => diarization.getSnapshot())
+  const catalog = useSyncExternalStore(listener => speech.subscribe(listener), () => speech.getSnapshot())
+  // The selected provider while voice input is on; turned off, nothing is downloaded and recording says so.
+  const voice = catalog?.selection.enabled === true
+    ? catalog.providers.find(provider => provider.id === catalog.selection.providerId)
+    : undefined
+  const preparation = voice?.preparation
   const recording = state.phase === 'recording'
   const now = useTicker(recording)
   const elapsed = state.startedAt === null ? 0 : (state.stoppedAt ?? now) - state.startedAt
@@ -79,6 +92,16 @@ export function MeetingPane(props: MeetingPaneProps): ReactNode {
   useEffect(() => {
     if (visible && diarizer?.phase === 'unprepared') prepareDiarization()
   }, [visible, diarizer?.phase, prepareDiarization])
+  const voiceId = voice?.id
+  useEffect(() => {
+    if (visible && voiceId !== undefined && preparation?.phase === 'unprepared') prepareSpeech(voiceId)
+  }, [visible, voiceId, preparation?.phase, prepareSpeech])
+  const prepareVoice = (): void => { if (voiceId !== undefined) prepareSpeech(voiceId) }
+  const start = (): void => {
+    // Record is where a meeting is asked for, so it starts a missing, failed or cancelled model itself.
+    if (preparation?.phase === 'unprepared' || preparation?.phase === 'failed' || preparation?.phase === 'cancelled') prepareVoice()
+    void recorder.start()
+  }
 
   const rootRef = useRef<HTMLDivElement>(null)
   useLevels(rootRef, recorder, recording && visible)
@@ -87,11 +110,12 @@ export function MeetingPane(props: MeetingPaneProps): ReactNode {
 
   return (
     <div ref={rootRef} className={css.root} data-meeting-phase={state.phase}>
+      <SpeechProgress t={t} state={preparation} onRetry={prepareVoice} />
       <DiarizerProgress t={t} state={diarizer} onRetry={prepareDiarization} />
       {idle
         ? (
           <>
-            <Idle t={t} state={state} onStart={() => { void recorder.start() }} openVoiceSettings={openVoiceSettings} />
+            <Idle t={t} state={state} onStart={start} openVoiceSettings={openVoiceSettings} />
             <footer className={css.actions}>
               <Tooltip label={t('recordings.open')} side="top">
                 <button type="button" className={css.iconButton} aria-label={t('recordings.open')} onClick={() => { setLibraryOpen(true) }}>
@@ -160,20 +184,35 @@ export function MeetingPane(props: MeetingPaneProps): ReactNode {
   )
 }
 
-/** The diarizer model download: a progress bar while it runs, a retry after a failure. */
-function DiarizerProgress({ t, state, onRetry }: {
+/**
+ * One model's readiness at the top of the pane: a progress bar while it downloads, a status line while it
+ * loads, a retry after a failure, and nothing otherwise.
+ */
+function ModelProgress({ t, label, download, loading, failure, onRetry }: {
   t: MeetingTranslate
-  state: DiarizationState | null
+  /** The download line's text. */
+  label: string
+  /** Bytes so far and, when known, in total, while the download runs. */
+  download: { readonly completedBytes: number; readonly totalBytes?: number } | undefined
+  /** The status line while the model loads after its download. */
+  loading?: string | undefined
+  /** Why preparation failed. */
+  failure: string | undefined
   onRetry: () => void
 }): ReactNode {
-  if (state?.phase === 'downloading') {
-    const fraction = state.totalBytes === 0 ? 0 : state.completedBytes / state.totalBytes
+  if (download !== undefined) {
+    const { completedBytes, totalBytes } = download
+    const fraction = totalBytes === undefined || totalBytes === 0 ? 0 : completedBytes / totalBytes
     const mb = (bytes: number): string => (bytes / 1_000_000).toFixed(1)
     return (
       <div className={css.download} role="status">
         <div className={css.downloadRow}>
-          <span>{t('diarization.downloading')}</span>
-          <span className={css.downloadBytes}>{t('diarization.progress', { done: mb(state.completedBytes), total: mb(state.totalBytes) })}</span>
+          <span>{label}</span>
+          <span className={css.downloadBytes}>
+            {totalBytes === undefined
+              ? t('download.done', { done: mb(completedBytes) })
+              : t('download.progress', { done: mb(completedBytes), total: mb(totalBytes) })}
+          </span>
         </div>
         <div className={css.downloadTrack} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(fraction * 100)}>
           <span className={css.downloadFill} style={{ transform: `scaleX(${String(fraction)})` }} />
@@ -181,15 +220,49 @@ function DiarizerProgress({ t, state, onRetry }: {
       </div>
     )
   }
-  if (state?.phase === 'failed') {
+  if (loading !== undefined) {
+    return (
+      <div className={css.download} role="status">
+        <div className={css.downloadRow}><span>{loading}</span></div>
+      </div>
+    )
+  }
+  if (failure !== undefined) {
     return (
       <div className={css.download} role="alert">
-        <p className={css.downloadError}>{t('diarization.failed', { message: state.message })}</p>
-        <Button variant="outline" size="sm" className={css.button} onClick={onRetry}>{t('diarization.retry')}</Button>
+        <p className={css.downloadError}>{failure}</p>
+        <Button variant="outline" size="sm" className={css.button} onClick={onRetry}>{t('download.retry')}</Button>
       </div>
     )
   }
   return null
+}
+
+/** The speech recognition model's preparation; absent while voice input is off. */
+function SpeechProgress({ t, state, onRetry }: {
+  t: MeetingTranslate
+  state: SpeechPreparationState | undefined
+  onRetry: () => void
+}): ReactNode {
+  return (
+    <ModelProgress t={t} label={t('speech.downloading')} onRetry={onRetry}
+      download={state?.phase === 'downloading' ? state : undefined}
+      loading={state?.phase === 'loading' ? t('speech.loading') : undefined}
+      failure={state?.phase === 'failed' ? t('speech.failed', { message: state.message }) : undefined} />
+  )
+}
+
+/** The diarizer model download. */
+function DiarizerProgress({ t, state, onRetry }: {
+  t: MeetingTranslate
+  state: DiarizationState | null
+  onRetry: () => void
+}): ReactNode {
+  return (
+    <ModelProgress t={t} label={t('diarization.downloading')} onRetry={onRetry}
+      download={state?.phase === 'downloading' ? state : undefined}
+      failure={state?.phase === 'failed' ? t('diarization.failed', { message: state.message }) : undefined} />
+  )
 }
 
 /** The idle hero: record control, sources, and a start failure with its remedy. */

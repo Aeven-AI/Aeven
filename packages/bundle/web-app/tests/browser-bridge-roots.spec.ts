@@ -43,7 +43,8 @@ function rows(): Row[] {
 /** The `mcp-chrome-devtools` row's argument list. */
 function chromeDevtoolsArgs(): unknown[] {
   const row = rows().find(candidate => candidate.id === 'mcp-chrome-devtools')
-  const args = row?.config?.['args']
+  const server = row?.config?.['server'] as Record<string, unknown> | undefined
+  const args = server?.['args']
   if (!Array.isArray(args)) throw new TypeError('mcp-chrome-devtools must declare an args array')
   return args
 }

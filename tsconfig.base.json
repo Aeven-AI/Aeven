@@ -138,6 +138,7 @@
       "@aeven/host-*/invariant": ["./packages/host/*/src/invariant.ts"],
       "@aeven/client-*/invariant": ["./packages/client/*/src/invariant.ts"],
       "@aeven/headless/startup": ["./packages/bundle/headless/src/startup.ts"],
+      "@aeven/web-app/node-mcp": ["./packages/bundle/web-app/src/node-mcp.ts"],
       "@aeven/web-app/startup": ["./packages/bundle/web-app/src/startup.ts"],
       "@aeven/web-app/surface": ["./packages/bundle/web-app/src/surface.ts"],
       "@aeven/client-*/client": ["./packages/client/*/src/client"],

@@ -1,6 +1,5 @@
-/** SMTP send provider and MIME composition for drafts. */
+/** SMTP send provider and MIME composition for drafts. nodemailer loads on first use, so a Host without a mail account never loads it. */
 
-import { createTransport } from 'nodemailer'
 import { MailError, toMailError } from './errors.ts'
 import type { MailServer } from './types.ts'
 
@@ -60,6 +59,7 @@ function mailOptions(message: ComposedMessage) {
  * @param timing - connection budgets.
  */
 export async function probeSmtp(server: MailServer, password: string, timing: SmtpTiming): Promise<void> {
+  const { createTransport } = await import('nodemailer')
   const transport = createTransport(transportOptions(server, password, timing))
   try {
     await transport.verify()
@@ -87,6 +87,7 @@ export async function sendSmtp(
   message: ComposedMessage,
   signal?: AbortSignal,
 ): Promise<{ messageId: string; accepted: string[]; rejected: string[] }> {
+  const { createTransport } = await import('nodemailer')
   signal?.throwIfAborted()
   const transport = createTransport(transportOptions(server, password, timing))
   const onAbort = (): void => { transport.close() }
@@ -121,6 +122,7 @@ function recipientAddress(entry: unknown): string {
  * @returns the raw message and its Message-ID.
  */
 export async function composeMessage(message: ComposedMessage): Promise<{ raw: Buffer; messageId: string }> {
+  const { createTransport } = await import('nodemailer')
   const transport = createTransport({ streamTransport: true, buffer: true, newline: 'windows' })
   const info = await transport.sendMail(mailOptions(message))
   return { raw: info.message as Buffer, messageId: info.messageId }
