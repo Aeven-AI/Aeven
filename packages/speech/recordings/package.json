@@ -1,7 +1,7 @@
 {
   "name": "@aeven/recordings",
   "description": "Saved Recorder recordings per account: transcripts mirrored through account sync, audio files shared through file sync",
-  "version": "0.3.46-alpha",
+  "version": "0.3.47-alpha",
   "publishConfig": {
     "access": "public"
   },
