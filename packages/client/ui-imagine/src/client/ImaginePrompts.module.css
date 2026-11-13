@@ -97,7 +97,7 @@
   padding: 0;
   overflow: hidden;
   border: 0;
-  border-radius: var(--dsw-aeven-radius-compact);
+  border-radius: 30px;
   background: var(--dsw-alias-interactive-bg-hover);
   cursor: pointer;
 }
