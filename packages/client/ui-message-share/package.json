@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-message-share",
   "description": "Share action in the assistant-message action strip, its share dialog, and the shared-link manager, backed by the messageShare Host Remote",
-  "version": "0.3.45-alpha",
+  "version": "0.3.46-alpha",
   "publishConfig": {
     "access": "public"
   },
