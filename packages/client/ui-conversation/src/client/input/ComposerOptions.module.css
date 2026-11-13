@@ -30,9 +30,9 @@
 }
 
 /* The popup card: the model chooser's own surface (surface radius, translucent
-   fill, 4px blur, prominent elevation) opened above the disc. Neither this card
-   nor the composer card carries a transform or a filter, so the fixed-position
-   `.pane` cards below stay in the viewport's coordinate space. */
+   fill, 4px blur, prominent elevation) opened above the disc, left-aligned with
+   it; `useViewportClamp` slides it inward when that alignment would cross a
+   viewport edge. */
 .card {
   position: absolute;
   left: 0;
@@ -130,7 +130,9 @@
 }
 
 /* The row's own card, opened beside the popup with a 10px step (the popup card's
-   own 8px pad plus 2). An opaque surface: the card lands over the conversation,
+   own 8px pad plus 2). This is the trailing-side placement: `useBesidePlacement`
+   overrides it inline with the leading side, or with a stack over the row on a
+   screen too narrow for either. An opaque surface: the card lands over the conversation,
    and a translucent one would let the text behind it read through. */
 .pane {
   position: absolute;
