@@ -463,7 +463,6 @@ function fetchEscalation(browsers: { preview: boolean; headless: boolean; attach
     return visible + " Choose the browser by the work. Development goes to the Chrome DevTools browser (mcp__chrome_devtools__*): building, changing, testing, or debugging a site or web app, local or deployed; inspecting a page's DOM, styles, console, or network; and reading a page or design file as the source for code you write. Simple browsing goes to the in-app browser beside the session: opening, reading, or using a site for the person (\"open linkedin\"). When a request could be either, ask the person which browser to use before opening one. Use the Chrome DevTools browser as well when the in-app browser cannot perform the required operation." + headless
   }
   return visible + ' When a task needs a browser, use preview_navigate and the other preview_* tools; on Aeven Web they drive the user\'s own browser through the Aeven extension and ask the user to add the extension when it is missing.' + headless
-
 }
 
 /**

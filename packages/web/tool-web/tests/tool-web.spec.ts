@@ -1006,6 +1006,7 @@ describe('web_fetch browser escalation', () => {
     const text = await fetchSection(['preview_status', 'mcp__playwright__browser_navigate', 'mcp__chrome_devtools__new_page'])
     expect(text).toContain('Development goes to the Chrome DevTools browser (mcp__chrome_devtools__*)')
     expect(text).toContain('Simple browsing goes to the in-app browser beside the session')
+    expect(text).toContain('When a request could be either, ask the person which browser to use before opening one.')
     expect(text).toContain('Use the headless browser tools (mcp__playwright__*) only when no visible browser can serve the task')
   })
 

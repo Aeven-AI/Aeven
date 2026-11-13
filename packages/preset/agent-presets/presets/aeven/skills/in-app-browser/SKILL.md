@@ -1,11 +1,11 @@
 ---
 name: in-app-browser
-description: Control the sidebar browser beside the session — open, visit, and read pages with the preview_* tools, press the pane's own toolbar, and capture what the user sees. Simple browsing ("open linkedin") opens here; development work on any site, local or deployed, belongs to Chrome DevTools, and an unclear request is a question for the person. Use for screenshots of the pane, and when the pane is closed, refuses an automated read, or hides behind a consent wall.
+description: Control the sidebar browser beside the session — open, visit, and read pages with the preview_* tools, press the pane's own toolbar, and capture what the user sees. Simple browsing ("open linkedin") opens here; development on any site, local or deployed, belongs to Chrome DevTools; an unclear request is a question for the person. Use for screenshots of the pane, and when the pane is closed, refuses an automated read, or hides behind a consent wall.
 ---
 
 # Control the in-app browser
 
-The in-app browser is available in Electron. Simple browsing is this pane's — opening, reading, or using a site for the person — so open it here and keep the task here, including a local address the person names. Development belongs to the Chrome DevTools browser instead: building, changing, testing, or debugging a site or web app, local or deployed; inspecting a page's DOM, styles, console, or network; and reading a page or design file as the source for code you write. `preview_navigate` refuses a `localhost` or `127.0.0.1` address unless the person's own request names it, pointing at the `new_page` call to make instead. When a request could be either, ask the person which browser to use before opening one. Serve that pane:
+The in-app browser is available in Electron. Simple browsing (opening, reading, using a site for the person) stays here, even at a local address they name. Development goes to Chrome DevTools: building, testing, or debugging a site, local or deployed, inspecting its DOM, console, or network, or reading a page or design as source for code. `preview_navigate` refuses `localhost` and `127.0.0.1` unless the person's request names them, pointing at `new_page` instead. If unclear which applies, ask. Serve that pane:
 read it, drive it, capture it, and say plainly when it cannot be driven. Resolve
 every relative path below against the base directory reported in
 `<skill_resources>`.
@@ -100,6 +100,10 @@ stop and ask the user to sign in instead.
 - **No page is open.** `preview_status` names the next step. Ask the user to open
   the browser from the right sidebar (Browser) rather than reporting that no
   browser exists.
+- **The page is served from this machine.** A `localhost` or `127.0.0.1` page is
+  an application under development, so it belongs to the Chrome DevTools browser.
+  Open it there, not in this pane. Use the headless browser tools only when
+  Chrome DevTools is unavailable, and say that the check ran in a headless copy.
 - **A remote page refuses automated reads.** Inspect it in the selected pane.
   If the pane cannot perform the required operation, use external Chrome/CDP.
   Use headless browsing only when neither visible surface is available.
