@@ -24,7 +24,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在桌面 Web 客户端中编排本插件。它需要 `sidebarContent`、`remote` 与 `remote.speech`，并在插件 fiber 的 effect 中注册 `meeting` 窗格、其字典，以及一个停止录制的关闭处理器。所有窗格共用一个录音器，因此录制会跨会话继续。说话人分离尚未准备时，打开窗格会调用 `speech.prepareDiarization`，进度条跟随 `speech.followDiarization`。录音器使用读者选择的语音提供方转录；在自动语言检测下，它会确定会议大部分语音所用的语言，并用该语言解码其余内容，包括之前被检测为其他语言的语句。“添加到聊天”会把转录追加到窗格所属会话的输入框。
+在桌面 Web 客户端中编排本插件。它需要 `sidebarContent`、`remote` 与 `remote.speech`，并在插件 fiber 的 effect 中注册 `meeting` 窗格、其字典，以及一个停止录制的关闭处理器。所有窗格共用一个录音器，因此录制会跨会话继续。语音输入开启且所选语音提供方的模型尚未准备时，打开窗格会为其调用 `speech.prepare`；说话人分离尚未准备时，会调用 `speech.prepareDiarization`；该模型尚未准备、失败或已取消时，按下录制也会调用 `speech.prepare`。两者各有一个进度条，分别跟随 `speech.follow` 与 `speech.followDiarization`，语音模型加载时显示一行状态，失败后提供重试。录音器使用读者选择的语音提供方转录；在自动语言检测下，它会确定会议大部分语音所用的语言，并用该语言解码其余内容，包括之前被检测为其他语言的语句。“添加到聊天”会把转录追加到窗格所属会话的输入框。
 
 -----
 

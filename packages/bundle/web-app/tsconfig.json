@@ -49,6 +49,9 @@
     },
     {
       "path": "../../subprocess/subprocess"
+    },
+    {
+      "path": "../../mcp/mcp-client"
     }
   ]
 }

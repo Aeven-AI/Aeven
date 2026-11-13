@@ -156,7 +156,7 @@ describe('memory sync', () => {
     const device = network.device()
     const sync = device.asSync()
     const { warn } = mirror(device, home.file)
-    const failing = new MemorySyncMirror(OWNER, home.file, { status: () => sync.status(OWNER), documentId: (owner: string, name: string) => sync.documentId(owner, name), openDocument: () => Promise.reject(new Error('locked')) } as never, MODEL, TUNING, warn)
+    const failing = new MemorySyncMirror(OWNER, home.file, { status: () => sync.status(OWNER), documentId: (owner: string, name: string) => sync.documentId(owner, name), documentVersion: () => undefined, openDocument: () => Promise.reject(new Error('locked')) } as never, MODEL, TUNING, warn)
     cleanups.push(() => { void failing.dispose() })
     failing.documentChanged('id:memory/traces/aa')
     await vi.waitFor(() => { expect(warn).toHaveBeenCalledWith('memory sync: opening memory/traces/aa failed: Error: locked') })

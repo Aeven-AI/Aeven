@@ -227,11 +227,22 @@ export abstract class Sync extends Service {
   abstract openDocument(owner: string, name: string): Promise<SyncDocument>
 
   /**
-   * List the documents this device holds state for, so a Consumer that mirrors many documents opens only those.
+   * List the documents this device holds state for, so a Consumer that mirrors many documents opens only those, and
+   * only those whose state changed since it last read them.
    * @param owner - an account whose documents this device can open.
-   * @returns the opaque ids, as {@link documentId} returns them.
+   * @returns each document's version by opaque id, as {@link documentId} returns it; see {@link documentVersion}.
    */
-  abstract storedDocuments(owner: string): readonly string[]
+  abstract storedDocuments(owner: string): ReadonlyMap<string, string>
+
+  /**
+   * The version of a document's local state on this device. It changes whenever that state changes, including a
+   * change this device made or a rewrite that keeps the content, and is never reused for another state of the
+   * document on this device; a Consumer that recorded one may skip the document while it is still current.
+   * @param owner - an account whose documents this device can open.
+   * @param id - the opaque id, as {@link documentId} returns it.
+   * @returns the version, or undefined when this device holds no state for the document.
+   */
+  abstract documentVersion(owner: string, id: string): string | undefined
 
   /**
    * Read a value this device keeps for the account and never sends to another device, such as how far a Consumer

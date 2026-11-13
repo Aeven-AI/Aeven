@@ -10,6 +10,11 @@ import type { Sync, SyncDocument, SyncLease, SyncState, SyncStatus, SyncStreamBa
 
 const REMOTE = Symbol('memory-sync-remote')
 
+/** A document's version: its state vector, which changes with every update the document integrates. */
+function versionOf(doc: Y.Doc): string {
+  return Buffer.from(Y.encodeStateVector(doc)).toString('base64')
+}
+
 /** A shared network of devices of one account. */
 export class MemorySyncNetwork {
   readonly devices: MemorySyncDevice[] = []
@@ -139,7 +144,11 @@ export class MemorySyncDevice {
       synchronize: (): Promise<void> => this.state === 'online' && this.relay ? Promise.resolve() : Promise.reject(new Error('offline')),
       documentId: (_owner: string, name: string): string => `id:${name}`,
       openDocument: (_owner: string, name: string): Promise<SyncDocument> => Promise.resolve({ doc: this.docOf(name), close: () => {} }),
-      storedDocuments: (): readonly string[] => [...this.docs.keys()].map(name => `id:${name}`),
+      storedDocuments: (): ReadonlyMap<string, string> => new Map([...this.docs].map(([name, doc]) => [`id:${name}`, versionOf(doc)])),
+      documentVersion: (_owner: string, id: string): string | undefined => {
+        const doc = this.docs.get(id.replace(/^id:/, ''))
+        return doc === undefined ? undefined : versionOf(doc)
+      },
       localValue: (_owner: string, key: string): string | undefined => this.local.get(key),
       setLocalValue: (_owner: string, key: string, value: string): void => { this.local.set(key, value) },
       appendStream: (_owner: string, name: string, payload: Uint8Array): Promise<void> => {

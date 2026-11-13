@@ -98,7 +98,7 @@ describe('the Yjs sync provider', () => {
     theirs.doc.getMap('m').set('k', 'from desktop')
     await vi.waitFor(() => { expect(mine.doc.getMap('m').get('k')).toBe('from desktop') })
     await vi.waitFor(() => { expect(first.sync.status(account)).toMatchObject({ pending: 0, queued: 0 }) })
-    expect(first.sync.storedDocuments(account)).toContain(first.sync.documentId(account, 'notes'))
+    expect([...first.sync.storedDocuments(account).keys()]).toContain(first.sync.documentId(account, 'notes'))
     await vi.waitFor(async () => {
       expect((await first.sync.devices(account)).map(device => [device.name, device.current])).toEqual([['laptop', true], ['desktop', false]])
     })

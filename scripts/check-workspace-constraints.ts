@@ -174,6 +174,9 @@ const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
   '@aeven/speech-to-text-whisper': ['runtime/assets.json'],
   // The pinned diarization model lock is read through `<package>/runtime/assets.json`.
   '@aeven/speaker-diarization': ['runtime/assets.json'],
+  // The bundle patch's browser MCP rows name the npm-shipped server runner as
+  // their own plugin module beside the glue plugin.
+  '@aeven/web-app': ['lib/node-mcp.js'],
   // The Web Host mounts the default-off settings owner independently of each
   // Agent-scoped delegation-tool instance.
   '@aeven/tool-subagent': ['lib/model-selection-settings.js', 'lib/nesting-settings.js'],

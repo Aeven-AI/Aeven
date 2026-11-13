@@ -20,7 +20,6 @@ import type {} from '@aeven/fs'
 import type {} from '@aeven/sandbox-policy'
 import { brandString } from '@aeven/brand'
 import type { SessionId } from '@aeven/session'
-import { bundleToSingleHtml } from '@hyperframes/core/compiler'
 import { ExportJobs, type ExportedFilm, type ExportOutcome } from './exports.ts'
 import { replayComposition } from './replay.ts'
 
@@ -141,6 +140,8 @@ async function bundleFiles(files: ReadonlyMap<string, string>): Promise<string> 
       await mkdir(dirname(target), { recursive: true })
       await writeFile(target, text, { flag: 'wx' })
     }
+    // Loaded on first use: the compiler's module graph is large and most Hosts never bundle a composition.
+    const { bundleToSingleHtml } = await import('@hyperframes/core/compiler')
     return await bundleToSingleHtml(scratch, { runtime: 'inline' })
   } finally {
     await rm(scratch, { recursive: true, force: true })

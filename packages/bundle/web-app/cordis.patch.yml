@@ -392,59 +392,60 @@
     # it runs headless so bulk reading opens no window, and keeps its own
     # profile, which is what lets the headed Chrome hold the profile a
     # signed-in page needs. A missing Chrome logs and leaves the host up. Both
-    # servers' tools stay behind tool_search.
+    # servers' tools stay behind tool_search. Both servers are dependencies of
+    # this bundle, pinned exactly, and `@aeven/web-app/node-mcp` runs them under
+    # the Host's Node.js.
     - id: browser-chromium
       name: '@aeven/browser-chromium'
       config:
         port: 9333
         mcpServerName: chrome_devtools
     - id: mcp-chrome-devtools
-      name: '@aeven/mcp-client'
+      name: '@aeven/web-app/node-mcp'
       config:
-        transport: stdio
-        serverName: chrome_devtools
-        # The title is how the tool index tells the two browsers apart, so it
-        # names which one web development uses.
-        title: Chrome DevTools over CDP in the visible Chrome the user can see; use it for web development, debugging, and any localhost or other page under development, signed-in ones included; opening a site the user names stays in the sidebar browser
-        command: !!js "process.platform === 'win32' ? 'npx.cmd' : 'npx'"
-        args:
-          - '-y'
-          - chrome-devtools-mcp@1.12.0
-          - '--browser-url=http://127.0.0.1:9333'
-          - '--no-usage-statistics'
-          # Chrome DevTools MCP restricts file paths to the OS temp directory
-          # when the connecting client negotiates no MCP roots, which refuses
-          # every file a session actually handles: an upload the user chose from
-          # their own Downloads folder, a screenshot written into the workspace.
-          # The client here is `@aeven/mcp-client`, which declares no
-          # capabilities, so the restriction applied and bought nothing. Name
-          # the Host user's own files as the root the client may hand over;
-          # upstream's suggested `--workspace=/` cannot work, because the
-          # containment check compares against the root plus a separator and
-          # `//` never prefixes a real path.
-          - '--workspace'
-          - !!js "process.env.HOME ?? process.env.USERPROFILE"
-        failOnStartupError: false
-        # Its fill assigns values of 100+ characters directly, and React-style
-        # form fields drop them on the next render; type those instead.
-        fillByTyping: true
-        # A pinned version skips the `latest` dist-tag lookup; the tools
-        # register when the server connects instead of holding up readiness.
-        awaitStartup: false
+        package: chrome-devtools-mcp
+        bin: chrome-devtools-mcp
+        server:
+          serverName: chrome_devtools
+          # The title is how the tool index tells the two browsers apart, so it
+          # names which one web development uses.
+          title: Chrome DevTools over CDP in the visible Chrome the user can see; use it for web development, debugging, and any localhost or other page under development, signed-in ones included; opening a site the user names stays in the sidebar browser
+          args:
+            - '--browser-url=http://127.0.0.1:9333'
+            - '--no-usage-statistics'
+            # Chrome DevTools MCP restricts file paths to the OS temp directory
+            # when the connecting client negotiates no MCP roots, which refuses
+            # every file a session actually handles: an upload the user chose from
+            # their own Downloads folder, a screenshot written into the workspace.
+            # The client here is `@aeven/mcp-client`, which declares no
+            # capabilities, so the restriction applied and bought nothing. Name
+            # the Host user's own files as the root the client may hand over;
+            # upstream's suggested `--workspace=/` cannot work, because the
+            # containment check compares against the root plus a separator and
+            # `//` never prefixes a real path.
+            - '--workspace'
+            - !!js "process.env.HOME ?? process.env.USERPROFILE"
+          failOnStartupError: false
+          # Its fill assigns values of 100+ characters directly, and React-style
+          # form fields drop them on the next render; type those instead.
+          fillByTyping: true
+          # The tools register when the server connects instead of holding up
+          # readiness.
+          awaitStartup: false
+
     - id: mcp-playwright
-      name: '@aeven/mcp-client'
+      name: '@aeven/web-app/node-mcp'
       config:
-        transport: stdio
-        serverName: playwright
-        title: Headless Playwright browser nobody can see; use it only when the person asks for Playwright, or to read a page for a search when web_fetch cannot get it
-        command: !!js "process.platform === 'win32' ? 'npx.cmd' : 'npx'"
-        args:
-          - '-y'
-          - '@playwright/mcp@0.0.83'
-          - '--headless'
-          - '--caps=devtools'
-        failOnStartupError: false
-        awaitStartup: false
+        package: '@playwright/mcp'
+        bin: playwright-mcp
+        server:
+          serverName: playwright
+          title: Headless Playwright browser nobody can see; use it only when the person asks for Playwright, or to read a page for a search when web_fetch cannot get it
+          args:
+            - '--headless'
+            - '--caps=devtools'
+          failOnStartupError: false
+          awaitStartup: false
 
     # Computer use on the Host's own desktop through Cua Driver. The installed
     # Electron app ships the driver and sets AVN_CUA_DRIVER to it with

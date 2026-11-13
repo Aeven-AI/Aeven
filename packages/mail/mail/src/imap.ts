@@ -1,7 +1,7 @@
 /** IMAP receive provider: pooled connections, folder discovery, envelope search, message fetch, and state changes. */
 
 import { createHash } from 'node:crypto'
-import { ImapFlow, type MessageAddressObject, type SearchObject } from 'imapflow'
+import type { ImapFlow, MessageAddressObject, SearchObject } from 'imapflow'
 import { assertNever } from '@aeven/util-values'
 import { MailError, toMailError } from './errors.ts'
 import { optional } from './message.ts'
@@ -19,13 +19,15 @@ export interface ImapTiming {
 export type SpecialUse = '\\Drafts' | '\\Trash' | '\\Archive' | '\\All' | '\\Sent'
 
 /**
- * Build an unconnected client that verifies certificates and never authenticates in plaintext.
+ * Build an unconnected client that verifies certificates and never authenticates in plaintext. The IMAP library
+ * loads on the first client, so a Host without a mail account never loads it.
  * @param server - the receive binding the client connects to.
  * @param password - the receive password used at login.
  * @param timing - connection, greeting, and socket inactivity budgets.
  * @returns the unconnected client, ready for {@link ImapPool} to log in.
  */
-export function imapClient(server: MailServer, password: string, timing: ImapTiming): ImapFlow {
+export async function imapClient(server: MailServer, password: string, timing: ImapTiming): Promise<ImapFlow> {
+  const { ImapFlow } = await import('imapflow')
   return new ImapFlow({
     host: server.host,
     port: server.port,
@@ -76,13 +78,13 @@ export class ImapPool {
    * @param signal - cancellation.
    * @returns the operation's result.
    */
-  async use<T>(key: string, create: () => ImapFlow, run: (client: ImapFlow) => Promise<T>, signal?: AbortSignal): Promise<T> {
+  async use<T>(key: string, create: () => Promise<ImapFlow>, run: (client: ImapFlow) => Promise<T>, signal?: AbortSignal): Promise<T> {
     signal?.throwIfAborted()
     let entry = this.entries.get(key)
     if (entry === undefined) {
       const created: PoolEntry = { users: 0, client: Promise.resolve(undefined as never) }
       created.client = (async () => {
-        const client = create()
+        const client = await create()
         // Errors also reject the pending command; the listener keeps an emitted error from becoming uncaught.
         client.on('error', () => {})
         client.on('close', () => { this.drop(key, created) })
@@ -134,7 +136,7 @@ export class ImapPool {
  * @param timing - connection budgets.
  */
 export async function probeImap(server: MailServer, password: string, timing: ImapTiming): Promise<void> {
-  const client = imapClient(server, password, timing)
+  const client = await imapClient(server, password, timing)
   client.on('error', () => {})
   try {
     await client.connect()

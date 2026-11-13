@@ -1,7 +1,6 @@
-/** One self-healing mirror of the Host speaker diarizer's state, shared by every Recorder pane. */
+/** Self-healing mirrors of Host speech states, each shared by every Recorder pane. */
 import type { Context } from '@deepseek-ai/cordis'
 import { createSnapshotStore, type SnapshotStore } from '@aeven/client-store'
-import type { DiarizationState } from '@aeven/api-speech-to-text/types'
 import type { RemoteStream } from '@aeven/api-gateway/client'
 import type {} from '@aeven/api-remotes/client'
 
@@ -10,17 +9,30 @@ const REOPEN_DELAY_MS = 2_000
 /** Longest delay between reopening attempts. */
 const MAX_REOPEN_DELAY_MS = 30_000
 
-/* jscpd:ignore-start -- the reopen-with-backoff loop of ui-voice-input's readiness mirror, for this capability's own stream and state. */
+/** One Host state stream to follow. */
+export interface HostStateStream<T> {
+  /** Diagnostic name of the stream. */
+  readonly name: string
+  /** Open one generation of the stream. */
+  readonly open: (signal: AbortSignal) => AsyncIterable<T>
+  /** Whether a value ends observation for good, so an ended stream is not reopened; absent reopens always. */
+  readonly final?: (value: T) => boolean
+}
+
+/* jscpd:ignore-start -- the reopen-with-backoff loop of ui-voice-input's readiness mirror, for this plugin's own streams. */
 /**
- * Follow the diarizer's state for the plugin's lifetime, reopening the stream with backoff when it
- * ends and restarting it when the carrier reports a fresh Host.
+ * Follow a Host state for the plugin's lifetime, reopening the stream with backoff when it ends and
+ * restarting it when the carrier reports a fresh Host.
  * @param ctx - mounted speech Remote owner.
+ * @param stream - the stream to follow.
  * @returns the shared state (null until the first observation) and its cleanup.
  */
-export function observeDiarization(ctx: Context): { state: SnapshotStore<DiarizationState | null>; dispose: () => Promise<void> } {
-  const state = createSnapshotStore<DiarizationState | null>(null)
+export function observeHostState<T>(
+  ctx: Context, stream: HostStateStream<T>,
+): { state: SnapshotStore<T | null>; dispose: () => Promise<void> } {
+  const state = createSnapshotStore<T | null>(null)
   const lifetime = new AbortController()
-  let active: RemoteStream<DiarizationState> | undefined
+  let active: RemoteStream<T> | undefined
   let attempt = 0
   let interrupt: (() => void) | undefined
   const isDisposed = (): boolean => lifetime.signal.aborted
@@ -37,16 +49,16 @@ export function observeDiarization(ctx: Context): { state: SnapshotStore<Diariza
   })
   const observe = async (): Promise<void> => {
     while (!isDisposed()) {
-      const stream = ctx.remote.$stream<DiarizationState>({
-        name: 'Speaker diarization state', open: signal => ctx.remote.speech.followDiarization(signal),
+      const generation = ctx.remote.$stream<T>({
+        name: stream.name, open: stream.open,
         ended: accepted => new Error(accepted
-          ? 'Speaker diarization stream ended without a terminal result'
-          : 'Speaker diarization stream ended before its opening state'),
+          ? `${stream.name} stream ended without a terminal result`
+          : `${stream.name} stream ended before its opening state`),
         carrierFailed: () => undefined,
       })
-      active = stream
+      active = generation
       try {
-        for await (const item of stream) {
+        for await (const item of generation) {
           state.set(item.value)
           item.accept()
           attempt = 0
@@ -54,11 +66,11 @@ export function observeDiarization(ctx: Context): { state: SnapshotStore<Diariza
       } catch {
         // The stream ended or its carrier failed; the loop reopens it below after a backoff.
       }
-      await stream.dispose()
-      if (active === stream) active = undefined
+      await generation.dispose()
+      if (active === generation) active = undefined
       if (isDisposed()) return
-      // A Host without a diarizer answers once and ends; there is nothing to reopen for.
-      if (state.getSnapshot()?.phase === 'unavailable') return
+      const last = state.getSnapshot()
+      if (last !== null && stream.final?.(last) === true) return
       await pause(Math.min(REOPEN_DELAY_MS * 2 ** attempt++, MAX_REOPEN_DELAY_MS))
     }
   }
@@ -71,7 +83,7 @@ export function observeDiarization(ctx: Context): { state: SnapshotStore<Diariza
   return {
     state,
     dispose: async () => {
-      if (!isDisposed()) lifetime.abort(new Error('Speaker diarization state disposed'))
+      if (!isDisposed()) lifetime.abort(new Error(`${stream.name} state disposed`))
       reset()
       await active?.dispose()
       await observing

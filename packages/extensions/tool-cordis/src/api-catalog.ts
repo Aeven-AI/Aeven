@@ -4092,10 +4092,16 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the open document.',
       },
       {
-        signature: 'abstract storedDocuments(owner: string): readonly string[]',
-        description: 'List the documents this device holds state for, so a Consumer that mirrors many documents opens only those.',
+        signature: 'abstract storedDocuments(owner: string): ReadonlyMap<string, string>',
+        description: 'List the documents this device holds state for, so a Consumer that mirrors many documents opens only those, and only those whose state changed since it last read them.',
         parameters: [{ name: 'owner', description: 'an account whose documents this device can open.' }],
-        returns: 'the opaque ids, as {@link documentId} returns them.',
+        returns: 'each document\'s version by opaque id, as {@link documentId} returns it; see {@link documentVersion}.',
+      },
+      {
+        signature: 'abstract documentVersion(owner: string, id: string): string | undefined',
+        description: 'The version of a document\'s local state on this device. It changes whenever that state changes, including a change this device made or a rewrite that keeps the content, and is never reused for another state of the document on this device; a Consumer that recorded one may skip the document while it is still current.',
+        parameters: [{ name: 'owner', description: 'an account whose documents this device can open.' }, { name: 'id', description: 'the opaque id, as {@link documentId} returns it.' }],
+        returns: 'the version, or undefined when this device holds no state for the document.',
       },
       {
         signature: 'abstract localValue(owner: string, key: string): string | undefined',
