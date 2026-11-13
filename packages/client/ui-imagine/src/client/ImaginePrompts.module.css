@@ -194,33 +194,41 @@
 /* Slide templates read as presentations: wide covers, two to a row, on the
    image card itself (its shade and its title over the picture). A cover is
    exactly as tall as an image card on the Image & video grid at the same width:
-   an image card is a quarter of the row at 4:5, so the cover's height is
-   computed from this grid's own width. */
+   an image card is a quarter of the row at 4:5, so a cover is
+   (grid - 3 × 12px) / 4 × 1.25 tall. With two covers to a 12px-gapped row the
+   grid is twice a cover's width plus 12px, which makes that 62.5% of the
+   cover's own width less 7.5px: a spacer's percentage padding states it
+   against the cover's width, and the picture fills the cover above it. */
 .wideGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   width: 100%;
-  container-type: inline-size;
 }
 
 .slideCard {
   aspect-ratio: auto;
-  height: calc((100cqw - 3 * 12px) / 4 * 1.25);
+}
+
+.slideCard::before {
+  content: "";
+  display: block;
+  padding-top: calc(62.5% - 7.5px);
 }
 
 /* The card is a little narrower than 16:9, so the crop comes off the right:
    most covers start their title on the left margin. */
 .slideCard .image {
+  position: absolute;
+  inset: 0;
   object-position: left center;
 }
 
 /* Below the four-card row an image card is too tall for a slide to match
    without cutting its title, so covers keep their own 16:9 shape there. */
 @media (max-width: 768px) {
-  .slideCard {
-    height: auto;
-    aspect-ratio: 16 / 9;
+  .slideCard::before {
+    padding-top: 56.25%;
   }
 }
 

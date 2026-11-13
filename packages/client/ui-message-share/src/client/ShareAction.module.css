@@ -20,46 +20,63 @@
   height: 16px;
 }
 
-/* Thumbnail: the rendered response at half size inside a framed
-   sheet, faded out at the bottom so a long answer reads as a preview. */
+/* The card's body follows the header with 10px instead of the Modal's 20px, so the
+   header's 12px bottom padding plus this gap equals its 22px top padding: the close
+   disc sits as far from the thumbnail as from the card's top edge. The body is the
+   content's second child (header, body), as the dialog passes no description. */
+.shareContent > :nth-child(2) {
+  margin-top: 10px;
+}
+
+/* Thumbnail: the card the link unfurls with, at the dialog's width in its own
+   3:2 shape, without a frame. Until the card has loaded, a grey sheet with the
+   black loading mark holds its place; both cross-fade when the card is ready. */
 .thumb {
   position: relative;
-  height: 188px;
+  width: 100%;
+  aspect-ratio: 3 / 2;
   overflow: hidden;
-  border: 0.5px solid var(--dsw-alias-border-l3);
   border-radius: 14px;
-  background: var(--dsw-alias-bg-layer-1);
+  background: #f2f2f2;
 }
 
-.thumb::after {
-  content: '';
+.thumbImage {
   position: absolute;
-  inset: auto 0 0;
-  height: 56px;
-  background: linear-gradient(to bottom, transparent, var(--dsw-alias-bg-layer-1));
-  pointer-events: none;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 240ms ease;
 }
 
-.thumbCanvas {
-  width: 200%;
-  padding: 24px 28px;
-  transform: scale(0.5);
-  transform-origin: top left;
-  pointer-events: none;
-  user-select: none;
-}
-
-.thumbEmpty {
+.thumbLoading {
+  --avn-spinner-color: #000000;
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100%;
-  color: var(--dsw-alias-label-tertiary);
+  background: #f2f2f2;
+  transition: opacity 240ms ease;
 }
 
-.thumbEmpty svg {
-  width: 32px;
-  height: 32px;
+.thumb[data-ready] .thumbImage {
+  opacity: 1;
+}
+
+.thumb[data-ready] .thumbLoading {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* What publishing does, under the thumbnail, in the card description's type. */
+.description {
+  margin: 16px 0 0;
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+  color: var(--dsw-alias-label-primary);
 }
 
 /* The dialogs' black actions (Create link, Delete all links): black with white

@@ -1002,19 +1002,19 @@ describe('web_fetch browser escalation', () => {
     return renderPrompt(await ctx.systemPrompt.assemble())
   }
 
-  it('prefers the attached Chrome over the headless tools when both are registered', async () => {
+  it('routes development to the attached Chrome and keeps the headless tools as the last resort', async () => {
     const text = await fetchSection(['preview_status', 'mcp__playwright__browser_navigate', 'mcp__chrome_devtools__new_page'])
-    expect(text).toContain("use the Chrome attached to the user's browser (mcp__chrome_devtools__*)")
-    expect(text).toContain('Use headless browsing only when neither visible browser can serve the task.')
-    expect(text).not.toContain('mcp__playwright__')
+    expect(text).toContain('Development goes to the Chrome DevTools browser (mcp__chrome_devtools__*)')
+    expect(text).toContain('Simple browsing goes to the in-app browser beside the session')
+    expect(text).toContain('Use the headless browser tools (mcp__playwright__*) only when no visible browser can serve the task')
   })
 
   it('names only the browser whose tools exist', async () => {
     const attached = await fetchSection(['preview_status', 'mcp__chrome_devtools__new_page'])
-    expect(attached).toContain("use the Chrome attached to the user's browser (mcp__chrome_devtools__*)")
+    expect(attached).toContain('Development goes to the Chrome DevTools browser (mcp__chrome_devtools__*)')
     expect(attached).not.toContain('mcp__playwright__')
     const headless = await fetchSection(['preview_status', 'mcp__playwright__browser_navigate'])
-    expect(headless).toContain('Use the headless browser tools (mcp__playwright__*) only when the visible browser cannot serve the task')
+    expect(headless).toContain('Use the headless browser tools (mcp__playwright__*) only when no visible browser can serve the task')
     expect(headless).not.toContain('mcp__chrome_devtools__')
   })
 

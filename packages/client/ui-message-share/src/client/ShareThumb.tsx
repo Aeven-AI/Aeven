@@ -1,74 +1,64 @@
 /**
- * The share dialog's thumbnail: a scaled-down copy of the response exactly as
- * the conversation renders it. The copy is taken from the chat's
- * own DOM when the dialog opens, stripped of controls, and made inert, so it
- * shows what the reader will see without re-rendering the message.
+ * The share dialog's thumbnail: the card the link will unfurl with in chat apps,
+ * drawn by the Aeven API for this message before the link exists. A grey sheet
+ * with the loading mark holds its place and fades out once the card has loaded.
  * @module @aeven/client-ui-message-share/client/ShareThumb
  */
 
-import { useLayoutEffect, useRef } from 'react'
-import { IconLucideShare2 } from '@aeven/client-ui-primitives'
+import { useEffect, useRef, useState } from 'react'
+import { Spinner } from '@aeven/client-ui-primitives'
+import type { MessageSharePreview } from '@aeven/host-message-share/types'
+import type { ShareOutcome } from './slots.ts'
 import css from './ShareAction.module.css'
 
-/** Elements a thumbnail never shows: controls and media that could play. */
-const STRIPPED = 'button, input, textarea, select, video, audio, iframe, [role="toolbar"], [contenteditable]'
-
-/** Levels above the turn tail searched for the turn's answer. */
-const TURN_SEARCH_DEPTH = 8
-
-/**
- * Copy the rendered response of the turn a share action belongs to.
- * @param trigger - the share button inside the turn's action row.
- * @returns a detached copy of the closing response row; empty when the row is
- *   not in the DOM.
- */
-export function captureTurn(trigger: HTMLElement | null): readonly HTMLElement[] {
-  const tail = trigger?.closest<HTMLElement>('[data-chat-flow-kind="turn-tail"]')
-  const turn = tail?.dataset['chatTurn']
-  if (tail === null || tail === undefined || turn === undefined) return []
-  const selector = (kind: string) => `[data-chat-turn="${CSS.escape(turn)}"][data-chat-flow-kind="${kind}"]`
-  let scope: HTMLElement | null = tail.parentElement
-  for (let depth = 0; scope !== null && depth < TURN_SEARCH_DEPTH && scope.querySelector(selector('assistant-step')) === null; depth += 1) {
-    scope = scope.parentElement
-  }
-  if (scope === null) return []
-  const before = (element: Element) => (element.compareDocumentPosition(tail) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
-  const answer = [...scope.querySelectorAll<HTMLElement>(selector('assistant-step'))]
-    .filter(element => before(element) && element.dataset['turnProcessHidden'] === undefined)
-    .at(-1)
-  return [answer]
-    .filter((element): element is HTMLElement => element !== undefined)
-    .map((element) => {
-      const copy = element.cloneNode(true) as HTMLElement
-      for (const stripped of copy.querySelectorAll(STRIPPED)) stripped.remove()
-      for (const identified of copy.querySelectorAll('[id]')) identified.removeAttribute('id')
-      copy.removeAttribute('id')
-      return copy
-    })
+/** Props of {@link ShareThumb}. */
+export interface ShareThumbProps {
+  /** Whether the dialog is open; each opening draws the card again. */
+  readonly open: boolean
+  /** Draws the card. */
+  readonly load: () => Promise<ShareOutcome<MessageSharePreview>>
+  /** Accessible name of the card. */
+  readonly label: string
+  /** Accessible name of the loading state. */
+  readonly loadingLabel: string
 }
 
 /**
- * The thumbnail frame.
- * @param props.nodes - copies from {@link captureTurn}; empty shows the share glyph.
- * @param props.label - accessible name of the preview.
- * @returns the framed, scaled, inert preview.
+ * The card thumbnail with its loading sheet.
+ * @param props - whether the dialog is open, the card loader, and the accessible names.
+ * @returns the thumbnail, or null when the card cannot be drawn.
  */
-export function ShareThumb({ nodes, label }: { nodes: readonly HTMLElement[]; label: string }) {
-  const canvasRef = useRef<HTMLDivElement>(null)
+export function ShareThumb({ open, load, label, loadingLabel }: ShareThumbProps) {
+  const [source, setSource] = useState<string | null>(null)
+  const [failed, setFailed] = useState(false)
+  const [ready, setReady] = useState(false)
+  // The loader is read when the dialog opens, so a new function identity on a re-render draws nothing again.
+  const loadRef = useRef(load)
+  loadRef.current = load
 
-  useLayoutEffect(() => {
-    const canvas = canvasRef.current
-    if (canvas === null) return
-    canvas.setAttribute('inert', '')
-    canvas.replaceChildren(...nodes.map(node => node.cloneNode(true)))
-    return () => { canvas.replaceChildren() }
-  }, [nodes])
+  useEffect(() => {
+    if (!open) return
+    let current = true
+    setSource(null)
+    setFailed(false)
+    setReady(false)
+    void loadRef.current().then((result) => {
+      if (!current) return
+      if (result.ok) setSource(`data:${result.value.mediaType};base64,${result.value.data}`)
+      else setFailed(true)
+    })
+    return () => { current = false }
+  }, [open])
 
+  if (failed) return null
   return (
-    <div className={css.thumb} role="img" aria-label={label}>
-      {nodes.length === 0
-        ? <span className={css.thumbEmpty}><IconLucideShare2 /></span>
-        : <div ref={canvasRef} className={css.thumbCanvas} aria-hidden="true" />}
+    <div className={css.thumb} data-ready={ready || undefined}>
+      {source !== null && (
+        <img className={css.thumbImage} src={source} alt={label} onLoad={() => { setReady(true) }} onError={() => { setFailed(true) }} />
+      )}
+      <div className={css.thumbLoading} role="status" aria-label={loadingLabel} aria-hidden={ready || undefined}>
+        <Spinner />
+      </div>
     </div>
   )
 }

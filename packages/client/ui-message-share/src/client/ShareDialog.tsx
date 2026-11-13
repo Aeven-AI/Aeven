@@ -19,9 +19,9 @@ const COPIED_MS = 1500
 export interface ShareDialogProps {
   readonly open: boolean
   readonly messageId: MessageId
-  /** Copy of the rendered response, for the thumbnail. */
-  readonly preview: readonly HTMLElement[]
   readonly share: MessageShareInjected['share']
+  /** Draws the card the link will unfurl with, for the thumbnail. */
+  readonly preview: MessageShareInjected['preview']
   readonly onClose: () => void
   readonly onManage: () => void
   readonly t: MessageShareActionProps['t']
@@ -97,6 +97,8 @@ export function ShareDialog({ open, messageId, preview, share, onClose, onManage
     await handOver(result.value)
   }, [handOver, link, messageId, share])
 
+  const loadPreview = useCallback(async () => await preview(messageId), [preview, messageId])
+
   const label = copied ? 'dialog.copied' : link === null ? 'dialog.share' : 'dialog.copy'
 
   return (
@@ -105,7 +107,7 @@ export function ShareDialog({ open, messageId, preview, share, onClose, onManage
       onClose={onClose}
       title={t('dialog.title')}
       closeLabel={t('dialog.close')}
-      description={t('dialog.description')}
+      contentClassName={css.shareContent ?? ''}
       width="min(480px, 100%)"
       footer={(
         <>
@@ -127,7 +129,8 @@ export function ShareDialog({ open, messageId, preview, share, onClose, onManage
         </>
       )}
     >
-      <ShareThumb nodes={preview} label={t('dialog.preview')} />
+      <ShareThumb open={open} load={loadPreview} label={t('dialog.preview')} loadingLabel={t('dialog.previewLoading')} />
+      <p className={css.description}>{t('dialog.description')}</p>
       {link !== null && (
         <Input
           className={css.linkField ?? ''}

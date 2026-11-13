@@ -60,6 +60,7 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     inject: (sessionId): MessageShareInjected => ({
       share: async messageId => outcome(await ctx.remote.messageShare.create({ sessionId, messageId })),
+      preview: async messageId => outcome(await ctx.remote.messageShare.preview({ sessionId, messageId })),
       list: async cursor => outcome(await ctx.remote.messageShare.list(cursor === undefined ? {} : { cursor })),
       remove: async shareId => outcome(await ctx.remote.messageShare.delete({ shareId })),
       removeAll: async () => outcome(await ctx.remote.messageShare.deleteAll()),

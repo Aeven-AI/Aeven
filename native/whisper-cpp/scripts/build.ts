@@ -114,6 +114,9 @@ async function main(): Promise<void> {
   if (built === undefined) throw new Error(`build: ${name} was not produced under ${buildDir}`)
   const destination = join(ROOT, 'packages', target, 'bin', name)
   mkdirSync(join(ROOT, 'packages', target, 'bin'), { recursive: true })
+  // A fresh file rather than an overwrite: macOS caches a binary's code signature per file, so new
+  // contents written into a previously launched worker's file are killed on their next launch.
+  rmSync(destination, { force: true })
   copyFileSync(built, destination)
   console.log(`build: whisper.cpp ${source.version} worker for ${target} -> ${destination}`)
 }

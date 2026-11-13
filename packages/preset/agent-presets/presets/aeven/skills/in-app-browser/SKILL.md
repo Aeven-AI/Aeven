@@ -100,10 +100,6 @@ stop and ask the user to sign in instead.
 - **No page is open.** `preview_status` names the next step. Ask the user to open
   the browser from the right sidebar (Browser) rather than reporting that no
   browser exists.
-- **The page is served from this machine.** A `localhost` or `127.0.0.1` page is
-  an application under development, so it belongs to the Chrome DevTools browser.
-  Open it there, not in this pane. Use the headless browser tools only when
-  Chrome DevTools is unavailable, and say that the check ran in a headless copy.
 - **A remote page refuses automated reads.** Inspect it in the selected pane.
   If the pane cannot perform the required operation, use external Chrome/CDP.
   Use headless browsing only when neither visible surface is available.

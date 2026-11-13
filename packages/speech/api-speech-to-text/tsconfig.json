@@ -19,6 +19,15 @@
     },
     {
       "path": "../../typert/protocol"
+    },
+    {
+      "path": "../speaker-diarization"
+    },
+    {
+      "path": "../recordings"
+    },
+    {
+      "path": "../../identity/user"
     }
   ]
 }

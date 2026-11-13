@@ -15,7 +15,8 @@ import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import clsx from 'clsx'
 import {
-  IconLucideFolderSearch, IconLucideGlobe, IconLucidePlus, IconLucideTabletSmartphone, IconLucideX, IconTerminalMark,
+  IconLucideFolderSearch, IconLucideGlobe, IconLucideMicAudioLines, IconLucidePlus, IconLucideTabletSmartphone, IconLucideX,
+  IconTerminalMark,
   Menu, type MenuEntry,
 } from '@aeven/client-ui-primitives'
 import type { ContentSelectComponentProps } from './contract/slots.ts'
@@ -34,6 +35,7 @@ const GLYPHS: Record<SidebarContentKind, () => ReactNode> = {
   browser: () => <IconLucideGlobe />,
   terminal: () => <IconTerminalMark />,
   files: () => <IconLucideFolderSearch />,
+  meeting: () => <IconLucideMicAudioLines />,
   device: () => <IconLucideTabletSmartphone />,
 }
 
@@ -82,7 +84,8 @@ export function ContentSelect(props: ContentSelectComponentProps) {
       return
     }
     if (registry.resolve(kind) === undefined) return
-    // Every pick opens a new pill, the browser's included: each browser pill is a tab.
+    // Every pick opens a new pill, the browser's included: each browser pill is
+    // a tab. A singleton kind shows its existing pill instead (surfaces.ts).
     update(current => openSurface(current, kind).state)
   }, [registry, sessionId, update])
   const activate = useCallback((id: string) => { update(current => ({ ...current, active: id })) }, [update])

@@ -125,10 +125,32 @@ export class ShareApi {
     }
   }
 
+  /**
+   * Draw the card a message would unfurl with; the API stores nothing.
+   * @param owner - the signed-in account.
+   * @param target - Session and message the card belongs to; they pick its colours.
+   * @param response - the message's Markdown.
+   * @returns the PNG bytes.
+   */
+  async card(
+    owner: string,
+    target: { readonly sessionId: SessionId; readonly messageId: MessageId },
+    response: string,
+  ): Promise<Uint8Array> {
+    const answer = await this.send(owner, 'POST', '/api/shares/card', { sessionId: target.sessionId, messageId: target.messageId, response })
+    if (!answer.ok) return await this.refuse(answer)
+    return new Uint8Array(await answer.arrayBuffer())
+  }
+
   /** Send one request and read its JSON, mapping a refusal to its failure code. */
   private async call(owner: string, method: string, path: string, body?: unknown): Promise<unknown> {
     const response = await this.send(owner, method, path, body)
     if (response.ok) return await response.json()
+    return await this.refuse(response)
+  }
+
+  /** Throw the failure code a refused response maps to. */
+  private async refuse(response: Response): Promise<never> {
     if (response.status === 401) throw new ShareApiError('signed-out')
     if (response.status === 404) throw new ShareApiError('not-found')
     const refusal: unknown = await response.json().catch(() => null)

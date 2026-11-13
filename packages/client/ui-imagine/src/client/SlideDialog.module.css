@@ -37,26 +37,30 @@
 }
 
 /* Paging discs ride the slide's own edges and stay out of the way until the
-   pointer is on the slide. */
+   pointer is on the slide; disc and arrows are the image gallery's. */
 .step {
   position: absolute;
   top: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  margin-top: -18px;
-  padding: 0 0 3px;
+  width: 30px;
+  height: 30px;
+  margin-top: -15px;
+  padding: 0;
   border: 0;
   border-radius: 50%;
-  background: rgb(255 255 255 / 0.9);
-  color: var(--dsw-static-neutral-1000);
-  font-size: 1.5rem;
-  line-height: 1;
+  background: rgb(255 255 255);
+  color: #000;
   opacity: 0;
   cursor: pointer;
   transition: opacity 150ms ease;
+}
+
+.step svg {
+  display: block;
+  width: 16px;
+  height: 16px;
 }
 
 .prev {

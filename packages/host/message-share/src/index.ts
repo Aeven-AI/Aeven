@@ -12,6 +12,7 @@
 import type {} from '@aeven/attachment'
 import type {} from '@aeven/identity-user'
 import type {} from '@aeven/workspace'
+import { Buffer } from 'node:buffer'
 import { Context, Service } from '@deepseek-ai/cordis'
 import s from '@deepseek-ai/schemastery'
 import { credentialRef, type CredentialRef } from '@aeven/credentials'
@@ -20,7 +21,7 @@ import type { SessionInspection } from '@aeven/session-persistence'
 import type { SessionId } from '@aeven/session/types'
 import { TypertRemoteService, Remote } from '@aeven/typert-protocol'
 import { ShareApi, ShareApiError } from './api.ts'
-import { buildSnapshot, findShareTarget, type ShareTarget } from './snapshot.ts'
+import { buildSnapshot, findShareTarget, responseText, type ShareTarget } from './snapshot.ts'
 import type {
   MessageShareCreateRequest,
   MessageShareDeleteAllValue,
@@ -30,6 +31,7 @@ import type {
   MessageShareLink,
   MessageShareListRequest,
   MessageShareListValue,
+  MessageSharePreview,
   MessageShareRejected,
   MessageShareResult,
 } from './types.ts'
@@ -135,12 +137,9 @@ export class MessageShareService extends TypertRemoteService {
    */
   @Remote('create')
   async create(request: MessageShareCreateRequest): Promise<MessageShareResult<MessageShareLink>> {
-    const owner = this.owner()
-    if (owner === undefined) return rejected('signed-out')
-    const inspection = await this.inspectSession(request.sessionId)
-    if (inspection === undefined) return rejected('session-not-found')
-    const target = await this.findTarget(inspection, request.messageId)
-    if (target === undefined) return rejected('target-not-found')
+    const located = await this.locate(request)
+    if ('ok' in located) return located
+    const { owner, inspection, target } = located
     const attachments = this.ctx.get('attachments')
     const workspaces = this.ctx.get('workspaceRegistry')
     const snapshot = await buildSnapshot(target, {
@@ -161,6 +160,23 @@ export class MessageShareService extends TypertRemoteService {
     })
     if (snapshot.response.trim() === '') return rejected('target-not-found')
     return await this.settle(() => this.api.create(owner, request, snapshot))
+  }
+
+  /**
+   * Draw the card the message's link unfurls with, before any link exists; nothing is stored.
+   * @param request - Session and message to preview.
+   * @returns the PNG, or why it was refused.
+   */
+  @Remote('preview')
+  async preview(request: MessageShareCreateRequest): Promise<MessageShareResult<MessageSharePreview>> {
+    const located = await this.locate(request)
+    if ('ok' in located) return located
+    const text = responseText(located.target)
+    if (text.trim() === '') return rejected('target-not-found')
+    return await this.settle(async () => Object.freeze({
+      mediaType: 'image/png' as const,
+      data: Buffer.from(await this.api.card(located.owner, request, text)).toString('base64'),
+    }))
   }
 
   /**
@@ -199,6 +215,22 @@ export class MessageShareService extends TypertRemoteService {
     const owner = this.owner()
     if (owner === undefined) return rejected('signed-out')
     return await this.settle(async () => Object.freeze({ removed: await this.api.removeAll(owner) }))
+  }
+
+  /**
+   * The acting account, the Session it may read, and the finalized message in it.
+   * @returns them, or the refusal when one is missing.
+   */
+  private async locate(request: MessageShareCreateRequest): Promise<
+    { readonly owner: string; readonly inspection: SessionInspection; readonly target: ShareTarget } | MessageShareRejected
+  > {
+    const owner = this.owner()
+    if (owner === undefined) return rejected('signed-out')
+    const inspection = await this.inspectSession(request.sessionId)
+    if (inspection === undefined) return rejected('session-not-found')
+    const target = await this.findTarget(inspection, request.messageId)
+    if (target === undefined) return rejected('target-not-found')
+    return { owner, inspection, target }
   }
 
   /** The signed-in account acting on this call. */

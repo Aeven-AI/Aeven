@@ -7,7 +7,7 @@
  * session in browser storage, so a reload reopens the pills a session was left
  * with.
  */
-import { SIDEBAR_CONTENT_KINDS, readSelection, type SidebarContentKind } from './selection.ts'
+import { SIDEBAR_CONTENT_KINDS, SINGLETON_CONTENT_KINDS, readSelection, type SidebarContentKind } from './selection.ts'
 
 /** One open pill. */
 export interface SidebarSurface {
@@ -98,12 +98,15 @@ export function writeSurfaces(sessionId: string, state: SurfaceState): void {
 }
 
 /**
- * Open a new pill of `kind` after the active one and show it.
+ * Open a new pill of `kind` after the active one and show it; a singleton kind
+ * that already has a pill shows that pill instead.
  * @param state - the current set.
  * @param kind - the kind to open.
- * @returns the new set and the opened surface's id.
+ * @returns the new set and the opened (or shown) surface's id.
  */
 export function openSurface(state: SurfaceState, kind: SidebarContentKind): { state: SurfaceState; id: string } {
+  const existing = SINGLETON_CONTENT_KINDS.has(kind) ? state.surfaces.find(surface => surface.kind === kind) : undefined
+  if (existing !== undefined) return { state: { ...state, active: existing.id }, id: existing.id }
   const id = nextId(state, kind)
   const at = state.active === null ? state.surfaces.length : state.surfaces.findIndex(s => s.id === state.active) + 1
   const surfaces = [...state.surfaces.slice(0, at), { id, kind }, ...state.surfaces.slice(at)]

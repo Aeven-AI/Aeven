@@ -20,13 +20,15 @@ The speech group turns a recording made in the browser into text on the machine 
 <a id="packages"></a>
 ## Packages
 
-The Service Definition owns selection and cancellation; the other two packages connect a browser recording to it and register the recognizer that answers.
+The Service Definition owns selection and cancellation; the Remote connects a browser recording to it, the providers register the recognizers that answer, and two services serve the Recorder: speaker diarization and saved recordings.
 
 | Package | Role |
 |---|---|
 | [`speech-to-text/`](speech-to-text/README.md) | Owns `ctx.speechToText`: named recognizer registration, explicit resolve-then-transcribe, readiness, and cancellation |
 | [`api-speech-to-text/`](api-speech-to-text/README.md) | Exposes the `speech` Remote to the browser: provider discovery, preparation, and one complete-recording transcription |
 | [`speech-to-text-whisper/`](speech-to-text-whisper/README.md) | Registers the local Whisper recognizer: a managed whisper.cpp worker, models verified on demand, and the preparation state the surfaces show |
+| [`speaker-diarization/`](speaker-diarization/README.md) | Owns `ctx.speakerDiarization`: splits a recording by voice and embeds each stretch, with models verified on demand |
+| [`recordings/`](recordings/README.md) | Owns `ctx.recordings`: the Recorder's saved transcripts per account through account sync, and their audio through file sync |
 
 <a id="related-documentation"></a>
 ## Related documentation

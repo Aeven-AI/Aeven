@@ -13,7 +13,12 @@ import { inspectRuntime, prepareRuntime, type RuntimePaths } from './runtime.ts'
 
 const readySchema = z.object({ ready: z.literal(true) }).strict()
 const replySchema = z.union([
-  z.object({ text: z.string(), inferenceSeconds: z.number().nonnegative() }).strict(),
+  z.object({
+    text: z.string(),
+    inferenceSeconds: z.number().nonnegative(),
+    language: z.string().optional(),
+    segments: z.array(z.object({ start: z.number().nonnegative(), end: z.number().nonnegative(), text: z.string() }).strict()).optional(),
+  }).strict(),
   z.object({ error: z.string(), code: z.string() }).strict(),
 ])
 
@@ -104,7 +109,9 @@ export function parseReply(line: string, audioSeconds: number): Transcript {
     if (reply.code === 'invalid-input') throw new SpeechInputError(reply.error)
     throw new Error(reply.error)
   }
-  return { text: reply.text, audioSeconds, inferenceSeconds: reply.inferenceSeconds }
+  const language = reply.language === undefined || reply.language === '' ? {} : { language: reply.language }
+  const segments = reply.segments === undefined ? {} : { segments: reply.segments.filter(segment => segment.text !== '') }
+  return { text: reply.text, audioSeconds, inferenceSeconds: reply.inferenceSeconds, ...language, ...segments }
 }
 
 /** Own one worker across recordings, and join every accepted job on disposal. */

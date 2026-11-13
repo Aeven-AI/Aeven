@@ -25,7 +25,7 @@ export {
 export type { SidebarSurface, SurfaceState } from './surfaces.ts'
 export type { SidebarSelectKey } from './locales.ts'
 export {
-  AVAILABLE_CONTENT_KINDS, SIDEBAR_CONTENT_KINDS,
+  AVAILABLE_CONTENT_KINDS, SIDEBAR_CONTENT_KINDS, SINGLETON_CONTENT_KINDS,
   readSelection, writeSelection, type SidebarContentKind,
 } from './selection.ts'
 

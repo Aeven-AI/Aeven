@@ -315,9 +315,14 @@ flowchart LR
   pkg_ui_settings_personalization["ui-settings-personalization"]
   pkg_skill_catalog["skill-catalog"]
   svc_skillCatalog["ctx.skillCatalog<br/>Vendored skill catalog"]
+  pkg_speaker_diarization["speaker-diarization"]
+  svc_speakerDiarization["ctx.speakerDiarization<br/>Speaker diarization"]
   pkg_api_speech_to_text["api-speech-to-text"]
+  pkg_recordings["recordings"]
+  svc_recordings["ctx.recordings<br/>Saved recordings"]
   svc_speechController["ctx.speechController<br/>Speech Remote"]
   pkg_ui_voice_input["ui-voice-input"]
+  pkg_ui_sidebar_meeting["ui-sidebar-meeting"]
   pkg_speech_to_text["speech-to-text"]
   svc_speechToText["ctx.speechToText<br/>Transcription provider registry"]
   pkg_speech_to_text_whisper["speech-to-text-whisper"]
@@ -429,6 +434,7 @@ flowchart LR
   pkg_plan_mode --> svc_planMode
   pkg_plugin_package_inventory_deepseek --> svc_deepseekLlmApiExtensions
   pkg_pwsh_local --> svc_shell
+  pkg_recordings --> svc_recordings
   pkg_sandbox --> svc_sandbox
   pkg_sandbox_jail --> svc_sandboxGitCredentials
   pkg_sandbox_local --> svc_sandbox
@@ -457,6 +463,7 @@ flowchart LR
   pkg_skill_badge --> svc_skills
   pkg_skill_catalog --> svc_skillCatalog
   pkg_skill_filesystem --> svc_skills
+  pkg_speaker_diarization --> svc_speakerDiarization
   pkg_speech_to_text --> svc_speechToText
   pkg_speech_to_text_whisper --> svc_speechToText
   pkg_spill --> svc_spillStore
@@ -568,6 +575,7 @@ flowchart LR
   svc_motion --> pkg_api_motion
   svc_motion --> pkg_tool_motion
   svc_personalizationController --> pkg_ui_settings_personalization
+  svc_recordings --> pkg_api_speech_to_text
   svc_sandbox --> pkg_bash_sandbox
   svc_sandbox --> pkg_terminal_bash
   svc_sandboxGitCredentials --> pkg_host_account_integrations
@@ -610,6 +618,8 @@ flowchart LR
   svc_shellEnv --> pkg_tool_pwsh
   svc_skillCatalog --> pkg_account_integrations
   svc_skills --> pkg_tool_skill
+  svc_speakerDiarization --> pkg_api_speech_to_text
+  svc_speechController --> pkg_ui_sidebar_meeting
   svc_speechController --> pkg_ui_voice_input
   svc_speechToText --> pkg_api_speech_to_text
   svc_spillStore --> pkg_spill_policy
@@ -777,7 +787,9 @@ flowchart LR
 | `ctx.syncController` | `core` | `sync-controller` | - | `ui-settings-sync` | - | 开启账户同步、加入与批准设备以及移除设备，始终为当前请求的调用方执行。 |
 | `ctx.personalizationController` | `core` | [`personalization`](../packages/preset/personalization) | - | `ui-settings-personalization` | - | One Host row owns each account's voice and notes, the Remote behind Settings → Personalization, and the system-prompt section that renders the session owner's preferences after the persona. 一个宿主行拥有每个账号的声音与笔记、设置 → 个性化背后的 Remote，以及在 persona 之后渲染会话所有者偏好的系统提示词段落。 |
 | `ctx.skillCatalog` | `core` | [`skill-catalog`](../packages/skill/skill-catalog) | - | `account-integrations` | - | Read-only local source of installable skills: the catalog lists what a reader may install and the installer reads one entry's files from the same tree. 可安装 skill 的本地只读来源：目录列出读者可安装的内容，安装器从同一棵树读取某个条目的文件。 |
-| `ctx.speechController` | `core` | [`api-speech-to-text`](../packages/speech/api-speech-to-text) | - | `ui-voice-input` | - | Authenticated, cancellation-aware Client access to speech preparation and transcription; a speech call never activates or submits to an Agent. 经过认证且可取消的客户端语音准备与转写访问；一次语音调用不会激活或提交给 agent。 |
+| `ctx.speakerDiarization` | `core` | [`speaker-diarization`](../packages/speech/speaker-diarization) | - | [`api-speech-to-text`](../packages/speech/api-speech-to-text) | - | Splits a recording by voice and embeds each stretch, with models verified on demand and inference in one worker thread. |
+| `ctx.recordings` | `core` | [`recordings`](../packages/speech/recordings) | - | [`api-speech-to-text`](../packages/speech/api-speech-to-text) | - | The Recorder's saved transcripts per account, mirrored through account sync, with their audio shared through file sync. |
+| `ctx.speechController` | `core` | [`api-speech-to-text`](../packages/speech/api-speech-to-text) | - | `ui-voice-input`, `ui-sidebar-meeting` | - | Authenticated, cancellation-aware Client access to speech preparation and transcription; a speech call never activates or submits to an Agent. |
 | `ctx.speechToText` | `seam` | [`speech-to-text`](../packages/speech/speech-to-text) | [`speech-to-text-whisper`](../packages/speech/speech-to-text-whisper) | [`api-speech-to-text`](../packages/speech/api-speech-to-text) | - | Named providers register disposably and the registry resolves each request to one provider and one model. 具名提供方可注册且可释放，注册表把每个请求解析到一个提供方和一个模型。 |
 | `ctx.textToSpeech` | `seam` | [`text-to-speech`](../packages/speech/text-to-speech) | [`text-to-speech-edge`](../packages/speech/text-to-speech-edge) | [`api-text-to-speech`](../packages/speech/api-text-to-speech) | - | Named providers register disposably, the registry resolves each request to one provider and one voice, and synthesis runs on the Host that owns the provider. |
 | `ctx.ttsController` | `core` | [`api-text-to-speech`](../packages/speech/api-text-to-speech) | - | `ui-tts` | - | Authenticated, cancellation-aware Client access to the voice catalogue and to synthesized audio, which the Surface plays on the reader's own machine; synthesis never activates an Agent. |

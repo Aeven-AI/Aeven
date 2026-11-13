@@ -32,7 +32,7 @@ You build the deck **with** the user, as a short wizard: ask, outline, build, re
    node "$SKILL/scripts/render.mjs" presentations/series-a/deck.json presentations/series-a
    node "$SKILL/scripts/export.mjs" presentations/series-a/deck.html presentations/series-a
    ```
-   This writes `deck.html`, `deck.pdf`, `deck.pptx`, and `deck.key` on a Mac with Keynote. The first export on a machine without Chrome downloads a headless Chrome once.
+   This writes `deck.html`, `deck.pdf`, `deck.pptx`, and `deck.key` on a Mac with Keynote. The first export on a machine without Chrome downloads a headless Chrome once. The Keynote step installs the deck's fonts on the Mac and scripts Keynote, which the workspace sandbox refuses: when the exporter prints `.key skipped`, run the command it prints with the sandbox escalation, giving "convert the deck to Keynote and install its fonts" as the reason.
 6. **Fix every warning.** The exporter names each text that runs past its box or the slide edge, with its slide number. Shorten it, split the slide or move content, and export again until it prints none.
 7. **Show it.** Make pictures of the slides (`pdftoppm -r 48 -png deck.pdf p`, or open the HTML in the browser pane), look at them yourself, and show the user the deck. Ask what to change; each change is an edit to `deck.json` and a re-run, never an edit to the exported files.
 8. **Deliver** the PDF and the PowerPoint file (and the Keynote file on a Mac), and offer the HTML for presenting with motion and video.
@@ -54,6 +54,6 @@ A `custom` slide holds `{ title?, eyebrow?, html }`: the template draws its own 
 ## Exports
 
 - **PDF**: one 1280×720 page per slide, printed from the HTML.
-- **PowerPoint**: each slide is a picture of the slide with its text lifted out into native, editable text boxes in the template's fonts, plus speaker notes. Layout changes go through `deck.json`, not PowerPoint.
-- **Keynote**: Keynote converts the PowerPoint file (macOS with Keynote only).
+- **PowerPoint**: native shapes, pictures and editable text boxes in the template's fonts, which are embedded so the deck looks the same on a PC without them; speaker notes included. Layout changes go through `deck.json`, not PowerPoint.
+- **Keynote**: Keynote converts the PowerPoint file after the template's fonts are installed on the Mac (macOS with Keynote only). Keynote files do not carry fonts: someone opening the file on another Mac needs the template's fonts, all free on Google Fonts.
 - **HTML**: the self-contained deck with fonts and pictures embedded; it plays motion and video.

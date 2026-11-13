@@ -59,5 +59,26 @@
       "file": "700-latin.woff2"
     }
   ],
-  "ttf": []
+  "ttf": [
+    {
+      "style": "italic",
+      "weight": 400,
+      "file": "400i.ttf"
+    },
+    {
+      "style": "italic",
+      "weight": 700,
+      "file": "700i.ttf"
+    },
+    {
+      "style": "normal",
+      "weight": 400,
+      "file": "400.ttf"
+    },
+    {
+      "style": "normal",
+      "weight": 700,
+      "file": "700.ttf"
+    }
+  ]
 }

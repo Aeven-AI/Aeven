@@ -43,6 +43,7 @@ import type { DesktopUpdateState } from './ipc.ts'
 import { desktopUpdatePrompt } from './update-prompt.ts'
 import { loginShellPath, mergePath } from './login-shell-path.ts'
 import { sendVideoEmbedReferrer } from './video-embeds.ts'
+import { allowSystemAudioCapture, systemAudioFeatures } from './system-audio.ts'
 import { authorizeSystemLocation, systemLocationSettingsAddress } from './system-location.ts'
 import { START_PAGE_PATH, readStartScreenScheme, startPageDocument, startPageUrl } from './start-screen.ts'
 import { bundleIdentifier, clearUpdateResidue, updateCacheRoot, updaterCacheDir } from './update-residue.ts'
@@ -100,8 +101,10 @@ function errorOf(reason: unknown, fallback: string): Error {
 
 // WebMCP (`document.modelContext`) lets a page offer tools to an agent; the
 // sidebar browser's agent lists and invokes them. Chromium ships it behind this
-// feature, which must be set before the app is ready.
-app.commandLine.appendSwitch('enable-features', 'WebMCP')
+// feature, which must be set before the app is ready. The meeting recorder's
+// system audio features join the same switch: a second `enable-features`
+// would replace this one.
+app.commandLine.appendSwitch('enable-features', ['WebMCP', ...systemAudioFeatures(process.platform)].join(','))
 
 protocol.registerSchemesAsPrivileged([{
   scheme: SCHEME,
@@ -1004,6 +1007,7 @@ async function main(): Promise<void> {
   })
 
   sendVideoEmbedReferrer(session.defaultSession)
+  allowSystemAudioCapture(session.defaultSession)
 
   // The app window may render an adopted Host's origin rather than this
   // shell's scheme, so the browser operations admit the window's own top frame

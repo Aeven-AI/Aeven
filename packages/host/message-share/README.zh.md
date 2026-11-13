@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`@aeven/host-message-share` 让已登录用户把一条已完成的助手消息发布到一个公开 URL，不含引出它的提问。Host 从持久化的 Session 日志构建快照，从不使用浏览器发来的文本，并用该用户自己的 `AEVEN_TOKEN` 发送到 Aeven API 的 `/api/shares` 路由；API 把每个链接归到该账户名下，并在 `/s/<shareId>` 提供页面。再次分享同一条消息会刷新同一个链接背后的快照。`messageShare` Remote 还能分页列出账户的链接，并删除其中一个或全部；浏览器一侧是 [ui-message-share](../../client/ui-message-share/README.zh.md)。
+`@aeven/host-message-share` 让已登录用户把一条已完成的助手消息发布到一个公开 URL，不含引出它的提问。Host 从持久化的 Session 日志构建快照，从不使用浏览器发来的文本，并用该用户自己的 `AEVEN_TOKEN` 发送到 Aeven API 的 `/api/shares` 路由；API 把每个链接归到该账户名下，并在 `/s/<shareId>` 提供页面。再次分享同一条消息会刷新同一个链接背后的快照。`messageShare` Remote 还能在链接存在之前绘制它的预览卡片，分页列出账户的链接，并删除其中一个或全部；浏览器一侧是 [ui-message-share](../../client/ui-message-share/README.zh.md)。
 
 ## 目录
 
@@ -47,6 +47,7 @@ kind: "package-reference"
 | `list` | `{ cursor? }` | `{ items, nextCursor }`，最新的在前；最后一页的 `nextCursor` 为 `null` |
 | `delete` | `{ shareId }` | `{ removed: true }` |
 | `deleteAll` | 无 | `{ removed }`，删除的链接数 |
+| `preview` | `{ sessionId, messageId }` | `{ mediaType: 'image/png', data }`：链接展开时显示的卡片，base64 编码；API 不存储任何内容 |
 
 每个方法都返回 `{ ok: true, value }` 或 `{ ok: false, error: { code } }`，其中 `code` 为 `signed-out`、`session-not-found`、`target-not-found`、`too-large`、`share-limit`、`not-found` 或 `unavailable`。
 

@@ -3299,7 +3299,7 @@ Source: [`packages/web/tool-browser/src/index.ts`](../packages/web/tool-browser/
 
 ### `preview_navigate`
 
-Navigate the collaborative browser tab: in the desktop app the browser beside the session, opened when it is closed; on Aeven Web a tab of the user's own browser, opened through the Aeven extension, where they are signed in to their sites. It reads pages web_fetch cannot, such as a page behind a sign-in or one that builds itself with JavaScript. Use it whenever the user asks to open, visit, or go to a website or URL, rather than a shell command that opens another browser. Pass {url:'https://t3.chat'} for a website. A localhost or loopback address opens here only when the person's own request names it; a page you are building belongs to the Chrome DevTools browser.
+Navigate the collaborative browser tab: in the desktop app the browser beside the session, opened when it is closed; on Aeven Web a tab of the user's own browser, opened through the Aeven extension, where they are signed in to their sites. It reads pages web_fetch cannot, such as a page behind a sign-in or one that builds itself with JavaScript. Use it when the user asks to open, visit, or use a website or URL, rather than a shell command that opens another browser. Pass {url:'https://t3.chat'} for a website. A localhost or loopback address opens here only when the person's own request names it. In the desktop app, development belongs to the Chrome DevTools browser: building, testing, or debugging a site, local or deployed, inspecting a page's DOM, styles, console, or network, and reading a page or design file as the source for code you write.
 
 ```json
 {

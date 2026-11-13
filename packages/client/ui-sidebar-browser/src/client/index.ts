@@ -7,6 +7,8 @@ import type { SessionId } from '@aeven/api-remotes/client'
 import type {} from '@aeven/api-session-controller/client'
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
 import type {} from '@aeven/client-locale/client'
+// Type-only: pulls the `desktop-handoff/request` event the web launcher asks without an extension.
+import type {} from '@aeven/client-ui-desktop-handoff/client'
 // Type-only: pulls the SlotRegistry service merge (ctx.slots).
 import type {} from '@aeven/client-ui-renderer/client'
 // Type-only: pulls the right sidebar's `sidebar.right.body` declaration.
@@ -513,14 +515,16 @@ export function apply(ctx: ClientContext): void {
       }),
     }, ExtensionPromptModal))
     const openUserTab = installPageExtension(ctx, pageBridge, prompt)
-    // A Host with its own Chromium opens it; Aeven Web's Host has none and fails the call, so the launcher opens the
-    // reader's browser through the extension, and the prompt explains a missing extension or a browser that cannot
-    // run one.
+    // A Host with its own Chromium opens it. Aeven Web's Host has none and fails the call, so the launcher opens a tab
+    // of the reader's own browser through the extension when it is installed. Without the extension, a web client
+    // that composes the desktop hand-off dialog (hosted Aeven) shows that; any other asks the reader to add the
+    // extension, and the prompt explains a missing extension or a browser that cannot run one.
     ctx.inject(['sidebarContent'], (scoped) => {
       scoped.effect(
         () => scoped.sidebarContent.registerLauncher('browser', (sessionId) => {
           void (async () => {
             if (openChromium !== null && await openChromium(sessionId, '')) return
+            if ((await pageBridge.extensionStatus()).length === 0 && ctx.bail('desktop-handoff/request', 'browser', sessionId) === true) return
             await openUserTab(sessionId)
           })().catch((error: unknown) => {
             // The prompt already shows why: the browser cannot run the extension, or the reader closed the prompt.

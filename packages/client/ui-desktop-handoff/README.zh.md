@@ -1,5 +1,5 @@
 ---
-description: "桌面版衔接的浏览器端：托管版 Web 客户端用「可在 Aeven 桌面版中使用」弹窗替代 Files、Browser、Terminal 与 Devices 面板。"
+description: "桌面版衔接的浏览器端：托管版 Web 客户端用「可在 Aeven 桌面版中使用」弹窗替代 Files、Terminal、录音机与 Devices 面板；未安装 Aeven 扩展时，Browser 入口也会请求这个弹窗。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-在无法访问读者电脑的 Host 上，右侧栏的 Files、Browser、Terminal 与 Devices 入口仍留在原处，但打开的是同一个弹窗：「可在 Aeven 桌面版中使用」，其中有下载链接与「在 Aeven 桌面版中打开」。当 Host 因为对话位于并未运行它的设备上的文件夹而拒绝一段提示词时，也会弹出这个弹窗。桌面版应用从不挂载本包，因为在那边这些入口就是真实的面板。
+在无法访问读者电脑的 Host 上，右侧栏的 Files、Terminal、录音机与 Devices 入口仍留在原处，但打开的是同一个弹窗：「可在 Aeven 桌面版中使用」，其中有下载链接与「在 Aeven 桌面版中打开」。Browser 入口会通过 Aeven 扩展打开读者自己的浏览器，只有未安装扩展时才显示这个弹窗。当 Host 因为对话位于并未运行它的设备上的文件夹而拒绝一段提示词时，也会弹出这个弹窗。桌面版应用从不挂载本包，因为在那边这些入口就是真实的面板。
 
 ## 目录
 
@@ -24,7 +24,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-让会话没有自己机器的 Web 组合会挂载它：ui-sidebar-select 中 `files`、`browser`、`terminal`、`device` 四行注册的是弹窗打开器而不是面板，`shell.overlay` 承载弹窗本身。下载页来自部署自己的站点；没有配置站点的部署不提供下载，只保留衔接操作。
+让会话没有自己机器的 Web 组合会挂载它：ui-sidebar-select 中 `files`、`terminal`、`meeting`、`device` 四行注册的是弹窗打开器而不是面板，`desktop-handoff/request` bail 事件为其他界面打开弹窗并返回 `true`（ui-sidebar-browser 在没有扩展应答时请求它），`shell.overlay` 承载弹窗本身。下载页来自部署自己的站点；没有配置站点的部署不提供下载，只保留衔接操作。
 
 <a id="understand-the-implementation"></a>
 ## 理解实现

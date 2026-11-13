@@ -5,7 +5,7 @@ import { createSnapshotStore, type SnapshotStore } from '@aeven/client-store'
  * Why the reader needs the desktop app: a sidebar pane, a conversation whose folder is on their computer, or a request
  * the model offered the desktop app for (`computer`, `models`, and the panes' own reasons).
  */
-export type HandoffReason = 'files' | 'browser' | 'terminal' | 'device' | 'folder' | 'computer' | 'models'
+export type HandoffReason = 'files' | 'browser' | 'terminal' | 'meeting' | 'device' | 'folder' | 'computer' | 'models'
 
 /** The dialog's state. */
 export interface HandoffState {

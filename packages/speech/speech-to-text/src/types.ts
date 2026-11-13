@@ -112,6 +112,23 @@ export interface Transcript {
   readonly text: string
   readonly audioSeconds: number
   readonly inferenceSeconds: number
+  /**
+   * The language the recognizer decoded, as its language code: the detected one when the request asked for
+   * automatic detection. Absent when the provider does not report it.
+   */
+  readonly language?: string
+  /**
+   * The text as the recognizer's own segments (sentences or clauses), each with its start and end in seconds
+   * from the beginning of the recording. Absent when the provider does not report timing.
+   */
+  readonly segments?: readonly TranscriptSegment[]
+}
+
+/** One timed stretch of a transcript. */
+export interface TranscriptSegment {
+  readonly start: number
+  readonly end: number
+  readonly text: string
 }
 
 /** One replaceable recognizer. It owns preparation, execution, and cancellation. */

@@ -238,6 +238,17 @@ async function contentMarkdown(content: readonly ContentBlock[], images: ImageCo
 }
 
 /**
+ * The message's text as Markdown, for the preview card, which shows text only.
+ * @param target - the shared message.
+ * @returns its text blocks, joined; empty when it has none.
+ */
+export function responseText(target: ShareTarget): string {
+  return target.response
+    .flatMap(block => block.type === 'text' && block.text.trim() !== '' ? [block.text] : [])
+    .join('\n\n')
+}
+
+/**
  * Build the snapshot the Aeven API publishes.
  * @param target - the shared message.
  * @param sources - readers and bounds for images.

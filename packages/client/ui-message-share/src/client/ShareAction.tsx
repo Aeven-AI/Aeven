@@ -5,12 +5,11 @@
  * @module @aeven/client-ui-message-share/client/ShareAction
  */
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { IconLucideShare2, Tooltip } from '@aeven/client-ui-primitives'
 import type { MessageShareActionProps } from './slots.ts'
 import { ManageLinksDialog } from './ManageLinksDialog.tsx'
 import { ShareDialog } from './ShareDialog.tsx'
-import { captureTurn } from './ShareThumb.tsx'
 import css from './ShareAction.module.css'
 
 /**
@@ -18,25 +17,19 @@ import css from './ShareAction.module.css'
  * @param props - the owner's message identity, the injected link verbs, and the copy.
  * @returns the share button, with the share dialog or the link manager open above the page.
  */
-export function ShareAction({ messageId, share, list, remove, removeAll, t }: MessageShareActionProps) {
+export function ShareAction({ messageId, share, preview, list, remove, removeAll, t }: MessageShareActionProps) {
   const [dialog, setDialog] = useState<'share' | 'manage' | null>(null)
-  const [preview, setPreview] = useState<readonly HTMLElement[]>([])
-  const triggerRef = useRef<HTMLButtonElement>(null)
   const close = useCallback(() => { setDialog(null) }, [])
 
   return (
     <>
       <Tooltip label={t('action.share')} side="bottom">
         <button
-          ref={triggerRef}
           type="button"
           className={css.action}
           aria-label={t('action.share')}
           aria-haspopup="dialog"
-          onClick={() => {
-            setPreview(captureTurn(triggerRef.current))
-            setDialog('share')
-          }}
+          onClick={() => { setDialog('share') }}
         >
           <IconLucideShare2 />
         </button>

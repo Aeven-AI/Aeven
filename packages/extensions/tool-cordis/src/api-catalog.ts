@@ -2340,6 +2340,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the link, or why it was refused.',
       },
       {
+        signature: '@Remote(\'preview\') async preview(request: MessageShareCreateRequest): Promise<MessageShareResult<MessageSharePreview>>',
+        description: 'Draw the card the message\'s link unfurls with, before any link exists; nothing is stored.',
+        parameters: [{ name: 'request', description: 'Session and message to preview.' }],
+        returns: 'the PNG, or why it was refused.',
+      },
+      {
         signature: '@Remote(\'list\') async list(request: MessageShareListRequest): Promise<MessageShareResult<MessageShareListValue>>',
         description: 'Read one page of the signed-in account\'s links, newest first.',
         parameters: [{ name: 'request', description: 'the previous page\'s cursor, if any.' }],
@@ -2471,6 +2477,59 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Select whether plan mode should be active. Between turns the method appends the change immediately because no in-turn pre-step will run until another prompt starts a turn. The open-turn fold is the idle signal: agent status stays `running` through post-turn checkpointing, when no further in-turn pre-step runs. During an open turn the selection remains pending until the next accepted in-turn pre-step. Repeated selection of the current or already-pending state is a no-op.',
         parameters: [{ name: 'agent', description: 'The agent to switch.' }, { name: 'active', description: 'Whether plan mode should be active.' }],
         returns: 'what happened: `committed` (logged now), `queued` (awaiting the next accepted in-turn pre-step), `cancelled` (an opposite pending selection was cleared; the logged state already matches), or `noop` (already in that state).',
+      },
+    ],
+  },
+  {
+    key: 'recordings',
+    summary: 'Saved recordings for every account this Host serves.',
+    description: 'Saved recordings for every account this Host serves.',
+    methods: [
+      {
+        signature: 'async list(owner: string): Promise<RecordingSummary[]>',
+        description: 'List an account\'s recordings, newest first.',
+        parameters: [{ name: 'owner', description: 'the account, or {@link LOCAL_OWNER}.' }],
+        returns: 'their summaries.',
+      },
+      {
+        signature: 'async get(owner: string, id: RecordingId): Promise<SavedRecording | undefined>',
+        description: 'Read one recording.',
+        parameters: [{ name: 'owner', description: 'the account.' }, { name: 'id', description: 'the recording.' }],
+        returns: 'the recording, or undefined when the account has none by that id.',
+      },
+      {
+        signature: 'async save(owner: string, recording: Omit<SavedRecording, \'changedAt\'>): Promise<SavedRecording>',
+        description: 'Save or replace a recording; it must carry at least one transcribed phrase.',
+        parameters: [{ name: 'owner', description: 'the account.' }, { name: 'recording', description: 'the recording; its `changedAt` is set here.' }],
+        returns: 'the stored recording.',
+      },
+      {
+        signature: 'async rename(owner: string, id: RecordingId, title: string): Promise<SavedRecording>',
+        description: 'Rename a recording.',
+        parameters: [{ name: 'owner', description: 'the account.' }, { name: 'id', description: 'the recording.' }, { name: 'title', description: 'the new title.' }],
+        returns: 'the renamed recording.',
+      },
+      {
+        signature: 'async remove(owner: string, id: RecordingId): Promise<void>',
+        description: 'Delete a recording and its audio on every device of the account.',
+        parameters: [{ name: 'owner', description: 'the account.' }, { name: 'id', description: 'the recording.' }],
+      },
+      {
+        signature: 'async appendAudio(owner: string, id: RecordingId, index: number, bytes: Uint8Array): Promise<void>',
+        description: 'Append one chunk of a recording\'s audio; chunk 0 starts the file over.',
+        parameters: [{ name: 'owner', description: 'the account.' }, { name: 'id', description: 'the recording.' }, { name: 'index', description: 'the chunk\'s position, from 0.' }, { name: 'bytes', description: 'the chunk.' }],
+      },
+      {
+        signature: 'async finishAudio(owner: string, id: RecordingId): Promise<number>',
+        description: 'Publish the uploaded audio file under the recording\'s name.',
+        parameters: [{ name: 'owner', description: 'the account.' }, { name: 'id', description: 'the recording.' }],
+        returns: 'the file\'s size.',
+      },
+      {
+        signature: 'async readAudio(owner: string, id: RecordingId, offset: number, length: number): Promise<Uint8Array | undefined>',
+        description: 'Read part of a recording\'s audio.',
+        parameters: [{ name: 'owner', description: 'the account.' }, { name: 'id', description: 'the recording.' }, { name: 'offset', description: 'first byte.' }, { name: 'length', description: 'most bytes to read.' }],
+        returns: 'the bytes, empty past the end; undefined when this device does not hold the file.',
       },
     ],
   },
@@ -3567,6 +3626,36 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'speakerDiarization',
+    summary: 'The diarization capability: model preparation, readiness, and segmentation.',
+    description: 'The diarization capability: model preparation, readiness, and segmentation.',
+    methods: [
+      {
+        signature: 'snapshot(): DiarizationState',
+        description: 'Read the diarizer\'s state without waiting.',
+        parameters: [],
+        returns: 'the current state.',
+      },
+      {
+        signature: 'async *follow(signal: AbortSignal): AsyncIterable<DiarizationState>',
+        description: 'Follow the state until `signal` aborts.',
+        parameters: [{ name: 'signal', description: 'observation lifetime.' }],
+        returns: 'the current state, then every change.',
+      },
+      {
+        signature: 'prepare(): void',
+        description: 'Download and verify the models unless they are present; joins a running preparation.',
+        parameters: [],
+      },
+      {
+        signature: 'async segment(samples: Float32Array, signal: AbortSignal): Promise<SpeakerSegment[]>',
+        description: 'Split one recording by voice.',
+        parameters: [{ name: 'samples', description: '16 kHz mono samples in [-1, 1]; transferred to the worker.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'stretches tiling the recording, in order.',
+      },
+    ],
+  },
+  {
     key: 'speechController',
     summary: 'Speech calls never activate or submit to an Agent.',
     description: 'Speech calls never activate or submit to an Agent.',
@@ -3605,6 +3694,75 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Validate and transcribe one recording through the explicit provider selection.',
         parameters: [{ name: 'request', description: 'canonical WAV encoded as base64, provider id and language hint.' }, { name: 'signal', description: 'Client cancellation or Remote contribution disposal.' }],
         returns: 'final transcript without adding a Session event.',
+      },
+      {
+        signature: '@Remote diarizationState(): DiarizationState',
+        description: 'Read the speaker diarizer\'s state; `unavailable` when this Host composes no diarizer.',
+        parameters: [],
+        returns: 'the current state.',
+      },
+      {
+        signature: '@Remote({ mode: \'stream\' }) async *followDiarization(signal: AbortSignal): AsyncIterable<DiarizationState>',
+        description: 'Follow the speaker diarizer\'s state, such as model download progress.',
+        parameters: [{ name: 'signal', description: 'Client observation lifetime.' }],
+        returns: 'the current state, then every change.',
+      },
+      {
+        signature: '@Remote prepareDiarization(): void',
+        description: 'Start or join the download of the speaker diarizer\'s models.',
+        parameters: [],
+      },
+      {
+        signature: '@Remote async diarize(request: DiarizationRequest, signal: AbortSignal): Promise<SpeakerSegment[]>',
+        description: 'Split one recording by voice.',
+        parameters: [{ name: 'request', description: 'canonical WAV encoded as base64.' }, { name: 'signal', description: 'Client cancellation.' }],
+        returns: 'stretches tiling the recording, each with a voice embedding when long enough.',
+      },
+      {
+        signature: '@Remote async recordingsList(): Promise<RecordingSummary[]>',
+        description: 'List the calling account\'s saved recordings, newest first.',
+        parameters: [],
+        returns: 'their summaries; empty when this Host keeps no recordings.',
+      },
+      {
+        signature: '@Remote async recordingGet(request: RecordingRef): Promise<SavedRecording>',
+        description: 'Read one saved recording.',
+        parameters: [{ name: 'request', description: 'the recording.' }],
+        returns: 'the recording.',
+      },
+      {
+        signature: '@Remote async recordingSave(request: RecordingSave): Promise<SavedRecording>',
+        description: 'Save a finished recording that holds transcribed speech.',
+        parameters: [{ name: 'request', description: 'the recording, with the audio uploaded before it when kept.' }],
+        returns: 'the stored recording.',
+      },
+      {
+        signature: '@Remote async recordingAudioAppend(request: RecordingAudioAppend): Promise<void>',
+        description: 'Upload one chunk of a recording\'s audio; chunk 0 starts the file over.',
+        parameters: [{ name: 'request', description: 'the recording, the chunk\'s position, and its bytes as base64.' }],
+      },
+      {
+        signature: '@Remote async recordingAudioFinish(request: RecordingRef): Promise<number>',
+        description: 'Finish a recording\'s audio upload.',
+        parameters: [{ name: 'request', description: 'the recording.' }],
+        returns: 'the audio file\'s size in bytes.',
+      },
+      {
+        signature: '@Remote async recordingAudioRead(request: RecordingAudioRead): Promise<RecordingAudioChunk>',
+        description: 'Read part of a recording\'s audio from this device.',
+        parameters: [{ name: 'request', description: 'the recording, the first byte, and the most bytes wanted.' }],
+        returns: 'the bytes as base64 and whether the file ends there; `here: false` when this device does not hold it.',
+      },
+      {
+        signature: '@Remote async recordingRename(request: RecordingRename): Promise<SavedRecording>',
+        description: 'Rename a saved recording.',
+        parameters: [{ name: 'request', description: 'the recording and its new title.' }],
+        returns: 'the renamed recording.',
+      },
+      {
+        signature: '@Remote async recordingDelete(request: RecordingRef): Promise<void>',
+        description: 'Delete a saved recording and its audio on every device of the account.',
+        parameters: [{ name: 'request', description: 'the recording.' }],
       },
     ],
   },
@@ -6869,6 +7027,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type DeviceToggleSetting = \'reduceMotion\' | \'increaseContrast\' | \'reduceTransparency\' | \'showBorders\' | \'voiceOver\' | \'networkEnabled\';',
   },
   {
+    name: 'DiarizationRequest',
+    declaration: 'export interface DiarizationRequest {\n    readonly audioBase64: string;\n}',
+  },
+  {
+    name: 'DiarizationState',
+    declaration: 'export type DiarizationState = {\n    readonly phase: \'unavailable\';\n    readonly reason: string;\n} | {\n    readonly phase: \'unprepared\';\n    readonly totalBytes: number;\n} | {\n    readonly phase: \'checking\';\n} | {\n    readonly phase: \'downloading\';\n    readonly completedBytes: number;\n    readonly totalBytes: number;\n} | {\n    readonly phase: \'ready\';\n} | {\n    readonly phase: \'failed\';\n    readonly message: string;\n};',
+  },
+  {
     name: 'DiffCallView',
     declaration: 'export interface DiffCallView {\n    card: \'diff\';\n    title: string;\n    diffs: FileDiff[];\n    locations?: FileLocation[];\n}',
   },
@@ -8093,6 +8259,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface MessageShareListValue {\n    readonly items: readonly MessageShareLink[];\n    readonly nextCursor: MessageShareCursor | null;\n}',
   },
   {
+    name: 'MessageSharePreview',
+    declaration: 'export interface MessageSharePreview {\n    readonly mediaType: \'image/png\';\n    readonly data: string;\n}',
+  },
+  {
     name: 'MessageShareRejected',
     declaration: 'export interface MessageShareRejected {\n    readonly ok: false;\n    readonly error: MessageShareFailure;\n}',
   },
@@ -8429,6 +8599,46 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type RecipeRung = \'semantic\' | \'accessibility\' | \'vision\';',
   },
   {
+    name: 'RecordingAudio',
+    declaration: 'export interface RecordingAudio {\n    readonly mimeType: string;\n    readonly bytes: number;\n}',
+  },
+  {
+    name: 'RecordingAudioAppend',
+    declaration: 'export interface RecordingAudioAppend {\n    readonly id: RecordingId;\n    readonly index: number;\n    readonly base64: string;\n}',
+  },
+  {
+    name: 'RecordingAudioChunk',
+    declaration: 'export interface RecordingAudioChunk {\n    readonly here: boolean;\n    readonly base64: string;\n    readonly done: boolean;\n}',
+  },
+  {
+    name: 'RecordingAudioRead',
+    declaration: 'export interface RecordingAudioRead {\n    readonly id: RecordingId;\n    readonly offset: number;\n    readonly length: number;\n}',
+  },
+  {
+    name: 'RecordingId',
+    declaration: 'export type RecordingId = Branded<\'RecordingId\'>;',
+  },
+  {
+    name: 'RecordingRef',
+    declaration: 'export interface RecordingRef {\n    readonly id: RecordingId;\n}',
+  },
+  {
+    name: 'RecordingRename',
+    declaration: 'export interface RecordingRename {\n    readonly id: RecordingId;\n    readonly title: string;\n}',
+  },
+  {
+    name: 'RecordingSave',
+    declaration: 'export type RecordingSave = Omit<SavedRecording, \'changedAt\'>;',
+  },
+  {
+    name: 'RecordingSegment',
+    declaration: 'export interface RecordingSegment {\n    readonly speaker: \'me\' | \'them\';\n    readonly voice?: number;\n    readonly offsetMs: number;\n    readonly text: string;\n}',
+  },
+  {
+    name: 'RecordingSummary',
+    declaration: 'export interface RecordingSummary {\n    readonly id: RecordingId;\n    readonly title: string;\n    readonly startedAt: number;\n    readonly durationMs: number;\n    readonly preview: string;\n    readonly audioBytes?: number;\n    readonly audioHere: boolean;\n}',
+  },
+  {
     name: 'RedactedSecret',
     declaration: 'export interface RedactedSecret {\n    path: string[];\n    set: boolean;\n}',
   },
@@ -8547,6 +8757,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SandboxPolicyRequest',
     declaration: 'export interface SandboxPolicyRequest {\n    session?: Session;\n    mode?: SandboxMode;\n}',
+  },
+  {
+    name: 'SavedRecording',
+    declaration: 'export interface SavedRecording {\n    readonly id: RecordingId;\n    readonly title: string;\n    readonly startedAt: number;\n    readonly durationMs: number;\n    readonly segments: readonly RecordingSegment[];\n    readonly audio?: RecordingAudio;\n    readonly changedAt: number;\n}',
   },
   {
     name: 'SaveFileAttachment',
@@ -9313,6 +9527,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SlackConnectorSettings {\n    teamId: string;\n    teamName: string;\n    domain?: string;\n    userId: string;\n    userName: string;\n    scopes: string[];\n    linked: boolean;\n}',
   },
   {
+    name: 'SpeakerSegment',
+    declaration: 'export interface SpeakerSegment {\n    readonly start: number;\n    readonly end: number;\n    readonly embedding?: readonly number[];\n}',
+  },
+  {
     name: 'SpeechAudio',
     declaration: 'export interface SpeechAudio {\n    readonly audioBase64: string;\n    readonly mediaType: string;\n    readonly voiceId: TtsVoiceId;\n}',
   },
@@ -9942,11 +10160,15 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'Transcript',
-    declaration: 'export interface Transcript {\n    readonly text: string;\n    readonly audioSeconds: number;\n    readonly inferenceSeconds: number;\n}',
+    declaration: 'export interface Transcript {\n    readonly text: string;\n    readonly audioSeconds: number;\n    readonly inferenceSeconds: number;\n    readonly language?: string;\n    readonly segments?: readonly TranscriptSegment[];\n}',
   },
   {
     name: 'TranscriptionRequest',
     declaration: 'export interface TranscriptionRequest {\n    readonly audioBase64: string;\n    readonly providerId?: SpeechProviderId;\n    readonly language?: string;\n}',
+  },
+  {
+    name: 'TranscriptSegment',
+    declaration: 'export interface TranscriptSegment {\n    readonly start: number;\n    readonly end: number;\n    readonly text: string;\n}',
   },
   {
     name: 'TreeDiff',

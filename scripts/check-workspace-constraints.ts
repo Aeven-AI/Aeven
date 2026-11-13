@@ -172,6 +172,8 @@ const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
   '@aeven/skill-catalog': ['catalog'],
   // The pinned whisper.cpp asset lock is read through `<package>/runtime/assets.json`.
   '@aeven/speech-to-text-whisper': ['runtime/assets.json'],
+  // The pinned diarization model lock is read through `<package>/runtime/assets.json`.
+  '@aeven/speaker-diarization': ['runtime/assets.json'],
   // The Web Host mounts the default-off settings owner independently of each
   // Agent-scoped delegation-tool instance.
   '@aeven/tool-subagent': ['lib/model-selection-settings.js', 'lib/nesting-settings.js'],

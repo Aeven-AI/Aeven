@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@aeven/host-message-share` lets a signed-in user publish one finalized assistant message, without the prompt that led to it, at a public URL. The Host builds the snapshot from the persisted Session log, never from text a browser sends, and sends it to the Aeven API's `/api/shares` routes with the user's own `AEVEN_TOKEN`; the API files every link under that account and serves it at `/s/<shareId>`. Sharing the same message again refreshes the snapshot behind the same link. The `messageShare` Remote also lists the account's links a page at a time and deletes one or all of them; the browser half is [ui-message-share](../../client/ui-message-share/README.md).
+`@aeven/host-message-share` lets a signed-in user publish one finalized assistant message, without the prompt that led to it, at a public URL. The Host builds the snapshot from the persisted Session log, never from text a browser sends, and sends it to the Aeven API's `/api/shares` routes with the user's own `AEVEN_TOKEN`; the API files every link under that account and serves it at `/s/<shareId>`. Sharing the same message again refreshes the snapshot behind the same link. The `messageShare` Remote also draws the link's preview card before the link exists, lists the account's links a page at a time, and deletes one or all of them; the browser half is [ui-message-share](../../client/ui-message-share/README.md).
 
 ## Table of Contents
 
@@ -47,6 +47,7 @@ The `avn-web-app` bundle mounts it with `apiUrl` from `AEVEN_API_URL` and `works
 | `list` | `{ cursor? }` | `{ items, nextCursor }`, newest first; `nextCursor` is `null` on the last page |
 | `delete` | `{ shareId }` | `{ removed: true }` |
 | `deleteAll` | none | `{ removed }`, the number of links deleted |
+| `preview` | `{ sessionId, messageId }` | `{ mediaType: 'image/png', data }`: the card the link unfurls with, base64-encoded; the API stores nothing |
 
 Every method answers `{ ok: true, value }` or `{ ok: false, error: { code } }`, where `code` is `signed-out`, `session-not-found`, `target-not-found`, `too-large`, `share-limit`, `not-found`, or `unavailable`.
 

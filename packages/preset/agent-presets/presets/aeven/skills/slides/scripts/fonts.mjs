@@ -22,10 +22,10 @@ const SUBSETS = new Set(['latin', 'latin-ext'])
 // without a browser User-Agent with one TTF per style.
 const WOFF2_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36'
 
-const slug = (family) => family.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+export const slug = (family) => family.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 
 /** The stylesheet for one family, asking only for weights the family has. */
-async function css2(family, agent) {
+export async function css2(family, agent) {
   const base = 'https://fonts.googleapis.com/css2?display=swap&family='
   const name = family.replace(/ /g, '+')
   const all = await fetch(`${base}${name}:ital,wght@${[0, 1].flatMap((i) => WEIGHTS.map((w) => `${i},${w}`)).join(';')}`, { headers: agent ? { 'User-Agent': agent } : {} })
@@ -43,7 +43,7 @@ async function css2(family, agent) {
 }
 
 /** Parses @font-face blocks: style, weight, subset comment, and source URL. */
-function faces(css) {
+export function faces(css) {
   const out = []
   const re = /(?:\/\*\s*([\w-]+)\s*\*\/\s*)?@font-face\s*{([^}]*)}/g
   for (const [, subset, body] of css.matchAll(re)) {
@@ -128,7 +128,8 @@ export function storedFamilies() {
     .map((e) => JSON.parse(readFileSync(new URL(`${e.name}/manifest.json`, FONTS_DIR), 'utf8')).family)
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+// Bundled into the exporter, import.meta.url names the bundle, which is then the entry script too.
+if (import.meta.url.endsWith('/fonts.mjs') && process.argv[1] === fileURLToPath(import.meta.url)) {
   const families = process.argv.slice(2)
   if (!families.length) {
     console.log(storedFamilies().join('\n') || 'no families stored yet')
