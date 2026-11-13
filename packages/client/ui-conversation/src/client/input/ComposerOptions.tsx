@@ -1,15 +1,16 @@
 /** The composer's Options popup: the settings-2 disc opens a card whose rows
  * carry the permission mode and the context occupancy. Each row opens its own
  * card beside the open popup — the popup itself stays open, so a mode is picked
- * while the row it belongs to is still on screen. */
+ * while the row it belongs to is still on screen. On a screen too narrow for
+ * the card on either side, it is stacked over the popup above its row. */
 
 import { useEffect, useRef, useState } from 'react'
-import type { MouseEvent, ReactNode, RefObject } from 'react'
+import type { AriaRole, MouseEvent, ReactNode, RefObject } from 'react'
 import clsx from 'clsx'
 import type { PermissionSelect as PermissionSelectValue } from '@aeven/permission-presets/client'
 import {
   IconChevronRightOutline14, IconLucideImages, IconLucideSettings2, IconLucidePlay,
-  RiskConfirmation, Tooltip, useDismissOnOutsidePointer, useDismissOnEscape,
+  RiskConfirmation, Tooltip, useBesidePlacement, useDismissOnOutsidePointer, useDismissOnEscape, useViewportClamp,
 } from '@aeven/client-ui-primitives'
 import type { UseProjection } from '@aeven/api-session-controller/client'
 // Type-only: the `contextPressure` / `contextBreakdown` projection key merges.
@@ -22,6 +23,31 @@ import css from './ComposerOptions.module.css'
 
 /** Which row's card is showing beside the popup; null while none is open. */
 type Pane = 'permissions' | 'context'
+
+/** The stylesheet's `.pane` step from the row seat: the popup card's 8px pad plus 2. */
+const PANE_GAP = 10
+/** Step between a card stacked over its row and the row's top edge. */
+const PANE_LIFT = 4
+/** Distance every card in the popup family keeps from the viewport edges; the stylesheets' `100vw - 32px` caps. */
+const VIEWPORT_MARGIN = 16
+
+/**
+ * A row's own card, placed beside its seat on the side the viewport has room
+ * for, or stacked over the row when neither side does.
+ */
+function RowPane({ seatRef, className, role, ariaLabel, children }: {
+  seatRef: RefObject<HTMLDivElement | null>
+  className: string | undefined
+  role: AriaRole
+  ariaLabel?: string
+  children: ReactNode
+}) {
+  const paneRef = useRef<HTMLDivElement>(null)
+  const { style } = useBesidePlacement({
+    open: true, anchorRef: seatRef, panelRef: paneRef, gap: PANE_GAP, lift: PANE_LIFT, margin: VIEWPORT_MARGIN,
+  })
+  return <div ref={paneRef} className={className} role={role} aria-label={ariaLabel} style={style}>{children}</div>
+}
 
 /**
  * One row of the popup: leading glyph, name, trailing chevron. The row keeps
@@ -100,6 +126,10 @@ export function ComposerOptions({
   const [confirmation, setConfirmation] = useState<string | null>(null)
   const [acknowledged, setAcknowledged] = useState(false)
   const rootRef = useRef<HTMLSpanElement>(null)
+  const cardRef = useRef<HTMLDivElement>(null)
+  const contextSeatRef = useRef<HTMLDivElement>(null)
+  const permissionSeatRef = useRef<HTMLDivElement>(null)
+  const cardStyle = useViewportClamp({ open, anchorRef: rootRef, panelRef: cardRef, margin: VIEWPORT_MARGIN })
   const context = contextOccupancy(useProjection('contextPressure'))
   const breakdown = useProjection('contextBreakdown')
 
@@ -179,9 +209,9 @@ export function ComposerOptions({
         </button>
       </Tooltip>
       {open && (
-        <div className={css.card} role="menu" aria-label={t('input.options')}>
+        <div ref={cardRef} className={css.card} style={cardStyle} role="menu" aria-label={t('input.options')}>
           {context === null ? null : (
-            <div className={css.rowSeat}>
+            <div ref={contextSeatRef} className={css.rowSeat}>
               <OptionsRow
                 glyph={<ContextRing percent={context.percent} />}
                 label={`${context.percent}%`}
@@ -192,7 +222,7 @@ export function ComposerOptions({
                 onToggle={() => { setPane(current => (current === 'context' ? null : 'context')) }}
               />
               {pane === 'context' && !details && (
-                <div className={css.pane} role="menu">
+                <RowPane seatRef={contextSeatRef} className={css.pane} role="menu">
                   <ContextActions
                     t={t}
                     onCompact={() => {
@@ -201,12 +231,12 @@ export function ComposerOptions({
                     }}
                     onDetails={() => { setDetails(true) }}
                   />
-                </div>
+                </RowPane>
               )}
               {pane === 'context' && details && (
-                <div className={clsx(css.pane, css.paneDetails)} role="dialog" aria-label={t('context.used')}>
+                <RowPane seatRef={contextSeatRef} className={clsx(css.pane, css.paneDetails)} role="dialog" ariaLabel={t('context.used')}>
                   <ContextPanel context={context} breakdown={breakdown} t={t} />
-                </div>
+                </RowPane>
               )}
             </div>
           )}
@@ -230,7 +260,7 @@ export function ComposerOptions({
           )}
           {optionsSlot}
           {permissions === undefined ? null : (
-            <div className={css.rowSeat}>
+            <div ref={permissionSeatRef} className={css.rowSeat}>
               <OptionsRow
                 glyph={permissionGlyph(currentValue)}
                 label={currentLabel}
@@ -242,7 +272,7 @@ export function ComposerOptions({
                 onToggle={() => { setPane(current => (current === 'permissions' ? null : 'permissions')) }}
               />
               {pane === 'permissions' && (
-                <div className={css.pane} role="menu">
+                <RowPane seatRef={permissionSeatRef} className={css.pane} role="menu">
                   <PermissionList
                     options={permissions.options}
                     current={currentValue}
@@ -250,7 +280,7 @@ export function ComposerOptions({
                     t={t}
                     onSelect={choose}
                   />
-                </div>
+                </RowPane>
               )}
             </div>
           )}

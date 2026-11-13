@@ -1,6 +1,7 @@
 /* The Options popup's voice row and the card it opens beside the popup. The row is the popup's own
    cell (40px, 8px padding, 8px gap, control radius, 14/22 name, trailing chevron); the card copies
-   the permission row's `.pane`, and its rows copy the permission list cell — trailing check, no fill. */
+   the permission row's `.pane` and its `useBesidePlacement` side choice, and its rows copy the
+   permission list cell — trailing check, no fill. */
 
 .seat {
   position: relative;
