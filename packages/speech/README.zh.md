@@ -20,13 +20,15 @@ speech 组把浏览器中录下的语音转成文本，转写发生在 Aeven 所
 <a id="packages"></a>
 ## 包
 
-Service Definition 持有选择与取消；另外两个包把浏览器录音接到它，并注册负责应答的识别器。
+Service Definition 持有选择与取消；Remote 把浏览器录音接到它，提供方注册负责应答的识别器，另有两个服务为录音机服务：说话人分离与已保存的录音。
 
 | 包 | 职责 |
 |---|---|
 | [`speech-to-text/`](speech-to-text/README.zh.md) | 持有 `ctx.speechToText`：具名识别器注册、显式的先解析后转录、就绪与取消 |
 | [`api-speech-to-text/`](api-speech-to-text/README.zh.md) | 向浏览器暴露 `speech` Remote：提供方发现、准备，以及一次完整录音的转录 |
 | [`speech-to-text-whisper/`](speech-to-text-whisper/README.zh.md) | 注册本地 Whisper 识别器：受管的 whisper.cpp worker、按需校验的模型，以及各界面显示的准备状态 |
+| [`speaker-diarization/`](speaker-diarization/README.zh.md) | 持有 `ctx.speakerDiarization`：按声音切分录音并为每个片段计算声纹，模型按需校验 |
+| [`recordings/`](recordings/README.zh.md) | 持有 `ctx.recordings`：录音机按账户保存的转录（经账户同步）及其音频（经文件同步） |
 
 <a id="related-documentation"></a>
 ## 相关文档

@@ -1,8 +1,18 @@
 /** Recording validation and the request frames the private worker accepts. */
 import { validateWave } from '@aeven/speech-to-text/wave'
 
-/** Language hints accepted by provider metadata: Whisper detects the spoken language of each recording. */
-export const languages: readonly string[] = ['auto']
+/**
+ * Language hints accepted by provider metadata: `auto`, under which Whisper detects the spoken language of
+ * each recording, or one of Whisper's own language codes (whisper.cpp `g_lang`) to decode in that language.
+ */
+export const languages: readonly string[] = [
+  'auto', 'en', 'zh', 'de', 'es', 'ru', 'ko', 'fr', 'ja', 'pt', 'tr', 'pl', 'ca', 'nl', 'ar', 'sv', 'it', 'id', 'hi',
+  'fi', 'vi', 'he', 'uk', 'el', 'ms', 'cs', 'ro', 'da', 'hu', 'ta', 'no', 'th', 'ur', 'hr', 'bg', 'lt', 'la', 'mi',
+  'ml', 'cy', 'sk', 'te', 'fa', 'lv', 'bn', 'sr', 'az', 'sl', 'kn', 'et', 'mk', 'br', 'eu', 'is', 'hy', 'ne', 'mn',
+  'bs', 'kk', 'sq', 'sw', 'gl', 'mr', 'pa', 'si', 'km', 'sn', 'yo', 'so', 'af', 'oc', 'ka', 'be', 'tg', 'sd', 'gu',
+  'am', 'yi', 'lo', 'uz', 'fo', 'ht', 'ps', 'tk', 'nn', 'mt', 'sa', 'lb', 'my', 'bo', 'tl', 'mg', 'as', 'tt', 'haw',
+  'ln', 'ha', 'ba', 'jw', 'su', 'yue',
+]
 
 /** A request rejected before inference; the loaded worker remains reusable. */
 export class SpeechInputError extends Error {}
@@ -17,7 +27,7 @@ export interface ValidatedInput {
 /**
  * Validate a recording before it reaches the native worker.
  * @param audio - untrusted WAV request bytes.
- * @param language - requested language hint; only automatic detection is offered.
+ * @param language - requested language hint: `auto` or a Whisper language code.
  * @param maxAudioBytes - configured byte limit.
  * @returns duration and PCM body; invalid inputs throw SpeechInputError.
  */

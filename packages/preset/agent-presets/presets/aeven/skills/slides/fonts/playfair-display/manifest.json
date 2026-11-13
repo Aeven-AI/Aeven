@@ -31,5 +31,56 @@
       "file": "400-800-latin.woff2"
     }
   ],
-  "ttf": []
+  "ttf": [
+    {
+      "style": "italic",
+      "weight": 400,
+      "file": "400i.ttf"
+    },
+    {
+      "style": "italic",
+      "weight": 500,
+      "file": "500i.ttf"
+    },
+    {
+      "style": "italic",
+      "weight": 600,
+      "file": "600i.ttf"
+    },
+    {
+      "style": "italic",
+      "weight": 700,
+      "file": "700i.ttf"
+    },
+    {
+      "style": "italic",
+      "weight": 800,
+      "file": "800i.ttf"
+    },
+    {
+      "style": "normal",
+      "weight": 400,
+      "file": "400.ttf"
+    },
+    {
+      "style": "normal",
+      "weight": 500,
+      "file": "500.ttf"
+    },
+    {
+      "style": "normal",
+      "weight": 600,
+      "file": "600.ttf"
+    },
+    {
+      "style": "normal",
+      "weight": 700,
+      "file": "700.ttf"
+    },
+    {
+      "style": "normal",
+      "weight": 800,
+      "file": "800.ttf"
+    }
+  ]
 }

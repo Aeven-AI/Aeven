@@ -335,6 +335,15 @@
 - id: ui-sidebar-device
   disabled: true
 
+# The Recorder and its saved recordings are desktop-only: the Recorder captures the meeting audio a
+# computer plays, and recording audio travels through file sync, which this Host does not run. Its
+# sidebar entry opens the desktop hand-off dialog instead.
+- id: ui-sidebar-meeting
+  disabled: true
+
+- id: recordings
+  disabled: true
+
 - id: tool-elevation
   disabled: true
 
@@ -381,6 +390,10 @@
     defaultProvider: aeven-cloud
 
 - id: speech-to-text-whisper
+  disabled: true
+
+# Speaker diarization would hold its models and native runtime in this shared process.
+- id: speaker-diarization
   disabled: true
 
 - insert:

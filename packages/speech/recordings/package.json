@@ -1,0 +1,57 @@
+{
+  "name": "@aeven/recordings",
+  "description": "Saved Recorder recordings per account: transcripts mirrored through account sync, audio files shared through file sync",
+  "version": "0.3.45-alpha",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Aeven.git",
+    "directory": "packages/speech/recordings"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./types": {
+      "types": "./lib/types/types.d.ts",
+      "default": "./lib/types/types.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@aeven/brand": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:^",
+    "yjs": "13.6.27"
+  },
+  "peerDependencies": {
+    "@aeven/file-sync": "workspace:^",
+    "@aeven/sync": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@aeven/file-sync": {
+      "optional": true
+    },
+    "@aeven/sync": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@aeven/file-sync": "workspace:^",
+    "@aeven/sync": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  }
+}

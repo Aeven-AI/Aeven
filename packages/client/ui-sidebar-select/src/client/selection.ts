@@ -1,10 +1,17 @@
 /** The right sidebar's per-session content choice and where it is remembered. */
 
 /** A content kind the right sidebar can hold. */
-export type SidebarContentKind = 'browser' | 'terminal' | 'files' | 'device'
+export type SidebarContentKind = 'browser' | 'terminal' | 'files' | 'meeting' | 'device'
 
 /** The kinds, in the order the selection lists them. */
-export const SIDEBAR_CONTENT_KINDS: readonly SidebarContentKind[] = ['files', 'browser', 'terminal', 'device']
+export const SIDEBAR_CONTENT_KINDS: readonly SidebarContentKind[] = ['files', 'browser', 'terminal', 'meeting', 'device']
+
+/**
+ * Kinds a session holds at most one pill of: picking one again shows the open
+ * pill. The meeting recorder owns the single app-wide recording, so a second
+ * pill would only mirror the first.
+ */
+export const SINGLETON_CONTENT_KINDS: ReadonlySet<SidebarContentKind> = new Set<SidebarContentKind>(['meeting'])
 
 /**
  * Kinds with an implementation behind them.

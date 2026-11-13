@@ -194,9 +194,11 @@
 /* Slide templates read as presentations: wide covers, two to a row, on the
    image card itself (its shade and its title over the picture). A cover is
    exactly as tall as an image card on the Image & video grid at the same width:
-   an image card is a quarter of the row at 4:5, which for a half-row card of
-   width w is 0.625w - 7.5px; percentage padding resolves against the card's own
-   width, so the sizer below sets that height without container queries. */
+   an image card is a quarter of the row at 4:5, so a cover is
+   (grid - 3 × 12px) / 4 × 1.25 tall. With two covers to a 12px-gapped row the
+   grid is twice a cover's width plus 12px, which makes that 62.5% of the
+   cover's own width less 7.5px: a spacer's percentage padding states it
+   against the cover's width, and the picture fills the cover above it. */
 .wideGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -209,7 +211,7 @@
 }
 
 .slideCard::before {
-  content: '';
+  content: "";
   display: block;
   padding-top: calc(62.5% - 7.5px);
 }

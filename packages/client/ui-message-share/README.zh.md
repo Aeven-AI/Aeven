@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-本包为 Web GUI 添加分享功能。它向已完成助手消息的操作条贡献 `share` 条目，即紧挨分支之前的 lucide `share-2` 按钮。按钮打开一个对话框，说明链接会公开这条回复，显示回复的缩略图，并提供 **管理** 和 **创建链接**。创建链接通过 [host-message-share](../../host/message-share/README.zh.md) 的 `messageShare` Remote 发布消息并复制 URL，在触屏设备上则打开系统分享面板；处理期间，旋转图标取代其链接图标，按钮保持宽度。管理的标题为 **已创建的链接**，列出已登录账户创建的所有链接，随列表滚动加载更多，每个链接都有删除操作，另有需确认的 **删除所有链接**。
+本包为 Web GUI 添加分享功能。它向已完成助手消息的操作条贡献 `share` 条目，即紧挨分支之前的 lucide `share-2` 按钮。按钮打开一个对话框，开头是链接在聊天应用中展开时显示的卡片，说明链接会公开这条回复，并提供 **管理** 和 **创建链接**。创建链接通过 [host-message-share](../../host/message-share/README.zh.md) 的 `messageShare` Remote 发布消息并复制 URL，在触屏设备上则打开系统分享面板；处理期间，旋转图标取代其链接图标，按钮保持宽度。管理的标题为 **已创建的链接**，列出已登录账户创建的所有链接，随列表滚动加载更多，每个链接都有删除操作，另有需确认的 **删除所有链接**。
 
 ## 目录
 
@@ -38,7 +38,7 @@ kind: "package-reference"
 <details>
 <summary>实现内部细节 — 点击展开</summary>
 
-本包注册 `conversation.chat.assistant-actions` 的 `share` 条目（order 30）。其注入面把 Session id 绑定进基于 `ctx.remote.messageShare` 的四个动词，并把载体失败折叠为 `unavailable` 代码。缩略图是该轮次已渲染的收尾 `assistant-step` 流行的副本，在对话框打开时按 `data-chat-turn` 和 `data-chat-flow-kind` 属性查找；控件被移除，副本设为 inert，并以一半尺寸绘制。链接管理器用 API 游标分页，当最后一行下方的哨兵进入列表滚动区域时加载下一页。
+本包注册 `conversation.chat.assistant-actions` 的 `share` 条目（order 30）。其注入面把 Session id 绑定进基于 `ctx.remote.messageShare` 的五个动词，并把载体失败折叠为 `unavailable` 代码。缩略图是每次打开对话框时 `preview` 动词请 Aeven API 绘制的预览卡片，与链接存储的图片相同；加载期间由 #f2f2f2 底和黑色加载标记占住 3:2 的位置，图片加载完成后淡出；预览被拒绝时不显示缩略图。链接管理器用 API 游标分页，当最后一行下方的哨兵进入列表滚动区域时加载下一页。
 
 | 文件 | 作用 |
 | --- | --- |
@@ -46,7 +46,7 @@ kind: "package-reference"
 | [`src/client/ShareAction.tsx`](src/client/ShareAction.tsx) | 按钮及当前打开的对话框 |
 | [`src/client/ShareDialog.tsx`](src/client/ShareDialog.tsx) | 分享对话框：缩略图、链接字段、管理和创建链接 |
 | [`src/client/ManageLinksDialog.tsx`](src/client/ManageLinksDialog.tsx) | 带分页、单个删除和全部删除确认的链接管理器 |
-| [`src/client/ShareThumb.tsx`](src/client/ShareThumb.tsx) | 捕获并绘制缩略图 |
+| [`src/client/ShareThumb.tsx`](src/client/ShareThumb.tsx) | 加载并显示预览卡片 |
 | [`src/client/locales.ts`](src/client/locales.ts) | `share` 词典 |
 
 </details>
@@ -65,7 +65,7 @@ kind: "package-reference"
 <a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与延后工作
 
-- **缩略图需要已渲染的行**：当回复行不在 DOM 中时，缩略图改为显示分享图标。
+- **缩略图需要 Aeven API**：卡片在那里绘制，因此没有连接或未登录账户时，对话框打开时不带缩略图。
 - **仅聊天视图**：轨迹视图和瀑布视图不渲染分享操作。
 
 <a id="dev-note"></a>

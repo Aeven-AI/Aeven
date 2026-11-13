@@ -23,7 +23,7 @@ import type {} from '@aeven/api-remotes/client'
 import type {} from '@aeven/api-session-controller/client'
 import type { SessionId } from '@aeven/session/types'
 import { HandoffModal, type HandoffModalInjected } from './HandoffModal.tsx'
-import { createHandoffStore } from './store.ts'
+import { createHandoffStore, type HandoffReason } from './store.ts'
 import { en, es, NS, zh, type DesktopHandoffKey } from './locales.ts'
 
 declare module '@aeven/client-ui-slots' {
@@ -35,10 +35,29 @@ declare module '@aeven/client-ui-slots' {
 export type { HandoffModalInjected, HandoffModalProps } from './HandoffModal.tsx'
 export type { HandoffReason, HandoffState } from './store.ts'
 
+declare module '@deepseek-ai/cordis' {
+  interface Events {
+    /**
+     * A surface that cannot do its work in this client asks to continue in the desktop app, such as
+     * the Browser entry when no Aeven extension is installed. Answered only where the hand-off dialog
+     * is composed (a web client whose Host has no machine of the reader's).
+     * @mode bail
+     * @param reason - why the reader needs the desktop app; picks the dialog's message.
+     * @param sessionId - the conversation to continue there, when one is current.
+     * @returns true once the dialog opened; undefined where no hand-off dialog answers.
+     */
+    'desktop-handoff/request'(reason: HandoffReason, sessionId?: string): true | undefined
+  }
+}
+
 export const inject = ['slots', 'locale']
 
-/** The right sidebar entries whose content lives on the reader's own computer. */
-const LOCAL_KINDS: readonly SidebarContentKind[] = ['files', 'browser', 'terminal', 'device']
+/**
+ * The right sidebar entries whose content lives on the reader's own computer. The Browser entry is
+ * not among them: ui-sidebar-browser owns it and opens the reader's own browser through the Aeven
+ * extension, asking for this dialog (`desktop-handoff/request`) only when no extension is installed.
+ */
+const LOCAL_KINDS = ['files', 'terminal', 'meeting', 'device'] as const satisfies readonly SidebarContentKind[]
 
 /** The refusal a Host answers a prompt with when the conversation's folder is on a device that is not running it. */
 const NO_LOCAL_DIRECTORY = 'workspace/no-local-directory'
@@ -62,6 +81,10 @@ export function apply(ctx: ClientContext): void {
   if ((window as { avnDesktop?: unknown }).avnDesktop !== undefined) return
   ctx.effect(() => ctx.locale.register(NS, { zh, en, es }), 'ui-desktop-handoff: dictionaries')
   const store = createHandoffStore()
+  ctx.effect(() => ctx.on('desktop-handoff/request', (reason, sessionId) => {
+    store.show(reason, sessionId)
+    return true
+  }), 'ui-desktop-handoff: hand-off requests')
   const downloadUrl = downloadPage()
 
   ctx.inject(['sidebarContent'], (scoped) => {

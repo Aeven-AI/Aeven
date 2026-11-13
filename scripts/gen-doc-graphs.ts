@@ -900,11 +900,27 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Read-only local source of installable skills: the catalog lists what a reader may install and the installer reads one entry\'s files from the same tree.',
   },
   {
+    key: 'speakerDiarization',
+    pkg: 'speaker-diarization',
+    title: 'Speaker diarization',
+    mode: 'core',
+    consumers: ['api-speech-to-text'],
+    note: 'Splits a recording by voice and embeds each stretch, with models verified on demand and inference in one worker thread.',
+  },
+  {
+    key: 'recordings',
+    pkg: 'recordings',
+    title: 'Saved recordings',
+    mode: 'core',
+    consumers: ['api-speech-to-text'],
+    note: 'The Recorder\'s saved transcripts per account, mirrored through account sync, with their audio shared through file sync.',
+  },
+  {
     key: 'speechController',
     pkg: 'api-speech-to-text',
     title: 'Speech Remote',
     mode: 'core',
-    consumers: ['ui-voice-input'],
+    consumers: ['ui-voice-input', 'ui-sidebar-meeting'],
     note: 'Authenticated, cancellation-aware Client access to speech preparation and transcription; a speech call never activates or submits to an Agent.',
   },
   {

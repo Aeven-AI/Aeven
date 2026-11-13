@@ -11,6 +11,7 @@
  * popup, whose shell styles this one reuses.
  */
 import { useEffect, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import clsx from 'clsx'
 import { Button, IconCloseOutline16, IconPlusOutline20, Modal } from '@aeven/client-ui-primitives'
 import type { InputActions } from '@aeven/client-ui-conversation/client'
@@ -23,6 +24,15 @@ import css from './SlideDialog.module.css'
 
 /** Material the picker offers: presentations, PDFs and documents a deck can be rebuilt from. */
 const ACCEPT = '.pptx,.ppt,.key,.pages,.pdf,.docx,.doc,.odp,.odt,.md,.txt'
+
+/** The image gallery's arrow glyph frame, so slide paging reads like gallery paging. */
+function StepIcon({ children }: { children: ReactNode }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {children}
+    </svg>
+  )
+}
 
 /**
  * Render one slide template's popup.
@@ -97,7 +107,7 @@ export function SlideDialog({ id, inputActions, t, onClose }: {
               disabled={current === 0}
               onClick={() => { setCurrent(current - 1) }}
             >
-              ‹
+              <StepIcon><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></StepIcon>
             </button>
             <button
               type="button"
@@ -106,7 +116,7 @@ export function SlideDialog({ id, inputActions, t, onClose }: {
               disabled={current === total - 1}
               onClick={() => { setCurrent(current + 1) }}
             >
-              ›
+              <StepIcon><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></StepIcon>
             </button>
           </div>
           <div ref={strip} className={`${css.strip} no-scrollbar`}>

@@ -55,10 +55,14 @@
   "devDependencies": {
     "@aeven/api-remotes": "workspace:^",
     "@aeven/api-session-controller": "workspace:^",
+    "@aeven/brand": "workspace:^",
     "@aeven/browser-chromium": "workspace:^",
     "@aeven/client-locale": "workspace:^",
     "@aeven/client-store": "workspace:^",
     "@aeven/client-test-runtime": "workspace:^",
+    "@aeven/client-ui-conversation": "workspace:^",
+    "@aeven/client-ui-desktop-handoff": "workspace:^",
+    "@aeven/client-ui-layout": "workspace:^",
     "@aeven/client-ui-primitives": "workspace:^",
     "@aeven/client-ui-renderer": "workspace:^",
     "@aeven/client-ui-session": "workspace:^",
@@ -74,10 +78,7 @@
     "@types/react": "~18.3.1",
     "@types/react-dom": "~18.3.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "@aeven/brand": "workspace:^",
-    "@aeven/client-ui-layout": "workspace:^",
-    "@aeven/client-ui-conversation": "workspace:^"
+    "react-dom": "^18.2.0"
   },
   "files": [
     "lib/index.js",

@@ -39,6 +39,14 @@ export interface MessageShareCreateRequest {
   readonly messageId: MessageId
 }
 
+/** The card a message's link unfurls with, drawn before the link exists. */
+export interface MessageSharePreview {
+  /** Media type of `data`. */
+  readonly mediaType: 'image/png'
+  /** The PNG bytes, base64-encoded. */
+  readonly data: string
+}
+
 /** Read one page of the account's links, newest first. */
 export interface MessageShareListRequest {
   /** `nextCursor` of the previous page; absent for the first page. */

@@ -7,7 +7,8 @@
 
 /** Info.plist privacy usage descriptions the Desktop shell adds on macOS. */
 export const MACOS_USAGE_DESCRIPTIONS = Object.freeze({
-  NSMicrophoneUsageDescription: 'Aeven uses your microphone when you dictate a message or record a clip.',
+  NSMicrophoneUsageDescription: 'Aeven uses your microphone when you dictate a message, record a clip, or record a meeting.',
+  NSAudioCaptureUsageDescription: 'Aeven transcribes the meeting audio your computer plays while you record a meeting.',
   NSCameraUsageDescription: 'Aeven uses your camera when you take a photo or record a clip from the composer.',
   NSLocationWhenInUseUsageDescription: 'Aeven uses your location when you ask about things near you.',
   NSLocationUsageDescription: 'Aeven uses your location when you ask about things near you.',

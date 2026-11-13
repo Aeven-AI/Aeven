@@ -2,7 +2,9 @@
 // then transcribes framed PCM recordings from stdin until stdin closes.
 //
 // Wire contract (README.md#worker-protocol): stdout carries only newline-delimited JSON — one
-// `{"ready":true}` line after both models load, then exactly one result line per request. Each
+// `{"ready":true}` line after both models load, then exactly one result line per request: the text, the
+// inference time, the language decoded (the detected one under "auto"), and Whisper's segments with their
+// start and end in seconds. Each
 // request is the 4-byte magic "AVW1", a little-endian uint32 language byte length, a little-endian
 // uint32 sample count, the ASCII language hint, then the 16 kHz mono PCM16 little-endian samples.
 // Library diagnostics go to stderr. The worker opens no socket; it reads only the two model files named
@@ -125,15 +127,17 @@ std::string trim(const std::string & text) {
     return text.substr(first, text.find_last_not_of(" \t\r\n") - first + 1);
 }
 
-// Greedy decoding at temperature 0 without fallback, and no conditioning on earlier text: dictation favors
-// deterministic, fast single-pass output over re-decoding hard audio.
+// Greedy decoding starting at temperature 0, with no conditioning on earlier text. A segment whose output
+// fails whisper.cpp's entropy or log-probability thresholds is decoded again at a higher temperature: that
+// fallback is what breaks Whisper's repetition loops ("yn ymgyrch yn ymgyrch ..."), and it costs nothing on
+// audio that decodes cleanly the first time.
 whisper_full_params decoding_params(const Options & options) {
     whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
     params.n_threads = options.threads;
     params.temperature = 0.0f;
-    params.temperature_inc = 0.0f;
+    params.temperature_inc = 0.2f;
     params.no_context = true;
-    params.no_timestamps = true;
+    params.no_timestamps = false;
     params.print_progress = false;
     params.print_realtime = false;
     params.print_special = false;
@@ -224,12 +228,25 @@ int main(int argc, char ** argv) {
             continue;
         }
         std::string text;
+        std::string timed = "[";
         const int segments = whisper_full_n_segments(context);
-        for (int i = 0; i < segments; i++) text += whisper_full_get_segment_text(context, i);
+        for (int i = 0; i < segments; i++) {
+            const std::string segment = whisper_full_get_segment_text(context, i);
+            text += segment;
+            char times[96];
+            // whisper.cpp reports segment bounds in centiseconds of the submitted recording.
+            std::snprintf(times, sizeof times, "%s{\"start\":%.2f,\"end\":%.2f,\"text\":", i == 0 ? "" : ",",
+                static_cast<double>(whisper_full_get_segment_t0(context, i)) / 100.0,
+                static_cast<double>(whisper_full_get_segment_t1(context, i)) / 100.0);
+            timed += times + json_string(trim(segment)) + "}";
+        }
+        timed += "]";
         const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
         char metrics[64];
-        std::snprintf(metrics, sizeof metrics, ",\"inferenceSeconds\":%.6f}", seconds);
-        reply("{\"text\":" + json_string(trim(text)) + metrics);
+        std::snprintf(metrics, sizeof metrics, ",\"inferenceSeconds\":%.6f", seconds);
+        const char * decoded = whisper_lang_str(whisper_full_lang_id(context));
+        reply("{\"text\":" + json_string(trim(text)) + metrics + ",\"language\":" + json_string(decoded == nullptr ? "" : decoded)
+            + ",\"segments\":" + timed + "}");
     }
     whisper_free(context);
     return 0;

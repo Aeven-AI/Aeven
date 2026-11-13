@@ -200,6 +200,7 @@ flowchart TD
     pkg_client_ui_sidebar_browser["client-ui-sidebar-browser"]
     pkg_client_ui_sidebar_device["client-ui-sidebar-device"]
     pkg_client_ui_sidebar_files["client-ui-sidebar-files"]
+    pkg_client_ui_sidebar_meeting["client-ui-sidebar-meeting"]
     pkg_client_ui_sidebar_right["client-ui-sidebar-right"]
     pkg_client_ui_sidebar_select["client-ui-sidebar-select"]
     pkg_client_ui_sidebar_terminal["client-ui-sidebar-terminal"]
@@ -435,6 +436,8 @@ flowchart TD
   subgraph group_speech["packages/speech"]
     pkg_api_speech_to_text["api-speech-to-text"]
     pkg_api_text_to_speech["api-text-to-speech"]
+    pkg_recordings["recordings"]
+    pkg_speaker_diarization["speaker-diarization"]
     pkg_speech_to_text["speech-to-text"]
     pkg_speech_to_text_aeven["speech-to-text-aeven"]
     pkg_speech_to_text_whisper["speech-to-text-whisper"]
@@ -537,6 +540,8 @@ flowchart TD
   pkg_lsp --> pkg_llm
   pkg_api_text_to_speech --> pkg_text_to_speech
   pkg_api_text_to_speech --> pkg_typert_protocol
+  pkg_recordings --> pkg_file_sync
+  pkg_recordings --> pkg_sync
   pkg_text_to_speech_edge --> pkg_text_to_speech
   pkg_storage_domain --> pkg_invariants
   pkg_storage_domain --> pkg_storage
@@ -861,6 +866,8 @@ flowchart TD
   pkg_pwsh_local --> pkg_shell
   pkg_pwsh_local --> pkg_subprocess
   pkg_pwsh_local --> pkg_timeout
+  pkg_api_speech_to_text --> pkg_identity_user
+  pkg_api_speech_to_text --> pkg_speaker_diarization
   pkg_api_speech_to_text --> pkg_speech_to_text
   pkg_api_speech_to_text --> pkg_typert_protocol
   pkg_speech_to_text_aeven --> pkg_agent
@@ -1733,6 +1740,7 @@ flowchart TD
 | [`client-ui-sidebar-browser`](../packages/client/ui-sidebar-browser) | `client` | — |
 | [`client-ui-sidebar-device`](../packages/client/ui-sidebar-device) | `client` | — |
 | [`client-ui-sidebar-files`](../packages/client/ui-sidebar-files) | `client` | — |
+| [`client-ui-sidebar-meeting`](../packages/client/ui-sidebar-meeting) | `client` | — |
 | [`client-ui-sidebar-right`](../packages/client/ui-sidebar-right) | `client` | — |
 | [`client-ui-sidebar-select`](../packages/client/ui-sidebar-select) | `client` | — |
 | [`client-ui-sidebar-terminal`](../packages/client/ui-sidebar-terminal) | `client` | — |
@@ -1778,6 +1786,7 @@ flowchart TD
 | [`memory-invariants`](../packages/memory/memory-invariants) | `memory` | — |
 | [`invariants`](../packages/runtime-diagnostics/invariants) | `runtime-diagnostics` | — |
 | [`sandbox-windows-acl`](../packages/sandbox/sandbox-windows-acl) | `sandbox` | — |
+| [`speaker-diarization`](../packages/speech/speaker-diarization) | `speech` | — |
 | [`text-to-speech`](../packages/speech/text-to-speech) | `speech` | — |
 | [`storage`](../packages/storage/storage) | `storage` | — |
 | [`win32-process`](../packages/subprocess/win32-process) | `subprocess` | — |
@@ -1808,6 +1817,7 @@ flowchart TD
 | [`anonymous-user-id`](../packages/identity/anonymous-user-id) | `identity` | [`brand`](../packages/util/brand), [`home-paths`](../packages/util/home-paths) |
 | [`lsp`](../packages/lsp/lsp) | `lsp` | [`brand`](../packages/util/brand), [`llm`](../packages/llm/llm) |
 | [`api-text-to-speech`](../packages/speech/api-text-to-speech) | `speech` | [`text-to-speech`](../packages/speech/text-to-speech), [`typert-protocol`](../packages/typert/protocol) |
+| [`recordings`](../packages/speech/recordings) | `speech` | [`file-sync`](../packages/sync/file-sync), [`sync`](../packages/sync/sync) |
 | [`text-to-speech-edge`](../packages/speech/text-to-speech-edge) | `speech` | [`text-to-speech`](../packages/speech/text-to-speech) |
 | [`storage-domain`](../packages/storage/storage-domain) | `storage` | [`invariants`](../packages/runtime-diagnostics/invariants), [`storage`](../packages/storage/storage) |
 | [`storage-json`](../packages/storage/storage-json) | `storage` | [`storage`](../packages/storage/storage) |
@@ -1905,7 +1915,7 @@ flowchart TD
 | [`working-directory`](../packages/session/working-directory) | `session` | [`agent`](../packages/core/agent), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection), [`system-prompt`](../packages/core/system-prompt), [`workspace`](../packages/workspace/workspace) |
 | [`bash-local`](../packages/shell/bash-local) | `shell` | [`settings`](../packages/settings/settings), [`shell`](../packages/shell/shell), [`subprocess`](../packages/subprocess/subprocess), [`timeout`](../packages/util/timeout) |
 | [`pwsh-local`](../packages/shell/pwsh-local) | `shell` | [`settings`](../packages/settings/settings), [`shell`](../packages/shell/shell), [`subprocess`](../packages/subprocess/subprocess), [`timeout`](../packages/util/timeout) |
-| [`api-speech-to-text`](../packages/speech/api-speech-to-text) | `speech` | [`speech-to-text`](../packages/speech/speech-to-text), [`typert-protocol`](../packages/typert/protocol) |
+| [`api-speech-to-text`](../packages/speech/api-speech-to-text) | `speech` | [`identity-user`](../packages/identity/user), [`speaker-diarization`](../packages/speech/speaker-diarization), [`speech-to-text`](../packages/speech/speech-to-text), [`typert-protocol`](../packages/typert/protocol) |
 | [`speech-to-text-aeven`](../packages/speech/speech-to-text-aeven) | `speech` | [`agent`](../packages/core/agent), [`credentials`](../packages/credentials/credentials), [`identity-user`](../packages/identity/user), [`speech-to-text`](../packages/speech/speech-to-text) |
 | [`speech-to-text-whisper`](../packages/speech/speech-to-text-whisper) | `speech` | [`speech-to-text`](../packages/speech/speech-to-text), [`subprocess`](../packages/subprocess/subprocess) |
 | [`terminal`](../packages/terminal/terminal) | `terminal` | [`agent`](../packages/core/agent), [`brand`](../packages/util/brand) |

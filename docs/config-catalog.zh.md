@@ -3605,6 +3605,22 @@ export type Config = LocalConfig
 
 来源：[`packages/shell/pwsh-sandbox/src/index.ts`](../packages/shell/pwsh-sandbox/src/index.ts)
 
+<a id="aevenrecordings"></a>
+
+## `@aeven/recordings`
+
+```ts config-catalog
+/** Storage settings. */
+export interface Config {
+  /** Absolute directory holding each account's recordings and audio. */
+  dataRoot: string
+  /** Largest audio file accepted for one recording, in bytes. */
+  maxAudioBytes: number
+}
+```
+
+来源：[`packages/speech/recordings/src/config.ts`](../packages/speech/recordings/src/config.ts)
+
 <a id="aevenrepeat-tool-reminder"></a>
 
 ## `@aeven/repeat-tool-reminder`
@@ -4412,6 +4428,36 @@ export interface Config {
 ```
 
 来源：[`packages/skill/skill-filesystem/src/index.ts`](../packages/skill/skill-filesystem/src/index.ts)
+
+<a id="aevenspeaker-diarization"></a>
+
+## `@aeven/speaker-diarization`
+
+```ts config-catalog
+/** Model location, inference, and segmentation settings. */
+export interface Config {
+  /** Absolute directory for the verified models. */
+  dataRoot: string
+  /** CPU threads for each model. */
+  threads: number
+  /**
+   * Clustering threshold inside one recording: stretches whose voices differ by less than this
+   * cosine distance join one speaker. Larger values yield fewer speakers; sherpa-onnx's 0.5 merged
+   * the moderator and a panellist of a four-person panel, 0.3 kept them apart.
+   */
+  clusteringThreshold: number
+  /** Shortest voiced stretch kept, in seconds. */
+  minDurationOn: number
+  /** Shortest pause that separates two stretches of one speaker, in seconds. */
+  minDurationOff: number
+  /** Shortest stretch given an embedding, in seconds; shorter ones join a neighbour. */
+  minEmbeddingSeconds: number
+  /** Minimum interval between download progress notifications. */
+  progressIntervalMs: number
+}
+```
+
+来源：[`packages/speech/speaker-diarization/src/config.ts`](../packages/speech/speaker-diarization/src/config.ts)
 
 <a id="aevenspeech-to-text"></a>
 
@@ -6708,6 +6754,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@aeven/client-ui-sidebar-browser` ([`packages/client/ui-sidebar-browser/src/index.ts`](../packages/client/ui-sidebar-browser/src/index.ts))
 - `@aeven/client-ui-sidebar-device` ([`packages/client/ui-sidebar-device/src/index.ts`](../packages/client/ui-sidebar-device/src/index.ts))
 - `@aeven/client-ui-sidebar-files` ([`packages/client/ui-sidebar-files/src/index.ts`](../packages/client/ui-sidebar-files/src/index.ts))
+- `@aeven/client-ui-sidebar-meeting` ([`packages/client/ui-sidebar-meeting/src/index.ts`](../packages/client/ui-sidebar-meeting/src/index.ts))
 - `@aeven/client-ui-sidebar-right` ([`packages/client/ui-sidebar-right/src/index.ts`](../packages/client/ui-sidebar-right/src/index.ts))
 - `@aeven/client-ui-sidebar-select` ([`packages/client/ui-sidebar-select/src/index.ts`](../packages/client/ui-sidebar-select/src/index.ts))
 - `@aeven/client-ui-sidebar-terminal` ([`packages/client/ui-sidebar-terminal/src/index.ts`](../packages/client/ui-sidebar-terminal/src/index.ts))

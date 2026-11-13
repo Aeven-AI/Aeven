@@ -239,6 +239,8 @@
     { "path": "./packages/speech/speech-to-text" },
     { "path": "./packages/speech/api-speech-to-text" },
     { "path": "./packages/speech/speech-to-text-whisper" },
+    { "path": "./packages/speech/speaker-diarization" },
+    { "path": "./packages/speech/recordings" },
     { "path": "./packages/speech/speech-to-text-aeven" },
     { "path": "./packages/speech/text-to-speech" },
     { "path": "./packages/speech/text-to-speech-edge" },

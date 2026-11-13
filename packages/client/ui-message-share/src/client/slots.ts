@@ -11,7 +11,7 @@ import type {} from '@aeven/client-ui-conversation/client'
 import type { MessageId } from '@aeven/api-remotes/client'
 import type {
   MessageShareCursor, MessageShareDeleteAllValue, MessageShareDeleteValue, MessageShareFailureCode,
-  MessageShareId, MessageShareLink, MessageShareListValue,
+  MessageShareId, MessageShareLink, MessageShareListValue, MessageSharePreview,
 } from '@aeven/host-message-share/types'
 // Type-only: pulls this package's LocaleNamespaceMap merge (the 'share' seat).
 import type {} from './locales.ts'
@@ -28,6 +28,11 @@ export interface MessageShareInjected {
    * @param messageId - the finalized assistant message.
    */
   share: (messageId: MessageId) => Promise<ShareOutcome<MessageShareLink>>
+  /**
+   * Draw the card the message's link will unfurl with; nothing is published.
+   * @param messageId - the finalized assistant message.
+   */
+  preview: (messageId: MessageId) => Promise<ShareOutcome<MessageSharePreview>>
   /**
    * Read one page of the signed-in account's links, newest first.
    * @param cursor - the previous page's cursor; absent for the first page.

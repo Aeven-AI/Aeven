@@ -1,5 +1,5 @@
 ---
-description: "Browser half of the desktop hand-off: the Available in Aeven Desktop dialog that a hosted web client opens instead of the Files, Browser, Terminal and Devices panes."
+description: "Browser half of the desktop hand-off: the Available in Aeven Desktop dialog that a hosted web client opens instead of the Files, Terminal, Recorder and Devices panes, and that the Browser entry asks for without the Aeven extension."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-On a Host that has no access to the reader's computer, the right sidebar's Files, Browser, Terminal and Devices entries stay where they are and open one dialog: "Available in Aeven Desktop", with a download link and an "Open in Aeven Desktop" action. A prompt the Host refuses because the conversation works in a folder of a device that is not running it raises the same dialog. The desktop app never mounts this package, because there those entries are real panes.
+On a Host that has no access to the reader's computer, the right sidebar's Files, Terminal, Recorder and Devices entries stay where they are and open one dialog: "Available in Aeven Desktop", with a download link and an "Open in Aeven Desktop" action. The Browser entry opens the reader's own browser through the Aeven extension and shows this dialog only when no extension is installed. A prompt the Host refuses because the conversation works in a folder of a device that is not running it raises the same dialog. The desktop app never mounts this package, because there those entries are real panes.
 
 ## Table of Contents
 
@@ -24,7 +24,7 @@ On a Host that has no access to the reader's computer, the right sidebar's Files
 <a id="use-this-package"></a>
 ## Use this package
 
-A web composition that gives sessions no machine of their own mounts it: the ui-sidebar-select entries for `files`, `browser`, `terminal`, and `device` register a dialog opener instead of a pane, and `shell.overlay` hosts the dialog. The download page comes from the deployment's own site; a deployment that names none offers no download and keeps the hand-off action alone.
+A web composition that gives sessions no machine of their own mounts it: the ui-sidebar-select entries for `files`, `terminal`, `meeting`, and `device` register a dialog opener instead of a pane, a `desktop-handoff/request` bail event opens the dialog for any other surface (ui-sidebar-browser asks it when no extension answers) and returns `true`, and `shell.overlay` hosts the dialog. The download page comes from the deployment's own site; a deployment that names none offers no download and keeps the hand-off action alone.
 
 ## Understand the implementation
 

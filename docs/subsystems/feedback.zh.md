@@ -280,6 +280,13 @@ Remote service behind the share button and the link manager. It reads persisted 
 @Remote('create') async create(request: MessageShareCreateRequest): Promise<MessageShareResult<MessageShareLink>>
 
 /**
+ * Draw the card the message's link unfurls with, before any link exists; nothing is stored.
+ * @param request - Session and message to preview.
+ * @returns the PNG, or why it was refused.
+ */
+@Remote('preview') async preview(request: MessageShareCreateRequest): Promise<MessageShareResult<MessageSharePreview>>
+
+/**
  * Read one page of the signed-in account's links, newest first.
  * @param request - the previous page's cursor, if any.
  * @returns the page, or why it was refused.

@@ -215,6 +215,20 @@
         warmOnActivation: true
         idleTimeoutMs: 0
 
+    # Speaker labels for the Recorder: splits the computer audio of a meeting by voice. Its
+    # models download when the Recorder opens, not at activation.
+    - id: speaker-diarization
+      name: '@aeven/speaker-diarization'
+      config:
+        dataRoot: !!js avnHomePath('speech-to-text', 'diarization')
+
+    # Saved Recorder recordings: transcripts per account, mirrored through account sync; audio
+    # files in a per-account folder that file sync shares with the account's devices.
+    - id: recordings
+      name: '@aeven/recordings'
+      config:
+        dataRoot: !!js avnHomePath('recordings')
+
     - id: api-speech-to-text
       name: '@aeven/api-speech-to-text'
 
@@ -597,6 +611,9 @@
 
     - id: ui-sidebar-terminal
       name: '@aeven/client-ui-sidebar-terminal'
+
+    - id: ui-sidebar-meeting
+      name: '@aeven/client-ui-sidebar-meeting'
 
     - id: ui-sidebar-device
       name: '@aeven/client-ui-sidebar-device'
