@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-sidebar-meeting",
   "description": "Right sidebar meeting recorder: transcribes the microphone and the computer's meeting audio phrase by phrase",
-  "version": "0.3.46-alpha",
+  "version": "0.3.47-alpha",
   "publishConfig": {
     "access": "public"
   },

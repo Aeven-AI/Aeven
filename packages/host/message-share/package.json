@@ -1,7 +1,7 @@
 {
   "name": "@aeven/host-message-share",
   "description": "Public links to shared assistant messages, stored by the Aeven API per signed-in account",
-  "version": "0.3.46-alpha",
+  "version": "0.3.47-alpha",
   "publishConfig": {
     "access": "public"
   },

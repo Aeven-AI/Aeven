@@ -1,7 +1,7 @@
 {
   "name": "@aeven/speaker-diarization",
   "description": "Local speaker diarization: splits recordings by voice with on-demand verified pyannote and WeSpeaker models through sherpa-onnx",
-  "version": "0.3.46-alpha",
+  "version": "0.3.47-alpha",
   "publishConfig": {
     "access": "public"
   },
