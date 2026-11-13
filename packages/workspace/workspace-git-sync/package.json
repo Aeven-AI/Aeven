@@ -1,7 +1,7 @@
 {
   "name": "@aeven/workspace-git-sync",
   "description": "Git Consumer for workspaces: repository workspaces follow the account to its other devices",
-  "version": "0.3.45-alpha",
+  "version": "0.3.46-alpha",
   "publishConfig": {
     "access": "public"
   },
