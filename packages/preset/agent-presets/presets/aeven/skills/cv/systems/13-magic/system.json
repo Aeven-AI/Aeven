@@ -1,0 +1,58 @@
+{
+  "id": "magic",
+  "name": "Magic",
+  "label": "Magic",
+  "motif": "Near-black page under a violet and blue aurora, gradient-ringed avatar, compact sections with coloured accents",
+  "type": {
+    "fonts": {
+      "text": "Inter",
+      "display": "Inter"
+    }
+  },
+  "palette": {
+    "page": "#0B0C10",
+    "ink": "#ECEDF2",
+    "text": "#B4B7C4",
+    "muted": "#7E8396",
+    "rule": "#22252E",
+    "accent": "#A98BFF",
+    "blue": "#4E8BFF",
+    "green": "#3FD6A4",
+    "orange": "#FF9F5A"
+  },
+  "sample": {
+    "name": "Isabel Duarte",
+    "role": "Product engineer",
+    "photo": {
+      "src": "model-h87DMujtHWU.jpg",
+      "alt": "Isabel Duarte",
+      "focus": [
+        40,
+        14
+      ],
+      "zoom": 1.9
+    },
+    "backdrop": {
+      "src": "model-h87DMujtHWU.jpg"
+    },
+    "profile": "Product engineer who designs and builds. Seven years of shipping web apps end to end: discovery, interface design, React, TypeScript and the analytics that prove it worked.",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "isabel@duarte.design"
+      },
+      {
+        "label": "Phone",
+        "value": "+44 20 7946 0321"
+      },
+      {
+        "label": "Location",
+        "value": "London, UK"
+      },
+      {
+        "label": "Website",
+        "value": "isabelduarte.com"
+      }
+    ]
+  }
+}

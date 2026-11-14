@@ -1,0 +1,55 @@
+{
+  "id": "resumate",
+  "name": "Resumate",
+  "label": "Resumate",
+  "motif": "White page with a black diagonal corner and a soft pink glow, blue name and section titles",
+  "type": {
+    "fonts": {
+      "text": "Inter",
+      "display": "Inter"
+    }
+  },
+  "palette": {
+    "page": "#FFFFFF",
+    "ink": "#111111",
+    "text": "#444444",
+    "muted": "#8E8E8E",
+    "rule": "#E8E8E8",
+    "accent": "#1659D6",
+    "chip": "#EAF0FC"
+  },
+  "sample": {
+    "name": "Adrian Novak",
+    "role": "Product designer",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "adrian@novak.com"
+      },
+      {
+        "label": "Phone",
+        "value": "+1 415 555 0142"
+      },
+      {
+        "label": "Location",
+        "value": "San Francisco, CA"
+      },
+      {
+        "label": "Website",
+        "value": "adriannovak.com"
+      }
+    ],
+    "photo": {
+      "src": "model-mzBfIKuNBxI.jpg",
+      "alt": "Adrian Novak",
+      "focus": [
+        48,
+        20
+      ],
+      "zoom": 2.2
+    },
+    "backdrop": {
+      "src": "model-mzBfIKuNBxI.jpg"
+    }
+  }
+}

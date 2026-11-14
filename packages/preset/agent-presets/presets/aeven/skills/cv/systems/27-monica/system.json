@@ -1,0 +1,55 @@
+{
+  "id": "monica",
+  "name": "Mónica",
+  "label": "Mónica",
+  "motif": "A sky blue top edge, name with a blue subtitle, round photo right, two columns with spaced caps labels",
+  "type": {
+    "fonts": {
+      "text": "Public Sans",
+      "display": "Public Sans"
+    }
+  },
+  "palette": {
+    "page": "#FFFFFF",
+    "ink": "#1A1A1A",
+    "text": "#454545",
+    "muted": "#8D8D8D",
+    "rule": "#E2E8EE",
+    "accent": "#1E88E5",
+    "chip": "#EAF3FC"
+  },
+  "sample": {
+    "name": "Mónica Fidalgo",
+    "role": "Frontend developer",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "mónica@fidalgo.com"
+      },
+      {
+        "label": "Phone",
+        "value": "+1 415 555 0142"
+      },
+      {
+        "label": "Location",
+        "value": "San Francisco, CA"
+      },
+      {
+        "label": "Website",
+        "value": "mónicafidalgo.com"
+      }
+    ],
+    "photo": {
+      "src": "model-O9PGFf7fDEI.jpg",
+      "alt": "Mónica Fidalgo",
+      "focus": [
+        42,
+        40
+      ],
+      "zoom": 1.8
+    },
+    "backdrop": {
+      "src": "model-O9PGFf7fDEI.jpg"
+    }
+  }
+}

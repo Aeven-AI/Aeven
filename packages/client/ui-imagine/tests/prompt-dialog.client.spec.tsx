@@ -25,10 +25,11 @@ import { ImaginePrompts } from '../src/client/ImaginePrompts.tsx'
 
 afterEach(cleanup)
 
-// jsdom implements neither preview-URL verb.
+// jsdom implements neither preview-URL verb, nor the scroll a template popup's strip makes.
 beforeEach(() => {
   URL.createObjectURL = vi.fn(() => `blob:staged-${String(Math.random()).slice(2)}`)
   URL.revokeObjectURL = vi.fn()
+  Element.prototype.scrollIntoView = vi.fn()
 })
 
 const EN_LOOK_LINES = IMAGINE_LOOKS.map(id => en[`create.look.${id}` as keyof typeof en])
@@ -271,15 +272,17 @@ describe('video starter popup', () => {
   })
 })
 
+type GridProps = Parameters<typeof ImaginePrompts>[0]
+
 describe('starter prompt grid', () => {
   /**
    * Mount the grid with the framework's session kit: the seats the grid never
    * reads carry the runtime's own empty snapshots.
    * @param actions - the composer input face.
+   * @param category - the Inspiration address's category.
    * @returns the render result.
    */
-  function mountGrid(actions: ReturnType<typeof inputFace>) {
-    type GridProps = Parameters<typeof ImaginePrompts>[0]
+  function mountGrid(actions: ReturnType<typeof inputFace>, category: GridProps['category'] = 'image-video') {
     // `useTrajectory` takes the selector itself, so its snapshot type comes
     // from the hook's own parameter list.
     const trajectory: Parameters<Parameters<GridProps['useTrajectory']>[0]>[0] = {
@@ -295,7 +298,7 @@ describe('starter prompt grid', () => {
     return render(
       <ImaginePrompts
         inputActions={actions}
-        category="image-video"
+        category={category}
         showCategory={() => {}}
         useSession={bindSnapshotSelector(source(sessionSnapshot(SID)))}
         sessionId={SID}
@@ -325,6 +328,15 @@ describe('starter prompt grid', () => {
     expect(cards[0]).toBe('Instagram original')
     expect(cards[1]).toBe('Instagram improve')
     expect(cards[2]).toBe('Aerial view')
+  })
+
+  it('shows the CV templates by their covers on the Resumes address and opens one', () => {
+    mountGrid(inputFace(), 'resumes')
+    const cards = screen.getAllByRole('button').filter(button => button.hasAttribute('data-template'))
+    expect(cards.map(card => card.dataset.template)).toEqual(['black', 'white', 'slate', 'fresh', 'classic', 'glow', 'forest', 'blobs', 'pulse', 'portfolio', 'sage', 'contrast', 'magic', 'gridfolio', 'tang', 'sunbeam', 'noirband', 'confetti', 'mintmist', 'serifbold', 'bluewash', 'minimalrule', 'supa', 'supa-dark', 'marina', 'judit', 'monica', 'sunny', 'javorkai', 'khalil', 'ember', 'harvard', 'kit', 'kit-dark', 'six', 'pills', 'aurora', 'aurora-dark', 'resumate', 'brix'])
+    expect(cards[0]?.querySelector('img')?.getAttribute('src')).toMatch(/cv-templates\/black\/page-01\.webp$/)
+    fireEvent.click(screen.getByRole('button', { name: 'White' }))
+    expect(screen.getByRole('dialog', { name: 'White' })).toBeTruthy()
   })
 
   it('opens the clicked card as a popup and closes it again', () => {

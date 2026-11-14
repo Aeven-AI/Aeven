@@ -1,0 +1,56 @@
+{
+  "id": "six",
+  "name": "Six",
+  "label": "Six",
+  "motif": "A pale blue side column and header, square photo, pink section titles in Work Sans",
+  "type": {
+    "fonts": {
+      "text": "Work Sans",
+      "display": "Work Sans"
+    }
+  },
+  "palette": {
+    "page": "#FFFFFF",
+    "side": "#EEF3FF",
+    "ink": "#18213A",
+    "text": "#465069",
+    "muted": "#8B93A8",
+    "rule": "#DCE4F7",
+    "accent": "#F2557A",
+    "chip": "#FFFFFF"
+  },
+  "sample": {
+    "name": "Rosa Bishop",
+    "role": "Strategy consultant",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "rosa@bishop.com"
+      },
+      {
+        "label": "Phone",
+        "value": "+1 415 555 0142"
+      },
+      {
+        "label": "Location",
+        "value": "San Francisco, CA"
+      },
+      {
+        "label": "Website",
+        "value": "rosabishop.com"
+      }
+    ],
+    "photo": {
+      "src": "model-K0DxxljcRv0.jpg",
+      "alt": "Rosa Bishop",
+      "focus": [
+        55,
+        20
+      ],
+      "zoom": 2.2
+    },
+    "backdrop": {
+      "src": "model-K0DxxljcRv0.jpg"
+    }
+  }
+}

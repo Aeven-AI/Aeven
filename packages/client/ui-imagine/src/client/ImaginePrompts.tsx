@@ -2,8 +2,9 @@
  * The Inspiration start page, shown in place of a blank chat's Hero while the address is `/inspiration`: category
  * pills over a grid of cards. `Image & video` cards are starter prompts with example images; choosing one opens its
  * popup, which previews what the prompt makes, and `Try it` there puts the message in the composer. `Slides` cards
- * are presentation templates; choosing one opens its slides, and `Use template` puts a request for a deck in that
- * template in the composer. Either message is edited and sent like any other.
+ * are presentation templates and `Resumes` cards are CV templates, shown by their full-page cover; choosing one
+ * opens its slides or pages, and `Use template` puts a request for a deck or a CV in that template in the composer.
+ * Every message is edited and sent like any other.
  */
 import { useCallback, useState } from 'react'
 import clsx from 'clsx'
@@ -13,9 +14,10 @@ import type {} from '@aeven/client-ui-conversation/client'
 import { IMAGINE_PROMPTS, promptClipUrl, promptImageUrl } from './prompts.ts'
 import type { ImaginePromptId } from './prompts.ts'
 import { PromptDialog } from './PromptDialog.tsx'
-import { SlideDialog } from './SlideDialog.tsx'
+import { TemplateDialog } from './TemplateDialog.tsx'
+import type { OpenTemplate } from './TemplateDialog.tsx'
 import { SLIDE_TEMPLATES, slideAssetUrl, slideFile } from './slides.ts'
-import type { SlideTemplateId } from './slides.ts'
+import { RESUME_TEMPLATES, resumeAssetUrl } from './resumes.ts'
 import { SketchCanvas } from './SketchCanvas.tsx'
 import type {} from './locales.ts'
 import { CATEGORIES } from './categories.ts'
@@ -31,7 +33,7 @@ import css from './ImaginePrompts.module.css'
 export function ImaginePrompts({ inputActions, category, showCategory, t }:
   PropsRuntime<'conversation.start'> & InspirationInjected & PropsLocale<'imagine'>) {
   const [open, setOpen] = useState<ImaginePromptId | null>(null)
-  const [openTemplate, setOpenTemplate] = useState<SlideTemplateId | null>(null)
+  const [openTemplate, setOpenTemplate] = useState<OpenTemplate | null>(null)
   const opened = IMAGINE_PROMPTS.find(prompt => prompt.id === open)
   return (
     <section className={css.root} aria-label={t('title')}>
@@ -60,24 +62,34 @@ export function ImaginePrompts({ inputActions, category, showCategory, t }:
         {category === 'slides' && (
           <div className={css.wideGrid} role="group" aria-label={t('slides.label')}>
             {SLIDE_TEMPLATES.map(({ id }) => (
-              <button
+              <TemplateCard
                 key={id}
-                type="button"
-                className={clsx(css.card, css.slideCard)}
-                data-template={id}
-                data-state="ready"
-                onClick={() => { setOpenTemplate(id) }}
-              >
-                <img className={css.image} src={slideAssetUrl(id, slideFile(0))} alt="" loading="lazy" />
-                <span className={css.shade} aria-hidden="true" />
-                <span className={css.title}>{t(`slides.${id}.title`)}</span>
-              </button>
+                id={id}
+                className={css.slideCard}
+                image={slideAssetUrl(id, slideFile(0))}
+                title={t(`slides.${id}.title`)}
+                onOpen={() => { setOpenTemplate({ kind: 'slides', id }) }}
+              />
+            ))}
+          </div>
+        )}
+        {category === 'resumes' && (
+          <div className={css.grid} role="group" aria-label={t('resumes.label')}>
+            {RESUME_TEMPLATES.map(({ id }) => (
+              <TemplateCard
+                key={id}
+                id={id}
+                className={css.docCard}
+                image={resumeAssetUrl(id, 0)}
+                title={t(`resumes.${id}.title`)}
+                onOpen={() => { setOpenTemplate({ kind: 'resumes', id }) }}
+              />
             ))}
           </div>
         )}
       </div>
       {openTemplate !== null && (
-        <SlideDialog key={openTemplate} id={openTemplate} inputActions={inputActions} t={t} onClose={() => { setOpenTemplate(null) }} />
+        <TemplateDialog key={`${openTemplate.kind}:${openTemplate.id}`} template={openTemplate} inputActions={inputActions} t={t} onClose={() => { setOpenTemplate(null) }} />
       )}
       {opened !== undefined && (opened.id === 'sketch'
         ? (
@@ -95,6 +107,27 @@ export function ImaginePrompts({ inputActions, category, showCategory, t }:
           />
         ))}
     </section>
+  )
+}
+
+/**
+ * One template card: its first slide or page as the picture, with the shade and the title over it.
+ * @param props - the template id, the card's shape class, the picture URL, the translated title, and the open handler.
+ * @returns the card button.
+ */
+function TemplateCard({ id, className, image, title, onOpen }: {
+  id: string
+  className: string | undefined
+  image: string
+  title: string
+  onOpen: () => void
+}) {
+  return (
+    <button type="button" className={clsx(css.card, className)} data-template={id} data-state="ready" onClick={onOpen}>
+      <img className={css.image} src={image} alt="" loading="lazy" />
+      <span className={css.shade} aria-hidden="true" />
+      <span className={css.title}>{title}</span>
+    </button>
   )
 }
 

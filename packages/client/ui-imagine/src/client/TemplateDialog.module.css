@@ -1,6 +1,9 @@
-/* The slide template popup, on the image prompt popup's shell: wider, because a
+/* The template popup, on the image prompt popup's shell: wider, because a
    16:9 slide needs the room, with the slide on show above a strip of every
-   slide on the stage's own surface, and the shell's reading column beside it. */
+   slide on the stage's own surface, and the shell's reading column beside it.
+   A document template (`.portrait`) shows A4 pages instead: the page on show as
+   tall as the card allows, centred, over a strip of page thumbnails that starts
+   at the stage's left edge. */
 
 .dialog[role='dialog'] {
   width: min(1180px, 100%);
@@ -140,6 +143,7 @@
   color: var(--dsw-alias-label-primary);
   font-family: var(--dsw-font-family);
   font-size: 0.875rem;
+  font-weight: 400;
   line-height: 1.375rem;
 }
 
@@ -154,7 +158,45 @@
   background: var(--dsw-alias-label-primary);
 }
 
+/* A4 pages: the card narrows to the page's width, and the page takes the
+   stage's height less the strip, never taller than the viewport leaves room for. */
+.portrait.dialog[role='dialog'] {
+  width: min(880px, 100%);
+}
+
+/* The view hugs the page, so the paging discs ride the page's own edges. */
+.portrait .view {
+  align-self: center;
+}
+
+.portrait .slide {
+  width: auto;
+  height: min(600px, calc(100vh - 230px));
+  height: min(600px, calc(100dvh - 230px));
+  aspect-ratio: 210 / 297;
+  border-radius: var(--dsw-aeven-radius-compact);
+}
+
+.portrait .strip {
+  max-width: 100%;
+}
+
+.portrait .thumb {
+  width: 58px;
+  border-radius: 8px;
+}
+
+.portrait .thumb img {
+  aspect-ratio: 210 / 297;
+}
+
 @media (max-width: 1024px) {
+  .portrait .slide {
+    width: 100%;
+    max-width: 420px;
+    height: auto;
+  }
+
   .stage {
     flex: none;
     width: 100%;

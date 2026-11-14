@@ -1,0 +1,482 @@
+[
+  {
+    "id": "black",
+    "name": "Black",
+    "pages": 4,
+    "source": {
+      "title": "Mee Resume / CV (Black + Green)",
+      "author": "ThemeZaa",
+      "url": "https://themezaa.com/html/resume/black/index.html",
+      "license": "Commercial theme; look recreated in A4 portrait from its 860px-wide demo, no source code or icons used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "white",
+    "name": "White",
+    "pages": 4,
+    "source": {
+      "title": "Mee Resume / CV (White + Yellow)",
+      "author": "ThemeZaa",
+      "url": "https://themezaa.com/html/resume/default/index.html",
+      "license": "Commercial theme; look recreated in A4 portrait from its 860px-wide demo, no source code or icons used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "slate",
+    "name": "Slate",
+    "pages": 4,
+    "source": {
+      "title": "Myour - Personal Portfolio (index-3)",
+      "author": "bslthemes",
+      "url": "https://bslthemes.com/html/myour/index-3.html",
+      "license": "Commercial theme; look recreated in A4 portrait from its 860px-wide demo, no source code, images or icons used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "fresh",
+    "name": "Fresh",
+    "pages": 4,
+    "source": {
+      "title": "Martyn - Personal Portfolio",
+      "author": "bestwebcreator",
+      "url": "https://bestwebcreator.com/martyn/demo/index.html",
+      "license": "Commercial theme; look recreated in A4 portrait from its 860px-wide demo, no source code, images or icons used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "classic",
+    "name": "Classic",
+    "pages": 1,
+    "source": {
+      "title": "CV / Resume",
+      "author": "Alexis Riols",
+      "url": "https://www.figma.com/community/file/777098881940669714/cv-resume",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "glow",
+    "name": "Glow",
+    "pages": 1,
+    "source": {
+      "title": "CV Resume Template",
+      "author": "Katerina Pavlova",
+      "url": "https://www.figma.com/community/file/1038830156550702424/cv-resume-template",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "forest",
+    "name": "Forest",
+    "pages": 1,
+    "source": {
+      "title": "Resume / CV Templates",
+      "author": "Lina",
+      "url": "https://www.figma.com/community/file/1192149966575904793/resume-cv-templates",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "blobs",
+    "name": "Blobs",
+    "pages": 1,
+    "source": {
+      "title": "Resume / CV Templates",
+      "author": "Lina",
+      "url": "https://www.figma.com/community/file/1192149966575904793/resume-cv-templates",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "pulse",
+    "name": "Pulse",
+    "pages": 1,
+    "source": {
+      "title": "CV/Resume",
+      "author": "Jay Patel",
+      "url": "https://www.figma.com/community/file/899543856243565036/cv-resume",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "portfolio",
+    "name": "Portfolio",
+    "pages": 2,
+    "source": {
+      "title": "Personal Portfolio / CV",
+      "author": "UXM",
+      "url": "https://www.figma.com/community/file/1094170020258746178/personal-portfolio-cv",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "sage",
+    "name": "Sage",
+    "pages": 1,
+    "source": {
+      "title": "Product & UX Designer Resume / CV Template",
+      "author": "Pixelzudio",
+      "url": "https://www.figma.com/community/file/1189604617428645284/product-ux-designer-resume-cv-template",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "contrast",
+    "name": "Contrast",
+    "pages": 1,
+    "source": {
+      "title": "CV/Resume",
+      "author": "Israel Betolaza",
+      "url": "https://www.figma.com/community/file/1171789762535203346/cv-resume",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "magic",
+    "name": "Magic",
+    "pages": 2,
+    "source": {
+      "title": "Magic Resume",
+      "author": "Once UI",
+      "url": "https://www.figma.com/community/file/1240600748959677289/magic-resume",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "gridfolio",
+    "name": "Gridfolio",
+    "pages": 1,
+    "source": {
+      "title": "Designer Resume Template - Gridfolio",
+      "author": "Matteo Tiscia",
+      "url": "https://www.figma.com/community/file/1139197487161678576/designer-resume-template-gridfolio",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "tang",
+    "name": "Tang",
+    "pages": 1,
+    "source": {
+      "title": "Resume / CV Templates",
+      "author": "Lina",
+      "url": "https://www.figma.com/community/file/1192149966575904793/resume-cv-templates",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used.",
+      "recreated": true
+    }
+  },
+  {
+    "id": "sunbeam",
+    "name": "Sunbeam",
+    "pages": 1,
+    "source": {
+      "title": "Resume / CV Templates",
+      "author": "Lina",
+      "url": "https://www.figma.com/community/file/1192149966575904793/resume-cv-templates",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "noirband",
+    "name": "Noir Band",
+    "pages": 1,
+    "source": {
+      "title": "Resume / CV Templates",
+      "author": "Lina",
+      "url": "https://www.figma.com/community/file/1192149966575904793/resume-cv-templates",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "confetti",
+    "name": "Confetti",
+    "pages": 1,
+    "source": {
+      "title": "Resume / CV Templates",
+      "author": "Lina",
+      "url": "https://www.figma.com/community/file/1192149966575904793/resume-cv-templates",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "mintmist",
+    "name": "Mint Mist",
+    "pages": 1,
+    "source": {
+      "title": "Resume / CV Templates",
+      "author": "Lina",
+      "url": "https://www.figma.com/community/file/1192149966575904793/resume-cv-templates",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "serifbold",
+    "name": "Serif Bold",
+    "pages": 1,
+    "source": {
+      "title": "Resume / CV Templates",
+      "author": "Lina",
+      "url": "https://www.figma.com/community/file/1192149966575904793/resume-cv-templates",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "bluewash",
+    "name": "Bluewash",
+    "pages": 1,
+    "source": {
+      "title": "Resume / CV Templates",
+      "author": "Lina",
+      "url": "https://www.figma.com/community/file/1192149966575904793/resume-cv-templates",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "minimalrule",
+    "name": "Minimal Rule",
+    "pages": 1,
+    "source": {
+      "title": "Resume / CV Templates",
+      "author": "Lina",
+      "url": "https://www.figma.com/community/file/1192149966575904793/resume-cv-templates",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "supa",
+    "name": "Supa",
+    "pages": 1,
+    "source": {
+      "title": "Supa Resume - Light & Dark",
+      "author": "Angelo Libero",
+      "url": "https://www.figma.com/community/file/1087586245868299560/supa-resume-light-dark-free-resume-cover-letter",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "supa-dark",
+    "name": "Supa Dark",
+    "pages": 1,
+    "source": {
+      "title": "Supa Resume - Light & Dark",
+      "author": "Angelo Libero",
+      "url": "https://www.figma.com/community/file/1087586245868299560/supa-resume-light-dark-free-resume-cover-letter",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "marina",
+    "name": "Marina",
+    "pages": 1,
+    "source": {
+      "title": "Minimal CV/Resume template 1.0",
+      "author": "Marina",
+      "url": "https://www.figma.com/community/file/907237845110590280/minimal-cv-resume-template-1-0",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "judit",
+    "name": "Judit",
+    "pages": 1,
+    "source": {
+      "title": "CV / Resume Template",
+      "author": "Judit Salvadó",
+      "url": "https://www.figma.com/community/file/1123602820717532705/cv-resume-template",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "monica",
+    "name": "Mónica",
+    "pages": 1,
+    "source": {
+      "title": "CV / Resume Figma Template (Community)",
+      "author": "Mónica Fidalgo",
+      "url": "https://www.figma.com/community/file/876214527596969260/cv-resume-figma-template-community",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "sunny",
+    "name": "Sunny",
+    "pages": 1,
+    "source": {
+      "title": "Resume CV Templates",
+      "author": "Yoka leis",
+      "url": "https://www.figma.com/community/file/1194389727707775645/resume-cv-templates",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "javorkai",
+    "name": "Javorkai",
+    "pages": 1,
+    "source": {
+      "title": "Resume & Cover Letter template",
+      "author": "Peter Javorkai",
+      "url": "https://www.figma.com/community/file/1049307684214458394/resume-cover-letter-template",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "khalil",
+    "name": "Khalil",
+    "pages": 1,
+    "source": {
+      "title": "Modern & Clean Resume | CV Templates",
+      "author": "Khalil Boukhelifa",
+      "url": "https://www.figma.com/community/file/1132671773718221598/modern-clean-resume-cv-templates",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "ember",
+    "name": "Ember",
+    "pages": 1,
+    "source": {
+      "title": "Modern & Clean Resume | CV Templates",
+      "author": "Khalil Boukhelifa",
+      "url": "https://www.figma.com/community/file/1132671773718221598/modern-clean-resume-cv-templates",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "harvard",
+    "name": "Harvard",
+    "pages": 1,
+    "source": {
+      "title": "Harvard Academic Resume / CV Template",
+      "author": "Figma Community",
+      "url": "https://www.figma.com/community/file/1172467077629713518/harvard-academic-resume-cv-template",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used.",
+      "recreated": true
+    }
+  },
+  {
+    "id": "kit",
+    "name": "Kit",
+    "pages": 1,
+    "source": {
+      "title": "UI/UX Designer Resume / CV Kit",
+      "author": "Figma Community",
+      "url": "https://www.figma.com/community/file/1188159625319365219/ui-ux-designer-resume-cv-kit",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "kit-dark",
+    "name": "Kit Dark",
+    "pages": 1,
+    "source": {
+      "title": "UI/UX Designer Resume / CV Kit",
+      "author": "Figma Community",
+      "url": "https://www.figma.com/community/file/1188159625319365219/ui-ux-designer-resume-cv-kit",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "six",
+    "name": "Six",
+    "pages": 1,
+    "source": {
+      "title": "6 Free Resume Templates",
+      "author": "Figma Community",
+      "url": "https://www.figma.com/community/file/1069394236673096165/6-free-resume-templates",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "pills",
+    "name": "Pills",
+    "pages": 2,
+    "source": {
+      "title": "+60 Resume/CV Templates",
+      "author": "Figma Community",
+      "url": "https://www.figma.com/community/file/1072305753916464707/60-resume-cv-templates",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "aurora",
+    "name": "Aurora",
+    "pages": 1,
+    "source": {
+      "title": "Resume",
+      "author": "Enji Kusnadi",
+      "url": "https://www.figma.com/community/file/1176377524040948926/resume",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "aurora-dark",
+    "name": "Aurora Dark",
+    "pages": 1,
+    "source": {
+      "title": "Resume",
+      "author": "Enji Kusnadi",
+      "url": "https://www.figma.com/community/file/1176377524040948926/resume",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "resumate",
+    "name": "Resumate",
+    "pages": 1,
+    "source": {
+      "title": "Resumate - FREE Resume/CV Template Pack",
+      "author": "Reyhan Tamang",
+      "url": "https://www.figma.com/community/file/1209133950580907495/resumate-free-resume-cv-template-pack",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  },
+  {
+    "id": "brix",
+    "name": "Brix",
+    "pages": 1,
+    "source": {
+      "title": "CV / Resume Templates | BRIX Templates",
+      "author": "BRIX Templates",
+      "url": "https://www.figma.com/community/file/1165361339932654476/cv-resume-templates-brix-templates",
+      "license": "CC BY 4.0 (Figma Community); look recreated in HTML, no Figma assets used. Sample photo from Unsplash (Unsplash License).",
+      "recreated": true
+    }
+  }
+]

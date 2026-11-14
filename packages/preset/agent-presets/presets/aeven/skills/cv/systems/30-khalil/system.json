@@ -1,0 +1,57 @@
+{
+  "id": "khalil",
+  "name": "Khalil",
+  "label": "Khalil",
+  "motif": "Charcoal page with yellow accents, a ringed round photo and a soft side card",
+  "type": {
+    "fonts": {
+      "text": "Poppins",
+      "display": "Poppins"
+    }
+  },
+  "palette": {
+    "page": "#232428",
+    "side": "#2C2D33",
+    "ink": "#F4F4F5",
+    "text": "#C4C5CC",
+    "muted": "#8D8E96",
+    "rule": "#3A3B42",
+    "accent": "#F7C948",
+    "accentText": "#F7C948",
+    "chip": "#33343B"
+  },
+  "sample": {
+    "name": "James Carter",
+    "role": "Brand designer",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "james@carter.com"
+      },
+      {
+        "label": "Phone",
+        "value": "+1 415 555 0142"
+      },
+      {
+        "label": "Location",
+        "value": "San Francisco, CA"
+      },
+      {
+        "label": "Website",
+        "value": "jamescarter.com"
+      }
+    ],
+    "photo": {
+      "src": "model-AjJsc0hk9s0.jpg",
+      "alt": "James Carter",
+      "focus": [
+        47,
+        26
+      ],
+      "zoom": 1.8
+    },
+    "backdrop": {
+      "src": "model-AjJsc0hk9s0.jpg"
+    }
+  }
+}

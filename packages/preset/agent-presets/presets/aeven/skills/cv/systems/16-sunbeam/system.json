@@ -1,0 +1,56 @@
+{
+  "id": "sunbeam",
+  "name": "Sunbeam",
+  "label": "Sunbeam",
+  "motif": "White page, photo and name top left, a sunny yellow-to-blue gradient side column on the right",
+  "type": {
+    "fonts": {
+      "text": "Inter",
+      "display": "Inter"
+    }
+  },
+  "palette": {
+    "page": "#FFFFFF",
+    "ink": "#161616",
+    "text": "#444444",
+    "muted": "#8F8F8F",
+    "rule": "#E7E7E7",
+    "accent": "#161616",
+    "sun": "#FFF29A",
+    "sky": "#DCE8FF"
+  },
+  "sample": {
+    "name": "Lucy Hart",
+    "role": "Product designer",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "lucy@hart.com"
+      },
+      {
+        "label": "Phone",
+        "value": "+1 415 555 0142"
+      },
+      {
+        "label": "Location",
+        "value": "San Francisco, CA"
+      },
+      {
+        "label": "Website",
+        "value": "lucyhart.com"
+      }
+    ],
+    "photo": {
+      "src": "model-OuDFVFSu4Vo.jpg",
+      "alt": "Lucy Hart",
+      "focus": [
+        52,
+        28
+      ],
+      "zoom": 2.2
+    },
+    "backdrop": {
+      "src": "model-OuDFVFSu4Vo.jpg"
+    }
+  }
+}

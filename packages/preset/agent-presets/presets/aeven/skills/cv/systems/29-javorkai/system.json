@@ -1,0 +1,55 @@
+{
+  "id": "javorkai",
+  "name": "Javorkai",
+  "label": "Javorkai",
+  "motif": "Swiss A4: a large name, a square photo, section labels running up the margin, dates in their own column",
+  "type": {
+    "fonts": {
+      "text": "Inter Tight",
+      "display": "Inter Tight"
+    }
+  },
+  "palette": {
+    "page": "#FFFFFF",
+    "ink": "#0E0E0E",
+    "text": "#3E3E3E",
+    "muted": "#8F8F8F",
+    "rule": "#E4E4E4",
+    "accent": "#0E0E0E",
+    "chip": "#F1F1F1"
+  },
+  "sample": {
+    "name": "Daniel Fischer",
+    "role": "Product designer",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "daniel@fischer.com"
+      },
+      {
+        "label": "Phone",
+        "value": "+1 415 555 0142"
+      },
+      {
+        "label": "Location",
+        "value": "San Francisco, CA"
+      },
+      {
+        "label": "Website",
+        "value": "danielfischer.com"
+      }
+    ],
+    "photo": {
+      "src": "model-_6p3N5NTXy8.jpg",
+      "alt": "Daniel Fischer",
+      "focus": [
+        45,
+        14
+      ],
+      "zoom": 2.4
+    },
+    "backdrop": {
+      "src": "model-_6p3N5NTXy8.jpg"
+    }
+  }
+}
