@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@aeven/tool-mail` gives the model five tools over `ctx.mail`: `mail_accounts`, `mail_search`, `mail_read`, `mail_update`, and `mail_send`. The tools register for an agent only while its session owner has at least one usable mail account, checked before every step, and every call names its account by address, so one tool set serves any number of mailboxes. Sending and permanent deletion always ask the user for approval; a deny from another policy still wins.
+`@aeven/tool-mail` gives the model five tools over `ctx.mail`: `mail_accounts`, `mail_search`, `mail_read`, `mail_update`, and `mail_send`. The tools register for an agent only while its session owner has at least one usable mail account, checked before every step, and every call names its account by address, so one tool set serves any number of mailboxes. Sending and permanent deletion always ask the user for approval; a send approval may cover the rest of the session for that account, and a deny from another policy still wins.
 
 ## Table of Contents
 
@@ -40,7 +40,7 @@ Mount it per session where `ctx.mail` exists; the aeven agent preset does.
 | `mail_search` | Envelopes only, newest first; `account` omitted searches every account and reports per-account failures. |
 | `mail_read` | Headers, plain-text body, and attachment list; `saveAttachments` writes attachments inside the session workspace without replacing files. Reading does not mark the message read. |
 | `mail_update` | read, unread, flag, unflag, move, archive, trash, or delete; `delete` asks for approval. |
-| `mail_send` | Send, reply (`replyTo`), or `draft: true`; every send asks for approval. |
+| `mail_send` | Send, reply (`replyTo`), or `draft: true`; a send asks for approval unless the user allowed sending from that account for the session. |
 
 ## Model Experience
 

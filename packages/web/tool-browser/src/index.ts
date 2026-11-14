@@ -23,7 +23,7 @@ import type { ImageAttachmentRef } from '@aeven/attachment'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { Agent, PreStepDecision } from '@aeven/agent'
-import type { BrowserChromiumStatus } from '@aeven/browser-chromium'
+import { isLocalHost, isSendControl, isSendKey, isSendScript, pageSite, sendApproval, type BrowserChromiumStatus, type PageSite } from '@aeven/browser-chromium'
 import type { McpServerReport } from '@aeven/mcp-client'
 import { createUserMessage, HarnessError } from '@aeven/llm'
 import type { Message } from '@aeven/llm'
@@ -86,24 +86,13 @@ function isCancelled(signal: AbortSignal): boolean {
 }
 
 /**
- * Whether an address is served from this machine, which makes it a page under
- * development rather than a site the user asked to see.
- * @param hostname - the host as `URL.hostname` reports it, bracketed for IPv6.
- * @returns true for `localhost`, its subdomains, the IPv6 loopback, the wildcard address, and any loopback IPv4 address.
- */
-function isDevelopmentHost(hostname: string): boolean {
-  const host = hostname.toLowerCase()
-  return host === 'localhost' || host.endsWith('.localhost') || host === '[::1]' || host === '0.0.0.0' || /^127\.\d+\.\d+\.\d+$/.test(host)
-}
-
-/**
  * Whether a call's address is a page served from this machine.
  * @param url - the address a call navigates to or uploads into.
- * @returns {@link isDevelopmentHost} of its host, or false when no URL parser accepts the string, which only the pane's guest reads.
+ * @returns {@link isLocalHost} of its host, or false when no URL parser accepts the string, which only the pane's guest reads.
  */
 function isDevelopmentAddress(url: string): boolean {
   try {
-    return isDevelopmentHost(new URL(url).hostname)
+    return isLocalHost(new URL(url).hostname)
   } catch {
     // A non-absolute address such as `about:blank` reaches no server, so no Host browser competes for it.
     return false
@@ -381,7 +370,7 @@ export function apply(ctx: Context, config: Config): void {
     const url = new URL(page.url)
     const paths = input.paths
     if (!Array.isArray(paths) || paths.length === 0 || !paths.every(path => typeof path === 'string')) throw new HarnessError('upload requires file paths', 'BROWSER_UPLOAD_PATHS')
-    if (!isDevelopmentHost(url.hostname)) {
+    if (!isLocalHost(url.hostname)) {
       const approval = ctx.get('approval')
       if (approval === undefined) throw new HarnessError('upload requires user approval', 'BROWSER_UPLOAD_APPROVAL_UNAVAILABLE')
       const outcome = await approval.request({
@@ -441,6 +430,101 @@ export function apply(ctx: Context, config: Config): void {
       reason: 'Read the text on your clipboard', allowSession: 'clipboard-read',
     })
     if (outcome !== 'allowed-once') throw new HarnessError('reading the clipboard was not approved', 'BROWSER_CLIPBOARD_DENIED')
+  }
+
+  /**
+   * Describe the control a click lands on, from its opening tag and text.
+   * @param target - the click's `selector`, `token`, and `frame`.
+   * @param exec - the running tool call.
+   * @returns the action to approve when the control publishes, `null` when it does not, or undefined when it cannot be read.
+   */
+  const sendClick = async (target: { [key: string]: JsonValue }, exec: ToolRunContext): Promise<string | null | undefined> => {
+    const read = await run('read', {
+      property: 'html',
+      ...typeof target.selector === 'string' ? { selector: target.selector } : {},
+      ...typeof target.token === 'string' ? { token: target.token } : {},
+      ...typeof target.frame === 'string' ? { frame: target.frame } : {},
+    }, exec).catch(() => undefined)
+    const html = typeof read === 'object' && read !== null && !Array.isArray(read) && typeof read.value === 'string' ? read.value : undefined
+    if (html === undefined) return undefined
+    const open = /^<([a-z][\w-]*)([^>]*)>/i.exec(html)
+    const attribute = (name: string) => open?.[2] === undefined ? undefined : new RegExp(`\\s${name}\\s*=\\s*"([^"]*)"`, 'i').exec(open[2])?.[1]
+    const tag = open?.[1]?.toLowerCase() ?? ''
+    const type = attribute('type')?.toLowerCase()
+    const role = attribute('role') ?? (tag === 'button' || (tag === 'input' && (type === 'submit' || type === 'button')) ? 'button' : tag)
+    const label = (attribute('aria-label') ?? (tag === 'input' ? attribute('value') : undefined) ?? html.replace(/<[^>]*>/g, ' ')).replace(/\s+/g, ' ').trim()
+    if (type === 'submit' && (tag === 'button' || tag === 'input')) return `Click the submit button "${label.slice(0, 80)}"`
+    return isSendControl(role, label) ? `Click "${label.slice(0, 80)}"` : null
+  }
+
+  /**
+   * Name the send-like part of one preview call: a click on a publishing control or
+   * an unreadable target, Enter without Shift, sequential typing with a line break,
+   * or a page script that may publish.
+   * @param operation - the automation operation.
+   * @param input - its arguments.
+   * @param exec - the running tool call.
+   * @returns the action to approve, or undefined when nothing in the call sends.
+   */
+  const sendAction = async (
+    operation: BrowserAutomationOperation,
+    input: { [key: string]: JsonValue },
+    exec: ToolRunContext,
+  ): Promise<string | undefined> => {
+    const modifiers = (value: JsonValue | undefined) => Array.isArray(value) ? value.filter(item => typeof item === 'string') : []
+    const step = async (op: string, values: { [key: string]: JsonValue }): Promise<string | undefined> => {
+      switch (op) {
+        case 'click': {
+          if (typeof values.selector !== 'string' && typeof values.token !== 'string') return 'Click a point on the page'
+          const click = await sendClick(values, exec)
+          return click === undefined ? 'Click an element' : click ?? undefined
+        }
+        case 'press':
+          return typeof values.key === 'string' && isSendKey(values.key, modifiers(values.modifiers)) ? `Press ${values.key}` : undefined
+        case 'type':
+          return values.sequential === true && typeof values.text === 'string' && values.text.includes('\n') ? 'Type text with line breaks' : undefined
+        case 'evaluate':
+          return typeof values.expression === 'string' && isSendScript(values.expression) ? 'Run a script that clicks or submits in the page' : undefined
+        default:
+          return undefined
+      }
+    }
+    if (operation !== 'sequence') return await step(operation, input)
+    for (const action of Array.isArray(input.actions) ? input.actions : []) {
+      if (typeof action !== 'object' || action === null || Array.isArray(action) || typeof action.operation !== 'string') continue
+      const found = await step(action.operation, action)
+      if (found !== undefined) return found
+    }
+    return undefined
+  }
+
+  /**
+   * Require the person's approval before a preview call sends or posts on a
+   * website; an approval for the session covers every send-like browser action
+   * on that site. Pages on this machine never ask.
+   * @param operation - the automation operation.
+   * @param input - its arguments.
+   * @param exec - the running tool call.
+   * @throws {HarnessError} when approval is unavailable or refused.
+   */
+  const approveSend = async (
+    operation: BrowserAutomationOperation,
+    input: { [key: string]: JsonValue },
+    exec: ToolRunContext,
+  ): Promise<void> => {
+    if (!['click', 'press', 'type', 'evaluate', 'sequence'].includes(operation)) return
+    const page = await run('status', {}, exec)
+    const site: PageSite = pageSite(typeof page === 'object' && page !== null && !Array.isArray(page) && typeof page.url === 'string' ? page.url : undefined)
+    if (site.kind === 'local') return
+    const action = await sendAction(operation, input, exec)
+    if (action === undefined) return
+    const approval = ctx.get('approval')
+    if (approval === undefined) throw new HarnessError('sending on a website requires user approval', 'BROWSER_SEND_APPROVAL_UNAVAILABLE')
+    const outcome = await approval.request({
+      agent: callingAgent(exec), toolName: exec.name, callId: exec.callId, signal: exec.signal,
+      ...sendApproval(site, action),
+    })
+    if (outcome !== 'allowed-once') throw new HarnessError('The user did not approve this action, so nothing was sent. Do not send it another way; ask the user what to change.', 'BROWSER_SEND_DENIED')
   }
 
   /**
@@ -588,6 +672,7 @@ export function apply(ctx: Context, config: Config): void {
           )
         }
       }
+      await approveSend(operation, input, exec)
       if (operation === 'upload') input = await uploadInput(input, exec)
       if (operation === 'clipboard' && input.action === 'read') await approveClipboardRead(exec)
       if (operation === 'history') {

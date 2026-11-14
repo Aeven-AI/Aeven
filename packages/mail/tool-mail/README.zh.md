@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`@aeven/tool-mail` 在 `ctx.mail` 之上给模型五个工具：`mail_accounts`、`mail_search`、`mail_read`、`mail_update` 与 `mail_send`。这些工具只在会话所有者至少有一个可用邮件账户时为一个 agent 注册，并在每个步骤之前检查；每次调用都按地址点名自己的账户，因此一套工具服务任意数量的邮箱。发送与永久删除始终请求用户审批；来自其他策略的拒绝仍然优先。
+`@aeven/tool-mail` 在 `ctx.mail` 之上给模型五个工具：`mail_accounts`、`mail_search`、`mail_read`、`mail_update` 与 `mail_send`。这些工具只在会话所有者至少有一个可用邮件账户时为一个 agent 注册，并在每个步骤之前检查；每次调用都按地址点名自己的账户，因此一套工具服务任意数量的邮箱。发送与永久删除始终请求用户审批；发送审批可覆盖该账户在本会话的剩余部分；来自其他策略的拒绝仍然优先。
 
 ## 目录
 
@@ -42,7 +42,7 @@ kind: "package-reference"
 | `mail_search` | 只返回信封，最新在前；省略 `account` 会搜索每个账户并报告按账户的失败。 |
 | `mail_read` | 头部、纯文本正文与附件清单；`saveAttachments` 把附件写入会话工作区内，且不覆盖已有文件。读取不会把邮件标为已读。 |
 | `mail_update` | read、unread、flag、unflag、move、archive、trash 或 delete；`delete` 请求审批。 |
-| `mail_send` | 发送、回复（`replyTo`）或 `draft: true`；每次发送都请求审批。 |
+| `mail_send` | 发送、回复（`replyTo`）或 `draft: true`；除非用户已允许该账户在本会话内发送，否则每次发送都请求审批。 |
 
 <a id="model-experience"></a>
 ## 模型体验

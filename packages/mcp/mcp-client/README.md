@@ -62,7 +62,7 @@ Add one entry per server; nothing else is required. After the harness starts, th
 | `url` / `headers` | — | streamable-http: endpoint URL and extra request headers |
 | `toolCallTimeoutMs` | `60,000` | Timeout per `tools/call` invocation |
 | `resultNotes` | none | A note appended to a successful result, by raw tool name; `{arg}` and `{arg\|fallback}` are filled from the call's arguments, so a result covering only the range it was asked for says which range |
-| `fillByTyping` | `false` | chrome-devtools-mcp only: `fill` / `fill_form` text values of 100+ characters, which its fill assigns directly and framework-controlled fields drop on the next render, are sent as `click`, select-all `press_key` and `type_text`; shorter values keep the single fill call |
+| `fillByTyping` | `false` | chrome-devtools-mcp only: `fill` / `fill_form` text values of 100+ characters, which its fill assigns directly and framework-controlled fields drop on the next render, and values with a line break, which its fill types with a plain Enter that sends or submits, are sent as `click`, select-all `press_key` and `type_text` per line with `Shift+Enter` between lines; other values keep the single fill call |
 | `failOnStartupError` | `false` | Reject plugin activation when the initial connection or tool synchronization fails |
 | `awaitStartup` | `true` | Wait for initial discovery; false activates before tools arrive and requires `failOnStartupError: false` |
 | `reconnect.enabled` | `true` | Reconnect automatically after a lost connection |

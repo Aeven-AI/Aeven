@@ -45,8 +45,8 @@ type ApprovalAnswer = ApprovalOutcome | 'allowed-session'
  * - `'ask'` (the default) — delegate to the composed answerers; with none
  *   composed the chain falls through to the fail-closed `'unavailable'`.
  * - `'never'` — every ask resolves `'rejected'` deterministically, except an
- *   ask with `allowSessionCoverage: 'account'` (an action on the user's
- *   connected account that other people see), which still goes to the
+ *   ask with `allowSessionCoverage: 'account'` or `'site'` (an action on the
+ *   user's connected account, or a send on a website, that other people see), which still goes to the
  *   answerers unless the override is a `'delegation'` pin. The strict
  *   headless stance (CI, unattended runs).
  */
@@ -90,7 +90,7 @@ interface ApprovalRequest extends ApprovalRequestEvent {
 }
 ```
 
-An answerer may return `allowed-session` only when the request offers an `allowSession` account-and-operation identifier. The service commits that scope and original session id in `approval/decided`, then returns `allowed-once` to the caller. Later requests with the same tool and scope in that session reuse the grant; forks do not inherit it. The requester declares what the grant covers with `allowSessionCoverage` — `'account'` for a connector operation that may reach other recipients and content, `'sandbox'` for a sandbox escalation any later call may reuse, `'action'` for the same action repeated — so the prompt explains the grant in the requester's own terms. The `never` policy and cancellation take precedence over stored grants.
+An answerer may return `allowed-session` only when the request offers an `allowSession` account-and-operation identifier. The service commits that scope and original session id in `approval/decided`, then returns `allowed-once` to the caller. Later requests with the same tool and scope in that session reuse the grant; forks do not inherit it. The requester declares what the grant covers with `allowSessionCoverage` — `'account'` for a connector operation that may reach other recipients and content, `'site'` for every send-like browser action on one website, matched on scope alone so it covers every browser tool, `'sandbox'` for a sandbox escalation any later call may reuse, `'action'` for the same action repeated — so the prompt explains the grant in the requester's own terms. The `never` policy and cancellation take precedence over stored grants.
 
 ## Dispatch and audit
 

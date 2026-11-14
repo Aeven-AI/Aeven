@@ -47,7 +47,7 @@ Discord 子进程即 [native/discord-mcp](../../../native/discord-mcp/README.zh.
 
 Slack 每个工作区各占一行连接器，而且与各代理提供方不同，它不需要 Aeven API 上的应用：Slack 的 PKCE 客户端是公开客户端，因此登录在本宿主上运行，部署所配置的唯一 Slack 值就是应用的公开客户端 id。`authorize('slack')` 绑定所配置的回环端口、返回供设置页面打开的授权 URL，并在浏览器带回授权码时完成登录：兑换只发送 `code_verifier`、不带客户端密钥，Slack 自身的令牌测试则给出该行记录的团队与账户。连接器 id 由账户与 team id 派生，因此重新连接后工具名称保持不变；`maxSlackWorkspaces` 限制行数；该行以存储的用户令牌作为 bearer，通过 Streamable HTTP 挂载 [Slack 的 MCP 服务器](https://docs.slack.dev/ai/slack-mcp-server/)。所请求的作用域是工作区界面——搜索公开与私有频道、文件与人员，读取频道、消息串、用户资料与频道成员，以及这些工具所需的写入——`slackDirectMessages` 另加私信搜索与历史，后者也必须注册在应用上。读取直接运行；名称读起来不像读取的调用先征求批准，并以读者身份而非机器人身份发布。`probeSlackToken` 最多每个 `slackVerifyIntervalMs` 就存储的令牌询问 Slack 一次，使被撤销的登录不再声称已连接；断开连接会在 Slack 侧撤销该令牌。
 
-读取 WhatsApp、Telegram、Discord 或 Slack 内容——消息文本、文件名、成员列表——对模型而言都是他人的数据。仅读取账户的工具直接执行；发送、编辑、删除、转发、回应、置顶、静音、标记已读、定时发送、正在输入提示、骰子、投票以及所有群组变更都会先征求用户批准。在 Discord 中，发送、回复、回应、上传文件和创建主题需要批准，每项管理与审核调用都单独请求批准并说明具体变更。
+读取 WhatsApp、Telegram、Discord 或 Slack 内容——消息文本、文件名、成员列表——对模型而言都是他人的数据。仅读取账户的工具直接执行；发送、编辑、删除、转发、回应、置顶、静音、标记已读、定时发送、正在输入提示、骰子、投票以及所有群组变更都会先征求用户批准。在 Discord 中，发送、回复、回应、上传文件和创建主题需要批准，每项管理与审核调用都单独请求批准并说明具体变更。GitHub 和自定义 MCP 连接器没有自己的只读清单：名称表示读取的工具（`get_*`、`list_*`、`search_*`、`*_read`）直接执行，其他所有工具（例如创建或编辑 issue）都会先征求批准。每项批准都可覆盖本会话剩余部分中的同一工具。
 
 Google、Microsoft、GitHub、Discord 和 Telegram 需要由其连接器代理持有应用凭据的 Aeven API：
 

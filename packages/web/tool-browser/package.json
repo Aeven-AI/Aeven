@@ -42,7 +42,8 @@
     "@aeven/user-approval": "workspace:^",
     "@aeven/user-questions": "workspace:^",
     "@aeven/sandbox-policy": "workspace:^",
-    "@aeven/attachment": "workspace:^"
+    "@aeven/attachment": "workspace:^",
+    "@aeven/browser-chromium": "workspace:^"
   },
   "devDependencies": {
     "@aeven/agent": "workspace:^",

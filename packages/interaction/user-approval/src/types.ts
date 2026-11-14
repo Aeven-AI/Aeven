@@ -46,8 +46,12 @@ export type ApprovalAnswer = ApprovalOutcome | 'allowed-session'
  * - `'privilege'` — the same host-privilege elevation, for the rest of the
  *   session's calls that need it. Held apart from `'sandbox'` so a grant for
  *   wider file access never authorizes an elevated run.
+ * - `'site'` — every send-like browser action (posting, sending, submitting)
+ *   on that website, from any browser tool. The grant matches on its scope
+ *   alone, so a click grant also covers a later key press or page script on
+ *   the same site.
  */
-export type SessionGrantCoverage = 'action' | 'account' | 'sandbox' | 'privilege'
+export type SessionGrantCoverage = 'action' | 'account' | 'sandbox' | 'privilege' | 'site'
 
 declare module '@aeven/session/types' {
   interface SessionEventMap {
