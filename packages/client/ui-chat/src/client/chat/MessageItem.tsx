@@ -187,8 +187,8 @@ function failureKey(node: TurnErrorNode, nodeKey: string): string {
 /**
  * Popup for the latest turn's terminal failure, in plain language. Try again
  * continues the Session on top of the failed turn, so its transcript and work
- * stay; a plan-limit failure also offers the plan picker, and a plan changed
- * there applies to the retried request.
+ * stay. A plan-limit failure with a plan picker offers only that picker; the
+ * close button still dismisses it.
  */
 function TurnErrorDialog({ node, retryTurn, openPlans, onClose, t }: {
   node: TurnErrorNode
@@ -223,10 +223,12 @@ function TurnErrorDialog({ node, retryTurn, openPlans, onClose, t }: {
       children={kind === 'other' && node.message !== '' ? <p className={css.turnErrorMessage}>{node.message}</p> : undefined}
       footer={(
         <>
-          <Button variant="outline" className={css.modalAction} onClick={onClose}>{t('turnError.dismiss')}</Button>
-          {retry !== undefined && (
+          {plans === undefined && (
+            <Button variant="outline" className={css.modalAction} onClick={onClose}>{t('turnError.dismiss')}</Button>
+          )}
+          {plans === undefined && retry !== undefined && (
             <Button
-              variant={plans === undefined ? 'primary' : 'outline'}
+              variant="primary"
               className={css.modalAction}
               disabled={busy}
               onClick={() => { void retry() }}
