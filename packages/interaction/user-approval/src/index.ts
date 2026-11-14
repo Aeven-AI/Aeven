@@ -55,8 +55,8 @@ const OUTCOMES: readonly ApprovalAnswer[] = ['allowed-session', 'allowed-once', 
  * - `'ask'` (the default) — delegate to the composed answerers; with none
  *   composed the chain falls through to the fail-closed `'unavailable'`.
  * - `'never'` — every ask resolves `'rejected'` deterministically, except an
- *   ask with `allowSessionCoverage: 'account'` (an action on the user's
- *   connected account that other people see), which still goes to the
+ *   ask with `allowSessionCoverage: 'account'` or `'site'` (an action on the
+ *   user's connected account, or a send on a website, that other people see), which still goes to the
  *   answerers unless the override is a `'delegation'` pin. The strict
  *   headless stance (CI, unattended runs).
  */
@@ -287,17 +287,21 @@ export class ApprovalService extends Service {
     // ahead of any gate LISTENER, so a listener-shaped gate cannot keep the
     // documented promise that 'never' rejects deterministically regardless
     // of registration order — only the service's own request path can.
-    // Actions on the user's connected accounts are visible to other people,
-    // so a user-chosen 'never' still asks for them; a delegation pin does not.
+    // Actions on the user's connected accounts and send-like actions on a
+    // website are visible to other people, so a user-chosen 'never' still asks
+    // for them; a delegation pin does not.
     const override = this.overrideEventOf(session)
+    const visibleToOthers = req.allowSessionCoverage === 'account' || req.allowSessionCoverage === 'site'
     if ((override?.policy ?? this.config.policy ?? 'ask') === 'never'
-      && (req.allowSessionCoverage !== 'account' || override?.source === 'delegation')) return 'rejected'
+      && (!visibleToOthers || override?.source === 'delegation')) return 'rejected'
     if (req.allowSession !== undefined) {
+      // A site grant covers every browser tool on that site, so it matches on scope alone.
+      const anyTool = req.allowSessionCoverage === 'site'
       for (let seq = session.seq - 1; seq >= 0; seq -= 1) {
         const event = session.eventAt(SessionSeq(seq))
         if (event?.type === 'approval/decided' && event.data.outcome === 'allowed-once'
           && event.data.sessionGrant?.sessionId === session.id
-          && event.data.sessionGrant.toolName === req.toolName
+          && (anyTool || event.data.sessionGrant.toolName === req.toolName)
           && event.data.sessionGrant.scope === req.allowSession) return 'allowed-once'
       }
     }

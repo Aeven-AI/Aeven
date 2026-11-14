@@ -18,6 +18,11 @@
  * the model's shell: a sandboxed shell cannot write the profile a browser
  * needs, which left the tools failing under every mode short of full access.
  *
+ * Those tools act with the profile's signed-in sites, so a send-like call on a
+ * website (see `./send-gate.ts`) asks the person first, with a per-site grant
+ * for the rest of the session; typing, filling, reading, and navigating run
+ * without asking.
+ *
  * `status` samples the same facts without launching anything, so a consumer
  * that reports which browsers a session can drive never starts one to find out.
  * `running` distinguishes a browser already answering on the port from a
@@ -36,9 +41,12 @@ import type { Agent } from '@aeven/agent'
 import type {} from '@aeven/tools'
 import { resolveAvnHome } from '@aeven/home-paths'
 import { Remote, TypertRemoteService } from '@aeven/typert-protocol'
+import { DevtoolsSendGate } from './devtools-gate.ts'
 import type { BrowserChromiumOpened, BrowserChromiumStatus } from './types.ts'
 
 export type { BrowserChromiumOpened, BrowserChromiumStatus } from './types.ts'
+export { isLocalHost, isSendControl, isSendKey, isSendLabel, isSendScript, pageSite, sendApproval } from './send-gate.ts'
+export type { PageSite, SendApproval } from './send-gate.ts'
 
 /** Schemes the browser may be opened at. */
 const OPENABLE_PROTOCOLS = new Set(['http:', 'https:'])
@@ -124,6 +132,22 @@ export class BrowserChromium extends TypertRemoteService {
           this.launching ??= this.ensureRunning('', exec.signal)
             .finally(() => { this.launching = undefined })
           await this.launching.catch(() => undefined)
+        }
+        return next()
+      })
+      const gate = new DevtoolsSendGate()
+      ctx.on('tools/pre-execute', async (exec, next) => {
+        const decision = await next()
+        if (decision.kind !== 'allow' || !exec.name.startsWith(toolPrefix)) return decision
+        const args = typeof exec.arguments === 'object' && exec.arguments !== null ? exec.arguments as Record<string, unknown> : {}
+        const ask = gate.decide(exec.name.slice(toolPrefix.length), args)
+        return ask === undefined ? decision : { kind: 'ask', ...ask }
+      })
+      ctx.on('tools/post-execute', (exec, result, next) => {
+        if (exec.name.startsWith(toolPrefix) && !result.isError) {
+          const args = exec.arguments as { pageId?: unknown } | null
+          const text = result.content.flatMap(block => block.type === 'text' ? [block.text] : []).join('\n')
+          gate.observe(text, typeof args?.pageId === 'number' ? args.pageId : undefined)
         }
         return next()
       })

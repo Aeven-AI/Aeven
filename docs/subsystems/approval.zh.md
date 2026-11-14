@@ -45,8 +45,8 @@ type ApprovalAnswer = ApprovalOutcome | 'allowed-session'
  * - `'ask'` (the default) — delegate to the composed answerers; with none
  *   composed the chain falls through to the fail-closed `'unavailable'`.
  * - `'never'` — every ask resolves `'rejected'` deterministically, except an
- *   ask with `allowSessionCoverage: 'account'` (an action on the user's
- *   connected account that other people see), which still goes to the
+ *   ask with `allowSessionCoverage: 'account'` or `'site'` (an action on the
+ *   user's connected account, or a send on a website, that other people see), which still goes to the
  *   answerers unless the override is a `'delegation'` pin. The strict
  *   headless stance (CI, unattended runs).
  */
@@ -90,7 +90,7 @@ interface ApprovalRequest extends ApprovalRequestEvent {
 }
 ```
 
-仅当请求通过 `allowSession` 提供账户及操作标识符时，应答者才可返回 `allowed-session`。服务在 `approval/decided` 中提交该范围和原会话 ID，然后向调用方返回 `allowed-once`。该会话后续相同工具和范围的请求复用授权；分叉不继承授权。请求方通过 `allowSessionCoverage` 声明授权覆盖的内容——`'account'` 表示可能触及其他收件人和内容的连接器操作，`'sandbox'` 表示后续任何调用都可复用的沙箱升权，`'action'` 表示重复同一操作——提示据此用请求方自己的说法解释该授权。`never` 策略和取消优先于已存储的授权。
+仅当请求通过 `allowSession` 提供账户及操作标识符时，应答者才可返回 `allowed-session`。服务在 `approval/decided` 中提交该范围和原会话 ID，然后向调用方返回 `allowed-once`。该会话后续相同工具和范围的请求复用授权；分叉不继承授权。请求方通过 `allowSessionCoverage` 声明授权覆盖的内容——`'account'` 表示可能触及其他收件人和内容的连接器操作，`'site'` 表示某个网站上所有类似发送的浏览器操作，只按范围匹配，因此覆盖所有浏览器工具，`'sandbox'` 表示后续任何调用都可复用的沙箱升权，`'action'` 表示重复同一操作——提示据此用请求方自己的说法解释该授权。`never` 策略和取消优先于已存储的授权。
 
 ## 分发与审计
 

@@ -25,7 +25,7 @@ kind: "package-reference"
 
 在其 Client 能够承载浏览器的代理组合中挂载本插件，例如 `@aeven/client-ui-sidebar-browser` 的右侧边栏浏览器。随附的 `cordis`、`standard` 与 `ptc` 预设都会挂载它。
 
-`preview_upload` 接受 Electron 所在计算机上的绝对路径，以及文件输入框或上传按钮的选择器；省略选择器时页面必须恰好有一个文件输入框。远程上传会请求以目标源和路径为范围的审批，localhost 除外。`preview_sequence` 在本地运行 1–20 个类型化操作，按条件等待，并返回第一个失败。上传和序列执行需要写权限。这些操作为 Electron 实现；嵌入框架中的上传选择器不受支持。
+`preview_upload` 接受 Electron 所在计算机上的绝对路径，以及文件输入框或上传按钮的选择器；省略选择器时页面必须恰好有一个文件输入框。远程上传会请求以目标源和路径为范围的审批，localhost 除外。网站上类似发送的调用会先请求审批：点击提交按钮或标签为发布动词的按钮的 `preview_click`、按坐标或点击无法读取目标的点击、不带 Shift 的 Enter `preview_press`、含换行的逐字 `preview_type`、可能发布内容的 `preview_evaluate`（写入请求，或源码含发布动词的点击、事件或提交），以及包含上述任一操作的 `preview_sequence`。审批按站点提供「本会话允许」，与 Chrome DevTools 工具共享；拒绝会以 `BROWSER_SEND_DENIED` 使调用失败，告诉模型没有发送任何内容，且不要换一种方式发送。判定规则由 `@aeven/browser-chromium` 提供。`preview_sequence` 在本地运行 1–20 个类型化操作，按条件等待，并返回第一个失败。上传和序列执行需要写权限。这些操作为 Electron 实现；嵌入框架中的上传选择器不受支持。
 
 `preview_snapshot` 接受 `mode: dom`（默认）或 `mode: ax`。无障碍模式读取 Chromium 的无障碍树，包括 shadow DOM，并返回 `snapshotId`、带索引的 `nodes` 和 `truncated`。节点采用桌面元素字段 `index`、`token`、`role`、`title`、`value` 和 `editable`。将返回的令牌传给 `preview_click` 或 `preview_type`，代替选择器。令牌在下一次观察或浏览器操作时过期；导航后以及目标已分离、隐藏或禁用时会拒绝操作。操作后重新观察；框架内的无障碍目标不属于本阶段。
 

@@ -21,7 +21,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用此包
 
-在提供浏览器界面的 Host（例如侧边栏浏览器）上挂载它。`port` 必填，且必须与作为 `--browserUrl` 交给 chrome-devtools-mcp 的端口一致；`executablePath` 依次回退到 `AVN_CHROME_PATH` 与平台安装路径，找不到浏览器的 Host 会带警告继续运行。`userDataDir` 默认为 `<AVN_HOME>/runtime/chrome-profile`，`mcpServerName` 默认为 `chrome_devtools`（留空则关闭「调用时启动」），`launchOnStart` 在插件启动时启动浏览器。
+在提供浏览器界面的 Host（例如侧边栏浏览器）上挂载它。`port` 必填，且必须与作为 `--browserUrl` 交给 chrome-devtools-mcp 的端口一致；`executablePath` 依次回退到 `AVN_CHROME_PATH` 与平台安装路径，找不到浏览器的 Host 会带警告继续运行。`userDataDir` 默认为 `<AVN_HOME>/runtime/chrome-profile`，`mcpServerName` 默认为 `chrome_devtools`（留空则关闭「调用时启动」），`launchOnStart` 在插件启动时启动浏览器。驱动工具会以配置文件中已登录站点的身份操作，因此网站上类似发送的调用会先征求用户同意：点击标签为发布动词（Send、Post、Create、Submit、Reply、Comment、Share、Connect 及其荷兰语、西班牙语、德语、法语和中文形式）的按钮或菜单项的 `click`，点击未在快照中见过的元素的 `click`，`click_at`，带 Enter 且不带 Shift 的 `press_key` 或 `type_text`，含换行的 `type_text`，以及发送 POST、PUT、PATCH 或 DELETE 请求、或在源码含发布动词时执行点击、派发事件或提交的 `evaluate_script`；只读取的脚本不需要询问。输入、填写、读取和导航不需要询问，本机提供的页面也从不询问。审批按站点提供「本会话允许」，该授权同样覆盖同一站点上的侧边栏 `preview_*` 工具。发布动词规则以导出形式提供（`isSendControl`、`isSendKey`、`isSendScript`、`pageSite`、`sendApproval`），使每个浏览器界面以相同方式判定发送。
 
 <a id="model-experience"></a>
 ## 模型体验
@@ -30,7 +30,7 @@ kind: "package-reference"
 
 #### 模型看到什么
 
-本包不直接向模型提供任何内容：它不注册工具，也不写入提示词文本。它的事实经消费者到达模型——`preview_status` 报告 `browserUrl`、`running`、`launchable` 与 `toolPrefix`——而 `toolPrefix` 之下的工具属于驱动该浏览器的 MCP 服务器。
+本包不写入提示词文本，也不注册自己的工具。它的事实经消费者到达模型——`preview_status` 报告 `browserUrl`、`running`、`launchable` 与 `toolPrefix`——而 `toolPrefix` 之下的工具属于驱动该浏览器的 MCP 服务器。用户拒绝的类似发送调用会以工具运行时的拒绝信息作为该调用的错误结果返回。
 
 #### Token 影响
 
@@ -45,6 +45,7 @@ kind: "package-reference"
 
 - **无 invariant 伴随模块**——不发布运行时 invariant 伴随模块，因为它报告的每一项事实都采样自它自己启动的那个调试端点，伴随模块只会读取实现已经在读取的端口。
 - **一个配置文件目录由所有会话共享**——登录过一次的站点会保持登录，因此需要未登录浏览器的读者要清空该配置文件目录。
+- **发送闸门读取标签而非意图**——标签不在清单中的发布控件（例如没有无障碍名称的纯图标按钮）会不经询问执行，而标签为清单动词的非发布按钮会询问。它从观察到的工具结果中学习目标和页面地址，因此 Host 重启后，点击会一直询问，直到模型再次获取快照。
 - **浏览器缺失时失败的是调用而非 Host**——插件加载时找不到可执行文件会记录警告，随后工具调用会失败并指明无人应答的端口。
 
 <a id="dev-note"></a>

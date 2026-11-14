@@ -148,11 +148,25 @@ function fillElements(rawName: string, args: Record<string, unknown>): FillEleme
 }
 
 /**
- * Run a chrome-devtools-mcp `fill` or `fill_form`, typing each value its fill would assign directly.
+ * Whether a value is entered by this bridge's own keystrokes instead of the server's fill.
  *
- * Short values go to the server's `fill_form` in one call; each long value is entered as a click on its element,
- * select-all, and `type_text`, so the field receives the key events a framework-controlled input records. The
- * typed text is not echoed back. The first failing call ends the sequence and its error is returned.
+ * A long value would otherwise be assigned directly, which a framework-controlled input does not record. A value
+ * with a line break would otherwise be typed with a plain Enter per line, which sends a chat message or submits a
+ * form, and which a markdown editor answers by continuing the list on the next line.
+ * @param value - the value to enter.
+ * @returns true for a value this bridge types itself.
+ */
+function typedByBridge(value: string): boolean {
+  return value.length >= FILL_TYPING_THRESHOLD || value.includes('\n')
+}
+
+/**
+ * Run a chrome-devtools-mcp `fill` or `fill_form`, typing the values its fill would mishandle.
+ *
+ * Other values go to the server's `fill_form` in one call; each long or multi-line value is entered as a click on
+ * its element, select-all, and `type_text` per line with Shift+Enter between lines, so the field receives the key
+ * events a framework-controlled input records and no line break submits it. The typed text is not echoed back. The
+ * first failing call ends the sequence and its error is returned.
  * @param client - the connected MCP client.
  * @param rawName - `fill` or `fill_form`.
  * @param args - the call's arguments.
@@ -168,11 +182,11 @@ async function callFillByTyping(
   opts: ToolBridgeOptions,
 ): Promise<Awaited<ReturnType<typeof callToolUncached>>> {
   const elements = fillElements(rawName, args)
-  const typed = elements?.filter(element => element.value.length >= FILL_TYPING_THRESHOLD) ?? []
+  const typed = elements?.filter(element => typedByBridge(element.value)) ?? []
   if (elements === undefined || typed.length === 0) return await callToolUncached(client, rawName, args, exec, opts)
   const page = typeof args.pageId === 'number' ? { pageId: args.pageId } : {}
   const content: unknown[] = []
-  const filled = elements.filter(element => element.value.length < FILL_TYPING_THRESHOLD)
+  const filled = elements.filter(element => !typedByBridge(element.value))
   if (filled.length > 0) {
     const result = await callToolUncached(client, 'fill_form', { ...page, elements: filled }, exec, opts)
     if (result.isError === true || !Array.isArray(result.content)) return result
@@ -184,14 +198,17 @@ async function callFillByTyping(
     const steps: Array<[string, Record<string, unknown>]> = [
       ['click', { uid: element.uid }],
       ['press_key', { key: selectAll }],
-      ['type_text', { text: element.value }],
     ]
+    for (const [index, line] of element.value.replaceAll('\r\n', '\n').split('\n').entries()) {
+      if (index > 0) steps.push(['press_key', { key: 'Shift+Enter' }])
+      if (line !== '') steps.push(['type_text', { text: line }])
+    }
     for (const [name, stepArgs] of steps) {
       const result = await callToolUncached(client, name, { ...page, ...stepArgs }, exec, opts)
       if (result.isError === true) return result
     }
   }
-  content.push({ type: 'text', text: `Typed ${String(typed.length)} long value(s) with keystrokes into ${typed.map(element => element.uid).join(', ')}.` })
+  content.push({ type: 'text', text: `Typed ${String(typed.length)} long or multi-line value(s) with keystrokes into ${typed.map(element => element.uid).join(', ')}.` })
   if (args.includeSnapshot === true) {
     const snapshot = await callToolUncached(client, 'take_snapshot', page, exec, opts)
     if (snapshot.isError === true || !Array.isArray(snapshot.content)) return snapshot

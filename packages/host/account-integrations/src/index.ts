@@ -375,6 +375,16 @@ const providerTitles: Record<ConnectorProvider, string> = {
 const CONNECTOR_TOOL_NAME = /^mcp__([a-z-]+)_([a-f0-9]{8})__/
 
 /**
+ * A connector tool that only reads, by its own name (`get_me`, `list_issues`,
+ * `issue_read`). Providers without their own read list ask before any other tool.
+ */
+const READ_TOOL_NAME = new RegExp(
+  '^(?:get|list|search|read|fetch|find|query|describe|view|show|lookup|download|export|count)(?:_|$)'
+  + '|_(?:read|get|list|search)$',
+  'i',
+)
+
+/**
  * MCP server name of one connector. The provider makes its tools readable in the
  * model's index; the id prefix keeps two accounts of one provider apart, and a
  * derived id (Telegram, Discord) keeps the names across signing in again.
@@ -777,6 +787,7 @@ export default class AccountIntegrations extends TypertRemoteService {
           if (/__(gmail_send_draft|drive_share|drive_trash|calendar_delete_event)$/.test(exec.name)) {
             return { kind: 'ask', allowSession: exec.name, allowSessionCoverage: 'account', reason: 'Approve sending, sharing, or deleting through your connected Google account.' }
           }
+          return next()
         }
         const microsoft = microsoftService(connector.provider)
         if (microsoft !== undefined) {
@@ -793,6 +804,7 @@ export default class AccountIntegrations extends TypertRemoteService {
         if (connector.provider === 'telegram' && !telegramReadTools.has(exec.name.slice(match[0].length))) {
           return { kind: 'ask', allowSession: exec.name, allowSessionCoverage: 'account', reason: 'Approve this action on your signed-in Telegram account. Other people can see it.' }
         }
+        if (connector.provider === 'whatsapp' || connector.provider === 'telegram') return next()
         if (connector.provider === 'discord') {
           const tool = exec.name.slice(match[0].length)
           if (discordReadTools.has(tool)) return next()
@@ -810,6 +822,11 @@ export default class AccountIntegrations extends TypertRemoteService {
           // Slack owns these names, so an unrecognized one asks rather than posting unreviewed.
           return { kind: 'ask', allowSession: exec.name, allowSessionCoverage: 'account', reason: 'Approve this action on your connected Slack workspace. It will appear as you.' }
         }
+        // Every other provider, GitHub and custom MCP servers included: only a tool named as a read runs unasked.
+        if (READ_TOOL_NAME.test(exec.name.slice(match[0].length))) return next()
+        return { kind: 'ask', allowSession: exec.name, allowSessionCoverage: 'account', reason: connector.provider === 'github'
+          ? 'Approve this action on your connected GitHub account. It appears as you, and public repositories show it to everyone.'
+          : 'Approve this action through your connected account. Other people may see it.' }
       }
       return next()
     })

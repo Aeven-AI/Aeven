@@ -72,9 +72,10 @@ export interface ApprovalPresentationRequest {
  * What a session grant covers, for the consent copy that explains it:
  * `'account'` reaches other recipients and content, `'sandbox'` other calls
  * that need the same wider access, `'privilege'` other calls that need the
- * same host-privilege elevation, `'action'` the same action again.
+ * same host-privilege elevation, `'site'` every send-like browser action on
+ * the same website, `'action'` the same action again.
  */
-export type ApprovalSessionCoverage = 'action' | 'account' | 'sandbox' | 'privilege'
+export type ApprovalSessionCoverage = 'action' | 'account' | 'sandbox' | 'privilege' | 'site'
 
 /** Decisions this interactive Client presentation can return. */
 export type ApprovalDecision = 'allowed-once' | 'allowed-session' | 'rejected'

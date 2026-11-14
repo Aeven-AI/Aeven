@@ -6,11 +6,12 @@ import type {
 } from './contract/slots.ts'
 import css from './ApprovalPanel.module.css'
 
-const SESSION_NOTES: Record<ApprovalSessionCoverage, 'session' | 'sessionAction' | 'sessionSandbox' | 'sessionPrivilege'> = {
+const SESSION_NOTES: Record<ApprovalSessionCoverage, 'session' | 'sessionAction' | 'sessionSandbox' | 'sessionPrivilege' | 'sessionSite'> = {
   account: 'session',
   action: 'sessionAction',
   sandbox: 'sessionSandbox',
   privilege: 'sessionPrivilege',
+  site: 'sessionSite',
 }
 
 /**
