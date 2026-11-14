@@ -237,3 +237,13 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* CV templates read as A4 pages: a portrait card on the image grid, four to a
+   row, its cover (the full-page portrait) filling it from the top. */
+.docCard {
+  aspect-ratio: 210 / 297;
+}
+
+.docCard .image {
+  object-position: center top;
+}

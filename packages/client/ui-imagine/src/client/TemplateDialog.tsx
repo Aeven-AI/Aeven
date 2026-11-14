@@ -1,14 +1,18 @@
 /**
- * One slide template's popup: the template's slides, large, with a strip of every slide beneath to page through,
- * and beside them what the template is and what using it gives.
+ * One template's popup, for the Slides and Resumes galleries: the template's slides or pages,
+ * large, with a strip of every one beneath to page through, and beside them what the template is
+ * and what using it gives.
  *
- * Choosing never builds on its own: `Use template` writes a request for a presentation in this template into the
- * composer and sends nothing. The reader may first add their existing material (a presentation, PDF or document,
- * picked or dropped): those files join the draft as attachments and the request asks for a deck rebuilt from them.
- * Without files the request leaves room for what the deck is about, or for attaching material in the composer.
+ * Choosing never builds on its own: `Use template` writes a request for a presentation or a CV in
+ * this template into the composer and sends nothing. The reader may first add their existing
+ * material (a presentation, CV or document, and for a CV a portrait photo, picked or dropped):
+ * those files join the draft as attachments and the request asks for the work rebuilt from them.
+ * Without files the request leaves room for what it is about, or for attaching material in the
+ * composer.
  *
- * The slides take the popup's left side; the copy and the action share the right-hand column of the image prompt
- * popup, whose shell styles this one reuses.
+ * The pictures take the popup's left side, landscape for slides and portrait for A4 pages; the copy
+ * and the action share the right-hand column of the image prompt popup, whose shell styles this one
+ * reuses.
  */
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
@@ -19,13 +23,23 @@ import type { TranslateNS } from '@aeven/client-ui-slots'
 import type {} from './locales.ts'
 import { SLIDE_TEMPLATES, slideAssetUrl, slideFile } from './slides.ts'
 import type { SlideTemplateId } from './slides.ts'
+import { RESUME_TEMPLATES, resumeAssetUrl } from './resumes.ts'
+import type { ResumeTemplateId } from './resumes.ts'
 import shell from './PromptDialog.module.css'
-import css from './SlideDialog.module.css'
+import css from './TemplateDialog.module.css'
 
-/** Material the picker offers: presentations, PDFs and documents a deck can be rebuilt from. */
-const ACCEPT = '.pptx,.ppt,.key,.pages,.pdf,.docx,.doc,.odp,.odt,.md,.txt'
+/** The template a gallery card opened. */
+export type OpenTemplate =
+  | { readonly kind: 'slides'; readonly id: SlideTemplateId }
+  | { readonly kind: 'resumes'; readonly id: ResumeTemplateId }
 
-/** The image gallery's arrow glyph frame, so slide paging reads like gallery paging. */
+/** Material each picker offers: what a deck, or a CV and its photo, can be rebuilt from. */
+const ACCEPT = {
+  slides: '.pptx,.ppt,.key,.pages,.pdf,.docx,.doc,.odp,.odt,.md,.txt',
+  resumes: '.pdf,.docx,.doc,.pages,.odt,.rtf,.md,.txt,.jpg,.jpeg,.png,.webp,.heic',
+} as const satisfies Record<OpenTemplate['kind'], string>
+
+/** The image gallery's arrow glyph frame, so paging here reads like gallery paging. */
 function StepIcon({ children }: { children: ReactNode }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -35,29 +49,37 @@ function StepIcon({ children }: { children: ReactNode }) {
 }
 
 /**
- * Render one slide template's popup.
- * @param props.id - the template the card opened.
+ * Render one template's popup.
+ * @param props.template - the gallery and template the card opened.
  * @param props.inputActions - the Session's composer input face.
  * @param props.t - the Imagine translator.
  * @param props.onClose - dismiss the popup.
  * @returns the popup.
  */
-export function SlideDialog({ id, inputActions, t, onClose }: {
-  id: SlideTemplateId
+export function TemplateDialog({ template, inputActions, t, onClose }: {
+  template: OpenTemplate
   inputActions: InputActions
   t: TranslateNS<'imagine'>
   onClose: () => void
 }) {
-  const total = SLIDE_TEMPLATES.find(template => template.id === id)?.slides ?? 0
+  const { kind } = template
+  const total = template.kind === 'slides'
+    ? SLIDE_TEMPLATES.find(item => item.id === template.id)?.slides ?? 0
+    : RESUME_TEMPLATES.find(item => item.id === template.id)?.pages ?? 0
+  const picture = (index: number): string => template.kind === 'slides'
+    ? slideAssetUrl(template.id, slideFile(index))
+    : resumeAssetUrl(template.id, index)
+  const title = template.kind === 'slides' ? t(`slides.${template.id}.title`) : t(`resumes.${template.id}.title`)
+  const description = template.kind === 'slides' ? t(`slides.${template.id}.description`) : t(`resumes.${template.id}.description`)
   const [current, setCurrent] = useState(0)
   const [files, setFiles] = useState<readonly File[]>([])
   const [notice, setNotice] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
   const strip = useRef<HTMLDivElement>(null)
   const fileInput = useRef<HTMLInputElement>(null)
-  const title = t(`slides.${id}.title`)
+  const position = (index: number): string => t(`${kind}.dialog.slide`, { n: String(index + 1), total: String(total) })
 
-  // The arrow keys page through the slides while the popup is open.
+  // The arrow keys page through the pictures while the popup is open.
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       if (event.key === 'ArrowRight') setCurrent(index => Math.min(total - 1, index + 1))
@@ -67,7 +89,7 @@ export function SlideDialog({ id, inputActions, t, onClose }: {
     return () => { window.removeEventListener('keydown', onKey) }
   }, [total])
 
-  // The strip follows the slide on show, so paging by key never loses its thumbnail.
+  // The strip follows the picture on show, so paging by key never loses its thumbnail.
   useEffect(() => {
     strip.current?.querySelector<HTMLElement>(`[data-index="${current}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
   }, [current])
@@ -90,20 +112,20 @@ export function SlideDialog({ id, inputActions, t, onClose }: {
         return
       }
     }
-    inputActions.setDraft(t(files.length > 0 ? 'slides.draftFromFiles' : 'slides.draft', { name: title }))
+    inputActions.setDraft(t(files.length > 0 ? `${kind}.draftFromFiles` : `${kind}.draft`, { name: title }))
     onClose()
   }
 
   return (
-    <Modal open headless onClose={onClose} title={title} className={clsx(shell.dialog, shell.media, css.dialog)}>
+    <Modal open headless onClose={onClose} title={title} className={clsx(shell.dialog, shell.media, css.dialog, kind === 'resumes' && css.portrait)}>
       <div className={clsx(shell.layout, css.layout)}>
         <div className={css.stage}>
           <div className={css.view}>
-            <img className={css.slide} src={slideAssetUrl(id, slideFile(current))} alt={t('slides.dialog.slide', { n: String(current + 1), total: String(total) })} />
+            <img className={css.slide} src={picture(current)} alt={position(current)} />
             <button
               type="button"
               className={clsx(css.step, css.prev)}
-              aria-label={t('slides.dialog.previous')}
+              aria-label={t(`${kind}.dialog.previous`)}
               disabled={current === 0}
               onClick={() => { setCurrent(current - 1) }}
             >
@@ -112,7 +134,7 @@ export function SlideDialog({ id, inputActions, t, onClose }: {
             <button
               type="button"
               className={clsx(css.step, css.next)}
-              aria-label={t('slides.dialog.next')}
+              aria-label={t(`${kind}.dialog.next`)}
               disabled={current === total - 1}
               onClick={() => { setCurrent(current + 1) }}
             >
@@ -127,10 +149,10 @@ export function SlideDialog({ id, inputActions, t, onClose }: {
                 data-index={index}
                 className={css.thumb}
                 aria-pressed={index === current}
-                aria-label={t('slides.dialog.slide', { n: String(index + 1), total: String(total) })}
+                aria-label={position(index)}
                 onClick={() => { setCurrent(index) }}
               >
-                <img src={slideAssetUrl(id, slideFile(index))} alt="" loading="lazy" />
+                <img src={picture(index)} alt="" loading="lazy" />
               </button>
             ))}
           </div>
@@ -139,7 +161,7 @@ export function SlideDialog({ id, inputActions, t, onClose }: {
           <div className={shell.head}>
             <div className={shell.headText}>
               <h2 className={shell.title}>{title}</h2>
-              <p className={shell.description}>{t(`slides.${id}.description`)}</p>
+              <p className={shell.description}>{description}</p>
             </div>
             <button type="button" className={shell.close} aria-label={t('dialog.close')} onClick={onClose}>
               <IconCloseOutline16 size={14} />
@@ -147,10 +169,10 @@ export function SlideDialog({ id, inputActions, t, onClose }: {
           </div>
           <div className={`${shell.body} no-scrollbar`}>
             <ul className={css.facts}>
-              <li>{t('slides.dialog.design', { count: String(total) })}</li>
-              <li>{t('slides.dialog.together')}</li>
-              <li>{t('slides.dialog.adjust')}</li>
-              <li>{t('slides.dialog.formats')}</li>
+              <li>{t(`${kind}.dialog.design`, { count: String(total) })}</li>
+              <li>{t(`${kind}.dialog.together`)}</li>
+              <li>{t(`${kind}.dialog.adjust`)}</li>
+              <li>{t(`${kind}.dialog.formats`)}</li>
             </ul>
             <section
               className={clsx(shell.section, css.material)}
@@ -164,14 +186,14 @@ export function SlideDialog({ id, inputActions, t, onClose }: {
               }}
             >
               <div className={shell.sectionHead}>
-                <span className={shell.sectionLabel}>{t('slides.dialog.material.label')}</span>
+                <span className={shell.sectionLabel}>{t(`${kind}.dialog.material.label`)}</span>
                 <span className={shell.sectionMeta}>{t('dialog.photo.optional')}</span>
               </div>
               <input
                 ref={fileInput}
                 type="file"
                 multiple
-                accept={ACCEPT}
+                accept={ACCEPT[kind]}
                 className={css.fileInput}
                 onChange={(event) => {
                   stage(Array.from(event.currentTarget.files ?? []))
@@ -184,7 +206,7 @@ export function SlideDialog({ id, inputActions, t, onClose }: {
                   <button
                     type="button"
                     className={css.fileRemove}
-                    aria-label={t('slides.dialog.material.remove')}
+                    aria-label={t(`${kind}.dialog.material.remove`)}
                     onClick={() => { setFiles(staged => staged.filter(s => s !== file)) }}
                   >
                     <IconCloseOutline16 size={12} />
@@ -194,15 +216,15 @@ export function SlideDialog({ id, inputActions, t, onClose }: {
               <button type="button" className={css.addFile} onClick={() => { fileInput.current?.click() }}>
                 <IconPlusOutline20 />
                 <span className={css.addText}>
-                  <span>{t('slides.dialog.material.add')}</span>
-                  <span className={css.addHint}>{t('slides.dialog.material.hint')}</span>
+                  <span>{t(`${kind}.dialog.material.add`)}</span>
+                  <span className={css.addHint}>{t(`${kind}.dialog.material.hint`)}</span>
                 </span>
               </button>
             </section>
           </div>
           <div className={shell.foot}>
             {notice !== null && <p className={shell.notice} role="alert">{notice}</p>}
-            <Button variant="primary" className={shell.try} onClick={apply}>{t('slides.dialog.use')}</Button>
+            <Button variant="primary" className={shell.try} onClick={apply}>{t(`${kind}.dialog.use`)}</Button>
           </div>
         </div>
       </div>

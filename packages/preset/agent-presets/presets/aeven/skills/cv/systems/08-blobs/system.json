@@ -1,0 +1,56 @@
+{
+  "id": "blobs",
+  "name": "Blobs",
+  "label": "Blobs",
+  "motif": "Bright pink, green and cyan blobs behind a big caps name, the photo set inside a blob",
+  "type": {
+    "fonts": {
+      "text": "Inter",
+      "display": "Inter"
+    }
+  },
+  "palette": {
+    "page": "#FFFFFF",
+    "ink": "#111111",
+    "text": "#3A3A3A",
+    "muted": "#8A8A8A",
+    "rule": "#E6E6E6",
+    "pink": "#FF6FB1",
+    "green": "#2FE08B",
+    "cyan": "#5ED2F2"
+  },
+  "sample": {
+    "name": "Ava Brooks",
+    "role": "Brand designer",
+    "photo": {
+      "src": "model-yePFqWHER8I.jpg",
+      "alt": "Ava Brooks",
+      "focus": [
+        55,
+        28
+      ]
+    },
+    "backdrop": {
+      "src": "model-yePFqWHER8I.jpg"
+    },
+    "profile": "Brand designer making bold, joyful identities for culture, food and fashion brands. I lead concepts from the first workshop to the last sticker, and love a strong colour.",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "ava@brooks.design"
+      },
+      {
+        "label": "Phone",
+        "value": "+44 20 7946 0321"
+      },
+      {
+        "label": "Location",
+        "value": "London, UK"
+      },
+      {
+        "label": "Website",
+        "value": "avabrooks.com"
+      }
+    ]
+  }
+}

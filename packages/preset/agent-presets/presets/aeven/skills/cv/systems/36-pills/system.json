@@ -1,0 +1,56 @@
+{
+  "id": "pills",
+  "name": "Pills",
+  "label": "Pills",
+  "motif": "Every section a white card on light grey, with a colourful pill title; a friendly modern layout",
+  "type": {
+    "fonts": {
+      "text": "DM Sans",
+      "display": "DM Sans"
+    }
+  },
+  "palette": {
+    "page": "#F3F4F7",
+    "card": "#FFFFFF",
+    "ink": "#16181D",
+    "text": "#4A4E57",
+    "muted": "#9298A3",
+    "rule": "#ECEEF2",
+    "accent": "#3D5AFE",
+    "chip": "#F1F3F7"
+  },
+  "sample": {
+    "name": "Omar Reyes",
+    "role": "Growth designer",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "omar@reyes.com"
+      },
+      {
+        "label": "Phone",
+        "value": "+1 415 555 0142"
+      },
+      {
+        "label": "Location",
+        "value": "San Francisco, CA"
+      },
+      {
+        "label": "Website",
+        "value": "omarreyes.com"
+      }
+    ],
+    "photo": {
+      "src": "model-At__EKm5PGE.jpg",
+      "alt": "Omar Reyes",
+      "focus": [
+        47,
+        28
+      ],
+      "zoom": 2.0
+    },
+    "backdrop": {
+      "src": "model-At__EKm5PGE.jpg"
+    }
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "id": "portfolio",
+  "name": "Portfolio",
+  "label": "Portfolio",
+  "motif": "Charcoal portfolio pages, Poppins, the photo in an offset frame, blue-to-cyan gradient rings and bars",
+  "type": {
+    "fonts": {
+      "text": "Poppins",
+      "display": "Poppins"
+    }
+  },
+  "palette": {
+    "page": "#232323",
+    "card": "#2D2D2D",
+    "ink": "#F2F2F2",
+    "text": "#C9C9C9",
+    "muted": "#8E8E8E",
+    "rule": "#3A3A3A",
+    "frame": "#4C585B",
+    "from": "#3B2BFF",
+    "to": "#19C3D6"
+  },
+  "sample": {
+    "name": "Marcus Bell",
+    "role": "CEO, Bell Creative Studio",
+    "photo": {
+      "src": "model-At__EKm5PGE.jpg",
+      "alt": "Marcus Bell",
+      "focus": [
+        47,
+        30
+      ]
+    },
+    "backdrop": {
+      "src": "model-At__EKm5PGE.jpg"
+    },
+    "profile": "Founder and creative director of a twenty-person studio for brands, campaigns and digital products. I build teams, win pitches and still love a good shoot day.",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "marcus@bell.design"
+      },
+      {
+        "label": "Phone",
+        "value": "+44 20 7946 0321"
+      },
+      {
+        "label": "Location",
+        "value": "London, UK"
+      },
+      {
+        "label": "Website",
+        "value": "marcusbell.com"
+      }
+    ]
+  }
+}

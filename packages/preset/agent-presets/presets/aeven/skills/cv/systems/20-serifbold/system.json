@@ -1,0 +1,55 @@
+{
+  "id": "serifbold",
+  "name": "Serif Bold",
+  "label": "Serif Bold",
+  "motif": "A huge black serif name beside a round photo, small caps labels in a quiet left column",
+  "type": {
+    "fonts": {
+      "text": "Inter",
+      "display": "Playfair Display"
+    }
+  },
+  "palette": {
+    "page": "#FFFFFF",
+    "ink": "#0F0F0F",
+    "text": "#454545",
+    "muted": "#9A9A9A",
+    "rule": "#EBEBEB",
+    "accent": "#0F0F0F",
+    "chip": "#F2F2F2"
+  },
+  "sample": {
+    "name": "Jeff Martabano",
+    "role": "Product designer",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "jeff@martabano.com"
+      },
+      {
+        "label": "Phone",
+        "value": "+1 415 555 0142"
+      },
+      {
+        "label": "Location",
+        "value": "San Francisco, CA"
+      },
+      {
+        "label": "Website",
+        "value": "jeffmartabano.com"
+      }
+    ],
+    "photo": {
+      "src": "model-JnBFuqiW3SE.jpg",
+      "alt": "Jeff Martabano",
+      "focus": [
+        50,
+        32
+      ],
+      "zoom": 1.8
+    },
+    "backdrop": {
+      "src": "model-JnBFuqiW3SE.jpg"
+    }
+  }
+}

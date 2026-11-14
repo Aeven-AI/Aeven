@@ -1,0 +1,56 @@
+{
+  "id": "glow",
+  "name": "Glow",
+  "label": "Glow",
+  "motif": "Warm paper with a grainy orange glow, wide Unbounded headline, numbered section rules",
+  "type": {
+    "fonts": {
+      "text": "Inter",
+      "display": "Unbounded"
+    }
+  },
+  "palette": {
+    "page": "#EDECE9",
+    "ink": "#111111",
+    "text": "#2E2E2E",
+    "muted": "#7A7A7A",
+    "rule": "#B9B7B2",
+    "glow": "#FF8A1F",
+    "glow2": "#FFC94A"
+  },
+  "sample": {
+    "name": "Daniel Okafor",
+    "role": "Full-stack developer",
+    "photo": {
+      "src": "model-JVH7q7lxyjY.jpg",
+      "alt": "Daniel Okafor",
+      "focus": [
+        47,
+        40
+      ],
+      "zoom": 1.9
+    },
+    "backdrop": {
+      "src": "model-JVH7q7lxyjY.jpg"
+    },
+    "profile": "Full-stack developer building fast, accessible web products with React, Node and Postgres. I care about clean interfaces, honest performance budgets and teams that ship every week.",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "daniel@okafor.design"
+      },
+      {
+        "label": "Phone",
+        "value": "+44 20 7946 0321"
+      },
+      {
+        "label": "Location",
+        "value": "London, UK"
+      },
+      {
+        "label": "Website",
+        "value": "danielokafor.com"
+      }
+    ]
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "id": "sage",
+  "name": "Sage",
+  "label": "Sage",
+  "motif": "Soft sage header with a serif hello and a black-and-white portrait, then calm two-column sections",
+  "type": {
+    "fonts": {
+      "text": "Inter",
+      "display": "Newsreader"
+    }
+  },
+  "palette": {
+    "page": "#FFFFFF",
+    "band": "#E6ECDD",
+    "band2": "#E1EEE7",
+    "ink": "#161616",
+    "text": "#4D4D4D",
+    "muted": "#9A9A9A",
+    "rule": "#E3E3E3",
+    "accent": "#E8693A"
+  },
+  "sample": {
+    "name": "Elena Rossi",
+    "role": "UX designer",
+    "photo": {
+      "src": "model-K0DxxljcRv0.jpg",
+      "alt": "Elena Rossi",
+      "focus": [
+        55,
+        22
+      ],
+      "zoom": 1.7
+    },
+    "backdrop": {
+      "src": "model-K0DxxljcRv0.jpg"
+    },
+    "profile": "UX designer with eight years in health, banking and public services. I lead research, map journeys and design interfaces that people trust on their first visit.",
+    "greeting": "Hello! I'm Elena, a UX designer who makes digital products calm, clear and kind to use.",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "elena@rossi.design"
+      },
+      {
+        "label": "Phone",
+        "value": "+44 20 7946 0321"
+      },
+      {
+        "label": "Location",
+        "value": "London, UK"
+      },
+      {
+        "label": "Website",
+        "value": "elenarossi.com"
+      }
+    ]
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "id": "aurora",
+  "name": "Aurora",
+  "label": "Aurora",
+  "motif": "A pink-to-lilac gradient header with a round photo and link chips, then a calm label column",
+  "type": {
+    "fonts": {
+      "text": "Hanken Grotesk",
+      "display": "Hanken Grotesk"
+    }
+  },
+  "palette": {
+    "page": "#FFFFFF",
+    "g1": "#FFC7DA",
+    "g2": "#E4C8FF",
+    "g3": "#B8C9FF",
+    "headInk": "#1C1530",
+    "ink": "#191624",
+    "text": "#4A4658",
+    "muted": "#9A95AB",
+    "rule": "#EEEAF5",
+    "accent": "#8A4DFF",
+    "chip": "#F2EDFA"
+  },
+  "sample": {
+    "name": "Enji Kusnadi",
+    "role": "Product designer",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "enji@kusnadi.com"
+      },
+      {
+        "label": "Phone",
+        "value": "+1 415 555 0142"
+      },
+      {
+        "label": "Location",
+        "value": "San Francisco, CA"
+      },
+      {
+        "label": "Website",
+        "value": "enjikusnadi.com"
+      }
+    ],
+    "photo": {
+      "src": "model-0lzxrijewmY.jpg",
+      "alt": "Enji Kusnadi",
+      "focus": [
+        40,
+        16
+      ],
+      "zoom": 2.0
+    },
+    "backdrop": {
+      "src": "model-0lzxrijewmY.jpg"
+    }
+  }
+}

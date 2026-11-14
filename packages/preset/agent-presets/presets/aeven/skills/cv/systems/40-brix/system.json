@@ -1,0 +1,55 @@
+{
+  "id": "brix",
+  "name": "Brix",
+  "label": "Brix",
+  "motif": "Clean Manrope resume: rounded photo, violet role, contact chips, dates in a left column and violet section bars",
+  "type": {
+    "fonts": {
+      "text": "Manrope",
+      "display": "Manrope"
+    }
+  },
+  "palette": {
+    "page": "#FFFFFF",
+    "ink": "#14121F",
+    "text": "#4B4858",
+    "muted": "#9A97A8",
+    "rule": "#EDEBF3",
+    "accent": "#5B45F5",
+    "chip": "#F1EEFF"
+  },
+  "sample": {
+    "name": "Kofi Mensah",
+    "role": "Product manager",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "kofi@mensah.com"
+      },
+      {
+        "label": "Phone",
+        "value": "+1 415 555 0142"
+      },
+      {
+        "label": "Location",
+        "value": "San Francisco, CA"
+      },
+      {
+        "label": "Website",
+        "value": "kofimensah.com"
+      }
+    ],
+    "photo": {
+      "src": "model-80JzI-pasZ0.jpg",
+      "alt": "Kofi Mensah",
+      "focus": [
+        66,
+        26
+      ],
+      "zoom": 1.8
+    },
+    "backdrop": {
+      "src": "model-80JzI-pasZ0.jpg"
+    }
+  }
+}

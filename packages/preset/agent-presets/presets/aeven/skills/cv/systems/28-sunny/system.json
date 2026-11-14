@@ -1,0 +1,56 @@
+{
+  "id": "sunny",
+  "name": "Sunny",
+  "label": "Sunny",
+  "motif": "A bold yellow header with a big hello, the photo in an arch, pink chips and playful type",
+  "type": {
+    "fonts": {
+      "text": "Bricolage Grotesque",
+      "display": "Bricolage Grotesque"
+    }
+  },
+  "palette": {
+    "page": "#FFFFFF",
+    "band": "#FFD23F",
+    "ink": "#141414",
+    "text": "#3D3D3D",
+    "muted": "#8A8A8A",
+    "rule": "#EFEFEF",
+    "accent": "#FF4F8B",
+    "chip": "#FFE6EF"
+  },
+  "sample": {
+    "name": "Leila Haddad",
+    "role": "Visual designer",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "leila@haddad.com"
+      },
+      {
+        "label": "Phone",
+        "value": "+1 415 555 0142"
+      },
+      {
+        "label": "Location",
+        "value": "San Francisco, CA"
+      },
+      {
+        "label": "Website",
+        "value": "leilahaddad.com"
+      }
+    ],
+    "photo": {
+      "src": "model-zAs25s0ve6E.jpg",
+      "alt": "Leila Haddad",
+      "focus": [
+        50,
+        34
+      ],
+      "zoom": 1.2
+    },
+    "backdrop": {
+      "src": "model-zAs25s0ve6E.jpg"
+    }
+  }
+}
