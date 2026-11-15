@@ -1060,6 +1060,7 @@ export class MemosMemory implements MemoryProvider {
       ...request.query ? { q: request.query } : {},
       ...request.domains === undefined ? {} : { domains: request.domains },
       ...request.cwd === undefined ? {} : { projectWorkspaceId: this.workspaceOf(request.cwd) ?? null },
+      ...request.turns === true ? { groupByTurn: true } : {},
     }
     const [traces, total] = await this.read(request, () => Promise.all([
       core.listTraces({
@@ -1069,7 +1070,8 @@ export class MemosMemory implements MemoryProvider {
       }),
       core.countTraces(filter),
     ]))
-    return { records: traces.filter(trace => trace.ownerProfileId === profile).map(toRecord), total }
+    const owned = traces.filter(trace => trace.ownerProfileId === profile)
+    return { records: (request.turns === true ? turnMessages(owned) : owned).map(toRecord), total }
   }
 
   async remember(request: Parameters<MemoryProvider['remember']>[0]): Promise<MemoryItemId> {
@@ -1327,7 +1329,27 @@ function toRecord(trace: TraceDTO): MemoryRecord {
     agentText: trace.agentText,
     sessionId: brandString<SessionId>(trace.sessionId),
     episodeId: brandString<MemoryEpisodeId>(trace.episodeId),
+    origin: originOf(trace),
   }
+}
+
+/**
+ * Keep, of each turn in a turn-grouped listing, the first trace that holds the person's message. The core returns
+ * whole turns, newest turn first and each turn's traces in episode order; its tool-step traces carry no message.
+ * @param traces - the turn-grouped traces.
+ * @returns one trace per turn that holds a message, in the listing's turn order.
+ */
+function turnMessages(traces: readonly TraceDTO[]): TraceDTO[] {
+  const seen = new Set<string>()
+  const messages: TraceDTO[] = []
+  for (const trace of traces) {
+    if (trace.userText.trim().length === 0) continue
+    const key = `${trace.episodeId}:${trace.turnId}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    messages.push(trace)
+  }
+  return messages
 }
 
 /**

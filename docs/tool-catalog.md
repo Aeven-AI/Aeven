@@ -55,7 +55,7 @@ This table connects model-visible tool names to the plugin package and service s
 | `@aeven/tool-elevation` | - | `ctx.tools`, `ctx.approval`, `ctx.subprocess`, `a Windows host` | `tool/call`, `tool/result` | `elevated` | A Windows-only tool: the user approves the run in Aeven and again in the operating-system consent prompt, and a refusal fails the call instead of running the command at the caller's own privilege. Compositions that mount the package off Windows offer the model nothing. |
 | `@aeven/tool-image-search` | `find_images` | `ctx.tools`, `ctx.attachments`, `ctx.llm`, `ctx.web (execution time)` | `tool/call`, `one durable image attachment per photograph or card`, `tool/result` | - | `find_images` reads Wikimedia Commons first and the web seam second, so a deployment without a web provider still answers and cites what Commons holds. Every photograph and news card becomes a durable image attachment the client shows in the transcript. |
 | `@aeven/tool-mail` | `mail_accounts`, `mail_read`, `mail_search`, `mail_send`, `mail_update` | `ctx.tools`, `ctx.mail`, `a session owner with at least one usable mail account`, `a calling Agent for account addressing and approval routing` | `tool/call`, `tool/result`, `mail folder and message changes through ctx.mail`, `a saved attachment file inside the workspace` | - | The tools register for an agent only while its session owner has at least one usable mail account, so a signed-out session or a mailbox-less owner sees none; sending and permanent deletion ask through ctx.approval, where a deny from another policy still wins. |
-| `@aeven/tool-memory` | `memory_environments`, `memory_get`, `memory_remember`, `memory_remember_bulk`, `memory_search`, `memory_skill`, `memory_skills`, `memory_timeline` | `ctx.tools`, `ctx.memory` | `tool/call`, `tool/result`, `remembered facts on memory_remember and memory_remember_bulk` | - | Registered only while a memory provider is active; `memory_remember` stores one fact and `memory_remember_bulk` stores an atomic batch of already-distilled facts. |
+| `@aeven/tool-memory` | `memory_environments`, `memory_get`, `memory_list`, `memory_remember`, `memory_remember_bulk`, `memory_search`, `memory_skill`, `memory_skills`, `memory_timeline` | `ctx.tools`, `ctx.memory` | `tool/call`, `tool/result`, `remembered facts on memory_remember and memory_remember_bulk` | - | Registered only while a memory provider is active; `memory_remember` stores one fact and `memory_remember_bulk` stores an atomic batch of already-distilled facts. |
 
 <a id="aeventool-ask-user"></a>
 
@@ -4629,6 +4629,36 @@ Read one memory item found by a memory search: a past task trace, a learned poli
 
 Source: [`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
 
+### `memory_list`
+
+List the person's own earlier messages to you from long-term memory, newest first, across all conversations, each with its date. Use it for questions about what they asked or said over time (the first, the last, the most, every time they asked about something, or a ranking of their questions), which a search by meaning cannot answer. Page with `offset` until you have covered the period the question needs; `total` counts every message. Before saying earlier messages are unavailable, list them. Read one in full, with your reply, through memory_get and its id.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "Keep only messages whose text, your reply, or its summary contains this literal text (case-insensitive). Omit to list every message."
+    },
+    "offset": {
+      "type": "integer",
+      "description": "Number of newer messages to skip; the previous page's `nextOffset`. Defaults to 0."
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Messages on this page (1-200). Defaults to 100."
+    },
+    "includeSaved": {
+      "type": "boolean",
+      "description": "Also list facts saved from an imported archive or document and learned procedures, which are not messages the person wrote to you. Defaults to false."
+    }
+  }
+}
+```
+
+Source: [`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
+
 ### `memory_remember`
 
 Store one fact the user explicitly asked you to remember, such as a preference, a name, or how they like a task done. Use only when the user asks you to remember something; ordinary conversation is remembered automatically. Preserve attribution, dates and uncertainty: distinguish a source's advertised claim, an observation, a plan and an assessment. Do not store your interpretation as a verified fact.
@@ -4695,7 +4725,7 @@ Source: [`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-mem
 
 ### `memory_search`
 
-Search long-term memory of earlier work: past task traces, learned policies, environment knowledge, and reusable skills. Each direct-user turn already receives one automatic recall; use this to rephrase or broaden an insufficient recall, and before claiming earlier context is unavailable. For several unrelated topics, pass `queries` with one topic each instead of one long query.
+Search long-term memory of earlier work: past task traces, learned policies, environment knowledge, and reusable skills. Each direct-user turn already receives one automatic recall; use this to rephrase or broaden an insufficient recall, and before claiming earlier context is unavailable. For several unrelated topics, pass `queries` with one topic each instead of one long query. Search matches meaning, so it cannot go through everything the person asked; for that, use memory_list.
 
 ```json
 {

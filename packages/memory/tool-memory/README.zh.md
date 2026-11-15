@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`avn-tool-memory` 在 `ctx.memory` 之上注册七个工具：`memory_search`（跨轨迹、策略、环境模型与 skill（技能）的有界搜索）、`memory_get`（一条轨迹、策略或世界模型）、`memory_timeline`（一个片段的按序轨迹）、`memory_environments`、`memory_skills`、`memory_skill`（加载一个 skill 并记录它的使用），以及 `memory_remember`（存储用户明确要求记住的事实，关于用户本人或关于当前项目）。搜索结果携带每条记忆的领域。工具名来自 `@aeven/memory` 的 `MEMORY_TOOL`，与提供方召回上下文所指向的名称相同。
+`avn-tool-memory` 在 `ctx.memory` 之上注册九个工具：`memory_search`（跨轨迹、策略、环境模型与 skill（技能）的有界搜索）、`memory_get`（一条轨迹、策略或世界模型）、`memory_timeline`（一个片段的按序轨迹）、`memory_list`（来自所有对话的此人早先消息，最新在前，每轮一条，按 `offset` 分页，可选字面文本过滤；除非设置 `includeSaved`，导入的事实和习得的流程不列出）、`memory_environments`、`memory_skills`、`memory_skill`（加载一个 skill 并记录它的使用），`memory_remember`（存储用户明确要求记住的事实，关于用户本人、当前项目或通用知识），以及 `memory_remember_bulk`。搜索结果携带每条记忆的领域。工具名来自 `@aeven/memory` 的 `MEMORY_TOOL`，与提供方召回上下文所指向的名称相同。
 
 ## 目录
 
@@ -27,6 +27,9 @@ kind: "package-reference"
 |---|---|---|
 | `resultMaxChars` | `1200` | 工具返回的每个正文或片段的最大字符数 |
 | `searchTimeoutMs` | `3000` | 一次 `memory_search` 的硬预算；超时返回空结果并带 `timedOut: true` |
+| `listTextMaxChars` | `300` | `memory_list` 返回的每条消息的最大字符数 |
+| `listDefaultLimit` | `100` | 调用未指定 limit 时一页 `memory_list` 的消息数 |
+| `listMaxLimit` | `200` | 一页 `memory_list` 最多的消息数 |
 
 <a id="model-experience"></a>
 ## 模型体验
@@ -35,7 +38,7 @@ kind: "package-reference"
 
 #### 模型看到什么
 
-七个工具 schema。`memory_search` 告诉模型每个直接用户轮次已经收到过一次自动召回，只在需要改写或扩展它时才搜索。结果是文本加 JSON 事实，每条正文被裁剪到 `resultMaxChars`。
+九个工具 schema。`memory_search` 告诉模型每个直接用户轮次已经收到过一次自动召回，只在需要改写或扩展它时才搜索，并且按含义搜索无法遍历此人问过的所有内容。`memory_list` 用于关于此人长期以来问过或说过什么的问题；模型逐页读取直到覆盖所需时段，并在声称早先消息不可得之前先列出。结果是文本加 JSON 事实，每条正文被裁剪到 `resultMaxChars`。
 
 #### Token 影响
 

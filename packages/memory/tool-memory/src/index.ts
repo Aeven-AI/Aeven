@@ -1,6 +1,6 @@
 /**
- * Model-facing memory Consumer: tools to search long-term memory and read its traces, policies,
- * environment models, episodes, and crystallized skills.
+ * Model-facing memory Consumer: tools to search long-term memory, list the person's earlier messages, and read its
+ * traces, policies, environment models, episodes, and crystallized skills.
  *
  * @module @aeven/tool-memory
  */
@@ -10,7 +10,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { brandString } from '@aeven/brand'
 import type { Agent } from '@aeven/agent'
-import { MEMORY_TOOL, memoryOriginLabel, memoryScopeOf, mergeRankedHits, type MemoryDomain, type MemoryEpisodeId, type MemoryItemId, type MemoryRecallLimits, type MemoryScope } from '@aeven/memory'
+import { LEARNED_PROCEDURE_PREFIX, MEMORY_TOOL, memoryOriginLabel, memoryScopeOf, mergeRankedHits, type MemoryDomain, type MemoryEpisodeId, type MemoryItemId, type MemoryRecallLimits, type MemoryScope } from '@aeven/memory'
 import { defineTool, textOutput, textResult } from '@aeven/tools'
 
 export const name = 'tool-memory'
@@ -24,13 +24,28 @@ export interface Config {
   searchTimeoutMs: number
   /** Maximum already-distilled facts accepted by one bulk write. */
   bulkMaxFacts: number
+  /** Maximum characters of each message `memory_list` returns. */
+  listTextMaxChars: number
+  /** Messages one `memory_list` page holds when the call names no limit. */
+  listDefaultLimit: number
+  /** Most messages one `memory_list` page may hold. */
+  listMaxLimit: number
 }
 
 export const Config: z<Config> = z.object({
   resultMaxChars: z.natural().min(128).default(1200),
   searchTimeoutMs: z.natural().min(100).default(3000),
   bulkMaxFacts: z.natural().min(1).default(500),
+  listTextMaxChars: z.natural().min(40).default(300),
+  listDefaultLimit: z.natural().min(1).default(100),
+  listMaxLimit: z.natural().min(1).default(200),
 })
+
+/** Local calendar day of an epoch-milliseconds time, as `YYYY-MM-DD`. */
+function localDay(time: number): string {
+  const date = new Date(time)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
 
 function clip(value: string | undefined, maxChars: number): string {
   if (!value) return ''
@@ -131,7 +146,8 @@ export function apply(ctx: Context, config: Config): void {
     name: MEMORY_TOOL.search,
     description: 'Search long-term memory of earlier work: past task traces, learned policies, environment knowledge, and reusable skills. ' +
       'Each direct-user turn already receives one automatic recall; use this to rephrase or broaden an insufficient recall, and before claiming earlier context is unavailable. ' +
-      'For several unrelated topics, pass `queries` with one topic each instead of one long query.',
+      'For several unrelated topics, pass `queries` with one topic each instead of one long query. ' +
+      `Search matches meaning, so it cannot go through everything the person asked; for that, use ${MEMORY_TOOL.list}.`,
     parameters: {
       query: { type: 'string', description: 'A concise free-text memory query. Give this, or `queries` for several topics.' },
       queries: {
@@ -216,6 +232,79 @@ export function apply(ctx: Context, config: Config): void {
           : `Episode ${episodeId}:\n\n${traces.map((trace, i) => `${i + 1}. ${trace.userText || trace.agentText || trace.id}`).join('\n')}`,
         episodeId,
         traces,
+      })
+    },
+  }))
+
+  tools.push(defineTool({
+    name: MEMORY_TOOL.list,
+    description: 'List the person\'s own earlier messages to you from long-term memory, newest first, across all conversations, each with its date. ' +
+      'Use it for questions about what they asked or said over time (the first, the last, the most, every time they asked about something, or a ranking of their questions), which a search by meaning cannot answer. ' +
+      'Page with `offset` until you have covered the period the question needs; `total` counts every message. ' +
+      `Before saying earlier messages are unavailable, list them. Read one in full, with your reply, through ${MEMORY_TOOL.get} and its id.`,
+    parameters: {
+      query: { type: 'string', description: 'Keep only messages whose text, your reply, or its summary contains this literal text (case-insensitive). Omit to list every message.' },
+      offset: { type: 'integer', description: 'Number of newer messages to skip; the previous page\'s `nextOffset`. Defaults to 0.' },
+      limit: { type: 'integer', description: `Messages on this page (1-${config.listMaxLimit}). Defaults to ${config.listDefaultLimit}.` },
+      includeSaved: { type: 'boolean', description: 'Also list facts saved from an imported archive or document and learned procedures, which are not messages the person wrote to you. Defaults to false.' },
+    },
+    output: textOutput(),
+    isConcurrencySafe: () => true,
+    async execute(args, exec) {
+      const scope = scopeOf(exec.agent)
+      const query = args.query?.trim()
+      const offset = Math.max(0, Math.trunc(args.offset ?? 0))
+      const limit = bounded(args.limit, config.listDefaultLimit, 1, config.listMaxLimit)
+      const page = await ctx.memory.list({
+        owner: scope.owner,
+        ...query ? { query } : {},
+        ...scope.cwd === undefined ? {} : { cwd: scope.cwd },
+        turns: true,
+        limit,
+        offset,
+        signal: exec.signal,
+      })
+      const saved = (record: typeof page.records[number]): boolean =>
+        record.origin.kind === 'import' || record.userText.startsWith(LEARNED_PROCEDURE_PREFIX)
+      const listed = page.records
+        .filter(record => args.includeSaved === true || !saved(record))
+        .map(record => ({
+          id: record.id,
+          time: record.time,
+          date: localDay(record.time),
+          text: clip(record.userText.replace(/\s+/g, ' ').trim(), config.listTextMaxChars),
+          ...saved(record) ? { saved: true } : {},
+        }))
+      // The same message is stored twice when a turn is captured again (a retry, or a second device); a repeat of the
+      // message listed just before it on the same day is one message.
+      const messages = listed
+        .filter((message, index) => {
+          const previous = listed[index - 1]
+          return previous === undefined || message.text !== previous.text || message.date !== previous.date
+        })
+        .map(({ time: _time, ...message }) => message)
+      const nextOffset = offset + limit < page.total ? offset + limit : undefined
+      const skipped = page.records.length - listed.length
+      const repeated = listed.length - messages.length
+      const omitted = [
+        ...skipped > 0 ? [`${skipped} saved facts or procedures`] : [],
+        ...repeated > 0 ? [`${repeated} repeated messages`] : [],
+      ]
+      const newest = listed[0]
+      const oldest = listed[listed.length - 1]
+      const span = newest === undefined || oldest === undefined ? '' : `, dated ${localDay(oldest.time)} to ${localDay(newest.time)}`
+      const range = page.total === 0 || offset >= page.total
+        ? `No messages${query ? ` containing "${query}"` : ''} at offset ${offset}; total ${page.total}.`
+        : `Messages ${offset + 1}-${Math.min(offset + limit, page.total)} of ${page.total}${query ? ` containing "${query}"` : ''}, newest first${span}` +
+          `${omitted.length > 0 ? ` (left out: ${omitted.join(', ')})` : ''}.`
+      const next = nextOffset === undefined ? 'This is the oldest page.' : `Next page: offset ${nextOffset}.`
+      const lines = messages.map(message => `- ${message.date}${message.saved === true ? ' (saved, not a message)' : ''}: ${message.text} [trace:${message.id}]`)
+      return textResult({
+        text: [range, ...lines, next].join('\n'),
+        total: page.total,
+        offset,
+        messages,
+        ...nextOffset === undefined ? {} : { nextOffset },
       })
     },
   }))

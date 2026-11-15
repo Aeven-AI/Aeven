@@ -59,7 +59,7 @@
 | `@aeven/tool-elevation` | - | `ctx.tools`、`ctx.approval`、`ctx.subprocess`、`a Windows host` | `tool/call`、`tool/result` | `elevated` | 仅限 Windows 的工具：用户在 Aeven 中批准这次运行，并在操作系统的授权提示中再次批准；拒绝会使调用失败，而不会以调用方自身的权限运行该命令。在非 Windows 上挂载本包的组合不会向模型提供任何内容。 |
 | `@aeven/tool-image-search` | `find_images` | `ctx.tools`、`ctx.attachments`、`ctx.llm`、`ctx.web (execution time)` | `tool/call`、`one durable image attachment per photograph or card`、`tool/result` | - | `find_images` 先读 Wikimedia Commons，再读 Web seam，因此没有 Web 提供方的部署仍能作答，并引用 Commons 所持有的照片。每张照片和每张新闻卡片都会成为持久图像附件，由客户端在 transcript（文本记录）中展示。 |
 | `@aeven/tool-mail` | `mail_accounts`、`mail_read`、`mail_search`、`mail_send`、`mail_update` | `ctx.tools`、`ctx.mail`、`a session owner with at least one usable mail account`、`a calling Agent for account addressing and approval routing` | `tool/call`、`tool/result`、`mail folder and message changes through ctx.mail`、`a saved attachment file inside the workspace` | - | 只有当某个 agent 的会话所有者至少有一个可用邮箱账户时，这些工具才会为该 agent 注册，因此未登录的会话或没有邮箱的所有者看不到任何邮件工具；发送与永久删除通过 ctx.approval 询问，其他策略给出的拒绝仍然优先。 |
-| `@aeven/tool-memory` | `memory_environments`、`memory_get`、`memory_remember`、`memory_remember_bulk`、`memory_search`、`memory_skill`、`memory_skills`、`memory_timeline` | `ctx.tools`、`ctx.memory` | `tool/call`、`tool/result`、`remembered facts on memory_remember and memory_remember_bulk` | - | 只在记忆提供方处于活动状态时才会注册；`memory_remember` 存储一条事实，`memory_remember_bulk` 以原子方式存储一批已提炼的事实。 |
+| `@aeven/tool-memory` | `memory_environments`, `memory_get`, `memory_list`, `memory_remember`, `memory_remember_bulk`, `memory_search`, `memory_skill`, `memory_skills`, `memory_timeline` | `ctx.tools`, `ctx.memory` | `tool/call`, `tool/result`, `remembered facts on memory_remember and memory_remember_bulk` | - | Registered only while a memory provider is active; `memory_remember` stores one fact and `memory_remember_bulk` stores an atomic batch of already-distilled facts. |
 
 <a id="aeventool-ask-user"></a>
 
@@ -4633,6 +4633,36 @@ Send a plain-text email from a connected account, or save it as a draft with dra
 
 来源：[`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
 
+### `memory_list`
+
+List the person's own earlier messages to you from long-term memory, newest first, across all conversations, each with its date. Use it for questions about what they asked or said over time (the first, the last, the most, every time they asked about something, or a ranking of their questions), which a search by meaning cannot answer. Page with `offset` until you have covered the period the question needs; `total` counts every message. Before saying earlier messages are unavailable, list them. Read one in full, with your reply, through memory_get and its id.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "Keep only messages whose text, your reply, or its summary contains this literal text (case-insensitive). Omit to list every message."
+    },
+    "offset": {
+      "type": "integer",
+      "description": "Number of newer messages to skip; the previous page's `nextOffset`. Defaults to 0."
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Messages on this page (1-200). Defaults to 100."
+    },
+    "includeSaved": {
+      "type": "boolean",
+      "description": "Also list facts saved from an imported archive or document and learned procedures, which are not messages the person wrote to you. Defaults to false."
+    }
+  }
+}
+```
+
+来源：[`packages/memory/tool-memory/src/index.ts`](../packages/memory/tool-memory/src/index.ts)
+
 ### `memory_remember`
 
 存储一条用户明确要求你记住的事实，例如偏好、姓名，或他们希望某项工作如何完成。仅在用户要求你记住某事时使用；普通对话会被自动记住。保留归属、日期与不确定性：区分来源宣称的说法、一次观察、一个计划与一次评估。不要把自己的解读存储为已验证的事实。
@@ -4699,7 +4729,7 @@ Send a plain-text email from a connected account, or save it as a draft with dra
 
 ### `memory_search`
 
-搜索关于既往工作的长期记忆：过去的任务轨迹、学到的策略、环境知识与可复用的 skill（技能）。每个直接来自人类的轮次都已经获得一次自动回忆；当这次回忆不够充分时，用它换一种说法或扩大范围，并在声称先前的上下文不可用之前先调用它。对于多个互不相关的主题，请传入 `queries`，每个主题一个查询，而不是一个很长的查询。
+Search long-term memory of earlier work: past task traces, learned policies, environment knowledge, and reusable skills. Each direct-user turn already receives one automatic recall; use this to rephrase or broaden an insufficient recall, and before claiming earlier context is unavailable. For several unrelated topics, pass `queries` with one topic each instead of one long query. Search matches meaning, so it cannot go through everything the person asked; for that, use memory_list.
 
 ```json
 {
