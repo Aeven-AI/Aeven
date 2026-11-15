@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-15-cv-guided-flow.md
-2026-11-15-cv-guided-flow.md: 16cea2ec73eb759c08e4e88a277c3330ee41fac8
-2026-11-15-cv-guided-flow.zh.md: 30606e07a99e3b25c9909667e94c5d992845d156
+2026-11-15-cv-guided-flow.md: 7f3a680ffe8da1d97ad51f03adbf1e48a2451dc6
+2026-11-15-cv-guided-flow.zh.md: a4c196d5b104b663f0237ecc062f51106d4f0513
