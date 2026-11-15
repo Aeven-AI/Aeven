@@ -36,12 +36,14 @@ export { producedFilesForClosing, producedForClosing, type ProducedFile } from '
  * The URL of a stored copy a Session's log cites.
  * @param sessionId - the Session whose log cites the copy.
  * @param attachmentId - the copy's attachment id.
+ * @param download - whether the browser saves the file instead of showing it.
  * @returns the absolute `/api/attachment-file` URL on this app's origin.
  */
-function attachmentUrl(sessionId: string, attachmentId: string): string {
+function attachmentUrl(sessionId: string, attachmentId: string, download = false): string {
   const url = new URL('api/attachment-file', document.baseURI)
   url.searchParams.set('sessionId', sessionId)
   url.searchParams.set('id', attachmentId)
+  if (download) url.searchParams.set('download', '1')
   return url.href
 }
 
@@ -100,7 +102,7 @@ export function apply(ctx: ClientContext): void {
         previewFile: (path: string, copy?: string) =>
           copy === undefined ? ctx.sidebarFiles.open(sessionId, path) : ctx.sidebarFiles.open(sessionId, path, copy),
         fileUrl: (path: string, download?: boolean) => ctx.sidebarFiles.fileUrl(sessionId, path, download),
-        attachmentUrl: (attachmentId: string) => attachmentUrl(sessionId, attachmentId),
+        attachmentUrl: (attachmentId: string, download?: boolean) => attachmentUrl(sessionId, attachmentId, download),
         isLoopback: ctx.remote.$host.isLoopback,
         ensureWorkspacePathOpen,
         openFileMenu: showMenu,

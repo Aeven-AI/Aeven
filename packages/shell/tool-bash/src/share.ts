@@ -1,8 +1,10 @@
 /**
- * Share the files a bash command produced with the person reading the
- * conversation: each produced file inside the session workspace is stored as
- * a durable attachment, so an image displays and any other file downloads at
- * the call. Used by deployments whose readers cannot open the Host's folders.
+ * Store the files a bash command produced as durable attachments. Sharing
+ * stores each produced file inside the session workspace, so an image
+ * displays and any other file downloads at the call, for deployments whose
+ * readers cannot open the Host's folders. Copying stores each produced file
+ * that is not an image, wherever it is, so the account's other devices open
+ * the copy a synced conversation carries.
  *
  * @module @aeven/tool-bash/share
  */
@@ -38,10 +40,14 @@ export interface ShareBudget {
 }
 
 /**
- * Bytes a conversation has already shared, counted from the shared references its bash results record.
+ * Bytes a conversation has already shared, counted from the shared references and copies its bash results record.
  * @param events - the conversation's log.
- * @returns the summed `bytes` of every recorded shared image and file.
+ * @returns the summed `bytes` of every recorded shared image and file and every produced file's copy.
  */
+/** The `bytes` a recorded reference carries, or 0. */
+const bytesOf = (ref: unknown): number =>
+  typeof (ref as { bytes?: unknown } | null)?.bytes === 'number' ? (ref as { bytes: number }).bytes : 0
+
 export function sharedBytesOf(events: readonly { readonly type: string; readonly data?: unknown }[]): number {
   let total = 0
   const visit = (value: unknown): void => {
@@ -52,7 +58,9 @@ export function sharedBytesOf(events: readonly { readonly type: string; readonly
     if (value === null || typeof value !== 'object') return
     for (const [key, child] of Object.entries(value)) {
       if ((key === 'sharedImages' || key === 'sharedFiles') && Array.isArray(child)) {
-        for (const ref of child) total += typeof (ref as { bytes?: unknown }).bytes === 'number' ? (ref as { bytes: number }).bytes : 0
+        for (const ref of child) total += bytesOf(ref)
+      } else if (key === 'copy') {
+        total += bytesOf(child)
       } else {
         visit(child)
       }
@@ -68,15 +76,23 @@ export interface SharedOutputs {
   files: FileAttachmentRef[]
   /** Produced files that were not shared, with the reason. */
   unshared: { path: string; reason: string }[]
-  /** The stored attachment id of each produced file, in produced order; undefined for one left out. */
-  attachmentIds: (string | undefined)[]
+  /** The stored reference of each produced file, in produced order; undefined for one left out. */
+  refs: (ImageAttachmentRef | FileAttachmentRef | undefined)[]
+}
+
+/** Which produced files a call stores. */
+export interface ShareScope {
+  /** The canonical workspace root files must stay inside; omitted, a file anywhere is stored. */
+  root?: FsTarget | undefined
+  /** Whether images are stored as image attachments; otherwise they are left out. */
+  images: boolean
 }
 
 /**
- * Store each produced file inside the workspace as an attachment.
+ * Store each produced file the scope admits as an attachment.
  * @param attachments - the deployment's attachment store.
  * @param fs - the filesystem the command's files are read through.
- * @param root - the canonical workspace root; files outside it are never shared.
+ * @param scope - the workspace root files must stay inside, and whether images are stored.
  * @param produced - canonical targets of the files the command created or changed.
  * @param signal - the call's cancellation.
  * @param budget - how many files and bytes the call may still share.
@@ -85,16 +101,16 @@ export interface SharedOutputs {
 export async function shareOutputs(
   attachments: AttachmentStore,
   fs: FileSystem,
-  root: FsTarget,
+  scope: ShareScope,
   produced: readonly FsTarget[],
   signal: AbortSignal,
   budget: ShareBudget,
 ): Promise<SharedOutputs> {
-  const shared: SharedOutputs = { images: [], files: [], unshared: [], attachmentIds: [] }
+  const shared: SharedOutputs = { images: [], files: [], unshared: [], refs: [] }
   let files = 0
   let bytes = 0
   for (const target of produced) {
-    shared.attachmentIds.push(undefined)
+    shared.refs.push(undefined)
     const path = target.displayPath
     if (files >= budget.files) {
       shared.unshared.push({ path, reason: `this call already shared ${String(budget.files)} files` })
@@ -106,19 +122,23 @@ export async function shareOutputs(
       continue
     }
     // A file reached through a symlink, or named outside the workspace, may be the Host's own.
-    if (!fs.contains(root, target)) {
+    if (scope.root !== undefined && !fs.contains(scope.root, target)) {
       shared.unshared.push({ path, reason: 'it is outside the conversation folder' })
       continue
     }
     const extension = extname(path).toLowerCase()
     const name = basename(path)
     const imageType = IMAGE_TYPES[extension]
+    if (imageType !== undefined && !scope.images) {
+      shared.unshared.push({ path, reason: 'images are not copied' })
+      continue
+    }
     try {
       if (imageType !== undefined && attachments.imageLimits.mediaTypes.includes(imageType)) {
         const data = await fs.readBytes(target, signal, attachments.imageLimits.maxImageBytes)
         const image = await attachments.saveImage({ data, mediaType: imageType, name })
         shared.images.push(image)
-        shared.attachmentIds[shared.attachmentIds.length - 1] = image.attachmentId
+        shared.refs[shared.refs.length - 1] = image
         files += 1
         bytes += data.byteLength
         continue
@@ -136,7 +156,7 @@ export async function shareOutputs(
         text: { text: `File ${name}, written by a command in the conversation folder.`, method: 'native', extractor: 'tool-bash', truncated: false },
       })
       shared.files.push(file)
-      shared.attachmentIds[shared.attachmentIds.length - 1] = file.attachmentId
+      shared.refs[shared.refs.length - 1] = file
       files += 1
       bytes += data.byteLength
     } catch (error) {

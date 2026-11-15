@@ -55,6 +55,17 @@ export interface Config {
    * Host's folders; it requires `ctx.attachments`.
    */
   shareOutputFiles?: boolean
+  /**
+   * Store a copy of each non-image file a command lists in `output_files` and
+   * produces, inside the workspace or not, as an attachment recorded on its
+   * `producedFiles` entry and nowhere else (default false): nothing shows at
+   * the call and the model's result is unchanged. Session sync carries the
+   * copy to the account's other devices, whose produced-files row opens it.
+   * For a Host the reader may reach from another device; it requires
+   * `ctx.attachments`, shares the per-call and per-conversation caps below, and
+   * cannot be combined with `shareOutputFiles`.
+   */
+  copyOutputFiles?: boolean
   /** Most produced files one call shares (default 10); the rest are reported, not stored. */
   shareMaxFiles?: number
   /** Most bytes one call shares (default 100 MiB). */
@@ -75,6 +86,7 @@ export const Config: z<Config> = z.object({
   enableRunInBackground: z.boolean().default(true),
   detachAfterMs: z.number().default(DEFAULT_DETACH_AFTER_MS),
   shareOutputFiles: z.boolean().default(false),
+  copyOutputFiles: z.boolean().default(false),
   shareMaxFiles: z.natural().min(1).default(10),
   shareMaxBytes: z.natural().min(1).default(100 * 1024 * 1024),
   shareMaxSessionBytes: z.natural().min(1).default(500 * 1024 * 1024),
@@ -319,6 +331,8 @@ const BACKGROUND_OUTPUT_PROPERTIES = {
 export function apply(ctx: Context, config: Config = {}): void {
   const backgroundEnabled = config.enableRunInBackground ?? true
   const shareOutputFiles = config.shareOutputFiles ?? false
+  const copyOutputFiles = config.copyOutputFiles ?? false
+  if (shareOutputFiles && copyOutputFiles) throw new Error('tool-bash: shareOutputFiles and copyOutputFiles cannot both be on')
   const ledger = shareOutputFiles && config.shareLedgerDirectory !== undefined
     ? new ShareLedger(config.shareLedgerDirectory, config.shareMaxAccountBytesPerDay ?? 2 * 1024 * 1024 * 1024)
     : undefined
@@ -477,6 +491,8 @@ export function apply(ctx: Context, config: Config = {}): void {
                     created: { type: 'boolean', required: true },
                     // The stored copy a reader who cannot open the Host's folders opens instead.
                     attachmentId: { type: 'string' },
+                    // The copy's full reference, recorded by copyOutputFiles so the attachment route finds it in the log.
+                    copy: SHARED_FILE_SCHEMA,
                   },
                 },
               },
@@ -603,16 +619,29 @@ export function apply(ctx: Context, config: Config = {}): void {
             producedTargets.push(target)
           }
         }
-        if (root === undefined || producedTargets.length === 0) return { ...result, producedFiles }
+        if (producedTargets.length === 0 || (root === undefined && !copyOutputFiles)) return { ...result, producedFiles }
         const attachments = ctx.get('attachments')
-        if (attachments === undefined) throw new Error('tool-bash: shareOutputFiles requires an attachment store')
+        if (attachments === undefined) throw new Error('tool-bash: shareOutputFiles and copyOutputFiles require an attachment store')
         const sessionBytes = exec.agent === undefined ? 0 : sharedBytesOf(exec.agent.session.snapshotEvents())
         const sessionRemaining = (config.shareMaxSessionBytes ?? 500 * 1024 * 1024) - sessionBytes
+        const budget = (accountRemaining: number) => ({
+          files: config.shareMaxFiles ?? 10,
+          bytes: Math.min(config.shareMaxBytes ?? 100 * 1024 * 1024, sessionRemaining, accountRemaining),
+        })
+        if (root === undefined) {
+          // copyOutputFiles: the copies go on the entries only, never into what the reader or the model sees at the call.
+          const copies = await shareOutputs(
+            attachments, fs, { images: false }, producedTargets, exec.signal, budget(Number.POSITIVE_INFINITY))
+          return {
+            ...result,
+            producedFiles: producedFiles.map((file, index) => {
+              const copy = copies.refs[index]
+              return copy === undefined || !('extraction' in copy) ? file : { ...file, attachmentId: copy.attachmentId, copy }
+            }),
+          }
+        }
         const share = (accountRemaining: number): Promise<SharedOutputs> => shareOutputs(
-          attachments, fs, root, producedTargets, exec.signal, {
-            files: config.shareMaxFiles ?? 10,
-            bytes: Math.min(config.shareMaxBytes ?? 100 * 1024 * 1024, sessionRemaining, accountRemaining),
-          })
+          attachments, fs, { root, images: true }, producedTargets, exec.signal, budget(accountRemaining))
         const owner = exec.agent?.session.header.owner
         const shared = ledger === undefined || owner === undefined
           ? await share(Number.POSITIVE_INFINITY)
@@ -623,7 +652,7 @@ export function apply(ctx: Context, config: Config = {}): void {
         return {
           ...result,
           producedFiles: producedFiles.map((file, index) => {
-            const attachmentId = shared.attachmentIds[index]
+            const attachmentId = shared.refs[index]?.attachmentId
             return attachmentId === undefined ? file : { ...file, attachmentId }
           }),
           ...shared.images.length > 0 ? { sharedImages: shared.images } : {},
