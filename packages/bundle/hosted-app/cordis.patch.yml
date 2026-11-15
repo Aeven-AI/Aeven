@@ -608,6 +608,10 @@
             - registry.npmjs.org
             - pypi.org
             - files.pythonhosted.org
+            # Google Fonts: the CV and slides exporters fetch a template's TTF files to embed them in
+            # Word and PowerPoint files, and cache them under the account folder.
+            - fonts.googleapis.com
+            - fonts.gstatic.com
           ports: [443]
           # git reaches GitHub with the account's connected GitHub account,
           # whose token stays in the proxy. The user approves the first push to
