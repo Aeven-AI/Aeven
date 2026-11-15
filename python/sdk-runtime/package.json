@@ -119,6 +119,7 @@
     "@aeven/tool-bash": "workspace:^",
     "@aeven/tool-bash-persistent": "workspace:^",
     "@aeven/tool-browser": "workspace:^",
+    "@aeven/browser-chromium": "workspace:^",
     "@aeven/tool-call-timeout-policy": "workspace:^",
     "@aeven/tool-capability": "workspace:^",
     "@aeven/tool-cordis": "workspace:^",

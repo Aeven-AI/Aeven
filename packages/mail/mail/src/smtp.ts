@@ -19,8 +19,21 @@ export interface ComposedMessage {
   bcc: string[]
   subject: string
   text: string
+  /** HTML alternative of `text`, set when a forwarded original carried HTML. */
+  html?: string
   inReplyTo?: string
   references: string[]
+  /** Parts sent with the message; an entry with `cid` is an image the HTML body references inline. */
+  attachments: ComposedAttachment[]
+}
+
+/** One part sent with a composed message. */
+export interface ComposedAttachment {
+  filename?: string
+  contentType: string
+  content: Buffer
+  /** Content-ID without angle brackets, matching a `cid:` URL in the HTML body. */
+  cid?: string
 }
 
 function transportOptions(server: MailServer, password: string, timing: SmtpTiming) {
@@ -40,6 +53,12 @@ function transportOptions(server: MailServer, password: string, timing: SmtpTimi
 }
 
 function mailOptions(message: ComposedMessage) {
+  const attachments = message.attachments.map(attachment => ({
+    content: attachment.content,
+    contentType: attachment.contentType,
+    ...attachment.filename !== undefined ? { filename: attachment.filename } : {},
+    ...attachment.cid !== undefined ? { cid: attachment.cid, contentDisposition: 'inline' as const } : {},
+  }))
   return {
     from: message.from,
     to: message.to,
@@ -47,6 +66,8 @@ function mailOptions(message: ComposedMessage) {
     ...message.bcc.length > 0 ? { bcc: message.bcc } : {},
     subject: message.subject,
     text: message.text,
+    ...message.html !== undefined ? { html: message.html } : {},
+    ...attachments.length > 0 ? { attachments } : {},
     ...message.inReplyTo !== undefined ? { inReplyTo: message.inReplyTo } : {},
     ...message.references.length > 0 ? { references: message.references } : {},
   }

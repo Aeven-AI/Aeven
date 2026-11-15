@@ -38,9 +38,9 @@ Mount it per session where `ctx.mail` exists; the aeven agent preset does.
 | --- | --- |
 | `mail_accounts` | Addresses, protocol, send capability, aliases, and IMAP folders with special-use attributes. |
 | `mail_search` | Envelopes only, newest first; `account` omitted searches every account and reports per-account failures. |
-| `mail_read` | Headers, plain-text body, and attachment list; `saveAttachments` writes attachments inside the session workspace without replacing files. Reading does not mark the message read. |
+| `mail_read` | Headers, text body (the HTML part converted to text when the message has no plain text), and attachment list; `saveAttachments` writes attachments inside the session workspace without replacing files. Reading does not mark the message read. |
 | `mail_update` | read, unread, flag, unflag, move, archive, trash, or delete; `delete` asks for approval. |
-| `mail_send` | Send, reply (`replyTo`), or `draft: true`; a send asks for approval unless the user allowed sending from that account for the session. |
+| `mail_send` | Send, reply (`replyTo`), forward with the original's formatting, images, and attachments (`forward`), or `draft: true`; a send asks for approval unless the user allowed sending from that account for the session. |
 
 ## Model Experience
 
@@ -82,7 +82,7 @@ Append-only; the notice is part of a tool result after the reusable request pref
 
 #### What the model sees
 
-A search result is one block per envelope — a line `- account=${account} folder=${folder} id=${id}`, then `  date: …[unread, flagged]`, `  from: …`, `  to: …`, `  subject: …` — with `No messages matched.` when nothing matched, `(Showing the newest ${n} matches. Narrow the filters for older messages.)` when the cap cut the list, and `${account} could not be searched: ${error}` per account that failed. A read result is the header block (`account`, `folder`, `id`, then `date`, `from`, `reply-to`, `to`, `cc`, `subject` when present), the plain-text body or `(no text body)`, `(The body was cut at the configured length.)` when the body hit the cap, and an `attachments:` list of `- ${index}: ${filename} (${contentType}, ${size} bytes) saved to ${path}`. Only the ids in a search result work in `mail_read` and `mail_update`.
+A search result is one block per envelope — a line `- account=${account} folder=${folder} id=${id}`, then `  date: …[unread, flagged]`, `  from: …`, `  to: …`, `  subject: …` — with `No messages matched.` when nothing matched, `(Showing the newest ${n} matches. Narrow the filters for older messages.)` when the cap cut the list, and `${account} could not be searched: ${error}` per account that failed. A read result is the header block (`account`, `folder`, `id`, then `date`, `from`, `reply-to`, `to`, `cc`, `subject` when present), the text body or `(no text body)`, `(The message has no plain-text part; this text was converted from its HTML.)` when the text came from the HTML part, `(The body was cut at the configured length.)` when the body hit the cap, and an `attachments:` list of `- ${index}: ${filename} (${contentType}, ${size} bytes, inline in the body) saved to ${path}`, where `, inline in the body` marks an image the HTML embeds. Only the ids in a search result work in `mail_read` and `mail_update`.
 
 #### Token effect
 
@@ -96,7 +96,7 @@ Append-only; newly visible result text follows the reusable request prefix.
 
 #### What the model sees
 
-`mail_update` answers `Applied ${action} to ${count} message${s}.`; a successful `mail_send` answers `Sent to ${accepted} (Message-ID ${messageId}).${rejected}` or `Draft saved (Message-ID ${messageId}).`; an owner with no connected account reads `No email account is connected. The user can add one in Settings → Connectors → Email.` A send that is not a draft and a permanent delete are held for approval, with the ask reason `Send an email “${subject}” from ${account} to ${to}.`, `Send a reply from ${account} to ${to}.`, or `Permanently delete ${count} email${s} from ${account}.`
+`mail_update` answers `Applied ${action} to ${count} message${s}.`; a successful `mail_send` answers `Sent to ${accepted} (Message-ID ${messageId}).${rejected}` or `Draft saved (Message-ID ${messageId}).`; an owner with no connected account reads `No email account is connected. The user can add one in Settings → Connectors → Email.` A send that is not a draft and a permanent delete are held for approval, with the ask reason `Send an email “${subject}” from ${account} to ${to}.`, `Send a reply from ${account} to ${to}.`, `Send a forwarded email from ${account} to ${to}.`, or `Permanently delete ${count} email${s} from ${account}.`
 
 #### Token effect
 
@@ -108,7 +108,7 @@ Append-only; each confirmation or approval outcome is a tool result after the re
 
 ## Known Limitations and Deferred Work
 
-- Plain-text bodies only; HTML composition and attachments on outgoing mail are deferred.
+- The model writes plain text only: a forward carries the original's HTML and attachments, but composing HTML or attaching workspace files to outgoing mail is deferred.
 - Attachment saving writes through Node's filesystem inside the session workspace rather than through `ctx.fs`, which writes text only.
 - **No invariant companion** — No runtime invariant companion is published because the package keeps no state of its own: the tool set is recomputed from the session owner's accounts at each `agent/pre-step`, and the approval ask for a send or a permanent delete is returned from `tools/pre-execute`, so the only relation it holds is already the outcome of those hooks.
 

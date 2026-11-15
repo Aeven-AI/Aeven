@@ -68,12 +68,14 @@ export function formatMessage(message: MailMessage, saved: readonly { index: num
   ]
   const attachments = message.attachments.map((attachment) => {
     const path = saved.find(entry => entry.index === attachment.index)?.path
-    return `- ${String(attachment.index)}: ${attachment.filename ?? '(unnamed)'} (${attachment.contentType}, ${String(attachment.size)} bytes)${path === undefined ? '' : ` saved to ${path}`}`
+    const inline = attachment.inline === true ? ', inline in the body' : ''
+    return `- ${String(attachment.index)}: ${attachment.filename ?? '(unnamed)'} (${attachment.contentType}, ${String(attachment.size)} bytes${inline})${path === undefined ? '' : ` saved to ${path}`}`
   })
   return [
     EXTERNAL_MAIL_CONTENT_NOTICE,
     headers.join('\n'),
     message.text === '' ? '(no text body)' : message.text,
+    ...message.textSource === 'html' ? ['(The message has no plain-text part; this text was converted from its HTML.)'] : [],
     ...message.truncated ? ['(The body was cut at the configured length.)'] : [],
     ...attachments.length > 0 ? [`attachments:\n${attachments.join('\n')}`] : [],
   ].join('\n\n')

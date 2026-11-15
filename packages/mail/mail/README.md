@@ -44,7 +44,7 @@ Mount the service in the host composition and register an account source; `@aeve
 - **Errors.** Failures are `MailError`s with a fixed message per category (`MAIL_AUTHENTICATION`, `MAIL_CONNECTION`, `MAIL_TLS`, `MAIL_LIMIT`, …). Server response text is discarded because it can echo credentials or message content. An authentication failure calls the source's `authenticationFailed`, and the source stops listing the account until it is replaced.
 - **IMAP.** Search reads envelopes only, newest first, within `searchMaxResults`; reading fetches the source without setting `\Seen`. Archive, trash, and drafts resolve RFC 6154 special-use folders and are refused when the server has none.
 - **POP3.** The mailbox is `INBOX` only. Search scans the newest `pop3ScanLimit` headers and supports from, to, subject, since, and before; `delete` is the only update and commits at QUIT. Drafts are refused.
-- **SMTP.** The sender must be the account address or an alias. A reply sets `In-Reply-To` and `References` from the original message and defaults the subject to `Re: …`. Sends beyond `sendsPerHour` are refused.
+- **SMTP.** The sender must be the account address or an alias. A reply sets `In-Reply-To` and `References` from the original message and defaults the subject to `Re: …`. A forward reads the original from the account and sends a `Forwarded message` header block with its text and HTML bodies below the sender's text, plus every original part, inline images keeping their Content-ID so the HTML still shows them; its subject defaults to `Fwd: …`, and a request cannot both reply and forward. Sends beyond `sendsPerHour` are refused.
 - **Probe.** `probe(settings, secret)` connects, authenticates, and lists folders on the receive server, then connects and authenticates on the send server; the thrown `MailError.step` names the failed step.
 
 ## Model Experience
@@ -81,7 +81,7 @@ Append-only; the sentence arrives as a tool result after the reusable request pr
 
 #### What the model sees
 
-A search returns at most `searchMaxResults` newest-first envelopes and a `truncated` flag; a search across every account adds one `${account} could not be searched: ${error}` line per account that failed, and fails as a whole only when every account failed. A read returns the headers and at most `bodyMaxChars` characters of plain-text body with a `truncated` flag, and its attachment list carries index, name, content type, and size. A message above `messageMaxBytes` is refused instead of returned, and a POP3 search reads the newest `pop3ScanLimit` headers only.
+A search returns at most `searchMaxResults` newest-first envelopes and a `truncated` flag; a search across every account adds one `${account} could not be searched: ${error}` line per account that failed, and fails as a whole only when every account failed. A read returns the headers and at most `bodyMaxChars` characters of text body with a `truncated` flag and a `textSource`: `plain` for the `text/plain` part, `html` when the message has no visible plain text and the `text/html` part was converted to text, links keeping their URLs and images skipped. Its attachment list carries index, name, content type, size, and `inline` for an image the HTML body embeds. A message above `messageMaxBytes` is refused instead of returned, and a POP3 search reads the newest `pop3ScanLimit` headers only.
 
 #### Token effect
 

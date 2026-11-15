@@ -103,6 +103,7 @@ External packages that a workspace package resolves at runtime. The tier covers 
 | [`gsap`](https://github.com/greensock/GSAP) | Standard 'no charge' license: https://gsap.com/standard-license. |
 | [`hast-util-to-jsx-runtime`](https://github.com/syntax-tree/hast-util-to-jsx-runtime) | MIT |
 | [`highlight.js`](https://github.com/highlightjs/highlight.js) | BSD-3-Clause |
+| [`html-to-text`](https://github.com/html-to-text/node-html-to-text) | MIT |
 | [`imapflow`](https://github.com/postalsys/imapflow) | MIT |
 | [`immer`](https://github.com/immerjs/immer) | MIT |
 | [`ipaddr.js`](https://github.com/whitequark/ipaddr.js) | MIT |
@@ -223,6 +224,7 @@ External packages **directly declared** only by repository tooling, test infrast
 | [`@types/babel__code-frame`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
 | [`@types/better-sqlite3`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
 | [`@types/compression`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
+| [`@types/html-to-text`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
 | [`@types/js-yaml`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
 | [`@types/jsdom`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |
 | [`@types/luxon`](https://github.com/DefinitelyTyped/DefinitelyTyped) | MIT |

@@ -170,17 +170,21 @@ export function mailTools(mail: Context['mail'], timing: MailToolTiming): ToolDe
     }),
     defineTool({
       name: 'mail_send',
-      description: 'Send a plain-text email from a connected account, or save it as a draft with draft: true. Sending always asks the user to approve first. To reply, pass replyTo with the original message\'s folder and id; the subject then defaults to "Re: …". The sender must be the account address or one of its aliases.',
+      description: 'Send a plain-text email from a connected account, or save it as a draft with draft: true. Sending always asks the user to approve first. To reply, pass replyTo with the original message\'s folder and id; the subject then defaults to "Re: …". To forward, pass forward with the original\'s folder and id: the original message, with its formatting, images, and attachments, goes out below text, and the subject defaults to "Fwd: …". The sender must be the account address or one of its aliases.',
       parameters: {
         account: { type: 'string', required: true, description: 'Account address to send from.' },
         from: { type: 'string', description: 'Sender address; defaults to the account address.' },
         to: { type: 'array', required: true, items: { type: 'string' }, description: 'Recipient addresses.' },
         cc: { type: 'array', items: { type: 'string' }, description: 'Cc addresses.' },
         bcc: { type: 'array', items: { type: 'string' }, description: 'Bcc addresses.' },
-        subject: { type: 'string', description: 'Subject; optional for a reply.' },
-        text: { type: 'string', required: true, description: 'Plain-text body.' },
+        subject: { type: 'string', description: 'Subject; optional for a reply or a forward.' },
+        text: { type: 'string', required: true, description: 'Plain-text body; for a forward, your note above the original (may be empty).' },
         replyTo: {
           type: 'object', additionalProperties: false, description: 'The message being answered.',
+          properties: { folder: { type: 'string', required: true }, id: { type: 'string', required: true } },
+        },
+        forward: {
+          type: 'object', additionalProperties: false, description: 'The message being forwarded; not combined with replyTo.',
           properties: { folder: { type: 'string', required: true }, id: { type: 'string', required: true } },
         },
         draft: { type: 'boolean', description: 'Save to Drafts instead of sending (IMAP only).' },
@@ -195,6 +199,7 @@ export function mailTools(mail: Context['mail'], timing: MailToolTiming): ToolDe
           ...args.bcc !== undefined ? { bcc: [...args.bcc] } : {},
           ...args.subject !== undefined ? { subject: args.subject } : {},
           ...args.replyTo !== undefined ? { replyTo: { folder: args.replyTo.folder, id: args.replyTo.id } } : {},
+          ...args.forward !== undefined ? { forward: { folder: args.forward.folder, id: args.forward.id } } : {},
           ...args.draft !== undefined ? { draft: args.draft } : {},
         }, exec.signal))
       },

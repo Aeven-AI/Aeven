@@ -2044,7 +2044,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'async send(owner: string, request: MailSendRequest, signal?: AbortSignal): Promise<MailSendResult>',
-        description: 'Send a message over SMTP, or append it to Drafts. The sender must be the account address or an alias.',
+        description: 'Send a message over SMTP, or append it to Drafts. The sender must be the account address or an alias. A forward reads the original from the account and sends its headers, text and HTML bodies, inline images, and attachments below the sender\'s text.',
         parameters: [{ name: 'owner', description: 'the conversation owner.' }, { name: 'request', description: 'the message.' }, { name: 'signal', description: 'cancellation.' }],
         returns: 'the Message-ID and recipient outcome.',
       },
@@ -7870,7 +7870,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MailAttachmentView',
-    declaration: 'export interface MailAttachmentView {\n    index: number;\n    filename?: string;\n    contentType: string;\n    size: number;\n}',
+    declaration: 'export interface MailAttachmentView {\n    index: number;\n    filename?: string;\n    contentType: string;\n    size: number;\n    inline?: true;\n}',
   },
   {
     name: 'MailEnvelope',
@@ -7882,7 +7882,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MailMessage',
-    declaration: 'export interface MailMessage extends MailMessageRef {\n    messageId?: string;\n    date?: string;\n    from?: string;\n    to?: string;\n    cc?: string;\n    replyTo?: string;\n    subject?: string;\n    text: string;\n    truncated: boolean;\n    attachments: MailAttachmentView[];\n}',
+    declaration: 'export interface MailMessage extends MailMessageRef {\n    messageId?: string;\n    date?: string;\n    from?: string;\n    to?: string;\n    cc?: string;\n    replyTo?: string;\n    subject?: string;\n    text: string;\n    textSource: MailTextSource;\n    truncated: boolean;\n    attachments: MailAttachmentView[];\n}',
   },
   {
     name: 'MailMessageRef',
@@ -7914,7 +7914,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MailSendRequest',
-    declaration: 'export interface MailSendRequest {\n    account: string;\n    from?: string;\n    to: string[];\n    cc?: string[];\n    bcc?: string[];\n    subject?: string;\n    text: string;\n    replyTo?: {\n        folder: string;\n        id: string;\n    };\n    draft?: boolean;\n}',
+    declaration: 'export interface MailSendRequest {\n    account: string;\n    from?: string;\n    to: string[];\n    cc?: string[];\n    bcc?: string[];\n    subject?: string;\n    text: string;\n    replyTo?: {\n        folder: string;\n        id: string;\n    };\n    forward?: {\n        folder: string;\n        id: string;\n    };\n    draft?: boolean;\n}',
   },
   {
     name: 'MailSendResult',
@@ -7923,6 +7923,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'MailServer',
     declaration: 'export interface MailServer {\n    host: string;\n    port: number;\n    security: MailSecurity;\n    username: string;\n}',
+  },
+  {
+    name: 'MailTextSource',
+    declaration: 'export type MailTextSource = \'plain\' | \'html\';',
   },
   {
     name: 'MailUpdateAction',
@@ -8982,7 +8986,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SessionGrantCoverage',
-    declaration: 'export type SessionGrantCoverage = \'action\' | \'account\' | \'sandbox\' | \'privilege\';',
+    declaration: 'export type SessionGrantCoverage = \'action\' | \'account\' | \'sandbox\' | \'privilege\' | \'site\';',
   },
   {
     name: 'SessionHandoffInput',

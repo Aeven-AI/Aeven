@@ -46,7 +46,7 @@ kind: "package-reference"
 - **错误。** 失败是 `MailError`，每个分类一条固定消息（`MAIL_AUTHENTICATION`、`MAIL_CONNECTION`、`MAIL_TLS`、`MAIL_LIMIT` 等）。服务器响应文本被丢弃，因为它可能回显凭据或邮件内容。认证失败会调用来源的 `authenticationFailed`，来源在被替换之前停止列出该账户。
 - **IMAP。** 搜索只读取信封，按最新在前，受 `searchMaxResults` 约束；读取会抓取来源而不设置 `\Seen`。归档、垃圾箱与草稿解析 RFC 6154 的 special-use 文件夹，服务器没有时会被拒绝。
 - **POP3。** 邮箱只有 `INBOX`。搜索扫描最新的 `pop3ScanLimit` 个头部，支持 from、to、subject、since 与 before；`delete` 是唯一的更新操作，并在 QUIT 时提交。草稿被拒绝。
-- **SMTP。** 发件人必须是账户地址或别名。回复会从原邮件设置 `In-Reply-To` 与 `References`，并把主题默认为 `Re: …`。超过 `sendsPerHour` 的发送被拒绝。
+- **SMTP。** 发件人必须是账户地址或别名。回复会从原邮件设置 `In-Reply-To` 与 `References`，并把主题默认为 `Re: …`。转发会从账户读取原邮件，在发件人的文本下方发送一个 `Forwarded message` 头部块及原邮件的文本与 HTML 正文，并附上原邮件的每个部分，内嵌图片保留 Content-ID，使 HTML 仍能显示它们；主题默认为 `Fwd: …`，同一请求不能既回复又转发。超过 `sendsPerHour` 的发送被拒绝。
 - **试探。** `probe(settings, secret)` 在接收服务器上连接、认证并列出文件夹，然后在发送服务器上连接并认证；抛出的 `MailError.step` 指出失败的步骤。
 
 <a id="model-experience"></a>
@@ -84,7 +84,7 @@ kind: "package-reference"
 
 #### 模型看到什么
 
-一次搜索最多返回 `searchMaxResults` 个最新在前的信封与一个 `truncated` 标志；跨所有账户的搜索会为每个失败的账户添加一行 `${account} could not be searched: ${error}`，并且只有在每个账户都失败时才整体失败。一次读取返回头部与最多 `bodyMaxChars` 个字符的纯文本正文，并带 `truncated` 标志，它的附件清单携带序号、名称、内容类型与大小。超过 `messageMaxBytes` 的邮件会被拒绝，而不是被返回；POP3 搜索只读取最新的 `pop3ScanLimit` 个头部。
+一次搜索最多返回 `searchMaxResults` 个最新在前的信封与一个 `truncated` 标志；跨所有账户的搜索会为每个失败的账户添加一行 `${account} could not be searched: ${error}`，并且只有在每个账户都失败时才整体失败。一次读取返回头部与最多 `bodyMaxChars` 个字符的文本正文，并带 `truncated` 标志与 `textSource`：`plain` 表示来自 `text/plain` 部分，`html` 表示邮件没有可见的纯文本、由 `text/html` 部分转换为文本，链接保留 URL，图片被跳过。它的附件清单携带序号、名称、内容类型、大小，以及标记 HTML 正文内嵌图片的 `inline`。超过 `messageMaxBytes` 的邮件会被拒绝，而不是被返回；POP3 搜索只读取最新的 `pop3ScanLimit` 个头部。
 
 #### Token 影响
 

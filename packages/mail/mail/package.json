@@ -36,10 +36,12 @@
     "imapflow": "^2.2.6",
     "mailparser": "^3.9.36",
     "node-pop3": "^0.15.3",
-    "nodemailer": "^10.0.15"
+    "nodemailer": "^10.0.15",
+    "html-to-text": "^10.0.1"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
-    "@types/mailparser": "^3.9.0"
+    "@types/mailparser": "^3.9.0",
+    "@types/html-to-text": "^9.0.4"
   }
 }

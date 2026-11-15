@@ -4426,7 +4426,7 @@ Source: [`packages/mail/tool-mail/src/tools.ts`](../packages/mail/tool-mail/src/
 
 ### `mail_send`
 
-Send a plain-text email from a connected account, or save it as a draft with draft: true. Sending always asks the user to approve first. To reply, pass replyTo with the original message's folder and id; the subject then defaults to "Re: …". The sender must be the account address or one of its aliases.
+Send a plain-text email from a connected account, or save it as a draft with draft: true. Sending always asks the user to approve first. To reply, pass replyTo with the original message's folder and id; the subject then defaults to "Re: …". To forward, pass forward with the original's folder and id: the original message, with its formatting, images, and attachments, goes out below text, and the subject defaults to "Fwd: …". The sender must be the account address or one of its aliases.
 
 ```json
 {
@@ -4463,15 +4463,32 @@ Send a plain-text email from a connected account, or save it as a draft with dra
     },
     "subject": {
       "type": "string",
-      "description": "Subject; optional for a reply."
+      "description": "Subject; optional for a reply or a forward."
     },
     "text": {
       "type": "string",
-      "description": "Plain-text body."
+      "description": "Plain-text body; for a forward, your note above the original (may be empty)."
     },
     "replyTo": {
       "type": "object",
       "description": "The message being answered.",
+      "additionalProperties": false,
+      "properties": {
+        "folder": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "folder",
+        "id"
+      ]
+    },
+    "forward": {
+      "type": "object",
+      "description": "The message being forwarded; not combined with replyTo.",
       "additionalProperties": false,
       "properties": {
         "folder": {
