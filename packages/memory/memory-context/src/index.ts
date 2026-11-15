@@ -354,7 +354,7 @@ export function apply(ctx: Context, config: Config): void {
     const fiber = fibers.get(agent)
     if (fiber === undefined) return
     fibers.delete(agent)
-    void fiber.dispose().catch((error: unknown) => {
+    void Promise.resolve(fiber.dispose()).catch((error: unknown) => {
       logger.warn(`invariants section cleanup failed for ${agent.session.id}: ${error instanceof Error ? error.message : String(error)}`)
     })
   }
