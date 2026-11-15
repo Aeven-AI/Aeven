@@ -29,14 +29,18 @@ const DOCUMENTS = new Set([
  * @param remote - workspace reader used to detect other binary formats.
  * @param sessionId - session owning the workspace.
  * @param path - workspace-relative or absolute file path.
- * @returns false for documents and other binary files that need a desktop application.
+ * @returns false for documents and other binary files that need a desktop application, and for a file this Host
+ * cannot read, outside its folders or absent, such as one written on another device of the account: the caller then
+ * opens the file another way, from its stored copy when it has one.
  */
 export async function canPreviewFile(remote: ClientRemote, sessionId: SessionId, path: string): Promise<boolean> {
   if (DOCUMENTS.has(extensionOf(path))) return false
   const kind = fileKindOf(path)
   if (kind === 'image' || kind === 'video' || kind === 'audio') return true
   const result = await remote.workspaceFiles.read(sessionId, path)
-  return result.ok || result.error.code !== 'workspace-file/not-text'
+  if (result.ok) return true
+  const code = result.error.code
+  return code !== 'workspace-file/not-text' && code !== 'workspace-file/outside-workspace' && code !== 'workspace-file/not-found'
 }
 
 /** The Session-scoped URL of one workspace file's bytes; `@aeven/client-ui-primitives` owns its shape. */
