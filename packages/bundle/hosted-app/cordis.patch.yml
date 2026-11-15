@@ -459,8 +459,11 @@
       - id: skill-filesystem
         config:
           includeDefaultRoots: false
+          # The aeven preset's own skills, resolved through the launching CLI's packages as for the jail's
+          # read-only mount below: `./skills/` against baseUrl named a folder that does not exist, which left
+          # cloud conversations without the CV and slides skills.
           customSkillDirs:
-            - !!js "process.getBuiltinModule('node:url').fileURLToPath(new URL('./skills/', baseUrl))"
+            - !!js "(() => { const { createRequire } = process.getBuiltinModule('node:module'); const path = process.getBuiltinModule('node:path'); const web = createRequire(process.argv[1]).resolve('@aeven/web-app/package.json'); return path.join(path.dirname(createRequire(web).resolve('@aeven/agent-presets/package.json')), 'presets', 'aeven', 'skills') })()"
 
 # ── starting processes without forking the Host ────────────────────────────
 
