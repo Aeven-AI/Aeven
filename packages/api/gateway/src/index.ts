@@ -528,8 +528,13 @@ export class TypertGatewayService extends Service implements TypertGateway {
       }
       const pending: PendingRemoteEvent = {
         id,
-        // A scoped event runs in one Agent's Session; only its owner's Clients may answer it.
-        audience: { owner: this.ctx.get('sessions')?.get(String(context.identity) as SessionId)?.header.owner },
+        // A scoped event runs in one Agent's Session; only its owner's Clients may answer it. A Session another device
+        // of the account runs is not open on this Host: its owner comes from the stand-in Agent the interaction relay
+        // presents its approvals and questions through.
+        audience: {
+          owner: this.ctx.get('sessions')?.get(String(context.identity) as SessionId)?.header.owner
+            ?? agentOwner(source.context.subject),
+        },
         source,
         frame: {
           type: 'waterfall',
@@ -1243,6 +1248,16 @@ function isPlainObject(value: object): value is Record<string, unknown> {
 
 function isObject(value: unknown): value is object {
   return (typeof value === 'object' && value !== null) || typeof value === 'function'
+}
+
+/**
+ * The account a scoped Remote event's Agent belongs to, read from the Agent's own Session header.
+ * @param subject - the Agent the event is scoped to.
+ * @returns the owner, or undefined when the Agent's Session names none.
+ */
+function agentOwner(subject: object): string | undefined {
+  const owner = (subject as { readonly session?: { readonly header?: { readonly owner?: unknown } } }).session?.header?.owner
+  return typeof owner === 'string' ? owner : undefined
 }
 
 export default TypertGatewayService

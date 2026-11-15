@@ -113,7 +113,7 @@ export default class PersonalizationController extends TypertRemoteService {
       const fiber = fibers.get(agent)
       if (fiber === undefined) return
       fibers.delete(agent)
-      void fiber.dispose().catch((error: unknown) => {
+      void Promise.resolve(fiber.dispose()).catch((error: unknown) => {
         ctx.logger('personalization').warn(`section cleanup failed for ${agent.session.id}: ${error instanceof Error ? error.message : String(error)}`)
       })
     }
