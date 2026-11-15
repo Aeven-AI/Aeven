@@ -1,7 +1,7 @@
 {
   "name": "@aeven/client-ui-reference",
   "description": "Unified Web @file and @session reference source",
-  "version": "0.3.49-alpha",
+  "version": "0.3.50-alpha",
   "publishConfig": {
     "access": "public"
   },

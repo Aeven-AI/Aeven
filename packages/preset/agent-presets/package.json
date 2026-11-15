@@ -1,7 +1,7 @@
 {
   "name": "@aeven/agent-presets",
   "description": "Per-session agent composition from preset cordis.yml files for the Aeven",
-  "version": "0.3.49-alpha",
+  "version": "0.3.50-alpha",
   "publishConfig": {
     "access": "public"
   },
