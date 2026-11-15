@@ -14,7 +14,7 @@ Status: implemented
 
 会话同步本就会发布事件中以 `sha256:` id 提到的每个附件，`/api/attachment-file` 本就会提供在工具结果 `meta` 中找到的文件引用，`show_motion` 的影片就是这样使用的。页面无法打开 Host 路径时，生成文件列表从这份副本下载文档，否则从 `/api/workspace-file` 下载。Files 侧栏可以预览的文件（例如 `deck.html`）也改用副本：当 Host 对某个路径返回 `workspace-file/outside-workspace` 或 `workspace-file/not-found` 时，侧栏报告无法预览，而不是打开一个显示错误的面板。在非 loopback 页面上，收尾正文中的行内提及也打开同一份副本；`ChatFileMentions.forClosing` 会收到用于构造副本 URL 的 Session id。命令声明了 `output_files` 的轮次在该行和正文链接中只列出这些输出，因此简历的 `cv.json` 不会出现。
 
-托管沙箱以只读方式挂载 `aeven` 预设的技能，使云端对话可以运行简历和演示文稿导出器；两个导出器都能在 Linux ARM 上找到沙箱中的 Playwright Chromium（`chrome-headless-shell-linux-arm64`）。
+托管沙箱以只读方式挂载 `aeven` 预设的技能（通过启动它的 CLI 的包解析路径，因为捆绑包中一行配置的 `baseUrl` 是配置文件夹），使云端对话可以运行简历和演示文稿导出器。两个导出器都能在 Linux ARM 上找到沙箱中的 Playwright Chromium（`chrome-headless-shell-linux-arm64`），把预览图写到 `$AVN_EXPORT_PREVIEW_DIR` 下（沙箱把它设在账户文件夹中，`read_image` 可以读取；命令的 `/tmp` 只属于该命令），并且在没有 Pages 或 Keynote 的电脑上说明该文件需要一台 Mac，而不是打印技能会以权限提升来回应的 `.pages skipped` 那一行。
 
 ## 考虑过的替代方案
 
