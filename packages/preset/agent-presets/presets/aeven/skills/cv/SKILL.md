@@ -7,20 +7,22 @@ description: Make a CV or résumé with the user in one of Aeven's forty templat
 
 A CV is two separate things: the **content** (who the person is, as JSON) and the **template** (how it looks). Every template reads the same fields, so a CV renders in any template; switching the look is changing one field. HTML is the source; PDF, Word and Pages are exported from it.
 
-You build the CV **with** the user, as a short wizard: ask, outline, build, refine. Never invent their facts, employers, dates, numbers or contact details: ask, or leave a clearly marked placeholder.
+You **guide** the user through a short, fixed path: questions, outline, build, review. They always know which step they are on and what comes next: open each step with one short line ("Reading your CV…", "Here's the plan for your pages", "Building the pages now"). Never invent their facts, employers, dates, numbers or contact details: ask, or leave a clearly marked placeholder.
 
-`$SKILL` below is this skill's directory, from `<skill_resources>`. Work in the user's working directory, one folder per CV, for example `cv/2026/`.
+Everything you need is in this file, the header comment of `$SKILL/scripts/cv.mjs`, and what the scripts print. Do not read the skill's other scripts or the templates' `layouts.mjs`, measure pages, or write helper scripts: when the output does not tell you what to do, ask the user.
 
-## The wizard
+`$SKILL` below is this skill's directory, from `<skill_resources>`. Work in the user's working directory, one folder per CV, for example `cv/2026/`, and put nothing in it but `cv.json`, the person's pictures and the exports.
 
-1. **Template.** Use the one the user named; `node "$SKILL/scripts/render.mjs" --list` prints each template's id, name and look. Without a choice, suggest one that fits their field and let them pick.
-2. **Read their material.** When the user attached a CV, LinkedIn export, PDF or document, read it first and keep its facts, order and wording; the questions shrink to what it does not say.
-3. **Ask once, with `ask_user_question`.** One round of short questions, skipping anything already answered:
+## The path
+
+1. **Template.** Use the one the user named; `node "$SKILL/scripts/render.mjs" --list` prints each template's id, name and look. Without a choice, suggest two or three that fit their field and let them pick.
+2. **Read their material.** When the user attached a CV, LinkedIn export, PDF or document, read it first and keep its facts, order and wording. Check which files actually came with the message: a request from the Resumes page can mention an attached photo that is not there.
+3. **One round of questions, with `ask_user_question`,** skipping anything the material already answers:
+   - the photo, when the template shows one (its look in `--list` names a portrait or photo) and none is attached: "I'll attach one" or "Build without a photo" (the cover then shows their initials);
+   - length: cover plus one page, or cover plus two to three pages (one page for the one-page designs);
    - the role or kind of job they are applying for;
-   - a portrait photo for the cover (strongly recommended: the templates are built around a large photo), and optionally a second, wider photo for the About section;
-   - length: cover plus one page, or cover plus two to three pages;
-   - the CV's language.
-4. **Outline, confirmed with `ask_user_question`:** the sections in order with one line each ("Experience · 4 roles, newest first"), offering "Build it" and "Change something".
+   - the CV's language, only when the material and the conversation leave it open.
+4. **Outline, confirmed with `ask_user_question`, always, also when rebuilding an attached CV:** the sections in order with one line each ("Experience · 3 roles, newest first"), and any decision the user should know about (what you shortened or left out, how skill levels were set). Offer "Build it" and "Change something"; adjust until they choose "Build it".
 5. **Write `cv.json`** in the CV folder. The fields are the header comment of `$SKILL/scripts/cv.mjs`; read it before writing. Short form:
    ```json
    { "system": "black", "lang": "en", "name": "Sam Lee", "role": "Product designer",
@@ -32,22 +34,23 @@ You build the CV **with** the user, as a short wizard: ask, outline, build, refi
      "sidebar": [{ "kind": "tags", "title": "Knowledge", "items": ["Figma", "Research"] }],
      "labels": { "about": "About", "profile": "Professional profile", "skills": "Skills", "languages": "Languages" } }
    ```
-   Write in the user's language and translate `labels` (also `roleLead`, `skillsIntro`, `languagesIntro`) and `greeting` with it. Keep descriptions to one or two sentences and at most three `points` per role; up to four skills read best as rings. Photo paths are relative to `cv.json`; `focus` is the point of the photo to keep in view, in percent, and `zoom` (1–4) crops into it for designs with a small round photo.
-6. **Render and export:**
+   Write in the user's language and translate `labels` (also `roleLead`, `skillsIntro`, `languagesIntro`) and `greeting` with it. Keep descriptions to one or two sentences and at most three `points` per role. Photo paths are relative to `cv.json`; `focus` is the point of the photo to keep in view, in percent, and `zoom` (1–4) crops into it for designs with a small round photo.
+6. **Build:**
    ```sh
    node "$SKILL/scripts/render.mjs" cv/2026/cv.json cv/2026
    node "$SKILL/scripts/export.mjs" cv/2026/cv.html cv/2026
    ```
    This writes `cv.html`, `cv.pdf`, `cv.docx`, and `cv.pages` on a Mac with Pages. The first export on a machine without Chrome downloads a headless Chrome once. The Pages step installs the CV's fonts and scripts Pages, which the workspace sandbox refuses: when the exporter prints `.pages skipped`, run the command it prints with the sandbox escalation, giving "convert the CV to Pages and install its fonts" as the reason.
-7. **Fix every warning.** The exporter names an entry too tall for a page and a CV longer than four pages (the cover and three). Shorten the text it names, or older entries, and export again until it prints none.
-8. **Show it.** Make pictures of the pages (`pdftoppm -r 48 -png cv.pdf p`), look at them yourself (photo crop, line breaks, empty space), then show the user. Ask what to change; each change is an edit to `cv.json` and a re-run, never an edit to the exported files.
-9. **Deliver** the PDF, the Word file and (on a Mac) the Pages file.
+7. **Follow the page report.** Before the files, the exporter prints each page with its sections and how full it is, then either `layout ok` or warnings that name the `cv.json` change to make: an entry taller than its page, more than four pages, or a last page left almost empty (with how many lines to free and which section can become a compact `list`). Make the first change it names that keeps the person's content, build again, and stop at `layout ok`. When two rounds do not get there, or the only changes left cut content, ask the user which way to go with the report's options.
+8. **Look before you show.** The exporter prints `previews:` and a picture of every page. Look at each: the photo crop, awkward line breaks, empty areas the report cannot see (a design's photo panel left bare without a photo). Fix what you can in `cv.json` and build again.
+9. **Hand it over.** In the reply: one line on what you built (template, number of pages); at most three decisions for the user to confirm; and the files, each in inline code by its full path (`/…/cv/2026/cv.pdf`, `cv.docx`, `cv.pages`) so they open from the reply. Then close with `ask_user_question`: "What next?" with two or three changes that fit this CV (add the photo, tighten to fewer pages, try it in another template, rework the profile) and "It's done". Each change is an edit to `cv.json` and a rebuild, never an edit to the exported files.
 
 ## Content
 
-- `sections` run in order after About and Skills. `timeline` is for jobs, education, volunteering: `org`, `title`, `dates`, `place`, `text`, `points`, and an optional `icon` (briefcase, plane, compass, pen, code, chart, megaphone, camera, cap, book, laptop, award, globe, heart, flask, building). `list` is for awards, publications, certificates: `title`, `meta` (year), `text`. `text` is one paragraph; `tags` a short checklist.
+- `sections` run in order after About and Skills. `timeline` is for jobs, education, volunteering: `org`, `title`, `dates`, `place`, `text`, `points`, and an optional `icon` (briefcase, plane, compass, pen, code, chart, megaphone, camera, cap, book, laptop, award, globe, heart, flask, building). `list` is the compact form, one line per entry: awards, publications, certificates, and education when space is short: `title`, `meta` (year or school and year), `text`. `text` is one paragraph; `tags` a short checklist.
 - `sidebar` sections (`tags`, `text`, `list`) join Skills, as the template's knowledge and extras lists.
-- Without a photo, the cover shows the person's initials; say so when they choose to leave it out.
+- **Skill levels** draw as rings or bars, so they are numbers the user stands behind. Use the person's own number; otherwise map their word: expert 90, advanced 75, intermediate 60, basic 40, and keep the word in `note`. A skill with neither goes into a `tags` section, not a ring. Up to four skills read best as rings.
+- Without a photo, the cover shows the person's initials.
 - Content flows onto as many pages as it needs, a whole entry at a time. Only page 1 carries the name block or header; later pages have no header, menu or page number, so the exported pages read as one scroll.
 
 ## Exports
