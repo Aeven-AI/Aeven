@@ -39,15 +39,15 @@ export interface ShareBudget {
   bytes: number
 }
 
+/** The `bytes` a recorded reference carries, or 0. */
+const bytesOf = (ref: unknown): number =>
+  typeof (ref as { bytes?: unknown } | null)?.bytes === 'number' ? (ref as { bytes: number }).bytes : 0
+
 /**
  * Bytes a conversation has already shared, counted from the shared references and copies its bash results record.
  * @param events - the conversation's log.
  * @returns the summed `bytes` of every recorded shared image and file and every produced file's copy.
  */
-/** The `bytes` a recorded reference carries, or 0. */
-const bytesOf = (ref: unknown): number =>
-  typeof (ref as { bytes?: unknown } | null)?.bytes === 'number' ? (ref as { bytes: number }).bytes : 0
-
 export function sharedBytesOf(events: readonly { readonly type: string; readonly data?: unknown }[]): number {
   let total = 0
   const visit = (value: unknown): void => {

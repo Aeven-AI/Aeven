@@ -11611,6 +11611,9 @@ importers:
       '@aeven/shell-env':
         specifier: workspace:^
         version: link:../shell-env
+      '@aeven/skill':
+        specifier: workspace:^
+        version: link:../../skill/skill
       '@aeven/subprocess-local':
         specifier: workspace:^
         version: link:../../subprocess/subprocess-local

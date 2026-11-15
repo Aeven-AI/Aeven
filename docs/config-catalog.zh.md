@@ -4428,6 +4428,8 @@ export interface Config {
   watchFollowSymlinks?: boolean
   /** Bundled skill root; defaults to `$AVN_BUNDLED_SKILL_DIR` when default roots are included, otherwise mounts none. */
   bundledSkillDir?: string
+  /** Skill names this provider never offers, such as a skill whose tools the deployment does not compose. */
+  excludeSkills?: string[]
 }
 ```
 
@@ -5334,6 +5336,23 @@ export interface Config {
    * Host's folders; it requires `ctx.attachments`.
    */
   shareOutputFiles?: boolean
+  /**
+   * Store a copy of each non-image file a command lists in `output_files` and
+   * produces, inside the workspace or not, as an attachment recorded on its
+   * `producedFiles` entry and nowhere else (default false): nothing shows at
+   * the call and the model's result is unchanged. Session sync carries the
+   * copy to the account's other devices, whose produced-files row opens it.
+   * For a Host the reader may reach from another device; it requires
+   * `ctx.attachments`, shares the per-call and per-conversation caps below, and
+   * cannot be combined with `shareOutputFiles`.
+   */
+  copyOutputFiles?: boolean
+  /**
+   * Skill scripts whose requested sandbox escalation runs without asking (default none). A command qualifies only when
+   * it is exactly one invocation of an entry's script inside the resource directory of a skill the deployment ships
+   * (source `custom` or `bundled`), with an allowed final argument; any other escalation still asks.
+   */
+  escalationSkillScripts?: EscalationSkillScript[]
   /** Most produced files one call shares (default 10); the rest are reported, not stored. */
   shareMaxFiles?: number
   /** Most bytes one call shares (default 100 MiB). */
@@ -5347,6 +5366,16 @@ export interface Config {
   shareLedgerDirectory?: string
   /** Most bytes one account shares per UTC day across its conversations (default 2 GiB); needs `shareLedgerDirectory`. */
   shareMaxAccountBytesPerDay?: number
+}
+
+/** One pre-approved skill script. */
+export interface EscalationSkillScript {
+  /** The skill's name. */
+  skill: string
+  /** The script, relative to the skill's resource directory. */
+  script: string
+  /** Values the command's final argument may take; the script's other arguments are free. */
+  finalArgs: string[]
 }
 ```
 

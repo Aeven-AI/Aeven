@@ -49,6 +49,7 @@ kind: "package-reference"
 | `detachAfterMs` | `20000` | 前台命令在被交还为后台任务之前允许运行多久 |
 | `shareOutputFiles` | `false` | 将工作区内生成的 `output_files` 存为附件并在调用处展示，以相对于工作区的路径记录它们，并拒绝工作区之外的声明路径；需要 `ctx.attachments` |
 | `copyOutputFiles` | `false` | 将生成的每个非图片 `output_files` 文件（无论是否在工作区内）复制一份存为附件，只记录在其 `producedFiles` 条目上，供账户的其他设备打开；调用处不展示，模型看到的结果不变。需要 `ctx.attachments`，使用单次调用和单个对话的上限，不能与 `shareOutputFiles` 同时启用 |
+| `escalationSkillScripts` | `[]` | 无需询问即可按请求提升沙箱权限运行的技能脚本：`{ skill, script, finalArgs }`。只有完全符合 `[cd <dir> && ] node <script> <arg> <arg> <final>` 的命令才符合条件：各个记号为普通或双引号字符串（不含 `$`、反引号或反斜杠），脚本解析为来源为 `custom` 或 `bundled` 的技能资源目录中的该文件，且最后一个参数在允许范围内；其他任何权限提升仍会询问。桌面组合列出了简历和演示文稿导出器的 Pages 与 Keynote 转换 |
 | `shareMaxFiles` | `10` | 单次调用最多共享的生成文件数 |
 | `shareMaxBytes` | `104857600` | 单次调用最多共享的字节数 |
 | `shareMaxSessionBytes` | `524288000` | 一个对话在所有调用中最多共享的字节数，按其日志统计 |

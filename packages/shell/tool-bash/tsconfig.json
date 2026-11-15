@@ -48,6 +48,9 @@
       "path": "../../shell/shell"
     },
     {
+      "path": "../../skill/skill"
+    },
+    {
       "path": "../../shell/shell-env"
     },
     {
