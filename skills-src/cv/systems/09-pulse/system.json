@@ -1,0 +1,58 @@
+{
+  "id": "pulse",
+  "name": "Pulse",
+  "label": "Pulse",
+  "motif": "Electric blue-to-magenta frame, glass side card with a big round photo, dark label tabs and skill rings",
+  "type": {
+    "fonts": {
+      "text": "Montserrat",
+      "display": "Montserrat"
+    }
+  },
+  "palette": {
+    "page": "#4353F2",
+    "page2": "#D14FC6",
+    "card": "#FFFFFF",
+    "ink": "#1F1F2E",
+    "text": "#4A4A5A",
+    "muted": "#8B8BA0",
+    "tab": "#4A4A4A",
+    "accent": "#4353F2",
+    "track": "#E4E6F6"
+  },
+  "sample": {
+    "name": "Lena Vogel",
+    "role": "UI/UX designer",
+    "photo": {
+      "src": "model-zAs25s0ve6E.jpg",
+      "alt": "Lena Vogel",
+      "focus": [
+        50,
+        38
+      ],
+      "zoom": 1.2
+    },
+    "backdrop": {
+      "src": "model-zAs25s0ve6E.jpg"
+    },
+    "profile": "UI/UX designer crafting playful, colourful apps for music, fitness and creators. Figma power user, prototyper and design-system tidier.",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "lena@vogel.design"
+      },
+      {
+        "label": "Phone",
+        "value": "+44 20 7946 0321"
+      },
+      {
+        "label": "Location",
+        "value": "London, UK"
+      },
+      {
+        "label": "Website",
+        "value": "lenavogel.com"
+      }
+    ]
+  }
+}

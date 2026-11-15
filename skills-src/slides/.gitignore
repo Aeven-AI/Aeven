@@ -1,0 +1,7 @@
+out/
+tmp/
+rips/
+node_modules/
+*.pdf
+*.pptx
+*.key

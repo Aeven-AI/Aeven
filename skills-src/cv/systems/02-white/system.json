@@ -1,0 +1,70 @@
+{
+  "id": "white",
+  "name": "White",
+  "label": "White",
+  "motif": "White pages, black side column, yellow name block, full-page portrait cover, Oswald caps, skill rings, icon timeline",
+  "type": {
+    "fonts": {
+      "text": "Roboto",
+      "display": "Oswald"
+    }
+  },
+  "palette": {
+    "page": "#FFFFFF",
+    "panel": "#F7F7F7",
+    "side": "#000000",
+    "title": "#000000",
+    "ink": "#000000",
+    "text": "#545454",
+    "muted": "#8A8A8A",
+    "rule": "#DFDFDF",
+    "ring": "#2B2B2B",
+    "ringTrack": "#DFDFDF",
+    "accent": "#FFB400",
+    "onAccent": "#000000",
+    "cover": "#000000",
+    "coverRule": "rgba(0, 0, 0, 0.25)",
+    "aboutMask": "none",
+    "aboutPhotoWidth": "40%",
+    "aboutCopyWidth": "52%",
+    "aboutPhotoX": "69%",
+    "coverBg": "#FFFFFF"
+  },
+  "sample": {
+    "name": "Hanna Lind",
+    "role": "Fashion art director",
+    "photo": {
+      "src": "model-0lzxrijewmY.jpg",
+      "alt": "Hanna Lind",
+      "focus": [
+        40,
+        18
+      ]
+    },
+    "backdrop": {
+      "src": "model-0lzxrijewmY.jpg"
+    },
+    "contact": [
+      {
+        "label": "Email",
+        "value": "hanna@lind.studio"
+      },
+      {
+        "label": "Phone",
+        "value": "+46 8 123 456 78"
+      },
+      {
+        "label": "Location",
+        "value": "Stockholm, Sweden"
+      },
+      {
+        "label": "Website",
+        "value": "hannalind.studio"
+      },
+      {
+        "label": "LinkedIn",
+        "value": "linkedin.com/in/hannalind"
+      }
+    ]
+  }
+}

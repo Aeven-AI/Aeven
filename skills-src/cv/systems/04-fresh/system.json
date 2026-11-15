@@ -1,0 +1,197 @@
+{
+  "id": "fresh",
+  "name": "Fresh",
+  "label": "Fresh",
+  "motif": "White pages, fresh green accents, Montserrat titles, hero with the photo in a slanted mint shape, framed About photo, white shadow cards, counters",
+  "type": {
+    "fonts": {
+      "text": "Roboto",
+      "display": "Montserrat"
+    }
+  },
+  "palette": {
+    "page": "#FFFFFF",
+    "panel": "#F6F7FD",
+    "ink": "#292B2C",
+    "strong": "#333333",
+    "text": "#666666",
+    "muted": "#888888",
+    "rule": "#E6E6E6",
+    "frame": "#EEEEEE",
+    "accent": "#27E278",
+    "shape": "#DFFBEB",
+    "onAccent": "#FFFFFF"
+  },
+  "sample": {
+    "name": "Mei Tanaka",
+    "role": "Freelance web designer",
+    "greeting": "Hello, I'm",
+    "photo": {
+      "src": "model-k8AWNNCry-0.jpg",
+      "alt": "Mei Tanaka",
+      "focus": [
+        40,
+        40
+      ]
+    },
+    "backdrop": {
+      "src": "model-k8AWNNCry-0.jpg"
+    },
+    "profile": "Web designer and front-end developer with ten years of building fast, friendly websites for studios, shops and start-ups. I take projects from the first workshop to launch, and stay on to make them better.",
+    "contact": [
+      {
+        "label": "Date of birth",
+        "value": "20 August 1990"
+      },
+      {
+        "label": "Phone",
+        "value": "+31 6 1234 5678"
+      },
+      {
+        "label": "Email",
+        "value": "mei@tanaka.design"
+      },
+      {
+        "label": "Address",
+        "value": "Keizersgracht 12, Amsterdam"
+      },
+      {
+        "label": "Website",
+        "value": "www.meitanaka.design"
+      },
+      {
+        "label": "Freelance",
+        "value": "Available"
+      }
+    ],
+    "skills": [
+      {
+        "name": "UI/UX design",
+        "level": 92,
+        "note": "Expert"
+      },
+      {
+        "name": "Web design",
+        "level": 90,
+        "note": "Expert"
+      },
+      {
+        "name": "Front-end code",
+        "level": 85,
+        "note": "Advanced"
+      },
+      {
+        "name": "Branding",
+        "level": 70,
+        "note": "Good"
+      }
+    ],
+    "languages": [
+      {
+        "name": "Dutch",
+        "level": "Native",
+        "value": 100
+      },
+      {
+        "name": "English",
+        "level": "Fluent",
+        "value": 92
+      },
+      {
+        "name": "German",
+        "level": "Good",
+        "value": 65
+      }
+    ],
+    "sections": [
+      {
+        "kind": "timeline",
+        "title": "Work Experiences",
+        "intro": "Ten years of websites, shops and digital products for clients across Europe.",
+        "items": [
+          {
+            "org": "Studio Noord",
+            "title": "Lead web designer",
+            "dates": "2020 – now",
+            "place": "Amsterdam",
+            "text": "Design and build websites for cultural institutions and retail brands, from strategy workshop to launch."
+          },
+          {
+            "org": "Brightbase",
+            "title": "UI/UX designer",
+            "dates": "2017 – 2020",
+            "place": "Utrecht",
+            "text": "Designed the booking flow and design system of a travel platform used by 300,000 people a month."
+          },
+          {
+            "org": "Pixelwerk",
+            "title": "Front-end developer",
+            "dates": "2014 – 2017",
+            "place": "Rotterdam",
+            "text": "Built responsive sites and shop themes in HTML, CSS and JavaScript for agency clients."
+          },
+          {
+            "org": "Freelance",
+            "title": "Web designer",
+            "dates": "2012 – 2014",
+            "place": "Amsterdam",
+            "text": "Websites and identities for local businesses, musicians and restaurants."
+          }
+        ]
+      },
+      {
+        "kind": "timeline",
+        "title": "Education",
+        "intro": "Design and media technology.",
+        "items": [
+          {
+            "org": "Gerrit Rietveld Academie",
+            "title": "BA Graphic design",
+            "dates": "2008 – 2012",
+            "place": "Amsterdam",
+            "text": "Typography, interaction and editorial design."
+          },
+          {
+            "org": "Hogeschool Utrecht",
+            "title": "Minor in media technology",
+            "dates": "2011",
+            "place": "Utrecht",
+            "text": "Web development and usability research."
+          }
+        ]
+      },
+      {
+        "kind": "list",
+        "title": "Awards",
+        "intro": "Recognition for client work.",
+        "items": [
+          {
+            "title": "Dutch Design Award, web",
+            "meta": "2023",
+            "text": "Rijksmuseum shop relaunch"
+          },
+          {
+            "title": "CSS Design Awards, site of the day",
+            "meta": "2021",
+            "text": "Studio Noord portfolio"
+          }
+        ]
+      }
+    ],
+    "sidebar": [
+      {
+        "kind": "tags",
+        "title": "Tools",
+        "items": [
+          "Figma",
+          "Webflow",
+          "HTML & CSS",
+          "JavaScript",
+          "React",
+          "WordPress",
+          "Photoshop"
+        ]
+      }
+    ]
+  }
+}

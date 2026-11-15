@@ -1,0 +1,22 @@
+{
+  "name": "@aeven/slides",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Fifty presentation design systems and the deck generator that fills them",
+  "scripts": {
+    "spec": "node scripts/build-spec.mjs",
+    "render": "node scripts/render.mjs all out",
+    "export": "node scripts/export.mjs out out",
+    "build": "node scripts/render.mjs all out && node scripts/export.mjs out out pdf,pptx,key,cover"
+  },
+  "dependencies": {
+    "jszip": "3.10.1",
+    "pptxgenjs": "3.12.0",
+    "puppeteer-core": "24.10.0"
+  },
+  "devDependencies": {
+    "@puppeteer/browsers": "2.10.5",
+    "esbuild": "0.25.5"
+  }
+}

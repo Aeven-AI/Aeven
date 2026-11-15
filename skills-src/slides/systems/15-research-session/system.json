@@ -1,0 +1,54 @@
+{
+  "id": "research-session",
+  "name": "User Research Session",
+  "label": "Research Session",
+  "preset": "contrast",
+  "source": "https://www.figma.com/community/file/1385701164530721318/user-research-session",
+  "measuredFrom": "16 Figma Community thumbnails at 1000×563, palette sampled per frame with ImageMagick, scaled ×1.28",
+  "motif": "stark black, sage off-white and white slides, medium grotesque caps titles bottom-left, hand-drawn line stars and sunbursts, typewriter corner meta, full-bleed hairline rows",
+  "rhythm": "black cover, white agenda, sage section, sage statement, white content slides with a black stage, checker-and-burst split for the big number, black closing",
+  "surface": {
+    "black": "#000000",
+    "sage": "#DCDCCF",
+    "white": "#FFFFFF",
+    "checkerLight": "#FAFAFA",
+    "checkerDark": "#EBEBEB"
+  },
+  "ink": {
+    "primary": "#000000",
+    "onBlack": "#DCDCCF",
+    "rule": "#9B9B9B"
+  },
+  "type": {
+    "family": "medium grotesque caps titles, regular grotesque body, light typewriter meta",
+    "titleCaps": true,
+    "hero": 106,
+    "title": 48,
+    "agenda": 42,
+    "lead": 36,
+    "label": 20,
+    "body": 17,
+    "meta": 14,
+    "fonts": {
+      "text": "Work Sans",
+      "extra": ["Cutive Mono"],
+      "source": "Work Sans (titles, lists, body; its tailed Q and single-storey y are visible on the agenda) and a Courier-style typewriter for the corner meta, identified visually"
+    }
+  },
+  "geometry": {
+    "margin": 27,
+    "metaInset": 20,
+    "titleTop": 70,
+    "stage": { "left": 468, "top": 73, "right": 27, "bottom": 76 },
+    "listIndent": 329,
+    "stroke": 2.5
+  },
+  "palette": {
+    "paper": "#FFFFFF",
+    "ink": "#000000",
+    "muted": "#6B6B63",
+    "rule": "#9B9B9B",
+    "onAccent": "#FFFFFF",
+    "accents": ["#000000", "#8C8C82", "#C4C4B2", "#4A4A44"]
+  }
+}

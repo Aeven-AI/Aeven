@@ -1,0 +1,55 @@
+{
+  "id": "minimalrule",
+  "name": "Minimal Rule",
+  "label": "Minimal Rule",
+  "motif": "Square photo and name over hairlines, spaced caps labels, everything on a strict grid",
+  "type": {
+    "fonts": {
+      "text": "Inter",
+      "display": "Inter"
+    }
+  },
+  "palette": {
+    "page": "#FFFFFF",
+    "ink": "#111111",
+    "text": "#444444",
+    "muted": "#8E8E8E",
+    "rule": "#E3E3E3",
+    "accent": "#111111",
+    "chip": "#F2F2F2"
+  },
+  "sample": {
+    "name": "Nadia Karimi",
+    "role": "Product designer",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "nadia@karimi.com"
+      },
+      {
+        "label": "Phone",
+        "value": "+1 415 555 0142"
+      },
+      {
+        "label": "Location",
+        "value": "San Francisco, CA"
+      },
+      {
+        "label": "Website",
+        "value": "nadiakarimi.com"
+      }
+    ],
+    "photo": {
+      "src": "model-vsWy6nchcOs.jpg",
+      "alt": "Nadia Karimi",
+      "focus": [
+        50,
+        40
+      ],
+      "zoom": 1.6
+    },
+    "backdrop": {
+      "src": "model-vsWy6nchcOs.jpg"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "@aeven/cv",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "CV design systems and the generator that fills them: HTML, PDF, DOCX and Pages",
+  "scripts": {
+    "render": "node scripts/render.mjs all out",
+    "export": "node scripts/export.mjs out out",
+    "gallery": "node scripts/gallery.mjs out/gallery"
+  },
+  "dependencies": {
+    "docx": "9.5.1",
+    "puppeteer-core": "24.10.0",
+    "jszip": "3.10.1"
+  },
+  "devDependencies": {
+    "@puppeteer/browsers": "2.10.5",
+    "esbuild": "0.25.5"
+  }
+}

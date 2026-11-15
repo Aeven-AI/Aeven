@@ -1,0 +1,58 @@
+{
+  "id": "judit",
+  "name": "Judit",
+  "label": "Judit",
+  "motif": "Warm ivory page, a serif name and coral accents, round photo and tidy hairline sections",
+  "type": {
+    "fonts": {
+      "text": "Inter",
+      "display": "Lora",
+      "italic": [
+        "Lora"
+      ]
+    }
+  },
+  "palette": {
+    "page": "#FBF8F4",
+    "ink": "#1F1A17",
+    "text": "#4D4643",
+    "muted": "#A0948D",
+    "rule": "#EADFD6",
+    "accent": "#E2604A",
+    "chip": "#F6E7E1"
+  },
+  "sample": {
+    "name": "Caroline Smith",
+    "role": "Product designer",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "caroline@smith.com"
+      },
+      {
+        "label": "Phone",
+        "value": "+1 415 555 0142"
+      },
+      {
+        "label": "Location",
+        "value": "San Francisco, CA"
+      },
+      {
+        "label": "Website",
+        "value": "carolinesmith.com"
+      }
+    ],
+    "photo": {
+      "src": "model-LyeduBb2Auk.jpg",
+      "alt": "Caroline Smith",
+      "focus": [
+        56,
+        38
+      ],
+      "zoom": 1.6
+    },
+    "backdrop": {
+      "src": "model-LyeduBb2Auk.jpg"
+    }
+  }
+}

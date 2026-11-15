@@ -1,0 +1,61 @@
+{
+  "id": "lush-lux",
+  "label": "Lush Lux",
+  "name": "Lush Lux",
+  "preset": "editorial",
+  "source": "https://www.figma.com/community/file/1383228068991064991/lush-lux",
+  "measuredFrom": "16 Figma Community thumbnails at 1000×563, palette sampled per frame with PIL",
+  "field": {
+    "pink": "#D797C0",
+    "cream": "#F6F3E4",
+    "orange": "#ED7349",
+    "yellow": "#E7E77B",
+    "ochre": "#BD9A5F",
+    "olive": "#2D361D",
+    "blush": "#E4D4C8",
+    "mint": "#58C09A"
+  },
+  "ink": {
+    "primary": "#2D361D",
+    "gold": "#927545",
+    "onOlive": "#F6F3E4",
+    "titleOnOlive": "#E5D8C7"
+  },
+  "rule": "#96794A",
+  "type": {
+    "family": "high-contrast serif caps titles, small grotesque meta",
+    "titleCaps": true,
+    "cover": 125,
+    "contents": 120,
+    "title": 54,
+    "list": 46,
+    "label": 30,
+    "meta": 14,
+    "fonts": {
+      "text": "DM Sans",
+      "display": "Cormorant Garamond",
+      "source": "Cormorant Garamond (titles, lists, body copy; its Th ligature is visible in the contents slides) and DM Sans (labels, corner meta, subtitles), identified visually"
+    }
+  },
+  "geometry": {
+    "margin": 28,
+    "cornerMetaCentre": 133,
+    "footerBaseline": 32
+  },
+  "motif": "single saturated colour fields rotating slide to slide, half-and-half colour splits, centred corner meta pairs (sans caps label over serif value), footer date and deck title at the quarter points",
+  "rhythm": "pink, ochre|orange, cream (gold title), ochre, olive, cream, yellow|cream, orange, cream, olive|pink, cream, yellow, cream (chart), blush, orange, cream|blush, olive, cream, blush (custom), pink",
+  "palette": {
+    "paper": "#F6F3E4",
+    "ink": "#2D361D",
+    "muted": "#927545",
+    "rule": "#96794A",
+    "onAccent": "#2D361D",
+    "accents": [
+      "#ED7349",
+      "#D797C0",
+      "#58C09A",
+      "#BD9A5F",
+      "#E7E77B"
+    ]
+  }
+}

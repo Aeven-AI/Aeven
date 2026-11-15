@@ -1,0 +1,67 @@
+{
+  "id": "customer-voice",
+  "name": "Voice of Customer Insights Report",
+  "label": "Customer Voice",
+  "preset": "contrast",
+  "source": "https://www.figma.com/community/file/1386100935413146441/voice-of-customer-insights-report",
+  "measuredFrom": "16 Figma Community thumbnails at 1000×563, palette sampled per frame with PIL, geometry scaled ×1.28",
+  "motif": "black report pages in clean white grotesque, a segmented pastel spectrum bar along the foot, a thin rainbow ring, pastel numbered process dots and white table cards and side panels",
+  "surface": {
+    "page": "#000000",
+    "panel": "#FFFFFF",
+    "stripe": "#F5F5F5",
+    "tile": "#FAFAFA",
+    "check": "#EBEBEB",
+    "arrow": "#3F3F3F"
+  },
+  "ink": {
+    "primary": "#FFFFFF",
+    "muted": "#C4C6C5",
+    "dim": "#7A7C7B",
+    "label": "#909090",
+    "onPanel": "#000000",
+    "tableHead": "#6B6B6B"
+  },
+  "spectrum": [
+    { "name": "grey", "fill": "#BCC1C5", "deep": "#80878C", "units": 2 },
+    { "name": "pink", "fill": "#F0989F", "deep": "#C44A57", "units": 2 },
+    { "name": "peach", "fill": "#F2B097", "deep": "#D26944", "units": 1 },
+    { "name": "yellow", "fill": "#F8D59B", "deep": "#B98A2C", "units": 2 },
+    { "name": "green", "fill": "#ACFCB6", "deep": "#3FA651", "units": 1 },
+    { "name": "cyan", "fill": "#A8F1FC", "deep": "#57B4C2", "units": 1 },
+    { "name": "blue", "fill": "#9DC9FA", "deep": "#4F86CF", "units": 1 },
+    { "name": "purple", "fill": "#9E93F6", "deep": "#594CC3", "units": 1 },
+    { "name": "violet", "fill": "#D195F7", "deep": "#9A4FCB", "units": 1 }
+  ],
+  "ring": ["#F1BCA8", "#EC757C", "#EC757C", "#779BD6", "#779BD6", "#A4DAE5", "#A4DAE5", "#C6A2D1", "#EBEAED", "#EBEAED", "#F2D08D", "#F2D08D", "#F1BCA8"],
+  "type": {
+    "family": "neutral grotesque, semibold sentence-case titles, light grey tracked caps eyebrows",
+    "cover": 92,
+    "title": 46,
+    "headline": 44,
+    "list": 28,
+    "body": 19,
+    "eyebrow": 18,
+    "fonts": {
+      "text": "Inter",
+      "source": "Inter (Figma's default family; titles in its display optical size), identified visually"
+    }
+  },
+  "geometry": {
+    "margin": 54,
+    "coverInset": 154,
+    "barInset": 15,
+    "barFull": 16,
+    "panel": 426,
+    "dot": 49,
+    "ringRadius": 198
+  },
+  "palette": {
+    "paper": "#000000",
+    "ink": "#FFFFFF",
+    "muted": "#C4C6C5",
+    "rule": "#5C5C5C",
+    "onAccent": "#000000",
+    "accents": ["#F0989F", "#9DC9FA", "#F8D59B", "#9E93F6", "#ACFCB6", "#F2B097", "#A8F1FC", "#D195F7"]
+  }
+}

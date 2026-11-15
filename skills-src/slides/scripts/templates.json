@@ -1,0 +1,75 @@
+{
+  "families": {
+    "editorial": { "ink": "#14110F", "paper": "#F6F1E7", "accent": "#B4462F" },
+    "swiss": { "ink": "#111111", "paper": "#FAFAF8", "accent": "#E8402A" },
+    "darktech": { "ink": "#E8EAF0", "paper": "#0B0C0E", "accent": "#6EE7F0" },
+    "gradient": { "ink": "#0B0B12", "paper": "#FF5C7A", "accent": "#FFE27A" },
+    "paper": { "ink": "#23201B", "paper": "#F2E8D5", "accent": "#2F5D50" },
+    "retro": { "ink": "#2E2A20", "paper": "#E8D9B5", "accent": "#C4623B" },
+    "report": { "ink": "#1B2430", "paper": "#F4F6F8", "accent": "#2B6CB0" },
+    "photo": { "ink": "#FFFFFF", "paper": "#1A1F2B", "accent": "#F2C14E" },
+    "playful": { "ink": "#16131F", "paper": "#FFE9A8", "accent": "#FF4D6D" },
+    "corporate": { "ink": "#F2F5F9", "paper": "#10233F", "accent": "#4C8DFF" }
+  },
+  "templates": [
+    { "id": "annual-report-editorial", "name": "Annual Report", "family": "editorial", "display": "Annual\nReport", "eyebrow": "FISCAL YEAR 2026", "sub": "Results, in full", "num": "18" },
+    { "id": "brand-story-editorial", "name": "Brand Story", "family": "editorial", "display": "Brand\nStory", "eyebrow": "THE ORIGIN", "sub": "How it began", "num": "14" },
+    { "id": "field-notes-editorial", "name": "Field Notes", "family": "editorial", "display": "Field\nNotes", "eyebrow": "EDITORIAL DECK", "sub": "A year of looking", "num": "12" },
+    { "id": "the-long-view-editorial", "name": "The Long View", "family": "editorial", "display": "The Long\nView", "eyebrow": "KEYNOTE", "sub": "Strategy, ten years out", "num": "22" },
+    { "id": "issue-one-editorial", "name": "Magazine Pitch", "family": "editorial", "display": "Issue\nOne", "eyebrow": "PITCH", "sub": "A magazine for makers", "num": "16" },
+
+    { "id": "startup-pitch-swiss", "name": "Startup Pitch", "family": "swiss", "display": "Pitch", "eyebrow": "SEED · 2026", "sub": "Problem, product, plan", "num": "12" },
+    { "id": "product-strategy-swiss", "name": "Product Strategy", "family": "swiss", "display": "Product\nStrategy", "eyebrow": "H2 PLAN", "sub": "Where we place the bet", "num": "16" },
+    { "id": "design-review-swiss", "name": "Design Review", "family": "swiss", "display": "Design\nReview", "eyebrow": "WEEK 42", "sub": "Three ideas, one decision", "num": "10" },
+    { "id": "talk-no12-swiss", "name": "Conference Talk", "family": "swiss", "display": "Talk\nNo. 12", "eyebrow": "STAGE 2 · 14:30", "sub": "Forty slides, no filler", "num": "40" },
+    { "id": "offsite-swiss", "name": "Team Offsite", "family": "swiss", "display": "Offsite", "eyebrow": "TWO DAYS", "sub": "Agenda and intent", "num": "9" },
+
+    { "id": "seed-round-darktech", "name": "Seed Round", "family": "darktech", "display": "Seed", "eyebrow": "SAFE · $2.4M", "sub": "Terms and traction", "num": "14" },
+    { "id": "ai-launch-darktech", "name": "AI Product Launch", "family": "darktech", "display": "Launch\nDay", "eyebrow": "MODEL 1.0", "sub": "What shipped", "num": "18" },
+    { "id": "roadmap-2027-darktech", "name": "Engineering Roadmap", "family": "darktech", "display": "Roadmap\n2027", "eyebrow": "PLATFORM", "sub": "Four quarters", "num": "12" },
+    { "id": "threat-model-darktech", "name": "Security Briefing", "family": "darktech", "display": "Threat\nModel", "eyebrow": "INTERNAL", "sub": "What we harden first", "num": "15" },
+    { "id": "dev-day-darktech", "name": "Developer Keynote", "family": "darktech", "display": "Dev Day", "eyebrow": "KEYNOTE", "sub": "API, SDK, limits", "num": "24" },
+
+    { "id": "create-more-gradient", "name": "Creator Pitch", "family": "gradient", "display": "Create\nMore", "eyebrow": "CREATOR FUND", "sub": "Making things pay", "num": "12" },
+    { "id": "campaign-26-gradient", "name": "Campaign Deck", "family": "gradient", "display": "Campaign\n26", "eyebrow": "LAUNCH", "sub": "One idea, five channels", "num": "16" },
+    { "id": "sound-pitch-gradient", "name": "Music Label Pitch", "family": "gradient", "display": "Sound\nPitch", "eyebrow": "ROSTER 2026", "sub": "Artists and reach", "num": "14" },
+    { "id": "drop-day-gradient", "name": "Social Launch", "family": "gradient", "display": "Drop\nDay", "eyebrow": "10:00 CET", "sub": "Hype in four beats", "num": "10" },
+    { "id": "feel-good-gradient", "name": "Lifestyle Brand", "family": "gradient", "display": "Feel\nGood", "eyebrow": "BRAND", "sub": "Warm, loud, honest", "num": "13" },
+
+    { "id": "studio-proposal-paper", "name": "Studio Proposal", "family": "paper", "display": "Proposal", "eyebrow": "NO. 04", "sub": "Scope, price, timing", "num": "11" },
+    { "id": "printed-matter-paper", "name": "Printed Matter", "family": "paper", "display": "Printed\nMatter", "eyebrow": "PRESS KIT", "sub": "Paper and ink", "num": "12" },
+    { "id": "tasting-menu-paper", "name": "Culinary Deck", "family": "paper", "display": "Tasting\nMenu", "eyebrow": "AUTUMN", "sub": "Six courses", "num": "8" },
+    { "id": "invitation-paper", "name": "Event Invitation", "family": "paper", "display": "The\nInvitation", "eyebrow": "SAT 12.09", "sub": "An evening, planned", "num": "9" },
+    { "id": "artist-book-paper", "name": "Artist Statement", "family": "paper", "display": "Artist\nBook", "eyebrow": "VOL. II", "sub": "Works and words", "num": "20" },
+
+    { "id": "roast-retro", "name": "Coffee Brand Pitch", "family": "retro", "display": "Roast", "eyebrow": "SINGLE ORIGIN", "sub": "Beans with a story", "num": "12" },
+    { "id": "the-route-retro", "name": "Travel Deck", "family": "retro", "display": "The\nRoute", "eyebrow": "1,240 KM", "sub": "Nine days, one road", "num": "15" },
+    { "id": "side-a-retro", "name": "Record Store Pitch", "family": "retro", "display": "Side A", "eyebrow": "OPENING SOON", "sub": "Vinyl on the corner", "num": "11" },
+    { "id": "almanac-retro", "name": "Vintage Report", "family": "retro", "display": "Almanac", "eyebrow": "THE YEAR IN A PAGE", "sub": "Old numbers, new plans", "num": "18" },
+    { "id": "night-shift-retro", "name": "Bar Concept", "family": "retro", "display": "Night\nShift", "eyebrow": "AN AFTER-HOURS BAR", "sub": "Light, menu, room", "num": "13" },
+
+    { "id": "qbr-report", "name": "Quarterly Review", "family": "report", "display": "QBR", "eyebrow": "Q3 FY26", "sub": "Numbers and the why", "num": "16" },
+    { "id": "market-map-report", "name": "Market Analysis", "family": "report", "display": "Market\nMap", "eyebrow": "SEGMENTS", "sub": "Who is actually buying", "num": "14" },
+    { "id": "findings-report", "name": "Research Readout", "family": "report", "display": "Findings", "eyebrow": "N = 1,200", "sub": "Three things to act on", "num": "12" },
+    { "id": "growth-report", "name": "Growth Report", "family": "report", "display": "Growth", "eyebrow": "MONTHLY", "sub": "Channels that compound", "num": "13" },
+    { "id": "voc-report", "name": "Customer Insights", "family": "report", "display": "Voice of\nCustomer", "eyebrow": "SURVEY", "sub": "What they said", "num": "15" },
+
+    { "id": "places-photo", "name": "Travel Photography", "family": "photo", "display": "Places", "eyebrow": "PORTFOLIO", "sub": "Twelve frames", "num": "12" },
+    { "id": "listing-photo", "name": "Real Estate Deck", "family": "photo", "display": "The\nListing", "eyebrow": "1072 ES · 128 M²", "sub": "Room by room", "num": "10" },
+    { "id": "structures-photo", "name": "Architecture", "family": "photo", "display": "Structures", "eyebrow": "SELECTED WORKS", "sub": "Concrete and light", "num": "16" },
+    { "id": "table-photo", "name": "Restaurant Pitch", "family": "photo", "display": "Table", "eyebrow": "MENU & ROOM", "sub": "Forty covers a night", "num": "12" },
+    { "id": "lookbook-photo", "name": "Fashion Lookbook", "family": "photo", "display": "Lookbook", "eyebrow": "SS26", "sub": "Fourteen looks", "num": "14" },
+
+    { "id": "workshop-playful", "name": "Workshop", "family": "playful", "display": "Workshop", "eyebrow": "KIDS · 8–12", "sub": "Two hours of making", "num": "9" },
+    { "id": "meetup-playful", "name": "Community Meetup", "family": "playful", "display": "Meetup", "eyebrow": "THU · 19:00", "sub": "Everyone welcome", "num": "8" },
+    { "id": "hello-playful", "name": "App Onboarding", "family": "playful", "display": "Hello", "eyebrow": "SCREENS", "sub": "First five minutes", "num": "10" },
+    { "id": "play-playful", "name": "Games Studio Pitch", "family": "playful", "display": "Play", "eyebrow": "STUDIO", "sub": "A game people share", "num": "12" },
+    { "id": "project-playful", "name": "School Project", "family": "playful", "display": "My\nProject", "eyebrow": "GROEP 8", "sub": "Show what you learned", "num": "7" },
+
+    { "id": "board-corporate", "name": "Board Update", "family": "corporate", "display": "Board", "eyebrow": "MEETING · 12 NOV", "sub": "Ten minutes, decided", "num": "11" },
+    { "id": "proposal-corporate", "name": "Sales Proposal", "family": "corporate", "display": "Proposal", "eyebrow": "FOR ACME", "sub": "Scope and value", "num": "14" },
+    { "id": "case-study-corporate", "name": "Case Study", "family": "corporate", "display": "Case\nStudy", "eyebrow": "RESULT · +38%", "sub": "Before, during, after", "num": "10" },
+    { "id": "partnership-corporate", "name": "Partnership Deck", "family": "corporate", "display": "Partner\nDeck", "eyebrow": "JOINT VENTURE", "sub": "What we build together", "num": "13" },
+    { "id": "update-corporate", "name": "Investor Update", "family": "corporate", "display": "Update", "eyebrow": "MONTH 09", "sub": "Numbers, asks, thanks", "num": "8" }
+  ]
+}

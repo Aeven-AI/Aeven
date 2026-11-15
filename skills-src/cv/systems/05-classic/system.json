@@ -1,0 +1,55 @@
+{
+  "id": "classic",
+  "name": "Classic",
+  "label": "Classic",
+  "motif": "White A4 with a black top rule, bold name, round photo on a yellow ring, quiet two-column type",
+  "type": {
+    "fonts": {
+      "text": "Inter",
+      "display": "Inter"
+    }
+  },
+  "palette": {
+    "page": "#FFFFFF",
+    "ink": "#111111",
+    "text": "#333333",
+    "muted": "#8A8A8A",
+    "rule": "#111111",
+    "accent": "#FFD60A"
+  },
+  "sample": {
+    "name": "Sofia Marin",
+    "role": "Senior product designer",
+    "photo": {
+      "src": "model-1TUIcKob7Zs.jpg",
+      "alt": "Sofia Marin",
+      "focus": [
+        55,
+        45
+      ],
+      "zoom": 1.5
+    },
+    "backdrop": {
+      "src": "model-1TUIcKob7Zs.jpg"
+    },
+    "profile": "Senior product designer who turns messy problems into calm, simple products. Twelve years across fashion e-commerce, travel and fintech, leading research, interaction design and design systems.",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "sofia@marin.design"
+      },
+      {
+        "label": "Phone",
+        "value": "+44 20 7946 0321"
+      },
+      {
+        "label": "Location",
+        "value": "London, UK"
+      },
+      {
+        "label": "Website",
+        "value": "sofiamarin.com"
+      }
+    ]
+  }
+}

@@ -1,0 +1,8 @@
+# Dependencies and build output of the skill sources; `scripts/publish.mjs` rebuilds the published copy.
+node_modules/
+out/
+tmp/
+dist/
+rips/
+# TTF files are downloaded from Google Fonts on demand; the woff2 files and manifests are the source.
+*.ttf

@@ -1,0 +1,56 @@
+{
+  "id": "gridfolio",
+  "name": "Gridfolio",
+  "label": "Gridfolio",
+  "motif": "Warm cream page, a white rounded profile card with a large photo, orange titles, DM Sans",
+  "type": {
+    "fonts": {
+      "text": "DM Sans",
+      "display": "DM Sans"
+    }
+  },
+  "palette": {
+    "page": "#FBF7EF",
+    "glow": "#FDE3BC",
+    "card": "#FFFFFF",
+    "ink": "#1D1D1D",
+    "text": "#555555",
+    "muted": "#8E8E8E",
+    "rule": "#ECE6DA",
+    "accent": "#F2A21E"
+  },
+  "sample": {
+    "name": "Noah Silva",
+    "role": "Design lead",
+    "photo": {
+      "src": "model-80JzI-pasZ0.jpg",
+      "alt": "Noah Silva",
+      "focus": [
+        65,
+        28
+      ]
+    },
+    "backdrop": {
+      "src": "model-80JzI-pasZ0.jpg"
+    },
+    "profile": "I'm a multi-disciplinary product designer specialising in no-code and visual development. Currently design lead at Revolution. Take a look below!",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "noah@silva.design"
+      },
+      {
+        "label": "Phone",
+        "value": "+44 20 7946 0321"
+      },
+      {
+        "label": "Location",
+        "value": "London, UK"
+      },
+      {
+        "label": "Website",
+        "value": "noahsilva.com"
+      }
+    ]
+  }
+}

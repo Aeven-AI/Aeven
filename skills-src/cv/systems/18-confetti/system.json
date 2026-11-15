@@ -1,0 +1,59 @@
+{
+  "id": "confetti",
+  "name": "Confetti",
+  "label": "Confetti",
+  "motif": "Centred round photo in a scatter of pastel confetti, numbered section labels and soft grey chips",
+  "type": {
+    "fonts": {
+      "text": "Inter",
+      "display": "Inter"
+    }
+  },
+  "palette": {
+    "page": "#FFFFFF",
+    "ink": "#151515",
+    "text": "#454545",
+    "muted": "#8C8C8C",
+    "rule": "#E8E8E8",
+    "accent": "#151515",
+    "chip": "#F0F0F0",
+    "c1": "#FF8FB1",
+    "c2": "#7FB5FF",
+    "c3": "#9BE3B8",
+    "c4": "#FFD36E"
+  },
+  "sample": {
+    "name": "Ella Novak",
+    "role": "Product designer",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "ella@novak.com"
+      },
+      {
+        "label": "Phone",
+        "value": "+1 415 555 0142"
+      },
+      {
+        "label": "Location",
+        "value": "San Francisco, CA"
+      },
+      {
+        "label": "Website",
+        "value": "ellanovak.com"
+      }
+    ],
+    "photo": {
+      "src": "model-YhMFYJZgMA0.jpg",
+      "alt": "Ella Novak",
+      "focus": [
+        55,
+        42
+      ],
+      "zoom": 1.9
+    },
+    "backdrop": {
+      "src": "model-YhMFYJZgMA0.jpg"
+    }
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "id": "conference-talk",
+  "name": "Conference Talk",
+  "label": "Conference Talk",
+  "source": "https://www.figma.com/community/file/1383222828783650715/conference-talk",
+  "measuredFrom": "15 Figma Community thumbnails at 1000×563, palette sampled per frame",
+  "motif": "flat pale-blue, olive-green and red-orange panels beside checkerboard photo slots, black agenda split, light serif statements with big numerals, wide grotesque caps titles, small tracked caps corner meta",
+  "rhythm": "blue|green|photo, black, blue, red, cream, cream, red|blue, olive dark, green, blue|red|green, cream, green, cream (chart), blue (card), black, green|cream, blue, red frame, cream (custom), blue|red|green",
+  "field": {
+    "blue": "#D7EBF6",
+    "green": "#BAC856",
+    "red": "#EB5237",
+    "black": "#000000",
+    "cream": "#FCFDF8",
+    "olive": "#3F3618",
+    "card": "#FFFFFF",
+    "row": "#F4F6F3"
+  },
+  "ink": {
+    "primary": "#000000",
+    "onBlack": "#FFFFFF",
+    "onOlive": "#E0FDCF",
+    "muted": "#55574F"
+  },
+  "rule": "#A9A9A5",
+  "placeholder": ["#FAFAFA", "#EBEBEB"],
+  "type": {
+    "family": "wide grotesque caps titles, light text serif for statements, numerals and body, tracked grotesque caps meta",
+    "titleCaps": true,
+    "cover": 106,
+    "title": 104,
+    "statement": 64,
+    "numeral": 280,
+    "body": 22,
+    "meta": 13,
+    "fonts": {
+      "text": "Inter",
+      "display": "Newsreader",
+      "source": "A neo-grotesque (caps titles, meta, roles) and a Newsreader-style text serif (statements, numerals, body copy), identified visually"
+    }
+  },
+  "geometry": {
+    "margin": 27,
+    "metaTop": 20,
+    "metaBottom": 22,
+    "coverSplit": 640,
+    "coverBand": 355,
+    "bar": 10,
+    "checker": 37
+  },
+  "palette": {
+    "paper": "#FCFDF8",
+    "ink": "#000000",
+    "muted": "#55574F",
+    "rule": "#A9A9A5",
+    "onAccent": "#000000",
+    "accents": ["#EB5237", "#9AAA34", "#000000", "#A9A9A5"]
+  }
+}

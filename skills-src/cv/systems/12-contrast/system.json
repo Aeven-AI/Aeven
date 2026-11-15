@@ -1,0 +1,55 @@
+{
+  "id": "contrast",
+  "name": "Contrast",
+  "label": "Contrast",
+  "motif": "Pale grey paper, a black-and-white portrait on a yellow block, spaced caps name and a yellow timeline line",
+  "type": {
+    "fonts": {
+      "text": "Roboto",
+      "display": "Montserrat"
+    }
+  },
+  "palette": {
+    "page": "#EFEFEF",
+    "ink": "#1E1E1E",
+    "text": "#4A4A4A",
+    "muted": "#8C8C8C",
+    "rule": "#D6D6D6",
+    "accent": "#E8C312"
+  },
+  "sample": {
+    "name": "Adrian Kovac",
+    "role": "Art director",
+    "photo": {
+      "src": "model-_6p3N5NTXy8.jpg",
+      "alt": "Adrian Kovac",
+      "focus": [
+        48,
+        20
+      ],
+      "zoom": 1.8
+    },
+    "backdrop": {
+      "src": "model-_6p3N5NTXy8.jpg"
+    },
+    "profile": "Art director for fashion and lifestyle brands. I shape campaigns from moodboard to shoot to final retouch, and keep every frame on brand.",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "adrian@kovac.design"
+      },
+      {
+        "label": "Phone",
+        "value": "+44 20 7946 0321"
+      },
+      {
+        "label": "Location",
+        "value": "London, UK"
+      },
+      {
+        "label": "Website",
+        "value": "adriankovac.com"
+      }
+    ]
+  }
+}

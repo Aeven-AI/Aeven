@@ -1,0 +1,60 @@
+{
+  "id": "marketing-strategy",
+  "name": "Marketing Strategy",
+  "label": "Marketing Strategy",
+  "preset": "editorial",
+  "source": "https://www.figma.com/community/file/1382482747894195592/marketing-strategy",
+  "measuredFrom": "15 Figma Community frames at 1000×563, scaled to 1280×720; palette sampled with PIL",
+  "motif": "sage and pale-green pages, light condensed serif caps titles with bracketed italic numbers, underlined sans caps labels, hairline column rules over big italic XX% figures",
+  "rhythm": "sage cover, mint intro, sage section, pale content pages with underlined label and footer pair",
+  "field": {
+    "sage": "#9B9888",
+    "mint": "#D9FED0",
+    "pale": "#F8FFF8",
+    "soft": "#EAF1E7",
+    "stone": "#C3C5B7"
+  },
+  "ink": {
+    "primary": "#66675C",
+    "figure": "#989584",
+    "placeholder": "#A09C88",
+    "onSage": "#D9FED0",
+    "labelOnSage": "#66675C"
+  },
+  "rule": "#A4A698",
+  "arrow": "#9FA093",
+  "checker": ["#FAFAF8", "#EBEBE9"],
+  "type": {
+    "family": "condensed text serif (titles, body), condensed grotesque caps (labels, footer), light italic grotesque figures",
+    "titleCaps": true,
+    "cover": 190,
+    "figure": 122,
+    "body": 37,
+    "statement": 52,
+    "label": 24,
+    "fonts": {
+      "text": "Roboto Condensed",
+      "display": "Libre Caslon Condensed",
+      "extra": ["Roboto"],
+      "italic": ["Roboto"],
+      "source": "A condensed text serif for titles and body, a Helvetica-style condensed grotesque for labels and an italic light grotesque for figures (identified visually; recreated with Libre Caslon Condensed, Roboto Condensed and Roboto Light Italic)"
+    }
+  },
+  "geometry": {
+    "margin": 54,
+    "labelTop": 49,
+    "footerTop": 663,
+    "columnTop": 157,
+    "columnBottom": 573,
+    "columnGutter": 27,
+    "ruleWidth": 2
+  },
+  "palette": {
+    "paper": "#F8FFF8",
+    "ink": "#66675C",
+    "muted": "#86877A",
+    "rule": "#C9CCBE",
+    "onAccent": "#D9FED0",
+    "accents": ["#9B9888", "#66675C", "#C3C5B7", "#9CCB8E"]
+  }
+}

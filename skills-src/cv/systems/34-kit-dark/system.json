@@ -1,0 +1,56 @@
+{
+  "id": "kit-dark",
+  "name": "Kit Dark",
+  "label": "Kit Dark",
+  "motif": "The Kit sheet in dark mode: charcoal card on an indigo frame",
+  "type": {
+    "fonts": {
+      "text": "Inter",
+      "display": "Inter"
+    }
+  },
+  "palette": {
+    "frame": "#2A2550",
+    "page": "#16151F",
+    "ink": "#F1F0F7",
+    "text": "#B9B7CC",
+    "muted": "#7C7A93",
+    "rule": "#2A2838",
+    "accent": "#A28BFF",
+    "chip": "#2A2545"
+  },
+  "sample": {
+    "name": "Marcus Doyle",
+    "role": "Product designer",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "marcus@doyle.com"
+      },
+      {
+        "label": "Phone",
+        "value": "+1 415 555 0142"
+      },
+      {
+        "label": "Location",
+        "value": "San Francisco, CA"
+      },
+      {
+        "label": "Website",
+        "value": "marcusdoyle.com"
+      }
+    ],
+    "photo": {
+      "src": "model-JVH7q7lxyjY.jpg",
+      "alt": "Marcus Doyle",
+      "focus": [
+        47,
+        38
+      ],
+      "zoom": 2.3
+    },
+    "backdrop": {
+      "src": "model-JVH7q7lxyjY.jpg"
+    }
+  }
+}

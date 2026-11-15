@@ -1,0 +1,59 @@
+{
+  "id": "ux-showcase",
+  "name": "Finessing UI/UX Design Presentation Template",
+  "label": "UX Showcase",
+  "motif": "electric-blue covers with a column of pale geometric shapes, near-white case-study slides with blue headings, progress rings, phone mock-ups and a black footer bar",
+  "measuredFrom": "16 ripped slides (1000×563), palette sampled per slide, geometry scaled ×1.28 to 1280×720",
+  "surface": {
+    "paper": "#FAFCFE",
+    "blue": "#3869E4",
+    "shape": "#4A78E7",
+    "footer": "#010613",
+    "pale": "#E6ECFB",
+    "track": "#E5E7EA",
+    "placeholder": "#B2EAFB",
+    "screen": "#387FF7",
+    "bezel": "#010613"
+  },
+  "ink": {
+    "primary": "#010612",
+    "body": "#222327",
+    "subtle": "#2D2E33",
+    "muted": "#5A5E66",
+    "onBlue": "#FFFFFF"
+  },
+  "accent": {
+    "blue": "#3869E4",
+    "sky": "#5ECCF7",
+    "mustard": "#E5BA58",
+    "pink": "#D7579D",
+    "green": "#53AD67"
+  },
+  "type": {
+    "family": "geometric grotesque",
+    "fonts": {
+      "text": "Manrope",
+      "source": "Manrope (identified visually)"
+    },
+    "cover": 60,
+    "heading": 32,
+    "title": 38,
+    "body": 23,
+    "small": 17,
+    "footer": 16
+  },
+  "geometry": {
+    "marginX": 113,
+    "top": 84,
+    "footer": 55,
+    "radius": 16
+  },
+  "palette": {
+    "paper": "#FAFCFE",
+    "ink": "#010612",
+    "muted": "#5A5E66",
+    "rule": "#DEE0E1",
+    "onAccent": "#FFFFFF",
+    "accents": ["#3869E4", "#E5BA58", "#D7579D", "#53AD67", "#5ECCF7"]
+  }
+}

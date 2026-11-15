@@ -1,0 +1,58 @@
+{
+  "id": "bluewash",
+  "name": "Bluewash",
+  "label": "Bluewash",
+  "motif": "Royal blue name, navy and peach paper shapes in the corners, a clean right side column",
+  "type": {
+    "fonts": {
+      "text": "Inter",
+      "display": "Inter"
+    }
+  },
+  "palette": {
+    "page": "#FFFFFF",
+    "ink": "#14162B",
+    "text": "#454757",
+    "muted": "#8F91A1",
+    "rule": "#E7E8EF",
+    "accent": "#2443D6",
+    "navy": "#1B2350",
+    "peach": "#F7C9B3",
+    "pink": "#F59FB4",
+    "chip": "#EEF1FD"
+  },
+  "sample": {
+    "name": "Max Keller",
+    "role": "Product designer",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "max@keller.com"
+      },
+      {
+        "label": "Phone",
+        "value": "+1 415 555 0142"
+      },
+      {
+        "label": "Location",
+        "value": "San Francisco, CA"
+      },
+      {
+        "label": "Website",
+        "value": "maxkeller.com"
+      }
+    ],
+    "photo": {
+      "src": "model-xU3ik41gwXY.jpg",
+      "alt": "Max Keller",
+      "focus": [
+        52,
+        25
+      ],
+      "zoom": 1.8
+    },
+    "backdrop": {
+      "src": "model-xU3ik41gwXY.jpg"
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "id": "harvard",
+  "name": "Harvard",
+  "label": "Harvard",
+  "motif": "The classic academic resume: centred serif name, full-width rules, places and dates aligned right, no photo",
+  "type": {
+    "fonts": {
+      "text": "Tinos",
+      "display": "Tinos",
+      "italic": [
+        "Tinos"
+      ]
+    }
+  },
+  "palette": {
+    "page": "#FFFFFF",
+    "ink": "#000000",
+    "text": "#1E1E1E",
+    "muted": "#4A4A4A",
+    "rule": "#000000",
+    "accent": "#000000",
+    "chip": "#FFFFFF"
+  },
+  "sample": {
+    "name": "Alexander Reed",
+    "role": "Research analyst",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "alexander@reed.com"
+      },
+      {
+        "label": "Phone",
+        "value": "+1 415 555 0142"
+      },
+      {
+        "label": "Location",
+        "value": "San Francisco, CA"
+      },
+      {
+        "label": "Website",
+        "value": "alexanderreed.com"
+      }
+    ],
+    "photo": null,
+    "backdrop": null
+  }
+}

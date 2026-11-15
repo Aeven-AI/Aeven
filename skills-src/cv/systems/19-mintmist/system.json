@@ -1,0 +1,55 @@
+{
+  "id": "mintmist",
+  "name": "Mint Mist",
+  "label": "Mint Mist",
+  "motif": "A mint and lemon glow behind a large intro line, label column layout, photo top left",
+  "type": {
+    "fonts": {
+      "text": "Inter",
+      "display": "Inter"
+    }
+  },
+  "palette": {
+    "page": "#FFFFFF",
+    "ink": "#121212",
+    "text": "#454545",
+    "muted": "#9A9A9A",
+    "rule": "#ECECEC",
+    "accent": "#121212",
+    "chip": "#F1F4F2"
+  },
+  "sample": {
+    "name": "Owen Hayes",
+    "role": "Product designer",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "owen@hayes.com"
+      },
+      {
+        "label": "Phone",
+        "value": "+1 415 555 0142"
+      },
+      {
+        "label": "Location",
+        "value": "San Francisco, CA"
+      },
+      {
+        "label": "Website",
+        "value": "owenhayes.com"
+      }
+    ],
+    "photo": {
+      "src": "model-InLHai61nFQ.jpg",
+      "alt": "Owen Hayes",
+      "focus": [
+        58,
+        31
+      ],
+      "zoom": 2.2
+    },
+    "backdrop": {
+      "src": "model-InLHai61nFQ.jpg"
+    }
+  }
+}
