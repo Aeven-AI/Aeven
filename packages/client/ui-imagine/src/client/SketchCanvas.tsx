@@ -1,6 +1,6 @@
 /**
  * The Sketch sheet: a blank page the reader draws on, handed to the composer as
- * an image. Choosing the Sketch starter prompt opens this instead of the usual
+ * an image with the Sketch prompt written as the draft. Choosing the Sketch starter prompt opens this instead of the usual
  * popup, because the picture starts as a drawing rather than as a description.
  */
 import { useEffect, useRef, useState } from 'react'
@@ -129,7 +129,7 @@ export function SketchCanvas({ inputActions, t, onClose }: {
     repaint()
   }
 
-  /** Hand the drawing to the composer as a PNG, or say why it cannot go. */
+  /** Hand the drawing to the composer as a PNG with the Sketch prompt as the draft, or say why it cannot go. */
   const done = (): void => {
     const element = canvas.current
     if (element === null) return
@@ -144,6 +144,7 @@ export function SketchCanvas({ inputActions, t, onClose }: {
         setNotice(refused)
         return
       }
+      inputActions.setDraft(t('prompt.sketch.text'))
       onClose()
     }, 'image/png')
   }
