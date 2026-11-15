@@ -150,7 +150,7 @@ export function apply(ctx: Context): void {
             actions.select(target)
             ctx.layout.openDetails()
           },
-          fileMentions: (owner: TurnTailOwnerProps) => ctx.get('chatFileMentions')?.forClosing(owner),
+          fileMentions: (owner: TurnTailOwnerProps) => ctx.get('chatFileMentions')?.forClosing(owner, sessionId),
           // A transcript block covering the viewport is shell state, not chat
           // state: the shell's own chrome is what has to yield to it.
           onFullscreenChange: (fullscreen: boolean) => { ctx.layout.setFullscreen(fullscreen) },

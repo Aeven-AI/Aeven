@@ -114,14 +114,25 @@ export function apply(ctx: ClientContext): void {
   // The prose side of the same vocabulary: the chat view reaches this face
   // via ctx.get, so its absence — this plugin composed out — is the off state.
   const mentions: ChatFileMentions = {
-    forClosing(owner) {
+    forClosing(owner, sessionId) {
       // Same claim test the turn-tail chain entry runs: no produced files,
       // no vocabulary — the two surfaces agree by construction.
       const files = selectProducedFiles(owner)
       if (files === null) return undefined
       return producedFileMentions(
-        files.map(file => file.path),
-        owner.openFile,
+        files,
+        // Where the page is not the Host's own desktop, the conversation may run on another device of the account:
+        // a file with a stored copy downloads from it, as the row's does, instead of asking this Host for the path.
+        (file) => {
+          if (file.attachmentId === undefined || ctx.remote.$host.isLoopback) {
+            owner.openFile(file.path)
+            return
+          }
+          const link = document.createElement('a')
+          link.href = attachmentUrl(sessionId, file.attachmentId, true)
+          link.rel = 'noopener'
+          link.click()
+        },
         path => t('produced.open', { name: path }),
         showMenu === undefined ? undefined : (path) => { showMenu(path, owner.cwd) },
       )

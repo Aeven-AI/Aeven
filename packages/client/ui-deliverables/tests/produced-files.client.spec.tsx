@@ -422,8 +422,8 @@ describe('producedFileMentions resolver', () => {
   it('resolves exact paths and unique basenames; ambiguity and unknowns stay unresolved', () => {
     const opened: string[] = []
     const resolver = producedFileMentions(
-      ['out/index.html', 'a/style.css', 'b/style.css'],
-      (path) => { opened.push(path) },
+      ['out/index.html', 'a/style.css', 'b/style.css'].map(path => ({ path, created: true })),
+      (file) => { opened.push(file.path) },
       label,
     )
     // Unique basename resolves to its full path; the full path rides title.
@@ -448,7 +448,7 @@ describe('producedFileMentions resolver', () => {
   it('carries the owner menu on a resolved file where the client has one', () => {
     const menus: string[] = []
     const resolver = producedFileMentions(
-      ['out/index.html'],
+      [{ path: 'out/index.html', created: true }],
       () => {},
       label,
       (path) => { menus.push(path) },
@@ -547,11 +547,11 @@ describe('plugin registration', () => {
       (path) => { opened.push(path) },
     )
     const service = (ctx as unknown as { get(name: string): ChatFileMentions | undefined }).get('chatFileMentions')
-    const mentions = service?.forClosing(owner)
+    const mentions = service?.forClosing(owner, SessionId('s1'))
     mentions?.resolve('report.html')?.open()
     expect(opened).toEqual(['site/report.html'])
     // A turn that produced nothing yields no vocabulary at all.
-    expect(service?.forClosing(tailOwner(undefined, 2))).toBeUndefined()
+    expect(service?.forClosing(tailOwner(undefined, 2), SessionId('s1'))).toBeUndefined()
 
     await fiber.dispose()
     expect(ctx.slots.entries('conversation.chat.turnTail')).toHaveLength(0)
@@ -598,7 +598,7 @@ describe('plugin registration', () => {
 
     // The prose face carries the same menu, resolved per closing turn.
     const service = (ctx as unknown as { get(name: string): ChatFileMentions | undefined }).get('chatFileMentions')
-    service?.forClosing(tailOwner(produced([2, 'site/report.html']), 3, () => {}))?.resolve('report.html')?.menu?.()
+    service?.forClosing(tailOwner(produced([2, 'site/report.html']), 3, () => {}), SessionId('s1'))?.resolve('report.html')?.menu?.()
     await vi.waitFor(() => { expect(shown).toHaveLength(2) })
 
     await fiber.dispose()

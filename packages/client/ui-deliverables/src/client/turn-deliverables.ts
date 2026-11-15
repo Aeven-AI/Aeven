@@ -25,6 +25,8 @@ interface ProducedPath {
   readonly counts?: LineCounts | undefined
   /** The stored copy of the file the deployment shared, absent when it shared none. */
   readonly attachmentId?: string | undefined
+  /** Whether a command declared the file as an output, rather than a file tool writing it. */
+  readonly declared?: true | undefined
 }
 
 /** One produced file of a turn, its mutations folded together. */
@@ -241,7 +243,10 @@ export function producedForClosing(
 /**
  * Files produced by one Turn data value, each path's mutations folded into
  * one entry: created when the first mutation created it, with line counts
- * summed while every mutation recorded them.
+ * summed while every mutation recorded them. A Turn whose commands declared
+ * output files lists only those: they are what the Turn delivers, and the
+ * files a file tool wrote on the way, such as a resume's `cv.json`, are its
+ * sources.
  * @param data - engine-published Deliverables data for one Turn.
  * @param seq - closing Assistant seq; later Tool settlements are excluded.
  * @returns Produced files in first-seen order; empty when the turn wrote nothing.
@@ -251,9 +256,10 @@ export function producedFilesForClosing(
   seq = Number.POSITIVE_INFINITY,
 ): readonly ProducedFile[] {
   if (data === undefined) return []
+  const settled = data.produced.filter(produced => produced.seq <= seq)
+  const declared = settled.filter(produced => produced.declared === true)
   const files = new Map<string, ProducedFile>()
-  for (const produced of data.produced) {
-    if (produced.seq > seq) continue
+  for (const produced of declared.length > 0 ? declared : settled) {
     const seen = files.get(produced.path)
     if (seen === undefined) {
       files.set(produced.path, {
@@ -332,7 +338,10 @@ export const deliverablesDefinition: ConversationNodeDefinition<DeliverablesStat
         if (!isRecord(file) || pathValue(file.path) === null || typeof file.created !== 'boolean') return []
         // A result recorded before entries named their copy still attached it, under the file's own name.
         const attachmentId = typeof file.attachmentId === 'string' ? file.attachmentId : stored.get(basename(file.path as string))
-        return [{ seq, path: file.path as string, created: file.created, ...attachmentId === undefined ? {} : { attachmentId } }]
+        return [{
+          seq, path: file.path as string, created: file.created, declared: true as const,
+          ...attachmentId === undefined ? {} : { attachmentId },
+        }]
       })
       return { ...context.state, produced: [...context.state.produced, ...produced] }
     }
@@ -390,8 +399,8 @@ export function parentFolder(path: string, cwd: string | undefined): string {
  * resolves by exact path, or by being exactly the basename of exactly one
  * produced path — a basename two paths share stays inert rather than
  * guessing, so a mention link can never open the wrong file or 404.
- * @param paths - The turn's produced paths (tool order, already deduped).
- * @param openFile - The chat view's file opener.
+ * @param files - The turn's produced files (tool order, already deduped).
+ * @param openFile - Opens one produced file, from its stored copy where the page cannot open the Host's path.
  * @param label - Localizes the accessible open-label for a resolved path.
  * @param menu - Shows this reader's own menu for a resolved path; omitted where
  * the client has none, which leaves the platform's menu in place.
@@ -399,17 +408,19 @@ export function parentFolder(path: string, cwd: string | undefined): string {
  * the same disambiguator the row's chips carry.
  */
 export function producedFileMentions(
-  paths: readonly string[],
-  openFile: (path: string) => void,
+  files: readonly ProducedFile[],
+  openFile: (file: ProducedFile) => void,
   label: (path: string) => string,
   menu?: (path: string) => void,
 ): MarkdownFileMentions {
+  const paths = files.map(file => file.path)
   return {
     resolve(value) {
       const path = paths.includes(value) ? value : onlyPathWithBasename(paths, value)
-      if (path === undefined) return undefined
+      const file = files.find(candidate => candidate.path === path)
+      if (path === undefined || file === undefined) return undefined
       return {
-        open: () => { openFile(path) },
+        open: () => { openFile(file) },
         label: label(path),
         title: path,
         ...menu === undefined ? {} : { menu: () => { menu(path) } },

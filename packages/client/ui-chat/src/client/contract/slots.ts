@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import type { ImageAttachmentRef } from '@aeven/attachment'
 import type { MessageId } from '@aeven/llm/brand'
 import type { PendingSubmission, SessionFace } from '@aeven/api-session-controller/client'
-import type { SessionSeq } from '@aeven/session/types'
+import type { SessionId, SessionSeq } from '@aeven/session/types'
 import type {
   CommandNode, CompactionSummaryNode, ConversationEventNavigation, ConversationLocationDataStore,
   ConversationTurnDataMap, MessageImageLoader, MessageImagesOwnerProps, RenderMessageImages,
@@ -61,9 +61,10 @@ export interface ChatFileMentions {
   /**
    * Resolve prose links for one closing Turn.
    * @param owner - closing-Turn identity and file opener.
+   * @param sessionId - the Session the Turn belongs to, which names the stored copies a link may open.
    * @returns link resolver when available.
    */
-  forClosing(owner: TurnTailOwnerProps): MarkdownFileMentions | undefined
+  forClosing(owner: TurnTailOwnerProps, sessionId: SessionId): MarkdownFileMentions | undefined
 }
 
 declare module '@deepseek-ai/cordis' {

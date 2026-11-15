@@ -12,7 +12,9 @@ Status: implemented
 
 桌面端为每个生成的文件在对话中保留一份副本。`avn-tool-bash` 新增 `copyOutputFiles`：命令在 `output_files` 中列出并生成的每个非图片文件都存为文件附件（无论是否在工作区内），其 `producedFiles` 条目记录附件 id，并以 `copy` 记录完整引用。调用处不展示任何内容，模型看到的结果不变，因此对话记录和模型看到的与之前相同。`avn-web-app` 为 `aeven` 预设的 `tool-bash` 行启用它；`avn-hosted-app` 用自己的 `shareOutputFiles` 替换该行的整个 `config`，两个选项同时启用时拒绝加载。
 
-会话同步本就会发布事件中以 `sha256:` id 提到的每个附件，`/api/attachment-file` 本就会提供在工具结果 `meta` 中找到的文件引用，`show_motion` 的影片就是这样使用的。页面无法打开 Host 路径时，生成文件列表从这份副本下载文档，否则从 `/api/workspace-file` 下载。
+会话同步本就会发布事件中以 `sha256:` id 提到的每个附件，`/api/attachment-file` 本就会提供在工具结果 `meta` 中找到的文件引用，`show_motion` 的影片就是这样使用的。页面无法打开 Host 路径时，生成文件列表从这份副本下载文档，否则从 `/api/workspace-file` 下载。Files 侧栏可以预览的文件（例如 `deck.html`）也改用副本：当 Host 对某个路径返回 `workspace-file/outside-workspace` 或 `workspace-file/not-found` 时，侧栏报告无法预览，而不是打开一个显示错误的面板。在非 loopback 页面上，收尾正文中的行内提及也打开同一份副本；`ChatFileMentions.forClosing` 会收到用于构造副本 URL 的 Session id。命令声明了 `output_files` 的轮次在该行和正文链接中只列出这些输出，因此简历的 `cv.json` 不会出现。
+
+托管沙箱以只读方式挂载 `aeven` 预设的技能，使云端对话可以运行简历和演示文稿导出器；两个导出器都能在 Linux ARM 上找到沙箱中的 Playwright Chromium（`chrome-headless-shell-linux-arm64`）。
 
 ## 考虑过的替代方案
 
@@ -22,7 +24,7 @@ Status: implemented
 
 ## 影响
 
-每个生成的文档在桌面端存储两份，并上传到中继一次，受单次调用（10 个文件、100 MiB）和单个对话（500 MiB）上限约束，这些上限现在也计入副本。图片不保留副本，因为图片路由不搜索结果元数据。收尾正文中对生成文件的行内提及仍经 Host 打开器打开，它无法从网页打开桌面端路径；聊天视图的提及接口不带 Session id，无法构造副本 URL。Windows 桌面端运行 `tool-pwsh`，它没有 `output_files` 副本。
+每个生成的文档在桌面端存储两份，并上传到中继一次，受单次调用（10 个文件、100 MiB）和单个对话（500 MiB）上限约束，这些上限现在也计入副本。图片不保留副本，因为图片路由不搜索结果元数据。Windows 桌面端运行 `tool-pwsh`，它没有 `output_files` 副本。
 
 ## 验证
 

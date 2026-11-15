@@ -515,6 +515,8 @@
           - /etc/passwd
           - /etc/group
           - /etc/nsswitch.conf
+          # The aeven preset's skills, whose scripts (the CV and slides exporters) commands run.
+          - !!js "process.getBuiltinModule('node:url').fileURLToPath(new URL('../../preset/agent-presets/presets/aeven/skills', baseUrl))"
         env:
           # The zygote's python3 shim comes first (host/install-python-zygote.sh).
           PATH: /opt/aeven-sandbox/shim:/opt/aeven-sandbox/bin:/usr/bin:/bin
