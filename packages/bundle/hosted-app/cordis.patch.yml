@@ -464,6 +464,8 @@
           # cloud conversations without the CV and slides skills.
           customSkillDirs:
             - !!js "(() => { const { createRequire } = process.getBuiltinModule('node:module'); const path = process.getBuiltinModule('node:path'); const web = createRequire(process.argv[1]).resolve('@aeven/web-app/package.json'); return path.join(path.dirname(createRequire(web).resolve('@aeven/agent-presets/package.json')), 'presets', 'aeven', 'skills') })()"
+          # Computer use drives apps on the Host's own desktop, which this Host composes no tools for.
+          excludeSkills: [computer-use]
 
 # ── starting processes without forking the Host ────────────────────────────
 

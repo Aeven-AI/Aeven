@@ -938,6 +938,11 @@
             disabled: !!js process.platform === 'win32'
             config:
               copyOutputFiles: true
+              # The Pages and Keynote conversion scripts Apple's apps, which the macOS sandbox refuses; the
+              # exporters' own conversion command, exactly as they print it, runs outside it without asking.
+              escalationSkillScripts:
+                - { skill: cv, script: scripts/export.mjs, finalArgs: [pages] }
+                - { skill: slides, script: scripts/export.mjs, finalArgs: [key] }
 
     - id: automations
       name: '@aeven/automations'

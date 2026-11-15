@@ -71,6 +71,7 @@ Load the plugin alongside the skill registry; it requires `ctx.skills`.
 | `customSkillDirs` | `[]` | Additional local skill roots, after project roots and before user roots |
 | `watch` | `true` | Watch local roots and invalidate the provider when the catalog may have changed |
 | `bundledSkillDir` | — | Bundled skill root scanned at rank 600 when configured |
+| `excludeSkills` | `[]` | Skill names this provider never lists or loads, such as a skill whose tools the deployment does not compose; hosted Aeven Web excludes `computer-use` |
 
 The remaining `watch*` fields tune Chokidar behavior — polling, stability window, interval, project cap, and symlink following. The generated [configuration catalog](../../../docs/config-catalog.md#aevenskill-filesystem) is the exhaustive source for every field.
 

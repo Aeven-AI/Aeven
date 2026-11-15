@@ -71,6 +71,8 @@ export interface Config {
   watchFollowSymlinks?: boolean
   /** Bundled skill root; defaults to `$AVN_BUNDLED_SKILL_DIR` when default roots are included, otherwise mounts none. */
   bundledSkillDir?: string
+  /** Skill names this provider never offers, such as a skill whose tools the deployment does not compose. */
+  excludeSkills?: string[]
 }
 
 export const Config: Schema<Config> = z.object({
@@ -86,6 +88,7 @@ export const Config: Schema<Config> = z.object({
   watchMaxProjects: z.number().default(DEFAULT_WATCH_MAX_PROJECTS),
   watchFollowSymlinks: z.boolean().default(true),
   bundledSkillDir: z.string(),
+  excludeSkills: z.array(z.string()).default([]),
 })
 
 interface SkillRoot {
@@ -151,6 +154,7 @@ export class FileSystemSkillProvider implements SkillProvider {
   private readonly customSkillDirs: string[]
   private readonly watchManager: SkillWatchManager
   private readonly bundledSkillDir: string | undefined
+  private readonly excludeSkills: ReadonlySet<string>
   private disposal: Promise<void> | undefined
 
   constructor(
@@ -163,6 +167,7 @@ export class FileSystemSkillProvider implements SkillProvider {
     this.avnHome = resolveAvnHome(config.avnHome)
     this.agentsHome = resolve(config.agentsHome ?? process.env.AVN_AGENTS_HOME ?? join(homedir(), '.agents'))
     this.customSkillDirs = (config.customSkillDirs ?? []).map(root => resolve(root))
+    this.excludeSkills = new Set(config.excludeSkills ?? [])
     this.watchManager = new SkillWatchManager(ctx, control.invalidate, resolveWatchConfig(config))
     control.signal.addEventListener('abort', () => { void this.dispose() }, { once: true })
     // The environment bundled root is a default root: an isolated provider
@@ -191,7 +196,7 @@ export class FileSystemSkillProvider implements SkillProvider {
     const candidates: SkillCandidate[] = []
     for (const root of roots) {
       for (const skill of await discoverRoot(root, this.ctx, this.name)) {
-        candidates.push(skill)
+        if (!this.excludeSkills.has(skill.name)) candidates.push(skill)
       }
     }
     return complete ? candidates : { candidates, complete }

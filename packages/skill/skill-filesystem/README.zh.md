@@ -66,6 +66,7 @@ skill 可以是被扫描根目录顶层的目录 bundle `<name>/SKILL.md`，也�
 |---|---|---|
 | `providerName` | `filesystem` | 注册到 `ctx.skills` 的唯一提供方名称 |
 | `includeDefaultRoots` | `true` | 在 `customSkillDirs` 周围包含项目根与用户根 |
+| `excludeSkills` | `[]` | 该提供方从不列出或加载的技能名称，例如部署未组合其工具的技能；托管的 Aeven Web 排除 `computer-use` |
 | `avnHome` | `$AVN_HOME` 或 `~/.aeven` | Harness 配置根目录；扫描其 `skills` 子目录 |
 | `agentsHome` | `$AVN_AGENTS_HOME` 或 `~/.agents` | 为兼容 skill 扫描的共享 agent 配置根目录 |
 | `customSkillDirs` | `[]` | 其他本地 skill 根目录，位于项目根之后、用户根之前 |

@@ -30,6 +30,8 @@ import { processOutcome, processSources } from './background.ts'
 import { BACKGROUND_ACK, parseExitStatus, renderResult } from './render.ts'
 import { sharedBytesOf, shareOutputs, type SharedOutputs } from './share.ts'
 import { ShareLedger } from './share-ledger.ts'
+import { isPreApprovedSkillScript, type EscalationSkillScript } from './skill-escalation.ts'
+import type {} from '@aeven/skill'
 
 export const name = 'tool-bash'
 export const inject = ['tools', 'shell', 'systemPrompt', 'shellEnv']
@@ -66,6 +68,12 @@ export interface Config {
    * cannot be combined with `shareOutputFiles`.
    */
   copyOutputFiles?: boolean
+  /**
+   * Skill scripts whose requested sandbox escalation runs without asking (default none). A command qualifies only when
+   * it is exactly one invocation of an entry's script inside the resource directory of a skill the deployment ships
+   * (source `custom` or `bundled`), with an allowed final argument; any other escalation still asks.
+   */
+  escalationSkillScripts?: EscalationSkillScript[]
   /** Most produced files one call shares (default 10); the rest are reported, not stored. */
   shareMaxFiles?: number
   /** Most bytes one call shares (default 100 MiB). */
@@ -87,6 +95,11 @@ export const Config: z<Config> = z.object({
   detachAfterMs: z.number().default(DEFAULT_DETACH_AFTER_MS),
   shareOutputFiles: z.boolean().default(false),
   copyOutputFiles: z.boolean().default(false),
+  escalationSkillScripts: z.array(z.object({
+    skill: z.string().required(),
+    script: z.string().required(),
+    finalArgs: z.array(z.string()).required(),
+  })).default([]),
   shareMaxFiles: z.natural().min(1).default(10),
   shareMaxBytes: z.natural().min(1).default(100 * 1024 * 1024),
   shareMaxSessionBytes: z.natural().min(1).default(500 * 1024 * 1024),
@@ -364,9 +377,10 @@ export function apply(ctx: Context, config: Config = {}): void {
    * ingredients. The shared policy resolver is required whenever the executor
    * advertises confinement, so a split composition fails at tool-plugin load.
    */
-  const approveBashEscalation = (
+  const approveBashEscalation = async (
     mode: string,
     justification: string,
+    command: string,
     exec: ToolExecution,
     standingPolicy: SandboxExecutionPolicy | undefined,
   ): Promise<SandboxMode> => {
@@ -374,10 +388,18 @@ export function apply(ctx: Context, config: Config = {}): void {
       throw new Error('sandbox_permissions is not available in this composition (no sandboxing executor to escalate)')
     }
     const effectiveMode = (standingPolicy as SandboxExecutionPolicy).mode
-    return approveEscalation(
+    const agent = exec.agent
+    const skills = ctx.get('skills')
+    // A pre-approved skill script still goes through the same mode checks; only the question is answered here.
+    const preApproved = agent !== undefined && skills !== undefined && await isPreApprovedSkillScript(
+      command, config.escalationSkillScripts ?? [], name => skills.get(name, {
+        cwd: sessionDirectory(ctx, agent.session), owner: agent.session.header.owner, signal: exec.signal, scope: agent,
+      }),
+    )
+    return await approveEscalation(
       { requestedMode: mode, justification, effectiveMode, subject: 'command' },
       {
-        approver: ctx.get('approval'),
+        approver: preApproved ? { request: () => Promise.resolve('allowed-once' as const) } : ctx.get('approval'),
         agent: exec.agent,
         callId: exec.callId,
         toolName: 'bash',
@@ -569,7 +591,7 @@ export function apply(ctx: Context, config: Config = {}): void {
       // Description is display metadata; workdir defaults to the caller's session.
       const standingPolicy = resolveSandboxPolicy(exec)
       const approvedMode = args.sandbox_permissions !== undefined && args.justification !== undefined
-        ? await approveBashEscalation(args.sandbox_permissions, args.justification, exec, standingPolicy)
+        ? await approveBashEscalation(args.sandbox_permissions, args.justification, args.command, exec, standingPolicy)
         : undefined
       const policy = approvedMode === undefined
         ? standingPolicy
