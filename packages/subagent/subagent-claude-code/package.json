@@ -1,7 +1,7 @@
 {
   "name": "@aeven/subagent-claude-code",
   "description": "One-shot Claude Code subagent provider over the official Agent SDK",
-  "version": "0.3.49-alpha",
+  "version": "0.3.50-alpha",
   "publishConfig": {
     "access": "public"
   },
