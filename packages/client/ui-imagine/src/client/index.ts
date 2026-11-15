@@ -36,7 +36,7 @@ export type { ImagineKey } from './locales.ts'
 
 /** The Workspace UI's start-address face. */
 interface StartAddresses {
-  registerStartAddress(path: string, copy?: { composerPlaceholder?: () => string }): () => void
+  registerStartAddress(path: string, claim?: { composerPlaceholder?: () => string; builtInWorkspace?: boolean }): () => void
   openStartAddress(path: string): void
   readonly startAddress: { getSnapshot(): string | undefined; subscribe(fn: () => void): () => void }
 }
@@ -94,6 +94,8 @@ export function apply(ctx: ClientContext): void {
         // The page's own composer prompt: what the reader describes here is
         // that category's work, not a question.
         composerPlaceholder: () => t(category === 'image-video' ? 'composer.placeholder' : `composer.${category}`),
+        // Images, decks and resumes are chats of their own, never work in the project folder that happened to be open.
+        builtInWorkspace: true,
       }), `ui-imagine: ${path} start address`)
       const injected: InspirationInjected = { category, showCategory }
       startCtx.slots.inject('conversation.start', () => startCtx.slots.register({

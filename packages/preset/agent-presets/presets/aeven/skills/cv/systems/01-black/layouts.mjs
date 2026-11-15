@@ -9,7 +9,7 @@
  * column beside the values, and the profile, beside a large second photo), Skills (rings, then
  * knowledge, languages and the other side sections), and the timelines of icon, organisation,
  * role and dates beside the description. Without a photo the introduction shows the initials,
- * outlined in the accent colour.
+ * outlined in the accent colour, and About's copy takes the band's full width at its own height.
  *
  * Blocks (`data-block`) are the units pagination moves to the next page; `data-keep` keeps a
  * heading with the block after it; `data-band` names the band colour a block sits on.
@@ -57,6 +57,8 @@ export function css() {
    aboutPhotoWidth, aboutCopyWidth and aboutPhotoX palette values). */
 .about { min-height: 540px; }
 .about-copy { position: relative; width: var(--c-about-copy-width, 58%); }
+.about-plain { min-height: 0; }
+.about-plain .about-copy { width: 100%; }
 .about-photo { position: absolute; top: 0; right: 0; bottom: 0; width: var(--c-about-photo-width, 64%); height: 100%; object-fit: cover; object-position: var(--backdrop-x, var(--c-about-photo-x, 0%)) 20%; -webkit-mask-image: var(--c-about-mask, linear-gradient(90deg, transparent 0%, #000 38%)); mask-image: var(--c-about-mask, linear-gradient(90deg, transparent 0%, #000 38%)); }
 .facts { display: grid; grid-template-columns: auto 1fr; column-gap: 24px; margin-top: 26px; }
 .fact { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: baseline; padding: 11px 0 12px; border-bottom: 1px solid var(--c-rule); line-height: 1.4; }
@@ -133,7 +135,7 @@ export function pages(cv, ctx) {
   }
 
   if (cv.profile || cv.contact?.length) {
-    section([`<section class="about" data-block data-id="about">${ctx.backdrop ? `<img class="about-photo" src="${ctx.backdrop}" alt="">` : ''}<div class="about-copy"><h2 class="m-title">${esc(labels.about)}</h2>${cv.contact?.length
+    section([`<section class="about${ctx.backdrop ? '' : ' about-plain'}" data-block data-id="about">${ctx.backdrop ? `<img class="about-photo" src="${ctx.backdrop}" alt="">` : ''}<div class="about-copy"><h2 class="m-title">${esc(labels.about)}</h2>${cv.contact?.length
       ? `<div class="facts">${cv.contact.map((row) => `<div class="fact"><span class="fact-label">${esc(row.label)}</span><span class="fact-value">${esc(row.value)}</span></div>`).join('')}</div>` : ''}${cv.profile
       ? `<h3 class="m-sub">${esc(labels.profile)}</h3><p class="m-text">${esc(cv.profile)}</p>` : ''}</div></section>`])
   }

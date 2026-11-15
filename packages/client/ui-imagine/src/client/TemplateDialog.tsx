@@ -39,6 +39,24 @@ const ACCEPT = {
   resumes: '.pdf,.docx,.doc,.pages,.odt,.rtf,.md,.txt,.jpg,.jpeg,.png,.webp,.heic',
 } as const satisfies Record<OpenTemplate['kind'], string>
 
+/** Picture files the resume picker takes as the portrait; anything else it takes is the current resume. */
+const PICTURE = /\.(jpe?g|png|webp|heic)$/i
+
+/**
+ * The composer request for a template and the staged material. A resume request names only what
+ * came with it, a resume, a photo or both, so the agent does not look for a photo that is not there.
+ * @param kind - the template's category.
+ * @param files - the staged files.
+ * @returns the locale key of the request.
+ */
+function draftKey(kind: OpenTemplate['kind'], files: readonly File[]): 'slides.draft' | 'slides.draftFromFiles' | 'resumes.draft' | 'resumes.draftFromFiles' | 'resumes.draftFromCv' | 'resumes.draftFromPhoto' {
+  if (files.length === 0) return `${kind}.draft`
+  if (kind === 'slides') return 'slides.draftFromFiles'
+  const pictures = files.filter(file => PICTURE.test(file.name)).length
+  if (pictures === 0) return 'resumes.draftFromCv'
+  return pictures === files.length ? 'resumes.draftFromPhoto' : 'resumes.draftFromFiles'
+}
+
 /** The image gallery's arrow glyph frame, so paging here reads like gallery paging. */
 function StepIcon({ children }: { children: ReactNode }) {
   return (
@@ -112,7 +130,7 @@ export function TemplateDialog({ template, inputActions, t, onClose }: {
         return
       }
     }
-    inputActions.setDraft(t(files.length > 0 ? `${kind}.draftFromFiles` : `${kind}.draft`, { name: title }))
+    inputActions.setDraft(t(draftKey(kind, files), { name: title }))
     onClose()
   }
 

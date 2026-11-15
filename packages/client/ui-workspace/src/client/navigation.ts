@@ -33,17 +33,24 @@ export interface SessionMoveTarget {
 }
 
 /**
- * Copy one start-address claim contributes to the shell that shows its page.
+ * What one start-address claim contributes to the shell that shows its page.
  *
- * A start page's own plugin authors this copy in its dictionary and binds the
+ * A start page's own plugin authors its copy in its dictionary and binds the
  * namespace, so the shell never carries another feature's words.
  */
-export interface StartAddressCopy {
+export interface StartAddressClaim {
   /**
    * Placeholder of the empty composer while this page is the open address.
    * Read on every render, so it follows the active locale.
    */
   composerPlaceholder?: (() => string) | undefined
+  /**
+   * Whether the page's blank Session belongs to the built-in Workspace instead
+   * of the current Session's: for pages whose work is a chat of its own, such as
+   * a resume or a deck, that should not land in a project folder the reader
+   * happened to have open.
+   */
+  builtInWorkspace?: boolean | undefined
 }
 
 /** Workspace archive and directory operations consumed by Client UI domains. */
@@ -86,16 +93,18 @@ export interface UiWorkspace {
    * Session. A blank Session is shown under it, and the address moves to that
    * Session's own `/c/<uuid>` once the Session is no longer blank.
    *
-   * The claim carries the page's own copy, so the address and what the shared
-   * shell says about it are registered together and cannot disagree.
+   * The claim carries the page's own copy and Workspace choice, so the address
+   * and what the shared shell does with it are registered together and cannot
+   * disagree.
    * @param path - absolute path, such as `/inspiration` or `/automations/runs`.
-   * @param copy - copy this page contributes to the shell; absent claims none.
+   * @param claim - what this page contributes to the shell; absent claims nothing.
    * @returns disposer releasing the claim.
    */
-  registerStartAddress(path: string, copy?: StartAddressCopy): () => void
+  registerStartAddress(path: string, claim?: StartAddressClaim): () => void
   /**
    * Move to a start address as a new history entry, and show a blank Session
-   * under it: the current one when it is still blank, else a New Session.
+   * under it: the current one when it is still blank (and, for a claim with
+   * `builtInWorkspace`, in the built-in Workspace), else a New Session.
    * @param path - a registered start address.
    */
   openStartAddress(path: string): void
@@ -241,8 +250,8 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   private currentStart: string | undefined
   /** The blank Session the current start address opened; the only one shown under it. */
   private startSessionId: SessionId | undefined
-  /** Copy each claimed start address contributes to the shell, by address. */
-  private readonly startCopy = new Map<string, StartAddressCopy>()
+  /** What each claimed start address contributes to the shell, by address. */
+  private readonly startClaims = new Map<string, StartAddressClaim>()
   /** Whether the start address's blank Session is still being created. */
   private startPending = false
   private readonly startListeners = new Set<() => void>()
@@ -266,20 +275,20 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     },
   }
 
-  registerStartAddress(path: string, copy?: StartAddressCopy): () => void {
+  registerStartAddress(path: string, claim?: StartAddressClaim): () => void {
     const release = this.sessionUrl.registerStart(path)
-    if (copy !== undefined) this.startCopy.set(path, copy)
+    if (claim !== undefined) this.startClaims.set(path, claim)
     this.publishStart()
     if (this.currentStart === path && this.sessions.list.getSnapshot().phase === 'ready') this.showStart()
     return () => {
-      this.startCopy.delete(path)
+      this.startClaims.delete(path)
       release()
       this.publishStart()
     }
   }
 
   composerPlaceholder(path: string): string | undefined {
-    return this.startCopy.get(path)?.composerPlaceholder?.()
+    return this.startClaims.get(path)?.composerPlaceholder?.()
   }
 
   openStartAddress(path: string): void {
@@ -424,12 +433,19 @@ class UiWorkspaceService extends Service implements UiWorkspace {
    * when it is still blank, else a New Session.
    */
   private showStart(): void {
+    const start = this.sessionUrl.readStart()
+    const builtIn = start !== undefined && this.startClaims.get(start)?.builtInWorkspace === true
+    const workspaceId = builtIn ? this.defaultWorkspaceId() : undefined
     const current = this.sessions.list.getSnapshot().current
-    if (current !== undefined && this.isBlank(current)) {
+    // The Session this start address already opened is in place even before the
+    // Workspace list carries its membership.
+    const inPlace = (session: SessionId): boolean => workspaceId === undefined || session === this.startSessionId
+      || this.workspaces.list.getSnapshot().items.some(item => item.workspaceId === workspaceId && item.sessionIds.includes(session))
+    if (current !== undefined && this.isBlank(current) && inPlace(current)) {
       this.startSessionId = current
       return
     }
-    this.openNewSession(undefined, undefined, true)
+    this.openNewSession(workspaceId, undefined, true)
   }
 
   /**
