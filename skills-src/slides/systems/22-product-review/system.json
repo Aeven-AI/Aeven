@@ -1,0 +1,41 @@
+{
+  "id": "product-review",
+  "name": "Product Review",
+  "label": "Product Review",
+  "source": "https://www.figma.com/community/file/1383476600772937799/product-review",
+  "measuredFrom": "16 ripped frames at 1000×563, scaled ×1.28 to 1280×720",
+  "motif": "cream and black panels inside a black or cream frame with spaced caps meta along the top, big grotesque titles mixing bold and light, giant light section numbers, dot-and-line callouts",
+  "surface": {
+    "cream": "#F4F2EA",
+    "black": "#000000",
+    "white": "#FFFFFF",
+    "yellow": "#FAF4C3",
+    "checker": ["#F9F9F9", "#EBEBE9"]
+  },
+  "line": {
+    "onCream": "rgba(0,0,0,.5)",
+    "onBlack": "rgba(244,242,234,.45)"
+  },
+  "geometry": {
+    "frameTop": 33,
+    "frameSide": 13,
+    "radius": 8,
+    "display": 105,
+    "title": 50,
+    "body": 16
+  },
+  "type": {
+    "fonts": {
+      "text": "Plus Jakarta Sans",
+      "source": "Plus Jakarta Sans (matched visually: single-storey g, straight-tailed y, light and bold cuts)"
+    }
+  },
+  "palette": {
+    "paper": "#F4F2EA",
+    "ink": "#000000",
+    "muted": "#6B6860",
+    "rule": "rgba(0,0,0,.28)",
+    "onAccent": "#F4F2EA",
+    "accents": ["#000000", "#8C887E", "#C8B53E", "#4B4842"]
+  }
+}

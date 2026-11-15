@@ -1,0 +1,58 @@
+{
+  "id": "pixel-quest",
+  "name": "Presentation Template Kit - Pixel Art Theme",
+  "label": "Pixel Quest",
+  "motif": "retro pixel-block scenes, amber and dark game-UI panels with stepped pixel borders, chunky pixel caps titles",
+  "source": "https://www.figma.com/community/file/1429551670056629041/presentation-template-kit-pixel-art-theme",
+  "measuredFrom": "one 1000×600 Figma Community collage showing eight slides (light, dark and scenic), cropped per slide, palette sampled with ImageMagick",
+  "surface": {
+    "amber": "#F0B04A",
+    "light": "#FFFEFB",
+    "cream": "#FDF8EC",
+    "dark": "#222220",
+    "panel": "#3A3122"
+  },
+  "ink": {
+    "navy": "#213257",
+    "body": "#4B5066",
+    "muted": "#7A7F90",
+    "cream": "#F9F1DC",
+    "onDark": "#D6D0C3",
+    "mutedDark": "#8F8878",
+    "onAmber": "#2A2216",
+    "bodyAmber": "#5A4220"
+  },
+  "accent": {
+    "border": "#E39B2F",
+    "tile": "#E8A23A",
+    "line": "#E3DCCB"
+  },
+  "type": {
+    "titleCaps": true,
+    "nav": 11,
+    "title": 44,
+    "cover": 50,
+    "section": 80,
+    "body": 20,
+    "fonts": {
+      "text": "Space Grotesk",
+      "display": "Silkscreen",
+      "extra": ["Pixelify Sans"],
+      "source": "a chunky bitmap caps face for titles and the tab bar (Silkscreen-like), a neutral grotesque for body copy; identified visually"
+    }
+  },
+  "geometry": {
+    "margin": 64,
+    "navTop": 34,
+    "border": 4,
+    "notch": 4
+  },
+  "palette": {
+    "paper": "#FFFEFB",
+    "ink": "#213257",
+    "muted": "#7A7F90",
+    "rule": "#E3DCCB",
+    "onAccent": "#2A2216",
+    "accents": ["#E39B2F", "#213257", "#5BA649", "#C9705F"]
+  }
+}

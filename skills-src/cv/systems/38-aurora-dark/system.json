@@ -1,0 +1,59 @@
+{
+  "id": "aurora-dark",
+  "name": "Aurora Dark",
+  "label": "Aurora Dark",
+  "motif": "The Aurora layout at night: navy page under a magenta and violet glow",
+  "type": {
+    "fonts": {
+      "text": "Hanken Grotesk",
+      "display": "Hanken Grotesk"
+    }
+  },
+  "palette": {
+    "page": "#12142B",
+    "g1": "#E04DB0",
+    "g2": "#7B3FE4",
+    "g3": "#2B2F8F",
+    "headInk": "#FFFFFF",
+    "ink": "#F1F0FA",
+    "text": "#B7B6D0",
+    "muted": "#7F7EA0",
+    "rule": "#252848",
+    "accent": "#C08BFF",
+    "chip": "#22264A"
+  },
+  "sample": {
+    "name": "Aiko Tanaka",
+    "role": "Product designer",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "aiko@tanaka.com"
+      },
+      {
+        "label": "Phone",
+        "value": "+1 415 555 0142"
+      },
+      {
+        "label": "Location",
+        "value": "San Francisco, CA"
+      },
+      {
+        "label": "Website",
+        "value": "aikotanaka.com"
+      }
+    ],
+    "photo": {
+      "src": "model-h87DMujtHWU.jpg",
+      "alt": "Aiko Tanaka",
+      "focus": [
+        40,
+        13
+      ],
+      "zoom": 2.4
+    },
+    "backdrop": {
+      "src": "model-h87DMujtHWU.jpg"
+    }
+  }
+}

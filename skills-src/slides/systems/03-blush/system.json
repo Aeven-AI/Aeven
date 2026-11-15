@@ -1,0 +1,75 @@
+{
+  "id": "blush",
+  "name": "Presentation Template by Blush",
+  "label": "Blush",
+  "preset": "paper",
+  "source": "https://www.figma.com/community/file/919332717651546617/presentation-template-by-blush",
+  "measuredFrom": "22 exported frames at 1920×1080, palette sampled per frame with PIL, geometry scaled ×2/3",
+  "motif": "flat pastel walls over a saturated floor band, bold geometric titles, pink blob counters on a sky-blue line, half-and-half colour splits, playful flat shapes standing on the floor",
+  "rhythm": "cream|teal, white|cream, cream|coral, cyan, cobalt half, white|mauve, aqua half, blush|blue, pink|salmon, cream|sea, pool|salmon, white + wave field, cream|teal (chart), blush|blue, sky|blue, white|cream half, white|cream, image|teal, cream|teal (custom), cream|salmon",
+  "colors": {
+    "cream": "#FFF2C3",
+    "white": "#FFFFFF",
+    "blush": "#FFEDED",
+    "pink": "#FFD8D8",
+    "rose": "#FFDADC",
+    "sky": "#E3EDFF",
+    "aqua": "#C9F7FE",
+    "mist": "#E4F6F9",
+    "cyan": "#1BC0D7",
+    "pool": "#5ADDEF",
+    "peri": "#7AA9FF",
+    "cobalt": "#204EB2",
+    "blue": "#3267C8",
+    "azure": "#56ACF6",
+    "teal": "#428C90",
+    "sea": "#5FA0A0",
+    "green": "#237978",
+    "deep": "#0A4343",
+    "coral": "#FC7750",
+    "salmon": "#FD9778",
+    "peach": "#FFBFAC",
+    "rosewood": "#EC7070",
+    "red": "#E93737",
+    "yellow": "#F9C818",
+    "petal": "#FFE3F0",
+    "shell": "#FCEBEC",
+    "lilac": "#EECCDC",
+    "mauve": "#DDB0C8",
+    "fog": "#DFD7DD",
+    "ink": "#000000"
+  },
+  "type": {
+    "family": "geometric sans: bold titles, regular subtitles, medium body",
+    "titleCaps": false,
+    "cover": 85,
+    "title": 52,
+    "big": 81,
+    "subtitle": 29,
+    "body": 20,
+    "lineHeight": 1.45,
+    "fonts": {
+      "text": "Montserrat",
+      "source": "Gotham (Bold titles, Book/Medium body), identified visually; Montserrat is the closest Google family"
+    }
+  },
+  "geometry": {
+    "margin": 133,
+    "titleTop": 128,
+    "floor": "a full-width band 90–140px tall at the slide foot, in a stronger colour than the wall"
+  },
+  "palette": {
+    "paper": "#FFF2C3",
+    "ink": "#000000",
+    "muted": "#5E5A4C",
+    "rule": "rgba(0,0,0,.16)",
+    "onAccent": "#FFFFFF",
+    "accents": [
+      "#204EB2",
+      "#FC7750",
+      "#237978",
+      "#1BC0D7",
+      "#E93737"
+    ]
+  }
+}

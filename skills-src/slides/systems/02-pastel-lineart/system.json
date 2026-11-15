@@ -1,0 +1,97 @@
+{
+  "id": "pastel-lineart",
+  "preset": "pastel",
+  "name": "Presentation Template with Yuppies Illustrations",
+  "label": "Pastel Play",
+  "source": "https://www.figma.com/design/N2C7Q9ps8LHQwh3vvBTALN/Presentation-Template-with-Yuppies-Illustrations--Community-",
+  "measuredFrom": "20 exported frames at 1920×1080, sampled per pixel and drawn at 1280×720 (every source size × 2/3)",
+  "palette": {
+    "lime": "#F6FFBC",
+    "limeBlob": "#F4F5D1",
+    "salmon": "#FFE9E9",
+    "salmonBlob": "#F8EAE8",
+    "lilac": "#E9CDFF",
+    "lilacBlob": "#EDDDF4",
+    "purple": "#A06AF8",
+    "purpleBlob": "#C8AAF0",
+    "yellow": "#FFEC88",
+    "yellowBlob": "#F8ECB7",
+    "white": "#FFFFFF",
+    "stone": "#F8F5F3",
+    "ink": "#000000",
+    "orange": "#D08F52",
+    "rust": "#A1483A",
+    "violet": "#BD8CE9",
+    "shadow": "rgba(60,30,30,.12)",
+    "paper": "#F6FFBC",
+    "muted": "#6B6B6B",
+    "rule": "#BCC385",
+    "onAccent": "#FFFFFF",
+    "accents": [
+      "#A06AF8",
+      "#D08F52",
+      "#A1483A",
+      "#BD8CE9",
+      "#000000"
+    ]
+  },
+  "type": {
+    "family": "geometric-sans",
+    "titleCaps": false,
+    "weights": {
+      "title": 600,
+      "body": 300
+    },
+    "sizes": {
+      "display": 80,
+      "section": 72,
+      "title": 50,
+      "phrase": 46,
+      "subtitle": 36,
+      "list": 32,
+      "body": 21,
+      "bodyLine": 32,
+      "tag": 18,
+      "metric": 80,
+      "percentage": 140
+    },
+    "fonts": {
+      "text": "Poppins",
+      "extra": [
+        "Jost"
+      ],
+      "source": "Poppins, the Figma file's own face (SemiBold titles, Light body); Jost Light for the Percentage & Tag label, as in the source"
+    }
+  },
+  "geometry": {
+    "margin": 120,
+    "titleTop": 105,
+    "panelSplit": 640,
+    "stroke": 3,
+    "hexagon": "flat-top, black 3px outline",
+    "crops": "circle, organic blob, flat-top hexagon",
+    "radius": 0
+  },
+  "motif": "flat colour panels and full-bleed fields, white circles and hexagon outlines as crops, soft tinted blobs under white line-art shapes, orange scallop arcs, rust and violet leaf shapes",
+  "layouts": {
+    "cover": "Cover",
+    "agenda": "Presentation Order",
+    "section": "Cover of Section",
+    "statement": "Text & Illustration (long text) / Important Text (short text)",
+    "text": "Title & Text (salmon panel left) / Title & Text-1 (lime panel right), alternating",
+    "points": "Three points & Text",
+    "image-text": "Introduction",
+    "metrics": "Metrics",
+    "two-column": "Two Titles & Text",
+    "timeline": "Process",
+    "quote": "Big Text & Background",
+    "table": "Title & Subtitles",
+    "big-number": "Percentage & Tag",
+    "bullets": "Illustrations & Text",
+    "team": "Title & Subtitles-1 (hexagon crop, purple connector lines)",
+    "image": "Important Text-1",
+    "closing": "Thank You! / Questions? (when the title ends in a question mark)",
+    "chart": "frame: lime page (Cover / Three points field), title at the 120px inset, chart below",
+    "custom": "frame: same as chart"
+  }
+}

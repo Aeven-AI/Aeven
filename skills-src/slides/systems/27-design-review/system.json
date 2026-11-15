@@ -1,0 +1,50 @@
+{
+  "id": "design-review",
+  "name": "Design Review",
+  "label": "Design Review",
+  "source": "https://www.figma.com/community/file/1383475610293894214/design-review",
+  "measuredFrom": "16 ripped frames at 1000×563, scaled ×1.28 to 1280×720",
+  "motif": "black, white, sage and stone review pages, light grotesque caps titles over hairline-ruled meta rows, serif caps title bands, checkerboard image slots, orange goal cards",
+  "surface": {
+    "black": "#000000",
+    "white": "#FFFFFF",
+    "sage": "#C4D5CE",
+    "stone": "#E5E4DF",
+    "orange": "#ED752F",
+    "checker": ["#FAFAFA", "#EBEBEB"]
+  },
+  "rule": {
+    "onLight": "rgba(0,0,0,.58)",
+    "onDark": "rgba(255,255,255,.5)"
+  },
+  "geometry": {
+    "margin": 41,
+    "meta": 32,
+    "band": 102,
+    "coverRow": 49,
+    "coverBlock": 147,
+    "checker": 40
+  },
+  "type": {
+    "fonts": {
+      "text": "Public Sans",
+      "display": "Public Sans",
+      "extra": ["Lora"],
+      "source": "light neo-grotesque caps and body (Public Sans–like), Lora serif caps for title bands and quotes (measured visually)"
+    },
+    "coverTitle": 124,
+    "band": 56,
+    "label": 54,
+    "body": 24,
+    "quote": 50,
+    "meta": 15
+  },
+  "palette": {
+    "paper": "#FFFFFF",
+    "ink": "#000000",
+    "muted": "#5C5C5C",
+    "rule": "#9A9A9A",
+    "onAccent": "#000000",
+    "accents": ["#ED752F", "#111111", "#7FA294", "#A9A699"]
+  }
+}

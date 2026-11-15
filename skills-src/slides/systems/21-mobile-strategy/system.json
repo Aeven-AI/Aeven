@@ -1,0 +1,108 @@
+{
+  "id": "mobile-strategy",
+  "name": "Mobile Product Review",
+  "label": "Mobile Strategy",
+  "source": "https://www.figma.com/community/file/1383508772180769891/mobile-product-review",
+  "measuredFrom": "16 ripped frames at 1000×563, scaled ×1.28 to 1280×720; colours sampled with ImageMagick",
+  "motif": "grainy dark gradient glows for cover and sections, quiet white review pages with a big black title beside grey copy, soft grey cards, hairline agenda rows and a tiny four-column footer",
+  "surface": {
+    "page": "#FFFFFF",
+    "card": "#EEEEEE",
+    "logo": "#E0E0E0"
+  },
+  "ink": {
+    "primary": "#050505",
+    "body": "#7C7C7C",
+    "sub": "#555555",
+    "meta": "#333333",
+    "metaMuted": "#8A8A8A"
+  },
+  "rule": "#B5B6B5",
+  "glows": {
+    "cover": {
+      "base": "linear-gradient(128deg, #000000 8%, #1D262D 34%, #2B4760 62%, #355F96 100%)",
+      "layers": [
+        "radial-gradient(50% 64% at 100% 0%, #80704E 0%, rgba(128,112,78,.45) 45%, rgba(128,112,78,0) 100%)",
+        "radial-gradient(28% 48% at 100% 72%, #B0A6B4 0%, rgba(176,166,180,.45) 45%, rgba(176,166,180,0) 100%)",
+        "radial-gradient(62% 62% at 64% 100%, #4E84C8 0%, rgba(78,132,200,.45) 45%, rgba(78,132,200,0) 100%)",
+        "radial-gradient(44% 56% at 82% 46%, #6A5F84 0%, rgba(106,95,132,.45) 45%, rgba(106,95,132,0) 100%)",
+        "radial-gradient(40% 52% at 0% 100%, #34505A 0%, rgba(52,80,90,.45) 45%, rgba(52,80,90,0) 100%)"
+      ]
+    },
+    "green": {
+      "base": "linear-gradient(128deg, #000000 8%, #14302F 32%, #2C5F5A 62%, #5F8F62 100%)",
+      "layers": [
+        "radial-gradient(46% 60% at 100% 0%, #71857B 0%, rgba(113,133,123,.45) 45%, rgba(113,133,123,0) 100%)",
+        "radial-gradient(50% 78% at 100% 100%, #D2E5AC 0%, rgba(210,229,172,.45) 45%, rgba(210,229,172,0) 100%)",
+        "radial-gradient(42% 55% at 72% 100%, #A8BC66 0%, rgba(168,188,102,.45) 45%, rgba(168,188,102,0) 100%)",
+        "radial-gradient(40% 46% at 58% 6%, #4A5838 0%, rgba(74,88,56,.45) 45%, rgba(74,88,56,0) 100%)",
+        "radial-gradient(40% 52% at 0% 100%, #2A5558 0%, rgba(42,85,88,.45) 45%, rgba(42,85,88,0) 100%)"
+      ]
+    },
+    "teal": {
+      "base": "linear-gradient(128deg, #000000 8%, #22333A 32%, #33555C 62%, #3F8C80 100%)",
+      "layers": [
+        "radial-gradient(46% 60% at 100% 0%, #4A7B82 0%, rgba(74,123,130,.45) 45%, rgba(74,123,130,0) 100%)",
+        "radial-gradient(40% 60% at 100% 74%, #60C6B6 0%, rgba(96,198,182,.45) 45%, rgba(96,198,182,0) 100%)",
+        "radial-gradient(44% 52% at 70% 100%, #52A87F 0%, rgba(82,168,127,.45) 45%, rgba(82,168,127,0) 100%)",
+        "radial-gradient(40% 52% at 0% 100%, #3A5560 0%, rgba(58,85,96,.45) 45%, rgba(58,85,96,0) 100%)"
+      ]
+    },
+    "violet": {
+      "base": "linear-gradient(128deg, #000000 8%, #28283A 32%, #3B4264 60%, #574A86 100%)",
+      "layers": [
+        "radial-gradient(44% 56% at 100% 0%, #717379 0%, rgba(113,115,121,.45) 45%, rgba(113,115,121,0) 100%)",
+        "radial-gradient(38% 64% at 100% 78%, #98B0DA 0%, rgba(152,176,218,.45) 45%, rgba(152,176,218,0) 100%)",
+        "radial-gradient(48% 52% at 62% 100%, #9660C0 0%, rgba(150,96,192,.45) 45%, rgba(150,96,192,0) 100%)",
+        "radial-gradient(36% 44% at 74% 64%, #5C4C8E 0%, rgba(92,76,142,.45) 45%, rgba(92,76,142,0) 100%)",
+        "radial-gradient(40% 52% at 0% 100%, #4F4456 0%, rgba(79,68,86,.45) 45%, rgba(79,68,86,0) 100%)"
+      ]
+    }
+  },
+  "sectionGlows": [
+    "green",
+    "teal",
+    "violet"
+  ],
+  "geometry": {
+    "margin": 70,
+    "top": 56,
+    "radius": 8,
+    "gap": 9,
+    "footerY": 652,
+    "footerCols": [
+      43,
+      189,
+      387,
+      605
+    ],
+    "footerRight": 62
+  },
+  "type": {
+    "fonts": {
+      "text": "Inter",
+      "display": "Inter Tight",
+      "source": "Inter Display for titles and Inter for copy (measured visually)"
+    },
+    "hero": 118,
+    "section": 88,
+    "title": 62,
+    "lead": 23,
+    "label": 24,
+    "meta": 10
+  },
+  "palette": {
+    "paper": "#FFFFFF",
+    "ink": "#050505",
+    "muted": "#7C7C7C",
+    "rule": "#B5B6B5",
+    "onAccent": "#FFFFFF",
+    "accents": [
+      "#3F74C2",
+      "#8C5FC0",
+      "#3E9E7B",
+      "#A88C3E",
+      "#1A1A1A"
+    ]
+  }
+}

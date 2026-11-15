@@ -1,0 +1,109 @@
+{
+  "id": "slate",
+  "name": "Slate",
+  "label": "Slate",
+  "motif": "Dark slate pages, mint accents, heavy Poppins titles, photo cover with the name in a rising circle, vertical timeline dates, dot-rated languages",
+  "type": {
+    "fonts": {
+      "text": "Poppins",
+      "display": "Poppins"
+    }
+  },
+  "palette": {
+    "page": "#373B40",
+    "bar": "#3E4248",
+    "ink": "#FFFFFF",
+    "text": "#E3E5E8",
+    "muted": "#A7ACB2",
+    "rule": "#50555C",
+    "track": "#585D65",
+    "accent": "#68E0CF",
+    "onAccent": "#373B40"
+  },
+  "sample": {
+    "name": "Clara Weiss",
+    "role": "Creative director & mentor",
+    "photo": {
+      "src": "model-D3KYmPveqsw.jpg",
+      "alt": "Clara Weiss",
+      "focus": [
+        42,
+        24
+      ]
+    },
+    "backdrop": {
+      "src": "model-D3KYmPveqsw.jpg"
+    },
+    "profile": "Creative director with thirty years in brands, campaigns and digital products. I build teams that do their best work, mentor young designers, and still sketch the first idea myself before anyone opens a laptop.",
+    "contact": [
+      {
+        "label": "Age",
+        "value": "56"
+      },
+      {
+        "label": "Residence",
+        "value": "Germany"
+      },
+      {
+        "label": "Freelance",
+        "value": "Available"
+      },
+      {
+        "label": "City",
+        "value": "Hamburg"
+      },
+      {
+        "label": "Phone",
+        "value": "+49 40 1234 5678"
+      },
+      {
+        "label": "E-mail",
+        "value": "clara@weiss.design"
+      }
+    ],
+    "skills": [
+      {
+        "name": "Art direction",
+        "level": 95,
+        "note": "Campaigns, identities and editorial work for global brands."
+      },
+      {
+        "name": "Team leadership",
+        "level": 90,
+        "note": "Studios of up to forty designers, writers and developers."
+      },
+      {
+        "name": "Brand strategy",
+        "level": 85,
+        "note": "Positioning workshops, naming and brand architecture."
+      },
+      {
+        "name": "Mentoring",
+        "level": 80,
+        "note": "Coaching programme for young creative directors."
+      }
+    ],
+    "languages": [
+      {
+        "name": "German",
+        "level": "Native",
+        "value": 100
+      },
+      {
+        "name": "English",
+        "level": "Fluent",
+        "value": 90
+      },
+      {
+        "name": "French",
+        "level": "Good",
+        "value": 60
+      },
+      {
+        "name": "Italian",
+        "level": "Basic",
+        "value": 35
+      }
+    ]
+  }
+}

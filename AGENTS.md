@@ -54,6 +54,7 @@ packages/    @aeven/<pkg> workspaces at packages/<group>/<pkg>/
   util/        zero-dependency utilities
 python/      Python SDK and bundled runtime (python/README.md)
 native/      @deepseek-ai/node-addon-landlock-run source of record (native/README.md)
+skills-src/  source of the aeven preset's cv and slides skills; publish.mjs writes the shipped copy
 .agents/     Agent workflows and Agent Notes (`notes/`)
 docs/        architecture, catalogs, postmortems, cookbook (docs/AGENTS.md)
 scripts/     repo gates and generators

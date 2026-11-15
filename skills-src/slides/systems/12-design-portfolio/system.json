@@ -1,0 +1,53 @@
+{
+  "id": "design-portfolio",
+  "name": "Design Portfolio",
+  "label": "Design Portfolio",
+  "source": "https://www.figma.com/community/file/1382860609183042144/design-portfolio",
+  "measuredFrom": "16 Figma Community thumbnails at 1000×563, palette sampled with ImageMagick histograms, geometry scaled ×1.28",
+  "motif": "one deep green on off-white: checkerboard stripe covers and dividers, full-width 20px green bars between rows, a centre hairline splitting the slide in halves, huge monospaced caps titles, big green pill labels, small label-left/content-right rows and three-part corner meta",
+  "rhythm": "checkerboard cover, ruled contents, pill-and-rows, title-band grids, checkerboard divider, results columns, full-bleed picture",
+  "green": "#4F7C5B",
+  "paper": "#EFEFEF",
+  "placeholder": {
+    "border": "#C9CEC9",
+    "check": "#E1E3E1"
+  },
+  "type": {
+    "family": "monospaced caps display titles, round grotesque text",
+    "titleCaps": true,
+    "cover": 158,
+    "section": 151,
+    "title": 140,
+    "contents": 60,
+    "skill": 52,
+    "lead": 32,
+    "body": 24,
+    "label": 18,
+    "meta": 15,
+    "fonts": {
+      "text": "Hanken Grotesk",
+      "display": "Roboto Mono",
+      "source": "a light monospaced grotesque for titles (vertically scaled in places in the original) and a round grotesque for text, identified visually"
+    }
+  },
+  "geometry": {
+    "gutter": 14,
+    "bar": 20,
+    "hairline": 2,
+    "titleBand": 160,
+    "labelColumn": 212,
+    "footerBottom": 16,
+    "coverColumns": [186, 908, 186],
+    "coverRows": [55, 156, 96, 100, 63, 157, 93],
+    "sectionColumns": [224, 832, 224],
+    "sectionRows": [55, 156, 258, 158, 20]
+  },
+  "palette": {
+    "paper": "#EFEFEF",
+    "ink": "#4F7C5B",
+    "muted": "#5F8068",
+    "rule": "#4F7C5B",
+    "onAccent": "#EFEFEF",
+    "accents": ["#4F7C5B", "#8DAE96", "#24402D", "#6F9A7B"]
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "id": "checkerboard",
+  "name": "Minimalist Simple Slide Deck Presentation Template",
+  "label": "Checkerboard",
+  "source": "https://www.figma.com/community/file/1162281073102570063/minimalist-simple-slide-deck-presentation-template",
+  "measuredFrom": "one Figma Community collage (1000×611) showing six slides, palette sampled per slide",
+  "motif": "off-white and charcoal slides with a black checkerboard block, an acid lime disc, purple asterisks and a full-width footer rule",
+  "surface": {
+    "paper": "#E0DDD7",
+    "charcoal": "#333333",
+    "checker": "#262628",
+    "lime": "#CEDD6B",
+    "purple": "#6463EC"
+  },
+  "ink": {
+    "primary": "#0D0D0D",
+    "muted": "#5E5C57",
+    "onDark": "#E0DDD7",
+    "mutedOnDark": "#A9A7A1"
+  },
+  "type": {
+    "fonts": {
+      "text": "DM Sans",
+      "source": "DM Sans (identified from the collage letterforms)"
+    }
+  },
+  "geometry": {
+    "margin": 64,
+    "footerRule": 640
+  },
+  "palette": {
+    "paper": "#E0DDD7",
+    "ink": "#0D0D0D",
+    "muted": "#5E5C57",
+    "rule": "rgba(13,13,13,.22)",
+    "onAccent": "#FFFFFF",
+    "accents": ["#6463EC", "#333333", "#B8C94A", "#A3A2F2"]
+  }
+}

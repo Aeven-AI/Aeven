@@ -1,0 +1,58 @@
+{
+  "id": "marina",
+  "name": "Marina",
+  "label": "Marina",
+  "motif": "Electric blue edge with pink and yellow diamonds, bold Space Grotesk, skills on pink grid paper",
+  "type": {
+    "fonts": {
+      "text": "Space Grotesk",
+      "display": "Space Grotesk"
+    }
+  },
+  "palette": {
+    "page": "#FFFFFF",
+    "ink": "#121212",
+    "text": "#3F3F3F",
+    "muted": "#8C8C8C",
+    "rule": "#ECECEC",
+    "accent": "#3B4BFF",
+    "pink": "#FFB3C7",
+    "grid": "#FFD6E2",
+    "yellow": "#FFD84D",
+    "chip": "#EEF0FF"
+  },
+  "sample": {
+    "name": "Mila Petrova",
+    "role": "UI/UX designer",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "mila@petrova.com"
+      },
+      {
+        "label": "Phone",
+        "value": "+1 415 555 0142"
+      },
+      {
+        "label": "Location",
+        "value": "San Francisco, CA"
+      },
+      {
+        "label": "Website",
+        "value": "milapetrova.com"
+      }
+    ],
+    "photo": {
+      "src": "model-6xv4A1VA1rU.jpg",
+      "alt": "Mila Petrova",
+      "focus": [
+        62,
+        34
+      ],
+      "zoom": 1.7
+    },
+    "backdrop": {
+      "src": "model-6xv4A1VA1rU.jpg"
+    }
+  }
+}

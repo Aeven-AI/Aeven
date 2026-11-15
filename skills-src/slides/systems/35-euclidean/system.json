@@ -1,0 +1,57 @@
+{
+  "id": "euclidean",
+  "name": "Euclidean",
+  "label": "Euclidean",
+  "motif": "warm cream paper, a quiet Source Serif in sentence case, brick-red quotes and a short red underline, slides split in half by thin warm-grey hairlines with a paler panel, small bold uppercase corner labels",
+  "measuredFrom": "16 exported frames at 1000×563, scaled ×1.28 to 1280×720; colours sampled per frame",
+  "surface": {
+    "page": "#FCF7EA",
+    "panel": "#FEFCF5",
+    "card": "#F5EFDD",
+    "photo": "#88888A"
+  },
+  "ink": {
+    "primary": "#1B1A1E",
+    "muted": "#86847A",
+    "label": "#8A877A",
+    "onPhoto": "#CFCDC6",
+    "red": "#C3402F",
+    "redMark": "#E4ADA0",
+    "blue": "#2D628E",
+    "blueText": "#3A6C90",
+    "blueMark": "#8FADB8",
+    "green": "#4A9463"
+  },
+  "accent": {
+    "red": "#C3402F",
+    "blue": "#2D628E",
+    "yellow": "#F1C44E",
+    "green": "#4A9463"
+  },
+  "geometry": {
+    "margin": 66,
+    "labelTop": 56,
+    "rule": "#D8D5C9",
+    "underline": 180
+  },
+  "type": {
+    "label": 17,
+    "cover": 92,
+    "title": 41,
+    "lead": 30,
+    "body": 20,
+    "fonts": {
+      "text": "Source Sans 3",
+      "display": "Source Serif 4",
+      "source": "Source Serif (titles and quotes, Regular) with Source Sans (labels Semibold caps, body Regular, figures Black)"
+    }
+  },
+  "palette": {
+    "paper": "#FCF7EA",
+    "ink": "#1B1A1E",
+    "muted": "#86847A",
+    "rule": "#D8D5C9",
+    "onAccent": "#FFFFFF",
+    "accents": ["#C3402F", "#2D628E", "#F1C44E", "#4A9463", "#8FADB8"]
+  }
+}

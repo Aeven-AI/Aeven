@@ -1,0 +1,57 @@
+{
+  "id": "ember",
+  "name": "Ember",
+  "label": "Ember",
+  "motif": "The Khalil layout on sunny yellow with a white side card and black type",
+  "type": {
+    "fonts": {
+      "text": "Poppins",
+      "display": "Poppins"
+    }
+  },
+  "palette": {
+    "page": "#F7C948",
+    "side": "#FFFFFF",
+    "ink": "#18181B",
+    "text": "#3A3A3F",
+    "muted": "#6E6A55",
+    "rule": "#E9D79A",
+    "accent": "#18181B",
+    "accentText": "#18181B",
+    "chip": "#FCE9A9"
+  },
+  "sample": {
+    "name": "Grace Miller",
+    "role": "Marketing lead",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "grace@miller.com"
+      },
+      {
+        "label": "Phone",
+        "value": "+1 415 555 0142"
+      },
+      {
+        "label": "Location",
+        "value": "San Francisco, CA"
+      },
+      {
+        "label": "Website",
+        "value": "gracemiller.com"
+      }
+    ],
+    "photo": {
+      "src": "model-1TUIcKob7Zs.jpg",
+      "alt": "Grace Miller",
+      "focus": [
+        55,
+        42
+      ],
+      "zoom": 1.4
+    },
+    "backdrop": {
+      "src": "model-1TUIcKob7Zs.jpg"
+    }
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "id": "kit",
+  "name": "Kit",
+  "label": "Kit",
+  "motif": "A white rounded sheet on a soft lavender frame, small rounded photo, violet role and label column",
+  "type": {
+    "fonts": {
+      "text": "Inter",
+      "display": "Inter"
+    }
+  },
+  "palette": {
+    "frame": "#ECE8FF",
+    "page": "#FFFFFF",
+    "ink": "#17152B",
+    "text": "#4A4860",
+    "muted": "#9997AE",
+    "rule": "#EFEDF7",
+    "accent": "#6D4AFF",
+    "chip": "#F0ECFF"
+  },
+  "sample": {
+    "name": "Riley Quinn",
+    "role": "Product designer",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "riley@quinn.com"
+      },
+      {
+        "label": "Phone",
+        "value": "+1 415 555 0142"
+      },
+      {
+        "label": "Location",
+        "value": "San Francisco, CA"
+      },
+      {
+        "label": "Website",
+        "value": "rileyquinn.com"
+      }
+    ],
+    "photo": {
+      "src": "model-yePFqWHER8I.jpg",
+      "alt": "Riley Quinn",
+      "focus": [
+        55,
+        26
+      ],
+      "zoom": 2.0
+    },
+    "backdrop": {
+      "src": "model-yePFqWHER8I.jpg"
+    }
+  }
+}

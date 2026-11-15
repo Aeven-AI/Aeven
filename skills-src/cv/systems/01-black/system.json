@@ -1,0 +1,67 @@
+{
+  "id": "black",
+  "name": "Black",
+  "label": "Black",
+  "motif": "Black pages, green name block, full-page portrait cover, Oswald caps, skill rings, icon timeline",
+  "type": {
+    "fonts": {
+      "text": "Roboto",
+      "display": "Oswald"
+    }
+  },
+  "palette": {
+    "page": "#000000",
+    "panel": "#1A1A1A",
+    "side": "#000000",
+    "title": "#818181",
+    "ink": "#AEAEAE",
+    "text": "#818181",
+    "muted": "#6A6A6A",
+    "rule": "#333333",
+    "ring": "#8C8C8C",
+    "ringTrack": "#3F3F3F",
+    "accent": "#7DBA5C",
+    "onAccent": "#000000",
+    "cover": "#AEAEAE",
+    "coverRule": "rgba(255, 255, 255, 0.28)",
+    "coverBg": "#000000",
+    "aboutCopyWidth": "50%"
+  },
+  "sample": {
+    "name": "Luca Moretti",
+    "role": "Art director / UX designer",
+    "photo": {
+      "src": "model-AjJsc0hk9s0.jpg",
+      "alt": "Luca Moretti",
+      "focus": [
+        47,
+        30
+      ]
+    },
+    "backdrop": {
+      "src": "model-AjJsc0hk9s0.jpg"
+    },
+    "contact": [
+      {
+        "label": "Email",
+        "value": "luca@moretti.studio"
+      },
+      {
+        "label": "Phone",
+        "value": "+39 02 1234 5678"
+      },
+      {
+        "label": "Location",
+        "value": "Milan, Italy"
+      },
+      {
+        "label": "Website",
+        "value": "lucamoretti.studio"
+      },
+      {
+        "label": "LinkedIn",
+        "value": "linkedin.com/in/lucamoretti"
+      }
+    ]
+  }
+}

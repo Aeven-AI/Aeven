@@ -1,0 +1,58 @@
+{
+  "id": "forest",
+  "name": "Forest",
+  "label": "Forest",
+  "motif": "Deep green side column with a round photo and white skill bars beside a clean white page",
+  "type": {
+    "fonts": {
+      "text": "Inter",
+      "display": "Inter"
+    }
+  },
+  "palette": {
+    "page": "#FFFFFF",
+    "side": "#1E4D44",
+    "sideText": "#D7E6E1",
+    "sideMuted": "#8FB3A9",
+    "ink": "#1A1A1A",
+    "text": "#454545",
+    "muted": "#8C8C8C",
+    "rule": "#E5E5E5",
+    "accent": "#1E4D44"
+  },
+  "sample": {
+    "name": "Adam Reyes",
+    "role": "Product designer",
+    "photo": {
+      "src": "model-mzBfIKuNBxI.jpg",
+      "alt": "Adam Reyes",
+      "focus": [
+        48,
+        22
+      ],
+      "zoom": 1.7
+    },
+    "backdrop": {
+      "src": "model-mzBfIKuNBxI.jpg"
+    },
+    "profile": "Product designer with nine years in consumer apps and marketplaces. I combine research, prototyping and visual craft to make complex services feel effortless.",
+    "contact": [
+      {
+        "label": "Email",
+        "value": "adam@reyes.design"
+      },
+      {
+        "label": "Phone",
+        "value": "+44 20 7946 0321"
+      },
+      {
+        "label": "Location",
+        "value": "London, UK"
+      },
+      {
+        "label": "Website",
+        "value": "adamreyes.com"
+      }
+    ]
+  }
+}
