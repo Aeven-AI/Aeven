@@ -4430,7 +4430,7 @@ get_location 由显示该会话的客户端在读者做出选择后应答；该�
 
 ### `mail_send`
 
-从已连接的账户发送纯文本邮件，或以 draft: true 保存为草稿。发送前总会先请用户批准。回复时传入 replyTo，并附上原邮件的文件夹与 id；主题随后默认为 "Re: …"。发件人必须是该账户地址或其别名之一。
+Send a plain-text email from a connected account, or save it as a draft with draft: true. Sending always asks the user to approve first. To reply, pass replyTo with the original message's folder and id; the subject then defaults to "Re: …". To forward, pass forward with the original's folder and id: the original message, with its formatting, images, and attachments, goes out below text, and the subject defaults to "Fwd: …". The sender must be the account address or one of its aliases.
 
 ```json
 {
@@ -4467,15 +4467,32 @@ get_location 由显示该会话的客户端在读者做出选择后应答；该�
     },
     "subject": {
       "type": "string",
-      "description": "Subject; optional for a reply."
+      "description": "Subject; optional for a reply or a forward."
     },
     "text": {
       "type": "string",
-      "description": "Plain-text body."
+      "description": "Plain-text body; for a forward, your note above the original (may be empty)."
     },
     "replyTo": {
       "type": "object",
       "description": "The message being answered.",
+      "additionalProperties": false,
+      "properties": {
+        "folder": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "folder",
+        "id"
+      ]
+    },
+    "forward": {
+      "type": "object",
+      "description": "The message being forwarded; not combined with replyTo.",
       "additionalProperties": false,
       "properties": {
         "folder": {

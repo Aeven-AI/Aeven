@@ -140,7 +140,12 @@ export interface MailAttachmentView {
   filename?: string
   contentType: string
   size: number
+  /** Present when the part is embedded in the HTML body (a `cid:` image such as a logo) rather than attached for its own sake. */
+  inline?: true
 }
+
+/** The MIME part a message's text body was read from: `plain` as sent, `html` converted to text. */
+export type MailTextSource = 'plain' | 'html'
 
 /** One message's headers and text body. */
 export interface MailMessage extends MailMessageRef {
@@ -151,8 +156,13 @@ export interface MailMessage extends MailMessageRef {
   cc?: string
   replyTo?: string
   subject?: string
-  /** Plain text body; HTML-only messages are converted to text without fetching remote resources. */
+  /**
+   * Text body: the `text/plain` part, or for a message without visible plain text, its `text/html` part converted
+   * to text without fetching remote resources.
+   */
   text: string
+  /** Which part `text` came from. */
+  textSource: MailTextSource
   /** True when `text` was cut at the configured character cap. */
   truncated: boolean
   attachments: MailAttachmentView[]
@@ -186,11 +196,14 @@ export interface MailSendRequest {
   to: string[]
   cc?: string[]
   bcc?: string[]
-  /** Defaults to `Re: <original subject>` for a reply. */
+  /** Defaults to `Re: <original subject>` for a reply and `Fwd: <original subject>` for a forward. */
   subject?: string
+  /** The sender's own text; a forward places the original message below it. */
   text: string
-  /** Message being answered; sets threading headers. */
+  /** Message being answered; sets threading headers. Cannot be combined with `forward`. */
   replyTo?: { folder: string; id: string }
+  /** Message being forwarded: its headers, text and HTML bodies, inline images, and attachments go out below `text`. */
+  forward?: { folder: string; id: string }
   /** Append to Drafts instead of sending; IMAP only. */
   draft?: boolean
 }

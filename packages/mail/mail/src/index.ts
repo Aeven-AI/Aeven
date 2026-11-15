@@ -10,7 +10,7 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import Schema from '@deepseek-ai/schemastery'
 import { MailError, toMailError } from './errors.ts'
 import { appendDraft, fetchSource, imapClient, ImapPool, listFolders, probeImap, searchImap, updateImap } from './imap.ts'
-import { attachmentAt, parseSource, replyContext, toMailMessage } from './message.ts'
+import { attachmentAt, escapeHtml, forwardParts, parseSource, replyContext, toMailMessage } from './message.ts'
 import { deletePop3, fetchPop3, POP3_FOLDER, probePop3, searchPop3, withPop3 } from './pop3.ts'
 import { composeMessage, probeSmtp, sendSmtp, type ComposedMessage } from './smtp.ts'
 import type {
@@ -212,7 +212,9 @@ export default class MailService extends Service {
   }
 
   /**
-   * Send a message over SMTP, or append it to Drafts. The sender must be the account address or an alias.
+   * Send a message over SMTP, or append it to Drafts. The sender must be the account address or an alias. A forward
+   * reads the original from the account and sends its headers, text and HTML bodies, inline images, and attachments
+   * below the sender's text.
    * @param owner - the conversation owner.
    * @param request - the message.
    * @param signal - cancellation.
@@ -228,15 +230,27 @@ export default class MailService extends Service {
     const recipients = [...request.to, ...request.cc ?? [], ...request.bcc ?? []]
     if (recipients.some(address => !EMAIL.test(address.trim()))) throw new MailError('Every recipient must be a plain email address.', 'MAIL_INVALID')
     if (request.draft !== true && request.to.length === 0) throw new MailError('to must name at least one recipient.', 'MAIL_INVALID')
+    if (request.replyTo !== undefined && request.forward !== undefined) {
+      throw new MailError('A message is either a reply or a forward, not both.', 'MAIL_INVALID')
+    }
     const original = request.replyTo === undefined
       ? undefined
       : replyContext(await parseSource(await this.source(entry, { account: settings.address, ...request.replyTo }, signal)))
-    const subject = request.subject ?? (original?.subject === undefined ? undefined : /^re:/i.test(original.subject) ? original.subject : `Re: ${original.subject}`)
-    if (subject === undefined) throw new MailError('subject is required unless the message is a reply.', 'MAIL_INVALID')
+    const forwarded = request.forward === undefined
+      ? undefined
+      : forwardParts(await parseSource(await this.source(entry, { account: settings.address, ...request.forward }, signal)))
+    const subject = request.subject
+      ?? forwarded?.subject
+      ?? (original?.subject === undefined ? undefined : /^re:/i.test(original.subject) ? original.subject : `Re: ${original.subject}`)
+    if (subject === undefined) throw new MailError('subject is required unless the message is a reply or a forward.', 'MAIL_INVALID')
+    const own = request.text.trim()
     const message: ComposedMessage = {
-      from, to: request.to, cc: request.cc ?? [], bcc: request.bcc ?? [], subject, text: request.text,
+      from, to: request.to, cc: request.cc ?? [], bcc: request.bcc ?? [], subject,
+      text: forwarded === undefined ? request.text : own === '' ? forwarded.text : `${request.text}\n\n${forwarded.text}`,
+      ...forwarded?.html !== undefined ? { html: own === '' ? forwarded.html : `<div>${escapeHtml(request.text)}</div><br>\n${forwarded.html}` } : {},
       ...original?.messageId !== undefined ? { inReplyTo: original.messageId } : {},
       references: original?.references ?? [],
+      attachments: forwarded?.attachments ?? [],
     }
     if (request.draft === true) {
       if (settings.receive.protocol !== 'imap') throw new MailError('Drafts need an IMAP account.', 'MAIL_UNSUPPORTED')

@@ -66,7 +66,7 @@ export function apply(ctx: Context, config: Config): void {
     const args = exec.arguments as Record<string, unknown> | undefined
     if (exec.name === 'mail_send' && args?.draft !== true) {
       const to = Array.isArray(args?.to) ? args.to.join(', ') : ''
-      const what = typeof args?.subject === 'string' ? `an email “${args.subject}”` : args?.replyTo !== undefined ? 'a reply' : 'an email'
+      const what = typeof args?.subject === 'string' ? `an email “${args.subject}”` : args?.replyTo !== undefined ? 'a reply' : args?.forward !== undefined ? 'a forwarded email' : 'an email'
       return { kind: 'ask', reason: `Send ${what} from ${String(args?.account)} to ${to}.`, allowSession: `mail_send:${String(args?.account)}`, allowSessionCoverage: 'account' }
     }
     if (exec.name === 'mail_update' && args?.action === 'delete') {

@@ -80,7 +80,9 @@ async attachment(owner: string, ref: MailMessageRef, index: number, signal?: Abo
 async update(owner: string, request: MailUpdateRequest, signal?: AbortSignal): Promise<number>
 
 /**
- * Send a message over SMTP, or append it to Drafts. The sender must be the account address or an alias.
+ * Send a message over SMTP, or append it to Drafts. The sender must be the account address or an alias. A forward
+ * reads the original from the account and sends its headers, text and HTML bodies, inline images, and attachments
+ * below the sender's text.
  * @param owner - the conversation owner.
  * @param request - the message.
  * @param signal - cancellation.

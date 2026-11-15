@@ -2838,10 +2838,12 @@ export interface StdioConfig {
    */
   resultNotes?: Record<string, string>
   /**
-   * Type long `fill` / `fill_form` text values with keystrokes. chrome-devtools-mcp only: its fill assigns a value of
-   * 100 characters or more to the element directly, which a framework-controlled field (React, HubSpot forms) drops
-   * on its next render. On, each such value is sent as `click`, select-all `press_key`, then `type_text`; shorter
-   * values and other elements keep the single fill call. Absent or false sends every call unchanged.
+   * Type long or multi-line `fill` / `fill_form` text values with keystrokes. chrome-devtools-mcp only: its fill
+   * assigns a value of 100 characters or more to the element directly, which a framework-controlled field (React,
+   * HubSpot forms) drops on its next render, and types a shorter one with a plain Enter per line break, which sends a
+   * chat message or submits a form. On, each such value is sent as `click`, select-all `press_key`, then `type_text`
+   * per line with a `Shift+Enter` `press_key` between lines; other values and elements keep the single fill call.
+   * Absent or false sends every call unchanged.
    */
   fillByTyping?: boolean
   /** Fail plugin activation when the initial connection or tool synchronization fails. */
@@ -2881,10 +2883,12 @@ export interface StreamableHttpConfig {
    */
   resultNotes?: Record<string, string>
   /**
-   * Type long `fill` / `fill_form` text values with keystrokes. chrome-devtools-mcp only: its fill assigns a value of
-   * 100 characters or more to the element directly, which a framework-controlled field (React, HubSpot forms) drops
-   * on its next render. On, each such value is sent as `click`, select-all `press_key`, then `type_text`; shorter
-   * values and other elements keep the single fill call. Absent or false sends every call unchanged.
+   * Type long or multi-line `fill` / `fill_form` text values with keystrokes. chrome-devtools-mcp only: its fill
+   * assigns a value of 100 characters or more to the element directly, which a framework-controlled field (React,
+   * HubSpot forms) drops on its next render, and types a shorter one with a plain Enter per line break, which sends a
+   * chat message or submits a form. On, each such value is sent as `click`, select-all `press_key`, then `type_text`
+   * per line with a `Shift+Enter` `press_key` between lines; other values and elements keep the single fill call.
+   * Absent or false sends every call unchanged.
    */
   fillByTyping?: boolean
   /** Fail plugin activation when the initial connection or tool synchronization fails. */
@@ -6254,8 +6258,8 @@ export interface Config {
  * - `'ask'` (the default) — delegate to the composed answerers; with none
  *   composed the chain falls through to the fail-closed `'unavailable'`.
  * - `'never'` — every ask resolves `'rejected'` deterministically, except an
- *   ask with `allowSessionCoverage: 'account'` (an action on the user's
- *   connected account that other people see), which still goes to the
+ *   ask with `allowSessionCoverage: 'account'` or `'site'` (an action on the
+ *   user's connected account, or a send on a website, that other people see), which still goes to the
  *   answerers unless the override is a `'delegation'` pin. The strict
  *   headless stance (CI, unattended runs).
  */
