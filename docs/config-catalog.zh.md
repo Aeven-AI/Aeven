@@ -5798,6 +5798,12 @@ export interface Config {
   searchTimeoutMs: number
   /** Maximum already-distilled facts accepted by one bulk write. */
   bulkMaxFacts: number
+  /** Maximum characters of each message `memory_list` returns. */
+  listTextMaxChars: number
+  /** Messages one `memory_list` page holds when the call names no limit. */
+  listDefaultLimit: number
+  /** Most messages one `memory_list` page may hold. */
+  listMaxLimit: number
 }
 ```
 

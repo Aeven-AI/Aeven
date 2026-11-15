@@ -240,6 +240,8 @@ export interface MemoryRecord {
   readonly agentText: string
   readonly sessionId: SessionId
   readonly episodeId: MemoryEpisodeId
+  /** Whether the memory was captured from a conversation or saved by an import. */
+  readonly origin: MemoryOrigin
   /** Status a learned procedure carries; undefined for other memories and for procedures stored without one. */
   readonly procedureStatus?: ProcedureStatus
 }
@@ -256,6 +258,11 @@ export interface MemoryListRequest {
    * recall leaves it out. Absent lists the project memory of every workspace.
    */
   readonly cwd?: string
+  /**
+   * List one record per conversation turn, the turn's trace that holds the person's message, instead of every trace;
+   * `limit`, `offset`, and `total` then count turns. A turn whose traces hold no message is left out of the page.
+   */
+  readonly turns?: boolean
   readonly limit: number
   readonly offset: number
   readonly signal: AbortSignal

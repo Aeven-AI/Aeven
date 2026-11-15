@@ -60,6 +60,7 @@ export const MEMORY_TOOL = {
   search: 'memory_search',
   get: 'memory_get',
   timeline: 'memory_timeline',
+  list: 'memory_list',
   environments: 'memory_environments',
   skills: 'memory_skills',
   skill: 'memory_skill',

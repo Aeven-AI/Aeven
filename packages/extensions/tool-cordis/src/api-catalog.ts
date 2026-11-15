@@ -8110,7 +8110,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MemoryRecord',
-    declaration: 'export interface MemoryRecord {\n    readonly id: MemoryItemId;\n    readonly domain: MemoryDomain;\n    readonly time: number;\n    readonly summary: string;\n    readonly userText: string;\n    readonly agentText: string;\n    readonly sessionId: SessionId;\n    readonly episodeId: MemoryEpisodeId;\n    readonly procedureStatus?: ProcedureStatus;\n}',
+    declaration: 'export interface MemoryRecord {\n    readonly id: MemoryItemId;\n    readonly domain: MemoryDomain;\n    readonly time: number;\n    readonly summary: string;\n    readonly userText: string;\n    readonly agentText: string;\n    readonly sessionId: SessionId;\n    readonly episodeId: MemoryEpisodeId;\n    readonly origin: MemoryOrigin;\n    readonly procedureStatus?: ProcedureStatus;\n}',
   },
   {
     name: 'MemoryScope',
