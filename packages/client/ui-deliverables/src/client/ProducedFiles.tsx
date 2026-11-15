@@ -33,8 +33,9 @@ export interface ProducedFilesInjected {
   /**
    * The URL of a produced file's stored copy.
    * @param attachmentId - the copy the tool result recorded.
+   * @param download - Whether the browser saves the file instead of showing it.
    */
-  attachmentUrl(attachmentId: string): string
+  attachmentUrl(attachmentId: string, download?: boolean): string
   /** Whether the browser itself is connected over loopback. */
   isLoopback: boolean
   /** Load the opener capability when this row first reaches the page. */
@@ -80,7 +81,8 @@ export function ProducedFiles({
   const hostCanOpenPath = useWorkspacePathOpen(available => available === true)
   const canOpenPath = isLoopback && hostCanOpenPath
   // The sidebar previews the file; the Host opens a path only where it is the reader's own desktop, and elsewhere the
-  // reader's browser downloads it.
+  // reader's browser downloads it, from its stored copy when the result recorded one: the conversation may run on
+  // another device of the account, whose folders this Host cannot read.
   const openProducedFile = (file: ProducedFile): void => {
     // A stored copy plays in the sidebar where this Host lacks the file, such as one another device wrote.
     const preview = file.attachmentId === undefined ? previewFile(file.path) : previewFile(file.path, attachmentUrl(file.attachmentId))
@@ -91,7 +93,7 @@ export function ProducedFiles({
         return
       }
       const link = document.createElement('a')
-      link.href = fileUrl(file.path, true)
+      link.href = file.attachmentId === undefined ? fileUrl(file.path, true) : attachmentUrl(file.attachmentId, true)
       link.rel = 'noopener'
       link.click()
     })
