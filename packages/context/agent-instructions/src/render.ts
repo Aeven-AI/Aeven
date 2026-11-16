@@ -407,7 +407,7 @@ function renderInstructionChains(
   const text = buildInstructionText(sections, maxBytes, omitted, truncated, { ...style, intro })
   // Each chain text fits maxBytes; the merged frame exceeds 2 * maxBytes only by the join beside a
   // frameless chain or by a chain marker cut to fit, and the single-budget rendering then replaces it
-  // (.agents/notes/implemented/architecture/2026-10-16-separate-instruction-chain-budgets.md).
+  // (.agents/notes/implemented/bug-fix/2026-11-17-dsh-backports.md).
   if (byteLength(text) > 2 * maxBytes) return whole
   return { text, omitted, truncated, represented, sections, intro }
 }
