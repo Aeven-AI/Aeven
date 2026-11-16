@@ -12,6 +12,7 @@
 
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
+import { execFileSync } from 'node:child_process'
 import { mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve as resolvePath } from 'node:path'
@@ -35,6 +36,18 @@ import * as BashEnvPlugin from '@aeven/shell-env'
 import type { ShellProcessRead } from '@aeven/shell'
 import { processOutcome } from '../src/background.ts'
 import { renderPwshProcessRead, renderPwshResult } from '../src/render.ts'
+
+/**
+ * The writable root the policy service adds when the spec's working directory is a linked git worktree: the
+ * repository's shared git directory, which `git rev-parse` names independently of the service.
+ */
+const worktreeRoots: { additionalWritableRoots?: string[] } = (() => {
+  const gitPath = (flag: string): string => realpathSync.native(
+    execFileSync('git', ['rev-parse', '--path-format=absolute', flag], { encoding: 'utf8' }).trim(),
+  )
+  const common = gitPath('--git-common-dir')
+  return common === gitPath('--git-dir') ? {} : { additionalWritableRoots: [common] }
+})()
 
 const testToolSignal = new AbortController().signal
 
@@ -607,6 +620,7 @@ describe('per-call sandbox policy resolution', () => {
     expect(bash.requests[0]?.sandboxPolicy).toEqual({
       mode: 'read-only',
       workspaceRoot: resolvePath(realpathSync.native(process.cwd())),
+      ...worktreeRoots,
     })
 
     // The base FakeBash advertises no sandboxMode, so the tool must not stamp

@@ -5,7 +5,8 @@
  * the Unix denial signature used by the classifier without requiring a real sandbox runner.
  */
 
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
@@ -23,6 +24,18 @@ import { classifyDenial, classifyRunnerFailure, isRunnerSpawnFailure } from '../
 import type { Config } from '@aeven/bash-sandbox'
 
 const spillDir = mkdtempSync(join(tmpdir(), 'avn-bash-sandbox-spec-'))
+
+/**
+ * The writable root the policy service adds when the spec's working directory is a linked git worktree: the
+ * repository's shared git directory, which `git rev-parse` names independently of the service.
+ */
+const worktreeRoots: { additionalWritableRoots?: string[] } = (() => {
+  const gitPath = (flag: string): string => realpathSync.native(
+    execFileSync('git', ['rev-parse', '--path-format=absolute', flag], { encoding: 'utf8' }).trim(),
+  )
+  const common = gitPath('--git-common-dir')
+  return common === gitPath('--git-dir') ? {} : { additionalWritableRoots: [common] }
+})()
 
 /** One recorded provider call: the argv handed over and the policy it rode with. */
 interface ConfineCall {
@@ -85,8 +98,9 @@ function runResult(exitCode: number | null, stderr: string): ShellRunResult {
   return { exitCode, signal: null, timedOut: false, aborted: false, timeoutMs: 1000, stdout: output(''), stderr: output(stderr) }
 }
 
-function executionPolicy(mode: SandboxMode, workspaceRoot = resolve(process.cwd())): SandboxExecutionPolicy {
-  return { mode, workspaceRoot }
+/** The policy the service resolves for `mode`; the default root is the spec's cwd, with its worktree roots. */
+function executionPolicy(mode: SandboxMode, workspaceRoot?: string): SandboxExecutionPolicy {
+  return workspaceRoot === undefined ? { mode, workspaceRoot: resolve(process.cwd()), ...worktreeRoots } : { mode, workspaceRoot }
 }
 
 describe('the provider hand-off', () => {
@@ -97,7 +111,7 @@ describe('the provider hand-off', () => {
     expect(result.sandbox).toEqual({ mode: 'read-only', denied: false, enforcement: 'full' })
     expect(calls).toEqual([{
       argv: ['bash', '-c', 'echo \'a b\' "c\'d"'],
-      policy: { mode: 'read-only', workspaceRoot: resolve(process.cwd()) },
+      policy: executionPolicy('read-only'),
     }])
   })
 
@@ -148,7 +162,7 @@ describe('the provider hand-off', () => {
     const { bash, calls } = await setup({ mode: 'workspace-write' })
     const result = await bash.run(bash.resolve({ command: 'true' }))
     expect(result.sandbox).toEqual({ mode: 'workspace-write', denied: false, enforcement: 'full' })
-    expect(calls[0]?.policy).toEqual({ mode: 'workspace-write', workspaceRoot: resolve(process.cwd()) })
+    expect(calls[0]?.policy).toEqual(executionPolicy('workspace-write'))
   })
 
   it('an explicit workspaceRoot on the policy wins', async () => {
