@@ -261,10 +261,10 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'The account\'s Aeven folder on this device, shared through file sync while it runs.',
     methods: [
       {
-        signature: 'pathOf(owner: string): string',
-        description: 'The Aeven folder of an account on this device.',
+        signature: 'folderOf(owner: string): Promise<string | undefined>',
+        description: 'The Aeven folder of an account on this device. Without `perAccount`, the first account to ask claims `path`.',
         parameters: [{ name: 'owner', description: 'the account.' }],
-        returns: 'its absolute directory.',
+        returns: 'its absolute directory, or undefined when another account of this device owns the folder.',
       },
       {
         signature: 'async localPath(owner: string, path: string): Promise<string | undefined>',

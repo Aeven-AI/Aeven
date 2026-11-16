@@ -84,15 +84,7 @@ export function apply(ctx: Context, config: Config): void {
   const warn = (error: unknown): void => {
     ctx.logger('workspace-file-sync').warn(`workspace-file-sync: ${String(error)}`)
   }
-  // Who holds each account's key decides whether a hosted device is shared with.
-  const keyModes = new Map<string, string | undefined>()
-  ctx.on('sync/status', (owner) => {
-    files.attach(owner).catch(warn)
-    const mode = ctx.sync.status(owner).protection?.mode
-    if (keyModes.has(owner) && keyModes.get(owner) === mode) return
-    keyModes.set(owner, mode)
-    files.refreshPeers(owner).catch(warn)
-  })
+  ctx.on('sync/status', (owner) => { files.attach(owner).catch(warn) })
   ctx.on('sync/devices', (owner) => { files.refreshPeers(owner).catch(warn) })
   ctx.on('sync/reset', (owner) => { files.reset(owner).catch(warn) })
   ctx.on('workspace/changed', () => { files.reconcileAll() })

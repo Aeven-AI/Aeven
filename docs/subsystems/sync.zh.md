@@ -26,11 +26,11 @@ The account's Aeven folder on this device, shared through file sync while it run
 
 ```ts cordis-catalog
 /**
- * The Aeven folder of an account on this device.
+ * The Aeven folder of an account on this device. Without `perAccount`, the first account to ask claims `path`.
  * @param owner - the account.
- * @returns its absolute directory.
+ * @returns its absolute directory, or undefined when another account of this device owns the folder.
  */
-pathOf(owner: string): string
+folderOf(owner: string): Promise<string | undefined>
 
 /**
  * Where a file inside the account's Aeven folder on any of its devices lives on this device.

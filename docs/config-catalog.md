@@ -43,8 +43,8 @@ export interface Config {
   /** Absolute directory of the Aeven folder on this device, such as `~/Documents/Aeven` expanded. */
   path: string
   /**
-   * Whether each account keeps its own folder at `<path>/<account>` (default false: every account of this device
-   * shares `path`). A Host serving several accounts sets true.
+   * Whether each account keeps its own folder at `<path>/<account>` (default false: `path` belongs to the first
+   * account of this device that attaches, and the others get none). A Host serving several accounts sets true.
    */
   perAccount: boolean
   /**

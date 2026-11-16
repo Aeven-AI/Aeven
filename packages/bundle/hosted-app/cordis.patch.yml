@@ -397,7 +397,7 @@
   disabled: true
 
 # With AVN_SYNCTHING, this Host is a file sync device of every account whose
-# key the relay holds: it keeps each account's Aeven folder, the files Aeven
+# key it holds: it keeps each account's Aeven folder, the files Aeven
 # made for the user on their desktops, so a reply's images and files open here
 # while every desktop is offline. Sessions here cannot write the folder.
 - insert:
