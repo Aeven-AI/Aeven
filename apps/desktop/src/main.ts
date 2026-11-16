@@ -829,8 +829,10 @@ async function main(): Promise<void> {
     const workDir = projectDir === activeProject ? projectDir : paths.work
     // Node.js keys cached code by module path, and a staged profile's path is never loaded again, so a health check
     // would only spend seconds at exit writing a cache nothing reads.
+    // The Host follows the default session's proxy, the one sign-in and every renderer request already leave through.
     const next = new DesktopHostProcess(
       resources.node, projectDir, workDir, hostInspectPort, projectDir === activeProject ? compileCacheDir : undefined,
+      url => session.defaultSession.resolveProxy(url),
     )
     const ready = await next.start()
     if (!ready.ownsHost && projectDir !== activeProject) {

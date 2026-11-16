@@ -675,6 +675,9 @@ importers:
       '@deepseek-ai/cordis-plugin-include':
         specifier: workspace:^
         version: link:../../vendor/include
+      undici:
+        specifier: ^8.10.0
+        version: 8.10.0
 
   apps/web:
     devDependencies:

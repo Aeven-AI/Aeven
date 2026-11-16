@@ -98,6 +98,7 @@
     "apps/cli/tests/**/*.ts",
     "apps/desktop/scripts/**/*.ts",
     "apps/desktop/tests/**/*.ts",
+    "apps/desktop-host/tests/**/*.ts",
     "packages/*/*/tests/**/*.ts",
     "scripts/**/*.ts"
   ],
