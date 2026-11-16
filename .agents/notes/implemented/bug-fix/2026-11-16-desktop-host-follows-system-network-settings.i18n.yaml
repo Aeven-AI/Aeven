@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-11-16-desktop-host-follows-system-network-settings.md
-2026-11-16-desktop-host-follows-system-network-settings.md: 7ba304038bdfa2da2141a236f48969d4c24dcd85
-2026-11-16-desktop-host-follows-system-network-settings.zh.md: 4b4ab3258fa0595690ac81ea8b2277f0fec97685
+2026-11-16-desktop-host-follows-system-network-settings.md: 759fd4aa10d4c97a56e09249fe104e3c8a08c23c
+2026-11-16-desktop-host-follows-system-network-settings.zh.md: e1ec909a8b6c92acb775194a5e6e3d78cf46c2b0

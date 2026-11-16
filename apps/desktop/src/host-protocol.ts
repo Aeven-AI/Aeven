@@ -62,7 +62,7 @@ export type DesktopHostCommand = {
   readonly type: 'proxy'
   readonly id: number
   /**
-   * Routes in order of preference: `http:` or `https:` proxy URLs, and `null` for a direct connection, which is
+   * Routes in order of preference: `http:`, `https:`, or `socks5:` proxy URLs, and `null` for a direct connection, which is
    * always last when present. At least one entry. The Host moves to the next route when a proxy cannot be reached.
    */
   readonly routes: readonly (string | null)[]

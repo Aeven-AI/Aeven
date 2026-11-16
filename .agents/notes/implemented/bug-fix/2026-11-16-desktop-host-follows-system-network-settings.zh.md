@@ -11,8 +11,8 @@ Status: implemented
 ## Decision
 
 - `DesktopHostProcess` 以 `NODE_USE_SYSTEM_CA=1` 启动 Host，使 TLS 在 Node 自带根证书之外也信任操作系统证书库。Host 启动的 Node.js 子进程继承该变量。
-- 桌面 Host 协议第 7 版在 Node IPC 上新增一个询问和一个回答。Host 为 `http:` 或 `https:` URL 发送 `{ type: 'resolveProxy', id, url }`；桌面壳回答 `{ type: 'proxy', id, routes }`。`apps/desktop/src/system-proxy.ts` 把 `session.defaultSession.resolveProxy(url)`（登录和每个渲染进程请求使用的 session）转换为有序路由：`PROXY` 与 `HTTPS` 条目变为 `http:` 与 `https:` 代理 URL，`DIRECT` 变为 `null` 并结束列表，SOCKS、QUIC 以及带凭据或路径的条目被丢弃。解析失败时回答 `[null]`。
-- `apps/desktop-host/src/system-proxy.ts` 在第一个插件挂载前安装全局 undici dispatcher。每个非回环请求等待其路由，然后交给唯一的直连 agent 或每个代理 URL 一个的代理 agent。回环目标不询问而直接连接。桌面壳的 IPC 通道关闭时（例如桌面壳退出后 Host 继续服务），每个请求都直接连接。
+- 桌面 Host 协议第 7 版在 Node IPC 上新增一个询问和一个回答。Host 为 `http:` 或 `https:` URL 发送 `{ type: 'resolveProxy', id, url }`；桌面壳回答 `{ type: 'proxy', id, routes }`。`apps/desktop/src/system-proxy.ts` 把 `session.defaultSession.resolveProxy(url)`（登录和每个渲染进程请求使用的 session）转换为有序路由：`PROXY`、`HTTPS` 与 `SOCKS5` 条目变为 `http:`、`https:` 与 `socks5:` 代理 URL（未写端口的 `SOCKS5` 条目使用 1080），`DIRECT` 变为 `null` 并结束列表，`SOCKS`/`SOCKS4`（SOCKS 第 4 版）、QUIC 以及带凭据或路径的条目被丢弃。解析失败时回答 `[null]`。
+- `apps/desktop-host/src/system-proxy.ts` 在第一个插件挂载前安装全局 undici dispatcher。每个非回环请求等待其路由，然后交给唯一的直连 agent 或每个代理 URL 一个的代理 agent。对于 `socks5:` 路由，undici 的 `ProxyAgent` 使用其 SOCKS5 agent，它把目标主机名交给代理解析，与 Chromium 的 SOCKS5 一致；undici 将该 agent 标为实验性，首次使用时打印一次 `ExperimentalWarning`。回环目标不询问而直接连接。桌面壳的 IPC 通道关闭时（例如桌面壳退出后 Host 继续服务），每个请求都直接连接。
 - 回退与 Chromium 一致。在 undici 的 `onRequestStart` 之前连接失败（`ECONNREFUSED`、`ETIMEDOUT`、`EHOSTUNREACH`、`EHOSTDOWN`、`ENETUNREACH`、`ENETDOWN`、`ENOTFOUND`、`EAI_AGAIN`、`UND_ERR_CONNECT_TIMEOUT`）的请求，带着未读取的请求体转到下一条路由。无法连接的代理在五分钟内（Chromium 自身的坏代理延迟）排到其他路由之后，再次连通即清除标记。已作出应答的代理，即使是拒绝或重置，也保留该请求。
 
 ## Alternatives considered
@@ -29,5 +29,5 @@ Status: implemented
 
 - 要求代理的网络（由固定设置、PAC 或 WPAD 选择），或用装入系统证书库的根证书检查 HTTPS 的网络，不再把 Host 与渲染进程分开。
 - 每个非回环 Host 请求在连接前增加一次到桌面壳的 IPC 往返。
-- 未覆盖：需要认证的代理、只有 SOCKS 的代理（Host 改为直接连接）、自带 dispatcher 的调用方（网页抓取工具固定的直连传输），以及不接收代理环境的 Node.js 子进程。拦截自带 `node` 可执行文件本身的防火墙或终端代理不在本次改动范围内。
-- `apps/desktop/tests/system-proxy.spec.ts`、`apps/desktop/tests/host-process.spec.ts` 与 `apps/desktop-host/tests/system-proxy.spec.ts` 覆盖 PAC 解析、IPC 交换、逐请求路由、带请求体的回退、坏代理延迟，以及经全局 dispatcher 的 Node 内置 `fetch`。
+- 未覆盖：需要认证的代理、SOCKS 第 4 版代理（Host 转到下一条路由，没有剩余路由时直接连接）、自带 dispatcher 的调用方（网页抓取工具固定的直连传输），以及不接收代理环境的 Node.js 子进程。拦截自带 `node` 可执行文件本身的防火墙或终端代理不在本次改动范围内。
+- `apps/desktop/tests/system-proxy.spec.ts`、`apps/desktop/tests/host-process.spec.ts` 与 `apps/desktop-host/tests/system-proxy.spec.ts` 覆盖 PAC 解析、IPC 交换、逐请求路由、带请求体的回退、坏代理延迟、经 RFC 1928 测试服务器的 SOCKS5 隧道，以及经全局 dispatcher 的 Node 内置 `fetch`。
