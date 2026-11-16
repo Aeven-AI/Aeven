@@ -25,6 +25,11 @@ const FOLDERS = 'file-sync/folders'
 /** One device's file transport identity as the peers document holds it. */
 interface SyncedPeer {
   peer: string
+  /**
+   * The device is a Host that serves the account's readers, such as Aeven Cloud, which receives folders in plain
+   * text: it is shared with only while the account's key is held by the relay, never once a passkey protects it.
+   */
+  hosted?: true
 }
 
 /** One workspace's synchronized files as the folders document holds it. */
@@ -131,8 +136,10 @@ export class WorkspaceFiles {
     const account = await this.accounts.get(owner)
     if (account === undefined) return
     const listed = new Set((await this.ctx.sync.devices(owner)).map(device => device.id))
+    const serverKey = this.ctx.sync.status(owner).protection?.mode === 'server'
     const peers = [...this.peerMap(account).entries()]
-      .filter(([device]) => device !== account.device && listed.has(brandString<DeviceId>(device)))
+      .filter(([device, entry]) => device !== account.device && listed.has(brandString<DeviceId>(device))
+        && (entry.hosted !== true || serverKey))
       .map(([, entry]) => brandString<FileSyncPeerId>(entry.peer))
     await this.ctx.fileSync.setPeers(owner, peers)
   }

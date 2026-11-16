@@ -396,6 +396,28 @@
 - id: speaker-diarization
   disabled: true
 
+# With AVN_SYNCTHING, this Host is a file sync device of every account whose
+# key the relay holds: it keeps each account's Aeven folder, the files Aeven
+# made for the user on their desktops, so a reply's images and files open here
+# while every desktop is offline. Sessions here cannot write the folder.
+- insert:
+    - id: file-sync-syncthing
+      name: '@aeven/file-sync-syncthing'
+      disabled: !!js "process.env.AVN_SYNCTHING === undefined"
+      config:
+        binary: !!js "process.env.AVN_SYNCTHING ?? 'syncthing'"
+        home: !!js avnHomePath('file-sync', 'syncthing')
+        discoveryServers: !!js "process.env.AEVEN_SYNC_DISCOVERY?.split(',') ?? ['default']"
+        listenAddresses: !!js "process.env.AVN_SYNCTHING_LISTEN?.split(',') ?? ['default']"
+    - id: aeven-folder-sync
+      name: '@aeven/aeven-folder-sync'
+      disabled: !!js "process.env.AVN_SYNCTHING === undefined"
+      config:
+        path: !!js avnHomePath('aeven-folders')
+        perAccount: true
+        announcePeer: true
+        advertise: false
+
 - insert:
     - id: speech-to-text-aeven
       name: '@aeven/speech-to-text-aeven'

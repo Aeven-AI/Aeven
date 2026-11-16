@@ -597,6 +597,9 @@ importers:
 
   apps/desktop-host:
     dependencies:
+      '@aeven/aeven-folder-sync':
+        specifier: workspace:^
+        version: link:../../packages/sync/aeven-folder-sync
       '@aeven/agent':
         specifier: workspace:^
         version: link:../../packages/core/agent
@@ -1540,6 +1543,9 @@ importers:
         specifier: ^4.4.3
         version: 4.6.5
     devDependencies:
+      '@aeven/aeven-folder-sync':
+        specifier: workspace:^
+        version: link:../../sync/aeven-folder-sync
       '@aeven/agent':
         specifier: workspace:^
         version: link:../../core/agent
@@ -2028,6 +2034,9 @@ importers:
 
   packages/bundle/hosted-app:
     dependencies:
+      '@aeven/aeven-folder-sync':
+        specifier: workspace:^
+        version: link:../../sync/aeven-folder-sync
       '@aeven/api-motion':
         specifier: workspace:^
         version: link:../../motion/api-motion
@@ -2040,6 +2049,9 @@ importers:
       '@aeven/cloud-meter':
         specifier: workspace:^
         version: link:../../host/cloud-meter
+      '@aeven/file-sync-syncthing':
+        specifier: workspace:^
+        version: link:../../sync/file-sync-syncthing
       '@aeven/motion':
         specifier: workspace:^
         version: link:../../motion/motion
@@ -12966,6 +12978,34 @@ importers:
         specifier: ^3.1.0
         version: 3.1.1
     devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/sync/aeven-folder-sync:
+    dependencies:
+      '@aeven/brand':
+        specifier: workspace:^
+        version: link:../../util/brand
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+      yjs:
+        specifier: 13.6.27
+        version: 13.6.27
+    devDependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../../core/agent
+      '@aeven/file-sync':
+        specifier: workspace:^
+        version: link:../file-sync
+      '@aeven/sync':
+        specifier: workspace:^
+        version: link:../sync
+      '@aeven/system-prompt':
+        specifier: workspace:^
+        version: link:../../core/system-prompt
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis

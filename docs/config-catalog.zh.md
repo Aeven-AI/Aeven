@@ -35,6 +35,36 @@ export interface AcpConfig {
 
 来源：[`packages/acp/acp/src/index.ts`](../packages/acp/acp/src/index.ts)
 
+<a id="aevenaeven-folder-sync"></a>
+
+## `@aeven/aeven-folder-sync`
+
+```ts config-catalog
+/** Plugin configuration. */
+export interface Config {
+  /** Absolute directory of the Aeven folder on this device, such as `~/Documents/Aeven` expanded. */
+  path: string
+  /**
+   * Whether each account keeps its own folder at `<path>/<account>` (default false: every account of this device
+   * shares `path`). A Host serving several accounts sets true.
+   */
+  perAccount: boolean
+  /**
+   * Whether this device lists itself as a hosted peer in the account's `file-sync/peers` document and shares the
+   * folder with the devices listed there (default false). For a Host serving the account's readers that runs no
+   * workspace file sync, which otherwise owns that document.
+   */
+  announcePeer: boolean
+  /**
+   * Whether the model's runtime context names the folder as the place for the files it makes for the user (default
+   * true). A Host whose sessions cannot write the folder sets false.
+   */
+  advertise: boolean
+}
+```
+
+来源：[`packages/sync/aeven-folder-sync/src/index.ts`](../packages/sync/aeven-folder-sync/src/index.ts)
+
 <a id="aevenagent-default-model"></a>
 
 ## `@aeven/agent-default-model`
@@ -3950,6 +3980,11 @@ export interface Config {
    * resolves to the ceiling.
    */
   ceiling?: SandboxMode
+  /**
+   * Absolute directories every `workspace-write` call may also modify (default none), such as the Aeven folder
+   * where the desktop keeps the files it makes for the user.
+   */
+  writableRoots?: string[]
 }
 ```
 

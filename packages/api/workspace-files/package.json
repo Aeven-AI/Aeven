@@ -51,30 +51,32 @@
     "mime-types": "^3.0.2"
   },
   "peerDependencies": {
+    "@aeven/aeven-folder-sync": "workspace:^",
     "@aeven/agent": "workspace:^",
+    "@aeven/brand": "workspace:^",
+    "@aeven/client-connection": "workspace:^",
     "@aeven/fs": "workspace:^",
-    "@aeven/sandbox-policy": "workspace:^",
-    "@aeven/typert-protocol": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^",
-    "@aeven/working-directory": "workspace:^",
     "@aeven/identity-user": "workspace:^",
+    "@aeven/sandbox-policy": "workspace:^",
     "@aeven/session": "workspace:^",
     "@aeven/session-query": "workspace:^",
-    "@aeven/client-connection": "workspace:^",
-    "@aeven/brand": "workspace:^"
+    "@aeven/typert-protocol": "workspace:^",
+    "@aeven/working-directory": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
+    "@aeven/aeven-folder-sync": "workspace:^",
     "@aeven/agent": "workspace:^",
+    "@aeven/brand": "workspace:^",
+    "@aeven/client-connection": "workspace:^",
     "@aeven/fs": "workspace:^",
-    "@aeven/sandbox-policy": "workspace:^",
-    "@aeven/typert-protocol": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^",
-    "@aeven/working-directory": "workspace:^",
     "@aeven/identity-user": "workspace:^",
+    "@aeven/sandbox-policy": "workspace:^",
     "@aeven/session": "workspace:^",
     "@aeven/session-query": "workspace:^",
-    "@aeven/client-connection": "workspace:^",
-    "@types/mime-types": "^3.0.1",
-    "@aeven/brand": "workspace:^"
+    "@aeven/typert-protocol": "workspace:^",
+    "@aeven/working-directory": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^",
+    "@types/mime-types": "^3.0.1"
   }
 }

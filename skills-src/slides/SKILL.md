@@ -9,7 +9,7 @@ A presentation is two separate things: the **deck** (what each slide says, as JS
 
 You build the deck **with** the user, as a short wizard: ask, outline, build, refine. Never invent their facts, names or numbers: ask, or leave a clearly marked placeholder.
 
-`$SKILL` below is this skill's directory, from `<skill_resources>`. Work in the user's working directory, one folder per presentation, for example `presentations/series-a/`.
+`$SKILL` below is this skill's directory, from `<skill_resources>`. Unless the user names a place, work in the Aeven folder your context names, else the working directory, one folder per presentation, e.g. `Presentations/series-a/`.
 
 ## The wizard
 

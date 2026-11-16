@@ -100,6 +100,7 @@ export const SERVICE_PAGE: Record<string, string> = {
   sessionHandoff: 'session.md',
   sync: 'sync.md',
   fileSync: 'sync.md',
+  aevenFolder: 'sync.md',
   syncController: 'sync.md',
   directoryPicker: 'workspace.md',
   deepseekLlmApiExtensions: 'llm-streaming.md',

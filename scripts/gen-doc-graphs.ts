@@ -863,8 +863,16 @@ const SERVICE_ROLES: ServiceRole[] = [
     title: 'File sync',
     mode: 'seam',
     implementations: ['file-sync-syncthing'],
-    consumers: ['workspace-file-sync', 'workspace-git-sync'],
+    consumers: ['workspace-file-sync', 'workspace-git-sync', 'aeven-folder-sync'],
     note: 'Keeps a folder the same on every device of an account, peer to peer, while the Consumer decides which folders travel and where they live.',
+  },
+  {
+    key: 'aevenFolder',
+    pkg: 'aeven-folder-sync',
+    title: 'Aeven folder',
+    mode: 'core',
+    consumers: ['api-workspace-files'],
+    note: 'Where Aeven keeps the files it makes for the user, shared through file sync with every device of the account and mapped from a path any of them wrote.',
   },
   {
     key: 'sessionHandoff',

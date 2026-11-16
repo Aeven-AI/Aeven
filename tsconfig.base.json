@@ -328,6 +328,7 @@
       // BEGIN generated package aliases — pnpm run gen-tsconfig-paths
       "@aeven/acp": ["./packages/acp/acp/src"],
       "@aeven/acp-app": ["./packages/bundle/acp-app/src"],
+      "@aeven/aeven-folder-sync": ["./packages/sync/aeven-folder-sync/src"],
       "@aeven/agent": ["./packages/core/agent/src"],
       "@aeven/agent/invariant": ["./packages/core/agent/src/invariant.ts"],
       "@aeven/agent-default-model": ["./packages/core/agent-default-model/src"],

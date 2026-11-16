@@ -11,7 +11,7 @@ You **guide** the user through a short, fixed path: questions, outline, build, r
 
 Everything you need is in this file, the header comment of `$SKILL/scripts/cv.mjs`, and what the scripts print. Do not read the skill's other scripts or the templates' `layouts.mjs`, measure pages, or write helper scripts: when the output does not tell you what to do, ask the user.
 
-`$SKILL` below is this skill's directory, from `<skill_resources>`. Work in the user's working directory, one folder per CV, for example `cv/2026/`, and put nothing in it but `cv.json`, the person's pictures and the exports.
+`$SKILL` below is this skill's directory, from `<skill_resources>`. Unless the user names a place, work in the Aeven folder your context names, else the working directory, one folder per CV, e.g. `CVs/2026/`, and put nothing in it but `cv.json`, the person's pictures and the exports.
 
 ## The path
 

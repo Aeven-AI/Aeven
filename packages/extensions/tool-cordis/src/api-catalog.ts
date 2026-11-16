@@ -256,6 +256,25 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'aevenFolder',
+    summary: 'The account\'s Aeven folder on this device, shared through file sync while it runs.',
+    description: 'The account\'s Aeven folder on this device, shared through file sync while it runs.',
+    methods: [
+      {
+        signature: 'pathOf(owner: string): string',
+        description: 'The Aeven folder of an account on this device.',
+        parameters: [{ name: 'owner', description: 'the account.' }],
+        returns: 'its absolute directory.',
+      },
+      {
+        signature: 'async localPath(owner: string, path: string): Promise<string | undefined>',
+        description: 'Where a file inside the account\'s Aeven folder on any of its devices lives on this device.',
+        parameters: [{ name: 'owner', description: 'the account.' }, { name: 'path', description: 'an absolute path as a device of the account wrote it.' }],
+        returns: 'the same file\'s absolute path here, or undefined for a path inside no device\'s Aeven folder.',
+      },
+    ],
+  },
+  {
     key: 'agentDefaultModel',
     summary: 'Owns the default model selection independently of any Host or transport.',
     description: 'Owns the default model selection independently of any Host or transport. The composition entry remains usable without a settings provider; when one is mounted, its user layer is read live.',
@@ -2583,6 +2602,11 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       {
         signature: 'readonly ceiling: SandboxMode',
         description: 'The widest mode any call may resolve to.',
+        parameters: [],
+      },
+      {
+        signature: 'readonly writableRoots: readonly string[]',
+        description: 'Absolute directories every `workspace-write` call may also modify.',
         parameters: [],
       },
       {

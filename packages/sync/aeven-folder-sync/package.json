@@ -1,0 +1,48 @@
+{
+  "name": "@aeven/aeven-folder-sync",
+  "description": "The account's Aeven folder, where Aeven keeps the files it makes, kept the same on every device through file sync",
+  "version": "0.3.51-alpha",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Aeven.git",
+    "directory": "packages/sync/aeven-folder-sync"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@aeven/brand": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:^",
+    "yjs": "13.6.27"
+  },
+  "peerDependencies": {
+    "@aeven/agent": "workspace:^",
+    "@aeven/file-sync": "workspace:^",
+    "@aeven/sync": "workspace:^",
+    "@aeven/system-prompt": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "devDependencies": {
+    "@aeven/agent": "workspace:^",
+    "@aeven/file-sync": "workspace:^",
+    "@aeven/sync": "workspace:^",
+    "@aeven/system-prompt": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  }
+}
