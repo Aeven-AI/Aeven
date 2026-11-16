@@ -7,10 +7,13 @@
  * overwrite. When a Turn is about to close, every such image of the Turn's
  * replies is saved to the attachment store as `read_image` saves one, and one
  * `reply-images/stored` event names each copy by the source the reply wrote.
- * Session sync carries every attachment an event references, so the copy
- * reaches every device of the account, and the transcript shows it in place of
- * the file. A source that names no readable image here is skipped; the reply
- * then shows it as written.
+ * When an Agent is created for a Session, the replies of its earlier Turns that
+ * no such event covers get the same copies, one event per Turn, appended at the
+ * end of the log. Session sync carries every attachment an event references, so
+ * the copy reaches every device of the account, and the transcript shows it in
+ * place of the file. A source that names no readable image here is skipped; the
+ * reply then shows it as written, and the next Agent created for the Session
+ * tries it again.
  * @module @aeven/tool-fs/src/reply-images
  */
 
@@ -55,46 +58,58 @@ function localPath(source: string): string | undefined {
   }
 }
 
+/** One local image source an assistant reply writes. */
+interface PendingImage {
+  readonly turn: number
+  readonly messageSeq: SessionSeq
+  readonly source: string
+  readonly path: string
+}
+
 /**
- * The image sources each reply of `turn` writes that no earlier
- * `reply-images/stored` event of the Turn covers.
+ * The local image sources the replies write that no `reply-images/stored`
+ * event covers.
  * @param events - the session log.
- * @param turn - the closing Turn.
- * @returns each reply's seq with the local sources it shows.
+ * @param turn - the closing Turn, whose replies alone are scanned; undefined scans every Turn.
+ * @returns each reply's local sources, in log order.
  */
-function pendingSources(events: readonly SessionEvent[], turn: number): { messageSeq: SessionSeq; source: string; path: string }[] {
+function pendingSources(events: readonly SessionEvent[], turn: number | undefined): PendingImage[] {
   const covered = new Set<number>()
-  const pending: { messageSeq: SessionSeq; source: string; path: string }[] = []
+  const pending: PendingImage[] = []
   for (let index = events.length - 1; index >= 0; index -= 1) {
     const event = events[index] as SessionEvent
-    if (event.type === 'turn/start' && event.data.turn === turn) break
-    if (event.type === 'reply-images/stored' && event.data.turn === turn) {
+    if (turn !== undefined && event.type === 'turn/start' && event.data.turn === turn) break
+    if (event.type === 'reply-images/stored' && (turn === undefined || event.data.turn === turn)) {
       for (const image of event.data.images) covered.add(image.messageSeq)
       continue
     }
-    if (event.type !== 'assistant/message' || event.data.turn !== turn || covered.has(event.seq)) continue
+    if (event.type !== 'assistant/message' || (turn !== undefined && event.data.turn !== turn) || covered.has(event.seq)) continue
     const text = event.data.message.content.flatMap(block => block.type === 'text' ? [block.text] : []).join('\n')
     const seen = new Set<string>()
+    const found: PendingImage[] = []
     for (const match of text.matchAll(MARKDOWN_IMAGE)) {
       const source = (match[1] ?? match[2] ?? '').trim()
       const path = localPath(source)
       if (path === undefined || path === '' || seen.has(source)) continue
       seen.add(source)
-      pending.push({ messageSeq: event.seq, source, path })
+      found.push({ turn: event.data.turn, messageSeq: event.seq, source, path })
     }
+    pending.push(...found.reverse())
   }
   return pending.reverse()
 }
 
 /**
- * Save the local images the closing Turn's replies show and record them.
+ * Save the local images the replies show that no event covers yet, and record them with one event per Turn.
  * @param ctx - context carrying `fs` and `attachments`.
- * @param session - the session whose Turn is closing.
- * @param turn - the closing Turn.
- * @param signal - the Turn's abort signal.
+ * @param session - the session whose replies are stored.
+ * @param turn - the closing Turn, whose replies alone are stored; undefined stores every Turn's.
+ * @param signal - cancellation of the Turn or of the Agent.
  * @param confine - store only images inside the session's workspace.
  */
-async function storeReplyImages(ctx: Context, session: Session, turn: number, signal: AbortSignal, confine: boolean): Promise<void> {
+async function storeReplyImages(
+  ctx: Context, session: Session, turn: number | undefined, signal: AbortSignal, confine: boolean,
+): Promise<void> {
   const pending = pendingSources(session.snapshotEvents(), turn)
   if (pending.length === 0) return
   const attachments = ctx.get('attachments')
@@ -111,7 +126,7 @@ async function storeReplyImages(ctx: Context, session: Session, turn: number, si
   if (cwd === undefined && (confine || pending.every(image => !isAbsolute(image.path)))) return
   const root = confine && cwd !== undefined ? await ctx.fs.resolve(cwd, { signal }) : undefined
   const byteCap = Math.min(attachments.imageLimits.maxImageBytes, attachments.imageLimits.maxMessageImageBytes)
-  const stored: ReplyImage[] = []
+  const stored = new Map<number, ReplyImage[]>()
   const saved = new Map<string, ImageAttachmentRef>()
   for (const image of pending) {
     try {
@@ -128,7 +143,9 @@ async function storeReplyImages(ctx: Context, session: Session, turn: number, si
         attachment = await attachments.saveImage({ data, mediaType, name: basename(target.displayPath) })
         saved.set(key, attachment)
       }
-      stored.push({ messageSeq: image.messageSeq, source: image.source, attachment })
+      const images = stored.get(image.turn) ?? []
+      images.push({ messageSeq: image.messageSeq, source: image.source, attachment })
+      stored.set(image.turn, images)
     } catch (error: unknown) {
       signal.throwIfAborted()
       // An absent, unreadable, or refused image keeps its written source.
@@ -138,16 +155,40 @@ async function storeReplyImages(ctx: Context, session: Session, turn: number, si
     }
   }
   signal.throwIfAborted()
-  if (stored.length > 0) session.append('reply-images/stored', { turn, images: stored })
+  for (const [owner, images] of stored) session.append('reply-images/stored', { turn: owner, images })
+}
+
+/** The store pass each Session runs, so a closing Turn and a backfill never store the same reply twice. */
+const running = new WeakMap<Session, Promise<void>>()
+
+/**
+ * Run one store pass after the Session's previous one settles.
+ * @param session - the Session whose passes are queued.
+ * @param pass - the store pass.
+ * @returns the pass, which rejects with its own failure only.
+ */
+function serialized(session: Session, pass: () => Promise<void>): Promise<void> {
+  const next = (running.get(session) ?? Promise.resolve()).then(pass, pass)
+  running.set(session, next.catch(() => undefined))
+  return next
 }
 
 /**
- * Store the local images each Turn's replies show before the Turn closes.
- * @param ctx - context carrying `fs` and `attachments`; the listener lives as long as it.
+ * Store the local images each Turn's replies show before the Turn closes, and
+ * those of earlier Turns no event covers when an Agent is created.
+ * @param ctx - context carrying `fs` and `attachments`; the listeners live as long as it.
  * @param confine - store only images inside the session's workspace.
  */
 export function applyReplyImages(ctx: Context, confine: boolean): void {
   ctx.on('agent/turn-stopping', async ({ agent, turn, signal }) => {
-    await storeReplyImages(ctx, agent.session, turn, signal, confine)
+    await serialized(agent.session, () => storeReplyImages(ctx, agent.session, turn, signal, confine))
+  })
+  ctx.on('agent/created', ({ agent }) => {
+    const controller = new AbortController()
+    agent.ctx.effect(() => () => { controller.abort() }, 'tool-fs: reply image backfill')
+    serialized(agent.session, () => storeReplyImages(ctx, agent.session, undefined, controller.signal, confine)).catch((error: unknown) => {
+      if (controller.signal.aborted) return
+      ctx.logger.warn(`session "${agent.session.id}": reply image backfill failed: ${String(error)}`)
+    })
   })
 }

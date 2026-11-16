@@ -48,7 +48,7 @@ kind: "package-reference"
 | `enableRunInBackground` | `true` | 暴露 `run_in_background`；为 `false` 时拒绝强制后台调用，前台调用始终等待 |
 | `detachAfterMs` | `20000` | 前台命令在被交还为后台任务之前允许运行多久 |
 | `shareOutputFiles` | `false` | 将工作区内生成的 `output_files` 存为附件并在调用处展示，以相对于工作区的路径记录它们，并拒绝工作区之外的声明路径；需要 `ctx.attachments` |
-| `copyOutputFiles` | `false` | 将生成的每个非图片 `output_files` 文件（无论是否在工作区内）复制一份存为附件，只记录在其 `producedFiles` 条目上，供账户的其他设备打开；调用处不展示，模型看到的结果不变。需要 `ctx.attachments`，使用单次调用和单个对话的上限，不能与 `shareOutputFiles` 同时启用 |
+| `copyOutputFiles` | `false` | 将生成的每个 `output_files` 文件（含图片）（无论是否在工作区内）复制一份存为附件，只记录在其 `producedFiles` 条目上，供账户的其他设备打开；调用处不展示，模型看到的结果不变。需要 `ctx.attachments`，使用单次调用和单个对话的上限，不能与 `shareOutputFiles` 同时启用 |
 | `escalationSkillScripts` | `[]` | 无需询问即可按请求提升沙箱权限运行的技能脚本：`{ skill, script, finalArgs }`。只有完全符合 `[cd <dir> && ] node <script> <arg> <arg> <final>` 的命令才符合条件：各个记号为普通或双引号字符串（不含 `$`、反引号或反斜杠），脚本解析为来源为 `custom` 或 `bundled` 的技能资源目录中的该文件，且最后一个参数在允许范围内；其他任何权限提升仍会询问。桌面组合列出了简历和演示文稿导出器的 Pages 与 Keynote 转换 |
 | `shareMaxFiles` | `10` | 单次调用最多共享的生成文件数 |
 | `shareMaxBytes` | `104857600` | 单次调用最多共享的字节数 |
@@ -62,7 +62,7 @@ kind: "package-reference"
 
 工具执行 `bash -c <command>` 并返回合并后的输出。命令每次调用都运行在全新 shell 中，因此状态从不保留——请传 `workdir` 而不是 `cd`。非零退出以 `[exit code: N]` 报告给 agent 解读，而不是作为工具错误抛出。主动语态的 `description`（5–10 个词）在 UI 中标注该调用；`timeoutMs` 覆盖执行器的默认值与上限。超出执行器流上限的输出会被截断为尾部，完整输出保存到 spill 文件并报告其路径。
 
-生成交付文件的命令声明 `output_files`，路径相对于 `workdir` 解析。文件系统提供者在前台命令执行前后检查每个路径；新建或修改的普通文件连同创建状态进入持久的 `producedFiles` 结果元数据。已创建／已编辑文件块消费这些元数据，不按扩展名过滤，覆盖 PDF、Microsoft Office、OpenDocument 和 iWork 文件。缺失或未变化的路径不列出。声明输出会禁用自动转为后台任务，也不能与 `run_in_background` 同用；命令保留正常超时。使用该参数的组合必须挂载文件系统提供者。启用 `shareOutputFiles` 时，会话工作区之外的声明路径在任何查找之前即被拒绝，工作区内生成的每个文件都存为附件，其 `producedFiles` 条目记录附件 id：图片在调用处内联显示，其他文件在调用处供下载，结果文本告知模型用户已能看到它们，并列出未共享的文件及原因。启用 `copyOutputFiles` 时，每个生成的非图片文件无论是否在工作区内都存为附件，其 `producedFiles` 条目记录附件 id，并以 `copy` 记录完整引用；会话同步把该附件带到账户的其他设备，由于日志引用了它，这些设备的附件路由会提供它。图片和超出上限的文件不保留副本。桌面组合通过 `avn-web-app` 启用该选项，Aeven Web 的生成文件列表从这份副本下载文档。
+生成交付文件的命令声明 `output_files`，路径相对于 `workdir` 解析。文件系统提供者在前台命令执行前后检查每个路径；新建或修改的普通文件连同创建状态进入持久的 `producedFiles` 结果元数据。已创建／已编辑文件块消费这些元数据，不按扩展名过滤，覆盖 PDF、Microsoft Office、OpenDocument 和 iWork 文件。缺失或未变化的路径不列出。声明输出会禁用自动转为后台任务，也不能与 `run_in_background` 同用；命令保留正常超时。使用该参数的组合必须挂载文件系统提供者。启用 `shareOutputFiles` 时，会话工作区之外的声明路径在任何查找之前即被拒绝，工作区内生成的每个文件都存为附件，其 `producedFiles` 条目记录附件 id：图片在调用处内联显示，其他文件在调用处供下载，结果文本告知模型用户已能看到它们，并列出未共享的文件及原因。启用 `copyOutputFiles` 时，每个生成的文件（含图片）无论是否在工作区内都存为文件附件，其 `producedFiles` 条目记录附件 id，并以 `copy` 记录完整引用；会话同步把该附件带到账户的其他设备，由于日志引用了它，这些设备的附件路由会提供它。超出上限的文件不保留副本。桌面组合通过 `avn-web-app` 启用该选项，Aeven Web 的生成文件列表从这份副本下载文档。
 
 ### 后台运行长时间命令
 
