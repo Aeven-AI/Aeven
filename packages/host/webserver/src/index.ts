@@ -17,7 +17,7 @@ import Negotiator from 'negotiator'
 import { renderIndexInjections, type IndexInjection } from './injections.ts'
 
 export { renderIndexInjections } from './injections.ts'
-export { isLoopbackHost, requestOrigin, sameHostLoopbackUrl } from './origin.ts'
+export { isLoopbackHost, requestOrigin, sameDeploymentUrl, sameHostLoopbackUrl } from './origin.ts'
 export type { IndexInjection, IndexInjectionPlacement } from './injections.ts'
 
 /** The headers of the page request an index render answers. */

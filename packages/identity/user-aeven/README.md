@@ -56,6 +56,7 @@ The row injects the seam and names the API whose keys it verifies against:
 | `mediaUrl` | none | Origin serving uploaded media that profile-image paths are relative to |
 | `helpCenterUrl` | none | Help center origin; the sign-in screens link its Terms of Service and Privacy Policy in the reader's language, or show the names unlinked when absent |
 | `brandUrl` | none | Page the sign-in screens' brand mark links to, such as the Aeven website; the mark is unlinked when absent |
+| `pageHosts` | `[]` | The Host's own public hostnames, such as `chat.aeven.io` and `chat.aeven.app`; a URL above configured on one of them is handed to a page that arrived on another under the page's own host, so page and API stay one origin, and URLs on other hosts pass through as configured |
 | `xOAuthUrl`, `appleOAuthUrl`, `googleOAuthUrl` | none | Provider sign-in URLs; an absent one hides that provider's button |
 | `oauthFlow` | none | How a provider sign-in reaches the provider, stated whenever a provider URL is: `redirect` leaves the reader's document for the provider, `window` reaches it from a window of its own. The plugin refuses to load when a provider is offered without one |
 

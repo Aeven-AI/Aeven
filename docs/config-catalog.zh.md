@@ -2083,6 +2083,16 @@ export interface Config {
    */
   brandUrl?: string
   /**
+   * The Host's own public hostnames, such as `chat.aeven.io` and `chat.aeven.app`.
+   *
+   * A URL above that is configured on one of these hosts is handed to a page that
+   * arrived on another of them under the page's own host, so a deployment reachable
+   * under several names stays one origin per page. URLs on any other host pass
+   * through as configured. Empty, every URL is handed over as configured, apart
+   * from loopback spellings.
+   */
+  pageHosts?: string[]
+  /**
    * Credential reference the access token this authority verifies answers to.
    *
    * The token is the caller's Aeven session, and `llm-aeven` presents one to

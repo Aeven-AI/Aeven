@@ -74,6 +74,10 @@
     mediaUrl: !!js process.env.AEVEN_MEDIA_URL ?? 'https://aeven.io'
     helpCenterUrl: !!js process.env.AEVEN_HELP_CENTER_URL ?? 'https://helpcenter.aeven.io'
     brandUrl: !!js process.env.AEVEN_BRAND_URL ?? 'https://aeven.io'
+    # The same public names as the request fence above: a page reached on
+    # `chat.aeven.app` is handed AEVEN_API_URL's `chat.aeven.io` URLs on its own
+    # host, so its API calls and cookies stay same-origin.
+    pageHosts: !!js "process.env.AVN_HOSTED_TRUSTED_HOSTS?.split(',').map(host => host.trim()).filter(host => host !== '') ?? []"
     jwksCacheFile: !!js avnHomePath('identity', 'aeven-jwks.json')
 
 # ── account sync ────────────────────────────────────────────────────────────
