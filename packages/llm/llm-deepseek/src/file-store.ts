@@ -47,13 +47,13 @@ function abortReason(signal: AbortSignal): Error {
   const reason: unknown = signal.reason
   return reason instanceof Error
     ? reason
-    : new Error('DeepSeek file upload cancelled with a non-Error reason.', { cause: reason })
+    : new Error('File upload cancelled with a non-Error reason.', { cause: reason })
 }
 
 function uploadFailure(error: unknown): Error {
   return error instanceof Error
     ? error
-    : new Error('DeepSeek file upload failed with a non-Error reason.', { cause: error })
+    : new Error('File upload failed with a non-Error reason.', { cause: error })
 }
 
 function waitForUpload(operation: SharedUpload, signal: AbortSignal | undefined): Promise<DeepSeekFileReference> {
@@ -182,7 +182,7 @@ export class DeepSeekFileStore {
     signal: AbortSignal,
   ): Promise<DeepSeekFileReference> {
     if (version.bytes > MAX_CHAT_IMAGE_BYTES) {
-      throw new LlmError('DeepSeek chat image exceeds the 32 MiB per-image limit.', 'INVALID_REQUEST')
+      throw new LlmError('Chat image exceeds the 32 MiB per-image limit.', 'INVALID_REQUEST')
     }
     const scope = deepSeekFileScope(connection.baseURL, connection.apiKey)
     const now = this.now()
@@ -200,7 +200,7 @@ export class DeepSeekFileStore {
         signal,
       })
       if (remote.bytes !== version.data.byteLength) {
-        throw new LlmError('DeepSeek Files API upload response does not match the submitted image.', 'INVALID_RESPONSE')
+        throw new LlmError('Files API upload response does not match the submitted image.', 'INVALID_RESPONSE')
       }
       return {
         scope,

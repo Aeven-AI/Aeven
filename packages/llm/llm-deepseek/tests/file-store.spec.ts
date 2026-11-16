@@ -169,7 +169,7 @@ describe('DeepSeekFileStore', () => {
     controller.abort('cancelled')
 
     await expect(upload).rejects.toMatchObject({
-      message: 'DeepSeek file upload cancelled with a non-Error reason.',
+      message: 'File upload cancelled with a non-Error reason.',
       cause: 'cancelled',
     })
   })
@@ -284,7 +284,7 @@ describe('DeepSeekFileStore', () => {
     const store = new DeepSeekFileStore({ index, now: () => NOW, fetch: vi.fn() as typeof fetch })
 
     await expect(store.ensureUploaded(VERSION, CONNECTION, POLICY)).rejects.toMatchObject({
-      message: 'DeepSeek file upload failed with a non-Error reason.',
+      message: 'File upload failed with a non-Error reason.',
       cause: 'index unavailable',
     })
   })

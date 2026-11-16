@@ -197,7 +197,7 @@ const OFF_ONLY_REASONING_EFFORTS = [
 /** Marks a failed file-id resolution that may be retried as an inline request. */
 class FileResolutionFailure extends Error {
   constructor(cause: unknown) {
-    super('DeepSeek Files API could not resolve a request image.', { cause })
+    super('Files API could not resolve a request image.', { cause })
     this.name = 'FileResolutionFailure'
   }
 }

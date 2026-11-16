@@ -74,7 +74,7 @@ function reasoningEffort(effort: NonNullable<GenerateOptions['reasoningEffort']>
     return effort as 'off' | 'low' | 'high' | 'max'
   }
   throw new LlmError(
-    `DeepSeek does not support reasoning effort "${effort}"`,
+    `Reasoning effort "${effort}" is not supported`,
     'UNSUPPORTED_REASONING_EFFORT',
   )
 }
@@ -87,7 +87,7 @@ function resolveThinking(options: GenerateOptions, defaults: RequestDefaults): R
     : reasoningEffort(options.reasoningEffort)
   if (defaults.thinking === 'disabled' && effort !== undefined && effort !== 'off') {
     throw new LlmError(
-      `DeepSeek deployment does not support reasoning effort "${effort}"`,
+      `This deployment does not support reasoning effort "${effort}"`,
       'UNSUPPORTED_REASONING_EFFORT',
     )
   }
@@ -109,7 +109,7 @@ function flattenText(blocks: ContentBlock[]): string {
 /** Reject core image content before any text-flattening path can silently erase it. */
 function assertTextOnly(blocks: readonly ContentBlock[]): void {
   if (contentHasImage(blocks)) {
-    throw new LlmError('The DeepSeek chat-completions adapter does not support image content.', 'UNSUPPORTED_CONTENT')
+    throw new LlmError('The chat-completions adapter does not support image content.', 'UNSUPPORTED_CONTENT')
   }
 }
 
@@ -118,7 +118,7 @@ function assertSupportedImageRoles(messages: readonly Message[]): void {
   for (const message of messages) {
     if (message.role !== 'user' && contentHasImage(message.content)) {
       throw new LlmError(
-        `The DeepSeek chat-completions adapter cannot represent image content in a ${message.role} message.`,
+        `The chat-completions adapter cannot represent image content in a ${message.role} message.`,
         'UNSUPPORTED_CONTENT',
       )
     }
@@ -148,7 +148,7 @@ async function imageParts(
   const version = images.requestImages.get(block.attachment.attachmentId)
   if (version === undefined) {
     throw new LlmError(
-      `DeepSeek request image ${block.attachment.attachmentId} was not prepared.`,
+      `Request image ${block.attachment.attachmentId} was not prepared.`,
       'INVALID_REQUEST',
     )
   }
@@ -411,7 +411,7 @@ export async function serializeRequestWithImages(
     byteLength: (ref) => {
       const version = images.requestImages.get(ref.attachmentId)
       if (version === undefined) {
-        throw new LlmError(`DeepSeek request image ${ref.attachmentId} was not prepared.`, 'INVALID_REQUEST')
+        throw new LlmError(`Request image ${ref.attachmentId} was not prepared.`, 'INVALID_REQUEST')
       }
       return version.bytes
     },
