@@ -1,4 +1,9 @@
-/** Account-scoped Workspace MCP bridge; delegated scopes follow OpenAI plugins at 5fd93af4cd0c623e020d0cc7e9ce178b4ac1f70f. */
+/**
+ * Account-scoped Workspace MCP bridge. Delegated scopes are the widest that Google classes as sensitive or non-sensitive, never
+ * restricted, so verification needs no security assessment: Gmail sends and labels (mail is read through an email account),
+ * Drive opens only files the user created or opened with Aeven plus any Doc, Sheet, Slide or Form by id, and Calendar is full.
+ * The first scope of each list is the one a grant must hold for its connector to count as connected.
+ */
 
 import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
@@ -18,11 +23,8 @@ const googleConnectors = {
     'check': 'gmail_list_labels',
     'arguments': {},
     'scopes': [
-      'https://mail.google.com/',
-      'https://www.googleapis.com/auth/gmail.modify',
-      'https://www.googleapis.com/auth/gmail.compose',
-      'https://www.googleapis.com/auth/gmail.readonly',
-      'https://www.googleapis.com/auth/gmail.metadata',
+      'https://www.googleapis.com/auth/gmail.send',
+      'https://www.googleapis.com/auth/gmail.labels',
     ],
   },
   'google-drive': {
@@ -31,9 +33,12 @@ const googleConnectors = {
     'check': 'drive_search',
     'arguments': { 'q': 'trashed = false', 'max': 1 },
     'scopes': [
-      'https://www.googleapis.com/auth/drive',
-      'https://www.googleapis.com/auth/drive.readonly',
       'https://www.googleapis.com/auth/drive.file',
+      'https://www.googleapis.com/auth/documents',
+      'https://www.googleapis.com/auth/spreadsheets',
+      'https://www.googleapis.com/auth/presentations',
+      'https://www.googleapis.com/auth/forms.body',
+      'https://www.googleapis.com/auth/forms.responses.readonly',
     ],
   },
   'google-calendar': {
@@ -41,20 +46,7 @@ const googleConnectors = {
     'services': 'calendar',
     'check': 'calendar_list_calendars',
     'arguments': {},
-    'scopes': [
-      'https://www.googleapis.com/auth/calendar',
-      'https://www.googleapis.com/auth/calendar.acls',
-      'https://www.googleapis.com/auth/calendar.calendarlist',
-      'https://www.googleapis.com/auth/calendar.calendarlist.readonly',
-      'https://www.googleapis.com/auth/calendar.calendars',
-      'https://www.googleapis.com/auth/calendar.calendars.readonly',
-      'https://www.googleapis.com/auth/calendar.events',
-      'https://www.googleapis.com/auth/calendar.events.freebusy',
-      'https://www.googleapis.com/auth/calendar.events.readonly',
-      'https://www.googleapis.com/auth/calendar.freebusy',
-      'https://www.googleapis.com/auth/calendar.readonly',
-      'https://www.googleapis.com/auth/calendar.settings.readonly',
-    ],
+    'scopes': ['https://www.googleapis.com/auth/calendar'],
   },
 } as const
 
