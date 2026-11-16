@@ -1,7 +1,7 @@
 {
   "name": "@aeven/home-paths",
   "description": "Shared filesystem path helpers for the Aeven",
-  "version": "0.3.50-alpha",
+  "version": "0.3.51-alpha",
   "publishConfig": {
     "access": "public"
   },
