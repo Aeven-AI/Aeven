@@ -55,8 +55,12 @@
                 inputModalities: [text, image]
                 # Route-priced request images at the provider cap; the small
                 # context window turns that visual pressure into an automatic
-                # compaction the text-only heuristic would not trigger.
-                contextWindow: 11600
+                # compaction the text-only heuristic would not trigger. Its
+                # 12,800-token threshold sits between the request without its
+                # images (about 11,700 tokens) and with them (about 14,000), and
+                # above the request after one summary (about 11,400), so one
+                # compaction brings the request back under it.
+                contextWindow: 16000
                 imageRequestTokens: 384
 
 - id: attachment-local
