@@ -88,6 +88,23 @@ describe('Markstream-derived math correctness', () => {
     expect(document.body.textContent).toContain("never opens on '$ '")
   })
 
+  it('keeps a price between code spans out of maths when later prices pair up', () => {
+    const source =
+      'New ledger row: `topup`, +$5.00, id `fake:manual-5usd`, at 12:55 UTC — read back from `inference_wallets`. His total credited today is $10: the $5 that matched the Stripe top-up.'
+    const document = parseMarkup(renderStatic(source, options))
+    const codes = Array.from(document.querySelectorAll('code'))
+
+    expect(document.querySelector('.katex')).toBeNull()
+    expect(document.querySelector('.katex-error')).toBeNull()
+    expect(codes.map(code => code.textContent)).toEqual([
+      'topup',
+      'fake:manual-5usd',
+      'inference_wallets',
+    ])
+    expect(document.body.textContent).toContain('+$5.00, id')
+    expect(document.body.textContent).toContain('today is $10: the $5 that')
+  })
+
   it('keeps a closing dollar that a space follows closing its formula', () => {
     const document = parseMarkup(renderStatic('$x$ and $y$ here', options))
 
