@@ -1,7 +1,7 @@
 {
   "name": "@aeven/capability",
   "description": "Per-user learned procedures stored with revisions and execution evidence",
-  "version": "0.3.53-alpha",
+  "version": "0.3.54-alpha",
   "publishConfig": {
     "access": "public"
   },
