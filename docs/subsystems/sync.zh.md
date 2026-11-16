@@ -18,6 +18,31 @@
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.zh.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxaevenfolder--aevenfolder"></a>
+
+### `ctx.aevenFolder` — `AevenFolder`
+
+The account's Aeven folder on this device, shared through file sync while it runs.
+
+```ts cordis-catalog
+/**
+ * The Aeven folder of an account on this device.
+ * @param owner - the account.
+ * @returns its absolute directory.
+ */
+pathOf(owner: string): string
+
+/**
+ * Where a file inside the account's Aeven folder on any of its devices lives on this device.
+ * @param owner - the account.
+ * @param path - an absolute path as a device of the account wrote it.
+ * @returns the same file's absolute path here, or undefined for a path inside no device's Aeven folder.
+ */
+async localPath(owner: string, path: string): Promise<string | undefined>
+```
+
+Source: [`packages/sync/aeven-folder-sync/src/index.ts`](../../packages/sync/aeven-folder-sync/src/index.ts)
+
 <a id="ctxfilesync--filesync-abstract-seam"></a>
 
 ### `ctx.fileSync` — `FileSync` (abstract seam)

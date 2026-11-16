@@ -305,6 +305,9 @@ flowchart LR
   pkg_file_sync_syncthing["file-sync-syncthing"]
   pkg_workspace_file_sync["workspace-file-sync"]
   pkg_workspace_git_sync["workspace-git-sync"]
+  pkg_aeven_folder_sync["aeven-folder-sync"]
+  svc_aevenFolder["ctx.aevenFolder<br/>Aeven folder"]
+  pkg_api_workspace_files["api-workspace-files"]
   pkg_session_handoff["session-handoff"]
   svc_sessionHandoff["ctx.sessionHandoff<br/>Conversation handoff"]
   svc_syncController["ctx.syncController<br/>Sync Remote"]
@@ -338,6 +341,7 @@ flowchart LR
   pkg_ui_sidebar_files["ui-sidebar-files"]
   pkg_account_integrations --> svc_accountIntegrations
   pkg_account_integrations --> svc_mail
+  pkg_aeven_folder_sync --> svc_aevenFolder
   pkg_agent --> svc_agents
   pkg_agent_default_model --> svc_agentDefaultModel
   pkg_agent_loop --> svc_agentLoop
@@ -512,6 +516,7 @@ flowchart LR
   pkg_worktrees --> svc_worktrees
   svc_accountIntegrations --> pkg_ui_automations
   svc_accountIntegrations --> pkg_ui_settings_integrations
+  svc_aevenFolder --> pkg_api_workspace_files
   svc_agentDefaultModel --> pkg_api_session_controller
   svc_agentDefaultModel --> pkg_headless
   svc_agentLoop --> pkg_base
@@ -546,6 +551,7 @@ flowchart LR
   svc_e2b --> pkg_fs_e2b
   svc_e2b --> pkg_subprocess_e2b
   svc_fileReferences --> pkg_api_session_controller
+  svc_fileSync --> pkg_aeven_folder_sync
   svc_fileSync --> pkg_workspace_file_sync
   svc_fileSync --> pkg_workspace_git_sync
   svc_fs --> pkg_tool_fs
@@ -780,7 +786,8 @@ flowchart LR
 | `ctx.memory` | `seam` | [`memory`](../packages/memory/memory) | [`memory-memos`](../packages/memory/memory-memos) | [`api-memory-manager`](../packages/memory/api-memory-manager), [`memory-context`](../packages/memory/memory-context), [`memory-memos`](../packages/memory/memory-memos), [`tool-capability`](../packages/capability/tool-capability), [`tool-memory`](../packages/memory/tool-memory) | - | One registered provider serves recall, turn capture, and inspection to every memory consumer; the definition holds no storage of its own. |
 | `ctx.memoryManagerController` | `core` | [`api-memory-manager`](../packages/memory/api-memory-manager) | - | `ui-settings-memory` | - | Serves what Aeven has learned about the signed-in user, with view, correct, and forget, always for the caller of the running request. |
 | `ctx.sync` | `seam` | [`sync`](../packages/sync/sync) | [`sync-yjs`](../packages/sync/sync-yjs) | [`memory-memos`](../packages/memory/memory-memos), [`personalization`](../packages/preset/personalization), [`session-sync`](../packages/session/session-sync), [`settings-sync`](../packages/settings/settings-sync), `sync-controller` | - | Keeps an account's documents and streams the same on every device of the account, encrypted end to end through the Aeven relay, and directly between devices linked on one local network. |
-| `ctx.fileSync` | `seam` | [`file-sync`](../packages/sync/file-sync) | [`file-sync-syncthing`](../packages/sync/file-sync-syncthing) | [`workspace-file-sync`](../packages/workspace/workspace-file-sync), [`workspace-git-sync`](../packages/workspace/workspace-git-sync) | - | Keeps a folder the same on every device of an account, peer to peer, while the Consumer decides which folders travel and where they live. |
+| `ctx.fileSync` | `seam` | [`file-sync`](../packages/sync/file-sync) | [`file-sync-syncthing`](../packages/sync/file-sync-syncthing) | [`workspace-file-sync`](../packages/workspace/workspace-file-sync), [`workspace-git-sync`](../packages/workspace/workspace-git-sync), [`aeven-folder-sync`](../packages/sync/aeven-folder-sync) | - | Keeps a folder the same on every device of an account, peer to peer, while the Consumer decides which folders travel and where they live. |
+| `ctx.aevenFolder` | `core` | [`aeven-folder-sync`](../packages/sync/aeven-folder-sync) | - | [`api-workspace-files`](../packages/api/workspace-files) | - | Where Aeven keeps the files it makes for the user, shared through file sync with every device of the account and mapped from a path any of them wrote. |
 | `ctx.sessionHandoff` | `seam` | [`session-handoff`](../packages/session/session-handoff) | [`session-sync`](../packages/session/session-sync) | [`api-session-controller`](../packages/api/session-controller) | - | One device writes each conversation of an account, and every device that holds a copy forwards input to it, reads its live state, and takes it over once no turn runs there. |
 | `ctx.syncController` | `core` | `sync-controller` | - | `ui-settings-sync` | - | Turns account sync on, joins and approves devices, and removes them, always for the caller of the running request. |
 | `ctx.personalizationController` | `core` | [`personalization`](../packages/preset/personalization) | - | `ui-settings-personalization` | - | One Host row owns each account's voice and notes, the Remote behind Settings → Personalization, and the system-prompt section that renders the session owner's preferences after the persona. |

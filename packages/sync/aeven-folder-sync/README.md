@@ -27,11 +27,25 @@ When account sync and file sync run, each device shares its Aeven folder under o
 <a id="model-experience"></a>
 ## Model Experience
 
-One runtime context line, `aeven-folder`, after the sandbox policy: the folder's absolute path, and that the files the model makes for the user go there, one folder per piece of work, unless the user names another place. The slides and CV skills point at that folder.
+### Runtime context, while `advertise` is true
+
+#### What the model sees
+
+One runtime context entry, `aeven-folder`, after the sandbox policy, with the folder's absolute path for the session's account in place of `<path>`. The slides and CV skills point at that folder.
+
+##### Verbatim text for this field
+
+```markdown
+Aeven folder: "<path>". Save the files you make for the user there, one folder per piece of work, unless they name another place: every device of their account and Aeven Web receive what it holds.
+```
+
+#### Token effect
+
+A fixed line of about 45 tokens plus the path, on every request.
 
 #### KV Cache effect
 
-The line is the same on every request of a session, so it keeps the cached prefix.
+Prefix-stable: the line is the same on every request of a session.
 
 ## Known Limitations and Deferred Work
 

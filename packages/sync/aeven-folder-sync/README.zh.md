@@ -27,11 +27,25 @@ kind: "package-reference"
 <a id="model-experience"></a>
 ## 模型体验
 
-在沙箱策略之后加入一行运行时上下文 `aeven-folder`：文件夹的绝对路径，并说明模型为用户制作的文件放在那里，每项工作一个文件夹，除非用户指定其他位置。演示文稿和简历技能指向该文件夹。
+### 运行时上下文，`advertise` 为 true 时
+
+#### 模型看到的内容
+
+在沙箱策略之后加入一条运行时上下文 `aeven-folder`，其中 `<path>` 替换为会话所属账户的文件夹绝对路径。演示文稿和简历技能指向该文件夹。
+
+##### 此字段的原文
+
+```markdown
+Aeven folder: "<path>". Save the files you make for the user there, one folder per piece of work, unless they name another place: every device of their account and Aeven Web receive what it holds.
+```
+
+#### Token 影响
+
+每次请求固定一行，约 45 个 token 加上路径。
 
 #### KV Cache 影响
 
-该行在一个会话的每次请求中相同，因此保留已缓存的前缀。
+前缀稳定：该行在一个会话的每次请求中相同。
 
 ## 已知限制与延后工作
 
