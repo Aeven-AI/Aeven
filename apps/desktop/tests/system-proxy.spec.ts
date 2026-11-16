@@ -16,18 +16,30 @@ describe('system proxy routes for the Host', () => {
     expect(proxyRoutesFromPacResult('PROXY proxy.corp')).toEqual(['http://proxy.corp'])
   })
 
+  it('maps SOCKS5 entries to socks5: URLs, with SOCKS\'s port 1080 when none is named', () => {
+    expect(proxyRoutesFromPacResult('SOCKS5 socks.corp:1081')).toEqual(['socks5://socks.corp:1081'])
+    expect(proxyRoutesFromPacResult('SOCKS5 socks.corp')).toEqual(['socks5://socks.corp:1080'])
+    expect(proxyRoutesFromPacResult('socks5 10.0.0.5:9050; DIRECT')).toEqual(['socks5://10.0.0.5:9050', null])
+    expect(proxyRoutesFromPacResult('SOCKS5 [2001:db8::1]:1080')).toEqual(['socks5://[2001:db8::1]:1080'])
+    expect(proxyRoutesFromPacResult('SOCKS5 a:1;SOCKS5 a:1')).toEqual(['socks5://a:1'])
+  })
+
   it('keeps the usable entries in order and ends the list at DIRECT', () => {
     expect(proxyRoutesFromPacResult('PROXY first:1;PROXY second:2')).toEqual(['http://first:1', 'http://second:2'])
     expect(proxyRoutesFromPacResult('PROXY corp:8080; DIRECT')).toEqual(['http://corp:8080', null])
     expect(proxyRoutesFromPacResult('DIRECT; PROXY never:1')).toEqual([null])
-    expect(proxyRoutesFromPacResult('SOCKS5 socks:1080; PROXY fallback:8080; DIRECT')).toEqual(['http://fallback:8080', null])
+    expect(proxyRoutesFromPacResult('SOCKS5 socks:1080; PROXY fallback:8080; DIRECT')).toEqual(['socks5://socks:1080', 'http://fallback:8080', null])
+    expect(proxyRoutesFromPacResult('SOCKS socks4:1080; PROXY fallback:8080; DIRECT')).toEqual(['http://fallback:8080', null])
     expect(proxyRoutesFromPacResult('QUIC quic:443;HTTPS secure:8443')).toEqual(['https://secure:8443'])
     expect(proxyRoutesFromPacResult('PROXY same:1; PROXY same:1; DIRECT')).toEqual(['http://same:1', null])
   })
 
   it('connects directly when no entry is usable by the Host transport', () => {
     expect(proxyRoutesFromPacResult('SOCKS socks:1080')).toEqual([null])
-    expect(proxyRoutesFromPacResult('SOCKS5 socks:1080;SOCKS4 other:1080')).toEqual([null])
+    expect(proxyRoutesFromPacResult('SOCKS4 other:1080')).toEqual([null])
+    expect(proxyRoutesFromPacResult('SOCKS5 user:secret@socks:1080')).toEqual([null])
+    expect(proxyRoutesFromPacResult('SOCKS5 socks:1080/path')).toEqual([null])
+    expect(proxyRoutesFromPacResult('SOCKS5 :1080')).toEqual([null])
     expect(proxyRoutesFromPacResult('PROXY')).toEqual([null])
     expect(proxyRoutesFromPacResult('PROXY a:1 extra')).toEqual([null])
     expect(proxyRoutesFromPacResult('PROXY user:secret@proxy:8080')).toEqual([null])

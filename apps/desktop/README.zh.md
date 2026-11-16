@@ -28,7 +28,7 @@
 | Seed 传输 | Apple 公证会检查归档内的代码；把 pnpm 存储的每个文件分别放入应用，还会让应用签名记录数万个缓存条目，而单个压缩归档会放大小幅包变更。 | macOS 打包先签署每个 Mach-O CAS 对象、重写其 pnpm 哈希并再次证明离线安装，再把存储文件分配到 16 个确定性的未压缩 tar 分片。外层安装包负责压缩，差分更新可以复用未变化的分片。 |
 | 状态归属 | 共享可执行依赖图会让 CLI（命令行界面）与 Desktop 相互改变 avn、Cordis、插件或原生模块版本，而两个桌面进程还可能争用同一个 profile。 | Electron 在访问任何 profile 前获取进程生命周期单实例锁，并独占 `$AVN_HOME/profiles/desktop` 及其包管理器状态。CLI 与 Desktop 共享 `$AVN_HOME` 下受支持的产品数据，但绝不共享可执行包、插件激活、锁文件或 `node_modules`。 |
 | 通信 | 一个提供服务的 Host 拥有 Session 执行与持久账户状态；两个客户端都需要它的已认证端点。 | Electron 与普通浏览器使用同一个 HTTP 应用。Node IPC 承载子进程启动、显式关闭与代理询问；桌面壳自定义协议提供桌面壳自己拥有的资源。 |
-| 出站网络 | 渲染进程经由 Chromium 访问网络，它遵循系统代理、PAC 脚本和系统证书库；Node.js 直接连接且只信任自带的根证书，因此要求代理或检查 HTTPS 的网络会放行渲染进程而拦下 Host。 | Host 信任系统证书库（`NODE_USE_SYSTEM_CA=1`），并为每个非回环请求通过 Node IPC 询问桌面壳 Chromium 选择的路由；代理无法连接时像 Chromium 一样回退到下一条路由（[Agent Note](../../.agents/notes/implemented/bug-fix/2026-11-16-desktop-host-follows-system-network-settings.zh.md)）。 |
+| 出站网络 | 渲染进程经由 Chromium 访问网络，它遵循系统代理、PAC 脚本和系统证书库；Node.js 直接连接且只信任自带的根证书，因此要求代理或检查 HTTPS 的网络会放行渲染进程而拦下 Host。 | Host 信任系统证书库（`NODE_USE_SYSTEM_CA=1`），并为每个非回环请求通过 Node IPC 询问桌面壳 Chromium 选择的路由（HTTP、HTTPS 或 SOCKS5 代理，或直连）；代理无法连接时像 Chromium 一样回退到下一条路由（[Agent Note](../../.agents/notes/implemented/bug-fix/2026-11-16-desktop-host-follows-system-network-settings.zh.md)）。 |
 | 激活 | 依赖解析、生命周期脚本、原生模块与插件启动都可能失败，目录替换期间进程也可能中断。 | 更新与插件变更先安装到 staging，并启动完整后端执行健康检查；只有成功后才替换活跃 profile，中断替换由事务日志和一个 rollback profile 恢复。 |
 | 更新 | 桌面壳与 avn 独立更新会重新产生版本分裂，而桌面壳未变化的数据块不应强制完整传输。 | Electron 壳、匹配的 avn seed、Node.js 与 pnpm 组成一个已签名更新单元。平台更新产物可以复用未变化的数据块，但运行时版本选择绝不脱离 Desktop 发布。 |
 

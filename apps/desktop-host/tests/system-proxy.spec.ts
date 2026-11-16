@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events'
-import { createServer, request as httpRequest, type IncomingMessage, type Server } from 'node:http'
-import { connect, type AddressInfo, type Socket } from 'node:net'
+import { createServer, request as httpRequest, type IncomingMessage } from 'node:http'
+import { connect, createServer as createTcpServer, type AddressInfo, type Server as TcpServer, type Socket } from 'node:net'
 import { networkInterfaces } from 'node:os'
 import { fetch as undiciFetch } from 'undici'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -26,7 +26,7 @@ afterEach(async () => {
   for (const close of closers.splice(0).reverse()) await close()
 })
 
-async function listen(server: Server, port = 0): Promise<number> {
+async function listen(server: TcpServer, port = 0): Promise<number> {
   await new Promise<void>((resolve) => { server.listen(port, '127.0.0.1', resolve) })
   const sockets = new Set<Socket>()
   server.on('connection', (socket) => {
@@ -102,6 +102,57 @@ async function startProxy(targetPort: number, port = 0): Promise<TestProxy> {
   }
 }
 
+interface TestSocks5 {
+  readonly url: string
+  /** Each destination as `type host:port`, where `type` is the SOCKS5 address type the client sent. */
+  readonly seen: string[]
+}
+
+/**
+ * SOCKS5 server (RFC 1928, no authentication) that tunnels every CONNECT to the target port and records the
+ * address the client asked for. With `reply` other than 0 it answers every CONNECT with that failure code.
+ */
+async function startSocks5(targetPort: number, reply = 0): Promise<TestSocks5> {
+  const seen: string[] = []
+  const server = createTcpServer((client) => {
+    client.on('error', () => { client.destroy() })
+    client.once('data', (greeting: Buffer) => {
+      // VER 5, then the client's method list; select "no authentication required".
+      if (greeting[0] !== 5) return client.destroy()
+      client.write(Buffer.from([5, 0]))
+      client.once('data', (request: Buffer) => {
+        const type = request[3]
+        let host: string
+        let offset: number
+        if (type === 1) {
+          host = [...request.subarray(4, 8)].join('.')
+          offset = 8
+        } else if (type === 3) {
+          const length = request[4] ?? 0
+          host = request.subarray(5, 5 + length).toString('utf8')
+          offset = 5 + length
+        } else {
+          host = request.subarray(4, 20).toString('hex')
+          offset = 20
+        }
+        seen.push(`${type === 3 ? 'domain' : type === 1 ? 'ipv4' : 'ipv6'} ${host}:${String(request.readUInt16BE(offset))}`)
+        if (reply !== 0) {
+          client.end(Buffer.from([5, reply, 0, 1, 0, 0, 0, 0, 0, 0]))
+          return
+        }
+        const upstream = connect(targetPort, '127.0.0.1', () => {
+          client.write(Buffer.from([5, 0, 0, 1, 127, 0, 0, 1, 0, 0]))
+          upstream.pipe(client)
+          client.pipe(upstream)
+        })
+        upstream.on('error', () => { client.destroy() })
+      })
+    })
+  })
+  const port = await listen(server)
+  return { url: `socks5://127.0.0.1:${String(port)}`, seen }
+}
+
 /** A loopback port with nothing listening, so connecting to it is refused. */
 async function closedPort(): Promise<number> {
   const server = createServer()
@@ -159,10 +210,12 @@ describe('system proxy routing', () => {
     expect(isProxyAnswer({ type: 'proxy', id: 1, routes: [null] })).toBe(true)
     expect(isProxyAnswer({ type: 'proxy', id: 2, routes: ['http://proxy.corp:8080'] })).toBe(true)
     expect(isProxyAnswer({ type: 'proxy', id: 3, routes: ['https://proxy.corp', 'http://backup:3128', null] })).toBe(true)
+    expect(isProxyAnswer({ type: 'proxy', id: 4, routes: ['socks5://socks.corp:1080', null] })).toBe(true)
     for (const invalid of [
       null, 'proxy', { type: 'shutdown' }, { type: 'proxy', id: 0, routes: [null] }, { type: 'proxy', id: 1.5, routes: [null] },
       { type: 'proxy', id: 1 }, { type: 'proxy', id: 1, routes: [] }, { type: 'proxy', id: 1, routes: null },
-      { type: 'proxy', id: 1, routes: ['socks5://proxy:1080'] }, { type: 'proxy', id: 1, routes: ['not a url'] },
+      { type: 'proxy', id: 1, routes: ['socks4://proxy:1080'] }, { type: 'proxy', id: 1, routes: ['socks://proxy:1080'] },
+      { type: 'proxy', id: 1, routes: ['not a url'] },
       { type: 'proxy', id: 1, routes: [null, 'http://after-direct:1'] }, { type: 'proxy', id: '1', routes: [null] },
     ]) expect(isProxyAnswer(invalid), JSON.stringify(invalid)).toBe(false)
   })
@@ -310,6 +363,66 @@ describe('system proxy routing', () => {
     await expect(response.text()).resolves.toBe(`echo ${body}`)
   })
 
+  it('sends a request through a SOCKS5 proxy, leaving the hostname for the proxy to resolve', async () => {
+    const target = await startTarget()
+    const socks = await startSocks5(target)
+    const dispatcher = dispatcherFor(answering([socks.url]))
+    await expect(textVia(dispatcher, 'http://aeven.test/socks')).resolves.toBe('target saw aeven.test')
+    await expect(textVia(dispatcher, 'http://other.test:8080/socks')).resolves.toBe('target saw other.test:8080')
+    expect(socks.seen).toEqual(['domain aeven.test:80', 'domain other.test:8080'])
+  })
+
+  it('carries a request body through a SOCKS5 proxy', async () => {
+    const echo = createServer((request, response) => {
+      const chunks: Buffer[] = []
+      request.on('data', (chunk: Buffer) => { chunks.push(chunk) })
+      request.on('end', () => { response.end(`echo ${String(Buffer.concat(chunks).byteLength)}`) })
+    })
+    const socks = await startSocks5(await listen(echo))
+    const dispatcher = dispatcherFor(answering([socks.url]))
+    const response = await undiciFetch('http://aeven.test/upload', { dispatcher, method: 'POST', body: Buffer.alloc(512 * 1024, 7) })
+    await expect(response.text()).resolves.toBe(`echo ${String(512 * 1024)}`)
+  })
+
+  it('moves past a SOCKS5 proxy that cannot be reached', async () => {
+    const target = await startTarget()
+    const backup = await startProxy(target)
+    const dispatcher = dispatcherFor(answering([`socks5://127.0.0.1:${String(await closedPort())}`, backup.url]))
+    await expect(textVia(dispatcher, 'http://aeven.test/socks-down')).resolves.toBe('target saw aeven.test')
+    expect(backup.seen).toEqual(['aeven.test:80'])
+  })
+
+  it('moves from an HTTP proxy that cannot be reached to a SOCKS5 one', async () => {
+    const target = await startTarget()
+    const socks = await startSocks5(target)
+    const dispatcher = dispatcherFor(answering([`http://127.0.0.1:${String(await closedPort())}`, socks.url, null]))
+    await expect(textVia(dispatcher, 'http://aeven.test/to-socks')).resolves.toBe('target saw aeven.test')
+    expect(socks.seen).toEqual(['domain aeven.test:80'])
+  })
+
+  it('keeps the request on a SOCKS5 proxy that answers with a failure', async () => {
+    const target = await startTarget()
+    const refusing = await startSocks5(target, 5)
+    const backup = await startProxy(target)
+    const dispatcher = dispatcherFor(answering([refusing.url, backup.url]))
+    await expect(undiciFetch('http://aeven.test/refused', { dispatcher })).rejects.toThrow()
+    expect(refusing.seen).toEqual(['domain aeven.test:80'])
+    expect(backup.seen).toEqual([])
+  })
+
+  it('routes the built-in global fetch through a SOCKS5 proxy', async () => {
+    const target = await startTarget()
+    const socks = await startSocks5(target)
+    const dispose = installSystemProxy(() => Promise.resolve([socks.url]))
+    try {
+      await expect((await fetch('http://aeven.test/global-socks', { method: 'POST', body: 'payload' })).text())
+        .resolves.toBe('target saw aeven.test')
+    } finally {
+      await dispose()
+    }
+    expect(socks.seen).toEqual(['domain aeven.test:80'])
+  })
+
   // Node's built-in `fetch`, which every Host plugin calls, reaches the dispatcher only through the global slot.
   it('routes the built-in global fetch while installed and restores the previous dispatcher', async () => {
     const target = await startTarget()
@@ -358,7 +471,7 @@ describe('system proxy routing', () => {
     const channel = new FakeChannel()
     const { lookup } = channelLookup(channel)
     const pending = lookup('https://aeven.io/')
-    channel.emit('message', { type: 'proxy', id: 1, routes: ['socks5://proxy:1080'] })
+    channel.emit('message', { type: 'proxy', id: 1, routes: ['socks4://proxy:1080'] })
     channel.emit('message', { type: 'proxy', id: 99, routes: ['http://wrong:1'] })
     channel.emit('message', { type: 'shutdown' })
     channel.emit('message', { type: 'proxy', id: 1, routes: ['http://proxy.corp:3128'] })

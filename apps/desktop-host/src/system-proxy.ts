@@ -44,7 +44,7 @@ const UNREACHABLE_CODES: ReadonlySet<string> = new Set([
   'ENOTFOUND', 'EAI_AGAIN', 'UND_ERR_CONNECT_TIMEOUT',
 ])
 
-/** One route: an `http:` or `https:` proxy URL, or `null` for a direct connection. */
+/** One route: an `http:`, `https:`, or `socks5:` proxy URL, or `null` for a direct connection. */
 export type ProxyRoute = string | null
 
 /** Host-to-shell question: which routes the system settings choose for `url`. */
@@ -74,10 +74,11 @@ export type ProxyLookup = (url: string) => Promise<readonly ProxyRoute[]>
 /** The answer that connects directly. */
 const DIRECT: readonly ProxyRoute[] = [null]
 
+/** Proxy URL schemes the Host's undici transport speaks. */
+const PROXY_PROTOCOLS: ReadonlySet<string> = new Set(['http:', 'https:', 'socks5:'])
+
 function isProxyUrl(value: unknown): value is string {
-  if (typeof value !== 'string' || !URL.canParse(value)) return false
-  const protocol = new URL(value).protocol
-  return protocol === 'http:' || protocol === 'https:'
+  return typeof value === 'string' && URL.canParse(value) && PROXY_PROTOCOLS.has(new URL(value).protocol)
 }
 
 /**
@@ -274,6 +275,8 @@ export class SystemProxyDispatcher extends Dispatcher {
     if (route === null) return this.direct
     let agent = this.proxies.get(route)
     if (agent === undefined) {
+      // For a `socks5:` route undici's ProxyAgent hands each connection to its SOCKS5 agent, which sends the
+      // destination hostname for the proxy to resolve, as Chromium's SOCKS5 does.
       // proxy-exempt: this agent is the system proxy route itself, built from the shell's answer.
       agent = new ProxyAgent({ uri: route })
       this.proxies.set(route, agent)
