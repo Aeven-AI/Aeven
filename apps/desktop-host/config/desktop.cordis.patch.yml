@@ -20,6 +20,7 @@
   config:
     apiKeyEnv: AEVEN_TOKEN
     model: Aeven-1.0-Flash
+    providerName: Aeven
 
 - id: media-aeven
   config:

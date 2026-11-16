@@ -39,6 +39,7 @@ const options = {
   apiVersion: '2023-06-01',
   maxTokens: 4096,
   maxUses: 5,
+  providerName: 'DeepSeek',
 }
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {

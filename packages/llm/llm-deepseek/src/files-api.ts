@@ -84,7 +84,7 @@ interface WireFileObject {
 }
 
 function invalidResponse(operation: string): LlmError {
-  return new LlmError(`DeepSeek Files API returned an invalid ${operation} response.`, 'INVALID_RESPONSE')
+  return new LlmError(`Files API returned an invalid ${operation} response.`, 'INVALID_RESPONSE')
 }
 
 /** Decode successful Files JSON with operation context; body transport and abort failures retain their identity. */
@@ -93,7 +93,7 @@ async function responseJson(response: Response, operation: string): Promise<unkn
     return await response.json()
   } catch (error: unknown) {
     if (!(error instanceof SyntaxError)) throw error
-    throw new LlmError(`DeepSeek Files API returned invalid JSON for ${operation} (HTTP ${response.status}).`, 'INVALID_RESPONSE', {
+    throw new LlmError(`Files API returned invalid JSON for ${operation} (HTTP ${response.status}).`, 'INVALID_RESPONSE', {
       status: response.status,
       cause: error,
     })
@@ -164,7 +164,7 @@ export class DeepSeekFilesClient {
       })
     } catch (error: unknown) {
       if (signal?.aborted) throw error
-      throw new LlmError(`DeepSeek Files API request to ${this.baseURL} failed`, 'TRANSPORT', { cause: error })
+      throw new LlmError(`Files API request to ${this.baseURL} failed`, 'TRANSPORT', { cause: error })
     }
     if (response.ok) return response
     let parsed: unknown
@@ -175,7 +175,7 @@ export class DeepSeekFilesClient {
     }
     const { message, detail } = providerErrorDetail(parsed)
     throw new DeepSeekFilesError(
-      message ?? `DeepSeek Files API error (HTTP ${response.status})`,
+      message ?? `Files API error (HTTP ${response.status})`,
       response.status,
       detail,
     )
@@ -194,12 +194,12 @@ export class DeepSeekFilesClient {
     signal?: AbortSignal
   }): Promise<DeepSeekFileObject & { expiresAt: number }> {
     if (input.data.byteLength > MAX_FILE_UPLOAD_BYTES) {
-      throw new LlmError('DeepSeek Files API upload exceeds 128 MiB.', 'INVALID_REQUEST')
+      throw new LlmError('Files API upload exceeds 128 MiB.', 'INVALID_REQUEST')
     }
     if (!Number.isSafeInteger(input.expiresAfterSeconds)
       || input.expiresAfterSeconds < MIN_FILE_EXPIRY_SECONDS
       || input.expiresAfterSeconds > MAX_FILE_EXPIRY_SECONDS) {
-      throw new LlmError('DeepSeek file expiry must be between 3600 and 2592000 seconds.', 'INVALID_REQUEST')
+      throw new LlmError('File expiry must be between 3600 and 2592000 seconds.', 'INVALID_REQUEST')
     }
     const form = new FormData()
     form.set('purpose', 'user_data')

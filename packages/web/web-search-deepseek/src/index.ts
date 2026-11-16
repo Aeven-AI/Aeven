@@ -21,6 +21,7 @@ import {
   DEEPSEEK_DEFAULT_MAX_TOKENS,
   DEEPSEEK_DEFAULT_MAX_USES,
   DEEPSEEK_DEFAULT_MODEL,
+  DEEPSEEK_DEFAULT_PROVIDER_NAME,
 } from './provider.ts'
 import type { DeepSeekSearchProviderOptions } from './provider.ts'
 
@@ -31,6 +32,7 @@ export {
   DEEPSEEK_DEFAULT_MAX_TOKENS,
   DEEPSEEK_DEFAULT_MAX_USES,
   DEEPSEEK_DEFAULT_MODEL,
+  DEEPSEEK_DEFAULT_PROVIDER_NAME,
   DEEPSEEK_PROVIDER_ID,
 } from './provider.ts'
 export type { DeepSeekSearchLlmRequest, DeepSeekSearchProviderOptions } from './provider.ts'
@@ -59,6 +61,8 @@ export interface Config {
   maxTokens?: number
   /** Maximum `web_search` server-tool uses per request. Defaults to 5. */
   maxUses?: number
+  /** Platform named in search errors, such as the gateway that serves the endpoint. Defaults to `DeepSeek`. */
+  providerName?: string
 }
 
 export const Config: z<Config> = z.object({
@@ -72,6 +76,7 @@ export const Config: z<Config> = z.object({
   apiVersion: z.string().default(DEEPSEEK_DEFAULT_API_VERSION),
   maxTokens: z.number().step(1).min(1).default(DEEPSEEK_DEFAULT_MAX_TOKENS),
   maxUses: z.number().step(1).min(1).default(DEEPSEEK_DEFAULT_MAX_USES),
+  providerName: z.string().min(1).default(DEEPSEEK_DEFAULT_PROVIDER_NAME),
 })
 
 /**
@@ -137,6 +142,7 @@ function resolveOptions(ctx: Context, config: Config): DeepSeekSearchProviderOpt
     apiVersion: config.apiVersion ?? DEEPSEEK_DEFAULT_API_VERSION,
     maxTokens: config.maxTokens ?? DEEPSEEK_DEFAULT_MAX_TOKENS,
     maxUses: config.maxUses ?? DEEPSEEK_DEFAULT_MAX_USES,
+    providerName: config.providerName ?? DEEPSEEK_DEFAULT_PROVIDER_NAME,
     recordRequest: (request) => {
       ctx.get('agents')?.currentInitiator()?.session.append(
         'web/deepseek-search-llm-request',

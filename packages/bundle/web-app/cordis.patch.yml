@@ -38,6 +38,7 @@
   config:
     apiKeyEnv: AEVEN_TOKEN
     model: Aeven-1.0-Flash
+    providerName: Aeven
 
 # DeepSeek is one provider among many here, not a default: the route stays
 # declared so the Model providers page can add it, and serves only once the

@@ -52,6 +52,7 @@ Load the web service and the provider; the key resolves from `ctx.credentials` w
 | `apiVersion` | `2023-06-01` | `anthropic-version` header value |
 | `maxTokens` | `4096` | Positive-integer upper bound on generated tokens for the Messages request |
 | `maxUses` | `5` | Positive-integer maximum `web_search` server-tool uses per request |
+| `providerName` | `DeepSeek` | Platform named in search errors; a gateway deployment names itself (the Aeven web and desktop overlays set `Aeven`) |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#aevenweb-search-deepseek) is the exhaustive source for every accepted field and its JSDoc. The entry above is the base layer of the provider's Settings section; a user layer over it reaches the next search, because the provider projects the section per call rather than capturing it at registration.
 
@@ -136,7 +137,7 @@ Independent of the conversation request cache. The auxiliary instruction and nat
 
 #### What the model sees
 
-Through `avn-tool-web`, the conversation model sees deduplicated URLs, titles, dates, and citation snippets from structured search blocks; provider prose is not trusted as an answer. This provider's exact failures include the actionable missing-credential message, `DeepSeek search credential resolution failed: <error>`, and `DeepSeek search aborted`. Request, HTTP, native-search, and response-body failures append the resolved endpoint and the conditional configuration instruction described above. The consumer owns the error wrapper.
+Through `avn-tool-web`, the conversation model sees deduplicated URLs, titles, dates, and citation snippets from structured search blocks; provider prose is not trusted as an answer. This provider's exact failures include the actionable missing-credential message, `<providerName> search credential resolution failed: <error>`, and `Web search aborted`. Request, HTTP, native-search, and response-body failures append the resolved endpoint and the conditional configuration instruction described above. The consumer owns the error wrapper.
 
 #### Token effect
 

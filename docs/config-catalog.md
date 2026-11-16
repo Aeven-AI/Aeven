@@ -6467,6 +6467,8 @@ export interface Config {
   maxTokens?: number
   /** Maximum `web_search` server-tool uses per request. Defaults to 5. */
   maxUses?: number
+  /** Platform named in search errors, such as the gateway that serves the endpoint. Defaults to `DeepSeek`. */
+  providerName?: string
 }
 ```
 

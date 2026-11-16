@@ -89,7 +89,7 @@ This section explains the design behind the adapter; the observable behavior is 
 
 ### Design philosophy
 
-One class and one resolution step carry the whole adapter. `AevenAdapter` extends `DeepSeekAdapter` and overrides exactly one thing — `providerInfo` — because the inherited implementation answers every route it owns with DeepSeek's own brand, and the identity a selector shows is the one fact that cannot be inherited. Everything else is the transport as it stands.
+One class and one resolution step carry the whole adapter. `AevenAdapter` extends `DeepSeekAdapter` and overrides exactly one thing — `providerInfo` — because the inherited implementation answers every route it owns with DeepSeek's own brand, and the identity a selector shows is the one fact that cannot be inherited. The transport's error messages read the same `providerInfo` name, so a refused or failed request reads "Aeven API error", never "DeepSeek". Everything else is the transport as it stands.
 
 `options()` is the single path from raw configuration to validated connection facts, and it restates every default from the schema rather than leaving them to it: the schema fills them for a loader-resolved entry, but the type stays optional so a user-settings section can supply a subset. Resolving the endpoint and the credential in one value is what makes it impossible for a request to pair a stale origin with a newer session.
 

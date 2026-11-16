@@ -143,7 +143,7 @@ describe('DeepSeekFilesClient', () => {
     })
     const error = await client.retrieve(DeepSeekFileId('missing')).catch((caught: unknown) => caught)
     expect(error).toBeInstanceOf(DeepSeekFilesError)
-    expect(error).toMatchObject({ message: 'DeepSeek Files API error (HTTP 400)', detail: '' })
+    expect(error).toMatchObject({ message: 'Files API error (HTTP 400)', detail: '' })
   })
 
   it('wraps transport failures but preserves an aborted request reason', async () => {

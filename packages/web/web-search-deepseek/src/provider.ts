@@ -46,6 +46,9 @@ export const DEEPSEEK_DEFAULT_MAX_TOKENS = 4096
 /** Default maximum `web_search` server-tool uses per request. */
 export const DEEPSEEK_DEFAULT_MAX_USES = 5
 
+/** Default platform name in error messages: DeepSeek's own endpoint. */
+export const DEEPSEEK_DEFAULT_PROVIDER_NAME = 'DeepSeek'
+
 /** Attribution header sent on every request. Bump with the package version. */
 const USER_AGENT = 'aeven/0.0.1'
 
@@ -102,6 +105,8 @@ export interface DeepSeekSearchProviderOptions {
   maxTokens: number
   /** Maximum `web_search` server-tool uses per request. */
   maxUses: number
+  /** Platform the endpoint belongs to, named in every error a search reports. */
+  providerName: string
   /**
    * Record the exact secret-free request immediately before dispatch. A throw
    * prevents dispatch so model-visible auxiliary input cannot escape logging.
@@ -149,7 +154,7 @@ export function mapAnthropicResponse(response: AnthropicResponse): WebSearchResu
   )
   if (resultBlocks.length === 0) {
     throw new WebError(
-      'DeepSeek returned no web_search_tool_result blocks; the request may not have triggered native web search',
+      'The search response had no web_search_tool_result blocks; the request may not have triggered native web search',
       'WEB_PROVIDER_ERROR',
     )
   }
@@ -242,14 +247,14 @@ export class DeepSeekSearchProvider implements WebSearchProvider {
       if (signal?.aborted === true || isAbortError(error)) throw searchAborted(signal, error)
       throw searchEndpointError(
         endpoint,
-        `DeepSeek search request failed: ${String(error)}`,
+        `${options.providerName} search request failed: ${String(error)}`,
         error,
       )
     }
 
     if (!response.ok) {
       const status = response.status
-      let message = `DeepSeek API error (HTTP ${status})`
+      let message = `${options.providerName} API error (HTTP ${status})`
       try {
         const parsed = await response.json() as AnthropicError
         const detail = typeof parsed.error === 'string' ? parsed.error : parsed.error?.message ?? parsed.message
@@ -273,7 +278,7 @@ export class DeepSeekSearchProvider implements WebSearchProvider {
       if (signal?.aborted === true || isAbortError(error)) throw searchAborted(signal, error)
       const message = error instanceof WebError
         ? error.message
-        : `DeepSeek returned an unprocessable response body: ${String(error)}`
+        : `${options.providerName} returned an unprocessable response body: ${String(error)}`
       throw searchEndpointError(endpoint, message, error)
     }
   }
@@ -293,7 +298,7 @@ export class DeepSeekSearchProvider implements WebSearchProvider {
     } catch (error: unknown) {
       if (signal?.aborted === true || isAbortError(error)) throw searchAborted(signal, error)
       throw new WebError(
-        `DeepSeek search credential resolution failed: ${String(error)}`,
+        `${options.providerName} search credential resolution failed: ${String(error)}`,
         'WEB_PROVIDER_ERROR',
         { cause: error },
       )
@@ -301,7 +306,7 @@ export class DeepSeekSearchProvider implements WebSearchProvider {
     if (resolved !== undefined && resolved.length > 0) return resolved
     const ref = options.apiKeyEnv ?? 'DEEPSEEK_API_KEY'
     throw new WebError(
-      `DeepSeek search has no API key for "${ref}"; store it through the credentials service`
+      `${options.providerName} search has no API key for "${ref}"; store it through the credentials service`
       + ' (the web Models page writes it), export it in the launching environment, or set a literal'
       + ' "apiKey" in the web-search-deepseek config',
       'WEB_PROVIDER_CREDENTIAL_MISSING',
@@ -354,7 +359,7 @@ function throwIfSearchAborted(signal?: AbortSignal): void {
 
 /** Build the provider's stable cancellation error while retaining the caller's reason. */
 function searchAborted(signal?: AbortSignal, fallback?: unknown): WebError {
-  return new WebError('DeepSeek search aborted', 'WEB_ABORTED', {
+  return new WebError('Web search aborted', 'WEB_ABORTED', {
     cause: signal?.aborted === true ? signal.reason : fallback,
   })
 }
