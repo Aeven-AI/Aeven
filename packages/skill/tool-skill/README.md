@@ -111,7 +111,7 @@ Read these pages when the package-level contract is not enough. They move from t
 
 #### What the model sees
 
-If this exact `skill` tool is visible and either model-invocable skills exist or discovery is incomplete, the agent receives the catalog template below as a durable user-role message before the first request, with one data-dependent entry per sorted skill. Later membership, description, visibility, or completeness changes append a replacement using the same `<available_skills>` envelope; deleting every skill appends an empty envelope with an explicit instruction not to use older names. The template's closing sentence is the rule against double-loading: the user-explicit gesture boundary (the pre-step listener below) injects the same `renderSkillContent` output (shared from `@aeven/skill`) inline, and the catalog tells the model to follow that block instead of re-loading the skill through the tool; the replacement-catalog template carries the same anti-double-loading rule in both arms, including the emptied catalog.
+If this exact `skill` tool is visible and either model-invocable skills exist or discovery is incomplete, the agent receives the catalog template below as a durable user-role message before the first request, with one data-dependent entry per sorted skill. Later membership, description, visibility, or completeness changes append a replacement using the same `<available_skills>` envelope; deleting every skill appends an empty envelope with an explicit instruction not to use older names. When a skill root could not be read, the catalog lists the confirmed skills and adds the incomplete-discovery notice after `</available_skills>`, and a replacement opens with `Skill discovery is incomplete. This catalog of currently available skills replaces every earlier available-skills list in this session:`; when no skill is confirmed, the first catalog and a replacement use the empty incomplete texts below. The template's closing sentence is the rule against double-loading: the user-explicit gesture boundary (the pre-step listener below) injects the same `renderSkillContent` output (shared from `@aeven/skill`) inline, and the catalog tells the model to follow that block instead of re-loading the skill through the tool; the replacement-catalog template carries the same anti-double-loading rule in both arms, including the emptied catalog.
 
 ##### Skill catalog template
 
@@ -128,15 +128,24 @@ A user may also invoke a skill directly; its <skill_content> block then appears 
 </system-reminder>
 ```
 
-##### Incomplete discovery
-
-When a skill root could not be read, the catalog or replacement lists the confirmed skills and adds this line after `</available_skills>`; a replacement then opens with `Skill discovery is incomplete. This catalog of currently available skills replaces every earlier available-skills list in this session:`.
+##### Incomplete discovery notice
 
 ```markdown
 Some skills could not be checked. Only confirmed skills are listed; a lower-priority definition of the same name may be selected when a preferred source is unavailable. Discovery will be retried on the next request.
 ```
 
-When no skill is confirmed, the first catalog opens with `No skills could be confirmed in this discovery attempt.` and closes with `Wait for an updated catalog before calling the \`skill\` tool. Do not infer skill instructions from an empty catalog.`; an empty replacement says `No skills could be confirmed in this discovery attempt. Do not use names from earlier skill catalogs.`
+##### Initial empty incomplete catalog
+
+```markdown
+No skills could be confirmed in this discovery attempt.
+Wait for an updated catalog before calling the `skill` tool. Do not infer skill instructions from an empty catalog.
+```
+
+##### Empty incomplete replacement
+
+```markdown
+No skills could be confirmed in this discovery attempt. Do not use names from earlier skill catalogs.
+```
 
 #### Token effect
 

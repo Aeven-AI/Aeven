@@ -111,7 +111,7 @@ agent（智能体）可以在会话期间发现并加载 skill（技能）：在
 
 #### 模型看到什么
 
-如果可见的正是这个 `skill` 工具，且存在模型可调用 skill 或发现不完整，agent 会在第一个请求之前收到下方目录模板，其中包含每个已排序 skill 的一条随数据而定的条目。该目录是一条持久的用户角色消息。后续成员关系、描述、可见性或完整性的变化会使用同一个 `<available_skills>` 信封追加替换；删除所有 skill 时，会追加一个空信封，并明确指示不得使用旧名称。模板的结尾一句是防止双重加载的规则：用户显式的手势边界（下文的 pre-step 监听器）会把同一份 `renderSkillContent` 输出（共享自 `@aeven/skill`）内联注入，目录则告诉模型遵循该块，而不是再经工具重新加载该 skill；替换目录模板的两个分支——包括清空后的目录——都携带同一条防双重加载规则。
+如果可见的正是这个 `skill` 工具，且存在模型可调用 skill 或发现不完整，agent 会在第一个请求之前收到下方目录模板，其中包含每个已排序 skill 的一条随数据而定的条目。该目录是一条持久的用户角色消息。后续成员关系、描述、可见性或完整性的变化会使用同一个 `<available_skills>` 信封追加替换；删除所有 skill 时，会追加一个空信封，并明确指示不得使用旧名称。某个 skill 根目录无法读取时，目录列出已确认的 skill，并在 `</available_skills>` 之后加上发现不完整提示；替换目录此时以 `Skill discovery is incomplete. This catalog of currently available skills replaces every earlier available-skills list in this session:` 开头；没有确认任何 skill 时，首个目录与替换目录使用下方的不完整空目录文本。模板的结尾一句是防止双重加载的规则：用户显式的手势边界（下文的 pre-step 监听器）会把同一份 `renderSkillContent` 输出（共享自 `@aeven/skill`）内联注入，目录则告诉模型遵循该块，而不是再经工具重新加载该 skill；替换目录模板的两个分支——包括清空后的目录——都携带同一条防双重加载规则。
 
 ##### Skill 目录模板
 
@@ -128,15 +128,24 @@ A user may also invoke a skill directly; its <skill_content> block then appears 
 </system-reminder>
 ```
 
-##### 发现不完整
-
-某个 skill 根目录无法读取时，目录或替换目录会列出已确认的 skill，并在 `</available_skills>` 之后加上下面这一行；替换目录此时以 `Skill discovery is incomplete. This catalog of currently available skills replaces every earlier available-skills list in this session:` 开头。
+##### 发现不完整提示
 
 ```markdown
 Some skills could not be checked. Only confirmed skills are listed; a lower-priority definition of the same name may be selected when a preferred source is unavailable. Discovery will be retried on the next request.
 ```
 
-没有确认任何 skill 时，首个目录以 `No skills could be confirmed in this discovery attempt.` 开头，并以 `Wait for an updated catalog before calling the \`skill\` tool. Do not infer skill instructions from an empty catalog.` 结尾；空的替换目录写作 `No skills could be confirmed in this discovery attempt. Do not use names from earlier skill catalogs.`
+##### 不完整的初始空目录
+
+```markdown
+No skills could be confirmed in this discovery attempt.
+Wait for an updated catalog before calling the `skill` tool. Do not infer skill instructions from an empty catalog.
+```
+
+##### 不完整的空替换目录
+
+```markdown
+No skills could be confirmed in this discovery attempt. Do not use names from earlier skill catalogs.
+```
 
 #### Token 影响
 
