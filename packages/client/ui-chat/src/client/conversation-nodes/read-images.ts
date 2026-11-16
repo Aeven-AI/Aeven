@@ -63,7 +63,7 @@ function recordAttachments(state: ReadImagesState, content: readonly ContentBloc
 }
 
 /** Event types the index reads; a turn's start opens it. */
-const INDEXED = new Set(['tool/call', 'tool/result', 'reply-images/stored'])
+const INDEXED = new Set(['tool/call', 'tool/result'])
 
 /** A written image source with its percent-escapes applied, as the reply's renderer looks it up. */
 function decodedSource(source: string): string {
@@ -96,6 +96,9 @@ const definition: ConversationNodeDefinition<ReadImagesState> = {
   kind: 'read-images',
   match: (event, location) => {
     if (event.type === 'turn/start') return { id: String(event.data.turn), role: 'start' }
+    // Copies stored for an earlier Turn's replies are appended at the end of the
+    // log, so the Turn they name, not their position, owns them.
+    if (event.type === 'reply-images/stored') return { id: String(event.data.turn), role: 'update' }
     const indexed = INDEXED.has(event.type) && (event.type !== 'tool/result' || isAppendSurfaceEvent(event))
     return indexed && (location.kind === 'turn' || location.kind === 'step')
       ? { id: String(location.turn.turn), role: 'update' }

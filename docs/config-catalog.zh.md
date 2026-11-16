@@ -5337,7 +5337,7 @@ export interface Config {
    */
   shareOutputFiles?: boolean
   /**
-   * Store a copy of each non-image file a command lists in `output_files` and
+   * Store a copy of each file a command lists in `output_files` and
    * produces, inside the workspace or not, as an attachment recorded on its
    * `producedFiles` entry and nowhere else (default false): nothing shows at
    * the call and the model's result is unchanged. Session sync carries the

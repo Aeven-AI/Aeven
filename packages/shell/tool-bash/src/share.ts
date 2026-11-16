@@ -84,7 +84,7 @@ export interface SharedOutputs {
 export interface ShareScope {
   /** The canonical workspace root files must stay inside; omitted, a file anywhere is stored. */
   root?: FsTarget | undefined
-  /** Whether images are stored as image attachments; otherwise they are left out. */
+  /** Whether images are stored as image attachments; otherwise they are stored as files like any other output. */
   images: boolean
 }
 
@@ -129,12 +129,8 @@ export async function shareOutputs(
     const extension = extname(path).toLowerCase()
     const name = basename(path)
     const imageType = IMAGE_TYPES[extension]
-    if (imageType !== undefined && !scope.images) {
-      shared.unshared.push({ path, reason: 'images are not copied' })
-      continue
-    }
     try {
-      if (imageType !== undefined && attachments.imageLimits.mediaTypes.includes(imageType)) {
+      if (imageType !== undefined && scope.images && attachments.imageLimits.mediaTypes.includes(imageType)) {
         const data = await fs.readBytes(target, signal, attachments.imageLimits.maxImageBytes)
         const image = await attachments.saveImage({ data, mediaType: imageType, name })
         shared.images.push(image)
@@ -151,7 +147,7 @@ export async function shareOutputs(
       const data = await fs.readBytes(target, signal, limits.maxFileBytes)
       const file = await attachments.saveFile({
         data,
-        mediaType: FILE_TYPES[extension] ?? 'application/octet-stream',
+        mediaType: imageType ?? FILE_TYPES[extension] ?? 'application/octet-stream',
         name,
         text: { text: `File ${name}, written by a command in the conversation folder.`, method: 'native', extractor: 'tool-bash', truncated: false },
       })
