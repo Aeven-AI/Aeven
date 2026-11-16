@@ -37,7 +37,7 @@ kind: "package-reference"
 
 ### 完成通知
 
-任务完成时，拥有它的 agent 会收到会话内消息 `background job <id> (<kind>: <label>) finished [status: ...]. Read its output with job_output.`。繁忙的 agent 会在下一步收到注入的通知——inbox 尚有内容时轮次无法结束，因此同时结算的多个任务只花掉一步，而不是各占一轮。空闲的 agent 则被一个 follow-up 轮次唤醒，因为无人领取的通知等于模型永远不会知道的完成。kill 或针对终止任务的 read/wait 会把完成标为已报告并抑制重复通知；排空 owner 或服务的 teardown 取消同样如此。
+任务完成时，拥有它的 agent 会收到会话内消息 `background job <id> (<kind>: <label>) finished [status: ...]. Output:`，后接该任务未读的输出；没有输出时则为 `. No new output.`。若通知的完整文本会超过 `inlineOutputBytes`（或生产方的 `outputLimitBytes`），通知改以 `. Read its output with job_output.` 结尾，输出留给 `job_output`。标签取任务标签的第一行，并按通知摘要的长度限制。若模型在通知仍待投递时调用 `job_output`，结果会带上暂存的输出，并撤回待投递的通知，因此输出只到达模型一次。繁忙的 agent 会在下一步收到注入的通知——inbox 尚有内容时轮次无法结束，因此同时结算的多个任务只花掉一步，而不是各占一轮。空闲的 agent 则被一个 follow-up 轮次唤醒，因为无人领取的通知等于模型永远不会知道的完成。kill 或针对终止任务的 read/wait 会把完成标为已报告并抑制重复通知；排空 owner 或服务的 teardown 取消同样如此。
 
 唤醒是有界的：每个所有者最多可被唤醒 `maxConsecutiveWakes` 次，此后的通知降级为注入；领取任何用户撰写的消息都会恢复预算。设界是因为这条链会自激——被唤醒的一轮可能启动某个后台任务，而它的完成又会唤醒同一个所有者。`completionDelivery: quiet` 让空闲所有者也在注入通道上，确定性 transcript 需要的正是这一点。
 
@@ -54,6 +54,7 @@ kind: "package-reference"
 | `waitTimeoutMs` | `30,000` | `wait: true` 省略 `timeout_ms` 时使用的等待时间 |
 | `maxWaitTimeoutMs` | `600,000` | 模型所给等待时间的上限；更大的值向下收敛到它 |
 | `completionDelivery` | `wakeup` | `wakeup` 为空闲所有者开启一轮；`quiet` 让通知继续待领 |
+| `inlineOutputBytes` | `2048` | 携带任务未读输出的通知完整文本上限（UTF-8 字节）；`0` 表示从不内联 |
 | `maxConsecutiveWakes` | `3` | 一个所有者可由唤醒开启的轮数，超出后通知降级为注入 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#aeventool-jobs)是每个受支持字段及其 JSDoc 的穷尽式真源。
@@ -157,7 +158,7 @@ Track every background job id you start. You are notified in-session when a job 
 
 #### Token 影响
 
-结果与通知在压缩（compaction）前保留于父级历史。流读取不会重复已消费的输出；生产方提供的 `outputLimitBytes` 会限制每次完整读取或通知。在 `wakeup` 下，抵达空闲所有者的通知还会额外买下一次用户并未要求的模型请求，其数量按所有者由 `maxConsecutiveWakes` 封顶；抵达繁忙所有者的通知则只是给它已经在支付的那一轮加一步。
+结果与通知在压缩（compaction）前保留于父级历史。内联携带输出的通知省去了原本读取它的 `job_output` 调用。流读取不会重复已消费的输出；生产方提供的 `outputLimitBytes` 会限制每次完整读取或通知。在 `wakeup` 下，抵达空闲所有者的通知还会额外买下一次用户并未要求的模型请求，其数量按所有者由 `maxConsecutiveWakes` 封顶；抵达繁忙所有者的通知则只是给它已经在支付的那一轮加一步。
 
 #### KV Cache 影响
 

@@ -37,7 +37,7 @@ The three tools return `{ text, job }`, `PublicJobSnapshot[]`, and `{ outcome: '
 
 ### Completion notices
 
-When a job finishes, the owning agent receives `background job <id> (<kind>: <label>) finished [status: ...]. Read its output with job_output.` as an in-session message. A busy agent has the notice injected into its next step — the turn cannot close while the inbox holds it, so several jobs settling together cost one step rather than one turn each. An idle agent is instead woken with a follow-up turn, because an unclaimed notice is a completion the model never learns about. A kill or a terminal read/wait marks the completion reported and suppresses the redundant notice, as does the teardown cancel that drains an owner or the service.
+When a job finishes, the owning agent receives `background job <id> (<kind>: <label>) finished [status: ...]. Output:` followed by the job's unread output as an in-session message, or `. No new output.` when there is none. A notice whose complete text would exceed `inlineOutputBytes` (or the producer's `outputLimitBytes`) instead ends `. Read its output with job_output.`, and that output waits for `job_output`. The label is the first line of the job's label, bounded like a notice summary. If the model calls `job_output` while the notice is still pending, the result carries the held output and the pending notice is withdrawn, so the output reaches the model once. A busy agent has the notice injected into its next step — the turn cannot close while the inbox holds it, so several jobs settling together cost one step rather than one turn each. An idle agent is instead woken with a follow-up turn, because an unclaimed notice is a completion the model never learns about. A kill or a terminal read/wait marks the completion reported and suppresses the redundant notice, as does the teardown cancel that drains an owner or the service.
 
 Waking is bounded: each owner may be woken `maxConsecutiveWakes` times before further notices degrade to injection, and claiming any user-authored message restores the budget. The bound exists because the chain is self-exciting — a woken turn may start the background job whose completion wakes it again. `completionDelivery: quiet` keeps even idle owners on the injection lane, which deterministic transcripts need.
 
@@ -54,6 +54,7 @@ Loading the plugin with no config is the common path; a `waitTimeoutMs` above `m
 | `waitTimeoutMs` | `30,000` | Wait used when `wait: true` omits `timeout_ms` |
 | `maxWaitTimeoutMs` | `600,000` | Cap for model-supplied waits; larger values clamp down to it |
 | `completionDelivery` | `wakeup` | `wakeup` opens a turn on an idle owner; `quiet` leaves the notice pending |
+| `inlineOutputBytes` | `2048` | Largest complete notice, in UTF-8 bytes, that carries the job's unread output; `0` never inlines it |
 | `maxConsecutiveWakes` | `3` | Turns one owner may open by wake before notices degrade to injection |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#aeventool-jobs) is the exhaustive source for every accepted field and its JSDoc.
@@ -157,7 +158,7 @@ Reads return output or `(no new output)` followed by `[status: <status>]` and op
 
 #### Token effect
 
-Results and notices remain in parent history until compaction. Stream reads do not repeat consumed output; a producer-supplied `outputLimitBytes` bounds each complete read or notice. Under `wakeup`, a notice reaching an idle owner also buys a model request the user did not ask for, capped per owner by `maxConsecutiveWakes`; a notice reaching a busy owner adds a step to the turn it is already paying for.
+Results and notices remain in parent history until compaction. A notice that carries output inline saves the `job_output` call that would otherwise read it. Stream reads do not repeat consumed output; a producer-supplied `outputLimitBytes` bounds each complete read or notice. Under `wakeup`, a notice reaching an idle owner also buys a model request the user did not ask for, capped per owner by `maxConsecutiveWakes`; a notice reaching a busy owner adds a step to the turn it is already paying for.
 
 #### KV Cache effect
 

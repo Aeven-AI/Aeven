@@ -217,10 +217,12 @@ afterEach(async () => {
 })
 
 describe('Typert Remote streams', () => {
-  it('validates the WebSocket heartbeat timer range', () => {
-    expect(TypertGatewayService.Config({})).toEqual({ websocketHeartbeatIntervalMs: 10_000 })
+  it('validates the WebSocket heartbeat timer range and compression mode', () => {
+    expect(TypertGatewayService.Config({})).toEqual({ websocketHeartbeatIntervalMs: 10_000, websocketCompression: 'deflate' })
     expect(TypertGatewayService.Config({ websocketHeartbeatIntervalMs: MAX_TIMER_DELAY_MS }))
-      .toEqual({ websocketHeartbeatIntervalMs: MAX_TIMER_DELAY_MS })
+      .toMatchObject({ websocketHeartbeatIntervalMs: MAX_TIMER_DELAY_MS })
+    expect(TypertGatewayService.Config({ websocketCompression: 'none' })).toMatchObject({ websocketCompression: 'none' })
+    expect(() => TypertGatewayService.Config({ websocketCompression: 'gzip' as never })).toThrow()
     for (const websocketHeartbeatIntervalMs of [0, 1.5, MAX_TIMER_DELAY_MS + 1]) {
       expect(() => TypertGatewayService.Config({ websocketHeartbeatIntervalMs })).toThrow()
     }

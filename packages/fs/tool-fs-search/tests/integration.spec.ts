@@ -88,6 +88,23 @@ describe('search tools over the real subprocess service + the packaged rg', () =
       expect(text(result).split('\n').sort()).toEqual([join('src', 'alpha.ts'), join('src', 'beta.ts')])
     })
 
+    it('prunes unrelated directories for a literal directory prefix and keeps workspace-relative results', async () => {
+      await mkdir(join(dir, 'src', 'deep'), { recursive: true })
+      await writeFile(join(dir, 'src', 'deep', 'gamma.ts'), 'export const gamma = 4\n')
+      await mkdir(join(dir, 'other', 'src'), { recursive: true })
+      await writeFile(join(dir, 'other', 'src', 'delta.ts'), 'export const delta = 5\n')
+      expect(text(await call('glob', { pattern: 'src/*.ts' }, agent())).split('\n').sort())
+        .toEqual([join('src', 'alpha.ts'), join('src', 'beta.ts')])
+      expect(text(await call('glob', { pattern: 'src/deep/*.ts' }, agent()))).toBe(join('src', 'deep', 'gamma.ts'))
+      expect(text(await call('glob', { pattern: 'spaced dir/*.ts' }, agent()))).toBe(join('spaced dir', "wei'rd name.ts"))
+    })
+
+    it.each(['missing/*.ts', 'notes.md/*.ts', 'src/alpha.ts/*.ts', 'SRC/*.ts'])('admits no missing, file, or differently cased prefix for %s', async (pattern) => {
+      const result = await call('glob', { pattern }, agent())
+      expect(result.isError).toBe(false)
+      expect(text(result)).toBe('No files found')
+    })
+
     it('reports zero discoveries as No files found', async () => {
       expect(text(await call('glob', { pattern: '*.nomatch' }, agent()))).toBe('No files found')
     })

@@ -28,6 +28,13 @@ export type RemoteStreamFailureMapper = (error: unknown) => RemoteStreamFailure
 
 const MAX_MISSED_HEARTBEATS = 2
 
+/**
+ * Smallest frame text, in UTF-16 code units, that a compressing connection deflates. `ws` ignores its own
+ * `threshold` option while context takeover is enabled, so the mux decides per frame; most token-level frames stay
+ * below it and out of the zlib pool.
+ */
+const COMPRESSION_THRESHOLD = 1024
+
 /** Own the no-server WebSocket acceptor and every active logical stream. */
 export class RemoteStreamMuxServer {
   /**
@@ -45,12 +52,7 @@ export class RemoteStreamMuxServer {
     return this.users.get(websocket)
   }
 
-  private readonly server = new WebSocketServer({
-    noServer: true,
-    // A Client that offers its bearer offers this protocol beside it, and a
-    // browser fails the handshake unless the Host selects one it offered.
-    handleProtocols: protocols => protocols.has(REMOTE_STREAM_SUBPROTOCOL) ? REMOTE_STREAM_SUBPROTOCOL : false,
-  })
+  private readonly server: WebSocketServer
   private readonly connections = new Set<Promise<void>>()
   private readonly missedHeartbeats = new WeakMap<WebSocket, number>()
   private heartbeatTimer: NodeJS.Timeout | undefined
@@ -59,14 +61,27 @@ export class RemoteStreamMuxServer {
    * @param open - Gateway stream dispatcher.
    * @param failure - Gateway error-to-wire mapper.
    * @param heartbeatIntervalMs - interval between WebSocket Ping control frames.
+   * @param compression - whether accepted connections negotiate `permessage-deflate`; a peer that does not offer the
+   *   extension gets an uncompressed connection either way.
    * @param runAs - runs each stream's dispatch as the user its connection authenticated.
    */
   constructor(
     private readonly open: RemoteStreamOpener,
     private readonly failure: RemoteStreamFailureMapper,
     private readonly heartbeatIntervalMs: number,
+    private readonly compression: boolean,
     private readonly runAs: RemoteStreamCallerScope = (_user, work) => work(),
-  ) {}
+  ) {
+    this.server = new WebSocketServer({
+      noServer: true,
+      // A Client that offers its bearer offers this protocol beside it, and a
+      // browser fails the handshake unless the Host selects one it offered.
+      handleProtocols: protocols => protocols.has(REMOTE_STREAM_SUBPROTOCOL) ? REMOTE_STREAM_SUBPROTOCOL : false,
+      // Interactive frames value latency over ratio. `ws` keeps its default `maxPayload`, which it also enforces on
+      // the inflated size, so a compressed frame cannot expand past the limit an uncompressed one already has.
+      perMessageDeflate: compression ? { zlibDeflateOptions: { level: 1 } } : false,
+    })
+  }
 
   /**
    * Upgrade one trusted request and begin serving its logical streams.
@@ -88,7 +103,7 @@ export class RemoteStreamMuxServer {
       websocket.on('pong', alive)
       websocket.on('message', alive)
       this.startHeartbeat()
-      const connection = new RemoteStreamMuxConnection(websocket, this.open, this.failure, user, this.runAs)
+      const connection = new RemoteStreamMuxConnection(websocket, this.open, this.failure, user, this.runAs, this.compression)
       const done = connection.run()
       this.connections.add(done)
       void done.then(() => { this.connections.delete(done) })
@@ -147,6 +162,7 @@ class RemoteStreamMuxConnection {
     private readonly failure: RemoteStreamFailureMapper,
     private readonly user: User | undefined,
     private readonly runAs: RemoteStreamCallerScope,
+    private readonly compression: boolean,
   ) {}
 
   async run(): Promise<void> {
@@ -240,7 +256,7 @@ class RemoteStreamMuxConnection {
         reject(new Error('api gateway: Remote stream socket is closed'))
         return
       }
-      this.socket.send(text, (error) => {
+      this.socket.send(text, { compress: this.compression && text.length >= COMPRESSION_THRESHOLD }, (error) => {
         if (error) reject(error)
         else resolve()
       })

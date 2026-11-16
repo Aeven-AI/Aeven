@@ -75,6 +75,7 @@ No direct effect; invoked business Services own any model-visible result.
 - Lookup resolvers are configured per key; an individual Remote parameter or endpoint cannot currently select a live-only policy under the same `agent`/`session` key.
 - Forwarded events reach `$on` without business-payload projection or redaction. Ordinary notifications are not replayed after reconnect; Agent-scoped waterfalls project only the top-level Agent identity needed to select the Client Context and carry their own pending lifetime.
 - `websocketHeartbeatIntervalMs` (default 10,000) is both the Ping cadence and the liveness deadline. Any inbound frame or Pong resets it; the Host terminates a peer that sends nothing for two intervals, so a deployment whose event loop or network can stall longer than that must raise it.
+- `websocketCompression` defaults to `'deflate'`, which negotiates `permessage-deflate` in both directions with a peer that offers it. The mux compresses frames whose JSON text reaches 1,024 characters at zlib level 1 and leaves shorter frames, most token deltas, uncompressed, because `ws` ignores its `threshold` option under the default context takeover. The `ws` default frame-size limit applies to the inflated size too, so compression adds no larger frame than an uncompressed peer could send. A peer that offers no extension gets an uncompressed connection; `'none'` turns the extension off.
 
 
 <a id="dev-note"></a>

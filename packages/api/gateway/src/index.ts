@@ -128,10 +128,13 @@ const DEFAULT_WEBSOCKET_HEARTBEAT_INTERVAL_MS = 10_000
 export interface Config {
   /** WebSocket Ping interval from 1 through 2,147,483,647 milliseconds. @default 10000 */
   readonly websocketHeartbeatIntervalMs?: number
+  /** Per-message compression for the Remote stream WebSocket; `'none'` disables the extension. @default 'deflate' */
+  readonly websocketCompression?: 'none' | 'deflate'
 }
 
 interface ResolvedConfig extends Config {
   readonly websocketHeartbeatIntervalMs: number
+  readonly websocketCompression: 'none' | 'deflate'
 }
 
 /**
@@ -180,6 +183,7 @@ export class TypertGatewayService extends Service implements TypertGateway {
   static Config: z<Config> = z.object({
     websocketHeartbeatIntervalMs: z.number().step(1).min(1).max(MAX_TIMER_DELAY_MS)
       .default(DEFAULT_WEBSOCKET_HEARTBEAT_INTERVAL_MS),
+    websocketCompression: z.union([z.const('none'), z.const('deflate')]).default('deflate'),
   })
 
   /** Carrier adapter shared by the WebSocket mux and local Host transports. */
@@ -216,6 +220,7 @@ export class TypertGatewayService extends Service implements TypertGateway {
         (endpoint, payload, signal) => this.openWireStream(endpoint, payload, signal),
         this.wireStream.failure,
         resolved.websocketHeartbeatIntervalMs,
+        resolved.websocketCompression === 'deflate',
         (user, work) => {
           const identity = webCtx.get('identityUsers')
           return identity === undefined ? work() : identity.runAs(user, work)

@@ -81,14 +81,27 @@ export function parseGlobArgs(args: { pattern: string; path?: string }): GlobInp
  * search root rides behind `--` so a leading-dash path can never be parsed as
  * a flag. `--sort=modified` orders by modification time, `--no-ignore
  * --hidden` searches ignored and hidden files, and
- * {@link GLOB_VCS_EXCLUDES} keeps VCS metadata out.
+ * {@link GLOB_VCS_EXCLUDES} keeps VCS metadata out. Simple directory prefixes
+ * prune unrelated subtrees through directory-only globs without changing the
+ * search root, path separators, or symlink handling.
  *
  * @param input - the validated arguments.
  * @returns the complete ripgrep argument vector (excluding the binary itself).
  */
 export function buildGlobCommand(input: GlobInput): string[] {
+  const directories = input.pattern.split('/').slice(0, -1)
+  const pruning: string[] = []
+  if (input.path === undefined && directories.length > 0
+    && directories.every(part => /^[\w .-]+$/.test(part) && part !== '.' && part !== '..' && !GLOB_VCS_EXCLUDES.includes(part))) {
+    pruning.push('--glob=!**')
+    // Trailing slashes admit directories only, never files with the same names.
+    for (let depth = 1; depth <= directories.length; depth++) {
+      pruning.push(`--glob=/${directories.slice(0, depth).join('/')}/`)
+    }
+  }
   const parts = [
     '--files',
+    ...pruning,
     `--glob=${input.pattern}`,
     '--sort=modified',
     '--no-ignore',
@@ -334,6 +347,8 @@ export function applyGlobTool(ctx: Context, caps: GlobToolCaps): void {
         return globSearchMeta({ items: page.items, truncated: page.truncated, seen: value.paths.length }, caps.maxMetaBytes)
       },
     },
+    // Path listing records no file observation; over-cap spilling runs in model-ordered post-execute.
+    isConcurrencySafe: () => true,
     async execute(args, exec) {
       const input = parseGlobArgs(args)
       const run = await runRipgrep(ctx, exec, 'glob', buildGlobCommand(input), caps.rawOutputMaxBytes, caps.graceMs, caps.stderrMaxBytes)

@@ -75,6 +75,7 @@ Host 组合可通过 `registerRemoteEvents()` 注册唯一的应用事件 source
 - lookup resolver 按 key 配置；当前无法让单个 Remote 参数或 endpoint 在同一 `agent`/`session` key 下选择 live-only 策略。
 - 被转发的事件到达 `$on` 时不做业务载荷投影或脱敏。普通通知在重连后不重放；Agent-scoped waterfall 只投影选择 Client Context 所需的顶层 Agent 身份，并自行携带 pending 生命周期。
 - `websocketHeartbeatIntervalMs`（默认 10,000）同时是 Ping 周期和存活截止时间。任何入站帧或 Pong 都会重置它；对端连续两个间隔未发送任何内容时，Host 会终止连接；如果部署的事件循环或网络可能停顿超过该时长，必须调大此配置。
+- `websocketCompression` 默认 `'deflate'`，与提供该扩展的对端双向协商 `permessage-deflate`。mux 以 zlib 1 级压缩 JSON 文本达到 1,024 个字符的帧，更短的帧（多数 token 增量）不压缩，因为 `ws` 在默认上下文接管下会忽略自己的 `threshold` 选项。`ws` 默认的帧大小上限同样作用于解压后的大小，因此压缩不会带来比未压缩对端更大的帧。不提供该扩展的对端得到未压缩连接；`'none'` 关闭该扩展。
 
 
 <a id="dev-note"></a>

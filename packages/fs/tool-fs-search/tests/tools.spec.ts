@@ -233,6 +233,12 @@ function matchLine(path: string, lineNumber: number, lineText: string): string {
 }
 
 describe('registration', () => {
+  it('declares glob and grep parallel-safe', async () => {
+    const { ctx } = await setup()
+    expect(ctx.tools.get('glob')?.isConcurrencySafe?.({ pattern: '*.ts' })).toBe(true)
+    expect(ctx.tools.get('grep')?.isConcurrencySafe?.({ pattern: 'x' })).toBe(true)
+  })
+
   it('registers glob and grep unconditionally with their prompt sections', async () => {
     const { ctx, subprocess } = await setup()
     // Registration performs NO load-time probe: the packaged binary is always
@@ -346,6 +352,16 @@ describe('command construction (plain argv)', () => {
       '--glob=!**/.jj', '--glob=!**/.jj/**',
       '--glob=!**/.sl', '--glob=!**/.sl/**',
     ])
+  })
+
+  it('glob: a literal directory prefix prunes other directories before the pattern', () => {
+    expect(buildGlobCommand({ pattern: 'packages/core/src/*.ts' }).slice(0, 6)).toEqual([
+      '--files', '--glob=!**', '--glob=/packages/', '--glob=/packages/core/', '--glob=/packages/core/src/', '--glob=packages/core/src/*.ts',
+    ])
+    for (const pattern of ['*.ts', '**/*.ts', 'src/**/*.ts', '!src/*.ts', './src/*.ts', 'src/../src/*.ts', '.git/*.ts']) {
+      expect(buildGlobCommand({ pattern })).not.toContain('--glob=!**')
+    }
+    expect(buildGlobCommand({ pattern: 'src/*.ts', path: 'pkg' })).not.toContain('--glob=!**')
   })
 
   it('glob: the search root rides behind -- as a plain element', () => {
