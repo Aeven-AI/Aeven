@@ -13,6 +13,8 @@ English | [中文](README.zh.md)
 
 Read tools await `fs/pre-read` after resolving a target and before reading it.
 
+With the attachment store mounted, a Turn about to close (`agent/turn-stopping`) also saves every local file its assistant replies show as a Markdown image, and records the copies in one `reply-images/stored` event by the source each reply wrote. Session sync carries those attachments to the account's other devices, so the transcript shows the image there and after the file changes or the writing device goes offline. `confineToWorkspace` limits the copies to files inside the session's workspace; a source that names no readable image is left as written.
+
 ## Table of Contents
 
 - [Use this package](#use-this-package)

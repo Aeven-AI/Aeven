@@ -581,6 +581,25 @@ Types: [ContentBlock](subsystems/core.zh.md) · [TokenUsage](subsystems/llm-stre
 
 来源：[`packages/plan/plan-mode/src/index.ts`](../packages/plan/plan-mode/src/index.ts)
 
+### `reply-images/*`
+
+<a id="reply-imagesstored--log-only"></a>
+
+#### `reply-images/stored` — log-only
+
+```ts persistence-catalog
+/**
+ * Durable copies of local images the Turn's assistant replies show as
+ * Markdown images, saved before the Turn closed. Log-only: it never enters
+ * model context or derived history.
+ * @param turn - the Turn whose replies show the images.
+ * @param images - each copy, with the reply that shows it and its written source.
+ */
+'reply-images/stored': { turn: number; images: ReplyImage[] }
+```
+
+来源：[`packages/fs/tool-fs/src/types.ts`](../packages/fs/tool-fs/src/types.ts)
+
 ### `request/*`
 
 <a id="requestcontext--log-only"></a>

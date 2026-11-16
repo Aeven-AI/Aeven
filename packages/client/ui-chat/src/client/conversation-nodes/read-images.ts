@@ -1,9 +1,10 @@
 /**
  * Turn-local index of the images `read_image` stored, by the path each was
- * read from. A reply that shows one of those paths as a Markdown image displays
- * the stored copy, which outlives the file: the model may delete or overwrite
- * it later in the Turn, and another device of the account cannot reach the
- * Host's folder at all. A reply that shows an image by its path in the Host's
+ * read from, and of the copies `reply-images/stored` records of the local
+ * images the Turn's replies show, by the source each reply wrote. A reply that
+ * shows one of those paths as a Markdown image displays the stored copy, which
+ * outlives the file: the model may delete or overwrite it later, and another
+ * device of the account cannot reach the Host's folder at all. A reply that shows an image by its path in the Host's
  * attachment store displays the stored image a tool result of the Turn carries.
  * @module
  */
@@ -12,10 +13,11 @@ import type { ImageAttachmentRef } from '@aeven/attachment'
 import type { ConversationMatch, ConversationNodeDefinition } from '@aeven/client-ui-conversation/client'
 import type { ContentBlock } from '@aeven/llm/types'
 import { isAppendSurfaceEvent } from '@aeven/session/surface'
+import type {} from '@aeven/tool-fs/types'
 
 /** Stored images of the Turn's tool results, by the path `read_image` reported and by attachment id. */
 export interface ReadImages {
-  /** The latest stored image read from each path. */
+  /** The latest stored image of each path `read_image` read or a reply showed. */
   readonly byPath: ReadonlyMap<string, ImageAttachmentRef>
   /** Every image a successful tool result of the Turn stored, by attachment id. */
   readonly byAttachment: ReadonlyMap<string, ImageAttachmentRef>
@@ -23,7 +25,7 @@ export interface ReadImages {
 
 declare module '@aeven/client-ui-conversation/client' {
   interface ConversationTurnDataMap {
-    /** Images the Turn's tool results stored, by `read_image` source path and by attachment id. */
+    /** Images the Turn stored, by `read_image` or reply source path and by attachment id. */
     'read-images': ReadImages
   }
 }
@@ -61,9 +63,24 @@ function recordAttachments(state: ReadImagesState, content: readonly ContentBloc
 }
 
 /** Event types the index reads; a turn's start opens it. */
-const INDEXED = new Set(['tool/call', 'tool/result'])
+const INDEXED = new Set(['tool/call', 'tool/result', 'reply-images/stored'])
+
+/** A written image source with its percent-escapes applied, as the reply's renderer looks it up. */
+function decodedSource(source: string): string {
+  try {
+    return decodeURI(source)
+  } catch {
+    // A lone `%` is not an escape; the written source is already literal.
+    return source
+  }
+}
 
 function step(state: ReadImagesState, event: ConversationMatch['event']): ReadImagesState {
+  if (event.type === 'reply-images/stored') {
+    const byPath = new Map(state.byPath)
+    for (const image of event.data.images) byPath.set(decodedSource(image.source), image.attachment)
+    return { ...state, byPath }
+  }
   if (event.type === 'tool/call') {
     if (event.data.name !== 'read_image') return state
     return { ...state, calls: new Set(state.calls).add(String(event.data.callId)) }

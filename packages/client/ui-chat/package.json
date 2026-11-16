@@ -75,6 +75,7 @@
     "@aeven/session-turn-outline": "workspace:^",
     "@aeven/session-stats": "workspace:^",
     "@aeven/token-meter": "workspace:^",
+    "@aeven/tool-fs": "workspace:^",
     "@aeven/tools": "workspace:^",
     "@aeven/util-workspace-path": "workspace:^",
     "@types/react": "~18.3.1",

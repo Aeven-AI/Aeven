@@ -1,6 +1,7 @@
 /**
- * Model-facing read, read_image, write, and edit tools over `ctx.fs`. This package owns schemas, validation,
- * read windows, formatting, and observation events, never a concrete provider. An optional
+ * Model-facing read, read_image, write, and edit tools over `ctx.fs`, plus stored copies of the local images an
+ * assistant reply shows. This package owns schemas, validation, read windows, formatting, and observation events,
+ * never a concrete provider. An optional
  * event policy supplies mutation guards; without one the tools use unconditional provider calls.
  * @module @aeven/tool-fs
  */
@@ -12,6 +13,7 @@ import { applyReadTool, READ_LIMIT, STREAM_MIN_SIZE } from './read.ts'
 import { applyWriteTool } from './write.ts'
 import { applyEditTool } from './edit.ts'
 import { applyReadImageTool } from './read-image.ts'
+import { applyReplyImages } from './reply-images.ts'
 import { READ_MAX_BYTES, READ_MAX_LINE_LENGTH } from './read-render.ts'
 import { FsSandboxController } from './sandbox.ts'
 
@@ -60,7 +62,10 @@ function assertPositiveInteger(name: string, value: number): void {
   }
 }
 
-/** Register `read`, `write` and `edit` (the last two unless `mutations` is false), plus `read_image` while `attachments` is mounted. */
+/**
+ * Register `read`, `write` and `edit` (the last two unless `mutations` is false), plus `read_image` and the stored
+ * copies of reply images while `attachments` is mounted.
+ */
 export function apply(ctx: Context, config: Config): void {
   // schemastery (Config) has already filled every defaulted field.
   const resolved = config as ResolvedConfig
@@ -78,8 +83,11 @@ export function apply(ctx: Context, config: Config): void {
   // read_image is composition-conditional: without a mounted attachment store
   // the deployment cannot durably commit image bytes, so the tool never
   // registers; the execute body keeps a defensive re-check for direct callers.
+  // The same store keeps the local images a reply shows, so they outlive the
+  // file and reach the account's other devices.
   ctx.inject(['attachments'], (imageCtx) => {
     applyReadImageTool(imageCtx, resolved.confineToWorkspace)
+    applyReplyImages(imageCtx, resolved.confineToWorkspace)
   })
   if (!resolved.mutations) return
   // One escalation API shared by both mutating tools: advertisement gating,
