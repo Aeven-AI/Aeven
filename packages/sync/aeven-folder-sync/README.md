@@ -11,12 +11,16 @@ English | [中文](README.zh.md)
 
 The `ctx.aevenFolder` service owns the Aeven folder: the directory where Aeven keeps the files it makes for the user, such as decks, CVs, films and their previews. The desktop app sets it to `~/Documents/Aeven` and lets every session write there without asking, through the sandbox policy's `writableRoots`.
 
+Without `perAccount` the folder belongs to one account of the device: the first to attach records itself in the folder's `.aeven-account` file, and the device's other accounts get no Aeven folder there, so one account's files never travel with another's.
+
 When account sync and file sync run, each device shares its Aeven folder under one folder id derived from the account (`aevenFolderId`), so the account's devices and the encrypted file cloud copy join the same folder without coordinating. Each device also records the absolute path of its folder in the account's `aeven-folder/paths` document. `localPath(owner, path)` maps a path any device of the account wrote inside its Aeven folder to the same file here; the `/api/workspace-file` route uses it, so an image a reply on one Mac shows opens on the account's other devices. With `perAccount`, each account keeps its own folder at `<path>/<account>`, for a Host serving several accounts.
 
 | Config | Default | Meaning |
 |---|---|---|
 | `path` | required | Absolute directory of the Aeven folder on this device |
-| `perAccount` | `false` | Each account keeps its own folder at `<path>/<account>` |
+| `perAccount` | `false` | Each account keeps its own folder at `<path>/<account>`; otherwise `path` belongs to the first account that attaches |
+| `announcePeer` | `false` | List this device as the account's hosted peer in `file-sync/peers` and share with the devices listed there, while it holds the account key; for a Host without workspace file sync |
+| `advertise` | `true` | Name the folder in the model's runtime context |
 
 ## Table of Contents
 

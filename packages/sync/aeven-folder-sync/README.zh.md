@@ -11,12 +11,16 @@ kind: "package-reference"
 
 `ctx.aevenFolder` 服务管理 Aeven 文件夹：Aeven 存放为用户制作的文件（如演示文稿、简历、影片及其预览图）的目录。桌面应用把它设为 `~/Documents/Aeven`，并通过沙箱策略的 `writableRoots` 让每个会话无需询问即可写入。
 
+未启用 `perAccount` 时，该文件夹属于设备上的一个账户：第一个接入的账户把自己记录在文件夹的 `.aeven-account` 文件中，设备上的其他账户在此没有 Aeven 文件夹，因此一个账户的文件绝不会随另一个账户同步。
+
 账户同步和文件同步运行时，每台设备以从账户派生的同一个文件夹 id（`aevenFolderId`）共享其 Aeven 文件夹，因此账户的各台设备与加密的文件云副本无需协调即加入同一个文件夹。每台设备还把自己文件夹的绝对路径记录在账户的 `aeven-folder/paths` 文档中。`localPath(owner, path)` 把账户任一设备在其 Aeven 文件夹内写下的路径映射到本机上的同一文件；`/api/workspace-file` 路由使用它，因此一台 Mac 上回复展示的图片可以在账户的其他设备上打开。启用 `perAccount` 时，每个账户在 `<path>/<account>` 拥有自己的文件夹，供服务多个账户的 Host 使用。
 
 | 配置 | 默认值 | 含义 |
 |---|---|---|
 | `path` | 必填 | 本设备上 Aeven 文件夹的绝对目录 |
-| `perAccount` | `false` | 每个账户在 `<path>/<account>` 拥有自己的文件夹 |
+| `perAccount` | `false` | 每个账户在 `<path>/<account>` 拥有自己的文件夹；否则 `path` 属于第一个接入的账户 |
+| `announcePeer` | `false` | 在持有账户密钥期间，把本设备作为账户的托管对等设备列入 `file-sync/peers`，并与其中列出的设备共享；供没有工作区文件同步的 Host 使用 |
+| `advertise` | `true` | 在模型的运行时上下文中写出该文件夹 |
 
 ## 目录
 

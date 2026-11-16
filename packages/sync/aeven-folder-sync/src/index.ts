@@ -2,6 +2,10 @@
  * The account's Aeven folder: the directory where Aeven keeps the files it makes for the user, such as decks, CVs,
  * films, and their previews, kept the same on every device of the account through file sync.
  *
+ * Without `perAccount` the folder belongs to one account of this device: the first to attach records itself in the
+ * folder's `.aeven-account` file, and the device's other accounts get no Aeven folder here, so one account's files
+ * never travel with another's.
+ *
  * Each device shares its Aeven folder under one folder id derived from the account, so the account's devices and its
  * encrypted file cloud copy all join the same folder without coordinating. Each device also publishes where its Aeven
  * folder lives in the account's `aeven-folder/paths` document, so a path one device wrote, such as an image a reply
@@ -11,12 +15,12 @@
  * A Host that serves an account's readers without workspace file sync, such as Aeven Cloud, sets `announcePeer`: it
  * then lists itself, marked hosted, in the account's `file-sync/peers` document and shares with the devices listed
  * there, so its copy of the folder serves the account's readers while every desktop is offline. It does so only while
- * the relay holds the account key; the desktops share with a hosted device only then.
+ * it holds the account key: the relay holds it, or the user unlocked a passkey-protected account there.
  * @module @aeven/aeven-folder-sync
  */
 
 import { createHash } from 'node:crypto'
-import { mkdir } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { isAbsolute, join, relative } from 'node:path'
 import { Service, type Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
@@ -45,9 +49,12 @@ const PEERS = 'file-sync/peers'
 /** One device's file transport identity as the peers document holds it. */
 interface SyncedPeer {
   peer: string
-  /** The device is a Host serving the account's readers, shared with only while the relay holds the account key. */
+  /** The device is a Host serving the account's readers, which listed itself while it held the account key. */
   hosted?: true
 }
+
+/** The file inside a shared Aeven folder naming the one account it belongs to. */
+const OWNER_FILE = '.aeven-account'
 
 /** One device's Aeven folder as the paths document holds it. */
 interface SyncedPath {
@@ -60,8 +67,8 @@ export interface Config {
   /** Absolute directory of the Aeven folder on this device, such as `~/Documents/Aeven` expanded. */
   path: string
   /**
-   * Whether each account keeps its own folder at `<path>/<account>` (default false: every account of this device
-   * shares `path`). A Host serving several accounts sets true.
+   * Whether each account keeps its own folder at `<path>/<account>` (default false: `path` belongs to the first
+   * account of this device that attaches, and the others get none). A Host serving several accounts sets true.
    */
   perAccount: boolean
   /**
@@ -101,6 +108,9 @@ export class AevenFolder extends Service {
 
   private readonly documents = new Map<string, Promise<SyncDocument | undefined>>()
   private readonly peerDocuments = new Map<string, Promise<SyncDocument | undefined>>()
+  private readonly folders = new Map<string, Promise<string | undefined>>()
+  /** Each account's folder once {@link folderOf} settled, for the synchronous runtime context. */
+  private readonly settled = new Map<string, string>()
 
   /**
    * @param ctx - Host context; `sync` and `fileSync` are read optionally.
@@ -124,8 +134,9 @@ export class AevenFolder extends Service {
         order: scoped.systemPrompt.getContextOrder('AEVEN_FOLDER'),
         text: (context) => {
           const owner = context.agent?.session.header.owner
-          if (owner === undefined && this.config.perAccount) return ''
-          const path = JSON.stringify(this.pathOf(owner ?? ''))
+          const folder = owner === undefined ? undefined : this.settled.get(owner)
+          if (folder === undefined) return ''
+          const path = JSON.stringify(folder)
           return `Aeven folder: ${path}. Save the files you make for the user there, one folder per piece of work, unless they name another place: every device of their account and Aeven Web receive what it holds.`
         },
       })
@@ -133,12 +144,36 @@ export class AevenFolder extends Service {
   }
 
   /**
-   * The Aeven folder of an account on this device.
+   * The Aeven folder of an account on this device. Without `perAccount`, the first account to ask claims `path`.
    * @param owner - the account.
-   * @returns its absolute directory.
+   * @returns its absolute directory, or undefined when another account of this device owns the folder.
    */
-  pathOf(owner: string): string {
-    return this.config.perAccount ? join(this.config.path, owner) : this.config.path
+  folderOf(owner: string): Promise<string | undefined> {
+    const existing = this.folders.get(owner)
+    if (existing !== undefined) return existing
+    const resolving = (this.config.perAccount ? Promise.resolve(join(this.config.path, owner)) : this.claim(owner))
+      .then((folder) => {
+        if (folder !== undefined) this.settled.set(owner, folder)
+        return folder
+      }, (error: unknown) => {
+        this.folders.delete(owner)
+        throw error
+      })
+    this.folders.set(owner, resolving)
+    return resolving
+  }
+
+  /** Record `owner` as the folder's account unless another already is; the exclusive create settles a race. */
+  private async claim(owner: string): Promise<string | undefined> {
+    const file = join(this.config.path, OWNER_FILE)
+    await mkdir(this.config.path, { recursive: true })
+    try {
+      await writeFile(file, `${owner}\n`, { flag: 'wx' })
+    } catch (error: unknown) {
+      // An existing file names the account that claimed the folder first.
+      if ((error as { code?: unknown } | null)?.code !== 'EEXIST') throw error
+    }
+    return (await readFile(file, 'utf8')).trim() === owner ? this.config.path : undefined
   }
 
   /**
@@ -148,7 +183,8 @@ export class AevenFolder extends Service {
    * @returns the same file's absolute path here, or undefined for a path inside no device's Aeven folder.
    */
   async localPath(owner: string, path: string): Promise<string | undefined> {
-    const here = this.pathOf(owner)
+    const here = await this.folderOf(owner)
+    if (here === undefined) return undefined
     const inside = (root: string): string | undefined => {
       const normalized = root.replace(/[/\\]+$/, '')
       for (const separator of ['/', '\\']) {
@@ -181,8 +217,13 @@ export class AevenFolder extends Service {
       return Promise.resolve(undefined)
     }
     const opening = sync.openDocument(owner, PATHS).then(async (handle) => {
-      const path = this.pathOf(owner)
+      const path = await this.folderOf(owner)
       const map: YMap<SyncedPath> = handle.doc.getMap<SyncedPath>(PATHS)
+      if (path === undefined) {
+        // Another account of this device owns the folder; this account's other devices map no path to it.
+        if (map.has(device)) map.delete(device)
+        return handle
+      }
       if (map.get(device)?.path !== path) map.set(device, { path })
       await this.share(owner, path)
       return handle
@@ -195,16 +236,14 @@ export class AevenFolder extends Service {
     return opening
   }
 
-  /**
-   * List this device as the account's hosted peer and share with the account's listed devices, while the relay holds
-   * the account key.
-   */
+  /** List this device as the account's hosted peer and share with the account's listed devices, while it holds the key. */
   private async announce(owner: string): Promise<void> {
     const sync = this.ctx.get('sync')
     const fileSync = this.ctx.get('fileSync')
     const status = sync?.status(owner)
     const device = status?.device
-    if (sync === undefined || fileSync === undefined || device === undefined || status?.protection?.mode !== 'server') return
+    const keyHeld = status?.protection !== undefined && !status.protection.locked
+    if (sync === undefined || fileSync === undefined || device === undefined || !keyHeld) return
     if (this.peerDocuments.has(owner)) return
     const opening = sync.openDocument(owner, PEERS).then(async (handle) => {
       const map: YMap<SyncedPeer> = handle.doc.getMap<SyncedPeer>('peers')
@@ -240,7 +279,6 @@ export class AevenFolder extends Service {
     const fileSync = this.ctx.get('fileSync')
     if (fileSync === undefined) return
     try {
-      await mkdir(path, { recursive: true })
       await fileSync.share({ id: aevenFolderId(owner), owner, path })
     } catch (error: unknown) {
       this.ctx.logger('aeven-folder-sync').warn(`sharing the Aeven folder failed: ${String(error)}`)

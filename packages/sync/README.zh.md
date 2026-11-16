@@ -49,7 +49,7 @@ kind: "package-group"
 | 偏好 | 每个账户的个性化设置存放在 `personalization` 文档中，按字段合并。 |
 | 设备名称 | `devices` 文档把每个设备 id 映射到该设备为自己起的名称。 |
 | 工作区文件 | 在桌面应用中，文件夹工作区的文件通过 Syncthing 点对点传输，不经过中转服务器；`file-sync/peers` 和 `file-sync/folders` 文档携带每台设备的传输 id，以及每个工作区的文件夹 id、大小和位置提示。仓库工作区改为通过 Git 同步：`workspace-git/repositories` 携带其去掉凭据的远程、分支、位置提示、大小和持有者，`workspace-git/env/<workspace id>` 携带其被忽略的环境文件。 |
-| Aeven 文件夹 | Aeven 为用户制作的文件（桌面应用中为 `~/Documents/Aeven`）以每个账户一个文件夹的形式通过 Syncthing 传输，到达每台桌面设备、加密的文件云副本，并在中继持有账户密钥时到达 Aeven Cloud，由它向 Aeven Web 提供；`aeven-folder/paths` 携带每台设备的文件夹路径，使一台设备写下的路径能在另一台设备上打开。 |
+| Aeven 文件夹 | Aeven 为用户制作的文件（桌面应用中为 `~/Documents/Aeven`）以每个账户一个文件夹的形式通过 Syncthing 传输，到达每台桌面设备、加密的文件云副本，并在 Aeven Cloud 持有账户密钥时到达它，由它向 Aeven Web 提供；`aeven-folder/paths` 携带每台设备的文件夹路径，使一台设备写下的路径能在另一台设备上打开。 |
 
 凭据、提供方密钥、连接器令牌、设备设置、缓存、索引和日志留在设备上。
 

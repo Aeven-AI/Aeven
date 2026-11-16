@@ -815,9 +815,9 @@ export class WorkspaceFiles extends TypertRemoteService {
   private async aevenFolderFile(owner: string | undefined, path: string, signal: AbortSignal): Promise<FsTarget | undefined> {
     const folder = this.ctx.get('aevenFolder')
     if (folder === undefined || owner === undefined || !isAbsolute(path)) return undefined
-    const local = await folder.localPath(owner, path)
-    if (local === undefined) return undefined
-    const root = await this.ctx.fs.resolve(folder.pathOf(owner), { signal })
+    const [local, here] = await Promise.all([folder.localPath(owner, path), folder.folderOf(owner)])
+    if (local === undefined || here === undefined) return undefined
+    const root = await this.ctx.fs.resolve(here, { signal })
     const target = await this.ctx.fs.resolve(local, { signal })
     // A symbolic link inside the folder may point anywhere; only files the folder itself holds are its own.
     return this.ctx.fs.contains(root, target) ? target : undefined
