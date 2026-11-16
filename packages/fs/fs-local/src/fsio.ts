@@ -11,6 +11,7 @@ import { chmod, link, lstat, mkdir, open, readFile, realpath, readdir, rename, r
 import type { BigIntStats, Dirent, Stats } from 'node:fs'
 import { basename, dirname, join, resolve } from 'node:path'
 import { TextDecoder } from 'node:util'
+import { homedir } from 'node:os'
 import { FsError, FsTargetKey, FsVersion } from '@aeven/fs'
 import { copyFileDaclWin32, replaceFileWin32 } from './win32.ts'
 
@@ -26,6 +27,19 @@ function isEEXIST(error: unknown): boolean {
   return error instanceof Error && 'code' in error && error.code === 'EEXIST'
 }
 
+
+/**
+ * Replace a leading `~` with the host user's home directory in a caller-supplied path.
+ * `~/` is recognized on every platform and `~\\` only on Windows; `~user` and later `~`
+ * segments stay literal. The rest of the spelling is kept so parent traversal still resolves physically.
+ * @param path - requested path from a model, plugin, or other caller; never a directory entry name.
+ * @returns the path with its home prefix replaced, or `path` unchanged.
+ */
+export function expandHomePrefix(path: string): string {
+  /* v8 ignore next -- Native Windows tests cover the `~\\` prefix; POSIX keeps it literal. */
+  if (path === '~' || path.startsWith('~/') || (process.platform === 'win32' && path.startsWith('~\\'))) return `${homedir()}${path.slice(1)}`
+  return path
+}
 /**
  * A path component that is expected to be a directory is a regular file (e.g.
  * resolving `afile/child.txt` when `afile` is a file). Like `ENOENT`, the target

@@ -88,6 +88,10 @@ With `avn-command-compact` mounted, type `/compact` in a chat UI to condense imm
 
 Mount `avn-compaction-tool-result-pruner` before this package to trim oversized tool results as part of condensation. Trimming makes no model call and can remove the need to summarize at all: when the trimmed conversation fits within the threshold, condensation skips the summary. Trimming only runs after a condensation trigger qualifies — a below-pressure conversation is never touched.
 
+### Switching models
+
+When a request selects a different provider/model than the session's last request, automatic compaction first prices the existing history against the new model's context window and pressure policy. If the history is above that threshold, the previous model, which has room for it, condenses it before the request goes out; an explicitly configured summary target still takes precedence. If that condensation fails, the request is sent anyway and the usual overflow recovery applies, so switching models never fails because of compaction.
+
 -----
 
 <a id="understand-the-implementation"></a>
@@ -110,6 +114,8 @@ The backend is built on four commitments:
 ### Automatic triggers and overflow recovery
 
 With `auto: true`, a serial `agent/pre-step` listener checks pressure before request derivation: it prices the latest durable routed request envelope through `ctx.tokenMeter`, and when pressure crosses the routed model's threshold it prunes, then summarizes the oldest balanced span while keeping a priced recent tail. The `agent/request-error` listener reacts to a provider-confirmed `CONTEXT_WINDOW_EXCEEDED`: it bypasses the normal threshold and retention policy, condenses the whole compactable surface, and authorizes a retry only after the surface replacement generation advances. Because the summary call replays the span it condenses, a span the endpoint rejects with `CONTEXT_WINDOW_EXCEEDED` or `MESSAGE_COUNT_EXCEEDED` is halved toward the head until a summary request is accepted; recovery then condenses the remainder together with that checkpoint. Pressure compaction applies the same halving. Cancellation stays authoritative throughout.
+
+A prepended `agent/request` listener waits for the model-selection listeners, and when the selected provider/model differs from the committed request header it runs the same pressure path against the proposed header (`compactPressure`) before the new header is logged. A failure there is logged as a warning and the request proceeds.
 
 Pressure policy resolves capacity from the adapter that owns the durable route. An adapter that returns no capacity for a valid dynamic route makes the manual pressure path throw a target-specific configuration error; the automatic listener warns once for that exact target and continues with full history.
 

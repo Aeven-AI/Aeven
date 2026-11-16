@@ -81,7 +81,7 @@ Existing roots are watched, so adding, renaming, or deleting a skill (or editing
 
 ### Observable success and failures
 
-A valid skill under any scanned root appears in the session catalog sorted by name, and loading it returns the current file body. A file without valid frontmatter, an invalid name, or an invalid invocation value is skipped with a warning, so the model catalog receives no per-skill diagnostic and cannot distinguish an absent skill from an invalid one. Unexpected discovery or read failures leave the catalog observation incomplete rather than replacing the last-good view with a misleading deletion.
+A valid skill under any scanned root appears in the session catalog sorted by name, and loading it returns the current file body. A file without valid frontmatter, an invalid name, or an invalid invocation value is skipped with a warning, so the model catalog receives no per-skill diagnostic and cannot distinguish an absent skill from an invalid one. A root whose discovery fails is skipped with a warning and marks the observation incomplete; the other roots' skills stay listed, so a lower-priority same-name skill can supply the description and body until the root recovers. Discovery retries on the next lookup.
 
 -----
 

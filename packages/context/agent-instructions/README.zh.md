@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-当 agent（智能体）需要依据工作区自身的指令文件工作时，挂载此插件。`avn-base` 已包含它并给予 65,536 字节预算，因此基于 base 的 profile 仅在需要其他 `maxBytes` 时替换该配置行；没有文件系统提供方的树加载不到任何内容，直到提供方出现。
+当 agent（智能体）需要依据工作区自身的指令文件工作时，挂载此插件。`avn-base` 已包含它并为每条指令链给予 65,536 字节预算，因此基于 base 的 profile 仅在需要其他 `maxBytes` 时替换该配置行；没有文件系统提供方的树加载不到任何内容，直到提供方出现。
 
 ### agent 获得的内容
 
@@ -33,7 +33,7 @@ kind: "package-reference"
 
 ### 配置
 
-默认设置适合典型检出：`.git` 标记项目根目录，`AGENTS.md` 与 `CLAUDE.md` 是基础候选，`AGENTS.local.md` 与 `CLAUDE.local.md` 是叠加的本地 overlay。只有 `maxBytes` 必填——它限制完整渲染后的基线，让每个部署显式选择自己的提示词预算。
+默认设置适合典型检出：`.git` 标记项目根目录，`AGENTS.md` 与 `CLAUDE.md` 是基础候选，`AGENTS.local.md` 与 `CLAUDE.local.md` 是叠加的本地 overlay。只有 `maxBytes` 必填——它在每条渲染消息内分别限制用户全局指令链与项目指令链，让每个部署显式选择自己的提示词预算；同时包含两条链的消息至多为 `maxBytes` 的两倍。
 
 ```yaml
 - name: '@aeven/agent-instructions'
@@ -56,7 +56,7 @@ export interface Config {
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
-| `maxBytes` | 必填 | 完整渲染基线消息的上限，单位为字节 |
+| `maxBytes` | 必填 | 一条渲染消息中每条指令链（用户全局、项目）的上限，单位为字节；同时包含两条链的消息最多为该值的两倍 |
 | `maxSourceBytes` | `1048576` | 渲染前单个源指令文件的上限 |
 | `projectRootMarkers` | `['.git']` | 标记项目根目录的目录名 |
 | `instructionFileCandidates` | `['AGENTS.md', 'CLAUDE.md']` | 每个项目目录中加载的基础文件名 |
@@ -67,7 +67,9 @@ export interface Config {
 
 ### 观察预算
 
-渲染会优先保留最具体的文件：先丢弃完整的较宽泛文件，再截断最具体的文件，并发出可见的 `Workspace instruction budget ...` 通知，指名被省略与被截断的路径。渲染后的字节数绝不超过 `maxBytes`。超出预算的宽泛文件会被忽略；刷新期间它被视为暂时不可用，而非被移除。
+渲染分别为用户全局指令链与项目指令链做预算，每条链各受 `maxBytes` 限制。在一条链内，渲染优先保留最具体的文件：先丢弃完整的较宽泛文件，再截断剩下的最后一个文件，然后依次退回到精简引言、带该文件空标题的预算通知，最后是仅含预算通知的文本。因此用户全局文件只有超出自身预算时才会被省略或截断；下文的回退情形除外。可见的 `Workspace instruction budget ...` 通知会指名两条链中被省略与被截断的路径。超出预算的宽泛文件会被忽略；刷新期间它被视为暂时不可用，而非被移除。
+
+所有文件合起来能放进 `maxBytes` 时，消息包含全部文件且没有预算通知；只有一条链有文件时，该链单独在 `maxBytes` 内渲染。其他情况下，一个 `<system-reminder>` 框架包含合并后的预算通知（仅当有文件被省略或截断时）、一段引言（仅当某条链保留了框架时），以及按加载顺序排列的两条链渲染段落，因此基线中用户全局文件在前；这条消息可以超过 `maxBytes`，但至多为其两倍。若某条链在没有框架的情况下渲染，且合并后的框架会超过 `maxBytes` 的两倍，则所有文件改为作为一条链在一个 `maxBytes` 内渲染，这可能省略一个本可放进自身预算的用户全局文件；这只会在预算只有几百字节，或预算通知接近或超过 `maxBytes` 时发生。[DSH 回移说明](../../../.agents/notes/implemented/bug-fix/2026-11-17-dsh-backports.zh.md)记录了两条链分别预算的原因。
 
 -----
 
@@ -146,7 +148,7 @@ Instructions from: AGENTS.md
 
 #### Token 影响
 
-渲染后基线只追加一次，并保留在派生历史中直到压缩。`maxBytes` 限制完整消息，较宽泛文件在最具体文件截断之前被省略，空指令链不产生 token。
+渲染后基线只追加一次，并保留在派生历史中直到压缩。`maxBytes` 分别限制用户全局指令链与项目指令链，因此同时包含两条链的基线最多为 `maxBytes` 的两倍；每条链内较宽泛文件在最具体文件截断之前被省略，空指令链不产生 token。
 
 #### KV Cache 影响
 
@@ -196,7 +198,7 @@ The previously loaded instructions from this file no longer apply.
 
 #### Token 影响
 
-每项已确认变更或移除都是一条受 `maxBytes` 限制的保留历史消息。提供方失败不添加消息，预算省略的更新仍可在后续文件系统 touch 中处理。
+每批已确认的变更或移除是一条保留历史消息。`maxBytes` 限制其中每条指令链，因此同时包含用户全局与项目变更的批次最多为 `maxBytes` 的两倍。提供方失败不添加消息，预算省略的更新仍可在后续文件系统 touch 中处理。
 
 #### KV Cache 影响
 
@@ -214,7 +216,8 @@ The previously loaded instructions from this file no longer apply.
 - **候选语义有意保持简单**：不解释小写名称、`.claude/rules/` 与 `@path` import；项目 scope 默认加载 `AGENTS.local.md`／`CLAUDE.local.md` overlay，但用户全局 `$AVN_HOME` scope 没有本地 overlay，其他自定义名称需要显式候选配置。
 - **每目录去重基于内容**：同级候选只有在去除首尾空白后字节完全一致时才折叠。`CLAUDE.md` 若 symlink 到同级 `AGENTS.md`，会解析为相同内容并像任何重复项一样折叠；从 `AGENTS.md` 漂移的独立副本则会与它一起完整加载。
 - **Symlink 指令文件会跨越信任边界跟随**：最终组件是 symlink 的候选文件会被解析并加载其目标，因此克隆仓库可以将树外文件内容呈现为较低优先级的工作区指引（它绝不覆盖 system、developer 或用户直接下达的指令）。加载不受信任仓库时，请用文件系统策略门禁或 OS 沙箱限制 `ctx.fs`。
-- **指令内容受限但不会被摘要**：超出预算的宽泛文件会被省略，最具体文件可能被截断；该插件绝不请求模型压缩指令文本。
+- **指令内容受限但不会被摘要**：在每条链内，超出预算的宽泛文件会被省略，该链最具体的文件可能被截断；该插件绝不请求模型压缩指令文本。
+- **预算不在链之间共享**：一条链未用完的字节不会让给另一条链，因此即使项目链只用 1 KiB，70 KiB 的用户全局文件也会被截断到 `maxBytes` 以内。
 
 <a id="dev-note"></a>
 

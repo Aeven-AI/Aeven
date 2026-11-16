@@ -37,6 +37,8 @@ The Client adapter exposes `SessionEventStream`, a Gateway `RemoteJournalStream`
 
 The Session object also carries local submission echoes: `session.beginSubmission` inserts one into `SessionSnapshot.pendingSubmissions` synchronously, before the caller serializes and prompts, so a conversation UI can show the message on the submit click's own frame. Session derives each echo's `transcript`, `queued`, or `steering` placement from its current running state and the requested delivery mode, then retains that placement while serialization is in flight. The prompt's `requestId` is the correlation identity: the Host echoes it as the durable user source's `rpcId`, and queue occurrences project it as `SessionQueuedItem.rpcId`. An echo retires one animation frame after its durable event or queue occurrence is observed (the delay keeps it renderable until the replacement is ready), immediately when its identified prompt fails or is abandoned, and as failed on disposal; each retirement fires the registered `onRetire` callback exactly once. Echoes are Client memory only; reload and reconnect rebuild the conversation from durable events alone.
 
+Prompt retries use the request identity in the first committed inbox insertion, including after the message is claimed or removed. Admission checks again after asynchronous attachment preparation, so concurrent retries accept one input. Acceptance acknowledges insertion, not execution or completion.
+
 -----
 
 <a id="configuration"></a>

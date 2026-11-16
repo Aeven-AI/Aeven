@@ -168,6 +168,7 @@ The adapter is built on immutable snapshots and per-operation resolution. Each o
 | [`src/context.ts`](src/context.ts) | Harness-to-pi-ai context conversion, image handling, replay restore |
 | [`src/stream.ts`](src/stream.ts) | pi-ai event conversion into harness `StreamChunk` values |
 | [`src/replay.ts`](src/replay.ts) | Versioned `ReplayEnvelope` storage and validation |
+| [`src/prefix-binding.ts`](src/prefix-binding.ts) | Anthropic thinking omission after a request-prefix change |
 | [`src/live-catalog.ts`](src/live-catalog.ts) | Fetches a provider's published model document and materializes the entries the snapshot lacks |
 | [`src/known-routes.ts`](src/known-routes.ts) | Providers this package can configure although pi-ai ships no catalog for them |
 | [`src/discovery.ts`](src/discovery.ts) | Endpoint interrogation for configuration surfaces |
@@ -179,6 +180,8 @@ The plugin declares every installed catalog provider it can authenticate in the 
 ### Replay and vocabulary
 
 Successful assistant responses store a versioned, lossless-JSON replay state beside the provider and model that produced them — response-level facts plus one per-block entry per streamed block. At request time, `LlmRuntime` passes replay state only when the same adapter instance owns both routes; the adapter validates it and restores native response ids and provider signatures, degrading an unusable state to provider-neutral content instead of failing the request. pi-ai tool-call arguments are parsed objects, so the adapter parses input and re-stringifies output to the harness raw-JSON convention; pi-ai in-stream error events map to terminal `finish` chunks.
+
+Anthropic can bind each signed thinking block to the request prefix it was generated under: system prompt, tools, and earlier messages. Accounts and requests that enforce this check reject a request that replays a stale block. Anthropic Messages responses therefore record a SHA-256 digest of their request context as `prefixDigest`. A later Anthropic Messages request recomputes the digest of the reconstructed prefix before each replayed response and omits that response's signed and redacted thinking when the digests differ, as after compaction, tool-result pruning, image offload, or a system-prompt or tool change. Replay state without `prefixDigest`, written before this check existed or by an older build on another device, is treated the same way, which repairs conversations that already fail. Text, tool calls, and unsigned thinking remain; a response that held only signed thinking is no longer sent. Omitted thinking stays omitted on later requests. Manual thinking requires the final assistant turn of a tool round to start with a thinking block, so when a request enables thinking and the model's compat does not set `forceAdaptiveThinking`, the assistant message whose tool round the request continues with tool results keeps its thinking.
 
 </details>
 
@@ -213,7 +216,7 @@ Provider tokenization governs exact input. Retained images add the stable attach
 
 #### KV Cache effect
 
-Conversion preserves logical request order, while image handles and offload placeholders add model-visible text. A changed execution-world path rewrites a historical handle and can prevent reuse from that image even when attachment identity and request bytes stay stable. Changing adapter instance, provider, model, or another upstream token has the same suffix effect. Crossing the image bound replaces an earlier image with placeholder text, so reuse ends at that message until the offloaded prefix stabilizes.
+Conversion preserves logical request order, while image handles and offload placeholders add model-visible text. A changed execution-world path rewrites a historical handle and can prevent reuse from that image even when attachment identity and request bytes stay stable. Changing adapter instance, provider, model, or another upstream token has the same suffix effect. Omitting stale Anthropic thinking follows a prefix change that already ended reuse at the changed message; the first request that omits thinking recorded without a digest ends reuse at the first such message once. Crossing the image bound replaces an earlier image with placeholder text, so reuse ends at that message until the offloaded prefix stabilizes.
 
 ### Provider response
 
@@ -251,6 +254,7 @@ These limits define where the adapter stops and future work begins. They are cur
 - **In-history `system` messages use pi-ai's common context conversion** — provider-specific placement follows pi-ai rather than a harness-owned wire override.
 - **Provider HTTP status is unavailable** — pi-ai error events do not expose a stable HTTP status across providers.
 - **Retry policy is provider-owned, not an SDK retry** — pi-ai SDK retries stay disabled so durable agent steps and `llm/retry` events own every visible attempt, and direct `ctx.llm.stream()` calls remain single-attempt.
+- **Stale Anthropic thinking is omitted even where the endpoint would accept it** — prefix checks depend on the model, the account, and the request, which the adapter cannot observe, so every prefix change and every replay state without `prefixDigest` costs the model that reasoning, and Anthropic regenerates it as output tokens. The digest covers the pi-ai context objects, not the wire body: switching authentication or wire-changing compat settings mid-conversation is not detected, a pi-ai upgrade that changes Anthropic message serialization requires a new `DIGEST_SEED` in [`src/prefix-binding.ts`](src/prefix-binding.ts), and any change to how this package builds those objects drops recorded thinking once.
 
 <a id="dev-note"></a>
 ### Dev Note

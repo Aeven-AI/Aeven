@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { mkdir, readdir, readFile, rename, rm, stat, symlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -878,5 +878,47 @@ describe('FileSystemSkillProvider', () => {
         process.env.AVN_BUNDLED_SKILL_DIR = previousBundledSkillDir
       }
     }
+  })
+})
+
+describe('unreadable skill roots', () => {
+  it.each(['resolve', 'list', 'read'] as const)('isolates a root %s failure and retries without losing readable roots', async (operation) => {
+    const home = await tempDir('skill-root-isolation')
+    const before = join(home, 'before')
+    const broken = join(home, 'broken')
+    const after = join(home, 'after')
+    await writeSkill(before, 'before-skill', 'Readable earlier root')
+    await writeSkill(broken, 'recovered-skill', 'Recoverable root')
+    await writeSkill(after, 'after-skill', 'Readable later root')
+    await writeSkill(after, 'before-skill', 'Lower-priority duplicate')
+    const ctx = new Context()
+    const fsFiber = await ctx.plugin(TestFileSystem)
+    onTestFinished(() => fsFiber.dispose())
+    const registryFiber = await ctx.plugin(SkillRegistry)
+    onTestFinished(() => registryFiber.dispose())
+    const providerFiber = await ctx.plugin(SkillFileSystem, {
+      includeDefaultRoots: false,
+      customSkillDirs: [before, broken, after],
+      watch: false,
+    })
+    onTestFinished(() => providerFiber.dispose())
+    const warnings = vi.spyOn(ctx.logger, 'warn')
+    onTestFinished(() => { warnings.mockRestore() })
+    const fs = ctx.fs as TestFileSystem
+    const failures = operation === 'resolve' ? fs.errorResolvePaths
+      : operation === 'list' ? fs.failListDirPaths : fs.errorReadPaths
+    failures.add(operation === 'read' ? join(broken, 'recovered-skill/SKILL.md') : broken)
+
+    expect(await ctx.skills.snapshot()).toMatchObject({
+      complete: false,
+      skills: [{ name: 'after-skill' }, { name: 'before-skill', description: 'Readable earlier root' }],
+    })
+    expect((await ctx.skills.get('after-skill'))?.content).toBe('Use the skill.')
+    expect(warnings).toHaveBeenCalledWith(expect.stringContaining(broken))
+    failures.clear()
+    expect(await ctx.skills.snapshot()).toMatchObject({
+      complete: true,
+      skills: [{ name: 'after-skill' }, { name: 'before-skill' }, { name: 'recovered-skill' }],
+    })
   })
 })

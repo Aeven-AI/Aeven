@@ -52,7 +52,7 @@ agent（智能体）可以在会话期间发现并加载 skill（技能）：在
 - **会话目录。** 当存在模型可调用 skill 且 `skill` 工具可见时，agent 会在首次请求前收到一条持久的用户角色消息，列出每个 skill 的名称与有长度上限的描述；该消息告诉模型在着手任务前先用工具加载 skill，且绝不能仅凭摘要推断指令。
 - **加载工具。** 模型以精确的 skill 名称调用 `skill`，并收到完整指令正文以及规范的 `<skill_content>` 块中的资源指引；该结果作为普通工具历史保留。
 - **用户显式调用。** 直接用户输入中的 `/name` token 若指名某个用户可调用 skill，会把该 skill 的指令注入当轮次，而无需模型自行加载。
-- **实时目录更新。** 后续成员关系、描述或可见性变化会追加完整的替换目录；删除全部 skill 时会追加空目录，停用较早的名称。
+- **实时目录更新。** 后续成员关系、描述、可见性或完整性变化会追加替换目录；删除全部 skill 时会追加空目录，停用较早的名称。
 
 ### 可观察的成功与失败
 
@@ -81,7 +81,7 @@ agent（智能体）可以在会话期间发现并加载 skill（技能）：在
 
 ### 目录生命周期
 
-在每次符合条件的 `agent/pre-step`，插件都会快照调用会话的 skill 目录，应用 `skill` 工具的精确可见性，过滤出模型可调用的 skill，并把条目 digest 与会话日志中最新可见的 `skill-catalog` 消息做比较。digest 变化时，它把包含完整替换目录的持久用户角色消息交给 `enter` 决策；空替换会显式停用较早的名称。提供方快照不完整时不发送任何内容，并为下一次 pre-step 保留最后一份可用视图。可见性检查针对本插件所注册的精确工具定义，因此作用域内同名的遮蔽项会同时移除 schema 及其指引；该插件既可全局挂载，也可挂在单个 agent 的组合内。
+在每次符合条件的 `agent/pre-step`，插件都会快照调用会话的 skill 目录，应用 `skill` 工具的精确可见性，过滤出模型可调用的 skill，并把条目与完整性的 digest 同会话日志中最新可见的 `skill-catalog` 消息做比较。digest 变化时，它把包含完整替换目录的持久用户角色消息交给 `enter` 决策；空替换会显式停用较早的名称。快照不完整时仍会发布可读条目，并附带发现提示和持久化的 `incomplete: true` 来源元数据，即使已无可用条目；完整性参与 digest，因此恢复后即使条目相同也会清除提示。可见性检查针对本插件所注册的精确工具定义，因此作用域内同名的遮蔽项会同时移除 schema 及其指引；该插件既可全局挂载，也可挂在单个 agent 的组合内。
 
 ### 调用边界
 
@@ -111,7 +111,7 @@ agent（智能体）可以在会话期间发现并加载 skill（技能）：在
 
 #### 模型看到什么
 
-如果存在模型可调用 skill，且可见的正是这个 `skill` 工具，agent 会在第一个请求之前收到下方目录模板，其中包含每个已排序 skill 的一条随数据而定的条目。该目录是一条持久的用户角色消息。后续成员关系、描述或可见性的变化会使用同一个 `<available_skills>` 信封追加完整替换；删除所有 skill 时，会追加一个空信封，并明确指示不得使用旧名称。模板的结尾一句是防止双重加载的规则：用户显式的手势边界（下文的 pre-step 监听器）会把同一份 `renderSkillContent` 输出（共享自 `@aeven/skill`）内联注入，目录则告诉模型遵循该块，而不是再经工具重新加载该 skill；替换目录模板的两个分支——包括清空后的目录——都携带同一条防双重加载规则。
+如果可见的正是这个 `skill` 工具，且存在模型可调用 skill 或发现不完整，agent 会在第一个请求之前收到下方目录模板，其中包含每个已排序 skill 的一条随数据而定的条目。该目录是一条持久的用户角色消息。后续成员关系、描述、可见性或完整性的变化会使用同一个 `<available_skills>` 信封追加替换；删除所有 skill 时，会追加一个空信封，并明确指示不得使用旧名称。某个 skill 根目录无法读取时，目录列出已确认的 skill，并在 `</available_skills>` 之后加上发现不完整提示；替换目录此时以 `Skill discovery is incomplete. This catalog of currently available skills replaces every earlier available-skills list in this session:` 开头；没有确认任何 skill 时，首个目录与替换目录使用下方的不完整空目录文本。模板的结尾一句是防止双重加载的规则：用户显式的手势边界（下文的 pre-step 监听器）会把同一份 `renderSkillContent` 输出（共享自 `@aeven/skill`）内联注入，目录则告诉模型遵循该块，而不是再经工具重新加载该 skill；替换目录模板的两个分支——包括清空后的目录——都携带同一条防双重加载规则。
 
 ##### Skill 目录模板
 
@@ -126,6 +126,25 @@ A skill is a reusable set of task-specific instructions. The following skills ar
 If the user names a skill, or the task clearly matches a skill's description, call the `skill` tool with the exact skill name before taking task actions. Load all applicable skills, then follow their full instructions. This catalog contains summaries only; do not infer or follow a skill's instructions until it has been loaded.
 A user may also invoke a skill directly; its <skill_content> block then appears in this conversation. Follow it, and do not call the `skill` tool again for that skill.
 </system-reminder>
+```
+
+##### 发现不完整提示
+
+```markdown
+Some skills could not be checked. Only confirmed skills are listed; a lower-priority definition of the same name may be selected when a preferred source is unavailable. Discovery will be retried on the next request.
+```
+
+##### 不完整的初始空目录
+
+```markdown
+No skills could be confirmed in this discovery attempt.
+Wait for an updated catalog before calling the `skill` tool. Do not infer skill instructions from an empty catalog.
+```
+
+##### 不完整的空替换目录
+
+```markdown
+No skills could be confirmed in this discovery attempt. Do not use names from earlier skill catalogs.
 ```
 
 #### Token 影响
