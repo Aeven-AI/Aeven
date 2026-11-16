@@ -34,6 +34,10 @@ Listing reads in bounded chunks only until the first complete frame is available
 
 EOF inside the final frame is a recoverable torn tail. After the scanner establishes that boundary, a dedicated prefix decoder uses `finishFlush: ZSTD_e_flush` so Node emits available plaintext without requiring frame or checksum completion; every complete newline-terminated event it emits is retained. Repair truncates from that frame's starting byte and appends one new checksummed frame containing the recovered complete events followed by the coordinator's synthetic tool, step, and turn closers. If the tear occurs before any complete event is decodable, repair drops the partial frame and retains all prior complete frames.
 
+### Idle consolidation
+
+Each frame compresses alone, so the frames of a long session cannot reuse each other's content: on 40 recorded desktop sessions the logs took 14.7 MB, against 6.2 MB for the same lines in frames of up to 4 MiB. Repeated `request/header` snapshots alone took 3.3 MB of the 14.7 MB because each one was compressed from scratch. When a log holds at least `consolidateAfterSmallFrames` (64) frames under 64 KiB, `consolidateZstdLog` (`src/consolidate.ts`) rewrites it: the header frame stays byte for byte, a frame that stands alone is kept, and each run of neighbouring frames becomes one checksummed frame of at most 4 MiB of text. The replacement is decoded and compared with the original text before it is used, and a log with a torn final frame is left to repair. Reading, merging, and writing the replacement run without the session's writer lock; the swap takes that lock for a stat and a rename, only when the log's inode, size, and mtime are unchanged since it was read, so no append or repair can interleave, a session another owner holds is skipped, and in this process writer acquisitions and swaps for one session are serialized so a reopened session waits for the swap instead of finding its lock taken. Logs are checked when their session's writer is released and once per root after the first listing, recorded by `.consolidation-sweep-1`. On 200 recorded logs the rewrite took 68.7 MB to 30.4 MB in one second, with every replacement verified.
+
 ### Consumers and verification
 
 The CLI, ACP, and stdio app bundles expose symmetric `persistenceCompression` pass-through configuration. The web host assembly and ordinary app compositions omit the option and use the compressed default. Snapshot recording and replay compositions select `'none'` explicitly because committed fixtures are raw JSONL inputs to replay and normalization.
@@ -46,12 +50,14 @@ The shared persistence and coordinator contracts run against both encodings. Bac
 - **Rewrite one whole compressed stream after every append** — rejected because cost grows with log size and replacement would give up append/fsync rollback and the established collision-safe materialization mechanics.
 - **Use a streaming compressor across appends** — rejected because an interrupted encoder state does not leave independently checksummed append units, complicating bounded listing and frame-start repair.
 - **Add an external native Zstandard dependency** — rejected because the supported Node floor already provides the required codec; another native artifact would enlarge installation and executable-packaging risk without adding a required behavior.
+- **Store `request/header` events as changes from the previous header** — would remove most of the snapshots' 11 MB of plain text in the 40 measured sessions, but changes a session event's format, the TypeScript and Python SDK projections, snapshot fixtures, and account sync's event replication; consolidation recovers the larger on-disk share without any format change.
 - **Expose compression level or keep raw JSONL as the default** — rejected because there is no deployment evidence for a second tuning policy, while `'none'` preserves the line-readable path for fixtures and integrations that need it.
 
 ## Consequences
 
 - Ordinary session roots store `.jsonl.zstd` and retain append-only, fsync, rollback, and interrupted-turn recovery semantics.
 - Raw JSONL remains a deliberate configuration, but changing encoding requires a fresh/separate root or selecting the mode that matches existing artifacts.
-- One frame per durable batch adds bounded framing/checksum overhead and allows header-only listing plus repair from an exact append boundary.
+- One frame per durable batch adds bounded framing/checksum overhead and allows header-only listing plus repair from an exact append boundary; idle consolidation later merges those frames, so a rewritten log keeps exact boundaries only for appends made since.
+- A consolidated log has a new revision, so revision-keyed readers such as session search and account sync read it once more.
 - External tools must understand concatenated Zstandard frames or consume raw-mode artifacts; generic one-shot Node decompression reads only the first independent frame, so backend reads walk frames through the [restore pipeline](2026-08-05-large-session-jsonl-restore-pipeline.md).
 - The implementation depends on Node's experimental built-in Zstandard API without an npm dependency; the supported-version compatibility gate makes drift visible.

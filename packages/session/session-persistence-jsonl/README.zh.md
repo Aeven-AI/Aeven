@@ -51,6 +51,7 @@ kind: "package-reference"
 | `compression` | `'zstd'` | 物理编码：`'zstd'` 带校验和帧，或 `'none'` 换行分隔 UTF-8 文本 |
 | `preparedSessionCacheSize` | `5` | 为恢复复用而保留的冷会话准备结果数量 |
 | `writeBatchMaxDelayMs` | `200` | 实时事件的固定聚合窗口，单位为毫秒 |
+| `consolidateAfterSmallFrames` | `64` | Zstandard 日志在被改写、相邻帧被合并之前可容纳的小 append 帧数；`0` 关闭合并 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#aevensession-persistence-jsonl)是每个受支持字段及其 JSDoc 的穷尽式真源。
 
@@ -94,6 +95,8 @@ kind: "package-reference"
 
 默认产物是独立 [Zstandard 帧](../../../.agents/notes/implemented/architecture/2026-07-19-zstandard-jsonl-session-logs.zh.md) 的标准拼接：一个仅包含 header 行的带校验和帧，后跟每个持久 append 批次一个带校验和帧，使用 Node 内置 Zstandard API 的默认压缩级别（无级别开关）。`sourceEventSeqs` 使用无损存储形式：至少包含三个序列号的连续段会变成 `[start, end]` 区间对，其他列表原样保留；读取时会展开回精确的内存数组。列表只读取并验证 header 帧。`compression: 'none'` 保留相同的存储形式逻辑行，但不使用帧压缩。一个根只属于一种编码：启动发现与定向查找会拒绝相反后缀，且不提供格式或压缩迁移、混合根回退或双写。启用 `packChunks` 时，符合条件的 ≥3 个连续同 block `assistant/chunk` delta 事件连续段会变成一行打包行（`text-chunks`/`reasoning-chunks`/`tool-call-chunks`），其 `seq0`/`time0` 与各成员的 `dt` 间隔精确重建每个成员；无损 codec 位于 `avn-session`，读取与布局无关，因此打包、非打包与混合文件加载结果一致。
 
+每个帧都单独压缩，因此长会话的小 append 帧无法复用彼此的内容：40 份已记录的桌面日志占 14.7 MB，而同样的文本放进较大的帧只需 6.2 MB。当日志中小于 64 KiB 的帧至少有 `consolidateAfterSmallFrames` 个时，后端会改写它：header 帧逐字节保留，单独成组的帧保持原样，每段相邻帧合并为一个最多含 4 MiB 文本的帧，并经过校验确保解码结果与原始行完全一致。读取、合并与写出替换文件都不持有会话的 writer 锁；替换只在一次 stat 与一次 rename 期间持有该锁，并且仅在日志自读取以来未变化时发生，因此由其他所有者持有的会话会被跳过，而在本进程中重新打开的会话会等待替换完成，而不是发现锁已被占用。会话的 writer 被释放时会检查其日志，首次列举之后还会在后台把每份日志检查一次，并以根目录文件 `.consolidation-sweep-1` 记录。改写会改变日志的修订，因此按修订读取的消费方会再读取一次。
+
 ### 源码地图
 
 | 文件 | 职责 |
@@ -101,6 +104,7 @@ kind: "package-reference"
 | [`src/index.ts`](src/index.ts) | 插件入口：`Config` schema、后端类、协调器接线 |
 | [`src/format.ts`](src/format.ts) | 日志路径派生、header 编码、记录扫描、打包行布局 |
 | [`src/zstd.ts`](src/zstd.ts) | Zstandard 帧压缩、解码与帧扫描 |
+| [`src/consolidate.ts`](src/consolidate.ts) | 把日志的小 append 帧合并为每帧最多 4 MiB 文本、解码结果相同的帧 |
 | [`src/win32.ts`](src/win32.ts) | Windows write-through 发布与目录创建 |
 | — | 不发布运行时不变式伴生入口；身份在存储层强制。 |
 

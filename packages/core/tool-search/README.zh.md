@@ -57,7 +57,7 @@ MCP 服务器的 namespace 标题取其 [`@aeven/mcp-client`](../../mcp/mcp-clie
 
 ### 加载到请求中或加载到 `run_code` 中
 
-`select:` 的加载方式取决于 agent 的工具呈现方式。当 agent 的请求呈现 `run_code`（[PTC 模式](../tools/README.zh.md) `both` 或 `ptc`）时，`select:` 以所挂载代码运行时的语言返回这些工具的 SDK 声明，模型在程序中以 `tools["<name>"](args)` 调用它们；请求的工具列表从不改变。否则 `select:` 返回这些工具的 schema，并把它们加入该 agent 之后的每次请求。
+`select:` 的加载方式取决于 agent 的工具呈现方式。当 agent 的请求呈现 `run_code`（[PTC 模式](../tools/README.zh.md) `both` 或 `ptc`）时，`select:` 以所挂载代码运行时的语言返回这些工具的 SDK 声明，模型在程序中以 `tools["<name>"](args)` 调用它们；请求的工具列表从不改变。否则 `select:` 返回这些工具的 schema，并按加载顺序把它们追加到该 agent 之后每次请求的其他所有工具之后。
 
 -----
 
@@ -65,7 +65,7 @@ MCP 服务器的 namespace 标题取其 [`@aeven/mcp-client`](../../mcp/mcp-clie
 
 ## 理解实现
 
-插件监听 `system-prompt/assemble`。对一个 agent，它从组装出的工具列表中移除延迟工具（保留已原生加载的工具），追加索引段落；没有任何延迟工具、也没有服务器宕机时，连 `tool_search` 本身也会移除。索引文本在该 agent 的首次请求时渲染，此后保持不变；之后每一步，一个 `agent/pre-step` 监听器会比较当前索引与模型上次收到的索引，两者不同时添加一条带完整替代索引、并被记录的用户消息。来源为 `compact` 的 `agent/session-start` 会丢弃固定的索引，因此压缩后的那次请求会渲染当前索引。
+插件监听 `system-prompt/assemble`。对一个 agent，它从组装出的工具列表中移除延迟工具，按加载顺序把已原生加载的工具追加到其余工具之后，追加索引段落；没有任何延迟工具、也没有服务器宕机时，连 `tool_search` 本身也会移除。索引文本在该 agent 的首次请求时渲染，此后保持不变；若会话最后一次请求头带有索引，恢复的 agent 沿用这段已记录的文本，而不是渲染恢复时的服务器状态，除非请求的 `run_code` 呈现方式已改变；之后每一步，一个 `agent/pre-step` 监听器会比较当前索引与模型上次收到的索引，两者不同时添加一条带完整替代索引、并被记录的用户消息。来源为 `compact` 的 `agent/session-start` 会丢弃固定的索引，因此压缩后的那次请求会渲染当前索引。
 
 服务器状态来自 `@aeven/mcp-client` 响应的、按 agent 作用域分发的 `mcp/servers` waterfall（瀑布式事件）。服务器的状态不是 `connected`、且其工具名称匹配延迟模式时，它会被列为未在服务。
 
@@ -81,7 +81,7 @@ MCP 服务器的 namespace 标题取其 [`@aeven/mcp-client`](../../mcp/mcp-clie
 
 #### 模型看到什么
 
-至少有一个工具被延迟、或至少一台执行延迟的服务器未在服务时，出现 `deferred-tools` 系统提示词段落。每个 namespace 一行，列出每个延迟工具（无论是否已加载）：MCP 服务器为 `- <title>: <prefix>{<name>, ...}`，原生工具分组为 `- <title>: <name>, ...`，按标题排序。有服务器宕机时随后是一个 `Not serving now:` 块，每台一行：`- <title> (<prefix>*): <stopped|reconnecting|starting>[ after: <error>]. tool_search "restart:<server>" connects it again.`。首行取决于请求是否呈现 `run_code`。
+至少有一个工具被延迟、或至少一台执行延迟的服务器未在服务时，出现 `deferred-tools` 系统提示词段落。每个 namespace 一行，列出每个延迟工具（无论是否已加载）：MCP 服务器为 `- <title>: <prefix>{<name>, ...}`，原生工具分组为 `- <title>: <name>, ...`，按标题排序。有服务器宕机时随后是一个 `Not serving now:` 块，每台一行，错误中的空白折叠为单个空格：`- <title> (<prefix>*): <stopped|reconnecting|starting>[ after: <error>]. tool_search "restart:<server>" connects it again.`。首行取决于请求是否呈现 `run_code`。
 
 ##### 不呈现 run_code 时的首行
 
@@ -101,7 +101,7 @@ Deferred tools: call them inside run_code as tools["<name>"](args). tool_search 
 
 #### KV 缓存影响
 
-该段落按 agent 渲染一次，在压缩前逐字节保持不变，因此连接、丢失或重启服务器都不会改变系统提示词。原生加载会把 schema 加入请求的工具列表，使下一次请求从工具列表起的缓存前缀失效；为 `run_code` 加载既不改变工具列表，也不改变系统提示词。
+该段落按 agent 渲染一次，在压缩前逐字节保持不变，Host 重启后恢复会话时也是如此，因此连接、丢失或重启服务器都不会改变系统提示词。原生加载把 schema 追加到请求的最后一个工具之后，使下一次请求从工具列表末尾起的缓存前缀失效——失效的是对话部分，而不是系统提示词或已声明的工具；为 `run_code` 加载既不改变工具列表，也不改变系统提示词。
 
 ### 索引更新消息
 

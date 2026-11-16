@@ -470,8 +470,30 @@ export function apply(ctx: Context, config: Config): void {
     return { userText, recall, profiled, cancel: () => { cancel.abort() } }
   }
 
+  /** Early starts the head of the pre-step chain hands to the recall listener, by agent. */
+  const started = new WeakMap<Agent, NonNullable<ReturnType<typeof startEarly>>>()
+
+  // Recall starts at the head of the pre-step chain, ahead of Host listeners that wait for connector sign-in,
+  // workspace sync, or a log flush before they continue, so it overlaps that work. The recall listener below keeps
+  // its place in the chain, and with it the order of the messages it appends.
   ctx.on('agent/pre-step', async (payload, next): Promise<PreStepDecision> => {
     const early = startEarly(payload)
+    if (early === undefined) return next()
+    started.set(payload.agent, early)
+    try {
+      return await next()
+    } finally {
+      // A chain that ended before the recall listener ran leaves its start unclaimed.
+      if (started.get(payload.agent) === early) {
+        started.delete(payload.agent)
+        early.cancel()
+      }
+    }
+  }, { prepend: true })
+
+  ctx.on('agent/pre-step', async (payload, next): Promise<PreStepDecision> => {
+    const early = started.get(payload.agent)
+    started.delete(payload.agent)
     const decision = await next()
     const scope = memoryScopeOf(payload.agent)
     // The downstream decision is authoritative: a policy may have rewritten or removed claimed input.

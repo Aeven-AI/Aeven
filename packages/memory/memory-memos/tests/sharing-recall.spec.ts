@@ -35,6 +35,8 @@ function sharingTurn(answers: readonly string[], options: FakeCoreOptions = {}) 
     ...options,
     relevance: {
       timeoutMs: 4000,
+      hedgeMs: 0,
+      minMs: 0,
       run: async (_system, user) => {
         judged.push(user)
         return answers[Math.min(judged.length - 1, answers.length - 1)] ?? ''
@@ -65,6 +67,8 @@ describe('recall of the person\'s recent memories on a later turn', () => {
     const { memory } = recallHarness([work], {
       relevance: {
         timeoutMs: 4000,
+        hedgeMs: 0,
+        minMs: 0,
         run: () => { started.resolve(undefined); return answer.promise },
       },
     })
@@ -98,6 +102,8 @@ describe('recall of the person\'s recent memories on a later turn', () => {
       recent: [person],
       relevance: {
         timeoutMs: 4000,
+        hedgeMs: 0,
+        minMs: 0,
         run: () => new Promise<string>((resolve) => {
           const answer = answers[releases.length] ?? ''
           releases.push(() => { resolve(answer) })
@@ -155,6 +161,8 @@ describe('recall of the person\'s recent memories on a later turn', () => {
       recent: [person],
       relevance: {
         timeoutMs: 4000,
+        hedgeMs: 0,
+        minMs: 0,
         run: async (_system, user) => {
           judged.push(user)
           return '{"lead":"person","sharing":true,"keep":[2]}'

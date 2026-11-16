@@ -112,7 +112,10 @@ export interface MemoryRecallRequest {
   readonly sessionOnly?: boolean
   /** Per-tier limits; absent uses the provider's configured limits. */
   readonly limits?: MemoryRecallLimits
-  /** Hard foreground budget in milliseconds; the provider resolves with `timedOut` instead of exceeding it. */
+  /**
+   * Foreground budget in milliseconds: the provider resolves with `timedOut` instead of retrieving past it. A relevance
+   * judgment that follows retrieval may finish past it by at most the provider's documented minimum judgment window.
+   */
   readonly timeoutMs: number
   readonly signal: AbortSignal
 }
@@ -350,7 +353,7 @@ export interface MemoryProvider {
   /** Stable provider identity, shown in diagnostics. */
   readonly id: string
   /**
-   * Retrieve memory relevant to a query within the request's hard budget.
+   * Retrieve memory relevant to a query within the request's foreground budget.
    * @param request - query, scope, and foreground budget.
    * @returns ranked hits visible to the scope; a budget overrun resolves with `timedOut: true`.
    */

@@ -20,6 +20,21 @@ export const FTS_HIGHLIGHT_START = '\uFDD0'
 /** Collision-free marker inserted after an FTS5 match by `highlight()`. */
 export const FTS_HIGHLIGHT_END = '\uFDD1'
 
+/**
+ * Collision-free break the index writes on both sides of each CJK character. The tokenizer declares it a separator,
+ * so every character of a script written without spaces between words is one token.
+ */
+export const FTS_CJK_BREAK = '\uFDD2'
+
+/** Tokenizer of every document and query-probe table. */
+export const FTS_TOKENIZER = `unicode61 separators '${FTS_CJK_BREAK}'`
+
+/** Han, kana, and Hangul characters: scripts the index tokenizes one character at a time. */
+const CJK_CHARACTER = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/gu
+
+/** A maximal run of {@link CJK_CHARACTER}s, which a query matches as one phrase. */
+export const CJK_RUN = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]+/gu
+
 /** Largest page size whose internal lookahead remains an exact SQLite integer binding. */
 export const SQLITE_MAX_PAGE_LIMIT = Number.MAX_SAFE_INTEGER - 1
 
@@ -219,16 +234,48 @@ export function buildEventWhere(filters: readonly SessionEventMetadataFilter[]):
 }
 
 /**
- * FTS5 expression requiring every query token, in any order, each quoted so query syntax stays inert data.
- * @param tokens - the query's unicode61 tokens.
+ * FTS5 expression requiring every query token, in any order, each quoted so query syntax stays inert data. The tokens
+ * of one CJK run share one quoted phrase, so a run matches only with its characters adjacent and in order, as a word
+ * does.
+ * @param tokens - the query's tokens, in order.
+ * @param phrases - per token, the CJK run it came from, or -1 outside any run.
  * @param isPrefix - whether the final token also matches the longer tokens it begins.
- * @returns an implicit-AND FTS5 expression; the final token carries `*` when it is a prefix.
+ * @returns an implicit-AND FTS5 expression; the final token or phrase carries `*` when its last token is a prefix.
  */
-export function tokenMatchExpression(tokens: readonly string[], isPrefix: (token: string) => boolean): string {
-  return tokens.map((token, index) => {
-    const quoted = `"${token.replaceAll('"', '""')}"`
-    return index === tokens.length - 1 && isPrefix(token) ? `${quoted}*` : quoted
-  }).join(' ')
+export function tokenMatchExpression(
+  tokens: readonly string[],
+  phrases: readonly number[],
+  isPrefix: (token: string) => boolean,
+): string {
+  const parts: string[] = []
+  for (let start = 0; start < tokens.length;) {
+    const phrase = phrases[start] ?? -1
+    let end = start + 1
+    if (phrase >= 0) while (end < tokens.length && phrases[end] === phrase) end += 1
+    const quoted = `"${tokens.slice(start, end).map(token => token.replaceAll('"', '""')).join(' ')}"`
+    parts.push(end === tokens.length && isPrefix(tokens[end - 1] as string) ? `${quoted}*` : quoted)
+    start = end
+  }
+  return parts.join(' ')
+}
+
+/**
+ * Write {@link FTS_CJK_BREAK} on both sides of every CJK character, so the tokenizer makes each one a token apart
+ * from its neighbours, including letters and digits next to it.
+ * @param text - sanitized document or query text.
+ * @returns the text the index tokenizes; {@link withoutCjkBreaks} restores the original.
+ */
+export function withCjkBreaks(text: string): string {
+  return text.replace(CJK_CHARACTER, character => `${FTS_CJK_BREAK}${character}${FTS_CJK_BREAK}`)
+}
+
+/**
+ * Remove the breaks {@link withCjkBreaks} wrote.
+ * @param text - indexed text, such as `highlight()` output.
+ * @returns the text as it was before indexing.
+ */
+export function withoutCjkBreaks(text: string): string {
+  return text.replaceAll(FTS_CJK_BREAK, '')
 }
 
 /**
@@ -241,6 +288,7 @@ export function sanitizeFtsText(text: string): string {
     .replaceAll('\0', '\uFFFD')
     .replaceAll(FTS_HIGHLIGHT_START, '\uFFFD')
     .replaceAll(FTS_HIGHLIGHT_END, '\uFFFD')
+    .replaceAll(FTS_CJK_BREAK, '\uFFFD')
 }
 
 /**

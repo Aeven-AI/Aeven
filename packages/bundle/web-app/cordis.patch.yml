@@ -210,9 +210,10 @@
       name: '@aeven/speech-to-text-whisper'
       config:
         dataRoot: !!js avnHomePath('speech-to-text', 'whisper')
-        # A cold worker spends about twenty seconds compiling its Metal kernels before its
-        # first word, so the app pays that once in the background and keeps the worker after
-        # it, rather than charging it to the next dictation after every idle period.
+        # The first start of each installed worker binary compiles its Metal kernels, about
+        # eighteen seconds; macOS caches them per binary, so later starts are ready in about 0.3 s
+        # while that cache lasts. The app starts the worker at launch and keeps it, so no dictation
+        # waits for a compile, including after the system purges its cache.
         warmOnActivation: true
         idleTimeoutMs: 0
 

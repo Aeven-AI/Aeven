@@ -1556,8 +1556,8 @@ interface FixtureSearchToken {
 }
 
 /**
- * Browser-safe approximation of SQLite FTS5 unicode61 token boundaries.
- * Keeping phrase matching token-based prevents the development fixture from
+ * Browser-safe approximation of the session index's FTS5 token boundaries: unicode61, with each Han, kana, and
+ * Hangul character its own token. Keeping phrase matching token-based prevents the development fixture from
  * promising arbitrary within-token substring behavior that production lacks.
  */
 function searchTokenSpans(value: string): { text: string; tokens: FixtureSearchToken[] } {
@@ -1576,6 +1576,12 @@ function searchTokenSpans(value: string): { text: string; tokens: FixtureSearchT
   }
   for (let index = 0; index < characters.length; index++) {
     const character = characters[index] as string
+    // The index writes a separator on both sides of each Han, kana, and Hangul character.
+    if (/^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]$/u.test(character)) {
+      flush(index)
+      tokens.push({ value: character, start: index, end: index + 1 })
+      continue
+    }
     const tokenBase = character.normalize('NFD').replace(/\p{M}+/gu, '')
     if (tokenBase === '') {
       if (start !== undefined) raw += character

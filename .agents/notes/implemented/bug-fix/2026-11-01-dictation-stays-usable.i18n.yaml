@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-11-01-dictation-stays-usable.md
-2026-11-01-dictation-stays-usable.md: e87b4722d407cc3520156bdc734651c316367892
-2026-11-01-dictation-stays-usable.zh.md: 1fb20a501bd230ed0e4cd9e54593a891109b0721
+2026-11-01-dictation-stays-usable.md: 206ec469a36bf8a5bc70a52fab35a4dd4b115f70
+2026-11-01-dictation-stays-usable.zh.md: e38e66d2a7c41592e8dec5e40411e9e9f535ae64

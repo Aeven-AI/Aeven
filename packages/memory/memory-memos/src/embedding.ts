@@ -94,15 +94,34 @@ export class HostedEmbeddings {
     })
   }
 
-  private pump(): void {
-    if (this.active !== undefined || this.failure !== undefined) return
-    const next = this.queues.entries().next().value
-    if (next === undefined) return
-    const [owner, queue] = next
-    const job = queue.shift()
-    if (job === undefined) return
+  /**
+   * Take the next job: the oldest query embedding of the first account that has one, otherwise the head of the first
+   * account's queue. A query is a recall the turn waits for, so it waits for at most the running job rather than for
+   * capture and re-index batches queued before it; the account served moves to the back of the rotation.
+   * @returns the job to run, or undefined when every queue is empty.
+   */
+  private take(): Job | undefined {
+    let chosen: [string, Job[], number] | undefined
+    for (const [owner, queue] of this.queues) {
+      const index = queue.findIndex(job => job.role === 'query')
+      if (index >= 0) { chosen = [owner, queue, index]; break }
+    }
+    if (chosen === undefined) {
+      const first = this.queues.entries().next().value
+      if (first === undefined) return undefined
+      chosen = [first[0], first[1], 0]
+    }
+    const [owner, queue, index] = chosen
+    const [job] = queue.splice(index, 1)
     this.queues.delete(owner)
     if (queue.length > 0) this.queues.set(owner, queue)
+    return job
+  }
+
+  private pump(): void {
+    if (this.active !== undefined || this.failure !== undefined) return
+    const job = this.take()
+    if (job === undefined) return
     this.active = job
     try {
       if (this.worker === undefined) {

@@ -11,7 +11,7 @@ English | [中文](README.zh.md)
 
 `avn-memory-context` connects the agent loop to `ctx.memory`. At the first step of each accepted user or approved automation turn it runs one bounded recall and appends the result after the user's message as a durable `user/message` with source `{ kind: 'plugin', plugin: 'memory-context', form: 'recall' }`, so the recalled text is logged and replays exactly. It assembles each completed turn from committed session events (user text, assistant text and reasoning, tool calls and results, including PTC mode sub-dispatches) and hands it to the provider at `turn/end`. The captured turn also carries retry failure codes, explicit user corrections, assistant-reported verification paired with successful tool calls, and goals marked complete in the log. A rating stored through `message-feedback` (`message-feedback/changed`) on an assistant message of a session this instance ran becomes `ctx.memory.feedback` for that turn. A recall failure or timeout never blocks the step; a turn that receives no block states that it ran without memory. A one-shot driver drains this turn's queued captures at the `session/settle` checkpoint, because such a driver exits as soon as that checkpoint resolves.
 
-The block stays in history for the rest of the turn, so later requests carry it without a second provider lookup. Guidance asks the agent to apply relevant remembered preferences and lessons while giving the current request precedence; memory cannot authorize additional work.
+Recall and the profile read start when the turn's first `agent/pre-step` chain begins, ahead of the listeners that wait for connector sign-in, workspace sync, or a log flush, so they run while those listeners work; the recall is used only when the chain's decision carries the same request, and its block and notices keep their place after the user's message. The block stays in history for the rest of the turn, so later requests carry it without a second provider lookup. Guidance asks the agent to apply relevant remembered preferences and lessons while giving the current request precedence; memory cannot authorize additional work.
 
 Recall is a lookup, and a lookup can return nothing, so the package also registers the owner's confirmed invariants as the last system-prompt section of a turn. The document, its budget, and its text belong to [`@aeven/memory-invariants`](../memory-invariants/README.md); this package reads the block from `ctx.memoryInvariants` at each assembly, and a composition without that row contributes no block.
 
@@ -30,7 +30,7 @@ Mount it per agent (the `standard`, `cordis`, and `ptc` presets include it) besi
 |---|---|---|
 | `recall` | `true` | Recall for every accepted user or approved automation turn |
 | `capture` | `true` | Hand completed turns to the provider |
-| `recallTimeoutMs` | `3000` | Hard budget for one recall; the turn proceeds without memory when it elapses |
+| `recallTimeoutMs` | `5000` | Budget for one recall's retrieval; the turn proceeds without memory when it elapses. The provider's relevance judgment may finish past it by the provider's minimum judgment window |
 | `contextMaxChars` | `6000` | Bound on one framed memory block |
 | `itemMaxChars` | `1000` | Bound on one memory line in the block, including technical artifacts and outcomes |
 | `domainMaxItems` | person 6, project 3, world 2, experience 2 | Maximum recalled items in each domain when the provider did not judge relevance or the judgment failed |

@@ -15,6 +15,7 @@ import {
 } from '../src/zstd.ts'
 import { NodePrivateZstdFrameDecoder } from '../src/zstd-private-decoder.ts'
 import { PublicZstdFrameDecoder } from '../src/zstd-public-decoder.ts'
+import { consolidateZstdLog } from '../src/consolidate.ts'
 import { runPersistenceContract, meta, oneTurnLog } from '../../session-persistence/tests/contract.ts'
 import { runCoordinatorContract, type CoordinatorFixture } from '../../session-persistence/tests/coordinator-contract.ts'
 
@@ -788,5 +789,74 @@ describe('JsonlSessionPersistence: encoding selection', () => {
     ].join('\n'))
     await expect(ctx.sessionPersistence.append(header.id, oneTurnLog())).rejects.toThrow(/uses \.jsonl/)
     expect((await readdir(sessionDir(root, header.cwd, header.id))).some(name => name.endsWith('.jsonl.zstd'))).toBe(false)
+  })
+})
+
+describe('JSONL Zstandard log consolidation', () => {
+  async function mountConsolidating(root: string, consolidateAfterSmallFrames: number): Promise<Context> {
+    const ctx = new Context()
+    contexts.push(ctx)
+    await ctx.plugin(SessionStore)
+    await ctx.plugin(JsonlSessionPersistence, { root, consolidateAfterSmallFrames })
+    return ctx
+  }
+
+  function turn(index: number): SessionEvent[] {
+    const seq = 6 + index * 2
+    return [
+      { type: 'turn/start', seq, time: seq, data: { turn: index + 2 } },
+      { type: 'turn/end', seq: seq + 1, time: seq + 1, data: { turn: index + 2, reason: { kind: 'completed' } } },
+    ] as SessionEvent[]
+  }
+
+  it('merges small append frames into fewer frames that load the same events, once per root', async () => {
+    const root = await freshRoot()
+    const writer = await mountConsolidating(root, 0)
+    const header = meta('consolidated')
+    await writer.sessionPersistence.create(header)
+    await writer.sessionPersistence.append(header.id, oneTurnLog())
+    for (let index = 0; index < 8; index += 1) await writer.sessionPersistence.append(header.id, turn(index))
+    const events = (await writer.sessionPersistence.load(header.id)).events
+    const path = logPath(root, header.cwd, header.id, 'zstd')
+    const before = await readFile(path)
+    const headerFrame = scanZstdFrames(before).frames[0]!
+    expect(scanZstdFrames(before).frames).toHaveLength(10)
+    await writer.fiber.dispose()
+
+    const reader = await mountConsolidating(root, 4)
+    await reader.sessionPersistence.list()
+    await vi.waitFor(async () => { await stat(join(root, '.consolidation-sweep-1')) })
+
+    const after = await readFile(path)
+    expect(after.length).toBeLessThan(before.length)
+    expect(scanZstdFrames(after).frames).toHaveLength(2)
+    expect(after.subarray(0, headerFrame.end)).toEqual(before.subarray(0, headerFrame.end))
+    expect(await decodeCompleteFrames(after)).toEqual(await decodeCompleteFrames(before))
+    expect((await reader.sessionPersistence.load(header.id)).events).toEqual(events)
+  })
+
+  it('leaves logs alone when consolidation is disabled or the log has too few small frames', async () => {
+    const root = await freshRoot()
+    const writer = await mountConsolidating(root, 0)
+    const header = meta('kept')
+    await writer.sessionPersistence.create(header)
+    await writer.sessionPersistence.append(header.id, oneTurnLog())
+    await writer.sessionPersistence.append(header.id, turn(0))
+    const path = logPath(root, header.cwd, header.id, 'zstd')
+    const before = await readFile(path)
+    await writer.fiber.dispose()
+
+    const reader = await mountConsolidating(root, 4)
+    await reader.sessionPersistence.list()
+    await vi.waitFor(async () => { await stat(join(root, '.consolidation-sweep-1')) })
+    expect(await readFile(path)).toEqual(before)
+  })
+
+  it('refuses to consolidate a log with a torn final frame', async () => {
+    const frames = await Promise.all(['{"header":true}\n', 'a\n', 'b\n', 'c\n'].map(text => compressZstdFrame(text)))
+    const complete = Buffer.concat(frames)
+    expect(await consolidateZstdLog(complete, 1)).toBeInstanceOf(Buffer)
+    expect(await consolidateZstdLog(complete.subarray(0, complete.length - 3), 1)).toBeUndefined()
+    expect(await consolidateZstdLog(complete, 4)).toBeUndefined()
   })
 })

@@ -39,7 +39,7 @@ export interface FakeCoreOptions {
  * A core whose retrieval returns the traces the options pick for a query.
  * @param traces - the traces the runtime may recall.
  * @param options - per-query results, the recent-memory listing, and the query log.
- * @returns the three methods the recall path calls.
+ * @returns the methods the recall path calls.
  */
 export function fakeCore(traces: readonly FakeTrace[], options: FakeCoreOptions = {}) {
   return {
@@ -56,6 +56,7 @@ export function fakeCore(traces: readonly FakeTrace[], options: FakeCoreOptions 
     listTraces: async (): Promise<readonly FakeTrace[]> =>
       (options.listTraces === undefined ? options.recent ?? [] : await options.listTraces())
         .map(trace => ({ ...trace, id: trace.refId })),
+    logApiCall: (): void => undefined,
   }
 }
 

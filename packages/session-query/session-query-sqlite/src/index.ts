@@ -6,6 +6,7 @@
 
 import { createHash, randomUUID } from 'node:crypto'
 import type { DatabaseSync } from 'node:sqlite'
+import { deflateRawSync } from 'node:zlib'
 import { Context, Service, type Fiber } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { SessionSeq } from '@aeven/session'
@@ -51,6 +52,7 @@ import {
 import {
   type NormalizedEventRequest,
   type NormalizedSessionRequest,
+  CJK_RUN,
   FTS_HIGHLIGHT_END,
   FTS_HIGHLIGHT_START,
   assertFts5OuterPredicateCount,
@@ -65,7 +67,15 @@ import {
   requestFingerprint,
   sanitizeFtsText,
   SQLITE_MAX_PAGE_LIMIT,
+  withCjkBreaks,
+  withoutCjkBreaks,
 } from './query.ts'
+
+/** A query's tokens in order, and per token the CJK run it came from, or -1 outside any run. */
+interface QueryTokens {
+  readonly tokens: readonly string[]
+  readonly phrases: readonly number[]
+}
 
 export {
   SESSION_QUERY_SQLITE_APPLICATION_ID,
@@ -91,6 +101,14 @@ export const SESSION_QUERY_SQLITE_MAX_LIMIT = 100
 export const SESSION_QUERY_SQLITE_SNIPPET_CHARS = 240
 /** Default shortest final query token searched as a prefix. */
 export const SESSION_QUERY_SQLITE_PREFIX_MIN_CHARS = 3
+/** Default share of indexed persisted documents deleted since the last compaction that starts the next one. */
+export const SESSION_QUERY_SQLITE_COMPACT_AFTER_DELETED_SHARE = 0.25
+
+/**
+ * FTS5 pages one compaction step merges. On an index five times its compact size a step blocked for at most 186 ms;
+ * the step is a work quantum that keeps the Host's event loop responsive, not a deployment choice.
+ */
+const COMPACTION_MERGE_PAGES = 500
 /** Default milliseconds a write waits for another process's lock on a shared index. */
 export const SESSION_QUERY_SQLITE_BUSY_TIMEOUT = 5000
 
@@ -159,6 +177,13 @@ export interface Config extends SessionQueryConfig {
   prefixMinChars?: number
   /** Maximum concurrent persisted-log inspections in one inherited batch read. Defaults to 4. */
   persistedInspectConcurrency?: number
+  /**
+   * Share of indexed persisted documents deleted since the last compaction, rewrites of a growing session included,
+   * at which the index merges its full-text segments in the background. FTS5 keeps a deleted document's entries until
+   * its segments merge, so without compaction an index that rewrites sessions grows to several times its content.
+   * Each step merges a bounded amount and searches run between steps. `0` disables compaction. Defaults to 0.25.
+   */
+  compactAfterDeletedShare?: number
 }
 
 interface ResolvedConfig {
@@ -173,6 +198,7 @@ interface ResolvedConfig {
   prefixMinChars: number
   readWindowMax: number
   persistedInspectConcurrency: number
+  compactAfterDeletedShare: number
 }
 
 interface ObservedSession {
@@ -276,12 +302,15 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
       .min(1)
       .max(Number.MAX_SAFE_INTEGER)
       .default(SESSION_QUERY_DEFAULT_PERSISTED_INSPECT_CONCURRENCY),
+    compactAfterDeletedShare: z.number().min(0).default(SESSION_QUERY_SQLITE_COMPACT_AFTER_DELETED_SHARE),
   })
 
   /** Validated and defaulted backend configuration. */
   readonly config: ResolvedConfig
 
   private readonly _instance = randomUUID()
+  /** Whether a background compaction is running. */
+  private _compacting = false
   private _ready: Promise<void> | undefined
   private _db: DatabaseSync | undefined
   private _persistenceBinding: PersistenceBinding = { identity: Symbol() }
@@ -558,6 +587,7 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
       })
     }
 
+    if (persistentDeletes.length > 0) this._scheduleCompaction()
     if (hasWrites || pointerChanged) this._globalGeneration += 1
     if (pointerChanged) this._persistenceEpoch += 1
     this._localGeneration = nextLocalGeneration
@@ -607,6 +637,7 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
       this._requireDb().prepare('UPDATE search_state SET global_generation = ? WHERE singleton = 1').run(generation)
     })
     this._globalGeneration += 1
+    this._scheduleCompaction()
     return { id: entry.header.id, revision, generation }
   }
 
@@ -700,8 +731,18 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
   private _deleteSession(source: 'persisted' | 'live', id: SessionId): void {
     const db = this._requireDb()
     if (source === 'persisted') {
-      db.prepare('DELETE FROM persisted_docs WHERE rowid IN (SELECT doc_rowid FROM persisted_doc_meta WHERE session_id = ?)').run(id)
-      db.prepare('DELETE FROM persisted_doc_meta WHERE session_id = ?').run(id)
+      // An external-content FTS5 table removes a row's tokens only when given the text it indexed.
+      db.prepare(`
+        INSERT INTO persisted_docs(persisted_docs, rowid, text)
+        SELECT 'delete', c.doc_rowid, c.text FROM persisted_doc_content AS c
+        JOIN persisted_doc_meta AS m ON m.doc_rowid = c.doc_rowid WHERE m.session_id = ?
+      `).run(id)
+      db.prepare('DELETE FROM persisted_doc_texts WHERE doc_rowid IN (SELECT doc_rowid FROM persisted_doc_meta WHERE session_id = ?)').run(id)
+      const { changes } = db.prepare('DELETE FROM persisted_doc_meta WHERE session_id = ?').run(id)
+      db.prepare(`
+        UPDATE search_state SET indexed_documents = indexed_documents - ?1, deleted_documents = deleted_documents + ?1
+        WHERE singleton = 1
+      `).run(Number(changes))
       db.prepare('DELETE FROM persisted_sessions WHERE id = ?').run(id)
     } else {
       db.prepare('DELETE FROM temp.live_docs WHERE rowid IN (SELECT doc_rowid FROM temp.live_doc_meta WHERE session_id = ?)').run(id)
@@ -769,22 +810,35 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
     }
   }
 
-  /** Insert FTS text rows and their metadata rows, linked by FTS rowid. */
+  /**
+   * Insert FTS text rows and their metadata rows, linked by FTS rowid. A persisted document's indexed text is stored
+   * deflated in `persisted_doc_texts` under the same rowid, which the external-content FTS table reads through its view.
+   */
   private _insertDocuments(source: 'persisted' | 'live', documents: readonly SessionEventSearchDocument[]): void {
     const db = this._requireDb()
-    const insert = db.prepare(source === 'persisted'
-      ? 'INSERT INTO persisted_docs (text) VALUES (?)'
-      : 'INSERT INTO temp.live_docs (text) VALUES (?)')
+    const store = db.prepare('INSERT INTO persisted_doc_texts (deflated) VALUES (?)')
+    const index = db.prepare('INSERT INTO persisted_docs (rowid, text) VALUES (?, ?)')
+    const live = db.prepare('INSERT INTO temp.live_docs (text) VALUES (?)')
     const meta = db.prepare(`
       INSERT INTO ${source === 'persisted' ? 'persisted_doc_meta' : 'temp.live_doc_meta'}
         (doc_rowid, session_id, seq, type, time, surface, codepoint_length)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `)
+    if (source === 'persisted' && documents.length > 0) {
+      db.prepare('UPDATE search_state SET indexed_documents = indexed_documents + ? WHERE singleton = 1').run(documents.length)
+    }
     for (const document of documents) {
       const text = sanitizeFtsText(document.text)
-      const inserted = insert.run(text)
+      const indexed = withCjkBreaks(text)
+      let rowid: number
+      if (source === 'persisted') {
+        rowid = Number(store.run(deflateRawSync(indexed)).lastInsertRowid)
+        index.run(rowid, indexed)
+      } else {
+        rowid = Number(live.run(indexed).lastInsertRowid)
+      }
       meta.run(
-        Number(inserted.lastInsertRowid),
+        rowid,
         document.sessionId,
         document.seq,
         document.type,
@@ -853,9 +907,9 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
     limit: number
     offset: number
   }): SearchRow[] {
-    const tokens = this._queryTokens(request.query)
-    if (tokens.length === 0) return []
-    this._fillMatchCounts(tokens, request.scope)
+    const query = this._queryTokens(request.query)
+    if (query.tokens.length === 0) return []
+    this._fillMatchCounts(query, request.scope)
     const visible = request.persistenceVisible ? 1 : 0
     const bindings = [
       visible,
@@ -872,15 +926,36 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
     return this._attachSnippets(ranked, request.query)
   }
 
-  /** Tokenize a normalized query with the same unicode61 rules as the index. */
-  private _queryTokens(query: string): string[] {
+  /**
+   * Tokenize a normalized query with the same rules as the index. Each run of CJK characters is tokenized apart and
+   * recorded as one phrase, so the match expression requires its characters adjacent and in order.
+   */
+  private _queryTokens(query: string): QueryTokens {
     const db = this._requireDb()
-    db.prepare('DELETE FROM temp.query_probe').run()
-    db.prepare('INSERT INTO temp.query_probe(text) VALUES (?)').run(query)
-    const rows = db.prepare(
-      'SELECT term FROM temp.query_probe_inst ORDER BY offset',
-    ).all() as unknown as Array<{ term: string }>
-    return rows.map(row => row.term)
+    const clear = db.prepare('DELETE FROM temp.query_probe')
+    const insert = db.prepare('INSERT INTO temp.query_probe(text) VALUES (?)')
+    const terms = db.prepare('SELECT term FROM temp.query_probe_inst ORDER BY offset')
+    const tokens: string[] = []
+    const phrases: number[] = []
+    const probe = (text: string, phrase: number): void => {
+      if (text === '') return
+      clear.run()
+      insert.run(withCjkBreaks(text))
+      for (const row of terms.all() as unknown as Array<{ term: string }>) {
+        tokens.push(row.term)
+        phrases.push(phrase)
+      }
+    }
+    let cursor = 0
+    let phrase = 0
+    for (const run of query.matchAll(CJK_RUN)) {
+      probe(query.slice(cursor, run.index), -1)
+      probe(run[0], phrase)
+      phrase += 1
+      cursor = run.index + run[0].length
+    }
+    probe(query.slice(cursor), -1)
+    return { tokens, phrases }
   }
 
   /**
@@ -891,13 +966,14 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
    * as a prefix once it reaches `prefixMinChars`. Both counts come from the token index and compare across the
    * persisted and live tables.
    */
-  private _fillMatchCounts(tokens: readonly string[], scope: CandidateScope | undefined): void {
+  private _fillMatchCounts(query: QueryTokens, scope: CandidateScope | undefined): void {
+    const { tokens } = query
     const db = this._requireDb()
     db.prepare('DELETE FROM temp.match_counts').run()
     db.prepare('DELETE FROM temp.term_hits').run()
     const last = tokens.length - 1
     const prefix = this._isPrefixToken(tokens[last] as string)
-    const expression = tokenMatchExpression(tokens, () => prefix)
+    const expression = tokenMatchExpression(tokens, query.phrases, () => prefix)
     const sources = [
       ['persisted', 'persisted_docs', 'persisted_docs', 'persisted_docs_inst'],
       ['live', 'temp.live_docs', 'live_docs', 'temp.live_docs_inst'],
@@ -1070,7 +1146,8 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
     const marked = new Map<number, string>()
     if (rowids.length === 0) return marked
     const db = this._requireDb()
-    const expression = tokenMatchExpression(this._queryTokens(query), this._isPrefixToken.bind(this))
+    const { tokens, phrases } = this._queryTokens(query)
+    const expression = tokenMatchExpression(tokens, phrases, this._isPrefixToken.bind(this))
     const from = table === 'live_docs' ? 'temp.live_docs' : 'persisted_docs'
     // Three bindings plus the rowid list stay under SQLite's variable limit.
     const batchSize = 500
@@ -1085,7 +1162,7 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
         doc_rowid: number
         marked_text: string
       }>
-      for (const hit of hits) marked.set(hit.doc_rowid, hit.marked_text)
+      for (const hit of hits) marked.set(hit.doc_rowid, withoutCjkBreaks(hit.marked_text))
     }
     return marked
   }
@@ -1142,6 +1219,52 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
       surface: row.surface as SessionEventSearchHit['surface'],
       snippet: makeSnippet(row.marked_text, this.config.snippetChars),
     }
+  }
+
+  /** Start a background compaction when deletions since the last one reach the configured share of the index. */
+  private _scheduleCompaction(): void {
+    const share = this.config.compactAfterDeletedShare
+    if (share === 0 || this._compacting || this._isClosed()) return
+    const db = this._requireDb()
+    const { deleted, indexed } = db.prepare(
+      'SELECT deleted_documents AS deleted, indexed_documents AS indexed FROM search_state WHERE singleton = 1',
+    ).get() as { deleted: number; indexed: number }
+    if (deleted === 0 || deleted < share * Math.max(indexed, 1)) return
+    this._compacting = true
+    void this._compact().finally(() => { this._compacting = false })
+  }
+
+  /**
+   * Merge the persisted full-text segments in bounded steps until FTS5 reports nothing left to merge, then reset the
+   * deletion count. Each step is its own serialized operation and the event loop turns between steps, so searches and
+   * other work run in between. Closing the index ends the run; a failed step ends it with the count kept, so the next
+   * index write that deletes documents starts it again.
+   */
+  private async _compact(): Promise<void> {
+    try {
+      for (;;) {
+        if (await this._serialized(undefined, () => Promise.resolve(this._mergeStep()))) return
+        await new Promise<void>((resolve) => { setImmediate(resolve) })
+      }
+    } catch (error: unknown) {
+      if (this._isClosed()) return
+      this.ctx.logger.warn(`session-query-sqlite: index compaction stopped; the next deleting write retries: ${errorMessage(error)}`)
+    }
+  }
+
+  /**
+   * Run one bounded FTS5 merge of the persisted documents.
+   * @returns true when nothing was left to merge and the deletion count was reset.
+   */
+  private _mergeStep(): boolean {
+    const db = this._requireDb()
+    const changes = (): number => (db.prepare('SELECT total_changes() AS n').get() as { n: number }).n
+    const before = changes()
+    db.exec(`INSERT INTO persisted_docs(persisted_docs, rank) VALUES('merge', -${String(COMPACTION_MERGE_PAGES)})`)
+    // FTS5 merged nothing when the change count grew by less than two.
+    if (changes() - before >= 2) return false
+    db.prepare('UPDATE search_state SET deleted_documents = 0 WHERE singleton = 1').run()
+    return true
   }
 
   private _requireDb(): DatabaseSync {
@@ -1520,6 +1643,7 @@ function resolveConfig(config: Config): ResolvedConfig {
     readWindowMax: config.readWindowMax ?? SESSION_QUERY_READ_WINDOW_MAX,
     persistedInspectConcurrency: config.persistedInspectConcurrency
       ?? SESSION_QUERY_DEFAULT_PERSISTED_INSPECT_CONCURRENCY,
+    compactAfterDeletedShare: config.compactAfterDeletedShare ?? SESSION_QUERY_SQLITE_COMPACT_AFTER_DELETED_SHARE,
   }
   if (typeof resolved.path !== 'string' || resolved.path.trim().length === 0) {
     throw invalidConfig('path must not be blank')
@@ -1546,6 +1670,9 @@ function resolveConfig(config: Config): ResolvedConfig {
     || resolved.persistedInspectConcurrency < 1
   ) {
     throw invalidConfig('persistedInspectConcurrency must be a positive safe integer')
+  }
+  if (!Number.isFinite(resolved.compactAfterDeletedShare) || resolved.compactAfterDeletedShare < 0) {
+    throw invalidConfig('compactAfterDeletedShare must be a non-negative number')
   }
   if (resolved.defaultLimit > resolved.maxLimit) {
     throw invalidConfig('defaultLimit must be less than or equal to maxLimit')

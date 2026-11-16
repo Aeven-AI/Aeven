@@ -3,9 +3,11 @@
 import type { DatabaseSync } from 'node:sqlite'
 import { mkdir, open } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
+import { inflateRawSync } from 'node:zlib'
+import { FTS_TOKENIZER } from './query.ts'
 
 /** Current derived-index schema version. Incompatible versions reset in place. */
-export const SESSION_QUERY_SQLITE_SCHEMA_VERSION = 11
+export const SESSION_QUERY_SQLITE_SCHEMA_VERSION = 12
 
 /** SQLite application id protecting unrelated databases from derived resets. */
 export const SESSION_QUERY_SQLITE_APPLICATION_ID = 0x44534851
@@ -23,8 +25,18 @@ const DERIVED_USER_TABLES = new Set([
   'persisted_docs_docsize',
   'persisted_docs_config',
   'persisted_doc_meta',
+  'persisted_doc_texts',
   'persisted_docs_inst',
 ])
+
+/**
+ * SQL function the persisted document view reads stored text through: it inflates one raw-deflate blob to UTF-8.
+ * Every connection registers it at open, before any statement reads `persisted_doc_content`.
+ */
+export const INFLATE_DOCUMENT_FUNCTION = 'session_query_inflate'
+
+/** View presenting each persisted document's indexed text; `persisted_docs` reads it for `highlight()` and deletes. */
+const PERSISTED_CONTENT_VIEW = 'persisted_doc_content'
 
 /**
  * Exclusively create a missing database file with owner-only permissions.
@@ -59,6 +71,10 @@ export async function openSearchDatabase(
   const { DatabaseSync } = await import('node:sqlite')
   const db = new DatabaseSync(actual)
   try {
+    db.function(INFLATE_DOCUMENT_FUNCTION, { deterministic: true }, (deflated) => {
+      if (!(deflated instanceof Uint8Array)) throw new TypeError(`${INFLATE_DOCUMENT_FUNCTION} expects a BLOB`)
+      return inflateRawSync(deflated).toString('utf8')
+    })
     // Processes sharing one Aeven home share this index; a writer waits for
     // another process's transaction instead of failing with SQLITE_BUSY.
     // busyTimeout is a validated non-negative integer, not caller-controlled SQL.
@@ -110,6 +126,7 @@ function assertDerivedUserTables(path: string, userTables: readonly string[]): v
 }
 
 function resetDerivedSchema(db: DatabaseSync, userTables: readonly string[]): void {
+  db.exec(`DROP VIEW IF EXISTS ${PERSISTED_CONTENT_VIEW}`)
   for (const name of userTables) {
     db.exec(`DROP TABLE IF EXISTS ${quoteIdentifier(name)}`)
   }
@@ -121,7 +138,9 @@ function ensurePersistentSchema(db: DatabaseSync): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS search_state (
       singleton         INTEGER PRIMARY KEY CHECK (singleton = 1),
-      global_generation INTEGER NOT NULL
+      global_generation INTEGER NOT NULL,
+      indexed_documents INTEGER NOT NULL DEFAULT 0,
+      deleted_documents INTEGER NOT NULL DEFAULT 0
     ) STRICT
   `)
   db.exec('INSERT OR IGNORE INTO search_state (singleton, global_generation) VALUES (1, 0)')
@@ -140,8 +159,23 @@ function ensurePersistentSchema(db: DatabaseSync): void {
       generation     INTEGER NOT NULL
     ) STRICT
   `)
+  // Document text is stored deflated, about 2.3 times smaller than the plain text FTS5 would keep in its own content
+  // table. `persisted_docs` indexes the text and reads it back through the view only for the rows it highlights or
+  // deletes; the text it reads is the indexed form, with the CJK breaks.
   db.exec(`
-    CREATE VIRTUAL TABLE IF NOT EXISTS persisted_docs USING fts5(text, tokenize = 'unicode61')
+    CREATE TABLE IF NOT EXISTS persisted_doc_texts (
+      doc_rowid INTEGER PRIMARY KEY,
+      deflated  BLOB NOT NULL
+    ) STRICT
+  `)
+  db.exec(`
+    CREATE VIEW IF NOT EXISTS ${PERSISTED_CONTENT_VIEW} AS
+    SELECT doc_rowid, ${INFLATE_DOCUMENT_FUNCTION}(deflated) AS text FROM persisted_doc_texts
+  `)
+  db.exec(`
+    CREATE VIRTUAL TABLE IF NOT EXISTS persisted_docs USING fts5(
+      text, content = '${PERSISTED_CONTENT_VIEW}', content_rowid = 'doc_rowid', tokenize = "${FTS_TOKENIZER}"
+    )
   `)
   // Filters, match counts, and per-session deletes read these side tables by
   // FTS rowid. The FTS content row holds only the document text, so a query
@@ -182,7 +216,7 @@ function ensureTemporarySchema(db: DatabaseSync): void {
     ) STRICT
   `)
   db.exec(`
-    CREATE VIRTUAL TABLE IF NOT EXISTS temp.live_docs USING fts5(text, tokenize = 'unicode61')
+    CREATE VIRTUAL TABLE IF NOT EXISTS temp.live_docs USING fts5(text, tokenize = "${FTS_TOKENIZER}")
   `)
   db.exec(`
     CREATE TABLE IF NOT EXISTS temp.live_doc_meta (
@@ -197,7 +231,7 @@ function ensureTemporarySchema(db: DatabaseSync): void {
   `)
   db.exec('CREATE INDEX IF NOT EXISTS temp.live_doc_meta_session ON live_doc_meta(session_id)')
   db.exec('CREATE VIRTUAL TABLE IF NOT EXISTS temp.live_docs_inst USING fts5vocab(live_docs, instance)')
-  db.exec('CREATE VIRTUAL TABLE IF NOT EXISTS temp.query_probe USING fts5(text, tokenize = \'unicode61\')')
+  db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS temp.query_probe USING fts5(text, tokenize = "${FTS_TOKENIZER}")`)
   db.exec('CREATE VIRTUAL TABLE IF NOT EXISTS temp.query_probe_inst USING fts5vocab(query_probe, instance)')
   // Instances of a phrase's second and later tokens, keyed for point lookups
   // from the first token's instances.

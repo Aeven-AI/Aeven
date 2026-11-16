@@ -4418,6 +4418,10 @@ export function createMemoryCore(
     };
   }
 
+  function logApiCall(entry: Parameters<MemoryCore["logApiCall"]>[0]): void {
+    writeApiLog(handle, log, entry.toolName, entry.input, entry.output, entry.durationMs, entry.success);
+  }
+
   async function rememberFacts(input: Parameters<MemoryCore["rememberFacts"]>[0]): Promise<{ ids: string[]; skipped: number }> {
     ensureLive();
     input.signal.throwIfAborted();
@@ -5401,6 +5405,7 @@ export function createMemoryCore(
     exportBundle,
     importBundle,
     rememberFacts,
+    logApiCall,
     embeddingMaintenanceStats,
     rebuildEmbeddings,
     subscribeEvents,

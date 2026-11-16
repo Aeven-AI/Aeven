@@ -20,7 +20,7 @@ import {
   pnpmStoreVersionRoots,
   readPnpmIndexRows,
   writeChangedPnpmIndexRows,
-} from './pnpm-store-index.ts'
+} from '../src/pnpm-store-index.ts'
 
 /** Release target whose native payload the pruned store keeps. */
 export interface SeedStorePruneTarget {
