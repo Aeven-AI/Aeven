@@ -6,7 +6,7 @@
 
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { CompactionEngine, ManualCompactionError } from '@aeven/compaction'
+import { CompactionEngine, isCompactCheckpointSource, ManualCompactionError } from '@aeven/compaction'
 import type { CompactionResult, CompactionTrigger } from '@aeven/compaction'
 import type { TokenMeter } from '@aeven/token-meter'
 import type { Session, SessionSeq } from '@aeven/session'
@@ -70,6 +70,18 @@ function conversationTarget(
   if (agent.options.provider === undefined || agent.options.provider.length === 0
     || agent.options.model === undefined || agent.options.model.length === 0) return undefined
   return { provider: agent.options.provider, model: agent.options.model }
+}
+
+/**
+ * Whether a compactable range is exactly one compaction checkpoint message.
+ * @param session - the session whose surface the range addresses.
+ * @param range - the selected range.
+ * @returns true when the range is a single checkpoint node.
+ */
+function isLoneCheckpoint(session: Session, range: { start: SessionSeq; end: SessionSeq }): boolean {
+  if (range.start !== range.end) return false
+  const event = session.eventAt(range.start)
+  return event?.type === 'user/message' && isCompactCheckpointSource(event.data.source)
 }
 
 const thresholdRatioSchema = z.number()
@@ -352,8 +364,16 @@ export class BasicCompactionEngine extends CompactionEngine {
     if (measurement.totalTokens < spec.thresholdTokens) return null
 
     let result: CompactionResult | null = null
+    let attempts = 0
     for (let attempt = 0; attempt <= spec.compactionRetries; attempt += 1) {
       const range = selectCompactableRange(agent.session, measurement, spec.retainTokens)
+      // A range holding only an earlier checkpoint would summarize the summary: the request above the threshold is
+      // then the system prompt, tool schemas, and retained tail, which no compaction shrinks. Spending a model call
+      // on every such step, or on a retry right after a checkpoint, cannot bring the request under the threshold.
+      if (range !== null && isLoneCheckpoint(agent.session, range)) {
+        if (result === null) return null
+        break
+      }
       if (range === null) {
         /* v8 ignore else -- concrete replacement preserves a compactable checkpoint; subclass hooks cannot mutate it. */
         if (result === null) return null
@@ -361,12 +381,13 @@ export class BasicCompactionEngine extends CompactionEngine {
         break
       }
       result = await this.compactFitting(agent, range, signal)
+      attempts += 1
       measurement = meter.measure(agent.session)
       if (measurement.totalTokens < spec.thresholdTokens) return result
     }
 
     throw new Error(
-      `compaction still above threshold after ${spec.compactionRetries + 1} compaction attempts `
+      `compaction still above threshold after ${attempts} compaction attempt${attempts === 1 ? '' : 's'} `
       + `(${measurement.totalTokens} estimated tokens >= threshold ${spec.thresholdTokens})`,
     )
   }

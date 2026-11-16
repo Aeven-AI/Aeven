@@ -944,7 +944,10 @@ export interface CompactionPolicyConfig {
   summarizationModel?: string
   /** Provider generation cap for summarization. Defaults to `8192`. */
   maxTokens?: number
-  /** Extra attempts after the first compaction when pressure remains above threshold. Defaults to `1`. */
+  /**
+   * Extra attempts after the first compaction when pressure remains above threshold. A range that is only an earlier
+   * checkpoint is never compacted again. Defaults to `1`.
+   */
   compactionRetries?: number
   /**
    * Maximum retries after a provider rejection compaction can resolve — an

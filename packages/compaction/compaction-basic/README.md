@@ -69,7 +69,7 @@ All settings are optional. The defaults start condensing at 80% of the routed mo
 | `summarizationProvider` | `''` | Set together with `summarizationModel`; an empty pair uses the latest routed request target, then the `AgentOptions` pair. |
 | `summarizationModel` | `''` | Set together with `summarizationProvider`; an empty pair uses the latest routed request target, then the `AgentOptions` pair. |
 | `maxTokens` | `8192` | Output cap for the summarization request; may include reasoning tokens. |
-| `compactionRetries` | `1` | Extra condensation attempts after the first when pressure remains above threshold. |
+| `compactionRetries` | `1` | Extra condensation attempts after the first when pressure remains above threshold; a range that is only an earlier checkpoint is never condensed again. |
 | `maxOverflowRetries` | `1` | Maximum retries after a confirmed context-window overflow; `0` disables recovery only. |
 | `modelPolicies` | `[]` | Exact `{ provider, model, ...partialPolicy }` overrides for individual model routes. |
 | `auto` | `true` | Enable automatic condensation and overflow recovery; set `false` for manual-only operation. |

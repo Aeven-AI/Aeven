@@ -54,7 +54,7 @@
     },
     {
       "name": "create_goal",
-      "description": "Create a persisted goal that keeps this session working across automatic continuation rounds. Use it when the direct human request is a long-running objective, even if the user did not say \"goal\"; not for single-turn work.",
+      "description": "Create a persisted goal that keeps this session working across automatic continuation rounds. Without a goal, the work stops as soon as you reply and waits for the person's next message. Use it when the direct human request is a long-running objective, even if the user did not say \"goal\": work over many items or files, or a request to keep going until done. Not for single-turn work.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -551,6 +551,31 @@
       }
     },
     {
+      "name": "memory_list",
+      "description": "List the person's own earlier messages to you from long-term memory, newest first, across all conversations, each with its date. Use it for questions about what they asked or said over time (the first, the last, the most, every time they asked about something, or a ranking of their questions), which a search by meaning cannot answer. Page with `offset` until you have covered the period the question needs; `total` counts every message. Before saying earlier messages are unavailable, list them. Read one in full, with your reply, through memory_get and its id.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Keep only messages whose text, your reply, or its summary contains this literal text (case-insensitive). Omit to list every message."
+          },
+          "offset": {
+            "type": "integer",
+            "description": "Number of newer messages to skip; the previous page's `nextOffset`. Defaults to 0."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Messages on this page (1-200). Defaults to 100."
+          },
+          "includeSaved": {
+            "type": "boolean",
+            "description": "Also list facts saved from an imported archive or document and learned procedures, which are not messages the person wrote to you. Defaults to false."
+          }
+        }
+      }
+    },
+    {
       "name": "memory_remember",
       "description": "Store one fact the user explicitly asked you to remember, such as a preference, a name, or how they like a task done. Use only when the user asks you to remember something; ordinary conversation is remembered automatically. Preserve attribution, dates and uncertainty: distinguish a source's advertised claim, an observation, a plan and an assessment. Do not store your interpretation as a verified fact.",
       "parameters": {
@@ -606,7 +631,7 @@
     },
     {
       "name": "memory_search",
-      "description": "Search long-term memory of earlier work: past task traces, learned policies, environment knowledge, and reusable skills. Each direct-user turn already receives one automatic recall; use this to rephrase or broaden an insufficient recall, and before claiming earlier context is unavailable. For several unrelated topics, pass `queries` with one topic each instead of one long query.",
+      "description": "Search long-term memory of earlier work: past task traces, learned policies, environment knowledge, and reusable skills. Each direct-user turn already receives one automatic recall; use this to rephrase or broaden an insufficient recall, and before claiming earlier context is unavailable. For several unrelated topics, pass `queries` with one topic each instead of one long query. Search matches meaning, so it cannot go through everything the person asked; for that, use memory_list.",
       "parameters": {
         "type": "object",
         "properties": {
