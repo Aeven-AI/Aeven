@@ -30,7 +30,7 @@ jobs:
           REQUESTED_TARGETS: ${{ inputs.targets || 'all' }}
         run: |
           targets='[
-            {"id":"mac-arm64","target":"darwin-arm64","runner":"macos-15"},
+            {"id":"mac-arm64","target":"darwin-arm64","runner":"macos-26"},
             {"id":"mac-x64","target":"darwin-x64","runner":"macos-15-intel"},
             {"id":"win-x64","target":"win32-x64","runner":"windows-latest"},
             {"id":"win-arm64","target":"win32-arm64","runner":"windows-11-arm"},

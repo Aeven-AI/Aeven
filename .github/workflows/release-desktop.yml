@@ -74,7 +74,7 @@ jobs:
           targets='[
             {"id":"win-x64","target":"win-x64","runner":"windows-latest","script":"win:x64"},
             {"id":"win-arm64","target":"win-arm64","runner":"windows-11-arm","script":"win:arm64"},
-            {"id":"mac-arm64","target":"mac-arm64","runner":"macos-15","script":"mac:arm64"},
+            {"id":"mac-arm64","target":"mac-arm64","runner":"macos-26","script":"mac:arm64"},
             {"id":"mac-x64","target":"mac-x64","runner":"macos-15-intel","script":"mac:x64"},
             {"id":"linux-x64","target":"linux-x64","runner":"ubuntu-24.04","script":"linux:x64"},
             {"id":"linux-arm64","target":"linux-arm64","runner":"ubuntu-24.04-arm","script":"linux:arm64"}
