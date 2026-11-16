@@ -25,35 +25,47 @@ export function convertMath(
 
   if (blockType === 'code') {
     return mdBuffer
-  } else {
-    tokens.lastIndex = 0
-
-    return mdBuffer
-      .split(tokens)
-      .map((chunk, i) => {
-        const protectedRegion = i % 2 === 1
-        return protectedRegion ? chunk : transformUnsafe(chunk)
-      })
-      .join('')
   }
 
-  function transformUnsafe(text: string): string {
-    // The TeX delimiters themselves are not rewritten here. `\(…\)`, `\[…\]`
-    // and a same-line `$$…$$` are recognised while parsing, by the math
-    // plugin's micromark extension, which can tell an escape from a delimiter
-    // and knows whether it is inside a table cell or interrupting a paragraph.
-    // What stays below is the part no tokenizer covers: notations that are not
-    // TeX at all, and the dollars that must be kept away from maths.
+  // The TeX delimiters themselves are not rewritten here. `\(…\)`, `\[…\]`
+  // and a same-line `$$…$$` are recognised while parsing, by the math
+  // plugin's micromark extension, which can tell an escape from a delimiter
+  // and knows whether it is inside a table cell or interrupting a paragraph.
+  // What stays below is the part no tokenizer covers: notations that are not
+  // TeX at all, and the dollars that must be kept away from maths.
+  //
+  // The dollar passes read the whole buffer, with each protected region
+  // standing in as one placeholder. A formula micromark opens before a code
+  // span runs through it, and it closes on an escaped dollar too, since a
+  // backslash inside maths is formula text. A price judged within one
+  // code-span-delimited piece alone therefore stays unescaped while a later
+  // pair is escaped, and "+$5.00, id `x` … is $10: the $5" renders the text
+  // from "5.00" to "is \" through KaTeX.
+  const placeholder = patterns.mathProtectedPlaceholder
+  const regions: string[] = []
 
-    // Bracketed block "[\n … \n]" → "$$ … $$"
-    text = convertBracketBlocks(text)
+  tokens.lastIndex = 0
 
-    text = protectOrphanDollar(text)
+  const masked = mdBuffer
+    .split(tokens)
+    .map((chunk, i) => {
+      if (i % 2 === 1) {
+        regions.push(chunk)
+        return placeholder
+      }
 
-    text = protectNonMathDollars(text)
+      // Bracketed block "[\n … \n]" → "$$ … $$"
+      return convertBracketBlocks(chunk)
+    })
+    .join('')
 
-    return convertInlineOutsideMath(text)
-  }
+  return protectNonMathDollars(protectOrphanDollar(masked))
+    .split(placeholder)
+    .map(
+      (segment, i) =>
+        (i === 0 ? '' : regions[i - 1]) + convertInlineOutsideMath(segment),
+    )
+    .join('')
 
   /**
    * Keep an opening dollar that whitespace follows out of maths.

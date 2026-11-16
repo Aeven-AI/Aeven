@@ -81,6 +81,12 @@ export const patterns = {
       ')',
     'g',
   ),
+  /**
+   * Stands in for one `mathProtectedRegex` region while `convertMath` pairs
+   * dollars across the whole buffer. A Private Use Area code point, distinct
+   * from `mathPendingMarker`, so it cannot collide with content.
+   */
+  mathProtectedPlaceholder: '',
   mathSplitterRegex: /(\$\$[\s\S]*?\$\$|\$[^$]*\$)/g,
   mathLooksLeftRegex: /[\\](?:left|bigl|Bigl|biggl|Biggl)\s*$/,
   mathLooksRightRegex: /^\s*[\\](?:right|bigr|Bigr|biggr|Biggr)/,
