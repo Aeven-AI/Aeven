@@ -65,6 +65,14 @@
 - id: directory-picker
   disabled: true
 
+# A session writes its workspace and the Aeven folder, where the files Aeven
+# makes for the user live; the other fields repeat avn-web-app's.
+- id: sandbox-policy
+  config:
+    mode: !!js process.env.AVN_PERMISSION_MODE ?? 'workspace-write'
+    workspaceRoot: !!js "(process.getBuiltinModule('node:fs').mkdirSync(avnHomePath('chats'), { recursive: true }), avnHomePath('chats'))"
+    writableRoots:
+      - !!js "process.getBuiltinModule('node:path').join(process.getBuiltinModule('node:os').homedir(), 'Documents', 'Aeven')"
 
 - id: connection
   inject:
@@ -97,6 +105,14 @@
         # Aeven's own discovery and relay servers once they run; until then the public Syncthing pool.
         discoveryServers: !!js "process.env.AEVEN_SYNC_DISCOVERY?.split(',') ?? ['default']"
         listenAddresses: !!js "['default', ...(process.env.AEVEN_SYNC_RELAY?.split(',') ?? [])]"
+
+    # The Aeven folder: where Aeven keeps the files it makes for the user. It
+    # follows the account to its other devices through file sync when that runs,
+    # and publishes its path so a path one device wrote resolves on another.
+    - id: aeven-folder-sync
+      name: '@aeven/aeven-folder-sync'
+      config:
+        path: !!js "process.getBuiltinModule('node:path').join(process.getBuiltinModule('node:os').homedir(), 'Documents', 'Aeven')"
 
     - id: workspace-file-sync
       name: '@aeven/workspace-file-sync'

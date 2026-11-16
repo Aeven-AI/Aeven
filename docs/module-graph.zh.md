@@ -458,6 +458,7 @@ flowchart TD
     pkg_win32_process["win32-process"]
   end
   subgraph group_sync["packages/sync"]
+    pkg_aeven_folder_sync["aeven-folder-sync"]
     pkg_file_sync["file-sync"]
     pkg_file_sync_syncthing["file-sync-syncthing"]
     pkg_sync["sync"]
@@ -876,6 +877,10 @@ flowchart TD
   pkg_speech_to_text_aeven --> pkg_speech_to_text
   pkg_speech_to_text_whisper --> pkg_speech_to_text
   pkg_speech_to_text_whisper --> pkg_subprocess
+  pkg_aeven_folder_sync --> pkg_agent
+  pkg_aeven_folder_sync --> pkg_file_sync
+  pkg_aeven_folder_sync --> pkg_sync
+  pkg_aeven_folder_sync --> pkg_system_prompt
   pkg_terminal --> pkg_agent
   pkg_terminal --> pkg_brand
   pkg_loader_smoke --> pkg_agent
@@ -1366,6 +1371,7 @@ flowchart TD
   pkg_tool_session_query --> pkg_system_prompt
   pkg_tool_session_query --> pkg_timeout
   pkg_tool_session_query --> pkg_tools
+  pkg_api_workspace_files --> pkg_aeven_folder_sync
   pkg_api_workspace_files --> pkg_agent
   pkg_api_workspace_files --> pkg_brand
   pkg_api_workspace_files --> pkg_client_connection
@@ -1921,6 +1927,7 @@ flowchart TD
 | [`api-speech-to-text`](../packages/speech/api-speech-to-text) | `speech` | [`identity-user`](../packages/identity/user), [`speaker-diarization`](../packages/speech/speaker-diarization), [`speech-to-text`](../packages/speech/speech-to-text), [`typert-protocol`](../packages/typert/protocol) |
 | [`speech-to-text-aeven`](../packages/speech/speech-to-text-aeven) | `speech` | [`agent`](../packages/core/agent), [`credentials`](../packages/credentials/credentials), [`identity-user`](../packages/identity/user), [`speech-to-text`](../packages/speech/speech-to-text) |
 | [`speech-to-text-whisper`](../packages/speech/speech-to-text-whisper) | `speech` | [`speech-to-text`](../packages/speech/speech-to-text), [`subprocess`](../packages/subprocess/subprocess) |
+| [`aeven-folder-sync`](../packages/sync/aeven-folder-sync) | `sync` | [`agent`](../packages/core/agent), [`file-sync`](../packages/sync/file-sync), [`sync`](../packages/sync/sync), [`system-prompt`](../packages/core/system-prompt) |
 | [`terminal`](../packages/terminal/terminal) | `terminal` | [`agent`](../packages/core/agent), [`brand`](../packages/util/brand) |
 | [`loader-smoke`](../packages/test-support/loader-smoke) | `test-support` | [`agent`](../packages/core/agent), [`http-proxy`](../packages/util/http-proxy), [`llm`](../packages/llm/llm), [`session`](../packages/core/session) |
 | [`workflow`](../packages/workflow/workflow) | `workflow` | [`agent`](../packages/core/agent), [`brand`](../packages/util/brand), [`invariants`](../packages/runtime-diagnostics/invariants), [`llm`](../packages/llm/llm), [`session`](../packages/core/session) |
@@ -2003,7 +2010,7 @@ flowchart TD
 | [`subagent`](../packages/subagent/subagent) | `subagent` | [`agent`](../packages/core/agent), [`agent-presets`](../packages/preset/agent-presets), [`attachment`](../packages/attachment/attachment), [`identity-user`](../packages/identity/user), [`invariants`](../packages/runtime-diagnostics/invariants), [`jobs`](../packages/jobs/jobs), [`llm`](../packages/llm/llm), [`sandbox`](../packages/sandbox/sandbox), [`sandbox-policy`](../packages/sandbox/sandbox-policy), [`scope`](../packages/core/scope), [`session`](../packages/core/session), [`session-persistence`](../packages/session/session-persistence), [`session-projection`](../packages/session/session-projection), [`session-projection-cache`](../packages/session/session-projection-cache), [`session-query`](../packages/session-query/session-query), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools), [`typert-protocol`](../packages/typert/protocol), [`user-approval`](../packages/interaction/user-approval), [`util-time`](../packages/util/time), [`working-directory`](../packages/session/working-directory), [`worktrees`](../packages/session/worktrees) |
 | [`session-query-sqlite`](../packages/session-query/session-query-sqlite) | `session-query` | [`session`](../packages/core/session), [`session-persistence`](../packages/session/session-persistence), [`session-query`](../packages/session-query/session-query), [`settings`](../packages/settings/settings) |
 | [`tool-session-query`](../packages/session-query/tool-session-query) | `session-query` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection), [`session-query`](../packages/session-query/session-query), [`system-prompt`](../packages/core/system-prompt), [`timeout`](../packages/util/timeout), [`tools`](../packages/core/tools) |
-| [`api-workspace-files`](../packages/api/workspace-files) | `api` | [`agent`](../packages/core/agent), [`brand`](../packages/util/brand), [`client-connection`](../packages/client/connection), [`fs`](../packages/fs/fs), [`identity-user`](../packages/identity/user), [`sandbox-policy`](../packages/sandbox/sandbox-policy), [`session`](../packages/core/session), [`session-query`](../packages/session-query/session-query), [`typert-protocol`](../packages/typert/protocol), [`working-directory`](../packages/session/working-directory) |
+| [`api-workspace-files`](../packages/api/workspace-files) | `api` | [`aeven-folder-sync`](../packages/sync/aeven-folder-sync), [`agent`](../packages/core/agent), [`brand`](../packages/util/brand), [`client-connection`](../packages/client/connection), [`fs`](../packages/fs/fs), [`identity-user`](../packages/identity/user), [`sandbox-policy`](../packages/sandbox/sandbox-policy), [`session`](../packages/core/session), [`session-query`](../packages/session-query/session-query), [`typert-protocol`](../packages/typert/protocol), [`working-directory`](../packages/session/working-directory) |
 | [`commands`](../packages/interaction/commands) | `interaction` | [`agent`](../packages/core/agent), [`agent-presets`](../packages/preset/agent-presets), [`attachment`](../packages/attachment/attachment), [`brand`](../packages/util/brand), [`identity-user`](../packages/identity/user), [`invariants`](../packages/runtime-diagnostics/invariants), [`llm`](../packages/llm/llm), [`scope`](../packages/core/scope), [`session`](../packages/core/session), [`session-query`](../packages/session-query/session-query), [`typert-protocol`](../packages/typert/protocol) |
 | [`api-memory-manager`](../packages/memory/api-memory-manager) | `memory` | [`identity-user`](../packages/identity/user), [`memory`](../packages/memory/memory), [`memory-invariants`](../packages/memory/memory-invariants), [`session`](../packages/core/session), [`session-query`](../packages/session-query/session-query), [`typert-protocol`](../packages/typert/protocol) |
 | [`command-goal`](../packages/goal/command-goal) | `goal` | [`commands`](../packages/interaction/commands), [`goal`](../packages/goal/goal), [`llm`](../packages/llm/llm) |

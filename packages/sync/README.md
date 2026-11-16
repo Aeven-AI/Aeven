@@ -35,6 +35,7 @@ Account sync keeps an account's data the same on every device signed in to it. E
 | [`@aeven/file-sync-syncthing`](file-sync-syncthing/README.md) | Service Provider: one supervised Syncthing process |
 | [`@aeven/workspace-file-sync`](../workspace/workspace-file-sync/README.md) | Consumer: folder workspaces and where they land on another device |
 | [`@aeven/workspace-git-sync`](../workspace/workspace-git-sync/README.md) | Consumer: repository workspaces, their environment files, and copies between devices |
+| [`@aeven/aeven-folder-sync`](aeven-folder-sync/README.md) | Consumer: the Aeven folder, where Aeven keeps the files it makes for the user |
 
 `@aeven/memory-memos` and `@aeven/personalization` consume `ctx.sync` directly when it is mounted; without it they behave as before.
 
@@ -48,6 +49,7 @@ Account sync keeps an account's data the same on every device signed in to it. E
 | Preferences | Each account's personalization lives in the `personalization` document, merged per field. |
 | Device names | The `devices` document maps each device id to the name it gave itself. |
 | Workspace files | A folder workspace's files travel peer to peer through Syncthing on the desktop app, outside the relay; the `file-sync/peers` and `file-sync/folders` documents carry each device's transport id and each workspace's folder id, size, and location hint. A repository workspace travels through Git instead: `workspace-git/repositories` carries its remote without credentials, branch, location hint, size, and holders, and `workspace-git/env/<workspace id>` its ignored environment files. |
+| The Aeven folder | The files Aeven makes for the user (`~/Documents/Aeven` on the desktop app) travel through Syncthing as one folder per account, to every desktop, the encrypted file cloud copy, and, while the relay holds the account key, Aeven Cloud, which serves them to Aeven Web; `aeven-folder/paths` carries each device's folder path so a path one device wrote opens on another. |
 
 Credentials, provider keys, connector tokens, device settings, caches, indexes, and logs stay on the device.
 

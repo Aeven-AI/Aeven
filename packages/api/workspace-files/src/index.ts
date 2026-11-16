@@ -38,7 +38,7 @@
 
 import { copyFile, lstat, mkdir, readdir, rename, rm, writeFile } from 'node:fs/promises'
 import { constants as fsConstants } from 'node:fs'
-import { extname, join } from 'node:path'
+import { extname, isAbsolute, join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import mime from 'mime-types'
@@ -46,6 +46,7 @@ import type {} from '@aeven/client-connection'
 import type { Agent } from '@aeven/agent'
 import type { FsError, FsTarget } from '@aeven/fs'
 import type {} from '@aeven/sandbox-policy'
+import type {} from '@aeven/aeven-folder-sync'
 import type {} from '@aeven/identity-user'
 import type { SessionId } from '@aeven/session'
 import type {} from '@aeven/session-query'
@@ -300,10 +301,11 @@ export class WorkspaceFiles extends TypertRemoteService {
     let target: FsTarget
     let bytes: Uint8Array
     try {
-      const workspaceRoot = await this.workspaceRootFor(brandString<SessionId>(sessionId))
-      target = this.config.confineReads === true
-        ? await this.confine(await this.ctx.fs.resolve(workspaceRoot, { signal: request.signal }), workspaceRoot, path, request.signal)
-        : await this.ctx.fs.resolve(path, { cwd: workspaceRoot, signal: request.signal })
+      const { root: workspaceRoot, owner } = await this.rootAndOwnerOf(brandString<SessionId>(sessionId))
+      target = await this.aevenFolderFile(owner, path, request.signal)
+        ?? (this.config.confineReads === true
+          ? await this.confine(await this.ctx.fs.resolve(workspaceRoot, { signal: request.signal }), workspaceRoot, path, request.signal)
+          : await this.ctx.fs.resolve(path, { cwd: workspaceRoot, signal: request.signal }))
       const info = await this.ctx.fs.stat(target, request.signal)
       if (info === undefined) return plain(404, 'not found')
       if (info.type !== 'file') return plain(403, 'not a regular file')
@@ -799,10 +801,34 @@ export class WorkspaceFiles extends TypertRemoteService {
    * @throws {WorkingDirectoryUnavailableError} when the Session's workspace has no folder on this device.
    */
   private async workspaceRootFor(sessionId: SessionId): Promise<string> {
+    return (await this.rootAndOwnerOf(sessionId)).root
+  }
+
+  /**
+   * The file of the account's Aeven folder an absolute path names, as any device of the account wrote it. The folder
+   * is the account's own, so it is read whether or not the workspace contains it.
+   * @param owner - the Session's account.
+   * @param path - the requested path.
+   * @param signal - caller cancellation.
+   * @returns the file here, or undefined when no Aeven folder is mounted or the path is inside none.
+   */
+  private async aevenFolderFile(owner: string | undefined, path: string, signal: AbortSignal): Promise<FsTarget | undefined> {
+    const folder = this.ctx.get('aevenFolder')
+    if (folder === undefined || owner === undefined || !isAbsolute(path)) return undefined
+    const local = await folder.localPath(owner, path)
+    if (local === undefined) return undefined
+    const root = await this.ctx.fs.resolve(folder.pathOf(owner), { signal })
+    const target = await this.ctx.fs.resolve(local, { signal })
+    // A symbolic link inside the folder may point anywhere; only files the folder itself holds are its own.
+    return this.ctx.fs.contains(root, target) ? target : undefined
+  }
+
+  /** The Session's workspace root on this device and its account, refusing a Session the caller may not open. */
+  private async rootAndOwnerOf(sessionId: SessionId): Promise<{ root: string; owner: string | undefined }> {
     const live = this.ctx.get('agents')?.get(sessionId)
     if (live !== undefined) {
       this.assertMayAccess(sessionId, live.session.header.owner)
-      return this.workspaceRootOf(live)
+      return { root: this.workspaceRootOf(live), owner: live.session.header.owner }
     }
     const query = this.ctx.get('sessionQuery')
     if (query === undefined) throw new RemoteError('session/not-found', `session "${sessionId}" not found`, { sessionId })
@@ -822,7 +848,7 @@ export class WorkspaceFiles extends TypertRemoteService {
       ? (held.header.cwd === undefined ? { state: 'absent' as const } : { state: 'local' as const, cwd: held.header.cwd, root: held.header.cwd })
       : directory.observed(held.header, held.projections?.values.workingDirectory)
     if (local.state === 'unresolved') throw new WorkingDirectoryUnavailableError(sessionId, local.reason)
-    return local.state === 'local' ? local.root : this.ctx.sandboxPolicy.workspaceRoot
+    return { root: local.state === 'local' ? local.root : this.ctx.sandboxPolicy.workspaceRoot, owner: held.header.owner }
   }
 
   /** Refuse a Session another account owns exactly as an absent one, so a caller cannot learn which exist. */

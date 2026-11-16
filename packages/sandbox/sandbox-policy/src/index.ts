@@ -21,7 +21,7 @@
  */
 
 import { readFileSync } from 'node:fs'
-import { join, resolve as resolvePath } from 'node:path'
+import { isAbsolute, join, resolve as resolvePath } from 'node:path'
 import { Context, Service } from '@deepseek-ai/cordis'
 import { z as zod } from 'zod'
 import z from '@deepseek-ai/schemastery'
@@ -71,13 +71,19 @@ function linkedWorktreeGitDir(root: string): string | undefined {
 /** Breadth of each mode: a wider mode permits every file effect a narrower one does. */
 const MODE_BREADTH: Record<SandboxMode, number> = { 'read-only': 0, 'workspace-write': 1, 'danger-full-access': 2 }
 
-/** Render the policy without claiming which capabilities are mounted. */
-function renderPolicyContext(policy: SandboxExecutionPolicy): string {
+/**
+ * The policy text for one call, without claiming which capabilities are mounted.
+ * @param policy - the resolved policy.
+ * @param writableRoots - the deployment's configured directories besides the workspace, which the text names.
+ * @returns the text.
+ */
+function renderPolicyContext(policy: SandboxExecutionPolicy, writableRoots: readonly string[]): string {
+  const extraRoots = writableRoots.length === 0 ? '' : `, and under ${writableRoots.map(root => JSON.stringify(root)).join(', ')}`
   switch (policy.mode) {
     case 'read-only':
       return 'Current AVN file policy: read-only. Any available operation enforced by the AVN file sandbox cannot modify files in the standing mode. Do not refuse a required modification from this policy alone: try an available tool normally and follow any denial and escalation guidance it returns.'
     case 'workspace-write':
-      return `Current AVN file policy: workspace-write. Any available operation enforced by the AVN file sandbox may modify files under the session workspace: ${JSON.stringify(policy.workspaceRoot)}. Some platform temporary areas may also be writable.`
+      return `Current AVN file policy: workspace-write. Any available operation enforced by the AVN file sandbox may modify files under the session workspace: ${JSON.stringify(policy.workspaceRoot)}${extraRoots}. Some platform temporary areas may also be writable.`
     case 'danger-full-access':
       return 'Current AVN file policy: danger-full-access. The AVN file sandbox does not restrict file modifications by available operations.'
     /* v8 ignore next 4 -- SandboxMode is a typed same-process closed union; this branch is only the static exhaustiveness guard. */
@@ -118,6 +124,11 @@ export interface Config {
    * resolves to the ceiling.
    */
   ceiling?: SandboxMode
+  /**
+   * Absolute directories every `workspace-write` call may also modify (default none), such as the Aeven folder
+   * where the desktop keeps the files it makes for the user.
+   */
+  writableRoots?: string[]
 }
 
 /** Inputs that select the sandbox policy for one capability call. */
@@ -157,6 +168,7 @@ export class SandboxPolicyService extends Service {
     // stored root is always absolute regardless of how it was supplied.
     workspaceRoot: z.string(),
     ceiling: z.union(['read-only', 'workspace-write', 'danger-full-access'] as const).default('danger-full-access'),
+    writableRoots: z.array(z.string()).default([]),
   })
 
   static inject = ['sessionProjections']
@@ -167,6 +179,8 @@ export class SandboxPolicyService extends Service {
   readonly workspaceRoot: string
   /** The widest mode any call may resolve to. */
   readonly ceiling: SandboxMode
+  /** Absolute directories every `workspace-write` call may also modify. */
+  readonly writableRoots: readonly string[]
   constructor(ctx: Context, config: Config) {
     super(ctx, 'sandboxPolicy')
     // schemastery (static Config) already filled `mode`; the cast records that
@@ -175,6 +189,10 @@ export class SandboxPolicyService extends Service {
     this.defaultMode = config.mode as SandboxMode
     this.workspaceRoot = resolveWorkspaceRoot(config.workspaceRoot ?? process.cwd())
     this.ceiling = config.ceiling as SandboxMode
+    this.writableRoots = (config.writableRoots ?? []).map((root) => {
+      if (!isAbsolute(root)) throw new Error(`sandbox-policy: writableRoots entries must be absolute: ${root}`)
+      return resolveWorkspaceRoot(root)
+    })
     if (!this.allows(this.defaultMode)) {
       throw new Error(`sandbox-policy: default mode "${this.defaultMode}" is wider than the ceiling "${this.ceiling}"`)
     }
@@ -195,7 +213,7 @@ export class SandboxPolicyService extends Service {
           const session = context.agent?.session
           return session === undefined
             ? ''
-            : renderPolicyContext(this.resolve({ session }))
+            : renderPolicyContext(this.resolve({ session }), this.writableRoots)
         },
       })
     })
@@ -226,10 +244,11 @@ export class SandboxPolicyService extends Service {
     const sessionRoot = session === undefined ? undefined : sessionWorkspaceRoot(this.ctx, session)
     const workspaceRoot = resolveWorkspaceRoot(sessionRoot ?? this.workspaceRoot)
     const gitDir = linkedWorktreeGitDir(workspaceRoot)
+    const additionalWritableRoots = [...gitDir === undefined ? [] : [gitDir], ...this.writableRoots]
     return {
       mode: request.mode ?? (override === undefined ? undefined : this.allows(override) ? override : this.ceiling) ?? this.defaultMode,
       workspaceRoot,
-      ...gitDir === undefined ? {} : { additionalWritableRoots: [gitDir] },
+      ...additionalWritableRoots.length === 0 ? {} : { additionalWritableRoots },
       ...session === undefined ? {} : { sessionId: session.id },
     }
   }
