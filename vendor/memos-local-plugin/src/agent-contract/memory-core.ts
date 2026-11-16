@@ -253,6 +253,12 @@ export interface MemoryCore {
     facts: readonly { text: string; tags: readonly string[]; ts?: number }[];
     signal: AbortSignal;
   }): Promise<{ ids: string[]; skipped: number }>;
+  /**
+   * Append one row to the `api_logs` audit table for work the host ran on the core's behalf, such as a recall
+   * judgment. A failed write is dropped: the audit row never fails the caller.
+   * @param entry - the row's tool name, input and output payloads, duration, and outcome.
+   */
+  logApiCall(entry: { toolName: string; input: unknown; output: unknown; durationMs: number; success: boolean }): void;
   searchMemory(
     query: RetrievalQueryDTO,
     execution?: MemorySearchExecutionOptions,

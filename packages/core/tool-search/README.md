@@ -57,7 +57,7 @@ An MCP server's namespace title is the `title` its [`@aeven/mcp-client`](../../m
 
 ### Loading into the request or into `run_code`
 
-How `select:` loads depends on the agent's tool presentation. When the agent's request presents `run_code` ([PTC mode](../tools/README.md) `both` or `ptc`), `select:` returns the tools' SDK declarations in the mounted code runtime's language and the model calls them inside a program as `tools["<name>"](args)`; the request's tool list never changes. Otherwise `select:` returns the tools' schemas and adds them to every following request of that agent.
+How `select:` loads depends on the agent's tool presentation. When the agent's request presents `run_code` ([PTC mode](../tools/README.md) `both` or `ptc`), `select:` returns the tools' SDK declarations in the mounted code runtime's language and the model calls them inside a program as `tools["<name>"](args)`; the request's tool list never changes. Otherwise `select:` returns the tools' schemas and appends them, in load order, after every other tool of each following request of that agent.
 
 -----
 
@@ -65,7 +65,7 @@ How `select:` loads depends on the agent's tool presentation. When the agent's r
 
 ## Understand the implementation
 
-The plugin listens to `system-prompt/assemble`. For an agent, it removes deferred tools from the assembled tool list (keeping natively loaded ones), appends the index section, and drops `tool_search` itself when nothing is deferred and no server is down. The index text is rendered on the agent's first request and then stays fixed; on each later step an `agent/pre-step` listener compares the current index with the one the model last received and, when they differ, adds one logged user message carrying the complete replacement index. `agent/session-start` with source `compact` discards the fixed index, so the request after compaction renders a current one.
+The plugin listens to `system-prompt/assemble`. For an agent, it removes deferred tools from the assembled tool list, appends the natively loaded ones after the remaining tools in load order, appends the index section, and drops `tool_search` itself when nothing is deferred and no server is down. The index text is rendered on the agent's first request and then stays fixed; an agent resumed over a session whose last request header carries an index keeps that logged text instead of rendering the servers' state at resume time, unless the request's `run_code` presentation changed; on each later step an `agent/pre-step` listener compares the current index with the one the model last received and, when they differ, adds one logged user message carrying the complete replacement index. `agent/session-start` with source `compact` discards the fixed index, so the request after compaction renders a current one.
 
 Server state comes from the agent-scoped `mcp/servers` waterfall that `@aeven/mcp-client` answers. A server is listed as not serving when its state is not `connected` and its tool names match the defer patterns.
 
@@ -81,7 +81,7 @@ The natively loaded set is per agent. On first use it is rebuilt from the sessio
 
 #### What the model sees
 
-A `deferred-tools` system-prompt section when at least one tool is deferred or one deferring server is not serving. One line per namespace names every deferred tool, loaded or not: `- <title>: <prefix>{<name>, ...}` for an MCP server and `- <title>: <name>, ...` for a group of native tools, sorted by title. A `Not serving now:` block follows when servers are down, one line each: `- <title> (<prefix>*): <stopped|reconnecting|starting>[ after: <error>]. tool_search "restart:<server>" connects it again.` The opening line depends on whether the request presents `run_code`.
+A `deferred-tools` system-prompt section when at least one tool is deferred or one deferring server is not serving. One line per namespace names every deferred tool, loaded or not: `- <title>: <prefix>{<name>, ...}` for an MCP server and `- <title>: <name>, ...` for a group of native tools, sorted by title. A `Not serving now:` block follows when servers are down, one line each, with whitespace in the error collapsed to single spaces: `- <title> (<prefix>*): <stopped|reconnecting|starting>[ after: <error>]. tool_search "restart:<server>" connects it again.` The opening line depends on whether the request presents `run_code`.
 
 ##### Opening line without run_code
 
@@ -101,7 +101,7 @@ The section costs the tool names and titles, far less than the schemas it replac
 
 #### KV Cache effect
 
-The section is rendered once per agent and stays byte-identical until compaction, so connecting, losing, or restarting a server does not change the system prompt. Native loading adds schemas to the request's tool list, which invalidates the cached prefix from the tool list onward on the next request; loading for `run_code` changes neither the tool list nor the system prompt.
+The section is rendered once per agent and stays byte-identical until compaction, including across a Host restart that resumes the session, so connecting, losing, or restarting a server does not change the system prompt. Native loading appends schemas after the request's last tool, which invalidates the cached prefix from the end of the tool list onward on the next request — the conversation, not the system prompt or the tools already declared; loading for `run_code` changes neither the tool list nor the system prompt.
 
 ### Index update message
 

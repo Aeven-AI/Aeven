@@ -51,6 +51,7 @@ Choose this backend when consumers benefit from one artifact per session — nav
 | `compression` | `'zstd'` | Physical encoding: `'zstd'` checksummed frames, or `'none'` newline-delimited UTF-8 text |
 | `preparedSessionCacheSize` | `5` | Cold session preparations retained for resume reuse |
 | `writeBatchMaxDelayMs` | `200` | Fixed live-event coalescing window, in milliseconds |
+| `consolidateAfterSmallFrames` | `64` | Small append frames a Zstandard log holds before it is rewritten with neighbouring frames merged; `0` disables consolidation |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#aevensession-persistence-jsonl) is the exhaustive source for every accepted field and its JSDoc.
 
@@ -94,6 +95,8 @@ The backend is a thin storage layer over the shared [PersistenceCoordinator](../
 
 The default artifact is a standard concatenation of independent [Zstandard frames](../../../.agents/notes/implemented/architecture/2026-07-19-zstandard-jsonl-session-logs.md): one checksummed frame containing only the header line, then one checksummed frame per durable append batch, using Node's built-in Zstandard API at its default compression level (no level knob). `sourceEventSeqs` uses a lossless storage representation: consecutive runs of at least three sequence numbers become `[start, end]` pairs, any other list stays verbatim, and reading expands the exact in-memory array. Listing reads and validates only the header frame. `compression: 'none'` keeps the same storage-form logical lines without frame compression. A root belongs to one encoding: startup discovery and targeted lookup reject the opposite suffix, and there is no format or compression migration, mixed-root fallback, or dual write. When `packChunks` is enabled, an eligible run of ≥3 consecutive same-block `assistant/chunk` delta events becomes one packed row (`text-chunks`/`reasoning-chunks`/`tool-call-chunks`) whose `seq0`/`time0` and per-member `dt` gaps reconstruct every member exactly; the lossless codec lives in `avn-session` and reading is layout-blind, so packed, unpacked, and mixed files load identically.
 
+Each frame is compressed alone, so a long session's small append frames cannot reuse each other's content: 40 recorded desktop logs took 14.7 MB against 6.2 MB for the same text in larger frames. When a log holds at least `consolidateAfterSmallFrames` frames under 64 KiB, the backend rewrites it: the header frame stays byte for byte, a frame that stands alone stays as it is, and each run of neighbouring frames becomes one frame of at most 4 MiB of text, verified to decode to exactly the original lines. Reading, merging, and writing the replacement happen without the session's writer lock; the swap takes the lock for a stat and a rename and happens only when the log is unchanged since it was read, so a session another owner holds is skipped and a session reopened in this process waits for the swap instead of finding its lock taken. A log is checked when its session's writer is released, and every log is checked once in the background after the first listing, recorded by the root file `.consolidation-sweep-1`. The rewrite changes the log's revision, so revision-keyed readers read it once more.
+
 ### Source map
 
 | File | Role |
@@ -101,6 +104,7 @@ The default artifact is a standard concatenation of independent [Zstandard frame
 | [`src/index.ts`](src/index.ts) | Plugin entry: `Config` schema, backend class, coordinator wiring |
 | [`src/format.ts`](src/format.ts) | Log path derivation, header encoding, record scanning, packed-row layout |
 | [`src/zstd.ts`](src/zstd.ts) | Zstandard frame compression, decoding, and frame scanning |
+| [`src/consolidate.ts`](src/consolidate.ts) | Merging a log's small append frames into frames of at most 4 MiB of text that decode to the same bytes |
 | [`src/win32.ts`](src/win32.ts) | Windows write-through publish and directory creation |
 | — | No runtime invariant companion is published; persistence correctness requires backend round-trip and crash-tail tests; this package exposes no continuously observable in-process relation. |
 

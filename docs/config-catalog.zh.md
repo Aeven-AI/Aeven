@@ -3261,6 +3261,18 @@ export interface Config {
    */
   relevanceTimeoutMs: number
   /**
+   * Milliseconds after which an unanswered relevance judgment is sent a second time with the same prompt; the first
+   * usable answer is kept and the other request is cancelled. A judgment that fails earlier is resent at once while
+   * time remains. `0` sends one request only.
+   */
+  relevanceHedgeMs: number
+  /**
+   * Shortest window the relevance judgment gets, in milliseconds, even when retrieval used most of the recall budget;
+   * the recall then finishes up to this long after its budget. Capped by `relevanceTimeoutMs`; `0` gives the judgment
+   * only what retrieval left.
+   */
+  relevanceMinMs: number
+  /**
    * Person profile distilled from all of the owner's person memories regardless of age, delivered at the start of
    * every conversation; needs `hostLlm`. Recorded dates are delivered whether or not it is enabled.
    */
@@ -4089,6 +4101,13 @@ export interface Config {
   preparedSessionCacheSize?: number
   /** Fixed live-event coalescing window; not a backend completion deadline. */
   writeBatchMaxDelayMs?: number
+  /**
+   * Small append frames a Zstandard log holds before the backend rewrites it with runs of frames merged into larger
+   * ones that decode to the same lines. Each append batch is compressed alone, so a long session's log is about twice
+   * the size of its text compressed in larger frames. A log is checked when its session's writer is released, and every
+   * log once in the background after the first listing. `0` disables consolidation. Defaults to 64.
+   */
+  consolidateAfterSmallFrames?: number
 }
 
 /** Physical encoding selected for JSONL session artifacts. */
@@ -4173,6 +4192,13 @@ export interface Config extends SessionQueryConfig {
   prefixMinChars?: number
   /** Maximum concurrent persisted-log inspections in one inherited batch read. Defaults to 4. */
   persistedInspectConcurrency?: number
+  /**
+   * Share of indexed persisted documents deleted since the last compaction, rewrites of a growing session included,
+   * at which the index merges its full-text segments in the background. FTS5 keeps a deleted document's entries until
+   * its segments merge, so without compaction an index that rewrites sessions grows to several times its content.
+   * Each step merges a bounded amount and searches run between steps. `0` disables compaction. Defaults to 0.25.
+   */
+  compactAfterDeletedShare?: number
 }
 
 /** SQLite module/handle opening phase; `never` disables full-text search entirely. */

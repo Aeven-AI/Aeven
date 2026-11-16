@@ -31,7 +31,7 @@ import {
   type PnpmStoreFileRecord,
   readPnpmIndexRows,
   writeChangedPnpmIndexRows,
-} from './pnpm-store-index.ts'
+} from '../src/pnpm-store-index.ts'
 import type { MacOSSigningEnvironment } from './desktop-release-environment.mjs'
 import { signMacOSSeedCode, verifyMacOSSeedCode } from './verify-macos-signature.mjs'
 

@@ -123,6 +123,18 @@ export interface Config {
    */
   relevanceTimeoutMs: number
   /**
+   * Milliseconds after which an unanswered relevance judgment is sent a second time with the same prompt; the first
+   * usable answer is kept and the other request is cancelled. A judgment that fails earlier is resent at once while
+   * time remains. `0` sends one request only.
+   */
+  relevanceHedgeMs: number
+  /**
+   * Shortest window the relevance judgment gets, in milliseconds, even when retrieval used most of the recall budget;
+   * the recall then finishes up to this long after its budget. Capped by `relevanceTimeoutMs`; `0` gives the judgment
+   * only what retrieval left.
+   */
+  relevanceMinMs: number
+  /**
    * Person profile distilled from all of the owner's person memories regardless of age, delivered at the start of
    * every conversation; needs `hostLlm`. Recorded dates are delivered whether or not it is enabled.
    */
@@ -244,6 +256,8 @@ export const Config: z<Config> = z.object({
   sentenceRetrievals: z.natural().max(8).default(3),
   sentenceHits: z.natural().min(1).max(40).default(8),
   relevanceTimeoutMs: z.natural().min(300).default(4000),
+  relevanceHedgeMs: z.natural().default(2000),
+  relevanceMinMs: z.natural().default(3500),
   profile: z.object({
     enabled: z.boolean().default(true),
     maxChars: z.natural().min(500).max(20_000).default(6000),
@@ -410,14 +424,17 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     ...bridge && judges ? { judges, classify: input => classifyTurnDomain(bridge, input, config.classifyTimeoutMs) } : {},
     ...bridge === null ? {} : {
       relevance: {
-        run: async (system: string, user: string, timeoutMs: number) => (await bridge.complete({
+        run: async (system: string, user: string, timeoutMs: number, signal: AbortSignal) => (await bridge.complete({
           messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
           temperature: 0,
           maxTokens: 400,
           timeoutMs,
+          signal,
           op: 'aeven.recall.relevance',
         })).text,
         timeoutMs: config.relevanceTimeoutMs,
+        hedgeMs: config.relevanceHedgeMs,
+        minMs: config.relevanceMinMs,
       },
     },
     ...config.sentenceRetrievals > 0 ? { sentenceRecall: { sentences: config.sentenceRetrievals, hits: config.sentenceHits } } : {},

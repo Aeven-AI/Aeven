@@ -98,8 +98,10 @@ export function MeetingPane(props: MeetingPaneProps): ReactNode {
   }, [visible, voiceId, preparation?.phase, prepareSpeech])
   const prepareVoice = (): void => { if (voiceId !== undefined) prepareSpeech(voiceId) }
   const start = (): void => {
-    // Record is where a meeting is asked for, so it starts a missing, failed or cancelled model itself.
-    if (preparation?.phase === 'unprepared' || preparation?.phase === 'failed' || preparation?.phase === 'cancelled') prepareVoice()
+    // Record is where a meeting is asked for, so it starts a missing, failed or cancelled model itself, and wakes a
+    // worker stopped while idle so it is ready for the first phrase.
+    if (preparation?.phase === 'unprepared' || preparation?.phase === 'failed' || preparation?.phase === 'cancelled'
+      || preparation?.phase === 'standby') prepareVoice()
     void recorder.start()
   }
 

@@ -125,6 +125,8 @@ export function VoiceInput({ sessionId, inputActions, locked, onActiveChange, cr
       return
     }
     if (!catalog || locked || phase !== 'idle') return
+    // A worker stopped while idle starts now, so it is ready by the time the person stops speaking.
+    if (preparation === 'standby') prepareModel(catalog.selection.providerId)
     const run = ++generation.current
     setError('')
     setPhase('starting')

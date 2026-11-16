@@ -35,6 +35,7 @@ import type { DesktopPaths } from './paths.ts'
 import { parseDesktopRelease, parseInstalledDesktopReleaseVersion, type DesktopRelease } from './release.ts'
 import { renameRetryingWindowsLocks } from './rename-retry.ts'
 import { extractPnpmStoreArchives, mergePnpmStore } from './seed-store.ts'
+import { collectDesktopStore } from './store-collect.ts'
 import { installSeedProfileLayout, SEED_PROFILE_LAYOUT } from './seed-profile.ts'
 
 /** Files the package transaction copies between active and staging projects. */
@@ -505,12 +506,31 @@ export class DesktopProjectManager {
         hooks.progress('checking')
         await hooks.healthCheck(stagingProfile)
         await this.activate(stagingProfile, hooks)
-        return true
       } catch (error) {
         discardOwnedDirectory(stagingProfile)
         throw error
       }
+      await this.collectStore()
+      return true
     })
+  }
+
+  /**
+   * Remove store packages that neither the active, the rollback, nor a prepared profile references, after an
+   * activation committed and while its lock is held. A failure leaves the store as it was and never fails the
+   * activation.
+   */
+  private async collectStore(): Promise<void> {
+    try {
+      const result = await collectDesktopStore(this.paths.pnpm.store, [this.paths.profile, this.paths.rollback, this.paths.prepared])
+      if (result === undefined) {
+        console.warn('desktop project: store collection skipped because a profile has no pnpm-lock.yaml')
+      } else if (result.removedPackages > 0) {
+        console.info(`desktop project: removed ${String(result.removedPackages)} unused store packages and ${String(result.deletedObjects)} objects (${String(Math.round(result.freedBytes / 2 ** 20))} MiB)`)
+      }
+    } catch (error) {
+      console.warn('desktop project: store collection failed; the store keeps its packages', error)
+    }
   }
 
   /**

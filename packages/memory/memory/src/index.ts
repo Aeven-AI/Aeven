@@ -248,7 +248,7 @@ export default class Memory extends Service {
   }
 
   /**
-   * Retrieve memory relevant to a query within the request's hard budget.
+   * Retrieve memory relevant to a query within the request's foreground budget.
    * @param request - query, scope, and foreground budget.
    * @returns ranked hits visible to the scope.
    */

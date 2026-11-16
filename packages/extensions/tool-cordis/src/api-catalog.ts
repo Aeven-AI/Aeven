@@ -2148,7 +2148,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'recall(request: MemoryRecallRequest): Promise<MemoryRecall>',
-        description: 'Retrieve memory relevant to a query within the request\'s hard budget.',
+        description: 'Retrieve memory relevant to a query within the request\'s foreground budget.',
         parameters: [{ name: 'request', description: 'query, scope, and foreground budget.' }],
         returns: 'ranked hits visible to the scope.',
       },

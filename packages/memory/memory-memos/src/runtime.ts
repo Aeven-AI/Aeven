@@ -30,9 +30,9 @@ import type { RetrievalHitDTO, RuntimeNamespace, SkillDTO, TraceDTO } from '@dee
 import type { MemoryCore } from '@deepseek-ai/memos-local-plugin/agent-contract/memory-core.js'
 import type { ResolvedHome } from '@deepseek-ai/memos-local-plugin/core/config/paths.js'
 import type { OwnerCores } from './cores.ts'
-import { MemoryDeadlineError, withDeadline } from './deadline.ts'
+import { abortReason, MemoryDeadlineError, withDeadline } from './deadline.ts'
 import { messageSentences, queryClauses, withoutExactIdentifiers } from './query.ts'
-import { isLogMemory, LOG_TAG, parseRelevance, RELEVANCE_PROMPT, relevanceInput, type CandidateKind, type FilterCandidate } from './filter.ts'
+import { isLogMemory, LOG_TAG, parseRelevance, RELEVANCE_PROMPT, relevanceInput, type CandidateKind, type FilterCandidate, type RelevanceJudgment } from './filter.ts'
 import type { LlmRouteContext } from './host-llm.ts'
 import { recordedDates } from './dates.ts'
 import type { PersonFact, PersonProfiles, ProfileDistill } from './profile.ts'
@@ -87,12 +87,16 @@ export interface MemosMemoryOptions {
   readonly judges?: TurnJudgeContext
   /**
    * The turn-start relevance judgment: `run` takes a system prompt and a user message on the current route and
-   * returns the model's answer within `timeoutMs`, inside the recall's own budget. Absent delivers retrieval's
-   * ranking unjudged.
+   * returns the model's answer within `timeoutMs` unless `signal` aborts it. The judgment gets what is left of the
+   * recall's budget, capped by `timeoutMs` and at least `minMs` (itself capped by `timeoutMs`); an attempt
+   * unanswered after `hedgeMs`, or failed before then, is sent once more and the first usable answer wins. Absent
+   * delivers retrieval's ranking unjudged.
    */
   readonly relevance?: {
-    readonly run: (system: string, user: string, timeoutMs: number) => Promise<string>
+    readonly run: (system: string, user: string, timeoutMs: number, signal: AbortSignal) => Promise<string>
     readonly timeoutMs: number
+    readonly hedgeMs: number
+    readonly minMs: number
   }
   /**
    * Turn-start retrieval per sentence of the person's message: at most `sentences` sentences each add up to `hits`
@@ -174,6 +178,29 @@ const MAX_REVISIONS = 2
 /** Prefix of the trace tag that records a revision, followed by the trace of the exchange that made it. */
 const REVISED_TAG = 'revised:'
 
+/** `api_logs` tool name of a turn-start relevance judgment's audit row. */
+const JUDGMENT_LOG = 'recall_judgment'
+
+/** How a relevance judgment ended: a usable answer, or why the recall fell back to retrieval's ranking. */
+type JudgmentOutcome = 'judged' | 'unusable' | 'failed' | 'timeout' | 'no-time'
+
+/** One request of a relevance judgment, timed from the judgment's start. */
+interface JudgmentAttempt {
+  readonly startMs: number
+  ms?: number
+  status: 'pending' | 'usable' | 'unusable' | 'failed' | 'cancelled'
+}
+
+/** A relevance judgment's requests and their result. */
+type JudgmentRun =
+  | { readonly judgment: RelevanceJudgment; readonly attempts: readonly JudgmentAttempt[] }
+  | {
+    readonly judgment?: undefined
+    readonly reason: string
+    readonly outcome: JudgmentOutcome
+    readonly attempts: readonly JudgmentAttempt[]
+  }
+
 /** MemOS provider behind `ctx.memory`. */
 export class MemosMemory implements MemoryProvider {
   readonly id = 'memos'
@@ -182,6 +209,8 @@ export class MemosMemory implements MemoryProvider {
   private readonly candidateKinds = new WeakMap<MemoryHit, CandidateKind>()
   /** Each owner's current person memories, as profile reads list them, and when they were listed. */
   private readonly personFacts = new Map<string, { readonly at: number; readonly facts: readonly PersonFact[] }>()
+  /** Turn-start recalls still running, by owner. */
+  private readonly recallsInFlight = new Map<string, Set<Promise<MemoryRecall>>>()
   private disposing: Promise<void> | undefined
 
   constructor(private readonly options: MemosMemoryOptions) {}
@@ -217,7 +246,9 @@ export class MemosMemory implements MemoryProvider {
   }
 
   async recall(request: MemoryRecallRequest): Promise<MemoryRecall> {
-    const recall = await this.recallHits(request)
+    const running = this.recallHits(request)
+    if (request.purpose === 'turn-start') this.trackRecall(request.scope.owner, running)
+    const recall = await running
     this.noteServed(request.scope, recall.hits.flatMap(hit => hit.kind === 'trace' ? [{ id: hit.id, text: hit.snippet }] : []))
     return recall
   }
@@ -227,8 +258,15 @@ export class MemosMemory implements MemoryProvider {
     const facts = await this.read(request, () => this.currentPersonFacts(scope.owner, request.signal))
     const profiles = this.options.profiles
     if (profiles !== undefined) {
-      profiles.store.refresh(scope.owner, facts, (system, user, timeoutMs) =>
-        this.withRoute(scope.route, () => profiles.distill(system, user, timeoutMs)))
+      const refresh = (): void => {
+        profiles.store.refresh(scope.owner, facts, (system, user, timeoutMs) =>
+          this.withRoute(scope.route, () => profiles.distill(system, user, timeoutMs)))
+      }
+      // The refresh is a long call on the same route; it starts after the owner's turn-start recalls settle, so it
+      // does not run beside the relevance judgment the turn is waiting for.
+      const running = this.recallsInFlight.get(scope.owner)
+      if (running === undefined) refresh()
+      else void Promise.allSettled([...running]).then(refresh)
     }
     const stored = profiles?.store.read(scope.owner)
     return {
@@ -270,6 +308,22 @@ export class MemosMemory implements MemoryProvider {
     }
     this.personFacts.set(owner, { at: Date.now(), facts })
     return facts
+  }
+
+  /** Hold a turn-start recall in {@link recallsInFlight} until it settles; its caller handles its outcome. */
+  private trackRecall(owner: string, running: Promise<MemoryRecall>): void {
+    let set = this.recallsInFlight.get(owner)
+    if (set === undefined) {
+      set = new Set()
+      this.recallsInFlight.set(owner, set)
+    }
+    set.add(running)
+    const owned = set
+    const settle = (): void => {
+      owned.delete(running)
+      if (owned.size === 0 && this.recallsInFlight.get(owner) === owned) this.recallsInFlight.delete(owner)
+    }
+    void running.then(settle, settle)
   }
 
   /** Remember which traces the session was given, for the judgment of the turn that reads them. */
@@ -455,33 +509,141 @@ export class MemosMemory implements MemoryProvider {
       ...hit.procedureStatus === undefined ? {} : { procedureStatus: hit.procedureStatus },
       text: hit.snippet,
     }))
-    const timeoutMs = Math.min(relevance.timeoutMs, deadlineAt - now - 50)
-    const fallback = (reason: string): MemoryRecall => {
+    // Retrieval may have used most of the recall budget; the judgment still gets its minimum window, because the
+    // unjudged fallback costs the turn more than the wait does.
+    const timeoutMs = Math.max(Math.min(relevance.timeoutMs, deadlineAt - now - 50), Math.min(relevance.minMs, relevance.timeoutMs))
+    const user = relevanceInput(request.request ?? request.query, request.context ?? '', offered, now)
+    const audit = {
+      sessionId: request.scope.sessionId,
+      candidates: candidates.length,
+      inputChars: user.length,
+      retrievalMs: now - (deadlineAt - request.timeoutMs),
+      windowMs: timeoutMs,
+    }
+    const fallback = (reason: string, outcome: JudgmentOutcome, attempts: readonly JudgmentAttempt[]): MemoryRecall => {
       this.options.warn(`recall relevance judgment ${reason} for ${request.scope.sessionId}; delivering a mechanical fallback`)
+      this.recordJudgment(request.scope.owner, audit, { outcome, reason, attempts }, Date.now() - now, false)
       const kept = candidates.filter((_, index) => offered[index]?.kind !== 'log' && offered[index]?.procedureStatus !== 'candidate').slice(0, 2)
       return { hits: kept, timedOut: false, degraded: true }
     }
-    if (timeoutMs < 300) return fallback('had no time left')
-    const user = relevanceInput(request.request ?? request.query, request.context ?? '', offered, now)
-    let answer: string
-    try {
-      answer = await withDeadline(
-        this.withRoute(request.scope.route, () => relevance.run(RELEVANCE_PROMPT, user, timeoutMs)),
-        now + timeoutMs,
-        request.signal,
-        `Memory relevance judgment exceeded ${timeoutMs}ms`,
-      )
-    } catch (error) {
-      return fallback(`failed (${describe(error)})`)
-    }
-    const judgment = parseRelevance(answer, candidates.length)
-    if (judgment === undefined) return fallback('returned no usable answer')
-    const { sessionId } = request.scope
-    this.options.info(`recall judged ${sessionId} in ${Date.now() - now} ms: lead=${judgment.lead} kept ${judgment.keep.length} of ${candidates.length}`)
+    if (timeoutMs < 300) return fallback('had no time left', 'no-time', [])
+    const run = await this.judgeAttempts(request, relevance, user, candidates.length, now + timeoutMs)
+    if (run.judgment === undefined) return fallback(run.reason, run.outcome, run.attempts)
+    const { judgment } = run
+    const durationMs = Date.now() - now
+    this.options.info(`recall judged ${request.scope.sessionId} in ${durationMs} ms: lead=${judgment.lead} kept ${judgment.keep.length} of ${candidates.length}`)
+    this.recordJudgment(request.scope.owner, audit, { outcome: 'judged', kept: judgment.keep.length, lead: judgment.lead, attempts: run.attempts }, durationMs, true)
     const state = this.state(request.scope)
     state.sharing = judgment.sharing
     const hits = judgment.keep.flatMap(index => candidates[index] ?? [])
     return { hits, timedOut: false, lead: judgment.lead, sharing: judgment.sharing }
+  }
+
+  /**
+   * Ask for the relevance judgment until one answer is usable or the window closes. The first request goes out at
+   * once; a second identical one goes out after `hedgeMs`, or as soon as the first fails, while at least 300 ms of the
+   * window remain. The first usable answer settles the run and cancels the other request. With `hedgeMs` 0 only one
+   * request is sent.
+   * @param request - the recall the judgment serves; its signal cancels every attempt.
+   * @param relevance - the judgment's runner and limits.
+   * @param user - the judgment's user message.
+   * @param count - how many candidates the message offers.
+   * @param endAt - epoch milliseconds the window closes.
+   * @returns the usable judgment, or why there is none, with each attempt's outcome.
+   */
+  private judgeAttempts(
+    request: MemoryRecallRequest,
+    relevance: NonNullable<MemosMemoryOptions['relevance']>,
+    user: string,
+    count: number,
+    endAt: number,
+  ): Promise<JudgmentRun> {
+    const startedAt = Date.now()
+    const attempts: JudgmentAttempt[] = []
+    const controllers: AbortController[] = []
+    return new Promise((resolve) => {
+      let settled = false
+      let pending = 0
+      let reason = 'returned no usable answer'
+      let outcome: JudgmentOutcome = 'unusable'
+      let hedge: ReturnType<typeof setTimeout> | undefined
+      const finish = (run: JudgmentRun): void => {
+        if (settled) return
+        settled = true
+        clearTimeout(hedge)
+        clearTimeout(closing)
+        request.signal.removeEventListener('abort', onAbort)
+        for (const controller of controllers) controller.abort(new MemoryDeadlineError('Memory relevance judgment settled'))
+        resolve(run)
+      }
+      const launch = (): boolean => {
+        const remaining = endAt - Date.now()
+        if (settled || attempts.length >= (relevance.hedgeMs > 0 ? 2 : 1) || remaining < 300) return false
+        const controller = new AbortController()
+        controllers.push(controller)
+        const attempt: JudgmentAttempt = { startMs: Date.now() - startedAt, status: 'pending' }
+        attempts.push(attempt)
+        pending++
+        const signal = AbortSignal.any([request.signal, controller.signal])
+        void this.withRoute(request.scope.route, () => relevance.run(RELEVANCE_PROMPT, user, remaining, signal))
+          .then(
+            (answer) => {
+              attempt.ms = Date.now() - startedAt - attempt.startMs
+              const judgment = parseRelevance(answer, count)
+              attempt.status = judgment === undefined ? 'unusable' : 'usable'
+              if (judgment !== undefined) {
+                finish({ judgment, attempts })
+              } else if (!settled) {
+                reason = 'returned no usable answer'
+                outcome = 'unusable'
+              }
+            },
+            (error: unknown) => {
+              attempt.ms = Date.now() - startedAt - attempt.startMs
+              attempt.status = settled ? 'cancelled' : 'failed'
+              if (!settled) {
+                reason = `failed (${describe(error)})`
+                outcome = 'failed'
+              }
+            },
+          )
+          .finally(() => {
+            pending--
+            // A failed or unusable first answer is resent at once instead of waiting for the hedge.
+            if (!settled && !launch() && pending === 0) finish({ reason, outcome, attempts })
+          })
+        return true
+      }
+      const onAbort = (): void => { finish({ reason: `failed (${describe(abortReason(request.signal))})`, outcome: 'failed', attempts }) }
+      const closing = setTimeout(() => {
+        finish({ reason: `failed (Memory relevance judgment exceeded ${endAt - startedAt}ms)`, outcome: 'timeout', attempts })
+      }, Math.max(0, endAt - Date.now()))
+      request.signal.addEventListener('abort', onAbort, { once: true })
+      if (request.signal.aborted) {
+        onAbort()
+        return
+      }
+      launch()
+      if (relevance.hedgeMs > 0) hedge = setTimeout(() => { launch() }, relevance.hedgeMs)
+    })
+  }
+
+  /**
+   * Append one judgment's audit row to the owner's MemOS `api_logs`, where the judgment's timing and outcome can be
+   * read beside the core's own model calls. The row carries counts and timings, never memory text.
+   */
+  private recordJudgment(
+    owner: string,
+    input: Record<string, unknown>,
+    output: Record<string, unknown>,
+    durationMs: number,
+    success: boolean,
+  ): void {
+    void this.options.cores.get(owner).then(
+      (core) => { core.logApiCall({ toolName: JUDGMENT_LOG, input, output, durationMs, success }) },
+      // The core failed to open, which the recall that ran on it already reported; the audit row is dropped.
+      () => undefined,
+    )
   }
 
   /**

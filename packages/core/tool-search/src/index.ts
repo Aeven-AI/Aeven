@@ -9,14 +9,16 @@
  * namespace with a readable title, plus the MCP servers that are configured but
  * not serving and why. The index is frozen per agent; later changes reach the
  * model as a logged update message, so connecting or losing a server does not
- * rewrite the prompt.
+ * rewrite the prompt. A resumed agent keeps the index its session's last request
+ * carried, read back from the logged request header, instead of rendering the
+ * servers' state at resume time.
  *
  * `tool_search` takes three query forms. Keywords list matching tools and load
  * nothing. `select:` loads exact tools: an agent presented with `run_code`
  * receives their SDK declarations in the result and calls them inside a
  * program, so its request tool list never changes; any other agent receives
- * their schemas and has them added to its following requests, refused when the
- * request would exceed `maxRequestTools`. The first `select:` that loads an MCP
+ * their schemas appended after every other tool of its following requests, in
+ * load order, refused when the request would exceed `maxRequestTools`. The first `select:` that loads an MCP
  * server's tools after the agent starts or compacts also carries the usage
  * instructions that server sent when it connected, so they enter the session
  * log as part of that result. `restart:` reconnects an MCP server that is down.
@@ -134,6 +136,8 @@ interface AgentState {
   announced?: string
   /** MCP servers whose usage instructions a `select:` result carried since the agent started or last compacted. */
   guided: Set<string>
+  /** Whether `section` was read from the session's last request header and this agent has not assembled a request yet. */
+  restored: boolean
 }
 
 /**
@@ -227,9 +231,7 @@ export function searchTools<T extends { tool: ToolSchema; title: string }>(tools
  */
 export function renderIndex(snapshot: IndexSnapshot, ptc: boolean): string | undefined {
   if (snapshot.entries.length === 0 && snapshot.unavailable.length === 0) return undefined
-  const lines = [ptc
-    ? `Deferred tools: call them inside ${RUN_CODE_NAME} as tools["<name>"](args). ${TOOL_NAME} "select:<name>[,<name>...]" returns their declarations; a keyword query lists matching tools with what they do and loads nothing.`
-    : `Deferred tools: their schemas are not loaded, so they cannot be called yet. ${TOOL_NAME} "select:<name>[,<name>...]" loads exact tools, callable from your next step; a keyword query lists matching tools with what they do and loads nothing.`]
+  const lines = [indexOpener(ptc)]
   for (const entry of snapshot.entries) {
     lines.push(entry.prefix === ''
       ? `- ${entry.title}: ${entry.names.join(', ')}`
@@ -239,10 +241,41 @@ export function renderIndex(snapshot: IndexSnapshot, ptc: boolean): string | und
     lines.push('Not serving now:')
     for (const server of snapshot.unavailable) {
       const state = server.state === 'failed' ? 'stopped' : server.state === 'retrying' ? 'reconnecting' : 'starting'
-      lines.push(`- ${server.title} (${server.toolPrefix}*): ${state}${server.error === undefined ? '' : ` after: ${server.error}`}. ${TOOL_NAME} "restart:${server.serverName}" connects it again.`)
+      const error = server.error?.replace(/\s+/gu, ' ').trim()
+      lines.push(`- ${server.title} (${server.toolPrefix}*): ${state}${error === undefined ? '' : ` after: ${error}`}. ${TOOL_NAME} "restart:${server.serverName}" connects it again.`)
     }
   }
   return lines.join('\n')
+}
+
+/**
+ * The first line of the index.
+ * @param ptc - whether deferred tools are called inside `run_code`.
+ * @returns the opener text.
+ */
+function indexOpener(ptc: boolean): string {
+  return ptc
+    ? `Deferred tools: call them inside ${RUN_CODE_NAME} as tools["<name>"](args). ${TOOL_NAME} "select:<name>[,<name>...]" returns their declarations; a keyword query lists matching tools with what they do and loads nothing.`
+    : `Deferred tools: their schemas are not loaded, so they cannot be called yet. ${TOOL_NAME} "select:<name>[,<name>...]" loads exact tools, callable from your next step; a keyword query lists matching tools with what they do and loads nothing.`
+}
+
+/**
+ * The index section the session's last request carried. The system prompt joins
+ * sections with a blank line and every index line is a single line, so the
+ * section runs from its opener to the next blank line or the end.
+ * @param session - the session whose request header is read.
+ * @returns the section text and its presentation, or undefined when the last request carried none.
+ */
+function loggedSection(session: Session): { text: string; ptc: boolean } | undefined {
+  const system = session.requestHeader()?.system
+  if (system === undefined) return undefined
+  for (const ptc of [false, true]) {
+    const start = system.indexOf(indexOpener(ptc))
+    if (start < 0 || (start > 0 && !system.startsWith('\n\n', start - 2))) continue
+    const end = system.indexOf('\n\n', start)
+    return { text: system.slice(start, end < 0 ? undefined : end), ptc }
+  }
+  return undefined
 }
 
 /**
@@ -286,7 +319,18 @@ export function apply(ctx: Context, config: Config): void {
   const stateOf = (agent: Agent): AgentState => {
     let state = states.get(agent)
     if (state === undefined) {
-      state = { loaded: loadedFromLog(agent.session), ptc: false, baseTools: 0, section: undefined, guided: new Set() }
+      // A resumed agent keeps the logged section, so its system prompt and the prompt cache behind it survive the
+      // restart; the pre-step comparison sends the current index as an update message when the two differ.
+      const logged = loggedSection(agent.session)
+      state = {
+        loaded: loadedFromLog(agent.session),
+        ptc: logged?.ptc ?? false,
+        baseTools: 0,
+        section: logged?.text,
+        ...logged === undefined ? {} : { announced: logged.text },
+        guided: new Set(),
+        restored: logged !== undefined,
+      }
       states.set(agent, state)
     }
     return state
@@ -354,8 +398,9 @@ export function apply(ctx: Context, config: Config): void {
 
   ctx.on('agent/pre-step', async (payload, next) => {
     const decision = await next()
-    const state = states.get(payload.agent)
-    if (decision.kind === 'reject' || state?.announced === undefined) return decision
+    if (decision.kind === 'reject') return decision
+    const state = stateOf(payload.agent)
+    if (state.announced === undefined) return decision
     const current = renderIndex(await snapshot(payload.agent), state.ptc) ?? EMPTY_INDEX
     if (current === state.announced) return decision
     state.announced = current
@@ -377,17 +422,31 @@ export function apply(ctx: Context, config: Config): void {
     const agent = context.agent
     if (agent === undefined) return result
     const state = stateOf(agent)
-    state.ptc = result.tools.some(tool => tool.name === RUN_CODE_NAME)
+    const ptc = result.tools.some(tool => tool.name === RUN_CODE_NAME)
+    // A section restored under the other presentation names the wrong way to call deferred tools.
+    if (state.restored && ptc !== state.ptc) {
+      state.section = undefined
+      delete state.announced
+    }
+    state.restored = false
+    state.ptc = ptc
     if (state.announced === undefined) {
       state.section = renderIndex(await snapshot(agent), state.ptc)
       state.announced = state.section ?? EMPTY_INDEX
     }
     // Without anything to find or restart, the search tool itself is dead weight.
     const searchable = state.announced !== EMPTY_INDEX
-    const tools = result.tools.filter(tool => tool.name === TOOL_NAME
-      ? searchable
-      : !deferred(tool.name) || (!state.ptc && state.loaded.has(tool.name)))
-    state.baseTools = tools.filter(tool => !state.loaded.has(tool.name)).length
+    const tools = result.tools.filter(tool => tool.name === TOOL_NAME ? searchable : !deferred(tool.name))
+    state.baseTools = tools.length
+    if (!state.ptc) {
+      // Loaded tools follow every other tool in load order, so a load leaves the cached prefix through the last
+      // already-declared tool intact instead of invalidating it from the new tool's sorted position.
+      const visible = new Map(result.tools.map(tool => [tool.name, tool]))
+      for (const toolName of state.loaded) {
+        const tool = visible.get(toolName)
+        if (tool !== undefined && deferred(toolName)) tools.push(tool)
+      }
+    }
     if (tools.length > maxRequestTools) {
       throw new HarnessError(`This request would declare ${tools.length} tools; the provider accepts at most ${maxRequestTools}. Defer more tools with the tool-search \`defer\` patterns.`, 'TOOL_SEARCH_LIMIT')
     }

@@ -630,6 +630,56 @@ describe('SQLite session search', () => {
     await expect(ctx.sessionQuery.searchSessions({ query: '*' })).resolves.toEqual({ items: [] })
   })
 
+  it('finds a CJK word inside a run of characters as a phrase in persisted and live sessions', async () => {
+    const word = header('persisted-word')
+    const apart = header('persisted-apart')
+    TestPersistence.reset([
+      { meta: word, events: messageEvents('我们的长期记忆系统很好用', 10) },
+      { meta: apart, events: messageEvents('记得那次的回忆', 10) },
+    ])
+    const ctx = await liveContext({ path: ':memory:', snippetChars: 40 })
+    const persistence = await ctx.plugin(TestPersistence)
+    ctx.sessions.create(SessionId('live-word'), { seed: messageEvents('AI记忆x works', 10) })
+
+    const sessions = await ctx.sessionQuery.searchSessions({ query: '记忆' })
+    expect(sessions.items.map(item => item.header.id).sort()).toEqual([SessionId('live-word'), word.id].sort())
+    const persisted = await ctx.sessionQuery.searchEvents({ sessionId: word.id, query: '记忆' })
+    expect(persisted.items.map(item => item.snippet)).toEqual(['我们的长期记忆系统很好用'])
+    const live = await ctx.sessionQuery.searchEvents({ sessionId: SessionId('live-word'), query: 'ai' })
+    expect(live.items.map(item => item.snippet)).toEqual(['AI记忆x works'])
+    await persistence.dispose()
+  })
+
+  it('compacts the full-text segments after reindexing deletes the configured share of documents', async () => {
+    const path = await temporaryPath()
+    const grown = header('grown')
+    TestPersistence.reset([{ meta: grown, events: messageEvents('needle first', 10) }])
+    const ctx = await liveContext({ path, compactAfterDeletedShare: 0.5 })
+    const persistence = await ctx.plugin(TestPersistence)
+    const counts = (): { indexed: number; deleted: number } => {
+      const db = new DatabaseSync(path, { readOnly: true })
+      try {
+        return db.prepare('SELECT indexed_documents AS indexed, deleted_documents AS deleted FROM search_state').get() as { indexed: number; deleted: number }
+      } finally {
+        db.close()
+      }
+    }
+    await ctx.sessionQuery.searchSessions({ query: 'needle' })
+    expect(counts()).toEqual({ indexed: 1, deleted: 0 })
+
+    TestPersistence.set({
+      meta: grown,
+      events: [...messageEvents('needle first', 10), { ...messageEvents('needle second', 11)[0]!, seq: SessionSeq(1) }],
+    })
+    await expect(ctx.sessionQuery.searchEvents({ sessionId: grown.id, query: 'second' }))
+      .resolves.toMatchObject({ items: [{ seq: 1 }] })
+
+    await vi.waitFor(() => { expect(counts()).toEqual({ indexed: 2, deleted: 0 }) })
+    await expect(ctx.sessionQuery.searchEvents({ sessionId: grown.id, query: 'needle' }))
+      .resolves.toMatchObject({ items: [{ seq: 0 }, { seq: 1 }] })
+    await persistence.dispose()
+  })
+
   it('ranks live and persisted matches on one source-comparable contract', async () => {
     const persisted = header('z-persisted')
     TestPersistence.reset([

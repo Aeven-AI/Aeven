@@ -9,7 +9,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { readdirSync } from 'node:fs'
-import { open, mkdir, readFile, readdir, realpath, link, rename, rm, stat, truncate } from 'node:fs/promises'
+import { open, mkdir, readFile, readdir, realpath, link, rename, rm, stat, truncate, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { scheduler } from 'node:timers/promises'
@@ -17,6 +17,7 @@ import { randomBytes } from 'node:crypto'
 import {
   DEFAULT_PREPARED_SESSION_CACHE_SIZE, DEFAULT_WRITE_BATCH_MAX_DELAY_MS, MAX_WRITE_BATCH_DELAY_MS,
   SessionPersistence, SessionPersistenceRevision, PersistenceCoordinator, SessionFormatUnsupportedError,
+  SessionPersistenceBusyError,
   type BorrowedSessionSource,
   type PersistenceBackend, type SessionLocation, type SessionPersistenceSnapshot,
   type SessionEventSuffix, type SessionInspection,
@@ -43,10 +44,15 @@ import {
 } from './zstd.ts'
 import { ensureDurableDirectoryWin32, publishNewFileWin32, replaceFileWin32 } from './win32.ts'
 import { acquireSessionWriter } from './writer-lock.ts'
+import { consolidateZstdLog } from './consolidate.ts'
 
 export type { JsonlCompression } from './format.ts'
 
 const DEFAULT_PACK_CHUNKS = true
+const DEFAULT_CONSOLIDATE_AFTER_SMALL_FRAMES = 64
+
+/** Root file recording that every log present when it was written has been checked for consolidation. */
+const CONSOLIDATION_SWEEP_MARKER = '.consolidation-sweep-1'
 const DEFAULT_COMPRESSION: JsonlCompression = 'zstd'
 /**
  * Internal scheduling constant, not deployment configuration: balance
@@ -135,6 +141,13 @@ export interface Config {
   preparedSessionCacheSize?: number
   /** Fixed live-event coalescing window; not a backend completion deadline. */
   writeBatchMaxDelayMs?: number
+  /**
+   * Small append frames a Zstandard log holds before the backend rewrites it with runs of frames merged into larger
+   * ones that decode to the same lines. Each append batch is compressed alone, so a long session's log is about twice
+   * the size of its text compressed in larger frames. A log is checked when its session's writer is released, and every
+   * log once in the background after the first listing. `0` disables consolidation. Defaults to 64.
+   */
+  consolidateAfterSmallFrames?: number
 }
 
 /** Opaque coordinator token for replacing bytes recovered from a torn frame. */
@@ -193,6 +206,7 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
     preparedSessionCacheSize: z.number().step(1).min(1).default(DEFAULT_PREPARED_SESSION_CACHE_SIZE),
     writeBatchMaxDelayMs: z.number().step(1).min(1).max(MAX_WRITE_BATCH_DELAY_MS)
       .default(DEFAULT_WRITE_BATCH_MAX_DELAY_MS),
+    consolidateAfterSmallFrames: z.number().step(1).min(0).default(DEFAULT_CONSOLIDATE_AFTER_SMALL_FRAMES),
   })
 
   /**
@@ -205,6 +219,19 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
   private root: string
   private packChunks: boolean
   private compression: JsonlCompression
+  private consolidateAfterSmallFrames: number
+  /** Sessions waiting for a consolidation check, in arrival order. */
+  private readonly consolidationQueue = new Set<SessionId>()
+  /** The running consolidation worker, if any. */
+  private consolidationWorker: Promise<void> | undefined
+  /** Whether this process has started the one-time sweep of existing logs. */
+  private sweepStarted = false
+  /**
+   * Per-session order of this process's writer acquisitions and consolidation swaps, so a session reopened here
+   * waits for a swap in progress instead of finding its writer lock taken.
+   */
+  private readonly writerGates = new Map<SessionId, Promise<void>>()
+  private closed = false
   private coordinator: PersistenceCoordinator<JsonlTornMarker>
   private rootEncodingCheck: Promise<void> | undefined
   /**
@@ -226,6 +253,11 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
       ?? DEFAULT_WRITE_BATCH_MAX_DELAY_MS
     this.packChunks = config.packChunks ?? DEFAULT_PACK_CHUNKS
     this.compression = config.compression ?? DEFAULT_COMPRESSION
+    this.consolidateAfterSmallFrames = config.consolidateAfterSmallFrames ?? DEFAULT_CONSOLIDATE_AFTER_SMALL_FRAMES
+    if (!Number.isSafeInteger(this.consolidateAfterSmallFrames) || this.consolidateAfterSmallFrames < 0) {
+      throw new Error('session-persistence-jsonl: consolidateAfterSmallFrames must be a non-negative integer')
+    }
+    ctx.effect(() => () => { this.closed = true }, 'session-persistence-jsonl: stop consolidation')
     this.assertUsableRoot()
     this.coordinator = new PersistenceCoordinator<JsonlTornMarker>(this.ctx, this, {
       preparedSessionCacheSize,
@@ -239,8 +271,13 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
   // --- SessionPersistence service API (delegated to the coordinator) ---
 
   /** @inheritdoc */
-  acquireWriter(id: SessionId): Promise<() => void> {
-    return acquireSessionWriter(this.root, id)
+  async acquireWriter(id: SessionId): Promise<() => void> {
+    const release = await this.writerGate(id, () => acquireSessionWriter(this.root, id))
+    return () => {
+      release()
+      // A released writer means the session went idle here; its log has stopped growing for now.
+      this.scheduleConsolidation([id])
+    }
   }
 
   /** Resolve the absolute target path without touching the filesystem. */
@@ -702,7 +739,113 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
       artifacts.push(artifact)
     }
     signal?.throwIfAborted()
+    void this.startConsolidationSweep(artifacts)
     return artifacts
+  }
+
+  /**
+   * Check every listed log once per root: logs written before consolidation existed, or by a process that exited
+   * before its writers were released, are otherwise never checked. The root marker is written after the queue drains.
+   * @param artifacts - the logs the first listing found.
+   */
+  private async startConsolidationSweep(artifacts: readonly ListedArtifact[]): Promise<void> {
+    if (this.sweepStarted || !this.consolidates()) return
+    this.sweepStarted = true
+    const marker = join(this.root, CONSOLIDATION_SWEEP_MARKER)
+    if (await this.exists(marker)) return
+    this.scheduleConsolidation(artifacts.map(artifact => artifact.header.id))
+    await this.consolidationWorker
+    if (this.closed) return
+    try {
+      await writeFile(marker, `${new Date().toISOString()}\n`, { mode: 0o600 })
+    } catch (error) {
+      this.ctx.logger.warn(`${this.name}: could not record the consolidation sweep; the next start checks every log again: ${String(error)}`)
+    }
+  }
+
+  private consolidates(): boolean {
+    return this.compression === 'zstd' && this.consolidateAfterSmallFrames > 0
+  }
+
+  /**
+   * Queue sessions for a consolidation check; one worker checks them in order, one session at a time.
+   * @param ids - sessions whose logs may have grown.
+   */
+  private scheduleConsolidation(ids: readonly SessionId[]): void {
+    if (!this.consolidates() || this.closed) return
+    for (const id of ids) this.consolidationQueue.add(id)
+    this.consolidationWorker ??= (async () => {
+      try {
+        for (const id of this.consolidationQueue) {
+          this.consolidationQueue.delete(id)
+          if (this.closed) return
+          try {
+            await this.consolidate(id)
+          } catch (error) {
+            this.ctx.logger.warn(`${this.name}: session "${id}" was not consolidated; its log is unchanged: ${String(error)}`)
+          }
+          await scheduler.yield()
+        }
+      } finally {
+        this.consolidationWorker = undefined
+      }
+    })()
+  }
+
+  /**
+   * Run one writer acquisition or consolidation swap after the earlier ones for the same session in this process.
+   * @param id - the session.
+   * @param operation - the acquisition or swap.
+   * @returns the operation's result.
+   */
+  private writerGate<T>(id: SessionId, operation: () => Promise<T>): Promise<T> {
+    const prior = this.writerGates.get(id) ?? Promise.resolve()
+    const next = prior.then(operation)
+    const tail = next.then(() => undefined, () => undefined)
+    this.writerGates.set(id, tail)
+    void tail.then(() => { if (this.writerGates.get(id) === tail) this.writerGates.delete(id) })
+    return next
+  }
+
+  /**
+   * Rewrite one session's log with its small append frames merged. Reading, merging, verifying, and writing the
+   * replacement happen without the writer lock, so most checks never touch it; only the swap takes the session's
+   * writer lock, for the time of a stat and a rename, and happens only when the log is unchanged since it was read.
+   * A session another owner holds at that moment is skipped. The replacement decodes to exactly the original lines.
+   * @param id - the session to check.
+   */
+  private async consolidate(id: SessionId): Promise<void> {
+    const path = await this.findLog(id)
+    if (path === undefined) return
+    const before = await stat(path, { bigint: true })
+    const consolidated = await consolidateZstdLog(await readFile(path), this.consolidateAfterSmallFrames)
+    if (consolidated === undefined || this.closed) return
+    const tmp = await this.writeSyncedTempFile(path, consolidated)
+    try {
+      await this.writerGate(id, async () => {
+        let release: () => void
+        try {
+          release = await acquireSessionWriter(this.root, id)
+        } catch (error) {
+          if (error instanceof SessionPersistenceBusyError) return
+          throw error
+        }
+        try {
+          const now = await stat(path, { bigint: true })
+          if (now.ino !== before.ino || now.size !== before.size || now.mtimeNs !== before.mtimeNs) return
+          if (process.platform === 'win32') {
+            await replaceFileWin32(tmp, path)
+          } else {
+            await rename(tmp, path)
+            await this.syncDirPosix(dirname(path))
+          }
+        } finally {
+          release()
+        }
+      })
+    } finally {
+      await rm(tmp, { force: true })
+    }
   }
 
   /**

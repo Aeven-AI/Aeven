@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`@aeven/speech-to-text-whisper` 以 `providerId`（默认 `whisper-local`）在 `ctx.speechToText` 上注册本地识别器。whisper.cpp 运行在受管的子进程工作进程中，一次接收一段解码后的 WAV，并返回其文本。插件激活时会检视磁盘缓存，并在不下载、不加载模型的情况下报告就绪状态；一次准备会从配置的来源下载模型与 Silero VAD 文件，逐项按 SHA-256 校验，然后启动工作进程。同一个串行工作进程服务每一次录制，`maxPending` 限定可排队等待的数量，空闲的工作进程在 `idleTimeoutMs` 之后停止。工作进程的启动代价高昂——macOS 预构建二进制在报告就绪前约需二十秒编译其 Metal 内核——因此 `warmOnActivation` 在激活期间启动已校验的工作进程，`idleTimeoutMs: 0` 则保留它，把该代价记在 Host 启动而不是读者的首次录音上。
+`@aeven/speech-to-text-whisper` 以 `providerId`（默认 `whisper-local`）在 `ctx.speechToText` 上注册本地识别器。whisper.cpp 运行在受管的子进程工作进程中，一次接收一段解码后的 WAV，并返回其文本。插件激活时会检视磁盘缓存，并在不下载、不加载模型的情况下报告就绪状态；一次准备会从配置的来源下载模型与 Silero VAD 文件，逐项按 SHA-256 校验，然后启动工作进程。同一个串行工作进程服务每一次录制，`maxPending` 限定可排队等待的数量，空闲的工作进程在 `idleTimeoutMs` 之后停止。工作进程的启动可能代价高昂：macOS 预构建二进制会在每个已安装二进制首次启动时编译其 Metal 内核，约需十八秒，macOS 按二进制缓存编译结果，因此在该缓存有效期间，之后的启动在 Apple 芯片上约 0.3 秒即报告就绪。为此 `warmOnActivation` 在激活期间启动已校验的工作进程，web 包的 `idleTimeoutMs: 0` 则保留它，把任何编译代价记在 Host 启动而不是读者的录音上。语音输入与录音机在开始录音时请求准备，因此被 `idleTimeoutMs` 停止的工作进程会在用户说话期间唤醒；先到达的录音会在队列中等待这次启动。
 
 ## 目录
 

@@ -205,9 +205,13 @@ describe('SQLite search predicate compilation', () => {
 
 describe('SQLite query identity and presentation', () => {
   it('quotes all caller MATCH syntax as data', () => {
-    expect(tokenMatchExpression(['say', 'needle', 'or'], () => false)).toBe('"say" "needle" "or"')
-    expect(tokenMatchExpression(['say', 'nee'], token => token.length >= 3)).toBe('"say" "nee"*')
-    expect(tokenMatchExpression(['a"b'], () => false)).toBe('"a""b"')
+    expect(tokenMatchExpression(['say', 'needle', 'or'], [-1, -1, -1], () => false)).toBe('"say" "needle" "or"')
+    expect(tokenMatchExpression(['say', 'nee'], [-1, -1], token => token.length >= 3)).toBe('"say" "nee"*')
+    expect(tokenMatchExpression(['a"b'], [-1], () => false)).toBe('"a""b"')
+  })
+
+  it('quotes each CJK run as one phrase', () => {
+    expect(tokenMatchExpression(['长', '期', 'memory', '记', '忆'], [0, 0, -1, 1, 1], () => false)).toBe('"长 期" "memory" "记 忆"')
   })
 
   it('canonicalizes request and filter ordering in both scopes', () => {

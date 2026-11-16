@@ -24,6 +24,10 @@ PTC mode could have carried deferred tools without touching the request, but its
 
 The `deferred-tools` section names every deferred tool under a title per namespace: an MCP server's `title`, or a configured `groups` title for native tools. It also lists configured MCP servers that are not serving, with state, last error, and the restart query. The section is rendered on an agent's first request and stays byte-identical until compaction; a later change reaches the model as one logged `agent/pre-step` user message carrying the complete replacement index. Server state comes from the agent-scoped `mcp/servers` waterfall, which every `@aeven/mcp-client` instance answers with its title, state (`connecting`, `connected`, `retrying`, `failed`), last error, and a `restart()` that reconnects with a fresh attempt budget even after the supervisor gave up.
 
+### Natively loaded tools follow every other tool
+
+A native load appends the loaded schemas after every other tool of the request, in load order, instead of leaving them at their name-sorted position. The rendered prompt lists the system prompt, then the tools, then the conversation, so a sorted insertion invalidated the cache from the new tool's position, re-billing the remaining tool schemas with the whole conversation; an appended load keeps the system prompt and every declared tool cached. In 40 recorded desktop sessions, 41 loads broke the cache this way, re-billing 2.13 million tokens, a third of all uncached input tokens those sessions sent.
+
 ### Loading into `run_code` keeps the request fixed
 
 When an agent's request presents `run_code`, `select:` returns SDK declarations in the code runtime's language and the model calls the tools inside a program. The request's tool list and system prompt do not change, so a load costs neither a cache miss nor request-limit headroom. Sub-calls run the full tool pipeline under their real names, so account approval policies apply unchanged. The `aeven` preset's `tool-presentation` row selects `mode: both` and stays disabled until the discovery evaluation shows Aeven-1.0-Flash writes these programs reliably; natively loaded tools remain the default.
@@ -38,7 +42,7 @@ When an agent's request presents `run_code`, `select:` returns SDK declarations 
 
 ### Resume and compaction
 
-The natively loaded set is rebuilt from raw `tool/call` and `tool/result` events, which compaction leaves intact. `agent/session-start` with source `compact` discards the frozen index so the next request renders a current one.
+The natively loaded set is rebuilt from raw `tool/call` and `tool/result` events, which compaction leaves intact. `agent/session-start` with source `compact` discards the frozen index so the next request renders a current one. A resumed agent keeps the index its session's last request header carries, extracted from the logged system prompt between the index opener and the next blank line, and the first `agent/pre-step` comparison sends the current index as an update message when they differ; the section is re-rendered only when the request's `run_code` presentation changed. Rendering at resume baked the MCP servers' `starting` state at Host boot into the system prompt: in 40 recorded desktop sessions, 13 turn starts lost the cached prefix this way, back to about 5,000 tokens, re-billing 1.09 million tokens.
 
 ## Alternatives considered
 

@@ -69,32 +69,33 @@ export function pnpmStoreVersionRoots(storeRoot: string): readonly string[] {
  * @returns The validated file maps, package files first.
  */
 export function pnpmPackageFileMaps(value: unknown, key: string): readonly Map<string, PnpmStoreFileRecord>[] {
-  if (!isRecord(value)) throw new Error(`desktop seed store: invalid pnpm index record ${key}`)
+  if (!isRecord(value)) throw new Error(`desktop pnpm store: invalid pnpm index record ${key}`)
   const record = value as PnpmPackageIndexRecord
   if (record.algo !== undefined && record.algo !== 'sha512') {
-    throw new Error(`desktop seed store: unsupported pnpm index algorithm in ${key}`)
+    throw new Error(`desktop pnpm store: unsupported pnpm index algorithm in ${key}`)
   }
   const maps: Map<string, PnpmStoreFileRecord>[] = []
   if (record.files !== undefined) {
-    if (!(record.files instanceof Map)) throw new Error(`desktop seed store: invalid pnpm file map in ${key}`)
+    if (!(record.files instanceof Map)) throw new Error(`desktop pnpm store: invalid pnpm file map in ${key}`)
     maps.push(record.files)
   }
   if (record.sideEffects !== undefined) {
     if (!(record.sideEffects instanceof Map)) {
-      throw new Error(`desktop seed store: invalid pnpm side-effects map in ${key}`)
+      throw new Error(`desktop pnpm store: invalid pnpm side-effects map in ${key}`)
     }
     for (const effect of record.sideEffects.values()) {
-      if (!isRecord(effect)) throw new Error(`desktop seed store: invalid pnpm side effect in ${key}`)
+      if (!isRecord(effect)) throw new Error(`desktop pnpm store: invalid pnpm side effect in ${key}`)
       if (effect.added === undefined) continue
       if (!(effect.added instanceof Map)) {
-        throw new Error(`desktop seed store: invalid pnpm side-effect file map in ${key}`)
+        throw new Error(`desktop pnpm store: invalid pnpm side-effect file map in ${key}`)
       }
-      maps.push(effect.added)
+      // The loop below validates every entry as a file record before the map is returned.
+      maps.push(effect.added as Map<string, PnpmStoreFileRecord>)
     }
   }
   for (const files of maps) {
     for (const file of files.values()) {
-      if (!isStoreFileRecord(file)) throw new Error(`desktop seed store: invalid pnpm file record in ${key}`)
+      if (!isStoreFileRecord(file)) throw new Error(`desktop pnpm store: invalid pnpm file record in ${key}`)
     }
   }
   return maps
@@ -176,14 +177,14 @@ export function listPnpmCasObjects(versionRoot: string): readonly PnpmCasObject[
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
       const path = join(directory, entry.name)
       const normalized = relative(filesRoot, path).split(sep).join('/')
-      if (entry.isSymbolicLink()) throw new Error(`desktop seed store: pnpm store contains a symbolic link: ${normalized}`)
+      if (entry.isSymbolicLink()) throw new Error(`desktop pnpm store: pnpm store contains a symbolic link: ${normalized}`)
       if (entry.isDirectory()) {
         visit(path)
         continue
       }
-      if (!entry.isFile()) throw new Error(`desktop seed store: unsupported pnpm store entry: ${normalized}`)
+      if (!entry.isFile()) throw new Error(`desktop pnpm store: unsupported pnpm store entry: ${normalized}`)
       const match = PNPM_CAS_PATH_PATTERN.exec(normalized)
-      if (match === null) throw new Error(`desktop seed store: unsupported pnpm CAS path: ${normalized}`)
+      if (match === null) throw new Error(`desktop pnpm store: unsupported pnpm CAS path: ${normalized}`)
       objects.push({ path, digest: `${match[1]}${match[2]}`, executable: match[3] !== undefined })
     }
   }

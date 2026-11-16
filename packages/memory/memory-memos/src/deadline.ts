@@ -13,7 +13,7 @@ export class MemoryDeadlineError extends Error {
  * @param signal - the signal whose abort settles the deadline.
  * @returns the signal's own Error reason, or an Error carrying a non-Error reason.
  */
-function abortReason(signal: AbortSignal): Error {
+export function abortReason(signal: AbortSignal): Error {
   const reason: unknown = signal.reason
   return reason instanceof Error ? reason : new Error('memory work aborted', { cause: reason })
 }
