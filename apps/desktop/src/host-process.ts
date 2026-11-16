@@ -21,6 +21,7 @@ import {
   type DesktopHostEvent,
   type DesktopHostResponseFrame,
 } from './host-protocol.ts'
+import { hostProxyRoutesFor, type ChromiumProxyResolver } from './system-proxy.ts'
 
 interface PendingResponse {
   readonly resolve: (response: Response) => void
@@ -51,6 +52,9 @@ function isDesktopHostEvent(message: unknown): message is DesktopHostEvent {
       return Number.isSafeInteger(candidate.runningAgents) && Number.isSafeInteger(candidate.clientLeases)
     case 'fatal':
       return typeof candidate.message === 'string'
+    case 'resolveProxy':
+      return Number.isSafeInteger(candidate.id) && (candidate.id as number) >= 1 && typeof candidate.url === 'string'
+        && URL.canParse(candidate.url) && ['http:', 'https:'].includes(new URL(candidate.url).protocol)
     default:
       return false
   }
@@ -118,6 +122,8 @@ export class DesktopHostProcess {
    * @param inspectPort - optional loopback inspector port for workspace development.
    * @param compileCacheDir - directory Node.js persists V8 code cache in for this child. Launching the backend
    * parses and compiles its whole module graph; the cache reuses that bytecode on later launches.
+   * @param resolveProxy - Chromium's system proxy resolver, which answers the child's `resolveProxy` questions so
+   * its requests leave through the proxy the renderer's own requests use. Without one, every answer is direct.
    */
   constructor(
     private readonly node: string,
@@ -125,6 +131,7 @@ export class DesktopHostProcess {
     private readonly workDir: string,
     private readonly inspectPort?: number,
     private readonly compileCacheDir?: string,
+    private readonly resolveProxy?: ChromiumProxyResolver,
   ) {}
 
   /** Start the child once and resolve only after its complete composition is active. */
@@ -148,6 +155,10 @@ export class DesktopHostProcess {
           name !== 'NODE_OPTIONS' && !/^AVN_DESKTOP_/u.test(name) && !/^(?:npm|pnpm|corepack)_/iu.test(name)
         ))),
         ...this.compileCacheDir === undefined ? {} : { NODE_COMPILE_CACHE: this.compileCacheDir },
+        // TLS also trusts the operating system's certificate store, as the renderer does. A network that inspects HTTPS
+        // re-signs every certificate with a root its administrators installed there, which Node's bundled list lacks.
+        // The child's own Node.js children inherit the setting.
+        NODE_USE_SYSTEM_CA: '1',
       },
       stdio: ['ignore', 'pipe', 'pipe', 'pipe', 'pipe', 'ipc'],
     })
@@ -470,9 +481,21 @@ export class DesktopHostProcess {
       case 'fatal':
         this.fail(new Error(message.message))
         return
+      case 'resolveProxy':
+        this.answerProxy(message.id, message.url)
+        return
       default:
         message satisfies never
     }
+  }
+
+  private answerProxy(id: number, url: string): void {
+    const answer = this.resolveProxy === undefined ? Promise.resolve([null]) : hostProxyRoutesFor(this.resolveProxy, url)
+    void answer.then((routes) => {
+      // A child that exited or disconnected while Chromium resolved has no question left to answer.
+      if (this.child?.connected !== true) return
+      this.send({ type: 'proxy', id, routes })
+    })
   }
 
   private fail(error: Error): void {

@@ -1,7 +1,7 @@
 /** Versioned control messages and framed byte transport for the Desktop Host child. */
 
 /** Protocol version implemented by the Electron shell and installed avn Host. */
-export const DESKTOP_HOST_PROTOCOL_VERSION = 6 as const
+export const DESKTOP_HOST_PROTOCOL_VERSION = 7 as const
 
 /** Same-origin path the renderer addresses for Aeven sign-in; Electron forwards it to the Aeven API. */
 export const DESKTOP_AEVEN_API_PATH = '/.aeven/api'
@@ -57,6 +57,15 @@ export type DesktopHostCommand = {
 } | {
   /** Report {@link DesktopHostActivity} in an `activity` event. */
   readonly type: 'activity'
+} | {
+  /** Answer the `resolveProxy` event with the same `id`. */
+  readonly type: 'proxy'
+  readonly id: number
+  /**
+   * Routes in order of preference: `http:` or `https:` proxy URLs, and `null` for a direct connection, which is
+   * always last when present. At least one entry. The Host moves to the next route when a proxy cannot be reached.
+   */
+  readonly routes: readonly (string | null)[]
 }
 
 /** Work and clients that decide whether the shell's departure stops the Host. */
@@ -80,6 +89,13 @@ export type DesktopHostEvent = {
 } & DesktopHostActivity) | {
   readonly type: 'fatal'
   readonly message: string
+} | {
+  /** Ask which proxy the operating system's settings choose for `url`; the shell answers with a `proxy` command. */
+  readonly type: 'resolveProxy'
+  /** Positive safe integer, unique among this Host's open questions. */
+  readonly id: number
+  /** `http:` or `https:` URL the Host is about to request. */
+  readonly url: string
 }
 
 /** One decoded response-pipe frame. */

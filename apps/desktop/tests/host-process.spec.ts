@@ -78,7 +78,7 @@ describe('desktop host process', () => {
   it('carries raw request and response bytes and shuts the child down cleanly', async () => {
     const project = projectWithHost(`
 const bodies = new Map()
-process.send({ type: 'ready', protocolVersion: 6, url: 'http://127.0.0.1:3080/', ownsHost: true, avnVersion: process.env.NODE_OPTIONS ?? 'clean' })
+process.send({ type: 'ready', protocolVersion: 7, url: 'http://127.0.0.1:3080/', ownsHost: true, avnVersion: process.env.NODE_OPTIONS ?? 'clean' })
 function onRequestFrame(frame) {
   if (frame.type === 1) {
     const request = JSON.parse(frame.payload)
@@ -115,7 +115,7 @@ function answer(streamId) {
   it('hands the child the configured V8 compile cache and leaves an unconfigured one alone', async () => {
     const project = projectWithHost(`
 process.send({
-  type: 'ready', protocolVersion: 6, url: 'http://127.0.0.1:3080/', ownsHost: true,
+  type: 'ready', protocolVersion: 7, url: 'http://127.0.0.1:3080/', ownsHost: true,
   avnVersion: process.env.NODE_COMPILE_CACHE ?? 'none',
 })
 function onRequestFrame() {}
@@ -146,7 +146,7 @@ function onRequestFrame() {}
   it('streams a large binary response in bounded raw frames', async () => {
     const size = 2 * 1024 * 1024
     const project = projectWithHost(`
-process.send({ type: 'ready', protocolVersion: 6, url: 'http://127.0.0.1:3080/', ownsHost: true, avnVersion: 'large-response' })
+process.send({ type: 'ready', protocolVersion: 7, url: 'http://127.0.0.1:3080/', ownsHost: true, avnVersion: 'large-response' })
 function onRequestFrame(frame) {
   if (frame.type !== 1) return
   responseStart(frame.streamId)
@@ -169,7 +169,7 @@ function onRequestFrame(frame) {
 
   it('stops an unfinished upload when the Host completes its response early', async () => {
     const project = projectWithHost(`
-process.send({ type: 'ready', protocolVersion: 6, url: 'http://127.0.0.1:3080/', ownsHost: true, avnVersion: 'early-response' })
+process.send({ type: 'ready', protocolVersion: 7, url: 'http://127.0.0.1:3080/', ownsHost: true, avnVersion: 'early-response' })
 function onRequestFrame(frame) {
   if (frame.type !== 2) return
   responseStart(frame.streamId)
@@ -199,7 +199,7 @@ function onRequestFrame(frame) {
 
   it('ignores a response end that arrives after the renderer cancels its stream', async () => {
     const project = projectWithHost(`
-process.send({ type: 'ready', protocolVersion: 6, url: 'http://127.0.0.1:3080/', ownsHost: true, avnVersion: 'cancel-race' })
+process.send({ type: 'ready', protocolVersion: 7, url: 'http://127.0.0.1:3080/', ownsHost: true, avnVersion: 'cancel-race' })
 const urls = new Map()
 function onRequestFrame(frame) {
   if (frame.type === 1) {
@@ -229,7 +229,7 @@ function onRequestFrame(frame) {
 
   it('rejects invalid response framing and a clean exit before readiness', async () => {
     const invalid = new DesktopHostProcess(process.execPath, projectWithHost(`
-process.send({ type: 'ready', protocolVersion: 6, url: 'http://127.0.0.1:3080/', ownsHost: true, avnVersion: 'invalid-frame' })
+process.send({ type: 'ready', protocolVersion: 7, url: 'http://127.0.0.1:3080/', ownsHost: true, avnVersion: 'invalid-frame' })
 function onRequestFrame(frame) {
   if (frame.type === 1) responsePipe.write(Buffer.alloc(13))
 }
@@ -251,7 +251,7 @@ process.exit(0)
     const project = projectWithHost(`
 import { writeFileSync as recordCwd } from 'node:fs'
 recordCwd(process.argv[2] + '/host-cwd', process.cwd())
-process.send({ type: 'ready', protocolVersion: 6, url: 'http://127.0.0.1:3080/', ownsHost: true, avnVersion: 'cwd' })
+process.send({ type: 'ready', protocolVersion: 7, url: 'http://127.0.0.1:3080/', ownsHost: true, avnVersion: 'cwd' })
 function onRequestFrame() {}
 `)
     const host = new DesktopHostProcess(process.execPath, project, work)
@@ -267,7 +267,7 @@ import { writeFileSync as recordPid } from 'node:fs'
 const lingering = spawnLingering(process.execPath, ['-e', 'setTimeout(() => {}, 30000)'], { detached: true, stdio: 'ignore' })
 lingering.unref()
 recordPid(process.argv[2] + '/lingering.pid', String(lingering.pid))
-process.send({ type: 'ready', protocolVersion: 6, url: 'http://127.0.0.1:3080/', ownsHost: true, avnVersion: 'lingering' })
+process.send({ type: 'ready', protocolVersion: 7, url: 'http://127.0.0.1:3080/', ownsHost: true, avnVersion: 'lingering' })
 function onRequestFrame() {}
 `)
     const host = new DesktopHostProcess(process.execPath, project, tmpdir())
@@ -282,5 +282,78 @@ function onRequestFrame() {}
       process.kill(lingeringPid)
     }
     expect(existsSync(moved)).toBe(true)
+  })
+
+  it('makes the child trust the operating system certificate store', async () => {
+    const project = projectWithHost(`
+process.send({
+  type: 'ready', protocolVersion: 7, url: 'http://127.0.0.1:3080/', ownsHost: true,
+  avnVersion: process.env.NODE_USE_SYSTEM_CA ?? 'unset',
+})
+function onRequestFrame() {}
+`)
+    const host = new DesktopHostProcess(process.execPath, project, tmpdir())
+    try {
+      await expect(host.start()).resolves.toMatchObject({ avnVersion: '1' })
+    } finally {
+      await host.stop().catch(() => undefined)
+    }
+  })
+
+  it('answers each child proxy question with the system proxy for its URL, by id', async () => {
+    // The child asks two questions before it is ready and reports the answers, in arrival order, as its version.
+    const project = projectWithHost(`
+const answers = []
+process.on('message', message => {
+  if (message.type !== 'proxy') return
+  answers.push(message.id + '=' + JSON.stringify(message.routes))
+  if (answers.length < 2) return
+  process.send({ type: 'ready', protocolVersion: 7, url: 'http://127.0.0.1:3080/', ownsHost: true, avnVersion: answers.sort().join(' ') })
+})
+process.send({ type: 'resolveProxy', id: 1, url: 'https://aeven.io/api/v1/chat/completions' })
+process.send({ type: 'resolveProxy', id: 2, url: 'http://intranet.corp/' })
+function onRequestFrame() {}
+`)
+    const asked: string[] = []
+    const host = new DesktopHostProcess(process.execPath, project, tmpdir(), undefined, undefined, (url) => {
+      asked.push(url)
+      return Promise.resolve(url.startsWith('https://aeven.io/') ? 'PROXY proxy.corp:8080; DIRECT' : 'DIRECT')
+    })
+    try {
+      await expect(host.start()).resolves.toMatchObject({ avnVersion: '1=["http://proxy.corp:8080",null] 2=[null]' })
+      expect(asked.sort()).toEqual(['http://intranet.corp/', 'https://aeven.io/api/v1/chat/completions'])
+    } finally {
+      await host.stop().catch(() => undefined)
+    }
+  })
+
+  it('answers direct when no resolver is configured', async () => {
+    const project = projectWithHost(`
+process.on('message', message => {
+  if (message.type === 'proxy') {
+    process.send({ type: 'ready', protocolVersion: 7, url: 'http://127.0.0.1:3080/', ownsHost: true, avnVersion: JSON.stringify(message.routes) })
+  }
+})
+process.send({ type: 'resolveProxy', id: 1, url: 'https://aeven.io/' })
+function onRequestFrame() {}
+`)
+    const host = new DesktopHostProcess(process.execPath, project, tmpdir())
+    try {
+      await expect(host.start()).resolves.toMatchObject({ avnVersion: '[null]' })
+    } finally {
+      await host.stop().catch(() => undefined)
+    }
+  })
+
+  it('refuses a proxy question for a URL the Host transport cannot request', async () => {
+    const host = new DesktopHostProcess(process.execPath, projectWithHost(`
+process.send({ type: 'resolveProxy', id: 1, url: 'file:///etc/passwd' })
+function onRequestFrame() {}
+`), tmpdir(), undefined, undefined, () => Promise.resolve('DIRECT'))
+    try {
+      await expect(host.start()).rejects.toThrow(/invalid IPC event/u)
+    } finally {
+      await host.stop().catch(() => undefined)
+    }
   })
 })

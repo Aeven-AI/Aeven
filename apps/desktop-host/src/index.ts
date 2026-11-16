@@ -50,6 +50,7 @@ import {
   type DesktopAevenSignIn,
   type DesktopHostRequestFrame,
 } from './wire.ts'
+import { installSystemProxy, ipcProxyLookup, isProxyAnswer, type ProxyAnswer, type ProxyQuestion } from './system-proxy.ts'
 
 export { DESKTOP_HOST_PROTOCOL_VERSION } from './wire.ts'
 
@@ -70,7 +71,7 @@ export type DesktopHostCommand = {
 } | {
   /** Report {@link DesktopHostActivity} in an `activity` event. */
   readonly type: 'activity'
-}
+} | ProxyAnswer
 
 /** Work and clients that decide whether the shell's departure stops this Host. */
 export interface DesktopHostActivity {
@@ -94,7 +95,7 @@ export type DesktopHostEvent = {
 } & DesktopHostActivity) | {
   readonly type: 'fatal'
   readonly message: string
-}
+} | ProxyQuestion
 
 /** Controller returned to tests and the self-executing process entry. */
 export interface DesktopHostController {
@@ -120,7 +121,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isDesktopHostCommand(message: unknown): message is DesktopHostCommand {
   if (!isRecord(message)) return false
-  return message.type === 'shutdown' || message.type === 'activity'
+  return message.type === 'shutdown' || message.type === 'activity' || isProxyAnswer(message)
 }
 
 interface PackageManifest {
@@ -605,6 +606,9 @@ async function main(): Promise<void> {
     process.disconnect()
     return
   }
+  // Before the first plugin mounts, so every Host `fetch()` follows the system proxy the shell's own requests use.
+  // The process exits at the end of `stop`, which ends the routing with it.
+  installSystemProxy(ipcProxyLookup(process).lookup)
   let controller: DesktopHostController | undefined
   try {
     controller = await runDesktopHost(projectDir, writeResponse, {
@@ -814,6 +818,9 @@ async function main(): Promise<void> {
           const clientLeases = held - (releaseShellLease === undefined ? 0 : 1)
           send({ type: 'activity', runningAgents: controller.runningAgents(), clientLeases })
         }, failTransport)
+        return
+      case 'proxy':
+        // The system-proxy lookup's own listener settles the question this answers.
         return
       default:
         message satisfies never
