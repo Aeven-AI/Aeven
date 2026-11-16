@@ -20,7 +20,7 @@ import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { IdentityRequest, User, UserResolver } from '@aeven/identity-user'
 import type {} from '@aeven/identity-user'
-import { sameHostLoopbackUrl } from '@aeven/host-webserver'
+import { sameDeploymentUrl } from '@aeven/host-webserver'
 import type {} from '@aeven/host-webserver'
 import { credentialRef } from '@aeven/credentials'
 import { verifyToken, type TokenType } from './jwt.ts'
@@ -137,6 +137,16 @@ export interface Config {
    */
   brandUrl?: string
   /**
+   * The Host's own public hostnames, such as `chat.aeven.io` and `chat.aeven.app`.
+   *
+   * A URL above that is configured on one of these hosts is handed to a page that
+   * arrived on another of them under the page's own host, so a deployment reachable
+   * under several names stays one origin per page. URLs on any other host pass
+   * through as configured. Empty, every URL is handed over as configured, apart
+   * from loopback spellings.
+   */
+  pageHosts?: string[]
+  /**
    * Credential reference the access token this authority verifies answers to.
    *
    * The token is the caller's Aeven session, and `llm-aeven` presents one to
@@ -165,6 +175,7 @@ export const Config: z<Config> = z.object({
   mediaUrl: z.string(),
   helpCenterUrl: z.string(),
   brandUrl: z.string(),
+  pageHosts: z.array(String).default([]),
 })
 
 /** Config after schemastery has filled every defaulted field. */
@@ -310,18 +321,21 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   // stated under the spelling *this request* arrived on: a page reached over
   // `localhost` is handed `http://localhost:9000`, not the configured
   // `127.0.0.1:9000`, so page and API stay one origin whichever arrival path the
-  // reader used. A non-loopback deployment, and a provider's own domain, pass
-  // through as configured.
+  // reader used. A URL on one of `pageHosts` follows a page that arrived on
+  // another of them the same way; any other deployment URL, and a provider's own
+  // domain, pass through as configured.
+  const pageHosts: ReadonlySet<string> = new Set((config as ResolvedConfig).pageHosts.map(host => host.toLowerCase()))
   ctx.on('webserver/index-inject', (table, origin) => {
-    const apiUrl = sameHostLoopbackUrl(config.apiUrl, origin)
-    const socketUrl = sameHostLoopbackUrl(config.socketUrl, origin)
-    const xOAuthUrl = sameHostLoopbackUrl(config.xOAuthUrl, origin)
-    const appleOAuthUrl = sameHostLoopbackUrl(config.appleOAuthUrl, origin)
-    const googleOAuthUrl = sameHostLoopbackUrl(config.googleOAuthUrl, origin)
-    const webUrl = sameHostLoopbackUrl(config.webUrl, origin)
-    const mediaUrl = sameHostLoopbackUrl(config.mediaUrl, origin)
-    const helpCenterUrl = sameHostLoopbackUrl(config.helpCenterUrl, origin)
-    const brandUrl = sameHostLoopbackUrl(config.brandUrl, origin)
+    const stated = (configured: string | undefined): string | undefined => sameDeploymentUrl(configured, origin, pageHosts)
+    const apiUrl = stated(config.apiUrl)
+    const socketUrl = stated(config.socketUrl)
+    const xOAuthUrl = stated(config.xOAuthUrl)
+    const appleOAuthUrl = stated(config.appleOAuthUrl)
+    const googleOAuthUrl = stated(config.googleOAuthUrl)
+    const webUrl = stated(config.webUrl)
+    const mediaUrl = stated(config.mediaUrl)
+    const helpCenterUrl = stated(config.helpCenterUrl)
+    const brandUrl = stated(config.brandUrl)
     const value: AevenClientConfig = {
       ...apiUrl === undefined ? {} : { apiUrl },
       ...socketUrl === undefined ? {} : { socketUrl },

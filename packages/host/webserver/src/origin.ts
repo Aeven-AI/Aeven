@@ -67,6 +67,50 @@ export function requestOrigin(req: IncomingMessage): string | undefined {
  * @returns the URL to hand this page, or undefined when none was configured.
  */
 export function sameHostLoopbackUrl(configured: string | undefined, origin: string | undefined): string | undefined {
+  return withRequestHost(
+    configured,
+    origin,
+    (configuredHost, requestedHost) => isLoopbackHost(configuredHost) && isLoopbackHost(requestedHost),
+  )
+}
+
+/**
+ * Address a configured URL on one of this deployment's own public hosts under the host the request arrived on.
+ *
+ * A deployment served under several names (`chat.aeven.io` and `chat.aeven.app`)
+ * configures its own URLs once, under one of them. A page reached on another name
+ * must be handed those URLs on its own host, or every request the page makes is
+ * cross-origin to the browser and its session cookies do not apply. Only the
+ * hostname moves, and only when both the configured URL's host and the request's
+ * host are in `hosts`; loopback spellings follow {@link sameHostLoopbackUrl}, and
+ * any other URL, such as a provider's or the main site's, passes through as configured.
+ * @param configured - the configured URL, or undefined when the deployment states none.
+ * @param origin - the request's origin, or undefined when it carries none.
+ * @param hosts - the deployment's own public hostnames, lower-case.
+ * @returns the URL to hand this page, or undefined when none was configured.
+ */
+export function sameDeploymentUrl(
+  configured: string | undefined,
+  origin: string | undefined,
+  hosts: ReadonlySet<string>,
+): string | undefined {
+  const loopback = sameHostLoopbackUrl(configured, origin)
+  if (hosts.size === 0) return loopback
+  return withRequestHost(loopback, origin, (configuredHost, requestedHost) => hosts.has(configuredHost) && hosts.has(requestedHost))
+}
+
+/**
+ * Swap a configured URL's hostname for the request's when `eligible` accepts the pair.
+ * @param configured - the configured URL, or undefined when the deployment states none.
+ * @param origin - the request's origin, or undefined when it carries none.
+ * @param eligible - decides from the configured and requested hostnames whether the swap applies.
+ * @returns the URL with the request's hostname, or `configured` unchanged.
+ */
+function withRequestHost(
+  configured: string | undefined,
+  origin: string | undefined,
+  eligible: (configuredHost: string, requestedHost: string) => boolean,
+): string | undefined {
   if (configured === undefined || origin === undefined) return configured
   // The authority is swapped inside the configured string rather than rebuilt
   // from a parsed URL: a URL round trip adds a trailing slash to an origin that
@@ -76,7 +120,7 @@ export function sameHostLoopbackUrl(configured: string | undefined, origin: stri
   try {
     const url = new URL(configured)
     const requested = new URL(origin)
-    if (!isLoopbackHost(url.hostname) || !isLoopbackHost(requested.hostname)) return configured
+    if (!eligible(url.hostname, requested.hostname)) return configured
     const credentials = url.username === '' && url.password === ''
       ? ''
       : `${url.username}${url.password === '' ? '' : `:${url.password}`}@`
