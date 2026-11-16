@@ -705,7 +705,27 @@ describe('pressure measurement and retention', () => {
     }))
 
     await expect(compactIfNeeded(compact, conversation(4)))
-      .rejects.toThrow(/still above threshold after 1 compaction attempts/)
+      .rejects.toThrow(/still above threshold after 1 compaction attempt\b/)
+  })
+
+  it('does not summarize a lone checkpoint again when it remains above threshold', async () => {
+    const compact = service({
+      auto: false,
+      compactionRetries: 2,
+      thresholdRatio: 0.3,
+      retainTokens: 180,
+    })
+    compact.summary = Array.from({ length: 7 }, (_, index) => ({
+      type: 'text',
+      text: `summary ${index}`,
+    }))
+    const session = conversation(4)
+
+    await expect(compactIfNeeded(compact, session))
+      .rejects.toThrow(/still above threshold after 1 compaction attempt\b/)
+    expect(compact.calls).toHaveLength(1)
+    await expect(compactIfNeeded(compact, session)).resolves.toBeNull()
+    expect(compact.calls).toHaveLength(1)
   })
 
   it('rounds a retention cut head-ward to preserve tool-call/result pairing', async () => {
