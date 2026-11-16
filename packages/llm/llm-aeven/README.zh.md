@@ -89,7 +89,7 @@ kind: "package-reference"
 
 ### 设计理念
 
-一个类与一次解析步骤承载了整个适配器。`AevenAdapter` 继承 `DeepSeekAdapter` 并且只覆盖一处——`providerInfo`——因为继承来的实现会用 DeepSeek 自己的品牌回答它所拥有的每一条路由，而选择器所显示的身份正是唯一无法继承的事实。其余部分就是原样的传输层。
+一个类与一次解析步骤承载了整个适配器。`AevenAdapter` 继承 `DeepSeekAdapter` 并且只覆盖一处——`providerInfo`——因为继承来的实现会用 DeepSeek 自己的品牌回答它所拥有的每一条路由，而选择器所显示的身份正是唯一无法继承的事实。传输层的错误消息读取同一个 `providerInfo` 名称，因此被拒绝或失败的请求显示 "Aeven API error"，而不是 "DeepSeek"。其余部分就是原样的传输层。
 
 `options()` 是从原始配置到经过校验的连接事实的唯一路径，并且它把每个默认值都从 schema 重新声明一遍，而不是留给 schema 填充：schema 会为经 loader 解析的条目填充它们，但类型保持可选，以便设置中的一节可以只提供子集。把端点与凭据解析进同一个值，正是让请求不可能把过期来源与更新后的会话配在一起的原因。
 

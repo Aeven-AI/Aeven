@@ -52,6 +52,7 @@ kind: "package-reference"
 | `apiVersion` | `2023-06-01` | `anthropic-version` 标头值 |
 | `maxTokens` | `4096` | Messages 请求生成 token 的正整数上限 |
 | `maxUses` | `5` | 每次请求使用 `web_search` 服务器工具的正整数上限 |
+| `providerName` | `DeepSeek` | 搜索错误中提及的平台名称；网关部署使用自己的名称（Aeven Web 与桌面覆盖层设为 `Aeven`） |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#aevenweb-search-deepseek)是每个受支持字段及其 JSDoc 的穷尽式真源。上面的条目是提供方 Settings 段的 base 层；叠加其上的用户层会作用于下一次搜索，因为提供方是按次投影该段，而不是在注册时固化它。
 

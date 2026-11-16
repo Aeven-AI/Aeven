@@ -281,6 +281,7 @@ function normalizedImageFacts(
 }
 
 function normalizedImageDiagnostic(
+  brand: string,
   files: readonly UsedRequestFile[],
   providerMessage: string,
   providerDetail: string,
@@ -288,14 +289,14 @@ function normalizedImageDiagnostic(
   const exact = files.find(file => detailNamesFileId(providerDetail, file.fileId))
   const target = exact ?? (files.length === 1 ? files[0] : undefined)
   if (target !== undefined) {
-    return `DeepSeek rejected normalized image ${normalizedImageFacts(target)}: ${providerMessage}. `
+    return `${brand} rejected normalized image ${normalizedImageFacts(target)}: ${providerMessage}. `
       + 'The provider rejected bytes already normalized by the harness; PNG, JPEG, WebP, and GIF remain supported input formats.'
   }
   const candidates = [...new Map(files.map(file => [
     `${file.version.variantId}\0${file.location.message}\0${file.location.image}`,
     file,
   ])).values()]
-  return `DeepSeek rejected a normalized request image: ${providerMessage}. Candidate images: `
+  return `${brand} rejected a normalized request image: ${providerMessage}. Candidate images: `
     + `${candidates.map(normalizedImageFacts).join('; ')}. `
     + 'The provider rejected bytes already normalized by the harness; PNG, JPEG, WebP, and GIF remain supported input formats.'
 }
@@ -452,6 +453,8 @@ export class DeepSeekAdapter extends LlmAdapter {
     options: GenerateOptions,
     connection: DeepSeekConnectionOptions,
   ): AsyncIterable<StreamChunk> {
+    // Errors name the route's own brand, so a subclass serving another platform never reports DeepSeek.
+    const brand = this.providerInfo(options.provider).name
     // One resolution per stream call: connection facts and the credential
     // freeze here and hold for this whole request, so an in-flight stream
     // never observes a configuration change and the next call re-resolves.
@@ -463,14 +466,14 @@ export class DeepSeekAdapter extends LlmAdapter {
       const model = connection.models.find(entry => entry.id === options.model)
       if (model?.inputModalities?.includes('image') !== true) {
         throw new LlmError(
-          `DeepSeek model "${options.model}" does not accept image input.`,
+          `${brand} model "${options.model}" does not accept image input.`,
           'UNSUPPORTED_CONTENT',
         )
       }
       attachments = this.config.resolveAttachments?.()
       if (attachments === undefined) {
         throw new LlmError(
-          'DeepSeek image conversion requires the durable attachment service.',
+          `${brand} image conversion requires the durable attachment service.`,
           'UNSUPPORTED_CONTENT',
         )
       }
@@ -504,18 +507,18 @@ export class DeepSeekAdapter extends LlmAdapter {
     } catch (error: unknown) {
       if (timeoutOf(watchdog.signal, STREAM_IDLE_TIMEOUT_CODE) !== undefined) {
         throw new LlmError(
-          `DeepSeek stream idle timeout after ${connection.streamIdleTimeoutMs}ms`,
+          `${brand} stream idle timeout after ${connection.streamIdleTimeoutMs}ms`,
           'TIMEOUT',
           { cause: error },
         )
       }
       if (options.signal?.aborted) {
-        throw new LlmError('DeepSeek request aborted by caller', 'ABORTED', { cause: error })
+        throw new LlmError(`${brand} request aborted by caller`, 'ABORTED', { cause: error })
       }
       if (error instanceof LlmError) throw error
-      throw new LlmError(`DeepSeek API stream from ${connection.baseURL} failed`, 'TRANSPORT', { cause: error })
+      throw new LlmError(`${brand} API stream from ${connection.baseURL} failed`, 'TRANSPORT', { cause: error })
     } finally {
-      consumer.abort('DeepSeek stream consumer stopped')
+      consumer.abort(`${brand} stream consumer stopped`)
       if (!exhausted && iterator.return !== undefined) {
         // Cancellation owns transport teardown; return can queue behind an abandoned read.
         void iterator.return().catch(() => {})
@@ -532,6 +535,7 @@ export class DeepSeekAdapter extends LlmAdapter {
     attachments: AttachmentStore | undefined,
     onActivity: () => void,
   ): AsyncIterable<StreamChunk> {
+    const brand = this.providerInfo(options.provider).name
     const headers = {
       'authorization': `Bearer ${apiKey}`,
       'content-type': 'application/json',
@@ -629,11 +633,11 @@ export class DeepSeekAdapter extends LlmAdapter {
           ...options.purpose === undefined ? {} : { purpose: options.purpose },
         })
       } catch (error) {
-        throw new LlmError('DeepSeek request extension preparation failed', 'REQUEST_EXTENSION', { cause: error })
+        throw new LlmError(`${brand} request extension preparation failed`, 'REQUEST_EXTENSION', { cause: error })
       }
       for (const field of Object.keys(extensions.fields)) {
         if (Object.hasOwn(body, field)) {
-          throw new LlmError(`DeepSeek request extension field ${JSON.stringify(field)} collides with the base request`, 'REQUEST_EXTENSION')
+          throw new LlmError(`${brand} request extension field ${JSON.stringify(field)} collides with the base request`, 'REQUEST_EXTENSION')
         }
       }
       // Prepared outside the try so the TRANSPORT label below covers exactly the
@@ -660,14 +664,14 @@ export class DeepSeekAdapter extends LlmAdapter {
       } catch (error: unknown) {
         if (signal.aborted) throw error
         throw new LlmError(
-          `DeepSeek API request to ${connection.baseURL} failed`,
+          `${brand} API request to ${connection.baseURL} failed`,
           'TRANSPORT',
           { cause: error },
         )
       }
 
       if (!response.ok) {
-        let message = `DeepSeek API error (HTTP ${response.status})`
+        let message = `${brand} API error (HTTP ${response.status})`
         let providerError: WireError['error']
         const rawResponse = await response.text()
         try {
@@ -691,12 +695,12 @@ export class DeepSeekAdapter extends LlmAdapter {
           }
         }
         if (response.status === 400 && usedFiles.length > 0 && providerRejectedNormalizedImage(detail)) {
-          message = normalizedImageDiagnostic(usedFiles, message, detail)
+          message = normalizedImageDiagnostic(brand, usedFiles, message, detail)
         }
         const delay = providerRetryAfterMs(response.headers.get('retry-after'))
         const id = requestId(response.headers)
         throw new LlmError(message, httpErrorCode(response.status, providerError), {
-          cause: new Error(rawResponse.length > 0 ? rawResponse : `DeepSeek HTTP ${response.status}`),
+          cause: new Error(rawResponse.length > 0 ? rawResponse : `${brand} HTTP ${response.status}`),
           status: response.status,
           ...delay === undefined ? {} : { providerRetryAfterMs: delay },
           ...id === undefined ? {} : { requestId: id },
@@ -705,10 +709,10 @@ export class DeepSeekAdapter extends LlmAdapter {
       try {
         await extensions.accept()
       } catch (error) {
-        throw new LlmError('DeepSeek request extension acceptance failed', 'REQUEST_EXTENSION', { cause: error })
+        throw new LlmError(`${brand} request extension acceptance failed`, 'REQUEST_EXTENSION', { cause: error })
       }
       if (!response.body) {
-        throw new LlmError('DeepSeek API returned no response body', 'EMPTY_RESPONSE')
+        throw new LlmError(`${brand} API returned no response body`, 'EMPTY_RESPONSE')
       }
 
       yield* translate(parseSse(response.body, onActivity))

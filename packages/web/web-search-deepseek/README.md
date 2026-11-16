@@ -52,6 +52,7 @@ Load the web service and the provider; the key resolves from `ctx.credentials` w
 | `apiVersion` | `2023-06-01` | `anthropic-version` header value |
 | `maxTokens` | `4096` | Positive-integer upper bound on generated tokens for the Messages request |
 | `maxUses` | `5` | Positive-integer maximum `web_search` server-tool uses per request |
+| `providerName` | `DeepSeek` | Platform named in search errors; a gateway deployment names itself (the Aeven web and desktop overlays set `Aeven`) |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#aevenweb-search-deepseek) is the exhaustive source for every accepted field and its JSDoc. The entry above is the base layer of the provider's Settings section; a user layer over it reaches the next search, because the provider projects the section per call rather than capturing it at registration.
 
