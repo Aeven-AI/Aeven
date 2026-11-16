@@ -83,6 +83,7 @@
       "@aeven/session-projection/types": ["./packages/session/session-projection/src/types.ts"],
       "@aeven/agent-team/types": ["./packages/team/agent-team/src/types.ts"],
       "@aeven/tool-todo/types": ["./packages/todo/tool-todo/src/types.ts"],
+      "@aeven/tool-fs/types": ["./packages/fs/tool-fs/src/types.ts"],
       "@aeven/tool-todo/client": ["./packages/todo/tool-todo/src/client.ts"],
       "@aeven/session-title/types": ["./packages/session/session-title/src/types.ts"],
       "@aeven/session-title/client": ["./packages/session/session-title/src/client.ts"],

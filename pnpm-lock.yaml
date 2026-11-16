@@ -3285,6 +3285,9 @@ importers:
       '@aeven/token-meter':
         specifier: workspace:^
         version: link:../../llm/token-meter
+      '@aeven/tool-fs':
+        specifier: workspace:^
+        version: link:../../fs/tool-fs
       '@aeven/tools':
         specifier: workspace:^
         version: link:../../core/tools

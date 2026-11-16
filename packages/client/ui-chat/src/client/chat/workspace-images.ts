@@ -30,8 +30,8 @@ export function decodeImageSource(source: string): string {
  * @param cwd - the Session's workspace root, when the projection knows it.
  * @param source - the image source as the author wrote it.
  * @returns the path to ask the workspace route for: workspace-relative when
- * `cwd` contains it, an absolute path as written when `cwd` is unknown, or
- * undefined for a source that is not a local file inside the workspace.
+ * `cwd` contains it, any other local path as written, or undefined for a
+ * source that is not a local file.
  */
 export function workspaceImagePath(cwd: string | undefined, source: string): string | undefined {
   const path = decodeImageSource(source)
@@ -46,13 +46,10 @@ export function workspaceImagePath(cwd: string | undefined, source: string): str
       return relative === '' ? undefined : relative
     }
   }
-  // Without a known root (a hosted Session's list row carries no cwd), an
-  // absolute path goes to the workspace route as written: the Host resolves it
-  // and refuses one outside the workspace.
-  if (cwd === undefined) return path
-  // Absolute paths outside the workspace have no workspace-relative form; the
-  // caller's own resolver still offers them to a Host that serves `/api/file`.
-  return path.startsWith('/') ? undefined : path
+  // Any other path, an absolute one outside the workspace included, goes to the
+  // workspace route as written: the Host resolves it under its read rule, and a
+  // Host that confines reads to the workspace answers 404.
+  return path
 }
 
 /** What a local image source resolves against. */

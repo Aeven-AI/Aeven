@@ -44,6 +44,7 @@ export const KNOWN_SESSION_EVENT_TYPES: ReadonlySet<string> = new Set([
   'model/selection',
   'permission/preset',
   'plan/mode',
+  'reply-images/stored',
   'request/context',
   'request/header',
   'sandbox/mode',

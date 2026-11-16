@@ -13,6 +13,8 @@ kind: "package-reference"
 
 读取工具在解析目标之后、读取之前等待 `fs/pre-read`。
 
+挂载附件存储时，轮次即将结束（`agent/turn-stopping`）还会保存其助手回复以 Markdown 图片展示的每个本地文件，并以一条 `reply-images/stored` 事件按回复所写的来源记录这些副本。会话同步把这些附件带到账户的其他设备，因此即使文件已改变或写入设备离线，对话记录仍能显示该图片。`confineToWorkspace` 把副本限定在会话工作区内的文件；未指向可读图片的来源保持原样。
+
 ## 目录
 
 - [使用本包](#use-this-package)

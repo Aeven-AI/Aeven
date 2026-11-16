@@ -42,6 +42,9 @@
       "path": "../../core/tools"
     },
     {
+      "path": "../../fs/tool-fs"
+    },
+    {
       "path": "../../interaction/commands"
     },
     {

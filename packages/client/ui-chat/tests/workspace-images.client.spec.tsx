@@ -37,9 +37,10 @@ describe('workspace image sources', () => {
     expect(workspaceImagePath(`${cwd}/`, `${cwd}/shot.png`)).toBe('shot.png')
   })
 
-  it('refuses an absolute path outside the workspace', () => {
-    expect(workspaceImagePath(cwd, '/tmp/shot.png')).toBeUndefined()
-    expect(workspaceImagePath(cwd, `${cwd.replace(/\/w$/, '')}/other-workspace/shot.png`)).toBeUndefined()
+  it('hands an absolute path outside the workspace to the workspace route as written', () => {
+    expect(workspaceImagePath(cwd, '/tmp/shot.png')).toBe('/tmp/shot.png')
+    const other = `${cwd.replace(/\/w$/, '')}/other-workspace/shot.png`
+    expect(workspaceImagePath(cwd, other)).toBe(other)
   })
 
   it('hands any local path to the workspace route when the projection knows no workspace root', () => {
