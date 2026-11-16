@@ -96,7 +96,9 @@ The package is built on one separation and one layered timeout:
 
 ### Read path
 
-A fetch validates the URL, resolves the hostname once, rejects the complete answer set when any address is not public, and pins the connection to the accepted addresses. It repeats that check for each same-origin redirect; a cross-origin redirect or non-public target fails before response bytes are accepted. The final response is classified by `Content-Type`, decoded from its declared charset, and read under the byte cap; the decoded text is then truncated to the character cap.
+A fetch validates the URL, resolves the hostname once, rejects the complete answer set when any address is not public, and pins the connection to the accepted addresses. It repeats that check for each same-origin redirect; a cross-origin redirect or non-public target fails before response bytes are accepted. The final response is classified by `Content-Type`, decoded from its declared charset (malformed declarations containing UTF-8 use strict UTF-8 recovery), and read under the byte cap; the decoded text is then truncated to the character cap.
+
+A malformed comma- or whitespace-joined charset declaration containing a UTF-8 label (such as `charset=utf-8,gbk`) is decoded strictly as UTF-8. Invalid UTF-8 fails with `WEB_UNSUPPORTED_CONTENT_TYPE`; the provider does not try another encoding. When the byte cap cuts a character, recovery omits the incomplete suffix and returns `truncated: true`; a complete response must pass the EOF check. Valid single-label declarations retain their ordinary decoding behavior.
 
 </details>
 
@@ -133,7 +135,8 @@ No direct invalidation; the named consumer owns any request-prefix changes.
 These limits define when the provider is unsafe or a poor fit. They are current package constraints.
 
 - **Only textual content decodes** — html/xhtml and `text/*` plus JSON/XML families; a missing `Content-Type` or any binary type throws `WEB_UNSUPPORTED_CONTENT_TYPE`, and text-extractable PDF decoding is named deferred work.
-- **Charset comes only from the `Content-Type` header** (UTF-8 default) — an HTML `<meta charset>` declaration is ignored, and a declared-but-unrecognized charset label throws rather than falling back.
+- **Charset comes only from the `Content-Type` header** (UTF-8 default) — an HTML `<meta charset>` declaration is ignored, and unsupported declarations without a UTF-8 recovery label throw.
+- **UTF-8 recovery is a preference, not encoding detection** — bytes can be valid as both UTF-8 and another encoding, even in a long response. Recovery chooses UTF-8 in that case; malformed declarations without a UTF-8 label remain unsupported.
 
 <a id="dev-note"></a>
 ### Dev Note

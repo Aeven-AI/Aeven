@@ -11,6 +11,7 @@
 import { LlmError } from '@aeven/llm'
 import type { Message, ModelMessageSource, ReplayEnvelope } from '@aeven/llm'
 import type { Api, AssistantMessage, JsonObject, Usage as PiUsage } from '@earendil-works/pi-ai'
+import type { PrefixDigests } from './prefix-binding.ts'
 
 /** Per-block half of the pi-ai replay envelope, one entry per content block. */
 export type PiAiReplayBlock =
@@ -28,6 +29,8 @@ export interface PiAiReplayResponse {
   responseModel?: string
   responseId?: string
   stopReason: AssistantMessage['stopReason']
+  /** Digest of the request context this response was generated from; see `prefix-binding.ts`. */
+  prefixDigest?: string
 }
 
 /** The validated halves of one pi-ai replay envelope. */
@@ -67,9 +70,10 @@ function emptyPiUsage(): PiUsage {
  * order), so `BlockAssembler` prunes an entry with its block whenever assembly
  * removes one.
  * @param message - completed native pi-ai assistant response.
+ * @param prefixDigest - digest of the request context, recorded when the protocol binds thinking to it.
  * @returns the versioned lossless-JSON replay projection.
  */
-export function toPiReplayState(message: AssistantMessage): ReplayEnvelope {
+export function toPiReplayState(message: AssistantMessage, prefixDigest?: string): ReplayEnvelope {
   const response: PiAiReplayResponse = {
     kind: 'pi-ai',
     version: 2,
@@ -79,6 +83,7 @@ export function toPiReplayState(message: AssistantMessage): ReplayEnvelope {
     ...message.responseModel === undefined ? {} : { responseModel: message.responseModel },
     ...message.responseId === undefined ? {} : { responseId: message.responseId },
     stopReason: message.stopReason,
+    ...prefixDigest === undefined ? {} : { prefixDigest },
   }
   return {
     response,
@@ -123,6 +128,7 @@ function readReplayState(value: unknown): PiAiReplayState {
   }
   if (response['responseModel'] !== undefined && typeof response['responseModel'] !== 'string') return invalidReplay('responseModel must be a string')
   if (response['responseId'] !== undefined && typeof response['responseId'] !== 'string') return invalidReplay('responseId must be a string')
+  if (response['prefixDigest'] !== undefined && typeof response['prefixDigest'] !== 'string') return invalidReplay('prefixDigest must be a string')
   const blocks = envelope['blocks']
   if (!Array.isArray(blocks)) return invalidReplay('blocks must be an array')
   for (const [index, value] of blocks.entries()) {
@@ -176,7 +182,12 @@ function foreignAssistant(message: Message): AssistantMessage {
 }
 
 /** Recombine durable Aeven content with validated pi-ai replay metadata. */
-function replayedAssistant(message: Message, source: ModelMessageSource, rawState: unknown): AssistantMessage {
+function replayedAssistant(
+  message: Message,
+  source: ModelMessageSource,
+  rawState: unknown,
+  prefixDigests?: PrefixDigests,
+): AssistantMessage {
   const state = readReplayState(rawState)
   if (state.response.provider !== source.provider) return invalidReplay('provider does not match assistant source')
   if (state.response.model !== source.model) return invalidReplay('model does not match assistant source')
@@ -207,7 +218,7 @@ function replayedAssistant(message: Message, source: ModelMessageSource, rawStat
       default: return invalidReplay(`block ${index} has an unsupported Aeven type`)
     }
   })
-  return {
+  const assistant: AssistantMessage = {
     role: 'assistant',
     content,
     api: state.response.api,
@@ -219,6 +230,8 @@ function replayedAssistant(message: Message, source: ModelMessageSource, rawStat
     stopReason: state.response.stopReason,
     timestamp: 0,
   }
+  if (state.response.prefixDigest !== undefined) prefixDigests?.set(assistant, state.response.prefixDigest)
+  return assistant
 }
 
 /**
@@ -232,13 +245,18 @@ function replayedAssistant(message: Message, source: ModelMessageSource, rawStat
  * @param message - assistant content with required source and optional adapter-owned replay metadata.
  * @param onDegrade - called with the diagnostic reason when an unusable replay
  *   state falls back to provider-neutral conversion.
+ * @param prefixDigests - receives the recorded request-prefix digest of the returned message, when replay state has one.
  * @returns a native pi-ai assistant message reconstructed from durable content.
  */
-export function toPiAssistant(message: Message, onDegrade?: (reason: string) => void): AssistantMessage {
+export function toPiAssistant(
+  message: Message,
+  onDegrade?: (reason: string) => void,
+  prefixDigests?: PrefixDigests,
+): AssistantMessage {
   const source = message.source
   if (source.kind !== 'model' || source.replayState === undefined) return foreignAssistant(message)
   try {
-    return replayedAssistant(message, source, source.replayState)
+    return replayedAssistant(message, source, source.replayState, prefixDigests)
   } catch (error: unknown) {
     /* v8 ignore next -- replayedAssistant throws only INVALID_REPLAY_STATE LlmErrors; the
        guard keeps a future non-replay failure loud instead of silently degrading it */

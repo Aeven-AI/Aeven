@@ -1,4 +1,4 @@
-import { describe, expect, expectTypeOf, it, vi } from 'vitest'
+import { describe, expect, expectTypeOf, it, onTestFinished, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { AttachmentId } from '@aeven/attachment'
 import BasicCompactionEngine from '@aeven/compaction-basic'
@@ -17,6 +17,7 @@ import LlmRuntime, { createUserMessage, ToolCallId, CONTEXT_WINDOW_EXCEEDED_CODE
 import type {
   ContentBlock,
   GenerateOptions,
+  LlmCallConfig,
   LlmFailure,
   LlmResolvedModelInfo,
   Message,
@@ -660,7 +661,7 @@ describe('pressure measurement and retention', () => {
     const result = await compactIfNeeded(compact, session, 'pressure', 'fallback')
     expect(result).not.toBeNull()
     expect(session.requestHeader()?.config.model).toBe('actual')
-    expect(measure.mock.calls[0]).toEqual([session])
+    expect(measure.mock.calls[0]).toEqual([session, session.requestHeader()])
   })
 
   it('declines when envelope pressure is high but the surface has no compactable range', async () => {
@@ -2351,5 +2352,85 @@ describe('head-halving compaction', () => {
     const summaries = session.snapshotEvents().filter(event => event.type === 'compaction/summary')
     expect(summaries.length).toBeGreaterThan(1)
     expect(compact.spans.length).toBeGreaterThan(summaries.length)
+  })
+})
+
+describe('model-switch pressure', () => {
+  function request(ctx: Context, session: Session, config: LlmCallConfig, signal = SIGNAL) {
+    return agentEvents(ctx, agent(session, MODEL)).waterfall(
+      'agent/request', { turn: 5, step: 1, signal }, () => Promise.resolve(config),
+    )
+  }
+
+  function harness(finish?: (StreamChunk & { type: 'finish' })['reason']) {
+    const ctx = new Context()
+    void new LlmRuntime(ctx)
+    new SessionProjectionRegistry(ctx)
+    void new TokenMeter(ctx)
+    onTestFinished(() => ctx.fiber.dispose())
+    const adapter = new ScriptedAdapter([{ type: 'text', text: 'checkpoint' }], finish)
+    ctx.llm.registerAdapter(['small'], new ContextAdapter(1_000))
+    ctx.llm.registerAdapter([MODEL], adapter)
+    const compact = new BasicCompactionEngine(ctx, { thresholdRatio: 0.5, retainTokens: 100 })
+    return { ctx, adapter, compact }
+  }
+
+  const summaries = (session: Session) => session.snapshotEvents().filter(event => event.type === 'compaction/summary')
+
+  it('summarizes with the previous model before a switch to a smaller window', async () => {
+    const { ctx, adapter } = harness()
+    const session = conversation(4, 'fixture '.repeat(80))
+    const previous = session.requestHeader()
+    const selected = { provider: 'small', model: 'small' }
+    expect(ctx.tokenMeter.measure(session).totalTokens).toBeGreaterThan(1_000)
+    ctx.on('agent/request', async (_payload, next) => ({ ...await next(), ...selected }))
+
+    await expect(request(ctx, session, { provider: MODEL, model: MODEL })).resolves.toEqual(selected)
+
+    expect(adapter.lastOptions).toMatchObject({ provider: MODEL, model: MODEL, purpose: 'compaction' })
+    expect(ctx.tokenMeter.measure(session, { config: selected }).totalTokens).toBeLessThan(500)
+    expect(session.requestHeader()).toEqual(previous)
+    expect(summaries(session)).toHaveLength(1)
+  })
+
+  it('skips unchanged, incomplete, below-threshold, and cancelled requests', async () => {
+    const { ctx, adapter } = harness()
+    const long = conversation(4, 'fixture '.repeat(80))
+    await request(ctx, long, { provider: MODEL, model: MODEL })
+    await request(ctx, long, { provider: '', model: '' })
+    const controller = new AbortController()
+    controller.abort(new Error('cancelled'))
+    await request(ctx, long, { provider: 'small', model: 'small' }, controller.signal)
+    await request(ctx, conversation(1, 'short'), { provider: 'small', model: 'small' })
+    expect(adapter.lastOptions).toBeUndefined()
+    expect(summaries(long)).toHaveLength(0)
+  })
+
+  it('sends the switched request when its compaction fails', async () => {
+    const { ctx } = harness({ kind: 'error', failure: { code: 'AUTH', message: 'summary credentials expired' } })
+    const warn = vi.spyOn(ctx.logger, 'warn')
+    const session = conversation(4, 'fixture '.repeat(80))
+    const selected = { provider: 'small', model: 'small' }
+
+    await expect(request(ctx, session, selected)).resolves.toEqual(selected)
+
+    expect(summaries(session)).toHaveLength(0)
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('model-switch compaction to small/small failed'))
+  })
+
+  it('removes the switch check when the contributing plugin is unloaded', async () => {
+    const ctx = new Context()
+    await ctx.plugin(LlmRuntime)
+    await ctx.plugin(SessionProjectionRegistry)
+    void new TokenMeter(ctx)
+    onTestFinished(() => ctx.fiber.dispose())
+    const adapter = new ScriptedAdapter([{ type: 'text', text: 'checkpoint' }])
+    ctx.llm.registerAdapter(['small'], new ContextAdapter(1_000))
+    ctx.llm.registerAdapter([MODEL], adapter)
+    const fiber = await ctx.plugin(BasicCompactionEngine, { thresholdRatio: 0.5, retainTokens: 100 })
+    await fiber.dispose()
+
+    await request(ctx, conversation(4, 'fixture '.repeat(80)), { provider: 'small', model: 'small' })
+    expect(adapter.lastOptions).toBeUndefined()
   })
 })

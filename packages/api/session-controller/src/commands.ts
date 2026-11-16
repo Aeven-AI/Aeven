@@ -584,11 +584,14 @@ export class SessionCommandController {
     const agent = await this.resolveAgent(request.sessionId)
     // One request is one prompt. The same request can reach this device twice: forwarded through the account inbox
     // to the device running the turn, and again from the typing device's own queue once that turn ends.
-    if (loggedRequest(agent.session.snapshotEvents(), request.requestId)) return { accepted: true }
+    // Admission awaits model and attachment checks, so the log is re-read after each await for a duplicate admitted meanwhile.
+    const admitted = (): boolean => loggedRequest(agent.session.snapshotEvents(), request.requestId)
+    if (admitted()) return { accepted: true }
     this.assertRouteServed(agent)
     const hasImage = request.content.some(part => part.type === 'image')
     const admit = async (): Promise<SessionPromptValue> => {
       try {
+        if (admitted()) return { accepted: true }
         if (hasImage) {
           const current = this.agents.selectionFor(agent).current
           const model = await this.ctx.llm.resolveModelInfo(current.provider, current.model)
@@ -601,10 +604,12 @@ export class SessionCommandController {
           }
         }
         const content = await admitPromptContent(this.ctx.attachments, request.content)
+        if (admitted()) return { accepted: true }
         const message: UserMessage = createUserMessage({ content, source })
         if (request.mode === 'steer') agent.steer(message)
         else agent.followup(message)
       } catch (error) {
+        if (admitted()) return { accepted: true }
         if (remoteErrorOf(error) !== undefined) throw error
         if (error instanceof AttachmentError) {
           throw new RemoteError('session/attachment-invalid', error.message, { reason: error.code })

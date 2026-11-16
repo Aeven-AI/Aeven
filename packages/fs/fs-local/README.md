@@ -33,7 +33,7 @@ Choose `fs-local` for ordinary host-file access in a single process. Choose [`fs
 
 ### Minimal configuration
 
-Load the backend with a base directory; relative paths resolve against it, and absolute paths ignore it.
+Load the backend with a base directory; relative paths resolve against it, and absolute paths ignore it. A requested path that is `~` or starts with `~/` (or `~\` on Windows) begins at the host user's home directory; `~user`, later `~` segments, and directory entry names stay literal.
 
 ```yaml
 - name: '@aeven/fs-local'

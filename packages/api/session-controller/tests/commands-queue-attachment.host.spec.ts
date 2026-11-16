@@ -175,6 +175,26 @@ describe('Session prompt commands', () => {
     expect(followup).toHaveBeenCalledOnce()
     await ctx.fiber.dispose()
   })
+
+  it.each(['queue', 'steer'] as const)('admits concurrent %s deliveries of one request once', async (mode) => {
+    const { ctx, controller, agent, inbox, steer } = await commandHarness()
+    ctx.provide('llm', { listProviders: () => [{ id: 'fixture' }] } as never)
+    const followup = vi.spyOn(agent, 'followup').mockImplementation((message) => { inbox.append('next-turn', message) })
+    steer.mockImplementation((message) => { inbox.append('next-step', message as never) })
+    const request = {
+      requestId: 'request-concurrent' as SessionRequestId,
+      sessionId: agent.id,
+      mode,
+      content: [{ type: 'text' as const, text: 'once' }],
+    }
+    // Both calls pass the first log check before either admits; the re-check after attachment admission catches the second.
+    await expect(Promise.all([controller.prompt(request), controller.prompt(request)]))
+      .resolves.toEqual([{ accepted: true }, { accepted: true }])
+    expect(followup).toHaveBeenCalledTimes(mode === 'queue' ? 1 : 0)
+    expect(steer).toHaveBeenCalledTimes(mode === 'steer' ? 1 : 0)
+    expect(inbox.nextTurn.length + inbox.nextStep.length).toBe(1)
+    await ctx.fiber.dispose()
+  })
 })
 
 function imageRef(id: string): ImageAttachmentRef {
