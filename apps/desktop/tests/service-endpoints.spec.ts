@@ -53,7 +53,7 @@ describe('desktop service endpoints', () => {
         apiUrl: 'https://aeven.io/api', slackClientId: undefined, slackCallbackPort: 12751,
       },
       'web-search-deepseek': {
-        apiKeyEnv: 'AEVEN_TOKEN', model: 'Aeven-1.0-Flash',
+        apiKeyEnv: 'AEVEN_TOKEN', model: 'Aeven-1.0-Flash', providerName: 'Aeven',
       },
     })
   })
@@ -86,7 +86,7 @@ describe('desktop service endpoints', () => {
       apiUrl: 'http://localhost:9000', slackClientId: 'test-slack-client', slackCallbackPort: 12751,
     })
     expect(configs['web-search-deepseek']).toEqual({
-      apiKeyEnv: 'AEVEN_TOKEN', model: 'Aeven-1.0-Flash',
+      apiKeyEnv: 'AEVEN_TOKEN', model: 'Aeven-1.0-Flash', providerName: 'Aeven',
     })
   })
 })
