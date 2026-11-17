@@ -3832,6 +3832,8 @@ export function createMemoryCore(
     q?: string;
     groupByTurn?: boolean;
     includeAllNamespaces?: boolean;
+    fromMs?: number;
+    userTextPrefix?: string;
   }): Promise<number> {
     ensureLive();
     const needle = (input?.q ?? "").trim().toLowerCase();
@@ -3857,6 +3859,8 @@ export function createMemoryCore(
         ownerProfileId: input?.ownerProfileId,
         domains: input?.domains,
         projectWorkspaceId: input?.projectWorkspaceId,
+        fromMs: input?.fromMs,
+        userTextPrefix: input?.userTextPrefix,
       }, vis);
     }
     // q substring scan — mirror `listTraces`. Walk all matching
@@ -3867,6 +3871,8 @@ export function createMemoryCore(
       ownerProfileId: input?.ownerProfileId,
       domains: input?.domains,
       projectWorkspaceId: input?.projectWorkspaceId,
+      fromMs: input?.fromMs,
+      userTextPrefix: input?.userTextPrefix,
     }).filter(visible);
     const matched = rows.filter((r) => {
       return traceSearchHaystack(r).includes(needle);
@@ -3888,6 +3894,8 @@ export function createMemoryCore(
     q?: string;
     groupByTurn?: boolean;
     includeAllNamespaces?: boolean;
+    fromMs?: number;
+    userTextPrefix?: string;
   }): Promise<TraceDTO[]> {
     ensureLive();
     const limit = Math.max(1, Math.min(10_000, input?.limit ?? 50));
@@ -3941,6 +3949,8 @@ export function createMemoryCore(
         ownerProfileId: input?.ownerProfileId,
         domains: input?.domains,
         projectWorkspaceId: input?.projectWorkspaceId,
+        fromMs: input?.fromMs,
+        userTextPrefix: input?.userTextPrefix,
       }).filter((r) => input?.includeAllNamespaces || visibleToCurrent(r));
       const matched = allRows.filter((r) => {
         return traceSearchHaystack(r).includes(needle);
@@ -3985,6 +3995,9 @@ export function createMemoryCore(
         ownerProfileId: input.ownerProfileId,
         domains: input.domains,
         projectWorkspaceId: input.projectWorkspaceId,
+        fromMs: input.fromMs,
+        userTextPrefix: input.userTextPrefix,
+        omitVectors: true,
         limit,
         offset,
       }));
@@ -3997,6 +4010,8 @@ export function createMemoryCore(
         ownerProfileId: input?.ownerProfileId,
         domains: input?.domains,
         projectWorkspaceId: input?.projectWorkspaceId,
+        fromMs: input?.fromMs,
+        userTextPrefix: input?.userTextPrefix,
       }, limit + offset + 500).filter((r) => input?.includeAllNamespaces || visibleToCurrent(r));
       return traceRowsToDTOs(rows.slice(offset, offset + limit));
     }
@@ -4009,6 +4024,8 @@ export function createMemoryCore(
       ownerProfileId: input?.ownerProfileId,
       domains: input?.domains,
       projectWorkspaceId: input?.projectWorkspaceId,
+      fromMs: input?.fromMs,
+      userTextPrefix: input?.userTextPrefix,
     });
     const filtered = rows.filter((r) => {
       if (!input?.includeAllNamespaces && !visibleToCurrent(r)) return false;
@@ -4021,7 +4038,7 @@ export function createMemoryCore(
    * Newest-first traces matching a filter, read in repository pages until
    * `upTo` rows (the last page may pass it) or the end. The repository clamps
    * one `list` call to 500 rows, so a scan meant to see every trace walks the
-   * pages itself.
+   * pages itself. Rows carry no vectors: callers build DTOs or count.
    */
   function scanTraces(
     filter: Omit<NonNullable<Parameters<typeof handle.repos.traces.list>[0]>, "limit" | "offset">,
@@ -4029,7 +4046,7 @@ export function createMemoryCore(
   ): ReturnType<typeof handle.repos.traces.list> {
     const rows: ReturnType<typeof handle.repos.traces.list> = [];
     while (rows.length < upTo) {
-      const page = handle.repos.traces.list({ ...filter, limit: TRACE_SCAN_PAGE, offset: rows.length });
+      const page = handle.repos.traces.list({ ...filter, omitVectors: true, limit: TRACE_SCAN_PAGE, offset: rows.length });
       rows.push(...page);
       if (page.length < TRACE_SCAN_PAGE) break;
     }

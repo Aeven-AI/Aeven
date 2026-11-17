@@ -491,7 +491,7 @@ export class MemosMemory implements MemoryProvider {
   }
 
   /**
-   * The owner's current learned procedures, newest per name. Listing them is a text scan of every memory, so the
+   * The owner's current learned procedures, newest per name, read by their user-text prefix. The
    * list is kept per owner until a write changes a memory or {@link PROCEDURE_LIST_TTL_MS} passes, which covers
    * procedures another device synced in.
    * @param owner - account id.
@@ -507,7 +507,7 @@ export class MemosMemory implements MemoryProvider {
         ownerAgentKind: MEMOS_AGENT,
         ownerProfileId: profile,
         includeAllNamespaces: true,
-        q: LEARNED_PROCEDURE_PREFIX,
+        userTextPrefix: LEARNED_PROCEDURE_PREFIX,
         limit: PROCEDURE_SCAN,
         offset: 0,
       })
@@ -1460,6 +1460,7 @@ export class MemosMemory implements MemoryProvider {
       ownerProfileId: profile,
       includeAllNamespaces: true,
       ...request.query ? { q: request.query } : {},
+      ...request.since === undefined ? {} : { fromMs: request.since },
       ...request.domains === undefined ? {} : { domains: request.domains },
       ...request.cwd === undefined ? {} : { projectWorkspaceId: this.workspaceOf(request.cwd) ?? null },
       ...request.turns === true ? { groupByTurn: true } : {},
