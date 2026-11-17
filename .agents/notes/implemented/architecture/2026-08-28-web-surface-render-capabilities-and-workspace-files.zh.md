@@ -16,6 +16,8 @@ Web GUI 中的助手回复经由 `MarkdownText` 渲染：它把 ` ```mermaid ` �
 
 **界面提示词陈述该界面渲染什么。** `webSurfacePrompt` 现在说明：回复以 GFM 渲染，mermaid 围栏成为图表，数学公式经 KaTeX 渲染，图片从绝对 `http`/`https` URL 显示而文件系统路径与 `data:` URI 会被拒绝，并且模型绝不可声称自己无法内联显示图片或图表。`WEB_SURFACE` 分节是正确的归属地，因为这是界面的属性而非 Agent 的属性：它仅在 `avn web` 下挂载，因此该陈述在 CLI 上不存在 —— 那里这些都不会渲染。
 
+**逐字使用的文本放入消息块。** 用户会逐字使用的文本——要发送的消息、邮件、回复或帖子，或要说出口、要背下来的台词——放入首行为 ```` ```message ```` 的围栏，`MarkdownText` 将其渲染为带复制按钮的正文。提示词说明：没有 `message` 标记的围栏会渲染为代码，只用于代码、命令或数据，因此渲染器中未标记的围栏仍是代码。之所以写明首行并点出要说出口的台词，是因为 Aeven Flash 只被告知对要发送的文本使用“a ```message fence”时，会把面试台词放进裸围栏，结果渲染成代码。
+
 这刻意不采用 Agent 预设的 persona 规则。persona 会随 Agent 进入该陈述不成立的界面；而为承载一句话去 fork 一个随发行的预设，会使此后每一次上游预设变更都变成手工合并。
 
 **`avn-host-workspace-files` 为生成的文件提供 URL。** 一条经过认证的前缀路由从工作区的规范目录提供 `<mount>/<workspaceId>/<相对路径>`。`ctx.connection.requestRejection` 在任何路径处理之前运行，因此未认证的调用方无法区分真实工作区 id 与编造的 id。越出目录的穿越返回 403，未知 id 与文件缺失都返回空的 404，非 GET/HEAD 返回 405。

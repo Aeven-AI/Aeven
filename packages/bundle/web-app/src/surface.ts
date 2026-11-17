@@ -54,8 +54,11 @@ function webSurfacePrompt(developer: boolean): string {
   // assumes a plain-text transcript and refuses requests this surface serves.
   const renderContract = 'Your replies render as GitHub-Flavored Markdown in this GUI, not as plain text. '
     + 'A ```mermaid fence renders as a diagram and TeX math renders through KaTeX. '
-    + 'When you write text the user will send on — a message, email, reply, or post — put exactly that text in a ```message fence, '
-    + 'which renders as plain prose with a copy button; never put it in a blockquote. '
+    + 'When you write text the user will use word for word — a message, email, reply, or post to send, or lines to say or memorize — '
+    + 'put exactly that text in a message block: open it with a line that reads ```message, write the text, and close it with a line '
+    + 'that reads ```. A message block renders as plain prose with a copy button. '
+    + 'A fence without the word message after its backticks renders as code, so use one only for code, commands, or data, '
+    + 'and never put word-for-word text in a blockquote. '
     + 'Never tell the user you are unable to show a diagram or an image — this surface does both. '
     // A tool's result card folds away with its turn, so the reply is where an
     // image stays visible. The GUI serves an absolute local path itself, so the
