@@ -1,7 +1,7 @@
 {
   "name": "@aeven/settings-file",
   "description": "File-backed settings provider (settings.yaml) for the Aeven",
-  "version": "0.3.57-alpha",
+  "version": "0.3.58-alpha",
   "publishConfig": {
     "access": "public"
   },

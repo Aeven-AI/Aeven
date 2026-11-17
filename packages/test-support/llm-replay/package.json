@@ -1,7 +1,7 @@
 {
   "name": "@aeven/llm-replay",
   "description": "Replay LLM plugin: short-circuits llm/stream with model chunks reconstructed from a recorded session JSONL (keyless snapshot tests)",
-  "version": "0.3.57-alpha",
+  "version": "0.3.58-alpha",
   "publishConfig": {
     "access": "public"
   },
