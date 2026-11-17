@@ -659,16 +659,9 @@ async function main(): Promise<void> {
     void startBrowserSignIn({
       providerUrl: url,
       openExternal: target => shell.openExternal(target),
-      // The window comes forward once the landing is settled, so the reader
-      // returns to its cover rather than to the sign-in screen it left.
-      land: (path) => {
-        void land(path).finally(() => {
-          if (window.isDestroyed()) return
-          if (window.isMinimized()) window.restore()
-          window.focus()
-          app.focus({ steal: true })
-        })
-      },
+      // The browser keeps focus: its page tells the reader the sign-in finished and they return to
+      // the app themselves, which by then shows its cover.
+      land: (path) => { void land(path) },
     }).then((outcome) => {
       if (outcome === 'timed-out') reportProviderSignIn(window, 'ended')
     }, (error: unknown) => {
