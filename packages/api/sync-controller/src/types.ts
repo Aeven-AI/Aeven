@@ -25,6 +25,11 @@ export interface SyncKeyHolderView {
   /** The passkey's credential id or the recovery key's id. */
   readonly id: string
   readonly kind: 'passkey' | 'recovery'
+  /**
+   * Whether this passkey also signs in. `false` for a passkey created before sign-in existed, which an `upgrade` step
+   * replaces; absent when the relay did not say.
+   */
+  readonly signIn?: boolean
   /** The name the user gave it in Settings → Sync. */
   readonly name?: string
   /** The passkey provider's AAGUID as lowercase hex, when the browser stated it. */
@@ -42,10 +47,17 @@ export type SyncPasskeyPurpose =
   | 'add'
   /** Unlock this device with one of the account's passkeys. */
   | 'unlock'
+  /**
+   * Replace a passkey that only unlocks with one in the same password manager that also signs in: the new copy is
+   * added before the old one is removed, so the account always holds a working passkey.
+   */
+  | 'upgrade'
 
 /** A passkey step this Host waits for, or one that did not finish. */
 export interface SyncPasskeyView {
   readonly purpose: SyncPasskeyPurpose
+  /** The passkey an `upgrade` step replaces. */
+  readonly replaces?: string
   /**
    * `waiting` while the browser page runs, `failed` when the step timed out or its result did not work,
    * `unsupported` when the browser or passkey provider cannot derive a key from the passkey, `wrong-passkey` when

@@ -74,7 +74,7 @@ export function apply(ctx: ClientContext): void {
     status: () => value(remote.status()),
     setEnabled: enabled => value(remote.setEnabled(enabled)),
     devices: () => value(remote.devices()),
-    startPasskey: (purpose, account) => value(remote.startPasskey(purpose, account)),
+    startPasskey: (purpose, account, replaces) => value(remote.startPasskey(purpose, account, replaces)),
     cancelPasskey: () => value(remote.cancelPasskey()),
     unprotect: () => value(remote.unprotect()),
     acceptServerKey: () => value(remote.acceptServerKey()),

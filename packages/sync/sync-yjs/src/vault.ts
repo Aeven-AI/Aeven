@@ -65,11 +65,20 @@ const DEVICES: ReadonlySet<string> = new Set<SyncPasskeyDevice>(['mac', 'windows
  * @throws {Error} when the entry names no id.
  */
 function parseHolder(entry: unknown): SyncKeyHolder {
-  const fields = entry as { id?: unknown; kind?: unknown; name?: unknown; aaguid?: unknown; device?: unknown; addedAt?: unknown } | null
+  const fields = entry as {
+    id?: unknown
+    kind?: unknown
+    signIn?: unknown
+    name?: unknown
+    aaguid?: unknown
+    device?: unknown
+    addedAt?: unknown
+  } | null
   if (typeof fields?.id !== 'string' || !BASE64URL.test(fields.id)) throw new Error('the relay sent a malformed key holder')
   return {
     id: fields.id,
     kind: fields.kind === 'recovery' ? 'recovery' : 'passkey',
+    ...typeof fields.signIn === 'boolean' ? { signIn: fields.signIn } : {},
     ...typeof fields.name === 'string' && fields.name !== '' ? { name: fields.name } : {},
     ...typeof fields.aaguid === 'string' && /^[0-9a-f]{32}$/.test(fields.aaguid) ? { aaguid: fields.aaguid } : {},
     ...typeof fields.device === 'string' && DEVICES.has(fields.device) ? { device: fields.device as SyncPasskeyDevice } : {},

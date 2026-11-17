@@ -382,9 +382,11 @@ The signed-in user's account sync.
  * @param account - the account's email as the page shows it, which names a created passkey in the password manager
  *   when this Host's identity carries none. It is only a label: the passkey's user handle and the key it holds do
  *   not depend on it.
+ * @param replaces - for `upgrade`, the credential id of the account's passkey the new one replaces.
  * @returns the page to open.
+ * @throws {Error} when an `upgrade` names no passkey the account holds.
  */
-@Remote async startPasskey(purpose: SyncPasskeyPurpose, account?: string): Promise<SyncPasskeyStart>
+@Remote async startPasskey(purpose: SyncPasskeyPurpose, account?: string, replaces?: string): Promise<SyncPasskeyStart>
 
 /**
  * Stop a passkey step, or dismiss one that did not finish.

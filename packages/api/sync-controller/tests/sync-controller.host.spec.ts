@@ -172,6 +172,45 @@ describe('passkey copies through the sync Remote', () => {
     }
   })
 
+  it('upgrades a passkey by adding its replacement before removing it, and keeps it when the add fails', async () => {
+    const sync = protectedSync([{ id: 'cred-old', kind: 'passkey' }, { id: 'cred-2', kind: 'passkey' }])
+    const order: string[] = []
+    sync.addPasskey.mockImplementation(() => { order.push('add'); return Promise.resolve() })
+    sync.removePasskey.mockImplementation(() => { order.push('remove'); return Promise.resolve() })
+    const controller = await bootWith(sync)
+    await expect(controller.startPasskey('upgrade', undefined, 'cred-unknown')).rejects.toThrow(/one of the account's passkeys/)
+    await expect(controller.startPasskey('upgrade')).rejects.toThrow(/one of the account's passkeys/)
+
+    const claims: Array<Record<string, unknown>> = []
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(() => {
+      const next = claims.shift()
+      return Promise.resolve(next === undefined ? new Response(null, { status: 202 }) : Response.json(next))
+    })
+    const created = async (page: URLSearchParams) => {
+      const described = new TextEncoder().encode(JSON.stringify({ id: Buffer.from('cred-new').toString('base64url'), device: 'mac' }))
+      claims.push({ sealed: await sealToHost(new Uint8Array([...new Uint8Array(32).fill(9), ...described]), new Uint8Array(Buffer.from(page.get('key') ?? '', 'base64url'))) })
+    }
+    try {
+      const page = new URLSearchParams(new URL((await controller.startPasskey('upgrade', undefined, 'cred-old')).url).hash.slice(1))
+      // The provider holding the old passkey may replace it; every other passkey stays protected from replacement.
+      expect(page.get('ids')).toBe('cred-2')
+      expect(page.get('mode')).toBe('create')
+      await created(page)
+      await vi.waitFor(async () => { expect((await controller.status()).passkey).toBeUndefined() })
+      expect(order).toEqual(['add', 'remove'])
+      expect(sync.removePasskey).toHaveBeenCalledWith(OWNER, 'cred-old')
+
+      order.length = 0
+      sync.addPasskey.mockImplementationOnce(() => { order.push('add'); return Promise.reject(new Error('relay down')) })
+      const retry = new URLSearchParams(new URL((await controller.startPasskey('upgrade', undefined, 'cred-old')).url).hash.slice(1))
+      await created(retry)
+      await vi.waitFor(async () => { expect((await controller.status()).passkey).toEqual({ purpose: 'upgrade', replaces: 'cred-old', state: 'failed' }) })
+      expect(order).toEqual(['add'])
+    } finally {
+      fetchSpy.mockRestore()
+    }
+  })
+
   it('names and removes passkeys for the caller', async () => {
     const sync = protectedSync()
     const controller = await bootWith(sync)

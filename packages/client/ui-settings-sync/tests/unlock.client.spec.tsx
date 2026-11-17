@@ -131,6 +131,23 @@ describe('passkeys in Account → Security', () => {
     await waitFor(() => { expect(ops.removePasskey).toHaveBeenCalledWith('cred-2') })
   })
 
+  it('offers a passkey that only unlocks to sign in as well, and leaves a passkey that signs in as it is', async () => {
+    // The desktop bridge opens the passkey page in the system browser; jsdom has no window.open to stand in for it.
+    const openExternal = vi.fn(() => Promise.resolve())
+    ;(window as { avnDesktop?: unknown }).avnDesktop = { browser: { openExternal } }
+    try {
+      const ops = section(protectedView([{ ...ANDROID, signIn: true }, { id: 'cred-old', kind: 'passkey', signIn: false }], false))
+      await screen.findByText(en.passkeyUnlockOnly)
+      const upgrades = screen.getAllByText(en.useToSignIn)
+      expect(upgrades).toHaveLength(1)
+      fireEvent.click(upgrades[0] as HTMLElement)
+      await waitFor(() => { expect(ops.startPasskey).toHaveBeenCalledWith('upgrade', undefined, 'cred-old') })
+      expect(openExternal).toHaveBeenCalledWith('https://example.test/passkey')
+    } finally {
+      delete (window as { avnDesktop?: unknown }).avnDesktop
+    }
+  })
+
   it('creates a recovery key', async () => {
     const ops = section(protectedView([ANDROID], false))
     fireEvent.click(await screen.findByText(en.createRecovery))

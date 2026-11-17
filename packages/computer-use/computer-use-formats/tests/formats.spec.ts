@@ -162,7 +162,8 @@ describe('the recipes hold the invariants every recipe must', () => {
   })
 })
 
-describe('this host, measured', () => {
+// Runs the real format tools (`soffice --version` opens LibreOffice on macOS), so it is opt-in: AVN_MEASURE_HOST=1.
+describe.skipIf(process.env['AVN_MEASURE_HOST'] !== '1')('this host, measured', () => {
   it('reports which format tools are actually present here', async () => {
     const { execFile } = await import('node:child_process')
     const { promisify } = await import('node:util')

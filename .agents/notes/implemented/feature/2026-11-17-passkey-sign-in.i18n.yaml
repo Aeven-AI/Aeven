@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-17-passkey-sign-in.md
-2026-11-17-passkey-sign-in.md: fa7484b9dcf101bbc2c921d584ff2745abebc315
-2026-11-17-passkey-sign-in.zh.md: 49b27116cf2b8ea68db818a1dec79e1f5b5ec864
+2026-11-17-passkey-sign-in.md: 6729fb9643a81c0df7c2e8abdabfc19be860be56
+2026-11-17-passkey-sign-in.zh.md: 3332a0b022c5c4b774e9cbbdcd8813ba2b9f0342
