@@ -86,6 +86,11 @@ export interface Config {
    * conversation's next step starts them again. Must exceed `timeoutMs`, so a tool call in flight never loses its server.
    */
   connectorIdleMs: number
+  /**
+   * Time a connector that failed to connect is left out of conversation steps before a step tries it again. A new
+   * token, endpoint, or server entry for the connector retries at once.
+   */
+  connectorRetryMs: number
   /** Maximum time between starting a consent and the provider returning to the Aeven API. */
   consentLifetimeMs: number
   /**
@@ -536,6 +541,7 @@ export default class AccountIntegrations extends TypertRemoteService {
     agentSkillExclusions: Schema.array(Schema.string()).default(['computer-use']),
     timeoutMs: Schema.natural().min(1).default(60_000),
     connectorIdleMs: Schema.natural().min(1).default(300_000),
+    connectorRetryMs: Schema.natural().default(60_000),
     consentLifetimeMs: Schema.natural().min(1).default(600_000),
     consentPollMs: Schema.natural().min(100).default(2_000),
     maxEmailAccounts: Schema.natural().min(1).default(20),
@@ -603,6 +609,8 @@ export default class AccountIntegrations extends TypertRemoteService {
    * and its first step waits for that same run instead of starting a second one.
    */
   private readonly syncing = new Map<Agent, Promise<void>>()
+  /** Last failed connection per connector, with the mount key it failed with; see `connectorRetryMs`. */
+  private readonly connectFailures = new Map<ConnectorId, { key: string; at: number }>()
   private readonly mounts = new Map<Agent, {
     scope: Scope
     /** `process` marks a connection served by a child process of its own, which {@link releaseIdle} stops. */
@@ -2712,6 +2720,9 @@ export default class AccountIntegrations extends TypertRemoteService {
     for (const [id, mount] of mounts) {
       if (!connectors.some(([active]) => active === id)) { await mount.fiber.dispose(); mounts.delete(id) }
     }
+    for (const id of this.connectFailures.keys()) {
+      if (this.domain.table('connectors').get(id) === undefined) this.connectFailures.delete(id)
+    }
     // Each connector checks its sign-in, fetches its token and opens its own server, independently of the others,
     // so they connect together: the first step of a conversation waits for the slowest account, not for all of them.
     await Promise.all(connectors.map(async ([id, saved]) => {
@@ -2759,6 +2770,8 @@ export default class AccountIntegrations extends TypertRemoteService {
       const existing = mounts.get(id)
       if (existing?.key === key) return
       if (existing !== undefined) { await existing.fiber.dispose(); mounts.delete(id) }
+      const failed = this.connectFailures.get(id)
+      if (failed?.key === key && Date.now() - failed.at < this.config.connectorRetryMs) return
       const serverName = connectorServerName(id, connector.provider)
       const title = `${providerTitles[connector.provider]} (${connector.name})`
       const fiber = owned.scope.ctx.plugin(mcp, stdio !== undefined ? {
@@ -2775,11 +2788,13 @@ export default class AccountIntegrations extends TypertRemoteService {
         await fiber
       } catch (error) {
         // One account that cannot connect must not end the conversation's turn: the step runs without that
-        // account's tools, and the next step tries to connect it again.
+        // account's tools, and steps after `connectorRetryMs` try to connect it again.
         await fiber.dispose()
+        this.connectFailures.set(id, { key, at: Date.now() })
         this.ctx.logger('account-integrations').warn(`connector ${id} could not connect: ${error instanceof Error ? error.message : String(error)}`)
         return
       }
+      this.connectFailures.delete(id)
       mounts.set(id, { key, fiber, process: stdio !== undefined || microsoft !== undefined || google !== undefined })
     }))
   }
