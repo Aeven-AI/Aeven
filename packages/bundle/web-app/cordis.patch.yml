@@ -143,6 +143,14 @@
         slackClientId: !!js process.env.SLACK_CLIENT_ID
         slackCallbackPort: 12751
 
+    # The account's data rights: Settings → Account downloads a streamed zip of everything this Host and the
+    # Aeven API keep for the reader, and the local data of an account the API purged after its deletion grace
+    # period is erased here.
+    - id: account-data
+      name: '@aeven/host-account-data'
+      config:
+        apiUrl: !!js process.env.AEVEN_API_URL ?? 'http://localhost:9000'
+
     # Share links: publishes one assistant message, without its prompt, to the Aeven API,
     # which serves it at a public URL; each link is filed under the signed-in user's own
     # account. Markdown images served by the workspace-files row above are published too.

@@ -9,13 +9,14 @@
  * @module
  */
 
-import { createElement } from 'react'
+import { createElement, type ReactElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 
 import { Popup } from './com/Popup.tsx'
 import { Authenticate, type AuthScreenCover } from './views/Authenticate.tsx'
 import { NameCheck } from './views/NameCheck.tsx'
 import { OauthResult } from './views/OauthResult.tsx'
+import { RestoreAccount } from './views/RestoreAccount.tsx'
 import { matchAuthRoute } from './route-match.ts'
 import { AUTH_EXIT_ELSEWHERE, AUTH_ROUTES, isAuthRoute } from './services/routes.ts'
 import { markSignedInThisPage } from './services/reader.ts'
@@ -144,9 +145,41 @@ export function mountNameScreen(container: Element, pathname: string): MountedAu
     storage.setItem('authReferrer', pathname)
   }
 
+  return mountStep(container, settle => createElement(NameCheck, {
+    onNamed: () => {
+      // The gate boots the application in this document once this settles,
+      // so the reader is moved to where they were headed first. A plain
+      // `pushState`: the application reads the address as it boots, and
+      // there is no mounted application yet to hear a navigation.
+      window.history.pushState(null, '', destination())
+      markSignedInThisPage()
+      settle('here')
+    },
+  }))
+}
+
+/**
+ * Render the restore screen for an account waiting out its deletion grace period.
+ *
+ * The screen settles once the reader has restored the account or signed out; the gate then re-reads the session and
+ * boots the application or shows sign-in.
+ * @param container - the element to render into.
+ * @param purgeAt - ISO time the account will be erased.
+ * @returns the mounted screen, and how to take it down.
+ */
+export function mountRestoreScreen(container: Element, purgeAt: string): MountedAuthScreen {
+  return mountStep(container, settle => createElement(RestoreAccount, { purgeAt, onDone: () => { settle('here') } }))
+}
+
+/**
+ * Render one gate step that owns the page until it settles: the naming step or the restore screen.
+ * @param container - the element to render into.
+ * @param step - builds the step, given the function that settles it.
+ * @returns the mounted step, and how to take it down.
+ */
+function mountStep(container: Element, step: (settle: (exit: AuthScreenExit) => void) => ReactElement): MountedAuthScreen {
   let settle: (exit: AuthScreenExit) => void = () => {}
   const authenticated = new Promise<AuthScreenExit>((resolve) => { settle = resolve })
-
   const root: Root = createRoot(container)
   root.render(
     // The stylesheet is rooted at `#app-root > .view-container > .view`, so the
@@ -154,19 +187,7 @@ export function mountNameScreen(container: Element, pathname: string): MountedAu
     // screens are.
     createElement('div', { id: 'app-root', style: { height: '100%', width: '100%' } },
       createElement(Popup),
-      createElement('div', { className: 'view-container' },
-        createElement(NameCheck, {
-          onNamed: () => {
-            // The gate boots the application in this document once this settles,
-            // so the reader is moved to where they were headed first. A plain
-            // `pushState`: the application reads the address as it boots, and
-            // there is no mounted application yet to hear a navigation.
-            window.history.pushState(null, '', destination())
-            markSignedInThisPage()
-            settle('here')
-          },
-        }))),
+      createElement('div', { className: 'view-container' }, step((exit) => { settle(exit) }))),
   )
-
   return { authenticated, unmount: () => { root.unmount() } }
 }

@@ -104,6 +104,13 @@ flowchart LR
   svc_storageDomain["ctx.storageDomain<br/>Domain data facility"]
   pkg_workspace["workspace"]
   svc_messageFeedback["ctx.messageFeedback<br/>Lifecycle-bound message feedback"]
+  pkg_host_account_data["host-account-data"]
+  svc_accountData["ctx.accountData<br/>Account data export and erasure"]
+  pkg_recordings["recordings"]
+  pkg_personalization["personalization"]
+  pkg_aeven_folder_sync["aeven-folder-sync"]
+  pkg_host_account_integrations["host-account-integrations"]
+  pkg_working_directory["working-directory"]
   pkg_message_share["message-share"]
   svc_messageShare["ctx.messageShare<br/>Public links to shared messages"]
   pkg_ui_message_share["ui-message-share"]
@@ -119,7 +126,6 @@ flowchart LR
   svc_sessionTitle["ctx.sessionTitle<br/>Log-backed session titles"]
   pkg_session_title_first_prompt_llm["session-title-first-prompt-llm"]
   pkg_session_title_all_prompts_llm["session-title-all-prompts-llm"]
-  pkg_working_directory["working-directory"]
   svc_workingDirectory["ctx.workingDirectory<br/>Session working directory"]
   pkg_tool_bash_persistent["tool-bash-persistent"]
   pkg_tool_pwsh["tool-pwsh"]
@@ -191,7 +197,6 @@ flowchart LR
   pkg_sandbox_local["sandbox-local"]
   pkg_sandbox_jail["sandbox-jail"]
   svc_sandboxGitCredentials["ctx.sandboxGitCredentials<br/>Jail Git credential sources"]
-  pkg_host_account_integrations["host-account-integrations"]
   pkg_sandbox_policy["sandbox-policy"]
   svc_sandboxPolicy["ctx.sandboxPolicy<br/>Sandbox policy home"]
   pkg_fs_sandbox["fs-sandbox"]
@@ -298,7 +303,6 @@ flowchart LR
   pkg_sync["sync"]
   svc_sync["ctx.sync<br/>Account sync"]
   pkg_sync_yjs["sync-yjs"]
-  pkg_personalization["personalization"]
   pkg_session_sync["session-sync"]
   pkg_settings_sync["settings-sync"]
   pkg_sync_controller["sync-controller"]
@@ -307,7 +311,6 @@ flowchart LR
   pkg_file_sync_syncthing["file-sync-syncthing"]
   pkg_workspace_file_sync["workspace-file-sync"]
   pkg_workspace_git_sync["workspace-git-sync"]
-  pkg_aeven_folder_sync["aeven-folder-sync"]
   svc_aevenFolder["ctx.aevenFolder<br/>Aeven folder"]
   pkg_api_workspace_files["api-workspace-files"]
   pkg_session_handoff["session-handoff"]
@@ -321,7 +324,6 @@ flowchart LR
   pkg_speaker_diarization["speaker-diarization"]
   svc_speakerDiarization["ctx.speakerDiarization<br/>Speaker diarization"]
   pkg_api_speech_to_text["api-speech-to-text"]
-  pkg_recordings["recordings"]
   svc_recordings["ctx.recordings<br/>Saved recordings"]
   svc_speechController["ctx.speechController<br/>Speech Remote"]
   pkg_ui_voice_input["ui-voice-input"]
@@ -403,6 +405,7 @@ flowchart LR
   pkg_fs_local --> svc_fs
   pkg_fs_sandbox --> svc_fs
   pkg_goal --> svc_goals
+  pkg_host_account_data --> svc_accountData
   pkg_host_directory_picker --> svc_directoryPicker
   pkg_host_directory_picker_browse --> svc_directoryPicker
   pkg_host_directory_picker_native --> svc_directoryPicker
@@ -516,6 +519,12 @@ flowchart LR
   pkg_workspace --> svc_workspaceRegistry
   pkg_workspace_files --> svc_workspaceFiles
   pkg_worktrees --> svc_worktrees
+  svc_accountData --> pkg_aeven_folder_sync
+  svc_accountData --> pkg_host_account_integrations
+  svc_accountData --> pkg_message_feedback
+  svc_accountData --> pkg_personalization
+  svc_accountData --> pkg_recordings
+  svc_accountData --> pkg_working_directory
   svc_accountIntegrations --> pkg_ui_automations
   svc_accountIntegrations --> pkg_ui_settings_integrations
   svc_aevenFolder --> pkg_api_workspace_files
@@ -728,6 +737,7 @@ flowchart LR
 | `ctx.storage` | `seam` | [`storage`](../packages/storage/storage) | [`storage-json`](../packages/storage/storage-json), [`storage-sqlite`](../packages/storage/storage-sqlite) | [`storage-domain`](../packages/storage/storage-domain) | - | Backends register side by side under names; data forms (domain first) mount on the hub and translate typed operations into opaque KV-unit primitives. 各后端以不同名称并列注册；数据形态（领域优先）挂载到枢纽上，并将类型化操作转换为不透明的 KV 单元原语。 |
 | `ctx.storageDomain` | `core` | [`storage-domain`](../packages/storage/storage-domain) | - | [`workspace`](../packages/workspace/workspace), [`message-feedback`](../packages/feedback/message-feedback) | - | Waits for every configured backend, then publishes the domain form as one lifecycle-bound service for typed durable state. 等待所有已配置后端就绪，然后将领域形态发布为一个受生命周期约束的服务，用于类型化持久状态。 |
 | `ctx.messageFeedback` | `core` | [`message-feedback`](../packages/feedback/message-feedback) | - | - | - | Owns local per-assistant-message feedback, lifecycle and target validation, per-item compare-and-set, and the Host unary Remote contract without entering Session history or telemetry. 拥有本地逐 assistant 消息反馈、生命周期与目标校验、逐条目 compare-and-set 及 Host 一元 Remote 契约，且不进入 Session 历史或遥测。 |
+| `ctx.accountData` | `core` | [`host-account-data`](../packages/host/account-data) | - | [`recordings`](../packages/speech/recordings), [`personalization`](../packages/preset/personalization), [`aeven-folder-sync`](../packages/sync/aeven-folder-sync), [`host-account-integrations`](../packages/host/account-integrations), [`message-feedback`](../packages/feedback/message-feedback), [`working-directory`](../packages/session/working-directory) | - | Streams the signed-in account's data from every registered source and the Aeven API as one zip download, and erases the local data of accounts the Aeven API purged after their deletion grace period. |
 | `ctx.messageShare` | `core` | `message-share` | - | `ui-message-share` | - | Builds a snapshot of one finalized assistant message from the persisted Session log and files it under the signed-in account on the Aeven API, which serves the public link; it lists and deletes that account's links. |
 | `ctx.workspaceRegistry` | `core` | [`workspace`](../packages/workspace/workspace) | - | [`api-workspace-controller`](../packages/api/workspace-controller), [`api-session-controller`](../packages/api/session-controller) | - | Owns WorkspaceId-branded records over the domain facility; stable sessionIds accounts drive Host RPC and GUI projections. 通过领域设施拥有带 WorkspaceId 品牌类型的记录；稳定的 sessionIds 账户驱动 Host RPC 与 GUI 投影。 |
 | `ctx.sessionQuery` | `seam` | [`session-query`](../packages/session-query/session-query) | [`session-query-sqlite`](../packages/session-query/session-query-sqlite) | [`session-reference`](../packages/context/session-reference), [`tool-session-query`](../packages/session-query/tool-session-query) | - | The interface supplies exact reads, filters, and traces; its concrete backend adds full-text reconciliation, ranking, snippets, and cursor generations, while the model consumer owns workspace authority and cursor-free rendering. 该接口提供精确读取、过滤和追踪；具体后端还提供全文协调、排序、摘要片段和游标世代，而模型消费方负责工作区权限与不含游标的渲染。 |

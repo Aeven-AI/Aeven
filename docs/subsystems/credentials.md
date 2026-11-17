@@ -61,6 +61,45 @@ interface CredentialInfo {
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxaccountdata--accountdata"></a>
+
+### `ctx.accountData` — `AccountData`
+
+The account's data on this Host, its streamed export, and the erasure of accounts the Aeven API purged.
+
+```ts cordis-catalog
+/**
+ * Add a source of per-account data.
+ * @param source - what the source keeps and how it exports and erases it.
+ * @returns disposer removing the source.
+ */
+register(source: AccountDataSource): () => void
+
+/**
+ * Stream one account's export as a zip.
+ * @param owner - the account.
+ * @param signal - aborted when the reader cancels the download.
+ * @param settled - called once when the archive has finished, failed, or been cancelled.
+ * @returns the archive bytes, produced as they are read.
+ */
+export(owner: string, signal: AbortSignal, settled: () => void = () => {}): ReadableStream<Uint8Array>
+
+/**
+ * Remove every source's data for one account from this Host.
+ * @param owner - the account.
+ * @returns once each source has run; a failing source is logged and the rest still run.
+ */
+async erase(owner: string): Promise<void>
+
+/**
+ * Ask the Aeven API which accounts this Host holds data for were purged, and erase them.
+ * @returns once the check and every erasure it started have finished; concurrent calls share one run.
+ */
+checkPurged(): Promise<void>
+```
+
+Source: [`packages/host/account-data/src/index.ts`](../../packages/host/account-data/src/index.ts)
+
 <a id="ctxaccountintegrations--accountintegrations"></a>
 
 ### `ctx.accountIntegrations` — `AccountIntegrations`

@@ -13,6 +13,7 @@ import z from '@deepseek-ai/schemastery'
 import type { Map as YMap, Transaction, YMapEvent } from 'yjs'
 import { brandString } from '@aeven/brand'
 import type {} from '@aeven/file-sync'
+import type {} from '@aeven/host-account-data'
 import type { FileSyncFolderId } from '@aeven/file-sync'
 import type { SyncDocument } from '@aeven/sync'
 import type {} from '@aeven/sync'
@@ -84,6 +85,19 @@ export class Recordings extends Service {
       for (const opening of this.documents.values()) (await opening)?.close()
       this.documents.clear()
     }, 'recordings: synced documents')
+    // Each account's recordings are part of its data export, and go when a purged account is erased.
+    ctx.inject(['accountData'], (scoped) => {
+      scoped.effect(() => scoped.accountData.register({
+        name: 'recordings',
+        export: async (owner, out) => { await out.directory('recordings', this.dir(owner)) },
+        erase: async (owner) => {
+          ;(await this.documents.get(owner))?.close()
+          this.documents.delete(owner)
+          this.entries.delete(owner)
+          await rm(this.dir(owner), { recursive: true, force: true })
+        },
+      }), 'recordings: account data')
+    })
   }
 
   /**

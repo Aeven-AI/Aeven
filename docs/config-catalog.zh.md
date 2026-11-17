@@ -1740,6 +1740,42 @@ export interface Config {
 
 来源：[`packages/hooks/hooks-codex/src/index.ts`](../packages/hooks/hooks-codex/src/index.ts)
 
+<a id="aevenhost-account-data"></a>
+
+## `@aeven/host-account-data`
+
+需要：`connection`
+
+```ts config-catalog
+/** Deployment configuration. */
+export interface Config {
+  /** Aeven API origin, such as `https://aeven.io/api`. */
+  apiUrl: string
+  /** Credential reference holding each signed-in user's Aeven access token. */
+  credentialRef: string
+  /** Delay after start before the first purged-account check. */
+  checkDelayMs: number
+  /** Interval between purged-account checks. */
+  checkIntervalMs: number
+  /** Largest text file the export deflates; larger files and other files are stored. 0 stores everything. */
+  compressMaxBytes: number
+  /** Deflate level for compressed entries, 1 (fastest) to 9. */
+  compressionLevel: number
+  /**
+   * A device-wide folder that sessions without a folder of their own write into, such as the desktop's chats
+   * folder, included in every account's export. It is shared by the device's accounts, so erasing never removes it.
+   * Absent on a Host whose fallback folder holds other people's files.
+   */
+  chatFiles?: string
+  /** Exports this Host streams at once, across accounts; a request beyond it is refused as busy. 0 is unlimited. */
+  maxConcurrentExports: number
+  /** Most bytes per second one export streams, bounding its disk and network use. 0 is unlimited. */
+  maxBytesPerSecond: number
+}
+```
+
+来源：[`packages/host/account-data/src/index.ts`](../packages/host/account-data/src/index.ts)
+
 <a id="aevenhost-account-integrations"></a>
 
 ## `@aeven/host-account-integrations`

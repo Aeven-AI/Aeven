@@ -240,7 +240,14 @@ export class AppWebEntry {
       // Whatever was rendered into the mount point has to let go of it before
       // the next screen — or the application — renders there.
       this.page.dispose()
-      if (result.state === 'unnamed') {
+      if (result.state === 'pendingDeletion') {
+        // Every Aeven API but the account routes refuses this account, so the application cannot run; the screen
+        // settles once the reader restores it or signs out, and the next pass reads which.
+        const step = auth.mountRestoreScreen(this.container, result.purgeAt)
+        await Promise.race([step.authenticated, ended])
+        await showPreloader()
+        step.unmount()
+      } else if (result.state === 'unnamed') {
         // The name is what the account menu and every session that follows call
         // the reader by, and the API holds none for them yet: the step stands
         // between them and the application, as it does in the Aeven client.

@@ -226,6 +226,15 @@
 # A WhatsApp number may send a file the account's own sessions made: the
 # account's managed folder, the one its jailed commands see, is a root the
 # number's daemon reads from. The row restates the keys web-app gives it.
+# Data exports share this machine with every account's sessions: at most two stream at once, each capped at
+# 25 MB/s, and each account streams one at a time. The archive is pulled as the download drains, so one export
+# holds a chunk and at most one chat log in memory.
+- id: account-data
+  config:
+    apiUrl: !!js process.env.AEVEN_API_URL ?? 'http://localhost:9000'
+    maxConcurrentExports: 2
+    maxBytesPerSecond: 26214400
+
 - id: account-integrations
   config:
     apiUrl: !!js process.env.AEVEN_API_URL ?? 'http://localhost:9000'

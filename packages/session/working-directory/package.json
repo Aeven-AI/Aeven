@@ -32,24 +32,29 @@
     "zod": "^4.4.3"
   },
   "peerDependencies": {
+    "@aeven/agent": "workspace:^",
+    "@aeven/host-account-data": "workspace:^",
     "@aeven/session": "workspace:^",
     "@aeven/session-projection": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^",
     "@aeven/system-prompt": "workspace:^",
-    "@aeven/agent": "workspace:^",
-    "@aeven/workspace": "workspace:^"
+    "@aeven/workspace": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
   },
   "peerDependenciesMeta": {
+    "@aeven/host-account-data": {
+      "optional": true
+    },
     "@aeven/workspace": {
       "optional": true
     }
   },
   "devDependencies": {
+    "@aeven/agent": "workspace:^",
+    "@aeven/host-account-data": "workspace:^",
     "@aeven/session": "workspace:^",
     "@aeven/session-projection": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^",
     "@aeven/system-prompt": "workspace:^",
-    "@aeven/agent": "workspace:^",
-    "@aeven/workspace": "workspace:^"
+    "@aeven/workspace": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
   }
 }

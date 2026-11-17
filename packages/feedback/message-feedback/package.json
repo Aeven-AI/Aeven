@@ -45,14 +45,15 @@
   "license": "Apache-2.0",
   "peerDependencies": {
     "@aeven/brand": "workspace:^",
+    "@aeven/host-account-data": "workspace:^",
     "@aeven/identity-user": "workspace:^",
     "@aeven/llm": "workspace:^",
     "@aeven/session": "workspace:^",
     "@aeven/session-persistence": "workspace:^",
     "@aeven/storage-domain": "workspace:^",
+    "@aeven/sync": "workspace:^",
     "@aeven/typert-protocol": "workspace:^",
-    "@deepseek-ai/cordis": "workspace:^",
-    "@aeven/sync": "workspace:^"
+    "@deepseek-ai/cordis": "workspace:^"
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "workspace:^",
@@ -61,6 +62,7 @@
   },
   "devDependencies": {
     "@aeven/brand": "workspace:^",
+    "@aeven/host-account-data": "workspace:^",
     "@aeven/identity-user": "workspace:^",
     "@aeven/llm": "workspace:^",
     "@aeven/session": "workspace:^",
@@ -69,13 +71,16 @@
     "@aeven/storage": "workspace:^",
     "@aeven/storage-domain": "workspace:^",
     "@aeven/storage-json": "workspace:^",
+    "@aeven/sync": "workspace:^",
     "@aeven/typert-protocol": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/cordis-plugin-include": "workspace:^",
-    "@deepseek-ai/cordis-plugin-loader": "workspace:^",
-    "@aeven/sync": "workspace:^"
+    "@deepseek-ai/cordis-plugin-loader": "workspace:^"
   },
   "peerDependenciesMeta": {
+    "@aeven/host-account-data": {
+      "optional": true
+    },
     "@aeven/sync": {
       "optional": true
     }

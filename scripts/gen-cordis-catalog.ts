@@ -116,6 +116,7 @@ export const SERVICE_PAGE: Record<string, string> = {
   lsp: 'lsp.md',
   vcs: 'vcs.md',
   messageFeedback: 'feedback.md',
+  accountData: 'credentials.md',
   messageShare: 'feedback.md',
   permissionPresets: 'permission-presets.md',
   planMode: 'plan.md',
@@ -741,6 +742,7 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
 export const FOUNDATION_TYPE_NAMES: ReadonlySet<string> = new Set([
   'AbortSignal',
   'AsyncIterable',
+  'ReadableStream',
   'Context',
   'Error',
   'EntryTree',
@@ -863,6 +865,7 @@ export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   ManagedProcedureDetail: 'package-owned type is documented in packages/memory/api-memory-manager/src/types.ts',
   ManagedProceduresPage: 'package-owned type is documented in packages/memory/api-memory-manager/src/types.ts',
   ManagedMemoryQuery: 'package-owned type is documented in packages/memory/api-memory-manager/src/types.ts',
+  AccountDataSource: 'package-owned type is documented in packages/host/account-data/src/index.ts',
   MessageShareCreateRequest: 'package-owned type is documented in packages/host/message-share/src/types.ts',
   MessageShareDeleteAllValue: 'package-owned type is documented in packages/host/message-share/src/types.ts',
   MessageShareDeleteRequest: 'package-owned type is documented in packages/host/message-share/src/types.ts',

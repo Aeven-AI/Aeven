@@ -2496,6 +2496,9 @@ importers:
       '@aeven/file-reference-local':
         specifier: workspace:^
         version: link:../../context/file-reference-local
+      '@aeven/host-account-data':
+        specifier: workspace:^
+        version: link:../../host/account-data
       '@aeven/host-account-integrations':
         specifier: workspace:^
         version: link:../../host/account-integrations
@@ -7722,6 +7725,9 @@ importers:
       '@aeven/brand':
         specifier: workspace:^
         version: link:../../util/brand
+      '@aeven/host-account-data':
+        specifier: workspace:^
+        version: link:../../host/account-data
       '@aeven/identity-user':
         specifier: workspace:^
         version: link:../../identity/user
@@ -8393,6 +8399,43 @@ importers:
         specifier: workspace:^
         version: link:../../../vendor/cordis
 
+  packages/host/account-data:
+    dependencies:
+      '@aeven/home-paths':
+        specifier: workspace:^
+        version: link:../../util/home-paths
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+      yazl:
+        specifier: 3.3.1
+        version: 3.3.1
+    devDependencies:
+      '@aeven/attachment':
+        specifier: workspace:^
+        version: link:../../attachment/attachment
+      '@aeven/client-connection':
+        specifier: workspace:^
+        version: link:../../client/connection
+      '@aeven/credentials':
+        specifier: workspace:^
+        version: link:../../credentials/credentials
+      '@aeven/memory':
+        specifier: workspace:^
+        version: link:../../memory/memory
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@aeven/session-persistence':
+        specifier: workspace:^
+        version: link:../../session/session-persistence
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@types/yazl':
+        specifier: 3.3.1
+        version: 3.3.1
+
   packages/host/account-integrations:
     dependencies:
       '@aeven/brand':
@@ -8447,6 +8490,9 @@ importers:
       '@aeven/credentials':
         specifier: workspace:^
         version: link:../../credentials/credentials
+      '@aeven/host-account-data':
+        specifier: workspace:^
+        version: link:../account-data
       '@aeven/host-webserver':
         specifier: workspace:^
         version: link:../webserver
@@ -10374,6 +10420,9 @@ importers:
       '@aeven/agent':
         specifier: workspace:^
         version: link:../../core/agent
+      '@aeven/host-account-data':
+        specifier: workspace:^
+        version: link:../../host/account-data
       '@aeven/identity-user':
         specifier: workspace:^
         version: link:../../identity/user
@@ -11309,6 +11358,9 @@ importers:
       '@aeven/agent':
         specifier: workspace:^
         version: link:../../core/agent
+      '@aeven/host-account-data':
+        specifier: workspace:^
+        version: link:../../host/account-data
       '@aeven/session':
         specifier: workspace:^
         version: link:../../core/session
@@ -12002,6 +12054,9 @@ importers:
       '@aeven/file-sync':
         specifier: workspace:^
         version: link:../../sync/file-sync
+      '@aeven/host-account-data':
+        specifier: workspace:^
+        version: link:../../host/account-data
       '@aeven/sync':
         specifier: workspace:^
         version: link:../../sync/sync
@@ -13006,6 +13061,9 @@ importers:
       '@aeven/file-sync':
         specifier: workspace:^
         version: link:../file-sync
+      '@aeven/host-account-data':
+        specifier: workspace:^
+        version: link:../../host/account-data
       '@aeven/sync':
         specifier: workspace:^
         version: link:../sync
@@ -18259,6 +18317,9 @@ packages:
   '@types/ws@8.18.2':
     resolution: {integrity: sha512-67MQl+fpWKVTT1NYdnmo3U4sc/xPo/zQBncVnI74qmQa0z/b+1g6iYqNmGCPbxO+zz2aklb08a0oHfegiVd0/w==}
 
+  '@types/yazl@3.3.1':
+    resolution: {integrity: sha512-DIWfCKpsTp6hE5BDBHV3+fIL/bLUF9Bv13iDrWnMlmhQpH67buNvI291ZauQ1xcccxK3FqQ9honnXpq4R8NMuQ==}
+
   '@typescript-eslint/types@8.61.0':
     resolution: {integrity: sha512-9QTQpZ5Iin4CdIodfbDQFSeiSJKidgYJYug1P9CC2xWgUTvlmixViqDZNciMjwLBZyJnG4tGmPl97rVAFb1AJg==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
@@ -18781,6 +18842,10 @@ packages:
     resolution: {integrity: sha512-FQBYNK15VMslhLHpA7+n+n1GOlF1kId2xcCg7/j95f24AOF6VDYMNH4mFxF7KuaTdv627faazpOAjFzMrfJOUw==}
     engines: {node: ^6 || ^7 || ^8 || ^9 || ^10 || ^11 || ^12 || >=13.7}
     hasBin: true
+
+  buffer-crc32@1.0.0:
+    resolution: {integrity: sha512-Db1SbgBS/fg/392AblrMJk97KggmvYhr4pB5ZIMTWtaivCPMWLkmb7m21cJvpvgK+J3nsU2CmmixNBZx4vFj/w==}
+    engines: {node: '>=8.0.0'}
 
   buffer-equal-constant-time@1.0.1:
     resolution: {integrity: sha512-zRpUiDwd/xk6ADqPMATG8vc9VPrkck7T07OIx0gnjmJAnHnTVXNQG3vfvWNuiZIkwu9KrKdA1iJKfsfTVxE6NA==}
@@ -22851,6 +22916,9 @@ packages:
     resolution: {integrity: sha512-9OpKOLeaoNFecEp7P6iYbzze/5CqWoH7N3SMs/6y1XF4nMvFMspEGZzJ6uFi9MmQwXhyzqYoSEKO3tvA3Z/o2w==}
     engines: {node: ^20.19.0 || ^22.12.0 || >=23}
 
+  yazl@3.3.1:
+    resolution: {integrity: sha512-BbETDVWG+VcMUle37k5Fqp//7SDOK2/1+T7X8TD96M3D9G8jK5VLUdQVdVjGi8im7FGkazX7kk5hkU8X4L5Bng==}
+
   yjs@13.6.27:
     resolution: {integrity: sha512-OIDwaflOaq4wC6YlPBy2L6ceKeKuF7DeTxx+jPzv1FHn9tCZ0ZwSRnUBxD05E3yed46fv/FWJbvR+Ud7x0L7zw==}
     engines: {node: '>=16.0.0', npm: '>=8.0.0'}
@@ -25972,6 +26040,10 @@ snapshots:
     dependencies:
       '@types/node': 22.20.1
 
+  '@types/yazl@3.3.1':
+    dependencies:
+      '@types/node': 22.20.1
+
   '@typescript-eslint/types@8.61.0': {}
 
   '@typespec/ts-http-runtime@0.3.9':
@@ -26460,6 +26532,8 @@ snapshots:
       electron-to-chromium: 1.5.393
       node-releases: 2.0.51
       update-browserslist-db: 1.2.3(browserslist@4.28.6)
+
+  buffer-crc32@1.0.0: {}
 
   buffer-equal-constant-time@1.0.1: {}
 
@@ -31159,6 +31233,10 @@ snapshots:
       string-width: 8.3.0
       y18n: 5.0.8
       yargs-parser: 22.0.0
+
+  yazl@3.3.1:
+    dependencies:
+      buffer-crc32: 1.0.0
 
   yjs@13.6.27:
     dependencies:

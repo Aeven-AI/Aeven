@@ -32,6 +32,9 @@ declare module '@aeven/client-ui-slots' {
 /** Settings section id of the Account page. */
 const ACCOUNT_SECTION = 'account'
 
+/** The Host route `@aeven/host-account-data` streams the reader's data export from, relative to the page. */
+const EXPORT_ROUTE = 'api/account-data/export'
+
 /** Required services for locale registration, the header seat, and the Account page. */
 export const inject = ['slots', 'locale']
 
@@ -184,6 +187,11 @@ export function apply(ctx: ClientContext): void {
     setImage: image => reader.setImage(image),
     removeImage: () => reader.removeImage(),
     cached: (path: string) => cache.peek<unknown>(path),
+    exportUrl: EXPORT_ROUTE,
+    requestDeletion: (email, code) => reader.account<{ purgeAt: string }>('/delete', {
+      method: 'POST',
+      body: JSON.stringify({ email, ...code === undefined ? {} : { code } }),
+    }),
   }
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section',
