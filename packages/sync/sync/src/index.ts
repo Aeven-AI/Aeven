@@ -64,6 +64,8 @@ export interface SyncKeyHolder {
   id: string
   /** Whether a passkey or a recovery key the user saved holds this copy. */
   kind: 'passkey' | 'recovery'
+  /** Whether this passkey also signs in to the account; absent when the relay did not say. */
+  signIn?: boolean
   /** The name the user gave it. */
   name?: string
   /** The passkey provider's AAGUID as lowercase hex, when the browser stated it. */

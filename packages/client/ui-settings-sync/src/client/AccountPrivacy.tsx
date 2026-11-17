@@ -32,7 +32,7 @@ type Translate = AccountPrivacyProps['t']
 function PasskeyStep({ view, t, retry, dismiss }: {
   view: SyncView
   t: Translate
-  retry: (purpose: SyncPasskeyPurpose) => void
+  retry: (purpose: SyncPasskeyPurpose, replaces?: string) => void
   dismiss: () => void
 }) {
   const step = view.passkey
@@ -47,7 +47,7 @@ function PasskeyStep({ view, t, retry, dismiss }: {
     <div className={css.step} role="status" aria-live="polite">
       <p className={retryable ? css.failed : css.note}>{line}</p>
       <div className={css.stepActions}>
-        {retryable && <Button variant="outline" onClick={() => { retry(step.purpose) }}>{t('tryAgain')}</Button>}
+        {retryable && <Button variant="outline" onClick={() => { retry(step.purpose, step.replaces) }}>{t('tryAgain')}</Button>}
         {step.state === 'waiting'
           ? <Button variant="primary" className={css.actionButton} onClick={dismiss}>{t('cancel')}</Button>
           : <Button variant="ghost" onClick={dismiss}>{t('dismiss')}</Button>}
@@ -58,23 +58,31 @@ function PasskeyStep({ view, t, retry, dismiss }: {
 
 /**
  * One passkey, laid out like the other Settings rows: what it is, when it was added, and a Remove button. Removing the
- * only passkey turns passkey protection off, which the caller confirms first.
- * @param props - the passkey, the translator, and the removal.
+ * only passkey turns passkey protection off, which the caller confirms first. A passkey that only unlocks also offers
+ * to become one that signs in.
+ * @param props - the passkey, the translator, the removal, and the upgrade.
  * @returns the row.
  */
-function PasskeyRow({ holder, busy, t, onRemove }: {
+function PasskeyRow({ holder, busy, t, onRemove, onUpgrade }: {
   holder: SyncKeyHolderView
   busy: boolean
   t: Translate
   onRemove: () => void
+  onUpgrade: () => void
 }) {
   const date = holder.addedAt === undefined ? undefined
     : new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(holder.addedAt))
   return (
     <SettingsRow
       title={holderTitle(holder, t)}
-      {...date === undefined ? {} : { description: t('passkeyAdded', { date }) }}
-      control={<Button variant="outline" disabled={busy} onClick={onRemove}>{t('remove')}</Button>}
+      {...holder.signIn === false ? { description: t('passkeyUnlockOnly') }
+        : date === undefined ? {} : { description: t('passkeyAdded', { date }) }}
+      control={(
+        <span className={css.stepActions}>
+          {holder.signIn === false && <Button variant="primary" className={css.actionButton} disabled={busy} onClick={onUpgrade}>{t('useToSignIn')}</Button>}
+          <Button variant="outline" disabled={busy} onClick={onRemove}>{t('remove')}</Button>
+        </span>
+      )}
     />
   )
 }
@@ -116,7 +124,9 @@ export function AccountPrivacy(props: AccountPrivacyProps) {
       void refresh()
     }
   }
-  const passkey = (purpose: SyncPasskeyPurpose): void => { void run(() => openPasskeyPage(ops, purpose, props.email)) }
+  const passkey = (purpose: SyncPasskeyPurpose, replaces?: string): void => {
+    void run(() => openPasskeyPage(ops, purpose, props.email, replaces))
+  }
   const passkeys = protection.holders.filter(holder => holder.kind === 'passkey')
   const hasRecovery = protection.holders.some(holder => holder.kind === 'recovery')
 
@@ -165,6 +175,7 @@ export function AccountPrivacy(props: AccountPrivacyProps) {
                 key={holder.id} holder={holder} t={t} busy={busy || offline}
                 // The relay keeps one passkey while it holds the account key; the last one leaves with protection.
                 onRemove={() => { if (passkeys.length > 1) setRemoving(holder); else setRemovingLast(true) }}
+                onUpgrade={() => { passkey('upgrade', holder.id) }}
               />
             ))}
             <SettingsRow

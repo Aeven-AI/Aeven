@@ -4272,10 +4272,11 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the status afterwards.',
       },
       {
-        signature: '@Remote async startPasskey(purpose: SyncPasskeyPurpose, account?: string): Promise<SyncPasskeyStart>',
+        signature: '@Remote async startPasskey(purpose: SyncPasskeyPurpose, account?: string, replaces?: string): Promise<SyncPasskeyStart>',
         description: 'Start a passkey step: the returned page creates a passkey (`protect`, `add`) or asks for one of the account\'s passkeys (`unlock`) in the system browser, and this Host collects the result and applies it in the background. The step shows in status until it succeeds; a new step replaces one in progress.',
-        parameters: [{ name: 'purpose', description: 'what the passkey is for.' }, { name: 'account', description: 'the account\'s email as the page shows it, which names a created passkey in the password manager when this Host\'s identity carries none. It is only a label: the passkey\'s user handle and the key it holds do not depend on it.' }],
+        parameters: [{ name: 'purpose', description: 'what the passkey is for.' }, { name: 'account', description: 'the account\'s email as the page shows it, which names a created passkey in the password manager when this Host\'s identity carries none. It is only a label: the passkey\'s user handle and the key it holds do not depend on it.' }, { name: 'replaces', description: 'for `upgrade`, the credential id of the account\'s passkey the new one replaces.' }],
         returns: 'the page to open.',
+        throws: ['{Error} when an `upgrade` names no passkey the account holds.'],
       },
       {
         signature: '@Remote async cancelPasskey(): Promise<SyncView>',
@@ -9922,11 +9923,11 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SyncKeyHolder',
-    declaration: 'export interface SyncKeyHolder {\n    id: string;\n    kind: \'passkey\' | \'recovery\';\n    name?: string;\n    aaguid?: string;\n    device?: SyncPasskeyDevice;\n    addedAt?: string;\n}',
+    declaration: 'export interface SyncKeyHolder {\n    id: string;\n    kind: \'passkey\' | \'recovery\';\n    signIn?: boolean;\n    name?: string;\n    aaguid?: string;\n    device?: SyncPasskeyDevice;\n    addedAt?: string;\n}',
   },
   {
     name: 'SyncKeyHolderView',
-    declaration: 'export interface SyncKeyHolderView {\n    readonly id: string;\n    readonly kind: \'passkey\' | \'recovery\';\n    readonly name?: string;\n    readonly aaguid?: string;\n    readonly device?: SyncPasskeyDeviceView;\n    readonly addedAt?: string;\n}',
+    declaration: 'export interface SyncKeyHolderView {\n    readonly id: string;\n    readonly kind: \'passkey\' | \'recovery\';\n    readonly signIn?: boolean;\n    readonly name?: string;\n    readonly aaguid?: string;\n    readonly device?: SyncPasskeyDeviceView;\n    readonly addedAt?: string;\n}',
   },
   {
     name: 'SyncKeyMode',
@@ -9950,7 +9951,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SyncPasskeyPurpose',
-    declaration: 'export type SyncPasskeyPurpose = \'protect\' | \'add\' | \'unlock\';',
+    declaration: 'export type SyncPasskeyPurpose = \'protect\' | \'add\' | \'unlock\' | \'upgrade\';',
   },
   {
     name: 'SyncPasskeySignIn',
@@ -9962,7 +9963,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SyncPasskeyView',
-    declaration: 'export interface SyncPasskeyView {\n    readonly purpose: SyncPasskeyPurpose;\n    readonly state: \'waiting\' | \'failed\' | \'unsupported\' | \'wrong-passkey\' | \'duplicate\';\n}',
+    declaration: 'export interface SyncPasskeyView {\n    readonly purpose: SyncPasskeyPurpose;\n    readonly replaces?: string;\n    readonly state: \'waiting\' | \'failed\' | \'unsupported\' | \'wrong-passkey\' | \'duplicate\';\n}',
   },
   {
     name: 'SyncProgress',

@@ -8,8 +8,11 @@ export interface SyncOperations {
   status: () => Promise<SyncView>
   setEnabled: (enabled: boolean) => Promise<SyncView>
   devices: () => Promise<SyncDeviceView[]>
-  /** Start a passkey step; `account` names a created passkey in the password manager. */
-  startPasskey: (purpose: SyncPasskeyPurpose, account?: string) => Promise<SyncPasskeyStart>
+  /**
+   * Start a passkey step; `account` names a created passkey in the password manager, and `replaces` is the passkey an
+   * `upgrade` replaces.
+   */
+  startPasskey: (purpose: SyncPasskeyPurpose, account?: string, replaces?: string) => Promise<SyncPasskeyStart>
   cancelPasskey: () => Promise<SyncView>
   /** Hand the key back to the relay; on a locked device this starts over from the device's own data. */
   unprotect: () => Promise<SyncView>
@@ -118,12 +121,15 @@ export function useFocusAfterPasskey(view: SyncView | undefined): void {
  * @param ops - the sync operations.
  * @param purpose - what the passkey is for.
  * @param account - the account's email, which names a created passkey in the password manager.
+ * @param replaces - the passkey an `upgrade` replaces.
  * @returns when the page was handed its address.
  */
-export async function openPasskeyPage(ops: SyncOperations, purpose: SyncPasskeyPurpose, account?: string): Promise<void> {
+export async function openPasskeyPage(
+  ops: SyncOperations, purpose: SyncPasskeyPurpose, account?: string, replaces?: string,
+): Promise<void> {
   const target = externalWindow()
   try {
-    target.navigate((await ops.startPasskey(purpose, account)).url)
+    target.navigate((await ops.startPasskey(purpose, account, replaces)).url)
   } catch (error) {
     target.cancel()
     throw error

@@ -20,6 +20,8 @@ interface StoredHolder {
   id: string
   wrapped: string
   kind: 'passkey' | 'recovery'
+  /** Whether the passkey signs in: the real relay says so for a passkey that arrived with its public key. */
+  signIn?: boolean
   name?: string
   aaguid?: string
   device?: string
@@ -133,12 +135,14 @@ export class FakeRelay {
   }
 
   /** Store a copy of the key as the real relay does: the kind defaults to a passkey and the relay dates it. */
-  private holder(entry: unknown): StoredHolder {
+  private holder(entry: unknown, signIn: unknown): StoredHolder {
     const fields = entry as Partial<StoredHolder>
+    const kind = fields.kind === 'recovery' ? 'recovery' : 'passkey'
     return {
       id: String(fields.id),
       wrapped: String(fields.wrapped),
-      kind: fields.kind === 'recovery' ? 'recovery' : 'passkey',
+      kind,
+      ...kind === 'passkey' ? { signIn: signIn !== undefined } : {},
       ...fields.aaguid === undefined ? {} : { aaguid: fields.aaguid },
       ...fields.device === undefined ? {} : { device: fields.device },
       addedAt: new Date().toISOString(),
@@ -188,7 +192,7 @@ export class FakeRelay {
         ok({ key: account.key, keyId: keyIdOf(Buffer.from(account.key, 'base64url')) })
         return
       case 'key.protect': {
-        const holder = this.holder(request.passkey)
+        const holder = this.holder(request.passkey, request.signIn)
         if (holder.kind !== 'passkey') { refuse('bad-request'); return }
         account.protection = { keyId: String(request.keyId), holders: [holder] }
         ok({ entries: [describe(holder)] })
@@ -196,7 +200,7 @@ export class FakeRelay {
       }
       case 'passkey.add': {
         if (account.protection === undefined) { refuse('not-protected'); return }
-        const holder = this.holder(request.passkey)
+        const holder = this.holder(request.passkey, request.signIn)
         account.protection.holders = [...account.protection.holders.filter(entry => entry.id !== holder.id), holder]
         ok(answer(account.protection.holders))
         return

@@ -37,6 +37,8 @@ export interface Config {
 /** A passkey step in progress or one that did not finish. */
 interface PasskeyStep {
   readonly purpose: SyncPasskeyPurpose
+  /** The passkey an `upgrade` step replaces. */
+  readonly replaces?: string
   state: SyncPasskeyView['state']
   readonly stop: AbortController
 }
@@ -209,7 +211,9 @@ export default class SyncController extends TypertRemoteService {
           holders: protection.holders.map(holder => ({ ...holder })),
         },
       },
-      ...step === undefined ? {} : { passkey: { purpose: step.purpose, state: step.state } },
+      ...step === undefined ? {} : {
+        passkey: { purpose: step.purpose, ...step.replaces === undefined ? {} : { replaces: step.replaces }, state: step.state },
+      },
     }
   }
 
@@ -242,12 +246,18 @@ export default class SyncController extends TypertRemoteService {
    * @param account - the account's email as the page shows it, which names a created passkey in the password manager
    *   when this Host's identity carries none. It is only a label: the passkey's user handle and the key it holds do
    *   not depend on it.
+   * @param replaces - for `upgrade`, the credential id of the account's passkey the new one replaces.
    * @returns the page to open.
+   * @throws {Error} when an `upgrade` names no passkey the account holds.
    */
   @Remote
-  async startPasskey(purpose: SyncPasskeyPurpose, account?: string): Promise<SyncPasskeyStart> {
+  async startPasskey(purpose: SyncPasskeyPurpose, account?: string, replaces?: string): Promise<SyncPasskeyStart> {
     const user = this.caller()
     const owner = user.id
+    const held = this.ctx.sync.status(owner).protection?.passkeys ?? []
+    if (purpose === 'upgrade' && (typeof replaces !== 'string' || !held.includes(replaces))) {
+      throw new Error('an upgrade names one of the account\'s passkeys')
+    }
     this.passkeys.get(owner)?.stop.abort()
     const verifier = randomBytes(32).toString('base64url')
     const keys = generateHostKeys()
@@ -261,12 +271,15 @@ export default class SyncController extends TypertRemoteService {
       params.set('user', toBase64Url(createHash('sha256').update(owner).digest()))
       const name = user.email ?? passkeyLabel(account) ?? user.displayName
       if (name !== undefined) params.set('name', name)
-      // The provider refuses to create a passkey where one of these already lives, instead of replacing it.
-      const ids = this.ctx.sync.status(owner).protection?.passkeys ?? []
+      // The provider refuses to create a passkey where one of these already lives, instead of replacing it. An upgrade
+      // leaves out the passkey it replaces, so the provider holding it replaces it under the same user handle.
+      const ids = purpose === 'upgrade' ? held.filter(id => id !== replaces) : held
       if (ids.length > 0) params.set('ids', ids.join(','))
       params.set('meta', '1')
     }
-    const step: PasskeyStep = { purpose, state: 'waiting', stop: new AbortController() }
+    const step: PasskeyStep = {
+      purpose, ...purpose === 'upgrade' && replaces !== undefined ? { replaces } : {}, state: 'waiting', stop: new AbortController(),
+    }
     this.passkeys.set(owner, step)
     void this.collect(owner, step, verifier, keys).then(
       () => {
@@ -305,7 +318,7 @@ export default class SyncController extends TypertRemoteService {
       const passkey = await this.claim(verifier, keys, step.purpose !== 'unlock', signal)
       if (passkey !== undefined) {
         signal.throwIfAborted()
-        await this.apply(owner, step.purpose, passkey)
+        await this.apply(owner, step, passkey)
         return
       }
       if (Date.now() >= deadline) throw new Error('the passkey step timed out')
@@ -375,13 +388,29 @@ export default class SyncController extends TypertRemoteService {
     return this.view(owner)
   }
 
-  private async apply(owner: string, purpose: SyncPasskeyPurpose, passkey: SyncPasskey): Promise<void> {
+  /**
+   * Apply a collected passkey to the account as its step's purpose says.
+   * @param owner - the account.
+   * @param step - the step, with the passkey an `upgrade` replaces.
+   * @param passkey - the passkey the page returned.
+   * @returns when the account holds the result.
+   */
+  private async apply(owner: string, step: PasskeyStep, passkey: SyncPasskey): Promise<void> {
+    const { purpose } = step
     switch (purpose) {
       case 'protect':
         await this.ctx.sync.protect(owner, passkey)
         return
       case 'add':
         await this.ctx.sync.addPasskey(owner, passkey)
+        return
+      case 'upgrade':
+        // The new copy goes in first: a failure leaves the old passkey's copy in place, and the account never holds
+        // neither. The provider already replaced the old credential, so only this Host can still finish the swap.
+        await this.ctx.sync.addPasskey(owner, passkey)
+        if (step.replaces !== undefined && step.replaces !== passkey.credentialId) {
+          await this.ctx.sync.removePasskey(owner, step.replaces)
+        }
         return
       case 'unlock':
         await this.ctx.sync.unlock(owner, passkey)

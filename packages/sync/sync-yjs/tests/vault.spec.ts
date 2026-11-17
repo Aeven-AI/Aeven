@@ -276,6 +276,16 @@ describe('an account whose key passkeys hold', () => {
     })
   })
 
+  it('tells a device which passkeys also sign in', async () => {
+    const { owner, a } = await pair()
+    await a.vault.protect({ ...passkey(1), signIn: { publicKey: 'spki', alg: -7 } })
+    await a.vault.addPasskey(passkey(2))
+    const c = device(owner)
+    await connect(owner, c)
+    expect(c.vault.status().protection?.holders.map(holder => [holder.id, holder.signIn]))
+      .toEqual([[passkey(1).credentialId, true], [passkey(2).credentialId, false]])
+  })
+
   it('refuses a passkey that holds no copy of the key, and unlocks with one that does', async () => {
     const { owner, a } = await pair()
     await a.vault.protect(passkey(1))
