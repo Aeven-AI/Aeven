@@ -1,7 +1,7 @@
 {
   "name": "@aeven/agent-loop",
   "description": "The concrete agent loop plugin for the Aeven",
-  "version": "0.3.57-alpha",
+  "version": "0.3.58-alpha",
   "publishConfig": {
     "access": "public"
   },

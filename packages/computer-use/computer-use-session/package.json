@@ -1,7 +1,7 @@
 {
   "name": "@aeven/computer-use-session",
   "description": "Batched computer-use session over a desktop adapter",
-  "version": "0.3.57-alpha",
+  "version": "0.3.58-alpha",
   "publishConfig": {
     "access": "public"
   },
