@@ -48,6 +48,7 @@ kind: "package-reference"
 | `reindexBatchSize` | `100` | 重新索引时每批重新嵌入的向量数 |
 | `relevanceTimeoutMs` | `4000` | 轮次开始相关性判定的最长时间；它获得检索剩下的召回预算，以此值为上限。失败或超时最多返回两个机械排序结果并标记降级 |
 | `relevanceHedgeMs` | `2000` | 判定在这么多毫秒后仍未答复时，用相同提示词再发送一次；在此之前失败或答复不可用的请求会立即重发。第一个可用答复胜出，另一个请求被取消。`0` 只发送一次请求 |
+| `procedureCandidates` | `3` | 轮次开始的召回在检索结果之外，最多向相关性判定提供的已学流程数，按其名称和描述与请求及此前对话共有的词选出；出现在三个以上流程名称中的词不计入。流程在全部记忆中数量很少且以步骤写成，按此人的用词检索很少能返回它们。`0` 不提供 |
 | `relevanceMinMs` | `3500` | 即使检索用掉了召回预算的大部分，判定也至少获得的窗口，以 `relevanceTimeoutMs` 为上限；召回因此最多可在预算之后这么久才结束。`0` 只给判定检索剩下的时间 |
 | `profile` | enabled、`maxChars` 6000、`batchFacts` 150、`refreshMs` 600000、`timeoutMs` 180000 | 从该所有者全部 person 记忆中不分记录早晚蒸馏出的画像；需要 `hostLlm`。`refreshMs` 同时限定一次 person 记忆列表、以及由它读出的已记录日期被复用的时长 |
 | `minEpisodesForInduction` | `2` | MemOS 归纳策略前须支持该模式的独立片段数（`l2Induction.minEpisodesForInduction`） |

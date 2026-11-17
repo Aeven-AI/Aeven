@@ -131,6 +131,12 @@ export interface Config {
   /** Top hits each sentence retrieval adds to the candidates the relevance judgment reads. */
   sentenceHits: number
   /**
+   * Most learned procedures a turn-start recall offers the relevance judgment beside what retrieval found, chosen by
+   * the words their name and description share with the request. Procedures are few among all memories and are
+   * written as steps, so retrieval on the person's words seldom returns them. `0` offers none.
+   */
+  procedureCandidates: number
+  /**
    * Longest the turn-start relevance judgment may take, in milliseconds, inside the recall's own budget; when it fails
    * or runs out, at most two mechanically ranked memories are delivered and the recall is marked degraded.
    */
@@ -269,6 +275,7 @@ export const Config: z<Config> = z.object({
   rememberedFactTags: z.array(z.string().min(1)).default(['lightweight_memory', 'domain:person', 'domain:project']),
   sentenceRetrievals: z.natural().max(8).default(3),
   sentenceHits: z.natural().min(1).max(40).default(8),
+  procedureCandidates: z.natural().max(20).default(3),
   relevanceTimeoutMs: z.natural().min(300).default(4000),
   relevanceHedgeMs: z.natural().default(2000),
   relevanceMinMs: z.natural().default(3500),
@@ -452,6 +459,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       },
     },
     ...config.sentenceRetrievals > 0 ? { sentenceRecall: { sentences: config.sentenceRetrievals, hits: config.sentenceHits } } : {},
+    procedureCandidates: config.procedureCandidates,
     rebuilding: owner => rebuilding.has(owner),
     ...bridge === null || !config.profile.enabled ? {} : {
       profiles: {

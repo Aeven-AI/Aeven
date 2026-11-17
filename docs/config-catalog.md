@@ -3315,6 +3315,12 @@ export interface Config {
   /** Top hits each sentence retrieval adds to the candidates the relevance judgment reads. */
   sentenceHits: number
   /**
+   * Most learned procedures a turn-start recall offers the relevance judgment beside what retrieval found, chosen by
+   * the words their name and description share with the request. Procedures are few among all memories and are
+   * written as steps, so retrieval on the person's words seldom returns them. `0` offers none.
+   */
+  procedureCandidates: number
+  /**
    * Longest the turn-start relevance judgment may take, in milliseconds, inside the recall's own budget; when it fails
    * or runs out, at most two mechanically ranked memories are delivered and the recall is marked degraded.
    */

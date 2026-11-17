@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-11-17-learned-procedures-survive-and-get-recalled.md
+2026-11-17-learned-procedures-survive-and-get-recalled.md: b70626ccf1738ec23c87cf726f3aa7c312bf6249
+2026-11-17-learned-procedures-survive-and-get-recalled.zh.md: 87bfcbfc1d6665b1220eda4070c043c283b43c86

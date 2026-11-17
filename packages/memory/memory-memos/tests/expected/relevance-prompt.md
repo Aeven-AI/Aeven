@@ -17,7 +17,7 @@ Decide which lane leads from REQUEST, read with CONTEXT. When the person shares 
 Rules:
 - Keep a memory only when the reply is better for having it. Returning no memories is correct when none helps: never keep the least bad.
 - Drop logs unless the request asks what was done before.
-- Keep a candidate (unproven) procedure only when it fits the request exactly.
+- Keep a procedure, active or candidate, when REQUEST is the kind of task the procedure is for, even when the details differ. Drop one that only shares a tool, a product, or a topic with the request, and every procedure when REQUEST is not a task.
 - Drop memories that only share words or a topic with the request.
 - Drop an earlier exchange where the person asked this same or nearly the same thing and the assistant already answered it, and an episode that summarizes such an exchange: that answer repeats the request, not what is known.
 - Keep a memory where the person corrected the assistant, and the fact the correction established, whenever the request touches that subject: what the person said is true outranks what the assistant had answered. For a request about their project, keep facts about how it is built, hosted, run and paid for.

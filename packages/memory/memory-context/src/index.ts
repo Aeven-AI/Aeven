@@ -136,6 +136,17 @@ export function needsPersonalNote(text: string, sharing: boolean | undefined): b
   return sharing === true && text.includes('About the user and people they mention:')
 }
 
+/** Name of a learned procedure, from the start of its recalled line. */
+const PROCEDURE_NAME = new RegExp(String.raw`^${LEARNED_PROCEDURE_PREFIX} ([\w-]+):`, 'u')
+
+/** A learned procedure one turn's recall block delivered, with its status then. */
+interface RecalledProcedure {
+  readonly id: MemoryItemId
+  /** Its kebab-case name, which outlives a rewrite; absent when the recalled line did not state one. */
+  readonly name: string | undefined
+  readonly status: ProcedureStatus | undefined
+}
+
 /** Words a memory of a conversation that marked a birthday or an anniversary contains. */
 const MARK_WORDS = ['birthday', 'anniversary'] as const
 
@@ -340,16 +351,28 @@ export function apply(ctx: Context, config: Config): void {
   // Learned procedures each recalled turn delivered, with their status then. A procedure proves itself when a turn it
   // informed did work and the person's next message did not correct it: a candidate becomes active. A correction of
   // that turn or a negative rating of its reply returns it to candidate.
-  const recalledProcedures = new Map<Session['id'], Map<number, readonly { readonly id: MemoryItemId; readonly status: ProcedureStatus | undefined }[]>>()
-  const setStatus = (owner: string | undefined, ids: readonly MemoryItemId[], status: ProcedureStatus, reason: string): void => {
+  const recalledProcedures = new Map<Session['id'], Map<number, readonly RecalledProcedure[]>>()
+  /**
+   * Set the status of the procedures a turn was given. Learning from that turn's work may have rewritten a procedure
+   * since, which stores it under a new id and forgets the old one; the status then goes to the procedure now stored
+   * under the same name, because the judgment is about the kind of task, not one stored text.
+   */
+  const setStatus = (owner: string | undefined, items: readonly RecalledProcedure[], status: ProcedureStatus, reason: string): void => {
     if (owner === undefined || !ctx.memory.active) return
-    for (const id of ids) {
-      void ctx.memory.setProcedureStatus({ owner, id, status, signal: AbortSignal.timeout(config.recallTimeoutMs) })
+    for (const { id, name } of items) {
+      void (async () => {
+        const signal = AbortSignal.timeout(config.recallTimeoutMs)
+        if (await ctx.memory.setProcedureStatus({ owner, id, status, signal })) return id
+        if (name === undefined) return undefined
+        const current = (await ctx.memory.procedures({ owner, signal })).find(procedure => procedure.name === name && procedure.status !== 'archived')
+        if (current === undefined || current.status === status) return undefined
+        return await ctx.memory.setProcedureStatus({ owner, id: current.id, status, signal }) ? current.id : undefined
+      })()
         .then((updated) => {
-          if (updated) logger.info(`procedure ${id} is now ${status}: ${reason}`)
+          if (updated !== undefined) logger.info(`procedure ${name ?? id} (${updated}) is now ${status}: ${reason}`)
         })
         .catch((error: unknown) => {
-          logger.warn(`setting procedure ${id} to ${status} failed: ${error instanceof Error ? error.message : String(error)}`)
+          logger.warn(`setting procedure ${name ?? id} to ${status} failed: ${error instanceof Error ? error.message : String(error)}`)
         })
     }
   }
@@ -549,9 +572,9 @@ export function apply(ctx: Context, config: Config): void {
     const informed = previous === undefined || !Number.isFinite(previous) ? undefined : recalledBefore?.get(previous)
     if (informed !== undefined && previous !== undefined) {
       if (correctionOf(state.userText) !== undefined) {
-        setStatus(scope.owner, informed.map(item => item.id), 'candidate', 'the user corrected the turn it informed')
+        setStatus(scope.owner, informed, 'candidate', 'the user corrected the turn it informed')
       } else if (turnDidWork(payload.agent.session, previous)) {
-        const proven = informed.filter(item => item.status === 'candidate').map(item => item.id)
+        const proven = informed.filter(item => item.status === 'candidate')
         setStatus(scope.owner, proven, 'active', 'the turn it informed did its work and the user did not correct it')
       }
       recalledBefore?.delete(previous)
@@ -598,10 +621,9 @@ export function apply(ctx: Context, config: Config): void {
       }
       const procedures = hits
         .filter(hit => hit.snippet.startsWith(LEARNED_PROCEDURE_PREFIX) && text.includes(`:${hit.id}]`))
-        .map(hit => ({ id: hit.id, status: hit.procedureStatus }))
+        .map((hit): RecalledProcedure => ({ id: hit.id, name: PROCEDURE_NAME.exec(hit.snippet)?.[1], status: hit.procedureStatus }))
       if (procedures.length > 0) {
-        const recalled = recalledProcedures.get(payload.agent.session.id)
-          ?? new Map<number, readonly { readonly id: MemoryItemId; readonly status: ProcedureStatus | undefined }[]>()
+        const recalled = recalledProcedures.get(payload.agent.session.id) ?? new Map<number, readonly RecalledProcedure[]>()
         recalled.set(payload.turn, procedures)
         recalledProcedures.set(payload.agent.session.id, recalled)
       }
@@ -636,7 +658,7 @@ export function apply(ctx: Context, config: Config): void {
     if (scope === undefined || turn === undefined) return
     if (change.item.rating === 'negative') {
       const informed = recalledProcedures.get(session.id)?.get(turn) ?? []
-      setStatus(scope.owner, informed.map(item => item.id), 'candidate', 'the user rated the reply it informed negatively')
+      setStatus(scope.owner, informed, 'candidate', 'the user rated the reply it informed negatively')
     }
     void ctx.memory.feedback({
       scope,

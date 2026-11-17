@@ -31,7 +31,7 @@ import type { MemoryCore } from '@deepseek-ai/memos-local-plugin/agent-contract/
 import type { ResolvedHome } from '@deepseek-ai/memos-local-plugin/core/config/paths.js'
 import type { OwnerCores } from './cores.ts'
 import { abortReason, MemoryDeadlineError, withDeadline } from './deadline.ts'
-import { messageSentences, queryClauses, withoutExactIdentifiers } from './query.ts'
+import { messageSentences, procedureMatch, queryClauses, taskWords, withoutExactIdentifiers } from './query.ts'
 import { isLogMemory, LOG_TAG, parseRelevance, RELEVANCE_PROMPT, relevanceInput, type CandidateKind, type FilterCandidate, type RelevanceJudgment } from './filter.ts'
 import type { LlmRouteContext } from './host-llm.ts'
 import { recordedDates } from './dates.ts'
@@ -103,6 +103,8 @@ export interface MemosMemoryOptions {
    * of their top hits to the conversation query's. Absent runs the conversation query alone.
    */
   readonly sentenceRecall?: { readonly sentences: number; readonly hits: number }
+  /** Most learned procedures a turn-start recall offers its relevance judgment beside the retrieved candidates. */
+  readonly procedureCandidates?: number
   /** True while an owner's memory index is being rebuilt, when its vectors are not comparable to new queries. */
   readonly rebuilding?: (owner: string) => boolean
   /**
@@ -162,6 +164,18 @@ const PRIME_QUERY = 'warm'
 
 /** Person traces one page of the recent-memory scan reads. */
 const RECENT_PERSON_PAGE = 100
+
+/** Learned procedures one turn-start recall reads to choose its procedure candidates from. */
+const PROCEDURE_SCAN = 500
+
+/** Name and description of a learned procedure, from the first line of its text. */
+const PROCEDURE_HEADER = new RegExp(String.raw`^${LEARNED_PROCEDURE_PREFIX} ([\w-]+): ([^\n]*)`, 'u')
+
+/** Procedure names a word may appear in before it no longer tells procedures apart. */
+const PROCEDURE_COMMON_NAMES = 3
+
+/** Lowest {@link procedureMatch} score offered: one word of the name, or two of the description. */
+const PROCEDURE_MATCH_MIN = 2
 
 /** Person traces one page of a profile read lists. */
 const PERSON_FACTS_PAGE = 1000
@@ -380,6 +394,11 @@ export class MemosMemory implements MemoryProvider {
     // than after them; each reader awaits it where it needs the result and owns its rejection there.
     const recentScan = turnStart && request.recent !== undefined ? this.recentPersonTraces(request, deadlineAt) : undefined
     recentScan?.catch(() => undefined)
+    // Read beside the search for the same reason; without a relevance judgment nothing would vet the procedures.
+    const procedureScan = turnStart && this.options.relevance !== undefined && (this.options.procedureCandidates ?? 0) > 0
+      ? this.procedureTraces(request, deadlineAt)
+      : undefined
+    procedureScan?.catch(() => undefined)
     try {
       let hits = await this.search(request, deadlineAt, turnStart)
       // An explicit search runs no relevance judgment, so the core's per-tier top-K arrives as-is and each tier
@@ -393,6 +412,7 @@ export class MemosMemory implements MemoryProvider {
         const topic = withoutExactIdentifiers(request.query)
         if (topic !== request.query && topic.length > 0) hits = await this.search({ ...request, query: topic }, deadlineAt, turnStart)
       }
+      if (procedureScan !== undefined) hits = [...hits, ...this.procedureHits(request, hits, await procedureScan)]
       if (request.recent?.sharingOnly !== true || recentScan === undefined) {
         const recent = recentScan === undefined ? [] : this.recentPersonHits(request, hits, await recentScan)
         return await this.judge(request, [...hits, ...recent], deadlineAt)
@@ -435,6 +455,78 @@ export class MemosMemory implements MemoryProvider {
     const chosen = without.sharing === true && withRecent.degraded !== true ? withRecent : without
     this.state(request.scope).sharing = chosen.sharing === true
     return chosen
+  }
+
+  /**
+   * The owner's current learned procedures the session's workspace may see. The read does not depend on the search,
+   * so recall starts it before the search and {@link procedureHits} removes the ones the search already returned.
+   * @returns the procedures' traces, or throws {@link MemoryDeadlineError} at the deadline.
+   */
+  private async procedureTraces(request: MemoryRecallRequest, deadlineAt: number): Promise<TraceDTO[]> {
+    const { scope } = request
+    const profile = ownerProfile(scope.owner)
+    const core = await this.options.cores.get(scope.owner)
+    const traces = await withDeadline(core.listTraces({
+      ownerAgentKind: MEMOS_AGENT,
+      ownerProfileId: profile,
+      includeAllNamespaces: true,
+      q: LEARNED_PROCEDURE_PREFIX,
+      ...scope.cwd === undefined ? {} : { projectWorkspaceId: this.workspaceOf(scope.cwd) ?? null },
+      limit: PROCEDURE_SCAN,
+      offset: 0,
+    }), deadlineAt, request.signal, `Memory recall exceeded ${request.timeoutMs}ms`)
+    return traces.filter(trace => trace.ownerProfileId === profile && trace.userText.startsWith(LEARNED_PROCEDURE_PREFIX)
+      && (trace.summary ?? '').trim() !== '' && procedureStatusOf(trace.tags) !== 'archived'
+      && !(trace.tags ?? []).some(tag => tag.startsWith(SUPERSEDED_TAG)))
+  }
+
+  /**
+   * The procedure candidates: the scanned procedures whose name and description share words with the request, best
+   * match first, without the ones already among `hits`. Retrieval ranks a procedure among every memory by how close
+   * its steps are to the person's words, which seldom brings it up; this offers the relevance judgment the few whose
+   * kind of task the request names.
+   * @param request - the turn-start recall request.
+   * @param hits - the search hits the candidates must not repeat.
+   * @param scanned - {@link procedureTraces} for this request.
+   * @returns at most `procedureCandidates` candidates.
+   */
+  private procedureHits(request: MemoryRecallRequest, hits: readonly MemoryHit[], scanned: readonly TraceDTO[]): MemoryHit[] {
+    const seen = new Set<string>(hits.map(hit => hit.id))
+    const asked = `${request.context ?? ''}\n${request.request ?? request.query}`
+    const newestByName = new Map<string, { trace: TraceDTO; description: string }>()
+    for (const trace of scanned) {
+      const header = PROCEDURE_HEADER.exec(trace.userText)
+      if (header === null) continue
+      const [, name = '', description = ''] = header
+      const known = newestByName.get(name)
+      if (known !== undefined && known.trace.ts >= trace.ts) continue
+      newestByName.set(name, { trace, description })
+    }
+    // A word in many names, such as the product most of the owner's procedures concern, tells none of them apart.
+    const named = new Map<string, number>()
+    for (const name of newestByName.keys()) for (const word of taskWords(name)) named.set(word, (named.get(word) ?? 0) + 1)
+    const common = new Set([...named].filter(([, count]) => count > PROCEDURE_COMMON_NAMES).map(([word]) => word))
+    return [...newestByName]
+      .map(([name, { trace, description }]) => ({ trace, score: procedureMatch(asked, name, description, common) }))
+      .filter(({ trace, score }) => score >= PROCEDURE_MATCH_MIN && !seen.has(trace.id))
+      .sort((a, b) => b.score - a.score || b.trace.ts - a.trace.ts)
+      .slice(0, this.options.procedureCandidates ?? 0)
+      .map(({ trace }) => {
+        const domain = traceDomain(trace.tags, trace.ownerWorkspaceId)
+        const memory: MemoryHit = {
+          kind: 'trace',
+          id: brandString<MemoryItemId>(trace.id),
+          domain,
+          tier: 2,
+          score: 0,
+          snippet: recallSnippet(trace, domain) ?? '',
+          recordedAt: trace.ts,
+          procedureStatus: procedureStatusOf(trace.tags) ?? 'candidate',
+          origin: originOf(trace),
+        }
+        this.candidateKinds.set(memory, kindOfTrace(trace.tags, trace.summary ?? '', trace.userText))
+        return memory
+      })
   }
 
   /**
