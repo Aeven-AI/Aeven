@@ -72,6 +72,10 @@ export function apply(ctx: ClientContext): void {
     cancelPasskey: () => value(remote.cancelPasskey()),
     unprotect: () => value(remote.unprotect()),
     acceptServerKey: () => value(remote.acceptServerKey()),
+    createRecoveryKey: () => value(remote.createRecoveryKey()),
+    unlockWithRecoveryKey: key => value(remote.unlockWithRecoveryKey(key)),
+    renamePasskey: (id, name) => value(remote.renamePasskey(id, name)),
+    removePasskey: id => value(remote.removePasskey(id)),
     onChange: listener => ctx.remote.$on('sync/status', () => { listener() }),
     onDevicesChange: listener => ctx.remote.$on('sync/devices', () => { listener() }),
   }

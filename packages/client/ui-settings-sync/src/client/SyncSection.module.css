@@ -22,6 +22,18 @@
   color: var(--dsw-alias-label-secondary);
 }
 
+/* A new recovery key, large enough to copy by hand and wrapping only between its groups. */
+.recoveryKey {
+  margin: 0 0 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+  letter-spacing: 0.02em;
+  word-spacing: 0.25em;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
 /* A passkey step waiting on the browser, or why it did not finish, with its verbs. */
 .step {
   display: flex;

@@ -48,14 +48,55 @@ export interface SyncProtection {
   downgraded: boolean
   /** Credential ids, base64url, of the passkeys the key is wrapped under; empty in `server` mode. */
   passkeys: readonly string[]
+  /** Every copy of the key the relay stores, passkeys and recovery keys, in the order they were added. */
+  holders: readonly SyncKeyHolder[]
 }
 
-/** One passkey ceremony's result: the credential and its PRF output for the account sync salt. */
+/** The kind of device a passkey was created on; `external` for a phone reached by QR code or a security key. */
+export type SyncPasskeyDevice = 'mac' | 'windows' | 'linux' | 'iphone' | 'ipad' | 'android' | 'chromeos' | 'external' | 'other'
+
+/**
+ * One copy of the account key the relay stores, without the wrapped key. Copies stored before the relay recorded
+ * providers and dates carry only `id` and `kind`.
+ */
+export interface SyncKeyHolder {
+  /** The passkey's credential id, or a recovery key's id, base64url. */
+  id: string
+  /** Whether a passkey or a recovery key the user saved holds this copy. */
+  kind: 'passkey' | 'recovery'
+  /** The name the user gave it. */
+  name?: string
+  /** The passkey provider's AAGUID as lowercase hex, when the browser stated it. */
+  aaguid?: string
+  /** The kind of device the passkey was created on. */
+  device?: SyncPasskeyDevice
+  /** When the relay stored the copy, as an ISO 8601 timestamp. */
+  addedAt?: string
+}
+
+/**
+ * One passkey ceremony's result: the credential and its PRF output for the account sync salt. A recovery key takes
+ * the same form: its id and its 32-byte secret in place of the PRF output.
+ */
 export interface SyncPasskey {
   /** The credential id, base64url. */
   credentialId: string
   /** The 32-byte PRF output. */
   prf: Uint8Array
+  /** What holds this copy; a passkey when absent. */
+  kind?: 'passkey' | 'recovery'
+  /** The passkey provider's AAGUID, recorded so a locked device can name it. */
+  aaguid?: string
+  /** The kind of device the passkey was created on. */
+  device?: SyncPasskeyDevice
+}
+
+/**
+ * {@link Sync.unlock} was handed a passkey or recovery key that holds no copy of the account key: the user picked
+ * another of their passkeys, or one the account no longer lists.
+ */
+export class SyncKeyHolderMismatch extends Error {
+  override name = 'SyncKeyHolderMismatch'
 }
 
 /** One account's sync status on this device. */
@@ -343,6 +384,17 @@ export abstract class Sync extends Service {
   }
 
   /**
+   * Give one of the account key's passkeys or recovery keys a name. Requires a connection and an unlocked account.
+   * @param _owner - an account whose key passkeys hold.
+   * @param _id - an id {@link SyncProtection.holders} lists.
+   * @param _name - the name, 1 to 40 characters.
+   * @returns when the relay stores the name.
+   */
+  renamePasskey(_owner: string, _id: string, _name: string): Promise<void> {
+    return Promise.reject(new Error('this sync provider cannot hold the account key under a passkey'))
+  }
+
+  /**
    * Unlock the account on this device with one of its passkeys: the device unwraps the key the relay stores and
    * syncs from then on without asking again. Requires a connection.
    * @param _owner - an account whose status is locked.
@@ -356,8 +408,10 @@ export abstract class Sync extends Service {
 
   /**
    * Hand the account key back to the relay: it creates a new key it holds, purges what it stored, and every device
-   * starts over. The account's other devices ask the user before syncing under it. Requires a connection.
-   * @param _owner - an account whose key passkeys hold, unlocked on this device.
+   * starts over. The account's other devices ask the user before syncing under it. On a locked device this is the
+   * way back without any of the account's passkeys: the device publishes its own data again under the new key, and
+   * what only the relay held under the passkey key is gone. Requires a connection.
+   * @param _owner - an account whose key passkeys hold, unlocked or locked on this device.
    * @returns when this device holds the relay's new key.
    */
   unprotect(_owner: string): Promise<void> {

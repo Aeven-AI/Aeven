@@ -518,6 +518,10 @@ export default class YjsSync extends Sync {
   }
 
   /** @inheritdoc */
+  override async renamePasskey(owner: string, id: string, name: string): Promise<void> {
+    await this.vaultOf(owner).renamePasskey(id, name)
+  }
+
   override async unprotect(owner: string): Promise<void> {
     await this.vaultOf(owner).unprotect()
     this.nameAfterKey(owner)

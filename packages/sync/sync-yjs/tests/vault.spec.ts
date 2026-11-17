@@ -7,8 +7,10 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { randomBytes } from 'node:crypto'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { brandString } from '@aeven/brand'
+import { SyncKeyHolderMismatch } from '@aeven/sync'
 import { generateDeviceId, generateVaultKey, opaqueIdOf, sealEnvelope, type OpaqueId } from '@aeven/sync-vault'
 import { SyncOffload } from '../src/offload.ts'
 import { RelayConnection } from '../src/relay.ts'
@@ -242,4 +244,82 @@ it('names a document by an id that hides its name', () => {
   expect(opaqueIdOf(key, 'memory/traces/ab')).toBe(id)
   expect(opaqueIdOf(generateVaultKey(), 'memory/traces/ab')).not.toBe(id)
   expect(brandString<OpaqueId>(id)).toBe(id)
+})
+
+describe('an account whose key passkeys hold', () => {
+  const passkey = (n: number, extra: Record<string, string> = {}) => ({
+    credentialId: Buffer.alloc(16, n).toString('base64url'),
+    prf: new Uint8Array(Buffer.alloc(32, n)),
+    ...extra,
+  })
+
+  /** A device whose start-over hook is a spy, so a test can see its Consumers asked to publish again. */
+  function watched(owner: string): Device & { startedOver: ReturnType<typeof vi.fn> } {
+    const dir = mkdtempSync(join(tmpdir(), 'sync-vault-'))
+    dirs.push(dir)
+    const store = new SyncStore(join(dir, 'sync.db'), owner)
+    const warn = vi.fn()
+    const startedOver = vi.fn()
+    const vault = new AccountVault(store, TUNING, () => {}, () => {}, warn, offload, startedOver)
+    return { store, vault, warn, documents: [], startedOver }
+  }
+
+  it('records the passkey provider and device so a locked device can name the passkey', async () => {
+    const { owner, a } = await pair()
+    await a.vault.protect(passkey(1, { aaguid: 'ea9b8d664d011d213ce4b6b48cb575d4', device: 'android' }))
+    expect(a.vault.status().protection).toMatchObject({ mode: 'passkey', locked: false, passkeys: [passkey(1).credentialId] })
+    const c = device(owner)
+    await connect(owner, c)
+    expect(c.vault.status().protection).toMatchObject({
+      locked: true,
+      holders: [{ id: passkey(1).credentialId, kind: 'passkey', aaguid: 'ea9b8d664d011d213ce4b6b48cb575d4', device: 'android', addedAt: expect.any(String) }],
+    })
+  })
+
+  it('refuses a passkey that holds no copy of the key, and unlocks with one that does', async () => {
+    const { owner, a } = await pair()
+    await a.vault.protect(passkey(1))
+    const c = device(owner)
+    await connect(owner, c)
+    expect(() => { c.vault.unlock(passkey(2)) }).toThrow(SyncKeyHolderMismatch)
+    expect(c.vault.status().protection?.locked).toBe(true)
+    c.vault.unlock(passkey(1))
+    expect(c.vault.status().protection?.locked).toBe(false)
+  })
+
+  it('unlocks a new device with a recovery key while passkeys stay the only copies it lists as passkeys', async () => {
+    const { owner, a } = await pair()
+    await a.vault.protect(passkey(1))
+    const recovery = { credentialId: 'recovery-AAAAAAAAAAAAAAAAAAAAAA', prf: new Uint8Array(randomBytes(32)), kind: 'recovery' as const }
+    await a.vault.addPasskey(recovery)
+    expect(a.vault.status().protection).toMatchObject({ passkeys: [passkey(1).credentialId], holders: [{ kind: 'passkey' }, { kind: 'recovery' }] })
+    const c = device(owner)
+    await connect(owner, c)
+    c.vault.unlock(recovery)
+    expect(c.vault.status().protection?.locked).toBe(false)
+  })
+
+  it('names a copy of the key and keeps the name on other devices', async () => {
+    const { owner, a } = await pair()
+    await a.vault.protect(passkey(1))
+    await a.vault.renamePasskey(passkey(1).credentialId, 'Work laptop')
+    expect(a.vault.status().protection?.holders[0]).toMatchObject({ name: 'Work laptop' })
+    const c = device(owner)
+    await connect(owner, c)
+    expect(c.vault.status().protection?.holders[0]).toMatchObject({ name: 'Work laptop' })
+  })
+
+  it('starts over from a locked device: it takes a new relay key and its Consumers publish again', async () => {
+    const owner = `vault-owner-${String(++accounts)}`
+    const a = device(owner)
+    await connect(owner, a)
+    await a.vault.protect(passkey(1))
+    const c = watched(owner)
+    await connect(owner, c)
+    expect(c.vault.status().protection?.locked).toBe(true)
+    await c.vault.unprotect()
+    expect(c.vault.status().protection).toMatchObject({ mode: 'server', locked: false, downgraded: false, holders: [] })
+    expect(c.store.accountKey()).toEqual(new Uint8Array(Buffer.from(relay.account(owner).key, 'base64url')))
+    expect(c.startedOver).toHaveBeenCalled()
+  })
 })

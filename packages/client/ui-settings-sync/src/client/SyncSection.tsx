@@ -3,10 +3,12 @@
  * account's devices.
  */
 import { useEffect, useState } from 'react'
-import type { SyncDeviceView, SyncPasskeyPurpose, SyncView } from '@aeven/api-remotes/client'
+import type { SyncDeviceView, SyncKeyHolderView, SyncPasskeyPurpose, SyncView } from '@aeven/api-remotes/client'
 import { Button, IconLucideLaptopMinimal, IconLucideLaptopMinimalCheck, IconQuestionOutline14, IconWarningOutline16, LoadingBlock, Menu, Modal, RiskConfirmation, SectionHeader, SettingsGroup, SettingsMeter, SettingsRow, Switch, Tooltip } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime } from '@aeven/client-ui-slots'
+import { holderTitle, unlockHint } from './holders.ts'
 import { openPasskeyPage, useSyncStatus, type SyncOperations } from './passkey.ts'
+import { RecoveryKeyDialog } from './RecoveryKeyDialog.tsx'
 import css from './SyncSection.module.css'
 
 /** Registration-side operations the page calls. */
@@ -63,15 +65,44 @@ function PasskeyStep({ view, t, retry, dismiss }: {
 }) {
   const step = view.passkey
   if (step === undefined) return null
-  const line = step.state === 'waiting' ? t('waiting') : step.state === 'failed' ? t('stepFailed') : t('unsupported')
+  const retryable = step.state === 'failed' || step.state === 'wrong-passkey' || step.state === 'duplicate'
+  const line = step.state === 'waiting' ? t('waiting')
+    : step.state === 'wrong-passkey' ? `${t('wrongPasskey')} ${unlockHint(view.protection?.holders ?? [], t)}`
+      : step.state === 'duplicate' ? t('duplicate')
+        : step.state === 'failed' ? t('stepFailed')
+          : t('unsupported')
   return (
     <div className={css.step} role="status" aria-live="polite">
-      <p className={step.state === 'failed' ? css.failed : css.note}>{line}</p>
+      <p className={retryable ? css.failed : css.note}>{line}</p>
       <div className={css.stepActions}>
-        {step.state === 'failed' && <Button variant="outline" onClick={() => { retry(step.purpose) }}>{t('tryAgain')}</Button>}
+        {retryable && <Button variant="outline" onClick={() => { retry(step.purpose) }}>{t('tryAgain')}</Button>}
         <Button variant="ghost" onClick={dismiss}>{step.state === 'waiting' ? t('cancel') : t('dismiss')}</Button>
       </div>
     </div>
+  )
+}
+
+/**
+ * One passkey that holds the account key, laid out like the other Settings rows: what it is, when it was added, and
+ * a Remove button while another passkey would still unlock the account.
+ * @param props - the passkey, whether it may be removed, the translator, and the removal.
+ * @returns the row.
+ */
+function HolderRow({ holder, removable, t, busy, onRemove }: {
+  holder: SyncKeyHolderView
+  removable: boolean
+  t: SyncSectionProps['t']
+  busy: boolean
+  onRemove: () => void
+}) {
+  const date = holder.addedAt === undefined ? undefined
+    : new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(holder.addedAt))
+  return (
+    <SettingsRow
+      title={holderTitle(holder, t)}
+      description={date === undefined ? t('passkeyUnlocks') : `${t('passkeyAdded', { date })} · ${t('passkeyUnlocks')}`}
+      control={removable ? <Button variant="outline" disabled={busy} onClick={onRemove}>{t('remove')}</Button> : undefined}
+    />
   )
 }
 
@@ -92,6 +123,8 @@ export function SyncSection(props: SyncSectionProps) {
   const [confirmOff, setConfirmOff] = useState(false)
   const [confirmOn, setConfirmOn] = useState(false)
   const [acknowledged, setAcknowledged] = useState(false)
+  const [recoveryKey, setRecoveryKey] = useState<string | undefined>(undefined)
+  const [removing, setRemoving] = useState<SyncKeyHolderView | undefined>(undefined)
 
   const syncing = load.status === 'ready' && SYNCING.has(load.view.state)
   useEffect(() => {
@@ -210,7 +243,7 @@ export function SyncSection(props: SyncSectionProps) {
               ? (
                 <SettingsRow
                   title={t('locked')}
-                  description={t('lockedBody')}
+                  description={`${t('lockedBody')} ${unlockHint(protection.holders, t)}`}
                   control={<Button variant="primary" disabled={busy || waiting} onClick={() => { passkey('unlock') }}>{t('unlock')}</Button>}
                 />
               )
@@ -237,11 +270,30 @@ export function SyncSection(props: SyncSectionProps) {
                     )}
                   />
                   {protection.mode === 'passkey' && (
-                    <SettingsRow
-                      title={t('passkeys')}
-                      description={t('passkeysBody', { count: String(protection.passkeys) })}
-                      control={<Button variant="primary" className={css.actionButton} disabled={busy || waiting || view.state !== 'online'} onClick={() => { passkey('add') }}>{t('addPasskey')}</Button>}
-                    />
+                    <>
+                      <SettingsRow
+                        title={t('passkeys')}
+                        description={t('passkeysBody', { count: String(protection.passkeys) })}
+                        control={<Button variant="primary" className={css.actionButton} disabled={busy || waiting || view.state !== 'online'} onClick={() => { passkey('add') }}>{t('addPasskey')}</Button>}
+                      />
+                      {protection.holders.filter(holder => holder.kind === 'passkey').map(holder => (
+                        <HolderRow
+                          key={holder.id} holder={holder} t={t} busy={busy || view.state !== 'online'}
+                          removable={protection.passkeys > 1}
+                          onRemove={() => { setRemoving(holder) }}
+                        />
+                      ))}
+                      <SettingsRow
+                        title={t('recoveryRow')}
+                        description={t(protection.holders.some(holder => holder.kind === 'recovery') ? 'recoveryRowOn' : 'recoveryRowOff')}
+                        control={(
+                          <Button
+                            variant="outline" disabled={busy || waiting || view.state !== 'online'}
+                            onClick={() => { void run(async () => { setRecoveryKey((await ops.createRecoveryKey()).key) }) }}
+                          >{t(protection.holders.some(holder => holder.kind === 'recovery') ? 'replaceRecovery' : 'createRecovery')}</Button>
+                        )}
+                      />
+                    </>
                   )}
                 </>
               )}
@@ -271,6 +323,27 @@ export function SyncSection(props: SyncSectionProps) {
         </SettingsGroup>
       )}
       {enabled && <div className={css.files}>{props.renderSlot('settings.sync.files', {})}</div>}
+      {recoveryKey !== undefined && <RecoveryKeyDialog recoveryKey={recoveryKey} t={t} onClose={() => { setRecoveryKey(undefined) }} />}
+      <Modal
+        open={removing !== undefined}
+        onClose={() => { setRemoving(undefined) }}
+        title={t(removing?.kind === 'recovery' ? 'removeRecoveryTitle' : 'removeTitle')}
+        description={t(removing?.kind === 'recovery' ? 'removeRecoveryBody' : 'removeBody')}
+        closeLabel={t('close')}
+        footer={(
+          <>
+            <Button variant="outline" onClick={() => { setRemoving(undefined) }}>{t('cancel')}</Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                const holder = removing
+                setRemoving(undefined)
+                if (holder !== undefined) void run(() => ops.removePasskey(holder.id))
+              }}
+            >{t('remove')}</Button>
+          </>
+        )}
+      />
       <RiskConfirmation
         open={confirmOn}
         title={t('passkey')}

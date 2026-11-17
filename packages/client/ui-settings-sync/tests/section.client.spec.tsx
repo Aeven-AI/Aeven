@@ -21,6 +21,10 @@ function setup(view: SyncView, copy = en) {
     cancelPasskey: vi.fn(() => Promise.resolve(status)),
     unprotect: vi.fn(() => Promise.resolve(status)),
     acceptServerKey: vi.fn(() => Promise.resolve(status)),
+    createRecoveryKey: vi.fn(() => Promise.resolve({ key: 'AAAA-BBBB' })),
+    unlockWithRecoveryKey: vi.fn(() => Promise.resolve(status)),
+    renamePasskey: vi.fn(() => Promise.resolve(status)),
+    removePasskey: vi.fn(() => Promise.resolve(status)),
     onChange: (listener) => { changed = listener; return () => { changed = () => {} } },
     onDevicesChange: (listener) => { devicesChanged = listener; return () => { devicesChanged = () => {} } },
   }

@@ -1,6 +1,6 @@
 /** Operations Settings → Sync and the sign-in popup share: reading the status and running a passkey step. */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { SyncDeviceView, SyncPasskeyPurpose, SyncPasskeyStart, SyncView } from '@aeven/api-remotes/client'
+import type { SyncDeviceView, SyncPasskeyPurpose, SyncPasskeyStart, SyncRecoveryKey, SyncView } from '@aeven/api-remotes/client'
 import { externalWindow } from '@aeven/client-ui-primitives'
 
 /** Registration-side operations over the sync Remote. */
@@ -10,8 +10,17 @@ export interface SyncOperations {
   devices: () => Promise<SyncDeviceView[]>
   startPasskey: (purpose: SyncPasskeyPurpose) => Promise<SyncPasskeyStart>
   cancelPasskey: () => Promise<SyncView>
+  /** Hand the key back to the relay; on a locked device this starts over from the device's own data. */
   unprotect: () => Promise<SyncView>
   acceptServerKey: () => Promise<SyncView>
+  /** Create a recovery key that also holds the account key; its text is shown once. */
+  createRecoveryKey: () => Promise<SyncRecoveryKey>
+  /** Unlock this device with a recovery key the user typed. */
+  unlockWithRecoveryKey: (key: string) => Promise<SyncView>
+  /** Name one of the account's passkeys. */
+  renamePasskey: (id: string, name: string) => Promise<SyncView>
+  /** Remove one of the account's passkeys or its recovery key. */
+  removePasskey: (id: string) => Promise<SyncView>
   /**
    * Call `listener` whenever the Host reports a sync change, including the end of a passkey step.
    * @param listener - refresh callback.

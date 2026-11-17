@@ -10,7 +10,7 @@ import {
   unwrapUnderPasskey, verifyKeyProof, wrapUnderPasskey,
   type DeviceId, type EnvelopeKind, type KeyId, type OpaqueId,
 } from '@aeven/sync-vault'
-import type { SyncDocument, SyncKeyMode, SyncPasskey, SyncProtection, SyncState, SyncStatus } from '@aeven/sync'
+import { SyncKeyHolderMismatch, type SyncDocument, type SyncKeyHolder, type SyncKeyMode, type SyncPasskey, type SyncPasskeyDevice, type SyncProtection, type SyncState, type SyncStatus } from '@aeven/sync'
 import type { SyncOffload } from './offload.ts'
 import { publishFrameLimit, publishRequestBytes, type PublishFrame, type RelayConnection, RelayError } from './relay.ts'
 import { prepareFrame } from './frames.ts'
@@ -47,10 +47,44 @@ export interface VaultTuning {
   firstDocuments: readonly string[]
 }
 
+/** One copy of the account key `key.get` answers: who holds it and the key wrapped under it. */
+type WrappedHolder = SyncKeyHolder & { readonly wrapped: string }
+
 /** The account key state `key.get` answers. */
 type RelayKeyState =
   | { readonly mode: 'server'; readonly key: Uint8Array; readonly keyId: KeyId }
-  | { readonly mode: 'passkey'; readonly keyId: KeyId; readonly passkeys: ReadonlyArray<{ readonly id: string; readonly wrapped: string }> }
+  | { readonly mode: 'passkey'; readonly keyId: KeyId; readonly passkeys: readonly WrappedHolder[] }
+
+const DEVICES: ReadonlySet<string> = new Set<SyncPasskeyDevice>(['mac', 'windows', 'linux', 'iphone', 'ipad', 'android', 'chromeos', 'external', 'other'])
+
+/**
+ * Validate one key holder the relay describes. A holder stored before the relay recorded kinds reads as a passkey,
+ * and a provider, device, or date the relay did not send is left out.
+ * @param entry - the relay's entry.
+ * @returns the holder.
+ * @throws {Error} when the entry names no id.
+ */
+function parseHolder(entry: unknown): SyncKeyHolder {
+  const fields = entry as { id?: unknown; kind?: unknown; name?: unknown; aaguid?: unknown; device?: unknown; addedAt?: unknown } | null
+  if (typeof fields?.id !== 'string' || !BASE64URL.test(fields.id)) throw new Error('the relay sent a malformed key holder')
+  return {
+    id: fields.id,
+    kind: fields.kind === 'recovery' ? 'recovery' : 'passkey',
+    ...typeof fields.name === 'string' && fields.name !== '' ? { name: fields.name } : {},
+    ...typeof fields.aaguid === 'string' && /^[0-9a-f]{32}$/.test(fields.aaguid) ? { aaguid: fields.aaguid } : {},
+    ...typeof fields.device === 'string' && DEVICES.has(fields.device) ? { device: fields.device as SyncPasskeyDevice } : {},
+    ...typeof fields.addedAt === 'string' && !Number.isNaN(Date.parse(fields.addedAt)) ? { addedAt: fields.addedAt } : {},
+  }
+}
+
+/**
+ * The protection fields that follow from the key's holders.
+ * @param holders - every copy of the key the relay stores.
+ * @returns the passkeys' credential ids and the holders themselves.
+ */
+function holdersOf(holders: readonly SyncKeyHolder[]): Pick<SyncProtection, 'passkeys' | 'holders'> {
+  return { passkeys: holders.filter(holder => holder.kind === 'passkey').map(holder => holder.id), holders }
+}
 
 const BASE64URL = /^[A-Za-z0-9_-]+$/
 
@@ -71,11 +105,29 @@ function parseKeyState(answer: Record<string, unknown>): RelayKeyState {
   }
   const { passkeys } = answer
   if (mode !== 'passkey' || !Array.isArray(passkeys) || passkeys.length === 0) throw new Error('the relay sent an unknown key state')
-  for (const entry of passkeys as unknown[]) {
-    const fields = entry as { id?: unknown; wrapped?: unknown } | null
-    if (typeof fields?.id !== 'string' || typeof fields.wrapped !== 'string') throw new Error('the relay sent a malformed passkey')
+  const holders = (passkeys as unknown[]).map((entry) => {
+    const wrapped = (entry as { wrapped?: unknown } | null)?.wrapped
+    if (typeof wrapped !== 'string') throw new Error('the relay sent a malformed passkey')
+    return { ...parseHolder(entry), wrapped }
+  })
+  return { mode: 'passkey', keyId: keyId as KeyId, passkeys: holders }
+}
+
+/**
+ * The entry `key.protect` and `passkey.add` send for a passkey or recovery key: the key wrapped under it, with the
+ * provider and device that let a locked device name it later.
+ * @param holder - the passkey's or recovery key's id and secret, and what is known about it.
+ * @param key - the account key.
+ * @returns the request field.
+ */
+function holderRequest(holder: SyncPasskey, key: Uint8Array): Record<string, string> {
+  return {
+    id: holder.credentialId,
+    wrapped: wrapUnderPasskey(holder.prf, holder.credentialId, key),
+    kind: holder.kind ?? 'passkey',
+    ...holder.aaguid === undefined ? {} : { aaguid: holder.aaguid },
+    ...holder.device === undefined ? {} : { device: holder.device },
   }
-  return { mode: 'passkey', keyId: keyId as KeyId, passkeys: passkeys as Array<{ id: string; wrapped: string }> }
 }
 
 /** Settles after a real timer, so I/O, HTTP, and the agent loop run before the next slice. */
@@ -144,7 +196,7 @@ export class AccountVault {
     this.state = !store.enabled() ? 'disabled' : store.accountKey() === undefined ? 'starting' : 'offline'
     const mode = store.keyMode()
     if (mode !== undefined) {
-      this.protection = { mode, locked: mode === 'passkey' && store.accountKey() === undefined, downgraded: false, passkeys: [] }
+      this.protection = { mode, locked: mode === 'passkey' && store.accountKey() === undefined, downgraded: false, passkeys: [], holders: [] }
     }
   }
 
@@ -242,26 +294,26 @@ export class AccountVault {
       // A relay that held no key while this device last saw a passkey hold it took the key back, whether another
       // device turned protection off or the relay did it on its own; the user decides before anything is sent.
       if (this.store.keyMode() === 'passkey') {
-        this.protection = { mode: 'server', locked: false, downgraded: true, passkeys: [] }
+        this.protection = { mode: 'server', locked: false, downgraded: true, passkeys: [], holders: [] }
         this.setState('starting')
         this.changed()
         return
       }
-      this.protection = { mode: 'server', locked: false, downgraded: false, passkeys: [] }
+      this.protection = { mode: 'server', locked: false, downgraded: false, passkeys: [], holders: [] }
       this.useKey(relay, state.key, 'server')
       return
     }
     this.store.setKeyMode('passkey')
-    const passkeys = state.passkeys.map(({ id }) => id)
+    const held = holdersOf(state.passkeys.map(({ wrapped: _wrapped, ...holder }) => holder))
     const local = this.store.accountKey()
     if (local !== undefined && keyIdOf(local) === state.keyId) {
-      this.protection = { mode: 'passkey', locked: false, downgraded: false, passkeys }
+      this.protection = { mode: 'passkey', locked: false, downgraded: false, ...held }
       this.goOnline(relay)
       return
     }
     // The key moved to one this device does not hold; nothing kept under the earlier one can reach the relay again.
     if (this.store.dropAccountKey()) this.restart()
-    this.protection = { mode: 'passkey', locked: true, downgraded: false, passkeys }
+    this.protection = { mode: 'passkey', locked: true, downgraded: false, ...held }
     this.setState('starting')
     this.changed()
   }
@@ -331,16 +383,15 @@ export class AccountVault {
     }
     const relay = await this.quiesce()
     const key = generateVaultKey()
+    let answer: Record<string, unknown>
     try {
-      await relay.request('key.protect', {
-        keyId: keyIdOf(key),
-        passkey: { id: passkey.credentialId, wrapped: wrapUnderPasskey(passkey.prf, passkey.credentialId, key) },
-      })
+      answer = await relay.request('key.protect', { keyId: keyIdOf(key), passkey: holderRequest(passkey, key) })
     } catch (error) {
       if (this.connection === relay) this.goOnline(relay)
       throw error
     }
-    this.protection = { mode: 'passkey', locked: false, downgraded: false, passkeys: [passkey.credentialId] }
+    const described = Array.isArray(answer.entries) ? (answer.entries as unknown[]).map(parseHolder) : [{ id: passkey.credentialId, kind: 'passkey' as const }]
+    this.protection = { mode: 'passkey', locked: false, downgraded: false, ...holdersOf(described) }
     this.useKey(relay, key, 'passkey')
   }
 
@@ -353,7 +404,7 @@ export class AccountVault {
     const state = this.relayKey
     if (state?.mode !== 'passkey' || this.protection?.locked !== true) throw new Error('the account is not locked')
     const entry = state.passkeys.find(({ id }) => id === passkey.credentialId)
-    if (entry === undefined) throw new Error('this passkey does not hold the account key')
+    if (entry === undefined) throw new SyncKeyHolderMismatch('this passkey does not hold the account key')
     const key = unwrapUnderPasskey(passkey.prf, entry.id, state.keyId, entry.wrapped)
     this.protection = { ...this.protection, locked: false }
     this.useKey(this.connection, key, 'passkey')
@@ -366,9 +417,7 @@ export class AccountVault {
   async addPasskey(passkey: SyncPasskey): Promise<void> {
     const key = this.unlockedPasskeyKey()
     const relay = this.requireConnection()
-    const answer = await relay.request('passkey.add', {
-      passkey: { id: passkey.credentialId, wrapped: wrapUnderPasskey(passkey.prf, passkey.credentialId, key) },
-    })
+    const answer = await relay.request('passkey.add', { passkey: holderRequest(passkey, key) })
     this.setPasskeys(answer)
   }
 
@@ -382,9 +431,25 @@ export class AccountVault {
     this.setPasskeys(answer)
   }
 
-  /** Hand the account key back to the relay, which creates a new one. */
-  async unprotect(): Promise<void> {
+  /**
+   * Give one copy of the account key a name.
+   * @param id - the passkey's credential id or the recovery key's id.
+   * @param name - the name.
+   */
+  async renamePasskey(id: string, name: string): Promise<void> {
     this.unlockedPasskeyKey()
+    const answer = await this.requireConnection().request('passkey.rename', { id, name })
+    this.setPasskeys(answer)
+  }
+
+  /**
+   * Hand the account key back to the relay, which creates a new one. A locked device holds no documents of the
+   * passkey key, so after taking the new key it starts over and its Consumers publish their data again.
+   */
+  async unprotect(): Promise<void> {
+    if (this.protection?.mode !== 'passkey') throw new Error('the account key is not held by a passkey')
+    const locked = this.protection.locked
+    if (!locked) this.unlockedPasskeyKey()
     const relay = await this.quiesce()
     let answer: Record<string, unknown>
     try {
@@ -396,15 +461,17 @@ export class AccountVault {
     const state = parseKeyState({ ...answer, mode: 'server' })
     if (state.mode !== 'server') throw new Error('the relay returned no key')
     this.relayKey = state
-    this.protection = { mode: 'server', locked: false, downgraded: false, passkeys: [] }
+    this.protection = { mode: 'server', locked: false, downgraded: false, passkeys: [], holders: [] }
+    const hadKey = this.store.accountKey() !== undefined
     this.useKey(relay, state.key, 'server')
+    if (locked && !hadKey) this.restart()
   }
 
   /** Sync under the key the relay took back from the account's passkeys. */
   acceptServerKey(): void {
     const state = this.relayKey
     if (state?.mode !== 'server' || this.protection?.downgraded !== true) throw new Error('the relay did not take the key back')
-    this.protection = { mode: 'server', locked: false, downgraded: false, passkeys: [] }
+    this.protection = { mode: 'server', locked: false, downgraded: false, passkeys: [], holders: [] }
     this.useKey(this.connection, state.key, 'server')
   }
 
@@ -422,9 +489,11 @@ export class AccountVault {
   }
 
   private setPasskeys(answer: Record<string, unknown>): void {
-    const { passkeys } = answer
+    const { passkeys, entries } = answer
     if (!Array.isArray(passkeys) || passkeys.some(id => typeof id !== 'string')) throw new Error('the relay returned malformed passkeys')
-    if (this.protection !== undefined) this.protection = { ...this.protection, passkeys: passkeys as string[] }
+    // A relay deployed before it described holders answers only ids; those read as passkeys.
+    const holders = Array.isArray(entries) ? (entries as unknown[]).map(parseHolder) : (passkeys as string[]).map(id => ({ id, kind: 'passkey' as const }))
+    if (this.protection !== undefined) this.protection = { ...this.protection, ...holdersOf(holders) }
     this.changed()
   }
 
