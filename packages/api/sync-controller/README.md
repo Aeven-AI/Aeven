@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-A Typert Remote over `ctx.sync` that acts only for the caller of the running request. `startPasskey` returns the `/passkey/vault` page on `siteUrl` and collects the sealed result in the background for up to `passkeyMs`, polling every `passkeyPollMs`; the step shows in `status` until it succeeds and emits `sync/status` when it ends. A step that creates a passkey asks the page for its public key as well, and the relay stores it so the account can sign in with that passkey. `unlockFromSignIn` collects, once, the PRF result a passkey sign-in on the caller's page deposited in the same prompt, and unlocks this device with it when the account is locked; a sign-in that deposited nothing leaves the account as it was. `unprotect` hands the key back to the relay and `acceptServerKey` confirms a key the relay took back. See the [account sync group](../../sync/README.md).
+A Typert Remote over `ctx.sync` that acts only for the caller of the running request. `startPasskey` returns the `/passkey/vault` page on `siteUrl` and collects the sealed result in the background for up to `passkeyMs`, polling every `passkeyPollMs`; the step shows in `status` until it succeeds and emits `sync/status` when it ends. `unprotect` hands the key back to the relay and `acceptServerKey` confirms a key the relay took back. See the [account sync group](../../sync/README.md).
 
 Status includes conversation publication progress collected through `sync/progress`, pending and queued relay-frame counts, download catch-up, and upload or download failures.
 

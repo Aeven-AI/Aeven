@@ -56,19 +56,6 @@ export interface SyncPasskey {
   credentialId: string
   /** The 32-byte PRF output. */
   prf: Uint8Array
-  /**
-   * The passkey's public key, present for a passkey created by this step when the browser stated it. The relay
-   * stores it so the account can sign in with the passkey.
-   */
-  signIn?: SyncPasskeySignIn
-}
-
-/** What a passkey signs in with: the public half of its key pair. */
-export interface SyncPasskeySignIn {
-  /** The public key as SubjectPublicKeyInfo DER, base64url. */
-  publicKey: string
-  /** The COSE algorithm id the passkey signs with. */
-  alg: number
 }
 
 /** One account's sync status on this device. */

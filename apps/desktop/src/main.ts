@@ -19,7 +19,7 @@ import {
 } from 'electron'
 import { DESKTOP_MENU_ZOOM_STEP, FULL_SCREEN_ITEM_ID, applicationMenuTemplate, type DesktopMenuZoom } from './application-menu.ts'
 import { ABOUT_WINDOW_HEIGHT, ABOUT_WINDOW_WIDTH, aboutPageDocument } from './about-window.ts'
-import { adoptedHostSignIn, completeOAuthLanding, forwardAevenApiRequest, isSignInAddress } from './aeven-sign-in.ts'
+import { adoptedHostSignIn, completeOAuthLanding, forwardAevenApiRequest } from './aeven-sign-in.ts'
 import { collectNow, startBrowserSignIn } from './oauth-browser.ts'
 import { AevenSession } from './aeven-session.ts'
 import { installContextMenu, registerContextMenuIpc } from './context-menu.ts'
@@ -659,16 +659,9 @@ async function main(): Promise<void> {
     void startBrowserSignIn({
       providerUrl: url,
       openExternal: target => shell.openExternal(target),
-      // The window comes forward once the landing is settled, so the reader
-      // returns to its cover rather than to the sign-in screen it left.
-      land: (path) => {
-        void land(path).finally(() => {
-          if (window.isDestroyed()) return
-          if (window.isMinimized()) window.restore()
-          window.focus()
-          app.focus({ steal: true })
-        })
-      },
+      // The browser keeps focus: its page tells the reader the sign-in finished and they return to
+      // the app themselves, which by then shows its cover.
+      land: (path) => { void land(path) },
     }).then((outcome) => {
       if (outcome === 'timed-out') reportProviderSignIn(window, 'ended')
     }, (error: unknown) => {
@@ -694,7 +687,7 @@ async function main(): Promise<void> {
   const createMainWindow = (): BrowserWindow => {
     const window = createWindow(appPreload)
     mainWindow = window
-    claimsAppAddress = url => isSignInAddress(aevenSignIn, url)
+    claimsAppAddress = url => aevenSignIn?.oauthUrls.includes(url) === true
     // Either way the page reaches a provider, the provider opens in the default
     // browser and every other window stays denied. A page whose flow is a window
     // waits for the session this shell exchanges; a page whose flow is a redirect
@@ -703,7 +696,7 @@ async function main(): Promise<void> {
     // chose: the page opens it itself when it listens for addresses, and the
     // system browser opens it otherwise.
     window.webContents.setWindowOpenHandler(({ url }) => {
-      if (isSignInAddress(aevenSignIn, url)) {
+      if (aevenSignIn?.oauthUrls.includes(url) === true) {
         beginProviderSignIn(window, url, path => exchangeLanding(window, path))
       } else {
         openContentAddress(window.webContents, url)
@@ -711,7 +704,7 @@ async function main(): Promise<void> {
       return { action: 'deny' }
     })
     window.webContents.on('will-navigate', (event, url) => {
-      if (!isSignInAddress(aevenSignIn, url)) return
+      if (aevenSignIn?.oauthUrls.includes(url) !== true) return
       event.preventDefault()
       beginProviderSignIn(window, url, path => window.loadURL(appPathUrl(path)))
     })

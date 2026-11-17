@@ -24,7 +24,6 @@ export interface AevenClientConfig {
   readonly xOAuthUrl?: string
   readonly appleOAuthUrl?: string
   readonly googleOAuthUrl?: string
-  readonly passkeyOAuthUrl?: string
   readonly webUrl?: string
   readonly mediaUrl?: string
   readonly helpCenterUrl?: string
@@ -166,13 +165,12 @@ export function socketUrl(): string | undefined {
  * button does nothing rather than navigating to `undefined`.
  * @returns the URL per provider, each absent when unconfigured.
  */
-export function oauthUrls(): { x?: string; apple?: string; google?: string; passkey?: string } {
+export function oauthUrls(): { x?: string; apple?: string; google?: string } {
   const config = aevenConfig()
   return {
     ...config.xOAuthUrl === undefined ? {} : { x: followingPage(config.xOAuthUrl) },
     ...config.appleOAuthUrl === undefined ? {} : { apple: followingPage(config.appleOAuthUrl) },
     ...config.googleOAuthUrl === undefined ? {} : { google: followingPage(config.googleOAuthUrl) },
-    ...config.passkeyOAuthUrl === undefined ? {} : { passkey: followingPage(config.passkeyOAuthUrl) },
   }
 }
 

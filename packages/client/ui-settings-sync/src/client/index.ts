@@ -9,7 +9,7 @@ import type {} from '@aeven/client-locale/client'
 import type {} from '@aeven/client-ui-settings/client'
 import type {} from '@aeven/client-ui-renderer/client'
 import type {} from '@aeven/client-ui-layout/client'
-import type { RemoteResult, SyncSignInUnlock } from '@aeven/api-remotes/client'
+import type { RemoteResult } from '@aeven/api-remotes/client'
 import type { SyncOperations } from './passkey.ts'
 import { SyncPasskeyPopup, type SyncPasskeyPopupInjected } from './SyncPasskeyPopup.tsx'
 import { SyncSection } from './SyncSection.tsx'
@@ -22,11 +22,7 @@ export type { SyncLocaleKey } from './locales.ts'
 
 /** Page global the authentication gate states the signed-in reader on. */
 interface ReaderScope {
-  __AVN_AEVEN_READER__?: {
-    readonly signedInThisPage?: true
-    /** Takes, once, the unlock a passkey sign-in on this page prepared. */
-    readonly takePasskeyUnlock?: () => SyncSignInUnlock | undefined
-  }
+  __AVN_AEVEN_READER__?: { readonly signedInThisPage?: true }
 }
 
 declare module '@aeven/client-ui-slots' {
@@ -76,20 +72,12 @@ export function apply(ctx: ClientContext): void {
     cancelPasskey: () => value(remote.cancelPasskey()),
     unprotect: () => value(remote.unprotect()),
     acceptServerKey: () => value(remote.acceptServerKey()),
-    unlockFromSignIn: unlock => value(remote.unlockFromSignIn(unlock)),
     onChange: listener => ctx.remote.$on('sync/status', () => { listener() }),
     onDevicesChange: listener => ctx.remote.$on('sync/devices', () => { listener() }),
   }
-  // Taken once for the page: a later mount of the popup finds nothing left to apply.
-  let signInUnlock = (globalThis as ReaderScope).__AVN_AEVEN_READER__?.takePasskeyUnlock?.()
   const popup: SyncPasskeyPopupInjected = {
     ...operations,
     signedInThisPage: () => (globalThis as ReaderScope).__AVN_AEVEN_READER__?.signedInThisPage === true,
-    takeSignInUnlock: () => {
-      const taken = signInUnlock
-      signInUnlock = undefined
-      return taken
-    },
   }
 
   ctx.slots.inject('settings.section', () => ctx.slots.register({

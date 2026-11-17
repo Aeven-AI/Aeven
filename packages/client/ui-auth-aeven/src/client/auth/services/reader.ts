@@ -14,7 +14,6 @@ import { session } from './session.ts'
 import { takePendingAuthLocale } from '../../locales.ts'
 import { onAccountLocale } from './watch.ts'
 import { installApp, installOffer, type InstallOffer, type InstallOutcome } from './install.ts'
-import { takePasskeyUnlock, type PasskeyUnlock } from './passkey-unlock.ts'
 
 /** What a plugin may know about the signed-in reader. */
 export interface AevenReader {
@@ -44,12 +43,6 @@ export interface AevenReader {
    * an earlier session. A surface that greets a new sign-in reads it.
    */
   readonly signedInThisPage?: true
-  /**
-   * Take the unlock a passkey sign-in on this page prepared for the account's synced data, once; present only with
-   * {@link signedInThisPage}.
-   * @returns the unlock, or undefined when the sign-in prepared none.
-   */
-  readonly takePasskeyUnlock?: () => PasskeyUnlock | undefined
   /** End the Aeven session; the caller decides where the reader goes next. */
   readonly signOut: () => Promise<void>
   /**
@@ -163,7 +156,7 @@ export function publishReader(): void {
     ...help === undefined ? {} : { helpCenterUrl: help },
     ...session.locale === undefined ? {} : { locale: session.locale },
     onLocale: onAccountLocale,
-    ...signedInThisPage ? { signedInThisPage: true as const, takePasskeyUnlock } : {},
+    ...signedInThisPage ? { signedInThisPage: true as const } : {},
     signOut,
     setDisplayName: async (displayName: string) => {
       const stored = await setDisplayName(displayName)

@@ -379,15 +379,6 @@ The signed-in user's account sync.
 @Remote async cancelPasskey(): Promise<SyncView>
 
 /**
- * Unlock this device with the passkey the caller just signed in with. The sign-in page evaluated the passkey's
- * PRF in the same prompt and deposited it sealed to the caller's one-use key; this collects it once. An account
- * that is not locked, or a sign-in that deposited nothing, leaves everything as it was.
- * @param unlock - the verifier and key pair the sign-in page was opened with.
- * @returns the status afterwards.
- */
-@Remote async unlockFromSignIn(unlock: SyncSignInUnlock): Promise<SyncView>
-
-/**
  * Hand the caller's account key back to the Aeven relay; every device starts over under the relay's new key.
  * @returns the status afterwards.
  */

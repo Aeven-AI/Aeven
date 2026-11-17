@@ -1,11 +1,10 @@
 /**
  * The passkey popup: after a sign-in on this page it offers to move the account key onto a passkey, and whenever
  * this device waits on the account's passkey, or on the user after the relay took the key back, it asks for that.
- * Every question can be put off for the rest of the page; Settings → Sync offers the same actions. After a passkey
- * sign-in whose prompt also unlocked the account, the popup applies that unlock first and asks nothing when it works.
+ * Every question can be put off for the rest of the page; Settings → Sync offers the same actions.
  */
-import { useEffect, useState, type ReactNode } from 'react'
-import type { SyncPasskeyPurpose, SyncSignInUnlock, SyncView } from '@aeven/api-remotes/client'
+import { useState, type ReactNode } from 'react'
+import type { SyncPasskeyPurpose, SyncView } from '@aeven/api-remotes/client'
 import { Button, Modal } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import type {} from '@aeven/client-ui-layout/client'
@@ -16,11 +15,6 @@ import css from './SyncSection.module.css'
 export interface SyncPasskeyPopupInjected extends SyncOperations {
   /** Whether the reader signed in on this page rather than arriving with a restored session. */
   signedInThisPage: () => boolean
-  /**
-   * Take, once, the unlock a passkey sign-in on this page prepared.
-   * @returns the unlock, or undefined when the reader did not sign in with a passkey here.
-   */
-  takeSignInUnlock: () => SyncSignInUnlock | undefined
 }
 
 /** Composed props: standard kit, the injected operations, and the `settings.sync` dictionaries. */
@@ -63,27 +57,9 @@ export function SyncPasskeyPopup(props: SyncPasskeyPopupProps) {
   // A step started from this popup stays in it until the step ends.
   const [started, setStarted] = useState(false)
   const [failed, setFailed] = useState(false)
-  const [signInUnlock] = useState(() => ops.takeSignInUnlock())
-  const [unlocking, setUnlocking] = useState<'pending' | 'running' | 'settled'>(signInUnlock === undefined ? 'settled' : 'pending')
-  useEffect(() => {
-    if (unlocking !== 'pending' || signInUnlock === undefined || load.status !== 'ready') return
-    const protection = load.view.protection
-    // Who holds the key is unknown until this device reads it from the relay; the next status report decides.
-    if (protection === undefined) return
-    if (!protection.locked) {
-      setUnlocking('settled')
-      return
-    }
-    setUnlocking('running')
-    void ops.unlockFromSignIn(signInUnlock)
-      .then(() => refresh(), () => undefined)
-      .finally(() => { setUnlocking('settled') })
-  }, [ops, load, refresh, signInUnlock, unlocking])
   if (load.status !== 'ready') return null
   const { view } = load
   const question = questionOf(view, ops.signedInThisPage())
-  // The sign-in's own unlock runs before the popup asks for the passkey a second time.
-  if (unlocking !== 'settled' && question === 'unlock') return null
   const step = started ? view.passkey : undefined
   if (step === undefined && (question === undefined || later.has(question))) return null
 

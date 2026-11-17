@@ -44,7 +44,6 @@ describe('desktop service endpoints', () => {
         xOAuthUrl: 'https://aeven.io/oauth/x',
         appleOAuthUrl: 'https://aeven.io/oauth/apple',
         googleOAuthUrl: 'https://aeven.io/oauth/google',
-        passkeyOAuthUrl: 'https://aeven.io/oauth/passkey',
         oauthFlow: 'window',
         jwksCacheFile: join(home, 'identity', 'aeven-jwks.json'),
       },
@@ -68,7 +67,6 @@ describe('desktop service endpoints', () => {
       AEVEN_OAUTH_X_URL: 'http://localhost:9000/oauth/x',
       AEVEN_OAUTH_APPLE_URL: 'http://localhost:9000/oauth/apple',
       AEVEN_OAUTH_GOOGLE_URL: 'http://localhost:9000/oauth/google',
-      AEVEN_OAUTH_PASSKEY_URL: 'http://localhost:9020/oauth/passkey',
       SLACK_CLIENT_ID: 'test-slack-client',
     })
     expect(configs['identity-user-aeven']).toEqual({
@@ -79,7 +77,6 @@ describe('desktop service endpoints', () => {
       xOAuthUrl: 'http://localhost:9000/oauth/x',
       appleOAuthUrl: 'http://localhost:9000/oauth/apple',
       googleOAuthUrl: 'http://localhost:9000/oauth/google',
-      passkeyOAuthUrl: 'http://localhost:9020/oauth/passkey',
       oauthFlow: 'window',
       jwksCacheFile: join(home, 'identity', 'aeven-jwks.json'),
     })

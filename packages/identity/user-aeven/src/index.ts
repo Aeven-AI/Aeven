@@ -39,7 +39,6 @@ export interface AevenClientConfig {
   readonly xOAuthUrl?: string
   readonly appleOAuthUrl?: string
   readonly googleOAuthUrl?: string
-  readonly passkeyOAuthUrl?: string
   readonly webUrl?: string
   readonly mediaUrl?: string
   readonly helpCenterUrl?: string
@@ -105,8 +104,6 @@ export interface Config {
   appleOAuthUrl?: string
   /** Provider sign-in URL; absent hides that provider's button. */
   googleOAuthUrl?: string
-  /** Passkey sign-in page on the Aeven site; absent hides the passkey button. */
-  passkeyOAuthUrl?: string
   /**
    * How a provider sign-in reaches the provider, once any `*OAuthUrl` is set.
    *
@@ -173,7 +170,6 @@ export const Config: z<Config> = z.object({
   xOAuthUrl: z.string(),
   appleOAuthUrl: z.string(),
   googleOAuthUrl: z.string(),
-  passkeyOAuthUrl: z.string(),
   oauthFlow: z.union(['redirect', 'window']),
   webUrl: z.string(),
   mediaUrl: z.string(),
@@ -230,7 +226,6 @@ function resolveOAuthFlow(config: Config): OAuthFlow | undefined {
   const offers = config.xOAuthUrl !== undefined
     || config.appleOAuthUrl !== undefined
     || config.googleOAuthUrl !== undefined
-    || config.passkeyOAuthUrl !== undefined
   if (config.oauthFlow !== undefined) {
     if (!offers) return undefined
     return config.oauthFlow
@@ -337,7 +332,6 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     const xOAuthUrl = stated(config.xOAuthUrl)
     const appleOAuthUrl = stated(config.appleOAuthUrl)
     const googleOAuthUrl = stated(config.googleOAuthUrl)
-    const passkeyOAuthUrl = stated(config.passkeyOAuthUrl)
     const webUrl = stated(config.webUrl)
     const mediaUrl = stated(config.mediaUrl)
     const helpCenterUrl = stated(config.helpCenterUrl)
@@ -348,7 +342,6 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       ...xOAuthUrl === undefined ? {} : { xOAuthUrl },
       ...appleOAuthUrl === undefined ? {} : { appleOAuthUrl },
       ...googleOAuthUrl === undefined ? {} : { googleOAuthUrl },
-      ...passkeyOAuthUrl === undefined ? {} : { passkeyOAuthUrl },
       ...oauthFlow === undefined ? {} : { oauthFlow },
       ...webUrl === undefined ? {} : { webUrl },
       ...mediaUrl === undefined ? {} : { mediaUrl },

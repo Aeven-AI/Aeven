@@ -1,6 +1,0 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
-#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-17-passkey-sign-in.md
-2026-11-17-passkey-sign-in.md: c4be76a79bed6774e2ccaee23c7d0457eb69b096
-2026-11-17-passkey-sign-in.zh.md: 6b292b8dbc646f3326ea2e3a9f411866a84a3a4c
