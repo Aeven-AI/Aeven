@@ -876,6 +876,7 @@ export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   SyncJoinRequestView: 'package-owned type is documented in packages/api/sync-controller/src/types.ts',
   SyncPasskeyPurpose: 'package-owned type is documented in packages/api/sync-controller/src/types.ts',
   SyncPasskeyStart: 'package-owned type is documented in packages/api/sync-controller/src/types.ts',
+  SyncSignInUnlock: 'package-owned type is documented in packages/api/sync-controller/src/types.ts',
   SyncStatus: 'package-owned type is documented in packages/sync/sync/src/index.ts',
   SyncProgress: 'package-owned type is documented in packages/sync/sync/src/index.ts',
   SyncDevice: 'package-owned type is documented in packages/sync/sync/src/index.ts',

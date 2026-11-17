@@ -34,6 +34,16 @@ export interface SyncPasskeyView {
   readonly state: 'waiting' | 'failed' | 'unsupported'
 }
 
+/** What a passkey sign-in on the caller's page prepared so its prompt also unlocks this device. */
+export interface SyncSignInUnlock {
+  /** The secret whose SHA-256 the sign-in page stored the result under, base64url. */
+  readonly verifier: string
+  /** The raw X25519 public key the result is sealed to, base64url. */
+  readonly publicKey: string
+  /** The raw X25519 private key that opens it, base64url. */
+  readonly secretKey: string
+}
+
 /** The page a passkey step opens. */
 export interface SyncPasskeyStart {
   /** The passkey page on the Aeven site, to open in the system browser. */

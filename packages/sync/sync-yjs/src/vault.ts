@@ -335,6 +335,7 @@ export class AccountVault {
       await relay.request('key.protect', {
         keyId: keyIdOf(key),
         passkey: { id: passkey.credentialId, wrapped: wrapUnderPasskey(passkey.prf, passkey.credentialId, key) },
+        ...passkey.signIn === undefined ? {} : { signIn: passkey.signIn },
       })
     } catch (error) {
       if (this.connection === relay) this.goOnline(relay)
@@ -368,6 +369,7 @@ export class AccountVault {
     const relay = this.requireConnection()
     const answer = await relay.request('passkey.add', {
       passkey: { id: passkey.credentialId, wrapped: wrapUnderPasskey(passkey.prf, passkey.credentialId, key) },
+      ...passkey.signIn === undefined ? {} : { signIn: passkey.signIn },
     })
     this.setPasskeys(answer)
   }
