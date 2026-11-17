@@ -43,6 +43,8 @@ function main(): void {
   rmSync(resolve(root, CLIENT_BUILD_RECORD_PATH), { force: true })
   runScript('build:lib', buildEnvironment)
   runScript('build:web', buildEnvironment)
+  // The Discord and Telegram connector servers run from their bundled `dist`, which no TypeScript project emits.
+  runScript('build:connectors', buildEnvironment)
   const record = writeClientBuildRecord(root, clientEnvironment)
   console.log(
     `build: recorded ${String(record.artifacts.fileCount)} client artifact(s) with ${String(Object.keys(record.environment).length)} public value(s)`,
