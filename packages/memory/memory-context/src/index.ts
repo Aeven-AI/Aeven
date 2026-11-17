@@ -181,14 +181,17 @@ function memoryLine(hit: MemoryHit, itemMaxChars: number, now: number): string {
  * @param decision - the step decision to extend.
  * @param reason - what the recall did, as one clause.
  * @param summary - short producer label for the collapsed row.
+ * @param consequence - what the absent block means for the request, as one sentence.
  * @returns the decision with one notice appended.
  */
-function withRecallNotice(decision: PreStepDecision, reason: string, summary: string): PreStepDecision {
+function withRecallNotice(
+  decision: PreStepDecision, reason: string, summary: string, consequence = 'This request runs without recalled memory.',
+): PreStepDecision {
   if (decision.kind !== 'enter') return decision
   return {
     ...decision,
     messages: [...decision.messages, createUserMessage({
-      content: [{ type: 'text', text: `Memory: ${reason}. This request runs without recalled memory.` }],
+      content: [{ type: 'text', text: `Memory: ${reason}. ${consequence}` }],
       source: { kind: 'plugin', plugin: name, form: 'notice', summary },
     })],
   }
@@ -264,6 +267,32 @@ export function rankMemoryHits(hits: readonly MemoryHit[]): MemoryHit[] {
     seen.add(key)
     return true
   })
+}
+
+/** The id that ends a rendered memory line. */
+const LINE_ID = /\[\w+:([^\]\s]+)\]$/gmu
+
+/**
+ * Ids of the memories the session's earlier recall blocks delivered and its requests still carry. A compaction
+ * replaces or prunes the history that held them, so blocks before the latest one do not count.
+ * @param session - the session whose log holds the earlier blocks.
+ * @returns the delivered ids.
+ */
+export function deliveredMemoryIds(session: Session): Set<string> {
+  const ids = new Set<string>()
+  for (const event of session.snapshotEvents()) {
+    // The compaction events are declared by the optional compaction package, which this package does not depend on.
+    const type: string = event.type
+    if (type === 'compaction/summary' || type === 'compaction/prune') {
+      ids.clear()
+      continue
+    }
+    if (event.type !== 'user/message' || event.data.source.kind !== 'plugin' || event.data.source.plugin !== name) continue
+    const text = event.data.content.map(part => part.type === 'text' ? part.text : '').join('')
+    if (!text.startsWith(OPEN)) continue
+    for (const match of text.matchAll(LINE_ID)) if (match[1] !== undefined) ids.add(match[1])
+  }
+  return ids
 }
 
 /**
@@ -532,20 +561,40 @@ export function apply(ctx: Context, config: Config): void {
         ? early.recall
         : turnRecall(payload.agent.session, state.scope, state.userText, payload.turn, payload.signal))
       if (recall.degraded === true) logger.warn(`recall for session ${payload.agent.session.id} turn ${payload.turn} is degraded: its memories were not judged for relevance`)
-      const hits = rankMemoryHits(recall.hits)
+      // A subagent's task was written by its parent, so mechanically ranked memories of the person seldom fit it:
+      // without a relevance judgment it receives none.
+      const unjudgedTask = recall.degraded === true && payload.agent.session.header.origin === 'subagent'
+      const ranked = unjudgedTask ? [] : rankMemoryHits(recall.hits)
+      // A memory an earlier block of this session delivered is still in the request's history.
+      const delivered = deliveredMemoryIds(payload.agent.session)
+      const hits = ranked.filter(hit => !delivered.has(hit.id))
+      const repeated = ranked.length - hits.length
       const judged = recall.lead !== undefined && recall.degraded !== true
       const text = judged
         ? renderMemoryContext(hits, config.contextMaxChars, config.itemMaxChars, uncapped(config.judgedMaxItems), config.judgedMaxItems)
         : renderMemoryContext(hits, config.contextMaxChars, config.itemMaxChars, config.domainMaxItems, config.maxItems)
-      logger.debug(`recall session=${payload.agent.session.id} turn=${payload.turn} hits=${recall.hits.length} chars=${text.length} timedOut=${String(recall.timedOut)}`)
+      logger.debug(`recall session=${payload.agent.session.id} turn=${payload.turn} hits=${recall.hits.length} repeated=${repeated} chars=${text.length} timedOut=${String(recall.timedOut)}`)
       const profile = await profiled
       if (payload.signal.aborted) return decision
+      // A personal turn whose memories about the person an earlier block delivered still gets the note.
+      const personal = recall.sharing === true
+        && (needsPersonalNote(text, true) || ranked.some(hit => hit.domain === 'person' && delivered.has(hit.id)))
+      const note = personal
+        ? [createUserMessage({ content: [{ type: 'text', text: PERSONAL_NOTE }], source: { kind: 'plugin', plugin: name, form: 'notice', summary: 'memory: personal turn' } })]
+        : []
       if (!text) {
-        return withRecallNotice(
-          withMessages(decision, profile),
-          recall.timedOut ? `recall did not finish within ${config.recallTimeoutMs}ms` : 'recall found no memory for this request',
-          recall.timedOut ? 'memory: timed out' : 'memory: no hits',
-        )
+        if (recall.timedOut) return withRecallNotice(withMessages(decision, profile), `recall did not finish within ${config.recallTimeoutMs}ms`, 'memory: timed out')
+        if (repeated > 0) {
+          return withMessages(withRecallNotice(
+            withMessages(decision, profile),
+            'recall found only memories already given earlier in this conversation',
+            'memory: already given',
+            'They still apply.',
+          ), note)
+        }
+        return unjudgedTask && recall.hits.length > 0
+          ? withRecallNotice(withMessages(decision, profile), 'recall could not judge which memories fit this task', 'memory: not judged')
+          : withRecallNotice(withMessages(decision, profile), 'recall found no memory for this request', 'memory: no hits')
       }
       const procedures = hits
         .filter(hit => hit.snippet.startsWith(LEARNED_PROCEDURE_PREFIX) && text.includes(`:${hit.id}]`))
@@ -557,9 +606,6 @@ export function apply(ctx: Context, config: Config): void {
         recalledProcedures.set(payload.agent.session.id, recalled)
       }
       const message = createUserMessage({ content: [{ type: 'text', text }], source: { kind: 'plugin', plugin: name, form: 'recall' } })
-      const note = needsPersonalNote(text, recall.sharing)
-        ? [createUserMessage({ content: [{ type: 'text', text: PERSONAL_NOTE }], source: { kind: 'plugin', plugin: name, form: 'notice', summary: 'memory: personal turn' } })]
-        : []
       return withMessages(decision, [...profile, message, ...note])
     } catch (error) {
       // Memory is optional: a failed recall never blocks the step, but the turn states that it ran without memory.
