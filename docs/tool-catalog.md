@@ -1194,15 +1194,15 @@ Update the current goal.
     },
     "objective": {
       "type": "string",
-      "description": "Replacement objective; valid only with action edit."
+      "description": "Replacement objective for action edit; ignored otherwise."
     },
     "max_goal_rounds": {
       "type": "number",
-      "description": "Replacement cap; valid only with action edit."
+      "description": "Replacement cap for action edit; ignored otherwise."
     },
     "blocked_reason": {
       "type": "string",
-      "description": "Required only with action blocked: the concrete condition that persisted across rounds and blocks progress."
+      "description": "Required for action blocked: the concrete condition that persisted across rounds and blocks progress; ignored otherwise."
     }
   },
   "required": [

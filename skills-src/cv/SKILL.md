@@ -5,9 +5,9 @@ description: Make a CV or résumé with the user in one of Aeven's forty templat
 
 # CV
 
-A CV is two separate things: the **content** (who the person is, as JSON) and the **template** (how it looks). Every template reads the same fields, so a CV renders in any template; switching the look is changing one field. HTML is the source; PDF, Word and Pages are exported from it.
+A CV is **content** (who the person is, as JSON) plus a **template** (how it looks). Every template reads the same fields, so switching the look is changing one field. HTML is the source; PDF, Word and Pages are exported from it.
 
-You **guide** the user through a short, fixed path: questions, outline, build, review. They always know which step they are on and what comes next: open each step with one short line ("Reading your CV…", "Here's the plan for your pages", "Building the pages now"). Never invent their facts, employers, dates, numbers or contact details: ask, or leave a clearly marked placeholder.
+You **guide** the user through a short, fixed path: questions, outline, build, review. They always know which step they are on: open each step with one short line ("Reading your CV…", "Here's the plan for your pages", "Building the pages now"). Never invent their facts, employers, dates, numbers or contact details: ask, or leave a clearly marked placeholder.
 
 Everything you need is in this file, the header comment of `$SKILL/scripts/cv.mjs`, and what the scripts print. Do not read the skill's other scripts or the templates' `layouts.mjs`, measure pages, or write helper scripts: when the output does not tell you what to do, ask the user.
 
@@ -42,15 +42,14 @@ Everything you need is in this file, the header comment of `$SKILL/scripts/cv.mj
    ```
    Run the export with the bash tool's `output_files` set to `cv.pdf`, `cv.docx` and `cv.pages` in the CV folder and `timeoutMs: 300000`, on every rebuild too: those files are what the reply ends with. It writes `cv.html`, `cv.pdf`, `cv.docx`, and `cv.pages` on a Mac with Pages; the first export without Chrome downloads one. The workspace sandbox refuses the Pages step: when the exporter prints `.pages skipped`, run exactly the command it prints, nothing added, with the sandbox escalation, `output_files` set to the `.pages` file, `timeoutMs: 300000`, and "convert the CV to Pages and install its fonts" as the reason. When it prints `Pages file not made`, or the step fails or times out, hand over the PDF and Word files with the exporter's message; never look for the Pages app yourself.
 7. **Follow the page report.** The exporter prints each page's sections and how full it is, then `layout ok` or warnings naming the `cv.json` change: an entry taller than its page, more than four pages, or a nearly empty last page (lines to free, and which section can become a compact `list`). Make the first change it names that keeps the person's content, build again, and stop at `layout ok`. When two rounds do not get there, or the only changes left cut content, ask the user which way to go with the report's options.
-8. **Look before you show.** The exporter prints `previews:` and a picture of every page. Look at each: the photo crop, awkward line breaks, empty areas the report cannot see (a design's photo panel left bare without a photo). Fix what you can in `cv.json` and build again.
-9. **Hand it over, and end on the files.** The reply is short: one line on what you built (template, number of pages); at most three decisions for the user to confirm; the files, each in inline code by its full path (`/…/cv/2026/cv.pdf`, `cv.docx`, `cv.pages`); and one line naming two or three fitting changes (add the photo, fewer pages, another template, rework the profile). Then end the turn with no question, so the conversation closes on the files. Each change the user asks for is an edit to `cv.json` and a rebuild, never an edit to the exported files.
+8. **Look before you show.** The exporter prints `previews:` and a picture of every page. Check each for the photo crop, awkward line breaks and empty areas the report cannot see (a bare photo panel). Fix what you can in `cv.json` and build again.
+9. **Hand it over, and end on the files.** The reply is short: one line on what you built (template, number of pages); at most three decisions for the user to confirm; the files, each in inline code by its full path (`/…/cv/2026/cv.pdf`, `cv.docx`, `cv.pages`); and one line naming two or three fitting changes (add the photo, fewer pages, another template, rework the profile). Then end the turn on the files, with no question. Each change the user asks for is an edit to `cv.json` and a rebuild, never an edit to the exported files.
 
 ## Content
 
 - `sections` run in order after About and Skills. `timeline` is for jobs, education, volunteering: `org`, `title`, `dates`, `place`, `text`, `points`, and an optional `icon` (briefcase, plane, compass, pen, code, chart, megaphone, camera, cap, book, laptop, award, globe, heart, flask, building). `list` is the compact form, one line per entry: awards, publications, certificates, and education when space is short: `title`, `meta` (year or school and year), `text`. `text` is one paragraph; `tags` a short checklist.
 - `sidebar` sections (`tags`, `text`, `list`) join Skills, as the template's knowledge and extras lists.
 - **Skill levels** draw as rings or bars, so they are numbers the user stands behind. Use the person's own number; otherwise map their word: expert 90, advanced 75, intermediate 60, basic 40, and keep the word in `note`. A skill with neither goes into a `tags` section, not a ring. Up to four skills read best as rings.
-- Without a photo, the cover shows the person's initials.
 - Content flows onto as many pages as it needs, a whole entry at a time; only page 1 carries the name block or header.
 
 ## Exports

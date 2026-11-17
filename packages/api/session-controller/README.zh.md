@@ -37,6 +37,8 @@ Client adapter 提供 `SessionEventStream`，即绑定到一个普通 Session �
 
 Session 对象还承载本地提交回显：`session.beginSubmission` 在调用方序列化与 prompt 之前，同步把一条回显写入 `SessionSnapshot.pendingSubmissions`，会话 UI 因此能在点击提交的当帧显示消息。Session 根据当前运行状态与请求的投递模式推导每条回显的 `transcript`、`queued` 或 `steering` 位置，并在序列化期间保留该位置。prompt 的 `requestId` 是关联标识：Host 把它回显为 durable user source 的 `rpcId`，queue occurrence 也把它投影为 `SessionQueuedItem.rpcId`。回显在观察到其 durable event 或 queue occurrence 后延迟一个动画帧退休，该延迟保证替代内容就绪前回显仍可渲染；带标识的 prompt 失败或被放弃时立即退休，销毁时按 failed 退休；每次退休恰好触发一次注册的 `onRetire` 回调。回显只存在于 Client 内存；刷新与重连只从 durable event 重建会话。
 
+提示重试按首次已提交入队记录中的请求标识去重，消息被领取或删除后仍然有效。异步附件准备结束后再次检查，因此并发重试只接受一条输入。接受确认入队，不代表执行或完成。
+
 -----
 
 <a id="configuration"></a>

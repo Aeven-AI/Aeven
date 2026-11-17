@@ -786,11 +786,11 @@ class UpdateGoalArgs(TypedDict):
     revision: float
     # edit, pause, and resume require a direct top-level human request. complete and blocked are also allowed during an automatic continuation of this goal; blocked is rejected before the configured minimum round count.
     action: Literal["edit", "pause", "resume", "complete", "blocked"]
-    # Replacement objective; valid only with action edit.
+    # Replacement objective for action edit; ignored otherwise.
     objective: NotRequired[str]
-    # Replacement cap; valid only with action edit.
+    # Replacement cap for action edit; ignored otherwise.
     max_goal_rounds: NotRequired[float]
-    # Required only with action blocked: the concrete condition that persisted across rounds and blocks progress.
+    # Required for action blocked: the concrete condition that persisted across rounds and blocks progress; ignored otherwise.
     blocked_reason: NotRequired[str]
     # Additional keys beyond those declared are allowed.
 

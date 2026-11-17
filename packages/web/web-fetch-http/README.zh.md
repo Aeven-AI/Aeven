@@ -96,7 +96,9 @@ const page = await ctx.web.fetch({ url: 'https://example.com' })
 
 ### 读取路径
 
-抓取先校验 URL，只解析一次主机名，结果中只要有非公开地址就拒绝，并把连接固定到已接受地址。每次同源重定向都重复该检查；跨源重定向或非公开目标在接收响应字节前失败。最终响应按 `Content-Type` 分类、依声明的 charset 解码，并在字节上限内读取；解码后的文本再截断到字符上限。
+抓取先校验 URL，只解析一次主机名，结果中只要有非公开地址就拒绝，并把连接固定到已接受地址。每次同源重定向都重复该检查；跨源重定向或非公开目标在接收响应字节前失败。最终响应按 `Content-Type` 分类、依声明的 charset 解码（含 UTF-8 标签的畸形声明使用严格 UTF-8 恢复），并在字节上限内读取；解码后的文本再截断到字符上限。
+
+以逗号或空白连接、且包含 UTF-8 标签的畸形 charset 声明（如 `charset=utf-8,gbk`）按严格 UTF-8 解码。无效 UTF-8 以 `WEB_UNSUPPORTED_CONTENT_TYPE` 失败；提供方不会尝试其他编码。字节上限截断某个字符时，恢复会省略不完整的后缀并返回 `truncated: true`；完整响应必须通过 EOF 检查。有效的单标签声明保持普通解码行为。
 
 </details>
 
@@ -133,7 +135,8 @@ const page = await ctx.web.fetch({ url: 'https://example.com' })
 这些限制说明提供方何时不安全或不合适。它们是当前包约束。
 
 - **只解码文本内容**——包括 html/xhtml 与 `text/*` 加 JSON/XML 家族；缺少 `Content-Type` 或任何二进制类型都会抛出 `WEB_UNSUPPORTED_CONTENT_TYPE`，可提取文本的 PDF 解码属于明确的延期工作。
-- **charset 只来自 `Content-Type` 标头**（默认 UTF-8）——HTML `<meta charset>` 声明会被忽略；声明但无法识别的 charset 标签会抛出异常，而非回退。
+- **charset 只来自 `Content-Type` 标头**（默认 UTF-8）——HTML `<meta charset>` 声明会被忽略；不含 UTF-8 恢复标签的不受支持声明会抛出异常。
+- **UTF-8 恢复是偏好，而非编码检测**——字节可能同时是有效的 UTF-8 和另一种编码，即使响应很长。此时恢复选择 UTF-8；不含 UTF-8 标签的畸形声明仍不受支持。
 
 <a id="dev-note"></a>
 
