@@ -144,6 +144,7 @@
     "@aeven/host-directory-picker-auto": "workspace:^",
     "@aeven/host-directory-picker-browse": "workspace:^",
     "@aeven/host-directory-picker-native": "workspace:^",
+    "@aeven/host-account-data": "workspace:^",
     "@aeven/host-message-share": "workspace:^",
     "@aeven/host-frontend-static": "workspace:^",
     "@aeven/host-plugin-inventory": "workspace:^",

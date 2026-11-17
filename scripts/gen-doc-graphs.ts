@@ -358,6 +358,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Owns local per-assistant-message feedback, lifecycle and target validation, per-item compare-and-set, and the Host unary Remote contract without entering Session history or telemetry.',
   },
   {
+    key: 'accountData',
+    pkg: 'host-account-data',
+    title: 'Account data export and erasure',
+    mode: 'core',
+    consumers: ['recordings', 'personalization', 'aeven-folder-sync', 'host-account-integrations', 'message-feedback', 'working-directory'],
+    note: 'Streams the signed-in account\'s data from every registered source and the Aeven API as one zip download, and erases the local data of accounts the Aeven API purged after their deletion grace period.',
+  },
+  {
     key: 'messageShare',
     pkg: 'message-share',
     title: 'Public links to shared messages',

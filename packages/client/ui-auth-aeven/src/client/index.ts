@@ -11,8 +11,9 @@
 export { Authenticate, type AuthenticateProps } from './auth/views/Authenticate.tsx'
 export { OauthResult, type OauthResultProps } from './auth/views/OauthResult.tsx'
 export { matchAuthRoute, type AuthRouteMatch } from './auth/route-match.ts'
-export { mountAuthScreen, mountNameScreen, type AuthScreenCover, type AuthScreenExit, type MountedAuthScreen } from './auth/mount.tsx'
+export { mountAuthScreen, mountNameScreen, mountRestoreScreen, type AuthScreenCover, type AuthScreenExit, type MountedAuthScreen } from './auth/mount.tsx'
 export { NameCheck, type NameCheckProps } from './auth/views/NameCheck.tsx'
+export { RestoreAccount, type RestoreAccountProps } from './auth/views/RestoreAccount.tsx'
 export { AUTH_ROUTES, AUTH_ROUTE_PREFIXES, isAuthRoute, navigateRoute } from './auth/services/routes.ts'
 export {
   cachedProfile, forgetCachedProfile, session, storage,
@@ -43,6 +44,8 @@ export type AuthGateResult =
   | { readonly state: 'authenticated'; readonly userId: string }
   /** A session was restored, but nobody has named this reader yet. */
   | { readonly state: 'unnamed'; readonly userId: string }
+  /** A session was restored for an account waiting out its deletion grace period; the restore screen owns the page. */
+  | { readonly state: 'pendingDeletion'; readonly userId: string; readonly purgeAt: string }
   /** Nobody is signed in; an authentication screen owns the page. */
   | { readonly state: 'unauthenticated' }
   /** No Aeven authority is configured, so this harness authenticates nobody. */
@@ -59,6 +62,9 @@ export type AuthGateResult =
  * @returns whether the application may boot, or the naming step owns the page.
  */
 function gateResultFor(profile: AevenProfile): AuthGateResult {
+  if (profile.deletion !== undefined) {
+    return { state: 'pendingDeletion', userId: profile.userId, purgeAt: profile.deletion.purgeAt }
+  }
   return profile.displayNameSet === true
     ? { state: 'authenticated', userId: profile.userId }
     : { state: 'unnamed', userId: profile.userId }
@@ -75,7 +81,8 @@ function gateResultFor(profile: AevenProfile): AuthGateResult {
  */
 function heldProfile(): AevenProfile | undefined {
   const kept = cachedProfile()
-  if (kept === undefined || kept.displayNameSet !== true || hostRefusedSession() || authLocalePending()) return undefined
+  if (kept === undefined || kept.displayNameSet !== true || kept.deletion !== undefined) return undefined
+  if (hostRefusedSession() || authLocalePending()) return undefined
   if (storage.getItem('userId') !== kept.userId) return undefined
   const bearer = bearerToken(kept.userId)
   return bearer !== undefined && usableToken(bearer, kept.userId) ? kept : undefined

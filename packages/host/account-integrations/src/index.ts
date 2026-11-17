@@ -14,6 +14,7 @@ import { assertNever } from '@aeven/util-values'
 import { credentialKey, credentialRef } from '@aeven/credentials'
 import { avnHomePath } from '@aeven/home-paths'
 import { createScope, type Scope } from '@aeven/scope'
+import type {} from '@aeven/host-account-data'
 import type {} from '@aeven/identity-user'
 import type { Agent, PreStepDecision } from '@aeven/agent'
 import type {} from '@aeven/tools'
@@ -643,6 +644,41 @@ export default class AccountIntegrations extends TypertRemoteService {
   async [Service.init](): Promise<void> {
     this.domain = await this.ctx.storageDomain.open(domainSpec)
     this.ctx.effect(() => () => this.domain.close(), 'account-integrations: storage')
+    // The account's skills, skill choices, and connected services are part of its data export, and go when a purged
+    // account is erased; their files live in the account home, which the account-data home source covers.
+    this.ctx.inject(['accountData'], (scoped) => {
+      const ownedKeys = (owner: string) => {
+        const prefix = `${accountDirectory(owner)}:`
+        return {
+          skills: [...this.domain.table('skills').entries()].filter(([, item]) => item.owner === owner),
+          preferences: [...this.domain.table('skill_preferences').entries()].filter(([key]) => key.startsWith(prefix)),
+          connectors: [...this.domain.table('connectors').entries()].filter(([, item]) => item.owner === owner),
+        }
+      }
+      scoped.effect(() => scoped.accountData.register({
+        name: 'skills and connectors',
+        owners: () => Promise.resolve([...new Set([...this.domain.table('connectors').entries(), ...this.domain.table('skills').entries()]
+          .map(([, item]) => item.owner))]),
+        export: (owner, out) => {
+          const owned = ownedKeys(owner)
+          void out.content('settings/skills.json', () => JSON.stringify(owned.skills.map(([, skill]) => ({
+            ...skill,
+            ...owned.preferences.find(([key]) => key === `${accountDirectory(owner)}:${skill.name}`)?.[1],
+          })), null, 2))
+          void out.content('settings/connected-services.json', () => JSON.stringify(owned.connectors.map(([, item]) => item), null, 2))
+          return Promise.resolve()
+        },
+        erase: async (owner) => {
+          const owned = ownedKeys(owner)
+          for (const [id] of owned.connectors) {
+            this.connected.delete(id)
+            await this.domain.table('connectors').delete(id)
+          }
+          for (const [key] of owned.skills) await this.domain.table('skills').delete(key)
+          for (const [key] of owned.preferences) await this.domain.table('skill_preferences').delete(key)
+        },
+      }), 'account-integrations: account data')
+    })
     for (const [id, connector] of this.domain.table('connectors').entries()) {
       if (await this.isConnected(connector)) this.connected.add(id)
     }

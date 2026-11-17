@@ -82,6 +82,37 @@ export interface TypeApiEntry {
 /** Every harness `ctx.<key>` service, sorted by key. */
 export const SERVICE_API: readonly ServiceApiEntry[] = [
   {
+    key: 'accountData',
+    summary: 'The account\'s data on this Host, its streamed export, and the erasure of accounts the Aeven API purged.',
+    description: 'The account\'s data on this Host, its streamed export, and the erasure of accounts the Aeven API purged.',
+    methods: [
+      {
+        signature: 'register(source: AccountDataSource): () => void',
+        description: 'Add a source of per-account data.',
+        parameters: [{ name: 'source', description: 'what the source keeps and how it exports and erases it.' }],
+        returns: 'disposer removing the source.',
+      },
+      {
+        signature: 'export(owner: string, signal: AbortSignal, settled: () => void = () => {}): ReadableStream<Uint8Array>',
+        description: 'Stream one account\'s export as a zip.',
+        parameters: [{ name: 'owner', description: 'the account.' }, { name: 'signal', description: 'aborted when the reader cancels the download.' }, { name: 'settled', description: 'called once when the archive has finished, failed, or been cancelled.' }],
+        returns: 'the archive bytes, produced as they are read.',
+      },
+      {
+        signature: 'async erase(owner: string): Promise<void>',
+        description: 'Remove every source\'s data for one account from this Host.',
+        parameters: [{ name: 'owner', description: 'the account.' }],
+        returns: 'once each source has run; a failing source is logged and the rest still run.',
+      },
+      {
+        signature: 'checkPurged(): Promise<void>',
+        description: 'Ask the Aeven API which accounts this Host holds data for were purged, and erase them.',
+        parameters: [],
+        returns: 'once the check and every erasure it started have finished; concurrent calls share one run.',
+      },
+    ],
+  },
+  {
     key: 'accountIntegrations',
     summary: 'Signed-in users manage their own integrations; each agent mounts only its owner\'s connectors.',
     description: 'Signed-in users manage their own integrations; each agent mounts only its owner\'s connectors.',
@@ -6167,6 +6198,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
 /** Shapes of every exported type the Service and Event signatures reference (transitively), sorted by name. */
 export const TYPE_API: readonly TypeApiEntry[] = [
   {
+    name: 'AccountDataSource',
+    declaration: 'export interface AccountDataSource {\n    readonly name: string;\n    readonly owners?: () => Promise<readonly string[]>;\n    readonly export: (owner: string, out: AccountExportWriter, signal: AbortSignal) => Promise<void>;\n    readonly erase: (owner: string) => Promise<void>;\n}',
+  },
+  {
+    name: 'AccountExportWriter',
+    declaration: 'export interface AccountExportWriter {\n    content(entry: string, produce: () => ExportContent): Promise<void>;\n    file(entry: string, source: string): Promise<void>;\n    directory(entry: string, root: string, skip?: (relativePath: string) => boolean): Promise<void>;\n}',
+  },
+  {
     name: 'AccountIntegrationsView',
     declaration: 'export interface AccountIntegrationsView {\n    skills: PersonalSkillView[];\n    connectors: PersonalConnectorView[];\n    providers: ConnectorProviderView[];\n}',
   },
@@ -7273,6 +7312,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'Expectation',
     declaration: 'export type Expectation = {\n    kind: \'fileExists\';\n    path: string;\n} | {\n    kind: \'fileContains\';\n    path: string;\n    text: string;\n} | {\n    kind: \'fileEquals\';\n    path: string;\n    text: string;\n} | {\n    kind: \'fileNewerThan\';\n    path: string;\n    sinceMs: number;\n} | {\n    kind: \'nodeValueEquals\';\n    token: string;\n    value: string;\n} | {\n    kind: \'windowTitled\';\n    title: string;\n} | {\n    kind: \'appObject\';\n    app: string;\n    collection: string;\n    match: Readonly<Record<string, string>>;\n} | {\n    kind: \'calendarHasEvent\';\n    calendar?: string;\n    count?: number;\n    match?: Readonly<Record<string, string>>;\n} | {\n    kind: \'noteExists\';\n    name: string;\n    folder?: string;\n    contains?: string;\n};',
+  },
+  {
+    name: 'ExportContent',
+    declaration: 'export type ExportContent = string | Uint8Array | Promise<string | Uint8Array> | AsyncIterable<string | Uint8Array>;',
   },
   {
     name: 'ExternalChange',

@@ -3,6 +3,7 @@
  * @module @aeven/message-feedback
  */
 
+import type {} from '@aeven/host-account-data'
 import type {} from '@aeven/identity-user'
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
@@ -208,6 +209,27 @@ export class MessageFeedbackService extends TypertRemoteService {
     this.ctx.on('sync/status', (owner) => { void this.synced.attach(owner) })
     this.ctx.on('sync/reset', (owner) => { void this.synced.reset(owner) })
     this.ctx.effect(() => () => this.synced.dispose(), 'message-feedback.sync')
+    // The ratings an account gave its sessions' messages are part of its data export, and go when a purged account
+    // is erased.
+    this.ctx.inject(['accountData'], (scoped) => {
+      const owned = async (owner: string): Promise<SessionId[]> => (await this.ctx.sessionPersistence.listSnapshots())
+        .flatMap(snapshot => snapshot.header.owner === owner ? [snapshot.header.id] : [])
+      scoped.effect(() => scoped.accountData.register({
+        name: 'message feedback',
+        export: async (owner, out) => {
+          const table = this.requireTable()
+          const rated = (await owned(owner)).flatMap((id) => {
+            const row = table.get(id)
+            return row === undefined || row.items.length === 0 ? [] : [{ chat: id, ratings: row.items }]
+          })
+          if (rated.length > 0) void out.content('chats/feedback.json', () => JSON.stringify(rated, null, 2))
+        },
+        erase: async (owner) => {
+          const table = this.requireTable()
+          for (const id of await owned(owner)) await table.delete(id)
+        },
+      }), 'message-feedback: account data')
+    })
   }
 
   /**

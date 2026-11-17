@@ -131,6 +131,11 @@ export const zh = {
   'name.prompt': '在我们开始聊天之前，我该怎么称呼你？',
   'name.promptAnonymous': '在我这里你不必匿名 ;)',
   'name.saveFailed': '我无法保存这个名字。请重试',
+  'restore.title': '你的账户即将被删除',
+  'restore.body': '你的账户和所有数据将于 {date} 被永久删除。恢复后一切将保持原样。',
+  'restore.action': '恢复账户',
+  'restore.signOut': '退出登录',
+  'restore.failed': '无法恢复你的账户。请重试',
 } as const
 
 /** English dictionary, key-identical to the Chinese source of truth. */
@@ -249,6 +254,11 @@ export const en: Record<AuthAevenKey, string> = {
   'name.prompt': 'Before we continue to chat, how should I call you?',
   'name.promptAnonymous': "You don't have to be anonymous with me ;)",
   'name.saveFailed': 'I could not save that name. Please try again',
+  'restore.title': 'Your account is scheduled for deletion',
+  'restore.body': 'Your account and all its data will be erased on {date}. Restore it to keep everything as it was.',
+  'restore.action': 'Restore account',
+  'restore.signOut': 'Sign out',
+  'restore.failed': 'I could not restore your account. Please try again',
 }
 
 /** Spanish dictionary, key-identical to the Chinese source of truth. */
@@ -367,6 +377,11 @@ export const es: Record<AuthAevenKey, string> = {
   'name.prompt': 'Antes de seguir chateando, ¿cómo quieres que te llame?',
   'name.promptAnonymous': 'Conmigo no tienes que ser anónimo ;)',
   'name.saveFailed': 'No pude guardar ese nombre. Inténtalo de nuevo',
+  'restore.title': 'Tu cuenta está programada para eliminarse',
+  'restore.body': 'Tu cuenta y todos sus datos se borrarán el {date}. Recupérala para conservarlo todo como estaba.',
+  'restore.action': 'Recuperar cuenta',
+  'restore.signOut': 'Cerrar sesión',
+  'restore.failed': 'No pude recuperar tu cuenta. Inténtalo de nuevo',
 }
 
 /** Key domain of the Aeven authentication namespace. */

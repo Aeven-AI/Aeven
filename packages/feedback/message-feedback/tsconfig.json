@@ -43,6 +43,9 @@
     },
     {
       "path": "../../sync/sync"
+    },
+    {
+      "path": "../../host/account-data"
     }
   ]
 }

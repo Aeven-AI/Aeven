@@ -11,6 +11,7 @@
  *
  * @module @aeven/personalization
  */
+import { readdir, rm } from 'node:fs/promises'
 import { isAbsolute } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
@@ -18,9 +19,10 @@ import { scopeOf, scopeParentOf } from '@aeven/scope'
 import { PERSONA_SECTION } from '@aeven/system-prompt'
 import { Remote, TypertRemoteService } from '@aeven/typert-protocol'
 import type { Agent } from '@aeven/agent'
+import type {} from '@aeven/host-account-data'
 import type {} from '@aeven/identity-user'
 import type {} from '@aeven/sync'
-import { PersonalizationStore } from './store.ts'
+import { PersonalizationStore, personalizationPath } from './store.ts'
 import { PersonalizationSync } from './sync.ts'
 import type { StoredChange } from './store.ts'
 import type {
@@ -82,6 +84,17 @@ export default class PersonalizationController extends TypertRemoteService {
     ctx.on('sync/status', (owner) => { void this.synced.attach(owner) })
     ctx.on('sync/reset', (owner) => { void this.synced.reset(owner) })
     ctx.effect(() => () => { void this.synced.dispose() }, 'personalization.sync')
+    // Each account's preferences are part of its data export, and go when a purged account is erased.
+    ctx.inject(['accountData'], (scoped) => {
+      scoped.effect(() => scoped.accountData.register({
+        name: 'personalization',
+        owners: async () => (await readdir(config.root).catch(() => [] as string[]))
+          .filter(name => name.endsWith('.json'))
+          .map(name => decodeURIComponent(name.slice(0, -'.json'.length))),
+        export: async (owner, out) => { await out.file('personalization.json', personalizationPath(config.root, owner)) },
+        erase: async (owner) => { await rm(personalizationPath(config.root, owner), { force: true }) },
+      }), 'personalization: account data')
+    })
 
     /* jscpd:ignore-start -- mirrors @aeven/memory-context's per-agent prompt-section fibers for its own block */
     // Registered in each agent's own scope, so each session renders the preferences — and the master prompt — of

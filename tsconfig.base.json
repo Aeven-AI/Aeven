@@ -33,6 +33,7 @@
       "@aeven/automations": ["./packages/core/automations/src"],
       "@aeven/automations/types": ["./packages/core/automations/src/types.ts"],
       "@aeven/skill-catalog": ["./packages/skill/skill-catalog/src"],
+      "@aeven/host-account-data": ["./packages/host/account-data/src"],
       "@aeven/host-account-integrations": ["./packages/host/account-integrations/src"],
       "@aeven/host-account-integrations/types": ["./packages/host/account-integrations/src/types.ts"],
       "@aeven/client-ui-settings-integrations": ["./packages/client/ui-settings-integrations/src"],

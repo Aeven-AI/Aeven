@@ -9,7 +9,7 @@
  */
 
 import { helpCenterUrl, mediaUrl, webUrl } from './config.ts'
-import { cloud, mfa, removeAvatar, setDisplayName, setLocale as storeLocale, signOut, uploadAvatar } from './api.ts'
+import { account, cloud, mfa, removeAvatar, setDisplayName, setLocale as storeLocale, signOut, uploadAvatar } from './api.ts'
 import { session } from './session.ts'
 import { takePendingAuthLocale } from '../../locales.ts'
 import { onAccountLocale } from './watch.ts'
@@ -88,6 +88,13 @@ export interface AevenReader {
    * @returns the decoded response body.
    */
   readonly cloud: <T>(path: string, init?: RequestInit) => Promise<T>
+  /**
+   * Call one of Aeven's `/api/account` routes — export, deletion, restore — as this reader.
+   * @param path - the route below `/api/account`, starting with `/`.
+   * @param init - method and body; the credential is supplied.
+   * @returns the decoded response body.
+   */
+  readonly account: <T>(path: string, init?: RequestInit) => Promise<T>
   /**
    * What an Install item would do on this page.
    * @returns the offer, or undefined off a phone and inside the installed app.
@@ -174,6 +181,7 @@ export function publishReader(): void {
       publishReader()
     },
     cloud,
+    account,
     mfa,
     installOffer,
     installApp,

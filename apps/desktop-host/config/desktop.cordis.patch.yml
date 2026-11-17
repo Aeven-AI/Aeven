@@ -35,6 +35,13 @@
   config:
     siteUrl: !!js process.env.AEVEN_WEB_URL ?? 'https://aeven.io'
 
+- id: account-data
+  config:
+    apiUrl: !!js process.env.AEVEN_API_URL ?? 'https://aeven.io/api'
+    # The desktop's chats folder holds what chats without a folder made on this computer; every account's export
+    # includes it.
+    chatFiles: !!js avnHomePath('chats')
+
 - id: account-integrations
   config:
     apiUrl: !!js process.env.AEVEN_API_URL ?? 'https://aeven.io/api'

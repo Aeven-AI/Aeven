@@ -31,6 +31,13 @@ export interface AevenProfile {
   readonly roles?: readonly string[]
   /** The language the account reads in, `en`, `es` or `zh`; absent until the reader chooses one. */
   readonly locale?: string
+  /** Present while the account waits out its deletion grace period; the gate shows the restore screen. */
+  readonly deletion?: {
+    /** ISO time the deletion was requested. */
+    readonly requestedAt: string
+    /** ISO time the account and its data are erased. */
+    readonly purgeAt: string
+  }
 }
 
 /** The bundle the OAuth-result screen hands to its children. */

@@ -15,6 +15,8 @@ Account settings also owns the reader's picture: a photo control opens the picke
 
 Account → Security provides a two-factor authentication switch. Enabling it opens QR-code enrollment and requires an authenticator code before activation; recovery codes appear once. Disabling requires an authenticator or unused recovery code. The switch reflects confirmed protection; cancelling or a refused code leaves it unchanged. Unavailable status disables the switch and offers a retry. These controls stay inside Account settings. The page calls these operations through the published reader’s authenticated `mfa` method.
 
+The page ends with Your data: Export data downloads a zip of everything the account keeps on the Host the page talks to and on the Aeven API, streamed by [host-account-data](../../host/account-data/README.md); Delete account, the page's last row, opens a dialog that names what deletion removes and costs, asks for the account's email and, with two-factor protection on, a code, then signs the reader out. The account is erased after 30 days, and signing in before then shows a restore screen. Each row's question icon opens the longer explanation.
+
 ## Table of Contents
 
 - [Use this package](#use-this-package)

@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useId, useRef, useState, type ChangeEvent, type CSSProperties, type ReactNode } from 'react'
 import {
   Button, IconCheckOutline14, IconLucideCamera, IconRightUpOutline16, IconTrashOutline16,
-  LoadingBlock, Modal, SectionHeader, SettingsGroup, Spinner, Switch,
+  LoadingBlock, Modal, SectionHeader, SettingsGroup, SettingsRow, Spinner, Switch,
 } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import { externalWindow, MfaForm } from '@aeven/client-ui-primitives'
@@ -61,6 +61,15 @@ export interface AccountSectionInjected {
    * @returns that answer, or undefined when the route has not settled yet.
    */
   cached: (path: string) => unknown
+  /** Host route, relative to the page, that streams the reader's data export as a zip download. */
+  exportUrl: string
+  /**
+   * Schedule the reader's account for deletion. On success the API has signed every session out.
+   * @param email - the account's email address, typed by the reader to confirm.
+   * @param code - an authenticator or recovery code, required when two-factor protection is on.
+   * @returns when the account will be erased, as an ISO date.
+   */
+  requestDeletion: (email: string, code?: string) => Promise<{ readonly purgeAt: string }>
 }
 
 /** Full component props assembled by the slot renderer. */
@@ -313,6 +322,13 @@ export function AccountSection(props: AccountSectionProps) {
             <Usage t={t} usage={usage.state.value} payments={payments.state} retryPayments={payments.reload} />
           </Group>
         )}
+
+        <YourData
+          {...props}
+          mfaEnabled={twoFactor.state.status === 'ready' && twoFactor.state.value}
+          subscription={subscription.state.status === 'ready' ? subscription.state.value : undefined}
+          usage={usage.state.status === 'ready' ? usage.state.value : undefined}
+        />
       </>}
     </div>
   )
@@ -998,6 +1014,178 @@ function Usage({ t, usage, payments, retryPayments }: {
       {shown !== undefined && <PaymentDetails t={t} line={shown} onClose={() => { setShown(undefined) }} />}
     </>
   )
+}
+
+/** How long after a deletion request the account is erased; the API states the exact date on success. */
+const DELETION_GRACE_DAYS = 30
+
+/**
+ * The reader's data rights: a download of everything, and deleting the account. Deleting is the page's last row.
+ * @param props - section props, plus the two-factor status and the plan and balance the dialog names.
+ * @returns the group.
+ */
+function YourData({ t, exportUrl, requestDeletion, signOut, reader, mfaEnabled, subscription, usage }: AccountSectionProps & {
+  readonly mfaEnabled: boolean
+  readonly subscription: CloudSubscription | undefined
+  readonly usage: CloudUsage | undefined
+}) {
+  const [deleting, setDeleting] = useState(false)
+  const email = reader()?.email
+  const days = String(DELETION_GRACE_DAYS)
+  // A plain download: the Host streams the zip as it builds it, so the browser's own download starts at once and
+  // nothing is held in the page.
+  const download = () => {
+    const link = document.createElement('a')
+    link.href = exportUrl
+    link.download = ''
+    link.click()
+  }
+  return (
+    <Group title={t('data.heading')}>
+      <SettingsRow
+        title={t('data.export')}
+        description={t('data.exportShort')}
+        info={{ title: t('data.exportInfoTitle'), body: t('data.exportInfo'), closeLabel: t('data.close') }}
+        control={<Button variant="primary" className={css.dataButton} onClick={download}>{t('data.exportAction')}</Button>}
+      />
+      <SettingsRow
+        title={t('data.delete')}
+        description={t('data.deleteShort', { days })}
+        info={{ title: t('data.deleteInfoTitle'), body: t('data.deleteInfo', { days }), closeLabel: t('data.close') }}
+        control={(
+          <Button variant="primary" className={css.dataButton} onClick={() => { setDeleting(true) }}>
+            {t('data.deleteAction')}
+          </Button>
+        )}
+      />
+      {deleting && (
+        <DeleteAccount
+          t={t}
+          email={email}
+          mfaEnabled={mfaEnabled}
+          subscription={subscription}
+          usage={usage}
+          requestDeletion={requestDeletion}
+          onDeleted={signOut}
+          onClose={() => { setDeleting(false) }}
+        />
+      )}
+    </Group>
+  )
+}
+
+/** The confirmation dialog: what deletion removes and costs, the typed email, and the authenticator code. */
+function DeleteAccount({ t, email, mfaEnabled, subscription, usage, requestDeletion, onDeleted, onClose }: {
+  readonly t: Translate
+  readonly email: string | undefined
+  readonly mfaEnabled: boolean
+  readonly subscription: CloudSubscription | undefined
+  readonly usage: CloudUsage | undefined
+  readonly requestDeletion: AccountSectionInjected['requestDeletion']
+  readonly onDeleted: () => void
+  readonly onClose: () => void
+}) {
+  const [typed, setTyped] = useState('')
+  const [code, setCode] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [failure, setFailure] = useState<AccountAevenKey>()
+  const purgeDay = fullDay(new Date(Date.now() + DELETION_GRACE_DAYS * 24 * 60 * 60 * 1000).toISOString())
+  const balance = usage?.balance
+  const paidPlan = subscription !== undefined && subscription.plan !== FREE_PLAN && subscription.renews
+  const matches = email !== undefined && typed.trim().toLowerCase() === email.trim().toLowerCase()
+  const ready = matches && (!mfaEnabled || code.trim() !== '') && !busy
+
+  const confirm = () => {
+    if (!ready) return
+    setBusy(true)
+    setFailure(undefined)
+    requestDeletion(typed.trim(), mfaEnabled ? code.trim() : undefined).then(
+      () => { onDeleted() },
+      (error: unknown) => {
+        setBusy(false)
+        setFailure(deletionFailure(error))
+      },
+    )
+  }
+
+  return (
+    <Modal
+      open
+      onClose={busy ? () => {} : onClose}
+      closeLabel={t('delete.cancel')}
+      title={t('delete.title')}
+      description={t('delete.intro', { date: purgeDay })}
+      footer={(
+        <span className={css.confirmActions}>
+          <Button variant="ghost" disabled={busy} onClick={onClose}>{t('delete.cancel')}</Button>
+          <Button variant="primary" className={css.dataButton} disabled={!ready} onClick={confirm}>
+            {busy ? <Spinner /> : t('delete.confirm')}
+          </Button>
+        </span>
+      )}
+    >
+      <ul className={css.deleteList}>
+        <li>{t('delete.local')}</li>
+        <li>{t('delete.cloud')}</li>
+        {paidPlan && <li>{t('delete.plan', { plan: subscription.planName })}</li>}
+        {balance !== undefined && balance.purchasedUsdMicros > 0 && (
+          <li>{t('delete.credit', { amount: money(balance.purchasedUsdMicros, balance.currency) })}</li>
+        )}
+      </ul>
+      <p className={css.desc}>{t('delete.restore', { date: purgeDay })}</p>
+      <form
+        className={css.deleteForm}
+        onSubmit={(event) => {
+          event.preventDefault()
+          confirm()
+        }}
+      >
+        <label className={css.deleteField}>
+          <span className={css.title}>{t('delete.emailLabel')}</span>
+          <input
+            className={css.deleteInput}
+            type="email"
+            autoComplete="off"
+            placeholder={email}
+            value={typed}
+            disabled={busy}
+            onChange={(event) => { setTyped(event.target.value) }}
+          />
+        </label>
+        {mfaEnabled && (
+          <label className={css.deleteField}>
+            <span className={css.title}>{t('delete.codeLabel')}</span>
+            <input
+              className={css.deleteInput}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              value={code}
+              disabled={busy}
+              onChange={(event) => { setCode(event.target.value) }}
+            />
+          </label>
+        )}
+        {failure !== undefined && <span className={css.error} role="alert">{t(failure)}</span>}
+      </form>
+    </Modal>
+  )
+}
+
+/**
+ * The message a refused deletion request shows.
+ * @param error - what the request rejected with; the API's code travels as the message.
+ * @returns the dictionary key.
+ */
+function deletionFailure(error: unknown): AccountAevenKey {
+  const code = error instanceof Error ? error.message : ''
+  switch (code) {
+    case 'email-mismatch': return 'delete.emailMismatch'
+    case 'mfa-required':
+    case 'invalid-code':
+    case 'code-already-used': return 'delete.codeInvalid'
+    case 'too-many-attempts': return 'delete.tooMany'
+    default: return 'delete.failed'
+  }
 }
 
 /** Observe returns from an external checkout window. */

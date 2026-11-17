@@ -21,13 +21,14 @@
  */
 
 import { existsSync, mkdirSync } from 'node:fs'
-import { stat } from 'node:fs/promises'
+import { rm, stat } from 'node:fs/promises'
 import { isAbsolute, join, normalize, resolve as resolvePath } from 'node:path'
 import { Service, type Context } from '@deepseek-ai/cordis'
 import Schema from '@deepseek-ai/schemastery'
 import type { Session, SessionHeader, SessionId } from '@aeven/session'
 import type {} from '@aeven/session-projection'
 import type {} from '@aeven/agent'
+import type {} from '@aeven/host-account-data'
 import type {} from '@aeven/system-prompt'
 import type { SessionPlacement } from '@aeven/workspace'
 import { workingDirectoryProjectionDefinition } from './projection.ts'
@@ -89,6 +90,22 @@ export class WorkingDirectoryService extends Service {
       if (!isAbsolute(this.managedRoot)) throw new Error(`working-directory: managedRoot "${this.managedRoot}" must be absolute`)
     }
     ctx.sessionProjections.register(workingDirectoryProjectionDefinition)
+    // Each account's managed folder holds the files its sessions made on this Host: part of its data export, and
+    // removed when a purged account is erased.
+    const managedRoot = this.managedRoot
+    if (managedRoot !== undefined) {
+      ctx.inject(['accountData'], (scoped) => {
+        scoped.effect(() => scoped.accountData.register({
+          name: 'chat files',
+          export: async (owner, out) => {
+            if (PATH_SEGMENT.test(owner)) await out.directory('Chat files', join(managedRoot, owner))
+          },
+          erase: async (owner) => {
+            if (PATH_SEGMENT.test(owner)) await rm(join(managedRoot, owner), { recursive: true, force: true })
+          },
+        }), 'working-directory: account data')
+      })
+    }
 
     ctx.inject(['systemPrompt'], (scope: Context) => {
       scope.systemPrompt.context({

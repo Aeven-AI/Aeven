@@ -20,13 +20,14 @@
  */
 
 import { createHash } from 'node:crypto'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { isAbsolute, join, relative } from 'node:path'
 import { Service, type Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { Map as YMap, Transaction, YMapEvent } from 'yjs'
 import { brandString } from '@aeven/brand'
 import type {} from '@aeven/file-sync'
+import type {} from '@aeven/host-account-data'
 import type { FileSyncFolderId, FileSyncPeerId } from '@aeven/file-sync'
 import type { SyncDocument } from '@aeven/sync'
 import type {} from '@aeven/sync'
@@ -128,6 +129,23 @@ export class AevenFolder extends Service {
       this.documents.clear()
       this.peerDocuments.clear()
     }, 'aeven-folder-sync: synced documents')
+    // The files Aeven made for the account are part of its data export, and go when a purged account is erased.
+    ctx.inject(['accountData'], (scoped) => {
+      scoped.effect(() => scoped.accountData.register({
+        name: 'Aeven folder',
+        export: async (owner, out) => {
+          const folder = await this.ownedFolder(owner)
+          if (folder !== undefined) await out.directory('Aeven folder', folder, rel => rel === OWNER_FILE || rel.startsWith('.st'))
+        },
+        erase: async (owner) => {
+          const folder = await this.ownedFolder(owner)
+          if (folder === undefined) return
+          for (const name of await readdir(folder)) await rm(join(folder, name), { recursive: true, force: true })
+          this.folders.delete(owner)
+          this.settled.delete(owner)
+        },
+      }), 'aeven-folder-sync: account data')
+    })
     if (config.advertise) ctx.inject(['systemPrompt'], (scoped) => {
       scoped.systemPrompt.context({
         name: 'aeven-folder',
@@ -161,6 +179,20 @@ export class AevenFolder extends Service {
       })
     this.folders.set(owner, resolving)
     return resolving
+  }
+
+  /**
+   * The account's Aeven folder on this device when it already has one, without claiming an unowned folder.
+   * @param owner - the account.
+   * @returns its absolute directory, or undefined when the account has none here.
+   */
+  private async ownedFolder(owner: string): Promise<string | undefined> {
+    if (this.config.perAccount) {
+      const folder = join(this.config.path, owner)
+      return (await readdir(folder).then(() => true, () => false)) ? folder : undefined
+    }
+    const named = await readFile(join(this.config.path, OWNER_FILE), 'utf8').catch(() => undefined)
+    return named?.trim() === owner ? this.config.path : undefined
   }
 
   /** Record `owner` as the folder's account unless another already is; the exclusive create settles a race. */

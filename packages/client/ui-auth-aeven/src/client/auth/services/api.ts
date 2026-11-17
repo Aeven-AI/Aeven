@@ -277,7 +277,31 @@ export async function setLocale(locale: string): Promise<string> {
  * @throws {AevenApiError} when the API refuses the call or the renewal.
  */
 export async function cloud<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const send = (bearer: string): Promise<Response> => fetch(`${apiUrl()}/api/cloud${path}`, {
+  return bearerRoute<T>(`/api/cloud${path}`, init)
+}
+
+/**
+ * One call to Aeven's `/api/account` routes — export, deletion, restore — as the signed-in reader.
+ *
+ * These routes answer an account whose deletion is pending, which is what lets the restore screen reach them.
+ * @param path - the route below `/api/account`, starting with `/`.
+ * @param init - method and body; the bearer and content type are supplied.
+ * @returns the decoded response body.
+ * @throws {AevenApiError} carrying the route's error code when the API refuses the call or the renewal.
+ */
+export async function account<T>(path: string, init: RequestInit = {}): Promise<T> {
+  return bearerRoute<T>(`/api/account${path}`, init)
+}
+
+/**
+ * One bearer-authenticated JSON call; a 401 renews the bearer once and repeats it.
+ * @param route - the absolute route on the Aeven API.
+ * @param init - method and body.
+ * @returns the decoded response body.
+ * @throws {AevenApiError} carrying the body's `code`, else its `error`, else `request-failed`.
+ */
+async function bearerRoute<T>(route: string, init: RequestInit): Promise<T> {
+  const send = (bearer: string): Promise<Response> => fetch(`${apiUrl()}${route}`, {
     ...init,
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${bearer}` },
   })
@@ -292,8 +316,9 @@ export async function cloud<T>(path: string, init: RequestInit = {}): Promise<T>
     body = {}
   }
   if (!response.ok) {
-    const code = (body as { code?: unknown }).code
-    throw new AevenApiError(typeof code === 'string' ? code : 'request-failed', response.status)
+    const { code, error } = body as { code?: unknown; error?: unknown }
+    const reason = typeof code === 'string' ? code : typeof error === 'string' ? error : 'request-failed'
+    throw new AevenApiError(reason, response.status)
   }
   return body as T
 }

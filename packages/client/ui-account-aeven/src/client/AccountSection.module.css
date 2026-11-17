@@ -787,3 +787,53 @@
     transition: none;
   }
 }
+
+/* Your data: both actions are the black primary capsule Add credits uses, in both themes. */
+.dataButton {
+  font-weight: 400;
+}
+
+:global(body[data-ds-dark-theme]) .dataButton,
+:global(body[data-ds-dark-theme]) .dataButton:hover:not(:disabled) {
+  background: #111111;
+  color: #ffffff;
+}
+
+.deleteList {
+  margin: 0 0 12px;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.deleteForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.deleteField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.deleteInput {
+  height: var(--dsw-aeven-control-size);
+  padding: 0 12px;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: var(--dsw-aeven-radius-control);
+  background: var(--dsw-alias-bg-module-platform);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.deleteInput:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 1px;
+}
