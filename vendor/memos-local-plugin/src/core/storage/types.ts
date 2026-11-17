@@ -97,6 +97,10 @@ export interface TraceListFilter extends PageOptions, TimeRange {
   /** Only traces with |value| >= this (absolute). */
   minAbsValue?: number;
   traceIds?: TraceId[];
+  /** Only traces whose `user_text` begins with exactly this text (case-sensitive). */
+  userTextPrefix?: string;
+  /** Leave `vecSummary` and `vecAction` null: the two BLOBs are most of a row's bytes and a listing never reads them. */
+  omitVectors?: boolean;
 }
 
 export interface PolicyListFilter extends PageOptions, TimeRange {

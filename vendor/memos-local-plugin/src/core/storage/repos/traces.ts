@@ -94,6 +94,21 @@ const DEDUP_COLUMNS = [
 ] as const;
 
 /** Domain filtering shares the capture tag precedence and untagged workspace inference. */
+/** `COLUMNS` with both vector BLOBs selected as NULL, for `TraceListFilter.omitVectors`. */
+const COLUMNS_WITHOUT_VECTORS = COLUMNS.map((column) =>
+  column === "vec_summary" || column === "vec_action" ? `NULL AS ${column}` : column,
+);
+
+function userTextPrefixWhere(
+  filter: Pick<TraceListFilter, "userTextPrefix">,
+  fragments: string[],
+  params: Record<string, unknown>,
+): void {
+  if (!filter.userTextPrefix) return;
+  fragments.push(`substr(user_text, 1, length(@user_text_prefix)) = @user_text_prefix`);
+  params.user_text_prefix = filter.userTextPrefix;
+}
+
 function domainWhere(filter: TraceListFilter, fragments: string[], params: Record<string, unknown>): void {
   if (filter.domains === undefined && filter.projectWorkspaceId === undefined) return;
   const domain = `COALESCE((SELECT substr(value, 8) FROM json_each(tags_json)
@@ -277,6 +292,7 @@ export function makeTracesRepo(db: StorageDb) {
         params.min_abs_value = filter.minAbsValue;
       }
       if (tr.sql) fragments.push(tr.sql);
+      userTextPrefixWhere(filter, fragments, params);
       domainWhere(filter, fragments, params);
       const where = joinWhere(fragments);
       const shouldUseUncappedEpisodeScan =
@@ -286,7 +302,8 @@ export function makeTracesRepo(db: StorageDb) {
       const page = shouldUseUncappedEpisodeScan
         ? `ORDER BY ts ${filter.newestFirst === false ? "ASC" : "DESC"}`
         : buildPageClauses(filter, "ts");
-      const sql = `SELECT ${COLUMNS.join(", ")} FROM traces ${where} ${page}`;
+      const columns = filter.omitVectors ? COLUMNS_WITHOUT_VECTORS : COLUMNS;
+      const sql = `SELECT ${columns.join(", ")} FROM traces ${where} ${page}`;
       return db.prepare<typeof params, RawTraceRow>(sql).all(params).map(mapRow);
     },
 
@@ -408,6 +425,7 @@ export function makeTracesRepo(db: StorageDb) {
         Object.assign(params, visibility.params);
       }
       if (tr.sql) fragments.push(tr.sql);
+      userTextPrefixWhere(filter, fragments, params);
       domainWhere(filter, fragments, params);
       const where = joinWhere(fragments);
       const sql = `SELECT COUNT(*) AS n FROM traces ${where}`;

@@ -266,6 +266,8 @@ export interface MemoryListRequest {
    * `limit`, `offset`, and `total` then count turns. A turn whose traces hold no message is left out of the page.
    */
   readonly turns?: boolean
+  /** Epoch milliseconds; only memories recorded at or after it are listed and counted. Not combined with `turns`. */
+  readonly since?: number
   readonly limit: number
   readonly offset: number
   readonly signal: AbortSignal

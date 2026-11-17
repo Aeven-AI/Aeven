@@ -453,6 +453,10 @@ export interface MemoryCore {
     ownerAgentKind?: AgentKind;
     ownerProfileId?: string;
     q?: string;
+    /** Only traces recorded at or after this time. Not applied when `groupByTurn` lists without `q`. */
+    fromMs?: number;
+    /** Only traces whose user text begins with exactly this text. Not applied when `groupByTurn` lists without `q`. */
+    userTextPrefix?: string;
     /**
      * Viewer/admin listing mode. Retrieval still respects namespace
      * visibility; the local viewer needs to browse every profile stored in
@@ -468,7 +472,7 @@ export interface MemoryCore {
     groupByTurn?: boolean;
   }): Promise<TraceDTO[]>;
   /** Total trace rows matching the same filter (no limit/offset). */
-  countTraces(input?: { domains?: readonly string[]; projectWorkspaceId?: string | null; sessionId?: SessionId; ownerAgentKind?: AgentKind; ownerProfileId?: string; q?: string; groupByTurn?: boolean; includeAllNamespaces?: boolean }): Promise<number>;
+  countTraces(input?: { domains?: readonly string[]; projectWorkspaceId?: string | null; sessionId?: SessionId; ownerAgentKind?: AgentKind; ownerProfileId?: string; q?: string; groupByTurn?: boolean; includeAllNamespaces?: boolean; fromMs?: number; userTextPrefix?: string }): Promise<number>;
 
   /**
    * Paged listing of the rich api_logs table ({@link ApiLogDTO}).

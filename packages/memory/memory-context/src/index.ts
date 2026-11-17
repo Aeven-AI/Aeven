@@ -425,7 +425,7 @@ export function apply(ctx: Context, config: Config): void {
    */
   const markedInMemory = async (owner: string, sessionId: Session['id'], today: LocalDay, timeZone: string | undefined, signal: AbortSignal): Promise<Session['id'] | undefined> => {
     for (const query of MARK_WORDS) {
-      const page = await ctx.memory.list({ owner, query, domains: ['person'], limit: 20, offset: 0, signal })
+      const page = await ctx.memory.list({ owner, query, domains: ['person'], since: Date.now() - 86_400_000, limit: 20, offset: 0, signal })
       const record = page.records.find((entry) => {
         if (entry.sessionId === sessionId || Date.now() - entry.time > 86_400_000) return false
         const recorded = localDay(entry.time, timeZone)
