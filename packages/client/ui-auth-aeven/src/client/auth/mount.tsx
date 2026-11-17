@@ -68,6 +68,16 @@ function destination(): string {
  * @param cover - the gate's cover, which a provider sign-in raises from the press on.
  * @returns the mounted screen, or undefined when no screen owns that path.
  */
+/**
+ * The band that drags the macOS desktop window, which has no title bar. The sign-in screens render outside the
+ * application frame, so they carry the band themselves; `html[data-avn-traffic-lights] .avn-drag-band` in the
+ * first-paint sheet (apps/web/src/preloader.css) styles it, and outside the desktop app it draws nothing.
+ * @returns the band element.
+ */
+export function DragBand(): ReactElement {
+  return createElement('div', { className: 'avn-drag-band', 'aria-hidden': 'true' })
+}
+
 export function mountAuthScreen(container: Element, pathname: string, cover?: AuthScreenCover): MountedAuthScreen | undefined {
   const match = matchAuthRoute(pathname)
   if (match === undefined) return undefined
@@ -90,6 +100,7 @@ export function mountAuthScreen(container: Element, pathname: string, cover?: Au
     // where it sits here only ties its lifetime to the screen's.
     root.render(
       createElement('div', { id: 'app-root', style: { height: '100%', width: '100%' } },
+        createElement(DragBand),
         createElement(Popup),
         createElement('div', { className: 'view-container' }, screen)),
     )
@@ -186,6 +197,7 @@ function mountStep(container: Element, step: (settle: (exit: AuthScreenExit) => 
     // step is given the ancestors its rules select on, exactly as the sign-in
     // screens are.
     createElement('div', { id: 'app-root', style: { height: '100%', width: '100%' } },
+      createElement(DragBand),
       createElement(Popup),
       createElement('div', { className: 'view-container' }, step((exit) => { settle(exit) }))),
   )

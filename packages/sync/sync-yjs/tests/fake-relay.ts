@@ -15,10 +15,23 @@ interface StoredFrame {
   data: Buffer
 }
 
+/** One copy of the account key a protected account stores, as the relay describes it. */
+interface StoredHolder {
+  id: string
+  wrapped: string
+  kind: 'passkey' | 'recovery'
+  name?: string
+  aaguid?: string
+  device?: string
+  addedAt: string
+}
+
 interface Account {
   seq: number
   frames: StoredFrame[]
   key: string
+  /** Set while passkeys hold the key: the key id and every copy; the relay then holds no key. */
+  protection?: { keyId: string; holders: StoredHolder[] } | undefined
   leases: Map<string, { device: string; expiresAt: number }>
   sockets: Set<Peer>
 }
@@ -39,6 +52,16 @@ function headerOf(data: Buffer): { kind: string; id: string } {
 }
 
 /** A running fake relay. */
+/** A copy of the key without the wrapped key, as `passkey.*` answers describe it. */
+function describe({ wrapped: _wrapped, ...holder }: StoredHolder): Omit<StoredHolder, 'wrapped'> {
+  return holder
+}
+
+/** The answer `passkey.add`, `passkey.remove` and `passkey.rename` give. */
+function answer(holders: readonly StoredHolder[]): Record<string, unknown> {
+  return { passkeys: holders.filter(holder => holder.kind === 'passkey').map(holder => holder.id), entries: holders.map(describe) }
+}
+
 export class FakeRelay {
   /** Complete JSON request sizes observed after the transport accepted them. */
   readonly requests: Array<{ type: string; bytes: number }> = []
@@ -109,6 +132,19 @@ export class FakeRelay {
     })
   }
 
+  /** Store a copy of the key as the real relay does: the kind defaults to a passkey and the relay dates it. */
+  private holder(entry: unknown): StoredHolder {
+    const fields = entry as Partial<StoredHolder>
+    return {
+      id: String(fields.id),
+      wrapped: String(fields.wrapped),
+      kind: fields.kind === 'recovery' ? 'recovery' : 'passkey',
+      ...fields.aaguid === undefined ? {} : { aaguid: fields.aaguid },
+      ...fields.device === undefined ? {} : { device: fields.device },
+      addedAt: new Date().toISOString(),
+    }
+  }
+
   private send(peer: Peer, message: unknown): void {
     if (peer.socket.readyState === peer.socket.OPEN) peer.socket.send(JSON.stringify(message))
   }
@@ -145,8 +181,49 @@ export class FakeRelay {
     const account = peer.account
     switch (t) {
       case 'key.get':
+        if (account.protection !== undefined) {
+          ok({ mode: 'passkey', keyId: account.protection.keyId, passkeys: account.protection.holders })
+          return
+        }
         ok({ key: account.key, keyId: keyIdOf(Buffer.from(account.key, 'base64url')) })
         return
+      case 'key.protect': {
+        const holder = this.holder(request.passkey)
+        if (holder.kind !== 'passkey') { refuse('bad-request'); return }
+        account.protection = { keyId: String(request.keyId), holders: [holder] }
+        ok({ entries: [describe(holder)] })
+        return
+      }
+      case 'passkey.add': {
+        if (account.protection === undefined) { refuse('not-protected'); return }
+        const holder = this.holder(request.passkey)
+        account.protection.holders = [...account.protection.holders.filter(entry => entry.id !== holder.id), holder]
+        ok(answer(account.protection.holders))
+        return
+      }
+      case 'passkey.remove': {
+        if (account.protection === undefined) { refuse('not-protected'); return }
+        const holders = account.protection.holders.filter(entry => entry.id !== request.id)
+        if (!holders.some(entry => entry.kind === 'passkey')) { refuse('last-passkey'); return }
+        account.protection.holders = holders
+        ok(answer(holders))
+        return
+      }
+      case 'passkey.rename': {
+        if (account.protection === undefined) { refuse('not-protected'); return }
+        const name = String(request.name)
+        account.protection.holders = account.protection.holders.map(entry => entry.id === request.id ? { ...entry, name } : entry)
+        ok(answer(account.protection.holders))
+        return
+      }
+      case 'key.unprotect': {
+        if (account.protection === undefined) { refuse('not-protected'); return }
+        account.protection = undefined
+        account.key = randomBytes(32).toString('base64url')
+        account.frames = []
+        ok({ key: account.key, keyId: keyIdOf(Buffer.from(account.key, 'base64url')) })
+        return
+      }
       case 'publish': {
         const items = Array.isArray(request.frames) ? request.frames as Array<Record<string, unknown>> : [request]
         const seqs = items.map((item) => {

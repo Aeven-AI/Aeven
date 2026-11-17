@@ -133,7 +133,7 @@ export function FilesSection(props: FilesSectionProps) {
   }
   if (settings === undefined) {
     return (
-      <SettingsGroup title={t('filesSettings.nav')} description={t('filesSettings.intro')}>
+      <SettingsGroup title={t('filesSettings.nav')}>
         {failed
           ? <SettingsRow title={t('filesSettings.failed')} control={<Button variant="outline" onClick={() => { setFailed(false); setRetry(value => value + 1) }}>{t('filesSettings.retry')}</Button>} />
           : <LoadingBlock label={t('filesSettings.loading')} />}
@@ -143,7 +143,7 @@ export function FilesSection(props: FilesSectionProps) {
   const saved = settings.ignores.join('\n')
   const text = draft ?? saved
   return (
-    <SettingsGroup title={t('filesSettings.nav')} description={t('filesSettings.intro')}>
+    <SettingsGroup title={t('filesSettings.nav')}>
       {failed && <p className={css.failed} role="alert">{t('filesSettings.failed')}</p>}
       <SettingsRow
         title={t('filesSettings.sync')}
@@ -164,7 +164,7 @@ export function FilesSection(props: FilesSectionProps) {
         title={t('filesSettings.ignores')}
         description={t('filesSettings.ignoresBody')}
         control={(
-          <Button variant="outline" aria-expanded={editing} onClick={() => { setEditing(value => !value); setDraft(undefined) }}>
+          <Button variant="primary" aria-expanded={editing} onClick={() => { setEditing(value => !value); setDraft(undefined) }}>
             {t(editing ? 'filesSettings.done' : 'filesSettings.edit')}
           </Button>
         )}

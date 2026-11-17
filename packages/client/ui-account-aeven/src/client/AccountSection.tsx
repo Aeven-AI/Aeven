@@ -4,7 +4,7 @@ import {
   Button, IconCheckOutline14, IconLucideCamera, IconRightUpOutline16, IconTrashOutline16,
   LoadingBlock, Modal, SectionHeader, SettingsGroup, SettingsRow, Spinner, Switch,
 } from '@aeven/client-ui-primitives'
-import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
+import type { InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime } from '@aeven/client-ui-slots'
 import { externalWindow, MfaForm } from '@aeven/client-ui-primitives'
 import type { AevenReader } from '@aeven/client-ui-auth-aeven'
 import { Avatar } from './Avatar.tsx'
@@ -89,6 +89,7 @@ export interface AccountSectionInjected {
 /** Full component props assembled by the slot renderer. */
 export type AccountSectionProps =
   PropsRuntime<'settings.section'>
+  & PropsRenderSlots<'account.security'>
   & PropsLocale<typeof NS>
   & InjectFace<AccountSectionInjected>
 
@@ -284,6 +285,7 @@ export function AccountSection(props: AccountSectionProps) {
   useEffect(() => {
     if (settled) setPainted(true)
   }, [settled])
+  const accountEmail = props.reader()?.email
 
   return (
     <div className={css.section}>
@@ -295,7 +297,6 @@ export function AccountSection(props: AccountSectionProps) {
 
       {painted && <>
         <Identity {...props} />
-        <Security mfa={props.mfa} t={t} status={twoFactor.state} reload={twoFactor.reload} record={twoFactor.record} />
         <Group>
           <Loaded t={t} load={subscription.state} retry={subscription.reload}>
             {value => (
@@ -343,6 +344,9 @@ export function AccountSection(props: AccountSectionProps) {
           subscription={subscription.state.status === 'ready' ? subscription.state.value : undefined}
           usage={usage.state.status === 'ready' ? usage.state.value : undefined}
         />
+        <Security mfa={props.mfa} t={t} status={twoFactor.state} reload={twoFactor.reload} record={twoFactor.record}>
+          {props.renderSlot('account.security', accountEmail === undefined ? {} : { email: accountEmail })}
+        </Security>
       </>}
     </div>
   )
@@ -1327,12 +1331,14 @@ function observeReturn(check: () => void): () => void {
  * The status is the section's, not this cell's: the page does not draw until every
  * read it shows has answered, so the switch arrives already carrying an answer.
  */
-function Security({ mfa, t, status, reload, record }: {
+function Security({ mfa, t, status, reload, record, children }: {
   readonly mfa: AevenReader['mfa']
   readonly t: Translate
   readonly status: Load<boolean>
   readonly reload: () => void
   readonly record: (enabled: boolean) => void
+  /** Rows other plugins add under two-step verification: the passkeys and the encryption they hold. */
+  readonly children?: ReactNode
 }) {
   const [mode, setMode] = useState<'setup' | 'disable'>()
   const enabled = status.status === 'ready' ? status.value : undefined
@@ -1343,26 +1349,23 @@ function Security({ mfa, t, status, reload, record }: {
       if (action === 'disable') record(false)
       return answer
     }), [mfa, record])
-  const label = failed ? 'security.unavailable' : enabled === true ? 'security.on' : 'security.off'
   // The switch states the feature; the enrollment it opens belongs to the same
   // cell, so it draws no surface of its own below the row.
   return (
     <Group title={t('security.heading')}>
-      <div className={`${css.row} ${css.securityRow}`}>
-        <span className={css.rowText}>
-          <span className={css.title}>{t('security.title')}</span>
-          <span className={css.desc}>{t('security.info')}</span>
-        </span>
-        <span className={css.actions}>
-          <span className={css.status} role="status">{t(label)}</span>
+      <SettingsRow
+        title={t('security.title')}
+        description={t('security.info')}
+        info={{ title: t('security.title'), body: t('security.infoBody'), closeLabel: t('data.close') }}
+        control={(
           <Switch
             checked={enabled === true}
             label={t('security.title')}
             disabled={enabled === undefined || failed || mode !== undefined}
             onChange={() => { setMode(enabled ? 'disable' : 'setup') }}
           />
-        </span>
-      </div>
+        )}
+      />
       {failed && (
         <div role="alert" className={css.row}>
           <span className={css.rowText}><span className={css.desc}>{t('security.failed')}</span></span>
@@ -1375,6 +1378,7 @@ function Security({ mfa, t, status, reload, record }: {
             onDone={() => { setMode(undefined) }} onCancel={() => { setMode(undefined) }} />
         </div>
       )}
+      {children}
     </Group>
   )
 }

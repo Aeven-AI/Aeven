@@ -6561,3 +6561,20 @@ html[data-avn-traffic-lights]
 .input-text.has-reveal input {
   padding-right: 44px;
 }
+
+/* The macOS desktop window drags by the band the sign-in screens carry (DragBand in auth/mount.tsx). The window
+   applies a drag rectangle rather than hit testing, so every control the band overlaps declares no-drag. */
+html[data-avn-traffic-lights] #app-root :is(button, a, input, select, textarea, [role='button'], [role='menu'], [role='menuitem'], [role='option']),
+html[data-avn-traffic-lights] .popup :is(button, a, input, [role='menu'], [role='menuitem']) {
+  -webkit-app-region: no-drag;
+}
+
+/* The passkey step's second slot stands where the email step's password field does, so its buttons line up with
+   that step's; it shows only the note that an email has no passkey. */
+.passkey-slot {
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}

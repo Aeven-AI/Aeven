@@ -13,6 +13,25 @@ export interface SyncProtectionView {
   readonly downgraded: boolean
   /** How many passkeys hold the key. */
   readonly passkeys: number
+  /** Every copy of the key the relay stores, passkeys and recovery keys, in the order they were added. */
+  readonly holders: readonly SyncKeyHolderView[]
+}
+
+/** The kind of device a passkey was created on; `external` for a phone reached by QR code or a security key. */
+export type SyncPasskeyDeviceView = 'mac' | 'windows' | 'linux' | 'iphone' | 'ipad' | 'android' | 'chromeos' | 'external' | 'other'
+
+/** One copy of the account key, as a locked device names it. Copies stored before 17 Nov 2026 carry only `kind`. */
+export interface SyncKeyHolderView {
+  /** The passkey's credential id or the recovery key's id. */
+  readonly id: string
+  readonly kind: 'passkey' | 'recovery'
+  /** The name the user gave it in Settings → Sync. */
+  readonly name?: string
+  /** The passkey provider's AAGUID as lowercase hex, when the browser stated it. */
+  readonly aaguid?: string
+  readonly device?: SyncPasskeyDeviceView
+  /** When the relay stored the copy, as an ISO 8601 timestamp. */
+  readonly addedAt?: string
 }
 
 /** What a passkey step does with the passkey. */
@@ -28,10 +47,28 @@ export type SyncPasskeyPurpose =
 export interface SyncPasskeyView {
   readonly purpose: SyncPasskeyPurpose
   /**
-   * `waiting` while the browser page runs, `failed` when the step timed out or its result did not work, and
-   * `unsupported` when the browser or passkey provider cannot derive a key from the passkey.
+   * `waiting` while the browser page runs, `failed` when the step timed out or its result did not work,
+   * `unsupported` when the browser or passkey provider cannot derive a key from the passkey, `wrong-passkey` when
+   * an unlock was answered by a passkey that holds no copy of the key, and `duplicate` when the passkey provider
+   * already holds one of the account's passkeys and refused to create another.
    */
-  readonly state: 'waiting' | 'failed' | 'unsupported'
+  readonly state: 'waiting' | 'failed' | 'unsupported' | 'wrong-passkey' | 'duplicate'
+}
+
+/** A recovery key the caller just created; shown once and never stored on this Host. */
+export interface SyncRecoveryKey {
+  /** The key in groups of four characters, for the user to save. */
+  readonly key: string
+}
+
+/** What a passkey sign-in on the caller's page prepared so its prompt also unlocks this device. */
+export interface SyncSignInUnlock {
+  /** The secret whose SHA-256 the sign-in page stored the result under, base64url. */
+  readonly verifier: string
+  /** The raw X25519 public key the result is sealed to, base64url. */
+  readonly publicKey: string
+  /** The raw X25519 private key that opens it, base64url. */
+  readonly secretKey: string
 }
 
 /** The page a passkey step opens. */

@@ -25,6 +25,7 @@ function show(mfa: AccountSectionProps['mfa']) {
     cloud: () => Promise.reject(new Error('unavailable')),
     cached: () => undefined,
     t: (key: keyof typeof en) => en[key],
+    renderSlot: () => null,
   } as unknown as AccountSectionProps} />)
 }
 
@@ -62,7 +63,7 @@ describe('Account security', () => {
     const toggle = await screen.findByRole('switch', { name: 'Two-factor authentication' })
     await waitFor(() => { expect(toggle.hasAttribute('disabled')).toBe(false) })
     expect(screen.queryByText('Manage account')).toBeNull()
-    expect(screen.getByRole('heading', { name: 'Security' }).closest('section')).toMatchSnapshot()
+    expect(screen.getByRole('heading', { name: 'Account security' }).closest('section')).toMatchSnapshot()
     fireEvent.click(toggle)
     await screen.findByAltText(en['mfa.scan'])
     expect(toggle.getAttribute('aria-checked')).toBe('false')
@@ -76,7 +77,7 @@ describe('Account security', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
     await waitFor(() => { expect(screen.queryByText('Save your recovery codes')).toBeNull() })
     expect(toggle.hasAttribute('disabled')).toBe(false)
-    expect(screen.getByText('On')).toBeDefined()
+    expect(screen.getByRole('switch').getAttribute('aria-checked')).toBe('true')
   })
 
   it('keeps protection on after a refused code and turns it off only after successful verification', async () => {
@@ -98,7 +99,7 @@ describe('Account security', () => {
     await waitFor(() => { expect(toggle.getAttribute('aria-checked')).toBe('false') })
     expect(mfa).toHaveBeenLastCalledWith('disable', '123456')
     expect(screen.queryByText(en['mfa.disableInfo'])).toBeNull()
-    expect(screen.getByText('Off')).toBeDefined()
+    expect(screen.getByRole('switch').getAttribute('aria-checked')).toBe('false')
   })
 
   it('cancels disabling without changing protection or sending a disable request', async () => {
@@ -118,10 +119,9 @@ describe('Account security', () => {
       .mockResolvedValueOnce({ enabled: false })
     show(mfa)
     await screen.findByRole('alert')
-    expect(screen.getByText('Unavailable')).toBeDefined()
     expect((await screen.findByRole('switch')).hasAttribute('disabled')).toBe(true)
     fireEvent.click(within(screen.getByRole('alert')).getByRole('button', { name: 'Retry' }))
     await waitFor(() => { expect(screen.getByRole('switch').hasAttribute('disabled')).toBe(false) })
-    expect(screen.getByText('Off')).toBeDefined()
+    expect(screen.getByRole('switch').getAttribute('aria-checked')).toBe('false')
   })
 })

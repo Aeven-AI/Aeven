@@ -25,6 +25,7 @@ async function show(overrides: Partial<AccountSectionProps> = {}) {
     cloud: () => Promise.reject(new Error('unavailable')),
     cached: () => undefined,
     t: (key: keyof typeof en) => en[key],
+    renderSlot: () => null,
     ...overrides,
   }
   const rendered = render(<AccountSection {...props as unknown as AccountSectionProps} />)

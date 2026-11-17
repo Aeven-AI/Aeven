@@ -43,6 +43,7 @@ export const DESKTOP_IPC = {
   updatesListen: 'avn-desktop:updates-listen',
   locationAuthorize: 'avn-desktop:location-authorize',
   locationOpenSettings: 'avn-desktop:location-open-settings',
+  windowFocus: 'avn-desktop:window-focus',
 } as const
 
 /** Window operation a page-drawn Linux caption button asks for; `maximize` toggles. */
@@ -216,6 +217,16 @@ export interface AvnDesktopBrowserApi {
 
 }
 
+/** The window the app page renders in. */
+export interface AvnDesktopWindowApi {
+  /**
+   * Bring the window forward, as when a step the reader finished in the system browser, such as a passkey prompt,
+   * hands them back to the app. A provider sign-in leaves focus with the browser instead.
+   * @returns when the window has been asked to come forward.
+   */
+  focus(): Promise<void>
+}
+
 /** Bridge the app renderer receives: the carrier marker, the browser operations, and menu commands. */
 export interface AvnDesktopAppApi {
   readonly protocolVersion: 1
@@ -227,6 +238,8 @@ export interface AvnDesktopAppApi {
   readonly update: AvnDesktopUpdateApi
   /** The operating system's location permission, which the shell asks for. */
   readonly location: AvnDesktopLocationApi
+  /** The window the page renders in. */
+  readonly window: AvnDesktopWindowApi
   /**
    * Observe the application menu's commands, which the shell issues on the page's behalf.
    * @param listener - called with each command the menu sends.

@@ -49,6 +49,9 @@ const api: AvnDesktopAppApi = {
     authorize: () => ipcRenderer.invoke(DESKTOP_IPC.locationAuthorize) as Promise<SystemLocationState>,
     openSettings: () => ipcRenderer.invoke(DESKTOP_IPC.locationOpenSettings) as Promise<void>,
   },
+  window: {
+    focus: () => ipcRenderer.invoke(DESKTOP_IPC.windowFocus) as Promise<void>,
+  },
   links: {
     onOpen(listener) {
       const handle = (_event: Electron.IpcRendererEvent, url: string): void => { listener(url) }

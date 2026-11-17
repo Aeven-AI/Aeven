@@ -8,7 +8,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  awaitProviderSession, isProviderLanding, openProviderSignIn,
+  awaitProviderSession, isProviderLanding, openProviderSignIn, PROVIDER_SIGNED_IN_EVENT,
 } from '../src/client/auth/services/oauth.ts'
 
 /** The grant a session read refreshes in through; only its arrival is read. */
@@ -46,6 +46,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
   delete (globalThis as { __AVN_AEVEN__?: unknown }).__AVN_AEVEN__
+  delete (window as { avnDesktop?: unknown }).avnDesktop
 })
 
 describe('the provider window', () => {
@@ -102,5 +103,31 @@ describe('waiting for a sign-in the reader finishes in another window', () => {
     state.reachable = true
     await vi.advanceTimersByTimeAsync(1000)
     await expect(waiting).resolves.toBe(true)
+  })
+})
+
+describe('waiting inside the desktop app, which reports how the sign-in went', () => {
+  it('asks the API nothing while the browser sign-in runs, and ends on the app\'s report', async () => {
+    vi.useFakeTimers()
+    ;(window as { avnDesktop?: unknown }).avnDesktop = {}
+    const fetch = vi.fn()
+    vi.stubGlobal('fetch', fetch)
+
+    const waiting = awaitProviderSession(new AbortController().signal)
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(fetch).not.toHaveBeenCalled()
+
+    window.dispatchEvent(new Event(PROVIDER_SIGNED_IN_EVENT))
+    await expect(waiting).resolves.toBe(true)
+  })
+
+  it('ends without a session when the attempt is abandoned', async () => {
+    ;(window as { avnDesktop?: unknown }).avnDesktop = {}
+    vi.stubGlobal('fetch', vi.fn())
+    const attempt = new AbortController()
+
+    const waiting = awaitProviderSession(attempt.signal)
+    attempt.abort()
+    await expect(waiting).resolves.toBe(false)
   })
 })

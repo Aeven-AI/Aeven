@@ -80,6 +80,34 @@ export const CLIENT_NOTES: readonly string[] = [
 // detection is told to skip the data rather than the file.
 export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
   {
+    key: 'account.security',
+    kind: 'single',
+    scope: 'root',
+    summary: 'Rows under two-step verification in Account → Security: passkeys, the encryption they hold, the recovery key.',
+    doc: 'Rows under two-step verification in Account → Security: passkeys, the encryption they hold, the recovery key.\nThe owner passes the signed-in account\'s email, which names the passkeys created there.',
+    registerOptions: [],
+    ownerProps: [
+      '/** What Account → Security hands the rows it hosts. */\nexport interface AccountSecurityOwnerProps {\n  /** The signed-in account\'s email, absent when the profile names none. */\n  readonly email?: string\n}',
+    ],
+    ownerPropsReferences: [],
+    standardProps: [
+      'useWorkspaces: SnapshotSelectorHook<WorkspaceSnapshot>',
+      'useSessions: UseSessions',
+      'useSessionPendingInteraction: UseSessionPendingInteraction',
+      'useWorkspaces: SnapshotSelectorHook<WorkspaceSnapshot>',
+    ],
+    keyDomain: '',
+    hookContext: '',
+    slotInject: '',
+    declaredBy: 'an entry in \'settings.section\' (client-ui-account-aeven), so it exists while that entry is mounted',
+    occupants: [
+      'client-ui-settings-sync AccountPrivacy',
+    ],
+    replaceRisk: 'shadows-shipped-ui',
+    example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'account.security\', () => ctx.slots.register(\n      { name: \'account.security\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
+    source: 'packages/client/ui-account-aeven/src/client/index.ts:36',
+  },
+  {
     key: 'conversation',
     kind: 'single',
     scope: 'session-maybe',
@@ -2089,7 +2117,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'settings.sync.files\', () => ctx.slots.register(\n      { name: \'settings.sync.files\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-settings-sync/src/client/index.ts:36',
+    source: 'packages/client/ui-settings-sync/src/client/index.ts:42',
   },
   {
     key: 'settings.trigger',

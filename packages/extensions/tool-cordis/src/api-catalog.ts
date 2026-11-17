@@ -4217,6 +4217,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'when the relay no longer stores that copy.',
       },
       {
+        signature: 'renamePasskey(_owner: string, _id: string, _name: string): Promise<void>',
+        description: 'Give one of the account key\'s passkeys or recovery keys a name. Requires a connection and an unlocked account.',
+        parameters: [{ name: '_owner', description: 'an account whose key passkeys hold.' }, { name: '_id', description: 'an id {@link SyncProtection.holders} lists.' }, { name: '_name', description: 'the name, 1 to 40 characters.' }],
+        returns: 'when the relay stores the name.',
+      },
+      {
         signature: 'unlock(_owner: string, _passkey: SyncPasskey): Promise<void>',
         description: 'Unlock the account on this device with one of its passkeys: the device unwraps the key the relay stores and syncs from then on without asking again. Requires a connection.',
         parameters: [{ name: '_owner', description: 'an account whose status is locked.' }, { name: '_passkey', description: 'the passkey\'s credential id and PRF output.' }],
@@ -4225,8 +4231,8 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'unprotect(_owner: string): Promise<void>',
-        description: 'Hand the account key back to the relay: it creates a new key it holds, purges what it stored, and every device starts over. The account\'s other devices ask the user before syncing under it. Requires a connection.',
-        parameters: [{ name: '_owner', description: 'an account whose key passkeys hold, unlocked on this device.' }],
+        description: 'Hand the account key back to the relay: it creates a new key it holds, purges what it stored, and every device starts over. The account\'s other devices ask the user before syncing under it. On a locked device this is the way back without any of the account\'s passkeys: the device publishes its own data again under the new key, and what only the relay held under the passkey key is gone. Requires a connection.',
+        parameters: [{ name: '_owner', description: 'an account whose key passkeys hold, unlocked or locked on this device.' }],
         returns: 'when this device holds the relay\'s new key.',
       },
       {
@@ -4266,9 +4272,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the status afterwards.',
       },
       {
-        signature: '@Remote async startPasskey(purpose: SyncPasskeyPurpose): Promise<SyncPasskeyStart>',
+        signature: '@Remote async startPasskey(purpose: SyncPasskeyPurpose, account?: string): Promise<SyncPasskeyStart>',
         description: 'Start a passkey step: the returned page creates a passkey (`protect`, `add`) or asks for one of the account\'s passkeys (`unlock`) in the system browser, and this Host collects the result and applies it in the background. The step shows in status until it succeeds; a new step replaces one in progress.',
-        parameters: [{ name: 'purpose', description: 'what the passkey is for.' }],
+        parameters: [{ name: 'purpose', description: 'what the passkey is for.' }, { name: 'account', description: 'the account\'s email as the page shows it, which names a created passkey in the password manager when this Host\'s identity carries none. It is only a label: the passkey\'s user handle and the key it holds do not depend on it.' }],
         returns: 'the page to open.',
       },
       {
@@ -4278,8 +4284,39 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the status afterwards.',
       },
       {
+        signature: '@Remote async unlockFromSignIn(unlock: SyncSignInUnlock): Promise<SyncView>',
+        description: 'Unlock this device with the passkey the caller just signed in with. The sign-in page evaluated the passkey\'s PRF in the same prompt and deposited it sealed to the caller\'s one-use key; this collects it once. An account that is not locked, or a sign-in that deposited nothing, leaves everything as it was.',
+        parameters: [{ name: 'unlock', description: 'the verifier and key pair the sign-in page was opened with.' }],
+        returns: 'the status afterwards.',
+      },
+      {
+        signature: '@Remote async renamePasskey(id: string, name: string): Promise<SyncView>',
+        description: 'Name one of the caller\'s passkeys.',
+        parameters: [{ name: 'id', description: 'a passkey id the status lists.' }, { name: 'name', description: 'the name, 1 to 40 characters.' }],
+        returns: 'the status afterwards.',
+      },
+      {
+        signature: '@Remote async removePasskey(id: string): Promise<SyncView>',
+        description: 'Remove one of the caller\'s passkeys or their recovery key; the last passkey stays until protection is turned off.',
+        parameters: [{ name: 'id', description: 'an id the status lists.' }],
+        returns: 'the status afterwards.',
+      },
+      {
+        signature: '@Remote async createRecoveryKey(): Promise<SyncRecoveryKey>',
+        description: 'Create a recovery key that also holds the account key, replacing an earlier one. Its secret is shown to the caller once and kept nowhere: the relay stores only the account key wrapped under it. Requires an unlocked account whose key passkeys hold.',
+        parameters: [],
+        returns: 'the key to save.',
+      },
+      {
+        signature: '@Remote async unlockWithRecoveryKey(key: string): Promise<SyncView>',
+        description: 'Unlock this device with a recovery key the caller saved.',
+        parameters: [{ name: 'key', description: 'the key as the caller typed it; case, spaces, and dashes do not matter.' }],
+        returns: 'the status afterwards.',
+        throws: ['{RecoveryKeyUnreadable} when the text is no recovery key.', '{SyncKeyHolderMismatch} when it is not this account\'s current recovery key.'],
+      },
+      {
         signature: '@Remote async unprotect(): Promise<SyncView>',
-        description: 'Hand the caller\'s account key back to the Aeven relay; every device starts over under the relay\'s new key.',
+        description: 'Hand the caller\'s account key back to the Aeven relay; every device starts over under the relay\'s new key. On a locked device this starts over from the device\'s own data.',
         parameters: [],
         returns: 'the status afterwards.',
       },
@@ -9884,6 +9921,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SyncDocument {\n    readonly doc: Doc;\n    close(): void;\n}',
   },
   {
+    name: 'SyncKeyHolder',
+    declaration: 'export interface SyncKeyHolder {\n    id: string;\n    kind: \'passkey\' | \'recovery\';\n    name?: string;\n    aaguid?: string;\n    device?: SyncPasskeyDevice;\n    addedAt?: string;\n}',
+  },
+  {
+    name: 'SyncKeyHolderView',
+    declaration: 'export interface SyncKeyHolderView {\n    readonly id: string;\n    readonly kind: \'passkey\' | \'recovery\';\n    readonly name?: string;\n    readonly aaguid?: string;\n    readonly device?: SyncPasskeyDeviceView;\n    readonly addedAt?: string;\n}',
+  },
+  {
     name: 'SyncKeyMode',
     declaration: 'export type SyncKeyMode = \'server\' | \'passkey\';',
   },
@@ -9893,11 +9938,23 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SyncPasskey',
-    declaration: 'export interface SyncPasskey {\n    credentialId: string;\n    prf: Uint8Array;\n}',
+    declaration: 'export interface SyncPasskey {\n    credentialId: string;\n    prf: Uint8Array;\n    kind?: \'passkey\' | \'recovery\';\n    aaguid?: string;\n    device?: SyncPasskeyDevice;\n    signIn?: SyncPasskeySignIn;\n}',
+  },
+  {
+    name: 'SyncPasskeyDevice',
+    declaration: 'export type SyncPasskeyDevice = \'mac\' | \'windows\' | \'linux\' | \'iphone\' | \'ipad\' | \'android\' | \'chromeos\' | \'external\' | \'other\';',
+  },
+  {
+    name: 'SyncPasskeyDeviceView',
+    declaration: 'export type SyncPasskeyDeviceView = \'mac\' | \'windows\' | \'linux\' | \'iphone\' | \'ipad\' | \'android\' | \'chromeos\' | \'external\' | \'other\';',
   },
   {
     name: 'SyncPasskeyPurpose',
     declaration: 'export type SyncPasskeyPurpose = \'protect\' | \'add\' | \'unlock\';',
+  },
+  {
+    name: 'SyncPasskeySignIn',
+    declaration: 'export interface SyncPasskeySignIn {\n    publicKey: string;\n    alg: number;\n}',
   },
   {
     name: 'SyncPasskeyStart',
@@ -9905,7 +9962,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SyncPasskeyView',
-    declaration: 'export interface SyncPasskeyView {\n    readonly purpose: SyncPasskeyPurpose;\n    readonly state: \'waiting\' | \'failed\' | \'unsupported\';\n}',
+    declaration: 'export interface SyncPasskeyView {\n    readonly purpose: SyncPasskeyPurpose;\n    readonly state: \'waiting\' | \'failed\' | \'unsupported\' | \'wrong-passkey\' | \'duplicate\';\n}',
   },
   {
     name: 'SyncProgress',
@@ -9913,11 +9970,19 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SyncProtection',
-    declaration: 'export interface SyncProtection {\n    mode: SyncKeyMode;\n    locked: boolean;\n    downgraded: boolean;\n    passkeys: readonly string[];\n}',
+    declaration: 'export interface SyncProtection {\n    mode: SyncKeyMode;\n    locked: boolean;\n    downgraded: boolean;\n    passkeys: readonly string[];\n    holders: readonly SyncKeyHolder[];\n}',
   },
   {
     name: 'SyncProtectionView',
-    declaration: 'export interface SyncProtectionView {\n    readonly mode: \'server\' | \'passkey\';\n    readonly locked: boolean;\n    readonly downgraded: boolean;\n    readonly passkeys: number;\n}',
+    declaration: 'export interface SyncProtectionView {\n    readonly mode: \'server\' | \'passkey\';\n    readonly locked: boolean;\n    readonly downgraded: boolean;\n    readonly passkeys: number;\n    readonly holders: readonly SyncKeyHolderView[];\n}',
+  },
+  {
+    name: 'SyncRecoveryKey',
+    declaration: 'export interface SyncRecoveryKey {\n    readonly key: string;\n}',
+  },
+  {
+    name: 'SyncSignInUnlock',
+    declaration: 'export interface SyncSignInUnlock {\n    readonly verifier: string;\n    readonly publicKey: string;\n    readonly secretKey: string;\n}',
   },
   {
     name: 'SyncState',

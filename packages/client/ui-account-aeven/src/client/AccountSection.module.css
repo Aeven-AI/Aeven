@@ -760,13 +760,6 @@
   }
 }
 
-/* Security: the switch sits on the line that names the feature, not halfway
-   down a cell that also carries the description under it. */
-.securityRow .actions {
-  align-self: flex-start;
-  height: 22px;
-}
-
 /* Security: the protection switch cell, and the enrollment step it opens. */
 .status {
   flex: none;
