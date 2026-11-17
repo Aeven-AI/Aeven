@@ -3,7 +3,7 @@
  * first rebuilt in the browser from its text files alone: exports carry images, audio, and an HTML copy of every
  * conversation, which can make them gigabytes, while the conversations themselves are a small part.
  */
-import { Unzip, UnzipInflate, zip, zipSync, type Zippable } from 'fflate'
+import { Unzip, UnzipInflate, zip, zipSync, type Zippable } from 'fflate/browser'
 
 /** Archive files kept for the import: text formats the agent can read with its own scripts. */
 const TEXT_FILE = /\.(json|jsonl|ndjson|md|markdown|txt|csv|html?)$/i
