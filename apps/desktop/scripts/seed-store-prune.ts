@@ -21,6 +21,7 @@ import {
   readPnpmIndexRows,
   writeChangedPnpmIndexRows,
 } from '../src/pnpm-store-index.ts'
+import { INTEL_MACOS_ONNXRUNTIME_NODE } from '../src/project-manager.ts'
 
 /** Release target whose native payload the pruned store keeps. */
 export interface SeedStorePruneTarget {
@@ -55,6 +56,27 @@ const UNLOADED_FILE_PATTERN = new RegExp(
   + String.raw`|(?:^|\/)(?:readme|changelog|history|changes|contributing|code_of_conduct|security|upgrading)(?:\.[a-z0-9-]+)*\.md$`,
   'iu',
 )
+
+/** Platform bindings each `onnxruntime-node` release ships under `bin/napi-v6/`. */
+type OnnxruntimeBindings = Readonly<Record<SeedStorePruneTarget['platform'], readonly SeedStorePruneTarget['arch'][]>>
+
+const ONNXRUNTIME_NODE_1_23_BINDINGS: OnnxruntimeBindings = { darwin: ['arm64', 'x64'], linux: ['arm64', 'x64'], win32: ['arm64', 'x64'] }
+const ONNXRUNTIME_NODE_1_24_BINDINGS: OnnxruntimeBindings = { darwin: ['arm64'], linux: ['arm64', 'x64'], win32: ['arm64', 'x64'] }
+
+function isIntelMac(target: SeedStorePruneTarget): boolean {
+  return target.platform === 'darwin' && target.arch === 'x64'
+}
+
+/**
+ * @param target - the seed's release target.
+ * @param shipped - bindings the installed release ships.
+ * @returns every shipped binding directory except the target's own.
+ */
+function otherOnnxruntimeBindings(target: SeedStorePruneTarget, shipped: OnnxruntimeBindings): string[] {
+  return Object.entries(shipped).flatMap(([platform, archs]) => archs
+    .filter(arch => platform !== target.platform || arch !== target.arch)
+    .map(arch => `bin/napi-v6/${platform}/${arch}/`))
+}
 
 /** Node-style prebuilt directory for one platform and architecture, as node-gyp-build and prebuildify lay it out. */
 const PREBUILD_DIRECTORY_PATTERN = /(?:^|\/)prebuilds\/([a-z0-9]+-[a-z0-9]+)\//u
@@ -111,14 +133,15 @@ export const SEED_STORE_PACKAGE_RULES: readonly SeedStorePackageRule[] = [
   },
   {
     name: 'onnxruntime-node',
-    version: '1.23.2',
-    reason: 'The binding loads `bin/napi-v6/<platform>/<arch>/` for the running Host only; the package ships every platform\'s runtime.',
-    remove: (target) => {
-      const all = { darwin: ['arm64', 'x64'], linux: ['arm64', 'x64'], win32: ['arm64', 'x64'] } as const
-      return Object.entries(all).flatMap(([platform, archs]) => archs
-        .filter(arch => platform !== target.platform || arch !== target.arch)
-        .map(arch => `bin/napi-v6/${platform}/${arch}/`))
-    },
+    version: INTEL_MACOS_ONNXRUNTIME_NODE,
+    reason: 'The binding loads `bin/napi-v6/<platform>/<arch>/` for the running Host only; the package ships every platform\'s runtime. Only Intel macOS seeds install this release.',
+    remove: target => isIntelMac(target) ? otherOnnxruntimeBindings(target, ONNXRUNTIME_NODE_1_23_BINDINGS) : [],
+  },
+  {
+    name: 'onnxruntime-node',
+    version: '1.24.3',
+    reason: 'The binding loads `bin/napi-v6/<platform>/<arch>/` for the running Host only; the package ships every platform\'s runtime except Intel macOS, whose seeds install an older release.',
+    remove: target => isIntelMac(target) ? [] : otherOnnxruntimeBindings(target, ONNXRUNTIME_NODE_1_24_BINDINGS),
   },
   {
     name: 'onnxruntime-web',

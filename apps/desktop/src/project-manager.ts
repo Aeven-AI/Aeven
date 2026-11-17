@@ -136,25 +136,47 @@ const BROWSER_LIBRARY_DEPENDENCIES = [
  * attachment reader's `sharp` release instead of carrying a second libvips. The Microsoft 365 Graph bridge loads its
  * optional Azure Identity and Key Vault packages only when `MS365_MCP_KEYVAULT_URL` is set, which the account
  * connector never sets; removing them also removes the second MSAL Node release and the browser MSAL build.
- * MemOS embeddings run through Transformers.js, which pins `onnxruntime-node` to a release that ships no Intel
- * macOS binding; 1.23.2 is the newest release that ships one, so the graph substitutes it for the pinned release.
+ * MemOS embeddings run through Transformers.js, whose pinned `onnxruntime-node` release ships no Intel macOS binding;
+ * only Intel macOS profiles substitute {@link INTEL_MACOS_ONNXRUNTIME_NODE}. Every other target keeps the pinned
+ * release, whose binding releases its environment at process exit instead of aborting the Host
+ * (microsoft/onnxruntime#26445, first released in 1.24).
  * HyperFrames' engine and producer depend on full Puppeteer, which adds only a second `puppeteer-core` and a Chrome
  * download; both load it in a try/catch that falls back to their own `puppeteer-core`, and the motion renderer always
  * passes the browser it resolved.
+ * @param target - operating system and CPU architecture the profile installs for.
+ * @returns the dependency selectors and replacement specs for that target's `pnpm-workspace.yaml`.
  */
-export const DESKTOP_DEPENDENCY_OVERRIDES: Readonly<Record<string, string>> = Object.fromEntries<string>([
-  ...BROWSER_LIBRARY_DEPENDENCIES.map((name): [string, string] => [`@aeven/client-ui-primitives>${name}`, '-']),
-  ...['lexical', '@lexical/history', '@lexical/plain-text', '@lexical/text', '@lexical/utils']
-    .map((name): [string, string] => [`@aeven/client-ui-conversation>${name}`, '-']),
-  ...['@xterm/xterm', '@xterm/addon-fit']
-    .map((name): [string, string] => [`@aeven/client-ui-sidebar-terminal>${name}`, '-']),
-  ['@huggingface/transformers>sharp', '^0.35.3'],
-  ['@huggingface/transformers>onnxruntime-node', '1.23.2'],
-  ...['@azure/identity', '@azure/keyvault-secrets']
-    .map((name): [string, string] => [`@softeria/ms-365-mcp-server>${name}`, '-']),
-  ...['@hyperframes/engine', '@hyperframes/producer']
-    .map((name): [string, string] => [`${name}>puppeteer`, '-']),
-])
+export function desktopDependencyOverrides(target: DesktopDependencyTarget): Readonly<Record<string, string>> {
+  return Object.fromEntries<string>([
+    ...BROWSER_LIBRARY_DEPENDENCIES.map((name): [string, string] => [`@aeven/client-ui-primitives>${name}`, '-']),
+    ...['lexical', '@lexical/history', '@lexical/plain-text', '@lexical/text', '@lexical/utils']
+      .map((name): [string, string] => [`@aeven/client-ui-conversation>${name}`, '-']),
+    ...['@xterm/xterm', '@xterm/addon-fit']
+      .map((name): [string, string] => [`@aeven/client-ui-sidebar-terminal>${name}`, '-']),
+    ['@huggingface/transformers>sharp', '^0.35.3'],
+    ...target.platform === 'darwin' && target.arch === 'x64'
+      ? [['@huggingface/transformers>onnxruntime-node', INTEL_MACOS_ONNXRUNTIME_NODE] as [string, string]]
+      : [],
+    ...['@azure/identity', '@azure/keyvault-secrets']
+      .map((name): [string, string] => [`@softeria/ms-365-mcp-server>${name}`, '-']),
+    ...['@hyperframes/engine', '@hyperframes/producer']
+      .map((name): [string, string] => [`${name}>puppeteer`, '-']),
+  ])
+}
+
+/** Operating system and CPU architecture whose native dependency builds one Desktop profile installs. */
+export interface DesktopDependencyTarget {
+  /** Node.js platform name, such as `darwin`. */
+  readonly platform: string
+  /** Node.js CPU architecture name, such as `arm64`. */
+  readonly arch: string
+}
+
+/** The newest `onnxruntime-node` release that ships a darwin/x64 binding; Intel macOS profiles install it. */
+export const INTEL_MACOS_ONNXRUNTIME_NODE = '1.23.2'
+
+/** The target of profiles this process installs or verifies: the running Desktop shell's own platform. */
+const RUNNING_TARGET: DesktopDependencyTarget = { platform: process.platform, arch: process.arch }
 
 function errorOf(reason: unknown, fallback: string): Error {
   return reason instanceof Error ? reason : new Error(fallback)
@@ -168,8 +190,8 @@ function readJson(path: string): unknown {
   return JSON.parse(readFileSync(path, 'utf8'))
 }
 
-function workspaceFile(corePackages: Readonly<Record<string, string>> = {}): string {
-  const entries = Object.entries({ ...DESKTOP_DEPENDENCY_OVERRIDES, ...corePackages })
+function workspaceFile(target: DesktopDependencyTarget, corePackages: Readonly<Record<string, string>> = {}): string {
+  const entries = Object.entries({ ...desktopDependencyOverrides(target), ...corePackages })
     .sort(([left], [right]) => left.localeCompare(right))
   const overrideSection = `overrides:\n${entries.map(([name, spec]) => `  ${JSON.stringify(name)}: ${JSON.stringify(spec)}`).join('\n')}\n`
   const coreBuildKey = packageSelector(corePackages, CORE_BUILD_PACKAGE)
@@ -346,7 +368,7 @@ function projectManifest(projectDir: string): DesktopProjectManifest {
   if (manifest.dependencies[AVN_PACKAGE] !== desktopAvnPackageSpec(packageSet)
     || Object.entries(expectedOverrides).some(([name, spec]) => manifest.dependencies[name] !== spec)
     || readFileSync(join(projectDir, 'pnpm-workspace.yaml'), 'utf8')
-      !== workspaceFile(expectedOverrides)) {
+      !== workspaceFile(RUNNING_TARGET, expectedOverrides)) {
     throw new Error(`desktop project: core package mapping does not match ${DESKTOP_PACKAGE_SET_FILE}`)
   }
   return manifest
@@ -819,8 +841,13 @@ export class DesktopProjectManager {
   }
 }
 
-/** Create seed metadata for one exact Electron and avn release. */
-export function createSeedMetadata(seedDir: string, release: DesktopRelease): void {
+/**
+ * Create seed metadata for one exact Electron and avn release.
+ * @param seedDir - seed profile directory.
+ * @param release - release identity the seed installs.
+ * @param target - platform the seed ships to; the installed Desktop verifies its profile against its own platform.
+ */
+export function createSeedMetadata(seedDir: string, release: DesktopRelease, target: DesktopDependencyTarget): void {
   mkdirSync(seedDir, { recursive: true, mode: 0o700 })
   const packageSet = verifyDesktopCorePackageSet(seedDir, release.version)
   const manifest: DesktopProjectManifest = {
@@ -833,7 +860,7 @@ export function createSeedMetadata(seedDir: string, release: DesktopRelease): vo
   writeJson(join(seedDir, 'package.json'), manifest)
   writeFileSync(
     join(seedDir, 'pnpm-workspace.yaml'),
-    workspaceFile(desktopCorePackageOverrides(packageSet)),
+    workspaceFile(target, desktopCorePackageOverrides(packageSet)),
     { mode: 0o600 },
   )
   writeJson(join(seedDir, 'desktop-release.json'), release)
@@ -857,6 +884,6 @@ export function createDevelopmentProjectMetadata(projectDir: string, release: De
     avn: { profile: { bundles: [...DESKTOP_PROFILE_BUNDLES] } },
   }
   writeJson(join(projectDir, 'package.json'), manifest)
-  writeFileSync(join(projectDir, 'pnpm-workspace.yaml'), workspaceFile(), { mode: 0o600 })
+  writeFileSync(join(projectDir, 'pnpm-workspace.yaml'), workspaceFile(RUNNING_TARGET), { mode: 0o600 })
   writeJson(join(projectDir, 'desktop-release.json'), release)
 }

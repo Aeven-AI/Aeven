@@ -47,6 +47,14 @@ interface ColdListEntry {
  */
 const COLD_TITLE_REFOLD_LIMIT = 20
 
+/**
+ * Projection keys whose view reads Host configuration and never Session state,
+ * so every Session carries the same value. List hints omit them: repeated per
+ * row they made up most of a large home's listing. The history snapshot that
+ * opens a Session still carries them in its complete baseline.
+ */
+const SESSION_INDEPENDENT_PROJECTIONS: ReadonlySet<string> = new Set(['imageLimits', 'fileIntake'])
+
 const SEARCH_PROVIDER_CALL_LIMIT = 100
 const SESSION_SEARCH_QUERY_MAX_CHARS = 500
 const MESSAGE_TYPES = new Set(['user/message', 'assistant/message'])
@@ -200,7 +208,7 @@ export class ApiSessionList {
       running: this.remoteSessionRunning(owner, id),
       blank: metadata?.blank ?? false,
       ...listFields(source.header),
-      ...snapshot === undefined ? {} : { projections: { asOfSeq: snapshot.asOfSeq, values: snapshot.values as SessionProjectionValues } },
+      ...snapshot === undefined ? {} : { projections: listHints(snapshot) },
     }, owner === undefined ? undefined : this.ctx.get('sessionHandoff')?.catalog(owner).find(entry => entry.header.id === id))
   }
 
@@ -323,10 +331,7 @@ export class ApiSessionList {
         ...item,
         blank: metadata?.blank ?? item.blank,
         updatedAt: Math.max(item.updatedAt, updatedAt(entry.header, metadata)),
-        projections: {
-          asOfSeq: snapshot.asOfSeq,
-          values: snapshot.values as SessionProjectionValues,
-        },
+        projections: listHints(snapshot),
       }
     }
   }
@@ -499,14 +504,10 @@ export class ApiSessionList {
           entry.inheritedEventCount ?? SessionLogOffset(0),
         )
         : this.ctx.sessionProjections.cachedSnapshot(session)
-      return block !== undefined && Object.keys(block.values).length > 0
-        ? {
-          asOfSeq: block.asOfSeq,
-          // Listing hints contain every currently cached wire value but remain
-          // partial: missing cells and cache rows are never materialized here.
-          values: block.values as SessionProjectionValues,
-        }
-        : undefined
+      // Listing hints contain the cached Session-dependent wire values but remain
+      // partial: missing cells and cache rows are never materialized here.
+      const hints = block === undefined ? undefined : listHints(block)
+      return hints !== undefined && Object.keys(hints.values).length > 0 ? hints : undefined
     } catch (error) {
       this.ctx.logger.warn(
         `api-session.list: projection column for "${header.id}" failed; serving the row without it: ${String(error)}`,
@@ -514,6 +515,19 @@ export class ApiSessionList {
       return undefined
     }
   }
+}
+
+/**
+ * Narrow one projection snapshot to the values a Session-list row carries.
+ * @param snapshot - cached or folded projection values at one cursor.
+ * @returns the snapshot without {@link SESSION_INDEPENDENT_PROJECTIONS}.
+ */
+function listHints(snapshot: { readonly asOfSeq: number; readonly values: object }): SessionProjectionHints {
+  const values: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(snapshot.values)) {
+    if (!SESSION_INDEPENDENT_PROJECTIONS.has(key)) values[key] = value
+  }
+  return { asOfSeq: snapshot.asOfSeq, values: values as SessionProjectionValues }
 }
 
 function normalizeSearchQuery(query: string): string {
