@@ -1,6 +1,6 @@
 {
   "name": "@aeven/client-ui-settings-memory",
-  "description": "Settings \u2192 Memory: the signed-in user's memories and learned capabilities, with View, Correct, and Forget",
+  "description": "Settings → Memory: the signed-in user's memories and learned capabilities, with View, Correct, and Forget",
   "version": "0.3.58-alpha",
   "publishConfig": {
     "access": "public"
@@ -61,5 +61,8 @@
     "lib/index.js",
     "lib/client.js",
     "lib/types/**/*.d.ts"
-  ]
+  ],
+  "dependencies": {
+    "fflate": "0.8.3"
+  }
 }

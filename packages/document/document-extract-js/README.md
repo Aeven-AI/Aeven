@@ -1,5 +1,5 @@
 ---
-description: "The built-in document reader: PDF, Office Open XML, OpenDocument, Pages, Keynote, Numbers, RTF, EPUB, HTML, and text, read in worker threads."
+description: "The built-in document reader: PDF, Office Open XML, OpenDocument, Pages, Keynote, Numbers, RTF, EPUB, HTML, text, and ZIP listings, read in worker threads."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-document-extract-js` registers the provider `js` at priority 0 on `ctx.documentExtract`, so it reads a document before the OCR and Office providers are asked. It covers PDF, Office Open XML, OpenDocument, iWork, RTF, EPUB, HTML, and text formats with JavaScript and WebAssembly libraries — the PDF readers ship in `vendor/` — and each document is read in its own worker thread with a wall-clock and heap limit, so nothing here needs a native binary and the provider ships inside the Desktop seed unchanged.
+`avn-document-extract-js` registers the provider `js` at priority 0 on `ctx.documentExtract`, so it reads a document before the OCR and Office providers are asked. It covers PDF, Office Open XML, OpenDocument, iWork, RTF, EPUB, HTML, and text formats with JavaScript and WebAssembly libraries, and reads a `.zip` archive as the list of its files, which the model then opens with tools at the attachment's path — the PDF readers ship in `vendor/` — and each document is read in its own worker thread with a wall-clock and heap limit, so nothing here needs a native binary and the provider ships inside the Desktop seed unchanged.
 
 ## Table of Contents
 

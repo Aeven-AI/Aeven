@@ -481,3 +481,12 @@
 .dangerFill:hover:not(:disabled) {
   opacity: 0.88;
 }
+
+/* Import memory: the file picker behind the row's button. */
+.fileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}

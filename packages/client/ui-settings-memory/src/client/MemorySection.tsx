@@ -7,6 +7,8 @@ import type {
 import { Button, IconChevronDownOutline14, IconSearchOutline16, LoadingBlock, MarkdownText, Modal, SectionHeader, Spinner, Tabs, relativeTime } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import type { MemoryLocaleKey } from './locales.ts'
+import { ImportMemory } from './ImportMemory.tsx'
+import type { ImportUploadStage } from './import-upload.ts'
 import css from './MemorySection.module.css'
 
 /** Registration-side operations the page calls. */
@@ -26,6 +28,12 @@ export interface MemorySectionInjected {
    * @param sessionId - conversation to show.
    */
   openConversation: (sessionId: string) => void
+  /**
+   * Hand one file to Æven to import: attach it to a new conversation that asks for the import, and switch to it.
+   * @param file - an exported archive or one saved conversation.
+   * @param onStage - told when the upload moves from preparing the file to sending it.
+   */
+  importFile: (file: File, onStage: (stage: ImportUploadStage) => void) => Promise<void>
 }
 
 /** Full component props assembled by the slot renderer. */
@@ -101,6 +109,7 @@ export function MemorySection(props: MemorySectionProps) {
   return (
     <div className={css.section}>
       <SectionHeader title={t('nav')} description={t('intro')} />
+      <ImportMemory t={t} importFile={props.importFile} close={props.close} />
       {!paneLoading && (
         <Tabs
           items={TABS.map(item => ({ id: item.id, label: t(item.label) }))}

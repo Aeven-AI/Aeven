@@ -64,9 +64,23 @@ export async function extractDocument(data: Uint8Array, extension: string): Prom
     case 'htm':
     case 'xhtml':
       return { text: htmlToText(decodeText(data)), method: 'native' }
+    case 'zip':
+      return extractZipListing(data)
     default:
       throw new Error(`unsupported extension: ${extension}`)
   }
+}
+
+/**
+ * List an archive's files. An archive's contents are read with tools at the attachment's path, so its text is the
+ * listing, not the files.
+ */
+async function extractZipListing(data: Uint8Array): Promise<ExtractedDocument> {
+  requireZip(data, 'zip')
+  const zip = await loadZip(data)
+  const files: string[] = []
+  zip.forEach((path, entry) => { if (!entry.dir) files.push(path) })
+  return { text: `ZIP archive, ${files.length} files:\n${files.join('\n')}`, method: 'native' }
 }
 
 /** Reject bytes that are not a zip package before a zip-based reader guesses at them. */
