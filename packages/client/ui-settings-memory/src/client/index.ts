@@ -8,6 +8,7 @@ import type {} from '@aeven/api-session-controller/client'
 import type { ManagedMemory, RemoteResult } from '@aeven/api-remotes/client'
 import { MemorySection, type MemorySectionInjected } from './MemorySection.tsx'
 import { en, es, zh, type MemoryLocaleKey } from './locales.ts'
+import { ImportUploadError, uploadImport } from './import-upload.ts'
 
 export type { MemorySectionInjected, MemorySectionProps } from './MemorySection.tsx'
 export type { MemoryLocaleKey } from './locales.ts'
@@ -58,6 +59,15 @@ export function apply(ctx: ClientContext): void {
     procedure: id => value(remote.procedure(id)),
     editProcedure: (id, summary) => value(remote.editProcedure(id, summary)),
     openConversation: (sessionId) => { ctx.sessions.open(sessionId as ManagedMemory['sessionId']) },
+    importFile: async (file, onStage) => {
+      const uploadId = await uploadImport(file, onStage)
+      const sessionId = await ctx.sessions.create()
+      ctx.sessions.open(sessionId)
+      const session = ctx.sessions.binding(sessionId)?.session
+      if (session === undefined) throw new ImportUploadError('UPLOAD_FAILED', 'the new conversation is not reachable')
+      const sent = await session.prompt([{ type: 'text', text: t('import.prompt') }, { type: 'file', uploadId }], 'queue')
+      if (!sent.ok) throw new ImportUploadError('UPLOAD_FAILED', sent.error.message)
+    },
   }
 
   ctx.slots.inject('settings.section', () => ctx.slots.register({

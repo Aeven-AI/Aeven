@@ -1,5 +1,5 @@
 ---
-description: "内置文档读取器：PDF、Office Open XML、OpenDocument、Pages、Keynote、Numbers、RTF、EPUB、HTML 与文本格式，在工作线程中读取。"
+description: "内置文档读取器：PDF、Office Open XML、OpenDocument、Pages、Keynote、Numbers、RTF、EPUB、HTML、文本格式与 ZIP 文件列表，在工作线程中读取。"
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`avn-document-extract-js` 在 `ctx.documentExtract` 上以优先级 0 注册提供者 `js`，因此它在 OCR 与 Office 提供者被询问之前读取文档。它用 JavaScript 与 WebAssembly 库覆盖 PDF、Office Open XML、OpenDocument、iWork、RTF、EPUB、HTML 与文本格式——PDF 读取器随 `vendor/` 一同提供——每份文档都在自己的 worker 线程中读取，并受墙钟与堆内存限制，因此这里不需要原生二进制文件，该提供者原样随 Desktop seed 发布。
+`avn-document-extract-js` 在 `ctx.documentExtract` 上以优先级 0 注册提供者 `js`，因此它在 OCR 与 Office 提供者被询问之前读取文档。它用 JavaScript 与 WebAssembly 库覆盖 PDF、Office Open XML、OpenDocument、iWork、RTF、EPUB、HTML 与文本格式，并把 `.zip` 归档读作其文件列表，模型随后用工具在附件路径处打开这些文件——PDF 读取器随 `vendor/` 一同提供——每份文档都在自己的 worker 线程中读取，并受墙钟与堆内存限制，因此这里不需要原生二进制文件，该提供者原样随 Desktop seed 发布。
 
 ## 目录
 

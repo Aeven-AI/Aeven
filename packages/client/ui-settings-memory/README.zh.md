@@ -1,5 +1,5 @@
 ---
-description: "Settings → Memory：Aeven 对已登录用户已经了解的内容，带查看、纠正与遗忘。"
+description: "Settings → Memory：Aeven 对已登录用户已经了解的内容，带查看、纠正与遗忘，以及导入记忆。"
 kind: "package-reference"
 ---
 
@@ -20,6 +20,8 @@ kind: "package-reference"
 
 <a id="use-this-package"></a>
 ## 使用本包
+
+**Import memory** 位于页面顶部、标签页上方。它的按钮打开文件选择器，用于选择来自 ChatGPT、Claude、Gemini、Grok 或其他助手的数据导出（`.zip`），或一段保存的对话。浏览器只用归档中的文本文件重建归档，因此图片与附件不会离开设备，并通过输入框的附件路由上传该文件。随后页面开启一个新对话，其第一条消息附上该文件并请 Æven 导入它，然后关闭 Settings。智能体在 aeven 预设的 `memory-import` 技能指引下，用自己的工具读取附件路径处的文件，并用 `memory_remember_bulk` 保存事实。超过附件大小上限的文件或不含文本文件的归档会在该行中被拒绝。
 
 该页面使用与 Plugins 相同的下划线标签页：
 

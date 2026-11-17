@@ -73,6 +73,16 @@ export const en = {
   copied: 'Copied',
   footnotes: 'Footnotes',
   imageUnavailable: 'Image not shown',
+  'import.title': 'Import memory',
+  'import.description': 'Bring in what ChatGPT, Claude, Gemini or Grok knows about you: choose a data export (.zip) or a saved conversation.',
+  'import.button': 'Import',
+  'import.preparing': 'Preparing the file…',
+  'import.uploading': 'Uploading…',
+  'import.prompt': 'Import my memory from this file.',
+  'import.tooLarge': 'This file is too large to attach.',
+  'import.noText': 'No conversations were found in this file.',
+  'import.unsupported': 'This type of file cannot be imported.',
+  'import.failed': 'The file could not be handed to Æven. Try again.',
 }
 
 /** Key set of the Memory section's dictionaries. */
@@ -151,6 +161,16 @@ export const zh: Record<MemoryLocaleKey, string> = {
   copied: '已复制',
   footnotes: '脚注',
   imageUnavailable: '图片未显示',
+  'import.title': '导入记忆',
+  'import.description': '把 ChatGPT、Claude、Gemini 或 Grok 了解的关于你的信息带进来：选择一个数据导出文件（.zip）或一段保存的对话。',
+  'import.button': '导入',
+  'import.preparing': '正在准备文件…',
+  'import.uploading': '正在上传…',
+  'import.prompt': '从这个文件导入我的记忆。',
+  'import.tooLarge': '此文件太大，无法附加。',
+  'import.noText': '此文件中没有找到对话。',
+  'import.unsupported': '无法导入此类文件。',
+  'import.failed': '无法把文件交给 Æven，请重试。',
 }
 
 /**
@@ -228,4 +248,14 @@ export const es = {
   copied: 'Copiado',
   footnotes: 'Notas al pie',
   imageUnavailable: 'Imagen no mostrada',
+  'import.title': 'Importar memoria',
+  'import.description': 'Trae lo que ChatGPT, Claude, Gemini o Grok saben de ti: elige una exportación de datos (.zip) o una conversación guardada.',
+  'import.button': 'Importar',
+  'import.preparing': 'Preparando el archivo…',
+  'import.uploading': 'Subiendo…',
+  'import.prompt': 'Importa mi memoria desde este archivo.',
+  'import.tooLarge': 'Este archivo es demasiado grande para adjuntarlo.',
+  'import.noText': 'No se encontraron conversaciones en este archivo.',
+  'import.unsupported': 'Este tipo de archivo no se puede importar.',
+  'import.failed': 'No se pudo pasar el archivo a Æven. Inténtalo de nuevo.',
 } satisfies Record<MemoryLocaleKey, string>

@@ -1,5 +1,5 @@
 ---
-description: "Settings → Memory: what Aeven has learned about the signed-in user, with View, Correct, and Forget."
+description: "Settings → Memory: what Aeven has learned about the signed-in user, with View, Correct, and Forget, and Import memory."
 kind: "package-reference"
 ---
 
@@ -19,6 +19,8 @@ English | [中文](README.zh.md)
 - [Dev Note](#dev-note)
 
 ## Use this package
+
+**Import memory** sits at the top of the page, above the tabs. Its button opens a file picker for a data export (`.zip`) from ChatGPT, Claude, Gemini, Grok, or another assistant, or one saved conversation. The browser rebuilds an archive from its text files, so images and attachments never leave the device, and uploads the file through the composer's attachment route. The page then starts a new conversation whose first message asks Æven to import the file, with the file attached, and closes Settings. The agent reads the file at its attachment path with its own tools, guided by the aeven preset's `memory-import` skill, and saves facts with `memory_remember_bulk`. A file over the attachment size limit, or an archive without text files, is refused in the row.
 
 The page uses the same underline tabs as Plugins:
 
