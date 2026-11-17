@@ -90,6 +90,43 @@ const SENTENCE_BOUNDARY = /(?<=[.!?])\s+|\s*\n+\s*/u
 /** Fewest words a sentence needs to be its own topic. */
 const MIN_SENTENCE_WORDS = 3
 
+/** Words too common to tell one kind of task from another. */
+const TASK_STOP_WORDS = new Set(['the', 'and', 'for', 'with', 'that', 'this', 'from', 'you', 'your', 'can', 'please', 'make', 'need', 'want', 'into', 'then', 'also', 'when', 'what', 'have', 'does', 'not', 'are', 'was', 'use', 'using', 'one', 'new', 'now', 'how', 'its', 'via', 'after', 'before'])
+
+/**
+ * The words of a text that can name a kind of task: lowercased, a plural `s` dropped, short and common words left out.
+ * @param text - a request, or a procedure's name or description.
+ * @returns the distinct words.
+ */
+export function taskWords(text: string): Set<string> {
+  const found = new Set<string>()
+  for (const raw of text.toLowerCase().split(/[^\p{L}\p{N}]+/u)) {
+    const word = raw.length > 3 && raw.endsWith('s') ? raw.slice(0, -1) : raw
+    if (word.length >= 3 && !TASK_STOP_WORDS.has(word)) found.add(word)
+  }
+  return found
+}
+
+/**
+ * How well a learned procedure's name and description match a request, by shared words. A word of the name counts
+ * twice: the name is the kind of task, and its words (an application, a service, an action) are the ones a request
+ * for that task repeats. Matching is by word, so a request in another language than the procedure matches only on
+ * names both share, such as a product's.
+ * @param request - the person's message with the conversation before it.
+ * @param name - the procedure's kebab-case name.
+ * @param description - what the procedure does.
+ * @param common - words many procedures' names share, such as the product they all concern, which tell none apart.
+ * @returns the score; 0 when no word is shared.
+ */
+export function procedureMatch(request: string, name: string, description: string, common: ReadonlySet<string>): number {
+  const asked = taskWords(request)
+  const named = taskWords(name)
+  let score = 0
+  for (const word of named) if (asked.has(word) && !common.has(word)) score += 2
+  for (const word of taskWords(description)) if (!named.has(word) && asked.has(word) && !common.has(word)) score += 1
+  return score
+}
+
 /**
  * Split the person's current message into its sentences for turn-start recall.
  *

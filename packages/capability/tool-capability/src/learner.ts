@@ -110,6 +110,12 @@ const EXISTING_LINE_CHARS = 160
 /** Characters of one related procedure's full text in a memory-store distillation. */
 const RELATED_PROCEDURE_CHARS = 6_000
 
+/**
+ * Characters of one procedure's full text when a distillation is repeated because its decision rewrites or replaces
+ * a procedure it had not read whole.
+ */
+const REWRITTEN_PROCEDURE_CHARS = 24_000
+
 /** Procedures one grouping call sorts; it bounds the call's reply, which names every grouped procedure. */
 const GROUP_BATCH = 150
 
@@ -145,7 +151,7 @@ Never learn from a conversation about the user's own life: relationships, family
 
 Lines in <tool_calls> starting "USER (during the work):" are what the user said while the work ran, placed after the calls that preceded them. Each is a requirement of the procedure from its first step: a call that went against one, such as a test run after "no tests", or browser measuring and screenshots after "just make the change", goes under "Avoid", never in the fast path. Repeated complaints or impatience mean the fast path must be far shorter. Tests, browser inspection, screenshots, and measurements belong in the fast path only when the user asked for them.
 
-Name a procedure after the kind of task, not this instance (for example "aeven-client-ui-change", not "rename-clear-history-button"). When an existing procedure covers the same kind of task, even with a different instance, update it: return its exact name and the complete merged procedure, keeping what still holds, fixing what the work showed to be wrong, and adding only what this work taught about the kind of task: facts it verified stay literal, values only this request used become placeholders, and this instance is not added as an example. Create a new one only for a different kind of task.`
+Name a procedure after the kind of task, not this instance (for example "aeven-client-ui-change", not "rename-clear-history-button"). When an existing procedure covers the same kind of task, even with a different instance, update it: return its exact name and the complete merged procedure, keeping what still holds, fixing what the work showed to be wrong, and adding only what this work taught about the kind of task: facts it verified stay literal, values only this request used become placeholders, and this instance is not added as an example. An update extends the procedure: every step, variant, fact, preference, and recovery already in it stays unless this work showed it to be wrong, including the parts this work never reached. Work that did one part of the task (for example drafting a post without publishing it) adds to that part and leaves the others as they are. When the kind of task has variants (a different target, surface, or tool, such as a personal page and a company page, or with and without an image), give each variant its own steps under "Steps" and say in "Fast path" which to take. Create a new one only for a different kind of task.`
 
 /** How a memory-store procedure chooses its domain. */
 const DOMAIN_RULE = 'Choose "domain": "world" when it is how an application, tool, service, or environment works and applies in any project; "project" when it only applies to the current workspace\'s code or files; "experience" for other reusable know-how.'
@@ -175,7 +181,7 @@ Write "summary" as the procedure condensed to at most 800 characters that can be
 
 ${DOMAIN_RULE}
 
-When the procedure you write now covers other procedures in <existing_procedures> that are the same kind of task, list their exact names in "replaces"; they are forgotten in favour of this one.
+When the procedure you write now covers other procedures in <existing_procedures> that are the same kind of task, list their exact names in "replaces"; they are forgotten in favour of this one. List one only when its full text is given in a <procedure> element and what you write keeps its steps, facts, and recoveries.
 
 Reply with one JSON object and nothing else:
 {"decision":"skip"}
@@ -189,7 +195,7 @@ Reply with one JSON object and nothing else, listing only groups of two or more 
 {"groups":[{"name":"kebab-case-name","members":["procedure-name","procedure-name"]}]}`
 
 /** How one group of learned procedures is merged. */
-const MERGE_SYSTEM = `You maintain the know-how an assistant learned for one user, kept in its long-term memory and recalled when a later request needs it. You receive several procedures learned separately for the same kind of task, newest first, and the name of the kind of task. Merge them into one procedure under that name that another session can follow without the original conversations: keep the steps, commands, settings, user preferences, and recoveries that hold for this kind of task as a whole, keep every fact a procedure verified unless a newer one contradicts it, turn values that differ between the procedures (file names, identifiers, versions, wording) into named placeholders, drop what only one instance needed, and drop repetition. A step that only some of the procedures took is a decision: state when to take it. Settle contradictions in favour of the newest procedure. Do not list the instances. The merged procedure is no longer than the longest procedure you received. The purpose is speed: the "Fast path" must be the fewest calls that do this kind of task.
+const MERGE_SYSTEM = `You maintain the know-how an assistant learned for one user, kept in its long-term memory and recalled when a later request needs it. You receive several procedures learned separately for the same kind of task, newest first, and the name of the kind of task. Merge them into one procedure under that name that another session can follow without the original conversations: keep the steps, commands, settings, user preferences, and recoveries that hold for this kind of task as a whole, keep every fact a procedure verified unless a newer one contradicts it, turn values that differ between the procedures (file names, identifiers, versions, wording) into named placeholders, drop what only one instance needed, and drop repetition. A variant of the task that one procedure covers (a different target, surface, or tool, such as a personal page and a company page, or with and without an image) is not an instance: keep its steps under "Steps" as that variant and say in "Fast path" which to take. A step that only some of the procedures took is a decision: state when to take it. Settle contradictions in favour of the newest procedure. Do not list the instances. The merged procedure is as short as keeping every variant allows. The purpose is speed: the "Fast path" must be the fewest calls that do this kind of task.
 
 Write "content" ${PROCEDURE_SECTIONS}
 
@@ -365,40 +371,18 @@ const DAY_MS = 86_400_000
 
 /**
  * Status of a procedure written from new work. Writing never proves a procedure: it is `active` only when it replaces
- * an active procedure without a correction and keeps most of that procedure's steps. Anything new, corrected, or
- * materially rewritten is a `candidate`, which memory recall promotes once it informs work the user does not correct.
+ * an active procedure without a correction, because an update extends what that procedure already proved. Anything
+ * new or corrected is a `candidate`, which memory recall promotes once it informs work the user does not correct.
  * @param previous - the stored procedures the new one replaces.
- * @param content - the new procedure's Markdown.
  * @param feedback - the user's next message after the work.
  * @returns the status to store.
  */
 function procedureStatusAfter(
   previous: readonly LearnedProcedure[],
-  content: string,
   feedback: LearnerFeedback | undefined,
 ): ProcedureStatus {
   if (feedback?.kind === 'correction') return 'candidate'
-  const active = previous.find(procedure => procedure.status === 'active')
-  return active !== undefined && sameSteps(active.content, content) ? 'active' : 'candidate'
-}
-
-/** Share of the earlier procedure's step lines a rewrite must keep to stay proven. */
-const KEPT_STEPS = 0.6
-
-/**
- * Whether a rewrite keeps most of a procedure's steps, compared by normalized line.
- * @param before - the earlier procedure's Markdown.
- * @param after - the rewrite.
- * @returns true when at least {@link KEPT_STEPS} of the earlier lines remain.
- */
-function sameSteps(before: string, after: string): boolean {
-  const lines = (text: string): Set<string> => new Set(text.split('\n').map(line => line.replace(/\s+/g, ' ').trim().toLowerCase()).filter(line => line.length > 8))
-  const earlier = lines(before)
-  if (earlier.size === 0) return false
-  const later = lines(after)
-  let kept = 0
-  for (const line of earlier) if (later.has(line)) kept++
-  return kept / earlier.size >= KEPT_STEPS
+  return previous.some(procedure => procedure.status === 'active') ? 'active' : 'candidate'
 }
 
 function latestByName(procedures: readonly LearnedProcedure[]): Map<string, LearnedProcedure> {
@@ -664,22 +648,48 @@ export class CapabilityLearner {
       .sort((a, b) => b.score - a.score || b.procedure.time - a.procedure.time)
     const existing = ordered.slice(0, MAX_EXISTING_PROCEDURES)
       .map(({ procedure }) => `- ${procedure.name}: ${clip(procedure.description, EXISTING_LINE_CHARS)}`).join('\n') || '(none)'
-    const related = ordered.filter(item => item.score >= 2).slice(0, MAX_RELATED_PROCEDURES).map(({ procedure }) => ({
+    const shown = (procedures: readonly LearnedProcedure[], maxChars: number) => procedures.map(procedure => ({
       name: procedure.name,
       description: procedure.description,
-      content: clip(procedure.content, RELATED_PROCEDURE_CHARS),
+      content: clip(procedure.content, maxChars),
     }))
-    const decision = await this.distill(route, work, feedback, existing, related, MEMORY_SYSTEM)
+    const related = ordered.filter(item => item.score >= 2).slice(0, MAX_RELATED_PROCEDURES).map(item => item.procedure)
+    /** Names of the procedures a distillation read whole; only these may be rewritten or replaced. */
+    const readWhole = (procedures: readonly LearnedProcedure[], maxChars: number): Set<string> =>
+      new Set(procedures.filter(procedure => procedure.content.length <= maxChars).map(procedure => procedure.name))
+    const coveredBy = (made: Decision & { decision: 'create' | 'update' }): LearnedProcedure[] => {
+      const names = new Set([made.name, ...made.replaces ?? []])
+      return [...latest.values()].filter(procedure => names.has(procedure.name))
+    }
+    let decision = await this.distill(route, work, feedback, existing, shown(related, RELATED_PROCEDURE_CHARS), MEMORY_SYSTEM)
+    let whole = readWhole(related, RELATED_PROCEDURE_CHARS)
+    if (decision !== undefined && decision.decision !== 'skip') {
+      const unread = coveredBy(decision).filter(procedure => !whole.has(procedure.name))
+      if (unread.length > 0) {
+        // The decision rewrites or replaces procedures it saw one line of, or a clipped text of: an update written
+        // that way drops their steps. Decide again with those procedures in full.
+        const reread = coveredBy(decision).slice(0, MAX_RELATED_PROCEDURES)
+        this.logger.info(`learning from ${work.sessionId} turn ${work.turn} reads ${unread.map(procedure => procedure.name).join(', ')} in full before rewriting`)
+        decision = await this.distill(route, work, feedback, existing, shown(reread, REWRITTEN_PROCEDURE_CHARS), MEMORY_SYSTEM)
+        whole = readWhole(reread, REWRITTEN_PROCEDURE_CHARS)
+      }
+    }
     if (decision === undefined) return undefined
     if (decision.decision === 'skip') {
       this.logger.info(`nothing reusable in ${work.sessionId} turn ${work.turn}`)
       return undefined
     }
+    if (latest.has(decision.name) && !whole.has(decision.name)) {
+      // Storing it would put a rewrite made without the stored steps in front of them.
+      this.logger.warn(`learning from ${work.sessionId} turn ${work.turn} skipped: the update of ${decision.name} was written without its full text`)
+      return undefined
+    }
     const domain: MemoryDomain = decision.domain === 'project' && cwd === undefined ? 'experience' : decision.domain ?? 'experience'
-    const covered = new Set([decision.name, ...decision.replaces ?? []])
+    // A procedure the distillation did not read whole is kept beside the new one instead of being forgotten.
+    const covered = new Set([decision.name, ...(decision.replaces ?? []).filter(name => whole.has(name))])
     const previous = all.filter(procedure => covered.has(procedure.name))
     const replaced = previous.map(procedure => procedure.id)
-    const status = procedureStatusAfter(previous, decision.content, feedback)
+    const status = procedureStatusAfter(previous, feedback)
     const id = await storeLearnedProcedure(this.ctx, scope, {
       name: decision.name,
       description: decision.description,
@@ -836,9 +846,8 @@ export class CapabilityLearner {
       return
     }
     const domain: MemoryDomain = decision.domain === 'project' && cwd === undefined ? 'experience' : decision.domain ?? 'experience'
-    // A merge rewrites its members, so only an all-active group whose steps survive stays proven.
-    const status: ProcedureStatus = members.every(member => member.status === 'active')
-      && members.some(member => sameSteps(member.content, decision.content)) ? 'active' : 'candidate'
+    // A merge keeps what its members proved, so a group with a proven member stays proven.
+    const status: ProcedureStatus = members.some(member => member.status === 'active') ? 'active' : 'candidate'
     const id = await storeLearnedProcedure(this.ctx, this.scopeOf(recent), {
       name: decision.name,
       description: decision.description,

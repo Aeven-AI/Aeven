@@ -45,7 +45,7 @@ Mount it per agent (the `standard`, `cordis`, and `ptc` presets include it) besi
 
 Messages whose source kind is `user`, and approved task notices from the built-in `automations` service, trigger recall and become captured task text. Other plugin and tool messages do neither, so recall cannot recall itself. The pre-step decision returned by downstream listeners is authoritative: rewritten or rejected input is what recall and capture see.
 
-A candidate learned procedure proves itself through use: when a turn that recall gave one called a tool and the person's next message does not correct it, the procedure becomes `active`; a correction of that turn, or a negative rating of its reply, returns every procedure it was given to `candidate`.
+A candidate learned procedure proves itself through use: when a turn that recall gave one called a tool and the person's next message does not correct it, the procedure becomes `active`; a correction of that turn, or a negative rating of its reply, returns every procedure it was given to `candidate`. When learning rewrote a procedure in between, which stores it under a new id, the status goes to the procedure now stored under the same name.
 
 ## Model Experience
 
