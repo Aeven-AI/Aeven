@@ -1769,6 +1769,8 @@ export interface Config {
   maxConcurrentExports: number
   /** Most bytes per second one export streams, bounding its disk and network use. 0 is unlimited. */
   maxBytesPerSecond: number
+  /** Directory names left out of every exported tree: installable tooling, not the account's data. */
+  skipDirectories: string[]
 }
 ```
 

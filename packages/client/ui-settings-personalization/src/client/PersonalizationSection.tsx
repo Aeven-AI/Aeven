@@ -1,7 +1,7 @@
 /** The Personalization settings page: the voice as one row of options, notes in the person's own words, and their own master prompt. */
 import { useCallback, useEffect, useId, useState } from 'react'
 import type { PersonalizationChange, PersonalizationUpdate, PersonalizationView, PersonalizationVoice } from '@aeven/api-remotes/client'
-import { Button, LoadingBlock, SectionHeader } from '@aeven/client-ui-primitives'
+import { Button, IconQuestionOutline14, LoadingBlock, Modal, SectionHeader } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import css from './PersonalizationSection.module.css'
 
@@ -44,6 +44,7 @@ export function PersonalizationSection({ read, cachedView, update, resetMasterPr
   const [notes, setNotes] = useState('')
   const [master, setMaster] = useState('')
   const [busy, setBusy] = useState(false)
+  const [masterInfo, setMasterInfo] = useState(false)
   const [notesNotice, setNotesNotice] = useState<Notice>()
   const [masterNotice, setMasterNotice] = useState<Notice>()
   const voiceLabelId = useId()
@@ -176,7 +177,10 @@ export function PersonalizationSection({ read, cachedView, update, resetMasterPr
       </div>
 
       <div className={css.group}>
-        <label className={css.heading} htmlFor={notesId}>{t('notes')}</label>
+        <div className={css.head}>
+          <label className={css.heading} htmlFor={notesId}>{t('notes')}</label>
+          <p className={css.hint}>{t('notesHint')}</p>
+        </div>
         <textarea
           id={notesId}
           className={css.input}
@@ -205,11 +209,29 @@ export function PersonalizationSection({ read, cachedView, update, resetMasterPr
       </div>
 
       <div className={css.group}>
-        <div className={css.masterHead}>
-          <label className={css.heading} htmlFor={masterId}>{t('master')}</label>
-          {view.customMasterPrompt && <span className={css.badge}>{t('masterChanged')}</span>}
+        <div className={css.head}>
+          <div className={css.masterHead}>
+            <label className={css.heading} htmlFor={masterId}>{t('master')}</label>
+            <button
+              type="button"
+              className={css.info}
+              aria-label={t('masterInfo')}
+              aria-haspopup="dialog"
+              onClick={() => { setMasterInfo(true) }}
+            >
+              <IconQuestionOutline14 />
+            </button>
+            {view.customMasterPrompt && <span className={css.badge}>{t('masterChanged')}</span>}
+          </div>
+          <p className={css.hint}>{t('masterHint')}</p>
         </div>
-        <p className={css.hint}>{t('masterDescription')}</p>
+        <Modal
+          open={masterInfo}
+          onClose={() => { setMasterInfo(false) }}
+          title={t('masterInfo')}
+          description={t('masterDescription')}
+          closeLabel={t('close')}
+        />
         <div className={css.masterFrame}>
           <textarea
             id={masterId}

@@ -32,8 +32,27 @@ declare module '@aeven/client-ui-slots' {
 /** Settings section id of the Account page. */
 const ACCOUNT_SECTION = 'account'
 
+/** The page's authenticated Host transport, absent where the page installed none. */
+interface PageTransport {
+  fetch(input: URL, init: RequestInit): Promise<Response>
+}
+
+/**
+ * Send one request through the page's authenticated Host transport, as the page's RPC calls are sent.
+ * @param input - the Host URL.
+ * @returns the Host's response.
+ */
+function hostFetch(input: URL): Promise<Response> {
+  const transport = (globalThis as { __AVN_TRANSPORT__?: PageTransport }).__AVN_TRANSPORT__
+  if (transport !== undefined) return transport.fetch(input, { method: 'GET' })
+  return globalThis.fetch(input, { method: 'GET', credentials: 'include' })
+}
+
 /** The Host route `@aeven/host-account-data` streams the reader's data export from, relative to the page. */
 const EXPORT_ROUTE = 'api/account-data/export'
+
+/** The Host route answering how far the reader's running export is, relative to the page. */
+const PROGRESS_ROUTE = 'api/account-data/export/progress'
 
 /** Required services for locale registration, the header seat, and the Account page. */
 export const inject = ['slots', 'locale']
@@ -188,6 +207,13 @@ export function apply(ctx: ClientContext): void {
     removeImage: () => reader.removeImage(),
     cached: (path: string) => cache.peek<unknown>(path),
     exportUrl: EXPORT_ROUTE,
+    fetchExport: () => hostFetch(new URL(EXPORT_ROUTE, document.baseURI)),
+    exportProgress: async () => {
+      const response = await hostFetch(new URL(PROGRESS_ROUTE, document.baseURI))
+      if (!response.ok) return undefined
+      const { fraction } = await response.json() as { fraction?: unknown }
+      return typeof fraction === 'number' ? fraction : undefined
+    },
     requestDeletion: (email, code) => reader.account<{ purgeAt: string }>('/delete', {
       method: 'POST',
       body: JSON.stringify({ email, ...code === undefined ? {} : { code } }),

@@ -42,8 +42,9 @@ Deleting an account on the Aeven API starts a 30-day grace period; the API then 
 | `chatFiles` | absent | A device-wide folder included in every account's export and never erased; the desktop sets its chats folder. |
 | `maxConcurrentExports` | 0 (unlimited) | Exports streaming at once across accounts; beyond it the route answers 429. |
 | `maxBytesPerSecond` | 0 (unlimited) | Throughput cap per export. |
+| `skipDirectories` | `node_modules`, `.venv`, `venv`, `__pycache__` | Directory names left out of every exported tree: installable tooling, not the account's data. |
 
-Each account streams one export at a time whatever the limits; a second request answers 429 until the first finishes or is cancelled. The hosted bundle allows two exports at 25 MB/s each.
+`GET /api/account-data/export/progress` answers `{ fraction }` for the caller's running export: bytes read into the archive against an estimate that sizes the non-chat sources up front and the chats from their measured average, never 1 before the archive ends. Settings shows it as a bar. Each account streams one export at a time whatever the limits; a second request answers 429 until the first finishes or is cancelled. The hosted bundle allows two exports at 25 MB/s each.
 
 Plugins that keep per-account data register a source:
 
