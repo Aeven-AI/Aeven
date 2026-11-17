@@ -54,6 +54,8 @@ export function apply(ctx: Context): void {
       schema: { type: 'json' },
       render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
     },
+    // Listing providers reads the inspection registry only.
+    isConcurrencySafe: () => true,
     execute(_args, _exec): Promise<JsonValue> {
       return Promise.resolve({ providers: ctx.cordisInspect.list() } as unknown as JsonValue)
     },
@@ -82,6 +84,8 @@ export function apply(ctx: Context): void {
       schema: { type: 'json' },
       render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
     },
+    // Provider methods are read-only, and each Client query settles by its own request id.
+    isConcurrencySafe: () => true,
     async execute(args, exec) {
       const data = await ctx.cordisInspect.query(
         args.platform,

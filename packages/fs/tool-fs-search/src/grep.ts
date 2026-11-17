@@ -320,6 +320,8 @@ export function applyGrepTool(ctx: Context, caps: GrepToolCaps): void {
       presentationMeta: (_args, value) =>
         grepSearchMeta(retainGrepMatches(value.matches, caps.maxMatches, caps.maxLineBytes), caps.maxMetaBytes),
     },
+    // Matches record no file observation; over-cap spilling runs in model-ordered post-execute.
+    isConcurrencySafe: () => true,
     async execute(args, exec) {
       const input = parseGrepArgs(args)
       const run = await runRipgrep(ctx, exec, 'grep', buildGrepCommand(input), caps.rawOutputMaxBytes, caps.graceMs, caps.stderrMaxBytes)

@@ -1,7 +1,10 @@
 /**
  * Authenticated GET/HEAD /api/file reads bounded file responses through
  * the composed filesystem provider. Paths and MIME types do not restrict access;
- * the connection service authenticates requests before this handler.
+ * the connection service authenticates requests before this handler. Each
+ * response carries the file's version as its `ETag` and must be revalidated, so
+ * a browser that re-mounts an unchanged image receives an empty 304 after one
+ * `stat` instead of the file's bytes, and every load still passes authentication.
  * @module @aeven/api-session-controller/media-references
  */
 
@@ -33,6 +36,18 @@ function rasterMediaType(bytes: Uint8Array): string | undefined {
   return undefined
 }
 
+/** Revalidated-cache headers for a file response; failures stay `no-store`. */
+const REVALIDATED_HEADERS = { ...BASE_HEADERS, 'Cache-Control': 'private, no-cache' }
+
+/** Whether an `If-None-Match` header names the given entity tag or `*`. */
+function matchesEtag(header: string | null, etag: string): boolean {
+  if (header === null) return false
+  return header.split(',').some((candidate) => {
+    const tag = candidate.trim()
+    return tag === '*' || tag === etag || tag === `W/${etag}`
+  })
+}
+
 async function serveFile(request: Request, fs: FileSystem, maxBytes: number): Promise<Response> {
   const fail = (status: number, text: string): Response =>
     new Response(request.method === 'HEAD' ? null : text, { status, headers: BASE_HEADERS })
@@ -43,17 +58,17 @@ async function serveFile(request: Request, fs: FileSystem, maxBytes: number): Pr
     const target = await fs.resolve(path, { signal: request.signal })
     const extensionless = extname(target.displayPath) === ''
     const namedMediaType = extensionless ? false : mime.lookup(target.displayPath)
-    const headers: Record<string, string> = {
-      ...BASE_HEADERS,
-    }
+    const info = await fs.stat(target, request.signal)
+    if (info === undefined) return fail(404, 'not found')
+    if (info.type !== 'file') return fail(403, 'not a regular file')
+    if (info.size !== undefined && info.size > maxBytes) return fail(413, 'file exceeds byte limit')
+    // The version is stated before the read, so a write in between leaves the
+    // client a stale tag that the next revalidation replaces.
+    const etag = JSON.stringify(String(info.version))
+    const headers: Record<string, string> = { ...REVALIDATED_HEADERS, ETag: etag }
+    if (matchesEtag(request.headers.get('if-none-match'), etag)) return new Response(null, { status: 304, headers })
     if (request.method === 'HEAD') {
-      const info = await fs.stat(target, request.signal)
-      if (info === undefined) return fail(404, 'not found')
-      if (info.type !== 'file') return fail(403, 'not a regular file')
-      if (info.size !== undefined) {
-        if (info.size > maxBytes) return fail(413, 'file exceeds byte limit')
-        headers['Content-Length'] = String(info.size)
-      }
+      if (info.size !== undefined) headers['Content-Length'] = String(info.size)
       headers['Content-Type'] = namedMediaType
         || (extensionless ? rasterMediaType(await fs.readBytes(target, request.signal, maxBytes)) : undefined)
         || 'application/octet-stream'

@@ -154,6 +154,8 @@ export function apply(ctx: Context): void {
         }]
       },
     },
+    // Catalog observations are read-only and release their Session handles.
+    isConcurrencySafe: () => true,
     async execute(args, exec) {
       const parent = exec.agent
       if (!parent) {

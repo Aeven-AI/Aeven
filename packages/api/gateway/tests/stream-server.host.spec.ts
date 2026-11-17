@@ -247,6 +247,58 @@ describe('Remote stream mux server carrier lifecycle', () => {
   })
 })
 
+describe('Remote stream mux compression', () => {
+  async function *items(): AsyncIterable<string> {
+    yield 'small'
+    yield 'x'.repeat(5_000)
+  }
+
+  async function receive(client: WebSocket, count: number): Promise<unknown[]> {
+    const frames: unknown[] = []
+    await new Promise<void>((resolve) => {
+      client.on('message', (data) => {
+        if (!Buffer.isBuffer(data)) throw new TypeError('fixture expected a Buffer frame')
+        frames.push(JSON.parse(data.toString('utf8')) as unknown)
+        if (frames.length === count) resolve()
+      })
+    })
+    return frames
+  }
+
+  it('negotiates permessage-deflate and compresses only frames at the threshold', async () => {
+    const entry = await startMux(() => Promise.resolve(items()), 2_000, undefined, true)
+    const client = await connect(entry.url)
+    expect(client.extensions).toContain('permessage-deflate')
+    const send = vi.spyOn(acceptedSocket(entry.mux), 'send')
+    const received = receive(client, 3)
+    client.send(openFrame('compressed'))
+    const frames = await received
+    expect(frames.slice(0, 2)).toMatchObject([
+      { type: 'item', streamId: 'compressed', value: 'small' },
+      { type: 'item', streamId: 'compressed', value: 'x'.repeat(5_000) },
+    ])
+    const flags = send.mock.calls.map(call => (call[1] as { compress?: boolean }).compress)
+    expect(flags.slice(0, 2)).toEqual([false, true])
+    client.close()
+  })
+
+  it('accepts a peer that offers no extension and leaves frames uncompressed when disabled', async () => {
+    const enabled = await startMux(() => Promise.resolve(items()), 2_000, undefined, true)
+    const plain = new WebSocket(enabled.url, { perMessageDeflate: false })
+    await once(plain, 'open')
+    expect(plain.extensions).toBe('')
+    plain.close()
+
+    const disabled = await startMux(() => Promise.resolve(items()), 2_000, undefined, false)
+    const client = await connect(disabled.url)
+    expect(client.extensions).toBe('')
+    const received = receive(client, 2)
+    client.send(openFrame('plain'))
+    expect((await received)[1]).toMatchObject({ value: 'x'.repeat(5_000) })
+    client.close()
+  })
+})
+
 const mapFailure: RemoteStreamFailureMapper = error => ({
   code: 'internal',
   message: error instanceof Error ? error.message : String(error),
@@ -257,8 +309,9 @@ async function startMux(
   open: RemoteStreamOpener,
   heartbeatIntervalMs = 2_000,
   user?: { id: string },
+  compression = false,
 ): Promise<RunningMux> {
-  const mux = new RemoteStreamMuxServer(open, mapFailure, heartbeatIntervalMs)
+  const mux = new RemoteStreamMuxServer(open, mapFailure, heartbeatIntervalMs, compression)
   const http = createServer()
   http.on('upgrade', (request, socket, head) => {
     mux.handleUpgrade(request, socket, head, user)
