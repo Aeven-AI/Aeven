@@ -27,6 +27,11 @@ declare module '@aeven/client-ui-slots' {
     /** Aeven account-menu copy. */
     'account.aeven': AccountAevenKey
   }
+
+  interface SlotMap {
+    /** Rows under two-step verification in Account → Security: passkeys, the encryption they hold, the recovery key. */
+    'account.security': { kind: 'single'; scope: 'root' }
+  }
 }
 
 /** Settings section id of the Account page. */
@@ -225,6 +230,7 @@ export function apply(ctx: ClientContext): void {
     order: 10,
     label: () => t('section.nav'),
     locale: NS,
+    children: { 'account.security': { kind: 'single', scope: 'root' } },
     inject: () => section,
   }, AccountSection))
 }

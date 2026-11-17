@@ -11,7 +11,7 @@ import { Button, Input, Modal } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import type {} from '@aeven/client-ui-layout/client'
 import { hasRecoveryKey, unlockHint } from './holders.ts'
-import { openPasskeyPage, useSyncStatus, type SyncOperations } from './passkey.ts'
+import { openPasskeyPage, useFocusAfterPasskey, useSyncStatus, type SyncOperations } from './passkey.ts'
 import { RecoveryKeyDialog } from './RecoveryKeyDialog.tsx'
 import css from './SyncSection.module.css'
 
@@ -68,6 +68,7 @@ export function SyncPasskeyPopup(props: SyncPasskeyPopupProps) {
   const [typed, setTyped] = useState('')
   const [recoveryKey, setRecoveryKey] = useState<string | undefined>(undefined)
   const view = load.status === 'ready' ? load.view : undefined
+  useFocusAfterPasskey(view)
   // A protect step started here that ended with the passkey holding the key offers a recovery key, once.
   useEffect(() => {
     if (started !== 'protect' || view === undefined || view.passkey !== undefined) return

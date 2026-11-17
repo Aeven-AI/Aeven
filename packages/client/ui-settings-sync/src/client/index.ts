@@ -9,10 +9,12 @@ import type {} from '@aeven/client-locale/client'
 import type {} from '@aeven/client-ui-settings/client'
 import type {} from '@aeven/client-ui-renderer/client'
 import type {} from '@aeven/client-ui-layout/client'
+import type {} from '@aeven/client-ui-account-aeven/client'
 import type { RemoteResult } from '@aeven/api-remotes/client'
 import type { SyncOperations } from './passkey.ts'
 import { SyncPasskeyPopup, type SyncPasskeyPopupInjected } from './SyncPasskeyPopup.tsx'
 import { SyncSection } from './SyncSection.tsx'
+import { AccountPrivacy } from './AccountPrivacy.tsx'
 import { en, es, zh, type SyncLocaleKey } from './locales.ts'
 
 export type { SyncSectionInjected, SyncSectionProps } from './SyncSection.tsx'
@@ -93,6 +95,12 @@ export function apply(ctx: ClientContext): void {
     children: { 'settings.sync.files': { kind: 'single', scope: 'root' } },
     inject: () => operations,
   }, SyncSection))
+
+  ctx.slots.inject('account.security', () => ctx.slots.register({
+    name: 'account.security',
+    locale: NS,
+    inject: () => operations,
+  }, AccountPrivacy))
 
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay',

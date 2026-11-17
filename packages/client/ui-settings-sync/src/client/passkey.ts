@@ -82,6 +82,30 @@ export function useSyncStatus(ops: SyncOperations, minIntervalMs = 0): { load: S
 }
 
 /**
+ * Bring the desktop window forward once a passkey step the reader finished in the system browser succeeds. The
+ * browser build has no desktop shell and stays as it is.
+ */
+export function focusAfterPasskey(): void {
+  const carrier = typeof window === 'undefined' ? undefined : (window as { avnDesktop?: { window?: { focus?: () => Promise<void> } } }).avnDesktop
+  void carrier?.window?.focus?.().catch(() => undefined)
+}
+
+/**
+ * Bring the desktop window forward when the passkey step this view waited on ends without an error.
+ * @param view - the sync status, or undefined while it loads.
+ */
+export function useFocusAfterPasskey(view: SyncView | undefined): void {
+  const waiting = useRef(false)
+  useEffect(() => {
+    if (view === undefined) return
+    const now = view.passkey?.state === 'waiting'
+    // A step that ended with no step left in the status succeeded; a failed one stays in the status to explain itself.
+    if (waiting.current && !now && view.passkey === undefined) focusAfterPasskey()
+    waiting.current = now
+  }, [view])
+}
+
+/**
  * Open the passkey page for a step. The browser tab opens inside the click, before the Host answers, or a browser
  * blocks it as a popup; the desktop shell hands the page to the system browser.
  * @param ops - the sync operations.

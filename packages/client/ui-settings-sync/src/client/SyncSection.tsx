@@ -1,14 +1,12 @@
 /**
- * The Sync settings page: whether this device syncs the account, how far it is, who holds the account key, and the
- * account's devices.
+ * The Sync settings page: whether this device syncs the account, how far it is, and the account's devices. Who holds
+ * the account key, the passkeys, and the recovery key live under Account → Security (AccountPrivacy).
  */
 import { useEffect, useState } from 'react'
-import type { SyncDeviceView, SyncKeyHolderView, SyncPasskeyPurpose, SyncView } from '@aeven/api-remotes/client'
-import { Button, IconLucideLaptopMinimal, IconLucideLaptopMinimalCheck, IconQuestionOutline14, IconWarningOutline16, LoadingBlock, Menu, Modal, RiskConfirmation, SectionHeader, SettingsGroup, SettingsMeter, SettingsRow, Switch, Tooltip } from '@aeven/client-ui-primitives'
+import type { SyncDeviceView, SyncView } from '@aeven/api-remotes/client'
+import { Button, IconLucideLaptopMinimal, IconLucideLaptopMinimalCheck, IconWarningOutline16, LoadingBlock, Menu, SectionHeader, SettingsGroup, SettingsMeter, SettingsRow, Switch, Tooltip } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime } from '@aeven/client-ui-slots'
-import { holderTitle, unlockHint } from './holders.ts'
-import { openPasskeyPage, useSyncStatus, type SyncOperations } from './passkey.ts'
-import { RecoveryKeyDialog } from './RecoveryKeyDialog.tsx'
+import { useSyncStatus, type SyncOperations } from './passkey.ts'
 import css from './SyncSection.module.css'
 
 /** Registration-side operations the page calls. */
@@ -53,60 +51,6 @@ function SyncIssue({ message, t, retry, busy = false }: {
 }
 
 /**
- * The passkey step's line under the privacy rows: waiting on the browser, or why it did not finish.
- * @param props - the step, the translate seat, and the verbs it offers.
- * @returns the line, or nothing without a step.
- */
-function PasskeyStep({ view, t, retry, dismiss }: {
-  view: SyncView
-  t: SyncSectionProps['t']
-  retry: (purpose: SyncPasskeyPurpose) => void
-  dismiss: () => void
-}) {
-  const step = view.passkey
-  if (step === undefined) return null
-  const retryable = step.state === 'failed' || step.state === 'wrong-passkey' || step.state === 'duplicate'
-  const line = step.state === 'waiting' ? t('waiting')
-    : step.state === 'wrong-passkey' ? `${t('wrongPasskey')} ${unlockHint(view.protection?.holders ?? [], t)}`
-      : step.state === 'duplicate' ? t('duplicate')
-        : step.state === 'failed' ? t('stepFailed')
-          : t('unsupported')
-  return (
-    <div className={css.step} role="status" aria-live="polite">
-      <p className={retryable ? css.failed : css.note}>{line}</p>
-      <div className={css.stepActions}>
-        {retryable && <Button variant="outline" onClick={() => { retry(step.purpose) }}>{t('tryAgain')}</Button>}
-        <Button variant="ghost" onClick={dismiss}>{step.state === 'waiting' ? t('cancel') : t('dismiss')}</Button>
-      </div>
-    </div>
-  )
-}
-
-/**
- * One passkey that holds the account key, laid out like the other Settings rows: what it is, when it was added, and
- * a Remove button while another passkey would still unlock the account.
- * @param props - the passkey, whether it may be removed, the translator, and the removal.
- * @returns the row.
- */
-function HolderRow({ holder, removable, t, busy, onRemove }: {
-  holder: SyncKeyHolderView
-  removable: boolean
-  t: SyncSectionProps['t']
-  busy: boolean
-  onRemove: () => void
-}) {
-  const date = holder.addedAt === undefined ? undefined
-    : new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(holder.addedAt))
-  return (
-    <SettingsRow
-      title={holderTitle(holder, t)}
-      description={date === undefined ? t('passkeyUnlocks') : `${t('passkeyAdded', { date })} · ${t('passkeyUnlocks')}`}
-      control={removable ? <Button variant="outline" disabled={busy} onClick={onRemove}>{t('remove')}</Button> : undefined}
-    />
-  )
-}
-
-/**
  * The Sync section.
  * @param props - slot runtime, locale, and injected operations.
  * @returns the rendered section.
@@ -120,11 +64,6 @@ export function SyncSection(props: SyncSectionProps) {
   const [deviceRetry, setDeviceRetry] = useState(0)
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
-  const [confirmOff, setConfirmOff] = useState(false)
-  const [confirmOn, setConfirmOn] = useState(false)
-  const [acknowledged, setAcknowledged] = useState(false)
-  const [recoveryKey, setRecoveryKey] = useState<string | undefined>(undefined)
-  const [removing, setRemoving] = useState<SyncKeyHolderView | undefined>(undefined)
 
   const syncing = load.status === 'ready' && SYNCING.has(load.view.state)
   useEffect(() => {
@@ -173,7 +112,6 @@ export function SyncSection(props: SyncSectionProps) {
       void refresh()
     }
   }
-  const passkey = (purpose: SyncPasskeyPurpose): void => { void run(() => openPasskeyPage(ops, purpose)) }
 
   const header = <SectionHeader title={t('nav')} description={t('intro')} />
   if (load.status === 'loading') return <div className={css.section}>{header}<LoadingBlock label={t('loading')} /></div>
@@ -201,8 +139,6 @@ export function SyncSection(props: SyncSectionProps) {
   const percent = shown === 0 ? 0 : Math.round((sent / shown) * 100)
   const progressLabel = t('progress', { sent: String(sent), total: String(shown) })
   const transferError = enabled && view.error !== undefined ? t(view.error === 'upload' ? 'uploadFailed' : 'downloadFailed') : undefined
-  const protection = view.protection
-  const waiting = view.passkey?.state === 'waiting'
   const statusText = t(transferError !== undefined ? 'paused' : view.state === 'online' && (uploading || view.catchingUp) ? 'syncing' : view.state)
   return (
     <div className={css.section}>
@@ -229,77 +165,6 @@ export function SyncSection(props: SyncSectionProps) {
           />
         )}
       </SettingsRow>
-      {enabled && protection !== undefined && (
-        <SettingsGroup title={t('privacy')}>
-          {protection.downgraded
-            ? (
-              <SettingsRow
-                title={t('downgraded')}
-                description={t('downgradedBody')}
-                control={<Button variant="primary" disabled={busy} onClick={() => { void run(() => ops.acceptServerKey()) }}>{t('keepSyncing')}</Button>}
-              />
-            )
-            : protection.locked
-              ? (
-                <SettingsRow
-                  title={t('locked')}
-                  description={`${t('lockedBody')} ${unlockHint(protection.holders, t)}`}
-                  control={<Button variant="primary" disabled={busy || waiting} onClick={() => { passkey('unlock') }}>{t('unlock')}</Button>}
-                />
-              )
-              : (
-                <>
-                  <SettingsRow
-                    title={protection.mode === 'passkey' ? t('passkey') : (
-                      <span className={css.status}>
-                        {t('passkey')}
-                        <button
-                          type="button" className={css.issue} aria-label={t('passkeyAbout')} aria-haspopup="dialog"
-                          onClick={() => { setAcknowledged(false); setConfirmOn(true) }}
-                        ><IconQuestionOutline14 /></button>
-                      </span>
-                    )}
-                    description={t(protection.mode === 'passkey' ? 'passkeyOn' : 'passkeyOff')}
-                    control={(
-                      <Switch
-                        checked={protection.mode === 'passkey'}
-                        label={t('passkey')}
-                        disabled={busy || waiting || view.state !== 'online'}
-                        onChange={(next) => { if (next) { setAcknowledged(false); setConfirmOn(true) } else setConfirmOff(true) }}
-                      />
-                    )}
-                  />
-                  {protection.mode === 'passkey' && (
-                    <>
-                      <SettingsRow
-                        title={t('passkeys')}
-                        description={t('passkeysBody', { count: String(protection.passkeys) })}
-                        control={<Button variant="primary" className={css.actionButton} disabled={busy || waiting || view.state !== 'online'} onClick={() => { passkey('add') }}>{t('addPasskey')}</Button>}
-                      />
-                      {protection.holders.filter(holder => holder.kind === 'passkey').map(holder => (
-                        <HolderRow
-                          key={holder.id} holder={holder} t={t} busy={busy || view.state !== 'online'}
-                          removable={protection.passkeys > 1}
-                          onRemove={() => { setRemoving(holder) }}
-                        />
-                      ))}
-                      <SettingsRow
-                        title={t('recoveryRow')}
-                        description={t(protection.holders.some(holder => holder.kind === 'recovery') ? 'recoveryRowOn' : 'recoveryRowOff')}
-                        control={(
-                          <Button
-                            variant="outline" disabled={busy || waiting || view.state !== 'online'}
-                            onClick={() => { void run(async () => { setRecoveryKey((await ops.createRecoveryKey()).key) }) }}
-                          >{t(protection.holders.some(holder => holder.kind === 'recovery') ? 'replaceRecovery' : 'createRecovery')}</Button>
-                        )}
-                      />
-                    </>
-                  )}
-                </>
-              )}
-          <PasskeyStep view={view} t={t} retry={passkey} dismiss={() => { void run(() => ops.cancelPasskey()) }} />
-        </SettingsGroup>
-      )}
       {(devices.length > 0 || devicesFailed) && (
         <SettingsGroup
           title={t('devices')}
@@ -323,62 +188,6 @@ export function SyncSection(props: SyncSectionProps) {
         </SettingsGroup>
       )}
       {enabled && <div className={css.files}>{props.renderSlot('settings.sync.files', {})}</div>}
-      {recoveryKey !== undefined && <RecoveryKeyDialog recoveryKey={recoveryKey} t={t} onClose={() => { setRecoveryKey(undefined) }} />}
-      <Modal
-        open={removing !== undefined}
-        onClose={() => { setRemoving(undefined) }}
-        title={t(removing?.kind === 'recovery' ? 'removeRecoveryTitle' : 'removeTitle')}
-        description={t(removing?.kind === 'recovery' ? 'removeRecoveryBody' : 'removeBody')}
-        closeLabel={t('close')}
-        footer={(
-          <>
-            <Button variant="outline" onClick={() => { setRemoving(undefined) }}>{t('cancel')}</Button>
-            <Button
-              variant="primary"
-              onClick={() => {
-                const holder = removing
-                setRemoving(undefined)
-                if (holder !== undefined) void run(() => ops.removePasskey(holder.id))
-              }}
-            >{t('remove')}</Button>
-          </>
-        )}
-      />
-      <RiskConfirmation
-        open={confirmOn}
-        title={t('passkey')}
-        description={t('passkeyOffDetail')}
-        acknowledgeLabel={t('passkeyAcknowledge')}
-        cancelLabel={t('cancel')}
-        closeLabel={t('close')}
-        confirmLabel={t('usePasskey')}
-        acknowledged={acknowledged}
-        disabled={busy || waiting}
-        onAcknowledgedChange={setAcknowledged}
-        onCancel={() => { setConfirmOn(false) }}
-        onConfirm={() => { setConfirmOn(false); passkey('protect') }}
-      />
-      <Modal
-        open={confirmOff}
-        onClose={() => { setConfirmOff(false) }}
-        title={t('turnOffTitle')}
-        description={t('turnOffBody')}
-        closeLabel={t('close')}
-        footer={(
-          <>
-            <Button variant="outline" onClick={() => { setConfirmOff(false) }}>{t('cancel')}</Button>
-            <Button
-              variant="primary"
-              onClick={() => {
-                setConfirmOff(false)
-                void run(() => ops.unprotect())
-              }}
-            >
-              {t('turnOff')}
-            </Button>
-          </>
-        )}
-      />
     </div>
   )
 }

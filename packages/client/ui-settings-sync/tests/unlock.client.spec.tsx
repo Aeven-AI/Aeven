@@ -4,9 +4,9 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { SyncKeyHolderView, SyncView } from '@aeven/api-remotes/client'
 import { SyncPasskeyPopup, type SyncPasskeyPopupProps } from '../src/client/SyncPasskeyPopup.tsx'
-import { SyncSection, type SyncSectionProps } from '../src/client/SyncSection.tsx'
+import { AccountPrivacy, type AccountPrivacyProps } from '../src/client/AccountPrivacy.tsx'
 import { RecoveryKeyDialog } from '../src/client/RecoveryKeyDialog.tsx'
-import type { SyncOperations } from '../src/client/passkey.ts'
+import { useFocusAfterPasskey, type SyncOperations } from '../src/client/passkey.ts'
 import { en } from '../src/client/locales.ts'
 
 afterEach(cleanup)
@@ -107,19 +107,18 @@ describe('the recovery key dialog', () => {
   })
 })
 
-describe('passkeys in Settings → Sync', () => {
+describe('passkeys in Account → Security', () => {
   function section(view: SyncView) {
     const ops = operations(view)
-    const kit = { close: () => {}, detail: undefined, showDetail: () => {}, renderSlot: () => null, t }
-    const props = { ...ops, ...kit } as unknown as SyncSectionProps
-    render(<SyncSection {...props} />)
+    const props = { ...ops, t } as unknown as AccountPrivacyProps
+    render(<AccountPrivacy {...props} />)
     return ops
   }
 
   it('lists each passkey by provider and device and removes one while another stays', async () => {
     const ops = section(protectedView([ANDROID, { id: 'cred-2', kind: 'passkey', name: 'Work laptop' }], false))
     await screen.findByText('Google Password Manager on your Android phone')
-    await screen.findByText('Work laptop')
+    await screen.findByText(en.passkeysSignIn)
     const second = screen.getAllByText(en.remove)[1]
     if (second === undefined) throw new Error('two passkey rows expected')
     fireEvent.click(second)
@@ -131,12 +130,37 @@ describe('passkeys in Settings → Sync', () => {
     await waitFor(() => { expect(ops.removePasskey).toHaveBeenCalledWith('cred-2') })
   })
 
-  it('offers no removal of the only passkey and creates a recovery key', async () => {
+  it('creates a recovery key and offers no removal of the only passkey', async () => {
     const ops = section(protectedView([ANDROID], false))
-    await screen.findByText('Google Password Manager on your Android phone')
+    fireEvent.click(await screen.findByText(en.createRecovery))
     expect(screen.queryByText(en.remove)).toBeNull()
-    fireEvent.click(screen.getByText(en.createRecovery))
     await screen.findByText('13XH-M8MT-SVSY-WJ5M-PKQ2-HDF7-Q2PW')
     expect(ops.createRecoveryKey).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('returning to the desktop app after a passkey step', () => {
+  function Probe({ view }: { view: SyncView }) {
+    useFocusAfterPasskey(view)
+    return null
+  }
+
+  it('brings the window forward when the step succeeds, not when it fails', () => {
+    const focus = vi.fn(() => Promise.resolve())
+    ;(window as { avnDesktop?: unknown }).avnDesktop = { window: { focus } }
+    try {
+      const base = protectedView([ANDROID], true)
+      const waiting: SyncView = { ...base, passkey: { purpose: 'unlock', state: 'waiting' } }
+      const failed: SyncView = { ...base, passkey: { purpose: 'unlock', state: 'wrong-passkey' } }
+      const done: SyncView = protectedView([ANDROID], false)
+      const { rerender } = render(<Probe view={waiting} />)
+      rerender(<Probe view={failed} />)
+      expect(focus).not.toHaveBeenCalled()
+      rerender(<Probe view={waiting} />)
+      rerender(<Probe view={done} />)
+      expect(focus).toHaveBeenCalledTimes(1)
+    } finally {
+      delete (window as { avnDesktop?: unknown }).avnDesktop
+    }
   })
 })

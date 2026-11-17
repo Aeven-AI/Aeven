@@ -1001,6 +1001,16 @@ async function main(): Promise<void> {
     await shell.openExternal(address)
   })
 
+  // A passkey step the reader finished in the system browser hands them back to the app window that started it.
+  ipcMain.handle(DESKTOP_IPC.windowFocus, (event) => {
+    assertDesktopSender(event, ['app'])
+    const window = BrowserWindow.fromWebContents(event.sender)
+    if (window === null || window.isDestroyed()) return
+    if (window.isMinimized()) window.restore()
+    window.focus()
+    app.focus({ steal: true })
+  })
+
   sendVideoEmbedReferrer(session.defaultSession)
   allowSystemAudioCapture(session.defaultSession)
 

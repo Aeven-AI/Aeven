@@ -10,7 +10,7 @@ exports[`Account security > keeps the switch off through enrollment and shows re
     <h3
       class="_groupTitle_47f409"
     >
-      Security
+      Account security
     </h3>
   </div>
   <div
@@ -33,12 +33,6 @@ exports[`Account security > keeps the switch off through enrollment and shows re
     <span
       class="_actions_f08576"
     >
-      <span
-        class="_status_f08576"
-        role="status"
-      >
-        Off
-      </span>
       <button
         aria-checked="false"
         aria-label="Two-factor authentication"

@@ -7,6 +7,12 @@
   color: var(--dsw-alias-label-primary);
 }
 
+/* Group titles on this page (Privacy, Devices, and the Files group drawn inside it) at the 16px page-title size. */
+.section h3 {
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
 .failed {
   margin: 0;
   font-size: 0.75rem;

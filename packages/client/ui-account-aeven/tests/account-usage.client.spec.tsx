@@ -71,6 +71,7 @@ function show(payments: readonly CloudPayment[] | Error) {
     cloud,
     cached: () => undefined,
     t: (key: keyof typeof en) => en[key],
+    renderSlot: () => null,
   }
   return { ...render(<AccountSection {...props as unknown as AccountSectionProps} />), cloud }
 }
