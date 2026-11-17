@@ -32,7 +32,9 @@ import { isSessionRefusal } from './auth/services/errors.ts'
 import { AUTH_ROUTES, isAuthRoute, navigateRoute } from './auth/services/routes.ts'
 import { adoptPendingLocale, publishReader } from './auth/services/reader.ts'
 import { cachedProfile, session, storage, type AevenProfile } from './auth/services/session.ts'
+import { bearerToken, usableToken } from './auth/services/tokens.ts'
 import { sessionBearer, watchSession, hostRefusedSession, leaveForSignIn, noteHostRefusal, pageIsLeaving } from './auth/services/watch.ts'
+import { authLocalePending } from './locales.ts'
 
 /** How the gate resolved for this page load. */
 export type AuthGateResult =
@@ -62,9 +64,28 @@ function gateResultFor(profile: AevenProfile): AuthGateResult {
 }
 
 /**
+ * The kept profile, when it can restore the reader before Aeven answers.
+ *
+ * It can when the browser also holds an unexpired bearer for the same account, so the first Host request is
+ * authenticated without a renewal, and the profile already carries a chosen name, so the gate's answer does not
+ * depend on the read. A pending language pick needs the live profile first, and a Host refusal says the refresh
+ * cookie identifies nobody.
+ * @returns the profile to restore from, or undefined when the gate must wait for Aeven.
+ */
+function heldProfile(): AevenProfile | undefined {
+  const kept = cachedProfile()
+  if (kept === undefined || kept.displayNameSet !== true || hostRefusedSession() || authLocalePending()) return undefined
+  if (storage.getItem('userId') !== kept.userId) return undefined
+  const bearer = bearerToken(kept.userId)
+  return bearer !== undefined && usableToken(bearer, kept.userId) ? kept : undefined
+}
+
+/**
  * Restore the Aeven session, if there is one.
  *
- * Reads the profile, which refreshes the access token through the cookie when
+ * A reader whose kept profile and held bearer are both usable is restored from them at once, and the profile
+ * read then runs beside the application's boot: its answer replaces the kept profile, and a refusal ends the
+ * session. Otherwise the gate reads the profile, which refreshes the access token through the cookie when
  * the held one has expired — the same sequence the Aeven client performs on
  * load, so a reader signed in there is signed in here without signing in
  * again.
@@ -79,6 +100,17 @@ export async function restoreSession(): Promise<AuthGateResult> {
   // Without an Aeven API configured there is no authority to ask, and the
   // harness behaves as it always has.
   if (aevenConfig().apiUrl === undefined) return { state: 'disabled' }
+  const held = heldProfile()
+  if (held !== undefined) {
+    session.adoptProfile(held)
+    publishReader()
+    void getProfile().then(() => { publishReader() }, (error: unknown) => {
+      // Aeven refused the credential the kept profile was restored beside: the session has ended. An Aeven
+      // that cannot be reached leaves the kept profile standing, as it does below.
+      if (isSessionRefusal(error)) leaveForSignIn()
+    })
+    return gateResultFor(held)
+  }
   try {
     const profile = await getProfile()
     adoptPendingLocale()

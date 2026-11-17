@@ -42,6 +42,7 @@
     "yjs": "13.6.27"
   },
   "peerDependencies": {
+    "@aeven/credentials": "workspace:^",
     "@aeven/llm": "workspace:^",
     "@aeven/memory": "workspace:^",
     "@aeven/session": "workspace:^",
@@ -50,6 +51,7 @@
     "@aeven/workspace": "workspace:^"
   },
   "devDependencies": {
+    "@aeven/credentials": "workspace:^",
     "@aeven/llm": "workspace:^",
     "@aeven/memory": "workspace:^",
     "@aeven/session": "workspace:^",

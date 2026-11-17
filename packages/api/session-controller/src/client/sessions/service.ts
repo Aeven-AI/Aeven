@@ -94,6 +94,11 @@ export interface SessionListState {
 interface SessionSelection {
   sessionId?: SessionId
   subagentAddress?: SubagentAddress
+  /**
+   * Display title the selected Session had when the list last held it, absent for a blank Session. The next page
+   * load names the restored selection by it until the first list baseline arrives.
+   */
+  title?: string
 }
 
 /** Structured session-create failure. */
@@ -618,8 +623,8 @@ export class ClientSessions implements ISessions {
     this.watched = current
     this.sweepDeferred()
     const record = this.resolve(current)
-    /* v8 ignore next 3 -- defensive: current is always a listed id (open()
-     * validates and the projection masks absent selections), so resolve
+    /* v8 ignore next 3 -- defensive: current is a listed id, a retained address, or the restored selection
+     * (open() validates and the projection masks every other selection), so resolve
      * cannot miss; kept so a future current writer cannot crash the notify. */
     if (record !== undefined) {
       void record.session.open()
@@ -667,8 +672,18 @@ export class ClientSessions implements ISessions {
   /** Project the manager's list snapshot into the store (title derivation is display-only). */
   private projectList(): void {
     const {
-      items, current, phase, subagentsByParent, jobsBySession, currentAddress,
+      items, phase, subagentsByParent, jobsBySession, currentAddress,
+      current: listedCurrent, restored,
     } = this.manager.getListSnapshot()
+    // The restored selection is current before the first baseline lists it, so its window opens beside the list
+    // pull instead of after it. Only a selection that kept a title qualifies: the title names the row until the
+    // baseline does, and a blank Session, which keeps none, draws its empty state from the listed `blank` bit.
+    const kept = this.selection.getSnapshot()
+    const provisional = restored !== undefined && kept.sessionId === restored && kept.title !== undefined
+      && kept.subagentAddress === undefined
+      ? restored
+      : undefined
+    const current = listedCurrent ?? provisional
     const previous = this.list.getSnapshot()
     const ids: SessionId[] = []
     const byId: Record<SessionId, SessionSummary> = {}
@@ -729,20 +744,35 @@ export class ClientSessions implements ISessions {
         address = this.manager.navigationAddress(address.parentSessionId)
       }
     }
+    if (provisional !== undefined && kept.title !== undefined) {
+      byId[provisional] = sameSummary(previous.byId[provisional], {
+        id: provisional,
+        createdAt: 0,
+        displayTitle: kept.title,
+        running: false,
+        blank: false,
+        updatedAt: 0,
+      })
+    }
     const persisted = this.selection.getSnapshot().sessionId
     // No current (cleared, or masked gap) wipes the persisted cell — a reload
     // stays on empty; the in-memory selection still resurfaces a masked id.
     if (current === undefined) {
       if (persisted !== undefined) this.selection.set({})
-    } else if (byId[current] !== undefined
-      && (persisted !== current
-        || this.selection.getSnapshot().subagentAddress?.childSessionId !== currentAddress?.childSessionId
-        || this.selection.getSnapshot().subagentAddress?.parentSessionId !== currentAddress?.parentSessionId
-        || this.selection.getSnapshot().subagentAddress?.mode !== currentAddress?.mode)) {
-      this.selection.set({
-        sessionId: current,
-        ...(currentAddress === undefined ? {} : { subagentAddress: currentAddress }),
-      })
+    } else if (byId[current] !== undefined && provisional === undefined) {
+      const summary = byId[current]
+      const title = summary.blank ? undefined : summary.displayTitle
+      if (persisted !== current
+        || kept.title !== title
+        || kept.subagentAddress?.childSessionId !== currentAddress?.childSessionId
+        || kept.subagentAddress?.parentSessionId !== currentAddress?.parentSessionId
+        || kept.subagentAddress?.mode !== currentAddress?.mode) {
+        this.selection.set({
+          sessionId: current,
+          ...(currentAddress === undefined ? {} : { subagentAddress: currentAddress }),
+          ...(title === undefined ? {} : { title }),
+        })
+      }
     }
     const nextIds = sameArray(previous.ids, ids)
     const nextById = sameValues(previous.byId, byId)

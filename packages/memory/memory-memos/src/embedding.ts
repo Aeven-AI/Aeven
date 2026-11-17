@@ -28,7 +28,7 @@ export interface EmbeddingWorkerLimits {
   readonly total: number
 }
 
-/** A lazy worker shared by all of the hosted deployment's account cores. */
+/** One worker thread, started by its first request, that embeds for every account core of the Host. */
 export class HostedEmbeddings {
   private worker: Worker | undefined
   private active: Job | undefined
