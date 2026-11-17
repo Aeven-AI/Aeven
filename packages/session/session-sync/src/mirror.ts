@@ -19,7 +19,7 @@ import { promisify } from 'node:util'
 import { brotliCompress, brotliDecompress, constants } from 'node:zlib'
 import type { Map as YMap, YMapEvent, Transaction } from 'yjs'
 import { SessionLogOffset, type SessionEvent, type SessionHeader, type SessionId } from '@aeven/session'
-import type { SessionPersistence, SessionPersistenceSnapshot } from '@aeven/session-persistence'
+import type { SessionEventSuffix, SessionPersistence, SessionPersistenceSnapshot } from '@aeven/session-persistence'
 import { LeaseHolder, type Sync, type SyncDocument, type SyncProgress, type LeaseHolderTiming } from '@aeven/sync'
 import { AttachmentId, type AttachmentStore } from '@aeven/attachment'
 import type { HandoffDesktop, HandoffDevices, HandoffPlacement, SessionClaim, SessionHandoffInput, SessionRunner, SharedSession } from '@aeven/session-handoff'
@@ -167,6 +167,11 @@ export interface SessionSyncTuning {
   compressionQuality: number
   /** Wait after a session's events commit before they are published, so a streaming reply travels in small batches. */
   liveMs: number
+  /**
+   * Committed events kept per session until they are published, so publishing a running session reads none of its
+   * log. A session that commits more than this before a publication is published from its stored log instead.
+   */
+  tailEvents: number
   /**
    * Background import skips sessions this device does not store and that were created more than this many days
    * ago; they import when opened. `0` imports every session.
@@ -594,6 +599,7 @@ export class SessionMirror {
       if (stored !== undefined && stored.header.replica !== true) await this.persistence.setReplica(sessionId, true)
       this.localNext.delete(sessionId)
       this.appendedNext.delete(sessionId)
+      this.tails.delete(sessionId)
     })().finally(() => {
       if (this.releases.get(sessionId) === release) this.releases.delete(sessionId)
     })
@@ -604,6 +610,12 @@ export class SessionMirror {
   private readonly localNext = new Map<string, number>()
   /** One past the last `seq` this process saw committed, per session. */
   private readonly appendedNext = new Map<string, number>()
+  /**
+   * Events this process committed and has not published yet, per session, in commit order with the header they were
+   * committed under. Absent when the session committed nothing since it was last published or overflowed
+   * {@link SessionSyncTuning.tailEvents}.
+   */
+  private readonly tails = new Map<string, { header: SessionHeader; events: SessionEvent[] }>()
   private readonly revisions = new Map<string, string>()
 
   /**
@@ -2213,6 +2225,7 @@ export class SessionMirror {
     }
     const last = events.at(-1)
     if (last !== undefined) this.appendedNext.set(id, last.seq + 1)
+    this.keepTail(header, events)
     if (this.live.has(id)) return
     this.live.set(id, setTimeout(() => {
       this.live.delete(id)
@@ -2223,6 +2236,49 @@ export class SessionMirror {
         this.mark(id)
       })
     }, this.tuning.liveMs))
+  }
+
+  /**
+   * Keep a commit's events for the session's next publication. A commit that does not continue the kept events, or
+   * that grows them past {@link SessionSyncTuning.tailEvents}, drops them: that publication reads the stored log.
+   */
+  private keepTail(header: SessionHeader, events: readonly SessionEvent[]): void {
+    const first = events.at(0)
+    if (first === undefined) return
+    const id = header.id as string
+    const tail = this.tails.get(id)
+    const last = tail?.events.at(-1)
+    if (tail !== undefined && last !== undefined && first.seq === last.seq + 1
+      && tail.events.length + events.length <= this.tuning.tailEvents) {
+      tail.header = header
+      tail.events.push(...events)
+    } else if (tail === undefined && events.length <= this.tuning.tailEvents) {
+      this.tails.set(id, { header, events: [...events] })
+    } else {
+      this.tails.delete(id)
+    }
+  }
+
+  /**
+   * The events to publish from `from`: the commits kept since the last publication when they hold every event from
+   * `from` on, none when this process committed nothing after `from`, and the stored log otherwise.
+   * @param sessionId - the session.
+   * @param from - first unpublished seq.
+   * @param entry - the session's index entry, whose header and inherited count an in-memory answer reuses.
+   * @returns the unpublished suffix.
+   */
+  private async unpublished(sessionId: SessionId, from: number, entry: IndexEntry | undefined): Promise<SessionEventSuffix> {
+    if (entry !== undefined) {
+      const tail = this.tails.get(sessionId)
+      const start = tail?.events.findIndex(event => event.seq === from) ?? -1
+      const inMemory = (meta: SessionHeader, events: readonly SessionEvent[]): SessionEventSuffix => ({
+        meta, inheritedEventCount: SessionLogOffset(entry.inherited), fromSeq: SessionLogOffset(from), events,
+      })
+      // Kept events are contiguous, so the ones from `from` on are the whole unpublished suffix.
+      if (tail !== undefined && start >= 0) return inMemory(tail.header, tail.events.slice(start))
+      if (tail === undefined && this.appendedNext.get(sessionId) === from) return inMemory(entry.header, [])
+    }
+    return this.persistence.readFrom(sessionId, SessionLogOffset(from))
   }
 
   /** Wait while the account's outbox holds more than {@link SessionSyncTuning.outboxLimit} frames. */
@@ -2248,7 +2304,7 @@ export class SessionMirror {
       this.claims.set(sessionId, claim)
     }
     const from = claim?.published ?? entry?.next ?? 0
-    const suffix = await this.persistence.readFrom(sessionId, SessionLogOffset(from))
+    const suffix = await this.unpublished(sessionId, from, entry)
     if (this.isClosed()) return
     const home = this.filing?.sessionHome(sessionId)
     if (claim === undefined || suffix.events.length === 0) {
@@ -2327,6 +2383,12 @@ export class SessionMirror {
     await queue()
     if (this.isClosed()) return
     active.published = after(suffix.events, from)
+    const kept = this.tails.get(sessionId)
+    if (kept !== undefined) {
+      const rest = kept.events.filter(event => event.seq >= active.published)
+      if (rest.length === 0) this.tails.delete(sessionId)
+      else kept.events = rest
+    }
     const previous = this.entries().get(sessionId)
     // Only a turn moves the session's home; a rename or model change published from another device does not.
     const writer = suffix.events.some(event => event.type === 'turn/start') ? this.device() : previous?.writer

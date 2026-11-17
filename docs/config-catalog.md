@@ -4344,6 +4344,11 @@ export interface SessionSyncTuning {
   /** Wait after a session's events commit before they are published, so a streaming reply travels in small batches. */
   liveMs: number
   /**
+   * Committed events kept per session until they are published, so publishing a running session reads none of its
+   * log. A session that commits more than this before a publication is published from its stored log instead.
+   */
+  tailEvents: number
+  /**
    * Background import skips sessions this device does not store and that were created more than this many days
    * ago; they import when opened. `0` imports every session.
    */

@@ -87,7 +87,7 @@ class MemoryPersistence {
 
 const tuning: SessionSyncTuning = {
   publishConcurrency: 4, compressionQuality: 4,
-  publishMs: 20, scanMs: 20, batchBytes: 2_000, backfillDays: 30, liveMs: 5, pauseMs: 0, outboxLimit: 1000,
+  publishMs: 20, scanMs: 20, batchBytes: 2_000, backfillDays: 30, liveMs: 5, tailEvents: 2_000, pauseMs: 0, outboxLimit: 1000,
   publishTimeoutMs: 120_000,
   runnerLease: { ttlMs: 30_000, renewMs: 10_000 },
   inputGraceMs: 100, remoteFallbackMs: 300, presenceWindowMs: 150_000, inputExpiryMs: 1_000, attachmentWaitMs: 1_000, attachmentRetryMs: 10,
@@ -847,7 +847,7 @@ describe('session-sync plugin', () => {
     const spy = vi.spyOn(ctx.logger, 'warn').mockImplementation((message: unknown) => { warnings.push(String(message)) })
     const fiber = ctx.plugin(SessionSync, {
       publishConcurrency: 4, compressionQuality: 4,
-      publishMs: 250, scanMs: 250, batchBytes: 2_000, backfillDays: 30, liveMs: 5, pauseMs: 0, outboxLimit: 1000,
+      publishMs: 250, scanMs: 250, batchBytes: 2_000, backfillDays: 30, liveMs: 5, tailEvents: 2_000, pauseMs: 0, outboxLimit: 1000,
       publishTimeoutMs: 120_000,
       runnerLease: { ttlMs: 30_000, renewMs: 10_000 },
       inputGraceMs: 100, remoteFallbackMs: 300, presenceWindowMs: 150_000,

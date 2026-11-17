@@ -774,7 +774,9 @@ export class Session {
       // consumer mutating it in place (instead of building a replacement)
       // would desync every later comparison against the log, so mutation
       // throws instead.
-      this.headerFold = deepFreeze(foldRequestHeader(this.log.slice(this.headerFoldSeq), this.headerFold))
+      // The fold returns its input when the new events hold no header, and that input is already frozen.
+      const folded = foldRequestHeader(this.log.slice(this.headerFoldSeq), this.headerFold)
+      if (folded !== this.headerFold) this.headerFold = deepFreeze(folded)
       this.headerFoldSeq = this.log.length
     }
     return this.headerFold
