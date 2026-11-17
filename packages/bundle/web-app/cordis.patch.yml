@@ -288,6 +288,15 @@
       config:
         home: !!js avnHomePath('memory')
         accounts: !!js avnHomePath('accounts')
+        # A recall waits at most a few seconds, less than a first embedding or a
+        # first search after a start takes. The embedding model therefore loads in
+        # a worker when the Host starts, and an account's memory loads when it
+        # signs in, so the first message recalls like any later one. One account
+        # owns this Host, so it may use the worker's whole queue.
+        embeddingExecution: worker
+        embeddingQueuePerAccount: 128
+        embeddingQueueTotal: 128
+        warmOnSignIn: true
 
     # Learned capabilities: per-user procedures the agent learned, stored as
     # agentskills directories and published through the skill catalog once the

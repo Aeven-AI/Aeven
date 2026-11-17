@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`avn-memory-memos` 把 MemOS 注册为 `ctx.memory` 提供方。它在 Host 进程中运行随附的 MemOS 核心（`MemoryCore`，[`@deepseek-ai/memos-local-plugin`](../../../vendor/memos-local-plugin)）：记忆存放在本地 SQLite 数据库，嵌入经 Transformers.js 在本地运行，而 MemOS 的辅助摘要与过滤调用走所属会话的 `ctx.llm` 路由，因此无需配置第二个 API key。每个账户在它自己的数据库之上有它自己的 MemOS 核心，在该账户第一次记忆操作时打开。
+`avn-memory-memos` 把 MemOS 注册为 `ctx.memory` 提供方。它在 Host 进程中运行随附的 MemOS 核心（`MemoryCore`，[`@deepseek-ai/memos-local-plugin`](../../../vendor/memos-local-plugin)）：记忆存放在本地 SQLite 数据库，嵌入经 Transformers.js 在本地运行，而 MemOS 的辅助摘要与过滤调用走所属会话的 `ctx.llm` 路由，因此无需配置第二个 API key。每个账户在它自己的数据库之上有它自己的 MemOS 核心，在该账户第一次记忆操作时打开，或在设置了 `warmOnSignIn` 时于其登录时打开。
 
 <a id="use-this-package"></a>
 ## 目录
@@ -53,6 +53,9 @@ kind: "package-reference"
 | `minEpisodesForInduction` | `2` | MemOS 归纳策略前须支持该模式的独立片段数（`l2Induction.minEpisodesForInduction`） |
 | `candidatePolicies` | `false` | 是否同时召回 `candidate` 与 `active` 策略（`retrieval.includeCandidatePolicies`） |
 | `skillsPerTurn` | `1` | 每次召回最多提供的 MemOS 技能数（`retrieval.tier1TopK`） |
+| `embeddingExecution` | `host` | 本地嵌入模型的运行位置：`worker` 在提供方启动时把它加载到一个工作线程并在其中嵌入，不占用 Host 的事件循环；`host` 在首次嵌入时把它加载到 Host 进程。Web 与 Desktop 组合设为 `worker` |
+| `embeddingQueuePerAccount`、`embeddingQueueTotal` | `8`、`128` | 工作线程按账户以及在整个 Host 上接受的未完成嵌入请求数；超出任一上限的请求被拒绝。Web 与 Desktop 组合让一个账户使用整个 Host 上限 |
+| `warmOnSignIn` | `false` | 在账户于此 Host 登录时加载其记忆，而不是在其首个轮次期间：打开其核心，运行一次丢弃命中的检索，并列出其 person 记忆。只加载已有记忆数据库的账户，每次运行一次。Web 与 Desktop 组合启用它；服务众多账户的 Host 会把每个已登录账户的向量索引都留在内存中 |
 
 轮次开始的召回由会话路由上的一次模型调用判定，而不是 MemOS 自身的过滤器：它读取请求、先前对话以及每个候选的种类（事实、往来、日志、流程、片段、技能、知识）、领域、年龄和流程状态，决定个人或任务优先，可不保留任何候选，并报告用户是否分享个人生活。判定在 `relevanceHedgeMs` 后仍未答复时会再发送一次，第一个可用答复胜出。每次判定都会向该账户的 MemOS `api_logs` 追加一行 `recall_judgment`，记录候选数量、输入大小、检索时间、窗口、结果以及每个请求的耗时与状态，不含记忆文本。捕获判定标记为 `kind:log` 的轮次以及摘要呈现为行动记录的旧记忆会作为日志提供。已归档的流程不作为候选。`rememberMany` 逐字导入事实，跳过所有者已有的相同文本，以 `source:import` 标记导入；无原始日期时添加 `imported:undated`，其轨迹时间视为未知年龄，且不加入近期记忆候选。`turnDomain` 返回捕获轮次的领域，`setProcedureStatus` 设置已学流程的 `procedure:<status>` 标签。对工作的抱怨即使带有愤怒仍属于任务请求。判定检查每个候选的内容，包括经验片段中的个人历史，并排除无关的个人历史。捕获摘要保留广告声明、计划和评估的归属、日期及不确定性。
 

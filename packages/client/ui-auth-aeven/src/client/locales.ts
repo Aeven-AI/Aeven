@@ -427,6 +427,19 @@ export function chooseAuthLocale(id: string): void {
 }
 
 /**
+ * Whether a language picked on these screens still waits for an account.
+ * @returns true while {@link takePendingAuthLocale} would return a pick; false when storage is unavailable.
+ */
+export function authLocalePending(): boolean {
+  try {
+    return localStorage.getItem(PENDING_LOCALE_KEY) !== null
+  } catch {
+    // Storage blocked: chooseAuthLocale could not have marked a pick either.
+    return false
+  }
+}
+
+/**
  * Take the language picked on these screens that no account has received yet.
  * Each pick is returned once: taking it clears the pending mark.
  * @returns a shipped locale id, or undefined when nothing is pending or storage is unavailable.

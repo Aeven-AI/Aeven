@@ -157,6 +157,9 @@ const SERVED_MEMORIES = 20
  */
 const PERSON_WORDS_CHARS = 160
 
+/** Query of the retrieval {@link MemosMemory.prime} runs; any text loads the same index and pages. */
+const PRIME_QUERY = 'warm'
+
 /** Person traces one page of the recent-memory scan reads. */
 const RECENT_PERSON_PAGE = 100
 
@@ -273,6 +276,29 @@ export class MemosMemory implements MemoryProvider {
       ...stored === undefined || !stored.text ? {} : { text: stored.text, updatedAt: stored.updatedAt },
       dates: recordedDates(facts, new Date().getFullYear()),
     }
+  }
+
+  /**
+   * Load what an account's first recall on this Host would otherwise wait for: its database, the vector index and
+   * full-text pages one retrieval reads, the query embedding, and the person-memory listing behind the profile.
+   * The retrieval is the one an explicit memory search runs, with a fixed query and no session; its hits are
+   * discarded and no model is called. MemOS records it as one `memos_search` audit row.
+   * @param owner - account whose memory to load.
+   * @param signal - cancels the load.
+   * @returns after the retrieval and the listing finished.
+   */
+  async prime(owner: string, signal: AbortSignal): Promise<void> {
+    const core = await this.options.cores.get(owner)
+    signal.throwIfAborted()
+    await core.searchMemory({
+      agent: MEMOS_AGENT,
+      namespace: { agentKind: MEMOS_AGENT, profileId: ownerProfile(owner), profileLabel: owner },
+      query: PRIME_QUERY,
+      reason: 'turn_start',
+      contextHints: { __memosDeferLlmFilterToCaller: true },
+      llmFilterMalformedRetries: 0,
+    }, { signal })
+    await this.currentPersonFacts(owner, signal)
   }
 
   /**

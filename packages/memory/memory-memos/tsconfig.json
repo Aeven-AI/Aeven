@@ -30,6 +30,9 @@
       "path": "../../util/values"
     },
     {
+      "path": "../../credentials/credentials"
+    },
+    {
       "path": "../../llm/llm"
     },
     {

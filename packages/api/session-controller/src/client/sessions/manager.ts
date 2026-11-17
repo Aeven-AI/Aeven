@@ -53,6 +53,11 @@ export interface SessionListSnapshot {
   items: readonly SessionListEntry[]
   /** Selected Session id (validated against items; masked to undefined while its session is off the list). */
   current: SessionId | undefined
+  /**
+   * The selection restored from the previous page load, while the first list baseline is pending and `current`
+   * therefore masks it; undefined once a baseline arrived or when the selection is already `current`.
+   */
+  restored: SessionId | undefined
   state: 'idle' | 'loading' | 'error'
   /** Arrival lifecycle (see {@link SessionListPhase}); `state` stays the pull-activity axis. */
   phase: SessionListPhase
@@ -1001,6 +1006,7 @@ export class SessionManager {
     return {
       items: this.itemsCache,
       current,
+      restored: current === undefined && this.listPhase === 'pending' ? selected : undefined,
       state: this.listState,
       phase: this.listPhase,
       error: this.listError,

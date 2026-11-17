@@ -3227,9 +3227,21 @@ export interface Config {
    * browser sessions sets it; a device the user signs in to opens memory with its first session either way.
    */
   openOnSync: boolean
+  /**
+   * Load an account's memory when it signs in on this Host, instead of during its first turn: the first recall
+   * after a start otherwise opens the database, builds the vector index, and lists the person memories inside
+   * its own time limit, and delivers nothing when they take longer. Only an account that already has a memory
+   * database is loaded. A personal device sets it; a Host serving many accounts would hold every signed-in
+   * account's index in memory.
+   */
+  warmOnSignIn: boolean
   /** Use account workspace ids for project memory on a hosted Host; desktop keeps directory-based namespaces. */
   workspaceIdentity: boolean
-  /** Hosted-only worker execution for local embeddings; desktop retains the in-process provider. */
+  /**
+   * Where the local embedding model runs. `worker` loads it in one worker thread when the provider starts and
+   * embeds there, so neither the load nor an embedding batch occupies the Host's event loop; `host` loads it in
+   * the Host process at the first embedding.
+   */
   embeddingExecution: 'host' | 'worker'
   /** Unfinished embedding requests accepted per account. */
   embeddingQueuePerAccount: number
