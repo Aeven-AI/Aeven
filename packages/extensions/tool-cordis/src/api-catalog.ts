@@ -4247,6 +4247,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the status afterwards.',
       },
       {
+        signature: '@Remote async unlockFromSignIn(unlock: SyncSignInUnlock): Promise<SyncView>',
+        description: 'Unlock this device with the passkey the caller just signed in with. The sign-in page evaluated the passkey\'s PRF in the same prompt and deposited it sealed to the caller\'s one-use key; this collects it once. An account that is not locked, or a sign-in that deposited nothing, leaves everything as it was.',
+        parameters: [{ name: 'unlock', description: 'the verifier and key pair the sign-in page was opened with.' }],
+        returns: 'the status afterwards.',
+      },
+      {
         signature: '@Remote async unprotect(): Promise<SyncView>',
         description: 'Hand the caller\'s account key back to the Aeven relay; every device starts over under the relay\'s new key.',
         parameters: [],
@@ -9850,11 +9856,15 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SyncPasskey',
-    declaration: 'export interface SyncPasskey {\n    credentialId: string;\n    prf: Uint8Array;\n}',
+    declaration: 'export interface SyncPasskey {\n    credentialId: string;\n    prf: Uint8Array;\n    signIn?: SyncPasskeySignIn;\n}',
   },
   {
     name: 'SyncPasskeyPurpose',
     declaration: 'export type SyncPasskeyPurpose = \'protect\' | \'add\' | \'unlock\';',
+  },
+  {
+    name: 'SyncPasskeySignIn',
+    declaration: 'export interface SyncPasskeySignIn {\n    publicKey: string;\n    alg: number;\n}',
   },
   {
     name: 'SyncPasskeyStart',
@@ -9875,6 +9885,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SyncProtectionView',
     declaration: 'export interface SyncProtectionView {\n    readonly mode: \'server\' | \'passkey\';\n    readonly locked: boolean;\n    readonly downgraded: boolean;\n    readonly passkeys: number;\n}',
+  },
+  {
+    name: 'SyncSignInUnlock',
+    declaration: 'export interface SyncSignInUnlock {\n    readonly verifier: string;\n    readonly publicKey: string;\n    readonly secretKey: string;\n}',
   },
   {
     name: 'SyncState',

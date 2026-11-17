@@ -138,9 +138,21 @@ export async function adoptedHostSignIn(
   if (row === undefined) return undefined
   const config = JSON.parse(row) as Record<string, unknown>
   if (typeof config.apiUrl !== 'string') return undefined
-  const oauthUrls = [config.xOAuthUrl, config.appleOAuthUrl, config.googleOAuthUrl]
+  const oauthUrls = [config.xOAuthUrl, config.appleOAuthUrl, config.googleOAuthUrl, config.passkeyOAuthUrl]
     .filter((url): url is string => typeof url === 'string')
   return { apiUrl: config.apiUrl, oauthUrls }
+}
+
+/**
+ * Whether an address the page navigates to or opens is one of the Host's sign-in routes. The fragment is left out
+ * of the comparison: the passkey sign-in page carries its unlock parameters there, and the browser keeps them.
+ * @param signIn - the Host's sign-in endpoints, absent when it states none.
+ * @param url - the address the page asked for.
+ * @returns true when the address names a sign-in route.
+ */
+export function isSignInAddress(signIn: DesktopAevenSignIn | undefined, url: string): boolean {
+  const at = url.indexOf('#')
+  return signIn?.oauthUrls.includes(at === -1 ? url : url.slice(0, at)) === true
 }
 
 /** The pair a provider landing carries in its path. */

@@ -22,6 +22,7 @@ export { currentBearer } from './auth/services/tokens.ts'
 export { onAccountLocale, onSessionEnded } from './auth/services/watch.ts'
 export { signOut, getProfile, AevenApiError } from './auth/services/api.ts'
 export { publishReader, publishedReader, type AevenReader } from './auth/services/reader.ts'
+export type { PasskeyUnlock } from './auth/services/passkey-unlock.ts'
 // Exported from the entry the boot kernel loads, so `beforeinstallprompt` is captured from the first moment.
 export { installApp, installOffer, type InstallOffer, type InstallOutcome } from './auth/services/install.ts'
 export { aevenConfig, mediaUrl, socketUrl, webUrl, type AevenClientConfig } from './auth/services/config.ts'

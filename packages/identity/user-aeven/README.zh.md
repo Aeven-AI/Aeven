@@ -58,6 +58,7 @@ kind: "package-reference"
 | `brandUrl` | 无 | 登录界面品牌徽记链接到的页面，例如 Aeven 官网；缺省时徽记不加链接 |
 | `pageHosts` | `[]` | Host 自身的公开主机名，例如 `chat.aeven.io` 和 `chat.aeven.app`；配置在其中某个主机上的上述 URL，交给从另一个主机到达的页面时改用该页面自己的主机，使页面与 API 保持同源；其他主机上的 URL 原样传递 |
 | `xOAuthUrl`、`appleOAuthUrl`、`googleOAuthUrl` | 无 | 各提供方的登录 URL；缺失某个会隐藏该提供方的按钮 |
+| `passkeyOAuthUrl` | 无 | Aeven 网站的通行密钥登录页；缺失时隐藏通行密钥按钮 |
 | `oauthFlow` | 无 | 提供方登录如何抵达提供方，配置了任一提供方 URL 时必须声明：`redirect` 让读者的文档前往提供方，`window` 从独立窗口抵达。配置了提供方却未声明时，插件拒绝加载 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#aevenidentity-user-aeven)是所有可接受字段的详尽来源。

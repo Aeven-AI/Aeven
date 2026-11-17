@@ -1,6 +1,6 @@
 /** Operations Settings → Sync and the sign-in popup share: reading the status and running a passkey step. */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { SyncDeviceView, SyncPasskeyPurpose, SyncPasskeyStart, SyncView } from '@aeven/api-remotes/client'
+import type { SyncDeviceView, SyncPasskeyPurpose, SyncPasskeyStart, SyncSignInUnlock, SyncView } from '@aeven/api-remotes/client'
 import { externalWindow } from '@aeven/client-ui-primitives'
 
 /** Registration-side operations over the sync Remote. */
@@ -12,6 +12,12 @@ export interface SyncOperations {
   cancelPasskey: () => Promise<SyncView>
   unprotect: () => Promise<SyncView>
   acceptServerKey: () => Promise<SyncView>
+  /**
+   * Unlock this device with the passkey a sign-in on this page just used.
+   * @param unlock - the verifier and key pair the sign-in page was opened with.
+   * @returns the status afterwards.
+   */
+  unlockFromSignIn: (unlock: SyncSignInUnlock) => Promise<SyncView>
   /**
    * Call `listener` whenever the Host reports a sync change, including the end of a passkey step.
    * @param listener - refresh callback.
