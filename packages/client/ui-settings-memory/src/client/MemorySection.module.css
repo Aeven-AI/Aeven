@@ -490,3 +490,14 @@
   opacity: 0;
   pointer-events: none;
 }
+
+/* Import is the black primary capsule the Account page's actions use, in both themes. */
+.importButton {
+  font-weight: 400;
+}
+
+:global(body[data-ds-dark-theme]) .importButton,
+:global(body[data-ds-dark-theme]) .importButton:hover:not(:disabled) {
+  background: #111111;
+  color: #ffffff;
+}

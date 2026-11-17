@@ -7,6 +7,12 @@
   width: 100%;
 }
 
+/* The page's group headings — Appearance, Voice, Advanced — read at 16px, as the Account page's headings do. */
+.section h3 {
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
 .items {
   display: flex;
   flex-direction: column;

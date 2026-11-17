@@ -106,7 +106,10 @@ describe('PersonalizationSection', () => {
     mount()
     const editor = (await screen.findByRole('textbox', { name: en.master })) as HTMLTextAreaElement
     expect(editor.value).toBe('You are Aeven.')
-    expect(screen.getByText(en.masterDescription)).toBeTruthy()
+    // One line on the page; the full explanation opens from the question mark beside the heading.
+    expect(screen.getByText(en.masterHint)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: en.masterInfo }))
+    expect(await screen.findByText(en.masterDescription)).toBeTruthy()
     // Nothing to reset while the shipped prompt stands.
     expect(screen.getByRole('button', { name: en.masterReset }).hasAttribute('disabled')).toBe(true)
   })

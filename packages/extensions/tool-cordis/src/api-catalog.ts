@@ -6203,7 +6203,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AccountExportWriter',
-    declaration: 'export interface AccountExportWriter {\n    content(entry: string, produce: () => ExportContent): Promise<void>;\n    file(entry: string, source: string): Promise<void>;\n    directory(entry: string, root: string, skip?: (relativePath: string) => boolean): Promise<void>;\n}',
+    declaration: 'export interface AccountExportWriter {\n    readonly dry: boolean;\n    content(entry: string, produce: () => ExportContent): Promise<void>;\n    file(entry: string, source: string): Promise<void>;\n    directory(entry: string, root: string, skip?: (relativePath: string) => boolean): Promise<void>;\n}',
   },
   {
     name: 'AccountIntegrationsView',

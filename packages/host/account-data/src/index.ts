@@ -43,6 +43,11 @@ export type ExportContent = string | Uint8Array | Promise<string | Uint8Array> |
 /** Writes one account's files into the export archive; every path is relative to the archive root. */
 export interface AccountExportWriter {
   /**
+   * True while the export is only being sized: files and directories are measured, nothing is read, and a source
+   * should skip work whose only output is a small `content` entry.
+   */
+  readonly dry: boolean
+  /**
    * Add a file whose bytes are produced when the archive reaches it, so its source is read only then.
    * @param entry - the path inside the archive.
    * @param produce - returns the content, as text, bytes, or a stream of chunks. The archive keeps the function
@@ -113,10 +118,38 @@ export interface Config {
   maxConcurrentExports: number
   /** Most bytes per second one export streams, bounding its disk and network use. 0 is unlimited. */
   maxBytesPerSecond: number
+  /** Directory names left out of every exported tree: installable tooling, not the account's data. */
+  skipDirectories: string[]
 }
 
 /** Route the export is served at, below the shared `/api` channel. */
 export const EXPORT_ROUTE = '/api/account-data/export'
+
+/** Route answering how far the caller's running export is. */
+export const PROGRESS_ROUTE = '/api/account-data/export/progress'
+
+/**
+ * Bytes a chat adds to the export, attachments included, per byte of its compressed log on disk; measured on a real
+ * account on 2026-11-17 (3.55 GB of chats and attachments from 399 MB of logs). Only the first estimate uses it:
+ * once chats are written, their measured average replaces it.
+ */
+const CHAT_EXPANSION = 9
+
+/** How far one running export is, in bytes read into the archive. */
+interface ExportProgress {
+  /** Bytes read into the archive so far. */
+  read: number
+  /** Bytes the non-chat sources were measured to add. */
+  planned: number
+  /** Chats the export writes. */
+  chatsTotal: number
+  /** Chats written so far. */
+  chatsDone: number
+  /** Bytes the written chats added, attachments included. */
+  chatsRead: number
+  /** Estimate for all chats before any is written. */
+  chatsGuess: number
+}
 
 /** The most digests one tombstone lookup may carry, as the Aeven API accepts. */
 const TOMBSTONE_BATCH = 200
@@ -159,14 +192,15 @@ export class AccountData extends Service {
     chatFiles: z.string(),
     maxConcurrentExports: z.natural().default(0),
     maxBytesPerSecond: z.natural().default(0),
+    skipDirectories: z.array(z.string()).default(['node_modules', '.venv', 'venv', '__pycache__']),
   })
 
   private readonly sources: AccountDataSource[] = []
   private readonly ref: CredentialRef
   private readonly apiUrl: string
   private checking: Promise<void> | undefined
-  /** Accounts with an export streaming now; each account streams one at a time. */
-  private readonly exporting = new Set<string>()
+  /** Accounts with an export streaming now and how far each is; each account streams one at a time. */
+  private readonly exporting = new Map<string, ExportProgress>()
 
   /**
    * @param ctx - Host context carrying the connection; sessions, memory, and credentials are read optionally.
@@ -181,6 +215,11 @@ export class AccountData extends Service {
       methods: ['GET'],
       fetch: request => this.serveExport(request),
     }), 'account-data: export route')
+    ctx.effect(() => ctx.connection.fetch.register({
+      path: PROGRESS_ROUTE,
+      methods: ['GET'],
+      fetch: request => Promise.resolve(this.progressResponse(request)),
+    }), 'account-data: export progress route')
     ctx.effect(() => this.register(this.chats()), 'account-data: chats source')
     ctx.effect(() => this.register(this.memories()), 'account-data: memories source')
     ctx.effect(() => this.register(this.home()), 'account-data: account home source')
@@ -228,17 +267,27 @@ export class AccountData extends Service {
    * @returns the archive bytes, produced as they are read.
    */
   export(owner: string, signal: AbortSignal, settled: () => void = () => {}): ReadableStream<Uint8Array> {
+    return this.archive(owner, signal, settled, newProgress())
+  }
+
+  /** {@link export}, counting into the record the progress route reads. */
+  private archive(owner: string, signal: AbortSignal, settled: () => void, progress: ExportProgress): ReadableStream<Uint8Array> {
     const zip = new yazl.ZipFile()
     const notes: string[] = []
     const level = this.config.compressionLevel
     const compressMax = this.config.compressMaxBytes
+    const skipped = new Set(this.config.skipDirectories)
     // The server copy is fetched beside the local walk and written last, so a slow network never delays the start.
     const server = this.serverCopy(owner, signal)
+    const counted = (stream: Readable): Readable => stream.on('data', (chunk: Buffer) => { progress.read += chunk.byteLength })
+    // Sizing runs beside the real walk: it measures every non-chat source without reading, so progress has a total.
+    void this.plan(owner, signal, skipped).then((bytes) => { progress.planned = bytes }, () => undefined)
     const writer: AccountExportWriter = {
+      dry: false,
       content: (entry, produce) => new Promise<void>((reached) => {
         zip.addReadStreamLazy(entry, compressMax > 0 ? { compress: true, compressionLevel: level } : { compress: false }, (done) => {
           reached()
-          void streamOf(produce).then((stream) => { done(null, stream) }, (error: unknown) => {
+          void streamOf(produce).then((stream) => { done(null, counted(stream)) }, (error: unknown) => {
             notes.push(`${entry}: ${message(error)}`)
             done(null, Readable.from([]))
           })
@@ -254,13 +303,13 @@ export class AccountData extends Service {
           // Opened only now, so a large tree never holds more than one descriptor; a file removed since the walk
           // becomes an empty entry instead of breaking the archive.
           void open(source, 'r').then(
-            (handle) => { done(null, handle.createReadStream()) },
+            (handle) => { done(null, counted(handle.createReadStream())) },
             () => { done(null, Readable.from([])) },
           )
         })
       },
       directory: async (entry, root, skip) => {
-        for (const path of await walk(root)) {
+        for (const path of await walk(root, skipped)) {
           const rel = relative(root, path).split(sep).join('/')
           if (skip?.(rel) === true) continue
           await writer.file(`${entry}/${rel}`, path)
@@ -318,6 +367,52 @@ export class AccountData extends Service {
         await chunks.return?.()
       },
     }, { highWaterMark: 0 })
+  }
+
+  /**
+   * Measure what the non-chat sources add to an export, without reading or archiving anything.
+   * @param owner - the account.
+   * @param signal - aborted when the download is cancelled.
+   * @param skipped - directory names left out of every tree.
+   * @returns the bytes their files hold.
+   */
+  private async plan(owner: string, signal: AbortSignal, skipped: ReadonlySet<string>): Promise<number> {
+    let bytes = 0
+    const measure = async (source: string): Promise<void> => {
+      bytes += (await stat(source).catch(() => undefined))?.size ?? 0
+    }
+    const dry: AccountExportWriter = {
+      dry: true,
+      content: () => Promise.resolve(),
+      file: async (_entry, source) => { await measure(source) },
+      directory: async (_entry, root, skip) => {
+        for (const path of await walk(root, skipped)) {
+          if (signal.aborted) return
+          if (skip?.(relative(root, path).split(sep).join('/')) === true) continue
+          await measure(path)
+        }
+      },
+    }
+    for (const source of [...this.sources]) {
+      // Chats are estimated by the chats source as it goes; sizing them here would decompress every log twice.
+      if (signal.aborted || source.name === CHATS_SOURCE) continue
+      await source.export(owner, dry, signal).catch(() => undefined)
+    }
+    return bytes
+  }
+
+  /** Answer how far the caller's running export is, as a fraction below 1, or 404 when none is running. */
+  private progressResponse(request: Request): Response {
+    const owner = this.ctx.connection.identify(request)?.id
+    const progress = owner === undefined ? undefined : this.exporting.get(owner)
+    if (progress === undefined) return new Response(null, { status: 404 })
+    const chats = progress.chatsDone > 0
+      ? progress.chatsRead / progress.chatsDone * progress.chatsTotal
+      : progress.chatsGuess
+    const expected = progress.planned + chats
+    // Never full before the archive ends: the estimate can fall short, and the page fills the bar when it closes.
+    const fraction = expected > 0 ? Math.min(0.99, progress.read / expected) : 0
+    return Response.json({ fraction }, { headers: { 'cache-control': 'no-store' } })
   }
 
   /**
@@ -409,12 +504,13 @@ export class AccountData extends Service {
     if (this.exporting.has(owner) || (limit > 0 && this.exporting.size >= limit)) {
       return new Response('an export is already running; try again in a few minutes', { status: 429, headers: { 'retry-after': '60' } })
     }
-    this.exporting.add(owner)
+    const progress = newProgress()
+    this.exporting.set(owner, progress)
     // The slot is held until the archive finishes, fails, or the download is cancelled.
     const release = (): void => { this.exporting.delete(owner) }
     request.signal.addEventListener('abort', release, { once: true })
     const day = new Date().toISOString().slice(0, 10)
-    return new Response(this.export(owner, request.signal, release), {
+    return new Response(this.archive(owner, request.signal, release, progress), {
       headers: {
         'content-type': 'application/zip',
         'content-disposition': `attachment; filename="aeven-export-${day}.zip"`,
@@ -434,12 +530,22 @@ export class AccountData extends Service {
       return snapshots.map(snapshot => snapshot.header).filter(header => owner === undefined || header.owner === owner)
     }
     return {
-      name: 'chats',
+      name: CHATS_SOURCE,
       owners: async () => [...new Set((await owned(undefined)).flatMap(header => header.owner === undefined ? [] : [header.owner]))],
       export: async (owner, out, signal) => {
         const persistence = this.ctx.get('sessionPersistence')
         const headers = await owned(owner)
         if (persistence === undefined || headers.length === 0) return
+        const progress = this.exporting.get(owner)
+        if (progress !== undefined) {
+          progress.chatsTotal = headers.length
+          let onDisk = 0
+          for (const header of headers) {
+            const path = persistence.locate(header)?.path
+            if (path !== undefined) onDisk += (await stat(path).catch(() => stat(`${path}.zstd`)).catch(() => undefined))?.size ?? 0
+          }
+          progress.chatsGuess = onDisk * CHAT_EXPANSION
+        }
         void out.content('chats/index.json', () => JSON.stringify(headers.map(header => ({
           id: header.id,
           createdAt: new Date(header.createdAt).toISOString(),
@@ -455,6 +561,7 @@ export class AccountData extends Service {
           const log = (await persistence.readRaw(header.id, signal).catch(() => undefined))?.content ?? ''
           // The archive keeps every producer until it writes its directory, so the producer hands the log over once
           // and lets go of it; capturing it outright would keep every chat in memory to the end.
+          let addedBytes = Buffer.byteLength(log)
           let held: string | undefined = log
           const reached = out.content(`chats/${chatFile(header.id, header.createdAt)}`, () => {
             const text = held ?? ''
@@ -466,7 +573,13 @@ export class AccountData extends Service {
             if (attachments === undefined || added.has(ref.attachmentId)) continue
             added.add(ref.attachmentId)
             const path = 'width' in ref ? attachments.imageHostPath(ref) : attachments.fileHostPath(ref)
-            if (path !== undefined) await out.file(`chats/attachments/${attachmentFile(ref)}`, path)
+            if (path === undefined) continue
+            addedBytes += (await stat(path).catch(() => undefined))?.size ?? 0
+            await out.file(`chats/attachments/${attachmentFile(ref)}`, path)
+          }
+          if (progress !== undefined) {
+            progress.chatsDone += 1
+            progress.chatsRead += addedBytes
           }
           // The next log is read once the archive has reached this one, so one chat is in memory at a time.
           await reached
@@ -539,15 +652,17 @@ export default AccountData
 /**
  * Every regular file under a directory, depth first, sorted for a stable archive order.
  * @param root - absolute directory; a missing one has no files.
+ * @param skipped - directory names whose trees are left out.
  * @returns absolute file paths.
  */
-async function walk(root: string): Promise<string[]> {
+async function walk(root: string, skipped: ReadonlySet<string>): Promise<string[]> {
   const files: string[] = []
   const entries = await readdir(root, { withFileTypes: true }).catch(() => [])
   entries.sort((a, b) => a.name.localeCompare(b.name))
   for (const entry of entries) {
     const path = join(root, entry.name)
-    if (entry.isDirectory()) files.push(...await walk(path))
+    if (entry.isDirectory() && skipped.has(entry.name)) continue
+    if (entry.isDirectory()) files.push(...await walk(path, skipped))
     else if (entry.isFile()) files.push(path)
   }
   return files
@@ -599,6 +714,14 @@ function attachmentFile(ref: ImageAttachmentRef | FileAttachmentRef): string {
   if (name !== undefined && name !== '') return `${ref.attachmentId.slice(0, 12)}-${name}`
   const subtype = ref.mediaType.split('/')[1]?.split(/[+;]/)[0] ?? 'bin'
   return `${ref.attachmentId}.${subtype}`
+}
+
+/** The chats source's name; sizing leaves it to its own estimate. */
+const CHATS_SOURCE = 'chats'
+
+/** A fresh progress record for one export. */
+function newProgress(): ExportProgress {
+  return { read: 0, planned: 0, chatsTotal: 0, chatsDone: 0, chatsRead: 0, chatsGuess: 0 }
 }
 
 /** A chat's file name: its creation day first, so the folder sorts by date. */

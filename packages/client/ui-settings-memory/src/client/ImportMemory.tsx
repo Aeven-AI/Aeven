@@ -52,11 +52,12 @@ export function ImportMemory({ t, importFile, close }: {
   return (
     <SettingsRow
       title={t('import.title')}
+      info={{ title: t('import.infoTitle'), body: t('import.info'), closeLabel: t('import.close') }}
       description={stage !== undefined
         ? <span className={css.status}><Spinner /> {t(stage === 'preparing' ? 'import.preparing' : 'import.uploading')}</span>
         : failure !== undefined
           ? <span className={css.failure}>{failure}</span>
-          : t('import.description')}
+          : t('import.short')}
       control={(
         <>
           <input
@@ -70,7 +71,7 @@ export function ImportMemory({ t, importFile, close }: {
               if (file !== undefined) void start(file)
             }}
           />
-          <Button variant="outline" disabled={stage !== undefined} onClick={() => { input.current?.click() }}>{t('import.button')}</Button>
+          <Button variant="primary" className={css.importButton} disabled={stage !== undefined} onClick={() => { input.current?.click() }}>{t('import.button')}</Button>
         </>
       )}
     />

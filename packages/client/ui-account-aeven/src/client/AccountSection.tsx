@@ -61,8 +61,22 @@ export interface AccountSectionInjected {
    * @returns that answer, or undefined when the route has not settled yet.
    */
   cached: (path: string) => unknown
-  /** Host route, relative to the page, that streams the reader's data export as a zip download. */
+  /**
+   * Host route, relative to the page, that streams the reader's data export as a zip; the fallback download where
+   * the page cannot save a stream itself, authenticated by the Host account cookie.
+   */
   exportUrl: string
+  /**
+   * Request the export through the page's authenticated Host transport, as the page's RPC calls are sent. The desktop
+   * window's own scheme carries no Host cookie, so its export must go this way.
+   * @returns the Host's response, whose body streams the zip.
+   */
+  fetchExport: () => Promise<Response>
+  /**
+   * How far the running export is, read from the Host.
+   * @returns a fraction from 0 to just below 1, or undefined when the Host reports none.
+   */
+  exportProgress: () => Promise<number | undefined>
   /**
    * Schedule the reader's account for deletion. On success the API has signed every session out.
    * @param email - the account's email address, typed by the reader to confirm.
@@ -1016,6 +1030,30 @@ function Usage({ t, usage, payments, retryPayments }: {
   )
 }
 
+/**
+ * A byte count as the reader reads sizes: MB below a gigabyte, GB from there.
+ * @param t - the section's translator, which owns the units.
+ * @param bytes - the count.
+ * @returns the formatted size.
+ */
+function byteSize(t: Translate, bytes: number): string {
+  const gigabytes = bytes / 1024 ** 3
+  return gigabytes >= 1
+    ? t('data.sizeGb', { n: new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(gigabytes) })
+    : t('data.sizeMb', { n: new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(bytes / 1024 ** 2) })
+}
+
+/** Where an in-page export stands. */
+type ExportState = 'idle' | 'saving' | 'done' | 'busy' | 'failed'
+
+/** The File System Access save picker, which Chromium and the desktop window provide and other browsers lack. */
+interface SavePickerWindow {
+  showSaveFilePicker?: (options: {
+    suggestedName: string
+    types: ReadonlyArray<{ description: string; accept: Record<string, readonly string[]> }>
+  }) => Promise<{ createWritable: () => Promise<WritableStream<Uint8Array>> }>
+}
+
 /** How long after a deletion request the account is erased; the API states the exact date on success. */
 const DELETION_GRACE_DAYS = 30
 
@@ -1024,30 +1062,114 @@ const DELETION_GRACE_DAYS = 30
  * @param props - section props, plus the two-factor status and the plan and balance the dialog names.
  * @returns the group.
  */
-function YourData({ t, exportUrl, requestDeletion, signOut, reader, mfaEnabled, subscription, usage }: AccountSectionProps & {
+function YourData({
+  t, exportUrl, fetchExport, exportProgress, requestDeletion, signOut, reader, mfaEnabled, subscription, usage,
+}: AccountSectionProps & {
   readonly mfaEnabled: boolean
   readonly subscription: CloudSubscription | undefined
   readonly usage: CloudUsage | undefined
 }) {
   const [deleting, setDeleting] = useState(false)
+  const [exporting, setExporting] = useState<ExportState>('idle')
+  const [percent, setPercent] = useState<number | undefined>(undefined)
+  const [written, setWritten] = useState(0)
+  const writtenRef = useRef(0)
+  // While the archive streams, the Host's estimate of how far it is fills the bar once a second.
+  useEffect(() => {
+    if (exporting !== 'saving') return
+    let live = true
+    const timer = setInterval(() => {
+      // The bytes this page has written always move, so the row shows progress even before the Host has an estimate.
+      setWritten(writtenRef.current)
+      void exportProgress().then((fraction) => {
+        if (live && fraction !== undefined) setPercent(Math.round(fraction * 100))
+      }, () => undefined)
+    }, 1000)
+    return () => {
+      live = false
+      clearInterval(timer)
+    }
+  }, [exporting, exportProgress])
   const email = reader()?.email
   const days = String(DELETION_GRACE_DAYS)
-  // A plain download: the Host streams the zip as it builds it, so the browser's own download starts at once and
-  // nothing is held in the page.
   const download = () => {
-    const link = document.createElement('a')
-    link.href = exportUrl
-    link.download = ''
-    link.click()
+    const picker = (window as SavePickerWindow).showSaveFilePicker
+    // Without a save picker the browser's own download is the stream; the Host cookie authenticates it.
+    if (picker === undefined) {
+      const link = document.createElement('a')
+      link.href = exportUrl
+      link.download = ''
+      link.click()
+      return
+    }
+    void picker({
+      suggestedName: `aeven-export-${new Date().toISOString().slice(0, 10)}.zip`,
+      types: [{ description: t('data.zipType'), accept: { 'application/zip': ['.zip'] } }],
+    }).then(async (handle) => {
+      setPercent(undefined)
+      writtenRef.current = 0
+      setWritten(0)
+      setExporting('saving')
+      try {
+        const response = await fetchExport()
+        if (response.status === 429) {
+          setExporting('busy')
+          return
+        }
+        if (!response.ok || response.body === null) throw new Error(`export answered ${String(response.status)}`)
+        // The archive is written to the chosen file as the Host produces it, so nothing is held in the page.
+        const count = new TransformStream<Uint8Array, Uint8Array>({
+          transform: (chunk, controller) => {
+            writtenRef.current += chunk.byteLength
+            controller.enqueue(chunk)
+          },
+        })
+        await response.body.pipeThrough(count).pipeTo(await handle.createWritable())
+        setPercent(100)
+        setExporting('done')
+      } catch {
+        // The row says the export failed; the reader can start it again.
+        setExporting('failed')
+      }
+    }, () => {
+      // The reader closed the save dialog: nothing was asked of the Host.
+    })
+  }
+  let exportNote: ReactNode = t('data.exportShort')
+  switch (exporting) {
+    case 'idle': break
+    case 'saving': exportNote = percent === undefined
+      ? t('data.exportingBytes', { size: byteSize(t, written) })
+      : t('data.exportingPercent', { percent: String(percent), size: byteSize(t, written) }); break
+    case 'done': exportNote = <span className={css.success}><IconCheckOutline14 /> {t('data.exported')}</span>; break
+    case 'busy': exportNote = <span className={css.error}>{t('data.exportBusy')}</span>; break
+    case 'failed': exportNote = <span className={css.error}>{t('data.exportFailed')}</span>; break
   }
   return (
     <Group title={t('data.heading')}>
       <SettingsRow
         title={t('data.export')}
-        description={t('data.exportShort')}
+        description={exportNote}
         info={{ title: t('data.exportInfoTitle'), body: t('data.exportInfo'), closeLabel: t('data.close') }}
-        control={<Button variant="primary" className={css.dataButton} onClick={download}>{t('data.exportAction')}</Button>}
-      />
+        control={(
+          <Button variant="primary" className={css.dataButton} disabled={exporting === 'saving'} onClick={download}>
+            {t('data.exportAction')}
+          </Button>
+        )}
+      >
+        {exporting === 'saving' && (
+          <span
+            className={css.meter}
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={percent ?? 0}
+            aria-label={t('data.exportingBytes', { size: byteSize(t, written) })}
+          >
+            <span style={{ width: `${Math.max(percent ?? 0, 2)}%` }} />
+          </span>
+        )}
+      </SettingsRow>
       <SettingsRow
         title={t('data.delete')}
         description={t('data.deleteShort', { days })}
