@@ -2095,8 +2095,6 @@ export interface Config {
   appleOAuthUrl?: string
   /** Provider sign-in URL; absent hides that provider's button. */
   googleOAuthUrl?: string
-  /** Passkey sign-in page on the Aeven site; absent hides the passkey button. */
-  passkeyOAuthUrl?: string
   /**
    * How a provider sign-in reaches the provider, once any `*OAuthUrl` is set.
    *

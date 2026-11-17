@@ -11,9 +11,9 @@ import z from '@deepseek-ai/schemastery'
 import { Remote, TypertRemoteService } from '@aeven/typert-protocol'
 import { assertNever } from '@aeven/util-values'
 import type { User } from '@aeven/identity-user'
-import type { SyncPasskey, SyncPasskeySignIn, SyncProgress } from '@aeven/sync'
+import type { SyncPasskey, SyncProgress } from '@aeven/sync'
 import { generateHostKeys, openSealedForHost, PASSKEY_PRF_SALT, PRF_BYTES, toBase64Url, type HostKeyPair } from '@aeven/sync-vault'
-import type { SyncDeviceView, SyncPasskeyPurpose, SyncPasskeyStart, SyncPasskeyView, SyncSignInUnlock, SyncView } from './types.ts'
+import type { SyncDeviceView, SyncPasskeyPurpose, SyncPasskeyStart, SyncPasskeyView, SyncView } from './types.ts'
 
 export type * from './types.ts'
 
@@ -44,36 +44,6 @@ interface PasskeyStep {
 /** The passkey page's result was collected and showed the browser or passkey cannot derive a key. */
 class PasskeyUnsupported extends Error {
   override name = 'PasskeyUnsupported'
-}
-
-/** A base64url field. */
-const BASE64URL = /^[A-Za-z0-9_-]+$/
-
-/**
- * Read the part of a passkey page's result that follows the PRF output. A page asked for a new passkey's public key
- * answers the JSON `{ id, publicKey?, alg? }`; any other answer is the raw credential id.
- * @param rest - the bytes after the PRF output.
- * @param asked - whether the step asked for the public key.
- * @returns the credential id, base64url, and the sign-in key when the page stated one.
- */
-function passkeyIdentity(rest: Uint8Array, asked: boolean): { credentialId: string; signIn?: SyncPasskeySignIn } {
-  if (asked) {
-    let parsed: unknown
-    try {
-      parsed = JSON.parse(new TextDecoder().decode(rest))
-    } catch {
-      // A page deployed before it read `signin` answers the raw credential id, read below.
-      parsed = undefined
-    }
-    const fields = typeof parsed === 'object' && parsed !== null ? parsed as Record<string, unknown> : undefined
-    if (typeof fields?.id === 'string' && BASE64URL.test(fields.id)) {
-      const signIn = typeof fields.publicKey === 'string' && BASE64URL.test(fields.publicKey) && typeof fields.alg === 'number'
-        ? { publicKey: fields.publicKey, alg: fields.alg }
-        : undefined
-      return { credentialId: fields.id, ...signIn === undefined ? {} : { signIn } }
-    }
-  }
-  return { credentialId: toBase64Url(rest) }
 }
 
 /** The signed-in user's account sync. */
@@ -174,7 +144,6 @@ export default class SyncController extends TypertRemoteService {
       if (ids.length > 0) params.set('ids', ids.join(','))
     } else {
       params.set('user', toBase64Url(createHash('sha256').update(owner).digest()))
-      params.set('signin', '1')
       const name = user.email ?? user.displayName
       if (name !== undefined) params.set('name', name)
     }
@@ -211,75 +180,30 @@ export default class SyncController extends TypertRemoteService {
     const { signal } = step.stop
     const deadline = Date.now() + this.config.passkeyMs
     for (;;) {
-      const passkey = await this.claim(verifier, keys, step.purpose !== 'unlock', signal)
-      if (passkey !== undefined) {
+      const response = await fetch(`${this.config.siteUrl}/passkey/vault/claim`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ verifier }),
+        signal,
+      })
+      if (response.status === 200) {
+        const result = await response.json() as { sealed?: unknown; error?: unknown }
+        if (result.error === 'unsupported') throw new PasskeyUnsupported('the passkey cannot derive a key')
+        if (typeof result.sealed !== 'string') throw new Error('the passkey page returned no result')
+        const opened = openSealedForHost(new Uint8Array(Buffer.from(result.sealed, 'base64url')), keys)
+        if (opened.length <= PRF_BYTES) throw new Error('the passkey page returned a malformed result')
         signal.throwIfAborted()
-        await this.apply(owner, step.purpose, passkey)
+        await this.apply(owner, step.purpose, {
+          prf: opened.subarray(0, PRF_BYTES),
+          credentialId: toBase64Url(opened.subarray(PRF_BYTES)),
+        })
         return
       }
+      if (response.status !== 202) throw new Error(`the passkey result could not be collected (HTTP ${String(response.status)})`)
       if (Date.now() >= deadline) throw new Error('the passkey step timed out')
       await new Promise((resolve) => { setTimeout(resolve, this.config.passkeyPollMs) })
       signal.throwIfAborted()
     }
-  }
-
-  /**
-   * Ask the passkey site once for a deposited result.
-   * @param verifier - the secret whose hash the result is stored under.
-   * @param keys - the one-use key pair the result is sealed to.
-   * @param askedSignIn - whether the page was asked for the new passkey's public key.
-   * @param signal - abandons the request.
-   * @returns the passkey, or undefined while nothing is deposited.
-   * @throws {PasskeyUnsupported} when the page reported that the passkey cannot derive a key.
-   */
-  private async claim(verifier: string, keys: HostKeyPair, askedSignIn: boolean, signal?: AbortSignal): Promise<SyncPasskey | undefined> {
-    const response = await fetch(`${this.config.siteUrl}/passkey/vault/claim`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ verifier }),
-      ...signal === undefined ? {} : { signal },
-    })
-    if (response.status === 202) return undefined
-    if (response.status !== 200) throw new Error(`the passkey result could not be collected (HTTP ${String(response.status)})`)
-    const result = await response.json() as { sealed?: unknown; error?: unknown }
-    if (result.error === 'unsupported') throw new PasskeyUnsupported('the passkey cannot derive a key')
-    if (typeof result.sealed !== 'string') throw new Error('the passkey page returned no result')
-    const opened = openSealedForHost(new Uint8Array(Buffer.from(result.sealed, 'base64url')), keys)
-    if (opened.length <= PRF_BYTES) throw new Error('the passkey page returned a malformed result')
-    return { prf: opened.subarray(0, PRF_BYTES), ...passkeyIdentity(opened.subarray(PRF_BYTES), askedSignIn) }
-  }
-
-  /**
-   * Unlock this device with the passkey the caller just signed in with. The sign-in page evaluated the passkey's
-   * PRF in the same prompt and deposited it sealed to the caller's one-use key; this collects it once. An account
-   * that is not locked, or a sign-in that deposited nothing, leaves everything as it was.
-   * @param unlock - the verifier and key pair the sign-in page was opened with.
-   * @returns the status afterwards.
-   */
-  @Remote
-  async unlockFromSignIn(unlock: SyncSignInUnlock): Promise<SyncView> {
-    const owner = this.owner()
-    if (this.ctx.sync.status(owner).protection?.locked !== true) return this.view(owner)
-    const keys: HostKeyPair = {
-      publicKey: new Uint8Array(Buffer.from(unlock.publicKey, 'base64url')),
-      secretKey: new Uint8Array(Buffer.from(unlock.secretKey, 'base64url')),
-    }
-    if (keys.publicKey.length !== 32 || keys.secretKey.length !== 32) throw new Error('a sign-in unlock needs raw X25519 keys')
-    let passkey: SyncPasskey | undefined
-    try {
-      passkey = await this.claim(unlock.verifier, keys, false)
-    } catch (error) {
-      // The device stays locked and the passkey popup asks for the passkey, as after any other sign-in.
-      this.ctx.logger.warn('sync: the sign-in unlock could not be collected: %s', error)
-      return this.view(owner)
-    }
-    if (passkey !== undefined) {
-      await this.ctx.sync.unlock(owner, passkey).catch((error: unknown) => {
-        // A passkey that holds no copy of this account's key signed in without unlocking; the popup asks for one that does.
-        this.ctx.logger.warn('sync: the sign-in passkey did not unlock the account: %s', error)
-      })
-    }
-    return this.view(owner)
   }
 
   private async apply(owner: string, purpose: SyncPasskeyPurpose, passkey: SyncPasskey): Promise<void> {
