@@ -105,6 +105,16 @@ export interface MemosMemoryOptions {
   readonly sentenceRecall?: { readonly sentences: number; readonly hits: number }
   /** Most learned procedures a turn-start recall offers its relevance judgment beside the retrieved candidates. */
   readonly procedureCandidates?: number
+  /**
+   * Embeds a request and the procedures with the deployment's embedding model, so a procedure is chosen by meaning
+   * and across languages: `embed` returns one L2-normalized vector per input, and a procedure is offered when its
+   * cosine similarity to the request is `minMargin` above the median of the owner's procedures. Absent chooses by
+   * shared words alone.
+   */
+  readonly procedureEmbedding?: {
+    readonly embed: (owner: string, inputs: { text: string; role: 'query' | 'document' }[], signal: AbortSignal) => Promise<readonly Float32Array[]>
+    readonly minMargin: number
+  }
   /** True while an owner's memory index is being rebuilt, when its vectors are not comparable to new queries. */
   readonly rebuilding?: (owner: string) => boolean
   /**
@@ -168,6 +178,25 @@ const RECENT_PERSON_PAGE = 100
 /** Learned procedures one turn-start recall reads to choose its procedure candidates from. */
 const PROCEDURE_SCAN = 500
 
+/** Milliseconds an owner's procedure list is served before it is read again. */
+const PROCEDURE_LIST_TTL_MS = 600_000
+
+/** Fewest procedures whose median similarity is a usable baseline. */
+const PROCEDURE_MEDIAN_MIN = 6
+
+/** One current learned procedure. */
+interface ProcedureEntry {
+  readonly trace: TraceDTO
+  readonly name: string
+  readonly description: string
+}
+
+/** The procedures one recall may offer and, when the request was embedded, each one's similarity to it by trace id. */
+interface ProcedureScan {
+  readonly entries: readonly ProcedureEntry[]
+  readonly similarity?: ReadonlyMap<string, number>
+}
+
 /** Name and description of a learned procedure, from the first line of its text. */
 const PROCEDURE_HEADER = new RegExp(String.raw`^${LEARNED_PROCEDURE_PREFIX} ([\w-]+): ([^\n]*)`, 'u')
 
@@ -226,6 +255,10 @@ export class MemosMemory implements MemoryProvider {
   private readonly candidateKinds = new WeakMap<MemoryHit, CandidateKind>()
   /** Each owner's current person memories, as profile reads list them, and when they were listed. */
   private readonly personFacts = new Map<string, { readonly at: number; readonly facts: readonly PersonFact[] }>()
+  /** Each owner's current procedures, read once and kept until a memory write or the list's age retires them. */
+  private readonly procedureLists = new Map<string, { readonly at: number; readonly entries: Promise<readonly ProcedureEntry[]> }>()
+  /** Each owner's procedure embeddings by trace id, with the text each was embedded from. */
+  private readonly procedureVectors = new Map<string, Map<string, { readonly text: string; readonly vector: Float32Array }>>()
   /** Turn-start recalls still running, by owner. */
   private readonly recallsInFlight = new Map<string, Set<Promise<MemoryRecall>>>()
   private disposing: Promise<void> | undefined
@@ -396,7 +429,7 @@ export class MemosMemory implements MemoryProvider {
     recentScan?.catch(() => undefined)
     // Read beside the search for the same reason; without a relevance judgment nothing would vet the procedures.
     const procedureScan = turnStart && this.options.relevance !== undefined && (this.options.procedureCandidates ?? 0) > 0
-      ? this.procedureTraces(request, deadlineAt)
+      ? this.procedureScan(request, deadlineAt)
       : undefined
     procedureScan?.catch(() => undefined)
     try {
@@ -458,58 +491,147 @@ export class MemosMemory implements MemoryProvider {
   }
 
   /**
-   * The owner's current learned procedures the session's workspace may see. The read does not depend on the search,
-   * so recall starts it before the search and {@link procedureHits} removes the ones the search already returned.
-   * @returns the procedures' traces, or throws {@link MemoryDeadlineError} at the deadline.
+   * The owner's current learned procedures, newest per name. Listing them is a text scan of every memory, so the
+   * list is kept per owner until a write changes a memory or {@link PROCEDURE_LIST_TTL_MS} passes, which covers
+   * procedures another device synced in.
+   * @param owner - account id.
+   * @returns the procedures.
    */
-  private async procedureTraces(request: MemoryRecallRequest, deadlineAt: number): Promise<TraceDTO[]> {
-    const { scope } = request
-    const profile = ownerProfile(scope.owner)
-    const core = await this.options.cores.get(scope.owner)
-    const traces = await withDeadline(core.listTraces({
-      ownerAgentKind: MEMOS_AGENT,
-      ownerProfileId: profile,
-      includeAllNamespaces: true,
-      q: LEARNED_PROCEDURE_PREFIX,
-      ...scope.cwd === undefined ? {} : { projectWorkspaceId: this.workspaceOf(scope.cwd) ?? null },
-      limit: PROCEDURE_SCAN,
-      offset: 0,
-    }), deadlineAt, request.signal, `Memory recall exceeded ${request.timeoutMs}ms`)
-    return traces.filter(trace => trace.ownerProfileId === profile && trace.userText.startsWith(LEARNED_PROCEDURE_PREFIX)
-      && (trace.summary ?? '').trim() !== '' && procedureStatusOf(trace.tags) !== 'archived'
-      && !(trace.tags ?? []).some(tag => tag.startsWith(SUPERSEDED_TAG)))
+  private procedureList(owner: string): Promise<readonly ProcedureEntry[]> {
+    const known = this.procedureLists.get(owner)
+    if (known !== undefined && Date.now() - known.at < PROCEDURE_LIST_TTL_MS) return known.entries
+    const entries = (async (): Promise<readonly ProcedureEntry[]> => {
+      const profile = ownerProfile(owner)
+      const core = await this.options.cores.get(owner)
+      const traces = await core.listTraces({
+        ownerAgentKind: MEMOS_AGENT,
+        ownerProfileId: profile,
+        includeAllNamespaces: true,
+        q: LEARNED_PROCEDURE_PREFIX,
+        limit: PROCEDURE_SCAN,
+        offset: 0,
+      })
+      const newest = new Map<string, ProcedureEntry>()
+      for (const trace of traces) {
+        if (trace.ownerProfileId !== profile || (trace.summary ?? '').trim() === '' || procedureStatusOf(trace.tags) === 'archived'
+          || (trace.tags ?? []).some(tag => tag.startsWith(SUPERSEDED_TAG))) continue
+        const header = PROCEDURE_HEADER.exec(trace.userText)
+        if (header === null) continue
+        const [, name = '', description = ''] = header
+        const known = newest.get(name)
+        if (known === undefined || known.trace.ts < trace.ts) newest.set(name, { trace, name, description })
+      }
+      return [...newest.values()]
+    })()
+    this.procedureLists.set(owner, { at: Date.now(), entries })
+    entries.catch(() => {
+      if (this.procedureLists.get(owner)?.entries === entries) this.procedureLists.delete(owner)
+    })
+    return entries
   }
 
   /**
-   * The procedure candidates: the scanned procedures whose name and description share words with the request, best
-   * match first, without the ones already among `hits`. Retrieval ranks a procedure among every memory by how close
-   * its steps are to the person's words, which seldom brings it up; this offers the relevance judgment the few whose
-   * kind of task the request names.
+   * How close each procedure is to the request, by the embedding model's cosine similarity. A procedure is embedded
+   * once, from its name and description, and kept for the provider's lifetime; a turn embeds only its request.
+   * @param owner - account id.
+   * @param entries - the procedures to score.
+   * @param asked - the person's message.
+   * @param signal - cancels the embedding.
+   * @returns the similarity by trace id, or undefined when this deployment embeds remotely.
+   */
+  private async procedureSimilarity(
+    owner: string, entries: readonly ProcedureEntry[], asked: string, signal: AbortSignal,
+  ): Promise<Map<string, number> | undefined> {
+    const embed = this.options.procedureEmbedding?.embed
+    if (embed === undefined || entries.length === 0) return undefined
+    let vectors = this.procedureVectors.get(owner)
+    if (vectors === undefined) {
+      vectors = new Map()
+      this.procedureVectors.set(owner, vectors)
+    }
+    const text = (entry: ProcedureEntry): string => `${entry.name.replaceAll('-', ' ')}: ${entry.description}`
+    const missing = entries.filter(entry => vectors.get(entry.trace.id)?.text !== text(entry))
+    const [query, documents] = await Promise.all([
+      embed(owner, [{ text: asked, role: 'query' }], signal),
+      missing.length === 0 ? [] : embed(owner, missing.map(entry => ({ text: text(entry), role: 'document' as const })), signal),
+    ])
+    for (const [index, entry] of missing.entries()) {
+      const vector = documents[index]
+      if (vector !== undefined) vectors.set(entry.trace.id, { text: text(entry), vector })
+    }
+    const current = new Set(entries.map(entry => entry.trace.id))
+    for (const id of vectors.keys()) if (!current.has(id)) vectors.delete(id)
+    const asking = query[0]
+    if (asking === undefined) return undefined
+    const scores = new Map<string, number>()
+    for (const entry of entries) {
+      const vector = vectors.get(entry.trace.id)?.vector
+      if (vector === undefined || vector.length !== asking.length) continue
+      let dot = 0
+      for (let index = 0; index < vector.length; index++) dot += (vector[index] ?? 0) * (asking[index] ?? 0)
+      scores.set(entry.trace.id, dot)
+    }
+    return scores
+  }
+
+  /**
+   * The procedures a turn-start recall may offer, with how close each is to the request. The read does not depend on
+   * the search, so recall starts it before the search and {@link procedureHits} removes what the search returned.
+   * A failed or late embedding leaves the similarity out and the word match decides alone.
+   * @returns the visible procedures, or throws {@link MemoryDeadlineError} at the deadline.
+   */
+  private async procedureScan(request: MemoryRecallRequest, deadlineAt: number): Promise<ProcedureScan> {
+    const { scope } = request
+    const late = `Memory recall exceeded ${request.timeoutMs}ms`
+    const workspace = this.workspaceOf(scope.cwd)
+    // Project procedures stay in their project, as project memories do.
+    const entries = (await withDeadline(this.procedureList(scope.owner), deadlineAt, request.signal, late))
+      .filter(entry => scope.cwd === undefined || traceDomain(entry.trace.tags, entry.trace.ownerWorkspaceId) !== 'project'
+        || entry.trace.ownerWorkspaceId === workspace)
+    try {
+      const similarity = await withDeadline(
+        this.procedureSimilarity(scope.owner, entries, request.request ?? request.query, request.signal), deadlineAt, request.signal, late,
+      )
+      return { entries, ...similarity === undefined ? {} : { similarity } }
+    } catch (error) {
+      if (!(error instanceof MemoryDeadlineError) && !request.signal.aborted) {
+        this.options.warn(`procedure similarity failed for ${scope.sessionId}: ${error instanceof Error ? error.message : String(error)}`)
+      }
+      return { entries }
+    }
+  }
+
+  /**
+   * The procedure candidates, without the ones already among `hits`. Retrieval ranks a procedure among every memory
+   * by how close its steps are to the person's words, which seldom brings it up; this offers the relevance judgment
+   * the few whose kind of task the request is. A procedure qualifies when its similarity to the request stands
+   * `minMargin` above the median of all the owner's procedures (the model's similarities sit in a narrow band, so no
+   * fixed value separates a match), or when its name and description share words with the request and the
+   * conversation before it. Closest first, then by shared words.
    * @param request - the turn-start recall request.
    * @param hits - the search hits the candidates must not repeat.
-   * @param scanned - {@link procedureTraces} for this request.
+   * @param scanned - {@link procedureScan} for this request.
    * @returns at most `procedureCandidates` candidates.
    */
-  private procedureHits(request: MemoryRecallRequest, hits: readonly MemoryHit[], scanned: readonly TraceDTO[]): MemoryHit[] {
+  private procedureHits(request: MemoryRecallRequest, hits: readonly MemoryHit[], scanned: ProcedureScan): MemoryHit[] {
     const seen = new Set<string>(hits.map(hit => hit.id))
+    const { entries, similarity } = scanned
     const asked = `${request.context ?? ''}\n${request.request ?? request.query}`
-    const newestByName = new Map<string, { trace: TraceDTO; description: string }>()
-    for (const trace of scanned) {
-      const header = PROCEDURE_HEADER.exec(trace.userText)
-      if (header === null) continue
-      const [, name = '', description = ''] = header
-      const known = newestByName.get(name)
-      if (known !== undefined && known.trace.ts >= trace.ts) continue
-      newestByName.set(name, { trace, description })
-    }
     // A word in many names, such as the product most of the owner's procedures concern, tells none of them apart.
     const named = new Map<string, number>()
-    for (const name of newestByName.keys()) for (const word of taskWords(name)) named.set(word, (named.get(word) ?? 0) + 1)
+    for (const { name } of entries) for (const word of taskWords(name)) named.set(word, (named.get(word) ?? 0) + 1)
     const common = new Set([...named].filter(([, count]) => count > PROCEDURE_COMMON_NAMES).map(([word]) => word))
-    return [...newestByName]
-      .map(([name, { trace, description }]) => ({ trace, score: procedureMatch(asked, name, description, common) }))
-      .filter(({ trace, score }) => score >= PROCEDURE_MATCH_MIN && !seen.has(trace.id))
-      .sort((a, b) => b.score - a.score || b.trace.ts - a.trace.ts)
+    const sorted = similarity === undefined ? [] : [...similarity.values()].sort((a, b) => a - b)
+    // With few procedures the median is one of the candidates, so the margin says nothing.
+    const floor = sorted.length < PROCEDURE_MEDIAN_MIN ? Number.POSITIVE_INFINITY
+      : (sorted[Math.floor(sorted.length / 2)] ?? 0) + (this.options.procedureEmbedding?.minMargin ?? 0)
+    return entries
+      .map(({ trace, name, description }) => {
+        const close = similarity?.get(trace.id) ?? 0
+        return { trace, close: close >= floor ? close : 0, words: procedureMatch(asked, name, description, common) }
+      })
+      .filter(({ trace, close, words }) => (close > 0 || words >= PROCEDURE_MATCH_MIN) && !seen.has(trace.id))
+      .sort((a, b) => b.close - a.close || b.words - a.words || b.trace.ts - a.trace.ts)
       .slice(0, this.options.procedureCandidates ?? 0)
       .map(({ trace }) => {
         const domain = traceDomain(trace.tags, trace.ownerWorkspaceId)
@@ -1355,6 +1477,7 @@ export class MemosMemory implements MemoryProvider {
   }
 
   async remember(request: Parameters<MemoryProvider['remember']>[0]): Promise<MemoryItemId> {
+    this.procedureLists.delete(request.scope.owner)
     request.signal.throwIfAborted()
     const { scope } = request
     const state = this.state(scope)
@@ -1397,6 +1520,7 @@ export class MemosMemory implements MemoryProvider {
   }
 
   async edit(request: Parameters<MemoryProvider['edit']>[0]): Promise<MemoryRecord | undefined> {
+    this.procedureLists.delete(request.owner)
     const core = await this.options.cores.get(request.owner)
     if (await this.ownedTrace(core, request) === undefined) return undefined
     const updated = await this.read(request, () => core.updateTrace(request.id, { summary: request.summary }))
@@ -1404,6 +1528,7 @@ export class MemosMemory implements MemoryProvider {
   }
 
   async setProcedureStatus(request: Parameters<MemoryProvider['setProcedureStatus']>[0]): Promise<boolean> {
+    this.procedureLists.delete(request.owner)
     const core = await this.options.cores.get(request.owner)
     const trace = await this.ownedTrace(core, request)
     if (trace === undefined || !trace.userText.startsWith(LEARNED_PROCEDURE_PREFIX)) return false
@@ -1413,6 +1538,7 @@ export class MemosMemory implements MemoryProvider {
   }
 
   async forget(request: Parameters<MemoryProvider['forget']>[0]): Promise<boolean> {
+    this.procedureLists.delete(request.owner)
     const core = await this.options.cores.get(request.owner)
     if (await this.ownedTrace(core, request) === undefined) return false
     const { deleted } = await this.read(request, () => core.deleteTrace(request.id))

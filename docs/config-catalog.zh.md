@@ -3318,10 +3318,18 @@ export interface Config {
   sentenceHits: number
   /**
    * Most learned procedures a turn-start recall offers the relevance judgment beside what retrieval found, chosen by
-   * the words their name and description share with the request. Procedures are few among all memories and are
-   * written as steps, so retrieval on the person's words seldom returns them. `0` offers none.
+   * how close their name and description are to the request (see `procedureMinMargin`) or by the words they share
+   * with it. Procedures are few among all memories and are written as steps, so retrieval on the person's words
+   * seldom returns them. `0` offers none.
    */
   procedureCandidates: number
+  /**
+   * How far above the median similarity of the owner's procedures a procedure's cosine similarity to the request
+   * must stand to be offered. The embedding model's similarities sit in a narrow band, so the cutoff is relative;
+   * `multilingual-e5-small` puts a matching procedure 0.036 to 0.11 above the median and an unrelated one within
+   * 0.03. Used with the local embedding provider; other providers choose by shared words alone.
+   */
+  procedureMinMargin: number
   /**
    * Longest the turn-start relevance judgment may take, in milliseconds, inside the recall's own budget; when it fails
    * or runs out, at most two mechanically ranked memories are delivered and the recall is marked degraded.

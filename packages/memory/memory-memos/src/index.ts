@@ -16,6 +16,8 @@ import type {} from '@aeven/workspace'
 import { MEMORY_MAINTENANCE_LEASE, type MemoryScope } from '@aeven/memory'
 import { loadConfig, resolveHome, type ResolvedConfig } from '@deepseek-ai/memos-local-plugin/core/config/index.js'
 import type { ResolvedHome } from '@deepseek-ai/memos-local-plugin/core/config/paths.js'
+import { createEmbedder, createEmbedderWithProvider } from '@deepseek-ai/memos-local-plugin/core/embedding/embedder.js'
+import type { Embedder } from '@deepseek-ai/memos-local-plugin/core/embedding/types.js'
 import { bootstrapMemoryCore } from '@deepseek-ai/memos-local-plugin/core/index.js'
 import { OwnerCores } from './cores.ts'
 import { HostedEmbeddings } from './embedding.ts'
@@ -132,10 +134,18 @@ export interface Config {
   sentenceHits: number
   /**
    * Most learned procedures a turn-start recall offers the relevance judgment beside what retrieval found, chosen by
-   * the words their name and description share with the request. Procedures are few among all memories and are
-   * written as steps, so retrieval on the person's words seldom returns them. `0` offers none.
+   * how close their name and description are to the request (see `procedureMinMargin`) or by the words they share
+   * with it. Procedures are few among all memories and are written as steps, so retrieval on the person's words
+   * seldom returns them. `0` offers none.
    */
   procedureCandidates: number
+  /**
+   * How far above the median similarity of the owner's procedures a procedure's cosine similarity to the request
+   * must stand to be offered. The embedding model's similarities sit in a narrow band, so the cutoff is relative;
+   * `multilingual-e5-small` puts a matching procedure 0.036 to 0.11 above the median and an unrelated one within
+   * 0.03. Used with the local embedding provider; other providers choose by shared words alone.
+   */
+  procedureMinMargin: number
   /**
    * Longest the turn-start relevance judgment may take, in milliseconds, inside the recall's own budget; when it fails
    * or runs out, at most two mechanically ranked memories are delivered and the recall is marked degraded.
@@ -276,6 +286,7 @@ export const Config: z<Config> = z.object({
   sentenceRetrievals: z.natural().max(8).default(3),
   sentenceHits: z.natural().min(1).max(40).default(8),
   procedureCandidates: z.natural().max(20).default(3),
+  procedureMinMargin: z.number().min(0).max(1).default(0.035),
   relevanceTimeoutMs: z.natural().min(300).default(4000),
   relevanceHedgeMs: z.natural().default(2000),
   relevanceMinMs: z.natural().default(3500),
@@ -392,6 +403,20 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     ? new HostedEmbeddings({ perAccount: config.embeddingQueuePerAccount, total: config.embeddingQueueTotal })
     : undefined
   void embeddings?.warm(config.embedding.model, config.embedding.device, config.embedding.dtype)
+  // Recall embeds requests and procedures itself, because the core keeps its embedder to itself. Only the local
+  // model is used: it shares the loaded model with the cores, while a remote provider would add a network call to
+  // every turn. With the worker each account embeds through its own queue, as its core does.
+  const procedureEmbedders = new Map<string, Embedder>()
+  const procedureEmbedder = configured.embedding.provider !== 'local' ? undefined : (owner: string): Embedder => {
+    const key = embeddings === undefined ? '' : owner
+    let embedder = procedureEmbedders.get(key)
+    if (embedder === undefined) {
+      const embedding = { ...configured.embedding, dimensions: 0, openRouter: configured.embedding.openRouter ?? false }
+      embedder = embeddings === undefined ? createEmbedder(embedding) : createEmbedderWithProvider(embedding, embeddings.forOwner(owner))
+      procedureEmbedders.set(key, embedder)
+    }
+    return embedder
+  }
   const cores = new OwnerCores(async (owner) => {
     const accountRoot = accountHome(config.accounts, owner)
     mkdirSync(accountRoot.dataDir, { recursive: true, mode: 0o700 })
@@ -460,6 +485,12 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     },
     ...config.sentenceRetrievals > 0 ? { sentenceRecall: { sentences: config.sentenceRetrievals, hits: config.sentenceHits } } : {},
     procedureCandidates: config.procedureCandidates,
+    ...procedureEmbedder === undefined ? {} : {
+      procedureEmbedding: {
+        embed: (owner, inputs, signal) => procedureEmbedder(owner).embedMany(inputs, { signal }),
+        minMargin: config.procedureMinMargin,
+      },
+    },
     rebuilding: owner => rebuilding.has(owner),
     ...bridge === null || !config.profile.enabled ? {} : {
       profiles: {
