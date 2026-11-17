@@ -1809,6 +1809,11 @@ export interface Config {
    * conversation's next step starts them again. Must exceed `timeoutMs`, so a tool call in flight never loses its server.
    */
   connectorIdleMs: number
+  /**
+   * Time a connector that failed to connect is left out of conversation steps before a step tries it again. A new
+   * token, endpoint, or server entry for the connector retries at once.
+   */
+  connectorRetryMs: number
   /** Maximum time between starting a consent and the provider returning to the Aeven API. */
   consentLifetimeMs: number
   /**
