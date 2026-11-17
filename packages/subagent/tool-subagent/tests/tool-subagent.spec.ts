@@ -808,6 +808,8 @@ describe('avn-tool-subagent background mode', () => {
       id,
       ctx: scopeFiber.ctx,
       inject,
+      // `job_output` withdraws a still-pending completion notice from the owner's inbox.
+      inbox: { remove: () => false },
       options: {},
       session: Session.create(id),
     } as unknown as Agent
