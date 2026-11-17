@@ -385,7 +385,11 @@ export class AccountVault {
     const key = generateVaultKey()
     let answer: Record<string, unknown>
     try {
-      answer = await relay.request('key.protect', { keyId: keyIdOf(key), passkey: holderRequest(passkey, key) })
+      answer = await relay.request('key.protect', {
+        keyId: keyIdOf(key),
+        passkey: holderRequest(passkey, key),
+        ...passkey.signIn === undefined ? {} : { signIn: passkey.signIn },
+      })
     } catch (error) {
       if (this.connection === relay) this.goOnline(relay)
       throw error
@@ -417,7 +421,10 @@ export class AccountVault {
   async addPasskey(passkey: SyncPasskey): Promise<void> {
     const key = this.unlockedPasskeyKey()
     const relay = this.requireConnection()
-    const answer = await relay.request('passkey.add', { passkey: holderRequest(passkey, key) })
+    const answer = await relay.request('passkey.add', {
+      passkey: holderRequest(passkey, key),
+      ...passkey.signIn === undefined ? {} : { signIn: passkey.signIn },
+    })
     this.setPasskeys(answer)
   }
 

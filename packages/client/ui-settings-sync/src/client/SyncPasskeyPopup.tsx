@@ -3,10 +3,11 @@
  * this device waits on the account's passkey, or on the user after the relay took the key back, it asks for that.
  * Every question can be put off for the rest of the page; Settings → Sync offers the same actions. A locked device
  * names the passkeys that unlock it and offers a recovery key, when the account has one, and starting over from its
- * own data. Protecting the account offers a recovery key once the passkey holds the key.
+ * own data. Protecting the account offers a recovery key once the passkey holds the key. After a passkey sign-in whose
+ * prompt also unlocked the account, the popup applies that unlock first and asks nothing when it works.
  */
 import { useEffect, useState, type ReactNode } from 'react'
-import type { SyncPasskeyPurpose, SyncView } from '@aeven/api-remotes/client'
+import type { SyncPasskeyPurpose, SyncSignInUnlock, SyncView } from '@aeven/api-remotes/client'
 import { Button, Input, Modal } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import type {} from '@aeven/client-ui-layout/client'
@@ -19,6 +20,11 @@ import css from './SyncSection.module.css'
 export interface SyncPasskeyPopupInjected extends SyncOperations {
   /** Whether the reader signed in on this page rather than arriving with a restored session. */
   signedInThisPage: () => boolean
+  /**
+   * Take, once, the unlock a passkey sign-in on this page prepared.
+   * @returns the unlock, or undefined when the reader did not sign in with a passkey here.
+   */
+  takeSignInUnlock: () => SyncSignInUnlock | undefined
 }
 
 /** Composed props: standard kit, the injected operations, and the `settings.sync` dictionaries. */
@@ -67,6 +73,8 @@ export function SyncPasskeyPopup(props: SyncPasskeyPopupProps) {
   const [screen, setScreen] = useState<Screen | undefined>(undefined)
   const [typed, setTyped] = useState('')
   const [recoveryKey, setRecoveryKey] = useState<string | undefined>(undefined)
+  const [signInUnlock] = useState(() => ops.takeSignInUnlock())
+  const [unlocking, setUnlocking] = useState<'pending' | 'running' | 'settled'>(signInUnlock === undefined ? 'settled' : 'pending')
   const view = load.status === 'ready' ? load.view : undefined
   useFocusAfterPasskey(view)
   // A protect step started here that ended with the passkey holding the key offers a recovery key, once.
@@ -75,8 +83,25 @@ export function SyncPasskeyPopup(props: SyncPasskeyPopupProps) {
     setStarted(undefined)
     if (view.protection?.mode === 'passkey' && !view.protection.locked) setScreen('recoveryOffer')
   }, [started, view])
+  // A passkey sign-in on this page evaluated the passkey for the account key too; apply that before asking again.
+  useEffect(() => {
+    if (unlocking !== 'pending' || signInUnlock === undefined || view === undefined) return
+    const protection = view.protection
+    // Who holds the key is unknown until this device reads it from the relay; the next status report decides.
+    if (protection === undefined) return
+    if (!protection.locked) {
+      setUnlocking('settled')
+      return
+    }
+    setUnlocking('running')
+    void ops.unlockFromSignIn(signInUnlock)
+      .then(() => refresh(), () => undefined)
+      .finally(() => { setUnlocking('settled') })
+  }, [ops, view, refresh, signInUnlock, unlocking])
   if (view === undefined) return null
   const question = questionOf(view, ops.signedInThisPage())
+  // The sign-in's own unlock runs before the popup asks for the passkey a second time.
+  if (unlocking !== 'settled' && question === 'unlock') return null
   const step = started === undefined ? undefined : view.passkey
   if (screen === undefined && step === undefined && (question === undefined || later.has(question))) return null
   const holders = view.protection?.holders ?? []

@@ -40,6 +40,7 @@ function operations(view: SyncView): SyncOperations {
     unlockWithRecoveryKey: vi.fn(() => Promise.resolve(view)),
     renamePasskey: vi.fn(() => Promise.resolve(view)),
     removePasskey: vi.fn(() => Promise.resolve(view)),
+    unlockFromSignIn: vi.fn(() => Promise.resolve(view)),
     onChange: () => () => {},
     onDevicesChange: () => () => {},
   }
@@ -47,7 +48,7 @@ function operations(view: SyncView): SyncOperations {
 
 function popup(view: SyncView) {
   const ops = operations(view)
-  const props = { ...ops, signedInThisPage: () => false, t } as unknown as SyncPasskeyPopupProps
+  const props = { ...ops, signedInThisPage: () => false, takeSignInUnlock: () => undefined, t } as unknown as SyncPasskeyPopupProps
   render(<SyncPasskeyPopup {...props} />)
   return ops
 }
@@ -130,12 +131,21 @@ describe('passkeys in Account → Security', () => {
     await waitFor(() => { expect(ops.removePasskey).toHaveBeenCalledWith('cred-2') })
   })
 
-  it('creates a recovery key and offers no removal of the only passkey', async () => {
+  it('creates a recovery key', async () => {
     const ops = section(protectedView([ANDROID], false))
     fireEvent.click(await screen.findByText(en.createRecovery))
-    expect(screen.queryByText(en.remove)).toBeNull()
     await screen.findByText('13XH-M8MT-SVSY-WJ5M-PKQ2-HDF7-Q2PW')
     expect(ops.createRecoveryKey).toHaveBeenCalledTimes(1)
+  })
+
+  it('removes the only passkey by turning protection off, after saying so, and never removes it alone', async () => {
+    const ops = section(protectedView([ANDROID], false))
+    fireEvent.click(await screen.findByText(en.remove))
+    await screen.findByText(en.removeLastTitle)
+    expect(ops.unprotect).not.toHaveBeenCalled()
+    fireEvent.click(screen.getAllByText(en.remove).at(-1) as HTMLElement)
+    await waitFor(() => { expect(ops.unprotect).toHaveBeenCalledTimes(1) })
+    expect(ops.removePasskey).not.toHaveBeenCalled()
   })
 })
 

@@ -185,6 +185,7 @@
         xOAuthUrl: !!js process.env.AEVEN_OAUTH_X_URL
         appleOAuthUrl: !!js process.env.AEVEN_OAUTH_APPLE_URL
         googleOAuthUrl: !!js process.env.AEVEN_OAUTH_GOOGLE_URL
+        passkeyOAuthUrl: !!js process.env.AEVEN_OAUTH_PASSKEY_URL
         # This bundle serves a public page, so a provider sign-in may take the
         # reader's document to the provider and back. A deployment that serves
         # its own page from a scheme or a loopback origin states `window`

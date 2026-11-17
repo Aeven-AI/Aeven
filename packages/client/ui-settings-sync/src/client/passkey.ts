@@ -1,6 +1,6 @@
 /** Operations Settings → Sync and the sign-in popup share: reading the status and running a passkey step. */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { SyncDeviceView, SyncPasskeyPurpose, SyncPasskeyStart, SyncRecoveryKey, SyncView } from '@aeven/api-remotes/client'
+import type { SyncDeviceView, SyncPasskeyPurpose, SyncPasskeyStart, SyncRecoveryKey, SyncSignInUnlock, SyncView } from '@aeven/api-remotes/client'
 import { externalWindow } from '@aeven/client-ui-primitives'
 
 /** Registration-side operations over the sync Remote. */
@@ -8,7 +8,8 @@ export interface SyncOperations {
   status: () => Promise<SyncView>
   setEnabled: (enabled: boolean) => Promise<SyncView>
   devices: () => Promise<SyncDeviceView[]>
-  startPasskey: (purpose: SyncPasskeyPurpose) => Promise<SyncPasskeyStart>
+  /** Start a passkey step; `account` names a created passkey in the password manager. */
+  startPasskey: (purpose: SyncPasskeyPurpose, account?: string) => Promise<SyncPasskeyStart>
   cancelPasskey: () => Promise<SyncView>
   /** Hand the key back to the relay; on a locked device this starts over from the device's own data. */
   unprotect: () => Promise<SyncView>
@@ -21,6 +22,12 @@ export interface SyncOperations {
   renamePasskey: (id: string, name: string) => Promise<SyncView>
   /** Remove one of the account's passkeys or its recovery key. */
   removePasskey: (id: string) => Promise<SyncView>
+  /**
+   * Unlock this device with the passkey a sign-in on this page just used.
+   * @param unlock - the verifier and key pair the sign-in page was opened with.
+   * @returns the status afterwards.
+   */
+  unlockFromSignIn: (unlock: SyncSignInUnlock) => Promise<SyncView>
   /**
    * Call `listener` whenever the Host reports a sync change, including the end of a passkey step.
    * @param listener - refresh callback.
@@ -110,12 +117,13 @@ export function useFocusAfterPasskey(view: SyncView | undefined): void {
  * blocks it as a popup; the desktop shell hands the page to the system browser.
  * @param ops - the sync operations.
  * @param purpose - what the passkey is for.
+ * @param account - the account's email, which names a created passkey in the password manager.
  * @returns when the page was handed its address.
  */
-export async function openPasskeyPage(ops: SyncOperations, purpose: SyncPasskeyPurpose): Promise<void> {
+export async function openPasskeyPage(ops: SyncOperations, purpose: SyncPasskeyPurpose, account?: string): Promise<void> {
   const target = externalWindow()
   try {
-    target.navigate((await ops.startPasskey(purpose)).url)
+    target.navigate((await ops.startPasskey(purpose, account)).url)
   } catch (error) {
     target.cancel()
     throw error

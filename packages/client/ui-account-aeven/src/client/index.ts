@@ -29,9 +29,18 @@ declare module '@aeven/client-ui-slots' {
   }
 
   interface SlotMap {
-    /** Rows under two-step verification in Account → Security: passkeys, the encryption they hold, the recovery key. */
-    'account.security': { kind: 'single'; scope: 'root' }
+    /**
+     * Rows under two-step verification in Account → Security: passkeys, the encryption they hold, the recovery key.
+     * The owner passes the signed-in account's email, which names the passkeys created there.
+     */
+    'account.security': { kind: 'single'; scope: 'root'; owner: AccountSecurityOwnerProps }
   }
+}
+
+/** What Account → Security hands the rows it hosts. */
+export interface AccountSecurityOwnerProps {
+  /** The signed-in account's email, absent when the profile names none. */
+  readonly email?: string
 }
 
 /** Settings section id of the Account page. */

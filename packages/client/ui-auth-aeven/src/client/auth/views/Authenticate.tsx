@@ -14,6 +14,7 @@ import * as routes from '../services/routes.ts'
 import * as config from '../services/config.ts'
 import * as utility from '../services/utility.ts'
 import * as oauth from '../services/oauth.ts'
+import { preparePasskeyUnlock } from '../services/passkey-unlock.ts'
 import { storage } from '../services/session.ts'
 import { t } from '../../locales.ts'
 
@@ -36,6 +37,10 @@ const BACK_ICON =
  */
 const MFA_ICON =
   '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mail-icon mail"><path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>'
+
+/** Lucide's `key-round`, the mark the passkey sign-in button carries. */
+const PASSKEY_ICON =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mail-icon mail"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/></svg>'
 
 /** Element id of the challenge's recovery-code field, which its label points at. */
 const MFA_RECOVERY_INPUT_ID = 'mfa-recovery-code'
@@ -84,7 +89,7 @@ const configService = {
   get confettiColors() { return config.confettiColors() },
   get oauth() {
     const urls = config.oauthUrls()
-    return { xOAuth: urls.x, appleOAuth: urls.apple, googleOAuth: urls.google }
+    return { xOAuth: urls.x, appleOAuth: urls.apple, googleOAuth: urls.google, passkeyOAuth: urls.passkey }
   },
   oauthFlow: config.oauthFlow,
 }
@@ -169,6 +174,8 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
   const guid = guidRef.current
 
   const emailInput = useRef<InputHandle>(null)
+  /** The email the passkey screen held when the reader switched to the password screen, which starts with it. */
+  const carriedEmail = useRef('')
   const verifyInput = useRef<InputHandle>(null)
   const passwordInput = useRef<InputHandle>(null)
   const passwordConfirmInput = useRef<InputHandle>(null)
@@ -206,6 +213,16 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
   const loginX = useRef<ButtonHandle>(null)
   const loginApple = useRef<ButtonHandle>(null)
   const loginGoogle = useRef<ButtonHandle>(null)
+  const loginPasskey = useRef<ButtonHandle>(null)
+  const passkeyContinueButton = useRef<ButtonHandle>(null)
+  const [passkeyNone, setPasskeyNone] = useState(false)
+
+  /** The passkey page's unlock fragment, drawn once per mount; see {@link signInPasskey}. */
+  const passkeyFragment = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    if (configService.oauth.passkeyOAuth === undefined) return
+    void preparePasskeyUnlock().then((fragment) => { passkeyFragment.current = fragment })
+  }, [])
 
   /** The provider sign-in in flight; a newer press or its end abandons it. */
   const providerAttempt = useRef<AbortController | undefined>(undefined)
@@ -214,7 +231,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
   /** Put the form back as it was before the press: no cover, no provider in progress. */
   const releaseProviderForm = (): void => {
     props.cover?.hide()
-    for (const provider of [loginX, loginApple, loginGoogle]) provider.current?.loadingStatus(false)
+    for (const provider of [loginX, loginApple, loginGoogle, loginPasskey, passkeyContinueButton]) provider.current?.loadingStatus(false)
   }
 
   // A page restored from the back/forward cache after leaving for the provider in
@@ -552,7 +569,9 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
    */
   const beginProviderSignIn = (url: string | undefined, button: RefObject<ButtonHandle | null>, handoff = false): void => {
     if (url === undefined) return
-    for (const provider of [loginX, loginApple, loginGoogle]) provider.current?.loadingStatus(provider === button)
+    for (const provider of [loginX, loginApple, loginGoogle, loginPasskey, passkeyContinueButton]) {
+      provider.current?.loadingStatus(provider === button)
+    }
     if (configService.oauthFlow() === 'redirect') {
       if (!handoff) {
         location.href = url
@@ -613,7 +632,44 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
           beginProviderSignIn(configService.oauth.googleOAuth, loginGoogle)
         }
         break
+
     }
+  }
+
+  /**
+   * Reach the passkey sign-in page as a provider, with the fragment that lets the same prompt unlock the
+   * account's synced data. The fragment is drawn when the screen mounts, because the window flow must open its
+   * window inside the press or a browser blocks it as a popup; a press before it is ready signs in without it.
+   */
+  const signInPasskey = (email: string): void => {
+    const url = configService.oauth.passkeyOAuth
+    if (url === undefined) return
+    const fragment = new URLSearchParams(passkeyFragment.current ?? '')
+    fragment.set('email', email)
+    beginProviderSignIn(`${url}#${fragment.toString()}`, passkeyContinueButton)
+  }
+
+  /**
+   * Email first: ask whether the account with the typed email signs in with a passkey, then open its passkey prompt,
+   * or say that it has none yet.
+   */
+  const continueWithPasskey = (): void => {
+    const email = (emailInput.current?.value ?? '').trim()
+    setPasskeyNone(false)
+    if (email === '') return
+    storageService.setItem('email', email)
+    passkeyContinueButton.current?.loadingStatus(true)
+    void api.passkeyLookup(email).then((hasPasskey) => {
+      if (hasPasskey) {
+        signInPasskey(email)
+        return
+      }
+      passkeyContinueButton.current?.loadingStatus(false)
+      setPasskeyNone(true)
+    }, () => {
+      passkeyContinueButton.current?.loadingStatus(false)
+      setPasskeyNone(true)
+    })
   }
 
   const forgotPassword = (): void => {
@@ -864,6 +920,8 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
         return '/sign-up/email'
       case 'forgot':
         return '/sign-in/email'
+      case 'passkey':
+        return routeService.routeConfig.signIn.path
       case 'reset':
         return '/sign-in/forgot'
       case 'new-password':
@@ -933,6 +991,23 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
                   )
                 }}
               />
+              {mode === 'signIn' && configService.oauth.passkeyOAuth !== undefined && (
+                <Button
+                  ref={loginPasskey}
+                  type={'loaderButtonIcon'}
+                  interruptible
+                  cssClass={'loader-button-icon large light'}
+                  label={t('signIn.withPasskey')}
+                  loading={false}
+                  icon={PASSKEY_ICON}
+                  onClick={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+
+                    routeService.navigateRoute(utilityService.href('/sign-in/passkey', false))
+                  }}
+                />
+              )}
             </div>
             <div className="separator">
               <div className="line" />
@@ -993,6 +1068,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
                   signInOauth('google')
                 }}
               />
+
             </div>
           </div>
           <div className="subtext">
@@ -1043,7 +1119,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
                     type={'text'}
                     cssClass={'input-text large square'}
                     placeholder={''}
-                    defaultValue={''}
+                    defaultValue={carriedEmail.current}
                     autoCapitalize={'none'}
                     autoCorrect={'off'}
                     spellCheck={false}
@@ -1529,6 +1605,75 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
     </div>
   )
 
+  // Laid out as the email sign-in step, so Continue sits where Sign in does: the email in the first slot, the
+  // second slot (the password's there) empty unless this email has no passkey, and Use password instead below.
+  const authPasskeyComponent = () => (
+    <div className="form-container">
+      <form className="form">
+        <span className="form-title">{t('signIn.withPasskey')}</span>
+        <div className="signin-container">
+          <div className="input-items">
+            <div className="input-item">
+              <span className="title-container">
+                <span className="title">{t('field.email')}</span>
+              </span>
+              <div className="input-container">
+                <Input
+                  ref={emailInput}
+                  inputType={'inputText'}
+                  type={'text'}
+                  cssClass={'input-text large square'}
+                  placeholder={''}
+                  defaultValue={storageService.getItem('email') ?? ''}
+                  autoCapitalize={'none'}
+                  autoCorrect={'off'}
+                  spellCheck={false}
+                  inputMode={'email'}
+                  autoComplete={'email webauthn'}
+                  onChange={() => { setPasskeyNone(false) }}
+                />
+              </div>
+            </div>
+            <div className="input-item passkey-slot" role="status" aria-live="polite">
+              {passkeyNone && <span className="info-txt"><span className="txt">{t('passkey.none')}</span></span>}
+            </div>
+          </div>
+          <div className="form-spacer" />
+          <div className="button-container">
+            <Button
+              ref={passkeyContinueButton}
+              type={'loaderButton'}
+              cssClass={'loader-button large center'}
+              label={t('action.continuePasskey')}
+              loading={false}
+              onClick={(event) => {
+                event.preventDefault()
+                event.stopPropagation()
+
+                continueWithPasskey()
+              }}
+            />
+            <Button
+              type={'loaderButton'}
+              cssClass={'loader-button large center light'}
+              label={t('action.usePassword')}
+              loading={false}
+              onClick={(event) => {
+                event.preventDefault()
+                event.stopPropagation()
+
+                carriedEmail.current = emailInput.current?.value.trim() ?? ''
+                routeService.navigateRoute(utilityService.href('/sign-in/email', false))
+              }}
+            />
+          </div>
+        </div>
+        <div className="subtext"></div>
+      </form>
+      <LegalFooter />
+    </div>
+  )
+
   const authForgotComponent = () => (
     <div className="form-container">
       <form className="form">
@@ -1689,6 +1834,7 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
     }
 
     if (authPath === 'sign-in' && authType === 'forgot') return authForgotComponent()
+    if (authPath === 'sign-in' && authType === 'passkey' && configService.oauth.passkeyOAuth !== undefined) return authPasskeyComponent()
     if (authPath === 'sign-in' && authType === 'reset') return authResetComponent()
     if (authPath === 'sign-in' && authType === 'new-password') return authNewPasswordComponent()
 

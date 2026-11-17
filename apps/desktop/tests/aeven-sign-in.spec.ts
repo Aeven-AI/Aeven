@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
-  adoptedHostSignIn, aevenApiTarget, completeOAuthLanding, forwardAevenApiRequest, oauthCallbackPair, oauthResultPath,
-  type AevenApiFetch,
+  adoptedHostSignIn, aevenApiTarget, completeOAuthLanding, forwardAevenApiRequest, isSignInAddress, oauthCallbackPair,
+  oauthResultPath, type AevenApiFetch,
 } from '../src/aeven-sign-in.ts'
 
 vi.mock('electron', () => ({}))
@@ -126,5 +126,17 @@ describe('Aeven desktop sign-in', () => {
     await expect(adoptedHostSignIn('http://127.0.0.1:3080/', answer('<script>globalThis["__AVN_AEVEN__"] = {}</script>')))
       .resolves.toBeUndefined()
     await expect(adoptedHostSignIn('http://127.0.0.1:3080/', answer('', 503))).rejects.toThrow('503')
+  })
+
+  it('recognizes a sign-in route under any loopback name and with a fragment, and nothing else', () => {
+    const local = { apiUrl: 'http://localhost:9000', oauthUrls: ['http://localhost:9020/oauth/passkey', 'https://aeven.test/oauth/google'] }
+    expect(isSignInAddress(local, 'http://127.0.0.1:9020/oauth/passkey#key=k&email=a%40b.test')).toBe(true)
+    expect(isSignInAddress(local, 'http://[::1]:9020/oauth/passkey')).toBe(true)
+    expect(isSignInAddress(local, 'http://localhost:9020/oauth/passkey')).toBe(true)
+    expect(isSignInAddress(local, 'https://aeven.test/oauth/google#x')).toBe(true)
+    expect(isSignInAddress(local, 'http://127.0.0.1:9021/oauth/passkey')).toBe(false)
+    expect(isSignInAddress(local, 'http://127.0.0.1:9020/oauth/apple')).toBe(false)
+    expect(isSignInAddress(local, 'https://evil.test/oauth/google')).toBe(false)
+    expect(isSignInAddress(undefined, 'http://localhost:9020/oauth/passkey')).toBe(false)
   })
 })

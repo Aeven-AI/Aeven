@@ -12,7 +12,8 @@ export const zh = {
   'security.heading': '账户安全',
   'security.failed': '无法检查双重验证状态，请重试。',
   'security.title': '双重验证',
-  'security.info': '登录时需要身份验证器应用中的验证码。',
+  'security.info': '登录时输入应用验证码。',
+  'security.infoBody': '开启后，用密码或第三方账号登录时，还需要输入身份验证器应用（例如 Google Authenticator 或 1Password）中的验证码。即使有人知道你的密码，没有这个应用也无法登录。',
 
   /* jscpd:ignore-start -- deliberate copy of auth.aeven's two-factor flow sentences (locale-owned-client-ui-copy Agent Note). */
   'mfa.title': '保护你的账号',
@@ -184,7 +185,8 @@ export const en: Record<AccountAevenKey, string> = {
   'security.heading': 'Account security',
   'security.failed': 'We couldn’t check your two-factor authentication status. Please try again.',
   'security.title': 'Two-factor authentication',
-  'security.info': 'Require a code from your authenticator app when signing in.',
+  'security.info': 'A code from your app at sign-in.',
+  'security.infoBody': 'When it is on, signing in with a password or a provider also asks for a code from an authenticator app such as Google Authenticator or 1Password. Someone who learns your password still cannot sign in without the app.',
 
   /* jscpd:ignore-start -- deliberate copy of auth.aeven's two-factor flow sentences (locale-owned-client-ui-copy Agent Note). */
   'mfa.title': 'Protect your account',
@@ -359,7 +361,8 @@ export const es: Record<AccountAevenKey, string> = {
   'security.heading': 'Seguridad de la cuenta',
   'security.failed': 'No pudimos comprobar el estado de tu verificación en dos pasos. Inténtalo de nuevo.',
   'security.title': 'Verificación en dos pasos',
-  'security.info': 'Solicita un código de tu aplicación de autenticación al iniciar sesión.',
+  'security.info': 'Un código de tu app al iniciar sesión.',
+  'security.infoBody': 'Cuando está activada, al iniciar sesión con contraseña o con un proveedor también se pide un código de una aplicación de autenticación como Google Authenticator o 1Password. Quien conozca tu contraseña no podrá iniciar sesión sin la aplicación.',
 
   /* jscpd:ignore-start -- deliberate copy of auth.aeven's two-factor flow sentences (locale-owned-client-ui-copy Agent Note). */
   'mfa.title': 'Protege tu cuenta',

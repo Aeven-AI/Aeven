@@ -25,6 +25,7 @@ function setup(view: SyncView, copy = en) {
     unlockWithRecoveryKey: vi.fn(() => Promise.resolve(status)),
     renamePasskey: vi.fn(() => Promise.resolve(status)),
     removePasskey: vi.fn(() => Promise.resolve(status)),
+    unlockFromSignIn: vi.fn(() => Promise.resolve(status)),
     onChange: (listener) => { changed = listener; return () => { changed = () => {} } },
     onDevicesChange: (listener) => { devicesChanged = listener; return () => { devicesChanged = () => {} } },
   }

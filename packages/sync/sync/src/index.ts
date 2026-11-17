@@ -89,6 +89,11 @@ export interface SyncPasskey {
   aaguid?: string
   /** The kind of device the passkey was created on. */
   device?: SyncPasskeyDevice
+  /**
+   * The passkey's public key, present for a passkey created by this step when the browser stated it. The relay
+   * stores it so the account signs in with the same passkey that holds its key.
+   */
+  signIn?: SyncPasskeySignIn
 }
 
 /**
@@ -97,6 +102,14 @@ export interface SyncPasskey {
  */
 export class SyncKeyHolderMismatch extends Error {
   override name = 'SyncKeyHolderMismatch'
+}
+
+/** What a passkey signs in with: the public half of its key pair. */
+export interface SyncPasskeySignIn {
+  /** The public key as SubjectPublicKeyInfo DER, base64url. */
+  publicKey: string
+  /** The COSE algorithm id the passkey signs with. */
+  alg: number
 }
 
 /** One account's sync status on this device. */

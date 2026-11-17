@@ -314,7 +314,7 @@ function aevenSignIn(ctx: Context): DesktopAevenSignIn | undefined {
   ctx.emit('webserver/index-inject', rows)
   const config = rows.find(isAevenConfigRow)?.value as AevenClientConfig | undefined
   if (config?.apiUrl === undefined) return undefined
-  const oauthUrls = [config.xOAuthUrl, config.appleOAuthUrl, config.googleOAuthUrl]
+  const oauthUrls = [config.xOAuthUrl, config.appleOAuthUrl, config.googleOAuthUrl, config.passkeyOAuthUrl]
     .filter((url): url is string => url !== undefined)
   return { apiUrl: config.apiUrl, oauthUrls }
 }

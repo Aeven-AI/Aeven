@@ -285,6 +285,7 @@ export function AccountSection(props: AccountSectionProps) {
   useEffect(() => {
     if (settled) setPainted(true)
   }, [settled])
+  const accountEmail = props.reader()?.email
 
   return (
     <div className={css.section}>
@@ -344,7 +345,7 @@ export function AccountSection(props: AccountSectionProps) {
           usage={usage.state.status === 'ready' ? usage.state.value : undefined}
         />
         <Security mfa={props.mfa} t={t} status={twoFactor.state} reload={twoFactor.reload} record={twoFactor.record}>
-          {props.renderSlot('account.security', {})}
+          {props.renderSlot('account.security', accountEmail === undefined ? {} : { email: accountEmail })}
         </Security>
       </>}
     </div>
@@ -1352,20 +1353,19 @@ function Security({ mfa, t, status, reload, record, children }: {
   // cell, so it draws no surface of its own below the row.
   return (
     <Group title={t('security.heading')}>
-      <div className={`${css.row} ${css.securityRow}`}>
-        <span className={css.rowText}>
-          <span className={css.title}>{t('security.title')}</span>
-          <span className={css.desc}>{t('security.info')}</span>
-        </span>
-        <span className={css.actions}>
+      <SettingsRow
+        title={t('security.title')}
+        description={t('security.info')}
+        info={{ title: t('security.title'), body: t('security.infoBody'), closeLabel: t('data.close') }}
+        control={(
           <Switch
             checked={enabled === true}
             label={t('security.title')}
             disabled={enabled === undefined || failed || mode !== undefined}
             onChange={() => { setMode(enabled ? 'disable' : 'setup') }}
           />
-        </span>
-      </div>
+        )}
+      />
       {failed && (
         <div role="alert" className={css.row}>
           <span className={css.rowText}><span className={css.desc}>{t('security.failed')}</span></span>

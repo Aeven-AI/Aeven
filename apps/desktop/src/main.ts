@@ -19,7 +19,7 @@ import {
 } from 'electron'
 import { DESKTOP_MENU_ZOOM_STEP, FULL_SCREEN_ITEM_ID, applicationMenuTemplate, type DesktopMenuZoom } from './application-menu.ts'
 import { ABOUT_WINDOW_HEIGHT, ABOUT_WINDOW_WIDTH, aboutPageDocument } from './about-window.ts'
-import { adoptedHostSignIn, completeOAuthLanding, forwardAevenApiRequest } from './aeven-sign-in.ts'
+import { adoptedHostSignIn, completeOAuthLanding, forwardAevenApiRequest, isSignInAddress } from './aeven-sign-in.ts'
 import { collectNow, startBrowserSignIn } from './oauth-browser.ts'
 import { AevenSession } from './aeven-session.ts'
 import { installContextMenu, registerContextMenuIpc } from './context-menu.ts'
@@ -687,7 +687,7 @@ async function main(): Promise<void> {
   const createMainWindow = (): BrowserWindow => {
     const window = createWindow(appPreload)
     mainWindow = window
-    claimsAppAddress = url => aevenSignIn?.oauthUrls.includes(url) === true
+    claimsAppAddress = url => isSignInAddress(aevenSignIn, url)
     // Either way the page reaches a provider, the provider opens in the default
     // browser and every other window stays denied. A page whose flow is a window
     // waits for the session this shell exchanges; a page whose flow is a redirect
@@ -696,7 +696,7 @@ async function main(): Promise<void> {
     // chose: the page opens it itself when it listens for addresses, and the
     // system browser opens it otherwise.
     window.webContents.setWindowOpenHandler(({ url }) => {
-      if (aevenSignIn?.oauthUrls.includes(url) === true) {
+      if (isSignInAddress(aevenSignIn, url)) {
         beginProviderSignIn(window, url, path => exchangeLanding(window, path))
       } else {
         openContentAddress(window.webContents, url)
@@ -704,7 +704,7 @@ async function main(): Promise<void> {
       return { action: 'deny' }
     })
     window.webContents.on('will-navigate', (event, url) => {
-      if (aevenSignIn?.oauthUrls.includes(url) !== true) return
+      if (!isSignInAddress(aevenSignIn, url)) return
       event.preventDefault()
       beginProviderSignIn(window, url, path => window.loadURL(appPathUrl(path)))
     })

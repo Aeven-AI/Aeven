@@ -68,7 +68,7 @@ describe('the sync Remote', () => {
  */
 async function sealToHost(secret: Uint8Array, recipient: Uint8Array): Promise<string> {
   const { subtle } = globalThis.crypto
-  const ephemeral = await subtle.generateKey({ name: 'X25519' }, true, ['deriveBits']) as CryptoKeyPair
+  const ephemeral = await subtle.generateKey({ name: 'X25519' }, true, ['deriveBits'])
   const ephemeralPublic = new Uint8Array(await subtle.exportKey('raw', ephemeral.publicKey))
   const shared = await subtle.deriveBits({ name: 'X25519', public: await subtle.importKey('raw', new Uint8Array(recipient), { name: 'X25519' }, false, []) }, ephemeral.privateKey, 256)
   const material = await subtle.importKey('raw', shared, 'HKDF', false, ['deriveKey'])
@@ -96,11 +96,11 @@ function protectedSync(holders: Array<{ id: string; kind: 'passkey' | 'recovery'
   }
 }
 
-async function bootWith(sync: ReturnType<typeof protectedSync>) {
+async function bootWith(sync: ReturnType<typeof protectedSync>, user: { id: string; email?: string } = { id: OWNER, email: 'sam@example.test' }) {
   const ctx = new Context()
   ctx.provide('typert', {} as never)
   ctx.provide('sync', sync as unknown as Sync)
-  ctx.provide('identityUsers', { actingUser: () => ({ id: OWNER, email: 'sam@example.test' }) } as never)
+  ctx.provide('identityUsers', { actingUser: () => user } as never)
   await ctx.plugin(SyncController, { siteUrl: 'https://aeven.test', passkeyMs: 600_000, passkeyPollMs: 100 })
   return ctx.syncController
 }
@@ -112,7 +112,8 @@ describe('passkey copies through the sync Remote', () => {
     const { key } = await controller.createRecoveryKey()
     expect(key).toMatch(/^[0-9A-HJKMNP-TV-Z]{4}(-[0-9A-HJKMNP-TV-Z]{4}){6}$/)
     const [, added] = sync.addPasskey.mock.calls[0] as unknown as [string, { credentialId: string; prf: Uint8Array; kind: string }]
-    expect(added).toMatchObject({ kind: 'recovery', credentialId: expect.stringMatching(/^recovery-[A-Za-z0-9_-]{22}$/) })
+    expect(added.kind).toBe('recovery')
+    expect(added.credentialId).toMatch(/^recovery-[A-Za-z0-9_-]{22}$/)
     expect(added.prf).toHaveLength(32)
     expect(sync.removePasskey).toHaveBeenCalledWith(OWNER, 'recovery-old')
 
@@ -132,6 +133,19 @@ describe('passkey copies through the sync Remote', () => {
     const unlock = new URLSearchParams(new URL((await controller.startPasskey('unlock')).url).hash.slice(1))
     expect(unlock.get('mode')).toBe('unlock')
     expect(unlock.has('meta') || unlock.has('ids') || unlock.has('user')).toBe(false)
+  })
+
+  it('names a new passkey after the email the page sends when the identity carries none, under the same user handle', async () => {
+    const controller = await bootWith(protectedSync(), { id: OWNER })
+    const page = async (account?: string) =>
+      new URLSearchParams(new URL((await controller.startPasskey('add', account)).url).hash.slice(1))
+    const named = await page('  sam@example.test ')
+    expect(named.get('name')).toBe('sam@example.test')
+    const unnamed = await page()
+    expect(unnamed.has('name')).toBe(false)
+    expect(named.get('user')).toBe(unnamed.get('user'))
+    expect((await page('x'.repeat(255))).has('name')).toBe(false)
+    expect((await page('   ')).has('name')).toBe(false)
   })
 
   it('reports a provider that already holds a passkey and an unlock answered by the wrong passkey', async () => {

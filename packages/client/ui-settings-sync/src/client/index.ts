@@ -10,7 +10,7 @@ import type {} from '@aeven/client-ui-settings/client'
 import type {} from '@aeven/client-ui-renderer/client'
 import type {} from '@aeven/client-ui-layout/client'
 import type {} from '@aeven/client-ui-account-aeven/client'
-import type { RemoteResult } from '@aeven/api-remotes/client'
+import type { RemoteResult, SyncSignInUnlock } from '@aeven/api-remotes/client'
 import type { SyncOperations } from './passkey.ts'
 import { SyncPasskeyPopup, type SyncPasskeyPopupInjected } from './SyncPasskeyPopup.tsx'
 import { SyncSection } from './SyncSection.tsx'
@@ -24,7 +24,11 @@ export type { SyncLocaleKey } from './locales.ts'
 
 /** Page global the authentication gate states the signed-in reader on. */
 interface ReaderScope {
-  __AVN_AEVEN_READER__?: { readonly signedInThisPage?: true }
+  __AVN_AEVEN_READER__?: {
+    readonly signedInThisPage?: true
+    /** Takes, once, the unlock a passkey sign-in on this page prepared. */
+    readonly takePasskeyUnlock?: () => SyncSignInUnlock | undefined
+  }
 }
 
 declare module '@aeven/client-ui-slots' {
@@ -70,7 +74,7 @@ export function apply(ctx: ClientContext): void {
     status: () => value(remote.status()),
     setEnabled: enabled => value(remote.setEnabled(enabled)),
     devices: () => value(remote.devices()),
-    startPasskey: purpose => value(remote.startPasskey(purpose)),
+    startPasskey: (purpose, account) => value(remote.startPasskey(purpose, account)),
     cancelPasskey: () => value(remote.cancelPasskey()),
     unprotect: () => value(remote.unprotect()),
     acceptServerKey: () => value(remote.acceptServerKey()),
@@ -78,12 +82,20 @@ export function apply(ctx: ClientContext): void {
     unlockWithRecoveryKey: key => value(remote.unlockWithRecoveryKey(key)),
     renamePasskey: (id, name) => value(remote.renamePasskey(id, name)),
     removePasskey: id => value(remote.removePasskey(id)),
+    unlockFromSignIn: unlock => value(remote.unlockFromSignIn(unlock)),
     onChange: listener => ctx.remote.$on('sync/status', () => { listener() }),
     onDevicesChange: listener => ctx.remote.$on('sync/devices', () => { listener() }),
   }
+  // Taken once for the page: a later mount of the popup finds nothing left to apply.
+  let signInUnlock = (globalThis as ReaderScope).__AVN_AEVEN_READER__?.takePasskeyUnlock?.()
   const popup: SyncPasskeyPopupInjected = {
     ...operations,
     signedInThisPage: () => (globalThis as ReaderScope).__AVN_AEVEN_READER__?.signedInThisPage === true,
+    takeSignInUnlock: () => {
+      const taken = signInUnlock
+      signInUnlock = undefined
+      return taken
+    },
   }
 
   ctx.slots.inject('settings.section', () => ctx.slots.register({

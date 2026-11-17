@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-基于 `ctx.sync` 的 Typert Remote，只为当前请求的调用方执行操作。`startPasskey` 返回 `siteUrl` 上的 `/passkey/vault` 页面，并在后台最多 `passkeyMs` 内每隔 `passkeyPollMs` 取回密封结果；该步骤在成功前显示在 `status` 中，结束时发出 `sync/status`。`unprotect` 把密钥交还给中转服务器，`acceptServerKey` 确认中转服务器收回的密钥。见[账户同步分组](../../sync/README.zh.md)。
+基于 `ctx.sync` 的 Typert Remote，只为当前请求的调用方执行操作。`startPasskey` 返回 `siteUrl` 上的 `/passkey/vault` 页面，并在后台最多 `passkeyMs` 内每隔 `passkeyPollMs` 取回密封结果；该步骤在成功前显示在 `status` 中，结束时发出 `sync/status`。创建通行密钥的步骤还会让页面提供它的公钥，中转服务器保存该公钥，账户便可以用这个通行密钥登录。密码管理器以账户的邮箱列出新建的通行密钥：取身份中的邮箱，没有时取调用方传入的 `account` 邮箱；它只是标签，不改变通行密钥的用户句柄，也不改变它持有的密钥。`unlockFromSignIn` 取回一次调用方页面上通行密钥登录在同一次提示中存放的 PRF 结果，并在账户锁定时用它解锁这台设备；没有存放结果的登录不改变账户状态。`unprotect` 把密钥交还给中转服务器，`acceptServerKey` 确认中转服务器收回的密钥。见[账户同步分组](../../sync/README.zh.md)。
 
 状态包含通过 `sync/progress` 收集的对话发布进度、等待处理和排队的中转帧数、下载追赶进度，以及上传或下载失败。
 

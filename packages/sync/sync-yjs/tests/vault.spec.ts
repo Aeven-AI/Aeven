@@ -272,7 +272,7 @@ describe('an account whose key passkeys hold', () => {
     await connect(owner, c)
     expect(c.vault.status().protection).toMatchObject({
       locked: true,
-      holders: [{ id: passkey(1).credentialId, kind: 'passkey', aaguid: 'ea9b8d664d011d213ce4b6b48cb575d4', device: 'android', addedAt: expect.any(String) }],
+      holders: [{ id: passkey(1).credentialId, kind: 'passkey', aaguid: 'ea9b8d664d011d213ce4b6b48cb575d4', device: 'android', addedAt: expect.any(String) as string }],
     })
   })
 

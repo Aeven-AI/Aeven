@@ -158,6 +158,17 @@ export async function resetPassword(email: string, code: string, password: strin
 }
 
 /**
+ * Ask whether the account with an email signs in with a passkey, for the email-first passkey screen. An unknown
+ * email answers like an account without passkeys.
+ * @param email - the email the reader typed.
+ * @returns true when the account has a passkey that signs in.
+ */
+export async function passkeyLookup(email: string): Promise<boolean> {
+  const answer = await request<{ passkey?: unknown }>('/passkey/lookup', { method: 'POST', body: JSON.stringify({ email }) })
+  return answer.passkey === true
+}
+
+/**
  * Complete a social sign-in from the values the provider redirected back with.
  * @param oAuthSession - the session identifier in the redirect.
  * @param oAuthChallenge - the challenge in the redirect.

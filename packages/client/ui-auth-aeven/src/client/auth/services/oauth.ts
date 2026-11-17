@@ -83,11 +83,14 @@ export function isProviderLanding(): boolean {
  *
  * A shell that reports {@link PROVIDER_SIGNED_IN_EVENT} has established the
  * session already, so the wait ends on the report without reading it; the boot
- * gate reads the session next and returns to this screen if there is none.
+ * gate reads the session next and returns to this screen if there is none. The
+ * desktop shell reports both outcomes, so under it the wait reads nothing and
+ * only follows the report.
  * @param signal - abandons the wait, as when a newer sign-in replaces it.
  * @returns true once this document has a session or a shell reported one, false when abandoned.
  */
 export async function awaitProviderSession(signal: AbortSignal): Promise<boolean> {
+  if (shellRunsSignIn()) return await awaitShellReport(signal)
   let reported = false
   const onReported = (): void => { reported = true }
   window.addEventListener(PROVIDER_SIGNED_IN_EVENT, onReported)
@@ -112,6 +115,40 @@ export async function awaitProviderSession(signal: AbortSignal): Promise<boolean
   } finally {
     window.removeEventListener(PROVIDER_SIGNED_IN_EVENT, onReported)
   }
+}
+
+/**
+ * Whether the desktop shell runs provider sign-ins for this document. It reports
+ * {@link PROVIDER_SIGNED_IN_EVENT} once the session exists and
+ * {@link PROVIDER_SIGN_IN_ENDED_EVENT} when the sign-in ended without one.
+ * @returns true inside the desktop app.
+ */
+function shellRunsSignIn(): boolean {
+  return (window as { avnDesktop?: unknown }).avnDesktop !== undefined
+}
+
+/**
+ * Wait for the shell to report a session; its report that the sign-in ended
+ * aborts the attempt through the screen's `onEnded` listener.
+ * @param signal - abandons the wait.
+ * @returns true once the shell reported a session, false when abandoned.
+ */
+function awaitShellReport(signal: AbortSignal): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    const settle = (signedIn: boolean): void => {
+      window.removeEventListener(PROVIDER_SIGNED_IN_EVENT, onSignedIn)
+      signal.removeEventListener('abort', onAbort)
+      resolve(signedIn)
+    }
+    const onSignedIn = (): void => { settle(true) }
+    const onAbort = (): void => { settle(false) }
+    if (signal.aborted) {
+      resolve(false)
+      return
+    }
+    window.addEventListener(PROVIDER_SIGNED_IN_EVENT, onSignedIn)
+    signal.addEventListener('abort', onAbort)
+  })
 }
 
 /**
