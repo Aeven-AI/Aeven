@@ -8,8 +8,11 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   isUnloadedSeedFile,
   pruneSeedStore,
+  SEED_STORE_PACKAGE_RULES,
   type SeedStorePackageRule,
+  type SeedStorePruneTarget,
 } from '../scripts/seed-store-prune.ts'
+import { INTEL_MACOS_ONNXRUNTIME_NODE } from '../src/project-manager.ts'
 
 const temporaryRoots: string[] = []
 const packr = new Packr({ moreTypes: true, useRecords: true })
@@ -138,5 +141,26 @@ describe('desktop seed store pruning', () => {
     }])).toThrow(/native@1\.0\.0; review them/u)
     expect(indexedPaths(store)).toEqual(before)
     expect(objectCount(store)).toBe(2)
+  })
+
+  it('keeps only the target binding of the onnxruntime-node release each target installs', () => {
+    const rules = SEED_STORE_PACKAGE_RULES.filter(rule => rule.name === 'onnxruntime-node')
+    const bindings = (version: string, targets: readonly string[]): FixtureFile[] => [
+      { path: 'package.json', body: `{"name":"onnxruntime-node","version":"${version}"}` },
+      ...targets.map(target => ({ path: `bin/napi-v6/${target}/onnxruntime_binding.node`, body: `${version} ${target}` })),
+    ]
+    const cases: ReadonlyArray<[SeedStorePruneTarget, string, readonly string[]]> = [
+      [{ platform: 'darwin', arch: 'x64' }, INTEL_MACOS_ONNXRUNTIME_NODE,
+        ['darwin/arm64', 'darwin/x64', 'linux/arm64', 'linux/x64', 'win32/arm64', 'win32/x64']],
+      [MAC_ARM64, '1.24.3', ['darwin/arm64', 'linux/arm64', 'linux/x64', 'win32/arm64', 'win32/x64']],
+      [{ platform: 'win32', arch: 'arm64' }, '1.24.3', ['darwin/arm64', 'linux/arm64', 'linux/x64', 'win32/arm64', 'win32/x64']],
+    ]
+    for (const [target, version, shipped] of cases) {
+      const key = `onnxruntime-node@${version}`
+      const store = createStore({ [key]: bindings(version, shipped) })
+      pruneSeedStore(store, target, rules)
+      expect(indexedPaths(store)[key], `${target.platform}-${target.arch}`)
+        .toEqual([`bin/napi-v6/${target.platform}/${target.arch}/onnxruntime_binding.node`, 'package.json'])
+    }
   })
 })

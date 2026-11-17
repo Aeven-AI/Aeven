@@ -126,6 +126,24 @@ describe('the Yjs sync provider', () => {
     expect(first.sync.status(account).error).toBeUndefined()
   })
 
+  it('notifies status listeners only when the account status differs from the last one they heard', async () => {
+    const account = owner()
+    const first = await host()
+    const heard: string[] = []
+    first.ctx.on('sync/status', (who) => { if (who === account) heard.push(JSON.stringify(first.sync.status(account))) })
+    first.signIn(account)
+    await online(first, account)
+    await first.sync.synchronize(account)
+    const notes = await first.sync.openDocument(account, 'status-notes')
+    for (let index = 0; index < 5; index++) notes.doc.getMap('m').set(`k${String(index)}`, index)
+    await vi.waitFor(() => { expect(first.sync.status(account)).toMatchObject({ pending: 0, queued: 0 }) })
+    notes.close()
+
+    expect(heard.length).toBeGreaterThan(1)
+    expect(heard.filter((status, index) => index > 0 && status === heard[index - 1])).toEqual([])
+    expect(JSON.parse(heard.at(-1)!)).toMatchObject({ state: 'online', pending: 0, queued: 0 })
+  })
+
   it('reports device-list changes independently of transfer status', async () => {
     const account = owner()
     const first = await host({ deviceName: 'laptop' })

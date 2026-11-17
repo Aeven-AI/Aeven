@@ -8,8 +8,9 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { resolveDesktopPaths } from '../src/paths.ts'
 import {
   createSeedMetadata,
-  DESKTOP_DEPENDENCY_OVERRIDES,
+  desktopDependencyOverrides,
   DesktopProjectManager,
+  INTEL_MACOS_ONNXRUNTIME_NODE,
   verifySeedIntegrity,
   type DesktopProjectHooks,
 } from '../src/project-manager.ts'
@@ -80,7 +81,7 @@ function writeCorePackageSet(seed: string, version: string): void {
 
 function createTestSeedMetadata(seed: string, desktopRelease: DesktopRelease): void {
   writeCorePackageSet(seed, desktopRelease.version)
-  createSeedMetadata(seed, desktopRelease)
+  createSeedMetadata(seed, desktopRelease, { platform: process.platform, arch: process.arch })
 }
 
 function writeFakePnpm(root: string): string {
@@ -194,8 +195,9 @@ describe('desktop package policy', () => {
       '@aeven/client-ui-conversation': 'client/ui-conversation',
       '@aeven/client-ui-sidebar-terminal': 'client/ui-sidebar-terminal',
     }
+    const overrides = desktopDependencyOverrides({ platform: 'darwin', arch: 'arm64' })
     const removed = new Map<string, string[]>()
-    for (const [selector, spec] of Object.entries(DESKTOP_DEPENDENCY_OVERRIDES)) {
+    for (const [selector, spec] of Object.entries(overrides)) {
       const [parent = '', child = ''] = selector.split('>')
       const path = workspaceParents[parent]
       if (path === undefined) continue
@@ -205,17 +207,32 @@ describe('desktop package policy', () => {
     }
     expect(removed.get('@aeven/client-ui-primitives')?.sort())
       .toEqual(Object.keys(manifest('client/ui-primitives').dependencies ?? {}).sort())
-    expect(DESKTOP_DEPENDENCY_OVERRIDES['@huggingface/transformers>sharp'])
+    expect(overrides['@huggingface/transformers>sharp'])
       .toBe(manifest('attachment/attachment-local').dependencies?.sharp)
-    // Transformers.js pins onnxruntime-node to an exact release, so the override must name an exact release too;
-    // 1.23.2 is the newest one that ships the darwin/x64 binding Intel macOS builds load.
-    expect(DESKTOP_DEPENDENCY_OVERRIDES['@huggingface/transformers>onnxruntime-node']).toMatch(/^\d+\.\d+\.\d+$/u)
     // HyperFrames falls back to its own puppeteer-core when full Puppeteer is removed, so each parent must keep one.
     for (const parent of ['@hyperframes/engine', '@hyperframes/producer']) {
-      expect(DESKTOP_DEPENDENCY_OVERRIDES[`${parent}>puppeteer`]).toBe('-')
+      expect(overrides[`${parent}>puppeteer`]).toBe('-')
       expect(manifest(join('motion/motion-hyperframes/node_modules', parent)).dependencies, parent)
         .toHaveProperty(['puppeteer-core'])
     }
+  })
+
+  it('substitutes the older onnxruntime-node release only for Intel macOS profiles', () => {
+    const selector = '@huggingface/transformers>onnxruntime-node'
+    expect(desktopDependencyOverrides({ platform: 'darwin', arch: 'x64' })[selector]).toBe(INTEL_MACOS_ONNXRUNTIME_NODE)
+    for (const [platform, arch] of [['darwin', 'arm64'], ['linux', 'x64'], ['linux', 'arm64'], ['win32', 'x64'], ['win32', 'arm64']]) {
+      expect(desktopDependencyOverrides({ platform: platform!, arch: arch! }), `${platform}-${arch}`).not.toHaveProperty([selector])
+    }
+
+    const intel = temporaryRoot()
+    const silicon = temporaryRoot()
+    writeCorePackageSet(intel, release().version)
+    writeCorePackageSet(silicon, release().version)
+    createSeedMetadata(intel, release(), { platform: 'darwin', arch: 'x64' })
+    createSeedMetadata(silicon, release(), { platform: 'darwin', arch: 'arm64' })
+    expect(readFileSync(join(intel, 'pnpm-workspace.yaml'), 'utf8'))
+      .toContain(`${JSON.stringify(selector)}: ${JSON.stringify(INTEL_MACOS_ONNXRUNTIME_NODE)}`)
+    expect(readFileSync(join(silicon, 'pnpm-workspace.yaml'), 'utf8')).not.toContain(selector)
   })
 })
 

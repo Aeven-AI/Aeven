@@ -167,6 +167,8 @@ export default class YjsSync extends Sync {
   })
 
   private readonly accounts = new Map<string, Account>()
+  /** Each account's last status published to `sync/status` listeners, serialized. */
+  private readonly published = new Map<string, string>()
   private readonly tokenRef: CredentialRef
   /** One worker thread, shared by every account, opens received frames and merges document updates. */
   private readonly offload = new SyncOffload()
@@ -198,6 +200,7 @@ export default class YjsSync extends Sync {
         account.store.close()
       }))
       this.accounts.clear()
+      this.published.clear()
       await this.offload.dispose()
     }, 'sync-yjs: accounts')
     // An account syncs from the moment one of its clients signs in on this Host.
@@ -234,6 +237,11 @@ export default class YjsSync extends Sync {
       },
       () => {
         this.updateLan(owner)
+        // The vault reports every possible change, such as a frame queued and acknowledged within one throttle
+        // window; listeners only hear a status that differs from the one they last read.
+        const status = JSON.stringify(vault.status())
+        if (this.published.get(owner) === status) return
+        this.published.set(owner, status)
         this.notifyStatus(owner)
       },
       (id) => {

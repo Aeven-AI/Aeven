@@ -420,6 +420,66 @@ describe('session.list projections column', () => {
     expect(apply).not.toHaveBeenCalled()
   })
 
+  it('keeps Session-independent limits out of list rows while the opening snapshot carries them', async () => {
+    const { ctx, session } = await harness(true)
+    const limits = {
+      maxImageBytes: 5 * 1024 * 1024,
+      maxImagesPerMessage: 20,
+      maxMessageImageBytes: 100 * 1024 * 1024,
+      maxImagePixels: 40_000_000,
+      maxImageDimension: 2000,
+      mediaTypes: ['image/png'] as const,
+    }
+    await ctx.plugin(class extends AttachmentStore {
+      readonly imageLimits = limits
+      validateImage(): Promise<void> { return Promise.resolve() }
+      saveImage(): Promise<never> { return Promise.reject(new Error('unused')) }
+      readImage(): Promise<never> { return Promise.reject(new Error('unused')) }
+    })
+    const gateway = remote(ctx)
+    await new Promise(resolve => setTimeout(resolve, 0))
+    seedMessages(session, 1)
+    const snapshot = await opening(gateway, session.id)
+    expect(snapshot.projections.values['imageLimits']).toEqual(limits)
+    // The live registry holds the materialized value the listing reads from.
+    expect(ctx.sessionProjections.cachedSnapshot(session)?.values['imageLimits']).toEqual(limits)
+
+    const response = await gateway.list(request({}))
+    if (!response.ok) throw new Error('unreachable')
+    const row = response.value.items.find(item => item.sessionId === session.id)
+    expect(row?.projections?.values.sessionListMetadata).toBeDefined()
+    expect('imageLimits' in (row?.projections?.values ?? {})).toBe(false)
+  })
+
+  it('keeps Session-independent limits out of cold list rows served from the cache', async () => {
+    const { ctx } = await harness(true)
+    const coldId = SessionId('session-cold-limits')
+    const load = () => { throw new Error('list must not load event logs') }
+    ctx.provide('sessionPersistence', {
+      list: async () => [{ version: 0, id: coldId, createdAt: 5, cwd: '/tmp' }],
+      locate: () => undefined,
+      load,
+      inspect: load,
+      readFrom: load,
+    } as never)
+    ctx.provide('sessionProjectionCache', {
+      cachedSnapshot: (meta: { id: unknown }) => (meta.id === coldId
+        ? {
+          asOfSeq: SessionSeq(3),
+          values: {
+            title: 'Cached title',
+            imageLimits: { maxImageBytes: 1 },
+            fileIntake: { maxFileBytes: 1, extensions: ['txt'] },
+          },
+        }
+        : undefined),
+    } as never)
+    const response = await remote(ctx).list(request({}))
+    if (!response.ok) throw new Error('unreachable')
+    const row = response.value.items.find(item => item.sessionId === coldId)
+    expect(row?.projections).toEqual({ asOfSeq: 3, values: { title: 'Cached title' } })
+  })
+
   it('omits the column entirely when no registry is mounted', async () => {
     const { ctx, session } = await harness(false)
     seedMessages(session, 1)
