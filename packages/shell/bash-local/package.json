@@ -1,7 +1,7 @@
 {
   "name": "@aeven/bash-local",
   "description": "Local-subprocess implementation of the Aeven bash executor seam",
-  "version": "0.3.58-alpha",
+  "version": "0.3.59-alpha",
   "publishConfig": {
     "access": "public"
   },
