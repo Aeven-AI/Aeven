@@ -17,7 +17,7 @@ import type { ReactNode } from 'react'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { BrowserOverlay } from '@aeven/experimental-browser-overlay/src/overlay.ts'
 import { acquireColumnPointer } from '@aeven/experimental-browser-overlay/src/column-pointer.ts'
-import { IconWarningOutline16, Toast } from '@aeven/client-ui-primitives'
+import { Button, Modal } from '@aeven/client-ui-primitives'
 import type { TranslateNS } from '@aeven/client-locale/client'
 import { ChromeRow } from './ChromeRow.tsx'
 import {
@@ -92,9 +92,6 @@ const ADDRESS_TEXT_INSET_PX = 14
 /** Reference sprite geometry anchors the cursor tip at the reported coordinate. */
 const CURSOR_TIP_OFFSET_PX = 0
 
-/** How long the capture banner holds before it fades, in ms. */
-const CAPTURE_TOAST_HOLD_MS = 1500
-
 /** Navigation state the toolbar reads from the guest. */
 interface GuestState {
   readonly url: string
@@ -153,11 +150,9 @@ export function BrowserPane({ sessionId, tabId, active, closeTab, t, openInChrom
   zoomRef.current = zoomFactor
   const [colorScheme, setColorScheme] = useState<BrowserColorScheme>(() => readColorScheme(sessionId) ?? 'system')
   const [captured, setCaptured] = useState(false)
-  // Keyed by sequence so a second capture restarts the banner rather than
-  // extending the first.
-  const [captureToast, setCaptureToast] = useState<{ readonly seq: number; readonly ok: boolean } | null>(null)
-  const captureSeq = useRef(0)
-  const closeCaptureToast = useCallback(() => { setCaptureToast(null) }, [])
+  // A failed capture opens a dialog until dismissed; a successful one shows on the capture button.
+  const [captureFailed, setCaptureFailed] = useState(false)
+  const closeCaptureFailure = useCallback(() => { setCaptureFailed(false) }, [])
 
   // The appearance the guest is shown with: the shell emulates
   // `prefers-color-scheme` on that guest's web contents, so the choice is applied
@@ -626,14 +621,12 @@ export function BrowserPane({ sessionId, tabId, active, closeTab, t, openInChrom
           const guest = guestRef.current
           const id = guest === null ? undefined : webContentsIdOf(guest)
           if (id === undefined || bridge === undefined) return
-          const seq = ++captureSeq.current
           bridge.capture(id).then(() => {
             setCaptured(true)
-            setCaptureToast({ seq, ok: true })
             window.setTimeout(() => { setCaptured(false) }, CAPTURED_FEEDBACK_MS)
           }, (error: unknown) => {
             console.error('ui-sidebar-browser: capture failed', error)
-            setCaptureToast({ seq, ok: false })
+            setCaptureFailed(true)
           })
         }}
         captured={captured}
@@ -664,14 +657,14 @@ export function BrowserPane({ sessionId, tabId, active, closeTab, t, openInChrom
         ref={(node) => { guestRef.current = attachGuest(node, sessionId, tabId) }}
       />
       {active && <HandoffModal sessionId={sessionId} t={t} />}
-      {captureToast !== null && (
-        <Toast
-          key={captureToast.seq}
-          text={captureToast.ok ? t('capture.done') : t('capture.failed')}
-          icon={captureToast.ok ? undefined : <IconWarningOutline16 />}
-          anchor={rootRef.current}
-          holdMs={CAPTURE_TOAST_HOLD_MS}
-          onDone={closeCaptureToast}
+      {captureFailed && (
+        <Modal
+          open
+          onClose={closeCaptureFailure}
+          closeLabel={t('capture.close')}
+          title={t('capture.failed')}
+          description={t('capture.failedBody')}
+          footer={<Button variant="outline" onClick={closeCaptureFailure}>{t('capture.dismiss')}</Button>}
         />
       )}
     </div>

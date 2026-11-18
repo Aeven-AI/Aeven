@@ -29,8 +29,8 @@ import {
 } from 'react'
 import clsx from 'clsx'
 import {
-  IconCheckOutline16, IconChevronRightOutline14, IconLucideDatabaseCheck,
-  IconWarningOutline16, Toast, Tooltip,
+  Button, IconCheckOutline16, IconChevronRightOutline14, IconLucideDatabaseCheck,
+  Modal, Tooltip,
 } from '@aeven/client-ui-primitives'
 import type { PropsLocale } from '@aeven/client-ui-slots'
 import { effectiveEffortOf, effortLevelsOf, type EffortLevel } from './effort.ts'
@@ -61,11 +61,9 @@ export function ModelSelect(
   // card instead of reading as the press that closes it.
   const [claimed, setClaimed] = useState(false)
   const [pane, setPane] = useState<Pane>('root')
-  // A refused selection announces through the shared transient Toast anchored
-  // to the composer card; catalog-load failures keep the shell's own retry
-  // strip, which the Model row shows.
-  const [toast, setToast] = useState<{ seq: number; text: string } | null>(null)
-  const toastSeq = useRef(0)
+  // A refused selection opens a dialog until dismissed; catalog-load failures
+  // keep the shell's own retry strip, which the Model row shows.
+  const [failure, setFailure] = useState<string | null>(null)
   const rootRef = useRef<HTMLDivElement | null>(null)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const modelRowRef = useRef<HTMLButtonElement | null>(null)
@@ -196,8 +194,7 @@ export function ModelSelect(
       }
       const message = directory.getSnapshot().error
       if (message !== null) {
-        toastSeq.current += 1
-        setToast({ seq: toastSeq.current, text: t('error.action', { message }) })
+        setFailure(message)
       }
     })
   }
@@ -314,13 +311,14 @@ export function ModelSelect(
         </div>
       )}
 
-      {toast !== null && (
-        <Toast
-          key={toast.seq}
-          text={toast.text}
-          icon={<IconWarningOutline16 />}
-          anchor={rootRef.current?.closest<HTMLElement>('[data-composer-card]') ?? null}
-          onDone={() => { setToast(null) }}
+      {failure !== null && (
+        <Modal
+          open
+          onClose={() => { setFailure(null) }}
+          closeLabel={t('error.close')}
+          title={t('error.title')}
+          description={failure}
+          footer={<Button variant="outline" onClick={() => { setFailure(null) }}>{t('error.dismiss')}</Button>}
         />
       )}
     </div>

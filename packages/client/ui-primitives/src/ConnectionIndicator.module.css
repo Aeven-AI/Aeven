@@ -1,10 +1,10 @@
-/* Same placement and material as Toast.module.css, but interactive and held
-   for as long as its owner keeps a state mounted. */
+/* The client's one toast: connection status, interactive and held for as long
+   as its owner keeps a state mounted. Other messages use Modal. */
 .toast {
   position: fixed;
   top: 24px;
   left: 50%;
-  /* Above the 1000 the image lightbox backdrop uses, like Toast. */
+  /* Above the 1000 the image lightbox backdrop uses. */
   z-index: 1100;
   display: flex;
   align-items: center;
