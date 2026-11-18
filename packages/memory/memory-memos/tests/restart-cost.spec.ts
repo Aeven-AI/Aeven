@@ -117,7 +117,7 @@ describe('the saved person listing', () => {
       const created = new MemosMemory({
         cores: new OwnerCores(async () => ({ ...fakeCore([], { listTraces }), shutdown: async () => {} }) as never),
         routes: new LlmRouteContext(),
-        toolLimits: { skills: 0, traces: 10, worldModels: 0 }, personFactsTtlMs: 60_000, personFactsFile: () => file,
+        toolLimits: { skills: 0, traces: 10, worldModels: 0 }, personFactsFile: () => file,
         warn: () => {}, info: () => {},
       })
       cleanup.push(() => created.dispose())
@@ -135,6 +135,42 @@ describe('the saved person listing', () => {
     expect(served.dates.length).toBe(1)
     release([fact('a', 'Mira was born on 3 March 1990.'), fact('b', 'Noor was born on 9 July 1985.')])
     await expect.poll(() => (JSON.parse(readFileSync(file, 'utf8')) as { facts: unknown[] }).facts.length).toBe(2)
+  })
+
+  it('keeps a listing however old it is, and lists again after person memories change once recalls settled', async () => {
+    const fact = (id: string, summary: string) => ({ refId: id, id, ts: 1_000, tags: ['domain:person'], userText: summary, summary })
+    let listed: readonly ReturnType<typeof fact>[] = [fact('a', 'Mira was born on 3 March 1990.')]
+    let listings = 0
+    const created = new MemosMemory({
+      cores: new OwnerCores(async () => ({
+        ...fakeCore([], { listTraces: async () => { listings += 1; return listed } }),
+        shutdown: async () => {},
+      }) as never),
+      routes: new LlmRouteContext(),
+      toolLimits: { skills: 0, traces: 10, worldModels: 0 },
+      warn: () => {}, info: () => {},
+    })
+    cleanup.push(() => created.dispose())
+    const signal = new AbortController().signal
+    const read = async () => (await created.profile({ scope: { owner: 'o', sessionId: 's' as never }, signal })).dates.length
+    expect(await read()).toBe(1)
+    expect(await read()).toBe(1)
+    expect(listings).toBe(1)
+
+    // A turn-start recall is running when a memory is learned: the listing waits for it.
+    let finish = (): void => {}
+    const recall = new Promise<never>((_resolve, reject) => { finish = () => { reject(new Error('done')) } })
+    recall.catch(() => {})
+    ;(created as unknown as { recallsInFlight: Map<string, Set<Promise<unknown>>> }).recallsInFlight.set('o', new Set([recall]))
+    listed = [...listed, fact('b', 'Noor was born on 9 July 1985.')]
+    created.personFactsChanged('o')
+    expect(await read()).toBe(1)
+    expect(listings).toBe(1)
+    ;(created as unknown as { recallsInFlight: Map<string, Set<Promise<unknown>>> }).recallsInFlight.delete('o')
+    finish()
+    await expect.poll(() => listings).toBe(2)
+    await expect.poll(read).toBe(2)
+    expect(listings).toBe(2)
   })
 
   it('drops the saved listing when a memory is forgotten, and discards a listing that started before', async () => {
@@ -160,7 +196,7 @@ describe('the saved person listing', () => {
         shutdown: async () => {},
       }) as never),
       routes: new LlmRouteContext(),
-      toolLimits: { skills: 0, traces: 10, worldModels: 0 }, personFactsTtlMs: 0, personFactsFile: () => file,
+      toolLimits: { skills: 0, traces: 10, worldModels: 0 }, personFactsFile: () => file,
       warn: () => {}, info: () => {},
     })
     cleanup.push(() => created.dispose())

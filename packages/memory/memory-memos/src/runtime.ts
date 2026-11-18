@@ -123,8 +123,6 @@ export interface MemosMemoryOptions {
    * serves recorded dates without a profile text.
    */
   readonly profiles?: { readonly store: PersonProfiles; readonly distill: ProfileDistill }
-  /** How long one owner's listed person memories are reused by profile reads, in milliseconds. */
-  readonly personFactsTtlMs: number
   /**
    * File keeping one owner's last person-memory listing across restarts. With it, a profile read after a start serves
    * that listing at once and lists again in the background; without it, the first read waits for the listing.
@@ -261,7 +259,11 @@ export class MemosMemory implements MemoryProvider {
   private readonly candidateKinds = new WeakMap<MemoryHit, CandidateKind>()
   /** Each owner's current person memories, as profile reads list them, and when they were listed. */
   private readonly personFacts = new Map<string, { readonly at: number; readonly facts: readonly PersonFact[] }>()
-  /** A person-memory listing in flight per owner; profile reads that find an expired listing share it. */
+  /** Owners whose listing a write may have outdated; see {@link personFactsChanged}. */
+  private readonly staleFacts = new Set<string>()
+  /** A background listing waiting for or running after an owner's recalls; see {@link relistPersonFacts}. */
+  private readonly relisting = new Map<string, Promise<void>>()
+  /** A person-memory listing in flight per owner; reads that find no listing share it. */
   private readonly listingFacts = new Map<string, Promise<readonly PersonFact[]>>()
   /** Edits and forgets per owner; a listing that started before the latest one is neither kept nor saved. */
   private readonly factsEpochs = new Map<string, number>()
@@ -360,33 +362,72 @@ export class MemosMemory implements MemoryProvider {
 
   /**
    * Every current person memory of the owner, regardless of age: superseded memories, logs, and learned procedures
-   * are left out. A listing is reused for `personFactsTtlMs`. The first read after a start serves the listing saved by
-   * the previous run, when there is one, while a new listing runs in the background.
+   * are left out. A listing stays current until the owner's person memories change; a write marks it stale, and a
+   * read then serves it at once while {@link relistPersonFacts} lists again after the owner's turn-start recalls
+   * settled, so a listing never runs alongside a recall. An edit or forget drops the listing, and the next read waits
+   * for a new one. The first read after a start serves the listing saved by the previous run, when there is one, as a
+   * stale listing.
    */
   private async currentPersonFacts(owner: string, signal: AbortSignal): Promise<readonly PersonFact[]> {
-    const cached = this.personFacts.get(owner)
-    if (cached !== undefined && Date.now() - cached.at < this.options.personFactsTtlMs) return cached.facts
-    // A saved listing (kept with `at: 0`) is served until the first new listing of this run replaces it; an expired
-    // listing of this run waits for the new one.
-    const restored = cached === undefined ? this.restorePersonFacts(owner) : cached.at === 0 ? cached.facts : undefined
-    if (restored !== undefined && cached === undefined) this.personFacts.set(owner, { at: 0, facts: restored })
-    let listing = this.listingFacts.get(owner)
-    if (listing === undefined) {
-      // A background listing outlives the read that started it, so it carries no caller's signal.
-      const started = this.listPersonFacts(owner, new AbortController().signal).finally(() => {
-        if (this.listingFacts.get(owner) === started) this.listingFacts.delete(owner)
-      })
-      listing = started
-      this.listingFacts.set(owner, started)
+    let cached = this.personFacts.get(owner)
+    if (cached === undefined) {
+      const restored = this.restorePersonFacts(owner)
+      if (restored !== undefined) {
+        cached = { at: 0, facts: restored }
+        this.personFacts.set(owner, cached)
+        this.staleFacts.add(owner)
+      }
     }
-    if (restored !== undefined) {
-      listing.catch((error: unknown) => {
-        this.options.warn(`listing person memories failed: ${error instanceof Error ? error.message : String(error)}`)
-      })
-      return restored
+    if (cached !== undefined) {
+      if (this.staleFacts.has(owner)) this.relistPersonFacts(owner)
+      return cached.facts
     }
     signal.throwIfAborted()
-    return await listing
+    return await this.listingOf(owner)
+  }
+
+  /** The owner's person-memory listing in flight, started when none is. */
+  private listingOf(owner: string): Promise<readonly PersonFact[]> {
+    const running = this.listingFacts.get(owner)
+    if (running !== undefined) return running
+    // A listing outlives the read that started it, so it carries no caller's signal.
+    const started = this.listPersonFacts(owner, new AbortController().signal).finally(() => {
+      if (this.listingFacts.get(owner) === started) this.listingFacts.delete(owner)
+    })
+    this.listingFacts.set(owner, started)
+    return started
+  }
+
+  /**
+   * Record that the owner's person memories may have changed: a turn was captured, a memory was remembered, or
+   * another device's memories arrived. A listing already held is listed again in the background.
+   * @param owner - the account.
+   */
+  personFactsChanged(owner: string): void {
+    this.staleFacts.add(owner)
+    if (this.personFacts.has(owner)) this.relistPersonFacts(owner)
+  }
+
+  /**
+   * List the owner's person memories again once the owner's turn-start recalls settled, while reads keep serving the
+   * stale listing. A write during the listing marks it stale again, and the next read lists once more.
+   */
+  private relistPersonFacts(owner: string): void {
+    if (this.relisting.has(owner) || this.disposing) return
+    const run = (async () => {
+      let pending = this.recallsInFlight.get(owner)
+      while (pending !== undefined && pending.size > 0) {
+        await Promise.allSettled([...pending])
+        pending = this.recallsInFlight.get(owner)
+      }
+      if (this.disposing || !this.staleFacts.has(owner)) return
+      this.staleFacts.delete(owner)
+      await this.listingOf(owner)
+    })().catch((error: unknown) => {
+      this.staleFacts.add(owner)
+      this.options.warn(`listing person memories failed: ${error instanceof Error ? error.message : String(error)}`)
+    }).finally(() => { this.relisting.delete(owner) })
+    this.relisting.set(owner, run)
   }
 
   /**
@@ -1135,6 +1176,7 @@ export class MemosMemory implements MemoryProvider {
       if (captured.corrects) await this.supersedePrevious(state, turn, captured.traceId)
       await this.revise(turn.scope, served, captured.revisions, captured.traceId)
       if (sharing) await this.markSharing(turn.scope, captured.traceId)
+      this.personFactsChanged(turn.scope.owner)
     }).catch((error: unknown) => {
       this.options.warn(`background write failed for session ${turn.scope.sessionId}: ${describe(error)}`)
     })
@@ -1585,6 +1627,7 @@ export class MemosMemory implements MemoryProvider {
       }, `${scope.sessionId}:remember:${now}`, rememberedDomain(request.domain, this.projectOf(scope)))
       return written
     })
+    this.personFactsChanged(scope.owner)
     return brandString<MemoryItemId>(traceId)
   }
 
@@ -1605,6 +1648,7 @@ export class MemosMemory implements MemoryProvider {
         })),
         signal: request.signal,
       })
+      this.personFactsChanged(request.scope.owner)
       return { ids: ids.map(id => brandString<MemoryItemId>(id)), skipped }
     })
   }
