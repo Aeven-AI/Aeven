@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-11-18-forwarded-input-waited-for-an-unreachable-cloud.md
-2026-11-18-forwarded-input-waited-for-an-unreachable-cloud.md: 6ca65e92691ad966d42402c73b8084be7a12b16c
-2026-11-18-forwarded-input-waited-for-an-unreachable-cloud.zh.md: 100f4b2f4c0d93293eede832af5b21bf5e8ce5f5
+2026-11-18-forwarded-input-waited-for-an-unreachable-cloud.md: 3244220bf3b7ad1ed706228a1d65c0a8d04a2179
+2026-11-18-forwarded-input-waited-for-an-unreachable-cloud.zh.md: 599bde80f791293a81d2a3fe43c9138be3bf2715

@@ -800,7 +800,7 @@ describe('session-sync plugin', () => {
     await vi.waitFor(() => { expect(b.liveOf('busy' as never)).toBeUndefined() })
   })
 
-  it('runs a conversation of the always-on device here while that device cannot reach the account', async () => {
+  it('takes over on the desktop a conversation Aeven Cloud ran last, and runs input a target never took', async () => {
     const network = new MemorySyncNetwork()
     const desktop = network.device()
     const home = new MemoryPersistence()
@@ -813,17 +813,18 @@ describe('session-sync plugin', () => {
     const here = new SessionMirror(OWNER, desktop.asSync(), home as never, tuning, vi.fn(), undefined, undefined, collect)
     mirrors.push(here)
     await here.start()
-    // The conversation last ran on Æven Cloud, which writes no presence stamp while it lacks the account's key.
-    const cloud = 'cloud-device'
     const names = (await desktop.asSync().openDocument(OWNER, 'devices')).doc.getMap('names')
-    names.set(cloud, { name: 'Æven Cloud', alwaysOn: true })
     const index = (await desktop.asSync().openDocument(OWNER, 'sessions/index')).doc.getMap('sessions')
-    index.set('rubriek', { header: home.logs.get('rubriek')!.header, next: 1, inherited: 0, writer: cloud })
+    const header = home.logs.get('rubriek')!.header
+    // The conversation last ran on Aeven Cloud: typing here runs it here, whether or not the cloud is reachable.
+    names.set('cloud-device', { name: 'Aeven Cloud', alwaysOn: true })
+    index.set('rubriek', { header, next: 1, inherited: 0, writer: 'cloud-device' })
     expect(here.homeOf('rubriek' as never)).toBeUndefined()
-    // Once the always-on device stamps, it can reach the account and keeps the conversation.
-    names.set(cloud, { name: 'Æven Cloud', alwaysOn: true, seenAt: Date.now() })
-    expect(here.homeOf('rubriek' as never)).toEqual({ device: cloud, name: 'Æven Cloud' })
-    // An input sent to it that it never takes runs on the device it was typed on after the fallback, not never.
+    // A desktop the conversation was moved to keeps it while present; an input it never takes runs here after the
+    // fallback instead of waiting forever.
+    names.set('laptop', { name: 'laptop', seenAt: Date.now() })
+    index.set('rubriek', { header, next: 1, inherited: 0, writer: 'laptop', pinned: true })
+    expect(here.homeOf('rubriek' as never)).toEqual({ device: 'laptop', name: 'laptop' })
     const sent = Date.now()
     await here.forward('rubriek' as never, { operation: 'prompt', request: { text: 'responde amablemente' } })
     expect(delivered).toEqual([])

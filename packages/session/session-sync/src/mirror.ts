@@ -55,10 +55,7 @@ interface DeviceEntry {
   name: string
   /** Set by a device that keeps its relay connection open while no client is attached, such as Aeven Cloud. */
   alwaysOn?: boolean
-  /**
-   * When the device last stamped its open relay connection, in milliseconds since the Unix epoch. The always-on
-   * device stamps only while it can reach the account, so a stale or missing stamp means it cannot run its inputs.
-   */
+  /** When a device without `alwaysOn` last stamped its open relay connection, in milliseconds since the Unix epoch. */
   seenAt?: number
   /** Set by a device that shut down cleanly; it is away whatever its stamp says, until its next stamp removes the mark. */
   offline?: boolean
@@ -1043,17 +1040,16 @@ export class SessionMirror {
     const writer = this.docs?.index.doc.getMap<IndexEntry>('sessions').get(sessionId)?.writer
     let home: string | undefined
     if (writer !== undefined && writer !== me) {
-      // An always-on writer keeps its conversations; the always-on device sends a desktop's conversation back to it
-      // unless that desktop's presence stamp is stale. A desktop that never stamps gets it, with the inbox fallback.
-      // A desktop the session was moved to keeps it while its stamp is fresh.
+      // A conversation the user types into on a desktop runs on that desktop, also when Aeven Cloud ran its last turn:
+      // the desktop takes it over rather than sending the input to a device that may not even reach the account. The
+      // always-on device sends a desktop's conversation back to it unless that desktop's presence stamp is stale; a
+      // desktop that never stamps gets it, with the inbox fallback. A desktop the session was moved to keeps it while
+      // its stamp is fresh. Input for a turn running elsewhere goes to its runner, which `runnerOf` names.
       const entry = devices.get(writer)
       const stale = entry?.offline === true
         || (entry?.seenAt !== undefined && Date.now() - entry.seenAt > this.tuning.presenceWindowMs)
       const pinnedHere = this.entries().get(sessionId)?.pinned === true && entry?.seenAt !== undefined && !stale
-      // The always-on writer keeps a conversation only while its stamp shows it can reach the account: without the
-      // key it never sees the input, so a desktop runs the conversation itself instead of waiting for it.
-      const alwaysOnPresent = entry?.alwaysOn === true && entry.seenAt !== undefined && !stale
-      if (alwaysOnPresent || pinnedHere || (devices.get(me)?.alwaysOn === true && entry?.alwaysOn !== true && !stale)) home = writer
+      if (pinnedHere || (devices.get(me)?.alwaysOn === true && entry?.alwaysOn !== true && !stale)) home = writer
     } else if (writer === undefined && devices.get(me)?.alwaysOn === true) {
       // A conversation no device has run yet goes to the desktop the user chose for it, else to the account's desktop
       // that is on now, else stays here.

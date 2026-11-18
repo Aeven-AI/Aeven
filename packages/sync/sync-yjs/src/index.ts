@@ -73,9 +73,8 @@ export interface Config {
    */
   keepConnected: boolean
   /**
-   * How often a device stamps `seenAt` on its device entry while its relay connection is open, so the account's other
-   * devices can tell one that is on from one that is asleep, closed, or, for the always-on device, without access
-   * to the account.
+   * How often a device without `keepConnected` stamps `seenAt` on its device entry while its relay connection is
+   * open, so the account's always-on device can tell a desktop that is on from one that is asleep or closed.
    */
   presenceMs: number
   /**
@@ -106,7 +105,7 @@ interface DeviceName {
   name: string
   /** Set by a device that stays connected without a client, such as Aeven Cloud. */
   alwaysOn?: boolean
-  /** When the device last stamped its open relay connection, in milliseconds since the Unix epoch. */
+  /** When a device without `alwaysOn` last stamped its open relay connection, in milliseconds since the Unix epoch. */
   seenAt?: number
   /** Set by a device without `alwaysOn` that shut down cleanly; its next stamp removes it. */
   offline?: true
@@ -368,19 +367,18 @@ export default class YjsSync extends Sync {
     const map = names.doc.getMap<DeviceName>('names')
     const current = map.get(device)
     // A device that stays connected without a client, such as Aeven Cloud, says so; older builds read only `name`.
-    // Every device stamps when it was last connected. The always-on device reads a desktop's stamp as presence, and a
-    // desktop reads the always-on device's stamp as proof that it can reach this account now: it stamps only while it
-    // holds the account key and an open relay connection, which a passkey account grants it only from time to time.
+    // Any other device stamps when it was last connected, which the always-on device reads as presence.
     const changed = current?.name !== this.config.deviceName || (current.alwaysOn === true) !== this.config.keepConnected
-    // Only a device without `keepConnected` advertises routes: an always-on server's addresses are not on the
-    // account's networks.
-    const port = this.config.keepConnected ? undefined : account.lanPort
-    map.set(device, {
-      name: this.config.deviceName,
-      ...this.config.keepConnected ? { alwaysOn: true } : {},
-      seenAt: Date.now(),
-      ...port === undefined ? {} : { routes: localRoutes(port) },
-    })
+    if (changed || !this.config.keepConnected) {
+      // Only a device without `keepConnected` advertises routes: an always-on server's addresses are not on the
+      // account's networks.
+      const port = this.config.keepConnected ? undefined : account.lanPort
+      map.set(device, {
+        name: this.config.deviceName,
+        ...this.config.keepConnected ? { alwaysOn: true } : { seenAt: Date.now() },
+        ...port === undefined ? {} : { routes: localRoutes(port) },
+      })
+    }
     if (changed) this.ctx.emit('sync/devices', owner)
     names.close()
   }
@@ -466,12 +464,14 @@ export default class YjsSync extends Sync {
     }
     // The user turned sync off while the connection opened.
     if (!account.vault.enabled()) relay.close()
-    const presence = setInterval(() => {
-      if (!this.live(owner, account)) return
-      this.nameDevice(owner, account)
-      this.routeLan(owner)
-    }, this.config.presenceMs)
-    presence.unref()
+    const presence = this.config.keepConnected
+      ? undefined
+      : setInterval(() => {
+        if (!this.live(owner, account)) return
+        this.nameDevice(owner, account)
+        this.routeLan(owner)
+      }, this.config.presenceMs)
+    presence?.unref()
     await relay.closed
     clearInterval(presence)
     delete account.relay
