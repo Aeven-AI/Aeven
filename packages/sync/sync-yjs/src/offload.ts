@@ -30,6 +30,21 @@ export type WorkerRequest =
   | ({ readonly id: number; readonly method: 'maintain' } & MaintainRequest)
   | { readonly id: number; readonly method: 'entries'; readonly path: string; readonly doc: string; readonly maps: readonly string[] }
   | { readonly id: number; readonly method: 'prepare'; readonly frame: Uint8Array; readonly accountKey: Uint8Array; readonly maxBytes: number }
+  | ({ readonly id: number; readonly method: 'reconcile' } & ReconcileRequest)
+
+/** Queue what this device's copy of a document holds and the relay's copy lacks; the worker reads and writes the store. */
+export interface ReconcileRequest {
+  /** The store's database path. */
+  readonly path: string
+  /** The document. */
+  readonly doc: string
+  /** The updates and snapshots of the document the relay holds that the account's other devices received. */
+  readonly held: readonly Uint8Array[]
+  /** The account key the frame is sealed under. */
+  readonly accountKey: Uint8Array
+  /** This device. */
+  readonly device: DeviceId
+}
 
 /** Compact one document's stored updates and, when due, queue a snapshot of it; the worker writes both. */
 export interface MaintainRequest {
@@ -48,7 +63,7 @@ export interface MaintainRequest {
 }
 
 /** What a worker request answers with: opened frames, prepared parts, map entries, or nothing. */
-type WorkerValue = OpenedFrame[] | Uint8Array[] | Record<string, Record<string, unknown[]>> | null
+type WorkerValue = OpenedFrame[] | Uint8Array[] | Record<string, Record<string, unknown[]>> | boolean | null
 
 /** The worker's answer to one request. */
 export type WorkerReply =
@@ -149,6 +164,15 @@ export class SyncOffload {
    */
   async prepare(frame: Uint8Array, accountKey: Uint8Array, maxBytes: number): Promise<Uint8Array[]> {
     return await this.request({ method: 'prepare', frame, accountKey, maxBytes }) as Uint8Array[]
+  }
+
+  /**
+   * Queue, on the worker, what this device's copy of a document holds and the relay's copy lacks.
+   * @param request - the store, the document, the relay copy, and the seal input.
+   * @returns whether a frame was queued.
+   */
+  async reconcile(request: ReconcileRequest): Promise<boolean> {
+    return await this.request({ method: 'reconcile', ...request }) as boolean
   }
 
   /** Stop the worker; requests it held fail. */

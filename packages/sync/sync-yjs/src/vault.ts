@@ -22,6 +22,9 @@ const LAN_TAG = 'lan/account'
 /** Transaction origin of updates that arrived from other devices or local storage. */
 const REMOTE = Symbol('sync-remote')
 
+/** The most documents one relay `docs.get` request may name; a relay protocol limit. */
+const RELAY_DOCS_LIMIT = 64
+
 /** Thresholds the provider configures. */
 export interface VaultTuning {
   /** Stored updates per document before they are merged into one. */
@@ -183,6 +186,8 @@ export class AccountVault {
   private statusAt = 0
   /** The background catch-up of the current connection. */
   private catchingUp: Promise<void> | undefined
+  /** Whether the once-per-store comparison with the relay's copies is running. */
+  private reconciling = false
   /** The most changes waiting since the outbox was last empty. */
   private queued = 0
   /** Each document's compaction and snapshot, one at a time. */
@@ -347,6 +352,7 @@ export class AccountVault {
     this.relay = relay
     const catchingUp = this.catchUp(relay).then(() => {
       if (this.relay === relay && this.error === 'download') this.error = undefined
+      if (this.relay === relay) void this.reconcileOnce(relay)
     }, (error: unknown) => {
       if (this.relay !== relay) return
       this.error = 'download'
@@ -564,6 +570,117 @@ export class AccountVault {
       if (answer.more !== true || last === undefined) return
       after = last.seq
     }
+  }
+
+  /**
+   * Once per store, compare every document this device wrote with the relay's copy and publish what the relay's copy
+   * lacks. Updates the account's other devices refused, such as those sent while this device's counters had
+   * restarted, reach them this way: the relay deletes them once a later snapshot of another device covers them, so
+   * only this device still holds them. Runs after catch-up, one relay request of documents at a time; a dropped
+   * connection or a failure leaves the pass to the next connection.
+   * @param relay - the open connection.
+   */
+  private async reconcileOnce(relay: RelayConnection): Promise<void> {
+    if (this.reconciling || this.store.reconciled()) return
+    this.reconciling = true
+    try {
+      const key = this.key()
+      if (key === undefined) return
+      // Frames still queued reach the relay first, so they are not sent a second time as part of a difference.
+      await this.flush()
+      if (this.relay !== relay || this.store.pending() > 0) return
+      const ids = this.store.writtenDocuments()
+      for (let start = 0; start < ids.length; start += RELAY_DOCS_LIMIT) {
+        const batch = ids.slice(start, start + RELAY_DOCS_LIMIT)
+        const held = await this.relayCopies(relay, batch, key)
+        if (held === undefined || this.relay !== relay) return
+        let queued = false
+        for (const id of batch) {
+          if (this.relay !== relay) return
+          const sent = await this.offload.reconcile({
+            path: this.store.path, doc: id, held: held.get(id) ?? [], accountKey: key, device: this.device,
+          })
+          queued ||= sent
+        }
+        if (queued) void this.flush()
+        await pause(this.tuning.applyPauseMs)
+      }
+      this.store.markReconciled()
+    } catch (error) {
+      this.warn('sync: comparing documents with the relay failed; the next connection compares them again', error)
+    } finally {
+      this.reconciling = false
+    }
+  }
+
+  /**
+   * Read what the account's other devices received of some documents: the updates and snapshots the relay holds,
+   * without this device's frames they refused. A document another device snapshotted is that device's whole copy plus
+   * the frames after it, so this device's frames do not count toward it. Otherwise this device's frames count while
+   * their counters rise in relay order; from the first one whose counter does not exceed an earlier one, which the
+   * other devices refused as a replay, none do.
+   * @param relay - the open connection.
+   * @param ids - the documents, at most {@link RELAY_DOCS_LIMIT}.
+   * @param key - the account key.
+   * @returns the payloads per document, or undefined when the relay does not answer `docs.get`.
+   */
+  private async relayCopies(
+    relay: RelayConnection, ids: readonly OpaqueId[], key: Uint8Array,
+  ): Promise<Map<OpaqueId, Uint8Array[]> | undefined> {
+    const frames = new Map<OpaqueId, Array<{ own: boolean; snapshot: boolean; counter: number; payload: Uint8Array }>>()
+    const parts = new Map<string, { pieces: Uint8Array[]; received: Set<number> }>()
+    let after = 0
+    for (;;) {
+      let answer: Record<string, unknown>
+      try {
+        answer = await relay.request('docs.get', { ids, after })
+      } catch (error) {
+        if (error instanceof RelayError && error.code === 'bad-request') return undefined
+        throw error
+      }
+      const page = (answer.frames as Array<{ seq: number; frame: string }>)
+        .map(({ seq, frame }) => ({ seq, frame: new Uint8Array(Buffer.from(frame, 'base64url')) }))
+      for (const opened of await this.offload.open(page, key)) {
+        if ('error' in opened) continue
+        const { header } = opened
+        if (header.kind !== 'update' && header.kind !== 'snapshot') continue
+        let payload: Uint8Array | undefined = opened.payload
+        const fragment = header.fragment
+        if (fragment !== undefined) {
+          const transfer = `${header.device}:${String(header.counter)}:${fragment.id}`
+          const transferParts = parts.get(transfer) ?? { pieces: [], received: new Set<number>() }
+          transferParts.pieces[fragment.index] = opened.payload
+          transferParts.received.add(fragment.index)
+          parts.set(transfer, transferParts)
+          payload = transferParts.received.size === fragment.count ? new Uint8Array(Buffer.concat(transferParts.pieces)) : undefined
+          if (payload !== undefined) parts.delete(transfer)
+        }
+        if (payload === undefined) continue
+        const list = frames.get(header.id) ?? []
+        list.push({ own: header.device === this.device, snapshot: header.kind === 'snapshot', counter: header.counter, payload })
+        frames.set(header.id, list)
+      }
+      const last = page.at(-1)
+      if (answer.more !== true || last === undefined) break
+      after = last.seq
+    }
+    const held = new Map<OpaqueId, Uint8Array[]>()
+    for (const [id, list] of frames) {
+      let ownCount = !list.some(frame => !frame.own && frame.snapshot)
+      let highest = -1
+      const payloads: Uint8Array[] = []
+      for (const frame of list) {
+        if (!frame.own) {
+          payloads.push(frame.payload)
+          continue
+        }
+        if (frame.counter <= highest) ownCount = false
+        highest = Math.max(highest, frame.counter)
+        if (ownCount) payloads.push(frame.payload)
+      }
+      held.set(id, payloads)
+    }
+    return held
   }
 
   /** @returns when every received frame is applied. */

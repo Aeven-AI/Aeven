@@ -83,6 +83,53 @@ export function mapEntries(updates: readonly Uint8Array[], maps: readonly string
 }
 
 /**
+ * Allocates a document's next sender counter: one past the stored counter, and never below the clock floor. Takes
+ * the document id and the floor, and returns the counter.
+ */
+export const NEXT_COUNTER_SQL = 'INSERT INTO counters (id, counter) VALUES (?, ?) ON CONFLICT (id) DO UPDATE SET counter = max(counter + 1, excluded.counter) RETURNING counter'
+
+/**
+ * The lowest counter a frame sealed now may carry: the time in microseconds. Receivers drop a frame whose counter
+ * does not exceed the last one they accepted from the same device for the same document, so a device whose stored
+ * counters restarted, such as after dropping and taking back the same account key, would otherwise be refused until
+ * its counters passed the old ones. Counters advance by one per frame, far slower than the clock, so a counter
+ * allocated after any restart exceeds every counter allocated before it.
+ * @param now - the current time in milliseconds since the Unix epoch.
+ * @returns the floor.
+ */
+export function counterFloor(now: number): number {
+  return now * 1000
+}
+
+/**
+ * The part of a document's state that another copy of it lacks: structs it never integrated and deletions it never
+ * applied.
+ * @param local - this device's stored updates of the document.
+ * @param other - the updates the other copy holds.
+ * @returns an update carrying what the other copy lacks, or undefined when it already holds everything.
+ */
+export function missingFrom(local: readonly Uint8Array[], other: readonly Uint8Array[]): Uint8Array | undefined {
+  const theirs = Y.mergeUpdates([...other])
+  const diff = Y.diffUpdate(Y.mergeUpdates([...local]), Y.encodeStateVectorFromUpdate(theirs))
+  const { structs, ds } = Y.decodeUpdate(diff)
+  if (structs.some(struct => struct instanceof Y.Item || struct instanceof Y.GC)) return diff
+  const held = Y.decodeUpdate(theirs).ds.clients
+  for (const [client, deleted] of ds.clients) {
+    const ranges = [...held.get(client) ?? []].sort((a, b) => a.clock - b.clock)
+    for (const { clock, len } of deleted) {
+      let reached = clock
+      for (const range of ranges) {
+        if (range.clock > reached) break
+        reached = Math.max(reached, range.clock + range.len)
+        if (reached >= clock + len) break
+      }
+      if (reached < clock + len) return diff
+    }
+  }
+  return undefined
+}
+
+/**
  * Collect deleted content while retaining the Yjs clocks, delete set, and unresolved dependencies.
  * @param updates - stored updates in application order.
  * @returns a complete update of the same document.

@@ -6,8 +6,8 @@
 import { parentPort } from 'node:worker_threads'
 import Database from 'better-sqlite3'
 import { openEnvelope, sealEnvelope, type OpaqueId } from '@aeven/sync-vault'
-import { compactUpdates, mapEntries, prepareFrame } from './frames.ts'
-import type { MaintainRequest, OpenedFrame, WorkerReply, WorkerRequest } from './offload.ts'
+import { compactUpdates, counterFloor, mapEntries, missingFrom, NEXT_COUNTER_SQL, prepareFrame } from './frames.ts'
+import type { MaintainRequest, OpenedFrame, ReconcileRequest, WorkerReply, WorkerRequest } from './offload.ts'
 
 const connections = new Map<string, Database.Database>()
 
@@ -37,8 +37,7 @@ function maintain(request: MaintainRequest): null {
     }
     if (snapshot !== undefined) {
       // Counter allocation and queue insertion share the write transaction with concurrent Host updates.
-      const { counter } = db.prepare('INSERT INTO counters (id, counter) VALUES (?, 1) ON CONFLICT (id) DO UPDATE SET counter = counter + 1 RETURNING counter')
-        .get(request.doc) as { counter: number }
+      const { counter } = db.prepare(NEXT_COUNTER_SQL).get(request.doc, counterFloor(Date.now())) as { counter: number }
       const frame = sealEnvelope({ kind: 'snapshot', id: request.doc as OpaqueId, accountKey: snapshot.accountKey,
         device: snapshot.device, counter, payload: merged,
       })
@@ -47,6 +46,27 @@ function maintain(request: MaintainRequest): null {
     }
   })()
   return null
+}
+
+/**
+ * Queue, as one update frame, what this device's stored copy of a document holds and the relay's copy lacks.
+ * @param request - the store, the document, the relay copy's updates, and the seal input.
+ * @returns whether a frame was queued.
+ */
+function reconcile(request: ReconcileRequest): boolean {
+  const db = connection(request.path)
+  const rows = db.prepare('SELECT data FROM doc_updates WHERE id = ? ORDER BY seq').all(request.doc) as Array<{ data: Buffer }>
+  if (rows.length === 0) return false
+  const missing = missingFrom(rows.map(row => new Uint8Array(row.data)), request.held)
+  if (missing === undefined) return false
+  db.transaction(() => {
+    const { counter } = db.prepare(NEXT_COUNTER_SQL).get(request.doc, counterFloor(Date.now())) as { counter: number }
+    const frame = sealEnvelope({ kind: 'update', id: request.doc as OpaqueId, accountKey: request.accountKey,
+      device: request.device, counter, payload: missing,
+    })
+    db.prepare('INSERT INTO outbox (frame) VALUES (?)').run(Buffer.from(frame))
+  })()
+  return true
 }
 
 /** Read the values a document's stored updates wrote under each key of some root maps, without integrating them. */
@@ -73,7 +93,8 @@ parentPort?.on('message', (request: WorkerRequest) => {
     const value = request.method === 'open' ? openFrames(request)
       : request.method === 'prepare' ? prepareFrame(request.frame, request.accountKey, request.maxBytes)
         : request.method === 'entries' ? entries(request)
-          : maintain(request)
+          : request.method === 'reconcile' ? reconcile(request)
+            : maintain(request)
     reply = { id: request.id, ok: true, value }
   } catch (error) {
     reply = { id: request.id, ok: false, message: error instanceof Error ? error.message : String(error) }

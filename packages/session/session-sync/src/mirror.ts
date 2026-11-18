@@ -1504,13 +1504,25 @@ export class SessionMirror {
       const r = this.entries().get(right.header.id)
       return (r === undefined ? 0 : recency(r)) - (l === undefined ? 0 : recency(l))
     })
+    const status = this.sync.status(this.owner)
+    // Only an index caught up with the relay tells that no device listed a conversation.
+    const indexComplete = online && status.catchingUp !== true
     for (const { header } of ordered) {
       if (this.isClosed()) return
       if (header.owner !== this.owner) continue
       const id = header.id
-      // A copy is settled once it is compared; one this device published to and never compared may have diverged.
+      const listed = this.entries().get(id)
+      if (listed === undefined) {
+        // A conversation this device writes is listed by history publication; a copy is listed only here.
+        if (header.replica === true && indexComplete && !this.claims.has(id) && !this.running.has(id)) await this.adopt(id)
+        continue
+      }
+      // A copy is settled once it is compared; one this device published to and never compared may have diverged. A
+      // copy whose stored log runs past its index entry holds events no other device can see: a tail this device
+      // wrote and never published, or a tail the stream holds while the entry lags.
       const unsettled = this.recorded(id).head === undefined && this.recorded(id).revision !== undefined
-      if (header.replica === true && !unsettled) continue
+      const ahead = await this.next(id, local, revisions) > listed.next
+      if (header.replica === true && !unsettled && !ahead) continue
       await pause(this.tuning.pauseMs)
       const entry = this.entries().get(id)
       if (entry === undefined || this.claims.has(id) || this.running.has(id)) continue
@@ -1530,6 +1542,10 @@ export class SessionMirror {
         }
         const head = this.folds.get(id)?.head ?? recorded.head ?? entry.next
         const stored = await this.next(id, local, revisions)
+        const current = this.entries().get(id)
+        // The stream holds the history up to the head; an entry behind it, left by a publication that ended before
+        // writing the entry, makes the other devices take the conversation as complete there.
+        if (online && current !== undefined && head > current.next) this.entries().set(id, { ...current, next: head })
         if (stored > head) {
           // The unpublished tail travels as a claim at the accepted head; publication marks it for confirmation.
           this.claims.set(id, { id: randomUUID(), base: head, published: head })
@@ -1546,6 +1562,25 @@ export class SessionMirror {
         this.watch(id)
       })
     }
+  }
+
+  /**
+   * Publish a stored copy of a conversation of this account that the account's index does not list, from its start, so every
+   * device lists and imports it. Its index entry was lost, or the device that published it never wrote one; this
+   * device's copy is then the only one the other devices can get. A conversation holding only initialization events
+   * stays local, as an unwritten draft does.
+   * @param id - the session.
+   */
+  private async adopt(id: SessionId): Promise<void> {
+    await pause(this.tuning.pauseMs)
+    await this.own(id, async () => {
+      if (this.entries().get(id) !== undefined || this.claims.has(id) || this.running.has(id)) return
+      await this.serialize(id, () => this.publishSession(id)).catch((error: unknown) => {
+        this.warn(`session sync: publishing ${id}, which the account's index did not list, failed: ${String(error)}`)
+      })
+      this.claims.delete(id)
+      if (this.entries().get(id) !== undefined) this.watch(id)
+    })
   }
 
   /**
@@ -2148,7 +2183,8 @@ export class SessionMirror {
         if (entry !== undefined && homes !== undefined && entry.workspace !== homes.get(header.id)) return true
         // A shared session publishes only under a claim; one no device published yet publishes from its start.
         if (entry !== undefined && !this.claims.has(header.id)) return false
-        if ((this.revisions.get(id) ?? this.recorded(id).revision) === String(revision)) return false
+        // One the index does not list publishes even at a revision recorded as published: its entry was lost.
+        if (entry !== undefined && (this.revisions.get(id) ?? this.recorded(id).revision) === String(revision)) return false
         const claim = this.claims.get(header.id)
         if (claim !== undefined && claim.published === this.appendedNext.get(id) && entry?.running === this.running.has(header.id)) {
           this.revisions.set(id, String(revision))

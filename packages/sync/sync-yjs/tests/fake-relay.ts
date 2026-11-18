@@ -258,6 +258,13 @@ export class FakeRelay {
         ok({ seq: peer.cursor, more })
         return
       }
+      case 'docs.get': {
+        const ids = new Set(request.ids as string[])
+        const after = typeof request.after === 'number' ? request.after : 0
+        const frames = account.frames.filter(frame => ids.has(frame.id) && frame.kind !== 'stream' && frame.seq > after)
+        ok({ frames: frames.slice(0, 2).map(frame => ({ seq: frame.seq, frame: frame.data.toString('base64url') })), more: frames.length > 2 })
+        return
+      }
       case 'stream.get': {
         const after = typeof request.after === 'number' ? request.after : 0
         const frames = account.frames.filter(frame => frame.id === request.id && frame.kind === 'stream' && frame.seq > after)

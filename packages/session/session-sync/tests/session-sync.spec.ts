@@ -314,6 +314,31 @@ describe('session mirror', () => {
     expect(network.streams.get('sessions/recent')!.length).toBe(published)
   })
 
+  it('lists a stored copy the account index lost, and publishes the tail a copy holds past its index entry', async () => {
+    const network = new MemorySyncNetwork()
+    const homeA = new MemoryPersistence()
+    const homeB = new MemoryPersistence()
+    homeA.start('orphan', Date.now(), 6, { replica: true })
+    homeA.start('tail', Date.now(), 8)
+    const deviceA = network.device()
+    const a = mirror(deviceA, homeA).mirror
+    await a.start()
+    await mirror(network.device(), homeB).mirror.start()
+    await vi.waitFor(() => { expect(count(homeB, 'orphan')).toBe(6) })
+    await vi.waitFor(() => { expect(count(homeB, 'tail')).toBe(8) })
+    expect(homeB.logs.get('orphan')!.events).toEqual(homeA.logs.get('orphan')!.events)
+
+    // A copy that holds events no device published, as one released before its publication finished does, found
+    // when the device starts again.
+    await a.dispose()
+    await homeA.setReplica('tail', true)
+    homeA.add('tail', 4)
+    const restarted = mirror(deviceA, homeA).mirror
+    await restarted.start()
+    await vi.waitFor(() => { expect(count(homeB, 'tail')).toBe(12) })
+    expect(restarted.catalog().find(entry => entry.header.id === 'tail')?.next).toBe(12)
+  })
+
   it('commits a fork inherited across many stream pages as one initial prefix', async () => {
     const network = new MemorySyncNetwork()
     const a = network.device()

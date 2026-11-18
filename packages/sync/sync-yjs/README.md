@@ -15,6 +15,8 @@ A device without its account key, including one locked until a passkey unlocks i
 
 Status distinguishes a connected relay from completed download catch-up. A failed catch-up reconnects from the durable cursor. Upload queue operations reuse prepared SQLite statements, and received batches group updates without copying each document's accumulated updates for every frame.
 
+Sender counters only rise: each is one past the stored counter and never below the current time in microseconds, and dropping the account key keeps them, so the account's other devices never refuse a device whose stored counters restarted as replaying old frames. Once per store, after catch-up, the device compares each document it wrote with the relay's copy (`docs.get`) on the sync worker and publishes, as one update, the structs and deletions the other devices never received; the relay deletes frames a later snapshot covers, so this device's copy can be the only one left. A relay without `docs.get` leaves the comparison to a later connection.
+
 ## Table of Contents
 
 - [Model Experience](#model-experience)

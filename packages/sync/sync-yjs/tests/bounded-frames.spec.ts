@@ -334,13 +334,15 @@ it('allocates maintenance snapshot counters with their outbox insertion', async 
   doc.getMap('m').set('k', 'first')
   doc.getMap('m').set('k', 'second')
   for (const update of updates) a.store.appendDocUpdate(id, update)
-  for (let i = 0; i < 20; i++) a.store.nextCounter(id)
+  let last = 0
+  for (let i = 0; i < 20; i++) last = a.store.nextCounter(id)
   await offload.maintain({ path: a.store.path, doc: id, compact: true,
     snapshot: { accountKey: key, device: a.store.deviceId(), covers: 10 } })
   const queued = a.store.outbox()[0]!
-  expect(readEnvelopeHeader(queued.frame).counter).toBe(21)
+  const snapshotCounter = readEnvelopeHeader(queued.frame).counter
+  expect(snapshotCounter).toBeGreaterThan(last)
   expect(queued.covers).toBe(10)
-  expect(a.store.nextCounter(id)).toBe(22)
+  expect(a.store.nextCounter(id)).toBeGreaterThan(snapshotCounter)
   expect(a.store.docUpdates(id)).toHaveLength(1)
   const restored = new Y.Doc()
   Y.applyUpdate(restored, a.store.docUpdates(id)[0]!)
