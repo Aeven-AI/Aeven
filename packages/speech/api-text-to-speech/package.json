@@ -1,7 +1,7 @@
 {
   "name": "@aeven/api-text-to-speech",
   "description": "Authenticated speech synthesis Remote for browser clients",
-  "version": "0.3.61-alpha",
+  "version": "0.3.62-alpha",
   "publishConfig": {
     "access": "public"
   },
