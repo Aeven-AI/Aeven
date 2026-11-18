@@ -2,7 +2,7 @@
 
 import type { SnapshotStore } from '@aeven/client-store'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
-import { SettingsGroup, SettingsRow, Switch } from '@aeven/client-ui-primitives'
+import { SettingsRow, Switch } from '@aeven/client-ui-primitives'
 
 /** Registration-side Developer mode face. */
 export interface DeveloperModeRowInjected {
@@ -28,12 +28,10 @@ export type DeveloperModeRowProps =
 export function DeveloperModeRow({ useDeveloperMode, setDeveloperMode, t }: DeveloperModeRowProps) {
   const enabled = useDeveloperMode(value => value)
   return (
-    <SettingsGroup title={t('general.advanced')}>
-      <SettingsRow
-        title={t('developer.title')}
-        description={t('developer.description')}
-        control={<Switch checked={enabled} onChange={setDeveloperMode} label={t('developer.title')} />}
-      />
-    </SettingsGroup>
+    <SettingsRow
+      title={t('developer.title')}
+      description={t('developer.description')}
+      control={<Switch checked={enabled} onChange={setDeveloperMode} label={t('developer.title')} />}
+    />
   )
 }

@@ -28,6 +28,7 @@ import { SettingsRoot } from './SettingsRoot.tsx'
 import { CloseLabel, HeaderContent, TriggerContent } from './chrome.tsx'
 import { GeneralSection } from './GeneralSection.tsx'
 import { DeveloperModeRow, type DeveloperModeRowInjected } from './DeveloperModeRow.tsx'
+import { AdvancedHeading } from './AdvancedHeading.tsx'
 import { BackgroundModeRow, type BackgroundModeRowInjected } from './BackgroundModeRow.tsx'
 import { DeveloperModePolicy } from './developer-mode.ts'
 import { RecallJudgeRow, type RecallJudgeRowInjected } from './RecallJudgeRow.tsx'
@@ -45,6 +46,7 @@ export type {
 } from './GeneralSection.tsx'
 export type { SettingsKey } from './locales.ts'
 export type { DeveloperModeRowInjected, DeveloperModeRowProps } from './DeveloperModeRow.tsx'
+export type { AdvancedHeadingProps } from './AdvancedHeading.tsx'
 export type { BackgroundModeRowInjected, BackgroundModeRowProps } from './BackgroundModeRow.tsx'
 export type { RecallJudgeRowInjected, RecallJudgeRowProps } from './RecallJudgeRow.tsx'
 export type { DeveloperSettings, DeveloperSettingsNamespace } from '../developer-settings.ts'
@@ -215,7 +217,7 @@ export function apply(ctx: ClientContext): void {
   ctx.slots.inject('settings.general.item', () => ctx.slots.register({
     name: 'settings.general.item',
     id: 'recall-judge',
-    // Straight above Run in the background (order 90).
+    // Straight above Permission mode (order 95), the last row before Appearance.
     order: 89,
     locale: NS,
     inject: (): RecallJudgeRowInjected => ({
@@ -245,7 +247,8 @@ export function apply(ctx: ClientContext): void {
     ctx.slots.inject('settings.general.item', () => ctx.slots.register({
       name: 'settings.general.item',
       id: 'background-mode',
-      order: 90,
+      // Last of General's Advanced rows, after Developer mode (order 1000).
+      order: 1001,
       locale: NS,
       inject: (): BackgroundModeRowInjected => ({
         hooks: { backgroundMode },
@@ -257,6 +260,14 @@ export function apply(ctx: ClientContext): void {
       }),
     }, BackgroundModeRow))
   }
+  // Opens the Advanced rows: Browser extension (order 999, from ui-sidebar-browser), Developer mode (order 1000), and
+  // Run in the background (order 1001).
+  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+    name: 'settings.general.item',
+    id: 'advanced-heading',
+    order: 998,
+    locale: NS,
+  }, AdvancedHeading))
   ctx.slots.inject('settings.general.item', () => ctx.slots.register({
     name: 'settings.general.item',
     id: 'developer-mode',

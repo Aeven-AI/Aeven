@@ -138,7 +138,7 @@ export function apply(ctx: ClientContext): void {
   ctx.slots.inject('settings.general.item', () => ctx.slots.register({
     name: 'settings.general.item',
     id: 'permission',
-    // Last of the General rows, after Run in the background (order 90) and before Appearance (order 200).
+    // Last of the General rows, after Filter memories (order 89) and before Appearance (order 200).
     order: 95,
     locale: 'settings.permission',
     inject: injected,
