@@ -18,7 +18,7 @@ import type { CSSProperties, KeyboardEvent, MouseEvent } from 'react'
 import clsx from 'clsx'
 import {
   IconArrowUpOutline20, IconGoalOutline16, IconListPenOutline16, IconLucideCamera, IconPaperPlaneOutline16,
-  IconPaperclipOutline16, IconPlusOutline20, IconStopFill20, IconWarningOutline16, Menu, Toast, Tooltip,
+  Button, IconPaperclipOutline16, IconPlusOutline20, IconStopFill20, Menu, Modal, Tooltip,
 } from '@aeven/client-ui-primitives'
 import type { MenuEntry } from '@aeven/client-ui-primitives'
 // Type-only: the `plan` projection key merge (the TodoDock posture — the
@@ -100,22 +100,21 @@ export const InputBar = memo(function InputBar({
   const filesUploading = attachments.some(attachment => attachment.kind === 'file' && attachment.status === 'uploading')
   const filesFailed = attachments.some(attachment => attachment.kind === 'file' && attachment.status === 'error')
   const empty = draft.trim() === '' && attachments.length === 0
-  // Transient error banner (machine notices, image-intake rejections, and
-  // prompt failures): the seq keys the Toast so an identical repeated message
-  // restarts the hold-then-fade cycle instead of reusing the faded one.
   // A composer activity (dictation) claims the whole control row while it records or transcribes.
   const [activity, setActivity] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
   const [cameraOpen, setCameraOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const addSelection = useRef<ReturnType<NonNullable<typeof keyboard>['caretSpan']> | null>(null)
-  const [toast, setToast] = useState<{ seq: number; text: string } | null>(null)
-  const toastSeq = useRef(0)
-  const showToast = useCallback((text: string) => {
-    toastSeq.current += 1
-    setToast({ seq: toastSeq.current, text })
+  // Composer failures (machine error notices, intake rejections, command and
+  // prompt failures) open one dialog until dismissed; a newer failure replaces
+  // the one showing.
+  const [failure, setFailure] = useState<{ title: string; text: string; detail?: string } | null>(null)
+  const showFailure = useCallback((title: string, text: string, detail?: string) => {
+    setFailure(detail === undefined ? { title, text } : { title, text, detail })
   }, [])
-  const dismissToast = useCallback(() => { setToast(null) }, [])
+  const dismissFailure = useCallback(() => { setFailure(null) }, [])
+  const sendBlocked = useCallback((text: string) => { showFailure(t('error.sendTitle'), text) }, [showFailure, t])
   // The deployment's image-intake limits (absent while no attachment service
   // is composed — the pre-check below then defers entirely to the host).
   const imageLimits = useProjection('imageLimits')
@@ -123,24 +122,35 @@ export const InputBar = memo(function InputBar({
   // while the Host composes no document extraction).
   const fileIntake = useProjection('fileIntake')
   // Prompt failures are ordinary failures (no create/attach transaction exists
-  // anymore): the toast announces promptError, the draft stays in the machine,
+  // anymore): the dialog announces promptError, the draft stays in the machine,
   // and the user resubmits. A remount over a session whose machine still holds
   // an unresolved promptError deliberately re-announces it once — the failure
-  // is still pending, and a transient banner is its only surface. Attachment
-  // rejections show product copy keyed by the wire reason — whichever domain
-  // refused them; other codes are developer-facing and keep the raw message
-  // plus code.
+  // is still pending, and the dialog is its only surface. Attachment rejections
+  // and the subagent delivery refusals show product copy; any other code shows
+  // a generic line with the raw message beneath it.
   useEffect(() => {
     if (promptError === null) return
     const { error } = promptError
     if (handleRefusal?.(error.code) === true) return
-    showToast(error.code === 'session/attachment-invalid' || error.code === 'subagent/attachment-invalid'
-      ? attachmentErrorText(t, error.details.reason, imageLimits)
-      : `${error.message} (${error.code})`)
-  }, [promptError, showToast, t, imageLimits, handleRefusal])
+    switch (error.code) {
+      case 'session/attachment-invalid':
+      case 'subagent/attachment-invalid':
+        showFailure(t('error.attachTitle'), attachmentErrorText(t, error.details.reason, imageLimits))
+        return
+      case 'subagent/parent-unavailable':
+        showFailure(t('error.sendTitle'), t('error.parentUnavailableBody'))
+        return
+      case 'subagent/not-resumable':
+        showFailure(t('error.sendTitle'), t('error.notResumableBody'))
+        return
+      // Remote error codes are an open set; every other refusal keeps its own message.
+      default:
+        showFailure(t('error.sendTitle'), t('error.sendBody'), error.message)
+    }
+  }, [promptError, showFailure, t, imageLimits, handleRefusal])
   useEffect(() => {
-    if (notice?.level === 'error') showToast(notice.text)
-  }, [notice, showToast])
+    if (notice?.level === 'error') showFailure(t('error.actionTitle'), notice.text)
+  }, [notice, showFailure, t])
   const cardRef = useRef<HTMLDivElement | null>(null)
   /* The composer's overlay seat: the popup a row opens renders here, and the
      Options popup reads it so that using that popup does not dismiss it. */
@@ -286,8 +296,8 @@ export const InputBar = memo(function InputBar({
       }
       return addImages(files)
     })()
-    if (rejected !== null) showToast(rejected)
-  }, [addImages, attachments, imageLimits, showToast, t])
+    if (rejected !== null) showFailure(t('error.attachTitle'), rejected)
+  }, [addImages, attachments, imageLimits, showFailure, t])
 
   // Non-image intake: duplicates are skipped silently, unsupported and
   // oversized files are announced by name, the per-message file count admits
@@ -344,8 +354,8 @@ export const InputBar = memo(function InputBar({
       const rejected = addFiles(accepted)
       if (rejected !== null) messages.push(rejected)
     }
-    if (messages.length > 0) showToast(messages.join(' '))
-  }, [addFiles, attachments, fileIntake, intakeImages, showToast, t])
+    if (messages.length > 0) showFailure(t('error.attachTitle'), messages.join(' '))
+  }, [addFiles, attachments, fileIntake, intakeImages, showFailure, t])
 
   // One drop, paste, or pick: raster images keep the image pipeline; every
   // other file takes the upload path.
@@ -366,10 +376,10 @@ export const InputBar = memo(function InputBar({
   // The keymap handlers read live bar state through this ref so the editor
   // registration survives re-renders without re-arming per keystroke.
   const gate = useRef({
-    locked, machineBusy, canSteerQueue, running, subagent, resolveSubmitMode, intakeAttachments, filesBlockText, showToast,
+    locked, machineBusy, canSteerQueue, running, subagent, resolveSubmitMode, intakeAttachments, filesBlockText, sendBlocked,
   })
   gate.current = {
-    locked, machineBusy, canSteerQueue, running, subagent, resolveSubmitMode, intakeAttachments, filesBlockText, showToast,
+    locked, machineBusy, canSteerQueue, running, subagent, resolveSubmitMode, intakeAttachments, filesBlockText, sendBlocked,
   }
 
   useEffect(() => {
@@ -392,7 +402,7 @@ export const InputBar = memo(function InputBar({
           return
         }
         if (g.filesBlockText !== null) {
-          g.showToast(g.filesBlockText)
+          g.sendBlocked(g.filesBlockText)
           return
         }
         keyboard.submit(g.resolveSubmitMode(
@@ -443,9 +453,9 @@ export const InputBar = memo(function InputBar({
     }
     if (sessionId === undefined || invokeCommand === undefined || addSelection.current === null) return
     void invokeCommand(id, addSelection.current).then((handled) => {
-      if (!handled) showToast(t('add.unavailable'))
+      if (!handled) showFailure(t('error.actionTitle'), t('add.unavailable'))
     }).catch((error: unknown) => {
-      showToast(error instanceof Error ? error.message : String(error))
+      showFailure(t('error.actionTitle'), error instanceof Error ? error.message : String(error))
     })
   }
 
@@ -472,7 +482,7 @@ export const InputBar = memo(function InputBar({
     }
     if (inputActions === undefined) return // absent machine: the button is disabled
     if (filesBlockText !== null) {
-      showToast(filesBlockText)
+      sendBlocked(filesBlockText)
       return
     }
     /* v8 ignore next -- defensive: the primary button is disabled while empty||disabled, so a click cannot reach the false arm. */
@@ -513,13 +523,15 @@ export const InputBar = memo(function InputBar({
 
   return (
     <div className={clsx(css.root, variant === 'hero' && css.hero)}>
-      {toast !== null && (
-        <Toast
-          key={toast.seq}
-          text={toast.text}
-          icon={<IconWarningOutline16 />}
-          anchor={cardRef.current}
-          onDone={dismissToast}
+      {failure !== null && (
+        <Modal
+          open
+          onClose={dismissFailure}
+          closeLabel={t('error.close')}
+          title={failure.title}
+          description={failure.text}
+          children={failure.detail === undefined ? undefined : <p className={css.failureDetail}>{failure.detail}</p>}
+          footer={<Button variant="outline" className={css.failureAction} onClick={dismissFailure}>{t('error.dismiss')}</Button>}
         />
       )}
       {notice?.level === 'info' && (
@@ -636,9 +648,9 @@ export const InputBar = memo(function InputBar({
                 // so the generic control path stays meaningful.
                 const span = keyboard?.caretSpan() ?? { start: draft.length, end: draft.length }
                 void invokeCommand('image-model', span, anchor).then((handled) => {
-                  if (!handled) showToast(t('add.unavailable'))
+                  if (!handled) showFailure(t('error.actionTitle'), t('add.unavailable'))
                 }).catch((error: unknown) => {
-                  showToast(error instanceof Error ? error.message : String(error))
+                  showFailure(t('error.actionTitle'), error instanceof Error ? error.message : String(error))
                 })
               }}
               onVideoModel={invokeCommand === undefined ? undefined : (anchor) => {
@@ -647,9 +659,9 @@ export const InputBar = memo(function InputBar({
                 // so the generic control path stays meaningful.
                 const span = keyboard?.caretSpan() ?? { start: draft.length, end: draft.length }
                 void invokeCommand('video-model', span, anchor).then((handled) => {
-                  if (!handled) showToast(t('add.unavailable'))
+                  if (!handled) showFailure(t('error.actionTitle'), t('add.unavailable'))
                 }).catch((error: unknown) => {
-                  showToast(error instanceof Error ? error.message : String(error))
+                  showFailure(t('error.actionTitle'), error instanceof Error ? error.message : String(error))
                 })
               }}
               useProjection={useProjection}
