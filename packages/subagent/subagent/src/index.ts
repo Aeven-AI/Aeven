@@ -606,6 +606,7 @@ export class SubagentRuntime extends TypertRemoteService {
    * @returns the exact Cordis effect disposer.
    */
   registerPromptPreparer(preparer: SubagentPromptPreparer): () => void {
+    // oxlint-disable-next-line typescript/no-misused-promises -- synchronous disposer
     return this.ctx.effect(function* (this: SubagentRuntime) {
       if (this.promptPreparer !== undefined) {
         throw new SubagentError('a subagent prompt preparer is already registered', 'DUPLICATE_PROMPT_PREPARER')
