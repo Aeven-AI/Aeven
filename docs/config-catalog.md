@@ -4399,6 +4399,8 @@ export interface SessionSyncTuning {
   attachmentWaitMs: number
   /** Pause between reads of an attachment's chunks that are not all on the relay yet, in milliseconds. */
   attachmentRetryMs: number
+  /** How many conversations an import pass downloads at once. */
+  importConcurrency: number
 }
 ```
 

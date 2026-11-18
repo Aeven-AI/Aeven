@@ -91,6 +91,7 @@ const tuning: SessionSyncTuning = {
   publishTimeoutMs: 120_000,
   runnerLease: { ttlMs: 30_000, renewMs: 10_000 },
   inputGraceMs: 100, remoteFallbackMs: 300, presenceWindowMs: 150_000, inputExpiryMs: 1_000, attachmentWaitMs: 1_000, attachmentRetryMs: 10,
+  importConcurrency: 4,
 }
 const mirrors: SessionMirror[] = []
 afterEach(async () => { await Promise.all(mirrors.splice(0).map(mirror => mirror.dispose())) })
@@ -327,6 +328,8 @@ describe('session mirror', () => {
     await vi.waitFor(() => { expect(count(homeB, 'orphan')).toBe(6) })
     await vi.waitFor(() => { expect(count(homeB, 'tail')).toBe(8) })
     expect(homeB.logs.get('orphan')!.events).toEqual(homeA.logs.get('orphan')!.events)
+    // The device that published the copy holds it, so it reports no download pending.
+    await vi.waitFor(() => { expect(a.progress().sessionsPending).toBe(0) })
 
     // A copy that holds events no device published, as one released before its publication finished does, found
     // when the device starts again.
@@ -731,6 +734,25 @@ describe('session-sync plugin', () => {
     await new Promise(resolve => setTimeout(resolve, 30))
     expect(fileSession.mock.calls.length).toBeLessThanOrEqual(calls + 1)
     expect(fileSession.mock.calls.every(([id]) => id === 'filed')).toBe(true)
+    // A conversation whose entry names no workspace downloads without waiting for one.
+    await vi.waitFor(() => { expect(count(homeB, 'loose')).toBe(1) })
+    expect(count(homeB, 'filed')).toBe(0)
+
+    // A device that holds it in a workspace names that workspace in the entry, so other devices file it there too.
+    await b.dispose()
+    const c = new SessionMirror(OWNER, network.device().asSync(), homeB as never, tuning, vi.fn(), undefined, {
+      ...filingB,
+      sessionHome: (id: string) => (id === 'loose' ? 'workspace-2' : undefined),
+      sessionHomes: () => new Map([['loose' as SessionId, 'workspace-2']]),
+    })
+    mirrors.push(c)
+    await c.start()
+    type Index = Map<string, { workspace?: string }>
+    const indexOf = (m: SessionMirror): Index => (m as unknown as { entries(): Index }).entries()
+    await vi.waitFor(() => { expect(indexOf(a).get('loose')?.workspace).toBe('workspace-2') })
+    // The device that wrote it files it in no workspace and keeps the one the other device named.
+    await a.publish()
+    expect(indexOf(a).get('loose')?.workspace).toBe('workspace-2')
   })
 
   it('forwards input for a session another device writes to that device, in order, with its attachments', async () => {
@@ -908,7 +930,7 @@ describe('session-sync plugin', () => {
       publishTimeoutMs: 120_000,
       runnerLease: { ttlMs: 30_000, renewMs: 10_000 },
       inputGraceMs: 100, remoteFallbackMs: 300, presenceWindowMs: 150_000,
-      inputExpiryMs: 1_000, attachmentWaitMs: 1_000, attachmentRetryMs: 10,
+      inputExpiryMs: 1_000, attachmentWaitMs: 1_000, attachmentRetryMs: 10, importConcurrency: 4,
     })
     await fiber
     ctx.emit('sync/status', OWNER)

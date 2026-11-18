@@ -42,6 +42,7 @@ export default class SessionSync extends SessionHandoff {
     inputExpiryMs: z.natural().min(1_000).default(60_000),
     attachmentWaitMs: z.natural().default(30_000),
     attachmentRetryMs: z.natural().min(10).default(500),
+    importConcurrency: z.natural().min(1).default(4),
   })
 
   private readonly mirrors = new Map<string, SessionMirror>()
