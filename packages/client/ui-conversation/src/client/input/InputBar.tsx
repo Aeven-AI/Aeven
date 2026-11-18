@@ -535,7 +535,7 @@ export const InputBar = memo(function InputBar({
           title={failure.title}
           description={failure.text}
           children={failure.detail === undefined ? undefined : <p className={css.failureDetail}>{failure.detail}</p>}
-          footer={<Button variant="outline" className={css.failureAction} onClick={dismissFailure}>{t('error.dismiss')}</Button>}
+          footer={<Button variant="primary" className={css.failureAction} onClick={dismissFailure}>{t('error.dismiss')}</Button>}
         />
       )}
       {notice?.level === 'info' && (

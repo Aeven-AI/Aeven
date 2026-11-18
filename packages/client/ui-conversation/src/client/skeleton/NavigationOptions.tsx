@@ -181,7 +181,7 @@ export function NavigationOptions({
           closeLabel={t('error.close')}
           title={t('error.actionTitle')}
           description={failure}
-          footer={<Button variant="outline" onClick={() => { setFailure(null) }}>{t('error.dismiss')}</Button>}
+          footer={<Button variant="primary" onClick={() => { setFailure(null) }}>{t('error.dismiss')}</Button>}
         />
       )}
     </>

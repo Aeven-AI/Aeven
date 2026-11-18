@@ -664,7 +664,7 @@ export function BrowserPane({ sessionId, tabId, active, closeTab, t, openInChrom
           closeLabel={t('capture.close')}
           title={t('capture.failed')}
           description={t('capture.failedBody')}
-          footer={<Button variant="outline" onClick={closeCaptureFailure}>{t('capture.dismiss')}</Button>}
+          footer={<Button variant="primary" onClick={closeCaptureFailure}>{t('capture.dismiss')}</Button>}
         />
       )}
     </div>
