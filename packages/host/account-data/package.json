@@ -1,7 +1,7 @@
 {
   "name": "@aeven/host-account-data",
   "description": "The signed-in account's data rights on a Host: a streamed zip export of everything the account keeps here and on the Aeven API, and erasing the account's local data once the API has purged it",
-  "version": "0.3.59-alpha",
+  "version": "0.3.60-alpha",
   "publishConfig": {
     "access": "public"
   },
