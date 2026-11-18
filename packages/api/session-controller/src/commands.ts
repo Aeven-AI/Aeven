@@ -20,6 +20,7 @@ import { RemoteError, remoteErrorOf } from '@aeven/typert-protocol'
 import type { Workspace } from '@aeven/workspace'
 import { WorkingDirectoryUnavailableError, sessionDirectory } from '@aeven/working-directory'
 import type { HandoffPlacement, SessionHandoffInput } from '@aeven/session-handoff'
+import type { SubagentPromptPreparation, SubagentPromptRequest } from '@aeven/subagent'
 import {
   ApiSessionAgentController,
   ApiSessionCwdConflict,
@@ -60,6 +61,9 @@ import type {
   SessionUpdateQueueRequest,
   SessionUpdateQueueValue,
 } from './types.ts'
+
+/** The forwarded-input operation that carries a browser message to a continuable subagent, routed by its parent. */
+const SUBAGENT_PROMPT_OPERATION = 'subagent-prompt'
 
 interface SessionReadState {
   readonly id: SessionId
@@ -870,25 +874,21 @@ export class SessionCommandController {
   }
 
   /**
-   * Load a Session's Agent on this device for input another API domain delivers through it, such as a message to one
-   * of its subagents, taking this device's claim on a synced Session first as a prompt does.
-   * @param sessionId - the Session to load.
-   * @returns the live Agent, or undefined when another device of the account runs the Session.
-   * @throws RemoteError the Session-domain failure when the Session cannot be loaded here.
+   * Route one browser message to a continuable subagent as a prompt to its parent would be routed: forwarded to the
+   * account's device that runs the parent, or, when this device runs it, delivered here after this device claims the
+   * child's Session (a synced Session is a read-only copy until claimed) and loads and claims the parent.
+   * @param request - the subagent message.
+   * @returns where the message goes; `unavailable` when another device runs the child while this one runs the parent.
+   * @throws RemoteError the Session-domain failure when the parent cannot be loaded here or the forward fails.
    */
-  async claimAgent(sessionId: SessionId): Promise<Agent | undefined> {
-    if (await this.claimRunnerAccount(sessionId) !== undefined) return undefined
-    return await this.resolveAgent(sessionId)
-  }
-
-  /**
-   * Take this device's claim on a Session another API domain writes without this controller loading it, such as a
-   * subagent's Session receiving a message. A synced Session is a read-only copy here until this device claims it.
-   * @param sessionId - the Session to claim.
-   * @returns whether this device may write the Session; false when another device of the account runs it.
-   */
-  async claimSession(sessionId: SessionId): Promise<boolean> {
-    return await this.claimForChange(sessionId) === undefined
+  async prepareSubagentPrompt(request: SubagentPromptRequest): Promise<SubagentPromptPreparation> {
+    const owner = await this.claimRunnerAccount(request.parentSessionId)
+    if (owner !== undefined) {
+      await this.forward(owner, request.parentSessionId, SUBAGENT_PROMPT_OPERATION, request)
+      return { kind: 'forwarded' }
+    }
+    if (await this.claimForChange(request.childSessionId) !== undefined) return { kind: 'unavailable' }
+    return { kind: 'local', parent: await this.resolveAgent(request.parentSessionId) }
   }
 
   /**
@@ -1049,6 +1049,13 @@ export class SessionCommandController {
       case 'retry': await this.retry(request); return
       case 'queue': await this.updateQueue(request as SessionUpdateQueueRequest); return
       case 'cancel': await this.cancel(request); return
+      // Routed by the parent Session; the forwarding device validated the request before it travelled.
+      case SUBAGENT_PROMPT_OPERATION: {
+        const subagents = this.ctx.get('subagents')
+        if (subagents === undefined) throw new Error('a forwarded subagent message needs the subagent service')
+        await subagents.prompt(input.request as SubagentPromptRequest, new AbortController().signal)
+        return
+      }
       // A newer device's operation this build does not know is refused rather than guessed.
       default: throw new Error(`unknown forwarded session operation ${JSON.stringify(input.operation)}`)
     }

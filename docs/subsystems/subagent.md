@@ -633,16 +633,17 @@ listDescendants(rootSessionId: SessionId, signal?: AbortSignal): Promise<Subagen
 
 /**
  * Deliver one browser-authored message to a continuable child through the
- * exact live direct parent, prepared through the registered prompt preparer
+ * exact live direct parent, routed through the registered prompt preparer
  * when one is registered, retaining the caller-minted request identity and
  * validated browser zone on the accepted message. Success identifies the
- * message the child's FIFO inbox accepted; later execution is independent of
- * this call.
+ * message the child's FIFO inbox accepted, or carries no identity when the
+ * preparer forwarded the message to another device of the account; later
+ * execution is independent of this call.
  * Image parts are admitted and persisted through the attachment store
  * before delivery, and the child's model must accept image input.
  * @param request - durable address, minted identity, content, and optional browser zone.
  * @param signal - carrier cancellation, owning the call until inbox acceptance.
- * @returns the accepted message's inbox identity.
+ * @returns the accepted message's inbox identity, absent for a forwarded message.
  * @throws {RemoteError} `gateway/bad-request`, `subagent/attachment-invalid`,
  *   `subagent/invalid-time-zone`, `subagent/parent-unavailable`,
  *   `subagent/not-resumable`, `subagent/unauthorized`,

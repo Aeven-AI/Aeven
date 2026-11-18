@@ -581,6 +581,7 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   SubagentInterruptAuthority: 'subagent.md',
   SubagentInterruptReceipt: 'subagent.md',
   SubagentListEntry: 'subagent.md',
+  SubagentPromptPreparation: 'subagent.md',
   SubagentPromptPreparer: 'subagent.md',
   SubagentPromptReceipt: 'subagent.md',
   SubagentPromptRequest: 'subagent.md',

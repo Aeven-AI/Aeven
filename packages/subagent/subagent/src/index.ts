@@ -40,6 +40,7 @@ import type { Agent } from '@aeven/agent'
 import type { SessionId } from '@aeven/session'
 import type {} from '@aeven/identity-user'
 import { canonicalClientTimeZone } from '@aeven/util-time'
+import { assertNever } from '@aeven/util-values'
 import { Remote, RemoteError, TypertRemoteService } from '@aeven/typert-protocol'
 import {
   catalogView, rejectCatalogRead, rejectPrompt, validateControlRequest,
@@ -198,15 +199,25 @@ export interface Config {
 }
 
 /**
- * Makes one browser message to a continuable child deliverable on this
- * device, applying the ownership, claims, and setup the Session API applies to
- * a message sent to a Session: it claims the child's Session for this device
- * and brings the direct parent's Agent live.
- * @param parentSessionId - the child's direct parent Session.
- * @param childSessionId - the child Session the message addresses.
- * @returns the live parent Agent, or undefined when this device cannot deliver the message for the acting caller.
+ * Where one browser message to a continuable child goes: through the live
+ * parent `local` to this Host, already handed to the account's device that runs
+ * the parent (`forwarded`), or nowhere (`unavailable`).
  */
-export type SubagentPromptPreparer = (parentSessionId: SessionId, childSessionId: SessionId) => Promise<Agent | undefined>
+export type SubagentPromptPreparation =
+  | { readonly kind: 'local'; readonly parent: Agent }
+  | { readonly kind: 'forwarded' }
+  | { readonly kind: 'unavailable' }
+
+/**
+ * Routes one browser message to a continuable child, applying the ownership,
+ * claims, forwarding, and setup the Session API applies to a message sent to a
+ * Session: it forwards the message to the account's device that runs the
+ * parent, or claims the child's Session for this device and brings the direct
+ * parent's Agent live.
+ * @param request - the validated browser message.
+ * @returns where the message goes for the acting caller.
+ */
+export type SubagentPromptPreparer = (request: SubagentPromptRequest) => Promise<SubagentPromptPreparation>
 
 /** Named provider registry with one-shot runs, durable discovery, and continuable-child operations. */
 export class SubagentRuntime extends TypertRemoteService {
@@ -445,16 +456,17 @@ export class SubagentRuntime extends TypertRemoteService {
 
   /**
    * Deliver one browser-authored message to a continuable child through the
-   * exact live direct parent, prepared through the registered prompt preparer
+   * exact live direct parent, routed through the registered prompt preparer
    * when one is registered, retaining the caller-minted request identity and
    * validated browser zone on the accepted message. Success identifies the
-   * message the child's FIFO inbox accepted; later execution is independent of
-   * this call.
+   * message the child's FIFO inbox accepted, or carries no identity when the
+   * preparer forwarded the message to another device of the account; later
+   * execution is independent of this call.
    * Image parts are admitted and persisted through the attachment store
    * before delivery, and the child's model must accept image input.
    * @param request - durable address, minted identity, content, and optional browser zone.
    * @param signal - carrier cancellation, owning the call until inbox acceptance.
-   * @returns the accepted message's inbox identity.
+   * @returns the accepted message's inbox identity, absent for a forwarded message.
    * @throws {RemoteError} `gateway/bad-request`, `subagent/attachment-invalid`,
    *   `subagent/invalid-time-zone`, `subagent/parent-unavailable`,
    *   `subagent/not-resumable`, `subagent/unauthorized`,
@@ -474,9 +486,18 @@ export class SubagentRuntime extends TypertRemoteService {
         { value: clientTimeZone },
       )
     }
-    const parent = this.promptPreparer === undefined
-      ? this.ctx.get('agents')?.get(parentSessionId)
-      : await this.promptPreparer(parentSessionId, childSessionId)
+    let parent: Agent | undefined
+    if (this.promptPreparer === undefined) {
+      parent = this.ctx.get('agents')?.get(parentSessionId)
+    } else {
+      const prepared = await this.promptPreparer(request)
+      switch (prepared.kind) {
+        case 'local': parent = prepared.parent; break
+        case 'forwarded': return {}
+        case 'unavailable': parent = undefined; break
+        default: assertNever(prepared, 'subagent prompt preparation')
+      }
+    }
     // Another account's parent reads as one that is not live.
     if (parent === undefined || this.ctx.get('identityUsers')?.mayAccess(parent.session.header.owner) === false) {
       throw new RemoteError(

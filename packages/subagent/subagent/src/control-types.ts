@@ -112,9 +112,14 @@ export interface SubagentPromptRequest {
   readonly clientTimeZone?: string
 }
 
-/** Inbox identity returned once the continuation accepts one human message. */
+/**
+ * Acknowledgement that one human message was accepted: by this Host's child
+ * inbox, which names the accepted message, or by the account's device that runs
+ * the parent, which admits it there.
+ */
 export interface SubagentPromptReceipt {
-  readonly messageId: MessageId
+  /** The child inbox's identity for the message; absent when another device of the account took it. */
+  readonly messageId?: MessageId
 }
 
 /** Uniform acknowledgement that one interrupt request was admitted. */

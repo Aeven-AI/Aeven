@@ -195,16 +195,15 @@ export class SessionController extends TypertRemoteService {
     ctx.plugin(SessionSkillCatalog)
     if (config.pathReads !== false) ctx.plugin(SessionMediaReferences)
     ctx.inject(['connection', 'attachments', 'documentExtract'], (uploadCtx) => { registerFileUploadRoutes(uploadCtx) })
-    // A message to a continuable subagent claims the subagent's Session and loads its parent as a message sent to
-    // the parent would.
+    // A message to a continuable subagent travels as a prompt to its parent would: to the device that runs the
+    // parent, or here after this device claims the subagent's Session and loads its parent.
     ctx.inject(['subagents'], (subagentCtx) => {
-      subagentCtx.subagents.registerPromptPreparer(async (parentSessionId, childSessionId) => {
+      subagentCtx.subagents.registerPromptPreparer(async (request) => {
         try {
-          if (!await this.commands.claimSession(childSessionId)) return undefined
-          return subagentCtx.get('agents')?.get(parentSessionId) ?? await this.commands.claimAgent(parentSessionId)
+          return await this.commands.prepareSubagentPrompt(request)
         } catch (error: unknown) {
-          subagentCtx.logger.warn(`session-controller: preparing a message to subagent "${childSessionId}" failed: ${errorChain(error)}`)
-          return undefined
+          subagentCtx.logger.warn(`session-controller: routing a message to subagent "${request.childSessionId}" failed: ${errorChain(error)}`)
+          return { kind: 'unavailable' }
         }
       })
     })

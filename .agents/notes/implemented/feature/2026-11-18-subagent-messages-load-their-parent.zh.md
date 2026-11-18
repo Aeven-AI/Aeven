@@ -10,8 +10,8 @@ Status: implemented
 
 ## 决定
 
-- `SubagentRuntime.registerPromptPreparer(preparer)` 接受一个随 effect 生命周期注册的准备器，使发给可继续子级的浏览器消息可在本设备投递，并返回在线的父级。`subagent.prompt` 对每条消息调用它，然后执行原有的所有权检查与投递。
-- `@aeven/api-session-controller` 注册该准备器。它先用 `SessionCommandController.claimSession()` 认领子级 Session：Host 启动后，包括子级在内的每个 Session 在本设备认领前都是只读的同步副本，恢复未认领的子级会以 `subagent/not-resumable` 失败。随后它返回在线的父级，或用 `claimAgent()` 加载父级：认领父级，并按与直接发给父级的消息相同的所有权规则、预设与初始化加载它。由账户的另一台设备运行的子级或父级，或 Session API 无法加载的父级——例如属于其他账户或本身是子代理的父级——返回 `subagent/parent-unavailable`，Host 会记录原因。
+- `SubagentRuntime.registerPromptPreparer(preparer)` 接受一个随 effect 生命周期注册的准备器，为发给可继续子级的每条浏览器消息选择去向：带在线父级的 `local`、转发给账户另一台设备的 `forwarded`，或 `unavailable`。`subagent.prompt` 对每条消息调用它；本地消息随后执行原有的所有权检查与投递，转发的消息返回不含 `messageId` 的回执。
+- `@aeven/api-session-controller` 以 `SessionCommandController.prepareSubagentPrompt()` 注册该准备器，与发给父级的提示一样按父级路由。在 Æven Cloud 上对话运行在用户的桌面端，因此当另一台设备运行父级时，它通过账户收件箱以 `subagent-prompt` 操作转发消息，由该设备用 `subagents.prompt()` 执行；不认识该操作的设备会拒绝，输入回退机制会在发送处执行它。当本设备运行父级时，它认领子级 Session：Host 启动后，包括子级在内的每个 Session 在本设备认领前都是只读的同步副本，恢复未认领的子级会以 `subagent/not-resumable` 失败。父级按与直接发给父级的消息相同的所有权规则、预设与初始化被认领并加载。本设备运行父级而另一台设备运行子级时，或 Session API 无法加载的父级——例如属于其他账户或本身是子代理的父级——返回 `subagent/parent-unavailable`，Host 会记录原因。
 - 注册了准备器后，目录对每个父级都报告 `parentAvailable: true`，因此可继续子级总是显示常规输入框。只读输入框保留给一次性子级以及没有准备器的部署。
 
 ## 考虑过的方案
