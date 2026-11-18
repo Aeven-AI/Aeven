@@ -48,7 +48,14 @@ function operations(view: SyncView): SyncOperations {
 
 function popup(view: SyncView) {
   const ops = operations(view)
-  const props = { ...ops, signedInThisPage: () => false, takeSignInUnlock: () => undefined, t } as unknown as SyncPasskeyPopupProps
+  const props = {
+    ...ops,
+    signedInThisPage: () => false,
+    takeSignInUnlock: () => undefined,
+    snoozed: () => false,
+    snooze: () => {},
+    t,
+  } as unknown as SyncPasskeyPopupProps
   render(<SyncPasskeyPopup {...props} />)
   return ops
 }
