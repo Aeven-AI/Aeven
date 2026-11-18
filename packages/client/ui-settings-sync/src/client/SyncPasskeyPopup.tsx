@@ -1,7 +1,8 @@
 /**
  * The passkey popup: after a sign-in on this page it offers to move the account key onto a passkey, and whenever
  * this device waits on the account's passkey, or on the user after the relay took the key back, it asks for that.
- * Every question can be put off for the rest of the page; Settings → Sync offers the same actions. A locked device
+ * Putting a question off hides it for the rest of the page and, through the registration side, for a while on this
+ * device; finishing a step does not count as putting it off. Settings → Sync offers the same actions. A locked device
  * names the passkeys that unlock it and offers a recovery key, when the account has one, and starting over from its
  * own data. Protecting the account offers a recovery key once the passkey holds the key. After a passkey sign-in whose
  * prompt also unlocked the account, the popup applies that unlock first and asks nothing when it works.
@@ -25,6 +26,17 @@ export interface SyncPasskeyPopupInjected extends SyncOperations {
    * @returns the unlock, or undefined when the reader did not sign in with a passkey here.
    */
   takeSignInUnlock: () => SyncSignInUnlock | undefined
+  /**
+   * Whether the reader put this question off on this device recently enough that it stays hidden.
+   * @param question - the question the status calls for.
+   * @returns true while the question is put off.
+   */
+  snoozed: (question: SyncPasskeyQuestion) => boolean
+  /**
+   * Record that the reader put this question off now.
+   * @param question - the question the reader dismissed.
+   */
+  snooze: (question: SyncPasskeyQuestion) => void
 }
 
 /** Composed props: standard kit, the injected operations, and the `settings.sync` dictionaries. */
@@ -36,8 +48,8 @@ export type SyncPasskeyPopupProps =
 /** Shortest time between two status reads the popup makes; it only follows who holds the account key. */
 const STATUS_INTERVAL_MS = 2_000
 
-/** What the popup asks. */
-type Question = 'offer' | 'unlock' | 'downgraded'
+/** What the popup asks: protecting the account, unlocking this device, or continuing after the relay took the key back. */
+export type SyncPasskeyQuestion = 'offer' | 'unlock' | 'downgraded'
 
 /** A screen the reader opened from a question: typing a recovery key, confirming a start over, or saving a new key. */
 type Screen = 'recovery' | 'startOver' | 'recoveryOffer' | 'recoveryKey'
@@ -48,7 +60,7 @@ type Screen = 'recovery' | 'startOver' | 'recoveryOffer' | 'recoveryKey'
  * @param signedIn - whether the reader signed in on this page.
  * @returns the question, or undefined when nothing waits on the reader.
  */
-function questionOf(view: SyncView, signedIn: boolean): Question | undefined {
+function questionOf(view: SyncView, signedIn: boolean): SyncPasskeyQuestion | undefined {
   const protection = view.protection
   if (protection === undefined || view.state === 'disabled') return undefined
   if (protection.downgraded) return 'downgraded'
@@ -66,7 +78,7 @@ export function SyncPasskeyPopup(props: SyncPasskeyPopupProps) {
   const { t } = props
   const ops: SyncPasskeyPopupInjected = props
   const { load, refresh } = useSyncStatus(ops, STATUS_INTERVAL_MS)
-  const [later, setLater] = useState<ReadonlySet<Question>>(new Set())
+  const [later, setLater] = useState<ReadonlySet<SyncPasskeyQuestion>>(new Set())
   // A step started from this popup stays in it until the step ends.
   const [started, setStarted] = useState<SyncPasskeyPurpose | undefined>(undefined)
   const [failed, setFailed] = useState(false)
@@ -103,11 +115,15 @@ export function SyncPasskeyPopup(props: SyncPasskeyPopupProps) {
   // The sign-in's own unlock runs before the popup asks for the passkey a second time.
   if (unlocking !== 'settled' && question === 'unlock') return null
   const step = started === undefined ? undefined : view.passkey
-  if (screen === undefined && step === undefined && (question === undefined || later.has(question))) return null
+  if (screen === undefined && step === undefined && (question === undefined || later.has(question) || ops.snoozed(question))) return null
   const holders = view.protection?.holders ?? []
 
-  const close = (): void => {
-    if (question !== undefined && screen !== 'recoveryOffer' && screen !== 'recoveryKey') setLater(new Set([...later, question]))
+  // `dismissed` is false when the popup closes because a step it ran finished.
+  const reset = (dismissed: boolean): void => {
+    if (dismissed && question !== undefined && screen !== 'recoveryOffer' && screen !== 'recoveryKey') {
+      setLater(new Set([...later, question]))
+      ops.snooze(question)
+    }
     if (step !== undefined) void ops.cancelPasskey().finally(() => { void refresh() })
     setStarted(undefined)
     setFailed(false)
@@ -115,6 +131,8 @@ export function SyncPasskeyPopup(props: SyncPasskeyPopupProps) {
     setTyped('')
     setRecoveryKey(undefined)
   }
+  const close = (): void => { reset(true) }
+  const finish = (): void => { reset(false) }
   const act = (operation: () => Promise<unknown>, after?: () => void): void => {
     setFailed(false)
     void operation().then(() => { after?.(); return refresh() }, () => { setFailed(true) })
@@ -182,7 +200,7 @@ export function SyncPasskeyPopup(props: SyncPasskeyPopupProps) {
     footer = (
       <>
         <Button variant="outline" onClick={() => { setScreen(undefined) }}>{t('back')}</Button>
-        <Button variant="primary" disabled={typed.trim() === ''} onClick={() => { act(() => ops.unlockWithRecoveryKey(typed), close) }}>{t('unlockRecovery')}</Button>
+        <Button variant="primary" disabled={typed.trim() === ''} onClick={() => { act(() => ops.unlockWithRecoveryKey(typed), finish) }}>{t('unlockRecovery')}</Button>
       </>
     )
   } else if (screen === 'startOver') {
@@ -191,7 +209,7 @@ export function SyncPasskeyPopup(props: SyncPasskeyPopupProps) {
     footer = (
       <>
         <Button variant="outline" onClick={() => { setScreen(undefined) }}>{t('back')}</Button>
-        <Button variant="primary" onClick={() => { act(() => ops.unprotect(), close) }}>{t('startOverConfirm')}</Button>
+        <Button variant="primary" onClick={() => { act(() => ops.unprotect(), finish) }}>{t('startOverConfirm')}</Button>
       </>
     )
   } else if (question === 'downgraded') {
