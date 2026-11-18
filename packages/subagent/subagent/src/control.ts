@@ -49,24 +49,27 @@ export function validateControlRequest(
 /**
  * Project one durable listing onto the catalog view, replacing each row's
  * store-derived activity with the live Agent driver's status and reporting
- * whether the exact parent Agent is live. Without an Agent registry no driver
- * runs at all, so every row is inactive and the parent is unavailable.
+ * whether the exact parent Agent is live or a prompt preparer can bring it live.
+ * Without an Agent registry no driver runs at all, so every row is inactive
+ * and the parent is unavailable.
  * @param ctx - Host context that may carry the Agent registry.
  * @param parentSessionId - the listed parent.
  * @param entries - the durable direct-child listing.
+ * @param parentLoadable - whether a registered prompt preparer can bring a parent live.
  * @returns the catalog view answered to one browser.
  */
 export function catalogView(
   ctx: Context,
   parentSessionId: SessionId,
   entries: readonly SubagentListEntry[],
+  parentLoadable: boolean,
 ): SubagentCatalog {
   const agents = ctx.get('agents')
   return {
     entries: entries.map((entry): SubagentListEntry => entry.kind === 'child'
       ? { ...entry, activity: agents?.get(entry.id)?.status === 'running' ? 'running' : 'inactive' }
       : entry),
-    parentAvailable: agents?.get(parentSessionId) !== undefined,
+    parentAvailable: agents !== undefined && (parentLoadable || agents.get(parentSessionId) !== undefined),
   }
 }
 
