@@ -796,7 +796,8 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
     const temporary = `${file}.${String(process.pid)}.tmp`
     const entries = [...this.listed.values()].map(entry => entry.artifact)
     try {
-      await writeFile(temporary, JSON.stringify({ version: LISTING_INDEX_VERSION, compression: this.compression, entries }), { mode: 0o600 })
+      const body = JSON.stringify({ version: LISTING_INDEX_VERSION, compression: this.compression, entries })
+      await writeFile(temporary, body, { mode: 0o600 })
       await rename(temporary, file)
     } catch {
       // A read-only or full root: the listing still works from memory.

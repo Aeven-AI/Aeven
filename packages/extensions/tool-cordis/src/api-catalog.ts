@@ -4147,6 +4147,17 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the open document.',
       },
       {
+        signature: 'abstract documentEntries(owner: string, name: string, maps: readonly string[]): Promise<Record<string, Record<string, unknown[]>>>',
+        description: 'Read every value a document\'s stored state wrote under each key of some of its root maps, without opening it. For a Consumer that moves its state to a new document because the old one became too costly to open.',
+        parameters: [{ name: 'owner', description: 'an account whose documents this device can open.' }, { name: 'name', description: 'logical name of the document.' }, { name: 'maps', description: 'names of the root maps to read.' }],
+        returns: 'per map, per key, the values written under it, overwritten ones included; the Consumer picks the current one.',
+      },
+      {
+        signature: 'abstract retireDocument(owner: string, name: string): Promise<void>',
+        description: 'Stop storing a document on this device: its stored state is deleted and later changes other devices make to it are dropped. Other devices keep theirs until they retire it too.',
+        parameters: [{ name: 'owner', description: 'an account whose documents this device can open.' }, { name: 'name', description: 'logical name of a document that is not open here.' }],
+      },
+      {
         signature: 'abstract storedDocuments(owner: string): ReadonlyMap<string, string>',
         description: 'List the documents this device holds state for, so a Consumer that mirrors many documents opens only those, and only those whose state changed since it last read them.',
         parameters: [{ name: 'owner', description: 'an account whose documents this device can open.' }],

@@ -18,7 +18,6 @@ import { contentKeyOf, openEnvelope, sealEnvelope, type SealEnvelopeInput } from
  * @returns per map, per key, the values written under it, overwritten ones included; the caller picks the current one.
  */
 export function mapEntries(updates: readonly Uint8Array[], maps: readonly string[]): Record<string, Record<string, unknown[]>> {
-  const wanted = new Set(maps)
   const found: Record<string, Record<string, unknown[]>> = Object.fromEntries(maps.map(name => [name, {}]))
   /** Map and key of the item covering each `client:clock`. */
   const placed = new Map<string, { map: string; key: string | null }>()
@@ -30,10 +29,11 @@ export function mapEntries(updates: readonly Uint8Array[], maps: readonly string
   }
   const place = (item: Y.Item, map: string, key: string | null): void => {
     for (let offset = 0; offset < item.length; offset++) placed.set(`${String(item.id.client)}:${String(item.id.clock + offset)}`, { map, key })
-    if (key === null || !wanted.has(map) || !(item.content instanceof Y.ContentAny)) return
-    const values = found[map]![key] ?? []
-    values.push(...item.content.arr)
-    found[map]![key] = values
+    const entries = found[map]
+    if (key === null || entries === undefined || !(item.content instanceof Y.ContentAny)) return
+    const values = entries[key] ?? []
+    values.push(...(item.content.arr as unknown[]))
+    entries[key] = values
   }
   for (let progressed = true; progressed && waiting.length > 0;) {
     progressed = false
@@ -56,6 +56,11 @@ export function mapEntries(updates: readonly Uint8Array[], maps: readonly string
   return found
 }
 
+/**
+ * Merge stored updates of one document into a single update holding its whole state.
+ * @param updates - stored updates in application order.
+ * @returns a complete update of the same document.
+ */
 export function compactUpdates(updates: readonly Uint8Array[]): Uint8Array {
   const doc = new Y.Doc()
   try {

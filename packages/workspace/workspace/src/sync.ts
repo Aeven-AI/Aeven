@@ -150,14 +150,16 @@ export class WorkspaceSync {
     const stamp = (entry: SyncedWorkspace | undefined): string => entry?.updatedAt ?? entry?.createdAt ?? ''
     doc.transact(() => {
       for (const [id, written] of Object.entries(legacy['records'] ?? {})) {
-        const latest = (written as SyncedWorkspace[]).filter(entry => typeof entry === 'object' && entry !== null)
+        // Stored values come from other devices' documents, so they are checked before they are trusted.
+        const latest = written.filter((entry): entry is SyncedWorkspace => typeof entry === 'object' && entry !== null)
           .reduce<SyncedWorkspace | undefined>((best, entry) => best === undefined || stamp(entry) >= stamp(best) ? entry : best, undefined)
         if (latest === undefined) continue
         const held = records.get(id)
         if (held === undefined || stamp(latest) > stamp(held)) records.set(id, latest)
       }
       for (const [id, written] of Object.entries(legacy['archived'] ?? {})) {
-        const latest = (written as ArchiveMark[]).filter(mark => typeof mark === 'object' && mark !== null && typeof mark.at === 'number')
+        const latest = written
+          .filter((mark): mark is ArchiveMark => typeof mark === 'object' && mark !== null && typeof (mark as ArchiveMark).at === 'number')
           .reduce<ArchiveMark | undefined>((best, mark) => best === undefined || mark.at >= best.at ? mark : best, undefined)
         if (latest === undefined) continue
         const held = archive.get(id)
@@ -165,7 +167,9 @@ export class WorkspaceSync {
       }
       // A carried workspace no device here orders yet still needs a place in the list.
       const listed = new Set(order.toArray())
-      const missing = [...records.entries()].filter(([id, entry]) => entry.removed !== true && !listed.has(id as WorkspaceId)).map(([id]) => id as WorkspaceId)
+      const missing = [...records.entries()]
+        .filter(([id, entry]) => entry.removed !== true && !listed.has(id as WorkspaceId))
+        .map(([id]) => id as WorkspaceId)
       if (missing.length > 0) order.insert(order.length, missing)
     })
     await sync.retireDocument(owner, LEGACY_DOCUMENT)

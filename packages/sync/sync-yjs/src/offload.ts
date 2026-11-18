@@ -47,9 +47,12 @@ export interface MaintainRequest {
   }
 }
 
+/** What a worker request answers with: opened frames, prepared parts, map entries, or nothing. */
+type WorkerValue = OpenedFrame[] | Uint8Array[] | Record<string, Record<string, unknown[]>> | null
+
 /** The worker's answer to one request. */
 export type WorkerReply =
-  | { readonly id: number; readonly ok: true; readonly value: OpenedFrame[] | Uint8Array[] | Record<string, Record<string, unknown[]>> | null }
+  | { readonly id: number; readonly ok: true; readonly value: WorkerValue }
   | { readonly id: number; readonly ok: false; readonly message: string }
 
 /** A request before the client numbers it. */
