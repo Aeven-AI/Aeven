@@ -24,6 +24,8 @@ export interface OutboxFrame {
 /** Durable state of one account's vault on this device. */
 export class SyncStore {
   private db: Database.Database
+  /** Documents this device stopped storing, read from `meta` on first use. */
+  private retired: Set<string> | undefined
 
   /**
    * Open or create the store.
@@ -103,6 +105,31 @@ export class SyncStore {
    */
   localValue(key: string): string | undefined {
     return this.meta(`local:${key}`)
+  }
+
+  /**
+   * Whether this device stopped storing a document; see {@link retireDocument}.
+   * @param id - the document.
+   * @returns true once the document was retired here.
+   */
+  isRetired(id: OpaqueId): boolean {
+    this.retired ??= new Set((this.statement("SELECT key FROM meta WHERE key LIKE 'retired:%'").all() as Array<{ key: string }>)
+      .map(row => row.key.slice('retired:'.length)))
+    return this.retired.has(id)
+  }
+
+  /**
+   * Stop storing a document on this device: delete its stored updates and remember that later frames of it are
+   * dropped. Other devices keep theirs until they retire it too.
+   * @param id - the document.
+   */
+  retireDocument(id: OpaqueId): void {
+    this.transaction(() => {
+      this.setMeta(`retired:${id}`, '1')
+      this.statement('DELETE FROM doc_updates WHERE id = ?').run(id)
+      this.statement('DELETE FROM since_snapshot WHERE id = ?').run(id)
+    })
+    this.retired?.add(id)
   }
 
   /**

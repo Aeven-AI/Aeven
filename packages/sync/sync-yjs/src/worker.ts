@@ -6,7 +6,7 @@
 import { parentPort } from 'node:worker_threads'
 import Database from 'better-sqlite3'
 import { openEnvelope, sealEnvelope, type OpaqueId } from '@aeven/sync-vault'
-import { compactUpdates, prepareFrame } from './frames.ts'
+import { compactUpdates, mapEntries, prepareFrame } from './frames.ts'
 import type { MaintainRequest, OpenedFrame, WorkerReply, WorkerRequest } from './offload.ts'
 
 const connections = new Map<string, Database.Database>()
@@ -49,6 +49,12 @@ function maintain(request: MaintainRequest): null {
   return null
 }
 
+/** Read the values a document's stored updates wrote under each key of some root maps, without integrating them. */
+function entries(request: Extract<WorkerRequest, { method: 'entries' }>): Record<string, Record<string, unknown[]>> {
+  const rows = connection(request.path).prepare('SELECT data FROM doc_updates WHERE id = ? ORDER BY seq').all(request.doc) as Array<{ data: Buffer }>
+  return mapEntries(rows.map(row => new Uint8Array(row.data)), request.maps)
+}
+
 /** Open frames in order; a frame that cannot be opened is reported, not thrown. */
 function openFrames(request: Extract<WorkerRequest, { method: 'open' }>): OpenedFrame[] {
   return request.frames.map(({ seq, frame }) => {
@@ -66,7 +72,8 @@ parentPort?.on('message', (request: WorkerRequest) => {
   try {
     const value = request.method === 'open' ? openFrames(request)
       : request.method === 'prepare' ? prepareFrame(request.frame, request.accountKey, request.maxBytes)
-        : maintain(request)
+        : request.method === 'entries' ? entries(request)
+          : maintain(request)
     reply = { id: request.id, ok: true, value }
   } catch (error) {
     reply = { id: request.id, ok: false, message: error instanceof Error ? error.message : String(error) }

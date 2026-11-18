@@ -8,10 +8,20 @@
  */
 import type { Context } from '@deepseek-ai/cordis'
 import type { Array as YArray, Map as YMap, Transaction, YArrayEvent, YMapEvent } from 'yjs'
-import type { SyncDocument } from '@aeven/sync'
+import type { Sync, SyncDocument } from '@aeven/sync'
 import type { WorkspaceId } from './types.ts'
 
-const DOCUMENT = 'workspaces'
+/**
+ * The account's workspace document. The first document, {@link LEGACY_DOCUMENT}, grew to hundreds of megabytes of
+ * rewritten order lists and takes minutes to open, so every device moved to this one; see {@link WorkspaceSync.carryOver}.
+ */
+const DOCUMENT = 'workspaces/2'
+
+/** The document earlier builds used. It is read once without being opened, then retired on this device. */
+const LEGACY_DOCUMENT = 'workspaces'
+
+/** Device-local marker that this device carried the legacy document over and retired it. */
+const CARRIED_KEY = 'workspace/carried-over'
 
 /** One workspace as the document holds it. */
 export interface SyncedWorkspace {
@@ -90,6 +100,16 @@ export class WorkspaceSync {
       const order = handle.doc.getArray<WorkspaceId>('order')
       const take = () => { this.take(owner, records, order) }
       take()
+      // What the earlier document held arrives beside the first projection, not before it, so opening never waits.
+      void this.carryOver(owner, sync, handle.doc).then((carried) => {
+        if (carried) {
+          take()
+          this.applyArchive?.(owner, marksOf(handle.doc.getMap<ArchiveMark>('archived')))
+        }
+      }, (error: unknown) => {
+        // The marker stays unset, so the next start carries over again.
+        this.warn(`workspace: carrying the earlier synced document over failed: ${String(error)}`)
+      })
       records.observe((_event: YMapEvent<SyncedWorkspace>, transaction: Transaction) => {
         if (!transaction.local) take()
       })
@@ -110,6 +130,48 @@ export class WorkspaceSync {
     return opening
   }
   /* jscpd:ignore-end */
+
+  /**
+   * Bring what only the legacy document held into this one, once per device: each workspace's record, removal
+   * markers included, and each session's archive mark. The legacy document is read without being opened and then
+   * retired here. A record or mark this document already holds wins unless the legacy one is later, the same
+   * later-write rule the document applies between devices, so devices that each carry over agree.
+   * @param owner - the account.
+   * @param sync - the account's sync service.
+   * @param doc - this document, open.
+   * @returns whether this call carried the legacy document over.
+   */
+  private async carryOver(owner: string, sync: Sync, doc: SyncDocument['doc']): Promise<boolean> {
+    if (sync.localValue(owner, CARRIED_KEY) === '1') return false
+    const legacy = await sync.documentEntries(owner, LEGACY_DOCUMENT, ['records', 'archived'])
+    const records = doc.getMap<SyncedWorkspace>('records')
+    const archive = doc.getMap<ArchiveMark>('archived')
+    const order = doc.getArray<WorkspaceId>('order')
+    const stamp = (entry: SyncedWorkspace | undefined): string => entry?.updatedAt ?? entry?.createdAt ?? ''
+    doc.transact(() => {
+      for (const [id, written] of Object.entries(legacy['records'] ?? {})) {
+        const latest = (written as SyncedWorkspace[]).filter(entry => typeof entry === 'object' && entry !== null)
+          .reduce<SyncedWorkspace | undefined>((best, entry) => best === undefined || stamp(entry) >= stamp(best) ? entry : best, undefined)
+        if (latest === undefined) continue
+        const held = records.get(id)
+        if (held === undefined || stamp(latest) > stamp(held)) records.set(id, latest)
+      }
+      for (const [id, written] of Object.entries(legacy['archived'] ?? {})) {
+        const latest = (written as ArchiveMark[]).filter(mark => typeof mark === 'object' && mark !== null && typeof mark.at === 'number')
+          .reduce<ArchiveMark | undefined>((best, mark) => best === undefined || mark.at >= best.at ? mark : best, undefined)
+        if (latest === undefined) continue
+        const held = archive.get(id)
+        if (held === undefined || latest.at > held.at) archive.set(id, latest)
+      }
+      // A carried workspace no device here orders yet still needs a place in the list.
+      const listed = new Set(order.toArray())
+      const missing = [...records.entries()].filter(([id, entry]) => entry.removed !== true && !listed.has(id as WorkspaceId)).map(([id]) => id as WorkspaceId)
+      if (missing.length > 0) order.insert(order.length, missing)
+    })
+    await sync.retireDocument(owner, LEGACY_DOCUMENT)
+    sync.setLocalValue(owner, CARRIED_KEY, '1')
+    return true
+  }
 
   private take(owner: string, records: YMap<SyncedWorkspace>, order: YArray<WorkspaceId>): void {
     const projection: SyncedWorkspaces = {

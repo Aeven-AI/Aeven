@@ -675,6 +675,17 @@ export default class YjsSync extends Sync {
   }
 
   /** @inheritdoc */
+  documentEntries(owner: string, name: string, maps: readonly string[]): Promise<Record<string, Record<string, unknown[]>>> {
+    return this.readyVault(owner).documentEntries(name, maps)
+  }
+
+  /** @inheritdoc */
+  retireDocument(owner: string, name: string): Promise<void> {
+    this.readyVault(owner).retireDocument(name)
+    return Promise.resolve()
+  }
+
+  /** @inheritdoc */
   async openDocument(owner: string, name: string): Promise<SyncDocument> {
     const vault = this.readyVault(owner)
     await vault.settleDocument(name)

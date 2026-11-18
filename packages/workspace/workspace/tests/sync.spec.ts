@@ -97,7 +97,7 @@ describe('workspaces across devices', () => {
     const sync = network.device()
     const a = await device(sync)
     const first = await a.create(await folder('a'), 'Research', OWNER)
-    const { doc } = await sync.asSync().openDocument(OWNER, 'workspaces')
+    const { doc } = await sync.asSync().openDocument(OWNER, 'workspaces/2')
     const order = doc.getArray<WorkspaceId>('order')
     await until(() => order.length > 0 ? true : undefined, 'the published order')
     // Two devices that replaced the list at the same time each keep their copy.
@@ -112,6 +112,28 @@ describe('workspaces across devices', () => {
     ;(a as unknown as { publish: () => void }).publish()
     await new Promise<void>((resolve) => { setTimeout(resolve, 30) })
     expect(updates).toBe(0)
+  })
+
+  it('carries removal markers and archive marks over from the earlier document, then retires it', async () => {
+    const network = new MemorySyncNetwork()
+    const sync = network.device()
+    const legacy = (await sync.asSync().openDocument(OWNER, 'workspaces')).doc
+    legacy.getMap('records').set('gone', { removed: true, title: 'Old project', updatedAt: '2026-11-01T00:00:00.000Z' })
+    legacy.getMap('records').set('kept', {
+      title: 'Notes', owner: OWNER, createdAt: '2026-10-01T00:00:00.000Z', updatedAt: '2026-10-02T00:00:00.000Z', pathless: true,
+    })
+    legacy.getMap('archived').set('session-a', { archived: true, at: 1_000 })
+    const registry = await device(sync)
+    const { doc } = await sync.asSync().openDocument(OWNER, 'workspaces/2')
+    await until(() => doc.getMap('records').has('gone') ? true : undefined, 'the carried records')
+    expect(doc.getMap('records').get('gone')).toMatchObject({ removed: true, title: 'Old project' })
+    expect(doc.getMap('archived').get('session-a')).toEqual({ archived: true, at: 1_000 })
+    await until(() => titles(registry).includes('Notes') ? true : undefined, 'the carried workspace on this device')
+    expect(titles(registry)).not.toContain('Old project')
+    expect(new Set(doc.getArray('order').toArray()).size).toBe(doc.getArray('order').length)
+    // Retired here: the earlier document holds nothing on this device any more.
+    expect((await sync.asSync().documentEntries(OWNER, 'workspaces', ['records']))['records']).toEqual({})
+    expect(sync.asSync().localValue(OWNER, 'workspace/carried-over')).toBe('1')
   })
 
   it('removes the workspace on the other device when it is removed here', async () => {
@@ -169,7 +191,7 @@ describe('workspaces across devices', () => {
 
   it('never removes a workspace it has not received yet, and archives the sessions of one removed elsewhere', async () => {
     const network = new MemorySyncNetwork()
-    const writer = await network.device().asSync().openDocument(OWNER, 'workspaces')
+    const writer = await network.device().asSync().openDocument(OWNER, 'workspaces/2')
     writer.doc.getMap('records').set('elsewhere', { title: 'Elsewhere', owner: OWNER, createdAt: 'x', updatedAt: '2026-01-01T00:00:00.000Z' })
     const session: SessionHeader = { version: SESSION_FORMAT_VERSION, id: SessionId('chat-1'), createdAt: 1, isSeeded: false, owner: OWNER }
     const b = await device(network.device(), [session])

@@ -199,6 +199,30 @@ describe('a vault on two devices', () => {
     reopened.close()
   })
 
+  it('reads a document\'s map entries without opening it, then retires it and drops its later frames', async () => {
+    const { a, b } = await pair()
+    const doc = a.vault.openDocument('legacy')
+    doc.doc.getMap('records').set('w1', { title: 'One', updatedAt: '1' })
+    doc.doc.getMap('records').set('w1', { title: 'One renamed', updatedAt: '2' })
+    doc.doc.getMap('archived').set('s1', { archived: true, at: 5 })
+    doc.doc.getArray('order').insert(0, ['w1', 'w1', 'w1'])
+    await vi.waitFor(async () => {
+      const entries = await b.vault.documentEntries('legacy', ['records', 'archived'])
+      expect(entries['records']!['w1']).toEqual(expect.arrayContaining([{ title: 'One renamed', updatedAt: '2' }]))
+      expect(entries['archived']!['s1']).toEqual([{ archived: true, at: 5 }])
+    })
+    b.vault.retireDocument('legacy')
+    expect(b.store.docUpdates(b.vault.documentId('legacy'))).toEqual([])
+    doc.doc.getMap('records').set('w2', { title: 'Two', updatedAt: '3' })
+    const other = a.vault.openDocument('other')
+    other.doc.getMap('m').set('k', 1)
+    // A frame written after the retired document's arrives; the retired one stored nothing.
+    await vi.waitFor(() => { expect(b.store.docUpdates(b.vault.documentId('other')).length).toBeGreaterThan(0) })
+    expect(b.store.docUpdates(b.vault.documentId('legacy'))).toEqual([])
+    doc.close()
+    other.close()
+  })
+
   it('retains unacknowledged frames after permanent relay refusals', async () => {
     const { a } = await pair()
     relay.refusals.set('publish', ['bad-frame'])

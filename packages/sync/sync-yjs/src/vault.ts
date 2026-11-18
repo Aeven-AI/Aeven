@@ -653,6 +653,8 @@ export class AccountVault {
         if (!apply || !this.store.isNewCounter(header.device, header.id, header.counter)) continue
         const payload = this.store.assemble(header, result.payload)
         if (payload === undefined || !this.store.acceptCounter(header.device, header.id, header.counter)) continue
+        // A retired document's frames are counted, so they are not offered again, and not stored.
+        if (this.store.isRetired(header.id)) continue
         this.store.appendDocUpdate(header.id, payload)
         const updates = applied.get(header.id)
         if (updates === undefined) applied.set(header.id, [payload])
@@ -879,10 +881,10 @@ export class AccountVault {
     if (header.device === this.device) return
     const payload = this.store.transaction(() => {
       const complete = this.store.assemble(header, opened.payload)
-      if (complete !== undefined && header.kind === 'update') this.store.appendDocUpdate(header.id, complete)
+      if (complete !== undefined && header.kind === 'update' && !this.store.isRetired(header.id)) this.store.appendDocUpdate(header.id, complete)
       return complete
     })
-    if (payload === undefined) return
+    if (payload === undefined || (header.kind === 'update' && this.store.isRetired(header.id))) return
     if (header.kind === 'stream') {
       for (const listener of this.streamWatchers.get(header.id) ?? []) listener(payload)
       return
@@ -919,6 +921,28 @@ export class AccountVault {
     this.maintenance.set(id, settled)
     void settled.then(() => { if (this.maintenance.get(id) === settled) this.maintenance.delete(id) })
     return settled
+  }
+
+  /**
+   * Read every value a document's stored updates wrote under each key of some root maps, on the sync worker and
+   * without integrating the updates, so a document too costly to open can still be read.
+   * @param name - the logical name.
+   * @param maps - names of the root maps to read.
+   * @returns per map, per key, the values written under it, overwritten ones included.
+   */
+  documentEntries(name: string, maps: readonly string[]): Promise<Record<string, Record<string, unknown[]>>> {
+    return this.offload.entries(this.store.path, this.documentId(name), maps)
+  }
+
+  /**
+   * Stop storing a document on this device: its stored updates are deleted and later frames of it are dropped.
+   * @param name - the logical name.
+   * @throws when the document is open here.
+   */
+  retireDocument(name: string): void {
+    const id = this.documentId(name)
+    if (this.docs.has(id)) throw new Error('an open document cannot be retired')
+    this.store.retireDocument(id)
   }
 
   /**
