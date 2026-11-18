@@ -31,7 +31,7 @@ kind: "package-reference"
 
 ### 「通用」分区
 
-「通用」分区承载由功能包注册进 `settings.general.item` 的行，另有三行归本包所有。「后台运行」只出现在桌面应用中，由其 preload 桥保存该选项；浏览器版本没有该桥，也不显示此行。「开发者模式」以 `enabled` 字段存于本包注册的 `ui-developer` 设置命名空间。Agent 预设名单等开发者表面只在它开启时挂载；使用方从 `./client` 导入该命名空间的类型，并通过 `ctx.settingsScope` 绑定。「筛选记忆」位于 Composer 的 Enter 行之后，写入 `@aeven/memory-memos` 注册的按账户 `memory-recall` 命名空间中的 `judge`；默认关闭，其问号图标说明开启后每个回答大约晚一秒开始。功能插件拥有各自的行文案与行为。例如「语言」行位于 client-locale，「外观」分区位于 ui-theme。
+「通用」分区承载由功能包注册进 `settings.general.item` 的行，另有三行归本包所有。「后台运行」只出现在桌面应用中，由其 preload 桥保存该选项；浏览器版本没有该桥，也不显示此行。「开发者模式」以 `enabled` 字段存于本包注册的 `ui-developer` 设置命名空间。Agent 预设名单等开发者表面只在它开启时挂载；使用方从 `./client` 导入该命名空间的类型，并通过 `ctx.settingsScope` 绑定。「筛选记忆」位于「后台运行」正上方，写入 `@aeven/memory-memos` 注册的按账户 `memory-recall` 命名空间中的 `judge`；默认关闭，其问号图标说明开启后每个回答大约晚一秒开始。功能插件拥有各自的行文案与行为。例如「语言」行位于 client-locale，「外观」分区位于 ui-theme。
 
 ### 打开配置文件
 

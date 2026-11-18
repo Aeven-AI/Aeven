@@ -10,7 +10,7 @@ Status: implemented
 
 ## 决定
 
-- 每个账户的 `memory-recall` 设置分区保存 `judge`，默认关闭；「设置 → 通用」在 Composer 的 Enter 行之后把它显示为开关，其问号图标说明开启后每个回答大约晚一秒开始。
+- 每个账户的 `memory-recall` 设置分区保存 `judge`，默认关闭；「设置 → 通用」在「后台运行」正上方把它显示为开关，其问号图标说明开启后每个回答大约晚一秒开始。
 - 关闭时，`@aeven/memory-memos` 返回全部候选（包括已学流程），标记为 `unjudged`。memory-context 用 `unjudgedMaxItems`（60）和 `unjudgedMaxChars`（16,000）呈现它们，并在块开头用一行说明它们是未经检查的候选，只在与消息相关时使用。
 - 没有判定时，后续轮次不接收近期记忆，因为只有判定才能断定一个轮次是个人话题。
 

@@ -93,10 +93,10 @@ describe('ui-settings-general apply', () => {
     // The nav label is a locale-following thunk; owners resolve at read time.
     expect(resolveSlotLabel(entry.options.label)).toBe('通用设置')
     expect(before.slots.spec('settings.general.item')).toEqual({ kind: 'list', scope: 'root' })
-    // The General section seats the recall switch after the Composer's Enter row and its Developer-mode row last.
+    // The General section seats the recall switch above Run in the background and its Developer-mode row last.
     const [recallRow, developerRow] = before.slots.entries('settings.general.item')
     expect(recallRow!.component).toBe(RecallJudgeRow)
-    expect(recallRow!.options).toMatchObject({ id: 'recall-judge', order: 11 })
+    expect(recallRow!.options).toMatchObject({ id: 'recall-judge', order: 89 })
     expect(developerRow!.component).toBe(DeveloperModeRow)
     expect(developerRow!.options).toMatchObject({ id: 'developer-mode', order: 1000 })
     expect(before.slots.entries('settings.general.item')).toHaveLength(2)

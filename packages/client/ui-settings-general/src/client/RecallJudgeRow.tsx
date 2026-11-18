@@ -30,6 +30,7 @@ export function RecallJudgeRow({ useRecallJudge, setRecallJudge, t }: RecallJudg
   return (
     <SettingsRow
       title={t('recall.title')}
+      description={t('recall.description')}
       info={{ title: t('recall.title'), body: t('recall.info'), closeLabel: t('close') }}
       control={<Switch checked={enabled} onChange={setRecallJudge} label={t('recall.title')} />}
     />

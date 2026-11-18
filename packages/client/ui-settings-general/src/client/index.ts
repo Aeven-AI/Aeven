@@ -215,8 +215,8 @@ export function apply(ctx: ClientContext): void {
   ctx.slots.inject('settings.general.item', () => ctx.slots.register({
     name: 'settings.general.item',
     id: 'recall-judge',
-    // Straight after the Composer's Enter row (order 10): both change how a turn starts.
-    order: 11,
+    // Straight above Run in the background (order 90).
+    order: 89,
     locale: NS,
     inject: (): RecallJudgeRowInjected => ({
       hooks: { recallJudge: recallJudge.enabled },

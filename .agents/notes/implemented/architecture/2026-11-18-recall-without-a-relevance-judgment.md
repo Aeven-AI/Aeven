@@ -10,7 +10,7 @@ Every turn-start recall ran a relevance judgment: one model call, about 1.1 s at
 
 ## Decision
 
-- Each account's `memory-recall` settings section holds `judge`, off by default; Settings → General shows it as a switch after the Composer's Enter row, and its question icon states that turning it on starts every answer about a second later.
+- Each account's `memory-recall` settings section holds `judge`, off by default; Settings → General shows it as a switch directly above Run in the background, and its question icon states that turning it on starts every answer about a second later.
 - With it off, `@aeven/memory-memos` returns every candidate, learned procedures included, marked `unjudged`. memory-context renders them with `unjudgedMaxItems` (60) and `unjudgedMaxChars` (16,000), opening the block with a line saying they are unchecked candidates to use only when they bear on the message.
 - A later turn receives no recent memories without a judgment, because only the judgment can call a turn personal.
 
