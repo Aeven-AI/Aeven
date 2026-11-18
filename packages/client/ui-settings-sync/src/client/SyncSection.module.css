@@ -82,7 +82,7 @@
 .fallbackLabel::after {
   content: '';
   flex: 1;
-  height: 1px;
+  height: 0.5px;
   background: var(--dsw-alias-border-l2);
 }
 
