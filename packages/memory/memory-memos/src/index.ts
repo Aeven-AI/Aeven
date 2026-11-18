@@ -19,6 +19,7 @@ import type { ResolvedHome } from '@deepseek-ai/memos-local-plugin/core/config/p
 import { createEmbedder, createEmbedderWithProvider } from '@deepseek-ai/memos-local-plugin/core/embedding/embedder.js'
 import type { Embedder } from '@deepseek-ai/memos-local-plugin/core/embedding/types.js'
 import { bootstrapMemoryCore } from '@deepseek-ai/memos-local-plugin/core/index.js'
+import { CoreWorkerPool } from './core-pool.ts'
 import { OwnerCores } from './cores.ts'
 import { HostedEmbeddings } from './embedding.ts'
 import { createHostLlmBridge, LlmRouteContext, type MemoryLanguage } from './host-llm.ts'
@@ -99,6 +100,19 @@ export interface Config {
    * the Host process at the first embedding.
    */
   embeddingExecution: 'host' | 'worker'
+  /**
+   * Worker threads that run the MemOS cores. Each account's core, with its database connection and in-memory
+   * vector index, lives on one worker, so search, ranking, and capture never occupy the Host's event loop and
+   * accounts on different workers run in parallel. `0` runs every core in the Host process.
+   */
+  coreWorkers: number
+  /** How long a core worker waits for the Host's maintenance verdict before it skips that maintenance run. */
+  coreGateTimeoutMs: number
+  /**
+   * Core calls whose session route is kept for the LLM requests their work issues after the call returned, such as
+   * a turn's capture. Work of a call dropped from this window fails its LLM requests as work outside a session does.
+   */
+  coreCallContexts: number
   /** Unfinished embedding requests accepted per account. */
   embeddingQueuePerAccount: number
   /** Unfinished embedding requests accepted across the Host. */
@@ -252,6 +266,9 @@ export const Config: z<Config> = z.object({
   warmOnSignIn: z.boolean().default(false),
   workspaceIdentity: z.boolean().default(false),
   embeddingExecution: z.union(['host', 'worker'] as const).default('host'),
+  coreWorkers: z.natural().default(0),
+  coreGateTimeoutMs: z.natural().min(1).default(1_000),
+  coreCallContexts: z.natural().min(1).default(4_096),
   embeddingQueuePerAccount: z.natural().min(1).default(8),
   embeddingQueueTotal: z.natural().min(1).default(128),
   embedding: z.object({
@@ -417,21 +434,38 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     }
     return embedder
   }
-  const cores = new OwnerCores(async (owner) => {
+  const pool = config.coreWorkers === 0 ? undefined : new CoreWorkerPool({
+    workers: config.coreWorkers,
+    gateTimeoutMs: config.coreGateTimeoutMs,
+    contexts: config.coreCallContexts,
+    bridge,
+    inContext: () => routes.current() !== undefined,
+    ...embeddings === undefined ? {} : { embeddings: owner => embeddings.forOwner(owner) },
+    mayMaintain,
+    lost: (owners) => { for (const owner of owners) cores.forget(owner) },
+    warn: (message) => { logger.warn(message) },
+  })
+  // Every read and write passes its owner's namespace; this default labels the core's own requests.
+  const namespace = { agentKind: MEMOS_AGENT, profileId: 'aeven', profileLabel: 'Aeven' }
+  const cores: OwnerCores = new OwnerCores(async (owner) => {
     const accountRoot = accountHome(config.accounts, owner)
     mkdirSync(accountRoot.dataDir, { recursive: true, mode: 0o700 })
-    const core = await bootstrapMemoryCore({
-      agent: MEMOS_AGENT,
-      // Every read and write passes its owner's namespace; this default labels the core's own requests.
-      namespace: { agentKind: MEMOS_AGENT, profileId: 'aeven', profileLabel: 'Aeven' },
-      home: accountRoot,
-      config: memosConfig,
-      hostLlmBridge: bridge,
-      ...embeddings === undefined ? {} : { embeddingProvider: embeddings.forOwner(owner) },
-      autoRecovery: recovery,
-      maintenanceGate: () => mayMaintain(owner),
-      initLogging: false,
-    })
+    const core = pool !== undefined
+      ? await pool.open(owner, {
+        agent: MEMOS_AGENT, namespace, home: accountRoot, config: memosConfig,
+        hostLlm: bridge !== null, hostEmbeddings: embeddings !== undefined, autoRecovery: recovery,
+      })
+      : await bootstrapMemoryCore({
+        agent: MEMOS_AGENT,
+        namespace,
+        home: accountRoot,
+        config: memosConfig,
+        hostLlmBridge: bridge,
+        ...embeddings === undefined ? {} : { embeddingProvider: embeddings.forOwner(owner) },
+        autoRecovery: recovery,
+        maintenanceGate: () => mayMaintain(owner),
+        initLogging: false,
+      })
     await core.init()
     // The open does not wait for the rebuild; turn-start recall is skipped for the owner until it finishes.
     rebuilding.add(owner)
@@ -598,6 +632,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       unregister()
       await embeddings?.close()
       await memory.dispose()
+      await pool?.close()
     }
   }, 'memory-memos.provider')
 }

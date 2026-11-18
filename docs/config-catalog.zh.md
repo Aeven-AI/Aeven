@@ -2039,6 +2039,13 @@ export type Config = RequestLimits & {
   countryHeader: string
   /** Google Analytics 4 measurement id, such as `G-XXXXXXXXXX`, whose gtag every served page loads; absent loads none. */
   googleAnalyticsId?: string
+  /**
+   * Longest event-loop delay within one `eventLoopLagIntervalMs` window that is logged as a warning, in milliseconds.
+   * Every account shares this process's event loop, so a delay is time no account's turn advanced; `0` logs none.
+   */
+  eventLoopLagWarnMs: number
+  /** Length of one event-loop delay window, in milliseconds. */
+  eventLoopLagIntervalMs: number
 }
 
 /** Deployment limits for active streams and their waiting requests. */
@@ -3288,6 +3295,19 @@ export interface Config {
    * the Host process at the first embedding.
    */
   embeddingExecution: 'host' | 'worker'
+  /**
+   * Worker threads that run the MemOS cores. Each account's core, with its database connection and in-memory
+   * vector index, lives on one worker, so search, ranking, and capture never occupy the Host's event loop and
+   * accounts on different workers run in parallel. `0` runs every core in the Host process.
+   */
+  coreWorkers: number
+  /** How long a core worker waits for the Host's maintenance verdict before it skips that maintenance run. */
+  coreGateTimeoutMs: number
+  /**
+   * Core calls whose session route is kept for the LLM requests their work issues after the call returned, such as
+   * a turn's capture. Work of a call dropped from this window fails its LLM requests as work outside a session does.
+   */
+  coreCallContexts: number
   /** Unfinished embedding requests accepted per account. */
   embeddingQueuePerAccount: number
   /** Unfinished embedding requests accepted across the Host. */
@@ -4345,6 +4365,11 @@ export interface SessionSyncTuning {
   compressionQuality: number
   /** Wait after a session's events commit before they are published, so a streaming reply travels in small batches. */
   liveMs: number
+  /**
+   * Committed events kept per session until they are published, so publishing a running session reads none of its
+   * log. A session that commits more than this before a publication is published from its stored log instead.
+   */
+  tailEvents: number
   /**
    * Background import skips sessions this device does not store and that were created more than this many days
    * ago; they import when opened. `0` imports every session.

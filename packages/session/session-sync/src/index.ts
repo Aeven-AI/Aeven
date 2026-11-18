@@ -27,6 +27,7 @@ export default class SessionSync extends SessionHandoff {
     publishMs: z.natural().min(250).default(3_000),
     scanMs: z.natural().default(30_000),
     liveMs: z.natural().default(100),
+    tailEvents: z.natural().default(2_000),
     batchBytes: z.natural().min(1_024).default(512 * 1024),
     publishConcurrency: z.natural().min(1).default(4),
     compressionQuality: z.natural().max(11).default(4),

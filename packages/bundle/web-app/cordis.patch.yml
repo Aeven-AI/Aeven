@@ -306,6 +306,9 @@
         embeddingQueuePerAccount: 128
         embeddingQueueTotal: 128
         warmOnSignIn: true
+        # One worker thread runs the account's memory core, so search, ranking,
+        # and capture never hold the window or a streaming reply.
+        coreWorkers: 1
 
     # Learned capabilities: per-user procedures the agent learned, stored as
     # agentskills directories and published through the skill catalog once the

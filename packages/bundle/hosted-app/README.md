@@ -53,7 +53,7 @@ None of its own; requests keep whatever caching the remaining tools and the syst
 - **Account data is not encrypted at rest** — each account's sessions, memory, and sync database live in its own directory under the deployment's home, readable by whoever operates the Host.
 - **Code runs only in the account's jail** — without `AVN_HOSTED_SANDBOX=1` a hosted session cannot run a command; with it, commands run in a disk-limited account folder and reach only GitHub, the npm registry, and PyPI through the jail's egress proxy, which bounds each account's connections and bytes, the files they list as outputs are shown at the call, uploads are mounted read-only, the model can read files and images in that folder, and the Files sidebar shows it read-only, while file writes, file search, and the Host's browser stay off.
 - **Images are served per session** — the deployment refuses fingerprint-only reads, so hosted images carry no cache-forever URL.
-- **Memory work is bounded, not isolated** — embeddings run in the Host process, so a large catch-up for one account still costs the others latency.
+- **Memory sync and session work share the Host's event loop** — memory cores run on eight worker threads and embeddings on one, but memory sync, session persistence, and every agent loop run on the Host's single thread, so heavy work for one account there still costs the others latency. The runtime plugin logs a warning when that thread was held for `eventLoopLagWarnMs` (250 ms by default) within an `eventLoopLagIntervalMs` window (10 s).
 
 
 ### Dev Note

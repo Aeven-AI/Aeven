@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-11-18-memory-cores-on-worker-threads.md
+2026-11-18-memory-cores-on-worker-threads.md: 58dc1b04900538fc1e7fa6fea9309b3c70a780c6
+2026-11-18-memory-cores-on-worker-threads.zh.md: c9fdfc0e3b2ff5678cff356496d8e3699118eb70

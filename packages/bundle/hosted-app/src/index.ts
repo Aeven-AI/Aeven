@@ -2,11 +2,13 @@
  * @aeven/hosted-app — the hosted Aeven Web bundle. The package's substance is
  * `cordis.patch.yml`, declared by the `avn.bundle.patch` manifest field and
  * applied after `@aeven/web-app` by the `hosted` profile. Its runtime plugin
- * bounds model streams and tells each served page to keep its settings on the
- * Host, without installing policy in desktop compositions.
+ * bounds model streams, tells each served page to keep its settings on the
+ * Host, and reports when the Host's event loop was held, without installing
+ * policy in desktop compositions.
  * @module @aeven/hosted-app
  */
 
+import { monitorEventLoopDelay } from 'node:perf_hooks'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@aeven/agent'
@@ -41,6 +43,13 @@ export type Config = RequestLimits & {
   countryHeader: string
   /** Google Analytics 4 measurement id, such as `G-XXXXXXXXXX`, whose gtag every served page loads; absent loads none. */
   googleAnalyticsId?: string
+  /**
+   * Longest event-loop delay within one `eventLoopLagIntervalMs` window that is logged as a warning, in milliseconds.
+   * Every account shares this process's event loop, so a delay is time no account's turn advanced; `0` logs none.
+   */
+  eventLoopLagWarnMs: number
+  /** Length of one event-loop delay window, in milliseconds. */
+  eventLoopLagIntervalMs: number
 }
 
 export const Config: z<Config> = z.object({
@@ -50,6 +59,8 @@ export const Config: z<Config> = z.object({
   total: z.natural().min(1).default(64),
   queuedPerAccount: z.natural().min(1).default(8),
   queuedTotal: z.natural().min(1).default(128),
+  eventLoopLagWarnMs: z.natural().default(250),
+  eventLoopLagIntervalMs: z.natural().min(1_000).default(10_000),
 })
 
 /**
@@ -83,6 +94,25 @@ export function apply(ctx: Context, config: Config): void {
     if (await ctx.get('sessionHandoff')?.fetchAttachment(id, owner) === true) return true
     return next()
   })
+  if (config.eventLoopLagWarnMs > 0) {
+    const lag = monitorEventLoopDelay({ resolution: 20 })
+    lag.enable()
+    const report = setInterval(() => {
+      // The histogram records nanoseconds and includes the timer's own resolution.
+      const max = lag.max / 1e6
+      const p99 = lag.percentile(99) / 1e6
+      lag.reset()
+      if (max >= config.eventLoopLagWarnMs) {
+        ctx.logger('hosted-runtime').warn(`event loop held for ${max.toFixed(0)} ms (p99 ${p99.toFixed(0)} ms) within ${String(config.eventLoopLagIntervalMs / 1000)} s; no account's turn advanced meanwhile`)
+      }
+    }, config.eventLoopLagIntervalMs)
+    // The report never keeps the Host process alive.
+    report.unref()
+    ctx.effect(() => () => {
+      clearInterval(report)
+      lag.disable()
+    }, 'hosted event-loop delay report')
+  }
   const requests = new AccountRequests(config)
   const closing = new AbortController()
   ctx.effect(() => () => {

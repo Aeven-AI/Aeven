@@ -23,11 +23,16 @@
       "types": "./lib/types/worker.d.ts",
       "default": "./lib/worker.js"
     },
+    "./core-worker": {
+      "types": "./lib/types/core-worker.d.ts",
+      "default": "./lib/core-worker.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
     "lib/index.js",
     "lib/worker.js",
+    "lib/core-worker.js",
     "lib/types/**/*.d.ts"
   ],
   "license": "Apache-2.0",

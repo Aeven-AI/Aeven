@@ -57,6 +57,8 @@ kind: "package-reference"
 | `skillsPerTurn` | `1` | 每次召回最多提供的 MemOS 技能数（`retrieval.tier1TopK`） |
 | `embeddingExecution` | `host` | 本地嵌入模型的运行位置：`worker` 在提供方启动时把它加载到一个工作线程并在其中嵌入，不占用 Host 的事件循环；`host` 在首次嵌入时把它加载到 Host 进程。Web 与 Desktop 组合设为 `worker` |
 | `embeddingQueuePerAccount`、`embeddingQueueTotal` | `8`、`128` | 工作线程按账户以及在整个 Host 上接受的未完成嵌入请求数；超出任一上限的请求被拒绝。Web 与 Desktop 组合让一个账户使用整个 Host 上限 |
+| `coreWorkers` | `0` | 运行 MemOS 核心的工作线程数。每个账户的核心连同其数据库连接和内存向量索引位于一个工作线程上，因此搜索、排序和捕获从不占用 Host 的事件循环，不同工作线程上的账户并行运行；`0` 在 Host 进程内运行所有核心。Web 与 Desktop 组合设为 `1`，托管组合设为 `8` |
+| `coreGateTimeoutMs`、`coreCallContexts` | `1000`、`4096` | 核心工作线程在跳过一次维护之前等待 Host 维护裁决的时长，以及为调用返回之后其工作发出的 LLM 请求保留会话路由的核心调用数 |
 | `warmOnSignIn` | `false` | 在账户于此 Host 登录时加载其记忆，而不是在其首个轮次期间：打开其核心，运行一次丢弃命中的检索，并列出其 person 记忆。只加载已有记忆数据库的账户，每次运行一次。Web 与 Desktop 组合启用它；服务众多账户的 Host 会把每个已登录账户的向量索引都留在内存中 |
 
 轮次开始的召回由会话路由上的一次模型调用判定，而不是 MemOS 自身的过滤器：它读取请求、先前对话以及每个候选的种类（事实、往来、日志、流程、片段、技能、知识）、领域、年龄和流程状态，决定个人或任务优先，可不保留任何候选，并报告用户是否分享个人生活。判定在 `relevanceHedgeMs` 后仍未答复时会再发送一次，第一个可用答复胜出。每次判定都会向该账户的 MemOS `api_logs` 追加一行 `recall_judgment`，记录候选数量、输入大小、检索时间、窗口、结果以及每个请求的耗时与状态，不含记忆文本。捕获判定标记为 `kind:log` 的轮次以及摘要呈现为行动记录的旧记忆会作为日志提供。已归档的流程不作为候选。`rememberMany` 逐字导入事实，跳过所有者已有的相同文本，以 `source:import` 标记导入；无原始日期时添加 `imported:undated`，其轨迹时间视为未知年龄，且不加入近期记忆候选。`turnDomain` 返回捕获轮次的领域，`setProcedureStatus` 设置已学流程的 `procedure:<status>` 标签。对工作的抱怨即使带有愤怒仍属于任务请求。判定检查每个候选的内容，包括经验片段中的个人历史，并排除无关的个人历史。捕获摘要保留广告声明、计划和评估的归属、日期及不确定性。
@@ -78,6 +80,8 @@ MemOS 核心以 [`@deepseek-ai/memos-local-plugin`](../../../vendor/memos-local-
 |---|---|
 | [`src/index.ts`](src/index.ts) | 插件入口：配置、按账户的 MemOS 引导、注册 |
 | [`src/cores.ts`](src/cores.ts) | 每个账户一个惰性打开的 MemOS 核心 |
+| [`src/core-pool.ts`](src/core-pool.ts) | 核心工作线程的 Host 一侧：把每个账户分配给持有账户最少的工作线程，代替其 `MemoryCore`，并处理工作线程的 LLM、嵌入和维护闸门请求 |
+| [`src/core-worker.ts`](src/core-worker.ts)、[`src/core-protocol.ts`](src/core-protocol.ts) | 打开并运行分配给它的核心的工作线程入口，以及它与 Host 之间的消息 |
 | [`src/migrate.ts`](src/migrate.ts) | 把更早构建共用的数据库一次性拆分为按账户的数据库 |
 | [`src/runtime.ts`](src/runtime.ts) | `MemoryCore` 之上的 `MemoryProvider`：命名空间、按会话的捕获队列、MemOS 会话与片段生命周期、工具引用翻译 |
 | [`src/host-llm.ts`](src/host-llm.ts) | `ctx.llm` 之上的 MemOS `HostLlmBridge`，带按会话的 async-local 路由 |
@@ -152,6 +156,8 @@ SUMMARY: <the stored summary, at most 300 characters>
 <a id="known-limitations-and-deferred-work"></a>
 ## 已知限制与延期工作
 
+- **核心工作线程持有每个已打开的账户** —— 账户的核心和向量索引在提供方停止之前一直留在其工作线程上；尚未实现关闭空闲账户。停止的工作线程会释放其账户，这些账户在下次使用时重新打开，其上进行中的调用会失败。
+- **记忆同步留在 Host 进程内** —— `src/sync.ts` 通过自己的连接在 Host 线程上读写每个账户的数据库。
 - **共用数据库拆分** —— 按账户记忆启用后的首次启动会把每个账户的行从 `home/data/memos.db` 移进它自己的数据库，并把共用文件改名为 `memos.db.split`；拆分在第一个带标签的发布时移除。
 - **捕获的出处** —— MemOS 把工具输出存进轨迹，因此工具读到的文本可能在后续召回中再次出现；召回的上下文被框定为不可信数据。
 
