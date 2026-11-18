@@ -157,6 +157,11 @@ interface JsonlTornMarker {
 }
 
 /** One listed session log: its header, where it lives, its seeded cut, and the revision it was read at. */
+/** File in the session root holding the listed headers of the previous run; see `loadListingIndex`. */
+const LISTING_INDEX = '.listing-index.json'
+/** Format of {@link LISTING_INDEX}; a file of another version is ignored and rewritten. */
+const LISTING_INDEX_VERSION = 1
+
 interface ListedArtifact {
   readonly header: SessionHeader
   readonly path: string
@@ -241,6 +246,12 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
   private readonly listed = new Map<string, { readonly revision: PersistenceRevision; readonly artifact: ListedArtifact }>()
   /** The log path each listed or looked-up session was last read at, so {@link snapshot} reads one directory. */
   private readonly listedPaths = new Map<SessionId, string>()
+  /** Whether {@link listed} was filled from the saved listing index of an earlier run. */
+  private listingIndexLoaded = false
+  /** Whether {@link listed} changed since it was last saved. */
+  private listingIndexDirty = false
+  /** The index writes queued so far, one at a time; awaited when the provider stops. */
+  private listingIndexSave: Promise<void> | undefined
 
   constructor(ctx: Context, public config: Config) {
     super(ctx)
@@ -258,6 +269,8 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
       throw new Error('session-persistence-jsonl: consolidateAfterSmallFrames must be a non-negative integer')
     }
     ctx.effect(() => () => { this.closed = true }, 'session-persistence-jsonl: stop consolidation')
+    // The index write in flight finishes before the provider is gone, so nothing writes into a root its owner removed.
+    ctx.effect(() => async () => { await this.listingIndexSave }, 'session-persistence-jsonl: listing index')
     this.assertUsableRoot()
     this.coordinator = new PersistenceCoordinator<JsonlTornMarker>(this.ctx, this, {
       preparedSessionCacheSize,
@@ -705,6 +718,7 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
     signal?.throwIfAborted()
     await this.ensureRootEncoding()
     signal?.throwIfAborted()
+    await this.loadListingIndex()
     const artifacts: ListedArtifact[] = []
     const ids = new Set<SessionId>()
     // Collect every session directory first, then read them concurrently: the
@@ -726,6 +740,7 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
     for (const [path, entry] of this.listed) {
       if (present.has(path)) continue
       this.listed.delete(path)
+      this.listingIndexDirty = true
       if (this.listedPaths.get(entry.artifact.header.id) === path) this.listedPaths.delete(entry.artifact.header.id)
     }
     // Ordering and duplicate detection stay sequential over the directory
@@ -740,7 +755,54 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
     }
     signal?.throwIfAborted()
     void this.startConsolidationSweep(artifacts)
+    if (this.listingIndexDirty && !this.closed) {
+      this.listingIndexSave = (this.listingIndexSave ?? Promise.resolve()).then(() => this.saveListingIndex())
+    }
     return artifacts
+  }
+
+  /**
+   * Fill {@link listed} once from the index the previous run saved, so the first listing of a run reads the header
+   * of only the logs that changed since. An entry is used exactly as an in-memory one is: while its log and replica
+   * marker keep the revision it was read at. A missing or unreadable index means every header is read, as before.
+   */
+  private async loadListingIndex(): Promise<void> {
+    if (this.listingIndexLoaded) return
+    this.listingIndexLoaded = true
+    let raw: string
+    try {
+      raw = await readFile(join(this.root, LISTING_INDEX), 'utf8')
+    } catch {
+      // ENOENT on a root no run listed yet; any other read failure also falls back to reading the headers.
+      return
+    }
+    try {
+      const parsed = JSON.parse(raw) as { version?: unknown; compression?: unknown; entries?: unknown }
+      if (parsed.version !== LISTING_INDEX_VERSION || parsed.compression !== this.compression || !Array.isArray(parsed.entries)) return
+      for (const entry of parsed.entries as ListedArtifact[]) {
+        if (typeof entry.path !== 'string' || typeof entry.revision !== 'string' || typeof entry.header !== 'object') continue
+        if (!this.listed.has(entry.path)) this.listed.set(entry.path, { revision: entry.revision, artifact: entry })
+      }
+    } catch {
+      // A torn index from an interrupted write: the headers are read and the index is written again.
+    }
+  }
+
+  /** Save {@link listed} for the next run; a failed write only costs that run its header reads. */
+  private async saveListingIndex(): Promise<void> {
+    if (this.closed || !this.listingIndexDirty) return
+    this.listingIndexDirty = false
+    const file = join(this.root, LISTING_INDEX)
+    const temporary = `${file}.${String(process.pid)}.tmp`
+    const entries = [...this.listed.values()].map(entry => entry.artifact)
+    try {
+      await writeFile(temporary, JSON.stringify({ version: LISTING_INDEX_VERSION, compression: this.compression, entries }), { mode: 0o600 })
+      await rename(temporary, file)
+    } catch {
+      // A read-only or full root: the listing still works from memory.
+      this.listingIndexDirty = true
+      await rm(temporary, { force: true }).catch(() => undefined)
+    }
   }
 
   /**
@@ -906,6 +968,7 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
       revision,
     }
     this.listed.set(path, { revision, artifact: { ...artifact, header: { ...meta } } })
+    this.listingIndexDirty = true
     this.listedPaths.set(meta.id, path)
     return artifact
   }
