@@ -48,10 +48,13 @@ function mount() {
 }
 
 describe('EnterBehaviorRow', () => {
-  it('explains the busy-only scope and shows Steer by default', () => {
+  it('names the setting, explains it from the question icon, and shows Steer by default', () => {
     mount()
-    expect(screen.getByText('Enter behavior while busy')).toBeDefined()
-    expect(screen.getByText('Busy only; Cmd/Ctrl+Enter uses the other behavior')).toBeDefined()
+    expect(screen.getByText('Enter while busy')).toBeDefined()
+    expect(screen.queryByText(/Cmd\/Ctrl\+Enter/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Enter while busy' }))
+    expect(screen.getByText(/Cmd\/Ctrl\+Enter does the other one/)).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
     expect(screen.getByRole('button', { name: /Steer/ }).getAttribute('aria-expanded')).toBe('false')
   })
 

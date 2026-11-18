@@ -30,6 +30,9 @@ import { GeneralSection } from './GeneralSection.tsx'
 import { DeveloperModeRow, type DeveloperModeRowInjected } from './DeveloperModeRow.tsx'
 import { BackgroundModeRow, type BackgroundModeRowInjected } from './BackgroundModeRow.tsx'
 import { DeveloperModePolicy } from './developer-mode.ts'
+import { RecallJudgeRow, type RecallJudgeRowInjected } from './RecallJudgeRow.tsx'
+import { RecallJudgePolicy } from './recall-judge.ts'
+import { MEMORY_RECALL_SETTINGS_NAMESPACE, type MemoryRecallSettings } from '../recall-settings.ts'
 import { BrowserSettingsAddressRoute } from './settings-url.ts'
 import { en, es, zh, type SettingsKey } from './locales.ts'
 import { DEVELOPER_SETTINGS_NAMESPACE, type DeveloperSettings } from '../developer-settings.ts'
@@ -43,6 +46,7 @@ export type {
 export type { SettingsKey } from './locales.ts'
 export type { DeveloperModeRowInjected, DeveloperModeRowProps } from './DeveloperModeRow.tsx'
 export type { BackgroundModeRowInjected, BackgroundModeRowProps } from './BackgroundModeRow.tsx'
+export type { RecallJudgeRowInjected, RecallJudgeRowProps } from './RecallJudgeRow.tsx'
 export type { DeveloperSettings, DeveloperSettingsNamespace } from '../developer-settings.ts'
 
 declare module '@aeven/client-ui-slots' {
@@ -204,6 +208,21 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     children: { 'settings.general.item': { kind: 'list', scope: 'root' } },
   }, GeneralSection))
+
+  const recallJudge = new RecallJudgePolicy(
+    ctx.settingsScope.bind<MemoryRecallSettings>({ namespace: MEMORY_RECALL_SETTINGS_NAMESPACE }),
+  )
+  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+    name: 'settings.general.item',
+    id: 'recall-judge',
+    // Straight after the Composer's Enter row (order 10): both change how a turn starts.
+    order: 11,
+    locale: NS,
+    inject: (): RecallJudgeRowInjected => ({
+      hooks: { recallJudge: recallJudge.enabled },
+      setRecallJudge: (enabled) => { recallJudge.setEnabled(enabled) },
+    }),
+  }, RecallJudgeRow))
 
   // Last in General: it changes which Settings pages exist, not how a
   // session behaves.

@@ -124,6 +124,11 @@ export interface MemosMemoryOptions {
    */
   readonly profiles?: { readonly store: PersonProfiles; readonly distill: ProfileDistill }
   /**
+   * Whether the owner's turn-start recall runs the relevance judgment. Answering false delivers every candidate,
+   * learned procedures included, marked `unjudged`; absent judges whenever `relevance` is set.
+   */
+  readonly judgeRecall?: (owner: string) => boolean
+  /**
    * File keeping one owner's last person-memory listing across restarts. With it, a profile read after a start serves
    * that listing at once and lists again in the background; without it, the first read waits for the listing.
    */
@@ -558,6 +563,7 @@ export class MemosMemory implements MemoryProvider {
     const recentScan = turnStart && request.recent !== undefined ? this.recentPersonTraces(request, deadlineAt) : undefined
     recentScan?.catch(() => undefined)
     // Read beside the search for the same reason; without a relevance judgment nothing would vet the procedures.
+    const judged = this.options.relevance !== undefined && (this.options.judgeRecall?.(scope.owner) ?? true)
     const procedureScan = turnStart && this.options.relevance !== undefined && (this.options.procedureCandidates ?? 0) > 0
       ? this.procedureScan(request, deadlineAt)
       : undefined
@@ -576,6 +582,13 @@ export class MemosMemory implements MemoryProvider {
         if (topic !== request.query && topic.length > 0) hits = await this.search({ ...request, query: topic }, deadlineAt, turnStart)
       }
       if (procedureScan !== undefined) hits = [...hits, ...this.procedureHits(request, hits, await procedureScan)]
+      if (!judged && this.options.relevance !== undefined) {
+        // No judgment decides whether a later turn is personal, so recent memories join only where they always do.
+        const recent = recentScan === undefined || request.recent?.sharingOnly === true
+          ? []
+          : this.recentPersonHits(request, hits, await recentScan)
+        return { hits: [...hits, ...recent], timedOut: false, unjudged: true }
+      }
       if (request.recent?.sharingOnly !== true || recentScan === undefined) {
         const recent = recentScan === undefined ? [] : this.recentPersonHits(request, hits, await recentScan)
         return await this.judge(request, [...hits, ...recent], deadlineAt)

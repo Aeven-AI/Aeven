@@ -57,6 +57,10 @@ export interface Config {
    * all the facts about it that fit, up to this count.
    */
   judgedMaxItems: number
+  /** Most memories one block states when the provider delivered every candidate without a relevance judgment. */
+  unjudgedMaxItems: number
+  /** Character budget of a block of unjudged candidates, in place of `contextMaxChars`. */
+  unjudgedMaxChars: number
   /**
    * Characters of the person's earlier messages in the same session that join the turn's own text in the recall
    * query, newest first. A follow-up such as "what should I reply to her?" names nobody, so without the earlier
@@ -104,6 +108,8 @@ export const Config: z<Config> = z.object({
   }).default({ person: 6, project: 3, world: 2, experience: 2 }),
   maxItems: z.natural().min(1).default(7),
   judgedMaxItems: z.natural().min(1).default(14),
+  unjudgedMaxItems: z.natural().min(1).default(60),
+  unjudgedMaxChars: z.natural().min(256).default(16_000),
   queryContextChars: z.natural().default(1000),
   recentPersonHours: z.natural().default(168),
   recentPersonItems: z.natural().default(24),
@@ -114,6 +120,8 @@ export const Config: z<Config> = z.object({
 })
 
 const OPEN = '<memory_context>\n'
+/** First line of a block whose memories no relevance judgment selected. */
+export const UNJUDGED_NOTE = 'Candidates retrieved for this message; nothing checked that they are relevant. Use the ones that bear on it and ignore the rest. A short or unclear message rarely needs any of them.'
 const CLOSE = `\nUse ${MEMORY_TOOL.get} with an id to read a memory in full, before you start writing your reply.\n</memory_context>`
 /**
  * Guidance that follows a personal turn's recalled block. It stands outside the block because the block's content
@@ -219,6 +227,7 @@ function withRecallNotice(
  * @param domainMaxItems - maximum number of lines from each domain.
  * @param maxItems - maximum number of lines in the block.
  * @param now - epoch milliseconds of the turn, from which each line's age is stated.
+ * @param note - a first line for the block, stated before its memories; absent states none.
  * @returns framed block, or empty when no memory fits.
  */
 export function renderMemoryContext(
@@ -228,8 +237,10 @@ export function renderMemoryContext(
   domainMaxItems: Record<MemoryDomain, number>,
   maxItems: number,
   now: number = Date.now(),
+  note?: string,
 ): string {
-  let remaining = maxChars - OPEN.length - CLOSE.length
+  const open = note === undefined ? OPEN : `${OPEN}${note}\n\n`
+  let remaining = maxChars - open.length - CLOSE.length
   const chosen = new Map<MemoryDomain, string[]>()
   let count = 0
   for (const hit of hits) {
@@ -251,7 +262,7 @@ export function renderMemoryContext(
     const lines = chosen.get(domain)
     return lines === undefined ? [] : [`${heading}:\n${lines.join('\n')}`]
   })
-  return sections.length === 0 ? '' : `${OPEN}${sections.join('\n\n')}${CLOSE}`
+  return sections.length === 0 ? '' : `${open}${sections.join('\n\n')}${CLOSE}`
 }
 
 /**
@@ -586,16 +597,22 @@ export function apply(ctx: Context, config: Config): void {
       if (recall.degraded === true) logger.warn(`recall for session ${payload.agent.session.id} turn ${payload.turn} is degraded: its memories were not judged for relevance`)
       // A subagent's task was written by its parent, so mechanically ranked memories of the person seldom fit it:
       // without a relevance judgment it receives none.
-      const unjudgedTask = recall.degraded === true && payload.agent.session.header.origin === 'subagent'
+      const unjudged = recall.unjudged === true
+      const unjudgedTask = (recall.degraded === true || unjudged) && payload.agent.session.header.origin === 'subagent'
       const ranked = unjudgedTask ? [] : rankMemoryHits(recall.hits)
       // A memory an earlier block of this session delivered is still in the request's history.
       const delivered = deliveredMemoryIds(payload.agent.session)
       const hits = ranked.filter(hit => !delivered.has(hit.id))
       const repeated = ranked.length - hits.length
       const judged = recall.lead !== undefined && recall.degraded !== true
-      const text = judged
-        ? renderMemoryContext(hits, config.contextMaxChars, config.itemMaxChars, uncapped(config.judgedMaxItems), config.judgedMaxItems)
-        : renderMemoryContext(hits, config.contextMaxChars, config.itemMaxChars, config.domainMaxItems, config.maxItems)
+      const text = unjudged
+        ? renderMemoryContext(
+          hits, config.unjudgedMaxChars, config.itemMaxChars, uncapped(config.unjudgedMaxItems), config.unjudgedMaxItems,
+          undefined, UNJUDGED_NOTE,
+        )
+        : judged
+          ? renderMemoryContext(hits, config.contextMaxChars, config.itemMaxChars, uncapped(config.judgedMaxItems), config.judgedMaxItems)
+          : renderMemoryContext(hits, config.contextMaxChars, config.itemMaxChars, config.domainMaxItems, config.maxItems)
       logger.debug(`recall session=${payload.agent.session.id} turn=${payload.turn} hits=${recall.hits.length} repeated=${repeated} chars=${text.length} timedOut=${String(recall.timedOut)}`)
       const profile = await profiled
       if (payload.signal.aborted) return decision

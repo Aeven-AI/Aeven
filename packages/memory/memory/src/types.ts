@@ -134,7 +134,11 @@ export interface MemoryRecall {
   /** Which lane the relevance judgment found the turn to be about: the person themselves, or a task. */
   readonly lead?: 'person' | 'task'
   /** The relevance judgment found the person telling how they feel or what is happening in their life. */
-  readonly sharing?: boolean
+  readonly sharing?: boolean  /**
+   * True when the provider is configured to deliver every candidate without a relevance judgment: the hits are what
+   * retrieval found, in its order, and the model reading them decides which matter.
+   */
+  readonly unjudged?: boolean
 }
 
 /** One tool invocation observed during a captured turn. */

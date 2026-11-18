@@ -13,6 +13,7 @@ import { LeaseHolder } from '@aeven/sync'
 import type {} from '@aeven/credentials'
 import type {} from '@aeven/llm'
 import type {} from '@aeven/workspace'
+import type {} from '@aeven/settings'
 import { MEMORY_MAINTENANCE_LEASE, type MemoryScope } from '@aeven/memory'
 import { loadConfig, resolveHome, type ResolvedConfig } from '@deepseek-ai/memos-local-plugin/core/config/index.js'
 import type { ResolvedHome } from '@deepseek-ai/memos-local-plugin/core/config/paths.js'
@@ -29,6 +30,22 @@ import { PersonProfiles } from './profile.ts'
 import { classifyTurnDomain, TurnJudgeContext } from './domain.ts'
 import { REINDEX_VERSION, reindexIfEmbeddingChanged } from './reindex.ts'
 import { MemorySyncMirror, type MemorySyncTuning } from './sync.ts'
+
+/** Settings namespace of each account's recall preferences; Settings → General writes it. */
+export const MEMORY_RECALL_SETTINGS_NAMESPACE = 'memory-recall'
+
+/** One account's recall preferences. */
+export interface MemoryRecallSettings {
+  /**
+   * Whether a relevance judgment, one more model call before each answer, picks which recalled memories the turn
+   * receives. Off delivers every candidate and lets the answering model decide, which starts the answer sooner.
+   */
+  judge: boolean
+}
+
+const MemoryRecallSettingsSchema: z<MemoryRecallSettings> = z.object({
+  judge: z.boolean().default(false),
+})
 
 export const name = 'memory-memos'
 export const inject = ['memory', 'llm']
@@ -395,6 +412,10 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       capture: { ...configured.algorithm.capture, maxTextChars: config.maxTextChars },
     },
   }
+  // Each person's own choice on a Host that serves many people.
+  ctx.inject(['settings'], (settingsCtx) => {
+    settingsCtx.settings.register(MEMORY_RECALL_SETTINGS_NAMESPACE, MemoryRecallSettingsSchema, { perAccount: true })
+  })
   const routes = new LlmRouteContext()
   const judges = config.hostLlm && config.classifyDomains ? new TurnJudgeContext() : undefined
   const bridge = config.hostLlm ? createHostLlmBridge(ctx.llm, routes, config.capabilityTtlMs, config.language, judges) : null
@@ -517,6 +538,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         minMs: config.relevanceMinMs,
       },
     },
+    judgeRecall: owner => (ctx.get('settings')?.cachedValueFor(MEMORY_RECALL_SETTINGS_NAMESPACE, owner) as MemoryRecallSettings | undefined)?.judge === true,
     ...config.sentenceRetrievals > 0 ? { sentenceRecall: { sentences: config.sentenceRetrievals, hits: config.sentenceHits } } : {},
     procedureCandidates: config.procedureCandidates,
     ...procedureEmbedder === undefined ? {} : {

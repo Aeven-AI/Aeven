@@ -63,7 +63,7 @@ export function fakeCore(traces: readonly FakeTrace[], options: FakeCoreOptions 
 }
 
 /** Runtime options a recall spec supplies beside the fake core's answers. */
-type RuntimeOptions = Pick<MemosMemoryOptions, 'relevance' | 'sentenceRecall'>
+type RuntimeOptions = Pick<MemosMemoryOptions, 'relevance' | 'sentenceRecall' | 'judgeRecall'>
 
 /** A runtime over the fake core, with the retrieval queries it sent. */
 export interface RecallHarness {
@@ -86,6 +86,7 @@ export function recallHarness(traces: readonly FakeTrace[], options: FakeCoreOpt
     toolLimits: { skills: 8, traces: 8, worldModels: 8 },
     ...options.relevance === undefined ? {} : { relevance: options.relevance },
     ...options.sentenceRecall === undefined ? {} : { sentenceRecall: options.sentenceRecall },
+    ...options.judgeRecall === undefined ? {} : { judgeRecall: options.judgeRecall },
     warn: () => {},
     info: () => {},
   })

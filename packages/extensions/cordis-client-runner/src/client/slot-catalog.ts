@@ -1784,6 +1784,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       'client-locale LanguageRow id \'language\'',
       'client-ui-conversation EnterBehaviorRow id \'composer-enter\'',
       'client-ui-permission-presets PermissionRow id \'permission\'',
+      'client-ui-settings-general RecallJudgeRow id \'recall-judge\'',
       'client-ui-settings-general BackgroundModeRow id \'background-mode\'',
       'client-ui-settings-general DeveloperModeRow id \'developer-mode\'',
       'client-ui-sidebar-browser ExtensionRow id \'browser-extension\'',
