@@ -123,6 +123,8 @@ export class SessionManager {
    *  same store so history-baseline seeding and frames converge on one row set. */
   private readonly projectionStores = new Map<SessionId, ProjectionValueStore>()
   private summaries: SessionSummary[] = []
+  /** A listed subagent waiting for its parent's catalog before {@link select} selects it; a later selection supersedes it. */
+  private pendingSelection: SessionId | undefined
   private listState: 'idle' | 'loading' | 'error' = 'idle'
   /** Arrival phase; the pending → ready edge fires on the first successful pull (see SessionListPhase). */
   private listPhase: SessionListPhase = 'pending'
@@ -177,11 +179,36 @@ export class SessionManager {
   // ---- Selection ----
 
   /**
-   * Select a listed Session or a retained catalog-addressed child.
+   * Select a listed Session or a retained catalog-addressed child. A listed subagent whose address this client has
+   * not discovered yet, such as one a link opens in a fresh window, is selected once its parent's catalog names it:
+   * the Host serves a subagent's history only through that direct-parent address.
    * @param sessionId - listed or catalog-addressed Session id.
    */
   select(sessionId: SessionId): void {
     const address = this.navigationAddress(sessionId)
+    const parentSessionId = this.summaries.find(summary => summary.sessionId === sessionId)?.parentSessionId
+    const listedChild = this.summaries.some(summary => summary.sessionId === sessionId && summary.origin === 'subagent')
+    if (address === undefined && listedChild && parentSessionId !== undefined) {
+      this.pendingSelection = sessionId
+      void this.refreshSubagents(parentSessionId).then(() => {
+        if (this.pendingSelection !== sessionId) return
+        this.pendingSelection = undefined
+        const found = this.navigationAddress(sessionId)
+        if (found === undefined) this.selectAddressed(sessionId, undefined)
+        else this.selectSubagent(found)
+      })
+      return
+    }
+    this.pendingSelection = undefined
+    this.selectAddressed(sessionId, address)
+  }
+
+  /**
+   * Select one Session with the address navigation found for it, or as an ordinary Session.
+   * @param sessionId - the Session to select.
+   * @param address - its direct-parent address, when it is a catalog-addressed child.
+   */
+  private selectAddressed(sessionId: SessionId, address: SubagentAddress | undefined): void {
     if (!this.summaries.some(summary => summary.sessionId === sessionId) && address === undefined) {
       throw new Error(`sessions.select: unknown session ${sessionId}`)
     }
@@ -204,6 +231,7 @@ export class SessionManager {
    * @param address - catalog-derived parent and child ids.
    */
   selectSubagent(address: SubagentAddress): void {
+    this.pendingSelection = undefined
     const catalog = this.catalogs.get(address.parentSessionId)
     const entry = catalog?.entries.find(candidate => candidate.id === address.childSessionId)
     if (entry === undefined || entry.kind !== 'child' || entry.mode !== address.mode) {
@@ -219,6 +247,7 @@ export class SessionManager {
 
   /** Clear the selection (the layout falls to the no-session view state). */
   clearSelection(): void {
+    this.pendingSelection = undefined
     this.selected = undefined
     this.notifier.notifyNow()
   }

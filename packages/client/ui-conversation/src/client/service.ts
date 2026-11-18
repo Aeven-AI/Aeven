@@ -284,14 +284,8 @@ export class ConversationController extends Service implements IConversation {
       if (file.status !== 'ready' || file.uploadId === undefined) throw new DraftFileNotReadyError()
       return { type: 'file' as const, uploadId: file.uploadId }
     })
-    const snapshot = session.getSnapshot()
-    if (snapshot.subagent !== null) {
-      const uploaded = await this.serializeImages(images.map(attachment => attachment.file))
-      const content = [...uploaded, ...fileParts, ...(text === '' ? [] : [{ type: 'text' as const, text }])]
-      const result = await session.prompt(content, mode, signal)
-      if (result.ok) this.releaseSentFiles(files)
-      return result.ok ? { kind: 'success' } : { kind: 'error' }
-    }
+    // A subagent message takes the same echo as a session prompt: it stays on screen until the logged message
+    // replaces it, which takes a while when another device of the account receives the message.
     let finishRetirement: ((retirement: PendingSubmissionRetirement) => void) | undefined
     const retirement = images.length === 0
       ? undefined
