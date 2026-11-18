@@ -3306,6 +3306,8 @@ export interface Config {
    * a turn's capture. Work of a call dropped from this window fails its LLM requests as work outside a session does.
    */
   coreCallContexts: number
+  /** Delay between an account's sign-in and the load `warmOnSignIn` starts, so a Host start serves its window first. */
+  warmDelayMs: number
   /** Unfinished embedding requests accepted per account. */
   embeddingQueuePerAccount: number
   /** Unfinished embedding requests accepted across the Host. */

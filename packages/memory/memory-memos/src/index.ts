@@ -113,6 +113,8 @@ export interface Config {
    * a turn's capture. Work of a call dropped from this window fails its LLM requests as work outside a session does.
    */
   coreCallContexts: number
+  /** Delay between an account's sign-in and the load `warmOnSignIn` starts, so a Host start serves its window first. */
+  warmDelayMs: number
   /** Unfinished embedding requests accepted per account. */
   embeddingQueuePerAccount: number
   /** Unfinished embedding requests accepted across the Host. */
@@ -269,6 +271,7 @@ export const Config: z<Config> = z.object({
   coreWorkers: z.natural().default(0),
   coreGateTimeoutMs: z.natural().min(1).default(1_000),
   coreCallContexts: z.natural().min(1).default(4_096),
+  warmDelayMs: z.natural().default(0),
   embeddingQueuePerAccount: z.natural().min(1).default(8),
   embeddingQueueTotal: z.natural().min(1).default(128),
   embedding: z.object({
@@ -548,6 +551,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       },
     },
     personFactsTtlMs: config.profile.refreshMs,
+    personFactsFile: owner => join(accountHome(config.accounts, owner).dataDir, 'person-facts.json'),
     warn: (message) =>{  logger.warn(message) },
     info: (message) =>{  logger.debug(message) },
   })
@@ -617,10 +621,20 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     ctx.on('credentials/session-updated', (_ref, user) => {
       if (warmed.has(user) || !existsSync(accountHome(config.accounts, user).dbFile)) return
       warmed.add(user)
-      memory.prime(user, stop.signal).catch((error: unknown) => {
-        warmed.delete(user)
-        if (!stop.signal.aborted) logger.warn(`loading an account's memory at sign-in failed: ${error instanceof Error ? error.message : String(error)}`)
-      })
+      const load = (): void => {
+        memory.prime(user, stop.signal).catch((error: unknown) => {
+          warmed.delete(user)
+          if (!stop.signal.aborted) logger.warn(`loading an account's memory at sign-in failed: ${error instanceof Error ? error.message : String(error)}`)
+        })
+      }
+      if (config.warmDelayMs === 0) {
+        load()
+        return
+      }
+      const timer = setTimeout(load, config.warmDelayMs)
+      // A pending load never keeps the Host alive, and stopping the provider cancels it.
+      timer.unref()
+      stop.signal.addEventListener('abort', () => { clearTimeout(timer) }, { once: true })
     })
   }
 
