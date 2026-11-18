@@ -285,8 +285,10 @@ export class Session implements SessionFace {
         ...displayName === undefined ? {} : { clientDisplayName: displayName },
       }, signal)
     } else {
+      // The submission's own identity, as for a session prompt: the logged message retires its echo, which stays on
+      // screen meanwhile, also while another device of the account takes a forwarded message.
       const routed = await this.remote.subagents.prompt({
-        requestId: randomUUID() as SessionRequestId,
+        requestId: requestId ?? randomUUID() as SessionRequestId,
         parentSessionId: this.address.parentSessionId,
         childSessionId: this.address.childSessionId,
         mode: 'continuable',

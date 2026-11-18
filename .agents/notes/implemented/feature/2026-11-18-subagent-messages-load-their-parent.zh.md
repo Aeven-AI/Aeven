@@ -12,6 +12,7 @@ Status: implemented
 
 - `SubagentRuntime.registerPromptPreparer(preparer)` 接受一个随 effect 生命周期注册的准备器，为发给可继续子级的每条浏览器消息选择去向：带在线父级的 `local`、转发给账户另一台设备的 `forwarded`，或 `unavailable`。`subagent.prompt` 对每条消息调用它；本地消息随后执行原有的所有权检查与投递，转发的消息返回不含 `messageId` 的回执。
 - `@aeven/api-session-controller` 以 `SessionCommandController.prepareSubagentPrompt()` 注册该准备器，与发给父级的提示一样按父级路由。在 Æven Cloud 上对话运行在用户的桌面端，因此当另一台设备运行父级时，它通过账户收件箱以 `subagent-prompt` 操作转发消息，由该设备用 `subagents.prompt()` 执行；不认识该操作的设备会拒绝，输入回退机制会在发送处执行它。当本设备运行父级时，它认领子级 Session：Host 启动后，包括子级在内的每个 Session 在本设备认领前都是只读的同步副本，恢复未认领的子级会以 `subagent/not-resumable` 失败。父级按与直接发给父级的消息相同的所有权规则、预设与初始化被认领并加载。本设备运行父级而另一台设备运行子级时，或 Session API 无法加载的父级——例如属于其他账户或本身是子代理的父级——返回 `subagent/parent-unavailable`，Host 会记录原因。
+- 客户端从发送那一刻起就显示发给子代理的消息：它与会话提示一样使用提交回显，并以该回显的请求 id 发送，因此记录下来的消息会替换回显；转发的消息为等待输入回退而延迟约 10 秒时也是如此。客户端尚未发现地址的已列出子代理——例如在新窗口中由链接打开的子代理——会在其父级目录列出它之后才被选中，因为 Host 拒绝在没有直接父级地址的情况下提供子代理的历史。
 - 注册了准备器后，目录对每个父级都报告 `parentAvailable: true`，因此可继续子级总是显示常规输入框。只读输入框保留给一次性子级以及没有准备器的部署。
 
 ## 考虑过的方案

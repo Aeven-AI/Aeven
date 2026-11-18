@@ -364,7 +364,7 @@ describe('sendSession submission echo', () => {
     await b.runtime.dispose()
   })
 
-  it('sends a subagent continuation without registering an unobservable echo', async () => {
+  it('sends a subagent continuation under its echo, which the logged message retires', async () => {
     const b = await bench()
     const session = b.runtime.sessions.binding('s1')!.session
     const snapshot = session.getSnapshot()
@@ -377,8 +377,9 @@ describe('sendSession submission echo', () => {
     })
     const prompt = vi.spyOn(session, 'prompt').mockResolvedValue({ ok: true, value: { accepted: true } })
     await expect(b.root.sendSession(session, '继续', [], 'queue')).resolves.toEqual({ kind: 'success' })
-    expect(beginSubmission).not.toHaveBeenCalled()
-    expect(prompt).toHaveBeenCalledWith([{ type: 'text', text: '继续' }], 'queue', undefined)
+    expect(beginSubmission).toHaveBeenCalledTimes(1)
+    const { requestId } = beginSubmission.mock.results[0]!.value as { requestId: string }
+    expect(prompt).toHaveBeenCalledWith([{ type: 'text', text: '继续' }], 'queue', undefined, requestId)
     await b.runtime.dispose()
   })
 })
