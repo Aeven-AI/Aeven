@@ -194,10 +194,7 @@ export interface ProfileConfig {
   maxChars: number
   /** Memories folded into the profile per distillation call. */
   batchFacts: number
-  /**
-   * Shortest interval between two checks of one owner for memories newer than the profile, in milliseconds; listed
-   * person memories, and the dates read from them, are reused for the same time.
-   */
+  /** Shortest interval between two checks of one owner for memories newer than the profile, in milliseconds. */
   refreshMs: number
   /** Longest one distillation call may take, in milliseconds. */
   timeoutMs: number
@@ -550,7 +547,6 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         })).text,
       },
     },
-    personFactsTtlMs: config.profile.refreshMs,
     personFactsFile: owner => join(accountHome(config.accounts, owner).dataDir, 'person-facts.json'),
     warn: (message) =>{  logger.warn(message) },
     info: (message) =>{  logger.debug(message) },
@@ -586,7 +582,11 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       }
       return
     }
-    const created = new MemorySyncMirror(owner, dbFile, sync, config.embedding.model, config.sync, (message) => { logger.warn(message) })
+    const warn = (message: string): void => { logger.warn(message) }
+    const created = new MemorySyncMirror(owner, dbFile, sync, config.embedding.model, config.sync, warn, (table) => {
+      // Another device's person memories may differ from the listing profile reads serve.
+      if (table === 'traces') memory.personFactsChanged(owner)
+    })
     mirrors.set(owner, created)
     try {
       created.start(republish.delete(owner))

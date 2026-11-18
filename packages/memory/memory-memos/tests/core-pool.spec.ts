@@ -88,7 +88,7 @@ async function fixture(options: Partial<CorePoolOptions> = {}): Promise<Fixture>
 function memoryOver(core: MemoryCore, routes: LlmRouteContext): MemosMemory {
   const memory = new MemosMemory({
     cores: new OwnerCores(async () => core), routes,
-    toolLimits: { skills: 0, traces: 10, worldModels: 0 }, personFactsTtlMs: 0, warn: () => {}, info: () => {},
+    toolLimits: { skills: 0, traces: 10, worldModels: 0 }, warn: () => {}, info: () => {},
   })
   cleanup.push(() => memory.dispose())
   return memory

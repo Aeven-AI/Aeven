@@ -201,6 +201,8 @@ export interface SessionSyncTuning {
   attachmentWaitMs: number
   /** Pause between reads of an attachment's chunks that are not all on the relay yet, in milliseconds. */
   attachmentRetryMs: number
+  /** How many conversations an import pass downloads at once. */
+  importConcurrency: number
 }
 
 const compress = promisify(brotliCompress)
@@ -402,6 +404,8 @@ export class SessionMirror {
   private markedDue = false
   /** Repeats a full publication pass that could not read the stored sessions. */
   private fullRetryTimer: ReturnType<typeof setTimeout> | undefined
+  /** Pending settle pass after a failed publication; see {@link settleLater}. */
+  private settleTimer: ReturnType<typeof setTimeout> | undefined
   private readonly publicationProgress: SyncProgress = { sessionsPending: 0, sessionsTotal: 0 }
   private importing: Promise<void> | undefined
   /** An import pass over every session of the account was requested. */
@@ -1512,6 +1516,12 @@ export class SessionMirror {
       if (header.owner !== this.owner) continue
       const id = header.id
       const listed = this.entries().get(id)
+      const home = this.filing?.sessionHome(id)
+      // An entry that names no workspace while a workspace here holds the conversation gains it, so the other devices
+      // file it in the same workspace.
+      if (online && listed !== undefined && listed.workspace === undefined && home !== undefined) {
+        this.entries().set(id, { ...listed, workspace: home })
+      }
       if (listed === undefined) {
         // A conversation this device writes is listed by history publication; a copy is listed only here.
         if (header.replica === true && indexComplete && !this.claims.has(id) && !this.running.has(id)) await this.adopt(id)
@@ -1551,6 +1561,7 @@ export class SessionMirror {
           this.claims.set(id, { id: randomUUID(), base: head, published: head })
           await this.serialize(id, () => this.publishSession(id)).catch((error: unknown) => {
             this.warn(`session sync: publishing ${id}'s unpublished events failed: ${String(error)}`)
+            this.settleLater()
           })
           this.claims.delete(id)
         }
@@ -1575,12 +1586,29 @@ export class SessionMirror {
     await pause(this.tuning.pauseMs)
     await this.own(id, async () => {
       if (this.entries().get(id) !== undefined || this.claims.has(id) || this.running.has(id)) return
-      await this.serialize(id, () => this.publishSession(id)).catch((error: unknown) => {
+      try {
+        await this.serialize(id, () => this.publishSession(id))
+        // The stored log is the published history, so progress does not count it as a download.
+        const published = this.entries().get(id)?.next
+        if (published !== undefined) this.localNext.set(id, published)
+      } catch (error) {
         this.warn(`session sync: publishing ${id}, which the account's index did not list, failed: ${String(error)}`)
-      })
-      this.claims.delete(id)
+        this.settleLater()
+      } finally {
+        this.claims.delete(id)
+      }
       if (this.entries().get(id) !== undefined) this.watch(id)
+      this.progressChanged?.()
     })
+  }
+
+  /** Settle again after {@link SessionSyncTuning.publishMs}, so a publication that failed is retried without a restart. */
+  private settleLater(): void {
+    if (this.settleTimer !== undefined || this.isClosed()) return
+    this.settleTimer = setTimeout(() => {
+      this.settleTimer = undefined
+      this.scheduleSettle()
+    }, this.tuning.publishMs)
   }
 
   /**
@@ -1742,14 +1770,14 @@ export class SessionMirror {
     if (this.filed.size !== unfiled) this.catalogChanged?.()
     // A session filed later in this pass schedules another pass through the late-filing observer.
     const homes = this.filing?.sessionHomes()
-    for (const [id, entry] of ordered) {
-      if (this.isClosed()) return
+    const importOne = async ([id, entry]: [string, IndexEntry]): Promise<void> => {
       await pause(this.tuning.pauseMs)
       if (local.has(id) || this.created.has(id)) this.watch(id)
-      // A body imports once its workspace holds it here; opening the conversation imports it regardless.
-      if (homes !== undefined && !homes.has(id as SessionId) && !local.has(id)) continue
+      // A body imports once its workspace holds it here; opening the conversation imports it regardless. One whose
+      // entry names no workspace imports at once, since no workspace will hold it.
+      if (homes !== undefined && entry.workspace !== undefined && !homes.has(id as SessionId) && !local.has(id)) return
       if (this.tuning.backfillDays > 0 && entry.header.createdAt < Date.now() - this.tuning.backfillDays * DAY_MS
-        && !local.has(id)) continue
+        && !local.has(id)) return
       try {
         await this.releases.get(id)
         await this.fold(id, entry, revisions)
@@ -1758,6 +1786,13 @@ export class SessionMirror {
         this.warn(`session sync: importing a session failed: ${String(error)}`)
       }
     }
+    // Several conversations import at once, so a device catching up waits on the relay for more than one stream at a
+    // time; each conversation's batches still apply in order, and the most recent conversations start first.
+    const queue = [...ordered]
+    await Promise.all(Array.from({ length: Math.min(this.tuning.importConcurrency, queue.length) }, async () => {
+      for (let next = queue.shift(); next !== undefined && !this.isClosed(); next = queue.shift()) await importOne(next)
+    }))
+    if (this.isClosed()) return
     // A device whose turn this one no longer runs keeps its claim until the stream says another device's won; the
     // fold compares the two, so a claim the accepted history superseded ends here rather than at the next turn.
     const imported = new Set(ordered.map(([id]) => id))
@@ -2070,7 +2105,7 @@ export class SessionMirror {
     if (entry.header.owner !== this.owner || this.claims.has(id as SessionId)) return undefined
     const next = Math.max(this.localNext.get(id) ?? 0, this.folds.get(id)?.head ?? 0)
     const local = this.localNext.has(id) || this.created.has(id)
-    if (!local && filed === false) return undefined
+    if (!local && filed === false && entry.workspace !== undefined) return undefined
     if (!local && this.tuning.backfillDays > 0 && entry.header.createdAt < Date.now() - this.tuning.backfillDays * DAY_MS) return undefined
     return entry.next > next
   }
@@ -2180,7 +2215,8 @@ export class SessionMirror {
         const entry = entries.get(id)
         if (header.replica || header.owner !== this.owner) return false
         // A workspace move changes the index entry, not the log, so it is published without a new revision.
-        if (entry !== undefined && homes !== undefined && entry.workspace !== homes.get(header.id)) return true
+        const home = homes?.get(header.id)
+        if (entry !== undefined && home !== undefined && entry.workspace !== home) return true
         // A shared session publishes only under a claim; one no device published yet publishes from its start.
         if (entry !== undefined && !this.claims.has(header.id)) return false
         // One the index does not list publishes even at a revision recorded as published: its entry was lost.
@@ -2356,12 +2392,14 @@ export class SessionMirror {
       if (this.isClosed()) return
       const title = current.title ?? (backfill === undefined ? undefined : titleOf(backfill))
       const updatedAt = current.updatedAt ?? backfill?.filter(humanPrompt).at(-1)?.time
-      if (current.running !== this.running.has(sessionId) || current.workspace !== home
+      // A device that files the conversation in no workspace keeps the one another device named.
+      const workspace = home ?? current.workspace
+      if (current.running !== this.running.has(sessionId) || current.workspace !== workspace
         || current.title !== title || current.updatedAt !== updatedAt) {
         const { workspace: _previous, ...rest } = current
         this.entries().set(sessionId, {
           ...rest, running: this.running.has(sessionId),
-          ...home === undefined ? {} : { workspace: home },
+          ...workspace === undefined ? {} : { workspace },
           ...title === undefined ? {} : { title },
           ...updatedAt === undefined ? {} : { updatedAt },
         })
@@ -2429,6 +2467,7 @@ export class SessionMirror {
       else kept.events = rest
     }
     const previous = this.entries().get(sessionId)
+    const workspace = home ?? previous?.workspace
     // Only a turn moves the session's home; a rename or model change published from another device does not.
     const writer = suffix.events.some(event => event.type === 'turn/start') ? this.device() : previous?.writer
     const pinned = previous?.pinned === true && writer === previous.writer
@@ -2441,7 +2480,7 @@ export class SessionMirror {
         ?? previous?.updatedAt ?? suffix.meta.createdAt,
       inherited: suffix.inheritedEventCount,
       next: Math.max(previous?.next ?? 0, active.published),
-      ...home === undefined ? {} : { workspace: home },
+      ...workspace === undefined ? {} : { workspace },
       ...writer === undefined ? {} : { writer },
       ...pinned ? { pinned: true } : {},
     })
@@ -2453,7 +2492,7 @@ export class SessionMirror {
     this.offLateFiling?.()
     for (const resume of this.openingDone.splice(0)) resume()
     for (const timer of [this.timer, this.inputTimer, this.liveTimer]) if (timer !== undefined) clearInterval(timer)
-    for (const timer of [this.markTimer, this.fullRetryTimer]) if (timer !== undefined) clearTimeout(timer)
+    for (const timer of [this.markTimer, this.fullRetryTimer, this.settleTimer]) if (timer !== undefined) clearTimeout(timer)
     this.marked.clear()
     for (const off of this.watchers.values()) off()
     this.watchers.clear()

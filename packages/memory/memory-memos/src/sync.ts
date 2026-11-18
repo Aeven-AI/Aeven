@@ -135,6 +135,7 @@ export class MemorySyncMirror {
    * @param model - the embedding model this device runs.
    * @param tuning - drain interval and batch.
    * @param warn - receives failures to publish or apply.
+   * @param applied - told the table after another device's rows of it were applied here.
    */
   constructor(
     private readonly owner: string,
@@ -143,6 +144,7 @@ export class MemorySyncMirror {
     private readonly model: string,
     private readonly tuning: MemorySyncTuning,
     private readonly warn: (message: string) => void,
+    private readonly applied: (table: string) => void = () => {},
   ) {
     this.db = new Database(dbFile, { fileMustExist: true })
     this.db.pragma('busy_timeout = 5000')
@@ -326,7 +328,10 @@ export class MemorySyncMirror {
       const rows = handle.doc.getMap<SyncedRow>('rows')
       const forgotten = handle.doc.getMap<boolean>('forgotten')
       if (this.isClosed()) return
-      if (rows.size > 0 || forgotten.size > 0) this.apply(table, columns, rows, forgotten)
+      if (rows.size > 0 || forgotten.size > 0) {
+        this.apply(table, columns, rows, forgotten)
+        this.applied(table)
+      }
       if (version !== undefined) {
         this.db.prepare('INSERT INTO sync_state (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value')
           .run(`applied:${id}`, this.appliedStamp(name, version))

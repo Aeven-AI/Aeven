@@ -15,6 +15,8 @@ The session index also lost entries in two ways a counter does not explain. Ten 
 - A sender counter is one past the stored counter and never below the current time in microseconds (`counterFloor`), on the Host and on the sync worker. Dropping the account key keeps counters.
 - Once per store, after catch-up, the vault compares each document it wrote with the relay's copy and publishes what the other devices never received (`missingFrom`). The relay's copy is the other devices' frames, plus this device's own frames when no other device snapshotted the document, up to the first own frame whose counter does not exceed an earlier one.
 - The session settle pass publishes a copy the index does not list from its start, publishes the tail of a copy whose stored log runs past its entry, and raises an entry behind the stream head. History publication republishes a conversation the index does not list even at a recorded revision.
+- A device records the length of a copy it published, so its progress stops counting it as a download, and a failed publication settles again after `publishMs`. Four index entries named no workspace, and devices download a body only once its workspace holds it: an entry without a workspace now downloads at once, gains the workspace a device files it in, and keeps that workspace when the writing device files it in none.
+- An import pass downloads up to `importConcurrency` conversations at once (4 by default), so a device catching up waits on the relay for several streams at a time.
 
 ## Alternatives considered
 

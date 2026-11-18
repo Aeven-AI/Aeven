@@ -3431,10 +3431,7 @@ export interface ProfileConfig {
   maxChars: number
   /** Memories folded into the profile per distillation call. */
   batchFacts: number
-  /**
-   * Shortest interval between two checks of one owner for memories newer than the profile, in milliseconds; listed
-   * person memories, and the dates read from them, are reused for the same time.
-   */
+  /** Shortest interval between two checks of one owner for memories newer than the profile, in milliseconds. */
   refreshMs: number
   /** Longest one distillation call may take, in milliseconds. */
   timeoutMs: number
@@ -4399,6 +4396,8 @@ export interface SessionSyncTuning {
   attachmentWaitMs: number
   /** Pause between reads of an attachment's chunks that are not all on the relay yet, in milliseconds. */
   attachmentRetryMs: number
+  /** How many conversations an import pass downloads at once. */
+  importConcurrency: number
 }
 ```
 

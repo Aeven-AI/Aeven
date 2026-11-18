@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-11-18-refused-sync-frames-and-lost-index-entries.md
-2026-11-18-refused-sync-frames-and-lost-index-entries.md: 1031131fd576635835abc9f04afeb950b6af2d35
-2026-11-18-refused-sync-frames-and-lost-index-entries.zh.md: cc4c72b5726a063fb468999b66bd20dc9909a5b2
+2026-11-18-refused-sync-frames-and-lost-index-entries.md: 74d0043571e6511782650d8f3f52f8fe2e840d28
+2026-11-18-refused-sync-frames-and-lost-index-entries.zh.md: 5475769a9880ec0a361f392f87dbd335b229d069
