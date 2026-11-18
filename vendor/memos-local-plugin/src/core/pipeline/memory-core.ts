@@ -3197,6 +3197,15 @@ export function createMemoryCore(
     return row && visibleToCurrent(row) ? traceRowToDTO(row, handle.repos.episodes.getById(row.episodeId)) : null;
   }
 
+  async function getTraces(ids: readonly string[], namespace?: RuntimeNamespace): Promise<Array<TraceDTO | null>> {
+    ensureLive();
+    if (namespace) activeNamespace = namespace;
+    return ids.map((id) => {
+      const row = handle.repos.traces.getById(id);
+      return row && visibleToCurrent(row) ? traceRowToDTO(row, handle.repos.episodes.getById(row.episodeId)) : null;
+    });
+  }
+
   async function updateTrace(
     id: string,
     patch: {
@@ -5377,6 +5386,7 @@ export function createMemoryCore(
     recordSubagentOutcome,
     searchMemory,
     getTrace,
+    getTraces,
     updateTrace,
     deleteTrace,
     deleteTraces,

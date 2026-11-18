@@ -586,8 +586,11 @@ function maxCos(
   const vec = cand.candidate.vec;
   const candNorm = Math.sqrt(cand.normSq);
   if (candNorm === 0) return 0;
-  let m = 0;
-  for (let i = 0; i < selected.length; i += 1) {
+  // The selection only grows, so the maximum over it is the maximum already found over its earlier vectors and
+  // the vectors added since; each candidate is compared with each selected vector once per ranking.
+  const known = redundancySoFar.get(cand);
+  let m = known?.max ?? 0;
+  for (let i = known?.compared ?? 0; i < selected.length; i += 1) {
     const selectedVec = selected[i]!;
     // Embedding migrations can leave the candidate pool temporarily
     // heterogeneous (for example, legacy 384-dim rows mixed with current
@@ -601,8 +604,12 @@ function maxCos(
     const sim = cosinePrenormed(vec, candNorm, selectedVec, selectedNorms[i]!);
     if (sim > m) m = sim;
   }
+  redundancySoFar.set(cand, { compared: selected.length, max: m });
   return m;
 }
+
+/** Per candidate of one ranking: how many selected vectors it was compared with, and the highest cosine among them. */
+const redundancySoFar = new WeakMap<RankedCandidate, { compared: number; max: number }>();
 
 function mmrScore(
   cand: RankedCandidate,

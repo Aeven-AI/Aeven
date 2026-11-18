@@ -807,6 +807,8 @@ export class MemosMemory implements MemoryProvider {
         ownerProfileId: ownerProfile(scope.owner),
         includeAllNamespaces: true,
         domains: ['person'],
+        // Only the window is read: older person memories are never eligible.
+        fromMs: since,
         limit: RECENT_PERSON_PAGE,
         offset: page * RECENT_PERSON_PAGE,
       }), deadlineAt, request.signal, `Memory recall exceeded ${request.timeoutMs}ms`)
@@ -1087,8 +1089,12 @@ export class MemosMemory implements MemoryProvider {
   ): Promise<MemoryHit[]> {
     const namespace = this.namespaceOf(scope)
     const workspace = normalizeNamespace(namespace, MEMOS_AGENT).workspaceId
-    const classified = await Promise.all(hits.map(async (hit) => {
-      const hitOrigin = await this.hitOrigin(core, hit, namespace, turnStart)
+    // One read for every trace hit: a read per hit queues each behind whatever else the account's core is doing.
+    const traceIds = hits.flatMap(hit => hit.refKind === 'trace' ? [hit.refId] : [])
+    const read = traceIds.length === 0 ? [] : await core.getTraces(traceIds, namespace)
+    const traces = new Map(traceIds.map((id, index) => [id, read[index] ?? null]))
+    const classified = hits.map((hit) => {
+      const hitOrigin = this.hitOrigin(hit, traces, turnStart)
       const { domain, workspaceId, summary, correction, superseded, procedureStatus, candidateKind, recordedAt, origin } = hitOrigin
       const memory: MemoryHit = {
         kind: hit.refKind,
@@ -1104,7 +1110,7 @@ export class MemosMemory implements MemoryProvider {
       }
       if (candidateKind !== undefined) this.candidateKinds.set(memory, candidateKind)
       return { memory, workspaceId, correction, superseded, archived: procedureStatus === 'archived' }
-    }))
+    })
     return classified
       .filter(({ memory, workspaceId, correction, superseded, archived }) =>
         (!turnStart || (!correction && !superseded && !archived))
@@ -1118,7 +1124,7 @@ export class MemosMemory implements MemoryProvider {
    * status: automatic recall never delivers an `archived` one and offers a `candidate` to the relevance judgment as
    * unproven.
    */
-  private async hitOrigin(core: MemoryCore, hit: RetrievalHitDTO, namespace: RuntimeNamespace, turnStart: boolean): Promise<{
+  private hitOrigin(hit: RetrievalHitDTO, traces: ReadonlyMap<string, TraceDTO | null>, turnStart: boolean): {
     domain: MemoryDomain
     workspaceId: string | null | undefined
     summary?: string
@@ -1128,7 +1134,7 @@ export class MemosMemory implements MemoryProvider {
     candidateKind?: CandidateKind
     recordedAt?: number
     origin?: MemoryOrigin
-  }> {
+  } {
     switch (hit.refKind) {
       case 'experience':
       case 'skill':
@@ -1136,7 +1142,7 @@ export class MemosMemory implements MemoryProvider {
       case 'world-model':
         return { domain: 'world', workspaceId: hit.ownerWorkspaceId }
       case 'trace': {
-        const trace = await core.getTrace(hit.refId, namespace)
+        const trace = traces.get(hit.refId) ?? null
         const workspaceId = trace?.ownerWorkspaceId ?? hit.ownerWorkspaceId
         const domain = traceDomain(trace?.tags, workspaceId)
         const summary = trace === null ? undefined : turnStart ? recallSnippet(trace, domain) : traceSnippet(trace)

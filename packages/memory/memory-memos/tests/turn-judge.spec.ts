@@ -98,6 +98,7 @@ describe('capture with a turn judgment', () => {
         return { traceId, episodeId: 'episode-1' }
       },
       getTrace: async (id: string) => ({ id, summary: 's', tags: tags.get(id) ?? [] }),
+      getTraces: async (ids: readonly string[]) => ids.map(id => ({ id, summary: 's', tags: tags.get(id) ?? [] })),
       updateTrace: async (id: string, patch: { tags?: string[] }) => {
         if (patch.tags) tags.set(id, patch.tags)
       },
