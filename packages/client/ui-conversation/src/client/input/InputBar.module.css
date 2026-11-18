@@ -394,3 +394,12 @@
   font-size: 0.75rem;
   cursor: pointer;
 }
+
+.failureDetail {
+  color: var(--dsw-alias-label-secondary);
+  overflow-wrap: anywhere;
+}
+
+.failureAction {
+  min-width: 72px;
+}

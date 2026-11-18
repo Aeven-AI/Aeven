@@ -870,6 +870,28 @@ export class SessionCommandController {
   }
 
   /**
+   * Load a Session's Agent on this device for input another API domain delivers through it, such as a message to one
+   * of its subagents, taking this device's claim on a synced Session first as a prompt does.
+   * @param sessionId - the Session to load.
+   * @returns the live Agent, or undefined when another device of the account runs the Session.
+   * @throws RemoteError the Session-domain failure when the Session cannot be loaded here.
+   */
+  async claimAgent(sessionId: SessionId): Promise<Agent | undefined> {
+    if (await this.claimRunnerAccount(sessionId) !== undefined) return undefined
+    return await this.resolveAgent(sessionId)
+  }
+
+  /**
+   * Take this device's claim on a Session another API domain writes without this controller loading it, such as a
+   * subagent's Session receiving a message. A synced Session is a read-only copy here until this device claims it.
+   * @param sessionId - the Session to claim.
+   * @returns whether this device may write the Session; false when another device of the account runs it.
+   */
+  async claimSession(sessionId: SessionId): Promise<boolean> {
+    return await this.claimForChange(sessionId) === undefined
+  }
+
+  /**
    * Take the acting account's claim on a Session for a turn-starting input.
    *
    * A handover records nothing in the Session log: this device's directory for

@@ -195,6 +195,19 @@ export class SessionController extends TypertRemoteService {
     ctx.plugin(SessionSkillCatalog)
     if (config.pathReads !== false) ctx.plugin(SessionMediaReferences)
     ctx.inject(['connection', 'attachments', 'documentExtract'], (uploadCtx) => { registerFileUploadRoutes(uploadCtx) })
+    // A message to a continuable subagent claims the subagent's Session and loads its parent as a message sent to
+    // the parent would.
+    ctx.inject(['subagents'], (subagentCtx) => {
+      subagentCtx.subagents.registerPromptPreparer(async (parentSessionId, childSessionId) => {
+        try {
+          if (!await this.commands.claimSession(childSessionId)) return undefined
+          return subagentCtx.get('agents')?.get(parentSessionId) ?? await this.commands.claimAgent(parentSessionId)
+        } catch (error: unknown) {
+          subagentCtx.logger.warn(`session-controller: preparing a message to subagent "${childSessionId}" failed: ${errorChain(error)}`)
+          return undefined
+        }
+      })
+    })
     ctx.inject(['connection', 'attachments'], (readCtx) => {
       registerFileReadRoute(readCtx, (sessionId, attachmentId) => this.commands.referencedFile(sessionId, attachmentId))
       registerImageReadRoute(

@@ -6,6 +6,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type SyntheticEvent } from 'react'
 import type { ToolCallViewProps } from '@aeven/client-ui-tool/client'
 import type { PropsLocale } from '@aeven/client-ui-slots'
+import { IconLucideImages, IconLucideVideo } from '@aeven/client-ui-primitives'
 import { chatsOf, type WhatsAppCardChat, type WhatsAppCardLink, type WhatsAppCardMessage, type WhatsAppCardQuote } from './whatsapp-messages.ts'
 import { VoiceNote } from './VoiceNote.tsx'
 import type { MessageMediaSource, LoadedMedia } from './message-media.ts'
@@ -62,6 +63,18 @@ function useMedia(source: MessageMediaSource, message: WhatsAppCardMessage, requ
   return media
 }
 
+/**
+ * The place of a photo, sticker, GIF or video whose file WhatsApp no longer serves: a tile with the kind's icon, named
+ * for screen readers and on hover.
+ */
+function MissingMedia({ moving, t }: { moving: boolean; t: CardT }) {
+  return (
+    <span className={css.missing} role="img" aria-label={t('unavailable')} title={t('unavailable')}>
+      {moving ? <IconLucideVideo className={css.missingIcon} /> : <IconLucideImages className={css.missingIcon} />}
+    </span>
+  )
+}
+
 /** A photo or sticker, loaded once it nears the viewport. */
 function PictureMedia({ source, message, t }: { source: MessageMediaSource; message: WhatsAppCardMessage; t: CardT }) {
   const [ref, seen] = useSeen<HTMLDivElement>()
@@ -69,7 +82,7 @@ function PictureMedia({ source, message, t }: { source: MessageMediaSource; mess
   const sticker = message.media === 'sticker'
   return (
     <div ref={ref} className={sticker ? css.sticker : css.picture} data-loading={media === undefined || undefined}>
-      {media === null ? <span className={css.unavailable}>{t('unavailable')}</span>
+      {media === null ? <MissingMedia moving={false} t={t} />
         : media !== undefined ? <img src={media.url} alt={t(sticker ? 'sticker' : 'photo')} loading="lazy" onLoad={shown} /> : null}
     </div>
   )
@@ -83,7 +96,7 @@ function MovingMedia({ source, message, gif, t }: { source: MessageMediaSource; 
   const [ref, seen] = useSeen<HTMLDivElement>()
   const media = useMedia(source, message, seen)
   let content: ReactNode = null
-  if (media === null) content = <span className={css.unavailable}>{t('unavailable')}</span>
+  if (media === null) content = <MissingMedia moving t={t} />
   else if (media !== undefined) {
     content = (
       <video src={media.url} autoPlay muted playsInline loop={gif} controls={!gif} aria-label={t(gif ? 'gif' : 'video')}

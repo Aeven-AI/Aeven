@@ -9,7 +9,7 @@ kind: "package-library"
 
 ## 概述
 
-`avn-client-ui-primitives` 是 Web 客户端共享的 React 组件库：每个功能插件都用这些原子组件拼装自己的 UI，而这里没有任何内容依赖 Cordis 或 slot 系统。它提供控件集（按钮、胶囊、输入框、菜单、模态框、Toast 横幅、折叠行、悬浮卡片、连接指示器）、图标字形与品牌标记、锚定浮层用的定位钩子，以及 agent 输出的内容渲染器：带 TeX 公式的 markdown、终端输出、文件读取、差异、搜索结果、网页检索与 JSON 检查。这些渲染器为不受信任的模型输出而设计——原始 HTML 会被丢弃、链接会被失效或安全打开、ANSI 转义序列会被解析而非透传。面向用户的文案通过 label prop 提供；拼装某个原子组件的功能插件负责本地化。
+`avn-client-ui-primitives` 是 Web 客户端共享的 React 组件库：每个功能插件都用这些原子组件拼装自己的 UI，而这里没有任何内容依赖 Cordis 或 slot 系统。它提供控件集（按钮、胶囊、输入框、菜单、模态框、折叠行、悬浮卡片、连接指示器）、图标字形与品牌标记、锚定浮层用的定位钩子，以及 agent 输出的内容渲染器：带 TeX 公式的 markdown、终端输出、文件读取、差异、搜索结果、网页检索与 JSON 检查。这些渲染器为不受信任的模型输出而设计——原始 HTML 会被丢弃、链接会被失效或安全打开、ANSI 转义序列会被解析而非透传。面向用户的文案通过 label prop 提供；拼装某个原子组件的功能插件负责本地化。
 
 控件、菜单、模态框、Markdown 与代码块使用 ui-theme 的 Aeven 几何和排版变量；本包的图标字形与品牌标记保持不变。
 
@@ -33,7 +33,7 @@ kind: "package-library"
 
 ### 控件与图标
 
-`Button`、`Pill`、`Input`、`Menu`、`Modal`、`Tooltip`、`DisclosureRow`、`StateDot`、`HoverCard`、`Toast`、`ConnectionIndicator`、`RiskConfirmation` 与首次运行接管层 `OnboardingSurface` 覆盖常见的交互形态。`SectionHeader` 是每个设置分区开头共用的标题与说明块，使来自不同包的分区使用同一种标题样式。`LoadingBlock` 是对应的加载状态：一个居中于分区水平中心的 `Spinner`，预留高度以免面板塌陷，既不显示可见文案也不画分隔线——使用方传入的本地化状态文案通过裁剪的 label 传达给辅助技术，而不是显示在屏幕上。`ic_ds_*` 图标集与 `AevenMark`/`BrandWordmark` 标记填充品牌与行内图标 slot。`ConnectionIndicator` 渲染一个通过 portal 挂到 `document.body`、居中于视口顶部的浮动 toast：带警告图标的断联状态、以独立于 retry 时序的 500ms 节奏推进一至三个点的连接中状态，或带成功图标的恢复状态。断联与连接中状态带重连操作；每个状态都带关闭按钮。它的 owner 提供可见性、关闭状态、恢复驻留时间、本地化 label，以及重连与关闭回调。`useAnchoredPosition` 与 `useAnchoredMaxHeight` 让浮动面板与底部锚定浮层始终钳制在视口内并跟随锚点。`useBesidePlacement` 让在行旁打开的卡片留在视口内：有空间时位于行之后，否则移到行的前侧；屏幕窄到两侧都放不下时，叠在行的上方并钳制在视口边距内；`useViewportClamp` 把左对齐的弹出层横向平移，使两侧边缘都不越过边距。`HoverCard` 通过指针离开宽限期让采用 portal 的预览在跨过锚点间隙时仍可触及，并可通过 `copyText` prop 提供复制按钮。 `Toast` 的停留时长由使用方通过 `holdMs` 指定，因为横幅该留多久取决于有多少内容要读；同一个值同时驱动它的卸载定时器与样式表的淡出延迟，两者不可能再错位。 `rankByName` 是 `/` 菜单命令源与 skill 源共享的候选排序器：查询必须是名字的不区分大小写的有序子序列；前缀命中排最前，其次按对齐分数，再按来源顺序（[排名决策](../../../.agents/notes/implemented/feature/2026-08-04-web-slash-command-fuzzy-discovery.zh.md)）。
+`Button`、`Pill`、`Input`、`Menu`、`Modal`、`Tooltip`、`DisclosureRow`、`StateDot`、`HoverCard`、`ConnectionIndicator`、`RiskConfirmation` 与首次运行接管层 `OnboardingSurface` 覆盖常见的交互形态。`SectionHeader` 是每个设置分区开头共用的标题与说明块，使来自不同包的分区使用同一种标题样式。`LoadingBlock` 是对应的加载状态：一个居中于分区水平中心的 `Spinner`，预留高度以免面板塌陷，既不显示可见文案也不画分隔线——使用方传入的本地化状态文案通过裁剪的 label 传达给辅助技术，而不是显示在屏幕上。`ic_ds_*` 图标集与 `AevenMark`/`BrandWordmark` 标记填充品牌与行内图标 slot。`ConnectionIndicator` 渲染客户端唯一的 toast，它通过 portal 挂到 `document.body`、浮动居中于视口顶部：带警告图标的断联状态、以独立于 retry 时序的 500ms 节奏推进一至三个点的连接中状态，或带成功图标的恢复状态。断联与连接中状态带重连操作；每个状态都带关闭按钮。它的 owner 提供可见性、关闭状态、恢复驻留时间、本地化 label，以及重连与关闭回调。错误与其他消息改为打开 `Modal`。`useAnchoredPosition` 与 `useAnchoredMaxHeight` 让浮动面板与底部锚定浮层始终钳制在视口内并跟随锚点。`useBesidePlacement` 让在行旁打开的卡片留在视口内：有空间时位于行之后，否则移到行的前侧；屏幕窄到两侧都放不下时，叠在行的上方并钳制在视口边距内；`useViewportClamp` 把左对齐的弹出层横向平移，使两侧边缘都不越过边距。`HoverCard` 通过指针离开宽限期让采用 portal 的预览在跨过锚点间隙时仍可触及，并可通过 `copyText` prop 提供复制按钮。 `rankByName` 是 `/` 菜单命令源与 skill 源共享的候选排序器：查询必须是名字的不区分大小写的有序子序列；前缀命中排最前，其次按对齐分数，再按来源顺序（[排名决策](../../../.agents/notes/implemented/feature/2026-08-04-web-slash-command-fuzzy-discovery.zh.md)）。
 
 `DisclosureRow` 默认启用 `trailingChevron`：左侧图标始终可见，右侧箭头仅在悬停或展开时显示。
 

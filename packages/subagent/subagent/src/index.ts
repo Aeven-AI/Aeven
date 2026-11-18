@@ -197,6 +197,17 @@ export interface Config {
   maxActiveSubagents: number
 }
 
+/**
+ * Makes one browser message to a continuable child deliverable on this
+ * device, applying the ownership, claims, and setup the Session API applies to
+ * a message sent to a Session: it claims the child's Session for this device
+ * and brings the direct parent's Agent live.
+ * @param parentSessionId - the child's direct parent Session.
+ * @param childSessionId - the child Session the message addresses.
+ * @returns the live parent Agent, or undefined when this device cannot deliver the message for the acting caller.
+ */
+export type SubagentPromptPreparer = (parentSessionId: SessionId, childSessionId: SessionId) => Promise<Agent | undefined>
+
 /** Named provider registry with one-shot runs, durable discovery, and continuable-child operations. */
 export class SubagentRuntime extends TypertRemoteService {
   static Config = z.object({
@@ -211,6 +222,7 @@ export class SubagentRuntime extends TypertRemoteService {
   private readonly config: Config
   private providers = new Map<string, SubagentProvider>()
   private continuations: SubagentContinuationManager | undefined
+  private promptPreparer: SubagentPromptPreparer | undefined
   /**
    * The contained lifecycle-edge publisher. Built here because scoped dispatch
    * keys its carrier by this exact service instance, whose own context filter
@@ -425,7 +437,7 @@ export class SubagentRuntime extends TypertRemoteService {
         signal,
         header => identity?.mayAccess(header.owner, caller) ?? true,
       )
-      return catalogView(this.ctx, parentSessionId, children)
+      return catalogView(this.ctx, parentSessionId, children, this.promptPreparer !== undefined)
     } catch (error: unknown) {
       return rejectCatalogRead(error, signal)
     }
@@ -433,7 +445,8 @@ export class SubagentRuntime extends TypertRemoteService {
 
   /**
    * Deliver one browser-authored message to a continuable child through the
-   * exact live direct parent, retaining the caller-minted request identity and
+   * exact live direct parent, prepared through the registered prompt preparer
+   * when one is registered, retaining the caller-minted request identity and
    * validated browser zone on the accepted message. Success identifies the
    * message the child's FIFO inbox accepted; later execution is independent of
    * this call.
@@ -461,7 +474,9 @@ export class SubagentRuntime extends TypertRemoteService {
         { value: clientTimeZone },
       )
     }
-    const parent = this.ctx.get('agents')?.get(parentSessionId)
+    const parent = this.promptPreparer === undefined
+      ? this.ctx.get('agents')?.get(parentSessionId)
+      : await this.promptPreparer(parentSessionId, childSessionId)
     // Another account's parent reads as one that is not live.
     if (parent === undefined || this.ctx.get('identityUsers')?.mayAccess(parent.session.header.owner) === false) {
       throw new RemoteError(
@@ -580,6 +595,25 @@ export class SubagentRuntime extends TypertRemoteService {
       // repository's fail-loud registration semantics.
       this.ctx.emit('subagent/provider-added', provider)
     }.bind(this), 'subagents.registerProvider()')
+  }
+
+  /**
+   * Register the preparer that makes each browser message to a continuable
+   * child deliverable on this device. Without one, a message needs a live
+   * parent and a child Session this device may write. Registration is
+   * effect-scoped; one preparer at a time.
+   * @param preparer - claims the child and brings the parent live for the acting caller.
+   * @returns the exact Cordis effect disposer.
+   */
+  registerPromptPreparer(preparer: SubagentPromptPreparer): () => void {
+    // oxlint-disable-next-line typescript/no-misused-promises -- synchronous disposer
+    return this.ctx.effect(function* (this: SubagentRuntime) {
+      if (this.promptPreparer !== undefined) {
+        throw new SubagentError('a subagent prompt preparer is already registered', 'DUPLICATE_PROMPT_PREPARER')
+      }
+      this.promptPreparer = preparer
+      yield () => { this.promptPreparer = undefined }
+    }.bind(this), 'subagents.registerPromptPreparer()')
   }
 
   /**

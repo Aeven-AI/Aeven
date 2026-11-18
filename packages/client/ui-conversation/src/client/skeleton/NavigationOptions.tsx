@@ -13,11 +13,10 @@
  * The foldout is the shared Menu primitive a Session row's options button
  * opens: same card, same dismissal.
  */
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import {
-  IconBranchOutline16, IconDownloadOutline16, IconInspectOutline12, IconLucideEllipsisVertical,
-  IconLucideFolder, IconLucideLaptopMinimal, IconLucideMessageCircle,
-  IconWarningOutline16, Menu, Toast, Tooltip, type MenuEntry,
+  Button, IconBranchOutline16, IconDownloadOutline16, IconInspectOutline12, IconLucideEllipsisVertical,
+  IconLucideFolder, IconLucideLaptopMinimal, IconLucideMessageCircle, Menu, Modal, Tooltip, type MenuEntry,
 } from '@aeven/client-ui-primitives'
 import type { WorkspaceId } from '@aeven/workspace/types'
 import type { ReactNode } from 'react'
@@ -79,24 +78,17 @@ export function NavigationOptions({
   // Read each time the options open, so a turn that ran on another device since shows its move.
   const [placement, setPlacement] = useState<SessionDevicePlacement>({})
   const [choosing, setChoosing] = useState(false)
-  // Transient failure banner: the seq keys the Toast so an identical repeated
-  // message restarts the hold-then-fade cycle instead of reusing the faded one.
-  const [toast, setToast] = useState<{ seq: number; text: string } | null>(null)
-  const toastSeq = useRef(0)
+  // A failed action opens a dialog until dismissed; a newer failure replaces the one showing.
+  const [failure, setFailure] = useState<string | null>(null)
   const fail = (error: unknown): void => {
-    toastSeq.current += 1
-    setToast({ seq: toastSeq.current, text: error instanceof Error ? error.message : String(error) })
+    setFailure(error instanceof Error ? error.message : String(error))
   }
   const toggle = (): void => {
     if (!open) void devicePlacement().then(setPlacement, () => { setPlacement({}) })
     setOpen(!open)
   }
   const runExport = (): void => {
-    toastSeq.current += 1
-    const seq = toastSeq.current
-    void onExport().catch((error: unknown) => {
-      setToast({ seq, text: error instanceof Error ? error.message : String(error) })
-    })
+    void onExport().catch(fail)
   }
   // The Session's own actions, in the order its row menu lists them (fork),
   // then the export, the desktop choice, the move destinations and the other device moves, followed by the Views
@@ -182,12 +174,14 @@ export function NavigationOptions({
         }}
         t={t}
       />
-      {toast !== null && (
-        <Toast
-          key={toast.seq}
-          text={toast.text}
-          icon={<IconWarningOutline16 />}
-          onDone={() => { setToast(null) }}
+      {failure !== null && (
+        <Modal
+          open
+          onClose={() => { setFailure(null) }}
+          closeLabel={t('error.close')}
+          title={t('error.actionTitle')}
+          description={failure}
+          footer={<Button variant="outline" onClick={() => { setFailure(null) }}>{t('error.dismiss')}</Button>}
         />
       )}
     </>

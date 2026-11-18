@@ -637,7 +637,8 @@ listDescendants(rootSessionId: SessionId, signal?: AbortSignal): Promise<Subagen
 
 /**
  * Deliver one browser-authored message to a continuable child through the
- * exact live direct parent, retaining the caller-minted request identity and
+ * exact live direct parent, prepared through the registered prompt preparer
+ * when one is registered, retaining the caller-minted request identity and
  * validated browser zone on the accepted message. Success identifies the
  * message the child's FIFO inbox accepted; later execution is independent of
  * this call.
@@ -678,6 +679,16 @@ listDescendants(rootSessionId: SessionId, signal?: AbortSignal): Promise<Subagen
  * @returns the exact Cordis effect disposer.
  */
 registerProvider(provider: SubagentProvider): () => void
+
+/**
+ * Register the preparer that makes each browser message to a continuable
+ * child deliverable on this device. Without one, a message needs a live
+ * parent and a child Session this device may write. Registration is
+ * effect-scoped; one preparer at a time.
+ * @param preparer - claims the child and brings the parent live for the acting caller.
+ * @returns the exact Cordis effect disposer.
+ */
+registerPromptPreparer(preparer: SubagentPromptPreparer): () => void
 
 /**
  * Look up a provider by name.
