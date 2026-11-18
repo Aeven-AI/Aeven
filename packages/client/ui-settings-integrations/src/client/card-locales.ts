@@ -14,7 +14,7 @@ export const en = {
   document: 'Document',
   download: 'Download',
   loading: 'Loading',
-  unavailable: 'Not available on this device',
+  unavailable: 'No longer available',
   messageCount: '{count} messages',
   forwarded: 'Forwarded',
 }
@@ -36,7 +36,7 @@ export const es: Record<ConnectorCardKey, string> = {
   document: 'Documento',
   download: 'Descargar',
   loading: 'Cargando',
-  unavailable: 'No disponible en este dispositivo',
+  unavailable: 'Ya no está disponible',
   messageCount: '{count} mensajes',
   forwarded: 'Reenviado',
 }
@@ -55,7 +55,7 @@ export const zh: Record<ConnectorCardKey, string> = {
   document: '文件',
   download: '下载',
   loading: '加载中',
-  unavailable: '此设备上不可用',
+  unavailable: '已无法获取',
   messageCount: '{count} 条消息',
   forwarded: '已转发',
 }

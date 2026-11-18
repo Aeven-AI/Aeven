@@ -34,6 +34,10 @@ overrides:
   # Transformers.js pins onnxruntime-node to a release that ships no darwin/x64 binding; MemOS embeddings
   # need the newest release that still ships one, which is 1.23.2.
   onnxruntime-node: '1.23.2'
+  # Transformers.js asks for sharp ^0.34 and Hyperframes for ^0.35; each bundles its own libvips, and a process that
+  # loads both aborts on the second (duplicate Objective-C classes on macOS). Transformers only imports sharp, for
+  # image inputs memory never sends, so it shares Hyperframes' copy.
+  '@huggingface/transformers>sharp': '0.35.3'
 
 peerDependencyRules:
   allowedVersions:
