@@ -1786,6 +1786,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       'client-ui-permission-presets PermissionRow id \'permission\'',
       'client-ui-settings-general RecallJudgeRow id \'recall-judge\'',
       'client-ui-settings-general BackgroundModeRow id \'background-mode\'',
+      'client-ui-settings-general AdvancedHeading id \'advanced-heading\'',
       'client-ui-settings-general DeveloperModeRow id \'developer-mode\'',
       'client-ui-sidebar-browser ExtensionRow id \'browser-extension\'',
       'client-ui-sidebar-browser SearchEngineRow id \'search-engine\'',
