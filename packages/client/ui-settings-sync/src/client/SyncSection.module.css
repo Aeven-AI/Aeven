@@ -55,6 +55,47 @@
   gap: 8px;
 }
 
+/* Unlock popup footer: the main actions on one right-aligned row, then the fallbacks under a labelled rule. */
+.unlockFooter {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.unlockActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.fallbackLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 36px 0;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.fallbackLabel::before,
+.fallbackLabel::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--dsw-alias-border-l2);
+}
+
+.fallbackActions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fallbackActions > * {
+  width: 100%;
+}
+
 .deviceIcon {
   display: inline-flex;
   align-items: center;
