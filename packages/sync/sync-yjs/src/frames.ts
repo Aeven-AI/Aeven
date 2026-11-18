@@ -4,11 +4,6 @@ import * as Y from 'yjs'
 import { contentKeyOf, openEnvelope, sealEnvelope, type SealEnvelopeInput } from '@aeven/sync-vault'
 
 /**
- * Collect deleted content while retaining the Yjs clocks, delete set, and unresolved dependencies.
- * @param updates - stored updates in application order.
- * @returns a complete update of the same document.
- */
-/**
  * Read every value stored updates wrote under each key of some root maps, without integrating the updates into a
  * document. Integration replays the whole history, which for a document rewritten many times costs minutes; decoding
  * only walks the structs. An item names its map and key when it is the first write of that key, and otherwise names
@@ -19,45 +14,76 @@ import { contentKeyOf, openEnvelope, sealEnvelope, type SealEnvelopeInput } from
  */
 export function mapEntries(updates: readonly Uint8Array[], maps: readonly string[]): Record<string, Record<string, unknown[]>> {
   const found: Record<string, Record<string, unknown[]>> = Object.fromEntries(maps.map(name => [name, {}]))
-  /** Map and key of the item covering each `client:clock`. */
-  const placed = new Map<string, { map: string; key: string | null }>()
-  let waiting: Y.Item[] = []
+  // Each client's items by starting clock. An item covers `length` clocks, which for a deletion can be millions, so
+  // a reference is resolved by searching these ranges, never by listing every clock.
+  const byClient = new Map<number, Y.Item[]>()
   for (const update of updates) {
     for (const struct of Y.decodeUpdate(update).structs) {
-      if (struct instanceof Y.Item) waiting.push(struct)
+      if (!(struct instanceof Y.Item)) continue
+      const items = byClient.get(struct.id.client) ?? []
+      items.push(struct)
+      byClient.set(struct.id.client, items)
     }
   }
-  const place = (item: Y.Item, map: string, key: string | null): void => {
-    for (let offset = 0; offset < item.length; offset++) placed.set(`${String(item.id.client)}:${String(item.id.clock + offset)}`, { map, key })
-    const entries = found[map]
-    if (key === null || entries === undefined || !(item.content instanceof Y.ContentAny)) return
-    const values = entries[key] ?? []
-    values.push(...(item.content.arr as unknown[]))
-    entries[key] = values
+  for (const items of byClient.values()) items.sort((a, b) => a.id.clock - b.id.clock)
+  const covering = (client: number, clock: number): Y.Item | undefined => {
+    const items = byClient.get(client)
+    if (items === undefined) return undefined
+    let low = 0
+    let high = items.length - 1
+    while (low <= high) {
+      const middle = (low + high) >> 1
+      const item = items[middle]
+      if (item === undefined) return undefined
+      if (clock < item.id.clock) high = middle - 1
+      else if (clock >= item.id.clock + item.length) low = middle + 1
+      else return item
+    }
+    return undefined
   }
-  for (let progressed = true; progressed && waiting.length > 0;) {
-    progressed = false
-    const unresolved: Y.Item[] = []
-    for (const item of waiting) {
-      const parent = item.parent as unknown
-      const neighbour = item.origin ?? item.rightOrigin
-      const known = typeof parent === 'string'
-        ? { map: parent, key: item.parentSub }
-        : neighbour === null ? undefined : placed.get(`${String(neighbour.client)}:${String(neighbour.clock)}`)
-      if (known === undefined) {
-        unresolved.push(item)
-        continue
+  /** Map and key per item once resolved; `null` for an item whose chain reaches no named parent. */
+  const resolved = new Map<Y.Item, { map: string; key: string | null } | null>()
+  const resolve = (start: Y.Item): { map: string; key: string | null } | null => {
+    // The chain of neighbours is walked iteratively, since it can be as long as the document's history.
+    const chain: Y.Item[] = []
+    const visited = new Set<Y.Item>()
+    let item: Y.Item | undefined = start
+    let answer: { map: string; key: string | null } | null = null
+    while (item !== undefined) {
+      const known = resolved.get(item)
+      if (known !== undefined) {
+        answer = known
+        break
       }
-      place(item, known.map, known.key)
-      progressed = true
+      if (visited.has(item)) break
+      visited.add(item)
+      chain.push(item)
+      const parent = item.parent as unknown
+      if (typeof parent === 'string') {
+        answer = { map: parent, key: item.parentSub }
+        break
+      }
+      const neighbour: Y.ID | null = item.origin ?? item.rightOrigin
+      item = neighbour === null ? undefined : covering(neighbour.client, neighbour.clock)
     }
-    waiting = unresolved
+    for (const link of chain) resolved.set(link, answer)
+    return answer
+  }
+  for (const items of byClient.values()) {
+    for (const item of items) {
+      const place = resolve(item)
+      const entries = place === null ? undefined : found[place.map]
+      if (place === null || place.key === null || entries === undefined || !(item.content instanceof Y.ContentAny)) continue
+      const values = entries[place.key] ?? []
+      values.push(...(item.content.arr as unknown[]))
+      entries[place.key] = values
+    }
   }
   return found
 }
 
 /**
- * Merge stored updates of one document into a single update holding its whole state.
+ * Collect deleted content while retaining the Yjs clocks, delete set, and unresolved dependencies.
  * @param updates - stored updates in application order.
  * @returns a complete update of the same document.
  */
