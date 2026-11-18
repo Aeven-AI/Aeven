@@ -1326,13 +1326,13 @@ describe('strips and variants', () => {
 
   it('announces the subagent delivery refusals with product copy', () => {
     const parent = bench({
-      promptError: { op: 'send', error: new RemoteError('subagent/parent-unavailable', 'raw wire text', {}) },
+      promptError: { op: 'send', error: new RemoteError('subagent/parent-unavailable', 'raw wire text', { parentSessionId: 'parent' as SessionId }) },
     })
     expect(parent.view.getByRole('dialog').textContent).toContain('Æven 无法在这台设备上打开启动此代理的对话')
     expect(parent.view.getByRole('dialog').textContent).not.toContain('raw wire text')
     cleanup()
     const child = bench({
-      promptError: { op: 'send', error: new RemoteError('subagent/not-resumable', 'raw wire text', {}) },
+      promptError: { op: 'send', error: new RemoteError('subagent/not-resumable', 'raw wire text', { childSessionId: SID }) },
     })
     expect(child.view.getByRole('dialog').textContent).toContain('此代理的对话无法在这台设备上继续')
   })

@@ -115,6 +115,14 @@ export const InputBar = memo(function InputBar({
   }, [])
   const dismissFailure = useCallback(() => { setFailure(null) }, [])
   const sendBlocked = useCallback((text: string) => { showFailure(t('error.sendTitle'), text) }, [showFailure, t])
+  // A command this session does not serve, or one that fails, opens the failure dialog.
+  const reportCommand = (run: Promise<boolean>): void => {
+    void run.then((handled) => {
+      if (!handled) showFailure(t('error.actionTitle'), t('add.unavailable'))
+    }).catch((error: unknown) => {
+      showFailure(t('error.actionTitle'), error instanceof Error ? error.message : String(error))
+    })
+  }
   // The deployment's image-intake limits (absent while no attachment service
   // is composed — the pre-check below then defers entirely to the host).
   const imageLimits = useProjection('imageLimits')
@@ -452,11 +460,7 @@ export const InputBar = memo(function InputBar({
       return
     }
     if (sessionId === undefined || invokeCommand === undefined || addSelection.current === null) return
-    void invokeCommand(id, addSelection.current).then((handled) => {
-      if (!handled) showFailure(t('error.actionTitle'), t('add.unavailable'))
-    }).catch((error: unknown) => {
-      showFailure(t('error.actionTitle'), error instanceof Error ? error.message : String(error))
-    })
+    reportCommand(invokeCommand(id, addSelection.current))
   }
 
   // The no-session Workspace trigger: the resident editable div acts as the
@@ -647,22 +651,14 @@ export const InputBar = memo(function InputBar({
                 // that finds no live caret still hands one at the draft's end,
                 // so the generic control path stays meaningful.
                 const span = keyboard?.caretSpan() ?? { start: draft.length, end: draft.length }
-                void invokeCommand('image-model', span, anchor).then((handled) => {
-                  if (!handled) showFailure(t('error.actionTitle'), t('add.unavailable'))
-                }).catch((error: unknown) => {
-                  showFailure(t('error.actionTitle'), error instanceof Error ? error.message : String(error))
-                })
+                reportCommand(invokeCommand('image-model', span, anchor))
               }}
               onVideoModel={invokeCommand === undefined ? undefined : (anchor) => {
                 // The picker's decoration path reads no draft span; a control
                 // that finds no live caret still hands one at the draft's end,
                 // so the generic control path stays meaningful.
                 const span = keyboard?.caretSpan() ?? { start: draft.length, end: draft.length }
-                void invokeCommand('video-model', span, anchor).then((handled) => {
-                  if (!handled) showFailure(t('error.actionTitle'), t('add.unavailable'))
-                }).catch((error: unknown) => {
-                  showFailure(t('error.actionTitle'), error instanceof Error ? error.message : String(error))
-                })
+                reportCommand(invokeCommand('video-model', span, anchor))
               }}
               useProjection={useProjection}
               keepFocus={keepFocus}
