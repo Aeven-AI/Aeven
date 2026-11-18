@@ -98,7 +98,7 @@ function ProviderCard({ provider, enabled, connected, prepare, cancel, setEnable
 export function VoiceSection({ useSpeechReadiness, prepare, cancel, setEnabled, t }: VoiceSectionProps) {
   const readiness = useSpeechReadiness(value => value), catalog = readiness.catalog
   return (
-    <SettingsGroup title={t('title')} description={t('intro')}>
+    <SettingsGroup title={t('title')}>
       {catalog === null
         ? <p className={css.notice} role="status">{readiness.error ?? t('loading')}</p>
         : catalog.providers.map(provider => (

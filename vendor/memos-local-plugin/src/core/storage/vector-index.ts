@@ -522,9 +522,8 @@ export function indexedTopK<TMeta = undefined>(
     for (let j = 0; j < dim; j++) dot += data[offset + j]! * query[j]!;
     scores[i] = dot / (Math.sqrt(norm) * qNorm);
   }
-  // Order only the first window by a bounded heap; a filter that rejects most of it falls back to a full sort.
-  let order = topIndices(scores, Math.min(size, Math.max(k * 4, 64)));
-  let sorted = order.length === size;
+  // Order only the first window by a bounded heap; a filter that rejects most of it reads the passing rows instead.
+  const order = topIndices(scores, Math.min(size, Math.max(k * 4, 64)));
 
   const cols = ["id", ...selectExtra].join(", ");
   const filter = [`id IN (SELECT value FROM json_each(@__ids))`, `${opts.vecColumn} IS NOT NULL`];
@@ -534,12 +533,34 @@ export function indexedTopK<TMeta = undefined>(
   );
 
   const hits: Array<VectorHit<string, TMeta>> = [];
-  let window = Math.max(k * 4, 64);
+  const metaOf = (row: Record<string, unknown>): TMeta => selectExtra.length > 0
+    ? Object.fromEntries(selectExtra.map((column) => [column, row[column]])) as TMeta
+    : undefined as TMeta;
+  const window = Math.max(k * 4, 64);
   let start = 0;
   while (hits.length < k && start < size) {
-    if (!sorted && start + window > order.length) {
-      order = topIndices(scores, size);
-      sorted = true;
+    if (start > 0) {
+      // The filter rejected most of the best-scoring window, so few rows pass it. Read every row that passes once
+      // and order those by score, instead of asking for the next windows of a ranking the filter mostly rejects.
+      const position = new Map<string, number>();
+      for (let i = 0; i < size; i++) position.set(entry.ids[i]!, i);
+      const taken = new Set(hits.map((hit) => hit.id));
+      const eligible: Array<{ index: number; row: Record<string, unknown> }> = [];
+      const every = db.prepare<Record<string, unknown>, Record<string, unknown>>(
+        `SELECT ${cols} FROM ${table} WHERE ${filter.slice(1).join(" AND ")}`,
+      );
+      for (const row of every.iterate({ ...(opts.params ?? {}) })) {
+        const id = String(row["id"]);
+        const index = position.get(id);
+        if (index === undefined || taken.has(id) || scores[index]! < -1) continue;
+        eligible.push({ index, row });
+      }
+      eligible.sort((a, b) => scores[b.index]! - scores[a.index]!);
+      for (const { index, row } of eligible) {
+        if (hits.length >= k) break;
+        hits.push({ id: entry.ids[index]!, score: scores[index]!, meta: metaOf(row) });
+      }
+      break;
     }
     const end = Math.min(size, start + window);
     const ids: string[] = [];
@@ -557,13 +578,9 @@ export function indexedTopK<TMeta = undefined>(
       const row = passed.get(entry.ids[index]!);
       if (row === undefined) continue;
       passed.delete(entry.ids[index]!);
-      const meta = selectExtra.length > 0
-        ? Object.fromEntries(selectExtra.map((column) => [column, row[column]])) as TMeta
-        : undefined as TMeta;
-      hits.push({ id: entry.ids[index]!, score: scores[index]!, meta });
+      hits.push({ id: entry.ids[index]!, score: scores[index]!, meta: metaOf(row) });
     }
     start = end;
-    window *= 4;
   }
   return hits;
 }

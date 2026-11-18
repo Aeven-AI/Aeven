@@ -8214,7 +8214,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MemoryRecall',
-    declaration: 'export interface MemoryRecall {\n    readonly hits: readonly MemoryHit[];\n    readonly timedOut: boolean;\n    readonly degraded?: boolean;\n    readonly lead?: \'person\' | \'task\';\n    readonly sharing?: boolean;\n}',
+    declaration: 'export interface MemoryRecall {\n    readonly hits: readonly MemoryHit[];\n    readonly timedOut: boolean;\n    readonly degraded?: boolean;\n    readonly lead?: \'person\' | \'task\';\n    readonly sharing?: boolean;\n    readonly unjudged?: boolean;\n}',
   },
   {
     name: 'MemoryRecallLimits',

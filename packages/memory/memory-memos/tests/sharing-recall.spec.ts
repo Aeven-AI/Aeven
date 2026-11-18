@@ -183,3 +183,34 @@ describe('recall of the person\'s recent memories on a later turn', () => {
     expect(result.hits.map(hit => hit.id)).toEqual(['tr_person'])
   })
 })
+
+describe('recall for an account that turned the relevance judgment off', () => {
+  const unjudged = (sharingOnly: boolean) => {
+    const run = vi.fn(async () => SHARED)
+    const harness = recallHarness([work], {
+      recent: [person],
+      judgeRecall: () => false,
+      relevance: { timeoutMs: 4000, hedgeMs: 0, minMs: 0, run },
+    })
+    const recall = harness.memory.recall({
+      scope: SCOPE, query: REQUEST, request: REQUEST, purpose: 'turn-start', timeoutMs: 5000, signal,
+      recent: { ...RECENT, sharingOnly },
+    })
+    return { run, recall }
+  }
+
+  it('delivers every candidate of a first turn, recent memories included, and asks no model', async () => {
+    const { run, recall } = unjudged(false)
+    const result = await recall
+    expect(result).toMatchObject({ timedOut: false, unjudged: true })
+    expect(result.degraded).toBeUndefined()
+    expect(result.hits.map(hit => hit.id)).toEqual(['tr_work', 'tr_person'])
+    expect(run).not.toHaveBeenCalled()
+  })
+
+  it('leaves recent memories out of a later turn, which only a judgment could call personal', async () => {
+    const { run, recall } = unjudged(true)
+    expect((await recall).hits.map(hit => hit.id)).toEqual(['tr_work'])
+    expect(run).not.toHaveBeenCalled()
+  })
+})

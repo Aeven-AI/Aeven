@@ -53,7 +53,8 @@
     "@aeven/session": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@aeven/sync": "workspace:^",
-    "@aeven/workspace": "workspace:^"
+    "@aeven/workspace": "workspace:^",
+    "@aeven/settings": "workspace:^"
   },
   "devDependencies": {
     "@aeven/credentials": "workspace:^",
@@ -63,10 +64,14 @@
     "@deepseek-ai/cordis": "workspace:^",
     "@types/better-sqlite3": "^7.6.12",
     "@aeven/sync": "workspace:^",
-    "@aeven/workspace": "workspace:^"
+    "@aeven/workspace": "workspace:^",
+    "@aeven/settings": "workspace:^"
   },
   "peerDependenciesMeta": {
     "@aeven/workspace": {
+      "optional": true
+    },
+    "@aeven/settings": {
       "optional": true
     }
   }

@@ -2,7 +2,7 @@
 
 /** Simplified Chinese dictionary (the key-set source of truth). */
 export const zh = {
-  'title': '权限',
+  'title': '权限模式',
   'description': '选择新会话的默认权限模式',
   'loading': '加载中',
   'unavailable': '不可用',
@@ -21,7 +21,7 @@ export type PermissionSettingsKey = keyof typeof zh
 
 /** English dictionary, checked complete against the zh key set. */
 export const en = {
-  'title': 'Permission',
+  'title': 'Permission mode',
   'description': 'Choose the default permission mode for new sessions',
   'loading': 'Loading',
   'unavailable': 'Unavailable',
@@ -64,7 +64,7 @@ export const accessEn = {
 
 /** Spanish dictionary, checked complete against the zh key set. */
 export const es = {
-  'title': 'Permisos',
+  'title': 'Modo de permisos',
   'description': 'Elige el modo de permisos predeterminado para las sesiones nuevas',
   'loading': 'Cargando',
   'unavailable': 'No disponible',

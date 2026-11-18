@@ -3160,6 +3160,10 @@ export interface Config {
    * all the facts about it that fit, up to this count.
    */
   judgedMaxItems: number
+  /** Most memories one block states when the provider delivered every candidate without a relevance judgment. */
+  unjudgedMaxItems: number
+  /** Character budget of a block of unjudged candidates, in place of `contextMaxChars`. */
+  unjudgedMaxChars: number
   /**
    * Characters of the person's earlier messages in the same session that join the turn's own text in the recall
    * query, newest first. A follow-up such as "what should I reply to her?" names nobody, so without the earlier

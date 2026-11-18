@@ -42,17 +42,19 @@ export interface FakeCoreOptions {
  * @returns the methods the recall path calls.
  */
 export function fakeCore(traces: readonly FakeTrace[], options: FakeCoreOptions = {}) {
+  const read = (id: string) => {
+    const trace = traces.find(entry => entry.refId === id)
+    // An explicit lookup expands the trace, so the fields `traceSnippet` reads are always present.
+    return trace === undefined ? null : { toolCalls: [], agentText: '', userText: '', ...trace }
+  }
   return {
     searchMemory: async (request: { query: string }) => {
       options.queries?.push(request.query)
       const found = options.find?.(request.query) ?? traces
       return { hits: found.map(trace => ({ refKind: 'trace', refId: trace.refId, tier: 2, score: 0.5, snippet: trace.summary ?? trace.refId })) }
     },
-    getTrace: async (id: string) => {
-      const trace = traces.find(entry => entry.refId === id)
-      // An explicit lookup expands the trace, so the fields `traceSnippet` reads are always present.
-      return trace === undefined ? null : { toolCalls: [], agentText: '', userText: '', ...trace }
-    },
+    getTrace: async (id: string) => read(id),
+    getTraces: async (ids: readonly string[]) => ids.map(read),
     listTraces: async (): Promise<readonly FakeTrace[]> =>
       (options.listTraces === undefined ? options.recent ?? [] : await options.listTraces())
         .map(trace => ({ ...trace, id: trace.refId })),
@@ -61,7 +63,7 @@ export function fakeCore(traces: readonly FakeTrace[], options: FakeCoreOptions 
 }
 
 /** Runtime options a recall spec supplies beside the fake core's answers. */
-type RuntimeOptions = Pick<MemosMemoryOptions, 'relevance' | 'sentenceRecall'>
+type RuntimeOptions = Pick<MemosMemoryOptions, 'relevance' | 'sentenceRecall' | 'judgeRecall'>
 
 /** A runtime over the fake core, with the retrieval queries it sent. */
 export interface RecallHarness {
@@ -84,6 +86,7 @@ export function recallHarness(traces: readonly FakeTrace[], options: FakeCoreOpt
     toolLimits: { skills: 8, traces: 8, worldModels: 8 },
     ...options.relevance === undefined ? {} : { relevance: options.relevance },
     ...options.sentenceRecall === undefined ? {} : { sentenceRecall: options.sentenceRecall },
+    ...options.judgeRecall === undefined ? {} : { judgeRecall: options.judgeRecall },
     warn: () => {},
     info: () => {},
   })

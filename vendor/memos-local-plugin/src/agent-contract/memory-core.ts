@@ -265,6 +265,11 @@ export interface MemoryCore {
   ): Promise<RetrievalResultDTO>;
   getTrace(id: string, namespace?: RuntimeNamespace): Promise<TraceDTO | null>;
   /**
+   * Read several traces in one call, in the order asked; a trace that is missing or not visible to the namespace
+   * is `null`. One call replaces a `getTrace` per id for callers that hydrate a whole result list.
+   */
+  getTraces(ids: readonly string[], namespace?: RuntimeNamespace): Promise<Array<TraceDTO | null>>;
+  /**
    * Mutate a single trace's user-facing fields (role / summary /
    * body). Never touches algorithmic signals. Returns the updated
    * DTO (or null if the id is unknown).

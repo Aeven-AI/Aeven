@@ -918,6 +918,7 @@ flowchart TD
   pkg_memory_memos --> pkg_llm
   pkg_memory_memos --> pkg_memory
   pkg_memory_memos --> pkg_session
+  pkg_memory_memos --> pkg_settings
   pkg_memory_memos --> pkg_sync
   pkg_memory_memos --> pkg_workspace
   pkg_session_title_llm --> pkg_llm
@@ -1947,7 +1948,7 @@ flowchart TD
 | [`headless`](../packages/bundle/headless) | `bundle` | [`agent`](../packages/core/agent), [`agent-default-model`](../packages/core/agent-default-model), [`llm`](../packages/llm/llm), [`session`](../packages/core/session) |
 | [`host-account-data`](../packages/host/account-data) | `host` | [`attachment`](../packages/attachment/attachment), [`client-connection`](../packages/client/connection), [`credentials`](../packages/credentials/credentials), [`memory`](../packages/memory/memory), [`session`](../packages/core/session), [`session-persistence`](../packages/session/session-persistence) |
 | [`jobs-local`](../packages/jobs/jobs-local) | `jobs` | [`agent`](../packages/core/agent), [`jobs`](../packages/jobs/jobs), [`scope`](../packages/core/scope), [`timeout`](../packages/util/timeout) |
-| [`memory-memos`](../packages/memory/memory-memos) | `memory` | [`credentials`](../packages/credentials/credentials), [`llm`](../packages/llm/llm), [`memory`](../packages/memory/memory), [`session`](../packages/core/session), [`sync`](../packages/sync/sync), [`workspace`](../packages/workspace/workspace) |
+| [`memory-memos`](../packages/memory/memory-memos) | `memory` | [`credentials`](../packages/credentials/credentials), [`llm`](../packages/llm/llm), [`memory`](../packages/memory/memory), [`session`](../packages/core/session), [`settings`](../packages/settings/settings), [`sync`](../packages/sync/sync), [`workspace`](../packages/workspace/workspace) |
 | [`session-title-llm`](../packages/session/session-title-llm) | `session` | [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`session-title`](../packages/session/session-title), [`timeout`](../packages/util/timeout) |
 | [`llm-cache-warm`](../packages/llm/llm-cache-warm) | `llm` | [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`timeout`](../packages/util/timeout), [`tools`](../packages/core/tools) |
 | [`agent-tool-presentation`](../packages/core/agent-tool-presentation) | `core` | [`tools`](../packages/core/tools) |

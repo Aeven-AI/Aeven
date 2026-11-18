@@ -31,7 +31,7 @@ Users reach the shell through the sidebar's bottom Settings control; feature plu
 
 ### The General section
 
-The General section holds rows registered into `settings.general.item` by feature packages, plus two rows of its own. Run in the background appears only in the desktop application, whose preload bridge stores the choice; the browser build has no bridge and no row. Developer mode is stored as `enabled` in the `ui-developer` settings namespace this package registers. Developer surfaces such as the agent-preset roster mount only while it is on; consumers import the namespace's type from `./client` and bind it through `ctx.settingsScope`. Feature plugins own their row copy and behavior. Language, for example, lives in client-locale. The Appearance section lives in ui-theme.
+The General section holds rows registered into `settings.general.item` by feature packages, plus three rows of its own. An Advanced heading of this package opens the last rows: Browser extension, Developer mode, then Run in the background. Run in the background appears only in the desktop application, whose preload bridge stores the choice; the browser build has no bridge and no row. Developer mode is stored as `enabled` in the `ui-developer` settings namespace this package registers. Developer surfaces such as the agent-preset roster mount only while it is on; consumers import the namespace's type from `./client` and bind it through `ctx.settingsScope`. Filter memories, directly above Permission mode, writes `judge` in the per-account `memory-recall` namespace that `@aeven/memory-memos` registers; off by default, and its question icon says that turning it on starts every answer about a second later. Feature plugins own their row copy and behavior. Language, for example, lives in client-locale. The Appearance section lives in ui-theme.
 
 ### Opening the configuration file
 
@@ -100,7 +100,7 @@ None; this package neither assembles nor sends a provider request.
 
 These limits define what the shell itself provides versus what features must supply; they are current package constraints.
 
-- **The General section owns only the Run in the background and Developer mode rows** — every other row appears only when its owning feature plugin is mounted.
+- **The General section owns only the Run in the background, Filter memories, and Developer mode rows** — every other row appears only when its owning feature plugin is mounted.
 
 <a id="dev-note"></a>
 ### Dev Note

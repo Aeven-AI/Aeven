@@ -10092,6 +10092,9 @@ importers:
       '@aeven/session':
         specifier: workspace:^
         version: link:../../core/session
+      '@aeven/settings':
+        specifier: workspace:^
+        version: link:../../settings/settings
       '@aeven/sync':
         specifier: workspace:^
         version: link:../../sync/sync

@@ -41,6 +41,7 @@ export function EnterBehaviorRow({ useBusyEnter, setBusyEnter, t }: EnterBehavio
     <SettingsRow
       title={t('settings.enter.title')}
       description={t('settings.enter.description')}
+      info={{ title: t('settings.enter.title'), body: t('settings.enter.info'), closeLabel: t('settings.enter.close') }}
       control={(
         <SettingsSelect
           items={OPTIONS.map(option => ({ id: option.id, label: t(option.label) }))}

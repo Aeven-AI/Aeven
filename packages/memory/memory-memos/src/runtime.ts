@@ -124,6 +124,11 @@ export interface MemosMemoryOptions {
    */
   readonly profiles?: { readonly store: PersonProfiles; readonly distill: ProfileDistill }
   /**
+   * Whether the owner's turn-start recall runs the relevance judgment. Answering false delivers every candidate,
+   * learned procedures included, marked `unjudged`; absent judges whenever `relevance` is set.
+   */
+  readonly judgeRecall?: (owner: string) => boolean
+  /**
    * File keeping one owner's last person-memory listing across restarts. With it, a profile read after a start serves
    * that listing at once and lists again in the background; without it, the first read waits for the listing.
    */
@@ -558,6 +563,7 @@ export class MemosMemory implements MemoryProvider {
     const recentScan = turnStart && request.recent !== undefined ? this.recentPersonTraces(request, deadlineAt) : undefined
     recentScan?.catch(() => undefined)
     // Read beside the search for the same reason; without a relevance judgment nothing would vet the procedures.
+    const judged = this.options.relevance !== undefined && (this.options.judgeRecall?.(scope.owner) ?? true)
     const procedureScan = turnStart && this.options.relevance !== undefined && (this.options.procedureCandidates ?? 0) > 0
       ? this.procedureScan(request, deadlineAt)
       : undefined
@@ -576,6 +582,13 @@ export class MemosMemory implements MemoryProvider {
         if (topic !== request.query && topic.length > 0) hits = await this.search({ ...request, query: topic }, deadlineAt, turnStart)
       }
       if (procedureScan !== undefined) hits = [...hits, ...this.procedureHits(request, hits, await procedureScan)]
+      if (!judged && this.options.relevance !== undefined) {
+        // No judgment decides whether a later turn is personal, so recent memories join only where they always do.
+        const recent = recentScan === undefined || request.recent?.sharingOnly === true
+          ? []
+          : this.recentPersonHits(request, hits, await recentScan)
+        return { hits: [...hits, ...recent], timedOut: false, unjudged: true }
+      }
       if (request.recent?.sharingOnly !== true || recentScan === undefined) {
         const recent = recentScan === undefined ? [] : this.recentPersonHits(request, hits, await recentScan)
         return await this.judge(request, [...hits, ...recent], deadlineAt)
@@ -807,6 +820,8 @@ export class MemosMemory implements MemoryProvider {
         ownerProfileId: ownerProfile(scope.owner),
         includeAllNamespaces: true,
         domains: ['person'],
+        // Only the window is read: older person memories are never eligible.
+        fromMs: since,
         limit: RECENT_PERSON_PAGE,
         offset: page * RECENT_PERSON_PAGE,
       }), deadlineAt, request.signal, `Memory recall exceeded ${request.timeoutMs}ms`)
@@ -1087,8 +1102,12 @@ export class MemosMemory implements MemoryProvider {
   ): Promise<MemoryHit[]> {
     const namespace = this.namespaceOf(scope)
     const workspace = normalizeNamespace(namespace, MEMOS_AGENT).workspaceId
-    const classified = await Promise.all(hits.map(async (hit) => {
-      const hitOrigin = await this.hitOrigin(core, hit, namespace, turnStart)
+    // One read for every trace hit: a read per hit queues each behind whatever else the account's core is doing.
+    const traceIds = hits.flatMap(hit => hit.refKind === 'trace' ? [hit.refId] : [])
+    const read = traceIds.length === 0 ? [] : await core.getTraces(traceIds, namespace)
+    const traces = new Map(traceIds.map((id, index) => [id, read[index] ?? null]))
+    const classified = hits.map((hit) => {
+      const hitOrigin = this.hitOrigin(hit, traces, turnStart)
       const { domain, workspaceId, summary, correction, superseded, procedureStatus, candidateKind, recordedAt, origin } = hitOrigin
       const memory: MemoryHit = {
         kind: hit.refKind,
@@ -1104,7 +1123,7 @@ export class MemosMemory implements MemoryProvider {
       }
       if (candidateKind !== undefined) this.candidateKinds.set(memory, candidateKind)
       return { memory, workspaceId, correction, superseded, archived: procedureStatus === 'archived' }
-    }))
+    })
     return classified
       .filter(({ memory, workspaceId, correction, superseded, archived }) =>
         (!turnStart || (!correction && !superseded && !archived))
@@ -1118,7 +1137,7 @@ export class MemosMemory implements MemoryProvider {
    * status: automatic recall never delivers an `archived` one and offers a `candidate` to the relevance judgment as
    * unproven.
    */
-  private async hitOrigin(core: MemoryCore, hit: RetrievalHitDTO, namespace: RuntimeNamespace, turnStart: boolean): Promise<{
+  private hitOrigin(hit: RetrievalHitDTO, traces: ReadonlyMap<string, TraceDTO | null>, turnStart: boolean): {
     domain: MemoryDomain
     workspaceId: string | null | undefined
     summary?: string
@@ -1128,7 +1147,7 @@ export class MemosMemory implements MemoryProvider {
     candidateKind?: CandidateKind
     recordedAt?: number
     origin?: MemoryOrigin
-  }> {
+  } {
     switch (hit.refKind) {
       case 'experience':
       case 'skill':
@@ -1136,7 +1155,7 @@ export class MemosMemory implements MemoryProvider {
       case 'world-model':
         return { domain: 'world', workspaceId: hit.ownerWorkspaceId }
       case 'trace': {
-        const trace = await core.getTrace(hit.refId, namespace)
+        const trace = traces.get(hit.refId) ?? null
         const workspaceId = trace?.ownerWorkspaceId ?? hit.ownerWorkspaceId
         const domain = traceDomain(trace?.tags, workspaceId)
         const summary = trace === null ? undefined : turnStart ? recallSnippet(trace, domain) : traceSnippet(trace)

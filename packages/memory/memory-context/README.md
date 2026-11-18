@@ -36,6 +36,8 @@ Mount it per agent (the `standard`, `cordis`, and `ptc` presets include it) besi
 | `domainMaxItems` | person 6, project 3, world 2, experience 2 | Maximum recalled items in each domain when the provider did not judge relevance or the judgment failed |
 | `maxItems` | `7` | Maximum recalled items in one unjudged block, chosen in rank order across domains |
 | `judgedMaxItems` | `14` | Maximum recalled items in one block the provider's relevance judgment chose; no domain is capped |
+| `unjudgedMaxItems` | `60` | Maximum recalled items in one block of candidates the provider delivered without a relevance judgment (`unjudged`); no domain is capped, and the block opens with a line saying the memories are unchecked candidates |
+| `unjudgedMaxChars` | `16000` | Character budget of an unjudged block, in place of `contextMaxChars` |
 | `queryContextChars` | `1000` | Characters of the person's earlier messages in the session, newest first, that join the turn's text in the recall query; `0` recalls on the turn's text alone |
 | `recentPersonHours` | `168` | Hours back from which a session's first turn, and any later turn the relevance judgment finds personal, also offers the person's newest memories about themselves as recall candidates; they pass the same relevance judgment as every other candidate; `0` turns it off |
 | `recentPersonItems` | `24` | Most such recent memories offered |

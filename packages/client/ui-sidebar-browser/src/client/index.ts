@@ -481,7 +481,8 @@ export function apply(ctx: ClientContext): void {
   ctx.slots.inject('settings.general.item', () => ctx.slots.register({
     name: 'settings.general.item',
     id: 'browser-extension',
-    order: 32,
+    // Under General's Advanced heading (order 998), above Developer mode (order 1000).
+    order: 999,
     locale: NS,
     inject: (): ExtensionRowInjected => ({ extensionStatus, installUrl }),
   }, ExtensionRow))

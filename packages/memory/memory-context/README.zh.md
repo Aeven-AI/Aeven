@@ -37,6 +37,8 @@ kind: "package-reference"
 | `domainMaxItems` | person 6、project 3、world 2、experience 2 | 提供方未判定相关性或判定失败时，每个领域召回条目的上限 |
 | `maxItems` | `7` | 未判定的单个块中召回条目的上限，按排名跨领域选取 |
 | `judgedMaxItems` | `14` | 由提供方的相关性判定选定内容的单个块中召回条目的上限；不对任何领域设上限 |
+| `unjudgedMaxItems` | `60` | 提供方未经相关性判定交付的候选块（`unjudged`）中召回条目的上限；不对任何领域设上限，且该块以一行说明这些记忆是未经检查的候选开头 |
+| `unjudgedMaxChars` | `16000` | 未经判定的块的字符预算，取代 `contextMaxChars` |
 | `queryContextChars` | `1000` | 会话中此人较早消息的字符数（从最新开始），与本轮文本一起组成召回查询；`0` 表示仅用本轮文本召回 |
 | `recentPersonHours` | `168` | 从多少小时之内开始，会话的第一个轮次以及相关性判定认为属于个人话题的后续轮次，还会把此人关于自己的最新记忆作为召回候选提供出来；它们与其他任何候选一样通过相同的相关性判定；`0` 表示关闭 |
 | `recentPersonItems` | `24` | 最多提供多少条这样的近期记忆 |

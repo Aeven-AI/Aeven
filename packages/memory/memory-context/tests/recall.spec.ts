@@ -78,3 +78,20 @@ describe('the guidance of a personal turn', () => {
     expect(added.map(textOf)).not.toContain(memoryContext.PERSONAL_NOTE)
   })
 })
+
+describe('a recall no relevance judgment selected', () => {
+  it('opens the block by saying its memories are unchecked candidates', async () => {
+    const { provider, step } = await harness()
+    provider.answer({ hits: [PERSON], timedOut: false, unjudged: true })
+    const block = (await step(2)).map(textOf).find(text => text.startsWith('<memory_context>'))
+    expect(block?.startsWith(`<memory_context>\n${memoryContext.UNJUDGED_NOTE}\n\nAbout the user and people they mention:`)).toBe(true)
+  })
+
+  it('states more memories than a judged block may', async () => {
+    const { provider, step } = await harness({ unjudgedMaxItems: 20 })
+    const hits = Array.from({ length: 20 }, (_, index) => ({ ...PERSON, id: `tr_${String(index)}` as never, snippet: `Fact number ${String(index)} about them.` }))
+    provider.answer({ hits, timedOut: false, unjudged: true })
+    const block = (await step(2)).map(textOf).find(text => text.startsWith('<memory_context>')) ?? ''
+    expect(block.match(/Fact number/gu)).toHaveLength(20)
+  })
+})
