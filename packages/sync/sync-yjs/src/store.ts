@@ -278,6 +278,18 @@ export class SyncStore {
   }
 
   /**
+   * Measure the updates a document accumulated since its stored updates were last merged into one.
+   * @param id - the document.
+   * @returns how many updates follow the oldest stored one, and their bytes; zero for a document with one update or none.
+   */
+  docUpdatesSinceMerge(id: OpaqueId): { count: number; bytes: number } {
+    const row = this.statement(`SELECT COUNT(*) AS n, COALESCE(SUM(length(data)), 0) AS bytes,
+      COALESCE((SELECT length(data) FROM doc_updates WHERE id = ? ORDER BY seq LIMIT 1), 0) AS first
+      FROM doc_updates WHERE id = ?`).get(id, id) as { n: number; bytes: number; first: number }
+    return row.n <= 1 ? { count: 0, bytes: 0 } : { count: row.n - 1, bytes: row.bytes - row.first }
+  }
+
+  /**
    * List every document this device stores updates for, with the version of its stored state.
    * @returns each document's version by opaque id; see {@link documentVersion}.
    */

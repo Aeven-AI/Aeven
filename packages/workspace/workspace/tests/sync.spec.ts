@@ -92,6 +92,28 @@ describe('workspaces across devices', () => {
     expect(arrived?.path).toBeUndefined()
   })
 
+  it('lists each workspace once after concurrent rewrites duplicated the order, and writes nothing when it is unchanged', async () => {
+    const network = new MemorySyncNetwork()
+    const sync = network.device()
+    const a = await device(sync)
+    const first = await a.create(await folder('a'), 'Research', OWNER)
+    const { doc } = await sync.asSync().openDocument(OWNER, 'workspaces')
+    const order = doc.getArray<WorkspaceId>('order')
+    await until(() => order.length > 0 ? true : undefined, 'the published order')
+    // Two devices that replaced the list at the same time each keep their copy.
+    order.insert(order.length, [first.id, first.id, first.id])
+    expect(order.toArray().filter(id => id === first.id).length).toBe(4)
+    await a.create(await folder('b'), 'Writing', OWNER)
+    await until(() => order.toArray().filter(id => id === first.id).length === 1 ? true : undefined, 'the order without duplicates')
+    expect(new Set(order.toArray()).size).toBe(order.length)
+    let updates = 0
+    doc.on('update', () => { updates += 1 })
+    // Publishing the same workspaces again, as every local change of any workspace does.
+    ;(a as unknown as { publish: () => void }).publish()
+    await new Promise<void>((resolve) => { setTimeout(resolve, 30) })
+    expect(updates).toBe(0)
+  })
+
   it('removes the workspace on the other device when it is removed here', async () => {
     const network = new MemorySyncNetwork()
     const a = await device(network.device())

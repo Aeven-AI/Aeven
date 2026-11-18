@@ -114,7 +114,8 @@ export class WorkspaceSync {
   private take(owner: string, records: YMap<SyncedWorkspace>, order: YArray<WorkspaceId>): void {
     const projection: SyncedWorkspaces = {
       records: [...records.entries()].map(([id, entry]) => ({ id: id as WorkspaceId, ...entry })),
-      order: order.toArray(),
+      // Concurrent replacements of the list leave duplicates in it; see {@link publish}.
+      order: [...new Set(order.toArray())],
     }
     this.apply(owner, projection)
   }
@@ -145,10 +146,15 @@ export class WorkspaceSync {
         if (JSON.stringify(prior) !== JSON.stringify(next)) records.set(id, next)
       }
       const held = new Set(projection.order)
-      // Workspaces this device has not received yet keep their place after the ones it orders.
-      const rest = order.toArray().filter(id => !held.has(id))
+      const current = order.toArray()
+      // Workspaces this device has not received yet keep their place after the ones it orders. Each id is listed
+      // once: two devices that replaced the list at the same time each kept their copy, so the list holds
+      // duplicates that only a rewrite removes.
+      const next = [...new Set([...projection.order, ...current.filter(id => !held.has(id))])]
+      // An unchanged order writes nothing: every write of the list is a whole copy of it in the document's history.
+      if (current.length === next.length && current.every((id, index) => id === next[index])) return
       order.delete(0, order.length)
-      order.insert(0, [...projection.order, ...rest])
+      order.insert(0, next)
     })
   }
 

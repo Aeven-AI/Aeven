@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-11-18-workspace-order-rewrites-froze-startup.md
+2026-11-18-workspace-order-rewrites-froze-startup.md: d839b5824938a6286aec5455e7fabefaa077cb6a
+2026-11-18-workspace-order-rewrites-froze-startup.zh.md: d617fb57f16db53a9ecb28207fc1cc4c7cc8ed0e

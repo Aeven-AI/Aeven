@@ -26,6 +26,12 @@ const REMOTE = Symbol('sync-remote')
 export interface VaultTuning {
   /** Stored updates per document before they are merged into one. */
   compactAfter: number
+  /**
+   * Bytes of updates a document may accumulate since its last merge before they are merged into one, however few
+   * they are. Opening a document replays every stored update on the Host's thread, so a few large updates cost
+   * what many small ones do.
+   */
+  compactBytes: number
   /** Frames per document since its last snapshot before this device queues a new one. */
   snapshotAfter: number
   /** Received frames opened and stored per batch; opening runs on the sync worker, storing in one transaction. */
@@ -896,11 +902,36 @@ export class AccountVault {
    */
   private afterAppend(id: OpaqueId, added = 1): void {
     const snapshotDue = this.store.countSinceSnapshot(id, added) > this.tuning.snapshotAfter
-    if (!snapshotDue && this.store.docUpdateCount(id) <= this.tuning.compactAfter) return
+    if (!snapshotDue && !this.compactionDue(id)) return
+    void this.scheduleMaintenance(id, snapshotDue)
+  }
+
+  /** Whether a document's stored updates are due to be merged: too many of them, or too many bytes since the last merge. */
+  private compactionDue(id: OpaqueId): boolean {
+    return this.store.docUpdateCount(id) > this.tuning.compactAfter
+      || this.store.docUpdatesSinceMerge(id).bytes > this.tuning.compactBytes
+  }
+
+  /** Queue one maintenance pass of a document behind the pass already running for it. */
+  private scheduleMaintenance(id: OpaqueId, snapshotDue: boolean): Promise<void> {
     const run = (this.maintenance.get(id) ?? Promise.resolve()).then(() => this.maintain(id, snapshotDue))
     const settled = run.catch((error: unknown) => { this.warn(`sync: compacting document ${id} failed`, error) })
     this.maintenance.set(id, settled)
     void settled.then(() => { if (this.maintenance.get(id) === settled) this.maintenance.delete(id) })
+    return settled
+  }
+
+  /**
+   * Merge a document's stored updates on the sync worker before it is opened, when they are due. Opening replays
+   * every stored update on the calling thread, so a document that outgrew its thresholds while closed is merged
+   * first. A document already open is left as it is.
+   * @param name - the logical name.
+   * @returns after the merge finished, or at once when none is due.
+   */
+  async settleDocument(name: string): Promise<void> {
+    const id = this.documentId(name)
+    if (this.docs.has(id) || !this.compactionDue(id)) return
+    await this.scheduleMaintenance(id, false)
   }
 
   private async maintain(id: OpaqueId, snapshotDue: boolean): Promise<void> {
@@ -909,7 +940,7 @@ export class AccountVault {
     await this.offload.maintain({
       path: this.store.path,
       doc: id,
-      compact: this.store.docUpdateCount(id) > this.tuning.compactAfter,
+      compact: this.compactionDue(id),
       ...snapshotDue
         ? { snapshot: { accountKey: key, device: this.device, covers: this.store.relayCursor() } }
         : {},

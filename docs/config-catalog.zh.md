@@ -5259,6 +5259,8 @@ export interface Config {
   deviceName: string
   /** Stored updates per document before they are merged into one. */
   compactAfter: number
+  /** Bytes of updates a document may accumulate since its last merge before they are merged into one. */
+  compactBytes: number
   /** Frames per document since its last snapshot before this device queues a new one. */
   snapshotAfter: number
   /** Received frames opened on the sync worker and stored in one transaction per batch. */
