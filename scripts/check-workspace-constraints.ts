@@ -220,6 +220,8 @@ export function expectedAvnPackageFiles(manifest: PackageManifest): readonly str
     // Keyed on the artifact path, like ./client below.
     ...exportDefault(manifest, './worker') === './lib/worker.cjs' ? ['lib/worker.cjs'] : [],
     ...exportDefault(manifest, './worker') === './lib/worker.js' ? ['lib/worker.js'] : [],
+    // A package's second worker-thread entry, such as the MemOS core worker beside the embedding worker.
+    ...exportDefault(manifest, './core-worker') === './lib/core-worker.js' ? ['lib/core-worker.js'] : [],
     // UI plugin packages ship their browser bundle beside the node lib
     // (single-artifact ruling: dist/ retired, ./client resolves lib/client.js).
     // Keyed on the artifact path, not the subpath name: a package's ./client is
