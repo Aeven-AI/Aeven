@@ -119,6 +119,9 @@
     embeddingExecution: worker
     embeddingQueuePerAccount: 8
     embeddingQueueTotal: 128
+    # Every account shares this Host: their memory cores run on worker threads,
+    # so one account's search or capture never holds another account's turn.
+    coreWorkers: 8
 
 - id: api-sync-controller
   config:

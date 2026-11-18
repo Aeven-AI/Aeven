@@ -33,6 +33,15 @@ export class OwnerCores {
   }
 
   /**
+   * Forget an account's core without shutting it down, so its next operation opens it again. For a core whose
+   * worker stopped.
+   * @param owner - account id.
+   */
+  forget(owner: string): void {
+    this.cores.delete(owner)
+  }
+
+  /**
    * Refuse further opens and shut down every core that opened.
    * @returns after every opened core shut down.
    */
