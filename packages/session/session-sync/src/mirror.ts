@@ -55,7 +55,10 @@ interface DeviceEntry {
   name: string
   /** Set by a device that keeps its relay connection open while no client is attached, such as Aeven Cloud. */
   alwaysOn?: boolean
-  /** When a device without `alwaysOn` last stamped its open relay connection, in milliseconds since the Unix epoch. */
+  /**
+   * When the device last stamped its open relay connection, in milliseconds since the Unix epoch. The always-on
+   * device stamps only while it can reach the account, so a stale or missing stamp means it cannot run its inputs.
+   */
   seenAt?: number
   /** Set by a device that shut down cleanly; it is away whatever its stamp says, until its next stamp removes the mark. */
   offline?: boolean
@@ -1047,7 +1050,10 @@ export class SessionMirror {
       const stale = entry?.offline === true
         || (entry?.seenAt !== undefined && Date.now() - entry.seenAt > this.tuning.presenceWindowMs)
       const pinnedHere = this.entries().get(sessionId)?.pinned === true && entry?.seenAt !== undefined && !stale
-      if (entry?.alwaysOn === true || pinnedHere || (devices.get(me)?.alwaysOn === true && !stale)) home = writer
+      // The always-on writer keeps a conversation only while its stamp shows it can reach the account: without the
+      // key it never sees the input, so a desktop runs the conversation itself instead of waiting for it.
+      const alwaysOnPresent = entry?.alwaysOn === true && entry.seenAt !== undefined && !stale
+      if (alwaysOnPresent || pinnedHere || (devices.get(me)?.alwaysOn === true && entry?.alwaysOn !== true && !stale)) home = writer
     } else if (writer === undefined && devices.get(me)?.alwaysOn === true) {
       // A conversation no device has run yet goes to the desktop the user chose for it, else to the account's desktop
       // that is on now, else stays here.
@@ -1333,17 +1339,18 @@ export class SessionMirror {
         // first chance to run it. The always-on device waits longer for a desktop, which may read by the older rule.
         const first = entry.to ?? this.preferredDevice(sessionId) ?? entry.from
         const alwaysOnHere = this.devices()?.get(me)?.alwaysOn === true
-        // An input sent to one desktop runs there or, after the fallback, on the always-on device; never on another
-        // desktop. An account without an always-on device, one never signed in to Aeven Web, has no such fallback, so
-        // the desktop the input was typed on runs it itself after the same wait, and an input nobody took in
-        // `inputExpiryMs` is dropped rather than running hours later when its desktop returns.
+        // An input sent to one device runs there or, after the fallback, on the device it was typed on or the always-on
+        // device; never on a third desktop. The typing device's fallback covers a target that never takes it, such as
+        // an always-on device that lost access to the account. An account without an always-on device, one never
+        // signed in to Aeven Web, drops an input nobody took in `inputExpiryMs` rather than running it hours later when
+        // its desktop returns.
         const noAlwaysOn = ![...this.devices()?.values() ?? []].some(device => device.alwaysOn === true)
         if (entry.to !== undefined && noAlwaysOn && entry.at + this.tuning.inputExpiryMs < now) {
           inputs.delete(key)
           continue
         }
         if (entry.to !== undefined && entry.to !== me && !alwaysOnHere
-          && (!noAlwaysOn || entry.from !== me || entry.at + this.tuning.remoteFallbackMs > now)) continue
+          && (entry.from !== me || entry.at + this.tuning.remoteFallbackMs > now)) continue
         const waitMs = alwaysOnHere && this.devices()?.get(first)?.alwaysOn !== true
           ? this.tuning.remoteFallbackMs
           : this.tuning.inputGraceMs

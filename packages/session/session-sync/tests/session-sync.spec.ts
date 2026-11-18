@@ -800,6 +800,37 @@ describe('session-sync plugin', () => {
     await vi.waitFor(() => { expect(b.liveOf('busy' as never)).toBeUndefined() })
   })
 
+  it('runs a conversation of the always-on device here while that device cannot reach the account', async () => {
+    const network = new MemorySyncNetwork()
+    const desktop = network.device()
+    const home = new MemoryPersistence()
+    home.start('rubriek', Date.now(), 1)
+    const delivered: string[] = []
+    const collect = (_id: string, input: { operation: string }): Promise<void> => {
+      delivered.push(input.operation)
+      return Promise.resolve()
+    }
+    const here = new SessionMirror(OWNER, desktop.asSync(), home as never, tuning, vi.fn(), undefined, undefined, collect)
+    mirrors.push(here)
+    await here.start()
+    // The conversation last ran on Æven Cloud, which writes no presence stamp while it lacks the account's key.
+    const cloud = 'cloud-device'
+    const names = (await desktop.asSync().openDocument(OWNER, 'devices')).doc.getMap('names')
+    names.set(cloud, { name: 'Æven Cloud', alwaysOn: true })
+    const index = (await desktop.asSync().openDocument(OWNER, 'sessions/index')).doc.getMap('sessions')
+    index.set('rubriek', { header: home.logs.get('rubriek')!.header, next: 1, inherited: 0, writer: cloud })
+    expect(here.homeOf('rubriek' as never)).toBeUndefined()
+    // Once the always-on device stamps, it can reach the account and keeps the conversation.
+    names.set(cloud, { name: 'Æven Cloud', alwaysOn: true, seenAt: Date.now() })
+    expect(here.homeOf('rubriek' as never)).toEqual({ device: cloud, name: 'Æven Cloud' })
+    // An input sent to it that it never takes runs on the device it was typed on after the fallback, not never.
+    const sent = Date.now()
+    await here.forward('rubriek' as never, { operation: 'prompt', request: { text: 'responde amablemente' } })
+    expect(delivered).toEqual([])
+    await vi.waitFor(() => { expect(delivered).toEqual(['prompt']) }, { timeout: 3_000 })
+    expect(Date.now() - sent).toBeGreaterThanOrEqual(tuning.remoteFallbackMs)
+  })
+
   it('holds forwarded input until the writing device is back, and applies what waited when it starts', async () => {
     const network = new MemorySyncNetwork()
     const syncA = network.device()
