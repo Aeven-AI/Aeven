@@ -885,9 +885,9 @@ export class SessionCommandController {
     const handoff = this.ctx.get('sessionHandoff')
     const owner = this.ctx.get('identityUsers')?.actingUser()?.id
     if (handoff === undefined || owner === undefined) return undefined
-    // A session whose latest turn ran on an always-on device, such as Aeven Cloud, stays there with its files and
-    // background jobs: the input is forwarded, that device takes it first, and this device runs it only when that
-    // device does not pick it up within the account's input grace.
+    // A session that has a home on another device, a desktop it was moved to or, on Aeven Cloud, the desktop that
+    // runs it, gets the input forwarded: that device takes it first, and this device runs it only when that device
+    // does not pick it up within the account's input fallback.
     if (!this.applyingForwarded.has(sessionId) && handoff.homeOf(owner, sessionId) !== undefined) {
       // Creating the session here took a claim whose lease the relay still holds for this device; the home device
       // could not take the session while it is held, so the lease goes back before the input travels.

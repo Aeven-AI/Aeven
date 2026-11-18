@@ -314,6 +314,31 @@ describe('session mirror', () => {
     expect(network.streams.get('sessions/recent')!.length).toBe(published)
   })
 
+  it('lists a stored copy the account index lost, and publishes the tail a copy holds past its index entry', async () => {
+    const network = new MemorySyncNetwork()
+    const homeA = new MemoryPersistence()
+    const homeB = new MemoryPersistence()
+    homeA.start('orphan', Date.now(), 6, { replica: true })
+    homeA.start('tail', Date.now(), 8)
+    const deviceA = network.device()
+    const a = mirror(deviceA, homeA).mirror
+    await a.start()
+    await mirror(network.device(), homeB).mirror.start()
+    await vi.waitFor(() => { expect(count(homeB, 'orphan')).toBe(6) })
+    await vi.waitFor(() => { expect(count(homeB, 'tail')).toBe(8) })
+    expect(homeB.logs.get('orphan')!.events).toEqual(homeA.logs.get('orphan')!.events)
+
+    // A copy that holds events no device published, as one released before its publication finished does, found
+    // when the device starts again.
+    await a.dispose()
+    await homeA.setReplica('tail', true)
+    homeA.add('tail', 4)
+    const restarted = mirror(deviceA, homeA).mirror
+    await restarted.start()
+    await vi.waitFor(() => { expect(count(homeB, 'tail')).toBe(12) })
+    expect(restarted.catalog().find(entry => entry.header.id === 'tail')?.next).toBe(12)
+  })
+
   it('commits a fork inherited across many stream pages as one initial prefix', async () => {
     const network = new MemorySyncNetwork()
     const a = network.device()
@@ -798,6 +823,38 @@ describe('session-sync plugin', () => {
     expect(a.liveOf('busy' as never)).toBeUndefined()
     a.publishLive('busy' as never, undefined)
     await vi.waitFor(() => { expect(b.liveOf('busy' as never)).toBeUndefined() })
+  })
+
+  it('takes over on the desktop a conversation Aeven Cloud ran last, and runs input a target never took', async () => {
+    const network = new MemorySyncNetwork()
+    const desktop = network.device()
+    const home = new MemoryPersistence()
+    home.start('rubriek', Date.now(), 1)
+    const delivered: string[] = []
+    const collect = (_id: string, input: { operation: string }): Promise<void> => {
+      delivered.push(input.operation)
+      return Promise.resolve()
+    }
+    const here = new SessionMirror(OWNER, desktop.asSync(), home as never, tuning, vi.fn(), undefined, undefined, collect)
+    mirrors.push(here)
+    await here.start()
+    const names = (await desktop.asSync().openDocument(OWNER, 'devices')).doc.getMap('names')
+    const index = (await desktop.asSync().openDocument(OWNER, 'sessions/index')).doc.getMap('sessions')
+    const header = home.logs.get('rubriek')!.header
+    // The conversation last ran on Aeven Cloud: typing here runs it here, whether or not the cloud is reachable.
+    names.set('cloud-device', { name: 'Aeven Cloud', alwaysOn: true })
+    index.set('rubriek', { header, next: 1, inherited: 0, writer: 'cloud-device' })
+    expect(here.homeOf('rubriek' as never)).toBeUndefined()
+    // A desktop the conversation was moved to keeps it while present; an input it never takes runs here after the
+    // fallback instead of waiting forever.
+    names.set('laptop', { name: 'laptop', seenAt: Date.now() })
+    index.set('rubriek', { header, next: 1, inherited: 0, writer: 'laptop', pinned: true })
+    expect(here.homeOf('rubriek' as never)).toEqual({ device: 'laptop', name: 'laptop' })
+    const sent = Date.now()
+    await here.forward('rubriek' as never, { operation: 'prompt', request: { text: 'responde amablemente' } })
+    expect(delivered).toEqual([])
+    await vi.waitFor(() => { expect(delivered).toEqual(['prompt']) }, { timeout: 3_000 })
+    expect(Date.now() - sent).toBeGreaterThanOrEqual(tuning.remoteFallbackMs)
   })
 
   it('holds forwarded input until the writing device is back, and applies what waited when it starts', async () => {

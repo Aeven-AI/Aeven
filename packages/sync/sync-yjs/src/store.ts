@@ -8,6 +8,7 @@ import { dirname } from 'node:path'
 import Database from 'better-sqlite3'
 import type { SyncKeyMode } from '@aeven/sync'
 import { fromBase64Url, generateDeviceId, toBase64Url, type DeviceId, type EnvelopeHeader, type OpaqueId } from '@aeven/sync-vault'
+import { counterFloor, NEXT_COUNTER_SQL } from './frames.ts'
 
 const SCHEMA_VERSION = 2
 
@@ -206,8 +207,9 @@ export class SyncStore {
   }
 
   /**
-   * Hold an account key. A different key means the account started over: the documents, outbox, counters, cursor,
-   * and Consumers' local values of the earlier key are dropped, and Consumers publish their data again.
+   * Hold an account key. A different key means the account started over: the documents, outbox, cursor, and
+   * Consumers' local values of the earlier key are dropped, and Consumers publish their data again. Sender counters
+   * stay, so a key this device dropped and takes back never repeats a counter the account's other devices accepted.
    * @param key - the account key.
    * @param mode - who holds the key besides this device.
    * @returns whether the store started over.
@@ -225,8 +227,8 @@ export class SyncStore {
   }
 
   /**
-   * Drop the account key this device holds, with everything kept under it, because the account moved to a key this
-   * device does not hold yet.
+   * Drop the account key this device holds, with everything kept under it except sender counters, because the account
+   * moved to a key this device does not hold yet.
    * @returns whether a key was dropped.
    */
   dropAccountKey(): boolean {
@@ -239,7 +241,7 @@ export class SyncStore {
   }
 
   private wipe(): void {
-    this.db.exec('DELETE FROM doc_updates; DELETE FROM outbox; DELETE FROM counters; DELETE FROM seen; DELETE FROM since_snapshot;')
+    this.db.exec('DELETE FROM doc_updates; DELETE FROM outbox; DELETE FROM seen; DELETE FROM since_snapshot;')
     this.statement("DELETE FROM meta WHERE key = 'cursor' OR key LIKE 'fragment:%' OR key LIKE 'stream-complete:%' OR key LIKE 'local:%'").run()
   }
 
@@ -356,10 +358,30 @@ export class SyncStore {
    * @returns the counter to put in the next frame.
    */
   nextCounter(id: OpaqueId): number {
-    const row = this.statement(
-      'INSERT INTO counters (id, counter) VALUES (?, 1) ON CONFLICT (id) DO UPDATE SET counter = counter + 1 RETURNING counter',
-    ).get(id) as { counter: number }
+    const row = this.statement(NEXT_COUNTER_SQL).get(id, counterFloor(Date.now())) as { counter: number }
     return row.counter
+  }
+
+  /**
+   * List the documents this device sent frames of and still stores.
+   * @returns their ids.
+   */
+  writtenDocuments(): OpaqueId[] {
+    return (this.statement('SELECT id FROM counters WHERE id IN (SELECT DISTINCT id FROM doc_updates)').all() as Array<{ id: OpaqueId }>)
+      .map(row => row.id).filter(id => !this.isRetired(id))
+  }
+
+  /**
+   * Whether this device compared the documents it wrote with the relay's copies; see `SyncVault`'s reconcile pass.
+   * @returns true once the comparison finished.
+   */
+  reconciled(): boolean {
+    return this.meta('reconciled') !== undefined
+  }
+
+  /** Record that the comparison with the relay's copies finished. */
+  markReconciled(): void {
+    this.setMeta('reconciled', '1')
   }
 
   /**

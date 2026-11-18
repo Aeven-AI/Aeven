@@ -8,7 +8,7 @@ import { join } from 'node:path'
 import Database from 'better-sqlite3'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { brandString } from '@aeven/brand'
-import type { DeviceId, OpaqueId } from '@aeven/sync-vault'
+import { generateVaultKey, type DeviceId, type OpaqueId } from '@aeven/sync-vault'
 import { RelayConnection, RelayError, type RelayHandlers } from '../src/relay.ts'
 import { SyncStore } from '../src/store.ts'
 import { FakeRelay } from './fake-relay.ts'
@@ -154,7 +154,8 @@ describe('SyncStore', () => {
 
   it('counts frames per id, refuses replayed counters, and counts toward snapshots', () => {
     const store = new SyncStore(tempPath(), owner)
-    expect([store.nextCounter(id), store.nextCounter(id)]).toEqual([1, 2])
+    const [first, second] = [store.nextCounter(id), store.nextCounter(id)]
+    expect(second).toBeGreaterThan(first)
     expect(store.acceptCounter(device, id, 3)).toBe(true)
     expect(store.acceptCounter(device, id, 3)).toBe(false)
     expect(store.acceptCounter(device, id, 4)).toBe(true)
@@ -162,6 +163,30 @@ describe('SyncStore', () => {
     store.resetSinceSnapshot(id)
     expect(store.countSinceSnapshot(id)).toBe(1)
     store.close()
+  })
+
+  it('never repeats a counter, also after dropping and taking back the same account key', () => {
+    const store = new SyncStore(tempPath(), owner)
+    const key = generateVaultKey()
+    store.setAccountKey(key, 'passkey')
+    const before = store.nextCounter(id)
+    expect(store.dropAccountKey()).toBe(true)
+    store.setAccountKey(key, 'passkey')
+    expect(store.nextCounter(id)).toBeGreaterThan(before)
+    store.close()
+  })
+
+  it('starts the counters of a store whose counters were lost above every counter allocated before', () => {
+    const path = tempPath()
+    const store = new SyncStore(path, owner)
+    const before = store.nextCounter(id)
+    store.close()
+    const raw = new Database(path)
+    raw.exec('DELETE FROM counters')
+    raw.close()
+    const reopened = new SyncStore(path, owner)
+    expect(reopened.nextCounter(id)).toBeGreaterThan(before)
+    reopened.close()
   })
 
   it('keeps the outbox in order with snapshot coverage until acknowledged', () => {

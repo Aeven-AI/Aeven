@@ -9,6 +9,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomBytes } from 'node:crypto'
+import Database from 'better-sqlite3'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { brandString } from '@aeven/brand'
 import { SyncKeyHolderMismatch } from '@aeven/sync'
@@ -114,6 +115,83 @@ describe('a vault on two devices', () => {
     await vi.waitFor(() => { expect(docA.doc.getMap('prefs').get('fontSize')).toBe(16) })
     expect(b.documents).toContain(b.vault.documentId('settings/account'))
     docA.close()
+    docB.close()
+  })
+
+  it('publishes on its next connection what its copy holds and the relay lost, and nothing once the relay holds everything', async () => {
+    const owner = `reconcile-owner-${String(++accounts)}`
+    const a = device(owner)
+    const b = device(owner)
+    const first = await connect(owner, a)
+    await connect(owner, b)
+    const id = a.vault.documentId('sessions/index')
+    const docA = a.vault.openDocument('sessions/index')
+    const docB = b.vault.openDocument('sessions/index')
+    docA.doc.getMap('sessions').set('chat', { next: 1 })
+    await vi.waitFor(() => { expect(docB.doc.getMap('sessions').get('chat')).toEqual({ next: 1 }) })
+    // A later write reaches this device's store but not the relay, as an update the other devices refused does.
+    const copy = new Y.Doc()
+    Y.applyUpdate(copy, Y.encodeStateAsUpdate(docA.doc))
+    const lost: Uint8Array[] = []
+    copy.on('update', (update: Uint8Array) => { lost.push(update) })
+    copy.getMap('sessions').set('chat', { next: 767 })
+    docA.close()
+    for (const update of lost) a.store.appendDocUpdate(id, update)
+    const forget = (): void => {
+      const raw = new Database(a.store.path)
+      raw.prepare("DELETE FROM meta WHERE key = 'reconciled'").run()
+      raw.close()
+    }
+    forget()
+    first.close()
+    await vi.waitFor(() => { expect(a.vault.status().state).not.toBe('online') })
+    const second = await connect(owner, a)
+    await vi.waitFor(() => { expect(docB.doc.getMap('sessions').get('chat')).toEqual({ next: 767 }) })
+    await vi.waitFor(() => { expect(a.store.reconciled()).toBe(true) })
+
+    const published = relay.account(owner).frames.filter(frame => frame.id === id).length
+    forget()
+    second.close()
+    await vi.waitFor(() => { expect(a.vault.status().state).not.toBe('online') })
+    await connect(owner, a)
+    await vi.waitFor(() => { expect(a.store.reconciled()).toBe(true) })
+    expect(relay.account(owner).frames.filter(frame => frame.id === id)).toHaveLength(published)
+    docB.close()
+  })
+
+  it('publishes again the updates the other devices refused while its counters had restarted', async () => {
+    const owner = `restart-owner-${String(++accounts)}`
+    const a = device(owner)
+    const b = device(owner)
+    const first = await connect(owner, a)
+    await connect(owner, b)
+    const id = a.vault.documentId('sessions/index')
+    const docA = a.vault.openDocument('sessions/index')
+    const docB = b.vault.openDocument('sessions/index')
+    docA.doc.getMap('sessions').set('chat', { next: 1 })
+    await vi.waitFor(() => { expect(docB.doc.getMap('sessions').get('chat')).toEqual({ next: 1 }) })
+    // The next write leaves under a counter below the one the other device accepted, and it refuses it.
+    const copy = new Y.Doc()
+    Y.applyUpdate(copy, Y.encodeStateAsUpdate(docA.doc))
+    const lost: Uint8Array[] = []
+    copy.on('update', (update: Uint8Array) => { lost.push(update) })
+    copy.getMap('sessions').set('chat', { next: 767 })
+    docA.close()
+    const accountKey = a.store.accountKey()!
+    for (const update of lost) {
+      a.store.appendDocUpdate(id, update)
+      await first.request('publish', { frame: Buffer.from(sealEnvelope({ kind: 'update', id, accountKey, device: a.store.deviceId(), counter: 1, payload: update })).toString('base64url') })
+    }
+    await vi.waitFor(() => { expect(relay.account(owner).frames.filter(frame => frame.id === id)).toHaveLength(2) })
+    await new Promise(resolve => setTimeout(resolve, 50))
+    expect(docB.doc.getMap('sessions').get('chat')).toEqual({ next: 1 })
+    const raw = new Database(a.store.path)
+    raw.prepare("DELETE FROM meta WHERE key = 'reconciled'").run()
+    raw.close()
+    first.close()
+    await vi.waitFor(() => { expect(a.vault.status().state).not.toBe('online') })
+    await connect(owner, a)
+    await vi.waitFor(() => { expect(docB.doc.getMap('sessions').get('chat')).toEqual({ next: 767 }) })
     docB.close()
   })
 
