@@ -34,13 +34,14 @@ type Script = ConstructorParameters<typeof MockAdapter>[0]
 
 const roots: string[] = []
 const projCacheRoots: string[] = []
+const contexts: Context[] = []
 
-afterEach(() => {
-  // Retries on both: a projection-cache write can land between the readdir and
-  // the unlink, and macOS answers that with ENOTEMPTY on a tree that is being
-  // pruned rather than one that is still populated.
-  for (const root of projCacheRoots.splice(0)) rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
-  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
+afterEach(async () => {
+  // Each spec's stack writes session logs and projection-cache files in the background; disposing it first flushes
+  // and stops those writers, so no write lands in a directory while it is being removed.
+  await Promise.all(contexts.splice(0).map(ctx => ctx.fiber.dispose()))
+  for (const root of projCacheRoots.splice(0)) rmSync(root, { recursive: true, force: true })
+  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
 
 /** Boot the continuable stack with real JSONL session persistence. */
@@ -49,6 +50,7 @@ async function setup(
   options: { sessionProjections?: boolean; projectionCache?: boolean } = {},
 ) {
   const ctx = new Context()
+  contexts.push(ctx)
   await mountAgentLoopTestDependencies(ctx)
   const root = mkdtempSync(join(tmpdir(), 'avn-subagent-list-'))
   roots.push(root)
@@ -177,6 +179,7 @@ const hostileProjectionDefinition = {
 describe('SubagentRuntime.listChildren', () => {
   it('lists live children without persistence or the continuation runtime', async () => {
     const ctx = new Context()
+    contexts.push(ctx)
     await ctx.plugin(SessionStore)
     await ctx.plugin(SessionProjectionRegistry)
     await ctx.plugin(TestSessionQuery)
@@ -213,6 +216,7 @@ describe('SubagentRuntime.listChildren', () => {
 
   it('fails loud when the session store is not mounted', async () => {
     const ctx = new Context()
+    contexts.push(ctx)
     await ctx.plugin(SessionProjectionRegistry)
     await ctx.plugin(SubagentRuntime)
     await expect(ctx.subagents.listChildren(SessionId('no-store-parent'))).rejects.toThrow(
@@ -222,6 +226,7 @@ describe('SubagentRuntime.listChildren', () => {
 
   it('fails loud when the Session query service is not mounted', async () => {
     const ctx = new Context()
+    contexts.push(ctx)
     await ctx.plugin(SessionStore)
     await ctx.plugin(SessionProjectionRegistry)
     await ctx.plugin(SubagentRuntime)
