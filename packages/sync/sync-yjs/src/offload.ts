@@ -28,6 +28,7 @@ export type WorkerRequest =
     readonly accountKey: Uint8Array
   }
   | ({ readonly id: number; readonly method: 'maintain' } & MaintainRequest)
+  | { readonly id: number; readonly method: 'entries'; readonly path: string; readonly doc: string; readonly maps: readonly string[] }
   | { readonly id: number; readonly method: 'prepare'; readonly frame: Uint8Array; readonly accountKey: Uint8Array; readonly maxBytes: number }
 
 /** Compact one document's stored updates and, when due, queue a snapshot of it; the worker writes both. */
@@ -46,15 +47,18 @@ export interface MaintainRequest {
   }
 }
 
+/** What a worker request answers with: opened frames, prepared parts, map entries, or nothing. */
+type WorkerValue = OpenedFrame[] | Uint8Array[] | Record<string, Record<string, unknown[]>> | null
+
 /** The worker's answer to one request. */
 export type WorkerReply =
-  | { readonly id: number; readonly ok: true; readonly value: OpenedFrame[] | Uint8Array[] | null }
+  | { readonly id: number; readonly ok: true; readonly value: WorkerValue }
   | { readonly id: number; readonly ok: false; readonly message: string }
 
 /** A request before the client numbers it. */
 type Unnumbered<T> = T extends { readonly id: number } ? Omit<T, 'id'> : never
 
-type Pending = { resolve: (value: OpenedFrame[] | Uint8Array[] | null) => void; reject: (error: Error) => void }
+type Pending = { resolve: (value: unknown) => void; reject: (error: Error) => void }
 
 /** Where the worker's code is: the built CommonJS bundle, or the TypeScript source loaded through tsx. */
 function workerEntry(): string | URL {
@@ -97,7 +101,7 @@ export class SyncOffload {
     return worker
   }
 
-  private request(message: Unnumbered<WorkerRequest>): Promise<OpenedFrame[] | Uint8Array[] | null> {
+  private request(message: Unnumbered<WorkerRequest>): Promise<unknown> {
     const worker = this.start()
     const id = this.nextId++
     return new Promise((resolve, reject) => {
@@ -123,6 +127,17 @@ export class SyncOffload {
    */
   async maintain(request: MaintainRequest): Promise<void> {
     await this.request({ method: 'maintain', ...request })
+  }
+
+  /**
+   * Read the values a document's stored updates wrote under each key of some root maps, without integrating them.
+   * @param path - the store's database path.
+   * @param doc - the document.
+   * @param maps - names of the root maps to read.
+   * @returns per map, per key, the values written under it.
+   */
+  async entries(path: string, doc: string, maps: readonly string[]): Promise<Record<string, Record<string, unknown[]>>> {
+    return await this.request({ method: 'entries', path, doc, maps }) as Record<string, Record<string, unknown[]>>
   }
 
   /**

@@ -3308,6 +3308,8 @@ export interface Config {
    * a turn's capture. Work of a call dropped from this window fails its LLM requests as work outside a session does.
    */
   coreCallContexts: number
+  /** Delay between an account's sign-in and the load `warmOnSignIn` starts, so a Host start serves its window first. */
+  warmDelayMs: number
   /** Unfinished embedding requests accepted per account. */
   embeddingQueuePerAccount: number
   /** Unfinished embedding requests accepted across the Host. */
@@ -5257,6 +5259,8 @@ export interface Config {
   deviceName: string
   /** Stored updates per document before they are merged into one. */
   compactAfter: number
+  /** Bytes of updates a document may accumulate since its last merge before they are merged into one. */
+  compactBytes: number
   /** Frames per document since its last snapshot before this device queues a new one. */
   snapshotAfter: number
   /** Received frames opened on the sync worker and stored in one transaction per batch. */

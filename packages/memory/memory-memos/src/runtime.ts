@@ -1,5 +1,6 @@
 /** MemOS-backed {@link MemoryProvider}: namespaces, per-session capture ordering, and MemOS session lifecycle. */
-import { join } from 'node:path'
+import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { brandString } from '@aeven/brand'
 import { LEARNED_PROCEDURE_PREFIX, MEMORY_TOOL, memoryOriginLabel, mergeRankedHits } from '@aeven/memory'
 import type {
@@ -124,6 +125,11 @@ export interface MemosMemoryOptions {
   readonly profiles?: { readonly store: PersonProfiles; readonly distill: ProfileDistill }
   /** How long one owner's listed person memories are reused by profile reads, in milliseconds. */
   readonly personFactsTtlMs: number
+  /**
+   * File keeping one owner's last person-memory listing across restarts. With it, a profile read after a start serves
+   * that listing at once and lists again in the background; without it, the first read waits for the listing.
+   */
+  readonly personFactsFile?: (owner: string) => string
   readonly warn: (message: string) => void
   readonly info: (message: string) => void
 }
@@ -255,6 +261,10 @@ export class MemosMemory implements MemoryProvider {
   private readonly candidateKinds = new WeakMap<MemoryHit, CandidateKind>()
   /** Each owner's current person memories, as profile reads list them, and when they were listed. */
   private readonly personFacts = new Map<string, { readonly at: number; readonly facts: readonly PersonFact[] }>()
+  /** A person-memory listing in flight per owner; profile reads that find an expired listing share it. */
+  private readonly listingFacts = new Map<string, Promise<readonly PersonFact[]>>()
+  /** Edits and forgets per owner; a listing that started before the latest one is neither kept nor saved. */
+  private readonly factsEpochs = new Map<string, number>()
   /** Each owner's current procedures, read once and kept until a memory write or the list's age retires them. */
   private readonly procedureLists = new Map<string, { readonly at: number; readonly entries: Promise<readonly ProcedureEntry[]> }>()
   /** Each owner's procedure embeddings by trace id, with the text each was embedded from. */
@@ -350,11 +360,87 @@ export class MemosMemory implements MemoryProvider {
 
   /**
    * Every current person memory of the owner, regardless of age: superseded memories, logs, and learned procedures
-   * are left out. A listing is reused for `personFactsTtlMs`.
+   * are left out. A listing is reused for `personFactsTtlMs`. The first read after a start serves the listing saved by
+   * the previous run, when there is one, while a new listing runs in the background.
    */
   private async currentPersonFacts(owner: string, signal: AbortSignal): Promise<readonly PersonFact[]> {
     const cached = this.personFacts.get(owner)
     if (cached !== undefined && Date.now() - cached.at < this.options.personFactsTtlMs) return cached.facts
+    // A saved listing (kept with `at: 0`) is served until the first new listing of this run replaces it; an expired
+    // listing of this run waits for the new one.
+    const restored = cached === undefined ? this.restorePersonFacts(owner) : cached.at === 0 ? cached.facts : undefined
+    if (restored !== undefined && cached === undefined) this.personFacts.set(owner, { at: 0, facts: restored })
+    let listing = this.listingFacts.get(owner)
+    if (listing === undefined) {
+      // A background listing outlives the read that started it, so it carries no caller's signal.
+      const started = this.listPersonFacts(owner, new AbortController().signal).finally(() => {
+        if (this.listingFacts.get(owner) === started) this.listingFacts.delete(owner)
+      })
+      listing = started
+      this.listingFacts.set(owner, started)
+    }
+    if (restored !== undefined) {
+      listing.catch((error: unknown) => {
+        this.options.warn(`listing person memories failed: ${error instanceof Error ? error.message : String(error)}`)
+      })
+      return restored
+    }
+    signal.throwIfAborted()
+    return await listing
+  }
+
+  /**
+   * Forget the owner's listing, in memory and on disk, after a person memory was edited or forgotten, so no later
+   * read or start serves the old text.
+   */
+  private dropPersonFacts(owner: string): void {
+    this.factsEpochs.set(owner, (this.factsEpochs.get(owner) ?? 0) + 1)
+    this.listingFacts.delete(owner)
+    this.personFacts.delete(owner)
+    const file = this.options.personFactsFile?.(owner)
+    if (file !== undefined) rmSync(file, { force: true })
+  }
+
+  /** The owner's last saved person-memory listing, or undefined when none was saved or the file is unreadable. */
+  private restorePersonFacts(owner: string): readonly PersonFact[] | undefined {
+    const file = this.options.personFactsFile?.(owner)
+    if (file === undefined) return undefined
+    let raw: string
+    try {
+      raw = readFileSync(file, 'utf8')
+    } catch {
+      // ENOENT: nothing saved yet. Another read error is treated the same way: the next listing writes the file.
+      return undefined
+    }
+    try {
+      const parsed = JSON.parse(raw) as { version?: unknown; facts?: unknown }
+      if (parsed.version !== 1 || !Array.isArray(parsed.facts)) return undefined
+      return (parsed.facts as unknown[]).filter((fact): fact is PersonFact => typeof fact === 'object' && fact !== null
+        && typeof (fact as PersonFact).id === 'string' && typeof (fact as PersonFact).text === 'string'
+        && typeof (fact as PersonFact).time === 'number' && typeof (fact as PersonFact).label === 'string')
+    } catch {
+      // A torn file from an interrupted write: listed again.
+      return undefined
+    }
+  }
+
+  /** Save the owner's listing for the next start; a failed write only costs that start a waiting listing. */
+  private savePersonFacts(owner: string, facts: readonly PersonFact[]): void {
+    const file = this.options.personFactsFile?.(owner)
+    if (file === undefined) return
+    const temporary = `${file}.${String(process.pid)}.tmp`
+    try {
+      mkdirSync(dirname(file), { recursive: true, mode: 0o700 })
+      writeFileSync(temporary, JSON.stringify({ version: 1, facts }), { mode: 0o600 })
+      renameSync(temporary, file)
+    } catch (error) {
+      rmSync(temporary, { force: true })
+      this.options.warn(`saving the person-memory listing failed: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
+  private async listPersonFacts(owner: string, signal: AbortSignal): Promise<readonly PersonFact[]> {
+    const epoch = this.factsEpochs.get(owner) ?? 0
     const core = await this.options.cores.get(owner)
     const facts: PersonFact[] = []
     for (let page = 0; ; page++) {
@@ -379,7 +465,10 @@ export class MemosMemory implements MemoryProvider {
       }
       if (traces.length < PERSON_FACTS_PAGE) break
     }
+    // An edit or forget during the listing may not be in it; the next read lists again.
+    if ((this.factsEpochs.get(owner) ?? 0) !== epoch) return facts
     this.personFacts.set(owner, { at: Date.now(), facts })
+    this.savePersonFacts(owner, facts)
     return facts
   }
 
@@ -1522,9 +1611,12 @@ export class MemosMemory implements MemoryProvider {
 
   async edit(request: Parameters<MemoryProvider['edit']>[0]): Promise<MemoryRecord | undefined> {
     this.procedureLists.delete(request.owner)
+    this.dropPersonFacts(request.owner)
     const core = await this.options.cores.get(request.owner)
     if (await this.ownedTrace(core, request) === undefined) return undefined
     const updated = await this.read(request, () => core.updateTrace(request.id, { summary: request.summary }))
+    // A listing that started between the first drop and the update may still hold the old text.
+    this.dropPersonFacts(request.owner)
     return updated ? toRecord(updated) : undefined
   }
 
@@ -1540,9 +1632,12 @@ export class MemosMemory implements MemoryProvider {
 
   async forget(request: Parameters<MemoryProvider['forget']>[0]): Promise<boolean> {
     this.procedureLists.delete(request.owner)
+    this.dropPersonFacts(request.owner)
     const core = await this.options.cores.get(request.owner)
     if (await this.ownedTrace(core, request) === undefined) return false
     const { deleted } = await this.read(request, () => core.deleteTrace(request.id))
+    // A listing that started between the first drop and the delete may still hold the memory.
+    this.dropPersonFacts(request.owner)
     return deleted
   }
 

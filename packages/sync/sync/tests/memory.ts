@@ -144,6 +144,14 @@ export class MemorySyncDevice {
       synchronize: (): Promise<void> => this.state === 'online' && this.relay ? Promise.resolve() : Promise.reject(new Error('offline')),
       documentId: (_owner: string, name: string): string => `id:${name}`,
       openDocument: (_owner: string, name: string): Promise<SyncDocument> => Promise.resolve({ doc: this.docOf(name), close: () => {} }),
+      documentEntries: (_owner: string, name: string, maps: readonly string[]): Promise<Record<string, Record<string, unknown[]>>> =>
+        Promise.resolve(Object.fromEntries(maps.map(map => [map, Object.fromEntries(
+          [...(this.docs.get(name)?.getMap(map).entries() ?? [])].map(([key, value]) => [key, [value]]),
+        )]))),
+      retireDocument: (_owner: string, name: string): Promise<void> => {
+        this.docs.delete(name)
+        return Promise.resolve()
+      },
       storedDocuments: (): ReadonlyMap<string, string> => new Map([...this.docs].map(([name, doc]) => [`id:${name}`, versionOf(doc)])),
       documentVersion: (_owner: string, id: string): string | undefined => {
         const doc = this.docs.get(id.replace(/^id:/, ''))

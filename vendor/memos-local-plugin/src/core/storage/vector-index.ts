@@ -18,10 +18,24 @@
  *   - A deleted row drops out at the SQL filter step and from the next rebuild.
  *   - The index rebuilds when its highest rowid no longer holds the same row,
  *     after `invalidateVectorIndex` (an in-place vector rewrite on this
- *     connection), or when another connection committed and the last build is
- *     older than `FOREIGN_WRITE_REBUILD_MS`.
+ *     connection), or when the column's rewrite generation changed.
+ *   - The rewrite generation is a counter in `vector_generation` that an
+ *     `AFTER UPDATE OF <column>` trigger raises for every in-place write that
+ *     changes a vector, from any connection; an upsert that sets the same
+ *     vector again, as memory sync's does, leaves it alone. On a database that cannot take the trigger,
+ *     the index instead rebuilds when another connection committed and the last
+ *     build is older than `FOREIGN_WRITE_REBUILD_MS`.
+ *
+ * Restarts:
+ *   - Each built column is saved next to the database file and loaded by the
+ *     next process that searches it, so a restart reads one file instead of
+ *     decoding every row. A saved index is used only when its rewrite
+ *     generation and its highest row still match the table; the rows inserted
+ *     since it was saved are then read like any other new rows.
  */
 
+import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import type { EmbeddingVector } from "../types.js";
 import type { StorageDb } from "./types.js";
 import type { VectorHit } from "./vector.js";
@@ -32,6 +46,12 @@ const INDEX_BUDGET_BYTES = 512 * 1024 * 1024;
 const FOREIGN_WRITE_REBUILD_MS = 10 * 60 * 1000;
 /** Rows read per pending-vector recheck statement. */
 const PENDING_CHUNK = 500;
+/** Format of a saved index; a file of another version is ignored and replaced. */
+const SNAPSHOT_VERSION = 1;
+/** First bytes of a saved index. */
+const SNAPSHOT_MAGIC = 0x41564e56;
+/** Rows appended since the last save before the index is saved again. */
+const SNAPSHOT_SAVE_ROWS = 2_000;
 
 interface Entry {
   readonly db: StorageDb;
@@ -50,6 +70,12 @@ interface Entry {
   dataVersion: number;
   builtAt: number;
   usedAt: number;
+  /** The column's rewrite generation the entry reflects; undefined when the database has no generation trigger. */
+  generation: number | undefined;
+  /** Whether the generation trigger was installed or found unavailable for this entry. */
+  generationChecked: boolean;
+  /** Rows the last saved file held; the next save follows once `SNAPSHOT_SAVE_ROWS` more were appended. */
+  savedSize: number;
 }
 
 const entries = new Map<string, Entry>();
@@ -78,7 +104,165 @@ function emptyEntry(db: StorageDb, table: string, column: string): Entry {
     db, table, column,
     dim: 0, size: 0, ids: [], rowids: new Float64Array(0), data: new Float32Array(0), norms: new Float32Array(0),
     maxRowid: 0, maxRowidId: null, pending: new Set(), stale: true, dataVersion: 0, builtAt: 0, usedAt: 0,
+    generation: undefined, generationChecked: false, savedSize: 0,
   };
+}
+
+/** Whether a name is a plain SQL identifier, safe to splice into DDL. */
+function plainIdentifier(name: string): boolean {
+  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(name);
+}
+
+/**
+ * Install the column's rewrite-generation counter and trigger, and read the counter.
+ * @returns the current generation, or undefined when the database cannot take them (read-only or unusual names).
+ */
+function installGeneration(entry: Entry): number | undefined {
+  if (!plainIdentifier(entry.table) || !plainIdentifier(entry.column)) return undefined;
+  try {
+    entry.db.raw.exec(`
+      CREATE TABLE IF NOT EXISTS vector_generation (
+        tbl TEXT NOT NULL, col TEXT NOT NULL, generation INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (tbl, col)
+      );
+      INSERT OR IGNORE INTO vector_generation (tbl, col, generation) VALUES ('${entry.table}', '${entry.column}', 0);
+      CREATE TRIGGER IF NOT EXISTS vector_generation_${entry.table}_${entry.column}
+        AFTER UPDATE OF ${entry.column} ON ${entry.table}
+        WHEN OLD.${entry.column} IS NOT NEW.${entry.column}
+        BEGIN
+          UPDATE vector_generation SET generation = generation + 1 WHERE tbl = '${entry.table}' AND col = '${entry.column}';
+        END;
+    `);
+  } catch {
+    // A read-only connection or a database another process holds exclusively: the index falls back to the
+    // commit-age rule for writes of other connections.
+    return undefined;
+  }
+  return readGeneration(entry);
+}
+
+function readGeneration(entry: Entry): number | undefined {
+  const row = entry.db.prepare<{ tbl: string; col: string }, { generation: number }>(
+    `SELECT generation FROM vector_generation WHERE tbl = @tbl AND col = @col`,
+  ).get({ tbl: entry.table, col: entry.column });
+  return row?.generation;
+}
+
+/** File holding the saved index of one column, or undefined for a database without a file. */
+function snapshotPath(entry: Entry): string | undefined {
+  const file = entry.db.filepath;
+  if (!file || file === ":memory:" || !plainIdentifier(entry.table) || !plainIdentifier(entry.column)) return undefined;
+  return join(`${file}-vectors`, `${entry.table}.${entry.column}.bin`);
+}
+
+interface SnapshotHeader {
+  version: number;
+  table: string;
+  column: string;
+  dim: number;
+  size: number;
+  maxRowid: number;
+  maxRowidId: string | null;
+  generation: number;
+  ids: string[];
+  pending: number[];
+}
+
+/**
+ * Save the entry's vectors, ids, and position next to the database. Written to a temporary file and renamed, so a
+ * reader never sees a partial file. Entries without a generation are not saved: nothing could tell that their
+ * vectors were rewritten while no process held them.
+ */
+function saveSnapshot(entry: Entry): void {
+  const path = snapshotPath(entry);
+  if (path === undefined || entry.generation === undefined) return;
+  const header: SnapshotHeader = {
+    version: SNAPSHOT_VERSION, table: entry.table, column: entry.column, dim: entry.dim, size: entry.size,
+    maxRowid: entry.maxRowid, maxRowidId: entry.maxRowidId, generation: entry.generation,
+    ids: entry.ids.slice(0, entry.size), pending: [...entry.pending],
+  };
+  const json = Buffer.from(JSON.stringify(header), "utf8");
+  // The arrays start on an 8-byte boundary so they can be read in place.
+  const headerEnd = Math.ceil((8 + json.byteLength) / 8) * 8;
+  const prefix = Buffer.alloc(headerEnd);
+  prefix.writeUInt32LE(SNAPSHOT_MAGIC, 0);
+  prefix.writeUInt32LE(json.byteLength, 4);
+  json.copy(prefix, 8);
+  const parts = [
+    prefix,
+    Buffer.from(entry.rowids.buffer, entry.rowids.byteOffset, entry.size * 8),
+    Buffer.from(entry.norms.buffer, entry.norms.byteOffset, entry.size * 4),
+    Buffer.from(entry.data.buffer, entry.data.byteOffset, entry.size * entry.dim * 4),
+  ];
+  const temporary = `${path}.${process.pid}.tmp`;
+  try {
+    mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+    writeFileSync(temporary, Buffer.concat(parts), { mode: 0o600 });
+    renameSync(temporary, path);
+    entry.savedSize = entry.size;
+  } catch {
+    // A full disk or a read-only directory: the index stays in memory and the next restart rebuilds it.
+    rmSync(temporary, { force: true });
+  }
+}
+
+/**
+ * Restore the entry from its saved file when the file still describes the table: same format, column, rewrite
+ * generation, and highest row. Any other file is deleted.
+ * @returns whether the entry was restored.
+ */
+function loadSnapshot(entry: Entry): boolean {
+  const path = snapshotPath(entry);
+  if (path === undefined || entry.generation === undefined) return false;
+  let file: Buffer;
+  try {
+    file = readFileSync(path);
+  } catch {
+    // ENOENT: no saved index yet. Another read error is treated the same way: the index is rebuilt and saved.
+    return false;
+  }
+  const discard = (): false => {
+    rmSync(path, { force: true });
+    return false;
+  };
+  if (file.byteLength < 8 || file.readUInt32LE(0) !== SNAPSHOT_MAGIC) return discard();
+  const jsonLength = file.readUInt32LE(4);
+  let header: SnapshotHeader;
+  try {
+    header = JSON.parse(file.toString("utf8", 8, 8 + jsonLength)) as SnapshotHeader;
+  } catch {
+    // A torn or foreign file: rebuilt below.
+    return discard();
+  }
+  const headerEnd = Math.ceil((8 + jsonLength) / 8) * 8;
+  const expected = headerEnd + header.size * 8 + header.size * 4 + header.size * header.dim * 4;
+  if (header.version !== SNAPSHOT_VERSION || header.table !== entry.table || header.column !== entry.column
+    || header.generation !== entry.generation || file.byteLength !== expected || header.ids.length !== header.size) {
+    return discard();
+  }
+  if (header.maxRowid > 0) {
+    const top = entry.db.prepare<{ rowid: number }, { id: string }>(
+      `SELECT id FROM ${entry.table} WHERE rowid = @rowid`,
+    ).get({ rowid: header.maxRowid });
+    if (top?.id !== header.maxRowidId) return discard();
+  }
+  // Copies, so the entry's arrays can grow and the file buffer can be released.
+  const rowidsAt = headerEnd;
+  const normsAt = rowidsAt + header.size * 8;
+  const dataAt = normsAt + header.size * 4;
+  entry.dim = header.dim;
+  entry.size = header.size;
+  entry.ids = header.ids;
+  entry.rowids = new Float64Array(file.buffer.slice(file.byteOffset + rowidsAt, file.byteOffset + normsAt));
+  entry.norms = new Float32Array(file.buffer.slice(file.byteOffset + normsAt, file.byteOffset + dataAt));
+  entry.data = new Float32Array(file.buffer.slice(file.byteOffset + dataAt, file.byteOffset + expected));
+  entry.maxRowid = header.maxRowid;
+  entry.maxRowidId = header.maxRowidId;
+  entry.pending = new Set(header.pending);
+  entry.stale = false;
+  entry.dataVersion = dataVersion(entry.db);
+  entry.builtAt = Date.now();
+  entry.savedSize = header.size;
+  return true;
 }
 
 function ensureCapacity(entry: Entry, rows: number): void {
@@ -136,6 +320,7 @@ function rebuild(entry: Entry): void {
   readFrom(entry, 0);
   entry.stale = false;
   entry.builtAt = Date.now();
+  saveSnapshot(entry);
 }
 
 function readFrom(entry: Entry, afterRowid: number): void {
@@ -169,6 +354,12 @@ function recheckPending(entry: Entry): void {
 
 /** Bring the entry up to date with the table, rebuilding when an in-place change could have been missed. */
 function refresh(entry: Entry): void {
+  if (!entry.generationChecked) {
+    entry.generationChecked = true;
+    entry.generation = installGeneration(entry);
+    // The first search after a start restores the saved index and then reads only the rows added since.
+    if (entry.stale && entry.size === 0) loadSnapshot(entry);
+  }
   if (!entry.stale && entry.maxRowid > 0) {
     const top = entry.db.prepare<{ rowid: number }, { id: string }>(
       `SELECT id FROM ${entry.table} WHERE rowid = @rowid`,
@@ -176,7 +367,13 @@ function refresh(entry: Entry): void {
     if (top?.id !== entry.maxRowidId) entry.stale = true;
   }
   const version = dataVersion(entry.db);
-  if (!entry.stale && version !== entry.dataVersion && Date.now() - entry.builtAt >= FOREIGN_WRITE_REBUILD_MS) {
+  if (entry.generation !== undefined) {
+    const generation = readGeneration(entry);
+    if (generation !== entry.generation) {
+      entry.generation = generation;
+      entry.stale = true;
+    }
+  } else if (!entry.stale && version !== entry.dataVersion && Date.now() - entry.builtAt >= FOREIGN_WRITE_REBUILD_MS) {
     entry.stale = true;
   }
   if (entry.stale) {
@@ -186,6 +383,7 @@ function refresh(entry: Entry): void {
   entry.dataVersion = version;
   readFrom(entry, entry.maxRowid);
   recheckPending(entry);
+  if (entry.size - entry.savedSize >= SNAPSHOT_SAVE_ROWS) saveSnapshot(entry);
 }
 
 function evictBeyondBudget(): void {

@@ -45,6 +45,8 @@ export interface Config {
   deviceName: string
   /** Stored updates per document before they are merged into one. */
   compactAfter: number
+  /** Bytes of updates a document may accumulate since its last merge before they are merged into one. */
+  compactBytes: number
   /** Frames per document since its last snapshot before this device queues a new one. */
   snapshotAfter: number
   /** Received frames opened on the sync worker and stored in one transaction per batch. */
@@ -150,6 +152,7 @@ export default class YjsSync extends Sync {
     publishBytes: Schema.natural().min(1_024).max(RELAY_MAX_MESSAGE_BYTES).default(2_097_152),
     deviceName: Schema.string().min(1).default(hostname()),
     compactAfter: Schema.natural().min(1).default(200),
+    compactBytes: Schema.natural().min(1_024).default(8 * 1024 * 1024),
     snapshotAfter: Schema.natural().min(1).default(500),
     applyFrames: Schema.natural().min(1).default(200),
     applyPauseMs: Schema.natural().default(16),
@@ -226,6 +229,7 @@ export default class YjsSync extends Sync {
       store,
       {
         compactAfter: this.config.compactAfter,
+        compactBytes: this.config.compactBytes,
         snapshotAfter: this.config.snapshotAfter,
         applyFrames: this.config.applyFrames,
         applyPauseMs: this.config.applyPauseMs,
@@ -671,9 +675,20 @@ export default class YjsSync extends Sync {
   }
 
   /** @inheritdoc */
+  documentEntries(owner: string, name: string, maps: readonly string[]): Promise<Record<string, Record<string, unknown[]>>> {
+    return this.readyVault(owner).documentEntries(name, maps)
+  }
+
+  /** @inheritdoc */
+  retireDocument(owner: string, name: string): Promise<void> {
+    this.readyVault(owner).retireDocument(name)
+    return Promise.resolve()
+  }
+
+  /** @inheritdoc */
   async openDocument(owner: string, name: string): Promise<SyncDocument> {
     const vault = this.readyVault(owner)
-    await Promise.resolve()
+    await vault.settleDocument(name)
     return vault.openDocument(name)
   }
 }

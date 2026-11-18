@@ -644,6 +644,8 @@ export class ClientModuleRegistry extends Service {
   private previousBatchResponses = new Map<string, ComboResponse>()
   private flushQueued = false
   private composed: WebBootGraph
+  /** The batches of the last composition with the inputs each was built from; see {@link compose}. */
+  private batches: { phase: WebBootBatchPhase; inputs: readonly unknown[]; artifact: BatchArtifact }[] = []
   private readonly maxInitialBatchBytes: number
 
   /**
@@ -812,12 +814,25 @@ export class ClientModuleRegistry extends Service {
       .map(entry => this.table.get(entry.id))
       .filter((record): record is WebPluginRecord => record !== undefined)
     const artifacts: BatchArtifact[] = []
+    const built: typeof this.batches = []
+    const batch = (phase: WebBootBatchPhase, records: readonly WebPluginRecord[]): BatchArtifact => {
+      // The bytes a batch is made of: each record's id, bundle, and source map. A batch whose inputs are the same
+      // objects as last time is the same artifact, so the plugins that mount one after another during a start do
+      // not each rebuild and rehash every batch.
+      const inputs = records.flatMap(record => [record.entry.id, record.bundle, record.sourceMap?.body])
+      const kept = this.batches.find(entry => entry.phase === phase && entry.inputs.length === inputs.length
+        && entry.inputs.every((input, index) => input === inputs[index]))
+      const artifact = kept?.artifact ?? buildBatch(phase, records)
+      built.push({ phase, inputs, artifact })
+      return artifact
+    }
     for (const records of partitionComboRecords(bootstrap, this.maxInitialBatchBytes)) {
-      artifacts.push(buildBatch('bootstrap', records))
+      artifacts.push(batch('bootstrap', records))
     }
     for (const records of partitionComboRecords(application, this.maxInitialBatchBytes)) {
-      artifacts.push(buildBatch('application', records))
+      artifacts.push(batch('application', records))
     }
+    this.batches = built
 
     const batchResponses = new Map<string, ComboResponse>()
     for (const artifact of artifacts) {

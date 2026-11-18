@@ -8,6 +8,59 @@ import { contentKeyOf, openEnvelope, sealEnvelope, type SealEnvelopeInput } from
  * @param updates - stored updates in application order.
  * @returns a complete update of the same document.
  */
+/**
+ * Read every value stored updates wrote under each key of some root maps, without integrating the updates into a
+ * document. Integration replays the whole history, which for a document rewritten many times costs minutes; decoding
+ * only walks the structs. An item names its map and key when it is the first write of that key, and otherwise names
+ * the item it follows, so keys are resolved through those references until no more resolve.
+ * @param updates - stored updates of one document, any order.
+ * @param maps - names of the root maps to read.
+ * @returns per map, per key, the values written under it, overwritten ones included; the caller picks the current one.
+ */
+export function mapEntries(updates: readonly Uint8Array[], maps: readonly string[]): Record<string, Record<string, unknown[]>> {
+  const found: Record<string, Record<string, unknown[]>> = Object.fromEntries(maps.map(name => [name, {}]))
+  /** Map and key of the item covering each `client:clock`. */
+  const placed = new Map<string, { map: string; key: string | null }>()
+  let waiting: Y.Item[] = []
+  for (const update of updates) {
+    for (const struct of Y.decodeUpdate(update).structs) {
+      if (struct instanceof Y.Item) waiting.push(struct)
+    }
+  }
+  const place = (item: Y.Item, map: string, key: string | null): void => {
+    for (let offset = 0; offset < item.length; offset++) placed.set(`${String(item.id.client)}:${String(item.id.clock + offset)}`, { map, key })
+    const entries = found[map]
+    if (key === null || entries === undefined || !(item.content instanceof Y.ContentAny)) return
+    const values = entries[key] ?? []
+    values.push(...(item.content.arr as unknown[]))
+    entries[key] = values
+  }
+  for (let progressed = true; progressed && waiting.length > 0;) {
+    progressed = false
+    const unresolved: Y.Item[] = []
+    for (const item of waiting) {
+      const parent = item.parent as unknown
+      const neighbour = item.origin ?? item.rightOrigin
+      const known = typeof parent === 'string'
+        ? { map: parent, key: item.parentSub }
+        : neighbour === null ? undefined : placed.get(`${String(neighbour.client)}:${String(neighbour.clock)}`)
+      if (known === undefined) {
+        unresolved.push(item)
+        continue
+      }
+      place(item, known.map, known.key)
+      progressed = true
+    }
+    waiting = unresolved
+  }
+  return found
+}
+
+/**
+ * Merge stored updates of one document into a single update holding its whole state.
+ * @param updates - stored updates in application order.
+ * @returns a complete update of the same document.
+ */
 export function compactUpdates(updates: readonly Uint8Array[]): Uint8Array {
   const doc = new Y.Doc()
   try {

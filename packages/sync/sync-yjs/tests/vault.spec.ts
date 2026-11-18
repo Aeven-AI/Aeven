@@ -4,6 +4,7 @@
  * the local network applies, stream batches read back a page at a time, compaction and snapshots prune the relay,
  * and a frame the relay fails stays queued.
  */
+import * as Y from 'yjs'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -36,6 +37,7 @@ afterEach(() => {
 const TUNING: VaultTuning = {
   firstDocuments: [],
   compactAfter: 100,
+  compactBytes: 8_388_608,
   snapshotAfter: 100,
   applyFrames: 200,
   applyPauseMs: 0,
@@ -170,6 +172,55 @@ describe('a vault on two devices', () => {
     await vi.waitFor(() => { expect(relay.account(owner).frames.some(frame => frame.kind === 'snapshot')).toBe(true) })
     await vi.waitFor(() => { expect(a.store.docUpdates(a.vault.documentId('doc')).length).toBeLessThanOrEqual(3) })
     doc.close()
+  })
+
+  it('merges a few large updates by their size, and merges a document that outgrew the limit before it is opened', async () => {
+    const { a } = await pair({ ...TUNING, compactAfter: 1_000, compactBytes: 50_000 })
+    const id = a.vault.documentId('doc')
+    const doc = a.vault.openDocument('doc')
+    const big = 'x'.repeat(20_000)
+    // Four rewrites of one large value: far below the update-count threshold, above the byte one.
+    for (let i = 0; i < 4; i++) doc.doc.getMap('m').set('k', `${String(i)}${big}`)
+    await vi.waitFor(() => { expect(a.store.docUpdates(id).length).toBe(1) })
+    expect(a.store.docUpdates(id)[0]!.byteLength).toBeLessThan(40_000)
+    doc.close()
+    // Updates stored while no one holds the document, as frames from another device are.
+    for (let i = 0; i < 4; i++) {
+      const other = new Y.Doc()
+      other.getMap('n').set('k', `${String(i)}${big}`)
+      a.store.appendDocUpdate(id, Y.encodeStateAsUpdate(other))
+    }
+    expect(a.store.docUpdates(id).length).toBe(5)
+    await a.vault.settleDocument('doc')
+    expect(a.store.docUpdates(id).length).toBe(1)
+    const reopened = a.vault.openDocument('doc')
+    expect(reopened.doc.getMap('m').get('k')).toBe(`3${big}`)
+    expect(typeof reopened.doc.getMap('n').get('k')).toBe('string')
+    reopened.close()
+  })
+
+  it('reads a document\'s map entries without opening it, then retires it and drops its later frames', async () => {
+    const { a, b } = await pair()
+    const doc = a.vault.openDocument('legacy')
+    doc.doc.getMap('records').set('w1', { title: 'One', updatedAt: '1' })
+    doc.doc.getMap('records').set('w1', { title: 'One renamed', updatedAt: '2' })
+    doc.doc.getMap('archived').set('s1', { archived: true, at: 5 })
+    doc.doc.getArray('order').insert(0, ['w1', 'w1', 'w1'])
+    await vi.waitFor(async () => {
+      const entries = await b.vault.documentEntries('legacy', ['records', 'archived'])
+      expect(entries['records']!['w1']).toEqual(expect.arrayContaining([{ title: 'One renamed', updatedAt: '2' }]))
+      expect(entries['archived']!['s1']).toEqual([{ archived: true, at: 5 }])
+    })
+    b.vault.retireDocument('legacy')
+    expect(b.store.docUpdates(b.vault.documentId('legacy'))).toEqual([])
+    doc.doc.getMap('records').set('w2', { title: 'Two', updatedAt: '3' })
+    const other = a.vault.openDocument('other')
+    other.doc.getMap('m').set('k', 1)
+    // A frame written after the retired document's arrives; the retired one stored nothing.
+    await vi.waitFor(() => { expect(b.store.docUpdates(b.vault.documentId('other')).length).toBeGreaterThan(0) })
+    expect(b.store.docUpdates(b.vault.documentId('legacy'))).toEqual([])
+    doc.close()
+    other.close()
   })
 
   it('retains unacknowledged frames after permanent relay refusals', async () => {

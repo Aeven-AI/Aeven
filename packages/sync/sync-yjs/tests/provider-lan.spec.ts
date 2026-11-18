@@ -66,7 +66,7 @@ async function host(options: { lanPort?: number } = {}): Promise<{ ctx: Context;
   ctx.provide('credentials', { resolve: (_ref: unknown, owner: string) => Promise.resolve({ value: `ok-${owner}`, source: 'session' }) } as never)
   const fiber = ctx.plugin(YjsSync, {
     relayUrl: relay.url, credentialRef: 'AEVEN_TOKEN', deviceName: 'lan-host', reconnectMs: 100, connectTimeoutMs: 2000,
-    requestTimeoutMs: 2000, publishFrames: 100, publishBytes: 2_097_152, compactAfter: 50, snapshotAfter: 50,
+    requestTimeoutMs: 2000, publishFrames: 100, publishBytes: 2_097_152, compactAfter: 50, compactBytes: 8_388_608, snapshotAfter: 50,
     applyFrames: 200, applyPauseMs: 0, pageFrames: 500, statusMs: 0, lan: true, lanPort: options.lanPort ?? 0,
     lanRetryMs: 100, lanMaxBytes: 1_048_576, keepConnected: false, presenceMs: 60_000, firstDocuments: [],
     leaveMs: 1_500, routeWindowMs: 150_000,

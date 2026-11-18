@@ -306,6 +306,9 @@
         embeddingQueuePerAccount: 128
         embeddingQueueTotal: 128
         warmOnSignIn: true
+        # The load starts after the window and the first session list are
+        # served, not during the Host's start.
+        warmDelayMs: 10000
         # One worker thread runs the account's memory core, so search, ranking,
         # and capture never hold the window or a streaming reply.
         coreWorkers: 1
