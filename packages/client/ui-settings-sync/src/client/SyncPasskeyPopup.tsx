@@ -182,7 +182,7 @@ export function SyncPasskeyPopup(props: SyncPasskeyPopupProps) {
     footer = (
       <>
         <Button variant="outline" onClick={() => { setScreen(undefined) }}>{t('back')}</Button>
-        <Button variant="primary" disabled={typed.trim() === ''} onClick={() => { act(() => ops.unlockWithRecoveryKey(typed), close) }}>{t('unlock')}</Button>
+        <Button variant="primary" disabled={typed.trim() === ''} onClick={() => { act(() => ops.unlockWithRecoveryKey(typed), close) }}>{t('unlockRecovery')}</Button>
       </>
     )
   } else if (screen === 'startOver') {
@@ -205,18 +205,20 @@ export function SyncPasskeyPopup(props: SyncPasskeyPopupProps) {
     )
   } else if (question === 'unlock') {
     title = t('unlockTitle')
-    description = `${t('unlockBody')} ${unlockHint(holders, t)}`
-    body = (
-      <div className={css.stepActions}>
-        {hasRecoveryKey(holders) ? <Button size="sm" onClick={() => { open('recovery') }}>{t('useRecovery')}</Button> : undefined}
-        <Button size="sm" onClick={() => { open('startOver') }}>{t('startOver')}</Button>
-      </div>
-    )
+    description = unlockHint(holders, t)
+    // One wrapper child keeps the Modal footer a single row; the fallbacks sit under the main actions.
     footer = (
-      <>
-        <Button variant="outline" onClick={close}>{t('notNow')}</Button>
-        <Button variant="primary" onClick={() => { passkey('unlock') }}>{t('unlock')}</Button>
-      </>
+      <div className={css.unlockFooter}>
+        <div className={css.unlockActions}>
+          <Button variant="outline" onClick={close}>{t('notNow')}</Button>
+          <Button variant="primary" onClick={() => { passkey('unlock') }}>{t('unlock')}</Button>
+        </div>
+        <p className={css.fallbackLabel}>{t('cantUsePasskey')}</p>
+        <div className={css.fallbackActions}>
+          {hasRecoveryKey(holders) ? <Button variant="primary" onClick={() => { open('recovery') }}>{t('useRecovery')}</Button> : undefined}
+          <Button variant="primary" onClick={() => { open('startOver') }}>{t('startOver')}</Button>
+        </div>
+      </div>
     )
   } else {
     title = t('offerTitle')
