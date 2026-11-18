@@ -90,8 +90,8 @@ function mayMaintain(owner: string): boolean {
 async function open(owner: string, spec: Extract<ToWorker, { type: 'open' }>['spec']): Promise<void> {
   if (cores.has(owner)) return
   const core = await bootstrapMemoryCore({
-    agent: spec.agent as Parameters<typeof bootstrapMemoryCore>[0]['agent'],
-    namespace: spec.namespace as NonNullable<Parameters<typeof bootstrapMemoryCore>[0]['namespace']>,
+    agent: spec.agent,
+    namespace: spec.namespace,
     home: spec.home,
     config: spec.config as NonNullable<Parameters<typeof bootstrapMemoryCore>[0]['config']>,
     hostLlmBridge: spec.hostLlm ? bridge : null,

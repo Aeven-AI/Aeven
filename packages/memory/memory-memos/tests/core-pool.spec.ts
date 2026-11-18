@@ -116,7 +116,7 @@ describe('MemOS cores in worker threads', () => {
   it('returns nothing for a trace of another account and rebuilds MemOS errors by code', async () => {
     const { open } = await fixture()
     const core = await open('error-owner')
-    expect(await core.getTrace('tr_missing' as Parameters<MemoryCore['getTrace']>[0])).toBeNull()
+    expect(await core.getTrace('tr_missing')).toBeNull()
     await expect((core as unknown as { notAMethod: () => Promise<void> }).notAMethod()).rejects.toThrow('MemOS core has no method notAMethod')
   })
 
@@ -136,8 +136,9 @@ describe('MemOS cores in worker threads', () => {
     const core = await open('abort-owner')
     const controller = new AbortController()
     controller.abort(new Error('caller gave up'))
-    const search = core.searchMemory as unknown as (query: object, options: { signal: AbortSignal }) => Promise<unknown>
-    await expect(search({ query: 'tea' }, { signal: controller.signal })).rejects.toThrow('caller gave up')
+    const searching = (core as unknown as { searchMemory: (query: object, options: { signal: AbortSignal }) => Promise<unknown> })
+      .searchMemory({ query: 'tea' }, { signal: controller.signal })
+    await expect(searching).rejects.toThrow('caller gave up')
   })
 
   it('embeds through the Host queue when the account is opened with hosted embeddings', async () => {
@@ -175,13 +176,13 @@ describe('MemOS cores in worker threads', () => {
     const core = await open('llm-owner', { config, hostLlm: true })
     const route = { provider: 'aeven-cloud', model: 'Aeven-1.0-Flash' }
     const namespace = { agentKind: MEMOS_AGENT, profileId: ownerProfile('llm-owner') }
-    await routes.run(route as Parameters<LlmRouteContext['run']>[0], async () => {
-      const sessionId = await core.openSession({ agent: MEMOS_AGENT, namespace, meta: { namespace } } as Parameters<MemoryCore['openSession']>[0])
-      const episodeId = await core.openEpisode({ sessionId, userMessage: 'Remember that Sam moved to Lisbon.' } as Parameters<MemoryCore['openEpisode']>[0])
+    await routes.run(route, async () => {
+      const sessionId = await core.openSession({ agent: MEMOS_AGENT, namespace, meta: { namespace } })
+      const episodeId = await core.openEpisode({ sessionId, userMessage: 'Remember that Sam moved to Lisbon.' })
       await core.onTurnEnd({
         agent: MEMOS_AGENT, sessionId, episodeId, namespace,
         agentText: 'Noted: Sam moved to Lisbon.', toolCalls: [], ts: Date.now(),
-      } as unknown as Parameters<MemoryCore['onTurnEnd']>[0])
+      })
     })
     await expect.poll(() => seen.length, { timeout: 10_000 }).toBeGreaterThan(0)
     expect(seen.every(entry => (entry.route as { model?: string } | undefined)?.model === 'Aeven-1.0-Flash')).toBe(true)
