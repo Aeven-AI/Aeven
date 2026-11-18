@@ -199,7 +199,7 @@ describe('resident composer', () => {
 })
 
 describe('prompt rejection through the assembled composer', () => {
-  it('renders the promptError alert strip and keeps the draft in the machine', async () => {
+  it('opens the promptError dialog and keeps the draft in the machine', async () => {
     const runtime = await SlotTestRuntime.create()
     // The plugin injects `remote.session` for Session export; the double parks
     // it without a wire.
@@ -240,8 +240,8 @@ describe('prompt rejection through the assembled composer', () => {
         error: new RemoteError('session/agent-busy', 'prompt rejected before acceptance', { reason: 'busy' }),
       }
     })
-    const alert = await view.findByRole('alert')
-    expect(alert.textContent).toContain('prompt rejected before acceptance (session/agent-busy)')
+    const dialog = await view.findByRole('dialog')
+    expect(dialog.textContent).toContain('prompt rejected before acceptance')
     await waitFor(() => {
       expect(shell.snapshot.draft).toBe('do not lose this')
     })

@@ -343,13 +343,13 @@ describe('image draft rail', () => {
     // Count: three at once over a two-image limit → the whole batch refused.
     const overCount = bench({ addImages: vi.fn(() => null), imageLimits: limits })
     intake(overCount, [png(8, 'a.png'), png(8, 'b.png'), png(8, 'c.png')])
-    expect(overCount.view.getByRole('alert').textContent).toContain('一条消息最多添加 2 张图片')
+    expect(overCount.view.getByRole('dialog').textContent).toContain('一条消息最多添加 2 张图片')
     expect(overCount.props.addImages).not.toHaveBeenCalled()
     cleanup()
     // Per-file bytes.
     const overFile = bench({ addImages: vi.fn(() => null), imageLimits: limits })
     intake(overFile, [png(1024 * 1024 + 1, 'big.png')])
-    expect(overFile.view.getByRole('alert').textContent).toContain('单张图片不能超过 1MB')
+    expect(overFile.view.getByRole('dialog').textContent).toContain('单张图片不能超过 1MB')
     expect(overFile.props.addImages).not.toHaveBeenCalled()
     cleanup()
     // Aggregate bytes across the existing rail plus the new batch.
@@ -357,7 +357,7 @@ describe('image draft rail', () => {
     const attachment = { kind: 'image' as const, id: 'draft-1' as DraftAttachmentId, file: held, previewUrl: 'blob:held' }
     const overTotal = bench({ addImages: vi.fn(() => null), imageLimits: limits, attachments: [attachment] })
     intake(overTotal, [png(1024 * 1024, 'more.png')])
-    expect(overTotal.view.getByRole('alert').textContent).toContain('图片总大小超过 2MB')
+    expect(overTotal.view.getByRole('dialog').textContent).toContain('图片总大小超过 2MB')
     expect(overTotal.props.addImages).not.toHaveBeenCalled()
     cleanup()
     // Within every limit: the batch passes through to addImages.
@@ -365,7 +365,7 @@ describe('image draft rail', () => {
     const fits = png(16, 'fits.png')
     intake(within, [fits])
     expect(within.props.addImages).toHaveBeenCalledWith([fits])
-    expect(within.view.queryByRole('alert')).toBeNull()
+    expect(within.view.queryByRole('dialog')).toBeNull()
   })
 
   it('announces the format problem before any limit when the batch holds a non-image', () => {
@@ -388,7 +388,7 @@ describe('image draft rail', () => {
     ]
     act(() => { attachmentOwner(result.slotCalls).onAddFiles(files) })
     expect(addImages).toHaveBeenCalledWith(files)
-    expect(result.view.getByRole('alert').textContent).toContain('仅支持 PNG、JPG、WebP、GIF 格式的图片')
+    expect(result.view.getByRole('dialog').textContent).toContain('仅支持 PNG、JPG、WebP、GIF 格式的图片')
   })
 
   it('projects display-ready limits into the attachment slot', () => {
@@ -412,10 +412,10 @@ describe('image draft rail', () => {
       error: new RemoteError('session/attachment-invalid', 'raw wire text', { reason }),
     })
     const model = bench({ promptError: attachmentError('MODEL_DOES_NOT_SUPPORT_IMAGES') })
-    expect(model.view.getByRole('alert').textContent).toContain('当前模型不支持图片，请切换支持图片的模型')
+    expect(model.view.getByRole('dialog').textContent).toContain('当前模型不支持图片，请切换支持图片的模型')
     cleanup()
     const unknown = bench({ promptError: attachmentError('ATTACHMENT_NOT_REFERENCED') })
-    expect(unknown.view.getByRole('alert').textContent).toContain('图片发送失败（ATTACHMENT_NOT_REFERENCED）')
+    expect(unknown.view.getByRole('dialog').textContent).toContain('图片发送失败（ATTACHMENT_NOT_REFERENCED）')
     cleanup()
     // A subagent refusal uses the same product copy for the same reason.
     const subagent = bench({
@@ -426,12 +426,14 @@ describe('image draft rail', () => {
         }),
       },
     })
-    expect(subagent.view.getByRole('alert').textContent).toContain('当前模型不支持图片，请切换支持图片的模型')
+    expect(subagent.view.getByRole('dialog').textContent).toContain('当前模型不支持图片，请切换支持图片的模型')
     cleanup()
     const other = bench({
       promptError: { op: 'send', error: new RemoteError('gateway/internal', 'boom', {}) },
     })
-    expect(other.view.getByRole('alert').textContent).toContain('boom (gateway/internal)')
+    // Any other refusal keeps a generic line with its raw message beneath.
+    expect(other.view.getByRole('dialog').textContent).toContain('你的消息仍在输入框中，可以再试一次。')
+    expect(other.view.getByRole('dialog').textContent).toContain('boom')
   })
 
   it('marks the attachment slot unavailable while the composer is locked', () => {
@@ -477,10 +479,10 @@ describe('image draft rail', () => {
     await vi.waitFor(() => {
       expect(attachmentOwner(result.slotCalls).attachments).toEqual([attachments[0]])
     })
-    expect(result.view.getByRole('alert').textContent).toContain('图片发送失败')
+    expect(result.view.getByRole('dialog').textContent).toContain('图片发送失败')
   })
 
-  it('announces an image-intake rejection as a fading toast, repeatable for the same reason', () => {
+  it('announces an image-intake rejection in a dialog that stays until dismissed, repeatable for the same reason', () => {
     vi.useFakeTimers()
     try {
       const addImages = vi.fn(() => '仅支持 PNG、JPG、WebP、GIF 格式的图片')
@@ -494,18 +496,21 @@ describe('image draft rail', () => {
         })
       }
       paste()
-      expect(view.getByRole('alert').textContent).toContain('仅支持 PNG、JPG、WebP、GIF 格式的图片')
+      expect(view.getByRole('dialog').textContent).toContain('无法添加附件')
+      expect(view.getByRole('dialog').textContent).toContain('仅支持 PNG、JPG、WebP、GIF 格式的图片')
       act(() => { vi.advanceTimersByTime(4000) })
-      expect(view.queryByRole('alert')).toBeNull()
-      // The identical rejection re-announces: the toast is keyed per show.
+      expect(view.getByRole('dialog')).toBeTruthy()
+      fireEvent.click(view.getByRole('button', { name: '好的' }))
+      expect(view.queryByRole('dialog')).toBeNull()
+      // The identical rejection announces again.
       paste()
-      expect(view.getByRole('alert').textContent).toContain('仅支持 PNG、JPG、WebP、GIF 格式的图片')
+      expect(view.getByRole('dialog').textContent).toContain('仅支持 PNG、JPG、WebP、GIF 格式的图片')
     } finally {
       vi.useRealTimers()
     }
   })
 
-  it('announces a rejected attachment-slot intake through the same toast', () => {
+  it('announces a rejected attachment-slot intake through the same dialog', () => {
     const addImages = vi.fn(() => '图片读取服务不可用')
     const result = bench({ addImages })
     act(() => {
@@ -513,7 +518,7 @@ describe('image draft rail', () => {
         new File([Uint8Array.of(1)], 'x.png', { type: 'image/png' }),
       ])
     })
-    expect(result.view.getByRole('alert').textContent).toContain('图片读取服务不可用')
+    expect(result.view.getByRole('dialog').textContent).toContain('图片读取服务不可用')
   })
 })
 
@@ -1306,42 +1311,46 @@ describe('insertText (scoped event body)', () => {
 })
 
 describe('strips and variants', () => {
-  it('announces promptError as a fading toast (ordinary failure — no transaction UI, no Retry)', () => {
-    vi.useFakeTimers()
-    try {
-      const send = bench({
-        promptError: { op: 'send', error: new RemoteError('session/agent-busy', 'boom', { reason: 'boom' }) },
-      })
-      // The toast body-portals (transformed ancestors must not trap it), so
-      // queries go through the view's document-bound helpers.
-      expect(send.view.getByRole('alert').textContent).toContain('boom (session/agent-busy)')
-      expect(send.view.queryByRole('button', { name: 'Retry' })).toBeNull()
-      act(() => { vi.advanceTimersByTime(4000) })
-      expect(send.view.queryByRole('alert')).toBeNull()
-    } finally {
-      vi.useRealTimers()
-    }
+  it('announces promptError in a dialog (ordinary failure — no transaction UI, no Retry)', () => {
+    const send = bench({
+      promptError: { op: 'send', error: new RemoteError('session/agent-busy', 'boom', { reason: 'boom' }) },
+    })
+    // The dialog body-portals (transformed ancestors must not trap it), so
+    // queries go through the view's document-bound helpers.
+    expect(send.view.getByRole('dialog').textContent).toContain('消息未发送')
+    expect(send.view.getByRole('dialog').textContent).toContain('boom')
+    expect(send.view.queryByRole('button', { name: 'Retry' })).toBeNull()
+    fireEvent.click(send.view.getByRole('button', { name: '好的' }))
+    expect(send.view.queryByRole('dialog')).toBeNull()
   })
 
-  it('announces an error notice from the machine store as a fading toast', () => {
-    vi.useFakeTimers()
-    try {
-      const { view, shell } = bench()
-      act(() => { shell.notify('error', '命令失败了') })
-      expect(view.getByRole('alert').textContent).toContain('命令失败了')
-      expect(view.queryByRole('status')).toBeNull()
-      act(() => { vi.advanceTimersByTime(4000) })
-      expect(view.queryByRole('alert')).toBeNull()
-    } finally {
-      vi.useRealTimers()
-    }
+  it('announces the subagent delivery refusals with product copy', () => {
+    const parent = bench({
+      promptError: { op: 'send', error: new RemoteError('subagent/parent-unavailable', 'raw wire text', {}) },
+    })
+    expect(parent.view.getByRole('dialog').textContent).toContain('Æven 无法在这台设备上打开启动此代理的对话')
+    expect(parent.view.getByRole('dialog').textContent).not.toContain('raw wire text')
+    cleanup()
+    const child = bench({
+      promptError: { op: 'send', error: new RemoteError('subagent/not-resumable', 'raw wire text', {}) },
+    })
+    expect(child.view.getByRole('dialog').textContent).toContain('此代理的对话无法在这台设备上继续')
+  })
+
+  it('announces an error notice from the machine store in a dialog', () => {
+    const { view, shell } = bench()
+    act(() => { shell.notify('error', '命令失败了') })
+    expect(view.getByRole('dialog').textContent).toContain('命令失败了')
+    expect(view.queryByRole('status')).toBeNull()
+    fireEvent.click(view.getByRole('button', { name: '好的' }))
+    expect(view.queryByRole('dialog')).toBeNull()
   })
 
   it('renders an information notice from the machine store as a status strip', () => {
     const { view, shell } = bench()
     act(() => { shell.notify('info', '命令完成了') })
     expect(view.getByRole('status').textContent).toBe('命令完成了')
-    expect(view.queryByRole('alert')).toBeNull()
+    expect(view.queryByRole('dialog')).toBeNull()
   })
 
   it('hero variant adds the hero class and accessory row renders', () => {

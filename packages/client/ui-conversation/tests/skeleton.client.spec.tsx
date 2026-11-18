@@ -950,11 +950,11 @@ describe('ConversationRoot resident composer', () => {
     expect(b.retargetWorkspace).not.toHaveBeenCalled()
   })
 
-  it('prompt failure renders the promptError strip (ordinary failure, no transaction UI)', () => {
+  it('prompt failure opens the promptError dialog (ordinary failure, no transaction UI)', () => {
     const b = mount(sessionSnapshotOf({
       promptError: { op: 'send', error: { code: 'offline', message: 'Message send failed' } as never },
     }))
-    expect(b.view.getByRole('alert').textContent).toContain('Message send failed (offline)')
+    expect(b.view.getByRole('dialog').textContent).toContain('Message send failed')
     expect(b.view.queryByRole('button', { name: 'Retry' })).toBeNull()
   })
 
