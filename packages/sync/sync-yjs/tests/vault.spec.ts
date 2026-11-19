@@ -462,3 +462,28 @@ describe('an account whose key passkeys hold', () => {
     expect(c.startedOver).toHaveBeenCalled()
   })
 })
+
+describe('a vault being disposed', () => {
+  it('reads nothing from the store once disposal starts: no status report, socket close, or late frame touches it after the owner closes it', async () => {
+    const owner = `dispose-owner-${String(++accounts)}`
+    const dir = mkdtempSync(join(tmpdir(), 'sync-vault-'))
+    dirs.push(dir)
+    const store = new SyncStore(join(dir, 'sync.db'), owner)
+    const reports: string[] = []
+    let closed = false
+    const vault = new AccountVault(store, { ...TUNING, statusMs: 40 }, () => {
+      if (closed) throw new Error('status reported after the store closed')
+      reports.push(vault.status().state)
+    }, vi.fn(), vi.fn(), offload, vi.fn())
+    const connection = await connect(owner, { store, vault, warn: vi.fn(), documents: [] })
+    expect(vault.status().state).toBe('online')
+    const before = reports.length
+    await vault.dispose()
+    store.close()
+    closed = true
+    vault.receiveFrame(1, new Uint8Array(8))
+    connection.close()
+    await new Promise((resolve) => { setTimeout(resolve, 80) })
+    expect(reports.length).toBe(before)
+  })
+})
