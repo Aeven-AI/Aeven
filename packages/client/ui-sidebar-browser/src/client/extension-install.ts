@@ -27,6 +27,8 @@ const MIN_WAIT_MS = 1_000
 const DECLINED = 'The user chose not to add the Aeven extension, so their browser is unavailable. Do not ask again in this turn; finish without the browser or say briefly what needs it, then end your turn.'
 /** What the model is told when the reader has not finished adding the extension in time. */
 const NOT_YET = 'The user has not finished adding the Aeven extension to their browser. End your turn now with one short sentence; once the extension is added, the user is offered to continue the task.'
+/** What the model is told when the reader continues the conversation in the desktop app instead. */
+const OPENED_DESKTOP = 'The user is continuing this conversation in the Aeven desktop app, which has its own browser beside the conversation. End your turn now with one short sentence; the user continues from the desktop app.'
 /** What the model is told when the reader's browser cannot run the extension. */
 const UNSUPPORTED = "The user's browser cannot run the Aeven extension: only Chrome, Edge, Brave, and other Chromium browsers on a computer can. No browser is available in this session. Tell the user to open Aeven in one of those browsers or to use the Aeven desktop app, and end your turn."
 
@@ -140,6 +142,12 @@ export class ExtensionPrompt {
   /** The reader declined or closed the prompt: waiting calls fail and the prompt closes. */
   dismiss(): void {
     for (const waiter of [...this.#waiters]) waiter.reject(new Error(DECLINED))
+    this.#close()
+  }
+
+  /** The reader opened the conversation in the desktop app: waiting calls fail and the prompt closes. */
+  openedDesktop(): void {
+    for (const waiter of [...this.#waiters]) waiter.reject(new Error(OPENED_DESKTOP))
     this.#close()
   }
 
