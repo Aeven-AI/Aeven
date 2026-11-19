@@ -6594,6 +6594,8 @@ export interface Config {
 export interface Config {
   /** Maximum response body size in bytes. */
   maxResponseBytes?: number
+  /** Maximum document (PDF, Office) size in bytes; a larger document is refused whole. */
+  maxDocumentBytes?: number
   /** Maximum decoded body length in characters. */
   maxBodyChars?: number
   /** Default fetch timeout in milliseconds, within Node's timer range. */

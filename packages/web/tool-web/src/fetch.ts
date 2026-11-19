@@ -10,7 +10,9 @@ import TurndownService from 'turndown'
 import { gfm } from '@joplin/turndown-plugin-gfm'
 import { defineTool } from '@aeven/tools'
 import type { GenericCallView, ToolResult, WebFetchResultView } from '@aeven/tools'
+import { WebError } from '@aeven/web'
 import type { WebFetchBody, WebFetchResult } from '@aeven/web'
+import type {} from '@aeven/document-extract'
 import { assertNever, type JsonValue } from '@aeven/util-values'
 import { EXTERNAL_WEB_CONTENT_NOTICE } from './trust.ts'
 
@@ -222,6 +224,27 @@ function exceedsConversionDepth(html: string): boolean {
   return false
 }
 
+/**
+ * A `web_fetch` body as the tool records it: the seam's `html` and `text` bodies unchanged,
+ * and a `document` body replaced by the text extracted from it.
+ */
+export type WebFetchOutputBody =
+  | { readonly kind: 'html'; readonly content: string }
+  | { readonly kind: 'text'; readonly content: string }
+  | { readonly kind: 'document'; readonly mediaType: string; readonly content: string }
+
+/** The `web_fetch` output value, persisted with the tool result. */
+export interface WebFetchOutput {
+  /** The final URL after allowed redirects. */
+  readonly url: string
+  /** HTTP status code of the fetched response. */
+  readonly statusCode: number
+  /** The recorded body. */
+  readonly body: WebFetchOutputBody
+  /** True when the provider capped the body or the document reader cut its text. */
+  readonly truncated: boolean
+}
+
 interface RenderedBody {
   /** Converted text, or a fixed omission marker when conversion is unsafe. */
   text: string
@@ -239,7 +262,7 @@ interface RenderedBody {
  *   beyond {@link MAX_CONVERSION_DEPTH} or rejected by turndown is omitted so
  *   raw active markup never reaches the model-facing result.
  */
-function renderBody(body: WebFetchBody, maxInputChars: number): RenderedBody {
+function renderBody(body: WebFetchOutputBody, maxInputChars: number): RenderedBody {
   const content = body.content.slice(0, maxInputChars)
   const sourceTruncated = content.length !== body.content.length
   switch (body.kind) {
@@ -255,7 +278,9 @@ function renderBody(body: WebFetchBody, maxInputChars: number): RenderedBody {
       }
     case 'text':
       return { text: content, sourceTruncated }
-    /* v8 ignore next 2 -- WebFetchBody is a closed union; this arm is unreachable and only makes adding a kind a compile error. */
+    case 'document':
+      return { text: content.trim() === '' ? '[The document contains no extractable text.]' : content, sourceTruncated }
+    /* v8 ignore next 2 -- WebFetchOutputBody is a closed union; this arm is unreachable and only makes adding a kind a compile error. */
     default:
       return assertNever(body, 'unhandled web fetch body kind')
   }
@@ -299,7 +324,7 @@ interface RenderedFetch {
  * @returns the complete `Fetched <url> (HTTP <status>)`-headed text and whether
  *   the provider, a source cut, or the cap trimmed the content.
  */
-function renderFetchOutput(result: WebFetchResult, maxOutputChars: number): RenderedFetch {
+function renderFetchOutput(result: WebFetchOutput, maxOutputChars: number): RenderedFetch {
   const byCap = renderCache.get(result) ?? new Map<number, RenderedFetch>()
   const cached = byCap.get(maxOutputChars)
   if (cached !== undefined) return cached
@@ -315,7 +340,7 @@ function renderFetchOutput(result: WebFetchResult, maxOutputChars: number): Rend
  * cap (a deployment constant per registration). Collapses the registry's twin
  * `render`/`presentationMeta` calls into one HTML→markdown conversion.
  */
-const renderCache = new WeakMap<WebFetchResult, Map<number, RenderedFetch>>()
+const renderCache = new WeakMap<WebFetchOutput, Map<number, RenderedFetch>>()
 
 /**
  * The uncached conversion behind {@link renderFetchOutput}. Separated so the
@@ -325,8 +350,9 @@ const renderCache = new WeakMap<WebFetchResult, Map<number, RenderedFetch>>()
  * @param maxOutputChars - cap on the complete returned string.
  * @returns the bounded text and effective truncation.
  */
-function computeFetchOutput(result: WebFetchResult, maxOutputChars: number): RenderedFetch {
-  const header = `Fetched ${result.url} (HTTP ${result.statusCode})\n\n${EXTERNAL_WEB_CONTENT_NOTICE}\n\n`
+function computeFetchOutput(result: WebFetchOutput, maxOutputChars: number): RenderedFetch {
+  const source = result.body.kind === 'document' ? `, text extracted from ${result.body.mediaType}` : ''
+  const header = `Fetched ${result.url} (HTTP ${result.statusCode}${source})\n\n${EXTERNAL_WEB_CONTENT_NOTICE}\n\n`
   const rendered = renderBody(result.body, maxOutputChars)
   const prefix = `${header}${rendered.text}`
   const truncated = result.truncated || rendered.sourceTruncated || prefix.length > maxOutputChars
@@ -343,7 +369,7 @@ function computeFetchOutput(result: WebFetchResult, maxOutputChars: number): Ren
  * @param maxOutputChars - cap on the complete returned string.
  * @returns the complete text from {@link renderFetchOutput}.
  */
-export function formatFetchOutput(result: WebFetchResult, maxOutputChars: number): string {
+export function formatFetchOutput(result: WebFetchOutput, maxOutputChars: number): string {
   return renderFetchOutput(result, maxOutputChars).text
 }
 
@@ -389,7 +415,7 @@ export interface WebFetchMeta {
  *   {@link formatFetchOutput} applies to the render text.
  * @returns the URL, status code, and effective truncation flag.
  */
-export function fetchMetaFromValue(value: WebFetchResult, maxOutputChars: number): JsonValue {
+export function fetchMetaFromValue(value: WebFetchOutput, maxOutputChars: number): JsonValue {
   return { url: value.url, statusCode: value.statusCode, truncated: renderFetchOutput(value, maxOutputChars).truncated }
 }
 
@@ -466,6 +492,48 @@ function fetchEscalation(browsers: { preview: boolean; headless: boolean; attach
 }
 
 /**
+ * Convert the seam's fetch result into the recorded `web_fetch` output value. A `document`
+ * body is read through the optional `documentExtract` service; without that service, or
+ * when no registered reader accepts the format, the call fails with
+ * `WEB_UNSUPPORTED_CONTENT_TYPE`.
+ *
+ * @param ctx - context whose global service store may hold `documentExtract`.
+ * @param result - the seam's fetch outcome.
+ * @param signal - tool-call cancellation, forwarded to the document reader.
+ * @returns the output value with any document body replaced by its text.
+ */
+async function fetchOutput(ctx: Context, result: WebFetchResult, signal: AbortSignal): Promise<WebFetchOutput> {
+  const body: WebFetchBody = result.body
+  switch (body.kind) {
+    case 'html':
+    case 'text':
+      return {
+        url: result.url,
+        statusCode: result.statusCode,
+        body: { kind: body.kind, content: body.content },
+        truncated: result.truncated,
+      }
+    case 'document': {
+      const reader = ctx.get('documentExtract')
+      const name = body.name === '' ? 'document' : body.name
+      if (reader === undefined || !reader.accepts(name, body.mediaType)) {
+        throw new WebError(`no document reader accepts "${body.mediaType}" files here`, 'WEB_UNSUPPORTED_CONTENT_TYPE')
+      }
+      const extracted = await reader.extract({ data: body.data, name, mediaType: body.mediaType }, signal)
+      return {
+        url: result.url,
+        statusCode: result.statusCode,
+        body: { kind: 'document', mediaType: body.mediaType, content: extracted.text },
+        truncated: result.truncated || extracted.truncated,
+      }
+    }
+    /* v8 ignore next 2 -- WebFetchBody is a closed union; this arm is unreachable and only makes adding a kind a compile error. */
+    default:
+      return assertNever(body, 'unhandled web fetch body kind')
+  }
+}
+
+/**
  * Register the `web_fetch` tool and its scope-aware system-prompt guidance.
  *
  * @param ctx - context whose `tools` and `systemPrompt` registries receive the
@@ -495,7 +563,7 @@ export function applyWebFetchTool(ctx: Context, timeoutMs: number, maxOutputChar
 
   ctx.tools.register(defineTool({
     name: 'web_fetch',
-    description: 'Fetch the content of a specific HTTP(S) URL and return it decoded to text. Runs no JavaScript and carries no sign-in, so a page that builds itself in a browser or sits behind a login returns little or only its sign-in page; open such a page with preview_navigate when that tool is available.',
+    description: 'Fetch the content of a specific HTTP(S) URL and return it decoded to text; PDF, Word, Excel, PowerPoint, OpenDocument, RTF, and EPUB files return their extracted text. Runs no JavaScript and carries no sign-in, so a page that builds itself in a browser or sits behind a login returns little or only its sign-in page; open such a page with preview_navigate when that tool is available.',
     parameters: {
       url: { type: 'string', required: true, description: 'The HTTP(S) URL to fetch.' },
     },
@@ -525,6 +593,15 @@ export function applyWebFetchTool(ctx: Context, timeoutMs: number, maxOutputChar
                   content: { type: 'string', required: true },
                 },
               },
+              {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  kind: { type: 'string', required: true, const: 'document' },
+                  mediaType: { type: 'string', required: true },
+                  content: { type: 'string', required: true },
+                },
+              },
             ],
           },
           truncated: { type: 'boolean', required: true },
@@ -542,12 +619,7 @@ export function applyWebFetchTool(ctx: Context, timeoutMs: number, maxOutputChar
         { url: input.url },
         exec.signal,
       )
-      return {
-        url: result.url,
-        statusCode: result.statusCode,
-        body: { kind: result.body.kind, content: result.body.content },
-        truncated: result.truncated,
-      }
+      return await fetchOutput(ctx, result, exec.signal)
     },
     presentCall: presentFetchCall,
     presentResult: (args, result) => presentFetchResult(args, result),

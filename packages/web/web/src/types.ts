@@ -78,7 +78,7 @@ export interface WebFetchResult {
   readonly statusCode: number
   /** Decoded body, classified by content kind. */
   readonly body: WebFetchBody
-  /** True when the provider capped the decoded body. */
+  /** True when the provider capped the decoded body; always false for a `document` body. */
   readonly truncated: boolean
 }
 
@@ -94,6 +94,16 @@ export interface WebFetchResult {
 export type WebFetchBody =
   | { readonly kind: 'html'; readonly content: string }
   | { readonly kind: 'text'; readonly content: string }
+  | {
+    /** A binary document (PDF, Office, OpenDocument, RTF, EPUB) the consumer converts to text. */
+    readonly kind: 'document'
+    /** The complete, never byte-truncated file; a provider refuses a document it cannot read whole. */
+    readonly data: Uint8Array
+    /** The response media type without parameters, lower-cased. */
+    readonly mediaType: string
+    /** File name from `Content-Disposition` or the URL's last path segment, possibly empty. */
+    readonly name: string
+  }
 
 /**
  * A search-capable backend. Registered with `ctx.web.registerSearchProvider`.

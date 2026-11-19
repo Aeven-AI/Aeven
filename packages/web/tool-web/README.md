@@ -65,7 +65,7 @@ If any query in a multi-query call fails, `web_search` aborts the remaining sear
 
 ### Using web_fetch
 
-Call `web_fetch` with one `url`. HTML bodies are filtered and rendered to markdown (GFM tables and strikethrough included); text bodies pass through under an untrusted-content notice. A non-2xx status is reported in the result, not thrown as an error. Truncated content appends `(Content truncated. Fetch a more specific URL or section for the full text.)`.
+Call `web_fetch` with one `url`. HTML bodies are filtered and rendered to markdown (GFM tables and strikethrough included); text bodies pass through under an untrusted-content notice. PDF, Office, OpenDocument, RTF, and EPUB files are converted to text through the optional `ctx.documentExtract` service (the header names the source media type); without that service, or without a reader for the format, the call fails with `WEB_UNSUPPORTED_CONTENT_TYPE`. Extraction runs inside the `fetchTimeoutMs` budget, and a timeout terminates the reader. A non-2xx status is reported in the result, not thrown as an error. Truncated content appends `(Content truncated. Fetch a more specific URL or section for the full text.)`.
 
 ```text
 web_fetch({ url: 'https://example.com' })

@@ -2737,7 +2737,7 @@ todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为
 
 ### `web_fetch`
 
-Fetch the content of a specific HTTP(S) URL and return it decoded to text. Runs no JavaScript and carries no sign-in, so a page that builds itself in a browser or sits behind a login returns little or only its sign-in page; open such a page with preview_navigate when that tool is available.
+Fetch the content of a specific HTTP(S) URL and return it decoded to text; PDF, Word, Excel, PowerPoint, OpenDocument, RTF, and EPUB files return their extracted text. Runs no JavaScript and carries no sign-in, so a page that builds itself in a browser or sits behind a login returns little or only its sign-in page; open such a page with preview_navigate when that tool is available.
 
 ```json
 {

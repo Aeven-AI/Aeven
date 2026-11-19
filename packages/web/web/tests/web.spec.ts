@@ -193,7 +193,7 @@ describe('WebRuntime fetch capability', () => {
     const { web } = await mountWeb()
     web.registerFetchProvider(makeFetchProvider('http', available, fetchResult('http')))
     const result = await web.fetch({ url: 'https://example.com' })
-    expect(result.body.content).toBe('http')
+    expect(result.body).toMatchObject({ content: 'http' })
     expect(result.statusCode).toBe(200)
   })
 

@@ -31,7 +31,13 @@
     "@aeven/llm": "workspace:^",
     "@aeven/system-prompt": "workspace:^",
     "@aeven/tools": "workspace:^",
-    "@aeven/web": "workspace:^"
+    "@aeven/web": "workspace:^",
+    "@aeven/document-extract": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@aeven/document-extract": {
+      "optional": true
+    }
   },
   "dependencies": {
     "@aeven/util-values": "workspace:^",
@@ -53,6 +59,7 @@
     "@aeven/web-fetch-http": "workspace:^",
     "@aeven/web-search-exa": "workspace:^",
     "@types/turndown": "^5.0.6",
-    "@aeven/scope": "workspace:^"
+    "@aeven/scope": "workspace:^",
+    "@aeven/document-extract": "workspace:^"
   }
 }
