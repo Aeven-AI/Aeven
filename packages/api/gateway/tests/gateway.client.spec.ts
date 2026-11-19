@@ -1395,9 +1395,9 @@ describe('Client Typert API', () => {
     await expect(ctx.remote.probe.create('agent-1', { objective: 'ship' })).resolves.toMatchObject({
       ok: false,
       error: {
-        code: 'gateway/internal',
+        code: 'gateway/carrier-failed',
         message: 'client api: probe/create failed: carrier offline',
-        details: {},
+        details: { endpoint: 'probe/create' },
       },
     })
   })
@@ -1410,9 +1410,9 @@ describe('Client Typert API', () => {
     await expect(ctx.remote.probe.create('agent-1', { objective: 'ship' })).resolves.toMatchObject({
       ok: false,
       error: {
-        code: 'gateway/internal',
+        code: 'gateway/carrier-failed',
         message: 'client api: probe/create failed: carrier exploded',
-        details: {},
+        details: { endpoint: 'probe/create' },
       },
     })
   })
@@ -1436,7 +1436,7 @@ describe('Client Typert API', () => {
       })
   })
 
-  it('keeps a carrier throw under an unaborted caller signal in the internal branch', async () => {
+  it('keeps a carrier throw under an unaborted caller signal in the carrier-failed branch', async () => {
     const controller = new AbortController()
     const ctx = await bench(vi.fn<ConnectionHandle['rpc']['call']>()
       .mockRejectedValue(new Error('carrier offline')))
@@ -1446,9 +1446,9 @@ describe('Client Typert API', () => {
       .resolves.toMatchObject({
         ok: false,
         error: {
-          code: 'gateway/internal',
+          code: 'gateway/carrier-failed',
           message: 'client api: probe/create failed: carrier offline',
-          details: {},
+          details: { endpoint: 'probe/create' },
         },
       })
   })

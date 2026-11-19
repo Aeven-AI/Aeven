@@ -783,7 +783,15 @@ function withdrawn(endpoint: string): Extract<RemoteResult<never>, { readonly ok
 }
 
 function carrierFailure(endpoint: string, error: unknown): Extract<RemoteResult<never>, { readonly ok: false }> {
-  return internalFailure(`client api: ${endpoint} failed: ${error instanceof Error ? error.message : String(error)}`)
+  return {
+    ok: false,
+    error: new RemoteError(
+      'gateway/carrier-failed',
+      `client api: ${endpoint} failed: ${error instanceof Error ? error.message : String(error)}`,
+      { endpoint },
+      { cause: error },
+    ),
+  }
 }
 
 function cancelledFailure(endpoint: string, cause: unknown): Extract<RemoteResult<never>, { readonly ok: false }> {
@@ -795,6 +803,31 @@ function cancelledFailure(endpoint: string, cause: unknown): Extract<RemoteResul
 
 function internalFailure(message: string): Extract<RemoteResult<never>, { readonly ok: false }> {
   return { ok: false, error: new RemoteError('gateway/internal', message, {}) }
+}
+
+/**
+ * Resend a call whose request the Host deduplicates while its carrier fails, such as a send that loses its
+ * connection while the Host restarts. Uses the waits a stream uses for a starting Service (250ms doubling to 4s, up
+ * to 16 resends); any other outcome returns at once.
+ * @param call - one attempt; every attempt must carry the same request identity, so the Host admits it once.
+ * @param signal - the caller's cancellation; aborting stops resending and returns the last outcome.
+ * @returns the first outcome that is not `gateway/carrier-failed`, or the last one.
+ */
+export async function resendOnCarrierFailure<T>(
+  call: () => Promise<RemoteResult<T>>,
+  signal?: AbortSignal,
+): Promise<RemoteResult<T>> {
+  const lifetime = signal ?? new AbortController().signal
+  for (let attempt = 1; ; attempt++) {
+    const result = await call()
+    if (result.ok || result.error.code !== 'gateway/carrier-failed' || attempt > SERVICE_START_RETRIES || lifetime.aborted) return result
+    try {
+      await serviceStartDelay(attempt, lifetime)
+    } catch {
+      // The caller aborted during the wait; the last outcome stands.
+      return result
+    }
+  }
 }
 
 /**
