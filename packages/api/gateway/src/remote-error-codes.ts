@@ -17,6 +17,12 @@ declare module '@aeven/typert-protocol' {
     'gateway/ambiguous-endpoint': TypertGatewayFaultDetails
     'gateway/arguments-invalid': TypertGatewayFaultDetails
     'gateway/binding-invalid': TypertGatewayFaultDetails
+    /**
+     * The Client's carrier failed the call before a Connection response arrived: the network failed, or the HTTP
+     * answer carried no response envelope. The Host may or may not have run the method, so only a caller whose
+     * request the Host deduplicates may resend it.
+     */
+    'gateway/carrier-failed': TypertGatewayFaultDetails
     'gateway/context-failed': TypertGatewayFaultDetails
     'gateway/context-not-found': TypertGatewayFaultDetails
     'gateway/context-unavailable': TypertGatewayFaultDetails

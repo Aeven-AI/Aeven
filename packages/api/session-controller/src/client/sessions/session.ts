@@ -28,7 +28,7 @@ import type {
   SessionEventLikeEntry, SessionLiveEventEntry,
 } from '../contract/events.ts'
 import { Notifier } from './notifier.ts'
-import { isRemoteFailure } from '@aeven/api-gateway/client'
+import { isRemoteFailure, resendOnCarrierFailure } from '@aeven/api-gateway/client'
 import type { RemoteFailure, RemoteResult } from '@aeven/typert-protocol'
 import type { SessionRemotes } from './remotes.ts'
 import { ProjectionValueStore } from './projection-store.ts'
@@ -276,14 +276,17 @@ export class Session implements SessionFace {
     if (this.address === undefined) {
       const clientTimeZone = resolvedClientTimeZone()
       const displayName = clientDisplayName()
-      result = await this.remote.session.prompt({
+      const request = {
         requestId: requestId ?? randomUUID() as SessionRequestId,
         sessionId: this.sessionId,
         mode,
         content,
         clientTimeZone,
         ...displayName === undefined ? {} : { clientDisplayName: displayName },
-      }, signal)
+      }
+      // The Host admits one prompt per request id, so a send whose connection failed, as while the Host restarts, is
+      // resent with the same id and lands once.
+      result = await resendOnCarrierFailure(() => this.remote.session.prompt(request, signal), signal)
     } else {
       // The submission's own identity, as for a session prompt: the logged message retires its echo, which stays on
       // screen meanwhile, also while another device of the account takes a forwarded message.
