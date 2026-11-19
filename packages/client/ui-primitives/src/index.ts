@@ -112,6 +112,7 @@ export { MarkdownText, reasoningSource } from './markdown/MarkdownText.tsx'
 export { TextAnimationContext, useTextAnimation } from './markdown/animation.ts'
 export type {
   MarkdownCodeLabels,
+  MarkdownFileLinks,
   MarkdownFileMentions,
   MarkdownLabels,
   MarkdownMessageLabels,

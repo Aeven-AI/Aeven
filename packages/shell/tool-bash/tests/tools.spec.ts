@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
@@ -56,7 +56,7 @@ const PROMPT_SECTION = 'Check the [exit code: N] marker on every bash result; in
   + 'such as a rate limit, requires, and end the turn when nothing useful is left: a settled job wakes you.'
 
 /** Foreground-only harness: no job runtime (backgrounding fails loud here). */
-async function setup() {
+async function setup(config: ToolBash.Config = {}) {
   const ctx = new Context()
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
@@ -65,9 +65,59 @@ async function setup() {
   ;(ctx.subprocess as LocalSubprocessRuntime).internals = { spillDir }
   await ctx.plugin(BashEnvPlugin)
   await ctx.plugin(LocalBashExecutor, { timeoutMs: 10_000, graceMs: 200 })
-  await ctx.plugin(ToolBash)
+  await ctx.plugin(ToolBash, config)
   return ctx
 }
+
+describe('undeclared generated documents', () => {
+  it('records files of the types a command names that it creates or changes, and nothing else', async () => {
+    const ctx = await setup({ detectOutputExtensions: ['pdf', 'PNG', 'jpg'] })
+    const root = mkdtempSync(join(tmpdir(), 'avn-detected-files-'))
+    const fsFiber = await ctx.plugin(LocalFileSystem)
+    mkdirSync(join(root, 'out'))
+    mkdirSync(join(root, '.cache'))
+    writeFileSync(join(root, 'out', 'old.pdf'), 'unchanged')
+    writeFileSync(join(root, 'chart.png'), 'before')
+    try {
+      // The PDF is written through `$PWD` after a `cd`, a path no command parser could resolve.
+      const result = await call(ctx, 'bash', {
+        description: 'Print the letter', workdir: root,
+        command: 'cd out && printf html > letter.html && printf pdf > "$PWD/letter.pdf" && printf png > ../chart.png'
+          // A preview whose type the command never spells as `.jpg`, as `pdftoppm -jpeg` writes one, stays out.
+          + ' && printf hidden > ../.cache/skip.pdf && ext=jpg && printf preview > "page-1.$ext"',
+      })
+      expect(result.isError).not.toBe(true)
+      const produced = (result.meta as { producedFiles: { path: string; created: boolean }[] }).producedFiles
+      expect([...produced].sort((a, b) => a.path.localeCompare(b.path))).toEqual([
+        { path: join(root, 'chart.png'), created: false },
+        { path: join(root, 'out', 'letter.pdf'), created: true },
+      ])
+
+      // A command that names no configured extension is not checked at all.
+      const plain = await call(ctx, 'bash', { description: 'Write text', workdir: root, command: 'printf pdf > out/second.pdf.txt' })
+      expect(plain.meta).toBeUndefined()
+      // Naming the extension without producing anything records nothing.
+      const reading = await call(ctx, 'bash', { description: 'List PDFs', workdir: root, command: 'ls out/*.pdf' })
+      expect(reading.meta).toBeUndefined()
+    } finally {
+      await fsFiber.dispose()
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('stays off without configured extensions', async () => {
+    const ctx = await setup({ detectOutputExtensions: [] })
+    const root = mkdtempSync(join(tmpdir(), 'avn-detected-off-'))
+    const fsFiber = await ctx.plugin(LocalFileSystem)
+    try {
+      const result = await call(ctx, 'bash', { description: 'Print', workdir: root, command: 'printf pdf > letter.pdf' })
+      expect(result.meta).toBeUndefined()
+    } finally {
+      await fsFiber.dispose()
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+})
 
 describe('declared generated files', () => {
   it('records new and modified outputs but excludes unchanged, missing, and directory paths', async () => {

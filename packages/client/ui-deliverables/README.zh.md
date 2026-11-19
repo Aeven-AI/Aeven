@@ -35,6 +35,8 @@ kind: "package-reference"
 
 收尾正文承载同一份词表：行内代码 token 按精确路径解析，或当它恰好等于某条产出路径的 basename 且该路径唯一时解析——两条路径共享同一 basename 时保持惰性而不猜测，因此提及绝不打开错误的文件。解析成功的提及保留代码标签，并采用 Markdown 样式表的链接样式，完整路径作为其 `title`。
 
+目标为路径的 Markdown 链接，无论出现在哪个助手步骤、指向何种文件，都按产出文件的方式打开：文件侧栏预览它；页面为 loopback 且宿主能打开路径时由宿主打开；否则浏览器通过 `sidebarFiles.fileUrl` 下载。位于会话 cwd 内的路径相对于它解析。形如 `attachments/<xx>/<sha256>` 的目标（模型在工具共享文件后会写出这种链接）通过 `/api/attachment-file` 下载该存储副本。
+
 在桌面上，该标签项与产出文件行的标签项同样响应右键：Electron shell 绘制的菜单提供桌面为该文件登记的处理器、文件管理器，以及该文件的相对路径与绝对路径，处理器列表在菜单打开时针对该文件查询。通过 HTTP 提供服务时不拦截任何菜单，平台自身的右键菜单保持不变。
 
 -----
@@ -45,7 +47,7 @@ kind: "package-reference"
 <details>
 <summary>实现细节——点击展开</summary>
 
-Node 半部注册静态 `ui:deliverable-file-references` 系统提示词段，要求模型点名成功创建或修改的主要文件，并把这些文件以及正文中提到的其他本轮变更文件写成 Markdown 行内代码。浏览器半部把 `ProducedFiles` 注册进 chat 视图的 `conversation.chat.turnTail` 洞。`deliverablesDefinition` 根据 `write`、`edit` 和有修改作用的 `str_replace_editor` 命令中经过校验的原始参数，把每个轮次成功的第一方修改调用折叠进 `DeliverablesTurnData`。读取、删除、不受支持的工具、格式错误的调用和失败结果不贡献任何条目。新的修改工具必须增加显式 Client contribution 才能加入列表。本包还提供 chat 视图按收尾消息查询的 `chatFileMentions` 服务；把插件组合出去会同时移除两个表面，视图的空链以零成本留下。 工具结果还可以通过经过验证的 `producedFiles` 元数据贡献路径和创建状态；`bash` 为任意格式的声明输出记录这些信息。Client 不从 shell 输出或助手正文推断文件。
+Node 半部注册静态 `ui:deliverable-file-references` 系统提示词段，要求模型点名成功创建或修改的主要文件，并把这些文件以及正文中提到的其他本轮变更文件写成 Markdown 行内代码。浏览器半部把 `ProducedFiles` 注册进 chat 视图的 `conversation.chat.turnTail` 洞。`deliverablesDefinition` 根据 `write`、`edit` 和有修改作用的 `str_replace_editor` 命令中经过校验的原始参数，把每个轮次成功的第一方修改调用折叠进 `DeliverablesTurnData`。读取、删除、不受支持的工具、格式错误的调用和失败结果不贡献任何条目。新的修改工具必须增加显式 Client contribution 才能加入列表。本包还提供 `chatFileMentions` 服务，chat 视图按收尾消息查询其中的提及，按会话查询其中的路径链接；把插件组合出去会同时移除两个表面，视图的空链以零成本留下。 工具结果还可以通过经过验证的 `producedFiles` 元数据贡献路径和创建状态；`bash` 为任意格式的声明输出记录这些信息。Client 不从 shell 输出或助手正文推断文件。
 
 </details>
 

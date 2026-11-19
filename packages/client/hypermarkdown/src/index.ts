@@ -22,6 +22,12 @@ export { default as MarkdownStream } from './engine/renderer.tsx'
 /** @deprecated Internal engine options retained for API compatibility. */
 export type { RendererOptions as MarkdownStreamOptions } from './engine/types.ts'
 export type { AllowedTags, LinkSafetyConfig } from './engine/sanitize.ts'
+/**
+ * The engine's own `a` component, for a host that replaces `a` and hands the
+ * links it does not claim back: footnote jumps stay in the page, and every
+ * other link opens in a new tab.
+ */
+export { default as MarkdownLink } from './engine/link.tsx'
 export type {
   CodeComponentProps,
   HtmlMode,

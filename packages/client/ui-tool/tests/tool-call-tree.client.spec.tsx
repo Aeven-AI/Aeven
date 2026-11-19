@@ -48,6 +48,7 @@ function props(
     openFile: vi.fn(),
     forkAt: vi.fn(),
     fileMentions: vi.fn(),
+    fileLinks: vi.fn(),
     useHostInfo: ((selector: (info: { home: string | undefined }) => unknown) => selector({ home })) as ToolTreeProps['useHostInfo'],
     t,
   } as unknown as ToolTreeProps

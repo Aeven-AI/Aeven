@@ -55,6 +55,7 @@
     "@aeven/api-remotes": "workspace:^",
     "@aeven/api-session-controller": "workspace:^",
     "@aeven/api-workspace-controller": "workspace:^",
+    "@aeven/api-workspace-files": "workspace:^",
     "@aeven/attachment": "workspace:^",
     "@aeven/client-locale": "workspace:^",
     "@aeven/client-store": "workspace:^",

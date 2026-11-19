@@ -2,7 +2,7 @@
  * Deliverables plugin, browser half: registers the produced-files row into
  * the chat view's turn-tail chain, and provides the `chatFileMentions`
  * service that links inline-code mentions of produced files in the closing
- * prose. All policy lives here — the supported mutation calls, mention
+ * prose and opens prose links whose destination is a local path. All policy lives here — the supported mutation calls, mention
  * matching, chip cap, and copy — so
  * composing this plugin out of cordis.yml removes both surfaces entirely;
  * the owning view renders an empty chain and inert prose at zero cost.
@@ -17,6 +17,7 @@ import type {} from '@aeven/client-ui-renderer/client'
 import type {} from '@aeven/client-ui-sidebar-files/client'
 import { ProducedFiles } from './ProducedFiles.tsx'
 import { desktopFileMenus, fileMenuLabels, revealFile, showFileMenu } from './file-menu.ts'
+import { downloadUrl, producedFileLinks } from './file-links.ts'
 import { en, es, NS, zh, type DeliverablesKey } from './locales.ts'
 import {
   deliverablesDefinition, producedFileMentions, selectProducedFiles,
@@ -128,14 +129,22 @@ export function apply(ctx: ClientContext): void {
             owner.openFile(file.path)
             return
           }
-          const link = document.createElement('a')
-          link.href = attachmentUrl(sessionId, file.attachmentId, true)
-          link.rel = 'noopener'
-          link.click()
+          downloadUrl(attachmentUrl(sessionId, file.attachmentId, true))
         },
         path => t('produced.open', { name: path }),
         showMenu === undefined ? undefined : (path) => { showMenu(path, owner.cwd) },
       )
+    },
+    forLinks(owner, sessionId) {
+      ensureWorkspacePathOpen()
+      return producedFileLinks(owner.cwd, {
+        previewFile: (path: string, copy?: string) =>
+          copy === undefined ? ctx.sidebarFiles.open(sessionId, path) : ctx.sidebarFiles.open(sessionId, path, copy),
+        fileUrl: (path: string, download?: boolean) => ctx.sidebarFiles.fileUrl(sessionId, path, download),
+        attachmentUrl: (attachmentId: string, download?: boolean) => attachmentUrl(sessionId, attachmentId, download),
+        canOpenPath: () => ctx.remote.$host.isLoopback && workspacePathOpen.getSnapshot() === true,
+        openFile: owner.openFile,
+      })
     },
   }
   ctx.provide('chatFileMentions', mentions)

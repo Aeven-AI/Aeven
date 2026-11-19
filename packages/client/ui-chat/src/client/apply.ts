@@ -1,7 +1,8 @@
 /** Register the Chat Conversation target, renderers, stats, and details surface. */
 import type { Context } from '@deepseek-ai/cordis'
 import type { ImageAttachmentRef } from '@aeven/attachment'
-import type {} from '@aeven/api-remotes/client'
+import type { ClientRemote } from '@aeven/api-remotes/client'
+import type {} from '@aeven/api-workspace-files/remote'
 import type { SessionBinding } from '@aeven/api-session-controller/client'
 import type { BoundActions, ObservableSnapshot } from '@aeven/client-store'
 import type { SessionId } from '@aeven/session/types'
@@ -16,7 +17,7 @@ import type {} from '@aeven/client-ui-settings/client'
 import type {} from '@aeven/client-ui-workspace/client'
 import type {
   ChatNodeTurnDataInjected, ChatScrollPosition, ChatViewInjected, DetailsInjected,
-  TurnTailOwnerProps,
+  FileLinkOwnerProps, TurnTailOwnerProps,
 } from './contract/slots.ts'
 import type { ChatSnapshot } from './contract/snapshot.ts'
 import { EMPTY_CHAT_SNAPSHOT } from './contract/snapshot.ts'
@@ -53,6 +54,18 @@ export const inject = [
  * @param ctx - Client root context.
  */
 export function apply(ctx: Context): void {
+  /**
+   * The workspace root the Host resolves one Session's relative paths against.
+   * @param sessionId - the Session whose workspace is asked for.
+   * @returns the absolute root, or undefined where this Client mounts no workspace-files Remote or the Host refuses.
+   */
+  const workspaceRootOf = async (sessionId: SessionId): Promise<string | undefined> => {
+    // `ctx.get` reads the optional Remote; `ctx.remote.workspaceFiles` would demand it as a declared injection.
+    const files = ctx.get('remote.workspaceFiles') as ClientRemote['workspaceFiles'] | undefined
+    if (files === undefined) return undefined
+    const listed = await files.list(sessionId, '', new AbortController().signal)
+    return listed.ok ? listed.value.root : undefined
+  }
   const chatSources = new WeakMap<SessionBinding, ObservableSnapshot<ChatSnapshot>>()
   const chatSource = (binding: SessionBinding): ObservableSnapshot<ChatSnapshot> => {
     let source = chatSources.get(binding)
@@ -151,11 +164,14 @@ export function apply(ctx: Context): void {
             ctx.layout.openDetails()
           },
           fileMentions: (owner: TurnTailOwnerProps) => ctx.get('chatFileMentions')?.forClosing(owner, sessionId),
+          fileLinks: (owner: FileLinkOwnerProps) => ctx.get('chatFileMentions')?.forLinks(owner, sessionId),
           // A transcript block covering the viewport is shell state, not chat
           // state: the shell's own chrome is what has to yield to it.
           onFullscreenChange: (fullscreen: boolean) => { ctx.layout.setFullscreen(fullscreen) },
           openFile: async (path) => {
-            const cwd = ctx.sessions.list.getSnapshot().byId[sessionId]?.cwd
+            // A chat outside any project has no `cwd` on its list row but still runs in a workspace the Host chose,
+            // and the Host's opener resolves a relative path against its own process directory instead.
+            const cwd = ctx.sessions.list.getSnapshot().byId[sessionId]?.cwd ?? await workspaceRootOf(sessionId)
             const result = await ctx.remote.session.openWorkspacePath({
               path: resolveWorkspacePath(cwd, path),
             })

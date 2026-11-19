@@ -457,6 +457,7 @@ function makeHarness(
     forkAt,
     // Absent-service default; mention tests override with a real resolver.
     fileMentions: () => undefined,
+    fileLinks: () => undefined,
     onFullscreenChange: () => {},
     updateQueue: async () => {},
     editMessage: async () => {},

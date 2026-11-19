@@ -39,7 +39,7 @@ kind: "package-library"
 
 ### 渲染 agent 输出
 
-`MarkdownText` 通过 [HyperMarkdown](../hypermarkdown/README.zh.md) 引擎渲染不可信的 GFM 与 TeX 公式，阻止不安全的链接与图片协议，并可把已解析的文件提及转换为显式控件。原始 HTML 从不被解析，因此作者写下的标记以字符而非元素抵达读者，而 ```` ```mermaid ```` fence 渲染为固定在 Mermaid strict 安全级别的图表。回复流式输出时，组件只把新追加的文本写入引擎的 store，该 store 按代码行、表格行与列表项缓存；定稿调用引擎的流式定稿操作，其外部 store hook 会发布并保留最终带动画的渲染。`TerminalBlock`、`ReadBlock`、`DiffBlock`、`SearchBlock` 与 `WebBlock` 把对应的工具结果意图渲染为带复制控件、溢出处理及适用时 ANSI 处理的卡片。`JsonTree` 与 `JsonBlock` 以只读方式检查 JSON 值；`projectUserText` 把已发送的用户文本投影为行内普通文本段与引用 chip，供消息气泡和排队行使用。
+`MarkdownText` 通过 [HyperMarkdown](../hypermarkdown/README.zh.md) 引擎渲染不可信的 GFM 与 TeX 公式，阻止不安全的链接与图片协议，并可把已解析的文件提及转换为显式控件。目标不带协议的链接指向本地文件，而非本应用的页面：它通过调用方的 `fileLinks` 解析器打开；没有解析器或解析器拒绝时，它渲染为纯文本，因此点击绝不会向本应用的源站请求该路径。原始 HTML 从不被解析，因此作者写下的标记以字符而非元素抵达读者，而 ```` ```mermaid ```` fence 渲染为固定在 Mermaid strict 安全级别的图表。回复流式输出时，组件只把新追加的文本写入引擎的 store，该 store 按代码行、表格行与列表项缓存；定稿调用引擎的流式定稿操作，其外部 store hook 会发布并保留最终带动画的渲染。`TerminalBlock`、`ReadBlock`、`DiffBlock`、`SearchBlock` 与 `WebBlock` 把对应的工具结果意图渲染为带复制控件、溢出处理及适用时 ANSI 处理的卡片。`JsonTree` 与 `JsonBlock` 以只读方式检查 JSON 值；`projectUserText` 把已发送的用户文本投影为行内普通文本段与引用 chip，供消息气泡和排队行使用。
 
 `MarkdownText` 直接显示远程 HTTPS 图片，并把绝对本地路径解析为相对于页面 HTTP(S) 或 `avn-app:` base URL 的 `api/file`。浏览器原生读取使用 Host 的账号 cookie；桌面 spawn 模式通过已有的自定义协议载体解析同一路径。被链接安全规则拒绝的源、任何解析器都无法转成 URL 的源，以及加载失败的 URL，都会渲染一个可见状态，带上 `labels.imageUnavailable` 与作者写下的源，使被丢弃的图片能与只写了替代文本的图片区分开。
 

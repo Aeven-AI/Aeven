@@ -512,7 +512,10 @@ describe('plugin registration', () => {
     } as never)
     ctx.provide('remote.session', session as never)
     const openSidebarFile = vi.fn().mockResolvedValue(true)
-    ctx.provide('sidebarFiles', { open: openSidebarFile } as never)
+    ctx.provide('sidebarFiles', {
+      open: openSidebarFile,
+      fileUrl: (sessionId: string, path: string) => `https://app.test/${sessionId}/${path}`,
+    } as never)
     ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
     await ctx.plugin({ inject: localeInject, apply: applyLocale }).await()
 
@@ -552,6 +555,13 @@ describe('plugin registration', () => {
     expect(opened).toEqual(['site/report.html'])
     // A turn that produced nothing yields no vocabulary at all.
     expect(service?.forClosing(tailOwner(undefined, 2), SessionId('s1'))).toBeUndefined()
+    // Path links resolve for any step, through the Session's own workspace route,
+    // and open in the sidebar first.
+    const link = service?.forLinks({ cwd: '/w', openFile: (path) => { opened.push(path) } }, SessionId('s1'))
+      .resolve('/w/site/report.html')
+    expect(link?.href).toBe('https://app.test/s1/site/report.html')
+    link?.open()
+    await vi.waitFor(() => { expect(openSidebarFile).toHaveBeenCalledWith('s1', 'site/report.html') })
 
     await fiber.dispose()
     expect(ctx.slots.entries('conversation.chat.turnTail')).toHaveLength(0)
