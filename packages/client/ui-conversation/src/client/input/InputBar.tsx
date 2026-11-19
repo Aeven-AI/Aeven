@@ -490,7 +490,9 @@ export const InputBar = memo(function InputBar({
       return
     }
     /* v8 ignore next -- defensive: the primary button is disabled while empty||disabled, so a click cannot reach the false arm. */
-    if (!empty && !disabled && !machineBusy) inputActions.submit()
+    if (empty || disabled || machineBusy) return
+    // The button is the plain-Enter gesture: during a running turn it follows the Queue/Steer preference.
+    keyboard.submit(resolveSubmitMode(running, 'enter', subagent === null))
   }
 
   // Claim ghost hint: rendered by CSS as generated content after the last

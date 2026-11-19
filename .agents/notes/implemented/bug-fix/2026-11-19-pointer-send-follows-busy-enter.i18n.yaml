@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-11-19-pointer-send-follows-busy-enter.md
+2026-11-19-pointer-send-follows-busy-enter.md: 6d654a8de9b73c0f90a77f4d4edfcbca578b1292
+2026-11-19-pointer-send-follows-busy-enter.zh.md: 3494a497d91b55296f8964d87ac28d6753830722

@@ -10,7 +10,7 @@
 // (single-sourced against the fixture via deriveReplayScript — no committed
 // copy of recorded chunks); the file is a per-run artifact in the temp
 // workspace. One recorded base fixture serves every scenario.
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
@@ -82,23 +82,36 @@ describe('web e2e: live-turn interactions (cancel / error / retry)', () => {
     if (failures.length > 1) throw new AggregateError(failures, 'live-interactions teardown failed')
   })
 
-  /** Boot scaffold + page with an optional override doc materialized per run. */
+  /**
+   * Boot scaffold + page with an optional override doc materialized per run.
+   * @param settingsYaml - user settings document the Host reads at boot, seeded into a spec-owned harness home.
+   */
   async function launch(
     buildOverride?: (sidecarHome: string) => ReplayOverrideDoc,
     retryPolicy?: RetryPolicyConfig,
+    settingsYaml?: string,
   ): Promise<void> {
     sessionEvents = []
     let overridePath: string | undefined
+    let harnessHome: string | undefined
+    if (buildOverride !== undefined || settingsYaml !== undefined) {
+      sidecarDir = await mkdtemp(join(tmpdir(), 'avn-web-e2e-sidecar-'))
+    }
     if (buildOverride !== undefined) {
       // The sidecar CONTENT is authored in this spec; the file is a per-run
       // artifact minted in a spec-owned temp dir. It must exist BEFORE the
       // scaffold boots — installLlmReplay resolves the script at install.
-      sidecarDir = await mkdtemp(join(tmpdir(), 'avn-web-e2e-sidecar-'))
-      overridePath = join(sidecarDir, 'replay.override.json')
-      await writeFile(overridePath, JSON.stringify(buildOverride(sidecarDir)))
+      overridePath = join(sidecarDir!, 'replay.override.json')
+      await writeFile(overridePath, JSON.stringify(buildOverride(sidecarDir!)))
+    }
+    if (settingsYaml !== undefined) {
+      harnessHome = join(sidecarDir!, 'harness-home')
+      await mkdir(harnessHome)
+      await writeFile(join(harnessHome, 'settings.yaml'), settingsYaml)
     }
     scaffold = await launchWebScaffold({
       replayFixture: FIXTURE,
+      ...(harnessHome === undefined ? {} : { harnessHome }),
       ...(overridePath === undefined ? {} : { replayOverride: overridePath }),
       ...(overridePath === undefined ? {} : { compareReplaySession: false }),
       ...(retryPolicy === undefined ? {} : { replayRetryPolicy: retryPolicy }),
@@ -145,10 +158,11 @@ describe('web e2e: live-turn interactions (cancel / error / retry)', () => {
   it.skipIf(MODE === 'record')('cancels a hung stream deterministically via the readyFile marker', async () => {
     expect(fixtureUserPrompts(await readFile(FIXTURE, 'utf8'))).toEqual([PROMPT])
     let marker = ''
+    // Pointer Send follows the busy-Enter preference; Queue keeps the follow-up in the queue dock.
     await launch((sidecarHome) => {
       marker = join(sidecarHome, '.hang-ready')
       return { patches: [{ at: 0, entry: { kind: 'hang', readyFile: marker } }] }
-    })
+    }, undefined, 'ui-conversation:\n  busyEnter: queue\n')
     onTestFailed(() => saveFailureShot(page, 'web-e2e-cancel'))
     const { settled } = await sendPrompt()
     // The marker IS the synchronization: the stream is provably parked in the
