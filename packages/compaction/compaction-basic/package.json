@@ -1,7 +1,7 @@
 {
   "name": "@aeven/compaction-basic",
   "description": "Token-meter-driven compaction policy and LLM summarization backend for the Aeven",
-  "version": "0.3.62-alpha",
+  "version": "0.3.63-alpha",
   "publishConfig": {
     "access": "public"
   },
