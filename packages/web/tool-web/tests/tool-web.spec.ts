@@ -498,6 +498,18 @@ describe('tool-web registration', () => {
     await fiber.dispose()
   })
 
+  it('tells the model web_fetch reads documents only while a document reader is mounted', async () => {
+    const documentLine = 'It also returns the text of PDF, Word, Excel, PowerPoint, OpenDocument, RTF, and EPUB files: fetch a document URL with web_fetch instead of downloading and converting it in a shell.'
+    const { fiber, ctx } = await mountTools()
+    const sections = async () => (await ctx.systemPrompt.assemble()).sections.map(s => s.text).join('\n')
+    expect(await sections()).not.toContain(documentLine)
+    const reader = await ctx.plugin(DocumentExtract, DocumentExtract.Config({}))
+    expect(await sections()).toContain(`Cite the URL as a markdown link when you use its content. ${documentLine}`)
+    await reader.dispose()
+    expect(await sections()).not.toContain(documentLine)
+    await fiber.dispose()
+  })
+
   it('does not advertise web_fetch in search-only prompt guidance', async () => {
     const { fiber, ctx } = await mountTools({ config: { search: true, fetch: false } })
     const prompt = await ctx.systemPrompt.assemble()
