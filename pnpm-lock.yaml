@@ -14008,6 +14008,9 @@ importers:
       '@aeven/agent':
         specifier: workspace:^
         version: link:../../core/agent
+      '@aeven/document-extract':
+        specifier: workspace:^
+        version: link:../../document/document-extract
       '@aeven/llm':
         specifier: workspace:^
         version: link:../../llm/llm

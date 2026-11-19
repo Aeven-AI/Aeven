@@ -1,0 +1,8 @@
+version: 1
+scenario: web-fetch-document
+profile: headless
+composition: web
+recording: live
+permission: workspace-write
+header:
+  class: web

@@ -12,8 +12,30 @@ import { WebError } from '@aeven/web'
 /** Maximum accepted request URL length enforced by the public fetch provider. */
 export const WEB_FETCH_MAX_URL_LENGTH = 2048
 
-/** The body kinds this provider decodes. */
-export type FetchableKind = 'html' | 'text'
+/** The body kinds this provider returns. */
+export type FetchableKind = 'html' | 'text' | 'document'
+
+/**
+ * Binary document media types returned whole as a `document` body for the consumer to
+ * convert. `application/octet-stream` is included because file servers often label PDFs
+ * that way; the consumer then identifies the format by file name.
+ */
+const DOCUMENT_MEDIA_TYPES = new Set([
+  'application/pdf',
+  'application/x-pdf',
+  'application/msword',
+  'application/vnd.ms-excel',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.oasis.opendocument.text',
+  'application/vnd.oasis.opendocument.spreadsheet',
+  'application/vnd.oasis.opendocument.presentation',
+  'application/rtf',
+  'application/epub+zip',
+  'application/octet-stream',
+])
 
 /**
  * Parse a request URL and enforce network-independent transport restrictions:
@@ -68,20 +90,60 @@ export function isSameOrigin(a: URL, b: URL): boolean {
 }
 
 /**
- * Classify a response `Content-Type` into a decodable body kind, or `undefined`
- * for an unsupported (e.g. binary) type. `text/html` and `application/xhtml+xml`
- * are `html`; other `text/*` plus a few structured text types are `text`.
+ * Classify a response `Content-Type` into a body kind, or `undefined` for an
+ * unsupported type. `text/html` and `application/xhtml+xml` are `html`; other
+ * `text/*` plus a few structured text types are `text`; PDF, Office,
+ * OpenDocument, RTF, EPUB, and `application/octet-stream` are `document`.
  *
  * @param contentType - the raw `Content-Type` header, or `null` when the
  *   response carries none (unsupported).
- * @returns the decodable kind, or `undefined` for an unsupported type.
+ * @returns the body kind, or `undefined` for an unsupported type.
  */
 export function classifyContentType(contentType: string | null): FetchableKind | undefined {
-  const mime = (contentType ?? '').replace(/;.*$/s, '').trim().toLowerCase()
+  const mime = mediaTypeOf(contentType)
   if (mime === 'text/html' || mime === 'application/xhtml+xml') return 'html'
+  if (mime === 'text/rtf') return 'document'
   if (mime.startsWith('text/')) return 'text'
   if (mime === 'application/json' || mime === 'application/xml' || mime.endsWith('+json') || mime.endsWith('+xml')) return 'text'
+  if (DOCUMENT_MEDIA_TYPES.has(mime)) return 'document'
   return undefined
+}
+
+/**
+ * The lower-cased media type of a `Content-Type` header without parameters.
+ *
+ * @param contentType - the raw header, or `null` when absent.
+ * @returns the bare media type, empty when absent.
+ */
+export function mediaTypeOf(contentType: string | null): string {
+  return (contentType ?? '').replace(/;.*$/s, '').trim().toLowerCase()
+}
+
+/**
+ * The file name a document response names: the `Content-Disposition` `filename*` or
+ * `filename` parameter, else the URL's last non-empty path segment. Path separators
+ * are stripped so the name never carries directory information.
+ *
+ * @param disposition - the raw `Content-Disposition` header, or `null` when absent.
+ * @param url - the final response URL.
+ * @returns the file name, possibly empty.
+ */
+export function documentFileName(disposition: string | null, url: URL): string {
+  const extended = /filename\*\s*=\s*(?:[\w-]+)?'[^']*'([^;]+)/i.exec(disposition ?? '')?.[1]
+  const plain = /filename\s*=\s*(?:"([^"]*)"|([^;]+))/i.exec(disposition ?? '')
+  let name = extended === undefined ? (plain?.[1] ?? plain?.[2] ?? '') : safeDecode(extended.trim())
+  if (name.trim() === '') name = safeDecode(url.pathname.split('/').findLast(segment => segment !== '') ?? '')
+  return name.trim().split(/[\\/]/).at(-1) ?? ''
+}
+
+/** Percent-decode a name, keeping the raw text when it is not valid percent-encoding. */
+function safeDecode(value: string): string {
+  try {
+    return decodeURIComponent(value)
+  } catch (_error: unknown) {
+    // A malformed escape leaves the server's literal name, which is still a usable label.
+    return value
+  }
 }
 
 /**

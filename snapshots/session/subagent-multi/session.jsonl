@@ -38,8 +38,7 @@
 {"type":"step/end","data":{"turn":1,"step":2}}
 {"type":"step/start","data":{"turn":1,"step":3}}
 {"type":"assistant/chunk","data":{"turn":1,"step":3,"chunk":{"type":"block-start","index":0,"blockType":"reasoning"}}}
-{"type":"reasoning-chunks","data":{"turn":1,"step":3,"index":0,"dt":[0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"texts":["Both"," sub","agents"," have"," returned",":"," first"," with"," \"","AL","P","HA","\","," second"," with"," \"","B","ETA","\"."," Now"," I"," should"," reply"," with"," \"","PAR","ENT"]}}
-{"type":"reasoning-chunks","data":{"turn":1,"step":3,"index":0,"dt":[0,0],"texts":["_D","ONE","\"."]}}
+{"type":"reasoning-chunks","data":{"turn":1,"step":3,"index":0,"dt":[0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-1,0,0],"texts":["Both"," sub","agents"," have"," returned",":"," first"," with"," \"","AL","P","HA","\","," second"," with"," \"","B","ETA","\"."," Now"," I"," should"," reply"," with"," \"","PAR","ENT","_D","ONE","\"."]}}
 {"type":"assistant/chunk","data":{"turn":1,"step":3,"chunk":{"type":"block-start","index":1,"blockType":"text"}}}
 {"type":"text-chunks","data":{"turn":1,"step":3,"index":1,"dt":[0,0,1],"texts":["PAR","ENT","_D","ONE"]}}
 {"type":"assistant/chunk","data":{"turn":1,"step":3,"chunk":{"type":"block-end","index":0,"block":{"type":"reasoning","text":"Both subagents have returned: first with \"ALPHA\", second with \"BETA\". Now I should reply with \"PARENT_DONE\"."}}}}

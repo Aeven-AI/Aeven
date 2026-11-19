@@ -32,6 +32,8 @@ export const inject = ['web']
 export interface Config {
   /** Maximum response body size in bytes. */
   maxResponseBytes?: number
+  /** Maximum document (PDF, Office) size in bytes; a larger document is refused whole. */
+  maxDocumentBytes?: number
   /** Maximum decoded body length in characters. */
   maxBodyChars?: number
   /** Default fetch timeout in milliseconds, within Node's timer range. */
@@ -44,6 +46,7 @@ export interface Config {
 
 export const Config: z<Config> = z.object({
   maxResponseBytes: z.number().default(5_000_000),
+  maxDocumentBytes: z.number().default(25_000_000),
   maxBodyChars: z.number().default(100_000),
   timeoutMs: z.number().default(30_000),
   maxRedirects: z.number().default(5),
@@ -80,11 +83,13 @@ export function apply(ctx: Context, config: Config): void {
   // schemastery (Config) has already filled every defaulted field.
   const resolved = config as ResolvedConfig
   assertPositiveFinite('maxResponseBytes', resolved.maxResponseBytes)
+  assertPositiveFinite('maxDocumentBytes', resolved.maxDocumentBytes)
   assertPositiveFinite('maxBodyChars', resolved.maxBodyChars)
   assertTimeoutMs(resolved.timeoutMs)
   assertNonNegativeInteger('maxRedirects', resolved.maxRedirects)
   const limits: HttpFetchLimits = {
     maxResponseBytes: resolved.maxResponseBytes,
+    maxDocumentBytes: resolved.maxDocumentBytes,
     maxBodyChars: resolved.maxBodyChars,
     timeoutMs: resolved.timeoutMs,
     maxRedirects: resolved.maxRedirects,

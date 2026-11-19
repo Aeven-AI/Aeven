@@ -2733,7 +2733,7 @@ Source: [`packages/workflow/tool-workflow/src/index.ts`](../packages/workflow/to
 
 ### `web_fetch`
 
-Fetch the content of a specific HTTP(S) URL and return it decoded to text. Runs no JavaScript and carries no sign-in, so a page that builds itself in a browser or sits behind a login returns little or only its sign-in page; open such a page with preview_navigate when that tool is available.
+Fetch the content of a specific HTTP(S) URL and return it decoded to text; PDF, Word, Excel, PowerPoint, OpenDocument, RTF, and EPUB files return their extracted text. Runs no JavaScript and carries no sign-in, so a page that builds itself in a browser or sits behind a login returns little or only its sign-in page; open such a page with preview_navigate when that tool is available.
 
 ```json
 {

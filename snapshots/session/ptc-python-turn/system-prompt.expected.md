@@ -835,10 +835,15 @@ class WebFetchOutputBody2(TypedDict):
     kind: Literal["text"]
     content: str
 
+class WebFetchOutputBody3(TypedDict):
+    kind: Literal["document"]
+    mediaType: str
+    content: str
+
 class WebFetchOutput(TypedDict):
     url: str
     statusCode: int
-    body: WebFetchOutputBody1 | WebFetchOutputBody2
+    body: WebFetchOutputBody1 | WebFetchOutputBody2 | WebFetchOutputBody3
     truncated: bool
 
 class WebSearchArgs(TypedDict):
@@ -995,7 +1000,7 @@ class Tools(Protocol):
     async def wait_agent(self, args: WaitAgentArgs) -> WaitAgentOutput:
         """Wait for input at your next step, including agent messages, completion notifications, and user steering. Returns immediately when that input is already pending."""
     async def web_fetch(self, args: WebFetchArgs) -> WebFetchOutput:
-        """Fetch the content of a specific HTTP(S) URL and return it decoded to text. Runs no JavaScript and carries no sign-in, so a page that builds itself in a browser or sits behind a login returns little or only its sign-in page; open such a page with preview_navigate when that tool is available."""
+        """Fetch the content of a specific HTTP(S) URL and return it decoded to text; PDF, Word, Excel, PowerPoint, OpenDocument, RTF, and EPUB files return their extracted text. Runs no JavaScript and carries no sign-in, so a page that builds itself in a browser or sits behind a login returns little or only its sign-in page; open such a page with preview_navigate when that tool is available."""
     async def web_search(self, args: WebSearchArgs) -> WebSearchOutput:
         """Search the web for current information. Returns an optional summary answer and a list of source URLs."""
     async def workflow(self, args: WorkflowArgs) -> WorkflowOutput:

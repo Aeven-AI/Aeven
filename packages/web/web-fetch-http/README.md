@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-With `avn-web-fetch-http`, the harness can fetch public HTTP(S) pages through the web service (`ctx.web`) and get their status code plus bounded, decoded content without sending credentials. Choose it when a composition needs safe retrieval with URL validation, public-address resolution, connection pinning, same-origin redirects, byte and character caps, and an explicit product `User-Agent`. It returns non-2xx responses as results rather than errors, and rejects non-public destinations, binary data, and unsupported content types. The model-facing `web_fetch` tool lives in `avn-tool-web`, which renders this provider's bodies.
+With `avn-web-fetch-http`, the harness can fetch public HTTP(S) pages through the web service (`ctx.web`) and get their status code plus bounded, decoded content without sending credentials. Choose it when a composition needs safe retrieval with URL validation, public-address resolution, connection pinning, same-origin redirects, byte and character caps, and an explicit product `User-Agent`. It returns non-2xx responses as results rather than errors, and returns PDF, Office, OpenDocument, RTF, and EPUB files whole as `document` bodies, and rejects non-public destinations and other binary or unsupported content types. The model-facing `web_fetch` tool lives in `avn-tool-web`, which renders this provider's bodies.
 
 ## Table of Contents
 
@@ -43,6 +43,7 @@ Load the web service and the provider; configurable limits have safe defaults an
 | Field | Default | Meaning |
 |---|---|---|
 | `maxResponseBytes` | `5,000,000` | Maximum response body size in bytes |
+| `maxDocumentBytes` | `25,000,000` | Maximum document size in bytes; a larger document is refused, never truncated |
 | `maxBodyChars` | `100,000` | Maximum decoded body length in characters |
 | `timeoutMs` | `30,000` | Fetch timeout — a resource backstop, not the model-facing tool budget |
 | `maxRedirects` | `5` | Maximum same-origin redirect hops (`0` follows none) |
@@ -81,7 +82,7 @@ This section explains the design decisions behind the provider; the observable b
 
 The package is built on one separation and one layered timeout:
 
-- **Safe retrieval vs. presentation.** This provider owns URL validation, public-address enforcement, connection pinning, HTTP transport, redirect policy, caps, charset decoding, and binary rejection; `avn-tool-web` owns HTML→markdown and truncation formatting. A non-2xx response is data, not failure.
+- **Safe retrieval vs. presentation.** This provider owns URL validation, public-address enforcement, connection pinning, HTTP transport, redirect policy, caps, charset decoding, and document classification; `avn-tool-web` owns HTML→markdown and truncation formatting. A non-2xx response is data, not failure.
 - **Two timeout layers.** The provider's `timeoutMs` is a resource backstop for direct `ctx.web.fetch()` callers; the model-facing tool-call budget belongs to `avn-tool-call-timeout-policy`, which arms `exec.signal`. When the outer deadline fires first the provider reports `WEB_ABORTED` and the policy replaces it with `TOOL_TIMEOUT`; `WEB_FETCH_TIMEOUT` therefore identifies a direct service caller whose provider budget elapsed.
 
 ### Source map
@@ -134,7 +135,7 @@ No direct invalidation; the named consumer owns any request-prefix changes.
 
 These limits define when the provider is unsafe or a poor fit. They are current package constraints.
 
-- **Only textual content decodes** — html/xhtml and `text/*` plus JSON/XML families; a missing `Content-Type` or any binary type throws `WEB_UNSUPPORTED_CONTENT_TYPE`, and text-extractable PDF decoding is named deferred work.
+- **Only textual content decodes** — html/xhtml and `text/*` plus JSON/XML families decode here; document media types (and `application/octet-stream`, named `application/pdf` when the bytes carry the PDF signature) return raw bytes for the consumer to read; a missing `Content-Type` or any other binary type throws `WEB_UNSUPPORTED_CONTENT_TYPE`.
 - **Charset comes only from the `Content-Type` header** (UTF-8 default) — an HTML `<meta charset>` declaration is ignored, and unsupported declarations without a UTF-8 recovery label throw.
 - **UTF-8 recovery is a preference, not encoding detection** — bytes can be valid as both UTF-8 and another encoding, even in a long response. Recovery chooses UTF-8 in that case; malformed declarations without a UTF-8 label remain unsupported.
 

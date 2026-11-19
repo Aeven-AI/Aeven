@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-有了 `avn-web-fetch-http`，harness 可以通过 web 服务（`ctx.web`）抓取公共 HTTP(S) 页面，并在不发送凭据的情况下获得状态码与有界、解码后的内容。当组合需要 URL 校验、公开地址解析、连接固定、仅同源重定向、字节和字符上限及显式产品 `User-Agent` 时选择它。它把非 2xx 响应作为结果而非错误返回，并拒绝非公开目标、二进制数据与不受支持的内容类型。面向模型的 `web_fetch` 工具位于 `avn-tool-web`，由它渲染本提供方的正文。
+有了 `avn-web-fetch-http`，harness 可以通过 web 服务（`ctx.web`）抓取公共 HTTP(S) 页面，并在不发送凭据的情况下获得状态码与有界、解码后的内容。当组合需要 URL 校验、公开地址解析、连接固定、仅同源重定向、字节和字符上限及显式产品 `User-Agent` 时选择它。它把非 2xx 响应作为结果而非错误返回，把 PDF、Office、OpenDocument、RTF 与 EPUB 文件整体作为 `document` 主体返回，并拒绝非公开目标及其他二进制或不受支持的内容类型。面向模型的 `web_fetch` 工具位于 `avn-tool-web`，由它渲染本提供方的正文。
 
 ## 目录
 
@@ -43,6 +43,7 @@ kind: "package-reference"
 | 字段 | 默认值 | 含义 |
 |---|---|---|
 | `maxResponseBytes` | `5,000,000` | 响应主体最大字节数 |
+| `maxDocumentBytes` | `25,000,000` | 文档最大字节数；超出时拒绝，绝不截断 |
 | `maxBodyChars` | `100,000` | 解码主体最大字符数 |
 | `timeoutMs` | `30,000` | 抓取超时——资源兜底，不是面向模型的工具预算 |
 | `maxRedirects` | `5` | 同源重定向最大跳数（`0` 表示不跟随） |
@@ -81,7 +82,7 @@ const page = await ctx.web.fetch({ url: 'https://example.com' })
 
 本包建立在一个分离与一个分层超时之上：
 
-- **安全获取与呈现分离。** 本提供方拥有 URL 校验、公开地址强制规则、连接固定、HTTP 传输、重定向策略、上限、charset 解码与二进制拒绝；`avn-tool-web` 拥有 HTML→markdown 与截断格式化。非 2xx 响应是数据，不是失败。
+- **安全获取与呈现分离。** 本提供方拥有 URL 校验、公开地址强制规则、连接固定、HTTP 传输、重定向策略、上限、charset 解码与文档分类；`avn-tool-web` 拥有 HTML→markdown 与截断格式化。非 2xx 响应是数据，不是失败。
 - **两层超时。** 提供方的 `timeoutMs` 是直接 `ctx.web.fetch()` 调用方的资源兜底；面向模型的工具调用预算属于 `avn-tool-call-timeout-policy`，由它触发 `exec.signal`。外层截止期限先到时，提供方报告 `WEB_ABORTED`，策略再以 `TOOL_TIMEOUT` 替换；因此 `WEB_FETCH_TIMEOUT` 标识的是提供方预算耗尽的直接服务调用方。
 
 ### 源码地图
@@ -134,7 +135,7 @@ const page = await ctx.web.fetch({ url: 'https://example.com' })
 
 这些限制说明提供方何时不安全或不合适。它们是当前包约束。
 
-- **只解码文本内容**——包括 html/xhtml 与 `text/*` 加 JSON/XML 家族；缺少 `Content-Type` 或任何二进制类型都会抛出 `WEB_UNSUPPORTED_CONTENT_TYPE`，可提取文本的 PDF 解码属于明确的延期工作。
+- **只解码文本内容**——html/xhtml 与 `text/*` 加 JSON/XML 家族在此解码；文档媒体类型（以及字节带 PDF 签名时被标为 `application/pdf` 的 `application/octet-stream`）以原始字节交给消费方读取；缺少 `Content-Type` 或任何其他二进制类型都会抛出 `WEB_UNSUPPORTED_CONTENT_TYPE`。
 - **charset 只来自 `Content-Type` 标头**（默认 UTF-8）——HTML `<meta charset>` 声明会被忽略；不含 UTF-8 恢复标签的不受支持声明会抛出异常。
 - **UTF-8 恢复是偏好，而非编码检测**——字节可能同时是有效的 UTF-8 和另一种编码，即使响应很长。此时恢复选择 UTF-8；不含 UTF-8 标签的畸形声明仍不受支持。
 

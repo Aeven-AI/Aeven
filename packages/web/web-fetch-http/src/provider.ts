@@ -13,12 +13,14 @@ import type { Response } from 'undici'
 import { proxyRouteFor } from '@aeven/http-proxy'
 import { isNonPublicIpLiteral, publicHttpNetwork } from './network.ts'
 import type { PublicAddress } from './network.ts'
-import { classifyContentType, decoderForCharset, isSameOrigin, parseCharset, validateFetchUrl } from './policy.ts'
+import { classifyContentType, decoderForCharset, documentFileName, isSameOrigin, mediaTypeOf, parseCharset, validateFetchUrl } from './policy.ts'
 
 /** Resolved provider limits (the plugin's schemastery Config supplies defaults). */
 export interface HttpFetchLimits {
   /** Maximum response body size in bytes (read is aborted past this). */
   maxResponseBytes: number
+  /** Maximum document (PDF, Office) size in bytes; a larger document is refused, never truncated. */
+  maxDocumentBytes: number
   /** Maximum decoded body length in characters (truncated past this). */
   maxBodyChars: number
   /** Default fetch timeout in milliseconds. */
@@ -117,7 +119,7 @@ export class HttpFetchProvider implements WebFetchProvider {
   private async requestOnce(url: URL, signal: AbortSignal) {
     const headers = {
       'user-agent': this.limits.userAgent,
-      'accept': 'text/html,application/xhtml+xml,text/*;q=0.9,application/json;q=0.8',
+      'accept': 'text/html,application/xhtml+xml,text/*;q=0.9,application/json;q=0.8,application/pdf;q=0.8,*/*;q=0.5',
     }
     try {
       // A proxied hop skips public-address resolution and pinning: the proxy performs the origin's
@@ -151,6 +153,7 @@ export class HttpFetchProvider implements WebFetchProvider {
       await response.body?.cancel()
       throw new WebError(`unsupported content type "${contentType ?? 'unknown'}"`, 'WEB_UNSUPPORTED_CONTENT_TYPE')
     }
+    if (kind === 'document') return await this.readDocument(response, finalUrl, signal)
 
     // Reject unsupported declarations before reading, releasing the response stream.
     let decoder: TextDecoder
@@ -160,7 +163,7 @@ export class HttpFetchProvider implements WebFetchProvider {
       await response.body?.cancel()
       throw error
     }
-    const { bytes, truncatedByBytes } = await this.readCapped(response, signal)
+    const { bytes, truncatedByBytes } = await this.readCapped(response, this.limits.maxResponseBytes, signal)
     let decoded: string
     try {
       // Only a real byte-cap truncation permits an incomplete UTF-8 suffix.
@@ -185,18 +188,44 @@ export class HttpFetchProvider implements WebFetchProvider {
   }
 
   /**
-   * Read the response stream up to `maxResponseBytes`. A `Content-Length` over
-   * the cap rejects immediately with `WEB_FETCH_TOO_LARGE`; a stream that grows
-   * past the cap is cut short (`truncatedByBytes`) rather than rejected, so a
-   * server that under-reports still yields a bounded usable body.
+   * Read a binary document whole. A partial PDF or ZIP container cannot be parsed, so a
+   * document past `maxDocumentBytes` rejects with `WEB_FETCH_TOO_LARGE` instead of truncating.
    */
-  private async readCapped(response: Response, signal: AbortSignal): Promise<{ bytes: Uint8Array; truncatedByBytes: boolean }> {
+  private async readDocument(response: Response, finalUrl: URL, signal: AbortSignal): Promise<WebFetchResult> {
+    const { bytes, truncatedByBytes } = await this.readCapped(response, this.limits.maxDocumentBytes, signal)
+    if (truncatedByBytes) {
+      throw new WebError(`document exceeds the maximum of ${this.limits.maxDocumentBytes} bytes`, 'WEB_FETCH_TOO_LARGE')
+    }
+    return {
+      url: finalUrl.toString(),
+      statusCode: response.status,
+      body: {
+        kind: 'document',
+        data: bytes,
+        mediaType: documentMediaType(mediaTypeOf(response.headers.get('content-type')), bytes),
+        name: documentFileName(response.headers.get('content-disposition'), finalUrl),
+      },
+      truncated: false,
+    }
+  }
+
+  /**
+   * Read the response stream up to `maxBytes`. A `Content-Length` over the cap
+   * rejects immediately with `WEB_FETCH_TOO_LARGE`; a stream that grows past the
+   * cap is cut short (`truncatedByBytes`) rather than rejected, so a server that
+   * under-reports still yields a bounded usable body.
+   */
+  private async readCapped(
+    response: Response,
+    maxBytes: number,
+    signal: AbortSignal,
+  ): Promise<{ bytes: Uint8Array; truncatedByBytes: boolean }> {
     const declared = response.headers.get('content-length')
     if (declared !== null) {
       const length = Number(declared)
-      if (Number.isFinite(length) && length > this.limits.maxResponseBytes) {
+      if (Number.isFinite(length) && length > maxBytes) {
         await response.body?.cancel()
-        throw new WebError(`response exceeds the maximum of ${this.limits.maxResponseBytes} bytes`, 'WEB_FETCH_TOO_LARGE')
+        throw new WebError(`response exceeds the maximum of ${maxBytes} bytes`, 'WEB_FETCH_TOO_LARGE')
       }
     }
 
@@ -212,7 +241,7 @@ export class HttpFetchProvider implements WebFetchProvider {
       for (;;) {
         const { done, value } = await reader.read()
         if (done) break
-        const remaining = this.limits.maxResponseBytes - total
+        const remaining = maxBytes - total
         // Only DROPPED bytes count as truncation: a chunk that exactly fills the
         // remaining capacity keeps all its bytes and we read on to observe EOF,
         // so an exactly-at-cap body is not falsely flagged truncated.
@@ -244,6 +273,18 @@ export class HttpFetchProvider implements WebFetchProvider {
     }
     return { bytes, truncatedByBytes }
   }
+}
+
+/** The `%PDF-` signature every PDF file starts with. */
+const PDF_SIGNATURE = [0x25, 0x50, 0x44, 0x46, 0x2d]
+
+/**
+ * Name a generic `application/octet-stream` body that carries the PDF signature as
+ * `application/pdf`, so a consumer can read a PDF whose URL and headers name no format.
+ */
+function documentMediaType(declared: string, bytes: Uint8Array): string {
+  if (declared !== 'application/octet-stream') return declared
+  return PDF_SIGNATURE.every((byte, index) => bytes[index] === byte) ? 'application/pdf' : declared
 }
 
 /** HTTP redirect status codes that carry a `Location`. */

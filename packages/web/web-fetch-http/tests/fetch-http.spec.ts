@@ -10,7 +10,9 @@ import { createPinnedLookup, isPublicIpAddress, publicHttpNetwork, requestPinned
 import {
   classifyContentType,
   decoderForCharset,
+  documentFileName,
   isSameOrigin,
+  mediaTypeOf,
   parseCharset,
   parseFetchUrl,
   validateFetchUrl,
@@ -19,6 +21,7 @@ import {
 
 const limits: HttpFetchLimits = {
   maxResponseBytes: 5_000_000,
+  maxDocumentBytes: 25_000_000,
   maxBodyChars: 100_000,
   timeoutMs: 5_000,
   maxRedirects: 5,
@@ -72,6 +75,39 @@ describe('policy helpers', () => {
     expect(classifyContentType('application/json')).toBe('text')
     expect(classifyContentType('image/png')).toBeUndefined()
     expect(classifyContentType(null)).toBeUndefined()
+  })
+
+  it('classifies PDF, Office, OpenDocument, RTF, EPUB, and generic binary as documents', () => {
+    for (const type of [
+      'application/pdf',
+      'Application/PDF; name=x.pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.oasis.opendocument.text',
+      'text/rtf',
+      'application/rtf',
+      'application/epub+zip',
+      'application/octet-stream',
+    ]) expect(classifyContentType(type)).toBe('document')
+    expect(classifyContentType('application/zip')).toBeUndefined()
+    expect(classifyContentType('video/mp4')).toBeUndefined()
+  })
+
+  it('strips media type parameters and case', () => {
+    expect(mediaTypeOf('Application/PDF; charset=binary')).toBe('application/pdf')
+    expect(mediaTypeOf(null)).toBe('')
+  })
+
+  it('names a document from Content-Disposition, then the URL path', () => {
+    const url = new URL('https://example.com/docs/fallback%20name.pdf?x=1')
+    expect(documentFileName('attachment; filename="Lijst.pdf"', url)).toBe('Lijst.pdf')
+    expect(documentFileName('attachment; filename=plain.docx; size=3', url)).toBe('plain.docx')
+    expect(documentFileName('attachment; filename="a.pdf"; filename*=UTF-8\'\'Deelnemers%20lijst.pdf', url)).toBe('Deelnemers lijst.pdf')
+    expect(documentFileName('attachment; filename="../../etc/passwd.pdf"', url)).toBe('passwd.pdf')
+    expect(documentFileName(null, url)).toBe('fallback name.pdf')
+    expect(documentFileName('inline', new URL('https://example.com/papi/content/'))).toBe('content')
+    expect(documentFileName(null, new URL('https://example.com/'))).toBe('')
+    expect(documentFileName(null, new URL('https://example.com/bad%E0%A4%A.pdf'))).toBe('bad%E0%A4%A.pdf')
   })
 
   it('compares origins', () => {
@@ -319,21 +355,21 @@ describe('HttpFetchProvider caps', () => {
   it('truncates a stream that grows past the byte cap', async () => {
     handler = (_req, res) => { res.writeHead(200, { 'content-type': 'text/plain' }); res.end('abcdefghij') }
     const result = await provider({ maxResponseBytes: 4 }).fetch({ url: base })
-    expect(result.body.content).toBe('abcd')
+    expect(result.body).toMatchObject({ content: 'abcd' })
     expect(result.truncated).toBe(true)
   })
 
   it('does not flag a body that exactly fills the byte cap as truncated', async () => {
     handler = (_req, res) => { res.writeHead(200, { 'content-type': 'text/plain' }); res.end('abcd') }
     const result = await provider({ maxResponseBytes: 4 }).fetch({ url: base })
-    expect(result.body.content).toBe('abcd')
+    expect(result.body).toMatchObject({ content: 'abcd' })
     expect(result.truncated).toBe(false)
   })
 
   it('truncates a decoded body past the character cap', async () => {
     handler = (_req, res) => { res.writeHead(200, { 'content-type': 'text/plain' }); res.end('abcdefghij') }
     const result = await provider({ maxBodyChars: 3 }).fetch({ url: base })
-    expect(result.body.content).toBe('abc')
+    expect(result.body).toMatchObject({ content: 'abc' })
     expect(result.truncated).toBe(true)
   })
 
@@ -341,6 +377,51 @@ describe('HttpFetchProvider caps', () => {
     handler = (_req, res) => { res.writeHead(200, { 'content-type': 'image/png' }); res.end('binary') }
     await expect(provider().fetch({ url: base }))
       .rejects.toThrow(expect.objectContaining({ code: 'WEB_UNSUPPORTED_CONTENT_TYPE' }))
+  })
+
+  it('returns a document body whole with its media type and file name', async () => {
+    const pdf = Buffer.from('%PDF-1.7 fake body')
+    handler = (_req, res) => {
+      res.writeHead(200, { 'content-type': 'application/pdf', 'content-disposition': 'attachment; filename="lijst.pdf"' })
+      res.end(pdf)
+    }
+    const result = await provider({ maxResponseBytes: 4, maxBodyChars: 2 }).fetch({ url: `${base}/download/123` })
+    expect(result.truncated).toBe(false)
+    expect(result.body.kind).toBe('document')
+    if (result.body.kind !== 'document') return
+    expect(result.body.mediaType).toBe('application/pdf')
+    expect(result.body.name).toBe('lijst.pdf')
+    expect(Buffer.from(result.body.data).equals(pdf)).toBe(true)
+  })
+
+  it('names a generic binary body with the PDF signature as a PDF', async () => {
+    handler = (_req, res) => { res.writeHead(200, { 'content-type': 'application/octet-stream' }); res.end('%PDF-1.4') }
+    const result = await provider().fetch({ url: `${base}/content` })
+    expect(result.body).toMatchObject({ kind: 'document', mediaType: 'application/pdf', name: 'content' })
+  })
+
+  it('keeps a generic binary body without the PDF signature generic', async () => {
+    handler = (_req, res) => { res.writeHead(200, { 'content-type': 'application/octet-stream' }); res.end('PK\u0003\u0004') }
+    const result = await provider().fetch({ url: `${base}/file.docx` })
+    expect(result.body).toMatchObject({ kind: 'document', mediaType: 'application/octet-stream', name: 'file.docx' })
+  })
+
+  it('refuses a document past the document byte cap instead of truncating it', async () => {
+    handler = (_req, res) => { res.writeHead(200, { 'content-type': 'application/pdf' }); res.write('%PDF-'); res.end('more') }
+    await expect(provider({ maxDocumentBytes: 6 }).fetch({ url: base }))
+      .rejects.toThrow(expect.objectContaining({ code: 'WEB_FETCH_TOO_LARGE', message: 'document exceeds the maximum of 6 bytes' }))
+  })
+
+  it('refuses a document whose declared length exceeds the document byte cap', async () => {
+    handler = (_req, res) => { res.writeHead(200, { 'content-type': 'application/pdf', 'content-length': '10' }); res.end('%PDF-12345') }
+    await expect(provider({ maxDocumentBytes: 9 }).fetch({ url: base }))
+      .rejects.toThrow(expect.objectContaining({ code: 'WEB_FETCH_TOO_LARGE' }))
+  })
+
+  it('accepts a document that exactly fills the document byte cap', async () => {
+    handler = (_req, res) => { res.writeHead(200, { 'content-type': 'application/pdf' }); res.end('%PDF-') }
+    const result = await provider({ maxDocumentBytes: 5 }).fetch({ url: base })
+    expect(result.body).toMatchObject({ kind: 'document' })
   })
 
   it('rejects a response with no content type at all', async () => {
@@ -352,14 +433,14 @@ describe('HttpFetchProvider caps', () => {
   it('accepts a declared content-length within the cap', async () => {
     handler = (_req, res) => { const body = 'sized'; res.writeHead(200, { 'content-type': 'text/plain', 'content-length': String(body.length) }); res.end(body) }
     const result = await provider().fetch({ url: base })
-    expect(result.body.content).toBe('sized')
+    expect(result.body).toMatchObject({ content: 'sized' })
   })
 
   it('decodes a non-UTF-8 declared charset', async () => {
     // 0xE9 is "é" in ISO-8859-1; decoded as UTF-8 it would be a replacement char.
     handler = (_req, res) => { res.writeHead(200, { 'content-type': 'text/plain; charset=iso-8859-1' }); res.end(Buffer.from([0x63, 0x61, 0x66, 0xE9])) }
     const result = await provider().fetch({ url: base })
-    expect(result.body.content).toBe('café')
+    expect(result.body).toMatchObject({ content: 'café' })
   })
 
   it('rejects an unsupported declared charset', async () => {
@@ -413,7 +494,7 @@ describe('HttpFetchProvider charset recovery', () => {
       res.writeHead(200, { 'content-type': 'text/plain; charset=gbk' })
       res.end(Buffer.from([0xD6, 0xD0, 0xCE, 0xC4]))
     }
-    expect((await provider().fetch({ url: base })).body.content).toBe('中文')
+    expect((await provider().fetch({ url: base })).body).toMatchObject({ content: '中文' })
   })
 
   it('keeps replacement decoding for a single declared charset', async () => {
@@ -421,7 +502,7 @@ describe('HttpFetchProvider charset recovery', () => {
       res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' })
       res.end(Buffer.from([0xE4, 0xB8]))
     }
-    expect((await provider().fetch({ url: base })).body.content).toBe('\uFFFD')
+    expect((await provider().fetch({ url: base })).body).toMatchObject({ content: '\uFFFD' })
   })
 
   it('omits an incomplete UTF-8 suffix only when the byte cap cuts the response', async () => {
@@ -430,7 +511,7 @@ describe('HttpFetchProvider charset recovery', () => {
       res.end('中文')
     }
     const result = await provider({ maxResponseBytes: 5 }).fetch({ url: base })
-    expect(result.body.content).toBe('中')
+    expect(result.body).toMatchObject({ content: '中' })
     expect(result.truncated).toBe(true)
   })
 
@@ -458,7 +539,7 @@ describe('HttpFetchProvider charset recovery', () => {
       res.writeHead(200, { 'content-type': 'text/plain; charset=gbk,utf-8' })
       res.end('©'.repeat(1000))
     }
-    expect((await provider().fetch({ url: base })).body.content).toBe('©'.repeat(1000))
+    expect((await provider().fetch({ url: base })).body).toMatchObject({ content: '©'.repeat(1000) })
   })
 })
 
@@ -469,7 +550,7 @@ describe('HttpFetchProvider redirects', () => {
       else { res.writeHead(200, { 'content-type': 'text/plain' }); res.end('arrived') }
     }
     const result = await provider().fetch({ url: `${base}/start` })
-    expect(result.body.content).toBe('arrived')
+    expect(result.body).toMatchObject({ content: 'arrived' })
     expect(result.url).toBe(`${base}/end`)
   })
 
@@ -507,7 +588,7 @@ describe('HttpFetchProvider redirects', () => {
       else { res.writeHead(302, { location: `/?n=${n + 1}` }); res.end() }
     }
     const result = await provider({ maxRedirects: 2 }).fetch({ url: `${base}/?n=0` })
-    expect(result.body.content).toBe('landed')
+    expect(result.body).toMatchObject({ content: 'landed' })
     expect(requests).toBe(3)
   })
 
@@ -547,7 +628,7 @@ describe('HttpFetchProvider redirects', () => {
     await expect(provider({ maxRedirects: 0 }).fetch({ url: `${base}/r` }))
       .rejects.toThrow(expect.objectContaining({ code: 'WEB_REDIRECT_BLOCKED' }))
     const direct = await provider({ maxRedirects: 0 }).fetch({ url: `${base}/done` })
-    expect(direct.body.content).toBe('direct')
+    expect(direct.body).toMatchObject({ content: 'direct' })
   })
 
   it('treats a redirect without a Location header as a provider error', async () => {
@@ -562,7 +643,7 @@ describe('HttpFetchProvider redirects', () => {
       else { res.writeHead(200, { 'content-type': 'text/plain' }); res.end('landed') }
     }
     const result = await provider().fetch({ url: `${base}/a` })
-    expect(result.body.content).toBe('landed')
+    expect(result.body).toMatchObject({ content: 'landed' })
   })
 })
 
@@ -693,6 +774,13 @@ describe('web-fetch-http plugin registration', () => {
     await ctx.plugin(WebRuntime, { fetchProvider: LOCAL_FETCH_PROVIDER_ID })
     await expect(ctx.plugin(fetchPlugin, { maxResponseBytes: -1 }))
       .rejects.toThrow(/maxResponseBytes must be a positive finite number/)
+  })
+
+  it('rejects a non-positive document byte cap at construction', async () => {
+    const ctx = new Context()
+    await ctx.plugin(WebRuntime, { fetchProvider: LOCAL_FETCH_PROVIDER_ID })
+    await expect(ctx.plugin(fetchPlugin, { maxDocumentBytes: 0 }))
+      .rejects.toThrow(/maxDocumentBytes must be a positive finite number/)
   })
 
   it('rejects a zero timeout at construction', async () => {

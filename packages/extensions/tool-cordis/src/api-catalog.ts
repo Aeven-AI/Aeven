@@ -10632,7 +10632,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'WebFetchBody',
-    declaration: 'export type WebFetchBody = {\n    readonly kind: \'html\';\n    readonly content: string;\n} | {\n    readonly kind: \'text\';\n    readonly content: string;\n};',
+    declaration: 'export type WebFetchBody = {\n    readonly kind: \'html\';\n    readonly content: string;\n} | {\n    readonly kind: \'text\';\n    readonly content: string;\n} | {\n    readonly kind: \'document\';\n    readonly data: Uint8Array;\n    readonly mediaType: string;\n    readonly name: string;\n};',
   },
   {
     name: 'WebFetchProvider',

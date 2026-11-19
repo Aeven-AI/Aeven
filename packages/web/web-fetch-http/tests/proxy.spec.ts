@@ -8,6 +8,7 @@ import { isNonPublicIpLiteral, publicHttpNetwork } from '../src/network.ts'
 
 const limits: HttpFetchLimits = {
   maxResponseBytes: 5_000_000,
+  maxDocumentBytes: 25_000_000,
   maxBodyChars: 100_000,
   timeoutMs: 5_000,
   maxRedirects: 5,
@@ -78,7 +79,7 @@ describe('fetching through a proxy', () => {
 
     const result = await new HttpFetchProvider(limits).fetch({ url: proxyTarget })
 
-    expect(result.body.content).toBe('via-proxy')
+    expect(result.body).toMatchObject({ content: 'via-proxy' })
     expect(proxied).toEqual([proxyTarget])
     // Through a proxy the origin's DNS happens proxy-side, so the resolver that rejects non-public
     // destinations is not consulted at all.
@@ -94,7 +95,7 @@ describe('fetching through a proxy', () => {
 
     const result = await new HttpFetchProvider(limits).fetch({ url: originUrl })
 
-    expect(result.body.content).toBe('direct')
+    expect(result.body).toMatchObject({ content: 'direct' })
     expect(proxied).toEqual([])
     expect(resolve).toHaveBeenCalledOnce()
   })
@@ -105,7 +106,7 @@ describe('fetching through a proxy', () => {
 
     const result = await new HttpFetchProvider(limits).fetch({ url: originUrl })
 
-    expect(result.body.content).toBe('direct')
+    expect(result.body).toMatchObject({ content: 'direct' })
     expect(resolve).toHaveBeenCalledOnce()
   })
 

@@ -98,7 +98,7 @@ interface WebFetchResult {
   readonly statusCode: number
   /** Decoded body, classified by content kind. */
   readonly body: WebFetchBody
-  /** True when the provider capped the decoded body. */
+  /** True when the provider capped the decoded body; always false for a `document` body. */
   readonly truncated: boolean
 }
 ```
@@ -116,6 +116,16 @@ interface WebFetchResult {
 type WebFetchBody =
   | { readonly kind: 'html'; readonly content: string }
   | { readonly kind: 'text'; readonly content: string }
+  | {
+    /** A binary document (PDF, Office, OpenDocument, RTF, EPUB) the consumer converts to text. */
+    readonly kind: 'document'
+    /** The complete, never byte-truncated file; a provider refuses a document it cannot read whole. */
+    readonly data: Uint8Array
+    /** The response media type without parameters, lower-cased. */
+    readonly mediaType: string
+    /** File name from `Content-Disposition` or the URL's last path segment, possibly empty. */
+    readonly name: string
+  }
 ```
 
 ## Provider availability
@@ -136,7 +146,7 @@ The HTTP provider resolves each actual request, rejects non-public answers inclu
 
 ## The service
 
-`WebRuntime` registers search and fetch providers, rejects duplicate ids with `WEB_DUPLICATE_PROVIDER`, and resolves providers at execution time with structured selection errors. The local fetch backend accepts only HTTP(S), rejects credentials, resolves each hostname once, rejects any answer set containing a non-public IPv4 or IPv6 destination or an active-prefix NAT64 translation to non-public IPv4, pins the request connection to the validated addresses, repeats those checks for every same-origin redirect hop, caps redirects, bytes, characters, and time, and decodes the body; the tool owns presentation.
+`WebRuntime` registers search and fetch providers, rejects duplicate ids with `WEB_DUPLICATE_PROVIDER`, and resolves providers at execution time with structured selection errors. The local fetch backend accepts only HTTP(S), rejects credentials, resolves each hostname once, rejects any answer set containing a non-public IPv4 or IPv6 destination or an active-prefix NAT64 translation to non-public IPv4, pins the request connection to the validated addresses, repeats those checks for every same-origin redirect hop, caps redirects, bytes, characters, and time, and decodes a text body or returns a PDF, Office, OpenDocument, RTF, or EPUB file whole as a `document` body; the tool owns presentation and converts a document to text through the optional `ctx.documentExtract` service.
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 

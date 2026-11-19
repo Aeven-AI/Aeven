@@ -1,6 +1,6 @@
 # Web-fetch composition for the web-fetch snapshot scenario. The base bundle
 # supplies the web seam and public HTTP provider; this overlay inserts a
-# deterministic provider and exposes only fetch.
+# deterministic provider, mounts the document reader, and exposes only fetch.
 - insert:
     - id: web-fetch-fixture
       name: './web-fetch-fixture-server.mjs'
@@ -11,6 +11,15 @@
 - id: web-fetch-http
   name: '@aeven/web-fetch-http'
   disabled: true
+
+# web_fetch reads fetched PDF and Office files through the document-text
+# registry and its JavaScript reader, as the Web app composes them.
+- insert:
+    - id: document-extract
+      name: '@aeven/document-extract'
+
+    - id: document-extract-js
+      name: '@aeven/document-extract-js'
 
 - id: tool-web
   name: '@aeven/tool-web'
