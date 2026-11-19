@@ -57,7 +57,7 @@ Both policies contribute their complete current meaning to the cache-safe runtim
 
 ## Approval request
 
-`ApprovalRequest` identifies the agent and tool action closely enough to route and audit the question. It deliberately omits tool arguments: an answerer attaches the prompt to the already-streamed tool call through `callId` instead of rendering a second copy that could drift.
+`ApprovalRequest` identifies the agent and tool action closely enough to route and audit the question. It deliberately omits tool arguments: an answerer attaches the prompt to the already-streamed tool call through `callId` instead of rendering a second copy that could drift. A send-like action whose content is not in its arguments, such as a browser click that posts a composer's text, carries `outbound` instead: what it publishes (`reply`, `comment`, `message`, `email`, `post`, `edit`, `form`, `repost`, `invite`), the site, recipients, subject, and text as read before it goes out. The approval prompt leads with that kind ("Post this reply on linkedin.com") and shows the content, and `approval/asked` records it.
 
 ```ts type-equiv
 /**

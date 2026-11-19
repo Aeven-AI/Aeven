@@ -64,6 +64,8 @@ export interface ApprovalPresentationRequest {
    * `SessionGrantCoverage`); absent means the requester's own action repeated.
    */
   readonly allowSessionCoverage?: ApprovalSessionCoverage
+  /** What a send-like action publishes (mirrors the Host seam's `ApprovalOutbound`). */
+  readonly outbound?: ApprovalOutbound
   /** Cancellation projected from the Host waterfall. */
   readonly signal?: AbortSignal
 }
@@ -76,6 +78,23 @@ export interface ApprovalPresentationRequest {
  * the same website, `'action'` the same action again.
  */
 export type ApprovalSessionCoverage = 'action' | 'account' | 'sandbox' | 'privilege' | 'site'
+
+/** What a send-like action publishes (mirrors the Host seam's `ApprovalOutboundKind`). */
+export type ApprovalOutboundKind = 'reply' | 'comment' | 'message' | 'email' | 'post' | 'edit' | 'form' | 'repost' | 'invite'
+
+/** The content a send-like action delivers, shown before it goes out. */
+export interface ApprovalOutbound {
+  /** What the action publishes; absent when only its content is known. */
+  readonly kind?: ApprovalOutboundKind
+  /** The website the content goes to. */
+  readonly site?: string
+  /** Recipients, comma-separated. */
+  readonly to?: string
+  /** Subject line of an email. */
+  readonly subject?: string
+  /** The text that goes out. */
+  readonly text?: string
+}
 
 /** Decisions this interactive Client presentation can return. */
 export type ApprovalDecision = 'allowed-once' | 'allowed-session' | 'rejected'
@@ -99,6 +118,8 @@ export class PendingApproval extends PendingResult<ApprovalDecision> {
   readonly allowSession: boolean
   /** What the offered grant covers; `'action'` when the requester declared none. */
   readonly sessionCoverage: ApprovalSessionCoverage
+  /** What the action publishes, when the asker read it. */
+  readonly outbound: ApprovalOutbound | undefined
   /**
    * @param sessionId - Agent/Session identity owning the scoped request.
    * @param request - Host approval request projected through the Remote Event.
@@ -112,6 +133,7 @@ export class PendingApproval extends PendingResult<ApprovalDecision> {
     this.reason = request.reason
     this.allowSession = request.allowSession !== undefined
     this.sessionCoverage = request.allowSessionCoverage ?? 'action'
+    this.outbound = request.outbound
 
   }
 

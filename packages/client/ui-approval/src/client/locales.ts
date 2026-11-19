@@ -21,6 +21,16 @@ export const zh = {
   subject: '主题',
   message: '消息',
   details: '操作详情',
+  'outbound.reply': '在 {site} 发布这条回复',
+  'outbound.comment': '在 {site} 发布这条评论',
+  'outbound.message': '在 {site} 发送这条消息',
+  'outbound.email': '在 {site} 发送这封邮件',
+  'outbound.post': '在 {site} 发布这篇帖子',
+  'outbound.edit': '在 {site} 发布这次修改',
+  'outbound.form': '在 {site} 提交这个表单',
+  'outbound.repost': '在 {site} 转发这条内容',
+  'outbound.invite': '在 {site} 发送这条邀请',
+  'outbound.anySite': '某个网站',
 } satisfies Record<string, string>
 
 /** Approval dictionary key union. */
@@ -47,6 +57,16 @@ export const en = {
   subject: 'Subject',
   message: 'Message',
   details: 'Action details',
+  'outbound.reply': 'Post this reply on {site}',
+  'outbound.comment': 'Post this comment on {site}',
+  'outbound.message': 'Send this message on {site}',
+  'outbound.email': 'Send this email on {site}',
+  'outbound.post': 'Publish this post on {site}',
+  'outbound.edit': 'Post this edit on {site}',
+  'outbound.form': 'Submit this form on {site}',
+  'outbound.repost': 'Repost this on {site}',
+  'outbound.invite': 'Send this invitation on {site}',
+  'outbound.anySite': 'a website',
 } satisfies Record<ApprovalKey, string>
 
 /** Spanish dictionary, checked complete against the zh key set. */
@@ -70,4 +90,14 @@ export const es = {
   subject: 'Asunto',
   message: 'Mensaje',
   details: 'Detalles de la acción',
+  'outbound.reply': 'Publicar esta respuesta en {site}',
+  'outbound.comment': 'Publicar este comentario en {site}',
+  'outbound.message': 'Enviar este mensaje en {site}',
+  'outbound.email': 'Enviar este correo en {site}',
+  'outbound.post': 'Publicar esta publicación en {site}',
+  'outbound.edit': 'Publicar esta edición en {site}',
+  'outbound.form': 'Enviar este formulario en {site}',
+  'outbound.repost': 'Volver a publicar esto en {site}',
+  'outbound.invite': 'Enviar esta invitación en {site}',
+  'outbound.anySite': 'un sitio web',
 } satisfies Record<ApprovalKey, string>
