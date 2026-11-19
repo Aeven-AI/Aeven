@@ -11,7 +11,10 @@
  * until a connected client answers it, so with no client connected an
  * unbounded wait never settles: the first-step page lookup gives up after
  * `statusTimeoutMs` and the step proceeds without the browser context, and
- * each `preview_*` call declares `actionTimeoutMs` as its tool timeout.
+ * each browser operation a `preview_*` call performs waits at most
+ * `actionTimeoutMs`. The calls that may ask the person for approval or an
+ * answer declare no tool timeout, so the time the person takes is not counted
+ * against the browser and a pending approval is not withdrawn on a timer.
  *
  * @module @aeven/tool-browser
  */
@@ -360,6 +363,19 @@ export function apply(ctx: Context, config: Config): void {
     ), bounded.signal)
   }
 
+  /**
+   * Bound one Host-side read of an action call by `actionTimeoutMs`; action calls carry no tool timeout because they
+   * may wait for the person.
+   * @param exec - the running tool call.
+   * @param read - the read, given the bounded signal.
+   * @returns what the read settles with.
+   * @throws the deadline's reason when it expires first.
+   */
+  const withActionDeadline = async <T>(exec: ToolRunContext, read: (signal: AbortSignal) => Promise<T>): Promise<T> => {
+    using bounded = deadline(exec.signal, actionTimeoutMs, 'BROWSER_ACTION_TIMEOUT')
+    return await unlessAborted(read(bounded.signal), bounded.signal)
+  }
+
   const uploadInput = async (input: { [key: string]: JsonValue }, exec: ToolRunContext): Promise<{ [key: string]: JsonValue }> => {
     const agent = callingAgent(exec)
     const policy = ctx.get('sandboxPolicy')
@@ -656,7 +672,6 @@ export function apply(ctx: Context, config: Config): void {
     name: toolName,
     description,
     parameters,
-    timeoutMs: actionTimeoutMs,
     output: { schema: { type: 'string' }, ...text },
     async execute(args, exec) {
       let input = args as { [key: string]: JsonValue }
@@ -664,7 +679,7 @@ export function apply(ctx: Context, config: Config): void {
         const agent = callingAgent(exec)
         const host = personAskedForAddress(agent.session.deriveMessages(), input.url)
           ? null
-          : await readHostBrowser(agent, exec.signal)
+          : await withActionDeadline(exec, signal => readHostBrowser(agent, signal))
         if (host?.toolPrefix !== undefined && host.toolsUnavailable === undefined) {
           throw new HarnessError(
             `${input.url} is served from this machine, so it belongs to the Chrome DevTools browser rather than the sidebar pane: nothing in the person's request asked you to open it. Call ${host.toolPrefix}new_page with {"url":"${input.url}"} and drive it with the other ${host.toolPrefix}* tools.`,
@@ -686,7 +701,10 @@ export function apply(ctx: Context, config: Config): void {
       if (operation === 'bookmarks') await approveBookmarksRead(exec)
       // Tab commands also reach Aeven's own Chrome, whose endpoint the Host knows.
       if (operation === 'tabs') {
-        const chromium = await ctx.get('browserChromium')?.status(exec.signal).catch(() => undefined)
+        const browser = ctx.get('browserChromium')
+        const chromium = browser === undefined
+          ? undefined
+          : await withActionDeadline(exec, signal => browser.status(signal)).catch(() => undefined)
         if (chromium !== undefined) input = { ...input, chromium: chromium.browserUrl }
       }
       if (operation === 'webmcp' && input.action === 'invoke') await approveWebMcp(typeof input.name === 'string' ? input.name : '', input.input ?? {}, exec)

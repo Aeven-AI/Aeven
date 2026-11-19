@@ -57,7 +57,7 @@ Both fields are optional; invalid values fail plugin load.
 | Field | Default | Effect |
 | --- | --- | --- |
 | `statusTimeoutMs` | `2000` | Milliseconds the first step of a turn waits for the open page, and a `preview_status` call waits for the Client. When it elapses, the step proceeds without the browser context and the status report carries no page. |
-| `actionTimeoutMs` | `60000` | Milliseconds each `preview_*` call waits, declared as the tool's `timeoutMs`. `@aeven/tool-call-timeout-policy` enforces it and the model receives `TOOL_TIMEOUT`. |
+| `actionTimeoutMs` | `60000` | Milliseconds each browser operation of a `preview_*` call waits. `preview_status` and `preview_screenshot` declare it as their tool `timeoutMs`, which `@aeven/tool-call-timeout-policy` enforces with `TOOL_TIMEOUT`; the other calls may ask the person for approval or an answer, so they declare no tool timeout, and each of their browser operations fails with `BROWSER_ACTION_TIMEOUT` instead. A pending approval waits until the person answers or the turn is cancelled. |
 
 ```yaml
 - id: tool-browser

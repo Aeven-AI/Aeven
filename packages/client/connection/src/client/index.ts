@@ -53,6 +53,7 @@ export type {
   ClientConnectionRpc, ConnectionRpcFailure, ConnectionRpcResult,
 } from '../rpc.ts'
 export type { RpcFetch } from './rpc.ts'
+export { RpcTransportError } from './rpc.ts'
 
 /** Observable identity and Host facts for the active connection generation. */
 export interface ConnectionGenerationState {

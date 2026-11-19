@@ -57,7 +57,7 @@ kind: "package-reference"
 | 字段 | 默认值 | 作用 |
 | --- | --- | --- |
 | `statusTimeoutMs` | `2000` | 每轮第一步等待当前页面的毫秒数，也是 `preview_status` 等待 Client 的毫秒数。超时后，本步不带浏览器上下文继续，状态报告中不含页面。 |
-| `actionTimeoutMs` | `60000` | 每个 `preview_*` 调用等待的毫秒数，声明为该工具的 `timeoutMs`。由 `@aeven/tool-call-timeout-policy` 执行，模型收到 `TOOL_TIMEOUT`。 |
+| `actionTimeoutMs` | `60000` | `preview_*` 调用中每个浏览器操作等待的毫秒数。`preview_status` 与 `preview_screenshot` 将其声明为工具 `timeoutMs`，由 `@aeven/tool-call-timeout-policy` 以 `TOOL_TIMEOUT` 执行；其他调用可能请用户批准或回答，因此不声明工具超时，其每个浏览器操作改以 `BROWSER_ACTION_TIMEOUT` 失败。待处理的批准会一直等到用户回答或轮次被取消。 |
 
 ```yaml
 - id: tool-browser

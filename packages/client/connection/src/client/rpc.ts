@@ -12,6 +12,19 @@ const INTERNAL_BASE = 'http://avn.internal'
 const CHANNEL_PATTERN = /^\/[A-Za-z0-9._~-]+$/
 const ENDPOINT_SEGMENT_PATTERN = /^[A-Za-z0-9_$.-]+$/
 
+/** An RPC POST answered with a non-2xx HTTP status instead of a Connection response envelope. */
+export class RpcTransportError extends Error {
+  /**
+   * @param channel - the RPC channel.
+   * @param endpoint - the endpoint posted to.
+   * @param status - the HTTP status that answered.
+   */
+  constructor(channel: string, endpoint: string, readonly status: number) {
+    super(`transport failure for ${channel}/${endpoint}: HTTP ${status}`)
+    this.name = 'RpcTransportError'
+  }
+}
+
 /** Transport this caller posts through; same signature as the global `fetch`. */
 export type RpcFetch = (input: URL, init: RequestInit) => Promise<Response>
 
@@ -49,9 +62,7 @@ export function createWebConnectionRpc(doFetch?: RpcFetch, openStream?: RpcStrea
           ...signal === undefined ? {} : { signal },
         },
       )
-      if (!response.ok) {
-        throw new Error(`transport failure for ${channel}/${endpoint}: HTTP ${response.status}`)
-      }
+      if (!response.ok) throw new RpcTransportError(channel, endpoint, response.status)
       const full = parseConnectionResponse(await response.json())
       if (full.rpcId !== rpcId) {
         throw new Error(`rpcId mismatch for ${endpoint}: sent ${rpcId}, got ${full.rpcId}`)
