@@ -223,7 +223,10 @@ export class InteractionRelay {
         this.copies.add(request)
         return request
       }, signal, Infinity)
-      if (outcome.kind === 'failed') return
+      if (outcome.kind === 'failed') {
+        if (!signal.aborted) this.ctx.logger.warn(`session: ${interaction.event} for ${sessionId} could not be shown here: ${String(outcome.error)}`)
+        return
+      }
       answer = outcome.value
     } catch {
       // The running device withdrew the request; it keeps its own outcome.

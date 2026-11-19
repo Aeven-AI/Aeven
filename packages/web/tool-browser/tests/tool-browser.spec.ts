@@ -236,11 +236,13 @@ describe('tool-browser first-step context', () => {
 })
 
 describe('tool-browser tools', () => {
-  it('declares the configured wait as every tool timeout', async () => {
+  it('declares the configured wait as the tool timeout only of calls that never ask the person', async () => {
     const ctx = await mount({ actionTimeoutMs: 1_234 })
-    const names = ['preview_status', 'preview_navigate', 'preview_snapshot', 'preview_click', 'preview_type', 'preview_press', 'preview_scroll', 'preview_evaluate']
+    const bounded = ['preview_status', 'preview_screenshot']
+    const asking = ['preview_navigate', 'preview_snapshot', 'preview_click', 'preview_type', 'preview_press', 'preview_scroll', 'preview_evaluate']
 
-    expect(names.map(name => ctx.tools.get(name)?.timeoutMs)).toEqual(names.map(() => 1_234))
+    expect(bounded.map(name => ctx.tools.get(name)?.timeoutMs)).toEqual(bounded.map(() => 1_234))
+    expect(asking.map(name => ctx.tools.get(name)?.timeoutMs)).toEqual(asking.map(() => undefined))
   })
 
   it('returns the browser answer as JSON', async () => {

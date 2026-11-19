@@ -10,6 +10,7 @@ export type { TypertGatewayFaultDetails } from '../remote-error-codes.ts'
 import type { Context } from '@deepseek-ai/cordis'
 import type {
   ConnectionHandle,
+  RpcTransportError,
 } from '@aeven/client-connection/client'
 import type {
   InvocationDescriptor,
@@ -29,6 +30,8 @@ import {
 import { ClientRemoteEvents } from './remote-events.ts'
 import {
   RemoteStream,
+  SERVICE_START_RETRIES,
+  serviceStartDelay,
   type RemoteStreamOptions,
 } from './remote-stream.ts'
 
@@ -443,10 +446,29 @@ class ClientRemoteService extends Service implements ClientRemote {
     const connection = this.ownerCtx.get('connection') as ConnectionHandle | undefined
     if (connection === undefined) throw new Error(`client api: ${endpoint} has no active Connection`)
     try {
-      const result = await connection.rpc.call('/api', endpoint, { args: prepared.args }, prepared.signal)
-      if (!mountActive(token)) return withdrawn(endpoint)
-      if (!result.ok) return { ok: false, error: rebuiltFailure(result.error) }
-      return { ok: true, value: result.value }
+      // A restarting Host refuses a call before invoking its method in two ways: the proxy in front answers 502 or 503
+      // while the process is down, and the Host answers `gateway/service-unavailable` while it activates its Services.
+      // Neither runs the method, so resending cannot run a command twice, and a send made during a restart lands once
+      // the Host is up.
+      for (let attempt = 1; ; attempt++) {
+        let result: Awaited<ReturnType<typeof connection.rpc.call>>
+        try {
+          result = await connection.rpc.call('/api', endpoint, { args: prepared.args }, prepared.signal)
+        } catch (error) {
+          if (!isRestartRefusal(error) || attempt > SERVICE_START_RETRIES || prepared.signal.aborted) throw error
+          await serviceStartDelay(attempt, prepared.signal)
+          if (!mountActive(token)) return withdrawn(endpoint)
+          continue
+        }
+        if (!mountActive(token)) return withdrawn(endpoint)
+        if (!result.ok && result.error.code === 'gateway/service-unavailable' && attempt <= SERVICE_START_RETRIES) {
+          await serviceStartDelay(attempt, prepared.signal)
+          if (!mountActive(token)) return withdrawn(endpoint)
+          continue
+        }
+        if (!result.ok) return { ok: false, error: rebuiltFailure(result.error) }
+        return { ok: true, value: result.value }
+      }
     } catch (error) {
       // Carrier throws (offline or abort) are outcomes of the call, not assembly
       // faults, so they join the same error branch. A caller-aborted call is a
@@ -741,6 +763,18 @@ function parseInput(codec: TypertCodec, value: unknown, endpoint: string, field:
   } catch (cause) {
     throw new Error(`client api: ${endpoint} rejected ${JSON.stringify(field)}`, { cause })
   }
+}
+
+/**
+ * Whether a carrier failure is the proxy's 502 or 503 for a Host process that is down, as during a restart. The
+ * Connection's `RpcTransportError` is matched by name because a Client plugin may not import another plugin's values.
+ * @param error - what the carrier threw.
+ * @returns true for a 502 or 503 answer.
+ */
+function isRestartRefusal(error: unknown): boolean {
+  if (!(error instanceof Error) || error.name !== 'RpcTransportError') return false
+  const status = (error as RpcTransportError).status
+  return status === 502 || status === 503
 }
 
 /** The namespace retired before or during the call, so no request outcome exists. */

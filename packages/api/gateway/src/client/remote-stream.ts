@@ -5,19 +5,20 @@ import type { ConnectionHandle } from '@aeven/client-connection/client'
 import { RemoteStreamCarrierError } from './stream-client.ts'
 
 /**
- * How many times a stream reopens while the Host answers that its Service is unavailable, which it does between
- * accepting connections and activating the Service after a restart. The waits double from 250ms to a 4s ceiling, so
- * the budget spans about 50 seconds before the failure is terminal; a Service a deployment never mounts still fails.
+ * How many times a stream reopens, or a unary call is resent, while the Host answers that its Service is unavailable,
+ * which it does between accepting connections and activating the Service after a restart. The waits double from 250ms
+ * to a 4s ceiling, so the budget spans about 50 seconds before the failure is terminal; a Service a deployment never
+ * mounts still fails.
  */
-const SERVICE_START_RETRIES = 16
+export const SERVICE_START_RETRIES = 16
 
 /**
- * Wait before the next reopen against a Service that is still starting.
- * @param attempt - 1-based reopen number.
- * @param signal - generation lifetime; aborting rejects the wait.
+ * Wait before the next attempt against a Service that is still starting.
+ * @param attempt - 1-based retry number.
+ * @param signal - attempt lifetime; aborting rejects the wait.
  * @returns when the delay elapsed.
  */
-function serviceStartDelay(attempt: number, signal: AbortSignal): Promise<void> {
+export function serviceStartDelay(attempt: number, signal: AbortSignal): Promise<void> {
   const ms = Math.min(4_000, 250 * 2 ** (attempt - 1))
   return new Promise<void>((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -26,7 +27,7 @@ function serviceStartDelay(attempt: number, signal: AbortSignal): Promise<void> 
     }, ms)
     const aborted = (): void => {
       clearTimeout(timer)
-      reject(new Error('Remote stream retry aborted', { cause: signal.reason }))
+      reject(new Error('Remote retry aborted', { cause: signal.reason }))
     }
     signal.addEventListener('abort', aborted, { once: true })
     if (signal.aborted) aborted()
