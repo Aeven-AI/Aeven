@@ -23,7 +23,7 @@ import LlmRuntime, { createUserMessage } from '@aeven/llm'
 import LocalAttachmentStore from '@aeven/attachment-local'
 import LocalFileSystem from '@aeven/fs-local'
 import * as LlmAeven from '../src/index.ts'
-import { DEFAULT_API_KEY_ENV, DEFAULT_API_URL, PROVIDER } from '../src/index.ts'
+import { DEFAULT_API_KEY_ENV, PROVIDER } from '../src/index.ts'
 import { stubGatewayWithoutFilesApi, type GatewayCalls } from './chat-double.ts'
 import { cleanupTempHomes, generate, tempHome } from './harness.ts'
 
@@ -88,7 +88,7 @@ afterEach(async () => {
 })
 
 describe('images on the aeven-cloud route', () => {
-  it('carries the image inline when the gateway answers no Files API', async () => {
+  it('carries the image inline without trying a Files API', async () => {
     await tempHome()
     vi.stubEnv(DEFAULT_API_KEY_ENV, 'ambient-token')
     const gateway = stubGatewayWithoutFilesApi()
@@ -98,12 +98,13 @@ describe('images on the aeven-cloud route', () => {
     const result = await generate(ctx, 'Aeven-1.0-Flash', { messages: [messageWithImage(ref)] })
 
     expect(result.finish).toEqual({ kind: 'stop' })
-    // The Files API attempt comes first and is refused — this gateway has none —
-    // so the inline form is what actually carries the image. Without the store
-    // wired into this route, the request never gets this far: it is refused as
-    // `UNSUPPORTED_CONTENT` before a single call is made.
-    expect(gateway.refused).toEqual([`${DEFAULT_API_URL}/v1/files`])
+    // The gateway has no Files API, so the route never spends an upload on one:
+    // the inline form carries the image from the first request, gzip-compressed.
+    // Without the store wired into this route, the request never gets this far:
+    // it is refused as `UNSUPPORTED_CONTENT` before a single call is made.
+    expect(gateway.refused).toEqual([])
     expect(gateway.chat).toHaveLength(1)
+    expect(gateway.chat[0]?.headers['content-encoding']).toBe('gzip')
 
     const parts = firstMessageParts(gateway)
     // The prompt as written, then the handle, then the bytes.
@@ -138,14 +139,14 @@ describe('images on the aeven-cloud route', () => {
     expect(handle).toContain('.png')
   })
 
-  it('offloads old previews before image history exceeds the gateway body ceiling', async () => {
+  it('offloads old previews once image history exceeds the inline image budget', async () => {
     await tempHome()
     vi.stubEnv(DEFAULT_API_KEY_ENV, 'ambient-token')
     const gateway = stubGatewayWithoutFilesApi()
     ctx = await mountContext(true)
     const ref = await ctx.attachments.saveImage({ data: PNG_1X1, mediaType: 'image/png', name: 'shot.png' })
     const version = await ctx.attachments.readImageRequest(ref, { maxPixels: 1, maxBytes: 1024 * 1024 })
-    const data = new Uint8Array(1024 * 1024)
+    const data = new Uint8Array(256 * 1024)
     vi.spyOn(ctx.attachments, 'readImageRequest').mockResolvedValue({ ...version, data, bytes: data.byteLength })
     const messages = Array.from({ length: 8 }, () => messageWithImage(ref))
 

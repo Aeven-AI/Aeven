@@ -5,6 +5,7 @@
  * behavior are exercised without a socket.
  */
 
+import { gunzipSync } from 'node:zlib'
 import { vi } from 'vitest'
 
 /** One recorded chat-completions call: endpoint, lowercased headers, and decoded JSON body. */
@@ -26,14 +27,19 @@ const TEXT_GENERATION = [
 ]
 
 /**
- * Decode the request body the chat-completions protocol always sends as JSON.
+ * Decode the JSON request body, inflating it first when it is sent with
+ * `Content-Encoding: gzip`, as the gateway's JSON parser does.
  * @param body - the `fetch` request body.
+ * @param encoding - the request's `content-encoding` header, if any.
  * @returns the decoded JSON object.
- * @throws TypeError when the request carries no string body.
+ * @throws TypeError when the body is neither a JSON string nor gzip bytes declared as such.
  */
-function decodeBody(body: BodyInit | null | undefined): Record<string, unknown> {
+function decodeBody(body: BodyInit | null | undefined, encoding: string | undefined): Record<string, unknown> {
+  if (encoding === 'gzip' && body instanceof Uint8Array) {
+    return JSON.parse(gunzipSync(body).toString('utf8')) as Record<string, unknown>
+  }
   if (typeof body !== 'string') {
-    throw new TypeError('chat-completions double: the request body is not a JSON string')
+    throw new TypeError('chat-completions double: the request body is neither a JSON string nor declared gzip bytes')
   }
   return JSON.parse(body) as Record<string, unknown>
 }
@@ -89,10 +95,11 @@ export function stubGatewayWithoutFilesApi(): GatewayCalls {
 
 /** Record one call: endpoint, lowercased headers, and decoded JSON body. */
 function record(input: string | URL, init: RequestInit): ChatCall {
+  const headers = Object.fromEntries(new Headers(init.headers).entries())
   return {
     url: String(input),
-    headers: Object.fromEntries(new Headers(init.headers).entries()),
-    body: decodeBody(init.body),
+    headers,
+    body: decodeBody(init.body, headers['content-encoding']),
   }
 }
 
