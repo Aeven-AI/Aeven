@@ -9,6 +9,7 @@ import Database from 'better-sqlite3'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { brandString } from '@aeven/brand'
 import { generateVaultKey, type DeviceId, type OpaqueId } from '@aeven/sync-vault'
+import { WebSocketServer } from 'ws'
 import { RelayConnection, RelayError, type RelayHandlers } from '../src/relay.ts'
 import { SyncStore } from '../src/store.ts'
 import { FakeRelay } from './fake-relay.ts'
@@ -31,7 +32,7 @@ function tempPath(): string {
 
 describe('RelayConnection', () => {
   it('answers requests and reports relay refusals by code', async () => {
-    const connection = await RelayConnection.open(relay.url, { scheme: 'Bearer', token: 'ok-alice' }, handlers(), 2000, 2000, 0)
+    const connection = await RelayConnection.open(relay.url, { scheme: 'Bearer', token: 'ok-alice' }, handlers(), 2000, 2000, 0, 0)
     const reply: unknown = await connection.request('key.get')
     const key = expect.any(String) as unknown
     expect(reply).toMatchObject({ t: 'ok', key })
@@ -43,14 +44,17 @@ describe('RelayConnection', () => {
   })
 
   it('refuses to open without an accepted token, and when nothing listens', async () => {
-    await expect(RelayConnection.open(relay.url, { scheme: 'Bearer', token: 'bad' }, handlers(), 2000, 2000, 0)).rejects.toMatchObject({ code: 'refused' })
-    await expect(RelayConnection.open('ws://127.0.0.1:9/sync', { scheme: 'Bearer', token: 'ok-x' }, handlers(), 2000, 2000, 0)).rejects.toThrow()
+    await expect(RelayConnection.open(relay.url, { scheme: 'Bearer', token: 'bad' },
+      handlers(), 2000, 2000, 0, 0)).rejects.toMatchObject({ code: 'refused' })
+    await expect(RelayConnection.open('ws://127.0.0.1:9/sync', { scheme: 'Bearer', token: 'ok-x' },
+      handlers(), 2000, 2000, 0, 0)).rejects.toThrow()
   })
 
   it('delivers pushed frames and ignores unknown pushes', async () => {
     const frameHandler = vi.fn()
-    const receiver = await RelayConnection.open(relay.url, { scheme: 'Bearer', token: 'ok-bob' }, handlers({ frame: frameHandler }), 2000, 2000, 0)
-    const sender = await RelayConnection.open(relay.url, { scheme: 'Bearer', token: 'ok-bob' }, handlers(), 2000, 2000, 0)
+    const receiver = await RelayConnection.open(relay.url, { scheme: 'Bearer', token: 'ok-bob' },
+      handlers({ frame: frameHandler }), 2000, 2000, 0, 0)
+    const sender = await RelayConnection.open(relay.url, { scheme: 'Bearer', token: 'ok-bob' }, handlers(), 2000, 2000, 0, 0)
     await receiver.request('sync', { since: 0 })
     const frame = Buffer.concat([Buffer.from([2, 0, 2]), Buffer.from('{}'), Buffer.alloc(28)])
     relay.broadcastRaw('bob', JSON.stringify({ t: 'later-push' }))
@@ -63,16 +67,43 @@ describe('RelayConnection', () => {
 
   it('closes the connection when an answer does not arrive in time', async () => {
     const closed = vi.fn()
-    const connection = await RelayConnection.open(relay.url, { scheme: 'Bearer', token: 'ok-erin' }, handlers({ closed }), 2000, 50, 0)
+    const connection = await RelayConnection.open(relay.url, { scheme: 'Bearer', token: 'ok-erin' }, handlers({ closed }), 2000, 50, 0, 0)
     relay.unanswered.add('slow')
     await expect(connection.request('slow')).rejects.toMatchObject({ code: 'closed' })
     expect(closed).toHaveBeenCalled()
     relay.unanswered.delete('slow')
   })
 
+  it('keeps a connection open past the silence window while the relay answers its pings', async () => {
+    const closed = vi.fn()
+    const connection = await RelayConnection.open(relay.url, { scheme: 'Bearer', token: 'ok-frank' },
+      handlers({ closed }), 2000, 2000, 50, 200)
+    await new Promise((resolve) => { setTimeout(resolve, 600) })
+    expect(closed).not.toHaveBeenCalled()
+    connection.close()
+    await connection.closed
+  })
+
+  it('closes a connection the relay leaves silent for the silence window', async () => {
+    const silent = new WebSocketServer({ host: '127.0.0.1', port: 0, autoPong: false })
+    await new Promise<void>((resolve) => { silent.once('listening', () => { resolve() }) })
+    const { port } = silent.address() as { port: number }
+    try {
+      const closed = vi.fn()
+      const connection = await RelayConnection.open(`ws://127.0.0.1:${String(port)}/sync`, { scheme: 'Bearer', token: 'ok-gina' },
+        handlers({ closed }), 2000, 2000, 50, 200)
+      await connection.closed
+      expect(closed).toHaveBeenCalled()
+    } finally {
+      for (const client of silent.clients) client.terminate()
+      await new Promise<void>((resolve) => { silent.close(() => { resolve() }) })
+    }
+  })
+
   it('drops a connection whose relay sends something other than JSON, failing pending requests', async () => {
     const closed = vi.fn()
-    const connection = await RelayConnection.open(relay.url, { scheme: 'Bearer', token: 'ok-carol' }, handlers({ closed }), 2000, 2000, 0)
+    const connection = await RelayConnection.open(relay.url, { scheme: 'Bearer', token: 'ok-carol' },
+      handlers({ closed }), 2000, 2000, 0, 0)
     relay.unanswered.add('never-answered')
     const pending = connection.request('never-answered')
     relay.broadcastRaw('carol', 'not json')
@@ -85,7 +116,7 @@ describe('RelayConnection', () => {
 
 it('treats a protocol error from the relay as a closed connection', async () => {
   const closed = vi.fn()
-  const connection = await RelayConnection.open(relay.url, { scheme: 'Bearer', token: 'ok-dave' }, handlers({ closed }), 2000, 2000, 0)
+  const connection = await RelayConnection.open(relay.url, { scheme: 'Bearer', token: 'ok-dave' }, handlers({ closed }), 2000, 2000, 0, 0)
   relay.corrupt('dave')
   await connection.closed
   expect(closed).toHaveBeenCalled()

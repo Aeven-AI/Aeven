@@ -90,8 +90,8 @@ interface Pending {
 export class RelayConnection {
   private nextRid = 1
   private readonly pending = new Map<number, Pending>()
-  /** Whether anything arrived since the last heartbeat ping. */
-  private alive = true
+  /** When anything last arrived from the relay: a message, a pong, or the relay's own ping. */
+  private lastInbound = Date.now()
   /** Settles once the connection has closed, for any reason. */
   readonly closed: Promise<void>
 
@@ -100,21 +100,23 @@ export class RelayConnection {
     private readonly handlers: RelayHandlers,
     private readonly requestMs: number,
     heartbeatMs: number,
+    silenceMs: number,
   ) {
     // The socket keeps ws's default `nodebuffer` binary type, so every message arrives as one Buffer.
     socket.on('message', (data: Buffer) => {
-      this.alive = true
+      this.lastInbound = Date.now()
       this.receive(data.toString('utf8'))
     })
-    socket.on('pong', () => { this.alive = true })
+    socket.on('pong', () => { this.lastInbound = Date.now() })
+    socket.on('ping', () => { this.lastInbound = Date.now() })
     // A NAT or captive gateway that forgets an idle connection drops its packets without a reset, so the socket
-    // stays open with nothing behind it. A ping unanswered for one interval ends it and the owner reconnects.
+    // stays open with nothing behind it. The pings keep such a mapping fresh. Only silence decides: a ping queues
+    // behind a large outgoing publish on a slow uplink, but the relay's own pings still arrive meanwhile.
     const heartbeat = heartbeatMs === 0 ? undefined : setInterval(() => {
-      if (!this.alive) {
+      if (Date.now() - this.lastInbound >= silenceMs) {
         socket.terminate()
         return
       }
-      this.alive = false
       socket.ping()
     }, heartbeatMs)
     heartbeat?.unref()
@@ -136,7 +138,10 @@ export class RelayConnection {
    * @param handlers - push callbacks.
    * @param timeoutMs - longest the opening handshake may take.
    * @param requestMs - longest a request may wait for its answer before the connection is closed.
-   * @param heartbeatMs - ping interval; a connection silent for one whole interval is closed. `0` sends no pings.
+   * @param heartbeatMs - ping interval, which is also how often silence is checked. `0` sends no pings and never
+   * closes a silent connection.
+   * @param silenceMs - longest the relay may send nothing at all, its own pings included, before the connection is
+   * closed.
    * @returns the open connection.
    */
   static open(
@@ -146,6 +151,7 @@ export class RelayConnection {
     timeoutMs: number,
     requestMs: number,
     heartbeatMs: number,
+    silenceMs: number,
   ): Promise<RelayConnection> {
     return new Promise((resolve, reject) => {
       const socket = new WebSocket(url, { headers: { authorization: `${credential.scheme} ${credential.token}` }, handshakeTimeout: timeoutMs })
@@ -162,7 +168,7 @@ export class RelayConnection {
         socket.removeAllListeners()
         // A protocol error ends the connection; `close` follows and fails pending requests.
         socket.on('error', ignore)
-        resolve(new RelayConnection(socket, handlers, requestMs, heartbeatMs))
+        resolve(new RelayConnection(socket, handlers, requestMs, heartbeatMs, silenceMs))
       })
     })
   }

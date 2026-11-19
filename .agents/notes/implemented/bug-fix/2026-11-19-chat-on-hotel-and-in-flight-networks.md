@@ -14,19 +14,19 @@ The client behind the report sent no request that reached pink after 05:00 UTC o
 
 ## Decision
 
-- `llm-aeven` gzips the chat request body (`requestCompression`, default `gzip`); the gateway's `express.json` parser inflates it. A new chat's request drops from 132 KB to about 39 KB.
+- `llm-aeven` gzips the chat request body at the fastest level (`requestCompression`, default `gzip`); the gateway's `express.json` parser inflates it. A new chat's request drops from 132 KB to about 40 KB, and a 554 KB request compresses in 7 ms. The hosted Host sets `requestCompression: none`: its datacenter link beside Cloudflare gains nothing from it.
 - `llm-aeven` sends images inline from the first attempt (`imageTransport: 'inline'`), so an image turn no longer spends an upload on a Files API the gateway lacks. `llm-deepseek` keeps `files-api` and an uncompressed body for the official API.
-- `llm-aeven` retains at most 10 images and 1.5 MiB of inline image data per request, offloading the oldest in steps of 5 images or 768 KiB. An offloaded image keeps its placeholder path.
 - A `TRANSPORT` failure's message appends the deepest coded error of the fetch cause chain (`transportFailureMessage`), for example `(ECONNRESET: read ECONNRESET)`.
-- The sync relay connection pings every `heartbeatMs` (30 s) and reconnects after one silent interval. While any agent runs on the Host, each catch-up page waits up to `catchUpYieldMs` (15 s).
-- The desktop shell starts the Host with `--network-family-autoselection-attempt-timeout=1000`, so a handshake slower than Node's 250 ms default is not abandoned for the next resolved address.
+- The sync relay connection pings every `heartbeatMs` (60 s) so middleboxes keep its mapping, and reconnects only when nothing at all arrived for `silenceTimeoutMs` (300 s). The relay pings an idle connection at least every 120 s, so a ping queued behind a slow upload cannot end a healthy connection.
 
 ## Alternatives considered
 
 - **Send inference to a hostname Cloudflare does not proxy.** Rejected for now: it removes the 15-second limit but also Cloudflare's edge, and smaller uploads already shorten the exposure.
 - **Upload each image to the gateway once and reference it.** Deferred: it keeps every image visible to the model but needs gateway storage in `servers/node`.
-- **Pause catch-up for the whole duration of a turn.** Rejected: a computer-use turn runs for minutes, and live frames arrive only after catch-up subscribes.
+- **Retain fewer images per request (10 images, 1.5 MiB).** Rejected: it cut a long chat's upload to 246 KB, but the model sees fewer screenshots, a 1.5 MiB budget with 768 KiB steps can offload even the newest image, and moving the offloaded prefix every 5 images invalidates the prompt cache twice as often.
+- **Raise Node's 250 ms per-address connection attempt to 1 s.** Rejected: Node already gives the last address unlimited time, which on macOS is an IPv4 address, while a silently broken IPv6 path would add 750 ms to every new connection.
+- **Hold catch-up pages back while an agent runs.** Rejected: on a fast link it only delays sync, a computer-use turn runs for minutes, and the hosted Host always has some account's turn running.
 
 ## Consequences
 
-A long chat with many screenshots shows the model fewer of them; the model reads older ones through their placeholder paths. A gateway deployment whose proxy rejects `Content-Encoding: gzip` must set `requestCompression: none`. If the client's next failure log names a connect timeout or TLS error rather than a reset, the cause is between the device and Cloudflare, and Cloudflare's security events for the flight's addresses are the next evidence to read.
+A gateway deployment whose proxy rejects `Content-Encoding: gzip` must set `requestCompression: none`. If the client's next failure log names a connect timeout or TLS error rather than a reset, the cause is between the device and Cloudflare, and Cloudflare's security events for the flight's addresses are the next evidence to read.

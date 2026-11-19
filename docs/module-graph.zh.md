@@ -584,6 +584,8 @@ flowchart TD
   pkg_media --> pkg_llm
   pkg_subprocess_local --> pkg_subprocess
   pkg_subprocess_local --> pkg_timeout
+  pkg_sync_yjs --> pkg_credentials
+  pkg_sync_yjs --> pkg_sync
   pkg_vcs_git --> pkg_llm
   pkg_vcs_git --> pkg_subprocess
   pkg_vcs_git --> pkg_vcs
@@ -855,9 +857,6 @@ flowchart TD
   pkg_speech_to_text_aeven --> pkg_speech_to_text
   pkg_speech_to_text_whisper --> pkg_speech_to_text
   pkg_speech_to_text_whisper --> pkg_subprocess
-  pkg_sync_yjs --> pkg_agent
-  pkg_sync_yjs --> pkg_credentials
-  pkg_sync_yjs --> pkg_sync
   pkg_terminal --> pkg_agent
   pkg_terminal --> pkg_brand
   pkg_loader_smoke --> pkg_agent
@@ -1865,6 +1864,7 @@ flowchart TD
 | [`identity-user`](../packages/identity/user) | `identity` | [`credentials`](../packages/credentials/credentials) |
 | [`media`](../packages/media/media) | `media` | [`attachment`](../packages/attachment/attachment), [`credentials`](../packages/credentials/credentials), [`llm`](../packages/llm/llm) |
 | [`subprocess-local`](../packages/subprocess/subprocess-local) | `subprocess` | [`subprocess`](../packages/subprocess/subprocess), [`timeout`](../packages/util/timeout) |
+| [`sync-yjs`](../packages/sync/sync-yjs) | `sync` | [`credentials`](../packages/credentials/credentials), [`sync`](../packages/sync/sync) |
 | [`vcs-git`](../packages/vcs/vcs-git) | `vcs` | [`llm`](../packages/llm/llm), [`subprocess`](../packages/subprocess/subprocess), [`vcs`](../packages/vcs/vcs) |
 | [`skill-badge`](../packages/skill/skill-badge) | `skill` | [`skill`](../packages/skill/skill) |
 | [`spill`](../packages/spill/spill) | `spill` | [`brand`](../packages/util/brand), [`llm`](../packages/llm/llm), [`session`](../packages/core/session) |
@@ -1939,7 +1939,6 @@ flowchart TD
 | [`api-speech-to-text`](../packages/speech/api-speech-to-text) | `speech` | [`identity-user`](../packages/identity/user), [`speaker-diarization`](../packages/speech/speaker-diarization), [`speech-to-text`](../packages/speech/speech-to-text), [`typert-protocol`](../packages/typert/protocol) |
 | [`speech-to-text-aeven`](../packages/speech/speech-to-text-aeven) | `speech` | [`agent`](../packages/core/agent), [`credentials`](../packages/credentials/credentials), [`identity-user`](../packages/identity/user), [`speech-to-text`](../packages/speech/speech-to-text) |
 | [`speech-to-text-whisper`](../packages/speech/speech-to-text-whisper) | `speech` | [`speech-to-text`](../packages/speech/speech-to-text), [`subprocess`](../packages/subprocess/subprocess) |
-| [`sync-yjs`](../packages/sync/sync-yjs) | `sync` | [`agent`](../packages/core/agent), [`credentials`](../packages/credentials/credentials), [`sync`](../packages/sync/sync) |
 | [`terminal`](../packages/terminal/terminal) | `terminal` | [`agent`](../packages/core/agent), [`brand`](../packages/util/brand) |
 | [`loader-smoke`](../packages/test-support/loader-smoke) | `test-support` | [`agent`](../packages/core/agent), [`http-proxy`](../packages/util/http-proxy), [`llm`](../packages/llm/llm), [`session`](../packages/core/session) |
 | [`workflow`](../packages/workflow/workflow) | `workflow` | [`agent`](../packages/core/agent), [`brand`](../packages/util/brand), [`invariants`](../packages/runtime-diagnostics/invariants), [`llm`](../packages/llm/llm), [`session`](../packages/core/session) |

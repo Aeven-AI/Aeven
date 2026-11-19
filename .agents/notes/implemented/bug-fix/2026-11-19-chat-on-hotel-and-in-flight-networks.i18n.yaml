@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-11-19-chat-on-hotel-and-in-flight-networks.md
-2026-11-19-chat-on-hotel-and-in-flight-networks.md: 7a0c75c6f93284e220e4fd3e7d8a5cdfdb99decf
-2026-11-19-chat-on-hotel-and-in-flight-networks.zh.md: 192b8114dfaef12167863640bb20bdf31e309663
+2026-11-19-chat-on-hotel-and-in-flight-networks.md: 94c0ba83386fe88773b0f5d485288fca5a8a96b2
+2026-11-19-chat-on-hotel-and-in-flight-networks.zh.md: c38183043e5ce64e2956000ed795c49a3ec0603a

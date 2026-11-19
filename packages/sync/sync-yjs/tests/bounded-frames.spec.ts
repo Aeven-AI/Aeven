@@ -48,7 +48,7 @@ function device(path?: string) {
     path = join(root, 'sync.db')
   }
   const store = new SyncStore(path, 'bounded')
-  const vault = new AccountVault(store, tuning, vi.fn(), vi.fn(), vi.fn(), offload, vi.fn(), () => Promise.resolve())
+  const vault = new AccountVault(store, tuning, vi.fn(), vi.fn(), vi.fn(), offload, vi.fn())
   const target = { store, vault, retired: false }
   devices.push(target)
   return target
@@ -57,7 +57,7 @@ function device(path?: string) {
 async function connect(target: ReturnType<typeof device>) {
   const connection = await RelayConnection.open(relay.url, { scheme: 'Bearer', token: 'ok-bounded' }, {
     frame: (seq, frame) => { target.vault.receiveFrame(seq, frame) }, closed: () => { target.vault.detach() },
-  }, 2000, 2000, 0)
+  }, 2000, 2000, 0, 0)
   connections.push(connection)
   await target.vault.attach(connection)
   return connection

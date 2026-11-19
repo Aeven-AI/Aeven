@@ -13182,9 +13182,6 @@ importers:
         specifier: 13.6.27
         version: 13.6.27
     devDependencies:
-      '@aeven/agent':
-        specifier: workspace:^
-        version: link:../../core/agent
       '@aeven/credentials':
         specifier: workspace:^
         version: link:../../credentials/credentials
