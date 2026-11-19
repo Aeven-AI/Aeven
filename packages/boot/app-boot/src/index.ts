@@ -387,7 +387,8 @@ export async function watchUserPatches(
     }
   } catch (error) {
     // A surface can dispose the whole tree while the watcher is still opening;
-    // the HMR effect registration then fails with INACTIVE_EFFECT. That is the
+    // HMR then rejects the pending registration, or its effect registration
+    // fails, with INACTIVE_EFFECT. That is the
     // app exiting exactly as asked, not a watch failure, so return a no-op
     // disposer instead of crashing.
     if ((error as { code?: string } | null)?.code === 'INACTIVE_EFFECT') return async () => {}

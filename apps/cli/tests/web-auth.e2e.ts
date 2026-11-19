@@ -120,7 +120,7 @@ async function stopWeb(running: RunningWeb): Promise<void> {
 }
 
 /** POST one real Remote envelope while controlling the wire Host header. */
-function describeSettings(port: number, host: string, cookie?: string): Promise<HttpResult> {
+function describeSettings(port: number, host: string): Promise<HttpResult> {
   const body = JSON.stringify({
     type: 'client-request',
     rpcId: 'web-auth-real-cli',
@@ -137,7 +137,6 @@ function describeSettings(port: number, host: string, cookie?: string): Promise<
         host,
         'content-type': 'application/json',
         'content-length': Buffer.byteLength(body),
-        ...cookie === undefined ? {} : { cookie },
       },
     }, (res) => {
       const chunks: Uint8Array[] = []
@@ -152,58 +151,37 @@ function describeSettings(port: number, host: string, cookie?: string): Promise<
 }
 
 describe('avn web authentication through the real CLI', () => {
-  it('rejects a forged loopback Host and preserves the browser cookie across restart', { timeout: 180_000 }, async () => {
+  it('serves the sign-in screen without a launch token and fences the API behind the account', { timeout: 180_000 }, async () => {
     const root = await mkdtemp(join(tmpdir(), 'avn-web-auth-real-cli-'))
     const avnHome = join(root, '.aeven')
     const port = await freePort()
-    let first: RunningWeb | undefined
-    let second: RunningWeb | undefined
+    let web: RunningWeb | undefined
     try {
-      first = await startWeb(root, avnHome, port)
-      const firstUrl = new URL(first.launchUrl)
-      expect(firstUrl.origin).toBe(`http://127.0.0.1:${String(port)}`)
-      expect(firstUrl.pathname).toBe('/')
-      expect(firstUrl.searchParams.get('token')).toMatch(/^[A-Za-z0-9_-]{43}$/u)
+      web = await startWeb(root, avnHome, port)
+      // The account sign-in is the authority, so the printed URL is the plain
+      // origin: no token a reader could mistake for a credential.
+      const launchUrl = new URL(web.launchUrl)
+      expect(launchUrl.origin).toBe(`http://127.0.0.1:${String(port)}`)
+      expect(launchUrl.pathname).toBe('/')
+      expect(launchUrl.searchParams.has('token')).toBe(false)
 
-      expect(await describeSettings(port, `localhost:${String(port)}`)).toEqual({
-        status: 401,
-        body: 'unauthorized',
-      })
+      // The index presents the sign-in screen to anyone the Host fence admits.
+      const index = await fetch(launchUrl, { redirect: 'manual' })
+      expect(index.status).toBe(200)
+      expect(index.headers.get('set-cookie')).toBeNull()
 
-      const exchange = await fetch(first.launchUrl, { redirect: 'manual' })
-      expect(exchange.status).toBe(303)
-      expect(exchange.headers.get('location')).toBe('/')
-      const setCookie = exchange.headers.get('set-cookie')
-      if (setCookie === null) throw new Error('real CLI token exchange omitted Set-Cookie')
-      expect(setCookie).toContain('HttpOnly')
-      expect(setCookie).toContain('SameSite=Strict')
-      expect(setCookie).not.toContain('Secure')
-      const cookie = setCookie.split(';', 1)[0]!
-
-      const authenticated = await describeSettings(port, firstUrl.host, cookie)
-      expect(authenticated.status).toBe(200)
-      const authenticatedBody = JSON.parse(authenticated.body) as unknown
-      expect(authenticatedBody).toMatchObject({
-        type: 'server-response',
-        rpcId: 'web-auth-real-cli',
-        result: { ok: true, value: { namespaces: expect.any(Array) as unknown } },
-      })
-
-      await stopWeb(first)
-      first = undefined
-      second = await startWeb(root, avnHome, port)
-      const secondUrl = new URL(second.launchUrl)
-      expect(secondUrl.searchParams.get('token')).not.toBe(firstUrl.searchParams.get('token'))
-      expect((await describeSettings(port, secondUrl.host, cookie)).status).toBe(200)
+      // Every API call needs the signed-in account, and a forged Host never
+      // reaches authentication at all.
+      expect((await describeSettings(port, launchUrl.host)).status).toBe(401)
+      expect((await describeSettings(port, 'evil.example')).status).toBe(403)
 
       const credentialMode = (await stat(join(avnHome, '.credentials.yaml'))).mode & 0o777
       expect(credentialMode).toBe(0o600)
     } catch (error) {
-      const evidence = [first?.output(), second?.output()].filter(value => value !== undefined).join('\n')
+      const evidence = web?.output() ?? ''
       throw new Error(`${error instanceof Error ? error.message : String(error)}\n${redact(evidence)}`, { cause: error })
     } finally {
-      if (second !== undefined) await stopWeb(second)
-      if (first !== undefined) await stopWeb(first)
+      if (web !== undefined) await stopWeb(web)
       await rm(root, { recursive: true, force: true })
     }
   })

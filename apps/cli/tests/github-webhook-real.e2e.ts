@@ -4,7 +4,7 @@ import type { ChildProcess } from 'node:child_process'
 import { spawn } from 'node:child_process'
 import { createHmac, randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { mkdir, mkdtemp, realpath, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -372,6 +372,17 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('GitHub webhook through the real 
     const root = await mkdtemp(join(tmpdir(), 'avn-github-webhook-real-'))
     const workspacePath = join(root, 'workspace')
     await mkdir(workspacePath)
+    // The shipped default model routes through Aeven's own service, which needs
+    // a signed-in account; this test enables and selects the real DeepSeek route.
+    await mkdir(join(root, '.aeven'))
+    await writeFile(join(root, '.aeven', 'settings.yaml'), [
+      'llm-deepseek:',
+      '  enabled: true',
+      'agent-default-model:',
+      '  provider: deepseek-official',
+      '  model: deepseek-v4-flash',
+      '',
+    ].join('\n'))
     const canonicalWorkspacePath = await realpath(workspacePath)
     const webhookPort = await freePort()
     const child = spawn(process.execPath, [
@@ -422,7 +433,7 @@ describe.skipIf(!process.env.DEEPSEEK_API_KEY)('GitHub webhook through the real 
       expect(sessions.items.find(session => session.sessionId === sessionId)).toMatchObject({
         blank: false,
         cwd: canonicalWorkspacePath,
-        projections: { values: { agentPreset: 'minimal' } },
+        projections: { values: { agentPreset: 'aeven' } },
       })
 
       const admitted = await eventually(

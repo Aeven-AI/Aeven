@@ -572,6 +572,9 @@ describe.skipIf(!existsSync(avnBin))('avn BUILT bin (node lib/bin.js, no tsx)', 
       successText: 'published headless profile reached the mock',
     })
     const home = mkdtempSync(join(tmpdir(), 'avn-built-headless-'))
+    // The shipped default model routes through Aeven's own service; pin the
+    // DeepSeek route so the mock endpoint answers.
+    writeFileSync(join(home, 'settings.yaml'), 'agent-default-model:\n  provider: deepseek-official\n  model: deepseek-v4-flash\n')
     try {
       const result = await runBuiltBin(['--profile', 'headless', 'answer', 'from', 'the', 'published', 'entry'], {
         AVN_HOME: home,

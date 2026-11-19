@@ -1,4 +1,4 @@
-import { Context, Service, type Plugin } from '@deepseek-ai/cordis'
+import { Context, CordisError, Service, type Plugin } from '@deepseek-ai/cordis'
 import type { Dict } from '@deepseek-ai/cosmokit'
 import { ModuleLoader, type ModuleJob, type ResolveResult } from '@deepseek-ai/cordis-plugin-loader'
 import type { Include } from '@deepseek-ai/cordis-plugin-include'
@@ -59,6 +59,11 @@ interface ConfigRefresh {
 
 interface ConfigRegistration {
   watcher: FSWatcher
+  /**
+   * Reject a registration still waiting for watcher readiness. Service disposal calls it before
+   * closing the watcher, because chokidar closed before `ready` emits neither `ready` nor `error`.
+   */
+  abandon: () => void
 }
 
 async function findWatchRoot(filename: string): Promise<{ filename: string; root: string; depth: number }> {
@@ -129,7 +134,7 @@ class Hmr extends Service {
    * @param filename - Config path, resolved against the HMR base directory.
    * @param refresh - Refresh callback run serially on add, change, or unlink.
    * @returns an asynchronous disposer once the exact watch is ready.
-   * @throws when HMR is inactive, the path is already registered, or watcher startup fails.
+   * @throws `CordisError` `INACTIVE_EFFECT` when the service disposes before the watch is ready; otherwise when HMR is inactive, the path is already registered, or watcher startup fails.
    */
   async registerConfig(filename: string, refresh: () => Promise<void> | void): Promise<() => Promise<void>> {
     if (!this.watcher) throw new Error('HMR is not active')
@@ -146,7 +151,16 @@ class Hmr extends Service {
       ignored: undefined,
       ignoreInitial: false,
     })
-    const registration = { watcher }
+    const ready = Promise.withResolvers<void>()
+    let readyState: 'pending' | 'resolved' | 'rejected' = 'pending'
+    const registration: ConfigRegistration = {
+      watcher,
+      abandon: () => {
+        if (readyState !== 'pending') return
+        readyState = 'rejected'
+        ready.reject(new CordisError('INACTIVE_EFFECT'))
+      },
+    }
     this.configs.set(watchFilename, registration)
     const onChange = (path: string) => {
       const observed = resolve(path)
@@ -157,9 +171,8 @@ class Hmr extends Service {
     watcher.on('change', onChange)
     watcher.on('unlink', onChange)
 
-    const ready = Promise.withResolvers<void>()
-    let readyState: 'pending' | 'resolved' | 'rejected' = 'pending'
     watcher.once('ready', () => {
+      if (readyState !== 'pending') return
       readyState = 'resolved'
       ready.resolve()
     })
@@ -199,6 +212,7 @@ class Hmr extends Service {
   async* [Service.init]() {
     yield async () => {
       await this.watcher?.close()
+      for (const registration of this.configs.values()) registration.abandon()
       await Promise.allSettled([...this.configs.values()].map(registration => registration.watcher.close()))
       this.configs.clear()
       await Promise.allSettled([...this.refreshTasks])

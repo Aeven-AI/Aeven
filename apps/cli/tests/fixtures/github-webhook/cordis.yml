@@ -1,6 +1,11 @@
 # Real-product test overlay: the CLI, provider, Web servers, webhook runtime,
 # adapter, rule, Workspace, Session, and Agent all remain production modules.
 
+# The Aeven account sign-in needs a real account; without it the Host falls
+# back to its launch token, which the test's Node-side API probes exchange.
+- id: identity-user-aeven
+  disabled: true
+
 - insert:
     - id: webhook-runtime
       name: '@aeven/webhook'
@@ -12,7 +17,7 @@
         repository: aeven/aeven
         workspacePath: !!js process.env.AVN_GITHUB_E2E_WORKSPACE
         marker: !!js process.env.AVN_GITHUB_E2E_MARKER
-        agentPreset: minimal
+        agentPreset: aeven
         permissionPreset: read-only
 
     - id: github-webhook-real-e2e-ingress
