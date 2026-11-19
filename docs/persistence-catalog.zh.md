@@ -161,6 +161,8 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
   allowSession?: string
   /** What the offered grant covers; absent means the requester's own action. */
   allowSessionCoverage?: SessionGrantCoverage
+  /** The content the action publishes, as the person was shown it. */
+  outbound?: ApprovalOutbound
 }
 ```
 

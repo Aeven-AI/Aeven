@@ -1,6 +1,7 @@
 import { PendingResult } from '@aeven/client-store'
 /** Approval composer and optional correlated-detail contracts. */
 import type { ToolCallId } from '@aeven/llm'
+import type { TypertClientEventListener } from '@aeven/typert-protocol'
 import type { SessionId } from '@aeven/session/types'
 import type {
   PropsLocale, PropsRenderSlots, PropsRuntime,
@@ -79,22 +80,11 @@ export interface ApprovalPresentationRequest {
  */
 export type ApprovalSessionCoverage = 'action' | 'account' | 'sandbox' | 'privilege' | 'site'
 
-/** What a send-like action publishes (mirrors the Host seam's `ApprovalOutboundKind`). */
-export type ApprovalOutboundKind = 'reply' | 'comment' | 'message' | 'email' | 'post' | 'edit' | 'form' | 'repost' | 'invite'
+/** The content a send-like action delivers: the Host seam's `ApprovalOutbound`, as the Remote Event projects it. */
+export type ApprovalOutbound = NonNullable<Parameters<TypertClientEventListener<'approval/request'>>[0]['outbound']>
 
-/** The content a send-like action delivers, shown before it goes out. */
-export interface ApprovalOutbound {
-  /** What the action publishes; absent when only its content is known. */
-  readonly kind?: ApprovalOutboundKind
-  /** The website the content goes to. */
-  readonly site?: string
-  /** Recipients, comma-separated. */
-  readonly to?: string
-  /** Subject line of an email. */
-  readonly subject?: string
-  /** The text that goes out. */
-  readonly text?: string
-}
+/** What a send-like action publishes. */
+export type ApprovalOutboundKind = NonNullable<ApprovalOutbound['kind']>
 
 /** Decisions this interactive Client presentation can return. */
 export type ApprovalDecision = 'allowed-once' | 'allowed-session' | 'rejected'
