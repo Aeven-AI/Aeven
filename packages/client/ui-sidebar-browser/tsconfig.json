@@ -70,9 +70,6 @@
     },
     {
       "path": "../ui-conversation"
-    },
-    {
-      "path": "../ui-desktop-handoff"
     }
   ]
 }

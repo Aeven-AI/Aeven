@@ -61,7 +61,6 @@
     "@aeven/client-store": "workspace:^",
     "@aeven/client-test-runtime": "workspace:^",
     "@aeven/client-ui-conversation": "workspace:^",
-    "@aeven/client-ui-desktop-handoff": "workspace:^",
     "@aeven/client-ui-layout": "workspace:^",
     "@aeven/client-ui-primitives": "workspace:^",
     "@aeven/client-ui-renderer": "workspace:^",

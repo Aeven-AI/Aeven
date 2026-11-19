@@ -7,8 +7,6 @@ import type { SessionId } from '@aeven/api-remotes/client'
 import type {} from '@aeven/api-session-controller/client'
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
 import type {} from '@aeven/client-locale/client'
-// Type-only: pulls the `desktop-handoff/request` event the web launcher asks without an extension.
-import type {} from '@aeven/client-ui-desktop-handoff/client'
 // Type-only: pulls the SlotRegistry service merge (ctx.slots).
 import type {} from '@aeven/client-ui-renderer/client'
 // Type-only: pulls the right sidebar's `sidebar.right.body` declaration.
@@ -501,6 +499,7 @@ export function apply(ctx: ClientContext): void {
         browser: extensionBrowserLabel(),
         downloadUrl,
         dismiss: () => { prompt.dismiss() },
+        openedDesktop: () => { prompt.openedDesktop() },
         check: () => { prompt.check() },
         close: () => { prompt.close() },
         continueTask: (sessionId, text) => {
@@ -517,15 +516,13 @@ export function apply(ctx: ClientContext): void {
     }, ExtensionPromptModal))
     const openUserTab = installPageExtension(ctx, pageBridge, prompt)
     // A Host with its own Chromium opens it. Aeven Web's Host has none and fails the call, so the launcher opens a tab
-    // of the reader's own browser through the extension when it is installed. Without the extension, a web client
-    // that composes the desktop hand-off dialog (hosted Aeven) shows that; any other asks the reader to add the
-    // extension, and the prompt explains a missing extension or a browser that cannot run one.
+    // of the reader's own browser through the extension when it is installed. Without the extension, the prompt asks
+    // the reader to add it, continue in the desktop app, or download that, and explains a browser that cannot run one.
     ctx.inject(['sidebarContent'], (scoped) => {
       scoped.effect(
         () => scoped.sidebarContent.registerLauncher('browser', (sessionId) => {
           void (async () => {
             if (openChromium !== null && await openChromium(sessionId, '')) return
-            if ((await pageBridge.extensionStatus()).length === 0 && ctx.bail('desktop-handoff/request', 'browser', sessionId) === true) return
             await openUserTab(sessionId)
           })().catch((error: unknown) => {
             // The prompt already shows why: the browser cannot run the extension, or the reader closed the prompt.
@@ -656,10 +653,11 @@ export function apply(ctx: ClientContext): void {
     createElement(BrowserPane, {
       sessionId, tabId: surfaceId, active, closeTab: closeSurface, t, openInChrome, visible, search: searchEngines,
     })
-  // The agent's browser_* tools reach this session's page. A session whose
-  // pane is not mounted reports that it can open one, and a navigation opens
-  // the pane at the address; every other action passes on and the tool reports
-  // the browser closed.
+  // The agent's browser_* tools reach this session's page. The session this
+  // window shows, with its pane not mounted, reports that it can open one, and a
+  // navigation opens the pane at the address; any other session opens in the
+  // reader's browser through the extension. Every other action passes on and
+  // the tool reports the browser closed.
   ctx.inject(['remote', 'sessions'], (scoped) => {
     // While the agent works its pointer is held, so the gaps between its
     // actions do not read as finishing; when the work stops, the hold is
@@ -723,10 +721,17 @@ export function apply(ctx: ClientContext): void {
         return automate(guest, request) as ReturnType<typeof next>
       }
       const content = ctx.get('sidebarContent')
-      if (content === undefined) return next()
-      if (request.operation === 'status') return Promise.resolve({ open: false, openable: true })
+      if (content !== undefined && scoped.sessions.list.getSnapshot().current === sessionId) {
+        if (request.operation === 'status') return Promise.resolve({ open: false, openable: true })
+        if (request.operation !== 'navigate') return next()
+        return navigateClosed(sessionId, request, () => { content.requestOpen(sessionId, 'browser') }) as ReturnType<typeof next>
+      }
+      // This window does not show the session, as when the reader drives it from Aeven Web on another device, so a
+      // pane opened here would never mount: the reader's own browser, through the extension, serves it instead.
+      if (desktopBrowser() === undefined) return next()
+      if (request.operation === 'status') return Promise.resolve({ open: false, openable: true, opensIn: 'user-browser' })
       if (request.operation !== 'navigate') return next()
-      return navigateClosed(sessionId, request, () => { content.requestOpen(sessionId, 'browser') }) as ReturnType<typeof next>
+      return navigateInNewExtensionTab(sessionId, request, chrome) as ReturnType<typeof next>
     })
   })
 

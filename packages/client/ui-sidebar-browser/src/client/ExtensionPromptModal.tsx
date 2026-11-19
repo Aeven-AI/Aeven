@@ -1,13 +1,26 @@
 /**
  * The web page's extension prompt: asks the reader to add the Aeven extension when the agent needs their
- * browser, offers to continue the task once it arrives after the agent stopped waiting, and explains when this
- * browser cannot run it. It is Aeven's standard modal, with its text in the description.
+ * browser, or to continue in the desktop app or download it instead, offers to continue the task once the
+ * extension arrives after the agent stopped waiting, and explains when this browser cannot run it. It is Aeven's
+ * standard modal, with its text in the description.
  */
 import { useEffect, useState } from 'react'
 import { Button, Modal } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import type {} from '@aeven/client-ui-layout/client'
 import type { ExtensionPromptState } from './extension-install.ts'
+
+/** How long the page waits for the desktop app to take focus before it suggests installing it, in milliseconds. */
+const OPEN_GRACE_MS = 1500
+
+/**
+ * The `aeven://` link that continues a conversation in the desktop app.
+ * @param sessionId - the conversation the prompt was opened for.
+ * @returns the link.
+ */
+function desktopLink(sessionId: string): string {
+  return `aeven://c/${encodeURIComponent(sessionId)}`
+}
 
 /** What the plugin hands the prompt. */
 export interface ExtensionPromptInjected {
@@ -25,6 +38,8 @@ export interface ExtensionPromptInjected {
   downloadUrl: string | undefined
   /** The reader declined or closed the prompt. */
   dismiss: () => void
+  /** The desktop app took the conversation the prompt was opened for. */
+  openedDesktop: () => void
   /** Check for the extension now, as when the reader returns to the page. */
   check: () => void
   /** Close the prompt without declining. */
@@ -45,12 +60,14 @@ export type ExtensionPromptModalProps = PropsRuntime<'shell.overlay'> & InjectFa
  * @returns the prompt, or null while closed.
  */
 export function ExtensionPromptModal(props: ExtensionPromptModalProps) {
-  const { usePrompt, storeUrl, browser, downloadUrl, dismiss, check, close, continueTask, t } = props
+  const { usePrompt, storeUrl, browser, downloadUrl, dismiss, openedDesktop, check, close, continueTask, t } = props
   const state = usePrompt(snapshot => snapshot)
   const [opened, setOpened] = useState(false)
+  const [notOpened, setNotOpened] = useState(false)
   useEffect(() => {
     if (state.kind !== 'install') {
       setOpened(false)
+      setNotOpened(false)
       return
     }
     // The reader installs in the store's tab and comes back here.
@@ -66,7 +83,22 @@ export function ExtensionPromptModal(props: ExtensionPromptModalProps) {
     case 'closed':
       return null
     case 'install': {
-      const status = !state.waiting ? t('extension.install.stopped') : opened ? t('extension.install.waiting') : undefined
+      const status = notOpened
+        ? t('extension.install.notOpened')
+        : !state.waiting ? t('extension.install.stopped') : opened ? t('extension.install.waiting') : undefined
+      const openDesktop = (): void => {
+        setNotOpened(false)
+        // The page loses focus when the operating system hands the link to an installed app.
+        let left = false
+        const onBlur = (): void => { left = true }
+        window.addEventListener('blur', onBlur, { once: true })
+        window.setTimeout(() => {
+          window.removeEventListener('blur', onBlur)
+          if (!left && document.hasFocus()) setNotOpened(true)
+          else openedDesktop()
+        }, OPEN_GRACE_MS)
+        window.location.href = desktopLink(state.sessionId)
+      }
       return (
         <Modal
           open
@@ -76,7 +108,10 @@ export function ExtensionPromptModal(props: ExtensionPromptModalProps) {
           closeLabel={t('handoff.close')}
           footer={(
             <>
-              <Button variant="outline" onClick={dismiss}>{t('handoff.decline')}</Button>
+              <Button variant="primary" onClick={openDesktop}>{t('extension.install.openDesktop')}</Button>
+              {downloadUrl !== undefined && (
+                <Button variant="outline" onClick={() => { window.open(downloadUrl, '_blank', 'noopener') }}>{t('extension.install.download')}</Button>
+              )}
               <Button
                 variant="primary"
                 onClick={() => {

@@ -4942,9 +4942,6 @@ importers:
       '@aeven/client-ui-conversation':
         specifier: workspace:^
         version: link:../ui-conversation
-      '@aeven/client-ui-desktop-handoff':
-        specifier: workspace:^
-        version: link:../ui-desktop-handoff
       '@aeven/client-ui-layout':
         specifier: workspace:^
         version: link:../ui-layout
