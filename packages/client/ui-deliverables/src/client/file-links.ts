@@ -142,7 +142,11 @@ export function producedFileLinks(
         }
       }
       const absolute = resolveWorkspacePath(cwd, target.path)
-      const file = produced().find(candidate => resolveWorkspacePath(cwd, candidate.path) === absolute)
+      const relative = !/^(?:[A-Za-z]:[\\/]|[\\/])/.test(target.path)
+      // A chat outside any project has no known root, so a relative link also names the one produced path ending in it.
+      const matches = produced().filter(candidate => resolveWorkspacePath(cwd, candidate.path) === absolute
+        || (relative && candidate.path.replaceAll('\\', '/').endsWith(`/${target.path}`)))
+      const file = matches.length === 1 ? matches[0] : undefined
       if (file?.attachmentId !== undefined) {
         return {
           href: opening.attachmentUrl(file.attachmentId),

@@ -113,6 +113,12 @@ describe('producedFileLinks', () => {
     link?.open()
     await vi.waitFor(() => { expect(downloads).toEqual(['https://app.test/attachment?id=sha256:c&download']) })
     expect(routes.previewFile).toHaveBeenCalledWith('/w/pdf-test/Motivation_Letter.pdf', 'https://app.test/attachment?id=sha256:c')
+    // Without a known root, a relative link names the one produced path ending in it, and two such paths name neither.
+    const rootless = producedFileLinks(undefined, () => produced, routes).resolve('pdf-test/Motivation_Letter.pdf')
+    expect(rootless?.href).toBe('https://app.test/attachment?id=sha256:c')
+    const twice = [...produced, { path: '/elsewhere/pdf-test/Motivation_Letter.pdf', attachmentId: 'sha256:d' }]
+    expect(producedFileLinks(undefined, () => twice, routes).resolve('pdf-test/Motivation_Letter.pdf')?.href)
+      .toBe('https://app.test/file?path=pdf-test/Motivation_Letter.pdf')
     // A produced file without a copy, or another path, keeps the workspace route.
     expect(producedFileLinks('/w', () => [{ path: '/w/a.pdf' }], routes).resolve('a.pdf')?.href).toBe('https://app.test/file?path=a.pdf')
   })
