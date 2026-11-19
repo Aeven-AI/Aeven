@@ -58,11 +58,12 @@ Only `apiUrl` and `apiKeyEnv` describe where requests go and what authenticates 
 | `maxTokens` | `384,000` | Per-request output cap; a model's own cap and explicit request values win |
 | `defaultContextWindow` | `1,000,000` | Capacity fallback for models without an exact value |
 | `streamIdleTimeoutMs` | `300,000` | Maximum provider idle time per outstanding stream read |
-| `maxInlineRequestImageBytes` | 6 MiB | Base64 preview budget; leaves 2 MiB of the gateway body ceiling for text and schemas |
-| `inlineImageOffloadByteQuantum` | 3 MiB | Oldest previews removed per byte-budget step; durable images and local reference paths remain available |
-| `maxImagesPerRequest` | 30 | Image cap; DeepInfra, which the gateway routes DeepSeek models through, refuses more |
-| `imageOffloadCountQuantum` | 10 | Oldest images removed per count-overflow step |
-| Files API settings | adapter defaults | No Files API on this route |
+| `maxInlineRequestImageBytes` | 1.5 MiB | Base64 preview budget; every turn re-sends the retained images, so it bounds each upload on a slow uplink |
+| `inlineImageOffloadByteQuantum` | 768 KiB | Oldest previews removed per byte-budget step; durable images and local reference paths remain available |
+| `maxImagesPerRequest` | 10 | Image cap; at most 30, since DeepInfra, which the gateway routes DeepSeek models through, refuses more |
+| `imageOffloadCountQuantum` | 5 | Oldest images removed per count-overflow step |
+| Files API settings | adapter defaults | No Files API on this route; images are always sent inline |
+| `requestCompression` | `gzip` | Chat request body encoding; `none` for a gateway deployment whose proxy rejects `Content-Encoding: gzip` |
 | `retryPolicy` | normal, 5 retries, 60 s maximum delay | Provider-owned retry policy; accepts the gateway's 60-second `Retry-After`, resolved once at registration |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#aevenllm-aeven) is the exhaustive source for every accepted field and its JSDoc.
@@ -127,15 +128,15 @@ Read these pages when the package-level contract is not enough.
 
 #### What the model sees
 
-The selected Aeven model receives the harness system prompt, message history, tool schemas, stop sequences, and call config (`maxTokens`, `reasoningEffort`, `temperature`) without adapter-authored prompt prose. Because this route configures no files API, images are carried inline as `image_url` parts rather than as uploaded file references, and no request contributes plugin-owned top-level fields.
+The selected Aeven model receives the harness system prompt, message history, tool schemas, stop sequences, and call config (`maxTokens`, `reasoningEffort`, `temperature`) without adapter-authored prompt prose. Because this route configures no files API, images are carried inline as `image_url` parts rather than as uploaded file references, and no request contributes plugin-owned top-level fields. The request retains the newest 10 images and 1.5 MiB of image data; each older image becomes a text placeholder naming the image and, when the execution filesystem maps it, its read-only path.
 
 #### Token effect
 
-Provider tokenization governs exact text and image-token input. Inline images are charged as image tokens by the gateway on the same accounting it applies to any OpenAI-compatible vision request; the adapter itself adds no tokens. `totalTokens` is the exact `prompt_tokens + completion_tokens` aggregate.
+Provider tokenization governs exact text and image-token input. Inline images are charged as image tokens by the gateway on the same accounting it applies to any OpenAI-compatible vision request; the adapter itself adds no tokens. The image budget caps the image tokens one request carries, and each placeholder costs a few text tokens instead. `totalTokens` is the exact `prompt_tokens + completion_tokens` aggregate.
 
 #### KV Cache effect
 
-An unchanged assembled prefix is eligible for the gateway's cache reuse, which the adapter reports in usage. A model-route, prompt, schema, history, or image change may prevent reuse from the first affected token, and reasoning passback appends on every reasoned turn.
+An unchanged assembled prefix is eligible for the gateway's cache reuse, which the adapter reports in usage. A model-route, prompt, schema, history, or image change may prevent reuse from the first affected token, and reasoning passback appends on every reasoned turn. The offloaded image prefix moves once per 5 images or 768 KiB of new image data, and each move invalidates reuse from the first newly replaced image.
 
 ### Aeven response
 
