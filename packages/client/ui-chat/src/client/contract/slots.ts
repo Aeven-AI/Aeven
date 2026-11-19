@@ -44,7 +44,13 @@ export interface TurnTailOwnerProps {
 }
 
 /** Owner currency of prose file links, which any Assistant step of a Session may carry. */
-export type FileLinkOwnerProps = Pick<TurnTailOwnerProps, 'cwd' | 'openFile'>
+export type FileLinkOwnerProps = Pick<TurnTailOwnerProps, 'cwd' | 'openFile'> & {
+  /**
+   * The Turn holding the step, whose produced files a link may name: their stored copies open where the page cannot
+   * reach the Host's folders, such as a conversation another device ran. Absent for a step outside any Turn.
+   */
+  turn?: TurnLocation | undefined
+}
 
 /** Owner currency of finalized-assistant actions. */
 export interface AssistantActionOwnerProps {

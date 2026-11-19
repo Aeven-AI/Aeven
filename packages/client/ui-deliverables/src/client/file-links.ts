@@ -8,6 +8,7 @@
  * run on another device of the account, whose folders this Host cannot read.
  */
 import type { MarkdownFileLinks } from '@aeven/client-ui-primitives'
+import { resolveWorkspacePath } from '@aeven/util-workspace-path'
 
 /**
  * A stored copy named by its place in the Host's content-addressed store:
@@ -117,12 +118,19 @@ export function downloadUrl(href: string): void {
 /**
  * Link resolver for an assistant's prose: a stored-copy link downloads that
  * copy, which names no path the sidebar could show, and a path link opens the
- * way a produced file does.
+ * way a produced file does. A path naming a file the Turn produced opens with
+ * that file's stored copy, which a page that cannot reach the Host's folders
+ * still serves.
  * @param cwd - The Session workspace root, when known.
+ * @param produced - The step's Turn's produced files, read when a link resolves.
  * @param opening - the client's preview, opener, and file routes.
  * @returns The resolver MarkdownText consumes.
  */
-export function producedFileLinks(cwd: string | undefined, opening: FileOpening): MarkdownFileLinks {
+export function producedFileLinks(
+  cwd: string | undefined,
+  produced: () => readonly { path: string; attachmentId?: string | undefined }[],
+  opening: FileOpening,
+): MarkdownFileLinks {
   return {
     resolve(href) {
       const target = fileLinkTarget(href, cwd)
@@ -131,6 +139,15 @@ export function producedFileLinks(cwd: string | undefined, opening: FileOpening)
         return {
           href: opening.attachmentUrl(target.attachmentId),
           open: () => { downloadUrl(opening.attachmentUrl(target.attachmentId, true)) },
+        }
+      }
+      const absolute = resolveWorkspacePath(cwd, target.path)
+      const file = produced().find(candidate => resolveWorkspacePath(cwd, candidate.path) === absolute)
+      if (file?.attachmentId !== undefined) {
+        return {
+          href: opening.attachmentUrl(file.attachmentId),
+          title: target.path,
+          open: () => { openProducedFile(file, opening) },
         }
       }
       return {

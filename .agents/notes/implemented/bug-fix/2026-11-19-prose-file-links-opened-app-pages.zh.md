@@ -11,7 +11,7 @@ Status: implemented
 ## 决定
 
 - `MarkdownText` 接管所有目标不带协议、不是协议相对地址、也不是 `#` 片段的链接：调用方的 `fileLinks` 解析器提供其 URL 和打开函数；没有解析器或未匹配时，链接渲染为纯文本。网页链接与脚注跳转仍交给引擎自身的 `MarkdownLink`，`@aeven/client-hypermarkdown` 现已导出它。
-- `ui-deliverables` 通过 `chatFileMentions.forLinks(owner, sessionId)` 提供解析器，`AssistantNodeView` 在每个助手步骤（而不只是收尾步骤）请求它，因为回复常会点名更早轮次产出的文件。路径按产出文件标签的方式打开（`file-links.ts` 中的 `openProducedFile`，两处现已共用）：先在侧栏预览，其次在能打开路径的 loopback 页面上由宿主打开，否则通过 `/api/workspace-file` 下载。`attachments/<xx>/<sha256>` 目标通过 `/api/attachment-file` 下载该存储副本。
+- `ui-deliverables` 通过 `chatFileMentions.forLinks(owner, sessionId)` 提供解析器，`AssistantNodeView` 在每个助手步骤（而不只是收尾步骤）请求它，因为回复常会点名更早轮次产出的文件。路径按产出文件标签的方式打开（`file-links.ts` 中的 `openProducedFile`，两处现已共用）：先在侧栏预览，其次在能打开路径的 loopback 页面上由宿主打开，否则通过 `/api/workspace-file` 下载。`attachments/<xx>/<sha256>` 目标通过 `/api/attachment-file` 下载该存储副本。若路径指向该步骤所在轮次产出且带存储副本的文件，则从副本打开：在 chat.aeven.io 上，对桌面端运行的对话，`/api/workspace-file` 返回 `404 not found`，而其标签能下载同步过来的副本。
 - 会话列表行没有 `cwd` 时，`ui-chat` 的 `openFile` 按 `workspaceFiles.list(sessionId, '')` 报告的工作区根目录解析相对路径。项目之外的聊天在列表行上没有 `cwd`，却运行在 `~/.aeven/chats` 中，而宿主的打开器把裸路径按自身进程目录解析，因此桌面端报错 `The file …/.desktop-build/development/project/link-test/letter.pdf does not exist`。
 - `tool-bash` 记录未声明的文档。在一次实机测试中，模型用文件工具写出 `letter.html`，再用无头 Chrome 打印成 `Motivation_Letter.pdf`，却没有列出 `output_files`，于是已创建文件块显示 HTML 而不是 PDF。前台命令未声明 `output_files` 但提到 `detectOutputExtensions` 中的扩展名时，工具在命令前后列出工作区，把每个新建或修改、且扩展名出现在命令中的文件记录为声明输出；文件块随即显示 PDF 而不是 HTML。若改为监视所有配置的类型，还会记录模型用 `pdftoppm -png` 渲染来检查 PDF、随后又删除的 `page-1.png` 预览。
 - 点击总是运行打开函数而不跟随 `href`：在桌面外壳中，对 `avn-app:` URL 的新标签页请求会交给系统浏览器，而系统浏览器无法加载它。锚点的 `href` 仍是文件 URL，因此复制链接可用。

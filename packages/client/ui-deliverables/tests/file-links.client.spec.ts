@@ -85,7 +85,7 @@ describe('producedFileLinks', () => {
   it('links a path to its workspace file and opens it the way a produced file opens', async () => {
     const downloads = captureDownloads()
     const routes = opening(false, false)
-    const link = producedFileLinks('/w', routes).resolve('Applications/Open/Letter%20Open.pdf')
+    const link = producedFileLinks('/w', () => [], routes).resolve('Applications/Open/Letter%20Open.pdf')
     expect(link?.href).toBe('https://app.test/file?path=Applications/Open/Letter Open.pdf')
     expect(link?.title).toBe('Applications/Open/Letter Open.pdf')
     link?.open()
@@ -96,7 +96,7 @@ describe('producedFileLinks', () => {
   it('downloads a stored copy, which names no path the sidebar could show', () => {
     const downloads = captureDownloads()
     const routes = opening(true, true)
-    const link = producedFileLinks('/w', routes).resolve(`../attachments/86/${DIGEST}`)
+    const link = producedFileLinks('/w', () => [], routes).resolve(`../attachments/86/${DIGEST}`)
     expect(link?.href).toBe(`https://app.test/attachment?id=sha256:${DIGEST}`)
     expect(link?.title).toBeUndefined()
     link?.open()
@@ -104,7 +104,20 @@ describe('producedFileLinks', () => {
     expect(routes.previewFile).not.toHaveBeenCalled()
   })
 
+  it('opens a file the Turn produced from its stored copy, where the page cannot reach the Host', async () => {
+    const downloads = captureDownloads()
+    const routes = opening(false, false)
+    const produced = [{ path: '/w/pdf-test/Motivation_Letter.pdf', attachmentId: 'sha256:c' }]
+    const link = producedFileLinks('/w', () => produced, routes).resolve('pdf-test/Motivation_Letter.pdf')
+    expect(link?.href).toBe('https://app.test/attachment?id=sha256:c')
+    link?.open()
+    await vi.waitFor(() => { expect(downloads).toEqual(['https://app.test/attachment?id=sha256:c&download']) })
+    expect(routes.previewFile).toHaveBeenCalledWith('/w/pdf-test/Motivation_Letter.pdf', 'https://app.test/attachment?id=sha256:c')
+    // A produced file without a copy, or another path, keeps the workspace route.
+    expect(producedFileLinks('/w', () => [{ path: '/w/a.pdf' }], routes).resolve('a.pdf')?.href).toBe('https://app.test/file?path=a.pdf')
+  })
+
   it('resolves nothing for a destination that names no file', () => {
-    expect(producedFileLinks('/w', opening(true, true)).resolve('/w')).toBeUndefined()
+    expect(producedFileLinks('/w', () => [], opening(true, true)).resolve('/w')).toBeUndefined()
   })
 })
