@@ -279,6 +279,11 @@ export class WorkspaceRegistry extends Service {
    * blocked empty state for the rest of the session.
    */
   protected async [Service.init](): Promise<void> {
+    // The stored headers do not depend on the workspace domain, so their listing runs while the domain opens
+    // instead of after it; every Host start waits for both. A registry with no workspace leaves the listing unread.
+    const storedHeaders = this.ctx.sessionPersistence.list()
+    // Observed where the listing is awaited below; this handler only keeps an unread rejection from being unhandled.
+    storedHeaders.catch(() => undefined)
     const domain = await this.ctx.storageDomain.open(workspaceDomainSpec)
     this.ctx.effect(() => () => domain.close(), 'workspace.domainClose')
     this.table = domain.table('workspaces')
@@ -288,11 +293,11 @@ export class WorkspaceRegistry extends Service {
     await this.recoverPendingMutation()
     this.validateStoredState(this.state)
     if (!this.state.initialized) {
-      const headers = await this.ctx.sessionPersistence.list()
+      const headers = await storedHeaders
       await this.replaceHeaderIndex(headers)
       await this.bootstrap(headers)
     } else if (this.table.size > 0) {
-      await this.replaceHeaderIndex(await this.ctx.sessionPersistence.list())
+      await this.replaceHeaderIndex(await storedHeaders)
     }
 
     await this.indexLiveSessions()
@@ -524,8 +529,23 @@ export class WorkspaceRegistry extends Service {
    * @returns the shared name, or undefined when no workspace holds the session.
    */
   sessionHome(sessionId: SessionId): string | undefined {
-    const home = this.list().find(workspace => workspace.sessionIds.includes(sessionId))
+    const home = this.holderOf(sessionId)
     return home === undefined ? undefined : this.sharedName(home.id)
+  }
+
+  /**
+   * Find the first workspace, in registry order, whose `sessionIds` contains a session. Each workspace answers for
+   * that one session, so a caller asking about every session in turn does not filter every account each time.
+   * @param sessionId - the session.
+   * @returns the workspace holding it, or undefined when none does.
+   */
+  private holderOf(sessionId: SessionId): WorkspaceEntity | undefined {
+    for (const id of this.requireState().workspaceIds) {
+      const entity = this.entities.get(id)
+      if (entity === undefined) throw new Error(`workspace registry order references missing workspace '${id}'`)
+      if (entity.holds(sessionId)) return entity
+    }
+    return undefined
   }
 
   /**
@@ -551,7 +571,7 @@ export class WorkspaceRegistry extends Service {
    * @returns the local workspace, the shared name it awaits, or the fact that none accounts it.
    */
   placeSession(sessionId: SessionId): SessionPlacement {
-    const filed = this.list().find(workspace => workspace.sessionIds.includes(sessionId))
+    const filed = this.holderOf(sessionId)
     if (filed !== undefined) return { state: 'filed', workspace: filed }
     const pending = this.unfiled.get(sessionId)
     return pending === undefined ? { state: 'unfiled' } : { state: 'pending', home: pending }
@@ -599,7 +619,7 @@ export class WorkspaceRegistry extends Service {
       return false
     }
     this.unfiled.delete(sessionId)
-    if (this.list().some(workspace => workspace.sessionIds.includes(sessionId))) return true
+    if (this.holderOf(sessionId) !== undefined) return true
     await target.attachSession(sessionId)
     return true
   }
@@ -1438,9 +1458,12 @@ export class WorkspaceRegistry extends Service {
 
   private async indexHeaders(headers: readonly SessionHeader[]): Promise<void> {
     const learned = new Set<SessionId>()
+    // Many sessions record the same directory, so one pass resolves each distinct cwd once instead of once per
+    // session: a home with hundreds of sessions in a handful of folders otherwise waits on two file calls for each.
+    const resolutions = new Map<string, Promise<SessionPathResolution>>()
     for (const header of headers) {
       if (header.owner !== undefined && this.headers.get(header.id)?.owner !== header.owner) learned.add(header.id)
-      await this.indexHeader(header)
+      await this.indexHeader(header, resolutions)
     }
     this.announceOwners(learned)
   }
@@ -1453,24 +1476,34 @@ export class WorkspaceRegistry extends Service {
     }
   }
 
-  private async indexHeader(header: SessionHeader): Promise<void> {
+  /**
+   * Record one session's header and the canonical directory its cwd names.
+   * @param header - the session's header.
+   * @param resolutions - directory resolutions shared by the headers of one pass, keyed by recorded cwd; omitted when
+   * a single header is indexed.
+   */
+  private async indexHeader(
+    header: SessionHeader,
+    resolutions?: Map<string, Promise<SessionPathResolution>>,
+  ): Promise<void> {
     this.headers.set(header.id, header)
     this.sessionPaths.delete(header.id)
     if (header.cwd === undefined) {
       this.invalidSessionPaths.set(header.id, 'header has no cwd')
       return
     }
-    try {
-      const path = await realpathNormalize(header.cwd)
-      if (!(await stat(path)).isDirectory()) {
-        this.invalidSessionPaths.set(header.id, `cwd '${header.cwd}' is not a directory`)
-        return
-      }
-      this.sessionPaths.set(header.id, path)
-      this.invalidSessionPaths.delete(header.id)
-    } catch {
-      this.invalidSessionPaths.set(header.id, `cwd '${header.cwd}' does not resolve`)
+    let resolution = resolutions?.get(header.cwd)
+    if (resolution === undefined) {
+      resolution = resolveSessionPath(header.cwd)
+      resolutions?.set(header.cwd, resolution)
     }
+    const resolved = await resolution
+    if (resolved.path === undefined) {
+      this.invalidSessionPaths.set(header.id, resolved.invalid)
+      return
+    }
+    this.sessionPaths.set(header.id, resolved.path)
+    this.invalidSessionPaths.delete(header.id)
   }
 
   private async indexLiveSessions(): Promise<void> {
@@ -1739,6 +1772,27 @@ export class WorkspaceRegistry extends Service {
       this.ctx.emit('workspace/changed')
       return committed
     })
+  }
+}
+
+/** The canonical directory a recorded cwd names, or why it names none. */
+type SessionPathResolution =
+  | { readonly path: string }
+  | { readonly path?: undefined; readonly invalid: string }
+
+/**
+ * Resolve a session header's cwd to the canonical directory it names.
+ * @param cwd - the directory a session header records.
+ * @returns the canonical directory, or the reason the cwd names no directory.
+ */
+async function resolveSessionPath(cwd: string): Promise<SessionPathResolution> {
+  try {
+    const path = await realpathNormalize(cwd)
+    if (!(await stat(path)).isDirectory()) return { invalid: `cwd '${cwd}' is not a directory` }
+    return { path }
+  } catch {
+    // realpath or stat rejected: the recorded directory is missing or unreadable on this device.
+    return { invalid: `cwd '${cwd}' does not resolve` }
   }
 }
 

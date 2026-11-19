@@ -171,10 +171,11 @@ export class ApiSessionList {
   /**
    * Build one current attached-Session summary.
    * @param session - attached Session to summarize.
+   * @param keys - projection keys the row's hints carry; omitted for every cached value.
    * @returns current list metadata and available projections.
    */
-  summaryFor(session: Session): SessionSummary {
-    const projections = this.projectionsFor({ header: session.header }, session)
+  summaryFor(session: Session, keys?: readonly string[]): SessionSummary {
+    const projections = this.projectionsFor({ header: session.header }, session, keys)
     const metadata = projections?.values.sessionListMetadata
     return {
       sessionId: session.id,
@@ -228,9 +229,12 @@ export class ApiSessionList {
   /**
    * Read every visible attached and persisted Session without activating an Agent.
    * @param signal - optional cancellation for persistence reads.
+   * @param keys - projection keys each row's hints carry besides `sessionListMetadata`; omitted for every cached
+   * value. Viewing and validating every value of every Session is most of a large home's listing time, so a caller
+   * that draws rows asks for the keys its rows read and fetches the complete hints afterwards.
    * @returns visible Session summaries ordered by activity.
    */
-  async list(signal?: AbortSignal): Promise<SessionSummary[]> {
+  async list(signal?: AbortSignal, keys?: readonly string[]): Promise<SessionSummary[]> {
     signal?.throwIfAborted()
     const caller = this.ctx.get('identityUsers')?.actingUser()
     const records = await this.ctx.sessionQuery.listSessions(signal)
@@ -242,7 +246,7 @@ export class ApiSessionList {
       if (!callerMayAccessSession(this.ctx, record.header, caller)) continue
       const live = this.ctx.sessions.get(record.header.id)
       if (live !== undefined) {
-        items.push(this.summaryFor(live))
+        items.push(this.summaryFor(live, keys))
         continue
       }
       // A cold Session with no cwd belongs to a workspace that has no directory,
@@ -256,7 +260,7 @@ export class ApiSessionList {
           : { inheritedEventCount: record.inheritedEventCount },
       })
     }
-    for (const entry of cold) items.push(this.summarizeCold(entry))
+    for (const entry of cold) items.push(this.summarizeCold(entry, keys))
     const behind = new Set<SessionId>()
     if (caller !== undefined) {
       const catalog = new Map((this.ctx.get('sessionHandoff')?.catalog(caller.id) ?? []).map(entry => [entry.header.id, entry]))
@@ -268,7 +272,7 @@ export class ApiSessionList {
       const present = new Set(items.map(item => item.sessionId))
       for (const summary of this.sharedFor(caller.id)) if (!present.has(summary.sessionId)) items.push(summary)
     }
-    await this.recoverMissingTitles(items, cold, behind, signal)
+    await this.recoverMissingTitles(items, cold, behind, keys, signal)
     items.sort((left, right) => right.updatedAt - left.updatedAt)
     return items
   }
@@ -293,12 +297,14 @@ export class ApiSessionList {
    * @param cold - the cold entries `items` was built from.
    * @param behind - sessions whose account history is longer than their cache row: a blank row among them may predate
    * turns another device ran and this device imported.
+   * @param keys - projection keys the repaired rows' hints carry; omitted for every value.
    * @param signal - cancellation for the persistence reads.
    */
   private async recoverMissingTitles(
     items: SessionSummary[],
     cold: readonly ColdListEntry[],
     behind: ReadonlySet<SessionId>,
+    keys: readonly string[] | undefined,
     signal?: AbortSignal,
   ): Promise<void> {
     const cache = this.ctx.get('sessionProjectionCache')
@@ -331,7 +337,7 @@ export class ApiSessionList {
         ...item,
         blank: metadata?.blank ?? item.blank,
         updatedAt: Math.max(item.updatedAt, updatedAt(entry.header, metadata)),
-        projections: listHints(snapshot),
+        projections: listHints(snapshot, keys),
       }
     }
   }
@@ -349,7 +355,7 @@ export class ApiSessionList {
     return remoteRunning(handoff.liveOf(owner, id))
   }
 
-  private summarizeCold(entry: ColdListEntry): SessionSummary {
+  private summarizeCold(entry: ColdListEntry, keys?: readonly string[]): SessionSummary {
     const { header } = entry
     // Cache-first: a title is served from the durable projection cache, so a
     // hit keeps listing latency independent of log size. Only a miss reaches
@@ -358,7 +364,7 @@ export class ApiSessionList {
     // No live lookup here: `list` scans the live Session registry and builds
     // these in one synchronous pass, so a Session attached after the listing
     // read is already served by `summaryFor` and never reaches this summary.
-    const projections = this.projectionsFor(entry)
+    const projections = this.projectionsFor(entry, undefined, keys)
     const metadata = projections?.values.sessionListMetadata
     return {
       sessionId: header.id,
@@ -491,8 +497,11 @@ export class ApiSessionList {
   private projectionsFor(
     entry: ColdListEntry,
     session?: Session,
+    keys?: readonly string[],
   ): SessionProjectionHints | undefined {
     const { header } = entry
+    // Every row derives `blank` and `updatedAt` from the metadata value, whichever keys the caller draws.
+    const viewed = keys === undefined ? undefined : [...keys, 'sessionListMetadata'] as ProjectionKeys
     try {
       // A seeded (fork) Session's cache row is keyed by its inherited cut, which
       // a header cannot express. The listing therefore carries the cut from the
@@ -502,11 +511,12 @@ export class ApiSessionList {
         ? this.ctx.get('sessionProjectionCache')?.cachedSnapshot(
           header,
           entry.inheritedEventCount ?? SessionLogOffset(0),
+          viewed,
         )
-        : this.ctx.sessionProjections.cachedSnapshot(session)
+        : this.ctx.sessionProjections.cachedSnapshot(session, viewed)
       // Listing hints contain the cached Session-dependent wire values but remain
       // partial: missing cells and cache rows are never materialized here.
-      const hints = block === undefined ? undefined : listHints(block)
+      const hints = block === undefined ? undefined : listHints(block, keys)
       return hints !== undefined && Object.keys(hints.values).length > 0 ? hints : undefined
     } catch (error) {
       this.ctx.logger.warn(
@@ -517,15 +527,24 @@ export class ApiSessionList {
   }
 }
 
+/** The view filter the cache and the live projection registry accept. */
+type ProjectionKeys = Parameters<Context['sessionProjections']['cachedSnapshot']>[1]
+
 /**
  * Narrow one projection snapshot to the values a Session-list row carries.
  * @param snapshot - cached or folded projection values at one cursor.
- * @returns the snapshot without {@link SESSION_INDEPENDENT_PROJECTIONS}.
+ * @param keys - the keys the caller asked for; omitted for every value.
+ * @returns the snapshot without {@link SESSION_INDEPENDENT_PROJECTIONS}, limited to `keys` and `sessionListMetadata`
+ * when `keys` is given.
  */
-function listHints(snapshot: { readonly asOfSeq: number; readonly values: object }): SessionProjectionHints {
+function listHints(
+  snapshot: { readonly asOfSeq: number; readonly values: object },
+  keys?: readonly string[],
+): SessionProjectionHints {
   const values: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(snapshot.values)) {
-    if (!SESSION_INDEPENDENT_PROJECTIONS.has(key)) values[key] = value
+    if (SESSION_INDEPENDENT_PROJECTIONS.has(key)) continue
+    if (keys === undefined || key === 'sessionListMetadata' || keys.includes(key)) values[key] = value
   }
   return { asOfSeq: snapshot.asOfSeq, values: values as SessionProjectionValues }
 }

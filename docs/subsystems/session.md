@@ -695,7 +695,8 @@ async inspect( sessionId: SessionId, signal?: AbortSignal, ): Promise<SessionIns
 
 /**
  * Read all visible Session rows without resuming an Agent.
- * @param _request - reserved empty list request.
+ * @param _request - the projection keys each row's hints carry, when the caller limits them. The parameter keeps
+ * its name because the name is the wire argument, and a Web client of another release sends it.
  * @param signal - cancellation for persistence reads.
  * @returns visible Session summaries ordered by activity.
  */

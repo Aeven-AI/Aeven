@@ -306,6 +306,12 @@ export interface SkillListValue {
 /** Session list request. */
 export interface SessionListRequest {
   readonly cursor?: string
+  /**
+   * Projection keys each row's hints carry, besides `sessionListMetadata`. Omitted, a row carries every cached value.
+   * A caller that draws rows names the keys its rows read, so the reply does not wait for every value of every
+   * Session, and reads the complete hints with a second request.
+   */
+  readonly projections?: readonly string[]
 }
 
 /** Session list response value. */

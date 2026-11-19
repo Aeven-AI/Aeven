@@ -209,6 +209,15 @@ export class WorkspaceEntity implements Workspace {
   }
 
   /**
+   * Whether {@link sessionIds} contains one session, answered without filtering every other accounted session.
+   * @param id - the session to look for.
+   * @returns whether the session is a current member of this workspace.
+   */
+  holds(id: SessionId): boolean {
+    return this.record.sessionIds.includes(id) && this.member(id)
+  }
+
+  /**
    * Whether one accounted session currently belongs to this workspace.
    *
    * A folder workspace decides membership by canonical cwd equality: the

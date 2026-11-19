@@ -26,6 +26,12 @@ import { ProjectionValueStore } from './projection-store.ts'
 import { Session } from './session.ts'
 import type { SessionRemotes } from './remotes.ts'
 
+/**
+ * Projection keys a list row is drawn from: the row's title and its active-Schedule indicator. The first list
+ * request asks for these alone, so the rows arrive without every value of every Session; the complete hints follow.
+ */
+const LIST_ROW_PROJECTIONS: readonly string[] = ['title', 'schedule']
+
 function sessionSeqCursor(value: number): SessionSeqCursor {
   return value === -1 ? -1 : SessionSeq(value)
 }
@@ -130,6 +136,8 @@ export class SessionManager {
   private listPhase: SessionListPhase = 'pending'
   private listError: RemoteFailure | null = null
   private listInflight: Promise<void> | null = null
+  /** The background read of complete hints that follows a list refresh; one at a time. */
+  private listHintsInflight: Promise<void> | null = null
   /** Mutations arriving after a list request starts are replayed over its response. */
   private listMutations: SessionListMutation[] | null = null
   private readonly addresses = new Map<SessionId, SubagentAddress>()
@@ -520,7 +528,7 @@ export class SessionManager {
     this.notifier.markDirty()
     this.listInflight = (async () => {
       try {
-        const result = await this.remote.session.list({})
+        const result = await this.remote.session.list({ projections: LIST_ROW_PROJECTIONS })
         if (result.ok) {
           const baseline: SessionSummary[] = this.listPhase === 'pending'
             ? [...result.value.items]
@@ -560,13 +568,8 @@ export class SessionManager {
           // cold cache serves only version-matching keys — so an absent key
           // must not clear; higher-seq-wins still keeps a stale list block
           // from overwriting a newer push frame or tail baseline.
-          for (const s of result.value.items) {
-            const block = s.projections
-            if (block === undefined) continue
-            const store = this.projectionStore(s.sessionId)
-            const values = block.values as Record<string, unknown>
-            for (const key of Object.keys(values)) store.apply(key, values[key], sessionSeqCursor(block.asOfSeq))
-          }
+          this.seedListHints(result.value.items)
+          void this.refreshListHints()
         } else {
           this.listState = 'error'
           this.listError = result.error
@@ -582,6 +585,41 @@ export class SessionManager {
       }
     })()
     return this.listInflight
+  }
+
+  /**
+   * Seed each row's cached projection values into its per-session value store.
+   * @param items - list rows carrying partial hints.
+   */
+  private seedListHints(items: readonly SessionSummary[]): void {
+    for (const s of items) {
+      const block = s.projections
+      if (block === undefined) continue
+      const store = this.projectionStore(s.sessionId)
+      const values = block.values as Record<string, unknown>
+      for (const key of Object.keys(values)) store.apply(key, values[key], sessionSeqCursor(block.asOfSeq))
+    }
+  }
+
+  /**
+   * Read every Session's complete cached hints after the rows are drawn, so a Session opens with its values already
+   * in its store. Rows, order, and running state stay as {@link refreshList} set them; a failure leaves the hints
+   * the rows carried, and the history baseline of an opened Session supplies the rest.
+   */
+  private refreshListHints(): Promise<void> {
+    this.listHintsInflight ??= (async () => {
+      try {
+        const result = await this.remote.session.list({})
+        if (!result.ok) return
+        this.seedListHints(result.value.items)
+        this.notifier.markDirty()
+      } catch (error) {
+        if (!isRemoteFailure(error)) throw error
+      } finally {
+        this.listHintsInflight = null
+      }
+    })()
+    return this.listHintsInflight
   }
 
   /**
