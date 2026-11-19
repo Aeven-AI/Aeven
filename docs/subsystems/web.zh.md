@@ -98,7 +98,7 @@ interface WebFetchResult {
   readonly statusCode: number
   /** Decoded body, classified by content kind. */
   readonly body: WebFetchBody
-  /** True when the provider capped the decoded body. */
+  /** True when the provider capped the decoded body; always false for a `document` body. */
   readonly truncated: boolean
 }
 ```
@@ -116,6 +116,16 @@ interface WebFetchResult {
 type WebFetchBody =
   | { readonly kind: 'html'; readonly content: string }
   | { readonly kind: 'text'; readonly content: string }
+  | {
+    /** A binary document (PDF, Office, OpenDocument, RTF, EPUB) the consumer converts to text. */
+    readonly kind: 'document'
+    /** The complete, never byte-truncated file; a provider refuses a document it cannot read whole. */
+    readonly data: Uint8Array
+    /** The response media type without parameters, lower-cased. */
+    readonly mediaType: string
+    /** File name from `Content-Disposition` or the URL's last path segment, possibly empty. */
+    readonly name: string
+  }
 ```
 
 ## 提供方可用性
@@ -136,7 +146,7 @@ HTTP 提供方会解析每个实际请求，拒绝包括通过当前 DNS64 前�
 
 ## 服务
 
-`WebRuntime` 注册搜索与抓取提供方，以 `WEB_DUPLICATE_PROVIDER` 拒绝重复 id，并在执行时以结构化的选择错误解析提供方。本地抓取后端仅接受 HTTP(S)、拒绝凭证、对每个 hostname 只解析一次、拒绝包含任一非公开 IPv4／IPv6 目的地址或经当前前缀转换到非公开 IPv4 的 NAT64 地址的解析结果、把请求连接固定到已验证地址、对每一次同源重定向跳转重复这些校验、限制重定向次数、字节数、字符数和时间，并解码正文；展示由工具负责。
+`WebRuntime` 注册搜索与抓取提供方，以 `WEB_DUPLICATE_PROVIDER` 拒绝重复 id，并在执行时以结构化的选择错误解析提供方。本地抓取后端仅接受 HTTP(S)、拒绝凭证、对每个 hostname 只解析一次、拒绝包含任一非公开 IPv4／IPv6 目的地址或经当前前缀转换到非公开 IPv4 的 NAT64 地址的解析结果、把请求连接固定到已验证地址、对每一次同源重定向跳转重复这些校验、限制重定向次数、字节数、字符数和时间，并解码文本正文，或把 PDF、Office、OpenDocument、RTF 或 EPUB 文件整体作为 `document` 正文返回；展示由工具负责，并通过可选的 `ctx.documentExtract` 服务把文档转换为文本。
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
