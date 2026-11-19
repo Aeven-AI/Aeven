@@ -19,14 +19,14 @@
  * @module @aeven/tool-browser
  */
 
-import type {} from '@aeven/user-approval'
+import type { ApprovalOutbound } from '@aeven/user-approval'
 import type {} from '@aeven/user-questions'
 import type {} from '@aeven/sandbox-policy'
 import type { ImageAttachmentRef } from '@aeven/attachment'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { Agent, PreStepDecision } from '@aeven/agent'
-import { isLocalHost, isSendControl, isSendKey, isSendScript, pageSite, sendApproval, type BrowserChromiumStatus, type PageSite } from '@aeven/browser-chromium'
+import { guardScript, isLocalHost, isSendControl, isSendKey, isWriteScript, outboundProbe, pageSite, sendApproval, type BrowserChromiumStatus, type OutboundProbe, type PageOutboundKind, type PageSite } from '@aeven/browser-chromium'
 import type { McpServerReport } from '@aeven/mcp-client'
 import { createUserMessage, HarnessError } from '@aeven/llm'
 import type { Message } from '@aeven/llm'
@@ -473,10 +473,68 @@ export function apply(ctx: Context, config: Config): void {
     return isSendControl(role, label) ? `Click "${label.slice(0, 80)}"` : null
   }
 
+  /** One send-like part of a preview call: the reason the person reads, and what it publishes when the page shows it. */
+  interface SendStep {
+    readonly action: string
+    readonly outbound?: ApprovalOutbound
+    /** Address of the document the action lands in, when the page reported it. */
+    readonly url?: string
+  }
+
+  /** The reason line for an action whose content the page showed. */
+  const OUTBOUND_ACTIONS: Readonly<Record<PageOutboundKind, string>> = {
+    reply: 'Post this reply', comment: 'Post this comment', message: 'Send this message', email: 'Send this email',
+    post: 'Publish this post', edit: 'Post this edit', form: 'Submit this form', repost: 'Repost this', invite: 'Send this invitation',
+  }
+
   /**
-   * Name the send-like part of one preview call: a click on a publishing control or
-   * an unreadable target, Enter without Shift, sequential typing with a line break,
-   * or a page script that may publish.
+   * Ask the page what a click on a CSS selector's element, or Enter in its focused element, would publish.
+   * @param selector - the click target, or null for Enter.
+   * @param frame - the iframe selector the action runs in, when it names one.
+   * @param exec - the running tool call.
+   * @returns the page's answer, or undefined when the page could not tell.
+   */
+  const probeOutbound = async (
+    selector: string | null,
+    frame: JsonValue | undefined,
+    exec: ToolRunContext,
+  ): Promise<OutboundProbe | undefined> => {
+    const result = await run('evaluate', { expression: outboundProbe(selector), ...typeof frame === 'string' ? { frame } : {} }, exec).catch(() => undefined)
+    const value = typeof result === 'object' && result !== null && !Array.isArray(result) ? result.value : undefined
+    if (typeof value !== 'object' || value === null || Array.isArray(value) || value.found !== true || typeof value.url !== 'string') return undefined
+    // The probe is this package's own page script; its answer has the OutboundProbe fields.
+    return value as unknown as OutboundProbe
+  }
+
+  /**
+   * The step a probe answer asks for.
+   * @param probe - the page's answer.
+   * @returns the step to approve, or null when the action publishes nothing.
+   */
+  const probedStep = (probe: OutboundProbe): SendStep | null => {
+    const page = probe.outbound
+    if (page === null) return null
+    const site = pageSite(probe.url)
+    return {
+      action: OUTBOUND_ACTIONS[page.kind],
+      url: probe.url,
+      outbound: {
+        kind: page.kind,
+        ...site.kind === 'site' ? { site: site.site } : {},
+        ...page.to === undefined ? {} : { to: page.to },
+        ...page.subject === undefined ? {} : { subject: page.subject },
+        ...page.text === undefined ? {} : { text: page.text },
+      },
+    }
+  }
+
+  /**
+   * Name the send-like part of one preview call: a click on a control that
+   * publishes, Enter in a field that holds text, sequential typing with a line
+   * break, or a page script that writes to a server. A click on a CSS selector
+   * and Enter are read in the page first, so the approval carries what goes
+   * out; a target the page cannot resolve is judged by its label alone, and an
+   * unreadable one asks.
    * @param operation - the automation operation.
    * @param input - its arguments.
    * @param exec - the running tool call.
@@ -486,21 +544,30 @@ export function apply(ctx: Context, config: Config): void {
     operation: BrowserAutomationOperation,
     input: { [key: string]: JsonValue },
     exec: ToolRunContext,
-  ): Promise<string | undefined> => {
+  ): Promise<SendStep | undefined> => {
     const modifiers = (value: JsonValue | undefined) => Array.isArray(value) ? value.filter(item => typeof item === 'string') : []
-    const step = async (op: string, values: { [key: string]: JsonValue }): Promise<string | undefined> => {
+    const step = async (op: string, values: { [key: string]: JsonValue }): Promise<SendStep | undefined> => {
       switch (op) {
         case 'click': {
-          if (typeof values.selector !== 'string' && typeof values.token !== 'string') return 'Click a point on the page'
+          if (typeof values.selector !== 'string' && typeof values.token !== 'string') return { action: 'Click a point on the page' }
+          if (typeof values.selector === 'string') {
+            const probe = await probeOutbound(values.selector, values.frame, exec)
+            if (probe !== undefined) return probedStep(probe) ?? undefined
+          }
           const click = await sendClick(values, exec)
-          return click === undefined ? 'Click an element' : click ?? undefined
+          return click === undefined ? { action: 'Click an element' } : click === null ? undefined : { action: click }
         }
-        case 'press':
-          return typeof values.key === 'string' && isSendKey(values.key, modifiers(values.modifiers)) ? `Press ${values.key}` : undefined
+        case 'press': {
+          if (typeof values.key !== 'string' || !isSendKey(values.key, modifiers(values.modifiers))) return undefined
+          const probe = await probeOutbound(null, undefined, exec)
+          return probe === undefined ? { action: `Press ${values.key}` } : probedStep(probe) ?? undefined
+        }
         case 'type':
-          return values.sequential === true && typeof values.text === 'string' && values.text.includes('\n') ? 'Type text with line breaks' : undefined
+          return values.sequential === true && typeof values.text === 'string' && values.text.includes('\n')
+            ? { action: 'Type text with line breaks, which may send it', outbound: { text: values.text } }
+            : undefined
         case 'evaluate':
-          return typeof values.expression === 'string' && isSendScript(values.expression) ? 'Run a script that clicks or submits in the page' : undefined
+          return typeof values.expression === 'string' && isWriteScript(values.expression) ? { action: 'Run a script that sends data to the website' } : undefined
         default:
           return undefined
       }
@@ -515,32 +582,58 @@ export function apply(ctx: Context, config: Config): void {
   }
 
   /**
+   * Confine the page scripts of one preview call on a website: each evaluate
+   * runs behind the guard that refuses clicks and submissions that publish.
+   * @param operation - the automation operation.
+   * @param input - its arguments.
+   * @returns the arguments with every page script guarded.
+   */
+  const guardScripts = (operation: BrowserAutomationOperation, input: { [key: string]: JsonValue }): { [key: string]: JsonValue } => {
+    const guard = (values: { [key: string]: JsonValue }) =>
+      typeof values.expression === 'string' ? { ...values, expression: guardScript(values.expression, actionTimeoutMs) } : values
+    if (operation === 'evaluate') return guard(input)
+    if (operation !== 'sequence' || !Array.isArray(input.actions)) return input
+    return {
+      ...input,
+      actions: input.actions.map(action => typeof action === 'object' && action !== null && !Array.isArray(action) && action.operation === 'evaluate' ? guard(action) : action),
+    }
+  }
+
+  /**
    * Require the person's approval before a preview call sends or posts on a
-   * website; an approval for the session covers every send-like browser action
-   * on that site. Pages on this machine never ask.
+   * website, naming what goes out and showing its text when the page shows it;
+   * an approval for the session covers every send-like browser action on that
+   * site. Pages on this machine never ask, and their scripts run unguarded.
    * @param operation - the automation operation.
    * @param input - its arguments.
    * @param exec - the running tool call.
+   * @returns the arguments to run, with page scripts guarded on a website.
    * @throws {HarnessError} when approval is unavailable or refused.
    */
   const approveSend = async (
     operation: BrowserAutomationOperation,
     input: { [key: string]: JsonValue },
     exec: ToolRunContext,
-  ): Promise<void> => {
-    if (!['click', 'press', 'type', 'evaluate', 'sequence'].includes(operation)) return
+  ): Promise<{ [key: string]: JsonValue }> => {
+    if (!['click', 'press', 'type', 'evaluate', 'sequence'].includes(operation)) return input
     const page = await run('status', {}, exec)
-    const site: PageSite = pageSite(typeof page === 'object' && page !== null && !Array.isArray(page) && typeof page.url === 'string' ? page.url : undefined)
-    if (site.kind === 'local') return
-    const action = await sendAction(operation, input, exec)
-    if (action === undefined) return
+    const status: PageSite = pageSite(typeof page === 'object' && page !== null && !Array.isArray(page) && typeof page.url === 'string' ? page.url : undefined)
+    if (status.kind === 'local') return input
+    const guarded = guardScripts(operation, input)
+    const found = await sendAction(operation, input, exec)
+    if (found === undefined) return guarded
+    // The probe reads the address of the document the action lands in, which a status without one cannot give.
+    const site = found.url === undefined || status.kind === 'site' ? status : pageSite(found.url)
+    if (site.kind === 'local') return guarded
     const approval = ctx.get('approval')
     if (approval === undefined) throw new HarnessError('sending on a website requires user approval', 'BROWSER_SEND_APPROVAL_UNAVAILABLE')
     const outcome = await approval.request({
       agent: callingAgent(exec), toolName: exec.name, callId: exec.callId, signal: exec.signal,
-      ...sendApproval(site, action),
+      ...sendApproval(site, found.action),
+      ...found.outbound === undefined ? {} : { outbound: found.outbound },
     })
     if (outcome !== 'allowed-once') throw new HarnessError('The user did not approve this action, so nothing was sent. Do not send it another way; ask the user what to change.', 'BROWSER_SEND_DENIED')
+    return guarded
   }
 
   /**
@@ -687,7 +780,7 @@ export function apply(ctx: Context, config: Config): void {
           )
         }
       }
-      await approveSend(operation, input, exec)
+      input = await approveSend(operation, input, exec)
       if (operation === 'upload') input = await uploadInput(input, exec)
       if (operation === 'clipboard' && input.action === 'read') await approveClipboardRead(exec)
       if (operation === 'history') {

@@ -51,36 +51,83 @@ export function pageSite(url: string | undefined): PageSite {
   return { kind: 'site', site: parsed.hostname.toLowerCase().replace(/^www\./, '') }
 }
 
-/** Publishing verbs in the languages Aeven's users browse in, matched as whole words. */
-const SEND_WORDS = new RegExp(
-  '(?<![\\p{L}\\p{N}])(?:'
-  + [
-    // English
-    'send', 'post', 'publish', 'submit', 'create', 'reply', 'comment', 'share', 'tweet', 'repost', 'retweet', 'invite', 'connect',
-    // Dutch
-    'verzenden', 'versturen', 'verstuur', 'verzend', 'plaatsen', 'plaats', 'publiceren', 'publiceer', 'delen', 'deel', 'reageren', 'reageer', 'beantwoorden', 'aanmaken', 'indienen', 'uitnodigen', 'verbinden',
-    // Spanish
-    'enviar', 'publicar', 'responder', 'comentar', 'compartir', 'crear', 'invitar', 'conectar',
-    // German
-    'senden', 'absenden', 'veröffentlichen', 'posten', 'antworten', 'kommentieren', 'teilen', 'erstellen', 'einladen', 'vernetzen',
-    // French
-    'envoyer', 'publier', 'répondre', 'commenter', 'partager', 'créer', 'inviter', 'se connecter',
-  ].join('|')
-  + ')(?![\\p{L}\\p{N}])',
-  'iu',
-)
+/**
+ * What clicking a control with a publishing verb delivers, by the verb that
+ * opens its label: `reply`, `comment`, `send`, and `post` publish composed
+ * text, `repost` and `invite` publish without any, `submit` sends a form, and
+ * `commit` (Save, Update) publishes only when it saves composed text, such as
+ * an edit of a posted comment.
+ */
+export type PublishVerb = 'reply' | 'comment' | 'send' | 'post' | 'repost' | 'invite' | 'submit' | 'commit'
 
-/** Publishing verbs in Chinese, which has no word boundaries to match on. */
-const SEND_WORDS_CJK = /发送|發送|发布|發布|發佈|提交|回复|回覆|评论|評論|分享|创建|建立|邀请|邀請/
+/** Publishing verbs in the languages Aeven's users browse in (English, Dutch, Spanish, German, French, Chinese). */
+const PUBLISH_VERBS: Readonly<Record<PublishVerb, readonly string[]>> = {
+  reply: ['reply', 'beantwoorden', 'beantwoord', 'responder', 'antworten', 'répondre', '回复', '回覆'],
+  comment: ['comment', 'reageren', 'reageer', 'comentar', 'kommentieren', 'commenter', '评论', '評論'],
+  send: ['send', 'verzenden', 'versturen', 'verstuur', 'verzend', 'enviar', 'senden', 'absenden', 'envoyer', '发送', '發送'],
+  post: ['post', 'publish', 'share', 'tweet', 'plaatsen', 'plaats', 'publiceren', 'publiceer', 'delen', 'deel', 'publicar', 'compartir', 'veröffentlichen', 'posten', 'teilen', 'publier', 'partager', '发布', '發布', '發佈', '分享'],
+  repost: ['repost', 'retweet'],
+  invite: ['invite', 'connect', 'uitnodigen', 'verbinden', 'invitar', 'conectar', 'einladen', 'vernetzen', 'inviter', 'se connecter', '邀请', '邀請'],
+  submit: ['submit', 'create', 'indienen', 'aanmaken', 'crear', 'erstellen', 'créer', '提交', '创建', '建立'],
+  commit: ['save', 'update', 'opslaan', 'bewaren', 'bijwerken', 'guardar', 'actualizar', 'speichern', 'aktualisieren', 'enregistrer', 'mettre à jour', '保存', '儲存', '更新'],
+}
+
+/** Han characters, which carry no word boundary after a verb. */
+const HAN = /\p{Script=Han}/u
 
 /**
- * Whether a control's accessible label names a publishing action.
+ * Regular-expression source matching a label that opens with one verb of a group:
+ * whole words for alphabetic verbs, a prefix for Chinese ones.
+ * @param verbs - the group's verbs.
+ * @returns the source, for the `iu` flags.
+ */
+function leadingSource(verbs: readonly string[]): string {
+  const words = verbs.filter(verb => !HAN.test(verb)).map(escapeSource)
+  const han = verbs.filter(verb => HAN.test(verb))
+  return `^\\s*(?:(?:${words.join('|')})(?![\\p{L}\\p{N}])${han.length > 0 ? `|${han.join('|')}` : ''})`
+}
+
+/** Per verb group, the source of a pattern matching a label that opens with that verb; page scripts embed it. */
+export const PUBLISH_VERB_SOURCES: Readonly<Record<PublishVerb, string>> = Object.fromEntries(
+  Object.entries(PUBLISH_VERBS).map(([verb, verbs]) => [verb, leadingSource(verbs)]),
+) as Record<PublishVerb, string>
+
+const LEADING = Object.entries(PUBLISH_VERB_SOURCES).map(([verb, source]) => [verb as PublishVerb, new RegExp(source, 'iu')] as const)
+
+/**
+ * The publishing verb a control's label opens with.
  * @param label - the accessible name or visible text of the control.
- * @returns true when the label contains a publishing verb.
+ * @returns the verb group, or undefined when the label does not open with a publishing verb.
+ */
+export function publishVerb(label: string): PublishVerb | undefined {
+  return LEADING.find(([, pattern]) => pattern.test(label))?.[0]
+}
+
+/**
+ * Whether a control's accessible label names a publishing action: it opens with
+ * a verb that publishes, such as "Send", "Post comment", or "Reply". A label
+ * that merely mentions one ("View more options for Ann's comment") does not;
+ * neither does a Save or Update, which publishes only when it saves composed
+ * text that the caller cannot see here.
+ * @param label - the accessible name or visible text of the control.
+ * @returns true when the label opens with a publishing verb.
  */
 export function isSendLabel(label: string): boolean {
-  return SEND_WORDS.test(label) || SEND_WORDS_CJK.test(label)
+  const verb = publishVerb(label)
+  return verb !== undefined && verb !== 'commit'
 }
+
+/** Escape a literal for a regular-expression source. */
+function escapeSource(literal: string): string {
+  return literal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/** Any publishing verb anywhere in a text, for a page script whose clicked control is not known. */
+const MENTIONS_VERB = new RegExp(
+  `(?<![\\p{L}\\p{N}])(?:${Object.values(PUBLISH_VERBS).flat().filter(verb => !HAN.test(verb)).map(escapeSource).join('|')})(?![\\p{L}\\p{N}])`
+  + `|${Object.values(PUBLISH_VERBS).flat().filter(verb => HAN.test(verb)).join('|')}`,
+  'iu',
+)
 
 /** Accessibility roles that commit an action when clicked; links navigate instead. */
 const SEND_ROLES = new Set(['button', 'menuitem', 'menuitemradio', 'menuitemcheckbox', 'option'])
@@ -123,7 +170,18 @@ const SCRIPT_WRITES = /\bmethod\s*:\s*['"`](?:POST|PUT|PATCH|DELETE)['"`]/i
  * @returns true for a script that may publish.
  */
 export function isSendScript(source: string): boolean {
-  return SCRIPT_WRITES.test(source) || (SCRIPT_ACTS.test(source) && isSendLabel(source))
+  return SCRIPT_WRITES.test(source) || (SCRIPT_ACTS.test(source) && MENTIONS_VERB.test(source))
+}
+
+/**
+ * Whether a page script sends a writing request (`fetch` or `XMLHttpRequest`
+ * with POST, PUT, PATCH, or DELETE). Clicks and submissions are confined in
+ * the page instead (see `./outbound-probe.ts`).
+ * @param source - the script's source text.
+ * @returns true for a script that writes to a server.
+ */
+export function isWriteScript(source: string): boolean {
+  return SCRIPT_WRITES.test(source) || /new\s+XMLHttpRequest|sendBeacon\s*\(/.test(source)
 }
 
 /** The approval a send-like browser action asks for. */

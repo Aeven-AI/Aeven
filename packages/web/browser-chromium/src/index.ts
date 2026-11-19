@@ -45,8 +45,10 @@ import { DevtoolsSendGate } from './devtools-gate.ts'
 import type { BrowserChromiumOpened, BrowserChromiumStatus } from './types.ts'
 
 export type { BrowserChromiumOpened, BrowserChromiumStatus } from './types.ts'
-export { isLocalHost, isSendControl, isSendKey, isSendLabel, isSendScript, pageSite, sendApproval } from './send-gate.ts'
-export type { PageSite, SendApproval } from './send-gate.ts'
+export { isLocalHost, isSendControl, isSendKey, isSendLabel, isSendScript, isWriteScript, pageSite, publishVerb, sendApproval } from './send-gate.ts'
+export type { PageSite, PublishVerb, SendApproval } from './send-gate.ts'
+export { guardScript, outboundProbe } from './outbound-probe.ts'
+export type { OutboundProbe, PageOutbound, PageOutboundKind } from './outbound-probe.ts'
 
 /** Schemes the browser may be opened at. */
 const OPENABLE_PROTOCOLS = new Set(['http:', 'https:'])

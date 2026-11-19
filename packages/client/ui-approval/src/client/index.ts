@@ -15,6 +15,8 @@ export type {
   ApprovalComposerProps,
   ApprovalDecision,
   ApprovalDetailOwnerProps,
+  ApprovalOutbound,
+  ApprovalOutboundKind,
   ApprovalPresentationRequest,
   PendingApproval,
 } from './contract/slots.ts'
@@ -49,6 +51,7 @@ async function answerApproval(
       ? {}
       : { callId: request.callId }),
     ...(request.reason === undefined ? {} : { reason: request.reason }),
+    ...(request.outbound === undefined ? {} : { outbound: request.outbound }),
     ...(request.signal === undefined ? {} : { signal: request.signal }),
   })
   const completed = Promise.withResolvers<void>()

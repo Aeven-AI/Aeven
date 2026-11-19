@@ -2,7 +2,7 @@
 import { useState, type ReactNode } from 'react'
 import { Button } from '@aeven/client-ui-primitives'
 import type {
-  ApprovalComposerProps, ApprovalDecision, ApprovalSessionCoverage, PendingApproval,
+  ApprovalComposerProps, ApprovalDecision, ApprovalOutbound, ApprovalSessionCoverage, PendingApproval,
 } from './contract/slots.ts'
 import css from './ApprovalPanel.module.css'
 
@@ -15,15 +15,34 @@ const SESSION_NOTES: Record<ApprovalSessionCoverage, 'session' | 'sessionAction'
 }
 
 /**
- * Render one pending approval and its optional Tool-owned detail.
+ * Render the content a send-like action delivers, in the same labeled lines the
+ * correlated-call detail uses for an outbound message.
+ * @param outbound - what the action publishes.
+ * @param t - approval copy.
+ * @returns the labeled recipients, subject, and text, or null when the asker read none of them.
+ */
+function OutboundDetail({ outbound, t }: { outbound: ApprovalOutbound; t: ApprovalComposerProps['t'] }): ReactNode {
+  const lines = [
+    outbound.to === undefined ? undefined : [t('to'), outbound.to] as const,
+    outbound.subject === undefined ? undefined : [t('subject'), outbound.subject] as const,
+    outbound.text === undefined ? undefined : [t('message'), outbound.text] as const,
+  ].filter(line => line !== undefined)
+  if (lines.length === 0) return null
+  return <>{lines.map(([label, text]) => <div key={label}><strong>{label}</strong>{'\n'}{text}{'\n\n'}</div>)}</>
+}
+
+/**
+ * Render one pending approval and its optional Tool-owned detail; a request
+ * that carries what it publishes shows that content instead.
  * @param props - selector-matched request and standard Slot props.
  * @returns The approval composer takeover.
  */
 export function ApprovalPanel(props: ApprovalComposerProps) {
   const approval = props.matched
-  const detail = approval.callId === undefined
+  const outbound = approval.outbound === undefined ? null : <OutboundDetail outbound={approval.outbound} t={props.t} />
+  const detail = outbound ?? (approval.callId === undefined
     ? null
-    : props.renderSlot('conversation.approval.detail', { callId: approval.callId })
+    : props.renderSlot('conversation.approval.detail', { callId: approval.callId }))
   return <ApprovalFlow key={approval.key} pending={approval} detail={detail} t={props.t} />
 }
 
@@ -47,11 +66,14 @@ function ApprovalFlow({ pending, detail, t }: {
   const connectorId = connector?.[1]
   const provider = connectorId === undefined ? undefined : providers[connectorId] ?? connectorId
   const operation = connector?.[3]
-  const headline = provider === undefined || operation === undefined
-    ? pending.reason ?? t('escalation', { toolName: pending.toolName })
-    : /(?:send|post|reply).*?(?:message|draft)|chat_postMessage/i.test(operation)
-      ? t('send', { provider })
-      : t('action', { provider, operation: operation.replaceAll('_', ' ') })
+  const kind = pending.outbound?.kind
+  const headline = kind !== undefined
+    ? t(`outbound.${kind}`, { site: pending.outbound?.site ?? t('outbound.anySite') })
+    : provider === undefined || operation === undefined
+      ? pending.reason ?? t('escalation', { toolName: pending.toolName })
+      : /(?:send|post|reply).*?(?:message|draft)|chat_postMessage/i.test(operation)
+        ? t('send', { provider })
+        : t('action', { provider, operation: operation.replaceAll('_', ' ') })
   return (
     <div className={css.root} data-approval-key={pending.key}>
       <div className={css.card}>

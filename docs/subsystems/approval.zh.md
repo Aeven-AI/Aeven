@@ -57,7 +57,7 @@ type ApprovalPolicy = 'ask' | 'never'
 
 ## 审批请求
 
-`ApprovalRequest` 以足够精确的方式标识 agent 和工具操作，以便路由和审计该问题。它有意省略工具参数：应答者通过 `callId` 将提示附加到已流式输出的工具调用上，而非渲染另一份可能漂移的副本。
+`ApprovalRequest` 以足够精确的方式标识 agent 和工具操作，以便路由和审计该问题。它有意省略工具参数：应答者通过 `callId` 将提示附加到已流式输出的工具调用上，而非渲染另一份可能漂移的副本。内容不在参数中的类似发送的操作（例如发布输入框文本的浏览器点击）改为携带 `outbound`：它发布的内容类型（`reply`、`comment`、`message`、`email`、`post`、`edit`、`form`、`repost`、`invite`），以及发出前读取到的站点、收件人、主题和文本。审批提示以该类型开头（「在 linkedin.com 发布这条回复」）并显示内容，`approval/asked` 会记录它。
 
 ```ts type-equiv
 /**

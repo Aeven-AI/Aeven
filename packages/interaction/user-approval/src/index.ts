@@ -43,7 +43,7 @@ import { ApprovalRequestId } from './types.ts'
 import type { ApprovalAnswer, ApprovalOutcome, ApprovalRequestEvent } from './types.ts'
 
 export { ApprovalRequestId } from './types.ts'
-export type { ApprovalOutcome, SessionGrantCoverage } from './types.ts'
+export type { ApprovalOutbound, ApprovalOutboundKind, ApprovalOutcome, SessionGrantCoverage } from './types.ts'
 
 /** Every {@link ApprovalOutcome}, for runtime normalization of answerer returns. */
 const OUTCOMES: readonly ApprovalAnswer[] = ['allowed-session', 'allowed-once', 'rejected', 'cancelled', 'unavailable']
@@ -226,6 +226,7 @@ export class ApprovalService extends Service {
       ...req.reason !== undefined ? { reason: req.reason } : {},
       ...(req.allowSession === undefined ? {} : { allowSession: req.allowSession }),
       ...(req.allowSessionCoverage === undefined ? {} : { allowSessionCoverage: req.allowSessionCoverage }),
+      ...(req.outbound === undefined ? {} : { outbound: req.outbound }),
     })
     const answer = await this.decide(req, session)
     const outcome = answer === 'allowed-session' ? 'allowed-once' : answer

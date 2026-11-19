@@ -53,6 +53,30 @@ export type ApprovalAnswer = ApprovalOutcome | 'allowed-session'
  */
 export type SessionGrantCoverage = 'action' | 'account' | 'sandbox' | 'privilege' | 'site'
 
+/**
+ * What a send-like action publishes: `reply`, `comment`, `message`, `email`,
+ * `post`, an `edit` of something already posted, a submitted `form`, a
+ * `repost`, or an `invite`.
+ */
+export type ApprovalOutboundKind = 'reply' | 'comment' | 'message' | 'email' | 'post' | 'edit' | 'form' | 'repost' | 'invite'
+
+/**
+ * The content a send-like action delivers, read before it goes out so the
+ * prompt can say "Post this reply" and show the text.
+ */
+export interface ApprovalOutbound {
+  /** What the action publishes; absent when the requester knows the content but not its kind, and the prompt then leads with `reason`. */
+  readonly kind?: ApprovalOutboundKind
+  /** The website the content goes to, without a leading `www.`; absent when unknown. */
+  readonly site?: string
+  /** Recipients, comma-separated. */
+  readonly to?: string
+  /** Subject line of an email. */
+  readonly subject?: string
+  /** The text that goes out. */
+  readonly text?: string
+}
+
 declare module '@aeven/session/types' {
   interface SessionEventMap {
     /**
@@ -72,6 +96,8 @@ declare module '@aeven/session/types' {
       allowSession?: string
       /** What the offered grant covers; absent means the requester's own action. */
       allowSessionCoverage?: SessionGrantCoverage
+      /** The content the action publishes, as the person was shown it. */
+      outbound?: ApprovalOutbound
     }
     /**
      * The outcome of a prior `approval/asked` (same `id`) — log-only audit.
@@ -104,6 +130,8 @@ export interface ApprovalRequestEvent {
    * requester's own terms; absent means the same action on the same subject.
    */
   readonly allowSessionCoverage?: SessionGrantCoverage
+  /** What a send-like action publishes, shown to the person with the reason. */
+  readonly outbound?: ApprovalOutbound
   /** Cancellation lifetime of the pending request. */
   readonly signal?: AbortSignal
 }
