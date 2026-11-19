@@ -201,7 +201,6 @@ export class AccountVault {
    * @param warn - receives dropped-frame diagnostics.
    * @param offload - the provider's sync worker for opening frames and compacting documents.
    * @param startedOver - called after the account's documents were dropped because its key changed.
-   * @param beforePage - awaited before each catch-up page request; it lets the Host's own traffic go first.
    */
   constructor(
     private readonly store: SyncStore,
@@ -211,7 +210,6 @@ export class AccountVault {
     private readonly warn: VaultWarn,
     private readonly offload: SyncOffload,
     private readonly startedOver: () => void,
-    private readonly beforePage: () => Promise<void>,
   ) {
     this.device = store.deviceId()
     this.received = store.relayCursor()
@@ -531,15 +529,13 @@ export class AccountVault {
    * Take the relay's backlog one page at a time: each page is requested only after the frames of the previous one
    * were applied, so a long history never sits in memory or on the event loop at once. The last page also
    * subscribes the connection to frames published from then on. A relay that ignores the page size pushes the
-   * whole backlog and answers without `more`; its frames are applied the same way. Each page first waits on
-   * {@link beforePage}, so a backlog of many megabytes does not share a thin uplink with a model request.
+   * whole backlog and answers without `more`; its frames are applied the same way.
    * @param relay - the open connection.
    */
   private async catchUp(relay: RelayConnection): Promise<void> {
     await this.fetchFirst(relay)
     for (;;) {
       await this.applied()
-      await this.beforePage()
       if (this.relay !== relay) return
       const answer = await relay.request('sync', { since: Math.max(this.received, this.store.relayCursor()), limit: this.tuning.pageFrames })
       if (answer.more !== true) break

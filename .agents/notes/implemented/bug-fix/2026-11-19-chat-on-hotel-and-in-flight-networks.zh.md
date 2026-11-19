@@ -14,19 +14,19 @@ Status: implemented
 
 ## 决定
 
-- `llm-aeven` 用 gzip 压缩聊天请求体（`requestCompression`，默认 `gzip`）；网关的 `express.json` 解析器会解压它。新对话的请求从 132 KB 降到约 39 KB。
+- `llm-aeven` 以最快级别用 gzip 压缩聊天请求体（`requestCompression`，默认 `gzip`）；网关的 `express.json` 解析器会解压它。新对话的请求从 132 KB 降到约 40 KB，554 KB 的请求压缩耗时 7 毫秒。托管 Host 设置 `requestCompression: none`：它位于 Cloudflare 旁的数据中心链路上，压缩没有收益。
 - `llm-aeven` 从第一次尝试起就内联发送图片（`imageTransport: 'inline'`），因此带图片的轮次不再把一次上传花在网关没有的 Files API 上。`llm-deepseek` 对官方 API 保持 `files-api` 和未压缩的请求体。
-- `llm-aeven` 每个请求最多保留 10 张图片和 1.5 MiB 内联图片数据，按每次 5 张图片或 768 KiB 移出最旧的图片。被移出的图片保留其占位符路径。
 - `TRANSPORT` 失败的消息末尾附上 fetch 原因链中最深一层带 code 的错误（`transportFailureMessage`），例如 `(ECONNRESET: read ECONNRESET)`。
-- 同步 relay 连接每隔 `heartbeatMs`（30 秒）发送一次 ping，静默一个完整间隔后重新连接。Host 上有任何 agent 运行时，每个追赶页最多等待 `catchUpYieldMs`（15 秒）。
-- 桌面外壳以 `--network-family-autoselection-attempt-timeout=1000` 启动 Host，因此比 Node 默认 250 毫秒更慢的握手不会被放弃而改试下一个解析出的地址。
+- 同步 relay 连接每隔 `heartbeatMs`（60 秒）发送一次 ping，使中间设备保留其映射；只有在 `silenceTimeoutMs`（300 秒）内没有收到任何内容时才重新连接。relay 至少每 120 秒 ping 一次空闲连接，因此排在慢速上传之后的 ping 不会结束健康的连接。
 
 ## 考虑过的替代方案
 
 - **把推理请求发到不经 Cloudflare 代理的主机名。** 暂不采用：它去掉了 15 秒限制，也去掉了 Cloudflare 的边缘节点，而更小的上传已经缩短了暴露时间。
 - **把每张图片向网关只上传一次并通过引用使用。** 推迟：它让模型看得到每张图片，但需要 `servers/node` 中的网关存储。
-- **在整个轮次期间暂停追赶。** 不采用：一个 computer-use 轮次会运行数分钟，而实时帧要等追赶完成订阅后才到达。
+- **每个请求保留更少的图片（10 张，1.5 MiB）。** 不采用：它把长对话的上传降到 246 KB，但模型看到的截图更少，1.5 MiB 预算配 768 KiB 步长甚至可能移出最新的图片，而且被移出的前缀每 5 张图片移动一次，使提示缓存失效的频率加倍。
+- **把 Node 每个地址 250 毫秒的连接尝试提高到 1 秒。** 不采用：Node 已经给最后一个地址不限时间，而在 macOS 上它是 IPv4 地址；悄悄失效的 IPv6 路径则会让每个新连接多等 750 毫秒。
+- **agent 运行时推迟追赶页。** 不采用：在快速链路上它只会延迟同步，一个 computer-use 轮次会运行数分钟，而托管 Host 上总有某个账户的轮次在运行。
 
 ## 影响
 
-带有许多截图的长对话中，模型看到的截图更少；模型通过占位符路径读取更早的截图。代理拒绝 `Content-Encoding: gzip` 的网关部署必须设置 `requestCompression: none`。如果客户端下一次失败日志写的是连接超时或 TLS 错误而不是重置，原因就在设备与 Cloudflare 之间，下一步应读取 Cloudflare 针对该航班地址的安全事件。
+代理拒绝 `Content-Encoding: gzip` 的网关部署必须设置 `requestCompression: none`。如果客户端下一次失败日志写的是连接超时或 TLS 错误而不是重置，原因就在设备与 Cloudflare 之间，下一步应读取 Cloudflare 针对该航班地址的安全事件。

@@ -66,7 +66,7 @@ function device(owner: string, tuning: VaultTuning = TUNING): Device {
       expect(vault.ready()).toBe(true)
       expect(() => vault.documentId('memory')).not.toThrow()
     }
-  }, (id) => { documents.push(id) }, warn, offload, vi.fn(), () => Promise.resolve())
+  }, (id) => { documents.push(id) }, warn, offload, vi.fn())
   return { store, vault, warn, documents }
 }
 
@@ -74,7 +74,7 @@ async function connect(owner: string, target: Device, beforeAttach?: (connection
   const connection = await RelayConnection.open(relay.url, { scheme: 'Bearer', token: `ok-${owner}` }, {
     frame: (seq, frame) => { target.vault.receiveFrame(seq, frame) },
     closed: () => { target.vault.detach() },
-  }, 2000, 2000, 0)
+  }, 2000, 2000, 0, 0)
   connections.push(connection)
   beforeAttach?.(connection)
   await target.vault.attach(connection)
@@ -389,7 +389,7 @@ describe('an account whose key passkeys hold', () => {
     const store = new SyncStore(join(dir, 'sync.db'), owner)
     const warn = vi.fn()
     const startedOver = vi.fn()
-    const vault = new AccountVault(store, TUNING, () => {}, () => {}, warn, offload, startedOver, () => Promise.resolve())
+    const vault = new AccountVault(store, TUNING, () => {}, () => {}, warn, offload, startedOver)
     return { store, vault, warn, documents: [], startedOver }
   }
 

@@ -43,13 +43,11 @@
     "@aeven/deque": "workspace:^"
   },
   "peerDependencies": {
-    "@aeven/agent": "workspace:^",
     "@aeven/credentials": "workspace:^",
     "@aeven/sync": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
-    "@aeven/agent": "workspace:^",
     "@aeven/credentials": "workspace:^",
     "@aeven/sync": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",

@@ -93,6 +93,13 @@
 # the sync grant the relay issues on the first signed-in connection, so an
 # account is current before its browser opens. Its memory is built as soon as
 # it syncs rather than at its first turn.
+# This Host reaches the gateway over a datacenter link beside Cloudflare, where compressing each chat request saves no
+# meaningful time and spends CPU every account's turns share.
+- id: llm-aeven
+  config:
+    apiUrl: !!js process.env.AEVEN_API_URL ?? 'http://localhost:9000'
+    requestCompression: none
+
 - id: sync-yjs
   config:
     relayUrl: !!js process.env.AEVEN_SYNC_URL ?? 'wss://aeven.io/sync'
