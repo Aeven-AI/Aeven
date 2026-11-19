@@ -290,7 +290,7 @@ describe('WorkspaceRegistry lifecycle and bootstrap', () => {
     await first.fiber.dispose()
 
     const second = await harness({ pool, sessions: [header('late', late, 100)] })
-    expect(second.list).not.toHaveBeenCalled()
+    // The listing starts while the domain opens; an initialized registry leaves its headers unread.
     expect(second.registry.list()).toEqual([])
     expect(storedState(pool)).toEqual({ initialized: true, workspaceIds: [], archivedSessionIds: [] })
   })

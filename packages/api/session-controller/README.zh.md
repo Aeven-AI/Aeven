@@ -27,7 +27,7 @@ kind: "package-reference"
 
 每个 endpoint 都声明自己的激活策略。列表、搜索、附件、历史页、日志跟随、skill 发现和工作区路径打开可以在不激活 Agent 的情况下检查 persistence；`canOpenWorkspacePath()` 无需指定 Session 即可报告原生打开能力。queue 变更与取消要求 live 状态；模型、重命名、prompt 和文件引用操作可以解析或恢复普通 Session。只有 create 与 fork 会直接创建新 Agent。skill 目录则优先使用已有 live Agent，否则使用所记录 preset 的常驻 scope，因此列表查询绝不会启动 Agent。
 
-`list()` 的行携带部分投影提示。它们省略 `imageLimits` 与 `fileIntake`：这两个值来自 Host 配置，对每个 Session 都相同；打开 Session 的历史快照会携带二者。
+`list()` 的行携带部分投影提示。它们省略 `imageLimits` 与 `fileIntake`：这两个值来自 Host 配置，对每个 Session 都相同；打开 Session 的历史快照会携带二者。指定了 `projections` 的请求，每行只收到这些键和 `sessionListMetadata`；Web 客户端先用一次只请求 `title` 与 `schedule` 的请求绘制各行，再用第二次不加过滤的请求读取完整提示。
 
 在把会话限定给其所属账户的 Host 上，内容搜索只向搜索提供方请求调用者自己的会话（`owner` 过滤器），因此其他账户的匹配结果不会把调用者的结果挤出页面；每个命中仍会经过授权检查。没有工作目录的同步聊天通过会话运行租约在接收输入的设备上继续；缺少本地文件夹不会使它们固定在先前的写入设备上。最近一回合在始终在线设备（例如 Aeven Cloud）上运行的聊天是例外：在其他设备上输入的开启回合的输入，会连同本设备的会话凭据一起转发给该设备，因此它以发送者的模型访问权限运行。`placement` 列出同步对话可以去的桌面设备，以及每台是否在线、是否为对话的归属设备：在始终在线 Host 上是账户的每台桌面设备，在桌面设备上先是本机（`self`），然后是其他桌面设备。`continueOn` 把空闲对话移到本设备（`here`）或列出的某台在线桌面设备（`desktop` 加其 `device`），以 `gateway/bad-request` 拒绝离线的桌面设备，回合运行期间以 `session/agent-busy` 拒绝。
 

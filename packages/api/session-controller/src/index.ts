@@ -380,13 +380,14 @@ The user's account display name is ${JSON.stringify(source.clientDisplayName)}.
 
   /**
    * Read all visible Session rows without resuming an Agent.
-   * @param _request - reserved empty list request.
+   * @param _request - the projection keys each row's hints carry, when the caller limits them. The parameter keeps
+   * its name because the name is the wire argument, and a Web client of another release sends it.
    * @param signal - cancellation for persistence reads.
    * @returns visible Session summaries ordered by activity.
    */
   @Remote('list')
   async list(_request: SessionListRequest, signal: AbortSignal): Promise<SessionListValue> {
-    return { items: await this.listState.list(signal) }
+    return { items: await this.listState.list(signal, _request.projections) }
   }
 
   /**

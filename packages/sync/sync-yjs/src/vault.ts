@@ -3,6 +3,7 @@
  * passkeys, open Yjs documents, and the exchange of sealed frames with the relay. Frames are applied in relay order;
  * the relay delivers each connection's frames in sequence order, which the per-sender counter check relies on.
  */
+import { timingSafeEqual } from 'node:crypto'
 import * as Y from 'yjs'
 import { Deque } from '@aeven/deque'
 import {
@@ -177,6 +178,13 @@ export class AccountVault {
   private lanSend: ((frame: Uint8Array) => void) | undefined
   private readonly streamWatchers = new Map<OpaqueId, Set<(payload: Uint8Array) => void>>()
   private readonly docs = new Map<OpaqueId, OpenDoc>()
+  /**
+   * Ids already derived under {@link documentIdsKey}. Every derivation is a keyed hash, and status reads, routing,
+   * and each account's documents ask for the same names thousands of times while a Host starts.
+   */
+  private readonly documentIds = new Map<string, OpaqueId>()
+  /** The account key {@link documentIds} was derived under; another key empties the map. */
+  private documentIdsKey: Uint8Array | undefined
   /** Frames the relay delivered that wait to be applied, in sequence order. */
   private readonly inbound = new Deque<{ seq: number; frame: Uint8Array }>()
   /** The highest sequence number received, applied or still waiting; the next page starts after it. */
@@ -801,7 +809,17 @@ export class AccountVault {
    * @returns the id the relay and `sync/document` use.
    */
   documentId(name: string): OpaqueId {
-    return opaqueIdOf(this.requireKey(), name)
+    const key = this.requireKey()
+    if (this.documentIdsKey === undefined || !timingSafeEqual(key, this.documentIdsKey)) {
+      this.documentIds.clear()
+      this.documentIdsKey = key
+    }
+    let id = this.documentIds.get(name)
+    if (id === undefined) {
+      id = opaqueIdOf(key, name)
+      this.documentIds.set(name, id)
+    }
+    return id
   }
 
   /**

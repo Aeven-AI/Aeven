@@ -58,7 +58,8 @@ describe('list lifecycle', () => {
     expect(manager.getListSnapshot().state).toBe('loading')
     gate.resolve(ok({ items: [summary(S2, { updatedAt: 200 }), summary(S1)] as never[] }))
     await Promise.all([first, second])
-    expect(api.callsOf('session.list')).toHaveLength(1)
+    // One rows request for both callers, then the one unfiltered request that reads the complete hints.
+    expect(api.callsOf('session.list')).toEqual([{ projections: ['title', 'schedule'] }, {}])
     const snapshot = manager.getListSnapshot()
     expect(snapshot.state).toBe('idle')
     expect(snapshot.items.map(i => i.sessionId)).toEqual([S2, S1])

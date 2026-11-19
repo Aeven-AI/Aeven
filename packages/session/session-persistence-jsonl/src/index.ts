@@ -246,6 +246,10 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
   private readonly listed = new Map<string, { readonly revision: PersistenceRevision; readonly artifact: ListedArtifact }>()
   /** The log path each listed or looked-up session was last read at, so {@link snapshot} reads one directory. */
   private readonly listedPaths = new Map<SessionId, string>()
+  /** The listing in flight, shared by its callers; see `listArtifacts`. */
+  private listing: Promise<ListedArtifact[]> | undefined
+  /** The one listing queued behind {@link listing} for callers that arrived while it ran. */
+  private listingAfter: Promise<ListedArtifact[]> | undefined
   /** Whether {@link listed} was filled from the saved listing index of an earlier run. */
   private listingIndexLoaded = false
   /** Whether {@link listed} changed since it was last saved. */
@@ -714,10 +718,42 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
     return found === undefined ? undefined : { header: found.header, revision: found.revision }
   }
 
+  /**
+   * List every stored session's header artifact. Callers that ask while a listing runs share one listing that starts
+   * after it, so each caller's result is read after its call while a burst of callers costs two listings rather than
+   * one each: every listing probes every session directory, and several account mirrors ask at once during startup.
+   * @param signal - optional cancellation for this caller's wait; the shared read itself runs to completion.
+   * @returns this caller's own copies of the listed artifacts.
+   */
   private async listArtifacts(signal?: AbortSignal): Promise<ListedArtifact[]> {
     signal?.throwIfAborted()
-    await this.ensureRootEncoding()
+    let listing: Promise<ListedArtifact[]>
+    if (this.listing === undefined) {
+      listing = this.startListing()
+    } else {
+      this.listingAfter ??= this.listing.then(() => undefined, () => undefined).then(() => {
+        this.listingAfter = undefined
+        // A caller that arrived after the earlier listing settled already started one that postdates every waiter.
+        return this.listing ?? this.startListing()
+      })
+      listing = this.listingAfter
+    }
+    const artifacts = await listing
     signal?.throwIfAborted()
+    // Callers own the headers they receive.
+    return artifacts.map(artifact => ({ ...artifact, header: { ...artifact.header } }))
+  }
+
+  private startListing(): Promise<ListedArtifact[]> {
+    const listing = this.readArtifacts().finally(() => {
+      if (this.listing === listing) this.listing = undefined
+    })
+    this.listing = listing
+    return listing
+  }
+
+  private async readArtifacts(): Promise<ListedArtifact[]> {
+    await this.ensureRootEncoding()
     await this.loadListingIndex()
     const artifacts: ListedArtifact[] = []
     const ids = new Set<SessionId>()
@@ -726,15 +762,13 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
     // and a bounded header read), and doing them one directory at a time made
     // listing latency the sum of every session's I/O rather than its slowest.
     const dirs: string[] = []
-    for (const project of await this.listProjectDirs(signal)) {
-      signal?.throwIfAborted()
-      dirs.push(...await this.listSessionDirs(project, signal))
+    for (const project of await this.listProjectDirs()) {
+      dirs.push(...await this.listSessionDirs(project))
     }
-    signal?.throwIfAborted()
     const read = await mapConcurrent(
       dirs,
       LIST_READ_CONCURRENCY,
-      dir => this.readArtifactHeader(dir, signal),
+      dir => this.readArtifactHeader(dir),
     )
     const present = new Set(read.flatMap(artifact => artifact === undefined ? [] : [artifact.path]))
     for (const [path, entry] of this.listed) {
@@ -753,7 +787,6 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
       ids.add(artifact.header.id)
       artifacts.push(artifact)
     }
-    signal?.throwIfAborted()
     void this.startConsolidationSweep(artifacts)
     if (this.listingIndexDirty && !this.closed) {
       this.listingIndexSave = (this.listingIndexSave ?? Promise.resolve()).then(() => this.saveListingIndex())
