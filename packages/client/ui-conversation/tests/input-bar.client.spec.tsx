@@ -783,7 +783,7 @@ describe('Enter semantics', () => {
 })
 
 describe('running and lock semantics', () => {
-  it('running switches the primary between Stop and Queue Send with the draft', async () => {
+  it('running switches the primary between Stop and Send, which follows the busy-state preference', async () => {
     const { textarea, button, stop, sink, shell } = bench({ running: true, busyEnter: 'steer' })
     expect(textarea.getAttribute('aria-disabled')).not.toBe('true')
     expect(button.getAttribute('aria-label')).toBe('停止生成')
@@ -797,7 +797,7 @@ describe('running and lock semantics', () => {
     writeDraft(shell, '排队消息2')
     expect(button.getAttribute('aria-label')).toBe('发送消息')
     fireEvent.click(button)
-    expect(sink).toHaveBeenCalledWith('排队消息2', [], 'queue', expect.any(AbortSignal))
+    expect(sink).toHaveBeenCalledWith('排队消息2', [], 'steer', expect.any(AbortSignal))
     await vi.waitFor(() => { expect(button.getAttribute('aria-label')).toBe('停止生成') })
     expect(stop).toHaveBeenCalledTimes(1)
   })
@@ -809,7 +809,7 @@ describe('running and lock semantics', () => {
       file: new File([Uint8Array.of(1)], 'pixel.png', { type: 'image/png' }),
       previewUrl: 'blob:pixel',
     }
-    const { button, sink } = bench({ running: true, attachments: [attachment] })
+    const { button, sink } = bench({ running: true, busyEnter: 'queue', attachments: [attachment] })
     expect(button.getAttribute('aria-label')).toBe('发送消息')
     fireEvent.click(button)
     expect(sink).toHaveBeenCalledWith('', ['draft-1'], 'queue', expect.any(AbortSignal))
