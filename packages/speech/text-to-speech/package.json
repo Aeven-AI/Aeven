@@ -1,7 +1,7 @@
 {
   "name": "@aeven/text-to-speech",
   "description": "Speech synthesis service with named providers and explicit language-to-voice resolution",
-  "version": "0.3.62-alpha",
+  "version": "0.3.63-alpha",
   "publishConfig": {
     "access": "public"
   },
