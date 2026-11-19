@@ -14,7 +14,7 @@ import type {
   SlotHookFactory, SnapshotSelectorHook,
 } from '@aeven/client-ui-slots'
 import type { ObservableSnapshot, SnapshotStore } from '@aeven/client-store'
-import type { MarkdownFileMentions } from '@aeven/client-ui-primitives'
+import type { MarkdownFileLinks, MarkdownFileMentions } from '@aeven/client-ui-primitives'
 import type {} from '@aeven/client-ui-layout/client'
 import type { createChatStore } from '../stores.ts'
 import type { ToolCallId, SelectionTarget } from './store.ts'
@@ -43,6 +43,9 @@ export interface TurnTailOwnerProps {
   openFile: (path: string) => void
 }
 
+/** Owner currency of prose file links, which any Assistant step of a Session may carry. */
+export type FileLinkOwnerProps = Pick<TurnTailOwnerProps, 'cwd' | 'openFile'>
+
 /** Owner currency of finalized-assistant actions. */
 export interface AssistantActionOwnerProps {
   messageId: MessageId
@@ -65,6 +68,13 @@ export interface ChatFileMentions {
    * @returns link resolver when available.
    */
   forClosing(owner: TurnTailOwnerProps, sessionId: SessionId): MarkdownFileMentions | undefined
+  /**
+   * Resolve prose links whose destination is a local path, for any Assistant step of one Session.
+   * @param owner - the Session workspace root and file opener.
+   * @param sessionId - the Session whose workspace and stored copies a link may open.
+   * @returns link resolver.
+   */
+  forLinks(owner: FileLinkOwnerProps, sessionId: SessionId): MarkdownFileLinks
 }
 
 declare module '@deepseek-ai/cordis' {
@@ -119,6 +129,8 @@ export interface ChatNodeOwnerProps {
   /** Generated image calls and artifacts owned by this Turn. */
   generatedImages?: import('./generated-images.ts').GeneratedImages | undefined
   fileMentions: (owner: TurnTailOwnerProps) => MarkdownFileMentions | undefined
+  /** Resolver for prose links to local paths; undefined renders such links as text. */
+  fileLinks: (owner: FileLinkOwnerProps) => MarkdownFileLinks | undefined
   /** Keep the transcript on its live tail after streamed Markdown renders. */
   scrollDown?: (() => void) | undefined
   /** A transcript block took the viewport, or gave it back. */
@@ -222,6 +234,8 @@ export interface ChatViewInjected {
   }
   forkAt: (seq: number) => void
   fileMentions: (owner: TurnTailOwnerProps) => MarkdownFileMentions | undefined
+  /** Resolver for prose links to local paths; undefined renders such links as text. */
+  fileLinks: (owner: FileLinkOwnerProps) => MarkdownFileLinks | undefined
   /**
    * A transcript block took the viewport, or gave it back. The block covers
    * the viewport on its own; only the shell knows the chrome that has to yield

@@ -7,7 +7,7 @@
       #text "mailto ok"
     #text "."
   <p>
-    <a href="/settings" rel="noreferrer" target="_blank">
+    <span>
       #text "relative dropped"
     #text " and "
     <a rel="noreferrer" target="_blank">

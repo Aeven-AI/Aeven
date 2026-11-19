@@ -217,6 +217,45 @@ describe('MarkdownText', () => {
     expect(streamed.container.querySelector('button')).toBeNull()
   })
 
+  it('opens local-path links through the file-link resolver and leaves web links and footnotes to the engine', () => {
+    const opened: string[] = []
+    const fileLinks = {
+      resolve: (href: string) => href === 'Applications/Open/Letter%20Open.pdf'
+        ? {
+          href: 'https://app.test/api/workspace-file?path=letter',
+          title: 'Applications/Open/Letter Open.pdf',
+          open: () => { opened.push(href) },
+        }
+        : undefined,
+    }
+    const source = [
+      '[letter](Applications/Open/Letter%20Open.pdf) [gone](missing.pdf) [web](https://example.com/) [jump][^1]',
+      '| file |',
+      '| --- |',
+      '| [cell](Applications/Open/Letter%20Open.pdf) |',
+      '[^1]: The note.',
+    ].join('\n\n')
+    const { container } = render(<MarkdownText text={source} fileLinks={fileLinks} />)
+
+    // The resolved link carries the owner's URL, stays in this tab, and opens through the owner on click.
+    const letter = screen.getByRole('link', { name: 'letter' })
+    expect(letter.getAttribute('href')).toBe('https://app.test/api/workspace-file?path=letter')
+    expect(letter.getAttribute('title')).toBe('Applications/Open/Letter Open.pdf')
+    expect(letter.getAttribute('target')).toBeNull()
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true })
+    letter.dispatchEvent(click)
+    expect(click.defaultPrevented).toBe(true)
+    expect(opened).toEqual(['Applications/Open/Letter%20Open.pdf'])
+    // A table cell's link resolves the same way.
+    fireEvent.click(screen.getByRole('link', { name: 'cell' }))
+    expect(opened).toHaveLength(2)
+    // A path the owner does not resolve is text: the browser would send it to this app's origin.
+    expect(screen.getByText('gone').closest('a')).toBeNull()
+    // Web links and footnote references are the engine's own.
+    expect(screen.getByRole('link', { name: 'web' }).getAttribute('target')).toBe('_blank')
+    expect(container.querySelector('a[data-footnote-ref]')?.getAttribute('href')).toMatch(/#user-content-fn-1$/)
+  })
+
   it('a mention with its own menu suppresses the platform menu; one without leaves it alone', () => {
     const menus: string[] = []
     const open = () => {}
@@ -402,8 +441,7 @@ describe('MarkdownText', () => {
     const { container } = render(<MarkdownText text={markdown} />)
 
     expect(container.querySelector('script')).toBeNull()
-    // Relative LINK destinations stay allowed (see LINK_SAFETY). An absolute
-    // local path is allowed too, through this app's authenticated file route;
+    // An absolute local IMAGE path is allowed, through this app's authenticated file route;
     // relative, `file:` and other-scheme IMAGE destinations are not, because
     // they would either resolve against this app's own origin or hand the
     // reader a broken <img>.
@@ -424,10 +462,11 @@ describe('MarkdownText', () => {
       .find(paragraph => paragraph.textContent === 'script relative')
     // The unsafe destination is dropped rather than the element: an anchor
     // with no href navigates nowhere and carries no link role, so nothing
-    // reaches the reader as a link. The relative destination stays, for the
-    // same reason the relative image above does.
+    // reaches the reader as a link. A local path with no file-link resolver
+    // renders as its text, since this app's origin serves no page there.
     expect([...neutralized?.querySelectorAll('a') ?? []].map(anchor => anchor.getAttribute('href')))
-      .toEqual([null, '/settings'])
+      .toEqual([null])
+    expect(screen.getByText('relative').tagName).toBe('SPAN')
     // `noreferrer` implies `noopener` in every browser this ships to, so an
     // external destination still cannot reach the opener or the referrer.
     expect(screen.getByRole('link', { name: 'web' }).getAttribute('rel')).toBe('noreferrer')

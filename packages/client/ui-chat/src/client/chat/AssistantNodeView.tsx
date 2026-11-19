@@ -9,7 +9,7 @@ const ATTACHMENT_OBJECT_PATH = /\/attachments\/v1\/objects\/[0-9a-f]{2}\/([0-9a-
 /** Streaming, settled, and interrupted Assistant states share one keyed renderer instance. */
 export const AssistantNodeView = memo(function AssistantNodeView({
   node, sessionId, useTurnData, turnProcess, cwd, openFile, renderMessageImages, storedImageUrl, fileMentions,
-  scrollDown, onFullscreenChange, t,
+  fileLinks, scrollDown, onFullscreenChange, t,
 }: ChatNodeViewProps<'assistant-step'>) {
   const data = node.data
   const turn = node.location.kind === 'turn' || node.location.kind === 'step'
@@ -62,6 +62,9 @@ export const AssistantNodeView = memo(function AssistantNodeView({
     () => owner === undefined ? undefined : fileMentions(owner),
     [fileMentions, owner],
   )
+  // Every step resolves path links, not only the closing one: a reply that names a file it made earlier
+  // still links to it.
+  const links = useMemo(() => fileLinks({ cwd, openFile }), [cwd, fileLinks, openFile])
   const reasoningHidden = turnProcess !== undefined
     && turnProcess.foldable
     && ((turn?.status === 'open')
@@ -79,6 +82,7 @@ export const AssistantNodeView = memo(function AssistantNodeView({
       reasoningHidden={reasoningHidden}
       revealProcess={revealProcess}
       mentions={mentions}
+      links={links}
       scrollDown={scrollDown}
       onFullscreenChange={onFullscreenChange}
       t={t}

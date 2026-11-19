@@ -56,7 +56,10 @@ async function bench() {
   const openWorkspacePath = vi.fn<ClientRemote['session']['openWorkspacePath']>(
     () => Promise.resolve({ ok: true, value: { opened: true } }),
   )
-  new TestRemote(runtime.ctx, { session: { openWorkspacePath } })
+  const listWorkspace = vi.fn(() => Promise.resolve({
+    ok: true as const, value: { root: '/home/u/.aeven/chats', path: '', entries: [], truncated: false },
+  }))
+  new TestRemote(runtime.ctx, { session: { openWorkspacePath }, workspaceFiles: { list: listWorkspace } })
   runtime.ctx.provide('uiWorkspace', {
     connectWorkspace: vi.fn(async () => ROOT),
   } as never)
@@ -86,7 +89,7 @@ async function bench() {
     ) => ChatViewInjected)(id, instance.actions)
     return { instance, injected }
   }
-  return { runtime, layout, openWorkspacePath, session, chatViewApi }
+  return { runtime, layout, openWorkspacePath, listWorkspace, session, chatViewApi }
 }
 
 describe('Chat inject API', () => {
@@ -206,6 +209,17 @@ describe('Chat inject API', () => {
       error: new RemoteError('gateway/internal', 'xdg-open is not available', {}),
     })
     await expect(injected.openFile('src/b.ts')).rejects.toThrow('path open failed: xdg-open is not available')
+    expect(b.listWorkspace).not.toHaveBeenCalled()
+    await b.runtime.dispose()
+  })
+
+  it('resolves a chat without a cwd against the workspace root the Host reports', async () => {
+    const b = await bench()
+    const chat = 'session-chat' as SessionId
+    await b.runtime.sessions.add({ id: chat, summary: { title: 'C', displayTitle: 'C' }, session: sessionFakeFor() }, { current: false })
+    await b.chatViewApi(chat).injected.openFile('link-test/letter.pdf')
+    expect(b.listWorkspace).toHaveBeenCalledWith(chat, '', expect.any(AbortSignal))
+    expect(b.openWorkspacePath).toHaveBeenCalledWith({ path: '/home/u/.aeven/chats/link-test/letter.pdf' })
     await b.runtime.dispose()
   })
 
@@ -238,11 +252,16 @@ describe('Chat inject API', () => {
     const owner = {} as never
 
     expect(injected.fileMentions(owner)).toBeUndefined()
+    expect(injected.fileLinks(owner)).toBeUndefined()
     const mentions = { resolve: vi.fn() } as never
+    const links = { resolve: vi.fn() } as never
     const forClosing = vi.fn(() => mentions)
-    b.runtime.ctx.provide('chatFileMentions', { forClosing } as never)
+    const forLinks = vi.fn(() => links)
+    b.runtime.ctx.provide('chatFileMentions', { forClosing, forLinks } as never)
     expect(injected.fileMentions(owner)).toBe(mentions)
     expect(forClosing).toHaveBeenCalledWith(owner, ROOT)
+    expect(injected.fileLinks(owner)).toBe(links)
+    expect(forLinks).toHaveBeenCalledWith(owner, ROOT)
 
     expect(injected.chatScroll.read()).toBeNull()
     const position = { anchorKey: 'node-1', anchorTop: 4, scrollTop: 12 }

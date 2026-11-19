@@ -7,6 +7,7 @@ import type { HostObservable, InjectFace, PropsLocale } from '@aeven/client-ui-s
 import type { TurnTailOwnerProps } from '@aeven/client-ui-chat/client'
 import { basename, type ProducedFile } from './turn-deliverables.ts'
 import { revealLabel } from './file-menu.ts'
+import { openProducedFile } from './file-links.ts'
 import type { NS } from './locales.ts'
 import css from './ProducedFiles.module.css'
 
@@ -80,23 +81,9 @@ export function ProducedFiles({
   useEffect(() => { ensureWorkspacePathOpen() }, [ensureWorkspacePathOpen])
   const hostCanOpenPath = useWorkspacePathOpen(available => available === true)
   const canOpenPath = isLoopback && hostCanOpenPath
-  // The sidebar previews the file; the Host opens a path only where it is the reader's own desktop, and elsewhere the
-  // reader's browser downloads it, from its stored copy when the result recorded one: the conversation may run on
-  // another device of the account, whose folders this Host cannot read.
-  const openProducedFile = (file: ProducedFile): void => {
-    // A stored copy plays in the sidebar where this Host lacks the file, such as one another device wrote.
-    const preview = file.attachmentId === undefined ? previewFile(file.path) : previewFile(file.path, attachmentUrl(file.attachmentId))
-    void preview.then((previewed) => {
-      if (previewed) return
-      if (canOpenPath) {
-        openFile(file.path)
-        return
-      }
-      const link = document.createElement('a')
-      link.href = file.attachmentId === undefined ? fileUrl(file.path, true) : attachmentUrl(file.attachmentId, true)
-      link.rel = 'noopener'
-      link.click()
-    })
+  // A stored copy plays in the sidebar where this Host lacks the file, such as one another device wrote.
+  const openFileOfRow = (file: ProducedFile): void => {
+    openProducedFile(file, { previewFile, fileUrl, attachmentUrl, canOpenPath: () => canOpenPath, openFile })
   }
   const media = matched.filter((file) => {
     const kind = fileKindOf(basename(file.path))
@@ -117,11 +104,11 @@ export function ProducedFiles({
           src={file.attachmentId === undefined ? fileUrl(file.path) : attachmentUrl(file.attachmentId)} />
       ))}
       {edited.length > 0 && (
-        <FilesTable files={edited} openFile={openProducedFile} menu={menu} t={t}
+        <FilesTable files={edited} openFile={openFileOfRow} menu={menu} t={t}
           openWorkspace={canOpenPath ? () => { openFile('.') } : undefined} />
       )}
       {created.length > 0 && (
-        <FilesTable files={created} created openFile={openProducedFile} menu={menu} t={t}
+        <FilesTable files={created} created openFile={openFileOfRow} menu={menu} t={t}
           openWorkspace={canOpenPath ? () => { openFile('.') } : undefined} />
       )}
     </section>

@@ -21,8 +21,9 @@
  */
 
 import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import type { ComponentProps } from 'react'
 import HyperMarkdown, {
-  cjkPlugin, highlightPlugin, katexPlugin, mermaidPlugin,
+  cjkPlugin, highlightPlugin, katexPlugin, mermaidPlugin, MarkdownLink,
 } from '@aeven/client-hypermarkdown'
 import type {
   CodeComponentProps, ControlsConfig, HyperMarkdownHandle, RendererComponents, Translations,
@@ -114,6 +115,66 @@ export interface MarkdownFileMentions {
 }
 
 /**
+ * Local-file links in authored prose: the owner maps a link destination that
+ * names a file, not a web address, to that file's URL and opener. The renderer
+ * never sends such a destination to the browser as written, because the
+ * browser would resolve it against this app's origin, where no page exists.
+ */
+export interface MarkdownFileLinks {
+  /**
+   * Resolve one destination that has no scheme and is not a `#` fragment.
+   * @param href - The destination as authored, still percent-encoded.
+   * @returns The URL the anchor carries for copying, the opener a click runs,
+   * and a title naming the file where the owner knows its path; undefined
+   * renders the link text unlinked.
+   */
+  resolve(href: string): { href: string; open: () => void; title?: string | undefined } | undefined
+}
+
+/**
+ * Whether a link destination names a local file rather than a web address or
+ * an in-page jump: it has no URL scheme, is not protocol-relative, and is not
+ * a `#` fragment such as a footnote reference.
+ * @param href - The destination as authored.
+ * @returns True for a bare or absolute path.
+ */
+function isLocalDestination(href: string | undefined): href is string {
+  if (href === undefined || href === '' || href.startsWith('#') || href.startsWith('//')) return false
+  return !/^[a-z][a-z0-9+.-]*:/i.test(href)
+}
+
+/**
+ * Build the `a` component: a local-file destination goes through the owner's
+ * resolver, or renders as text when nothing resolves it, and every other link
+ * is the engine's own.
+ * @param fileLinks - The owner's resolver, when it has one.
+ * @returns A component map claiming `a`.
+ */
+function linkComponents(fileLinks: MarkdownFileLinks | undefined): RendererComponents {
+  return {
+    a: function Link(props: ComponentProps<typeof MarkdownLink>) {
+      if (!isLocalDestination(props.href)) return <MarkdownLink {...props} />
+      const target = fileLinks?.resolve(props.href)
+      if (target === undefined) return <span>{props.children}</span>
+      // Every click runs the opener: in the desktop shell a new-tab request for
+      // an app URL goes to the system browser, which cannot load it.
+      return (
+        <a
+          href={target.href}
+          title={target.title}
+          onClick={(event) => {
+            event.preventDefault()
+            target.open()
+          }}
+        >
+          {props.children}
+        </a>
+      )
+    },
+  }
+}
+
+/**
  * Engine plugins, built once at module scope: the renderer keys cached blocks
  * by component identity, so a per-render plugin object would remount them.
  * Math runs through KaTeX (the engine normalizes the `\(…\)` and `\[…\]`
@@ -143,10 +204,9 @@ const PLUGINS = {
 /**
  * Destination policy for untrusted output. The scheme allowlist is the part
  * that matters: `javascript:`, `data:` and every other scheme are refused for
- * both links and images. Relative destinations are allowed — they resolve
- * against this app's origin, which is a same-origin GET the renderer cannot
- * fully vouch for, but blocking them would also make it impossible to ever
- * show a relative asset, and this is a local single-user tool.
+ * both links and images. Scheme-less destinations pass the engine's check so
+ * that this component can claim them: a link through {@link MarkdownFileLinks}
+ * or as plain text, an image through the image resolver below.
  */
 const LINK_SAFETY = {
   allowedProtocols: ['http', 'https', 'mailto'],
@@ -296,6 +356,11 @@ interface MarkdownTextCommonProps {
   /** Toolbar controls for rendered blocks; omitted entries retain the engine defaults. */
   controls?: ControlsConfig | undefined
   fileMentions?: MarkdownFileMentions | undefined
+  /**
+   * Resolver for links whose destination is a local path; without one such a
+   * link renders as its text. Must be reference-stable, as `labels` is.
+   */
+  fileLinks?: MarkdownFileLinks | undefined
   /** Whether an authored image may render beside separately displayed artifacts. */
   imageVisible?: ((src: string) => boolean) | undefined
   /**
@@ -380,18 +445,20 @@ export function defuseClosingTag(text: string): string {
  * update; `labels` carries the localized copy this package cannot look up
  * itself, including the reasoning block's two headers when the source contains
  * reasoning, and `fileMentions` links inline-code tokens its resolver
- * recognizes as real files. `labels` must be reference-stable (memoized per
+ * recognizes as real files, and `fileLinks` opens links whose destination is a
+ * local path. `labels` must be reference-stable (memoized per
  * locale revision) — a new identity rebuilds the engine's component table and
  * remounts cached blocks. `labels.footnotes` is accepted but not yet applied:
  * the engine names that section itself, and overriding it needs a setting it
  * does not expose.
  * @returns A GFM document with TeX math rendered through KaTeX; raw HTML never
  * enters the DOM, link and image destinations are restricted to safe schemes,
- * and diagram fences stay code blocks.
+ * a local-path link never reaches the browser as written, and diagram fences
+ * stay code blocks.
  */
 export const MarkdownText = memo(function MarkdownText({
-  text, streaming = false, labels, controls, fileMentions, scrollDown, onFullscreenChange, variant = 'default',
-  animation: animationProp, imageVisible, imageUrl,
+  text, streaming = false, labels, controls, fileMentions, fileLinks, scrollDown, onFullscreenChange,
+  variant = 'default', animation: animationProp, imageVisible, imageUrl,
 }: MarkdownTextProps) {
   // A new override (the turn learned of a stored copy, for instance when older
   // history arrived) re-resolves every image already shown.
@@ -427,8 +494,8 @@ export const MarkdownText = memo(function MarkdownText({
   }, [labels])
 
   const components = useMemo(
-    () => codeComponents(fileMentions, streaming),
-    [fileMentions, streaming],
+    () => ({ ...codeComponents(fileMentions, streaming), ...linkComponents(fileLinks) }),
+    [fileMentions, fileLinks, streaming],
   )
 
   // A clicked image opens enlarged in the same dialog tool-result images use.

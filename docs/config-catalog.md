@@ -5559,6 +5559,16 @@ export interface Config {
   shareLedgerDirectory?: string
   /** Most bytes one account shares per UTC day across its conversations (default 2 GiB); needs `shareLedgerDirectory`. */
   shareMaxAccountBytesPerDay?: number
+  /**
+   * File extensions, without the dot, of the documents a foreground command
+   * that declares no `output_files` is checked for (default PDF, office,
+   * iWork, image, audio, and video formats; empty turns the check off). Every
+   * workspace file the command creates or changes whose extension the command
+   * text names, among these, is recorded and shared as if it had been declared.
+   */
+  detectOutputExtensions?: string[]
+  /** Most workspace entries the undeclared-output check visits before and after a command (default 5000). */
+  detectOutputMaxEntries?: number
 }
 
 /** One pre-approved skill script. */

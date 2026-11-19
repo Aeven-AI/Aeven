@@ -1,7 +1,7 @@
 import { Fragment, memo, useMemo, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { JsonBlock, MarkdownText } from '@aeven/client-ui-primitives'
-import type { MarkdownFileMentions } from '@aeven/client-ui-primitives'
+import type { MarkdownFileLinks, MarkdownFileMentions } from '@aeven/client-ui-primitives'
 import type { ChatNodeOwnerProps, ChatViewSlotProps } from '../contract/slots.ts'
 import type { AssistantBlock } from '@aeven/client-ui-conversation/client'
 import { markdownLabels } from '../markdown-labels.ts'
@@ -26,6 +26,8 @@ export interface AssistantMarkdownProps {
   revealProcess?: (() => void) | undefined
   /** Resolved prose file mentions for this Assistant's closing turn. */
   mentions?: MarkdownFileMentions | undefined
+  /** Resolver for prose links to local paths; without one they render as text. */
+  links?: MarkdownFileLinks | undefined
   /** Keep the transcript on its live tail after an engine render. */
   scrollDown?: ChatNodeOwnerProps['scrollDown']
   /** A block in this step took the viewport, or gave it back. */
@@ -102,7 +104,7 @@ export function runsOf(blocks: readonly AssistantBlock[]): StepRun[] {
  */
 export const AssistantMarkdown = memo(function AssistantMarkdown({
   blocks, streaming, interrupted, renderMessageImages, imageVisible, imageUrl,
-  reasoningHidden = false, revealProcess, mentions, scrollDown, onFullscreenChange, t,
+  reasoningHidden = false, revealProcess, mentions, links, scrollDown, onFullscreenChange, t,
 }: AssistantMarkdownProps) {
   // Stable per locale revision (t identity changes on switch): a fresh object
   // per render would rebuild MarkdownText's component table every chunk.
@@ -141,6 +143,7 @@ export const AssistantMarkdown = memo(function AssistantMarkdown({
                 streaming={streaming}
                 labels={labels}
                 fileMentions={mentions}
+                fileLinks={links}
                 scrollDown={scrollDown}
                 onFullscreenChange={onFullscreenChange}
               />

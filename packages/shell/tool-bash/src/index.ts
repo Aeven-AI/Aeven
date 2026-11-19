@@ -15,7 +15,7 @@ import { defineTool, TOOL_ABORTED } from '@aeven/tools'
 import type { GenericCallView, TerminalCallView, ToolExecution, ToolResult, ToolResultView } from '@aeven/tools'
 import { HarnessError } from '@aeven/llm'
 import type { Agent } from '@aeven/agent'
-import type { FsTarget } from '@aeven/fs'
+import type { FileSystem, FsTarget } from '@aeven/fs'
 import type { FileAttachmentRef, ImageAttachmentRef } from '@aeven/attachment'
 import type { JobId, JobRegistry } from '@aeven/jobs'
 import { sessionDirectory } from '@aeven/working-directory'
@@ -87,6 +87,16 @@ export interface Config {
   shareLedgerDirectory?: string
   /** Most bytes one account shares per UTC day across its conversations (default 2 GiB); needs `shareLedgerDirectory`. */
   shareMaxAccountBytesPerDay?: number
+  /**
+   * File extensions, without the dot, of the documents a foreground command
+   * that declares no `output_files` is checked for (default PDF, office,
+   * iWork, image, audio, and video formats; empty turns the check off). Every
+   * workspace file the command creates or changes whose extension the command
+   * text names, among these, is recorded and shared as if it had been declared.
+   */
+  detectOutputExtensions?: string[]
+  /** Most workspace entries the undeclared-output check visits before and after a command (default 5000). */
+  detectOutputMaxEntries?: number
 }
 
 /** Runtime configuration schema for the bash tool plugin. */
@@ -105,7 +115,71 @@ export const Config: z<Config> = z.object({
   shareMaxSessionBytes: z.natural().min(1).default(500 * 1024 * 1024),
   shareLedgerDirectory: z.string(),
   shareMaxAccountBytesPerDay: z.natural().min(1).default(2 * 1024 * 1024 * 1024),
+  detectOutputExtensions: z.array(z.string()).default([
+    'pdf', 'docx', 'doc', 'odt', 'rtf', 'epub', 'xlsx', 'xls', 'ods', 'csv', 'pptx', 'ppt', 'odp',
+    'pages', 'numbers', 'key', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'mp3', 'wav', 'm4a', 'mp4', 'mov', 'webm',
+  ]),
+  detectOutputMaxEntries: z.natural().min(1).default(5000),
 })
+
+/**
+ * The configured extensions a command's text names, as `.ext` ending a word.
+ * @param command - the command text.
+ * @param extensions - configured lower-case extensions without the dot.
+ * @returns the named extensions, lower-cased; empty when the command names none.
+ */
+function namedExtensions(command: string, extensions: ReadonlySet<string>): Set<string> {
+  const named = new Set<string>()
+  for (const match of command.matchAll(/\.([A-Za-z0-9]+)\b/g)) {
+    const extension = match[1]?.toLowerCase()
+    if (extension !== undefined && extensions.has(extension)) named.add(extension)
+  }
+  return named
+}
+
+/**
+ * The version of every file under `root` whose extension is configured, breadth first, skipping hidden directories
+ * and `node_modules`, and stopping after `maxEntries` visited entries.
+ * @param fs - the filesystem provider.
+ * @param root - the workspace root.
+ * @param extensions - lower-case extensions without the dot.
+ * @param maxEntries - most directory entries visited.
+ * @param signal - the call's lifetime.
+ * @returns each matching file's target and version, by target key.
+ */
+async function documentVersions(
+  fs: FileSystem,
+  root: FsTarget,
+  extensions: ReadonlySet<string>,
+  maxEntries: number,
+  signal: AbortSignal,
+): Promise<Map<string, { target: FsTarget; version: string | undefined }>> {
+  const found = new Map<string, { target: FsTarget; version: string | undefined }>()
+  const queue: FsTarget[] = [root]
+  let visited = 0
+  while (queue.length > 0 && visited < maxEntries) {
+    const dir = queue.shift() as FsTarget
+    let entries: Awaited<ReturnType<FileSystem['listDir']>>
+    try {
+      entries = await fs.listDir(dir, signal)
+    } catch {
+      // A directory the command removed or the Host cannot read holds no output this call can record.
+      continue
+    }
+    for (const entry of entries) {
+      if (++visited > maxEntries) break
+      if (entry.type === 'directory') {
+        if (!entry.name.startsWith('.') && entry.name !== 'node_modules') queue.push(entry.target)
+        continue
+      }
+      const dot = entry.name.lastIndexOf('.')
+      if (entry.type !== 'file' || dot <= 0 || !extensions.has(entry.name.slice(dot + 1).toLowerCase())) continue
+      const version = entry.version ?? (await fs.stat(entry.target, signal))?.version
+      found.set(String(entry.target.targetKey), { target: entry.target, version: version === undefined ? undefined : String(version) })
+    }
+  }
+  return found
+}
 
 /* jscpd:ignore-start -- the attachment-reference fields @aeven/tool-fs and @aeven/tool-media declare for their own results */
 /** Output schema of one image attachment shared at the call. */
@@ -346,6 +420,8 @@ export function apply(ctx: Context, config: Config = {}): void {
   const shareOutputFiles = config.shareOutputFiles ?? false
   const copyOutputFiles = config.copyOutputFiles ?? false
   if (shareOutputFiles && copyOutputFiles) throw new Error('tool-bash: shareOutputFiles and copyOutputFiles cannot both be on')
+  const detectExtensions = new Set((config.detectOutputExtensions ?? []).map(extension => extension.toLowerCase()))
+  const detectMaxEntries = config.detectOutputMaxEntries ?? 5000
   const ledger = shareOutputFiles && config.shareLedgerDirectory !== undefined
     ? new ShareLedger(config.shareLedgerDirectory, config.shareMaxAccountBytesPerDay ?? 2 * 1024 * 1024 * 1024)
     : undefined
@@ -609,38 +685,22 @@ export function apply(ctx: Context, config: Config = {}): void {
         avnEnv,
         ...policy !== undefined ? { sandboxPolicy: policy } : {},
       }
-      if (args.output_files?.length) {
-        const fs = ctx.get('fs')
-        if (fs === undefined) throw new Error('output_files requires a filesystem provider')
-        // A deployment that shares outputs serves readers who must not learn about the Host's
-        // other files, so a declared path outside the workspace is refused before any lookup.
-        const sharingRoot = standingPolicy?.workspaceRoot ?? workdir
-        const root = shareOutputFiles && sharingRoot !== undefined ? await fs.resolve(sharingRoot, { signal: exec.signal }) : undefined
-        const outputs = await Promise.all([...new Set(args.output_files)].map(async (path) => {
-          // Lexically outside: refused before any lookup, so no filesystem error describes the Host.
-          if (root !== undefined && sharingRoot !== undefined) {
-            const rest = relative(sharingRoot, isAbsolute(path) ? normalize(path) : resolvePath(workdir ?? sharingRoot, path))
-            if (rest.startsWith('..') || isAbsolute(rest)) throw new Error(`output_files: "${path}" is outside the conversation folder`)
-          }
-          const target = await fs.resolve(path, { ...workdir === undefined ? {} : { cwd: workdir }, signal: exec.signal })
-          if (root !== undefined && !fs.contains(root, target)) throw new Error(`output_files: "${path}" is outside the conversation folder`)
-          return { path, before: await fs.stat(target, exec.signal) }
-        }))
-        const result = finishForeground(await ctx.shell.run(ctx.shell.resolve({ ...request, signal: exec.signal })))
-        const producedFiles: { path: string; created: boolean }[] = []
-        const producedTargets: FsTarget[] = []
-        for (const output of outputs) {
-          const target = await fs.resolve(output.path, { ...workdir === undefined ? {} : { cwd: workdir }, signal: exec.signal })
-          // The command may have replaced a declared path with a symlink out of the workspace.
-          if (root !== undefined && !fs.contains(root, target)) continue
-          const after = await fs.stat(target, exec.signal)
-          if (after?.type === 'file' && after.version !== output.before?.version) {
-            // Readers of a sharing deployment know the conversation folder, not the Host's paths.
-            const path = root === undefined ? target.displayPath : relative(root.displayPath, target.displayPath)
-            producedFiles.push({ path, created: output.before === undefined })
-            producedTargets.push(target)
-          }
-        }
+      /**
+       * Record the files a command produced on its result, and store or share them as this deployment does.
+       * @param fs - the filesystem provider.
+       * @param root - the resolved workspace when this deployment shares outputs, else undefined.
+       * @param result - the finished foreground result.
+       * @param producedFiles - each produced path, relative to `root` when sharing, and whether the command created it.
+       * @param producedTargets - the produced files' targets, in the order of `producedFiles`.
+       * @returns the result carrying `producedFiles` and any shared attachments.
+       */
+      const recordOutputs = async (
+        fs: FileSystem,
+        root: FsTarget | undefined,
+        result: ReturnType<typeof finishForeground>,
+        producedFiles: { path: string; created: boolean }[],
+        producedTargets: FsTarget[],
+      ) => {
         if (producedTargets.length === 0 || (root === undefined && !copyOutputFiles)) return { ...result, producedFiles }
         const attachments = ctx.get('attachments')
         if (attachments === undefined) throw new Error('tool-bash: shareOutputFiles and copyOutputFiles require an attachment store')
@@ -681,6 +741,59 @@ export function apply(ctx: Context, config: Config = {}): void {
           ...shared.files.length > 0 ? { sharedFiles: shared.files } : {},
           ...shared.unshared.length > 0 ? { unsharedFiles: shared.unshared } : {},
         }
+      }
+      if (args.output_files?.length) {
+        const fs = ctx.get('fs')
+        if (fs === undefined) throw new Error('output_files requires a filesystem provider')
+        // A deployment that shares outputs serves readers who must not learn about the Host's
+        // other files, so a declared path outside the workspace is refused before any lookup.
+        const sharingRoot = standingPolicy?.workspaceRoot ?? workdir
+        const root = shareOutputFiles && sharingRoot !== undefined ? await fs.resolve(sharingRoot, { signal: exec.signal }) : undefined
+        const outputs = await Promise.all([...new Set(args.output_files)].map(async (path) => {
+          // Lexically outside: refused before any lookup, so no filesystem error describes the Host.
+          if (root !== undefined && sharingRoot !== undefined) {
+            const rest = relative(sharingRoot, isAbsolute(path) ? normalize(path) : resolvePath(workdir ?? sharingRoot, path))
+            if (rest.startsWith('..') || isAbsolute(rest)) throw new Error(`output_files: "${path}" is outside the conversation folder`)
+          }
+          const target = await fs.resolve(path, { ...workdir === undefined ? {} : { cwd: workdir }, signal: exec.signal })
+          if (root !== undefined && !fs.contains(root, target)) throw new Error(`output_files: "${path}" is outside the conversation folder`)
+          return { path, before: await fs.stat(target, exec.signal) }
+        }))
+        const result = finishForeground(await ctx.shell.run(ctx.shell.resolve({ ...request, signal: exec.signal })))
+        const producedFiles: { path: string; created: boolean }[] = []
+        const producedTargets: FsTarget[] = []
+        for (const output of outputs) {
+          const target = await fs.resolve(output.path, { ...workdir === undefined ? {} : { cwd: workdir }, signal: exec.signal })
+          // The command may have replaced a declared path with a symlink out of the workspace.
+          if (root !== undefined && !fs.contains(root, target)) continue
+          const after = await fs.stat(target, exec.signal)
+          if (after?.type === 'file' && after.version !== output.before?.version) {
+            // Readers of a sharing deployment know the conversation folder, not the Host's paths.
+            const path = root === undefined ? target.displayPath : relative(root.displayPath, target.displayPath)
+            producedFiles.push({ path, created: output.before === undefined })
+            producedTargets.push(target)
+          }
+        }
+        return recordOutputs(fs, root, result, producedFiles, producedTargets)
+      }
+      const detectRoot = standingPolicy?.workspaceRoot ?? workdir
+      const detectFs = ctx.get('fs')
+      const named = namedExtensions(args.command, detectExtensions)
+      if (args.run_in_background !== true && named.size > 0 && detectRoot !== undefined && detectFs !== undefined) {
+        // A command that names a document type but declares no output: its new or changed files of the named types
+        // are recorded as if declared, so a deliverable a model forgot to list still reaches the reader, while scratch
+        // files of other types (page previews of a printed PDF) stay out.
+        const workspace = await detectFs.resolve(detectRoot, { signal: exec.signal })
+        const before = await documentVersions(detectFs, workspace, named, detectMaxEntries, exec.signal)
+        const result = finishForeground(await ctx.shell.run(ctx.shell.resolve({ ...request, signal: exec.signal })))
+        const after = await documentVersions(detectFs, workspace, named, detectMaxEntries, exec.signal)
+        const changed = [...after].filter(([key, file]) => !before.has(key) || before.get(key)?.version !== file.version)
+        if (changed.length === 0) return result
+        const root = shareOutputFiles ? workspace : undefined
+        return recordOutputs(detectFs, root, result, changed.map(([key, file]) => ({
+          path: root === undefined ? file.target.displayPath : relative(root.displayPath, file.target.displayPath),
+          created: !before.has(key),
+        })), changed.map(([, file]) => file.target))
       }
       if (args.run_in_background === true) {
         // Undeclared keys are allowed, so schema omission also needs enforcement.
