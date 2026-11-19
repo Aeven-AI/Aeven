@@ -23,6 +23,9 @@ import {
 } from './host-protocol.ts'
 import { hostProxyRoutesFor, type ChromiumProxyResolver } from './system-proxy.ts'
 
+/** How long the Host's Node.js gives one resolved address to complete its handshake before trying the next. */
+const HOST_ADDRESS_ATTEMPT_TIMEOUT_MS = 1_000
+
 interface PendingResponse {
   readonly resolve: (response: Response) => void
   readonly reject: (error: Error) => void
@@ -143,6 +146,10 @@ export class DesktopHostProcess {
       // The Cordis Loader imports plugins through Node's internal ESM loader. The flag reaches it directly; the
       // fallback, node-addon-require-builtin, ships a darwin-arm64 build that macOS 14 refuses to load.
       '--expose-internals',
+      // Node tries each resolved address for 250 ms and abandons the attempt when the handshake takes longer. On a
+      // congested hotel or in-flight link the round trip alone exceeds that, so every IPv4 attempt to a dual-stack
+      // host is cut short and only an unroutable IPv6 address remains. One second outlasts such a handshake.
+      `--network-family-autoselection-attempt-timeout=${String(HOST_ADDRESS_ATTEMPT_TIMEOUT_MS)}`,
       ...(this.inspectPort === undefined ? [] : [`--inspect=127.0.0.1:${String(this.inspectPort)}`]),
       entry,
       this.projectDir,

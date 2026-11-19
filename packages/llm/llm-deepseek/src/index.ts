@@ -441,6 +441,9 @@ export function resolveAdapterOptions(config: Config, environment?: LaunchEnviro
     inlineImageOffloadByteQuantum,
     imageOffloadCountQuantum,
     filesApiTimeoutMs,
+    // The official API documents neither compressed request bodies nor inline-only image input; it serves a Files API.
+    requestCompression: 'none',
+    imageTransport: 'files-api',
     filePolicy: {
       expiresAfterSeconds: fileExpiresAfterSeconds,
       refreshMarginSeconds: fileRefreshMarginSeconds,

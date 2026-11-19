@@ -90,6 +90,8 @@ interface Pending {
 export class RelayConnection {
   private nextRid = 1
   private readonly pending = new Map<number, Pending>()
+  /** Whether anything arrived since the last heartbeat ping. */
+  private alive = true
   /** Settles once the connection has closed, for any reason. */
   readonly closed: Promise<void>
 
@@ -97,11 +99,28 @@ export class RelayConnection {
     private readonly socket: WebSocket,
     private readonly handlers: RelayHandlers,
     private readonly requestMs: number,
+    heartbeatMs: number,
   ) {
     // The socket keeps ws's default `nodebuffer` binary type, so every message arrives as one Buffer.
-    socket.on('message', (data: Buffer) => { this.receive(data.toString('utf8')) })
+    socket.on('message', (data: Buffer) => {
+      this.alive = true
+      this.receive(data.toString('utf8'))
+    })
+    socket.on('pong', () => { this.alive = true })
+    // A NAT or captive gateway that forgets an idle connection drops its packets without a reset, so the socket
+    // stays open with nothing behind it. A ping unanswered for one interval ends it and the owner reconnects.
+    const heartbeat = heartbeatMs === 0 ? undefined : setInterval(() => {
+      if (!this.alive) {
+        socket.terminate()
+        return
+      }
+      this.alive = false
+      socket.ping()
+    }, heartbeatMs)
+    heartbeat?.unref()
     this.closed = new Promise((resolve) => {
       socket.on('close', () => {
+        clearInterval(heartbeat)
         for (const request of this.pending.values()) request.reject(new RelayError('closed', 'relay connection closed'))
         this.pending.clear()
         handlers.closed()
@@ -117,6 +136,7 @@ export class RelayConnection {
    * @param handlers - push callbacks.
    * @param timeoutMs - longest the opening handshake may take.
    * @param requestMs - longest a request may wait for its answer before the connection is closed.
+   * @param heartbeatMs - ping interval; a connection silent for one whole interval is closed. `0` sends no pings.
    * @returns the open connection.
    */
   static open(
@@ -125,6 +145,7 @@ export class RelayConnection {
     handlers: RelayHandlers,
     timeoutMs: number,
     requestMs: number,
+    heartbeatMs: number,
   ): Promise<RelayConnection> {
     return new Promise((resolve, reject) => {
       const socket = new WebSocket(url, { headers: { authorization: `${credential.scheme} ${credential.token}` }, handshakeTimeout: timeoutMs })
@@ -141,7 +162,7 @@ export class RelayConnection {
         socket.removeAllListeners()
         // A protocol error ends the connection; `close` follows and fails pending requests.
         socket.on('error', ignore)
-        resolve(new RelayConnection(socket, handlers, requestMs))
+        resolve(new RelayConnection(socket, handlers, requestMs, heartbeatMs))
       })
     })
   }

@@ -8,6 +8,8 @@
  * @module avn-llm-deepseek/adapter
  */
 
+import { promisify } from 'node:util'
+import { gzip } from 'node:zlib'
 import { attributionHeaders, contentHasImage, CONTEXT_WINDOW_EXCEEDED_CODE, isContextWindowExceededError, isMessageCountExceededError, isQuotaExceededError, LlmAdapter, LlmError, MESSAGE_COUNT_EXCEEDED_CODE, offloadedImageText, offloadRequestImagesWithPolicy, ProviderRequestId, QUOTA_EXCEEDED_CODE, ReasoningEffortId } from '@aeven/llm'
 import type {
   ContentBlock,
@@ -42,6 +44,7 @@ import { DeepSeekFileStore } from './file-store.ts'
 import type { DeepSeekFilePolicy } from './file-store.ts'
 import type { DeepSeekFileId } from './file-id.ts'
 import { parseSse } from './sse.ts'
+import { transportFailureMessage } from './transport-failure.ts'
 import { translate } from './translate.ts'
 import type { WireError, WireRequest } from './types.ts'
 
@@ -105,6 +108,17 @@ export interface DeepSeekConnectionOptions {
   imageOffloadCountQuantum: number
   /** Maximum duration of one request-image Files API resolution. */
   filesApiTimeoutMs: number
+  /**
+   * Chat request body encoding. `gzip` sends `Content-Encoding: gzip` and is
+   * valid only for an endpoint that inflates request bodies.
+   */
+  requestCompression: 'none' | 'gzip'
+  /**
+   * How request images reach the endpoint. `files-api` uploads each image and
+   * references its file id, falling back to inline base64 when an upload fails;
+   * `inline` sends base64 directly, for an endpoint without a Files API.
+   */
+  imageTransport: 'files-api' | 'inline'
   /** Upload expiry, refresh, and quota-recovery policy. */
   filePolicy: DeepSeekFilePolicy
   /** Provider-owned model-request retry policy, already resolved. */
@@ -159,6 +173,8 @@ export const DEFAULT_FILE_QUOTA_CLEANUP_BATCH = 100
 /** Default deadline for resolving one request image through the Files API. */
 export const DEFAULT_FILES_API_TIMEOUT_MS = 60_000
 const STREAM_IDLE_TIMEOUT_CODE = 'LLM_STREAM_IDLE_TIMEOUT'
+/** Compresses on the libuv thread pool, so a megabyte-scale request does not block the event loop. */
+const gzipAsync = promisify(gzip)
 const FILES_API_TIMEOUT_CODE = 'DEEPSEEK_FILES_API_TIMEOUT'
 const OFF_REASONING_EFFORT = ReasoningEffortId('off')
 const LOW_REASONING_EFFORT = ReasoningEffortId('low')
@@ -516,7 +532,11 @@ export class DeepSeekAdapter extends LlmAdapter {
         throw new LlmError(`${brand} request aborted by caller`, 'ABORTED', { cause: error })
       }
       if (error instanceof LlmError) throw error
-      throw new LlmError(`${brand} API stream from ${connection.baseURL} failed`, 'TRANSPORT', { cause: error })
+      throw new LlmError(
+        transportFailureMessage(`${brand} API stream from ${connection.baseURL} failed`, error),
+        'TRANSPORT',
+        { cause: error },
+      )
     } finally {
       consumer.abort(`${brand} stream consumer stopped`)
       if (!exhausted && iterator.return !== undefined) {
@@ -570,7 +590,7 @@ export class DeepSeekAdapter extends LlmAdapter {
     const requestImages = attachments === undefined || model === undefined
       ? new Map<AttachmentId, RequestImageAttachment>()
       : await prepareRequestImages(requestOptions, attachments, model, signal)
-    let representation: 'file' | 'base64' = 'file'
+    let representation: 'file' | 'base64' = connection.imageTransport === 'inline' ? 'base64' : 'file'
     let fileAttempt = 0
     while (true) {
       const usedFiles: UsedRequestFile[] = []
@@ -651,20 +671,26 @@ export class DeepSeekAdapter extends LlmAdapter {
         (_key, value: unknown) => typeof value === 'string' ? value.toWellFormed() : value,
       )
 
+      // A compressed body is several times smaller, and every turn uploads the
+      // whole conversation: on a slow or lossy uplink that size decides whether
+      // the upload finishes before an intermediary drops the stalled request.
+      const compressed = connection.requestCompression === 'gzip'
+      const requestBody = compressed ? await gzipAsync(payload) : payload
+
       // TODO(http): adopt the Cordis HTTP service when shared transport configuration
       // outweighs its additional runtime dependencies.
       let response: Response
       try {
         response = await fetch(`${connection.baseURL}/chat/completions`, {
           method: 'POST',
-          headers,
-          body: payload,
+          headers: compressed ? { ...headers, 'content-encoding': 'gzip' } : headers,
+          body: requestBody,
           signal,
         })
       } catch (error: unknown) {
         if (signal.aborted) throw error
         throw new LlmError(
-          `${brand} API request to ${connection.baseURL} failed`,
+          transportFailureMessage(`${brand} API request to ${connection.baseURL} failed`, error),
           'TRANSPORT',
           { cause: error },
         )

@@ -4,6 +4,7 @@ import { attributionHeaders, LlmError } from '@aeven/llm'
 import type { ImageMediaType } from '@aeven/attachment'
 import { DeepSeekFileId } from './file-id.ts'
 import type { DeepSeekFileId as DeepSeekFileIdType } from './file-id.ts'
+import { transportFailureMessage } from './transport-failure.ts'
 
 /** Minimum provider-supported file lifetime. */
 export const MIN_FILE_EXPIRY_SECONDS = 3_600
@@ -164,7 +165,7 @@ export class DeepSeekFilesClient {
       })
     } catch (error: unknown) {
       if (signal?.aborted) throw error
-      throw new LlmError(`Files API request to ${this.baseURL} failed`, 'TRANSPORT', { cause: error })
+      throw new LlmError(transportFailureMessage(`Files API request to ${this.baseURL} failed`, error), 'TRANSPORT', { cause: error })
     }
     if (response.ok) return response
     let parsed: unknown

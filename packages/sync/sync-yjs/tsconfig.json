@@ -21,6 +21,9 @@
       "path": "../../util/home-paths"
     },
     {
+      "path": "../../core/agent"
+    },
+    {
       "path": "../../credentials/credentials"
     },
     {
