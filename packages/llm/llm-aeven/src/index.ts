@@ -65,22 +65,17 @@ export const inject = ['llm']
 /** The provider route these models are served under. */
 export const PROVIDER = 'aeven-cloud'
 
-/**
- * Inline base64 image budget. Every turn re-sends the retained images, so the
- * budget bounds each upload rather than the gateway's 8 MiB body: on a hotel or
- * in-flight uplink a multi-megabyte request stalls long enough for Cloudflare
- * to reset it. Offloaded images stay reachable through their placeholder path.
- */
-export const DEFAULT_MAX_INLINE_REQUEST_IMAGE_BYTES = 1536 * 1024
+/** Inline base64 image budget, leaving 2 MiB of the gateway's 8 MiB body for text and schemas. */
+export const DEFAULT_MAX_INLINE_REQUEST_IMAGE_BYTES = 6 * 1024 * 1024
 
-/** Oldest inline images offloaded per byte-budget step; at half the budget, the offloaded prefix moves once per half budget of images. */
-export const DEFAULT_INLINE_IMAGE_OFFLOAD_BYTE_QUANTUM = 768 * 1024
+/** Oldest inline images offloaded per byte-budget step. */
+export const DEFAULT_INLINE_IMAGE_OFFLOAD_BYTE_QUANTUM = 3 * 1024 * 1024
 
-/** Request image cap; DeepInfra, which the gateway routes DeepSeek models through, refuses more than 30. */
-export const DEFAULT_MAX_IMAGES_PER_REQUEST = 10
+/** Request image cap: DeepInfra, which the gateway routes DeepSeek models through, refuses more than 30. */
+export const DEFAULT_MAX_IMAGES_PER_REQUEST = 30
 
 /** Oldest images offloaded per count-overflow step. */
-export const DEFAULT_IMAGE_OFFLOAD_COUNT_QUANTUM = 5
+export const DEFAULT_IMAGE_OFFLOAD_COUNT_QUANTUM = 10
 
 /** Chat request body encoding; the gateway's JSON parser inflates `gzip` bodies. */
 export const DEFAULT_REQUEST_COMPRESSION = 'gzip'

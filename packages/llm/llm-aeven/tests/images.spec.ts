@@ -139,14 +139,14 @@ describe('images on the aeven-cloud route', () => {
     expect(handle).toContain('.png')
   })
 
-  it('offloads old previews once image history exceeds the inline image budget', async () => {
+  it('offloads old previews before image history exceeds the gateway body ceiling', async () => {
     await tempHome()
     vi.stubEnv(DEFAULT_API_KEY_ENV, 'ambient-token')
     const gateway = stubGatewayWithoutFilesApi()
     ctx = await mountContext(true)
     const ref = await ctx.attachments.saveImage({ data: PNG_1X1, mediaType: 'image/png', name: 'shot.png' })
     const version = await ctx.attachments.readImageRequest(ref, { maxPixels: 1, maxBytes: 1024 * 1024 })
-    const data = new Uint8Array(256 * 1024)
+    const data = new Uint8Array(1024 * 1024)
     vi.spyOn(ctx.attachments, 'readImageRequest').mockResolvedValue({ ...version, data, bytes: data.byteLength })
     const messages = Array.from({ length: 8 }, () => messageWithImage(ref))
 

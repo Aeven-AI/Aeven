@@ -58,10 +58,10 @@ kind: "package-reference"
 | `maxTokens` | `384,000` | 单请求输出上限；模型自身上限与请求显式取值优先 |
 | `defaultContextWindow` | `1,000,000` | 模型没有精确值时的容量回退 |
 | `streamIdleTimeoutMs` | `300,000` | 单次未结束流读取允许的最大提供方空闲时间 |
-| `maxInlineRequestImageBytes` | 1.5 MiB | Base64 预览预算；每轮都会重新发送保留的图片，因此它限制了慢速上行链路上每次上传的大小 |
-| `inlineImageOffloadByteQuantum` | 768 KiB | 每次超出字节预算时移除最旧的预览；持久图片和本地引用路径仍然可用 |
-| `maxImagesPerRequest` | 10 | 图片数量上限；最多 30，因为网关转发 DeepSeek 模型所经的 DeepInfra 拒绝更多图片 |
-| `imageOffloadCountQuantum` | 5 | 每次超出数量上限时移除的最旧图片数 |
+| `maxInlineRequestImageBytes` | 6 MiB | Base64 预览预算；为文本和工具 schema 保留网关请求上限中的 2 MiB |
+| `inlineImageOffloadByteQuantum` | 3 MiB | 每次超出字节预算时移除最旧的预览；持久图片和本地引用路径仍然可用 |
+| `maxImagesPerRequest` | 30 | 图片数量上限；网关转发 DeepSeek 模型所经的 DeepInfra 拒绝更多图片 |
+| `imageOffloadCountQuantum` | 10 | 每次超出数量上限时移除的最旧图片数 |
 | Files API 设置 | 适配器默认值 | 本路由没有 Files API；图片始终内联发送 |
 | `requestCompression` | `gzip` | 聊天请求体编码；若网关部署的代理拒绝 `Content-Encoding: gzip`，设为 `none` |
 | `retryPolicy` | 常规，5 次重试，最大延迟 60 秒 | 提供方自有的重试策略；接受网关的 60 秒 `Retry-After`，在注册时解析一次 |
@@ -128,15 +128,15 @@ kind: "package-reference"
 
 #### 模型看到什么
 
-被选中的 Aeven 模型会收到 harness 系统提示、消息历史、工具 schema、停止序列与调用配置（`maxTokens`、`reasoningEffort`、`temperature`），不含适配器撰写的提示文本。由于本路由未配置 files API，图片以 `image_url` 片段内联携带，而不是作为已上传的文件引用，并且没有任何请求贡献插件自有的顶层字段。请求保留最新的 10 张图片和 1.5 MiB 图片数据；更早的每张图片都变为文本占位符，写明图片名称，并在执行文件系统映射了该图片时写明其只读路径。
+被选中的 Aeven 模型会收到 harness 系统提示、消息历史、工具 schema、停止序列与调用配置（`maxTokens`、`reasoningEffort`、`temperature`），不含适配器撰写的提示文本。由于本路由未配置 files API，图片以 `image_url` 片段内联携带，而不是作为已上传的文件引用，并且没有任何请求贡献插件自有的顶层字段。
 
 #### Token 影响
 
-提供方的分词决定精确的文本与图片 token 输入。内联图片由网关按其对任何 OpenAI 兼容视觉请求所采用的同一套记账方式计为图片 token；适配器自身不增加 token。图片预算限制了单个请求携带的图片 token，每个占位符改为消耗少量文本 token。`totalTokens` 是 `prompt_tokens + completion_tokens` 的精确合计。
+提供方的分词决定精确的文本与图片 token 输入。内联图片由网关按其对任何 OpenAI 兼容视觉请求所采用的同一套记账方式计为图片 token；适配器自身不增加 token。`totalTokens` 是 `prompt_tokens + completion_tokens` 的精确合计。
 
 #### KV Cache 影响
 
-未改动的已装配前缀有资格复用网关缓存，适配器会在 usage 中报告。模型路由、提示、schema、历史或图片的任何变化都可能使复用自首个受影响 token 起失效，而推理回传在每个带推理的轮次都会追加内容。被移出的图片前缀每新增 5 张图片或 768 KiB 图片数据才移动一次，每次移动都会使复用自第一张新被替换的图片起失效。
+未改动的已装配前缀有资格复用网关缓存，适配器会在 usage 中报告。模型路由、提示、schema、历史或图片的任何变化都可能使复用自首个受影响 token 起失效，而推理回传在每个带推理的轮次都会追加内容。
 
 ### Aeven 响应
 

@@ -13,7 +13,6 @@ import { hostname } from 'node:os'
 import { join } from 'node:path'
 import { Context, Service } from '@deepseek-ai/cordis'
 import Schema from '@deepseek-ai/schemastery'
-import type { Agent } from '@aeven/agent'
 import { credentialRef, type CredentialRef } from '@aeven/credentials'
 import { accountHomePath, avnHomePath, ACCOUNTS_DIR_NAME } from '@aeven/home-paths'
 import {
@@ -38,10 +37,16 @@ export interface Config {
   connectTimeoutMs: number
   /** Longest a relay request may wait for its answer before the connection is closed and opened again, in milliseconds. */
   requestTimeoutMs: number
-  /** Relay ping interval; a connection silent for one whole interval is closed and opened again. `0` sends no pings. */
+  /**
+   * Relay ping interval, which keeps middleboxes from forgetting an idle connection. `0` sends no pings and never
+   * closes a silent connection.
+   */
   heartbeatMs: number
-  /** Longest one catch-up page waits while an agent turn runs on this Host, in milliseconds; `0` never waits. */
-  catchUpYieldMs: number
+  /**
+   * Longest the relay may send nothing, its own pings included, before the connection is closed and opened again.
+   * The Aeven relay pings an idle connection at least every 120 s, so a healthy connection is never this silent.
+   */
+  silenceTimeoutMs: number
   /** Most queued frames one publish request carries. */
   publishFrames: number
   /** Maximum complete publish request bytes, including base64url and JSON. */
@@ -153,8 +158,8 @@ export default class YjsSync extends Sync {
     reconnectMs: Schema.natural().min(100).default(5_000),
     connectTimeoutMs: Schema.natural().min(100).default(10_000),
     requestTimeoutMs: Schema.natural().min(100).default(60_000),
-    heartbeatMs: Schema.natural().default(30_000),
-    catchUpYieldMs: Schema.natural().default(15_000),
+    heartbeatMs: Schema.natural().default(60_000),
+    silenceTimeoutMs: Schema.natural().min(1_000).default(300_000),
     publishFrames: Schema.natural().min(1).default(100),
     publishBytes: Schema.natural().min(1_024).max(RELAY_MAX_MESSAGE_BYTES).default(2_097_152),
     deviceName: Schema.string().min(1).default(hostname()),
@@ -183,10 +188,6 @@ export default class YjsSync extends Sync {
   /** One worker thread, shared by every account, opens received frames and merges document updates. */
   private readonly offload = new SyncOffload()
   private disposed = false
-  /** Agents with a turn in flight on this Host; catch-up pages wait while any runs. */
-  private readonly running = new Set<Agent>()
-  /** Catch-up pages waiting for {@link running} to empty. */
-  private readonly idleWaiters = new Set<() => void>()
 
   /**
    * @param ctx - context providing `credentials`.
@@ -217,11 +218,6 @@ export default class YjsSync extends Sync {
       this.published.clear()
       await this.offload.dispose()
     }, 'sync-yjs: accounts')
-    this.ctx.on('agent/status', ({ agent, status }) => {
-      if (status === 'running') this.running.add(agent)
-      else this.agentStopped(agent)
-    })
-    this.ctx.on('agent/disposed', ({ agent }) => { this.agentStopped(agent) })
     // An account syncs from the moment one of its clients signs in on this Host.
     this.ctx.on('credentials/session-updated', (ref, user) => {
       if (ref !== this.tokenRef || this.disposed) return
@@ -277,7 +273,6 @@ export default class YjsSync extends Sync {
       },
       this.offload,
       () => { this.notifyReset(owner) },
-      () => this.turnsSettled(),
     )
     account = { store, vault, wake: () => {} }
     this.accounts.set(owner, account)
@@ -373,33 +368,7 @@ export default class YjsSync extends Sync {
     return RelayConnection.open(this.config.relayUrl, credential, {
       frame: (seq, frame) => { account.vault.receiveFrame(seq, frame) },
       closed: () => { account.vault.detach() },
-    }, this.config.connectTimeoutMs, this.config.requestTimeoutMs, this.config.heartbeatMs)
-  }
-
-  private agentStopped(agent: Agent): void {
-    if (!this.running.delete(agent) || this.running.size > 0) return
-    for (const resolve of this.idleWaiters) resolve()
-    this.idleWaiters.clear()
-  }
-
-  /**
-   * Settle once no agent turn runs on this Host, or after {@link Config.catchUpYieldMs}, whichever comes first. A
-   * catch-up page waits here so that, on a thin uplink, a model request does not compete with a backlog download;
-   * the bound keeps a long-running agent from stalling sync indefinitely.
-   * @returns a promise that settles when the next catch-up page may be requested.
-   */
-  private turnsSettled(): Promise<void> {
-    if (this.running.size === 0 || this.config.catchUpYieldMs === 0 || this.disposed) return Promise.resolve()
-    return new Promise((resolve) => {
-      const done = (): void => {
-        clearTimeout(timer)
-        this.idleWaiters.delete(done)
-        resolve()
-      }
-      const timer = setTimeout(done, this.config.catchUpYieldMs)
-      timer.unref()
-      this.idleWaiters.add(done)
-    })
+    }, this.config.connectTimeoutMs, this.config.requestTimeoutMs, this.config.heartbeatMs, this.config.silenceTimeoutMs)
   }
 
   /** Record this device's name in the account's devices document once it holds the account key. */

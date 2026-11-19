@@ -47,7 +47,7 @@ async function host(options: { home?: string; relayUrl?: string; deviceName?: st
   ctx.on('sync/document', (_owner, id) => { documents.push(id) })
   const fiber = ctx.plugin(YjsSync, {
     relayUrl: options.relayUrl ?? relay.url, credentialRef: 'AEVEN_TOKEN', deviceName: options.deviceName ?? 'test-host',
-    reconnectMs: 100, connectTimeoutMs: 2000, requestTimeoutMs: 2000, heartbeatMs: 0, catchUpYieldMs: 0,
+    reconnectMs: 100, connectTimeoutMs: 2000, requestTimeoutMs: 2000, heartbeatMs: 0, silenceTimeoutMs: 1_000,
     compactAfter: 50, compactBytes: 8_388_608,
     snapshotAfter: 50, applyFrames: 200,
     applyPauseMs: 0, pageFrames: 500, statusMs: 0, publishFrames: 100, publishBytes: 2_097_152,
