@@ -65,17 +65,25 @@ export const inject = ['llm']
 /** The provider route these models are served under. */
 export const PROVIDER = 'aeven-cloud'
 
-/** Inline base64 image budget, leaving 2 MiB of the gateway's 8 MiB body for text and schemas. */
-export const DEFAULT_MAX_INLINE_REQUEST_IMAGE_BYTES = 6 * 1024 * 1024
+/**
+ * Inline base64 image budget. Every turn re-sends the retained images, so the
+ * budget bounds each upload rather than the gateway's 8 MiB body: on a hotel or
+ * in-flight uplink a multi-megabyte request stalls long enough for Cloudflare
+ * to reset it. Offloaded images stay reachable through their placeholder path.
+ */
+export const DEFAULT_MAX_INLINE_REQUEST_IMAGE_BYTES = 1536 * 1024
 
-/** Oldest inline images offloaded per byte-budget step. */
-export const DEFAULT_INLINE_IMAGE_OFFLOAD_BYTE_QUANTUM = 3 * 1024 * 1024
+/** Oldest inline images offloaded per byte-budget step; at half the budget, the offloaded prefix moves once per half budget of images. */
+export const DEFAULT_INLINE_IMAGE_OFFLOAD_BYTE_QUANTUM = 768 * 1024
 
-/** Request image cap: DeepInfra, which the gateway routes DeepSeek models through, refuses more than 30. */
-export const DEFAULT_MAX_IMAGES_PER_REQUEST = 30
+/** Request image cap; DeepInfra, which the gateway routes DeepSeek models through, refuses more than 30. */
+export const DEFAULT_MAX_IMAGES_PER_REQUEST = 10
 
 /** Oldest images offloaded per count-overflow step. */
-export const DEFAULT_IMAGE_OFFLOAD_COUNT_QUANTUM = 10
+export const DEFAULT_IMAGE_OFFLOAD_COUNT_QUANTUM = 5
+
+/** Chat request body encoding; the gateway's JSON parser inflates `gzip` bodies. */
+export const DEFAULT_REQUEST_COMPRESSION = 'gzip'
 
 /** User-settings section that overrides this entry. */
 export const NS = 'llm-aeven'
@@ -209,6 +217,7 @@ export const Config: z<Config> = z.object({
   inlineImageOffloadByteQuantum: z.number().step(1).min(1).default(DEFAULT_INLINE_IMAGE_OFFLOAD_BYTE_QUANTUM),
   imageOffloadCountQuantum: z.number().step(1).min(1).default(DEFAULT_IMAGE_OFFLOAD_COUNT_QUANTUM),
   filesApiTimeoutMs: z.number().min(Number.MIN_VALUE).max(MAX_TIMER_DELAY_MS).default(DEFAULT_FILES_API_TIMEOUT_MS),
+  requestCompression: z.union(['none', 'gzip']).default(DEFAULT_REQUEST_COMPRESSION),
   fileExpiresAfterSeconds: z.number().step(1).min(3_600).max(2_592_000).default(DEFAULT_FILE_EXPIRY_SECONDS),
   fileRefreshMarginSeconds: z.number().step(1).min(0).default(DEFAULT_FILE_REFRESH_MARGIN_SECONDS),
   fileQuotaCleanupBatch: z.number().step(1).min(1).max(1_000).default(DEFAULT_FILE_QUOTA_CLEANUP_BATCH),
@@ -259,6 +268,8 @@ export interface Config {
   imageOffloadCountQuantum?: number
   /** Per-image Files resolution deadline. */
   filesApiTimeoutMs?: number
+  /** Chat request body encoding; `none` for a gateway deployment whose proxy rejects `Content-Encoding: gzip`. */
+  requestCompression?: 'none' | 'gzip'
   /** Requested uploaded-image lifetime; the provider clamps values outside its own range. */
   fileExpiresAfterSeconds?: number
   /** Remaining lifetime below which a cached upload id is replaced rather than reused. */
@@ -369,6 +380,9 @@ export function apply(ctx: Context, config: Config): void {
     imageOffloadCountQuantum:
       config.imageOffloadCountQuantum ?? DEFAULT_IMAGE_OFFLOAD_COUNT_QUANTUM,
     filesApiTimeoutMs: config.filesApiTimeoutMs ?? DEFAULT_FILES_API_TIMEOUT_MS,
+    requestCompression: config.requestCompression ?? DEFAULT_REQUEST_COMPRESSION,
+    // The gateway has no Files API; trying it first costs a rejected image upload on every image turn.
+    imageTransport: 'inline',
     filePolicy: {
       expiresAfterSeconds: config.fileExpiresAfterSeconds ?? DEFAULT_FILE_EXPIRY_SECONDS,
       refreshMarginSeconds: config.fileRefreshMarginSeconds ?? DEFAULT_FILE_REFRESH_MARGIN_SECONDS,

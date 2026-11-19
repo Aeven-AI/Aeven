@@ -2287,6 +2287,8 @@ export interface Config {
   imageOffloadCountQuantum?: number
   /** Per-image Files resolution deadline. */
   filesApiTimeoutMs?: number
+  /** Chat request body encoding; `none` for a gateway deployment whose proxy rejects `Content-Encoding: gzip`. */
+  requestCompression?: 'none' | 'gzip'
   /** Requested uploaded-image lifetime; the provider clamps values outside its own range. */
   fileExpiresAfterSeconds?: number
   /** Remaining lifetime below which a cached upload id is replaced rather than reused. */
@@ -5254,6 +5256,10 @@ export interface Config {
   connectTimeoutMs: number
   /** Longest a relay request may wait for its answer before the connection is closed and opened again, in milliseconds. */
   requestTimeoutMs: number
+  /** Relay ping interval; a connection silent for one whole interval is closed and opened again. `0` sends no pings. */
+  heartbeatMs: number
+  /** Longest one catch-up page waits while an agent turn runs on this Host, in milliseconds; `0` never waits. */
+  catchUpYieldMs: number
   /** Most queued frames one publish request carries. */
   publishFrames: number
   /** Maximum complete publish request bytes, including base64url and JSON. */

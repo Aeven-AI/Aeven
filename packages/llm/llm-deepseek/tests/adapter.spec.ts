@@ -1544,7 +1544,7 @@ describe('DeepSeekAdapter against a mock server', () => {
     expect(result.finish.kind).toBe('error')
     if (result.finish.kind !== 'error') throw new Error('expected an error finish')
     expect(result.finish.failure.code).toBe('TRANSPORT')
-    expect(result.finish.failure.message).toMatch(/^DeepSeek API stream from .* failed$/)
+    expect(result.finish.failure.message).toMatch(/^DeepSeek API stream from .* failed \(UND_ERR_SOCKET: .+\)$/)
   })
 
   it('aborts mid-stream via the request signal', async () => {
