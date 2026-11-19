@@ -64,7 +64,7 @@ export const AssistantNodeView = memo(function AssistantNodeView({
   )
   // Every step resolves path links, not only the closing one: a reply that names a file it made earlier
   // still links to it.
-  const links = useMemo(() => fileLinks({ cwd, openFile }), [cwd, fileLinks, openFile])
+  const links = useMemo(() => fileLinks({ cwd, openFile, turn }), [cwd, fileLinks, openFile, turn])
   const reasoningHidden = turnProcess !== undefined
     && turnProcess.foldable
     && ((turn?.status === 'open')

@@ -20,7 +20,7 @@ import { desktopFileMenus, fileMenuLabels, revealFile, showFileMenu } from './fi
 import { downloadUrl, producedFileLinks } from './file-links.ts'
 import { en, es, NS, zh, type DeliverablesKey } from './locales.ts'
 import {
-  deliverablesDefinition, producedFileMentions, selectProducedFiles,
+  deliverablesDefinition, producedFileMentions, producedFilesForClosing, selectProducedFiles,
 } from './turn-deliverables.ts'
 
 declare module '@aeven/client-ui-slots' {
@@ -137,7 +137,9 @@ export function apply(ctx: ClientContext): void {
     },
     forLinks(owner, sessionId) {
       ensureWorkspacePathOpen()
-      return producedFileLinks(owner.cwd, {
+      // Read when a link resolves, so files a later result of the same Turn settles are seen.
+      const produced = () => producedFilesForClosing(owner.turn?.data.get('deliverables'))
+      return producedFileLinks(owner.cwd, produced, {
         previewFile: (path: string, copy?: string) =>
           copy === undefined ? ctx.sidebarFiles.open(sessionId, path) : ctx.sidebarFiles.open(sessionId, path, copy),
         fileUrl: (path: string, download?: boolean) => ctx.sidebarFiles.fileUrl(sessionId, path, download),

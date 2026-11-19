@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-11-19-prose-file-links-opened-app-pages.md
-2026-11-19-prose-file-links-opened-app-pages.md: 59e98d39859564ebd783e08357337837e52232f7
-2026-11-19-prose-file-links-opened-app-pages.zh.md: 454bd6d3d6ec7209eac6c161cea433796c572987
+2026-11-19-prose-file-links-opened-app-pages.md: 274e7eba728ea3e126b73c255a356a46dc4c3222
+2026-11-19-prose-file-links-opened-app-pages.zh.md: b697469112197edb2601430cf54e523ffed7a1ac
