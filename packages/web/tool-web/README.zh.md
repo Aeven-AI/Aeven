@@ -65,7 +65,7 @@ web_search({ queries: ['deepseek harness documentation'] })
 
 ### 使用 web_fetch
 
-用一个 `url` 调用 `web_fetch`。HTML 主体经过过滤后渲染为 markdown（含 GFM 表格与删除线）；文本主体在不可信内容提示下原样通过。PDF、Office、OpenDocument、RTF 与 EPUB 文件通过可选的 `ctx.documentExtract` 服务转换为文本（头部注明源媒体类型）；缺少该服务或该格式的读取器时，调用以 `WEB_UNSUPPORTED_CONTENT_TYPE` 失败。提取在 `fetchTimeoutMs` 预算内运行，超时会终止读取器。非 2xx 状态会在结果中报告，而不是作为错误抛出。截断内容会追加 `(Content truncated. Fetch a more specific URL or section for the full text.)`。
+用一个 `url` 调用 `web_fetch`。HTML 主体经过过滤后渲染为 markdown（含 GFM 表格与删除线）；文本主体在不可信内容提示下原样通过。PDF、Office、OpenDocument、RTF 与 EPUB 文件通过可选的 `ctx.documentExtract` 服务转换为文本（头部注明源媒体类型）；缺少该服务或该格式的读取器时，调用以 `WEB_UNSUPPORTED_CONTENT_TYPE` 失败。提取在 `fetchTimeoutMs` 预算内运行，超时会终止读取器。挂载文档读取器时，`web_fetch` 提示指引还会告诉模型用 `web_fetch` 抓取文档 URL，而不是在 shell 中转换。非 2xx 状态会在结果中报告，而不是作为错误抛出。截断内容会追加 `(Content truncated. Fetch a more specific URL or section for the full text.)`。
 
 ```text
 web_fetch({ url: 'https://example.com' })

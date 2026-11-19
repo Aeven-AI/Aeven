@@ -12,7 +12,7 @@ Status: implemented
 
 `WebFetchBody` 新增 `document` 分支，携带完整文件字节、响应媒体类型，以及取自 `Content-Disposition` 或 URL 最后一个路径段的文件名。`avn-web-fetch-http` 把 PDF、Word、Excel、PowerPoint、OpenDocument、RTF、EPUB 与 `application/octet-stream` 归类为 `document`，在独立的 `maxDocumentBytes` 上限（默认 25,000,000）内读取主体，并以 `WEB_FETCH_TOO_LARGE` 拒绝更大的文档，因为按字节截断的 PDF 或 ZIP 容器无法解析。以 `%PDF-` 开头的 `application/octet-stream` 主体被标为 `application/pdf`。`Accept` 头新增 `application/pdf;q=0.8,*/*;q=0.5`，使进行内容协商的服务器返回该文件。
 
-`avn-tool-web` 在 `web_fetch` 内通过可选的 `ctx.documentExtract` 服务（`ctx.get`）转换 `document` 主体，并转发工具调用信号。记录的输出值以 `{ kind: 'document', mediaType, content }` 取代字节，结果头为 `Fetched <url> (HTTP <status>, text extracted from <media type>)`，没有文本层的文档渲染为 `[The document contains no extractable text.]`，提取器截断文本时结果标记为 `truncated`。缺少该服务或没有已注册读取器接受该格式时，调用以 `WEB_UNSUPPORTED_CONTENT_TYPE` 失败。工具描述列出可读格式，使模型不再拒绝它们。
+`avn-tool-web` 在 `web_fetch` 内通过可选的 `ctx.documentExtract` 服务（`ctx.get`）转换 `document` 主体，并转发工具调用信号。记录的输出值以 `{ kind: 'document', mediaType, content }` 取代字节，结果头为 `Fetched <url> (HTTP <status>, text extracted from <media type>)`，没有文本层的文档渲染为 `[The document contains no extractable text.]`，提取器截断文本时结果标记为 `truncated`。缺少该服务或没有已注册读取器接受该格式时，调用以 `WEB_UNSUPPORTED_CONTENT_TYPE` 失败。工具描述列出可读格式。挂载 `ctx.documentExtract` 时，`tool:web_fetch` 系统提示段落会补充说明 `web_fetch` 返回这些格式的文本，并且文档 URL 应通过 `web_fetch` 抓取，而不是下载后在 shell 中转换；否则在 Aeven Cloud 上模型会认为 `web_fetch` 无法读取 PDF，转而在 Bash 中运行 `curl` 与 `pdftotext`。没有读取器时该句不出现，因此提示从不承诺部署无法读取的格式。
 
 提取在文档提供方的 worker 线程中、在 `web_fetch` 预算（`fetchTimeoutMs`，默认 30 秒）内运行；超时会中止信号并终止 worker。一份 2.2 MB、15 页的 PDF 下载约 0.5 秒，提取约 0.5 秒。挂载 `document-extract-ocr` 时，扫描版 PDF 会转入 OCR，通常会超过 30 秒预算。
 
