@@ -184,6 +184,8 @@ export class AccountVault {
   private applying: Promise<void> | undefined
   private statusTimer: ReturnType<typeof setTimeout> | undefined
   private statusAt = 0
+  /** Set when {@link dispose} starts; the owner closes the store right after disposal, so no status report may follow. */
+  private disposed = false
   /** The background catch-up of the current connection. */
   private catchingUp: Promise<void> | undefined
   /** Whether the once-per-store comparison with the relay's copies is running. */
@@ -222,10 +224,11 @@ export class AccountVault {
 
   /**
    * Report a possible status change at most every {@link VaultTuning.statusMs}: the first change at once and the
-   * last one of a burst, such as an acknowledgement per published frame, after the interval.
+   * last one of a burst, such as an acknowledgement per published frame, after the interval. Nothing is reported
+   * once disposal has started.
    */
   private changed(): void {
-    if (this.statusTimer !== undefined) return
+    if (this.disposed || this.statusTimer !== undefined) return
     const wait = this.statusAt + this.tuning.statusMs - Date.now()
     if (wait <= 0) {
       this.statusAt = Date.now()
@@ -688,21 +691,26 @@ export class AccountVault {
     while (this.applying !== undefined) await this.applying
   }
 
-  /** The relay connection closed. */
+  /**
+   * The relay connection closed. After {@link dispose} it only drops the connection: the socket's close event can
+   * arrive after the owner closed the store, so the store is not read.
+   */
   detach(): void {
     this.relay = undefined
     this.connection = undefined
+    if (this.disposed) return
     if (this.store.enabled()) this.setState(this.store.accountKey() === undefined ? 'starting' : 'offline')
   }
 
   /**
    * Take one frame the relay delivered. It is applied in the background, in sequence order, so the socket
-   * callback stays short however many frames a catch-up delivers.
+   * callback stays short however many frames a catch-up delivers. A frame arriving after {@link dispose} is dropped
+   * unread; it stays on the relay after the stored cursor.
    * @param seq - its relay sequence number.
    * @param frame - the sealed frame.
    */
   receiveFrame(seq: number, frame: Uint8Array): void {
-    if (!this.ready()) return
+    if (this.disposed || !this.ready()) return
     // A replayed frame fails its counter check when applied; the highest number only resumes catch-up.
     this.received = Math.max(this.received, seq)
     this.inbound.pushBack({ seq, frame })
@@ -1183,8 +1191,9 @@ export class AccountVault {
     if (this.relay !== relay) throw new Error('session handover lost its connection')
   }
 
-  /** Destroy open documents and wait for the active outbox pass to stop. */
+  /** Destroy open documents and wait for the active outbox pass to stop; no status report follows the call. */
   async dispose(): Promise<void> {
+    this.disposed = true
     if (this.statusTimer !== undefined) clearTimeout(this.statusTimer)
     this.statusTimer = undefined
     this.detach()
