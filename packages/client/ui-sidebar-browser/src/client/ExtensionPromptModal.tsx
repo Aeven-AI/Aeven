@@ -5,13 +5,10 @@
  * standard modal, with its text in the description.
  */
 import { useEffect, useState } from 'react'
-import { Button, Modal } from '@aeven/client-ui-primitives'
+import { Button, Modal, openAppLink } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import type {} from '@aeven/client-ui-layout/client'
 import type { ExtensionPromptState } from './extension-install.ts'
-
-/** How long the page waits for the desktop app to take focus before it suggests installing it, in milliseconds. */
-const OPEN_GRACE_MS = 1500
 
 /**
  * The `aeven://` link that continues a conversation in the desktop app.
@@ -88,16 +85,10 @@ export function ExtensionPromptModal(props: ExtensionPromptModalProps) {
         : !state.waiting ? t('extension.install.stopped') : opened ? t('extension.install.waiting') : undefined
       const openDesktop = (): void => {
         setNotOpened(false)
-        // The page loses focus when the operating system hands the link to an installed app.
-        let left = false
-        const onBlur = (): void => { left = true }
-        window.addEventListener('blur', onBlur, { once: true })
-        window.setTimeout(() => {
-          window.removeEventListener('blur', onBlur)
-          if (!left && document.hasFocus()) setNotOpened(true)
-          else openedDesktop()
-        }, OPEN_GRACE_MS)
-        window.location.href = desktopLink(state.sessionId)
+        void openAppLink(desktopLink(state.sessionId)).then((opened) => {
+          if (opened) openedDesktop()
+          else setNotOpened(true)
+        })
       }
       return (
         <Modal

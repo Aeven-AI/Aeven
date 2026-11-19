@@ -38,9 +38,8 @@ export type { HandoffReason, HandoffState } from './store.ts'
 declare module '@deepseek-ai/cordis' {
   interface Events {
     /**
-     * A surface that cannot do its work in this client asks to continue in the desktop app, such as
-     * the Browser entry when no Aeven extension is installed. Answered only where the hand-off dialog
-     * is composed (a web client whose Host has no machine of the reader's).
+     * A surface that cannot do its work in this client asks to continue in the desktop app. Answered
+     * only where the hand-off dialog is composed (a web client whose Host has no machine of the reader's).
      * @mode bail
      * @param reason - why the reader needs the desktop app; picks the dialog's message.
      * @param sessionId - the conversation to continue there, when one is current.
@@ -55,7 +54,7 @@ export const inject = ['slots', 'locale']
 /**
  * The right sidebar entries whose content lives on the reader's own computer. The Browser entry is
  * not among them: ui-sidebar-browser owns it and opens the reader's own browser through the Aeven
- * extension, asking for this dialog (`desktop-handoff/request`) only when no extension is installed.
+ * extension, whose install prompt also offers the desktop app.
  */
 const LOCAL_KINDS = ['files', 'terminal', 'meeting', 'device'] as const satisfies readonly SidebarContentKind[]
 

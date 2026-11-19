@@ -3,15 +3,12 @@
  * conversation in the installed desktop app through an `aeven://` link, and offers the download when nothing opens.
  */
 import { useEffect, useState } from 'react'
-import { Button, Modal } from '@aeven/client-ui-primitives'
+import { Button, Modal, openAppLink } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import type {} from '@aeven/client-ui-layout/client'
 import type { HandoffState } from './store.ts'
 import { NS } from './locales.ts'
 import css from './HandoffModal.module.css'
-
-/** How long the page waits for the desktop app to take focus before it suggests installing it, in milliseconds. */
-const OPEN_GRACE_MS = 1500
 
 /** What the plugin hands the dialog. */
 export interface HandoffModalInjected {
@@ -51,16 +48,10 @@ export function HandoffModal({ useHandoff, downloadUrl, close, t }: HandoffModal
   if (!state.open) return null
   const open = (): void => {
     setNotOpened(false)
-    // The page loses focus when the operating system hands the link to an installed app.
-    let left = false
-    const onBlur = (): void => { left = true }
-    window.addEventListener('blur', onBlur, { once: true })
-    window.setTimeout(() => {
-      window.removeEventListener('blur', onBlur)
-      if (!left && document.hasFocus()) setNotOpened(true)
-      else close()
-    }, OPEN_GRACE_MS)
-    window.location.href = desktopLink(state.sessionId)
+    void openAppLink(desktopLink(state.sessionId)).then((opened) => {
+      if (opened) close()
+      else setNotOpened(true)
+    })
   }
   return (
     <Modal
