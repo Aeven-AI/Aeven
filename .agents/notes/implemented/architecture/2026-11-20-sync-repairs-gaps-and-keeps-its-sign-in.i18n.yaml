@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-11-20-sync-repairs-gaps-and-keeps-its-sign-in.md
-2026-11-20-sync-repairs-gaps-and-keeps-its-sign-in.md: 755f4da1c579db2a55cdf15ce6537f9d8da8471e
-2026-11-20-sync-repairs-gaps-and-keeps-its-sign-in.zh.md: ab55e08df5bc78f3de059efcb834c76cfcfdb089
+2026-11-20-sync-repairs-gaps-and-keeps-its-sign-in.md: 37e2350180b9bb82e9fc55d9362ea59bfc14321b
+2026-11-20-sync-repairs-gaps-and-keeps-its-sign-in.zh.md: d04ba2095f34db8551635715015817fb05997dbd
