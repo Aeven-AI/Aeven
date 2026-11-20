@@ -78,8 +78,7 @@ None, as 此包只读取随发行版附带的目录，并把一个包交给账�
 <a id="known-limitations-and-deferred-work"></a>
 
 - **是快照而非订阅源。** 上游变更需要在发行时重新生成目录；热度数字停留在内置时的取值。在此编写的技能只在其目录发生变化并重新同步时才更新。
-- **上游指令原样内置**，除非其仓库带有补丁，如 pstack。其余指令可能提到 Claude Code 的界面，或部署可能并不具备的 Python、Node 工具，安装时不会改写。
-- **pstack 的 `watch-pr` 辅助工具在 Bun 下运行。** 没有 Bun 的会话改用 Babysit 剧本中的 `gh` 命令。
+- **上游指令原样内置**，除非其仓库带有补丁，如 pstack；pstack 的补丁还把其 `watch-pr` 辅助工具从 Bun 移植到 Node。其余指令可能提到 Claude Code 的界面，或部署可能并不具备的 Python、Node 工具，安装时不会改写。
 - **无 invariant 伴随模块**——不发布 invariant 伴随模块，因为该服务只读取一份不可变的文件集合，且没有第二套注册表，因此不存在可独立观测的关系。
 
 -----

@@ -109,6 +109,16 @@
    "category": "pstack",
    "author": "Lauren Tan (poteto)",
    "pack": "pstack",
+   "omit": [
+    "scripts/bootstrap.ts",
+    "scripts/bun.lock",
+    "scripts/watch-pr/cli.test.ts",
+    "scripts/watch-pr/fakes.test-helper.ts",
+    "scripts/watch-pr/github.test.ts",
+    "scripts/watch-pr/policy.test.ts",
+    "scripts/watch-pr/types.compile.ts",
+    "scripts/watch-pr/tsconfig.json"
+   ],
    "resources": {
     "principles/attack-the-premise.md": "skills/principle-attack-the-premise/SKILL.md",
     "principles/boundary-discipline.md": "skills/principle-boundary-discipline/SKILL.md",

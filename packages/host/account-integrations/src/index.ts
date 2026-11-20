@@ -1,7 +1,7 @@
 /** Personal skill storage and account-scoped MCP connections exposed to Settings. */
 
 import { createHash, randomUUID } from 'node:crypto'
-import { rename, rm, writeFile } from 'node:fs/promises'
+import { chmod, rename, rm, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, isAbsolute, join } from 'node:path'
 import { mkdir } from 'node:fs/promises'
@@ -16,6 +16,7 @@ import { avnHomePath } from '@aeven/home-paths'
 import { createScope, type Scope } from '@aeven/scope'
 import type {} from '@aeven/host-account-data'
 import type {} from '@aeven/identity-user'
+import type {} from '@aeven/automations'
 import type { Agent, PreStepDecision } from '@aeven/agent'
 import type {} from '@aeven/tools'
 import type {} from '@aeven/workspace'
@@ -736,7 +737,13 @@ export default class AccountIntegrations extends TypertRemoteService {
           for (const [path, data] of Object.entries(skill.resources)) {
             const file = join(directory, path)
             await mkdir(dirname(file), { recursive: true, mode: 0o700 })
-            await writeFile(file, Buffer.from(data, 'base64'), { mode: 0o600 })
+            const bytes = Buffer.from(data, 'base64')
+            // A resource opening with `#!` is a script the instructions run by its path, so its owner may execute it.
+            const script = bytes[0] === 0x23 && bytes[1] === 0x21
+            await writeFile(file, bytes, { mode: script ? 0o700 : 0o600 })
+            // writeFile sets the mode only when it creates the file, and a revision directory written by an earlier
+            // build already holds the script without the execute bit.
+            if (script) await chmod(file, 0o700)
           }
           return { ...candidate, content: skill.content, resourceBase: { kind: 'directory' as const, path: directory } }
         },
@@ -2734,7 +2741,9 @@ export default class AccountIntegrations extends TypertRemoteService {
     const mounts = owned.connections
     // Email rows have no MCP server; their tools come from the mail capability. WhatsApp and
     // Telegram rows get their endpoint and bearer token from their running daemon, and a Discord
-    // row gets a stdio server of its own that serves that guild alone.
+    // row gets a stdio server of its own that serves that guild alone. A bot's run mounts only the connectors its
+    // bot is bound to.
+    const binding = this.ctx.get('automations')?.connectorBinding(agent.session.id)
     const connectors = [...this.domain.table('connectors').entries()].flatMap(([id, connector]) => {
       const google = googleService(connector.provider)
       const microsoft = microsoftService(connector.provider)
@@ -2744,6 +2753,7 @@ export default class AccountIntegrations extends TypertRemoteService {
         && connector.provider !== 'email'
         && (google === undefined || connector.endpoint === google.endpoint)
         && (microsoft === undefined || connector.endpoint === microsoft.endpoint)
+        && (binding === undefined || binding === 'all' || binding.includes(connector.provider))
       return mountable ? [[id, connector] as const] : []
     })
     for (const [id, mount] of mounts) {

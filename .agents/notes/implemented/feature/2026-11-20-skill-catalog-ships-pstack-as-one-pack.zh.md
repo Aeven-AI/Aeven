@@ -14,7 +14,7 @@ pstack 自身的两点事实让直接引入在这里无法工作。每个 pstack
 
 `vendored.json` 在 `pstack` 分类下列出 27 个 pstack 技能，并标注 `pack: "pstack"`。新的 `repositories` 映射把 `backnotprop/pstack` 固定在 `4a4f41c4`，并为它指定改写步骤：`patches/backnotprop-pstack.patch` 在目录品牌改写之前应用到固定版本的文件上，`forbid` 列表给出发布的 Markdown 文件不得再匹配的模式。补丁块无法应用或被禁止的名称仍然存在时，同步失败，因此刷新不会悄悄发布死路。同一映射把 `nexu-io/open-design` 与 `blader/humanizer` 固定在目录已发布的提交上，本次同步保持它们的行逐字节不变。
 
-补丁做三类修改。它从其他成员会加载的 20 个技能中删除 `disable-model-invocation`，使 `skill` 工具能够加载它们；没有任何成员路由到的 7 个技能（`automate-me`、`blast-radius`、`correct`、`reflect`、`sharpen`、`statechart`、`teach`）保持上游原样，仅限用户调用。它为本部署改写 `poteto-mode` 的 Subagents 与 Harness 两节：`subagent` 工具、按角色选模型的 `list_subagent_models`、查找早先对话的 `session_search`、`ask_user_question`、`todo_write`、用于重复检查的 `schedule_create`，以及技能目录 `.avn/skills/` 与 `.agents/skills/`。它把剧本和被路由技能中零散的死路替换为指向该 Harness 一节的说明。
+补丁做五类修改。它从其他成员会加载的 20 个技能中删除 `disable-model-invocation`，使 `skill` 工具能够加载它们；没有任何成员路由到的 7 个技能（`automate-me`、`blast-radius`、`correct`、`reflect`、`sharpen`、`statechart`、`teach`）保持上游原样，仅限用户调用。它为本部署改写 `poteto-mode` 的 Subagents 与 Harness 两节：`subagent` 工具、按角色选模型的 `list_subagent_models`、查找早先对话的 `session_search`、`ask_user_question`、`todo_write`、用于重复检查的 `schedule_create`，以及技能目录 `.avn/skills/` 与 `.agents/skills/`。它把剧本和被路由技能中零散的死路替换为指向该 Harness 一节的说明。它把 `poteto-mode` 的 `watch-pr` 辅助工具从 Bun 移植到 Node：`node:util` 的 `parseArgs` 以相同的选项、默认值、冲突规则和退出状态（用法错误为 64，`--help` 为 0）取代 `commander`，启动脚本改由 `node` 运行，`omit` 去掉 Bun 引导脚本、锁文件和测试，因此该工具无需安装步骤，可在 Aeven 桌面端放入 PATH 的 Node 22.18+ 上运行。它带上固定镜像缺少的三项上游修复：fork PR 不再加入发现的栈，评审文本中的控制字符不再到达终端（[cursor/plugins#1193](https://github.com/cursor/plugins/issues/1193)），以及在 `worker.md` 下运行并到达 `interrogate` 的委派代理会陈述假定的意图，而不是询问某个人（[cursor/plugins#1272](https://github.com/cursor/plugins/issues/1272)）。
 
 24 条单行原则通过新的逐条目 `resources` 映射并入 `poteto-mode` 的 bundle，位于 `principles/<title>.md`，而不是发布 24 行目录条目。`omit` 把 `statechart` 3.7 MB 的测试语料排除在 bundle 之外。
 
@@ -38,4 +38,4 @@ pstack 自身的两点事实让直接引入在这里无法工作。每个 pstack
 
 ## 影响
 
-目录从 99 个技能增长到 15 个分类下的 126 个技能，新增约 0.3 MB 的 bundle。`poteto-mode` 的 `watch-pr` 辅助工具仍然在 Bun 下运行，会话可能没有 Bun；没有它时，Babysit 剧本中的 `gh` 命令仍是可用路径。刷新 pstack 需要更新 `ref`、针对新提交重新生成补丁并重新运行同步，同步的闭合与禁用检查会指出刷新破坏的任何内容。
+目录从 99 个技能增长到 15 个分类下的 126 个技能，新增约 0.3 MB 的 bundle。已安装技能的资源以仅所有者可访问的权限写入，因此 `@aeven/host-account-integrations` 现在把以 `#!` 开头的资源写为可执行文件；`statechart` 的启动脚本和内置的 shell 辅助脚本便可像指令所说的那样按路径运行，剧本则以 `node scripts/watch-pr/watch-pr` 调用监视工具，这在 Windows 上同样可用。刷新 pstack 需要更新 `ref`、针对新提交重新生成补丁并重新运行同步，同步的闭合与禁用检查会指出刷新破坏的任何内容。
