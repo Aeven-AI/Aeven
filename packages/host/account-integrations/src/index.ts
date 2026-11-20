@@ -16,6 +16,7 @@ import { avnHomePath } from '@aeven/home-paths'
 import { createScope, type Scope } from '@aeven/scope'
 import type {} from '@aeven/host-account-data'
 import type {} from '@aeven/identity-user'
+import type {} from '@aeven/automations'
 import type { Agent, PreStepDecision } from '@aeven/agent'
 import type {} from '@aeven/tools'
 import type {} from '@aeven/workspace'
@@ -2705,7 +2706,9 @@ export default class AccountIntegrations extends TypertRemoteService {
     const mounts = owned.connections
     // Email rows have no MCP server; their tools come from the mail capability. WhatsApp and
     // Telegram rows get their endpoint and bearer token from their running daemon, and a Discord
-    // row gets a stdio server of its own that serves that guild alone.
+    // row gets a stdio server of its own that serves that guild alone. A bot's run mounts only the connectors its
+    // bot is bound to.
+    const binding = this.ctx.get('automations')?.connectorBinding(agent.session.id)
     const connectors = [...this.domain.table('connectors').entries()].flatMap(([id, connector]) => {
       const google = googleService(connector.provider)
       const microsoft = microsoftService(connector.provider)
@@ -2715,6 +2718,7 @@ export default class AccountIntegrations extends TypertRemoteService {
         && connector.provider !== 'email'
         && (google === undefined || connector.endpoint === google.endpoint)
         && (microsoft === undefined || connector.endpoint === microsoft.endpoint)
+        && (binding === undefined || binding === 'all' || binding.includes(connector.provider))
       return mountable ? [[id, connector] as const] : []
     })
     for (const [id, mount] of mounts) {

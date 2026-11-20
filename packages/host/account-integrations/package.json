@@ -82,6 +82,7 @@
   "peerDependencies": {
     "@aeven/agent": "workspace:^",
     "@aeven/agent-presets": "workspace:^",
+    "@aeven/automations": "workspace:^",
     "@aeven/credentials": "workspace:^",
     "@aeven/host-account-data": "workspace:^",
     "@aeven/host-webserver": "workspace:^",
@@ -100,6 +101,7 @@
   "devDependencies": {
     "@aeven/agent": "workspace:^",
     "@aeven/agent-presets": "workspace:^",
+    "@aeven/automations": "workspace:^",
     "@aeven/brand": "workspace:^",
     "@aeven/credentials": "workspace:^",
     "@aeven/home-paths": "workspace:^",
@@ -121,6 +123,9 @@
   },
   "peerDependenciesMeta": {
     "@aeven/agent-presets": {
+      "optional": true
+    },
+    "@aeven/automations": {
       "optional": true
     },
     "@aeven/host-account-data": {

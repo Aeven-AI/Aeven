@@ -6867,6 +6867,9 @@ importers:
       '@aeven/llm':
         specifier: workspace:^
         version: link:../../llm/llm
+      '@aeven/mail':
+        specifier: workspace:^
+        version: link:../../mail/mail
       '@aeven/permission-presets':
         specifier: workspace:^
         version: link:../../interaction/permission-presets
@@ -8495,6 +8498,9 @@ importers:
       '@aeven/agent-presets':
         specifier: workspace:^
         version: link:../../preset/agent-presets
+      '@aeven/automations':
+        specifier: workspace:^
+        version: link:../../core/automations
       '@aeven/credentials':
         specifier: workspace:^
         version: link:../../credentials/credentials

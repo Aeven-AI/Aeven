@@ -978,6 +978,11 @@
         historyLimit: 200
         workspaceTitle: Automations
         webhookMaxBodyBytes: 8192
+        githubMaxBodyBytes: 1048576
+        queueDepth: 5
+        # A saved approval answers for thirty days; the run after that asks again.
+        grantLifetimeDays: 30
+        mailPollSeconds: 120
         # This Host is the user's computer: its runs reach the files, browser, and apps there.
         placement:
           kind: device

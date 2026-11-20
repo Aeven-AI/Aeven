@@ -45,10 +45,10 @@ function call(harness: AutomationHarness, name: string, args: unknown): Promise<
 }
 
 describe('automation management tools', () => {
-  it('publishes the five management tools and removes them on disposal', async () => {
+  it('publishes the six management tools and removes them on disposal', async () => {
     const harness = await mount()
     expect([...harness.tools.registered.keys()]).toEqual([
-      'automation_create', 'automation_list', 'automation_update', 'automation_run_now', 'automation_retry',
+      'automation_create', 'automation_list', 'automation_update', 'automation_run_now', 'automation_retry', 'automation_board',
     ])
     for (const dispose of toolDisposers.splice(0)) dispose()
     expect([...harness.tools.registered.keys()]).toEqual([])
@@ -58,12 +58,12 @@ describe('automation management tools', () => {
     const harness = await mount()
     const parameters = tool(harness, 'automation_create').parameters as {
       additionalProperties: boolean
-      properties: Record<string, unknown> & { schedule: ScheduleProperties }
+      properties: Record<string, unknown> & { triggers: { items: { properties: { schedule: ScheduleProperties } } } }
       required: string[]
     }
-    expect(parameters.required).toEqual(['name', 'prompt', 'schedule', 'permission', 'requires'])
+    expect(parameters.required).toEqual(['name', 'prompt', 'triggers', 'permission', 'requires'])
     expect(parameters.additionalProperties).toBe(false)
-    const schedule = parameters.properties.schedule
+    const schedule = parameters.properties.triggers.items.properties.schedule
     expect(schedule.required).toEqual(['kind', 'timeZone'])
     expect(schedule.additionalProperties).toBe(false)
     expect(schedule.properties.kind).toEqual({
@@ -111,14 +111,17 @@ describe('automation management tools', () => {
   it('offers the same schedule vocabulary to update, and the pause status', async () => {
     const harness = await mount()
     const parameters = tool(harness, 'automation_update').parameters as {
-      properties: Record<string, unknown> & { schedule: { properties: Record<string, { enum?: unknown }> } }
+      properties: Record<string, unknown> & {
+        triggers: { items: { properties: { schedule: { properties: Record<string, { enum?: unknown }> } } } }
+      }
       required: string[]
     }
     expect(parameters.required).toEqual(['id'])
-    expect(parameters.properties.schedule.properties.kind?.enum).toEqual([
+    const schedule = parameters.properties.triggers.items.properties.schedule
+    expect(schedule.properties.kind?.enum).toEqual([
       'once', 'interval', 'hours', 'daily', 'weekly', 'monthly', 'nth-weekday', 'yearly', 'cron',
     ])
-    expect(parameters.properties.schedule.properties.expression).toEqual({
+    expect(schedule.properties.expression).toEqual({
       type: 'string',
       description: 'Five-field cron expression (minute, hour, day of month, month, day of week) for cron.',
     })
@@ -139,10 +142,10 @@ describe('automation management tools', () => {
   it('states the create guidance the model reads while turning a request into a task', async () => {
     const harness = await mount()
     expect(tool(harness, 'automation_create').description).toBe(
-      'Create a built-in automation after human confirmation. Translate the user’s request into a self-contained task and explicit local schedule. Ask only for missing requirements. Future runs start fresh conversations with this account’s capabilities. An external action that needs approval asks the user in the run conversation; once the user approves it there, later runs perform it without asking.',
+      'Create a built-in automation after human confirmation. Translate the user’s request into a self-contained task, the triggers that wake it, and the connected accounts it needs. Ask only for missing requirements. Future runs start fresh conversations with only those accounts. An external action that needs approval asks the user in the run conversation; once the user approves it there, later runs perform it without asking until the approval expires or is revoked.',
     )
     expect(tool(harness, 'automation_update').description).toBe(
-      'Adjust a task, schedule, file permissions, or what the task needs from the user’s computer after confirmation, or pause an automation immediately. Omitted fields remain unchanged. When a changed task needs something different from the computer, send the new requires list.',
+      'Adjust a task, its triggers, connected accounts, overlap, file permissions, or what the task needs from the user’s computer after confirmation, or pause an automation immediately. Omitted fields remain unchanged; triggers replaces the whole list. When a changed task needs something different from the computer, send the new requires list.',
     )
     expect(tool(harness, 'automation_list').description).toBe(
       'List this account’s automations and recent run history. Use the stable IDs for subsequent changes.',
@@ -162,17 +165,17 @@ describe('automation management tools', () => {
       const created = await call(harness, 'automation_create', {
         name: `Kind ${String(index)}`,
         prompt: 'Do the scheduled work and report the evidence.',
-        schedule,
+        triggers: [{ kind: 'schedule', schedule }],
         permission: 'read-only',
         requires: [],
-      }) as { schedule: AutomationSchedule; status: string; revision: number }
-      expect(created.schedule).toEqual(schedule)
+      }) as { triggers: { schedule?: AutomationSchedule }[]; status: string; revision: number }
+      expect(created.triggers).toEqual([{ kind: 'schedule', schedule }])
       expect(created.status).toBe('active')
       expect(created.revision).toBe(1)
     }
     const listed = await listAutomations(harness)
     // The projection lists the most recently changed definition first.
-    expect(listed.definitions.map(definition => definition.schedule.kind))
+    expect(listed.definitions.map(definition => definition.triggers[0]?.kind === 'schedule' ? definition.triggers[0].schedule.kind : undefined))
       .toEqual(['cron', 'yearly', 'nth-weekday', 'monthly', 'hours'])
     // Each definition also states when it next runs, so the model can read the cadence back.
     for (const definition of listed.definitions) expect(typeof definition.nextRunAt).toBe('string')
@@ -181,41 +184,41 @@ describe('automation management tools', () => {
   it('rejects an argument the schedule cannot evaluate before storing anything', async () => {
     const harness = await mount()
     const base = { name: 'Broken', prompt: 'Work.', permission: 'read-only', requires: [] }
-    await expect(call(harness, 'automation_create', { ...base, schedule: { kind: 'cron', expression: '0 6 * *', timeZone: 'UTC' } }))
+    await expect(call(harness, 'automation_create', { ...base, triggers: [{ kind: 'schedule', schedule: { kind: 'cron', expression: '0 6 * *', timeZone: 'UTC' } }] }))
       .rejects.toThrow(/must have five fields/)
-    await expect(call(harness, 'automation_create', { ...base, schedule: { kind: 'cron', expression: '30 6 * * 1-5', timeZone: 'Mars/Olympus' } }))
+    await expect(call(harness, 'automation_create', { ...base, triggers: [{ kind: 'schedule', schedule: { kind: 'cron', expression: '30 6 * * 1-5', timeZone: 'Mars/Olympus' } }] }))
       .rejects.toThrow(/must be an explicit IANA zone/)
-    await expect(call(harness, 'automation_create', { ...base, schedule: { kind: 'nth-weekday', time: '07:00', week: 5, weekday: 'MO', timeZone: 'UTC' } }))
+    await expect(call(harness, 'automation_create', { ...base, triggers: [{ kind: 'schedule', schedule: { kind: 'nth-weekday', time: '07:00', week: 5, weekday: 'MO', timeZone: 'UTC' } }] }))
       .rejects.toThrow()
-    await expect(call(harness, 'automation_create', { ...base, schedule: { kind: 'monthly', time: '07:00', days: [], timeZone: 'UTC' } }))
+    await expect(call(harness, 'automation_create', { ...base, triggers: [{ kind: 'schedule', schedule: { kind: 'monthly', time: '07:00', days: [], timeZone: 'UTC' } }] }))
       .rejects.toThrow()
-    await expect(call(harness, 'automation_create', { ...base, schedule: { kind: 'yearly', time: '07:00', month: 2, day: 30, timeZone: 'UTC' } }))
+    await expect(call(harness, 'automation_create', { ...base, triggers: [{ kind: 'schedule', schedule: { kind: 'yearly', time: '07:00', month: 2, day: 30, timeZone: 'UTC' } }] }))
       .rejects.toThrow(/yearly\.day/)
-    await expect(call(harness, 'automation_create', { ...base, schedule: { kind: 'hours', everyHours: 3, atMinute: 10, timeZone: 'UTC' } }))
+    await expect(call(harness, 'automation_create', { ...base, triggers: [{ kind: 'schedule', schedule: { kind: 'hours', everyHours: 3, atMinute: 10, timeZone: 'UTC' } }] }))
       .resolves.toBeDefined()
     expect((await listAutomations(harness)).definitions).toHaveLength(1)
   })
 
   it('adjusts a stored schedule to a new kind, leaving omitted fields unchanged', async () => {
     const harness = await mount()
-    const definition = await createAutomation(harness, { name: 'Weekly sweep', prompt: 'Sweep the queue.', schedule: { kind: 'daily', time: '07:00', timeZone: 'UTC' } })
+    const definition = await createAutomation(harness, { name: 'Weekly sweep', prompt: 'Sweep the queue.', triggers: [{ kind: 'schedule', schedule: { kind: 'daily', time: '07:00', timeZone: 'UTC' } }] })
     const cron: AutomationSchedule = { kind: 'cron', expression: '0 7 * * 1', timeZone: 'UTC' }
-    const updated = await call(harness, 'automation_update', { id: definition.id, schedule: cron }) as { schedule: AutomationSchedule; name: string; prompt: string; revision: number }
-    expect(updated.schedule).toEqual(cron)
+    const updated = await call(harness, 'automation_update', { id: definition.id, triggers: [{ kind: 'schedule', schedule: cron }] }) as { triggers: unknown[]; name: string; prompt: string; revision: number }
+    expect(updated.triggers).toEqual([{ kind: 'schedule', schedule: cron }])
     expect(updated.name).toBe('Weekly sweep')
     expect(updated.prompt).toBe('Sweep the queue.')
     expect(updated.revision).toBe(2)
 
-    const paused = await call(harness, 'automation_update', { id: definition.id, status: 'paused' }) as { status: string; schedule: AutomationSchedule; revision: number }
+    const paused = await call(harness, 'automation_update', { id: definition.id, status: 'paused' }) as { status: string; triggers: unknown[]; revision: number }
     expect(paused.status).toBe('paused')
-    expect(paused.schedule).toEqual(cron)
+    expect(paused.triggers).toEqual([{ kind: 'schedule', schedule: cron }])
     expect(paused.revision).toBe(3)
   })
 
   it('names the fields an update argument must and must not carry', async () => {
     const harness = await mount()
     const definition = await createAutomation(harness)
-    await expect(call(harness, 'automation_update', { id: definition.id, schedule: { kind: 'cron', expression: '@daily', timeZone: 'UTC' } }))
+    await expect(call(harness, 'automation_update', { id: definition.id, triggers: [{ kind: 'schedule', schedule: { kind: 'cron', expression: '@daily', timeZone: 'UTC' } }] }))
       .rejects.toThrow(/must have five fields/)
     await expect(call(harness, 'automation_update', { id: definition.id, worker: 'remote' }))
       .rejects.toThrow()

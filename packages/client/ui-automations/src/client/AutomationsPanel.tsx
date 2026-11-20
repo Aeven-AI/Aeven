@@ -37,6 +37,7 @@ type PendingAction =
   | { kind: 'retry'; id: string }
   | { kind: 'webhook-rotate'; id: string }
   | { kind: 'webhook-remove'; id: string }
+  | { kind: 'board-remove'; id: string }
 
 /** Connector providers the signed-in account has connected and the deployment can sign in to. */
 export interface ServiceState {
@@ -91,6 +92,20 @@ export type TaskSchedule =
   | { kind: 'yearly'; timeZone: string; time: string; month: number; day: number; until?: string | undefined }
   | { kind: 'cron'; timeZone: string; expression: string; until?: string | undefined }
 
+/** One thing that wakes a bot, as the Host stores it. */
+export type TaskTrigger =
+  | { kind: 'schedule'; schedule: TaskSchedule }
+  | { kind: 'webhook'; idempotency: 'sender' | 'none' }
+  | { kind: 'event'; source: 'mail'; filter: { account?: string; from?: string; subject?: string } }
+  | { kind: 'event'; source: 'github'; filter: { events?: string[]; repository?: string } }
+  | { kind: 'bot'; from: string; mode: 'wait' | 'dispatch' }
+/** One saved approval; it answers until `expiresAt`, or always without one. */
+export interface TaskGrant {
+  toolName: string
+  scope: string
+  grantedAt: string
+  expiresAt?: string | undefined
+}
 /** Account-owned automation projection, including authoritative recurrence and latest outcome. */
 export interface Task {
   id: string
@@ -98,10 +113,15 @@ export interface Task {
   prompt: string
   permission: 'read-only' | 'workspace-write'
   status: 'active' | 'paused'
-  schedule: TaskSchedule
+  triggers: TaskTrigger[]
+  /** `all`, or the connector ids its runs may call. */
+  connectors: 'all' | string[]
+  overlap: 'skip' | 'queue' | 'parallel'
+  grants: TaskGrant[]
+  /** Earliest next occurrence of its schedule triggers. */
   nextRunAt: string | null
   lastRun: Run | null
-  /** Whether an inbound trigger credential exists; the key itself never arrives in this list. */
+  /** Whether an inbound credential exists, for its webhook or GitHub trigger; the key itself never arrives in this list. */
   webhook: boolean
   /** What the task needs from the owner's computer; absent on a bot stored before that was declared. */
   requires?: (keyof typeof NEED_LABELS)[] | undefined
@@ -121,11 +141,36 @@ export interface Run {
   sessionId: string | null
   error: string | null
   resolution: { kind: 'retried'; at: string; retryRunId: string | null } | null
+  /** Tokens the run spent, once it settled. */
+  usage?: { totalTokens: number } | null | undefined
+}
+/** Bots of the account that hand each other tasks and share a budget. */
+export interface Board {
+  id: string
+  name: string
+  members: string[]
+  budget: { maxConcurrentRuns?: number | undefined; maxTokensPerDay?: number | undefined }
+}
+/** One task one bot handed another, and how it settled. */
+export interface HandoffRecord {
+  id: string
+  board: string | null
+  fromName: string
+  toName: string
+  status: 'open' | 'claimed' | 'done' | 'failed' | 'released' | 'refused'
+  task: string
+  reason: string | null
+  tokens: number | null
+  replyTo: string | null
+  createdAt: string
 }
 /** Host-advertised time triggers and the owned management projection. */
 export interface AutomationList {
   definitions: Task[]
   runs: Run[]
+  /** Absent from a Host without boards. */
+  boards?: Board[] | undefined
+  handoffs?: HandoffRecord[] | undefined
   capabilities: { host: 'cloud' | 'device'; triggers: TaskSchedule['kind'][]; webhook: boolean }
   /** Where the account's bots can be placed; absent from a Host that does not list them. */
   hosts?: { cloud: boolean; desktops: Desktop[] } | undefined
@@ -256,12 +301,16 @@ export function AutomationsPanel({ t, inputActions, list, call, openRun, view, s
       .catch((): void => undefined)
     return () => { alive = false }
   }, [connected, expanded, credential, data, call])
-  const act = (operation: string, id?: string, patch?: object): void => {
+  /** Send one management operation, then reload the list; a refusal shows as the page's alert. */
+  const send = (operation: string, payload: object): void => {
     setBusy(true); setError('')
-    void call(operation, id === undefined ? {} : patch === undefined ? { id } : { id, patch })
+    void call(operation, payload)
       .then(() => { setRefresh(value => value + 1) })
       .catch((reason: unknown) => { setError(reason instanceof Error ? reason.message : t('error')) })
       .finally(() => { setBusy(false) })
+  }
+  const act = (operation: string, id?: string, patch?: object): void => {
+    send(operation, id === undefined ? {} : patch === undefined ? { id } : { id, patch })
   }
   /** Send one stop; the bot's pill spins from the click until the run is no longer queued or running. */
   const stop = (id: string): void => {
@@ -304,6 +353,26 @@ export function AutomationsPanel({ t, inputActions, list, call, openRun, view, s
       case 'cron': return `${t('scheduleCron', { expression: schedule.expression })}${until}`
     }
   }
+  /** Local sentence for one trigger of a bot. */
+  const describeTrigger = (trigger: TaskTrigger): string => {
+    switch (trigger.kind) {
+      case 'schedule': return describe(trigger.schedule)
+      case 'webhook': return t('triggerWebhook')
+      case 'bot': {
+        const name = data?.definitions.find(task => task.id === trigger.from)?.name ?? t('triggerRemovedBot')
+        return t(trigger.mode === 'wait' ? 'triggerBotWait' : 'triggerBotDispatch', { name })
+      }
+      case 'event':
+        if (trigger.source === 'mail') {
+          const { account, from, subject } = trigger.filter
+          return [t('triggerMail'), from === undefined ? '' : t('triggerMailFrom', { from }), subject === undefined ? '' : t('triggerMailSubject', { subject }), account === undefined ? '' : t('triggerMailAccount', { account })].filter(part => part !== '').join(' ')
+        }
+        return [t('triggerGithub'), trigger.filter.repository === undefined ? '' : t('triggerGithubRepo', { repository: trigger.filter.repository }), trigger.filter.events === undefined || trigger.filter.events.length === 0 ? '' : t('triggerGithubEvents', { events: trigger.filter.events.join(', ') })].filter(part => part !== '').join(' ')
+    }
+  }
+  const handoffStatus = { open: 'handoffOpen', claimed: 'handoffClaimed', done: 'handoffDone', failed: 'handoffFailed', released: 'handoffReleased', refused: 'handoffRefused' } as const
+  const overlapText = { skip: 'overlapSkip', queue: 'overlapQueue', parallel: 'overlapParallel' } as const
+  const number = (value: number): string => new Intl.NumberFormat().format(value)
   /** The desktop a bot is placed on, and its display name; undefined for a bot not placed on one desktop. */
   const chosenDesktop = (task: Task): { desktop: Desktop | undefined; name: string } | undefined => {
     if (task.runOn !== 'device' || task.desktop === undefined) return undefined
@@ -381,6 +450,7 @@ export function AutomationsPanel({ t, inputActions, list, call, openRun, view, s
       case 'retry': return { title: t('retry'), description: t('retryWarning'), confirm: t('retry') }
       case 'webhook-rotate': return { title: t('webhookRotateTitle'), description: t('webhookRotateConfirm'), confirm: t('webhookRotate') }
       case 'webhook-remove': return { title: t('webhookRemove'), description: t('webhookRemoveConfirm'), confirm: t('webhookRemove') }
+      case 'board-remove': return { title: t('boardRemove'), description: t('boardRemoveConfirm'), confirm: t('remove') }
     }
   }
   const confirmed = (action: PendingAction): void => {
@@ -392,6 +462,7 @@ export function AutomationsPanel({ t, inputActions, list, call, openRun, view, s
       case 'retry': act('retry', action.id); return
       case 'webhook-rotate': setCredential(null); act('webhook-rotate', action.id); return
       case 'webhook-remove': setCredential(null); act('webhook-disable', action.id); return
+      case 'board-remove': act('board-remove', action.id); return
     }
   }
   const pendingCopy = pending === null ? null : confirmation(pending)
@@ -416,7 +487,10 @@ export function AutomationsPanel({ t, inputActions, list, call, openRun, view, s
             >
               <span className={css.runText}>
                 <span className={css.runTitle}>{options.named ? run.definition.name : date(run.scheduledFor)}</span>
-                <span className={css.runSubtitle}>{options.named ? `${t(run.status)} · ${date(run.scheduledFor)}` : t(run.status)}</span>
+                <span className={css.runSubtitle}>
+                  {options.named ? `${t(run.status)} · ${date(run.scheduledFor)}` : t(run.status)}
+                  {run.usage != null && run.usage.totalTokens > 0 ? ` · ${t('tokens', { n: number(run.usage.totalTokens) })}` : ''}
+                </span>
               </span>
             </button>
             {options.removable && finished && (
@@ -505,6 +579,7 @@ export function AutomationsPanel({ t, inputActions, list, call, openRun, view, s
               {data.definitions.map((task) => {
                 const hook = credential?.id === task.id ? credential.value : null
                 const current = data.runs.find(run => run.definition.id === task.id && (run.status === 'queued' || run.status === 'running'))
+                const hasWebhook = task.triggers.some(trigger => trigger.kind === 'webhook')
                 return (
                   <article className={css.card} key={task.id}>
                     <button
@@ -525,7 +600,8 @@ export function AutomationsPanel({ t, inputActions, list, call, openRun, view, s
                         <span className={css.fact}>
                           <span className={css.factLabel}>{t('next')}</span>
                           <span className={css.factValue}>
-                            {task.status === 'paused' ? t('paused') : task.nextRunAt === null ? t('noNext') : date(task.nextRunAt)}
+                            {task.status === 'paused' ? t('paused') : task.nextRunAt !== null ? date(task.nextRunAt)
+                              : task.triggers.some(trigger => trigger.kind !== 'schedule') ? t('onEvent') : t('noNext')}
                           </span>
                         </span>
                         <span className={css.fact}>
@@ -546,9 +622,36 @@ export function AutomationsPanel({ t, inputActions, list, call, openRun, view, s
                     </button>
                     {expanded === task.id && (
                       <div className={css.details}>
-                        <p className={css.schedule}>{describe(task.schedule)}</p>
+                        {task.triggers.map((trigger, index) => <p className={css.schedule} key={index}>{describeTrigger(trigger)}</p>)}
                         <p className={css.prompt}>{task.prompt}</p>
                       </div>
+                    )}
+                    {expanded === task.id && (
+                      <>
+                        <h3 className={css.detailTitle}>{t('connectorsTitle')}</h3>
+                        <p className={css.triggerText}>{task.connectors === 'all' ? t('connectorsAll') : task.connectors.length === 0 ? t('connectorsNone') : task.connectors.join(', ')}</p>
+                        <h3 className={css.detailTitle}>{t('overlapTitle')}</h3>
+                        <p className={css.triggerText}>{t(overlapText[task.overlap])}</p>
+                      </>
+                    )}
+                    {expanded === task.id && task.grants.length > 0 && (
+                      <>
+                        <h3 className={css.detailTitle}>{t('grantsTitle')}</h3>
+                        {task.grants.map(grant => (
+                          <div className={css.triggerRow} key={`${grant.toolName}\n${grant.scope}`}>
+                            <span className={css.triggerLabel}>{grant.toolName}</span>
+                            <span className={css.triggerValue}>
+                              {grant.expiresAt === undefined ? t('grantNoEnd') : Date.parse(grant.expiresAt) <= Date.now() ? t('grantExpired') : t('grantExpires', { date: date(grant.expiresAt) })}
+                            </span>
+                            <Button
+                              variant="ghost" size="sm" disabled={unavailable}
+                              onClick={() => { send('grant-revoke', { id: task.id, toolName: grant.toolName, scope: grant.scope }) }}
+                            >
+                              {t('grantRevoke')}
+                            </Button>
+                          </div>
+                        ))}
+                      </>
                     )}
                     {expanded === task.id && task.placement.runsOn !== 'any' && (
                       <>
@@ -563,11 +666,41 @@ export function AutomationsPanel({ t, inputActions, list, call, openRun, view, s
                         )}
                       </>
                     )}
+                    {expanded === task.id && task.triggers.some(trigger => trigger.kind === 'event' && trigger.source === 'github') && (
+                      <>
+                        <h3 className={css.detailTitle}>{t('githubTriggerTitle')}</h3>
+                        <p className={css.triggerText}>{t('githubDetail')}</p>
+                        <div className={css.triggerRow}>
+                          <span className={css.triggerLabel}>{t('githubAddress')}</span>
+                          <span className={css.triggerValue}>{hook === null ? '…' : address(`${hook.path}/github`)}</span>
+                          <Tooltip label={t('webhookCopyAddress')} side="top" anchor="icon">
+                            <span className={css.tip}>
+                              <Button
+                                variant="ghost" size="sm" icon={<IconCopyOutline16 />} aria-label={t('webhookCopyAddress')}
+                                disabled={unavailable || hook === null} onClick={() => { if (hook !== null) copy(address(`${hook.path}/github`)) }}
+                              />
+                            </span>
+                          </Tooltip>
+                        </div>
+                        <div className={css.triggerRow}>
+                          <span className={css.triggerLabel}>{t('githubSecret')}</span>
+                          <span className={css.triggerValue}>{hook === null ? '…' : `${hook.keyId}${'•'.repeat(24)}`}</span>
+                          <Tooltip label={t('webhookCopyKey')} side="top" anchor="icon">
+                            <span className={css.tip}>
+                              <Button
+                                variant="ghost" size="sm" icon={<IconCopyOutline16 />} aria-label={t('webhookCopyKey')}
+                                disabled={unavailable || hook === null} onClick={() => { if (hook !== null) copy(hook.secret) }}
+                              />
+                            </span>
+                          </Tooltip>
+                        </div>
+                      </>
+                    )}
                     {expanded === task.id && data.capabilities.webhook && (
                       <>
                         <h3 className={css.detailTitle}>{t('webhookTitle')}</h3>
-                        <p className={css.triggerText}>{task.webhook ? t('webhookActive') : t('webhookIdle')}</p>
-                        {task.webhook ? (
+                        <p className={css.triggerText}>{hasWebhook ? t('webhookActive') : t('webhookIdle')}</p>
+                        {hasWebhook ? (
                           <>
                             <div className={css.triggerRow}>
                               <span className={css.triggerLabel}>{t('webhookAddress')}</span>
@@ -670,6 +803,70 @@ export function AutomationsPanel({ t, inputActions, list, call, openRun, view, s
                 )
               })}
             </div>
+            {data.boards !== undefined && data.definitions.length > 1 && (
+              <>
+                <div className={css.bar}>
+                  <h2 className={css.sectionTitle}>{t('boardsTitle')}</h2>
+                  <Button variant="ghost" size="sm" disabled={unavailable} onClick={() => { draft(t('boardDraft')) }}>{t('boardNew')}</Button>
+                </div>
+                {data.boards.length === 0 && <p className={css.triggerText}>{t('boardsDetail')}</p>}
+                <div className={css.list}>
+                  {data.boards.map((board) => {
+                    const chain = (data.handoffs ?? []).filter(handoff => handoff.board === board.id)
+                    const names = board.members.map(member => data.definitions.find(task => task.id === member)?.name ?? t('triggerRemovedBot'))
+                    const budget = [
+                      board.budget.maxConcurrentRuns === undefined ? '' : t('boardBudgetRuns', { n: String(board.budget.maxConcurrentRuns) }),
+                      board.budget.maxTokensPerDay === undefined ? '' : t('boardBudgetTokens', { n: number(board.budget.maxTokensPerDay) }),
+                    ].filter(part => part !== '')
+                    return (
+                      <article className={css.card} key={board.id}>
+                        <div className={css.details}>
+                          <span className={css.title}>{board.name}</span>
+                          <div className={css.triggerRow}>
+                            <span className={css.triggerLabel}>{t('boardMembers')}</span>
+                            <span className={css.triggerValue}>{names.join(', ')}</span>
+                          </div>
+                          <div className={css.triggerRow}>
+                            <span className={css.triggerLabel}>{t('boardBudget')}</span>
+                            <span className={css.triggerValue}>{budget.length === 0 ? t('boardBudgetNone') : budget.join(', ')}</span>
+                          </div>
+                        </div>
+                        <h3 className={css.detailTitle}>{t('boardChain')}</h3>
+                        {chain.length === 0 ? <p className={css.triggerText}>{t('boardChainEmpty')}</p> : (
+                          <ul className={css.runList}>
+                            {chain.map(handoff => (
+                              <li className={css.run} key={handoff.id}>
+                                <span className={css.runOpen} title={handoff.reason ?? handoff.task}>
+                                  <span className={css.runText}>
+                                    <span className={css.runTitle}>{`${handoff.fromName} → ${handoff.toName}`}</span>
+                                    <span className={css.runSubtitle}>
+                                      {`${t(handoffStatus[handoff.status])} · ${date(handoff.createdAt)}`}
+                                      {handoff.tokens !== null && handoff.tokens > 0 ? ` · ${t('tokens', { n: number(handoff.tokens) })}` : ''}
+                                      {handoff.reason !== null && (handoff.status === 'refused' || handoff.status === 'released') ? ` · ${handoff.reason}` : ''}
+                                    </span>
+                                  </span>
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        <div className={css.cardActions}>
+                          <Tooltip label={t('boardRemove')} side="top" anchor="icon">
+                            <span className={css.tip}>
+                              <Button
+                                variant="ghost" size="sm" className={`${css.action} ${css.iconAction}`} icon={<IconTrashOutline16 />}
+                                aria-label={t('boardRemove')} disabled={unavailable}
+                                onClick={() => { setPending({ kind: 'board-remove', id: board.id }) }}
+                              />
+                            </span>
+                          </Tooltip>
+                        </div>
+                      </article>
+                    )
+                  })}
+                </div>
+              </>
+            )}
             <h2 className={css.sectionTitle}>{t('recommended')}</h2>
             <button type="button" className={css.forYou} disabled={unavailable} onClick={() => { draft(t('forYouDraft')) }}>
               <span className={css.templateIcon}><IconSparkles /></span>

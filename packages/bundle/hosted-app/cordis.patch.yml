@@ -264,6 +264,10 @@
     historyLimit: 200
     workspaceTitle: Automations
     webhookMaxBodyBytes: 8192
+    githubMaxBodyBytes: 1048576
+    queueDepth: 5
+    grantLifetimeDays: 30
+    mailPollSeconds: 120
     placement:
       kind: cloud
       provides: []

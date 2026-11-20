@@ -31,7 +31,7 @@ afterEach(() => {
 function task(over: Partial<Task> = {}): Task {
   return {
     id: 'bot-1', name: 'Morning news', prompt: 'Summarise the morning news.', permission: 'read-only', status: 'active',
-    schedule: { kind: 'daily', time: '08:00', timeZone: 'UTC' }, nextRunAt: null, lastRun: null, webhook: false,
+    triggers: [{ kind: 'schedule', schedule: { kind: 'daily', time: '08:00', timeZone: 'UTC' } }], connectors: 'all', overlap: 'skip', grants: [], nextRunAt: null, lastRun: null, webhook: false,
     requires: [], runOn: 'auto', placement: { runsOn: 'cloud', available: true },
     ...over,
   }

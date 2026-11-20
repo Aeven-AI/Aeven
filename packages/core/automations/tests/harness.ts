@@ -170,7 +170,9 @@ export class RecordingAgents {
     const agentContext = {
       agent,
       on: this.ctx.on.bind(this.ctx),
-      tools: { guard: () => () => {} },
+      // The real child context runs an effect at once and disposes it with the agent.
+      effect: (factory: () => unknown) => { factory() },
+      tools: { guard: () => () => {}, register: () => () => {} },
     }
     await options.setup?.(agentContext as never)
     return { agent }
@@ -219,6 +221,9 @@ export const TEST_CONFIG: Config = {
   historyLimit: 200,
   workspaceTitle: 'Automations',
   webhookMaxBodyBytes: 32,
+  githubMaxBodyBytes: 1_048_576,
+  queueDepth: 5,
+  mailPollSeconds: 120,
   placement: { kind: 'device', provides: ['files', 'browser', 'computer-use'] },
   sync: { leaseTtlMs: 180_000, leaseRenewMs: 60_000, fallbackDelayMs: 120_000 },
 }
@@ -300,7 +305,7 @@ export function createAutomation(harness: AutomationHarness, overrides: Partial<
   return harness.automations.create({
     name: 'Nightly report',
     prompt: 'Write the nightly report and verify its numbers.',
-    schedule: QUIET_SCHEDULE,
+    triggers: [{ kind: 'schedule', schedule: QUIET_SCHEDULE }],
     permission: 'read-only',
     ...overrides,
   })

@@ -80,7 +80,7 @@ function create(harness: AutomationHarness, overrides: Partial<AutomationInput> 
   return harness.automations.create({
     name: 'Nightly report',
     prompt: 'Write the nightly report and verify its numbers.',
-    schedule: QUIET_SCHEDULE,
+    triggers: [{ kind: 'schedule', schedule: QUIET_SCHEDULE }],
     permission: 'read-only',
     ...overrides,
   }, agent as never)
@@ -107,7 +107,7 @@ describe('bots placed by their owner', () => {
     const a = await host(syncA)
     const b = await host(syncB)
     await registered(a, 2)
-    const created = await create(a, { schedule: HOURLY, requires: ['files'], runOn: 'device', desktop: syncB.id })
+    const created = await create(a, { triggers: [{ kind: 'schedule', schedule: HOURLY }], requires: ['files'], runOn: 'device', desktop: syncB.id })
     expect(created.desktop).toBe(syncB.id)
     await received(b, created.name)
     const admitted = await advanceUntil(5 * 60_000 + 1, async () => {
@@ -128,7 +128,7 @@ describe('bots placed by their owner', () => {
     const cloudSync = network.device()
     const cloud = await host(cloudSync, { kind: 'cloud' })
     await registered(desktop, 2)
-    const created = await create(desktop, { schedule: HOURLY, requires: [], runOn: 'cloud' })
+    const created = await create(desktop, { triggers: [{ kind: 'schedule', schedule: HOURLY }], requires: [], runOn: 'cloud' })
     await received(cloud, created.name)
     cloudSync.setState('offline')
     // Past the occurrence and the desktop's fallback delay: an automatic cloud bot would run on the desktop by now.
@@ -206,7 +206,7 @@ describe('bots placed by their owner', () => {
     const network = new MemorySyncNetwork()
     const a = await host(network.device())
     const syncB = network.device()
-    const created = await create(a, { schedule: HOURLY, requires: [], runOn: 'device', desktop: syncB.id })
+    const created = await create(a, { triggers: [{ kind: 'schedule', schedule: HOURLY }], requires: [], runOn: 'device', desktop: syncB.id })
     // Past the occurrence and the fifteen-minute catch-up grace, with the chosen desktop not running.
     await vi.advanceTimersByTimeAsync(25 * 60_000)
     expect(await scheduledRuns(a)).toEqual([])
