@@ -399,7 +399,7 @@ export class AccountVault {
     const catchingUp = this.catchUp(relay).then(() => {
       if (this.relay === relay && this.error === 'download') this.error = undefined
       if (this.relay === relay) void this.reconcileOnce(relay)
-      if (this.relay === relay) void this.answerRepairs()
+      if (this.relay === relay) this.answerRepairsLogged()
     }, (error: unknown) => {
       if (this.relay !== relay) return
       this.error = 'download'
@@ -916,10 +916,15 @@ export class AccountVault {
       const handle = this.openDocument(REPAIR_DOCUMENT)
       this.repairDoc = handle
       handle.doc.getMap<RepairRequest>('requests').observe((_event, transaction) => {
-        if (transaction.origin === REMOTE) void this.answerRepairs()
+        if (transaction.origin === REMOTE) this.answerRepairsLogged()
       })
     }
     return this.repairDoc.doc.getMap<RepairRequest>('requests')
+  }
+
+  /** Answer repair requests in the background; a failure is reported, never thrown to a caller that is not waiting. */
+  private answerRepairsLogged(): void {
+    this.answerRepairs().catch((error: unknown) => { this.warn('sync: answering repair requests failed; the next connection answers them', error) })
   }
 
   /**
