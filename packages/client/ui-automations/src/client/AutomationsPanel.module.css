@@ -188,9 +188,11 @@ button.disc:focus-visible {
   margin-left: auto;
 }
 
+/* The first column is at least 12rem on every card, so the second fact starts at the same x down the page; a
+   longer first value widens its own card's column. */
 .facts {
   display: grid;
-  grid-template-columns: minmax(0, max-content) minmax(0, 1fr) max-content;
+  grid-template-columns: minmax(max-content, 12rem) minmax(0, 1fr) max-content;
   gap: 12px 40px;
 }
 
@@ -815,6 +817,25 @@ button.disc:focus-visible {
 .triggerActions svg {
   width: 16px;
   height: 16px;
+}
+
+/* A board card's name, bots, and facts, spaced like a bot card's linked summary. */
+.boardSummary {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* The board's latest handoffs, under the card's hairline like a bot page's run list. */
+.boardHandoffs {
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+/* The board starter follows the board cards at the list's own 12px gap. */
+.list + .boardStarter {
+  margin-top: 12px;
 }
 
 @media (prefers-reduced-motion: reduce) {
