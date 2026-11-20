@@ -6,7 +6,7 @@
 import { parentPort } from 'node:worker_threads'
 import Database from 'better-sqlite3'
 import { openEnvelope, sealEnvelope, type OpaqueId } from '@aeven/sync-vault'
-import { compactUpdates, counterFloor, mapEntries, missingFrom, NEXT_COUNTER_SQL, prepareFrame } from './frames.ts'
+import { compactWithMissing, counterFloor, mapEntries, missingFrom, NEXT_COUNTER_SQL, prepareFrame } from './frames.ts'
 import type { MaintainRequest, OpenedFrame, ReconcileRequest, WorkerReply, WorkerRequest } from './offload.ts'
 
 const connections = new Map<string, Database.Database>()
@@ -22,14 +22,19 @@ function connection(path: string): Database.Database {
   return db
 }
 
-/** Merge a document's stored updates, replace them, and queue a sealed snapshot, in one transaction. */
-function maintain(request: MaintainRequest): null {
+/**
+ * Merge a document's stored updates, replace them, and queue a sealed snapshot, in one transaction. A copy that waits
+ * for a missing update queues no snapshot: the snapshot's `covers` would let the relay delete the frames that carry
+ * the missing update for the other devices too.
+ * @returns each writer's first missing clock, empty when the copy is complete.
+ */
+function maintain(request: MaintainRequest): Array<[number, number]> {
   const db = connection(request.path)
   const rows = db.prepare('SELECT seq, data FROM doc_updates WHERE id = ? ORDER BY seq').all(request.doc) as Array<{ seq: number; data: Buffer }>
   const last = rows.at(-1)
-  if (last === undefined) return null
-  const merged = compactUpdates(rows.map(row => new Uint8Array(row.data)))
-  const { snapshot } = request
+  if (last === undefined) return []
+  const { merged, missing } = compactWithMissing(rows.map(row => new Uint8Array(row.data)))
+  const snapshot = missing.length === 0 ? request.snapshot : undefined
   db.transaction(() => {
     if (request.compact && rows.length > 1) {
       db.prepare('DELETE FROM doc_updates WHERE id = ? AND seq <= ?').run(request.doc, last.seq)
@@ -45,7 +50,7 @@ function maintain(request: MaintainRequest): null {
       db.prepare('DELETE FROM since_snapshot WHERE id = ?').run(request.doc)
     }
   })()
-  return null
+  return missing
 }
 
 /**

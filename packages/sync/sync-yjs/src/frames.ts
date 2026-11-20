@@ -130,15 +130,51 @@ export function missingFrom(local: readonly Uint8Array[], other: readonly Uint8A
 }
 
 /**
+ * The writer clocks a document's copy waits for: updates it holds that build on an update it never received stay
+ * pending, and so does everything later from the same writers.
+ * @param doc - a document with its stored updates applied.
+ * @returns each writer's first missing clock, empty when nothing is pending.
+ */
+export function missingClocks(doc: Y.Doc): Array<[client: number, clock: number]> {
+  const pending = doc.store.pendingStructs
+  if (pending === null) return []
+  return [...pending.missing.entries()].sort((a, b) => a[0] - b[0])
+}
+
+/**
+ * Whether a received update carries structs a copy of its document lacks. A frame whose sender counter is not above
+ * the highest one seen from that device can still be one that arrived late, after a later frame, and dropping it would
+ * leave every later update of its writer pending.
+ * @param update - the received update.
+ * @param held - the state vector of the stored copy.
+ * @returns true when some writer's clocks in the update reach past the copy's, or the update carries only deletions.
+ */
+export function addsTo(update: Uint8Array, held: Map<number, number>): boolean {
+  const reach = Y.decodeStateVector(Y.encodeStateVectorFromUpdate(update))
+  if (reach.size === 0) return Y.decodeUpdate(update).ds.clients.size > 0
+  for (const [client, clock] of reach) if (clock > (held.get(client) ?? 0)) return true
+  return false
+}
+
+/**
  * Collect deleted content while retaining the Yjs clocks, delete set, and unresolved dependencies.
  * @param updates - stored updates in application order.
  * @returns a complete update of the same document.
  */
 export function compactUpdates(updates: readonly Uint8Array[]): Uint8Array {
+  return compactWithMissing(updates).merged
+}
+
+/**
+ * Collect deleted content like {@link compactUpdates}, and report the writer clocks the copy still waits for.
+ * @param updates - stored updates in application order.
+ * @returns the complete update and each writer's first missing clock, empty when nothing is pending.
+ */
+export function compactWithMissing(updates: readonly Uint8Array[]): { merged: Uint8Array; missing: Array<[number, number]> } {
   const doc = new Y.Doc()
   try {
     for (const update of updates) Y.applyUpdate(doc, update)
-    return Y.encodeStateAsUpdate(doc)
+    return { merged: Y.encodeStateAsUpdate(doc), missing: missingClocks(doc) }
   } finally {
     doc.destroy()
   }

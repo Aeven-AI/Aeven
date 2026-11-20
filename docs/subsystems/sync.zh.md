@@ -8,7 +8,7 @@
 
 另一台设备写入的会话以本地副本打开：可读取、可 fork，但不在此处恢复或修复（见 [persistence.md](persistence.zh.md)）。设计与取舍见[账户同步 Agent Note](../../.agents/notes/proposed/architecture/2026-10-27-account-sync-network.zh.md)。
 
-同步状态在应用中转历史或接收帧时报告 `catchingUp`，并通过 `error` 标识上传或下载失败。`sync/devices` 独立于传输进度报告账户设备列表的变化。
+同步状态在应用中转历史或接收帧时报告 `catchingUp`，并通过 `error` 标识上传或下载失败，或在中转服务器拒绝了该设备为账户持有的所有凭据时标识为 `sign-in`。`sync/devices` 独立于传输进度报告账户设备列表的变化。
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 

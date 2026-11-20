@@ -138,7 +138,7 @@ export function SyncSection(props: SyncSectionProps) {
   const sent = uploading ? total - pending : 0
   const percent = shown === 0 ? 0 : Math.round((sent / shown) * 100)
   const progressLabel = t('progress', { sent: String(sent), total: String(shown) })
-  const transferError = enabled && view.error !== undefined ? t(view.error === 'upload' ? 'uploadFailed' : 'downloadFailed') : undefined
+  const transferError = enabled && view.error !== undefined ? t(view.error === 'upload' ? 'uploadFailed' : view.error === 'sign-in' ? 'signInNeeded' : 'downloadFailed') : undefined
   const statusText = t(transferError !== undefined ? 'paused' : view.state === 'online' && (uploading || view.catchingUp) ? 'syncing' : view.state)
   return (
     <div className={css.section}>

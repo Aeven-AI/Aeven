@@ -14,7 +14,7 @@ import {
 import { SyncKeyHolderMismatch, type SyncDocument, type SyncKeyHolder, type SyncKeyMode, type SyncPasskey, type SyncPasskeyDevice, type SyncProtection, type SyncState, type SyncStatus } from '@aeven/sync'
 import type { SyncOffload } from './offload.ts'
 import { publishFrameLimit, publishRequestBytes, type PublishFrame, type RelayConnection, RelayError } from './relay.ts'
-import { prepareFrame } from './frames.ts'
+import { addsTo, missingClocks, prepareFrame } from './frames.ts'
 import type { SyncStore } from './store.ts'
 
 /** Logical name whose opaque id is the account's local-network tag. */
@@ -25,6 +25,23 @@ const REMOTE = Symbol('sync-remote')
 
 /** The most documents one relay `docs.get` request may name; a relay protocol limit. */
 const RELAY_DOCS_LIMIT = 64
+/**
+ * Logical name of the account document through which a device that waits for a missing update asks the others for
+ * it. Each entry names the document, the asking device, and each writer's first missing clock; a device that stores
+ * the document answers by publishing what the relay's copy lacks.
+ */
+const REPAIR_DOCUMENT = 'sync/repair'
+/** Most recently accepted sender counters remembered, so a frame received twice is not checked for new content. */
+const ACCEPTED_MEMORY = 4096
+
+/** One device's request for the updates its copy of a document waits for. */
+interface RepairRequest {
+  readonly doc: OpaqueId
+  readonly device: DeviceId
+  readonly missing: Array<[number, number]>
+  /** When the request was written, in milliseconds since the Unix epoch; a changed time asks again. */
+  readonly at: number
+}
 
 /** Thresholds the provider configures. */
 export interface VaultTuning {
@@ -172,7 +189,7 @@ export class AccountVault {
   /** The key state the relay last answered. */
   private relayKey: RelayKeyState | undefined
   private protection: SyncProtection | undefined
-  private error: 'upload' | 'download' | undefined
+  private error: 'upload' | 'download' | 'sign-in' | undefined
   private state: SyncState
   private flushing: Promise<void> | undefined
   private lanSend: ((frame: Uint8Array) => void) | undefined
@@ -202,6 +219,12 @@ export class AccountVault {
   private queued = 0
   /** Each document's compaction and snapshot, one at a time. */
   private readonly maintenance = new Map<OpaqueId, Promise<void>>()
+  /** Sender counters accepted recently, `device:document:counter`, oldest first. */
+  private readonly accepted = new Set<string>()
+  /** The repair document, open while this vault serves the account. */
+  private repairDoc: SyncDocument | undefined
+  /** Other devices' repair requests this device answered, `key@at`. */
+  private readonly repairsAnswered = new Set<string>()
 
   /**
    * @param store - the account's local store.
@@ -228,6 +251,18 @@ export class AccountVault {
     if (mode !== undefined) {
       this.protection = { mode, locked: mode === 'passkey' && store.accountKey() === undefined, downgraded: false, passkeys: [], holders: [] }
     }
+  }
+
+  /**
+   * Record whether the relay refused every credential this device holds for the account, so the status asks for a
+   * sign-in instead of reporting the account as merely offline.
+   * @param needed - true after the last credential was refused, false once a connection opened.
+   */
+  setSignInNeeded(needed: boolean): void {
+    if (needed === (this.error === 'sign-in')) return
+    if (needed) this.error = 'sign-in'
+    else if (this.error === 'sign-in') this.error = undefined
+    this.changed()
   }
 
   /**
@@ -364,6 +399,7 @@ export class AccountVault {
     const catchingUp = this.catchUp(relay).then(() => {
       if (this.relay === relay && this.error === 'download') this.error = undefined
       if (this.relay === relay) void this.reconcileOnce(relay)
+      if (this.relay === relay) void this.answerRepairs()
     }, (error: unknown) => {
       if (this.relay !== relay) return
       this.error = 'download'
@@ -387,6 +423,8 @@ export class AccountVault {
     this.inbound.clear()
     for (const open of this.docs.values()) open.doc.destroy()
     this.docs.clear()
+    this.repairDoc = undefined
+    this.repairsAnswered.clear()
     // Unthrottled: local-network links still announce and answer under the earlier key until the provider hears it.
     this.statusChanged()
     this.startedOver()
@@ -775,6 +813,7 @@ export class AccountVault {
     if (key === undefined) return
     const opened = await this.offload.open(frames, key)
     const applied = new Map<OpaqueId, Uint8Array[]>()
+    const held = new Map<OpaqueId, Map<number, number>>()
     this.store.transaction(() => {
       for (const result of opened) {
         if ('error' in result) {
@@ -783,9 +822,27 @@ export class AccountVault {
         }
         const { header } = result
         const apply = header.device !== this.device && (header.kind === 'update' || header.kind === 'snapshot')
-        if (!apply || !this.store.isNewCounter(header.device, header.id, header.counter)) continue
+        if (!apply) continue
+        const sent = `${header.device}:${header.id}:${String(header.counter)}`
+        if (!this.store.isNewCounter(header.device, header.id, header.counter)) {
+          // A frame that arrived after a later one of its sender is applied when it carries what this copy lacks.
+          if (header.fragment !== undefined || this.accepted.has(sent) || this.store.isRetired(header.id)) continue
+          const state = held.get(header.id) ?? this.stateOf(header.id)
+          held.set(header.id, state)
+          if (!addsTo(result.payload, state)) continue
+          this.remember(sent)
+          this.store.appendDocUpdate(header.id, result.payload)
+          for (const [client, clock] of Y.decodeStateVector(Y.encodeStateVectorFromUpdate(result.payload))) {
+            state.set(client, Math.max(state.get(client) ?? 0, clock))
+          }
+          const updates = applied.get(header.id)
+          if (updates === undefined) applied.set(header.id, [result.payload])
+          else updates.push(result.payload)
+          continue
+        }
         const payload = this.store.assemble(header, result.payload)
         if (payload === undefined || !this.store.acceptCounter(header.device, header.id, header.counter)) continue
+        this.remember(sent)
         // A retired document's frames are counted, so they are not offered again, and not stored.
         if (this.store.isRetired(header.id)) continue
         this.store.appendDocUpdate(header.id, payload)
@@ -797,9 +854,99 @@ export class AccountVault {
     })
     for (const [id, updates] of applied) {
       const open = this.docs.get(id)
-      if (open !== undefined) for (const update of updates) Y.applyUpdate(open.doc, update, REMOTE)
+      if (open !== undefined) {
+        for (const update of updates) Y.applyUpdate(open.doc, update, REMOTE)
+        this.noteMissing(id, missingClocks(open.doc))
+      }
       this.afterAppend(id, updates.length)
       this.documentChanged(id)
+    }
+  }
+
+  /** Remember one accepted sender counter, forgetting the oldest beyond {@link ACCEPTED_MEMORY}. */
+  private remember(sent: string): void {
+    this.accepted.add(sent)
+    if (this.accepted.size <= ACCEPTED_MEMORY) return
+    for (const oldest of this.accepted) {
+      this.accepted.delete(oldest)
+      break
+    }
+  }
+
+  /**
+   * The state vector of this device's copy of a document: the open document's, or one built from the stored updates.
+   * @param id - the document.
+   * @returns each writer's next clock the copy lacks.
+   */
+  private stateOf(id: OpaqueId): Map<number, number> {
+    const open = this.docs.get(id)
+    if (open !== undefined) return Y.decodeStateVector(Y.encodeStateVector(open.doc))
+    const doc = new Y.Doc()
+    try {
+      for (const update of this.store.docUpdates(id)) Y.applyUpdate(doc, update)
+      return Y.decodeStateVector(Y.encodeStateVector(doc))
+    } finally {
+      doc.destroy()
+    }
+  }
+
+  /**
+   * Keep this device's repair request for a document in step with what its copy waits for: write it while writer
+   * clocks are missing, and remove it once none are.
+   * @param id - the document.
+   * @param missing - each writer's first missing clock, empty when the copy is complete.
+   */
+  private noteMissing(id: OpaqueId, missing: Array<[number, number]>): void {
+    if (this.key() === undefined || id === this.documentId(REPAIR_DOCUMENT)) return
+    const requests = this.repairRequests()
+    const key = `${id}:${this.device}`
+    const current = requests.get(key)
+    if (missing.length === 0) {
+      if (current !== undefined) requests.delete(key)
+      return
+    }
+    if (current !== undefined && JSON.stringify(current.missing) === JSON.stringify(missing)) return
+    this.warn(`sync: document ${id} waits for updates it never received; asking the account's other devices for them`, new Error(JSON.stringify(missing)))
+    requests.set(key, { doc: id, device: this.device, missing, at: Date.now() })
+  }
+
+  /** The repair document's requests, opening it and answering other devices' requests as they arrive. */
+  private repairRequests(): Y.Map<RepairRequest> {
+    if (this.repairDoc === undefined) {
+      const handle = this.openDocument(REPAIR_DOCUMENT)
+      this.repairDoc = handle
+      handle.doc.getMap<RepairRequest>('requests').observe((_event, transaction) => {
+        if (transaction.origin === REMOTE) void this.answerRepairs()
+      })
+    }
+    return this.repairDoc.doc.getMap<RepairRequest>('requests')
+  }
+
+  /**
+   * Answer other devices' repair requests for documents this device stores: publish what the relay's copy of each
+   * lacks, once per request. A device that lacks the missing updates itself publishes nothing.
+   * @returns when every request seen was answered or skipped.
+   */
+  private async answerRepairs(): Promise<void> {
+    const relay = this.relay
+    const key = this.key()
+    if (relay === undefined || key === undefined) return
+    for (const [entry, request] of this.repairRequests().entries()) {
+      const tag = `${entry}@${String(request.at)}`
+      if (request.device === this.device || this.repairsAnswered.has(tag) || this.store.docUpdateCount(request.doc) === 0) continue
+      this.repairsAnswered.add(tag)
+      try {
+        await this.flush()
+        const copies = await this.relayCopies(relay, [request.doc], key)
+        if (copies === undefined || this.relay !== relay) return
+        const sent = await this.offload.reconcile({
+          path: this.store.path, doc: request.doc, held: copies.get(request.doc) ?? [], accountKey: key, device: this.device,
+        })
+        if (sent) void this.flush()
+      } catch (error) {
+        this.repairsAnswered.delete(tag)
+        this.warn(`sync: answering the repair request for ${request.doc} failed; the next connection answers it`, error)
+      }
     }
   }
 
@@ -847,6 +994,7 @@ export class AccountVault {
       })
       open = { doc, handles: 0 }
       this.docs.set(id, open)
+      this.noteMissing(id, missingClocks(doc))
     }
     open.handles += 1
     const handle = open
@@ -1104,7 +1252,7 @@ export class AccountVault {
   private async maintain(id: OpaqueId, snapshotDue: boolean): Promise<void> {
     const key = this.key()
     if (key === undefined) return
-    await this.offload.maintain({
+    const missing = await this.offload.maintain({
       path: this.store.path,
       doc: id,
       compact: this.compactionDue(id),
@@ -1112,6 +1260,7 @@ export class AccountVault {
         ? { snapshot: { accountKey: key, device: this.device, covers: this.store.relayCursor() } }
         : {},
     })
+    this.noteMissing(id, missing)
     if (snapshotDue) void this.flush()
   }
 

@@ -8,7 +8,7 @@ The seam follows the [capability-seam](../glossary.md) roles: [@aeven/sync](../.
 
 A session another device writes opens as a local replica: readable and forkable, never resumed or repaired here ([persistence.md](persistence.md)). The design and its trade-offs are in the [account sync Agent Note](../../.agents/notes/proposed/architecture/2026-10-27-account-sync-network.md).
 
-Sync status reports `catchingUp` while relay history or received frames are being applied, and `error` identifies an upload or download that failed. `sync/devices` reports changes to the account’s device list independently of transfer progress.
+Sync status reports `catchingUp` while relay history or received frames are being applied, and `error` identifies an upload or download that failed, or `sign-in` when the relay refused every credential the device holds for the account. `sync/devices` reports changes to the account’s device list independently of transfer progress.
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
