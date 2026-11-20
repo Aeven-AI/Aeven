@@ -21,21 +21,23 @@
 .card[data-state='running'] .row::after {
   content: '';
   position: absolute;
-  inset: 0 auto 0 0;
-  width: 300px;
+  inset-block: 0;
+  left: -300px;
+  width: calc(100% + 300px);
   background: linear-gradient(
-    90deg,
-    transparent 0%,
-    var(--dsw-tint-surface-fade) 55%,
-    transparent 100%
-  );
+      90deg,
+      transparent 0%,
+      var(--dsw-tint-surface-fade) 55%,
+      transparent 100%
+    )
+    0 0 / 300px 100% no-repeat;
   animation: avn-skill-row-sweep 2.6s ease-out infinite;
   pointer-events: none;
 }
 
 @keyframes avn-skill-row-sweep {
-  0% { left: -300px; }
-  90%, 100% { left: 100%; }
+  0% { transform: translateX(0); }
+  90%, 100% { transform: translateX(100%); }
 }
 
 .leading {
