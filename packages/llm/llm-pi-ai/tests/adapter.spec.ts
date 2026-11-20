@@ -435,6 +435,10 @@ describe('PiAiAdapter provider routing', () => {
   })
 
   it('stops the SDK request when the adapter idle watchdog expires', { timeout: 15_000 }, async () => {
+    // The SDK's first request in a worker loads its provider modules, which can outlast the 20ms watchdog before
+    // anything is sent; one ordinary request first makes the watched request reach the server.
+    const warm = await mockServer([{ events: textEvents }])
+    await assemble(await harness(warm.url), { model: 'deepseek-flash', messages: [] })
     const server = await mockServer([{ events: textEvents, delayMs: 200 }])
     const ctx = await harness(server.url, { streamIdleTimeoutMs: 20 })
 
