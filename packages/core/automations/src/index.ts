@@ -306,12 +306,6 @@ export class Automations extends Service<Config> {
         await holder?.detachSession(sessionId)
         await workspace.attachSession(sessionId).catch((error: unknown) => { ctx.logger.warn(`automations: run conversation ${sessionId} stays outside the Automations workspace: ${String(error)}`) })
       }
-      // A conversation whose run record is gone is removed history, so it stays out of the sidebar.
-      const recorded = new Set([...domain.table('runs').entries()].map(([, run]) => run.sessionId))
-      for (const sessionId of workspace.sessionIds) {
-        if (recorded.has(sessionId) || ctx.workspaceRegistry.archivedSessionIds.includes(sessionId)) continue
-        await ctx.workspaceRegistry.archiveSession(sessionId).catch((error: unknown) => { ctx.logger.warn(`automations: run conversation ${sessionId} was not archived: ${String(error)}`) })
-      }
       for (const [id, run] of domain.table('runs').entries()) {
         if (run.admittedBy === this.runnerId(domain) && (run.status === 'queued' || run.status === 'running')) await domain.table('runs').put(id, {
           ...run, status: 'failed', finishedAt: new Date().toISOString(), error: 'Execution was interrupted. External changes may already exist; inspect the conversation before retrying.',
