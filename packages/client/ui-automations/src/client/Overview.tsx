@@ -1,9 +1,13 @@
-/** The bot overview at /b: one card per bot, then boards; ideas only while the account has no bot. */
+/** The bot overview at /bots: one card per bot, then the boards with their starter tile, then the ideas. */
 import type { ReactNode } from 'react'
-import { Button, IconBotFaceLooping, IconChevronRightOutline14, IconTrashOutline16, Tooltip } from '@aeven/client-ui-primitives'
+import {
+  Button, IconBotFaceLooping, IconChevronRightOutline14, IconLucideCheck, IconLucideClock, IconLucideMinus, IconLucideX,
+  IconTrashOutline16, Spinner, Tooltip,
+} from '@aeven/client-ui-primitives'
 import type { Formatters, Translate } from './format.ts'
 import { HANDOFF_STATUS } from './format.ts'
-import type { AutomationList, Task } from './model.ts'
+import { IconSquareKanban } from './icons.tsx'
+import type { AutomationList, Board, HandoffRecord, Task } from './model.ts'
 import { BotMenu, Facts, followLink, PauseControl, RunControl, StatusPill, useNarrowCards } from './shared.tsx'
 import type { Automations } from './useAutomations.ts'
 import css from './AutomationsPanel.module.css'
@@ -49,6 +53,96 @@ function BotCard({ t, fmt, task, data, state, showBot, editBot }: {
   )
 }
 
+/** Most handoffs a board card lists, newest first. */
+const BOARD_HANDOFFS = 5
+
+/**
+ * Neutral status glyph for a handoff, in the run rows' trailing circle.
+ * @param status - handoff status.
+ * @returns the glyph.
+ */
+function handoffIcon(status: HandoffRecord['status']): ReactNode {
+  switch (status) {
+    case 'open': return <IconLucideClock />
+    case 'claimed': return <Spinner />
+    case 'done': return <IconLucideCheck />
+    case 'failed': return <IconLucideX />
+    case 'released':
+    case 'refused': return <IconLucideMinus />
+  }
+}
+
+/**
+ * One board's card, laid out like a bot card: its name with its bots under it, the facts grid, its latest handoffs as
+ * run rows, and the actions row.
+ * @param props - the board, the list it came from, and the shared operations.
+ * @returns the card.
+ */
+function BoardCard({ t, fmt, board, data, state }: {
+  t: Translate
+  fmt: Formatters
+  board: Board
+  data: AutomationList
+  state: Automations
+}) {
+  const chain = (data.handoffs ?? []).filter(handoff => handoff.board === board.id)
+  const names = board.members.map(member => data.definitions.find(task => task.id === member)?.name ?? t('triggerRemovedBot'))
+  const budget = [
+    board.budget.maxConcurrentRuns === undefined ? '' : t('boardBudgetRuns', { n: String(board.budget.maxConcurrentRuns) }),
+    board.budget.maxTokensPerDay === undefined ? '' : t('boardBudgetTokens', { n: fmt.number(board.budget.maxTokensPerDay) }),
+  ].filter(part => part !== '')
+  return (
+    <article className={css.card}>
+      <div className={css.boardSummary}>
+        <span className={css.heading}>
+          <span className={css.title}>{board.name}</span>
+          <span className={css.schedule}>{names.join(' · ')}</span>
+        </span>
+        <span className={css.facts}>
+          <span className={css.fact}>
+            <span className={css.factLabel}>{t('boardChain')}</span>
+            <span className={css.factValue}>
+              {chain.length === 0 ? t('boardChainEmpty') : fmt.number(chain.length)}
+            </span>
+          </span>
+          <span className={css.fact}>
+            <span className={css.factLabel}>{t('boardBudget')}</span>
+            <span className={css.factValue}>{budget.length === 0 ? t('boardBudgetNone') : budget.join(', ')}</span>
+          </span>
+        </span>
+      </div>
+      {chain.length > 0 && (
+        <ul className={`${css.runList} ${css.boardHandoffs}`}>
+          {chain.slice(0, BOARD_HANDOFFS).map(handoff => (
+            <li className={css.run} key={handoff.id} title={handoff.reason ?? handoff.task}>
+              <span className={css.runText}>
+                <span className={css.runTitle}>{`${handoff.fromName} → ${handoff.toName}`}</span>
+                <span className={css.runSubtitle}>
+                  {`${t(HANDOFF_STATUS[handoff.status])} · ${fmt.date(handoff.createdAt)}`}
+                  {handoff.tokens !== null && handoff.tokens > 0 ? ` · ${t('tokens', { n: fmt.number(handoff.tokens) })}` : ''}
+                  {handoff.reason !== null && (handoff.status === 'refused' || handoff.status === 'released') ? ` · ${handoff.reason}` : ''}
+                </span>
+              </span>
+              <span className={css.runIcon} aria-label={t(HANDOFF_STATUS[handoff.status])}>{handoffIcon(handoff.status)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className={css.cardActions}>
+        <Tooltip label={t('boardRemove')} side="top" anchor="icon">
+          <span className={css.tip}>
+            <Button
+              variant="ghost" size="sm" className={`${css.action} ${css.iconAction}`} icon={<IconTrashOutline16 />}
+              aria-label={t('boardRemove')} disabled={state.unavailable}
+              onClick={() => { state.setPending({ kind: 'board-remove', id: board.id }) }}
+            />
+          </span>
+        </Tooltip>
+      </div>
+    </article>
+  )
+}
+
 /**
  * The overview's bot cards and boards.
  * @param props - the list, the shared state, and navigation.
@@ -68,6 +162,7 @@ export function Overview({ t, fmt, data, state, showBot, editBot, startBoard, id
   ideas: ReactNode
 }) {
   const cards = useNarrowCards(data)
+  const boardCards = useNarrowCards(data)
   if (data.definitions.length === 0) {
     return (
       <>
@@ -89,66 +184,21 @@ export function Overview({ t, fmt, data, state, showBot, editBot, startBoard, id
       </div>
       {data.boards !== undefined && data.definitions.length > 1 && (
         <>
-          <div className={css.bar}>
-            <h2 className={css.sectionTitle}>{t('boardsTitle')}</h2>
-            <Button variant="ghost" size="sm" disabled={state.unavailable} onClick={startBoard}>{t('boardNew')}</Button>
-          </div>
-          {data.boards.length === 0 && <p className={css.triggerText}>{t('boardsDetail')}</p>}
-          <div className={css.list}>
-            {data.boards.map((board) => {
-              const chain = (data.handoffs ?? []).filter(handoff => handoff.board === board.id)
-              const names = board.members.map(member => data.definitions.find(task => task.id === member)?.name ?? t('triggerRemovedBot'))
-              const budget = [
-                board.budget.maxConcurrentRuns === undefined ? '' : t('boardBudgetRuns', { n: String(board.budget.maxConcurrentRuns) }),
-                board.budget.maxTokensPerDay === undefined ? '' : t('boardBudgetTokens', { n: fmt.number(board.budget.maxTokensPerDay) }),
-              ].filter(part => part !== '')
-              return (
-                <article className={css.card} key={board.id}>
-                  <div className={css.details}>
-                    <span className={css.title}>{board.name}</span>
-                    <div className={css.triggerRow}>
-                      <span className={css.triggerLabel}>{t('boardMembers')}</span>
-                      <span className={css.triggerValue}>{names.join(', ')}</span>
-                    </div>
-                    <div className={css.triggerRow}>
-                      <span className={css.triggerLabel}>{t('boardBudget')}</span>
-                      <span className={css.triggerValue}>{budget.length === 0 ? t('boardBudgetNone') : budget.join(', ')}</span>
-                    </div>
-                  </div>
-                  <h3 className={css.detailTitle}>{t('boardChain')}</h3>
-                  {chain.length === 0 ? <p className={css.triggerText}>{t('boardChainEmpty')}</p> : (
-                    <ul className={css.runList}>
-                      {chain.map(handoff => (
-                        <li className={css.run} key={handoff.id}>
-                          <span className={css.runOpen} title={handoff.reason ?? handoff.task}>
-                            <span className={css.runText}>
-                              <span className={css.runTitle}>{`${handoff.fromName} → ${handoff.toName}`}</span>
-                              <span className={css.runSubtitle}>
-                                {`${t(HANDOFF_STATUS[handoff.status])} · ${fmt.date(handoff.createdAt)}`}
-                                {handoff.tokens !== null && handoff.tokens > 0 ? ` · ${t('tokens', { n: fmt.number(handoff.tokens) })}` : ''}
-                                {handoff.reason !== null && (handoff.status === 'refused' || handoff.status === 'released') ? ` · ${handoff.reason}` : ''}
-                              </span>
-                            </span>
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  <div className={css.cardActions}>
-                    <Tooltip label={t('boardRemove')} side="top" anchor="icon">
-                      <span className={css.tip}>
-                        <Button
-                          variant="ghost" size="sm" className={`${css.action} ${css.iconAction}`} icon={<IconTrashOutline16 />}
-                          aria-label={t('boardRemove')} disabled={state.unavailable}
-                          onClick={() => { state.setPending({ kind: 'board-remove', id: board.id }) }}
-                        />
-                      </span>
-                    </Tooltip>
-                  </div>
-                </article>
-              )
-            })}
-          </div>
+          <h2 className={css.sectionTitle}>{t('boardsTitle')}</h2>
+          {data.boards.length > 0 && (
+            <div className={css.list} ref={boardCards}>
+              {data.boards.map(board => (
+                <BoardCard key={board.id} t={t} fmt={fmt} board={board} data={data} state={state} />
+              ))}
+            </div>
+          )}
+          <button type="button" className={`${css.forYou} ${css.boardStarter}`} disabled={state.unavailable} onClick={startBoard}>
+            <span className={css.templateIcon}><IconSquareKanban /></span>
+            <span className={css.templateText}>
+              <span className={css.templateTitle}>{t('boardNew')}</span>
+              <span className={css.templateDescription}>{t('boardsDetail')}</span>
+            </span>
+          </button>
         </>
       )}
       {ideas}
