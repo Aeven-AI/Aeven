@@ -153,6 +153,13 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         throws: ['Error when the deployment mounts no catalog, or the name is not catalogued.'],
       },
       {
+        signature: '@Remote async installCatalogPack(pack: string): Promise<CatalogPackInstall>',
+        description: 'Install every catalogued skill of one pack into the account\'s library, each through the same import as a single install. A member the import refuses is reported and the rest still install, so one bad bundle cannot leave the pack\'s router without the skills it loads.',
+        parameters: [{ name: 'pack', description: 'pack name the catalog rows carry.' }],
+        returns: 'the members stored, those a built-in skill owns, and those the import refused.',
+        throws: ['Error when the deployment mounts no catalog, or no catalogued skill names the pack.'],
+      },
+      {
         signature: '@Remote async importSkill(files: SkillUploadFile[]): Promise<SkillReferenceImport>',
         description: 'Install or replace one personal bundle after validating every resource path.',
         parameters: [{ name: 'files', description: 'uploaded SKILL.md and resources, or one ZIP/.skill file.' }],
@@ -6645,12 +6652,16 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface CapabilityVersion {\n    readonly revision: number;\n    readonly description?: string;\n    readonly content: string;\n}',
   },
   {
+    name: 'CatalogPackInstall',
+    declaration: 'export interface CatalogPackInstall {\n    installed: string[];\n    skipped: SkillImportSkip[];\n    failed: {\n        name: string;\n        reason: string;\n    }[];\n}',
+  },
+  {
     name: 'CatalogSkill',
-    declaration: 'export interface CatalogSkill {\n    readonly name: string;\n    readonly displayName: string;\n    readonly category: string;\n    readonly description: string;\n    readonly keywords: readonly string[];\n    readonly downloads: number;\n    readonly author: string;\n    readonly path: string;\n    readonly bytes: number;\n}',
+    declaration: 'export interface CatalogSkill {\n    readonly name: string;\n    readonly displayName: string;\n    readonly category: string;\n    readonly description: string;\n    readonly keywords: readonly string[];\n    readonly downloads: number;\n    readonly author: string;\n    readonly path: string;\n    readonly bytes: number;\n    readonly pack?: string;\n    readonly requires?: readonly string[];\n}',
   },
   {
     name: 'CatalogSkillView',
-    declaration: 'export interface CatalogSkillView {\n    name: string;\n    displayName: string;\n    category: string;\n    description: string;\n    keywords: string[];\n    downloads: number;\n    author: string;\n    path: string;\n    bytes: number;\n    verdict?: string;\n    value?: number;\n}',
+    declaration: 'export interface CatalogSkillView {\n    name: string;\n    displayName: string;\n    category: string;\n    description: string;\n    keywords: string[];\n    downloads: number;\n    author: string;\n    path: string;\n    bytes: number;\n    verdict?: string;\n    value?: number;\n    pack?: string;\n    requires?: string[];\n}',
   },
   {
     name: 'CatalogView',

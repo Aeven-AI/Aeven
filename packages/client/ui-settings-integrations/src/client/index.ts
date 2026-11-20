@@ -64,6 +64,7 @@ export function apply(ctx: Context): void {
     catalog: () => value(remote.catalog()),
     catalogSkillContent: name => value(remote.catalogSkillContent(name)),
     installCatalogSkill: name => value(remote.installCatalogSkill(name)),
+    installCatalogPack: pack => value(remote.installCatalogPack(pack)),
     importSkill: files => value(remote.importSkill(files)),
     importSkillReference: reference => value(remote.importSkillReference(reference)),
     systemSkills: () => value(remote.systemSkills()),

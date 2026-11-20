@@ -10,6 +10,7 @@ import type { FsInfo, FsTarget } from '@aeven/fs'
 import type { ToolExecution } from '@aeven/tools'
 import type {} from '@aeven/sandbox-policy'
 import { referencedAttachmentPaths } from '@aeven/attachment'
+import { loadedSkillDirectories, type LoadedSkillDirectories } from '@aeven/skill'
 import { SessionLogOffset } from '@aeven/session'
 import type { Session } from '@aeven/session'
 import type {} from '@aeven/working-directory'
@@ -17,9 +18,10 @@ import { canonicalPath } from '@aeven/sandbox'
 import { sessionCwd, sessionResolveOptions } from './session-cwd.ts'
 
 /**
- * Refuse a read target outside the calling session's workspace and outside the
- * attachments its own messages and tool results reference: the deployment's
- * readers must not reach the Host's other files. A call without a session has
+ * Refuse a read target outside the calling session's workspace, outside the
+ * attachments its own messages and tool results reference, and outside the
+ * resource directories of the skills it loaded: the deployment's readers must
+ * not reach the Host's other files. A call without a session has
  * no workspace and is refused.
  * @param ctx - the plugin context providing the filesystem, sandbox policy, and attachments.
  * @param exec - the current tool execution.
@@ -28,8 +30,8 @@ import { sessionCwd, sessionResolveOptions } from './session-cwd.ts'
  */
 export async function assertInWorkspace(ctx: Context, exec: ToolExecution, target: FsTarget): Promise<void> {
   const allowed = readableRoots(ctx, exec)
-  for (const workspaceRoot of allowed?.workspaceRoots ?? []) {
-    if (ctx.fs.contains(await ctx.fs.resolve(workspaceRoot, { signal: exec.signal }), target)) return
+  for (const root of [...allowed?.workspaceRoots ?? [], ...allowed?.skillDirectories ?? []]) {
+    if (ctx.fs.contains(await ctx.fs.resolve(root, { signal: exec.signal }), target)) return
   }
   if (allowed?.attachments.has(String(target.targetKey)) === true) return
   throw outsideFolder(target.displayPath)
@@ -54,8 +56,8 @@ function assertLexicallyInWorkspace(ctx: Context, exec: ToolExecution, requested
     : [...new Set([cwd, cwd === undefined ? undefined : canonicalPath(cwd)].filter(dir => dir !== undefined))]
       .map(dir => resolvePath(dir, requestedPath))
   for (const absolute of candidates.length > 0 ? candidates : [resolvePath(allowed.workspaceRoots[0] ?? '/', requestedPath)]) {
-    for (const workspaceRoot of allowed.workspaceRoots) {
-      const rest = relative(workspaceRoot, absolute)
+    for (const root of [...allowed.workspaceRoots, ...allowed.skillDirectories]) {
+      const rest = relative(root, absolute)
       if (rest === '' || (!rest.startsWith('..') && !isAbsolute(rest))) return
     }
     if (allowed.attachments.has(absolute)) return
@@ -66,12 +68,18 @@ function assertLexicallyInWorkspace(ctx: Context, exec: ToolExecution, requested
 /** The attachment files each live session references, and the log position read so far. */
 const sessionAttachments = new WeakMap<Session, { seq: number; files: Set<string> }>()
 
+/** The skill resource directories each live session loaded, and the log position read so far. */
+const sessionSkills = new WeakMap<Session, { seq: number; state: LoadedSkillDirectories }>()
+
 /**
- * The calling session's workspace roots and the attachment files its log
- * references, each in its configured and its canonical form, so a symlinked
- * data directory neither blocks reads nor widens them.
+ * The calling session's workspace roots, the attachment files its log
+ * references, and the resource directories of the skills it loaded, each in its
+ * configured and its canonical form, so a symlinked data directory neither
+ * blocks reads nor widens them.
  */
-function readableRoots(ctx: Context, exec: ToolExecution): { workspaceRoots: string[]; attachments: Set<string> } | undefined {
+function readableRoots(
+  ctx: Context, exec: ToolExecution,
+): { workspaceRoots: string[]; attachments: Set<string>; skillDirectories: string[] } | undefined {
   const session = exec.agent?.session
   const policy = session === undefined ? undefined : ctx.get('sandboxPolicy')?.resolve({ session })
   if (session === undefined || policy === undefined) return undefined
@@ -89,7 +97,12 @@ function readableRoots(ctx: Context, exec: ToolExecution): { workspaceRoots: str
     known.seq = session.seq
     sessionAttachments.set(session, known)
   }
-  return { workspaceRoots, attachments: known.files }
+  const skills = sessionSkills.get(session) ?? { seq: 0, state: { calls: new Set<string>(), directories: new Set<string>() } }
+  loadedSkillDirectories(session.snapshotEvents(SessionLogOffset(skills.seq)), skills.state)
+  skills.seq = session.seq
+  sessionSkills.set(session, skills)
+  const skillDirectories = [...new Set([...skills.state.directories].flatMap(directory => [directory, canonicalPath(directory)]))]
+  return { workspaceRoots, attachments: known.files, skillDirectories }
 }
 
 function outsideFolder(path: string): FsError {

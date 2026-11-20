@@ -23,6 +23,10 @@ export interface CatalogSkill {
   readonly path: string
   /** Unpacked size of the vendored bundle. */
   readonly bytes: number
+  /** Pack the skill installs with: Settings installs every skill naming the same pack in one action. */
+  readonly pack?: string
+  /** Other members of its pack that the skill's instructions load by name; absent when it names none. */
+  readonly requires?: readonly string[]
 }
 
 /** Every skill the catalog offers, with the categories it groups them under. */

@@ -1,5 +1,34 @@
 {
- "_note": "Skills the catalog ships from a repository other than the primary collection. Each entry names that repository, the directory holding the skill's SKILL.md, and the category Settings groups it under; `scripts/sync-skill-catalog.ts` pins the repository's default-branch commit, packages the directory like any other catalogue skill, and records `<repo>/<path>` as its provenance. An entry ships only when `curation.json` rates it at or above `minValue`, so the reviewed value judgement stays in one file.",
+ "_note": "Skills the catalog ships from a repository other than the primary collection. Each entry names that repository, the directory holding the skill's SKILL.md, and the category Settings groups it under; `scripts/sync-skill-catalog.ts` pins the repository's default-branch commit, packages the directory like any other catalogue skill, and records `<repo>/<path>` as its provenance. An entry ships only when `curation.json` rates it at or above `minValue`, so the reviewed value judgement stays in one file. `repositories` pins one repository at a commit and names its rewrite pass: a patch applied to the pinned files, and the names no shipped instruction may still contain. Entries naming the same `pack` install together from one Settings action, and `resources` folds further repository files into one member's bundle.",
+ "repositories": {
+  "nexu-io/open-design": {
+   "ref": "12d970eacc8971150e3c76470d2a9afe16dc2ed1"
+  },
+  "blader/humanizer": {
+   "ref": "0ef9fe5bc3572734fd3ae6c448fe00a30cd5dcf0"
+  },
+  "backnotprop/pstack": {
+   "ref": "4a4f41c46c67a006658ac17cef2d092593f6b26a",
+   "patch": "patches/backnotprop-pstack.patch",
+   "forbid": [
+    "Claude",
+    "\\.claude/",
+    "\\.cursor/rules",
+    "pstack-models",
+    "setup-pstack",
+    "subagent_type",
+    "/loop\\b",
+    "/deslop",
+    "control-cli",
+    "control-ui",
+    "cursor-team-kit",
+    "agent-transcripts",
+    "claude-(?:opus|fable|sonnet)-",
+    "gemini-\\d",
+    "\\]\\(\\.\\./"
+   ]
+  }
+ },
  "skills": [
   {
    "repo": "nexu-io/open-design",
@@ -73,6 +102,234 @@
    ],
    "category": "productivity",
    "author": "blader"
+  },
+  {
+   "repo": "backnotprop/pstack",
+   "path": "skills/poteto-mode",
+   "category": "pstack",
+   "author": "Lauren Tan (poteto)",
+   "pack": "pstack",
+   "omit": [
+    "scripts/bootstrap.ts",
+    "scripts/bun.lock",
+    "scripts/watch-pr/cli.test.ts",
+    "scripts/watch-pr/fakes.test-helper.ts",
+    "scripts/watch-pr/github.test.ts",
+    "scripts/watch-pr/policy.test.ts",
+    "scripts/watch-pr/types.compile.ts",
+    "scripts/watch-pr/tsconfig.json"
+   ],
+   "resources": {
+    "principles/attack-the-premise.md": "skills/principle-attack-the-premise/SKILL.md",
+    "principles/boundary-discipline.md": "skills/principle-boundary-discipline/SKILL.md",
+    "principles/build-the-lever.md": "skills/principle-build-the-lever/SKILL.md",
+    "principles/encode-lessons-in-structure.md": "skills/principle-encode-lessons-in-structure/SKILL.md",
+    "principles/exhaust-the-design-space.md": "skills/principle-exhaust-the-design-space/SKILL.md",
+    "principles/experience-first.md": "skills/principle-experience-first/SKILL.md",
+    "principles/explain-the-number.md": "skills/principle-explain-the-number/SKILL.md",
+    "principles/fix-root-causes.md": "skills/principle-fix-root-causes/SKILL.md",
+    "principles/foundational-thinking.md": "skills/principle-foundational-thinking/SKILL.md",
+    "principles/guard-the-context-window.md": "skills/principle-guard-the-context-window/SKILL.md",
+    "principles/laziness-protocol.md": "skills/principle-laziness-protocol/SKILL.md",
+    "principles/make-operations-idempotent.md": "skills/principle-make-operations-idempotent/SKILL.md",
+    "principles/migrate-callers-then-delete-legacy-apis.md": "skills/principle-migrate-callers-then-delete-legacy-apis/SKILL.md",
+    "principles/minimize-reader-load.md": "skills/principle-minimize-reader-load/SKILL.md",
+    "principles/model-the-domain.md": "skills/principle-model-the-domain/SKILL.md",
+    "principles/never-block-on-the-human.md": "skills/principle-never-block-on-the-human/SKILL.md",
+    "principles/outcome-oriented-execution.md": "skills/principle-outcome-oriented-execution/SKILL.md",
+    "principles/prove-it-works.md": "skills/principle-prove-it-works/SKILL.md",
+    "principles/redesign-from-first-principles.md": "skills/principle-redesign-from-first-principles/SKILL.md",
+    "principles/separate-before-serializing-shared-state.md": "skills/principle-separate-before-serializing-shared-state/SKILL.md",
+    "principles/sequence-verifiable-units.md": "skills/principle-sequence-verifiable-units/SKILL.md",
+    "principles/subtract-before-you-add.md": "skills/principle-subtract-before-you-add/SKILL.md",
+    "principles/test-behavior-not-implementation.md": "skills/principle-test-behavior-not-implementation/SKILL.md",
+    "principles/type-system-discipline.md": "skills/principle-type-system-discipline/SKILL.md"
+   }
+  },
+  {
+   "repo": "backnotprop/pstack",
+   "path": "skills/architect",
+   "category": "pstack",
+   "author": "Lauren Tan (poteto)",
+   "pack": "pstack"
+  },
+  {
+   "repo": "backnotprop/pstack",
+   "path": "skills/arena",
+   "category": "pstack",
+   "author": "Lauren Tan (poteto)",
+   "pack": "pstack"
+  },
+  {
+   "repo": "backnotprop/pstack",
+   "path": "skills/automate-me",
+   "category": "pstack",
+   "author": "Lauren Tan (poteto)",
+   "pack": "pstack"
+  },
+  {
+   "repo": "backnotprop/pstack",
+   "path": "skills/benchmark-checklist",
+   "category": "pstack",
+   "author": "Lauren Tan (poteto)",
+   "pack": "pstack"
+  },
+  {
+   "repo": "backnotprop/pstack",
+   "path": "skills/blast-radius",
+   "category": "pstack",
+   "author": "Lauren Tan (poteto)",
+   "pack": "pstack"
+  },
+  {
+   "repo": "backnotprop/pstack",
+   "path": "skills/bro",
+   "category": "pstack",
+   "author": "Lauren Tan (poteto)",
+   "pack": "pstack"
+  },
+  {
+   "repo": "backnotprop/pstack",
+   "path": "skills/correct",
+   "category": "pstack",
+   "author": "Lauren Tan (poteto)",
+   "pack": "pstack"
+  },
+  {
+   "repo": "backnotprop/pstack",
+   "path": "skills/create-verification-skill",
+   "category": "pstack",
+   "author": "Lauren Tan (poteto)",
+   "pack": "pstack"
+  },
+  {
+   "repo": "backnotprop/pstack",
+   "path": "skills/figure-it-out",
+   "category": "pstack",
+   "author": "Lauren Tan (poteto)",
+   "pack": "pstack"
+  },
+  {
+   "repo": "backnotprop/pstack",
+   "path": "skills/how",
+   "category": "pstack",
+   "author": "Lauren Tan (poteto)",
+   "pack": "pstack"
+  },
+  {
+   "repo": "backnotprop/pstack",
+   "path": "skills/in-your-own-words",
+   "category": "pstack",
+   "author": "Lauren Tan (poteto)",
+   "pack": "pstack"
+  },
+  {
+   "repo": "backnotprop/pstack",
+   "path": "skills/interrogate",
+   "category": "pstack",
+   "author": "Lauren Tan (poteto)",
+   "pack": "pstack"
+  },
+  {
+   "repo": "backnotprop/pstack",
+   "path": "skills/ketchup",
+   "category": "pstack",
+   "author": "Lauren Tan (poteto)",
+   "pack": "pstack"
+  },
+  {
+   "repo": "backnotprop/pstack",
+   "path": "skills/maintain-verification-skill",
+   "category": "pstack",
+   "author": "Lauren Tan (poteto)",
+   "pack": "pstack"
+  },
+  {
+   "repo": "backnotprop/pstack",
+   "path": "skills/no-comments",
+   "category": "pstack",
+   "author": "Lauren Tan (poteto)",
+   "pack": "pstack"
+  },
+  {
+   "repo": "backnotprop/pstack",
+   "path": "skills/reflect",
+   "category": "pstack",
+   "author": "Lauren Tan (poteto)",
+   "pack": "pstack"
+  },
+  {
+   "repo": "backnotprop/pstack",
+   "path": "skills/sharpen",
+   "category": "pstack",
+   "author": "Lauren Tan (poteto)",
+   "pack": "pstack"
+  },
+  {
+   "repo": "backnotprop/pstack",
+   "path": "skills/show-me-your-work",
+   "category": "pstack",
+   "author": "Lauren Tan (poteto)",
+   "pack": "pstack"
+  },
+  {
+   "repo": "backnotprop/pstack",
+   "path": "skills/statechart",
+   "category": "pstack",
+   "author": "Lauren Tan (poteto)",
+   "pack": "pstack",
+   "omit": [
+    "scripts/test/"
+   ]
+  },
+  {
+   "repo": "backnotprop/pstack",
+   "path": "skills/swarm",
+   "category": "pstack",
+   "author": "Lauren Tan (poteto)",
+   "pack": "pstack"
+  },
+  {
+   "repo": "backnotprop/pstack",
+   "path": "skills/tdd",
+   "category": "pstack",
+   "author": "Lauren Tan (poteto)",
+   "pack": "pstack"
+  },
+  {
+   "repo": "backnotprop/pstack",
+   "path": "skills/teach",
+   "category": "pstack",
+   "author": "Lauren Tan (poteto)",
+   "pack": "pstack"
+  },
+  {
+   "repo": "backnotprop/pstack",
+   "path": "skills/technical-writing",
+   "category": "pstack",
+   "author": "Lauren Tan (poteto)",
+   "pack": "pstack"
+  },
+  {
+   "repo": "backnotprop/pstack",
+   "path": "skills/typescript-best-practices",
+   "category": "pstack",
+   "author": "Lauren Tan (poteto)",
+   "pack": "pstack"
+  },
+  {
+   "repo": "backnotprop/pstack",
+   "path": "skills/unslop",
+   "category": "pstack",
+   "author": "Lauren Tan (poteto)",
+   "pack": "pstack"
+  },
+  {
+   "repo": "backnotprop/pstack",
+   "path": "skills/why",
+   "category": "pstack",
+   "author": "Lauren Tan (poteto)",
+   "pack": "pstack"
   }
  ]
 }

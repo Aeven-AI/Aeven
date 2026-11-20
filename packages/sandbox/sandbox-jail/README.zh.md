@@ -60,8 +60,9 @@ kind: "package-reference"
 | `modelNote` | 无 | 描述命令可用内容的系统提示词文本 |
 | `seccompFilter` | 无 | bubblewrap 安装的 BPF 系统调用过滤器的主机路径；文件不存在则启动失败 |
 | `sessionAttachments` | `false` | 以只读方式在存储路径上挂载对话的用户消息与工具结果引用的附件 |
+| `sessionSkillResources` | — | `{ maxFiles, maxBytes }`：以只读方式在原路径上挂载对话自身 `skill` 结果与技能调用所记录资源目录下的文件，所有者可执行的文件保持可执行；超出任一上限的文件不挂载。省略时不挂载 |
 | `commandUser` | 无 | 以独立沙箱用户运行被隔离命令与 zygote 的 `exec`、`group` 与 `accountsPath` |
-| `egress` | 无 | 被隔离命令的网络访问：代理的 `node`、`script`、`relay`、`socketDir`，以专用用户运行它的可选 `exec` 辅助程序，中继的 `port`，`allow` 主机列表与 `ports`，其 Git 请求携带账户凭据的 `gitHosts`，单账户与总体的连接数和字节数上限、超时，以及代理的 cgroup `limits`；需要 `cgroup` |
+| `egress` | 无 | 被隔离命令的网络访问：代理的 `node`、`script`、`relay`、`socketDir`，以专用用户运行它的可选 `exec` 辅助程序，中继的 `port`，`allow` 主机列表与 `ports`，其 Git 请求携带账户凭据的 `gitHosts`，可选的只读 `githubApi: { requestsPerHour }` 路由，单账户与总体的连接数和字节数上限、超时，以及代理的 cgroup `limits`；需要 `cgroup` |
 | `pythonZygote` | 无 | 运行被隔离 `python3` 命令的预加载 Python 解释器的 `python`、`script`、`preload`、`socketDir` 与 cgroup `limits`；需要 `cgroup` 和 `seccompFilter` |
 | `usageIntervalMs` | `60000` | 两次 `sandbox-jail/usage` 报告各账户 CPU 时间之间的毫秒数；仅在配置 `cgroup` 时读取 |
 
@@ -141,6 +142,8 @@ bubblewrap 构建的根目录只包含列出的路径，因此其他账户的文
 代理只为 `allow` 中的主机、`ports` 中的端口提供 `CONNECT`。它自行解析名称，拒绝回环、私有、链路本地及其他内部地址，并连接它检查过的地址，因此任何名称都到不了 Host 自己的服务。它限制每个账户的打开连接数、每秒字节数和每个 UTC 日的字节数，以及所有账户合计的连接数和每秒字节数。超出连接上限的请求最多等待 `connectTimeoutMs` 以获得空出的名额，因此一次大型安装只会拖慢其账户的其他命令，而不会让它们失败；拒绝是一条写明原因的 HTTP 响应。它在 `<root>/jail/egress` 中按自己的限制运行，当 `exec` 指定切换到专用用户的辅助程序时以该用户身份运行，因此逃出监狱的命令无法访问它及其携带的凭据。中继在命令运行期间占用约 0.3 MB，并随监狱结束。
 
 对 `gitHosts` 中的每个主机，监狱内的 `git` 把 `https://<host>/` URL 改写到代理的 Git 路由，该路由在同样的地址检查和字节上限下通过 TLS 转发 Git 的 smart HTTP 请求。代理向提供方询问账户的凭据，提供方查询注册在 `ctx.sandboxGitCredentials` 上的来源；[`avn-host-account-integrations`](../../host/account-integrations/README.zh.md) 注册账户已连接的 GitHub 账户。凭据从提供方到代理、再到 Git 主机，绝不进入监狱；没有凭据的账户只能访问公开仓库。转发推送之前，代理读取其引用更新。以下推送会等待：提供方在发出推送命令的对话中请求批准，除非用户允许，否则以 `403` 应答——该对话对此仓库的第一次推送，或涉及 `main`、`master` 或仓库默认分支（代理从 GitHub API 读取）、`refs/heads/` 之外的引用（例如标签），或删除引用的推送。批准一次之后，同一对话向该仓库推送其他分支会直接通过。自带凭据的 URL 不会被改写，走普通隧道，只有 `allow` 列出该主机时才能到达；不把 Git 主机列入 `allow`，命令就无法用自己的凭据推送。
+
+设置 `githubApi` 后，代理还以只读方式提供 GitHub API。`install-egress.sh` 安装 `gh`，并把一个 `gh` 包装脚本放在监狱 `PATH` 的最前面；它设置 `GH_HOST=github.localhost` 和一个占位令牌，使 `gh` 通过中继以明文 HTTP 请求 `api.github.localhost`。代理在同样的地址检查与上限下把请求转发到 `https://api.github.com/`，并以账户的 `github.com` 凭据替换占位令牌，因此凭据从不进入监狱。只有 REST 的 `GET` 与 `HEAD`，以及文档中只含查询与片段的 `POST /graphql` 能够通过。文档按 GraphQL 词法语法切分，遇到语法之外的任何记号即被拒绝，因此注释、块字符串、逗号、字节顺序标记或片段都无法隐藏变更操作。其他任何方法、变更、订阅、`GET /graphql`，以及经过压缩或过大的 GraphQL 请求体，都会得到 `403`、`413` 或 `415`。每个账户每个整点小时最多发出 `requestsPerHour` 个请求，把 GitHub 速率限额的其余部分留给其连接器工具；没有 GitHub 连接的账户得到 `401`。对 GitHub 的修改仍走需要批准的路径：连接器工具，以及上文的推送批准。
 
 ### cgroup
 

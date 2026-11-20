@@ -11,7 +11,7 @@
  */
 
 import { spawnSync } from 'node:child_process'
-import { chmodSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
+import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, statSync, type Dirent } from 'node:fs'
 import { dirname, isAbsolute, join, relative, sep } from 'node:path'
 import { LAUNCHER_BIN, LAUNCHER_FAILURE_EXIT, launcherPath, probe } from '@deepseek-ai/node-addon-landlock-run'
 import { Context } from '@deepseek-ai/cordis'
@@ -20,6 +20,7 @@ import { SandboxProvider, SandboxUnavailableError, canonicalPath } from '@aeven/
 import type { ConfinedArgv, RunnerFailureRule, SandboxPolicy } from '@aeven/sandbox'
 import type {} from '@aeven/system-prompt'
 import { referencedAttachmentPaths } from '@aeven/attachment'
+import { loadedSkillDirectories, type LoadedSkillDirectories } from '@aeven/skill'
 import type { Session, SessionId } from '@aeven/session'
 import { SessionId as toSessionId, SessionLogOffset } from '@aeven/session'
 import { AccountCgroups, type CgroupLimits } from './cgroup.ts'
@@ -27,7 +28,7 @@ import type {} from '@aeven/agent'
 import type {} from '@aeven/user-approval'
 import { EgressProxy, relayArgs, type EgressAnswer, type EgressLimits, type EgressQuestion } from './egress.ts'
 import { GitCredentials } from './git-credentials.ts'
-import { jailArgs, type JailProfile } from './profile.ts'
+import { jailArgs, type JailProfile, type ReadOnlyFile } from './profile.ts'
 import { PythonZygote } from './zygote.ts'
 
 /** cgroup placement for confined commands. */
@@ -128,6 +129,14 @@ export interface EgressConfig extends Omit<EgressLimits, 'unlimitedAccounts'> {
   limits: CgroupLimits
 }
 
+/** Bounds on the skill resources one command mounts, each counted across every skill its conversation loaded. */
+export interface SkillResourceLimits {
+  /** Most files; each is one descriptor the launch step opens and one copy bubblewrap makes. */
+  maxFiles: number
+  /** Most bytes, summed over the mounted files. */
+  maxBytes: number
+}
+
 /** Plugin config. */
 export interface Config {
   /** Absolute directory whose direct children are account directories; every workspace root must lie inside one of them. */
@@ -164,6 +173,14 @@ export interface Config {
    * never mounted.
    */
   sessionAttachments?: boolean
+  /**
+   * Mount the resources of the skills the calling conversation loaded, read-only at the paths their loads reported,
+   * so the instructions' relative files and bundled scripts open inside the jail as they do on a desktop. A skill
+   * provider writes those files outside every account folder, where neither a jailed command nor the sandbox user
+   * reaches them otherwise. Only directories the conversation's own `skill` results and skill invocations recorded are
+   * mounted, and a file whose mode carries the owner's execute bit stays executable. Omitted, nothing is mounted.
+   */
+  sessionSkillResources?: SkillResourceLimits
   /**
    * Argv that limits one account folder's disk use, such as a root-owned
    * helper through `sudo -n` that sets a filesystem project quota. It runs,
@@ -297,6 +314,7 @@ export class JailSandboxProvider extends SandboxProvider {
       allow: z.array(z.string()).required(),
       ports: z.array(z.natural().min(1).max(65535)).required(),
       gitHosts: z.array(z.string()).required(),
+      githubApi: z.object({ requestsPerHour: z.natural().min(1).required() }),
       accountConnections: z.natural().min(1).required(),
       connections: z.natural().min(1).required(),
       accountBytesPerSecond: z.natural().min(1).required(),
@@ -306,6 +324,10 @@ export class JailSandboxProvider extends SandboxProvider {
       idleTimeoutMs: z.natural().min(1).required(),
     }),
     sessionAttachments: z.boolean().default(false),
+    sessionSkillResources: z.object({
+      maxFiles: z.natural().min(1).required(),
+      maxBytes: z.natural().min(1).required(),
+    }),
     quotaCommand: z.array(z.string()),
     quotaRecord: z.string(),
     unlimitedAccounts: z.array(z.string()).default([]),
@@ -332,6 +354,11 @@ export class JailSandboxProvider extends SandboxProvider {
   private readonly gitCredentials = new GitCredentials()
   /** Attachment files each live session references, and the log position read so far. */
   private readonly attachmentFiles = new WeakMap<Session, { seq: number; files: Set<string> }>()
+  private readonly skillResourceLimits: SkillResourceLimits | undefined
+  /** Each live session's scan of the skills it loaded, and the log position read so far. */
+  private readonly skillScans = new WeakMap<Session, { seq: number; state: LoadedSkillDirectories }>()
+  /** Regular files of each skill resource directory; a provider writes a new directory for every new revision. */
+  private readonly skillDirectoryFiles = new Map<string, readonly { path: string; bytes: number; executable: boolean }[]>()
 
   constructor(ctx: Context, config: Config) {
     super(ctx)
@@ -371,6 +398,7 @@ export class JailSandboxProvider extends SandboxProvider {
     this.quotaCommand = config.quotaCommand
     this.quotaRecord = config.quotaRecord
     this.sessionAttachments = config.sessionAttachments ?? false
+    this.skillResourceLimits = config.sessionSkillResources
     this.probe(this.probeTimeoutMs)
     if (config.cgroup !== undefined) {
       const cgroups = new AccountCgroups(
@@ -462,6 +490,7 @@ export class JailSandboxProvider extends SandboxProvider {
             allow: egress.allow,
             ports: egress.ports,
             gitHosts: egress.gitHosts,
+            ...egress.githubApi === undefined ? {} : { githubApi: egress.githubApi },
             accountConnections: egress.accountConnections,
             connections: egress.connections,
             accountBytesPerSecond: egress.accountBytesPerSecond,
@@ -511,8 +540,11 @@ export class JailSandboxProvider extends SandboxProvider {
       .filter(root => this.accountOf(root) === account)
     if (this.commandExec !== undefined) this.shareFolders(account, [workspaceRoot, ...additionalWritableRoots])
     const egressDir = this.egress?.proxy.accountDir(account)
-    const attachments = this.attachmentsOf(policy.sessionId)
-    const jail = jailArgs(this.profile, { ...policy, workspaceRoot, additionalWritableRoots }, attachments, egressDir)
+    const readOnlyFiles: ReadOnlyFile[] = [
+      ...this.attachmentsOf(policy.sessionId).map(path => ({ path, executable: false })),
+      ...this.skillResourcesOf(policy.sessionId),
+    ]
+    const jail = jailArgs(this.profile, { ...policy, workspaceRoot, additionalWritableRoots }, readOnlyFiles, egressDir)
     const egress = this.egress
     const relay = egress === undefined ? [] : relayArgs(egress.port, egress.proxy.identity(account, policy.sessionId ?? NO_SESSION))
     const jailed = [...this.commandExec === undefined ? [] : [this.commandExec], ...jail.args, '--', ...relay, ...argv]
@@ -579,6 +611,62 @@ export class JailSandboxProvider extends SandboxProvider {
     known.seq = session.seq
     this.attachmentFiles.set(session, known)
     return [...known.files]
+  }
+
+  /**
+   * The resource files of the skills a session loaded, read incrementally from its log, within the configured bounds.
+   * @param sessionId - the calling session, when the call has one.
+   * @returns existing host files to mount read-only, in load order, stopping before the first that would pass a bound.
+   */
+  private skillResourcesOf(sessionId: SessionId | undefined): ReadOnlyFile[] {
+    const limits = this.skillResourceLimits
+    if (limits === undefined || sessionId === undefined) return []
+    const session = this.ctx.get('sessions')?.get(sessionId)
+    if (session === undefined) return []
+    const scan = this.skillScans.get(session) ?? { seq: 0, state: { calls: new Set<string>(), directories: new Set<string>() } }
+    loadedSkillDirectories(session.snapshotEvents(SessionLogOffset(scan.seq)), scan.state)
+    scan.seq = session.seq
+    this.skillScans.set(session, scan)
+    const files: ReadOnlyFile[] = []
+    let bytes = 0
+    for (const directory of scan.state.directories) {
+      for (const file of this.skillDirectoryFilesOf(directory)) {
+        if (files.length + 1 > limits.maxFiles || bytes + file.bytes > limits.maxBytes) {
+          this.ctx.logger('sandbox-jail').warn(`session ${sessionId}: skill resources past ${String(limits.maxFiles)} files or ${String(limits.maxBytes)} bytes are not mounted`)
+          return files
+        }
+        bytes += file.bytes
+        files.push({ path: file.path, executable: file.executable })
+      }
+    }
+    return files
+  }
+
+  /**
+   * The regular files below one skill resource directory, read once per directory.
+   * @param directory - a resource directory a skill load reported.
+   * @returns each regular file's path, size, and whether its owner may execute it; empty when the directory is gone.
+   */
+  private skillDirectoryFilesOf(directory: string): readonly { path: string; bytes: number; executable: boolean }[] {
+    const known = this.skillDirectoryFiles.get(directory)
+    if (known !== undefined) return known
+    let entries: Dirent[]
+    try {
+      entries = readdirSync(directory, { recursive: true, withFileTypes: true })
+    } catch {
+      // ENOENT or ENOTDIR: the directory a load reported is gone, so there is nothing of it to mount.
+      return []
+    }
+    const files = entries
+      .filter(entry => entry.isFile())
+      .map((entry) => {
+        const path = join(entry.parentPath, entry.name)
+        const info = lstatSync(path)
+        return { path, bytes: info.size, executable: (info.mode & 0o100) !== 0 }
+      })
+      .sort((left, right) => left.path.localeCompare(right.path))
+    this.skillDirectoryFiles.set(directory, files)
+    return files
   }
 
   /**

@@ -14,3 +14,6 @@
 
 # Upstream licence texts are kept verbatim: their trailing whitespace is not ours to strip.
 apps/web/src/assets/fonts/LICENSE-*.txt -whitespace
+
+# A vendored repository's patch carries upstream's blank context lines, which diff writes as a lone space.
+packages/skill/skill-catalog/patches/*.patch -whitespace

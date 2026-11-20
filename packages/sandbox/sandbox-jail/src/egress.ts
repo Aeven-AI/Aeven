@@ -36,6 +36,16 @@ export interface EgressLimits {
    * branch, or deletes one, waits for the user's approval.
    */
   gitHosts: string[]
+  /**
+   * Serve the GitHub API to jailed commands, read only, with the calling account's `github.com` credential: REST
+   * `GET` and `HEAD`, and GraphQL documents holding only queries and fragments, addressed to `api.github.localhost`
+   * (where the image's `gh` shim sends `gh`). Every write is refused, and each account makes at most
+   * `requestsPerHour` requests per clock hour. Absent, the route is off.
+   */
+  githubApi?: {
+    /** Requests one account may make in each clock hour; its connector tools keep the rest of its GitHub rate limit. */
+    requestsPerHour: number
+  }
   /** Open connections per account. */
   accountConnections: number
   /** Open connections for all accounts together. */

@@ -156,6 +156,60 @@ export interface SkillInvocationSource {
   readonly name: string
   /** Injected skill bodies are instructions for the model to follow. */
   readonly form: 'instructions'
+  /** Host directory holding the skill's resources, when its provider reported a directory resource base. */
+  readonly resourceDirectory?: string
+}
+
+/** Name of the model-facing tool that loads one skill; its results are what {@link loadedSkillDirectories} reads. */
+export const SKILL_TOOL_NAME = 'skill'
+
+/** Durable `tool/result` meta of a {@link SKILL_TOOL_NAME} call whose skill reported a directory resource base. */
+export interface SkillToolResultMeta {
+  /** Host directory holding the loaded skill's resources. */
+  readonly resourceDirectory: string
+}
+
+/** Progress of one session's {@link loadedSkillDirectories} scan, kept across incremental reads of its log. */
+export interface LoadedSkillDirectories {
+  /** Ids of the session's `skill` tool calls whose results have not been read yet. */
+  readonly calls: Set<string>
+  /** Resource directories of the skills the session loaded so far. */
+  readonly directories: Set<string>
+}
+
+/**
+ * Collect the resource directories of the skills a conversation loaded, from the Host-written records of its log:
+ * the meta of a `skill` tool result whose call the log holds, and the source of a user-explicit invocation. Skill
+ * text and model-written arguments never name a directory here, so a skill body cannot widen what a sandbox mounts
+ * or a confined read opens.
+ * @param events - the conversation's events, or the slice not read yet.
+ * @param state - the scan progress to extend; a new one when omitted.
+ * @returns the scan progress, whose `directories` holds every directory found so far.
+ */
+export function loadedSkillDirectories(
+  events: readonly { readonly type: string; readonly data?: unknown }[],
+  state: LoadedSkillDirectories = { calls: new Set(), directories: new Set() },
+): LoadedSkillDirectories {
+  for (const event of events) {
+    const data = event.data as {
+      readonly message?: { readonly content?: unknown; readonly source?: { readonly callId?: unknown } }
+      readonly meta?: { readonly resourceDirectory?: unknown }
+      readonly source?: { readonly kind?: unknown; readonly resourceDirectory?: unknown }
+    } | null | undefined
+    if (data === undefined || data === null) continue
+    if (event.type === 'assistant/message' && Array.isArray(data.message?.content)) {
+      for (const block of data.message.content as readonly { type?: unknown; id?: unknown; name?: unknown }[]) {
+        if (block.type === 'tool-call' && block.name === SKILL_TOOL_NAME && typeof block.id === 'string') state.calls.add(block.id)
+      }
+    } else if (event.type === 'tool/result') {
+      const callId = data.message?.source?.callId
+      if (typeof callId !== 'string' || !state.calls.delete(callId)) continue
+      if (typeof data.meta?.resourceDirectory === 'string') state.directories.add(data.meta.resourceDirectory)
+    } else if (event.type === 'user/message' && data.source?.kind === 'skill-invocation' && typeof data.source.resourceDirectory === 'string') {
+      state.directories.add(data.source.resourceDirectory)
+    }
+  }
+  return state
 }
 
 declare module '@aeven/llm' {

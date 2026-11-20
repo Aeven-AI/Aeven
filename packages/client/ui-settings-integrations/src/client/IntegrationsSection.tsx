@@ -1,7 +1,7 @@
 /** Personal skill import and connector account management. */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { AccountIntegrationsView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillReferenceImport, SkillUploadFile, SystemSkillView, WhatsAppPairingView, WhatsAppPhoneCodeView } from '@aeven/api-remotes/client'
+import type { AccountIntegrationsView, CatalogPackInstall, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillReferenceImport, SkillUploadFile, SystemSkillView, WhatsAppPairingView, WhatsAppPhoneCodeView } from '@aeven/api-remotes/client'
 import { Button, LoadingBlock, SectionHeader, MarkdownText, Menu, Modal, Spinner, Switch, Tabs, IconWarningOutline16, IconChevronLeftOutline14, IconCloseOutline16, IconLucideSettings2 } from '@aeven/client-ui-primitives'
 import type { HostObservable, InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import css from './IntegrationsSection.module.css'
@@ -63,6 +63,12 @@ export interface IntegrationsSectionInjected extends TelegramPairingOperations {
    * @param name - catalogued skill name.
    */
   installCatalogSkill: (name: string) => Promise<void>
+  /**
+   * Install every catalogued skill of one pack into the account's library.
+   * @param pack - pack name the catalog rows carry.
+   * @returns the members stored, those a built-in skill owns, and those the import refused.
+   */
+  installCatalogPack: (pack: string) => Promise<CatalogPackInstall>
   importSkill: (files: SkillUploadFile[]) => Promise<SkillReferenceImport>
   /**
    * Add every skill a GitHub repository or npm package carries.
@@ -170,6 +176,8 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     ? selectedSkillId.slice(CATEGORY_DETAIL_PREFIX.length)
     : undefined
   const [optionsOpen, setOptionsOpen] = useState(false)
+  /** Members the last pack install could not store, named until the next pack action. */
+  const [packFailures, setPackFailures] = useState<readonly string[]>([])
   /** Whether the import popup is open, what the reader typed into it, and what the last import did. */
   const [importOpen, setImportOpen] = useState(false)
   const [reference, setReference] = useState('')
@@ -355,10 +363,42 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
         <span className={css.meta}>
           {skill.displayName === skill.name ? t('catalogDownloads') : `${skill.displayName} · ${t('catalogDownloads')}`} {skill.downloads.toLocaleString()}
         </span>
+        {requiresLine(skill)}
       </span>
     </button>
     <span className={css.switchCell}>{setupSpinner(skill.name)}{setupWarning(skill.name)}{catalogSwitch(skill)}</span>
   </article>
+  /** The pack members a skill loads by name, so a single install shows what else it needs. */
+  const requiresLine = (skill: SkillCatalogView['skills'][number]) => skill.requires === undefined || skill.requires.length === 0
+    ? undefined
+    : <span className={css.meta}>{t('catalogRequires')} {skill.requires.map(humanSkillName).join(', ')}</span>
+  /** Packs whose members a category lists, each with every member of the pack in catalog order. */
+  const catalogPacks = (category: string): { name: string; members: string[] }[] => [...(catalog?.skills ?? [])
+    .filter(skill => skill.category === category && skill.pack !== undefined)
+    .reduce((packs, skill) => packs.set(skill.pack ?? '', [...packs.get(skill.pack ?? '') ?? [], skill.name]), new Map<string, string[]>())]
+    .map(([name, members]) => ({ name, members }))
+  /** One switch per pack: on installs every member at once, off removes every member the library holds. */
+  const packRow = (pack: { name: string; members: string[] }) => {
+    const installed = pack.members.every(name => installedNames.has(name))
+    return <div key={pack.name} className={css.connectorRow}>
+      <span className={css.skillSummary}>
+        <strong>{pack.name} · {t('catalogPack')}</strong>
+        <span className={css.connectorDescription}>{t('catalogPackHint')}</span>
+        <span className={css.meta}>{pack.members.length} {t('skillsWord')}</span>
+      </span>
+      <span className={css.switchCell}>{toggle(pack.name, installed, false, () => {
+        void run(async () => {
+          setPackFailures([])
+          if (installed) {
+            for (const name of pack.members) await props.removeSkill(name)
+          } else {
+            setPackFailures((await props.installCatalogPack(pack.name)).failed.map(failure => failure.name))
+          }
+          refreshList()
+        })
+      })}</span>
+    </div>
+  }
   /** Display menu anchored to the toolbar button, matching the composer's own option popups:
    * the list leaves this scrolling pane, and its right edge rests on the trigger's. */
   const displayMenu = <Menu
@@ -647,6 +687,9 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
         ? <article className={css.connectorDetail}>
           <div className={css.connectorHeading}><h2>{categoryLabel(selectedCategory)}</h2></div>
           <p className={css.meta}>{catalogRows(selectedCategory).length} {t('skillsWord')}</p>
+          {catalogPacks(selectedCategory).length > 0
+            && <div className={css.connectorList}>{catalogPacks(selectedCategory).map(packRow)}</div>}
+          {packFailures.length > 0 && <p role="alert">{t('catalogPackFailed')} {packFailures.map(humanSkillName).join(', ')}</p>}
           <div className={css.connectorList}>{catalogRows(selectedCategory).map(catalogRow)}</div>
         </article>
         : selectedSkill !== undefined
@@ -685,6 +728,8 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
               <p className={css.detailDescription}>{catalogSkill.description}</p>
               <p className={css.meta}>{categoryLabel(catalogSkill.category)} · {t('catalogDownloads')} {catalogSkill.downloads.toLocaleString()}</p>
               <p className={css.meta}>{t('source')} {catalogSkill.path}</p>
+              {catalogSkill.requires !== undefined && catalogSkill.requires.length > 0
+                && <p className={css.meta}>{t('catalogRequires')} {catalogSkill.requires.map(humanSkillName).join(', ')}</p>}
               <div className={css.instructions}>
                 {preview?.name === catalogSkill.name
                   ? <MarkdownText
