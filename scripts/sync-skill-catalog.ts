@@ -31,6 +31,12 @@
  * collection, with `<repo>/<path>` recorded as provenance so a Settings row names where the skill
  * came from. An entry ships under the same `curation.json` value bar as everything else.
  *
+ * The file's `repositories` map can pin one repository at a commit and give it a rewrite pass: a patch applied to the pinned
+ * files before the rebrand, and patterns no shipped Markdown file may still match, so an instruction
+ * cannot send a model to a surface this deployment lacks. Entries naming one `pack` install together;
+ * each repository skill a member names in bold or as code must ship in that pack, as a model-loadable
+ * member or folded into one through `resources`, and the members a skill names become its `requires`.
+ *
  * Requires the `zip` command-line tool and network access.
  */
 
@@ -83,6 +89,10 @@ interface CatalogEntry {
   readonly verdict?: string
   /** Reviewed value 1-5; Settings shows the recommended set by default. */
   readonly value?: number
+  /** Pack the skill installs with, from its `vendored.json` entry. */
+  readonly pack?: string
+  /** Other members of its pack that the skill's instructions load by name; absent when it names none. */
+  readonly requires?: readonly string[]
 }
 
 /** One skill the catalog ships from this repository rather than from the upstream collection. */
@@ -112,6 +122,28 @@ interface VendoredSource {
   readonly author: string
   /** Catalogue summary used instead of the skill's own when that text is written in another language. */
   readonly description?: string
+  /** Pack the skill installs with; every entry naming the same pack arrives together from one Settings action. */
+  readonly pack?: string
+  /**
+   * Further repository files to bundle, keyed by their path inside the bundle. A pack folds skills that only one member
+   * reads, such as one-line principles, into that member instead of giving each its own catalog row.
+   */
+  readonly resources?: Readonly<Record<string, string>>
+  /** Path prefixes, relative to `path`, left out of the bundle: test corpora and other files no session reads. */
+  readonly omit?: readonly string[]
+}
+
+/** Pin and rewrite pass for one vendored repository; the rewrite applies before the catalog rebrand. */
+interface VendoredRepository {
+  /** Commit the repository is vendored at; absent pins whatever its default branch holds when the sync runs. */
+  readonly ref?: string
+  /** Unified diff against the pinned commit, relative to this package; a hunk that no longer applies fails the sync. */
+  readonly patch?: string
+  /**
+   * Regular expressions no shipped file from the repository may match after the rewrite: names of surfaces this
+   * deployment does not have, which a vendored instruction would otherwise send a model to.
+   */
+  readonly forbid?: readonly string[]
 }
 
 /** The catalog index the Host serves and `verify-skill-catalog` re-derives. */
@@ -303,10 +335,10 @@ async function pool<T>(items: readonly T[], limit: number, task: (item: T) => Pr
 }
 
 /**
- * Fetch one repository file and stage it as Aeven's own writing.
- * @param request - the repository, its commit, the file to read, and where to write it.
+ * Fetch one repository file and stage it, as Aeven's own writing unless `raw` asks for upstream's bytes.
+ * @param request - the repository, its commit, the file to read, where to write it, and whether to skip the rebrand.
  */
-async function stageFile(request: { repo: string; ref: string; path: string; target: string }): Promise<void> {
+async function stageFile(request: { repo: string; ref: string; path: string; target: string; raw?: boolean }): Promise<void> {
   makeDirectory(dirname(request.target))
   const url = `https://raw.githubusercontent.com/${request.repo}/${request.ref}/${request.path}`
   let response = await fetch(url)
@@ -317,7 +349,8 @@ async function stageFile(request: { repo: string; ref: string; path: string; tar
     response = await fetch(url)
   }
   if (!response.ok) throw new Error(`${request.path} returned ${response.status}`)
-  writeFileSync(request.target, rebrandBytes(Buffer.from(await response.arrayBuffer())))
+  const bytes = Buffer.from(await response.arrayBuffer())
+  writeFileSync(request.target, request.raw === true ? bytes : rebrandBytes(bytes))
   utimesSync(request.target, FIXED_MTIME_SECONDS, FIXED_MTIME_SECONDS)
 }
 
@@ -370,18 +403,27 @@ async function main(): Promise<void> {
     ? (JSON.parse(readFileSync(sourcesFile, 'utf8')) as { skills?: readonly AuthoredSource[] }).skills ?? []
     : []
   const vendoredFile = join(outDir, '..', 'vendored.json')
-  const vendored = existsSync(vendoredFile)
-    ? (JSON.parse(readFileSync(vendoredFile, 'utf8')) as { skills?: readonly VendoredSource[] }).skills ?? []
-    : []
+  const vendoredIndex = existsSync(vendoredFile)
+    ? JSON.parse(readFileSync(vendoredFile, 'utf8')) as { repositories?: Readonly<Record<string, VendoredRepository>>; skills?: readonly VendoredSource[] }
+    : {}
+  const vendored = vendoredIndex.skills ?? []
+  const rewrites = new Map(Object.entries(vendoredIndex.repositories ?? {}))
   /** The name one vendored entry installs under: its stated name, else the directory name it ships from. */
   const vendoredName = (source: VendoredSource): string => source.name ?? kebab(segmentAt(source.path.split('/'), -1))
   /** Repository-relative prefix of one entry's files; empty for a skill at the repository root. */
   const vendoredPrefix = (source: VendoredSource): string => source.path === '.' ? '' : `${source.path}/`
+  /** Repository files one entry bundles from its own directory: its listed files, else the directory minus `omit`. */
+  const vendoredFiles = (source: VendoredSource, tree: readonly TreeEntry[]): readonly TreeEntry[] => {
+    const prefix = vendoredPrefix(source)
+    return tree.filter(entry => entry.type === 'blob' && entry.path.startsWith(prefix)
+      && (source.files === undefined || source.files.includes(entry.path.slice(prefix.length)))
+      && !(source.omit ?? []).some(omitted => entry.path.slice(prefix.length).startsWith(omitted)))
+  }
   const shippedVendored = vendored.filter(source => (curation.get(vendoredName(source))?.value ?? 0) >= minValue)
   // One tree per repository, fetched once: a repository contributes several reviewed skills.
   const repositories = new Map<string, { commit: string; tree: readonly TreeEntry[] }>()
   for (const repo of new Set(shippedVendored.map(source => source.repo))) {
-    const commit = (await json<{ sha: string }>(`https://api.github.com/repos/${repo}/commits/main`)).sha
+    const commit = (await json<{ sha: string }>(`https://api.github.com/repos/${repo}/commits/${rewrites.get(repo)?.ref ?? 'main'}`)).sha
     const repoTree = await json<{ tree: readonly TreeEntry[] }>(`https://api.github.com/repos/${repo}/git/trees/${commit}?recursive=1`)
     repositories.set(repo, { commit, tree: repoTree.tree })
   }
@@ -500,11 +542,40 @@ async function main(): Promise<void> {
       if (catalogued.has(name)) throw new Error(`vendored skill ${name} collides with a catalogued name`)
       catalogued.add(name)
       taken.add(name)
+    }
+    // Each repository stages once, as upstream wrote it, so its patch applies to the pinned bytes; every
+    // entry then copies its files out of that staging and through the catalog rebrand.
+    const stagedRepositories = new Map<string, string>()
+    for (const [repo, repository] of repositories) {
+      const sources = shippedVendored.filter(source => source.repo === repo)
+      const wanted = new Set<string>(['LICENSE'])
+      for (const source of sources) {
+        for (const entry of vendoredFiles(source, repository.tree)) wanted.add(entry.path)
+        for (const from of Object.values(source.resources ?? {})) wanted.add(from)
+      }
+      const blobs = new Set(repository.tree.filter(entry => entry.type === 'blob').map(entry => entry.path))
+      const directory = join(scratch, `repository-${stagedRepositories.size}`)
+      await pool([...wanted].filter(path => blobs.has(path) || path !== 'LICENSE'), DOWNLOAD_CONCURRENCY, async (path) => {
+        if (!blobs.has(path)) throw new Error(`${repo} carries no ${path}`)
+        await stageFile({ repo, ref: repository.commit, path, target: join(directory, path), raw: true })
+      })
+      const patch = rewrites.get(repo)?.patch
+      if (patch !== undefined) {
+        execFileSync('git', ['apply', '--whitespace=nowarn', resolve(outDir, '..', patch)], { cwd: directory })
+        console.log(`sync-skill-catalog: applied ${patch} to ${repo}`)
+      }
+      stagedRepositories.set(repo, directory)
+    }
+
+    /** Pack membership and staged directory of every vendored entry this run bundles, for the pack checks below. */
+    const packed: { name: string; pack: string; repo: string; directory: string; folded: readonly string[] }[] = []
+    for (const source of shippedVendored) {
+      const name = vendoredName(source)
       const repository = repositories.get(source.repo)
-      if (repository === undefined) throw new Error(`no tree was fetched for ${source.repo}`)
+      const repositoryDirectory = stagedRepositories.get(source.repo)
+      if (repository === undefined || repositoryDirectory === undefined) throw new Error(`no tree was fetched for ${source.repo}`)
       const prefix = vendoredPrefix(source)
-      const files = repository.tree.filter(entry => entry.type === 'blob' && entry.path.startsWith(prefix)
-        && (source.files === undefined || source.files.includes(entry.path.slice(prefix.length))))
+      const files = vendoredFiles(source, repository.tree)
       // A skill that carries no licence of its own is redistributed under its repository's, and the
       // bundle must give each recipient that licence text.
       const licence = !files.some(entry => entry.path === `${prefix}LICENSE`)
@@ -512,17 +583,34 @@ async function main(): Promise<void> {
       const provenance = source.path === '.' ? source.repo : `${source.repo}/${source.path}`
       if (!files.some(entry => entry.path === `${prefix}SKILL.md`)) throw new Error(`${provenance} carries no SKILL.md`)
       const directory = join(scratch, `vendored-${name}`)
-      await pool(files, DOWNLOAD_CONCURRENCY, async (entry) => {
-        const target = join(directory, entry.path.slice(prefix.length))
-        await stageFile({ repo: source.repo, ref: repository.commit, path: entry.path, target })
-      })
-      const members = files.map(entry => entry.path.slice(prefix.length))
-      if (licence) {
-        await stageFile({ repo: source.repo, ref: repository.commit, path: 'LICENSE', target: join(directory, 'LICENSE') })
-        members.push('LICENSE')
+      /** Bundle path → repository path for every file this entry ships. */
+      const copies = new Map<string, string>(files.map(entry => [entry.path.slice(prefix.length), entry.path]))
+      for (const [target, from] of Object.entries(source.resources ?? {})) {
+        if (copies.has(target)) throw new Error(`${provenance} resource ${target} shadows a file the skill ships`)
+        copies.set(target, from)
+      }
+      if (licence) copies.set('LICENSE', 'LICENSE')
+      for (const [target, from] of copies) {
+        makeDirectory(dirname(join(directory, target)))
+        writeFileSync(join(directory, target), rebrandBytes(readFileSync(join(repositoryDirectory, from))))
+        utimesSync(join(directory, target), FIXED_MTIME_SECONDS, FIXED_MTIME_SECONDS)
+      }
+      const members = [...copies.keys()]
+      // The forbidden names are checked in the instructions as the patch left them, before the rebrand
+      // can turn another harness's name into a claim about this one.
+      for (const pattern of rewrites.get(source.repo)?.forbid ?? []) {
+        for (const [target, from] of copies) {
+          if (!target.endsWith('.md')) continue
+          const match = new RegExp(pattern).exec(readFileSync(join(repositoryDirectory, from), 'utf8'))
+          if (match !== null) throw new Error(`${provenance}/${target} still names ${JSON.stringify(match[0])}, which vendored.json forbids`)
+        }
       }
       const definition = readFileSync(join(directory, 'SKILL.md'), 'utf8')
       const bundled = bundle({ directory, members, outDir, category: source.category, name })
+      if (source.pack !== undefined) {
+        const folded = Object.values(source.resources ?? {}).map(from => segmentAt(dirname(from).split('/'), -1))
+        packed.push({ name, pack: source.pack, repo: source.repo, directory, folded })
+      }
       entries.push({
         name,
         displayName: frontmatterField(definition, 'name') ?? name,
@@ -534,8 +622,41 @@ async function main(): Promise<void> {
         path: provenance,
         ...bundled,
         ...curation.get(name) ?? {},
+        ...source.pack === undefined ? {} : { pack: source.pack },
       })
       console.log(`sync-skill-catalog: ${name} vendored from ${provenance}`)
+    }
+    // A pack is one install, so every repository skill a member names (in bold, or as `name` or `/name`
+    // code) must arrive with it: as a
+    // member the model may load, or folded into a member. The names a member loads become its row's
+    // `requires`, which Settings shows before a single install.
+    for (const member of packed) {
+      const repository = repositories.get(member.repo)
+      if (repository === undefined) throw new Error(`no tree was fetched for ${member.repo}`)
+      const repositorySkills = new Set(repository.tree.filter(entry => entry.type === 'blob' && entry.path.endsWith('/SKILL.md'))
+        .map(entry => segmentAt(entry.path.split('/'), -2)))
+      const siblings = packed.filter(other => other.pack === member.pack)
+      const text = readdirSync(member.directory, { recursive: true, withFileTypes: true })
+        .filter(entry => entry.isFile() && entry.name.endsWith('.md'))
+        .map(entry => readFileSync(join(entry.parentPath, entry.name), 'utf8'))
+        .join('\n')
+      const requires = new Set<string>()
+      for (const [, named] of text.matchAll(/(?:\*\*|`\/?)([a-z0-9]+(?:-[a-z0-9]+)*)(?:\*\*|`)/g)) {
+        if (named === undefined || named === member.name || !repositorySkills.has(named)) continue
+        if (member.folded.includes(named)) continue
+        const sibling = siblings.find(other => other.name === named)
+        if (sibling === undefined) {
+          if (siblings.some(other => other.folded.includes(named))) continue
+          throw new Error(`${member.name} names ${named}, which the ${member.pack} pack does not ship`)
+        }
+        if (frontmatterField(readFileSync(join(sibling.directory, 'SKILL.md'), 'utf8'), 'disable-model-invocation') === 'true') {
+          throw new Error(`${member.name} loads ${named}, which sets disable-model-invocation and cannot be loaded by the model`)
+        }
+        requires.add(named)
+      }
+      const index = entries.findIndex(entry => entry.name === member.name)
+      const entry = entries[index]
+      if (entry !== undefined && requires.size > 0) entries[index] = { ...entry, requires: [...requires].sort() }
     }
   } finally {
     rmSync(scratch, { recursive: true, force: true })
@@ -567,6 +688,8 @@ async function main(): Promise<void> {
     '',
     `Upstream: ${UPSTREAM} at ${commit}`,
     ...vendoredRepositories,
+    ...[...new Set(entries.flatMap(entry => entry.pack === undefined ? [] : [entry.pack]))]
+      .map(pack => `Pack: ${pack}, ${entries.filter(entry => entry.pack === pack).length} skills installed together`),
     ...index.sources.map(source => `Authored source: ${source.path} (${source.category})`),
     `Synced: ${index.upstream.synced}`,
     `Skills: ${entries.length} in ${categories.length} categories (value >= ${minValue} of the reviewed catalog${extras.length === 0 ? '' : `, plus ${extras.length} authored here`}${shippedVendored.length === 0 ? '' : `, plus ${shippedVendored.length} vendored from other repositories`})`,

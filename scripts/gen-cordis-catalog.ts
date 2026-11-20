@@ -930,6 +930,7 @@ export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   FileSyncConflict: 'package-owned type is documented in packages/sync/file-sync/src/index.ts',
   LocalDirectory: 'package-owned type is documented in packages/session/working-directory/src/local.ts',
   WorkingDirectoryProjection: 'package-owned type is documented in packages/session/working-directory/src/types.ts',
+  CatalogPackInstall: 'package-owned type is documented in packages/host/account-integrations/src/types.ts',
   SkillCatalogView: 'package-owned type is documented in packages/host/account-integrations/src/types.ts',
   SkillReferenceImport: 'package-owned type is documented in packages/host/account-integrations/src/types.ts',
   SkillUploadFile: 'package-owned type is documented in packages/host/account-integrations/src/types.ts',

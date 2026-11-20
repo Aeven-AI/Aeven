@@ -3716,6 +3716,114 @@
   "ui-animation": {
    "verdict": "net-new",
    "value": 5
+  },
+  "poteto-mode": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "architect": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "arena": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "automate-me": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "benchmark-checklist": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "blast-radius": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "bro": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "correct": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "create-verification-skill": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "figure-it-out": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "how": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "in-your-own-words": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "interrogate": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "ketchup": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "maintain-verification-skill": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "no-comments": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "reflect": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "sharpen": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "show-me-your-work": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "statechart": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "swarm": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "tdd": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "teach": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "technical-writing": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "typescript-best-practices": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "unslop": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "why": {
+   "verdict": "net-new",
+   "value": 4
   }
  }
 }

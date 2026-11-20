@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-A release ships a skill catalog inside this package: the reviewed high-value subset of the upstream `davila7/claude-code-templates` collection, together with skills written in this repository for targets that collection does not cover (`reverse-engineering`, `leanrea`, and the twenty-nine `aeven-stack` workflow skills ported from `aicodeking/deepseek-stack`) and a reviewed set other repositories publish in the same `SKILL.md` layout (today ten motion skills from `nexu-io/open-design` and `humanizer` from `blader/humanizer`, which replaces the collection's older copy), as an index plus one zip per skill. Settings browses it as one title-ordered list or by category — an index of categories with their skill counts, then one category's skills — searches it, and installs a chosen skill into the signed-in account's own library. Nothing in the catalog reaches a model until someone installs it.
+A release ships a skill catalog inside this package: the reviewed high-value subset of the upstream `davila7/claude-code-templates` collection, together with skills written in this repository for targets that collection does not cover (`reverse-engineering`, `leanrea`, and the twenty-nine `aeven-stack` workflow skills ported from `aicodeking/deepseek-stack`) and a reviewed set other repositories publish in the same `SKILL.md` layout (today ten motion skills from `nexu-io/open-design` `humanizer` from `blader/humanizer`, which replaces the collection's older copy, and twenty-seven skills of the `pstack` pack from `backnotprop/pstack`), as an index plus one zip per skill. Settings browses it as one title-ordered list or by category — an index of categories with their skill counts, then one category's skills — searches it, and installs a chosen skill into the signed-in account's own library. Nothing in the catalog reaches a model until someone installs it.
 
 The Host fetches nothing at runtime: the index and the bundles are files in this package, read through `ctx.skillCatalog`. An install hands the vendored zip to the account's ordinary import path, so path validation, the size ceiling, resource storage, and catalog invalidation behave exactly as a manual upload.
 
@@ -27,9 +27,11 @@ The Host fetches nothing at runtime: the index and the bundles are files in this
 <a id="use-this-package"></a>
 ## Use this package
 
-The web application bundle mounts this plugin beside [`@aeven/host-account-integrations`](../../host/account-integrations/README.md), which serves the catalog to Settings and performs the install through `catalog()` and `installCatalogSkill()`. Removing the composition row removes the Catalog view; the rest of the Skills page keeps working.
+The web application bundle mounts this plugin beside [`@aeven/host-account-integrations`](../../host/account-integrations/README.md), which serves the catalog to Settings and performs the install through `catalog()`, `installCatalogSkill()`, and, for every skill of one pack at once, `installCatalogPack()`. Removing the composition row removes the Catalog view; the rest of the Skills page keeps working.
 
 The Catalog view is the default half of the Skills page while an account has installed nothing, and one switch at the top of the page moves between the account's own skills and the catalog.
+
+A category that holds a pack shows one switch for the whole pack above its skills. Switching it on installs every member, names any member the import refused, and leaves the others installed; each skill keeps its own switch, and a row whose instructions load other members lists them under Needs.
 
 -----
 
@@ -52,6 +54,8 @@ The `aeven-stack` entries under `authored/` are ports of the MIT-licensed `aicod
 
 `catalog/vendored.json` covers the third origin: a skill another repository publishes in the same `SKILL.md` layout. Each entry names that repository, the skill directory inside it, its category, its credited author, and, for a skill whose own description is written in another language, the English summary the catalog row shows. A skill published at its repository's root uses the path `.`, states the `name` it installs under, and lists the `files` to bundle, so the repository's README, changelog, CI, and plugin packaging stay out; a collection skill it replaces goes on `curation.json`'s `exclude` list. The sync pins that repository's default-branch commit, bundles the directory the way it bundles a downloaded skill, records `<repo>/<path>` (or `<repo>` for a root skill) as the row's provenance, and adds the repository's `LICENSE` to the bundle when the skill carries none of its own. An entry ships under the same `curation.json` value bar as everything else, so widening or retiring a source stays one edit.
 
+The file's `repositories` map pins one repository at a commit (absent pins the default branch at sync time) and names its rewrite pass: `patch`, a unified diff under `patches/` applied to the pinned files before the rebrand, and `forbid`, patterns no shipped Markdown file may still match. A hunk that no longer applies or a surviving forbidden name fails the sync. An entry's `omit` lists path prefixes left out of its bundle, and `resources` maps further repository files to paths inside it, which is how the pstack principles ship inside `poteto-mode`. Entries naming one `pack` install together: the sync requires every repository skill a member names in bold or as code to ship in that pack, as a member without `disable-model-invocation` or folded into one, and records the members a skill loads as its row's `requires`. The pstack rewrite and the review behind the 27 skills are recorded in the [Agent Note](../../../.agents/notes/implemented/feature/2026-11-20-skill-catalog-ships-pstack-as-one-pack.md).
+
 </details>
 
 -----
@@ -72,7 +76,8 @@ Nothing here enters a model request, so provider cache reuse is unaffected until
 <a id="known-limitations-and-deferred-work"></a>
 
 - **A snapshot, not a feed.** Upstream changes arrive by regenerating the catalog during a release, and the popularity numbers stay at their vendored values. A skill written here moves only when its directory changes and the sync runs again.
-- **Upstream instructions are vendored unchanged.** Some reference Claude Code surfaces, or Python and Node tooling a deployment may not have; nothing rewrites them at install.
+- **Upstream instructions are vendored unchanged** unless their repository carries a patch, as pstack does. The rest may reference Claude Code surfaces, or Python and Node tooling a deployment may not have; nothing rewrites them at install.
+- **pstack's `watch-pr` helper runs under Bun.** A session without Bun follows the Babysit playbook's `gh` commands instead.
 - **No invariant companion** — No invariant companion is published because the service reads one immutable file set and holds no second registry, so there is no independent observation to check.
 
 -----

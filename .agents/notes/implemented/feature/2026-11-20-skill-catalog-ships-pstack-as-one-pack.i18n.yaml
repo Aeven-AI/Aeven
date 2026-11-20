@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-20-skill-catalog-ships-pstack-as-one-pack.md
+2026-11-20-skill-catalog-ships-pstack-as-one-pack.md: 2322e3f058baae6be8e54d8450ccf2c2dd9673b4
+2026-11-20-skill-catalog-ships-pstack-as-one-pack.zh.md: 016d44deafffaecfb5d58129ee112980fc8afd52

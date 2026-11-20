@@ -74,6 +74,7 @@ function mount(view: AccountIntegrationsView, detail?: string, catalog?: SkillCa
     catalog: () => Promise.resolve(catalog),
     catalogSkillContent: () => Promise.resolve(undefined),
     installCatalogSkill: vi.fn().mockResolvedValue(undefined),
+    installCatalogPack: vi.fn().mockResolvedValue({ installed: [], skipped: [], failed: [] }),
     showDetail, importSkill: vi.fn().mockResolvedValue({ imported: [], skipped: [] }), setSkillEnabled, setSkillModelInvocable, removeSkill,
     retryReverseEngineering,
     importSkillReference: vi.fn(), systemSkills: vi.fn(), installSystemSkill: vi.fn(),

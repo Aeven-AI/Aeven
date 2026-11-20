@@ -101,6 +101,20 @@ export interface CatalogSkillView {
   verdict?: string
   /** Reviewed value 1-5; Settings shows the recommended set by default. */
   value?: number
+  /** Pack the skill installs with; `installCatalogPack()` installs every skill naming it. */
+  pack?: string
+  /** Other members of its pack that the skill's instructions load by name, shown before a single install. */
+  requires?: string[]
+}
+
+/** What one pack install added to the account library. */
+export interface CatalogPackInstall {
+  /** Members stored, in catalog order. */
+  installed: string[]
+  /** Members left alone because a built-in skill owns the name. */
+  skipped: SkillImportSkip[]
+  /** Members whose bundle the import refused, with the import's reason. */
+  failed: { name: string; reason: string }[]
 }
 
 /** The vendored catalog Settings browses and installs from. */
