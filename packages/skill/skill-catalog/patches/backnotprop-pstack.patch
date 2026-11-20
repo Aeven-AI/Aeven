@@ -333,7 +333,7 @@ index c1984e8..0fc787e 100644
  3. Fix trivial accepted flags directly by deleting a dead path, dropping a parameter, or using the real API. If any fix needs a shape, run `/architect` once for the accepted set and surrounding code. Stop at the sketch. Architect shapes. Step 4 implements.
  4. Implement the smallest root-cause fix in scope. Remove every named workaround. If the root cause is out of scope, land the smallest in-scope fix and report the rest open. The **principle-fix-root-causes** and **principle-redesign-from-first-principles** skills guide intent only. Neither authorizes widening the fence nor fixing instances outside it. Never bolt on symptom guards.
 diff --git a/skills/poteto-mode/SKILL.md b/skills/poteto-mode/SKILL.md
-index 2b14f3d..9e6c3fd 100644
+index 2b14f3d..907097d 100644
 --- a/skills/poteto-mode/SKILL.md
 +++ b/skills/poteto-mode/SKILL.md
 @@ -1,36 +1,35 @@
@@ -424,11 +424,11 @@ index 2b14f3d..9e6c3fd 100644
 +- **Named subagent types.** Cursor's `poteto-agent` and `comment-sicko` types are not registered here. Start a poteto worker per **Subagents** instead, or the general subagent the routed skill describes.
 +- **Principles.** **principle-<title>** names the file `principles/<title>.md` in this skill's folder, not a separate skill.
 +- **Model settings.** There is no pstack settings file and no setup skill. Choose models with `list_subagent_models` per **Subagents**. A routed skill's settings-file line or default model means the matching role there.
-+- **Transcripts.** Find earlier chats in this workspace with `session_search`, and read one session's events with `session_event_search` and `session_event_read`. Never read another workspace's sessions. Without these tools, work from the current chat and the shared record (git, pull requests, issues).
++- **Transcripts.** Earlier work comes back through long-term memory: `memory_search` (load it through tool search) finds past task traces, and `memory_get` reads one. Where the session also offers `session_search`, `session_event_search`, and `session_event_read`, use them for this workspace's earlier chats. Never read another workspace's sessions. Without these tools, work from the current chat and the shared record (git, pull requests, issues).
 +- **Skill folders.** Project: `.avn/skills/` and `.agents/skills/`. User: `~/.avn/skills/` and `~/.agents/skills/`. A skill installed from Settings lives in the account library, and a new version replaces it from Settings > Skills.
 +- **Questions.** `AskQuestion` means `ask_user_question`.
 +- **To-do list.** The todolist tool is `todo_write`.
-+- **Tools pstack doesn't ship.** `create-skill` is Cursor's skill-authoring skill. Here, follow the Agent Skills format at agentskills.io: a folder holding a `SKILL.md` whose frontmatter names the skill and describes when to use it. The deslop pass is Cursor's slop-strip skill. Here, reread the diff before commit and cut the slop yourself: comments that restate code, dead branches, needless wrappers, and checks for states that cannot happen. Driving the app means Cursor's control skills. Here, use the automation the session has: a browser or CDP tool for web and Electron, the terminal tools or tmux for CLIs and TUIs. A repeating check means Cursor's loop command. Here, create a recurring run with `schedule_create` when the session offers it, otherwise wait between checks with a timed shell command. `/visualize` means a chart or diagram in the reply, such as a Mermaid block.
++- **Tools pstack doesn't ship.** `create-skill` is Cursor's skill-authoring skill. Here, follow the Agent Skills format at agentskills.io: a folder holding a `SKILL.md` whose frontmatter names the skill and describes when to use it. The deslop pass is Cursor's slop-strip skill. Here, reread the diff before commit and cut the slop yourself: comments that restate code, dead branches, needless wrappers, and checks for states that cannot happen. Driving the app means Cursor's control skills. Here, use the automation the session has: a browser or CDP tool for web and Electron, the terminal tools or tmux for CLIs and TUIs. A repeating check means Cursor's loop command. Here, wait between checks with a timed shell command. A check that must keep running after this conversation becomes an automation the user confirms (`automation_create`). `/visualize` means a chart or diagram in the reply, such as a Mermaid block.
  
  ## Writing the reply
  
