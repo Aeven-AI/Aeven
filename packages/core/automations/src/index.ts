@@ -338,7 +338,10 @@ export class Automations extends Service<Config> {
       this.arm(domain)
       this.pumpHandoffs()
       const polls = new AbortController()
-      const mailTimer = setInterval(() => { void this.pollMail(polls.signal) }, this.config.mailPollSeconds * 1_000)
+      // A poll runs on a timer with no caller, so a failure is logged here; it never ends the Host.
+      const mailTimer = setInterval(() => {
+        this.pollMail(polls.signal).catch((error: unknown) => { ctx.logger.warn(`automations: checking for new email failed: ${String(error)}`) })
+      }, this.config.mailPollSeconds * 1_000)
       return async () => {
         this.stopped = true
         clearTimeout(this.timer)
