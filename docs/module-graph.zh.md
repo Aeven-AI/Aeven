@@ -1212,21 +1212,6 @@ flowchart TD
   pkg_bash_edit_guard --> pkg_session
   pkg_bash_edit_guard --> pkg_tools
   pkg_bash_edit_guard --> pkg_working_directory
-  pkg_host_account_integrations --> pkg_agent
-  pkg_host_account_integrations --> pkg_agent_presets
-  pkg_host_account_integrations --> pkg_credentials
-  pkg_host_account_integrations --> pkg_host_account_data
-  pkg_host_account_integrations --> pkg_host_webserver
-  pkg_host_account_integrations --> pkg_identity_user
-  pkg_host_account_integrations --> pkg_mail
-  pkg_host_account_integrations --> pkg_mcp_client
-  pkg_host_account_integrations --> pkg_sandbox_jail
-  pkg_host_account_integrations --> pkg_skill
-  pkg_host_account_integrations --> pkg_skill_catalog
-  pkg_host_account_integrations --> pkg_storage_domain
-  pkg_host_account_integrations --> pkg_tools
-  pkg_host_account_integrations --> pkg_typert_protocol
-  pkg_host_account_integrations --> pkg_workspace
   pkg_host_plugin_inventory --> pkg_agent_presets
   pkg_host_plugin_inventory --> pkg_brand
   pkg_host_plugin_inventory --> pkg_typert_protocol
@@ -1569,6 +1554,7 @@ flowchart TD
   pkg_automations --> pkg_client_connection
   pkg_automations --> pkg_identity_user
   pkg_automations --> pkg_llm
+  pkg_automations --> pkg_mail
   pkg_automations --> pkg_permission_presets
   pkg_automations --> pkg_session
   pkg_automations --> pkg_session_handoff
@@ -1679,6 +1665,22 @@ flowchart TD
   pkg_compaction_tool_result_pruner --> pkg_llm
   pkg_compaction_tool_result_pruner --> pkg_session
   pkg_compaction_tool_result_pruner --> pkg_token_meter
+  pkg_host_account_integrations --> pkg_agent
+  pkg_host_account_integrations --> pkg_agent_presets
+  pkg_host_account_integrations --> pkg_automations
+  pkg_host_account_integrations --> pkg_credentials
+  pkg_host_account_integrations --> pkg_host_account_data
+  pkg_host_account_integrations --> pkg_host_webserver
+  pkg_host_account_integrations --> pkg_identity_user
+  pkg_host_account_integrations --> pkg_mail
+  pkg_host_account_integrations --> pkg_mcp_client
+  pkg_host_account_integrations --> pkg_sandbox_jail
+  pkg_host_account_integrations --> pkg_skill
+  pkg_host_account_integrations --> pkg_skill_catalog
+  pkg_host_account_integrations --> pkg_storage_domain
+  pkg_host_account_integrations --> pkg_tools
+  pkg_host_account_integrations --> pkg_typert_protocol
+  pkg_host_account_integrations --> pkg_workspace
   pkg_webhook_github --> pkg_credentials
   pkg_webhook_github --> pkg_host_webserver
   pkg_webhook_github --> pkg_session
@@ -2004,7 +2006,6 @@ flowchart TD
 | [`project-context`](../packages/context/project-context) | `context` | [`agent`](../packages/core/agent), [`fs`](../packages/fs/fs), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`working-directory`](../packages/session/working-directory), [`workspace`](../packages/workspace/workspace) |
 | [`tool-cordis`](../packages/extensions/tool-cordis) | `extensions` | [`agent`](../packages/core/agent), [`cordis-host-runner`](../packages/extensions/cordis-host-runner), [`llm`](../packages/llm/llm), [`scope`](../packages/core/scope), [`session`](../packages/core/session), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools) |
 | [`bash-edit-guard`](../packages/guard/bash-edit-guard) | `guard` | [`agent`](../packages/core/agent), [`session`](../packages/core/session), [`tools`](../packages/core/tools), [`working-directory`](../packages/session/working-directory) |
-| [`host-account-integrations`](../packages/host/account-integrations) | `host` | [`agent`](../packages/core/agent), [`agent-presets`](../packages/preset/agent-presets), [`credentials`](../packages/credentials/credentials), [`host-account-data`](../packages/host/account-data), [`host-webserver`](../packages/host/webserver), [`identity-user`](../packages/identity/user), [`mail`](../packages/mail/mail), [`mcp-client`](../packages/mcp/mcp-client), [`sandbox-jail`](../packages/sandbox/sandbox-jail), [`skill`](../packages/skill/skill), [`skill-catalog`](../packages/skill/skill-catalog), [`storage-domain`](../packages/storage/storage-domain), [`tools`](../packages/core/tools), [`typert-protocol`](../packages/typert/protocol), [`workspace`](../packages/workspace/workspace) |
 | [`host-plugin-inventory`](../packages/host/plugin-inventory) | `host` | [`agent-presets`](../packages/preset/agent-presets), [`brand`](../packages/util/brand), [`typert-protocol`](../packages/typert/protocol) |
 | [`tool-lsp`](../packages/lsp/tool-lsp) | `lsp` | [`llm`](../packages/llm/llm), [`lsp`](../packages/lsp/lsp), [`system-prompt`](../packages/core/system-prompt), [`timeout`](../packages/util/timeout), [`tools`](../packages/core/tools), [`working-directory`](../packages/session/working-directory) |
 | [`tool-mail`](../packages/mail/tool-mail) | `mail` | [`agent`](../packages/core/agent), [`mail`](../packages/mail/mail), [`tools`](../packages/core/tools), [`working-directory`](../packages/session/working-directory) |
@@ -2051,7 +2052,7 @@ flowchart TD
 | [`tool-ralph`](../packages/workflow/tool-ralph) | `workflow` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`subagent`](../packages/subagent/subagent), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools), [`workflow`](../packages/workflow/workflow) |
 | [`workflow-worker-thread`](../packages/workflow/workflow-worker-thread) | `workflow` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent), [`tools`](../packages/core/tools), [`workflow`](../packages/workflow/workflow) |
 | [`token-meter`](../packages/llm/token-meter) | `llm` | [`compaction`](../packages/compaction/compaction), [`llm`](../packages/llm/llm), [`llm-cache-warm`](../packages/llm/llm-cache-warm), [`llm-retry`](../packages/llm/llm-retry), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection) |
-| [`automations`](../packages/core/automations) | `core` | [`agent`](../packages/core/agent), [`agent-default-model`](../packages/core/agent-default-model), [`agent-presets`](../packages/preset/agent-presets), [`brand`](../packages/util/brand), [`client-connection`](../packages/client/connection), [`identity-user`](../packages/identity/user), [`llm`](../packages/llm/llm), [`permission-presets`](../packages/interaction/permission-presets), [`session`](../packages/core/session), [`session-handoff`](../packages/session/session-handoff), [`session-title`](../packages/session/session-title), [`storage-domain`](../packages/storage/storage-domain), [`sync`](../packages/sync/sync), [`tools`](../packages/core/tools), [`user-approval`](../packages/interaction/user-approval), [`workspace`](../packages/workspace/workspace) |
+| [`automations`](../packages/core/automations) | `core` | [`agent`](../packages/core/agent), [`agent-default-model`](../packages/core/agent-default-model), [`agent-presets`](../packages/preset/agent-presets), [`brand`](../packages/util/brand), [`client-connection`](../packages/client/connection), [`identity-user`](../packages/identity/user), [`llm`](../packages/llm/llm), [`mail`](../packages/mail/mail), [`permission-presets`](../packages/interaction/permission-presets), [`session`](../packages/core/session), [`session-handoff`](../packages/session/session-handoff), [`session-title`](../packages/session/session-title), [`storage-domain`](../packages/storage/storage-domain), [`sync`](../packages/sync/sync), [`tools`](../packages/core/tools), [`user-approval`](../packages/interaction/user-approval), [`workspace`](../packages/workspace/workspace) |
 | [`subagent-fork-in-process`](../packages/subagent/subagent-fork-in-process) | `subagent` | [`agent`](../packages/core/agent), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent), [`subagent-in-process-driver`](../packages/subagent/subagent-in-process-driver) |
 | [`subagent-spawn-in-process`](../packages/subagent/subagent-spawn-in-process) | `subagent` | [`subagent`](../packages/subagent/subagent), [`subagent-in-process-driver`](../packages/subagent/subagent-in-process-driver) |
 | [`command-compact`](../packages/compaction/command-compact) | `compaction` | [`commands`](../packages/interaction/commands), [`compaction`](../packages/compaction/compaction) |
@@ -2068,5 +2069,6 @@ flowchart TD
 | [`subagent-avn-sdk`](../packages/subagent/subagent-avn-sdk) | `subagent` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`sdk-client`](../packages/sdk/client), [`session`](../packages/core/session), [`subagent`](../packages/subagent/subagent), [`subprocess`](../packages/subprocess/subprocess), [`working-directory`](../packages/session/working-directory) |
 | [`acp`](../packages/acp/acp) | `acp` | [`agent`](../packages/core/agent), [`attachment`](../packages/attachment/attachment), [`llm`](../packages/llm/llm), [`mcp-client`](../packages/mcp/mcp-client), [`session`](../packages/core/session), [`session-persistence`](../packages/session/session-persistence), [`token-meter`](../packages/llm/token-meter), [`user-approval`](../packages/interaction/user-approval) |
 | [`compaction-tool-result-pruner`](../packages/compaction/compaction-tool-result-pruner) | `compaction` | [`compaction`](../packages/compaction/compaction), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`token-meter`](../packages/llm/token-meter) |
+| [`host-account-integrations`](../packages/host/account-integrations) | `host` | [`agent`](../packages/core/agent), [`agent-presets`](../packages/preset/agent-presets), [`automations`](../packages/core/automations), [`credentials`](../packages/credentials/credentials), [`host-account-data`](../packages/host/account-data), [`host-webserver`](../packages/host/webserver), [`identity-user`](../packages/identity/user), [`mail`](../packages/mail/mail), [`mcp-client`](../packages/mcp/mcp-client), [`sandbox-jail`](../packages/sandbox/sandbox-jail), [`skill`](../packages/skill/skill), [`skill-catalog`](../packages/skill/skill-catalog), [`storage-domain`](../packages/storage/storage-domain), [`tools`](../packages/core/tools), [`typert-protocol`](../packages/typert/protocol), [`workspace`](../packages/workspace/workspace) |
 | [`webhook-github`](../packages/webhook/webhook-github) | `webhook` | [`credentials`](../packages/credentials/credentials), [`host-webserver`](../packages/host/webserver), [`session`](../packages/core/session), [`webhook`](../packages/webhook/webhook) |
 | [`compaction-basic`](../packages/compaction/compaction-basic) | `compaction` | [`agent`](../packages/core/agent), [`commands`](../packages/interaction/commands), [`compaction`](../packages/compaction/compaction), [`compaction-tool-result-pruner`](../packages/compaction/compaction-tool-result-pruner), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`token-meter`](../packages/llm/token-meter) |

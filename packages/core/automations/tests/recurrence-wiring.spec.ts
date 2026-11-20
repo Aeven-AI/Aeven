@@ -35,14 +35,14 @@ async function scheduledRun(): Promise<AutomationRun | undefined> {
 describe('scheduled admission', () => {
   it('projects the next occurrence of a stored schedule before any run', async () => {
     harness = await mountAutomations()
-    await createAutomation(harness, { schedule: HOURLY })
+    await createAutomation(harness, { triggers: [{ kind: 'schedule', schedule: HOURLY }] })
     expect((await listAutomations(harness)).definitions[0]?.nextRunAt).toBe('2026-06-01T00:05:00.000Z')
     expect((await listAutomations(harness)).runs).toEqual([])
   })
 
   it('admits the occurrence when the clock reaches it and hands the run its task', async () => {
     harness = await mountAutomations()
-    await createAutomation(harness, { schedule: HOURLY })
+    await createAutomation(harness, { triggers: [{ kind: 'schedule', schedule: HOURLY }] })
     const run = await advanceUntil(5 * 60_000 + 1, scheduledRun, 'the scheduled run')
     expect(run.scheduledFor).toBe('2026-06-01T00:05:00.000Z')
     expect(run.trigger).toBe('schedule')
@@ -55,12 +55,12 @@ describe('scheduled admission', () => {
     expect((text as { text: string }).text).toContain('Scheduled for: 2026-06-01T00:05:00.000Z')
     // The admission advances the schedule to its next occurrence.
     expect((await listAutomations(harness)).definitions[0]?.nextRunAt).toBe('2026-06-01T01:05:00.000Z')
-    expect((await listAutomations(harness)).definitions[0]?.lastAdmittedAt).toBe('2026-06-01T00:05:00.000Z')
+    expect((await listAutomations(harness)).definitions[0]?.lastAdmittedAt).toEqual({ 0: '2026-06-01T00:05:00.000Z' })
   })
 
   it('records an occurrence it slept through as skipped instead of running it late', async () => {
     harness = await mountAutomations()
-    await createAutomation(harness, { schedule: HOURLY })
+    await createAutomation(harness, { triggers: [{ kind: 'schedule', schedule: HOURLY }] })
     // The clock moves while no timer of this Host can run: the machine was off.
     vi.setSystemTime(new Date('2026-06-01T00:40:00.000Z'))
     const run = await advanceUntil(5 * 60_000 + 1, scheduledRun, 'the missed occurrence')
@@ -70,6 +70,6 @@ describe('scheduled admission', () => {
     expect(run.finishedAt).not.toBeNull()
     // Nothing ran, so no conversation was opened for it.
     expect(harness.agents.conversations).toHaveLength(0)
-    expect((await listAutomations(harness)).definitions[0]?.lastAdmittedAt).toBe('2026-06-01T00:05:00.000Z')
+    expect((await listAutomations(harness)).definitions[0]?.lastAdmittedAt).toEqual({ 0: '2026-06-01T00:05:00.000Z' })
   })
 })

@@ -39,6 +39,9 @@
       "path": "../../llm/llm"
     },
     {
+      "path": "../../mail/mail"
+    },
+    {
       "path": "../session"
     },
     {

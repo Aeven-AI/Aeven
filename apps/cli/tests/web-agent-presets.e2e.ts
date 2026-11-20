@@ -855,7 +855,7 @@ describe('cloud bot execution in the shipped Web composition', () => {
       const cloud = contexts[1]!
       const definition = await desktop.identityUsers.runAs({ id: owner }, () => desktop.automations.create({
         name: 'Cloud completion check', prompt: 'Report that the cloud bot completed.', requires: [],
-        permission: 'read-only', schedule: { kind: 'daily', time: '09:00', timeZone: 'UTC' },
+        permission: 'read-only', triggers: [{ kind: 'schedule', schedule: { kind: 'daily', time: '09:00', timeZone: 'UTC' } }],
       }))
       await vi.waitFor(async () => {
         const tasks = await cloud.identityUsers.runAs({ id: owner }, () => cloud.automations.list())

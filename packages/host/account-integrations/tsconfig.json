@@ -39,6 +39,9 @@
       "path": "../../core/agent"
     },
     {
+      "path": "../../core/automations"
+    },
+    {
       "path": "../../mcp/mcp-client"
     },
     {

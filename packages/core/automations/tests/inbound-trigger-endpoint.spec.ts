@@ -142,6 +142,7 @@ describe('inbound trigger endpoint', () => {
     expect(notice.content).toEqual([{ type: 'text', text: [
       `Bot: ${definition.name}`,
       `Run: ${run.id}`,
+      'Trigger: inbound webhook',
       `Scheduled for: ${run.scheduledFor}`,
       '',
       definition.prompt,

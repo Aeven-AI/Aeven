@@ -5,13 +5,15 @@
  * definition it does not name yet. The same document's `hosts` map holds the profile of every Host that opened
  * it, keyed by the Host's runner id, so each Host can tell where the account's definitions can run. A Host that
  * stops serving the account stays listed. Manual cloud requests and their execution snapshots share this
- * document; only the addressed cloud Host admits a request, independently of the requesting client.
+ * document; only the addressed cloud Host admits a request, independently of the requesting client. Boards and
+ * handoffs are entries of their own maps, each written by the Host that changed it last, so a handoff any Host
+ * stores reaches the Host that may run its receiving bot.
  */
 import type { Context } from '@deepseek-ai/cordis'
 import type { Map as YMap, Transaction, YMapEvent } from 'yjs'
 import type { SyncDocument } from '@aeven/sync'
-import { runSchema } from './domain.ts'
-import type { AutomationDefinition, AutomationId, AutomationRun, AutomationRunId, AutomationRunnerId, HostProfile } from './types.ts'
+import { boardSchema, handoffSchema, runSchema } from './domain.ts'
+import type { AutomationBoard, AutomationDefinition, AutomationId, AutomationRun, AutomationRunId, AutomationRunnerId, Handoff, HostProfile } from './types.ts'
 
 const DOCUMENT = 'automations'
 
@@ -26,8 +28,27 @@ export interface SyncedDefinition {
 /** Applies another device's definition or removal locally. */
 export type DefinitionApply = (id: AutomationId, entry: SyncedDefinition) => void
 
-/** Publishes the account's definitions on this device that the document does not name. */
-export type DefinitionSeed = (owner: string, present: ReadonlySet<string>) => Promise<void>
+/** Publishes the account's definitions, boards, and handoffs on this device that the document does not name. */
+export type DefinitionSeed = (
+  owner: string,
+  present: { definitions: ReadonlySet<string>; boards: ReadonlySet<string>; handoffs: ReadonlySet<string> },
+) => Promise<void>
+
+/** One board or handoff as the document holds it; `value` is absent once it was removed. */
+export interface SyncedRecord<T> {
+  value?: T
+  /** When it was written, in milliseconds since the Unix epoch. */
+  changedAt: number
+}
+
+/** The record maps beside the definitions, by name, and their element types. */
+export interface RecordKinds {
+  boards: AutomationBoard
+  handoffs: Handoff
+}
+
+/** Applies another device's board or handoff, or its removal, locally. */
+export type RecordApply = <K extends keyof RecordKinds>(kind: K, id: string, entry: SyncedRecord<RecordKinds[K]>) => void
 
 /** This Host's runner id and its profile for one account, read once its definition domain is open. */
 export type HostSelf = (owner: string) => Promise<{ id: AutomationRunnerId; profile: HostProfile }>
@@ -59,6 +80,7 @@ export class DefinitionSync {
    * @param hostsChanged - called when another device changes the account's registered Hosts.
    * @param receiveRun - admits or removes a cloud request on its addressed Host.
    * @param receiveResult - retains remote execution snapshots across client restarts.
+   * @param applyRecord - stores another device's board or handoff, or its removal.
    */
   constructor(
     private readonly ctx: Context,
@@ -69,6 +91,7 @@ export class DefinitionSync {
     private readonly hostsChanged: (owner: string) => void,
     private readonly receiveRun: (owner: string, id: AutomationRunId, request: CloudRunRequest | undefined) => void,
     private readonly receiveResult: (owner: string, run: AutomationRun) => void,
+    private readonly applyRecord: RecordApply,
   ) {}
 
   /**
@@ -105,8 +128,31 @@ export class DefinitionSync {
       hosts.observe(onHosts)
       const map = handle.doc.getMap<SyncedDefinition>('definitions')
       this.take(map, map.keys())
-      // Definitions written before this device synced, or before the account's documents started over.
-      void this.seed(owner, new Set(map.keys())).catch((error: unknown) => {
+      const records = (['boards', 'handoffs'] as const).map((kind) => {
+        const records = handle.doc.getMap<SyncedRecord<RecordKinds[typeof kind]>>(kind)
+        const takeRecords = (keys: Iterable<string>): void => {
+          for (const key of keys) {
+            const entry = records.get(key)
+            if (entry === undefined) continue
+            const parsed = entry.value === undefined ? undefined : (kind === 'boards' ? boardSchema : handoffSchema).safeParse(entry.value)
+            if (parsed?.success === false || (parsed !== undefined && (parsed.data.id !== key || parsed.data.owner !== owner))) { this.warn(`automations: invalid synced ${kind} entry`); continue }
+            const value = parsed?.data
+            this.applyRecord(kind, key, value === undefined ? { changedAt: entry.changedAt } : { value, changedAt: entry.changedAt })
+          }
+        }
+        takeRecords(records.keys())
+        const onRecords = (event: YMapEvent<SyncedRecord<RecordKinds[typeof kind]>>, transaction: Transaction): void => {
+          if (!transaction.local) takeRecords(event.keysChanged)
+        }
+        records.observe(onRecords)
+        return { records, onRecords }
+      })
+      // Definitions, boards, and handoffs written before this device synced, or before the account's documents started over.
+      void this.seed(owner, {
+        definitions: new Set(map.keys()),
+        boards: new Set(handle.doc.getMap('boards').keys()),
+        handoffs: new Set(handle.doc.getMap('handoffs').keys()),
+      }).catch((error: unknown) => {
         this.warn(`automations: publishing this device's definitions failed: ${String(error)}`)
       })
       const onDefinitions = (event: YMapEvent<SyncedDefinition>, transaction: Transaction): void => {
@@ -150,6 +196,7 @@ export class DefinitionSync {
       results.observe(onResults)
       this.unobserve.set(handle, () => {
         hosts.unobserve(onHosts); map.unobserve(onDefinitions); requests.unobserve(onRequests); results.unobserve(onResults)
+        for (const { records: observed, onRecords } of records) observed.unobserve(onRecords)
       })
       return handle
     }).catch((error: unknown) => {
@@ -200,6 +247,21 @@ export class DefinitionSync {
   async forget(owner: string, id: AutomationId, changedAt: number): Promise<void> {
     const handle = await this.attach(owner)
     handle?.doc.getMap<SyncedDefinition>('definitions').set(id, { changedAt })
+  }
+
+  /**
+   * Publish one board or handoff after a local change, or its removal.
+   * @param owner - the account it belongs to.
+   * @param kind - `boards` or `handoffs`.
+   * @param id - its id.
+   * @param value - the stored value, or undefined for a removal.
+   * @param changedAt - when it was stored, in milliseconds since the Unix epoch.
+   */
+  async publishRecord<K extends keyof RecordKinds>(
+    owner: string, kind: K, id: string, value: RecordKinds[K] | undefined, changedAt: number,
+  ): Promise<void> {
+    const handle = await this.attach(owner)
+    handle?.doc.getMap<SyncedRecord<RecordKinds[K]>>(kind).set(id, value === undefined ? { changedAt } : { value, changedAt })
   }
 
   /**

@@ -627,6 +627,17 @@ export interface Config {
    */
   readonly webhookMaxBodyBytes: number
   /**
+   * Largest GitHub delivery accepted on a bot's GitHub endpoint, in bytes. The run reads a summary of the delivery
+   * cut at `webhookMaxBodyBytes` characters, never the whole body.
+   */
+  readonly githubMaxBodyBytes: number
+  /** Most occurrences of one `overlap: queue` bot that wait at once; a further one is recorded as skipped. */
+  readonly queueDepth: number
+  /** Days a saved approval answers before the next run asks again; absent saves approvals without an end. */
+  readonly grantLifetimeDays?: number
+  /** Seconds between two checks of a watched mail account for new email; each check is a search, not a model turn. */
+  readonly mailPollSeconds: number
+  /**
    * What this Host is and which device capabilities its runs can use. A `cloud` Host runs the definitions that
    * need nothing from a computer; a `device` Host runs the ones whose requirements it provides.
    */
