@@ -13,7 +13,7 @@ import Database from 'better-sqlite3'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { brandString } from '@aeven/brand'
 import { SyncKeyHolderMismatch } from '@aeven/sync'
-import { generateDeviceId, generateVaultKey, opaqueIdOf, sealEnvelope, type OpaqueId } from '@aeven/sync-vault'
+import { generateDeviceId, generateVaultKey, opaqueIdOf, openEnvelope, sealEnvelope, type OpaqueId } from '@aeven/sync-vault'
 import { SyncOffload } from '../src/offload.ts'
 import { RelayConnection } from '../src/relay.ts'
 import { SyncStore } from '../src/store.ts'
@@ -476,5 +476,57 @@ describe('a vault being disposed', () => {
     connection.close()
     await new Promise((resolve) => { setTimeout(resolve, 80) })
     expect(reports.length).toBe(before)
+  })
+})
+
+describe('a copy stuck behind an update the relay lost', () => {
+  it('asks the account for it, and the device that holds it republishes its whole copy', async () => {
+    const owner = `repair-owner-${String(++accounts)}`
+    const a = device(owner)
+    const b = device(owner)
+    const aConnection = await connect(owner, a)
+    const bConnection = await connect(owner, b)
+    const id = a.vault.documentId('automations')
+    const docA = a.vault.openDocument('automations')
+    const docB = b.vault.openDocument('automations')
+    docA.doc.getMap('definitions').set('other', { v: 1 })
+    await vi.waitFor(() => { expect(docB.doc.getMap('definitions').get('other')).toEqual({ v: 1 }) })
+    bConnection.close()
+    await vi.waitFor(() => { expect(b.vault.status().state).not.toBe('online') })
+    docA.doc.getMap('definitions').set('radar', { name: 'Nightly AI radar' })
+    docA.doc.getMap('definitions').set('radar', { name: 'Nightly AI radar', v: 2 })
+    await vi.waitFor(() => { expect(relay.account(owner).frames.filter(frame => frame.id === id)).toHaveLength(3) })
+    aConnection.close()
+    await vi.waitFor(() => { expect(a.vault.status().state).not.toBe('online') })
+    // The relay loses the middle frame; the last one builds on it, so B holds it as a pending update.
+    const lost = relay.account(owner).frames.filter(frame => frame.id === id)[1]!.seq
+    relay.account(owner).frames = relay.account(owner).frames.filter(frame => frame.seq !== lost)
+    const bAgain = await connect(owner, b)
+    await vi.waitFor(() => { expect(b.warn).toHaveBeenCalledWith(expect.stringContaining('waits for updates it never received'), expect.any(Error)) })
+    expect(docB.doc.getMap('definitions').get('radar')).toBeUndefined()
+    // A snapshot of B's copy, as a build without the snapshot guard published it, claims the clocks B waits for
+    // and lets the relay delete A's frames: comparing with the relay's copy finds nothing missing.
+    const snapshot = sealEnvelope({
+      kind: 'snapshot', id, accountKey: b.store.accountKey()!, device: b.store.deviceId(), counter: b.store.nextCounter(id),
+      payload: Y.mergeUpdates(b.store.docUpdates(id)),
+    })
+    await bAgain.request('publish', { frame: Buffer.from(snapshot).toString('base64url'), covers: relay.account(owner).seq })
+    expect(relay.account(owner).frames.filter(frame => frame.id === id).map(frame => frame.kind)).toEqual(['snapshot'])
+    await connect(owner, a)
+    await vi.waitFor(() => { expect(docB.doc.getMap('definitions').get('radar')).toEqual({ name: 'Nightly AI radar', v: 2 }) }, { timeout: 5_000 })
+    // The answer is A's whole copy in one update: applied alone, it holds every entry, so it completes B whatever
+    // the relay's copy claims and whichever earlier updates of other writers the missing ones build on.
+    const answer = relay.account(owner).frames.filter(frame => frame.id === id && frame.kind === 'update').at(-1)!
+    const opened = openEnvelope(new Uint8Array(answer.data), a.store.accountKey()!)
+    expect(opened.header.device).toBe(a.store.deviceId())
+    const alone = new Y.Doc()
+    Y.applyUpdate(alone, opened.payload)
+    expect(alone.store.pendingStructs).toBeNull()
+    expect(alone.getMap('definitions').toJSON()).toEqual({ other: { v: 1 }, radar: { name: 'Nightly AI radar', v: 2 } })
+    const repairs = b.vault.openDocument('sync/repair')
+    await vi.waitFor(() => { expect([...repairs.doc.getMap('requests').keys()]).toEqual([]) }, { timeout: 5_000 })
+    repairs.close()
+    docA.close()
+    docB.close()
   })
 })
