@@ -791,14 +791,20 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Built-in automation service; schedules never authorize additional tool access.',
     methods: [
       {
-        signature: 'async list(): Promise<{ definitions: (AutomationDefinition & { placement: AutomationPlacement; nextRunAt: string | null; lastRun: AutomationRun | null; webhook: boolean })[]; runs: AutomationRun[]; capabilities: { host: HostProfile[\'kind\']; triggers: readonly AutomationSchedule[\'kind\'][]; webhook: boolean }; hosts: { cloud: boolean; desktops: AutomationDesktop[] } }>',
+        signature: 'async list(): Promise<{ definitions: (AutomationDefinition & { placement: AutomationPlacement nextRunAt: string | null lastRun: AutomationRun | null webhook: boolean })[] runs: AutomationRun[] boards: AutomationBoard[] handoffs: Handoff[] capabilities: { host: HostProfile[\'kind\']; triggers: readonly AutomationSchedule[\'kind\'][]; webhook: boolean; events: readonly (\'mail\' | \'github\')[]; connectors: readonly string[] } hosts: { cloud: boolean; desktops: AutomationDesktop[] } }>',
         description: 'Read the acting account\'s definitions, newest created first, and bounded execution history, newest scheduled first. History leaves out runs whose conversation is archived, so it lists what the sidebar\'s Automations workspace shows; unarchiving the conversation lists the run again. Each definition\'s `lastRun` is its latest retained run either way.',
         parameters: [],
-        returns: 'owned definitions, latest run records, and this Host\'s kind and the triggers it evaluates. A definition\'s `placement` says where it runs among the account\'s registered Hosts, and its `webhook` says an inbound credential exists; the secret itself never enters this projection.',
+        returns: 'owned definitions, latest run records, the account\'s boards with the handoffs between their members, and this Host\'s kind and the triggers it evaluates. A definition\'s `placement` says where it runs among the account\'s registered Hosts, its `nextRunAt` is the earliest next occurrence of its schedule triggers, and its `webhook` says an inbound credential exists; the secret itself never enters this projection.',
+      },
+      {
+        signature: 'connectorBinding(sessionId: SessionId): ConnectorBinding | undefined',
+        description: 'The connectors a conversation may use while it executes a bot\'s run, so a connector provider can leave the others unmounted; the run\'s tool guard refuses them either way.',
+        parameters: [{ name: 'sessionId', description: 'any conversation.' }],
+        returns: 'the bot\'s binding while the conversation executes a run, otherwise undefined.',
       },
       {
         signature: 'async enableWebhook(id: AutomationId): Promise<{ path: string; keyId: string; secret: string }>',
-        description: 'Give one owned automation an inbound trigger credential, keeping an existing one.',
+        description: 'Give one owned automation an inbound webhook trigger and its credential, keeping an existing credential.',
         parameters: [{ name: 'id', description: 'owned definition identity.' }],
         returns: 'the credential path and key to show once; the key is never listed again.',
       },
@@ -810,9 +816,9 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'async disableWebhook(id: AutomationId): Promise<void>',
-        description: 'Revoke one owned automation\'s inbound credential.',
+        description: 'Remove one owned automation\'s inbound webhook trigger; its credential goes too unless a GitHub trigger uses it.',
         parameters: [{ name: 'id', description: 'owned definition identity.' }],
-        returns: 'resolution after the credential is gone; a later request with the old key is refused.',
+        returns: 'resolution after the trigger is gone; a later bearer request is refused.',
       },
       {
         signature: 'async webhookSecret(id: AutomationId): Promise<{ path: string; keyId: string; secret: string }>',
@@ -845,14 +851,14 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the run as stored once the stop is recorded or, for a cloud run, acknowledged by the relay.',
       },
       {
-        signature: 'async requestRun(id: AutomationId, key: string, payload: string | null): Promise<AutomationRun>',
-        description: 'Admit one run from an authenticated inbound request. The presented key is the whole authority, so this path reads no acting account. A paused automation, or one this Host may not run, refuses the request; work already in flight records the occurrence as skipped rather than queueing behind it.',
-        parameters: [{ name: 'id', description: 'automation named by the request path.' }, { name: 'key', description: 'bearer credential presented by the caller.' }, { name: 'payload', description: 'accepted request body, marked untrusted in the run notice.' }],
-        returns: 'the admitted or skipped run; its execution proceeds in the background.',
+        signature: 'async requestRun(id: AutomationId, key: string, payload: string | null, idempotencyKey?: string): Promise<AutomationRun>',
+        description: 'Admit one run from an authenticated inbound request. The presented key is the whole authority, so this path reads no acting account. A paused automation, one without a webhook trigger, or one this Host may not run refuses the request; work already in flight follows the bot\'s overlap policy.',
+        parameters: [{ name: 'id', description: 'automation named by the request path.' }, { name: 'key', description: 'bearer credential presented by the caller.' }, { name: 'payload', description: 'accepted request body, marked untrusted in the run notice.' }, { name: 'idempotencyKey', description: 'the request\'s `Idempotency-Key`, which deduplicates only when the trigger asks for it.' }],
+        returns: 'the admitted, skipped, or earlier run of the same key; its execution proceeds in the background.',
       },
       {
         signature: 'remove(id: AutomationId): Promise<void>',
-        description: 'Remove an owned definition, its inbound credential, while retaining its run history.',
+        description: 'Remove an owned definition and its inbound credential while retaining its run history; it leaves its boards.',
         parameters: [{ name: 'id', description: 'owned definition identity.' }],
         returns: 'resolution after durable deletion.',
       },
@@ -873,6 +879,24 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Deliberately retry one unresolved failed run using its original approved task.',
         parameters: [{ name: 'id', description: 'owned failed, skipped, or cancelled run identity.' }],
         returns: 'a new linked admission or durable cloud request; execution follows the original task placement. No earlier conversation or grant is inherited.',
+      },
+      {
+        signature: 'revokeGrant(id: AutomationId, toolName: string, scope: string): Promise<AutomationDefinition>',
+        description: 'Revoke one saved approval of an owned automation, so its next run asks again.',
+        parameters: [{ name: 'id', description: 'owned definition identity.' }, { name: 'toolName', description: 'the approved tool.' }, { name: 'scope', description: 'the approved scope.' }],
+        returns: 'the definition without that grant.',
+      },
+      {
+        signature: 'saveBoard(input: BoardInput, id?: BoardId): Promise<AutomationBoard>',
+        description: 'Save one board of the acting account: a new one without `id`, or a replacement of an owned one. A member that leaves releases the open handoffs addressed to it on this board.',
+        parameters: [{ name: 'input', description: 'name, members, and budget; every member must be an owned bot.' }, { name: 'id', description: 'the board to replace, or undefined for a new one.' }],
+        returns: 'the stored board.',
+      },
+      {
+        signature: 'removeBoard(id: BoardId): Promise<void>',
+        description: 'Remove one board of the acting account; the handoffs it carried stay with their bots.',
+        parameters: [{ name: 'id', description: 'owned board identity.' }],
+        returns: 'resolution after durable deletion.',
       },
     ],
   },
@@ -6485,8 +6509,12 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type AuthorizationStatus = \'authorized\' | \'cancelled\';',
   },
   {
+    name: 'AutomationBoard',
+    declaration: 'export interface AutomationBoard {\n    readonly id: BoardId;\n    readonly owner?: string | undefined;\n    readonly name: string;\n    readonly members: readonly AutomationId[];\n    readonly budget: BoardBudget;\n    readonly createdAt: string;\n    readonly updatedAt: string;\n}',
+  },
+  {
     name: 'AutomationDefinition',
-    declaration: 'export interface AutomationDefinition {\n    readonly id: AutomationId;\n    readonly owner?: string | undefined;\n    readonly revision: number;\n    readonly name: string;\n    readonly prompt: string;\n    readonly schedule: AutomationSchedule;\n    readonly status: \'active\' | \'paused\';\n    readonly agentPreset: string;\n    readonly model: ModelSelection;\n    readonly permission: \'read-only\' | \'workspace-write\';\n    readonly grants: readonly AutomationGrant[];\n    readonly requires?: readonly DeviceCapability[] | undefined;\n    readonly runOn: RunOn;\n    readonly desktop?: HostDevice | undefined;\n    readonly executionTarget: {\n        readonly kind: \'local\';\n        readonly runnerId: AutomationRunnerId;\n    };\n    readonly lastAdmittedAt: string | null;\n    readonly createdAt: string;\n    readonly updatedAt: string;\n}',
+    declaration: 'export interface AutomationDefinition {\n    readonly id: AutomationId;\n    readonly owner?: string | undefined;\n    readonly revision: number;\n    readonly name: string;\n    readonly prompt: string;\n    readonly triggers: readonly BotTrigger[];\n    readonly connectors: ConnectorBinding;\n    readonly overlap: OverlapPolicy;\n    readonly status: \'active\' | \'paused\';\n    readonly agentPreset: string;\n    readonly model: ModelSelection;\n    readonly permission: \'read-only\' | \'workspace-write\';\n    readonly grants: readonly AutomationGrant[];\n    readonly requires?: readonly DeviceCapability[] | undefined;\n    readonly runOn: RunOn;\n    readonly desktop?: HostDevice | undefined;\n    readonly executionTarget: {\n        readonly kind: \'local\';\n        readonly runnerId: AutomationRunnerId;\n    };\n    readonly lastAdmittedAt: Readonly<Record<string, string>>;\n    readonly createdAt: string;\n    readonly updatedAt: string;\n}',
   },
   {
     name: 'AutomationDesktop',
@@ -6494,7 +6522,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AutomationGrant',
-    declaration: 'export interface AutomationGrant {\n    readonly toolName: string;\n    readonly scope: string;\n    readonly grantedAt: string;\n}',
+    declaration: 'export interface AutomationGrant {\n    readonly toolName: string;\n    readonly scope: string;\n    readonly grantedAt: string;\n    readonly expiresAt?: string | undefined;\n}',
   },
   {
     name: 'AutomationId',
@@ -6502,7 +6530,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AutomationInput',
-    declaration: 'export interface AutomationInput {\n    readonly name: string;\n    readonly prompt: string;\n    readonly schedule: AutomationSchedule;\n    readonly permission: \'read-only\' | \'workspace-write\';\n    readonly requires?: readonly DeviceCapability[] | undefined;\n    readonly runOn?: RunOn | undefined;\n    readonly desktop?: string | undefined;\n}',
+    declaration: 'export interface AutomationInput {\n    readonly name: string;\n    readonly prompt: string;\n    readonly triggers: readonly BotTrigger[];\n    readonly connectors?: ConnectorBinding | undefined;\n    readonly overlap?: OverlapPolicy | undefined;\n    readonly permission: \'read-only\' | \'workspace-write\';\n    readonly requires?: readonly DeviceCapability[] | undefined;\n    readonly runOn?: RunOn | undefined;\n    readonly desktop?: string | undefined;\n}',
   },
   {
     name: 'AutomationPlacement',
@@ -6510,7 +6538,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AutomationRun',
-    declaration: 'export interface AutomationRun {\n    readonly id: AutomationRunId;\n    readonly definition: AutomationDefinition;\n    readonly trigger: AutomationTrigger;\n    readonly scheduledFor: string;\n    readonly status: \'queued\' | \'running\' | \'succeeded\' | \'failed\' | \'skipped\' | \'cancelled\';\n    readonly sessionId: SessionId | null;\n    readonly startedAt: string | null;\n    readonly finishedAt: string | null;\n    readonly summary: string | null;\n    readonly error: string | null;\n    readonly admittedBy: AutomationRunnerId;\n    readonly retryOfRunId: AutomationRunId | null;\n    readonly payload?: string | null | undefined;\n    readonly resolution: {\n        readonly kind: \'retried\';\n        readonly at: string;\n        readonly retryRunId: AutomationRunId | null;\n    } | null;\n}',
+    declaration: 'export interface AutomationRun {\n    readonly id: AutomationRunId;\n    readonly definition: AutomationDefinition;\n    readonly trigger: AutomationTrigger;\n    readonly scheduledFor: string;\n    readonly status: \'queued\' | \'running\' | \'succeeded\' | \'failed\' | \'skipped\' | \'cancelled\';\n    readonly sessionId: SessionId | null;\n    readonly startedAt: string | null;\n    readonly finishedAt: string | null;\n    readonly summary: string | null;\n    readonly error: string | null;\n    readonly admittedBy: AutomationRunnerId;\n    readonly retryOfRunId: AutomationRunId | null;\n    readonly triggerIndex?: number | null | undefined;\n    readonly payload?: string | null | undefined;\n    readonly event?: {\n        readonly source: \'mail\' | \'github\';\n        readonly id: string;\n        readonly summary: string;\n    } | null | undefined;\n    readonly handoff?: Pick<Handoff, \'id\' | \'from\' | \'fromName\' | \'fromRun\' | \'edge\' | \'mode\' | \'replyTo\' | \'board\' | \'task\'> | null | undefined;\n    readonly usage?: RunUsage | null | undefined;\n    readonly resolution: {\n        readonly kind: \'retried\';\n        readonly at: string;\n        readonly retryRunId: AutomationRunId | null;\n    } | null;\n}',
   },
   {
     name: 'AutomationRunId',
@@ -6526,7 +6554,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AutomationTrigger',
-    declaration: 'export type AutomationTrigger = \'schedule\' | \'manual\' | \'webhook\';',
+    declaration: 'export type AutomationTrigger = \'schedule\' | \'manual\' | \'webhook\' | \'event\' | \'bot\';',
   },
   {
     name: 'AvnEnvironment',
@@ -6557,8 +6585,24 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface BatchResult {\n    results: readonly SessionStepResult[];\n    verified: boolean;\n    steps: number;\n}',
   },
   {
+    name: 'BoardBudget',
+    declaration: 'export interface BoardBudget {\n    readonly maxConcurrentRuns?: number | undefined;\n    readonly maxTokensPerDay?: number | undefined;\n}',
+  },
+  {
+    name: 'BoardId',
+    declaration: 'export type BoardId = Branded<\'BoardId\'>;',
+  },
+  {
+    name: 'BoardInput',
+    declaration: 'export interface BoardInput {\n    readonly name: string;\n    readonly members: readonly AutomationId[];\n    readonly budget?: BoardBudget | undefined;\n}',
+  },
+  {
     name: 'BorrowedSessionSource',
     declaration: 'export type BorrowedSessionSource = Disposable & ({\n    readonly source: \'prepared\';\n    readonly inspection: SessionInspection;\n    readonly revision: SessionPersistenceRevision;\n    readonly preparedSession: Session;\n} | {\n    readonly source: \'live\';\n    readonly inspection: SessionInspection;\n});',
+  },
+  {
+    name: 'BotTrigger',
+    declaration: 'export type BotTrigger = {\n    readonly kind: \'schedule\';\n    readonly schedule: AutomationSchedule;\n} | {\n    readonly kind: \'webhook\';\n    readonly idempotency: \'sender\' | \'none\';\n} | {\n    readonly kind: \'event\';\n    readonly source: \'mail\';\n    readonly filter: MailEventFilter;\n} | {\n    readonly kind: \'event\';\n    readonly source: \'github\';\n    readonly filter: GitHubEventFilter;\n} | {\n    readonly kind: \'bot\';\n    readonly from: AutomationId;\n    readonly mode: \'wait\' | \'dispatch\';\n};',
   },
   {
     name: 'Branded',
@@ -6785,12 +6829,12 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ConnectorAuthorization {\n    url: string;\n}',
   },
   {
-    name: 'ConnectorCreateRequest',
-    declaration: 'export interface ConnectorCreateRequest {\n    provider: ConnectorProvider;\n    name: string;\n    endpoint?: string;\n    token?: string;\n}',
+    name: 'ConnectorBinding',
+    declaration: 'export type ConnectorBinding = \'all\' | readonly ConnectorId[];',
   },
   {
-    name: 'ConnectorId',
-    declaration: 'export type ConnectorId = Branded<\'account-connector-id\'>;',
+    name: 'ConnectorCreateRequest',
+    declaration: 'export interface ConnectorCreateRequest {\n    provider: ConnectorProvider;\n    name: string;\n    endpoint?: string;\n    token?: string;\n}',
   },
   {
     name: 'ConnectorProvider',
@@ -7517,6 +7561,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface GenericResultView {\n    card: \'generic\';\n    title?: string;\n    content?: ContentBlock[];\n}',
   },
   {
+    name: 'GitHubEventFilter',
+    declaration: 'export interface GitHubEventFilter {\n    readonly events?: readonly string[] | undefined;\n    readonly repository?: string | undefined;\n}',
+  },
+  {
     name: 'GoalActivation',
     declaration: 'export type GoalActivation = \'armed\' | \'disarmed\';',
   },
@@ -8007,6 +8055,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'MailEnvelope',
     declaration: 'export interface MailEnvelope extends MailMessageRef {\n    date?: string;\n    from?: string;\n    to?: string;\n    subject?: string;\n    unread?: boolean;\n    flagged?: boolean;\n    size?: number;\n}',
+  },
+  {
+    name: 'MailEventFilter',
+    declaration: 'export interface MailEventFilter {\n    readonly account?: string | undefined;\n    readonly from?: string | undefined;\n    readonly subject?: string | undefined;\n}',
   },
   {
     name: 'MailFolderView',
@@ -8533,6 +8585,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type OptionalSessionSeq = SessionSeq | null;',
   },
   {
+    name: 'OverlapPolicy',
+    declaration: 'export type OverlapPolicy = \'skip\' | \'queue\' | \'parallel\';',
+  },
+  {
     name: 'PerformActionAction',
     declaration: 'export interface PerformActionAction {\n    kind: \'performAction\';\n    target: ElementTarget;\n    action: string;\n}',
   },
@@ -8879,6 +8935,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'RunOn',
     declaration: 'export type RunOn = \'auto\' | \'cloud\' | \'device\';',
+  },
+  {
+    name: 'RunUsage',
+    declaration: 'export interface RunUsage {\n    readonly inputTokens: number;\n    readonly outputTokens: number;\n    readonly totalTokens: number;\n}',
   },
   {
     name: 'SandboxEnforcement',

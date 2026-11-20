@@ -764,7 +764,7 @@ export class Automations extends Service<Config> {
    * @param delivery - the `X-GitHub-Delivery` header.
    * @returns the runs the delivery admitted or had admitted before; empty when no trigger's filter matches.
    */
-  async requestGitHub(
+  private async requestGitHub(
     id: AutomationId, body: Buffer, signature: string | undefined, event: string, delivery: string,
   ): Promise<AutomationRun[]> {
     const hooks = await this.hooks
