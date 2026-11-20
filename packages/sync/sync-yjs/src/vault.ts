@@ -922,32 +922,33 @@ export class AccountVault {
     return this.repairDoc.doc.getMap<RepairRequest>('requests')
   }
 
-  /** Answer repair requests in the background; a failure is reported, never thrown to a caller that is not waiting. */
+  /** Answer repair requests; a failure is reported, never thrown to a caller that is not waiting. */
   private answerRepairsLogged(): void {
-    this.answerRepairs().catch((error: unknown) => { this.warn('sync: answering repair requests failed; the next connection answers them', error) })
+    try {
+      this.answerRepairs()
+    } catch (error) {
+      this.warn('sync: answering repair requests failed; the next connection answers them', error)
+    }
   }
 
   /**
-   * Answer other devices' repair requests for documents this device stores: publish what the relay's copy of each
-   * lacks, once per request. A device that lacks the missing updates itself publishes nothing.
-   * @returns when every request seen was answered or skipped.
+   * Answer other devices' repair requests for documents this device stores: publish this device's whole copy of each,
+   * once per request.
    */
-  private async answerRepairs(): Promise<void> {
-    const relay = this.relay
-    const key = this.key()
-    if (relay === undefined || key === undefined) return
+  private answerRepairs(): void {
+    if (this.relay === undefined || this.key() === undefined) return
     for (const [entry, request] of this.repairRequests().entries()) {
       const tag = `${entry}@${String(request.at)}`
       if (request.device === this.device || this.repairsAnswered.has(tag) || this.store.docUpdateCount(request.doc) === 0) continue
       this.repairsAnswered.add(tag)
       try {
-        await this.flush()
-        const copies = await this.relayCopies(relay, [request.doc], key)
-        if (copies === undefined || this.relay !== relay) return
-        const sent = await this.offload.reconcile({
-          path: this.store.path, doc: request.doc, held: copies.get(request.doc) ?? [], accountKey: key, device: this.device,
-        })
-        if (sent) void this.flush()
+        // The whole stored copy, as one new update: the relay's copy can hold a snapshot of the asking device that
+        // already claims the clocks it waits for, and the updates it names can depend on earlier ones of other
+        // writers, so neither a comparison with the relay nor only the named updates is sure to complete it. A new
+        // counter makes every device accept it, whichever build it runs.
+        const state = Y.mergeUpdates(this.store.docUpdates(request.doc))
+        this.store.transaction(() => { this.store.enqueue(this.seal('update', request.doc, state)) })
+        void this.flush()
       } catch (error) {
         this.repairsAnswered.delete(tag)
         this.warn(`sync: answering the repair request for ${request.doc} failed; the next connection answers it`, error)
