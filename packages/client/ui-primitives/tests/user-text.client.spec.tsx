@@ -37,6 +37,15 @@ describe('projectUserText', () => {
     expect(host.textContent).toBe('看看 查看并分析图片 的结论')
   })
 
+  it('folds the wire bot form to the bot\'s name with the bot glyph, keeping its id off the chip', () => {
+    const host = project('@[Nightly AI radar](avn-bot:3a2b1c0d-5e6f-4a7b-8c9d-0e1f2a3b4c5d) run it at 7 instead')
+    const chip = host.querySelector('[data-ref-chip="bot"]')!
+    expect(chip.textContent).toBe('Nightly AI radar')
+    expect(chip.getAttribute('title')).toBe('Nightly AI radar')
+    expect(chip.querySelector('svg')).not.toBeNull()
+    expect(host.textContent).toBe('Nightly AI radar run it at 7 instead')
+  })
+
   it('prefers the wire fold over the bare-token scan on the same range', () => {
     const host = project('@[a](avn-session:x)', [])
     expect(host.querySelectorAll('[data-ref-chip]').length).toBe(1)

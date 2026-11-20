@@ -81,6 +81,28 @@
   outline-offset: 2px;
 }
 
+/* The Settings detail pages' black chevron disc at the row's 30px: back to the overview on a bot's page, and the
+   way into a bot's page on its overview card. */
+.disc {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #000;
+  color: #fff;
+  cursor: pointer;
+}
+
+button.disc:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+
 .sectionTitle {
   margin: 32px 0 12px;
   font-size: 1rem;
@@ -103,7 +125,7 @@
 }
 
 /* The card's whole summary — the name, the chevron, and the recurrence facts —
-   is one toggle, so the name states what opens and the facts state when. */
+   is one link to the bot's page, so the name states what opens and the facts state when. */
 .toggle {
   display: flex;
   flex-direction: column;
@@ -115,6 +137,7 @@
   color: inherit;
   font: inherit;
   text-align: left;
+  text-decoration: none;
   cursor: pointer;
 }
 
@@ -182,12 +205,12 @@
   text-align: right;
 }
 
-/* A narrow card, marked by the panel from the card's own width, stacks its third fact on its own row. */
-.toggle[data-narrow] .facts {
+/* A narrow card, marked by the panel from the facts' own width, stacks its third fact on its own row. */
+.facts[data-narrow] {
   grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
 }
 
-.toggle[data-narrow] .fact:nth-child(3) {
+.facts[data-narrow] .fact:nth-child(3) {
   grid-column: 1 / -1;
   text-align: left;
 }
@@ -322,6 +345,13 @@
   color: inherit;
   font: inherit;
   text-align: left;
+}
+
+/* Like a starter card: the mark above the title and description, and the Connect action below them at the leading edge. */
+.forYou,
+.connect {
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .forYou {
@@ -533,6 +563,28 @@
   overflow-wrap: anywhere;
 }
 
+/* A bot page's own card, with its name and actions, stays pinned under the navigation band while the page scrolls. */
+.pinned {
+  position: sticky;
+  top: var(--avn-session-header-height, 56px);
+  z-index: 2;
+}
+
+/* The bot's name with each schedule line directly under it, the same on its card and its pinned page card: the name
+   row is as tall as the card's 30px chevron disc whether or not the disc is there, so the two line up. */
+.heading {
+  display: flex;
+  flex-direction: column;
+}
+
+.heading .title {
+  min-height: 30px;
+}
+
+.heading .schedule {
+  margin: 0;
+}
+
 
 
 .alert {
@@ -692,13 +744,12 @@
   height: 16px;
 }
 
-/* The recurrence sentence reads above the task in the task's own type size and
-   the secondary ink, so when it runs stays a fact about what it does. */
+/* The recurrence sentence reads above the task in the task's own type size and primary ink. */
 .schedule {
   margin: 0 0 12px;
   font-size: 0.875rem;
   line-height: 1.375rem;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--dsw-alias-label-primary);
 }
 
 /* Inbound trigger values carry no field chrome, like every other value on the

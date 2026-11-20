@@ -298,15 +298,13 @@ export interface ConversationInjected {
    */
   toggleSidebar?: (() => void) | undefined
   /**
-   * Composer placeholder the open start page declares for its own composer,
-   * such as Imagine's gallery or the automation page.
-   *
-   * Optional: a shell mounted without the Workspace navigation that owns the
-   * start addresses has no page to ask, and the shared prompt stands.
+   * How the open start page is shown: the key of its `conversation.start`
+   * entry, whether the composer shows under it, and the placeholder it
+   * declares, such as Imagine's gallery or the bot pages.
    * @param path - the open start address.
-   * @returns the placeholder, or undefined when that page declared none.
+   * @returns the page, or undefined when no claim matches the address.
    */
-  composerPlaceholder?: ((path: string) => string | undefined) | undefined
+  startPage(path: string): StartPage | undefined
   /**
    * Restore the selected archived Session; the archived bar offers it in
    * place of the composer. Absent without a Session or without the Workspace
@@ -392,6 +390,16 @@ export interface SessionDesktop {
 export type SessionContinueTarget =
   | { readonly target: 'here' }
   | { readonly target: 'desktop'; readonly device: string }
+
+/** How the shell shows one open start address, as the Workspace navigation that owns the claim resolves it. */
+export interface StartPage {
+  /** The registration the address resolved to, such as `/bots/:id`; the key of its `conversation.start` entry. */
+  readonly key: string
+  /** Whether the composer shows under the page. */
+  readonly composer: boolean
+  /** Placeholder of the empty composer in the active locale, or undefined when the claim declared none. */
+  readonly composerPlaceholder: string | undefined
+}
 
 /** One Workspace the header offers as a move destination. */
 export interface SessionMoveTarget {

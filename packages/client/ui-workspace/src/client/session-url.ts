@@ -5,6 +5,29 @@ import type { SessionId } from '@aeven/session/types'
 const SESSION_PATH_PREFIX = '/c/'
 
 /**
+ * Last segment of a start address pattern, as in `/bots/:id`: it matches one
+ * UUID segment, so `/bots/<uuid>` resolves to the pattern while `/bots/new` and any
+ * other word does not.
+ */
+const START_PARAM = ':id'
+
+/**
+ * The registered start address a pathname resolves to: the pathname itself
+ * when registered, else the `:id` pattern of its parent when its last segment
+ * is a UUID. An exact registration therefore wins over a pattern.
+ * @param pathname - the address bar's pathname.
+ * @param starts - the registered start addresses and patterns.
+ * @returns the registration it matches, or undefined.
+ */
+function matchStartIn(pathname: string, starts: ReadonlySet<string>): string | undefined {
+  if (starts.has(pathname)) return pathname
+  const slash = pathname.lastIndexOf('/')
+  if (slash <= 0 || !SESSION_UUID.test(pathname.slice(slash + 1))) return undefined
+  const pattern = `${pathname.slice(0, slash)}/${START_PARAM}`
+  return starts.has(pattern) ? pattern : undefined
+}
+
+/**
  * The chat's address space: the root, `/c` with every path beneath it, and the
  * registered start addresses. Every other client route belongs to another
  * surface, whose address the chat neither reads a Session from nor rewrites.
@@ -13,7 +36,7 @@ const SESSION_PATH_PREFIX = '/c/'
  * @returns true when the chat owns the address.
  */
 function chatOwns(pathname: string, starts: ReadonlySet<string>): boolean {
-  return pathname === '/' || pathname === '/c' || pathname.startsWith(SESSION_PATH_PREFIX) || starts.has(pathname)
+  return pathname === '/' || pathname === '/c' || pathname.startsWith(SESSION_PATH_PREFIX) || matchStartIn(pathname, starts) !== undefined
 }
 
 /**
@@ -70,12 +93,20 @@ export interface SessionUrlNavigation {
    * Claim a start address, such as `/inspiration`: an address of the chat that
    * names no Session. A blank Session is shown under it, and the address moves
    * to that Session's own once the Session is no longer blank.
-   * @param path - absolute path, such as `/inspiration` or `/automations/runs`.
+   * @param path - absolute path, such as `/inspiration` or `/bots/runs`, or a
+   * pattern ending in `/:id`, such as `/bots/:id`, that claims every child whose
+   * last segment is a UUID.
    * @returns disposer releasing the claim.
    */
   registerStart(path: string): () => void
   /** The start address the address bar shows, or undefined on any other address. */
   readStart(): string | undefined
+  /**
+   * The registration one start address resolves to.
+   * @param path - a concrete address, such as `/bots/<uuid>`.
+   * @returns the registered path or `:id` pattern, or undefined when none claims it.
+   */
+  matchStart(path: string): string | undefined
   /**
    * Move to a registered start address as a new history entry.
    * @param path - the start address.
@@ -129,7 +160,11 @@ export class BrowserSessionUrlNavigation implements SessionUrlNavigation {
 
   readStart(): string | undefined {
     const { pathname } = new URL(this.browser.location.href)
-    return this.starts.has(pathname) ? pathname : undefined
+    return matchStartIn(pathname, this.starts) === undefined ? undefined : pathname
+  }
+
+  matchStart(path: string): string | undefined {
+    return matchStartIn(path, this.starts)
   }
 
   pushStart(path: string): void {

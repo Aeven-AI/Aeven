@@ -15,7 +15,7 @@ import { UiConversation } from './conversation/assembly.ts'
 import type { ViewTab } from './contract/views.ts'
 import type {
   ComposerBarInjected, ConversationInjected, ConversationSessionHeaderInjected,
-  ConversationSessionInjected, SessionMoveTarget,
+  ConversationSessionInjected, SessionMoveTarget, StartPage,
 } from './contract/slots.ts'
 import type { InputNotice } from './contract/input.ts'
 import { createConversationStore, readConversationViewPreference } from './stores.ts'
@@ -84,12 +84,10 @@ const ABSENT_MOVE_TARGETS = {
 
 interface WorkspaceNavigation {
   readonly startAddress: ObservableSnapshot<string | undefined>
-  /**
-   * Composer placeholder a start page declared with its address. Optional: an
-   * assembly mounted over a Workspace UI that predates the claim keeps the
-   * shared prompt.
-   */
-  composerPlaceholder?: ((path: string) => string | undefined) | undefined
+  /** How the shell shows one open start address, or undefined when no claim matches it. */
+  startPage(path: string): StartPage | undefined
+  /** The message one Session sends, framed by the open start page's claim when it shows that Session. */
+  frameMessage(sessionId: SessionId, text: string): string
   connectWorkspace(
     workspaceId: Parameters<ConversationInjected['selectWorkspace']>[0],
   ): Promise<SessionId>
@@ -234,7 +232,7 @@ export function apply(ctx: Context): void {
     }
   }, 'ui-conversation: View selection')
 
-  const inputHub = new InputHub(ctx, t)
+  const inputHub = new InputHub(ctx, t, (sessionId, text) => workspaceNavigation.frameMessage(sessionId, text))
   const composerBlocks = new ComposerBlockRegistry()
 
   // Conversation assembly and input share the Session binding lifecycle. The
@@ -293,7 +291,7 @@ export function apply(ctx: Context): void {
       // The fold control is chrome for the frame's own column, so its action is
       // read rather than declared as a hard dependency.
       toggleSidebar: foldAction(ctx),
-      composerPlaceholder: path => workspaceNavigation.composerPlaceholder?.(path),
+      startPage: path => workspaceNavigation.startPage(path),
       selectWorkspace: async (workspaceId) => {
         const nextId = await workspaceNavigation.connectWorkspace(workspaceId)
         if (sessionId !== undefined && nextId !== sessionId) {

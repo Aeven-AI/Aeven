@@ -51,6 +51,30 @@ export interface StartAddressClaim {
    * happened to have open.
    */
   builtInWorkspace?: boolean | undefined
+  /**
+   * Whether the page shows the composer under its content. False for a page
+   * that only lists or manages, such as the bot overview; absent keeps it.
+   */
+  composer?: boolean | undefined
+  /**
+   * Model text of a message sent from this page's blank Session, given what
+   * the reader typed: lets a page scoped to one record, such as one bot, name
+   * that record without the reader typing it. The result is the message the
+   * Session logs and shows; absent sends the typed text unchanged.
+   * @param path - the open address, such as `/bots/<uuid>`.
+   * @param text - the typed message, trimmed and non-empty.
+   */
+  frameMessage?: ((path: string, text: string) => string) | undefined
+}
+
+/** How the shell shows one open start address, resolved from its claim. */
+export interface StartPage {
+  /** The registration the address resolved to, such as `/bots/:id`; the key of its `conversation.start` entry. */
+  readonly key: string
+  /** Whether the composer shows under the page. */
+  readonly composer: boolean
+  /** Placeholder of the empty composer in the active locale, or undefined when the claim declared none. */
+  readonly composerPlaceholder: string | undefined
 }
 
 /** Workspace archive and directory operations consumed by Client UI domains. */
@@ -96,7 +120,9 @@ export interface UiWorkspace {
    * The claim carries the page's own copy and Workspace choice, so the address
    * and what the shared shell does with it are registered together and cannot
    * disagree.
-   * @param path - absolute path, such as `/inspiration` or `/automations/runs`.
+   * @param path - absolute path, such as `/inspiration` or `/bots/runs`, or a
+   * pattern ending in `/:id`, such as `/bots/:id`, that claims every child whose
+   * last segment is a UUID; an exact registration wins over a pattern.
    * @param claim - what this page contributes to the shell; absent claims nothing.
    * @returns disposer releasing the claim.
    */
@@ -109,11 +135,19 @@ export interface UiWorkspace {
    */
   openStartAddress(path: string): void
   /**
-   * Composer placeholder the page at one start address declares.
-   * @param path - a registered start address.
-   * @returns the placeholder in the active locale, or undefined when the claim declared none.
+   * How the shell shows one start address.
+   * @param path - a concrete start address, such as `/bots/<uuid>`.
+   * @returns the page's registration key and composer choices, or undefined when no claim matches.
    */
-  composerPlaceholder(path: string): string | undefined
+  startPage(path: string): StartPage | undefined
+  /**
+   * The message to send from one Session: framed by the open start page's
+   * claim when the Session is the blank one that page shows, else unchanged.
+   * @param sessionId - the Session sending.
+   * @param text - the typed message, trimmed and non-empty.
+   * @returns the message text to send.
+   */
+  frameMessage(sessionId: SessionId, text: string): string
   /** The start address the address bar shows, or undefined on any other address. */
   readonly startAddress: ObservableSnapshot<string | undefined>
   /**
@@ -279,7 +313,8 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     const release = this.sessionUrl.registerStart(path)
     if (claim !== undefined) this.startClaims.set(path, claim)
     this.publishStart()
-    if (this.currentStart === path && this.sessions.list.getSnapshot().phase === 'ready') this.showStart()
+    if (this.currentStart !== undefined && this.sessionUrl.matchStart(this.currentStart) === path
+      && this.sessions.list.getSnapshot().phase === 'ready') this.showStart()
     return () => {
       this.startClaims.delete(path)
       release()
@@ -287,8 +322,27 @@ class UiWorkspaceService extends Service implements UiWorkspace {
     }
   }
 
-  composerPlaceholder(path: string): string | undefined {
-    return this.startClaims.get(path)?.composerPlaceholder?.()
+  startPage(path: string): StartPage | undefined {
+    const key = this.sessionUrl.matchStart(path)
+    if (key === undefined) return undefined
+    const claim = this.startClaims.get(key)
+    return { key, composer: claim?.composer !== false, composerPlaceholder: claim?.composerPlaceholder?.() }
+  }
+
+  frameMessage(sessionId: SessionId, text: string): string {
+    const start = this.sessionUrl.readStart()
+    if (start === undefined || sessionId !== this.startSessionId) return text
+    return this.claimOf(start)?.frameMessage?.(start, text) ?? text
+  }
+
+  /**
+   * The claim one concrete start address resolves to.
+   * @param path - a concrete start address.
+   * @returns its claim, or undefined when none claims it or it claimed nothing.
+   */
+  private claimOf(path: string): StartAddressClaim | undefined {
+    const key = this.sessionUrl.matchStart(path)
+    return key === undefined ? undefined : this.startClaims.get(key)
   }
 
   openStartAddress(path: string): void {
@@ -434,7 +488,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
    */
   private showStart(): void {
     const start = this.sessionUrl.readStart()
-    const builtIn = start !== undefined && this.startClaims.get(start)?.builtInWorkspace === true
+    const builtIn = start !== undefined && this.claimOf(start)?.builtInWorkspace === true
     const workspaceId = builtIn ? this.defaultWorkspaceId() : undefined
     const current = this.sessions.list.getSnapshot().current
     // The Session this start address already opened is in place even before the

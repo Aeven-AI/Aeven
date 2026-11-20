@@ -1,7 +1,7 @@
-/** Registered /automations and /automations/runs start addresses with the ordinary session composer and authenticated management. */
+/** Registered bot pages: the overview at /bots, one bot at /bots/<id>, and runs at /bots/runs. */
 import type { Context } from '@deepseek-ai/cordis'
 import type { ConnectionHandle } from '@aeven/client-connection/client'
-import type { UiWorkspace } from '@aeven/client-ui-workspace/client'
+import type { StartAddressClaim, UiWorkspace } from '@aeven/client-ui-workspace/client'
 import type {} from '@aeven/client-locale/client'
 import type {} from '@aeven/client-ui-sidebar/client'
 import type {} from '@aeven/client-ui-renderer/client'
@@ -9,21 +9,33 @@ import type {} from '@aeven/client-ui-conversation/client'
 import type {} from '@aeven/api-session-controller/client'
 import type {} from '@aeven/client-ui-settings/client'
 import type { ClientRemote } from '@aeven/api-remotes/client'
-import { AutomationRow, AutomationsPanel, type AutomationPanelInjected, type AutomationRowInjected } from './AutomationsPanel.tsx'
+import { AutomationsPanel } from './AutomationsPanel.tsx'
+import { AutomationRow, type AutomationRowInjected } from './shared.tsx'
+import type { AutomationList, AutomationPanelInjected, AutomationView } from './model.ts'
+import { botPath } from './Overview.tsx'
 import { en, es, zh, type AutomationKey } from './locales.ts'
 
 declare module '@aeven/client-ui-slots' {
   interface LocaleNamespaceMap {
-    /** Automation management and starter copy. */
+    /** Bot page and starter copy. */
     automations: AutomationKey
   }
 }
-/** Start address of each management view. */
-const VIEW_PATHS = { automations: '/bots', runs: '/bots/runs' } as const satisfies Record<AutomationPanelInjected['view'], string>
+/** Start address of each bot page; `runs` is exact and wins over the `/bots/:id` pattern. */
+const VIEW_PATHS = { overview: '/bots', bot: '/bots/:id', runs: '/bots/runs' } as const satisfies Record<AutomationView, string>
+
+/**
+ * A bot's name as the label of its wire mention: brackets and line breaks would end the label early.
+ * @param name - the bot's stored name.
+ * @returns the name with those characters replaced by spaces.
+ */
+function mentionLabel(name: string): string {
+  return name.replace(/[[\]\n\r]/gu, ' ').trim()
+}
 
 /** Services that own management transport, navigation, and slot composition. */
 export const inject = ['connection', 'slots', 'locale', 'uiWorkspace', 'sessions']
-/** Register an addressable management page and a sidebar link.
+/** Register the addressable bot pages and a sidebar link.
  * @param ctx - browser composition context.
  */
 export function apply(ctx: Context): void {
@@ -31,12 +43,23 @@ export function apply(ctx: Context): void {
   const t = ctx.locale.bind('automations')
   const connection = ctx.get('connection') as ConnectionHandle
   const workspace = ctx.get('uiWorkspace') as UiWorkspace
-  for (const path of Object.values(VIEW_PATHS)) {
-    ctx.effect(() => workspace.registerStartAddress(path, {
-      // The page's own composer prompt: what the reader describes here is an
-      // automation, not a question.
-      composerPlaceholder: () => t('composerPlaceholder'),
-    }))
+  /** The last list a page read, so the bot page can name its bot in the first message. */
+  let lastList: AutomationList | null = null
+  const claims: Record<AutomationView, StartAddressClaim> = {
+    overview: { composerPlaceholder: () => t('composerPlaceholder') },
+    runs: { composer: false },
+    bot: {
+      composerPlaceholder: () => t('detailPlaceholder'),
+      // The reader types only the change; the message names the bot as a mention the bubble shows as a chip.
+      frameMessage: (path, text) => {
+        const id = path.slice(path.lastIndexOf('/') + 1)
+        const name = lastList?.definitions.find(task => task.id === id)?.name
+        return `@[${mentionLabel(name ?? t('title'))}](avn-bot:${id}) ${text}`
+      },
+    },
+  }
+  for (const view of Object.keys(VIEW_PATHS) as AutomationView[]) {
+    ctx.effect(() => workspace.registerStartAddress(VIEW_PATHS[view], claims[view]))
   }
   const call = async (operation: string, payload: unknown): Promise<unknown> => {
     const result = await connection.rpc.call('/automation-control', operation, payload)
@@ -44,10 +67,15 @@ export function apply(ctx: Context): void {
     return result.value
   }
   const operations: Omit<AutomationPanelInjected, 'view'> = {
-    call, hooks: { generation: connection.generation },
+    call, hooks: { generation: connection.generation, address: workspace.startAddress },
     showView: (view) => { workspace.openStartAddress(VIEW_PATHS[view]) },
+    showBot: (id) => { workspace.openStartAddress(botPath(id)) },
     openRun: (sessionId) => { ctx.sessions.open(sessionId as Parameters<typeof ctx.sessions.open>[0]) },
-    list: async () => await call('list', {}) as Awaited<ReturnType<AutomationPanelInjected['list']>>,
+    list: async () => {
+      const value = await call('list', {}) as AutomationList
+      lastList = value
+      return value
+    },
     services: async () => {
       // Connector state only decides which starters offer a Connect action; a composition without
       // account integrations shows every starter without one.
@@ -64,9 +92,9 @@ export function apply(ctx: Context): void {
     },
     openConnector: (provider) => { ctx.emit('settings/open', 'connectors', provider) },
   }
-  const navigation: AutomationRowInjected = { open: () => { workspace.openStartAddress(VIEW_PATHS.automations) } }
+  const navigation: AutomationRowInjected = { open: () => { workspace.openStartAddress(VIEW_PATHS.overview) } }
   ctx.slots.inject('sidebar.nav', () => ctx.slots.register({ name: 'sidebar.nav', id: 'automations', order: 0, locale: 'automations', inject: () => navigation }, AutomationRow))
-  for (const [view, path] of Object.entries(VIEW_PATHS) as [AutomationPanelInjected['view'], string][]) {
-    ctx.slots.inject('conversation.start', () => ctx.slots.register({ name: 'conversation.start', key: path, locale: 'automations', inject: () => ({ ...operations, view }) }, AutomationsPanel))
+  for (const view of Object.keys(VIEW_PATHS) as AutomationView[]) {
+    ctx.slots.inject('conversation.start', () => ctx.slots.register({ name: 'conversation.start', key: VIEW_PATHS[view], locale: 'automations', inject: () => ({ ...operations, view }) }, AutomationsPanel))
   }
 }

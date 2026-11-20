@@ -711,6 +711,11 @@
   min-width: 0;
 }
 
+/* Kept mounted, so the draft's editor survives moving between start pages with and without a composer. */
+.composerSeat[data-composer-hidden] {
+  display: none;
+}
+
 .root[data-phase="active"] .composerSeat {
   /* Stuck to the scroller's floor, in the same content box as the transcript
      and the header: that shared box is what puts all three on one axis without

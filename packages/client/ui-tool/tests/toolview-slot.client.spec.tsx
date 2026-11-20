@@ -73,6 +73,8 @@ async function bench(nodes: ToolResultNode[]) {
   runtime.ctx.provide('uiWorkspace', {
     connectWorkspace: vi.fn(async () => SID),
     startAddress: START_ADDRESS,
+    startPage: () => undefined,
+    frameMessage: (_id: string, text: string) => text,
   } as never)
   const locale = new LocaleRuntime(runtime.ctx)
   runtime.ctx.provide('locale', locale)
@@ -231,6 +233,8 @@ describe('registrant declaration injection', () => {
     runtime.ctx.provide('uiWorkspace', {
       connectWorkspace: vi.fn(async () => SID),
       startAddress: START_ADDRESS,
+      startPage: () => undefined,
+      frameMessage: (_id: string, text: string) => text,
     } as never)
     const locale = new LocaleRuntime(runtime.ctx)
     runtime.ctx.provide('locale', locale)

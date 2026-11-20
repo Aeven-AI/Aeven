@@ -71,6 +71,8 @@ async function bench(opts?: { blank?: boolean; replica?: true }) {
   runtime.ctx.provide('uiWorkspace', {
     connectWorkspace: vi.fn(async () => SID),
     startAddress: NO_START_ADDRESS,
+    startPage: () => undefined,
+    frameMessage: (_id: string, text: string) => text,
   } as never)
   runtime.ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
   const locale = new LocaleRuntime(runtime.ctx)
@@ -110,6 +112,8 @@ describe('resident composer', () => {
     runtime.ctx.provide('uiWorkspace', {
       connectWorkspace: vi.fn(async () => SID),
       startAddress: NO_START_ADDRESS,
+      startPage: () => undefined,
+      frameMessage: (_id: string, text: string) => text,
     } as never)
     runtime.ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
     const locale = new LocaleRuntime(runtime.ctx)
@@ -145,6 +149,8 @@ describe('resident composer', () => {
     runtime.ctx.provide('uiWorkspace', {
       connectWorkspace: vi.fn(async () => SID),
       startAddress: NO_START_ADDRESS,
+      startPage: () => undefined,
+      frameMessage: (_id: string, text: string) => text,
     } as never)
     runtime.ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
     const locale = new LocaleRuntime(runtime.ctx)
@@ -207,6 +213,8 @@ describe('prompt rejection through the assembled composer', () => {
     runtime.ctx.provide('uiWorkspace', {
       connectWorkspace: vi.fn(async () => SID),
       startAddress: NO_START_ADDRESS,
+      startPage: () => undefined,
+      frameMessage: (_id: string, text: string) => text,
     } as never)
     runtime.ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
     const locale = new LocaleRuntime(runtime.ctx)

@@ -43,7 +43,7 @@ import { WorkspacePicker } from './WorkspacePicker.tsx'
 import { FilesSection, type FilesSectionInjected } from './settings/FilesSection.tsx'
 import { en, es, zh, type WorkspaceKey } from './locales.ts'
 
-export type { SessionMoveTarget, UiWorkspace } from './navigation.ts'
+export type { SessionMoveTarget, StartAddressClaim, StartPage, UiWorkspace } from './navigation.ts'
 export type {
   DirectoryFlowOwnerProps, DirectoryFlowSlotName, DirectoryPickingHooks, DirectoryPickingInjected,
   WorkspaceBrowserInjected, WorkspaceBrowserProps, WorkspaceHeaderActionsInjected,

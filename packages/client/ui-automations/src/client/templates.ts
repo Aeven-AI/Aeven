@@ -2,8 +2,9 @@
 import type { ComponentType } from 'react'
 import { IconChecklistOutline14, IconLucideGlobe } from '@aeven/client-ui-primitives'
 import {
-  IconBinoculars, IconBookOpen, IconBriefcase, IconCalendarClock, IconCalendarRange, IconGitPullRequest, IconInbox,
-  IconLanguages, IconLightbulb, IconNewspaper, IconReceipt, IconReply, IconSun, IconTag, IconTicket, IconTrendingUp, IconUtensils,
+  IconBinoculars, IconBookOpen, IconBriefcase, IconCalendarClock, IconCalendarRange, IconClipboardList, IconCodeXml,
+  IconGitPullRequest, IconHandshake, IconHeadset, IconInbox, IconLanguages, IconLightbulb, IconMegaphone, IconNewspaper,
+  IconPenLine, IconReceipt, IconReply, IconSun, IconTag, IconTicket, IconUserSearch, IconUtensils, IconWallet,
 } from './icons.tsx'
 import type { AutomationKey } from './locales.ts'
 
@@ -43,6 +44,19 @@ export interface TemplateCategory {
 /** Starter selections fill the ordinary composer and grant no execution permission. */
 export const TEMPLATE_CATEGORIES: readonly TemplateCategory[] = [
   {
+    title: 'categoryRoles',
+    templates: [
+      { id: 'role-marketing', icon: IconMegaphone, days: 1, time: '09:00', needs: [], title: 'roleMarketingTitle', description: 'roleMarketingDescription', draft: 'roleMarketingDraft' },
+      { id: 'role-sales', icon: IconHandshake, days: 'weekdays', time: '08:00', needs: ['mail', 'calendar'], title: 'roleSalesTitle', description: 'roleSalesDescription', draft: 'roleSalesDraft' },
+      { id: 'role-support', icon: IconHeadset, days: 'weekdays', time: '09:00', needs: ['mail'], title: 'roleSupportTitle', description: 'roleSupportDescription', draft: 'roleSupportDraft' },
+      { id: 'role-recruiting', icon: IconUserSearch, days: 'weekdays', time: '10:00', needs: ['mail', 'calendar'], title: 'roleRecruitingTitle', description: 'roleRecruitingDescription', draft: 'roleRecruitingDraft' },
+      { id: 'role-finance', icon: IconWallet, days: 1, time: '09:00', needs: ['mail'], title: 'roleFinanceTitle', description: 'roleFinanceDescription', draft: 'roleFinanceDraft' },
+      { id: 'role-chief', icon: IconClipboardList, days: 'weekdays', time: '07:30', needs: ['calendar', 'mail'], title: 'roleChiefTitle', description: 'roleChiefDescription', draft: 'roleChiefDraft' },
+      { id: 'role-engineering', icon: IconCodeXml, days: 'weekdays', time: '09:00', needs: ['github'], title: 'roleEngineeringTitle', description: 'roleEngineeringDescription', draft: 'roleEngineeringDraft' },
+      { id: 'role-creator', icon: IconPenLine, days: 'weekdays', time: '08:30', needs: [], title: 'roleCreatorTitle', description: 'roleCreatorDescription', draft: 'roleCreatorDraft' },
+    ],
+  },
+  {
     title: 'categoryDay',
     templates: [
       { id: 'morning', icon: IconSun, days: 'weekdays', time: '07:30', needs: ['calendar', 'mail'], title: 'morningTitle', description: 'morningDescription', draft: 'morningDraft' },
@@ -56,7 +70,6 @@ export const TEMPLATE_CATEGORIES: readonly TemplateCategory[] = [
     templates: [
       { id: 'week-ahead', icon: IconCalendarRange, days: 0, time: '18:00', needs: ['calendar'], title: 'weekAheadTitle', description: 'weekAheadDescription', draft: 'weekAheadDraft' },
       { id: 'weekly', icon: IconChecklistOutline14, days: 5, time: '16:00', needs: [], title: 'weeklyTitle', description: 'weeklyDescription', draft: 'weeklyDraft' },
-      { id: 'bills', icon: IconReceipt, days: 1, time: '09:00', needs: ['mail'], title: 'billsTitle', description: 'billsDescription', draft: 'billsDraft' },
     ],
   },
   {
@@ -74,7 +87,7 @@ export const TEMPLATE_CATEGORIES: readonly TemplateCategory[] = [
       { id: 'jobs', icon: IconBriefcase, days: 'weekdays', time: '10:00', needs: [], title: 'jobsTitle', description: 'jobsDescription', draft: 'jobsDraft' },
       { id: 'content', icon: IconLightbulb, days: 1, time: '08:30', needs: [], title: 'contentTitle', description: 'contentDescription', draft: 'contentDraft' },
       { id: 'github', icon: IconGitPullRequest, days: 'weekdays', time: '09:00', needs: ['github'], title: 'githubTitle', description: 'githubDescription', draft: 'githubDraft' },
-      { id: 'markets', icon: IconTrendingUp, days: 'weekdays', time: '18:00', needs: [], title: 'marketsTitle', description: 'marketsDescription', draft: 'marketsDraft' },
+      { id: 'bills', icon: IconReceipt, days: 1, time: '09:00', needs: ['mail'], title: 'billsTitle', description: 'billsDescription', draft: 'billsDraft' },
     ],
   },
   {

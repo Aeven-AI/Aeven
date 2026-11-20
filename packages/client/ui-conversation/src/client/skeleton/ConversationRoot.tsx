@@ -239,7 +239,7 @@ function WidthHandle(props: {
 export function ConversationRoot({
   sessionId, useSession, useSessions, useSessionPendingInteraction,
   useInput, useComposerBlock, useSelectedView, useStartAddress, useArchivedSessionIds,
-  renderSlot, renderSlotChain, t, sidebarCollapsed, toggleSidebar, composerPlaceholder, unarchiveSession,
+  renderSlot, renderSlotChain, t, sidebarCollapsed, toggleSidebar, startPage: resolveStartPage, unarchiveSession,
 }: ConversationRootProps) {
   const session = useSession(s => s)
   const pendingInteraction = useSessionPendingInteraction(snapshot =>
@@ -331,13 +331,14 @@ export function ConversationRoot({
       && (openState === 'open' || openState === 'error' || openState === 'cold'))
   // A start page replaces the blank Session's centred Hero: its own content
   // fills the column and the composer sits on the floor, as in a settled chat.
-  const startPage = hero && startAddress !== undefined && sessionId !== undefined
+  // Read on every render so the page's copy follows the active locale.
+  const openStart = startAddress === undefined ? undefined : resolveStartPage(startAddress)
+  const startPage = hero && openStart !== undefined && sessionId !== undefined
   const centered = hero && !startPage
-  // A start page names what its own composer is for, in its own words; read on
-  // every render so the page's copy follows the active locale.
-  const startPlaceholder = startAddress === undefined
-    ? undefined
-    : composerPlaceholder?.(startAddress)
+  // A start page names what its own composer is for, in its own words.
+  const startPlaceholder = openStart?.composerPlaceholder
+  // A page that only lists or manages, such as the bot overview, has no composer under it.
+  const composerHidden = startPage && !openStart.composer
   const zone: InputZone | undefined =
     session === undefined || inputState === undefined ? undefined : { session, input: inputState }
   // See useDockEmpty: the dock frame hides itself while its slot renders nothing.
@@ -422,13 +423,22 @@ export function ConversationRoot({
   // on the fallback alone would leave a business-owned takeover at the content
   // end off-screen when the user is not pinned to the floor.
   const composerSeat = (
-    <div ref={seatRef} className={css.composerSeat} data-composer-seat="">
+    <div ref={seatRef} className={css.composerSeat} data-composer-seat="" data-composer-hidden={composerHidden || undefined}>
       <div className={css.viewChromeTop} data-conversation-chrome-top="" />
       {composer}
     </div>
   )
 
   const { loaderActive, mountedSessionId } = useContentCover({ sessionId, hero, openState })
+
+  // Every page shares this one scroller, so a start page (Bots, Inspiration) or a new chat's empty start screen
+  // would open at whatever offset the previous page left. Each one opens at its top instead; a chat's transcript
+  // places itself.
+  const scrollRef = useRef<HTMLDivElement | null>(null)
+  const topPage = startPage ? `start:${startAddress ?? ''}` : centered ? `hero:${sessionId ?? ''}` : undefined
+  useLayoutEffect(() => {
+    if (topPage !== undefined && scrollRef.current !== null) scrollRef.current.scrollTop = 0
+  }, [topPage])
 
   // The seat's own height, published for the two rules that hold the composer on
   // the scroller's floor (`.viewArea`'s hold and `.viewChrome`'s floor). A
@@ -502,7 +512,7 @@ export function ConversationRoot({
           gutter is reserved either; the reservation that used to align them
           needed `scrollbar-gutter`, which the iOS/Safari 14.5 baseline bans
           ([gate](../../../../../../scripts/verify-css-baseline.ts)). */}
-      <div className={clsx(css.scrollBody, 'no-scrollbar')} data-conversation-scroll="">
+      <div ref={scrollRef} className={clsx(css.scrollBody, 'no-scrollbar')} data-conversation-scroll="">
         {/* The navigation band is resident, like the composer below it: the
             bar, its blur background, and the right-aligned utilities row
             belong to the column rather than to a Session, so a reader sees the
@@ -534,7 +544,7 @@ export function ConversationRoot({
         {/* This hold keeps the scrollport's growing item present while
             conversation.session is dropped so the overlay can present. */}
         {startPage
-          ? <div className={css.startPage} data-start-page="">{renderSlot('conversation.start', {}, { entryKey: startAddress })}</div>
+          ? <div className={css.startPage} data-start-page="">{renderSlot('conversation.start', {}, { entryKey: openStart.key })}</div>
           : mountedSessionId === undefined
             ? (phase === 'active'
               ? <div className={css.transcriptHold} data-transcript-hold="" aria-hidden="true" />
