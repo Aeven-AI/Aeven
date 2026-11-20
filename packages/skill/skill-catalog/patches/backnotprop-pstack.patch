@@ -989,11 +989,220 @@ index 123a33b..9294bba 100644
      children.set(pr.baseRefName, [...(children.get(pr.baseRefName) ?? []), pr]);
    for (const values of children.values())
      values.sort((a, b) => a.number - b.number);
+diff --git a/skills/poteto-mode/scripts/watch-pr/policy.ts b/skills/poteto-mode/scripts/watch-pr/policy.ts
+index 8179f2d..a165001 100644
+--- a/skills/poteto-mode/scripts/watch-pr/policy.ts
++++ b/skills/poteto-mode/scripts/watch-pr/policy.ts
+@@ -6,28 +6,54 @@ import {
+ import type * as T from "./types.ts";
+ import { nonEmpty } from "./types.ts";
+ export function assessGitHubMerge(args: {
++  readonly mergeable: T.PullRequestFacts["mergeable"];
+   readonly mergeStateStatus: T.MergeStateStatus;
+   readonly headRollupState: T.RollupState;
+ }): T.GitHubMergeAssessment {
+-  if (args.mergeStateStatus === "BLOCKED") {
+-    if (args.headRollupState === "ERROR" || args.headRollupState === "FAILURE")
++  const { mergeable, mergeStateStatus, headRollupState } = args;
++  if (mergeStateStatus === "UNKNOWN")
++    return {
++      kind: "pending",
++      reason: "merge-state-unknown",
++      mergeStateStatus,
++      headRollupState,
++    };
++  if (headRollupState === "PENDING" || headRollupState === "EXPECTED")
++    return {
++      kind: "pending",
++      reason: "rollup-pending",
++      mergeStateStatus,
++      headRollupState,
++    };
++  if (mergeStateStatus === "BLOCKED") {
++    if (headRollupState === "ERROR" || headRollupState === "FAILURE")
++      return { kind: "refused", mergeStateStatus, headRollupState };
++    if (mergeable === "UNKNOWN")
+       return {
+-        kind: "refused",
+-        mergeStateStatus: args.mergeStateStatus,
+-        headRollupState: args.headRollupState,
++        kind: "pending",
++        reason: "mergeability-unknown",
++        mergeStateStatus,
++        headRollupState,
+       };
+     return {
+       kind: "allowed",
+       basis: "rollup",
+-      mergeStateStatus: args.mergeStateStatus,
+-      headRollupState: args.headRollupState,
++      mergeStateStatus,
++      headRollupState,
+     };
+   }
++  if (mergeable === "UNKNOWN")
++    return {
++      kind: "pending",
++      reason: "mergeability-unknown",
++      mergeStateStatus,
++      headRollupState,
++    };
+   return {
+     kind: "allowed",
+     basis: "merge-state",
+-    mergeStateStatus: args.mergeStateStatus,
+-    headRollupState: args.headRollupState,
++    mergeStateStatus,
++    headRollupState,
+   };
+ }
+ async function mergeAssessment(
+@@ -45,6 +71,7 @@ async function mergeAssessment(
+       (commit) => commit.oid !== facts.headRefOid && commit.state === "SUCCESS"
+     ),
+     github: assessGitHubMerge({
++      mergeable: facts.mergeable,
+       mergeStateStatus: facts.mergeStateStatus,
+       headRollupState,
+     }),
+@@ -114,6 +141,14 @@ export async function readSnapshot(args: {
+       };
+     else if (pending !== null)
+       ci = { ...base, kind: "ci-pending", failed: [], pending };
++    else if (merge.github.kind === "pending")
++      ci = {
++        ...base,
++        kind: "ci-github-pending",
++        failed: [],
++        pending: [],
++        github: merge.github,
++      };
+     else
+       ci = {
+         ...base,
+@@ -215,6 +250,14 @@ function readyContribution(
+     },
+   };
+ }
++function waitingReason(row: T.PrSnapshot): T.CiWaitReason | null {
++  if (row.kind !== "open") return null;
++  if (row.ci.kind === "ci-pending")
++    return { kind: "pending-checks", pending: row.ci.pending };
++  if (row.ci.kind === "ci-github-pending")
++    return { kind: "github-pending", github: row.ci.github };
++  return null;
++}
+ export function classifyPr(
+   row: T.PrSnapshot,
+   allowDraft = false
+@@ -226,8 +269,9 @@ export function classifyPr(
+     gateBlocker(row, allowDraft),
+   ])
+     if (blocker !== null) return { kind: "blocker", blocker };
+-  if (row.kind === "open" && row.ci.kind === "ci-pending")
+-    return { kind: "waiting", frontier: row.context, pending: row.ci.pending };
++  const reason = waitingReason(row);
++  if (reason !== null)
++    return { kind: "waiting", frontier: row.context, reason };
+   const ready = readyContribution(row, allowDraft);
+   if (ready === null) throw new Error("snapshot has no classified decision");
+   return ready.kind === "merged-pr"
+@@ -247,13 +291,11 @@ export function selectTierMajorStackDecision(
+     const blocker = gateBlocker(row, allowDraft);
+     if (blocker !== null) return { kind: "blocker", blocker };
+   }
+-  for (const row of rows)
+-    if (row.kind === "open" && row.ci.kind === "ci-pending")
+-      return {
+-        kind: "waiting",
+-        frontier: row.context,
+-        pending: row.ci.pending,
+-      };
++  for (const row of rows) {
++    const reason = waitingReason(row);
++    if (reason !== null)
++      return { kind: "waiting", frontier: row.context, reason };
++  }
+   const prs = nonEmpty(
+     rows
+       .map((row) => readyContribution(row, allowDraft))
+@@ -501,7 +543,7 @@ export async function runSimple(args: {
+         kind: "WAITING",
+         terminal: false,
+         frontier: decision.frontier,
+-        reason: { kind: "pending-checks", pending: decision.pending },
++        reason: decision.reason,
+       })
+     );
+     return {
+@@ -512,7 +554,7 @@ export async function runSimple(args: {
+           kind: "TIMEOUT",
+           terminal: true,
+           exitCode: 5,
+-          reason: { kind: "pending-checks", pending: decision.pending },
++          reason: decision.reason,
+         }),
+     };
+   };
+@@ -640,10 +682,7 @@ export type QueueEvaluation =
+       readonly state: QueueState;
+       readonly frontier: T.PrContext;
+       readonly reason:
+-        | {
+-            readonly kind: "pending-checks";
+-            readonly pending: T.NonEmpty<T.PendingCheck>;
+-          }
++        | T.CiWaitReason
+         | { readonly kind: "merge-queue"; readonly unmergedCount: number };
+       readonly emit: boolean;
+     };
+@@ -692,16 +731,14 @@ export function evaluateQueue(
+       unmergedCount: active.length,
+     };
+   const row = rows[0];
+-  const pending =
+-    row.kind === "open" && row.ci.kind === "ci-pending" ? row.ci.pending : null;
+-  const reason =
+-    pending === null
+-      ? ({ kind: "merge-queue", unmergedCount: active.length } as const)
+-      : ({ kind: "pending-checks", pending } as const);
++  const reason = waitingReason(row) ??
++    ({ kind: "merge-queue", unmergedCount: active.length } as const);
+   const key =
+     reason.kind === "pending-checks"
+       ? `pending:${frontier.number}:${reason.pending.length}`
+-      : `queue:${frontier.number}:${reason.unmergedCount}`;
++      : reason.kind === "github-pending"
++        ? `github:${frontier.number}:${reason.github.reason}`
++        : `queue:${frontier.number}:${reason.unmergedCount}`;
+   return {
+     kind: "waiting",
+     state: { ...state, frontier, lastWaitKey: key },
 diff --git a/skills/poteto-mode/scripts/watch-pr/render.ts b/skills/poteto-mode/scripts/watch-pr/render.ts
-index 0e93583..7bed130 100644
+index 0e93583..51aef69 100644
 --- a/skills/poteto-mode/scripts/watch-pr/render.ts
 +++ b/skills/poteto-mode/scripts/watch-pr/render.ts
-@@ -52,16 +52,20 @@ export function renderStatusTable(rows: T.NonEmpty<T.PrSnapshot>): string {
+@@ -7,6 +7,8 @@ function ciCell(row: T.PrSnapshot): string {
+   switch (row.ci.kind) {
+     case "ci-clean":
+       return "✅";
++    case "ci-github-pending":
++      return `⏳ ${githubPendingLabel(row.ci.github)}${was}`;
+     case "ci-pending":
+       return `⏳ ${row.ci.pending.length} pending${was}`;
+     case "ci-failing":
+@@ -40,7 +42,9 @@ function mergeCell(row: T.PrSnapshot): string {
+     row.facts.mergeStateStatus === "DIRTY" ||
+     row.facts.mergeStateStatus === "CONFLICTING"
+     ? "⚠️ conflict"
+-    : "✅";
++    : row.facts.mergeable === "UNKNOWN" || row.facts.mergeStateStatus === "UNKNOWN"
++      ? "⏳ computing"
++      : "✅";
+ }
+ export function renderStatusTable(rows: T.NonEmpty<T.PrSnapshot>): string {
+   const lines = ["| PR | CI | Review | Merge |", "| --- | --- | --- | --- |"];
+@@ -52,16 +56,20 @@ export function renderStatusTable(rows: T.NonEmpty<T.PrSnapshot>): string {
    }
    return `${lines.join("\n")}\n`;
  }
@@ -1017,6 +1226,148 @@ index 0e93583..7bed130 100644
    ].join(" ");
  }
  type StatusQueryBlocker = {
+@@ -130,6 +138,11 @@ function renderBlocker(blocker: T.MergeBlocker | StatusQueryBlocker): string {
+     }
+   }
+ }
++function githubPendingLabel(github: T.GitHubMergePending): string {
++  return github.reason === "rollup-pending"
++    ? "GitHub reports checks pending"
++    : "GitHub is still computing mergeability";
++}
+ export function renderPretty(verdict: T.WatcherVerdict): string {
+   switch (verdict.kind) {
+     case "QUEUE":
+@@ -137,6 +150,8 @@ export function renderPretty(verdict: T.WatcherVerdict): string {
+     case "STATUS":
+       return renderStatusTable(verdict.rows);
+     case "WAITING":
++      if (verdict.reason.kind === "github-pending")
++        return `WAITING: frontier=#${verdict.frontier.number}; ${githubPendingLabel(verdict.reason.github)}\n`;
+       return verdict.reason.kind === "pending-checks"
+         ? `WAITING: frontier=#${verdict.frontier.number}; ${verdict.reason.pending.length} check${verdict.reason.pending.length === 1 ? "" : "s"} pending\n`
+         : `WAITING: frontier=#${verdict.frontier.number} is blocker-free; waiting for merge queue (${verdict.reason.unmergedCount} PR${verdict.reason.unmergedCount === 1 ? "" : "s"} unmerged)\n`;
+@@ -156,6 +171,8 @@ export function renderPretty(verdict: T.WatcherVerdict): string {
+     case "COMPLETE":
+       return `COMPLETE: queued stack merged (${verdict.queue.length} PR${verdict.queue.length === 1 ? "" : "s"})\n`;
+     case "TIMEOUT":
++      if (verdict.reason.kind === "github-pending")
++        return `TIMEOUT: ${githubPendingLabel(verdict.reason.github)}\n`;
+       if (verdict.reason.kind === "pending-checks")
+         return "TIMEOUT: checks still pending\n";
+       if (verdict.reason.kind === "status-unavailable")
+diff --git a/skills/poteto-mode/scripts/watch-pr/types.ts b/skills/poteto-mode/scripts/watch-pr/types.ts
+index 60b9abc..7117829 100644
+--- a/skills/poteto-mode/scripts/watch-pr/types.ts
++++ b/skills/poteto-mode/scripts/watch-pr/types.ts
+@@ -104,16 +104,34 @@ export type GitHubMergeAllowed =
+   | {
+       readonly kind: "allowed";
+       readonly basis: "merge-state";
+-      readonly mergeStateStatus: Exclude<MergeStateStatus, "BLOCKED">;
+-      readonly headRollupState: RollupState;
++      readonly mergeStateStatus: Exclude<
++        MergeStateStatus,
++        "BLOCKED" | "UNKNOWN"
++      >;
++      readonly headRollupState: Exclude<RollupState, "PENDING" | "EXPECTED">;
+     }
+   | {
+       readonly kind: "allowed";
+       readonly basis: "rollup";
+       readonly mergeStateStatus: "BLOCKED";
+-      readonly headRollupState: Exclude<RollupState, "ERROR" | "FAILURE">;
++      readonly headRollupState: Exclude<
++        RollupState,
++        "ERROR" | "FAILURE" | "PENDING" | "EXPECTED"
++      >;
+     };
+-export type GitHubMergeAssessment = GitHubMergeAllowed | GitHubMergeRefusal;
++export interface GitHubMergePending {
++  readonly kind: "pending";
++  readonly reason:
++    | "merge-state-unknown"
++    | "mergeability-unknown"
++    | "rollup-pending";
++  readonly mergeStateStatus: MergeStateStatus;
++  readonly headRollupState: RollupState;
++}
++export type GitHubMergeAssessment =
++  | GitHubMergeAllowed
++  | GitHubMergeRefusal
++  | GitHubMergePending;
+ interface CiBase {
+   readonly source: CheckRead["source"];
+   readonly all: NonEmpty<Check>;
+@@ -142,7 +160,18 @@ export type CiClean = CiBase & {
+   readonly pending: readonly [];
+   readonly github: GitHubMergeAllowed;
+ };
+-export type CiState = CiFailing | CiGithubRejected | CiPending | CiClean;
++export type CiGithubPending = CiBase & {
++  readonly kind: "ci-github-pending";
++  readonly failed: readonly [];
++  readonly pending: readonly [];
++  readonly github: GitHubMergePending;
++};
++export type CiState =
++  | CiFailing
++  | CiGithubRejected
++  | CiPending
++  | CiGithubPending
++  | CiClean;
+ export type PrSnapshot =
+   | {
+       readonly kind: "merged" | "closed";
+@@ -230,10 +259,13 @@ export type QueryFailure =
+       readonly detail: string;
+       readonly rawValue: string;
+     };
++export type CiWaitReason =
++  | { readonly kind: "pending-checks"; readonly pending: NonEmpty<PendingCheck> }
++  | { readonly kind: "github-pending"; readonly github: GitHubMergePending };
+ /**
+  * `frontier` names the lowest unmerged PR that is actually waiting, and
+- * `pending` is that PR's checks only. Pooling every row's pending under the
+- * bottom PR's number misattributed upstack waits to the frontier.
++ * `reason` describes that PR's wait only. Pooling every row's pending
++ * under the bottom PR's number misattributed upstack waits to the frontier.
+  *
+  * This decision serves single and `--stack` mode. Queued mode deliberately
+  * reports its own merge frontier instead: when that PR is blocker-free it
+@@ -244,7 +276,7 @@ export type QueryFailure =
+ export interface WaitingDecision {
+   readonly kind: "waiting";
+   readonly frontier: PrContext;
+-  readonly pending: NonEmpty<PendingCheck>;
++  readonly reason: CiWaitReason;
+ }
+ export type PrDecision =
+   | { readonly kind: "blocker"; readonly blocker: MergeBlocker }
+@@ -286,10 +318,7 @@ export type ProgressVerdict =
+   | (Progress<"WAITING"> & {
+       readonly frontier: PrContext;
+       readonly reason:
+-        | {
+-            readonly kind: "pending-checks";
+-            readonly pending: NonEmpty<PendingCheck>;
+-          }
++        | CiWaitReason
+         | { readonly kind: "merge-queue"; readonly unmergedCount: number };
+     })
+   | (Progress<"ADVANCE", "queued-stack"> & {
+@@ -333,10 +362,7 @@ export type BlockerVerdict =
+     });
+ export type TimeoutVerdict = Terminal<"TIMEOUT", 5> & {
+   readonly reason:
+-    | {
+-        readonly kind: "pending-checks";
+-        readonly pending: NonEmpty<PendingCheck>;
+-      }
++    | CiWaitReason
+     | { readonly kind: "status-unavailable"; readonly failure: QueryFailure }
+     | {
+         readonly kind: "queued-stack";
 diff --git a/skills/poteto-mode/scripts/watch-pr/watch-pr b/skills/poteto-mode/scripts/watch-pr/watch-pr
 index 99807d5..8167b00 100755
 --- a/skills/poteto-mode/scripts/watch-pr/watch-pr
