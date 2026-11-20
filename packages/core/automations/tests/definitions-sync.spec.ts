@@ -202,6 +202,26 @@ describe('automation definitions across devices', () => {
     expect(await names(a)).toEqual([])
   })
 
+  it('gives a synced GitHub-triggered bot an inbound key of its own on each Host, and removes it with the bot', async () => {
+    const network = new MemorySyncNetwork()
+    const desktop = await device(network, network.device())
+    const cloud = await device(network, network.device(), true)
+    const created = await create(desktop, {
+      name: 'Release announcer', requires: [],
+      triggers: [{ kind: 'event', source: 'github', filter: { events: ['release'], repository: 'Aeven-AI/Aeven' } }],
+    })
+    await advanceUntil(0, async () => (await names(cloud)).includes('Release announcer') ? true : undefined, 'the definition on the cloud Host')
+    const cloudKey = await advanceUntil(0, async () => cloud.automations.webhookSecret(created.id).catch(() => undefined), 'the cloud inbound key')
+    const desktopKey = await desktop.automations.webhookSecret(created.id)
+    expect(cloudKey.path).toBe(desktopKey.path)
+    expect(cloudKey.secret).not.toBe(desktopKey.secret)
+    expect((await listAutomations(cloud)).definitions.find(definition => definition.id === created.id)?.webhook).toBe(true)
+    await desktop.automations.remove(created.id)
+    await advanceUntil(0, async () => (await names(cloud)).length === 0 ? true : undefined, 'the removal on the cloud Host')
+    await expect(cloud.automations.webhookSecret(created.id)).rejects.toThrow()
+    expect(cloud.medium.table('automation_webhooks', 'webhooks')[created.id]).toBeUndefined()
+  })
+
   it('admits one occurrence of a due automation, not one per device', async () => {
     const network = new MemorySyncNetwork()
     const a = await device(network, network.device())
