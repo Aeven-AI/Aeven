@@ -676,6 +676,10 @@
           # each repository in a conversation, and every push to its default
           # branch, main, or master, of a tag, or of a deletion.
           gitHosts: [github.com]
+          # GitHub API reads (gh pr view, gh api, watch-pr) with the account's own GitHub connection; the proxy
+          # refuses every write, and 1000 requests an hour leave most of the account's GitHub rate limit to it.
+          githubApi:
+            requestsPerHour: 1000
           accountConnections: 32
           connections: 4096
           accountBytesPerSecond: 8388608
