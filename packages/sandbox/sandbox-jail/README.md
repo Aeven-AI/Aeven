@@ -60,6 +60,7 @@ Choose it for a multi-account Linux Host. Choose `avn-sandbox-local` for a perso
 | `modelNote` | none | System-prompt text describing what commands can use |
 | `seccompFilter` | none | Host path of a BPF system-call filter bubblewrap installs; a missing file fails startup |
 | `sessionAttachments` | `false` | Mount the attachments the conversation's user messages and tool results reference, read-only at their store paths |
+| `sessionSkillResources` | — | `{ maxFiles, maxBytes }`: mount the files below the resource directories the conversation's own `skill` results and skill invocations recorded, read-only at those paths, keeping a file executable when its owner may execute it; files past either bound are not mounted. Omitted, none are |
 | `commandUser` | none | `exec`, `group`, and `accountsPath` that run confined commands and the zygote as a separate sandbox user |
 | `egress` | none | Network access for confined commands: the proxy's `node`, `script`, `relay`, `socketDir`, optional `exec` helper that runs it as its own user, the relay `port`, the `allow` host list and `ports`, the `gitHosts` whose Git requests carry the account's credential, per-account and combined connection and byte bounds, timeouts, and the proxy's cgroup `limits`; needs `cgroup` |
 | `pythonZygote` | none | `python`, `script`, `preload`, `socketDir`, and cgroup `limits` of a preloaded Python interpreter that runs jailed `python3` commands; needs `cgroup` and `seccompFilter` |

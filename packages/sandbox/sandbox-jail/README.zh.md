@@ -60,6 +60,7 @@ kind: "package-reference"
 | `modelNote` | 无 | 描述命令可用内容的系统提示词文本 |
 | `seccompFilter` | 无 | bubblewrap 安装的 BPF 系统调用过滤器的主机路径；文件不存在则启动失败 |
 | `sessionAttachments` | `false` | 以只读方式在存储路径上挂载对话的用户消息与工具结果引用的附件 |
+| `sessionSkillResources` | — | `{ maxFiles, maxBytes }`：以只读方式在原路径上挂载对话自身 `skill` 结果与技能调用所记录资源目录下的文件，所有者可执行的文件保持可执行；超出任一上限的文件不挂载。省略时不挂载 |
 | `commandUser` | 无 | 以独立沙箱用户运行被隔离命令与 zygote 的 `exec`、`group` 与 `accountsPath` |
 | `egress` | 无 | 被隔离命令的网络访问：代理的 `node`、`script`、`relay`、`socketDir`，以专用用户运行它的可选 `exec` 辅助程序，中继的 `port`，`allow` 主机列表与 `ports`，其 Git 请求携带账户凭据的 `gitHosts`，单账户与总体的连接数和字节数上限、超时，以及代理的 cgroup `limits`；需要 `cgroup` |
 | `pythonZygote` | 无 | 运行被隔离 `python3` 命令的预加载 Python 解释器的 `python`、`script`、`preload`、`socketDir` 与 cgroup `limits`；需要 `cgroup` 和 `seccompFilter` |

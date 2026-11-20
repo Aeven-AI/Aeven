@@ -17,7 +17,9 @@ import {
   isSkillName,
   isUserInvocable,
   renderSkillContent,
+  SKILL_TOOL_NAME,
   type SkillInvocationSource,
+  type SkillToolResultMeta,
   type SkillSummary,
 } from '@aeven/skill'
 import { sessionDirectory } from '@aeven/working-directory'
@@ -91,7 +93,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   assertPositiveInteger('catalogDescriptionMaxLength', catalogDescriptionMaxLength, 3)
 
   const skillTool = defineTool({
-    name: 'skill',
+    name: SKILL_TOOL_NAME,
     description: 'Load the full instructions for an available skill. Call this with the exact skill name from the session skill catalog before acting on a task that names or clearly matches that skill.',
     parameters: {
       name: { type: 'string', required: true, description: 'The exact skill name from the available skills list.' },
@@ -135,6 +137,10 @@ export function apply(ctx: Context, config: Config = {}): void {
         },
       },
       render: (_args, value) => [{ type: 'text', text: renderSkillContent(value) }],
+      // The resource directory rides the durable result, so a confining sandbox and a confined read can open what
+      // the conversation loaded without parsing the model-facing text, which carries the skill's own body.
+      presentationMeta: (_args, value) =>
+        value.resourceBase?.kind === 'directory' ? { resourceDirectory: value.resourceBase.path } satisfies SkillToolResultMeta : {},
     },
     async execute(args, exec) {
       if (!isSkillName(args.name)) {
@@ -210,7 +216,10 @@ export function apply(ctx: Context, config: Config = {}): void {
       // on the loaded definition — the single lookup that produces what is
       // actually injected.
       if (skill === undefined || !isUserInvocable(skill)) continue
-      const source: SkillInvocationSource = { kind: 'skill-invocation', name, form: 'instructions' }
+      const source: SkillInvocationSource = {
+        kind: 'skill-invocation', name, form: 'instructions',
+        ...skill.resourceBase?.kind === 'directory' ? { resourceDirectory: skill.resourceBase.path } : {},
+      }
       injections.push(createUserMessage({
         content: [{ type: 'text', text: renderSkillContent(skill) }],
         source,

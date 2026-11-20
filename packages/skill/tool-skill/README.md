@@ -87,6 +87,8 @@ At each eligible `agent/pre-step`, the plugin snapshots the calling session's sk
 
 The `/name` gesture listener scans only claimed user messages: a whitespace-bounded token naming a user-invocable skill in the workspace catalog injects the same `<skill_content>` rendering as a `user`-role instructions context appended after every other injection. Unknown names and user-disabled skills stay ordinary prose. This is the only entry point for `disable-model-invocation` skills, which the catalog and the `skill` tool never expose.
 
+When the provider reports a directory resource base, both paths record it outside the model-facing text: the `skill` result's durable `meta.resourceDirectory` and the injection source's `resourceDirectory`. `loadedSkillDirectories()` from `@aeven/skill` reads only those records, pairing each result with its logged `skill` call, so a confining sandbox ([`sessionSkillResources`](../../sandbox/sandbox-jail/README.md)) and a confined `read` ([`confineToWorkspace`](../../fs/tool-fs/README.md)) open exactly the directories the conversation loaded and nothing a skill body names.
+
 </details>
 
 -----
