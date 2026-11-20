@@ -21,6 +21,7 @@ import type {} from '@aeven/client-ui-layout/client'
 // Type-only: pulls the conversation service the extension prompt's continue sends through.
 import type {} from '@aeven/client-ui-conversation/client'
 import { createElement } from 'react'
+import { createSnapshotStore } from '@aeven/client-store'
 import { writeClipboard } from '@aeven/client-ui-primitives'
 import { BrowserPane } from './BrowserPane.tsx'
 import { SearchEngineRow, type SearchEngineRowInjected } from './SearchEngineRow.tsx'
@@ -452,8 +453,24 @@ export function apply(ctx: ClientContext): void {
   // when the Host has no such service or the browser refused to come up, which
   // is when the address belongs to the reader's own browser instead.
   let openChromium: ((sessionId: string, url: string) => Promise<boolean>) | null = null
+  // The product name of that Chromium, which the open control's tooltip names.
+  const chromiumName = createSnapshotStore<string | undefined>(undefined)
   ctx.inject(['remote', 'remote.browserChromium'], (scoped) => {
     const remote = scoped.remote
+    scoped.effect(() => {
+      let live = true
+      remote.browserChromium.describe().then((result) => {
+        if (!live) return
+        if (result.ok) chromiumName.set(result.value.name)
+        else console.error('ui-sidebar-browser: naming the Host Chromium failed', result.error)
+      }, (error: unknown) => {
+        console.error('ui-sidebar-browser: naming the Host Chromium failed', error)
+      })
+      return () => {
+        live = false
+        chromiumName.set(undefined)
+      }
+    }, 'ui-sidebar-browser: Host Chromium name')
     scoped.effect(() => {
       openChromium = async (sessionId, url) => {
         try {
@@ -651,7 +668,7 @@ export function apply(ctx: ClientContext): void {
 
   const Pane = ({ sessionId, surfaceId, active, visible, closeSurface }: SidebarContentPaneProps) =>
     createElement(BrowserPane, {
-      sessionId, tabId: surfaceId, active, closeTab: closeSurface, t, openInChrome, visible, search: searchEngines,
+      sessionId, tabId: surfaceId, active, closeTab: closeSurface, t, openInChrome, chromiumName, visible, search: searchEngines,
     })
   // The agent's browser_* tools reach this session's page. The session this
   // window shows, with its pane not mounted, reports that it can open one, and a

@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-20-sidebar-browser-names-host-chromium.md
+2026-11-20-sidebar-browser-names-host-chromium.md: 82b627566da811e45317250f841583544b807ecd
+2026-11-20-sidebar-browser-names-host-chromium.zh.md: 6f056f4377717ae37bf510a337e048e7e802d4cb

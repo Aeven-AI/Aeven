@@ -1,9 +1,21 @@
-/** Client-safe types of the Host's Chromium: what opening reports and what status reports. @module @aeven/browser-chromium/types */
+/**
+ * Client-safe types of the Host's Chromium: what opening reports, which browser it is, and what status reports.
+ * @module @aeven/browser-chromium/types
+ */
 
 /** What opening the browser reports. */
 export interface BrowserChromiumOpened {
   /** The debugging endpoint chrome-devtools-mcp attaches to. */
   readonly browserUrl: string
+}
+
+/** Which browser the Host launches, for a Client to name it to the reader. */
+export interface BrowserChromiumIdentity {
+  /**
+   * Product name of the resolved executable ("Chrome", "Edge", "Brave"); absent
+   * when no executable was found or its file name is not a known Chromium browser.
+   */
+  readonly name?: string
 }
 
 /**

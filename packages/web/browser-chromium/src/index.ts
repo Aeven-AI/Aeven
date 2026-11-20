@@ -34,7 +34,7 @@
 
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { delimiter, join } from 'node:path'
+import { basename, delimiter, join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { Agent } from '@aeven/agent'
@@ -42,9 +42,9 @@ import type {} from '@aeven/tools'
 import { resolveAvnHome } from '@aeven/home-paths'
 import { Remote, TypertRemoteService } from '@aeven/typert-protocol'
 import { DevtoolsSendGate } from './devtools-gate.ts'
-import type { BrowserChromiumOpened, BrowserChromiumStatus } from './types.ts'
+import type { BrowserChromiumIdentity, BrowserChromiumOpened, BrowserChromiumStatus } from './types.ts'
 
-export type { BrowserChromiumOpened, BrowserChromiumStatus } from './types.ts'
+export type { BrowserChromiumIdentity, BrowserChromiumOpened, BrowserChromiumStatus } from './types.ts'
 export { isLocalHost, isSendControl, isSendKey, isSendLabel, isSendScript, isWriteScript, pageSite, publishVerb, sendApproval } from './send-gate.ts'
 export type { PageSite, PublishVerb, SendApproval } from './send-gate.ts'
 export { guardScript, outboundProbe } from './outbound-probe.ts'
@@ -68,8 +68,9 @@ declare module '@deepseek-ai/cordis' {
 /** Where the browser runs and what it stores. */
 export interface Config {
   /**
-   * Chromium or Chrome executable. A blank or omitted value uses
-   * `AVN_CHROME_PATH`, then a platform install. None found leaves the host up.
+   * Executable of any Chromium-based browser. A blank or omitted value uses
+   * `AVN_CHROME_PATH`, then the first platform install of Chrome, Chromium,
+   * Chrome Canary, Edge, Brave, Vivaldi, or Opera. None found leaves the host up.
    */
   executablePath?: string
   /** Remote debugging port; chrome-devtools-mcp's `--browserUrl` names the same one. */
@@ -172,6 +173,16 @@ export class BrowserChromium extends TypertRemoteService {
   }
 
   /**
+   * Name the browser this Host launches, without launching it.
+   * @returns the product name of the resolved executable, when it is a known Chromium browser.
+   */
+  @Remote('describe')
+  remoteExportDescribe(): Promise<BrowserChromiumIdentity> {
+    const name = this.executablePath === undefined ? undefined : browserName(this.executablePath)
+    return Promise.resolve(name === undefined ? {} : { name })
+  }
+
+  /**
    * Whether a browser answers on the debugging endpoint now.
    * @param signal - caller cancellation.
    * @returns true when the endpoint answers.
@@ -263,6 +274,9 @@ function chromeCandidates(): readonly string[] {
       '/Applications/Chromium.app/Contents/MacOS/Chromium',
       '/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary',
       '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+      '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
+      '/Applications/Vivaldi.app/Contents/MacOS/Vivaldi',
+      '/Applications/Opera.app/Contents/MacOS/Opera',
     ]
     : process.platform === 'win32'
       ? [process.env.PROGRAMFILES, process.env['PROGRAMFILES(X86)'], process.env.LOCALAPPDATA]
@@ -270,15 +284,39 @@ function chromeCandidates(): readonly string[] {
         .flatMap(root => [
           join(root, 'Google', 'Chrome', 'Application', 'chrome.exe'),
           join(root, 'Microsoft', 'Edge', 'Application', 'msedge.exe'),
+          join(root, 'BraveSoftware', 'Brave-Browser', 'Application', 'brave.exe'),
+          join(root, 'Vivaldi', 'Application', 'vivaldi.exe'),
+          join(root, 'Opera', 'opera.exe'),
+          join(root, 'Programs', 'Opera', 'opera.exe'),
         ])
       : []
   const names = process.platform === 'win32'
-    ? ['chrome.exe', 'msedge.exe']
-    : ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser', 'microsoft-edge']
+    ? ['chrome.exe', 'msedge.exe', 'brave.exe', 'vivaldi.exe', 'opera.exe']
+    : ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser', 'microsoft-edge', 'microsoft-edge-stable', 'brave-browser', 'brave', 'vivaldi', 'vivaldi-stable', 'opera']
   const onPath = (process.env.PATH ?? '').split(delimiter)
     .filter(dir => dir !== '')
     .flatMap(dir => names.map(name => join(dir, name)))
   return [...fixed, ...onPath]
+}
+
+/** Product names by lowercased executable basename, without `.exe`, across the macOS, Windows, and Linux installs. */
+const BROWSER_NAMES: ReadonlyMap<string, string> = new Map([
+  ...['google chrome', 'chrome', 'google-chrome', 'google-chrome-stable'].map(file => [file, 'Chrome'] as const),
+  ['google chrome canary', 'Chrome Canary'],
+  ...['chromium', 'chromium-browser'].map(file => [file, 'Chromium'] as const),
+  ...['microsoft edge', 'msedge', 'microsoft-edge', 'microsoft-edge-stable'].map(file => [file, 'Edge'] as const),
+  ...['brave browser', 'brave', 'brave-browser'].map(file => [file, 'Brave'] as const),
+  ...['vivaldi', 'vivaldi-stable'].map(file => [file, 'Vivaldi'] as const),
+  ['opera', 'Opera'],
+])
+
+/**
+ * Name a browser executable by its file name.
+ * @param executablePath - the resolved executable.
+ * @returns its product name, or undefined for a file name no known browser uses.
+ */
+function browserName(executablePath: string): string | undefined {
+  return BROWSER_NAMES.get(basename(executablePath).toLowerCase().replace(/\.exe$/, ''))
 }
 
 export default BrowserChromium
