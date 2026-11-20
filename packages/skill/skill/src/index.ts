@@ -195,7 +195,7 @@ export function loadedSkillDirectories(
       readonly message?: { readonly content?: unknown; readonly source?: { readonly callId?: unknown } }
       readonly meta?: { readonly resourceDirectory?: unknown }
       readonly source?: { readonly kind?: unknown; readonly resourceDirectory?: unknown }
-    } | undefined
+    } | null | undefined
     if (data === undefined || data === null) continue
     if (event.type === 'assistant/message' && Array.isArray(data.message?.content)) {
       for (const block of data.message.content as readonly { type?: unknown; id?: unknown; name?: unknown }[]) {

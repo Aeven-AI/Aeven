@@ -129,7 +129,6 @@ export interface EgressConfig extends Omit<EgressLimits, 'unlimitedAccounts'> {
   limits: CgroupLimits
 }
 
-/** Plugin config. */
 /** Bounds on the skill resources one command mounts, each counted across every skill its conversation loaded. */
 export interface SkillResourceLimits {
   /** Most files; each is one descriptor the launch step opens and one copy bubblewrap makes. */
@@ -138,6 +137,7 @@ export interface SkillResourceLimits {
   maxBytes: number
 }
 
+/** Plugin config. */
 export interface Config {
   /** Absolute directory whose direct children are account directories; every workspace root must lie inside one of them. */
   accountsRoot: string
