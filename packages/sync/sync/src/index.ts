@@ -120,8 +120,11 @@ export interface SyncStatus {
   state: SyncState
   /** True while relay history or received frames are still being applied; absent when no download is pending. */
   catchingUp?: boolean
-  /** The transfer that failed; absent after it succeeds. Queued local changes remain stored. */
-  error?: 'upload' | 'download'
+  /**
+   * The transfer that failed, absent after it succeeds; queued local changes remain stored. `sign-in` means the relay
+   * refused every credential this device holds for the account, so sync waits until a client of it signs in again.
+   */
+  error?: 'upload' | 'download' | 'sign-in'
   /** How the account's key is held; absent until this device has read it from the relay once. */
   protection?: SyncProtection
   /** This device's id; absent for an account this device has never synced. */

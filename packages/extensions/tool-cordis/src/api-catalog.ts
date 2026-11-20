@@ -10097,7 +10097,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SyncStatus',
-    declaration: 'export interface SyncStatus {\n    state: SyncState;\n    catchingUp?: boolean;\n    error?: \'upload\' | \'download\';\n    protection?: SyncProtection;\n    device?: DeviceId;\n    pending: number;\n    queued: number;\n}',
+    declaration: 'export interface SyncStatus {\n    state: SyncState;\n    catchingUp?: boolean;\n    error?: \'upload\' | \'download\' | \'sign-in\';\n    protection?: SyncProtection;\n    device?: DeviceId;\n    pending: number;\n    queued: number;\n}',
   },
   {
     name: 'SyncStreamBatch',
@@ -10105,7 +10105,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SyncView',
-    declaration: 'export interface SyncView {\n    readonly state: SyncViewState;\n    readonly catchingUp?: boolean;\n    readonly error?: \'upload\' | \'download\';\n    readonly pending: number;\n    readonly queued: number;\n    readonly sessionsPending: number;\n    readonly sessionsTotal: number;\n    readonly protection?: SyncProtectionView;\n    readonly passkey?: SyncPasskeyView;\n}',
+    declaration: 'export interface SyncView {\n    readonly state: SyncViewState;\n    readonly catchingUp?: boolean;\n    readonly error?: \'upload\' | \'download\' | \'sign-in\';\n    readonly pending: number;\n    readonly queued: number;\n    readonly sessionsPending: number;\n    readonly sessionsTotal: number;\n    readonly protection?: SyncProtectionView;\n    readonly passkey?: SyncPasskeyView;\n}',
   },
   {
     name: 'SyncViewState',

@@ -62,8 +62,8 @@ export interface MaintainRequest {
   }
 }
 
-/** What a worker request answers with: opened frames, prepared parts, map entries, or nothing. */
-type WorkerValue = OpenedFrame[] | Uint8Array[] | Record<string, Record<string, unknown[]>> | boolean | null
+/** What a worker request answers with: opened frames, prepared parts, map entries, missing clocks, or nothing. */
+type WorkerValue = OpenedFrame[] | Uint8Array[] | Record<string, Record<string, unknown[]>> | Array<[number, number]> | boolean | null
 
 /** The worker's answer to one request. */
 export type WorkerReply =
@@ -136,12 +136,13 @@ export class SyncOffload {
   }
 
   /**
-   * Compact a document and queue its snapshot on the worker, which reads and writes the store itself.
+   * Compact a document and queue its snapshot on the worker, which reads and writes the store itself. A copy that
+   * waits for a missing update queues no snapshot.
    * @param request - the store, the document, and what to do.
-   * @returns when the store holds the result.
+   * @returns each writer's first missing clock once the store holds the result, empty when the copy is complete.
    */
-  async maintain(request: MaintainRequest): Promise<void> {
-    await this.request({ method: 'maintain', ...request })
+  async maintain(request: MaintainRequest): Promise<Array<[number, number]>> {
+    return await this.request({ method: 'maintain', ...request }) as Array<[number, number]>
   }
 
   /**

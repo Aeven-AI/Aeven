@@ -159,7 +159,7 @@ describe('a vault on two devices', () => {
     docB.close()
   })
 
-  it('publishes again the updates the other devices refused while its counters had restarted', async () => {
+  it('applies an update published under a counter that fell behind, because it carries what the copy lacks', async () => {
     const owner = `restart-owner-${String(++accounts)}`
     const a = device(owner)
     const b = device(owner)
@@ -170,7 +170,7 @@ describe('a vault on two devices', () => {
     const docB = b.vault.openDocument('sessions/index')
     docA.doc.getMap('sessions').set('chat', { next: 1 })
     await vi.waitFor(() => { expect(docB.doc.getMap('sessions').get('chat')).toEqual({ next: 1 }) })
-    // The next write leaves under a counter below the one the other device accepted, and it refuses it.
+    // The next write leaves under a counter below the one the other device accepted; it still carries new content.
     const copy = new Y.Doc()
     Y.applyUpdate(copy, Y.encodeStateAsUpdate(docA.doc))
     const lost: Uint8Array[] = []
@@ -182,15 +182,6 @@ describe('a vault on two devices', () => {
       a.store.appendDocUpdate(id, update)
       await first.request('publish', { frame: Buffer.from(sealEnvelope({ kind: 'update', id, accountKey, device: a.store.deviceId(), counter: 1, payload: update })).toString('base64url') })
     }
-    await vi.waitFor(() => { expect(relay.account(owner).frames.filter(frame => frame.id === id)).toHaveLength(2) })
-    await new Promise(resolve => setTimeout(resolve, 50))
-    expect(docB.doc.getMap('sessions').get('chat')).toEqual({ next: 1 })
-    const raw = new Database(a.store.path)
-    raw.prepare("DELETE FROM meta WHERE key = 'reconciled'").run()
-    raw.close()
-    first.close()
-    await vi.waitFor(() => { expect(a.vault.status().state).not.toBe('online') })
-    await connect(owner, a)
     await vi.waitFor(() => { expect(docB.doc.getMap('sessions').get('chat')).toEqual({ next: 767 }) })
     docB.close()
   })

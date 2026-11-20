@@ -5333,10 +5333,9 @@ export interface Config {
   /** Largest message a local-network link accepts, in bytes. */
   lanMaxBytes: number
   /**
-   * Whether each account stays connected to the relay while none of its clients is signed in here. The first
-   * connection opened with a user's access token asks the relay for a sync grant, kept in the account's store, and
-   * later connections present the grant when no access token resolves. A Host that serves an account's browser
-   * sessions sets it, so the account is current before the browser opens.
+   * Whether this Host is always on, serving an account's browser sessions: it stamps no `seenAt` presence on its
+   * device entry, since the account's desktops read an always-on device as present. Every Host keeps its accounts
+   * connected through the sync grant its first signed-in connection received.
    */
   keepConnected: boolean
   /**
