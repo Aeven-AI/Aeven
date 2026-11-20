@@ -331,6 +331,8 @@ export class Automations extends Service<Config> {
       for (const [id] of [...hooks.table('webhooks').entries()]) {
         if (domain.table('definitions').get(id) === undefined) await hooks.table('webhooks').delete(id)
       }
+      // A definition another device synced here before this Host created inbound keys for synced definitions has none.
+      for (const [, definition] of domain.table('definitions').entries()) await this.alignCredential(definition)
       return domain
     })
     ctx.effect(async () => {
@@ -1650,6 +1652,7 @@ export class Automations extends Service<Config> {
       if (entry.definition === undefined) {
         if (current === undefined) return
         await domain.table('definitions').delete(id)
+        await (await this.hooks).table('webhooks').delete(id)
         this.arm(domain)
         return
       }
@@ -1663,6 +1666,9 @@ export class Automations extends Service<Config> {
       const definition = parsed.data
       if (current !== undefined && JSON.stringify(current) === JSON.stringify(definition)) return
       await domain.table('definitions').put(id, definition)
+      // Inbound keys stay on the Host that holds them, so a webhook or GitHub trigger gets this Host's own key here;
+      // the bot's page on this Host shows the address and key that reach this Host.
+      await this.alignCredential(definition)
       this.arm(domain)
     }).catch((error: unknown) => {
       this.ctx.logger.warn(`automations: another device's automation was not stored: ${String(error)}`)
