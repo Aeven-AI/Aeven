@@ -750,8 +750,9 @@ export type Config = LocalConfig
 /** Where the browser runs and what it stores. */
 export interface Config {
   /**
-   * Chromium or Chrome executable. A blank or omitted value uses
-   * `AVN_CHROME_PATH`, then a platform install. None found leaves the host up.
+   * Executable of any Chromium-based browser. A blank or omitted value uses
+   * `AVN_CHROME_PATH`, then the first platform install of Chrome, Chromium,
+   * Chrome Canary, Edge, Brave, Vivaldi, or Opera. None found leaves the host up.
    */
   executablePath?: string
   /** Remote debugging port; chrome-devtools-mcp's `--browserUrl` names the same one. */

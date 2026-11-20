@@ -15,6 +15,7 @@
  */
 import type { ReactNode } from 'react'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import type { ObservableSnapshot } from '@aeven/client-store'
 import type { BrowserOverlay } from '@aeven/experimental-browser-overlay/src/overlay.ts'
 import { acquireColumnPointer } from '@aeven/experimental-browser-overlay/src/column-pointer.ts'
 import { Button, Modal } from '@aeven/client-ui-primitives'
@@ -112,8 +113,10 @@ export interface BrowserPaneProps {
   readonly closeTab: () => void
   /** Translate function bound to the `sidebarBrowser` dictionary. */
   readonly t: TranslateNS<'sidebarBrowser'>
-  /** Open an address in the Host's Chrome, the profile the agent's DevTools tools drive. */
+  /** Open an address in the Host's Chromium, the profile the agent's DevTools tools drive. */
   readonly openInChrome: (sessionId: string, url: string) => void
+  /** Product name of the Host's Chromium ("Chrome", "Edge", "Brave"); undefined until the Host reports one it knows. */
+  readonly chromiumName: ObservableSnapshot<string | undefined>
   /** Whether the pane is on screen; the agent pointer draws only then and leaves the moment it is not. */
   readonly visible: boolean
   /** The reader's search engine: what a query searches with, and where completions come from. */
@@ -125,7 +128,8 @@ export interface BrowserPaneProps {
  * @param props - see {@link BrowserPaneProps}.
  * @returns the browser element tree.
  */
-export function BrowserPane({ sessionId, tabId, active, closeTab, t, openInChrome, visible, search }: BrowserPaneProps): ReactNode {
+export function BrowserPane(props: BrowserPaneProps): ReactNode {
+  const { sessionId, tabId, active, closeTab, t, openInChrome, chromiumName, visible, search } = props
   const guestRef = useRef<BrowserGuest | null>(null)
   // The column hands a fresh callback each render; the guest's registration reads the latest.
   const closeTabRef = useRef(closeTab)
@@ -144,6 +148,10 @@ export function BrowserPane({ sessionId, tabId, active, closeTab, t, openInChrom
   const engine = useSyncExternalStore(
     listener => search.engine.subscribe(listener),
     () => search.engine.getSnapshot(),
+  )
+  const browserName = useSyncExternalStore(
+    listener => chromiumName.subscribe(listener),
+    () => chromiumName.getSnapshot(),
   )
   const [zoomFactor, setZoomFactor] = useState(1)
   const zoomRef = useRef(1)
@@ -617,6 +625,7 @@ export function BrowserPane({ sessionId, tabId, active, closeTab, t, openInChrom
         suggestions={suggestions}
         placeholder={t(SEARCH_PLACEHOLDER_KEYS[engine])}
         onOpenInChrome={() => { openInChrome(sessionId, state.url) }}
+        openInLabel={browserName === undefined ? t('openInBrowser') : t('openIn', { browser: browserName })}
         onCapture={() => {
           const guest = guestRef.current
           const id = guest === null ? undefined : webContentsIdOf(guest)

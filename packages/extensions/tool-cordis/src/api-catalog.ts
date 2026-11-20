@@ -895,6 +895,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the debugging endpoint, whether a browser answers on it now, whether a launch can succeed, and the tool prefix that drives it.',
       },
       {
+        signature: '@Remote(\'describe\') remoteExportDescribe(): Promise<BrowserChromiumIdentity>',
+        description: 'Name the browser this Host launches, without launching it.',
+        parameters: [],
+        returns: 'the product name of the resolved executable, when it is a known Chromium browser.',
+      },
+      {
         signature: '@Remote(\'open\') async remoteExportOpen(agent: Agent, url: string, signal: AbortSignal): Promise<BrowserChromiumOpened>',
         description: 'Open the browser at an address: launch it, or bring the running one to the front.',
         parameters: [{ name: 'agent', description: 'the session asking; every session shares the one browser.' }, { name: 'url', description: 'the http(s) address to show, or empty for the browser\'s start page.' }, { name: 'signal', description: 'caller cancellation.' }],
@@ -6576,6 +6582,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'BrowserAutomationRequestEvent',
     declaration: 'export interface BrowserAutomationRequestEvent {\n    operation: BrowserAutomationOperation;\n    input: {\n        [key: string]: JsonValue;\n    };\n    agent?: Agent;\n    timeoutMs?: number;\n    signal?: AbortSignal;\n}',
+  },
+  {
+    name: 'BrowserChromiumIdentity',
+    declaration: 'export interface BrowserChromiumIdentity {\n    readonly name?: string;\n}',
   },
   {
     name: 'BrowserChromiumOpened',

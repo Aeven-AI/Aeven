@@ -172,6 +172,12 @@ Launches and addresses the Host's Chromium.
 async status(signal: AbortSignal): Promise<BrowserChromiumStatus>
 
 /**
+ * Name the browser this Host launches, without launching it.
+ * @returns the product name of the resolved executable, when it is a known Chromium browser.
+ */
+@Remote('describe') remoteExportDescribe(): Promise<BrowserChromiumIdentity>
+
+/**
  * Open the browser at an address: launch it, or bring the running one to the front.
  * @param agent - the session asking; every session shares the one browser.
  * @param url - the http(s) address to show, or empty for the browser's start page.

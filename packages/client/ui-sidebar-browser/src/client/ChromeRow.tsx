@@ -39,8 +39,13 @@ export interface ChromeRowProps {
   suggestions: readonly string[]
   /** Placeholder naming the engine a query searches with. */
   placeholder: string
-  /** Open the page in the Host's Chrome, the profile the agent's DevTools tools drive; revealed on hover over the address. */
+  /**
+   * Open the page in the Host's Chromium, the profile the agent's DevTools tools
+   * drive; shown at the address's end whenever a page is loaded, focused or not.
+   */
   onOpenInChrome: () => void
+  /** Tooltip and accessible name of that control, naming the browser it opens. */
+  openInLabel: string
   /** The address field itself, so the pane can point its agent cursor at it. */
   addressRef?: { current: HTMLInputElement | null }
   /** An address the agent is typing, shown instead of the committed one while it arrives. */
@@ -106,7 +111,7 @@ export function ChromeRow(props: ChromeRowProps): ReactNode {
           </Tooltip>
         </div>
 
-        <div className={css.address}>
+        <div className={css.address} data-addon={url !== ''}>
           <input
             ref={(node) => {
               inputRef.current = node
@@ -165,10 +170,11 @@ export function ChromeRow(props: ChromeRowProps): ReactNode {
               inputRef.current?.blur()
             }}
           />
-          {!focused && url !== '' && (
+          {url !== '' && (
             <span className={css.addressAddon}>
-              <Tooltip label={t('openInChrome')} side="bottom">
-                <button type="button" className={css.control} data-control="open-in-chrome" aria-label={t('openInChrome')} onClick={props.onOpenInChrome}>
+              <Tooltip label={props.openInLabel} side="bottom">
+                {/* Pressing it keeps the address focused, so a draft being typed survives the click. */}
+                <button type="button" className={css.control} data-control="open-in-chrome" aria-label={props.openInLabel} onMouseDown={(event) => { event.preventDefault() }} onClick={props.onOpenInChrome}>
                   <IconLucideSquareArrowOutUpRight />
                 </button>
               </Tooltip>

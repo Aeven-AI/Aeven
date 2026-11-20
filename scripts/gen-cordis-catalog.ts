@@ -796,6 +796,7 @@ export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   AutomationRunId: 'package-owned type is documented in packages/core/automations/src/types.ts',
   AutomationSchedule: 'package-owned type is documented in packages/core/automations/src/types.ts',
   HostProfile: 'package-owned type is documented in packages/core/automations/src/types.ts',
+  BrowserChromiumIdentity: 'package-owned type is documented in packages/web/browser-chromium/src/types.ts',
   BrowserChromiumOpened: 'package-owned type is documented in packages/web/browser-chromium/src/types.ts',
   BrowserChromiumStatus: 'package-owned type is documented in packages/web/browser-chromium/src/types.ts',
   Capability: 'package-owned type is documented in packages/capability/capability/src/types.ts',

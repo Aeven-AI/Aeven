@@ -113,17 +113,14 @@
   outline: none;
 }
 
-/* The open-in-Chrome control appears over the address's end on hover, and
-   the text makes room for it rather than running under it: a 24px control 3px
-   in, with a 14px glyph. */
+/* The open-in-Chrome control sits at the address's end whenever a page is
+   loaded, and the text makes room for it rather than running under it: a 24px
+   control 3px in, with a 14px glyph. */
 .addressAddon {
   position: absolute;
   inset: 0 3px 0 auto;
   display: flex;
   align-items: center;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 150ms ease-out;
 }
 
 .addressAddon .control {
@@ -137,12 +134,7 @@
   height: 14px;
 }
 
-.address:hover .addressAddon {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.address:hover .addressInput {
+.address[data-addon="true"] .addressInput {
   padding-right: 30px;
 }
 
