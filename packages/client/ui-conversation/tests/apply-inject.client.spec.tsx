@@ -38,7 +38,7 @@ async function bench() {
   new TestRemote(runtime.ctx, { session: {} })
   runtime.ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
   const connectWorkspace = vi.fn(async () => ROOT)
-  runtime.ctx.provide('uiWorkspace', { connectWorkspace } as never)
+  runtime.ctx.provide('uiWorkspace', { connectWorkspace, frameMessage: (_id: string, text: string) => text } as never)
   const sessionFake = sessionFakeFor()
   await runtime.sessions.add({
     id: ROOT,

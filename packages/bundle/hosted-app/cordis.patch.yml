@@ -262,7 +262,7 @@
     runTimeoutMinutes: 60
     misfireGraceMinutes: 15
     historyLimit: 200
-    workspaceTitle: Automations
+    workspaceTitle: Runs
     webhookMaxBodyBytes: 8192
     githubMaxBodyBytes: 1048576
     queueDepth: 5

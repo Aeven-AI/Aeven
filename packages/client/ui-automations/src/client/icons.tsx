@@ -1,4 +1,4 @@
-/** Lucide 0.564 glyphs (ISC) for the starter tiles; sized and coloured by the tile that carries them. */
+/** Lucide glyphs (ISC) for the starter tiles; sized and coloured by the tile that carries them. */
 
 /** Glyph props: the tile's class sizes the icon. */
 interface GlyphProps { className?: string }
@@ -128,14 +128,6 @@ export const IconGitPullRequest = ({ className }: GlyphProps) => (
   </svg>
 )
 
-/** lucide `trending-up`: rising trend line. */
-export const IconTrendingUp = ({ className }: GlyphProps) => (
-  <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
-    <path d="M16 7h6v6" />
-    <path d="m22 7-8.5 8.5-5-5L2 17" />
-  </svg>
-)
-
 /** lucide `utensils`: fork and knife. */
 export const IconUtensils = ({ className }: GlyphProps) => (
   <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
@@ -192,5 +184,80 @@ export const IconPlug = ({ className }: GlyphProps) => (
     <path d="M15 8V2" />
     <path d="M17 8a1 1 0 0 1 1 1v4a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1z" />
     <path d="M9 8V2" />
+  </svg>
+)
+
+/** lucide `megaphone`: marketing. */
+export const IconMegaphone = ({ className }: GlyphProps) => (
+  <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+    <path d="M11 6a13 13 0 0 0 8.4-2.8A1 1 0 0 1 21 4v12a1 1 0 0 1-1.6.8A13 13 0 0 0 11 14H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z" />
+    <path d="M6 14a12 12 0 0 0 2.4 7.2 2 2 0 0 0 3.2-2.4A8 8 0 0 1 10 14" />
+    <path d="M8 6v8" />
+  </svg>
+)
+
+/** lucide `handshake`: sales. */
+export const IconHandshake = ({ className }: GlyphProps) => (
+  <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+    <path d="m11 17 2 2a1 1 0 1 0 3-3" />
+    <path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4" />
+    <path d="m21 3 1 11h-2" />
+    <path d="M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3" />
+    <path d="M3 4h8" />
+  </svg>
+)
+
+/** lucide `headset`: customer support. */
+export const IconHeadset = ({ className }: GlyphProps) => (
+  <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+    <path d="M3 11h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5Zm0 0a9 9 0 1 1 18 0m0 0v5a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3Z" />
+    <path d="M21 16v2a4 4 0 0 1-4 4h-5" />
+  </svg>
+)
+
+/** lucide `user-search`: recruiting. */
+export const IconUserSearch = ({ className }: GlyphProps) => (
+  <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="10" cy="7" r="4" />
+    <path d="M10.3 15H7a4 4 0 0 0-4 4v2" />
+    <circle cx="17" cy="17" r="3" />
+    <path d="m21 21-1.9-1.9" />
+  </svg>
+)
+
+/** lucide `wallet`: finance. */
+export const IconWallet = ({ className }: GlyphProps) => (
+  <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+    <path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1" />
+    <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4" />
+  </svg>
+)
+
+/** lucide `clipboard-list`: chief of staff. */
+export const IconClipboardList = ({ className }: GlyphProps) => (
+  <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+    <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+    <path d="M12 11h4" />
+    <path d="M12 16h4" />
+    <path d="M8 11h.01" />
+    <path d="M8 16h.01" />
+  </svg>
+)
+
+/** lucide `code-xml`: engineering. */
+export const IconCodeXml = ({ className }: GlyphProps) => (
+  <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+    <path d="m18 16 4-4-4-4" />
+    <path d="m6 8-4 4 4 4" />
+    <path d="m14.5 4-5 16" />
+  </svg>
+)
+
+/** lucide `pen-line`: content creation. */
+export const IconPenLine = ({ className }: GlyphProps) => (
+  <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+    <path d="M13 21h8" />
+    <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" />
   </svg>
 )

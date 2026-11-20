@@ -11,7 +11,7 @@ import { RemoteError } from '@aeven/client-test-runtime'
 import type { RemoteResult } from '@aeven/api-remotes/client'
 import { SessionId } from '@aeven/session/types'
 import { DirectoryBrowseError, UiWorkspaceService } from '../src/client/navigation.ts'
-import type { SessionUrlNavigation } from '../src/client/session-url.ts'
+import { BrowserSessionUrlNavigation, type SessionUrlNavigation, type SessionUrlWindow } from '../src/client/session-url.ts'
 
 const sid = (id: string): SessionId => SessionId(id)
 const wid = (id: string): WorkspaceId => id as WorkspaceId
@@ -205,6 +205,10 @@ class FakeSessionUrl implements SessionUrlNavigation {
     return undefined
   }
 
+  matchStart(): string | undefined {
+    return undefined
+  }
+
   pushStart(): void {}
 
   subscribeAddress(): () => void {
@@ -318,6 +322,8 @@ interface BenchOptions {
   readonly workspaces?: WorkspaceSnapshot
   readonly sessions?: SessionListState
   readonly sessionUrl?: FakeSessionUrl
+  /** A real address-bar projection, for cases that read start addresses; it replaces the fake. */
+  readonly browserUrl?: SessionUrlNavigation
 }
 
 function bench(options: BenchOptions = {}) {
@@ -331,7 +337,7 @@ function bench(options: BenchOptions = {}) {
     directoryPicker.remote,
     workspaces,
     sessions as unknown as ISessions,
-    sessionUrl,
+    options.browserUrl ?? sessionUrl,
   )
   return { ctx, directoryPicker, sessions, sessionUrl, uiWorkspace, workspaces }
 }
@@ -852,6 +858,53 @@ describe('UiWorkspaceService', () => {
     await expect(b.uiWorkspace.createDirectory('/home/u', 'new')).rejects.toMatchObject({
       rpcError: { code: 'directory-picker/exists' },
     })
+  })
+})
+
+/** A browser address bar the real URL projection reads and writes. */
+function browserAt(path: string): SessionUrlWindow {
+  const location = { href: `http://127.0.0.1:3080${path}` }
+  return {
+    location,
+    history: {
+      pushState: (_data, _unused, url) => { if (url != null) location.href = new URL(String(url), location.href).href },
+      replaceState: (_data, _unused, url) => { if (url != null) location.href = new URL(String(url), location.href).href },
+    },
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }
+}
+
+describe('UiWorkspaceService start pages', () => {
+  const BOT = '/bots/3a2b1c0d-5e6f-4a7b-8c9d-0e1f2a3b4c5d'
+
+  it('resolves each start address to its claim\'s key, composer, and placeholder', () => {
+    const browser = browserAt('/')
+    const { uiWorkspace } = bench({ browserUrl: new BrowserSessionUrlNavigation(() => browser) })
+    uiWorkspace.registerStartAddress('/bots/runs', { composer: false })
+    uiWorkspace.registerStartAddress('/bots/:id', { composerPlaceholder: () => 'Change this bot…' })
+    expect(uiWorkspace.startPage('/bots/runs')).toEqual({ key: '/bots/runs', composer: false, composerPlaceholder: undefined })
+    expect(uiWorkspace.startPage(BOT)).toEqual({ key: '/bots/:id', composer: true, composerPlaceholder: 'Change this bot…' })
+    expect(uiWorkspace.startPage('/bots/new')).toBeUndefined()
+  })
+
+  it('frames only the message sent from the blank Session the open start page shows', () => {
+    const blank = summary('blank', { blank: true })
+    const other = summary('other')
+    const browser = browserAt('/')
+    const { uiWorkspace } = bench({
+      sessions: sessionState([blank, other], blank.id),
+      workspaces: workspaceState([workspace('one', [blank.id, other.id])]),
+      browserUrl: new BrowserSessionUrlNavigation(() => browser),
+    })
+    const frame = vi.fn((path: string, text: string) => `@[Radar](avn-bot:${path.slice(path.lastIndexOf('/') + 1)}) ${text}`)
+    uiWorkspace.registerStartAddress('/bots/:id', { frameMessage: frame })
+    // Before the page is open nothing is framed.
+    expect(uiWorkspace.frameMessage(blank.id, 'run at 7')).toBe('run at 7')
+    uiWorkspace.openStartAddress(BOT)
+    expect(uiWorkspace.frameMessage(blank.id, 'run at 7')).toBe('@[Radar](avn-bot:3a2b1c0d-5e6f-4a7b-8c9d-0e1f2a3b4c5d) run at 7')
+    expect(frame).toHaveBeenCalledWith(BOT, 'run at 7')
+    expect(uiWorkspace.frameMessage(other.id, 'run at 7')).toBe('run at 7')
   })
 })
 

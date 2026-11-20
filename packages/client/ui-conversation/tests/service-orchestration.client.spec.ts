@@ -12,7 +12,7 @@ import { InputHub } from '../src/client/input/hub.ts'
 import { ConversationController, UnsupportedImageMediaTypeError } from '../src/client/service.ts'
 import { zh } from '../src/client/locales.ts'
 
-async function bench() {
+async function bench(frameMessage: (sessionId: string, text: string) => string = (_id, text) => text) {
   const runtime = await SlotTestRuntime.create()
   const prompt = vi.fn(() => Promise.resolve({ ok: true as const, value: { accepted: true as const } }))
   const updateQueue = vi.fn(() => Promise.resolve({ ok: true as const, value: { accepted: true as const } }))
@@ -24,7 +24,7 @@ async function bench() {
   })
   // config.input is required (the apply shares its hub with the inject
   // factories); the bench passes its own instance explicitly.
-  const hub = new InputHub(runtime.ctx, makeTranslate(zh, {}))
+  const hub = new InputHub(runtime.ctx, makeTranslate(zh, {}), frameMessage)
   const fiber = runtime.ctx.plugin(ConversationController, {
     input: hub,
     blocks: new ComposerBlockRegistry(),
@@ -72,6 +72,19 @@ describe('ConversationController', () => {
     expect(b.updateQueue).toHaveBeenCalledWith('item-1', { kind: 'remove' })
     expect(b.cancel).toHaveBeenCalledOnce()
     expect(b.loadOlder).toHaveBeenCalledOnce()
+    await b.runtime.dispose()
+  })
+
+  it('sends the typed message as the open start page frames it for that Session', async () => {
+    const framed = vi.fn((sessionId: string, text: string) => `@[Radar](avn-bot:bot-1) ${text} (${sessionId})`)
+    const b = await bench(framed)
+    b.shell.setDraft('run it at 7 instead')
+    b.shell.submit()
+    await vi.waitFor(() => { expect(b.prompt).toHaveBeenCalledOnce() })
+    expect(framed).toHaveBeenCalledWith('s1', 'run it at 7 instead')
+    expect(b.prompt.mock.calls[0]).toEqual(expect.arrayContaining([
+      [{ type: 'text', text: '@[Radar](avn-bot:bot-1) run it at 7 instead (s1)' }],
+    ]))
     await b.runtime.dispose()
   })
 
@@ -170,7 +183,7 @@ describe('ConversationController', () => {
     // No Client Sessions service at all: a bare context lacks the assembled controller.
     const bare = new Context()
     await bare.plugin(ConversationController, {
-      input: new InputHub(bare, makeTranslate(zh, {})),
+      input: new InputHub(bare, makeTranslate(zh, {}), (_id, text) => text),
       blocks: new ComposerBlockRegistry(),
     }).await()
     const orphan = bare.get('conversation') as ConversationController

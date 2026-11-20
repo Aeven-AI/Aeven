@@ -105,4 +105,30 @@ describe('BrowserSessionUrlNavigation', () => {
     browser.navigate('/')
     expect(changes).toBe(5)
   })
+
+  it('resolves a start address exactly, or by an :id pattern whose last segment is a UUID', () => {
+    const browser = new FakeWindow()
+    const navigation = new BrowserSessionUrlNavigation(() => browser)
+    const bot = '/bots/3a2b1c0d-5e6f-4a7b-8c9d-0e1f2a3b4c5d'
+    const releases = [navigation.registerStart('/bots'), navigation.registerStart('/bots/runs'), navigation.registerStart('/bots/:id')]
+
+    expect(navigation.matchStart('/bots')).toBe('/bots')
+    // An exact registration wins over the pattern its parent declares.
+    expect(navigation.matchStart('/bots/runs')).toBe('/bots/runs')
+    expect(navigation.matchStart(bot)).toBe('/bots/:id')
+    for (const path of ['/bots/new', '/bots/session-3a2b1c0d', '/bots/3a2b1c0d-5e6f-4a7b-8c9d-0e1f2a3b4c5d/runs', '/botsx']) {
+      expect(navigation.matchStart(path)).toBeUndefined()
+    }
+
+    // The address bar reads the concrete address, and the chat owns it.
+    browser.navigate(bot)
+    expect(navigation.readStart()).toBe(bot)
+    expect(navigation.ownsAddress()).toBe(true)
+    browser.navigate('/bots/new')
+    expect(navigation.readStart()).toBeUndefined()
+    expect(navigation.ownsAddress()).toBe(false)
+
+    for (const release of releases) release()
+    expect(navigation.matchStart(bot)).toBeUndefined()
+  })
 })

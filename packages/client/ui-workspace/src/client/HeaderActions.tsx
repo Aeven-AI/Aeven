@@ -54,14 +54,14 @@ function ViewOptionsMenu({
           : []),
         { type: 'separator' as const, id: 'show-separator' },
         { type: 'label' as const, id: 'show', text: t('show.label') },
-        { id: 'show-archived', label: t('show.archived') },
         { id: 'show-automations', label: t('show.automations') },
+        { id: 'show-archived', label: t('show.archived') },
       ]}
       selectedIds={[
         groupBy,
         ...(groupBy === 'workspace' ? [orderBy] : []),
-        ...(showArchived ? ['show-archived'] : []),
         ...(showAutomations ? ['show-automations'] : []),
+        ...(showArchived ? ['show-archived'] : []),
       ]}
       onSelect={(id) => {
         if (id === 'workspace' || id === 'status') onGroupPick(id)

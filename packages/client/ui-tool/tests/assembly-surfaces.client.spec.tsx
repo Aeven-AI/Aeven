@@ -87,6 +87,8 @@ async function bench(nodes: ToolResultNode[]) {
     // The Conversation inject reads the address bar's start address as a hook
     // source; a double without it crashes the whole conversation slot.
     startAddress: { getSnapshot: () => undefined, subscribe: () => () => {} },
+    startPage: () => undefined,
+    frameMessage: (_id: string, text: string) => text,
   } as never)
   const locale = new LocaleRuntime(runtime.ctx)
   runtime.ctx.provide('locale', locale)

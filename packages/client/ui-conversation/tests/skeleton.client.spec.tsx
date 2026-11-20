@@ -204,6 +204,8 @@ function mount(
     sidebarCollapsed?: boolean
     /** The frame's fold action; absent when no layout frame owns the column. */
     toggleSidebar?: () => void
+    /** The open start address and how its claim shows it. */
+    startPage?: { address: string; key: string; composer: boolean; composerPlaceholder?: string }
   } = {},
 ) {
   const root = sid('root')
@@ -261,8 +263,8 @@ function mount(
   /** Owner share handed to the two composer tool-row seats, per render. */
   const seatOwners: { key: string; owner: unknown }[] = []
   let pickerOwner: unknown
-  const renderSlot = ((key: string, owner: object, opts?: { only?: string; fallback?: ReactNode }) => {
-    slotCalls.push(key)
+  const renderSlot = ((key: string, owner: object, opts?: { only?: string; fallback?: ReactNode; entryKey?: string }) => {
+    slotCalls.push(key === 'conversation.start' ? `${key}:${opts?.entryKey ?? ''}` : key)
     if (key === 'conversation.input.model' || key === 'conversation.input.plan') {
       seatOwners.push({ key, owner })
     }
@@ -392,7 +394,10 @@ function mount(
     useProjection: (() => undefined),
     useComposerBlock: select => select(options.composerBlock),
     useSelectedView: select => select(options.selectedView),
-    useStartAddress: select => select(undefined),
+    useStartAddress: select => select(options.startPage?.address),
+    startPage: path => options.startPage?.address === path
+      ? { key: options.startPage.key, composer: options.startPage.composer, composerPlaceholder: options.startPage.composerPlaceholder }
+      : undefined,
     useArchivedSessionIds: select => select([]),
     useInput,
     inputActions,
@@ -626,6 +631,27 @@ describe('ConversationRoot resident composer', () => {
     expect(box.getAttribute('contenteditable')).toBe('true')
     expect(box.getAttribute('data-placeholder')).toBe('问我任何问题')
     expect(b.retargetWorkspace).not.toHaveBeenCalled()
+  })
+
+  it('shows a start page by its registration key and keeps a composer-less page\'s composer mounted but hidden', () => {
+    const b = mount(sessionSnapshotOf({ blank: true }), undefined, undefined, {
+      summaryBlank: true, startPage: { address: '/bots/runs', key: '/bots/runs', composer: false },
+    })
+    expect(b.slotCalls).toContain('conversation.start:/bots/runs')
+    const seat = b.view.container.querySelector('[data-composer-seat]')
+    expect(seat?.hasAttribute('data-composer-hidden')).toBe(true)
+    // Hidden, not unmounted: the draft's editor survives a move to a page with a composer.
+    expect(seat?.contains(b.view.getByRole('textbox'))).toBe(true)
+  })
+
+  it('resolves a patterned start address to its key and names the composer in the page\'s words', () => {
+    const b = mount(sessionSnapshotOf({ blank: true }), undefined, undefined, {
+      summaryBlank: true,
+      startPage: { address: '/bots/3a2b1c0d-5e6f-4a7b-8c9d-0e1f2a3b4c5d', key: '/bots/:id', composer: true, composerPlaceholder: 'Change this bot…' },
+    })
+    expect(b.slotCalls).toContain('conversation.start:/bots/:id')
+    expect(b.view.container.querySelector('[data-composer-seat]')?.hasAttribute('data-composer-hidden')).toBe(false)
+    expect(b.view.getByRole('textbox').getAttribute('data-placeholder')).toBe('Change this bot…')
   })
 
   it('sends the message a link left for this tab as a blank Session\'s first message, once', () => {

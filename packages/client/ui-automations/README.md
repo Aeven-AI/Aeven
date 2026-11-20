@@ -1,5 +1,5 @@
 ---
-description: "The built-in task-first Automations sidebar screen."
+description: "The built-in Bots pages: overview, one page per bot, and runs."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The sidebar opens `/automations`, including direct navigation and refresh. Creation and adjustment use the ordinary composer and conversation approval. The wide page shows next runs, latest outcomes, trigger-gated starter templates grouped by category with their local schedule, a personal suggestion starter, a status pill per bot, pause/resume, manual execution whose button becomes Stop while the bot has a queued or running run, with the bot's pill spinning until the run has stopped, deletion, each automation's runs, a Runs view across automations, retries of failed runs, removal of single runs, and clearing the finished run history. Every run row links to the run's conversation, which holds its result. Deleting an automation, removing one run, clearing the runs, and retrying a failed run each ask in the page's own dialog before acting. Clearing the runs removes every finished record and archives each one's conversation, so it leaves the sidebar. A single 30px control row carries the view switcher and the primary action. Cards are flat white blocks at the 30px surface radius without a stroke, and card actions come from the shared button primitive at its compact size. Status pills are 30px tall with a 15px radius and 14px text; every state uses the same `#f2f2f2` fill without an outline. Starters that read email, calendar, or GitHub show a Connect action while the signed-in account has none of that group's connectors connected and enabled; it opens that connector in Settings. Compositions without account integrations show no Connect actions. The screen uses the same authenticated Connection as conversations and never stores authoritative schedules in the browser.
+The sidebar's Bots link opens `/bots`, including direct navigation and refresh. `/bots` lists each bot as a card that links to its page, then boards, then ideas grouped by category with their local schedule, and has the ordinary composer at the bottom. An idea fills that composer without sending it, so the reader can change it first; while the account has no bot, an empty state sits above the ideas. `/bots/<id>` is one bot's page: a pinned card with its name, schedule, Run now or Stop, pause, and an options menu holding Delete, then its next run, last result, task, and runs, then an always-open Advanced card with overlap, saved approvals, GitHub and webhook triggers, and where it runs. Its composer reads "Change this bot…": the first message sent from it names the bot as an `avn-bot` mention, which the sent bubble shows as a bot chip, so the reader types only the change. `/bots/runs` lists runs across bots with retry, single-run removal, and clearing the finished history, and has no composer. Every run row links to the run's conversation, which holds its result. Deleting a bot, removing one run, clearing the runs, retrying a failed run, and replacing or removing a webhook key each ask in the page's own dialog before acting. Every creation and change still goes through the conversation's own approval. Starters that read email, calendar, or GitHub show a Connect action while the signed-in account has none of that group's connectors connected and enabled; it opens that connector in Settings. The pages use the same authenticated Connection as conversations and never store authoritative schedules in the browser.
 
 ## Table of Contents
 
@@ -19,16 +19,25 @@ The sidebar opens `/automations`, including direct navigation and refresh. Creat
 
 ## Model Experience
 
-None, as this page registers no tool and no prompt section; a starter only fills a localized draft that sends nothing until the person submits it.
+### Bot mention in a bot page's first message
+
+#### What the model sees
+
+The first message sent from a bot's page begins with `@[<bot name>](avn-bot:<bot id>)`, followed by what the reader typed, so the model reads which bot the change concerns and passes that id to `automation_update`. Starters only fill a localized draft that sends nothing until the person submits it, and the pages register no tool and no prompt section.
+
+#### Token effect
+
+The mention adds a few tokens to that one user message; no tool schema, tool result, or per-Turn context is added.
 
 #### KV Cache effect
 
-None; no prompt input originates here.
+The mention is part of a logged user message, so it enters the conversation like any typed text and leaves the reusable prompt prefix unchanged.
+
 ## Known Limitations and Deferred Work
 
-The screen manages local execution. It refreshes visible history every five seconds. Notifications, a view of saved approvals, and cloud placement are deferred.
+The pages refresh visible history every five seconds. Editing a bot's name or schedule in place on its page, without a conversation, is deferred. A connected-account list shows raw connector ids, so the bot's page leaves it out.
 
-- **Invariant omission** — No invariant companion is published because this surface owns no durable state: every automation fact it shows comes from the `automation-control` RPC, and the page keeps only its view selection, the reader's own composer draft, and the five-second history refresh.
+- **Invariant omission** — No invariant companion is published because this surface owns no durable state: every automation fact it shows comes from the `automation-control` RPC, and the pages keep only the open address, the reader's own composer draft, and the five-second history refresh.
 
 ### Dev Note
 
