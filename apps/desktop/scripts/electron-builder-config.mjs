@@ -1,4 +1,5 @@
 import {
+  DESKTOP_STORE_PACKAGE_ENV,
   DESKTOP_UNSIGNED_ENV,
   resolveDesktopAppId,
   resolveDesktopDeployment,
@@ -13,6 +14,20 @@ import { MACOS_NETWORK_SETTINGS, MACOS_TEXT_INPUT_SETTINGS, MACOS_USAGE_DESCRIPT
 
 /** GitHub repository whose Releases carry the installers and the update feed. */
 export const DESKTOP_RELEASE_REPOSITORY = { owner: 'Aeven-AI', repo: 'Aeven' }
+
+/** The one-line product description that installed-app surfaces show; package.json `description` addresses maintainers. */
+const DESKTOP_SYNOPSIS = 'Model-independent AI operating layer'
+
+/**
+ * Package identity Partner Center assigned to the reserved "Æven" product (Store ID 9P7Q0BFG2Z9B). The Store rejects
+ * a package whose identity or display name differs from these values.
+ */
+export const MICROSOFT_STORE_IDENTITY = {
+  identityName: 'AevenAI.ven',
+  publisher: 'CN=361943AA-1813-410C-890C-540D8C89681E',
+  publisherDisplayName: 'AevenAI',
+  displayName: 'Æven',
+}
 
 /**
  * Create electron-builder configuration from one release environment.
@@ -31,7 +46,10 @@ export function createElectronBuilderConfig(
   const targetPlatform = env.AVN_DESKTOP_TARGET_PLATFORM
   const packagesMacOS = targetPlatform === 'darwin' || (targetPlatform === undefined && hostPlatform === 'darwin')
   const packagesWindows = targetPlatform === 'win32'
-  const unsigned = env[DESKTOP_UNSIGNED_ENV] === '1'
+  // The Store pass packs an already packaged application directory and leaves the package unsigned: the Store
+  // signs what it distributes, and a Trusted Signing certificate never matches the Store-assigned publisher.
+  const storePackage = packagesWindows && env[DESKTOP_STORE_PACKAGE_ENV] === '1'
+  const unsigned = storePackage || env[DESKTOP_UNSIGNED_ENV] === '1'
   const macOSRelease = packagesMacOS && !unsigned
   const macOSSigning = macOSRelease ? resolveMacOSSigningEnvironment(env) : undefined
   if (macOSRelease) resolveMacOSNotarizationEnvironment(env)
@@ -47,13 +65,15 @@ export function createElectronBuilderConfig(
     protocols: [{ name: 'Aeven', schemes: ['aeven'] }],
     // An unsigned build shares the artifacts directory, so its name says so: it cannot be mistaken for a release
     // installer, and the upload plan, which looks up the release names exactly, never picks one up.
-    artifactName: `aeven-\${version}-\${os}-\${arch}${unsigned ? '-unsigned' : ''}.\${ext}`,
-    directories: { output: buildPaths.artifacts },
+    artifactName: `aeven-\${version}-\${os}-\${arch}${storePackage ? '-store' : unsigned ? '-unsigned' : ''}.\${ext}`,
+    // The Store pass reads its manifest template and tile images from installer/appx.
+    directories: { output: buildPaths.artifacts, ...storePackage ? { buildResources: 'installer' } : {} },
     asar: true,
     // The shell's file locks load koffi's per-platform `.node` binary, which the dynamic loader cannot read from an archive.
     asarUnpack: ['node_modules/@koromix/**'],
     // The shell hands these to its Host, whose profile rows read them; see DESKTOP_DEPLOYMENT_ENV_NAMES.
-    extraMetadata: { aevenDeployment: deployment },
+    // The Store package manifest takes its Description from the metadata.
+    extraMetadata: { aevenDeployment: deployment, ...storePackage ? { description: DESKTOP_SYNOPSIS } : {} },
     // Chromium's UI strings for the client's locales (`LOCALE_IDS` in @aeven/client-locale): macOS names
     // its bundles `en.lproj`/`zh_CN.lproj`, Windows and Linux `en-US.pak`/`zh-CN.pak`.
     electronLanguages: ['en-US', 'zh-CN', 'zh_CN'],
@@ -116,7 +136,21 @@ export function createElectronBuilderConfig(
       icon: 'resources/icon-windows.ico',
       forceCodeSigning: !unsigned,
       ...azureSignOptions === undefined ? {} : { azureSignOptions },
-      target: ['nsis'],
+      target: [storePackage ? 'appx' : 'nsis'],
+    },
+    appx: {
+      ...MICROSOFT_STORE_IDENTITY,
+      applicationId: 'Aeven',
+      backgroundColor: 'transparent',
+      // The client's locales (`LOCALE_IDS` in @aeven/client-locale); Partner Center lists the Store page in these.
+      languages: ['en-US', 'zh-CN', 'es-ES'],
+      // The template adds the desktop6 properties that turn off file-system and registry write virtualization, so
+      // AppData and the browsers' native-messaging registration under HKCU stay where unpackaged programs read them.
+      customManifestPath: 'appx/AppxManifest.xml',
+      // Windows 10 1903 is the first release that honours the desktop6 virtualization properties.
+      minVersion: '10.0.18362.0',
+      maxVersionTested: '10.0.26100.0',
+      capabilities: ['runFullTrust', 'unvirtualizedResources', 'location', 'microphone', 'webcam'],
     },
     linux: {
       // Linux launchers draw icons unmasked on a padded grid, which the inset macOS tile matches. Each
@@ -127,8 +161,8 @@ export function createElectronBuilderConfig(
       // Electron sets the window's app_id and WM_CLASS from package.json `desktopName`; the installed
       // `.desktop` file takes the same name, so docks and taskbars draw this entry's icon for the window.
       syncDesktopName: true,
-      // The launcher Comment and the deb description; package.json `description` addresses maintainers.
-      synopsis: 'Model-independent AI operating layer',
+      // The launcher Comment and the deb description.
+      synopsis: DESKTOP_SYNOPSIS,
       description: 'Aeven is an open, model-independent AI operating layer for your digital life. It connects your files, apps, messages, browser, and tools so you can start with what you want to accomplish.',
       // The deb installs Chromium's setuid sandbox helper, which distributions that restrict
       // unprivileged user namespaces require before an AppImage can start.
@@ -137,7 +171,9 @@ export function createElectronBuilderConfig(
     },
     // electron-builder 26's default AppImage runtime loads the system libfuse2, which Ubuntu 22.04 and
     // later no longer install by default; the static runtime also starts where only FUSE 3 exists.
-    toolsets: { appimage: '1.0.3' },
+    // Without a winCodeSign toolset electron-builder packs AppX with the legacy Windows 10 1809 kit, whose makeappx
+    // rejects the manifest's desktop6 properties; 1.1.0 carries the Windows SDK 10.0.26100 kit.
+    toolsets: { appimage: '1.0.3', ...storePackage ? { winCodeSign: '1.1.0' } : {} },
     deb: {
       // Electron's runtime libraries, ALSA included for microphone dictation. Debian 13 and Ubuntu 24.04
       // renamed several for 64-bit time; the old name is the fallback on older releases.

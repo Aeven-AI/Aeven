@@ -261,6 +261,16 @@ jobs:
           path: release-assets/*
           if-no-files-found: error
 
+      # The unsigned Microsoft Store package goes to Partner Center, never to the GitHub Release: Windows installs
+      # only a signed package, and the Store signs the one it distributes.
+      - name: Upload the Microsoft Store package
+        if: startsWith(inputs.target, 'win-')
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: store-${{ inputs.target }}
+          path: apps/desktop/.desktop-build/targets/${{ inputs.target }}/artifacts/*.appx
+          if-no-files-found: error
+
   release:
     name: Upload to GitHub Release
     needs: build

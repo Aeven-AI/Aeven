@@ -13,6 +13,12 @@ export const MACOS_TEAM_ID_ENV = 'AVN_DESKTOP_MACOS_TEAM_ID'
 export const DESKTOP_UNSIGNED_ENV = 'AVN_DESKTOP_UNSIGNED'
 
 /**
+ * Environment variable whose value `1` makes electron-builder pack an already packaged Windows application
+ * directory into the unsigned Microsoft Store package; the Store signs the package it distributes.
+ */
+export const DESKTOP_STORE_PACKAGE_ENV = 'AVN_DESKTOP_STORE_PACKAGE'
+
+/**
  * Deployment settings the shipped profile rows read from the Host environment: the Aeven account, web, and media
  * services, the provider sign-in URLs, and the public Slack client id. A packaged application carries them because
  * no `.env` reaches an installed copy; `AEVEN_API_URL` is required, since without it sign-in targets a local server.

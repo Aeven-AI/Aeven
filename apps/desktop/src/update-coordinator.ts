@@ -32,7 +32,8 @@ export class DesktopUpdateCoordinator {
    * @param prepare - ready a downloaded release for its restart; a rejection
    * reports the update as failed.
    * @param updater - Electron artifact updater; replaceable for tests.
-   * @param enabled - whether this packaged process carries updater configuration.
+   * @param enabled - whether this packaged process carries updater configuration;
+   * a Microsoft Store install never does, because the Store replaces its package.
    */
   constructor(
     private readonly publish: (state: DesktopUpdateState) => DesktopUpdateState,
@@ -40,7 +41,7 @@ export class DesktopUpdateCoordinator {
     private readonly prepare: (version: string) => Promise<void> = async () => {},
     private readonly updater: AppUpdater = autoUpdater,
     private readonly enabled: () => boolean = () => (
-      app.isPackaged && existsSync(join(process.resourcesPath, 'app-update.yml'))
+      app.isPackaged && process.windowsStore !== true && existsSync(join(process.resourcesPath, 'app-update.yml'))
     ),
   ) {
     // A found release downloads at once, so the offer is about installing what

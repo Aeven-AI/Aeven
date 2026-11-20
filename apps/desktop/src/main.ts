@@ -1094,10 +1094,14 @@ async function main(): Promise<void> {
     if (window !== undefined && !window.isDestroyed()) void window.loadURL(appPathUrl(path))
   }
   // A development launch runs Electron with this app's entry as an argument, which the registration must repeat.
-  if (process.defaultApp && process.argv[1] !== undefined) {
-    app.setAsDefaultProtocolClient(DEEP_LINK_SCHEME, process.execPath, [resolve(process.argv[1])])
-  } else {
-    app.setAsDefaultProtocolClient(DEEP_LINK_SCHEME)
+  // A Microsoft Store package declares the scheme in its manifest instead: its install folder changes with every
+  // Store update, so no registry entry may name it.
+  if (process.windowsStore !== true) {
+    if (process.defaultApp && process.argv[1] !== undefined) {
+      app.setAsDefaultProtocolClient(DEEP_LINK_SCHEME, process.execPath, [resolve(process.argv[1])])
+    } else {
+      app.setAsDefaultProtocolClient(DEEP_LINK_SCHEME)
+    }
   }
   if (development !== undefined && process.env.AVN_DESKTOP_OPEN_DEVTOOLS !== '0') {
     appWindow.webContents.openDevTools({ mode: 'detach' })

@@ -125,7 +125,7 @@ pnpm run package:desktop:win:x64
 
 ### 图标
 
-`resources/` 存放应用图标，`installer/assets/` 存放 NSIS 侧边栏图片；每个位图都按自身边长从同目录的 SVG 渲染。macOS 的应用与挂载后的 DMG 卷使用 `icon-macos.icns`，Windows 的可执行文件、安装程序与卸载程序使用 `icon-windows.ico`，Linux 包使用 `linux/icons/`，为 16 至 512 px 的每个图标主题尺寸各提供一个 PNG，未打包的 Linux 运行则使用 `icon-macos.png`。`installer-sidebar.bmp` 填充 Windows 安装程序与卸载程序的欢迎页和完成页。后台运行图标在 Windows 上使用 `tray-windows.ico`（16–64 px），在 macOS 上使用菜单栏模板图 `trayTemplate.png`（19 px，附 `@2x`），在 Linux 上使用 `linux/icons/24x24.png`。
+`resources/` 存放应用图标，`installer/assets/` 存放 NSIS 侧边栏图片；每个位图都按自身边长从同目录的 SVG 渲染。macOS 的应用与挂载后的 DMG 卷使用 `icon-macos.icns`，Windows 的可执行文件、安装程序与卸载程序使用 `icon-windows.ico`，Linux 包使用 `linux/icons/`，为 16 至 512 px 的每个图标主题尺寸各提供一个 PNG，未打包的 Linux 运行则使用 `icon-macos.png`。`installer-sidebar.bmp` 填充 Windows 安装程序与卸载程序的欢迎页和完成页。`installer/appx/` 存放 Microsoft Store 磁贴图片，每张都从 `resources/icon-windows.svg` 按包清单解析的某个缩放比例或目标尺寸渲染。后台运行图标在 Windows 上使用 `tray-windows.ico`（16–64 px），在 macOS 上使用菜单栏模板图 `trayTemplate.png`（19 px，附 `@2x`），在 Linux 上使用 `linux/icons/24x24.png`。
 
 ### Linux 软件包
 
@@ -149,6 +149,12 @@ macOS 配置使用必填发布环境，不会接受钥匙串中最先发现的�
 ### Windows 签名
 
 签名的 Windows 构建会通过 Azure Trusted Signing，使用 electron-builder 的 `win.azureSignOptions` 签署可执行文件、安装包及卸载程序。它读取 `AZURE_TRUSTED_SIGNING_ENDPOINT`、`AZURE_TRUSTED_SIGNING_ACCOUNT_NAME`、`AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME` 与 `AZURE_TRUSTED_SIGNING_PUBLISHER_NAME`，Azure SDK 则通过 `AZURE_TENANT_ID`、`AZURE_CLIENT_ID` 与 `AZURE_CLIENT_SECRET` 认证服务主体。构建主机上不存放证书或令牌。打包会把这些字段从构建与 seed 准备子进程中移除，只交给 electron-builder；缺少它们时，签名的 Windows 构建会在预检时停止，`--unsigned` 则不签名构建。
+
+### Microsoft Store 包
+
+每条 Windows 打包命令还会把未打包的应用打成 `aeven-<version>-win-<arch>-store.appx`，供 Partner Center 以 "Æven" 预留的 Microsoft Store 产品（Store ID `9P7Q0BFG2Z9B`）使用。第二次 electron-builder 运行带 `--prepackaged` 与 `AVN_DESKTOP_STORE_PACKAGE=1`，打包安装程序所携带的应用（包括已签名的可执行文件），包本身保持未签名：Store 会为其分发的包签名，而 Windows 不会安装来自其他来源的未签名包。`scripts/electron-builder-config.mjs` 中的 `MICROSOFT_STORE_IDENTITY` 保存 Partner Center 分配的身份；身份或显示名称不一致的包会被 Store 拒绝。
+
+`installer/appx/AppxManifest.xml` 关闭文件系统与注册表写入虚拟化（由 `unvirtualizedResources` 受限功能许可），因此 Store 安装与 NSIS 安装共享 `%APPDATA%`、单实例锁，以及浏览器在 `HKCU` 下的 native messaging 键。Store 安装在清单中声明 `aeven://` 协议，且从不运行 electron-updater，因为由 Store 替换它的包。发布工作流把每个架构的包作为 `store-win-<arch>` 工作流产物上传，而不是发布资产；两个包都放进同一个 Partner Center 提交。
 
 使用对应的 `:dir` 命令可以生成可直接运行的应用目录，而不是安装包，例如：
 
