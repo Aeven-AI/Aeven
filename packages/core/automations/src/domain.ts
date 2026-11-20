@@ -76,7 +76,8 @@ function currentDefinition(value: unknown): unknown {
     lastAdmittedAt: typeof lastAdmittedAt === 'string' ? { 0: lastAdmittedAt } : {},
   }
 }
-const definitionSchema = z.preprocess(currentDefinition, inputSchema.extend({
+/** Validate a stored or account-synced definition, reading one stored before the trigger list into the current shape. */
+export const definitionSchema = z.preprocess(currentDefinition, inputSchema.extend({
   id: automationId, owner: text.optional(), revision: z.number().int().positive(),
   status: z.enum(['active', 'paused']), agentPreset: text,
   connectors: connectorsSchema, overlap,

@@ -23,7 +23,7 @@ import { SessionId, SessionSeq, type Session } from '@aeven/session'
 import { LeaseHolder } from '@aeven/sync'
 import type { Domain } from '@aeven/storage-domain'
 import { setApprovalPolicy, type ApprovalRequestId } from '@aeven/user-approval'
-import { automationDomain, webhookDomain, inputSchema, patchSchema, boardInputSchema, CONNECTOR_IDS } from './domain.ts'
+import { automationDomain, webhookDomain, inputSchema, patchSchema, boardInputSchema, CONNECTOR_IDS, definitionSchema } from './domain.ts'
 import { connectorRefusal } from './connectors.ts'
 import { matchesGitHub, summarizeGitHub, verifiesGitHub } from './github.ts'
 import { describeMail, matchesMail, newMail } from './mail-events.ts'
@@ -1650,8 +1650,16 @@ export class Automations extends Service<Config> {
         this.arm(domain)
         return
       }
-      if (current !== undefined && JSON.stringify(current) === JSON.stringify(entry.definition)) return
-      await domain.table('definitions').put(id, entry.definition)
+      // Another device's definition crosses a wire boundary, and a device on an earlier build writes the earlier
+      // shape; the stored record is the parsed one, since the storage layer keeps what it is given.
+      const parsed = definitionSchema.safeParse(entry.definition)
+      if (!parsed.success || parsed.data.id !== id) {
+        this.ctx.logger.warn(`automations: another device's automation ${id} does not match the definition format; it was not stored`)
+        return
+      }
+      const definition = parsed.data
+      if (current !== undefined && JSON.stringify(current) === JSON.stringify(definition)) return
+      await domain.table('definitions').put(id, definition)
       this.arm(domain)
     }).catch((error: unknown) => {
       this.ctx.logger.warn(`automations: another device's automation was not stored: ${String(error)}`)
