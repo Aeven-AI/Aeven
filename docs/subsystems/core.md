@@ -821,13 +821,22 @@ Built-in automation service; schedules never authorize additional tool access.
  * History leaves out runs whose conversation is archived, so it lists what the sidebar's Automations
  * workspace shows; unarchiving the conversation lists the run again. Each definition's `lastRun` is its
  * latest retained run either way.
- * @returns owned definitions, latest run records, and this Host's kind and the triggers it evaluates. A
- * definition's `placement` says where it runs among the account's registered Hosts, and its `webhook` says
- * an inbound credential exists; the secret itself never enters this projection.
+ * @returns owned definitions, latest run records, the account's boards with the handoffs between their members,
+ * and this Host's kind and the triggers it evaluates. A definition's `placement` says where it runs among the
+ * account's registered Hosts, its `nextRunAt` is the earliest next occurrence of its schedule triggers, and its
+ * `webhook` says an inbound credential exists; the secret itself never enters this projection.
  */
-async list(): Promise<{ definitions: (AutomationDefinition & { placement: AutomationPlacement; nextRunAt: string | null; lastRun: AutomationRun | null; webhook: boolean })[]; runs: AutomationRun[]; capabilities: { host: HostProfile['kind']; triggers: readonly AutomationSchedule['kind'][]; webhook: boolean }; hosts: { cloud: boolean; desktops: AutomationDesktop[] } }>
+async list(): Promise<{ definitions: (AutomationDefinition & { placement: AutomationPlacement nextRunAt: string | null lastRun: AutomationRun | null webhook: boolean })[] runs: AutomationRun[] boards: AutomationBoard[] handoffs: Handoff[] capabilities: { host: HostProfile['kind']; triggers: readonly AutomationSchedule['kind'][]; webhook: boolean; events: readonly ('mail' | 'github')[]; connectors: readonly string[] } hosts: { cloud: boolean; desktops: AutomationDesktop[] } }>
 
-/** Give one owned automation an inbound trigger credential, keeping an existing one.
+/**
+ * The connectors a conversation may use while it executes a bot's run, so a connector provider can leave the
+ * others unmounted; the run's tool guard refuses them either way.
+ * @param sessionId - any conversation.
+ * @returns the bot's binding while the conversation executes a run, otherwise undefined.
+ */
+connectorBinding(sessionId: SessionId): ConnectorBinding | undefined
+
+/** Give one owned automation an inbound webhook trigger and its credential, keeping an existing credential.
  * @param id - owned definition identity.
  * @returns the credential path and key to show once; the key is never listed again.
  */
@@ -839,9 +848,9 @@ async enableWebhook(id: AutomationId): Promise<{ path: string; keyId: string; se
  */
 async rotateWebhook(id: AutomationId): Promise<{ path: string; keyId: string; secret: string }>
 
-/** Revoke one owned automation's inbound credential.
+/** Remove one owned automation's inbound webhook trigger; its credential goes too unless a GitHub trigger uses it.
  * @param id - owned definition identity.
- * @returns resolution after the credential is gone; a later request with the old key is refused.
+ * @returns resolution after the trigger is gone; a later bearer request is refused.
  */
 async disableWebhook(id: AutomationId): Promise<void>
 
@@ -882,16 +891,17 @@ stopRun(id: AutomationRunId): Promise<AutomationRun>
 /**
  * Admit one run from an authenticated inbound request.
  * The presented key is the whole authority, so this path reads no acting account.
- * A paused automation, or one this Host may not run, refuses the request; work already in flight records the
- * occurrence as skipped rather than queueing behind it.
+ * A paused automation, one without a webhook trigger, or one this Host may not run refuses the request; work
+ * already in flight follows the bot's overlap policy.
  * @param id - automation named by the request path.
  * @param key - bearer credential presented by the caller.
  * @param payload - accepted request body, marked untrusted in the run notice.
- * @returns the admitted or skipped run; its execution proceeds in the background.
+ * @param idempotencyKey - the request's `Idempotency-Key`, which deduplicates only when the trigger asks for it.
+ * @returns the admitted, skipped, or earlier run of the same key; its execution proceeds in the background.
  */
-async requestRun(id: AutomationId, key: string, payload: string | null): Promise<AutomationRun>
+async requestRun(id: AutomationId, key: string, payload: string | null, idempotencyKey?: string): Promise<AutomationRun>
 
-/** Remove an owned definition, its inbound credential, while retaining its run history.
+/** Remove an owned definition and its inbound credential while retaining its run history; it leaves its boards.
  * @param id - owned definition identity.
  * @returns resolution after durable deletion.
  */
@@ -916,6 +926,29 @@ removeRun(id: AutomationRunId): Promise<void>
  * No earlier conversation or grant is inherited.
  */
 retry(id: AutomationRunId): Promise<AutomationRun>
+
+/** Revoke one saved approval of an owned automation, so its next run asks again.
+ * @param id - owned definition identity.
+ * @param toolName - the approved tool.
+ * @param scope - the approved scope.
+ * @returns the definition without that grant.
+ */
+revokeGrant(id: AutomationId, toolName: string, scope: string): Promise<AutomationDefinition>
+
+/**
+ * Save one board of the acting account: a new one without `id`, or a replacement of an owned one. A member that
+ * leaves releases the open handoffs addressed to it on this board.
+ * @param input - name, members, and budget; every member must be an owned bot.
+ * @param id - the board to replace, or undefined for a new one.
+ * @returns the stored board.
+ */
+saveBoard(input: BoardInput, id?: BoardId): Promise<AutomationBoard>
+
+/** Remove one board of the acting account; the handoffs it carried stay with their bots.
+ * @param id - owned board identity.
+ * @returns resolution after durable deletion.
+ */
+removeBoard(id: BoardId): Promise<void>
 ```
 
 Source: [`packages/core/automations/src/index.ts`](../../packages/core/automations/src/index.ts)

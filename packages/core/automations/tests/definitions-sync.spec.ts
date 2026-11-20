@@ -45,7 +45,7 @@ function create(harness: AutomationHarness, overrides: Partial<AutomationInput> 
   return harness.automations.create({
     name: 'Nightly report',
     prompt: 'Write the nightly report and verify its numbers.',
-    schedule: QUIET_SCHEDULE,
+    triggers: [{ kind: 'schedule', schedule: QUIET_SCHEDULE }],
     permission: 'read-only',
     ...overrides,
   }, agent as never)
@@ -206,7 +206,7 @@ describe('automation definitions across devices', () => {
     const network = new MemorySyncNetwork()
     const a = await device(network, network.device())
     const b = await device(network, network.device())
-    await create(a, { schedule: HOURLY })
+    await create(a, { triggers: [{ kind: 'schedule', schedule: HOURLY }] })
     await advanceUntil(0, async () => (await names(b)).includes('Nightly report') ? true : undefined, 'the definition on the second device')
     const scheduled = async () => {
       const runs = [...(await listAutomations(a)).runs, ...(await listAutomations(b)).runs]
@@ -225,7 +225,7 @@ describe('automation definitions across devices', () => {
     const syncB = network.device()
     const a = await device(network, syncA)
     const b = await device(network, syncB)
-    const created = await create(a, { schedule: HOURLY })
+    const created = await create(a, { triggers: [{ kind: 'schedule', schedule: HOURLY }] })
     await advanceUntil(0, async () => (await names(b)).includes('Nightly report') ? true : undefined, 'the definition on the second device')
     // The second device holds this automation's claim when the occurrence comes due.
     network.leases.set(`automations/${created.id}`, { holder: syncB.id, expiresAt: Date.parse(START) + 3_600_000 })
@@ -253,7 +253,7 @@ describe('automation definitions across devices', () => {
     const network = new MemorySyncNetwork()
     const syncA = network.device()
     const a = await device(network, syncA)
-    const created = await create(a, { schedule: HOURLY })
+    const created = await create(a, { triggers: [{ kind: 'schedule', schedule: HOURLY }] })
     network.leases.set(`automations/${created.id}`, { holder: 'gone', expiresAt: Date.parse(START) + 6 * 60_000 })
     await vi.advanceTimersByTimeAsync(5 * 60_000 + 1)
     expect((await listAutomations(a)).runs).toEqual([])

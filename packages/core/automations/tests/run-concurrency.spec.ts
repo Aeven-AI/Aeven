@@ -19,7 +19,7 @@ async function runFor(harness: AutomationHarness, owner: string, name: string) {
   const agent = { ctx: harness.ctx, session: { id: SessionId(`root-${owner}`), header: { owner } } }
   return harness.ctx.identityUsers.runAs({ id: owner }, async () => {
     const created = await harness.automations.create({
-      name, prompt: `Run ${name}.`, schedule: QUIET_SCHEDULE, permission: 'read-only',
+      name, prompt: `Run ${name}.`, triggers: [{ kind: 'schedule', schedule: QUIET_SCHEDULE }], permission: 'read-only',
     }, agent as never)
     return harness.automations.runNow(created.id)
   })
