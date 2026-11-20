@@ -245,7 +245,7 @@ index 4b2a476..b3e10d8 100644
  
  Restate in your own words what you think the user's goals are and what problem they're trying to solve.
 diff --git a/skills/interrogate/SKILL.md b/skills/interrogate/SKILL.md
-index 7d9674b..8831402 100644
+index 7d9674b..94816df 100644
 --- a/skills/interrogate/SKILL.md
 +++ b/skills/interrogate/SKILL.md
 @@ -1,7 +1,6 @@
@@ -261,7 +261,7 @@ index 7d9674b..8831402 100644
  ## Frame
  
 -The scope is what the user names. Otherwise it is the branch diff from its merge base with the base branch, through the working tree. State the intent with the **in-your-own-words** skill, from the user's message, the commits, and the PR description. Ask the user when the intent is unclear.
-+The scope is what the user names. Otherwise it is the branch diff from its merge base with the base branch, through the working tree. State the intent with the **in-your-own-words** skill, from the user's message, the commits, and the PR description. Ask the user when the intent is unclear. A delegate whose kickoff named `worker.md` asks no one: it picks the most likely intent, states it as an assumption, and goes on.
++The scope is what the user names. Otherwise it is the branch diff from its merge base with the base branch, through the working tree. State the intent with the **in-your-own-words** skill, from the user's message, the commits, and the PR description. Ask the user when the intent is unclear. A delegate, which never stops to ask, picks the likeliest intent and states it as an assumption in the output.
  
  ## Fan out
  
@@ -270,6 +270,14 @@ index 7d9674b..8831402 100644
  
  > Break this change. Prove each finding with a run against the real code, such as a failing test, a repro script, or command output that shows the wrong behavior. For a design or plan, run a prototype or probe the current tree. Keep repros in your own worktree. Report each finding with a title, the exact command, the output it printed, and the output the intent requires. Leave out anything you did not run. That covers style, naming, structure, and risks that need a future change to matter. No findings is a valid result.
  
+@@ -26,6 +25,6 @@ Skip arena Phases C, D, and E. Adversaries find different failures, so the verdi
+ 
+ ## Output
+ 
+-- **Intent**: the restatement.
++- **Intent**: the restatement. When you assumed it, say so and name the alternative you passed over, so the coordinator can correct it.
+ - **Findings**: for each verified finding, the command, its output, how it breaks the intent, and the adversaries that found it. Say "no verified findings" when none survive.
+ - **Dropped**: for each adversary, the count of dropped findings and why.
 diff --git a/skills/ketchup/SKILL.md b/skills/ketchup/SKILL.md
 index 667af54..abe8079 100644
 --- a/skills/ketchup/SKILL.md
