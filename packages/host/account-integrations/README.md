@@ -183,7 +183,7 @@ The Google connectors spawn the Workspace CLI binary through `GWS_BIN`. This pac
 
 #### What the model sees
 
-The [skill loader](../../skill/tool-skill/README.md) publishes enabled, model-invocable personal skills and loads their instruction bodies and resource directory on demand.
+The [skill loader](../../skill/tool-skill/README.md) publishes enabled, model-invocable personal skills and loads their instruction bodies and resource directory on demand. The provider writes that directory owner-only; a resource whose first bytes are `#!` is written executable, so instructions that run a bundled script by its path work after an install.
 
 #### Token effect
 

@@ -6,7 +6,9 @@
 # command that escapes its jail cannot read the credentials the proxy carries.
 # The socket directory belongs to that user's group with setgid; the Host's user
 # joins the group to create each account's subdirectory there, and others may
-# only traverse it. Also lets accounts install Python packages: pip joins the
+# only traverse it. Installs the GitHub CLI and the `gh` shim that sends its API reads
+# to the proxy's read-only GitHub route (`githubApi` in the egress config); the jail's
+# PATH puts <image>/shim first. Also lets accounts install Python packages: pip joins the
 # image, and aeven_user_site.py sends installs to the caller's ~/.local. Run as
 # root on the Host after every change to these files, then restart the Host so
 # its user joins the group; safe to rerun.
@@ -31,6 +33,8 @@ musl-gcc -static -O2 -Wall -o "$IMAGE/shim/aeven-egress-relay.new" "$HERE/egress
 chmod 0755 "$IMAGE/shim/aeven-egress-relay.new"
 mv -f "$IMAGE/shim/aeven-egress-relay.new" "$IMAGE/shim/aeven-egress-relay"
 install -m 0644 "$HERE/egress-proxy.mjs" "$IMAGE/shim/egress-proxy.mjs"
+[ -x /usr/bin/gh ] || DEBIAN_FRONTEND=noninteractive NEEDRESTART_SUSPEND=1 apt-get install -y -qq gh >/dev/null
+install -m 0755 "$HERE/gh-shim.sh" "$IMAGE/shim/gh"
 
 # The proxy's user, and the helper only the Host's group may execute, holding only the capabilities that switch to it.
 id "$EGRESS_USER" >/dev/null 2>&1 || useradd --system --user-group --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin "$EGRESS_USER"

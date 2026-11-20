@@ -7907,6 +7907,9 @@ importers:
       '@aeven/session-projection':
         specifier: workspace:^
         version: link:../../session/session-projection
+      '@aeven/skill':
+        specifier: workspace:^
+        version: link:../../skill/skill
       '@aeven/system-prompt':
         specifier: workspace:^
         version: link:../../core/system-prompt
@@ -10506,6 +10509,9 @@ importers:
       '@aeven/session':
         specifier: workspace:^
         version: link:../../core/session
+      '@aeven/skill':
+        specifier: workspace:^
+        version: link:../../skill/skill
       '@aeven/system-prompt':
         specifier: workspace:^
         version: link:../../core/system-prompt

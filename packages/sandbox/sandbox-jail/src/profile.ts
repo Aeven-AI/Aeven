@@ -54,6 +54,13 @@ export interface JailProfile {
 /** First descriptor number {@link jailArgs} assigns to a file the launch step opens; 3 carries the seccomp filter. */
 export const FIRST_BIND_DESCRIPTOR = 10
 
+/** One existing host file mounted read-only into a jail at its own path. */
+export interface ReadOnlyFile {
+  readonly path: string
+  /** Whether the jail may run the file by its path, as a skill's bundled launcher is run. */
+  readonly executable: boolean
+}
+
 /** The jail argv prefix of one call and the paths its launch step opens for it. */
 export interface JailArgs {
   /** The argv to place before the confined command. */
@@ -66,11 +73,14 @@ export interface JailArgs {
  * Build the complete jail argv prefix for one call.
  * @param profile - the deployment's jail inputs.
  * @param policy - the call's confined policy; its roots are already checked to belong to one account.
- * @param readOnlyFiles - further existing host files mounted read-only at the same path, such as the session's attachments.
+ * @param readOnlyFiles - further existing host files mounted read-only at the same path, such as the session's attachments
+ * and the resources of the skills it loaded.
  * @param egressDir - the calling account's egress socket directory; required when `profile.egress` is set.
  * @returns the argv prefix and the descriptors its launch step must open.
  */
-export function jailArgs(profile: JailProfile, policy: SandboxPolicy, readOnlyFiles: readonly string[] = [], egressDir?: string): JailArgs {
+export function jailArgs(
+  profile: JailProfile, policy: SandboxPolicy, readOnlyFiles: readonly ReadOnlyFile[] = [], egressDir?: string,
+): JailArgs {
   const writable = policy.mode === 'workspace-write'
   const roots = [policy.workspaceRoot, ...writable ? policy.additionalWritableRoots ?? [] : []]
   const args = [
@@ -95,12 +105,14 @@ export function jailArgs(profile: JailProfile, policy: SandboxPolicy, readOnlyFi
   }
   for (const file of readOnlyFiles) {
     if (user === undefined) {
-      args.push('--ro-bind', file, file)
+      // A bind keeps the host file's own mode, so an executable stays executable.
+      args.push('--ro-bind', file.path, file.path)
       continue
     }
     const fd = FIRST_BIND_DESCRIPTOR + opens.length
-    opens.push({ fd, path: file })
-    args.push('--ro-bind-data', String(fd), file)
+    opens.push({ fd, path: file.path })
+    // A copied-in file takes the mode `--perms` names, and bubblewrap's default leaves it unexecutable.
+    args.push(...file.executable ? ['--perms', '0555'] : [], '--ro-bind-data', String(fd), file.path)
   }
   if (profile.zygoteDir !== undefined) args.push('--ro-bind', profile.zygoteDir, JAIL_ZYGOTE_DIR)
   if (profile.egress !== undefined && egressDir !== undefined) {

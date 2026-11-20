@@ -29,7 +29,7 @@ import type { ClientRemote } from '@aeven/api-gateway/client'
 
 export type { ClientRemote } from '@aeven/api-gateway/client'
 export type {
-  AccountIntegrationsView, CatalogSkillView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId,
+  AccountIntegrationsView, CatalogPackInstall, CatalogSkillView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId,
   ConnectorProvider, DiscordConnectorSettings, EmailConnectionFailure, EmailConnectionRequest,
   EmailConnectionResult, EmailConnectionUpdate, EmailConnectorSettings,
   EmailProbeStep, EmailReceiveSettings, EmailSecurity, EmailServerSettings,

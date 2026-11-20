@@ -154,6 +154,16 @@ Signed-in users manage their own integrations; each agent mounts only its owner'
 @Remote async installCatalogSkill(name: string): Promise<void>
 
 /**
+ * Install every catalogued skill of one pack into the account's library, each through the same import as a single
+ * install. A member the import refuses is reported and the rest still install, so one bad bundle cannot leave the
+ * pack's router without the skills it loads.
+ * @param pack - pack name the catalog rows carry.
+ * @returns the members stored, those a built-in skill owns, and those the import refused.
+ * @throws Error when the deployment mounts no catalog, or no catalogued skill names the pack.
+ */
+@Remote async installCatalogPack(pack: string): Promise<CatalogPackInstall>
+
+/**
  * Install or replace one personal bundle after validating every resource path.
  * @param files - uploaded SKILL.md and resources, or one ZIP/.skill file.
  * @returns the name stored, or the built-in skill that owns the name.

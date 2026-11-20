@@ -1,7 +1,7 @@
 /** Personal skill storage and account-scoped MCP connections exposed to Settings. */
 
 import { createHash, randomUUID } from 'node:crypto'
-import { rename, rm, writeFile } from 'node:fs/promises'
+import { chmod, rename, rm, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, isAbsolute, join } from 'node:path'
 import { mkdir } from 'node:fs/promises'
@@ -44,7 +44,7 @@ import { isSlackReadTool, slackConnectorId, SLACK_DIRECT_MESSAGE_SCOPES, SLACK_M
 import { isSlackConsentFailure, probeSlackToken, revokeSlackToken, refreshSlackToken, SlackLoginError, startSlackLogin, type SlackLogin, type SlackToken } from './slack-login.ts'
 import { connectorCredential, type PendingConsent } from './oauth.ts'
 import { BrokerError, ConnectorBroker, type ConsentStatus, type IssuedToken } from './broker.ts'
-import type { AccountIntegrationsView, CatalogSkillView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, ConnectorProviderView, DiscordConnectorSettings, PersonalSkillView, EmailConnectionFailure, EmailConnectorSettings, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillReferenceImport, SkillSetup, SkillViewId, SkillUploadFile, SlackConnectorSettings, SystemSkillAgent, SystemSkillView, TelegramConnectorSettings, TelegramPairingView, WhatsAppMessageMedia, WhatsAppPairingView, WhatsAppPhoneCodeView } from './types.ts'
+import type { AccountIntegrationsView, CatalogPackInstall, CatalogSkillView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, ConnectorProviderView, DiscordConnectorSettings, PersonalSkillView, EmailConnectionFailure, EmailConnectorSettings, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillReferenceImport, SkillSetup, SkillViewId, SkillUploadFile, SlackConnectorSettings, SystemSkillAgent, SystemSkillView, TelegramConnectorSettings, TelegramPairingView, WhatsAppMessageMedia, WhatsAppPairingView, WhatsAppPhoneCodeView } from './types.ts'
 
 export type * from './types.ts'
 
@@ -737,7 +737,13 @@ export default class AccountIntegrations extends TypertRemoteService {
           for (const [path, data] of Object.entries(skill.resources)) {
             const file = join(directory, path)
             await mkdir(dirname(file), { recursive: true, mode: 0o700 })
-            await writeFile(file, Buffer.from(data, 'base64'), { mode: 0o600 })
+            const bytes = Buffer.from(data, 'base64')
+            // A resource opening with `#!` is a script the instructions run by its path, so its owner may execute it.
+            const script = bytes[0] === 0x23 && bytes[1] === 0x21
+            await writeFile(file, bytes, { mode: script ? 0o700 : 0o600 })
+            // writeFile sets the mode only when it creates the file, and a revision directory written by an earlier
+            // build already holds the script without the execute bit.
+            if (script) await chmod(file, 0o700)
           }
           return { ...candidate, content: skill.content, resourceBase: { kind: 'directory' as const, path: directory } }
         },
@@ -1006,7 +1012,9 @@ export default class AccountIntegrations extends TypertRemoteService {
       commit: view.commit,
       synced: view.synced,
       categories: view.categories.map(category => ({ ...category })),
-      skills: view.skills.map((skill): CatalogSkillView => ({ ...skill, keywords: [...skill.keywords] })),
+      skills: view.skills.map(({ requires, ...skill }): CatalogSkillView => ({
+        ...skill, keywords: [...skill.keywords], ...requires === undefined ? {} : { requires: [...requires] },
+      })),
     }
   }
 
@@ -1082,6 +1090,33 @@ export default class AccountIntegrations extends TypertRemoteService {
     const catalog = this.ctx.get('skillCatalog')
     if (catalog === undefined) throw new Error('this deployment ships no skill catalog')
     await this.importSkill([catalog.bundle(name)])
+  }
+
+  /**
+   * Install every catalogued skill of one pack into the account's library, each through the same import as a single
+   * install. A member the import refuses is reported and the rest still install, so one bad bundle cannot leave the
+   * pack's router without the skills it loads.
+   * @param pack - pack name the catalog rows carry.
+   * @returns the members stored, those a built-in skill owns, and those the import refused.
+   * @throws Error when the deployment mounts no catalog, or no catalogued skill names the pack.
+   */
+  @Remote
+  async installCatalogPack(pack: string): Promise<CatalogPackInstall> {
+    const catalog = this.ctx.get('skillCatalog')
+    if (catalog === undefined) throw new Error('this deployment ships no skill catalog')
+    const members = catalog.list().skills.filter(skill => skill.pack === pack)
+    if (members.length === 0) throw new Error(`no catalogued skill belongs to the pack "${pack}"`)
+    const result: CatalogPackInstall = { installed: [], skipped: [], failed: [] }
+    for (const member of members) {
+      try {
+        const imported = await this.importSkill([catalog.bundle(member.name)])
+        result.installed.push(...imported.imported)
+        result.skipped.push(...imported.skipped)
+      } catch (error) {
+        result.failed.push({ name: member.name, reason: error instanceof Error ? error.message : String(error) })
+      }
+    }
+    return result
   }
 
   /**

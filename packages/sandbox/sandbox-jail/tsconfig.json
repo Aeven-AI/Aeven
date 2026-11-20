@@ -30,6 +30,9 @@
       "path": "../../attachment/attachment"
     },
     {
+      "path": "../../skill/skill"
+    },
+    {
       "path": "../../core/session"
     },
     {

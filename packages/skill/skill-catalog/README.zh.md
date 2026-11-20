@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-每个发行版都会在此包内附带一份技能目录：上游 `davila7/claude-code-templates` 集合中经评审的高价值子集，加上为本仓库编写、覆盖该集合未涉及目标的技能（`reverse-engineering`、`leanrea`，以及由 `aicodeking/deepseek-stack` 移植的二十九项 `aeven-stack` 工作流技能），以及来自其他仓库、以相同 `SKILL.md` 布局发布并经评审的技能（目前为 `nexu-io/open-design` 的十项动效技能，以及取代合集中旧版副本的 `blader/humanizer` 的 `humanizer`），以一份索引加每个技能一个 zip 的形式存放。设置页面可按标题顺序浏览整份目录，也可按分类浏览——先列出各分类及其技能数量，再进入某一个分类——并支持搜索，将选中的技能安装到已登录账户自己的库中。在有人安装之前，目录内容不会到达模型。
+每个发行版都会在此包内附带一份技能目录：上游 `davila7/claude-code-templates` 集合中经评审的高价值子集，加上为本仓库编写、覆盖该集合未涉及目标的技能（`reverse-engineering`、`leanrea`，以及由 `aicodeking/deepseek-stack` 移植的二十九项 `aeven-stack` 工作流技能），以及来自其他仓库、以相同 `SKILL.md` 布局发布并经评审的技能（目前为 `nexu-io/open-design` 的十项动效技能，取代合集中旧版副本的 `blader/humanizer` 的 `humanizer`，以及 `backnotprop/pstack` 中 `pstack` 技能包的二十七项技能），以一份索引加每个技能一个 zip 的形式存放。设置页面可按标题顺序浏览整份目录，也可按分类浏览——先列出各分类及其技能数量，再进入某一个分类——并支持搜索，将选中的技能安装到已登录账户自己的库中。在有人安装之前，目录内容不会到达模型。
 
 宿主在运行时不获取任何内容：索引与包内文件都通过 `ctx.skillCatalog` 从磁盘读取。安装会把内置 zip 交给账户原有的导入路径，因此路径校验、大小上限、资源存储与目录失效行为与手动上传完全一致。
 
@@ -27,9 +27,11 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## Use this package
 
-Web 应用 bundle 将此插件与 [`@aeven/host-account-integrations`](../../host/account-integrations/README.zh.md) 一起挂载；后者通过 `catalog()` 与 `installCatalogSkill()` 把目录提供给设置页面并执行安装。移除该组合行会移除“技能目录”视图，技能页其余部分不受影响。
+Web 应用 bundle 将此插件与 [`@aeven/host-account-integrations`](../../host/account-integrations/README.zh.md) 一起挂载；后者通过 `catalog()`、`installCatalogSkill()`，以及一次安装一个技能包全部技能的 `installCatalogPack()`，把目录提供给设置页面并执行安装。移除该组合行会移除“技能目录”视图，技能页其余部分不受影响。
 
 账户尚未安装任何技能时，技能目录是技能页默认显示的一半；页面顶部的一个切换在“你的技能”与“技能目录”之间切换。
+
+包含技能包的分类会在其技能上方为整个技能包显示一个开关。打开它会安装每个成员，列出导入拒绝的成员，并保留其余已安装的成员；每个技能仍有自己的开关，指令会加载其他成员的行在“需要”下列出它们。
 
 -----
 
@@ -51,6 +53,8 @@ Web 应用 bundle 将此插件与 [`@aeven/host-account-integrations`](../../hos
 `authored/` 下的 `aeven-stack` 条目移植自采用 MIT 许可的 `aicodeking/deepseek-stack` 技能包，并按 Aeven 的表述改写：`ds-` 前缀改为 `avn-`，该包的入口技能安装为 `aeven-stack`，凡涉及该包所用模型或技能目录的说法都改为 Aeven 的说法。每个移植后的目录都在 `SKILL.md` 旁带上上游 `LICENSE`，因此每个包都随附其再分发所需的声明。
 
 `catalog/vendored.json` 覆盖第三种来源：其他仓库以相同 `SKILL.md` 布局发布的技能。每条都写明该仓库、技能在其中的目录、分类、署名作者，并在技能自身描述使用其他语言时给出目录行展示的英文摘要。发布在仓库根目录的技能以 `.` 作为路径，写明其安装名 `name`，并列出要打包的 `files`，使仓库的 README、更新日志、CI 和插件打包文件不进入包中；被它取代的合集技能列入 `curation.json` 的 `exclude`。同步会锁定该仓库默认分支的提交，按下载技能的同样方式打包目录，以 `<repo>/<path>`（根目录技能为 `<repo>`）记录该行的来源，并在技能自身不带许可证时把仓库的 `LICENSE` 加入包中。条目与前两者遵循同一 `curation.json` 价值门槛，因此扩充或撤销某个来源只需改一处。
+
+该文件的 `repositories` 映射把某个仓库固定在一个提交上（缺省时在同步时锁定默认分支），并指定它的改写步骤：`patch` 是 `patches/` 下的统一 diff，在品牌改写之前应用到固定版本的文件上；`forbid` 是发布的 Markdown 文件不得再匹配的模式。补丁块无法应用或被禁止的名称仍然存在时，同步失败。条目的 `omit` 列出不进入其包的路径前缀，`resources` 把仓库中的其他文件映射到包内路径，pstack 的原则就是这样随 `poteto-mode` 一起发布的。标注同一 `pack` 的条目一起安装：同步要求成员以粗体或代码形式提到的每个仓库技能都在该技能包中发布，要么是未设置 `disable-model-invocation` 的成员，要么并入某个成员，并把技能加载的成员记录为其行的 `requires`。pstack 的改写及选定这 27 项技能的评审记录在 [Agent Note](../../../.agents/notes/implemented/feature/2026-11-20-skill-catalog-ships-pstack-as-one-pack.zh.md) 中。
 
 </details>
 
@@ -74,7 +78,7 @@ None, as 此包只读取随发行版附带的目录，并把一个包交给账�
 <a id="known-limitations-and-deferred-work"></a>
 
 - **是快照而非订阅源。** 上游变更需要在发行时重新生成目录；热度数字停留在内置时的取值。在此编写的技能只在其目录发生变化并重新同步时才更新。
-- **上游指令原样内置。** 其中一些提到 Claude Code 的界面，或部署可能并不具备的 Python、Node 工具，安装时不会改写。
+- **上游指令原样内置**，除非其仓库带有补丁，如 pstack；pstack 的补丁还把其 `watch-pr` 辅助工具从 Bun 移植到 Node。其余指令可能提到 Claude Code 的界面，或部署可能并不具备的 Python、Node 工具，安装时不会改写。
 - **无 invariant 伴随模块**——不发布 invariant 伴随模块，因为该服务只读取一份不可变的文件集合，且没有第二套注册表，因此不存在可独立观测的关系。
 
 -----

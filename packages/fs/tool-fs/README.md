@@ -64,7 +64,7 @@ All keys are optional; the defaults are the shipped read caps.
 | `readMaxLineLength` | `2000` | Characters kept per line before truncation |
 | `readMaxBytes` | `51200` | Byte cap on one `read` call's selected lines; overflow ends the window with a capped footer |
 | `readStreamMinSize` | `10485760` | Files at or above this size (or of unknown size) stream instead of loading whole into memory |
-| `confineToWorkspace` | `false` | Refuse `read` and `read_image` targets outside the calling session's workspace and the attachments its own messages and tool results reference, with `FS_SANDBOX_DENIED`; a path lexically outside both is refused before any filesystem call, and symlinks are checked once it resolves |
+| `confineToWorkspace` | `false` | Refuse `read` and `read_image` targets outside the calling session's workspace, the attachments its own messages and tool results reference, and the resource directories its own `skill` results and skill invocations recorded, with `FS_SANDBOX_DENIED`; a path lexically outside all three is refused before any filesystem call, and symlinks are checked once it resolves |
 | `mutations` | `true` | Register `write` and `edit` |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#aeventool-fs) is the exhaustive source for every accepted field and its JSDoc.

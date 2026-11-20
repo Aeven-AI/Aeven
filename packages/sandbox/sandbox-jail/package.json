@@ -30,6 +30,7 @@
     "@aeven/attachment": "workspace:^",
     "@aeven/sandbox": "workspace:^",
     "@aeven/session": "workspace:^",
+    "@aeven/skill": "workspace:^",
     "@aeven/system-prompt": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
@@ -42,6 +43,7 @@
     "@aeven/attachment": "workspace:^",
     "@aeven/sandbox": "workspace:^",
     "@aeven/session": "workspace:^",
+    "@aeven/skill": "workspace:^",
     "@aeven/system-prompt": "workspace:^",
     "@aeven/user-approval": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"

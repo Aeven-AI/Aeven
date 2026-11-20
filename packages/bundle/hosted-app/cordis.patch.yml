@@ -634,6 +634,12 @@
             cpuMax: 400000 100000
             cpuWeight: '100'
         sessionAttachments: true
+        # The resources of the skills a conversation loaded (an installed skill's scripts, references, and playbooks)
+        # live in this Host's data directory; each command mounts them read-only at the paths the skill gave, so a
+        # skill's instructions work here as on a desktop. 512 files and 32 MiB bound the copy every command makes.
+        sessionSkillResources:
+          maxFiles: 512
+          maxBytes: 33554432
         # Accounts with the jail-wide limits instead of per-account ones, such
         # as the operator's own, comma separated in AVN_HOSTED_UNLIMITED_ACCOUNTS.
         unlimitedAccounts: !!js "(process.env.AVN_HOSTED_UNLIMITED_ACCOUNTS ?? '').split(',').map(account => account.trim()).filter(account => account !== '')"
@@ -670,6 +676,10 @@
           # each repository in a conversation, and every push to its default
           # branch, main, or master, of a tag, or of a deletion.
           gitHosts: [github.com]
+          # GitHub API reads (gh pr view, gh api, watch-pr) with the account's own GitHub connection; the proxy
+          # refuses every write, and 1000 requests an hour leave most of the account's GitHub rate limit to it.
+          githubApi:
+            requestsPerHour: 1000
           accountConnections: 32
           connections: 4096
           accountBytesPerSecond: 8388608

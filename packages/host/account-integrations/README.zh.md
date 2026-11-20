@@ -183,7 +183,7 @@ Google 连接器通过 `GWS_BIN` 启动 Workspace CLI 二进制文件。本包�
 
 #### What the model sees
 
-[技能加载器](../../skill/tool-skill/README.zh.md)发布已启用且允许模型调用的个人技能，并按需加载其指令正文和资源目录。
+[技能加载器](../../skill/tool-skill/README.zh.md)发布已启用且允许模型调用的个人技能，并按需加载其指令正文和资源目录。提供方以仅所有者可访问的权限写入该目录；以 `#!` 开头的资源写为可执行文件，因此按路径运行内置脚本的指令在安装后可以工作。
 
 #### Token effect
 

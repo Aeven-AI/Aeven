@@ -87,6 +87,8 @@ agent（智能体）可以在会话期间发现并加载 skill（技能）：在
 
 `/name` 手势监听器只扫描已认领的用户消息：若某个以空白为界、指名工作区目录中用户可调用 skill 的 token 出现，则把同一份 `<skill_content>` 渲染作为 `user` 角色的指令上下文注入，追加在该步骤所有其他注入之后。未知名称与用户不可调用的名称保持为普通行文。这是 `disable-model-invocation` skill 唯一的入口，目录与 `skill` 工具永不暴露这类 skill。
 
+提供方报告目录资源基址时，两条路径都在面向模型的文本之外记录它：`skill` 结果持久化的 `meta.resourceDirectory`，以及注入来源的 `resourceDirectory`。`@aeven/skill` 的 `loadedSkillDirectories()` 只读取这些记录，并把每个结果与日志中对应的 `skill` 调用配对，因此进行限制的沙箱（[`sessionSkillResources`](../../sandbox/sandbox-jail/README.zh.md)）与受限的 `read`（[`confineToWorkspace`](../../fs/tool-fs/README.zh.md)）只打开对话加载过的目录，绝不打开 skill 正文所写的路径。
+
 </details>
 
 -----

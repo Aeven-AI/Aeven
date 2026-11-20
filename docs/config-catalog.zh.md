@@ -3886,6 +3886,14 @@ export interface Config {
    */
   sessionAttachments?: boolean
   /**
+   * Mount the resources of the skills the calling conversation loaded, read-only at the paths their loads reported,
+   * so the instructions' relative files and bundled scripts open inside the jail as they do on a desktop. A skill
+   * provider writes those files outside every account folder, where neither a jailed command nor the sandbox user
+   * reaches them otherwise. Only directories the conversation's own `skill` results and skill invocations recorded are
+   * mounted, and a file whose mode carries the owner's execute bit stays executable. Omitted, nothing is mounted.
+   */
+  sessionSkillResources?: SkillResourceLimits
+  /**
    * Argv that limits one account folder's disk use, such as a root-owned
    * helper through `sudo -n` that sets a filesystem project quota. It runs,
    * with the folder appended, inside a command's own launch step before the
@@ -3940,6 +3948,14 @@ export interface CgroupConfig {
   total: CgroupLimits
   /** Limits for one account's commands. */
   account: CgroupLimits
+}
+
+/** Bounds on the skill resources one command mounts, each counted across every skill its conversation loaded. */
+export interface SkillResourceLimits {
+  /** Most files; each is one descriptor the launch step opens and one copy bubblewrap makes. */
+  maxFiles: number
+  /** Most bytes, summed over the mounted files. */
+  maxBytes: number
 }
 
 /** The Python zygote's deployment. */
@@ -4035,6 +4051,16 @@ export interface EgressLimits {
    * branch, or deletes one, waits for the user's approval.
    */
   gitHosts: string[]
+  /**
+   * Serve the GitHub API to jailed commands, read only, with the calling account's `github.com` credential: REST
+   * `GET` and `HEAD`, and GraphQL documents holding only queries and fragments, addressed to `api.github.localhost`
+   * (where the image's `gh` shim sends `gh`). Every write is refused, and each account makes at most
+   * `requestsPerHour` requests per clock hour. Absent, the route is off.
+   */
+  githubApi?: {
+    /** Requests one account may make in each clock hour; its connector tools keep the rest of its GitHub rate limit. */
+    requestsPerHour: number
+  }
   /** Open connections per account. */
   accountConnections: number
   /** Open connections for all accounts together. */

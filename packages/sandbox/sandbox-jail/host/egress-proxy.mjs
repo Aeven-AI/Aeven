@@ -22,6 +22,14 @@
  *     repository's default branch, `main`, or `master`, a ref outside `refs/heads/`, or deletes a ref; after one
  *     approval, later pushes of other branches to the same repository in the same conversation pass.
  *
+ *   - `GET|HEAD|POST http://api.github.localhost/…`, when `githubApi` is set: the GitHub REST and GraphQL API, read
+ *     only, forwarded to `https://api.github.com/` with the account's `github.com` credential in place of whatever
+ *     the request carried, so the credential never enters a jail. Only `GET` and `HEAD` reach the REST API, and only
+ *     a `POST /graphql` whose document holds nothing but queries and fragments reaches GraphQL; every other method,
+ *     a mutation, a subscription, and a document that does not parse are refused, so nothing in a jail changes
+ *     GitHub through this route. `gh` speaks plain HTTP to `api.github.localhost` when `GH_HOST` is
+ *     `github.localhost`, which the sandbox's `gh` shim sets.
+ *
  * Either way the proxy resolves the name itself and connects only to an address that is not loopback, private,
  * link-local, or otherwise internal, so a name cannot point a jail at this machine's own services. Every refusal is
  * an HTTP response whose body names the reason.
@@ -54,6 +62,9 @@ import { createInterface } from 'node:readline'
  * @property {string[]} allow - host names a tunnel may reach, or `*.suffix` for every name beneath one.
  * @property {number[]} ports - destination ports a tunnel may open.
  * @property {string[]} gitHosts - hosts whose Git requests are forwarded with the account's credential.
+ * @property {{ requestsPerHour: number }} [githubApi] - serve the read-only GitHub API route with the account's
+ *   `github.com` credential, at most `requestsPerHour` requests per account in each clock hour, so a runaway loop
+ *   cannot spend the account's whole GitHub rate limit, which its connector tools share.
  * @property {number} accountConnections - open requests per account.
  * @property {number} connections - open requests in all.
  * @property {number} accountBytesPerSecond - bytes per second per account, both directions together.
@@ -70,6 +81,8 @@ const HELLO_LIMIT = 1024
 const HELLO_TIMEOUT_MS = 2000
 /** A push's ref updates precede its pack; one that needs more than this is refused. */
 const COMMANDS_LIMIT = 1024 * 1024
+/** Largest GraphQL request body the read-only GitHub API route reads to check it holds only queries. */
+const GRAPHQL_LIMIT = 256 * 1024
 const LOG_LINES_PER_SECOND = 20
 const RESOLVE_TTL_MS = 30_000
 const TOKEN_TTL_MS = 60_000
@@ -577,6 +590,268 @@ async function git(request, response) {
   request.resume()
 }
 
+/** Host name `gh` addresses in plain HTTP when `GH_HOST` is `github.localhost`, and the API it stands for. */
+const GITHUB_API_ALIAS = 'api.github.localhost'
+const GITHUB_API_HOST = 'api.github.com'
+const GITHUB_API_REQUEST_HEADERS = ['accept', 'accept-encoding', 'content-type', 'user-agent', 'x-github-api-version', 'if-none-match', 'if-modified-since', 'graphql-features']
+const GITHUB_API_RESPONSE_HEADERS = [
+  'content-type', 'content-encoding', 'cache-control', 'etag', 'last-modified', 'link', 'location', 'retry-after',
+  'x-github-request-id', 'x-ratelimit-limit', 'x-ratelimit-remaining', 'x-ratelimit-reset', 'x-ratelimit-used', 'x-ratelimit-resource',
+]
+const READ_ONLY = 'the sandbox reads the GitHub API only; change GitHub with the GitHub connector tools or a Git push'
+/** GitHub API requests each account made in the current clock hour. */
+const githubApiRequests = new Map()
+
+/** Count one GitHub API request against the account's hourly budget; false once the budget is spent. */
+function spendGithubApi(name) {
+  const hour = Math.floor(Date.now() / 3_600_000)
+  const known = githubApiRequests.get(name)
+  const used = known?.hour === hour ? known.used : 0
+  if (!unlimited.has(name) && used >= config.githubApi.requestsPerHour) return false
+  if (githubApiRequests.size > 65536) githubApiRequests.clear()
+  githubApiRequests.set(name, { hour, used: used + 1 })
+  return true
+}
+
+/** Punctuators of the GraphQL lexical grammar that open or close a nesting level; `...` is read separately. */
+const GRAPHQL_OPEN = new Set(['{', '(', '['])
+const GRAPHQL_CLOSE = new Set(['}', ')', ']'])
+/** Single-character punctuators that neither open nor close a level. */
+const GRAPHQL_PUNCTUATORS = new Set(['!', '$', '&', ':', '=', '@', '|'])
+/** Ignored tokens: byte order mark, tab, space, line terminators, and the comma. */
+const GRAPHQL_IGNORED = new Set(['﻿', '\t', ' ', '\n', '\r', ','])
+const GRAPHQL_NAME = /[_A-Za-z][_0-9A-Za-z]*/uy
+const GRAPHQL_NUMBER = /-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/uy
+const GRAPHQL_ESCAPE = new Set(['"', '\\', '/', 'b', 'f', 'n', 'r', 't', 'u'])
+
+/**
+ * The kinds of the top-level definitions of one GraphQL document: `query` for an operation written as `query` or as
+ * a bare selection set, and the leading name of every other definition. The scan follows the lexical grammar of the
+ * GraphQL specification and gives up on any character or token outside it, so a document it accepts is tokenized
+ * the way GitHub's parser tokenizes it, and one it cannot read is refused rather than guessed at.
+ * @param {string} source - the document text.
+ * @returns {string[] | undefined} the kinds in order, or undefined when the document does not tokenize.
+ */
+function graphqlDefinitionKinds(source) {
+  const kinds = []
+  let depth = 0
+  let expecting = true
+  let i = 0
+  while (i < source.length) {
+    const c = source[i]
+    if (GRAPHQL_IGNORED.has(c)) {
+      i += 1
+      continue
+    }
+    if (c === '#') {
+      while (i < source.length && source[i] !== '\n' && source[i] !== '\r') i += 1
+      continue
+    }
+    if (c === '"') {
+      if (source.startsWith('"""', i)) {
+        let j = i + 3
+        while (j < source.length && !source.startsWith('"""', j)) j += source.startsWith('\\"""', j) ? 4 : 1
+        if (j >= source.length) return undefined
+        i = j + 3
+      } else {
+        let j = i + 1
+        while (j < source.length && source[j] !== '"') {
+          if (source[j] === '\n' || source[j] === '\r') return undefined
+          if (source[j] === '\\') {
+            if (!GRAPHQL_ESCAPE.has(source[j + 1] ?? '')) return undefined
+            j += 2
+            continue
+          }
+          j += 1
+        }
+        if (j >= source.length) return undefined
+        i = j + 1
+      }
+      if (depth === 0) return undefined
+      continue
+    }
+    if (GRAPHQL_OPEN.has(c)) {
+      if (depth === 0 && expecting) {
+        if (c !== '{') return undefined
+        kinds.push('query')
+        expecting = false
+      }
+      depth += 1
+      i += 1
+      continue
+    }
+    if (GRAPHQL_CLOSE.has(c)) {
+      depth -= 1
+      if (depth < 0) return undefined
+      if (depth === 0 && c === '}') expecting = true
+      i += 1
+      continue
+    }
+    if (c === '.') {
+      if (!source.startsWith('...', i) || depth === 0) return undefined
+      i += 3
+      continue
+    }
+    if (GRAPHQL_PUNCTUATORS.has(c)) {
+      if (depth === 0 && expecting) return undefined
+      i += 1
+      continue
+    }
+    GRAPHQL_NAME.lastIndex = i
+    const name = GRAPHQL_NAME.exec(source)?.[0]
+    if (name !== undefined) {
+      if (depth === 0 && expecting) {
+        kinds.push(name)
+        expecting = false
+      }
+      i += name.length
+      continue
+    }
+    GRAPHQL_NUMBER.lastIndex = i
+    const number = GRAPHQL_NUMBER.exec(source)?.[0]
+    if (number !== undefined && number !== '' && number !== '-') {
+      // A number runs straight into neither a name nor a dot.
+      if (/[_A-Za-z.]/u.test(source[i + number.length] ?? '') || depth === 0) return undefined
+      i += number.length
+      continue
+    }
+    return undefined
+  }
+  return depth === 0 ? kinds : undefined
+}
+
+/**
+ * Whether a GraphQL request body asks only to read: one JSON object whose `query` holds at least one query and no
+ * definition but queries and fragments.
+ * @param {Buffer} body - the request body.
+ * @returns {boolean} true only for a read-only document.
+ */
+function readOnlyGraphql(body) {
+  let parsed
+  try {
+    parsed = JSON.parse(body.toString('utf8'))
+  } catch {
+    // SyntaxError: a body that is not JSON is no query this route can check.
+    return false
+  }
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed) || typeof parsed.query !== 'string') return false
+  const kinds = graphqlDefinitionKinds(parsed.query)
+  return kinds !== undefined && kinds.includes('query') && kinds.every(kind => kind === 'query' || kind === 'fragment')
+}
+
+/** Read a whole request body up to `limit` bytes; undefined when it is longer or the request ends early. */
+function readBody(request, limit) {
+  return new Promise((resolve) => {
+    const chunks = []
+    let size = 0
+    request.on('data', (chunk) => {
+      size += chunk.length
+      if (size > limit) {
+        request.destroy()
+        resolve(undefined)
+        return
+      }
+      chunks.push(chunk)
+    })
+    request.on('end', () => { resolve(Buffer.concat(chunks)) })
+    request.on('error', () => { resolve(undefined) })
+  })
+}
+
+async function githubApi(request, response) {
+  const { name } = request.socket.identity
+  let url
+  try {
+    url = new URL(request.url ?? '')
+  } catch {
+    // TypeError: an unparsable request target names no route.
+    url = undefined
+  }
+  if (url === undefined || url.protocol !== 'http:' || url.hostname !== GITHUB_API_ALIAS || url.port !== '') {
+    deny(response, 403, 'only HTTPS requests to allowed hosts, Git requests to connected hosts, and GitHub API reads leave the sandbox')
+    return
+  }
+  const graphql = url.pathname === '/graphql'
+  const reads = (request.method === 'GET' || request.method === 'HEAD') && !graphql
+  if (!reads && !(graphql && request.method === 'POST')) {
+    deny(response, 403, READ_ONLY)
+    return
+  }
+  let body
+  if (graphql) {
+    if (request.headers['content-encoding'] !== undefined) {
+      deny(response, 415, 'a compressed GraphQL request cannot be checked; send it uncompressed')
+      return
+    }
+    body = await readBody(request, GRAPHQL_LIMIT)
+    if (body === undefined) {
+      deny(response, 413, `a GraphQL request over ${String(GRAPHQL_LIMIT)} bytes cannot be checked`)
+      return
+    }
+    if (!readOnlyGraphql(body)) {
+      log(`${name} sent a GraphQL request that is not read-only`)
+      deny(response, 403, READ_ONLY)
+      return
+    }
+  }
+  if (overDay(name)) {
+    deny(response, 429, DAY_LIMIT)
+    return
+  }
+  if (!spendGithubApi(name)) {
+    deny(response, 429, `this account made ${String(config.githubApi.requestsPerHour)} GitHub API requests this hour; retry after the hour turns`)
+    return
+  }
+  const account = await enter(name, response)
+  if (account === undefined) {
+    if (!response.destroyed) deny(response, 429, BUSY)
+    return
+  }
+  if (response.destroyed) {
+    leave(account)
+    return
+  }
+  let upstream
+  response.once('close', () => {
+    leave(account)
+    upstream?.destroy()
+  })
+  const token = await credential(name, 'github.com', response)
+  if (token === null) return
+  if (token === undefined) {
+    deny(response, 401, 'this account has no GitHub connection; connect GitHub in Settings to read the GitHub API')
+    return
+  }
+  const headers = { host: GITHUB_API_HOST, authorization: `Bearer ${token}` }
+  for (const header of GITHUB_API_REQUEST_HEADERS) if (request.headers[header] !== undefined) headers[header] = request.headers[header]
+  if (body !== undefined) headers['content-length'] = String(body.length)
+  upstream = https.request({
+    host: GITHUB_API_HOST, port: 443, method: request.method, path: `${url.pathname}${url.search}`, headers,
+    agent: upstreamAgent, lookup: checkedLookup, timeout: config.idleTimeoutMs,
+  })
+  upstream.on('timeout', () => { upstream.destroy(new Error('no answer')) })
+  upstream.on('error', (error) => { deny(response, 502, `${GITHUB_API_HOST}: ${error.code ?? error.message}`) })
+  upstream.on('response', (answer) => {
+    const forwarded = {}
+    for (const header of GITHUB_API_RESPONSE_HEADERS) if (answer.headers[header] !== undefined) forwarded[header] = answer.headers[header]
+    // A redirect inside the API stays on this route; one to another host leaves it to the tunnel's allow list.
+    if (typeof forwarded.location === 'string' && forwarded.location.startsWith(`https://${GITHUB_API_HOST}/`)) {
+      forwarded.location = `http://${GITHUB_API_ALIAS}/${forwarded.location.slice(`https://${GITHUB_API_HOST}/`.length)}`
+    }
+    response.writeHead(answer.statusCode ?? 502, forwarded)
+    copy(answer, response, name, account)
+  })
+  if (body === undefined) {
+    // A read carries no body upstream; whatever the client sent is drained so the connection stays usable.
+    request.resume()
+    upstream.end()
+  }
+  else {
+    dayBytes.set(name, (dayBytes.get(name) ?? 0) + body.length)
+    upstream.end(body)
+  }
+}
+
 /** Account listeners by account, each counting the connections open on it. */
 const listeners = new Map()
 
@@ -671,7 +946,10 @@ function start() {
 
   const web = http.createServer({ keepAliveTimeout: config.idleTimeoutMs, requestTimeout: 0 })
   web.on('connect', (request, client, head) => { void tunnel(request, client, head) })
-  web.on('request', (request, response) => { void git(request, response) })
+  web.on('request', (request, response) => {
+    if (config.githubApi !== undefined && (request.url ?? '').startsWith(`http://${GITHUB_API_ALIAS}/`)) void githubApi(request, response)
+    else void git(request, response)
+  })
   web.on('clientError', (_error, client) => { client.destroy() })
 
   webServer = web
