@@ -647,6 +647,7 @@ flowchart TD
   pkg_sandbox_jail --> pkg_attachment
   pkg_sandbox_jail --> pkg_sandbox
   pkg_sandbox_jail --> pkg_session
+  pkg_sandbox_jail --> pkg_skill
   pkg_sandbox_jail --> pkg_system_prompt
   pkg_sandbox_local --> pkg_llm
   pkg_sandbox_local --> pkg_sandbox
@@ -1286,6 +1287,7 @@ flowchart TD
   pkg_tool_fs --> pkg_sandbox
   pkg_tool_fs --> pkg_sandbox_policy
   pkg_tool_fs --> pkg_session
+  pkg_tool_fs --> pkg_skill
   pkg_tool_fs --> pkg_system_prompt
   pkg_tool_fs --> pkg_tools
   pkg_tool_fs --> pkg_user_approval
