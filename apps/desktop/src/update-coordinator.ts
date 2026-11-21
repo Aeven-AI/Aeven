@@ -41,7 +41,7 @@ export class DesktopUpdateCoordinator {
     private readonly prepare: (version: string) => Promise<void> = async () => {},
     private readonly updater: AppUpdater = autoUpdater,
     private readonly enabled: () => boolean = () => (
-      app.isPackaged && process.windowsStore !== true && existsSync(join(process.resourcesPath, 'app-update.yml'))
+      app.isPackaged && !process.windowsStore && existsSync(join(process.resourcesPath, 'app-update.yml'))
     ),
   ) {
     // A found release downloads at once, so the offer is about installing what

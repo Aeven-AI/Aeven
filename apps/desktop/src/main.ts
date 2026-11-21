@@ -1096,7 +1096,7 @@ async function main(): Promise<void> {
   // A development launch runs Electron with this app's entry as an argument, which the registration must repeat.
   // A Microsoft Store package declares the scheme in its manifest instead: its install folder changes with every
   // Store update, so no registry entry may name it.
-  if (process.windowsStore !== true) {
+  if (!process.windowsStore) {
     if (process.defaultApp && process.argv[1] !== undefined) {
       app.setAsDefaultProtocolClient(DEEP_LINK_SCHEME, process.execPath, [resolve(process.argv[1])])
     } else {
