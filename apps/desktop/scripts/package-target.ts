@@ -7,7 +7,12 @@ import { join, resolve } from 'node:path'
 import { desktopTargetBuildPaths } from './desktop-build-paths.mjs'
 import { desktopPackageProblems } from './desktop-package-preflight.ts'
 import { loadDesktopPackagingEnvironment } from './desktop-environment-file.ts'
-import { DESKTOP_UNSIGNED_ENV, resolveDesktopAppId, resolveMacOSSigningEnvironment } from './desktop-release-environment.mjs'
+import {
+  DESKTOP_STORE_PACKAGE_ENV,
+  DESKTOP_UNSIGNED_ENV,
+  resolveDesktopAppId,
+  resolveMacOSSigningEnvironment,
+} from './desktop-release-environment.mjs'
 import { signMacOSSeedCode, verifyMacOSSeedCode } from './verify-macos-signature.mjs'
 import { WINDOWS_SIGNING_ENV_NAMES } from './windows-azure-signing.mjs'
 import { pnpmInvocation } from '../../../scripts/pnpm-invocation.ts'
@@ -199,6 +204,34 @@ export function desktopElectronBuilderArguments(
 }
 
 /**
+ * Build the electron-builder command arguments that pack a Windows target's unpacked application directory into
+ * its Microsoft Store package without packaging the application again.
+ * @param target - Supported Windows release target.
+ * @param artifactsDirectory - The target's electron-builder output directory.
+ * @returns Arguments for the Store pass, which electron-builder runs with the Store package environment set.
+ */
+export function desktopStorePackageArguments(
+  target: DesktopPackageTarget,
+  artifactsDirectory: string,
+): readonly string[] {
+  // electron-builder names the x64 directory without its architecture.
+  const unpacked = join(artifactsDirectory, target.arch === 'x64' ? 'win-unpacked' : `win-${target.arch}-unpacked`)
+  return [
+    'exec',
+    'electron-builder',
+    '--config',
+    'electron-builder.config.mjs',
+    '--win',
+    'appx',
+    target.builderArch,
+    '--publish',
+    'never',
+    '--prepackaged',
+    unpacked,
+  ]
+}
+
+/**
  * Developer ID sign every executable in a native platform package's `bin` directory before it is packed.
  * The seed carries these packages as tarballs, which seed-store signing never rewrites, and Apple's notary
  * service rejects an executable inside them that lacks a Developer ID signature, a secure timestamp, or
@@ -344,6 +377,11 @@ async function main(): Promise<void> {
   await runPnpm(['run', 'prepare:seed'], targetEnv)
   if (invocation.prepareOnly) return
   await runPnpm(desktopElectronBuilderArguments(target, invocation.directory), electronBuilderEnv)
+  // The Store package carries the application the installer just packaged, signed executables included; the
+  // Store signs the package itself, so the pass receives no signing credentials.
+  if (target.platform === 'win32' && !invocation.directory) {
+    await runPnpm(desktopStorePackageArguments(target, buildPaths.artifacts), { ...targetEnv, [DESKTOP_STORE_PACKAGE_ENV]: '1' })
+  }
 }
 
 if (process.argv[1] !== undefined && import.meta.filename === resolve(process.argv[1])) await main()

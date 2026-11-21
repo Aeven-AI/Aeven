@@ -52,6 +52,17 @@ export interface DesktopElectronBuilderConfig {  readonly appId: string
 export const DESKTOP_RELEASE_REPOSITORY: { readonly owner: string, readonly repo: string }
 
 /**
+ * Package identity Partner Center assigned to the reserved "Æven" product (Store ID 9P7Q0BFG2Z9B). The Store rejects
+ * a package whose identity or display name differs from these values.
+ */
+export const MICROSOFT_STORE_IDENTITY: {
+  readonly identityName: string
+  readonly publisher: string
+  readonly publisherDisplayName: string
+  readonly displayName: string
+}
+
+/**
  * Create electron-builder configuration from one release environment.
  * @param env - Packaging environment.
  * @param hostPlatform - Build-host platform used when no explicit target is present.

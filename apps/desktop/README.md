@@ -125,7 +125,7 @@ Each target owns its packed package inputs, prepared runtime, package set, seed,
 
 ### Icons
 
-`resources/` holds the application icons and `installer/assets/` the NSIS sidebar; each raster is rendered from the SVG beside it at its own edge length. macOS uses `icon-macos.icns` for the application and the mounted DMG volume, Windows uses `icon-windows.ico` for the executable, installer, and uninstaller, and the Linux packages use `linux/icons/`, one PNG per icon-theme size from 16 to 512 px, while an unpackaged Linux run uses `icon-macos.png`. `installer-sidebar.bmp` fills the welcome and finish pages of the Windows installer and uninstaller. The background-mode icon uses `tray-windows.ico` (16–64 px) on Windows, the menu bar template `trayTemplate.png` (19 px, with `@2x`) on macOS, and `linux/icons/24x24.png` on Linux.
+`resources/` holds the application icons and `installer/assets/` the NSIS sidebar; each raster is rendered from the SVG beside it at its own edge length. macOS uses `icon-macos.icns` for the application and the mounted DMG volume, Windows uses `icon-windows.ico` for the executable, installer, and uninstaller, and the Linux packages use `linux/icons/`, one PNG per icon-theme size from 16 to 512 px, while an unpackaged Linux run uses `icon-macos.png`. `installer-sidebar.bmp` fills the welcome and finish pages of the Windows installer and uninstaller. `installer/appx/` holds the Microsoft Store tiles, each rendered from `resources/icon-windows.svg` at a scale or target size the package manifest resolves. The background-mode icon uses `tray-windows.ico` (16–64 px) on Windows, the menu bar template `trayTemplate.png` (19 px, with `@2x`) on macOS, and `linux/icons/24x24.png` on Linux.
 
 ### Linux packages
 
@@ -149,6 +149,12 @@ The macOS configuration uses the required release environment instead of accepti
 ### Windows signing
 
 A signed Windows build signs the executables, the installer, and its uninstaller through Azure Trusted Signing with electron-builder's `win.azureSignOptions`. It reads `AZURE_TRUSTED_SIGNING_ENDPOINT`, `AZURE_TRUSTED_SIGNING_ACCOUNT_NAME`, `AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE_NAME`, and `AZURE_TRUSTED_SIGNING_PUBLISHER_NAME`, and the Azure SDK authenticates the service principal from `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, and `AZURE_CLIENT_SECRET`. No certificate or token lives on the build host. Packaging withholds these fields from build and seed-preparation subprocesses and gives them to electron-builder alone; without them a signed Windows build stops at its preflight check, and `--unsigned` builds without signing.
+
+### Microsoft Store package
+
+Each Windows package command also packs its unpacked application into `aeven-<version>-win-<arch>-store.appx` for the Microsoft Store product that Partner Center reserved as "Æven" (Store ID `9P7Q0BFG2Z9B`). A second electron-builder run with `--prepackaged` and `AVN_DESKTOP_STORE_PACKAGE=1` packs the application the installer carries, signed executables included, and leaves the package itself unsigned: the Store signs the package it distributes, and Windows installs no unsigned package from anywhere else. `MICROSOFT_STORE_IDENTITY` in `scripts/electron-builder-config.mjs` holds the identity Partner Center assigned; the Store rejects a package whose identity or display name differs.
+
+`installer/appx/AppxManifest.xml` turns off file-system and registry write virtualization, which the `unvirtualizedResources` restricted capability permits, so a Store install and an NSIS install share `%APPDATA%`, the single-instance lock, and the browsers' native-messaging keys under `HKCU`. A Store install declares the `aeven://` scheme in its manifest and never runs electron-updater, because the Store replaces its package. The release workflow uploads each architecture's package as the `store-win-<arch>` workflow artifact rather than a release asset; both go into one Partner Center submission.
 
 Create a runnable application directory instead of an installer by using the matching `:dir` command, such as:
 

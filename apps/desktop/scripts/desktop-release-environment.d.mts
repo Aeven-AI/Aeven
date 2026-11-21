@@ -10,6 +10,12 @@ export const MACOS_TEAM_ID_ENV: 'AVN_DESKTOP_MACOS_TEAM_ID'
 /** Environment variable whose value `1` builds a target without code signing or notarization. */
 export const DESKTOP_UNSIGNED_ENV: 'AVN_DESKTOP_UNSIGNED'
 
+/**
+ * Environment variable whose value `1` makes electron-builder pack an already packaged Windows application
+ * directory into the unsigned Microsoft Store package; the Store signs the package it distributes.
+ */
+export const DESKTOP_STORE_PACKAGE_ENV: 'AVN_DESKTOP_STORE_PACKAGE'
+
 /** Deployment settings the shipped profile rows read from the Host environment. */
 export const DESKTOP_DEPLOYMENT_ENV_NAMES: readonly string[]
 
