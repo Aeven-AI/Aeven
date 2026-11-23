@@ -17,6 +17,9 @@
       "path": "../ui-theme"
     },
     {
+      "path": "../../util/crypto"
+    },
+    {
       "path": "../../../vendor/cordis"
     }
   ]
