@@ -30,7 +30,7 @@ Status: implemented
 
 ## 后果
 
-在桌面或 Aeven Cloud 上于没有项目的聊天中制作的文件，会到达账户的每台设备和文件云，丢失机器不再丢失这些文件。桌面的 `~/Documents/Aeven` 中会出现 `chats/` 文件夹。云端在项目工作区中的工作留在托管 Host 上，可通过项目自身的同步而不是文件同步恢复。云端账户同步的 Aeven 文件夹现在计入其 5 GiB 的监狱配额。在托管 Host 上，Aeven 文件夹从 `aeven-folders/<account>` 移到 `sandbox/accounts/<account>`。新构建启动前，必须在 Host 停止时把每个账户现有的文件夹内容（包括 Syncthing 的 `.stfolder` 标记）移入托管文件夹；否则 Syncthing 会发现其已索引的文件不存在，并把删除发送给桌面设备。托管数据导出会两次列出托管文件夹，一次作为聊天文件，一次作为 Aeven 文件夹。桌面的运行时上下文会为这些聊天写出一个工作目录，而以前没有。
+在桌面或 Aeven Cloud 上于没有项目的聊天中制作的文件，会到达账户的每台设备和文件云，丢失机器不再丢失这些文件。桌面的 `~/Documents/Aeven` 中会出现 `chats/` 文件夹。云端在项目工作区中的工作经由项目自身的工作区同步而不是文件同步传输（[Aeven Cloud 加入工作区同步](2026-11-23-cloud-joins-workspace-sync.zh.md)）。云端账户同步的 Aeven 文件夹现在计入其 5 GiB 的监狱配额。在托管 Host 上，Aeven 文件夹从 `aeven-folders/<account>` 移到 `sandbox/accounts/<account>`。新构建启动前，必须在 Host 停止时把每个账户现有的文件夹内容（包括 Syncthing 的 `.stfolder` 标记）移入托管文件夹；否则 Syncthing 会发现其已索引的文件不存在，并把删除发送给桌面设备。托管数据导出会两次列出托管文件夹，一次作为聊天文件，一次作为 Aeven 文件夹。桌面的运行时上下文会为这些聊天写出一个工作目录，而以前没有。
 
 ## 验证
 

@@ -54,7 +54,10 @@ export {
 } from './spec.ts'
 export type { WorkspaceDomainState, WorkspaceRecord } from './spec.ts'
 export { realpathNormalize } from './paths.ts'
-export { fitsDisk, hintedDirectory, locationHint, markedDirectory, placeWorkspace, WORKSPACE_MARKER, writeMarker } from './placement.ts'
+export {
+  fitsDisk, hintedDirectory, locationHint, MANAGED_PROJECTS_FOLDER, MANAGED_TRANSFER_FOLDER, markedDirectory, placeManagedWorkspace,
+  placeWorkspace, WORKSPACE_MARKER, writeMarker,
+} from './placement.ts'
 export { WorkspaceFileStatusReport } from './file-status.ts'
 export { byRecentUse, onBatteryPower } from './power.ts'
 

@@ -84,11 +84,11 @@ export interface Config {
 export const MANAGED_CHATS_FOLDER = 'chats'
 
 /**
- * The folder of a Host's managed account folder where a session filed in a folder workspace works, one subfolder per
- * workspace id. File sync leaves it out (`@aeven/file-sync-syncthing` ignores it by name): the workspace's own files
- * travel through its workspace folder or Git, so a second copy would sync them twice.
+ * The folder of a Host's managed account folder where a session filed in a folder workspace works until the
+ * workspace's files arrive, one subfolder per workspace id: `MANAGED_PROJECTS_FOLDER` of `@aeven/workspace`, which an
+ * optional peer cannot be imported for at runtime. File sync leaves it out of the account folder it carries.
  */
-export const MANAGED_PROJECTS_FOLDER = '.aeven-projects'
+const MANAGED_PROJECTS_FOLDER = '.aeven-projects'
 
 /** An owner or workspace id usable as one directory name. */
 const PATH_SEGMENT = /^[A-Za-z0-9_-]{1,128}$/u

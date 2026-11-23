@@ -450,6 +450,25 @@
         perAccount: true
         announcePeer: true
         advertise: false
+    # With the jail as well, this Host is also a device of each account's folder
+    # and repository workspaces: a workspace a session here works in arrives in
+    # the account's `.aeven-projects/<workspace id>`, outside the synced account
+    # folder, and its work travels back the way it does between desktops. Every
+    # Git command and every copy into or out of a work tree runs in the
+    # account's jail, so a repository's configuration and hooks, or a link a
+    # command left, reach no other account. This Host publishes no environment
+    # files and resolves no conflicts, which read files an account can write.
+    - id: workspace-file-sync
+      name: '@aeven/workspace-file-sync'
+      disabled: !!js "process.env.AVN_SYNCTHING === undefined || process.env.AVN_HOSTED_SANDBOX !== '1'"
+      config:
+        managedRoot: !!js avnHomePath('sandbox', 'accounts')
+    - id: workspace-git-sync
+      name: '@aeven/workspace-git-sync'
+      disabled: !!js "process.env.AVN_SYNCTHING === undefined || process.env.AVN_HOSTED_SANDBOX !== '1'"
+      config:
+        managedRoot: !!js avnHomePath('sandbox', 'accounts')
+        prepareDependencies: false
 
 - insert:
     - id: speech-to-text-aeven

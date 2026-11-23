@@ -49,6 +49,9 @@
     },
     {
       "path": "../../shell/shell"
+    },
+    {
+      "path": "../../sandbox/sandbox"
     }
   ]
 }

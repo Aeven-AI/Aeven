@@ -6878,6 +6878,12 @@ export interface Config {
   conflictScanMs: number
   /** Largest file, in bytes, whose two versions are shown as text. */
   conflictTextMaxBytes: number
+  /**
+   * For a Host serving many accounts, the absolute directory holding each account's managed folder: a workspace then
+   * lands in `<managedRoot>/<owner>/.aeven-projects/<workspace id>` once a session of it runs a turn here, and
+   * conflicts show no file text and are resolved on another device. Omitted, workspaces land under `root`.
+   */
+  managedRoot?: string
 }
 ```
 
@@ -6959,6 +6965,13 @@ export interface Config {
   prepareDependencies: boolean
   /** Longest a dependency install runs. */
   prepareTimeoutMs: number
+  /**
+   * For a Host serving many accounts, the absolute directory holding each account's managed folder. A repository then
+   * lands in `<managedRoot>/<owner>/.aeven-projects/<workspace id>` once a session of its workspace runs a turn here,
+   * and every Git command and every copy into or out of a work tree runs in the account's jail through the sandbox
+   * capability, which must be composed. Omitted, repositories land under `root` as on a person's own computer.
+   */
+  managedRoot?: string
 }
 ```
 

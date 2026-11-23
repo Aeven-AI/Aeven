@@ -59,3 +59,16 @@ export function remoteKey(url: string): string | undefined {
   const path = remote.path.replace(/^\/?~?\/*/u, '').replace(/\/+$/u, '').replace(/\.git$/u, '')
   return `${remote.host}/${path}`.toLowerCase()
 }
+
+/**
+ * The HTTPS form of a remote, the one form a confined command reaches: its jail has no network of its own, and its
+ * egress proxy carries Git over HTTPS alone.
+ * @param url - a remote URL in any network form another device published.
+ * @returns `https://<host>/<path>`, or undefined for a remote only one device can reach.
+ */
+export function httpsRemote(url: string): string | undefined {
+  const remote = parse(url)
+  if (remote === undefined) return undefined
+  const path = remote.path.replace(/^\/+/u, '')
+  return path === '' ? undefined : `https://${remote.host}/${path}`
+}

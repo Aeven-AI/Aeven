@@ -871,6 +871,7 @@ flowchart TD
   pkg_workflow --> pkg_session
   pkg_workspace_git_sync --> pkg_agent
   pkg_workspace_git_sync --> pkg_file_sync
+  pkg_workspace_git_sync --> pkg_sandbox
   pkg_workspace_git_sync --> pkg_session
   pkg_workspace_git_sync --> pkg_session_handoff
   pkg_workspace_git_sync --> pkg_shell
@@ -1097,6 +1098,7 @@ flowchart TD
   pkg_tool_workflow --> pkg_system_prompt
   pkg_tool_workflow --> pkg_tools
   pkg_tool_workflow --> pkg_workflow
+  pkg_workspace_file_sync --> pkg_agent
   pkg_workspace_file_sync --> pkg_file_sync
   pkg_workspace_file_sync --> pkg_fs
   pkg_workspace_file_sync --> pkg_session
@@ -1947,7 +1949,7 @@ flowchart TD
 | [`terminal`](../packages/terminal/terminal) | `terminal` | [`agent`](../packages/core/agent), [`brand`](../packages/util/brand) |
 | [`loader-smoke`](../packages/test-support/loader-smoke) | `test-support` | [`agent`](../packages/core/agent), [`http-proxy`](../packages/util/http-proxy), [`llm`](../packages/llm/llm), [`session`](../packages/core/session) |
 | [`workflow`](../packages/workflow/workflow) | `workflow` | [`agent`](../packages/core/agent), [`brand`](../packages/util/brand), [`invariants`](../packages/runtime-diagnostics/invariants), [`llm`](../packages/llm/llm), [`session`](../packages/core/session) |
-| [`workspace-git-sync`](../packages/workspace/workspace-git-sync) | `workspace` | [`agent`](../packages/core/agent), [`file-sync`](../packages/sync/file-sync), [`session`](../packages/core/session), [`session-handoff`](../packages/session/session-handoff), [`shell`](../packages/shell/shell), [`subprocess`](../packages/subprocess/subprocess), [`sync`](../packages/sync/sync), [`sync-vault`](../packages/sync/sync-vault), [`workspace`](../packages/workspace/workspace) |
+| [`workspace-git-sync`](../packages/workspace/workspace-git-sync) | `workspace` | [`agent`](../packages/core/agent), [`file-sync`](../packages/sync/file-sync), [`sandbox`](../packages/sandbox/sandbox), [`session`](../packages/core/session), [`session-handoff`](../packages/session/session-handoff), [`shell`](../packages/shell/shell), [`subprocess`](../packages/subprocess/subprocess), [`sync`](../packages/sync/sync), [`sync-vault`](../packages/sync/sync-vault), [`workspace`](../packages/workspace/workspace) |
 | [`llm-aeven`](../packages/llm/llm-aeven) | `llm` | [`agent`](../packages/core/agent), [`anonymous-user-id`](../packages/identity/anonymous-user-id), [`attachment`](../packages/attachment/attachment), [`credentials`](../packages/credentials/credentials), [`fs`](../packages/fs/fs), [`identity-user`](../packages/identity/user), [`llm`](../packages/llm/llm), [`llm-deepseek`](../packages/llm/llm-deepseek), [`settings`](../packages/settings/settings), [`timeout`](../packages/util/timeout) |
 | [`tools`](../packages/core/tools) | `core` | [`agent`](../packages/core/agent), [`code-runtime`](../packages/code-runtime/code-runtime), [`invariants`](../packages/runtime-diagnostics/invariants), [`llm`](../packages/llm/llm), [`scope`](../packages/core/scope), [`session`](../packages/core/session), [`system-prompt`](../packages/core/system-prompt), [`user-approval`](../packages/interaction/user-approval) |
 | [`goal-round-driver`](../packages/goal/goal-round-driver) | `goal` | [`agent`](../packages/core/agent), [`goal`](../packages/goal/goal), [`invariants`](../packages/runtime-diagnostics/invariants), [`llm`](../packages/llm/llm), [`session`](../packages/core/session) |
@@ -1990,7 +1992,7 @@ flowchart TD
 | [`tool-terminal`](../packages/terminal/tool-terminal) | `terminal` | [`agent`](../packages/core/agent), [`jobs`](../packages/jobs/jobs), [`llm`](../packages/llm/llm), [`output-retention`](../packages/util/output-retention), [`system-prompt`](../packages/core/system-prompt), [`terminal`](../packages/terminal/terminal), [`tools`](../packages/core/tools) |
 | [`agent-loop-testkit`](../packages/test-support/agent-loop-testkit) | `test-support` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools) |
 | [`tool-workflow`](../packages/workflow/tool-workflow) | `workflow` | [`agent`](../packages/core/agent), [`invariants`](../packages/runtime-diagnostics/invariants), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools), [`workflow`](../packages/workflow/workflow) |
-| [`workspace-file-sync`](../packages/workspace/workspace-file-sync) | `workspace` | [`file-sync`](../packages/sync/file-sync), [`fs`](../packages/fs/fs), [`session`](../packages/core/session), [`subprocess`](../packages/subprocess/subprocess), [`sync`](../packages/sync/sync), [`sync-vault`](../packages/sync/sync-vault), [`tools`](../packages/core/tools), [`workspace`](../packages/workspace/workspace) |
+| [`workspace-file-sync`](../packages/workspace/workspace-file-sync) | `workspace` | [`agent`](../packages/core/agent), [`file-sync`](../packages/sync/file-sync), [`fs`](../packages/fs/fs), [`session`](../packages/core/session), [`subprocess`](../packages/subprocess/subprocess), [`sync`](../packages/sync/sync), [`sync-vault`](../packages/sync/sync-vault), [`tools`](../packages/core/tools), [`workspace`](../packages/workspace/workspace) |
 | [`plugin-package-inventory-deepseek`](../packages/llm/plugin-package-inventory-deepseek) | `llm` | [`agent`](../packages/core/agent), [`agent-presets`](../packages/preset/agent-presets), [`deepseek-llm-api-extensions`](../packages/llm/deepseek-llm-api-extensions), [`session`](../packages/core/session) |
 | [`agent-loop`](../packages/core/agent-loop) | `core` | [`agent`](../packages/core/agent), [`invariants`](../packages/runtime-diagnostics/invariants), [`llm`](../packages/llm/llm), [`scope`](../packages/core/scope), [`session`](../packages/core/session), [`session-persistence`](../packages/session/session-persistence), [`session-projection`](../packages/session/session-projection), [`settings`](../packages/settings/settings), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools), [`working-directory`](../packages/session/working-directory) |
 | [`tool-search`](../packages/core/tool-search) | `core` | [`agent`](../packages/core/agent), [`code-runtime`](../packages/code-runtime/code-runtime), [`llm`](../packages/llm/llm), [`mcp-client`](../packages/mcp/mcp-client), [`scope`](../packages/core/scope), [`session`](../packages/core/session), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools) |

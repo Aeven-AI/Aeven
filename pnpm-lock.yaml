@@ -2074,6 +2074,12 @@ importers:
       '@aeven/web-app':
         specifier: workspace:^
         version: link:../web-app
+      '@aeven/workspace-file-sync':
+        specifier: workspace:^
+        version: link:../../workspace/workspace-file-sync
+      '@aeven/workspace-git-sync':
+        specifier: workspace:^
+        version: link:../../workspace/workspace-git-sync
       '@deepseek-ai/cordis-plugin-logger-console':
         specifier: workspace:^
         version: link:../../../vendor/logger-console
@@ -14488,6 +14494,9 @@ importers:
         specifier: 13.6.27
         version: 13.6.27
     devDependencies:
+      '@aeven/agent':
+        specifier: workspace:^
+        version: link:../../core/agent
       '@aeven/file-sync':
         specifier: workspace:^
         version: link:../../sync/file-sync
@@ -14540,6 +14549,9 @@ importers:
       '@aeven/file-sync':
         specifier: workspace:^
         version: link:../../sync/file-sync
+      '@aeven/sandbox':
+        specifier: workspace:^
+        version: link:../../sandbox/sandbox
       '@aeven/session':
         specifier: workspace:^
         version: link:../../core/session
