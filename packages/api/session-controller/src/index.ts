@@ -3,6 +3,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { createUserMessage, errorChain } from '@aeven/llm'
+import { stat } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import {
   canOpenNativePath, nativeFileApplications, openNativeFileApplication, openNativePath, revealNativePath,
@@ -468,7 +469,8 @@ The user's account display name is ${JSON.stringify(source.clientDisplayName)}.
    * @param request - path after best-effort Session workspace resolution, and the requested handoff.
    * @param signal - caller lifetime; abort terminates the native command.
    * @returns confirmation after the native opener accepts the path.
-   * @throws RemoteError when this deployment opens no paths, or the request is invalid, cancelled, or the opener fails.
+   * @throws RemoteError when this deployment opens no paths, nothing exists at the path, or the request is invalid,
+   * cancelled, or the opener fails.
    */
   @Remote('openWorkspacePath')
   async openWorkspacePath(
@@ -485,11 +487,9 @@ The user's account display name is ${JSON.stringify(source.clientDisplayName)}.
       return { opened: true }
     } catch (error: unknown) {
       if (signal.aborted) throw new RemoteError('gateway/cancelled', 'path open was aborted', {})
-      throw new RemoteError(
-        'gateway/internal',
-        `path open failed: ${error instanceof Error ? error.message : String(error)}`,
-        {},
-      )
+      // The opener reports a missing path in its own words; the reader is told the file is not on this device instead.
+      if (!await pathExists(path)) throw new RemoteError('session/path-missing', `no file at ${path} on this device`, { path })
+      throw new RemoteError('gateway/internal', `path open failed: ${nativeFailureReason(error)}`, {})
     }
   }
 
@@ -677,6 +677,27 @@ The user's account display name is ${JSON.stringify(source.clientDisplayName)}.
     return this.controlState.control(signal)
   }
 
+}
+
+/** Whether anything exists at a Host path; a stat failure of any kind counts as absent. */
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await stat(path)
+    return true
+  } catch {
+    // ENOENT, ENOTDIR, or an unreadable parent: the desktop opener could not have reached the path either.
+    return false
+  }
+}
+
+/**
+ * The reason a native opener gave: its stderr when it wrote one, otherwise the error message. `execFile` prefixes
+ * its message with `Command failed: <argv>`, which names the internal command line rather than the reason.
+ */
+function nativeFailureReason(error: unknown): string {
+  if (!(error instanceof Error)) return String(error)
+  const stderr = (error as { readonly stderr?: unknown }).stderr
+  return typeof stderr === 'string' && stderr.trim() !== '' ? stderr.trim() : error.message
 }
 
 export { buildModelCatalog }

@@ -16,7 +16,7 @@ The inject returns the `workspaces.openPath` promise. The chat view wraps that o
 
 The dialog lives on the view that owns the Host call, not on each tool row. Produced-file chips and closing-message mentions use the same wrapper because they already share that opener. The produced-files folder action opens `.`, and that refusal uses the folder title and unknown-open copy.
 
-The Host message is shown as thrown. The chat view's `openFile` adapter prefixes `path open failed: ` onto the Remote error; the dialog does not unwrap that prefix.
+The Host message is shown once, as the Host wrote it. A path where nothing exists on the Host is `session/path-missing`: the dialog then names the file and its folder and offers that folder instead of Retry, and a caller that holds a stored copy of the file downloads it instead of opening the dialog ([chat files live in the Aeven folder](../architecture/2026-11-23-chat-files-live-in-the-aeven-folder.md)).
 
 ## Alternatives considered
 

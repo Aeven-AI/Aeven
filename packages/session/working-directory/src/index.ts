@@ -38,13 +38,31 @@ export type * from './types.ts'
 export * from './local.ts'
 export { sessionDirectory, sessionWorkspaceRoot } from './directory.ts'
 
+declare module '@deepseek-ai/cordis' {
+  interface Events {
+    /**
+     * Ask for the folder an account keeps its files in on this device, where a Host with folders of its own gives a
+     * session that records no directory, or that sits in a workspace without a folder, its directory:
+     * `<folder>/workspaces/<workspace id>` when filed in such a workspace, `<folder>/chats` otherwise, the layout a
+     * Host with `managedRoot` uses under `<managedRoot>/<owner>`. No answer leaves the session without a directory.
+     * Synchronous, because directory resolution is.
+     * @param owner - the account, which owns the session.
+     * @mode bail
+     */
+    'working-directory/account-folder'(owner: string): string | undefined
+  }
+}
+
 /** Working-directory resolution configuration. */
 export interface Config {
   /**
    * Whether this Host gives sessions a folder of its own. A Host that serves the
    * accounts of different people sets `false`: a conversation another device
    * recorded in a folder continues here without a working directory instead of
-   * waiting for a folder this Host never offers. Defaults to `true`.
+   * waiting for a folder this Host never offers. With `true`, a session that
+   * records no directory, or that sits in a workspace without a folder, works
+   * in the account folder a `working-directory/account-folder` listener names,
+   * when one does. Defaults to `true`.
    */
   readonly folders?: boolean
   /**
@@ -165,29 +183,41 @@ export class WorkingDirectoryService extends Service {
       replicated: registry?.replicated(header.id) ?? false,
       entered: this.entered.get(header.id),
     })
-    if (this.folders || resolved.state === 'local') return resolved
+    if (resolved.state === 'local') return resolved
+    if (this.folders) {
+      // A refusal stands: the session's workspace has a folder, just not one here yet. A session with no directory,
+      // in a workspace without a folder, works in the account's own folder, which file sync carries to its devices.
+      if (resolved.state === 'unresolved' || (placement.state === 'filed' && placement.workspace.kind !== 'virtual')) return resolved
+      const owned = this.managedFolder(header, placement)
+      return owned === undefined ? resolved : { state: 'local', cwd: owned, root: owned }
+    }
     // Without folders here, a folder another device recorded is one this Host will never have.
-    const managed = this.managedFolder(header)
+    const managed = this.managedFolder(header, placement)
     return managed === undefined ? { state: 'absent' } : { state: 'local', cwd: managed, root: managed }
   }
 
   /**
-   * The managed folder for a session on a Host without folders of its own,
-   * created on first use and private to the Host's user.
+   * The folder this Host gives a session it has no other directory for, created on first use and private to the
+   * Host's user: under `<managedRoot>/<owner>` on a Host without folders of its own, otherwise under the account
+   * folder a `working-directory/account-folder` listener names.
    * @param header - the header of the session to place.
-   * @returns the folder, or undefined when no managed root is configured or the session has no usable owner.
+   * @param placement - where the registry says the session sits on this device.
+   * @returns the folder, or undefined when no account folder is known or the session has no usable owner.
    */
-  private managedFolder(header: SessionHeader): string | undefined {
+  private managedFolder(header: SessionHeader, placement: SessionPlacement): string | undefined {
     const owner = header.owner
-    if (this.managedRoot === undefined || owner === undefined || !PATH_SEGMENT.test(owner)) return undefined
-    const placement = this.ctx.get('workspaceRegistry')?.placeSession(header.id)
+    if (owner === undefined || !PATH_SEGMENT.test(owner)) return undefined
+    const base = this.managedRoot === undefined
+      ? this.ctx.bail('working-directory/account-folder', owner)
+      : join(this.managedRoot, owner)
+    if (base === undefined) return undefined
     let path: string
-    if (placement?.state === 'filed') {
+    if (placement.state === 'filed') {
       const workspaceId = String(placement.workspace.id)
       if (!PATH_SEGMENT.test(workspaceId)) return undefined
-      path = join(this.managedRoot, owner, 'workspaces', workspaceId)
+      path = join(base, 'workspaces', workspaceId)
     } else {
-      path = join(this.managedRoot, owner, 'chats')
+      path = join(base, 'chats')
     }
     if (!this.created.has(path)) {
       mkdirSync(path, { recursive: true, mode: 0o700 })

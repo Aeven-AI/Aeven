@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-16-synced-aeven-folder.md
-2026-11-16-synced-aeven-folder.md: d469c5a37de95a6e88577df854f335713ada01ea
-2026-11-16-synced-aeven-folder.zh.md: 49d89a189d622b69cc3d0b7405c649715bdeda01
+2026-11-16-synced-aeven-folder.md: 1eef7af0b2c0e238bd411934ab5b78546ba037e7
+2026-11-16-synced-aeven-folder.zh.md: 989d5e1a1a2cf14764aa87fcc7c7e467ea605cbe

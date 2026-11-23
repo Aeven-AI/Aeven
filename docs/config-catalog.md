@@ -6803,7 +6803,10 @@ export interface Config {
    * Whether this Host gives sessions a folder of its own. A Host that serves the
    * accounts of different people sets `false`: a conversation another device
    * recorded in a folder continues here without a working directory instead of
-   * waiting for a folder this Host never offers. Defaults to `true`.
+   * waiting for a folder this Host never offers. With `true`, a session that
+   * records no directory, or that sits in a workspace without a folder, works
+   * in the account folder a `working-directory/account-folder` listener names,
+   * when one does. Defaults to `true`.
    */
   readonly folders?: boolean
   /**

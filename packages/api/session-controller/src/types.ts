@@ -253,6 +253,8 @@ declare module '@aeven/typert-protocol' {
     'session/search-disabled': Record<string, never>
     /** This Host has no desktop to hand a path to, so it opens and reveals nothing. */
     'session/open-unavailable': Record<string, never>
+    /** Nothing exists at the path on this Host, such as a file another device of the account wrote. */
+    'session/path-missing': { readonly path: string }
     'session/fork-unavailable': { readonly sessionId: SessionId }
     /** The Session cannot leave its current place for the named Workspace. */
     'session/move-unavailable': {

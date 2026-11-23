@@ -230,7 +230,9 @@
   config:
     folders: false
     # With the jail, each account's sessions work in a folder this Host creates
-    # for that account, which is the only folder its commands can see.
+    # for that account, which is the only folder its commands can see. That
+    # folder is also the account's Aeven folder below, so what they make here
+    # reaches the account's desktops.
     managedRoot: !!js "process.env.AVN_HOSTED_SANDBOX === '1' ? avnHomePath('sandbox', 'accounts') : undefined"
 
 # A WhatsApp number may send a file the account's own sessions made: the
@@ -425,9 +427,11 @@
   disabled: true
 
 # With AVN_SYNCTHING, this Host is a file sync device of every account whose
-# key it holds: it keeps each account's Aeven folder, the files Aeven
-# made for the user on their desktops, so a reply's images and files open here
-# while every desktop is offline. Sessions here cannot write the folder.
+# key it holds: it keeps each account's Aeven folder, the files Aeven made for
+# the user on any device, so a reply's images and files open here while every
+# desktop is offline. With the jail, the folder is the account's managed folder,
+# so the files this Host's sessions make travel to the desktops; its sessions
+# see only their own subfolder, so the model is not told the folder's root.
 - insert:
     - id: file-sync-syncthing
       name: '@aeven/file-sync-syncthing'
@@ -441,7 +445,7 @@
       name: '@aeven/aeven-folder-sync'
       disabled: !!js "process.env.AVN_SYNCTHING === undefined"
       config:
-        path: !!js avnHomePath('aeven-folders')
+        path: !!js "process.env.AVN_HOSTED_SANDBOX === '1' ? avnHomePath('sandbox', 'accounts') : avnHomePath('aeven-folders')"
         perAccount: true
         announcePeer: true
         advertise: false

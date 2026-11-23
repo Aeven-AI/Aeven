@@ -1,4 +1,5 @@
 import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { Context } from '@deepseek-ai/cordis'
 import AgentRegistry from '@aeven/agent'
 import SessionStore from '@aeven/session'
@@ -7,6 +8,9 @@ import {
   createSessionTestController,
   createSessionTestRemote,
 } from './test-remote.ts'
+
+/** A path that exists on this Host, so an opener failure stays an opener failure rather than a missing path. */
+const PRESENT = fileURLToPath(import.meta.url)
 
 async function context(): Promise<Context> {
   const ctx = new Context()
@@ -106,11 +110,13 @@ describe('session/openWorkspacePath', () => {
       openPath,
     })
 
-    await expect(remote.openWorkspacePath({ path: 'result.html' }))
+    await expect(remote.openWorkspacePath({ path: PRESENT }))
       .resolves.toMatchObject({
         ok: false,
         error: { code: 'gateway/internal', message: 'path open failed: desktop unavailable' },
       })
+    await expect(remote.openWorkspacePath({ path: '/no/such/dir/result.html' }))
+      .resolves.toMatchObject({ ok: false, error: { code: 'session/path-missing', details: { path: '/no/such/dir/result.html' } } })
 
     const aborted = new AbortController()
     aborted.abort(new Error('gateway/cancelled'))
@@ -136,7 +142,7 @@ describe('session/openWorkspacePath', () => {
     await expect(controller.openWorkspacePath({ path: 'first.html' }, aborted.signal))
       .rejects.toMatchObject({ code: 'gateway/cancelled' })
     await expect(controller.openWorkspacePath({
-      path: 'second.html',
+      path: PRESENT,
     }, new AbortController().signal)).rejects.toMatchObject({
       code: 'gateway/internal', message: 'path open failed: desktop unavailable',
     })

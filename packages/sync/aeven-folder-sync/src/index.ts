@@ -20,7 +20,8 @@
  */
 
 import { createHash } from 'node:crypto'
-import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { readdir, readFile, rm } from 'node:fs/promises'
 import { isAbsolute, join, relative } from 'node:path'
 import { Service, type Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
@@ -33,6 +34,7 @@ import type { SyncDocument } from '@aeven/sync'
 import type {} from '@aeven/sync'
 import type {} from '@aeven/system-prompt'
 import type {} from '@aeven/agent'
+import type {} from '@aeven/working-directory'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -109,7 +111,8 @@ export class AevenFolder extends Service {
 
   private readonly documents = new Map<string, Promise<SyncDocument | undefined>>()
   private readonly peerDocuments = new Map<string, Promise<SyncDocument | undefined>>()
-  private readonly folders = new Map<string, Promise<string | undefined>>()
+  /** Each account's answer from {@link folderNow}, including undefined for an account another one shut out. */
+  private readonly claimed = new Map<string, string | undefined>()
   /** Each account's folder once {@link folderOf} settled, for the synchronous runtime context. */
   private readonly settled = new Map<string, string>()
 
@@ -124,6 +127,15 @@ export class AevenFolder extends Service {
       void this.attach(owner).then(() => this.config.announcePeer ? this.announce(owner) : undefined)
     })
     ctx.on('sync/reset', (owner) => { void this.reset(owner) })
+    // A session with no folder of its own works in a folder inside this one, so the files it makes reach every device.
+    ctx.on('working-directory/account-folder', (owner) => {
+      try {
+        return this.folderNow(owner)
+      } catch (error: unknown) {
+        this.warn(error)
+        return undefined
+      }
+    })
     ctx.effect(() => async () => {
       for (const opening of [...this.documents.values(), ...this.peerDocuments.values()]) (await opening)?.close()
       this.documents.clear()
@@ -141,7 +153,7 @@ export class AevenFolder extends Service {
           const folder = await this.ownedFolder(owner)
           if (folder === undefined) return
           for (const name of await readdir(folder)) await rm(join(folder, name), { recursive: true, force: true })
-          this.folders.delete(owner)
+          this.claimed.delete(owner)
           this.settled.delete(owner)
         },
       }), 'aeven-folder-sync: account data')
@@ -167,18 +179,25 @@ export class AevenFolder extends Service {
    * @returns its absolute directory, or undefined when another account of this device owns the folder.
    */
   folderOf(owner: string): Promise<string | undefined> {
-    const existing = this.folders.get(owner)
-    if (existing !== undefined) return existing
-    const resolving = (this.config.perAccount ? Promise.resolve(join(this.config.path, owner)) : this.claim(owner))
-      .then((folder) => {
-        if (folder !== undefined) this.settled.set(owner, folder)
-        return folder
-      }, (error: unknown) => {
-        this.folders.delete(owner)
-        throw error
-      })
-    this.folders.set(owner, resolving)
-    return resolving
+    try {
+      return Promise.resolve(this.folderNow(owner))
+    } catch (error: unknown) {
+      return Promise.reject(error instanceof Error ? error : new Error(String(error)))
+    }
+  }
+
+  /**
+   * {@link folderOf}, answered synchronously for directory resolution.
+   * @param owner - the account.
+   * @returns its absolute directory, or undefined when another account of this device owns the folder.
+   * @throws when the folder or its owner file cannot be created or read.
+   */
+  private folderNow(owner: string): string | undefined {
+    if (this.claimed.has(owner)) return this.claimed.get(owner)
+    const folder = this.config.perAccount ? join(this.config.path, owner) : this.claim(owner)
+    this.claimed.set(owner, folder)
+    if (folder !== undefined) this.settled.set(owner, folder)
+    return folder
   }
 
   /**
@@ -196,16 +215,16 @@ export class AevenFolder extends Service {
   }
 
   /** Record `owner` as the folder's account unless another already is; the exclusive create settles a race. */
-  private async claim(owner: string): Promise<string | undefined> {
+  private claim(owner: string): string | undefined {
     const file = join(this.config.path, OWNER_FILE)
-    await mkdir(this.config.path, { recursive: true })
+    mkdirSync(this.config.path, { recursive: true })
     try {
-      await writeFile(file, `${owner}\n`, { flag: 'wx' })
+      writeFileSync(file, `${owner}\n`, { flag: 'wx' })
     } catch (error: unknown) {
       // An existing file names the account that claimed the folder first.
       if ((error as { code?: unknown } | null)?.code !== 'EEXIST') throw error
     }
-    return (await readFile(file, 'utf8')).trim() === owner ? this.config.path : undefined
+    return readFileSync(file, 'utf8').trim() === owner ? this.config.path : undefined
   }
 
   /**

@@ -119,8 +119,8 @@ describe('producedFileLinks', () => {
     const twice = [...produced, { path: '/elsewhere/pdf-test/Motivation_Letter.pdf', attachmentId: 'sha256:d' }]
     expect(producedFileLinks(undefined, () => twice, routes).resolve('pdf-test/Motivation_Letter.pdf')?.href)
       .toBe('https://app.test/file?path=pdf-test/Motivation_Letter.pdf')
-    // A produced file without a copy, or another path, keeps the workspace route.
-    expect(producedFileLinks('/w', () => [{ path: '/w/a.pdf' }], routes).resolve('a.pdf')?.href).toBe('https://app.test/file?path=a.pdf')
+    // A produced file without a copy keeps the workspace route, under the produced path.
+    expect(producedFileLinks('/w', () => [{ path: '/w/a.pdf' }], routes).resolve('a.pdf')?.href).toBe('https://app.test/file?path=/w/a.pdf')
   })
 
   it('resolves nothing for a destination that names no file', () => {

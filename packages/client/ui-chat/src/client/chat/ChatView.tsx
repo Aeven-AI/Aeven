@@ -9,6 +9,7 @@ import type { RenderMessageImages } from '@aeven/client-ui-conversation/client'
 import { Button, IconChevronDownOutline14, Modal, Spinner, TextAnimationContext } from '@aeven/client-ui-primitives'
 import type { ChatViewSlotProps, UserActionOwnerProps } from '../contract/slots.ts'
 import type { ChatSnapshot } from '../contract/snapshot.ts'
+import { MissingFileError } from '../contract/missing-file.ts'
 import type { ChatNode } from '../contract/chat-nodes.ts'
 import { turnImagesOf } from '../contract/turn-images.ts'
 import { PendingSteeringBubble, PendingSubmissionBubble, QueuedMessageBubble } from './MessageItem.tsx'
@@ -191,6 +192,19 @@ function openFailureMessage(error: unknown, fallback: string): string {
   return message === '' ? fallback : message
 }
 
+/**
+ * The dialog sentence for a path absent on this Host, naming the file and the folder it was looked for in.
+ * @param absolute - the Host path the opener looked for.
+ * @param path - the path as the transcript wrote it; `.` for the Session workspace.
+ * @param t - the chat view's translator.
+ */
+function missingFileMessage(absolute: string, path: string, t: ChatViewSlotProps['t']): string {
+  const trimmed = absolute.replace(/[\\/]+$/, '')
+  const cut = Math.max(trimmed.lastIndexOf('/'), trimmed.lastIndexOf('\\'))
+  if (isFolderOpenPath(path)) return t('fileOpen.folderMissing', { folder: trimmed })
+  return t('fileOpen.missing', { name: trimmed.slice(cut + 1), folder: cut <= 0 ? trimmed.slice(0, cut + 1) : trimmed.slice(0, cut) })
+}
+
 /** ProducedFiles opens the session workspace as `.`. */
 function isFolderOpenPath(path: string): boolean {
   return path === '.'
@@ -296,13 +310,14 @@ export function ChatView({
   const extendedTranscript = useTranscriptView(mode => mode === 'extended')
   const textAnimation = useTextAnimationPreference(enabled => enabled)
   const eventNavigation = useEventNavigation(request => request)
-  const [fileOpenError, setFileOpenError] = useState<{ path: string; message: string } | null>(null)
+  // `missing`: nothing exists at the path on this Host, so a retry cannot succeed and the dialog offers the folder.
+  const [fileOpenError, setFileOpenError] = useState<{ path: string; message: string; missing: boolean } | null>(null)
   const [fileOpenBusy, setFileOpenBusy] = useState(false)
   // Close/retry must ignore a settlement that started before the latest
   // gesture; otherwise a cancelled in-flight refusal reopens the dialog.
   const fileOpenRequest = useRef(0)
 
-  const requestOpenFile = useCallback((path: string) => {
+  const requestOpenFile = useCallback((path: string, onMissing?: () => void) => {
     const id = ++fileOpenRequest.current
     setFileOpenBusy(true)
     void openFile(path).then(
@@ -313,14 +328,19 @@ export function ChatView({
       },
       (error: unknown) => {
         if (id !== fileOpenRequest.current) return
-        setFileOpenError({
-          path,
-          message: openFailureMessage(
-            error,
-            t(isFolderOpenPath(path) ? 'fileOpen.folderUnknown' : 'fileOpen.unknown'),
-          ),
-        })
         setFileOpenBusy(false)
+        if (error instanceof MissingFileError && onMissing !== undefined) {
+          setFileOpenError(null)
+          onMissing()
+          return
+        }
+        setFileOpenError(error instanceof MissingFileError
+          ? { path, message: missingFileMessage(error.path, path, t), missing: true }
+          : {
+            path,
+            message: openFailureMessage(error, t(isFolderOpenPath(path) ? 'fileOpen.folderUnknown' : 'fileOpen.unknown')),
+            missing: false,
+          })
       },
     )
   }, [openFile, t])
@@ -1361,7 +1381,8 @@ export function ChatView({
             message={fileOpenError.message}
             busy={fileOpenBusy}
             onClose={closeFileOpenError}
-            onRetry={() => { requestOpenFile(fileOpenError.path) }}
+            onRetry={fileOpenError.missing ? undefined : () => { requestOpenFile(fileOpenError.path) }}
+            onOpenFolder={fileOpenError.missing && !isFolderOpenPath(fileOpenError.path) ? () => { requestOpenFile('.') } : undefined}
             t={t}
           />
         )}
@@ -1370,15 +1391,19 @@ export function ChatView({
   )
 }
 
-/** In-page Host open-path refusal: the wire reason plus a retry of the same path. */
+/**
+ * In-page Host open-path refusal: the reason plus a retry of the same path, or, for a path absent on this Host, which
+ * a retry cannot reach, the Session's folder.
+ */
 function FileOpenErrorDialog({
-  path, message, busy, onClose, onRetry, t,
+  path, message, busy, onClose, onRetry, onOpenFolder, t,
 }: {
   path: string
   message: string
   busy: boolean
   onClose: () => void
-  onRetry: () => void
+  onRetry: (() => void) | undefined
+  onOpenFolder: (() => void) | undefined
   t: ChatViewSlotProps['t']
 }) {
   return (
@@ -1391,7 +1416,12 @@ function FileOpenErrorDialog({
       footer={(
         <>
           <Button variant="outline" className={css.modalAction} onClick={onClose}>{t('cancel')}</Button>
-          <Button variant="primary" className={css.modalAction} disabled={busy} onClick={onRetry}>{t('retry')}</Button>
+          {onOpenFolder !== undefined && (
+            <Button variant="primary" className={css.modalAction} disabled={busy} onClick={onOpenFolder}>{t('fileOpen.openFolder')}</Button>
+          )}
+          {onRetry !== undefined && (
+            <Button variant="primary" className={css.modalAction} disabled={busy} onClick={onRetry}>{t('retry')}</Button>
+          )}
         </>
       )}
     />

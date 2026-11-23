@@ -37,6 +37,7 @@
     "@aeven/host-account-data": "workspace:^",
     "@aeven/sync": "workspace:^",
     "@aeven/system-prompt": "workspace:^",
+    "@aeven/working-directory": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
@@ -45,10 +46,14 @@
     "@aeven/host-account-data": "workspace:^",
     "@aeven/sync": "workspace:^",
     "@aeven/system-prompt": "workspace:^",
+    "@aeven/working-directory": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
   "peerDependenciesMeta": {
     "@aeven/host-account-data": {
+      "optional": true
+    },
+    "@aeven/working-directory": {
       "optional": true
     }
   }

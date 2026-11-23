@@ -34,7 +34,7 @@ export type {
   AssistantActionOwnerProps, UserActionOwnerProps, ChatFileMentions, ChatNodeOwnerProps, ChatNodeTurnDataInjected,
   ChatNodeViewProps, ChatScrollPosition, ChatStore, ChatViewInjected, ChatViewSlotProps,
   CommandRowOwnerProps, CommandRowProps, DetailsInjected, DetailsSlotProps,
-  DetailsToolOwnerProps, FileLinkOwnerProps, MessageImagesProps,
+  DetailsToolOwnerProps, FileLinkOwnerProps, MessageImagesProps, OpenWorkspaceFile,
   TurnProcessOwnerProps, TurnTailOwnerProps, UseChat, UseChatNodeTurnData,
 } from './contract/slots.ts'
 export type {
@@ -61,4 +61,4 @@ declare module './contract/chat-nodes.ts' {
   interface ChatNodeDataMap extends PublicChatNodeDataMap {}
 }
 
-export type { ConnectorCards, GeneratedImages } from './contract/generated-images.ts'
+export type { ConnectorCards, GeneratedImages, ProducedImages } from './contract/generated-images.ts'
