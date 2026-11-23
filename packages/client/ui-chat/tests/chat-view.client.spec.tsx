@@ -37,6 +37,7 @@ import {
   TurnMaxTokensNodeView, UnknownNodeView, UserMessageNodeView,
 } from '../src/client/chat/MessageItem.tsx'
 import { TurnTailNodeView } from '../src/client/chat/TurnTailNodeView.tsx'
+import { MissingFileError } from '../src/client/contract/missing-file.ts'
 import { TurnProcessNodeView } from '../src/client/chat/TurnProcessNodeView.tsx'
 import { SystemPromptNodeView } from '../src/client/chat/SystemPromptRow.tsx'
 import { formatRunDuration } from '../src/client/chat/message-chrome.ts'
@@ -2773,6 +2774,37 @@ describe('ChatView', () => {
     await waitFor(() => {
       expect(screen.getByRole('dialog', { name: '无法打开文件夹' }).textContent).toContain('无法打开此文件夹')
     })
+  })
+
+  it('words a path missing on this Host for the reader and offers its folder instead of a retry (#761)', async () => {
+    const openFile = vi.fn<(path: string) => Promise<void>>()
+      .mockRejectedValueOnce(new MissingFileError('/Users/elizabethtrejo/.aeven/chats/Rainbow_High_Set_of_6_Dolls.jpg'))
+      .mockResolvedValueOnce(undefined)
+    const h = makeHarness({ nodes: [toolResult(3, 'a')] })
+    h.props.openFile = openFile
+    render(<h.ChatView {...h.props} />)
+    await act(async () => { h.toolOwners[0]!.openFile('Rainbow_High_Set_of_6_Dolls.jpg') })
+    const dialog = await waitFor(() => screen.getByRole('dialog', { name: '无法打开文件' }))
+    // The reader sees the file and the folder, never the opener's command line.
+    expect(dialog.textContent).toContain('/Users/elizabethtrejo/.aeven/chats')
+    expect(dialog.textContent).toContain('Rainbow_High_Set_of_6_Dolls.jpg')
+    expect(dialog.textContent).not.toContain('Command failed')
+    expect(dialog.textContent).not.toContain('path open failed')
+    expect(screen.queryByRole('button', { name: '重试' })).toBeNull()
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: '打开文件夹' })) })
+    expect(openFile).toHaveBeenNthCalledWith(2, '.')
+  })
+
+  it('hands a missing path to the caller that holds a stored copy, without the dialog (#761)', async () => {
+    const openFile = vi.fn<(path: string) => Promise<void>>()
+      .mockRejectedValueOnce(new MissingFileError('/w/report.pdf'))
+    const onMissing = vi.fn()
+    const h = makeHarness({ nodes: [toolResult(3, 'a')] })
+    h.props.openFile = openFile
+    render(<h.ChatView {...h.props} />)
+    await act(async () => { h.toolOwners[0]!.openFile('report.pdf', onMissing) })
+    await waitFor(() => { expect(onMissing).toHaveBeenCalledOnce() })
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('ignores a Host refusal that settles after the dialog is dismissed', async () => {

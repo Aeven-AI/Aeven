@@ -81,6 +81,34 @@ describe('openProducedFile', () => {
   })
 })
 
+describe('a produced file missing on this Host (#761)', () => {
+  it('opens the path on the desktop and downloads the stored copy when the Host has nothing there', async () => {
+    const downloads = captureDownloads()
+    const local = opening(false, true)
+    openProducedFile({ path: 'Rainbow_High_Set_of_6_Dolls.jpg', attachmentId: 'sha256:2abf' }, local)
+    await vi.waitFor(() => { expect(local.openFile).toHaveBeenCalled() })
+    const [path, onMissing] = local.openFile.mock.calls[0] ?? []
+    expect(path).toBe('Rainbow_High_Set_of_6_Dolls.jpg')
+    expect(downloads).toEqual([])
+    onMissing?.()
+    expect(downloads).toEqual(['https://app.test/attachment?id=sha256:2abf&download'])
+  })
+
+  it('leaves a file without a stored copy to the refusal dialog', async () => {
+    const local = opening(false, true)
+    openProducedFile({ path: 'notes.txt' }, local)
+    await vi.waitFor(() => { expect(local.openFile).toHaveBeenCalledWith('notes.txt') })
+  })
+
+  it('opens the produced path a basename link names, not <cwd>/<basename>', async () => {
+    const routes = opening(false, true)
+    const link = producedFileLinks('/w', () => [{ path: '/w/out/crops/Rainbow.jpg' }], routes).resolve('Rainbow.jpg')
+    expect(link?.href).toBe('https://app.test/file?path=/w/out/crops/Rainbow.jpg')
+    link?.open()
+    await vi.waitFor(() => { expect(routes.openFile).toHaveBeenCalledWith('/w/out/crops/Rainbow.jpg') })
+  })
+})
+
 describe('producedFileLinks', () => {
   it('links a path to its workspace file and opens it the way a produced file opens', async () => {
     const downloads = captureDownloads()
