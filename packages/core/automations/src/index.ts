@@ -24,7 +24,7 @@ import { LeaseHolder } from '@aeven/sync'
 import type { Domain } from '@aeven/storage-domain'
 import { setApprovalPolicy, type ApprovalRequestId } from '@aeven/user-approval'
 import { automationDomain, webhookDomain, inputSchema, patchSchema, boardInputSchema, CONNECTOR_IDS, definitionSchema } from './domain.ts'
-import { connectorRefusal } from './connectors.ts'
+import { bound, connectorOf, connectorRefusal } from './connectors.ts'
 import { matchesGitHub, summarizeGitHub, verifiesGitHub } from './github.ts'
 import { describeMail, matchesMail, newMail } from './mail-events.ts'
 import { runNotice } from './notice.ts'
@@ -390,8 +390,12 @@ export class Automations extends Service<Config> {
     }
     for (const agent of ctx.agents.roots()) installTools(agent)
     ctx.on('agent/created', ({ agent }) =>{  installTools(agent) })
-    // An approval the owner gave once in a run conversation answers the same request in every later run.
+    // Confirming a bot confirms its connectors, so a running bot acts on them without asking; another approval
+    // the owner gave once in a run conversation answers the same request in every later run.
     ctx.on('approval/request', async (req, next) => {
+      const binding = this.bindings.get(req.agent.session.id)
+      const connector = connectorOf(req.toolName)
+      if (binding !== undefined && connector !== undefined && bound(binding, connector)) return 'allowed-session'
       const scope = req.allowSession
       if (scope === undefined) return next()
       const definition = this.definitionOf(await this.ready, req.agent.session.id)
@@ -1853,7 +1857,8 @@ export class Automations extends Service<Config> {
 
   /**
    * Execute one admitted run in a fresh root conversation of the Automations workspace.
-   * Approvals reach the owner's open client or a saved grant; without either they fail closed. The
+   * Actions on the bot's bound connectors are allowed while the run lasts; other approvals reach the owner's open
+   * client or a saved grant, and without either they fail closed. The
    * conversation stays live after the run so the owner can open it, continue it, and grant what it needed.
    */
   private async execute(domain: Domain<typeof automationDomain>, run: AutomationRun, entry: ActiveRun): Promise<void> {

@@ -46,7 +46,7 @@ const taskFields = {
     { type: 'string', enum: ['all'] }, { type: 'array', items: { type: 'string', enum: [...CONNECTOR_IDS] } },
   ] },
   overlap: { type: 'string', enum: ['skip', 'queue', 'parallel'], description: 'When it is woken while still running: skip (default, right for reports), queue (right for answering messages), or parallel.' },
-  permission: { type: 'string', enum: ['read-only', 'workspace-write'], description: 'Read-only inspection or permission to create and edit files. External connector writes still require approval.' },
+  permission: { type: 'string', enum: ['read-only', 'workspace-write'], description: 'Read-only inspection or permission to create and edit files. Writes through the bot’s connectors need no further approval.' },
   requires: { type: 'array', items: { type: 'string', enum: ['files', 'browser', 'computer-use'] }, description: 'What the task needs from the user’s own computer: files for files or folders stored on it, browser for the user’s own browser and its signed-in sites, computer-use for operating its apps. Leave empty when the task needs only the web, connected accounts, and files it creates itself; it then also runs while the computer is off.' },
   runOn: { type: 'string', enum: ['auto', 'device'], description: 'device keeps every run on the user’s own computer; use it only when the user asks for that. auto, the default, lets the task run wherever it can.' },
 }
@@ -68,7 +68,7 @@ export function registerAutomationTools(service: Automations, agent: Agent, iden
     identity.runAs(agent.session.header.owner === undefined ? undefined : { id: agent.session.header.owner }, work)
   const tools: ToolDefinition[] = [
     {
-      name: 'automation_create', description: 'Create a built-in automation after human confirmation. Translate the user’s request into a self-contained task, the triggers that wake it, and the connected accounts it needs. Ask only for missing requirements. Future runs start fresh conversations with only those accounts. An external action that needs approval asks the user in the run conversation; once the user approves it there, later runs perform it without asking until the approval expires or is revoked.',
+      name: 'automation_create', description: 'Create a built-in automation after human confirmation. Translate the user’s request into a self-contained task, the triggers that wake it, and the connected accounts it needs. Ask only for missing requirements. Future runs start fresh conversations with only those accounts and act on them without asking again, since this confirmation approves them. Any other action that needs approval asks the user in the run conversation; once the user approves it there, later runs perform it without asking until the approval expires or is revoked.',
       parameters: { type: 'object', properties: taskFields, required: ['name', 'prompt', 'triggers', 'permission', 'requires'], additionalProperties: false },
       output: { schema: { type: 'object', additionalProperties: true }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] },
       execute: async (args, exec) => {

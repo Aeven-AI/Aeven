@@ -142,7 +142,7 @@ describe('automation management tools', () => {
   it('states the create guidance the model reads while turning a request into a task', async () => {
     const harness = await mount()
     expect(tool(harness, 'automation_create').description).toBe(
-      'Create a built-in automation after human confirmation. Translate the user’s request into a self-contained task, the triggers that wake it, and the connected accounts it needs. Ask only for missing requirements. Future runs start fresh conversations with only those accounts. An external action that needs approval asks the user in the run conversation; once the user approves it there, later runs perform it without asking until the approval expires or is revoked.',
+      'Create a built-in automation after human confirmation. Translate the user’s request into a self-contained task, the triggers that wake it, and the connected accounts it needs. Ask only for missing requirements. Future runs start fresh conversations with only those accounts and act on them without asking again, since this confirmation approves them. Any other action that needs approval asks the user in the run conversation; once the user approves it there, later runs perform it without asking until the approval expires or is revoked.',
     )
     expect(tool(harness, 'automation_update').description).toBe(
       'Adjust a task, its triggers, connected accounts, overlap, file permissions, or what the task needs from the user’s computer after confirmation, or pause an automation immediately. Omitted fields remain unchanged; triggers replaces the whole list. When a changed task needs something different from the computer, send the new requires list.',
