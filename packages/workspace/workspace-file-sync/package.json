@@ -33,6 +33,7 @@
     "yjs": "13.6.27"
   },
   "peerDependencies": {
+    "@aeven/agent": "workspace:^",
     "@aeven/file-sync": "workspace:^",
     "@aeven/fs": "workspace:^",
     "@aeven/session": "workspace:^",
@@ -44,6 +45,7 @@
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
+    "@aeven/agent": "workspace:^",
     "@aeven/file-sync": "workspace:^",
     "@aeven/fs": "workspace:^",
     "@aeven/session": "workspace:^",
@@ -53,5 +55,10 @@
     "@aeven/tools": "workspace:^",
     "@aeven/workspace": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@aeven/agent": {
+      "optional": true
+    }
   }
 }

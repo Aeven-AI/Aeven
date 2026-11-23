@@ -6,7 +6,7 @@
 import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { mkdir, readdir, rm, stat } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Map as YMap, Transaction, YMapEvent } from 'yjs'
 import { brandString } from '@aeven/brand'
@@ -15,12 +15,15 @@ import type { SyncDocument } from '@aeven/sync'
 import type { DeviceId } from '@aeven/sync-vault'
 import type { SessionId } from '@aeven/session'
 import type {} from '@aeven/shell'
-import { byRecentUse, fitsDisk, hintedDirectory, locationHint, onBatteryPower, placeWorkspace, WorkspaceFileStatusReport } from '@aeven/workspace'
+import {
+  byRecentUse, fitsDisk, hintedDirectory, locationHint, MANAGED_PROJECTS_FOLDER, MANAGED_TRANSFER_FOLDER, onBatteryPower,
+  placeManagedWorkspace, placeWorkspace, WorkspaceFileStatusReport,
+} from '@aeven/workspace'
 import type { Workspace, WorkspaceFileFailure, WorkspaceFileStatus, WorkspaceId } from '@aeven/workspace'
 import { CheckoutDiscovery, parentsOf } from './discovery.ts'
 import { EnvFileNames, readEnvFiles, restoreEnvFiles, type EnvFileOptions } from './env-files.ts'
-import { GitUnavailableError, type Git } from './git.ts'
-import { publicRemote, remoteKey } from './remote.ts'
+import { COPY_MISSING, GitUnavailableError, type Git } from './git.ts'
+import { httpsRemote, publicRemote, remoteKey } from './remote.ts'
 import { untilFolder } from './wait.ts'
 import { WorkState } from './work-state.ts'
 
@@ -89,6 +92,13 @@ export interface WorkspaceRepositoriesOptions {
   prepareDependencies: boolean
   /** Longest a dependency install runs. */
   prepareTimeoutMs: number
+  /**
+   * For a Host serving many accounts: the directory holding each account's managed folder. A repository then lands in
+   * that account's `.aeven-projects/<workspace id>`, existing checkouts are never searched, transfer folders live in
+   * its `.aeven-projects/.transfer`, a repository is fetched only once a session of its workspace runs a turn here,
+   * this Host publishes no environment files, and the Git runner confines every command.
+   */
+  managedRoot?: string | undefined
 }
 
 /** Lockfiles, the toolchain each needs, and its frozen install, in the order a repository is checked. */
@@ -110,6 +120,7 @@ interface Account {
   device: DeviceId
   document: SyncDocument
 }
+
 
 /** One repository's environment files as this device follows them. */
 interface EnvFiles {
@@ -137,6 +148,8 @@ export class WorkspaceRepositories {
   private readonly env = new Map<WorkspaceId, EnvFiles>()
   private readonly retryAt = new Map<WorkspaceId, number>()
   private readonly served = new Map<string, Served>()
+  /** With a managed root, the arriving repositories a session here has asked for; the others are not fetched. */
+  private readonly wanted = new Set<WorkspaceId>()
   /** Called on every change of the copy requests, so a waiting request sees the holder's answer. */
   private readonly requestWaiters = new Set<() => void>()
   private readonly names: EnvFileNames
@@ -169,7 +182,8 @@ export class WorkspaceRepositories {
     })
     this.statuses = new WorkspaceFileStatusReport(ctx.workspaceRegistry)
     this.workState = new WorkState(ctx, git, {
-      transferRoot: options.transferRoot,
+      transferRoot: owner => this.transferRootOf(owner),
+      confined: options.managedRoot !== undefined,
       checkpointMaxBytes: options.checkpointMaxBytes,
       checkpointDebounceMs: options.checkpointDebounceMs,
       handoffWaitMs: options.handoffWaitMs,
@@ -206,10 +220,32 @@ export class WorkspaceRepositories {
    * @param signal - the turn's abort signal.
    */
   async beforeTurn(sessionId: SessionId, signal: AbortSignal): Promise<void> {
+    if (this.options.managedRoot !== undefined) await this.fetchForTurn(sessionId, signal)
     const repository = this.sessionRepository(sessionId)
     if (repository?.owner === undefined || this.ctx.workspaceRegistry.filesPaused(repository.owner)) return
     this.workState.postpone(repository.id)
     await this.workState.apply(repository.owner, repository.id, repository.path, signal)
+  }
+
+  /**
+   * With a managed root, fetch the repository of a session's workspace when it has not arrived here: the turn waits
+   * for the pass that clones or copies it, and stopping the turn ends the wait while the fetch goes on.
+   */
+  private async fetchForTurn(sessionId: SessionId, signal: AbortSignal): Promise<void> {
+    const placement = this.ctx.workspaceRegistry.placeSession(sessionId)
+    if (placement.state !== 'filed' || placement.workspace.kind !== 'remote' || placement.workspace.owner === undefined) return
+    this.wanted.add(placement.workspace.id)
+    const pass = this.reconcile(placement.workspace.owner)
+    await Promise.race([pass, new Promise<void>((resolve) => {
+      if (signal.aborted) resolve()
+      else signal.addEventListener('abort', () => { resolve() }, { once: true })
+    })])
+  }
+
+  /** The directory this device's transfer folders for an account live in. */
+  private transferRootOf(owner: string): string {
+    const managed = this.options.managedRoot
+    return managed === undefined ? this.options.transferRoot : join(managed, owner, MANAGED_PROJECTS_FOLDER, MANAGED_TRANSFER_FOLDER)
   }
 
   /**
@@ -267,6 +303,8 @@ export class WorkspaceRepositories {
     for (const key of [...requests.keys()]) {
       if (key.endsWith(`/${account.device}`)) requests.delete(key)
     }
+    // Transfer folders live only while a copy travels; what a previous run left is never resumed.
+    if (this.options.managedRoot !== undefined) await rm(this.transferRootOf(owner), { recursive: true, force: true })
     await this.reconcile(owner)
     await this.serve(owner)
   }
@@ -398,12 +436,13 @@ export class WorkspaceRepositories {
         if (JSON.stringify(repositories.get(workspace.id)) !== JSON.stringify(next)) repositories.set(workspace.id, next)
         const key = `${workspace.id}/${account.device}`
         if (holders.get(key) !== true) holders.set(key, true)
-        await this.publishEnv(owner, workspace.id, workspace.path)
+        // A managed Host reads no file of a work tree itself; its copies take environment files and publish none.
+        if (this.options.managedRoot === undefined) await this.publishEnv(owner, workspace.id, workspace.path)
         // The pass also catches work done outside a turn; an unchanged work tree writes nothing.
         if (!this.ctx.workspaceRegistry.filesPaused(owner)) void this.workState.checkpoint(owner, workspace.id, workspace.path)
       } else if (workspace.kind === 'remote') {
         const entry = repositories.get(workspace.id)
-        if (entry === undefined) continue
+        if (entry === undefined || (this.options.managedRoot !== undefined && !this.wanted.has(workspace.id))) continue
         arriving.add(workspace.id)
         if (this.ctx.workspaceRegistry.filesPaused(owner)) {
           this.statuses.set(workspace.id, { state: 'stopped' })
@@ -466,9 +505,11 @@ export class WorkspaceRepositories {
     const bound = registry.list().flatMap(other => other.path === undefined ? [] : [other.path])
     // Another device wrote the entry: a remote must be a network URL, and a branch name may not read as an option.
     const key = entry.remote === undefined ? undefined : remoteKey(entry.remote)
-    const remote = key === undefined ? undefined : entry.remote
+    const managed = this.options.managedRoot
+    // A confined clone reaches the network through HTTPS alone.
+    const remote = key === undefined ? undefined : managed === undefined ? entry.remote : httpsRemote(entry.remote ?? '')
     const branch = entry.branch?.startsWith('-') === false ? entry.branch : undefined
-    if (key !== undefined) {
+    if (key !== undefined && managed === undefined) {
       const hinted = entry.hint === undefined ? undefined : hintedDirectory(entry.hint)
       const direct = hinted === undefined ? [] : [hinted]
       const existing = await this.discovery.find(key, direct, parentsOf(bound), new Set(bound))
@@ -481,11 +522,11 @@ export class WorkspaceRepositories {
         return
       }
     }
-    if (!await fitsDisk(this.options.root, entry.bytes, this.options.minFreeDiskRatio)) {
+    if (!await fitsDisk(managed ?? this.options.root, entry.bytes, this.options.minFreeDiskRatio)) {
       this.statuses.set(workspace.id, { state: 'failed', reason: 'disk' })
       return
     }
-    if (entry.bytes > this.options.batteryDeferBytes && await onBatteryPower(this.ctx)) {
+    if (managed === undefined && entry.bytes > this.options.batteryDeferBytes && await onBatteryPower(this.ctx)) {
       this.statuses.set(workspace.id, { state: 'paused' })
       return
     }
@@ -497,7 +538,9 @@ export class WorkspaceRepositories {
       return
     }
     this.statuses.set(workspace.id, { state: 'syncing' })
-    const directory = await placeWorkspace(workspace.title, entry.hint, this.options.root)
+    const directory = managed === undefined
+      ? await placeWorkspace(workspace.title, entry.hint, this.options.root)
+      : await placeManagedWorkspace(managed, owner, workspace.id)
     try {
       const cloned = remote === undefined ? undefined : await this.clone(remote, directory)
       let got = cloned === true
@@ -535,9 +578,10 @@ export class WorkspaceRepositories {
    */
   private async clone(remote: string, directory: string): Promise<true | string> {
     // Without Git LFS, a required LFS filter would fail the whole clone; LFS objects are pulled afterwards instead.
+    // The clone fills the empty directory it runs in, which is all a confined clone may write.
     const result = await this.git.run(
-      ['-c', 'filter.lfs.required=false', 'clone', '--recurse-submodules', '--', remote, directory],
-      { cwd: dirname(directory), transfer: true, env: { GIT_LFS_SKIP_SMUDGE: '1' } },
+      ['-c', 'filter.lfs.required=false', 'clone', '--recurse-submodules', '--', remote, '.'],
+      { cwd: directory, transfer: true, env: { GIT_LFS_SKIP_SMUDGE: '1' } },
     )
     if (result.exitCode === 0) return true
     const error = result.stderr.trim().slice(-300)
@@ -572,7 +616,7 @@ export class WorkspaceRepositories {
     const requests = requestMap(account)
     const key = `${workspace.id}/${account.device}`
     const folder = brandString<FileSyncFolderId>(randomUUID())
-    const transfer = join(this.options.transferRoot, folder)
+    const transfer = join(this.transferRootOf(owner), folder)
     const deadline = Date.now() + this.options.copyTimeoutMs
     requests.set(key, { peer: await fileSync.peerId(), folder, state: 'requested' })
     try {
@@ -594,7 +638,7 @@ export class WorkspaceRepositories {
         return (await stat(bundle).catch(() => undefined))?.size === bytes
       })
       if (!arrived) return false
-      await this.git.output(['clone', '--', bundle, directory], { cwd: dirname(directory), transfer: true })
+      await this.git.output(['clone', '--', bundle, '.'], { cwd: directory, roots: [transfer], transfer: true })
       // Switch while the bundle's branches are still remote-tracking branches of `origin`.
       if (checkout.branch !== undefined) await this.git.run(['switch', checkout.branch], { cwd: directory })
       if (checkout.remote === undefined) await this.git.output(['remote', 'remove', 'origin'], { cwd: directory })
@@ -648,11 +692,11 @@ export class WorkspaceRepositories {
       if (requests.get(key)?.folder !== request.folder || requests.get(key)?.state !== 'requested') return
       requests.set(key, { ...request, state: 'serving' })
       const folder = brandString<FileSyncFolderId>(request.folder)
-      const directory = join(this.options.transferRoot, folder)
+      const directory = join(this.transferRootOf(owner), folder)
       const timer = setTimeout(() => { void this.stopServing(key) }, this.options.copyTimeoutMs)
       this.served.set(key, { folder, directory, timer })
       await mkdir(directory, { recursive: true })
-      await this.git.output(['bundle', 'create', join(directory, BUNDLE), '--all'], { cwd: path, transfer: true })
+      await this.git.output(['bundle', 'create', join(directory, BUNDLE), '--all'], { cwd: path, roots: [directory], transfer: true })
       const bytes = (await stat(join(directory, BUNDLE))).size
       await fileSync.share({ id: folder, owner, path: directory, peers: [brandString<FileSyncPeerId>(request.peer)] })
       if (requests.get(key)?.folder === request.folder) requests.set(key, { ...request, state: 'ready', holder: await fileSync.peerId(), bytes })
@@ -686,7 +730,24 @@ export class WorkspaceRepositories {
   /** Write the environment files another device published that this work tree lacks. */
   private async restoreEnv(owner: string, workspace: WorkspaceId, path: string): Promise<void> {
     const files = await this.envFiles(owner, workspace, path)
-    const written = await restoreEnvFiles(path, files.document.doc.getMap<string>('files').entries(), this.names, this.options.envFiles)
+    const entries = files.document.doc.getMap<string>('files').entries()
+    let written: string[]
+    if (this.options.managedRoot === undefined) {
+      written = await restoreEnvFiles(path, entries, this.names, this.options.envFiles)
+    } else {
+      // This Host's own user writes nothing inside a work tree: the files go to a staging folder no jail has seen, and
+      // a confined copy that skips existing files moves them in.
+      const staging = join(this.transferRootOf(owner), `env-${randomUUID()}`)
+      try {
+        written = await restoreEnvFiles(staging, entries, this.names, this.options.envFiles)
+        if (written.length > 0) {
+          const copied = await this.git.tool(COPY_MISSING.concat(`${staging}/.`, '.'), { cwd: path, roots: [staging] })
+          if (copied.exitCode !== 0) this.warn(`restoring environment files failed: ${copied.stderr.trim().slice(-300)}`)
+        }
+      } finally {
+        await rm(staging, { recursive: true, force: true })
+      }
+    }
     if (written.length > 0) this.ctx.logger('workspace-git-sync').info(`workspace-git-sync: restored ${String(written.length)} environment files`)
   }
 

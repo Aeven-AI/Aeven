@@ -10,11 +10,12 @@
  */
 import { rm } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { isAbsolute, join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import Schema from '@deepseek-ai/schemastery'
 import type {} from '@aeven/agent'
 import type {} from '@aeven/file-sync'
+import type {} from '@aeven/sandbox'
 import type { SessionId } from '@aeven/session'
 import type {} from '@aeven/session-handoff'
 import { avnHomePath } from '@aeven/home-paths'
@@ -108,6 +109,13 @@ export interface Config {
   prepareDependencies: boolean
   /** Longest a dependency install runs. */
   prepareTimeoutMs: number
+  /**
+   * For a Host serving many accounts, the absolute directory holding each account's managed folder. A repository then
+   * lands in `<managedRoot>/<owner>/.aeven-projects/<workspace id>` once a session of its workspace runs a turn here,
+   * and every Git command and every copy into or out of a work tree runs in the account's jail through the sandbox
+   * capability, which must be composed. Omitted, repositories land under `root` as on a person's own computer.
+   */
+  managedRoot?: string
 }
 
 /** Where developers keep checkouts, under the home directory on every platform. */
@@ -149,6 +157,7 @@ export const Config: Schema<Config> = Schema.object({
   powerPollMs: Schema.natural().min(1_000).default(60_000),
   prepareDependencies: Schema.boolean().default(true),
   prepareTimeoutMs: Schema.natural().min(1_000).default(1_800_000),
+  managedRoot: Schema.string(),
 })
 
 /**
@@ -157,6 +166,8 @@ export const Config: Schema<Config> = Schema.object({
  * @param config - placement, Git, discovery, environment file, and copy settings.
  */
 export function apply(ctx: Context, config: Config): void {
+  const managedRoot = config.managedRoot
+  if (managedRoot !== undefined && !isAbsolute(managedRoot)) throw new Error(`workspace-git-sync: managedRoot "${managedRoot}" must be absolute`)
   const git = new Git(ctx, {
     installPollMs: config.gitInstallPollMs,
     installTimeoutMs: config.gitInstallTimeoutMs,
@@ -164,6 +175,14 @@ export function apply(ctx: Context, config: Config): void {
     transferTimeoutMs: config.transferTimeoutMs,
     graceMs: config.stopGraceMs,
     outputMaxBytes: config.outputMaxBytes,
+    // A repository's configuration and hooks run with whatever runs Git, so on a Host serving many accounts Git runs
+    // in the account's jail, seeing only the work tree and the transfer folder it is handed.
+    confine: managedRoot === undefined ? undefined : (argv, roots) => {
+      const sandbox = ctx.get('sandbox')
+      if (sandbox === undefined) throw new Error('workspace-git-sync: managedRoot confines Git commands, which needs the sandbox capability')
+      const [workspaceRoot = '', ...additionalWritableRoots] = roots
+      return sandbox.confine(argv, { mode: 'workspace-write', workspaceRoot, additionalWritableRoots }).argv
+    },
   })
   const discovery = new CheckoutDiscovery({
     roots: config.discoveryRoots,

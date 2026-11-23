@@ -13,7 +13,10 @@ import { brandString } from '@aeven/brand'
 import type { FileSyncFolderId, FileSyncFolderStatus, FileSyncPeerId } from '@aeven/file-sync'
 import type { SyncDocument } from '@aeven/sync'
 import type { DeviceId } from '@aeven/sync-vault'
-import { byRecentUse, fitsDisk, locationHint, markedDirectory, onBatteryPower, placeWorkspace, WorkspaceFileStatusReport, writeMarker } from '@aeven/workspace'
+import {
+  byRecentUse, fitsDisk, locationHint, markedDirectory, onBatteryPower, placeManagedWorkspace, placeWorkspace, WorkspaceFileStatusReport,
+  writeMarker,
+} from '@aeven/workspace'
 import type { WorkspaceConflict, WorkspaceConflictChoice, WorkspaceFileStatus, WorkspaceId } from '@aeven/workspace'
 import type { SessionId } from '@aeven/session'
 
@@ -60,6 +63,13 @@ export interface WorkspaceFilesOptions {
   conflictScanMs: number
   /** Largest file, in bytes, whose two versions are shown as text. */
   conflictTextMaxBytes: number
+  /**
+   * For a Host serving many accounts: the directory holding each account's managed folder. A workspace then lands in
+   * that account's `.aeven-projects/<workspace id>` once a session of it runs a turn here, an existing copy is never
+   * searched for, and conflicts list their paths without either version's text and are resolved on another device:
+   * this Host's own user reads and changes nothing inside a folder an account's commands can write.
+   */
+  managedRoot?: string | undefined
 }
 
 interface Account {
@@ -87,6 +97,8 @@ export class WorkspaceFiles {
   private readonly conflictCounts = new Map<FileSyncFolderId, { count: number; at: number }>()
   /** Serializes each account's reconciliation, so a bind it causes runs after the pass that made it. */
   private readonly passes = new Map<string, Promise<void>>()
+  /** With a managed root, the arriving workspaces a session here has asked for; the others are not downloaded. */
+  private readonly wanted = new Set<WorkspaceId>()
 
   /**
    * @param ctx - context providing `fileSync`, `workspaceRegistry`, and `sync`.
@@ -135,6 +147,21 @@ export class WorkspaceFiles {
       .filter(([device]) => device !== account.device && listed.has(brandString<DeviceId>(device)))
       .map(([, entry]) => brandString<FileSyncPeerId>(entry.peer))
     await this.ctx.fileSync.setPeers(owner, peers)
+  }
+
+  /**
+   * With a managed root, give the workspace of a session about to run a turn a directory here when its files have not
+   * arrived; reads then wait for each file they need as on any device.
+   * @param sessionId - the session about to run a turn.
+   * @returns when the pass that binds the workspace ends.
+   */
+  async wantForTurn(sessionId: SessionId): Promise<void> {
+    if (this.options.managedRoot === undefined) return
+    const placement = this.ctx.workspaceRegistry.placeSession(sessionId)
+    if (placement.state !== 'filed' || placement.workspace.kind !== 'remote' || placement.workspace.owner === undefined) return
+    if (this.wanted.has(placement.workspace.id)) return
+    this.wanted.add(placement.workspace.id)
+    await this.reconcile(placement.workspace.owner)
   }
 
   /** Reconcile every account this device has attached. */
@@ -350,9 +377,20 @@ export class WorkspaceFiles {
         await this.ctx.fileSync.share({ id, owner, path: workspace.path })
         await this.folderChanged(id)
       } else if (workspace.kind === 'remote' && entry !== undefined) {
+        const managed = this.options.managedRoot
+        if (managed !== undefined && !this.wanted.has(workspace.id)) continue
         present.add(workspace.id)
         if (registry.filesPaused(owner)) {
           this.statuses.set(workspace.id, { state: 'stopped' })
+          continue
+        }
+        if (managed !== undefined) {
+          if (!await fitsDisk(managed, entry.bytes, this.options.minFreeDiskRatio)) {
+            this.statuses.set(workspace.id, { state: 'failed', reason: 'disk' })
+            continue
+          }
+          this.statuses.set(workspace.id, { state: 'syncing', progress: 0 })
+          await registry.bind(workspace.id, await placeManagedWorkspace(managed, owner, workspace.id))
           continue
         }
         // A copy this device already holds is bound in place; the transport then exchanges only the differences.
@@ -418,6 +456,8 @@ export class WorkspaceFiles {
     if (found === undefined) return undefined
     const [id, shared] = found
     const listed = await this.ctx.fileSync.conflicts(id)
+    // A managed Host reads no file an account's commands can write: a path component may lead into another account.
+    if (this.options.managedRoot !== undefined) return listed.map(conflict => ({ path: conflict.path, thisText: null, otherText: null }))
     return Promise.all(listed.map(async conflict => ({
       path: conflict.path,
       thisText: await this.text(join(shared.path, ...conflict.path.split('/'))),
@@ -433,6 +473,8 @@ export class WorkspaceFiles {
    * @returns whether this Consumer syncs the workspace and the file had a conflict.
    */
   async resolve(workspace: WorkspaceId, path: string, keep: WorkspaceConflictChoice): Promise<boolean> {
+    // Resolving renames files inside the folder, which a managed Host leaves to the account's other devices.
+    if (this.options.managedRoot !== undefined) return false
     const found = this.sharedOf(workspace)
     if (found === undefined) return false
     const [id] = found

@@ -38,6 +38,46 @@ export function hintedDirectory(hint: string): string | undefined {
 }
 
 /**
+ * The folder of a Host's managed account folder (`<managedRoot>/<owner>`) that holds the Host's copies of the
+ * account's folder workspaces, one subfolder per workspace. File sync leaves it out of the account folder it carries
+ * (`@aeven/file-sync-syncthing` ignores it by name): each workspace syncs through its own folder or Git.
+ */
+export const MANAGED_PROJECTS_FOLDER = '.aeven-projects'
+
+/**
+ * The folder beside a Host's managed workspace copies where its transfer folders live: copies and checkpoints of the
+ * account's repositories. No session's jail mounts it, so only the Host and the one command it hands a transfer
+ * folder to reach what it holds.
+ */
+export const MANAGED_TRANSFER_FOLDER = '.transfer'
+
+/**
+ * The directory a Host serving many accounts gives a workspace of one account, created here: `<managedRoot>/<owner>/
+ * .aeven-projects/<workspace id>` when it is free, otherwise the same name numbered. A directory is free when it does
+ * not exist or is empty, so files a session left there before the workspace arrived are never mixed with it.
+ * @param managedRoot - the absolute directory holding each account's managed folder.
+ * @param owner - the account, a plain path segment.
+ * @param workspace - the workspace id, a plain path segment.
+ * @returns the created or empty directory.
+ * @throws when every candidate is taken, or the owner or workspace id is not a plain path segment.
+ */
+export async function placeManagedWorkspace(managedRoot: string, owner: string, workspace: string): Promise<string> {
+  if (!PATH_SEGMENT.test(owner) || !PATH_SEGMENT.test(workspace)) throw new Error(`no managed directory for workspace '${workspace}'`)
+  const parent = join(managedRoot, owner, MANAGED_PROJECTS_FOLDER)
+  for (let index = 1; index <= NUMBERED_NAMES; index += 1) {
+    const candidate = join(parent, index === 1 ? workspace : `${workspace}-${String(index)}`)
+    if (await isFree(candidate)) {
+      await mkdir(candidate, { recursive: true, mode: 0o770 })
+      return candidate
+    }
+  }
+  throw new Error(`no free directory for workspace '${workspace}' under ${parent}`)
+}
+
+/** An owner or workspace id usable as one directory name. */
+const PATH_SEGMENT = /^[A-Za-z0-9_-]{1,128}$/u
+
+/**
  * Pick the directory a received workspace's files take here and create it: the hinted directory when it is free,
  * otherwise the title under the placement root, numbered when the name is taken. A directory is free when it does
  * not exist or is empty, so files already there are never mixed with the workspace's.

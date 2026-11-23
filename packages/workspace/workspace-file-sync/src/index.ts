@@ -8,9 +8,10 @@
  * @module @aeven/workspace-file-sync
  */
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { isAbsolute, join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import Schema from '@deepseek-ai/schemastery'
+import type {} from '@aeven/agent'
 import type {} from '@aeven/file-sync'
 import type {} from '@aeven/fs'
 import type {} from '@aeven/tools'
@@ -51,6 +52,12 @@ export interface Config {
   conflictScanMs: number
   /** Largest file, in bytes, whose two versions are shown as text. */
   conflictTextMaxBytes: number
+  /**
+   * For a Host serving many accounts, the absolute directory holding each account's managed folder: a workspace then
+   * lands in `<managedRoot>/<owner>/.aeven-projects/<workspace id>` once a session of it runs a turn here, and
+   * conflicts show no file text and are resolved on another device. Omitted, workspaces land under `root`.
+   */
+  managedRoot?: string
 }
 
 /** Tools that read the whole tree, which wait for a workspace's first download instead of seeing part of it. */
@@ -72,6 +79,7 @@ export const Config: Schema<Config> = Schema.object({
   powerPollMs: Schema.natural().min(1_000).default(60_000),
   conflictScanMs: Schema.natural().default(30_000),
   conflictTextMaxBytes: Schema.natural().min(1).default(256 * 1024),
+  managedRoot: Schema.string(),
 })
 
 /**
@@ -80,6 +88,9 @@ export const Config: Schema<Config> = Schema.object({
  * @param config - placement root and disk budget.
  */
 export function apply(ctx: Context, config: Config): void {
+  if (config.managedRoot !== undefined && !isAbsolute(config.managedRoot)) {
+    throw new Error(`workspace-file-sync: managedRoot "${config.managedRoot}" must be absolute`)
+  }
   const files = new WorkspaceFiles(ctx, config)
   const warn = (error: unknown): void => {
     ctx.logger('workspace-file-sync').warn(`workspace-file-sync: ${String(error)}`)
@@ -107,6 +118,18 @@ export function apply(ctx: Context, config: Config): void {
     if (!partial.delete(exec.callId)) return next()
     return { kind: 'accept', content: [...result.content, { type: 'text', text: ARRIVING_NOTE }] }
   })
+  // A Host serving many accounts downloads a workspace only for a session that works in it here.
+  if (config.managedRoot !== undefined) {
+    const asked = new Map<string, number>()
+    ctx.on('agent/pre-step', async ({ agent, turn }, next) => {
+      if (asked.get(agent.session.id) !== turn) {
+        asked.set(agent.session.id, turn)
+        await files.wantForTurn(agent.session.id).catch(warn)
+      }
+      return next()
+    })
+    ctx.on('agent/disposed', ({ agent }) => { asked.delete(agent.session.id) })
+  }
   ctx.on('fs/observed', (target, observation) => {
     const fs = ctx.get('fs')
     if (fs !== undefined && observation.kind === 'present') files.touched(fs.processPath(target))

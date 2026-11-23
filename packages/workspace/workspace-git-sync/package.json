@@ -36,6 +36,7 @@
   "peerDependencies": {
     "@aeven/agent": "workspace:^",
     "@aeven/file-sync": "workspace:^",
+    "@aeven/sandbox": "workspace:^",
     "@aeven/session": "workspace:^",
     "@aeven/session-handoff": "workspace:^",
     "@aeven/shell": "workspace:^",
@@ -48,6 +49,7 @@
   "devDependencies": {
     "@aeven/agent": "workspace:^",
     "@aeven/file-sync": "workspace:^",
+    "@aeven/sandbox": "workspace:^",
     "@aeven/session": "workspace:^",
     "@aeven/session-handoff": "workspace:^",
     "@aeven/shell": "workspace:^",
@@ -56,5 +58,10 @@
     "@aeven/sync-vault": "workspace:^",
     "@aeven/workspace": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@aeven/sandbox": {
+      "optional": true
+    }
   }
 }

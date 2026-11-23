@@ -91,8 +91,11 @@ export async function restoreEnvFiles(
 ): Promise<string[]> {
   const written: string[] = []
   for (const [path, content] of files) {
-    // Another device wrote these entries; a path outside the patterns could name a hook or a source file.
-    if (posix.isAbsolute(path) || !names.matches(path)) continue
+    // Another device wrote these entries; a path outside the patterns could name a hook or a source file, and one with
+    // a `..` segment would leave the work tree.
+    const segments = path.split('/')
+    if (posix.isAbsolute(path) || !names.matches(path)
+      || segments.some(segment => segment === '' || segment === '.' || segment === '..' || segment === '.git')) continue
     const bytes = Buffer.from(content, 'base64')
     const absolute = join(root, ...path.split('/'))
     if (bytes.length > options.maxBytes || existsSync(absolute)) continue

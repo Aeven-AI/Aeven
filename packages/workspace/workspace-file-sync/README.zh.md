@@ -13,6 +13,8 @@ kind: "package-reference"
 
 每个共享文件夹都有一个 `.aeven-workspace` 标记，收到的 workspace 会绑定放置候选位置上带标记的副本，而不是再次下载。文件夹首次下载期间，读取尚未到达的文件会把它移到队列最前面并最多等待 `readWaitMs`，`bash`、`grep` 和 `glob` 最多等待 `gateWaitMs`；在文件到齐之前运行的调用会在结果中带一条说明。智能体读取或写入的文件会在 `scanDelayMs` 内汇总后立即扫描。超过 `batteryDeferBytes` 的首次下载在使用电池时报告 `paused`，接通电源后开始。存在冲突版本的最新文件夹报告带数量的 `conflict`，有本机无法存储的文件时报告带 `unstorable` 的 `failed`。
 
+服务多个账户的 Host 设置 `managedRoot`。此时文件夹 workspace 只在其会话于该 Host 上运行一个轮次时才到达，落在账户的 `<managedRoot>/<owner>/.aeven-projects/<workspace id>` 中，且不搜索已有副本；读取会像在任何设备上一样等待所需文件。冲突只列出路径而不带任何版本的文本，解决冲突交给账户的其他设备，因为两者都要读取或重命名账户命令可以写入的文件。
+
 ## 目录
 
 - [模型体验](#model-experience)

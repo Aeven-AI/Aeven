@@ -8,7 +8,7 @@
  */
 import { createHash, randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { cp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { cp, lstat, mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Map as YMap } from 'yjs'
@@ -17,7 +17,7 @@ import type { FileSyncFolderId, FileSyncPeerId } from '@aeven/file-sync'
 import type { SyncDocument } from '@aeven/sync'
 import type { DeviceId } from '@aeven/sync-vault'
 import type { WorkspaceId } from '@aeven/workspace'
-import type { Git } from './git.ts'
+import { COPY_MISSING, type Git } from './git.ts'
 import { folderComplete, untilFolder } from './wait.ts'
 
 /** One device's latest checkpoint of a repository workspace, as the account's devices read it. */
@@ -47,8 +47,14 @@ interface CheckpointMeta {
 
 /** Limits and locations of checkpoints. */
 export interface WorkStateOptions {
-  /** Directory transfer folders live in. */
-  transferRoot: string
+  /** The directory an account's transfer folders live in. */
+  transferRoot: (owner: string) => string
+  /**
+   * Whether the Git runner confines its commands, because the work trees belong to accounts other than this Host's
+   * user: files then move into and out of a work tree only through confined copies, never through this Host's own
+   * file calls.
+   */
+  confined: boolean
   /** Largest checkpoint, in bytes, of tracked changes and untracked files together; a larger one is not written. */
   checkpointMaxBytes: number
   /** Delay after a turn before its work is checkpointed, so a burst of turns writes one checkpoint. */
@@ -73,6 +79,8 @@ const DIFF = 'changes.diff'
 const UNTRACKED = 'untracked'
 /** Name of the description written last inside a checkpoint folder. */
 const META = 'checkpoint.json'
+/** Untracked files one confined copy takes, which keeps its argv well under the system's limit. */
+const COPY_BATCH = 200
 
 /** Writes, publishes, and applies the account's work-state checkpoints on this device. */
 export class WorkState {
@@ -166,7 +174,7 @@ export class WorkState {
     // Another device wrote these fields: the folder id names a directory here, and the branch reaches Git's argv.
     if (!/^[0-9a-f-]{36}$/u.test(newest.folder) || newest.branch?.startsWith('-') === true || !/^[0-9a-f]{40,64}$/u.test(newest.head)) return
     const folder = brandString<FileSyncFolderId>(newest.folder)
-    const incoming = join(this.options.transferRoot, 'incoming', newest.folder)
+    const incoming = join(this.options.transferRoot(owner), 'incoming', newest.folder)
     await fileSync.share({ id: folder, owner, path: incoming, peers: [brandString<FileSyncPeerId>(newest.peer)] })
     const expected = newest.id
     const complete = async (): Promise<boolean> => (await readMeta(incoming))?.id === expected
@@ -210,21 +218,24 @@ export class WorkState {
     const key = `${workspace}/${account.device}`
     const published = checkpoints.get(key)
     const folderId = published?.folder ?? randomUUID()
-    const dir = join(this.options.transferRoot, 'checkpoints', folderId)
+    const dir = join(this.options.transferRoot(owner), 'checkpoints', folderId)
     const staging = `${dir}.staging`
     await rm(staging, { recursive: true, force: true })
     await mkdir(staging, { recursive: true })
     try {
-      await this.git.output(['diff', '--binary', 'HEAD', `--output=${join(staging, DIFF)}`], { cwd: path })
+      await this.git.output(['diff', '--binary', 'HEAD', `--output=${join(staging, DIFF)}`], { cwd: path, roots: [staging] })
       const listed = await this.git.output(['ls-files', '-z', '--others', '--exclude-standard'], { cwd: path })
       const untracked = listed.split('\0').filter(entry => entry !== '')
       const unpushed = Number((await this.git.output(['rev-list', '--count', 'HEAD', '--not', '--remotes'], { cwd: path })).trim())
       const hash = createHash('sha256').update(`${head}\n${branch}\n`)
       hash.update(await readFile(join(staging, DIFF)))
       let bytes = (await stat(join(staging, DIFF))).size
+      // A symbolic link does not travel: on another device it would name a different file, or none.
+      const files: string[] = []
       for (const entry of untracked) {
-        const info = await stat(join(path, entry)).catch(() => undefined)
+        const info = await lstat(join(path, entry)).catch(() => undefined)
         if (info?.isFile() !== true) continue
+        files.push(entry)
         bytes += info.size
         hash.update(`${entry}\0${String(info.size)}\0${String(info.mtimeMs)}\n`)
       }
@@ -239,22 +250,15 @@ export class WorkState {
         return
       }
       if (unpushed > 0) {
-        await this.git.output(['bundle', 'create', join(staging, BUNDLE), 'HEAD', '--not', '--remotes'], { cwd: path, transfer: true })
+        await this.git.output(['bundle', 'create', join(staging, BUNDLE), 'HEAD', '--not', '--remotes'], { cwd: path, roots: [staging], transfer: true })
       }
-      const copied: string[] = []
-      for (const entry of untracked) {
-        const from = join(path, entry)
-        if ((await stat(from).catch(() => undefined))?.isFile() !== true) continue
-        const to = join(staging, UNTRACKED, entry)
-        await mkdir(dirname(to), { recursive: true })
-        await cp(from, to)
-        copied.push(entry)
-      }
-      const meta: CheckpointMeta = { id, bundle: unpushed > 0, untracked: copied }
-      // The description is written last: a receiver that reads it reads a complete checkpoint.
+      await this.copyUntracked(path, files, join(staging, UNTRACKED))
+      const meta: CheckpointMeta = { id, bundle: unpushed > 0, untracked: files }
+      // The description is written last: a receiver that reads it reads a complete checkpoint. The folder moves into
+      // place whole, so nothing a command left inside it is read or followed on the way.
       await rm(dir, { recursive: true, force: true })
-      await cp(staging, dir, { recursive: true })
-      await writeFile(join(dir, META), JSON.stringify(meta))
+      await rename(staging, dir)
+      await writeFile(join(dir, META), JSON.stringify(meta), { flag: 'wx' })
       await fileSync.share({ id: brandString<FileSyncFolderId>(folderId), owner, path: dir })
       checkpoints.set(key, {
         device: account.device,
@@ -270,9 +274,34 @@ export class WorkState {
     }
   }
 
+  /**
+   * Copy a work tree's untracked files into a checkpoint folder, keeping their paths: through a confined `cp` when the
+   * Git runner confines its commands, since a path component may have become a link into another account's files.
+   */
+  private async copyUntracked(path: string, files: readonly string[], to: string): Promise<void> {
+    if (files.length === 0) return
+    await mkdir(to, { recursive: true })
+    if (this.options.confined) {
+      for (let start = 0; start < files.length; start += COPY_BATCH) {
+        const batch = files.slice(start, start + COPY_BATCH)
+        const copied = await this.git.tool(
+          ['cp', '--parents', '--no-dereference', '--preserve=mode,timestamps', '-t', to, '--', ...batch],
+          { cwd: path, roots: [to] },
+        )
+        if (copied.exitCode !== 0) throw new Error(`copying untracked files failed: ${copied.stderr.trim().slice(-300)}`)
+      }
+      return
+    }
+    for (const entry of files) {
+      const target = join(to, entry)
+      await mkdir(dirname(target), { recursive: true })
+      await cp(join(path, entry), target)
+    }
+  }
+
   /** Bring a work tree to a received checkpoint: stash local changes, take its commits and branch, then its changes. */
   private async applyFolder(path: string, incoming: string, checkpoint: Checkpoint, meta: CheckpointMeta): Promise<void> {
-    const run = (args: string[], transfer = false) => this.git.run(args, { cwd: path, transfer })
+    const run = (args: string[], transfer = false) => this.git.run(args, { cwd: path, roots: [incoming], transfer })
     if ((await run(['status', '--porcelain'])).stdout.trim() !== '') {
       await this.git.output(['stash', 'push', '--include-untracked', '-m', 'Aeven: before applying work from another device'], { cwd: path })
     }
@@ -309,14 +338,22 @@ export class WorkState {
       const applied = await run(['apply', '--binary', '--whitespace=nowarn', diff])
       if (applied.exitCode !== 0) this.warn(`applying the changes from another device failed: ${applied.stderr.trim().slice(-300)}`)
     }
+    if (this.options.confined) {
+      // A confined copy keeps files the work tree already has, as the loop below does for this device's own user.
+      if (meta.untracked.length === 0) return
+      const copied = await this.git.tool(COPY_MISSING.concat(`${join(incoming, UNTRACKED)}/.`, '.'), { cwd: path, roots: [incoming] })
+      if (copied.exitCode !== 0) this.warn(`copying the untracked files from another device failed: ${copied.stderr.trim().slice(-300)}`)
+      return
+    }
     for (const entry of meta.untracked) {
       // Another device wrote the list; a path that would leave the work tree or reach `.git` is skipped.
       const segments = entry.split('/')
       if (segments.some(segment => segment === '' || segment === '.' || segment === '..' || segment === '.git')) continue
       const to = join(path, ...segments)
-      if (existsSync(to)) continue
+      const from = join(incoming, UNTRACKED, ...segments)
+      if (existsSync(to) || (await lstat(from).catch(() => undefined))?.isFile() !== true) continue
       await mkdir(dirname(to), { recursive: true })
-      await cp(join(incoming, UNTRACKED, ...segments), to)
+      await cp(from, to)
     }
   }
 

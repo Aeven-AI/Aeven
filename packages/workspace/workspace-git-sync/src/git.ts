@@ -23,6 +23,15 @@ export interface GitOptions {
   graceMs: number
   /** Largest output kept from one command. */
   outputMaxBytes: number
+  /**
+   * Wrap a command so it runs confined to the given directories, for a Host whose work trees belong to accounts other
+   * than its own user: the command then sees nothing else, so a repository's configuration or hooks reach no other
+   * account. Absent, commands run as this device's user.
+   * @param argv - the command to confine, environment already applied through `env`.
+   * @param roots - the directories it may write: its working directory first, then any transfer folder it uses.
+   * @returns the argv to spawn instead.
+   */
+  confine?: ((argv: readonly string[], roots: readonly string[]) => string[]) | undefined
 }
 
 /** One finished Git command. */
@@ -43,7 +52,15 @@ export interface GitRun {
   signal?: AbortSignal
   /** Environment entries for this command. */
   env?: Record<string, string>
+  /** Directories besides `cwd` the command reads or writes, such as a transfer folder; a confined command sees only these. */
+  roots?: readonly string[]
 }
+
+/**
+ * GNU `cp` arguments that copy a folder's contents into the working directory, keeping files already there and
+ * symbolic links as links, for a confined copy into a work tree.
+ */
+export const COPY_MISSING: readonly string[] = ['cp', '-R', '--update=none', '--no-dereference', '--preserve=mode,timestamps']
 
 /** No Git on this device, or the platform's installer could not install it. */
 export class GitUnavailableError extends Error {}
@@ -103,14 +120,38 @@ export class Git {
    */
   async run(args: readonly string[], run: GitRun): Promise<GitResult> {
     const executable = await this.require()
+    const env = { ...await this.environment(executable), ...run.env }
+    // A confined command runs as another user, who owns neither the directories this Host created nor the work tree.
+    return this.spawn(this.options.confine === undefined ? [executable, ...args] : [executable, '-c', 'safe.directory=*', ...args], env, run)
+  }
+
+  /**
+   * Run another program the way Git commands run, confined to the same directories: for file copies into or out of a
+   * work tree that this Host's own user must not make, since a path inside it may lead into another account's files.
+   * @param argv - the program and its arguments.
+   * @param run - directory, extra directories, time limit, and cancellation.
+   * @returns the result; a non-zero exit is data, not an error.
+   * @throws {Error} when commands are not confined, since the copy would then run as this Host's own user.
+   */
+  async tool(argv: readonly string[], run: GitRun): Promise<GitResult> {
+    if (this.options.confine === undefined) throw new Error('a confined copy needs a Git runner that confines its commands')
+    return this.spawn(argv, run.env ?? {}, run)
+  }
+
+  private async spawn(command: readonly string[], env: Record<string, string>, run: GitRun): Promise<GitResult> {
     const timeout = AbortSignal.timeout(run.transfer === true ? this.options.transferTimeoutMs : this.options.commandTimeoutMs)
     const signal = run.signal === undefined ? timeout : AbortSignal.any([run.signal, timeout])
+    const confine = this.options.confine
+    // A confined command starts with an empty environment, so its entries travel in its argv through `env`.
+    const argv = confine === undefined
+      ? [...command]
+      : confine(['/usr/bin/env', ...Object.entries(env).map(([name, value]) => `${name}=${value}`), ...command], [run.cwd, ...run.roots ?? []])
     const child = this.ctx.subprocess.spawn({
-      argv: [executable, ...args],
+      argv,
       cwd: run.cwd,
       signal,
       graceMs: this.options.graceMs,
-      env: { ...await this.environment(executable), ...run.env },
+      env,
       stdio: {
         stdin: 'ignore',
         stdout: { maxBytes: this.options.outputMaxBytes },
@@ -201,6 +242,8 @@ export class Git {
    */
   private async environment(executable: string): Promise<Record<string, string>> {
     const env: Record<string, string> = { GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never', GIT_OPTIONAL_LOCKS: '0' }
+    // A confined command reaches the network through HTTPS alone; this Host's own SSH settings do not apply to it.
+    if (this.options.confine !== undefined) return env
     if (process.env.GIT_SSH_COMMAND !== undefined || process.env.GIT_SSH !== undefined) return env
     this.sshConfigured ??= await this.configured(executable, 'core.sshCommand')
     return this.sshConfigured ? env : { ...env, GIT_SSH_COMMAND: 'ssh -o BatchMode=yes' }

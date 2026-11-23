@@ -13,6 +13,8 @@ A folder workspace opened on one device of an account syncs as one `ctx.fileSync
 
 Each shared folder gets a `.aeven-workspace` marker, and a received workspace binds a marked copy at a placement candidate instead of downloading it again. While a folder's first download runs, a read of a file that has not arrived moves it to the front of the queue and waits up to `readWaitMs`, and `bash`, `grep`, and `glob` wait up to `gateWaitMs`; a call that ran before the files arrived gets a note in its result. Files the agent reads or writes are scanned at once, gathered for `scanDelayMs`. A first download above `batteryDeferBytes` reports `paused` on battery and starts when the computer is plugged in. A current folder with conflicting versions reports `conflict` with their count, and a folder with files this computer cannot store reports `failed` with `unstorable`.
 
+A Host serving many accounts sets `managedRoot`. A folder workspace then arrives only once a session of it runs a turn on that Host, in the account's `<managedRoot>/<owner>/.aeven-projects/<workspace id>`, without a search for an existing copy; reads wait for the files they need as on any device. Conflicts list their paths without either version's text, and resolving them is left to the account's other devices, since both read or rename files an account's commands can write.
+
 ## Table of Contents
 
 - [Model Experience](#model-experience)
