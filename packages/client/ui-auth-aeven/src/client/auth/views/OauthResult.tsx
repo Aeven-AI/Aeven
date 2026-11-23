@@ -79,6 +79,7 @@ export function OauthResult(props: OauthResultProps): React.JSX.Element | null {
         // the application belongs: the page waiting on that window boots the shell.
         // A landing no page waits on goes on to the screen the reader came from.
         const finish = await providerLandingFinish(oauthFlow())
+        // oxlint-disable-next-line typescript/no-unnecessary-condition -- the effect's cleanup can run during the await.
         if (cancelled) return
         if (finish === 'close') {
           window.close()
