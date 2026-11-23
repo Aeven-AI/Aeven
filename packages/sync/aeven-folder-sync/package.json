@@ -1,7 +1,7 @@
 {
   "name": "@aeven/aeven-folder-sync",
   "description": "The account's Aeven folder, where Aeven keeps the files it makes, kept the same on every device through file sync",
-  "version": "0.3.65-alpha",
+  "version": "0.3.66-alpha",
   "publishConfig": {
     "access": "public"
   },
