@@ -75,6 +75,11 @@ export interface MailEventFilter {
 export interface GitHubEventFilter {
   /** `X-GitHub-Event` names such as `pull_request`; absent accepts every event. */
   readonly events?: readonly string[] | undefined
+  /**
+   * Payload `action` values such as `published` for `release`; absent or empty accepts every action, and a delivery
+   * without an `action` field matches only then.
+   */
+  readonly actions?: readonly string[] | undefined
   /** `owner/name` of the repository; absent accepts every repository. */
   readonly repository?: string | undefined
 }

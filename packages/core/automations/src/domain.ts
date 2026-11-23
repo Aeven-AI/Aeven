@@ -46,7 +46,7 @@ export const triggerSchema = z.union([
   z.object({ kind: z.literal('schedule'), schedule: scheduleSchema }).strict(),
   z.object({ kind: z.literal('webhook'), idempotency: z.enum(['sender', 'none']) }).strict(),
   z.object({ kind: z.literal('event'), source: z.literal('mail'), filter: z.object({ account: filterText, from: filterText, subject: filterText }).strict().default({}) }).strict(),
-  z.object({ kind: z.literal('event'), source: z.literal('github'), filter: z.object({ events: z.array(text.max(80)).max(32).optional(), repository: filterText }).strict().default({}) }).strict(),
+  z.object({ kind: z.literal('event'), source: z.literal('github'), filter: z.object({ events: z.array(text.max(80)).max(32).optional(), actions: z.array(text.max(80)).max(32).optional(), repository: filterText }).strict().default({}) }).strict(),
   z.object({ kind: z.literal('bot'), from: automationId, mode: z.enum(['wait', 'dispatch']) }).strict(),
 ])
 /** Trigger list of one bot: at most one webhook trigger, and no bot that hands itself work. */

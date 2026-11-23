@@ -35,6 +35,7 @@ function field(payload: unknown, path: string): string | undefined {
  */
 export function matchesGitHub(filter: GitHubEventFilter, event: string, payload: unknown): boolean {
   if (filter.events !== undefined && filter.events.length > 0 && !filter.events.includes(event)) return false
+  if (filter.actions !== undefined && filter.actions.length > 0 && !filter.actions.includes(field(payload, 'action') ?? '')) return false
   if (filter.repository !== undefined && field(payload, 'repository.full_name')?.toLowerCase() !== filter.repository.toLowerCase()) return false
   return true
 }
