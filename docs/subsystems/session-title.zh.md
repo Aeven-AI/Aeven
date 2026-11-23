@@ -375,14 +375,14 @@ Source: [`packages/session/worktrees/src/index.ts`](../../packages/session/workt
 
 #### `working-directory/account-folder` — bail
 
-Ask for the folder an account keeps its files in on this device, where a Host with folders of its own gives a session that records no directory, or that sits in a workspace without a folder, its directory: `<folder>/workspaces/<workspace id>` when filed in such a workspace, `<folder>/chats` otherwise, the layout a Host with `managedRoot` uses under `<managedRoot>/<owner>`. No answer leaves the session without a directory. Synchronous, because directory resolution is.
+Ask for the folder an account keeps its files in on this device, where a Host with folders of its own gives a session that records no directory, or that sits in a workspace without a folder, its directory: `<folder>/chats`, the folder a Host with `managedRoot` uses under `<managedRoot>/<owner>` for the same sessions. No answer leaves the session without a directory. Synchronous, because directory resolution is.
 
 ```ts cordis-catalog
 /**
  * Ask for the folder an account keeps its files in on this device, where a Host with folders of its own gives a
- * session that records no directory, or that sits in a workspace without a folder, its directory:
- * `<folder>/workspaces/<workspace id>` when filed in such a workspace, `<folder>/chats` otherwise, the layout a
- * Host with `managedRoot` uses under `<managedRoot>/<owner>`. No answer leaves the session without a directory.
+ * session that records no directory, or that sits in a workspace without a folder, its directory: `<folder>/chats`,
+ * the folder a Host with `managedRoot` uses under `<managedRoot>/<owner>` for the same sessions. No answer leaves
+ * the session without a directory.
  * Synchronous, because directory resolution is.
  * @param owner - the account, which owns the session.
  * @mode bail

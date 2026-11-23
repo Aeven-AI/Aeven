@@ -10,11 +10,11 @@ Status: implemented
 
 ## 决定
 
-没有自己文件夹的聊天在每台设备上都在账户的 Aeven 文件夹内工作，布局一致：未归档的会话用 `chats/`，归入没有文件夹的工作区（如 Chats）的会话用 `workspaces/<workspace id>/`。
+没有自己文件夹的聊天在每台设备上都在账户的 Aeven 文件夹内工作，都在其 `chats/` 文件夹中：未归档的会话，以及归入没有文件夹的工作区（如 Chats）的会话。每台设备都用自己的 id 命名这类工作区（Aeven Cloud 的 Chats id 与桌面的不同），因此该文件夹名为 `chats`，从不以 id 命名。
 
-- **托管。** 设置 `AVN_HOSTED_SANDBOX=1` 时，`aeven-folder-sync` 以 `perAccount` 使用 `sandbox/accounts`，因此每个账户的托管文件夹（其受限命令唯一能看到、也由其磁盘配额覆盖的文件夹）就是它的 Aeven 文件夹。云端会话制作的文件会到达账户的桌面设备和文件云。`advertise` 仍为 false：受限命令只能看到其会话的子文件夹，看不到该文件夹的根目录。
-- **桌面。** 对于未记录目录、或位于没有文件夹的工作区中的会话，`working-directory` 通过新的 `working-directory/account-folder` bail 事件询问，当本设备的文件夹属于该账户时，`aeven-folder-sync` 回答账户的 Aeven 文件夹。会话随即在 `~/Documents/Aeven` 下使用同样的布局工作，另一台设备运行的对话也在文件同步带到本机的副本中解析其相对路径。没有回答时（例如设备的文件夹已被另一个账户认领时的第二个账户），会话不记录目录，继续使用沙箱策略的 `~/.aeven/chats`。认领无主文件夹是同步的，因此目录解析仍保持同步。
-- **忽略规则。** 默认的文件同步忽略规则新增 `.npm`，受限命令的主目录会在其工作区内缓存它。
+- **托管。** 设置 `AVN_HOSTED_SANDBOX=1` 时，`aeven-folder-sync` 以 `perAccount` 使用 `sandbox/accounts`，因此每个账户的托管文件夹（其受限命令唯一能看到、也由其磁盘配额覆盖的文件夹）就是它的 Aeven 文件夹。云端会话制作的文件会到达账户的桌面设备和文件云。`advertise` 仍为 false：受限命令只能看到其会话的子文件夹，看不到该文件夹的根目录。归入文件夹工作区的云端会话在 `.aeven-projects/<workspace id>/` 中工作，文件同步忽略它：该工作区的文件已经经由其工作区文件夹或 Git 传输，再同步云端副本会把同一个项目发送两次，而且不带 `.git`。
+- **桌面。** 对于未记录目录、或位于没有文件夹的工作区中的会话，`working-directory` 通过新的 `working-directory/account-folder` bail 事件询问，当本设备的文件夹属于该账户时，`aeven-folder-sync` 回答账户的 Aeven 文件夹。会话随即在 `~/Documents/Aeven/chats` 中工作，另一台设备运行的对话也在文件同步带到本机的副本中解析其相对路径。没有回答时（例如设备的文件夹已被另一个账户认领时的第二个账户），会话不记录目录，继续使用沙箱策略的 `~/.aeven/chats`。认领无主文件夹是同步的，因此目录解析仍保持同步。
+- **忽略规则。** 默认的文件同步忽略规则新增 `.npm` 与 `.local`（受限命令的主目录会在其工作区内缓存它们），以及 `.aeven-projects`。
 - **查看产出图片。** 轮次尾部以完整图片显示产出的图片，有记录的存储副本时来自该副本，方式与生成图片相同：单张保持自身比例，多张平铺。`produced-images` 轮次数据索引列出这些图片，因此已关闭轮次的回复若按路径或按 `reply-images/stored` 记录的副本嵌入其中某张，会把它留给尾部。
 - **打开缺失的文件。** `session/openWorkspacePath` 把在不存在任何东西的路径上发生的打开器失败归类为 `session/path-missing`，其他失败则报告打开器的 stderr，而不是 `Command failed:` 那一行。聊天视图的文件打开器不再给 Host 消息加前缀。有存储副本的产出文件在路径缺失时下载该副本；否则对话框写出文件和文件夹，并提供打开该文件夹，而不是一个不可能成功的重试（[文件打开失败对话框](../bug-fix/2026-08-18-tool-row-file-open-failure.zh.md)）。只写出恰好一个产出路径末尾的正文链接会打开该路径。
 
@@ -30,7 +30,7 @@ Status: implemented
 
 ## 后果
 
-在桌面或 Aeven Cloud 上于没有项目的聊天中制作的文件，会到达账户的每台设备和文件云，丢失机器不再丢失这些文件。桌面的 `~/Documents/Aeven` 中会出现 `chats/` 与 `workspaces/<workspace id>/` 文件夹，以 id 而不是工作区名称命名。云端账户同步的 Aeven 文件夹现在计入其 5 GiB 的监狱配额。在托管 Host 上，Aeven 文件夹从 `aeven-folders/<account>` 移到 `sandbox/accounts/<account>`。新构建启动前，必须在 Host 停止时把每个账户现有的文件夹内容（包括 Syncthing 的 `.stfolder` 标记）移入托管文件夹；否则 Syncthing 会发现其已索引的文件不存在，并把删除发送给桌面设备。托管数据导出会两次列出托管文件夹，一次作为聊天文件，一次作为 Aeven 文件夹。桌面的运行时上下文会为这些聊天写出一个工作目录，而以前没有。
+在桌面或 Aeven Cloud 上于没有项目的聊天中制作的文件，会到达账户的每台设备和文件云，丢失机器不再丢失这些文件。桌面的 `~/Documents/Aeven` 中会出现 `chats/` 文件夹。云端在项目工作区中的工作留在托管 Host 上，可通过项目自身的同步而不是文件同步恢复。云端账户同步的 Aeven 文件夹现在计入其 5 GiB 的监狱配额。在托管 Host 上，Aeven 文件夹从 `aeven-folders/<account>` 移到 `sandbox/accounts/<account>`。新构建启动前，必须在 Host 停止时把每个账户现有的文件夹内容（包括 Syncthing 的 `.stfolder` 标记）移入托管文件夹；否则 Syncthing 会发现其已索引的文件不存在，并把删除发送给桌面设备。托管数据导出会两次列出托管文件夹，一次作为聊天文件，一次作为 Aeven 文件夹。桌面的运行时上下文会为这些聊天写出一个工作目录，而以前没有。
 
 ## 验证
 

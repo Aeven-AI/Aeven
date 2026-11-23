@@ -6812,11 +6812,11 @@ export interface Config {
   /**
    * With `folders: false`, the absolute directory under which this Host gives
    * each account's sessions a folder it creates and manages itself, never one
-   * a person chooses: `<managedRoot>/<owner>/workspaces/<workspace id>` for a
-   * session filed in a workspace, `<managedRoot>/<owner>/chats` otherwise. A
-   * session without an owner, or whose owner or workspace id is not a plain
-   * path segment, gets no folder. Omitted, sessions without a folder of
-   * their own stay without one.
+   * a person chooses: `<managedRoot>/<owner>/.aeven-projects/<workspace id>`
+   * for a session filed in a folder workspace, `<managedRoot>/<owner>/chats`
+   * otherwise. A session without an owner, or whose owner or workspace id is
+   * not a plain path segment, gets no folder. Omitted, sessions without a
+   * folder of their own stay without one.
    */
   readonly managedRoot?: string
 }

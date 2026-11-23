@@ -430,8 +430,9 @@
 # key it holds: it keeps each account's Aeven folder, the files Aeven made for
 # the user on any device, so a reply's images and files open here while every
 # desktop is offline. With the jail, the folder is the account's managed folder,
-# so the files this Host's sessions make travel to the desktops; its sessions
-# see only their own subfolder, so the model is not told the folder's root.
+# so the files this Host's chats make travel to the desktops, while its copies
+# of folder workspaces stay in the ignored `.aeven-projects`; its sessions see
+# only their own subfolder, so the model is not told the folder's root.
 - insert:
     - id: file-sync-syncthing
       name: '@aeven/file-sync-syncthing'
