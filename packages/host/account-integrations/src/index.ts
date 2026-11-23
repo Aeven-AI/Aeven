@@ -16,7 +16,7 @@ import { avnHomePath } from '@aeven/home-paths'
 import { createScope, type Scope } from '@aeven/scope'
 import type {} from '@aeven/host-account-data'
 import type {} from '@aeven/identity-user'
-import type {} from '@aeven/automations'
+import type { CalendarEvent } from '@aeven/automations'
 import type { Agent, PreStepDecision } from '@aeven/agent'
 import type {} from '@aeven/tools'
 import type {} from '@aeven/workspace'
@@ -32,6 +32,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js'
 import { googleConnection, googleService, verifyGoogle } from './google.ts'
+import { readGoogleEvents, readGraphEvents } from './calendar-events.ts'
 import { microsoftConnection, microsoftService, verifyMicrosoft } from './microsoft.ts'
 import { publicToolName } from '@aeven/mcp-client'
 import { parsePersonalSkill } from './skills.ts'
@@ -776,6 +777,12 @@ export default class AccountIntegrations extends TypertRemoteService {
           this.connected.delete(id)
         },
       }), 'account-integrations: mail account source')
+    })
+    // Calendar triggers read the owner's connected Google and Outlook calendars with each connector's own token.
+    this.ctx.inject(['automations'], (ctx) => {
+      ctx.effect(() => ctx.automations.registerCalendarSource({
+        events: (owner, from, to, signal) => this.calendarEvents(owner, from, to, signal),
+      }), 'account-integrations: calendar source')
     })
     // A new conversation connects its accounts while the person is still typing its first message.
     this.ctx.on('agent/created', ({ agent }) => {
@@ -2574,6 +2581,31 @@ export default class AccountIntegrations extends TypertRemoteService {
     const user = this.ctx.identityUsers.actingUser()
     if (user === undefined) throw new Error('sign in to manage personal skills and connectors')
     return user.id
+  }
+
+  /**
+   * Read the timed events of one owner's enabled Google Calendar and Outlook Calendar connectors inside a window. A
+   * connector whose read fails is logged and left out, so one expired account does not hide the others.
+   * @param owner - the account.
+   * @param from - inclusive ISO start of the window.
+   * @param to - exclusive ISO end of the window.
+   * @param signal - aborts the reads; each read also stops after `timeoutMs`.
+   * @returns the events of every calendar that could be read.
+   */
+  private async calendarEvents(owner: string, from: string, to: string, signal: AbortSignal): Promise<CalendarEvent[]> {
+    const events: CalendarEvent[] = []
+    for (const [, connector] of this.domain.table('connectors').entries()) {
+      if (connector.owner !== owner || !connector.enabled || connector.grant?.expired === true) continue
+      if (connector.provider !== 'google-calendar' && connector.provider !== 'outlook-calendar') continue
+      try {
+        const token = await this.accessToken(owner, connector)
+        const bounded = AbortSignal.any([signal, AbortSignal.timeout(this.config.timeoutMs)])
+        events.push(...await (connector.provider === 'google-calendar' ? readGoogleEvents : readGraphEvents)(token, from, to, bounded))
+      } catch (error) {
+        if (!signal.aborted) this.ctx.logger('account-integrations').warn(`reading ${connector.name} for calendar triggers failed: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
+    return events
   }
 
   /**

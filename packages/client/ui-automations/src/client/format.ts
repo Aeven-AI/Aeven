@@ -45,7 +45,8 @@ export function formatters(t: Translate, data: AutomationList | null) {
     // 2023-01-02 is a Monday, so MO, the first entry, names it.
     const weekday = (day: string): string =>
       new Date(2023, 0, 2 + Math.max(0, ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'].indexOf(day))).toLocaleDateString(undefined, { weekday: 'long' })
-    const until = schedule.until === undefined ? '' : t('scheduleUntil', { date: date(schedule.until) })
+    const until = (schedule.jitterMinutes === undefined ? '' : t('scheduleJitter', { duration: span(schedule.jitterMinutes, 'minute') }))
+      + (schedule.until === undefined ? '' : t('scheduleUntil', { date: date(schedule.until) }))
     switch (schedule.kind) {
       case 'once': return `${t('scheduleOnce', { when: date(schedule.at) })}${until}`
       case 'interval': return `${t('scheduleInterval', { duration: span(schedule.everyMinutes, 'minute') })}${until}`
@@ -72,6 +73,20 @@ export function formatters(t: Translate, data: AutomationList | null) {
       case 'bot': {
         const name = data?.definitions.find(task => task.id === trigger.from)?.name ?? t('triggerRemovedBot')
         return t(trigger.mode === 'wait' ? 'triggerBotWait' : 'triggerBotDispatch', { name })
+      }
+      case 'calendar': {
+        const { title, attendee, hasExternalAttendee, accepted } = trigger.filter
+        const minutes = Math.abs(trigger.offsetMinutes)
+        const duration = new Intl.NumberFormat(undefined, { style: 'unit', unit: minutes % 60 === 0 ? 'hour' : 'minute', unitDisplay: 'long' })
+          .format(minutes % 60 === 0 ? minutes / 60 : minutes)
+        return [
+          trigger.offsetMinutes < 0 ? t('triggerCalendarBefore', { duration }) : trigger.offsetMinutes > 0 ? t('triggerCalendarAfter', { duration }) : t('triggerCalendarAt'),
+          trigger.calendar === undefined ? '' : t(trigger.calendar === 'google-calendar' ? 'triggerCalendarGoogle' : 'triggerCalendarOutlook'),
+          title === undefined ? '' : t('triggerCalendarTitle', { title }),
+          attendee === undefined ? '' : t('triggerCalendarAttendee', { attendee }),
+          hasExternalAttendee === undefined ? '' : t(hasExternalAttendee ? 'triggerCalendarExternal' : 'triggerCalendarInternal'),
+          accepted === undefined ? '' : t(accepted ? 'triggerCalendarAccepted' : 'triggerCalendarUnaccepted'),
+        ].filter(part => part !== '').join(' ')
       }
       case 'event':
         if (trigger.source === 'mail') {

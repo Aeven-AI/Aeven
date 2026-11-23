@@ -9,7 +9,12 @@ export const NEED_LABELS = { 'files': 'needFiles', 'browser': 'needBrowser', 'co
 export type Need = keyof typeof NEED_LABELS
 
 /** One stored recurrence, discriminated the way the Host stores and returns it. */
-export type TaskSchedule =
+export type TaskSchedule = TaskRecurrence & {
+  /** Each run starts up to this many minutes after its scheduled time. */
+  jitterMinutes?: number | undefined
+}
+/** One stored recurrence without its jitter. */
+export type TaskRecurrence =
   | { kind: 'once'; timeZone: string; at: string; until?: string | undefined }
   | { kind: 'interval'; timeZone: string; everyMinutes: number; anchor: string; until?: string | undefined }
   | { kind: 'hours'; timeZone: string; everyHours: number; atMinute: number; until?: string | undefined }
@@ -27,6 +32,12 @@ export type TaskTrigger =
   | { kind: 'event'; source: 'mail'; filter: { account?: string; from?: string; subject?: string } }
   | { kind: 'event'; source: 'github'; filter: { events?: string[]; actions?: string[]; repository?: string } }
   | { kind: 'bot'; from: string; mode: 'wait' | 'dispatch' }
+  | {
+    kind: 'calendar'
+    calendar?: 'google-calendar' | 'outlook-calendar' | undefined
+    filter: { title?: string; attendee?: string; hasExternalAttendee?: boolean; accepted?: boolean }
+    offsetMinutes: number
+  }
 /** One saved approval; it answers until `expiresAt`, or always without one. */
 export interface TaskGrant {
   toolName: string

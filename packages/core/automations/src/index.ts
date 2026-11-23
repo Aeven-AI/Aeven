@@ -31,10 +31,11 @@ import { describeMail, matchesMail, newMail } from './mail-events.ts'
 import { runNotice } from './notice.ts'
 import { registerRunTools } from './run-tools.ts'
 import { eligibility, placementMode, placementRefusal, resolvePlacement } from './placement.ts'
-import { latestDueOccurrence, nextOccurrence, SCHEDULE_KINDS } from './recurrence.ts'
+import { latestDueFiring, nextFiring, SCHEDULE_KINDS } from './recurrence.ts'
+import { describeCalendar, firingOf, matchesCalendar } from './calendar-events.ts'
 import { DefinitionSync, type CloudRunRequest, type RecordKinds, type SyncedDefinition, type SyncedRecord } from './sync.ts'
 import { registerAutomationTools } from './tools.ts'
-import type { AutomationBoard, AutomationDefinition, AutomationDesktop, AutomationId, AutomationInput, AutomationPlacement, AutomationRun, AutomationRunId, AutomationRunnerId, AutomationSchedule, AutomationTrigger, BoardId, BoardInput, BotTrigger, ConnectorBinding, DeviceCapability, Handoff, HandoffId, HostDevice, HostProfile, RunUsage } from './types.ts'
+import type { AutomationBoard, AutomationDefinition, AutomationDesktop, CalendarEvent, CalendarSource, AutomationId, AutomationInput, AutomationPlacement, AutomationRun, AutomationRunId, AutomationRunnerId, AutomationSchedule, AutomationTrigger, BoardId, BoardInput, BotTrigger, ConnectorBinding, DeviceCapability, Handoff, HandoffId, HostDevice, HostProfile, RunUsage } from './types.ts'
 
 export type * from './types.ts'
 
@@ -68,6 +69,15 @@ interface ActiveRun {
   failure?: string
   /** The run called `bot_pause`; the bot pauses when the run settles `succeeded`. */
   pause?: boolean
+}
+
+/** One calendar event a calendar trigger fires for, found by the last check of its owner's calendars. */
+interface CalendarFiring {
+  /** Index of the calendar trigger. */
+  readonly index: number
+  /** ISO instant the trigger fires: the event's start moved by the trigger's offset. */
+  readonly at: string
+  readonly event: CalendarEvent
 }
 
 /** Refusal of one inbound request, carrying the status the endpoint answers with. */
@@ -239,6 +249,12 @@ export interface Config {
   /** Seconds between two checks of a watched mail account for new email; each check is a search, not a model turn. */
   readonly mailPollSeconds: number
   /**
+   * Seconds between two reads of an owner's calendars for calendar triggers; each read is one event listing per
+   * connected calendar, not a model turn. A read covers the events that fire before the read after next, so a moved
+   * or new event fires on time once a read has seen it.
+   */
+  readonly calendarPollSeconds: number
+  /**
    * What this Host is and which device capabilities its runs can use. A `cloud` Host runs the definitions that
    * need nothing from a computer; a `device` Host runs the ones whose requirements it provides.
    */
@@ -272,6 +288,7 @@ export class Automations extends Service<Config> {
     queueDepth: z.number().step(1).min(1).default(5),
     grantLifetimeDays: z.number().min(1),
     mailPollSeconds: z.number().step(1).min(30).default(120),
+    calendarPollSeconds: z.number().step(1).min(60).default(300),
     placement: z.object({
       kind: z.union(['cloud', 'device'] as const).required(),
       provides: z.array(z.union(['files', 'browser', 'computer-use'] as const)).required(),
@@ -298,6 +315,14 @@ export class Automations extends Service<Config> {
   private readonly deferred = new Map<AutomationId, string>()
   /** This device's vault id per account, as account sync last reported it. */
   private readonly devices = new Map<string, HostDevice>()
+  /** Registered calendar sources; calendar triggers read every one of them. */
+  private readonly calendarSources = new Set<CalendarSource>()
+  /** The firings the last calendar read found for each bot, in no order. */
+  private readonly calendarFirings = new Map<AutomationId, readonly CalendarFiring[]>()
+  /** Aborts background reads when the Host stops; created when the scheduler starts. */
+  private polls: AbortController | undefined
+  /** The calendar read in progress, and whether another was asked for while it ran. */
+  private calendarRead: { again: boolean } | undefined
 
   constructor(ctx: Context, private readonly config: Config) {
     super(ctx, 'automations')
@@ -377,14 +402,18 @@ export class Automations extends Service<Config> {
       this.arm(domain)
       this.pumpHandoffs()
       const polls = new AbortController()
+      this.polls = polls
       // A poll runs on a timer with no caller, so a failure is logged here; it never ends the Host.
       const mailTimer = setInterval(() => {
         this.pollMail(polls.signal).catch((error: unknown) => { ctx.logger.warn(`automations: checking for new email failed: ${String(error)}`) })
       }, this.config.mailPollSeconds * 1_000)
+      const calendarTimer = setInterval(() => { this.readCalendarsSoon() }, this.config.calendarPollSeconds * 1_000)
+      this.readCalendarsSoon()
       return async () => {
         this.stopped = true
         clearTimeout(this.timer)
         clearInterval(mailTimer)
+        clearInterval(calendarTimer)
         polls.abort()
         await this.tail
         for (const entry of this.active.values()) entry.handle?.agent.cancel({ kind: 'user' })
@@ -481,7 +510,15 @@ export class Automations extends Service<Config> {
     runs: AutomationRun[]
     boards: AutomationBoard[]
     handoffs: Handoff[]
-    capabilities: { host: HostProfile['kind']; triggers: readonly AutomationSchedule['kind'][]; webhook: boolean; events: readonly ('mail' | 'github')[]; connectors: readonly string[] }
+    capabilities: {
+      host: HostProfile['kind']
+      triggers: readonly AutomationSchedule['kind'][]
+      webhook: boolean
+      events: readonly ('mail' | 'github')[]
+      /** Whether a calendar source is registered, so calendar triggers can fire on this Host. */
+      calendar: boolean
+      connectors: readonly string[]
+    }
     hosts: { cloud: boolean; desktops: AutomationDesktop[] }
   }> {
     const domain = await this.ready
@@ -503,15 +540,30 @@ export class Automations extends Service<Config> {
       webhook: hooks.table('webhooks').get(definition.id) !== undefined,
     })), runs: runs.filter(run => run.sessionId === null || !archived.has(run.sessionId)),
     boards, handoffs,
-    capabilities: { host: this.config.placement.kind, triggers: SCHEDULE_KINDS, webhook: true, events: ['mail', 'github'], connectors: CONNECTOR_IDS },
+    capabilities: { host: this.config.placement.kind, triggers: SCHEDULE_KINDS, webhook: true, events: ['mail', 'github'], calendar: this.calendarSources.size > 0, connectors: CONNECTOR_IDS },
     hosts: this.accountHosts(this.ctx.identityUsers.actingUser()?.id) }
   }
 
-  /** The earliest next occurrence of a definition's schedule triggers, or null when none recurs again. */
+  /**
+   * The earliest next firing of a definition's schedule triggers, jitter included, or of a calendar event the last
+   * calendar read found; null when none is known.
+   */
   private nextRunAt(definition: AutomationDefinition, now: string): string | null {
-    const next = definition.triggers.flatMap(trigger => trigger.kind === 'schedule' ? [nextOccurrence(trigger.schedule, now)] : [])
-      .filter((value): value is string => value !== null).sort((a, b) => Date.parse(a) - Date.parse(b))
-    return next[0] ?? null
+    const next = definition.triggers.flatMap(trigger => trigger.kind === 'schedule' ? [nextFiring(trigger.schedule, definition.id, now)] : [])
+      .filter((value): value is string => value !== null)
+    for (const firing of this.calendarFirings.get(definition.id) ?? []) if (Date.parse(firing.at) > Date.parse(now)) next.push(firing.at)
+    return next.sort((a, b) => Date.parse(a) - Date.parse(b))[0] ?? null
+  }
+
+  /**
+   * Let a calendar source's events fire calendar triggers.
+   * @param source - reads one owner's calendar events.
+   * @returns disposer that removes the source; firings it reported stay until the next read.
+   */
+  registerCalendarSource(source: CalendarSource): () => void {
+    this.calendarSources.add(source)
+    this.readCalendarsSoon()
+    return () => { this.calendarSources.delete(source) }
   }
 
   /**
@@ -648,6 +700,7 @@ export class Automations extends Service<Config> {
       await this.store(domain, definition)
       await this.alignCredential(definition)
       this.arm(domain)
+      if (definition.triggers.some(trigger => trigger.kind === 'calendar')) this.readCalendarsSoon()
       return definition
     })
   }
@@ -683,6 +736,7 @@ export class Automations extends Service<Config> {
       await this.alignCredential(next)
       this.arm(domain)
       if (status === 'active') this.pumpHandoffs()
+      if (next.triggers.some(trigger => trigger.kind === 'calendar')) this.readCalendarsSoon()
       return next
     })
   }
@@ -703,7 +757,7 @@ export class Automations extends Service<Config> {
     for (const trigger of triggers) {
       switch (trigger.kind) {
         case 'schedule':
-          if (now !== undefined && nextOccurrence(trigger.schedule, now) === null) throw new Error('Choose a schedule with a future occurrence.')
+          if (now !== undefined && nextFiring(trigger.schedule, self, now) === null) throw new Error('Choose a schedule with a future occurrence.')
           break
         case 'bot': {
           if (trigger.from === self) throw new Error('A bot cannot hand work to itself.')
@@ -713,6 +767,7 @@ export class Automations extends Service<Config> {
         }
         case 'webhook':
         case 'event':
+        case 'calendar':
           break
       }
     }
@@ -1456,6 +1511,87 @@ export class Automations extends Service<Config> {
     }
   }
 
+  /**
+   * Read the watched calendars now, or once more after the read in progress, so two reads never overlap; a failure is
+   * logged, never thrown.
+   */
+  private readCalendarsSoon(): void {
+    const signal = this.polls?.signal
+    if (signal === undefined || this.stopped) return
+    if (this.calendarRead !== undefined) { this.calendarRead.again = true; return }
+    const read = { again: false }
+    this.calendarRead = read
+    this.readCalendars(signal).catch((error: unknown) => { this.ctx.logger.warn(`automations: reading calendars failed: ${String(error)}`) }).finally(() => {
+      this.calendarRead = undefined
+      if (read.again) this.readCalendarsSoon()
+    })
+  }
+
+  /**
+   * Read the calendars of every owner with a calendar trigger this Host may run, through every calendar source, and
+   * replace those bots' firings with what the read found. The read covers the events whose firing falls between the
+   * misfire grace before now and two read intervals after it, so an event that moves or appears fires on time once
+   * a read has seen it, and an event removed before its firing does not fire once a read has missed it.
+   * @param signal - aborts the reads when the Host stops.
+   */
+  private async readCalendars(signal: AbortSignal): Promise<void> {
+    if (this.calendarSources.size === 0 || this.stopped) return
+    const domain = await this.ready
+    const watched = new Map<string, AutomationDefinition[]>()
+    for (const [, definition] of domain.table('definitions').entries()) {
+      if (definition.status !== 'active' || definition.owner === undefined || !definition.triggers.some(trigger => trigger.kind === 'calendar')) continue
+      const place = eligibility(definition, this.here(definition.owner))
+      if (place === 'never' || (place === 'fallback' && this.yields(definition)) || !this.runsHere(domain, definition)) continue
+      watched.set(definition.owner, [...watched.get(definition.owner) ?? [], definition])
+    }
+    const now = Date.now()
+    const earliest = now - this.config.misfireGraceMinutes * 60_000
+    const latest = now + 2 * this.config.calendarPollSeconds * 1_000
+    for (const [owner, definitions] of watched) {
+      const offsets = definitions.flatMap(definition => definition.triggers.flatMap(trigger => trigger.kind === 'calendar' ? [trigger.offsetMinutes * 60_000] : []))
+      // An event fires its offset after its start, so the starts to read are the firing window moved back by it.
+      const from = new Date(earliest - Math.max(...offsets)).toISOString()
+      const to = new Date(latest - Math.min(...offsets)).toISOString()
+      const events: CalendarEvent[] = []
+      for (const source of this.calendarSources) {
+        try {
+          events.push(...await source.events(owner, from, to, signal))
+        } catch (error) {
+          if (!signal.aborted) this.ctx.logger.warn(`automations: a calendar was not read: ${String(error)}`)
+        }
+      }
+      for (const definition of definitions) {
+        const firings = definition.triggers.flatMap((trigger, index) => trigger.kind !== 'calendar' ? [] : events
+          .filter(event => matchesCalendar(trigger, event))
+          .map(event => ({ index, at: firingOf(trigger, event), event }))
+          .filter(firing => Date.parse(firing.at) >= earliest && Date.parse(firing.at) <= latest))
+        this.calendarFirings.set(definition.id, firings)
+      }
+    }
+    // A bot that stopped being watched here keeps no firings.
+    const kept = new Set([...watched.values()].flat().map(definition => definition.id))
+    for (const id of this.calendarFirings.keys()) if (!kept.has(id)) this.calendarFirings.delete(id)
+    this.rearm()
+  }
+
+  /**
+   * The calendar firings of an active bot that are not admitted yet, at or after its last edit; each event admits
+   * one run per trigger, so a moved event does not fire again.
+   * @param domain - the open definition domain.
+   * @param definition - the bot.
+   * @returns the firings with their run identity.
+   */
+  private calendarDue(
+    domain: Domain<typeof automationDomain>, definition: AutomationDefinition,
+  ): (CalendarFiring & { id: AutomationRunId })[] {
+    if (definition.status !== 'active') return []
+    return (this.calendarFirings.get(definition.id) ?? []).flatMap((firing) => {
+      if (Date.parse(firing.at) < Date.parse(definition.updatedAt)) return []
+      const id = this.occurrenceId(definition.id, firing.index, `calendar:${firing.event.provider}:${firing.event.id}`)
+      return domain.table('runs').get(id) === undefined ? [{ ...firing, id }] : []
+    })
+  }
+
   private runnerId(domain: Domain<typeof automationDomain>): AutomationRunnerId {
     const runner = domain.table('runners').get('local')
     if (runner === undefined) throw new Error('Automation execution target is unavailable.')
@@ -1575,7 +1711,7 @@ export class Automations extends Service<Config> {
     if (definition.status !== 'active') return []
     return definition.triggers.flatMap((trigger, index) => {
       if (trigger.kind !== 'schedule') return []
-      const latest = latestDueOccurrence(trigger.schedule, now)
+      const latest = latestDueFiring(trigger.schedule, definition.id, now)
       if (latest === null) return []
       const mark = definition.lastAdmittedAt[String(index)]
       const admitted = Math.max(Date.parse(definition.updatedAt), mark === undefined ? -Infinity : Date.parse(mark))
@@ -1593,7 +1729,9 @@ export class Automations extends Service<Config> {
       // one this Host may never admit is not due here at all.
       const waiting = this.unadmitted(domain, value, now).filter(({ index, at }) => this.deferred.get(value.id) !== `${index}:${at}`)
         .map(({ at }) => this.admitsFrom(value, at)).filter(from => from !== Infinity).map(from => Math.max(Date.now(), from))
-      if (waiting.length > 0) return waiting
+      const calendar = this.calendarDue(domain, value).map(({ at }) => this.admitsFrom(value, at)).filter(from => from !== Infinity)
+        .map(from => Math.max(Date.now(), from))
+      if (waiting.length > 0 || calendar.length > 0) return [...waiting, ...calendar]
       const next = this.nextRunAt(value, now)
       return next === null ? [] : [Date.parse(next)]
     })
@@ -1614,6 +1752,18 @@ export class Automations extends Service<Config> {
             this.deferred.delete(definition.id)
             const latest = current.table('definitions').get(definition.id) ?? definition
             await this.admit(current, latest, { trigger: 'schedule', triggerIndex: occurrence.index, scheduledFor: occurrence.at })
+          }
+          for (const firing of this.calendarDue(current, definition)) {
+            const from = this.admitsFrom(definition, firing.at)
+            if (from === Infinity || Date.now() < from) continue
+            // An event a stopped or sleeping Host saw too late is left out, like a scheduled occurrence past its grace.
+            if (Date.now() - Date.parse(firing.at) > this.config.misfireGraceMinutes * 60_000) continue
+            if (!await this.claimsScheduler(definition)) continue
+            const summary = describeCalendar(firing.event)
+            await this.admit(current, current.table('definitions').get(definition.id) ?? definition, {
+              trigger: 'calendar', triggerIndex: firing.index, scheduledFor: firing.at, requestedId: firing.id, payload: summary,
+              event: { source: 'calendar', id: `${firing.event.provider}:${firing.event.id}`, summary: summary.split('\n', 1)[0] ?? '' },
+            })
           }
           // The cloud Host takes the next occurrence back once it can.
           if (this.yields(definition) && this.unadmitted(current, current.table('definitions').get(definition.id) ?? definition, at).length === 0) await this.release(definition)
@@ -1735,6 +1885,7 @@ export class Automations extends Service<Config> {
       // the bot's page on this Host shows the address and key that reach this Host.
       await this.alignCredential(definition)
       this.arm(domain)
+      if (definition.triggers.some(trigger => trigger.kind === 'calendar')) this.readCalendarsSoon()
     }).catch((error: unknown) => {
       this.ctx.logger.warn(`automations: another device's automation was not stored: ${String(error)}`)
     })

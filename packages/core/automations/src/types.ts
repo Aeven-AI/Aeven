@@ -17,7 +17,9 @@ export type LocalTime = string
 /**
  * One-time, elapsed-time, calendar, or cron cadence.
  * Calendar kinds name wall times in `timeZone`, so a nonexistent spring-forward
- * wall time is skipped rather than shifted.
+ * wall time is skipped rather than shifted. `jitterMinutes`, accepted on every kind but `once`, delays each
+ * occurrence by whole minutes in `[0, jitterMinutes)` derived from the bot and the occurrence, so every Host fires it
+ * at the same instant.
  */
 export type AutomationSchedule = (
   | { readonly kind: 'once'; readonly at: string; readonly timeZone: string }
@@ -33,7 +35,7 @@ export type AutomationSchedule = (
   | { readonly kind: 'yearly'; readonly time: LocalTime; readonly month: number; readonly day: number; readonly timeZone: string }
   /** Five-field cron expression: minute, hour, day of month, month, day of week. */
   | { readonly kind: 'cron'; readonly expression: string; readonly timeZone: string }
-) & { readonly until?: string | undefined }
+) & { readonly until?: string | undefined; readonly jitterMinutes?: number | undefined }
 /** One scoped approval the owner gave in a run conversation; later runs of the same automation reuse it. */
 export interface AutomationGrant {
   /** Tool whose operation the owner approved. */
@@ -83,6 +85,50 @@ export interface GitHubEventFilter {
   /** `owner/name` of the repository; absent accepts every repository. */
   readonly repository?: string | undefined
 }
+/**
+ * Which calendar events wake a bot; every present field must match. Text compares case-insensitively.
+ */
+export interface CalendarEventFilter {
+  /** Text the event's title must contain. */
+  readonly title?: string | undefined
+  /** Text one attendee's address must contain. */
+  readonly attendee?: string | undefined
+  /** Whether an attendee's address domain differs from every address domain of the owner's own on the event. */
+  readonly hasExternalAttendee?: boolean | undefined
+  /** Whether the owner accepted or organizes the event. */
+  readonly accepted?: boolean | undefined
+}
+/** Calendar connectors a calendar trigger can read. */
+export type CalendarProvider = 'google-calendar' | 'outlook-calendar'
+/** One timed event of an owner's connected calendar, as a calendar source reports it. */
+export interface CalendarEvent {
+  /** The provider's id of this event or of this instance of a recurring event. */
+  readonly id: string
+  readonly provider: CalendarProvider
+  readonly title: string
+  /** ISO start instant. */
+  readonly start: string
+  /** ISO end instant. */
+  readonly end: string
+  /** Address of the event in the provider's web app, when it has one. */
+  readonly link?: string | undefined
+  /** Attendees and organizer, `self` marking the owner's own address. */
+  readonly attendees: readonly { readonly address: string; readonly self: boolean }[]
+  /** Whether the owner accepted or organizes it. */
+  readonly accepted: boolean
+}
+/** A provider of an owner's calendar events, registered with the automations service's `registerCalendarSource`. */
+export interface CalendarSource {
+  /**
+   * Read the timed events of one owner's connected calendars that start inside a window.
+   * @param owner - the account.
+   * @param from - inclusive ISO start of the window.
+   * @param to - exclusive ISO end of the window.
+   * @param signal - aborts the reads when the Host stops.
+   * @returns the events, cancelled and all-day events left out; a calendar that cannot be read is left out too.
+   */
+  events(owner: string, from: string, to: string, signal: AbortSignal): Promise<readonly CalendarEvent[]>
+}
 /** One thing that can wake a bot. Each admitted run names the trigger that admitted it by its index. */
 export type BotTrigger =
   | { readonly kind: 'schedule'; readonly schedule: AutomationSchedule }
@@ -95,6 +141,12 @@ export type BotTrigger =
    * once the run settles; `dispatch` does not.
    */
   | { readonly kind: 'bot'; readonly from: AutomationId; readonly mode: 'wait' | 'dispatch' }
+  /**
+   * Each matching event of the owner's connected calendars, or only of `calendar`, wakes the bot `offsetMinutes`
+   * after its start, before it when negative. The occurrence follows the event while it moves, and an event admits
+   * one run per trigger.
+   */
+  | { readonly kind: 'calendar'; readonly calendar?: CalendarProvider | undefined; readonly filter: CalendarEventFilter; readonly offsetMinutes: number }
 /** Token accounting of one run, summed over its model calls. */
 export interface RunUsage {
   readonly inputTokens: number
@@ -193,7 +245,7 @@ export interface AutomationPlacement {
   readonly available: boolean
 }
 /** How a run came to be admitted. */
-export type AutomationTrigger = 'schedule' | 'manual' | 'webhook' | 'event' | 'bot'
+export type AutomationTrigger = 'schedule' | 'manual' | 'webhook' | 'event' | 'bot' | 'calendar'
 /** User-approved task and execution settings. */
 export interface AutomationDefinition {
   readonly id: AutomationId
@@ -255,7 +307,7 @@ export interface AutomationRun {
   /** Accepted inbound body of a webhook run, or the event an event run reacts to; the run notice marks it untrusted data. */
   readonly payload?: string | null | undefined
   /** The event an event run reacts to: its source and the source's own id, which deduplicates redelivery. */
-  readonly event?: { readonly source: 'mail' | 'github'; readonly id: string; readonly summary: string } | null | undefined
+  readonly event?: { readonly source: 'mail' | 'github' | 'calendar'; readonly id: string; readonly summary: string } | null | undefined
   /** The handoff a bot-triggered run carries out. */
   readonly handoff?: Pick<Handoff, 'id' | 'from' | 'fromName' | 'fromRun' | 'edge' | 'mode' | 'replyTo' | 'board' | 'task'> | null | undefined
   /** Tokens the run spent; absent until it settles. */

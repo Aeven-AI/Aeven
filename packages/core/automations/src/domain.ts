@@ -10,17 +10,19 @@ import { assertValidSchedule } from './recurrence.ts'
 const text = z.string().trim().min(1)
 const instant = z.iso.datetime({ offset: true })
 const weekday = z.enum(['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'])
+/** Whole minutes each recurring occurrence may be delayed by, at most thirty. */
+const jitterMinutes = z.number().int().min(1).max(30).optional()
 /** Calendar recurrence validated independently of ambient process time zone. */
 export const scheduleSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('once'), at: instant, timeZone: text, until: instant.optional() }),
-  z.object({ kind: z.literal('interval'), everyMinutes: z.number().int().min(5), anchor: instant, timeZone: text, until: instant.optional() }),
-  z.object({ kind: z.literal('hours'), everyHours: z.number().int().min(1).max(24), atMinute: z.number().int().min(0).max(59), timeZone: text, until: instant.optional() }),
-  z.object({ kind: z.literal('daily'), time: text, timeZone: text, until: instant.optional() }),
-  z.object({ kind: z.literal('weekly'), time: text, timeZone: text, weekdays: z.array(weekday).min(1), until: instant.optional() }),
-  z.object({ kind: z.literal('monthly'), time: text, timeZone: text, days: z.array(z.number().int().min(1).max(31)).min(1), until: instant.optional() }),
-  z.object({ kind: z.literal('nth-weekday'), time: text, timeZone: text, week: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]), weekday, until: instant.optional() }),
-  z.object({ kind: z.literal('yearly'), time: text, timeZone: text, month: z.number().int().min(1).max(12), day: z.number().int().min(1).max(31), until: instant.optional() }),
-  z.object({ kind: z.literal('cron'), expression: text.max(240), timeZone: text, until: instant.optional() }),
+  z.object({ kind: z.literal('interval'), everyMinutes: z.number().int().min(5), anchor: instant, timeZone: text, until: instant.optional(), jitterMinutes }),
+  z.object({ kind: z.literal('hours'), everyHours: z.number().int().min(1).max(24), atMinute: z.number().int().min(0).max(59), timeZone: text, until: instant.optional(), jitterMinutes }),
+  z.object({ kind: z.literal('daily'), time: text, timeZone: text, until: instant.optional(), jitterMinutes }),
+  z.object({ kind: z.literal('weekly'), time: text, timeZone: text, weekdays: z.array(weekday).min(1), until: instant.optional(), jitterMinutes }),
+  z.object({ kind: z.literal('monthly'), time: text, timeZone: text, days: z.array(z.number().int().min(1).max(31)).min(1), until: instant.optional(), jitterMinutes }),
+  z.object({ kind: z.literal('nth-weekday'), time: text, timeZone: text, week: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]), weekday, until: instant.optional(), jitterMinutes }),
+  z.object({ kind: z.literal('yearly'), time: text, timeZone: text, month: z.number().int().min(1).max(12), day: z.number().int().min(1).max(31), until: instant.optional(), jitterMinutes }),
+  z.object({ kind: z.literal('cron'), expression: text.max(240), timeZone: text, until: instant.optional(), jitterMinutes }),
 ]).superRefine((value, ctx) => {
   try { assertValidSchedule(value) } catch (error) { ctx.addIssue({ code: 'custom', message: String(error) }) }
 })
@@ -48,6 +50,13 @@ export const triggerSchema = z.union([
   z.object({ kind: z.literal('event'), source: z.literal('mail'), filter: z.object({ account: filterText, from: filterText, subject: filterText }).strict().default({}) }).strict(),
   z.object({ kind: z.literal('event'), source: z.literal('github'), filter: z.object({ events: z.array(text.max(80)).max(32).optional(), actions: z.array(text.max(80)).max(32).optional(), repository: filterText }).strict().default({}) }).strict(),
   z.object({ kind: z.literal('bot'), from: automationId, mode: z.enum(['wait', 'dispatch']) }).strict(),
+  z.object({
+    kind: z.literal('calendar'), calendar: z.enum(['google-calendar', 'outlook-calendar']).optional(),
+    filter: z.object({
+      title: filterText, attendee: filterText, hasExternalAttendee: z.boolean().optional(), accepted: z.boolean().optional(),
+    }).strict().default({}),
+    offsetMinutes: z.number().int().min(-1_440).max(1_440),
+  }).strict(),
 ])
 /** Trigger list of one bot: at most one webhook trigger, and no bot that hands itself work. */
 export const triggersSchema = z.array(triggerSchema).max(16).superRefine((value, ctx) => {
@@ -125,7 +134,7 @@ export const handoffSchema: z.ZodType<Handoff> = z.object({
 /** Validate a stored or account-synced run snapshot. */
 export const runSchema: z.ZodType<AutomationRun> = z.object({
   id: text.transform(value => brandString<AutomationRunId>(value)), definition: definitionSchema,
-  trigger: z.enum(['schedule', 'manual', 'webhook', 'event', 'bot']), scheduledFor: instant,
+  trigger: z.enum(['schedule', 'manual', 'webhook', 'event', 'bot', 'calendar']), scheduledFor: instant,
   status: z.enum(['queued', 'running', 'succeeded', 'failed', 'skipped', 'cancelled']),
   sessionId: text.transform(value => brandString<SessionId>(value)).nullable(),
   startedAt: instant.nullable(), finishedAt: instant.nullable(),
@@ -134,7 +143,7 @@ export const runSchema: z.ZodType<AutomationRun> = z.object({
   retryOfRunId: text.transform(value => brandString<AutomationRunId>(value)).nullable(),
   triggerIndex: z.number().int().min(0).nullable().optional(),
   payload: z.string().nullable().optional(),
-  event: z.object({ source: z.enum(['mail', 'github']), id: text, summary: z.string() }).strict().nullable().optional(),
+  event: z.object({ source: z.enum(['mail', 'github', 'calendar']), id: text, summary: z.string() }).strict().nullable().optional(),
   handoff: z.object({
     id: handoffId, from: automationId, fromName: text, fromRun: runId, edge: z.number().int().min(0).nullable(),
     mode: z.enum(['wait', 'dispatch']), replyTo: handoffId.nullable(), board: boardId.nullable(), task: text,
