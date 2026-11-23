@@ -739,10 +739,14 @@ export class WorkspaceRepositories {
       // a confined copy that skips existing files moves them in.
       const staging = join(this.transferRootOf(owner), `env-${randomUUID()}`)
       try {
-        written = await restoreEnvFiles(staging, entries, this.names, this.options.envFiles)
+        // The jail's user reads the staged files through the account folder's access list, whose mask follows group read.
+        written = await restoreEnvFiles(staging, entries, this.names, this.options.envFiles, 0o640)
         if (written.length > 0) {
           const copied = await this.git.tool(COPY_MISSING.concat(`${staging}/.`, '.'), { cwd: path, roots: [staging] })
-          if (copied.exitCode !== 0) this.warn(`restoring environment files failed: ${copied.stderr.trim().slice(-300)}`)
+          if (copied.exitCode !== 0) {
+            this.warn(`restoring environment files failed: ${copied.stderr.trim().slice(-300)}`)
+            written = []
+          }
         }
       } finally {
         await rm(staging, { recursive: true, force: true })

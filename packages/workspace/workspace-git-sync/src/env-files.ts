@@ -81,6 +81,8 @@ export async function readEnvFiles(git: Git, root: string, names: EnvFileNames, 
  * @param files - relative paths and base64 contents another device published.
  * @param names - the name patterns, which every path must match.
  * @param options - the limits, which every file must meet.
+ * @param mode - the files' permission bits; a staging copy another user reads through the folder's access list needs
+ *   group read, which the access list's mask takes from these bits.
  * @returns the paths written.
  */
 export async function restoreEnvFiles(
@@ -88,6 +90,7 @@ export async function restoreEnvFiles(
   files: Iterable<[string, string]>,
   names: EnvFileNames,
   options: EnvFileOptions,
+  mode = 0o600,
 ): Promise<string[]> {
   const written: string[] = []
   for (const [path, content] of files) {
@@ -100,7 +103,7 @@ export async function restoreEnvFiles(
     const absolute = join(root, ...path.split('/'))
     if (bytes.length > options.maxBytes || existsSync(absolute)) continue
     await mkdir(dirname(absolute), { recursive: true })
-    await writeFile(absolute, bytes, { mode: 0o600, flag: 'wx' }).then(() => written.push(path), (error: unknown) => {
+    await writeFile(absolute, bytes, { mode, flag: 'wx' }).then(() => written.push(path), (error: unknown) => {
       // `wx` refuses a file created since the check above, which then stays the local value.
       if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
     })

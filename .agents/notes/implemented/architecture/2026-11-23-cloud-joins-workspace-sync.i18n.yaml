@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-11-23-cloud-joins-workspace-sync.md
-2026-11-23-cloud-joins-workspace-sync.md: 0023e56d5eb1e079dbb7cd25d46988fe93c7f990
-2026-11-23-cloud-joins-workspace-sync.zh.md: 47b9939ede378737d628834c2b7521380c2da757
+2026-11-23-cloud-joins-workspace-sync.md: 881f371e39367dd6621beb7c600dab940ddb1971
+2026-11-23-cloud-joins-workspace-sync.zh.md: bf8bedc0f0d403fe01e572a4b0389be384148840
