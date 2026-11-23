@@ -51,7 +51,7 @@ kind: "package-reference"
 | `launcher` | npm launcher | Landlock launcher 的主机路径 |
 | `readOnlyPaths` | `/usr` 与最小的 `/etc` 集合 | 以相同路径只读挂载的主机路径；不存在的路径会被跳过 |
 | `symlinks` | `/bin`、`/sbin`、`/lib`、`/lib64` 指向 `/usr` | 在监狱根目录中创建的符号链接 |
-| `env` | `PATH`、`LANG`、`TMPDIR`、单线程 BLAS、无界面 matplotlib | 受限命令的完整环境；`HOME` 为账户文件夹 |
+| `env` | `PATH`、`LANG`、`TMPDIR`、单线程 BLAS、无界面 matplotlib | 受限命令的完整环境；`HOME` 为账户文件夹，Git 信任监狱挂载的每个仓库（`safe.directory=*`），因为监狱外的所有者显示为 `nobody` |
 | `tmpSizeMb` | `512` | `/tmp` 与 `/dev/shm` 各自的大小上限 |
 | `cgroup` | 无 | 委派的 cgroup 目录，以及总限制与单账户限制；任一限制中可选的 `ioMax` 限制磁盘 I/O，可选的 `memoryHigh` 在 `memoryMax` 终止一个组之前先让它变慢 |
 | `quotaCommand` | 无 | 限制账户文件夹磁盘用量的 argv，末尾追加该文件夹，在命令自身的启动步骤中运行，直到 `quotaRecord` 列出该账户；失败则拒绝该条命令 |
