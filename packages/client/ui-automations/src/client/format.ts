@@ -71,7 +71,7 @@ export function formatters(t: Translate, data: AutomationList | null) {
           const { account, from, subject } = trigger.filter
           return [t('triggerMail'), from === undefined ? '' : t('triggerMailFrom', { from }), subject === undefined ? '' : t('triggerMailSubject', { subject }), account === undefined ? '' : t('triggerMailAccount', { account })].filter(part => part !== '').join(' ')
         }
-        return [t('triggerGithub'), trigger.filter.repository === undefined ? '' : t('triggerGithubRepo', { repository: trigger.filter.repository }), trigger.filter.events === undefined || trigger.filter.events.length === 0 ? '' : t('triggerGithubEvents', { events: trigger.filter.events.join(', ') })].filter(part => part !== '').join(' ')
+        return [t('triggerGithub'), trigger.filter.repository === undefined ? '' : t('triggerGithubRepo', { repository: trigger.filter.repository }), trigger.filter.events === undefined || trigger.filter.events.length === 0 ? '' : t('triggerGithubEvents', { events: trigger.filter.events.join(', ') }), trigger.filter.actions === undefined || trigger.filter.actions.length === 0 ? '' : t('triggerGithubActions', { actions: trigger.filter.actions.join(', ') })].filter(part => part !== '').join(' ')
     }
   }
   /** When a bot next runs: paused, a date, on an event, or finished. */

@@ -35,9 +35,9 @@ const taskFields = {
     schedule: scheduleField,
     idempotency: { type: 'string', enum: ['sender', 'none'], description: 'For webhook: sender ignores a repeated Idempotency-Key header; none runs every request.' },
     source: { type: 'string', enum: ['mail', 'github'], description: 'For event.' },
-    filter: { type: 'object', description: 'For event. mail: account (address), from, subject — text each must contain. github: events (names such as pull_request, issues, issue_comment, push), repository (owner/name).', properties: {
+    filter: { type: 'object', description: 'For event. mail: account (address), from, subject — text each must contain. github: events (names such as pull_request, issues, issue_comment, push), actions (payload action values such as opened, closed, published; set actions ["published"] for a release announcement so drafts and edits do not wake the bot), repository (owner/name).', properties: {
       account: { type: 'string' }, from: { type: 'string' }, subject: { type: 'string' },
-      events: { type: 'array', items: { type: 'string' } }, repository: { type: 'string' },
+      events: { type: 'array', items: { type: 'string' } }, actions: { type: 'array', items: { type: 'string' } }, repository: { type: 'string' },
     }, additionalProperties: false },
     from: { type: 'string', description: 'For bot: ID of the bot that may hand this bot tasks.' },
     mode: { type: 'string', enum: ['wait', 'dispatch'], description: 'For bot: wait wakes the sender again with this bot’s result; dispatch does not.' },

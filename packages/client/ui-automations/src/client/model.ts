@@ -25,7 +25,7 @@ export type TaskTrigger =
   | { kind: 'schedule'; schedule: TaskSchedule }
   | { kind: 'webhook'; idempotency: 'sender' | 'none' }
   | { kind: 'event'; source: 'mail'; filter: { account?: string; from?: string; subject?: string } }
-  | { kind: 'event'; source: 'github'; filter: { events?: string[]; repository?: string } }
+  | { kind: 'event'; source: 'github'; filter: { events?: string[]; actions?: string[]; repository?: string } }
   | { kind: 'bot'; from: string; mode: 'wait' | 'dispatch' }
 /** One saved approval; it answers until `expiresAt`, or always without one. */
 export interface TaskGrant {

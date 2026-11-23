@@ -7581,7 +7581,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'GitHubEventFilter',
-    declaration: 'export interface GitHubEventFilter {\n    readonly events?: readonly string[] | undefined;\n    readonly repository?: string | undefined;\n}',
+    declaration: 'export interface GitHubEventFilter {\n    readonly events?: readonly string[] | undefined;\n    readonly actions?: readonly string[] | undefined;\n    readonly repository?: string | undefined;\n}',
   },
   {
     name: 'GoalActivation',
