@@ -55,10 +55,32 @@ describe('HistoricalImageCache', () => {
     try {
       await runtime.sessions.remove(sessionId)
       await Promise.resolve()
-      expect(cache.peek(sessionId, ATTACHMENT)).toBeUndefined()
+      // Nothing is cached any more; a browser still names the durable URL, never the revoked preview.
+      expect(cache.peek(sessionId, preview)).not.toBe('blob:seeded')
+      expect(cache.peek(sessionId, preview)).toContain('/api/attachment-image')
       expect(revoked).toHaveBeenCalledWith('blob:seeded')
     } finally {
       revoked.mockRestore()
+    }
+    await runtime.dispose()
+  })
+
+  // A reply rendered while a synced conversation loads shows its stored image, not a path this device lacks (#761).
+  it('names the durable URL before any read or Session binding', async () => {
+    const runtime = await SlotTestRuntime.create()
+    const cache = new HistoricalImageCache(runtime.ctx, runtime.ctx.sessions)
+    // No binding exists for this session yet, and nothing was resolved: the reference alone names the URL.
+    const early = cache.peek('s-loading' as never, ATTACHMENT)
+    expect(early).toContain('/api/attachment-image')
+    expect(early).toContain('sessionId=s-loading')
+    expect(early).toContain(`id=${String(ATTACHMENT.attachmentId)}`)
+
+    // The desktop app's Host reads stored images without a Session.
+    vi.stubGlobal('avnDesktop', {})
+    try {
+      expect(cache.peek('s-loading' as never, ATTACHMENT)).not.toContain('sessionId=')
+    } finally {
+      vi.unstubAllGlobals()
     }
     await runtime.dispose()
   })

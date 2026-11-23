@@ -26,6 +26,11 @@ export function durableImageUrl(attachment: ImageAttachmentRef, sessionId?: Sess
   return url.href
 }
 
+/** Whether this page is the desktop app's, whose Host permits stored-image reads without a Session. */
+function desktopReads(): boolean {
+  return typeof window !== 'undefined' && (window as { avnDesktop?: unknown }).avnDesktop !== undefined
+}
+
 interface ImageUrlEntry {
   readonly sessionId: SessionId
   readonly generation: number
@@ -76,13 +81,18 @@ export class HistoricalImageCache {
   }
 
   /**
-   * Return an already-displayable URL without starting a read.
+   * Return an already-displayable URL without starting a read. A browser reads a stored image from its own URL, which
+   * the reference alone names, so that URL answers before any read or Session binding exists: a reply rendered while a
+   * synced conversation is still loading shows its stored image instead of a source this device cannot serve, and
+   * nothing would re-resolve it once the binding arrived.
    * @param sessionId - Session authorization and lifetime scope.
    * @param attachment - Durable image reference.
-   * @returns current preview or canonical URL when cached.
+   * @returns the current preview or canonical URL; in a browser, the durable URL when nothing is cached yet.
    */
   peek(sessionId: SessionId, attachment: ImageAttachmentRef): string | undefined {
-    return this.entries.get(this.key(sessionId, attachment))?.current
+    const current = this.entries.get(this.key(sessionId, attachment))?.current
+    if (current !== undefined || typeof document === 'undefined') return current
+    return durableImageUrl(attachment, desktopReads() ? undefined : sessionId)
   }
 
   /**
@@ -136,8 +146,7 @@ export class HistoricalImageCache {
     // without one (a test runtime) falls back to reading the bytes through the
     // session binding and minting an object URL.
     if (typeof document !== 'undefined') {
-      const desktop = typeof window !== 'undefined' && (window as { avnDesktop?: unknown }).avnDesktop !== undefined
-      const url = durableImageUrl(attachment, desktop ? undefined : entry.sessionId)
+      const url = durableImageUrl(attachment, desktopReads() ? undefined : entry.sessionId)
       // Known at once, so `peek` answers right after `resolve`; a seeded
       // preview keeps its place as the current URL.
       entry.current ??= url
