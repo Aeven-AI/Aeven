@@ -53,6 +53,26 @@ function withDesktop<T extends { desktop?: string | undefined }>(input: T): Omit
 
 /** Error recorded on a run its owner stopped. */
 const STOPPED = 'Stopped by its owner.'
+/** Reason recorded on every open handoff of a chain its owner stopped; a handoff carrying it marks the chain stopped. */
+const CHAIN_STOPPED = 'Its chain was stopped by its owner.'
+
+/**
+ * The chain a handoff belongs to.
+ * @param handoff - a stored handoff.
+ * @returns the run that started its chain; its sending run for a handoff stored before chains were recorded.
+ */
+function chainOfHandoff(handoff: Pick<Handoff, 'chain' | 'fromRun'>): AutomationRunId {
+  return handoff.chain ?? handoff.fromRun
+}
+
+/**
+ * The chain a run belongs to.
+ * @param run - an admitted run.
+ * @returns the chain of the handoff or join that started it, or the run itself when nothing handed it work.
+ */
+function chainOfRun(run: AutomationRun): AutomationRunId {
+  return run.join?.chain ?? (run.handoff == null ? run.id : chainOfHandoff(run.handoff))
+}
 
 /** One run executing on this Host; `stopRequested` marks an owner's stop that lands before or during its turn. */
 interface ActiveRun {
@@ -321,6 +341,8 @@ export class Automations extends Service<Config> {
   private readonly calendarFirings = new Map<AutomationId, readonly CalendarFiring[]>()
   /** Aborts background reads when the Host stops; created when the scheduler starts. */
   private polls: AbortController | undefined
+  /** Wakes the handoff pump at the earliest deadline of a join that is still waiting for inputs. */
+  private joinTimer: ReturnType<typeof setTimeout> | undefined
   /** The calendar read in progress, and whether another was asked for while it ran. */
   private calendarRead: { again: boolean } | undefined
 
@@ -412,6 +434,7 @@ export class Automations extends Service<Config> {
       return async () => {
         this.stopped = true
         clearTimeout(this.timer)
+        clearTimeout(this.joinTimer)
         clearInterval(mailTimer)
         clearInterval(calendarTimer)
         polls.abort()
@@ -759,12 +782,13 @@ export class Automations extends Service<Config> {
         case 'schedule':
           if (now !== undefined && nextFiring(trigger.schedule, self, now) === null) throw new Error('Choose a schedule with a future occurrence.')
           break
-        case 'bot': {
-          if (trigger.from === self) throw new Error('A bot cannot hand work to itself.')
-          const sender = domain.table('definitions').get(trigger.from)
-          if (sender === undefined || sender.owner !== owner) throw new Error('A bot can receive work only from another bot of the same account.')
+        case 'bot':
+          for (const from of trigger.from) {
+            if (from === self) throw new Error('A bot cannot hand work to itself.')
+            const sender = domain.table('definitions').get(from)
+            if (sender === undefined || sender.owner !== owner) throw new Error('A bot can receive work only from another bot of the same account.')
+          }
           break
-        }
         case 'webhook':
         case 'event':
         case 'calendar':
@@ -798,10 +822,30 @@ export class Automations extends Service<Config> {
     return this.transaction(async (domain) => {
       const run = this.ownedRun(domain, id)
       if (run.status !== 'queued' && run.status !== 'running') throw new Error('This run has already finished.')
-      if (run.admittedBy === this.runnerId(domain)) return this.stopHere(domain, run)
-      await this.synced.stopRun(run)
-      return run
+      const stopped = run.admittedBy === this.runnerId(domain) ? await this.stopHere(domain, run) : run
+      if (stopped === run && run.admittedBy !== this.runnerId(domain)) await this.synced.stopRun(run)
+      await this.stopChain(domain, chainOfRun(run), run.id)
+      return stopped
     })
+  }
+
+  /**
+   * Stop a chain with one of its runs: refuse every open handoff of the chain, so no receiver that has not started
+   * starts and a join waiting on it is skipped, and stop the chain's other queued and running runs this Host knows.
+   * @param domain - the open definition domain.
+   * @param chain - the run that started the chain.
+   * @param except - the run the owner stopped, already stopping.
+   */
+  private async stopChain(domain: Domain<typeof automationDomain>, chain: AutomationRunId, except: AutomationRunId): Promise<void> {
+    const now = new Date().toISOString()
+    for (const [, handoff] of domain.table('handoffs').entries()) {
+      if (handoff.status === 'open' && chainOfHandoff(handoff) === chain) await this.storeHandoff(domain, { ...handoff, status: 'refused', reason: CHAIN_STOPPED, updatedAt: now })
+    }
+    for (const run of this.runs(domain)) {
+      if (run.id === except || (run.status !== 'queued' && run.status !== 'running') || chainOfRun(run) !== chain) continue
+      if (run.admittedBy === this.runnerId(domain)) await this.stopHere(domain, run)
+      else await this.synced.stopRun(run)
+    }
   }
 
   /** Cancel an executing run's turn, or record a run that has not started as cancelled. */
@@ -814,6 +858,7 @@ export class Automations extends Service<Config> {
     }
     const stopped: AutomationRun = { ...run, status: 'cancelled', finishedAt: new Date().toISOString(), error: STOPPED }
     await this.storeRun(domain, stopped)
+    await this.settleRun(domain, stopped)
     return stopped
   }
 
@@ -1308,7 +1353,7 @@ export class Automations extends Service<Config> {
     const self = run.definition
     const targets = [...domain.table('definitions').entries()].flatMap(([, target]) => {
       if (target.owner !== self.owner || target.id === self.id) return []
-      const edge = target.triggers.find(trigger => trigger.kind === 'bot' && trigger.from === self.id)
+      const edge = target.triggers.find(trigger => trigger.kind === 'bot' && trigger.from.includes(self.id))
       return edge?.kind === 'bot' ? [{ id: target.id, name: target.name, mode: edge.mode }] : []
     })
     const boards = (): AutomationBoard[] => [...domain.table('boards').entries()].map(([, board]) => board).filter(board => board.owner === self.owner && board.members.includes(self.id))
@@ -1348,10 +1393,12 @@ export class Automations extends Service<Config> {
     const target = [...domain.table('definitions').entries()].map(([, value]) => value)
       .find(value => value.owner === sender.owner && (value.id === to || value.name === to))
     if (target === undefined) throw new Error(`No bot named ${to} exists any more.`)
-    const edge = target.triggers.findIndex(trigger => trigger.kind === 'bot' && trigger.from === sender.id)
+    const edge = target.triggers.findIndex(trigger => trigger.kind === 'bot' && trigger.from.includes(sender.id))
     const trigger = target.triggers[edge]
     if (trigger?.kind !== 'bot') throw new Error(`${target.name} does not accept work from ${sender.name}. Only their owner can connect them.`)
     if (target.status !== 'active') throw new Error(`${target.name} is paused, so it cannot take this task.`)
+    const chain = chainOfRun(run)
+    if (this.chainStopped(domain, chain)) throw new Error('Your owner stopped this chain, so it takes no more handoffs.')
     const id = brandString<HandoffId>(createHash('sha256').update(`${run.id}\n${target.id}\n${task}`).digest('hex'))
     const earlier = domain.table('handoffs').get(id)
     if (earlier !== undefined) return earlier
@@ -1360,7 +1407,8 @@ export class Automations extends Service<Config> {
     const now = new Date().toISOString()
     const handoff: Handoff = {
       id, ...sender.owner === undefined ? {} : { owner: sender.owner }, board: board?.id ?? null,
-      from: sender.id, fromName: sender.name, fromRun: run.id, to: target.id, toName: target.name, edge, mode: trigger.mode, replyTo: null,
+      from: sender.id, fromName: sender.name, fromRun: run.id, chain, to: target.id, toName: target.name, edge, mode: trigger.mode,
+      replyTo: null,
       task, status: 'open', run: null, result: null, reason: null, tokens: null, createdAt: now, updatedAt: now,
     }
     await this.storeHandoff(domain, handoff)
@@ -1369,14 +1417,49 @@ export class Automations extends Service<Config> {
   }
 
   /**
+   * The `bot` trigger of a handoff's receiver when it joins several senders.
+   * @param domain - the open definition domain.
+   * @param handoff - a stored handoff.
+   * @returns the joining trigger, or undefined for a reply or a handoff on a one-sender edge.
+   */
+  private joinOf(domain: Domain<typeof automationDomain>, handoff: Handoff): Extract<BotTrigger, { kind: 'bot' }> | undefined {
+    if (handoff.edge === null || handoff.replyTo !== null) return undefined
+    const trigger = domain.table('definitions').get(handoff.to)?.triggers[handoff.edge]
+    return trigger?.kind === 'bot' && trigger.from.length > 1 ? trigger : undefined
+  }
+
+  /** Whether the owner stopped a chain: one of its handoffs was refused for that reason. */
+  private chainStopped(domain: Domain<typeof automationDomain>, chain: AutomationRunId): boolean {
+    for (const [, handoff] of domain.table('handoffs').entries()) {
+      if (handoff.status === 'refused' && handoff.reason === CHAIN_STOPPED && chainOfHandoff(handoff) === chain) return true
+    }
+    return false
+  }
+
+  /**
+   * Whether this Host admits a receiver's handoffs now: the receiver runs here, this Host does not yield it to the
+   * cloud Host, and, unless it runs in parallel, it has no run in progress.
+   * @param domain - the open definition domain.
+   * @param target - the receiving bot.
+   * @returns true when a handoff to it may be admitted here once this device holds its claim.
+   */
+  private takesHandoffs(domain: Domain<typeof automationDomain>, target: AutomationDefinition): boolean {
+    const place = eligibility(target, this.here(target.owner))
+    if (place === 'never' || (place === 'fallback' && this.yields(target)) || !this.runsHere(domain, target)) return false
+    return target.overlap === 'parallel' || !this.runs(domain).some(run => run.definition.id === target.id && (run.status === 'queued' || run.status === 'running'))
+  }
+
+  /**
    * Admit the open handoffs this Host may run: the receiver runs here, this device holds its claim while account
    * sync serves the account, and the receiver has no run in progress unless it runs in parallel. A paused or
-   * removed receiver, or a board budget, refuses the handoff with the reason.
+   * removed receiver, or a board budget, refuses the handoff with the reason. Handoffs on a joining edge wait for
+   * their join instead.
    */
   private pumpHandoffs(): void {
     if (this.stopped) return
     void this.transaction(async (current) => {
-      const open = [...current.table('handoffs').entries()].map(([, handoff]) => handoff).filter(handoff => handoff.status === 'open')
+      const open = [...current.table('handoffs').entries()].map(([, handoff]) => handoff)
+        .filter(handoff => handoff.status === 'open' && this.joinOf(current, handoff) === undefined)
         .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
       for (const handoff of open) {
         const target = current.table('definitions').get(handoff.to)
@@ -1388,25 +1471,143 @@ export class Automations extends Service<Config> {
           await this.storeHandoff(current, { ...handoff, status: 'refused', reason: `${target.name} is paused.`, updatedAt: now })
           continue
         }
-        if (target.overlap !== 'parallel' && this.runs(current).some(run => run.definition.id === target.id && (run.status === 'queued' || run.status === 'running'))) continue
+        if (!this.takesHandoffs(current, target)) continue
         if (!await this.claimsScheduler(target)) continue
         const requestedId = this.occurrenceId(target.id, handoff.edge ?? -1, `handoff:${handoff.id}`)
         const run = current.table('runs').get(requestedId) ?? await this.admit(current, target, {
           trigger: 'bot', scheduledFor: now, requestedId, ...handoff.edge === null ? {} : { triggerIndex: handoff.edge },
-          handoff: {
-            id: handoff.id, from: handoff.from, fromName: handoff.fromName, fromRun: handoff.fromRun, edge: handoff.edge,
-            mode: handoff.mode, replyTo: handoff.replyTo, board: handoff.board, task: handoff.task,
-          },
+          handoff: this.reference(handoff),
         })
         await this.storeHandoff(current, run.status === 'skipped'
           ? { ...handoff, status: 'refused', run: run.id, reason: run.error, updatedAt: now }
           : { ...handoff, status: 'claimed', run: run.id, updatedAt: now })
       }
+      await this.admitJoins(current)
       this.drain(current)
     }).catch((error: unknown) => {
       // A stopping Host refuses the transaction; the handoffs stay open for the next start.
       if (!this.stopped) this.ctx.logger.warn(`automations: handoffs were not admitted: ${String(error)}`)
     })
+  }
+
+  /** The fields of a handoff a run record carries. */
+  private reference(handoff: Handoff): NonNullable<AutomationRun['handoff']> {
+    return {
+      id: handoff.id, from: handoff.from, fromName: handoff.fromName, fromRun: handoff.fromRun, chain: chainOfHandoff(handoff),
+      edge: handoff.edge, mode: handoff.mode, replyTo: handoff.replyTo, board: handoff.board, task: handoff.task,
+    }
+  }
+
+  /**
+   * Evaluate every join this Host may admit: the handoffs on one joining edge of one receiver within one chain. An
+   * `any` join runs on its first input that carries work and refuses later ones; an `all` join runs once every
+   * sender has an input, recording a missing sender as timed out once `joinTimeoutMinutes` passed since the first
+   * input. A join whose inputs all failed, or whose chain was stopped, is recorded as one skipped run. The earliest
+   * deadline still pending arms the join timer.
+   * @param domain - the open definition domain.
+   */
+  private async admitJoins(domain: Domain<typeof automationDomain>): Promise<void> {
+    const groups = new Map<string, Handoff[]>()
+    for (const [, handoff] of domain.table('handoffs').entries()) {
+      if (this.joinOf(domain, handoff) === undefined) continue
+      const key = `${handoff.to}\n${handoff.edge}\n${chainOfHandoff(handoff)}`
+      groups.set(key, [...groups.get(key) ?? [], handoff])
+    }
+    let deadline = Infinity
+    for (const inputs of groups.values()) {
+      const [first] = inputs
+      const trigger = first === undefined ? undefined : this.joinOf(domain, first)
+      const target = first === undefined ? undefined : domain.table('definitions').get(first.to)
+      if (first === undefined || first.edge === null || trigger === undefined || target === undefined) continue
+      const edge = first.edge
+      const chain = chainOfHandoff(first)
+      const now = new Date().toISOString()
+      const requestedId = this.occurrenceId(target.id, edge, `join:${chain}`)
+      const admitted = domain.table('runs').get(requestedId)
+      const open = inputs.filter(handoff => handoff.status === 'open').sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
+      if (admitted !== undefined) {
+        // An `any` join ran already; later results are recorded without a run.
+        for (const handoff of open) await this.storeHandoff(domain, { ...handoff, status: 'refused', reason: `${target.name} already ran for this chain.`, updatedAt: now })
+        continue
+      }
+      const place = eligibility(target, this.here(target.owner))
+      if (place === 'never' || (place === 'fallback' && this.yields(target)) || !this.runsHere(domain, target)) continue
+      if (target.status !== 'active') {
+        for (const handoff of open) await this.storeHandoff(domain, { ...handoff, status: 'refused', reason: `${target.name} is paused.`, updatedAt: now })
+        continue
+      }
+      // One input per sender: the open one when a sender handed work on twice in the chain.
+      const bySender = new Map<AutomationId, Handoff>()
+      for (const handoff of inputs) if (!bySender.has(handoff.from) || handoff.status === 'open') bySender.set(handoff.from, handoff)
+      const stopped = this.chainStopped(domain, chain)
+      const missing = trigger.from.filter(sender => !bySender.has(sender))
+      const startsNow = trigger.join === 'any' && open.length > 0
+      if (!stopped && !startsNow && missing.length > 0) {
+        const due = Math.min(...inputs.map(handoff => Date.parse(handoff.createdAt))) + trigger.joinTimeoutMinutes * 60_000
+        if (Date.now() < due) { deadline = Math.min(deadline, due); continue }
+        for (const sender of missing) {
+          const absent = await this.recordAbsence(domain, target, edge, trigger, chain, sender, 'The join timed out waiting for it.')
+          if (absent !== undefined) bySender.set(sender, absent)
+        }
+      }
+      if (!this.takesHandoffs(domain, target) || !await this.claimsScheduler(target)) continue
+      const live = open.filter(handoff => bySender.get(handoff.from) === handoff)
+      const starting = trigger.join === 'any' ? live.slice(0, 1) : live
+      const recorded = [...bySender.values()].map(handoff => handoff.status === 'open' && !starting.includes(handoff) ? { ...handoff, status: 'refused' as const } : handoff)
+      const skip = stopped ? CHAIN_STOPPED : starting.length === 0
+        ? `Every input failed: ${recorded.map(handoff => `${handoff.fromName}: ${handoff.reason ?? handoff.status}`).join('; ')}`.slice(0, 2_000)
+        : undefined
+      const [lead] = starting
+      const run = await this.admit(domain, target, {
+        trigger: 'bot', scheduledFor: now, requestedId, triggerIndex: edge, ...skip === undefined ? {} : { skip },
+        ...lead === undefined ? {} : { handoff: this.reference(lead) },
+        join: { chain, inputs: recorded.map(handoff => ({
+          id: handoff.id, from: handoff.from, fromName: handoff.fromName, status: handoff.status,
+          task: handoff.task, reason: handoff.reason,
+        })) },
+      })
+      for (const handoff of open) {
+        await this.storeHandoff(domain, starting.includes(handoff) && run.status !== 'skipped'
+          ? { ...handoff, status: 'claimed', run: run.id, updatedAt: now }
+          : { ...handoff, status: 'refused', reason: run.status === 'skipped' ? run.error : `${target.name} already ran for this chain.`, updatedAt: now })
+      }
+    }
+    clearTimeout(this.joinTimer)
+    if (deadline === Infinity || this.stopped) return
+    this.joinTimer = setTimeout(() => { this.pumpHandoffs() }, Math.min(2_147_483_647, Math.max(0, deadline - Date.now())))
+  }
+
+  /**
+   * Record a sender of a joining edge that will hand no work on in a chain as a failed input, once.
+   * @param domain - the open definition domain.
+   * @param target - the receiving bot.
+   * @param edge - index of the joining trigger.
+   * @param trigger - the joining trigger.
+   * @param chain - the chain.
+   * @param sender - the sending bot.
+   * @param reason - why its input is missing.
+   * @param fromRun - the sender's run in the chain; the chain itself when it never ran.
+   * @returns the stored input, or undefined when the sender no longer exists.
+   */
+  private async recordAbsence(
+    domain: Domain<typeof automationDomain>, target: AutomationDefinition, edge: number, trigger: Extract<BotTrigger, { kind: 'bot' }>,
+    chain: AutomationRunId, sender: AutomationId, reason: string, fromRun: AutomationRunId = chain,
+  ): Promise<Handoff | undefined> {
+    const id = brandString<HandoffId>(createHash('sha256').update(`absent\n${chain}\n${target.id}\n${edge}\n${sender}`).digest('hex'))
+    const earlier = domain.table('handoffs').get(id)
+    if (earlier !== undefined) return earlier
+    const from = domain.table('definitions').get(sender)
+    if (from === undefined) return undefined
+    const board = [...domain.table('boards').entries()].map(([, value]) => value)
+      .find(value => value.owner === target.owner && value.members.includes(sender) && value.members.includes(target.id))
+    const now = new Date().toISOString()
+    const absent: Handoff = {
+      id, ...target.owner === undefined ? {} : { owner: target.owner }, board: board?.id ?? null,
+      from: sender, fromName: from.name, fromRun, chain, to: target.id, toName: target.name, edge, mode: trigger.mode, replyTo: null,
+      task: `${from.name} handed no work on.`, status: 'failed', run: null, result: null, reason, tokens: null, createdAt: now, updatedAt: now,
+    }
+    await this.storeHandoff(domain, absent)
+    return absent
   }
 
   /**
@@ -1426,33 +1627,47 @@ export class Automations extends Service<Config> {
   }
 
   /**
-   * Record a settled run on the handoff it carried out, and wake the sender of a `wait` edge with the result.
+   * Record a settled run on every handoff it carried out, wake the sender of each `wait` edge with the result, and,
+   * for a run of a chain, record it as a failed input of every join it was a sender of but handed no work to.
    * @param domain - the open definition domain.
    * @param run - the settled run.
    */
   private async settleRun(domain: Domain<typeof automationDomain>, run: AutomationRun): Promise<void> {
-    const reference = run.handoff
-    if (reference == null) return
-    const handoff = domain.table('handoffs').get(reference.id)
-    if (handoff === undefined) return
     const now = new Date().toISOString()
     const done = run.status === 'succeeded'
-    const settled: Handoff = handoff.status === 'claimed'
-      ? { ...handoff, status: done ? 'done' : 'failed', result: run.summary, reason: run.error, tokens: run.usage?.totalTokens ?? null, updatedAt: now }
-      : { ...handoff, tokens: run.usage?.totalTokens ?? null, updatedAt: now }
-    await this.storeHandoff(domain, settled)
-    if (handoff.mode !== 'wait' || handoff.replyTo !== null) return
-    const sender = domain.table('definitions').get(handoff.from)
-    if (sender === undefined) return
-    const answer = (settled.status === 'failed' ? settled.reason ?? settled.result : settled.result ?? settled.reason) ?? `${handoff.toName} finished without a result.`
-    const reply: Handoff = {
-      id: brandString<HandoffId>(createHash('sha256').update(`reply\n${handoff.id}`).digest('hex')), ...handoff.owner === undefined ? {} : { owner: handoff.owner },
-      board: handoff.board, from: handoff.to, fromName: handoff.toName, fromRun: run.id, to: sender.id, toName: sender.name,
-      edge: null, mode: 'dispatch', replyTo: handoff.id,
-      task: `${settled.status === 'done' ? 'Done' : 'Not done'}: ${answer}`.slice(0, 32_000),
-      status: 'open', run: null, result: null, reason: null, tokens: null, createdAt: now, updatedAt: now,
+    const carried = [...domain.table('handoffs').entries()].map(([, handoff]) => handoff).filter(handoff => handoff.run === run.id && handoff.status !== 'refused')
+    for (const handoff of carried) {
+      const settled: Handoff = handoff.status === 'claimed'
+        ? { ...handoff, status: done ? 'done' : 'failed', result: run.summary, reason: run.error, tokens: run.usage?.totalTokens ?? null, updatedAt: now }
+        : { ...handoff, tokens: run.usage?.totalTokens ?? null, updatedAt: now }
+      await this.storeHandoff(domain, settled)
+      if (handoff.mode !== 'wait' || handoff.replyTo !== null) continue
+      const sender = domain.table('definitions').get(handoff.from)
+      if (sender === undefined) continue
+      const answer = (settled.status === 'failed' ? settled.reason ?? settled.result : settled.result ?? settled.reason) ?? `${handoff.toName} finished without a result.`
+      const reply: Handoff = {
+        id: brandString<HandoffId>(createHash('sha256').update(`reply\n${handoff.id}`).digest('hex')), ...handoff.owner === undefined ? {} : { owner: handoff.owner },
+        board: handoff.board, from: handoff.to, fromName: handoff.toName, fromRun: run.id, chain: chainOfHandoff(handoff),
+        to: sender.id, toName: sender.name,
+        edge: null, mode: 'dispatch', replyTo: handoff.id,
+        task: `${settled.status === 'done' ? 'Done' : 'Not done'}: ${answer}`.slice(0, 32_000),
+        status: 'open', run: null, result: null, reason: null, tokens: null, createdAt: now, updatedAt: now,
+      }
+      if (domain.table('handoffs').get(reply.id) === undefined) await this.storeHandoff(domain, reply)
     }
-    if (domain.table('handoffs').get(reply.id) === undefined) await this.storeHandoff(domain, reply)
+    const chain = chainOfRun(run)
+    const handoffs = [...domain.table('handoffs').entries()].map(([, handoff]) => handoff)
+    // A run nothing handed work to belongs to a chain only once it started one.
+    if (chain === run.id && !handoffs.some(handoff => handoff.chain === run.id)) return
+    const reason = done ? 'It finished without handing work on.' : run.error ?? 'It did not finish.'
+    for (const [, target] of domain.table('definitions').entries()) {
+      if (target.owner !== run.definition.owner || target.id === run.definition.id) continue
+      for (const [edge, trigger] of target.triggers.entries()) {
+        if (trigger.kind !== 'bot' || trigger.from.length < 2 || !trigger.from.includes(run.definition.id)) continue
+        if (handoffs.some(handoff => handoff.fromRun === run.id && handoff.to === target.id && handoff.edge === edge)) continue
+        await this.recordAbsence(domain, target, edge, trigger, chain, run.definition.id, reason, run.id)
+      }
+    }
   }
 
   /**
@@ -1973,6 +2188,9 @@ export class Automations extends Service<Config> {
     requestedId?: AutomationRunId
     event?: AutomationRun['event']
     handoff?: AutomationRun['handoff']
+    join?: AutomationRun['join']
+    /** Records the occurrence as skipped with this reason. */
+    skip?: string
   }): Promise<AutomationRun> {
     if (!this.runsHere(domain, definition)) {
       throw new Error(this.config.placement.kind === 'cloud'
@@ -1985,10 +2203,10 @@ export class Automations extends Service<Config> {
     const full = definition.overlap === 'queue' && active.filter(run => run.status === 'queued').length >= this.config.queueDepth
     const stale = trigger === 'schedule' && Date.now() - Date.parse(scheduledFor) > this.config.misfireGraceMinutes * 60_000
     const budget = this.budgetRefusal(domain, definition)
-    const error = overlapping ? 'A previous run is still active.'
+    const error = occurrence.skip ?? (overlapping ? 'A previous run is still active.'
       : full ? `This bot already has ${this.config.queueDepth} runs waiting.`
         : stale ? 'Missed while this computer was unavailable.'
-          : budget ?? null
+          : budget ?? null)
     const run: AutomationRun = {
       // A scheduled occurrence is its automation, trigger, and instant, so a second Host admits it once; an event or
       // handoff is its trigger and the cause's own id; an inbound or manual run is one request.
@@ -1997,6 +2215,7 @@ export class Automations extends Service<Config> {
       finishedAt: error === null ? null : new Date().toISOString(), summary: null, error,
       admittedBy: this.runnerId(domain), retryOfRunId: occurrence.retryOfRunId ?? null, triggerIndex: occurrence.triggerIndex ?? null,
       payload: occurrence.payload ?? null, event: occurrence.event ?? null, handoff: occurrence.handoff ?? null,
+      ...occurrence.join === undefined ? {} : { join: occurrence.join },
       usage: null, resolution: null,
     }
     await this.storeRun(domain, run)
@@ -2033,6 +2252,8 @@ export class Automations extends Service<Config> {
         for (const [, handoff] of domain.table('handoffs').entries()) {
           if (handoff.run === null || counted.has(handoff.run) || !members.has(handoff.to)) continue
           if (Date.parse(handoff.updatedAt) < since) continue
+          // A joined run settles every input it carried with its tokens; it spent them once.
+          counted.add(handoff.run)
           spent += handoff.tokens ?? 0
         }
         if (spent >= maxTokensPerDay) return `Board “${board.name}” has spent its budget of ${maxTokensPerDay} tokens for the last 24 hours.`

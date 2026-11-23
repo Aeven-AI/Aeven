@@ -31,7 +31,7 @@ export type TaskTrigger =
   | { kind: 'webhook'; idempotency: 'sender' | 'none' }
   | { kind: 'event'; source: 'mail'; filter: { account?: string; from?: string; subject?: string } }
   | { kind: 'event'; source: 'github'; filter: { events?: string[]; actions?: string[]; repository?: string } }
-  | { kind: 'bot'; from: string; mode: 'wait' | 'dispatch' }
+  | { kind: 'bot'; from: string[]; join: 'all' | 'any'; mode: 'wait' | 'dispatch'; joinTimeoutMinutes: number }
   | {
     kind: 'calendar'
     calendar?: 'google-calendar' | 'outlook-calendar' | undefined
@@ -105,6 +105,8 @@ export interface HandoffRecord {
   reason: string | null
   tokens: number | null
   replyTo: string | null
+  /** The run that started the handoff's chain; absent on a handoff stored before chains were recorded. */
+  chain?: string | undefined
   createdAt: string
 }
 /** Host-advertised time triggers and the owned management projection. */

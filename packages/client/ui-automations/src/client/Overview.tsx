@@ -53,9 +53,6 @@ function BotCard({ t, fmt, task, data, state, showBot, editBot }: {
   )
 }
 
-/** Most handoffs a board card lists, newest first. */
-const BOARD_HANDOFFS = 5
-
 /**
  * Neutral status glyph for a handoff, in the run rows' trailing circle.
  * @param status - handoff status.
@@ -73,8 +70,8 @@ function handoffIcon(status: HandoffRecord['status']): ReactNode {
 }
 
 /**
- * One board's card, laid out like a bot card: its name with its bots under it, the facts grid, its latest handoffs as
- * run rows, and the actions row.
+ * One board's card, laid out like a bot card: its name with its bots under it, the facts grid, the handoffs of its
+ * latest chain as run rows in the order they were made, and the actions row.
  * @param props - the board, the list it came from, and the shared operations.
  * @returns the card.
  */
@@ -85,7 +82,11 @@ function BoardCard({ t, fmt, board, data, state }: {
   data: AutomationList
   state: Automations
 }) {
-  const chain = (data.handoffs ?? []).filter(handoff => handoff.board === board.id)
+  // The board shows the chain of its latest handoff: every handoff, input, and result that chain's runs made.
+  const handoffs = (data.handoffs ?? []).filter(handoff => handoff.board === board.id)
+  const latest = handoffs[0]
+  const chainOf = (handoff: HandoffRecord): string => handoff.chain ?? handoff.id
+  const chain = latest === undefined ? [] : handoffs.filter(handoff => chainOf(handoff) === chainOf(latest)).reverse()
   const names = board.members.map(member => data.definitions.find(task => task.id === member)?.name ?? t('triggerRemovedBot'))
   const budget = [
     board.budget.maxConcurrentRuns === undefined ? '' : t('boardBudgetRuns', { n: String(board.budget.maxConcurrentRuns) }),
@@ -113,7 +114,7 @@ function BoardCard({ t, fmt, board, data, state }: {
       </div>
       {chain.length > 0 && (
         <ul className={`${css.runList} ${css.boardHandoffs}`}>
-          {chain.slice(0, BOARD_HANDOFFS).map(handoff => (
+          {chain.map(handoff => (
             <li className={css.run} key={handoff.id} title={handoff.reason ?? handoff.task}>
               <span className={css.runText}>
                 <span className={css.runTitle}>{`${handoff.fromName} → ${handoff.toName}`}</span>

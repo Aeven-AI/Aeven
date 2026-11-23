@@ -43,8 +43,10 @@ const taskFields = {
     }, additionalProperties: false },
     calendar: { type: 'string', enum: ['google-calendar', 'outlook-calendar'], description: 'For calendar: read only this calendar. Omit to read every connected calendar.' },
     offsetMinutes: { type: 'integer', minimum: -1440, maximum: 1440, description: 'For calendar: minutes from the event\'s start, negative for before it, such as -15.' },
-    from: { type: 'string', description: 'For bot: ID of the bot that may hand this bot tasks.' },
-    mode: { type: 'string', enum: ['wait', 'dispatch'], description: 'For bot: wait wakes the sender again with this bot’s result; dispatch does not.' },
+    from: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 8, description: 'For bot: IDs of the bots that may hand this bot tasks.' },
+    join: { type: 'string', enum: ['all', 'any'], description: 'For bot with several senders: all (default) runs once every sender of the same chain has finished, with all their results; any runs on the first result. A sender that fails is named in the run instead of blocking it.' },
+    joinTimeoutMinutes: { type: 'integer', minimum: 1, maximum: 1440, description: 'For bot with several senders: how long to wait for the missing senders after the first result before running without them. Default 60.' },
+    mode: { type: 'string', enum: ['wait', 'dispatch'], description: 'For bot: wait wakes each sender again with this bot’s result; dispatch does not.' },
   }, required: ['kind'], additionalProperties: false } },
   connectors: { description: 'Connected accounts the bot may use, such as ["email"] or ["discord", "slack"]. Choose only what the task needs, so the bot cannot reach anything else. Omit to allow every connected account.', anyOf: [
     { type: 'string', enum: ['all'] }, { type: 'array', items: { type: 'string', enum: [...CONNECTOR_IDS] } },

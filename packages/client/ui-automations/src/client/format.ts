@@ -71,8 +71,11 @@ export function formatters(t: Translate, data: AutomationList | null) {
       case 'schedule': return describe(trigger.schedule)
       case 'webhook': return t('triggerWebhook')
       case 'bot': {
-        const name = data?.definitions.find(task => task.id === trigger.from)?.name ?? t('triggerRemovedBot')
-        return t(trigger.mode === 'wait' ? 'triggerBotWait' : 'triggerBotDispatch', { name })
+        const names = trigger.from.map(id => data?.definitions.find(task => task.id === id)?.name ?? t('triggerRemovedBot'))
+        const [name] = names
+        if (names.length === 1 && name !== undefined) return t(trigger.mode === 'wait' ? 'triggerBotWait' : 'triggerBotDispatch', { name })
+        const list = new Intl.ListFormat(undefined, { type: trigger.join === 'all' ? 'conjunction' : 'disjunction' }).format(names)
+        return t(trigger.join === 'all' ? 'triggerBotJoinAll' : 'triggerBotJoinAny', { names: list }) + (trigger.mode === 'wait' ? t('triggerBotJoinReplies') : '')
       }
       case 'calendar': {
         const { title, attendee, hasExternalAttendee, accepted } = trigger.filter

@@ -49,7 +49,13 @@ export const triggerSchema = z.union([
   z.object({ kind: z.literal('webhook'), idempotency: z.enum(['sender', 'none']) }).strict(),
   z.object({ kind: z.literal('event'), source: z.literal('mail'), filter: z.object({ account: filterText, from: filterText, subject: filterText }).strict().default({}) }).strict(),
   z.object({ kind: z.literal('event'), source: z.literal('github'), filter: z.object({ events: z.array(text.max(80)).max(32).optional(), actions: z.array(text.max(80)).max(32).optional(), repository: filterText }).strict().default({}) }).strict(),
-  z.object({ kind: z.literal('bot'), from: automationId, mode: z.enum(['wait', 'dispatch']) }).strict(),
+  z.object({
+    kind: z.literal('bot'),
+    // A trigger stored before joins named one sender.
+    from: z.union([automationId.transform(id => [id]), z.array(automationId).min(1).max(8)]),
+    join: z.enum(['all', 'any']).default('all'), mode: z.enum(['wait', 'dispatch']),
+    joinTimeoutMinutes: z.number().int().min(1).max(1_440).default(60),
+  }).strict(),
   z.object({
     kind: z.literal('calendar'), calendar: z.enum(['google-calendar', 'outlook-calendar']).optional(),
     filter: z.object({
@@ -61,7 +67,7 @@ export const triggerSchema = z.union([
 /** Trigger list of one bot: at most one webhook trigger, and no bot that hands itself work. */
 export const triggersSchema = z.array(triggerSchema).max(16).superRefine((value, ctx) => {
   if (value.filter(trigger => trigger.kind === 'webhook').length > 1) ctx.addIssue({ code: 'custom', message: 'A bot has at most one webhook trigger.' })
-  const sources = value.flatMap(trigger => trigger.kind === 'bot' ? [trigger.from] : [])
+  const sources = value.flatMap(trigger => trigger.kind === 'bot' ? trigger.from : [])
   if (new Set(sources).size !== sources.length) ctx.addIssue({ code: 'custom', message: 'Name each bot that may hand this bot work once.' })
 })
 /** Editable management fields, also validated at the RPC and durable boundaries. */
@@ -124,7 +130,7 @@ export const boardSchema: z.ZodType<AutomationBoard> = z.object({
 /** Validate a stored or account-synced handoff. */
 export const handoffSchema: z.ZodType<Handoff> = z.object({
   id: handoffId, owner: text.optional(), board: boardId.nullable(),
-  from: automationId, fromName: text, fromRun: runId, to: automationId, toName: text,
+  from: automationId, fromName: text, fromRun: runId, chain: runId.optional(), to: automationId, toName: text,
   edge: z.number().int().min(0).nullable(), mode: z.enum(['wait', 'dispatch']), replyTo: handoffId.nullable(),
   task: text.max(32_000),
   status: z.enum(['open', 'claimed', 'done', 'failed', 'released', 'refused']),
@@ -145,8 +151,15 @@ export const runSchema: z.ZodType<AutomationRun> = z.object({
   payload: z.string().nullable().optional(),
   event: z.object({ source: z.enum(['mail', 'github', 'calendar']), id: text, summary: z.string() }).strict().nullable().optional(),
   handoff: z.object({
-    id: handoffId, from: automationId, fromName: text, fromRun: runId, edge: z.number().int().min(0).nullable(),
+    id: handoffId, from: automationId, fromName: text, fromRun: runId, chain: runId.optional(), edge: z.number().int().min(0).nullable(),
     mode: z.enum(['wait', 'dispatch']), replyTo: handoffId.nullable(), board: boardId.nullable(), task: text,
+  }).strict().nullable().optional(),
+  join: z.object({
+    chain: runId,
+    inputs: z.array(z.object({
+      id: handoffId, from: automationId, fromName: text,
+      status: z.enum(['open', 'claimed', 'done', 'failed', 'released', 'refused']), task: text, reason: z.string().nullable(),
+    }).strict()).max(8),
   }).strict().nullable().optional(),
   usage: z.object({
     inputTokens: z.number().int().min(0), outputTokens: z.number().int().min(0), totalTokens: z.number().int().min(0),

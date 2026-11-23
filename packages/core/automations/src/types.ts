@@ -137,10 +137,19 @@ export type BotTrigger =
   | { readonly kind: 'event'; readonly source: 'mail'; readonly filter: MailEventFilter }
   | { readonly kind: 'event'; readonly source: 'github'; readonly filter: GitHubEventFilter }
   /**
-   * Another bot of the same owner may hand this bot a task. `wait` wakes the sender again with this bot's result
-   * once the run settles; `dispatch` does not.
+   * Other bots of the same owner may hand this bot tasks. `wait` wakes each sender again with this bot's result once
+   * the run settles; `dispatch` does not. With several senders, the handoffs of one chain join: `all` runs the bot
+   * once every sender of the chain has settled, with every result, and `any` runs it on the first result and records
+   * later ones without a run. A join still incomplete `joinTimeoutMinutes` after its first input settles the missing
+   * senders as timed out.
    */
-  | { readonly kind: 'bot'; readonly from: AutomationId; readonly mode: 'wait' | 'dispatch' }
+  | {
+    readonly kind: 'bot'
+    readonly from: readonly AutomationId[]
+    readonly join: 'all' | 'any'
+    readonly mode: 'wait' | 'dispatch'
+    readonly joinTimeoutMinutes: number
+  }
   /**
    * Each matching event of the owner's connected calendars, or only of `calendar`, wakes the bot `offsetMinutes`
    * after its start, before it when negative. The occurrence follows the event while it moves, and an event admits
@@ -183,6 +192,12 @@ export interface Handoff {
   readonly from: AutomationId
   readonly fromName: string
   readonly fromRun: AutomationRunId
+  /**
+   * The run that started the chain this handoff belongs to: a run no handoff started is its own chain, and a run a
+   * handoff started belongs to that handoff's chain. Absent on a handoff stored before chains were recorded, whose
+   * chain is its sending run.
+   */
+  readonly chain?: AutomationRunId | undefined
   readonly to: AutomationId
   readonly toName: string
   /** Index of the receiving bot's `bot` trigger that allowed it; absent on a reply. */
@@ -193,7 +208,9 @@ export interface Handoff {
   readonly task: string
   /**
    * `open` waits for a Host to admit it, `claimed` has a run, `done` and `failed` settled with that run, `released`
-   * lost its receiver, and `refused` was turned down at admission with the reason.
+   * lost its receiver, and `refused` was turned down at admission with the reason. A sender of a joining edge that
+   * settled without handing work on, or that the join timed out waiting for, is recorded as a `failed` input with
+   * the reason and no run.
    */
   readonly status: 'open' | 'claimed' | 'done' | 'failed' | 'released' | 'refused'
   readonly run: AutomationRunId | null
@@ -308,8 +325,13 @@ export interface AutomationRun {
   readonly payload?: string | null | undefined
   /** The event an event run reacts to: its source and the source's own id, which deduplicates redelivery. */
   readonly event?: { readonly source: 'mail' | 'github' | 'calendar'; readonly id: string; readonly summary: string } | null | undefined
-  /** The handoff a bot-triggered run carries out. */
-  readonly handoff?: Pick<Handoff, 'id' | 'from' | 'fromName' | 'fromRun' | 'edge' | 'mode' | 'replyTo' | 'board' | 'task'> | null | undefined
+  /** The handoff a bot-triggered run carries out; for a joined run, its first input that carries work. */
+  readonly handoff?: Pick<Handoff, 'id' | 'from' | 'fromName' | 'fromRun' | 'chain' | 'edge' | 'mode' | 'replyTo' | 'board' | 'task'> | null | undefined
+  /** Every input of a joined run, one per sender, with the failed ones and their reasons. */
+  readonly join?: {
+    readonly chain: AutomationRunId
+    readonly inputs: readonly Pick<Handoff, 'id' | 'from' | 'fromName' | 'status' | 'task' | 'reason'>[]
+  } | null | undefined
   /** Tokens the run spent; absent until it settles. */
   readonly usage?: RunUsage | null | undefined
   /**
