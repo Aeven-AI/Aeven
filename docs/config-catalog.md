@@ -636,6 +636,12 @@ export interface Config {
   /** Seconds between two checks of a watched mail account for new email; each check is a search, not a model turn. */
   readonly mailPollSeconds: number
   /**
+   * Seconds between two reads of an owner's calendars for calendar triggers; each read is one event listing per
+   * connected calendar, not a model turn. A read covers the events that fire before the read after next, so a moved
+   * or new event fires on time once a read has seen it.
+   */
+  readonly calendarPollSeconds: number
+  /**
    * What this Host is and which device capabilities its runs can use. A `cloud` Host runs the definitions that
    * need nothing from a computer; a `device` Host runs the ones whose requirements it provides.
    */
