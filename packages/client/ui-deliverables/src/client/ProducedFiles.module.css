@@ -24,10 +24,11 @@
   --deliverable-toolbar-color: #fff;
 }
 
-/* Produced images, shown whole as the generated-image lane shows its frames:
-   a lone landscape image fills the column and a lone portrait takes two thirds
-   of it, both at their own proportions; several share the column as 3:2 or 2:3
-   tiles, halves wrapping into rows of two, three in thirds. */
+/* Produced images, drawn as the generated-image lane draws its frames: a
+   frame decides the geometry and the image fills it edge to edge, 3:2 for a
+   landscape image and 2:3 for a portrait; a lone landscape frame fills the
+   column and a lone portrait takes two thirds of it; two share it in halves,
+   three in thirds, and a fourth wraps into rows of two. */
 
 .images {
   display: flex;
@@ -55,13 +56,9 @@
   aspect-ratio: 2 / 3;
 }
 
-.images[data-produced-images='3'] .imageFrame {
-  flex: 1 1 calc(33.333% - 8px);
-}
-
 .images[data-produced-images='1'] .imageFrame {
   flex: 0 0 100%;
-  aspect-ratio: auto;
+  width: 100%;
 }
 
 .images[data-produced-images='1'] .imageFrame[data-orientation='portrait'] {
@@ -69,15 +66,21 @@
   width: 66.666%;
 }
 
+.images[data-produced-images='3'] .imageFrame {
+  flex: 1 1 calc(33.333% - 8px);
+}
+
+/* Whatever the frame holds, the renderer's image or a plain one, takes the whole box. */
+.imageFrame > * {
+  width: 100%;
+  height: 100%;
+}
+
 .image {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-.images[data-produced-images='1'] .image {
-  height: auto;
 }
 
 /* Edited files. */

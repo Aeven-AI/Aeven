@@ -17,6 +17,7 @@
     "src/interactions.ts",
     "src/file-references.ts",
     "src/file-uploads.ts",
+    "src/produced-copies.ts",
     "src/history.ts",
     "src/list.ts",
     "src/media-references.ts",

@@ -26,6 +26,7 @@ import {
   type DeliverablesTurnData,
 } from '../src/client/turn-deliverables.ts'
 import { apply, inject } from '../src/client/index.ts'
+import type { ImageAttachmentRef } from '@aeven/attachment'
 import type { SessionEvent } from '@aeven/session/types'
 import { SessionId } from '@aeven/session'
 
@@ -416,6 +417,76 @@ describe('produced-file Turn data', () => {
   })
 })
 
+describe('produced images (#761)', () => {
+  /** A produced image's stored copy as a tool result shares it: an image block with its full reference. */
+  const rainbow = {
+    attachmentId: 'sha256:2abf4a2f', mediaType: 'image/jpeg', bytes: 622650, width: 1736, height: 1830,
+    name: 'Rainbow_High_Set_of_6_Dolls.jpg',
+  } as unknown as ImageAttachmentRef
+
+  function imageResult(seq: number, callId: string, producedFiles: unknown, images: readonly unknown[]): SessionLiveEventEntry {
+    return at(seq, 'tool/result', {
+      turn: 1, step: 1, ...producedFiles === undefined ? {} : { meta: { producedFiles } },
+      message: {
+        source: { type: 'tool-result', callId },
+        content: [{ type: 'tool-result', content: images.map(attachment => ({ type: 'image', attachment })) }],
+      },
+    })
+  }
+
+  it('carries the full image reference of a copy the producing result shares', () => {
+    const value = assembler([
+      at(1, 'turn/start', { turn: 1 }),
+      call(2, 'crop', 'bash', { command: 'python crop.py', output_files: ['Rainbow_High_Set_of_6_Dolls.jpg'] }),
+      imageResult(3, 'crop', [{ path: 'Rainbow_High_Set_of_6_Dolls.jpg', created: true, attachmentId: rainbow.attachmentId }], [rainbow]),
+    ])
+    expect(selectProducedFiles(tailOwner(deliverablesOf(value), 4))).toEqual([
+      { path: 'Rainbow_High_Set_of_6_Dolls.jpg', created: true, counts: undefined, attachmentId: rainbow.attachmentId, image: rainbow },
+    ])
+  })
+
+  it('takes the reference from a later result of the Turn that shares the copy, as a desktop records it', () => {
+    const path = '/Users/elizabethtrejo/.aeven/chats/Rainbow_High_Set_of_6_Dolls.jpg'
+    const value = assembler([
+      at(1, 'turn/start', { turn: 1 }),
+      call(2, 'crop', 'bash', { command: 'python crop.py', output_files: [path] }),
+      imageResult(3, 'crop', [{ path, created: true, attachmentId: rainbow.attachmentId }], []),
+      call(4, 'view', 'read_image', { path }),
+      imageResult(5, 'view', undefined, [rainbow]),
+    ])
+    expect(selectProducedFiles(tailOwner(deliverablesOf(value), 6))?.[0]?.image).toEqual(rainbow)
+  })
+
+  const props = {
+    ensureWorkspacePathOpen: () => {}, revealFile: () => {}, previewFile: vi.fn().mockResolvedValue(true), openFile: vi.fn(),
+    fileUrl: (path: string) => `http://localhost/api/workspace-file?path=${path}`,
+    attachmentUrl: (id: string) => `http://localhost/api/attachment-file?id=${id}`,
+    isLoopback: false, useWorkspacePathOpen: vi.fn().mockReturnValue(true), t: vi.fn().mockImplementation((key: string) => key),
+  }
+
+  it('draws a produced image through the conversation renderer, the way a generated image is drawn, not as a row', () => {
+    const renderImages = vi.fn().mockReturnValue(<span data-testid="rendered" />)
+    const view = render(<ProducedFiles {...props} renderImages={renderImages} turn={turnLocation(3, undefined)}
+      matched={[{ path: 'Rainbow_High_Set_of_6_Dolls.jpg', created: true, attachmentId: rainbow.attachmentId, image: rainbow }]} />)
+
+    expect(renderImages).toHaveBeenCalledWith({ images: [{ attachment: rainbow }], align: 'start', layout: 'fill', turn: 3 })
+    expect(view.getByTestId('rendered')).not.toBeNull()
+    expect(view.container.querySelector('[data-produced-images="1"] [data-orientation="portrait"]')).not.toBeNull()
+    expect(view.container.querySelector('[data-created-files]')).toBeNull()
+  })
+
+  it('shows an image without a reference from its stored copy, and returns it to its row only when the copy fails', () => {
+    const view = render(<ProducedFiles {...props}
+      matched={[{ path: 'Rainbow_High_Set_of_6_Dolls_preview.jpg', created: true, attachmentId: 'sha256:3cd4812a' }]} />)
+    const image = view.container.querySelector('img')
+    expect(image?.getAttribute('src')).toBe('http://localhost/api/attachment-file?id=sha256:3cd4812a')
+    expect(view.container.querySelector('[data-created-files]')).toBeNull()
+
+    fireEvent.error(image as HTMLImageElement)
+    expect(view.container.querySelector('[data-created-files]')).not.toBeNull()
+  })
+})
+
 describe('producedFileMentions resolver', () => {
   const label = (path: string) => `打开 ${path}`
 
@@ -542,7 +613,8 @@ describe('plugin registration', () => {
     injected.ensureWorkspacePathOpen()
 
     // The prose face is live while the plugin is: a produced turn yields a
-    // resolver whose matches open through the owner-supplied opener.
+    // resolver whose matches open the way the file's row does, in the Files
+    // sidebar first, so the owner's desktop opener is not reached here.
     const opened: string[] = []
     const owner = tailOwner(
       produced([2, 'site/report.html']),
@@ -552,7 +624,9 @@ describe('plugin registration', () => {
     const service = (ctx as unknown as { get(name: string): ChatFileMentions | undefined }).get('chatFileMentions')
     const mentions = service?.forClosing(owner, SessionId('s1'))
     mentions?.resolve('report.html')?.open()
-    expect(opened).toEqual(['site/report.html'])
+    await vi.waitFor(() => { expect(openSidebarFile).toHaveBeenCalledWith('s1', 'site/report.html') })
+    expect(opened).toEqual([])
+    openSidebarFile.mockClear()
     // A turn that produced nothing yields no vocabulary at all.
     expect(service?.forClosing(tailOwner(undefined, 2), SessionId('s1'))).toBeUndefined()
     // Path links resolve for any step, through the Session's own workspace route,

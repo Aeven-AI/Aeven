@@ -229,6 +229,7 @@ function attachmentReadFailure(error: unknown): Response {
 async function read(
   request: Request,
   readReferenced: (sessionId: SessionId, attachmentId: string) => Promise<StoredFileAttachment | undefined>,
+  readReferencedImage: (sessionId: SessionId, attachmentId: string) => Promise<StoredImageAttachment | undefined>,
 ): Promise<Response> {
   const url = new URL(request.url)
   const sessionId = url.searchParams.get('sessionId')
@@ -236,14 +237,21 @@ async function read(
   if (sessionId === null || sessionId === '' || attachmentId === null || attachmentId === '') {
     return failure(400, 'INVALID_ATTACHMENT_REF', 'sessionId and id are required.')
   }
-  let stored: StoredFileAttachment | undefined
+  let stored: StoredOriginal | undefined
   try {
-    stored = await readReferenced(brandString<SessionId>(sessionId), attachmentId)
+    const file = await readReferenced(brandString<SessionId>(sessionId), attachmentId)
+    // A file a command produced is cited as an image when it is one, which its row, its link, and its download all
+    // read through this route.
+    const image = file === undefined ? await readReferencedImage(brandString<SessionId>(sessionId), attachmentId) : undefined
+    const imageName = image === undefined ? '' : image.ref.name ?? derivedImageName(String(image.ref.attachmentId), image.ref.mediaType)
+    stored = file !== undefined
+      ? { mediaType: file.ref.mediaType, name: file.ref.name, data: file.data }
+      : image === undefined ? undefined : { mediaType: image.ref.mediaType, name: imageName, data: image.data }
   } catch (error) {
     return attachmentReadFailure(error)
   }
   if (stored === undefined) return failure(404, 'ATTACHMENT_NOT_REFERENCED', 'File is not referenced by this session.')
-  return storedOriginal({ mediaType: stored.ref.mediaType, name: stored.ref.name, data: stored.data }, request)
+  return storedOriginal(stored, request)
 }
 
 /**
@@ -324,18 +332,20 @@ export function registerImageReadRoute(
 }
 
 /**
- * Register the stored-original read route.
+ * Register the stored-original read route, which serves a stored copy the Session log cites as a file or as an image.
  * @param ctx - context carrying the connection service.
  * @param readReferenced - Session-authorized reader of one cited original.
+ * @param readReferencedImage - Session-authorized reader of one cited image, such as a produced image's copy.
  */
 export function registerFileReadRoute(
   ctx: Context,
   readReferenced: (sessionId: SessionId, attachmentId: string) => Promise<StoredFileAttachment | undefined>,
+  readReferencedImage: (sessionId: SessionId, attachmentId: string) => Promise<StoredImageAttachment | undefined>,
 ): void {
   ctx.effect(() => ctx.connection.fetch.register({
     path: FILE_READ_PATH,
     methods: ['GET', 'HEAD'],
-    fetch: request => read(request, readReferenced),
+    fetch: request => read(request, readReferenced, readReferencedImage),
   }), 'session-controller: /api/attachment-file')
 }
 

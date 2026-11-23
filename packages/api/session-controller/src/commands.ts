@@ -2,11 +2,13 @@
 
 import { randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
+import { stat } from 'node:fs/promises'
+import { producedCopyName, producedMediaType } from './produced-copies.ts'
 import { brandString } from '@aeven/brand'
 import type { Agent, ModelSelection as AgentModelSelection } from '@aeven/agent'
 import { AttachmentError, admitPromptContent } from '@aeven/attachment'
 import { readFetchedAttachment } from './file-uploads.ts'
-import type { FileAttachmentRef, ImageAttachmentRef, StoredFileAttachment, StoredImageAttachment } from '@aeven/attachment'
+import type { AttachmentId, FileAttachmentRef, ImageAttachmentRef, StoredFileAttachment, StoredImageAttachment } from '@aeven/attachment'
 import {
   ReasoningEffortId, createUserMessage, freezeMessage,
 } from '@aeven/llm'
@@ -758,8 +760,25 @@ export class SessionCommandController {
    */
   async referencedFile(sessionId: SessionId, attachmentId: string): Promise<StoredFileAttachment | undefined> {
     const source = await this.readSessionState(sessionId)
-    const ref = referencedAttachment(source.events, 'file', attachmentId)
+    const ref = referencedAttachment(source.events, 'file', attachmentId) ?? await this.producedCopyRef(source.events, attachmentId)
     return ref === undefined ? undefined : readFetchedAttachment(this.ctx, attachmentId, () => this.ctx.attachments.readFile(ref))
+  }
+
+  /**
+   * The reference of a stored copy a tool result names only in its produced files, which records the copy's id and the
+   * file's path but no file block: the name and media type come from the path, the length from the stored object.
+   * @param events - the Session log.
+   * @param attachmentId - the copy's id.
+   * @returns the reference, or undefined when no produced file names the copy or this Host does not hold it.
+   */
+  private async producedCopyRef(events: readonly SessionEvent[], attachmentId: string): Promise<FileAttachmentRef | undefined> {
+    const name = producedCopyName(events, attachmentId)
+    if (name === undefined) return undefined
+    const id = brandString<AttachmentId>(attachmentId)
+    const host = this.ctx.attachments.fileHostPath({ attachmentId: id } as FileAttachmentRef)
+    const bytes = host === undefined ? undefined : await stat(host).then(info => info.size, () => undefined)
+    if (bytes === undefined) return undefined
+    return { attachmentId: id, mediaType: producedMediaType(name), bytes, name, extraction: { textId: id } } as unknown as FileAttachmentRef
   }
 
   /**

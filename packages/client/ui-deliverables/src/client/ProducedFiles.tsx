@@ -4,6 +4,7 @@ import {
   VideoPlayer, videoPlayerLabels,
 } from '@aeven/client-ui-primitives'
 import type { HostObservable, InjectFace, PropsLocale } from '@aeven/client-ui-slots'
+import type { ImageAttachmentRef } from '@aeven/attachment'
 import type { TurnTailOwnerProps } from '@aeven/client-ui-chat/client'
 import { basename, type ProducedFile } from './turn-deliverables.ts'
 import { revealLabel } from './file-menu.ts'
@@ -62,9 +63,10 @@ export interface ProducedFilesInjected {
 }
 
 /** Matched files plus the opener, workspace root, locale, and injected Host capability. */
-export type ProducedFilesProps = Pick<TurnTailOwnerProps, 'openFile' | 'cwd'> & {
-  matched: readonly ProducedFile[]
-} & PropsLocale<typeof NS> & InjectFace<ProducedFilesInjected>
+export type ProducedFilesProps = Pick<TurnTailOwnerProps, 'openFile' | 'cwd' | 'renderImages'>
+  & Partial<Pick<TurnTailOwnerProps, 'turn'>> & {
+    matched: readonly ProducedFile[]
+  } & PropsLocale<typeof NS> & InjectFace<ProducedFilesInjected>
 
 type Translate = ProducedFilesProps['t']
 
@@ -76,7 +78,7 @@ type Translate = ProducedFilesProps['t']
  */
 export function ProducedFiles({
   matched, openFile, previewFile, fileUrl, attachmentUrl, cwd, isLoopback, ensureWorkspacePathOpen,
-  openFileMenu, useWorkspacePathOpen, t,
+  openFileMenu, useWorkspacePathOpen, renderImages, turn, t,
 }: ProducedFilesProps) {
   useEffect(() => { ensureWorkspacePathOpen() }, [ensureWorkspacePathOpen])
   const hostCanOpenPath = useWorkspacePathOpen(available => available === true)
@@ -110,6 +112,8 @@ export function ProducedFiles({
       ))}
       {images.length > 0 && (
         <ProducedImages files={images} openFile={openFileOfRow} menu={menu} t={t}
+          renderImages={renderImages} turn={turn?.turn}
+          imageOf={file => file.image}
           src={file => file.attachmentId === undefined ? fileUrl(file.path) : attachmentUrl(file.attachmentId)}
           onUnavailable={(path) => { setUnshown(previous => new Set(previous).add(path)) }} />
       )}
@@ -126,11 +130,16 @@ export function ProducedFiles({
 }
 
 /**
- * A turn's produced images, shown whole: a lone image at its own proportions, several as tiles across the column the
- * way generated images are. A click opens the image as its row would.
+ * A turn's produced images, drawn the way generated images are: through the conversation's image renderer in 3:2 or
+ * 2:3 frames, a lone landscape image across the column and a lone portrait in two thirds of it. An image whose stored
+ * reference the Turn does not carry shows from its URL instead, and a click opens it as its row would.
  */
-function ProducedImages({ files, src, openFile, menu, onUnavailable, t }: {
+function ProducedImages({ files, imageOf, renderImages, turn, src, openFile, menu, onUnavailable, t }: {
   files: readonly ProducedFile[]
+  /** The stored image a file's copy is, when the Turn carries its full reference. */
+  imageOf: (file: ProducedFile) => ImageAttachmentRef | undefined
+  renderImages: TurnTailOwnerProps['renderImages']
+  turn: number | undefined
   src: (file: ProducedFile) => string
   openFile: (file: ProducedFile) => void
   menu: ((path: string) => (event: MouseEvent) => void) | undefined
@@ -141,20 +150,31 @@ function ProducedImages({ files, src, openFile, menu, onUnavailable, t }: {
   const [portrait, setPortrait] = useState<ReadonlySet<string>>(() => new Set())
   return (
     <div className={css.images} data-produced-images={files.length}>
-      {files.map(file => (
-        <button key={file.path} type="button" className={css.imageFrame} title={file.path}
-          data-orientation={portrait.has(file.path) ? 'portrait' : 'landscape'}
-          aria-label={t('produced.open', { name: file.path })}
-          onClick={() => { openFile(file) }}
-          onContextMenu={menu?.(file.path)}>
-          <img className={css.image} src={src(file)} alt={basename(file.path)} loading="lazy" decoding="async" draggable={false}
-            onLoad={(event) => {
-              const image = event.currentTarget
-              if (image.naturalHeight > image.naturalWidth) setPortrait(previous => new Set(previous).add(file.path))
-            }}
-            onError={() => { onUnavailable(file.path) }} />
-        </button>
-      ))}
+      {files.map((file) => {
+        const image = imageOf(file)
+        if (image !== undefined && renderImages !== undefined) {
+          return (
+            <div key={file.path} className={css.imageFrame} data-orientation={image.height > image.width ? 'portrait' : 'landscape'}
+              onContextMenu={menu?.(file.path)}>
+              {renderImages({ images: [{ attachment: image }], align: 'start', layout: 'fill', turn })}
+            </div>
+          )
+        }
+        return (
+          <button key={file.path} type="button" className={css.imageFrame} title={file.path}
+            data-orientation={portrait.has(file.path) ? 'portrait' : 'landscape'}
+            aria-label={t('produced.open', { name: file.path })}
+            onClick={() => { openFile(file) }}
+            onContextMenu={menu?.(file.path)}>
+            <img className={css.image} src={src(file)} alt={basename(file.path)} loading="lazy" decoding="async" draggable={false}
+              onLoad={(event) => {
+                const image = event.currentTarget
+                if (image.naturalHeight > image.naturalWidth) setPortrait(previous => new Set(previous).add(file.path))
+              }}
+              onError={() => { onUnavailable(file.path) }} />
+          </button>
+        )
+      })}
     </div>
   )
 }

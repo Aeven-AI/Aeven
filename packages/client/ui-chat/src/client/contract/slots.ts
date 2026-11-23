@@ -49,6 +49,8 @@ export interface TurnTailOwnerProps {
   /** Session workspace root, when the session list row carries one; tails display paths relative to it. */
   cwd?: string | undefined
   openFile: OpenWorkspaceFile
+  /** The conversation's image renderer, which draws an image the Turn produced the way a generated image is drawn. */
+  renderImages?: RenderMessageImages | undefined
 }
 
 /** Owner currency of prose file links, which any Assistant step of a Session may carry. */
