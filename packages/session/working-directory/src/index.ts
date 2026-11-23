@@ -22,7 +22,7 @@
 
 import { existsSync, mkdirSync } from 'node:fs'
 import { rm, stat } from 'node:fs/promises'
-import { isAbsolute, join, normalize, resolve as resolvePath } from 'node:path'
+import { isAbsolute, join, normalize, relative, resolve as resolvePath } from 'node:path'
 import { Service, type Context } from '@deepseek-ai/cordis'
 import Schema from '@deepseek-ai/schemastery'
 import type { Session, SessionHeader, SessionId } from '@aeven/session'
@@ -196,7 +196,13 @@ export class WorkingDirectoryService extends Service {
       replicated: registry?.replicated(header.id) ?? false,
       entered: this.entered.get(header.id),
     })
-    if (resolved.state === 'local') return resolved
+    if (resolved.state === 'local') {
+      // On a Host without folders of its own, every recorded directory is one it managed. Once workspace sync gives the
+      // session's workspace its own directory here, that directory replaces the one recorded before it arrived.
+      if (this.folders || placement.state !== 'filed' || placement.workspace.kind !== 'folder') return resolved
+      const bound = placement.workspace.path
+      return bound === undefined || isWithin(bound, resolved.cwd) ? resolved : { state: 'local', cwd: bound, root: bound }
+    }
     if (this.folders) {
       // A refusal stands: the session's workspace has a folder, just not one here yet. A session with no directory,
       // in a workspace without a folder, works in the account's own folder, which file sync carries to its devices.
@@ -389,4 +395,10 @@ declare module '@deepseek-ai/cordis' {
     /** Session working directory: this device's directory for the session's workspace. */
     workingDirectory: WorkingDirectoryService
   }
+}
+
+/** Whether `path` is `root` or lies inside it. */
+function isWithin(root: string, path: string): boolean {
+  const rel = relative(root, path)
+  return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))
 }
