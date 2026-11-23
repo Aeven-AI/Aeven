@@ -10,7 +10,7 @@ Bot 定义只有一个计划和一个可选的入站 webhook，每次执行都�
 
 ## 决策
 
-- `AutomationDefinition.triggers` 取代 `schedule`。触发器是 `schedule`、`webhook`（最多一个，带 `idempotency: sender | none`）、`event`（`mail` 或 `github`，带过滤条件）或 `bot`（`from`、`mode: wait | dispatch`）。执行记录 `triggerIndex`；发生 ID 对 Bot、触发器索引和起因做哈希，因此重新投递的事件、重复的幂等键或重试的交接只对应一次执行。每个计划触发器在 `lastAdmittedAt` 中保留自己的水位。
+- `AutomationDefinition.triggers` 取代 `schedule`。触发器是 `schedule`、`webhook`（最多一个，带 `idempotency: sender | none`）、`event`（`mail` 或 `github`，带过滤条件）或 `bot`（`from`、`mode: wait | dispatch`；自[执行结果、日历触发器与汇合](2026-11-23-bot-run-outcomes-calendar-joins.zh.md)起，`from` 是按链汇合的发送方列表），以及自该文起的 `calendar`。执行记录 `triggerIndex`；发生 ID 对 Bot、触发器索引和起因做哈希，因此重新投递的事件、重复的幂等键或重试的交接只对应一次执行。每个计划触发器在 `lastAdmittedAt` 中保留自己的水位。
 - `overlap: skip | queue | parallel`（默认 `skip`）决定准入如何处理执行中的工作；`queue` 受 `queueDepth` 限制，`drain` 对非并行 Bot 的排队执行按时间顺序逐个启动。
 - `connectors: 'all' | ConnectorId[]`（默认 `all`）由执行的工具守卫强制执行（`connectorOf` 映射 `mcp__<provider>_<id>__*` 与 `mail_*`），账户集成也通过 `ctx.automations.connectorBinding(sessionId)` 读取它，因此执行只挂载绑定的连接器。
 - 已保存的批准根据 `grantLifetimeDays` 获得 `expiresAt`；过期的批准不再作答，新的回答会取代它。`/bots` 通过 `grant-revoke` 端点撤销批准。
@@ -18,7 +18,7 @@ Bot 定义只有一个计划和一个可选的入站 webhook，每次执行都�
 - 邮件事件来自基于 `ctx.mail.search` 的游标轮询：每 `mailPollSeconds` 对每个被关注账户做一次信封搜索，不启动模型轮次，第一次检查只记录收件箱。
 - 交接是定义域与账户同步文档中的持久 `Handoff` 记录。任何可以运行接收方的 Host 都在接收方的占用下准入它，因此云端与桌面 Bot 之间的交接不需要专门的请求通道。`wait` 让发送方的执行结束，再把结果作为带 `replyTo` 的新交接交回，而不是占用发送方的执行槽位。
 - 看板是一个命名的成员列表，带可选预算（`maxConcurrentRuns`、`maxTokensPerDay`）。准入会拒绝超出预算的执行，并把上限写入执行错误和交接原因。执行记录由其 `assistant/message` 事件累加得到的 `usage`。
-- 只有某个接收方指定了其 Bot 时，执行对话才获得 `bot_handoff`；只有看板成员才获得 `board_tasks` / `board_task_update`。`automation_*` 与 `ask_user` 守卫保持不变，因此执行仍不能创建 Bot、触发器、边、连接器绑定、批准或看板。
+- 每个执行对话都获得[执行结果、日历触发器与汇合](2026-11-23-bot-run-outcomes-calendar-joins.zh.md)中的结果工具。只有某个接收方指定了其 Bot 时，执行对话才获得 `bot_handoff`；只有看板成员才获得 `board_tasks` / `board_task_update`。`automation_*` 与 `ask_user` 守卫保持不变，因此执行仍不能创建 Bot、触发器、边、连接器绑定、批准或看板。
 - 定义域保持版本 3。存储域没有迁移机制，升级版本会让所有已有存储在打开时被拒绝；因此定义模式把已保存的 `schedule` 读作第一个触发器，并使用 `connectors: all` 与 `overlap: skip`，已有 Bot 照常运行。
 
 ## 考虑过的替代方案
