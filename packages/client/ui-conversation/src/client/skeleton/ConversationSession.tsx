@@ -26,13 +26,15 @@ export type ConversationSessionHeaderProps = ConversationSessionHeaderSlotProps
  * @returns the header row.
  */
 export function ConversationSessionHeader({
-  sessionId, useSessions, useConversationViews, useSelectedView, useMoveTargets, useStore, renderSlot,
-  forkSession, exportSession, moveSession, devicePlacement, continueOn, selectView, t,
+  sessionId, useSessions, useConversationViews, useSelectedView, useMoveTargets, useArchivedSessionIds, useStore,
+  renderSlot, forkSession, exportSession, moveSession, archiveSession, unarchiveSession, devicePlacement, continueOn,
+  selectView, t,
 }: ConversationSessionHeaderProps) {
   const displayTitle = useSessions(state => state.byId[sessionId]?.displayTitle)
   const views = useConversationViews(value => value)
   const selectedView = useSelectedView(value => value)
   const moveTargets = useMoveTargets(value => value)
+  const archived = useArchivedSessionIds(ids => ids.includes(sessionId))
   const running = useSessions(state => state.byId[sessionId]?.running) ?? false
   // The resolved View is what the reader is looking at; the stored preference
   // answers before the Session's binding has activated one.
@@ -49,6 +51,8 @@ export function ConversationSessionHeader({
           onSelect={selectView}
           onFork={forkSession}
           onExport={exportSession}
+          onArchive={archived ? undefined : archiveSession}
+          onUnarchive={archived ? unarchiveSession : undefined}
           moveTargets={moveSession === undefined ? [] : moveTargets}
           moveDisabled={running}
           onMove={moveSession ?? (() => {})}

@@ -10,7 +10,9 @@
  * @module
  */
 
+import { randomUUID } from '@aeven/util-crypto'
 import { getProfile } from './api.ts'
+import type { OAuthFlow } from './config.ts'
 
 /** How long this document waits between reads of the session. */
 const SESSION_POLL_MS = 1000
@@ -48,6 +50,31 @@ export const PROVIDER_SIGN_IN_ENDED_EVENT = 'aeven:provider-sign-in-ended'
 /** Window features for a provider's consent form. */
 const PROVIDER_WINDOW_FEATURES = 'popup=yes,width=520,height=760'
 
+/** Name of the window a provider sign-in opens. */
+const PROVIDER_WINDOW_NAME = 'aeven-provider-signin'
+
+/** Channel within this origin that a provider landing and the page waiting on it share. */
+const LANDING_CHANNEL = 'aeven-provider-landing'
+
+/**
+ * How long a landing that cannot tell whether it is a provider window waits for
+ * a waiting page to claim it; a waiting page answers within milliseconds.
+ */
+const LANDING_CLAIM_MS = 1000
+
+/**
+ * How long a page keeps claiming landings after its wait ended on the session:
+ * the landing announces itself only after its profile read, which can come
+ * after this page's own read of the session.
+ */
+const CLAIM_LINGER_MS = 30_000
+
+/** What a landing and a waiting page say on {@link LANDING_CHANNEL}. */
+type LandingMessage = { readonly type: 'landed'; readonly id: string } | { readonly type: 'claimed'; readonly id: string }
+
+/** How a provider landing finishes: it closes and the waiting page boots, or it goes on to the app itself. */
+export type ProviderLandingFinish = 'close' | 'navigate'
+
 /**
  * Open the provider in a window of its own.
  *
@@ -56,19 +83,75 @@ const PROVIDER_WINDOW_FEATURES = 'popup=yes,width=520,height=760'
  * @param url - the provider's sign-in URL as the deployment states it.
  */
 export function openProviderSignIn(url: string): void {
-  window.open(url, 'aeven-provider-signin', PROVIDER_WINDOW_FEATURES)
+  window.open(url, PROVIDER_WINDOW_NAME, PROVIDER_WINDOW_FEATURES)
 }
 
 /**
- * Whether this document is the landing window of a provider sign-in.
+ * Decide how a provider landing finishes, so exactly one window boots the app.
  *
- * A window this application opened has an opener; a tab the reader navigated
- * themselves does not. The landing reports itself by closing, so the
- * distinction only decides who closes whom.
- * @returns true when another document opened this one.
+ * A landing that still has its opener or the provider window's name is that
+ * window. A provider's pages can sever both on the way back (a
+ * `Cross-Origin-Opener-Policy` switch clears the opener and the name), so under
+ * the `window` flow a landing that has neither announces itself on
+ * {@link LANDING_CHANNEL} and closes only when a page waiting on a provider
+ * window claims it; unclaimed, no page will boot, and it goes on to the app.
+ * Every landing also announces itself, so the waiting page boots without waiting
+ * for its next read of the session. A `redirect` landing without an opener is
+ * the reader's own tab and goes on at once.
+ * @param flow - the deployment's provider flow.
+ * @returns `close` when a waiting page boots the app, `navigate` when this landing must.
  */
-export function isProviderLanding(): boolean {
-  return window.opener !== null
+export async function providerLandingFinish(flow: OAuthFlow): Promise<ProviderLandingFinish> {
+  const providerWindow = window.opener !== null || window.name === PROVIDER_WINDOW_NAME
+  if (!providerWindow && flow !== 'window') return 'navigate'
+  const claimed = await announceLanding(providerWindow ? 0 : LANDING_CLAIM_MS)
+  return providerWindow || claimed ? 'close' : 'navigate'
+}
+
+/**
+ * Announce this landing to the pages of this origin.
+ * @param waitMs - how long to wait for a waiting page's claim.
+ * @returns whether a waiting page claimed the landing in time; false where the browser has no channel.
+ */
+function announceLanding(waitMs: number): Promise<boolean> {
+  if (typeof BroadcastChannel === 'undefined') return Promise.resolve(false)
+  const channel = new BroadcastChannel(LANDING_CHANNEL)
+  const id = randomUUID()
+  return new Promise<boolean>((resolve) => {
+    const settle = (claimed: boolean): void => {
+      clearTimeout(timer)
+      channel.close()
+      resolve(claimed)
+    }
+    channel.onmessage = (event: MessageEvent<LandingMessage>): void => {
+      if (event.data.type === 'claimed' && event.data.id === id) settle(true)
+    }
+    const timer = setTimeout(() => { settle(false) }, waitMs)
+    channel.postMessage({ type: 'landed', id } satisfies LandingMessage)
+  })
+}
+
+/**
+ * Claim the landings announced on {@link LANDING_CHANNEL} while a provider
+ * window is out, so they close instead of booting the app a second time.
+ * @param onLanded - called for a landing while the wait is armed.
+ * @returns ends the claim: at once for an abandoned wait, after
+ *   {@link CLAIM_LINGER_MS} for one that ended on the session.
+ */
+function claimLandings(onLanded: () => void): (abandoned: boolean) => void {
+  if (typeof BroadcastChannel === 'undefined') return () => {}
+  const channel = new BroadcastChannel(LANDING_CHANNEL)
+  let armed = true
+  channel.onmessage = (event: MessageEvent<LandingMessage>): void => {
+    if (event.data.type !== 'landed') return
+    channel.postMessage({ type: 'claimed', id: event.data.id } satisfies LandingMessage)
+    if (armed) onLanded()
+  }
+  return (abandoned) => {
+    armed = false
+    if (abandoned) channel.close()
+    else setTimeout(() => { channel.close() }, CLAIM_LINGER_MS)
+  }
 }
 
 /**
@@ -94,6 +177,8 @@ export async function awaitProviderSession(signal: AbortSignal): Promise<boolean
   let reported = false
   const onReported = (): void => { reported = true }
   window.addEventListener(PROVIDER_SIGNED_IN_EVENT, onReported)
+  // A landing that announces itself has established the session, as a shell's report has.
+  const endClaim = claimLandings(() => { window.dispatchEvent(new Event(PROVIDER_SIGNED_IN_EVENT)) })
   try {
     // oxlint-disable-next-line typescript/no-unnecessary-condition -- the abort and sign-in listeners can run during either await.
     while (!signal.aborted && !reported && !await hasSession()) {
@@ -114,6 +199,7 @@ export async function awaitProviderSession(signal: AbortSignal): Promise<boolean
     return !signal.aborted
   } finally {
     window.removeEventListener(PROVIDER_SIGNED_IN_EVENT, onReported)
+    endClaim(signal.aborted)
   }
 }
 

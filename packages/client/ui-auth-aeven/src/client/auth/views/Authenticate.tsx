@@ -1417,8 +1417,8 @@ export function Authenticate(props: AuthenticateProps): React.JSX.Element {
    * they came from.
    * @returns the settled navigation.
    */
-  const finishMfa = (): Promise<void> => api.getProfile().then(() => {
-    if (oauth.isProviderLanding()) window.close()
+  const finishMfa = (): Promise<void> => api.getProfile().then(async () => {
+    if (await oauth.providerLandingFinish(configService.oauthFlow()) === 'close') window.close()
     else routeService.navigateRoute(referrer || '/')
   })
 

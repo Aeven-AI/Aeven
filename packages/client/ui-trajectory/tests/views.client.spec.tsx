@@ -386,6 +386,7 @@ function mount(fixture: Awaited<ReturnType<typeof bench>>) {
     useConversationViews,
     useSelectedView: bindSnapshotSelector(selectedView),
     useMoveTargets: bindSnapshotSelector(createSnapshotStore<readonly SessionMoveTarget[]>([])),
+    useArchivedSessionIds: bindSnapshotSelector(createSnapshotStore<readonly SessionId[]>([])),
     useSessions,
     useSessionPendingInteraction,
     useWorkspaces,
@@ -439,6 +440,8 @@ function mount(fixture: Awaited<ReturnType<typeof bench>>) {
         devicePlacement={() => Promise.resolve({})}
         continueOn={() => Promise.resolve()}
         moveSession={undefined}
+        archiveSession={undefined}
+        unarchiveSession={undefined}
         selectView={conversation.actions.setView}
         t={tConversation}
       />

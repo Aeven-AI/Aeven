@@ -8,7 +8,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  awaitProviderSession, isProviderLanding, openProviderSignIn, PROVIDER_SIGNED_IN_EVENT,
+  awaitProviderSession, openProviderSignIn, PROVIDER_SIGNED_IN_EVENT, providerLandingFinish,
 } from '../src/client/auth/services/oauth.ts'
 
 /** The grant a session read refreshes in through; only its arrival is read. */
@@ -30,6 +30,27 @@ function scriptedApi(state: { signedIn: boolean; reachable?: boolean }): void {
   }))
 }
 
+/**
+ * Give this test its own same-origin channels: each message reaches the other
+ * open channels of its name in a microtask, and a wait an earlier test left
+ * lingering belongs to that test's channels, not this one's.
+ */
+function isolatedChannels(): void {
+  const open = new Set<FakeChannel>()
+  class FakeChannel {
+    onmessage: ((event: MessageEvent) => void) | null = null
+    constructor(readonly name: string) { open.add(this) }
+    postMessage(data: unknown): void {
+      for (const other of open) {
+        if (other === this || other.name !== this.name) continue
+        queueMicrotask(() => { if (open.has(other)) other.onmessage?.(new MessageEvent('message', { data })) })
+      }
+    }
+    close(): void { open.delete(this) }
+  }
+  vi.stubGlobal('BroadcastChannel', FakeChannel)
+}
+
 /** Install an opener, or restore the null one jsdom leaves. */
 function withOpener(opener: object | null): void {
   Object.defineProperty(window, 'opener', { value: opener, configurable: true, writable: true })
@@ -39,6 +60,8 @@ beforeEach(() => {
   ;(globalThis as { __AVN_AEVEN__?: unknown }).__AVN_AEVEN__ = { apiUrl: 'http://api.test' }
   window.localStorage.clear()
   withOpener(null)
+  window.name = ''
+  isolatedChannels()
 })
 
 afterEach(() => {
@@ -62,10 +85,49 @@ describe('the provider window', () => {
     )
   })
 
-  it('is this document only when another document opened it', () => {
-    expect(isProviderLanding()).toBe(false)
+})
+
+describe('finishing a provider landing in exactly one window', () => {
+  it('closes a landing that still has its opener or the provider window\'s name', async () => {
     withOpener({})
-    expect(isProviderLanding()).toBe(true)
+    await expect(providerLandingFinish('window')).resolves.toBe('close')
+    withOpener(null)
+    window.name = 'aeven-provider-signin'
+    await expect(providerLandingFinish('redirect')).resolves.toBe('close')
+  })
+
+  it('sends a redirect landing without an opener on to the app at once', async () => {
+    const started = Date.now()
+    await expect(providerLandingFinish('redirect')).resolves.toBe('navigate')
+    expect(Date.now() - started).toBeLessThan(100)
+  })
+
+  it('closes a severed window-flow landing that the waiting page claims, and that page boots', async () => {
+    scriptedApi({ signedIn: false })
+    const waiting = awaitProviderSession(new AbortController().signal)
+
+    await expect(providerLandingFinish('window')).resolves.toBe('close')
+    await expect(waiting).resolves.toBe(true)
+  })
+
+  it('still claims a landing that announces itself after the page already read the session', async () => {
+    scriptedApi({ signedIn: true })
+    await expect(awaitProviderSession(new AbortController().signal)).resolves.toBe(true)
+
+    await expect(providerLandingFinish('window')).resolves.toBe('close')
+  })
+
+  it('goes on to the app from a severed window-flow landing that no page waits on', async () => {
+    const attempt = new AbortController()
+    scriptedApi({ signedIn: false })
+    const waiting = awaitProviderSession(attempt.signal)
+    attempt.abort()
+    await waiting
+    vi.useFakeTimers()
+
+    const finishing = providerLandingFinish('window')
+    await vi.advanceTimersByTimeAsync(1000)
+    await expect(finishing).resolves.toBe('navigate')
   })
 })
 

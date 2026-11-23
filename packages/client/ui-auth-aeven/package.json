@@ -33,6 +33,7 @@
   "devDependencies": {
     "@aeven/client-ui-primitives": "workspace:^",
     "@aeven/client-ui-theme": "workspace:^",
+    "@aeven/util-crypto": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@types/react": "~18.3.1",
     "@types/react-dom": "~18.3.0",

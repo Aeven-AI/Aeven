@@ -2,8 +2,10 @@
  * The screen a social sign-in returns to.
  *
  * The provider redirects the browser here with either an error or a
- * session/challenge pair. A pair is exchanged for a session and the reader is
- * sent on to where they came from; anything else leaves the apology on screen.
+ * session/challenge pair. A pair is exchanged for a session; a provider window
+ * then closes so the page waiting on it boots the app, and any other landing
+ * sends the reader on to where they came from. Anything else leaves the apology
+ * on screen.
  * Rendering matches the Aeven client exactly.
  * @module
  */
@@ -15,7 +17,8 @@ import * as api from '../services/api.ts'
 import { t } from '../../locales.ts'
 import * as events from '../services/events.ts'
 import { navigateRoute, AUTH_ROUTES } from '../services/routes.ts'
-import { isProviderLanding } from '../services/oauth.ts'
+import { oauthFlow } from '../services/config.ts'
+import { providerLandingFinish } from '../services/oauth.ts'
 import { href } from '../services/utility.ts'
 import { session, storage } from '../services/session.ts'
 
@@ -39,8 +42,11 @@ function currentReferrer(): string {
   return storage.getItem('authReferrer') ?? AUTH_ROUTES.home
 }
 
+/** How long a landing that asked to close stays before it counts the close as refused. */
+const CLOSE_REFUSED_MS = 500
+
 export function OauthResult(props: OauthResultProps): React.JSX.Element | null {
-  const [status, setStatus] = useState<'error' | null>(null)
+  const [status, setStatus] = useState<'error' | 'signed-in' | null>(null)
   const referrer = useRef(currentReferrer())
 
   useEffect(() => {
@@ -69,13 +75,16 @@ export function OauthResult(props: OauthResultProps): React.JSX.Element | null {
         await api.checkOauthToken(oAuthSession, oAuthChallenge)
         await api.getProfile()
         if (cancelled) return
-        // A landing in a window this application opened is where the sign-in
-        // finishes, not where the application belongs: the window that opened it
-        // is waiting on the session this call just established, and it boots the
-        // shell there. A landing the reader navigated to themselves goes on to
-        // the screen they came from.
-        if (isProviderLanding()) {
+        // A landing in a provider window is where the sign-in finishes, not where
+        // the application belongs: the page waiting on that window boots the shell.
+        // A landing no page waits on goes on to the screen the reader came from.
+        const finish = await providerLandingFinish(oauthFlow())
+        // oxlint-disable-next-line typescript/no-unnecessary-condition -- the effect's cleanup can run during the await.
+        if (cancelled) return
+        if (finish === 'close') {
           window.close()
+          // A browser that refuses the close leaves this note, never a second shell.
+          setTimeout(() => { if (!cancelled) setStatus('signed-in') }, CLOSE_REFUSED_MS)
         } else {
           navigateRoute(href(referrer.current))
         }
@@ -95,15 +104,17 @@ export function OauthResult(props: OauthResultProps): React.JSX.Element | null {
   }, [props.match.params])
 
   if (status === null) return null
+  const heading = status === 'error' ? t('oauth.failedHeading') : t('oauth.signedInHeading')
+  const body = status === 'error' ? t('oauth.failedBody') : t('oauth.signedInBody')
   return (
     <div className="oauth-result view">
       <div id="main-content" className="main-content">
         <div className="content-container">
           <div className="message-container">
             <div className="message">
-              <span className="txt-header">{t('oauth.failedHeading')}</span>
+              <span className="txt-header">{heading}</span>
               <span className="txt-content">
-                <span>{t('oauth.failedBody')}</span>
+                <span>{body}</span>
               </span>
             </div>
           </div>

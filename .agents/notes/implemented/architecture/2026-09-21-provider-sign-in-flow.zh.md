@@ -22,7 +22,7 @@ Status: implemented
 
 **在 `window` 下，提供方由独立窗口抵达，页面本身永不移动。** `openProviderSignIn(url)` 以固定名称打开该窗口，因此读者第二次按下提供方按钮时替换第一个窗口，而不是在其后叠出第二个。
 
-**交接靠的是会话，而不是文档之间的消息。** 落地窗口就是本应用自己的 `/oauth-result`，因此它自行交换提供方的回答——与跳转文档所运行的同一套 `checkOauthToken` 与 `getProfile`——从而在该 origin 的 cookie 中建立会话，两个窗口共享它。随后 `OauthResult` 以关闭窗口来报告：由本应用打开的窗口中的落地，是登录完成之处，而不是应用该存在之处（否则[启动 gate](../bug-fix/2026-09-21-auth-gate-boots-in-place.zh.md) 会在其中启动一个外壳，而打开它的那个文档已经在等待了）。打开该窗口的文档用 `awaitProviderSession()` 等待该会话，反复读取 profile 直到 API 给出一个，随后完全按邮件表单之后的方式继续：读取 profile、离开认证界面，并让 gate 启动。
+**交接靠的是会话，而不是文档之间的消息。** 落地窗口就是本应用自己的 `/oauth-result`，因此它自行交换提供方的回答——与跳转文档所运行的同一套 `checkOauthToken` 与 `getProfile`——从而在该 origin 的 cookie 中建立会话，两个窗口共享它。随后 `OauthResult` 以关闭窗口来报告：由本应用打开的窗口中的落地，是登录完成之处，而不是应用该存在之处（否则[启动 gate](../bug-fix/2026-09-21-auth-gate-boots-in-place.zh.md) 会在其中启动一个外壳，而打开它的那个文档已经在等待了）。opener 不标记该窗口：登录从 `aeven.io/oauth/<provider>` 开始，其 `Cross-Origin-Opener-Policy: same-origin` 会在返回途中清除 `window.opener` 与 `window.name`，因此两者都没有的落地会通过该 origin 的 `BroadcastChannel` 询问是否有页面正在等待提供方窗口，只有被认领时才关闭；无人认领时它自己进入应用，所以只有一个窗口启动（[issue 773](https://github.com/Aeven-AI/Aeven/issues/773)）。等待的页面在自己读到会话后仍认领 30 秒，因为落地只在读取 profile 之后才宣告自己。拒绝关闭的浏览器显示已登录提示，而不是第二个外壳。打开该窗口的文档用 `awaitProviderSession()` 等待该会话，反复读取 profile 直到 API 给出一个，随后完全按邮件表单之后的方式继续：读取 profile、离开认证界面，并让 gate 启动。
 
 **被拒绝仍在被拒绝登录所在之处呈现。** 携带错误的落地，或交换失败的落地，会把致歉留在打开它的那个窗口中，与 `redirect` 的呈现一致；本文档继续等待，而读者关闭那个窗口后，仍停留在登录界面、按钮就在手边。
 
