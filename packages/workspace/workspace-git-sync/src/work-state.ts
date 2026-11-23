@@ -34,8 +34,14 @@ export interface Checkpoint {
   head: string
   /** The branch checked out, absent on a detached `HEAD`. */
   branch?: string
-  /** When it was written, epoch milliseconds. */
+  /** When its work was last written, epoch milliseconds; a rewrite of unchanged work keeps the earlier time. */
   at: number
+  /**
+   * Whether it carries work: tracked changes, untracked files, or commits no remote has. A checkpoint without work only
+   * records where the device's branch stands. Absent on a checkpoint written before devices recorded it, which counts
+   * as carrying work.
+   */
+  work?: boolean
 }
 
 /** The description written last into a checkpoint's folder, so a receiver knows the content is complete. */
@@ -147,10 +153,12 @@ export class WorkState {
 
   /**
    * Apply the newest checkpoint another device published for a workspace, when it is newer than this device's own
-   * work there and than what was applied last. Local changes are stashed first, and commits the checkpoint would
-   * leave behind keep a ref, so nothing this device had is lost. The first turn waits up to `handoffWaitMs` for the
-   * checkpoint to arrive; once that wait runs out, later turns on this Host run check for that checkpoint once and do
-   * not wait for it again.
+   * work there and than what was applied last; this device's own checkpoint without work does not count. Local
+   * changes are stashed first, and commits the checkpoint would leave behind keep a ref, so nothing this device had is
+   * lost; on a device whose branch is ahead of the checkpoint the branch stays and the changes and files apply on top.
+   * A checkpoint without work only moves a clean work tree forward to the other device's commit. The first turn waits
+   * up to `handoffWaitMs` for the checkpoint to arrive; once that wait runs out, later turns on this Host run check for
+   * that checkpoint once and do not wait for it again.
    * @param owner - the account.
    * @param workspace - the repository workspace.
    * @param path - its work tree here.
@@ -169,10 +177,18 @@ export class WorkState {
       if (!key.startsWith(`${workspace}/`) || checkpoint.device === account.device) continue
       if (newest === undefined || checkpoint.at > newest.at) newest = checkpoint
     }
-    const known = Math.max(own?.at ?? 0, applied?.at ?? 0)
+    // This device's own checkpoint outranks another's only when it carries work: one that records where the branch
+    // moved, after a pull or a commit here, leaves no work of this device to protect from the other device's.
+    const known = Math.max(own?.work === false ? 0 : own?.at ?? 0, applied?.at ?? 0)
     if (newest === undefined || newest.at <= known || newest.id === applied?.id) return
     // Another device wrote these fields: the folder id names a directory here, and the branch reaches Git's argv.
     if (!/^[0-9a-f-]{36}$/u.test(newest.folder) || newest.branch?.startsWith('-') === true || !/^[0-9a-f]{40,64}$/u.test(newest.head)) return
+    if (newest.work === false) {
+      // Nothing to carry over: a clean work tree follows the other device's branch, and local work is never stashed for it.
+      await this.followBranch(path, newest)
+      await this.recordApplied(workspace, { id: newest.id, at: newest.at })
+      return
+    }
     const folder = brandString<FileSyncFolderId>(newest.folder)
     const incoming = join(this.options.transferRoot(owner), 'incoming', newest.folder)
     await fileSync.share({ id: folder, owner, path: incoming, peers: [brandString<FileSyncPeerId>(newest.peer)] })
@@ -229,7 +245,8 @@ export class WorkState {
       const unpushed = Number((await this.git.output(['rev-list', '--count', 'HEAD', '--not', '--remotes'], { cwd: path })).trim())
       const hash = createHash('sha256').update(`${head}\n${branch}\n`)
       hash.update(await readFile(join(staging, DIFF)))
-      let bytes = (await stat(join(staging, DIFF))).size
+      const diffBytes = (await stat(join(staging, DIFF))).size
+      let bytes = diffBytes
       // A symbolic link does not travel: on another device it would name a different file, or none.
       const files: string[] = []
       for (const entry of untracked) {
@@ -240,6 +257,7 @@ export class WorkState {
         hash.update(`${entry}\0${String(info.size)}\0${String(info.mtimeMs)}\n`)
       }
       const id = hash.digest('hex')
+      const work = diffBytes > 0 || files.length > 0 || unpushed > 0
       // An unchanged work tree whose folder still holds the checkpoint is only shared again, as after a restart.
       if (published?.id === id && (await readMeta(dir))?.id === id) {
         await fileSync.share({ id: brandString<FileSyncFolderId>(folderId), owner, path: dir })
@@ -267,7 +285,9 @@ export class WorkState {
         id,
         head,
         ...branch === '' ? {} : { branch },
-        at: Date.now(),
+        // Unchanged work written again, as after a restart cleared the transfer folders, keeps the time it was done.
+        at: published?.id === id ? published.at : Date.now(),
+        work,
       })
     } finally {
       await rm(staging, { recursive: true, force: true })
@@ -299,6 +319,23 @@ export class WorkState {
     }
   }
 
+  /**
+   * Follow another device's branch when its checkpoint carries no work: a clean work tree here moves to the commit
+   * the other device stands on when that commit builds on this device's, and a tree with local changes stays as it is.
+   */
+  private async followBranch(path: string, checkpoint: Checkpoint): Promise<void> {
+    const run = (args: string[], transfer = false) => this.git.run(args, { cwd: path, transfer })
+    if ((await run(['status', '--porcelain'])).stdout.trim() !== '') return
+    const current = (await run(['rev-parse', 'HEAD'])).stdout.trim()
+    if (current === checkpoint.head) return
+    if ((await run(['cat-file', '-e', `${checkpoint.head}^{commit}`])).exitCode !== 0) await run(['fetch', '--no-tags', '--all'], true)
+    if ((await run(['merge-base', '--is-ancestor', 'HEAD', checkpoint.head])).exitCode !== 0) return
+    const moved = checkpoint.branch === undefined
+      ? await run(['checkout', '--detach', checkpoint.head])
+      : await run(['checkout', '-B', checkpoint.branch, checkpoint.head])
+    if (moved.exitCode !== 0) this.warn(`following another device's branch failed: ${moved.stderr.trim().slice(-300)}`)
+  }
+
   /** Bring a work tree to a received checkpoint: stash local changes, take its commits and branch, then its changes. */
   private async applyFolder(path: string, incoming: string, checkpoint: Checkpoint, meta: CheckpointMeta): Promise<void> {
     const run = (args: string[], transfer = false) => this.git.run(args, { cwd: path, roots: [incoming], transfer })
@@ -316,11 +353,10 @@ export class WorkState {
       }
     }
     const current = (await run(['rev-parse', 'HEAD'])).stdout.trim()
-    if (current !== checkpoint.head) {
-      if ((await run(['merge-base', '--is-ancestor', checkpoint.head, 'HEAD'])).exitCode === 0) {
-        // This device is ahead of the checkpoint: its own commits are newer, so the checkpoint is left out.
-        return
-      }
+    // This device is ahead of the checkpoint: its branch stays, and the checkpoint's changes and files apply on top of
+    // its newer commits; a change those commits already hold fails to apply and is reported, a file already here stays.
+    const ahead = current !== checkpoint.head && (await run(['merge-base', '--is-ancestor', checkpoint.head, 'HEAD'])).exitCode === 0
+    if (current !== checkpoint.head && !ahead) {
       if ((await run(['merge-base', '--is-ancestor', 'HEAD', checkpoint.head])).exitCode !== 0) {
         // Diverged: keep this device's commits reachable before the branch moves to the checkpoint.
         await run(['update-ref', `refs/aeven/before/${checkpoint.id.slice(0, 12)}`, current])
