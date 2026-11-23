@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-11-23-chat-files-live-in-the-aeven-folder.md
-2026-11-23-chat-files-live-in-the-aeven-folder.md: c66c1b743eaae83fe7ab6fe5a1421303cf3e6759
-2026-11-23-chat-files-live-in-the-aeven-folder.zh.md: bceeca1f9b1b9e5cb5a3a8408e63c1c9fa8ad7a0
+2026-11-23-chat-files-live-in-the-aeven-folder.md: 7da1dcbf5637460e1de8355edb0991c830421c7e
+2026-11-23-chat-files-live-in-the-aeven-folder.zh.md: 728f6aa16822a5c121b1ab385580cb58f4fd6a2f

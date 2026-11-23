@@ -776,7 +776,11 @@ export class SessionCommandController {
     if (name === undefined) return undefined
     const id = brandString<AttachmentId>(attachmentId)
     const host = this.ctx.attachments.fileHostPath({ attachmentId: id } as FileAttachmentRef)
-    const bytes = host === undefined ? undefined : await stat(host).then(info => info.size, () => undefined)
+    if (host === undefined) return undefined
+    const size = (): Promise<number | undefined> => stat(host).then(info => info.size, () => undefined)
+    // A copy another device of the account stored arrives from the account first, as any cited attachment does.
+    let bytes = await size()
+    if (bytes === undefined && await this.ctx.get('sessionHandoff')?.fetchAttachment(attachmentId) === true) bytes = await size()
     if (bytes === undefined) return undefined
     return { attachmentId: id, mediaType: producedMediaType(name), bytes, name, extraction: { textId: id } } as unknown as FileAttachmentRef
   }
