@@ -196,13 +196,13 @@ export class WorkingDirectoryService extends Service {
       replicated: registry?.replicated(header.id) ?? false,
       entered: this.entered.get(header.id),
     })
-    if (resolved.state === 'local') {
-      // On a Host without folders of its own, every recorded directory is one it managed. Once workspace sync gives the
-      // session's workspace its own directory here, that directory replaces the one recorded before it arrived.
-      if (this.folders || placement.state !== 'filed' || placement.workspace.kind !== 'folder') return resolved
+    // On a Host without folders of its own, every recorded directory is one it managed. Once workspace sync gives the
+    // session's workspace its own directory here, that directory replaces a recorded one outside it, or none.
+    if (!this.folders && placement.state === 'filed' && placement.workspace.kind === 'folder' && placement.workspace.path !== undefined) {
       const bound = placement.workspace.path
-      return bound === undefined || isWithin(bound, resolved.cwd) ? resolved : { state: 'local', cwd: bound, root: bound }
+      return resolved.state === 'local' && isWithin(bound, resolved.cwd) ? resolved : { state: 'local', cwd: bound, root: bound }
     }
+    if (resolved.state === 'local') return resolved
     if (this.folders) {
       // A refusal stands: the session's workspace has a folder, just not one here yet. A session with no directory,
       // in a workspace without a folder, works in the account's own folder, which file sync carries to its devices.

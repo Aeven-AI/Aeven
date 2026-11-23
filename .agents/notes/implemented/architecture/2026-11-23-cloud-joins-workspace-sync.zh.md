@@ -12,7 +12,7 @@ Status: implemented
 
 托管 Host 成为每个账户的文件夹工作区与仓库工作区的一台设备，两个 Consumer 都从新的 `managedRoot` 设置进入托管模式（托管 bundle 中为 `avnHomePath('sandbox', 'accounts')`，需同时设置 `AVN_SYNCTHING` 与 `AVN_HOSTED_SANDBOX=1`）：
 
-- **放置。** 工作区只在其会话于该 Host 上运行一个轮次时才到达，落在 `<managedRoot>/<owner>/.aeven-projects/<workspace id>`（`@aeven/workspace` 的 `placeManagedWorkspace`，名称下已有其他文件时加编号）。不会搜索已有副本。仓库的轮次会等待其克隆或复制；文件夹的读取会像在任何设备上一样等待所需文件。在工作区到达之前记录了占位目录的会话，随后在绑定的目录中工作：在没有自己文件夹的 Host 上，`working-directory` 优先使用已绑定工作区的目录，而不是其外部的已记录目录。
+- **放置。** 工作区只在其会话于该 Host 上运行一个轮次时才到达，落在 `<managedRoot>/<owner>/.aeven-projects/<workspace id>`（`@aeven/workspace` 的 `placeManagedWorkspace`，名称下已有其他文件时加编号）。不会搜索已有副本。仓库的轮次会等待其克隆或复制；文件夹的读取会像在任何设备上一样等待所需文件。在工作区到达之前记录了占位目录的会话，随后在绑定的目录中工作：在没有自己文件夹的 Host 上，`working-directory` 优先使用已绑定工作区的目录，而不是其外部的已记录目录或没有目录。
 - **Git 在监狱中运行。** `workspace-git-sync` 的 Git 运行器接受一个 `confine` 钩子，托管模式基于沙箱能力构建它：每条 Git 命令都在账户的监狱中运行，以工作树为根、以它使用的那一个传输文件夹为唯一的其他根；其环境通过 `env` 传入；使用 `safe.directory=*`，因为监狱用户既不拥有 Host 创建的目录也不拥有工作树；并使用远程的 HTTPS 形式，这是出口代理唯一承载的形式。
 - **Host 不访问工作树内的文件。** 进出工作树的复制以受限的 `cp` 命令运行：检查点的未跟踪文件、收到的检查点的未跟踪文件，以及环境文件，Host 会先把环境文件写入一个从未被任何监狱挂载过的暂存文件夹。检查点文件夹通过一次重命名就位，而不是递归复制，其描述以独占方式创建。传输文件夹位于账户的 `.aeven-projects/.transfer`，没有任何会话的监狱挂载它。该 Host 不发布环境文件、不显示冲突文本、也不解决冲突，因为这些都要读取或重命名账户命令可以写入的文件。
 - **所有设备。** 作为符号链接的未跟踪文件不再随检查点传输；收到的环境文件路径中含有空、`.`、`..` 或 `.git` 分量时会被跳过。
