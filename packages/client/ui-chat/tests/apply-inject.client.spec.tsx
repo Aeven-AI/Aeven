@@ -208,7 +208,7 @@ describe('Chat inject API', () => {
       ok: false,
       error: new RemoteError('gateway/internal', 'xdg-open is not available', {}),
     })
-    await expect(injected.openFile('src/b.ts')).rejects.toThrow('path open failed: xdg-open is not available')
+    await expect(injected.openFile('src/b.ts')).rejects.toThrow('xdg-open is not available')
     expect(b.listWorkspace).not.toHaveBeenCalled()
     await b.runtime.dispose()
   })

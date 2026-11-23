@@ -5,7 +5,8 @@
  * a file the same way: the Files sidebar previews it, the Host opens the path
  * where it is the reader's own desktop, and otherwise the reader's browser
  * downloads it, from its stored copy when one was recorded. A conversation may
- * run on another device of the account, whose folders this Host cannot read.
+ * run on another device of the account, whose folders this Host cannot read:
+ * where the Host has nothing at the path, the stored copy downloads instead.
  */
 import type { MarkdownFileLinks } from '@aeven/client-ui-primitives'
 import { resolveWorkspacePath } from '@aeven/util-workspace-path'
@@ -81,13 +82,15 @@ export interface FileOpening {
   /**
    * Open a workspace path on the Host's desktop.
    * @param path - the path as written.
+   * @param onMissing - runs instead of the refusal dialog when nothing exists at the path on this Host.
    */
-  openFile(path: string): void
+  openFile(path: string, onMissing?: () => void): void
 }
 
 /**
  * Open one produced file: preview it in the sidebar, else open the path on the
- * reader's desktop, else download it.
+ * reader's desktop, else download it. A stored copy downloads wherever the path
+ * is missing on this Host.
  * @param file - the file's path and, when the tool result recorded one, its stored copy.
  * @param opening - the client's preview, opener, and file routes.
  */
@@ -96,11 +99,13 @@ export function openProducedFile(file: { path: string; attachmentId?: string | u
   const preview = copy === undefined ? opening.previewFile(file.path) : opening.previewFile(file.path, copy)
   void preview.then((previewed) => {
     if (previewed) return
+    const attachmentId = file.attachmentId
     if (opening.canOpenPath()) {
-      opening.openFile(file.path)
+      if (attachmentId === undefined) opening.openFile(file.path)
+      else opening.openFile(file.path, () => { downloadUrl(opening.attachmentUrl(attachmentId, true)) })
       return
     }
-    downloadUrl(file.attachmentId === undefined ? opening.fileUrl(file.path, true) : opening.attachmentUrl(file.attachmentId, true))
+    downloadUrl(attachmentId === undefined ? opening.fileUrl(file.path, true) : opening.attachmentUrl(attachmentId, true))
   })
 }
 
@@ -118,9 +123,9 @@ export function downloadUrl(href: string): void {
 /**
  * Link resolver for an assistant's prose: a stored-copy link downloads that
  * copy, which names no path the sidebar could show, and a path link opens the
- * way a produced file does. A path naming a file the Turn produced opens with
- * that file's stored copy, which a page that cannot reach the Host's folders
- * still serves.
+ * way a produced file does. A path naming a file the Turn produced opens that
+ * produced path, with its stored copy, which a page that cannot reach the
+ * Host's folders still serves.
  * @param cwd - The Session workspace root, when known.
  * @param produced - The step's Turn's produced files, read when a link resolves.
  * @param opening - the client's preview, opener, and file routes.
@@ -154,10 +159,12 @@ export function producedFileLinks(
           open: () => { openProducedFile(file, opening) },
         }
       }
+      // A relative link may name only the tail of the produced path, such as its basename; the produced path is the file.
+      const path = file?.path ?? target.path
       return {
-        href: opening.fileUrl(target.path),
+        href: opening.fileUrl(path),
         title: target.path,
-        open: () => { openProducedFile({ path: target.path }, opening) },
+        open: () => { openProducedFile({ path }, opening) },
       }
     },
   }

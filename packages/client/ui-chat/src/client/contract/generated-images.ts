@@ -11,6 +11,17 @@ export interface GeneratedImages {
   readonly sources: ReadonlySet<string>
 }
 
+/**
+ * Images a Turn's commands declared as produced files, which its turn tail shows whole; derived from the session log.
+ * A reply that shows one of them as a Markdown image leaves it to the tail once the Turn closed.
+ */
+export interface ProducedImages {
+  /** Stored copies of those images. */
+  readonly attachmentIds: ReadonlySet<string>
+  /** Their paths as the producing result recorded them. */
+  readonly paths: ReadonlySet<string>
+}
+
 /** Connector calls whose card shows what the call read, such as WhatsApp messages; derived from the session log. */
 export interface ConnectorCards {
   /** Atomic connector calls that draw a card. */
@@ -23,6 +34,8 @@ declare module '@aeven/client-ui-conversation/client' {
     'generated-images': GeneratedImages
     /** Connector card calls contributed by the Connectors settings plugin. */
     'connector-cards': ConnectorCards
+    /** Produced images the turn tail shows, contributed by the deliverables plugin. */
+    'produced-images': ProducedImages
   }
 }
 

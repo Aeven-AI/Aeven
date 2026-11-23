@@ -34,13 +34,21 @@ export type UseChatNode = KeyedSnapshotSelectorHook<ChatConversationViewNode | u
 /** Per-key selector hook over one Chat Node's Turn-process presentation. */
 export type UseChatNodeProcess = KeyedSnapshotSelectorHook<ChatTurnProcessPresentation | undefined>
 
+/**
+ * Open a workspace path on the Host's desktop; a refusal opens the chat view's file-open dialog.
+ * @param path - the path as written, relative to the Session workspace or absolute.
+ * @param onMissing - runs instead of the dialog when nothing exists at the path on this Host, such as a download of
+ * the file's stored copy.
+ */
+export type OpenWorkspaceFile = (path: string, onMissing?: () => void) => void
+
 /** Owner currency of the completed-Turn extension chain. */
 export interface TurnTailOwnerProps {
   turn: TurnLocation
   seq: number
   /** Session workspace root, when the session list row carries one; tails display paths relative to it. */
   cwd?: string | undefined
-  openFile: (path: string) => void
+  openFile: OpenWorkspaceFile
 }
 
 /** Owner currency of prose file links, which any Assistant step of a Session may carry. */
@@ -106,7 +114,7 @@ export interface ChatNodeOwnerProps {
   submission?: PendingSubmission | undefined
   selectedCallId?: ToolCallId | undefined
   cwd?: string | undefined
-  openFile: (path: string) => void
+  openFile: OpenWorkspaceFile
   forkAt: (seq: number) => void
   /**
    * Replace a user prompt's text; the Host discards the prompt (with its turn
@@ -218,6 +226,11 @@ export interface ChatViewInjected {
     chatNodeProcess: (key: string) => ChatNodeProcessSource
   }
   openDetails: (target: SelectionTarget) => void
+  /**
+   * Open a workspace path on the Host's desktop.
+   * @param path - the path as written, relative to the Session workspace or absolute.
+   * @returns after the Host's opener accepted the path; rejects with a `MissingFileError` when nothing exists there.
+   */
   openFile: (path: string) => Promise<void>
   loadOlder: () => void
   /** Extend a window detached by a jump forward by one page. */

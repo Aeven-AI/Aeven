@@ -20,7 +20,7 @@ import { desktopFileMenus, fileMenuLabels, revealFile, showFileMenu } from './fi
 import { downloadUrl, producedFileLinks } from './file-links.ts'
 import { en, es, NS, zh, type DeliverablesKey } from './locales.ts'
 import {
-  deliverablesDefinition, producedFileMentions, producedFilesForClosing, selectProducedFiles,
+  deliverablesDefinition, producedFileMentions, producedImagesDefinition, producedFilesForClosing, selectProducedFiles,
 } from './turn-deliverables.ts'
 
 declare module '@aeven/client-ui-slots' {
@@ -83,6 +83,7 @@ export function apply(ctx: ClientContext): void {
     if (requestedWorkspacePathOpen) loadWorkspacePathOpen()
   })
   ctx.uiConversation.events.register(deliverablesDefinition)
+  ctx.uiConversation.events.register(producedImagesDefinition)
   ctx.effect(() => ctx.locale.register(NS, { zh, en, es }), 'ui-deliverables: dictionaries')
   const t = ctx.locale.bind(NS)
   // The desktop draws the file menu; the browser-served client leaves the
@@ -122,14 +123,17 @@ export function apply(ctx: ClientContext): void {
       if (files === null) return undefined
       return producedFileMentions(
         files,
-        // Where the page is not the Host's own desktop, the conversation may run on another device of the account:
-        // a file with a stored copy downloads from it, as the row's does, instead of asking this Host for the path.
+        // The conversation may run on another device of the account: a file with a stored copy downloads from it,
+        // as the row's does, where the page is not the Host's own desktop or the Host has nothing at the path.
         (file) => {
-          if (file.attachmentId === undefined || ctx.remote.$host.isLoopback) {
+          const attachmentId = file.attachmentId
+          if (attachmentId === undefined) {
             owner.openFile(file.path)
             return
           }
-          downloadUrl(attachmentUrl(sessionId, file.attachmentId, true))
+          const download = () => { downloadUrl(attachmentUrl(sessionId, attachmentId, true)) }
+          if (ctx.remote.$host.isLoopback) owner.openFile(file.path, download)
+          else download()
         },
         path => t('produced.open', { name: path }),
         showMenu === undefined ? undefined : (path) => { showMenu(path, owner.cwd) },

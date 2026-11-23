@@ -13093,6 +13093,9 @@ importers:
       '@aeven/system-prompt':
         specifier: workspace:^
         version: link:../../core/system-prompt
+      '@aeven/working-directory':
+        specifier: workspace:^
+        version: link:../../session/working-directory
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis

@@ -20,7 +20,7 @@ When account sync and file sync run, each device shares its Aeven folder under o
 | `path` | required | Absolute directory of the Aeven folder on this device |
 | `perAccount` | `false` | Each account keeps its own folder at `<path>/<account>`; otherwise `path` belongs to the first account that attaches |
 | `announcePeer` | `false` | List this device as the account's hosted peer in `file-sync/peers` and share with the devices listed there, while it holds the account key; for a Host without workspace file sync |
-| `advertise` | `true` | Name the folder in the model's runtime context |
+| `advertise` | `true` | Name the folder in the model's runtime context; a Host whose sessions see only a subfolder of it sets `false` |
 
 ## Table of Contents
 

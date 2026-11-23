@@ -16,21 +16,31 @@ export const AssistantNodeView = memo(function AssistantNodeView({
     ? node.location.turn
     : undefined
   const generated = useTurnData('generated-images')
+  const read = useTurnData('read-images')
+  // The closed Turn's tail shows its produced images whole; a reply showing one of them, by its path or by the copy
+  // `reply-images/stored` recorded of the path it wrote, leaves it there.
+  const produced = useTurnData('produced-images')
+  const tailImages = turn?.status === 'closed' ? produced : undefined
   const imageVisible = useCallback((source: string): boolean => {
-    if (generated === undefined) return true
+    if (generated === undefined && tailImages === undefined) return true
     let decoded = source
     try { decoded = decodeURI(source) } catch {
       // Malformed escapes retain the authored source for exact comparison.
     }
-    if (generated.sources.has(decoded)) return false
-    if (cwd !== undefined) {
-      const prefix = `${cwd.replace(/\/$/, '')}/`
-      if (decoded.startsWith(prefix) && generated.sources.has(decoded.slice(prefix.length))) return false
+    const relative = cwd === undefined || !decoded.startsWith(`${cwd.replace(/\/$/, '')}/`)
+      ? undefined
+      : decoded.slice(cwd.replace(/\/$/, '').length + 1)
+    if (tailImages !== undefined) {
+      if (tailImages.paths.has(decoded) || (relative !== undefined && tailImages.paths.has(relative))) return false
+      const stored = read?.byPath.get(decoded)
+      if (stored !== undefined && tailImages.attachmentIds.has(String(stored.attachmentId))) return false
     }
+    if (generated === undefined) return true
+    if (generated.sources.has(decoded)) return false
+    if (relative !== undefined && generated.sources.has(relative)) return false
     const segments = decoded.split(/[/?#]/)
     return !segments.some(segment => generated.attachmentIds.has(segment) || generated.attachmentIds.has(segment.replace(/^image:/, '')))
-  }, [cwd, generated])
-  const read = useTurnData('read-images')
+  }, [cwd, generated, read, tailImages])
   // An authored image of a file this Turn read with read_image shows the copy
   // stored then: the file itself may be gone, or on another device's disk. A
   // path into the Host's attachment store names a stored image by its hash.

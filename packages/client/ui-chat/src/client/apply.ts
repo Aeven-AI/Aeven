@@ -21,6 +21,7 @@ import type {
 } from './contract/slots.ts'
 import type { ChatSnapshot } from './contract/snapshot.ts'
 import { EMPTY_CHAT_SNAPSHOT } from './contract/snapshot.ts'
+import { MissingFileError } from './contract/missing-file.ts'
 import { ApprovalCommand } from './chat/ApprovalCommand.tsx'
 import { ChatView } from './chat/ChatView.tsx'
 import { registerChatNodeRenderers } from './chat/register-node-renderers.ts'
@@ -175,7 +176,9 @@ export function apply(ctx: Context): void {
             const result = await ctx.remote.session.openWorkspacePath({
               path: resolveWorkspacePath(cwd, path),
             })
-            if (!result.ok) throw new Error(`path open failed: ${result.error.message}`)
+            if (result.ok) return
+            if (result.error.code === 'session/path-missing') throw new MissingFileError(result.error.details.path)
+            throw new Error(result.error.message)
           },
           loadOlder: () => { void session.loadOlder() },
           loadNewer: () => { void session.loadNewer() },

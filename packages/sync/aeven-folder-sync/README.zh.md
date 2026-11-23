@@ -20,7 +20,7 @@ kind: "package-reference"
 | `path` | 必填 | 本设备上 Aeven 文件夹的绝对目录 |
 | `perAccount` | `false` | 每个账户在 `<path>/<account>` 拥有自己的文件夹；否则 `path` 属于第一个接入的账户 |
 | `announcePeer` | `false` | 在持有账户密钥期间，把本设备作为账户的托管对等设备列入 `file-sync/peers`，并与其中列出的设备共享；供没有工作区文件同步的 Host 使用 |
-| `advertise` | `true` | 在模型的运行时上下文中写出该文件夹 |
+| `advertise` | `true` | 在模型的运行时上下文中写出该文件夹；会话只能看到其中一个子文件夹的 Host 设为 `false` |
 
 ## 目录
 

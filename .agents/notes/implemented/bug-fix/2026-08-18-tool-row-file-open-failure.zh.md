@@ -16,7 +16,7 @@ inject 返回 `workspaces.openPath` 的 promise。聊天视图包装该打开器
 
 对话框位于 chat 视图（拥有 Host 调用），而不是每个工具行。产物文件标签和收尾消息中的提及已经共用该打开器，因此走同一包装。产物文件的文件夹操作打开 `.`，该拒绝使用文件夹标题和未知打开回退文案。
 
-Host 消息按抛出内容展示。聊天视图的 `openFile` adapter 会在 Remote 错误前加上 `path open failed: ` 前缀；对话框不拆掉该前缀。
+Host 消息按 Host 所写内容只展示一次。Host 上不存在任何东西的路径为 `session/path-missing`：对话框随即写出该文件及其文件夹，并提供打开该文件夹而不是重试；持有该文件存储副本的调用方会下载副本，而不是打开对话框（[聊天文件存放在 Aeven 文件夹中](../architecture/2026-11-23-chat-files-live-in-the-aeven-folder.zh.md)）。
 
 ## 考虑过的替代方案
 

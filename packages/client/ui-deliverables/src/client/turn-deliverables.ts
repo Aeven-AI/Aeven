@@ -5,9 +5,9 @@
  */
 import { diffArrays } from 'diff'
 import { isAppendSurfaceEvent } from '@aeven/session/surface'
-import type { TurnTailOwnerProps } from '@aeven/client-ui-chat/client'
+import type { ProducedImages, TurnTailOwnerProps } from '@aeven/client-ui-chat/client'
 import type { ConversationNodeDefinition } from '@aeven/client-ui-conversation/client'
-import type { MarkdownFileMentions } from '@aeven/client-ui-primitives'
+import { fileKindOf, type MarkdownFileMentions } from '@aeven/client-ui-primitives'
 
 /** Lines one successful mutation added and deleted. */
 interface LineCounts {
@@ -364,6 +364,55 @@ export const deliverablesDefinition: ConversationNodeDefinition<DeliverablesStat
       key: 'deliverables',
       value: { produced: context.state.produced },
     }
+  },
+}
+
+/** One Turn's produced images while its results arrive. */
+interface ProducedImagesState extends ProducedImages {
+  readonly turn: number
+}
+
+/**
+ * Turn-local index of the images a Turn's commands declared as produced files, published as `produced-images` for
+ * the chat view: the turn tail shows them, so a reply showing the same image leaves it there. It publishes no view Node.
+ */
+export const producedImagesDefinition: ConversationNodeDefinition<ProducedImagesState> = {
+  kind: 'produced-images',
+  match: (event) => {
+    if (event.type === 'turn/start') return { id: String(event.data.turn), role: 'start' }
+    if (event.type === 'tool/result' && isAppendSurfaceEvent(event)) return { id: String(event.data.turn), role: 'update' }
+    return null
+  },
+  start: (_context, match) => {
+    if (match.event.type !== 'turn/start') throw new Error('produced-images start requires turn/start')
+    return { turn: match.event.data.turn, attachmentIds: new Set(), paths: new Set() }
+  },
+  update: (context, match) => {
+    if (match.event.type !== 'tool/result') return context.state
+    const result = match.event.data.message.content[0]
+    const meta = match.event.data.meta
+    if (result.isError === true || !isRecord(meta) || !Array.isArray(meta.producedFiles)) return context.state
+    const stored = storedCopies(result.content)
+    const attachmentIds = new Set(context.state.attachmentIds)
+    const paths = new Set(context.state.paths)
+    for (const file of meta.producedFiles as unknown[]) {
+      if (!isRecord(file)) continue
+      const path = pathValue(file.path)
+      if (path === null || fileKindOf(basename(path)) !== 'image') continue
+      const attachmentId = typeof file.attachmentId === 'string' ? file.attachmentId : stored.get(basename(path))
+      paths.add(path)
+      if (attachmentId !== undefined) attachmentIds.add(attachmentId)
+    }
+    return paths.size === context.state.paths.size && attachmentIds.size === context.state.attachmentIds.size
+      ? context.state
+      : { ...context.state, attachmentIds, paths }
+  },
+  buildLocationData: (context, scope, previous) => {
+    if (scope !== 'turn' || context.state === undefined) return null
+    const { turn, attachmentIds, paths } = context.state
+    if (previous?.kind === 'turn' && previous.turn === turn && previous.key === 'produced-images'
+      && previous.value.attachmentIds === attachmentIds && previous.value.paths === paths) return previous
+    return { kind: 'turn', turn, key: 'produced-images', value: { attachmentIds, paths } }
   },
 }
 

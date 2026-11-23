@@ -89,8 +89,13 @@ export function ProducedFiles({
     const kind = fileKindOf(basename(file.path))
     return kind === 'video' || kind === 'audio'
   })
-  const edited = matched.filter(file => !file.created)
-  const created = matched.filter(file => file.created)
+  // A produced image shows as itself, from its stored copy where one was recorded, as a generated image does; one
+  // this Host cannot serve returns to its row.
+  const [unshown, setUnshown] = useState<ReadonlySet<string>>(() => new Set())
+  const images = matched.filter(file => fileKindOf(basename(file.path)) === 'image' && !unshown.has(file.path))
+  const listed = matched.filter(file => !images.includes(file))
+  const edited = listed.filter(file => !file.created)
+  const created = listed.filter(file => file.created)
   const menu = openFileMenu === undefined
     ? undefined
     : (path: string) => (event: MouseEvent) => {
@@ -103,6 +108,11 @@ export function ProducedFiles({
         <MediaPlayer key={file.path} path={file.path} t={t}
           src={file.attachmentId === undefined ? fileUrl(file.path) : attachmentUrl(file.attachmentId)} />
       ))}
+      {images.length > 0 && (
+        <ProducedImages files={images} openFile={openFileOfRow} menu={menu} t={t}
+          src={file => file.attachmentId === undefined ? fileUrl(file.path) : attachmentUrl(file.attachmentId)}
+          onUnavailable={(path) => { setUnshown(previous => new Set(previous).add(path)) }} />
+      )}
       {edited.length > 0 && (
         <FilesTable files={edited} openFile={openFileOfRow} menu={menu} t={t}
           openWorkspace={canOpenPath ? () => { openFile('.') } : undefined} />
@@ -112,6 +122,40 @@ export function ProducedFiles({
           openWorkspace={canOpenPath ? () => { openFile('.') } : undefined} />
       )}
     </section>
+  )
+}
+
+/**
+ * A turn's produced images, shown whole: a lone image at its own proportions, several as tiles across the column the
+ * way generated images are. A click opens the image as its row would.
+ */
+function ProducedImages({ files, src, openFile, menu, onUnavailable, t }: {
+  files: readonly ProducedFile[]
+  src: (file: ProducedFile) => string
+  openFile: (file: ProducedFile) => void
+  menu: ((path: string) => (event: MouseEvent) => void) | undefined
+  /** An image that failed to load, which goes back to the file table. */
+  onUnavailable: (path: string) => void
+  t: Translate
+}) {
+  const [portrait, setPortrait] = useState<ReadonlySet<string>>(() => new Set())
+  return (
+    <div className={css.images} data-produced-images={files.length}>
+      {files.map(file => (
+        <button key={file.path} type="button" className={css.imageFrame} title={file.path}
+          data-orientation={portrait.has(file.path) ? 'portrait' : 'landscape'}
+          aria-label={t('produced.open', { name: file.path })}
+          onClick={() => { openFile(file) }}
+          onContextMenu={menu?.(file.path)}>
+          <img className={css.image} src={src(file)} alt={basename(file.path)} loading="lazy" decoding="async" draggable={false}
+            onLoad={(event) => {
+              const image = event.currentTarget
+              if (image.naturalHeight > image.naturalWidth) setPortrait(previous => new Set(previous).add(file.path))
+            }}
+            onError={() => { onUnavailable(file.path) }} />
+        </button>
+      ))}
+    </div>
   )
 }
 
