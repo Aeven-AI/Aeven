@@ -162,7 +162,9 @@ export default class SyncthingFileSync extends FileSync {
     rescanIntervalS: Schema.natural().min(60).default(3_600),
     versionRetentionDays: Schema.natural().min(1).default(30),
     ignores: Schema.array(Schema.string()).default([
-      '.git', 'node_modules', '.venv', 'venv', '__pycache__', 'dist', 'build', 'target', '.next', '.turbo', '.cache', '.npm',
+      '.git', 'node_modules', '.venv', 'venv', '__pycache__', 'dist', 'build', 'target', '.next', '.turbo', '.cache', '.npm', '.local',
+      // A Host's managed copies of folder workspaces (`@aeven/working-directory`), whose files sync through the workspace.
+      '.aeven-projects',
       '(?d).DS_Store', '(?d)Thumbs.db', '*.tmp',
     ]),
     startupTimeoutMs: Schema.natural().min(1_000).default(30_000),

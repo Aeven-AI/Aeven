@@ -42,9 +42,9 @@ declare module '@deepseek-ai/cordis' {
   interface Events {
     /**
      * Ask for the folder an account keeps its files in on this device, where a Host with folders of its own gives a
-     * session that records no directory, or that sits in a workspace without a folder, its directory:
-     * `<folder>/workspaces/<workspace id>` when filed in such a workspace, `<folder>/chats` otherwise, the layout a
-     * Host with `managedRoot` uses under `<managedRoot>/<owner>`. No answer leaves the session without a directory.
+     * session that records no directory, or that sits in a workspace without a folder, its directory: `<folder>/chats`,
+     * the folder a Host with `managedRoot` uses under `<managedRoot>/<owner>` for the same sessions. No answer leaves
+     * the session without a directory.
      * Synchronous, because directory resolution is.
      * @param owner - the account, which owns the session.
      * @mode bail
@@ -68,14 +68,27 @@ export interface Config {
   /**
    * With `folders: false`, the absolute directory under which this Host gives
    * each account's sessions a folder it creates and manages itself, never one
-   * a person chooses: `<managedRoot>/<owner>/workspaces/<workspace id>` for a
-   * session filed in a workspace, `<managedRoot>/<owner>/chats` otherwise. A
-   * session without an owner, or whose owner or workspace id is not a plain
-   * path segment, gets no folder. Omitted, sessions without a folder of
-   * their own stay without one.
+   * a person chooses: `<managedRoot>/<owner>/.aeven-projects/<workspace id>`
+   * for a session filed in a folder workspace, `<managedRoot>/<owner>/chats`
+   * otherwise. A session without an owner, or whose owner or workspace id is
+   * not a plain path segment, gets no folder. Omitted, sessions without a
+   * folder of their own stay without one.
    */
   readonly managedRoot?: string
 }
+
+/**
+ * The folder of an account folder where its sessions without a folder of their own work: unfiled ones and those in a
+ * workspace without a folder, such as Chats. File sync carries it with the account folder.
+ */
+export const MANAGED_CHATS_FOLDER = 'chats'
+
+/**
+ * The folder of a Host's managed account folder where a session filed in a folder workspace works, one subfolder per
+ * workspace id. File sync leaves it out (`@aeven/file-sync-syncthing` ignores it by name): the workspace's own files
+ * travel through its workspace folder or Git, so a second copy would sync them twice.
+ */
+export const MANAGED_PROJECTS_FOLDER = '.aeven-projects'
 
 /** An owner or workspace id usable as one directory name. */
 const PATH_SEGMENT = /^[A-Za-z0-9_-]{1,128}$/u
@@ -212,12 +225,14 @@ export class WorkingDirectoryService extends Service {
       : join(this.managedRoot, owner)
     if (base === undefined) return undefined
     let path: string
-    if (placement.state === 'filed') {
+    if (placement.state === 'filed' && placement.workspace.kind !== 'virtual') {
       const workspaceId = String(placement.workspace.id)
       if (!PATH_SEGMENT.test(workspaceId)) return undefined
-      path = join(base, 'workspaces', workspaceId)
+      path = join(base, MANAGED_PROJECTS_FOLDER, workspaceId)
     } else {
-      path = join(base, 'chats')
+      // Every device names a workspace without a folder, such as Chats, by its own id, so the chats of all of them
+      // share one folder whose name every device agrees on.
+      path = join(base, MANAGED_CHATS_FOLDER)
     }
     if (!this.created.has(path)) {
       mkdirSync(path, { recursive: true, mode: 0o700 })
