@@ -366,4 +366,29 @@ async remove( session: Session, name: string | undefined, options: { deleteBranc
 Types: [Session](session.md) · [SessionId](core.md)
 
 Source: [`packages/session/worktrees/src/index.ts`](../../packages/session/worktrees/src/index.ts)
+
+<a id="working-directory-events"></a>
+
+### `working-directory/*` events
+
+<a id="working-directoryaccount-folder--bail"></a>
+
+#### `working-directory/account-folder` — bail
+
+Ask for the folder an account keeps its files in on this device, where a Host with folders of its own gives a session that records no directory, or that sits in a workspace without a folder, its directory: `<folder>/workspaces/<workspace id>` when filed in such a workspace, `<folder>/chats` otherwise, the layout a Host with `managedRoot` uses under `<managedRoot>/<owner>`. No answer leaves the session without a directory. Synchronous, because directory resolution is.
+
+```ts cordis-catalog
+/**
+ * Ask for the folder an account keeps its files in on this device, where a Host with folders of its own gives a
+ * session that records no directory, or that sits in a workspace without a folder, its directory:
+ * `<folder>/workspaces/<workspace id>` when filed in such a workspace, `<folder>/chats` otherwise, the layout a
+ * Host with `managedRoot` uses under `<managedRoot>/<owner>`. No answer leaves the session without a directory.
+ * Synchronous, because directory resolution is.
+ * @param owner - the account, which owns the session.
+ * @mode bail
+ */
+'working-directory/account-folder'(owner: string): string | undefined
+```
+
+Source: [`packages/session/working-directory/src/index.ts`](../../packages/session/working-directory/src/index.ts)
 <!-- END GENERATED cordis-surface -->

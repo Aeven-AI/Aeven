@@ -1076,11 +1076,6 @@ flowchart TD
   pkg_recordings --> pkg_host_account_data
   pkg_recordings --> pkg_sync
   pkg_tool_read_aloud --> pkg_tools
-  pkg_aeven_folder_sync --> pkg_agent
-  pkg_aeven_folder_sync --> pkg_file_sync
-  pkg_aeven_folder_sync --> pkg_host_account_data
-  pkg_aeven_folder_sync --> pkg_sync
-  pkg_aeven_folder_sync --> pkg_system_prompt
   pkg_tool_terminal --> pkg_agent
   pkg_tool_terminal --> pkg_jobs
   pkg_tool_terminal --> pkg_llm
@@ -1258,6 +1253,12 @@ flowchart TD
   pkg_tool_pwsh_persistent --> pkg_timeout
   pkg_tool_pwsh_persistent --> pkg_tools
   pkg_tool_pwsh_persistent --> pkg_working_directory
+  pkg_aeven_folder_sync --> pkg_agent
+  pkg_aeven_folder_sync --> pkg_file_sync
+  pkg_aeven_folder_sync --> pkg_host_account_data
+  pkg_aeven_folder_sync --> pkg_sync
+  pkg_aeven_folder_sync --> pkg_system_prompt
+  pkg_aeven_folder_sync --> pkg_working_directory
   pkg_tool_vcs --> pkg_tools
   pkg_tool_vcs --> pkg_vcs
   pkg_tool_vcs --> pkg_working_directory
@@ -1984,7 +1985,6 @@ flowchart TD
 | [`shell-env`](../packages/shell/shell-env) | `shell` | [`home-paths`](../packages/util/home-paths), [`session-persistence`](../packages/session/session-persistence), [`shell`](../packages/shell/shell), [`tools`](../packages/core/tools) |
 | [`recordings`](../packages/speech/recordings) | `speech` | [`file-sync`](../packages/sync/file-sync), [`host-account-data`](../packages/host/account-data), [`sync`](../packages/sync/sync) |
 | [`tool-read-aloud`](../packages/speech/tool-read-aloud) | `speech` | [`tools`](../packages/core/tools) |
-| [`aeven-folder-sync`](../packages/sync/aeven-folder-sync) | `sync` | [`agent`](../packages/core/agent), [`file-sync`](../packages/sync/file-sync), [`host-account-data`](../packages/host/account-data), [`sync`](../packages/sync/sync), [`system-prompt`](../packages/core/system-prompt) |
 | [`tool-terminal`](../packages/terminal/tool-terminal) | `terminal` | [`agent`](../packages/core/agent), [`jobs`](../packages/jobs/jobs), [`llm`](../packages/llm/llm), [`output-retention`](../packages/util/output-retention), [`system-prompt`](../packages/core/system-prompt), [`terminal`](../packages/terminal/terminal), [`tools`](../packages/core/tools) |
 | [`agent-loop-testkit`](../packages/test-support/agent-loop-testkit) | `test-support` | [`agent`](../packages/core/agent), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools) |
 | [`tool-workflow`](../packages/workflow/tool-workflow) | `workflow` | [`agent`](../packages/core/agent), [`invariants`](../packages/runtime-diagnostics/invariants), [`llm`](../packages/llm/llm), [`session`](../packages/core/session), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools), [`workflow`](../packages/workflow/workflow) |
@@ -2013,6 +2013,7 @@ flowchart TD
 | [`worktrees`](../packages/session/worktrees) | `session` | [`agent`](../packages/core/agent), [`session`](../packages/core/session), [`session-projection`](../packages/session/session-projection), [`subprocess`](../packages/subprocess/subprocess), [`system-prompt`](../packages/core/system-prompt), [`working-directory`](../packages/session/working-directory) |
 | [`tool-bash-persistent`](../packages/shell/tool-bash-persistent) | `shell` | [`agent`](../packages/core/agent), [`terminal`](../packages/terminal/terminal), [`timeout`](../packages/util/timeout), [`tools`](../packages/core/tools), [`working-directory`](../packages/session/working-directory) |
 | [`tool-pwsh-persistent`](../packages/shell/tool-pwsh-persistent) | `shell` | [`agent`](../packages/core/agent), [`terminal`](../packages/terminal/terminal), [`timeout`](../packages/util/timeout), [`tools`](../packages/core/tools), [`working-directory`](../packages/session/working-directory) |
+| [`aeven-folder-sync`](../packages/sync/aeven-folder-sync) | `sync` | [`agent`](../packages/core/agent), [`file-sync`](../packages/sync/file-sync), [`host-account-data`](../packages/host/account-data), [`sync`](../packages/sync/sync), [`system-prompt`](../packages/core/system-prompt), [`working-directory`](../packages/session/working-directory) |
 | [`tool-vcs`](../packages/vcs/tool-vcs) | `vcs` | [`tools`](../packages/core/tools), [`vcs`](../packages/vcs/vcs), [`working-directory`](../packages/session/working-directory) |
 | [`fs-sandbox`](../packages/fs/fs-sandbox) | `fs` | [`fs`](../packages/fs/fs), [`fs-local`](../packages/fs/fs-local), [`sandbox`](../packages/sandbox/sandbox), [`sandbox-policy`](../packages/sandbox/sandbox-policy) |
 | [`tool-fs`](../packages/fs/tool-fs) | `fs` | [`agent`](../packages/core/agent), [`attachment`](../packages/attachment/attachment), [`fs`](../packages/fs/fs), [`llm`](../packages/llm/llm), [`sandbox`](../packages/sandbox/sandbox), [`sandbox-policy`](../packages/sandbox/sandbox-policy), [`session`](../packages/core/session), [`skill`](../packages/skill/skill), [`system-prompt`](../packages/core/system-prompt), [`tools`](../packages/core/tools), [`user-approval`](../packages/interaction/user-approval), [`working-directory`](../packages/session/working-directory) |

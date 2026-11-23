@@ -2768,7 +2768,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Open one path prepared by a Session-aware caller on the Host desktop: in its default application, in one registered application, or revealed in the file manager.',
         parameters: [{ name: 'request', description: 'path after best-effort Session workspace resolution, and the requested handoff.' }, { name: 'signal', description: 'caller lifetime; abort terminates the native command.' }],
         returns: 'confirmation after the native opener accepts the path.',
-        throws: ['RemoteError when this deployment opens no paths, or the request is invalid, cancelled, or the opener fails.'],
+        throws: ['RemoteError when this deployment opens no paths, nothing exists at the path, or the request is invalid, cancelled, or the opener fails.'],
       },
       {
         signature: '@Remote(\'workspacePathApplications\') async workspacePathApplications( request: { readonly path: string }, signal: AbortSignal, ): Promise<readonly SessionWorkspacePathApplication[]>',
@@ -6230,6 +6230,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     summary: 'A workflow run started — the script\'s meta block validated, the body about to execute.',
     description: 'A workflow run started — the script\'s meta block validated, the body about to execute. Paired with Events[\'workflow/end\'].',
     parameters: [{ name: 'info', description: 'the run\'s identity snapshot (id + meta).' }],
+  },
+  {
+    name: 'working-directory/account-folder',
+    mode: 'bail',
+    signature: '\'working-directory/account-folder\'(owner: string): string | undefined',
+    summary: 'Ask for the folder an account keeps its files in on this device, where a Host with folders of its own gives a session that records no directory, or that sits in a workspace without a folder, its directory: `<folder>/workspaces/<workspace id>` when filed in such a workspace, `<folder>/chats` otherwise, the layout a Host with `managedRoot` uses under `<managedRoot>/<owner>`.',
+    description: 'Ask for the folder an account keeps its files in on this device, where a Host with folders of its own gives a session that records no directory, or that sits in a workspace without a folder, its directory: `<folder>/workspaces/<workspace id>` when filed in such a workspace, `<folder>/chats` otherwise, the layout a Host with `managedRoot` uses under `<managedRoot>/<owner>`. No answer leaves the session without a directory. Synchronous, because directory resolution is.',
+    parameters: [{ name: 'owner', description: 'the account, which owns the session.' }],
   },
   {
     name: 'workspace-files/show',

@@ -252,6 +252,7 @@ export const EVENT_SCOPE_PAGE: Record<string, string> = {
   'sync': 'sync.md',
   'file-sync': 'sync.md',
   'workspace': 'workspace.md',
+  'working-directory': 'session-title.md',
   'skills': 'skills.md',
   'subagent': 'subagent.md',
   'system-prompt': 'system-prompt.md',
