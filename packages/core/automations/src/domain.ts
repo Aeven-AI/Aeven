@@ -80,6 +80,7 @@ function currentDefinition(value: unknown): unknown {
 export const definitionSchema = z.preprocess(currentDefinition, inputSchema.extend({
   id: automationId, owner: text.optional(), revision: z.number().int().positive(),
   status: z.enum(['active', 'paused']), agentPreset: text,
+  pausedBy: z.object({ runId: text.transform(value => brandString<AutomationRunId>(value)), scheduledFor: instant }).strict().optional(),
   connectors: connectorsSchema, overlap,
   // A definition stored before owners could choose keeps running wherever it can.
   runOn: runOn.default('auto'),
@@ -141,6 +142,7 @@ export const runSchema: z.ZodType<AutomationRun> = z.object({
   usage: z.object({
     inputTokens: z.number().int().min(0), outputTokens: z.number().int().min(0), totalTokens: z.number().int().min(0),
   }).strict().nullable().optional(),
+  quiet: z.boolean().optional(),
   resolution: z.object({ kind: z.literal('retried'), at: instant, retryRunId: text.transform(value => brandString<AutomationRunId>(value)).nullable() }).strict().nullable(),
 }).strict()
 /** Storage authority for definitions and already-admitted occurrences. */

@@ -207,6 +207,8 @@ export interface AutomationDefinition {
   readonly connectors: ConnectorBinding
   readonly overlap: OverlapPolicy
   readonly status: 'active' | 'paused'
+  /** The run that paused its own bot, while the bot stays paused; the owner's resume or pause clears it. */
+  readonly pausedBy?: { readonly runId: AutomationRunId; readonly scheduledFor: string } | undefined
   readonly agentPreset: string
   readonly model: ModelSelection
   readonly permission: 'read-only' | 'workspace-write'
@@ -258,6 +260,11 @@ export interface AutomationRun {
   readonly handoff?: Pick<Handoff, 'id' | 'from' | 'fromName' | 'fromRun' | 'edge' | 'mode' | 'replyTo' | 'board' | 'task'> | null | undefined
   /** Tokens the run spent; absent until it settles. */
   readonly usage?: RunUsage | null | undefined
+  /**
+   * The run reported nothing new: it settled `succeeded`, called `bot_no_update`, and asked for no approval it was
+   * refused and changed no file. A quiet run leaves the bot's last result as it was.
+   */
+  readonly quiet?: boolean | undefined
   readonly resolution: { readonly kind: 'retried'; readonly at: string; readonly retryRunId: AutomationRunId | null } | null
 }
 /** Editable task values; execution ownership is resolved by the service. */

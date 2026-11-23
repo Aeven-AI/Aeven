@@ -47,7 +47,7 @@ function BotCard({ t, fmt, task, data, state, showBot, editBot }: {
         <RunControl t={t} task={task} current={current} state={state} />
         <PauseControl t={t} task={task} state={state} />
         <BotMenu t={t} task={task} state={state} edit={editBot} />
-        <StatusPill t={t} task={task} current={current} state={state} />
+        <StatusPill t={t} fmt={fmt} task={task} current={current} state={state} />
       </div>
     </article>
   )

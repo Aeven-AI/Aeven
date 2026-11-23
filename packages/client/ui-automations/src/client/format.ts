@@ -26,6 +26,13 @@ export const HANDOFF_STATUS = { open: 'handoffOpen', claimed: 'handoffClaimed', 
 export function formatters(t: Translate, data: AutomationList | null) {
   const date = (at: string): string => new Date(at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
   const number = (value: number): string => new Intl.NumberFormat().format(value)
+  /** A time of day for an instant today, otherwise its short date and time. */
+  const moment = (at: string): string => {
+    const value = new Date(at)
+    return value.toDateString() === new Date().toDateString()
+      ? value.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+      : value.toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })
+  }
   const clock = (wall: string): string => {
     const [hour = 0, minute = 0] = wall.split(':').map(Number)
     return new Date(2023, 0, 1, hour, minute).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
@@ -136,7 +143,7 @@ export function formatters(t: Translate, data: AutomationList | null) {
       }
     })]
   }
-  return { date, number, clock, describe, describeTrigger, next, runsOn, placementDetail, placeItems }
+  return { date, number, moment, clock, describe, describeTrigger, next, runsOn, placementDetail, placeItems }
 }
 
 /** The bound sentence builders. */

@@ -1,7 +1,8 @@
 /** Pieces more than one bot page shows: run rows, the idea gallery, the view switcher, and the sidebar link. */
 import {
-  Button, IconBotFaceAnimated, IconChevronLeftOutline14, IconEditOutline16, IconLucideCheck, IconLucideClock,
-  IconLucideEllipsisVertical, IconLucideMinus, IconLucidePause, IconLucidePlay, IconLucideRotateCcw, IconLucideX,
+  Button, IconBotFaceAnimated, IconChevronLeftOutline14, IconEditOutline16, IconLucideCheck, IconLucideChevronDown,
+  IconLucideChevronRight, IconLucideClock, IconLucideEllipsisVertical, IconLucideMinus, IconLucidePause, IconLucidePlay,
+  IconLucideRotateCcw, IconLucideX,
   IconStopFill16, IconTrashOutline16, Menu, Spinner, Tooltip,
 } from '@aeven/client-ui-primitives'
 import type { PropsLocale } from '@aeven/client-ui-slots'
@@ -208,14 +209,21 @@ export function BotMenu({ t, task, state, edit, deleted }: {
 }
 
 /**
- * The bot's state at the end of its actions row: active or paused, or stopping once a stop was sent.
+ * The bot's state at the end of its actions row: active, paused or the run that paused it, or stopping once a stop
+ * was sent.
  * @param props - the bot, its active run, and the shared operations.
  * @returns the status pill.
  */
-export function StatusPill({ t, task, current, state }: { t: Translate; task: Task; current: Run | undefined; state: Automations }) {
+export function StatusPill({ t, fmt, task, current, state }: {
+  t: Translate
+  fmt: Formatters
+  task: Task
+  current: Run | undefined
+  state: Automations
+}) {
   return current !== undefined && state.stopping.has(current.id)
     ? <span className={css.status} role="status"><Spinner />{t('stopping')}</span>
-    : <span className={css.status}>{t(task.status)}</span>
+    : <span className={css.status}>{task.status === 'paused' && task.pausedBy !== undefined ? t('pausedByRun', { time: fmt.moment(task.pausedBy.scheduledFor) }) : t(task.status)}</span>
 }
 
 /**
@@ -249,10 +257,34 @@ export function ViewBar({ t, view, showView }: {
   )
 }
 
+/** One entry of a run list: a run, or two or more consecutive quiet runs of one bot folded into one row. */
+type RunEntry = { kind: 'run'; run: Run } | { kind: 'quiet'; runs: Run[] }
+
+/**
+ * Fold every stretch of two or more consecutive quiet runs of the same bot into one entry.
+ * @param runs - runs, newest first.
+ * @returns the list's entries in the same order.
+ */
+function foldQuiet(runs: readonly Run[]): RunEntry[] {
+  const entries: RunEntry[] = []
+  for (const run of runs) {
+    const last = entries.at(-1)
+    const previous = last?.kind === 'run' ? last.run : last?.runs.at(-1)
+    if (run.quiet === true && previous?.quiet === true && previous.definition.id === run.definition.id) {
+      if (last?.kind === 'quiet') last.runs.push(run)
+      else entries[entries.length - 1] = { kind: 'quiet', runs: [previous, run] }
+      continue
+    }
+    entries.push({ kind: 'run', run })
+  }
+  return entries
+}
+
 /**
  * One equal-height row per run. The row opens the run's conversation, which holds its result and any error; the
  * trailing slot carries the run's status mark, or the retry action that replaces it. The runs list gives each
- * finished run its own removal, immediately left of that mark.
+ * finished run its own removal, immediately left of that mark. Consecutive runs of one bot with nothing new fold
+ * into one row that lists them when opened.
  * @param props - the runs, how they are labelled, and the actions they offer.
  * @returns the run list.
  */
@@ -266,53 +298,84 @@ export function RunRows({ t, fmt, runs, named, removable, unavailable, openRun, 
   openRun: (sessionId: string) => void
   setPending: (action: PendingAction) => void
 }) {
+  const [unfolded, setUnfolded] = useState<ReadonlySet<string>>(new Set())
+  const row = (run: Run) => {
+    const retryable = run.resolution === null && unfinished(run.status)
+    const finished = run.status !== 'queued' && run.status !== 'running'
+    const sessionId = run.sessionId
+    const outcome = run.quiet === true ? t('quiet') : t(run.status)
+    return (
+      <li className={css.run} key={run.id}>
+        <button
+          type="button"
+          className={css.runOpen}
+          disabled={sessionId === null}
+          title={run.error ?? undefined}
+          onClick={() => { if (sessionId !== null) openRun(sessionId) }}
+        >
+          <span className={css.runText}>
+            <span className={css.runTitle}>{named ? run.definition.name : fmt.date(run.scheduledFor)}</span>
+            <span className={css.runSubtitle}>
+              {named ? `${outcome} · ${fmt.date(run.scheduledFor)}` : outcome}
+              {run.usage != null && run.usage.totalTokens > 0 ? ` · ${t('tokens', { n: fmt.number(run.usage.totalTokens) })}` : ''}
+            </span>
+          </span>
+        </button>
+        {removable && finished && (
+          <Tooltip label={t('removeRun')} side="top" anchor="icon">
+            <span className={css.tip}>
+              <Button
+                variant="ghost" size="sm" className={css.runRemove} icon={<IconTrashOutline16 />} aria-label={t('removeRun')}
+                disabled={unavailable} onClick={() => { setPending({ kind: 'remove-run', id: run.id }) }}
+              />
+            </span>
+          </Tooltip>
+        )}
+        {retryable ? (
+          <Tooltip label={t('retry')} side="top" anchor="icon">
+            <span className={css.tip}>
+              <Button
+                variant="ghost" size="sm" className={css.runAction} icon={<IconLucideRotateCcw />} aria-label={t('retry')}
+                disabled={unavailable} onClick={() => { setPending({ kind: 'retry', id: run.id }) }}
+              />
+            </span>
+          </Tooltip>
+        ) : (
+          <span className={css.runIcon}>{statusIcon(run.status)}</span>
+        )}
+      </li>
+    )
+  }
   return (
     <ul className={named ? css.runCards : css.runList}>
-      {runs.map((run) => {
-        const retryable = run.resolution === null && unfinished(run.status)
-        const finished = run.status !== 'queued' && run.status !== 'running'
-        const sessionId = run.sessionId
-        return (
-          <li className={css.run} key={run.id}>
+      {foldQuiet(runs).map((entry) => {
+        if (entry.kind === 'run') return row(entry.run)
+        const [newest] = entry.runs
+        if (newest === undefined) return null
+        const open = unfolded.has(newest.id)
+        const oldest = entry.runs.at(-1) ?? newest
+        return [
+          <li className={css.run} key={`quiet:${newest.id}`}>
             <button
-              type="button"
-              className={css.runOpen}
-              disabled={sessionId === null}
-              title={run.error ?? undefined}
-              onClick={() => { if (sessionId !== null) openRun(sessionId) }}
+              type="button" className={css.runOpen} aria-expanded={open}
+              onClick={() => {
+                setUnfolded((current) => {
+                  const next = new Set(current)
+                  if (open) next.delete(newest.id)
+                  else next.add(newest.id)
+                  return next
+                })
+              }}
             >
               <span className={css.runText}>
-                <span className={css.runTitle}>{named ? run.definition.name : fmt.date(run.scheduledFor)}</span>
-                <span className={css.runSubtitle}>
-                  {named ? `${t(run.status)} · ${fmt.date(run.scheduledFor)}` : t(run.status)}
-                  {run.usage != null && run.usage.totalTokens > 0 ? ` · ${t('tokens', { n: fmt.number(run.usage.totalTokens) })}` : ''}
-                </span>
+                <span className={css.runTitle}>{named ? newest.definition.name : `${fmt.date(oldest.scheduledFor)} – ${fmt.date(newest.scheduledFor)}`}</span>
+                <span className={css.runSubtitle}>{t('quietGroup', { n: fmt.number(entry.runs.length) })}</span>
               </span>
             </button>
-            {removable && finished && (
-              <Tooltip label={t('removeRun')} side="top" anchor="icon">
-                <span className={css.tip}>
-                  <Button
-                    variant="ghost" size="sm" className={css.runRemove} icon={<IconTrashOutline16 />} aria-label={t('removeRun')}
-                    disabled={unavailable} onClick={() => { setPending({ kind: 'remove-run', id: run.id }) }}
-                  />
-                </span>
-              </Tooltip>
-            )}
-            {retryable ? (
-              <Tooltip label={t('retry')} side="top" anchor="icon">
-                <span className={css.tip}>
-                  <Button
-                    variant="ghost" size="sm" className={css.runAction} icon={<IconLucideRotateCcw />} aria-label={t('retry')}
-                    disabled={unavailable} onClick={() => { setPending({ kind: 'retry', id: run.id }) }}
-                  />
-                </span>
-              </Tooltip>
-            ) : (
-              <span className={css.runIcon}>{statusIcon(run.status)}</span>
-            )}
-          </li>
-        )
+            <span className={css.runIcon}>{open ? <IconLucideChevronDown /> : <IconLucideChevronRight />}</span>
+          </li>,
+          ...open ? entry.runs.map(row) : [],
+        ]
       })}
     </ul>
   )

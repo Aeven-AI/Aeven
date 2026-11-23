@@ -22,6 +22,7 @@ import { boundContextSummary, createUserMessage, type TokenUsage } from '@aeven/
 import { SessionId, SessionSeq, type Session } from '@aeven/session'
 import { LeaseHolder } from '@aeven/sync'
 import type { Domain } from '@aeven/storage-domain'
+import type { ToolCallView } from '@aeven/tools'
 import { setApprovalPolicy, type ApprovalRequestId } from '@aeven/user-approval'
 import { automationDomain, webhookDomain, inputSchema, patchSchema, boardInputSchema, CONNECTOR_IDS, definitionSchema } from './domain.ts'
 import { bound, connectorOf, connectorRefusal } from './connectors.ts'
@@ -61,6 +62,12 @@ interface ActiveRun {
   promise: Promise<void>
   handle?: AgentHandle
   stopRequested?: boolean
+  /** The run called `bot_no_update`. */
+  noUpdate?: boolean
+  /** The reason the run gave through `bot_report_failure`; it settles the run `failed`. */
+  failure?: string
+  /** The run called `bot_pause`; the bot pauses when the run settles `succeeded`. */
+  pause?: boolean
 }
 
 /** Refusal of one inbound request, carrying the status the endpoint answers with. */
@@ -139,6 +146,36 @@ async function readCappedBody(req: IncomingMessage, res: ServerResponse, limit: 
     return null
   }
   return Buffer.concat(chunks)
+}
+
+/** Tool presentation kinds that change a file. */
+const FILE_CHANGES: ReadonlySet<string> = new Set(['edit', 'delete', 'move'])
+
+/**
+ * Whether a run conversation holds something its owner should see even after `bot_no_update`: an approval that was
+ * refused, cancelled, or could not be asked, or a successful tool call whose presentation changes a file.
+ * @param events - the conversation's events.
+ * @param present - the presentation of one tool call as the run's agent resolves it, or undefined when unknown.
+ * @returns true when the run cannot be quiet.
+ */
+function needsAttention(
+  events: ReturnType<Session['snapshotEvents']>,
+  present: (name: string, args: unknown) => ToolCallView | undefined,
+): boolean {
+  const failed = new Set<string>()
+  for (const event of events) {
+    if (event.type === 'approval/decided' && event.data.outcome !== 'allowed-once') return true
+    if (event.type === 'tool/result' && event.data.message.content[0].isError === true) failed.add(event.data.message.content[0].toolCallId)
+  }
+  for (const event of events) {
+    if (event.type !== 'tool/call' || failed.has(event.data.callId)) continue
+    let args: unknown
+    // A call whose arguments are not JSON never ran, so it changed no file.
+    try { args = JSON.parse(event.data.arguments) } catch { continue }
+    const view = present(event.data.name, args)
+    if (view?.card === 'diff' || (view?.card === 'generic' && view.kind !== undefined && FILE_CHANGES.has(view.kind))) return true
+  }
+  return false
 }
 
 /** Sum a run conversation's token accounting over its model calls.
@@ -462,7 +499,7 @@ export class Automations extends Service<Config> {
     return { definitions: definitions.map(definition => ({ ...definition,
       placement: resolvePlacement(definition, this.hostsOf(definition.owner)),
       nextRunAt: definition.status === 'paused' ? null : this.nextRunAt(definition, now),
-      lastRun: runs.find(run => run.definition.id === definition.id) ?? null,
+      lastRun: runs.find(run => run.definition.id === definition.id && run.quiet !== true) ?? null,
       webhook: hooks.table('webhooks').get(definition.id) !== undefined,
     })), runs: runs.filter(run => run.sessionId === null || !archived.has(run.sessionId)),
     boards, handoffs,
@@ -632,10 +669,12 @@ export class Automations extends Service<Config> {
         desktop: patch.runOn === undefined && patch.desktop === undefined ? current.desktop : patch.desktop,
       }))
       const status = patch.status ?? current.status
-      const { desktop: _replaced, ...kept } = current
+      // The owner's own pause or resume replaces a pause a run made; any other edit keeps it.
+      const { desktop: _replaced, pausedBy, ...kept } = current
       const next: AutomationDefinition = {
         ...kept, ...parsed, runOn: parsed.runOn ?? current.runOn, connectors: parsed.connectors ?? current.connectors,
         overlap: parsed.overlap ?? current.overlap, status, revision: current.revision + 1, updatedAt: new Date().toISOString(),
+        ...pausedBy !== undefined && patch.status === undefined ? { pausedBy } : {},
       }
       if (patch.triggers !== undefined) this.checkTriggers(domain, current.owner, current.id, next.triggers)
       const refusal = placementRefusal(next, this.hostsOf(current.owner))
@@ -1205,9 +1244,12 @@ export class Automations extends Service<Config> {
    * The run tools' operations for one run: the bots that accept its handoffs and the boards it belongs to.
    * @param domain - the open definition domain.
    * @param run - the run that executes.
+   * @param entry - the run's in-progress record, which holds what the outcome tools reported until it settles.
    * @returns operations the run tools call; each checks the stored definitions again.
    */
-  private runToolsAccess(domain: Domain<typeof automationDomain>, run: AutomationRun): Parameters<typeof registerRunTools>[1] {
+  private runToolsAccess(
+    domain: Domain<typeof automationDomain>, run: AutomationRun, entry: ActiveRun,
+  ): Parameters<typeof registerRunTools>[1] {
     const self = run.definition
     const targets = [...domain.table('definitions').entries()].flatMap(([, target]) => {
       if (target.owner !== self.owner || target.id === self.id) return []
@@ -1216,6 +1258,9 @@ export class Automations extends Service<Config> {
     })
     const boards = (): AutomationBoard[] => [...domain.table('boards').entries()].map(([, board]) => board).filter(board => board.owner === self.owner && board.members.includes(self.id))
     return {
+      noUpdate: () => { entry.noUpdate = true },
+      reportFailure: (reason) => { entry.failure = reason },
+      pause: () => { entry.pause = true },
       targets,
       onBoard: boards().length > 0,
       handoff: (to, task) => this.transaction(current => this.handOff(current, run, to, task)),
@@ -1310,6 +1355,22 @@ export class Automations extends Service<Config> {
   }
 
   /**
+   * Pause the bot of a run that called `bot_pause` and settled `succeeded`, naming the run on the definition. A bot
+   * the owner already paused or removed stays as it is.
+   * @param domain - the open definition domain.
+   * @param run - the settled run.
+   */
+  private async pauseFrom(domain: Domain<typeof automationDomain>, run: AutomationRun): Promise<void> {
+    const current = domain.table('definitions').get(run.definition.id)
+    if (current?.status !== 'active') return
+    await this.store(domain, {
+      ...current, status: 'paused', pausedBy: { runId: run.id, scheduledFor: run.scheduledFor },
+      revision: current.revision + 1, updatedAt: new Date().toISOString(),
+    })
+    this.arm(domain)
+  }
+
+  /**
    * Record a settled run on the handoff it carried out, and wake the sender of a `wait` edge with the result.
    * @param domain - the open definition domain.
    * @param run - the settled run.
@@ -1328,7 +1389,7 @@ export class Automations extends Service<Config> {
     if (handoff.mode !== 'wait' || handoff.replyTo !== null) return
     const sender = domain.table('definitions').get(handoff.from)
     if (sender === undefined) return
-    const answer = settled.result ?? settled.reason ?? `${handoff.toName} finished without a result.`
+    const answer = (settled.status === 'failed' ? settled.reason ?? settled.result : settled.result ?? settled.reason) ?? `${handoff.toName} finished without a result.`
     const reply: Handoff = {
       id: brandString<HandoffId>(createHash('sha256').update(`reply\n${handoff.id}`).digest('hex')), ...handoff.owner === undefined ? {} : { owner: handoff.owner },
       board: handoff.board, from: handoff.to, fromName: handoff.toName, fromRun: run.id, to: sender.id, toName: sender.name,
@@ -1891,7 +1952,7 @@ export class Automations extends Service<Config> {
           releaseGuard = agentCtx.tools.guard(exec => exec.name.startsWith('automation_') || exec.name === 'ask_user'
             ? 'Bots cannot create more unattended work or ask interactive questions.'
             : connectorRefusal(connectors, exec.name))
-          agentCtx.effect(() => registerRunTools(agentCtx, this.runToolsAccess(domain, run)))
+          agentCtx.effect(() => registerRunTools(agentCtx, this.runToolsAccess(domain, run, entry)))
         },
       }))
       entry.handle = handle
@@ -1910,14 +1971,23 @@ export class Automations extends Service<Config> {
       const last = messages.at(-1)
       const summary = last?.type === 'assistant/message' ? last.data.message.content.filter(block => block.type === 'text').map(block => block.text).join('\n') : null
       const completed = end?.type === 'turn/end' && end.data.reason.kind === 'completed'
-      // oxlint-disable-next-line typescript/no-unnecessary-condition -- the run timeout is set while the turns above are awaited.
-      const status = stopRequested() ? 'cancelled' : completed && !timedOut ? 'succeeded' : this.stopped ? 'cancelled' : 'failed'
+      // A turn that completed after `bot_report_failure` is a failed run with the reason the run gave.
+      const reported = entry.failure
+      const finished = completed && !timedOut
+      // oxlint-disable-next-line typescript/no-unnecessary-condition -- timeout and stop land during the awaits above.
+      const status = stopRequested() ? 'cancelled' : finished ? (reported === undefined ? 'succeeded' : 'failed') : this.stopped ? 'cancelled' : 'failed'
       const error = stopRequested() ? STOPPED
         // oxlint-disable-next-line typescript/no-unnecessary-condition -- the run timeout is set while the turns above are awaited.
-        : timedOut ? 'Execution timed out.' : completed ? null : 'Execution did not complete; inspect its conversation.'
-      const settled: AutomationRun = { ...running, status, finishedAt: new Date().toISOString(), summary, error, usage: usageOf(events) }
+        : timedOut ? 'Execution timed out.' : !completed ? 'Execution did not complete; inspect its conversation.' : reported ?? null
+      const agent = handle.agent
+      const quiet = status === 'succeeded' && entry.noUpdate === true
+        && !needsAttention(events, (name, args) => this.ctx.tools.get(name, agent)?.presentCall?.(args))
+      const settled: AutomationRun = {
+        ...running, status, finishedAt: new Date().toISOString(), summary, error, usage: usageOf(events), ...quiet ? { quiet } : {},
+      }
       await this.storeRun(domain, settled)
       await this.settleRun(domain, settled)
+      if (status === 'succeeded' && entry.pause === true) await this.pauseFrom(domain, settled)
     } catch (error) {
       const status = stopRequested() ? 'cancelled' : 'failed'
       const message = error instanceof Error ? error.message : String(error)

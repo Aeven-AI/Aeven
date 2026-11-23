@@ -25,6 +25,8 @@ The Host uses its existing account identity, agent presets, model selection, wor
 
 Bots of one account can work together. A `bot` trigger on a receiver names a sender and a `mode`, and only that edge lets the sender's runs call `bot_handoff` for that receiver. A handoff is a durable record that names both bots, the sending run, the edge, and the task; any Host that may run the receiver admits it while it holds the receiver's claim and the receiver has no run in flight, unless the receiver runs in parallel. The receiver runs with its own model, permission, connectors, and grants; being handed work grants nothing. Its final answer settles the handoff, and `mode: wait` then hands that result back to the sender as a new run. A paused or removed receiver refuses a new handoff at once, and an open one addressed to a receiver that is paused when a Host would admit it is recorded as refused. A board groups bots of one account under a name and an optional budget: `maxConcurrentRuns` bounds the members' queued and running runs, and `maxTokensPerDay` bounds the tokens their runs spent over the last twenty-four hours, counted from each run's `usage`. A run that would exceed a budget is recorded as skipped with the ceiling named, and its handoff as refused. Removing a bot, or taking it off a board, releases the open handoffs addressed to it and shows them as released. Boards and handoffs are entries of the account's synced `automations` document beside the definitions.
 
+A run reports its outcome through three run tools. After `bot_report_failure`, a completed turn is recorded as failed with the run's reason as its error, so the handoff it carried out fails with that reason and a `wait` edge hands the reason back. After `bot_no_update`, a run that settles succeeded is recorded `quiet` unless its conversation holds an approval that was refused, cancelled, or could not be asked, or a successful call of a tool whose presentation edits, deletes, or moves a file. A quiet run keeps its conversation but leaves the definition's `lastRun` at the latest run that was not quiet, and the `/bots` run lists fold two or more consecutive quiet runs of one bot into one row. After `bot_pause`, a run that settles succeeded pauses its bot and records `pausedBy`, the run and its scheduled instant, on the definition; a failed, stopped, or timed-out run leaves the bot active. The owner's own pause or resume clears `pausedBy`, and no run can resume a bot.
+
 ## Placement
 
 A definition records `requires`, the things its task needs from the owner's own computer (`files`, `browser`, `computer-use`), and `runOn`, the owner's choice among `auto`, `cloud`, and `device`, with `desktop` naming one desktop by its vault device id under `device`. The model declares `requires` when it creates the bot, and the owner confirms it with the task; the `/bots` page chooses Aeven Cloud or one desktop. Each Host's profile is `placement.kind` (`cloud` or `device`), `placement.provides`, the device capabilities its runs can use, and its vault device id while sync serves the account. From these the service derives where a definition runs, the same way on every Host: a definition with `runOn: cloud`, or one that needs nothing and has `runOn: auto`, runs on the account's cloud Host, and only the `auto` one falls back to a device; one that needs something, or has `runOn: device`, runs only on a device Host that provides everything it needs and, with `desktop`, only on that desktop; one stored before requirements were declared runs on any Host. Saving refuses `runOn: cloud` for a bot that needs something, `desktop` without `runOn: device`, and a desktop whose registered Host lacks a requirement. A Host that may not run a definition refuses its scheduled, manual, and inbound runs; a desktop that is off at a scheduled instant records that occurrence as skipped once it is back.
@@ -87,7 +89,7 @@ Scheduled for: <ISO timestamp>
 
 <the approved task>
 
-Report completed work with evidence. Do not claim an external action succeeded without confirmation.
+Report completed work with evidence. Do not claim an external action succeeded without confirmation. If nothing is new, call bot_no_update; if the task cannot be done, call bot_report_failure with the reason; if the task says to stop, call bot_pause.
 ```
 
 ##### Webhook payload section
@@ -130,11 +132,11 @@ Append-only: the notice follows the prefix the run's agent preset assembled, and
 
 #### What the model sees
 
-A run of a bot that some receiver's `bot` trigger names receives `bot_handoff`, whose `to` parameter enumerates those receivers by name and whose description says which of them report back. A run of a board member receives `board_tasks`, which lists the handoffs on its boards, newest first and at most fifty, and `board_task_update`, which settles the handoff the run carries out with `done` or `failed` and a result. Each result is one text block holding `JSON.stringify` of the handoff fields `id`, `from`, `to`, `status`, `task`, `result`, `reason`, `replyTo`, and `createdAt`.
+Every run receives `bot_no_update`, `bot_report_failure`, which takes a `reason`, and `bot_pause`; each answers with one text block holding `JSON.stringify` of a `recorded` sentence that says what the run's settlement will do. A run of a bot that some receiver's `bot` trigger names receives `bot_handoff`, whose `to` parameter enumerates those receivers by name and whose description says which of them report back. A run of a board member receives `board_tasks`, which lists the handoffs on its boards, newest first and at most fifty, and `board_task_update`, which settles the handoff the run carries out with `done` or `failed` and a result. Each result is one text block holding `JSON.stringify` of the handoff fields `id`, `from`, `to`, `status`, `task`, `result`, `reason`, `replyTo`, and `createdAt`.
 
 #### Token effect
 
-Up to three definitions on every request of a run conversation whose bot has edges or a board; none for any other run. `board_tasks` returns at most fifty handoffs.
+Three outcome-tool definitions on every request of every run conversation, plus up to three more when its bot has edges or a board. `board_tasks` returns at most fifty handoffs.
 
 #### KV Cache effect
 

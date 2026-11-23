@@ -1,7 +1,8 @@
 /**
- * Tools a run conversation receives when its bot has outgoing handoff edges or belongs to a board. None of them
- * creates, widens, or removes a bot, a trigger, an edge, or a board: a handoff is a request the receiving bot
- * carries out with its own model, permission, connectors, and grants.
+ * Tools a run conversation receives: every run can file itself as quiet, report that its task failed, or pause its
+ * own bot; a bot with outgoing handoff edges or a board also hands work on. None of them creates, widens, or resumes
+ * a bot, a trigger, an edge, or a board: pausing only narrows what the bot does, and a handoff is a request the
+ * receiving bot carries out with its own model, permission, connectors, and grants.
  */
 import type { Context } from '@deepseek-ai/cordis'
 import { brandString } from '@aeven/brand'
@@ -11,6 +12,15 @@ import type { AutomationId, Handoff, HandoffId } from './types.ts'
 
 /** What the run tools may do, bound by the service to one run of one bot. */
 export interface RunToolsAccess {
+  /** Record that the run has nothing new to report; the service decides at settlement whether it is quiet. */
+  noUpdate(): void
+  /**
+   * Record that the run's task could not be done; the run settles `failed` with the reason.
+   * @param reason - what went wrong, in the run's words.
+   */
+  reportFailure(reason: string): void
+  /** Record that the bot pauses once the run settles without a failure. */
+  pause(): void
   /** Bots of the same owner whose `bot` trigger names this bot, with the mode each edge declares. */
   readonly targets: readonly { readonly id: AutomationId; readonly name: string; readonly mode: 'wait' | 'dispatch' }[]
   /** Whether the bot belongs to a board, which gives it the board tools. */
@@ -51,7 +61,43 @@ const json = { schema: { type: 'object' as const, additionalProperties: true }, 
  * @returns disposer for every registered tool.
  */
 export function registerRunTools(agentCtx: Context, access: RunToolsAccess): () => void {
-  const tools: ToolDefinition[] = []
+  const tools: ToolDefinition[] = [{
+    name: 'bot_no_update',
+    description: 'Call when this run found nothing worth reporting, for example no new email since the last check. The run is filed quietly. Do not call it when you produced a file, needed an approval, or found something your owner should read.',
+    parameters: { type: 'object', properties: {}, additionalProperties: false },
+    output: json,
+    execute: (_args, exec) => {
+      exec.signal.throwIfAborted()
+      access.noUpdate()
+      return Promise.resolve({ recorded: 'This run is filed as having nothing new. End your turn with a one-line answer saying so.' })
+    },
+    presentCall: () => ({ card: 'generic', title: 'Nothing new', kind: 'other' }),
+  }, {
+    name: 'bot_report_failure',
+    description: 'Call when you could not do the task, with the reason. The run is recorded as failed even though your turn completes, and a later no-update call does not change that.',
+    parameters: { type: 'object', properties: {
+      reason: { type: 'string', description: 'What could not be done and why, in one or two sentences.' },
+    }, required: ['reason'], additionalProperties: false },
+    output: json,
+    execute: (args, exec) => {
+      exec.signal.throwIfAborted()
+      const { reason } = z.object({ reason: z.string().trim().min(1).max(2_000) }).strict().parse(args)
+      access.reportFailure(reason)
+      return Promise.resolve({ recorded: 'This run is recorded as failed with your reason. End your turn with what you tried.' })
+    },
+    presentCall: args => ({ card: 'generic', title: 'Report failure', kind: 'other', rawInput: args }),
+  }, {
+    name: 'bot_pause',
+    description: 'Pause your own bot when its task says to stop, for example once the condition it watches for is met. Nothing wakes it again until your owner resumes it. The pause takes effect when this run ends, unless the run is recorded as failed.',
+    parameters: { type: 'object', properties: {}, additionalProperties: false },
+    output: json,
+    execute: (_args, exec) => {
+      exec.signal.throwIfAborted()
+      access.pause()
+      return Promise.resolve({ recorded: 'Your bot pauses when this run ends. Only your owner can resume it.' })
+    },
+    presentCall: () => ({ card: 'generic', title: 'Pause this bot', kind: 'other' }),
+  }]
   if (access.targets.length > 0) {
     tools.push({
       name: 'bot_handoff',

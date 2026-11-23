@@ -41,6 +41,8 @@ export interface Task {
   prompt: string
   permission: 'read-only' | 'workspace-write'
   status: 'active' | 'paused'
+  /** The run that paused its own bot, while the bot stays paused. */
+  pausedBy?: { runId: string; scheduledFor: string } | undefined
   triggers: TaskTrigger[]
   /** `all`, or the connector ids its runs may call. */
   connectors: 'all' | string[]
@@ -71,6 +73,8 @@ export interface Run {
   resolution: { kind: 'retried'; at: string; retryRunId: string | null } | null
   /** Tokens the run spent, once it settled. */
   usage?: { totalTokens: number } | null | undefined
+  /** The run had nothing new to report; the bot's last result skips it. */
+  quiet?: boolean | undefined
 }
 /** Bots of the account that hand each other tasks and share a budget. */
 export interface Board {

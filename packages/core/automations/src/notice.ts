@@ -41,6 +41,6 @@ export function runNotice(run: AutomationRun): string {
     `Bot: ${run.definition.name}\nRun: ${run.id}\nTrigger: ${triggerLine(run, trigger)}\nScheduled for: ${run.scheduledFor}`,
     run.definition.prompt,
     ...sections,
-    'Report completed work with evidence. Do not claim an external action succeeded without confirmation.',
+    'Report completed work with evidence. Do not claim an external action succeeded without confirmation. If nothing is new, call bot_no_update; if the task cannot be done, call bot_report_failure with the reason; if the task says to stop, call bot_pause.',
   ].join('\n\n')
 }
