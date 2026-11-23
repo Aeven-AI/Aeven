@@ -198,6 +198,8 @@ function mount(
     workspacePhase?: WorkspaceSnapshot['phase']
     /** No session selected — cold start, or the list has yet to restore one. */
     noSelection?: boolean
+    /** The selected session sits in the archive set. */
+    archived?: boolean
     /** Override the selected Session identity. */
     sessionId?: SessionId
     /** Left navigation column fold state the frame hands the shell. */
@@ -252,6 +254,9 @@ function mount(
   const inputActions = wiring.actions
   const stop = vi.fn()
   const open = vi.fn()
+  const archiveSession = vi.fn()
+  const unarchiveSession = vi.fn()
+  const archivedIds: readonly SessionId[] = options.archived === true ? [SID] : []
   const slotCalls: string[] = []
   const lineageOwners: ConversationHeaderLineageOwnerProps[] = []
   const viewTabs = options.viewTabs ?? [
@@ -283,6 +288,7 @@ function mount(
           useConversationViews={useConversationViews}
           useSelectedView={useSelectedView}
           useMoveTargets={bindSnapshotSelector(createSnapshotStore<readonly SessionMoveTarget[]>([]))}
+          useArchivedSessionIds={select => select(archivedIds)}
           useChat={useChat}
           useTrajectory={useTrajectory}
           useSessions={props.useSessions}
@@ -300,6 +306,8 @@ function mount(
           devicePlacement={() => Promise.resolve({})}
           continueOn={() => Promise.resolve()}
           moveSession={undefined}
+          archiveSession={archiveSession}
+          unarchiveSession={unarchiveSession}
           selectView={(view) => { store.actions.setView(view) }}
           t={t}
         />
@@ -398,7 +406,7 @@ function mount(
     startPage: path => options.startPage?.address === path
       ? { key: options.startPage.key, composer: options.startPage.composer, composerPlaceholder: options.startPage.composerPlaceholder }
       : undefined,
-    useArchivedSessionIds: select => select([]),
+    useArchivedSessionIds: select => select(archivedIds),
     useInput,
     inputActions,
     renderSlot,
@@ -412,6 +420,7 @@ function mount(
   flushAnimationFrames(2)
   return {
     view, store, wiring, sink, retargetWorkspace, session, conversation, slotCalls, lineageOwners, seatOwners, open,
+    archiveSession, unarchiveSession,
     pickerOwner: () => pickerOwner,
     rerender: (patch?: Partial<Pick<ConversationRootProps, 'sessionId'>>) => {
       Object.assign(props, patch)
@@ -947,6 +956,29 @@ describe('ConversationRoot resident composer', () => {
     const rows = b.view.getAllByRole('menuitem').map(row => row.textContent)
     expect(rows).toContain('查看New view')
     expect(rows).not.toContain('查看Chat')
+  })
+
+  it('offers archive right after export in the header options, and archives this session', () => {
+    const b = mount(sessionSnapshotOf())
+    fireEvent.click(b.view.getByLabelText('选项'))
+    const rows = b.view.getAllByRole('menuitem').map(row => row.textContent)
+    expect(rows.indexOf('归档会话')).toBe(rows.indexOf('导出会话') + 1)
+    expect(rows).not.toContain('取消归档')
+
+    fireEvent.click(b.view.getByRole('menuitem', { name: '归档会话' }))
+    expect(b.archiveSession).toHaveBeenCalledOnce()
+    expect(b.unarchiveSession).not.toHaveBeenCalled()
+  })
+
+  it('offers unarchive in place of archive for an archived session', () => {
+    const b = mount(sessionSnapshotOf(), undefined, undefined, { archived: true })
+    fireEvent.click(b.view.getByLabelText('选项'))
+    const rows = b.view.getAllByRole('menuitem').map(row => row.textContent)
+    expect(rows.indexOf('取消归档')).toBe(rows.indexOf('导出会话') + 1)
+    expect(rows).not.toContain('归档会话')
+
+    fireEvent.click(b.view.getByRole('menuitem', { name: '取消归档' }))
+    expect(b.unarchiveSession).toHaveBeenCalledOnce()
   })
 
   it('keeps the Hero composer usable while the workspace list has not settled', () => {

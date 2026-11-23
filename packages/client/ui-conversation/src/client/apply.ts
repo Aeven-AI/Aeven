@@ -339,6 +339,7 @@ export function apply(ctx: Context): void {
         conversationViews,
         selectedView: uiConversation.binding(sessionId).selectedView,
         moveTargets: workspaceNavigation.moveTargets?.(sessionId) ?? ABSENT_MOVE_TARGETS,
+        archivedSessionIds: workspaceNavigation.archivedSessionIds ?? ABSENT_ARCHIVED,
       },
       open: (id) => { sessions.open(id) },
       // The Session's lifecycle actions the header offers, as its row menu runs
@@ -366,6 +367,21 @@ export function apply(ctx: Context): void {
         : (workspaceId) => {
           workspaceNavigation.moveSession?.(sessionId, workspaceId).catch(() => {
             // Move failure keeps the current selection, as a failed fork does.
+          })
+        },
+      // Archive and unarchive commit directly and log a rejection, as the Session's row menu does.
+      archiveSession: workspaceNavigation.archiveSession === undefined
+        ? undefined
+        : () => {
+          workspaceNavigation.archiveSession?.(sessionId).catch((reason: unknown) => {
+            console.warn('session archive rejected:', reason)
+          })
+        },
+      unarchiveSession: workspaceNavigation.unarchiveSession === undefined
+        ? undefined
+        : () => {
+          workspaceNavigation.unarchiveSession?.(sessionId).catch((reason: unknown) => {
+            console.warn('session unarchive rejected:', reason)
           })
         },
       selectView: (view) => {

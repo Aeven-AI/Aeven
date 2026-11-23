@@ -15,7 +15,7 @@
  */
 import { useState } from 'react'
 import {
-  Button, IconBranchOutline16, IconDownloadOutline16, IconInspectOutline12, IconLucideEllipsisVertical,
+  Button, IconArchiveOutline20, IconBranchOutline16, IconDownloadOutline16, IconInspectOutline12, IconLucideEllipsisVertical,
   IconLucideFolder, IconLucideLaptopMinimal, IconLucideMessageCircle, Menu, Modal, Tooltip, type MenuEntry,
 } from '@aeven/client-ui-primitives'
 import type { WorkspaceId } from '@aeven/workspace/types'
@@ -52,6 +52,10 @@ export interface NavigationOptionsProps {
   onFork: () => void
   /** Download this Session's complete history as a ZIP archive. */
   onExport: () => Promise<void>
+  /** Archive this Session; absent hides the row, as for an archived Session. */
+  onArchive: (() => void) | undefined
+  /** Restore this archived Session; present only while it is archived, in place of archive. */
+  onUnarchive: (() => void) | undefined
   /** Workspaces this Session can move into; empty hides the move row. */
   moveTargets: readonly SessionMoveTarget[]
   /** Whether a move cannot start now, such as while a turn runs. */
@@ -72,7 +76,8 @@ export interface NavigationOptionsProps {
  * @returns the options anchor with its conditional foldout, or null when no View lies beyond the current one.
  */
 export function NavigationOptions({
-  views, activeId, onSelect, onFork, onExport, moveTargets, moveDisabled, onMove, devicePlacement, onContinueOn, t,
+  views, activeId, onSelect, onFork, onExport, onArchive, onUnarchive, moveTargets, moveDisabled, onMove,
+  devicePlacement, onContinueOn, t,
 }: NavigationOptionsProps) {
   const [open, setOpen] = useState(false)
   // Read each time the options open, so a turn that ran on another device since shows its move.
@@ -91,11 +96,19 @@ export function NavigationOptions({
     void onExport().catch(fail)
   }
   // The Session's own actions, in the order its row menu lists them (fork),
-  // then the export, the desktop choice, the move destinations and the other device moves, followed by the Views
-  // the reader is not in.
+  // then the export, archive or unarchive as the row menu offers it, the
+  // desktop choice, the move destinations and the other device moves, followed
+  // by the Views the reader is not in.
   const items: MenuEntry[] = [
     { id: 'fork', label: t('nav.fork'), icon: <IconBranchOutline16 /> },
     { id: 'export', label: t('nav.export'), icon: <IconDownloadOutline16 /> },
+    // 20-native glyph in the menu's 16px icon slot, as the row menu draws it.
+    ...onArchive === undefined
+      ? []
+      : [{ id: 'archive', label: t('nav.archive'), icon: <IconArchiveOutline20 size={16} /> }],
+    ...onUnarchive === undefined
+      ? []
+      : [{ id: 'unarchive', label: t('nav.unarchive'), icon: <IconArchiveOutline20 size={16} /> }],
     ...placement.desktops === undefined
       ? []
       : [{
@@ -138,6 +151,8 @@ export function NavigationOptions({
           setOpen(false)
           if (id === 'fork') onFork()
           else if (id === 'export') runExport()
+          else if (id === 'archive') onArchive?.()
+          else if (id === 'unarchive') onUnarchive?.()
           else if (id.startsWith(MOVE_PREFIX)) onMove(id.slice(MOVE_PREFIX.length) as WorkspaceId)
           else if (id === 'choose-desktop') setChoosing(true)
           // A remaining id is a View: the roster supplies exactly those.

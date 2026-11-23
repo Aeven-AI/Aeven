@@ -338,6 +338,8 @@ export interface ConversationSessionHeaderInjected {
     readonly selectedView: ObservableSnapshot<ViewTab | undefined>
     /** Workspaces this Session can move into, in list order. */
     readonly moveTargets: ObservableSnapshot<readonly SessionMoveTarget[]>
+    /** The registry-global archive set, which decides whether the options offer archive or unarchive. */
+    readonly archivedSessionIds: ObservableSnapshot<readonly SessionId[]>
   }
   /** Select a Session through the Session Controller. */
   open: (sessionId: SessionId) => void
@@ -350,6 +352,13 @@ export interface ConversationSessionHeaderInjected {
    * replaces it; absent in an assembly without a Workspace surface.
    */
   moveSession: ((workspaceId: WorkspaceId) => void) | undefined
+  /**
+   * Archive this Session into the registry-global hidden set, as its row menu does; absent in an assembly without a
+   * Workspace surface.
+   */
+  archiveSession: (() => void) | undefined
+  /** Restore this archived Session, as its row menu does; absent in an assembly without a Workspace surface. */
+  unarchiveSession: (() => void) | undefined
   /**
    * The moves between the account's devices this Host offers for this Session, read when the options open; a
    * Session that is not synced, or a Host that is always on, offers none.
