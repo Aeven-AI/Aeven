@@ -51,6 +51,24 @@ export interface JailProfile {
   sandboxUser?: { readonly accountsRoot: string; readonly accountsPath: string } | undefined
 }
 
+/**
+ * Git configuration that lets Git work in any repository the jail mounts: `safe.directory=*`, appended after the Git
+ * entries `env` already carries, in the command scope Git reads from its environment. Inside the jail's user
+ * namespace every owner but the jail's own user shows as `nobody`, so a folder the Host created, such as a
+ * repository workspace synced to this Host, fails Git's ownership check for every command; the jail, not that check,
+ * keeps one account from another.
+ * @param env - the Git configuration entries the jail already sets (`GIT_CONFIG_COUNT` and its keys and values).
+ * @returns the entries to add, renumbering `GIT_CONFIG_COUNT`.
+ */
+export function trustedGitEnv(env: Readonly<Record<string, string>>): Record<string, string> {
+  const index = Number(env.GIT_CONFIG_COUNT ?? '0')
+  return {
+    GIT_CONFIG_COUNT: String(index + 1),
+    [`GIT_CONFIG_KEY_${String(index)}`]: 'safe.directory',
+    [`GIT_CONFIG_VALUE_${String(index)}`]: '*',
+  }
+}
+
 /** First descriptor number {@link jailArgs} assigns to a file the launch step opens; 3 carries the seccomp filter. */
 export const FIRST_BIND_DESCRIPTOR = 10
 
@@ -91,7 +109,7 @@ export function jailArgs(
     ...profile.seccomp ? ['--seccomp', '3'] : [],
   ]
   const egressEnv = profile.egress === undefined ? {} : relayEnv(profile.egress.port, profile.egress.gitHosts)
-  const env = { ...profile.env, ...egressEnv, HOME: policy.workspaceRoot }
+  const env = { ...profile.env, ...egressEnv, ...trustedGitEnv(egressEnv), HOME: policy.workspaceRoot }
   for (const [name, value] of Object.entries(env)) args.push('--setenv', name, value)
   for (const path of profile.readOnlyPaths) args.push('--ro-bind', path, path)
   for (const [link, target] of Object.entries(profile.symlinks)) args.push('--symlink', target, link)

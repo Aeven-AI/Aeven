@@ -51,7 +51,7 @@ Choose it for a multi-account Linux Host. Choose `avn-sandbox-local` for a perso
 | `launcher` | the npm launcher | Host path of the Landlock launcher |
 | `readOnlyPaths` | `/usr` and a minimal `/etc` set | Host paths mounted read-only at the same path; missing paths are skipped |
 | `symlinks` | `/bin`, `/sbin`, `/lib`, `/lib64` into `/usr` | Symlinks created in the jail root |
-| `env` | `PATH`, `LANG`, `TMPDIR`, one BLAS thread, headless matplotlib | The complete environment of confined commands; `HOME` is the account folder |
+| `env` | `PATH`, `LANG`, `TMPDIR`, one BLAS thread, headless matplotlib | The complete environment of confined commands; `HOME` is the account folder, and Git trusts every repository the jail mounts (`safe.directory=*`), because owners outside the jail show as `nobody` |
 | `tmpSizeMb` | `512` | Size bound of each of `/tmp` and `/dev/shm` |
 | `cgroup` | none | Delegated cgroup directory plus combined and per-account limits; an optional `ioMax` in either limits disk I/O, and an optional `memoryHigh` slows a group before `memoryMax` ends it |
 | `quotaCommand` | none | Argv that limits the account folder's disk use, run with the folder appended in a command's own launch step until `quotaRecord` lists the account; a failure refuses that command |
