@@ -338,7 +338,8 @@ body[data-ds-dark-theme] .markdown.markdown {
   max-width: 100%;
   padding: 6px 10px;
   border: 1px dashed var(--dsw-alias-border-l2);
-  border-radius: 8px;
+  /* The radius of the image frame it stands in for. */
+  border-radius: 30px;
   background: var(--dsw-alias-bg-layer-1);
   color: var(--dsw-alias-label-tertiary);
   font-size: 0.9em;
