@@ -3541,6 +3541,9 @@ importers:
       '@aeven/api-session-controller':
         specifier: workspace:^
         version: link:../../api/session-controller
+      '@aeven/attachment':
+        specifier: workspace:^
+        version: link:../../attachment/attachment
       '@aeven/client-connection':
         specifier: workspace:^
         version: link:../connection

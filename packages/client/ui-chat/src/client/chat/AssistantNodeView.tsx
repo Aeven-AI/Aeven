@@ -17,8 +17,8 @@ export const AssistantNodeView = memo(function AssistantNodeView({
     : undefined
   const generated = useTurnData('generated-images')
   const read = useTurnData('read-images')
-  // The closed Turn's tail shows its produced images whole; a reply showing one of them, by its path or by the copy
-  // `reply-images/stored` recorded of the path it wrote, leaves it there.
+  // The closed Turn's tail draws its produced images; a reply showing one of them through the copy
+  // `reply-images/stored` recorded of the path it wrote leaves it there, but only a copy the tail can draw.
   const produced = useTurnData('produced-images')
   const tailImages = turn?.status === 'closed' ? produced : undefined
   const imageVisible = useCallback((source: string): boolean => {
@@ -31,9 +31,10 @@ export const AssistantNodeView = memo(function AssistantNodeView({
       ? undefined
       : decoded.slice(cwd.replace(/\/$/, '').length + 1)
     if (tailImages !== undefined) {
-      if (tailImages.paths.has(decoded) || (relative !== undefined && tailImages.paths.has(relative))) return false
+      // The tail draws a produced image from the copy a tool result of the Turn shared; only then does the reply leave it.
       const stored = read?.byPath.get(decoded)
-      if (stored !== undefined && tailImages.attachmentIds.has(String(stored.attachmentId))) return false
+      const drawn = stored !== undefined && read?.byAttachment.has(String(stored.attachmentId)) === true
+      if (drawn && tailImages.attachmentIds.has(String(stored.attachmentId))) return false
     }
     if (generated === undefined) return true
     if (generated.sources.has(decoded)) return false
@@ -66,8 +67,8 @@ export const AssistantNodeView = memo(function AssistantNodeView({
   const owner = useMemo<TurnTailOwnerProps | undefined>(() => {
     if (turn?.status !== 'closed' || data.finalNode === undefined) return undefined
     if (tail?.closing?.finalNode.seq !== data.finalNode.seq) return undefined
-    return { turn, seq: data.finalNode.seq, cwd, openFile }
-  }, [cwd, data.finalNode, openFile, tail, turn])
+    return { turn, seq: data.finalNode.seq, cwd, openFile, renderImages: renderMessageImages }
+  }, [cwd, data.finalNode, openFile, renderMessageImages, tail, turn])
   const mentions = useMemo(
     () => owner === undefined ? undefined : fileMentions(owner),
     [fileMentions, owner],

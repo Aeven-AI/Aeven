@@ -8,7 +8,9 @@
     "src"
   ],
   "references": [
-    { "path": "../ui-sidebar-files" },
+    {
+      "path": "../ui-sidebar-files"
+    },
     {
       "path": "../../api/remotes/tsconfig.client.json"
     },
@@ -44,6 +46,9 @@
     },
     {
       "path": "../../core/session"
+    },
+    {
+      "path": "../../attachment/attachment"
     }
   ]
 }

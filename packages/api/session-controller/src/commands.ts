@@ -2,11 +2,12 @@
 
 import { randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
+import { stat } from 'node:fs/promises'
 import { brandString } from '@aeven/brand'
 import type { Agent, ModelSelection as AgentModelSelection } from '@aeven/agent'
 import { AttachmentError, admitPromptContent } from '@aeven/attachment'
 import { readFetchedAttachment } from './file-uploads.ts'
-import type { FileAttachmentRef, ImageAttachmentRef, StoredFileAttachment, StoredImageAttachment } from '@aeven/attachment'
+import type { AttachmentId, FileAttachmentRef, ImageAttachmentRef, StoredFileAttachment, StoredImageAttachment } from '@aeven/attachment'
 import {
   ReasoningEffortId, createUserMessage, freezeMessage,
 } from '@aeven/llm'
@@ -758,8 +759,35 @@ export class SessionCommandController {
    */
   async referencedFile(sessionId: SessionId, attachmentId: string): Promise<StoredFileAttachment | undefined> {
     const source = await this.readSessionState(sessionId)
-    const ref = referencedAttachment(source.events, 'file', attachmentId)
+    const ref = referencedAttachment(source.events, 'file', attachmentId) ?? await this.producedCopyRef(source.events, attachmentId)
     return ref === undefined ? undefined : readFetchedAttachment(this.ctx, attachmentId, () => this.ctx.attachments.readFile(ref))
+  }
+
+  /**
+   * The reference of a stored copy a tool result names only in its produced files, which records the copy's id and the
+   * file's path but no file block: the name and media type come from the path, the length from the stored object.
+   * @param events - the Session log.
+   * @param attachmentId - the copy's id.
+   * @returns the reference, or undefined when no produced file names the copy or this Host does not hold it.
+   */
+  private async producedCopyRef(events: readonly SessionEvent[], attachmentId: string): Promise<FileAttachmentRef | undefined> {
+    let path: string | undefined
+    for (const event of events) {
+      if (event.type !== 'tool/result') continue
+      const produced = (event.data.meta as { producedFiles?: unknown } | undefined)?.producedFiles
+      if (!Array.isArray(produced)) continue
+      for (const file of produced as unknown[]) {
+        const entry = file as { path?: unknown; attachmentId?: unknown } | null
+        if (entry?.attachmentId === attachmentId && typeof entry.path === 'string') path = entry.path
+      }
+    }
+    if (path === undefined) return undefined
+    const name = path.slice(Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')) + 1)
+    const id = brandString<AttachmentId>(attachmentId)
+    const host = this.ctx.attachments.fileHostPath({ attachmentId: id } as FileAttachmentRef)
+    const bytes = host === undefined ? undefined : await stat(host).then(info => info.size, () => undefined)
+    if (bytes === undefined) return undefined
+    return { attachmentId: id, mediaType: producedMediaType(name), bytes, name, extraction: { textId: id } } as unknown as FileAttachmentRef
   }
 
   /**
@@ -1326,4 +1354,20 @@ function loggedRequest(events: readonly SessionEvent[], rpcId: string | undefine
 
 function routeServed(ctx: Context, provider: string): boolean {
   return ctx.llm.listProviders().some(entry => entry.id === provider)
+}
+
+/** Media types of the files commands commonly produce, by extension; others are served as bytes. */
+const PRODUCED_MEDIA_TYPES: Readonly<Record<string, string>> = {
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', svg: 'image/svg+xml',
+  pdf: 'application/pdf', mp4: 'video/mp4', webm: 'video/webm', mp3: 'audio/mpeg', wav: 'audio/wav', txt: 'text/plain',
+  csv: 'text/csv', json: 'application/json', html: 'text/html',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+}
+
+/** The media type a produced file's name declares. */
+function producedMediaType(name: string): string {
+  const dot = name.lastIndexOf('.')
+  return (dot < 0 ? undefined : PRODUCED_MEDIA_TYPES[name.slice(dot + 1).toLowerCase()]) ?? 'application/octet-stream'
 }

@@ -209,7 +209,11 @@ export class SessionController extends TypertRemoteService {
       })
     })
     ctx.inject(['connection', 'attachments'], (readCtx) => {
-      registerFileReadRoute(readCtx, (sessionId, attachmentId) => this.commands.referencedFile(sessionId, attachmentId))
+      registerFileReadRoute(
+        readCtx,
+        (sessionId, attachmentId) => this.commands.referencedFile(sessionId, attachmentId),
+        (sessionId, attachmentId) => this.commands.referencedImage(sessionId, attachmentId),
+      )
       registerImageReadRoute(
         readCtx,
         (sessionId, attachmentId) => this.commands.referencedImage(sessionId, attachmentId),

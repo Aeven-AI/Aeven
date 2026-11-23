@@ -7,6 +7,7 @@ import { diffArrays } from 'diff'
 import { isAppendSurfaceEvent } from '@aeven/session/surface'
 import type { ProducedImages, TurnTailOwnerProps } from '@aeven/client-ui-chat/client'
 import type { ConversationNodeDefinition } from '@aeven/client-ui-conversation/client'
+import type { ImageAttachmentRef } from '@aeven/attachment'
 import { fileKindOf, type MarkdownFileMentions } from '@aeven/client-ui-primitives'
 
 /** Lines one successful mutation added and deleted. */
@@ -25,6 +26,8 @@ interface ProducedPath {
   readonly counts?: LineCounts | undefined
   /** The stored copy of the file the deployment shared, absent when it shared none. */
   readonly attachmentId?: string | undefined
+  /** That copy's full reference when the result shared it as an image, which the image renderer draws. */
+  readonly image?: ImageAttachmentRef | undefined
   /** Whether a command declared the file as an output, rather than a file tool writing it. */
   readonly declared?: true | undefined
 }
@@ -39,6 +42,8 @@ export interface ProducedFile {
   readonly counts?: LineCounts | undefined
   /** The latest stored copy of the file, for a reader who cannot open the Host's folders. */
   readonly attachmentId?: string | undefined
+  /** The latest copy's full image reference, when the result shared the file as an image. */
+  readonly image?: ImageAttachmentRef | undefined
 }
 
 /** A recognized mutation call, held until its result settles. */
@@ -54,6 +59,8 @@ interface MutationCall {
 /** Immutable produced-file facts published against one Turn. */
 export interface DeliverablesTurnData {
   readonly produced: readonly ProducedPath[]
+  /** Every image a successful tool result of the Turn shared, by attachment id, with its full reference. */
+  readonly images?: ReadonlyMap<string, ImageAttachmentRef> | undefined
 }
 
 declare module '@aeven/client-ui-conversation/client' {
@@ -263,16 +270,24 @@ export function producedFilesForClosing(
     const seen = files.get(produced.path)
     if (seen === undefined) {
       files.set(produced.path, {
-        path: produced.path, created: produced.created, counts: produced.counts, attachmentId: produced.attachmentId,
+        path: produced.path, created: produced.created, counts: produced.counts, attachmentId: produced.attachmentId, image: produced.image,
       })
       continue
     }
     const counts = seen.counts === undefined || produced.counts === undefined
       ? undefined
       : { added: seen.counts.added + produced.counts.added, deleted: seen.counts.deleted + produced.counts.deleted }
-    files.set(produced.path, { ...seen, counts, attachmentId: produced.attachmentId ?? seen.attachmentId })
+    files.set(produced.path, {
+      ...seen,
+      counts,
+      attachmentId: produced.attachmentId ?? seen.attachmentId,
+      image: produced.attachmentId === undefined ? seen.image : produced.image,
+    })
   }
-  return [...files.values()]
+  // A copy shared by another result of the Turn, such as the image the agent viewed after writing it, is drawn too.
+  return [...files.values()].map(file => file.image !== undefined || file.attachmentId === undefined
+    ? file
+    : { ...file, image: data.images?.get(file.attachmentId) })
 }
 
 /**
@@ -304,6 +319,21 @@ function storedCopies(content: readonly unknown[]): Map<string, string> {
   return copies
 }
 
+/**
+ * The images a tool result shared, by attachment id, with the full reference the image renderer draws them from.
+ * @param content - the result's content blocks.
+ * @returns image references by attachment id.
+ */
+function sharedImages(content: readonly unknown[]): Map<string, ImageAttachmentRef> {
+  const images = new Map<string, ImageAttachmentRef>()
+  for (const block of content) {
+    if (!isRecord(block) || block.type !== 'image' || !isRecord(block.attachment)) continue
+    const ref = block.attachment as unknown as ImageAttachmentRef
+    if (typeof ref.attachmentId === 'string') images.set(ref.attachmentId, ref)
+  }
+  return images
+}
+
 /** Turn-local successful mutation accumulator; it publishes no view Node. */
 export const deliverablesDefinition: ConversationNodeDefinition<DeliverablesState> = {
   kind: 'deliverables',
@@ -317,7 +347,7 @@ export const deliverablesDefinition: ConversationNodeDefinition<DeliverablesStat
   },
   start: (_context, match) => {
     if (match.event.type !== 'turn/start') throw new Error('deliverables start requires turn/start')
-    return { turn: match.event.data.turn, calls: new Map(), produced: [] }
+    return { turn: match.event.data.turn, calls: new Map(), produced: [], images: new Map() }
   },
   update: (context, match) => {
     if (match.event.type === 'tool/call') {
@@ -332,37 +362,43 @@ export const deliverablesDefinition: ConversationNodeDefinition<DeliverablesStat
     const result = match.event.data.message.content[0]
     if (result.isError === true) return context.state
     const { seq, data: { meta } } = match.event
+    const shared = sharedImages(result.content)
+    const state = shared.size === 0 ? context.state : { ...context.state, images: new Map([...context.state.images ?? [], ...shared]) }
     if (isRecord(meta) && Array.isArray(meta.producedFiles)) {
       const stored = storedCopies(result.content)
+      const images = shared
       const produced = meta.producedFiles.flatMap((file: unknown) => {
         if (!isRecord(file) || pathValue(file.path) === null || typeof file.created !== 'boolean') return []
         // A result recorded before entries named their copy still attached it, under the file's own name.
         const attachmentId = typeof file.attachmentId === 'string' ? file.attachmentId : stored.get(basename(file.path as string))
+        const image = attachmentId === undefined ? undefined : images.get(attachmentId)
         return [{
           seq, path: file.path as string, created: file.created, declared: true as const,
           ...attachmentId === undefined ? {} : { attachmentId },
+          ...image === undefined ? {} : { image },
         }]
       })
-      return { ...context.state, produced: [...context.state.produced, ...produced] }
+      return { ...state, produced: [...state.produced, ...produced] }
     }
     const callId = String(match.event.data.message.source.callId)
-    const calls = context.state.calls.get(callId)
-    if (calls === undefined || calls.length === 0) return context.state
+    const calls = state.calls.get(callId)
+    if (calls === undefined || calls.length === 0) return state
     const text = result.content.map(block => block.type === 'text' ? block.text : '').join('\n')
     const produced = calls.map(call => ({ seq, path: call.path, ...settledMutation(call, text, meta) }))
-    return { ...context.state, produced: [...context.state.produced, ...produced] }
+    return { ...state, produced: [...state.produced, ...produced] }
   },
   buildLocationData: (context, scope, previous) => {
     if (scope !== 'turn' || context.state === undefined) return null
     if (previous?.kind === 'turn'
       && previous.turn === context.state.turn
       && previous.key === 'deliverables'
-      && previous.value.produced === context.state.produced) return previous
+      && previous.value.produced === context.state.produced
+      && previous.value.images === context.state.images) return previous
     return {
       kind: 'turn',
       turn: context.state.turn,
       key: 'deliverables',
-      value: { produced: context.state.produced },
+      value: { produced: context.state.produced, images: context.state.images },
     }
   },
 }

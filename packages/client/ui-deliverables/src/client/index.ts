@@ -10,14 +10,15 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@aeven/api-remotes/client'
 import { createSnapshotStore } from '@aeven/client-store'
-import type { ChatFileMentions } from '@aeven/client-ui-chat/client'
+import type { ChatFileMentions, TurnTailOwnerProps } from '@aeven/client-ui-chat/client'
+import type { SessionId } from '@aeven/session/types'
 import type {} from '@aeven/client-locale/client'
 import type {} from '@aeven/client-ui-conversation/client'
 import type {} from '@aeven/client-ui-renderer/client'
 import type {} from '@aeven/client-ui-sidebar-files/client'
 import { ProducedFiles } from './ProducedFiles.tsx'
 import { desktopFileMenus, fileMenuLabels, revealFile, showFileMenu } from './file-menu.ts'
-import { downloadUrl, producedFileLinks } from './file-links.ts'
+import { openProducedFile, producedFileLinks, type FileOpening } from './file-links.ts'
 import { en, es, NS, zh, type DeliverablesKey } from './locales.ts'
 import {
   deliverablesDefinition, producedFileMentions, producedImagesDefinition, producedFilesForClosing, selectProducedFiles,
@@ -115,26 +116,29 @@ export function apply(ctx: ClientContext): void {
   )
   // The prose side of the same vocabulary: the chat view reaches this face
   // via ctx.get, so its absence — this plugin composed out — is the off state.
+  // How a produced file opens from the prose: the Files sidebar first, with the file's stored copy, then the path on
+  // the reader's own desktop, falling back to the copy where the path is missing, then a download of the copy.
+  const openingFor = (sessionId: SessionId, openFile: TurnTailOwnerProps['openFile']): FileOpening => ({
+    previewFile: (path: string, copy?: string) =>
+      copy === undefined ? ctx.sidebarFiles.open(sessionId, path) : ctx.sidebarFiles.open(sessionId, path, copy),
+    fileUrl: (path: string, download?: boolean) => ctx.sidebarFiles.fileUrl(sessionId, path, download),
+    attachmentUrl: (attachmentId: string, download?: boolean) => attachmentUrl(sessionId, attachmentId, download),
+    canOpenPath: () => ctx.remote.$host.isLoopback && workspacePathOpen.getSnapshot() === true,
+    openFile,
+  })
+  // The prose side of the same vocabulary: the chat view reaches this face
+  // via ctx.get, so its absence — this plugin composed out — is the off state.
   const mentions: ChatFileMentions = {
     forClosing(owner, sessionId) {
       // Same claim test the turn-tail chain entry runs: no produced files,
       // no vocabulary — the two surfaces agree by construction.
       const files = selectProducedFiles(owner)
       if (files === null) return undefined
+      ensureWorkspacePathOpen()
+      const opening = openingFor(sessionId, owner.openFile)
       return producedFileMentions(
         files,
-        // The conversation may run on another device of the account: a file with a stored copy downloads from it,
-        // as the row's does, where the page is not the Host's own desktop or the Host has nothing at the path.
-        (file) => {
-          const attachmentId = file.attachmentId
-          if (attachmentId === undefined) {
-            owner.openFile(file.path)
-            return
-          }
-          const download = () => { downloadUrl(attachmentUrl(sessionId, attachmentId, true)) }
-          if (ctx.remote.$host.isLoopback) owner.openFile(file.path, download)
-          else download()
-        },
+        (file) => { openProducedFile(file, opening) },
         path => t('produced.open', { name: path }),
         showMenu === undefined ? undefined : (path) => { showMenu(path, owner.cwd) },
       )
@@ -143,14 +147,7 @@ export function apply(ctx: ClientContext): void {
       ensureWorkspacePathOpen()
       // Read when a link resolves, so files a later result of the same Turn settles are seen.
       const produced = () => producedFilesForClosing(owner.turn?.data.get('deliverables'))
-      return producedFileLinks(owner.cwd, produced, {
-        previewFile: (path: string, copy?: string) =>
-          copy === undefined ? ctx.sidebarFiles.open(sessionId, path) : ctx.sidebarFiles.open(sessionId, path, copy),
-        fileUrl: (path: string, download?: boolean) => ctx.sidebarFiles.fileUrl(sessionId, path, download),
-        attachmentUrl: (attachmentId: string, download?: boolean) => attachmentUrl(sessionId, attachmentId, download),
-        canOpenPath: () => ctx.remote.$host.isLoopback && workspacePathOpen.getSnapshot() === true,
-        openFile: owner.openFile,
-      })
+      return producedFileLinks(owner.cwd, produced, openingFor(sessionId, owner.openFile))
     },
   }
   ctx.provide('chatFileMentions', mentions)
