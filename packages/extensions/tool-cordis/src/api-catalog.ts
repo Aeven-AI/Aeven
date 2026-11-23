@@ -798,10 +798,16 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Built-in automation service; schedules never authorize additional tool access.',
     methods: [
       {
-        signature: 'async list(): Promise<{ definitions: (AutomationDefinition & { placement: AutomationPlacement nextRunAt: string | null lastRun: AutomationRun | null webhook: boolean })[] runs: AutomationRun[] boards: AutomationBoard[] handoffs: Handoff[] capabilities: { host: HostProfile[\'kind\']; triggers: readonly AutomationSchedule[\'kind\'][]; webhook: boolean; events: readonly (\'mail\' | \'github\')[]; connectors: readonly string[] } hosts: { cloud: boolean; desktops: AutomationDesktop[] } }>',
+        signature: 'async list(): Promise<{ definitions: (AutomationDefinition & { placement: AutomationPlacement nextRunAt: string | null lastRun: AutomationRun | null webhook: boolean })[] runs: AutomationRun[] boards: AutomationBoard[] handoffs: Handoff[] capabilities: { host: HostProfile[\'kind\'] triggers: readonly AutomationSchedule[\'kind\'][] webhook: boolean events: readonly (\'mail\' | \'github\')[] /** Whether a calendar source is registered, so calendar triggers can fire on this Host. */ calendar: boolean connectors: readonly string[] } hosts: { cloud: boolean; desktops: AutomationDesktop[] } }>',
         description: 'Read the acting account\'s definitions, newest created first, and bounded execution history, newest scheduled first. History leaves out runs whose conversation is archived, so it lists what the sidebar\'s Automations workspace shows; unarchiving the conversation lists the run again. Each definition\'s `lastRun` is its latest retained run either way.',
         parameters: [],
         returns: 'owned definitions, latest run records, the account\'s boards with the handoffs between their members, and this Host\'s kind and the triggers it evaluates. A definition\'s `placement` says where it runs among the account\'s registered Hosts, its `nextRunAt` is the earliest next occurrence of its schedule triggers, and its `webhook` says an inbound credential exists; the secret itself never enters this projection.',
+      },
+      {
+        signature: 'registerCalendarSource(source: CalendarSource): () => void',
+        description: 'Let a calendar source\'s events fire calendar triggers.',
+        parameters: [{ name: 'source', description: 'reads one owner\'s calendar events.' }],
+        returns: 'disposer that removes the source; firings it reported stay until the next read.',
       },
       {
         signature: 'connectorBinding(sessionId: SessionId): ConnectorBinding | undefined',
@@ -6529,7 +6535,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AutomationDefinition',
-    declaration: 'export interface AutomationDefinition {\n    readonly id: AutomationId;\n    readonly owner?: string | undefined;\n    readonly revision: number;\n    readonly name: string;\n    readonly prompt: string;\n    readonly triggers: readonly BotTrigger[];\n    readonly connectors: ConnectorBinding;\n    readonly overlap: OverlapPolicy;\n    readonly status: \'active\' | \'paused\';\n    readonly agentPreset: string;\n    readonly model: ModelSelection;\n    readonly permission: \'read-only\' | \'workspace-write\';\n    readonly grants: readonly AutomationGrant[];\n    readonly requires?: readonly DeviceCapability[] | undefined;\n    readonly runOn: RunOn;\n    readonly desktop?: HostDevice | undefined;\n    readonly executionTarget: {\n        readonly kind: \'local\';\n        readonly runnerId: AutomationRunnerId;\n    };\n    readonly lastAdmittedAt: Readonly<Record<string, string>>;\n    readonly createdAt: string;\n    readonly updatedAt: string;\n}',
+    declaration: 'export interface AutomationDefinition {\n    readonly id: AutomationId;\n    readonly owner?: string | undefined;\n    readonly revision: number;\n    readonly name: string;\n    readonly prompt: string;\n    readonly triggers: readonly BotTrigger[];\n    readonly connectors: ConnectorBinding;\n    readonly overlap: OverlapPolicy;\n    readonly status: \'active\' | \'paused\';\n    readonly pausedBy?: {\n        readonly runId: AutomationRunId;\n        readonly scheduledFor: string;\n    } | undefined;\n    readonly agentPreset: string;\n    readonly model: ModelSelection;\n    readonly permission: \'read-only\' | \'workspace-write\';\n    readonly grants: readonly AutomationGrant[];\n    readonly requires?: readonly DeviceCapability[] | undefined;\n    readonly runOn: RunOn;\n    readonly desktop?: HostDevice | undefined;\n    readonly executionTarget: {\n        readonly kind: \'local\';\n        readonly runnerId: AutomationRunnerId;\n    };\n    readonly lastAdmittedAt: Readonly<Record<string, string>>;\n    readonly createdAt: string;\n    readonly updatedAt: string;\n}',
   },
   {
     name: 'AutomationDesktop',
@@ -6553,7 +6559,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AutomationRun',
-    declaration: 'export interface AutomationRun {\n    readonly id: AutomationRunId;\n    readonly definition: AutomationDefinition;\n    readonly trigger: AutomationTrigger;\n    readonly scheduledFor: string;\n    readonly status: \'queued\' | \'running\' | \'succeeded\' | \'failed\' | \'skipped\' | \'cancelled\';\n    readonly sessionId: SessionId | null;\n    readonly startedAt: string | null;\n    readonly finishedAt: string | null;\n    readonly summary: string | null;\n    readonly error: string | null;\n    readonly admittedBy: AutomationRunnerId;\n    readonly retryOfRunId: AutomationRunId | null;\n    readonly triggerIndex?: number | null | undefined;\n    readonly payload?: string | null | undefined;\n    readonly event?: {\n        readonly source: \'mail\' | \'github\';\n        readonly id: string;\n        readonly summary: string;\n    } | null | undefined;\n    readonly handoff?: Pick<Handoff, \'id\' | \'from\' | \'fromName\' | \'fromRun\' | \'edge\' | \'mode\' | \'replyTo\' | \'board\' | \'task\'> | null | undefined;\n    readonly usage?: RunUsage | null | undefined;\n    readonly resolution: {\n        readonly kind: \'retried\';\n        readonly at: string;\n        readonly retryRunId: AutomationRunId | null;\n    } | null;\n}',
+    declaration: 'export interface AutomationRun {\n    readonly id: AutomationRunId;\n    readonly definition: AutomationDefinition;\n    readonly trigger: AutomationTrigger;\n    readonly scheduledFor: string;\n    readonly status: \'queued\' | \'running\' | \'succeeded\' | \'failed\' | \'skipped\' | \'cancelled\';\n    readonly sessionId: SessionId | null;\n    readonly startedAt: string | null;\n    readonly finishedAt: string | null;\n    readonly summary: string | null;\n    readonly error: string | null;\n    readonly admittedBy: AutomationRunnerId;\n    readonly retryOfRunId: AutomationRunId | null;\n    readonly triggerIndex?: number | null | undefined;\n    readonly payload?: string | null | undefined;\n    readonly event?: {\n        readonly source: \'mail\' | \'github\' | \'calendar\';\n        readonly id: string;\n        readonly summary: string;\n    } | null | undefined;\n    readonly handoff?: Pick<Handoff, \'id\' | \'from\' | \'fromName\' | \'fromRun\' | \'chain\' | \'edge\' | \'mode\' | \'replyTo\' | \'board\' | \'task\'> | null | undefined;\n    readonly join?: {\n        readonly chain: AutomationRunId;\n        readonly inputs: readonly Pick<Handoff, \'id\' | \'from\' | \'fromName\' | \'status\' | \'task\' | \'reason\'>[];\n    } | null | undefined;\n    readonly usage?: RunUsage | null | undefined;\n    readonly quiet?: boolean | undefined;\n    readonly resolution: {\n        readonly kind: \'retried\';\n        readonly at: string;\n        readonly retryRunId: AutomationRunId | null;\n    } | null;\n}',
   },
   {
     name: 'AutomationRunId',
@@ -6565,11 +6571,11 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AutomationSchedule',
-    declaration: 'export type AutomationSchedule = ({\n    readonly kind: \'once\';\n    readonly at: string;\n    readonly timeZone: string;\n} | {\n    readonly kind: \'interval\';\n    readonly everyMinutes: number;\n    readonly anchor: string;\n    readonly timeZone: string;\n} | {\n    readonly kind: \'hours\';\n    readonly everyHours: number;\n    readonly atMinute: number;\n    readonly timeZone: string;\n} | {\n    readonly kind: \'daily\';\n    readonly time: LocalTime;\n    readonly timeZone: string;\n} | {\n    readonly kind: \'weekly\';\n    readonly time: LocalTime;\n    readonly weekdays: readonly Weekday[];\n    readonly timeZone: string;\n} | {\n    readonly kind: \'monthly\';\n    readonly time: LocalTime;\n    readonly days: readonly number[];\n    readonly timeZone: string;\n} | {\n    readonly kind: \'nth-weekday\';\n    readonly time: LocalTime;\n    readonly week: 1 | 2 | 3 | 4;\n    readonly weekday: Weekday;\n    readonly timeZone: string;\n} | {\n    readonly kind: \'yearly\';\n    readonly time: LocalTime;\n    readonly month: number;\n    readonly day: number;\n    readonly timeZone: string;\n} | {\n    readonly kind: \'cron\';\n    readonly expression: string;\n    readonly timeZone: string;\n}) & {\n    readonly until?: string | undefined;\n};',
+    declaration: 'export type AutomationSchedule = ({\n    readonly kind: \'once\';\n    readonly at: string;\n    readonly timeZone: string;\n} | {\n    readonly kind: \'interval\';\n    readonly everyMinutes: number;\n    readonly anchor: string;\n    readonly timeZone: string;\n} | {\n    readonly kind: \'hours\';\n    readonly everyHours: number;\n    readonly atMinute: number;\n    readonly timeZone: string;\n} | {\n    readonly kind: \'daily\';\n    readonly time: LocalTime;\n    readonly timeZone: string;\n} | {\n    readonly kind: \'weekly\';\n    readonly time: LocalTime;\n    readonly weekdays: readonly Weekday[];\n    readonly timeZone: string;\n} | {\n    readonly kind: \'monthly\';\n    readonly time: LocalTime;\n    readonly days: readonly number[];\n    readonly timeZone: string;\n} | {\n    readonly kind: \'nth-weekday\';\n    readonly time: LocalTime;\n    readonly week: 1 | 2 | 3 | 4;\n    readonly weekday: Weekday;\n    readonly timeZone: string;\n} | {\n    readonly kind: \'yearly\';\n    readonly time: LocalTime;\n    readonly month: number;\n    readonly day: number;\n    readonly timeZone: string;\n} | {\n    readonly kind: \'cron\';\n    readonly expression: string;\n    readonly timeZone: string;\n}) & {\n    readonly until?: string | undefined;\n    readonly jitterMinutes?: number | undefined;\n};',
   },
   {
     name: 'AutomationTrigger',
-    declaration: 'export type AutomationTrigger = \'schedule\' | \'manual\' | \'webhook\' | \'event\' | \'bot\';',
+    declaration: 'export type AutomationTrigger = \'schedule\' | \'manual\' | \'webhook\' | \'event\' | \'bot\' | \'calendar\';',
   },
   {
     name: 'AvnEnvironment',
@@ -6617,7 +6623,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'BotTrigger',
-    declaration: 'export type BotTrigger = {\n    readonly kind: \'schedule\';\n    readonly schedule: AutomationSchedule;\n} | {\n    readonly kind: \'webhook\';\n    readonly idempotency: \'sender\' | \'none\';\n} | {\n    readonly kind: \'event\';\n    readonly source: \'mail\';\n    readonly filter: MailEventFilter;\n} | {\n    readonly kind: \'event\';\n    readonly source: \'github\';\n    readonly filter: GitHubEventFilter;\n} | {\n    readonly kind: \'bot\';\n    readonly from: AutomationId;\n    readonly mode: \'wait\' | \'dispatch\';\n};',
+    declaration: 'export type BotTrigger = {\n    readonly kind: \'schedule\';\n    readonly schedule: AutomationSchedule;\n} | {\n    readonly kind: \'webhook\';\n    readonly idempotency: \'sender\' | \'none\';\n} | {\n    readonly kind: \'event\';\n    readonly source: \'mail\';\n    readonly filter: MailEventFilter;\n} | {\n    readonly kind: \'event\';\n    readonly source: \'github\';\n    readonly filter: GitHubEventFilter;\n} | {\n    readonly kind: \'bot\';\n    readonly from: readonly AutomationId[];\n    readonly join: \'all\' | \'any\';\n    readonly mode: \'wait\' | \'dispatch\';\n    readonly joinTimeoutMinutes: number;\n} | {\n    readonly kind: \'calendar\';\n    readonly calendar?: CalendarProvider | undefined;\n    readonly filter: CalendarEventFilter;\n    readonly offsetMinutes: number;\n};',
   },
   {
     name: 'Branded',
@@ -6646,6 +6652,22 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'BrowserChromiumStatus',
     declaration: 'export interface BrowserChromiumStatus {\n    readonly browserUrl: string;\n    readonly running: boolean;\n    readonly launchable: boolean;\n    readonly toolPrefix?: string;\n}',
+  },
+  {
+    name: 'CalendarEvent',
+    declaration: 'export interface CalendarEvent {\n    readonly id: string;\n    readonly provider: CalendarProvider;\n    readonly title: string;\n    readonly start: string;\n    readonly end: string;\n    readonly link?: string | undefined;\n    readonly attendees: readonly {\n        readonly address: string;\n        readonly self: boolean;\n    }[];\n    readonly accepted: boolean;\n}',
+  },
+  {
+    name: 'CalendarEventFilter',
+    declaration: 'export interface CalendarEventFilter {\n    readonly title?: string | undefined;\n    readonly attendee?: string | undefined;\n    readonly hasExternalAttendee?: boolean | undefined;\n    readonly accepted?: boolean | undefined;\n}',
+  },
+  {
+    name: 'CalendarProvider',
+    declaration: 'export type CalendarProvider = \'google-calendar\' | \'outlook-calendar\';',
+  },
+  {
+    name: 'CalendarSource',
+    declaration: 'export interface CalendarSource {\n    events(owner: string, from: string, to: string, signal: AbortSignal): Promise<readonly CalendarEvent[]>;\n}',
   },
   {
     name: 'Capability',

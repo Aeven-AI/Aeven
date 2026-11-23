@@ -224,6 +224,7 @@ export const TEST_CONFIG: Config = {
   githubMaxBodyBytes: 1_048_576,
   queueDepth: 5,
   mailPollSeconds: 120,
+  calendarPollSeconds: 300,
   placement: { kind: 'device', provides: ['files', 'browser', 'computer-use'] },
   sync: { leaseTtlMs: 180_000, leaseRenewMs: 60_000, fallbackDelayMs: 120_000 },
 }

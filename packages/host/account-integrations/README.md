@@ -175,6 +175,8 @@ The account domain stores metadata and validated skill resources; the credential
 
 The Google connectors spawn the Workspace CLI binary through `GWS_BIN`. This package's postinstall, `scripts/ensure-gws.mjs --optional`, installs that binary from the releases `@googleworkspace/cli` names, so the host triple the package's own installer refuses — Windows on ARM — runs the emulated x64 build instead; both the workspace and the packaged Desktop seed deny the package's build script, and an existing binary is left untouched. Each asset download tries GitHub's browser download route and then its REST asset route, three rounds in all, and the archive must match its published `.sha256`. A postinstall that still fails prints a warning and exits 0, so a GitHub outage cannot fail a workspace install or a Desktop update; the first Google connection then runs the script without `--optional`, one install per Host process, and a failure there fails only that connection.
 
+When `ctx.automations` is present, this package registers a calendar source for calendar-triggered bots. It lists the timed events of an owner's enabled Google Calendar and Outlook Calendar connectors straight from the Google Calendar API's primary calendar and Microsoft Graph's `calendarView`, with the connector's own access token and no MCP process, bounded by `timeoutMs` per read. Cancelled and all-day events are left out, Graph's `/me` addresses mark the owner's own attendees, and a connector whose read fails is logged and skipped.
+
 </details>
 
 ## Model Experience

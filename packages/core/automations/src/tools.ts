@@ -26,21 +26,27 @@ const scheduleField = { type: 'object', properties: {
   day: { type: 'integer', minimum: 1, maximum: 31, description: 'Day of that month, for yearly.' },
   expression: { type: 'string', description: 'Five-field cron expression (minute, hour, day of month, month, day of week) for cron.' },
   until: { type: 'string', description: 'Optional inclusive ISO end time. Omit for a recurring task without an end date.' },
+  jitterMinutes: { type: 'integer', minimum: 1, maximum: 30, description: 'Optional, not for once: each run starts up to this many minutes after the scheduled time, for requests such as "around 7". For interval it must be smaller than everyMinutes.' },
 }, required: ['kind', 'timeZone'], additionalProperties: false }
 const taskFields = {
   name: { type: 'string', description: 'Short name describing the outcome.' },
   prompt: { type: 'string', description: 'Complete repeatable task, including requirements and how to verify its result.' },
-  triggers: { type: 'array', description: 'Everything that wakes the bot. Use a schedule for timed work, an event to react to new email or GitHub activity instead of checking on a timer, and bot to let another bot hand it tasks.', items: { type: 'object', properties: {
-    kind: { type: 'string', enum: ['schedule', 'webhook', 'event', 'bot'] },
+  triggers: { type: 'array', description: 'Everything that wakes the bot. Use a schedule for timed work, an event to react to new email or GitHub activity instead of checking on a timer, calendar to run relative to calendar events such as "15 minutes before each meeting", and bot to let another bot hand it tasks.', items: { type: 'object', properties: {
+    kind: { type: 'string', enum: ['schedule', 'webhook', 'event', 'bot', 'calendar'] },
     schedule: scheduleField,
     idempotency: { type: 'string', enum: ['sender', 'none'], description: 'For webhook: sender ignores a repeated Idempotency-Key header; none runs every request.' },
     source: { type: 'string', enum: ['mail', 'github'], description: 'For event.' },
-    filter: { type: 'object', description: 'For event. mail: account (address), from, subject — text each must contain. github: events (names such as pull_request, issues, issue_comment, push), actions (payload action values such as opened, closed, published; set actions ["published"] for a release announcement so drafts and edits do not wake the bot), repository (owner/name).', properties: {
+    filter: { type: 'object', description: 'For event and calendar. mail: account (address), from, subject — text each must contain. github: events (names such as pull_request, issues, issue_comment, push), actions (payload action values such as opened, closed, published; set actions ["published"] for a release announcement so drafts and edits do not wake the bot), repository (owner/name). calendar: title (text the title contains), attendee (text an attendee address contains), hasExternalAttendee (an attendee outside the user\'s own domain), accepted (the user accepted or organizes it).', properties: {
       account: { type: 'string' }, from: { type: 'string' }, subject: { type: 'string' },
       events: { type: 'array', items: { type: 'string' } }, actions: { type: 'array', items: { type: 'string' } }, repository: { type: 'string' },
+      title: { type: 'string' }, attendee: { type: 'string' }, hasExternalAttendee: { type: 'boolean' }, accepted: { type: 'boolean' },
     }, additionalProperties: false },
-    from: { type: 'string', description: 'For bot: ID of the bot that may hand this bot tasks.' },
-    mode: { type: 'string', enum: ['wait', 'dispatch'], description: 'For bot: wait wakes the sender again with this bot’s result; dispatch does not.' },
+    calendar: { type: 'string', enum: ['google-calendar', 'outlook-calendar'], description: 'For calendar: read only this calendar. Omit to read every connected calendar.' },
+    offsetMinutes: { type: 'integer', minimum: -1440, maximum: 1440, description: 'For calendar: minutes from the event\'s start, negative for before it, such as -15.' },
+    from: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 8, description: 'For bot: IDs of the bots that may hand this bot tasks.' },
+    join: { type: 'string', enum: ['all', 'any'], description: 'For bot with several senders: all (default) runs once every sender of the same chain has finished, with all their results; any runs on the first result. A sender that fails is named in the run instead of blocking it.' },
+    joinTimeoutMinutes: { type: 'integer', minimum: 1, maximum: 1440, description: 'For bot with several senders: how long to wait for the missing senders after the first result before running without them. Default 60.' },
+    mode: { type: 'string', enum: ['wait', 'dispatch'], description: 'For bot: wait wakes each sender again with this bot’s result; dispatch does not.' },
   }, required: ['kind'], additionalProperties: false } },
   connectors: { description: 'Connected accounts the bot may use, such as ["email"] or ["discord", "slack"]. Choose only what the task needs, so the bot cannot reach anything else. Omit to allow every connected account.', anyOf: [
     { type: 'string', enum: ['all'] }, { type: 'array', items: { type: 'string', enum: [...CONNECTOR_IDS] } },

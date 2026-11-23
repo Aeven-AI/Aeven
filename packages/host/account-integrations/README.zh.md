@@ -175,6 +175,8 @@ Node API 需要一个支持工作及个人账户并注册了 Web 回调的应用
 
 Google 连接器通过 `GWS_BIN` 启动 Workspace CLI 二进制文件。本包的 postinstall `scripts/ensure-gws.mjs --optional` 从 `@googleworkspace/cli` 指定的发布中安装该二进制文件，因此该包自身安装程序拒绝的主机三元组（Windows on ARM）改为在模拟下运行 x64 构建；工作区和打包的 Desktop seed 都禁止该包的构建脚本，已存在的二进制文件保持不变。每个资源下载先尝试 GitHub 的浏览器下载路径，再尝试其 REST 资源路径，共三轮，归档必须与其发布的 `.sha256` 一致。仍然失败的 postinstall 打印警告并以 0 退出，因此 GitHub 故障不会使工作区安装或 Desktop 更新失败；随后首次 Google 连接会在不带 `--optional` 的情况下运行该脚本，每个 Host 进程只安装一次，失败只会使该连接失败。
 
+存在 `ctx.automations` 时，本包为日历触发的 Bot 注册一个日历来源。它用连接器自己的访问令牌、不经过 MCP 进程，直接从 Google Calendar API 的主日历和 Microsoft Graph 的 `calendarView` 列出所有者已启用的 Google 日历和 Outlook 日历连接器中的定时活动，每次读取受 `timeoutMs` 限制。已取消和全天活动被略去，Graph 的 `/me` 地址标记所有者自己的参与者，读取失败的连接器会记录日志并跳过。
+
 </details>
 
 ## Model Experience

@@ -1,4 +1,5 @@
 /** Calendar recurrence adapted from titanwings/dsh-automation (MIT), commit 0d73a4e03639d4f63d0771ae4490e2718b7e7aa0. */
+import { createHash } from 'node:crypto'
 import { DateTime, IANAZone } from 'luxon'
 import type { AutomationSchedule, Weekday } from './types.ts'
 
@@ -42,6 +43,15 @@ interface CalendarPattern {
 export function assertValidSchedule(schedule: AutomationSchedule): void {
   assertTimeZone(schedule.timeZone)
   if (schedule.until !== undefined) parseInstant(schedule.until, 'until')
+  if (schedule.jitterMinutes !== undefined) {
+    if (!Number.isInteger(schedule.jitterMinutes) || schedule.jitterMinutes < 1 || schedule.jitterMinutes > 30) {
+      throw new Error('jitterMinutes must be an integer from 1 through 30')
+    }
+    if (schedule.kind === 'once') throw new Error('A one-time schedule takes no jitterMinutes.')
+    if (schedule.kind === 'interval' && schedule.jitterMinutes >= schedule.everyMinutes) {
+      throw new Error('interval.jitterMinutes must be smaller than everyMinutes')
+    }
+  }
   if (schedule.kind === 'once') {
     const at = parseInstant(schedule.at, 'once.at')
     if (schedule.until !== undefined && at > parseInstant(schedule.until, 'until')) throw new Error('The end time precedes the one-time occurrence.')
@@ -131,6 +141,75 @@ function normalizeSchedule(schedule: AutomationSchedule): AutomationSchedule {
 export function nextOccurrence(schedule: AutomationSchedule, afterExclusive: string): string | null {
   const values = occurrencesBetween(schedule, afterExclusive, schedule.until ?? farFutureIso, 1)
   return values[0] ?? null
+}
+
+/** Most nominal occurrences {@link nextFiring} and {@link latestDueFiring} inspect; a thirty-minute jitter on a
+ * once-a-minute cron needs thirty-one. */
+const JITTER_SCAN = 64
+
+/**
+ * Delay of one jittered occurrence: whole minutes in `[0, jitterMinutes)` derived from the seed and the nominal
+ * instant, so every Host computes the same firing.
+ * @param seed - the bot's id.
+ * @param nominal - the occurrence's ISO instant before jitter.
+ * @param jitterMinutes - the schedule's jitter.
+ * @returns the delay in milliseconds.
+ */
+export function jitterDelayMs(seed: string, nominal: string, jitterMinutes: number): number {
+  return createHash('sha256').update(`${seed}\n${nominal}`).digest().readUInt32BE(0) % jitterMinutes * 60_000
+}
+
+/**
+ * The first firing strictly after an instant: the next occurrence, delayed by its jitter when the schedule has one.
+ * A jittered occurrence that fires before an earlier occurrence's firing still counts on its own.
+ * @param schedule - validated recurrence.
+ * @param seed - the bot's id.
+ * @param afterExclusive - ISO instant excluded from the result.
+ * @returns the firing's UTC instant, or null when none remains.
+ */
+export function nextFiring(schedule: AutomationSchedule, seed: string, afterExclusive: string): string | null {
+  const jitter = schedule.jitterMinutes
+  if (jitter === undefined) return nextOccurrence(schedule, afterExclusive)
+  const after = Date.parse(afterExclusive)
+  let best: number | undefined
+  // An occurrence up to the jitter before the instant may still fire after it.
+  let cursor = new Date(after - jitter * 60_000).toISOString()
+  for (let scanned = 0; scanned < JITTER_SCAN; scanned++) {
+    const nominal = nextOccurrence(schedule, cursor)
+    if (nominal === null) break
+    const at = Date.parse(nominal)
+    if (best !== undefined && at >= best) break
+    const firing = at + jitterDelayMs(seed, nominal, jitter)
+    if (firing > after && (best === undefined || firing < best)) best = firing
+    cursor = nominal
+  }
+  return best === undefined ? null : new Date(best).toISOString()
+}
+
+/**
+ * The latest firing at or before an instant: the latest occurrence whose jittered instant has passed.
+ * @param schedule - recurrence.
+ * @param seed - the bot's id.
+ * @param now - inclusive ISO instant.
+ * @returns the firing's UTC instant, or null when none is due.
+ */
+export function latestDueFiring(schedule: AutomationSchedule, seed: string, now: string): string | null {
+  const jitter = schedule.jitterMinutes
+  if (jitter === undefined) return latestDueOccurrence(schedule, now)
+  const nowMs = Date.parse(now)
+  let best: number | undefined
+  let cursor = now
+  for (let scanned = 0; scanned < JITTER_SCAN; scanned++) {
+    const nominal = latestDueOccurrence(schedule, cursor)
+    if (nominal === null) break
+    const at = Date.parse(nominal)
+    // An earlier occurrence fires less than the jitter after its own instant, so it cannot pass the best one.
+    if (best !== undefined && at + jitter * 60_000 <= best) break
+    const firing = at + jitterDelayMs(seed, nominal, jitter)
+    if (firing <= nowMs && (best === undefined || firing > best)) best = firing
+    cursor = new Date(at - 1).toISOString()
+  }
+  return best === undefined ? null : new Date(best).toISOString()
 }
 
 /** Latest scheduled occurrence at or before an instant without materializing a backlog.

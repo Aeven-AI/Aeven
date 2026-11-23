@@ -26,6 +26,13 @@ export const HANDOFF_STATUS = { open: 'handoffOpen', claimed: 'handoffClaimed', 
 export function formatters(t: Translate, data: AutomationList | null) {
   const date = (at: string): string => new Date(at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
   const number = (value: number): string => new Intl.NumberFormat().format(value)
+  /** A time of day for an instant today, otherwise its short date and time. */
+  const moment = (at: string): string => {
+    const value = new Date(at)
+    return value.toDateString() === new Date().toDateString()
+      ? value.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+      : value.toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })
+  }
   const clock = (wall: string): string => {
     const [hour = 0, minute = 0] = wall.split(':').map(Number)
     return new Date(2023, 0, 1, hour, minute).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
@@ -38,7 +45,8 @@ export function formatters(t: Translate, data: AutomationList | null) {
     // 2023-01-02 is a Monday, so MO, the first entry, names it.
     const weekday = (day: string): string =>
       new Date(2023, 0, 2 + Math.max(0, ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'].indexOf(day))).toLocaleDateString(undefined, { weekday: 'long' })
-    const until = schedule.until === undefined ? '' : t('scheduleUntil', { date: date(schedule.until) })
+    const until = (schedule.jitterMinutes === undefined ? '' : t('scheduleJitter', { duration: span(schedule.jitterMinutes, 'minute') }))
+      + (schedule.until === undefined ? '' : t('scheduleUntil', { date: date(schedule.until) }))
     switch (schedule.kind) {
       case 'once': return `${t('scheduleOnce', { when: date(schedule.at) })}${until}`
       case 'interval': return `${t('scheduleInterval', { duration: span(schedule.everyMinutes, 'minute') })}${until}`
@@ -63,8 +71,25 @@ export function formatters(t: Translate, data: AutomationList | null) {
       case 'schedule': return describe(trigger.schedule)
       case 'webhook': return t('triggerWebhook')
       case 'bot': {
-        const name = data?.definitions.find(task => task.id === trigger.from)?.name ?? t('triggerRemovedBot')
-        return t(trigger.mode === 'wait' ? 'triggerBotWait' : 'triggerBotDispatch', { name })
+        const names = trigger.from.map(id => data?.definitions.find(task => task.id === id)?.name ?? t('triggerRemovedBot'))
+        const [name] = names
+        if (names.length === 1 && name !== undefined) return t(trigger.mode === 'wait' ? 'triggerBotWait' : 'triggerBotDispatch', { name })
+        const list = new Intl.ListFormat(undefined, { type: trigger.join === 'all' ? 'conjunction' : 'disjunction' }).format(names)
+        return t(trigger.join === 'all' ? 'triggerBotJoinAll' : 'triggerBotJoinAny', { names: list }) + (trigger.mode === 'wait' ? t('triggerBotJoinReplies') : '')
+      }
+      case 'calendar': {
+        const { title, attendee, hasExternalAttendee, accepted } = trigger.filter
+        const minutes = Math.abs(trigger.offsetMinutes)
+        const duration = new Intl.NumberFormat(undefined, { style: 'unit', unit: minutes % 60 === 0 ? 'hour' : 'minute', unitDisplay: 'long' })
+          .format(minutes % 60 === 0 ? minutes / 60 : minutes)
+        return [
+          trigger.offsetMinutes < 0 ? t('triggerCalendarBefore', { duration }) : trigger.offsetMinutes > 0 ? t('triggerCalendarAfter', { duration }) : t('triggerCalendarAt'),
+          trigger.calendar === undefined ? '' : t(trigger.calendar === 'google-calendar' ? 'triggerCalendarGoogle' : 'triggerCalendarOutlook'),
+          title === undefined ? '' : t('triggerCalendarTitle', { title }),
+          attendee === undefined ? '' : t('triggerCalendarAttendee', { attendee }),
+          hasExternalAttendee === undefined ? '' : t(hasExternalAttendee ? 'triggerCalendarExternal' : 'triggerCalendarInternal'),
+          accepted === undefined ? '' : t(accepted ? 'triggerCalendarAccepted' : 'triggerCalendarUnaccepted'),
+        ].filter(part => part !== '').join(' ')
       }
       case 'event':
         if (trigger.source === 'mail') {
@@ -136,7 +161,7 @@ export function formatters(t: Translate, data: AutomationList | null) {
       }
     })]
   }
-  return { date, number, clock, describe, describeTrigger, next, runsOn, placementDetail, placeItems }
+  return { date, number, moment, clock, describe, describeTrigger, next, runsOn, placementDetail, placeItems }
 }
 
 /** The bound sentence builders. */

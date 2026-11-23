@@ -9,7 +9,12 @@ export const NEED_LABELS = { 'files': 'needFiles', 'browser': 'needBrowser', 'co
 export type Need = keyof typeof NEED_LABELS
 
 /** One stored recurrence, discriminated the way the Host stores and returns it. */
-export type TaskSchedule =
+export type TaskSchedule = TaskRecurrence & {
+  /** Each run starts up to this many minutes after its scheduled time. */
+  jitterMinutes?: number | undefined
+}
+/** One stored recurrence without its jitter. */
+export type TaskRecurrence =
   | { kind: 'once'; timeZone: string; at: string; until?: string | undefined }
   | { kind: 'interval'; timeZone: string; everyMinutes: number; anchor: string; until?: string | undefined }
   | { kind: 'hours'; timeZone: string; everyHours: number; atMinute: number; until?: string | undefined }
@@ -26,7 +31,13 @@ export type TaskTrigger =
   | { kind: 'webhook'; idempotency: 'sender' | 'none' }
   | { kind: 'event'; source: 'mail'; filter: { account?: string; from?: string; subject?: string } }
   | { kind: 'event'; source: 'github'; filter: { events?: string[]; actions?: string[]; repository?: string } }
-  | { kind: 'bot'; from: string; mode: 'wait' | 'dispatch' }
+  | { kind: 'bot'; from: string[]; join: 'all' | 'any'; mode: 'wait' | 'dispatch'; joinTimeoutMinutes: number }
+  | {
+    kind: 'calendar'
+    calendar?: 'google-calendar' | 'outlook-calendar' | undefined
+    filter: { title?: string; attendee?: string; hasExternalAttendee?: boolean; accepted?: boolean }
+    offsetMinutes: number
+  }
 /** One saved approval; it answers until `expiresAt`, or always without one. */
 export interface TaskGrant {
   toolName: string
@@ -41,6 +52,8 @@ export interface Task {
   prompt: string
   permission: 'read-only' | 'workspace-write'
   status: 'active' | 'paused'
+  /** The run that paused its own bot, while the bot stays paused. */
+  pausedBy?: { runId: string; scheduledFor: string } | undefined
   triggers: TaskTrigger[]
   /** `all`, or the connector ids its runs may call. */
   connectors: 'all' | string[]
@@ -71,6 +84,8 @@ export interface Run {
   resolution: { kind: 'retried'; at: string; retryRunId: string | null } | null
   /** Tokens the run spent, once it settled. */
   usage?: { totalTokens: number } | null | undefined
+  /** The run had nothing new to report; the bot's last result skips it. */
+  quiet?: boolean | undefined
 }
 /** Bots of the account that hand each other tasks and share a budget. */
 export interface Board {
@@ -90,6 +105,8 @@ export interface HandoffRecord {
   reason: string | null
   tokens: number | null
   replyTo: string | null
+  /** The run that started the handoff's chain; absent on a handoff stored before chains were recorded. */
+  chain?: string | undefined
   createdAt: string
 }
 /** Host-advertised time triggers and the owned management projection. */

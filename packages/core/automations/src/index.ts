@@ -22,6 +22,7 @@ import { boundContextSummary, createUserMessage, type TokenUsage } from '@aeven/
 import { SessionId, SessionSeq, type Session } from '@aeven/session'
 import { LeaseHolder } from '@aeven/sync'
 import type { Domain } from '@aeven/storage-domain'
+import type { ToolCallView } from '@aeven/tools'
 import { setApprovalPolicy, type ApprovalRequestId } from '@aeven/user-approval'
 import { automationDomain, webhookDomain, inputSchema, patchSchema, boardInputSchema, CONNECTOR_IDS, definitionSchema } from './domain.ts'
 import { bound, connectorOf, connectorRefusal } from './connectors.ts'
@@ -30,10 +31,11 @@ import { describeMail, matchesMail, newMail } from './mail-events.ts'
 import { runNotice } from './notice.ts'
 import { registerRunTools } from './run-tools.ts'
 import { eligibility, placementMode, placementRefusal, resolvePlacement } from './placement.ts'
-import { latestDueOccurrence, nextOccurrence, SCHEDULE_KINDS } from './recurrence.ts'
+import { latestDueFiring, nextFiring, SCHEDULE_KINDS } from './recurrence.ts'
+import { describeCalendar, firingOf, matchesCalendar } from './calendar-events.ts'
 import { DefinitionSync, type CloudRunRequest, type RecordKinds, type SyncedDefinition, type SyncedRecord } from './sync.ts'
 import { registerAutomationTools } from './tools.ts'
-import type { AutomationBoard, AutomationDefinition, AutomationDesktop, AutomationId, AutomationInput, AutomationPlacement, AutomationRun, AutomationRunId, AutomationRunnerId, AutomationSchedule, AutomationTrigger, BoardId, BoardInput, BotTrigger, ConnectorBinding, DeviceCapability, Handoff, HandoffId, HostDevice, HostProfile, RunUsage } from './types.ts'
+import type { AutomationBoard, AutomationDefinition, AutomationDesktop, CalendarEvent, CalendarSource, AutomationId, AutomationInput, AutomationPlacement, AutomationRun, AutomationRunId, AutomationRunnerId, AutomationSchedule, AutomationTrigger, BoardId, BoardInput, BotTrigger, ConnectorBinding, DeviceCapability, Handoff, HandoffId, HostDevice, HostProfile, RunUsage } from './types.ts'
 
 export type * from './types.ts'
 
@@ -51,6 +53,26 @@ function withDesktop<T extends { desktop?: string | undefined }>(input: T): Omit
 
 /** Error recorded on a run its owner stopped. */
 const STOPPED = 'Stopped by its owner.'
+/** Reason recorded on every open handoff of a chain its owner stopped; a handoff carrying it marks the chain stopped. */
+const CHAIN_STOPPED = 'Its chain was stopped by its owner.'
+
+/**
+ * The chain a handoff belongs to.
+ * @param handoff - a stored handoff.
+ * @returns the run that started its chain; its sending run for a handoff stored before chains were recorded.
+ */
+function chainOfHandoff(handoff: Pick<Handoff, 'chain' | 'fromRun'>): AutomationRunId {
+  return handoff.chain ?? handoff.fromRun
+}
+
+/**
+ * The chain a run belongs to.
+ * @param run - an admitted run.
+ * @returns the chain of the handoff or join that started it, or the run itself when nothing handed it work.
+ */
+function chainOfRun(run: AutomationRun): AutomationRunId {
+  return run.join?.chain ?? (run.handoff == null ? run.id : chainOfHandoff(run.handoff))
+}
 
 /** One run executing on this Host; `stopRequested` marks an owner's stop that lands before or during its turn. */
 interface ActiveRun {
@@ -61,6 +83,21 @@ interface ActiveRun {
   promise: Promise<void>
   handle?: AgentHandle
   stopRequested?: boolean
+  /** The run called `bot_no_update`. */
+  noUpdate?: boolean
+  /** The reason the run gave through `bot_report_failure`; it settles the run `failed`. */
+  failure?: string
+  /** The run called `bot_pause`; the bot pauses when the run settles `succeeded`. */
+  pause?: boolean
+}
+
+/** One calendar event a calendar trigger fires for, found by the last check of its owner's calendars. */
+interface CalendarFiring {
+  /** Index of the calendar trigger. */
+  readonly index: number
+  /** ISO instant the trigger fires: the event's start moved by the trigger's offset. */
+  readonly at: string
+  readonly event: CalendarEvent
 }
 
 /** Refusal of one inbound request, carrying the status the endpoint answers with. */
@@ -141,6 +178,36 @@ async function readCappedBody(req: IncomingMessage, res: ServerResponse, limit: 
   return Buffer.concat(chunks)
 }
 
+/** Tool presentation kinds that change a file. */
+const FILE_CHANGES: ReadonlySet<string> = new Set(['edit', 'delete', 'move'])
+
+/**
+ * Whether a run conversation holds something its owner should see even after `bot_no_update`: an approval that was
+ * refused, cancelled, or could not be asked, or a successful tool call whose presentation changes a file.
+ * @param events - the conversation's events.
+ * @param present - the presentation of one tool call as the run's agent resolves it, or undefined when unknown.
+ * @returns true when the run cannot be quiet.
+ */
+function needsAttention(
+  events: ReturnType<Session['snapshotEvents']>,
+  present: (name: string, args: unknown) => ToolCallView | undefined,
+): boolean {
+  const failed = new Set<string>()
+  for (const event of events) {
+    if (event.type === 'approval/decided' && event.data.outcome !== 'allowed-once') return true
+    if (event.type === 'tool/result' && event.data.message.content[0].isError === true) failed.add(event.data.message.content[0].toolCallId)
+  }
+  for (const event of events) {
+    if (event.type !== 'tool/call' || failed.has(event.data.callId)) continue
+    let args: unknown
+    // A call whose arguments are not JSON never ran, so it changed no file.
+    try { args = JSON.parse(event.data.arguments) } catch { continue }
+    const view = present(event.data.name, args)
+    if (view?.card === 'diff' || (view?.card === 'generic' && view.kind !== undefined && FILE_CHANGES.has(view.kind))) return true
+  }
+  return false
+}
+
 /** Sum a run conversation's token accounting over its model calls.
  * @param events - the conversation's events.
  * @returns the run's usage; zero when no adapter reported any.
@@ -202,6 +269,12 @@ export interface Config {
   /** Seconds between two checks of a watched mail account for new email; each check is a search, not a model turn. */
   readonly mailPollSeconds: number
   /**
+   * Seconds between two reads of an owner's calendars for calendar triggers; each read is one event listing per
+   * connected calendar, not a model turn. A read covers the events that fire before the read after next, so a moved
+   * or new event fires on time once a read has seen it.
+   */
+  readonly calendarPollSeconds: number
+  /**
    * What this Host is and which device capabilities its runs can use. A `cloud` Host runs the definitions that
    * need nothing from a computer; a `device` Host runs the ones whose requirements it provides.
    */
@@ -235,6 +308,7 @@ export class Automations extends Service<Config> {
     queueDepth: z.number().step(1).min(1).default(5),
     grantLifetimeDays: z.number().min(1),
     mailPollSeconds: z.number().step(1).min(30).default(120),
+    calendarPollSeconds: z.number().step(1).min(60).default(300),
     placement: z.object({
       kind: z.union(['cloud', 'device'] as const).required(),
       provides: z.array(z.union(['files', 'browser', 'computer-use'] as const)).required(),
@@ -261,6 +335,16 @@ export class Automations extends Service<Config> {
   private readonly deferred = new Map<AutomationId, string>()
   /** This device's vault id per account, as account sync last reported it. */
   private readonly devices = new Map<string, HostDevice>()
+  /** Registered calendar sources; calendar triggers read every one of them. */
+  private readonly calendarSources = new Set<CalendarSource>()
+  /** The firings the last calendar read found for each bot, in no order. */
+  private readonly calendarFirings = new Map<AutomationId, readonly CalendarFiring[]>()
+  /** Aborts background reads when the Host stops; created when the scheduler starts. */
+  private polls: AbortController | undefined
+  /** Wakes the handoff pump at the earliest deadline of a join that is still waiting for inputs. */
+  private joinTimer: ReturnType<typeof setTimeout> | undefined
+  /** The calendar read in progress, and whether another was asked for while it ran. */
+  private calendarRead: { again: boolean } | undefined
 
   constructor(ctx: Context, private readonly config: Config) {
     super(ctx, 'automations')
@@ -340,14 +424,19 @@ export class Automations extends Service<Config> {
       this.arm(domain)
       this.pumpHandoffs()
       const polls = new AbortController()
+      this.polls = polls
       // A poll runs on a timer with no caller, so a failure is logged here; it never ends the Host.
       const mailTimer = setInterval(() => {
         this.pollMail(polls.signal).catch((error: unknown) => { ctx.logger.warn(`automations: checking for new email failed: ${String(error)}`) })
       }, this.config.mailPollSeconds * 1_000)
+      const calendarTimer = setInterval(() => { this.readCalendarsSoon() }, this.config.calendarPollSeconds * 1_000)
+      this.readCalendarsSoon()
       return async () => {
         this.stopped = true
         clearTimeout(this.timer)
+        clearTimeout(this.joinTimer)
         clearInterval(mailTimer)
+        clearInterval(calendarTimer)
         polls.abort()
         await this.tail
         for (const entry of this.active.values()) entry.handle?.agent.cancel({ kind: 'user' })
@@ -444,7 +533,15 @@ export class Automations extends Service<Config> {
     runs: AutomationRun[]
     boards: AutomationBoard[]
     handoffs: Handoff[]
-    capabilities: { host: HostProfile['kind']; triggers: readonly AutomationSchedule['kind'][]; webhook: boolean; events: readonly ('mail' | 'github')[]; connectors: readonly string[] }
+    capabilities: {
+      host: HostProfile['kind']
+      triggers: readonly AutomationSchedule['kind'][]
+      webhook: boolean
+      events: readonly ('mail' | 'github')[]
+      /** Whether a calendar source is registered, so calendar triggers can fire on this Host. */
+      calendar: boolean
+      connectors: readonly string[]
+    }
     hosts: { cloud: boolean; desktops: AutomationDesktop[] }
   }> {
     const domain = await this.ready
@@ -462,19 +559,34 @@ export class Automations extends Service<Config> {
     return { definitions: definitions.map(definition => ({ ...definition,
       placement: resolvePlacement(definition, this.hostsOf(definition.owner)),
       nextRunAt: definition.status === 'paused' ? null : this.nextRunAt(definition, now),
-      lastRun: runs.find(run => run.definition.id === definition.id) ?? null,
+      lastRun: runs.find(run => run.definition.id === definition.id && run.quiet !== true) ?? null,
       webhook: hooks.table('webhooks').get(definition.id) !== undefined,
     })), runs: runs.filter(run => run.sessionId === null || !archived.has(run.sessionId)),
     boards, handoffs,
-    capabilities: { host: this.config.placement.kind, triggers: SCHEDULE_KINDS, webhook: true, events: ['mail', 'github'], connectors: CONNECTOR_IDS },
+    capabilities: { host: this.config.placement.kind, triggers: SCHEDULE_KINDS, webhook: true, events: ['mail', 'github'], calendar: this.calendarSources.size > 0, connectors: CONNECTOR_IDS },
     hosts: this.accountHosts(this.ctx.identityUsers.actingUser()?.id) }
   }
 
-  /** The earliest next occurrence of a definition's schedule triggers, or null when none recurs again. */
+  /**
+   * The earliest next firing of a definition's schedule triggers, jitter included, or of a calendar event the last
+   * calendar read found; null when none is known.
+   */
   private nextRunAt(definition: AutomationDefinition, now: string): string | null {
-    const next = definition.triggers.flatMap(trigger => trigger.kind === 'schedule' ? [nextOccurrence(trigger.schedule, now)] : [])
-      .filter((value): value is string => value !== null).sort((a, b) => Date.parse(a) - Date.parse(b))
-    return next[0] ?? null
+    const next = definition.triggers.flatMap(trigger => trigger.kind === 'schedule' ? [nextFiring(trigger.schedule, definition.id, now)] : [])
+      .filter((value): value is string => value !== null)
+    for (const firing of this.calendarFirings.get(definition.id) ?? []) if (Date.parse(firing.at) > Date.parse(now)) next.push(firing.at)
+    return next.sort((a, b) => Date.parse(a) - Date.parse(b))[0] ?? null
+  }
+
+  /**
+   * Let a calendar source's events fire calendar triggers.
+   * @param source - reads one owner's calendar events.
+   * @returns disposer that removes the source; firings it reported stay until the next read.
+   */
+  registerCalendarSource(source: CalendarSource): () => void {
+    this.calendarSources.add(source)
+    this.readCalendarsSoon()
+    return () => { this.calendarSources.delete(source) }
   }
 
   /**
@@ -611,6 +723,7 @@ export class Automations extends Service<Config> {
       await this.store(domain, definition)
       await this.alignCredential(definition)
       this.arm(domain)
+      if (definition.triggers.some(trigger => trigger.kind === 'calendar')) this.readCalendarsSoon()
       return definition
     })
   }
@@ -632,10 +745,12 @@ export class Automations extends Service<Config> {
         desktop: patch.runOn === undefined && patch.desktop === undefined ? current.desktop : patch.desktop,
       }))
       const status = patch.status ?? current.status
-      const { desktop: _replaced, ...kept } = current
+      // The owner's own pause or resume replaces a pause a run made; any other edit keeps it.
+      const { desktop: _replaced, pausedBy, ...kept } = current
       const next: AutomationDefinition = {
         ...kept, ...parsed, runOn: parsed.runOn ?? current.runOn, connectors: parsed.connectors ?? current.connectors,
         overlap: parsed.overlap ?? current.overlap, status, revision: current.revision + 1, updatedAt: new Date().toISOString(),
+        ...pausedBy !== undefined && patch.status === undefined ? { pausedBy } : {},
       }
       if (patch.triggers !== undefined) this.checkTriggers(domain, current.owner, current.id, next.triggers)
       const refusal = placementRefusal(next, this.hostsOf(current.owner))
@@ -644,6 +759,7 @@ export class Automations extends Service<Config> {
       await this.alignCredential(next)
       this.arm(domain)
       if (status === 'active') this.pumpHandoffs()
+      if (next.triggers.some(trigger => trigger.kind === 'calendar')) this.readCalendarsSoon()
       return next
     })
   }
@@ -664,16 +780,18 @@ export class Automations extends Service<Config> {
     for (const trigger of triggers) {
       switch (trigger.kind) {
         case 'schedule':
-          if (now !== undefined && nextOccurrence(trigger.schedule, now) === null) throw new Error('Choose a schedule with a future occurrence.')
+          if (now !== undefined && nextFiring(trigger.schedule, self, now) === null) throw new Error('Choose a schedule with a future occurrence.')
           break
-        case 'bot': {
-          if (trigger.from === self) throw new Error('A bot cannot hand work to itself.')
-          const sender = domain.table('definitions').get(trigger.from)
-          if (sender === undefined || sender.owner !== owner) throw new Error('A bot can receive work only from another bot of the same account.')
+        case 'bot':
+          for (const from of trigger.from) {
+            if (from === self) throw new Error('A bot cannot hand work to itself.')
+            const sender = domain.table('definitions').get(from)
+            if (sender === undefined || sender.owner !== owner) throw new Error('A bot can receive work only from another bot of the same account.')
+          }
           break
-        }
         case 'webhook':
         case 'event':
+        case 'calendar':
           break
       }
     }
@@ -704,10 +822,30 @@ export class Automations extends Service<Config> {
     return this.transaction(async (domain) => {
       const run = this.ownedRun(domain, id)
       if (run.status !== 'queued' && run.status !== 'running') throw new Error('This run has already finished.')
-      if (run.admittedBy === this.runnerId(domain)) return this.stopHere(domain, run)
-      await this.synced.stopRun(run)
-      return run
+      const stopped = run.admittedBy === this.runnerId(domain) ? await this.stopHere(domain, run) : run
+      if (stopped === run && run.admittedBy !== this.runnerId(domain)) await this.synced.stopRun(run)
+      await this.stopChain(domain, chainOfRun(run), run.id)
+      return stopped
     })
+  }
+
+  /**
+   * Stop a chain with one of its runs: refuse every open handoff of the chain, so no receiver that has not started
+   * starts and a join waiting on it is skipped, and stop the chain's other queued and running runs this Host knows.
+   * @param domain - the open definition domain.
+   * @param chain - the run that started the chain.
+   * @param except - the run the owner stopped, already stopping.
+   */
+  private async stopChain(domain: Domain<typeof automationDomain>, chain: AutomationRunId, except: AutomationRunId): Promise<void> {
+    const now = new Date().toISOString()
+    for (const [, handoff] of domain.table('handoffs').entries()) {
+      if (handoff.status === 'open' && chainOfHandoff(handoff) === chain) await this.storeHandoff(domain, { ...handoff, status: 'refused', reason: CHAIN_STOPPED, updatedAt: now })
+    }
+    for (const run of this.runs(domain)) {
+      if (run.id === except || (run.status !== 'queued' && run.status !== 'running') || chainOfRun(run) !== chain) continue
+      if (run.admittedBy === this.runnerId(domain)) await this.stopHere(domain, run)
+      else await this.synced.stopRun(run)
+    }
   }
 
   /** Cancel an executing run's turn, or record a run that has not started as cancelled. */
@@ -720,6 +858,7 @@ export class Automations extends Service<Config> {
     }
     const stopped: AutomationRun = { ...run, status: 'cancelled', finishedAt: new Date().toISOString(), error: STOPPED }
     await this.storeRun(domain, stopped)
+    await this.settleRun(domain, stopped)
     return stopped
   }
 
@@ -1205,17 +1344,23 @@ export class Automations extends Service<Config> {
    * The run tools' operations for one run: the bots that accept its handoffs and the boards it belongs to.
    * @param domain - the open definition domain.
    * @param run - the run that executes.
+   * @param entry - the run's in-progress record, which holds what the outcome tools reported until it settles.
    * @returns operations the run tools call; each checks the stored definitions again.
    */
-  private runToolsAccess(domain: Domain<typeof automationDomain>, run: AutomationRun): Parameters<typeof registerRunTools>[1] {
+  private runToolsAccess(
+    domain: Domain<typeof automationDomain>, run: AutomationRun, entry: ActiveRun,
+  ): Parameters<typeof registerRunTools>[1] {
     const self = run.definition
     const targets = [...domain.table('definitions').entries()].flatMap(([, target]) => {
       if (target.owner !== self.owner || target.id === self.id) return []
-      const edge = target.triggers.find(trigger => trigger.kind === 'bot' && trigger.from === self.id)
+      const edge = target.triggers.find(trigger => trigger.kind === 'bot' && trigger.from.includes(self.id))
       return edge?.kind === 'bot' ? [{ id: target.id, name: target.name, mode: edge.mode }] : []
     })
     const boards = (): AutomationBoard[] => [...domain.table('boards').entries()].map(([, board]) => board).filter(board => board.owner === self.owner && board.members.includes(self.id))
     return {
+      noUpdate: () => { entry.noUpdate = true },
+      reportFailure: (reason) => { entry.failure = reason },
+      pause: () => { entry.pause = true },
       targets,
       onBoard: boards().length > 0,
       handoff: (to, task) => this.transaction(current => this.handOff(current, run, to, task)),
@@ -1248,10 +1393,12 @@ export class Automations extends Service<Config> {
     const target = [...domain.table('definitions').entries()].map(([, value]) => value)
       .find(value => value.owner === sender.owner && (value.id === to || value.name === to))
     if (target === undefined) throw new Error(`No bot named ${to} exists any more.`)
-    const edge = target.triggers.findIndex(trigger => trigger.kind === 'bot' && trigger.from === sender.id)
+    const edge = target.triggers.findIndex(trigger => trigger.kind === 'bot' && trigger.from.includes(sender.id))
     const trigger = target.triggers[edge]
     if (trigger?.kind !== 'bot') throw new Error(`${target.name} does not accept work from ${sender.name}. Only their owner can connect them.`)
     if (target.status !== 'active') throw new Error(`${target.name} is paused, so it cannot take this task.`)
+    const chain = chainOfRun(run)
+    if (this.chainStopped(domain, chain)) throw new Error('Your owner stopped this chain, so it takes no more handoffs.')
     const id = brandString<HandoffId>(createHash('sha256').update(`${run.id}\n${target.id}\n${task}`).digest('hex'))
     const earlier = domain.table('handoffs').get(id)
     if (earlier !== undefined) return earlier
@@ -1260,7 +1407,8 @@ export class Automations extends Service<Config> {
     const now = new Date().toISOString()
     const handoff: Handoff = {
       id, ...sender.owner === undefined ? {} : { owner: sender.owner }, board: board?.id ?? null,
-      from: sender.id, fromName: sender.name, fromRun: run.id, to: target.id, toName: target.name, edge, mode: trigger.mode, replyTo: null,
+      from: sender.id, fromName: sender.name, fromRun: run.id, chain, to: target.id, toName: target.name, edge, mode: trigger.mode,
+      replyTo: null,
       task, status: 'open', run: null, result: null, reason: null, tokens: null, createdAt: now, updatedAt: now,
     }
     await this.storeHandoff(domain, handoff)
@@ -1269,14 +1417,49 @@ export class Automations extends Service<Config> {
   }
 
   /**
+   * The `bot` trigger of a handoff's receiver when it joins several senders.
+   * @param domain - the open definition domain.
+   * @param handoff - a stored handoff.
+   * @returns the joining trigger, or undefined for a reply or a handoff on a one-sender edge.
+   */
+  private joinOf(domain: Domain<typeof automationDomain>, handoff: Handoff): Extract<BotTrigger, { kind: 'bot' }> | undefined {
+    if (handoff.edge === null || handoff.replyTo !== null) return undefined
+    const trigger = domain.table('definitions').get(handoff.to)?.triggers[handoff.edge]
+    return trigger?.kind === 'bot' && trigger.from.length > 1 ? trigger : undefined
+  }
+
+  /** Whether the owner stopped a chain: one of its handoffs was refused for that reason. */
+  private chainStopped(domain: Domain<typeof automationDomain>, chain: AutomationRunId): boolean {
+    for (const [, handoff] of domain.table('handoffs').entries()) {
+      if (handoff.status === 'refused' && handoff.reason === CHAIN_STOPPED && chainOfHandoff(handoff) === chain) return true
+    }
+    return false
+  }
+
+  /**
+   * Whether this Host admits a receiver's handoffs now: the receiver runs here, this Host does not yield it to the
+   * cloud Host, and, unless it runs in parallel, it has no run in progress.
+   * @param domain - the open definition domain.
+   * @param target - the receiving bot.
+   * @returns true when a handoff to it may be admitted here once this device holds its claim.
+   */
+  private takesHandoffs(domain: Domain<typeof automationDomain>, target: AutomationDefinition): boolean {
+    const place = eligibility(target, this.here(target.owner))
+    if (place === 'never' || (place === 'fallback' && this.yields(target)) || !this.runsHere(domain, target)) return false
+    return target.overlap === 'parallel' || !this.runs(domain).some(run => run.definition.id === target.id && (run.status === 'queued' || run.status === 'running'))
+  }
+
+  /**
    * Admit the open handoffs this Host may run: the receiver runs here, this device holds its claim while account
    * sync serves the account, and the receiver has no run in progress unless it runs in parallel. A paused or
-   * removed receiver, or a board budget, refuses the handoff with the reason.
+   * removed receiver, or a board budget, refuses the handoff with the reason. Handoffs on a joining edge wait for
+   * their join instead.
    */
   private pumpHandoffs(): void {
     if (this.stopped) return
     void this.transaction(async (current) => {
-      const open = [...current.table('handoffs').entries()].map(([, handoff]) => handoff).filter(handoff => handoff.status === 'open')
+      const open = [...current.table('handoffs').entries()].map(([, handoff]) => handoff)
+        .filter(handoff => handoff.status === 'open' && this.joinOf(current, handoff) === undefined)
         .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
       for (const handoff of open) {
         const target = current.table('definitions').get(handoff.to)
@@ -1288,20 +1471,18 @@ export class Automations extends Service<Config> {
           await this.storeHandoff(current, { ...handoff, status: 'refused', reason: `${target.name} is paused.`, updatedAt: now })
           continue
         }
-        if (target.overlap !== 'parallel' && this.runs(current).some(run => run.definition.id === target.id && (run.status === 'queued' || run.status === 'running'))) continue
+        if (!this.takesHandoffs(current, target)) continue
         if (!await this.claimsScheduler(target)) continue
         const requestedId = this.occurrenceId(target.id, handoff.edge ?? -1, `handoff:${handoff.id}`)
         const run = current.table('runs').get(requestedId) ?? await this.admit(current, target, {
           trigger: 'bot', scheduledFor: now, requestedId, ...handoff.edge === null ? {} : { triggerIndex: handoff.edge },
-          handoff: {
-            id: handoff.id, from: handoff.from, fromName: handoff.fromName, fromRun: handoff.fromRun, edge: handoff.edge,
-            mode: handoff.mode, replyTo: handoff.replyTo, board: handoff.board, task: handoff.task,
-          },
+          handoff: this.reference(handoff),
         })
         await this.storeHandoff(current, run.status === 'skipped'
           ? { ...handoff, status: 'refused', run: run.id, reason: run.error, updatedAt: now }
           : { ...handoff, status: 'claimed', run: run.id, updatedAt: now })
       }
+      await this.admitJoins(current)
       this.drain(current)
     }).catch((error: unknown) => {
       // A stopping Host refuses the transaction; the handoffs stay open for the next start.
@@ -1309,34 +1490,184 @@ export class Automations extends Service<Config> {
     })
   }
 
+  /** The fields of a handoff a run record carries. */
+  private reference(handoff: Handoff): NonNullable<AutomationRun['handoff']> {
+    return {
+      id: handoff.id, from: handoff.from, fromName: handoff.fromName, fromRun: handoff.fromRun, chain: chainOfHandoff(handoff),
+      edge: handoff.edge, mode: handoff.mode, replyTo: handoff.replyTo, board: handoff.board, task: handoff.task,
+    }
+  }
+
   /**
-   * Record a settled run on the handoff it carried out, and wake the sender of a `wait` edge with the result.
+   * Evaluate every join this Host may admit: the handoffs on one joining edge of one receiver within one chain. An
+   * `any` join runs on its first input that carries work and refuses later ones; an `all` join runs once every
+   * sender has an input, recording a missing sender as timed out once `joinTimeoutMinutes` passed since the first
+   * input. A join whose inputs all failed, or whose chain was stopped, is recorded as one skipped run. The earliest
+   * deadline still pending arms the join timer.
+   * @param domain - the open definition domain.
+   */
+  private async admitJoins(domain: Domain<typeof automationDomain>): Promise<void> {
+    const groups = new Map<string, Handoff[]>()
+    for (const [, handoff] of domain.table('handoffs').entries()) {
+      if (this.joinOf(domain, handoff) === undefined) continue
+      const key = `${handoff.to}\n${handoff.edge}\n${chainOfHandoff(handoff)}`
+      groups.set(key, [...groups.get(key) ?? [], handoff])
+    }
+    let deadline = Infinity
+    for (const inputs of groups.values()) {
+      const [first] = inputs
+      const trigger = first === undefined ? undefined : this.joinOf(domain, first)
+      const target = first === undefined ? undefined : domain.table('definitions').get(first.to)
+      if (first === undefined || first.edge === null || trigger === undefined || target === undefined) continue
+      const edge = first.edge
+      const chain = chainOfHandoff(first)
+      const now = new Date().toISOString()
+      const requestedId = this.occurrenceId(target.id, edge, `join:${chain}`)
+      const admitted = domain.table('runs').get(requestedId)
+      const open = inputs.filter(handoff => handoff.status === 'open').sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
+      if (admitted !== undefined) {
+        // An `any` join ran already; later results are recorded without a run.
+        for (const handoff of open) await this.storeHandoff(domain, { ...handoff, status: 'refused', reason: `${target.name} already ran for this chain.`, updatedAt: now })
+        continue
+      }
+      const place = eligibility(target, this.here(target.owner))
+      if (place === 'never' || (place === 'fallback' && this.yields(target)) || !this.runsHere(domain, target)) continue
+      if (target.status !== 'active') {
+        for (const handoff of open) await this.storeHandoff(domain, { ...handoff, status: 'refused', reason: `${target.name} is paused.`, updatedAt: now })
+        continue
+      }
+      // One input per sender: the open one when a sender handed work on twice in the chain.
+      const bySender = new Map<AutomationId, Handoff>()
+      for (const handoff of inputs) if (!bySender.has(handoff.from) || handoff.status === 'open') bySender.set(handoff.from, handoff)
+      const stopped = this.chainStopped(domain, chain)
+      const missing = trigger.from.filter(sender => !bySender.has(sender))
+      const startsNow = trigger.join === 'any' && open.length > 0
+      if (!stopped && !startsNow && missing.length > 0) {
+        const due = Math.min(...inputs.map(handoff => Date.parse(handoff.createdAt))) + trigger.joinTimeoutMinutes * 60_000
+        if (Date.now() < due) { deadline = Math.min(deadline, due); continue }
+        for (const sender of missing) {
+          const absent = await this.recordAbsence(domain, target, edge, trigger, chain, sender, 'The join timed out waiting for it.')
+          if (absent !== undefined) bySender.set(sender, absent)
+        }
+      }
+      if (!this.takesHandoffs(domain, target) || !await this.claimsScheduler(target)) continue
+      const live = open.filter(handoff => bySender.get(handoff.from) === handoff)
+      const starting = trigger.join === 'any' ? live.slice(0, 1) : live
+      const recorded = [...bySender.values()].map(handoff => handoff.status === 'open' && !starting.includes(handoff) ? { ...handoff, status: 'refused' as const } : handoff)
+      const skip = stopped ? CHAIN_STOPPED : starting.length === 0
+        ? `Every input failed: ${recorded.map(handoff => `${handoff.fromName}: ${handoff.reason ?? handoff.status}`).join('; ')}`.slice(0, 2_000)
+        : undefined
+      const [lead] = starting
+      const run = await this.admit(domain, target, {
+        trigger: 'bot', scheduledFor: now, requestedId, triggerIndex: edge, ...skip === undefined ? {} : { skip },
+        ...lead === undefined ? {} : { handoff: this.reference(lead) },
+        join: { chain, inputs: recorded.map(handoff => ({
+          id: handoff.id, from: handoff.from, fromName: handoff.fromName, status: handoff.status,
+          task: handoff.task, reason: handoff.reason,
+        })) },
+      })
+      for (const handoff of open) {
+        await this.storeHandoff(domain, starting.includes(handoff) && run.status !== 'skipped'
+          ? { ...handoff, status: 'claimed', run: run.id, updatedAt: now }
+          : { ...handoff, status: 'refused', reason: run.status === 'skipped' ? run.error : `${target.name} already ran for this chain.`, updatedAt: now })
+      }
+    }
+    clearTimeout(this.joinTimer)
+    if (deadline === Infinity || this.stopped) return
+    this.joinTimer = setTimeout(() => { this.pumpHandoffs() }, Math.min(2_147_483_647, Math.max(0, deadline - Date.now())))
+  }
+
+  /**
+   * Record a sender of a joining edge that will hand no work on in a chain as a failed input, once.
+   * @param domain - the open definition domain.
+   * @param target - the receiving bot.
+   * @param edge - index of the joining trigger.
+   * @param trigger - the joining trigger.
+   * @param chain - the chain.
+   * @param sender - the sending bot.
+   * @param reason - why its input is missing.
+   * @param fromRun - the sender's run in the chain; the chain itself when it never ran.
+   * @returns the stored input, or undefined when the sender no longer exists.
+   */
+  private async recordAbsence(
+    domain: Domain<typeof automationDomain>, target: AutomationDefinition, edge: number, trigger: Extract<BotTrigger, { kind: 'bot' }>,
+    chain: AutomationRunId, sender: AutomationId, reason: string, fromRun: AutomationRunId = chain,
+  ): Promise<Handoff | undefined> {
+    const id = brandString<HandoffId>(createHash('sha256').update(`absent\n${chain}\n${target.id}\n${edge}\n${sender}`).digest('hex'))
+    const earlier = domain.table('handoffs').get(id)
+    if (earlier !== undefined) return earlier
+    const from = domain.table('definitions').get(sender)
+    if (from === undefined) return undefined
+    const board = [...domain.table('boards').entries()].map(([, value]) => value)
+      .find(value => value.owner === target.owner && value.members.includes(sender) && value.members.includes(target.id))
+    const now = new Date().toISOString()
+    const absent: Handoff = {
+      id, ...target.owner === undefined ? {} : { owner: target.owner }, board: board?.id ?? null,
+      from: sender, fromName: from.name, fromRun, chain, to: target.id, toName: target.name, edge, mode: trigger.mode, replyTo: null,
+      task: `${from.name} handed no work on.`, status: 'failed', run: null, result: null, reason, tokens: null, createdAt: now, updatedAt: now,
+    }
+    await this.storeHandoff(domain, absent)
+    return absent
+  }
+
+  /**
+   * Pause the bot of a run that called `bot_pause` and settled `succeeded`, naming the run on the definition. A bot
+   * the owner already paused or removed stays as it is.
+   * @param domain - the open definition domain.
+   * @param run - the settled run.
+   */
+  private async pauseFrom(domain: Domain<typeof automationDomain>, run: AutomationRun): Promise<void> {
+    const current = domain.table('definitions').get(run.definition.id)
+    if (current?.status !== 'active') return
+    await this.store(domain, {
+      ...current, status: 'paused', pausedBy: { runId: run.id, scheduledFor: run.scheduledFor },
+      revision: current.revision + 1, updatedAt: new Date().toISOString(),
+    })
+    this.arm(domain)
+  }
+
+  /**
+   * Record a settled run on every handoff it carried out, wake the sender of each `wait` edge with the result, and,
+   * for a run of a chain, record it as a failed input of every join it was a sender of but handed no work to.
    * @param domain - the open definition domain.
    * @param run - the settled run.
    */
   private async settleRun(domain: Domain<typeof automationDomain>, run: AutomationRun): Promise<void> {
-    const reference = run.handoff
-    if (reference == null) return
-    const handoff = domain.table('handoffs').get(reference.id)
-    if (handoff === undefined) return
     const now = new Date().toISOString()
     const done = run.status === 'succeeded'
-    const settled: Handoff = handoff.status === 'claimed'
-      ? { ...handoff, status: done ? 'done' : 'failed', result: run.summary, reason: run.error, tokens: run.usage?.totalTokens ?? null, updatedAt: now }
-      : { ...handoff, tokens: run.usage?.totalTokens ?? null, updatedAt: now }
-    await this.storeHandoff(domain, settled)
-    if (handoff.mode !== 'wait' || handoff.replyTo !== null) return
-    const sender = domain.table('definitions').get(handoff.from)
-    if (sender === undefined) return
-    const answer = settled.result ?? settled.reason ?? `${handoff.toName} finished without a result.`
-    const reply: Handoff = {
-      id: brandString<HandoffId>(createHash('sha256').update(`reply\n${handoff.id}`).digest('hex')), ...handoff.owner === undefined ? {} : { owner: handoff.owner },
-      board: handoff.board, from: handoff.to, fromName: handoff.toName, fromRun: run.id, to: sender.id, toName: sender.name,
-      edge: null, mode: 'dispatch', replyTo: handoff.id,
-      task: `${settled.status === 'done' ? 'Done' : 'Not done'}: ${answer}`.slice(0, 32_000),
-      status: 'open', run: null, result: null, reason: null, tokens: null, createdAt: now, updatedAt: now,
+    const carried = [...domain.table('handoffs').entries()].map(([, handoff]) => handoff).filter(handoff => handoff.run === run.id && handoff.status !== 'refused')
+    for (const handoff of carried) {
+      const settled: Handoff = handoff.status === 'claimed'
+        ? { ...handoff, status: done ? 'done' : 'failed', result: run.summary, reason: run.error, tokens: run.usage?.totalTokens ?? null, updatedAt: now }
+        : { ...handoff, tokens: run.usage?.totalTokens ?? null, updatedAt: now }
+      await this.storeHandoff(domain, settled)
+      if (handoff.mode !== 'wait' || handoff.replyTo !== null) continue
+      const sender = domain.table('definitions').get(handoff.from)
+      if (sender === undefined) continue
+      const answer = (settled.status === 'failed' ? settled.reason ?? settled.result : settled.result ?? settled.reason) ?? `${handoff.toName} finished without a result.`
+      const reply: Handoff = {
+        id: brandString<HandoffId>(createHash('sha256').update(`reply\n${handoff.id}`).digest('hex')), ...handoff.owner === undefined ? {} : { owner: handoff.owner },
+        board: handoff.board, from: handoff.to, fromName: handoff.toName, fromRun: run.id, chain: chainOfHandoff(handoff),
+        to: sender.id, toName: sender.name,
+        edge: null, mode: 'dispatch', replyTo: handoff.id,
+        task: `${settled.status === 'done' ? 'Done' : 'Not done'}: ${answer}`.slice(0, 32_000),
+        status: 'open', run: null, result: null, reason: null, tokens: null, createdAt: now, updatedAt: now,
+      }
+      if (domain.table('handoffs').get(reply.id) === undefined) await this.storeHandoff(domain, reply)
     }
-    if (domain.table('handoffs').get(reply.id) === undefined) await this.storeHandoff(domain, reply)
+    const chain = chainOfRun(run)
+    const handoffs = [...domain.table('handoffs').entries()].map(([, handoff]) => handoff)
+    // A run nothing handed work to belongs to a chain only once it started one.
+    if (chain === run.id && !handoffs.some(handoff => handoff.chain === run.id)) return
+    const reason = done ? 'It finished without handing work on.' : run.error ?? 'It did not finish.'
+    for (const [, target] of domain.table('definitions').entries()) {
+      if (target.owner !== run.definition.owner || target.id === run.definition.id) continue
+      for (const [edge, trigger] of target.triggers.entries()) {
+        if (trigger.kind !== 'bot' || trigger.from.length < 2 || !trigger.from.includes(run.definition.id)) continue
+        if (handoffs.some(handoff => handoff.fromRun === run.id && handoff.to === target.id && handoff.edge === edge)) continue
+        await this.recordAbsence(domain, target, edge, trigger, chain, run.definition.id, reason, run.id)
+      }
+    }
   }
 
   /**
@@ -1393,6 +1724,87 @@ export class Automations extends Service<Config> {
         })
       }
     }
+  }
+
+  /**
+   * Read the watched calendars now, or once more after the read in progress, so two reads never overlap; a failure is
+   * logged, never thrown.
+   */
+  private readCalendarsSoon(): void {
+    const signal = this.polls?.signal
+    if (signal === undefined || this.stopped) return
+    if (this.calendarRead !== undefined) { this.calendarRead.again = true; return }
+    const read = { again: false }
+    this.calendarRead = read
+    this.readCalendars(signal).catch((error: unknown) => { this.ctx.logger.warn(`automations: reading calendars failed: ${String(error)}`) }).finally(() => {
+      this.calendarRead = undefined
+      if (read.again) this.readCalendarsSoon()
+    })
+  }
+
+  /**
+   * Read the calendars of every owner with a calendar trigger this Host may run, through every calendar source, and
+   * replace those bots' firings with what the read found. The read covers the events whose firing falls between the
+   * misfire grace before now and two read intervals after it, so an event that moves or appears fires on time once
+   * a read has seen it, and an event removed before its firing does not fire once a read has missed it.
+   * @param signal - aborts the reads when the Host stops.
+   */
+  private async readCalendars(signal: AbortSignal): Promise<void> {
+    if (this.calendarSources.size === 0 || this.stopped) return
+    const domain = await this.ready
+    const watched = new Map<string, AutomationDefinition[]>()
+    for (const [, definition] of domain.table('definitions').entries()) {
+      if (definition.status !== 'active' || definition.owner === undefined || !definition.triggers.some(trigger => trigger.kind === 'calendar')) continue
+      const place = eligibility(definition, this.here(definition.owner))
+      if (place === 'never' || (place === 'fallback' && this.yields(definition)) || !this.runsHere(domain, definition)) continue
+      watched.set(definition.owner, [...watched.get(definition.owner) ?? [], definition])
+    }
+    const now = Date.now()
+    const earliest = now - this.config.misfireGraceMinutes * 60_000
+    const latest = now + 2 * this.config.calendarPollSeconds * 1_000
+    for (const [owner, definitions] of watched) {
+      const offsets = definitions.flatMap(definition => definition.triggers.flatMap(trigger => trigger.kind === 'calendar' ? [trigger.offsetMinutes * 60_000] : []))
+      // An event fires its offset after its start, so the starts to read are the firing window moved back by it.
+      const from = new Date(earliest - Math.max(...offsets)).toISOString()
+      const to = new Date(latest - Math.min(...offsets)).toISOString()
+      const events: CalendarEvent[] = []
+      for (const source of this.calendarSources) {
+        try {
+          events.push(...await source.events(owner, from, to, signal))
+        } catch (error) {
+          if (!signal.aborted) this.ctx.logger.warn(`automations: a calendar was not read: ${String(error)}`)
+        }
+      }
+      for (const definition of definitions) {
+        const firings = definition.triggers.flatMap((trigger, index) => trigger.kind !== 'calendar' ? [] : events
+          .filter(event => matchesCalendar(trigger, event))
+          .map(event => ({ index, at: firingOf(trigger, event), event }))
+          .filter(firing => Date.parse(firing.at) >= earliest && Date.parse(firing.at) <= latest))
+        this.calendarFirings.set(definition.id, firings)
+      }
+    }
+    // A bot that stopped being watched here keeps no firings.
+    const kept = new Set([...watched.values()].flat().map(definition => definition.id))
+    for (const id of this.calendarFirings.keys()) if (!kept.has(id)) this.calendarFirings.delete(id)
+    this.rearm()
+  }
+
+  /**
+   * The calendar firings of an active bot that are not admitted yet, at or after its last edit; each event admits
+   * one run per trigger, so a moved event does not fire again.
+   * @param domain - the open definition domain.
+   * @param definition - the bot.
+   * @returns the firings with their run identity.
+   */
+  private calendarDue(
+    domain: Domain<typeof automationDomain>, definition: AutomationDefinition,
+  ): (CalendarFiring & { id: AutomationRunId })[] {
+    if (definition.status !== 'active') return []
+    return (this.calendarFirings.get(definition.id) ?? []).flatMap((firing) => {
+      if (Date.parse(firing.at) < Date.parse(definition.updatedAt)) return []
+      const id = this.occurrenceId(definition.id, firing.index, `calendar:${firing.event.provider}:${firing.event.id}`)
+      return domain.table('runs').get(id) === undefined ? [{ ...firing, id }] : []
+    })
   }
 
   private runnerId(domain: Domain<typeof automationDomain>): AutomationRunnerId {
@@ -1514,7 +1926,7 @@ export class Automations extends Service<Config> {
     if (definition.status !== 'active') return []
     return definition.triggers.flatMap((trigger, index) => {
       if (trigger.kind !== 'schedule') return []
-      const latest = latestDueOccurrence(trigger.schedule, now)
+      const latest = latestDueFiring(trigger.schedule, definition.id, now)
       if (latest === null) return []
       const mark = definition.lastAdmittedAt[String(index)]
       const admitted = Math.max(Date.parse(definition.updatedAt), mark === undefined ? -Infinity : Date.parse(mark))
@@ -1532,7 +1944,9 @@ export class Automations extends Service<Config> {
       // one this Host may never admit is not due here at all.
       const waiting = this.unadmitted(domain, value, now).filter(({ index, at }) => this.deferred.get(value.id) !== `${index}:${at}`)
         .map(({ at }) => this.admitsFrom(value, at)).filter(from => from !== Infinity).map(from => Math.max(Date.now(), from))
-      if (waiting.length > 0) return waiting
+      const calendar = this.calendarDue(domain, value).map(({ at }) => this.admitsFrom(value, at)).filter(from => from !== Infinity)
+        .map(from => Math.max(Date.now(), from))
+      if (waiting.length > 0 || calendar.length > 0) return [...waiting, ...calendar]
       const next = this.nextRunAt(value, now)
       return next === null ? [] : [Date.parse(next)]
     })
@@ -1553,6 +1967,18 @@ export class Automations extends Service<Config> {
             this.deferred.delete(definition.id)
             const latest = current.table('definitions').get(definition.id) ?? definition
             await this.admit(current, latest, { trigger: 'schedule', triggerIndex: occurrence.index, scheduledFor: occurrence.at })
+          }
+          for (const firing of this.calendarDue(current, definition)) {
+            const from = this.admitsFrom(definition, firing.at)
+            if (from === Infinity || Date.now() < from) continue
+            // An event a stopped or sleeping Host saw too late is left out, like a scheduled occurrence past its grace.
+            if (Date.now() - Date.parse(firing.at) > this.config.misfireGraceMinutes * 60_000) continue
+            if (!await this.claimsScheduler(definition)) continue
+            const summary = describeCalendar(firing.event)
+            await this.admit(current, current.table('definitions').get(definition.id) ?? definition, {
+              trigger: 'calendar', triggerIndex: firing.index, scheduledFor: firing.at, requestedId: firing.id, payload: summary,
+              event: { source: 'calendar', id: `${firing.event.provider}:${firing.event.id}`, summary: summary.split('\n', 1)[0] ?? '' },
+            })
           }
           // The cloud Host takes the next occurrence back once it can.
           if (this.yields(definition) && this.unadmitted(current, current.table('definitions').get(definition.id) ?? definition, at).length === 0) await this.release(definition)
@@ -1674,6 +2100,7 @@ export class Automations extends Service<Config> {
       // the bot's page on this Host shows the address and key that reach this Host.
       await this.alignCredential(definition)
       this.arm(domain)
+      if (definition.triggers.some(trigger => trigger.kind === 'calendar')) this.readCalendarsSoon()
     }).catch((error: unknown) => {
       this.ctx.logger.warn(`automations: another device's automation was not stored: ${String(error)}`)
     })
@@ -1761,6 +2188,9 @@ export class Automations extends Service<Config> {
     requestedId?: AutomationRunId
     event?: AutomationRun['event']
     handoff?: AutomationRun['handoff']
+    join?: AutomationRun['join']
+    /** Records the occurrence as skipped with this reason. */
+    skip?: string
   }): Promise<AutomationRun> {
     if (!this.runsHere(domain, definition)) {
       throw new Error(this.config.placement.kind === 'cloud'
@@ -1773,10 +2203,10 @@ export class Automations extends Service<Config> {
     const full = definition.overlap === 'queue' && active.filter(run => run.status === 'queued').length >= this.config.queueDepth
     const stale = trigger === 'schedule' && Date.now() - Date.parse(scheduledFor) > this.config.misfireGraceMinutes * 60_000
     const budget = this.budgetRefusal(domain, definition)
-    const error = overlapping ? 'A previous run is still active.'
+    const error = occurrence.skip ?? (overlapping ? 'A previous run is still active.'
       : full ? `This bot already has ${this.config.queueDepth} runs waiting.`
         : stale ? 'Missed while this computer was unavailable.'
-          : budget ?? null
+          : budget ?? null)
     const run: AutomationRun = {
       // A scheduled occurrence is its automation, trigger, and instant, so a second Host admits it once; an event or
       // handoff is its trigger and the cause's own id; an inbound or manual run is one request.
@@ -1785,6 +2215,7 @@ export class Automations extends Service<Config> {
       finishedAt: error === null ? null : new Date().toISOString(), summary: null, error,
       admittedBy: this.runnerId(domain), retryOfRunId: occurrence.retryOfRunId ?? null, triggerIndex: occurrence.triggerIndex ?? null,
       payload: occurrence.payload ?? null, event: occurrence.event ?? null, handoff: occurrence.handoff ?? null,
+      ...occurrence.join === undefined ? {} : { join: occurrence.join },
       usage: null, resolution: null,
     }
     await this.storeRun(domain, run)
@@ -1821,6 +2252,8 @@ export class Automations extends Service<Config> {
         for (const [, handoff] of domain.table('handoffs').entries()) {
           if (handoff.run === null || counted.has(handoff.run) || !members.has(handoff.to)) continue
           if (Date.parse(handoff.updatedAt) < since) continue
+          // A joined run settles every input it carried with its tokens; it spent them once.
+          counted.add(handoff.run)
           spent += handoff.tokens ?? 0
         }
         if (spent >= maxTokensPerDay) return `Board “${board.name}” has spent its budget of ${maxTokensPerDay} tokens for the last 24 hours.`
@@ -1891,7 +2324,7 @@ export class Automations extends Service<Config> {
           releaseGuard = agentCtx.tools.guard(exec => exec.name.startsWith('automation_') || exec.name === 'ask_user'
             ? 'Bots cannot create more unattended work or ask interactive questions.'
             : connectorRefusal(connectors, exec.name))
-          agentCtx.effect(() => registerRunTools(agentCtx, this.runToolsAccess(domain, run)))
+          agentCtx.effect(() => registerRunTools(agentCtx, this.runToolsAccess(domain, run, entry)))
         },
       }))
       entry.handle = handle
@@ -1910,14 +2343,23 @@ export class Automations extends Service<Config> {
       const last = messages.at(-1)
       const summary = last?.type === 'assistant/message' ? last.data.message.content.filter(block => block.type === 'text').map(block => block.text).join('\n') : null
       const completed = end?.type === 'turn/end' && end.data.reason.kind === 'completed'
-      // oxlint-disable-next-line typescript/no-unnecessary-condition -- the run timeout is set while the turns above are awaited.
-      const status = stopRequested() ? 'cancelled' : completed && !timedOut ? 'succeeded' : this.stopped ? 'cancelled' : 'failed'
+      // A turn that completed after `bot_report_failure` is a failed run with the reason the run gave.
+      const reported = entry.failure
+      const finished = completed && !timedOut
+      // oxlint-disable-next-line typescript/no-unnecessary-condition -- timeout and stop land during the awaits above.
+      const status = stopRequested() ? 'cancelled' : finished ? (reported === undefined ? 'succeeded' : 'failed') : this.stopped ? 'cancelled' : 'failed'
       const error = stopRequested() ? STOPPED
         // oxlint-disable-next-line typescript/no-unnecessary-condition -- the run timeout is set while the turns above are awaited.
-        : timedOut ? 'Execution timed out.' : completed ? null : 'Execution did not complete; inspect its conversation.'
-      const settled: AutomationRun = { ...running, status, finishedAt: new Date().toISOString(), summary, error, usage: usageOf(events) }
+        : timedOut ? 'Execution timed out.' : !completed ? 'Execution did not complete; inspect its conversation.' : reported ?? null
+      const agent = handle.agent
+      const quiet = status === 'succeeded' && entry.noUpdate === true
+        && !needsAttention(events, (name, args) => this.ctx.tools.get(name, agent)?.presentCall?.(args))
+      const settled: AutomationRun = {
+        ...running, status, finishedAt: new Date().toISOString(), summary, error, usage: usageOf(events), ...quiet ? { quiet } : {},
+      }
       await this.storeRun(domain, settled)
       await this.settleRun(domain, settled)
+      if (status === 'succeeded' && entry.pause === true) await this.pauseFrom(domain, settled)
     } catch (error) {
       const status = stopRequested() ? 'cancelled' : 'failed'
       const message = error instanceof Error ? error.message : String(error)

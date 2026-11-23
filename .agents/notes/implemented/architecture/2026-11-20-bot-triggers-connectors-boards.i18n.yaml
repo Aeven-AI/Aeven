@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-11-20-bot-triggers-connectors-boards.md
-2026-11-20-bot-triggers-connectors-boards.md: 22f55840296afee0879cc7fc4859707aacb76e9b
-2026-11-20-bot-triggers-connectors-boards.zh.md: ced5608e1458ac08fd73b2c223bdace5785ae871
+2026-11-20-bot-triggers-connectors-boards.md: 1fe308f9a3592d798691bfc0c5c5176408fb677d
+2026-11-20-bot-triggers-connectors-boards.zh.md: e4b1d5ed742c801480fbd4a2ad11da2479867e5d

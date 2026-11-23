@@ -791,6 +791,7 @@ export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   AutomationBoard: 'package-owned type is documented in packages/core/automations/src/types.ts',
   BoardId: 'package-owned type is documented in packages/core/automations/src/types.ts',
   BoardInput: 'package-owned type is documented in packages/core/automations/src/types.ts',
+  CalendarSource: 'package-owned type is documented in packages/core/automations/src/types.ts',
   ConnectorBinding: 'package-owned type is documented in packages/core/automations/src/types.ts',
   Handoff: 'package-owned type is documented in packages/core/automations/src/types.ts',
   AutomationDefinition: 'package-owned type is documented in packages/core/automations/src/types.ts',

@@ -92,7 +92,7 @@ export function BotDetail({ t, fmt, id, data, state, call, openRun, showOverview
           <RunControl t={t} task={task} current={current} state={state} />
           <PauseControl t={t} task={task} state={state} />
           <BotMenu t={t} task={task} state={state} edit={editBot} deleted={showOverview} />
-          <StatusPill t={t} task={task} current={current} state={state} />
+          <StatusPill t={t} fmt={fmt} task={task} current={current} state={state} />
         </div>
       </article>
       <article className={css.card}>

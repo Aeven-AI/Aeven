@@ -836,7 +836,14 @@ Built-in automation service; schedules never authorize additional tool access.
  * account's registered Hosts, its `nextRunAt` is the earliest next occurrence of its schedule triggers, and its
  * `webhook` says an inbound credential exists; the secret itself never enters this projection.
  */
-async list(): Promise<{ definitions: (AutomationDefinition & { placement: AutomationPlacement nextRunAt: string | null lastRun: AutomationRun | null webhook: boolean })[] runs: AutomationRun[] boards: AutomationBoard[] handoffs: Handoff[] capabilities: { host: HostProfile['kind']; triggers: readonly AutomationSchedule['kind'][]; webhook: boolean; events: readonly ('mail' | 'github')[]; connectors: readonly string[] } hosts: { cloud: boolean; desktops: AutomationDesktop[] } }>
+async list(): Promise<{ definitions: (AutomationDefinition & { placement: AutomationPlacement nextRunAt: string | null lastRun: AutomationRun | null webhook: boolean })[] runs: AutomationRun[] boards: AutomationBoard[] handoffs: Handoff[] capabilities: { host: HostProfile['kind'] triggers: readonly AutomationSchedule['kind'][] webhook: boolean events: readonly ('mail' | 'github')[] /** Whether a calendar source is registered, so calendar triggers can fire on this Host. */ calendar: boolean connectors: readonly string[] } hosts: { cloud: boolean; desktops: AutomationDesktop[] } }>
+
+/**
+ * Let a calendar source's events fire calendar triggers.
+ * @param source - reads one owner's calendar events.
+ * @returns disposer that removes the source; firings it reported stay until the next read.
+ */
+registerCalendarSource(source: CalendarSource): () => void
 
 /**
  * The connectors a conversation may use while it executes a bot's run, so a connector provider can leave the
