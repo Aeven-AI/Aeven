@@ -64,6 +64,6 @@ export const HOSTED_MCP_APPROVAL_REASONS: Readonly<Record<HostedMcpProvider, str
   notion: 'Approve this change to your connected Notion workspace. Other members can see it.',
   vercel: 'Approve this change to your connected Vercel account. It can affect live projects and deployments.',
   atlassian: 'Approve this change to your connected Atlassian site. It appears as you in Jira or Confluence.',
-  monday: 'Approve this change to your connected monday.com account. Other members can see it.',
+  monday: 'Approve this change to your connected Monday account. Other members can see it.',
   stripe: 'Approve this action on your connected Stripe account. It can change live payments, customers, or billing.',
 }
