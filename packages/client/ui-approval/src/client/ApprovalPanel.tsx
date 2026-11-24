@@ -66,7 +66,7 @@ function ApprovalFlow({ pending, detail, t }: {
     outlook: 'Outlook', 'outlook-calendar': 'Outlook Calendar', onedrive: 'OneDrive',
     sharepoint: 'SharePoint', teams: 'Microsoft Teams', github: 'GitHub', notion: 'Notion',
     vercel: 'Vercel', atlassian: 'Atlassian', monday: 'Monday', stripe: 'Stripe', salesforce: 'Salesforce', shopify: 'Shopify', 'microsoft-365': 'Microsoft 365',
-    spotify: 'Spotify', cloudflare: 'Cloudflare', aws: 'AWS', supabase: 'Supabase', calendly: 'Calendly', bigquery: 'BigQuery', 'compute-engine': 'Compute Engine', 'azure-devops': 'Azure DevOps', oracle: 'Oracle Cloud',
+    cloudflare: 'Cloudflare', aws: 'AWS', supabase: 'Supabase', calendly: 'Calendly', bigquery: 'BigQuery', 'compute-engine': 'Compute Engine', 'azure-devops': 'Azure DevOps', oracle: 'Oracle Cloud',
   }
   const connectorId = connector?.[1]
   const provider = connectorId === undefined ? undefined : providers[connectorId] ?? connectorId

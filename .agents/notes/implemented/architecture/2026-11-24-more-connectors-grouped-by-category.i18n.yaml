@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-11-24-more-connectors-grouped-by-category.md
-2026-11-24-more-connectors-grouped-by-category.md: 0c4f8e0d9e2095fc52b1970c4b640fc77f0c4d69
-2026-11-24-more-connectors-grouped-by-category.zh.md: c4da050d8bfe8d8f48ce4c2b574b82530d639af2
+2026-11-24-more-connectors-grouped-by-category.md: 6488d657088bf7cb55bd5b04634065552023f0b0
+2026-11-24-more-connectors-grouped-by-category.zh.md: 42e7ca350d713a6978589547fa51deb247efbc80

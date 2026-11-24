@@ -7,12 +7,12 @@ import type { ConnectorProvider } from '@aeven/api-remotes/client'
 /** A heading on the Connectors page; each names the locale key of its title. */
 export type ConnectorCategory =
   | 'categoryCommunication' | 'categoryProductivity' | 'categoryDevelopment' | 'categorySales'
-  | 'categoryCommerce' | 'categoryFinance' | 'categoryMedia' | 'categoryCustom'
+  | 'categoryCommerce' | 'categoryFinance' | 'categoryCustom'
 
 /** Category headings, top to bottom; Custom comes last because its servers can be anything, any number of them. */
 export const CONNECTOR_CATEGORIES: readonly ConnectorCategory[] = [
   'categoryCommunication', 'categoryProductivity', 'categoryDevelopment', 'categorySales',
-  'categoryCommerce', 'categoryFinance', 'categoryMedia', 'categoryCustom',
+  'categoryCommerce', 'categoryFinance', 'categoryCustom',
 ]
 
 /** The heading every provider is listed under; a provider keeps the Host's list order inside its category. */
@@ -28,6 +28,5 @@ export const connectorCategory: Readonly<Record<ConnectorProvider, ConnectorCate
   salesforce: 'categorySales',
   shopify: 'categoryCommerce',
   stripe: 'categoryFinance',
-  spotify: 'categoryMedia',
   mcp: 'categoryCustom',
 }
