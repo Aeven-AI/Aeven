@@ -40,7 +40,7 @@ Electron 拥有保留 profile `$AVN_HOME/profiles/desktop`。其 manifest（元�
 
 avn 主渲染进程只获得桌面协议标记。独立插件窗口获得结构化的列出、安装、移除、更新和更新检查操作；两个渲染进程都拿不到文件系统、原始 Electron IPC、shell 或任意 pnpm 参数。
 
-链接点击与右键菜单同样分工。窗口自己不打开任何浏览器：内容请求打开的地址会被上报给页面（`external-links.ts`），由页面在侧边栏浏览器、agent 所驱动的 Host Chromium，或系统浏览器中打开；从未订阅的页面仍走操作系统交接。右键菜单在本进程中绘制，但由页面描述（`app-menu.ts`、`context-menu.ts`），因为页面才知道自己的链接与文件名意味着什么：shell 校验这些行，弹出原生菜单，并把读者所选的行回传给页面。侧边栏地址栏与 agent 导航接受 HTTP(S) 和 `file:` URL；本地页面仍使用 guest 的沙箱、上下文隔离，并禁用 Node integration。
+链接点击与右键菜单同样分工。窗口自己不打开任何浏览器：内容请求打开的地址会被上报给页面（`external-links.ts`），由页面在侧边栏浏览器、agent 所驱动的 Host Chromium，或系统浏览器中打开；从未订阅的页面仍走操作系统交接。右键菜单在本进程中绘制，但由页面描述（`app-menu.ts`、`context-menu.ts`），因为页面才知道自己的链接与文件名意味着什么：shell 校验这些行，弹出原生菜单，并把读者所选的行回传给页面。侧边栏地址栏与 agent 导航接受 HTTP(S) 和 `file:` URL；本地页面仍使用 guest 的沙箱、上下文隔离，并禁用 Node integration。agent 驱动 guest 期间及其最后一次操作后的一分钟内，该 guest 关闭后台节流（`browser-guests.ts`）：被节流的 guest 在隐藏或被遮挡的窗口中不绘制帧，agent 关闭的菜单或对话框便永远关不完，其遮罩会截走下一次点击。
 
 Electron 根据应用 locale 选择类型化的英文或中文桌面壳文案，并以英文作为 fallback。菜单、原生对话框与插件管理渲染进程使用同一 locale 数据；仓库的 Client UI i18n gate 会检查这些桌面源文件。
 
