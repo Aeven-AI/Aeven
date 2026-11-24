@@ -636,7 +636,7 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     setAzureDevOpsForm(false)
     startSignIn('azure-devops', () => props.authorizeAzureDevOps(request))
   }}>
-    <label className={css.field}>{t('azureDevOpsOrganization')}<input autoFocus required placeholder="https://dev.azure.com/contoso" value={azureDevOpsOrganization} disabled={busy} onChange={(event) => { setAzureDevOpsOrganization(event.currentTarget.value) }} /></label>
+    <label className={css.field}>{t('azureDevOpsOrganization')}<input autoFocus required placeholder={t('azureDevOpsPlaceholder')} value={azureDevOpsOrganization} disabled={busy} onChange={(event) => { setAzureDevOpsOrganization(event.currentTarget.value) }} /></label>
     <p className={css.hint}>{t('azureDevOpsHint')}</p>
     <div className={css.actions}><button type="submit" className={css.primaryAction} disabled={busy}>{t('consent')}</button><button type="button" className={css.secondaryAction} disabled={busy} onClick={() => { setAzureDevOpsForm(false) }}>{t('cancel')}</button></div>
   </form>
@@ -649,7 +649,7 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
   }}>
     <p className={css.hint}>{t('oracleSetup')}</p>
     <label className={css.field}>{t('oracleServer')}<input autoFocus required type="url" value={oracleServer} disabled={busy} onChange={(event) => { setOracleServer(event.currentTarget.value) }} /></label>
-    <label className={css.field}>{t('oracleDomain')}<input required placeholder="https://idcs-….identity.oraclecloud.com" value={oracleDomain} disabled={busy} onChange={(event) => { setOracleDomain(event.currentTarget.value) }} /></label>
+    <label className={css.field}>{t('oracleDomain')}<input required placeholder={t('oracleDomainPlaceholder')} value={oracleDomain} disabled={busy} onChange={(event) => { setOracleDomain(event.currentTarget.value) }} /></label>
     <label className={css.field}>{t('oracleClientId')}<input required autoComplete="off" value={oracleClientId} disabled={busy} onChange={(event) => { setOracleClientId(event.currentTarget.value) }} /></label>
     <label className={css.field}>{t('oracleClientSecret')}<input type="password" autoComplete="off" value={oracleSecret} disabled={busy} onChange={(event) => { setOracleSecret(event.currentTarget.value) }} /></label>
     <p className={css.hint}>{t('tokenHint')}</p>
