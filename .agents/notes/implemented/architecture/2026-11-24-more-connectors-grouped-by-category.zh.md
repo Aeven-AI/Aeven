@@ -15,7 +15,7 @@ Status: implemented
 - **通过 Microsoft 应用接入 Azure DevOps。** 其托管服务器位于 `mcp.dev.azure.com/<organization>`，经由 Entra 工作或学校账户授权，因此 API 的 Microsoft 应用在 `organizations` 请求 `https://mcp.dev.azure.com/.default`。该令牌并非针对 Graph，因此 API 从 ID 令牌而非 Graph 的 `/me` 读取账户。设置页面在授权前收集组织，宿主将服务器与连接行一同保存。Azure 资源没有托管 MCP 服务器，因此不提供。
 - **Oracle Cloud 沿用 Salesforce 的方式。** Oracle 的托管 MCP 服务器运行在各租户内部，经由租户自己的身份域授权，且不支持动态注册，因此用户提供服务器 URL、身份域及其应用的客户端 ID 和密钥。API 的自带应用路径此前仅供 Salesforce 使用，现按提供商选择校验规则和端点；它只接受 `identity.oraclecloud.com` 主机，并请求 `openid offline_access`，宿主只接受 `oraclecloud.com` 上的 HTTPS 服务器 URL。
 - **Gmail、云端硬盘和日历之外的 Google 服务。** `google-tasks`（`tasks`）、`google-contacts`（`contacts`）和 `google-meet`（`meetings.space.created`、`meetings.space.readonly`）通过同一 Workspace 桥接运行，`GWS_SERVICES` 分别设为 `tasks`、`people` 和 `meet`。这四个范围均为敏感而非受限范围，因此验证无需 CASA 评估。桥接本身没有 Meet 工具；其 `workspace_raw` 工具访问 Meet API，并以 `conferenceRecords.list` 验证授权。Chat 和 Keep 需要 Workspace 管理员，YouTube 不在桥接范围内，因此不提供。
-- **类别在客户端。** `connector-categories.ts` 将每个提供商映射到一个标题——沟通、效率、开发工具、销售与营销、电商与购物或金融服务，沿用 Claude 连接器目录的用语，自定义 MCP 服务器可以是任何服务，因此排在最后的“自定义”标题下——连接器页面在各行上方列出每个非空标题。该映射为 `Record<ConnectorProvider, …>`，新增提供商而未指定类别会导致类型检查失败。搜索会缩小每个标题下的行，并隐藏变空的标题。
+- **类别在客户端。** `connector-categories.ts` 将每个提供商映射到一个标题——沟通、效率、开发工具、销售与营销、电商与购物或金融服务，沿用 Claude 连接器目录的用语，自定义 MCP 服务器可以是任何服务，因此排在最后的“自定义连接器”标题下——连接器页面在各行上方列出每个非空标题。该映射为 `Record<ConnectorProvider, …>`，新增提供商而未指定类别会导致类型检查失败。搜索会缩小每个标题下的行，并隐藏变空的标题。
 
 ## 考虑过的替代方案
 
