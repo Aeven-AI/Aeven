@@ -5,6 +5,7 @@ import type { AccountIntegrationsView, CatalogPackInstall, ConnectorAuthorizatio
 import { Button, LoadingBlock, SectionHeader, MarkdownText, Menu, Modal, Spinner, Switch, Tabs, IconWarningOutline16, IconChevronLeftOutline14, IconCloseOutline16, IconLucideSettings2 } from '@aeven/client-ui-primitives'
 import type { HostObservable, InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import css from './IntegrationsSection.module.css'
+import { CONNECTOR_CATEGORIES, connectorCategory } from './connector-categories.ts'
 import { connectorIcons } from './connector-icons.ts'
 import type { TelegramPairingOperations } from './connector-page.ts'
 import { DiscordAccounts } from './DiscordAccounts.tsx'
@@ -114,7 +115,7 @@ type Connection = AccountIntegrationsView['connectors'][number]
 type Provider = AccountIntegrationsView['providers'][number]
 
 /** Marks drawn in a single dark color, which the black badge shows inverted. */
-const MONOCHROME_ICONS: ReadonlySet<string> = new Set(['github', 'email', 'notion', 'vercel'])
+const MONOCHROME_ICONS: ReadonlySet<string> = new Set(['github', 'email', 'notion', 'vercel', 'aws'])
 
 /** Read one uploaded file as browser-safe base64. */
 function upload(file: File): Promise<SkillUploadFile> {
@@ -575,7 +576,7 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     if (provider.provider === 'telegram') return t('telegramUnavailable')
     if (provider.provider === 'discord') return t('discordUnavailable')
     if (provider.provider === 'slack') return t('slackUnavailable')
-    return t(['gmail', 'google-drive', 'google-calendar'].includes(provider.provider) ? 'googleSetupRequired'
+    return t(['gmail', 'google-drive', 'google-calendar', 'google-tasks', 'google-contacts', 'google-meet'].includes(provider.provider) ? 'googleSetupRequired'
       : ['microsoft-365', 'outlook', 'outlook-calendar', 'onedrive', 'sharepoint', 'teams'].includes(provider.provider) ? 'microsoftSetupRequired' : 'setupRequired')
   }
   const connectForm = (provider: 'mcp' | 'github') => <form className={css.card} onSubmit={(event) => {
@@ -808,16 +809,22 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     </> : <>
       {providerDetail === undefined && snapshot !== undefined && connectorSearch}
       {providerDetail === undefined && snapshot !== undefined && matchingProviders.length === 0 && <p className={css.hint}>{t('noConnectorMatches')}</p>}
-      {providerDetail === undefined ? <div className={css.connectorList}>{matchingProviders.map(provider => <article
-        key={provider.provider}
-        className={css.connectorRow}
-      >
-        <button type="button" className={css.connectorOpen} onClick={() => { openDetail(provider.provider) }}>
-          {connectorIcon(provider.provider)}
-          <span className={css.skillSummary}><strong>{t(provider.provider)}</strong><span className={css.connectorDescription}>{t(`${provider.provider}Description`)}</span>{(stateOf(provider).expired || provider.authorizationFailure !== undefined) && <span className={css.attention}>{providerHint(provider)}</span>}</span>
-        </button>
-        {providerSwitch(provider)}
-      </article>)}</div> : <article className={css.connectorDetail}>
+      {providerDetail === undefined ? <div className={css.connectorGroups}>{CONNECTOR_CATEGORIES.map((category) => {
+        const rows = matchingProviders.filter(provider => connectorCategory[provider.provider] === category)
+        return rows.length === 0 ? null : <section key={category} className={css.category}>
+          <h3 className={css.categoryHeader}>{t(category)}</h3>
+          <div className={css.connectorList}>{rows.map(provider => <article
+            key={provider.provider}
+            className={css.connectorRow}
+          >
+            <button type="button" className={css.connectorOpen} onClick={() => { openDetail(provider.provider) }}>
+              {connectorIcon(provider.provider)}
+              <span className={css.skillSummary}><strong>{t(provider.provider)}</strong><span className={css.connectorDescription}>{t(`${provider.provider}Description`)}</span>{(stateOf(provider).expired || provider.authorizationFailure !== undefined) && <span className={css.attention}>{providerHint(provider)}</span>}</span>
+            </button>
+            {providerSwitch(provider)}
+          </article>)}</div>
+        </section>
+      })}</div> : <article className={css.connectorDetail}>
         <div className={css.connectorHeading}>
           {connectorIcon(providerDetail.provider, true)}
           <h2>{t(providerDetail.provider)}</h2>

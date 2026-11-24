@@ -1,12 +1,12 @@
 /**
- * Vendor-hosted MCP connectors: Notion, Vercel, Atlassian, monday.com, and Stripe. Each mounts
- * its vendor's own MCP server over Streamable HTTP with a grant the Aeven API holds.
+ * Vendor-hosted MCP connectors: Notion, Vercel, Atlassian, monday.com, Stripe, Spotify, Cloudflare,
+ * and AWS. Each mounts its vendor's own MCP server over Streamable HTTP with a grant the Aeven API holds.
  */
 
 import type { ConnectorProvider } from './types.ts'
 
 /** Providers whose connector mounts the vendor's hosted MCP server. */
-export type HostedMcpProvider = 'notion' | 'vercel' | 'atlassian' | 'monday' | 'stripe'
+export type HostedMcpProvider = 'notion' | 'vercel' | 'atlassian' | 'monday' | 'stripe' | 'spotify' | 'cloudflare' | 'aws'
 
 /**
  * Each provider's MCP endpoint. The Aeven API requests every grant for the vendor's MCP server,
@@ -18,6 +18,9 @@ export const HOSTED_MCP_ENDPOINTS: Readonly<Record<HostedMcpProvider, string>> =
   atlassian: 'https://mcp.atlassian.com/v1/mcp',
   monday: 'https://mcp.monday.com/mcp',
   stripe: 'https://mcp.stripe.com',
+  spotify: 'https://mcp-gateway-external-pilot.spotify.net/mcp',
+  cloudflare: 'https://mcp.cloudflare.com/mcp',
+  aws: 'https://aws-mcp.us-east-1.api.aws/mcp',
 }
 
 /**
@@ -66,4 +69,7 @@ export const HOSTED_MCP_APPROVAL_REASONS: Readonly<Record<HostedMcpProvider, str
   atlassian: 'Approve this change to your connected Atlassian site. It appears as you in Jira or Confluence.',
   monday: 'Approve this change to your connected monday.com account. Other members can see it.',
   stripe: 'Approve this action on your connected Stripe account. It can change live payments, customers, or billing.',
+  spotify: 'Approve this change to your connected Spotify account. It can change what plays, your library, or your playlists.',
+  cloudflare: 'Approve this change to your connected Cloudflare account. It can affect live sites, DNS, and Workers.',
+  aws: 'Approve this action on your connected AWS account. It can change live resources and incur charges.',
 }

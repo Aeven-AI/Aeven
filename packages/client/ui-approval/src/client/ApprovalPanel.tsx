@@ -62,10 +62,11 @@ function ApprovalFlow({ pending, detail, t }: {
   const connector = /^mcp__([a-z-]+)_([a-f0-9]{8})__(.+)$/.exec(pending.toolName)
   const providers: Record<string, string> = {
     whatsapp: 'WhatsApp', telegram: 'Telegram', discord: 'Discord', slack: 'Slack',
-    gmail: 'Gmail', 'google-drive': 'Google Drive', 'google-calendar': 'Google Calendar',
+    gmail: 'Gmail', 'google-drive': 'Google Drive', 'google-calendar': 'Google Calendar', 'google-tasks': 'Google Tasks', 'google-contacts': 'Google Contacts', 'google-meet': 'Google Meet',
     outlook: 'Outlook', 'outlook-calendar': 'Outlook Calendar', onedrive: 'OneDrive',
     sharepoint: 'SharePoint', teams: 'Microsoft Teams', github: 'GitHub', notion: 'Notion',
     vercel: 'Vercel', atlassian: 'Atlassian', monday: 'monday.com', stripe: 'Stripe', salesforce: 'Salesforce', shopify: 'Shopify', 'microsoft-365': 'Microsoft 365',
+    spotify: 'Spotify', cloudflare: 'Cloudflare', aws: 'AWS',
   }
   const connectorId = connector?.[1]
   const provider = connectorId === undefined ? undefined : providers[connectorId] ?? connectorId
