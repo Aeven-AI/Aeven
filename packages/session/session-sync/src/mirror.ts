@@ -8,7 +8,8 @@
  * accepted head and either continues the current claim or starts a new one there. A batch from a device that fell
  * behind (it slept, or ran a turn while partitioned) therefore never lands: every device drops it, and the device
  * that wrote it rewrites its local log to the accepted history and submits the user's dropped prompts again, so
- * they are answered on the accepted history.
+ * they are answered on the accepted history. A stored log that differs from history accepted under this device's own
+ * claim was changed on disk after it was published; it is put back to the accepted history and nothing is asked again.
  *
  * Input never waits for a handover: a device that cannot run the next turn itself, because another device is
  * running one, writes the input to the synced `sessions/inbox`, and the device that takes the next turn applies it.
@@ -1033,6 +1034,22 @@ export class SessionMirror {
   }
 
   /**
+   * The device running a turn of a session when it is another device: the live runner, else the writer the index
+   * marks as running. Builds that publish no live runner still mark the index entry.
+   * @param sessionId - the session.
+   * @returns the device, or undefined when no other device is known to run a turn of it.
+   */
+  turnElsewhere(sessionId: SessionId): SessionRunner | undefined {
+    const live = this.runnerOf(sessionId)
+    if (live !== undefined) return live
+    const docs = this.docs
+    const entry = docs?.index.doc.getMap<IndexEntry>('sessions').get(sessionId)
+    if (docs === undefined || entry?.running !== true || entry.writer === undefined || entry.writer === this.device()) return undefined
+    const name = docs.names.doc.getMap<{ name: string }>('names').get(entry.writer)?.name ?? ''
+    return { device: entry.writer, name }
+  }
+
+  /**
    * The always-on device that ran a session's latest turn, when it is another device.
    * @param sessionId - the session.
    * @returns that device, or undefined when this device is it, the writer is not always on, or none is recorded.
@@ -2006,7 +2023,7 @@ export class SessionMirror {
       while (same < tail.length && same < events.length && sameEvent(tail[same] as SessionEvent, events[same] as SessionEvent)) same++
       if (same < tail.length && same < events.length) {
         delete held.events
-        await this.rewrite(sessionId, entry, first + same, events.slice(same), tail.slice(same))
+        await this.rewrite(sessionId, entry, first + same, events.slice(same), tail.slice(same), claim)
         return 'stored'
       }
       fresh = events.slice(same)
@@ -2039,18 +2056,24 @@ export class SessionMirror {
 
   /**
    * Replace a stored log's tail with the accepted history. The tail this device wrote under a claim the history
-   * rejected is dropped, and the prompts in it are asked again on the accepted history.
+   * rejected is dropped, and the prompts in it are asked again on the accepted history. A tail that differs from
+   * events the history accepted under this device's own claim was changed on disk after it was published: it is
+   * dropped and none of its prompts are asked again, because the history already holds the turns that answered them.
    * @param sessionId - the session.
    * @param entry - its index entry.
    * @param from - first position where the stored log differs.
    * @param accepted - accepted events from that position.
    * @param dropped - the stored events from that position.
+   * @param claim - the claim the accepted events belong to.
    */
   private async rewrite(
     sessionId: SessionId, entry: IndexEntry, from: number, accepted: readonly SessionEvent[], dropped: readonly SessionEvent[],
+    claim: string | undefined,
   ): Promise<void> {
     const me = this.device()
-    const mine = this.claims.get(sessionId) ?? this.recorded(sessionId).mine
+    const active = this.claims.get(sessionId)
+    const recorded = this.recorded(sessionId).mine
+    const mine = active === undefined ? recorded : { claim: active.id, base: active.base }
     await this.releaseLocal(sessionId)
     const prefix = (await this.persistence.readFrom(sessionId, SessionLogOffset(0))).events.slice(0, from)
     await this.persistence.delete(sessionId)
@@ -2064,7 +2087,7 @@ export class SessionMirror {
     this.record(sessionId, { mine: undefined })
     this.warn(`session sync: ${sessionId} diverged at ${String(from)}; its log now follows the account's history`)
     // Only the device that wrote the dropped turn asks its prompts again, so each is asked once.
-    if (me !== undefined && mine !== undefined && from >= mine.base) {
+    if (me !== undefined && mine !== undefined && from >= mine.base && mine.claim !== claim) {
       const answered = new Set(accepted.flatMap((event) => {
         const rpcId = (event.data as unknown as { source?: { rpcId?: unknown } }).source?.rpcId
         return typeof rpcId === 'string' ? [rpcId] : []

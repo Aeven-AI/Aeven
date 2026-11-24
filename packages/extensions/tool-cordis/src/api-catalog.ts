@@ -2662,6 +2662,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'argv', description: 'the exact argv the caller is about to spawn (program plus arguments), NOT a shell string — a shell-shaped consumer passes `[\'bash\', \'-c\', command]`.' }, { name: 'policy', description: 'the file-effect policy this execution runs under, carried per call (see {@link SandboxPolicy}).' }],
         returns: 'the argv to spawn instead, plus the enforcement completeness the selected backend achieves for it.',
       },
+      {
+        signature: 'protect(argv: readonly string[], policy: SandboxExecutionPolicy): ConfinedArgv | undefined',
+        description: 'Wrap an unconfined (`danger-full-access`) argv so it may write anywhere except the policy\'s protected roots.',
+        parameters: [{ name: 'argv', description: 'the exact argv the caller is about to spawn.' }, { name: 'policy', description: 'the per-call policy; only its protected roots matter here.' }],
+        returns: 'the argv to spawn instead, or undefined when the policy protects nothing or this host\'s backend cannot express an allow-all profile with denials, in which case the caller runs the argv unchanged.',
+      },
     ],
   },
   {
@@ -2706,6 +2712,11 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       {
         signature: 'readonly writableRoots: readonly string[]',
         description: 'Absolute directories every `workspace-write` call may also modify.',
+        parameters: [],
+      },
+      {
+        signature: 'readonly protectedRoots: readonly string[]',
+        description: 'Absolute directories no call may modify in any mode.',
         parameters: [],
       },
       {
@@ -2935,6 +2946,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'The device writing a session when it is not this device.',
         parameters: [{ name: 'owner', description: 'the account.' }, { name: 'sessionId', description: 'the session.' }],
         returns: 'the writing device, or undefined when this device writes the session or it is not synced.',
+      },
+      {
+        signature: 'turnElsewhere(owner: string, sessionId: SessionId): SessionRunner | undefined',
+        description: 'The device running a turn of a session when it is another device, for inputs that only a running turn can apply (stop, queue edits). Besides runnerOf\'s live runner it counts a session the shared index marks as running on another writing device, because a device whose build publishes no live runner still runs turns. A stale mark costs one forwarded input that expires unapplied.',
+        parameters: [{ name: 'owner', description: 'the account.' }, { name: 'sessionId', description: 'the session.' }],
+        returns: 'the running device, or undefined when no other device is known to run a turn of it.',
       },
       {
         signature: 'abstract homeOf(owner: string, sessionId: SessionId): SessionRunner | undefined',
@@ -9020,7 +9037,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SandboxExecutionPolicy',
-    declaration: 'export interface SandboxExecutionPolicy {\n    mode: SandboxMode;\n    workspaceRoot: string;\n    additionalWritableRoots?: readonly string[];\n    sessionId?: SessionId;\n}',
+    declaration: 'export interface SandboxExecutionPolicy {\n    mode: SandboxMode;\n    workspaceRoot: string;\n    additionalWritableRoots?: readonly string[];\n    protectedRoots?: readonly string[];\n    sessionId?: SessionId;\n}',
   },
   {
     name: 'SandboxMode',

@@ -1461,13 +1461,16 @@ describe('JsonlSessionPersistence: edge cases', () => {
       .toThrow(/retired policy baseline fields/)
   })
 
-  it('list rejects a header whose cwd does not identify its physical log', async () => {
+  it('list leaves out a header whose cwd does not identify its physical log', async () => {
     const m = meta('misplaced', '/stored')
-    await ctx.sessionPersistence.create(m)
-    await ctx.sessionPersistence.append(m.id, oneTurnLog())
+    const kept = meta('kept', '/stored')
+    for (const header of [m, kept]) {
+      await ctx.sessionPersistence.create(header)
+      await ctx.sessionPersistence.append(header.id, oneTurnLog())
+    }
     await rewriteHeader(rawLogPath(root, m.cwd, m.id), (header) => { header.cwd = '/elsewhere' })
 
-    await expect(ctx.sessionPersistence.list()).rejects.toThrow(/and cwd identify/)
+    expect((await ctx.sessionPersistence.list()).map(header => header.id)).toEqual([kept.id])
   })
 
   it('accepts an alternate project path only when it identifies the same physical log', async () => {
@@ -1487,14 +1490,14 @@ describe('JsonlSessionPersistence: edge cases', () => {
     expect((await ctx.sessionPersistence.list()).map(header => header.id)).toContain(m.id)
   })
 
-  it('list rejects a session header whose id cannot name a storage path', async () => {
+  it('list leaves out a session header whose id cannot name a storage path', async () => {
     const dir = join(projectDir(root, undefined), 'invalid-id')
     await mkdir(dir, { recursive: true })
     await writeFile(join(dir, 'session.jsonl'), JSON.stringify({
       type: 'session', version: 0, id: '', createdAt: 1, delegationDepth: 0,
     }) + '\n')
 
-    await expect(ctx.sessionPersistence.list()).rejects.toThrow(/header id cannot name a storage path/)
+    expect(await ctx.sessionPersistence.list()).toEqual([])
   })
 
   it('load and list reject one id materialized in multiple project directories', async () => {

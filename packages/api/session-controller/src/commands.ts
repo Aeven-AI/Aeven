@@ -819,7 +819,7 @@ export class SessionCommandController {
         )
       }
     }
-    const owner = this.runnerAccount(request.sessionId)
+    const owner = this.turnAccount(request.sessionId)
     if (owner !== undefined) return this.forward(owner, request.sessionId, 'queue', request)
     const agent = this.ctx.agents.get(request.sessionId)
     if (agent !== undefined && hasApiSessionSubagentOwner(this.ctx, agent.session, agent)) {
@@ -859,7 +859,7 @@ export class SessionCommandController {
    * @returns acknowledgement that cancellation was requested.
    */
   cancel(request: SessionCancelRequest): SessionCancelValue | Promise<SessionCancelValue> {
-    const owner = this.runnerAccount(request.sessionId)
+    const owner = this.turnAccount(request.sessionId)
     if (owner !== undefined) return this.forward(owner, request.sessionId, 'cancel', request)
     const agent = this.ctx.agents.get(request.sessionId)
     if (agent === undefined || !this.agents.callerMayAccess(agent.session.header)) {
@@ -894,6 +894,18 @@ export class SessionCommandController {
     const owner = this.ctx.get('identityUsers')?.actingUser()?.id
     if (owner === undefined) return undefined
     return this.ctx.get('sessionHandoff')?.runnerOf(owner, sessionId) === undefined ? undefined : owner
+  }
+
+  /**
+   * The account whose other device runs a turn of a session that is not attached here, for inputs only a running
+   * turn applies (stop, queue edits): such a turn may be known only from the shared index's running mark.
+   */
+  private turnAccount(sessionId: SessionId): string | undefined {
+    const owner = this.runnerAccount(sessionId)
+    if (owner !== undefined || this.ctx.agents.get(sessionId) !== undefined) return owner
+    const acting = this.ctx.get('identityUsers')?.actingUser()?.id
+    if (acting === undefined) return undefined
+    return this.ctx.get('sessionHandoff')?.turnElsewhere(acting, sessionId) === undefined ? undefined : acting
   }
 
   /**

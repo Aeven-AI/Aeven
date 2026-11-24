@@ -100,6 +100,12 @@ export class SandboxBashExecutor extends LocalBashExecutor {
     const policy = spec.sandboxPolicy as SandboxExecutionPolicy
     const { mode } = policy
     if (mode === 'danger-full-access') {
+      const protectedArgv = this.ctx.sandbox.protect(['bash', '-c', spec.command], policy)
+      if (protectedArgv !== undefined) {
+        const result = await this.runArgv(spec, protectedArgv.argv)
+        if (isDetachedRun(result)) return result
+        return { ...result, sandbox: { mode, denied: classifyDenial(result, protectedArgv.denialSignatures) } }
+      }
       const result = await super.runDetachable(spec)
       if (isDetachedRun(result)) return result
       return { ...result, sandbox: { mode, denied: false } }
@@ -134,7 +140,10 @@ export class SandboxBashExecutor extends LocalBashExecutor {
   override start(spec: ShellExecSpec): ShellProcess {
     const policy = spec.sandboxPolicy as SandboxExecutionPolicy
     const { mode } = policy
-    if (mode === 'danger-full-access') return super.start(spec)
+    if (mode === 'danger-full-access') {
+      const protectedArgv = this.ctx.sandbox.protect(['bash', '-c', spec.command], policy)
+      return protectedArgv === undefined ? super.start(spec) : this.startArgv(spec, protectedArgv.argv)
+    }
     // Once startArgv returns, install facts synchronously; promise settlement
     // cannot run before start() returns.
     const confined = this.confine(spec.command, { ...policy, mode })

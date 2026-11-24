@@ -158,6 +158,14 @@ export class SandboxedFileSystem extends LocalFileSystem {
   private async checkedTarget(target: FsTarget, sandboxPolicy?: SandboxExecutionPolicy): Promise<FsTarget> {
     const policy = sandboxPolicy ?? this.ctx.sandboxPolicy.resolve()
     const { mode } = policy
+    if ((policy.protectedRoots ?? []).length > 0) {
+      const fresh = await this.resolve(target.displayPath)
+      for (const root of policy.protectedRoots ?? []) {
+        if (await isPathUnder(fresh.targetKey, root)) {
+          throw new FsError(`cannot write "${target.displayPath}": it is Aeven's own data, which no access mode may change`, 'FS_SANDBOX_DENIED')
+        }
+      }
+    }
     if (mode === 'danger-full-access') return target
     if (mode === 'read-only') {
       throw new FsError(`cannot write "${target.displayPath}": file access denied under read-only mode`, 'FS_SANDBOX_DENIED')

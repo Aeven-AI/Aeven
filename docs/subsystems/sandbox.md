@@ -60,6 +60,12 @@ interface SandboxExecutionPolicy {
    */
   additionalWritableRoots?: readonly string[]
   /**
+   * Absolute directories no mode may modify, not even `danger-full-access`: the Host's own data stores (session logs,
+   * account and workspace records), which only the Host writes. Backends that express denials add them to every
+   * profile; {@link SandboxProvider.protect} carries them to unconfined executions.
+   */
+  protectedRoots?: readonly string[]
+  /**
    * Opaque identity of the calling session (the branded `avn-session`
    * SessionId). Backends key per-session state off it (e.g. windows-acl gives
    * each live session/workspace pair a random private temp directory and SID,
@@ -190,6 +196,15 @@ Abstract process-sandbox service. confine must return enforcing argv or fail clo
  *   the selected backend achieves for it.
  */
 abstract confine(argv: readonly string[], policy: SandboxPolicy): ConfinedArgv
+
+/**
+ * Wrap an unconfined (`danger-full-access`) argv so it may write anywhere except the policy's protected roots.
+ * @param argv - the exact argv the caller is about to spawn.
+ * @param policy - the per-call policy; only its protected roots matter here.
+ * @returns the argv to spawn instead, or undefined when the policy protects nothing or this host's backend cannot
+ *   express an allow-all profile with denials, in which case the caller runs the argv unchanged.
+ */
+protect(argv: readonly string[], policy: SandboxExecutionPolicy): ConfinedArgv | undefined
 ```
 
 Source: [`packages/sandbox/sandbox/src/index.ts`](../../packages/sandbox/sandbox/src/index.ts)

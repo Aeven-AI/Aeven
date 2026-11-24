@@ -76,7 +76,7 @@ bwrap profile 组合只读宿主根目录、全新 `/dev` 与私有 PID 命名�
 
 Landlock launcher 以 npm 分发的原生插件（`@deepseek-ai/node-addon-landlock-run`）提供平台 launcher、功能探测与授权词汇；此提供方只做模式到授权的映射，把路径解析与探测解析保留在带版本的 binary 中。
 
-Seatbelt profile 默认允许，带 `(deny file-write*)` 与来自共享 `writableRoots` 辅助函数的写入 allow-list，因此恰好管辖模式承诺的文件操作；每个根目录都经过规范化，因为 Seatbelt 匹配解析后的路径（`/tmp` 就是 `/private/tmp`）。
+Seatbelt profile 默认允许，带 `(deny file-write*)` 与来自共享 `writableRoots` 辅助函数的写入 allow-list，因此恰好管辖模式承诺的文件操作；每个根目录都经过规范化，因为 Seatbelt 匹配解析后的路径（`/tmp` 就是 `/private/tmp`）。策略的 `protectedRoots` 以最后一条 `(deny file-write* …)` 附加，优先于 allow-list；bwrap 在可写 bind 之后把每个存在的受保护根以只读方式挂载，而 Landlock 只是 allow-list，无法从可写根中把它们排除。`protect()` 在 macOS 上把 `danger-full-access` 命令包进只带这些拒绝规则的默认允许 profile；在其他主机上它返回 undefined，命令不受约束地运行。
 
 Windows 档为每个工作区保留一个确定性写入 SID 和常驻 ACE，同时为每个活跃的会话/工作区对分配一个随机私有临时目录，以及不同的 SID 和可撤销 ACE——共享工作区的会话共享其预期写权限，却不会继承彼此的临时目录权限。新的提供方总会选择新的临时路径和 SID，因此崩溃残留既无法阻止恢复的会话，也无法向其授权。该档报告 `partial` 强制执行，因为受限令牌必须保留 Everyone，且 NTFS 硬链接会把同一文件对象别名为多个路径。
 

@@ -226,6 +226,8 @@
       config:
         mode: !!js process.env.AVN_PERMISSION_MODE ?? 'workspace-write'
         workspaceRoot: !!js process.cwd()
+        # The Host's own stores: no command or file tool may change them, at any access mode.
+        protectedRoots: !!js "['sessions', 'storages', 'accounts', 'session-query', 'identity', 'keys'].map(dir => avnHomePath(dir))"
 
     - id: bash-sandbox
       name: '@aeven/bash-sandbox'

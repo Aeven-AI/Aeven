@@ -919,6 +919,17 @@ abstract shared(owner: string, sessionId: SessionId): boolean
 abstract runnerOf(owner: string, sessionId: SessionId): SessionRunner | undefined
 
 /**
+ * The device running a turn of a session when it is another device, for inputs that only a running turn can apply
+ * (stop, queue edits). Besides {@link runnerOf}'s live runner it counts a session the shared index marks as running
+ * on another writing device, because a device whose build publishes no live runner still runs turns. A stale mark
+ * costs one forwarded input that expires unapplied.
+ * @param owner - the account.
+ * @param sessionId - the session.
+ * @returns the running device, or undefined when no other device is known to run a turn of it.
+ */
+turnElsewhere(owner: string, sessionId: SessionId): SessionRunner | undefined
+
+/**
  * The always-on device, such as Aeven Cloud, that ran a session's latest turn, when it is another device.
  * A session stays on that device, where its files and background jobs live: this device forwards a turn-starting
  * input to it instead of claiming the session, and it gets the first chance to run the input.
