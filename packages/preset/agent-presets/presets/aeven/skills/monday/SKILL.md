@@ -1,11 +1,11 @@
 ---
 name: monday
-description: Read and update monday.com boards, items, and updates through the enabled monday.com connector.
+description: Read and update Monday boards, items, and updates through the enabled Monday connector.
 ---
 
-# monday.com
+# Monday
 
-The connected account's tools are named `mcp__monday_<id>__<tool>`. When none are available, ask the user to connect monday.com in Settings → Connectors.
+The connected account's tools are named `mcp__monday_<id>__<tool>`. When none are available, ask the user to connect Monday in Settings → Connectors.
 
 Find the board first and read its columns before touching items: column ids and their value formats differ per board. Use the board, group, item, and column ids that tool results return.
 
