@@ -75,7 +75,14 @@ export interface ApprovalOutbound {
   readonly subject?: string
   /** The text that goes out. */
   readonly text?: string
+  /** The input that publishes: a key pressed in the composer, or a click on the control with this label; absent when unknown. */
+  readonly trigger?: ApprovalOutboundTrigger
 }
+
+/** The input that publishes an outbound action. */
+export type ApprovalOutboundTrigger =
+  | { readonly kind: 'key'; readonly key: string }
+  | { readonly kind: 'click'; readonly label: string }
 
 declare module '@aeven/session/types' {
   interface SessionEventMap {

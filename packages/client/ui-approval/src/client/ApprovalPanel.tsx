@@ -19,10 +19,13 @@ const SESSION_NOTES: Record<ApprovalSessionCoverage, 'session' | 'sessionAction'
  * correlated-call detail uses for an outbound message.
  * @param outbound - what the action publishes.
  * @param t - approval copy.
- * @returns the labeled recipients, subject, and text, or null when the asker read none of them.
+ * @returns the labeled publishing input, recipients, subject, and text, or null when the asker read none of them.
  */
 function OutboundDetail({ outbound, t }: { outbound: ApprovalOutbound; t: ApprovalComposerProps['t'] }): ReactNode {
+  const trigger = outbound.trigger === undefined ? undefined
+    : outbound.trigger.kind === 'key' ? t('trigger.key', { key: outbound.trigger.key }) : t('trigger.click', { label: outbound.trigger.label })
   const lines = [
+    trigger === undefined ? undefined : [t('trigger'), trigger] as const,
     outbound.to === undefined ? undefined : [t('to'), outbound.to] as const,
     outbound.subject === undefined ? undefined : [t('subject'), outbound.subject] as const,
     outbound.text === undefined ? undefined : [t('message'), outbound.text] as const,

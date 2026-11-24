@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-11-24-shipped-procedures-recalled-like-learned-ones.md
+2026-11-24-shipped-procedures-recalled-like-learned-ones.md: 3e240dcafbfc7405ec45fc3c012579ad7bdc5d09
+2026-11-24-shipped-procedures-recalled-like-learned-ones.zh.md: b35d703921e7e4c824a20338cf9ac9d4ed38e1ec

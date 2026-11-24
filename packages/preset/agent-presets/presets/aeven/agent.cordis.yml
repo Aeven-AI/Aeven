@@ -394,11 +394,17 @@
 
 # Learning: completed multi-step work is distilled into a procedure and kept
 # in long-term memory, which memory recall brings back when a request needs
-# it. Nothing learned becomes a skill or a capability file.
+# it. Nothing learned becomes a skill or a capability file. `procedures/`
+# beside this composition holds the procedures Aeven ships for every user:
+# memory recall offers them only when a request matches, unlike skills, which
+# every session lists, and a user's own learned procedure of the same name
+# supersedes one.
 - id: tool-capability
   name: '@aeven/tool-capability'
   config:
     store: memory
+    shippedProcedures:
+      - !!js "process.getBuiltinModule('node:url').fileURLToPath(new URL('./procedures/', baseUrl))"
 
 # The `web` service and its search provider stay in the host composition; only
 # the model-facing tool is per-session.

@@ -5739,6 +5739,12 @@ export interface Config {
   maintenanceRenewMs: number
   /** Memory store: days an unconfirmed candidate procedure waits before it is archived. */
   candidateTtlDays: number
+  /**
+   * Absolute directories of procedures this composition ships for every owner, one Markdown file each (see
+   * `readShippedProcedures`). They are registered with the memory service, which recalls them beside each owner's
+   * learned procedures; an owner's learned procedure with the same name supersedes one. Requires the memory service.
+   */
+  shippedProcedures: string[]
 }
 ```
 
