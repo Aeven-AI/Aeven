@@ -1,7 +1,7 @@
 /** Personal skill import and connector account management. */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { AccountIntegrationsView, CatalogPackInstall, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, SalesforceAuthorizationRequest, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillReferenceImport, SkillUploadFile, SystemSkillView, WhatsAppPairingView, WhatsAppPhoneCodeView } from '@aeven/api-remotes/client'
+import type { AccountIntegrationsView, CatalogPackInstall, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, SalesforceAuthorizationRequest, ShopifyAuthorizationRequest, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillReferenceImport, SkillUploadFile, SystemSkillView, WhatsAppPairingView, WhatsAppPhoneCodeView } from '@aeven/api-remotes/client'
 import { Button, LoadingBlock, SectionHeader, MarkdownText, Menu, Modal, Spinner, Switch, Tabs, IconWarningOutline16, IconChevronLeftOutline14, IconCloseOutline16, IconLucideSettings2 } from '@aeven/client-ui-primitives'
 import type { HostObservable, InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import css from './IntegrationsSection.module.css'
@@ -98,6 +98,7 @@ export interface IntegrationsSectionInjected extends TelegramPairingOperations {
   updateEmail: (id: ConnectorId, request: EmailConnectionUpdate) => Promise<EmailConnectionResult>
   authorize: (provider: ConnectorProvider) => Promise<ConnectorAuthorization>
   authorizeSalesforce: (request: SalesforceAuthorizationRequest) => Promise<ConnectorAuthorization>
+  authorizeShopify: (request: ShopifyAuthorizationRequest) => Promise<ConnectorAuthorization>
   setConnectorEnabled: (id: ConnectorId, enabled: boolean) => Promise<void>
   disconnect: (id: ConnectorId) => Promise<void>
   startWhatsAppPairing: () => Promise<WhatsAppPairingView>
@@ -195,6 +196,9 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
   const [salesforceDomain, setSalesforceDomain] = useState('')
   const [salesforceClientId, setSalesforceClientId] = useState('')
   const [salesforceSecret, setSalesforceSecret] = useState('')
+  /** The Shopify store form: open, and the store typed into it. */
+  const [shopifyForm, setShopifyForm] = useState(false)
+  const [shopifyShop, setShopifyShop] = useState('')
   const [name, setName] = useState('')
   const [url, setUrl] = useState('')
   const [token, setToken] = useState('')
@@ -545,6 +549,8 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     }
     // A Salesforce org signs in through its own External Client App, which the form collects first.
     if (provider.provider === 'salesforce' && provider.configured) { openDetail(provider.provider); setSalesforceForm(true); return }
+    // A Shopify connection installs into one store, which the form names first.
+    if (provider.provider === 'shopify' && provider.configured) { openDetail(provider.provider); setShopifyForm(true); return }
     if (provider.provider !== 'mcp' && provider.configured) { startSignIn(provider.provider); return }
     // Without sign-in or a token form there is nothing to turn on; the page says what setup is missing.
     openDetail(provider.provider)
@@ -596,6 +602,16 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     <label className={css.field}>{t('salesforceClientSecret')}<input type="password" autoComplete="off" value={salesforceSecret} disabled={busy} onChange={(event) => { setSalesforceSecret(event.currentTarget.value) }} /></label>
     <p className={css.hint}>{t('tokenHint')}</p>
     <div className={css.actions}><button type="submit" className={css.primaryAction} disabled={busy}>{t('consent')}</button><button type="button" className={css.secondaryAction} disabled={busy} onClick={closeSalesforceForm}>{t('cancel')}</button></div>
+  </form>
+  const shopifyConnectForm = <form className={css.card} onSubmit={(event) => {
+    event.preventDefault()
+    const request = { shop: shopifyShop }
+    setShopifyForm(false)
+    startSignIn('shopify', () => props.authorizeShopify(request))
+  }}>
+    <label className={css.field}>{t('shopifyShop')}<input autoFocus required placeholder="your-store.myshopify.com" value={shopifyShop} disabled={busy} onChange={(event) => { setShopifyShop(event.currentTarget.value) }} /></label>
+    <p className={css.hint}>{t('shopifyHint')}</p>
+    <div className={css.actions}><button type="submit" className={css.primaryAction} disabled={busy}>{t('consent')}</button><button type="button" className={css.secondaryAction} disabled={busy} onClick={() => { setShopifyForm(false) }}>{t('cancel')}</button></div>
   </form>
   /** Search and its action, on the title row so the field's centre rides the heading's optical centre. */
   const searchBar = page === 'skills' && selectedSkillId === undefined ? <div className={css.toolbar}>
@@ -873,8 +889,10 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
                   <div className={css.actions}>
                     {providerDetail.provider === 'github' && stateOf(providerDetail).live.length === 0 && form === undefined && <button type="button" className={css.textAction} disabled={busy} onClick={() => { openForm('github') }}>{t('useToken')}</button>}
                     {providerDetail.provider === 'salesforce' && providerDetail.configured && stateOf(providerDetail).live.length === 0 && !salesforceForm && <button type="button" className={css.secondaryAction} disabled={busy} onClick={() => { setSalesforceForm(true) }}>{t('salesforceConnect')}</button>}
+                    {providerDetail.provider === 'shopify' && providerDetail.configured && !shopifyForm && <button type="button" className={css.secondaryAction} disabled={busy} onClick={() => { setShopifyForm(true) }}>{t(stateOf(providerDetail).live.length === 0 ? 'shopifyConnect' : 'shopifyConnectAnother')}</button>}
                   </div>
                   {providerDetail.provider === 'salesforce' && salesforceForm && salesforceConnectForm}
+                  {providerDetail.provider === 'shopify' && shopifyForm && shopifyConnectForm}
                 </>}
         {form !== undefined && connectForm(form)}
         {providerDetail.skills.length > 0 && <>

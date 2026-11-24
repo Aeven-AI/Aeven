@@ -6,7 +6,7 @@ import type { Branded } from '@aeven/brand'
 export type ConnectorId = Branded<'account-connector-id'>
 
 /** Provider selected when creating a connector. */
-export type ConnectorProvider = 'github' | 'notion' | 'vercel' | 'atlassian' | 'monday' | 'stripe' | 'salesforce' | 'microsoft-365' | 'gmail' | 'google-drive' | 'google-calendar' | 'outlook' | 'outlook-calendar' | 'onedrive' | 'sharepoint' | 'teams' | 'mcp' | 'email' | 'whatsapp' | 'telegram' | 'discord' | 'slack'
+export type ConnectorProvider = 'github' | 'notion' | 'vercel' | 'atlassian' | 'monday' | 'stripe' | 'salesforce' | 'shopify' | 'microsoft-365' | 'gmail' | 'google-drive' | 'google-calendar' | 'outlook' | 'outlook-calendar' | 'onedrive' | 'sharepoint' | 'teams' | 'mcp' | 'email' | 'whatsapp' | 'telegram' | 'discord' | 'slack'
 
 /** Stable Settings identity of one skill definition. */
 export type SkillViewId = Branded<'account-skill-view-id'>
@@ -57,6 +57,22 @@ export interface PersonalConnectorView {
   slack?: SlackConnectorSettings
   /** Org one `salesforce` connector is connected to; the External Client App's credentials stay on the Aeven API. */
   salesforce?: SalesforceConnectorSettings
+  /** Store one `shopify` connector reaches. */
+  shopify?: ShopifyConnectorSettings
+}
+
+/** The Shopify store one `shopify` connector reaches. */
+export interface ShopifyConnectorSettings {
+  /** The store's `<store>.myshopify.com` domain. */
+  shop: string
+  /** The store's name, as Shopify reported it when the store was connected. */
+  name: string
+}
+
+/** The store Settings submits to connect it. */
+export interface ShopifyAuthorizationRequest {
+  /** The store's `<store>.myshopify.com` domain, a URL on it, its admin URL, or its handle. */
+  shop: string
 }
 
 /** The Salesforce org one `salesforce` connector reaches, and the user who consented. */

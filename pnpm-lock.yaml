@@ -832,6 +832,25 @@ importers:
 
   native/landlock-run/packages/linux-x64: {}
 
+  native/shopify-mcp:
+    dependencies:
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.30.0
+        version: 1.32.0(zod@4.6.5)
+      zod:
+        specifier: ^4.4.3
+        version: 4.6.5
+    devDependencies:
+      '@types/node':
+        specifier: ^22.20.0
+        version: 22.20.1
+      tsx:
+        specifier: ^4.22.4
+        version: 4.22.4
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+
   native/telegram-mcp:
     dependencies:
       '@modelcontextprotocol/sdk':
@@ -8586,6 +8605,9 @@ importers:
       '@aeven/ffmpeg-win32-x64':
         specifier: workspace:^
         version: link:../../../native/ffmpeg/packages/win32-x64
+      '@aeven/shopify-mcp':
+        specifier: workspace:^
+        version: link:../../../native/shopify-mcp
       '@aeven/telegram-mcp':
         specifier: workspace:^
         version: link:../../../native/telegram-mcp

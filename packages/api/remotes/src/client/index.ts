@@ -34,6 +34,7 @@ export type {
   EmailConnectionResult, EmailConnectionUpdate, EmailConnectorSettings,
   EmailProbeStep, EmailReceiveSettings, EmailSecurity, EmailServerSettings,
   PersonalSkillView, PersonalConnectorView, SalesforceAuthorizationRequest, SalesforceConnectorSettings,
+  ShopifyAuthorizationRequest, ShopifyConnectorSettings,
   SkillCatalogView, SkillReferenceImport, SkillUploadFile,
   SystemSkillAgent, SystemSkillView, TelegramConnectorSettings,
   TelegramLoginFailure, TelegramPairingState, TelegramPairingView, WhatsAppConnectorSettings,

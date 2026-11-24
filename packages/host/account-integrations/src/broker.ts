@@ -42,6 +42,7 @@ const statusSchema = z.object({
     guild: guildSchema.optional(),
     installer: z.object({ id: z.string(), name: z.string() }).optional(),
     salesforce: z.object({ domain: z.string().min(1), orgId: z.string().min(1), userId: z.string().min(1) }).optional(),
+    shop: z.string().min(1).optional(),
     botUserId: z.string().optional(),
     applicationId: z.string().optional(),
   }).optional(),
@@ -100,12 +101,18 @@ export class ConnectorBroker {
    * Start a consent; the API keeps the PKCE verifier.
    * @param owner - signed-in user.
    * @param request - provider, the Host connector id for OAuth providers, Discord's permission bitfield, and the
-   * user's own application for a provider without a shared one (Salesforce).
+   * user's own application for a provider without a shared one (Salesforce), and the store a Shopify consent installs into.
    * @returns the provider URL to open and the state to poll.
    */
   async start(
     owner: string,
-    request: { provider: ConnectorProvider; connectorId?: ConnectorId; permissions?: string; client?: SalesforceAuthorizationRequest },
+    request: {
+      provider: ConnectorProvider
+      connectorId?: ConnectorId
+      permissions?: string
+      client?: SalesforceAuthorizationRequest
+      shop?: string
+    },
   ): Promise<z.infer<typeof startSchema>> {
     return startSchema.parse(await this.call(owner, 'POST', '/connectors/oauth/start', request))
   }

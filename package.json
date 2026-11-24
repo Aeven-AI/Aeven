@@ -31,7 +31,7 @@
     "build:lib:client": "tsx scripts/run-tsc.ts tsconfig.client.json && tsdown --env.AVN_BUILD_FACE client",
     "build:client": "npm run build:lib:client && npm run build:web",
     "build:web": "pnpm --loglevel=error --filter @aeven/web-frontend run build",
-    "build:connectors": "pnpm --loglevel=error --filter @aeven/discord-mcp --filter @aeven/telegram-mcp run build",
+    "build:connectors": "pnpm --loglevel=error --filter @aeven/discord-mcp --filter @aeven/shopify-mcp --filter @aeven/telegram-mcp run build",
     "build:desktop": "pnpm --loglevel=error --filter @aeven/desktop run build",
     "clean": "tsx scripts/clean.ts",
     "typecheck": "npm run verify-typert && npm run build:lib:host && npm run typecheck:contracts-ready",

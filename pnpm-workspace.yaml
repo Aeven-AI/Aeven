@@ -18,6 +18,8 @@ packages:
   - native/telegram-mcp
   # The Discord connector server keeps the Aeven-owned curated MCP surface under native/discord-mcp.
   - native/discord-mcp
+  # The Shopify connector server serves one store's Admin GraphQL API under native/shopify-mcp.
+  - native/shopify-mcp
   # Product assemblies over the package tier; apps/cli owns the `avn` bin.
   - apps/*
   # Deploy root of the single-exe build: a pure dependency manifest whose
