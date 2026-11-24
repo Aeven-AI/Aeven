@@ -33,9 +33,11 @@ Web bundle 将此插件与[技能和连接器页面](../../client/ui-settings-in
 
 Gmail、Google 云端硬盘和 Google 日历使用维护中的 Google Workspace MCP 桥接及各服务的 Google OAuth 权限。这些权限是 Google 归为敏感或非敏感、从不属于受限的最宽范围，因此验证无需 CASA 安全评估：Gmail 可以发送邮件和管理标签，但不能读取邮件，读取由 IMAP `email` 连接器负责；Drive 使用 `drive.file`，Drive 操作只能看到用户用 Aeven 创建或打开的文件，而 Docs、Sheets、Slides 和 Forms 权限可按 ID 打开用户有权访问的任何文档、表格、幻灯片或表单；Calendar 使用完整的 `calendar`。只有持有连接器列表中第一个权限的授权才算已连接。OAuth 应用、其权限范围和所有授权都保存在 `apiUrl` 指定的 Aeven API 上；宿主不持有任何客户端密钥或刷新令牌。授权在保存前验证 API 访问。Drive 包含文档、表格、幻灯片、表单及评论。为这些技能启用 Drive、Docs、Sheets、Slides 和 Forms API；评论使用 Drive API。表单创建和问题编辑遵循普通文档编辑的权限处理；其他原始 Google 写入仍须显式批准。发现的 MCP 工具决定可用操作；技能指令不会添加工具。
 
-连接器详情从现有注册表列出已安装的技能定义：Drive 拥有六项 Google 文档及文件技能；Gmail、日历和 GitHub 各拥有对应技能。连接器技能按名称仅在连接器详情中显示一次，需要已启用且已授权的连接。单独的技能偏好不控制连接器技能。禁用调用后仍可在管理页面查看指令。禁用或断开连接会使技能发现缓存失效并移除挂载工具；执行器也会拒绝过期调用。断开连接会取消待处理授权，并等待正在执行的回调结束后删除连接及凭据。
+连接器详情从现有注册表列出已安装的技能定义：Drive 拥有六项 Google 文档及文件技能；Gmail、日历、GitHub 和 Notion 各拥有对应技能。连接器技能按名称仅在连接器详情中显示一次，需要已启用且已授权的连接。单独的技能偏好不控制连接器技能。禁用调用后仍可在管理页面查看指令。禁用或断开连接会使技能发现缓存失效并移除挂载工具；执行器也会拒绝过期调用。断开连接会取消待处理授权，并等待正在执行的回调结束后删除连接及凭据。
 
-Google、Microsoft 和 GitHub 通过 Aeven API 的连接器代理登录，并以已登录用户自己的 Aeven 会话认证。API 使用绑定账户且有时限的 state 和 PKCE 发起授权，接收提供商的重定向，用应用密钥兑换授权码，并加密保存授权；其回调页面提示用户关闭窗口并返回 Aeven，失败时只说明失败的步骤，不显示提供商响应。读者返回后再次读取设置时，宿主获取访问令牌、验证对所选 API 或 MCP 资源的访问并保存连接器；验证失败时删除该授权。对话步骤前宿主向 API 请求当前访问令牌，由 API 负责刷新；被提供商撤销的授权会将连接器标记为需重新连接。Microsoft 365 在 Aeven API 上没有应用，显示为未配置。
+Google、Microsoft、GitHub 和 Notion 通过 Aeven API 的连接器代理登录，并以已登录用户自己的 Aeven 会话认证。API 使用绑定账户且有时限的 state 和 PKCE 发起授权，接收提供商的重定向，用应用密钥兑换授权码，并加密保存授权；其回调页面提示用户关闭窗口并返回 Aeven，失败时只说明失败的步骤，不显示提供商响应。读者返回后再次读取设置时，宿主获取访问令牌、验证对所选 API 或 MCP 资源的访问并保存连接器；验证失败时删除该授权。对话步骤前宿主向 API 请求当前访问令牌，由 API 负责刷新；被提供商撤销的授权会将连接器标记为需重新连接。Microsoft 365 在 Aeven API 上没有应用，显示为未配置。
+
+Notion 以 Aeven API 持有的授权挂载 Notion 托管的 MCP 服务器 `https://mcp.notion.com/mcp`。Notion 动态注册 OAuth 客户端，因此 API 在首次 Notion 授权时自行注册并保存该注册，且每项授权都以该 MCP 服务器作为资源请求；部署无需配置任何 Notion 凭据。授权只能访问用户在 Notion 授权页面上共享的页面。Notion 的读取工具——搜索、获取、页面列表、成员与团队空间、数据源查询、评论、建议编辑、版本历史及附件下载——直接执行；其他所有 Notion 工具（包括 Notion 日后新增的工具）都会先征求批准，该批准可覆盖本会话剩余部分中的同一工具。
 
 WhatsApp 和 Telegram 每个账户各自占一行连接器，每行拥有一个受监管的守护进程，其绑定的回环端口由操作系统分配。宿主启动该进程并在异常退出后按退避策略重启，保持其标准输入打开，因此宿主崩溃后不会遗留持有会话的进程，并把守护进程写到 stderr 的警告与错误行记入日志；其工具挂载为 `mcp__<provider>_<connector-id-prefix>__<tool>`。每个对话步骤开始前都会挂载所有连接器；无法连接的连接器会被记录，并在 `connectorRetryMs` 内或其令牌、端点或服务器入口改变之前从步骤中略过，因此出问题的账户绝不会终止一个轮次，也不会拖慢每个步骤。设置中扫描二维码即可关联 WhatsApp 号码；在要关联的手机上，也可以输入 `whatsAppPhoneCode` 从守护进程 `/pair/phone` 路由为该号码取得的八位代码来关联，号码需带国家代码，可写 `+`、`00` 或 `(0)`（守护进程为每个代码开启新的登录会话，因为代码只在其会话 160 秒的二维码窗口内有效；手机收到的代码不匹配时，WhatsApp 发送 `refresh_code`，守护进程发放新代码并由关联视图的 `phoneCode` 携带；多次尝试后 WhatsApp 返回 `429 rate-overlimit`，此时答复 `rate-limited`）；Telegram 账户则输入手机号、Telegram 发送的验证码，以及 Telegram 要求时的两步验证密码完成登录。WhatsApp 关联尝试属于宿主而非页面：离开页面去扫描，或手机浏览器丢弃该标签页，都会保留这次尝试，未扫描的尝试在授权有效期结束后过期。手机扫描二维码后保存该号码；Telegram 授权后保存该账户，已在列表中的账户会被拒绝而不会重复添加。取消关联会在提供商侧结束会话并删除该连接器的数据目录。每个账户各自拥有进程与命名空间，因此一个对话可以访问多个账户而不会相互混淆。`whatsAppMessageMedia` 按列出消息的调用的工具名，为 WhatsApp 卡片提供一条消息的媒体（base64 编码）：它只响应当前用户自己关联的号码，先询问工具名指向的连接器，再询问该用户关联的其他号码，因为在另一台设备上列出的消息指向本 Host 没有的连接器，而关联同一手机的所有设备都以相同 ID 识别该消息；经由守护进程受令牌保护的 `/media` 路由取得，该路由会把语音消息重新编码为 AAC 以便所有浏览器播放；文件超过 `whatsappMediaMaxBytes` 时不返回内容。
 
@@ -49,7 +51,7 @@ Slack 每个工作区各占一行连接器，而且与各代理提供方不同�
 
 读取 WhatsApp、Telegram、Discord 或 Slack 内容——消息文本、文件名、成员列表——对模型而言都是他人的数据。仅读取账户的工具直接执行；发送、编辑、删除、转发、回应、置顶、静音、标记已读、定时发送、正在输入提示、骰子、投票以及所有群组变更都会先征求用户批准。在 Discord 中，发送、回复、回应、上传文件和创建主题需要批准，每项管理与审核调用都单独请求批准并说明具体变更。GitHub 和自定义 MCP 连接器没有自己的只读清单：名称表示读取的工具（`get_*`、`list_*`、`search_*`、`*_read`）直接执行，其他所有工具（例如创建或编辑 issue）都会先征求批准。每项批准都可覆盖本会话剩余部分中的同一工具。
 
-Google、Microsoft、GitHub、Discord 和 Telegram 需要由其连接器代理持有应用凭据的 Aeven API：
+Google、Microsoft、GitHub、Notion、Discord 和 Telegram 需要由其连接器代理持有应用凭据的 Aeven API：
 
 ```yaml
 - id: account-integrations
@@ -135,7 +137,7 @@ Slack 是唯一不需要在 Aeven API 上保存凭据的提供方：它的 PKCE 
 | `connectorRetryMs` | 60000 | 连接失败的连接器在被某个步骤再次尝试之前从对话步骤中略过的时间；新的令牌、端点或服务器入口会立即重试 |
 | `consentLifetimeMs` | 600000 | 授权或登录操作的最大持续时间 |
 | `consentPollMs` | 2000 | 向 Aeven API 检查待完成登录的间隔，登录完成后无需重新打开设置即可连接 |
-| `apiUrl` | 无 | 由其连接器代理持有所有提供商凭据的 Aeven API 源；缺省时 Google、Microsoft、GitHub、Discord 和 Telegram 不可用 |
+| `apiUrl` | 无 | 由其连接器代理持有所有提供商凭据的 Aeven API 源；缺省时 Google、Microsoft、GitHub、Notion、Discord 和 Telegram 不可用 |
 | `credentialRef` | `AEVEN_TOKEN` | 持有每个已登录用户 Aeven 访问令牌的凭据引用 |
 | `maxEmailAccounts` | 20 | 一个账户可连接的邮箱数 |
 | `maxWhatsAppAccounts` | 10 | 一个账户可关联的 WhatsApp 号码数 |

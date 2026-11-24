@@ -112,7 +112,7 @@ type Connection = AccountIntegrationsView['connectors'][number]
 type Provider = AccountIntegrationsView['providers'][number]
 
 /** Marks drawn in a single dark color, which the black badge shows inverted. */
-const MONOCHROME_ICONS: ReadonlySet<string> = new Set(['github', 'email'])
+const MONOCHROME_ICONS: ReadonlySet<string> = new Set(['github', 'email', 'notion'])
 
 /** Read one uploaded file as browser-safe base64. */
 function upload(file: File): Promise<SkillUploadFile> {
