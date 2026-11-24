@@ -79,6 +79,7 @@ function mount(view: AccountIntegrationsView, detail?: string, catalog?: SkillCa
     retryReverseEngineering,
     importSkillReference: vi.fn(), systemSkills: vi.fn(), installSystemSkill: vi.fn(),
     connect: vi.fn(), connectEmail: vi.fn(), updateEmail: vi.fn(), authorize: vi.fn(),
+    authorizeSalesforce: vi.fn(), authorizeShopify: vi.fn(),
     setConnectorEnabled: vi.fn().mockResolvedValue(undefined), disconnect: vi.fn().mockResolvedValue(undefined),
     startWhatsAppPairing: vi.fn(), whatsAppPairing: vi.fn(), cancelWhatsAppPairing: vi.fn(), whatsAppPhoneCode: vi.fn(),
     startTelegramPairing: vi.fn(), startTelegramQrPairing: vi.fn(), telegramPairing: vi.fn(),
