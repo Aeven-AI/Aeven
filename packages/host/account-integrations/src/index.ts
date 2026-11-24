@@ -205,7 +205,7 @@ const skillSchema = z.object({
 const providers = [
   'github', 'gmail', 'google-drive', 'google-calendar', 'google-tasks', 'google-contacts', 'google-meet', 'microsoft-365', 'outlook', 'outlook-calendar', 'onedrive', 'sharepoint', 'teams',
   'email', 'whatsapp', 'telegram', 'discord', 'slack',
-  'notion', 'vercel', 'atlassian', 'monday', 'stripe', 'salesforce', 'shopify', 'spotify', 'cloudflare', 'aws', 'mcp',
+  'notion', 'vercel', 'atlassian', 'monday', 'stripe', 'salesforce', 'shopify', 'spotify', 'cloudflare', 'aws', 'supabase', 'calendly', 'mcp',
 ] as const satisfies readonly ConnectorProvider[]
 const emailServerSchema = z.object({
   host: z.string().trim().min(1).max(253).regex(/^[A-Za-z0-9.-]+$/), port: z.number().int().min(1).max(65_535),
@@ -382,7 +382,7 @@ function discordConnectorId(owner: string, guildId: string): ConnectorId {
 
 const uploadsSchema = z.array(z.object({ path: z.string().min(1), base64: z.string() })).min(1)
 /** Google, Microsoft, GitHub, and the hosted MCP servers sign in through OAuth grants the Aeven API holds. */
-const brokeredProviders = new Set<ConnectorProvider>(['github', 'notion', 'vercel', 'atlassian', 'monday', 'stripe', 'salesforce', 'shopify', 'spotify', 'cloudflare', 'aws', 'microsoft-365', 'gmail', 'google-drive', 'google-calendar', 'google-tasks', 'google-contacts', 'google-meet', 'outlook', 'outlook-calendar', 'onedrive', 'sharepoint', 'teams'])
+const brokeredProviders = new Set<ConnectorProvider>(['github', 'notion', 'vercel', 'atlassian', 'monday', 'stripe', 'salesforce', 'shopify', 'spotify', 'cloudflare', 'aws', 'supabase', 'calendly', 'microsoft-365', 'gmail', 'google-drive', 'google-calendar', 'google-tasks', 'google-contacts', 'google-meet', 'outlook', 'outlook-calendar', 'onedrive', 'sharepoint', 'teams'])
 /** Key of the Telegram application identifiers cached after the first signed-in fetch, so linked accounts start at boot. */
 const telegramAppKey = credentialKey('account-integrations', 'telegram-application')
 /** Time before an issued access token's expiry at which the Host asks for a new one. */
@@ -392,7 +392,7 @@ const TOKEN_MARGIN_MS = 60_000
 const connectorSkills: Record<ConnectorProvider, readonly string[]> = {
   'google-drive': ['google-drive', 'google-docs', 'google-sheets', 'google-slides', 'google-drive-comments', 'google-forms'],
   gmail: ['gmail'], 'google-calendar': ['google-calendar'], github: ['github'], notion: ['notion'], vercel: ['vercel'], atlassian: ['atlassian'], monday: ['monday'], stripe: ['stripe'], salesforce: ['salesforce'], shopify: ['shopify'], 'microsoft-365': ['microsoft-365'], outlook: ['outlook'], 'outlook-calendar': ['outlook-calendar'], onedrive: ['onedrive'], sharepoint: ['sharepoint'], teams: ['teams'], mcp: [], email: [], whatsapp: ['whatsapp'], telegram: ['telegram'],
-  discord: ['discord'], slack: ['slack'], 'google-tasks': [], 'google-contacts': [], 'google-meet': [], spotify: [], cloudflare: [], aws: [],
+  discord: ['discord'], slack: ['slack'], 'google-tasks': [], 'google-contacts': [], 'google-meet': [], spotify: [], cloudflare: [], aws: [], supabase: [], calendly: [],
 }
 
 /** Provider names the model's tool index shows beside each connector's own name. */
@@ -400,7 +400,7 @@ const providerTitles: Record<ConnectorProvider, string> = {
   github: 'GitHub', notion: 'Notion', vercel: 'Vercel', atlassian: 'Atlassian', monday: 'Monday', stripe: 'Stripe', salesforce: 'Salesforce', shopify: 'Shopify', 'microsoft-365': 'Microsoft 365', gmail: 'Gmail', 'google-drive': 'Google Drive', 'google-calendar': 'Google Calendar', outlook: 'Outlook mail',
   'outlook-calendar': 'Outlook Calendar', onedrive: 'OneDrive', sharepoint: 'SharePoint', teams: 'Microsoft Teams', mcp: 'MCP server',
   email: 'Email', whatsapp: 'WhatsApp', telegram: 'Telegram', discord: 'Discord', slack: 'Slack',
-  'google-tasks': 'Google Tasks', 'google-contacts': 'Google Contacts', 'google-meet': 'Google Meet', spotify: 'Spotify', cloudflare: 'Cloudflare', aws: 'AWS',
+  'google-tasks': 'Google Tasks', 'google-contacts': 'Google Contacts', 'google-meet': 'Google Meet', spotify: 'Spotify', cloudflare: 'Cloudflare', aws: 'AWS', supabase: 'Supabase', calendly: 'Calendly',
 }
 
 /** Connector tool names: `mcp__<provider>_<first 8 hex digits of the connector id>__<tool>`. */

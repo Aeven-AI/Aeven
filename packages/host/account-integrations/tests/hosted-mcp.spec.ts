@@ -8,7 +8,7 @@ import { HOSTED_MCP_APPROVAL_REASONS, HOSTED_MCP_ENDPOINTS, isHostedMcp, isHoste
 
 describe('hosted MCP descriptor', () => {
   it('mounts each vendor\'s own HTTPS endpoint and gives each an approval reason', () => {
-    expect(Object.keys(HOSTED_MCP_ENDPOINTS).sort()).toEqual(['atlassian', 'aws', 'cloudflare', 'monday', 'notion', 'spotify', 'stripe', 'vercel'])
+    expect(Object.keys(HOSTED_MCP_ENDPOINTS).sort()).toEqual(['atlassian', 'aws', 'calendly', 'cloudflare', 'monday', 'notion', 'spotify', 'stripe', 'supabase', 'vercel'])
     for (const [provider, endpoint] of Object.entries(HOSTED_MCP_ENDPOINTS)) {
       expect(new URL(endpoint).protocol, provider).toBe('https:')
       expect(HOSTED_MCP_APPROVAL_REASONS[provider as keyof typeof HOSTED_MCP_ENDPOINTS], provider).toMatch(/^Approve /)
@@ -16,7 +16,7 @@ describe('hosted MCP descriptor', () => {
   })
 
   it('recognises only the hosted providers', () => {
-    for (const provider of ['notion', 'vercel', 'atlassian', 'monday', 'stripe', 'spotify', 'cloudflare', 'aws'] as const) expect(isHostedMcp(provider)).toBe(true)
+    for (const provider of ['notion', 'vercel', 'atlassian', 'monday', 'stripe', 'spotify', 'cloudflare', 'aws', 'supabase', 'calendly'] as const) expect(isHostedMcp(provider)).toBe(true)
     for (const provider of ['github', 'slack', 'microsoft-365', 'mcp', 'gmail', 'google-tasks'] as const) expect(isHostedMcp(provider)).toBe(false)
   })
 
@@ -30,7 +30,7 @@ describe('hosted MCP descriptor', () => {
   })
 
   it('trusts every other vendor\'s readOnlyHint and asks about an unmarked tool', () => {
-    for (const provider of ['vercel', 'atlassian', 'monday', 'stripe', 'spotify', 'cloudflare', 'aws'] as const) {
+    for (const provider of ['vercel', 'atlassian', 'monday', 'stripe', 'spotify', 'cloudflare', 'aws', 'supabase', 'calendly'] as const) {
       expect(isHostedMcpReadTool(provider, 'list_things', true), provider).toBe(true)
       expect(isHostedMcpReadTool(provider, 'list_things', false), provider).toBe(false)
     }
