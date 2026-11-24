@@ -6879,7 +6879,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ConnectorProvider',
-    declaration: 'export type ConnectorProvider = \'github\' | \'gmail\' | \'google-drive\' | \'google-calendar\' | \'outlook\' | \'outlook-calendar\' | \'onedrive\' | \'sharepoint\' | \'teams\' | \'mcp\' | \'email\' | \'whatsapp\' | \'telegram\' | \'discord\' | \'slack\';',
+    declaration: 'export type ConnectorProvider = \'github\' | \'notion\' | \'gmail\' | \'google-drive\' | \'google-calendar\' | \'outlook\' | \'outlook-calendar\' | \'onedrive\' | \'sharepoint\' | \'teams\' | \'mcp\' | \'email\' | \'whatsapp\' | \'telegram\' | \'discord\' | \'slack\';',
   },
   {
     name: 'ConnectorProviderView',
