@@ -43,7 +43,7 @@ import { ApprovalRequestId } from './types.ts'
 import type { ApprovalAnswer, ApprovalOutcome, ApprovalRequestEvent } from './types.ts'
 
 export { ApprovalRequestId } from './types.ts'
-export type { ApprovalOutbound, ApprovalOutboundKind, ApprovalOutcome, SessionGrantCoverage } from './types.ts'
+export type { ApprovalOutbound, ApprovalOutboundKind, ApprovalOutboundTrigger, ApprovalOutcome, SessionGrantCoverage } from './types.ts'
 
 /** Every {@link ApprovalOutcome}, for runtime normalization of answerer returns. */
 const OUTCOMES: readonly ApprovalAnswer[] = ['allowed-session', 'allowed-once', 'rejected', 'cancelled', 'unavailable']

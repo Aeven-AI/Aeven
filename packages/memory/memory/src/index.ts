@@ -5,6 +5,7 @@
  * @module @aeven/memory
  */
 import { Context, Service } from '@deepseek-ai/cordis'
+import { brandString } from '@aeven/brand'
 import type { Agent } from '@aeven/agent'
 import type { SessionId } from '@aeven/session'
 import type {
@@ -25,6 +26,7 @@ import type {
   MemorySkill,
   MemoryTimelineEntry,
   MemoryTurn,
+  ShippedProcedure,
 } from './types.ts'
 
 export type * from './types.ts'
@@ -144,6 +146,27 @@ export function learnedProcedureOf(record: MemoryRecord): LearnedProcedure | und
   }
 }
 
+/** Id prefix of a {@link ShippedProcedure}. */
+const SHIPPED_ID_PREFIX = 'shipped:'
+
+/**
+ * The id a shipped procedure is recalled and read under.
+ * @param name - the procedure's kebab-case name.
+ * @returns `shipped:<name>`.
+ */
+export function shippedProcedureId(name: string): MemoryItemId {
+  return brandString<MemoryItemId>(`${SHIPPED_ID_PREFIX}${name}`)
+}
+
+/**
+ * Whether an id names a shipped procedure rather than one of an owner's memories.
+ * @param id - a memory id.
+ * @returns true for `shipped:<name>`.
+ */
+export function isShippedProcedureId(id: MemoryItemId): boolean {
+  return id.startsWith(SHIPPED_ID_PREFIX)
+}
+
 /** Thrown when a memory operation runs while no provider is registered. */
 /**
  * Account sync lease name of an account's memory maintenance: work that derives new memory from all stored memory,
@@ -192,6 +215,7 @@ interface ActiveHolder {
 export default class Memory extends Service {
   private provider: MemoryProvider | undefined
   private readonly holders = new Set<ActiveHolder>()
+  private readonly shipments = new Set<readonly ShippedProcedure[]>()
 
   constructor(ctx: Context) {
     super(ctx, 'memory')
@@ -242,6 +266,40 @@ export default class Memory extends Service {
     }
   }
 
+  /**
+   * Register procedures a composition ships for every owner. Each name may appear once per registration; across
+   * registrations the earliest live one of a name is served.
+   * @param procedures - the procedures, each with the id {@link shippedProcedureId} gives its name.
+   * @returns idempotent disposer that withdraws them.
+   * @throws Error when a name repeats or an id does not match its name.
+   */
+  ship(procedures: readonly ShippedProcedure[]): () => void {
+    const names = new Set<string>()
+    for (const procedure of procedures) {
+      if (names.has(procedure.name)) throw new Error(`Shipped procedure ${procedure.name} is registered twice`)
+      if (procedure.id !== shippedProcedureId(procedure.name)) throw new Error(`Shipped procedure ${procedure.name} must use id ${shippedProcedureId(procedure.name)}`)
+      names.add(procedure.name)
+    }
+    const shipment = [...procedures]
+    this.shipments.add(shipment)
+    return () => {
+      this.shipments.delete(shipment)
+    }
+  }
+
+  /**
+   * The procedures registered with {@link ship}, one per name. An owner's learned procedure with the same name
+   * supersedes one in recall; callers that list procedures for an owner apply the same rule.
+   * @returns the shipped procedures.
+   */
+  shipped(): readonly ShippedProcedure[] {
+    const byName = new Map<string, ShippedProcedure>()
+    for (const shipment of this.shipments) {
+      for (const procedure of shipment) if (!byName.has(procedure.name)) byName.set(procedure.name, procedure)
+    }
+    return [...byName.values()]
+  }
+
   private current(): MemoryProvider {
     if (this.provider === undefined) throw new MemoryUnavailableError()
     return this.provider
@@ -253,7 +311,8 @@ export default class Memory extends Service {
    * @returns ranked hits visible to the scope.
    */
   recall(request: MemoryRecallRequest): Promise<MemoryRecall> {
-    return this.current().recall(request)
+    const shipped = request.purpose === 'turn-start' ? this.shipped() : []
+    return this.current().recall(shipped.length === 0 ? request : { ...request, shipped })
   }
 
   /**
@@ -288,6 +347,8 @@ export default class Memory extends Service {
    * @returns true when a procedure of the owner was updated.
    */
   setProcedureStatus(request: Parameters<MemoryProvider['setProcedureStatus']>[0]): Promise<boolean> {
+    // A shipped procedure belongs to no owner, so it has no status to change.
+    if (isShippedProcedureId(request.id)) return Promise.resolve(false)
     return this.current().setProcedureStatus(request)
   }
 
@@ -301,11 +362,21 @@ export default class Memory extends Service {
   }
 
   /**
-   * Read one memory item.
+   * Read one memory item. A `trace` read of a shipped procedure's id answers with the procedure, without the provider.
    * @param request - scope, item kind, and id.
    * @returns the item, or undefined when the scope holds no such item.
    */
   detail(request: Parameters<MemoryProvider['detail']>[0]): Promise<MemoryDetail | undefined> {
+    if (isShippedProcedureId(request.id)) {
+      const procedure = this.shipped().find(shipped => shipped.id === request.id)
+      return Promise.resolve(procedure === undefined || request.kind !== 'trace' ? undefined : {
+        kind: 'trace',
+        id: procedure.id,
+        title: `${LEARNED_PROCEDURE_PREFIX} ${procedure.name}: ${procedure.description}`,
+        body: procedure.content,
+        facts: { shipped: true },
+      })
+    }
     return this.current().detail(request)
   }
 
@@ -404,6 +475,7 @@ export default class Memory extends Service {
    * @returns the updated memory, or undefined when the owner has no such memory.
    */
   edit(request: Parameters<MemoryProvider['edit']>[0]): Promise<MemoryRecord | undefined> {
+    if (isShippedProcedureId(request.id)) return Promise.resolve(undefined)
     return this.current().edit(request)
   }
 
@@ -413,6 +485,7 @@ export default class Memory extends Service {
    * @returns true when a memory of this owner was deleted.
    */
   forget(request: Parameters<MemoryProvider['forget']>[0]): Promise<boolean> {
+    if (isShippedProcedureId(request.id)) return Promise.resolve(false)
     return this.current().forget(request)
   }
 

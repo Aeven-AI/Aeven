@@ -2,7 +2,7 @@
 import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { brandString } from '@aeven/brand'
-import { LEARNED_PROCEDURE_PREFIX, MEMORY_TOOL, memoryOriginLabel, mergeRankedHits } from '@aeven/memory'
+import { isShippedProcedureId, LEARNED_PROCEDURE_PREFIX, MEMORY_TOOL, memoryOriginLabel, mergeRankedHits, type ShippedProcedure } from '@aeven/memory'
 import type {
   MemoryDetail,
   MemoryDomain,
@@ -194,11 +194,10 @@ const PROCEDURE_LIST_TTL_MS = 600_000
 const PROCEDURE_MEDIAN_MIN = 6
 
 /** One current learned procedure. */
-interface ProcedureEntry {
-  readonly trace: TraceDTO
-  readonly name: string
-  readonly description: string
-}
+/** One procedure a recall may offer: the owner's learned procedure, read from its trace, or one the composition ships. */
+type ProcedureEntry =
+  | { readonly source: 'owner'; readonly id: string; readonly trace: TraceDTO; readonly name: string; readonly description: string }
+  | { readonly source: 'shipped'; readonly id: string; readonly procedure: ShippedProcedure; readonly name: string; readonly description: string }
 
 /** The procedures one recall may offer and, when the request was embedded, each one's similarity to it by trace id. */
 interface ProcedureScan {
@@ -581,7 +580,12 @@ export class MemosMemory implements MemoryProvider {
         const topic = withoutExactIdentifiers(request.query)
         if (topic !== request.query && topic.length > 0) hits = await this.search({ ...request, query: topic }, deadlineAt, turnStart)
       }
-      if (procedureScan !== undefined) hits = [...hits, ...this.procedureHits(request, hits, await procedureScan)]
+      if (procedureScan !== undefined) {
+        const offered = this.procedureHits(request, hits, await procedureScan)
+        // A shipped procedure is written for its kind of task, so it leads: the block's character budget then never
+        // drops it in favour of the retrieval hits that fill the block before the procedures.
+        hits = [...offered.filter(hit => isShippedProcedureId(hit.id)), ...hits, ...offered.filter(hit => !isShippedProcedureId(hit.id))]
+      }
       if (!judged && this.options.relevance !== undefined) {
         // No judgment decides whether a later turn is personal, so recent memories join only where they always do.
         const recent = recentScan === undefined || request.recent?.sharingOnly === true
@@ -662,7 +666,7 @@ export class MemosMemory implements MemoryProvider {
         if (header === null) continue
         const [, name = '', description = ''] = header
         const known = newest.get(name)
-        if (known === undefined || known.trace.ts < trace.ts) newest.set(name, { trace, name, description })
+        if (known === undefined || (known.source === 'owner' && known.trace.ts < trace.ts)) newest.set(name, { source: 'owner', id: trace.id, trace, name, description })
       }
       return [...newest.values()]
     })()
@@ -693,26 +697,26 @@ export class MemosMemory implements MemoryProvider {
       this.procedureVectors.set(owner, vectors)
     }
     const text = (entry: ProcedureEntry): string => `${entry.name.replaceAll('-', ' ')}: ${entry.description}`
-    const missing = entries.filter(entry => vectors.get(entry.trace.id)?.text !== text(entry))
+    const missing = entries.filter(entry => vectors.get(entry.id)?.text !== text(entry))
     const [query, documents] = await Promise.all([
       embed(owner, [{ text: asked, role: 'query' }], signal),
       missing.length === 0 ? [] : embed(owner, missing.map(entry => ({ text: text(entry), role: 'document' as const })), signal),
     ])
     for (const [index, entry] of missing.entries()) {
       const vector = documents[index]
-      if (vector !== undefined) vectors.set(entry.trace.id, { text: text(entry), vector })
+      if (vector !== undefined) vectors.set(entry.id, { text: text(entry), vector })
     }
-    const current = new Set(entries.map(entry => entry.trace.id))
+    const current = new Set(entries.map(entry => entry.id))
     for (const id of vectors.keys()) if (!current.has(id)) vectors.delete(id)
     const asking = query[0]
     if (asking === undefined) return undefined
     const scores = new Map<string, number>()
     for (const entry of entries) {
-      const vector = vectors.get(entry.trace.id)?.vector
+      const vector = vectors.get(entry.id)?.vector
       if (vector === undefined || vector.length !== asking.length) continue
       let dot = 0
       for (let index = 0; index < vector.length; index++) dot += (vector[index] ?? 0) * (asking[index] ?? 0)
-      scores.set(entry.trace.id, dot)
+      scores.set(entry.id, dot)
     }
     return scores
   }
@@ -727,10 +731,14 @@ export class MemosMemory implements MemoryProvider {
     const { scope } = request
     const late = `Memory recall exceeded ${request.timeoutMs}ms`
     const workspace = this.workspaceOf(scope.cwd)
+    const owned = await withDeadline(this.procedureList(scope.owner), deadlineAt, request.signal, late)
+    // A shipped procedure stands aside for the owner's own procedure of its name.
+    const ownNames = new Set(owned.map(entry => entry.name))
+    const shipped = (request.shipped ?? []).filter(procedure => !ownNames.has(procedure.name))
+      .map((procedure): ProcedureEntry => ({ source: 'shipped', id: procedure.id, procedure, name: procedure.name, description: procedure.description }))
     // Project procedures stay in their project, as project memories do.
-    const entries = (await withDeadline(this.procedureList(scope.owner), deadlineAt, request.signal, late))
-      .filter(entry => scope.cwd === undefined || traceDomain(entry.trace.tags, entry.trace.ownerWorkspaceId) !== 'project'
-        || entry.trace.ownerWorkspaceId === workspace)
+    const entries = [...owned.filter(entry => entry.source !== 'owner' || scope.cwd === undefined
+      || traceDomain(entry.trace.tags, entry.trace.ownerWorkspaceId) !== 'project' || entry.trace.ownerWorkspaceId === workspace), ...shipped]
     try {
       const similarity = await withDeadline(
         this.procedureSimilarity(scope.owner, entries, request.request ?? request.query, request.signal), deadlineAt, request.signal, late,
@@ -768,15 +776,30 @@ export class MemosMemory implements MemoryProvider {
     // With few procedures the median is one of the candidates, so the margin says nothing.
     const floor = sorted.length < PROCEDURE_MEDIAN_MIN ? Number.POSITIVE_INFINITY
       : (sorted[Math.floor(sorted.length / 2)] ?? 0) + (this.options.procedureEmbedding?.minMargin ?? 0)
-    return entries
-      .map(({ trace, name, description }) => {
-        const close = similarity?.get(trace.id) ?? 0
-        return { trace, close: close >= floor ? close : 0, words: procedureMatch(asked, name, description, common) }
+    const ranked = entries
+      .map((entry) => {
+        const close = similarity?.get(entry.id) ?? 0
+        return { entry, close: close >= floor ? close : 0, words: procedureMatch(asked, entry.name, entry.description, common) }
       })
-      .filter(({ trace, close, words }) => (close > 0 || words >= PROCEDURE_MATCH_MIN) && !seen.has(trace.id))
-      .sort((a, b) => b.close - a.close || b.words - a.words || b.trace.ts - a.trace.ts)
-      .slice(0, this.options.procedureCandidates ?? 0)
-      .map(({ trace }) => {
+      .filter(({ entry, close, words }) => (close > 0 || words >= PROCEDURE_MATCH_MIN) && !seen.has(entry.id))
+      // A shipped procedure has no recorded time, so among equals the owner's newest procedures come first.
+      .sort((a, b) => b.close - a.close || b.words - a.words || procedureTime(b.entry) - procedureTime(a.entry))
+    return withShippedSlot(ranked, this.options.procedureCandidates ?? 0)
+      .map(({ entry }) => {
+        if (entry.source === 'shipped') {
+          const memory: MemoryHit = {
+            kind: 'trace',
+            id: entry.procedure.id,
+            domain: entry.procedure.domain,
+            tier: 2,
+            score: 0,
+            snippet: `${LEARNED_PROCEDURE_PREFIX} ${entry.name}: ${entry.procedure.summary}`,
+            procedureStatus: 'active',
+          }
+          this.candidateKinds.set(memory, 'procedure')
+          return memory
+        }
+        const { trace } = entry
         const domain = traceDomain(trace.tags, trace.ownerWorkspaceId)
         const memory: MemoryHit = {
           kind: 'trace',
@@ -1837,6 +1860,30 @@ function withOriginLabel(text: string, trace: TraceDTO): string {
 
 /** Tag of an imported fact whose original time is unknown; its trace time is the import time, not its age. */
 const UNDATED_TAG = 'imported:undated'
+
+/**
+ * The first `limit` ranked candidates, with the best qualifying shipped procedure in the last place when none made
+ * the cut: an owner's many procedures of one subject, learned from single runs, would otherwise always outrank the
+ * one the composition ships for it.
+ * @param ranked - the qualifying candidates, best first.
+ * @param limit - how many to offer.
+ * @returns at most `limit` candidates, best first.
+ */
+function withShippedSlot<T extends { readonly entry: ProcedureEntry }>(ranked: readonly T[], limit: number): T[] {
+  const top = ranked.slice(0, limit)
+  if (limit === 0 || top.some(({ entry }) => entry.source === 'shipped')) return top
+  const shipped = ranked.find(({ entry }) => entry.source === 'shipped')
+  return shipped === undefined ? top : [...top.slice(0, limit - 1), shipped]
+}
+
+/**
+ * When a procedure was recorded, for ordering equally close candidates.
+ * @param entry - an owner's or a shipped procedure.
+ * @returns the trace time, or 0 for a shipped procedure.
+ */
+function procedureTime(entry: ProcedureEntry): number {
+  return entry.source === 'owner' ? entry.trace.ts : 0
+}
 
 /** Tag prefix of a learned procedure's status, as in `procedure:active`. */
 const PROCEDURE_TAG = 'procedure:'

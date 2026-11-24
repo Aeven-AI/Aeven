@@ -113,6 +113,12 @@ export interface MemoryRecallRequest {
   /** Per-tier limits; absent uses the provider's configured limits. */
   readonly limits?: MemoryRecallLimits
   /**
+   * Turn-start only: procedures the composition ships, set by the memory service from its registrations. A provider
+   * offers them beside the owner's learned procedures, except one whose name a non-archived procedure of the owner
+   * already uses, and delivers each as a hit with its `id` and `summary`.
+   */
+  readonly shipped?: readonly ShippedProcedure[]
+  /**
    * Foreground budget in milliseconds: the provider resolves with `timedOut` instead of retrieving past it. A relevance
    * judgment that follows retrieval may finish past it by at most the provider's documented minimum judgment window.
    */
@@ -304,6 +310,24 @@ export interface LearnedProcedure {
   readonly sessionId: SessionId
   /** Maturity; a procedure stored without a status is a `candidate`. */
   readonly status: ProcedureStatus
+}
+
+/**
+ * A procedure a composition ships for every owner: read-only, recalled like a learned procedure, and superseded for
+ * an owner by a learned procedure with the same name.
+ */
+export interface ShippedProcedure {
+  /** `shipped:<name>`; {@link MemoryProvider.detail} and the owner's write operations never receive it. */
+  readonly id: MemoryItemId
+  /** Kebab-case name of the kind of task the procedure does. */
+  readonly name: string
+  /** One line: what the procedure does and when to use it. */
+  readonly description: string
+  /** The condensed procedure recall delivers. */
+  readonly summary: string
+  /** The full Markdown procedure. */
+  readonly content: string
+  readonly domain: MemoryDomain
 }
 
 /** Request for the owner's learned procedures. */

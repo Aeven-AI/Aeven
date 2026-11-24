@@ -11,7 +11,11 @@
  * article, dialog, or form that holds the control. Reply, comment, and Save
  * controls publish only when that composer holds text, so the "Reply" that
  * opens an empty reply box does not count; Send, Post, Repost, Invite, and
- * Submit always do.
+ * Submit always do. Enter in a field that holds text counts as sending it,
+ * except a plain Enter in a multi-line post composer: an editor whose dialog,
+ * form, or article shows a Post control and no Send control, where Enter adds
+ * a line. Enter with Control, Meta, or Alt still counts, because post
+ * composers such as X's publish on Cmd+Enter.
  *
  * The script guard stops a page script from publishing at all: while armed it
  * refuses programmatic clicks, synthetic click and Enter events, and form
@@ -49,6 +53,8 @@ export interface OutboundProbe {
   readonly url: string
   /** False when the selector is not plain CSS or does not match exactly one element; the caller then decides without the page. */
   readonly found: boolean
+  /** True when the probe read Enter pressed in the focused element rather than a click. */
+  readonly key?: boolean
   /** What the action publishes, or null when it publishes nothing. */
   readonly outbound: PageOutbound | null
 }
@@ -125,7 +131,7 @@ const LIBRARY = `(() => {
     while (element?.shadowRoot?.activeElement) element = element.shadowRoot.activeElement;
     return element;
   };
-  const describeKey = () => {
+  const describeKey = (chord) => {
     const element = focused();
     if (!element || element === document.body || element === document.documentElement) return null;
     if (element.closest(CONTROL)) return describe(element);
@@ -137,7 +143,19 @@ const LIBRARY = `(() => {
         || SEARCH.test([editor.name, editor.id, editor.getAttribute("aria-label"), editor.placeholder].join(" "))) return null;
     }
     const text = textOf(editor);
-    return text === "" ? null : { kind: "message", label: "Enter", text: cap(text) };
+    // Ctrl or Cmd with Enter publishes in post composers (X posts on Cmd+Enter), so only a plain Enter adds a line.
+    if (text === "" || (!chord && postComposer(editor))) return null;
+    return { kind: "message", label: "Enter", text: cap(text) };
+  };
+  const visible = (element) => element.getClientRects().length > 0;
+  // A multi-line editor whose dialog, form, or article shows a Post button and no Send button publishes only through
+  // that button; Enter adds a line, as in the LinkedIn, X, and Facebook post composers. Chat boxes show Send.
+  const postComposer = (editor) => {
+    if (editor.tagName === "INPUT") return false;
+    const owner = editor.closest(OWNER);
+    if (!owner) return false;
+    const verbs = [...owner.querySelectorAll(CONTROL)].filter(visible).map((control) => verbOf(labelOf(control)));
+    return verbs.includes("post") && !verbs.includes("send");
   };
   return { describe, describeKey, CONTROL, EDITABLE, textOf };
 })()`
@@ -146,12 +164,13 @@ const LIBRARY = `(() => {
  * Build the expression that reports what a click on a CSS selector's element,
  * or Enter in the focused element, would publish.
  * @param selector - the click target's selector, or null for Enter pressed in the focused element.
+ * @param chord - Enter is pressed with Control, Meta, or Alt, which publishes even in a multi-line post composer.
  * @returns an expression evaluating to an {@link OutboundProbe}.
  */
-export function outboundProbe(selector: string | null): string {
+export function outboundProbe(selector: string | null, chord = false): string {
   return `(() => {
   const lib = ${LIBRARY};
-  if (${JSON.stringify(selector)} === null) return { url: location.href, found: true, outbound: lib.describeKey() };
+  if (${JSON.stringify(selector)} === null) return { url: location.href, found: true, key: true, outbound: lib.describeKey(${JSON.stringify(chord)}) };
   const all = (root, css) => {
     const found = [...root.querySelectorAll(css)];
     for (const element of root.querySelectorAll("*")) if (element.shadowRoot) found.push(...all(element.shadowRoot, css));

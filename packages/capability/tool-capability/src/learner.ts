@@ -373,23 +373,26 @@ const DAY_MS = 86_400_000
  * Status of a procedure written from new work. Writing never proves a procedure: it is `active` only when it replaces
  * an active procedure without a correction, because an update extends what that procedure already proved. Anything
  * new or corrected is a `candidate`, which memory recall promotes once it informs work the user does not correct.
- * @param previous - the stored procedures the new one replaces.
+ * @param previous - the stored and shipped procedures the new one replaces.
  * @param feedback - the user's next message after the work.
  * @returns the status to store.
  */
 function procedureStatusAfter(
-  previous: readonly LearnedProcedure[],
+  previous: readonly Pick<LearnedProcedure, 'status'>[],
   feedback: LearnerFeedback | undefined,
 ): ProcedureStatus {
   if (feedback?.kind === 'correction') return 'candidate'
   return previous.some(procedure => procedure.status === 'active') ? 'active' : 'candidate'
 }
 
-function latestByName(procedures: readonly LearnedProcedure[]): Map<string, LearnedProcedure> {
-  const latest = new Map<string, LearnedProcedure>()
+function latestByName<T extends { readonly name: string }>(procedures: readonly T[]): Map<string, T> {
+  const latest = new Map<string, T>()
   for (const procedure of procedures) if (!latest.has(procedure.name)) latest.set(procedure.name, procedure)
   return latest
 }
+
+/** What a distillation reads of a procedure it may update: an owner's learned procedure or a shipped one. */
+type ProcedureView = Pick<LearnedProcedure, 'name' | 'description' | 'content' | 'time' | 'status'>
 
 function overlap(a: ReadonlySet<string>, b: ReadonlySet<string>): number {
   let count = 0
@@ -631,13 +634,18 @@ export class CapabilityLearner {
     await this.archiveStaleCandidates(owner, all, signal)
     const cutoff = Date.now() - this.config.candidateTtlDays * DAY_MS
     // Archived and expiring candidates are not offered for merging; work of their kind starts a fresh candidate.
-    const latest = latestByName(all.filter(procedure => procedure.status === 'active'
+    const owned = latestByName(all.filter(procedure => procedure.status === 'active'
       || (procedure.status === 'candidate' && procedure.time >= cutoff)))
     // The backlog is merged whether or not this work teaches anything new.
-    this.consolidateWhenNeeded(recent, latest.size)
+    this.consolidateWhenNeeded(recent, owned.size)
+    // A shipped procedure the owner has no procedure of its name for is offered like an active one: an update of it is
+    // stored as the owner's own procedure of that name, which supersedes it for this owner.
+    const shipped = this.ctx.memory.shipped().filter(procedure => !all.some(own => own.name === procedure.name))
+      .map((procedure): ProcedureView => ({ ...procedure, time: 0, status: 'active' }))
+    const latest = new Map<string, ProcedureView>([...owned, ...shipped.map(procedure => [procedure.name, procedure] as const)])
     const recalled = await recallLearnedNames(this.ctx, scope, `${work.request}\n\n${work.answer.slice(0, 600)}`, signal)
     const requestWords = words(work.request)
-    const rank = (procedure: LearnedProcedure): number => {
+    const rank = (procedure: ProcedureView): number => {
       // The procedure this work was already learned into is the one feedback refines, then what recall ranks.
       if (procedure.name === recent.learned?.name) return Number.MAX_SAFE_INTEGER
       const recalledAt = recalled.indexOf(procedure.name)
@@ -648,16 +656,16 @@ export class CapabilityLearner {
       .sort((a, b) => b.score - a.score || b.procedure.time - a.procedure.time)
     const existing = ordered.slice(0, MAX_EXISTING_PROCEDURES)
       .map(({ procedure }) => `- ${procedure.name}: ${clip(procedure.description, EXISTING_LINE_CHARS)}`).join('\n') || '(none)'
-    const shown = (procedures: readonly LearnedProcedure[], maxChars: number) => procedures.map(procedure => ({
+    const shown = (procedures: readonly ProcedureView[], maxChars: number) => procedures.map(procedure => ({
       name: procedure.name,
       description: procedure.description,
       content: clip(procedure.content, maxChars),
     }))
     const related = ordered.filter(item => item.score >= 2).slice(0, MAX_RELATED_PROCEDURES).map(item => item.procedure)
     /** Names of the procedures a distillation read whole; only these may be rewritten or replaced. */
-    const readWhole = (procedures: readonly LearnedProcedure[], maxChars: number): Set<string> =>
+    const readWhole = (procedures: readonly ProcedureView[], maxChars: number): Set<string> =>
       new Set(procedures.filter(procedure => procedure.content.length <= maxChars).map(procedure => procedure.name))
-    const coveredBy = (made: Decision & { decision: 'create' | 'update' }): LearnedProcedure[] => {
+    const coveredBy = (made: Decision & { decision: 'create' | 'update' }): ProcedureView[] => {
       const names = new Set([made.name, ...made.replaces ?? []])
       return [...latest.values()].filter(procedure => names.has(procedure.name))
     }
@@ -689,7 +697,7 @@ export class CapabilityLearner {
     const covered = new Set([decision.name, ...(decision.replaces ?? []).filter(name => whole.has(name))])
     const previous = all.filter(procedure => covered.has(procedure.name))
     const replaced = previous.map(procedure => procedure.id)
-    const status = procedureStatusAfter(previous, feedback)
+    const status = procedureStatusAfter([...previous, ...shipped.filter(procedure => covered.has(procedure.name))], feedback)
     const id = await storeLearnedProcedure(this.ctx, scope, {
       name: decision.name,
       description: decision.description,

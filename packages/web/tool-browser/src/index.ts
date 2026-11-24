@@ -492,14 +492,16 @@ export function apply(ctx: Context, config: Config): void {
    * @param selector - the click target, or null for Enter.
    * @param frame - the iframe selector the action runs in, when it names one.
    * @param exec - the running tool call.
+   * @param chord - Enter is pressed with Control, Meta, or Alt.
    * @returns the page's answer, or undefined when the page could not tell.
    */
   const probeOutbound = async (
     selector: string | null,
     frame: JsonValue | undefined,
     exec: ToolRunContext,
+    chord = false,
   ): Promise<OutboundProbe | undefined> => {
-    const result = await run('evaluate', { expression: outboundProbe(selector), ...typeof frame === 'string' ? { frame } : {} }, exec).catch(() => undefined)
+    const result = await run('evaluate', { expression: outboundProbe(selector, chord), ...typeof frame === 'string' ? { frame } : {} }, exec).catch(() => undefined)
     const value = typeof result === 'object' && result !== null && !Array.isArray(result) ? result.value : undefined
     if (typeof value !== 'object' || value === null || Array.isArray(value) || value.found !== true || typeof value.url !== 'string') return undefined
     // The probe is this package's own page script; its answer has the OutboundProbe fields.
@@ -524,6 +526,7 @@ export function apply(ctx: Context, config: Config): void {
         ...page.to === undefined ? {} : { to: page.to },
         ...page.subject === undefined ? {} : { subject: page.subject },
         ...page.text === undefined ? {} : { text: page.text },
+        trigger: probe.key === true ? { kind: 'key', key: 'Enter' } : { kind: 'click', label: page.label },
       },
     }
   }
@@ -559,8 +562,14 @@ export function apply(ctx: Context, config: Config): void {
         }
         case 'press': {
           if (typeof values.key !== 'string' || !isSendKey(values.key, modifiers(values.modifiers))) return undefined
-          const probe = await probeOutbound(null, undefined, exec)
-          return probe === undefined ? { action: `Press ${values.key}` } : probedStep(probe) ?? undefined
+          const held = [...values.key.split('+').slice(0, -1), ...modifiers(values.modifiers)].map(part => part.trim().toLowerCase())
+          const chord = held.some(part => ['control', 'ctrl', 'meta', 'cmd', 'command', 'alt', 'option'].includes(part))
+          const probe = await probeOutbound(null, undefined, exec, chord)
+          if (probe === undefined) return { action: `Press ${values.key}` }
+          const probed = probedStep(probe)
+          if (probed?.outbound === undefined) return probed ?? undefined
+          const pressed = [...modifiers(values.modifiers), values.key].join('+')
+          return { ...probed, outbound: { ...probed.outbound, trigger: { kind: 'key', key: pressed } } }
         }
         case 'type':
           return values.sequential === true && typeof values.text === 'string' && values.text.includes('\n')

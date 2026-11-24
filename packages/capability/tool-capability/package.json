@@ -28,7 +28,8 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@aeven/util-values": "workspace:^",
-    "@deepseek-ai/schemastery": "workspace:^"
+    "@deepseek-ai/schemastery": "workspace:^",
+    "yaml": "^2.4.2"
   },
   "peerDependencies": {
     "@aeven/agent": "workspace:^",

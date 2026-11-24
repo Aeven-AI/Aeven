@@ -15,6 +15,7 @@ import { correctionOf, ExecutionTracker, slownessOf } from './executions.ts'
 import { CapabilityLearner, MIN_INPUT_TOKENS } from './learner.ts'
 import { condenseProcedure, forgetLearnedProcedures, LEARNED_DOMAINS, learnedIdsNamed, readProcedureImport, storeLearnedProcedure } from './memory-learning.ts'
 import { recallProcedures, PROCEDURE_GUIDANCE } from './recall.ts'
+import { readShippedProcedures } from './shipped.ts'
 import { LEARNED_PROCEDURE_PREFIX, MEMORY_TOOL, memoryScopeOf, type MemoryDomain } from '@aeven/memory'
 import { defineTool, textOutput, textResult } from '@aeven/tools'
 import type {} from '@aeven/system-prompt'
@@ -72,6 +73,12 @@ export interface Config {
   maintenanceRenewMs: number
   /** Memory store: days an unconfirmed candidate procedure waits before it is archived. */
   candidateTtlDays: number
+  /**
+   * Absolute directories of procedures this composition ships for every owner, one Markdown file each (see
+   * `readShippedProcedures`). They are registered with the memory service, which recalls them beside each owner's
+   * learned procedures; an owner's learned procedure with the same name supersedes one. Requires the memory service.
+   */
+  shippedProcedures: string[]
 }
 
 export const Config: z<Config> = z.object({
@@ -92,6 +99,7 @@ export const Config: z<Config> = z.object({
   maintenanceTtlMs: z.natural().min(1_000).default(180_000),
   maintenanceRenewMs: z.natural().min(100).default(60_000),
   candidateTtlDays: z.natural().min(1).default(30),
+  shippedProcedures: z.array(z.string()).default([]),
 })
 
 const TOOL = 'capability_manage'
@@ -159,6 +167,12 @@ export function apply(ctx: Context, config: Config): void {
   const inMemory = config.store === 'memory'
   if (inMemory && ctx.get('memory') === undefined) {
     throw new Error(`${name}: store "memory" requires the memory service; mount @aeven/memory or set store: capabilities`)
+  }
+  if (config.shippedProcedures.length > 0) {
+    const memory = ctx.get('memory')
+    if (memory === undefined) throw new Error(`${name}: shippedProcedures requires the memory service; mount @aeven/memory`)
+    const shipped = readShippedProcedures(config.shippedProcedures)
+    ctx.effect(() => memory.ship(shipped), 'tool-capability.shipped')
   }
   const learner = config.learn ? new CapabilityLearner(ctx, config) : undefined
   ctx.effect(() => () => learner?.dispose(), 'tool-capability.learner')

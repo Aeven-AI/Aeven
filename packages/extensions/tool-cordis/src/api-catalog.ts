@@ -2221,6 +2221,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'disposer that stops watching and disposes a live contribution.',
       },
       {
+        signature: 'ship(procedures: readonly ShippedProcedure[]): () => void',
+        description: 'Register procedures a composition ships for every owner. Each name may appear once per registration; across registrations the earliest live one of a name is served.',
+        parameters: [{ name: 'procedures', description: 'the procedures, each with the id {@link shippedProcedureId} gives its name.' }],
+        returns: 'idempotent disposer that withdraws them.',
+        throws: ['Error when a name repeats or an id does not match its name.'],
+      },
+      {
+        signature: 'shipped(): readonly ShippedProcedure[]',
+        description: 'The procedures registered with ship, one per name. An owner\'s learned procedure with the same name supersedes one in recall; callers that list procedures for an owner apply the same rule.',
+        parameters: [],
+        returns: 'the shipped procedures.',
+      },
+      {
         signature: 'recall(request: MemoryRecallRequest): Promise<MemoryRecall>',
         description: 'Retrieve memory relevant to a query within the request\'s foreground budget.',
         parameters: [{ name: 'request', description: 'query, scope, and foreground budget.' }],
@@ -2257,7 +2270,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'detail(request: Parameters<MemoryProvider[\'detail\']>[0]): Promise<MemoryDetail | undefined>',
-        description: 'Read one memory item.',
+        description: 'Read one memory item. A `trace` read of a shipped procedure\'s id answers with the procedure, without the provider.',
         parameters: [{ name: 'request', description: 'scope, item kind, and id.' }],
         returns: 'the item, or undefined when the scope holds no such item.',
       },
@@ -8331,7 +8344,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MemoryRecallRequest',
-    declaration: 'export interface MemoryRecallRequest {\n    readonly scope: MemoryScope;\n    readonly query: string;\n    readonly request?: string;\n    readonly context?: string;\n    readonly recent?: {\n        readonly hours: number;\n        readonly items: number;\n        readonly perSession: number;\n        readonly sharingOnly: boolean;\n    };\n    readonly purpose: \'turn-start\' | \'tool\';\n    readonly sessionOnly?: boolean;\n    readonly limits?: MemoryRecallLimits;\n    readonly timeoutMs: number;\n    readonly signal: AbortSignal;\n}',
+    declaration: 'export interface MemoryRecallRequest {\n    readonly scope: MemoryScope;\n    readonly query: string;\n    readonly request?: string;\n    readonly context?: string;\n    readonly recent?: {\n        readonly hours: number;\n        readonly items: number;\n        readonly perSession: number;\n        readonly sharingOnly: boolean;\n    };\n    readonly purpose: \'turn-start\' | \'tool\';\n    readonly sessionOnly?: boolean;\n    readonly limits?: MemoryRecallLimits;\n    readonly shipped?: readonly ShippedProcedure[];\n    readonly timeoutMs: number;\n    readonly signal: AbortSignal;\n}',
   },
   {
     name: 'MemoryRecord',
@@ -9672,6 +9685,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ShellSandboxInfo',
     declaration: 'export interface ShellSandboxInfo {\n    mode: SandboxMode;\n    denied: boolean;\n    enforcement?: SandboxEnforcement;\n    runnerFailed?: boolean;\n}',
+  },
+  {
+    name: 'ShippedProcedure',
+    declaration: 'export interface ShippedProcedure {\n    readonly id: MemoryItemId;\n    readonly name: string;\n    readonly description: string;\n    readonly summary: string;\n    readonly content: string;\n    readonly domain: MemoryDomain;\n}',
   },
   {
     name: 'SkillCandidate',

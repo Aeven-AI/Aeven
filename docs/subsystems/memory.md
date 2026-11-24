@@ -35,6 +35,22 @@ register(provider: MemoryProvider): () => void
 whileActive(setup: () => () => void): () => void
 
 /**
+ * Register procedures a composition ships for every owner. Each name may appear once per registration; across
+ * registrations the earliest live one of a name is served.
+ * @param procedures - the procedures, each with the id {@link shippedProcedureId} gives its name.
+ * @returns idempotent disposer that withdraws them.
+ * @throws Error when a name repeats or an id does not match its name.
+ */
+ship(procedures: readonly ShippedProcedure[]): () => void
+
+/**
+ * The procedures registered with {@link ship}, one per name. An owner's learned procedure with the same name
+ * supersedes one in recall; callers that list procedures for an owner apply the same rule.
+ * @returns the shipped procedures.
+ */
+shipped(): readonly ShippedProcedure[]
+
+/**
  * Retrieve memory relevant to a query within the request's foreground budget.
  * @param request - query, scope, and foreground budget.
  * @returns ranked hits visible to the scope.
@@ -76,7 +92,7 @@ setProcedureStatus(request: Parameters<MemoryProvider['setProcedureStatus']>[0])
 async turnDomain(request: Parameters<MemoryProvider['turnDomain']>[0]): Promise<MemoryDomain | undefined>
 
 /**
- * Read one memory item.
+ * Read one memory item. A `trace` read of a shipped procedure's id answers with the procedure, without the provider.
  * @param request - scope, item kind, and id.
  * @returns the item, or undefined when the scope holds no such item.
  */
