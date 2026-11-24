@@ -201,7 +201,12 @@ const skillSchema = z.object({
     && path.split('/').every(part => part !== '' && part !== '.' && part !== '..')), z.string()), revision: z.uuid(),
   setup: z.object({ state: z.enum(['installing', 'ready', 'failed']), detail: z.string().optional() }).optional(),
 })
-const providers = ['github', 'notion', 'vercel', 'atlassian', 'monday', 'stripe', 'salesforce', 'shopify', 'gmail', 'google-drive', 'google-calendar', 'microsoft-365', 'outlook', 'outlook-calendar', 'onedrive', 'sharepoint', 'teams', 'email', 'whatsapp', 'telegram', 'discord', 'slack', 'mcp'] as const satisfies readonly ConnectorProvider[]
+/** Settings lists providers in this order: the original connectors, the vendor-hosted and store connectors, then custom MCP. */
+const providers = [
+  'github', 'gmail', 'google-drive', 'google-calendar', 'microsoft-365', 'outlook', 'outlook-calendar', 'onedrive', 'sharepoint', 'teams',
+  'email', 'whatsapp', 'telegram', 'discord', 'slack',
+  'notion', 'vercel', 'atlassian', 'monday', 'stripe', 'salesforce', 'shopify', 'mcp',
+] as const satisfies readonly ConnectorProvider[]
 const emailServerSchema = z.object({
   host: z.string().trim().min(1).max(253).regex(/^[A-Za-z0-9.-]+$/), port: z.number().int().min(1).max(65_535),
   security: z.enum(['tls', 'starttls']), username: z.string().trim().min(1).max(320),
