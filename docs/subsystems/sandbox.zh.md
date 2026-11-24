@@ -60,6 +60,12 @@ interface SandboxExecutionPolicy {
    */
   additionalWritableRoots?: readonly string[]
   /**
+   * Absolute directories no mode may modify, not even `danger-full-access`: the Host's own data stores (session logs,
+   * account and workspace records), which only the Host writes. Backends that express denials add them to every
+   * profile; {@link SandboxProvider.protect} carries them to unconfined executions.
+   */
+  protectedRoots?: readonly string[]
+  /**
    * Opaque identity of the calling session (the branded `avn-session`
    * SessionId). Backends key per-session state off it (e.g. windows-acl gives
    * each live session/workspace pair a random private temp directory and SID,

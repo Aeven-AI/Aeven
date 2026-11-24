@@ -685,7 +685,7 @@ describe('JsonlSessionPersistence: default Zstandard encoding', () => {
     expect((await ctx.sessionPersistence.load(header.id)).events).toEqual([...oneTurnLog(), ...secondTurn])
   })
 
-  it('skips empty, incomplete, and non-header compressed artifacts while rejecting malformed header frames', async () => {
+  it('skips empty, incomplete, non-header, and malformed-header compressed artifacts while targeted reads reject the malformed one', async () => {
     const root = await freshRoot()
     for (const [id, content] of [
       ['empty', Buffer.alloc(0)],
@@ -706,7 +706,7 @@ describe('JsonlSessionPersistence: default Zstandard encoding', () => {
       JSON.stringify({ type: 'turn/start' }),
       '',
     ].join('\n')))
-    await expect(ctx.sessionPersistence.list()).rejects.toThrow(/first frame is not exactly one header line/)
+    expect(await ctx.sessionPersistence.list()).toEqual([])
     await expect(ctx.sessionPersistence.load(SessionId('two-lines')))
       .rejects.toThrow(/first frame is not exactly one header line/)
   })
@@ -728,13 +728,10 @@ describe('JsonlSessionPersistence: default Zstandard encoding', () => {
     await expect(ctx.sessionPersistence.load(SessionId('empty-header')))
       .rejects.toThrow(/first frame is not exactly one header line/)
 
-    // `list()` reads every session in the root, so it reports whichever corrupt header it meets first. The
-    // checksum-corrupt session gets its own root so this assertion names the failure it means to prove.
-    const corruptRoot = await freshRoot()
-    await mkdir(sessionDir(corruptRoot, undefined, SessionId('bad-checksum')), { recursive: true })
-    await writeFile(logPath(corruptRoot, undefined, SessionId('bad-checksum'), 'zstd'), corruptHeader)
-    const corrupt = await mount(corruptRoot)
-    await expect(corrupt.sessionPersistence.list()).rejects.toThrow(/header frame failed validation/)
+    await expect(ctx.sessionPersistence.load(SessionId('bad-checksum')))
+      .rejects.toThrow(/corrupt Zstandard session log/)
+    // A listing leaves every corrupt header out instead of failing for all sessions.
+    expect(await ctx.sessionPersistence.list()).toEqual([])
   })
 })
 
