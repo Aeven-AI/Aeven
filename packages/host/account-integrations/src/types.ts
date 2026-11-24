@@ -6,7 +6,7 @@ import type { Branded } from '@aeven/brand'
 export type ConnectorId = Branded<'account-connector-id'>
 
 /** Provider selected when creating a connector. */
-export type ConnectorProvider = 'github' | 'notion' | 'gmail' | 'google-drive' | 'google-calendar' | 'outlook' | 'outlook-calendar' | 'onedrive' | 'sharepoint' | 'teams' | 'mcp' | 'email' | 'whatsapp' | 'telegram' | 'discord' | 'slack'
+export type ConnectorProvider = 'github' | 'notion' | 'vercel' | 'atlassian' | 'monday' | 'stripe' | 'salesforce' | 'shopify' | 'microsoft-365' | 'gmail' | 'google-drive' | 'google-calendar' | 'outlook' | 'outlook-calendar' | 'onedrive' | 'sharepoint' | 'teams' | 'mcp' | 'email' | 'whatsapp' | 'telegram' | 'discord' | 'slack'
 
 /** Stable Settings identity of one skill definition. */
 export type SkillViewId = Branded<'account-skill-view-id'>
@@ -55,6 +55,44 @@ export interface PersonalConnectorView {
   discord?: DiscordConnectorSettings
   /** Workspace one `slack` connector is connected to; the user token stays private. */
   slack?: SlackConnectorSettings
+  /** Org one `salesforce` connector is connected to; the External Client App's credentials stay on the Aeven API. */
+  salesforce?: SalesforceConnectorSettings
+  /** Store one `shopify` connector reaches. */
+  shopify?: ShopifyConnectorSettings
+}
+
+/** The Shopify store one `shopify` connector reaches. */
+export interface ShopifyConnectorSettings {
+  /** The store's `<store>.myshopify.com` domain. */
+  shop: string
+  /** The store's name, as Shopify reported it when the store was connected. */
+  name: string
+}
+
+/** The store Settings submits to connect it. */
+export interface ShopifyAuthorizationRequest {
+  /** The store's `<store>.myshopify.com` domain, a URL on it, its admin URL, or its handle. */
+  shop: string
+}
+
+/** The Salesforce org one `salesforce` connector reaches, and the user who consented. */
+export interface SalesforceConnectorSettings {
+  /** The org's My Domain host. */
+  domain: string
+  /** Salesforce org id (`00D…`). */
+  orgId: string
+  /** Salesforce user id (`005…`) of the account that consented. */
+  userId: string
+}
+
+/** The External Client App an org's administrator created, which Settings submits to connect that org. */
+export interface SalesforceAuthorizationRequest {
+  /** The org's My Domain host or URL, such as `acme.my.salesforce.com`. */
+  domain: string
+  /** The app's consumer key. */
+  clientId: string
+  /** The app's consumer secret, when the app requires one; write-only. */
+  clientSecret?: string
 }
 
 /** The Slack workspace one `slack` connector is connected to, and the account that consented. */

@@ -14,7 +14,7 @@ Notion 是第一个其提供商不发布可注册普通 OAuth 应用的连接器
 
 - **注册。** 首次 Notion 授权时，API 以机密客户端（`client_secret_post`）身份在 Notion 的注册端点注册自身，以其连接器回调作为唯一重定向 URI，并将结果保存在 `connector_clients` 中，密钥加密存储。该行以提供商和重定向 URI 为键，因此开发与生产环境分别注册，回调变更后会重新注册。并发的首次授权共享同一注册；Notion 之后以 `invalid_client` 拒绝的注册会被删除，下次授权重新注册，已有授权则提示重新连接。
 - **授权。** 授权、授权码兑换、刷新及撤销都经由现有代理路由，使用所存注册的凭据及 `resource=https://mcp.notion.com/mcp`。宿主将 Notion 视为又一个代理提供商：通过 `broker.token()` 获取短期访问令牌，并以 Streamable HTTP 挂载托管服务器。
-- **批准。** Notion 的工具名称（`notion-search`、`notion-create-pages`）不符合共享的读取名称模式，因此 `notion.ts` 按 Notion 发布的参考列出读取工具。其他所有工具（包括 Notion 日后新增的工具）都会先征求批准。
+- **批准。** Notion 的工具名称（`notion-search`、`notion-create-pages`）不符合共享的读取名称模式，因此 `hosted-mcp.ts` 按 Notion 发布的参考列出 Notion 的读取工具。其他所有工具（包括 Notion 日后新增的工具）都会先征求批准。
 
 ## 考虑过的替代方案
 
@@ -25,6 +25,6 @@ Notion 是第一个其提供商不发布可注册普通 OAuth 应用的连接器
 
 ## 影响
 
-- 部署无需配置任何 Notion 凭据；API 配置中的 `connectors.notion` 仅用于在 Notion 授权页面上显示客户端名称。
+- 部署无需配置任何 Notion 凭据；API 配置中的 `connectors.registration` 仅用于在 Notion 授权页面上显示客户端名称。其他供应商托管的连接器共用该机制（[托管 MCP 连接器](2026-11-24-hosted-mcp-connectors-trust-vendor-read-hints.zh.md)）。
 - Notion 授权只能访问用户在 Notion 授权页面上共享的页面。
 - Notion 连接行以提供商命名，与 GitHub 相同；不记录工作区名称。

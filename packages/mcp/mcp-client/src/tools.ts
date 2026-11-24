@@ -292,6 +292,7 @@ export async function syncTools(
         tool.inputSchema,
         supportedOutputSchema(tool.outputSchema),
         tool.execution?.taskSupport === 'required',
+        tool.annotations?.readOnlyHint === true,
         opts,
       ))
     }
@@ -390,6 +391,7 @@ function supportedOutputSchema(candidate: unknown): JsonSchemaNode | undefined {
  * @param parameters - MCP input schema.
  * @param structuredSchema - supported structured-output schema, when advertised.
  * @param taskRequired - whether this MCP tool requires unsupported task execution.
+ * @param readOnly - whether the server annotates the tool `readOnlyHint: true`.
  * @param opts - bridge timeout and namespace options.
  * @returns a complete ToolRuntime definition.
  */
@@ -402,6 +404,7 @@ function createDefinition(
   parameters: Record<string, unknown>,
   structuredSchema: JsonSchemaNode | undefined,
   taskRequired: boolean,
+  readOnly: boolean,
   opts: ToolBridgeOptions,
 ): ToolDefinition {
   const projections = new WeakMap<ToolExecution, PreparedProjection>()
@@ -409,6 +412,7 @@ function createDefinition(
     name: publicName,
     description,
     parameters,
+    ...readOnly ? { readOnlyHint: true as const } : {},
     output: createOutput(rawName, structuredSchema),
     execute: createExecutor(client, ctx, rawName, taskRequired, opts, projections),
     finalizeContent(exec: Readonly<ToolExecution>, result: Readonly<ToolExecutionResult>) {

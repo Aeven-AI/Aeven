@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-11-24-notion-hosted-mcp-through-the-broker.md
-2026-11-24-notion-hosted-mcp-through-the-broker.md: 52c3e62c955e2e4a12a3398d030f073ab5d1995b
-2026-11-24-notion-hosted-mcp-through-the-broker.zh.md: cfcc8db0a360119065cec2ce1d317cc8fad83410
+2026-11-24-notion-hosted-mcp-through-the-broker.md: 318eb4eaebdb1ddbe352fedb2cc9a5bf3f4b314a
+2026-11-24-notion-hosted-mcp-through-the-broker.zh.md: 01c5eed0b36d3342b26026715ede04e14deca70d

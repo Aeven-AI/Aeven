@@ -71,6 +71,7 @@
     "@aeven/ffmpeg-linux-x64": "workspace:^",
     "@aeven/ffmpeg-win32-arm64": "workspace:^",
     "@aeven/ffmpeg-win32-x64": "workspace:^",
+    "@aeven/shopify-mcp": "workspace:^",
     "@aeven/telegram-mcp": "workspace:^",
     "@aeven/whatsapp-mcp-darwin-arm64": "workspace:^",
     "@aeven/whatsapp-mcp-darwin-x64": "workspace:^",

@@ -123,6 +123,44 @@ function attachDebugger(guest: WebContents): void {
 }
 
 /**
+ * How long a guest keeps drawing frames in a background window after its last
+ * engine operation. A transition an action starts, such as a menu closing or a
+ * dialog fading out, runs after the operation returns, and the agent's next
+ * action follows the model's turn; a throttled guest in a hidden or covered
+ * window draws no frames, so the transition never ends and its backdrop takes
+ * the next click.
+ */
+const RENDER_AFTER_OPERATION_MS = 60_000
+
+/** Engine operations in flight per guest, and the pending return to background throttling. */
+const renderingGuests = new WeakMap<WebContents, { operations: number; timer: NodeJS.Timeout | undefined }>()
+
+/**
+ * Keep a guest rendering while the application window is in the background, for
+ * one engine operation and {@link RENDER_AFTER_OPERATION_MS} after the last one
+ * ends. Outside that window the guest is throttled again, so a page the agent
+ * left does not spend frames or timers while nobody watches it.
+ * @param guest - the guest an operation is about to drive.
+ * @returns the call that marks the operation ended.
+ */
+function renderWhileDriven(guest: WebContents): () => void {
+  const state = renderingGuests.get(guest) ?? { operations: 0, timer: undefined }
+  renderingGuests.set(guest, state)
+  clearTimeout(state.timer)
+  state.timer = undefined
+  state.operations += 1
+  guest.setBackgroundThrottling(false)
+  return () => {
+    state.operations -= 1
+    if (state.operations > 0) return
+    state.timer = setTimeout(() => {
+      state.timer = undefined
+      if (!guest.isDestroyed()) guest.setBackgroundThrottling(true)
+    }, RENDER_AFTER_OPERATION_MS)
+  }
+}
+
+/**
  * Binding a guest's page calls to report that its content moved.
  *
  * The pane draws the pointer in its own coordinates, from where the page last
@@ -329,6 +367,7 @@ export function registerBrowserIpc(isAppSender: (event: IpcMainEvent | IpcMainIn
     const closed = new AbortController()
     const destroyed = (): void => { closed.abort() }
     guest.once('destroyed', destroyed)
+    const driven = renderWhileDriven(guest)
     try {
       const target = guestTarget(guest)
       return await run(event, guest.id, operation, input, requestId, timeoutMs,
@@ -342,6 +381,7 @@ export function registerBrowserIpc(isAppSender: (event: IpcMainEvent | IpcMainIn
           }
         }, closed.signal)
     } finally {
+      driven()
       guest.off('destroyed', destroyed)
     }
   })
