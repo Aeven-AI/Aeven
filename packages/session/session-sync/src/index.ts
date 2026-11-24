@@ -178,6 +178,11 @@ export default class SessionSync extends SessionHandoff {
   }
 
   /** @inheritdoc */
+  override turnElsewhere(owner: string, sessionId: SessionId): SessionRunner | undefined {
+    return this.mirrors.get(owner)?.turnElsewhere(sessionId)
+  }
+
+  /** @inheritdoc */
   placementOf(owner: string, sessionId: SessionId): HandoffPlacement | undefined {
     return this.mirrors.get(owner)?.placementOf(sessionId)
   }

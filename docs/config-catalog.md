@@ -4154,6 +4154,11 @@ export interface Config {
    * where the desktop keeps the files it makes for the user.
    */
   writableRoots?: string[]
+  /**
+   * Absolute directories no call may modify in any mode (default none): the Host's own data stores, such as session
+   * logs and account and workspace records, which only the Host writes.
+   */
+  protectedRoots?: string[]
 }
 ```
 

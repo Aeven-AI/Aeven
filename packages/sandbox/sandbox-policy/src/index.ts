@@ -129,6 +129,11 @@ export interface Config {
    * where the desktop keeps the files it makes for the user.
    */
   writableRoots?: string[]
+  /**
+   * Absolute directories no call may modify in any mode (default none): the Host's own data stores, such as session
+   * logs and account and workspace records, which only the Host writes.
+   */
+  protectedRoots?: string[]
 }
 
 /** Inputs that select the sandbox policy for one capability call. */
@@ -169,6 +174,7 @@ export class SandboxPolicyService extends Service {
     workspaceRoot: z.string(),
     ceiling: z.union(['read-only', 'workspace-write', 'danger-full-access'] as const).default('danger-full-access'),
     writableRoots: z.array(z.string()).default([]),
+    protectedRoots: z.array(z.string()).default([]),
   })
 
   static inject = ['sessionProjections']
@@ -181,6 +187,8 @@ export class SandboxPolicyService extends Service {
   readonly ceiling: SandboxMode
   /** Absolute directories every `workspace-write` call may also modify. */
   readonly writableRoots: readonly string[]
+  /** Absolute directories no call may modify in any mode. */
+  readonly protectedRoots: readonly string[]
   constructor(ctx: Context, config: Config) {
     super(ctx, 'sandboxPolicy')
     // schemastery (static Config) already filled `mode`; the cast records that
@@ -191,6 +199,10 @@ export class SandboxPolicyService extends Service {
     this.ceiling = config.ceiling as SandboxMode
     this.writableRoots = (config.writableRoots ?? []).map((root) => {
       if (!isAbsolute(root)) throw new Error(`sandbox-policy: writableRoots entries must be absolute: ${root}`)
+      return resolveWorkspaceRoot(root)
+    })
+    this.protectedRoots = (config.protectedRoots ?? []).map((root) => {
+      if (!isAbsolute(root)) throw new Error(`sandbox-policy: protectedRoots entries must be absolute: ${root}`)
       return resolveWorkspaceRoot(root)
     })
     if (!this.allows(this.defaultMode)) {
@@ -249,6 +261,7 @@ export class SandboxPolicyService extends Service {
       mode: request.mode ?? (override === undefined ? undefined : this.allows(override) ? override : this.ceiling) ?? this.defaultMode,
       workspaceRoot,
       ...additionalWritableRoots.length === 0 ? {} : { additionalWritableRoots },
+      ...this.protectedRoots.length === 0 ? {} : { protectedRoots: this.protectedRoots },
       ...session === undefined ? {} : { sessionId: session.id },
     }
   }

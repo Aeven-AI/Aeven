@@ -104,10 +104,16 @@ async function mapConcurrent<T, R>(
   return results
 }
 
+/**
+ * One stored log's header cannot be read or names another storage path. Reading that session fails with it; a
+ * listing leaves the session out and reports it, so one damaged log does not hide every other session.
+ */
+class CorruptSessionHeaderError extends Error {}
+
 /** Assert that the independently decodable first frame contains only the header record. */
 function assertZstdHeaderFrame(plaintext: Buffer): void {
   if (plaintext.length === 0 || plaintext.indexOf(0x0A) !== plaintext.length - 1) {
-    throw new Error('corrupt Zstandard session log: first frame is not exactly one header line')
+    throw new CorruptSessionHeaderError('corrupt Zstandard session log: first frame is not exactly one header line')
   }
 }
 
@@ -768,7 +774,7 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
     const read = await mapConcurrent(
       dirs,
       LIST_READ_CONCURRENCY,
-      dir => this.readArtifactHeader(dir),
+      dir => this.listedArtifactHeader(dir),
     )
     const present = new Set(read.flatMap(artifact => artifact === undefined ? [] : [artifact.path]))
     for (const [path, entry] of this.listed) {
@@ -941,6 +947,23 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
       })
     } finally {
       await rm(tmp, { force: true })
+    }
+  }
+
+  /**
+   * Read one session directory's header artifact for a listing.
+   * @param dir - the session directory to inspect.
+   * @returns the artifact, or `undefined` when the directory holds no readable session log or one whose header is
+   * corrupt; a corrupt header is reported and reading that session by id still fails with the cause.
+   * @throws when the directory holds a log in the opposite encoding.
+   */
+  private async listedArtifactHeader(dir: string): Promise<ListedArtifact | undefined> {
+    try {
+      return await this.readArtifactHeader(dir)
+    } catch (error) {
+      if (!(error instanceof CorruptSessionHeaderError)) throw error
+      this.ctx.logger.warn(`${this.name}: the session log in "${dir}" is left out of the session list: ${error.message}`)
+      return undefined
     }
   }
 
@@ -1270,7 +1293,7 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
         } catch (error) {
           /* v8 ignore next -- decoder failure plus concurrent abort is timing-dependent */
           if (signal?.aborted) signal.throwIfAborted()
-          throw new Error('corrupt Zstandard session log: header frame failed validation', { cause: error })
+          throw new CorruptSessionHeaderError('corrupt Zstandard session log: header frame failed validation', { cause: error })
         }
         signal?.throwIfAborted()
         assertZstdHeaderFrame(plaintext)
@@ -1323,16 +1346,16 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
   ): Promise<void> {
     signal?.throwIfAborted()
     if (expectedId !== undefined && meta.id !== expectedId) {
-      throw new Error(`corrupt session log "${path}": requested id "${expectedId}" does not match header id "${meta.id}"`)
+      throw new CorruptSessionHeaderError(`corrupt session log "${path}": requested id "${expectedId}" does not match header id "${meta.id}"`)
     }
     let expectedPath: string
     try {
       expectedPath = logPath(this.root, meta.cwd, meta.id, this.compression)
     } catch (error) {
-      throw new Error(`corrupt session log "${path}": header id cannot name a storage path`, { cause: error })
+      throw new CorruptSessionHeaderError(`corrupt session log "${path}": header id cannot name a storage path`, { cause: error })
     }
     if (path !== expectedPath && !await this.sameFile(path, expectedPath, signal)) {
-      throw new Error(`corrupt session log "${path}": header id "${meta.id}" and cwd identify "${expectedPath}"`)
+      throw new CorruptSessionHeaderError(`corrupt session log "${path}": header id "${meta.id}" and cwd identify "${expectedPath}"`)
     }
     signal?.throwIfAborted()
   }

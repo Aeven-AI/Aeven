@@ -190,6 +190,15 @@ Abstract process-sandbox service. confine must return enforcing argv or fail clo
  *   the selected backend achieves for it.
  */
 abstract confine(argv: readonly string[], policy: SandboxPolicy): ConfinedArgv
+
+/**
+ * Wrap an unconfined (`danger-full-access`) argv so it may write anywhere except the policy's protected roots.
+ * @param argv - the exact argv the caller is about to spawn.
+ * @param policy - the per-call policy; only its protected roots matter here.
+ * @returns the argv to spawn instead, or undefined when the policy protects nothing or this host's backend cannot
+ *   express an allow-all profile with denials, in which case the caller runs the argv unchanged.
+ */
+protect(argv: readonly string[], policy: SandboxExecutionPolicy): ConfinedArgv | undefined
 ```
 
 Source: [`packages/sandbox/sandbox/src/index.ts`](../../packages/sandbox/sandbox/src/index.ts)

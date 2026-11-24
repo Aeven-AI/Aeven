@@ -34,11 +34,11 @@ import {
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { SandboxProvider, SandboxUnavailableError } from '@aeven/sandbox'
-import type { ConfinedArgv, ConfinedSandboxMode, RunnerFailureRule, SandboxEnforcement, SandboxPolicy } from '@aeven/sandbox'
+import type { ConfinedArgv, ConfinedSandboxMode, RunnerFailureRule, SandboxEnforcement, SandboxExecutionPolicy, SandboxPolicy } from '@aeven/sandbox'
 import type { SessionId } from '@aeven/session'
 import { AclWriteGrant, assertTempRootOutsideWorkspace, tempWriteSid, workspaceWriteSid } from '@aeven/sandbox-windows-acl'
 import { assertNever } from '@aeven/util-values'
-import { bwrapProfileArgs, landlockProfileArgs, seatbeltProfileArgs } from './profiles.ts'
+import { bwrapProfileArgs, landlockProfileArgs, seatbeltProfileArgs, seatbeltProtectArgs } from './profiles.ts'
 
 /** Plugin config. All optional — `static Config` supplies the defaults. */
 export interface Config {
@@ -329,6 +329,23 @@ export class LocalSandboxProvider extends SandboxProvider {
       enforcement: selected.enforcement,
       denialSignatures: DENIAL_SIGNATURES[selected.runner],
       runnerFailureRules: RUNNER_FAILURE_RULES[selected.runner],
+    }
+  }
+
+  /**
+   * Wrap an unconfined argv so it cannot write the policy's protected roots. Only Seatbelt expresses an allow-all
+   * profile with denials, so other hosts run the argv unchanged.
+   * @param argv - the exact argv the caller is about to spawn.
+   * @param policy - the per-call policy whose protected roots are denied.
+   * @returns the wrapped argv on macOS when the policy protects something, else undefined.
+   */
+  override protect(argv: readonly string[], policy: SandboxExecutionPolicy): ConfinedArgv | undefined {
+    if ((policy.protectedRoots ?? []).length === 0 || process.platform !== 'darwin' || this.runnerCommand !== undefined) return undefined
+    return {
+      argv: [this.seatbeltExec(), ...seatbeltProtectArgs(policy), '--', ...argv],
+      enforcement: 'full',
+      denialSignatures: DENIAL_SIGNATURES.seatbelt,
+      runnerFailureRules: RUNNER_FAILURE_RULES.seatbelt,
     }
   }
 

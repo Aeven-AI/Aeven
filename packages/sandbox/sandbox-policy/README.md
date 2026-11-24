@@ -48,6 +48,7 @@ Load the package with a default mode; the fail-safe default is `read-only`, and 
 | `workspaceRoot` | `process.cwd()` | The fallback root `workspace-write` may write under for agentless calls or sessions without a cwd; normal agent calls use the session's immutable cwd instead |
 | `ceiling` | `danger-full-access` | The widest mode any call may resolve to: an approved escalation above it is refused and a session override above it resolves to it |
 | `writableRoots` | `[]` | Absolute directories every `workspace-write` call may also modify, named in the policy text; the desktop app lists the Aeven folder |
+| `protectedRoots` | `[]` | Absolute directories no call may modify in any mode, `danger-full-access` included; the base bundle lists the Host's stores under `$AVN_HOME` (`sessions`, `storages`, `accounts`, `session-query`, `identity`, `keys`) |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#aevensandbox-policy) is the exhaustive source for every accepted field and its JSDoc.
 

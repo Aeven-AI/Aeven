@@ -4,9 +4,10 @@
  * @module @aeven/sandbox-local/profiles
  */
 
+import { existsSync } from 'node:fs'
 import { grantArgs as landlockGrantArgs } from '@deepseek-ai/node-addon-landlock-run'
 import { writableRoots } from '@aeven/sandbox'
-import type { SandboxPolicy } from '@aeven/sandbox'
+import type { SandboxExecutionPolicy, SandboxPolicy } from '@aeven/sandbox'
 
 /**
  * Build the bwrap profile arguments for one file-effect policy.
@@ -18,6 +19,8 @@ export function bwrapProfileArgs(policy: SandboxPolicy): string[] {
   if (policy.mode === 'workspace-write') {
     args.push('--tmpfs', '/tmp')
     for (const root of [policy.workspaceRoot, ...policy.additionalWritableRoots ?? []]) args.push('--bind', root, root)
+    // A later read-only mount wins over an enclosing writable bind; bwrap can only mount a path that exists.
+    for (const root of policy.protectedRoots ?? []) if (existsSync(root)) args.push('--ro-bind', root, root)
   }
   return args
 }
@@ -54,5 +57,22 @@ export function seatbeltProfileArgs(policy: SandboxPolicy): string[] {
   if (roots.length > 0) {
     forms.push(`(allow file-write* ${roots.map(root => `(subpath ${sbplString(root)})`).join(' ')})`)
   }
+  forms.push(...protectedForms(policy))
   return ['-p', forms.join(' ')]
+}
+
+/** SBPL denials for the policy's protected roots; a later rule wins over an earlier allow. */
+function protectedForms(policy: SandboxExecutionPolicy): string[] {
+  const roots = policy.protectedRoots ?? []
+  return roots.length === 0 ? [] : [`(deny file-write* ${roots.map(root => `(subpath ${sbplString(root)})`).join(' ')})`]
+}
+
+/**
+ * Build the sandbox-exec arguments for an unconfined execution that may write anywhere except the policy's
+ * protected roots.
+ * @param policy - the per-call policy whose protected roots are denied.
+ * @returns sandbox-exec arguments before the trailing separator and command argv.
+ */
+export function seatbeltProtectArgs(policy: SandboxExecutionPolicy): string[] {
+  return ['-p', ['(version 1)', '(allow default)', ...protectedForms(policy)].join(' ')]
 }
