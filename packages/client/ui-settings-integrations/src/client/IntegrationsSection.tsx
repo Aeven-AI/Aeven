@@ -1,7 +1,7 @@
 /** Personal skill import and connector account management. */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { AccountIntegrationsView, CatalogPackInstall, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, SalesforceAuthorizationRequest, ShopifyAuthorizationRequest, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillReferenceImport, SkillUploadFile, SystemSkillView, WhatsAppPairingView, WhatsAppPhoneCodeView } from '@aeven/api-remotes/client'
+import type { AccountIntegrationsView, CatalogPackInstall, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, SalesforceAuthorizationRequest, ShopifyAuthorizationRequest, AzureDevOpsAuthorizationRequest, OracleAuthorizationRequest, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillReferenceImport, SkillUploadFile, SystemSkillView, WhatsAppPairingView, WhatsAppPhoneCodeView } from '@aeven/api-remotes/client'
 import { Button, LoadingBlock, SectionHeader, MarkdownText, Menu, Modal, Spinner, Switch, Tabs, IconWarningOutline16, IconChevronLeftOutline14, IconCloseOutline16, IconLucideSettings2 } from '@aeven/client-ui-primitives'
 import type { HostObservable, InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import css from './IntegrationsSection.module.css'
@@ -100,6 +100,8 @@ export interface IntegrationsSectionInjected extends TelegramPairingOperations {
   authorize: (provider: ConnectorProvider) => Promise<ConnectorAuthorization>
   authorizeSalesforce: (request: SalesforceAuthorizationRequest) => Promise<ConnectorAuthorization>
   authorizeShopify: (request: ShopifyAuthorizationRequest) => Promise<ConnectorAuthorization>
+  authorizeAzureDevOps: (request: AzureDevOpsAuthorizationRequest) => Promise<ConnectorAuthorization>
+  authorizeOracle: (request: OracleAuthorizationRequest) => Promise<ConnectorAuthorization>
   setConnectorEnabled: (id: ConnectorId, enabled: boolean) => Promise<void>
   disconnect: (id: ConnectorId) => Promise<void>
   startWhatsAppPairing: () => Promise<WhatsAppPairingView>
@@ -202,6 +204,15 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
   /** The Shopify store form: open, and the store typed into it. */
   const [shopifyForm, setShopifyForm] = useState(false)
   const [shopifyShop, setShopifyShop] = useState('')
+  /** The Azure DevOps form: open, and the organization typed into it. */
+  const [azureDevOpsForm, setAzureDevOpsForm] = useState(false)
+  const [azureDevOpsOrganization, setAzureDevOpsOrganization] = useState('')
+  /** The Oracle Cloud form: open, and the server and Identity Domain application typed into it; the secret is never echoed back. */
+  const [oracleForm, setOracleForm] = useState(false)
+  const [oracleServer, setOracleServer] = useState('')
+  const [oracleDomain, setOracleDomain] = useState('')
+  const [oracleClientId, setOracleClientId] = useState('')
+  const [oracleSecret, setOracleSecret] = useState('')
   const [name, setName] = useState('')
   const [url, setUrl] = useState('')
   const [token, setToken] = useState('')
@@ -554,6 +565,9 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     if (provider.provider === 'salesforce' && provider.configured) { openDetail(provider.provider); setSalesforceForm(true); return }
     // A Shopify connection installs into one store, which the form names first.
     if (provider.provider === 'shopify' && provider.configured) { openDetail(provider.provider); setShopifyForm(true); return }
+    // An Azure DevOps connection reaches one organization, and an Oracle Cloud one a tenancy's server, which their forms name first.
+    if (provider.provider === 'azure-devops' && provider.configured) { openDetail(provider.provider); setAzureDevOpsForm(true); return }
+    if (provider.provider === 'oracle' && provider.configured) { openDetail(provider.provider); setOracleForm(true); return }
     if (provider.provider !== 'mcp' && provider.configured) { startSignIn(provider.provider); return }
     // Without sign-in or a token form there is nothing to turn on; the page says what setup is missing.
     openDetail(provider.provider)
@@ -577,7 +591,7 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     if (provider.provider === 'discord') return t('discordUnavailable')
     if (provider.provider === 'slack') return t('slackUnavailable')
     return t(['gmail', 'google-drive', 'google-calendar', 'google-tasks', 'google-contacts', 'google-meet'].includes(provider.provider) ? 'googleSetupRequired'
-      : ['microsoft-365', 'outlook', 'outlook-calendar', 'onedrive', 'sharepoint', 'teams'].includes(provider.provider) ? 'microsoftSetupRequired' : 'setupRequired')
+      : ['microsoft-365', 'outlook', 'outlook-calendar', 'onedrive', 'sharepoint', 'teams', 'azure-devops'].includes(provider.provider) ? 'microsoftSetupRequired' : 'setupRequired')
   }
   const connectForm = (provider: 'mcp' | 'github') => <form className={css.card} onSubmit={(event) => {
     event.preventDefault()
@@ -615,6 +629,31 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     <label className={css.field}>{t('shopifyShop')}<input autoFocus required placeholder="your-store.myshopify.com" value={shopifyShop} disabled={busy} onChange={(event) => { setShopifyShop(event.currentTarget.value) }} /></label>
     <p className={css.hint}>{t('shopifyHint')}</p>
     <div className={css.actions}><button type="submit" className={css.primaryAction} disabled={busy}>{t('consent')}</button><button type="button" className={css.secondaryAction} disabled={busy} onClick={() => { setShopifyForm(false) }}>{t('cancel')}</button></div>
+  </form>
+  const azureDevOpsConnectForm = <form className={css.card} onSubmit={(event) => {
+    event.preventDefault()
+    const request = { organization: azureDevOpsOrganization }
+    setAzureDevOpsForm(false)
+    startSignIn('azure-devops', () => props.authorizeAzureDevOps(request))
+  }}>
+    <label className={css.field}>{t('azureDevOpsOrganization')}<input autoFocus required placeholder="https://dev.azure.com/contoso" value={azureDevOpsOrganization} disabled={busy} onChange={(event) => { setAzureDevOpsOrganization(event.currentTarget.value) }} /></label>
+    <p className={css.hint}>{t('azureDevOpsHint')}</p>
+    <div className={css.actions}><button type="submit" className={css.primaryAction} disabled={busy}>{t('consent')}</button><button type="button" className={css.secondaryAction} disabled={busy} onClick={() => { setAzureDevOpsForm(false) }}>{t('cancel')}</button></div>
+  </form>
+  const closeOracleForm = (): void => { setOracleSecret(''); setOracleForm(false) }
+  const oracleConnectForm = <form className={css.card} onSubmit={(event) => {
+    event.preventDefault()
+    const request = { server: oracleServer, domain: oracleDomain, clientId: oracleClientId, ...oracleSecret === '' ? {} : { clientSecret: oracleSecret } }
+    closeOracleForm()
+    startSignIn('oracle', () => props.authorizeOracle(request))
+  }}>
+    <p className={css.hint}>{t('oracleSetup')}</p>
+    <label className={css.field}>{t('oracleServer')}<input autoFocus required type="url" value={oracleServer} disabled={busy} onChange={(event) => { setOracleServer(event.currentTarget.value) }} /></label>
+    <label className={css.field}>{t('oracleDomain')}<input required placeholder="https://idcs-….identity.oraclecloud.com" value={oracleDomain} disabled={busy} onChange={(event) => { setOracleDomain(event.currentTarget.value) }} /></label>
+    <label className={css.field}>{t('oracleClientId')}<input required autoComplete="off" value={oracleClientId} disabled={busy} onChange={(event) => { setOracleClientId(event.currentTarget.value) }} /></label>
+    <label className={css.field}>{t('oracleClientSecret')}<input type="password" autoComplete="off" value={oracleSecret} disabled={busy} onChange={(event) => { setOracleSecret(event.currentTarget.value) }} /></label>
+    <p className={css.hint}>{t('tokenHint')}</p>
+    <div className={css.actions}><button type="submit" className={css.primaryAction} disabled={busy}>{t('consent')}</button><button type="button" className={css.secondaryAction} disabled={busy} onClick={closeOracleForm}>{t('cancel')}</button></div>
   </form>
   /** Search and its action, on the title row so the field's centre rides the heading's optical centre. */
   const searchBar = page === 'skills' && selectedSkillId === undefined ? <div className={css.toolbar}>
@@ -919,10 +958,14 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
                   <div className={css.actions}>
                     {providerDetail.provider === 'github' && stateOf(providerDetail).live.length === 0 && form === undefined && <button type="button" className={css.textAction} disabled={busy} onClick={() => { openForm('github') }}>{t('useToken')}</button>}
                     {providerDetail.provider === 'salesforce' && providerDetail.configured && stateOf(providerDetail).live.length === 0 && !salesforceForm && <button type="button" className={css.secondaryAction} disabled={busy} onClick={() => { setSalesforceForm(true) }}>{t('salesforceConnect')}</button>}
+                    {providerDetail.provider === 'azure-devops' && providerDetail.configured && stateOf(providerDetail).live.length === 0 && !azureDevOpsForm && <button type="button" className={css.secondaryAction} disabled={busy} onClick={() => { setAzureDevOpsForm(true) }}>{t('azureDevOpsConnect')}</button>}
+                    {providerDetail.provider === 'oracle' && providerDetail.configured && stateOf(providerDetail).live.length === 0 && !oracleForm && <button type="button" className={css.secondaryAction} disabled={busy} onClick={() => { setOracleForm(true) }}>{t('oracleConnect')}</button>}
                     {providerDetail.provider === 'shopify' && providerDetail.configured && !shopifyForm && <button type="button" className={css.secondaryAction} disabled={busy} onClick={() => { setShopifyForm(true) }}>{t(stateOf(providerDetail).live.length === 0 ? 'shopifyConnect' : 'shopifyConnectAnother')}</button>}
                   </div>
                   {providerDetail.provider === 'salesforce' && salesforceForm && salesforceConnectForm}
                   {providerDetail.provider === 'shopify' && shopifyForm && shopifyConnectForm}
+                  {providerDetail.provider === 'azure-devops' && azureDevOpsForm && azureDevOpsConnectForm}
+                  {providerDetail.provider === 'oracle' && oracleForm && oracleConnectForm}
                 </>}
         {form !== undefined && connectForm(form)}
         {providerDetail.skills.length > 0 && <>

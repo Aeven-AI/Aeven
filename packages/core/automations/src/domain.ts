@@ -34,7 +34,7 @@ const automationId = text.transform(value => brandString<AutomationId>(value))
 /** Connector ids a bot may be bound to. */
 export const CONNECTOR_IDS = [
   'email', 'gmail', 'google-drive', 'google-calendar', 'google-tasks', 'google-contacts', 'google-meet', 'github', 'notion', 'vercel', 'atlassian', 'monday', 'stripe', 'salesforce', 'shopify', 'slack', 'discord', 'telegram', 'whatsapp',
-  'microsoft-365', 'outlook', 'outlook-calendar', 'onedrive', 'sharepoint', 'teams', 'spotify', 'cloudflare', 'aws', 'supabase', 'calendly', 'mcp',
+  'microsoft-365', 'outlook', 'outlook-calendar', 'onedrive', 'sharepoint', 'teams', 'spotify', 'cloudflare', 'aws', 'supabase', 'calendly', 'bigquery', 'compute-engine', 'azure-devops', 'oracle', 'mcp',
 ] as const
 /** A connector binding: `all`, or a list stored without repeats in a fixed order. */
 export const connectorsSchema = z.union([

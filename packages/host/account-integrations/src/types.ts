@@ -6,7 +6,7 @@ import type { Branded } from '@aeven/brand'
 export type ConnectorId = Branded<'account-connector-id'>
 
 /** Provider selected when creating a connector. */
-export type ConnectorProvider = 'github' | 'notion' | 'vercel' | 'atlassian' | 'monday' | 'stripe' | 'salesforce' | 'shopify' | 'microsoft-365' | 'gmail' | 'google-drive' | 'google-calendar' | 'google-tasks' | 'google-contacts' | 'google-meet' | 'spotify' | 'cloudflare' | 'aws' | 'supabase' | 'calendly' | 'outlook' | 'outlook-calendar' | 'onedrive' | 'sharepoint' | 'teams' | 'mcp' | 'email' | 'whatsapp' | 'telegram' | 'discord' | 'slack'
+export type ConnectorProvider = 'github' | 'notion' | 'vercel' | 'atlassian' | 'monday' | 'stripe' | 'salesforce' | 'shopify' | 'microsoft-365' | 'gmail' | 'google-drive' | 'google-calendar' | 'google-tasks' | 'google-contacts' | 'google-meet' | 'spotify' | 'cloudflare' | 'aws' | 'supabase' | 'calendly' | 'bigquery' | 'compute-engine' | 'azure-devops' | 'oracle' | 'outlook' | 'outlook-calendar' | 'onedrive' | 'sharepoint' | 'teams' | 'mcp' | 'email' | 'whatsapp' | 'telegram' | 'discord' | 'slack'
 
 /** Stable Settings identity of one skill definition. */
 export type SkillViewId = Branded<'account-skill-view-id'>
@@ -92,6 +92,24 @@ export interface SalesforceAuthorizationRequest {
   /** The app's consumer key. */
   clientId: string
   /** The app's consumer secret, when the app requires one; write-only. */
+  clientSecret?: string
+}
+
+/** The Azure DevOps organization Settings submits to connect it. */
+export interface AzureDevOpsAuthorizationRequest {
+  /** The organization's name, its `dev.azure.com` URL, or its `<organization>.visualstudio.com` host. */
+  organization: string
+}
+
+/** The managed MCP server and Identity Domain application Settings submits to connect an Oracle Cloud tenancy. */
+export interface OracleAuthorizationRequest {
+  /** The MCP server's URL, as the OCI console shows it on the server's Clients tab. */
+  server: string
+  /** The Identity Domain's host or URL, such as `idcs-….identity.oraclecloud.com`. */
+  domain: string
+  /** The Identity Domain application's client id. */
+  clientId: string
+  /** The application's client secret, when it is confidential; write-only. */
   clientSecret?: string
 }
 

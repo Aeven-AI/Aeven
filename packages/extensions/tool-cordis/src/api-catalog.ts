@@ -224,6 +224,18 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the provider consent URL.',
       },
       {
+        signature: '@Remote async authorizeAzureDevOps(request: AzureDevOpsAuthorizationRequest): Promise<ConnectorAuthorization>',
+        description: 'Start the consent for one Azure DevOps organization with a Microsoft work or school account.',
+        parameters: [{ name: 'request', description: 'the organization, as its name, `dev.azure.com` URL, or `visualstudio.com` host.' }],
+        returns: 'the Microsoft consent URL.',
+      },
+      {
+        signature: '@Remote async authorizeOracle(request: OracleAuthorizationRequest): Promise<ConnectorAuthorization>',
+        description: 'Start the consent for an Oracle Cloud tenancy\'s managed MCP server through its Identity Domain application.',
+        parameters: [{ name: 'request', description: 'the server URL, the Identity Domain, and the application\'s client id and optional secret; the secret is write-only.' }],
+        returns: 'the Identity Domain\'s consent URL.',
+      },
+      {
         signature: '@Remote async authorizeShopify(request: ShopifyAuthorizationRequest): Promise<ConnectorAuthorization>',
         description: 'Start installing the Aeven Shopify app into one store. Each store is its own connector row, so connecting a store again re-consents that row.',
         parameters: [{ name: 'request', description: 'the store, as a domain, URL, admin URL, or handle.' }],
@@ -6628,6 +6640,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type AvnEnvironmentKey = `${typeof AVN_ENV_PREFIX}${string}`;',
   },
   {
+    name: 'AzureDevOpsAuthorizationRequest',
+    declaration: 'export interface AzureDevOpsAuthorizationRequest {\n    organization: string;\n}',
+  },
+  {
     name: 'BackendRegistry',
     declaration: 'export class BackendRegistry {\n    register(name: string, backend: StorageBackend): () => void;\n    get(name: string): StorageBackend;\n    names(): string[];\n}',
   },
@@ -6921,7 +6937,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ConnectorProvider',
-    declaration: 'export type ConnectorProvider = \'github\' | \'notion\' | \'vercel\' | \'atlassian\' | \'monday\' | \'stripe\' | \'salesforce\' | \'shopify\' | \'microsoft-365\' | \'gmail\' | \'google-drive\' | \'google-calendar\' | \'google-tasks\' | \'google-contacts\' | \'google-meet\' | \'spotify\' | \'cloudflare\' | \'aws\' | \'supabase\' | \'calendly\' | \'outlook\' | \'outlook-calendar\' | \'onedrive\' | \'sharepoint\' | \'teams\' | \'mcp\' | \'email\' | \'whatsapp\' | \'telegram\' | \'discord\' | \'slack\';',
+    declaration: 'export type ConnectorProvider = \'github\' | \'notion\' | \'vercel\' | \'atlassian\' | \'monday\' | \'stripe\' | \'salesforce\' | \'shopify\' | \'microsoft-365\' | \'gmail\' | \'google-drive\' | \'google-calendar\' | \'google-tasks\' | \'google-contacts\' | \'google-meet\' | \'spotify\' | \'cloudflare\' | \'aws\' | \'supabase\' | \'calendly\' | \'bigquery\' | \'compute-engine\' | \'azure-devops\' | \'oracle\' | \'outlook\' | \'outlook-calendar\' | \'onedrive\' | \'sharepoint\' | \'teams\' | \'mcp\' | \'email\' | \'whatsapp\' | \'telegram\' | \'discord\' | \'slack\';',
   },
   {
     name: 'ConnectorProviderView',
@@ -8666,6 +8682,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'OptionalSessionSeq',
     declaration: 'export type OptionalSessionSeq = SessionSeq | null;',
+  },
+  {
+    name: 'OracleAuthorizationRequest',
+    declaration: 'export interface OracleAuthorizationRequest {\n    server: string;\n    domain: string;\n    clientId: string;\n    clientSecret?: string;\n}',
   },
   {
     name: 'OverlapPolicy',

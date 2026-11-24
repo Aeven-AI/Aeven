@@ -1,12 +1,14 @@
 /**
  * Vendor-hosted MCP connectors: Notion, Vercel, Atlassian, monday.com, Stripe, Spotify, Cloudflare,
- * AWS, Supabase, and Calendly. Each mounts its vendor's own MCP server over Streamable HTTP with a grant the Aeven API holds.
+ * AWS, Supabase, Calendly, BigQuery, and Compute Engine; BigQuery and Compute Engine are Google's
+ * and sign in through the Aeven API's Google application. Each mounts its vendor's own MCP server
+ * over Streamable HTTP with a grant the Aeven API holds.
  */
 
 import type { ConnectorProvider } from './types.ts'
 
 /** Providers whose connector mounts the vendor's hosted MCP server. */
-export type HostedMcpProvider = 'notion' | 'vercel' | 'atlassian' | 'monday' | 'stripe' | 'spotify' | 'cloudflare' | 'aws' | 'supabase' | 'calendly'
+export type HostedMcpProvider = 'notion' | 'vercel' | 'atlassian' | 'monday' | 'stripe' | 'spotify' | 'cloudflare' | 'aws' | 'supabase' | 'calendly' | 'bigquery' | 'compute-engine'
 
 /**
  * Each provider's MCP endpoint. The Aeven API requests every grant for the vendor's MCP server,
@@ -23,6 +25,8 @@ export const HOSTED_MCP_ENDPOINTS: Readonly<Record<HostedMcpProvider, string>> =
   aws: 'https://aws-mcp.us-east-1.api.aws/mcp',
   supabase: 'https://mcp.supabase.com/mcp',
   calendly: 'https://mcp.calendly.com/',
+  bigquery: 'https://bigquery.googleapis.com/mcp',
+  'compute-engine': 'https://compute.googleapis.com/mcp',
 }
 
 /**
@@ -76,4 +80,6 @@ export const HOSTED_MCP_APPROVAL_REASONS: Readonly<Record<HostedMcpProvider, str
   aws: 'Approve this action on your connected AWS account. It can change live resources and incur charges.',
   supabase: 'Approve this change to your connected Supabase account. It can change live databases, functions, and storage.',
   calendly: 'Approve this change to your connected Calendly account. It can book, change, or cancel meetings with other people.',
+  bigquery: 'Approve this action on your connected BigQuery projects. It can change datasets and run billed queries.',
+  'compute-engine': 'Approve this change to your connected Compute Engine projects. It can change live virtual machines and incur charges.',
 }

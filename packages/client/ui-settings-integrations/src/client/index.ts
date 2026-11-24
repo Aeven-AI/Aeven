@@ -79,6 +79,8 @@ export function apply(ctx: Context): void {
     authorize: provider => value(remote.authorize(provider)),
     authorizeSalesforce: request => value(remote.authorizeSalesforce(request)),
     authorizeShopify: request => value(remote.authorizeShopify(request)),
+    authorizeAzureDevOps: request => value(remote.authorizeAzureDevOps(request)),
+    authorizeOracle: request => value(remote.authorizeOracle(request)),
     setConnectorEnabled: (id, enabled) => value(remote.setConnectorEnabled(id, enabled)),
     disconnect: id => value(remote.disconnect(id)),
     startWhatsAppPairing: () => value(remote.startWhatsAppPairing()),
