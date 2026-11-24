@@ -165,6 +165,8 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
   /** Connector skill whose instructions are open in a popup on the connector page. */
   const [connectorSkillId, setConnectorSkillId] = useState<string>()
   const [query, setQuery] = useState('')
+  /** What the Connectors list is filtered by: a provider's name, description, or connected account names. */
+  const [connectorQuery, setConnectorQuery] = useState('')
   /** Which half of the Skills page is showing; nothing installed yet means the catalog. */
   const [mode, setMode] = useState<'library' | 'catalog'>('library')
   const [chosenMode, setChosenMode] = useState(false)
@@ -627,6 +629,25 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
       ? displayMenu
       : <button type="button" className={css.primaryAction} disabled={busy} title={t('importHint')} onClick={() => { openImport() }}>{t('import')}</button>}
   </div> : undefined
+  const connectorSearch = <div className={css.toolbar}>
+    <input
+      className={css.search}
+      type="search"
+      aria-label={t('searchConnectors')}
+      placeholder={t('searchConnectors')}
+      value={connectorQuery}
+      onChange={(event) => { setConnectorQuery(event.currentTarget.value) }}
+    />
+  </div>
+  /** Providers whose name, description, or connected accounts contain every word of the search, in list order. */
+  const matchingProviders = (snapshot?.providers ?? []).filter((provider) => {
+    const words = connectorQuery.trim().toLowerCase().split(/\s+/).filter(word => word !== '')
+    if (words.length === 0) return true
+    const accounts = (snapshot?.connectors ?? [])
+      .filter(connection => connection.provider === provider.provider).map(connection => connection.name)
+    const text = [t(provider.provider), t(`${provider.provider}Description`), ...accounts].join(' ').toLowerCase()
+    return words.every(word => text.includes(word))
+  })
   const catalogVisible = (page === 'skills' ? selectedSkillId : selectedConnector) === undefined
   // Nothing the list owns is drawn while the first read is in flight, so the
   // page shows the header and the spinner alone.
@@ -785,7 +806,9 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
             </article>
             : snapshot !== undefined && <p className={css.hint}>{t('skillMissing')}</p>}
     </> : <>
-      {providerDetail === undefined ? <div className={css.connectorList}>{snapshot?.providers.map(provider => <article
+      {providerDetail === undefined && snapshot !== undefined && connectorSearch}
+      {providerDetail === undefined && snapshot !== undefined && matchingProviders.length === 0 && <p className={css.hint}>{t('noConnectorMatches')}</p>}
+      {providerDetail === undefined ? <div className={css.connectorList}>{matchingProviders.map(provider => <article
         key={provider.provider}
         className={css.connectorRow}
       >
