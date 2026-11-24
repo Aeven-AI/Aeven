@@ -41,6 +41,7 @@ import { ReverseEngineeringRuntime, type ReverseEngineeringConfig } from './reve
 import { resolveFfmpegBinary, resolveWhatsAppBinary, WhatsAppDaemon } from './whatsapp.ts'
 import { resolveTelegramEntry, TelegramDaemon, type TelegramCredentials, type TelegramDaemonStatus } from './telegram.ts'
 import { discordGuildIcon, resolveDiscordEntry, DISCORD_ADMIN_PERMISSIONS, DISCORD_CURATED_PERMISSIONS, type DiscordGuild } from './discord.ts'
+import { isNotionReadTool, NOTION_MCP_ENDPOINT } from './notion.ts'
 import { isSlackReadTool, slackConnectorId, SLACK_DIRECT_MESSAGE_SCOPES, SLACK_MCP_ENDPOINT, SLACK_WORKSPACE_SCOPES, type SlackWorkspace } from './slack.ts'
 import { isSlackConsentFailure, probeSlackToken, revokeSlackToken, refreshSlackToken, SlackLoginError, startSlackLogin, type SlackLogin, type SlackToken } from './slack-login.ts'
 import { connectorCredential, type PendingConsent } from './oauth.ts'
@@ -187,7 +188,7 @@ const skillSchema = z.object({
     && path.split('/').every(part => part !== '' && part !== '.' && part !== '..')), z.string()), revision: z.uuid(),
   setup: z.object({ state: z.enum(['installing', 'ready', 'failed']), detail: z.string().optional() }).optional(),
 })
-const providers = ['github', 'gmail', 'google-drive', 'google-calendar', 'outlook', 'outlook-calendar', 'onedrive', 'sharepoint', 'teams', 'email', 'whatsapp', 'telegram', 'discord', 'slack', 'mcp'] as const satisfies readonly ConnectorProvider[]
+const providers = ['github', 'notion', 'gmail', 'google-drive', 'google-calendar', 'outlook', 'outlook-calendar', 'onedrive', 'sharepoint', 'teams', 'email', 'whatsapp', 'telegram', 'discord', 'slack', 'mcp'] as const satisfies readonly ConnectorProvider[]
 const emailServerSchema = z.object({
   host: z.string().trim().min(1).max(253).regex(/^[A-Za-z0-9.-]+$/), port: z.number().int().min(1).max(65_535),
   security: z.enum(['tls', 'starttls']), username: z.string().trim().min(1).max(320),
@@ -358,8 +359,8 @@ function discordConnectorId(owner: string, guildId: string): ConnectorId {
 }
 
 const uploadsSchema = z.array(z.object({ path: z.string().min(1), base64: z.string() })).min(1)
-/** Google and GitHub sign in through OAuth grants the Aeven API holds. */
-const brokeredProviders = new Set<ConnectorProvider>(['github', 'gmail', 'google-drive', 'google-calendar', 'outlook', 'outlook-calendar', 'onedrive', 'sharepoint', 'teams'])
+/** Google, Microsoft, GitHub, and Notion sign in through OAuth grants the Aeven API holds. */
+const brokeredProviders = new Set<ConnectorProvider>(['github', 'notion', 'gmail', 'google-drive', 'google-calendar', 'outlook', 'outlook-calendar', 'onedrive', 'sharepoint', 'teams'])
 /** Key of the Telegram application identifiers cached after the first signed-in fetch, so linked accounts start at boot. */
 const telegramAppKey = credentialKey('account-integrations', 'telegram-application')
 /** Time before an issued access token's expiry at which the Host asks for a new one. */
@@ -368,13 +369,13 @@ const TOKEN_MARGIN_MS = 60_000
 /** Connector-owned skill names; bodies and resources remain in the skill registry. */
 const connectorSkills: Record<ConnectorProvider, readonly string[]> = {
   'google-drive': ['google-drive', 'google-docs', 'google-sheets', 'google-slides', 'google-drive-comments', 'google-forms'],
-  gmail: ['gmail'], 'google-calendar': ['google-calendar'], github: ['github'], outlook: ['outlook'], 'outlook-calendar': ['outlook-calendar'], onedrive: ['onedrive'], sharepoint: ['sharepoint'], teams: ['teams'], mcp: [], email: [], whatsapp: ['whatsapp'], telegram: ['telegram'],
+  gmail: ['gmail'], 'google-calendar': ['google-calendar'], github: ['github'], notion: ['notion'], outlook: ['outlook'], 'outlook-calendar': ['outlook-calendar'], onedrive: ['onedrive'], sharepoint: ['sharepoint'], teams: ['teams'], mcp: [], email: [], whatsapp: ['whatsapp'], telegram: ['telegram'],
   discord: ['discord'], slack: ['slack'],
 }
 
 /** Provider names the model's tool index shows beside each connector's own name. */
 const providerTitles: Record<ConnectorProvider, string> = {
-  github: 'GitHub', gmail: 'Gmail', 'google-drive': 'Google Drive', 'google-calendar': 'Google Calendar', outlook: 'Outlook mail',
+  github: 'GitHub', notion: 'Notion', gmail: 'Gmail', 'google-drive': 'Google Drive', 'google-calendar': 'Google Calendar', outlook: 'Outlook mail',
   'outlook-calendar': 'Outlook Calendar', onedrive: 'OneDrive', sharepoint: 'SharePoint', teams: 'Microsoft Teams', mcp: 'MCP server',
   email: 'Email', whatsapp: 'WhatsApp', telegram: 'Telegram', discord: 'Discord', slack: 'Slack',
 }
@@ -879,6 +880,11 @@ export default class AccountIntegrations extends TypertRemoteService {
           if (isSlackReadTool(tool)) return next()
           // Slack owns these names, so an unrecognized one asks rather than posting unreviewed.
           return { kind: 'ask', allowSession: exec.name, allowSessionCoverage: 'account', reason: 'Approve this action on your connected Slack workspace. It will appear as you.' }
+        }
+        if (connector.provider === 'notion') {
+          if (isNotionReadTool(exec.name.slice(match[0].length))) return next()
+          // Notion owns these names, so an unrecognized one asks rather than editing the workspace unreviewed.
+          return { kind: 'ask', allowSession: exec.name, allowSessionCoverage: 'account', reason: 'Approve this change to your connected Notion workspace. Other members can see it.' }
         }
         // Every other provider, GitHub and custom MCP servers included: only a tool named as a read runs unasked.
         if (READ_TOOL_NAME.test(exec.name.slice(match[0].length))) return next()
@@ -2709,7 +2715,7 @@ export default class AccountIntegrations extends TypertRemoteService {
     if (broker === undefined) throw new Error('connector sign-in is not configured for this deployment')
     const google = googleService(consent.provider)
     const microsoft = microsoftService(consent.provider)
-    const endpointUrl = google?.endpoint ?? microsoft?.endpoint ?? 'https://api.githubcopilot.com/mcp/'
+    const endpointUrl = google?.endpoint ?? microsoft?.endpoint ?? (consent.provider === 'notion' ? NOTION_MCP_ENDPOINT : 'https://api.githubcopilot.com/mcp/')
     let microsoftRow: z.infer<typeof connectorSchema>['microsoft']
     try {
       const issued = await broker.token(consent.owner, consent.id)

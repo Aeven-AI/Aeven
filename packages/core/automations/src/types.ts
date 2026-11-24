@@ -55,7 +55,7 @@ export type HandoffId = Branded<'HandoffId'>
  * IMAP/POP3 mail connector and `mcp` for a custom MCP server connection.
  */
 export type ConnectorId =
-  | 'email' | 'gmail' | 'google-drive' | 'google-calendar' | 'github' | 'slack' | 'discord' | 'telegram' | 'whatsapp'
+  | 'email' | 'gmail' | 'google-drive' | 'google-calendar' | 'github' | 'notion' | 'slack' | 'discord' | 'telegram' | 'whatsapp'
   | 'outlook' | 'outlook-calendar' | 'onedrive' | 'sharepoint' | 'teams' | 'mcp'
 /** `all` lets a run use every connector its owner has connected; a list lets it use only those. */
 export type ConnectorBinding = 'all' | readonly ConnectorId[]
