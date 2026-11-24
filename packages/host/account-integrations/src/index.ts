@@ -41,12 +41,14 @@ import { ReverseEngineeringRuntime, type ReverseEngineeringConfig } from './reve
 import { resolveFfmpegBinary, resolveWhatsAppBinary, WhatsAppDaemon } from './whatsapp.ts'
 import { resolveTelegramEntry, TelegramDaemon, type TelegramCredentials, type TelegramDaemonStatus } from './telegram.ts'
 import { discordGuildIcon, resolveDiscordEntry, DISCORD_ADMIN_PERMISSIONS, DISCORD_CURATED_PERMISSIONS, type DiscordGuild } from './discord.ts'
-import { isNotionReadTool, NOTION_MCP_ENDPOINT } from './notion.ts'
+import { HOSTED_MCP_APPROVAL_REASONS, HOSTED_MCP_ENDPOINTS, isHostedMcp, isHostedMcpReadTool } from './hosted-mcp.ts'
+import { salesforceMcpEndpoint, salesforceRequestSchema } from './salesforce.ts'
+import { resolveShopifyEntry, shopifyRequestSchema, verifyShopify } from './shopify.ts'
 import { isSlackReadTool, slackConnectorId, SLACK_DIRECT_MESSAGE_SCOPES, SLACK_MCP_ENDPOINT, SLACK_WORKSPACE_SCOPES, type SlackWorkspace } from './slack.ts'
 import { isSlackConsentFailure, probeSlackToken, revokeSlackToken, refreshSlackToken, SlackLoginError, startSlackLogin, type SlackLogin, type SlackToken } from './slack-login.ts'
 import { connectorCredential, type PendingConsent } from './oauth.ts'
 import { BrokerError, ConnectorBroker, type ConsentStatus, type IssuedToken } from './broker.ts'
-import type { AccountIntegrationsView, CatalogPackInstall, CatalogSkillView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, ConnectorProviderView, DiscordConnectorSettings, PersonalSkillView, EmailConnectionFailure, EmailConnectorSettings, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillReferenceImport, SkillSetup, SkillViewId, SkillUploadFile, SlackConnectorSettings, SystemSkillAgent, SystemSkillView, TelegramConnectorSettings, TelegramPairingView, WhatsAppMessageMedia, WhatsAppPairingView, WhatsAppPhoneCodeView } from './types.ts'
+import type { AccountIntegrationsView, CatalogPackInstall, CatalogSkillView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, ConnectorProviderView, SalesforceAuthorizationRequest, ShopifyAuthorizationRequest, DiscordConnectorSettings, PersonalSkillView, EmailConnectionFailure, EmailConnectorSettings, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillReferenceImport, SkillSetup, SkillViewId, SkillUploadFile, SlackConnectorSettings, SystemSkillAgent, SystemSkillView, TelegramConnectorSettings, TelegramPairingView, WhatsAppMessageMedia, WhatsAppPairingView, WhatsAppPhoneCodeView } from './types.ts'
 
 export type * from './types.ts'
 
@@ -120,6 +122,11 @@ export interface Config {
   /** Slack workspaces one signed-in user may connect. */
   maxSlackWorkspaces: number
   /**
+   * Salesforce hosted MCP server a Salesforce connector mounts, such as `sobject-all`. The org's
+   * administrator must have enabled it in Setup → API Catalog → MCP Servers.
+   */
+  salesforceMcpServer: string
+  /**
    * The deployment's Slack app client id, which is public because Slack's PKCE client is a public
    * client. Absent leaves Slack unavailable, and no Slack secret exists for this Host to hold.
    */
@@ -140,6 +147,12 @@ export interface Config {
   telegramEntryPath?: string
   /** Discord connector server entry; defaults to the vendored package installed for this host. */
   discordEntryPath?: string
+  /** Shopify connector server entry; defaults to the `@aeven/shopify-mcp` package installed for this host. */
+  shopifyEntryPath?: string
+  /** Shopify Admin API version the Shopify server calls, such as `2026-10`; Shopify supports each version for a year. */
+  shopifyApiVersion: string
+  /** Largest result text one Shopify tool call returns, in bytes; a longer one is cut and says so. */
+  shopifyMaxResultBytes: number
   /** Discord permissions the install link requests, as a base-10 bitfield string. */
   discordPermissions?: string
   /** Whether connected guilds also serve the administration and moderation tools. */
@@ -188,7 +201,12 @@ const skillSchema = z.object({
     && path.split('/').every(part => part !== '' && part !== '.' && part !== '..')), z.string()), revision: z.uuid(),
   setup: z.object({ state: z.enum(['installing', 'ready', 'failed']), detail: z.string().optional() }).optional(),
 })
-const providers = ['github', 'notion', 'gmail', 'google-drive', 'google-calendar', 'outlook', 'outlook-calendar', 'onedrive', 'sharepoint', 'teams', 'email', 'whatsapp', 'telegram', 'discord', 'slack', 'mcp'] as const satisfies readonly ConnectorProvider[]
+/** Settings lists providers in this order: the original connectors, the vendor-hosted and store connectors, then custom MCP. */
+const providers = [
+  'github', 'gmail', 'google-drive', 'google-calendar', 'microsoft-365', 'outlook', 'outlook-calendar', 'onedrive', 'sharepoint', 'teams',
+  'email', 'whatsapp', 'telegram', 'discord', 'slack',
+  'notion', 'vercel', 'atlassian', 'monday', 'stripe', 'salesforce', 'shopify', 'mcp',
+] as const satisfies readonly ConnectorProvider[]
 const emailServerSchema = z.object({
   host: z.string().trim().min(1).max(253).regex(/^[A-Za-z0-9.-]+$/), port: z.number().int().min(1).max(65_535),
   security: z.enum(['tls', 'starttls']), username: z.string().trim().min(1).max(320),
@@ -244,6 +262,10 @@ const connectorSchema = z.object({
     teamId: z.string(), teamName: z.string(), domain: z.string().optional(), userId: z.string(), userName: z.string(),
     scopes: z.array(z.string()), linked: z.boolean(),
   }).optional(),
+  /** Org of a `salesforce` row; the External Client App's credentials stay on the Aeven API with the grant. */
+  salesforce: z.object({ domain: z.string(), orgId: z.string(), userId: z.string() }).optional(),
+  /** Store of a `shopify` row; its grant lives on the Aeven API. */
+  shopify: z.object({ shop: z.string(), name: z.string() }).optional(),
 })
 const domainSpec = defineDomain({ name: 'account_integrations', version: 0, tables: {
   skills: domainTable<string, z.infer<typeof skillSchema>>(skillSchema),
@@ -359,8 +381,8 @@ function discordConnectorId(owner: string, guildId: string): ConnectorId {
 }
 
 const uploadsSchema = z.array(z.object({ path: z.string().min(1), base64: z.string() })).min(1)
-/** Google, Microsoft, GitHub, and Notion sign in through OAuth grants the Aeven API holds. */
-const brokeredProviders = new Set<ConnectorProvider>(['github', 'notion', 'gmail', 'google-drive', 'google-calendar', 'outlook', 'outlook-calendar', 'onedrive', 'sharepoint', 'teams'])
+/** Google, Microsoft, GitHub, and the hosted MCP servers sign in through OAuth grants the Aeven API holds. */
+const brokeredProviders = new Set<ConnectorProvider>(['github', 'notion', 'vercel', 'atlassian', 'monday', 'stripe', 'salesforce', 'shopify', 'microsoft-365', 'gmail', 'google-drive', 'google-calendar', 'outlook', 'outlook-calendar', 'onedrive', 'sharepoint', 'teams'])
 /** Key of the Telegram application identifiers cached after the first signed-in fetch, so linked accounts start at boot. */
 const telegramAppKey = credentialKey('account-integrations', 'telegram-application')
 /** Time before an issued access token's expiry at which the Host asks for a new one. */
@@ -369,13 +391,13 @@ const TOKEN_MARGIN_MS = 60_000
 /** Connector-owned skill names; bodies and resources remain in the skill registry. */
 const connectorSkills: Record<ConnectorProvider, readonly string[]> = {
   'google-drive': ['google-drive', 'google-docs', 'google-sheets', 'google-slides', 'google-drive-comments', 'google-forms'],
-  gmail: ['gmail'], 'google-calendar': ['google-calendar'], github: ['github'], notion: ['notion'], outlook: ['outlook'], 'outlook-calendar': ['outlook-calendar'], onedrive: ['onedrive'], sharepoint: ['sharepoint'], teams: ['teams'], mcp: [], email: [], whatsapp: ['whatsapp'], telegram: ['telegram'],
+  gmail: ['gmail'], 'google-calendar': ['google-calendar'], github: ['github'], notion: ['notion'], vercel: ['vercel'], atlassian: ['atlassian'], monday: ['monday'], stripe: ['stripe'], salesforce: ['salesforce'], shopify: ['shopify'], 'microsoft-365': ['microsoft-365'], outlook: ['outlook'], 'outlook-calendar': ['outlook-calendar'], onedrive: ['onedrive'], sharepoint: ['sharepoint'], teams: ['teams'], mcp: [], email: [], whatsapp: ['whatsapp'], telegram: ['telegram'],
   discord: ['discord'], slack: ['slack'],
 }
 
 /** Provider names the model's tool index shows beside each connector's own name. */
 const providerTitles: Record<ConnectorProvider, string> = {
-  github: 'GitHub', notion: 'Notion', gmail: 'Gmail', 'google-drive': 'Google Drive', 'google-calendar': 'Google Calendar', outlook: 'Outlook mail',
+  github: 'GitHub', notion: 'Notion', vercel: 'Vercel', atlassian: 'Atlassian', monday: 'monday.com', stripe: 'Stripe', salesforce: 'Salesforce', shopify: 'Shopify', 'microsoft-365': 'Microsoft 365', gmail: 'Gmail', 'google-drive': 'Google Drive', 'google-calendar': 'Google Calendar', outlook: 'Outlook mail',
   'outlook-calendar': 'Outlook Calendar', onedrive: 'OneDrive', sharepoint: 'SharePoint', teams: 'Microsoft Teams', mcp: 'MCP server',
   email: 'Email', whatsapp: 'WhatsApp', telegram: 'Telegram', discord: 'Discord', slack: 'Slack',
 }
@@ -552,6 +574,7 @@ export default class AccountIntegrations extends TypertRemoteService {
     maxTelegramAccounts: Schema.natural().min(1).default(10),
     maxDiscordGuilds: Schema.natural().min(1).default(25),
     maxSlackWorkspaces: Schema.natural().min(1).default(10),
+    salesforceMcpServer: Schema.string().pattern(/^[a-z0-9-]{1,64}$/).default('sobject-all'),
     slackClientId: Schema.string(),
     slackCallbackPort: Schema.natural().min(1).max(65_535).default(12_751),
     slackDirectMessages: Schema.boolean().default(false),
@@ -559,6 +582,9 @@ export default class AccountIntegrations extends TypertRemoteService {
     whatsappBinaryPath: Schema.string(),
     telegramEntryPath: Schema.string(),
     discordEntryPath: Schema.string(),
+    shopifyEntryPath: Schema.string(),
+    shopifyApiVersion: Schema.string().pattern(/^\d{4}-(?:01|04|07|10)$/).default('2026-10'),
+    shopifyMaxResultBytes: Schema.natural().min(1_024).default(100_000),
     discordPermissions: Schema.string(),
     discordAdminTools: Schema.boolean().default(false),
     discordVerifyIntervalMs: Schema.natural().min(1).default(300_000),
@@ -593,6 +619,7 @@ export default class AccountIntegrations extends TypertRemoteService {
   private readonly ffmpegBinary: string | undefined
   private readonly telegramEntry: string | undefined
   private readonly discordEntry: string | undefined
+  private readonly shopifyEntry: string | undefined
   /** The Aeven API's connector broker; undefined without an `apiUrl`. */
   private readonly broker: ConnectorBroker | undefined
   /** Access tokens the broker issued, per connector, kept until shortly before they expire. */
@@ -634,6 +661,7 @@ export default class AccountIntegrations extends TypertRemoteService {
     this.ffmpegBinary = resolveFfmpegBinary()
     this.telegramEntry = resolveTelegramEntry(config.telegramEntryPath)
     this.discordEntry = resolveDiscordEntry(config.discordEntryPath)
+    this.shopifyEntry = resolveShopifyEntry(config.shopifyEntryPath)
     if (config.discordPermissions !== undefined && !/^\d+$/.test(config.discordPermissions)) {
       throw new Error('discordPermissions must be a base-10 permission bitfield')
     }
@@ -881,10 +909,17 @@ export default class AccountIntegrations extends TypertRemoteService {
           // Slack owns these names, so an unrecognized one asks rather than posting unreviewed.
           return { kind: 'ask', allowSession: exec.name, allowSessionCoverage: 'account', reason: 'Approve this action on your connected Slack workspace. It will appear as you.' }
         }
-        if (connector.provider === 'notion') {
-          if (isNotionReadTool(exec.name.slice(match[0].length))) return next()
-          // Notion owns these names, so an unrecognized one asks rather than editing the workspace unreviewed.
-          return { kind: 'ask', allowSession: exec.name, allowSessionCoverage: 'account', reason: 'Approve this change to your connected Notion workspace. Other members can see it.' }
+        if (isHostedMcp(connector.provider) || connector.provider === 'salesforce' || connector.provider === 'shopify') {
+          // The vendor's own server is trusted to mark its reads; a tool it does not mark asks first.
+          const readOnlyHint = this.ctx.tools.get(exec.name, exec.agent)?.readOnlyHint === true
+          if (connector.provider === 'salesforce' || connector.provider === 'shopify') {
+            if (readOnlyHint) return next()
+            return { kind: 'ask', allowSession: exec.name, allowSessionCoverage: 'account', reason: connector.provider === 'shopify'
+              ? 'Approve this change to your connected Shopify store. It changes the live store.'
+              : 'Approve this change to your connected Salesforce org. It changes records other users see.' }
+          }
+          if (isHostedMcpReadTool(connector.provider, exec.name.slice(match[0].length), readOnlyHint)) return next()
+          return { kind: 'ask', allowSession: exec.name, allowSessionCoverage: 'account', reason: HOSTED_MCP_APPROVAL_REASONS[connector.provider] }
         }
         // Every other provider, GitHub and custom MCP servers included: only a tool named as a read runs unasked.
         if (READ_TOOL_NAME.test(exec.name.slice(match[0].length))) return next()
@@ -959,7 +994,11 @@ export default class AccountIntegrations extends TypertRemoteService {
         },
         ...item.telegram !== undefined ? { telegram: telegramSettings(item.telegram) } : {},
         ...item.discord === undefined ? {} : { discord: discordSettings(item.discord) },
-        ...item.slack === undefined ? {} : { slack: slackSettings(item.slack) } }
+        ...item.slack === undefined ? {} : { slack: slackSettings(item.slack) },
+        ...item.salesforce === undefined ? {} : {
+          salesforce: { domain: item.salesforce.domain, orgId: item.salesforce.orgId, userId: item.salesforce.userId },
+        },
+        ...item.shopify === undefined ? {} : { shopify: { shop: item.shopify.shop, name: item.shopify.name } } }
     }))
     return {
       skills: skills.filter(skill => !connectorSkillNames.has(skill.name)).map(skill => this.withSetup(skill)), connectors: connections,
@@ -969,7 +1008,8 @@ export default class AccountIntegrations extends TypertRemoteService {
             : provider === 'telegram' ? this.telegramEntry !== undefined && this.broker !== undefined
               : provider === 'discord' ? this.discordEntry !== undefined && this.broker !== undefined
                 : provider === 'slack' ? this.slackApplicationId !== undefined
-                  : brokeredProviders.has(provider) && this.broker !== undefined),
+                  : provider === 'shopify' ? this.shopifyEntry !== undefined && this.broker !== undefined
+                    : brokeredProviders.has(provider) && this.broker !== undefined),
         skills: connectorSkills[provider].flatMap((name) => {
           const skill = connectorOwned.get(name)
           return skill === undefined ? [] : [skill]
@@ -1460,6 +1500,50 @@ export default class AccountIntegrations extends TypertRemoteService {
   async authorize(provider: ConnectorProvider): Promise<ConnectorAuthorization> {
     const owner = this.owner()
     if (provider === 'slack') return this.authorizeSlack(owner)
+    if (provider === 'salesforce') throw new Error('Salesforce orgs are connected with authorizeSalesforce')
+    if (provider === 'shopify') throw new Error('Shopify stores are connected with authorizeShopify')
+    return this.startConsent(owner, provider)
+  }
+
+  /**
+   * Start installing the Aeven Shopify app into one store. Each store is its own connector row, so
+   * connecting a store again re-consents that row.
+   * @param request - the store, as a domain, URL, admin URL, or handle.
+   * @returns the store's consent URL.
+   */
+  @Remote
+  async authorizeShopify(request: ShopifyAuthorizationRequest): Promise<ConnectorAuthorization> {
+    const owner = this.owner()
+    const parsed = shopifyRequestSchema.safeParse(request)
+    if (!parsed.success) throw new Error('enter the store\'s myshopify.com domain')
+    if (this.shopifyEntry === undefined) throw new Error('provider sign-in is not configured for this deployment')
+    return this.startConsent(owner, 'shopify', undefined, parsed.data.shop)
+  }
+
+  /**
+   * Start the consent for a Salesforce org through the External Client App its administrator created.
+   * @param request - the org's My Domain and the app's consumer key and optional secret; the secret is write-only.
+   * @returns the org's consent URL.
+   */
+  @Remote
+  async authorizeSalesforce(request: SalesforceAuthorizationRequest): Promise<ConnectorAuthorization> {
+    const owner = this.owner()
+    const parsed = salesforceRequestSchema.safeParse(request)
+    if (!parsed.success) throw new Error('enter the org\'s My Domain and the External Client App\'s consumer key')
+    const { domain, clientId, clientSecret } = parsed.data
+    return this.startConsent(owner, 'salesforce', { domain, clientId, ...clientSecret === undefined ? {} : { clientSecret } })
+  }
+
+  /**
+   * Start a consent the Aeven API runs, bound to one signed-in user.
+   * @param owner - the signed-in user.
+   * @param provider - a brokered provider, or `discord`.
+   * @param client - the user's own application, for a provider without a shared one (Salesforce).
+   * @returns the provider consent URL.
+   */
+  private async startConsent(
+    owner: string, provider: ConnectorProvider, client?: SalesforceAuthorizationRequest, shop?: string,
+  ): Promise<ConnectorAuthorization> {
     if (this.broker === undefined || (provider !== 'discord' && !brokeredProviders.has(provider))) {
       throw new Error('provider sign-in is not configured for this deployment')
     }
@@ -1468,10 +1552,13 @@ export default class AccountIntegrations extends TypertRemoteService {
     // A Discord install authorizes one guild, so the attempt carries no connector id of its own.
     const id = provider === 'discord'
       ? randomUUID() as ConnectorId
-      : ([...this.domain.table('connectors').entries()].find(([, item]) => item.owner === owner && item.provider === provider)?.[0] ?? randomUUID()) as ConnectorId
+      : ([...this.domain.table('connectors').entries()].find(([, item]) => item.owner === owner && item.provider === provider
+        && (shop === undefined || item.shopify?.shop === shop))?.[0] ?? randomUUID()) as ConnectorId
     const started = await this.broker.start(owner, provider === 'discord'
       ? { provider, permissions: this.discordPermissions() }
-      : { provider, connectorId: id }).catch((error: unknown) => {
+      : {
+        provider, connectorId: id, ...client === undefined ? {} : { client }, ...shop === undefined ? {} : { shop },
+      }).catch((error: unknown) => {
       throw new Error(error instanceof BrokerError && error.reason === 'not-configured'
         ? 'provider sign-in is not configured for this deployment'
         : 'provider sign-in could not start; try again')
@@ -2333,6 +2420,31 @@ export default class AccountIntegrations extends TypertRemoteService {
    * @param session - the owner's current Aeven access token, which the API's Discord proxy authenticates.
    * @returns the child's command and environment, or undefined when this Host cannot serve Discord.
    */
+  /**
+   * The stdio server one Shopify store runs: the store, its short-lived Admin API token, and the
+   * deployment's API version and result budget.
+   * @param connector - the store's row.
+   * @param token - the current access token from the Aeven API.
+   * @returns the launch, or undefined when the row names no store or the server is not installed.
+   */
+  private shopifyServer(
+    connector: z.infer<typeof connectorSchema>, token: string,
+  ): { command: string; args: string[]; env: Record<string, string> } | undefined {
+    const shop = connector.shopify?.shop
+    if (shop === undefined || this.shopifyEntry === undefined) return undefined
+    return {
+      command: process.execPath,
+      args: [this.shopifyEntry],
+      env: {
+        SHOPIFY_SHOP: shop,
+        SHOPIFY_ACCESS_TOKEN: token,
+        SHOPIFY_API_VERSION: this.config.shopifyApiVersion,
+        SHOPIFY_MAX_RESULT_BYTES: String(this.config.shopifyMaxResultBytes),
+        SHOPIFY_REQUEST_TIMEOUT_MS: String(this.config.timeoutMs),
+      },
+    }
+  }
+
   private discordServer(connector: z.infer<typeof connectorSchema>, session: string): {
     command: string
     args: string[]
@@ -2602,7 +2714,7 @@ export default class AccountIntegrations extends TypertRemoteService {
     const events: CalendarEvent[] = []
     for (const [, connector] of this.domain.table('connectors').entries()) {
       if (connector.owner !== owner || !connector.enabled || connector.grant?.expired === true) continue
-      if (connector.provider !== 'google-calendar' && connector.provider !== 'outlook-calendar') continue
+      if (connector.provider !== 'google-calendar' && connector.provider !== 'outlook-calendar' && connector.provider !== 'microsoft-365') continue
       try {
         const token = await this.accessToken(owner, connector)
         const bounded = AbortSignal.any([signal, AbortSignal.timeout(this.config.timeoutMs)])
@@ -2715,7 +2827,13 @@ export default class AccountIntegrations extends TypertRemoteService {
     if (broker === undefined) throw new Error('connector sign-in is not configured for this deployment')
     const google = googleService(consent.provider)
     const microsoft = microsoftService(consent.provider)
-    const endpointUrl = google?.endpoint ?? microsoft?.endpoint ?? (consent.provider === 'notion' ? NOTION_MCP_ENDPOINT : 'https://api.githubcopilot.com/mcp/')
+    if (consent.provider === 'salesforce' && result.salesforce === undefined) throw new Error('Salesforce org metadata is missing')
+    if (consent.provider === 'shopify' && result.shop === undefined) throw new Error('Shopify store metadata is missing')
+    const endpointUrl = google?.endpoint ?? microsoft?.endpoint ?? (isHostedMcp(consent.provider) ? HOSTED_MCP_ENDPOINTS[consent.provider]
+      : consent.provider === 'salesforce' && result.salesforce !== undefined ? salesforceMcpEndpoint(result.salesforce.domain, this.config.salesforceMcpServer)
+        : consent.provider === 'shopify' && result.shop !== undefined ? `https://${result.shop}/admin`
+          : 'https://api.githubcopilot.com/mcp/')
+    let shopifyRow: z.infer<typeof connectorSchema>['shopify']
     let microsoftRow: z.infer<typeof connectorSchema>['microsoft']
     try {
       const issued = await broker.token(consent.owner, consent.id)
@@ -2724,6 +2842,9 @@ export default class AccountIntegrations extends TypertRemoteService {
         microsoftRow = { ...result.account, tenantId: result.tenantId }
         await verifyMicrosoft(consent.provider, await microsoftConnection(consent.provider, issued.accessToken,
           avnHomePath('accounts', accountDirectory(consent.owner), 'connectors', consent.id), this.config.timeoutMs), result.account.id, this.config.timeoutMs)
+      } else if (consent.provider === 'shopify' && result.shop !== undefined) {
+        const name = await verifyShopify(result.shop, issued.accessToken, this.config.shopifyApiVersion, this.config.timeoutMs)
+        shopifyRow = { shop: result.shop, name }
       } else if (google === undefined) await this.verifyMcp(endpointUrl, issued.accessToken)
       else await verifyGoogle(consent.provider, await googleConnection(consent.provider, issued.accessToken,
         avnHomePath('accounts', accountDirectory(consent.owner), 'connectors', consent.id), this.config.timeoutMs), this.config.timeoutMs)
@@ -2737,9 +2858,12 @@ export default class AccountIntegrations extends TypertRemoteService {
     // A grant from before the broker may still sit in the credential provider; the API's grant replaces it.
     await this.ctx.credentials.deleteRecord(connectorCredential(consent.owner, consent.id))
     await this.domain.table('connectors').put(consent.id, {
-      owner: consent.owner, id: consent.id, provider: consent.provider, name: result.account?.username ?? consent.provider,
+      owner: consent.owner, id: consent.id, provider: consent.provider,
+      name: result.account?.username ?? result.salesforce?.domain ?? shopifyRow?.name ?? consent.provider,
       endpoint: endpointUrl, enabled: true, grant: { scopes: result.scopes ?? [] },
       ...microsoftRow === undefined ? {} : { microsoft: microsoftRow },
+      ...result.salesforce === undefined ? {} : { salesforce: result.salesforce },
+      ...shopifyRow === undefined ? {} : { shopify: shopifyRow },
     })
     this.consentFailures.delete(`${consent.owner}\0${consent.provider}`)
     this.connected.add(consent.id)
@@ -2831,6 +2955,11 @@ export default class AccountIntegrations extends TypertRemoteService {
           if (broker === undefined) throw new Error('Discord sign-in is not configured for this deployment')
           token = daemon?.token ?? ''
           stdio = this.discordServer(connector, await broker.session(owner))
+        } else if (connector.provider === 'shopify') {
+          // The child holds the store's short-lived token; a refreshed token changes its environment and restarts it.
+          token = await this.accessToken(owner, connector)
+          stdio = this.shopifyServer(connector, token)
+          if (stdio === undefined) throw new Error('the Shopify server is not installed on this host')
         } else {
           token = daemon?.token ?? await this.accessToken(owner, connector)
           stdio = undefined

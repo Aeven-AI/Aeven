@@ -1,7 +1,7 @@
 /** Personal skill import and connector account management. */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { AccountIntegrationsView, CatalogPackInstall, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillReferenceImport, SkillUploadFile, SystemSkillView, WhatsAppPairingView, WhatsAppPhoneCodeView } from '@aeven/api-remotes/client'
+import type { AccountIntegrationsView, CatalogPackInstall, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, SalesforceAuthorizationRequest, ShopifyAuthorizationRequest, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillReferenceImport, SkillUploadFile, SystemSkillView, WhatsAppPairingView, WhatsAppPhoneCodeView } from '@aeven/api-remotes/client'
 import { Button, LoadingBlock, SectionHeader, MarkdownText, Menu, Modal, Spinner, Switch, Tabs, IconWarningOutline16, IconChevronLeftOutline14, IconCloseOutline16, IconLucideSettings2 } from '@aeven/client-ui-primitives'
 import type { HostObservable, InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import css from './IntegrationsSection.module.css'
@@ -97,6 +97,8 @@ export interface IntegrationsSectionInjected extends TelegramPairingOperations {
   connectEmail: (request: EmailConnectionRequest) => Promise<EmailConnectionResult>
   updateEmail: (id: ConnectorId, request: EmailConnectionUpdate) => Promise<EmailConnectionResult>
   authorize: (provider: ConnectorProvider) => Promise<ConnectorAuthorization>
+  authorizeSalesforce: (request: SalesforceAuthorizationRequest) => Promise<ConnectorAuthorization>
+  authorizeShopify: (request: ShopifyAuthorizationRequest) => Promise<ConnectorAuthorization>
   setConnectorEnabled: (id: ConnectorId, enabled: boolean) => Promise<void>
   disconnect: (id: ConnectorId) => Promise<void>
   startWhatsAppPairing: () => Promise<WhatsAppPairingView>
@@ -112,7 +114,7 @@ type Connection = AccountIntegrationsView['connectors'][number]
 type Provider = AccountIntegrationsView['providers'][number]
 
 /** Marks drawn in a single dark color, which the black badge shows inverted. */
-const MONOCHROME_ICONS: ReadonlySet<string> = new Set(['github', 'email', 'notion'])
+const MONOCHROME_ICONS: ReadonlySet<string> = new Set(['github', 'email', 'notion', 'vercel'])
 
 /** Read one uploaded file as browser-safe base64. */
 function upload(file: File): Promise<SkillUploadFile> {
@@ -189,6 +191,14 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
   const [signingIn, setSigningIn] = useState(false)
   const [failed, setFailed] = useState(false)
   const [form, setForm] = useState<'mcp' | 'github'>()
+  /** The Salesforce org form: open, and the External Client App values typed into it; the secret is never echoed back. */
+  const [salesforceForm, setSalesforceForm] = useState(false)
+  const [salesforceDomain, setSalesforceDomain] = useState('')
+  const [salesforceClientId, setSalesforceClientId] = useState('')
+  const [salesforceSecret, setSalesforceSecret] = useState('')
+  /** The Shopify store form: open, and the store typed into it. */
+  const [shopifyForm, setShopifyForm] = useState(false)
+  const [shopifyShop, setShopifyShop] = useState('')
   const [name, setName] = useState('')
   const [url, setUrl] = useState('')
   const [token, setToken] = useState('')
@@ -309,8 +319,11 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
   /**
    * Open provider consent through the desktop bridge or a browser tab created during the click.
    * @param provider - provider whose registered application starts the consent flow.
+   * @param begin - the call that starts the consent; Salesforce passes the org's own application with it.
    */
-  const startSignIn = (provider: ConnectorProvider): void => {
+  const startSignIn = (
+    provider: ConnectorProvider, begin: () => Promise<ConnectorAuthorization> = () => props.authorize(provider),
+  ): void => {
     const desktop = (window as Window & { avnDesktop?: { browser?: { openExternal: (url: string) => Promise<void> } } }).avnDesktop?.browser
     const popup = desktop === undefined ? window.open('about:blank', '_blank') : null
     if (popup !== null) popup.opener = null
@@ -319,7 +332,7 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     setPendingProvider(provider)
     void run(async () => {
       try {
-        const { url } = await props.authorize(provider)
+        const { url } = await begin()
         if (desktop !== undefined) await desktop.openExternal(url)
         else if (popup !== null) popup.location.href = url
         setConsent(url)
@@ -534,6 +547,10 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
       void run(async () => { for (const connection of live) await props.setConnectorEnabled(connection.id, true) })
       return
     }
+    // A Salesforce org signs in through its own External Client App, which the form collects first.
+    if (provider.provider === 'salesforce' && provider.configured) { openDetail(provider.provider); setSalesforceForm(true); return }
+    // A Shopify connection installs into one store, which the form names first.
+    if (provider.provider === 'shopify' && provider.configured) { openDetail(provider.provider); setShopifyForm(true); return }
     if (provider.provider !== 'mcp' && provider.configured) { startSignIn(provider.provider); return }
     // Without sign-in or a token form there is nothing to turn on; the page says what setup is missing.
     openDetail(provider.provider)
@@ -557,7 +574,7 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     if (provider.provider === 'discord') return t('discordUnavailable')
     if (provider.provider === 'slack') return t('slackUnavailable')
     return t(['gmail', 'google-drive', 'google-calendar'].includes(provider.provider) ? 'googleSetupRequired'
-      : ['outlook', 'outlook-calendar', 'onedrive', 'sharepoint', 'teams'].includes(provider.provider) ? 'microsoftSetupRequired' : 'setupRequired')
+      : ['microsoft-365', 'outlook', 'outlook-calendar', 'onedrive', 'sharepoint', 'teams'].includes(provider.provider) ? 'microsoftSetupRequired' : 'setupRequired')
   }
   const connectForm = (provider: 'mcp' | 'github') => <form className={css.card} onSubmit={(event) => {
     event.preventDefault()
@@ -571,6 +588,30 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     <label className={css.field}>{t('token')}<input type="password" autoComplete="off" value={token} disabled={busy} onChange={(event) => { setToken(event.currentTarget.value) }} /></label>
     <p className={css.hint}>{t('tokenHint')}</p>
     <div className={css.actions}><button type="submit" className={css.primaryAction} disabled={busy}>{t('connect')}</button><button type="button" className={css.secondaryAction} disabled={busy} onClick={() => { setToken(''); setForm(undefined) }}>{t('cancel')}</button></div>
+  </form>
+  const closeSalesforceForm = (): void => { setSalesforceSecret(''); setSalesforceForm(false) }
+  const salesforceConnectForm = <form className={css.card} onSubmit={(event) => {
+    event.preventDefault()
+    const request = { domain: salesforceDomain, clientId: salesforceClientId, ...salesforceSecret === '' ? {} : { clientSecret: salesforceSecret } }
+    closeSalesforceForm()
+    startSignIn('salesforce', () => props.authorizeSalesforce(request))
+  }}>
+    <p className={css.hint}>{t('salesforceSetup')}</p>
+    <label className={css.field}>{t('salesforceDomain')}<input autoFocus required placeholder="acme.my.salesforce.com" value={salesforceDomain} disabled={busy} onChange={(event) => { setSalesforceDomain(event.currentTarget.value) }} /></label>
+    <label className={css.field}>{t('salesforceClientId')}<input required autoComplete="off" value={salesforceClientId} disabled={busy} onChange={(event) => { setSalesforceClientId(event.currentTarget.value) }} /></label>
+    <label className={css.field}>{t('salesforceClientSecret')}<input type="password" autoComplete="off" value={salesforceSecret} disabled={busy} onChange={(event) => { setSalesforceSecret(event.currentTarget.value) }} /></label>
+    <p className={css.hint}>{t('tokenHint')}</p>
+    <div className={css.actions}><button type="submit" className={css.primaryAction} disabled={busy}>{t('consent')}</button><button type="button" className={css.secondaryAction} disabled={busy} onClick={closeSalesforceForm}>{t('cancel')}</button></div>
+  </form>
+  const shopifyConnectForm = <form className={css.card} onSubmit={(event) => {
+    event.preventDefault()
+    const request = { shop: shopifyShop }
+    setShopifyForm(false)
+    startSignIn('shopify', () => props.authorizeShopify(request))
+  }}>
+    <label className={css.field}>{t('shopifyShop')}<input autoFocus required placeholder="your-store.myshopify.com" value={shopifyShop} disabled={busy} onChange={(event) => { setShopifyShop(event.currentTarget.value) }} /></label>
+    <p className={css.hint}>{t('shopifyHint')}</p>
+    <div className={css.actions}><button type="submit" className={css.primaryAction} disabled={busy}>{t('consent')}</button><button type="button" className={css.secondaryAction} disabled={busy} onClick={() => { setShopifyForm(false) }}>{t('cancel')}</button></div>
   </form>
   /** Search and its action, on the title row so the field's centre rides the heading's optical centre. */
   const searchBar = page === 'skills' && selectedSkillId === undefined ? <div className={css.toolbar}>
@@ -847,7 +888,11 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
                   ))}
                   <div className={css.actions}>
                     {providerDetail.provider === 'github' && stateOf(providerDetail).live.length === 0 && form === undefined && <button type="button" className={css.textAction} disabled={busy} onClick={() => { openForm('github') }}>{t('useToken')}</button>}
+                    {providerDetail.provider === 'salesforce' && providerDetail.configured && stateOf(providerDetail).live.length === 0 && !salesforceForm && <button type="button" className={css.secondaryAction} disabled={busy} onClick={() => { setSalesforceForm(true) }}>{t('salesforceConnect')}</button>}
+                    {providerDetail.provider === 'shopify' && providerDetail.configured && !shopifyForm && <button type="button" className={css.secondaryAction} disabled={busy} onClick={() => { setShopifyForm(true) }}>{t(stateOf(providerDetail).live.length === 0 ? 'shopifyConnect' : 'shopifyConnectAnother')}</button>}
                   </div>
+                  {providerDetail.provider === 'salesforce' && salesforceForm && salesforceConnectForm}
+                  {providerDetail.provider === 'shopify' && shopifyForm && shopifyConnectForm}
                 </>}
         {form !== undefined && connectForm(form)}
         {providerDetail.skills.length > 0 && <>

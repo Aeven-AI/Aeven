@@ -884,6 +884,8 @@ export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   MessageShareListRequest: 'package-owned type is documented in packages/host/message-share/src/types.ts',
   MessageShareListValue: 'package-owned type is documented in packages/host/message-share/src/types.ts',
   MessageShareResult: 'package-owned type is documented in packages/host/message-share/src/types.ts',
+  SalesforceAuthorizationRequest: 'package-owned type is documented in packages/host/account-integrations/src/types.ts',
+  ShopifyAuthorizationRequest: 'package-owned type is documented in packages/host/account-integrations/src/types.ts',
   SyncView: 'package-owned type is documented in packages/api/sync-controller/src/types.ts',
   SyncDeviceView: 'package-owned type is documented in packages/api/sync-controller/src/types.ts',
   SyncJoinRequestView: 'package-owned type is documented in packages/api/sync-controller/src/types.ts',

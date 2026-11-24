@@ -59,6 +59,13 @@ interface ToolDefinition extends ToolSchema {
    */
   timeoutMs?: number
   /**
+   * The server that registered this tool declares that it only reads, as MCP's
+   * `annotations.readOnlyHint` does. It is that server's claim, not a guarantee:
+   * an approval policy may act on it only for servers whose claims it trusts.
+   * Never model-visible.
+   */
+  readOnlyHint?: true
+  /**
    * Pure synchronous classifier for overlap with sibling tool calls. Only
    * `true` opts in; omission, exceptions, non-`true` returns, and invalid
    * `defineTool` arguments are exclusive. This metadata is never model-visible.
