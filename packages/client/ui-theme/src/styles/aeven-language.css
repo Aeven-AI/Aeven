@@ -76,8 +76,9 @@ body {
      read over whatever the transcript scrolls under them. */
   --dsw-aeven-disc: var(--dsw-aeven-surface);
   --dsw-aeven-disc-ink: var(--dsw-aeven-ink);
-  /* The transcript's own rules — a reply's horizontal rules, the turn divider
-     under a run's timing, and the scroll-to-end pill — draw one line colour. */
+  /* The transcript's own rules — a reply's horizontal rules and blockquote
+     bars, the turn divider under a run's timing, and the scroll-to-end pill —
+     draw one line colour. */
   --dsw-aeven-rule: var(--dsw-aeven-surface);
 
   --dsw-alias-bg-base: var(--dsw-aeven-well);

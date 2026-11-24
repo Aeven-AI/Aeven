@@ -102,6 +102,8 @@
   --hm-line-number-color: rgb(205, 205, 205);
   --hm-table-color: rgb(80, 80, 80);
   --hm-table-header-color: rgb(242, 242, 242);
+  /* The bar down a blockquote's left edge. */
+  --hm-blockquote-rule: #fff;
 
   --hm-radius: 30px;
   --hm-max-width: 1024px;
@@ -611,7 +613,7 @@
     top: 0;
     height: 100%;
     width: 2px;
-    background-color: #fff;
+    background-color: var(--hm-blockquote-rule);
   }
 
   img {

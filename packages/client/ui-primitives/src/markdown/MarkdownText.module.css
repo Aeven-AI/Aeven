@@ -140,7 +140,7 @@
 }
 
 .markdown blockquote {
-  border-left: 2px solid var(--dsw-alias-label-caption);
+  border-left: 2px solid var(--dsw-aeven-rule);
   margin: 16px 0 0;
   padding-left: 14px;
 }
@@ -223,6 +223,7 @@
   --hm-inline-code-color: var(--dsw-alias-markdown-inline-code-text);
   --hm-inline-code-background: var(--dsw-alias-markdown-inline-code);
   --hm-line-number-color: var(--dsw-alias-label-caption);
+  --hm-blockquote-rule: var(--dsw-aeven-rule);
   --hm-table-color: var(--dsw-alias-label-secondary);
   --hm-table-header-color: #f2f2f2;
   --hm-math-color: var(--dsw-alias-label-secondary);
