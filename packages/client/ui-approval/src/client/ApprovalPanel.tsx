@@ -65,6 +65,7 @@ function ApprovalFlow({ pending, detail, t }: {
     gmail: 'Gmail', 'google-drive': 'Google Drive', 'google-calendar': 'Google Calendar',
     outlook: 'Outlook', 'outlook-calendar': 'Outlook Calendar', onedrive: 'OneDrive',
     sharepoint: 'SharePoint', teams: 'Microsoft Teams', github: 'GitHub', notion: 'Notion',
+    vercel: 'Vercel', atlassian: 'Atlassian', monday: 'monday.com', stripe: 'Stripe', 'microsoft-365': 'Microsoft 365',
   }
   const connectorId = connector?.[1]
   const provider = connectorId === undefined ? undefined : providers[connectorId] ?? connectorId

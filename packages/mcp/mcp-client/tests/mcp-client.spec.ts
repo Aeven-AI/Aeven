@@ -204,6 +204,20 @@ describe('syncTools', () => {
     expect(ctx.tools.get('add')).toBeUndefined()
   })
 
+  it('carries a server\'s readOnlyHint onto the definition, and only a true one', async () => {
+    const client = createMockClient([
+      { name: 'list', description: 'List things', inputSchema: { type: 'object', properties: {} }, annotations: { readOnlyHint: true } },
+      { name: 'write', description: 'Write a thing', inputSchema: { type: 'object', properties: {} }, annotations: { readOnlyHint: false } },
+      { name: 'plain', description: 'Unannotated', inputSchema: { type: 'object', properties: {} } },
+    ])
+
+    await syncTools(client as never, ctx, defaultOpts, new Map())
+
+    expect(ctx.tools.get('mcp__srv__list')?.readOnlyHint).toBe(true)
+    expect(ctx.tools.get('mcp__srv__write')).not.toHaveProperty('readOnlyHint')
+    expect(ctx.tools.get('mcp__srv__plain')).not.toHaveProperty('readOnlyHint')
+  })
+
   it('lets two servers publish the same raw name side by side', async () => {
     const clientA = createMockClient([{ name: 'search', inputSchema: { type: 'object' } }])
     const clientB = createMockClient([{ name: 'search', inputSchema: { type: 'object' } }])

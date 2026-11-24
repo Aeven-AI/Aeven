@@ -226,18 +226,55 @@ const microsoftConnectors = {
   },
 } as const
 
+/** The Graph resource, delegated permissions, and allowed tools of one Microsoft connector. */
+export interface MicrosoftService {
+  /** Graph resource the connector row records; it tells the connectors apart. */
+  readonly endpoint: string
+  /** Whether the bridge runs in organization mode, for work or school accounts only. */
+  readonly org: boolean
+  /** Tool whose call proves service access before a row is saved, and its arguments. */
+  readonly check: string
+  readonly arguments: Readonly<Record<string, unknown>>
+  /** Delegated Graph permissions a grant must hold. */
+  readonly scopes: readonly string[]
+  /** Tools that only read, which run without approval. */
+  readonly read: readonly string[]
+  /** Tools that change the account, which ask first. */
+  readonly write: readonly string[]
+}
+
+/** Values of each list across the five services, once each, in service order. */
+function union(pick: (service: MicrosoftService) => readonly string[]): string[] {
+  return [...new Set(Object.values(microsoftConnectors).flatMap(service => pick(service)))]
+}
+
+/**
+ * Microsoft 365 in one connection: the five services' tools and delegated permissions together.
+ * Teams and SharePoint exist only for work or school accounts, so the bridge runs in organization mode.
+ */
+const microsoft365: MicrosoftService = {
+  endpoint: 'https://graph.microsoft.com/v1.0/me',
+  org: true,
+  check: microsoftConnectors.outlook.check,
+  arguments: microsoftConnectors.outlook.arguments,
+  scopes: union(service => service.scopes),
+  read: union(service => service.read),
+  write: union(service => service.write),
+}
+
 /**
  * Resolve a Microsoft provider's Graph resource, delegated permissions, and allowed tools.
  * @param provider - account connector provider.
  * @returns Microsoft configuration, or undefined for another provider.
  */
-export function microsoftService(provider: ConnectorProvider): typeof microsoftConnectors[keyof typeof microsoftConnectors] | undefined {
+export function microsoftService(provider: ConnectorProvider): MicrosoftService | undefined {
   switch (provider) {
     case 'outlook': return microsoftConnectors.outlook
     case 'outlook-calendar': return microsoftConnectors['outlook-calendar']
     case 'onedrive': return microsoftConnectors.onedrive
     case 'sharepoint': return microsoftConnectors.sharepoint
     case 'teams': return microsoftConnectors.teams
+    case 'microsoft-365': return microsoft365
     default: return undefined // Other providers mount their own bridges.
   }
 }

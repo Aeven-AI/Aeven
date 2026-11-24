@@ -112,7 +112,7 @@ type Connection = AccountIntegrationsView['connectors'][number]
 type Provider = AccountIntegrationsView['providers'][number]
 
 /** Marks drawn in a single dark color, which the black badge shows inverted. */
-const MONOCHROME_ICONS: ReadonlySet<string> = new Set(['github', 'email', 'notion'])
+const MONOCHROME_ICONS: ReadonlySet<string> = new Set(['github', 'email', 'notion', 'vercel'])
 
 /** Read one uploaded file as browser-safe base64. */
 function upload(file: File): Promise<SkillUploadFile> {
@@ -557,7 +557,7 @@ export function IntegrationsSection(props: IntegrationsSectionProps) {
     if (provider.provider === 'discord') return t('discordUnavailable')
     if (provider.provider === 'slack') return t('slackUnavailable')
     return t(['gmail', 'google-drive', 'google-calendar'].includes(provider.provider) ? 'googleSetupRequired'
-      : ['outlook', 'outlook-calendar', 'onedrive', 'sharepoint', 'teams'].includes(provider.provider) ? 'microsoftSetupRequired' : 'setupRequired')
+      : ['microsoft-365', 'outlook', 'outlook-calendar', 'onedrive', 'sharepoint', 'teams'].includes(provider.provider) ? 'microsoftSetupRequired' : 'setupRequired')
   }
   const connectForm = (provider: 'mcp' | 'github') => <form className={css.card} onSubmit={(event) => {
     event.preventDefault()

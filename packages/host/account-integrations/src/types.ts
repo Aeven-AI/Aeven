@@ -6,7 +6,7 @@ import type { Branded } from '@aeven/brand'
 export type ConnectorId = Branded<'account-connector-id'>
 
 /** Provider selected when creating a connector. */
-export type ConnectorProvider = 'github' | 'notion' | 'gmail' | 'google-drive' | 'google-calendar' | 'outlook' | 'outlook-calendar' | 'onedrive' | 'sharepoint' | 'teams' | 'mcp' | 'email' | 'whatsapp' | 'telegram' | 'discord' | 'slack'
+export type ConnectorProvider = 'github' | 'notion' | 'vercel' | 'atlassian' | 'monday' | 'stripe' | 'microsoft-365' | 'gmail' | 'google-drive' | 'google-calendar' | 'outlook' | 'outlook-calendar' | 'onedrive' | 'sharepoint' | 'teams' | 'mcp' | 'email' | 'whatsapp' | 'telegram' | 'discord' | 'slack'
 
 /** Stable Settings identity of one skill definition. */
 export type SkillViewId = Branded<'account-skill-view-id'>
