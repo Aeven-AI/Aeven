@@ -397,7 +397,7 @@ const connectorSkills: Record<ConnectorProvider, readonly string[]> = {
 
 /** Provider names the model's tool index shows beside each connector's own name. */
 const providerTitles: Record<ConnectorProvider, string> = {
-  github: 'GitHub', notion: 'Notion', vercel: 'Vercel', atlassian: 'Atlassian', monday: 'monday.com', stripe: 'Stripe', salesforce: 'Salesforce', shopify: 'Shopify', 'microsoft-365': 'Microsoft 365', gmail: 'Gmail', 'google-drive': 'Google Drive', 'google-calendar': 'Google Calendar', outlook: 'Outlook mail',
+  github: 'GitHub', notion: 'Notion', vercel: 'Vercel', atlassian: 'Atlassian', monday: 'Monday', stripe: 'Stripe', salesforce: 'Salesforce', shopify: 'Shopify', 'microsoft-365': 'Microsoft 365', gmail: 'Gmail', 'google-drive': 'Google Drive', 'google-calendar': 'Google Calendar', outlook: 'Outlook mail',
   'outlook-calendar': 'Outlook Calendar', onedrive: 'OneDrive', sharepoint: 'SharePoint', teams: 'Microsoft Teams', mcp: 'MCP server',
   email: 'Email', whatsapp: 'WhatsApp', telegram: 'Telegram', discord: 'Discord', slack: 'Slack',
   'google-tasks': 'Google Tasks', 'google-contacts': 'Google Contacts', 'google-meet': 'Google Meet', spotify: 'Spotify', cloudflare: 'Cloudflare', aws: 'AWS',

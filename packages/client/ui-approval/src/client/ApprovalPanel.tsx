@@ -65,7 +65,7 @@ function ApprovalFlow({ pending, detail, t }: {
     gmail: 'Gmail', 'google-drive': 'Google Drive', 'google-calendar': 'Google Calendar', 'google-tasks': 'Google Tasks', 'google-contacts': 'Google Contacts', 'google-meet': 'Google Meet',
     outlook: 'Outlook', 'outlook-calendar': 'Outlook Calendar', onedrive: 'OneDrive',
     sharepoint: 'SharePoint', teams: 'Microsoft Teams', github: 'GitHub', notion: 'Notion',
-    vercel: 'Vercel', atlassian: 'Atlassian', monday: 'monday.com', stripe: 'Stripe', salesforce: 'Salesforce', shopify: 'Shopify', 'microsoft-365': 'Microsoft 365',
+    vercel: 'Vercel', atlassian: 'Atlassian', monday: 'Monday', stripe: 'Stripe', salesforce: 'Salesforce', shopify: 'Shopify', 'microsoft-365': 'Microsoft 365',
     spotify: 'Spotify', cloudflare: 'Cloudflare', aws: 'AWS',
   }
   const connectorId = connector?.[1]
