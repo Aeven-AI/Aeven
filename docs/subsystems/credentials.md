@@ -254,6 +254,21 @@ Signed-in users manage their own integrations; each agent mounts only its owner'
 @Remote async authorize(provider: ConnectorProvider): Promise<ConnectorAuthorization>
 
 /**
+ * Start installing the Aeven Shopify app into one store. Each store is its own connector row, so
+ * connecting a store again re-consents that row.
+ * @param request - the store, as a domain, URL, admin URL, or handle.
+ * @returns the store's consent URL.
+ */
+@Remote async authorizeShopify(request: ShopifyAuthorizationRequest): Promise<ConnectorAuthorization>
+
+/**
+ * Start the consent for a Salesforce org through the External Client App its administrator created.
+ * @param request - the org's My Domain and the app's consumer key and optional secret; the secret is write-only.
+ * @returns the org's consent URL.
+ */
+@Remote async authorizeSalesforce(request: SalesforceAuthorizationRequest): Promise<ConnectorAuthorization>
+
+/**
  * Enable or disable one personal connector; disabled calls are immediately denied.
  * @param id - caller-owned connector.
  * @param enabled - availability for subsequent conversation steps.

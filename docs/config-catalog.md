@@ -1856,6 +1856,11 @@ export interface Config {
   /** Slack workspaces one signed-in user may connect. */
   maxSlackWorkspaces: number
   /**
+   * Salesforce hosted MCP server a Salesforce connector mounts, such as `sobject-all`. The org's
+   * administrator must have enabled it in Setup → API Catalog → MCP Servers.
+   */
+  salesforceMcpServer: string
+  /**
    * The deployment's Slack app client id, which is public because Slack's PKCE client is a public
    * client. Absent leaves Slack unavailable, and no Slack secret exists for this Host to hold.
    */
@@ -1876,6 +1881,12 @@ export interface Config {
   telegramEntryPath?: string
   /** Discord connector server entry; defaults to the vendored package installed for this host. */
   discordEntryPath?: string
+  /** Shopify connector server entry; defaults to the `@aeven/shopify-mcp` package installed for this host. */
+  shopifyEntryPath?: string
+  /** Shopify Admin API version the Shopify server calls, such as `2026-10`; Shopify supports each version for a year. */
+  shopifyApiVersion: string
+  /** Largest result text one Shopify tool call returns, in bytes; a longer one is cut and says so. */
+  shopifyMaxResultBytes: number
   /** Discord permissions the install link requests, as a base-10 bitfield string. */
   discordPermissions?: string
   /** Whether connected guilds also serve the administration and moderation tools. */

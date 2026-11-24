@@ -224,6 +224,18 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the provider consent URL.',
       },
       {
+        signature: '@Remote async authorizeShopify(request: ShopifyAuthorizationRequest): Promise<ConnectorAuthorization>',
+        description: 'Start installing the Aeven Shopify app into one store. Each store is its own connector row, so connecting a store again re-consents that row.',
+        parameters: [{ name: 'request', description: 'the store, as a domain, URL, admin URL, or handle.' }],
+        returns: 'the store\'s consent URL.',
+      },
+      {
+        signature: '@Remote async authorizeSalesforce(request: SalesforceAuthorizationRequest): Promise<ConnectorAuthorization>',
+        description: 'Start the consent for a Salesforce org through the External Client App its administrator created.',
+        parameters: [{ name: 'request', description: 'the org\'s My Domain and the app\'s consumer key and optional secret; the secret is write-only.' }],
+        returns: 'the org\'s consent URL.',
+      },
+      {
         signature: '@Remote async setConnectorEnabled(id: ConnectorId, enabled: boolean): Promise<void>',
         description: 'Enable or disable one personal connector; disabled calls are immediately denied.',
         parameters: [{ name: 'id', description: 'caller-owned connector.' }, { name: 'enabled', description: 'availability for subsequent conversation steps.' }],
@@ -6892,7 +6904,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ConnectorProvider',
-    declaration: 'export type ConnectorProvider = \'github\' | \'notion\' | \'gmail\' | \'google-drive\' | \'google-calendar\' | \'outlook\' | \'outlook-calendar\' | \'onedrive\' | \'sharepoint\' | \'teams\' | \'mcp\' | \'email\' | \'whatsapp\' | \'telegram\' | \'discord\' | \'slack\';',
+    declaration: 'export type ConnectorProvider = \'github\' | \'notion\' | \'vercel\' | \'atlassian\' | \'monday\' | \'stripe\' | \'salesforce\' | \'shopify\' | \'microsoft-365\' | \'gmail\' | \'google-drive\' | \'google-calendar\' | \'outlook\' | \'outlook-calendar\' | \'onedrive\' | \'sharepoint\' | \'teams\' | \'mcp\' | \'email\' | \'whatsapp\' | \'telegram\' | \'discord\' | \'slack\';',
   },
   {
     name: 'ConnectorProviderView',
@@ -8652,7 +8664,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'PersonalConnectorView',
-    declaration: 'export interface PersonalConnectorView {\n    id: ConnectorId;\n    provider: ConnectorProvider;\n    name: string;\n    enabled: boolean;\n    connected: boolean;\n    endpoint?: string;\n    email?: EmailConnectorSettings;\n    microsoft?: MicrosoftConnectorSettings;\n    whatsapp?: WhatsAppConnectorSettings;\n    telegram?: TelegramConnectorSettings;\n    discord?: DiscordConnectorSettings;\n    slack?: SlackConnectorSettings;\n}',
+    declaration: 'export interface PersonalConnectorView {\n    id: ConnectorId;\n    provider: ConnectorProvider;\n    name: string;\n    enabled: boolean;\n    connected: boolean;\n    endpoint?: string;\n    email?: EmailConnectorSettings;\n    microsoft?: MicrosoftConnectorSettings;\n    whatsapp?: WhatsAppConnectorSettings;\n    telegram?: TelegramConnectorSettings;\n    discord?: DiscordConnectorSettings;\n    slack?: SlackConnectorSettings;\n    salesforce?: SalesforceConnectorSettings;\n    shopify?: ShopifyConnectorSettings;\n}',
   },
   {
     name: 'Personalization',
@@ -8993,6 +9005,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'RunUsage',
     declaration: 'export interface RunUsage {\n    readonly inputTokens: number;\n    readonly outputTokens: number;\n    readonly totalTokens: number;\n}',
+  },
+  {
+    name: 'SalesforceAuthorizationRequest',
+    declaration: 'export interface SalesforceAuthorizationRequest {\n    domain: string;\n    clientId: string;\n    clientSecret?: string;\n}',
+  },
+  {
+    name: 'SalesforceConnectorSettings',
+    declaration: 'export interface SalesforceConnectorSettings {\n    domain: string;\n    orgId: string;\n    userId: string;\n}',
   },
   {
     name: 'SandboxEnforcement',
@@ -9691,6 +9711,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ShippedProcedure {\n    readonly id: MemoryItemId;\n    readonly name: string;\n    readonly description: string;\n    readonly summary: string;\n    readonly content: string;\n    readonly domain: MemoryDomain;\n}',
   },
   {
+    name: 'ShopifyAuthorizationRequest',
+    declaration: 'export interface ShopifyAuthorizationRequest {\n    shop: string;\n}',
+  },
+  {
+    name: 'ShopifyConnectorSettings',
+    declaration: 'export interface ShopifyConnectorSettings {\n    shop: string;\n    name: string;\n}',
+  },
+  {
     name: 'SkillCandidate',
     declaration: 'export interface SkillCandidate extends SkillSummary {\n    readonly rank: number;\n    readonly locator: unknown;\n    readonly path?: string;\n    readonly metadata?: Readonly<Record<string, unknown>>;\n}',
   },
@@ -10356,7 +10384,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ToolDefinition',
-    declaration: 'export interface ToolDefinition extends ToolSchema {\n    readonly output: ToolOutputDefinition;\n    execute(args: unknown, exec: ToolRunContext): Promise<unknown>;\n    finalizeContent?(exec: Readonly<ToolExecution>, result: Readonly<ToolExecutionResult>): ContentBlock[] | undefined;\n    timeoutMs?: number;\n    isConcurrencySafe?(args: unknown): boolean;\n    presentCall?(args: unknown): ToolCallView | undefined;\n    presentResult?(args: unknown, result: ToolResult): ToolResultView | undefined;\n}',
+    declaration: 'export interface ToolDefinition extends ToolSchema {\n    readonly output: ToolOutputDefinition;\n    execute(args: unknown, exec: ToolRunContext): Promise<unknown>;\n    finalizeContent?(exec: Readonly<ToolExecution>, result: Readonly<ToolExecutionResult>): ContentBlock[] | undefined;\n    timeoutMs?: number;\n    readOnlyHint?: true;\n    isConcurrencySafe?(args: unknown): boolean;\n    presentCall?(args: unknown): ToolCallView | undefined;\n    presentResult?(args: unknown, result: ToolResult): ToolResultView | undefined;\n}',
   },
   {
     name: 'ToolDispatchExecution',
