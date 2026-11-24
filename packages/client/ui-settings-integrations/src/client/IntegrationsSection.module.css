@@ -146,7 +146,7 @@
 .connectorGroups { display: flex; flex-direction: column; gap: 24px; }
 .connectorGroups .categoryHeader { position: static; text-transform: none; }
 /* The compact section sets every heading's type with !important; category titles read smaller and lighter than page headings. */
-.section.compact .connectorGroups .categoryHeader { font-size: 14px !important; line-height: 20px !important; font-weight: 400 !important; }
+.section.compact .connectorGroups .categoryHeader { font-size: 0.875rem !important; line-height: 1.25rem !important; font-weight: 400 !important; }
 /* The group labels ride the page rather than pinning to the popup's edge, and name each agent with its count. */
 .agentGroups .category { gap: 10px; }
 .agentGroups .categoryHeader { position: static; font-size: 0.875rem; line-height: 1.375rem; font-weight: 500; }
