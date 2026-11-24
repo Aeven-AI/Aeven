@@ -24,6 +24,8 @@ export interface PendingConsent {
   id: ConnectorId
   provider: ConnectorProvider
   expiresAt: number
+  /** MCP server the connector mounts when its address comes with the consent request (Azure DevOps, Oracle). */
+  endpoint?: string
   /** In-flight completion whose writes must settle before disconnect removes the account. */
   completion?: Promise<void>
 }

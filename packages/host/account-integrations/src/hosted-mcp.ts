@@ -1,12 +1,14 @@
 /**
- * Vendor-hosted MCP connectors: Notion, Vercel, Atlassian, monday.com, and Stripe. Each mounts
- * its vendor's own MCP server over Streamable HTTP with a grant the Aeven API holds.
+ * Vendor-hosted MCP connectors: Notion, Vercel, Atlassian, monday.com, Stripe, Cloudflare,
+ * AWS, Supabase, Calendly, BigQuery, and Compute Engine; BigQuery and Compute Engine are Google's
+ * and sign in through the Aeven API's Google application. Each mounts its vendor's own MCP server
+ * over Streamable HTTP with a grant the Aeven API holds.
  */
 
 import type { ConnectorProvider } from './types.ts'
 
 /** Providers whose connector mounts the vendor's hosted MCP server. */
-export type HostedMcpProvider = 'notion' | 'vercel' | 'atlassian' | 'monday' | 'stripe'
+export type HostedMcpProvider = 'notion' | 'vercel' | 'atlassian' | 'monday' | 'stripe' | 'cloudflare' | 'aws' | 'supabase' | 'calendly' | 'bigquery' | 'compute-engine'
 
 /**
  * Each provider's MCP endpoint. The Aeven API requests every grant for the vendor's MCP server,
@@ -18,6 +20,12 @@ export const HOSTED_MCP_ENDPOINTS: Readonly<Record<HostedMcpProvider, string>> =
   atlassian: 'https://mcp.atlassian.com/v1/mcp',
   monday: 'https://mcp.monday.com/mcp',
   stripe: 'https://mcp.stripe.com',
+  cloudflare: 'https://mcp.cloudflare.com/mcp',
+  aws: 'https://aws-mcp.us-east-1.api.aws/mcp',
+  supabase: 'https://mcp.supabase.com/mcp',
+  calendly: 'https://mcp.calendly.com/',
+  bigquery: 'https://bigquery.googleapis.com/mcp',
+  'compute-engine': 'https://compute.googleapis.com/mcp',
 }
 
 /**
@@ -66,4 +74,10 @@ export const HOSTED_MCP_APPROVAL_REASONS: Readonly<Record<HostedMcpProvider, str
   atlassian: 'Approve this change to your connected Atlassian site. It appears as you in Jira or Confluence.',
   monday: 'Approve this change to your connected Monday account. Other members can see it.',
   stripe: 'Approve this action on your connected Stripe account. It can change live payments, customers, or billing.',
+  cloudflare: 'Approve this change to your connected Cloudflare account. It can affect live sites, DNS, and Workers.',
+  aws: 'Approve this action on your connected AWS account. It can change live resources and incur charges.',
+  supabase: 'Approve this change to your connected Supabase account. It can change live databases, functions, and storage.',
+  calendly: 'Approve this change to your connected Calendly account. It can book, change, or cancel meetings with other people.',
+  bigquery: 'Approve this action on your connected BigQuery projects. It can change datasets and run billed queries.',
+  'compute-engine': 'Approve this change to your connected Compute Engine projects. It can change live virtual machines and incur charges.',
 }

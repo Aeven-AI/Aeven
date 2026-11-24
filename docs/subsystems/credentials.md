@@ -254,6 +254,20 @@ Signed-in users manage their own integrations; each agent mounts only its owner'
 @Remote async authorize(provider: ConnectorProvider): Promise<ConnectorAuthorization>
 
 /**
+ * Start the consent for one Azure DevOps organization with a Microsoft work or school account.
+ * @param request - the organization, as its name, `dev.azure.com` URL, or `visualstudio.com` host.
+ * @returns the Microsoft consent URL.
+ */
+@Remote async authorizeAzureDevOps(request: AzureDevOpsAuthorizationRequest): Promise<ConnectorAuthorization>
+
+/**
+ * Start the consent for an Oracle Cloud tenancy's managed MCP server through its Identity Domain application.
+ * @param request - the server URL, the Identity Domain, and the application's client id and optional secret; the secret is write-only.
+ * @returns the Identity Domain's consent URL.
+ */
+@Remote async authorizeOracle(request: OracleAuthorizationRequest): Promise<ConnectorAuthorization>
+
+/**
  * Start installing the Aeven Shopify app into one store. Each store is its own connector row, so
  * connecting a store again re-consents that row.
  * @param request - the store, as a domain, URL, admin URL, or handle.

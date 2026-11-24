@@ -43,12 +43,14 @@ import { resolveTelegramEntry, TelegramDaemon, type TelegramCredentials, type Te
 import { discordGuildIcon, resolveDiscordEntry, DISCORD_ADMIN_PERMISSIONS, DISCORD_CURATED_PERMISSIONS, type DiscordGuild } from './discord.ts'
 import { HOSTED_MCP_APPROVAL_REASONS, HOSTED_MCP_ENDPOINTS, isHostedMcp, isHostedMcpReadTool } from './hosted-mcp.ts'
 import { salesforceMcpEndpoint, salesforceRequestSchema } from './salesforce.ts'
+import { azureDevOpsMcpEndpoint, azureDevOpsRequestSchema } from './azure-devops.ts'
+import { oracleRequestSchema } from './oracle.ts'
 import { resolveShopifyEntry, shopifyRequestSchema, verifyShopify } from './shopify.ts'
 import { isSlackReadTool, slackConnectorId, SLACK_DIRECT_MESSAGE_SCOPES, SLACK_MCP_ENDPOINT, SLACK_WORKSPACE_SCOPES, type SlackWorkspace } from './slack.ts'
 import { isSlackConsentFailure, probeSlackToken, revokeSlackToken, refreshSlackToken, SlackLoginError, startSlackLogin, type SlackLogin, type SlackToken } from './slack-login.ts'
 import { connectorCredential, type PendingConsent } from './oauth.ts'
 import { BrokerError, ConnectorBroker, type ConsentStatus, type IssuedToken } from './broker.ts'
-import type { AccountIntegrationsView, CatalogPackInstall, CatalogSkillView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, ConnectorProviderView, SalesforceAuthorizationRequest, ShopifyAuthorizationRequest, DiscordConnectorSettings, PersonalSkillView, EmailConnectionFailure, EmailConnectorSettings, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillReferenceImport, SkillSetup, SkillViewId, SkillUploadFile, SlackConnectorSettings, SystemSkillAgent, SystemSkillView, TelegramConnectorSettings, TelegramPairingView, WhatsAppMessageMedia, WhatsAppPairingView, WhatsAppPhoneCodeView } from './types.ts'
+import type { AccountIntegrationsView, CatalogPackInstall, CatalogSkillView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, ConnectorProviderView, SalesforceAuthorizationRequest, ShopifyAuthorizationRequest, AzureDevOpsAuthorizationRequest, OracleAuthorizationRequest, DiscordConnectorSettings, PersonalSkillView, EmailConnectionFailure, EmailConnectorSettings, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillReferenceImport, SkillSetup, SkillViewId, SkillUploadFile, SlackConnectorSettings, SystemSkillAgent, SystemSkillView, TelegramConnectorSettings, TelegramPairingView, WhatsAppMessageMedia, WhatsAppPairingView, WhatsAppPhoneCodeView } from './types.ts'
 
 export type * from './types.ts'
 
@@ -203,9 +205,9 @@ const skillSchema = z.object({
 })
 /** Settings lists providers in this order: the original connectors, the vendor-hosted and store connectors, then custom MCP. */
 const providers = [
-  'github', 'gmail', 'google-drive', 'google-calendar', 'microsoft-365', 'outlook', 'outlook-calendar', 'onedrive', 'sharepoint', 'teams',
+  'github', 'gmail', 'google-drive', 'google-calendar', 'google-tasks', 'google-contacts', 'google-meet', 'microsoft-365', 'outlook', 'outlook-calendar', 'onedrive', 'sharepoint', 'teams',
   'email', 'whatsapp', 'telegram', 'discord', 'slack',
-  'notion', 'vercel', 'atlassian', 'monday', 'stripe', 'salesforce', 'shopify', 'mcp',
+  'notion', 'vercel', 'atlassian', 'monday', 'stripe', 'salesforce', 'shopify', 'cloudflare', 'aws', 'supabase', 'calendly', 'bigquery', 'compute-engine', 'azure-devops', 'oracle', 'mcp',
 ] as const satisfies readonly ConnectorProvider[]
 const emailServerSchema = z.object({
   host: z.string().trim().min(1).max(253).regex(/^[A-Za-z0-9.-]+$/), port: z.number().int().min(1).max(65_535),
@@ -382,7 +384,7 @@ function discordConnectorId(owner: string, guildId: string): ConnectorId {
 
 const uploadsSchema = z.array(z.object({ path: z.string().min(1), base64: z.string() })).min(1)
 /** Google, Microsoft, GitHub, and the hosted MCP servers sign in through OAuth grants the Aeven API holds. */
-const brokeredProviders = new Set<ConnectorProvider>(['github', 'notion', 'vercel', 'atlassian', 'monday', 'stripe', 'salesforce', 'shopify', 'microsoft-365', 'gmail', 'google-drive', 'google-calendar', 'outlook', 'outlook-calendar', 'onedrive', 'sharepoint', 'teams'])
+const brokeredProviders = new Set<ConnectorProvider>(['github', 'notion', 'vercel', 'atlassian', 'monday', 'stripe', 'salesforce', 'shopify', 'cloudflare', 'aws', 'supabase', 'calendly', 'bigquery', 'compute-engine', 'azure-devops', 'oracle', 'microsoft-365', 'gmail', 'google-drive', 'google-calendar', 'google-tasks', 'google-contacts', 'google-meet', 'outlook', 'outlook-calendar', 'onedrive', 'sharepoint', 'teams'])
 /** Key of the Telegram application identifiers cached after the first signed-in fetch, so linked accounts start at boot. */
 const telegramAppKey = credentialKey('account-integrations', 'telegram-application')
 /** Time before an issued access token's expiry at which the Host asks for a new one. */
@@ -392,7 +394,7 @@ const TOKEN_MARGIN_MS = 60_000
 const connectorSkills: Record<ConnectorProvider, readonly string[]> = {
   'google-drive': ['google-drive', 'google-docs', 'google-sheets', 'google-slides', 'google-drive-comments', 'google-forms'],
   gmail: ['gmail'], 'google-calendar': ['google-calendar'], github: ['github'], notion: ['notion'], vercel: ['vercel'], atlassian: ['atlassian'], monday: ['monday'], stripe: ['stripe'], salesforce: ['salesforce'], shopify: ['shopify'], 'microsoft-365': ['microsoft-365'], outlook: ['outlook'], 'outlook-calendar': ['outlook-calendar'], onedrive: ['onedrive'], sharepoint: ['sharepoint'], teams: ['teams'], mcp: [], email: [], whatsapp: ['whatsapp'], telegram: ['telegram'],
-  discord: ['discord'], slack: ['slack'],
+  discord: ['discord'], slack: ['slack'], 'google-tasks': [], 'google-contacts': [], 'google-meet': [], cloudflare: [], aws: [], supabase: [], calendly: [], bigquery: [], 'compute-engine': [], 'azure-devops': [], oracle: [],
 }
 
 /** Provider names the model's tool index shows beside each connector's own name. */
@@ -400,6 +402,29 @@ const providerTitles: Record<ConnectorProvider, string> = {
   github: 'GitHub', notion: 'Notion', vercel: 'Vercel', atlassian: 'Atlassian', monday: 'Monday', stripe: 'Stripe', salesforce: 'Salesforce', shopify: 'Shopify', 'microsoft-365': 'Microsoft 365', gmail: 'Gmail', 'google-drive': 'Google Drive', 'google-calendar': 'Google Calendar', outlook: 'Outlook mail',
   'outlook-calendar': 'Outlook Calendar', onedrive: 'OneDrive', sharepoint: 'SharePoint', teams: 'Microsoft Teams', mcp: 'MCP server',
   email: 'Email', whatsapp: 'WhatsApp', telegram: 'Telegram', discord: 'Discord', slack: 'Slack',
+  'google-tasks': 'Google Tasks', 'google-contacts': 'Google Contacts', 'google-meet': 'Google Meet', cloudflare: 'Cloudflare', aws: 'AWS', supabase: 'Supabase', calendly: 'Calendly', bigquery: 'BigQuery', 'compute-engine': 'Compute Engine', 'azure-devops': 'Azure DevOps', oracle: 'Oracle Cloud',
+}
+
+/**
+ * What the approval prompt says for a provider whose server address belongs to the connection, not to
+ * the provider: each trusts its server's `readOnlyHint` the way the vendor-hosted servers do.
+ */
+const OWN_SERVER_APPROVAL_REASONS: Partial<Record<ConnectorProvider, string>> = {
+  salesforce: 'Approve this change to your connected Salesforce org. It changes records other users see.',
+  shopify: 'Approve this change to your connected Shopify store. It changes the live store.',
+  'azure-devops': 'Approve this change to your connected Azure DevOps organization. Other members can see it.',
+  oracle: 'Approve this action on your connected Oracle Cloud tenancy. It can change live databases.',
+}
+
+/**
+ * The name Settings shows for a connection whose server came with its consent request.
+ * @param provider - `azure-devops` or `oracle`.
+ * @param endpoint - the connection's MCP server.
+ * @returns the Azure DevOps organization, or the Oracle server's host.
+ */
+function serverName(provider: ConnectorProvider, endpoint: string): string {
+  const url = new URL(endpoint)
+  return provider === 'azure-devops' ? decodeURIComponent(url.pathname.slice(1)) : url.host
 }
 
 /** Connector tool names: `mcp__<provider>_<first 8 hex digits of the connector id>__<tool>`. */
@@ -909,15 +934,14 @@ export default class AccountIntegrations extends TypertRemoteService {
           // Slack owns these names, so an unrecognized one asks rather than posting unreviewed.
           return { kind: 'ask', allowSession: exec.name, allowSessionCoverage: 'account', reason: 'Approve this action on your connected Slack workspace. It will appear as you.' }
         }
-        if (isHostedMcp(connector.provider) || connector.provider === 'salesforce' || connector.provider === 'shopify') {
-          // The vendor's own server is trusted to mark its reads; a tool it does not mark asks first.
+        // The vendor's own server is trusted to mark its reads; a tool it does not mark asks first.
+        const ownServerReason = OWN_SERVER_APPROVAL_REASONS[connector.provider]
+        if (ownServerReason !== undefined) {
+          if (this.ctx.tools.get(exec.name, exec.agent)?.readOnlyHint === true) return next()
+          return { kind: 'ask', allowSession: exec.name, allowSessionCoverage: 'account', reason: ownServerReason }
+        }
+        if (isHostedMcp(connector.provider)) {
           const readOnlyHint = this.ctx.tools.get(exec.name, exec.agent)?.readOnlyHint === true
-          if (connector.provider === 'salesforce' || connector.provider === 'shopify') {
-            if (readOnlyHint) return next()
-            return { kind: 'ask', allowSession: exec.name, allowSessionCoverage: 'account', reason: connector.provider === 'shopify'
-              ? 'Approve this change to your connected Shopify store. It changes the live store.'
-              : 'Approve this change to your connected Salesforce org. It changes records other users see.' }
-          }
           if (isHostedMcpReadTool(connector.provider, exec.name.slice(match[0].length), readOnlyHint)) return next()
           return { kind: 'ask', allowSession: exec.name, allowSessionCoverage: 'account', reason: HOSTED_MCP_APPROVAL_REASONS[connector.provider] }
         }
@@ -1502,7 +1526,36 @@ export default class AccountIntegrations extends TypertRemoteService {
     if (provider === 'slack') return this.authorizeSlack(owner)
     if (provider === 'salesforce') throw new Error('Salesforce orgs are connected with authorizeSalesforce')
     if (provider === 'shopify') throw new Error('Shopify stores are connected with authorizeShopify')
+    if (provider === 'azure-devops') throw new Error('Azure DevOps organizations are connected with authorizeAzureDevOps')
+    if (provider === 'oracle') throw new Error('Oracle Cloud tenancies are connected with authorizeOracle')
     return this.startConsent(owner, provider)
+  }
+
+  /**
+   * Start the consent for one Azure DevOps organization with a Microsoft work or school account.
+   * @param request - the organization, as its name, `dev.azure.com` URL, or `visualstudio.com` host.
+   * @returns the Microsoft consent URL.
+   */
+  @Remote
+  async authorizeAzureDevOps(request: AzureDevOpsAuthorizationRequest): Promise<ConnectorAuthorization> {
+    const owner = this.owner()
+    const parsed = azureDevOpsRequestSchema.safeParse(request)
+    if (!parsed.success) throw new Error('enter the Azure DevOps organization name')
+    return this.startConsent(owner, 'azure-devops', undefined, undefined, azureDevOpsMcpEndpoint(parsed.data.organization))
+  }
+
+  /**
+   * Start the consent for an Oracle Cloud tenancy's managed MCP server through its Identity Domain application.
+   * @param request - the server URL, the Identity Domain, and the application's client id and optional secret; the secret is write-only.
+   * @returns the Identity Domain's consent URL.
+   */
+  @Remote
+  async authorizeOracle(request: OracleAuthorizationRequest): Promise<ConnectorAuthorization> {
+    const owner = this.owner()
+    const parsed = oracleRequestSchema.safeParse(request)
+    if (!parsed.success) throw new Error('enter the MCP server URL, the Identity Domain, and the application\'s client id')
+    const { server, domain, clientId, clientSecret } = parsed.data
+    return this.startConsent(owner, 'oracle', { domain, clientId, ...clientSecret === undefined ? {} : { clientSecret } }, undefined, server)
   }
 
   /**
@@ -1538,11 +1591,13 @@ export default class AccountIntegrations extends TypertRemoteService {
    * Start a consent the Aeven API runs, bound to one signed-in user.
    * @param owner - the signed-in user.
    * @param provider - a brokered provider, or `discord`.
-   * @param client - the user's own application, for a provider without a shared one (Salesforce).
+   * @param client - the user's own application, for a provider without a shared one (Salesforce, Oracle).
+   * @param shop - the Shopify store the consent installs into.
+   * @param endpoint - the MCP server the connector mounts, when the request names it (Azure DevOps, Oracle).
    * @returns the provider consent URL.
    */
   private async startConsent(
-    owner: string, provider: ConnectorProvider, client?: SalesforceAuthorizationRequest, shop?: string,
+    owner: string, provider: ConnectorProvider, client?: SalesforceAuthorizationRequest, shop?: string, endpoint?: string,
   ): Promise<ConnectorAuthorization> {
     if (this.broker === undefined || (provider !== 'discord' && !brokeredProviders.has(provider))) {
       throw new Error('provider sign-in is not configured for this deployment')
@@ -1564,7 +1619,7 @@ export default class AccountIntegrations extends TypertRemoteService {
         : 'provider sign-in could not start; try again')
     })
     const expiresAt = Math.min(Date.parse(started.expiresAt), Date.now() + this.config.consentLifetimeMs)
-    this.consents.set(started.state, { owner, id, provider, expiresAt })
+    this.consents.set(started.state, { owner, id, provider, expiresAt, ...endpoint === undefined ? {} : { endpoint } })
     this.watchConsents()
     return { url: started.url }
   }
@@ -2829,10 +2884,12 @@ export default class AccountIntegrations extends TypertRemoteService {
     const microsoft = microsoftService(consent.provider)
     if (consent.provider === 'salesforce' && result.salesforce === undefined) throw new Error('Salesforce org metadata is missing')
     if (consent.provider === 'shopify' && result.shop === undefined) throw new Error('Shopify store metadata is missing')
-    const endpointUrl = google?.endpoint ?? microsoft?.endpoint ?? (isHostedMcp(consent.provider) ? HOSTED_MCP_ENDPOINTS[consent.provider]
-      : consent.provider === 'salesforce' && result.salesforce !== undefined ? salesforceMcpEndpoint(result.salesforce.domain, this.config.salesforceMcpServer)
-        : consent.provider === 'shopify' && result.shop !== undefined ? `https://${result.shop}/admin`
-          : 'https://api.githubcopilot.com/mcp/')
+    if ((consent.provider === 'azure-devops' || consent.provider === 'oracle') && consent.endpoint === undefined) throw new Error('the MCP server address is missing')
+    const endpointUrl = google?.endpoint ?? microsoft?.endpoint ?? consent.endpoint
+      ?? (isHostedMcp(consent.provider) ? HOSTED_MCP_ENDPOINTS[consent.provider]
+        : consent.provider === 'salesforce' && result.salesforce !== undefined ? salesforceMcpEndpoint(result.salesforce.domain, this.config.salesforceMcpServer)
+          : consent.provider === 'shopify' && result.shop !== undefined ? `https://${result.shop}/admin`
+            : 'https://api.githubcopilot.com/mcp/')
     let shopifyRow: z.infer<typeof connectorSchema>['shopify']
     let microsoftRow: z.infer<typeof connectorSchema>['microsoft']
     try {
@@ -2859,7 +2916,8 @@ export default class AccountIntegrations extends TypertRemoteService {
     await this.ctx.credentials.deleteRecord(connectorCredential(consent.owner, consent.id))
     await this.domain.table('connectors').put(consent.id, {
       owner: consent.owner, id: consent.id, provider: consent.provider,
-      name: result.account?.username ?? result.salesforce?.domain ?? shopifyRow?.name ?? consent.provider,
+      name: (consent.endpoint === undefined ? undefined : serverName(consent.provider, consent.endpoint))
+        ?? result.account?.username ?? result.salesforce?.domain ?? shopifyRow?.name ?? consent.provider,
       endpoint: endpointUrl, enabled: true, grant: { scopes: result.scopes ?? [] },
       ...microsoftRow === undefined ? {} : { microsoft: microsoftRow },
       ...result.salesforce === undefined ? {} : { salesforce: result.salesforce },

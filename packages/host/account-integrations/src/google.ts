@@ -1,7 +1,8 @@
 /**
  * Account-scoped Workspace MCP bridge. Delegated scopes are the widest that Google classes as sensitive or non-sensitive, never
  * restricted, so verification needs no security assessment: Gmail sends and labels (mail is read through an email account),
- * Drive opens only files the user created or opened with Aeven plus any Doc, Sheet, Slide or Form by id, and Calendar is full.
+ * Drive opens only files the user created or opened with Aeven plus any Doc, Sheet, Slide or Form by id, and Calendar, Tasks and
+ * Contacts are full. Meet manages the meeting spaces Aeven creates and reads the conference records of any space the user can open.
  * The first scope of each list is the one a grant must hold for its connector to count as connected.
  */
 
@@ -48,6 +49,31 @@ const googleConnectors = {
     'arguments': {},
     'scopes': ['https://www.googleapis.com/auth/calendar'],
   },
+  'google-tasks': {
+    'endpoint': 'https://tasks.googleapis.com/tasks/v1/',
+    'services': 'tasks',
+    'check': 'tasks_lists',
+    'arguments': {},
+    'scopes': ['https://www.googleapis.com/auth/tasks'],
+  },
+  'google-contacts': {
+    'endpoint': 'https://people.googleapis.com/v1/',
+    'services': 'people',
+    'check': 'contacts_list',
+    'arguments': { 'max': 1 },
+    'scopes': ['https://www.googleapis.com/auth/contacts'],
+  },
+  // The bridge has no Meet tools of its own; its generic Workspace method tool reaches the Meet API.
+  'google-meet': {
+    'endpoint': 'https://meet.googleapis.com/v2/',
+    'services': 'meet',
+    'check': 'workspace_raw',
+    'arguments': { 'service': 'meet', 'path': ['conferenceRecords', 'list'], 'params': { 'pageSize': 1 } },
+    'scopes': [
+      'https://www.googleapis.com/auth/meetings.space.created',
+      'https://www.googleapis.com/auth/meetings.space.readonly',
+    ],
+  },
 } as const
 
 /**
@@ -60,6 +86,9 @@ export function googleService(provider: ConnectorProvider): typeof googleConnect
     case 'gmail': return googleConnectors.gmail
     case 'google-drive': return googleConnectors['google-drive']
     case 'google-calendar': return googleConnectors['google-calendar']
+    case 'google-tasks': return googleConnectors['google-tasks']
+    case 'google-contacts': return googleConnectors['google-contacts']
+    case 'google-meet': return googleConnectors['google-meet']
     default: return undefined // Other providers use deployment-configured MCP resources.
   }
 }
