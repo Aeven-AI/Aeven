@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-11-24-hosted-mcp-connectors-trust-vendor-read-hints.md
-2026-11-24-hosted-mcp-connectors-trust-vendor-read-hints.md: f3baacdeaf501940d65eb80d1cfc557fa688ce31
-2026-11-24-hosted-mcp-connectors-trust-vendor-read-hints.zh.md: 4aed32bb005b672d9092663825455ec949322a5f
+2026-11-24-hosted-mcp-connectors-trust-vendor-read-hints.md: f758e3a2cc5962e63bcefb92a0249facbda141d8
+2026-11-24-hosted-mcp-connectors-trust-vendor-read-hints.zh.md: fad6887e7e2e40ce7f1fe213d0ccef569dfb065e

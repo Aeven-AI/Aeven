@@ -25,6 +25,7 @@ interface MockTool {
   inputSchema: Record<string, unknown>
   outputSchema?: Record<string, unknown>
   execution?: { taskSupport?: 'optional' | 'required' | 'forbidden' }
+  annotations?: { readOnlyHint?: boolean }
 }
 
 interface MockCallResult {

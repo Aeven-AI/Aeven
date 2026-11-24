@@ -10,7 +10,7 @@
 
 import { z } from 'zod'
 import type { DiscordGuild } from './discord.ts'
-import type { ConnectorId, ConnectorProvider } from './types.ts'
+import type { ConnectorId, ConnectorProvider, SalesforceAuthorizationRequest } from './types.ts'
 
 /** Why a broker call failed; `reauthorize` means the user must consent again. */
 export type BrokerFailure = 'signed-out' | 'not-configured' | 'not-connected' | 'reauthorize' | 'unavailable'
@@ -41,6 +41,7 @@ const statusSchema = z.object({
     account: z.object({ id: z.string(), name: z.string(), username: z.string() }).optional(),
     guild: guildSchema.optional(),
     installer: z.object({ id: z.string(), name: z.string() }).optional(),
+    salesforce: z.object({ domain: z.string().min(1), orgId: z.string().min(1), userId: z.string().min(1) }).optional(),
     botUserId: z.string().optional(),
     applicationId: z.string().optional(),
   }).optional(),
@@ -98,12 +99,13 @@ export class ConnectorBroker {
   /**
    * Start a consent; the API keeps the PKCE verifier.
    * @param owner - signed-in user.
-   * @param request - provider, the Host connector id for OAuth providers, and Discord's permission bitfield.
+   * @param request - provider, the Host connector id for OAuth providers, Discord's permission bitfield, and the
+   * user's own application for a provider without a shared one (Salesforce).
    * @returns the provider URL to open and the state to poll.
    */
   async start(
     owner: string,
-    request: { provider: ConnectorProvider; connectorId?: ConnectorId; permissions?: string },
+    request: { provider: ConnectorProvider; connectorId?: ConnectorId; permissions?: string; client?: SalesforceAuthorizationRequest },
   ): Promise<z.infer<typeof startSchema>> {
     return startSchema.parse(await this.call(owner, 'POST', '/connectors/oauth/start', request))
   }

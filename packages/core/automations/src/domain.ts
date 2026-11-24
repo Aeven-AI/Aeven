@@ -33,7 +33,7 @@ const runOn = z.enum(['auto', 'cloud', 'device'])
 const automationId = text.transform(value => brandString<AutomationId>(value))
 /** Connector ids a bot may be bound to. */
 export const CONNECTOR_IDS = [
-  'email', 'gmail', 'google-drive', 'google-calendar', 'github', 'notion', 'vercel', 'atlassian', 'monday', 'stripe', 'slack', 'discord', 'telegram', 'whatsapp',
+  'email', 'gmail', 'google-drive', 'google-calendar', 'github', 'notion', 'vercel', 'atlassian', 'monday', 'stripe', 'salesforce', 'slack', 'discord', 'telegram', 'whatsapp',
   'microsoft-365', 'outlook', 'outlook-calendar', 'onedrive', 'sharepoint', 'teams', 'mcp',
 ] as const
 /** A connector binding: `all`, or a list stored without repeats in a fixed order. */

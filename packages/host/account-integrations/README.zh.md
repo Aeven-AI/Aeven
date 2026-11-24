@@ -39,6 +39,8 @@ Google、Microsoft、GitHub 及托管 MCP 提供方通过 Aeven API 的连接器
 
 Notion、Vercel、Atlassian、monday.com 和 Stripe 各自以 Aeven API 持有的授权，通过 Streamable HTTP 挂载其供应商托管的 MCP 服务器；`hosted-mcp.ts` 列出这些端点。它们的授权服务器动态注册 OAuth 客户端，因此 API 在每个提供方首次授权时自行注册并保存该注册，且每项授权都以该供应商的 MCP 服务器作为资源请求；部署无需为它们配置任何凭据。授权只能访问用户在供应商授权页面上允许的内容。供应商自己的服务器标注为 `readOnlyHint: true` 的工具直接执行，其他所有工具都会先征求批准；Notion 的读取工具则来自 Notion 发布的工具参考——搜索、获取、页面列表、成员与团队空间、数据源查询、评论、建议编辑、版本历史及附件下载。每项批准都可覆盖本会话剩余部分中的同一工具。
 
+Salesforce 挂载组织在 `api.salesforce.com` 上托管的 MCP 服务器：生产组织和 Developer Edition 组织使用 `platform` 下的 `salesforceMcpServer` 服务器，沙盒和临时组织使用 `sandbox` 下的同名服务器。Salesforce 没有共享应用，也不支持动态注册：组织管理员需创建一个外部客户端应用，使用 API 的连接器回调、`mcp_api` 和 `refresh_token` 权限范围及 PKCE，并在“设置 → API 目录 → MCP 服务器”中启用该服务器。随后，设置页面收集组织的“我的域”和应用的使用者密钥（应用要求时还有使用者密码），`authorizeSalesforce` 以此发起授权。Aeven API 只接受 Salesforce“我的域”主机，将应用凭据与授权一起加密保存，并且由于 Salesforce 不报告令牌有效期，每 15 分钟刷新一次访问令牌。连接行记录组织的“我的域”、组织 ID 及授权用户的 ID。服务器标注为 `readOnlyHint: true` 的工具直接执行，其他所有工具都会先征求批准。
+
 WhatsApp 和 Telegram 每个账户各自占一行连接器，每行拥有一个受监管的守护进程，其绑定的回环端口由操作系统分配。宿主启动该进程并在异常退出后按退避策略重启，保持其标准输入打开，因此宿主崩溃后不会遗留持有会话的进程，并把守护进程写到 stderr 的警告与错误行记入日志；其工具挂载为 `mcp__<provider>_<connector-id-prefix>__<tool>`。每个对话步骤开始前都会挂载所有连接器；无法连接的连接器会被记录，并在 `connectorRetryMs` 内或其令牌、端点或服务器入口改变之前从步骤中略过，因此出问题的账户绝不会终止一个轮次，也不会拖慢每个步骤。设置中扫描二维码即可关联 WhatsApp 号码；在要关联的手机上，也可以输入 `whatsAppPhoneCode` 从守护进程 `/pair/phone` 路由为该号码取得的八位代码来关联，号码需带国家代码，可写 `+`、`00` 或 `(0)`（守护进程为每个代码开启新的登录会话，因为代码只在其会话 160 秒的二维码窗口内有效；手机收到的代码不匹配时，WhatsApp 发送 `refresh_code`，守护进程发放新代码并由关联视图的 `phoneCode` 携带；多次尝试后 WhatsApp 返回 `429 rate-overlimit`，此时答复 `rate-limited`）；Telegram 账户则输入手机号、Telegram 发送的验证码，以及 Telegram 要求时的两步验证密码完成登录。WhatsApp 关联尝试属于宿主而非页面：离开页面去扫描，或手机浏览器丢弃该标签页，都会保留这次尝试，未扫描的尝试在授权有效期结束后过期。手机扫描二维码后保存该号码；Telegram 授权后保存该账户，已在列表中的账户会被拒绝而不会重复添加。取消关联会在提供商侧结束会话并删除该连接器的数据目录。每个账户各自拥有进程与命名空间，因此一个对话可以访问多个账户而不会相互混淆。`whatsAppMessageMedia` 按列出消息的调用的工具名，为 WhatsApp 卡片提供一条消息的媒体（base64 编码）：它只响应当前用户自己关联的号码，先询问工具名指向的连接器，再询问该用户关联的其他号码，因为在另一台设备上列出的消息指向本 Host 没有的连接器，而关联同一手机的所有设备都以相同 ID 识别该消息；经由守护进程受令牌保护的 `/media` 路由取得，该路由会把语音消息重新编码为 AAC 以便所有浏览器播放；文件超过 `whatsappMediaMaxBytes` 时不返回内容。
 
 Telegram 守护进程是 vendored 的 [`bstuff/telegram-mcp`](../../../native/telegram-mcp/README.zh.md) 服务，外加 Aeven 提供的入口，用于增加回环 MCP 端点与登录控制路由。部署方已注册的 Telegram 应用标识由已登录用户的会话从 Aeven API 获取，并缓存在凭据提供方中，因此已关联的账户可在启动时运行；宿主仅将其传入守护进程的环境，因此它们不会出现在工具 schema、模型请求或浏览器响应中。每个 MTProto 客户端都会出示这些标识，它们只标识应用，不授予任何账户权限。每个账户的会话字符串、身份缓存与下载内容都保存在该账户自己的目录中。用户可以用 Telegram 应用扫描二维码登录，也可以用手机号和验证码登录；若账户启用了两步验证，Telegram 随后会要求输入密码。同一用户的每个 Telegram 账户只有一个连接器 id，由该用户与 Telegram 用户 id 派生：重新登录已退出的账户会就地恢复，取消关联后重新登录也会得到相同的 id，因此已在使用该账户工具的对话中，工具名称保持不变。登录一个已登录的账户会作为重复而被拒绝。
@@ -159,6 +161,7 @@ Slack 是唯一不需要在 Aeven API 上保存凭据的提供方：它的 PKCE 
 | `discordAdminTools` | false | 提供管理与审核工具，并请求其所需权限 |
 | `discordVerifyIntervalMs` | 300000 | 已验证的服务器成员身份在被再次询问前可信的时长 |
 | `maxSlackWorkspaces` | 10 | 一个账户可连接的 Slack 工作区数量 |
+| `salesforceMcpServer` | `sobject-all` | Salesforce 连接器挂载的 Salesforce 托管 MCP 服务器；组织管理员必须已启用该服务器 |
 | `slackClientId` | 无 | 部署的 Slack 应用客户端 id，它是公开的；缺失则 Slack 不可用 |
 | `slackCallbackPort` | 12751 | Slack 应用注册为 `http://127.0.0.1:<port>/callback` 的回环端口 |
 | `slackDirectMessages` | false | 另外请求私信搜索与历史，后者也必须注册在应用上 |
