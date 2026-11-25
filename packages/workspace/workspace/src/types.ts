@@ -61,6 +61,16 @@ declare module '@deepseek-ai/cordis' {
      */
     'workspace/files-requested'(workspace: WorkspaceId): void
     /**
+     * A reader on this device, such as the file explorer of a client following the session, needs the files of the
+     * session's workspace here. A Consumer that syncs workspace files brings them as it would for a turn the session
+     * runs on this device, and settles once this device holds the workspace or once `signal` aborts; reads of files
+     * that have not arrived wait for them as a turn's reads do.
+     * @mode parallel
+     * @param sessionId - the session whose workspace files are wanted.
+     * @param signal - the reader's cancellation; an abort ends the wait, not the transfer.
+     */
+    'workspace/session-files-wanted'(sessionId: SessionId, signal: AbortSignal): Promise<void>
+    /**
      * The user paused or resumed file sync for an account on this device; read it with
      * `WorkspaceRegistry.filesPaused`.
      * @mode emit

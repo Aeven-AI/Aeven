@@ -50,6 +50,8 @@ import type {} from '@aeven/aeven-folder-sync'
 import type {} from '@aeven/identity-user'
 import type { SessionId } from '@aeven/session'
 import type {} from '@aeven/session-query'
+import type {} from '@aeven/session-projection'
+import type {} from '@aeven/workspace'
 import { sessionWorkspaceRoot, WorkingDirectoryUnavailableError } from '@aeven/working-directory'
 import { Remote, RemoteError, TypertRemoteService } from '@aeven/typert-protocol'
 import { brandString } from '@aeven/brand'
@@ -99,6 +101,11 @@ export interface Config {
   readonly watchDelayMs: number
   /** Cap on the entries one delete confirmation counts inside a folder. */
   readonly countMaxItems: number
+  /**
+   * Longest wait for the workspace syncs to bring a Session's workspace here when a reader opens its explorer or reads
+   * a file this device does not hold yet; the transfer goes on after the wait ends.
+   */
+  readonly arrivalWaitMs: number
 }
 
 /** The byte text never carries: its presence marks a page as binary. */
@@ -272,6 +279,7 @@ export class WorkspaceFiles extends TypertRemoteService {
     maxFileBytes: z.number().step(1).min(1).default(512 * 1024 * 1024),
     watchDelayMs: z.number().step(1).min(0).default(150),
     countMaxItems: z.number().step(1).min(1).default(10_000),
+    arrivalWaitMs: z.number().step(1).min(0).default(10_000),
   })
 
   /**
@@ -301,12 +309,10 @@ export class WorkspaceFiles extends TypertRemoteService {
     let target: FsTarget
     let bytes: Uint8Array
     try {
-      const { root: workspaceRoot, owner } = await this.rootAndOwnerOf(brandString<SessionId>(sessionId))
-      target = await this.aevenFolderFile(owner, path, request.signal)
-        ?? (this.config.confineReads === true
-          ? await this.confine(await this.ctx.fs.resolve(workspaceRoot, { signal: request.signal }), workspaceRoot, path, request.signal)
-          : await this.ctx.fs.resolve(path, { cwd: workspaceRoot, signal: request.signal }))
-      const info = await this.ctx.fs.stat(target, request.signal)
+      const id = brandString<SessionId>(sessionId)
+      target = await this.readTarget(await this.placeOf(id), path, request.signal)
+      let info = await this.ctx.fs.stat(target, request.signal)
+      if (info === undefined) ({ target, info } = await this.afterArrival(id, path, request.signal))
       if (info === undefined) return plain(404, 'not found')
       if (info.type !== 'file') return plain(403, 'not a regular file')
       if (info.size !== undefined && info.size > this.config.maxFileBytes) return plain(413, 'file exceeds byte limit')
@@ -349,9 +355,9 @@ export class WorkspaceFiles extends TypertRemoteService {
         const agent = exec.agent
         if (agent === undefined) throw new Error('Showing files in the sidebar requires a calling agent')
         const path = args.path ?? ''
-        const workspaceRoot = this.workspaceRootOf(agent)
-        const root = await this.ctx.fs.resolve(workspaceRoot, { signal: exec.signal })
-        const target = path.length === 0 ? root : await this.ctx.fs.resolve(path, { cwd: workspaceRoot, signal: exec.signal })
+        const place = await this.placeOf(agent.session.id)
+        const root = await this.ctx.fs.resolve(place.root, { signal: exec.signal })
+        const target = path.length === 0 ? root : await this.readTarget(place, path, exec.signal)
         const info = await this.ctx.fs.stat(target, exec.signal)
         if (info === undefined) throw new Error(`No file or folder exists at "${path}"`)
         if (info.type === 'other') throw new Error(`"${path}" is neither a file nor a folder`)
@@ -388,9 +394,9 @@ export class WorkspaceFiles extends TypertRemoteService {
    */
   @Remote
   async list(sessionId: SessionId, path: string, signal: AbortSignal): Promise<WorkspaceDirectoryListing> {
-    const workspaceRoot = await this.workspaceRootFor(sessionId)
-    const root = await this.ctx.fs.resolve(workspaceRoot, { signal })
-    const target = await this.confine(root, workspaceRoot, path, signal)
+    // Opening the explorer brings the workspace here first, so the tree a reader sees is the one the Session works in.
+    if (path.length === 0) await this.wantFiles(sessionId, signal)
+    const { root, target } = await this.confine(await this.placeOf(sessionId), path, signal)
     const info = await this.ctx.fs.stat(target, signal)
     if (info === undefined) throw new RemoteError('workspace-file/not-found', `no entry at "${path}"`, { path })
     if (info.type !== 'directory') {
@@ -421,12 +427,9 @@ export class WorkspaceFiles extends TypertRemoteService {
   @Remote
   async read(sessionId: SessionId, path: string, signal: AbortSignal): Promise<WorkspaceFileText> {
     if (path.length === 0) throw new RemoteError('gateway/bad-request', 'path is required', {})
-    const workspaceRoot = await this.workspaceRootFor(sessionId)
-    const root = await this.ctx.fs.resolve(workspaceRoot, { signal })
-    const target = this.config.confineReads === true
-      ? await this.confine(root, workspaceRoot, path, signal)
-      : await this.ctx.fs.resolve(path, { cwd: workspaceRoot, signal })
-    const info = await this.ctx.fs.stat(target, signal)
+    let target = await this.readTarget(await this.placeOf(sessionId), path, signal)
+    let info = await this.ctx.fs.stat(target, signal)
+    if (info === undefined) ({ target, info } = await this.afterArrival(sessionId, path, signal))
     if (info === undefined) throw new RemoteError('workspace-file/not-found', `no entry at "${path}"`, { path })
     if (info.type !== 'file') {
       throw new RemoteError('workspace-file/not-regular-file', `"${path}" is a ${info.type}`, { path, kind: info.type })
@@ -664,12 +667,11 @@ export class WorkspaceFiles extends TypertRemoteService {
    * @throws {RemoteError} `workspace-file/read-only`, `workspace-file/unsupported`, or a listing's own refusals.
    */
   private async writableFolder(sessionId: SessionId, folder: string, signal: AbortSignal): Promise<{ host: string; path: string }> {
-    const { root: workspaceRoot, mode } = await this.placeFor(sessionId)
+    const { mode } = await this.placeFor(sessionId)
     if (mode === 'read-only') {
       throw new RemoteError('workspace-file/read-only', 'this Session\'s file policy is read-only', { path: folder })
     }
-    const root = await this.ctx.fs.resolve(workspaceRoot, { signal })
-    const target = await this.confine(root, workspaceRoot, folder, signal)
+    const { root, target } = await this.confine(await this.placeOf(sessionId), folder, signal)
     const info = await this.ctx.fs.stat(target, signal)
     if (info === undefined) throw new RemoteError('workspace-file/not-found', `no entry at "${folder}"`, { path: folder })
     if (info.type !== 'directory') {
@@ -702,9 +704,7 @@ export class WorkspaceFiles extends TypertRemoteService {
 
   /** One folder inside the workspace on the Host's filesystem, for a read. */
   private async readableFolder(sessionId: SessionId, folder: string, signal: AbortSignal): Promise<{ host: string; path: string }> {
-    const workspaceRoot = await this.workspaceRootFor(sessionId)
-    const root = await this.ctx.fs.resolve(workspaceRoot, { signal })
-    const target = await this.confine(root, workspaceRoot, folder, signal)
+    const { root, target } = await this.confine(await this.placeOf(sessionId), folder, signal)
     const host = this.hostPathOf(target)
     if (host === undefined) {
       throw new RemoteError('workspace-file/unsupported', 'this Host cannot reach the workspace\'s files', { operation: 'count' })
@@ -800,7 +800,7 @@ export class WorkspaceFiles extends TypertRemoteService {
    * @throws {WorkingDirectoryUnavailableError} when the Session's workspace has no folder on this device.
    */
   private async workspaceRootFor(sessionId: SessionId): Promise<string> {
-    return (await this.rootAndOwnerOf(sessionId)).root
+    return (await this.placeOf(sessionId)).root
   }
 
   /**
@@ -822,12 +822,20 @@ export class WorkspaceFiles extends TypertRemoteService {
     return this.ctx.fs.contains(root, target) ? target : undefined
   }
 
-  /** The Session's workspace root on this device and its account, refusing a Session the caller may not open. */
-  private async rootAndOwnerOf(sessionId: SessionId): Promise<{ root: string; owner: string | undefined }> {
+  /**
+   * The Session's workspace root on this device, its account, and the roots its log recorded, refusing a Session the
+   * caller may not open.
+   */
+  private async placeOf(sessionId: SessionId): Promise<SessionPlace> {
     const live = this.ctx.get('agents')?.get(sessionId)
     if (live !== undefined) {
       this.assertMayAccess(sessionId, live.session.header.owner)
-      return { root: this.workspaceRootOf(live), owner: live.session.header.owner }
+      const logged = this.ctx.get('sessionProjections')?.stateOf(live.session, 'workingDirectory')
+      return {
+        root: this.workspaceRootOf(live),
+        owner: live.session.header.owner,
+        recorded: recordedRoots(live.session.header.cwd, logged),
+      }
     }
     const query = this.ctx.get('sessionQuery')
     if (query === undefined) throw new RemoteError('session/not-found', `session "${sessionId}" not found`, { sessionId })
@@ -847,7 +855,11 @@ export class WorkspaceFiles extends TypertRemoteService {
       ? (held.header.cwd === undefined ? { state: 'absent' as const } : { state: 'local' as const, cwd: held.header.cwd, root: held.header.cwd })
       : directory.observed(held.header, held.projections?.values.workingDirectory)
     if (local.state === 'unresolved') throw new WorkingDirectoryUnavailableError(sessionId, local.reason)
-    return { root: local.state === 'local' ? local.root : this.ctx.sandboxPolicy.workspaceRoot, owner: held.header.owner }
+    return {
+      root: local.state === 'local' ? local.root : this.ctx.sandboxPolicy.workspaceRoot,
+      owner: held.header.owner,
+      recorded: recordedRoots(held.header.cwd, held.projections?.values.workingDirectory),
+    }
   }
 
   /** Refuse a Session another account owns exactly as an absent one, so a caller cannot learn which exist. */
@@ -857,14 +869,93 @@ export class WorkspaceFiles extends TypertRemoteService {
     }
   }
 
-  /** Resolve `path` against the root and refuse it unless the workspace contains it. */
-  private async confine(root: FsTarget, workspaceRoot: string, path: string, signal: AbortSignal): Promise<FsTarget> {
-    const target = path.length === 0 ? root : await this.ctx.fs.resolve(path, { cwd: workspaceRoot, signal })
+  /**
+   * Resolve a path a client names against the Session's workspace here and refuse it unless the workspace contains
+   * it. A path another device of the account recorded under its own root for the Session names the same entry here.
+   * @returns the resolved workspace root and the entry.
+   */
+  private async confine(place: SessionPlace, path: string, signal: AbortSignal): Promise<{ root: FsTarget; target: FsTarget }> {
+    const root = await this.ctx.fs.resolve(place.root, { signal })
+    const local = toLocal(place, path)
+    const target = local.length === 0 ? root : await this.ctx.fs.resolve(local, { cwd: place.root, signal })
     if (!this.ctx.fs.contains(root, target)) {
       throw new RemoteError('workspace-file/outside-workspace', `"${path}" is outside the workspace`, { path })
     }
-    return target
+    return { root, target }
   }
+
+  /**
+   * The entry a read of a client-named path opens on this device: the account's Aeven folder copy for a path inside
+   * any device's Aeven folder, otherwise the path under the workspace here, confined to it when reads are confined.
+   */
+  private async readTarget(place: SessionPlace, path: string, signal: AbortSignal): Promise<FsTarget> {
+    const own = await this.aevenFolderFile(place.owner, path, signal)
+    if (own !== undefined) return own
+    if (this.config.confineReads === true) return (await this.confine(place, path, signal)).target
+    return this.ctx.fs.resolve(toLocal(place, path), { cwd: place.root, signal })
+  }
+
+  /**
+   * A read that found nothing here: ask the workspace syncs to bring the Session's workspace, as a turn here would,
+   * waiting at most `arrivalWaitMs`, then resolve the path again.
+   * @returns the entry and its stat after the wait; the stat is undefined when the file still has not arrived.
+   */
+  private async afterArrival(sessionId: SessionId, path: string, signal: AbortSignal): Promise<{ target: FsTarget; info: Awaited<ReturnType<Context['fs']['stat']>> }> {
+    await this.wantFiles(sessionId, signal)
+    const place = await this.placeOf(sessionId)
+    const target = await this.readTarget(place, path, signal)
+    return { target, info: await this.ctx.fs.stat(target, signal) }
+  }
+
+  /** Ask the workspace syncs for a Session's workspace files here, for a reader; a running Agent's turn already did. */
+  private async wantFiles(sessionId: SessionId, signal: AbortSignal): Promise<void> {
+    const registry = this.ctx.get('workspaceRegistry')
+    if (registry === undefined || this.ctx.get('agents')?.get(sessionId) !== undefined) return
+    await registry.wantSessionFiles(sessionId, AbortSignal.any([signal, AbortSignal.timeout(this.config.arrivalWaitMs)]))
+  }
+}
+
+/** Where a Session's files are for this device: its workspace root here, its account, and every root it recorded. */
+interface SessionPlace {
+  readonly root: string
+  readonly owner: string | undefined
+  /** The roots the Session's log recorded on each device that ran it, the header's first. */
+  readonly recorded: readonly string[]
+}
+
+/**
+ * A path a client names, with a prefix that another device recorded as the Session's workspace root replaced by the
+ * root here: a conversation that ran elsewhere names its files by that device's absolute paths.
+ * @param place - the Session's root here and its recorded roots.
+ * @param path - the path as the client names it, relative or absolute.
+ * @returns the path to resolve here; relative and unrecorded paths come back unchanged.
+ */
+export function toLocal(place: Pick<SessionPlace, 'root' | 'recorded'>, path: string): string {
+  let best: { readonly root: string; readonly rest: string } | undefined
+  for (const recorded of place.recorded) {
+    const root = recorded.replace(/[/\\]+$/, '')
+    if (root.length === 0 || root === place.root.replace(/[/\\]+$/, '')) continue
+    const rest = path === root ? '' : (path.startsWith(`${root}/`) || path.startsWith(`${root}\\`)) ? path.slice(root.length + 1) : undefined
+    if (rest !== undefined && (best === undefined || root.length > best.root.length)) best = { root, rest }
+  }
+  if (best === undefined) return path
+  const segments = best.rest.split(/[/\\]/).filter(segment => segment !== '')
+  // A recorded path never climbs out of its own root; one that does stays unchanged and resolves as written.
+  return segments.includes('..') ? path : join(place.root, ...segments)
+}
+
+/**
+ * The workspace roots a Session recorded, first its header's, then each one its log recorded, without repeats.
+ * @param header - the header's directory, the first device's root.
+ * @param logged - the folded `workingDirectory` state or wire value, when one is known.
+ * @returns the recorded roots.
+ */
+function recordedRoots(
+  header: string | undefined,
+  logged: { readonly root: string | null; readonly roots: readonly string[] } | undefined,
+): readonly string[] {
+  const roots = [header, ...logged?.roots ?? [], logged?.root ?? undefined]
+  return [...new Set(roots.filter((root): root is string => root !== undefined))]
 }
 
 export default WorkspaceFiles

@@ -32,6 +32,12 @@ declare module '@aeven/session/types' {
 export interface WorkingDirectoryProjection {
   cwd: string | null
   root: string | null
+  /**
+   * Every workspace root a `session/cwd` event recorded, in first-recorded order and without repeats. A session that
+   * ran on several devices records each device's root, so a path one of them wrote can be found under this device's
+   * root; the header's `cwd`, the first device's root, is not repeated here.
+   */
+  roots: readonly string[]
 }
 
 /** Host state used to derive {@link WorkingDirectoryProjection}. */
@@ -40,6 +46,8 @@ export interface WorkingDirectoryUnitState {
   cwd: string | null
   /** The last logged workspace root, or null while the header's `cwd` is the workspace. */
   root: string | null
+  /** Every logged workspace root, in first-logged order and without repeats. */
+  roots: readonly string[]
 }
 
 declare module '@aeven/session-projection/types' {

@@ -214,6 +214,10 @@ export function apply(ctx: Context, config: Config): void {
     return next()
   })
   ctx.on('agent/disposed', ({ agent }) => { prepared.delete(agent.session.id) })
+  // A reader of a session's files, such as the explorer of a client following it, brings its repository as a turn does.
+  ctx.on('workspace/session-files-wanted', async (sessionId, signal) => {
+    await repositories.wantedForReading(sessionId, signal).catch(warn)
+  })
   ctx.effect(() => {
     const timer = setInterval(() => { repositories.reconcileAll() }, config.passIntervalMs)
     // Plugging in releases the first downloads that waited for power.

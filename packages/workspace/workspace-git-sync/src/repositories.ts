@@ -148,6 +148,8 @@ export class WorkspaceRepositories {
   private readonly env = new Map<WorkspaceId, EnvFiles>()
   private readonly retryAt = new Map<WorkspaceId, number>()
   private readonly served = new Map<string, Served>()
+  /** Sessions running a turn here, by repository, whose work tree an apply for a reader must leave alone. */
+  private readonly turning = new Map<WorkspaceId, Set<SessionId>>()
   /** With a managed root, the arriving repositories a session here has asked for; the others are not fetched. */
   private readonly wanted = new Set<WorkspaceId>()
   /** Called on every change of the copy requests, so a waiting request sees the holder's answer. */
@@ -210,6 +212,7 @@ export class WorkspaceRepositories {
    */
   turnEnded(sessionId: SessionId): void {
     const repository = this.sessionRepository(sessionId)
+    if (repository !== undefined) this.turning.get(repository.id)?.delete(sessionId)
     if (repository?.owner === undefined || this.ctx.workspaceRegistry.filesPaused(repository.owner)) return
     this.workState.schedule(repository.owner, repository.id, repository.path)
   }
@@ -222,8 +225,28 @@ export class WorkspaceRepositories {
   async beforeTurn(sessionId: SessionId, signal: AbortSignal): Promise<void> {
     if (this.options.managedRoot !== undefined) await this.fetchForTurn(sessionId, signal)
     const repository = this.sessionRepository(sessionId)
+    if (repository !== undefined) {
+      const sessions = this.turning.get(repository.id) ?? new Set<SessionId>()
+      sessions.add(sessionId)
+      this.turning.set(repository.id, sessions)
+    }
     if (repository?.owner === undefined || this.ctx.workspaceRegistry.filesPaused(repository.owner)) return
     this.workState.postpone(repository.id)
+    await this.workState.apply(repository.owner, repository.id, repository.path, signal)
+  }
+
+  /**
+   * Bring a session's repository here for a reader of its files, such as the explorer of a client following the
+   * session: fetch it as a turn would, then apply newer work another device left in it, unless a turn of a session of
+   * this repository runs here, whose work tree the apply would change under it.
+   * @param sessionId - the session whose files are wanted.
+   * @param signal - the reader's cancellation; an abort ends the wait, not the fetch.
+   */
+  async wantedForReading(sessionId: SessionId, signal: AbortSignal): Promise<void> {
+    if (this.options.managedRoot !== undefined) await this.fetchForTurn(sessionId, signal)
+    const repository = this.sessionRepository(sessionId)
+    if (repository?.owner === undefined || signal.aborted || this.ctx.workspaceRegistry.filesPaused(repository.owner)) return
+    if ((this.turning.get(repository.id)?.size ?? 0) > 0) return
     await this.workState.apply(repository.owner, repository.id, repository.path, signal)
   }
 

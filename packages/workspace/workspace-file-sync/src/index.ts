@@ -129,6 +129,8 @@ export function apply(ctx: Context, config: Config): void {
       return next()
     })
     ctx.on('agent/disposed', ({ agent }) => { asked.delete(agent.session.id) })
+    // A reader of a session's files, such as the explorer of a client following it, brings its workspace as a turn does.
+    ctx.on('workspace/session-files-wanted', async (sessionId) => { await files.wantForTurn(sessionId).catch(warn) })
   }
   ctx.on('fs/observed', (target, observation) => {
     const fs = ctx.get('fs')
