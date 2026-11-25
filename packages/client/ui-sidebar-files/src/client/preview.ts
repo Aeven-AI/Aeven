@@ -127,6 +127,16 @@ class Inliner {
 /** Import-map key prefix naming an inlined workspace module; a bare specifier, so only the generated map resolves it. */
 const MODULE_KEY_PREFIX = '@avn-workspace/'
 
+/**
+ * The public npm CDN a dependency module loads from when this device does not hold it: dependency folders
+ * (`node_modules`) do not travel with file sync, so a page another device built names packages this copy lacks. The
+ * module loads at the version the project's lock file records.
+ */
+const PACKAGE_CDN = 'https://cdn.jsdelivr.net/npm/'
+
+/** The directory name npm installs dependencies in, as a path segment. */
+const DEPENDENCIES = '/node_modules/'
+
 /** Where the page's import map sends bare specifiers: exact keys, and prefix keys ending in `/`. */
 interface PageImportMap {
   readonly exact: ReadonlyMap<string, string>
@@ -168,10 +178,14 @@ function takeImportMap(doc: Document): PageImportMap {
  * inlined once, and an import cycle needs no special case.
  */
 class ModuleGraph {
-  /** Generated import-map entries: module key → `data:` URL. */
+  /** Generated import-map entries: module key → `data:` URL, or the CDN URL of a dependency this device lacks. */
   readonly entries = new Map<string, string>()
   private readonly seen = new Set<string>()
   private pending: Array<Promise<void>> = []
+  /** Dependency modules this device lacks, by workspace path, with the CDN URL each loads from. */
+  private readonly remote = new Map<string, string>()
+  /** Each project's locked dependency versions, read once. */
+  private readonly locks = new Map<string, Promise<ReadonlyMap<string, string>>>()
 
   constructor(private readonly inliner: Inliner, private readonly importMap: PageImportMap, private readonly pageFolder: string) {}
 
@@ -226,16 +240,104 @@ class ModuleGraph {
     if (this.seen.has(path)) return
     this.seen.add(path)
     this.pending.push(this.inliner.text(path).then(async (text) => {
-      if (text === undefined) return
+      if (text === undefined) {
+        const url = await this.packageUrl(path)
+        if (url !== undefined) {
+          this.remote.set(path, url)
+          this.entries.set(this.key(path), url)
+        }
+        return
+      }
       const rewritten = this.rewrite(text, folderOf(path))
       this.entries.set(this.key(path), await dataUrl(new Blob([rewritten], { type: 'text/javascript' })))
     }))
   }
 
-  /** Wait until every module reached so far, and every module those reach, is inlined. */
+  /**
+   * Wait until every module reached so far, and every module those reach, is inlined; then point the page's own bare
+   * specifiers at the CDN wherever they name a dependency this device lacks, since a module loaded from the CDN
+   * imports them by name and must reach the same instance the page's modules use.
+   */
   async settle(): Promise<void> {
     while (this.pending.length > 0) await Promise.all(this.pending.splice(0))
+    if (this.remote.size === 0) return
+    for (const [specifier, target] of this.importMap.exact) {
+      const path = isWorkspaceReference(target) ? resolveReference(this.pageFolder, target) : undefined
+      const url = path === undefined ? undefined : this.remote.get(path)
+      if (url !== undefined) this.entries.set(specifier, url)
+    }
+    for (const [specifier, target] of this.importMap.prefixes) {
+      const path = isWorkspaceReference(target) ? resolveReference(this.pageFolder, target) : undefined
+      if (path === undefined || ![...this.remote.keys()].some(module => module.startsWith(`${path}/`))) continue
+      const url = await this.packageUrl(`${path}/-`)
+      if (url !== undefined) this.entries.set(specifier, url.slice(0, -1))
+    }
   }
+
+  /**
+   * The CDN URL of a dependency module, at the version the project that installed it locked.
+   * @param path - the module's workspace path, inside a `node_modules` folder.
+   * @returns the URL, or undefined outside `node_modules` or when no version is recorded.
+   */
+  private async packageUrl(path: string): Promise<string | undefined> {
+    const at = `/${path}`.lastIndexOf(DEPENDENCIES)
+    if (at < 0) return undefined
+    const project = path.slice(0, Math.max(0, at - 1))
+    const segments = `/${path}`.slice(at + DEPENDENCIES.length).split('/')
+    const width = segments[0]?.startsWith('@') === true ? 2 : 1
+    const name = segments.slice(0, width).join('/')
+    const file = segments.slice(width).join('/')
+    if (name === '' || file === '') return undefined
+    const version = (await this.versionsOf(project)).get(name)
+    return version === undefined ? undefined : `${PACKAGE_CDN}${name}@${encodeURIComponent(version)}/${file}`
+  }
+
+  /** A project's dependency versions: exact ones from `package-lock.json`, else the ranges `package.json` declares. */
+  private versionsOf(project: string): Promise<ReadonlyMap<string, string>> {
+    let versions = this.locks.get(project)
+    if (versions === undefined) {
+      const file = (name: string) => (project === '' ? name : `${project}/${name}`)
+      versions = Promise.all([this.inliner.text(file('package-lock.json')), this.inliner.text(file('package.json'))])
+        .then(([lock, manifest]) => dependencyVersions(lock, manifest))
+      this.locks.set(project, versions)
+    }
+    return versions
+  }
+}
+
+/**
+ * Dependency versions a project records: each package's installed version from `package-lock.json`, and for one the
+ * lock file lacks, the range `package.json` declares.
+ * @param lock - the lock file's text, when the project has one.
+ * @param manifest - `package.json`'s text, when the project has one.
+ * @returns versions by package name.
+ */
+export function dependencyVersions(lock: string | undefined, manifest: string | undefined): ReadonlyMap<string, string> {
+  const versions = new Map<string, string>()
+  const parse = (text: string | undefined): Record<string, unknown> | undefined => {
+    if (text === undefined) return undefined
+    try {
+      const value: unknown = JSON.parse(text)
+      return typeof value === 'object' && value !== null ? value as Record<string, unknown> : undefined
+    } catch {
+      // A file that is not JSON records no versions.
+      return undefined
+    }
+  }
+  const declared = parse(manifest)
+  for (const field of ['devDependencies', 'dependencies']) {
+    const entries = declared?.[field]
+    if (typeof entries !== 'object' || entries === null) continue
+    for (const [name, range] of Object.entries(entries)) if (typeof range === 'string') versions.set(name, range)
+  }
+  const packages = parse(lock)?.packages
+  if (typeof packages === 'object' && packages !== null) {
+    for (const [key, entry] of Object.entries(packages)) {
+      const version = typeof entry === 'object' && entry !== null ? (entry as { version?: unknown }).version : undefined
+      if (key.startsWith('node_modules/') && typeof version === 'string') versions.set(key.slice('node_modules/'.length), version)
+    }
+  }
+  return versions
 }
 
 /** Attributes holding one workspace file the page shows, by element. */
