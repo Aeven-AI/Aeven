@@ -1,6 +1,7 @@
 /* The template popup, on the image prompt popup's shell: wider, because a
    16:9 slide needs the room, with the slide on show above a strip of every
-   slide on the stage's own surface, and the shell's reading column beside it.
+   slide on the stage's own surface, and the shell's reading column beside it,
+   whose title scrolls with the copy under a top fade.
    A document template (`.portrait`) shows A4 pages instead: the page on show
    filling the stage's width, over a strip of page thumbnails that starts at the
    stage's left edge. */
@@ -9,7 +10,7 @@
   width: min(1180px, 100%);
 }
 
-.layout {
+.dialog .layout {
   grid-template-columns: minmax(0, 1fr) 340px;
 }
 
@@ -127,19 +128,22 @@
   opacity: 1;
 }
 
-/* What using the template gives: three short lines, each on a small ink dot. */
-.facts {
+/* The reading column: the title, then the template's summary and what using
+   it gives as plain paragraphs in one ink, size and weight. The title scrolls
+   with them; the close disc stays on the card's corner, so the title leaves it
+   room. */
+.dialog .body {
+  padding-top: var(--im-pad);
+}
+
+.copy {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
 }
 
-.facts li {
-  position: relative;
-  padding-left: 16px;
+.copy p {
+  margin: 0;
   color: var(--dsw-alias-label-primary);
   font-family: var(--dsw-font-family);
   font-size: 0.875rem;
@@ -147,15 +151,38 @@
   line-height: 1.375rem;
 }
 
-.facts li::before {
-  content: '';
+.dialog .title {
+  padding-right: 44px;
+  /* With the 10px gap: 16px from the title to the first paragraph. */
+  margin-bottom: 6px;
+}
+
+.dialog .close {
   position: absolute;
-  top: 9px;
-  left: 2px;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--dsw-alias-label-primary);
+  top: var(--im-pad);
+  right: var(--im-pad);
+  z-index: 3;
+}
+
+/* Once the column leaves its top, a fade over the column's top edge takes
+   the copy as it runs up past the close disc. */
+.fade {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  width: 340px;
+  /* Solid over the top inset, then thinning out across the close disc's band,
+     so copy passing beside the disc is already faded. */
+  height: calc(var(--im-pad) + 48px);
+  background: linear-gradient(to bottom, var(--dsw-alias-bg-layer-2) var(--im-pad), transparent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+}
+
+.fade[data-shown='true'] {
+  opacity: 1;
 }
 
 /* A4 pages: the page fills the stage's width and takes the stage's height less
@@ -185,14 +212,89 @@
   aspect-ratio: 210 / 297;
 }
 
+/* Stacked below the two-column floor, the whole card scrolls: the pictures,
+   then the reading column, with the action row pinned to the card's foot and
+   the fade across the card's full width. The detail column dissolves so the
+   row's sticky frame is the card's scroll area rather than the column. */
 @media (max-width: 1024px) {
+  .dialog[role='dialog'],
+  .portrait.dialog[role='dialog'] {
+    width: min(680px, 100%);
+  }
+
+  .dialog .layout {
+    flex: 1 1 auto;
+    overflow-y: auto;
+  }
+
   .stage {
     flex: none;
     width: 100%;
   }
 
+  .dialog .detail {
+    display: contents;
+  }
+
+  .dialog .body {
+    flex: none;
+    overflow: visible;
+  }
+
+  .dialog .foot {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    background: var(--dsw-alias-bg-layer-2);
+  }
+
+  .fade {
+    left: 0;
+    width: auto;
+  }
+
   .step {
     opacity: 1;
+  }
+
+  /* The page shows whole while it fits in about half the window and is cropped
+     at the foot past that, so the title and the copy start above the fold. */
+  .portrait .slide {
+    height: auto;
+    max-height: min(560px, 52vh);
+    max-height: min(560px, 52dvh);
+    aspect-ratio: 210 / 297;
+  }
+}
+
+/* Phone width: the shell's phone card (this sheet's own widths would
+   otherwise outrank it), and a strip whose thumbnails leave the
+   next one peeking at the edge. */
+@media (max-width: 640px) {
+  .dialog[role='dialog'],
+  .portrait.dialog[role='dialog'] {
+    width: calc(100% + 16px);
+  }
+
+  .stage {
+    gap: 10px;
+  }
+
+  .thumb {
+    width: 84px;
+    border-radius: 12px;
+  }
+
+  .portrait .thumb {
+    width: 48px;
+  }
+
+  .prev {
+    left: 8px;
+  }
+
+  .next {
+    right: 8px;
   }
 }
 

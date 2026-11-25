@@ -12,10 +12,11 @@
  *
  * The pictures take the popup's left side, landscape for slides and portrait for A4 pages; the copy
  * and the action share the right-hand column of the image prompt popup, whose shell styles this one
- * reuses.
+ * reuses. The title scrolls with the copy beneath it and the close disc stays on the card's corner;
+ * stacked on a narrow window, the whole card scrolls under a pinned action row.
  */
 import { useEffect, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { ReactNode, UIEvent } from 'react'
 import clsx from 'clsx'
 import { Button, IconCloseOutline16, IconPlusOutline20, Modal } from '@aeven/client-ui-primitives'
 import type { InputActions } from '@aeven/client-ui-conversation/client'
@@ -93,6 +94,7 @@ export function TemplateDialog({ template, inputActions, t, onClose }: {
   const [files, setFiles] = useState<readonly File[]>([])
   const [notice, setNotice] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
   const strip = useRef<HTMLDivElement>(null)
   const fileInput = useRef<HTMLInputElement>(null)
   const position = (index: number): string => t(`${kind}.dialog.slide`, { n: String(index + 1), total: String(total) })
@@ -121,6 +123,17 @@ export function TemplateDialog({ template, inputActions, t, onClose }: {
     setFiles(staged => [...staged, ...chosen.filter(file => !staged.some(s => s.name === file.name && s.size === file.size))])
   }
 
+  /**
+   * Show the top fade once the reading column has left its top. Side by side the column's body
+   * scrolls; stacked, the whole card does. Both carry `data-scroller`, so the strip's sideways
+   * scroll is ignored.
+   * @param event - a scroll from any element inside the card, caught on the way down.
+   */
+  const onScroll = (event: UIEvent<HTMLDivElement>): void => {
+    const target = event.target
+    if (target instanceof HTMLElement && target.dataset.scroller !== undefined) setScrolled(target.scrollTop > 0)
+  }
+
   /** Attach the staged material, write the request into the composer and close; a refused attach keeps the popup open with the reason. */
   const apply = (): void => {
     if (files.length > 0) {
@@ -136,7 +149,7 @@ export function TemplateDialog({ template, inputActions, t, onClose }: {
 
   return (
     <Modal open headless onClose={onClose} title={title} className={clsx(shell.dialog, shell.media, css.dialog, kind === 'resumes' && css.portrait)}>
-      <div className={clsx(shell.layout, css.layout)}>
+      <div data-scroller="" className={clsx(shell.layout, css.layout, 'no-scrollbar')} onScrollCapture={onScroll}>
         <div className={css.stage}>
           <div className={css.view}>
             <img className={css.slide} src={picture(current)} alt={position(current)} />
@@ -175,23 +188,16 @@ export function TemplateDialog({ template, inputActions, t, onClose }: {
             ))}
           </div>
         </div>
-        <div className={shell.detail}>
-          <div className={shell.head}>
-            <div className={shell.headText}>
-              <h2 className={shell.title}>{title}</h2>
-              <p className={shell.description}>{description}</p>
+        <div className={clsx(shell.detail, css.detail)}>
+          <div data-scroller="" className={clsx(shell.body, css.body, 'no-scrollbar')}>
+            <div className={css.copy}>
+              <h2 className={clsx(shell.title, css.title)}>{title}</h2>
+              <p>{description}</p>
+              <p>{t(`${kind}.dialog.design`, { count: String(total) })}</p>
+              <p>{t(`${kind}.dialog.together`)}</p>
+              <p>{t(`${kind}.dialog.adjust`)}</p>
+              <p>{t(`${kind}.dialog.formats`)}</p>
             </div>
-            <button type="button" className={shell.close} aria-label={t('dialog.close')} onClick={onClose}>
-              <IconCloseOutline16 size={14} />
-            </button>
-          </div>
-          <div className={`${shell.body} no-scrollbar`}>
-            <ul className={css.facts}>
-              <li>{t(`${kind}.dialog.design`, { count: String(total) })}</li>
-              <li>{t(`${kind}.dialog.together`)}</li>
-              <li>{t(`${kind}.dialog.adjust`)}</li>
-              <li>{t(`${kind}.dialog.formats`)}</li>
-            </ul>
             <section
               className={clsx(shell.section, css.material)}
               data-dragging={dragging}
@@ -240,12 +246,16 @@ export function TemplateDialog({ template, inputActions, t, onClose }: {
               </button>
             </section>
           </div>
-          <div className={shell.foot}>
+          <div className={clsx(shell.foot, css.foot)}>
             {notice !== null && <p className={shell.notice} role="alert">{notice}</p>}
             <Button variant="primary" className={shell.try} onClick={apply}>{t(`${kind}.dialog.use`)}</Button>
           </div>
         </div>
       </div>
+      <div className={css.fade} data-shown={scrolled} aria-hidden="true" />
+      <button type="button" className={clsx(shell.close, css.close)} aria-label={t('dialog.close')} onClick={onClose}>
+        <IconCloseOutline16 size={14} />
+      </button>
     </Modal>
   )
 }

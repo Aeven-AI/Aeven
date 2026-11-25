@@ -742,6 +742,20 @@ export function FilesPane({
     }
   }
 
+  // Whether the open file's pane is wide enough to dock the tree beside it.
+  const splitRef = useRef<HTMLDivElement>(null)
+  const [dockRoom, setDockRoom] = useState(true)
+  useLayoutEffect(() => {
+    const split = splitRef.current
+    if (split === null) return undefined
+    const measure = () => { setDockRoom(split.clientWidth >= DOCK_ROOM) }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(split)
+    return () => { observer.disconnect() }
+  }, [memory.openFile === null])
+  const treeDocked = memory.treeVisible && dockRoom
+
   const [listWindow, setListWindow] = useState({ top: 0, height: 800 })
   useLayoutEffect(() => {
     const list = rowsRef.current
@@ -751,7 +765,7 @@ export function FilesPane({
     const observer = new ResizeObserver(measure)
     observer.observe(list)
     return () => { observer.disconnect() }
-  }, [memory.openFile === null, memory.treeVisible])
+  }, [memory.openFile === null, treeDocked])
   const onListScroll = (event: ReactUIEvent<HTMLDivElement>) => {
     const list = event.currentTarget
     setListWindow({ top: list.scrollTop, height: list.clientHeight })
@@ -910,7 +924,7 @@ export function FilesPane({
       {memory.openFile === null
         ? tree
         : (
-          <div className={css.split}>
+          <div ref={splitRef} className={css.split}>
             <FileView
               key={memory.openFile}
               path={memory.openFile}
@@ -919,6 +933,7 @@ export function FilesPane({
               root={root}
               canOpenNative={canOpenNative}
               treeVisible={memory.treeVisible}
+              canDock={dockRoom}
               htmlView={memory.htmlView}
               remote={remote}
               sessionId={sessionId}
@@ -931,7 +946,7 @@ export function FilesPane({
               onForward={canForward ? () => { update(current => stepHistory(current, 1)) } : undefined}
               onClose={() => { update(current => ({ ...current, openFile: null })) }}
             />
-            {memory.treeVisible && <div className={css.dock}>{tree}</div>}
+            {treeDocked && <div className={css.dock}>{tree}</div>}
           </div>
         )}
       {rowMenu !== null && (
@@ -959,6 +974,14 @@ export function FilesPane({
 }
 
 /** Left padding of an entry row at `depth`. Depth 0 starts on the toolbar's left edge. */
+/**
+ * The pane width from which the tree docks beside an open file: the dock's
+ * 240px floor (`.dock` in FilesPane.module.css), the 4px split gap, and 380px
+ * for the file, which its bar needs for every action plus a short path.
+ * Narrower, the file takes the pane and closing it returns to the tree.
+ */
+const DOCK_ROOM = 240 + 4 + 380
+
 function rowIndent(depth: number): string {
   return `${String(depth * 16)}px`
 }
@@ -1217,7 +1240,7 @@ function SearchRows({ search, focus, tabStop, openFile, t, onOpen, onFocus, onMe
 
 /** The open file: its history steps, breadcrumbs and actions, its type and copy bar, and its content by kind. */
 function FileView({
-  path, version, copy, root, canOpenNative, treeVisible, htmlView, remote, sessionId, t,
+  path, version, copy, root, canOpenNative, treeVisible, canDock, htmlView, remote, sessionId, t,
   onReveal, onToggleTree, onHtmlView, onRefresh, onBack, onForward, onClose,
 }: {
   path: string
@@ -1228,6 +1251,8 @@ function FileView({
   root: string | null
   canOpenNative: boolean
   treeVisible: boolean
+  /** Whether the pane has room to dock the tree; without it the tree toggle is withheld. */
+  canDock: boolean
   htmlView: 'preview' | 'source'
   remote: ClientRemote
   sessionId: string
@@ -1389,7 +1414,7 @@ function FileView({
             )
           })}
         </nav>
-        {!treeVisible && !media && (
+        {!(treeVisible && canDock) && !media && (
           <button type="button" className={clsx(css.iconButton, css.lightButton)} aria-label={t('file.refresh')} title={t('file.refresh')} onClick={onRefresh}>
             <IconLucideRefreshCw />
           </button>
@@ -1405,16 +1430,18 @@ function FileView({
         >
           <IconLucideDownload />
         </button>
-        <button
-          type="button"
-          className={clsx(css.iconButton, css.lightButton)}
-          aria-pressed={treeVisible}
-          aria-label={treeVisible ? t('tree.hide') : t('tree.show')}
-          title={treeVisible ? t('tree.hide') : t('tree.show')}
-          onClick={onToggleTree}
-        >
-          <IconLucideFolderSearch />
-        </button>
+        {canDock && (
+          <button
+            type="button"
+            className={clsx(css.iconButton, css.lightButton)}
+            aria-pressed={treeVisible}
+            aria-label={treeVisible ? t('tree.hide') : t('tree.show')}
+            title={treeVisible ? t('tree.hide') : t('tree.show')}
+            onClick={onToggleTree}
+          >
+            <IconLucideFolderSearch />
+          </button>
+        )}
         <button
           type="button"
           className={clsx(css.iconButton, css.lightButton, css.fileClose)}
