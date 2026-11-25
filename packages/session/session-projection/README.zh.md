@@ -53,6 +53,8 @@ const definition = {
 
 `init(header, inheritedEventCount)` 同时接收轻量元数据与精确的 fork 继承切点；它不得从 `firstLiveSeq` 或 `session/end-seed` 推断该切点。`apply` 必须同步，且对与单元无关的事件必须返回同一个状态引用——引用不变意味着零下游工作。注册表用 `Object.is` 比较相邻的 `wire.view` 原始结果；对象或数组 view 若要在仅内部 state 变化时抑制发布，就必须复用引用，结构相同的新对象仍算变化。携带状态的日志事件必须携带变更后的完整状态，绝不携带裸增量。
 
+若单元的状态依赖 `session/rewind` 所恢复的对话，它声明可选的 `rewind(state, atTarget, event)` 转换，而不是在 `apply` 中折叠回退。注册表随后把该单元自身从 `init` 起、恰好折叠到回退目标之前全部事件所得的状态交给它，使有界状态能够回到它已不再持有的早先值。持久化状态的大小不变；一次实时回退只重放其目标之前的日志一次，而完整折叠在每个被指向的 seq 处保留单元状态，从而一遍解析所有回退。若 `restore` 重放的尾部包含回退，该类单元会从 seq 0 重新折叠；所提供的日志起点更晚时则抛出错误。
+
 ### 注册与读取
 
 `register(definition)` 安装单元；注册是挂在调用方 fiber 上的 effect，因此卸载领域即移除其 key。载体用 `snapshot(session)` 对每个客户端可见单元读取一致的同步切面——`{ asOfSeq, values }`，其中 `asOfSeq` 是所有值共同反映到的最后一个事件的 seq——并用 `onChanged(listener)` 订阅逐变更通知。`stateOf(session, key)` 读取一个单元的主机状态，不计算无关视图。

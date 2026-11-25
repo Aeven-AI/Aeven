@@ -43,6 +43,22 @@ interface ProjectionDefinition<
    * @returns the next state (same reference when the event is not the unit's).
    */
   apply(state: NoInfer<S>, event: SessionEvent): NoInfer<S>
+  /**
+   * Rewind transition for units whose state depends on the surface a
+   * `session/rewind` restores. When present, the registry passes
+   * `session/rewind` here instead of to {@link apply}, together with this
+   * unit's state folded from {@link init} over exactly the events before the
+   * rewind target (earlier rewinds in that prefix resolve the same way). The
+   * persisted state stays whatever the unit keeps; each live rewind costs one
+   * replay of the log before its target, and a cold fold resolves every
+   * rewind in a single pass. Omit it for units that fold `session/rewind`
+   * themselves or ignore it.
+   * @param state - the state covering all events before the rewind.
+   * @param atTarget - this unit's state over the events before `event.data.seq`.
+   * @param event - the committed rewind.
+   * @returns the next state (same reference when nothing changed).
+   */
+  rewind?(state: NoInfer<S>, atTarget: NoInfer<S>, event: SessionEvent<'session/rewind'>): NoInfer<S>
   /** Client view. Omit for host-only units. */
   wire?: K extends keyof SessionProjectionMap ? {
     /** Validates the wire payload before it leaves the host. */

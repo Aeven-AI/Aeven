@@ -5,13 +5,14 @@ import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { createMessage, createUserMessage } from '@aeven/llm'
 import type { ContentBlock, ToolSchema } from '@aeven/llm'
-import SessionStore, { SessionSeq } from '@aeven/session'
+import SessionStore, { SessionLogOffset, SessionSeq } from '@aeven/session'
 import type { Session, SessionEvent, SessionSeq as SessionSeqType } from '@aeven/session'
 import SessionProjectionRegistry from '@aeven/session-projection'
 import TokenMeter from '@aeven/token-meter'
 import type { ContextBreakdownProjection } from '@aeven/token-meter/client'
 import { CompactionId } from '@aeven/compaction'
 import { contextBreakdownProjectionDefinition } from '../src/breakdown-projection.ts'
+import { addSurfaceTokens } from '../src/surface-projection.ts'
 import {
   estimateContent,
   estimateHeader,
@@ -180,6 +181,55 @@ describe('contextBreakdown session projection', () => {
       sourceEventSeqs: [question, answer],
     })
     expect(agree()).toBeLessThan(grown)
+  })
+
+  it('restores the pre-compaction figure across a rewind so a later compaction stays exact', async () => {
+    const { ctx, session } = await harness()
+    const agree = (): number => {
+      const { contextBreakdown, contextPressure } = ctx.sessionProjections.snapshot(session).values
+      expect(contextBreakdown?.messageTokens).toBe(ctx.tokenMeter.measure(session).surfaceTokens)
+      expect(contextPressure).toBeDefined()
+      return contextBreakdown?.messageTokens ?? -1
+    }
+    const compact = (start: SessionSeqType, end: SessionSeqType): void => {
+      const shadowed = ctx.tokenMeter.measure(session).nodes
+        .map(node => node.seq)
+        .filter(seq => seq >= start && seq <= end)
+      appendSummaryMeter(ctx, session, start, end)
+      session.append('user/message', createUserMessage({
+        content: [{ type: 'text', text: 'summary' }],
+        source: { kind: 'plugin', plugin: 'test' },
+      }), { surfaceOp: { op: 'replace', start, end }, sourceEventSeqs: shadowed })
+    }
+    const first = appendUser(session, 'a long opening message that the first compaction will summarize away entirely')
+    const second = appendUser(session, 'a second long message that the first compaction also summarizes')
+    const rewindTarget = appendUser(session, 'a third message the rewind discards')
+    const full = agree()
+    compact(first, rewindTarget)
+    expect(agree()).toBeLessThan(full)
+
+    // The rewind restores `first` and `second`, which the compaction shadowed.
+    session.append('session/rewind', { seq: rewindTarget })
+    expect(agree()).toBe(full - estimateMessage(createUserMessage({
+      content: [{ type: 'text', text: 'a third message the rewind discards' }],
+      source: { kind: 'user' },
+    })))
+
+    // The second compaction prices the restored span; folding against the
+    // post-compaction figure would drive the total below zero.
+    const edited = appendUser(session, 'the edited third message')
+    compact(first, edited)
+    expect(agree()).toBeGreaterThan(0)
+    expect(second).toBeLessThan(edited)
+
+    const cold = ctx.sessionProjections.restore({}, session.snapshotEvents(), SessionLogOffset(0), session.header, SessionLogOffset(0))
+    expect(cold.snapshot.values.contextBreakdown).toEqual(projected(ctx, session))
+    expect(cold.snapshot.values.contextPressure).toEqual(ctx.sessionProjections.snapshot(session).values.contextPressure)
+  })
+
+  it('floors the running total at zero when a logged shadow price exceeds it', () => {
+    expect(addSurfaceTokens(10, -4)).toBe(6)
+    expect(addSurfaceTokens(10, -40)).toBe(0)
   })
 
   it('folds a replacement without a claim at zero and fails on a mismatched claim', () => {

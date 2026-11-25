@@ -9,7 +9,7 @@ import { z } from 'zod'
 import { canonicalHeader, SessionSeq } from '@aeven/session'
 import type { ProjectionDefinition } from '@aeven/session-projection'
 import { estimateSystemTokens, estimateToolsTokens } from './estimate.ts'
-import { foldSurfaceProjection } from './surface-projection.ts'
+import { addSurfaceTokens, foldSurfaceProjection } from './surface-projection.ts'
 // Import for the `contextBreakdown` SessionProjectionStateMap key merge.
 import type {} from './projection.ts'
 
@@ -51,13 +51,16 @@ const breakdownSchema = z.object({
  * `measure().nodes[].heuristicTokens` at every event boundary and compaction
  * shrinks the figure by its logged shadow price; the route-priced
  * `measure().surfaceTokens` deliberately diverges by the routed model's image
- * repricing. A replacement without a claim preserves the previous total. The
- * state is a fixed handful of numbers, so the persisted checkpoint stays
+ * repricing. A replacement without a claim preserves the previous total. A
+ * `session/rewind` restores the message figure the unit held before the
+ * rewind target — including spans a later compaction shadowed — while the
+ * envelope figures stay with the newest `request/header`, as in `measure()`.
+ * The state is a fixed handful of numbers, so the persisted checkpoint stays
  * O(1) over the session's life.
  */
 export const contextBreakdownProjectionDefinition = {
   key: 'contextBreakdown',
-  stateVersion: 2,
+  stateVersion: 3,
   stateSchema: contextBreakdownStateSchema,
   init: () => ({ systemTokens: 0, toolsTokens: 0, messageTokens: 0 }),
   apply: (state, event) => {
@@ -77,10 +80,13 @@ export const contextBreakdownProjectionDefinition = {
     return {
       systemTokens,
       toolsTokens,
-      messageTokens: state.messageTokens + fold.deltaTokens,
+      messageTokens: addSurfaceTokens(state.messageTokens, fold.deltaTokens),
       ...fold.claim === undefined ? {} : { claim: fold.claim },
     }
   },
+  rewind: (state, atTarget) => state.messageTokens === atTarget.messageTokens && state.claim === undefined
+    ? state
+    : { systemTokens: state.systemTokens, toolsTokens: state.toolsTokens, messageTokens: atTarget.messageTokens },
   wire: {
     viewSchema: breakdownSchema,
     view: ({ systemTokens, toolsTokens, messageTokens }) => ({ systemTokens, toolsTokens, messageTokens }),

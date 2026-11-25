@@ -13,6 +13,9 @@
  * fixed estimator this module prices appends with. A replacement without an
  * armed claim folds with zero delta because bounded state cannot reconstruct
  * the replaced range; this preserves replay at the cost of possible drift.
+ * A `session/rewind` is off this fold: the projection units declare the
+ * registry's `rewind` transition, which hands them their own state folded
+ * over the log before the rewind target, and take the surface total from it.
  *
  * @module @aeven/token-meter/surface-projection
  */
@@ -43,6 +46,20 @@ export interface SurfaceTokensFold {
   readonly deltaTokens: number
   /** Claim to carry into the next event; undefined when none survives. */
   readonly claim: ShadowPriceClaim | undefined
+}
+
+/**
+ * Add a signed fold delta to a running surface total, floored at zero.
+ * Logged shadow prices come from the estimator of the build that wrote them,
+ * while appends reprice under the replaying build's estimator, so a total
+ * replayed across an estimator change can undershoot a later claim; the floor
+ * keeps that drift a display estimate instead of an unloadable session.
+ * @param total - the running surface total.
+ * @param deltaTokens - the fold's signed change.
+ * @returns the next non-negative total.
+ */
+export function addSurfaceTokens(total: number, deltaTokens: number): number {
+  return Math.max(0, total + deltaTokens)
 }
 
 /**

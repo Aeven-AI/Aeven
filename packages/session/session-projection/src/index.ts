@@ -69,6 +69,22 @@ export interface ProjectionDefinition<
    * @returns the next state (same reference when the event is not the unit's).
    */
   apply(state: NoInfer<S>, event: SessionEvent): NoInfer<S>
+  /**
+   * Rewind transition for units whose state depends on the surface a
+   * `session/rewind` restores. When present, the registry passes
+   * `session/rewind` here instead of to {@link apply}, together with this
+   * unit's state folded from {@link init} over exactly the events before the
+   * rewind target (earlier rewinds in that prefix resolve the same way). The
+   * persisted state stays whatever the unit keeps; each live rewind costs one
+   * replay of the log before its target, and a cold fold resolves every
+   * rewind in a single pass. Omit it for units that fold `session/rewind`
+   * themselves or ignore it.
+   * @param state - the state covering all events before the rewind.
+   * @param atTarget - this unit's state over the events before `event.data.seq`.
+   * @param event - the committed rewind.
+   * @returns the next state (same reference when nothing changed).
+   */
+  rewind?(state: NoInfer<S>, atTarget: NoInfer<S>, event: SessionEvent<'session/rewind'>): NoInfer<S>
   /** Client view. Omit for host-only units. */
   wire?: K extends keyof SessionProjectionMap ? {
     /** Validates the wire payload before it leaves the host. */
@@ -142,6 +158,7 @@ interface ErasedDefinition {
   stateSchema: { parse(value: unknown): unknown }
   init(header: SessionHeader, inheritedEventCount: SessionLogOffset): unknown
   apply(state: unknown, event: SessionEvent): unknown
+  rewind: ((state: unknown, atTarget: unknown, event: SessionEvent<'session/rewind'>) => unknown) | undefined
   wire: { viewSchema: { parse(value: unknown): unknown }; view(state: unknown): unknown } | undefined
   stateVersion: number
 }
@@ -176,6 +193,58 @@ interface Registration {
 /** Convert a log offset to the inclusive cursor immediately before it. */
 function cursorBefore(offset: SessionLogOffset): SessionSeqCursor {
   return offset === 0 ? -1 : SessionSeq(offset - 1)
+}
+
+/**
+ * Fold one unit from `init` over `events[0, end)`, a log slice that starts at
+ * seq 0. A rewind-aware unit retains its state at every seq a rewind inside
+ * the slice targets — states are immutable, so retention holds references
+ * only — and resolves each rewind from the retained state without another
+ * pass.
+ * @param def - the unit to fold.
+ * @param header - immutable metadata for the Session being projected.
+ * @param inheritedEventCount - exact fork-inherited prefix length.
+ * @param events - the log from seq 0.
+ * @param end - exclusive slice end; defaults to the whole array.
+ * @returns the unit state after `events[end - 1]`.
+ * @throws when an event is out of seq order or a rewind targets a seq at or after itself.
+ */
+function foldFromStart(
+  def: ErasedDefinition,
+  header: SessionHeader,
+  inheritedEventCount: SessionLogOffset,
+  events: readonly SessionEvent[],
+  end: number = events.length,
+): unknown {
+  let state = def.init(header, inheritedEventCount)
+  const rewind = def.rewind
+  if (rewind === undefined) {
+    for (let index = 0; index < end; index++) state = def.apply(state, events[index] as SessionEvent)
+    return state
+  }
+  const targets = new Set<number>()
+  for (let index = 0; index < end; index++) {
+    const event = events[index] as SessionEvent
+    if (event.type === 'session/rewind') targets.add(event.data.seq)
+  }
+  const retained = new Map<number, unknown>()
+  for (let index = 0; index < end; index++) {
+    const event = events[index] as SessionEvent
+    if (event.seq !== index) {
+      throw new Error(`session projection ${JSON.stringify(def.key)} cannot fold event seq ${String(event.seq)} at log index ${String(index)}`)
+    }
+    if (targets.has(index)) retained.set(index, state)
+    if (event.type === 'session/rewind') {
+      const target = event.data.seq
+      if (target >= index || !retained.has(target)) {
+        throw new Error(`session projection ${JSON.stringify(def.key)}: session/rewind at seq ${String(event.seq)} targets seq ${String(target)}, which does not precede it`)
+      }
+      state = rewind(state, retained.get(target), event)
+    } else {
+      state = def.apply(state, event)
+    }
+  }
+  return state
 }
 
 /**
@@ -262,6 +331,9 @@ export class SessionProjectionRegistry extends Service {
       stateSchema: definition.stateSchema,
       init: (header, inheritedEventCount) => definition.init(header, inheritedEventCount),
       apply: (state, event) => definition.apply(state as S, event),
+      rewind: definition.rewind === undefined
+        ? undefined
+        : (state, atTarget, event) => (definition.rewind as NonNullable<typeof definition.rewind>)(state as S, atTarget as S, event),
       wire: wire === undefined
         ? undefined
         : { viewSchema: wire.viewSchema, view: state => wire.view(state as S) },
@@ -517,18 +589,32 @@ export class SessionProjectionRegistry extends Service {
           + 'its checkpoint row is missing, version-mismatched, or beyond the supplied log end; re-read from seq 0',
         )
       }
-      let state = usable
-        ? def.stateSchema.parse(row.val)
-        : def.init(header, inheritedEventCount)
       const from = usable ? row.seq : beforeBase
       const startIndex = from - baseSeq + 1
+      let tailRewinds = false
       for (let index = startIndex; index < events.length; index++) {
         const event = events[index]
         const expectedSeq = SessionSeq(baseSeq + index)
         if (event === undefined || event.seq !== expectedSeq) {
           throw new Error(`session projection ${JSON.stringify(def.key)} cannot restore across missing seq ${String(expectedSeq)}`)
         }
-        state = def.apply(state, event)
+        if (def.rewind !== undefined && event.type === 'session/rewind') tailRewinds = true
+      }
+      // A rewind in the replayed tail needs the log before its target, so a
+      // rewind-aware unit refolds the complete log in one pass instead of
+      // seeding from its row.
+      if (tailRewinds && baseSeq > 0) {
+        throw new Error(
+          `session projection ${JSON.stringify(def.key)} cannot restore from seq ${baseSeq}: `
+          + 'a session/rewind in the tail needs the log before its target; re-read from seq 0',
+        )
+      }
+      let state: unknown
+      if (tailRewinds || !usable) {
+        state = foldFromStart(def, header, inheritedEventCount, events)
+      } else {
+        state = def.stateSchema.parse(row.val)
+        for (let index = startIndex; index < events.length; index++) state = def.apply(state, events[index] as SessionEvent)
       }
       if (def.wire !== undefined) values[def.key] = def.wire.viewSchema.parse(def.wire.view(state))
       refreshed[def.key] = { ver: def.stateVersion, seq: endSeq, val: state }
@@ -606,9 +692,11 @@ export class SessionProjectionRegistry extends Service {
     inheritedEventCount: SessionLogOffset,
     events: readonly SessionEvent[],
   ): UnitCell {
-    let state = def.init(header, inheritedEventCount)
-    for (const event of events) state = def.apply(state, event)
-    return { state, observedSeq: (events.at(-1)?.seq ?? -1), views: [undefined, undefined] }
+    return {
+      state: foldFromStart(def, header, inheritedEventCount, events),
+      observedSeq: (events.at(-1)?.seq ?? -1),
+      views: [undefined, undefined],
+    }
   }
 
   /** Read (or lazily build, folding the full in-memory log) one unit's cell. */
@@ -641,7 +729,7 @@ export class SessionProjectionRegistry extends Service {
       if (event === undefined || event.seq !== seq) {
         throw new Error(`session projection ${JSON.stringify(def.key)} cannot advance across missing seq ${String(seq)}`)
       }
-      const next = def.apply(cell.state, event)
+      const next = this.step(def, cell.state, event, session)
       if (!Object.is(next, cell.state)) {
         cell.views[0] = cell.views[1]
         cell.views[1] = undefined
@@ -675,7 +763,7 @@ export class SessionProjectionRegistry extends Service {
         )
       }
       const previousState = cell.state
-      const next = registration.def.apply(previousState, event)
+      const next = this.step(registration.def, previousState, event, session)
       const changed = !Object.is(next, previousState)
       cell.state = next
       cell.observedSeq = event.seq
@@ -698,6 +786,21 @@ export class SessionProjectionRegistry extends Service {
       // An unchanged state keeps its current view as the valid comparison
       // value for the next state change.
     }
+  }
+
+  /**
+   * Pass one live event through one unit. A rewind-aware unit receives
+   * `session/rewind` through its `rewind` transition with its state refolded
+   * over the Session log before the target.
+   */
+  private step(def: ErasedDefinition, state: unknown, event: SessionEvent, session: Session): unknown {
+    if (def.rewind === undefined || event.type !== 'session/rewind') return def.apply(state, event)
+    const target = event.data.seq
+    if (target >= event.seq) {
+      throw new Error(`session projection ${JSON.stringify(def.key)}: session/rewind at seq ${String(event.seq)} targets seq ${String(target)}, which does not precede it`)
+    }
+    const prefix = session.snapshotEvents(SessionLogOffset(0), SessionLogOffset(target))
+    return def.rewind(state, foldFromStart(def, session.header, session.inheritedEventCount, prefix), event)
   }
 
   /** Return one schema-validated wire value. */

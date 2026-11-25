@@ -10,7 +10,7 @@ import { SessionSeq } from '@aeven/session'
 import type { SessionEvent } from '@aeven/session'
 import type { ProjectionDefinition } from '@aeven/session-projection'
 import type { ContextPressureProjection, TokenUsageProjection } from './projection.ts'
-import { foldSurfaceProjection } from './surface-projection.ts'
+import { addSurfaceTokens, foldSurfaceProjection } from './surface-projection.ts'
 
 const zeroBuckets = (): TokenUsageProjection => ({
   uncachedInputTokens: 0,
@@ -180,13 +180,16 @@ export const tokenUsageProjectionDefinition = {
  * was taken — so occupancy answers for the next request rather than the last
  * one. The total rides {@link foldSurfaceProjection}, so the state stays O(1)
  * and a replacement shrinks it by its logged shadow price. A replacement
- * without a claim preserves the previous total. A usage sample is stamped
+ * without a claim preserves the previous total. A `session/rewind` restores
+ * the total the unit held before the rewind target and keeps the newest
+ * sample, so `projectedTokens` moves by the surface the rewind dropped or
+ * restored. A usage sample is stamped
  * BEFORE the same event joins the surface, so an `assistant/message` anchors
  * against the surface its own request saw.
  */
 export const contextPressureProjectionDefinition = {
   key: 'contextPressure',
-  stateVersion: 4,
+  stateVersion: 5,
   stateSchema: contextPressureStateSchema,
   init: () => ({ surfaceTokens: 0 }),
   apply: (state, event) => {
@@ -211,13 +214,18 @@ export const contextPressureProjectionDefinition = {
       }
     }
     if (fold.deltaTokens !== 0) {
-      next = { ...next, surfaceTokens: next.surfaceTokens + fold.deltaTokens }
+      next = { ...next, surfaceTokens: addSurfaceTokens(next.surfaceTokens, fold.deltaTokens) }
     }
     // A defined fold.claim is always freshly built, so presence decides claim
     // bookkeeping: no claim before or after this event leaves `next` as is.
     if (state.claim === undefined && fold.claim === undefined) return next
     const { claim: _expired, ...withoutClaim } = next
     return fold.claim === undefined ? withoutClaim : { ...withoutClaim, claim: fold.claim }
+  },
+  rewind: (state, atTarget) => {
+    if (state.surfaceTokens === atTarget.surfaceTokens && state.claim === undefined) return state
+    const { claim: _expired, ...withoutClaim } = state
+    return { ...withoutClaim, surfaceTokens: atTarget.surfaceTokens }
   },
   wire: {
     viewSchema: pressureSchema,
