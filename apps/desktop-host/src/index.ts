@@ -14,8 +14,9 @@ import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import type { PatchOptions } from '@deepseek-ai/cordis-plugin-include'
 import {
-  boot,
+  bootTolerant,
   composeEntries,
+  type InactiveEntry,
   loadLayeredEnv,
   loadProfileDirectory,
   loadOverlayPatches,
@@ -90,6 +91,8 @@ export type DesktopHostEvent = {
   readonly url: string
   readonly ownsHost: boolean
   readonly aevenSignIn?: DesktopAevenSignIn
+  /** Plugins this Host started without because they failed to start; absent when every plugin started. */
+  readonly skippedPlugins?: readonly InactiveEntry[]
 } | ({
   readonly type: 'activity'
 } & DesktopHostActivity) | {
@@ -105,6 +108,8 @@ export interface DesktopHostController {
   readonly url: string
   /** Aeven sign-in endpoints, when the composition mounts the Aeven authority. */
   readonly aevenSignIn: DesktopAevenSignIn | undefined
+  /** Plugins the Host started without because they failed to start. */
+  readonly skippedPlugins: readonly InactiveEntry[]
   /** Dispatch one custom-protocol request and stream its response to the response pipe. */
   fetch(command: DesktopHostFetchCommand, body: ReadableStream<Uint8Array> | null): Promise<void>
   /** Abort one in-flight request. */
@@ -412,6 +417,15 @@ interface NodeRequestInit extends RequestInit {
 }
 
 /**
+ * Entries without which the desktop Host cannot serve the shell at all, so their failure stays fatal:
+ * the connection, the Typert gateway and client modules, and the web server.
+ */
+const DESKTOP_ESSENTIAL_ENTRIES = ['connection', 'typert-gateway', 'modules', 'webserver', 'desktop-http-frontend']
+
+/** Boots one start may take while disabling failed plugins: the first, plus rounds for dependents of a disabled plugin. */
+const DESKTOP_BOOT_ATTEMPTS = 5
+
+/**
  * Boot one installed desktop npm project.
  * @param projectDir - active or staged Electron-owned desktop profile.
  * @param writeResponse - serialized response-pipe writer that applies byte backpressure.
@@ -433,12 +447,17 @@ export async function runDesktopHost(
   let current: Context | undefined
   try {
     const patches = desktopPatches(absoluteProject, options.allowLinkedPackages === true, options.portFile)
-    const ctx = await boot('avn desktop', rootConfig, structuredClone(patches.layers), (hostCtx) => {
+    // A plugin that fails to start, such as one rejecting data a different build stored, is disabled and
+    // the Host starts without it; the services checked below stay required.
+    const { ctx, skipped } = await bootTolerant('avn desktop', rootConfig, patches.layers, (hostCtx) => {
       current = hostCtx
       hostCtx.provide(AVN_LAUNCH_ENVIRONMENT_KEY, environment)
       provideCmdline(hostCtx, { args: [], exit: () => {} })
-    })
+    }, { essential: DESKTOP_ESSENTIAL_ENTRIES, maxAttempts: DESKTOP_BOOT_ATTEMPTS })
     current = ctx
+    for (const entry of skipped) {
+      ctx.logger('desktop-host').warn(`started without plugin ${entry.id} (${entry.name}): ${entry.reason}`)
+    }
     const connection = ctx.get('connection')
     const clientModules = ctx.get('clientModules')
     const gateway = ctx.get('typertGateway')
@@ -502,6 +521,7 @@ export async function runDesktopHost(
       avnVersion: avnVersion(absoluteProject),
       url: connection.authenticatedUrl(subscriptionOrigin),
       aevenSignIn: aevenSignIn(ctx),
+      skippedPlugins: skipped,
       cancel(streamId) {
         requests.get(streamId)?.abort()
       },
@@ -630,6 +650,7 @@ async function main(): Promise<void> {
     url: controller.url,
     ownsHost: true,
     ...(controller.aevenSignIn === undefined ? {} : { aevenSignIn: controller.aevenSignIn }),
+    ...(controller.skippedPlugins.length === 0 ? {} : { skippedPlugins: controller.skippedPlugins }),
   })
   const decoder = new DesktopHostRequestDecoder()
   const requestBodies = new Map<number, ReadableStreamDefaultController<Uint8Array>>()

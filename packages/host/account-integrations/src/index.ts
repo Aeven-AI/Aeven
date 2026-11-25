@@ -277,7 +277,9 @@ const connectorSchema = z.object({
   /** Store of a `shopify` row; its grant lives on the Aeven API. */
   shopify: z.object({ shop: z.string(), name: z.string() }).optional(),
 })
-const domainSpec = defineDomain({ name: 'account_integrations', version: 0, tables: {
+// A connector another build saved with a provider this build does not list (one added in a later
+// release, or retired since) stays on disk for that build and is left out here instead of failing boot.
+const domainSpec = defineDomain({ name: 'account_integrations', version: 0, invalidRecords: 'skip', tables: {
   skills: domainTable<string, z.infer<typeof skillSchema>>(skillSchema),
   skill_preferences: domainTable<string, { enabled: boolean; modelInvocable?: boolean | undefined }>(
     z.object({ enabled: z.boolean(), modelInvocable: z.boolean().optional() })),

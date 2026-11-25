@@ -73,7 +73,7 @@ describe('defineDomain', () => {
 
   it('rejects an unknown invalidRecords policy', () => {
     expect(() => defineDomain({
-      name: 'ok', version: 1, invalidRecords: 'zap' as 'backup-and-skip', tables: {},
+      name: 'ok', version: 1, invalidRecords: 'zap' as 'skip', tables: {},
     })).toThrow(/invalidRecords/)
   })
 
@@ -178,6 +178,30 @@ describe('DomainFacility.open', () => {
       code: 'invalid-record',
       detail: { table: 'items', key: 'bad' },
     })
+  })
+
+  it('opens without a record another build wrote under skip, and leaves it in the medium', async () => {
+    const skipSpec = defineDomain({
+      name: 'skipping',
+      version: 1,
+      invalidRecords: 'skip',
+      tables: { items: domainTable<string, Item>(itemSchema) },
+    })
+    const pool = new MemoryMediaPool()
+    {
+      const { facility } = await harness({ pool })
+      const items = (await facility.open(skipSpec)).table('items')
+      await items.put('good', { label: 'kept', count: 1 })
+      await items.put('newer', { label: 'x', count: 2 })
+    }
+    pool.media.get('skipping')!.tables.get('items')!.set('newer', { label: 'x', count: 'from a later build' })
+    const { facility } = await harness({ pool })
+    const items = (await facility.open(skipSpec)).table('items')
+
+    expect(items.get('good')).toEqual({ label: 'kept', count: 1 })
+    expect(items.get('newer')).toBeUndefined()
+    await items.put('another', { label: 'y', count: 3 })
+    expect(pool.media.get('skipping')!.tables.get('items')!.get('newer')).toEqual({ label: 'x', count: 'from a later build' })
   })
 
   it('rejects a stored global that fails its schema with the global marker', async () => {

@@ -88,6 +88,8 @@ export interface DesktopHostReady {
   readonly url: string
   readonly ownsHost: boolean
   readonly aevenSignIn?: DesktopAevenSignIn
+  /** Plugins the Host started without because they failed to start. */
+  readonly skippedPlugins?: readonly { readonly id: string; readonly name: string; readonly reason: string }[]
 }
 
 /** One avn backend running under the bundled upstream Node.js executable. */

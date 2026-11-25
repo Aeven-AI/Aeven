@@ -30,6 +30,7 @@ import { processOutcome, processSources } from './background.ts'
 import { BACKGROUND_ACK, parseExitStatus, renderResult } from './render.ts'
 import { sharedBytesOf, shareOutputs, type SharedOutputs } from './share.ts'
 import { ShareLedger } from './share-ledger.ts'
+import { watchOutputs, type OutputWatch } from './detect-outputs.ts'
 import { isPreApprovedSkillScript, type EscalationSkillScript } from './skill-escalation.ts'
 import type {} from '@aeven/skill'
 
@@ -92,10 +93,21 @@ export interface Config {
    * that declares no `output_files` is checked for (default PDF, office,
    * iWork, image, audio, and video formats; empty turns the check off). Every
    * workspace file the command creates or changes whose extension the command
-   * text names, among these, is recorded and shared as if it had been declared.
+   * text names, among these, is recorded and shared as if it had been declared,
+   * as is such a file in a folder the command works in (its `workdir`, each
+   * directory it changes into, and the folder of each path it names), outside
+   * the workspace too unless outputs are shared.
    */
   detectOutputExtensions?: string[]
-  /** Most workspace entries the undeclared-output check visits before and after a command (default 5000). */
+  /**
+   * File extensions, without the dot, of the documents a foreground command
+   * that declares no `output_files` is checked for in the folders it works in
+   * even when its text names none (default PDF, office, iWork, and ePub
+   * formats; empty turns this part off), so a document an exporter script
+   * writes beside its HTML source is recorded in place of that source.
+   */
+  detectDocumentExtensions?: string[]
+  /** Most entries the undeclared-output check visits before and after a command (default 5000). */
   detectOutputMaxEntries?: number
 }
 
@@ -119,67 +131,11 @@ export const Config: z<Config> = z.object({
     'pdf', 'docx', 'doc', 'odt', 'rtf', 'epub', 'xlsx', 'xls', 'ods', 'csv', 'pptx', 'ppt', 'odp',
     'pages', 'numbers', 'key', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'mp3', 'wav', 'm4a', 'mp4', 'mov', 'webm',
   ]),
+  detectDocumentExtensions: z.array(z.string()).default([
+    'pdf', 'docx', 'doc', 'odt', 'rtf', 'epub', 'xlsx', 'xls', 'ods', 'pptx', 'ppt', 'odp', 'pages', 'numbers', 'key',
+  ]),
   detectOutputMaxEntries: z.natural().min(1).default(5000),
 })
-
-/**
- * The configured extensions a command's text names, as `.ext` ending a word.
- * @param command - the command text.
- * @param extensions - configured lower-case extensions without the dot.
- * @returns the named extensions, lower-cased; empty when the command names none.
- */
-function namedExtensions(command: string, extensions: ReadonlySet<string>): Set<string> {
-  const named = new Set<string>()
-  for (const match of command.matchAll(/\.([A-Za-z0-9]+)\b/g)) {
-    const extension = match[1]?.toLowerCase()
-    if (extension !== undefined && extensions.has(extension)) named.add(extension)
-  }
-  return named
-}
-
-/**
- * The version of every file under `root` whose extension is configured, breadth first, skipping hidden directories
- * and `node_modules`, and stopping after `maxEntries` visited entries.
- * @param fs - the filesystem provider.
- * @param root - the workspace root.
- * @param extensions - lower-case extensions without the dot.
- * @param maxEntries - most directory entries visited.
- * @param signal - the call's lifetime.
- * @returns each matching file's target and version, by target key.
- */
-async function documentVersions(
-  fs: FileSystem,
-  root: FsTarget,
-  extensions: ReadonlySet<string>,
-  maxEntries: number,
-  signal: AbortSignal,
-): Promise<Map<string, { target: FsTarget; version: string | undefined }>> {
-  const found = new Map<string, { target: FsTarget; version: string | undefined }>()
-  const queue: FsTarget[] = [root]
-  let visited = 0
-  while (queue.length > 0 && visited < maxEntries) {
-    const dir = queue.shift() as FsTarget
-    let entries: Awaited<ReturnType<FileSystem['listDir']>>
-    try {
-      entries = await fs.listDir(dir, signal)
-    } catch {
-      // A directory the command removed or the Host cannot read holds no output this call can record.
-      continue
-    }
-    for (const entry of entries) {
-      if (++visited > maxEntries) break
-      if (entry.type === 'directory') {
-        if (!entry.name.startsWith('.') && entry.name !== 'node_modules') queue.push(entry.target)
-        continue
-      }
-      const dot = entry.name.lastIndexOf('.')
-      if (entry.type !== 'file' || dot <= 0 || !extensions.has(entry.name.slice(dot + 1).toLowerCase())) continue
-      const version = entry.version ?? (await fs.stat(entry.target, signal))?.version
-      found.set(String(entry.target.targetKey), { target: entry.target, version: version === undefined ? undefined : String(version) })
-    }
-  }
-  return found
-}
 
 /* jscpd:ignore-start -- the attachment-reference fields @aeven/tool-fs and @aeven/tool-media declare for their own results */
 /** Output schema of one image attachment shared at the call. */
@@ -421,6 +377,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   const copyOutputFiles = config.copyOutputFiles ?? false
   if (shareOutputFiles && copyOutputFiles) throw new Error('tool-bash: shareOutputFiles and copyOutputFiles cannot both be on')
   const detectExtensions = new Set((config.detectOutputExtensions ?? []).map(extension => extension.toLowerCase()))
+  const documentExtensions = new Set((config.detectDocumentExtensions ?? []).map(extension => extension.toLowerCase()))
   const detectMaxEntries = config.detectOutputMaxEntries ?? 5000
   const ledger = shareOutputFiles && config.shareLedgerDirectory !== undefined
     ? new ShareLedger(config.shareLedgerDirectory, config.shareMaxAccountBytesPerDay ?? 2 * 1024 * 1024 * 1024)
@@ -776,25 +733,6 @@ export function apply(ctx: Context, config: Config = {}): void {
         }
         return recordOutputs(fs, root, result, producedFiles, producedTargets)
       }
-      const detectRoot = standingPolicy?.workspaceRoot ?? workdir
-      const detectFs = ctx.get('fs')
-      const named = namedExtensions(args.command, detectExtensions)
-      if (args.run_in_background !== true && named.size > 0 && detectRoot !== undefined && detectFs !== undefined) {
-        // A command that names a document type but declares no output: its new or changed files of the named types
-        // are recorded as if declared, so a deliverable a model forgot to list still reaches the reader, while scratch
-        // files of other types (page previews of a printed PDF) stay out.
-        const workspace = await detectFs.resolve(detectRoot, { signal: exec.signal })
-        const before = await documentVersions(detectFs, workspace, named, detectMaxEntries, exec.signal)
-        const result = finishForeground(await ctx.shell.run(ctx.shell.resolve({ ...request, signal: exec.signal })))
-        const after = await documentVersions(detectFs, workspace, named, detectMaxEntries, exec.signal)
-        const changed = [...after].filter(([key, file]) => !before.has(key) || before.get(key)?.version !== file.version)
-        if (changed.length === 0) return result
-        const root = shareOutputFiles ? workspace : undefined
-        return recordOutputs(detectFs, root, result, changed.map(([key, file]) => ({
-          path: root === undefined ? file.target.displayPath : relative(root.displayPath, file.target.displayPath),
-          created: !before.has(key),
-        })), changed.map(([, file]) => file.target))
-      }
       if (args.run_in_background === true) {
         // Undeclared keys are allowed, so schema omission also needs enforcement.
         if (!backgroundEnabled) {
@@ -817,17 +755,41 @@ export function apply(ctx: Context, config: Config = {}): void {
       // keeping the turn waiting, so no long command holds the conversation. The
       // executor keeps its timeout: whichever fires first wins, and a timeout
       // still kills the command rather than handing it back.
+      // A foreground command that declares no output: its new or changed files of the watched types are recorded as
+      // if declared, so a deliverable a model forgot to list still reaches the reader in place of its source.
+      const detectRoot = standingPolicy?.workspaceRoot ?? workdir
+      const detectFs = ctx.get('fs')
+      let watch: OutputWatch | undefined
+      let workspace: FsTarget | undefined
+      if (detectRoot !== undefined && detectFs !== undefined && (detectExtensions.size > 0 || documentExtensions.size > 0)) {
+        workspace = await detectFs.resolve(detectRoot, { signal: exec.signal })
+        watch = await watchOutputs({
+          fs: detectFs, command: args.command, workspace, workdir: workdir ?? detectRoot,
+          namedExtensions: detectExtensions, documentExtensions,
+          outsideWorkspace: !shareOutputFiles, maxEntries: detectMaxEntries, signal: exec.signal,
+        })
+      }
+      const settle = async (result: ReturnType<typeof finishForeground>) => {
+        if (watch === undefined || workspace === undefined || detectFs === undefined) return result
+        const changed = await watch.changed(exec.signal)
+        if (changed.length === 0) return result
+        const root = shareOutputFiles ? workspace : undefined
+        return recordOutputs(detectFs, root, result, changed.map(file => ({
+          path: root === undefined ? file.target.displayPath : relative(root.displayPath, file.target.displayPath),
+          created: file.created,
+        })), changed.map(file => file.target))
+      }
       const jobs = backgroundEnabled ? ctx.get('jobs') : undefined
       if (jobs === undefined) {
         // Without a registry this call carries no threshold, so it simply waits.
-        return finishForeground(await ctx.shell.run(ctx.shell.resolve({ ...request, signal: exec.signal })))
+        return settle(finishForeground(await ctx.shell.run(ctx.shell.resolve({ ...request, signal: exec.signal }))))
       }
       const result = await ctx.shell.runDetachable(ctx.shell.resolve({ ...request, detachAfterMs, signal: exec.signal }))
       if (isDetachedRun(result)) {
         const id = startJob(jobs, exec.agent, args, () => result.process)
         return { kind: 'background' as const, jobId: id, detached: true, detachAfterMs: result.detachAfterMs }
       }
-      return finishForeground(result)
+      return settle(finishForeground(result))
     },
     presentCall: presentBashCall,
     presentResult: presentBashResult,

@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import SystemPrompt, { renderPrompt } from '@aeven/system-prompt'
 import {
-  addHarnessSourceSection, assertEntriesActivated, assertEntriesLoaded, boot,
+  addHarnessSourceSection, assertEntriesActivated, assertEntriesLoaded, boot, bootTolerant,
   FAIL_LOUD_RELEASE_TIMEOUT_MS, HARNESS_SOURCE_SECTION,
   installFailLoud, loadEnv, loadLayeredEnv, loadOverlayPatches, resolveConfigPath, type FailLoudProcess,
 } from '../src/index.ts'
@@ -835,6 +835,36 @@ describe('boot', () => {
       String.raw`failed to apply loader entry failing \(\./failing\.mjs\): pinned activation failure\n`,
       String.raw`Error: pinned activation failure\n {4}at failing-fixture$`,
     ].join('')))
+  })
+
+  it('starts without a failing plugin and the plugin waiting on it, keeping the rest', async () => {
+    const dir = tmp()
+    writeFileSync(join(dir, 'failing.mjs'), 'export function apply() { throw new Error("stored record rejected") }\n')
+    writeFileSync(join(dir, 'provider.mjs'), 'export function apply(ctx) { ctx.provide("fromFailing", true); throw new Error("provider failed") }\n')
+    writeFileSync(join(dir, 'dependent.mjs'), 'export const inject = ["fromFailing"]\nexport function apply() {}\n')
+    writeFileSync(join(dir, 'healthy.mjs'), 'export function apply(ctx) { ctx.provide("healthyLoaded", true) }\n')
+    writeFileSync(join(dir, 'cordis.yml'), [
+      '- id: failing', '  name: ./failing.mjs',
+      '- id: provider', '  name: ./provider.mjs',
+      '- id: dependent', '  name: ./dependent.mjs',
+      '- id: healthy', '  name: ./healthy.mjs', '',
+    ].join('\n'))
+
+    const { ctx, skipped } = await bootTolerant(NAME, join(dir, 'cordis.yml'), [], undefined, { essential: [], maxAttempts: 5 })
+
+    expect(ctx.get('healthyLoaded')).toBe(true)
+    expect(skipped.map(entry => entry.id).sort()).toEqual(['dependent', 'failing', 'provider'])
+    expect(skipped.find(entry => entry.id === 'failing')?.reason).toContain('stored record rejected')
+    await ctx.fiber.dispose()
+  })
+
+  it('keeps an essential plugin\u2019s failure fatal', async () => {
+    const dir = tmp()
+    writeFileSync(join(dir, 'failing.mjs'), 'export function apply() { throw new Error("core failed") }\n')
+    writeFileSync(join(dir, 'cordis.yml'), '- id: core\n  name: ./failing.mjs\n')
+
+    await expect(bootTolerant(NAME, join(dir, 'cordis.yml'), [], undefined, { essential: ['core'], maxAttempts: 5 }))
+      .rejects.toThrow('core failed')
   })
 
   it('falls back to the deepest cause message when its stack was erased', async () => {
