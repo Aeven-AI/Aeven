@@ -12,6 +12,12 @@ Desktop builds share `~/.aeven/storages/account_integrations.json`. A connector 
 
 `storage-domain` gains the `invalidRecords: 'skip'` policy: a record that fails its table schema stays in the medium untouched, the failure is logged as a warning, and the open continues without it, so the build that wrote it still reads it. `account_integrations` declares it. The existing `'backup-and-skip'` moves the record aside, which would lose a newer build's connector, so it does not fit.
 
+## Alternatives considered
+
+**Use `'backup-and-skip'`.** It moves the record out of the readable set, so the build that wrote the connector loses it and the user has to connect again.
+
+**Store the provider as a plain string.** Every consumer would have to narrow the provider before use, at about twenty call sites, while the domain-level policy covers every table record in one place.
+
 ## Consequences
 
 A build that does not know a provider does not show that connector and cannot use it; the record returns once a build that knows the provider opens the store. Builds released before this change still fail on such a record and need an update.
