@@ -85,6 +85,7 @@ profile 是同一套 avn 安装提供不同应用界面的方式：`web`、`head
 - **Profile 模块后备机制。** 裸插件 specifier 由 Loader 从配置目录解析。普通 Node 会为安装依赖闭包中的每个包维护一个符号链接。打包可执行文件无法让操作系统符号链接进入 pkg 的 `/snapshot` 树，因此会按 Node ESM 条件读取已安装包的 export map，并写入重新导出虚拟模块 URL 的真实代理包。缺失 export 保持不可用，错误 export map 会让启动失败，跨进程 writer lock 则会在不暴露部分代理的情况下替换陈旧条目。所选外部 bundle 若不在安装闭包中，则会获得 profile 本地的 `.aeven-module-fallback` 链接；已有 pnpm 条目优先，后续闭包发现会排除投影链接，清理也只删除 avn 自有链接。
 - **单一 rejection 检查点。** `assertEntriesActivated` 把折入启动诊断的确切原因保持到下一个进程级 rejection 检查点可见，使 `installFailLoud` 能合并 Loader 的重复通知，而所有无关的未处理 rejection 仍然致命。
 - **两阶段失败标签。** `boot()` 区分 `host preparation failed`（`prepare` 在任何配置树条目挂载前抛出）与 `plugin tree failed to load`（此后的一切失败），并追加最深层插件错误的堆栈，使启动诊断保留原始激活错误，而不只是包装链。
+- **容错启动。** `bootTolerant()` 与 `boot()` 一样启动；启动失败后，它用 `{ id, disabled: true }` 补丁行停用失败所指的每个条目（`failedEntries()`：每条原因链上最内层的 Loader 应用失败，以及激活审计以 `EntriesNotActivatedError` 报告的条目），然后再次启动，最多 `maxAttempts` 次。它返回插件树和被跳过的条目；指向 `essential` 条目、未指向任何条目或只指向已停用条目的失败仍然致命。桌面端宿主使用它。
 
 ### Helper 行为
 

@@ -837,6 +837,15 @@ async function main(): Promise<void> {
       aevenSignIn = ready.aevenSignIn ?? await adoptedHostSignIn(ready.url)
       attachedBackend = { url: ready.url, origin: new URL(ready.url).origin }
       keepAevenSession()
+      if (ready.skippedPlugins !== undefined && ready.skippedPlugins.length > 0) {
+        // The Host started without plugins that failed; the app stays usable, and the warning names them.
+        const list = ready.skippedPlugins.map(entry => `• ${entry.id}: ${entry.reason}`).join('\n')
+        void dialog.showMessageBox({
+          type: 'warning',
+          message: messages.skippedPluginsTitle,
+          detail: formatDesktopMessage(messages.skippedPluginsDetail, { list }),
+        }).catch(() => undefined)
+      }
     }
     return next
   }
