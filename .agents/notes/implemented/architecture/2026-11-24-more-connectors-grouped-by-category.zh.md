@@ -1,4 +1,4 @@
-# Agent Note：Cloudflare、AWS、Supabase、Calendly、Google Cloud、Azure DevOps、Oracle Cloud 及 Google 任务、通讯录、Meet 连接器，按类别列出
+# Agent Note：Cloudflare、AWS、Supabase、Calendly、BigQuery、Azure DevOps、Oracle Cloud 及 Google 任务、通讯录、Meet 连接器，按类别列出
 
 Status: implemented
 
@@ -6,12 +6,12 @@ Status: implemented
 
 ## 问题
 
-用户要求接入 Spotify、Cloudflare、AWS、Supabase、Calendly、其他主要云平台，以及 Æven 无需受限范围即可访问的所有 Google 服务。提供商增至 34 个后，平铺的连接器列表已无法让读者按用途找到连接器。
+用户要求接入 Spotify、Cloudflare、AWS、Supabase、Calendly、其他主要云平台，以及 Æven 无需受限范围即可访问的所有 Google 服务。提供商增至 33 个后，平铺的连接器列表已无法让读者按用途找到连接器。
 
 ## 决定
 
 - **供应商托管的服务器。** Cloudflare（`https://mcp.cloudflare.com/mcp`）、AWS（`https://aws-mcp.us-east-1.api.aws/mcp`）、Supabase（`https://mcp.supabase.com/mcp`，在 `api.supabase.com` 授权）和 Calendly（`https://mcp.calendly.com/`，在 `calendly.com` 授权）动态注册客户端，因此各自只是 Aeven API 上的一个 `HOSTED_MCP` 条目及宿主 `hosted-mcp.ts` 中的一个端点（[托管 MCP 连接器](2026-11-24-hosted-mcp-connectors-trust-vendor-read-hints.zh.md)）。AWS 和 Calendly 只接受公开客户端；AWS、Supabase 和 Calendly 不发布撤销端点。Cloudflare、AWS 和 Supabase 不发送 scope 参数，沿用服务器的默认授权；Calendly 请求其受保护资源元数据列出的三个范围。
-- **通过 Google 登录接入 Google Cloud。** BigQuery（`https://bigquery.googleapis.com/mcp`）和 Compute Engine（`https://compute.googleapis.com/mcp`）是 Google 自己的托管 MCP 服务器，其授权服务器为 `accounts.google.com`，因此各自是 API 上的一个 `GOOGLE_SCOPES` 条目（`bigquery`、`compute`）及宿主上的一个托管 MCP 端点。Google 每个产品提供一个 MCP 服务器，因此每个产品各为一个连接器。
+- **通过 Google 登录接入 BigQuery。** BigQuery（`https://bigquery.googleapis.com/mcp`）是 Google 自己的托管 MCP 服务器，其授权服务器为 `accounts.google.com`，因此它是 API 上的一个 `GOOGLE_SCOPES` 条目（`bigquery`）及宿主上的一个托管 MCP 端点。未提供 Compute Engine 的托管服务器：OAuth 应用所在项目没有结算账号就无法启用其 API。
 - **通过 Microsoft 应用接入 Azure DevOps。** 其托管服务器位于 `mcp.dev.azure.com/<organization>`，经由 Entra 工作或学校账户授权，因此 API 的 Microsoft 应用在 `organizations` 请求 `https://mcp.dev.azure.com/.default`。该令牌并非针对 Graph，因此 API 从 ID 令牌而非 Graph 的 `/me` 读取账户。设置页面在授权前收集组织，宿主将服务器与连接行一同保存。Azure 资源没有托管 MCP 服务器，因此不提供。
 - **Oracle Cloud 沿用 Salesforce 的方式。** Oracle 的托管 MCP 服务器运行在各租户内部，经由租户自己的身份域授权，且不支持动态注册，因此用户提供服务器 URL、身份域及其应用的客户端 ID 和密钥。API 的自带应用路径此前仅供 Salesforce 使用，现按提供商选择校验规则和端点；它只接受 `identity.oraclecloud.com` 主机，并请求 `openid offline_access`，宿主只接受 `oraclecloud.com` 上的 HTTPS 服务器 URL。
 - **Gmail、云端硬盘和日历之外的 Google 服务。** `google-tasks`（`tasks`）、`google-contacts`（`contacts`）和 `google-meet`（`meetings.space.created`、`meetings.space.readonly`）通过同一 Workspace 桥接运行，`GWS_SERVICES` 分别设为 `tasks`、`people` 和 `meet`。这四个范围均为敏感而非受限范围，因此验证无需 CASA 评估。桥接本身没有 Meet 工具；其 `workspace_raw` 工具访问 Meet API，并以 `conferenceRecords.list` 验证授权。Chat 和 Keep 需要 Workspace 管理员，YouTube 不在桥接范围内，因此不提供。

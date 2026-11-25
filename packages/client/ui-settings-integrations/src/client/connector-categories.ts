@@ -23,7 +23,7 @@ export const connectorCategory: Readonly<Record<ConnectorProvider, ConnectorCate
   'google-contacts': 'categoryProductivity', 'google-meet': 'categoryProductivity', 'microsoft-365': 'categoryProductivity',
   'outlook-calendar': 'categoryProductivity', onedrive: 'categoryProductivity', sharepoint: 'categoryProductivity',
   notion: 'categoryProductivity', calendly: 'categoryProductivity', atlassian: 'categoryProductivity', monday: 'categoryProductivity',
-  github: 'categoryDevelopment', vercel: 'categoryDevelopment', cloudflare: 'categoryDevelopment', aws: 'categoryDevelopment', supabase: 'categoryDevelopment', bigquery: 'categoryDevelopment', 'compute-engine': 'categoryDevelopment',
+  github: 'categoryDevelopment', vercel: 'categoryDevelopment', cloudflare: 'categoryDevelopment', aws: 'categoryDevelopment', supabase: 'categoryDevelopment', bigquery: 'categoryDevelopment',
   'azure-devops': 'categoryDevelopment', oracle: 'categoryDevelopment',
   salesforce: 'categorySales',
   shopify: 'categoryCommerce',
