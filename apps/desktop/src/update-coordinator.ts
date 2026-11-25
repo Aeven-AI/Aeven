@@ -10,6 +10,15 @@ import type { DesktopUpdateState } from './ipc.ts'
 const { autoUpdater } = electronUpdater
 
 /**
+ * Whether this process can update itself from the release stream.
+ * @returns true for a packaged build that carries updater configuration; a Microsoft Store install
+ * never does, because the Store replaces its package.
+ */
+export function desktopUpdatesEnabled(): boolean {
+  return app.isPackaged && !process.windowsStore && existsSync(join(process.resourcesPath, 'app-update.yml'))
+}
+
+/**
  * Checks, downloads, and installs one complete Desktop release.
  *
  * A found release downloads while the reader keeps working, then `prepare`
@@ -40,9 +49,7 @@ export class DesktopUpdateCoordinator {
     private readonly beforeRestart: () => Promise<void> = async () => {},
     private readonly prepare: (version: string) => Promise<void> = async () => {},
     private readonly updater: AppUpdater = autoUpdater,
-    private readonly enabled: () => boolean = () => (
-      app.isPackaged && !process.windowsStore && existsSync(join(process.resourcesPath, 'app-update.yml'))
-    ),
+    private readonly enabled: () => boolean = desktopUpdatesEnabled,
   ) {
     // A found release downloads at once, so the offer is about installing what
     // is already on disk. The updater's own quit handler stays off: a restart is

@@ -867,6 +867,25 @@ describe('boot', () => {
       .rejects.toThrow('core failed')
   })
 
+  it('keeps an access-control plugin\u2019s failure fatal without the host listing it', async () => {
+    const dir = tmp()
+    writeFileSync(join(dir, 'failing.mjs'), 'export function apply() { throw new Error("policy failed") }\n')
+    writeFileSync(join(dir, 'cordis.yml'), '- id: access-policy\n  name: ./failing.mjs\n')
+
+    await expect(bootTolerant(NAME, join(dir, 'cordis.yml'), [], undefined, { essential: [], maxAttempts: 5 }))
+      .rejects.toThrow('policy failed')
+  })
+
+  it('keeps an access-control plugin fatal when the plugin it waits for failed', async () => {
+    const dir = tmp()
+    writeFileSync(join(dir, 'failing.mjs'), 'export function apply() { throw new Error("provider failed") }\n')
+    writeFileSync(join(dir, 'waiting.mjs'), 'export const inject = ["neverProvided"]\nexport function apply() {}\n')
+    writeFileSync(join(dir, 'cordis.yml'), '- id: provider\n  name: ./failing.mjs\n- id: access-policy\n  name: ./waiting.mjs\n')
+
+    await expect(bootTolerant(NAME, join(dir, 'cordis.yml'), [], undefined, { essential: [], maxAttempts: 5 }))
+      .rejects.toThrow('./waiting.mjs: pending (waiting for service: neverProvided)')
+  })
+
   it('falls back to the deepest cause message when its stack was erased', async () => {
     const dir = tmp()
     const deepest = new Error('stackless deep failure')
