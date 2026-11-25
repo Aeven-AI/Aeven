@@ -2155,6 +2155,53 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     source: 'packages/client/ui-settings/src/client/contract/slots.ts:24',
   },
   {
+    key: 'settings.voice.item',
+    kind: 'list',
+    scope: 'root',
+    summary: 'One row inside the Voice group of the General section, after the dictation model rows (the read-aloud voices row).',
+    doc: 'One row inside the Voice group of the General section, after the\ndictation model rows (the read-aloud voices row). Same empty owner share\nas a General row: the group only stacks rows. Declared at runtime by\nui-voice-input\'s Voice entry.',
+    registerOptions: [
+      {
+        name: 'id',
+        requirement: 'required',
+        type: 'string',
+        doc: 'Your cell key. Use an id of your own: a fresh id is added beside the shipped entries, while reusing a shipped id puts you in THAT cell and replaces it. Owners that filter by id address you by it.',
+      },
+      {
+        name: 'order',
+        requirement: 'optional',
+        type: 'number',
+        doc: 'Position among the entries, ascending (default 0).',
+      },
+      {
+        name: 'label',
+        requirement: 'optional',
+        type: 'string | (() => string)',
+        doc: 'Display text where the owner projects one (nav rows, tabs). A thunk is re-read on every projection, so localized text follows the active locale without re-registering.',
+      },
+    ],
+    ownerProps: [
+      '/** Owner share of a Voice group row (the group supplies nothing). */\nexport interface SettingsVoiceItemOwnerProps {\n  /** Marker field: item owner props are intentionally empty. */\n  children?: never\n}',
+    ],
+    ownerPropsReferences: [],
+    standardProps: [
+      'useWorkspaces: SnapshotSelectorHook<WorkspaceSnapshot>',
+      'useSessions: UseSessions',
+      'useSessionPendingInteraction: UseSessionPendingInteraction',
+      'useWorkspaces: SnapshotSelectorHook<WorkspaceSnapshot>',
+    ],
+    keyDomain: '',
+    hookContext: '',
+    slotInject: '',
+    declaredBy: 'an entry in \'settings.general.item\' (client-ui-voice-input), so it exists while that entry is mounted',
+    occupants: [
+      'client-ui-tts VoiceSettingsRow id \'read-aloud-voices\'',
+    ],
+    replaceRisk: 'none',
+    example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'settings.voice.item\', () => ctx.slots.register(\n      { name: \'settings.voice.item\', id: \'my-entry\', order: 100, label: \'My entry\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
+    source: 'packages/client/ui-settings/src/client/contract/slots.ts:105',
+  },
+  {
     key: 'shell.corner',
     kind: 'list',
     scope: 'root',

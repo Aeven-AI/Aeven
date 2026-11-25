@@ -100,6 +100,75 @@ export function groupVoices(catalog: ReadAloudCatalog): {
     .sort((left, right) => left.name.localeCompare(right.name))
 }
 
+/** One row of the voice picker card, in the shape the shared popupSelect card draws. */
+export interface VoiceRow {
+  readonly id: string
+  readonly label: string
+  readonly detail?: string
+  /** Text the search matches but the row never shows. */
+  readonly keywords?: string
+  readonly active?: boolean
+}
+
+/** Row id of a language's Default entry; no catalogue voice id is this word. */
+export const DEFAULT_ROW = 'default'
+
+/**
+ * The languages card: one row per language, its voice count as the detail, its subtag searchable.
+ * @param catalog - voices and the Host language mapping.
+ * @param count - the localized voice count line for a number of voices.
+ * @returns the rows, sorted by language name.
+ */
+export function languageRows(catalog: ReadAloudCatalog, count: (voices: number) => string): VoiceRow[] {
+  return groupVoices(catalog).map(group => ({
+    id: group.language, label: group.name, detail: count(group.voices.length), keywords: group.language,
+  }))
+}
+
+/**
+ * One language's voices card: Default first, naming the voice it resolves to, then every voice, with the
+ * current choice marked active.
+ * @param catalog - voices and the Host language mapping.
+ * @param language - primary language subtag the card lists.
+ * @param preferences - language subtag to the voice the reader picked.
+ * @param defaultLabel - the localized name of the Default row.
+ * @returns the rows, or none when the catalogue holds no such language.
+ */
+export function voiceRows(
+  catalog: ReadAloudCatalog,
+  language: string,
+  preferences: Readonly<Record<string, string>>,
+  defaultLabel: string,
+): VoiceRow[] {
+  const group = groupVoices(catalog).find(entry => entry.language === language)
+  if (group === undefined) return []
+  const chosen = preferences[language] ?? group.mapped
+  return [
+    {
+      id: DEFAULT_ROW,
+      label: defaultLabel,
+      ...group.defaultVoice === undefined ? {} : { detail: group.defaultVoice.name },
+      ...chosen === undefined ? { active: true } : {},
+    },
+    ...group.voices.map(voice => ({ id: voice.id, label: voice.name, ...chosen === voice.id ? { active: true } : {} })),
+  ]
+}
+
+/**
+ * Narrow rows to a search the way the popupSelect card does: the trimmed, lower-cased query must appear
+ * in the label, the detail, or the keywords.
+ * @param rows - rows in display order.
+ * @param search - text the reader typed.
+ * @returns the matching rows in their order; all of them for a blank query.
+ */
+export function filterRows(rows: readonly VoiceRow[], search: string): readonly VoiceRow[] {
+  const query = search.trim().toLowerCase()
+  if (query === '') return rows
+  return rows.filter(row => row.label.toLowerCase().includes(query)
+    || (row.detail?.toLowerCase().includes(query) ?? false)
+    || (row.keywords?.toLowerCase().includes(query) ?? false))
+}
+
 /**
  * The voice a language falls back to: the configured mapping when the deployment names one, otherwise
  * the first female voice of the language, which is the rule the Host resolves with.

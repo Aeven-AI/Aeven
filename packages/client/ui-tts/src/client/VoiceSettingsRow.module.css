@@ -1,0 +1,150 @@
+/* The Settings read-aloud voices row. The pill is SettingsSelect's selector
+ * (ui-primitives SettingsSelect.module.css) and the card is the popupSelect
+ * card the composer's Image model, Video model, and voice rows open
+ * (ui-commands PopupSelectView.module.css), copied rule for rule: only the
+ * card's placement differs, fixed from the pill instead of anchored above the
+ * composer. */
+
+.selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  height: var(--dsw-aeven-control-size);
+  padding: 0 14px;
+  border: none;
+  border-radius: var(--dsw-aeven-radius-control);
+  background: var(--dsw-alias-bg-module-platform);
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  white-space: nowrap;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+}
+
+.selector:hover:enabled {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.selector:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.selector:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+
+.chevron {
+  flex: none;
+}
+
+.card {
+  /* Fixed over the settings panel (z-index 1000), placed from the pill in
+     VoiceSettingsRow.tsx. */
+  position: fixed;
+  z-index: 1100;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  max-width: calc(100vw - 32px);
+  /* Height cap: the 320px design maximum, clamped at runtime to the room
+   * beside the pill (inline max-height set in VoiceSettingsRow.tsx). */
+  max-height: 320px;
+  overflow: hidden;
+  /* Elevated surface: the l2 elevation thumb is the surface's declaration
+     (see ui-theme styles/scrollbar.css for the rebinding contract). The viewport
+     hides its bar, so this only takes effect if that hiding is ever reverted. */
+  --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+  border: 0;
+  /* Aeven's popup surface, same as ui-primitives' Menu card and the avatar
+     menu: the 30px surface radius over a translucent, blurred fill. */
+  border-radius: var(--dsw-aeven-radius-surface);
+  background: var(--dsw-tint-menu);
+  backdrop-filter: blur(4px);
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
+  box-shadow:
+    inset 1px 1px 0 0 var(--dsw-specific-popup-highlight),
+    inset 0 0 1px 1px var(--dsw-specific-popup-highlight),
+    var(--dsw-elevation-prominent);
+  outline: none;
+}
+
+/* The list runs to hundreds of rows (the model catalog routinely does) and the
+ * card is a transient surface over the composer, so its bar is decoration this
+ * shell does not want: the `no-scrollbar` class it carries in the markup drops
+ * the bar and the gutter it would reserve (ui-theme styles/scrollbar.css owns
+ * that utility). Scrolling itself is untouched — the wheel, trackpad, and the
+ * shell's Arrow keys all still move the list. */
+.viewport {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* The same control cell as ui-primitives' Menu item, so a row of the model
+   list and a row of the Full access selector are the same button: 40px
+   minimum, 8px padding, the control radius, 14/22. */
+.row {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--dsw-aeven-control-size);
+  padding: 8px;
+  border-radius: var(--dsw-aeven-radius-control);
+  cursor: pointer;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  color: var(--dsw-alias-label-primary);
+}
+
+/* The value the picker is on, and the rollover treatment: one look, so moving
+ * the pointer off that row cannot leave the picker looking unset. */
+.rowSelected,
+.rowActive {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.label {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.detail {
+  font-size: 0.75rem;
+  color: var(--dsw-alias-label-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status {
+  padding: 8px;
+  font-size: 0.875rem;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* The field is a row of this card like any other: the same 8px inset and the
+   same 40px control height, so its text lines up with the row labels below it
+   instead of sitting 2px further in. Only the gap under it separates the two. */
+.search {
+  box-sizing: border-box;
+  margin: 0 0 4px;
+  min-height: var(--dsw-aeven-control-size);
+  padding: 8px;
+  border: 0.5px solid var(--dsw-alias-border-inverted);
+  border-radius: var(--dsw-aeven-radius-control);
+  background: transparent;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  color: var(--dsw-alias-label-primary);
+  outline: none;
+}
