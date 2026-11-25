@@ -1,6 +1,7 @@
 /** Personal skill storage and account-scoped MCP connections exposed to Settings. */
 
 import { createHash, randomUUID } from 'node:crypto'
+import type { ServerResponse } from 'node:http'
 import { chmod, rename, rm, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, isAbsolute, join } from 'node:path'
@@ -47,11 +48,12 @@ import { azureDevOpsMcpEndpoint, azureDevOpsRequestSchema } from './azure-devops
 import { oracleRequestSchema } from './oracle.ts'
 import { resolveShopifyEntry, shopifyRequestSchema, verifyShopify } from './shopify.ts'
 import { isSlackReadTool, slackConnectorId, SLACK_DIRECT_MESSAGE_SCOPES, SLACK_MCP_ENDPOINT, SLACK_WORKSPACE_SCOPES, type SlackWorkspace } from './slack.ts'
-import { isSlackConsentFailure, probeSlackToken, revokeSlackToken, refreshSlackToken, SlackLoginError, startSlackLogin, type SlackLogin, type SlackToken } from './slack-login.ts'
+import { isSlackConsentFailure, probeSlackToken, revokeSlackToken, refreshSlackToken, slackCallbackResult, SlackLoginError, slackUnknownCallback, startSlackLogin, type SlackCallbackRelay, type SlackLogin, type SlackToken } from './slack-login.ts'
 import { connectorCredential, type PendingConsent } from './oauth.ts'
 import { BrokerError, ConnectorBroker, type ConsentStatus, type IssuedToken } from './broker.ts'
 import type { AccountIntegrationsView, CatalogPackInstall, CatalogSkillView, ConnectorAuthorization, ConnectorCreateRequest, ConnectorId, ConnectorProvider, ConnectorProviderView, SalesforceAuthorizationRequest, ShopifyAuthorizationRequest, AzureDevOpsAuthorizationRequest, OracleAuthorizationRequest, DiscordConnectorSettings, PersonalSkillView, EmailConnectionFailure, EmailConnectorSettings, EmailConnectionRequest, EmailConnectionResult, EmailConnectionUpdate, SkillCatalogView, SkillReferenceImport, SkillSetup, SkillViewId, SkillUploadFile, SlackConnectorSettings, SystemSkillAgent, SystemSkillView, TelegramConnectorSettings, TelegramPairingView, WhatsAppMessageMedia, WhatsAppPairingView, WhatsAppPhoneCodeView } from './types.ts'
 
+import type {} from '@aeven/host-webserver'
 export type * from './types.ts'
 
 /** One bundle an import stores, and the references its source could not supply. */
@@ -139,6 +141,12 @@ export interface Config {
    * consent fails at the redirect.
    */
   slackCallbackPort: number
+  /**
+   * Public HTTPS address of this Host's own Slack callback route, for a Host the browser reaches over
+   * the network (the hosted Host); the Slack app registers it as a redirect URL. Absent keeps the
+   * loopback redirect on `slackCallbackPort`, which only reaches a browser on the Host's computer.
+   */
+  slackRedirectUrl?: string
   /** Whether a login also asks for direct-message search and history, which the app must register too. */
   slackDirectMessages: boolean
   /** Time a live Slack token is trusted before Slack is asked again. */
@@ -602,6 +610,7 @@ export default class AccountIntegrations extends TypertRemoteService {
     salesforceMcpServer: Schema.string().pattern(/^[a-z0-9-]{1,64}$/).default('sobject-all'),
     slackClientId: Schema.string(),
     slackCallbackPort: Schema.natural().min(1).max(65_535).default(12_751),
+    slackRedirectUrl: Schema.string().pattern(/^https:\/\/[^/\s]+\/[^\s?#]+$/),
     slackDirectMessages: Schema.boolean().default(false),
     slackVerifyIntervalMs: Schema.natural().min(1).default(300_000),
     whatsappBinaryPath: Schema.string(),
@@ -655,6 +664,8 @@ export default class AccountIntegrations extends TypertRemoteService {
   private readonly discordPresence = new Map<ConnectorId, { at: number; present: boolean }>()
   /** Workspace logins in flight, keyed by the connector each is about to store. */
   private readonly slackLogins = new Map<ConnectorId, { owner: string; cancel: () => void; completion: Promise<void> }>()
+  /** Slack logins awaiting the redirect on this Host's public callback route, by the state each sent. */
+  private readonly slackRedirects = new Map<string, { settle: (code: string) => void; fail: (error: Error) => void }>()
   /** Last token verdict per workspace, so a settings read does not ask Slack every time. */
   private readonly slackPresence = new Map<ConnectorId, { at: number; present: boolean }>()
   private readonly pairings = new Map<ConnectorId, WhatsAppPairing>()
@@ -808,6 +819,15 @@ export default class AccountIntegrations extends TypertRemoteService {
       (connectorSkillNames.has(name) || options.owner === undefined || this.domain.table('skill_preferences').get(`${accountDirectory(options.owner)}:${name}`)?.enabled !== false)
         && this.skillConnectorAvailable(name, options.owner)),
     'account-integrations: skill invocation preferences')
+    // A Host the browser reaches over the network receives Slack's redirect on its own public route.
+    const slackRedirectUrl = this.config.slackRedirectUrl
+    if (slackRedirectUrl !== undefined) {
+      this.ctx.inject(['webServer'], (ctx) => {
+        ctx.effect(() => ctx.webServer.register({
+          kind: 'exact', path: new URL(slackRedirectUrl).pathname, handler: (request, response) => { this.answerSlackRedirect(request.url ?? '/', response) },
+        }), 'account-integrations: Slack callback route')
+      })
+    }
     // A jailed command's Git requests to GitHub carry the account's own connector token, sent by the jail's egress proxy.
     this.ctx.inject(['sandboxGitCredentials'], (ctx) => {
       ctx.effect(() => ctx.sandboxGitCredentials.register((account, host) => this.gitHubToken(account, host)), 'account-integrations: git credentials')
@@ -2540,8 +2560,12 @@ export default class AccountIntegrations extends TypertRemoteService {
     this.consentFailures.delete(`${owner}\0slack`)
     const scopes = this.slackScopes()
     let login: SlackLogin
+    const relay = this.slackRelay()
     try {
-      login = await startSlackLogin({ clientId, port: this.config.slackCallbackPort, scopes, timeoutMs: this.config.consentLifetimeMs })
+      login = await startSlackLogin({
+        clientId, port: this.config.slackCallbackPort, scopes, timeoutMs: this.config.consentLifetimeMs,
+        ...relay === undefined ? {} : { relay },
+      })
     } catch (error) {
       // A blocked port is the deployment's own configuration, and Settings has to say so rather than report a failed sign-in.
       throw new Error(error instanceof SlackLoginError && error.reason === 'port'
@@ -2565,6 +2589,48 @@ export default class AccountIntegrations extends TypertRemoteService {
       })
     this.slackLogins.set(id, { owner, cancel: login.cancel, completion })
     return { url: login.url }
+  }
+
+  /**
+   * This Host's public Slack callback route as a login relay, when the deployment configures one.
+   * @returns the relay, or undefined for a Host that receives the redirect on its loopback port.
+   */
+  private slackRelay(): SlackCallbackRelay | undefined {
+    const redirectUri = this.config.slackRedirectUrl
+    if (redirectUri === undefined) return undefined
+    return {
+      redirectUri,
+      await: (state, signal) => {
+        let settle!: (code: string) => void
+        let fail!: (error: Error) => void
+        const code = new Promise<string>((resolve, reject) => { settle = resolve; fail = reject })
+        const abort = (): void => { this.slackRedirects.delete(state); fail(signal.reason instanceof Error ? signal.reason : new SlackLoginError('cancelled', 'sign-in was cancelled')) }
+        signal.addEventListener('abort', abort, { once: true })
+        this.slackRedirects.set(state, { settle, fail })
+        return { code, close: () => { signal.removeEventListener('abort', abort); this.slackRedirects.delete(state) } }
+      },
+    }
+  }
+
+  /**
+   * Answer one Slack redirect on the public callback route and hand its code to the login that sent its state.
+   * @param target - the request target, carrying Slack's query.
+   * @param response - the browser's response.
+   */
+  private answerSlackRedirect(target: string, response: ServerResponse): void {
+    const query = new URL(target, 'https://callback.invalid').searchParams
+    const state = query.get('state') ?? ''
+    const pending = this.slackRedirects.get(state)
+    if (pending === undefined) {
+      const page = slackUnknownCallback()
+      response.writeHead(page.status, { 'Content-Type': 'text/html; charset=utf-8' }).end(page.html)
+      return
+    }
+    this.slackRedirects.delete(state)
+    const result = slackCallbackResult(query, state)
+    response.writeHead(result.status, { 'Content-Type': 'text/html; charset=utf-8' }).end(result.html)
+    if (result.code === undefined) pending.fail(result.error)
+    else pending.settle(result.code)
   }
 
   /**
