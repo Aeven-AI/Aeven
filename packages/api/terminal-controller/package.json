@@ -1,7 +1,7 @@
 {
   "name": "@aeven/api-terminal-controller",
   "description": "Interactive browser terminals over Typert Remote",
-  "version": "0.3.67-alpha",
+  "version": "0.3.68-alpha",
   "publishConfig": {
     "access": "public"
   },

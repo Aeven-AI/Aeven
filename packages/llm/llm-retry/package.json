@@ -1,7 +1,7 @@
 {
   "name": "@aeven/llm-retry",
   "description": "Provider-routed LLM request retry policy for the Aeven",
-  "version": "0.3.67-alpha",
+  "version": "0.3.68-alpha",
   "publishConfig": {
     "access": "public"
   },
