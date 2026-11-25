@@ -59,9 +59,11 @@
     "@aeven/identity-user": "workspace:^",
     "@aeven/sandbox-policy": "workspace:^",
     "@aeven/session": "workspace:^",
+    "@aeven/session-projection": "workspace:^",
     "@aeven/session-query": "workspace:^",
     "@aeven/typert-protocol": "workspace:^",
     "@aeven/working-directory": "workspace:^",
+    "@aeven/workspace": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
@@ -70,12 +72,16 @@
     "@aeven/brand": "workspace:^",
     "@aeven/client-connection": "workspace:^",
     "@aeven/fs": "workspace:^",
+    "@aeven/fs-local": "workspace:^",
     "@aeven/identity-user": "workspace:^",
     "@aeven/sandbox-policy": "workspace:^",
     "@aeven/session": "workspace:^",
+    "@aeven/session-projection": "workspace:^",
     "@aeven/session-query": "workspace:^",
     "@aeven/typert-protocol": "workspace:^",
+    "@aeven/typert-registry": "workspace:^",
     "@aeven/working-directory": "workspace:^",
+    "@aeven/workspace": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@types/mime-types": "^3.0.1"
   }

@@ -548,6 +548,11 @@ export interface Config {
   readonly watchDelayMs: number
   /** Cap on the entries one delete confirmation counts inside a folder. */
   readonly countMaxItems: number
+  /**
+   * Longest wait for the workspace syncs to bring a Session's workspace here when a reader opens its explorer or reads
+   * a file this device does not hold yet; the transfer goes on after the wait ends.
+   */
+  readonly arrivalWaitMs: number
 }
 ```
 

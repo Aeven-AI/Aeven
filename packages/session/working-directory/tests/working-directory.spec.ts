@@ -84,7 +84,20 @@ describe('working directory', () => {
     expect(bench.ctx.sessionProjections.snapshot(bench.session).values)
       // `change` moves the directory and leaves the workspace root unset, so only
       // `enter` names a root in the log.
-      .toEqual({ workingDirectory: { cwd: target, root: null } })
+      .toEqual({ workingDirectory: { cwd: target, root: null, roots: [] } })
+  })
+
+  it('keeps every workspace root the log recorded, so a path any of its devices wrote can be found here', async () => {
+    const bench = await harness()
+    bench.session.append('session/cwd', { cwd: '/Users/me/Projects/site', root: '/Users/me/Projects/site' })
+    bench.session.append('session/cwd', { cwd: '/srv/accounts/me/.aeven-projects/site', root: '/srv/accounts/me/.aeven-projects/site' })
+    bench.session.append('session/cwd', { cwd: '/Users/me/Projects/site/docs' })
+    bench.session.append('session/cwd', { cwd: '/Users/me/Projects/site', root: '/Users/me/Projects/site' })
+    expect(bench.ctx.sessionProjections.snapshot(bench.session).values.workingDirectory).toEqual({
+      cwd: '/Users/me/Projects/site',
+      root: '/Users/me/Projects/site',
+      roots: ['/Users/me/Projects/site', '/srv/accounts/me/.aeven-projects/site'],
+    })
   })
 
   it('resolves a relative target against the directory in force', async () => {
@@ -131,7 +144,7 @@ describe('working directory', () => {
     const before = bench.ctx.workingDirectory.of(bench.session)
     await expect(bench.ctx.workingDirectory.change(bench.session, root)).resolves.toBe(before)
     expect(bench.ctx.sessionProjections.snapshot(bench.session).values)
-      .toEqual({ workingDirectory: { cwd: null, root: null } })
+      .toEqual({ workingDirectory: { cwd: null, root: null, roots: [] } })
   })
 
   it('enters an absolute directory from a session with no header cwd', async () => {
