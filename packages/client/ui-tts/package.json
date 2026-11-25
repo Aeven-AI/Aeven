@@ -23,8 +23,10 @@
         "@aeven/api-gateway",
         "@aeven/api-remotes",
         "@aeven/client-locale",
+        "@aeven/client-ui-commands",
         "@aeven/client-ui-conversation",
-        "@aeven/client-ui-primitives"
+        "@aeven/client-ui-primitives",
+        "@aeven/client-ui-settings"
       ],
       "platform": "web"
     }
@@ -45,15 +47,20 @@
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^"
   },
+  "dependencies": {
+    "clsx": "^2.0.0"
+  },
   "devDependencies": {
     "@aeven/api-gateway": "workspace:^",
     "@aeven/api-remotes": "workspace:^",
     "@aeven/api-text-to-speech": "workspace:^",
     "@aeven/client-locale": "workspace:^",
     "@aeven/client-ui-chat": "workspace:^",
+    "@aeven/client-ui-commands": "workspace:^",
     "@aeven/client-ui-conversation": "workspace:^",
     "@aeven/client-ui-primitives": "workspace:^",
     "@aeven/client-ui-renderer": "workspace:^",
+    "@aeven/client-ui-settings": "workspace:^",
     "@aeven/client-ui-slots": "workspace:^",
     "@aeven/text-to-speech": "workspace:^",
     "@aeven/typert-protocol": "workspace:^",

@@ -1,7 +1,10 @@
-/** Settings → General → Voice input: the dictation model, where it stands, and the switch that turns voice input on. */
+/**
+ * Settings → General → Voice: the dictation model, where it stands, the switch that turns voice input on,
+ * and the rows other plugins add to the group.
+ */
 import { useState } from 'react'
 import { SettingsGroup, SettingsMeter, SettingsRow, Spinner, Switch } from '@aeven/client-ui-primitives'
-import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
+import type { InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime } from '@aeven/client-ui-slots'
 import type { SpeechProviderId, SpeechProviderView } from '@aeven/speech-to-text/types'
 import type { HostObservable } from '@aeven/client-ui-slots'
 import type {} from '@aeven/client-ui-settings/client'
@@ -20,7 +23,8 @@ export interface VoiceSectionInjected {
 }
 
 /** Full props of the Voice input group. */
-export type VoiceSectionProps = PropsRuntime<'settings.general.item'> & PropsLocale<typeof NS> & InjectFace<VoiceSectionInjected>
+export type VoiceSectionProps = PropsRuntime<'settings.general.item'> & PropsRenderSlots<'settings.voice.item'>
+  & PropsLocale<typeof NS> & InjectFace<VoiceSectionInjected>
 
 function ProviderCard({ provider, enabled, connected, prepare, cancel, setEnabled, t }: {
   provider: SpeechProviderView
@@ -90,12 +94,13 @@ function ProviderCard({ provider, enabled, connected, prepare, cancel, setEnable
 }
 
 /**
- * Render the Voice input group: one row per recognizer, with the state it is
- * in and the switch that turns voice input on and downloads its model.
- * @param props - readiness mirror and preparation control.
+ * Render the Voice group: one row per recognizer, with the state it is in and
+ * the switch that turns voice input on and downloads its model, then the
+ * contributed `settings.voice.item` rows.
+ * @param props - readiness mirror, preparation control, and the row renderer.
  * @returns the group element tree.
  */
-export function VoiceSection({ useSpeechReadiness, prepare, cancel, setEnabled, t }: VoiceSectionProps) {
+export function VoiceSection({ useSpeechReadiness, prepare, cancel, setEnabled, renderSlot, t }: VoiceSectionProps) {
   const readiness = useSpeechReadiness(value => value), catalog = readiness.catalog
   return (
     <SettingsGroup title={t('title')}>
@@ -107,6 +112,7 @@ export function VoiceSection({ useSpeechReadiness, prepare, cancel, setEnabled, 
             prepare={prepare} cancel={cancel} setEnabled={setEnabled} t={t}
           />
         ))}
+      {renderSlot('settings.voice.item', {})}
     </SettingsGroup>
   )
 }

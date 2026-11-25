@@ -4,6 +4,8 @@ Status: implemented
 
 [English](2026-11-16-google-connectors-without-restricted-scopes.md) | 中文
 
+> Gmail 已不再遵循本 Note：它通过 Google 登录以 `gmail.modify` 读取邮件（[Gmail 通过 Google 登录读取邮件](2026-11-25-gmail-reads-through-google-sign-in.zh.md)）。
+
 ## 问题
 
 2026-11-05，Google 对 `aeven-connectors` OAuth 应用的验证未通过“请求最小权限”一步。Gmail 请求了 `mail.google.com`、`gmail.modify`、`gmail.compose`、`gmail.readonly` 和 `gmail.metadata`，Drive 请求了 `drive` 和 `drive.readonly`。Google 把这些都归为受限权限，受限权限每年都要做 CASA 安全评估，所有者拒绝了这一点。Calendar 请求了十二个相互重叠的权限，而完整的 `calendar` 已涵盖另外十一个。

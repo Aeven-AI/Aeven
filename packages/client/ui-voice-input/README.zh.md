@@ -24,7 +24,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-当 Web 客户端的输入框需要接受听写时编排本插件。它需要 `remote`、`remote.speech`、`slots` 与 `locale`。`apply` 在插件 fiber 的 effect 中注册输入框控件、Settings 语音分区与字典，并由一条就绪镜像为界面的每一处跟随 `speech.follow`，因此麦克风与该设置分区对识别器的判断一致。该镜像在每次结束后重新打开自己的流——按退避等待，并在载体报告新的 Host 时立即重启——因为关闭的流会让输入框在整页重载前都无法录音。控件用录制音频与所选提供方调用 `speech.transcribe`；设置分区调用 `speech.prepare` 并展示其报告的准备工作阶段。
+当 Web 客户端的输入框需要接受听写时编排本插件。它需要 `remote`、`remote.speech`、`slots` 与 `locale`。`apply` 在插件 fiber 的 effect 中注册输入框控件、Settings 语音分区（含供其他插件向该组添加行的 `settings.voice.item` 列表）与字典，并由一条就绪镜像为界面的每一处跟随 `speech.follow`，因此麦克风与该设置分区对识别器的判断一致。该镜像在每次结束后重新打开自己的流——按退避等待，并在载体报告新的 Host 时立即重启——因为关闭的流会让输入框在整页重载前都无法录音。控件用录制音频与所选提供方调用 `speech.transcribe`；设置分区调用 `speech.prepare` 并展示其报告的准备工作阶段。
 
 -----
 

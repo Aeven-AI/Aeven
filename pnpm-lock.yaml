@@ -5630,6 +5630,10 @@ importers:
         version: 18.3.1(react@18.3.1)
 
   packages/client/ui-tts:
+    dependencies:
+      clsx:
+        specifier: ^2.0.0
+        version: 2.1.1
     devDependencies:
       '@aeven/api-gateway':
         specifier: workspace:^
@@ -5646,6 +5650,9 @@ importers:
       '@aeven/client-ui-chat':
         specifier: workspace:^
         version: link:../ui-chat
+      '@aeven/client-ui-commands':
+        specifier: workspace:^
+        version: link:../ui-commands
       '@aeven/client-ui-conversation':
         specifier: workspace:^
         version: link:../ui-conversation
@@ -5655,6 +5662,9 @@ importers:
       '@aeven/client-ui-renderer':
         specifier: workspace:^
         version: link:../ui-renderer
+      '@aeven/client-ui-settings':
+        specifier: workspace:^
+        version: link:../ui-settings
       '@aeven/client-ui-slots':
         specifier: workspace:^
         version: link:../ui-slots

@@ -1,8 +1,9 @@
 /**
- * Account-scoped Workspace MCP bridge. Delegated scopes are the widest that Google classes as sensitive or non-sensitive, never
- * restricted, so verification needs no security assessment: Gmail sends and labels (mail is read through an email account),
- * Drive opens only files the user created or opened with Aeven plus any Doc, Sheet, Slide or Form by id, and Calendar, Tasks and
- * Contacts are full. Meet manages the meeting spaces Aeven creates and reads the conference records of any space the user can open.
+ * Account-scoped Workspace MCP bridge. Gmail holds the restricted `gmail.modify` scope, which reads, searches, labels, drafts,
+ * and sends mail; until the OAuth application passes a security assessment Google shows its unverified-app screen for it and
+ * caps the users who may grant it. Every other scope is the widest Google classes as sensitive or non-sensitive: Drive opens
+ * only files the user created or opened with Aeven plus any Doc, Sheet, Slide or Form by id, and Calendar, Tasks and Contacts
+ * are full. Meet manages the meeting spaces Aeven creates and reads the conference records of any space the user can open.
  * The first scope of each list is the one a grant must hold for its connector to count as connected.
  */
 
@@ -23,10 +24,7 @@ const googleConnectors = {
     'services': 'gmail',
     'check': 'gmail_list_labels',
     'arguments': {},
-    'scopes': [
-      'https://www.googleapis.com/auth/gmail.send',
-      'https://www.googleapis.com/auth/gmail.labels',
-    ],
+    'scopes': ['https://www.googleapis.com/auth/gmail.modify'],
   },
   'google-drive': {
     'endpoint': 'https://www.googleapis.com/drive/v3/',

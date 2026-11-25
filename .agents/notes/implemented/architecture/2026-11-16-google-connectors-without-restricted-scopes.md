@@ -4,6 +4,8 @@ Status: implemented
 
 English | [中文](2026-11-16-google-connectors-without-restricted-scopes.zh.md)
 
+> Gmail no longer follows this note: it reads through Google sign-in with `gmail.modify` ([Gmail reads through Google sign-in](2026-11-25-gmail-reads-through-google-sign-in.md)).
+
 ## Problem
 
 Google's verification of the `aeven-connectors` OAuth application failed its "Request minimum scopes" step on 2026-11-05. Gmail requested `mail.google.com`, `gmail.modify`, `gmail.compose`, `gmail.readonly`, and `gmail.metadata`, and Drive requested `drive` and `drive.readonly`. Google classes all of these as restricted, and restricted scopes require a yearly CASA security assessment, which the owner declined. Calendar requested twelve overlapping scopes where full `calendar` already covers the other eleven.

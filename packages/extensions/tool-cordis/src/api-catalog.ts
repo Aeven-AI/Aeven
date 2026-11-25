@@ -6937,7 +6937,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ConnectorProvider',
-    declaration: 'export type ConnectorProvider = \'github\' | \'notion\' | \'vercel\' | \'atlassian\' | \'monday\' | \'stripe\' | \'salesforce\' | \'shopify\' | \'microsoft-365\' | \'gmail\' | \'google-drive\' | \'google-calendar\' | \'google-tasks\' | \'google-contacts\' | \'google-meet\' | \'cloudflare\' | \'aws\' | \'supabase\' | \'calendly\' | \'bigquery\' | \'compute-engine\' | \'azure-devops\' | \'oracle\' | \'outlook\' | \'outlook-calendar\' | \'onedrive\' | \'sharepoint\' | \'teams\' | \'mcp\' | \'email\' | \'whatsapp\' | \'telegram\' | \'discord\' | \'slack\';',
+    declaration: 'export type ConnectorProvider = \'github\' | \'notion\' | \'vercel\' | \'atlassian\' | \'monday\' | \'stripe\' | \'salesforce\' | \'shopify\' | \'microsoft-365\' | \'gmail\' | \'google-drive\' | \'google-calendar\' | \'google-tasks\' | \'google-contacts\' | \'google-meet\' | \'cloudflare\' | \'aws\' | \'supabase\' | \'calendly\' | \'bigquery\' | \'azure-devops\' | \'oracle\' | \'outlook\' | \'outlook-calendar\' | \'onedrive\' | \'sharepoint\' | \'teams\' | \'mcp\' | \'email\' | \'whatsapp\' | \'telegram\' | \'discord\' | \'slack\';',
   },
   {
     name: 'ConnectorProviderView',

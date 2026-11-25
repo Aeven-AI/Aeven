@@ -56,7 +56,7 @@ export type HandoffId = Branded<'HandoffId'>
  */
 export type ConnectorId =
   | 'email' | 'gmail' | 'google-drive' | 'google-calendar' | 'google-tasks' | 'google-contacts' | 'google-meet' | 'github' | 'notion' | 'vercel' | 'atlassian' | 'monday' | 'stripe' | 'salesforce' | 'shopify' | 'slack' | 'discord' | 'telegram' | 'whatsapp'
-  | 'microsoft-365' | 'outlook' | 'outlook-calendar' | 'onedrive' | 'sharepoint' | 'teams' | 'cloudflare' | 'aws' | 'supabase' | 'calendly' | 'bigquery' | 'compute-engine' | 'azure-devops' | 'oracle' | 'mcp'
+  | 'microsoft-365' | 'outlook' | 'outlook-calendar' | 'onedrive' | 'sharepoint' | 'teams' | 'cloudflare' | 'aws' | 'supabase' | 'calendly' | 'bigquery' | 'azure-devops' | 'oracle' | 'mcp'
 /** `all` lets a run use every connector its owner has connected; a list lets it use only those. */
 export type ConnectorBinding = 'all' | readonly ConnectorId[]
 /**
