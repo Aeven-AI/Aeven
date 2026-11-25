@@ -1592,3 +1592,19 @@ describe('built-in workspace seeding', () => {
     expect(registry.defaultWorkspaceId).toBeDefined()
   })
 })
+
+describe('session files wanted by a reader', () => {
+  it('runs every Consumer that syncs workspace files and settles once they have', async () => {
+    const { ctx, registry } = await harness()
+    const order: string[] = []
+    ctx.on('workspace/session-files-wanted', async (sessionId) => {
+      await Promise.resolve()
+      order.push(`folder ${sessionId}`)
+    })
+    ctx.on('workspace/session-files-wanted', async (sessionId, signal) => {
+      order.push(`repository ${sessionId} ${String(signal.aborted)}`)
+    })
+    await registry.wantSessionFiles(SessionId('s1'), new AbortController().signal)
+    expect(order.sort()).toEqual(['folder s1', 'repository s1 false'])
+  })
+})

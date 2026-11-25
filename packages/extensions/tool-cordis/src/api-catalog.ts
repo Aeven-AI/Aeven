@@ -5421,6 +5421,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'id', description: 'Workspace id.' }],
       },
       {
+        signature: 'async wantSessionFiles(sessionId: SessionId, signal: AbortSignal): Promise<void>',
+        description: 'Bring the files of a session\'s workspace to this device for a reader that needs them, as a turn of the session here would; emits `workspace/session-files-wanted` for the Consumers that sync workspace files.',
+        parameters: [{ name: 'sessionId', description: 'the session whose workspace files are wanted.' }, { name: 'signal', description: 'the reader\'s cancellation; an abort ends the wait, not the transfer.' }],
+        returns: 'once every Consumer settled: the workspace is here, or the wait ended.',
+      },
+      {
         signature: 'delete(id: WorkspaceId): Promise<boolean>',
         description: 'Delete one workspace registration while retaining its directory and every session log. The workspace\'s sessions join the archive set in the same write that removes it from the durable order, so no session is left without a group. The order and archive write precedes the table deletion; a failed table write restores the prior order and archive set and keeps the entity published. Unknown ids are an idempotent no-op for domain callers.\n\nThe built-in workspace refuses deletion. It is the one registration the product guarantees a reader has, and removing it would restore the state the registration exists to prevent — a first screen that demands a folder before it accepts a message. A deployment that does not want one turns seeding off in configuration rather than deleting it at runtime.',
         parameters: [{ name: 'id', description: 'Workspace registration to remove.' }],
@@ -6338,6 +6344,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     summary: 'The user asked for a workspace\'s files now, for example by accepting to install Git: the Consumer that syncs them installs what they need and tries again at once.',
     description: 'The user asked for a workspace\'s files now, for example by accepting to install Git: the Consumer that syncs them installs what they need and tries again at once.',
     parameters: [{ name: 'workspace', description: 'the workspace whose files were requested.' }],
+  },
+  {
+    name: 'workspace/session-files-wanted',
+    mode: 'parallel',
+    signature: '\'workspace/session-files-wanted\'(sessionId: SessionId, signal: AbortSignal): Promise<void>',
+    summary: 'A reader on this device, such as the file explorer of a client following the session, needs the files of the session\'s workspace here.',
+    description: 'A reader on this device, such as the file explorer of a client following the session, needs the files of the session\'s workspace here. A Consumer that syncs workspace files brings them as it would for a turn the session runs on this device, and settles once this device holds the workspace or once `signal` aborts; reads of files that have not arrived wait for them as a turn\'s reads do.',
+    parameters: [{ name: 'sessionId', description: 'the session whose workspace files are wanted.' }, { name: 'signal', description: 'the reader\'s cancellation; an abort ends the wait, not the transfer.' }],
   },
   {
     name: 'workspace/session-owner',
@@ -11005,7 +11019,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'WorkingDirectoryProjection',
-    declaration: 'export interface WorkingDirectoryProjection {\n    cwd: string | null;\n    root: string | null;\n}',
+    declaration: 'export interface WorkingDirectoryProjection {\n    cwd: string | null;\n    root: string | null;\n    roots: readonly string[];\n}',
   },
   {
     name: 'Workspace',

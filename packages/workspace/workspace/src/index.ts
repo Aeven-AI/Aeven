@@ -491,6 +491,17 @@ export class WorkspaceRegistry extends Service {
   }
 
   /**
+   * Bring the files of a session's workspace to this device for a reader that needs them, as a turn of the session
+   * here would; emits `workspace/session-files-wanted` for the Consumers that sync workspace files.
+   * @param sessionId - the session whose workspace files are wanted.
+   * @param signal - the reader's cancellation; an abort ends the wait, not the transfer.
+   * @returns once every Consumer settled: the workspace is here, or the wait ended.
+   */
+  async wantSessionFiles(sessionId: SessionId, signal: AbortSignal): Promise<void> {
+    await this.ctx.parallel('workspace/session-files-wanted', sessionId, signal)
+  }
+
+  /**
    * Delete one workspace registration while retaining its directory and every
    * session log. The workspace's sessions join the archive set in the same
    * write that removes it from the durable order, so no session is left

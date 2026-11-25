@@ -118,7 +118,7 @@ ctx.workspaceRegistry.list() // Chats first, then the project
 
 文件同步消费方对从另一台设备到达的 workspace 文件使用同一套放置规则。`locationHint` 记录相对于主目录的目录，`hintedDirectory` 把提示还原为本机目录，并拒绝会离开主目录的提示。`placeWorkspace` 在提示所指目录空闲时创建该目录，否则在根目录下使用标题，名称被占用时加编号；空闲指不存在或为空。`fitsDisk` 按磁盘剩余比例检查一次下载。
 
-注册表还保存每个 workspace 在本设备上的文件状态，该状态从不持久化或同步：首次下载期间带可选进度比例的 `syncing`、`installing`、`waiting`、`git-needed`，或带原因（`access`、`network`、`disk`、`folder`、`git-install`、`unknown`）的 `failed`。文件同步消费方通过 `WorkspaceFileStatusReport` 上报状态；当 workspace 离开某个消费方或该消费方停止时，它会撤回该消费方上报的状态。状态变化时 `setFileStatus` 发出 `workspace/files`；没有状态表示文件已在本机且是最新的。用户要求立即获取某个 workspace 的文件（例如同意安装 Git）时，`requestFiles` 发出 `workspace/files-requested`。`fitsDisk` 只按磁盘剩余比例检查下载，没有大小上限。
+注册表还保存每个 workspace 在本设备上的文件状态，该状态从不持久化或同步：首次下载期间带可选进度比例的 `syncing`、`installing`、`waiting`、`git-needed`，或带原因（`access`、`network`、`disk`、`folder`、`git-install`、`unknown`）的 `failed`。文件同步消费方通过 `WorkspaceFileStatusReport` 上报状态；当 workspace 离开某个消费方或该消费方停止时，它会撤回该消费方上报的状态。状态变化时 `setFileStatus` 发出 `workspace/files`；没有状态表示文件已在本机且是最新的。用户要求立即获取某个 workspace 的文件（例如同意安装 Git）时，`requestFiles` 发出 `workspace/files-requested`。当本设备上的读取方（例如跟随某会话的客户端的文件资源管理器）需要该会话的工作区文件时，`wantSessionFiles` 发出并行事件 `workspace/session-files-wanted`；文件同步 Consumer 会像为本机轮次那样带来这些文件，调用在它们完成或读取方的信号中止后结束。`fitsDisk` 只按磁盘剩余比例检查下载，没有大小上限。
 
 同一条规则也适用于会话：同步会话的 `SessionHeader.cwd` 与其记录的 `session/cwd` 事件指向写入它们的设备上的目录，因此在这里都不是本机路径。需要目录的消费方会向 `placeSession` 询问会话所在的 workspace，并在*本机*的绑定中行动（[决定](../../../.agents/notes/implemented/architecture/2026-10-29-synced-session-directory-is-the-local-binding.zh.md)）。
 

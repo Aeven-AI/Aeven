@@ -584,6 +584,15 @@ async resolveConflict(id: WorkspaceId, path: string, keep: WorkspaceConflictChoi
 requestFiles(id: WorkspaceId): void
 
 /**
+ * Bring the files of a session's workspace to this device for a reader that needs them, as a turn of the session
+ * here would; emits `workspace/session-files-wanted` for the Consumers that sync workspace files.
+ * @param sessionId - the session whose workspace files are wanted.
+ * @param signal - the reader's cancellation; an abort ends the wait, not the transfer.
+ * @returns once every Consumer settled: the workspace is here, or the wait ended.
+ */
+async wantSessionFiles(sessionId: SessionId, signal: AbortSignal): Promise<void>
+
+/**
  * Delete one workspace registration while retaining its directory and every
  * session log. The workspace's sessions join the archive set in the same
  * write that removes it from the durable order, so no session is left
@@ -818,6 +827,29 @@ The user asked for a workspace's files now, for example by accepting to install 
  */
 'workspace/files-requested'(workspace: WorkspaceId): void
 ```
+
+Source: [`packages/workspace/workspace/src/types.ts`](../../packages/workspace/workspace/src/types.ts)
+
+<a id="workspacesession-files-wanted--parallel"></a>
+
+#### `workspace/session-files-wanted` — parallel
+
+A reader on this device, such as the file explorer of a client following the session, needs the files of the session's workspace here. A Consumer that syncs workspace files brings them as it would for a turn the session runs on this device, and settles once this device holds the workspace or once `signal` aborts; reads of files that have not arrived wait for them as a turn's reads do.
+
+```ts cordis-catalog
+/**
+ * A reader on this device, such as the file explorer of a client following the session, needs the files of the
+ * session's workspace here. A Consumer that syncs workspace files brings them as it would for a turn the session
+ * runs on this device, and settles once this device holds the workspace or once `signal` aborts; reads of files
+ * that have not arrived wait for them as a turn's reads do.
+ * @mode parallel
+ * @param sessionId - the session whose workspace files are wanted.
+ * @param signal - the reader's cancellation; an abort ends the wait, not the transfer.
+ */
+'workspace/session-files-wanted'(sessionId: SessionId, signal: AbortSignal): Promise<void>
+```
+
+Types: [SessionId](core.zh.md)
 
 Source: [`packages/workspace/workspace/src/types.ts`](../../packages/workspace/workspace/src/types.ts)
 

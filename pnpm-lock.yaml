@@ -1581,6 +1581,9 @@ importers:
       '@aeven/fs':
         specifier: workspace:^
         version: link:../../fs/fs
+      '@aeven/fs-local':
+        specifier: workspace:^
+        version: link:../../fs/fs-local
       '@aeven/identity-user':
         specifier: workspace:^
         version: link:../../identity/user
@@ -1590,15 +1593,24 @@ importers:
       '@aeven/session':
         specifier: workspace:^
         version: link:../../core/session
+      '@aeven/session-projection':
+        specifier: workspace:^
+        version: link:../../session/session-projection
       '@aeven/session-query':
         specifier: workspace:^
         version: link:../../session-query/session-query
       '@aeven/typert-protocol':
         specifier: workspace:^
         version: link:../../typert/protocol
+      '@aeven/typert-registry':
+        specifier: workspace:^
+        version: link:../../typert/registry
       '@aeven/working-directory':
         specifier: workspace:^
         version: link:../../session/working-directory
+      '@aeven/workspace':
+        specifier: workspace:^
+        version: link:../../workspace/workspace
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis
