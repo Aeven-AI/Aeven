@@ -837,6 +837,7 @@ function formatActivationError(error: unknown): string {
 export async function assertEntriesActivated(ctx: Context, binName: string): Promise<void> {
   assertEntriesLoaded(ctx, binName)
   const failures: string[] = []
+  const inactive: InactiveEntry[] = []
   const rejectionReasons: unknown[] = []
   for (const entry of ctx.loader.entries()) {
     const fiber = entry.fiber
@@ -849,15 +850,19 @@ export async function assertEntriesActivated(ctx: Context, binName: string): Pro
       } catch (error) {
         rejectionReasons.push(error)
         failures.push(`${entry.options.name}: ${formatActivationError(error)}`)
+        inactive.push({ id: entry.options.id, name: entry.options.name, reason: formatActivationError(error) })
       }
       continue
     }
     if (state === FIBER_PENDING) {
       const missing = Object.keys(fiber.inject).filter(service => fiber.ctx.get(service) === undefined)
       const subject = missing.length === 1 ? 'service' : 'services'
-      failures.push(`${entry.options.name}: pending (waiting for ${subject}: ${missing.join(', ') || 'unknown'})`)
+      const reason = `pending (waiting for ${subject}: ${missing.join(', ') || 'unknown'})`
+      failures.push(`${entry.options.name}: ${reason}`)
+      inactive.push({ id: entry.options.id, name: entry.options.name, reason })
     } else {
       failures.push(`${entry.options.name}: fiber state ${String(state)}`)
+      inactive.push({ id: entry.options.id, name: entry.options.name, reason: `fiber state ${String(state)}` })
     }
   }
   if (failures.length > 0) {
@@ -865,7 +870,7 @@ export async function assertEntriesActivated(ctx: Context, binName: string): Pro
       await observeLoaderRejectionCheckpoint(rejectionReasons)
     }
     const noun = failures.length === 1 ? 'entry' : 'entries'
-    throw new Error(`${binName}: ${String(failures.length)} ${noun} did not activate\n${failures.join('\n')}`)
+    throw new EntriesNotActivatedError(`${binName}: ${String(failures.length)} ${noun} did not activate\n${failures.join('\n')}`, inactive)
   }
 }
 
@@ -945,6 +950,106 @@ export async function boot(
       ? `\n${deepest.stack ?? deepest.message}\n${deepest.errors.map(formatActivationError).join('\n')}`
       : deepest instanceof Error && deepest !== cause ? `\n${deepest.stack ?? deepest.message}` : ''
     throw new Error(`${binName}: ${stage}: ${detail}${stack}`, { cause })
+  }
+}
+
+/** One loader entry that failed to start, as {@link bootTolerant} reports it. */
+export interface InactiveEntry {
+  /** Loader entry id, which a `{ id, disabled: true }` patch row addresses. */
+  readonly id: string
+  /** Module specifier of the entry. */
+  readonly name: string
+  /** The entry's activation failure, one line. */
+  readonly reason: string
+}
+
+/** The activation audit's rejection, carrying every entry that did not activate. */
+export class EntriesNotActivatedError extends Error {
+  /**
+   * @param message - the audit's diagnostic text.
+   * @param entries - the entries that did not activate.
+   */
+  constructor(message: string, readonly entries: readonly InactiveEntry[]) {
+    super(message)
+    this.name = 'EntriesNotActivatedError'
+  }
+}
+
+/** Message the Loader gives one entry whose apply failed: `failed to apply loader entry <id> (<name>): <detail>`. */
+const ENTRY_APPLY_FAILURE = /^failed to apply loader entry (\S+) \((.*?)\): (.*)$/su
+
+/**
+ * Collect the loader entries a failed {@link boot} names: apply failures the Loader wrapped per entry,
+ * at any depth of the cause chain or inside an `AggregateError`, and the entries the activation audit
+ * reported.
+ * @param error - the rejection {@link boot} threw.
+ * @returns the failed entries, one per id, in the order found.
+ */
+export function failedEntries(error: unknown): InactiveEntry[] {
+  const found = new Map<string, InactiveEntry>()
+  const seen = new Set<unknown>()
+  // Returns whether `value` or anything beneath it named an entry. A group entry's apply failure wraps
+  // its children's, so only the innermost entry on each chain is recorded: disabling the group would
+  // switch off every healthy sibling with it.
+  const visit = (value: unknown): boolean => {
+    if (!(value instanceof Error) || seen.has(value)) return false
+    seen.add(value)
+    let named = false
+    if (value instanceof EntriesNotActivatedError) {
+      for (const entry of value.entries) if (!found.has(entry.id)) found.set(entry.id, entry)
+      named = value.entries.length > 0
+    }
+    if (value instanceof AggregateError) for (const inner of value.errors) named = visit(inner) || named
+    named = visit(value.cause) || named
+    const [, id, name, detail] = ENTRY_APPLY_FAILURE.exec(value.message) ?? []
+    if (id === undefined || name === undefined || detail === undefined) return named
+    if (!named && !found.has(id)) found.set(id, { id, name, reason: detail.split('\n')[0] ?? detail })
+    return true
+  }
+  visit(error)
+  return [...found.values()]
+}
+
+/** Result of {@link bootTolerant}: the booted tree and the entries it started without. */
+export interface TolerantBoot {
+  readonly ctx: Context
+  /** Entries that failed to start and were disabled, with the failure that disabled each. */
+  readonly skipped: readonly InactiveEntry[]
+}
+
+/**
+ * Boot like {@link boot}, but start without entries that fail instead of failing the whole tree. After a
+ * failed boot it disables every entry the failure names ({@link failedEntries}) with a
+ * `{ id, disabled: true }` patch row and boots again, up to `maxAttempts` boots, so a plugin that
+ * rejects its stored data or its environment costs that plugin, not the application. Entries that wait
+ * for a disabled entry's service surface in the next round's audit and are disabled the same way.
+ * @param binName - the diagnostic prefix for load-failure errors.
+ * @param absoluteConfigPath - the config to include; must already be absolute.
+ * @param patches - overlay patches applied over the included tree.
+ * @param prepare - host setup run before any config-tree entry mounts, once per boot attempt.
+ * @param options - `essential` entry ids whose failure stays fatal; `maxAttempts` bounds the boots.
+ * @returns the booted tree and the skipped entries.
+ * @throws the last boot's error when it names no entry, names an essential entry, names only entries
+ * already disabled, or the attempts run out.
+ */
+export async function bootTolerant(
+  binName: string,
+  absoluteConfigPath: string,
+  patches: PatchOptions[],
+  prepare: ((ctx: Context) => Promise<void> | void) | undefined,
+  options: { readonly essential: readonly string[]; readonly maxAttempts: number; readonly bareModuleBaseUrl?: string },
+): Promise<TolerantBoot> {
+  const skipped: InactiveEntry[] = []
+  for (let attempt = 1; ; attempt += 1) {
+    const disabled: PatchOptions[] = skipped.map(entry => ({ id: entry.id, disabled: true }))
+    try {
+      const ctx = await boot(binName, absoluteConfigPath, [...structuredClone(patches), ...disabled], prepare, options.bareModuleBaseUrl)
+      return { ctx, skipped }
+    } catch (error) {
+      const failed = failedEntries(error).filter(entry => !skipped.some(known => known.id === entry.id))
+      if (failed.length === 0 || attempt >= options.maxAttempts || failed.some(entry => options.essential.includes(entry.id))) throw error
+      skipped.push(...failed)
+    }
   }
 }
 
