@@ -5623,10 +5623,21 @@ export interface Config {
    * that declares no `output_files` is checked for (default PDF, office,
    * iWork, image, audio, and video formats; empty turns the check off). Every
    * workspace file the command creates or changes whose extension the command
-   * text names, among these, is recorded and shared as if it had been declared.
+   * text names, among these, is recorded and shared as if it had been declared,
+   * as is such a file in a folder the command works in (its `workdir`, each
+   * directory it changes into, and the folder of each path it names), outside
+   * the workspace too unless outputs are shared.
    */
   detectOutputExtensions?: string[]
-  /** Most workspace entries the undeclared-output check visits before and after a command (default 5000). */
+  /**
+   * File extensions, without the dot, of the documents a foreground command
+   * that declares no `output_files` is checked for in the folders it works in
+   * even when its text names none (default PDF, office, iWork, and ePub
+   * formats; empty turns this part off), so a document an exporter script
+   * writes beside its HTML source is recorded in place of that source.
+   */
+  detectDocumentExtensions?: string[]
+  /** Most entries the undeclared-output check visits before and after a command (default 5000). */
   detectOutputMaxEntries?: number
 }
 

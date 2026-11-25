@@ -122,8 +122,9 @@ export interface MarkdownFileMentions {
  */
 export interface MarkdownFileLinks {
   /**
-   * Resolve one destination that has no scheme and is not a `#` fragment.
-   * @param href - The destination as authored, still percent-encoded.
+   * Resolve one destination that has no scheme and is not a `#` fragment, or
+   * the path of a `file:` URL.
+   * @param href - The destination as authored, or the `file:` URL's path, still percent-encoded.
    * @returns The URL the anchor carries for copying, the opener a click runs,
    * and a title naming the file where the owner knows its path; undefined
    * renders the link text unlinked.
@@ -132,29 +133,42 @@ export interface MarkdownFileLinks {
 }
 
 /**
- * Whether a link destination names a local file rather than a web address or
- * an in-page jump: it has no URL scheme, is not protocol-relative, and is not
- * a `#` fragment such as a footnote reference.
+ * The local file a link destination names, rather than a web address or an
+ * in-page jump: a destination with no URL scheme that is not protocol-relative
+ * and not a `#` fragment such as a footnote reference, or a `file:` URL, whose
+ * path it carries.
  * @param href - The destination as authored.
- * @returns True for a bare or absolute path.
+ * @returns The bare or absolute path, still percent-encoded; undefined for
+ * every other destination.
  */
-function isLocalDestination(href: string | undefined): href is string {
-  if (href === undefined || href === '' || href.startsWith('#') || href.startsWith('//')) return false
-  return !/^[a-z][a-z0-9+.-]*:/i.test(href)
+function localDestination(href: string | undefined): string | undefined {
+  if (href === undefined || href === '' || href.startsWith('#') || href.startsWith('//')) return undefined
+  const file = /^file:\/\/(?:localhost)?(\/[^?#]*)/i.exec(href)
+  if (file !== null) {
+    const path = file[1] as string
+    // `file:///C:/x` spells a Windows drive path after the URL's own slash.
+    return /^\/[A-Za-z]:\//.test(path) ? path.slice(1) : path
+  }
+  return /^[a-z][a-z0-9+.-]*:/i.test(href) ? undefined : href
 }
 
 /**
  * Build the `a` component: a local-file destination goes through the owner's
  * resolver, or renders as text when nothing resolves it, and every other link
- * is the engine's own.
+ * is the engine's own. A `file:` link never reaches the page as written: the
+ * browser refuses to follow one from an app page.
  * @param fileLinks - The owner's resolver, when it has one.
  * @returns A component map claiming `a`.
  */
 function linkComponents(fileLinks: MarkdownFileLinks | undefined): RendererComponents {
   return {
     a: function Link(props: ComponentProps<typeof MarkdownLink>) {
-      if (!isLocalDestination(props.href)) return <MarkdownLink {...props} />
-      const target = fileLinks?.resolve(props.href)
+      const local = localDestination(props.href)
+      if (local === undefined) {
+        if (props.href !== undefined && /^file:/i.test(props.href)) return <span>{props.children}</span>
+        return <MarkdownLink {...props} />
+      }
+      const target = fileLinks?.resolve(local)
       if (target === undefined) return <span>{props.children}</span>
       // Every click runs the opener: in the desktop shell a new-tab request for
       // an app URL goes to the system browser, which cannot load it.
@@ -204,12 +218,13 @@ const PLUGINS = {
 /**
  * Destination policy for untrusted output. The scheme allowlist is the part
  * that matters: `javascript:`, `data:` and every other scheme are refused for
- * both links and images. Scheme-less destinations pass the engine's check so
- * that this component can claim them: a link through {@link MarkdownFileLinks}
- * or as plain text, an image through the image resolver below.
+ * both links and images. Scheme-less and `file:` destinations pass the engine's
+ * check so that this component can claim them: a link through
+ * {@link MarkdownFileLinks} or as plain text, an image through the image
+ * resolver below, whose prefixes keep `file:` images out.
  */
 const LINK_SAFETY = {
-  allowedProtocols: ['http', 'https', 'mailto'],
+  allowedProtocols: ['http', 'https', 'mailto', 'file'],
   allowedLinkPrefixes: ['*'],
   // Remote `https:` images, absolute local paths, and — with
   // `allowRelativeImages` — a bare workspace path, which the conversation's
