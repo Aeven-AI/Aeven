@@ -4,7 +4,7 @@
  * inlined, remote and inline references stay as written, and the document carries its own content policy.
  */
 import { describe, expect, it } from 'vitest'
-import { previewDocument, resolveReference } from '../src/client/preview.ts'
+import { dependencyVersions, previewDocument, resolveReference } from '../src/client/preview.ts'
 
 describe('resolveReference', () => {
   it.each([
@@ -176,8 +176,48 @@ describe('previewDocument ES modules', () => {
     expect(Object.keys(modulesOf(doc))).toEqual(['@avn-workspace//Users/me/vase/src/util.js'])
   })
 
+  it('loads a dependency this copy lacks from the CDN at the locked version, one instance for every importer', async () => {
+    const files = reader({
+      '/Users/me/vase/src/main.js': "import * as THREE from 'three'\nimport { Lights } from 'three/addons/lights/Lights.js'\nconsole.log(THREE, Lights)",
+      '/Users/me/vase/package-lock.json': JSON.stringify({ packages: { '': {}, 'node_modules/three': { version: '0.169.0' } } }),
+    })
+    const html = [
+      '<html><head><script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js",',
+      '"three/addons/":"./node_modules/three/examples/jsm/"}}</script></head>',
+      '<body><script type="module" src="./src/main.js"></script></body></html>',
+    ].join('')
+    const page = await previewDocument(html, '/Users/me/vase/index.html', files.read, new AbortController().signal)
+    const doc = new DOMParser().parseFromString(page, 'text/html')
+
+    const imports = (JSON.parse(doc.querySelector('script[type="importmap"]')?.textContent ?? '{}') as { imports: Record<string, string> }).imports
+    const three = 'https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js'
+    expect(imports['@avn-workspace//Users/me/vase/node_modules/three/build/three.module.js']).toBe(three)
+    expect(imports['@avn-workspace//Users/me/vase/node_modules/three/examples/jsm/lights/Lights.js'])
+      .toBe('https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/lights/Lights.js')
+    // A module the CDN serves imports `three` by name; the page's own name points at the same URL, so one instance runs.
+    expect(imports.three).toBe(three)
+    expect(imports['three/addons/']).toBe('https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/')
+  })
+
+  it('leaves a dependency without a recorded version unmapped', async () => {
+    const files = reader({ 'app/main.js': "import lodash from 'lodash'" })
+    const html = '<html><head><script type="importmap">{"imports":{"lodash":"./node_modules/lodash/lodash.js"}}</script></head><body><script type="module" src="./main.js"></script></body></html>'
+    const page = await previewDocument(html, 'app/index.html', files.read, new AbortController().signal)
+    const map = new DOMParser().parseFromString(page, 'text/html').querySelector('script[type="importmap"]')
+    expect(map).toBeNull()
+  })
+
   it('adds no import map to a page without modules', async () => {
     const page = await previewDocument('<html><head></head><body><p>hi</p></body></html>', 'a.html', reader({}).read, new AbortController().signal)
     expect(new DOMParser().parseFromString(page, 'text/html').querySelector('script[type="importmap"]')).toBeNull()
+  })
+})
+
+describe('dependencyVersions', () => {
+  it('prefers the installed version from the lock file and falls back to the declared range', () => {
+    const lock = JSON.stringify({ packages: { '': {}, 'node_modules/three': { version: '0.169.0' }, 'node_modules/@scope/kit': { version: '2.0.1' } } })
+    const manifest = JSON.stringify({ dependencies: { three: '^0.160.0', esbuild: '^0.24.0' } })
+    expect(Object.fromEntries(dependencyVersions(lock, manifest))).toEqual({ 'three': '0.169.0', '@scope/kit': '2.0.1', 'esbuild': '^0.24.0' })
+    expect(dependencyVersions('not json', undefined).size).toBe(0)
   })
 })
