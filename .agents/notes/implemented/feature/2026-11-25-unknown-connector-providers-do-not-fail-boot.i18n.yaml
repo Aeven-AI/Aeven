@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-25-unknown-connector-providers-do-not-fail-boot.md
+2026-11-25-unknown-connector-providers-do-not-fail-boot.md: 026cbd53f7a41185271f2bc0649d1b85f73bc860
+2026-11-25-unknown-connector-providers-do-not-fail-boot.zh.md: a7216a00cb3722b135395cee4ea643a4fdb43a07

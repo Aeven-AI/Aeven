@@ -125,6 +125,14 @@ export class DomainFacility {
             try {
               parsed = parseRecord(spec.name, table, key, () => tableSpec.valueSchema.parse(raw))
             } catch (error) {
+              if (spec.invalidRecords === 'skip') {
+                // parseRecord always wraps the zod failure as the cause.
+                this.ctx.logger.warn(
+                  `domain '${spec.name}': stored record '${key}' in table '${table}' does not match this build's schema; `
+                  + `left in place and treated as absent. Cause: ${String((error as DomainError).cause)}`,
+                )
+                continue
+              }
               // Backup-and-skip policy (disposable derived data): move the record's
               // document aside, log the concrete failure, and open without the
               // record. Backends that cannot move a document keep the loud path.

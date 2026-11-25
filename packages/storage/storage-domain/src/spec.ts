@@ -62,9 +62,14 @@ export interface DomainSpec {
    * document aside (`KvUnit.backupRecord`), the failure is logged with
    * its cause, and the open continues with the record absent. A backend
    * without `backupRecord` (no per-record document to move) falls back
-   * to the rejecting default. The global slot always rejects.
+   * to the rejecting default. `'skip'` is for records another build of the
+   * application may write in a shape this build does not know, such as a
+   * connector provider added or retired between releases: the record stays
+   * in the medium untouched, the failure is logged, and the open continues
+   * with the record absent, so the build that wrote it still reads it. The
+   * global slot always rejects.
    */
-  readonly invalidRecords?: 'backup-and-skip'
+  readonly invalidRecords?: 'backup-and-skip' | 'skip'
   /** Optional global singleton slot. */
   readonly global?: DomainGlobalSpec<unknown>
   /** Table declarations keyed by table name; each name must match `UNIT_NAME_RE`. */
@@ -128,8 +133,8 @@ export function defineDomain<S extends DomainSpec>(spec: S): S {
   }
   if (spec.invalidRecords !== undefined) {
     const policy: string = spec.invalidRecords
-    if (policy !== 'backup-and-skip') {
-      throw new Error(`domain '${spec.name}' invalidRecords must be 'backup-and-skip' when present, got ${policy}`)
+    if (policy !== 'backup-and-skip' && policy !== 'skip') {
+      throw new Error(`domain '${spec.name}' invalidRecords must be 'backup-and-skip' or 'skip' when present, got ${policy}`)
     }
   }
   for (const table of Object.keys(spec.tables)) {
