@@ -27,6 +27,9 @@
       "path": "../../credentials/credentials"
     },
     {
+      "path": "../webserver"
+    },
+    {
       "path": "../../storage/storage-domain"
     },
     {

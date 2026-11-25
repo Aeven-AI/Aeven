@@ -53,7 +53,7 @@ Discord 每个服务器各占一行连接器。所有行都由同一个 Aeven Di
 
 Discord 子进程即 [native/discord-mcp](../../../native/discord-mcp/README.zh.md) 服务：精选的十三项工具，用于读取频道、消息、主题、成员和服务器信息，以及发送、回复、回应、上传文件和创建主题；管理与审核工具——踢出、封禁、批量封禁、禁言、删除和清理消息、角色、频道与权限、邀请、审计日志、AutoMod 和服务器设置——仅在 `discordAdminTools` 开启时提供。Aeven Discord 应用的客户端密钥和机器人令牌保存在 Aeven API 上。安装授权通过 API 的连接器代理完成，并由其确认机器人已加入服务器；子进程以所有者的 Aeven 会话将每个 Discord 调用发送到 API 的 Discord 代理，代理仅对该所有者安装了机器人的服务器内的路径以机器人身份操作。所有者的会话轮换时，子进程以新会话重启。移除服务器时，只有在没有其他 Aeven 用户仍安装该机器人时，机器人才会退出该服务器。安装链接请求所提供的工具面所需的权限位域，`discordPermissions` 可替换该位域；Discord 的服务器级文本搜索仅限用户账户，因此 `search_messages` 在扫描预算内遍历消息并报告覆盖范围。
 
-Slack 每个工作区各占一行连接器，而且与各代理提供方不同，它不需要 Aeven API 上的应用：Slack 的 PKCE 客户端是公开客户端，因此登录在本宿主上运行，部署所配置的唯一 Slack 值就是应用的公开客户端 id。`authorize('slack')` 绑定所配置的回环端口、返回供设置页面打开的授权 URL，并在浏览器带回授权码时完成登录：兑换只发送 `code_verifier`、不带客户端密钥，Slack 自身的令牌测试则给出该行记录的团队与账户。连接器 id 由账户与 team id 派生，因此重新连接后工具名称保持不变；`maxSlackWorkspaces` 限制行数；该行以存储的用户令牌作为 bearer，通过 Streamable HTTP 挂载 [Slack 的 MCP 服务器](https://docs.slack.dev/ai/slack-mcp-server/)。所请求的作用域是工作区界面——搜索公开与私有频道、文件与人员，读取频道、消息串、用户资料与频道成员，以及这些工具所需的写入——`slackDirectMessages` 另加私信搜索与历史，后者也必须注册在应用上。读取直接运行；名称读起来不像读取的调用先征求批准，并以读者身份而非机器人身份发布。`probeSlackToken` 最多每个 `slackVerifyIntervalMs` 就存储的令牌询问 Slack 一次，使被撤销的登录不再声称已连接；断开连接会在 Slack 侧撤销该令牌。
+Slack 每个工作区各占一行连接器，而且与各代理提供方不同，它不需要 Aeven API 上的应用：Slack 的 PKCE 客户端是公开客户端，因此登录在本宿主上运行，部署所配置的唯一 Slack 值就是应用的公开客户端 id。`authorize('slack')` 绑定所配置的回环端口；设置了 `slackRedirectUrl` 时，则改为在本宿主 Web 服务器的该公开路由上等待重定向，使通过网络访问宿主的浏览器（托管宿主的 `https://chat.aeven.io/connectors/slack/callback`）也能完成登录；随后返回供设置页面打开的授权 URL，并在浏览器带回授权码时完成登录：兑换只发送 `code_verifier`、不带客户端密钥，Slack 自身的令牌测试则给出该行记录的团队与账户。连接器 id 由账户与 team id 派生，因此重新连接后工具名称保持不变；`maxSlackWorkspaces` 限制行数；该行以存储的用户令牌作为 bearer，通过 Streamable HTTP 挂载 [Slack 的 MCP 服务器](https://docs.slack.dev/ai/slack-mcp-server/)。所请求的作用域是工作区界面——搜索公开与私有频道、文件与人员，读取频道、消息串、用户资料与频道成员，以及这些工具所需的写入——`slackDirectMessages` 另加私信搜索与历史，后者也必须注册在应用上。读取直接运行；名称读起来不像读取的调用先征求批准，并以读者身份而非机器人身份发布。`probeSlackToken` 最多每个 `slackVerifyIntervalMs` 就存储的令牌询问 Slack 一次，使被撤销的登录不再声称已连接；断开连接会在 Slack 侧撤销该令牌。
 
 读取 WhatsApp、Telegram、Discord 或 Slack 内容——消息文本、文件名、成员列表——对模型而言都是他人的数据。仅读取账户的工具直接执行；发送、编辑、删除、转发、回应、置顶、静音、标记已读、定时发送、正在输入提示、骰子、投票以及所有群组变更都会先征求用户批准。在 Discord 中，发送、回复、回应、上传文件和创建主题需要批准，每项管理与审核调用都单独请求批准并说明具体变更。GitHub 和自定义 MCP 连接器没有自己的只读清单：名称表示读取的工具（`get_*`、`list_*`、`search_*`、`*_read`）直接执行，其他所有工具（例如创建或编辑 issue）都会先征求批准。每项批准都可覆盖本会话剩余部分中的同一工具。
 
@@ -78,7 +78,8 @@ Slack 是唯一不需要在 Aeven API 上保存凭据的提供方：它的 PKCE 
   },
   "oauth_config": {
     "redirect_urls": [
-      "http://127.0.0.1:12751/callback"
+      "http://127.0.0.1:12751/callback",
+      "https://chat.aeven.io/connectors/slack/callback"
     ],
     "scopes": {
       "user": [
@@ -171,6 +172,7 @@ Slack 是唯一不需要在 Aeven API 上保存凭据的提供方：它的 PKCE 
 | `salesforceMcpServer` | `sobject-all` | Salesforce 连接器挂载的 Salesforce 托管 MCP 服务器；组织管理员必须已启用该服务器 |
 | `slackClientId` | 无 | 部署的 Slack 应用客户端 id，它是公开的；缺失则 Slack 不可用 |
 | `slackCallbackPort` | 12751 | Slack 应用注册为 `http://127.0.0.1:<port>/callback` 的回环端口 |
+| `slackRedirectUrl` | 未设置 | 本宿主在 Slack 应用上注册的公开 HTTPS 回调路由；浏览器通过网络访问宿主时设置 |
 | `slackDirectMessages` | false | 另外请求私信搜索与历史，后者也必须注册在应用上 |
 | `slackVerifyIntervalMs` | 300000 | 有效的 Slack 令牌在被再次询问前可信的时长 |
 
@@ -232,7 +234,7 @@ Google 连接器通过 `GWS_BIN` 启动 Workspace CLI 二进制文件。本包�
 - 添加 Discord 服务器需要 Aeven API 上的 Aeven Discord 应用，在 Discord 开发者门户中启用消息内容与服务器成员特权意图，并注册 API 的回调地址；测试不会对 Discord 进行真实安装。
 - 只有当对话读取时才会获取 Discord 消息；用于接收新消息与提及的 Gateway 监听器尚未实现。
 - Discord 的服务器级文本搜索仅限用户账户，因此 `search_messages` 仅覆盖其扫描窗口并会说明覆盖范围。
-- 连接 Slack 工作区需要一个启用 PKCE 并注册 `http://127.0.0.1:<slackCallbackPort>/callback` 的 Slack 应用；Slack 只允许已在 Marketplace 发布的应用或内部应用使用 MCP，且工作区管理员可以拒绝该集成，因此首次连接可能需要管理员批准。没有任何测试会连接 Slack。
+- 连接 Slack 工作区需要一个启用 PKCE 并注册 `http://127.0.0.1:<slackCallbackPort>/callback`（托管宿主另需 `slackRedirectUrl`）的 Slack 应用；Slack 只允许已在 Marketplace 发布的应用或内部应用使用 MCP，且工作区管理员可以拒绝该集成，因此首次连接可能需要管理员批准。没有任何测试会连接 Slack。
 - 在 Slack 应用上启用 PKCE 是单向操作，其刷新令牌在 30 天未使用后过期，因此被搁置的工作区需要重新连接。
 - 私信搜索与历史需要在授权时启用 `slackDirectMessages`，且必须注册在应用上；未启用时连接的工作区需要重新连接才能获得。
 - 为加载技能而写入磁盘的导入资源，在移除目录项后仍保留。

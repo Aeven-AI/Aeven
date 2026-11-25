@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-11-25-slack-sign-in-on-the-hosted-host.md
+2026-11-25-slack-sign-in-on-the-hosted-host.md: 16a910ade9e7334db360320f8eebdee5ea221251
+2026-11-25-slack-sign-in-on-the-hosted-host.zh.md: 8ad62030aea8645dcc0aea73cfdbc3f61788d88f

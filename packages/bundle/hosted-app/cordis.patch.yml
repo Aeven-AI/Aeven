@@ -252,6 +252,8 @@
     apiUrl: !!js process.env.AEVEN_API_URL ?? 'http://localhost:9000'
     slackClientId: !!js process.env.SLACK_CLIENT_ID
     slackCallbackPort: 12751
+    # The browser reaches this Host over the network, so Slack redirects to its public route, not a loopback port.
+    slackRedirectUrl: https://chat.aeven.io/connectors/slack/callback
     whatsappReadRoot: !!js "process.env.AVN_HOSTED_SANDBOX === '1' ? avnHomePath('sandbox', 'accounts') : undefined"
 
 # This Host is each account's cloud Host: it runs the bots that need nothing

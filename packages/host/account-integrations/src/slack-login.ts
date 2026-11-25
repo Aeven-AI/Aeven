@@ -2,9 +2,11 @@
  * Slack's authorization-code + PKCE login for one workspace.
  *
  * A Slack app that enables PKCE is a public client: the exchange sends `code_verifier` and no
- * client secret, and a refresh carries only the client id. The listener binds the configured
- * port because Slack matches the registered redirect exactly, so a busy port fails with that
- * fact instead of drifting to a port the application did not register.
+ * client secret, and a refresh carries only the client id. On a desktop Host the browser and the
+ * Host share a computer, so a loopback listener receives the redirect; it binds the configured
+ * port because Slack matches the registered redirect exactly, so a busy port fails with that fact
+ * instead of drifting to a port the application did not register. A Host the browser reaches over
+ * the network receives the redirect on its own public route instead, through a {@link SlackCallbackRelay}.
  */
 
 import { createHash, randomBytes } from 'node:crypto'
@@ -59,6 +61,24 @@ export interface SlackLoginOptions {
   timeoutMs: number
   /** Endpoint overrides; absent uses Slack's own. Only a test passes these. */
   endpoints?: Partial<SlackEndpoints>
+  /** The Host's public callback route; absent binds the loopback listener on `port`. */
+  relay?: SlackCallbackRelay
+}
+
+/**
+ * A public HTTPS route of the Host that receives Slack's redirect for logins it awaits, for a Host
+ * the browser reaches over the network rather than on the same computer.
+ */
+export interface SlackCallbackRelay {
+  /** The redirect URI the application registered, which Slack sends the browser back to. */
+  redirectUri: string
+  /**
+   * Await the callback that carries one login's state.
+   * @param state - the state value the login sent.
+   * @param signal - cancellation of the whole login.
+   * @returns the pending code and the release that stops awaiting it.
+   */
+  await: (state: string, signal: AbortSignal) => { code: Promise<string>; close: () => void }
 }
 
 /** One login in flight. */
@@ -219,6 +239,45 @@ interface Loopback {
   close: () => Promise<void>
 }
 
+/** What one Slack redirect carried, and the page the browser is shown for it. */
+export type SlackCallbackResult =
+  | { status: number; html: string; code: string; error?: undefined }
+  | { status: number; html: string; code?: undefined; error: SlackLoginError }
+
+/**
+ * Judge one Slack redirect against the login that awaits it.
+ * @param query - the redirect's query parameters.
+ * @param state - the state value the login sent.
+ * @returns the authorization code, or the refusal, with the page to answer the browser.
+ */
+export function slackCallbackResult(query: URLSearchParams, state: string): SlackCallbackResult {
+  const page = (status: number, copy: ResultPageCopy) => ({ status, html: resultPage(copy) })
+  if (query.get('state') !== state) {
+    return { ...page(400, { title: 'Connection not completed', note: 'This sign-in did not come from the window Aeven opened.', hint: 'Close it and start again from Aeven.' }),
+      error: new SlackLoginError('state', 'the Slack callback carried a mismatched state') }
+  }
+  const error = query.get('error')
+  if (error !== null) {
+    return { ...page(200, { title: 'Connection not completed', note: 'Sign-in was not completed.', hint: 'You can close this window and return to Aeven.' }),
+      error: new SlackLoginError(error === 'access_denied' ? 'denied' : 'exchange', error) }
+  }
+  const code = query.get('code')
+  if (code === null || code === '') {
+    return { ...page(400, { title: 'Connection not completed', note: 'Slack returned no authorization code.', hint: 'Close this window and start again from Aeven.' }),
+      error: new SlackLoginError('response', 'the Slack callback carried no code') }
+  }
+  return { ...page(200, { title: 'Slack connected', note: 'Slack is connected.', hint: 'You can close this window and return to Aeven.' }), code }
+}
+
+/**
+ * The page a Slack redirect gets when no login awaits its state, such as a second visit or a login
+ * this Host already settled.
+ * @returns the status and page to answer the browser.
+ */
+export function slackUnknownCallback(): { status: number; html: string } {
+  return { status: 400, html: resultPage({ title: 'Connection not completed', note: 'This sign-in did not come from the window Aeven opened.', hint: 'Close it and start again from Aeven.' }) }
+}
+
 /**
  * The failure one listen error reports, naming the configured port when something already holds it.
  * @param port - the configured callback port.
@@ -260,41 +319,10 @@ async function listenForSlackCallback(port: number, state: string, signal: Abort
       answer(response, 404, { title: 'Slack', note: 'This is not the address Aeven is waiting for.' })
       return
     }
-    if (url.searchParams.get('state') !== state) {
-      answer(response, 400, {
-        title: 'Connection not completed',
-        note: 'This sign-in did not come from the window Aeven opened.',
-        hint: 'Close it and start again from Aeven.',
-      })
-      fail(new SlackLoginError('state', 'the Slack callback carried a mismatched state'))
-      return
-    }
-    const error = url.searchParams.get('error')
-    if (error !== null) {
-      answer(response, 200, {
-        title: 'Connection not completed',
-        note: 'Sign-in was not completed.',
-        hint: 'You can close this window and return to Aeven.',
-      })
-      fail(new SlackLoginError(error === 'access_denied' ? 'denied' : 'exchange', error))
-      return
-    }
-    const returned = url.searchParams.get('code')
-    if (returned === null || returned === '') {
-      answer(response, 400, {
-        title: 'Connection not completed',
-        note: 'Slack returned no authorization code.',
-        hint: 'Close this window and start again from Aeven.',
-      })
-      fail(new SlackLoginError('response', 'the Slack callback carried no code'))
-      return
-    }
-    answer(response, 200, {
-      title: 'Slack connected',
-      note: 'Slack is connected.',
-      hint: 'You can close this window and return to Aeven.',
-    })
-    settle(returned)
+    const result = slackCallbackResult(url.searchParams, state)
+    response.writeHead(result.status, { 'Content-Type': 'text/html; charset=utf-8' }).end(result.html)
+    if (result.code === undefined) fail(result.error)
+    else settle(result.code)
   })
   const abort = (): void => {
     fail(abortReason(signal))
@@ -340,8 +368,17 @@ export async function startSlackLogin(options: SlackLoginOptions): Promise<Slack
   const { verifier, challenge } = pkce()
   const state = randomValue(16)
   const controller = new AbortController()
-  const listener = await listenForSlackCallback(options.port, state, controller.signal)
-  const redirectUri = `http://127.0.0.1:${listener.port}${SLACK_CALLBACK_PATH}`
+  let listener: { code: Promise<string>; close: () => Promise<void> }
+  let redirectUri: string
+  if (options.relay === undefined) {
+    const loopback = await listenForSlackCallback(options.port, state, controller.signal)
+    listener = loopback
+    redirectUri = `http://127.0.0.1:${loopback.port}${SLACK_CALLBACK_PATH}`
+  } else {
+    const relayed = options.relay.await(state, controller.signal)
+    listener = { code: relayed.code, close: () => { relayed.close(); return Promise.resolve() } }
+    redirectUri = options.relay.redirectUri
+  }
   const url = new URL(endpoints.authorize)
   // `oauth/v2_user/authorize` issues a user token, so it reads the requested scopes from
   // `scope`. Sending them in `user_scope`, as the bot-token `oauth/v2/authorize` expects,

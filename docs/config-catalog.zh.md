@@ -1873,6 +1873,12 @@ export interface Config {
    * consent fails at the redirect.
    */
   slackCallbackPort: number
+  /**
+   * Public HTTPS address of this Host's own Slack callback route, for a Host the browser reaches over
+   * the network (the hosted Host); the Slack app registers it as a redirect URL. Absent keeps the
+   * loopback redirect on `slackCallbackPort`, which only reaches a browser on the Host's computer.
+   */
+  slackRedirectUrl?: string
   /** Whether a login also asks for direct-message search and history, which the app must register too. */
   slackDirectMessages: boolean
   /** Time a live Slack token is trusted before Slack is asked again. */
