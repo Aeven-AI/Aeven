@@ -86,10 +86,29 @@
 }
 
 /* At Aeven's small breakpoint the frame opens this panel across its whole
-   width (ui-layout AppFrame.module.css), so it has no inner edge to round. */
+   width (ui-layout AppFrame.module.css), so once open it has no inner edge to
+   round. While it slides in or out it does: the corner stays rounded for the
+   whole travel and squares off only after the opening slide has finished. A
+   transition belongs to the state it moves into, so opening delays the
+   corner by the slide's duration and folding rounds it at once. */
 @media screen and (max-width: 640px), screen and (pointer: coarse) and (max-height: 500px) {
   .panel {
+    transition:
+      width var(--dsw-aeven-rightbar-transition-duration)
+        var(--dsw-aeven-rightbar-transition-timing),
+      opacity var(--dsw-aeven-rightbar-transition-duration)
+        var(--dsw-aeven-rightbar-transition-timing),
+      border-top-left-radius 0s;
+  }
+
+  .visible .panel {
     border-top-left-radius: 0;
+    transition:
+      width var(--dsw-aeven-rightbar-transition-duration)
+        var(--dsw-aeven-rightbar-transition-timing),
+      opacity var(--dsw-aeven-rightbar-transition-duration)
+        var(--dsw-aeven-rightbar-transition-timing),
+      border-top-left-radius 0s linear var(--dsw-aeven-rightbar-transition-duration);
   }
 }
 

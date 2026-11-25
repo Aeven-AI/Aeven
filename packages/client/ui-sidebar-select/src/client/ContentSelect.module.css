@@ -13,12 +13,17 @@
 /* Full screen: the column covers the frame in place. It stays a descendant of
    the right sidebar, which sits above the left one, and below the frame's
    corner controls, which the strip's right padding still clears. Hidden while
-   the column is collapsed, since the corner toggle is then the way back. */
+   the column is collapsed, since the corner toggle is then the way back.
+   Fixed to the viewport, it sits outside the app mount's safe-area padding
+   (web base.css), so it repeats those insets: on a phone the strip then
+   stays level with the corner controls below the status bar instead of
+   riding up under it, while its fill still covers the inset strips. */
 .root[data-fullscreen] {
   position: fixed;
   inset: 0;
   z-index: 1;
-  padding-top: 8px;
+  padding: calc(8px + env(safe-area-inset-top, 0px)) env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
   background: var(--dsw-specific-sidebar-fill);
 }
 
@@ -36,7 +41,9 @@
   align-items: center;
   gap: 6px;
   height: 40px;
-  padding: 0 148px 0 24px;
+  /* The left side takes the page inset (24px, 16px at phone width); the right
+     clears the corner controls, which stand one page inset from the edge. */
+  padding: 0 calc(124px + var(--dsw-aeven-page-inset)) 0 var(--dsw-aeven-page-inset);
   box-sizing: border-box;
 }
 

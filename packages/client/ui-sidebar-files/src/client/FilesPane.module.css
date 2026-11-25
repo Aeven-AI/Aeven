@@ -39,8 +39,9 @@
   flex: none;
   align-items: center;
   gap: 8px;
-  /* 5px matches a 30px control centered in the 40px file bar and dock toolbar. */
-  padding: 5px 24px 0;
+  /* 5px matches a 30px control centered in the 40px file bar and dock toolbar.
+     The sides take the page inset: 24px, and 16px at phone width. */
+  padding: 5px var(--dsw-aeven-page-inset) 0;
 }
 
 .search {
@@ -55,8 +56,10 @@
   padding: 0 3px 0 12px;
   box-sizing: border-box;
   border-radius: 15px;
-  background: #f2f2f2;
-  color: #000;
+  /* The theme's well: #f2f2f2 under black ink in the light theme, a dark well
+     under light ink in the dark one. */
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
 }
 
 .searchGlyph {
@@ -151,7 +154,7 @@
   overflow: auto;
   /* The left padding equals the toolbar's, so row glyphs line up with the
      search field's left edge. */
-  padding: 5px 12px 40px 24px;
+  padding: 5px 12px 40px var(--dsw-aeven-page-inset);
   outline: none;
 }
 
@@ -250,7 +253,8 @@
   line-height: 1.25rem;
 }
 
-/* An open file with the tree docked on its right. */
+/* An open file with the tree docked on its right, when the pane is wide
+   enough to leave the file its room (DOCK_ROOM in FilesPane.tsx). */
 .split {
   display: flex;
   flex: 1 1 auto;
@@ -273,18 +277,19 @@
   width: clamp(240px, 36%, 340px);
   min-height: 0;
   overflow: hidden;
-  /* White pane. Its toolbar keeps the tree view's 5px top inset, so search and
-     refresh line up with the controls centered in the 40px file bar, and the
-     first row sits at the same height as in the tree view. */
-  background: #fff;
+  /* The sidebar's own fill, white in the light theme. Its toolbar keeps the
+     tree view's 5px top inset, so search and refresh line up with the controls
+     centered in the 40px file bar, and the first row sits at the same height as
+     in the tree view. */
+  background: var(--dsw-specific-sidebar-fill);
 }
 
 .dock .toolbar {
-  padding: 5px 24px 0 0;
+  padding: 5px var(--dsw-aeven-page-inset) 0 0;
 }
 
 .dock .rows {
-  padding: 5px 24px 40px 0;
+  padding: 5px var(--dsw-aeven-page-inset) 40px 0;
 }
 
 .fileBar {
@@ -293,7 +298,7 @@
   align-items: center;
   gap: 8px;
   height: 40px;
-  padding: 0 24px;
+  padding: 0 var(--dsw-aeven-page-inset);
 }
 
 /* The path scrolls sideways on one line, as the right sidebar's pill strip
@@ -387,28 +392,30 @@
   color: var(--dsw-alias-label-primary);
 }
 
-/* Collapse-all keeps the hover fill at rest. */
+/* Collapse-all keeps the hover fill at rest: the search field's well, so the
+   disc and the field share one fill in either theme under the button's
+   secondary ink. */
 .iconButton.collapseAll,
 .iconButton.collapseAll:hover:not(:disabled) {
-  background: #f2f2f2;
+  background: var(--dsw-alias-bg-base);
 }
 
 .fileBody {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
-  padding: 20px 24px 40px;
+  padding: 20px var(--dsw-aeven-page-inset) 40px;
 }
 
 .fileBodyProse {
-  padding: 20px 24px 48px;
+  padding: 20px var(--dsw-aeven-page-inset) 48px;
 }
 
 .code {
   margin: 0;
 }
 
-/* The file body already insets 24px from the sidebar, and the code block adds
+/* The file body already insets the page inset from the sidebar, and the code block adds
    no further left padding, so the source starts on that line. */
 .code :global(pre) {
   padding-left: 0;
@@ -416,7 +423,8 @@
 
 /* The open file's type and copy control. It spans 40px to 80px of the pane,
    as the docked tree's first row does, so the two share a centre line. The
-   right padding puts the copy glyph's edge 24px in, under the file bar's. */
+   right padding puts the copy glyph's edge one page inset in, under the file
+   bar's. */
 .codeBar {
   display: flex;
   flex: none;
@@ -424,7 +432,7 @@
   justify-content: space-between;
   gap: 12px;
   height: 40px;
-  padding: 0 24px;
+  padding: 0 var(--dsw-aeven-page-inset);
 }
 
 /* Back and forward sit side by side with no gap. Each button is 24px wide, so
@@ -490,15 +498,16 @@
   margin: 12px auto;
 }
 
-/* The open file's "Open with" split button stays a light pill, including on hover. */
+/* The open file's "Open with" split button: a pill on the search field's well
+   under the primary ink, including on hover. */
 .openWith {
   display: flex;
   flex: none;
   align-items: center;
   height: 30px;
   border-radius: 15px;
-  background: #f2f2f2;
-  color: #fff;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
 }
 
 .openWithMain,
@@ -541,7 +550,6 @@
 .openWithMore svg {
   width: 12px;
   height: 12px;
-  color: #000;
 }
 
 .appIcon {
@@ -592,12 +600,12 @@
 
 /* A failed write reports itself under the toolbar until the next action. */
 .actionError {
-  padding: 6px 24px 0;
+  padding: 6px var(--dsw-aeven-page-inset) 0;
 }
 
 /* A file-view line above the content, on the file body's inset. */
 .fileNote {
-  padding: 0 24px;
+  padding: 0 var(--dsw-aeven-page-inset);
 }
 
 /* The rendered page fills the pane under the file bars. */
