@@ -8,6 +8,7 @@
  */
 
 import type { SessionSeq } from '@aeven/session/types'
+import type { MutationCall, ProducedPath } from './produced.ts'
 
 export {}
 
@@ -48,10 +49,28 @@ export interface TurnOutlineState {
   readonly awaitingPrompt: boolean
 }
 
+/** One Turn's produced files, folded by path and declaration in first-seen order. */
+export interface TurnDeliverables {
+  /** Host-assigned Turn number. */
+  readonly turn: number
+  /** The Turn's produced files; `seq` is each file's first settlement. */
+  readonly produced: readonly ProducedPath[]
+}
+
+/** Fold state of the `turnDeliverables` unit. */
+export interface TurnDeliverablesState {
+  /** Recognized mutation calls awaiting their results, by call id. */
+  readonly calls: Readonly<Record<string, readonly MutationCall[]>>
+  /** Turns that produced files, in first-settlement order. */
+  readonly turns: readonly TurnDeliverables[]
+}
+
 declare module '@aeven/session-projection/types' {
   interface SessionProjectionStateMap {
     /** Whole-log turn outline fold state (settled entries plus the open one). */
     turnOutline: TurnOutlineState
+    /** Every Turn's produced files plus the mutation calls still awaiting results. */
+    turnDeliverables: TurnDeliverablesState
   }
   interface SessionProjectionMap {
     /**
@@ -59,5 +78,7 @@ declare module '@aeven/session-projection/types' {
      * bounded previews, strictly increasing by seq; see {@link TurnOutlineEntry}.
      */
     turnOutline: readonly TurnOutlineEntry[]
+    /** Every Turn that produced files, with its folded files; see {@link TurnDeliverables}. */
+    turnDeliverables: readonly TurnDeliverables[]
   }
 }

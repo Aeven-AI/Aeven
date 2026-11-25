@@ -11,7 +11,7 @@ import type {} from '@aeven/client-locale/client'
 import type {} from '@aeven/client-ui-sidebar-select/client'
 import type { SidebarContentPaneProps } from '@aeven/client-ui-sidebar-select/client'
 import { createElement, useCallback, useEffect, useState } from 'react'
-import { resolveWorkspacePath } from '@aeven/util-workspace-path'
+import { openTarget, type FilesPill } from './open-target.ts'
 import { FilesPane } from './FilesPane.tsx'
 import { pointAtPath } from './point.ts'
 import { canPreviewFile, workspaceFileUrl } from './open-with.tsx'
@@ -69,20 +69,23 @@ export function apply(ctx: ClientContext): void {
     const remote = scoped.remote
     // The path the next new Files pill of a session opens: a file to preview or a folder to expand to.
     const pending = new Map<string, { readonly path: string; readonly type: 'file' | 'directory' }>()
-    const openFiles = new Map<string, { sessionId: string; surfaceId: string; path: string | null; root: string | null }>()
+    const openFiles = new Map<string, FilesPill>()
     // Mounted panes, which reveal a folder in place instead of opening another pill.
     const revealers = new Map<string, { sessionId: string; surfaceId: string; reveal: (path: string) => void }>()
+    // Mounted panes' file openers, by pane key; a pane showing no file takes the next file of its session.
+    const openers = new Map<string, (path: string) => void>()
     // Stored copies by session and path, named by the surface that opened the file.
     const copies = new Map<string, string>()
     const openFile = async (sessionId: SessionId, path: string, copy?: string): Promise<boolean> => {
       if (!await canPreviewFile(remote, sessionId, path)) return false
       if (copy !== undefined) copies.set(`${sessionId}\u0000${path}`, copy)
-      for (const file of openFiles.values()) {
-        if (file.sessionId === sessionId && file.path !== null
-          && resolveWorkspacePath(file.root ?? undefined, file.path) === resolveWorkspacePath(file.root ?? undefined, path)) {
-          scoped.sidebarContent.requestOpen(sessionId, 'files', false, file.surfaceId)
-          return true
-        }
+      // The pill showing the file comes forward; a pill showing only the tree, such as one a reload returned to the
+      // root, opens it in place; otherwise the file opens in a new pill.
+      const target = openTarget(openFiles, sessionId, path, key => openers.has(key))
+      if (target !== undefined) {
+        if (!target.showing) openers.get(target.key)?.(path)
+        scoped.sidebarContent.requestOpen(sessionId, 'files', false, target.surfaceId)
+        return true
       }
       pending.set(sessionId, { path, type: 'file' })
       scoped.sidebarContent.requestOpen(sessionId, 'files', true)
@@ -126,6 +129,10 @@ export function apply(ctx: ClientContext): void {
         revealers.set(key, { sessionId: props.sessionId, surfaceId: props.surfaceId, reveal })
         return () => { if (revealers.get(key)?.reveal === reveal) revealers.delete(key) }
       }, [key, props.sessionId, props.surfaceId])
+      const registerOpen = useCallback((open: (path: string) => void) => {
+        openers.set(key, open)
+        return () => { if (openers.get(key) === open) openers.delete(key) }
+      }, [key])
       // A request opens this pane once, so it is handed down for its first
       // commit only: a request kept in hand would reopen a file the reader
       // closed, since the pane re-renders whenever the column does and each
@@ -137,7 +144,7 @@ export function apply(ctx: ClientContext): void {
         setRequested(undefined)
       }, [props.sessionId, requested])
       return createElement(FilesPane, {
-        ...props, t, remote, onFileChange, registerReveal,
+        ...props, t, remote, onFileChange, registerReveal, registerOpen,
         copyOf: (path: string) => copies.get(`${props.sessionId}\u0000${path}`),
         requestedFile: requested?.type === 'file' ? { path: requested.path } : undefined,
         requestedFolder: requested?.type === 'directory' ? { path: requested.path } : undefined,

@@ -116,6 +116,8 @@
 
     # Whole-log turn outline for the chat turn rail (the turnOutline
     # projection key): every turn stays navigable before its events page in.
+    # Also every turn's produced files (turnDeliverables), which the chat's
+    # produced-files row reads when a turn's start has not paged in.
     - id: session-turn-outline
       name: '@aeven/session-turn-outline'
 

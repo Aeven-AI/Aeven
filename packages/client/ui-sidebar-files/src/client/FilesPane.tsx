@@ -62,6 +62,12 @@ export interface FilesPaneProps extends SidebarContentPaneProps {
    * @returns withdrawal of the offer.
    */
   readonly registerReveal?: ((reveal: (path: string) => void) => () => void) | undefined
+  /**
+   * Offer this pane to open later file requests in place while it shows no file.
+   * @param open - opens a workspace-relative or absolute file in this pane.
+   * @returns withdrawal of the offer.
+   */
+  readonly registerOpen?: ((open: (path: string) => void) => () => void) | undefined
   readonly t: TranslateNS<'sidebarFiles'>
   readonly remote: ClientRemote
   /**
@@ -215,7 +221,7 @@ function fromTextField(event: ReactKeyboardEvent): boolean {
  * @returns the explorer element tree.
  */
 export function FilesPane({
-  sessionId, surfaceId, setTab, t, remote, requestedFile, requestedFolder, registerReveal, onFileChange, copyOf,
+  sessionId, surfaceId, setTab, t, remote, requestedFile, requestedFolder, registerReveal, registerOpen, onFileChange, copyOf,
 }: FilesPaneProps): ReactNode {
   const session = sessionId as SessionId
   const [memory, setMemory] = useState<ExplorerMemory>(() => recall(sessionId, surfaceId))
@@ -444,6 +450,7 @@ export function FilesPane({
   useEffect(() => {
     if (requestedFile !== undefined) openFile(requestedFile.path)
   }, [requestedFile, openFile])
+  useEffect(() => registerOpen?.(openFile), [registerOpen, openFile])
 
   /** Show a path in the tree: open its folders and focus its row. */
   const reveal = useCallback((path: string, type: EntryType) => {
@@ -1261,16 +1268,25 @@ function FileView({
 
   const [page, setPage] = useState<string | null>(null)
   useEffect(() => {
-    if (!showPreview || content.status !== 'ready') return undefined
+    if (!showPreview || content.status === 'loading') return undefined
     const controller = new AbortController()
     const read = async (asset: string, signal: AbortSignal): Promise<Blob | undefined> => {
       const response = await fetch(workspaceFileUrl(sessionId, absolutePath(root, asset)), { signal, credentials: 'same-origin' })
       return response.ok ? response.blob() : undefined
     }
-    void previewDocument(content.file.text, path, read, controller.signal).then((built) => {
+    // The text view reads one capped page of the file, and refuses a file past its byte cap; the rendered page reads
+    // the whole document.
+    const text = content.status === 'ready' ? content.file.text : undefined
+    const whole = content.status === 'ready' && content.file.eof
+      ? Promise.resolve(content.file.text)
+      : read(path, controller.signal).then(blob => blob?.text() ?? text)
+    void whole.then(async (html) => {
+      if (html === undefined) throw new Error('page unavailable')
+      return previewDocument(html, path, read, controller.signal)
+    }).then((built) => {
       if (!controller.signal.aborted) setPage(built)
     }, () => {
-      if (!controller.signal.aborted) setPage(content.file.text)
+      if (!controller.signal.aborted && text !== undefined) setPage(text)
     })
     return () => { controller.abort() }
   }, [content, path, root, sessionId, showPreview])
@@ -1434,7 +1450,6 @@ function FileView({
           </span>
         </div>
       )}
-      {content.status === 'ready' && content.file.outsideWorkspace && <div className={clsx(css.note, css.fileNote)}>{t('file.outside')}</div>}
       {showPreview && (
         page === null
           ? <div className={clsx(css.note, css.fileNote)}>{content.status === 'error' ? content.message : t('file.rendering')}</div>

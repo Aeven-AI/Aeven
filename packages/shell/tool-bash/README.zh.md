@@ -48,7 +48,7 @@ kind: "package-reference"
 | `enableRunInBackground` | `true` | 暴露 `run_in_background`；为 `false` 时拒绝强制后台调用，前台调用始终等待 |
 | `detachAfterMs` | `20000` | 前台命令在被交还为后台任务之前允许运行多久 |
 | `shareOutputFiles` | `false` | 将工作区内生成的 `output_files` 存为附件并在调用处展示，以相对于工作区的路径记录它们，并拒绝工作区之外的声明路径；需要 `ctx.attachments` |
-| `detectOutputExtensions` | PDF、办公、iWork、图片、音频、视频 | 未声明 `output_files` 的前台命令会检查的文档扩展名（不含点）；为空则关闭该检查 |
+| `detectOutputExtensions` | PDF、办公、iWork、图片、HTML、音频、视频 | 未声明 `output_files` 的前台命令会检查的文档扩展名（不含点）；为空则关闭该检查 |
 | `detectDocumentExtensions` | PDF、Office、iWork、ePub | 不带点的扩展名；即使命令文本未提到，该检查也会在命令工作的文件夹中关注这些类型；为空时关闭这一部分 |
 | `detectOutputMaxEntries` | `5000` | 该检查在命令前后最多访问的条目数 |
 | `copyOutputFiles` | `false` | 将生成的每个 `output_files` 文件（含图片）（无论是否在工作区内）复制一份存为附件，只记录在其 `producedFiles` 条目上，供账户的其他设备打开；调用处不展示，模型看到的结果不变。需要 `ctx.attachments`，使用单次调用和单个对话的上限，不能与 `shareOutputFiles` 同时启用 |

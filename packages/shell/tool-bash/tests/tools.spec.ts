@@ -105,6 +105,22 @@ describe('undeclared generated documents', () => {
     }
   })
 
+  it('records a page a command names by default, and not one written under a name it never spells', async () => {
+    const ctx = await setup()
+    const root = mkdtempSync(join(tmpdir(), 'avn-detected-pages-'))
+    const fsFiber = await ctx.plugin(LocalFileSystem)
+    try {
+      const built = await call(ctx, 'bash', { description: 'Build the page', workdir: root, command: 'mkdir site && printf page > site/index.html' })
+      expect((built.meta as { producedFiles: unknown[] }).producedFiles).toEqual([{ path: join(root, 'site', 'index.html'), created: true }])
+      // A renderer writing an intermediate page under a computed name, as the CV skill's render step does, stays out.
+      const rendered = await call(ctx, 'bash', { description: 'Render', workdir: root, command: 'ext=html && printf cv > "cv.$ext"' })
+      expect(rendered.meta).toBeUndefined()
+    } finally {
+      await fsFiber.dispose()
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
   it('stays off without configured extensions', async () => {
     const ctx = await setup({ detectOutputExtensions: [] })
     const root = mkdtempSync(join(tmpdir(), 'avn-detected-off-'))

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type MouseEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import {
   fileGlyph, fileKindOf, IconChevronDownOutline14, IconChevronUpOutline14, IconLucideFolderOpen, Tooltip,
   VideoPlayer, videoPlayerLabels,
@@ -6,7 +6,10 @@ import {
 import type { HostObservable, InjectFace, PropsLocale } from '@aeven/client-ui-slots'
 import type { ImageAttachmentRef } from '@aeven/attachment'
 import type { TurnTailOwnerProps } from '@aeven/client-ui-chat/client'
-import { basename, type ProducedFile } from './turn-deliverables.ts'
+import type { UseProjection } from '@aeven/api-session-controller/client'
+import {
+  basename, producedFilesForClosing, type ProducedFile, type ProducedFilesMatch,
+} from './turn-deliverables.ts'
 import { revealLabel } from './file-menu.ts'
 import { openProducedFile } from './file-links.ts'
 import type { NS } from './locales.ts'
@@ -62,13 +65,37 @@ export interface ProducedFilesInjected {
   }
 }
 
-/** Matched files plus the opener, workspace root, locale, and injected Host capability. */
-export type ProducedFilesProps = Pick<TurnTailOwnerProps, 'openFile' | 'cwd' | 'renderImages'>
+/** The opener, workspace root, locale, and injected Host capability a produced-files row renders with. */
+type ProducedFilesRowProps = Pick<TurnTailOwnerProps, 'openFile' | 'cwd' | 'renderImages'>
   & Partial<Pick<TurnTailOwnerProps, 'turn'>> & {
     matched: readonly ProducedFile[]
   } & PropsLocale<typeof NS> & InjectFace<ProducedFilesInjected>
 
+/** The selector match plus the closing seq, the Session's projection reader, and the row's own props. */
+export type ProducedFilesProps = Omit<ProducedFilesRowProps, 'matched'> & Partial<Pick<TurnTailOwnerProps, 'seq'>> & {
+  matched: ProducedFilesMatch
+  /** The Session's Host-computed projection values, which hold a Turn's files when its `turn/start` is not loaded. */
+  useProjection: UseProjection
+}
+
 type Translate = ProducedFilesProps['t']
+
+/**
+ * Render one turn's produced files. A Turn whose `turn/start` the loaded window lacks lists the files the Host's
+ * `turnDeliverables` projection holds for it, and renders nothing while that lists none.
+ * @param props - the selector match, the closing seq, the projection reader, and the row's props.
+ * @returns The produced-files section, or null when the projection lists no files for the Turn.
+ */
+export function ProducedFiles({ matched, seq, useProjection, ...row }: ProducedFilesProps) {
+  const projectedTurn = Array.isArray(matched) ? undefined : (matched as { readonly projectedTurn: number }).projectedTurn
+  // The selector returns the Turn's own entry, whose reference changes only when its files change.
+  const entry = useProjection('turnDeliverables', value =>
+    projectedTurn === undefined ? undefined : value?.find(candidate => candidate.turn === projectedTurn))
+  const files = useMemo(() => (Array.isArray(matched)
+    ? matched as readonly ProducedFile[]
+    : producedFilesForClosing(entry === undefined ? undefined : { produced: entry.produced }, seq)), [matched, entry, seq])
+  return files.length === 0 ? null : <ProducedFilesRow {...row} matched={files} />
+}
 
 /**
  * Render one turn's produced files: a changed-files card for the files it
@@ -76,10 +103,10 @@ type Translate = ProducedFilesProps['t']
  * @param props - selector-matched files, the chat view's file opener and workspace root, and the locale seat.
  * @returns The produced-files section.
  */
-export function ProducedFiles({
+function ProducedFilesRow({
   matched, openFile, previewFile, fileUrl, attachmentUrl, cwd, isLoopback, ensureWorkspacePathOpen,
   openFileMenu, useWorkspacePathOpen, renderImages, turn, t,
-}: ProducedFilesProps) {
+}: ProducedFilesRowProps) {
   useEffect(() => { ensureWorkspacePathOpen() }, [ensureWorkspacePathOpen])
   const hostCanOpenPath = useWorkspacePathOpen(available => available === true)
   const canOpenPath = isLoopback && hostCanOpenPath

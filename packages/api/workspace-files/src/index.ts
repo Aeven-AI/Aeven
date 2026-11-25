@@ -446,7 +446,6 @@ export class WorkspaceFiles extends TypertRemoteService {
       bytes: info.size ?? null,
       text: page.text,
       eof: page.eof,
-      outsideWorkspace: !this.ctx.fs.contains(root, target),
     }
   }
 

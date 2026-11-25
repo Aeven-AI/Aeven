@@ -253,10 +253,10 @@ describe('turnOutline projection unit (registry drive)', () => {
     const descending = { settled: [entry(2, 9), entry(1, 3)], open: null, awaitingPrompt: false }
     // The schema rejects it, so the key is absent from the served values: a
     // cold consumer refolds instead of trusting an impossible outline.
-    expect(ctx.sessionProjections.viewCheckpoint({
+    expect('turnOutline' in ctx.sessionProjections.viewCheckpoint({
       ...checkpoint,
       turnOutline: { ...row!, val: descending },
-    })).toEqual({})
+    })).toBe(false)
     // A well-formed row of the same shape does serve.
     expect(ctx.sessionProjections.viewCheckpoint({
       ...checkpoint,

@@ -14,6 +14,8 @@ describe('resolveReference', () => {
     ['site', '/assets/logo.svg', 'assets/logo.svg'],
     ['site', 'a%20b.png?v=2#top', 'site/a b.png'],
     ['', 'index.css', 'index.css'],
+    ['/Users/me/vase', './src/main.js', '/Users/me/vase/src/main.js'],
+    ['/Users/me/vase/src', '../styles.css', '/Users/me/vase/styles.css'],
   ])('resolves %j + %j to %j', (folder, reference, path) => {
     expect(resolveReference(folder, reference)).toBe(path)
   })
@@ -84,5 +86,98 @@ describe('previewDocument', () => {
     const controller = new AbortController()
     controller.abort()
     await expect(previewDocument('<p>hi</p>', 'index.html', reader({}).read, controller.signal)).rejects.toThrow()
+  })
+})
+
+describe('previewDocument ES modules', () => {
+  /** The generated import map of a built page, with each module's text decoded from its `data:` URL. */
+  function modulesOf(doc: Document): Record<string, string> {
+    const maps = doc.querySelectorAll('script[type="importmap"]')
+    expect(maps).toHaveLength(1)
+    const imports = (JSON.parse(maps[0]?.textContent ?? '{}') as { imports: Record<string, string> }).imports
+    return Object.fromEntries(Object.entries(imports).map(([key, url]) => {
+      expect(url).toMatch(/^data:text\/javascript;base64,/)
+      const bytes = Uint8Array.from(atob(url.slice(url.indexOf(',') + 1)), char => char.charCodeAt(0))
+      return [key, new TextDecoder().decode(bytes)]
+    }))
+  }
+
+  it('inlines a module graph reached through relative imports and the page import map, each module once', async () => {
+    const files = reader({
+      'vase/src/main.js': [
+        "import * as THREE from 'three'",
+        "import { Lights } from 'three/addons/lights/Lights.js'",
+        "import { shard } from './geometry.js'",
+        "const late = () => import('./late.js')",
+        'console.log(THREE, Lights, shard, late, import.meta.url)',
+      ].join('\n'),
+      'vase/src/geometry.js': "import * as THREE from 'three'\nimport { main } from './main.js'\nexport const shard = [THREE, main]",
+      'vase/src/late.js': 'export default 1',
+      'vase/node_modules/three/build/three.module.js': 'export const REVISION = "169"',
+      'vase/node_modules/three/examples/jsm/lights/Lights.js': "import { REVISION } from 'three'\nexport const Lights = REVISION",
+    })
+    const html = [
+      '<html><head><script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js",',
+      '"three/addons/":"./node_modules/three/examples/jsm/"}}</script></head>',
+      '<body><canvas id="gl"></canvas><script type="module" src="./src/main.js"></script></body></html>',
+    ].join('')
+    const page = await previewDocument(html, 'vase/index.html', files.read, new AbortController().signal)
+    const doc = new DOMParser().parseFromString(page, 'text/html')
+
+    const three = '@avn-workspace/vase/node_modules/three/build/three.module.js'
+    const entry = doc.querySelector('script[type="module"]')
+    expect(entry?.hasAttribute('src')).toBe(false)
+    expect(entry?.textContent).toContain(`from '${three}'`)
+    expect(entry?.textContent).toContain('import("@avn-workspace/vase/src/late.js")')
+    expect(entry?.textContent).toContain('import.meta.url')
+    const modules = modulesOf(doc)
+    expect(Object.keys(modules).sort()).toEqual([
+      '@avn-workspace/vase/node_modules/three/build/three.module.js',
+      '@avn-workspace/vase/node_modules/three/examples/jsm/lights/Lights.js',
+      '@avn-workspace/vase/src/geometry.js',
+      '@avn-workspace/vase/src/late.js',
+      '@avn-workspace/vase/src/main.js',
+    ])
+    // The import cycle back to main.js resolves through the map like any other import.
+    expect(modules['@avn-workspace/vase/src/geometry.js']).toContain("from '@avn-workspace/vase/src/main.js'")
+    expect(modules['@avn-workspace/vase/node_modules/three/examples/jsm/lights/Lights.js']).toContain(`from '${three}'`)
+    expect(files.asked.filter(path => path.endsWith('three.module.js'))).toHaveLength(1)
+  })
+
+  it('rewrites an inline module and leaves remote and unmapped specifiers as written', async () => {
+    const files = reader({ 'app/util.js': 'export const u = 1' })
+    const html = [
+      '<html><head></head><body><script type="module">',
+      "import { u } from './util.js'\nimport confetti from 'https://cdn.example/confetti.js'\nimport lodash from 'lodash'",
+      '</script></body></html>',
+    ].join('')
+    const page = await previewDocument(html, 'app/index.html', files.read, new AbortController().signal)
+    const doc = new DOMParser().parseFromString(page, 'text/html')
+
+    const text = doc.querySelector('script[type="module"]')?.textContent ?? ''
+    expect(text).toContain("from '@avn-workspace/app/util.js'")
+    expect(text).toContain("from 'https://cdn.example/confetti.js'")
+    expect(text).toContain("from 'lodash'")
+    expect(Object.keys(modulesOf(doc))).toEqual(['@avn-workspace/app/util.js'])
+  })
+
+  it('reads the files of a page outside the workspace by their absolute paths', async () => {
+    const files = reader({
+      '/Users/me/vase/styles.css': 'body { color: blue }',
+      '/Users/me/vase/src/main.js': "import { u } from './util.js'",
+      '/Users/me/vase/src/util.js': 'export const u = 1',
+    })
+    const html = '<html><head><link rel="stylesheet" href="./styles.css"></head><body><script type="module" src="./src/main.js"></script></body></html>'
+    const page = await previewDocument(html, '/Users/me/vase/index.html', files.read, new AbortController().signal)
+    const doc = new DOMParser().parseFromString(page, 'text/html')
+
+    expect(doc.querySelector('style')?.textContent).toBe('body { color: blue }')
+    expect(doc.querySelector('script[type="module"]')?.textContent).toContain("from '@avn-workspace//Users/me/vase/src/util.js'")
+    expect(Object.keys(modulesOf(doc))).toEqual(['@avn-workspace//Users/me/vase/src/util.js'])
+  })
+
+  it('adds no import map to a page without modules', async () => {
+    const page = await previewDocument('<html><head></head><body><p>hi</p></body></html>', 'a.html', reader({}).read, new AbortController().signal)
+    expect(new DOMParser().parseFromString(page, 'text/html').querySelector('script[type="importmap"]')).toBeNull()
   })
 })

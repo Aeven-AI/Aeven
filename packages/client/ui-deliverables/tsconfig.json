@@ -49,6 +49,12 @@
     },
     {
       "path": "../../attachment/attachment"
+    },
+    {
+      "path": "../../session/session-turn-outline"
+    },
+    {
+      "path": "../../api/session-controller/tsconfig.client.json"
     }
   ]
 }

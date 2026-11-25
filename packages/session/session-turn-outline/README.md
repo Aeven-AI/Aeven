@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-session-turn-outline` serves the whole-log turn outline — one entry per human message of every started turn, including messages that steer a running turn, each with its jump seq and bounded message and response previews — as the `turnOutline` projection unit. A client that pages history in windows reads the outline to offer every message of the session (loaded or not) and to target its backwards paging at the exact seq that brings that message's events in. Choose it in compositions that already mount the projection registry, such as the web app bundle whose chat turn rail is the reference consumer; assemblies without the registry are unaffected and their consumers fall back to loaded-window navigation. Setup and entry semantics come first; the fold internals live in a collapsible developer section below.
+`avn-session-turn-outline` serves the whole-log turn outline — one entry per human message of every started turn, including messages that steer a running turn, each with its jump seq and bounded message and response previews — as the `turnOutline` projection unit. A client that pages history in windows reads the outline to offer every message of the session (loaded or not) and to target its backwards paging at the exact seq that brings that message's events in. Choose it in compositions that already mount the projection registry, such as the web app bundle whose chat turn rail is the reference consumer; assemblies without the registry are unaffected and their consumers fall back to loaded-window navigation. Setup and entry semantics come first; the fold internals live in a collapsible developer section below. It also serves every turn's produced files as the `turnDeliverables` unit, which the chat's produced-files row reads for a turn whose `turn/start` has not paged in.
 
 ## Table of Contents
 
@@ -46,6 +46,10 @@ Mount the plugin beside the session store and the projection registry when clien
 
 The wire value is the complete entry array, strictly increasing by `seq` and non-decreasing by `turn` (whole-value rule): consumers replace, never merge. Entries come only from `user/message` events with the human `user` source, so injected context and tool results never leak into navigation; an images-only message keeps `''` and consumers label it by number. The response tracks the newest text-bearing `assistant/message` on the open entry, so an interrupted turn keeps the text it reached. Preview budgets match the chat rail's loaded-turn previews, so a message shows the same words before and after its events load.
 
+### Produced files per turn
+
+The `turnDeliverables` wire value lists every turn that produced files, as `{ turn, produced }` entries in first-settlement order. Each file comes from a successful `write`, `edit`, or mutating `str_replace_editor` call, or from the `producedFiles` a command result declared, read by the same `./client` readers the chat's `deliverables` Definition uses. Files fold per turn by path and declaration: `seq` is the first settlement, line counts sum while every mutation recorded them, and the newest stored copy wins. A `session/rewind` drops files first settled at or after its target. Calls awaiting results stay in host state and publish nothing.
+
 ### Failures and recovery
 
 The unit is inert without the projection registry: `inject` keeps the fiber pending and nothing registers, so other assemblies lack the `turnOutline` key. Unmounting the plugin removes the key, because registrations are effects on the mounting fiber. Persisted-cache rows are schema-validated on restore — including the strictly-increasing turn order — so a corrupt row is discarded instead of seeding a broken fold.
@@ -70,6 +74,8 @@ The unit is a pure fold over committed session events. A turn's opening entry is
 |---|---|
 | [`src/index.ts`](src/index.ts) | Plugin entry: `inject`, unit registration on the mounting fiber |
 | [`src/projection.ts`](src/projection.ts) | The fold: entry append, preview fill, wire view |
+| [`src/deliverables-projection.ts`](src/deliverables-projection.ts) | The `turnDeliverables` fold: pending calls, per-turn file entries, wire view |
+| [`src/produced.ts`](src/produced.ts) | Produced-file readers shared with the client `deliverables` Definition through `./client` |
 | [`src/types.ts`](src/types.ts) | One home of the `turnOutline` projection-key declaration and entry types |
 | — | No runtime invariant companion is published: the package owns one pure projection fold, `session-projection` schema-validates its served values, and re-folding the same log would duplicate the implementation instead of comparing independently maintained observations; session and agent-loop own turn-boundary ordering. |
 
@@ -97,7 +103,7 @@ Read these pages when the unit's contract is not enough. They move from the regi
 <a id="model-experience"></a>
 ## Model Experience
 
-None, as the turnOutline unit folds already-logged turn boundaries into a client-facing read model and registers nothing model-facing.
+None, as both units fold already-logged events into client-facing read models and register nothing model-facing.
 
 #### KV Cache effect
 
@@ -114,6 +120,7 @@ These limits define what the outline describes and when the unit is absent. They
 - **An open entry's response preview moves while it streams** — it follows the newest text-bearing assistant message, so the words can change until the next message or `turn/end`.
 - **A message without eligible text keeps `''`** — images-only and command-only messages are navigable but labeled by number, and an entry whose steps emit no text gets no response preview.
 - **Mounted only where the projection registry is composed** — other assemblies serve no `turnOutline` key, and their consumers fall back to loaded-window navigation.
+- **`turnDeliverables` grows with distinct files** — every push carries every turn's file entries (whole-value rule), pushed only when a mutation result lands; heavy local sessions hold under 200 entries.
 
 <a id="dev-note"></a>
 ### Dev Note

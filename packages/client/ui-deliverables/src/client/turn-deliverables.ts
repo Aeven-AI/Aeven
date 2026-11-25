@@ -3,34 +3,17 @@
  * model-free: paths come from successful first-party mutation calls and
  * verified generated-file result metadata, never the closing prose.
  */
-import { diffArrays } from 'diff'
 import { isAppendSurfaceEvent } from '@aeven/session/surface'
+import {
+  basename, declaredOutputs, isRecord, mutationCalls, pathValue, resultText, settledMutation, sharedImages, storedCopies,
+  type LineCounts, type MutationCall, type ProducedPath, type TurnDeliverables,
+} from '@aeven/session-turn-outline/client'
 import type { ProducedImages, TurnTailOwnerProps } from '@aeven/client-ui-chat/client'
 import type { ConversationNodeDefinition } from '@aeven/client-ui-conversation/client'
 import type { ImageAttachmentRef } from '@aeven/attachment'
 import { fileKindOf, type MarkdownFileMentions } from '@aeven/client-ui-primitives'
 
-/** Lines one successful mutation added and deleted. */
-interface LineCounts {
-  readonly added: number
-  readonly deleted: number
-}
-
-/** One successful mutation of a path. */
-interface ProducedPath {
-  readonly seq: number
-  readonly path: string
-  /** Whether the mutation created the file rather than changing an existing one. */
-  readonly created: boolean
-  /** Line counts, absent when the tool records none. */
-  readonly counts?: LineCounts | undefined
-  /** The stored copy of the file the deployment shared, absent when it shared none. */
-  readonly attachmentId?: string | undefined
-  /** That copy's full reference when the result shared it as an image, which the image renderer draws. */
-  readonly image?: ImageAttachmentRef | undefined
-  /** Whether a command declared the file as an output, rather than a file tool writing it. */
-  readonly declared?: true | undefined
-}
+export { basename }
 
 /** One produced file of a turn, its mutations folded together. */
 export interface ProducedFile {
@@ -44,16 +27,6 @@ export interface ProducedFile {
   readonly attachmentId?: string | undefined
   /** The latest copy's full image reference, when the result shared the file as an image. */
   readonly image?: ImageAttachmentRef | undefined
-}
-
-/** A recognized mutation call, held until its result settles. */
-interface MutationCall {
-  readonly name: string
-  readonly path: string
-  /** The `write` tool's full new content, whose lines a create adds. */
-  readonly content?: string | undefined
-  /** Whether the call itself names a create (`str_replace_editor` `create`). */
-  readonly creates: boolean
 }
 
 /** Immutable produced-file facts published against one Turn. */
@@ -73,154 +46,6 @@ declare module '@aeven/client-ui-conversation/client' {
 interface DeliverablesState extends DeliverablesTurnData {
   readonly turn: number
   readonly calls: ReadonlyMap<string, readonly MutationCall[]>
-}
-
-/**
- * Extract the paths from a supported first-party mutation call: one per
- * file, several for an `edit` with a `files` list. Session
- * `tool/call` events are root calls; Code Dispatch children do not enter this
- * Definition independently.
- * @param name - wire tool name.
- * @param argsRaw - model-produced JSON arguments.
- * @returns each mutated path and what its result needs; empty when the call is not a supported mutation.
- */
-function mutationCalls(name: string, argsRaw: string): MutationCall[] {
-  let args: unknown
-  try {
-    args = JSON.parse(argsRaw) as unknown
-  } catch {
-    // Malformed model JSON is not a mutation the tool ran.
-    return []
-  }
-  if (!isRecord(args)) return []
-  let path: string | null
-  switch (name) {
-    case 'write':
-      path = typeof args.content === 'string' ? pathValue(args.file_path) : null
-      return path === null ? [] : [{ name, path, content: args.content as string, creates: false }]
-    case 'edit': {
-      const files = args.files === undefined ? [args] : args.files
-      if (!Array.isArray(files) || files.length === 0) return []
-      const calls: MutationCall[] = []
-      for (const file of files as unknown[]) {
-        path = isRecord(file) && validEditArgs(file) ? pathValue(file.file_path) : null
-        if (path === null) return []
-        calls.push({ name, path, creates: false })
-      }
-      return calls
-    }
-    case 'str_replace_editor':
-      path = editorMutationPath(args)
-      return path === null ? [] : [{ name, path, creates: args.command === 'create' }]
-    default:
-      return []
-  }
-}
-
-/**
- * Lines a text holds, not counting the empty remainder after a final newline.
- * @param text - file text.
- * @returns the line count; 0 for empty text.
- */
-function lineCount(text: string): number {
-  if (text === '') return 0
-  const lines = text.split('\n').length
-  return text.endsWith('\n') ? lines - 1 : lines
-}
-
-/**
- * Added and deleted lines of the `write`/`edit` result-time hunks.
- *
- * Each hunk carries three context lines on each side, so the counts come from a
- * line diff of the hunk's two sides rather than their lengths.
- * @param meta - the tool result's opaque `meta`, `{ diffs: [{ path, oldText, newText }] }` for these tools.
- * @param path - the mutated path; only its hunks count, since one `edit` call can change several files.
- * @returns the counts, or undefined when `meta` holds no hunks.
- */
-function hunkCounts(meta: unknown, path: string): LineCounts | undefined {
-  if (!isRecord(meta) || !Array.isArray(meta.diffs)) return undefined
-  let added = 0
-  let deleted = 0
-  for (const hunk of meta.diffs as unknown[]) {
-    if (!isRecord(hunk) || typeof hunk.newText !== 'string') return undefined
-    if (hunk.path !== path) continue
-    const before = typeof hunk.oldText === 'string' ? hunk.oldText.split('\n') : []
-    for (const part of diffArrays(before, hunk.newText.split('\n'))) {
-      if (part.added) added += part.count
-      else if (part.removed) deleted += part.count
-    }
-  }
-  return { added, deleted }
-}
-
-/**
- * What one successful mutation did, read from its call and result.
- * @param call - the recognized call.
- * @param text - the result's model-facing text.
- * @param meta - the result's opaque `meta`.
- * @returns whether it created the file, and its line counts when the tool recorded them.
- */
-function settledMutation(call: MutationCall, text: string, meta: unknown): Pick<ProducedPath, 'created' | 'counts'> {
-  if (call.name === 'str_replace_editor') return { created: call.creates }
-  // `write` reports `Created file` for a path that did not exist, and records
-  // hunks only for an update, so a create's lines are its whole content.
-  if (call.name === 'write' && /\bCreated file\b/.test(text)) {
-    return { created: true, counts: { added: lineCount(call.content ?? ''), deleted: 0 } }
-  }
-  return { created: false, counts: hunkCounts(meta, call.path) }
-}
-
-/** Validate the replacement fields that one `edit` file requires: the single form or an `edits` list. */
-function validEditArgs(args: Readonly<Record<string, unknown>>): boolean {
-  if (args.edits !== undefined) {
-    return Array.isArray(args.edits) && args.edits.length > 0
-      && (args.edits as unknown[]).every(edit => isRecord(edit) && validReplacement(edit))
-  }
-  return validReplacement(args)
-}
-
-/** Validate one literal replacement. */
-function validReplacement(args: Readonly<Record<string, unknown>>): boolean {
-  return typeof args.old_string === 'string'
-    && args.old_string.length > 0
-    && typeof args.new_string === 'string'
-    && args.old_string !== args.new_string
-    && (args.replace_all === undefined || typeof args.replace_all === 'boolean')
-}
-
-/** Extract a path only from a complete mutating editor command. */
-function editorMutationPath(args: Readonly<Record<string, unknown>>): string | null {
-  const path = pathValue(args.path)
-  if (path === null) return null
-  switch (args.command) {
-    case 'create':
-      return typeof args.file_text === 'string' ? path : null
-    case 'str_replace':
-      return typeof args.old_str === 'string'
-        && args.old_str.length > 0
-        && (args.new_str === undefined || typeof args.new_str === 'string')
-        ? path
-        : null
-    case 'insert':
-      return typeof args.insert_line === 'number'
-        && Number.isInteger(args.insert_line)
-        && args.insert_line >= 0
-        && typeof args.new_str === 'string'
-        ? path
-        : null
-    default:
-      return null
-  }
-}
-
-/** A non-blank path preserves the exact spelling supplied to the tool. */
-function pathValue(value: unknown): string | null {
-  return typeof value === 'string' && value.trim().length > 0 ? value : null
-}
-
-/** Narrow parsed JSON to an argument object. */
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 /**
@@ -291,47 +116,34 @@ export function producedFilesForClosing(
 }
 
 /**
- * Claim the turn-tail chain only when its closing turn produced files.
+ * The Deliverables data the Host's `turnDeliverables` projection holds for one Turn.
+ * @param value - the `turnDeliverables` projection value, treated as wire data.
+ * @param turn - the Turn number.
+ * @returns the Turn's projected data, or undefined when the projection lists no files for it.
+ */
+export function projectedTurnData(value: readonly TurnDeliverables[] | undefined, turn: number): DeliverablesTurnData | undefined {
+  const entry = value?.find(candidate => candidate.turn === turn)
+  return entry === undefined ? undefined : { produced: entry.produced }
+}
+
+/**
+ * Match of the produced-files chain entry: the closing Turn's files, or the number of a Turn whose `turn/start`
+ * the loaded window lacks, whose files only the `turnDeliverables` projection holds.
+ */
+export type ProducedFilesMatch = readonly ProducedFile[] | { readonly projectedTurn: number }
+
+/**
+ * Claim the turn-tail chain when its closing turn produced files, or when the loaded window holds the Turn's
+ * closing message without its `turn/start`: the `deliverables` Definition starts from that event, so it has no data
+ * for such a Turn, and the row reads the Turn's files from the projection instead.
  * @param owner - Turn-tail owner currency for the closing assistant.
- * @returns Produced files as the component's match, or null to decline before mount.
+ * @returns The match, or null to decline before mount.
  */
-export function selectProducedFiles(owner: TurnTailOwnerProps): readonly ProducedFile[] | null {
-  const files = producedFilesForClosing(owner.turn.data.get('deliverables'), owner.seq)
+export function selectProducedFiles(owner: TurnTailOwnerProps): ProducedFilesMatch | null {
+  const data = owner.turn.data.get('deliverables')
+  if (data === undefined && owner.turn.start === undefined) return { projectedTurn: owner.turn.turn }
+  const files = producedFilesForClosing(data, owner.seq)
   return files.length === 0 ? null : files
-}
-
-/**
- * The stored copies a tool result attached, by file name; a name two copies share maps to neither.
- * @param content - the result's content blocks.
- * @returns attachment ids by attachment name.
- */
-function storedCopies(content: readonly unknown[]): Map<string, string> {
-  const copies = new Map<string, string>()
-  const shared = new Set<string>()
-  for (const block of content) {
-    if (!isRecord(block) || (block.type !== 'file' && block.type !== 'image') || !isRecord(block.attachment)) continue
-    const { name, attachmentId } = block.attachment
-    if (typeof name !== 'string' || typeof attachmentId !== 'string') continue
-    if (copies.has(name)) shared.add(name)
-    copies.set(name, attachmentId)
-  }
-  for (const name of shared) copies.delete(name)
-  return copies
-}
-
-/**
- * The images a tool result shared, by attachment id, with the full reference the image renderer draws them from.
- * @param content - the result's content blocks.
- * @returns image references by attachment id.
- */
-function sharedImages(content: readonly unknown[]): Map<string, ImageAttachmentRef> {
-  const images = new Map<string, ImageAttachmentRef>()
-  for (const block of content) {
-    if (!isRecord(block) || block.type !== 'image' || !isRecord(block.attachment)) continue
-    const ref = block.attachment as unknown as ImageAttachmentRef
-    if (typeof ref.attachmentId === 'string') images.set(ref.attachmentId, ref)
-  }
-  return images
 }
 
 /** Turn-local successful mutation accumulator; it publishes no view Node. */
@@ -364,26 +176,12 @@ export const deliverablesDefinition: ConversationNodeDefinition<DeliverablesStat
     const { seq, data: { meta } } = match.event
     const shared = sharedImages(result.content)
     const state = shared.size === 0 ? context.state : { ...context.state, images: new Map([...context.state.images ?? [], ...shared]) }
-    if (isRecord(meta) && Array.isArray(meta.producedFiles)) {
-      const stored = storedCopies(result.content)
-      const images = shared
-      const produced = meta.producedFiles.flatMap((file: unknown) => {
-        if (!isRecord(file) || pathValue(file.path) === null || typeof file.created !== 'boolean') return []
-        // A result recorded before entries named their copy still attached it, under the file's own name.
-        const attachmentId = typeof file.attachmentId === 'string' ? file.attachmentId : stored.get(basename(file.path as string))
-        const image = attachmentId === undefined ? undefined : images.get(attachmentId)
-        return [{
-          seq, path: file.path as string, created: file.created, declared: true as const,
-          ...attachmentId === undefined ? {} : { attachmentId },
-          ...image === undefined ? {} : { image },
-        }]
-      })
-      return { ...state, produced: [...state.produced, ...produced] }
-    }
+    const declared = declaredOutputs(seq, meta, result.content)
+    if (declared !== undefined) return { ...state, produced: [...state.produced, ...declared] }
     const callId = String(match.event.data.message.source.callId)
     const calls = state.calls.get(callId)
     if (calls === undefined || calls.length === 0) return state
-    const text = result.content.map(block => block.type === 'text' ? block.text : '').join('\n')
+    const text = resultText(result.content)
     const produced = calls.map(call => ({ seq, path: call.path, ...settledMutation(call, text, meta) }))
     return { ...state, produced: [...state.produced, ...produced] }
   },
@@ -450,16 +248,6 @@ export const producedImagesDefinition: ConversationNodeDefinition<ProducedImages
       && previous.value.attachmentIds === attachmentIds && previous.value.paths === paths) return previous
     return { kind: 'turn', turn, key: 'produced-images', value: { attachmentIds, paths } }
   },
-}
-
-/**
- * Trailing path segment, the part that identifies the file at a glance.
- * @param path - Slash- or backslash-separated path.
- * @returns The final segment, or the whole string when separator-free.
- */
-export function basename(path: string): string {
-  const at = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'))
-  return at === -1 ? path : path.slice(at + 1)
 }
 
 /**

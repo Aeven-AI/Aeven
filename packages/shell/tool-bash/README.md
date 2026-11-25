@@ -48,7 +48,7 @@ Two config fields cover background support.
 | `enableRunInBackground` | `true` | Expose `run_in_background`; when `false`, forced background calls are rejected and foreground calls always wait |
 | `detachAfterMs` | `20000` | How long a foreground command may run before it is handed back as a background job |
 | `shareOutputFiles` | `false` | Store produced `output_files` inside the workspace as attachments shown at the call, record their paths relative to the workspace, and refuse declared paths outside it; requires `ctx.attachments` |
-| `detectOutputExtensions` | PDF, office, iWork, image, audio, video | Extensions, without the dot, of documents a foreground command without `output_files` is checked for; empty turns the check off |
+| `detectOutputExtensions` | PDF, office, iWork, image, HTML, audio, video | Extensions, without the dot, of documents a foreground command without `output_files` is checked for; empty turns the check off |
 | `detectDocumentExtensions` | PDF, office, iWork, ePub | Extensions, without the dot, that check watches in the folders the command works in even when the command text names none; empty turns this part off |
 | `detectOutputMaxEntries` | `5000` | Most entries that check visits before and after the command |
 | `copyOutputFiles` | `false` | Store a copy of each produced `output_files` file, wherever it is and images included, as an attachment recorded only on its `producedFiles` entry, so the account's other devices open it; nothing shows at the call and the model's result is unchanged. Requires `ctx.attachments`, uses the per-call and per-conversation caps, and cannot be combined with `shareOutputFiles` |

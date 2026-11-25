@@ -7,7 +7,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import { cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { SessionLiveEventEntry } from '@aeven/api-session-controller/client'
+import type { SessionLiveEventEntry, UseProjection } from '@aeven/api-session-controller/client'
 import {
   ConversationNodeAssembler, UiConversation,
 } from '@aeven/client-ui-conversation/client'
@@ -23,7 +23,7 @@ import { RemoteError, stubSettingsScope } from '@aeven/client-test-runtime'
 import { ProducedFiles, type ProducedFilesInjected } from '../src/client/ProducedFiles.tsx'
 import {
   basename, deliverablesDefinition, producedFileMentions, producedForClosing, selectProducedFiles,
-  type DeliverablesTurnData,
+  type DeliverablesTurnData, type ProducedFile, type ProducedFilesMatch,
 } from '../src/client/turn-deliverables.ts'
 import { apply, inject } from '../src/client/index.ts'
 import type { ImageAttachmentRef } from '@aeven/attachment'
@@ -35,6 +35,9 @@ afterEach(() => {
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
 })
+
+/** A Session with no projection values; the rows below carry their files in the match. */
+const noProjection = ((_key: string, selector?: (value: undefined) => unknown) => selector?.(undefined)) as UseProjection
 
 class TestTurnDataStore implements ConversationLocationDataStore<ConversationTurnDataMap> {
   private readonly values = new Map<string, unknown>()
@@ -65,11 +68,17 @@ class TestTurnDataStore implements ConversationLocationDataStore<ConversationTur
   }
 }
 
-const turnLocation = (turn: number, deliverables?: DeliverablesTurnData): TurnLocation => {
+/** A Turn as the conversation locates it; `loaded: false` is one whose `turn/start` the loaded window lacks. */
+const turnLocation = (turn: number, deliverables?: DeliverablesTurnData, loaded = true): TurnLocation => {
   const data = new TestTurnDataStore()
   if (deliverables !== undefined) data.set('deliverables', deliverables)
-  return { turn, start: undefined, end: undefined, status: 'closed', steps: [], data }
+  const start = loaded ? { type: 'turn/start', seq: 0, time: 0, data: { turn } } as SessionEvent<'turn/start'> : undefined
+  return { turn, start, end: undefined, status: 'closed', steps: [], data }
 }
+
+/** The files a selector match lists, or null for a declined or projected match. */
+const filesOf = (match: ProducedFilesMatch | null): readonly ProducedFile[] | null =>
+  Array.isArray(match) ? match as readonly ProducedFile[] : null
 
 const produced = (...values: ReadonlyArray<readonly [seq: number, path: string]>): DeliverablesTurnData => ({
   produced: values.map(([seq, path]) => ({ seq, path, created: false })),
@@ -199,7 +208,7 @@ describe('produced-file Turn data', () => {
       [8, 'after.txt'],
     )
     expect(producedForClosing(data, 6)).toEqual(['out/index.html', 'out/app.css'])
-    expect(selectProducedFiles(tailOwner(data, 6))?.map(file => file.path)).toEqual(['out/index.html', 'out/app.css'])
+    expect(filesOf(selectProducedFiles(tailOwner(data, 6)))?.map(file => file.path)).toEqual(['out/index.html', 'out/app.css'])
     expect(producedForClosing(undefined)).toEqual([])
     expect(selectProducedFiles(tailOwner(undefined, 9, () => {}, 2))).toBeNull()
   })
@@ -454,7 +463,7 @@ describe('produced images (#761)', () => {
       call(4, 'view', 'read_image', { path }),
       imageResult(5, 'view', undefined, [rainbow]),
     ])
-    expect(selectProducedFiles(tailOwner(deliverablesOf(value), 6))?.[0]?.image).toEqual(rainbow)
+    expect(filesOf(selectProducedFiles(tailOwner(deliverablesOf(value), 6)))?.[0]?.image).toEqual(rainbow)
   })
 
   const props = {
@@ -462,6 +471,7 @@ describe('produced images (#761)', () => {
     fileUrl: (path: string) => `http://localhost/api/workspace-file?path=${path}`,
     attachmentUrl: (id: string) => `http://localhost/api/attachment-file?id=${id}`,
     isLoopback: false, useWorkspacePathOpen: vi.fn().mockReturnValue(true), t: vi.fn().mockImplementation((key: string) => key),
+    useProjection: noProjection,
   }
 
   it('draws a produced image through the conversation renderer, the way a generated image is drawn, not as a row', () => {
@@ -531,10 +541,51 @@ describe('producedFileMentions resolver', () => {
 })
 
 
+describe('a Turn whose turn/start the loaded window lacks', () => {
+  const props = {
+    ensureWorkspacePathOpen: () => {}, revealFile: () => {}, previewFile: vi.fn().mockResolvedValue(true), openFile: vi.fn(),
+    fileUrl: (path: string) => `http://localhost/api/workspace-file?path=${path}`,
+    attachmentUrl: (id: string) => `http://localhost/api/attachment-file?id=${id}`,
+    isLoopback: false, useWorkspacePathOpen: vi.fn().mockReturnValue(true), t: vi.fn().mockImplementation((key: string) => key),
+  }
+  /** A Session whose `turnDeliverables` projection holds `value`. */
+  const projecting = (value: unknown): UseProjection =>
+    (key: string, selector?: (value: unknown) => unknown) => {
+      const current = key === 'turnDeliverables' ? value : undefined
+      return selector === undefined ? current : selector(current)
+    }
+
+  it('claims the turn tail for the projection, and declines a loaded Turn that wrote nothing', () => {
+    const owner = { seq: 40, openFile: () => {}, turn: turnLocation(7, undefined, false) }
+    expect(selectProducedFiles(owner)).toEqual({ projectedTurn: 7 })
+    expect(selectProducedFiles({ ...owner, turn: turnLocation(7) })).toBeNull()
+  })
+
+  it('lists the files the projection holds for the Turn, the built page among them', () => {
+    const projection = [
+      { turn: 6, produced: [{ seq: 3, path: 'earlier.md', created: true }] },
+      { turn: 7, produced: [
+        { seq: 12, path: '/work/vase/src/main.js', created: true, counts: { added: 40, deleted: 0 } },
+        { seq: 30, path: '/work/vase/index.html', created: true, counts: { added: 85, deleted: 0 } },
+      ] },
+    ]
+    const view = render(<ProducedFiles {...props} matched={{ projectedTurn: 7 }} seq={40} useProjection={projecting(projection)} />)
+    expect(view.getByTitle('/work/vase/src/main.js')).not.toBeNull()
+    expect(view.getByTitle('/work/vase/index.html')).not.toBeNull()
+    expect(view.queryByTitle('earlier.md')).toBeNull()
+  })
+
+  it('renders nothing while the projection lists no files for the Turn', () => {
+    const view = render(<ProducedFiles {...props} matched={{ projectedTurn: 7 }} seq={40} useProjection={projecting([])} />)
+    expect(view.container.querySelector('[data-produced-files-row]')).toBeNull()
+  })
+})
+
 describe('produced-file opening', () => {
   const props = {
     ensureWorkspacePathOpen: () => {}, revealFile: () => {}, fileUrl: (path: string) => `http://localhost/api/workspace-file?path=${path}`,
-    attachmentUrl: (id: string) => `http://localhost/api/attachment-file?id=${id}`, t: vi.fn().mockImplementation((key: string) => key) }
+    attachmentUrl: (id: string) => `http://localhost/api/attachment-file?id=${id}`, t: vi.fn().mockImplementation((key: string) => key),
+    useProjection: noProjection }
 
   it.each([true, false])('previews files and opens unsupported files in the default app (created=%s)', async (created) => {
     const openFile = vi.fn()

@@ -35,12 +35,12 @@ kind: "package-reference"
 
 #### 模型看到的内容
 
-在沙箱策略之后加入一条运行时上下文 `aeven-folder`，其中 `<path>` 替换为会话所属账户的文件夹绝对路径。演示文稿和简历技能指向该文件夹。
+在沙箱策略之后加入一条运行时上下文 `aeven-folder`，其中 `<path>` 替换为会话所属账户的文件夹绝对路径。它说明哪个文件夹会同步；模型创建的文件放在会话工作区中，对于没有自己文件夹的会话，该工作区就在此文件夹内。
 
 ##### 此字段的原文
 
 ```markdown
-Aeven folder: "<path>". Save the files you make for the user there, one folder per piece of work, unless they name another place: every device of their account and Aeven Web receive what it holds.
+Aeven folder: "<path>". Every device of their account and Aeven Web receive what it holds. Save the files you make for the user in the session workspace, one folder per piece of work, unless they name another place.
 ```
 
 #### Token 影响

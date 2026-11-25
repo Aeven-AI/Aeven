@@ -91,7 +91,7 @@ export interface Config {
   /**
    * File extensions, without the dot, of the documents a foreground command
    * that declares no `output_files` is checked for (default PDF, office,
-   * iWork, image, audio, and video formats; empty turns the check off). Every
+   * iWork, image, HTML, audio, and video formats; empty turns the check off). Every
    * workspace file the command creates or changes whose extension the command
    * text names, among these, is recorded and shared as if it had been declared,
    * as is such a file in a folder the command works in (its `workdir`, each
@@ -129,7 +129,8 @@ export const Config: z<Config> = z.object({
   shareMaxAccountBytesPerDay: z.natural().min(1).default(2 * 1024 * 1024 * 1024),
   detectOutputExtensions: z.array(z.string()).default([
     'pdf', 'docx', 'doc', 'odt', 'rtf', 'epub', 'xlsx', 'xls', 'ods', 'csv', 'pptx', 'ppt', 'odp',
-    'pages', 'numbers', 'key', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'mp3', 'wav', 'm4a', 'mp4', 'mov', 'webm',
+    'pages', 'numbers', 'key', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'html', 'htm', 'mp3', 'wav', 'm4a', 'mp4', 'mov',
+    'webm',
   ]),
   detectDocumentExtensions: z.array(z.string()).default([
     'pdf', 'docx', 'doc', 'odt', 'rtf', 'epub', 'xlsx', 'xls', 'ods', 'pptx', 'ppt', 'odp', 'pages', 'numbers', 'key',
@@ -500,7 +501,7 @@ export function apply(ctx: Context, config: Config = {}): void {
       workdir: { type: 'string', description: 'Working directory for this command. Defaults to the session workspace; a relative path is resolved against it.' },
       output_files: {
         type: 'array', items: { type: 'string' },
-        description: 'For commands generating deliverables (PDF, DOCX, spreadsheets, images, etc.), list every output path here. Paths resolve against workdir. Verified new or changed files appear in the created/edited-files block'
+        description: 'For commands generating deliverables (PDF, DOCX, spreadsheets, images, a built HTML page, etc.), list every output path here. Paths resolve against workdir. Verified new or changed files appear in the created/edited-files block'
           + (shareOutputFiles ? ' and are shown to the user at this call: images inline, other files as downloads' : '')
           + '. Requires foreground execution.',
       },
