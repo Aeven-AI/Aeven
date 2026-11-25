@@ -49,7 +49,8 @@ kind: "package-reference"
 | `detachAfterMs` | `20000` | 前台命令在被交还为后台任务之前允许运行多久 |
 | `shareOutputFiles` | `false` | 将工作区内生成的 `output_files` 存为附件并在调用处展示，以相对于工作区的路径记录它们，并拒绝工作区之外的声明路径；需要 `ctx.attachments` |
 | `detectOutputExtensions` | PDF、办公、iWork、图片、音频、视频 | 未声明 `output_files` 的前台命令会检查的文档扩展名（不含点）；为空则关闭该检查 |
-| `detectOutputMaxEntries` | `5000` | 该检查在命令前后最多访问的工作区条目数 |
+| `detectDocumentExtensions` | PDF、Office、iWork、ePub | 不带点的扩展名；即使命令文本未提到，该检查也会在命令工作的文件夹中关注这些类型；为空时关闭这一部分 |
+| `detectOutputMaxEntries` | `5000` | 该检查在命令前后最多访问的条目数 |
 | `copyOutputFiles` | `false` | 将生成的每个 `output_files` 文件（含图片）（无论是否在工作区内）复制一份存为附件，只记录在其 `producedFiles` 条目上，供账户的其他设备打开；调用处不展示，模型看到的结果不变。需要 `ctx.attachments`，使用单次调用和单个对话的上限，不能与 `shareOutputFiles` 同时启用 |
 | `escalationSkillScripts` | `[]` | 无需询问即可按请求提升沙箱权限运行的技能脚本：`{ skill, script, finalArgs }`。只有完全符合 `[cd <dir> && ] node <script> <arg> <arg> <final>` 的命令才符合条件：各个记号为普通或双引号字符串（不含 `$`、反引号或反斜杠），脚本解析为来源为 `custom` 或 `bundled` 的技能资源目录中的该文件，且最后一个参数在允许范围内；其他任何权限提升仍会询问。桌面组合列出了简历和演示文稿导出器的 Pages 与 Keynote 转换 |
 | `shareMaxFiles` | `10` | 单次调用最多共享的生成文件数 |
@@ -66,7 +67,7 @@ kind: "package-reference"
 
 生成交付文件的命令声明 `output_files`，路径相对于 `workdir` 解析。文件系统提供者在前台命令执行前后检查每个路径；新建或修改的普通文件连同创建状态进入持久的 `producedFiles` 结果元数据。已创建／已编辑文件块消费这些元数据，不按扩展名过滤，覆盖 PDF、Microsoft Office、OpenDocument 和 iWork 文件。缺失或未变化的路径不列出。声明输出会禁用自动转为后台任务，也不能与 `run_in_background` 同用；命令保留正常超时。使用该参数的组合必须挂载文件系统提供者。启用 `shareOutputFiles` 时，会话工作区之外的声明路径在任何查找之前即被拒绝，工作区内生成的每个文件都存为附件，其 `producedFiles` 条目记录附件 id：图片在调用处内联显示，其他文件在调用处供下载，结果文本告知模型用户已能看到它们，并列出未共享的文件及原因。启用 `copyOutputFiles` 时，每个生成的文件（含图片）无论是否在工作区内都存为文件附件，其 `producedFiles` 条目记录附件 id，并以 `copy` 记录完整引用；会话同步把该附件带到账户的其他设备，由于日志引用了它，这些设备的附件路由会提供它。超出上限的文件不保留副本。桌面组合通过 `avn-web-app` 启用该选项，Aeven Web 的生成文件列表从这份副本下载文档。
 
-未声明 `output_files`、但命令文本提到 `detectOutputExtensions` 中某个扩展名的前台命令，会被视为声明了它在会话工作区内新建或修改、且扩展名出现在命令文本中的所有文件；其他类型的文件（例如为检查 PDF 而渲染的页面预览）不计入。提供者在命令前后按广度优先列出工作区，跳过隐藏目录和 `node_modules`，最多访问 `detectOutputMaxEntries` 个条目。这覆盖了模型把 `letter.html` 打印成 `letter.pdf` 却没有列出 PDF 的情况：PDF 进入 `producedFiles`，并像声明的文件一样被共享，因此已创建文件块显示它，而不是文件工具写出的 HTML。没有提到此类扩展名或没有生成此类文件的命令，结果保持不变。
+未声明 `output_files` 的前台命令，会被视为声明了它新建或修改的每个受关注类型的文件。受关注的位置有两处。会话工作区按广度优先列出，最多 `detectOutputMaxEntries` 个条目，跳过隐藏目录和 `node_modules`，关注命令文本提到的 `detectOutputExtensions` 扩展名。命令工作的文件夹——它的 `workdir`、命令中每个 `cd` 进入的目录，以及命令以受关注扩展名提到的每个路径所在的文件夹（展开 `~`、`$HOME` 和 `$PWD`）——只列出一层，关注这些提到的扩展名以及所有 `detectDocumentExtensions` 扩展名。这些文件夹在工作区之外也计入，但 `shareOutputFiles` 除外，因为其读者不得了解 Host 的其他文件夹；系统临时文件夹和隐藏文件夹下的文件夹从不关注。未提到的非文档类型文件（例如为检查 PDF 而渲染的页面预览）不计入。这覆盖了模型在会话旁的项目文件夹中把 `letter.html` 打印成 `letter.pdf`，或导出脚本在 `deck.html` 旁写出 `deck.pptx`，却没有列出输出的情况：它们进入 `producedFiles`，并像声明的文件一样被存储，因此已创建文件块显示它们，而不是文件工具写出的 HTML。检测保留自动转入后台：转为后台作业的命令不记录任何文件。没有生成受关注文件的命令，结果保持不变。
 
 ### 后台运行长时间命令
 
