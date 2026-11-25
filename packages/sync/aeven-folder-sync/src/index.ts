@@ -167,7 +167,7 @@ export class AevenFolder extends Service {
           const folder = owner === undefined ? undefined : this.settled.get(owner)
           if (folder === undefined) return ''
           const path = JSON.stringify(folder)
-          return `Aeven folder: ${path}. Save the files you make for the user there, one folder per piece of work, unless they name another place: every device of their account and Aeven Web receive what it holds.`
+          return `Aeven folder: ${path}. Every device of their account and Aeven Web receive what it holds. Save the files you make for the user in the session workspace, one folder per piece of work, unless they name another place.`
         },
       })
     })

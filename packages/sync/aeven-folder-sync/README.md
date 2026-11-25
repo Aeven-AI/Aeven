@@ -35,12 +35,12 @@ When account sync and file sync run, each device shares its Aeven folder under o
 
 #### What the model sees
 
-One runtime context entry, `aeven-folder`, after the sandbox policy, with the folder's absolute path for the session's account in place of `<path>`. The slides and CV skills point at that folder.
+One runtime context entry, `aeven-folder`, after the sandbox policy, with the folder's absolute path for the session's account in place of `<path>`. It names the folder that syncs; files the model makes go in the session workspace, which is inside this folder for a conversation without a folder of its own.
 
 ##### Verbatim text for this field
 
 ```markdown
-Aeven folder: "<path>". Save the files you make for the user there, one folder per piece of work, unless they name another place: every device of their account and Aeven Web receive what it holds.
+Aeven folder: "<path>". Every device of their account and Aeven Web receive what it holds. Save the files you make for the user in the session workspace, one folder per piece of work, unless they name another place.
 ```
 
 #### Token effect

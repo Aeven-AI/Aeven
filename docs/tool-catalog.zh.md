@@ -224,7 +224,7 @@ ask_user_question 会暂停工具调用，直到当前 UI 提供方返回人类�
     },
     "output_files": {
       "type": "array",
-      "description": "For commands generating deliverables (PDF, DOCX, spreadsheets, images, etc.), list every output path here. Paths resolve against workdir. Verified new or changed files appear in the created/edited-files block. Requires foreground execution.",
+      "description": "For commands generating deliverables (PDF, DOCX, spreadsheets, images, a built HTML page, etc.), list every output path here. Paths resolve against workdir. Verified new or changed files appear in the created/edited-files block. Requires foreground execution.",
       "items": {
         "type": "string"
       }

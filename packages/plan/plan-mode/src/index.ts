@@ -23,29 +23,18 @@
  */
 
 import { Context, Service } from '@deepseek-ai/cordis'
-import { z as zod } from 'zod'
-import type { ZodType } from 'zod'
 import type { Agent, PreStepDecision } from '@aeven/agent'
 import { createUserMessage } from '@aeven/llm'
 import type { Session, UserMessage } from '@aeven/session'
 import { defineTool } from '@aeven/tools'
 import { UserQuestionError } from '@aeven/user-questions'
-import type { CommandId } from '@aeven/commands'
+// Type-only: the `ctx.commands` service declaration the `/plan` command registers through.
+import type {} from '@aeven/commands'
 import type {} from '@aeven/session-projection'
-import type { ProjectionDefinition } from '@aeven/session-projection'
-import type { PlanProjection, PlanUnitState } from './types.ts'
+import { planProjectionDefinition } from './projection.ts'
+import type { PlanUnitState } from './types.ts'
 export type * from './types.ts'
-
-declare module '@aeven/session/types' {
-  interface SessionEventMap {
-    /**
-     * Whether plan mode is in force from this point on: log-only, non-surface,
-     * whole-value replace. The last `plan/mode` wins; a log with none folds to
-     * inactive through the projection unit's fold.
-     */
-    'plan/mode': { active: boolean }
-  }
-}
+export { planProjectionDefinition } from './projection.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -110,57 +99,6 @@ export function resolveConfig(config: PlanModeConfig): PlanModeConfig {
   }
   return { section }
 }
-
-const planUnitStateSchema: ZodType<PlanUnitState> = zod.object({
-  active: zod.boolean(),
-  wanted: zod.boolean().nullable(),
-  running: zod.object({
-    commandId: zod.string() as unknown as ZodType<CommandId>,
-    wanted: zod.boolean(),
-  }).strict().nullable(),
-  activeAtLastHeader: zod.boolean().nullable(),
-}).strict()
-
-/** Wire payload schema of the `plan` projection. */
-const planProjectionSchema: ZodType<PlanProjection> = zod.object({
-  active: zod.boolean(),
-  pending: zod.boolean(),
-})
-
-/** Projection of logged plan selections and committed mode. */
-export const planProjectionDefinition = {
-  key: 'plan',
-  stateVersion: 3,
-  stateSchema: planUnitStateSchema,
-  init: () => ({ active: false, wanted: null, running: null, activeAtLastHeader: null }),
-  apply: (state, event) => {
-    if (event.type === 'command/run' && event.data.name === 'plan') {
-      if (event.data.args === undefined) return state
-      const wanted = event.data.args.trim() !== 'off'
-      return { ...state, running: { commandId: event.data.commandId, wanted } }
-    }
-    if (event.type === 'command/done' && event.data.commandId === state.running?.commandId) {
-      const wanted = event.data.kind === 'success' && state.running.wanted !== state.active
-        ? state.running.wanted
-        : null
-      return { ...state, wanted, running: null }
-    }
-    if (event.type === 'plan/mode') {
-      return { ...state, active: event.data.active, wanted: null }
-    }
-    if (event.type === 'request/header') {
-      return { ...state, activeAtLastHeader: state.active }
-    }
-    return state
-  },
-  wire: {
-    viewSchema: planProjectionSchema,
-    view: (state) => {
-      const wanted = state.running?.wanted ?? state.wanted
-      return { active: state.active, pending: wanted !== null && wanted !== state.active }
-    },
-  },
-} satisfies ProjectionDefinition<'plan', PlanUnitState>
 
 /**
  * `ctx.planMode`: owns logged plan state, applies and narrates selected state at step start,

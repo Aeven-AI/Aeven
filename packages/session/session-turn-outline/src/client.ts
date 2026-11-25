@@ -1,10 +1,11 @@
 /**
- * Client-namespace projection of the turn-outline domain: a pure re-export
- * of the package's types outlet. Client code imports ONLY the client
- * namespace (repo discipline), so `./client` projects the same single-source
- * content `./types` serves to host consumers — zero duplication.
+ * Client namespace of the turn-outline domain: the package's types outlet plus
+ * the environment-neutral produced-file readers that the client's turn-scoped
+ * `deliverables` Definition shares with the Host `turnDeliverables` fold, so
+ * both list the same files. Client code imports only this namespace.
  *
  * @module @aeven/session-turn-outline/client
  */
 
 export type * from './types.ts'
+export * from './produced.ts'

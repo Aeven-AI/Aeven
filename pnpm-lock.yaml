@@ -2591,6 +2591,9 @@ importers:
       '@aeven/personalization':
         specifier: workspace:^
         version: link:../../preset/personalization
+      '@aeven/plan-mode':
+        specifier: workspace:^
+        version: link:../../plan/plan-mode
       '@aeven/recordings':
         specifier: workspace:^
         version: link:../../speech/recordings
@@ -2657,6 +2660,9 @@ importers:
       '@aeven/tool-subagent':
         specifier: workspace:^
         version: link:../../subagent/tool-subagent
+      '@aeven/tool-todo':
+        specifier: workspace:^
+        version: link:../../todo/tool-todo
       '@aeven/web-frontend':
         specifier: workspace:^
         version: link:../../../apps/web
@@ -3602,6 +3608,9 @@ importers:
       '@aeven/session':
         specifier: workspace:^
         version: link:../../core/session
+      '@aeven/session-turn-outline':
+        specifier: workspace:^
+        version: link:../../session/session-turn-outline
       '@aeven/system-prompt':
         specifier: workspace:^
         version: link:../../core/system-prompt
@@ -5069,6 +5078,9 @@ importers:
       clsx:
         specifier: ^2.0.0
         version: 2.1.1
+      es-module-lexer:
+        specifier: ^2.1.0
+        version: 2.1.0
     devDependencies:
       '@aeven/api-remotes':
         specifier: workspace:^
@@ -11363,10 +11375,16 @@ importers:
 
   packages/session/session-turn-outline:
     dependencies:
+      diff:
+        specifier: ^9.0.0
+        version: 9.0.0
       zod:
         specifier: ^4.4.3
         version: 4.6.5
     devDependencies:
+      '@aeven/attachment':
+        specifier: workspace:^
+        version: link:../../attachment/attachment
       '@aeven/llm':
         specifier: workspace:^
         version: link:../../llm/llm

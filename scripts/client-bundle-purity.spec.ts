@@ -97,6 +97,7 @@ describe('client bundle purity gate', () => {
     expect(resolveId('@aeven/deque')).toBeNull()
     expect(resolveId('@aeven/util-values')).toBeNull()
     expect(resolveId('@aeven/token-meter/client')).toBeNull()
+    expect(resolveId('@aeven/session-turn-outline/client')).toBeNull()
     expect(() => resolveId('@aeven/token-meter')).toThrow(/purity/)
     expect(() => resolveId('@aeven/token-meter/client/internal')).toThrow(/purity/)
   })

@@ -42,7 +42,8 @@
   },
   "license": "Apache-2.0",
   "dependencies": {
-    "clsx": "^2.0.0"
+    "clsx": "^2.0.0",
+    "es-module-lexer": "^2.1.0"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^"

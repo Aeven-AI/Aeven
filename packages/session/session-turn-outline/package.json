@@ -1,6 +1,6 @@
 {
   "name": "@aeven/session-turn-outline",
-  "description": "Whole-log turn outline projection (turnOutline) for the Aeven",
+  "description": "Whole-log turn outline (turnOutline) and per-turn produced files (turnDeliverables) projections for the Aeven",
   "version": "0.3.69-alpha",
   "publishConfig": {
     "access": "public"
@@ -36,20 +36,23 @@
   ],
   "license": "Apache-2.0",
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:^",
+    "@aeven/attachment": "workspace:^",
     "@aeven/llm": "workspace:^",
     "@aeven/session": "workspace:^",
-    "@aeven/session-projection": "workspace:^"
+    "@aeven/session-projection": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
   },
   "dependencies": {
+    "diff": "^9.0.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:^",
-    "@deepseek-ai/cordis-plugin-include": "workspace:^",
-    "@deepseek-ai/cordis-plugin-loader": "workspace:^",
+    "@aeven/attachment": "workspace:^",
     "@aeven/llm": "workspace:^",
     "@aeven/session": "workspace:^",
-    "@aeven/session-projection": "workspace:^"
+    "@aeven/session-projection": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/cordis-plugin-include": "workspace:^",
+    "@deepseek-ai/cordis-plugin-loader": "workspace:^"
   }
 }

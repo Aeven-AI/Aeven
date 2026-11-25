@@ -180,6 +180,10 @@ const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
   // The Web Host mounts the default-off settings owner independently of each
   // Agent-scoped delegation-tool instance.
   '@aeven/tool-subagent': ['lib/model-selection-settings.js', 'lib/nesting-settings.js'],
+  // The Web Host mounts the client-visible projection units on its own plane, so
+  // a synced Session it follows without an agent still projects them.
+  '@aeven/tool-todo': ['lib/projection.js'],
+  '@aeven/plan-mode': ['lib/projection.js'],
   // The argv-prefix runner entry ships beside the lib as its own bundle;
   // sandbox-local resolves it through the package's ./runner export. tsdown
   // also shares its generated FFI code through a hashed runtime chunk.

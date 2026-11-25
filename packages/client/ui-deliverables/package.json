@@ -62,6 +62,7 @@
     "@aeven/client-ui-sidebar-files": "workspace:^",
     "@aeven/client-ui-slots": "workspace:^",
     "@aeven/session": "workspace:^",
+    "@aeven/session-turn-outline": "workspace:^",
     "@aeven/system-prompt": "workspace:^",
     "@aeven/util-workspace-path": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",

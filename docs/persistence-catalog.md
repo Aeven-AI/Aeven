@@ -579,7 +579,7 @@ Source: [`packages/interaction/permission-presets/src/index.ts`](../packages/int
 'plan/mode': { active: boolean }
 ```
 
-Source: [`packages/plan/plan-mode/src/index.ts`](../packages/plan/plan-mode/src/index.ts)
+Source: [`packages/plan/plan-mode/src/projection.ts`](../packages/plan/plan-mode/src/projection.ts)
 
 ### `reply-images/*`
 

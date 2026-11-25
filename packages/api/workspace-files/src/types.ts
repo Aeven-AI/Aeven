@@ -38,8 +38,6 @@ export interface WorkspaceFileText {
   readonly text: string
   /** Whether `text` reaches the last line; false when the page cap cut it. */
   readonly eof: boolean
-  /** Whether the file lies outside the Session's workspace root, which a preview may read but the tree never lists. */
-  readonly outsideWorkspace: boolean
 }
 
 /** What a reader may change in one Session's workspace from the explorer. */

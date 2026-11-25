@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The Files pill in the right sidebar shows the session's workspace: a tree that loads one folder per request, a name search over the workspace, code and Markdown rendering for the open file, image, video, and audio views, a download action, and desktop-open actions for row paths. Content plugins join the column through its registry, so this package contributes the `files` pane, its copy, and the `sidebarFiles` opener. Folders, file text, and search hits come from the `workspaceFiles` Remote on demand; the open folders, the query, and the tree's dock state are remembered per session and pill in browser memory, so a reload starts at the root.
+The Files pill in the right sidebar shows the session's workspace: a tree that loads one folder per request, a name search over the workspace, code and Markdown rendering for the open file, image, video, and audio views, a download action, and desktop-open actions for row paths. Content plugins join the column through its registry, so this package contributes the `files` pane, its copy, and the `sidebarFiles` opener. Folders, file text, and search hits come from the `workspaceFiles` Remote on demand; the open folders, the query, and the tree's dock state are remembered per session and pill in browser memory, so a reload starts at the root. An HTML file also opens as its rendered page, in a frame sandboxed with scripts alone: the page's workspace stylesheets, scripts, images, media, and ES modules — reached through relative imports or the page's import map — are inlined, each module once under a generated import map, and the page is read whole rather than as the capped text view.
 
 ## Table of Contents
 

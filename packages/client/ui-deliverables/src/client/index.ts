@@ -12,6 +12,8 @@ import type {} from '@aeven/api-remotes/client'
 import { createSnapshotStore } from '@aeven/client-store'
 import type { ChatFileMentions, TurnTailOwnerProps } from '@aeven/client-ui-chat/client'
 import type { SessionId } from '@aeven/session/types'
+import type { ISessions } from '@aeven/api-session-controller/client'
+import type { TurnDeliverables } from '@aeven/session-turn-outline/client'
 import type {} from '@aeven/client-locale/client'
 import type {} from '@aeven/client-ui-conversation/client'
 import type {} from '@aeven/client-ui-renderer/client'
@@ -21,7 +23,8 @@ import { desktopFileMenus, fileMenuLabels, revealFile, showFileMenu } from './fi
 import { openProducedFile, producedFileLinks, type FileOpening } from './file-links.ts'
 import { en, es, NS, zh, type DeliverablesKey } from './locales.ts'
 import {
-  deliverablesDefinition, producedFileMentions, producedImagesDefinition, producedFilesForClosing, selectProducedFiles,
+  deliverablesDefinition, producedFileMentions, producedImagesDefinition, producedFilesForClosing, projectedTurnData,
+  selectProducedFiles, type DeliverablesTurnData,
 } from './turn-deliverables.ts'
 
 declare module '@aeven/client-ui-slots' {
@@ -128,12 +131,23 @@ export function apply(ctx: ClientContext): void {
   })
   // The prose side of the same vocabulary: the chat view reaches this face
   // via ctx.get, so its absence — this plugin composed out — is the off state.
+  // A Turn whose `turn/start` the loaded window lacks has no Definition data; the Host's projection holds its files.
+  const turnData = (turn: TurnTailOwnerProps['turn'], sessionId: SessionId): DeliverablesTurnData | undefined => {
+    const own = turn.data.get('deliverables')
+    if (own !== undefined || turn.start !== undefined) return own
+    const sessions: ISessions | undefined = ctx.get('sessions')
+    const projected = sessions?.binding(sessionId)?.session.projections.faceOf('turnDeliverables').getSnapshot()
+    return projectedTurnData(projected as readonly TurnDeliverables[] | undefined, turn.turn)
+  }
   const mentions: ChatFileMentions = {
     forClosing(owner, sessionId) {
       // Same claim test the turn-tail chain entry runs: no produced files,
       // no vocabulary — the two surfaces agree by construction.
-      const files = selectProducedFiles(owner)
-      if (files === null) return undefined
+      const match = selectProducedFiles(owner)
+      const files = match === null || Array.isArray(match)
+        ? match
+        : producedFilesForClosing(turnData(owner.turn, sessionId), owner.seq)
+      if (files === null || files.length === 0) return undefined
       ensureWorkspacePathOpen()
       const opening = openingFor(sessionId, owner.openFile)
       return producedFileMentions(
@@ -146,7 +160,8 @@ export function apply(ctx: ClientContext): void {
     forLinks(owner, sessionId) {
       ensureWorkspacePathOpen()
       // Read when a link resolves, so files a later result of the same Turn settles are seen.
-      const produced = () => producedFilesForClosing(owner.turn?.data.get('deliverables'))
+      const turn = owner.turn
+      const produced = () => (turn === undefined ? [] : producedFilesForClosing(turnData(turn, sessionId)))
       return producedFileLinks(owner.cwd, produced, openingFor(sessionId, owner.openFile))
     },
   }

@@ -11137,7 +11137,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'WorkspaceFileText',
-    declaration: 'export interface WorkspaceFileText {\n    readonly absolutePath: string;\n    readonly bytes: number | null;\n    readonly text: string;\n    readonly eof: boolean;\n    readonly outsideWorkspace: boolean;\n}',
+    declaration: 'export interface WorkspaceFileText {\n    readonly absolutePath: string;\n    readonly bytes: number | null;\n    readonly text: string;\n    readonly eof: boolean;\n}',
   },
   {
     name: 'WorkspaceFollowFrame',

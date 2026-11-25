@@ -10,10 +10,10 @@
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { z as zod } from 'zod'
-import type { ZodType } from 'zod'
 import { defineTool } from '@aeven/tools'
 import { createUserMessage, type UserMessage } from '@aeven/llm'
 import type { TodoItem } from './types.ts'
+import { todosProjectionDefinition, todosProjectionSchema } from './projection.ts'
 // Type-only: resolves the required ctx.sessionProjections service declaration.
 import type {} from '@aeven/session-projection'
 // Type-only: brings the scoped `ctx.systemPrompt` service declaration and the
@@ -113,15 +113,6 @@ function toTodoList(raw: { content: string; status: string }[], allowParallel: b
   return todos
 }
 
-/** Wire payload schema of the `todos` projection (whole list or pre-first-write null). */
-const todosProjectionSchema: ZodType<TodoItem[] | null> = zod.union([
-  zod.array(zod.object({
-    content: zod.string(),
-    status: zod.union([zod.literal('pending'), zod.literal('in_progress'), zod.literal('completed')]),
-  })),
-  zod.null(),
-])
-
 /**
  * Render one standing plan as model-visible runtime context. Empty text contributes nothing, so an
  * absent or empty list costs no tokens and reveals no state.
@@ -218,32 +209,9 @@ function reconcileNotice(plan: TodoItem[], reason: string, summary: string): Use
  */
 export function apply(ctx: Context, config: Config): void {
   const allowParallel = config.allowParallelInProgress
-  // Standing-plan fold for the UI: the session's latest whole todo/write list,
-  // replaced only by the next write, and null before the first write. Every
-  // other event returns the same state reference, so an unchanged plan pushes
-  // no client frame.
-  //
-  // The plan's lifetime is the session's, not the turn's. An earlier revision
-  // cleared this client-visible fold on `turn/start` (stateVersion 2), on the
-  // premise that a reader takes the strip as "what this turn is doing". The
-  // read-back fold below invalidated that premise: once an agent reads its own
-  // plan from runtime context on every step, it has no reason to re-write a list
-  // that has not changed, so the clear stopped emptying the dock briefly and
-  // started emptying it for the whole turn — measured at 96 consecutive steps
-  // with no write. The model then believed its plan was on screen while the
-  // reader saw an empty dock: one session, two different truths. Both folds now
-  // fold the same input, so the dock and the model can never disagree.
-  ctx.sessionProjections.register<'todos', TodoItem[] | null>({
-    key: 'todos',
-    stateSchema: todosProjectionSchema,
-    init: () => null,
-    apply: (state, event) => {
-      if (event.type === 'todo/write') return event.data.todos
-      return state
-    },
-    wire: { viewSchema: todosProjectionSchema, view: state => state },
-    stateVersion: 3,
-  })
+  // The client-visible standing plan; Host-plane compositions also mount it alone
+  // through `@aeven/tool-todo/projection`, and the two registrations share one unit.
+  ctx.sessionProjections.register(todosProjectionDefinition)
   // Host-only read-back fold: the same input, but declared without `wire`, so it
   // never reaches a client and no client-facing lifetime rule or `stateVersion`
   // bump can perturb the plan an agent reads back as runtime context.
