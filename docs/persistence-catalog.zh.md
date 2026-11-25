@@ -581,7 +581,7 @@ Types: [ContentBlock](subsystems/core.zh.md) · [TokenUsage](subsystems/llm-stre
 'plan/mode': { active: boolean }
 ```
 
-来源：[`packages/plan/plan-mode/src/index.ts`](../packages/plan/plan-mode/src/index.ts)
+来源：[`packages/plan/plan-mode/src/projection.ts`](../packages/plan/plan-mode/src/projection.ts)
 
 ### `reply-images/*`
 
