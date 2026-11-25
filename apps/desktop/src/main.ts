@@ -1216,7 +1216,10 @@ h1{font-size:18px;margin:0 0 8px}p{margin:0 0 16px;opacity:.75}pre{margin:0;padd
   const updates = new DesktopUpdateCoordinator(
     showUpdateStatus,
     // The installer closes this window; that close must not exit the process before it replaces the application.
-    async () => { window.removeListener('closed', quitOnClose) },
+    () => {
+      window.removeListener('closed', quitOnClose)
+      return Promise.resolve()
+    },
     async () => { if (process.platform === 'darwin' && app.isPackaged) await stageNativeUpdate() },
   )
   void updateAfterFailedStart({
