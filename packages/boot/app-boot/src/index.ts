@@ -1010,6 +1010,15 @@ export function failedEntries(error: unknown): InactiveEntry[] {
   return [...found.values()]
 }
 
+/**
+ * Entries {@link bootTolerant} never starts without, in any application: the tree grants more when one
+ * is absent. Without `access-policy` a tool that bypasses the filesystem sandbox runs in an access mode
+ * that forbids it; without `identity-user` or `identity-user-aeven` the API's ownership checks have no
+ * caller to compare and admit every request. An entry whose absence only removes a capability, such as
+ * the sandbox the shells wait for, is not listed.
+ */
+export const ACCESS_CONTROL_ENTRIES: readonly string[] = ['access-policy', 'identity-user', 'identity-user-aeven']
+
 /** Result of {@link bootTolerant}: the booted tree and the entries it started without. */
 export interface TolerantBoot {
   readonly ctx: Context
@@ -1027,10 +1036,11 @@ export interface TolerantBoot {
  * @param absoluteConfigPath - the config to include; must already be absolute.
  * @param patches - overlay patches applied over the included tree.
  * @param prepare - host setup run before any config-tree entry mounts, once per boot attempt.
- * @param options - `essential` entry ids whose failure stays fatal; `maxAttempts` bounds the boots.
+ * @param options - `essential` entry ids whose failure stays fatal, beside {@link ACCESS_CONTROL_ENTRIES};
+ * `maxAttempts` bounds the boots.
  * @returns the booted tree and the skipped entries.
- * @throws the last boot's error when it names no entry, names an essential entry, names only entries
- * already disabled, or the attempts run out.
+ * @throws the last boot's error when it names no entry, names an essential or access-control entry,
+ * names only entries already disabled, or the attempts run out.
  */
 export async function bootTolerant(
   binName: string,
@@ -1047,7 +1057,8 @@ export async function bootTolerant(
       return { ctx, skipped }
     } catch (error) {
       const failed = failedEntries(error).filter(entry => !skipped.some(known => known.id === entry.id))
-      if (failed.length === 0 || attempt >= options.maxAttempts || failed.some(entry => options.essential.includes(entry.id))) throw error
+      const fatal = failed.some(entry => options.essential.includes(entry.id) || ACCESS_CONTROL_ENTRIES.includes(entry.id))
+      if (failed.length === 0 || attempt >= options.maxAttempts || fatal) throw error
       skipped.push(...failed)
     }
   }

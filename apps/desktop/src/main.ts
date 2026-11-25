@@ -33,12 +33,13 @@ import { DesktopProjectManager, type DesktopProjectHooks, type DesktopReleaseSte
 import { DesktopHostProcess } from './host-process.ts'
 import { DESKTOP_AEVEN_API_PATH, type DesktopAevenSignIn } from './host-protocol.ts'
 import { DESKTOP_IPC, type DesktopCaptionAction, type DesktopMenuCommand, type DesktopProviderSignInState } from './ipc.ts'
-import { formatDesktopMessage, resolveDesktopLocale } from './locale.ts'
+import { formatDesktopMessage, resolveDesktopLocale, type DesktopMessages } from './locale.ts'
 import { claimDesktopSingleInstance } from './single-instance.ts'
 import { DEEP_LINK_SCHEME, deepLinkIn, deepLinkPath } from './deep-link.ts'
 import { DesktopBackgroundMode } from './background-mode.ts'
-import { DesktopUpdateCoordinator } from './update-coordinator.ts'
+import { DesktopUpdateCoordinator, desktopUpdatesEnabled } from './update-coordinator.ts'
 import { stagedReleaseResources, stageNativeUpdate } from './update-staging.ts'
+import { failedStartUpdateStatus, updateAfterFailedStart } from './startup-failure-update.ts'
 import type { DesktopUpdateState } from './ipc.ts'
 import { desktopUpdatePrompt } from './update-prompt.ts'
 import { loginShellPath, mergePath } from './login-shell-path.ts'
@@ -1184,18 +1185,58 @@ function escapeHtml(text: string): string {
  * Show a failed start in a window instead of a dialog that quits: the application menu stays, so
  * View → Toggle Developer Tools opens on this window, and the error text, which carries the
  * backend's stderr, can be selected and copied. Closing the window quits with a failure status.
- * @param title - Localized failure heading.
- * @param explanation - Localized line telling the reader how to inspect and how to quit.
+ * The window then offers a newer release, because a build that cannot start has no page to offer one.
+ * @param messages - Localized shell copy.
  * @param detail - Error stack or message.
  */
-function showStartupFailure(title: string, explanation: string, detail: string): void {
+function showStartupFailure(messages: DesktopMessages, detail: string): void {
+  const title = messages.startupFailed
+  const explanation = messages.startupFailedDetail
   const page = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
 <style>:root{color-scheme:light dark}body{margin:0;padding:24px;font:14px/1.5 -apple-system,system-ui,sans-serif;background:Canvas;color:CanvasText}
 h1{font-size:18px;margin:0 0 8px}p{margin:0 0 16px;opacity:.75}pre{margin:0;padding:12px;border-radius:8px;background:color-mix(in srgb,CanvasText 7%,Canvas);white-space:pre-wrap;word-break:break-word;font:12px/1.5 ui-monospace,Menlo,monospace;user-select:text}</style>
-</head><body><h1>${escapeHtml(title)}</h1><p>${escapeHtml(explanation)}</p><pre>${escapeHtml(detail)}</pre></body></html>`
+</head><body><h1>${escapeHtml(title)}</h1><p>${escapeHtml(explanation)}</p><p class="avn-update"></p><pre>${escapeHtml(detail)}</pre></body></html>`
   const window = new BrowserWindow({ width: 820, height: 560, title, webPreferences: { sandbox: true, contextIsolation: true } })
-  window.on('closed', () => { app.exit(1) })
-  void window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(page)}`)
+  const quitOnClose = (): void => { app.exit(1) }
+  window.on('closed', quitOnClose)
+  const loaded = window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(page)}`)
+
+  // A build that cannot update itself says nothing about releases instead of reporting none.
+  if (!desktopUpdatesEnabled()) return
+  const showUpdateStatus = (state: DesktopUpdateState): DesktopUpdateState => {
+    const line = failedStartUpdateStatus(state, messages)
+    void loaded.then(async () => {
+      if (window.isDestroyed()) return
+      await window.webContents.executeJavaScript(
+        `{const line=document.querySelector('.avn-update');if(line)line.textContent=${JSON.stringify(line)}}`,
+      )
+    }).catch((error: unknown) => { console.warn('avn desktop: the failure window did not show the update status', error) })
+    return state
+  }
+  const updates = new DesktopUpdateCoordinator(
+    showUpdateStatus,
+    // The installer closes this window; that close must not exit the process before it replaces the application.
+    () => {
+      window.removeListener('closed', quitOnClose)
+      return Promise.resolve()
+    },
+    async () => { if (process.platform === 'darwin' && app.isPackaged) await stageNativeUpdate() },
+  )
+  void updateAfterFailedStart({
+    updates,
+    confirmRestart: async (version) => {
+      if (window.isDestroyed()) return false
+      const answer = await dialog.showMessageBox(window, {
+        type: 'question',
+        message: formatDesktopMessage(messages.startupFailedUpdateQuestion, { version }),
+        detail: messages.startupFailedUpdateQuestionDetail,
+        buttons: [messages.restartAndUpdate, messages.notNow],
+        defaultId: 0,
+        cancelId: 1,
+      })
+      return answer.response === 0
+    },
+  }).catch((error: unknown) => { console.error('avn desktop: the update offered after a failed start did not finish', error) })
 }
 
 const ownsDesktopInstance = claimDesktopSingleInstance(app, (argv) => {
@@ -1217,6 +1258,5 @@ if (ownsDesktopInstance) void app.whenReady().then(main).catch(async (error: unk
   if (diagnosticFile !== undefined) {
     await writeFile(diagnosticFile, `${error instanceof Error ? error.stack ?? message : message}\n`).catch(() => undefined)
   }
-  const messages = resolveDesktopLocale(app.getLocale()).messages
-  showStartupFailure(messages.startupFailed, messages.startupFailedDetail, error instanceof Error ? error.stack ?? message : message)
+  showStartupFailure(resolveDesktopLocale(app.getLocale()).messages, error instanceof Error ? error.stack ?? message : message)
 })
