@@ -1,7 +1,7 @@
 {
   "name": "@aeven/typert-registry",
   "description": "Runtime registry for generated package reflection and Zod schemas",
-  "version": "0.3.69-alpha",
+  "version": "0.3.70-alpha",
   "publishConfig": {
     "access": "public"
   },
