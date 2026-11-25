@@ -26,6 +26,7 @@ declare module '@aeven/session-projection/types' {
     'test/count': number
     'test/stable-view': StableViewState
     'test/cut': number
+    'test/turns': number
   }
 
   interface SessionProjectionMap {
@@ -107,6 +108,37 @@ const cutUnit = (): ProjectionDefinition<'test/cut', number> => ({
   apply: state => state,
   stateVersion: 1,
 })
+
+/** Host-only unit counting surviving turns; a rewind takes the count held before its target. */
+const turnsUnit = (): ProjectionDefinition<'test/turns', number> => ({
+  key: 'test/turns',
+  stateSchema: z.number().int().nonnegative(),
+  init: () => 0,
+  apply: (state, event) => (event.type === 'turn/start' ? state + 1 : state),
+  rewind: (_state, atTarget) => atTarget,
+  stateVersion: 1,
+})
+
+/** Append one closed turn and return its `turn/start` seq. */
+function closedTurn(session: Session, turn: number): SessionSeq {
+  const start = session.append('turn/start', { turn }).seq
+  session.append('turn/end', { turn, reason: { kind: 'completed' } })
+  return start
+}
+
+/**
+ * Three turns, a rewind to the second, one more turn, then a rewind to the
+ * first whose prefix holds the earlier rewind, and a final turn: one turn survives.
+ */
+function rewindLog(session: Session): void {
+  const first = closedTurn(session, 1)
+  const second = closedTurn(session, 2)
+  closedTurn(session, 3)
+  session.append('session/rewind', { seq: second })
+  closedTurn(session, 2)
+  session.append('session/rewind', { seq: first })
+  closedTurn(session, 1)
+}
 
 async function harness(): Promise<{ ctx: Context; session: Session }> {
   const ctx = new Context()
@@ -754,6 +786,65 @@ describe('SessionProjectionRegistry drive', () => {
     expect(snapshot.asOfSeq).toBe(1)
     expect(snapshot.values).toEqual({})
     expect(checkpoint['test/count']).toEqual({ ver: 1, seq: 1, val: 2 })
+  })
+
+  it('hands a rewind-aware unit its state before the rewind target on the live drive', async () => {
+    const { ctx, session } = await harness()
+    ctx.sessionProjections.register(turnsUnit())
+    const first = closedTurn(session, 1)
+    const second = closedTurn(session, 2)
+    closedTurn(session, 3)
+    expect(ctx.sessionProjections.stateOf(session, 'test/turns')).toBe(3)
+    session.append('session/rewind', { seq: second })
+    expect(ctx.sessionProjections.stateOf(session, 'test/turns')).toBe(1)
+    closedTurn(session, 2)
+    expect(ctx.sessionProjections.stateOf(session, 'test/turns')).toBe(2)
+    session.append('session/rewind', { seq: first })
+    expect(ctx.sessionProjections.stateOf(session, 'test/turns')).toBe(0)
+  })
+
+  it('resolves nested rewinds identically on live, lazily built, cold, and seeded folds', async () => {
+    const { ctx, session } = await harness()
+    ctx.sessionProjections.register(turnsUnit())
+    rewindLog(session)
+    expect(ctx.sessionProjections.stateOf(session, 'test/turns')).toBe(1)
+
+    const late = (await harness())
+    rewindLog(late.session)
+    late.ctx.sessionProjections.register(turnsUnit())
+    expect(late.ctx.sessionProjections.stateOf(late.session, 'test/turns')).toBe(1)
+
+    const events = session.snapshotEvents()
+    const cold = ctx.sessionProjections.restore({}, events, SessionLogOffset(0), RESTORE_HEADER, SessionLogOffset(0))
+    expect(cold.checkpoint['test/turns']?.val).toBe(1)
+
+    // A row taken before both rewinds must not seed a tail that rewinds past it.
+    const early = ctx.sessionProjections.restore({}, events.slice(0, 6), SessionLogOffset(0), RESTORE_HEADER, SessionLogOffset(0))
+    expect(early.checkpoint['test/turns']?.val).toBe(3)
+    const seeded = ctx.sessionProjections.restore(early.checkpoint, events, SessionLogOffset(0), RESTORE_HEADER, SessionLogOffset(0))
+    expect(seeded.checkpoint['test/turns']?.val).toBe(1)
+  })
+
+  it('refuses a restore whose tail rewinds before the supplied log start', async () => {
+    const { ctx, session } = await harness()
+    ctx.sessionProjections.register(turnsUnit())
+    rewindLog(session)
+    const events = session.snapshotEvents()
+    const early = ctx.sessionProjections.restore({}, events.slice(0, 6), SessionLogOffset(0), RESTORE_HEADER, SessionLogOffset(0))
+    expect(() => ctx.sessionProjections.restore(
+      early.checkpoint,
+      events.slice(5),
+      SessionLogOffset(5),
+      RESTORE_HEADER,
+      SessionLogOffset(0),
+    )).toThrow(/re-read from seq 0/)
+  })
+
+  it('passes session/rewind to apply for a unit without a rewind transition', async () => {
+    const { ctx, session } = await harness()
+    ctx.sessionProjections.register(countUnit())
+    rewindLog(session)
+    expect(ctx.sessionProjections.stateOf(session, 'test/count')).toBe(session.seq)
   })
 
   it('fails loud when a unit view violates its own schema (async unit output is unrepresentable)', async () => {
