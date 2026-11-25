@@ -2591,6 +2591,9 @@ importers:
       '@aeven/personalization':
         specifier: workspace:^
         version: link:../../preset/personalization
+      '@aeven/plan-mode':
+        specifier: workspace:^
+        version: link:../../plan/plan-mode
       '@aeven/recordings':
         specifier: workspace:^
         version: link:../../speech/recordings
@@ -2657,6 +2660,9 @@ importers:
       '@aeven/tool-subagent':
         specifier: workspace:^
         version: link:../../subagent/tool-subagent
+      '@aeven/tool-todo':
+        specifier: workspace:^
+        version: link:../../todo/tool-todo
       '@aeven/web-frontend':
         specifier: workspace:^
         version: link:../../../apps/web

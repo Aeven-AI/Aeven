@@ -96,11 +96,14 @@ The command child activates only when a commands service is composed. It maps ba
 
 When `ctx.sessionProjections` is composed, the package registers the `plan` unit through optional injection. The unit turns logged `/plan` command runs into a candidate target, commits the logged state on `plan/mode`, and derives `{ active, pending }` for `view`, where `pending` is true only while an unsettled or successful selection differs from the logged state — a pure replay quantity recoverable from the log alone. The key merges into `SessionProjectionMap` from [`src/types.ts`](src/types.ts); the framework drives the unit, and unloading the plugin fiber unregisters the key. Plan-mode reads require this unit and the `turnBoundary` unit, and fail explicitly if the registry or either key is absent.
 
+The projection table is process-wide, while plan mode is usually mounted per agent from a preset, so a Host that follows a synced Session without running it would have the `plan` key only while some other agent happened to be mounted. The `@aeven/plan-mode/projection` plugin registers the same unit by itself, and the Web bundle mounts it on the Host plane; registrations of one key share one unit. See [cross-device projections](../../../.agents/notes/implemented/bug-fix/2026-11-25-synced-sessions-project-todos-and-plan.md).
+
 ### Source map
 
 | File | Role |
 |---|---|
 | [`src/index.ts`](src/index.ts) | Plugin entry: `Config` schema, the `ctx.planMode` service, `plan:policy` section, `/plan` command, `exit_plan_mode` tool |
+| [`src/projection.ts`](src/projection.ts) | The `plan` projection unit and `plan/mode` event declaration, and the `@aeven/plan-mode/projection` plugin that registers the unit alone on a Host plane |
 | [`src/types.ts`](src/types.ts) | The `plan` projection-key declaration and `PlanProjection` wire value |
 | [`src/client.ts`](src/client.ts) | Client-namespace re-export of the types outlet |
 | [`src/invariant.ts`](src/invariant.ts) | Invariant companion: validates the `plan/mode` payload shape |

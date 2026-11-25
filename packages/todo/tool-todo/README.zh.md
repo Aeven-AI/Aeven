@@ -80,7 +80,8 @@ agent 每次更新都发送完整列表；新列表替换旧列表，因此没�
 
 | 文件 | 职责 |
 |---|---|
-| [`src/index.ts`](src/index.ts) | 插件入口：`Config` schema、工具注册、`todos` 与 `todoPlan` 投影单元，以及 `todo:plan` 运行时上下文贡献 |
+| [`src/index.ts`](src/index.ts) | 插件入口：`Config` schema、工具注册、`todoPlan` 与 `todoStale` 投影单元，以及 `todo:plan` 运行时上下文贡献 |
+| [`src/projection.ts`](src/projection.ts) | 客户端可见的 `todos` 投影单元，以及在 Host 平面单独注册它的 `@aeven/tool-todo/projection` 插件 |
 | [`src/types.ts`](src/types.ts) | `todos` 与 `todoPlan` 投影键声明及其载荷类型的唯一归属地 |
 | [`src/client.ts`](src/client.ts) | 客户端命名空间对类型出口的再导出 |
 | [`src/invariant.ts`](src/invariant.ts) | 不变式伴生插件：校验持久整表快照与开放轮次归属 |
@@ -92,6 +93,8 @@ agent 每次更新都发送完整列表；新列表替换旧列表，因此没�
 ### 会话投影
 
 当组合挂载 `ctx.sessionProjections`（[`@aeven/session-projection`](../../session/session-projection/README.zh.md)）时，本包在注入的子插件中注册两个单元。`todos` 是 UI 的有效计划：最新的整份 `todo/write` 列表，首次写入前为 `null`，仅由下一次写入替换。轮次边界不会移动它，因此 dock 会持续显示 agent 仍在推进的计划。该键在此处合并进 `SessionProjectionMap`；载体通过历史尾页与 `session/projection` 推送帧提供该值。生命周期理由见 [todo 计划跨轮次边界存续 Agent Note](../../../.agents/notes/implemented/bug-fix/2026-09-16-todo-plan-survives-the-turn-boundary.zh.md)，它反转了此前的[下一轮次清空决策](../../../.agents/notes/implemented/feature/2026-07-28-todo-plan-clears-on-next-turn.zh.md)。`todoPlan` 是模型对同一份列表的回读，声明时不带 `wire`，因此永不发往客户端：它折叠同一份输入，所以 dock 显示的计划与模型回读的计划不可能出现分歧。未挂载注册表的组合不受影响；两个单元的注册见 [src/index.ts](src/index.ts)。
+
+投影表是进程级的，而 `todo_write` 通常按 agent 从预设挂载。只跟随同步会话而不运行它的 Host（例如 Aeven Web 显示在桌面端运行的对话）没有该会话的 agent，因此仅由预设行注册的 `todos` 键只会在恰好有其他 agent 挂载时存在。`@aeven/tool-todo/projection` 插件单独注册同一个 `todos` 单元，Web bundle 把它挂在 Host 平面；同一键的多次注册共享一个单元，因此它与预设行共存。见[跨设备投影](../../../.agents/notes/implemented/bug-fix/2026-11-25-synced-sessions-project-todos-and-plan.zh.md)。
 
 ### 持久日志不变式
 

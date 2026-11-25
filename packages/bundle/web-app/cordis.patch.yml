@@ -60,6 +60,17 @@
 # `avn.client` rows are the browser roster the modules node half scans into
 # window.__AVN_BOOT__; the modules row is simultaneously a host row.
 - insert:
+    # The todo and plan projection units stay on the host plane beside their
+    # preset tools: the projection table is process-wide, and a synced Session
+    # this Host follows without running it has no agent to mount the preset, so
+    # its todo list and plan state would reach no client. Both registrations of
+    # a key share one unit.
+    - id: tool-todo-projection
+      name: '@aeven/tool-todo/projection'
+
+    - id: plan-mode-projection
+      name: '@aeven/plan-mode/projection'
+
     # Host-owned opt-in sampled when a new Web session receives its preset
     # delegation tools. The Plugins page edits this settings namespace.
     - id: subagent-model-selection-settings

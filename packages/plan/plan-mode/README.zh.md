@@ -96,11 +96,14 @@ agent 完成计划后，会以 markdown 形式、从标题开头书写计划并�
 
 组合了 `ctx.sessionProjections` 时，本包通过可选注入注册 `plan` 单元。该单元把已记录的 `/plan` 命令运行转为候选目标，在 `plan/mode` 上提交已记录状态，并为 `view` 推导 `{ active, pending }`，其中 `pending` 仅在未结算或已成功的选择与已记录状态不同时为 true——这是仅凭日志即可恢复的纯回放量。key 由 [`src/types.ts`](src/types.ts) 的声明合并加入 `SessionProjectionMap`；框架负责驱动该单元，卸载插件 fiber 会注销该 key。plan-mode 读取要求该单元与 `turnBoundary` 单元存在；注册表或任一 key 缺失时都会显式失败。
 
+投影表是进程级的，而 plan mode 通常按 agent 从预设挂载，因此只跟随同步会话而不运行它的 Host 只会在恰好有其他 agent 挂载时拥有 `plan` key。`@aeven/plan-mode/projection` 插件单独注册同一个单元，Web bundle 把它挂在 Host 平面；同一 key 的多次注册共享一个单元。见[跨设备投影](../../../.agents/notes/implemented/bug-fix/2026-11-25-synced-sessions-project-todos-and-plan.zh.md)。
+
 ### 源码地图
 
 | 文件 | 职责 |
 |---|---|
 | [`src/index.ts`](src/index.ts) | 插件入口：`Config` schema、`ctx.planMode` 服务、`plan:policy` 段落、`/plan` 命令、`exit_plan_mode` 工具 |
+| [`src/projection.ts`](src/projection.ts) | `plan` 投影单元与 `plan/mode` 事件声明，以及在 Host 平面单独注册该单元的 `@aeven/plan-mode/projection` 插件 |
 | [`src/types.ts`](src/types.ts) | `plan` 投影 key 声明与 `PlanProjection` 协议值 |
 | [`src/client.ts`](src/client.ts) | types 出口的客户端命名空间再导出 |
 | [`src/invariant.ts`](src/invariant.ts) | 不变式伴生插件：校验 `plan/mode` 载荷结构 |

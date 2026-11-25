@@ -295,7 +295,10 @@ The user's account display name is ${JSON.stringify(source.clientDisplayName)}.
       ctx.emit('api-session/added', this.listState.summaryFor(session))
     })
     // Rebuilding a list entry reads the whole log, so imports that land during a rebuild share one more rebuild.
-    ctx.on('session-handoff/imported', (_owner, sessionId) => {
+    // The summary names its owner: an imported Session has no live Session here to name it, and a Host that serves
+    // several accounts delivers an event whose owner it cannot resolve to no one, so its projections (todos, goal,
+    // plan, title) would never reach the clients following it.
+    ctx.on('session-handoff/imported', (owner, sessionId) => {
       if (this.refreshing.has(sessionId)) {
         this.refreshing.set(sessionId, true)
         return
@@ -305,7 +308,7 @@ The user's account display name is ${JSON.stringify(source.clientDisplayName)}.
         do {
           this.refreshing.set(sessionId, false)
           const summary = await this.listState.summaryForStored(sessionId)
-          ctx.emit('api-session/added', summary)
+          ctx.emit('api-session/added', summary, owner)
           ctx.emit('api-session/activity', summary.sessionId, summary.updatedAt)
         } while (this.refreshing.get(sessionId) === true)
       })().catch((error: unknown) => {

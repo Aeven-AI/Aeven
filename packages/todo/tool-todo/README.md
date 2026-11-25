@@ -80,7 +80,8 @@ The [todo_write tool Agent Note](../../../.agents/notes/implemented/feature/2026
 
 | File | Role |
 |---|---|
-| [`src/index.ts`](src/index.ts) | Plugin entry: `Config` schema, tool registration, the `todos` and `todoPlan` projection units, and the `todo:plan` runtime-context contribution |
+| [`src/index.ts`](src/index.ts) | Plugin entry: `Config` schema, tool registration, the `todoPlan` and `todoStale` projection units, and the `todo:plan` runtime-context contribution |
+| [`src/projection.ts`](src/projection.ts) | The client-visible `todos` projection unit, and the `@aeven/tool-todo/projection` plugin that registers it alone on a Host plane |
 | [`src/types.ts`](src/types.ts) | The one home of the `todos` projection-key declaration and its payload types |
 | [`src/client.ts`](src/client.ts) | Client-namespace re-export of the types outlet |
 | [`src/invariant.ts`](src/invariant.ts) | Invariant companion: validates durable whole-list snapshots and open-turn ownership |
@@ -92,6 +93,8 @@ The plugin is a function/namespace plugin: it exports `name` / `inject` / `apply
 ### Session projection
 
 When the composition mounts `ctx.sessionProjections` ([`@aeven/session-projection`](../../session/session-projection/README.md)), this package registers two units on an injected child. `todos` is the UI's standing plan: the latest whole `todo/write` list, `null` before the first write, replaced only by the next write. A turn boundary does not move it, so the dock keeps showing the plan the agent is still working to. That key merges into `SessionProjectionMap` here, carriers serve the value on the history tail page and the `session/projection` push frame, and the lifetime rationale lives in the [todo plan survives the turn boundary Agent Note](../../../.agents/notes/implemented/bug-fix/2026-09-16-todo-plan-survives-the-turn-boundary.md), which reverses the earlier [clear-on-next-turn decision](../../../.agents/notes/implemented/feature/2026-07-28-todo-plan-clears-on-next-turn.md). `todoPlan` is the model's read-back of the same list, declared with no `wire` so it never reaches a client: it folds the same input, so the plan the dock shows and the plan the model reads back cannot disagree. Compositions without the registry are unaffected; see [src/index.ts](src/index.ts) for both unit registrations.
+
+The projection table is process-wide, while `todo_write` is usually mounted per agent from a preset. A Host that follows a synced Session without running it, such as Aeven Web showing a conversation that runs on a desktop, has no agent for that Session, so a `todos` key registered only by the preset row would exist there only while some other agent happened to be mounted. The `@aeven/tool-todo/projection` plugin registers the same `todos` unit by itself, and the Web bundle mounts it on the Host plane; registrations of one key share one unit, so it coexists with the preset row. See [cross-device projections](../../../.agents/notes/implemented/bug-fix/2026-11-25-synced-sessions-project-todos-and-plan.md).
 
 ### Durable-log invariant
 
