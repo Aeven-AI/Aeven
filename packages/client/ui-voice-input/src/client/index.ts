@@ -120,5 +120,6 @@ export function apply(ctx: Context): void {
   }, VoiceInput))
   ctx.slots.inject('settings.general.item', () => ctx.slots.register({
     name: 'settings.general.item', id: 'voice', order: 300, locale: NS, inject: () => settings,
+    children: { 'settings.voice.item': { kind: 'list', scope: 'root' } },
   }, VoiceSection))
 }

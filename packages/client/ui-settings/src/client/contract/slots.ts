@@ -96,6 +96,13 @@ declare module '@aeven/client-ui-slots' {
      * runtime by ui-theme's Appearance entry.
      */
     'settings.appearance.item': { kind: 'list'; scope: 'root'; owner: SettingsAppearanceItemOwnerProps }
+    /**
+     * One row inside the Voice group of the General section, after the
+     * dictation model rows (the read-aloud voices row). Same empty owner share
+     * as a General row: the group only stacks rows. Declared at runtime by
+     * ui-voice-input's Voice entry.
+     */
+    'settings.voice.item': { kind: 'list'; scope: 'root'; owner: SettingsVoiceItemOwnerProps }
   }
 }
 /** Owner share of a General preference row (the section supplies nothing). */
@@ -106,6 +113,12 @@ export interface SettingsGeneralItemOwnerProps {
 
 /** Owner share of an Appearance preference row (the section supplies nothing). */
 export interface SettingsAppearanceItemOwnerProps {
+  /** Marker field: item owner props are intentionally empty. */
+  children?: never
+}
+
+/** Owner share of a Voice group row (the group supplies nothing). */
+export interface SettingsVoiceItemOwnerProps {
   /** Marker field: item owner props are intentionally empty. */
   children?: never
 }

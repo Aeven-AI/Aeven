@@ -33,6 +33,9 @@
       "path": "../ui-chat"
     },
     {
+      "path": "../ui-commands"
+    },
+    {
       "path": "../ui-conversation"
     },
     {
@@ -40,6 +43,9 @@
     },
     {
       "path": "../ui-renderer"
+    },
+    {
+      "path": "../ui-settings"
     },
     {
       "path": "../ui-slots"

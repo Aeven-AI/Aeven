@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This browser plugin adds a read-aloud action to each assistant message's action strip, which speaks that message fragment by fragment from audio the Host synthesizes and this browser plays. It also reads live replies aloud while an agent's `read_aloud` call has switched reading on for the Session. The composer carries no read-aloud control; the voice picker sits in the composer's options menu.
+This browser plugin adds a read-aloud action to each assistant message's action strip, which speaks that message fragment by fragment from audio the Host synthesizes and this browser plays. It also reads live replies aloud while an agent's `read_aloud` call has switched reading on for the Session. The composer carries no read-aloud control; the voice picker sits in the composer's options menu, where it opens the shared popupSelect card the Image model and Video model rows open, and as the Read-aloud voices row of Settings → General → Voice, which draws that card's markup; both list the languages, searchable by name or subtag, then the picked language's voices.
 
 ## Table of Contents
 

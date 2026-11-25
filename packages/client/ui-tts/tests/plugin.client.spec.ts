@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 /**
- * The browser plugin body: the two dictionaries it registers, the three entries it contributes to the
- * composer and the message strip, and the faces those entries reach the engine and the Host through.
+ * The browser plugin body: the dictionaries it registers, the entries it contributes to the composer,
+ * Settings, and the message strip, and the faces those entries reach the engine, the Host, and the shared
+ * popupSelect card through.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
@@ -10,7 +11,8 @@ import { en, es, zh } from '../src/client/locales.ts'
 import { STORAGE_KEY } from '../src/client/voices.ts'
 import { MessageReadAloud, UserReadAloud } from '../src/client/MessageReadAloud.tsx'
 import { AgentReadAloud } from '../src/client/AgentReadAloud.tsx'
-import { SystemVoice } from '../src/client/SystemVoice.tsx'
+import { SystemVoice, type SystemVoiceInjected, type VoicePickerLabels } from '../src/client/SystemVoice.tsx'
+import { VoiceSettingsRow } from '../src/client/VoiceSettingsRow.tsx'
 import type { ReadAloudSnapshot } from '../src/client/engine.ts'
 
 /** The audio bytes the Host would return, base64 encoded. */
@@ -55,6 +57,13 @@ interface Registration {
   readonly Component: unknown
 }
 
+/** The popupSelect spec the voice row hands the shared card. */
+interface PickerSpec {
+  readonly kind: string
+  options: () => Promise<readonly { id: string; label: string; detail?: string; active?: boolean }[]>
+  onSelect: (option: { id: string; label: string }) => void
+}
+
 /**
  * The Cordis context the plugin body sees, with its effects and registrations captured.
  * @param answers - Host answers the case wants instead of success.
@@ -69,7 +78,8 @@ function makeCtx(answers: {
   const dictionaries: { namespace: string; entries: unknown }[] = []
   const synthesize = vi.fn(answers.synthesize ?? (async () => ({ ok: true as const, value: { audioBase64: AUDIO } })))
   const catalog = vi.fn(answers.catalog ?? (async () => ({ ok: true as const, value: CATALOG })))
-  const ctx = {
+  const openSelect = vi.fn((..._args: [string, string, PickerSpec, Element, string]) => true)
+  const ctx: Record<string, unknown> = {
     effect: vi.fn((factory: () => unknown) => { effects.push(factory); return () => {} }),
     locale: {
       register: vi.fn((namespace: string, entries: unknown) => {
@@ -78,6 +88,8 @@ function makeCtx(answers: {
       }),
     },
     remote: { tts: { synthesize, catalog } },
+    get: vi.fn((name: string) => (name === 'commandUi' ? { openSelect } : undefined)),
+    inject: vi.fn((_deps: string[], body: (inner: unknown) => void) => { body(ctx) }),
     slots: {
       inject: vi.fn((_name: string, contribute: () => unknown) => contribute()),
       register: vi.fn((options: Registration, Component: unknown) => {
@@ -93,6 +105,16 @@ function makeCtx(answers: {
     dictionaries,
     synthesize,
     catalog,
+    openSelect,
+    /**
+     * @param name - slot the entry was registered on.
+     * @returns that registration.
+     */
+    entry: (name: string): Registration => {
+      const found = registrations.find(registration => registration.name === name)
+      if (found === undefined) throw new Error(`no ${name} registration`)
+      return found
+    },
     /** Apply the plugin and mount what it registered, as the renderer would. */
     boot: (): void => {
       apply(ctx as unknown as Context)
@@ -131,7 +153,7 @@ describe('plugin registration', () => {
     expect(harness.dictionaries).toEqual([{ namespace: 'read-aloud', entries: { zh, en, es } }])
   })
 
-  it('contributes the agent reading follower, the voice row and the message actions to their slots', () => {
+  it('contributes the agent reading follower, the voice rows and the message actions to their slots', () => {
     const harness = makeCtx()
     harness.boot()
 
@@ -139,6 +161,7 @@ describe('plugin registration', () => {
       registration.name, registration.id, registration.locale, registration.Component,
     ])).toEqual([
       ['conversation.input.left', 'read-aloud', undefined, AgentReadAloud],
+      ['settings.voice.item', 'read-aloud-voices', 'read-aloud', VoiceSettingsRow],
       ['conversation.input.options', 'read-aloud-voice', 'read-aloud', SystemVoice],
       ['conversation.chat.assistant-actions', 'read-aloud-message', 'read-aloud', MessageReadAloud],
       ['conversation.chat.user-actions', 'read-aloud-prompt', 'read-aloud', UserReadAloud],
@@ -275,7 +298,7 @@ describe('the voice row\u2019s face', () => {
   it('hands the Host catalogue to the picker', async () => {
     const harness = makeCtx()
     harness.boot()
-    const face = harness.registrations[1]!.inject() as { loadCatalog: () => Promise<unknown> }
+    const face = harness.entry('settings.voice.item').inject() as { loadCatalog: () => Promise<unknown> }
 
     await expect(face.loadCatalog()).resolves.toEqual(CATALOG)
   })
@@ -285,9 +308,44 @@ describe('the voice row\u2019s face', () => {
       catalog: async () => ({ ok: false, error: new Error('no catalogue') }),
     })
     harness.boot()
-    const face = harness.registrations[1]!.inject() as { loadCatalog: () => Promise<unknown> }
+    const face = harness.entry('settings.voice.item').inject() as { loadCatalog: () => Promise<unknown> }
 
     await expect(face.loadCatalog()).rejects.toThrow('no catalogue')
+  })
+})
+
+describe('the composer voice row\u2019s face', () => {
+  const labels: VoicePickerLabels = { default: 'Default', count: voices => `${String(voices)} voices` }
+  const anchor = {} as Element
+
+  it('opens the shared card beside the row on the languages', async () => {
+    const harness = makeCtx()
+    harness.boot()
+    const face = harness.entry('conversation.input.options').inject() as unknown as SystemVoiceInjected
+
+    face.openPicker('s1' as never, anchor, labels)
+    const [sessionId, command, spec, opener, placement] = harness.openSelect.mock.calls[0]!
+    expect([sessionId, command, opener, placement]).toEqual(['s1', 'voice', anchor, 'beside'])
+    await expect(spec.options()).resolves.toEqual([{ id: 'en', label: 'English', detail: '1 voices', keywords: 'en' }])
+  })
+
+  it('reopens the card on the picked language\u2019s voices and stores the voice picked there', async () => {
+    const harness = makeCtx()
+    harness.boot()
+    const face = harness.entry('conversation.input.options').inject() as unknown as SystemVoiceInjected
+    face.openPicker('s1' as never, anchor, labels)
+    harness.openSelect.mock.calls[0]![2].onSelect({ id: 'en', label: 'English' })
+
+    const [, , voices, opener, placement] = harness.openSelect.mock.calls[1]!
+    expect([opener, placement]).toEqual([anchor, 'beside'])
+    await expect(voices.options()).resolves.toEqual([
+      { id: 'default', label: 'Default', detail: 'Sonia' },
+      { id: 'en-sonia', label: 'Sonia', active: true },
+    ])
+    voices.onSelect({ id: 'en-sonia', label: 'Sonia' })
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toEqual({ en: 'en-sonia' })
+    voices.onSelect({ id: 'default', label: 'Default' })
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toEqual({})
   })
 })
 
@@ -295,7 +353,7 @@ describe('the message action\u2019s face', () => {
   it('reads one message on its own channel and stops it again', async () => {
     const harness = makeCtx()
     harness.boot()
-    const face = harness.registrations[2]!.inject() as {
+    const face = harness.entry('conversation.chat.assistant-actions').inject() as {
       hooks: { readAloud: { getSnapshot: () => ReadAloudSnapshot } }
       read: (channel: string, text: string) => void
       stop: (channel: string) => void
