@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-11-16-google-connectors-without-restricted-scopes.md
-2026-11-16-google-connectors-without-restricted-scopes.md: 2abf1bf9879a73ef3712f3ce792004d3c2ecb07f
-2026-11-16-google-connectors-without-restricted-scopes.zh.md: 7a09a5b0d1ec034b19942eba4d36f06919eeec07
+2026-11-16-google-connectors-without-restricted-scopes.md: 94e70821db564cdf10d7368d9c1e23eec81d7833
+2026-11-16-google-connectors-without-restricted-scopes.zh.md: 6a20f0be61d98ec6bcdbc1ee1da1227f3432d60f
