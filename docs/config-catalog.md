@@ -2314,6 +2314,13 @@ export interface Config {
   apiUrl?: string
   /** Credential holding the signed-in session; defaults to `AEVEN_TOKEN`. */
   apiKeyEnv?: string
+  /**
+   * Credential presented for the request's user when the `apiKeyEnv` value is an access token whose `exp` claim has
+   * passed, such as the refresh token a hosted Host stores per account (`AEVEN_REFRESH_TOKEN`). Aeven's `/v1` accepts
+   * it as a bearer while the account has a live session, so a turn that runs after the account's last page has closed,
+   * such as an automation, still authenticates. Absent, the `apiKeyEnv` value is presented even when expired.
+   */
+  unattendedApiKeyEnv?: string
   /** Advisory catalog shown to the picker; defaults to the shipped Aeven models. */
   models?: DeepSeekCatalogModel[]
   /** Forwarded to the gateway, which accepts both values. */
