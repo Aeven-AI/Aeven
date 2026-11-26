@@ -151,6 +151,20 @@ describe('SyncStore', () => {
     restarted.close()
   })
 
+  it('rewrites its file without free pages once they exceed the given share, and keeps what is stored', () => {
+    const store = new SyncStore(tempPath(), owner)
+    const kept = brandString<OpaqueId>('kept')
+    const grown = brandString<OpaqueId>('grown')
+    store.appendDocUpdate(kept, Uint8Array.of(7))
+    expect(store.reclaim(0.5)).toBe(false)
+    for (let index = 0; index < 64; index++) store.appendDocUpdate(grown, new Uint8Array(65_536).fill(index))
+    store.retireDocument(grown)
+    expect(store.reclaim(0.5)).toBe(true)
+    expect(store.reclaim(0.5)).toBe(false)
+    expect(store.docUpdates(kept)).toEqual([Uint8Array.of(7)])
+    store.close()
+  })
+
   it('keeps a device id, the account key, the enabled flag, and the relay cursor', () => {
     const store = new SyncStore(tempPath(), owner)
     const deviceId = store.deviceId()

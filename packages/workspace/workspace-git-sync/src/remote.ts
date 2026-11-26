@@ -40,7 +40,7 @@ function parse(url: string): ParsedRemote | undefined {
 
 /**
  * A remote URL fit to publish to the account's other devices.
- * @param url - the URL `git remote get-url` reports.
+ * @param url - the URL the repository's configuration records for the remote.
  * @returns the URL without credentials, or undefined for a remote only this device can reach.
  */
 export function publicRemote(url: string): string | undefined {

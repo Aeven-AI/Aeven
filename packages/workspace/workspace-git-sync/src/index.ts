@@ -3,7 +3,7 @@
  * devices as a repository. A device that receives one binds an existing checkout of the same remote, or clones it
  * with submodules and Git LFS objects, or copies it from a device that holds it when the remote cannot be reached;
  * environment files that Git ignores travel beside it and never replace a local file. Repository descriptions,
- * holders, and copy requests travel in the account's `workspace-git/repositories` document, and each workspace's
+ * holders, and copy requests travel in the account's `workspace-git/repository-holders` document, and each workspace's
  * environment files in `workspace-git/env/<workspace id>`, as the
  * [workspace file sync note](../../../../.agents/notes/proposed/architecture/2026-11-03-workspace-file-sync.md) plans.
  * @module @aeven/workspace-git-sync
