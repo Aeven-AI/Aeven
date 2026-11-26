@@ -28,7 +28,12 @@ import { untilFolder } from './wait.ts'
 import { WorkState } from './work-state.ts'
 
 /** The document describing the account's repository workspaces, their holders, and copy requests. */
-const REPOSITORIES = 'workspace-git/repositories'
+const REPOSITORIES = 'workspace-git/repository-holders'
+/**
+ * The first such document, which each device retires. Every holder of a repository wrote its own description there,
+ * so two holders replaced each other's without end and the document grew by megabytes that no merge removes.
+ */
+const RETIRED_REPOSITORIES = 'workspace-git/repositories'
 /** The bundle file a holder writes into a transfer folder. */
 const BUNDLE = 'repository.bundle'
 
@@ -36,12 +41,14 @@ const BUNDLE = 'repository.bundle'
 export interface SyncedRepository {
   /** The remote URL without credentials; absent for a repository only its devices hold. */
   remote?: string
-  /** The branch checked out on the device that described it last. */
+  /** The branch checked out on the describing device. */
   branch?: string
   /** The directory relative to the describing device's home directory, `/`-separated; a placement hint. */
   hint?: string
   /** Size of the repository's objects and checked-out files. */
   bytes: number
+  /** The device that described it. */
+  device: string
 }
 
 /** A device's request for a copy of a repository from one of the account's devices that holds it. */
@@ -408,7 +415,8 @@ export class WorkspaceRepositories {
   }
 
   private open(owner: string, device: DeviceId): Promise<Account | undefined> {
-    return this.ctx.sync.openDocument(owner, REPOSITORIES).then((document) => {
+    const opened = this.ctx.sync.retireDocument(owner, RETIRED_REPOSITORIES).then(() => this.ctx.sync.openDocument(owner, REPOSITORIES))
+    return opened.then((document) => {
       repositoryMap({ device, document }).observe((_event: YMapEvent<SyncedRepository>, transaction: Transaction) => {
         if (!transaction.local) void this.reconcile(owner)
       })
@@ -455,10 +463,15 @@ export class WorkspaceRepositories {
     for (const workspace of workspaces) {
       if (workspace.kind === 'folder' && workspace.path !== undefined && isWorkTree(workspace.path)) {
         held.add(workspace.id)
-        const next = await this.describe(workspace.path)
-        if (JSON.stringify(repositories.get(workspace.id)) !== JSON.stringify(next)) repositories.set(workspace.id, next)
         const key = `${workspace.id}/${account.device}`
         if (holders.get(key) !== true) holders.set(key, true)
+        // One holder describes a repository: the hint and the size differ on every device, so holders that each wrote
+        // their own description would replace each other's on every pass without end.
+        const described = repositories.get(workspace.id)
+        if (described === undefined || described.device === account.device || holders.get(`${workspace.id}/${described.device}`) !== true) {
+          const next: SyncedRepository = { ...await this.describe(workspace.path), device: account.device }
+          if (JSON.stringify(described) !== JSON.stringify(next)) repositories.set(workspace.id, next)
+        }
         // A managed Host reads no file of a work tree itself; its copies take environment files and publish none.
         if (this.options.managedRoot === undefined) await this.publishEnv(owner, workspace.id, workspace.path)
         // The pass also catches work done outside a turn; an unchanged work tree writes nothing.
@@ -490,11 +503,13 @@ export class WorkspaceRepositories {
     }
   }
 
-  /** The repository at a work tree as the account's devices see it. */
-  private async describe(path: string): Promise<SyncedRepository> {
+  /** The repository at a work tree as the account's devices see it, without the describing device. */
+  private async describe(path: string): Promise<Omit<SyncedRepository, 'device'>> {
     const names = (await this.git.output(['remote'], { cwd: path })).split('\n').filter(name => name !== '')
     const name = names.includes('origin') ? 'origin' : names[0]
-    const url = name === undefined ? undefined : (await this.git.run(['remote', 'get-url', name], { cwd: path })).stdout.trim()
+    // The configured URL, not `git remote get-url`: that one applies `url.<base>.insteadOf`, which on a Host that
+    // routes Git through a local proxy yields an address no other device reaches.
+    const url = name === undefined ? undefined : (await this.git.run(['config', '--get', `remote.${name}.url`], { cwd: path })).stdout.trim()
     const remote = url === undefined || url === '' ? undefined : publicRemote(url)
     const branch = (await this.git.run(['symbolic-ref', '--quiet', '--short', 'HEAD'], { cwd: path })).stdout.trim()
     const hint = locationHint(path)

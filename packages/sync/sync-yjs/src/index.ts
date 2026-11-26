@@ -60,6 +60,8 @@ export interface Config {
   compactBytes: number
   /** Frames per document since its last snapshot before this device queues a new one. */
   snapshotAfter: number
+  /** Share of an account store's file that free pages may take before the file is rewritten without them at open. */
+  reclaimFreeRatio: number
   /** Received frames opened on the sync worker and stored in one transaction per batch. */
   applyFrames: number
   /** Pause between two batches while a backlog waits, in milliseconds; it bounds the CPU and disk share of catch-up. */
@@ -168,6 +170,7 @@ export default class YjsSync extends Sync {
     compactAfter: Schema.natural().min(1).default(200),
     compactBytes: Schema.natural().min(1_024).default(8 * 1024 * 1024),
     snapshotAfter: Schema.natural().min(1).default(500),
+    reclaimFreeRatio: Schema.number().min(0).max(1).default(0.5),
     applyFrames: Schema.natural().min(1).default(200),
     applyPauseMs: Schema.natural().default(16),
     pageFrames: Schema.natural().min(1).default(500),
@@ -239,6 +242,7 @@ export default class YjsSync extends Sync {
     let account = this.accounts.get(owner)
     if (account !== undefined) return account
     const store = new SyncStore(accountHomePath(owner, ...STORE_SEGMENTS), owner)
+    store.reclaim(this.config.reclaimFreeRatio)
     const vault = new AccountVault(
       store,
       {

@@ -85,6 +85,22 @@ export class SyncStore {
     }
   }
 
+  /**
+   * Rewrite the database file without its free pages when they exceed a share of it. Deleted updates leave free pages
+   * that later writes reuse but that never return to the disk, so a document that once grew large keeps the file
+   * large. The rewrite blocks until it is done.
+   * @param freeRatio - the share of free pages above which the file is rewritten.
+   * @returns whether the file was rewritten.
+   */
+  reclaim(freeRatio: number): boolean {
+    const pages = this.db.pragma('page_count', { simple: true }) as number
+    const free = this.db.pragma('freelist_count', { simple: true }) as number
+    if (pages === 0 || free / pages <= freeRatio) return false
+    this.db.exec('VACUUM')
+    this.db.pragma('wal_checkpoint(TRUNCATE)')
+    return true
+  }
+
   /** Close the database. */
   close(): void {
     this.db.close()
