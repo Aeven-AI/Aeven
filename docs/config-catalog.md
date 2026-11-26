@@ -891,8 +891,12 @@ Requires: `credentials`
 export interface Config {
   /** Aeven API origin, e.g. `https://aeven.io`. */
   apiUrl: string
-  /** Credential holding each owner's Aeven session; defaults to `AEVEN_TOKEN`. */
-  credentialRef?: string
+  /**
+   * Credentials holding each owner's Aeven session, presented in order until the API accepts one; defaults to
+   * `['AEVEN_TOKEN']`. A deployment that stores each account's refresh token names it here as well, so reports and quotes
+   * keep working while no browser of the account renews its access token.
+   */
+  credentialRefs?: string[]
   /** Milliseconds between sends of the queued reports. */
   flushIntervalMs?: number
   /** Milliseconds a quote of an owner's funding stays fresh. */
@@ -2209,6 +2213,15 @@ export interface Config {
    * operator pointing a custom endpoint at Aeven sets both to the same value.
    */
   credentialRef?: string
+  /**
+   * Credential reference the verified refresh-token cookie is stored under for each account, as this authority's
+   * {@link UserResolver.unattendedCredential}.
+   *
+   * The access token under `credentialRef` expires two hours after the browser last renewed it, so work that runs while
+   * the account has no page open, such as `cloud-meter` reports, presents the refresh token instead. A consumer names
+   * this reference to read it.
+   */
+  unattendedCredentialRef?: string
 }
 
 /**

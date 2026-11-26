@@ -70,4 +70,29 @@ export interface UserResolver {
    * credential opens.
    */
   readonly credentialRef?: CredentialRef
+  /**
+   * A second, long-lived credential this authority can read from a request, for work this process does on the user's
+   * behalf while none of their requests arrives, such as metering a background job after their browser has closed.
+   *
+   * Absent for an authority whose callers present nothing that outlives their session. The Aeven authority reads the
+   * refresh-token cookie here: the access token it publishes under {@link credentialRef} expires two hours after the
+   * browser last renewed it, while the refresh token is accepted by Aeven's metering and inference endpoints for its
+   * whole lifetime.
+   */
+  readonly unattendedCredential?: UnattendedCredential
+}
+
+/**
+ * How an authority exposes the long-lived credential of {@link UserResolver.unattendedCredential}.
+ */
+export interface UnattendedCredential {
+  /** The credential reference the value is stored under, per account. */
+  readonly ref: CredentialRef
+  /**
+   * Read the credential from a request this authority already identified.
+   * @param request - the credential-bearing headers.
+   * @param user - the user the request was identified as.
+   * @returns the credential, or undefined when the request carries none for exactly this user.
+   */
+  read(request: IdentityRequest, user: User): string | undefined
 }

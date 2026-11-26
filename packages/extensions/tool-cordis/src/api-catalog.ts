@@ -1845,6 +1845,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the reference, or undefined when nobody recognized the request or the authority declared none.',
       },
       {
+        signature: 'unattendedCredentialFor(request: IdentityRequest, user: User): { ref: CredentialRef; value: string } | undefined',
+        description: 'The long-lived credential a request carries for its user, read by the resolver that recognizes the request.',
+        parameters: [{ name: 'request', description: 'the credential-bearing headers.' }, { name: 'user', description: 'the user the request was identified as.' }],
+        returns: 'the reference and value to store for the user, or undefined when the recognizing authority declares no {@link UserResolver.unattendedCredential} or the request carries none for this user.',
+      },
+      {
         signature: 'credentialRefs(): CredentialRef[]',
         description: 'The credential references every registered authority names, once each.',
         parameters: [],
@@ -10734,6 +10740,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface TypeTextAction {\n    kind: \'type\';\n    target: ActionTarget;\n    text: string;\n}',
   },
   {
+    name: 'UnattendedCredential',
+    declaration: 'export interface UnattendedCredential {\n    readonly ref: CredentialRef;\n    read(request: IdentityRequest, user: User): string | undefined;\n}',
+  },
+  {
     name: 'UpdateTeamTaskRequest',
     declaration: 'export interface UpdateTeamTaskRequest {\n    readonly taskId: TeamTaskId;\n    readonly expectedRevision: number;\n    readonly action: TeamTaskAction;\n    readonly subject?: string;\n    readonly description?: string;\n    readonly blockedBy?: readonly TeamTaskId[];\n    readonly writeScopes?: readonly string[];\n    readonly owner?: SessionId;\n}',
   },
@@ -10751,7 +10761,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'UserResolver',
-    declaration: 'export interface UserResolver {\n    readonly id: string;\n    resolve(request: IdentityRequest): User | undefined;\n    readonly credentialRef?: CredentialRef;\n}',
+    declaration: 'export interface UserResolver {\n    readonly id: string;\n    resolve(request: IdentityRequest): User | undefined;\n    readonly credentialRef?: CredentialRef;\n    readonly unattendedCredential?: UnattendedCredential;\n}',
   },
   {
     name: 'VcsBranch',

@@ -9,10 +9,10 @@ kind: "package-reference"
 
 ## 概述
 
-`@aeven/cloud-meter` 把托管 Host 为每个账户做的云端工作计入该账户的 Aeven 额度。它以会话所有者的名义计量三类工作，由其 `AEVEN_TOKEN` 付费：
+`@aeven/cloud-meter` 把托管 Host 为每个账户做的云端工作计入该账户的 Aeven 额度。它以会话所有者的名义计量三类工作，由其 Aeven 凭据付费：
 
 - 账户沙箱命令的 CPU 秒数，来自 `sandbox-jail/usage`；
-- 账户文件夹的字节数，每天测量一次；
+- 账户文件夹的字节数，每天测量一次，不含 Host 无法读取的目录；
 - 每个使用 Aeven API 不计费其推理的提供方的轮次。
 
 它把这些发送到 `POST /api/cloud/meter/charges`，Aeven API 按其 `cloud` 配置定价、应用套餐折扣，先扣套餐额度，再扣购买的余额。API 报告为未付费的账户不能启动沙箱命令，也不能在不计费的提供方上开始轮次。
@@ -37,7 +37,7 @@ kind: "package-reference"
 | 字段 | 默认值 | 作用 |
 | --- | --- | --- |
 | `apiUrl` | 必填 | 报告和报价发往的 Aeven API 源地址。 |
-| `credentialRef` | `AEVEN_TOKEN` | 保存每个所有者 Aeven 会话的凭据。 |
+| `credentialRefs` | `[AEVEN_TOKEN]` | 保存每个所有者 Aeven 会话的凭据，按顺序出示，直到 API 不再回答 `401`。`avn-hosted-app` bundle 写明 `[AEVEN_REFRESH_TOKEN, AEVEN_TOKEN]`，因此连接按账户保存的 refresh token 在账户最后一个页面关闭后仍能让报告被接受。 |
 | `flushIntervalMs` | `60000` | 两次发送排队报告之间的毫秒数。 |
 | `quoteTtlMs` | `60000` | 所有者付费状态答复保持有效的毫秒数。 |
 | `accountsRoot` | 无 | 其子目录为以所有者命名的账户文件夹的目录；省略时不计量存储。 |
@@ -59,7 +59,7 @@ kind: "package-reference"
 
 ### 报告与 id
 
-CPU 秒数按所有者累加，直到下次发送时合成一条带随机 id 的 `sandbox` 报告。轮次的 id 是 `turn:<session id>:<turn>`，存储报告标明其 UTC 日期；某天的报告仍在等待时，当天之后的测量不再添加报告。报告在 API 接受之前保持其 id，因此请求失败后重发的报告只计费一次；API 的账本以账户和该 id 为键，存储则以日期为键。`400` 答复会丢弃该批次，因为重发不可能成功；其他失败会保留它。
+CPU 秒数按所有者累加，直到下次发送时合成一条带随机 id 的 `sandbox` 报告。轮次的 id 是 `turn:<session id>:<turn>`，存储报告标明其 UTC 日期；某天的报告仍在等待时，当天之后的测量不再添加报告。报告在 API 接受之前保持其 id，因此请求失败后重发的报告只计费一次；API 的账本以账户和该 id 为键，存储则以日期为键。`400` 答复会丢弃该批次，因为重发不可能成功；`401` 会换用该所有者的下一个凭据，其他失败会保留该批次。
 
 ### 付费状态
 
@@ -105,7 +105,7 @@ This account's Aeven credit is used up, so Aeven Cloud cannot run this. Add cred
 
 - **排队的报告保存在内存中**：Host 重启最多丢失一个间隔的 CPU 秒数，以及 API 尚未接受的报告。
 - **按 CPU 时间而非墙钟时间**：等待或休眠的命令在等待期间不计费，用满账户上限两个 CPU 的命令按双倍计。
-- **存储用 `du -sk` 测量**，即文件夹占用的磁盘空间：每个账户文件夹每天遍历一次，文件夹越大耗时越长。
+- **存储用 `du -sk` 测量**，即文件夹占用的磁盘空间：每个账户文件夹每天遍历一次，文件夹越大耗时越长。Host 用户无法进入的目录（例如沙箱命令创建的 `0700` 临时文件夹）不计入 `du` 打印的总量，因此这类文件夹不计费。
 
 <a id="dev-note"></a>
 ### 开发备注

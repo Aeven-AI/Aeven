@@ -159,6 +159,15 @@ export interface Config {
    * operator pointing a custom endpoint at Aeven sets both to the same value.
    */
   credentialRef?: string
+  /**
+   * Credential reference the verified refresh-token cookie is stored under for each account, as this authority's
+   * {@link UserResolver.unattendedCredential}.
+   *
+   * The access token under `credentialRef` expires two hours after the browser last renewed it, so work that runs while
+   * the account has no page open, such as `cloud-meter` reports, presents the refresh token instead. A consumer names
+   * this reference to read it.
+   */
+  unattendedCredentialRef?: string
 }
 
 export const Config: z<Config> = z.object({
@@ -168,6 +177,7 @@ export const Config: z<Config> = z.object({
   jwksCacheFile: z.string(),
   refreshCookieName: z.string().default('refreshToken'),
   credentialRef: z.string().default('AEVEN_TOKEN'),
+  unattendedCredentialRef: z.string().default('AEVEN_REFRESH_TOKEN'),
   apiUrl: z.string(),
   socketUrl: z.string(),
   xOAuthUrl: z.string(),
@@ -288,6 +298,17 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     // presents to Aeven's `/v1`, so the connection publishes each admitted one
     // and the model route follows the caller's rotation with no stored copy.
     credentialRef: credentialRef((config as ResolvedConfig).credentialRef),
+    unattendedCredential: {
+      ref: credentialRef((config as ResolvedConfig).unattendedCredentialRef),
+      read(request, user) {
+        // The cookie follows whichever account signed in last on this origin, so
+        // it is this user's only when it verifies as theirs.
+        const cookie = headerValue(request.headers, 'cookie')
+        const token = cookie === undefined ? undefined : cookieValue(cookie, refreshCookieName)
+        if (token === undefined) return undefined
+        return verifiedUserId(token, 'refresh', Math.floor(Date.now() / 1000)) === user.id ? token : undefined
+      },
+    },
     resolve(request: IdentityRequest): User | undefined {
       const nowSeconds = Math.floor(Date.now() / 1000)
 

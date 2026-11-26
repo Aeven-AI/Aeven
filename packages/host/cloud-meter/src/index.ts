@@ -2,15 +2,19 @@
  * Meters an account's Aeven Cloud work on a hosted Host and reports it to the Aeven API, which prices it from its
  * `cloud` configuration and charges it to the account's credit, plan allowance first.
  *
- * Three kinds of work are metered, each under the session owner whose `AEVEN_TOKEN` pays for it:
+ * Three kinds of work are metered, each under the session owner whose Aeven credential pays for it:
  *
  * - **sandbox**: CPU seconds of the account's confined commands, from `sandbox-jail/usage`.
- * - **storage**: the bytes of the account's folder under `accountsRoot`, measured once a day.
+ * - **storage**: the bytes of the account's folder under `accountsRoot`, measured once a day. Directories the Host
+ *   cannot read, such as the private temporary folders a confined command creates, are left out of the figure.
  * - **turn**: each turn on a provider outside `billedProviders`, whose inference the Aeven API never sees.
  *
  * Reports are queued per owner and sent every `flushIntervalMs`; each keeps the id it was queued with, so a report
  * resent after a failed request is charged once. An owner the API reports as unfunded starts no confined command
  * (`sandbox-jail/admit`) and no turn on an unbilled provider until a later quote says otherwise.
+ *
+ * Each request presents the owner's credentials in `credentialRefs` order and moves to the next one when the API answers
+ * 401, so a stored refresh token keeps reports flowing after the browser's two-hour access token has expired.
  *
  * @module @aeven/cloud-meter
  */
@@ -34,8 +38,12 @@ export const inject = ['credentials']
 export interface Config {
   /** Aeven API origin, e.g. `https://aeven.io`. */
   apiUrl: string
-  /** Credential holding each owner's Aeven session; defaults to `AEVEN_TOKEN`. */
-  credentialRef?: string
+  /**
+   * Credentials holding each owner's Aeven session, presented in order until the API accepts one; defaults to
+   * `['AEVEN_TOKEN']`. A deployment that stores each account's refresh token names it here as well, so reports and quotes
+   * keep working while no browser of the account renews its access token.
+   */
+  credentialRefs?: string[]
   /** Milliseconds between sends of the queued reports. */
   flushIntervalMs?: number
   /** Milliseconds a quote of an owner's funding stays fresh. */
@@ -56,7 +64,7 @@ export interface Config {
 /** Schemastery validation for {@link Config}. */
 export const Config: z<Config> = z.object({
   apiUrl: z.string().required(),
-  credentialRef: z.string().default('AEVEN_TOKEN'),
+  credentialRefs: z.array(z.string()).min(1).default(['AEVEN_TOKEN']),
   flushIntervalMs: z.natural().min(1000).default(60_000),
   quoteTtlMs: z.natural().min(1000).default(60_000),
   accountsRoot: z.string(),
@@ -88,6 +96,30 @@ const UNFUNDED_MESSAGE = 'This account\'s Aeven credit is used up, so Aeven Clou
 const run = promisify(execFile)
 
 /**
+ * Measure one folder with `du -sk`.
+ *
+ * `du` exits 1 when it cannot read a directory below the folder, yet still prints the total of everything it could
+ * read. That total is taken: a confined command creates private directories (mode 0700, such as `mkdtemp` folders and
+ * office-suite caches) that the Host user cannot enter, and refusing the whole measurement for them bills no storage at all.
+ * @param folder - the folder to measure.
+ * @returns the KiB `du` reports.
+ * @throws when `du` cannot run or prints no total.
+ */
+async function folderKiB(folder: string): Promise<number> {
+  let stdout: string
+  try {
+    ({ stdout } = await run('du', ['-sk', folder], { timeout: 300_000 }))
+  } catch (error) {
+    const partial = (error as { code?: unknown; stdout?: unknown }).code === 1 ? (error as { stdout?: unknown }).stdout : undefined
+    if (typeof partial !== 'string' || partial.length === 0) throw error
+    stdout = partial
+  }
+  const kib = Number(stdout.split('\t')[0])
+  if (!Number.isFinite(kib)) throw new Error(`du printed no total for ${folder}`)
+  return kib
+}
+
+/**
  * The text of a caught failure.
  * @param error - what was thrown.
  * @returns its message, or its string form when it is not an `Error`.
@@ -104,7 +136,7 @@ function messageOf(error: unknown): string {
 export function apply(ctx: Context, config: Config): void {
   const logger = ctx.logger('cloud-meter')
   const apiUrl = config.apiUrl.replace(/\/+$/u, '')
-  const ref = credentialRef(config.credentialRef as string)
+  const refs = (config.credentialRefs as string[]).map(ref => credentialRef(ref))
   const billed = new Set(config.billedProviders)
   const maxQueued = config.maxQueuedPerOwner as number
   /** Sandbox seconds per owner since the last send, not yet given an id. */
@@ -128,13 +160,41 @@ export function apply(ctx: Context, config: Config): void {
 
   // Read once while the plugin is active: the final send runs from the disposer, when `ctx.credentials` throws.
   const credentials = ctx.credentials
-  const token = async (owner: string): Promise<string | undefined> => {
-    try {
-      return (await credentials.resolve(ref, owner))?.value
-    } catch {
-      // A locked or already stopped credential store: the owner's reports wait for a send that can read a token.
-      return undefined
+  /** The owner's distinct credential values, in `credentialRefs` order. */
+  const tokens = async (owner: string): Promise<string[]> => {
+    const values: string[] = []
+    for (const ref of refs) {
+      let value: string | undefined
+      try {
+        value = (await credentials.resolve(ref, owner))?.value
+      } catch {
+        // A locked or already stopped credential store: the owner's reports wait for a send that can read a token.
+        return values
+      }
+      if (value !== undefined && !values.includes(value)) values.push(value)
     }
+    return values
+  }
+
+  /**
+   * Make one API request with each of the owner's credentials in turn until the API stops answering 401.
+   * @param bearers - the owner's credential values, from {@link tokens}; at least one.
+   * @param path - the API path to request.
+   * @param init - the method, body, and headers, without the authorization header.
+   * @returns the first response that is not 401, or the last 401.
+   */
+  const callApi = async (bearers: string[], path: string, init: Pick<RequestInit, 'method' | 'body'> & { headers?: Record<string, string> }): Promise<Response> => {
+    let response: Response | undefined
+    for (const bearer of bearers) {
+      response = await fetch(`${apiUrl}${path}`, {
+        ...init,
+        headers: { ...init.headers, authorization: `Bearer ${bearer}` },
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      })
+      if (response.status !== 401) return response
+    }
+    // `tokens` returned at least one value, so the loop ran.
+    return response as Response
   }
 
   /** Ask the API whether an owner may start cloud work; an unreachable API admits it. */
@@ -144,13 +204,10 @@ export function apply(ctx: Context, config: Config): void {
     const pending = quoting.get(owner)
     if (pending !== undefined) return pending
     const request = (async () => {
-      const bearer = await token(owner)
-      if (bearer === undefined) return true
+      const bearers = await tokens(owner)
+      if (bearers.length === 0) return true
       try {
-        const response = await fetch(`${apiUrl}/api/cloud/meter`, {
-          headers: { authorization: `Bearer ${bearer}` },
-          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-        })
+        const response = await callApi(bearers, '/api/cloud/meter', {})
         if (!response.ok) return cached?.funded ?? true
         const body = await response.json() as { funded?: unknown }
         const funded = body.funded !== false
@@ -169,17 +226,16 @@ export function apply(ctx: Context, config: Config): void {
 
   /** Send one owner's queued reports, keeping them when the API does not answer. */
   const send = async (owner: string, list: Charge[]) => {
-    const bearer = await token(owner)
-    if (bearer === undefined) return
+    const bearers = await tokens(owner)
+    if (bearers.length === 0) return
     while (list.length > 0) {
       const batch = list.slice(0, BATCH_LIMIT)
       let response: Response
       try {
-        response = await fetch(`${apiUrl}/api/cloud/meter/charges`, {
+        response = await callApi(bearers, '/api/cloud/meter/charges', {
           method: 'POST',
-          headers: { 'authorization': `Bearer ${bearer}`, 'content-type': 'application/json' },
+          headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ charges: batch }),
-          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         })
       } catch (error) {
         logger.warn(`cannot report cloud usage of ${owner}: ${messageOf(error)}`)
@@ -232,8 +288,7 @@ export function apply(ctx: Context, config: Config): void {
     for (const owner of owners) {
       try {
         // POSIX `-k`: the disk space the folder takes, in KiB.
-        const { stdout } = await run('du', ['-sk', join(root, owner)], { timeout: 300_000 })
-        const bytes = Number(stdout.split('\t')[0]) * 1024
+        const bytes = await folderKiB(join(root, owner)) * 1024
         // One report per day: the API bills the first it receives, so a later measurement adds nothing.
         if (!(bytes > 0) || queued.get(owner)?.some(charge => charge.id === `storage:${day}`) === true) continue
         enqueue(owner, { id: `storage:${day}`, kind: 'storage', day, quantity: bytes })

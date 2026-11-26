@@ -50,6 +50,7 @@ The row injects the seam and names the API whose keys it verifies against:
 | `jwksTimeoutMs` | 10000 | Budget for one key set fetch |
 | `jwksCacheFile` | none | File keeping the last key set fetched; a Host that starts with it verifies at once and refreshes the set in the background, and absent keeps the keys in memory only |
 | `refreshCookieName` | `refreshToken` | Cookie carrying the refresh token for a request that presents no bearer |
+| `unattendedCredentialRef` | `AEVEN_REFRESH_TOKEN` | Credential reference the verified refresh cookie is stored under for each account on a Host with per-account credentials, as the resolver's `unattendedCredential`; work that runs while the account has no page open, such as `cloud-meter` reports, presents it after the access token has expired |
 | `apiUrl` | none | Aeven API origin the browser signs in against; absent leaves the client with no authentication surface |
 | `socketUrl` | none | Aeven API account socket, such as `wss://aeven.io/socket`; a page opens it with its access token to learn at once that its session ended on another page or the account's language changed, and absent it learns of an ended session only when it next renews its token |
 | `webUrl` | none | Aeven web client origin the account menu links to |

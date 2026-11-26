@@ -798,6 +798,10 @@
       config:
         apiUrl: !!js process.env.AEVEN_API_URL ?? 'http://localhost:9000'
         accountsRoot: !!js "process.env.AVN_HOSTED_SANDBOX === '1' ? avnHomePath('sandbox', 'accounts') : undefined"
+        # The refresh token the connection stores per account keeps reports and
+        # quotes accepted after the account's last page has closed; the access token
+        # a page publishes expires two hours after its last renewal.
+        credentialRefs: [AEVEN_REFRESH_TOKEN, AEVEN_TOKEN]
 
 # Commands write only inside their account's folder, and no approval can widen
 # that: an escalation to full access would run on the Host itself. A session
