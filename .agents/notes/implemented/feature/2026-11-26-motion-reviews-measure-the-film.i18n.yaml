@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-11-26-motion-reviews-measure-the-film.md
-2026-11-26-motion-reviews-measure-the-film.md: d94d0995f81d03c0ae10c8920ce63e312c0d228f
-2026-11-26-motion-reviews-measure-the-film.zh.md: 71eb9bd0046b0c1da100378e7ee3ad080ac9b978
+2026-11-26-motion-reviews-measure-the-film.md: b4cd0e41d5fc6b4b1a42abed6bb5c3d67c1e5586
+2026-11-26-motion-reviews-measure-the-film.zh.md: 874119ed43838562ab01724f22ddc74651dd828c

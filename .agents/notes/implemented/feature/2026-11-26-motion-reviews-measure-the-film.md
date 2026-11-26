@@ -18,7 +18,7 @@ A 10-second film about Amsterdam reached the user with the descender of "light."
 - **Fonts travel inside the bundle.** Both renderers and the replay route embed fonts as data URLs after bundling, with HyperFrames' `injectDeterministicFontFaces`. Any family Google Fonts serves resolves by name, on the hosted renderer too, whose sandbox has no network: the Host fetches the files. The skill no longer lists 18 families.
 - **The skill teaches look and layout before animation.** It settles type, a three-size scale, color, and one margin as CSS custom properties in `index.html`; builds each scene's finished frame with flex or grid before animating; limits all-caps labels; gives the padding a reveal mask needs; and names easing by role, hold times, and the patterns that make a film look generated.
 - **A film is one row in the Turn's file list.** `show_motion` declares the composition's `index.html`, with the stored film as its copy, in its result's `producedFiles`. The list then shows that row alone, where it used to list `index.html` and every scene file as edited files.
-- **HyperFrames moves from 0.9.19 to 0.9.99.** The functions the renderers call are unchanged.
+- **HyperFrames' core, engine, and producer move from 0.9.19 to 0.9.99.** The functions the renderers call are unchanged. The client's `@hyperframes/player` stays at 0.9.19: the 0.9.99 player imports HyperFrames' 800 KB runtime script lazily, a client bundle is one file, and a 0.9.19 player plays a 0.9.99 bundle, which carries its own runtime.
 
 ## Alternatives considered
 
