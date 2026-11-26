@@ -144,12 +144,12 @@ export function createElectronBuilderConfig(
       backgroundColor: 'transparent',
       // The client's locales (`LOCALE_IDS` in @aeven/client-locale); Partner Center lists the Store page in these.
       languages: ['en-US', 'zh-CN', 'es-ES'],
-      // The template leaves file-system writes and the app's native-messaging keys under HKCU unvirtualized, so
-      // what the agent's tools write under AppData and the app's browser registration stay where unpackaged programs
-      // read them. Windows 11 excludes only those keys; Windows 10 cannot, and leaves every registry write unvirtualized.
+      // The template excludes only the app's %APPDATA%\Aeven folder and its native-messaging keys under HKCU from
+      // write virtualization, so a browser reads the app's registration and an NSIS install shares its profile.
       customManifestPath: 'appx/AppxManifest.xml',
-      // Windows 10 1903 is the first release that honours the desktop6 virtualization properties.
-      minVersion: '10.0.18362.0',
+      // Windows 11 is the first release that honours directory and key exclusions; Windows 10 offers only
+      // whole-package opt-outs.
+      minVersion: '10.0.22000.0',
       maxVersionTested: '10.0.26100.0',
       capabilities: ['runFullTrust', 'unvirtualizedResources', 'location', 'microphone', 'webcam'],
     },
@@ -173,7 +173,7 @@ export function createElectronBuilderConfig(
     // electron-builder 26's default AppImage runtime loads the system libfuse2, which Ubuntu 22.04 and
     // later no longer install by default; the static runtime also starts where only FUSE 3 exists.
     // Without a winCodeSign toolset electron-builder packs AppX with the legacy Windows 10 1809 kit, whose makeappx
-    // rejects the manifest's desktop6 properties; 1.1.0 carries the Windows SDK 10.0.26100 kit.
+    // predates the manifest's Windows 11 virtualization schema; 1.1.0 carries the Windows SDK 10.0.26100 kit.
     toolsets: { appimage: '1.0.3', ...storePackage ? { winCodeSign: '1.1.0' } : {} },
     deb: {
       // Electron's runtime libraries, ALSA included for microphone dictation. Debian 13 and Ubuntu 24.04
