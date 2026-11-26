@@ -11,7 +11,7 @@ import type { ClientRemote, SessionId } from '@aeven/api-remotes/client'
 import type { SessionWorkspacePathApplication } from '@aeven/api-session-controller/types'
 import {
   extensionOf, fileKindOf, workspaceFileUrl, IconLucideChevronDown, IconLucideFolderOpen,
-  IconLucideSquareArrowOutUpRight, Menu, type MenuItem,
+  IconLucideSquareArrowOutUpRight, Menu, Tooltip, type MenuItem,
 } from '@aeven/client-ui-primitives'
 import type { TranslateNS } from '@aeven/client-ui-slots'
 import css from './FilesPane.module.css'
@@ -221,29 +221,32 @@ export function OpenWithButton({ path, remote, t }: { path: string; remote: Clie
       }}
       anchor={(
         <span className={css.openWith}>
-          <button
-            type="button"
-            className={css.openWithMain}
-            aria-label={label}
-            title={label}
-            onClick={() => { run(preferred === undefined ? { kind: 'reveal' } : { kind: 'default' }) }}
-          >
-            {preferred === undefined ? <IconLucideFolderOpen /> : <ApplicationIcon key={preferred.icon} source={preferred.icon} />}
-          </button>
-          <button
-            type="button"
-            className={css.openWithMore}
-            aria-haspopup="menu"
-            aria-expanded={open}
-            aria-label={t('openWith.more')}
-            title={t('openWith.more')}
-            onClick={() => {
-              if (!open) applications.refresh()
-              setOpen(value => !value)
-            }}
-          >
-            <IconLucideChevronDown />
-          </button>
+          <Tooltip label={label} side="bottom" anchor="icon">
+            <button
+              type="button"
+              className={css.openWithMain}
+              aria-label={label}
+              onClick={() => { run(preferred === undefined ? { kind: 'reveal' } : { kind: 'default' }) }}
+            >
+              {preferred === undefined ? <IconLucideFolderOpen /> : <ApplicationIcon key={preferred.icon} source={preferred.icon} />}
+            </button>
+          </Tooltip>
+          {/* The open menu replaces the bubble, which would otherwise cover its first item. */}
+          <Tooltip label={t('openWith.more')} side="bottom" anchor="icon" disabled={open}>
+            <button
+              type="button"
+              className={css.openWithMore}
+              aria-haspopup="menu"
+              aria-expanded={open}
+              aria-label={t('openWith.more')}
+              onClick={() => {
+                if (!open) applications.refresh()
+                setOpen(value => !value)
+              }}
+            >
+              <IconLucideChevronDown />
+            </button>
+          </Tooltip>
         </span>
       )}
     />

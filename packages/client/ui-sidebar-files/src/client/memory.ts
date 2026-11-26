@@ -1,8 +1,8 @@
 /**
  * What one Files surface remembers between mounts: the folders it has open, the
- * file it shows and the files shown before it, whether its tree is docked beside
- * that file, its search, whether it lists ignored names, and whether an HTML file
- * shows rendered or as source.
+ * file it shows, whether its tree is docked beside that file and how wide, its
+ * search, whether it lists ignored names, and whether an HTML file shows
+ * rendered or as source.
  *
  * Kept in memory per session and surface, so switching sessions or pills and
  * back finds the explorer where it was; a reload starts it at the root.
@@ -16,12 +16,10 @@ export interface ExplorerMemory {
   readonly openFile: string | null
   /** Whether the tree stays docked beside an open file. */
   readonly treeVisible: boolean
+  /** The docked tree's dragged width in px, or null for the default width. */
+  readonly dockWidth: number | null
   /** The search field's text. */
   readonly query: string
-  /** Files opened on this surface, oldest first, which back and forward step through. */
-  readonly history: readonly string[]
-  /** Index in {@link history} of the file on show, or -1 before any. */
-  readonly historyIndex: number
   /** Whether the tree also lists the names the deployment ignores by default, such as `.git` and `node_modules`. */
   readonly showIgnored: boolean
   /** How an HTML file opens: rendered in a sandboxed frame, or as its source. */
@@ -30,32 +28,8 @@ export interface ExplorerMemory {
 
 /** A surface the explorer has not shown before. */
 export const FRESH_MEMORY: ExplorerMemory = {
-  expanded: new Set(), openFile: null, treeVisible: false, query: '', history: [], historyIndex: -1, showIgnored: false,
+  expanded: new Set(), openFile: null, treeVisible: false, dockWidth: null, query: '', showIgnored: false,
   htmlView: 'source',
-}
-
-/**
- * Show a file, recording it in the surface's history after the file on show and dropping anything forward of it.
- * @param memory - the surface's state.
- * @param path - workspace-relative path of the file.
- * @returns the state with the file on show.
- */
-export function visit(memory: ExplorerMemory, path: string): ExplorerMemory {
-  if (memory.history[memory.historyIndex] === path) return { ...memory, openFile: path }
-  const history = [...memory.history.slice(0, memory.historyIndex + 1), path].slice(-HISTORY_LIMIT)
-  return { ...memory, openFile: path, history, historyIndex: history.length - 1 }
-}
-
-/**
- * Step through the surface's history.
- * @param memory - the surface's state.
- * @param step - -1 for back, 1 for forward.
- * @returns the state with the neighbouring file on show, or the same state at either end.
- */
-export function stepHistory(memory: ExplorerMemory, step: -1 | 1): ExplorerMemory {
-  const index = memory.historyIndex + step
-  const path = memory.history[index]
-  return path === undefined ? memory : { ...memory, openFile: path, historyIndex: index }
 }
 
 /**
@@ -71,7 +45,6 @@ export function renamed(memory: ExplorerMemory, from: string, to: string): Explo
     ...memory,
     expanded: new Set([...memory.expanded].map(move)),
     openFile: memory.openFile === null ? null : move(memory.openFile),
-    history: memory.history.map(move),
   }
 }
 
@@ -83,19 +56,12 @@ export function renamed(memory: ExplorerMemory, from: string, to: string): Explo
  */
 export function forgotten(memory: ExplorerMemory, path: string): ExplorerMemory {
   const gone = (candidate: string): boolean => candidate === path || candidate.startsWith(`${path}/`)
-  const history = memory.history.filter(entry => !gone(entry))
-  const openFile = memory.openFile !== null && gone(memory.openFile) ? null : memory.openFile
   return {
     ...memory,
     expanded: new Set([...memory.expanded].filter(entry => !gone(entry))),
-    openFile,
-    history,
-    historyIndex: openFile === null ? history.length - 1 : history.lastIndexOf(openFile),
+    openFile: memory.openFile !== null && gone(memory.openFile) ? null : memory.openFile,
   }
 }
-
-/** Files one surface's history keeps. */
-const HISTORY_LIMIT = 50
 
 const memories = new Map<string, ExplorerMemory>()
 

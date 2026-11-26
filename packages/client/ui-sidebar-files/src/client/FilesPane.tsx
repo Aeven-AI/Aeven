@@ -16,7 +16,8 @@
  * until its answer lands, and an answer from a superseded request is dropped.
  */
 import type {
-  KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode, UIEvent as ReactUIEvent,
+  CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent,
+  ReactNode, RefObject, UIEvent as ReactUIEvent,
 } from 'react'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
@@ -28,9 +29,10 @@ import type {
   WorkspaceSearchHit,
 } from '@aeven/api-workspace-files/types'
 import {
-  Button, CodeBlock, CopyIconButton, extensionOf, fileGlyph, fileKindOf, IconLucideArrowLeft, IconLucideArrowRight,
-  IconLucideCheck, IconLucideChevronsDownUp, IconLucideDownload, IconLucideEye, IconLucideFolder, IconLucideFolderOpen,
-  IconLucideFolderSearch, IconLucideRefreshCw, IconLucideSearch, IconLucideX, MarkdownText, Menu, Modal, Spinner,
+  Button, CodeBlock, extensionOf, fileGlyph, fileKindOf,
+  IconLucideCheck, IconLucideCode, IconLucideDownload, IconLucideFolder, IconLucideFolderOpen,
+  IconLucideList, IconLucideRefreshCw, IconLucideSearch, IconLucideTvMinimalPlay, IconLucideX, MarkdownText, Menu,
+  Modal, Spinner, Tooltip,
   VideoPlayer, videoPlayerLabels, writeClipboard,
   type MarkdownLabels, type MenuEntry,
 } from '@aeven/client-ui-primitives'
@@ -38,7 +40,7 @@ import type { SidebarContentPaneProps } from '@aeven/client-ui-sidebar-select/cl
 import { resolveWorkspacePath } from '@aeven/util-workspace-path'
 import type { TranslateNS } from '@aeven/client-ui-slots'
 import {
-  ancestorsOf, forgotten, recall, remember, renamed, stepHistory, visit, type ExplorerMemory,
+  ancestorsOf, forgotten, recall, remember, renamed, type ExplorerMemory,
 } from './memory.ts'
 import { middleTruncate, nameProblem } from './names.ts'
 import {
@@ -103,7 +105,8 @@ type Row =
     readonly position: number
     readonly siblings: number
   }
-  | { readonly kind: 'note'; readonly key: string; readonly text: string; readonly depth: number }
+  /** A line under a folder; `busy` notes show the loading mark with `text` as its accessible label. */
+  | { readonly kind: 'note'; readonly key: string; readonly text: string; readonly depth: number; readonly busy?: true }
   | { readonly kind: 'draft'; readonly key: string; readonly folder: string; readonly type: 'file' | 'directory'; readonly depth: number }
 
 /** A row's or the tree's right-click menu, anchored at the pointer. */
@@ -433,14 +436,12 @@ export function FilesPane({
 
   const openFile = useCallback((path: string) => {
     const before = memoryRef.current
-    update(current => visit(current, path))
+    update(current => ({ ...current, openFile: path }))
     setFocus(path)
     // The viewer opens at once; a file it cannot show then goes back to where it was and opens elsewhere.
     void canPreviewFile(remote, session, path).then((previewable) => {
       if (previewable) return
-      update(current => current.openFile !== path ? current : {
-        ...current, openFile: before.openFile, history: before.history, historyIndex: before.historyIndex,
-      })
+      update(current => current.openFile !== path ? current : { ...current, openFile: before.openFile })
       // A Host without a desktop, such as hosted Web, hands the file to the reader's browser instead.
       if (canOpenNative && root !== null) void openOnDesktop(remote, absolutePath(root, path), { kind: 'default' })
       else downloadWorkspaceFile(sessionId, absolutePath(root, path))
@@ -748,13 +749,14 @@ export function FilesPane({
   useLayoutEffect(() => {
     const split = splitRef.current
     if (split === null) return undefined
-    const measure = () => { setDockRoom(split.clientWidth >= DOCK_ROOM) }
+    const measure = () => { setDockRoom(split.clientWidth >= DOCK_FLOOR + FILE_FLOOR) }
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(split)
     return () => { observer.disconnect() }
   }, [memory.openFile === null])
   const treeDocked = memory.treeVisible && dockRoom
+  const dockRef = useRef<HTMLDivElement>(null)
 
   const [listWindow, setListWindow] = useState({ top: 0, height: 800 })
   useLayoutEffect(() => {
@@ -808,11 +810,13 @@ export function FilesPane({
   const renderRow = (row: Row): ReactNode => {
     switch (row.kind) {
       case 'note':
-        return (
-          <div key={row.key} className={css.note} style={{ paddingLeft: noteIndent(row.depth) }}>
-            {row.text}
-          </div>
-        )
+        return row.busy === true
+          ? <BusyNote key={row.key} label={row.text} style={{ paddingLeft: noteIndent(row.depth) }} />
+          : (
+            <div key={row.key} className={css.note} style={{ paddingLeft: noteIndent(row.depth) }}>
+              {row.text}
+            </div>
+          )
       case 'draft':
         return (
           <div key={row.key} className={css.row} data-draft="" style={{ paddingLeft: rowIndent(row.depth) }}>
@@ -858,32 +862,25 @@ export function FilesPane({
             }}
           />
           {memory.query !== '' && (
-            <button type="button" className={css.iconButton} aria-label={t('search.clear')} onClick={() => { update(current => ({ ...current, query: '' })) }}>
-              <IconLucideX />
-            </button>
+            <Tooltip label={t('search.clear')} side="bottom" anchor="icon">
+              <button type="button" className={css.iconButton} aria-label={t('search.clear')} onClick={() => { update(current => ({ ...current, query: '' })) }}>
+                <IconLucideX />
+              </button>
+            </Tooltip>
           )}
         </label>
-        <button
-          type="button"
-          className={clsx(css.iconButton, css.lightButton)}
-          aria-label={refreshing ? t('refreshing') : t('refresh')}
-          title={refreshing ? t('refreshing') : t('refresh')}
-          aria-busy={refreshing || undefined}
-          disabled={refreshing}
-          onClick={refresh}
-        >
-          {refreshing ? <Spinner className={css.spinner} /> : <IconLucideRefreshCw />}
-        </button>
-        <button
-          type="button"
-          className={clsx(css.iconButton, css.collapseAll)}
-          aria-label={t('collapseAll')}
-          title={t('collapseAll')}
-          disabled={memory.expanded.size === 0}
-          onClick={() => { update(current => ({ ...current, expanded: new Set() })) }}
-        >
-          <IconLucideChevronsDownUp />
-        </button>
+        <Tooltip label={refreshing ? t('refreshing') : t('refresh')} side="bottom" anchor="icon">
+          <button
+            type="button"
+            className={clsx(css.iconButton, css.lightButton)}
+            aria-label={refreshing ? t('refreshing') : t('refresh')}
+            aria-busy={refreshing || undefined}
+            disabled={refreshing}
+            onClick={refresh}
+          >
+            {refreshing ? <Spinner className={css.spinner} /> : <IconLucideRefreshCw />}
+          </button>
+        </Tooltip>
       </div>
       {actionError !== null && <div className={clsx(css.note, css.actionError)} role="alert">{actionError}</div>}
       <div className={css.scrollFrame}>
@@ -916,15 +913,12 @@ export function FilesPane({
     </div>
   )
 
-  const canBack = memory.historyIndex > 0
-  const canForward = memory.historyIndex >= 0 && memory.historyIndex < memory.history.length - 1
-
   return (
     <div className={css.root} data-sidebar-right-files="">
       {memory.openFile === null
         ? tree
         : (
-          <div ref={splitRef} className={css.split}>
+          <div ref={splitRef} className={css.split} style={SPLIT_FLOORS} data-docked={treeDocked || undefined}>
             <FileView
               key={memory.openFile}
               path={memory.openFile}
@@ -942,11 +936,24 @@ export function FilesPane({
               onToggleTree={() => { update(current => ({ ...current, treeVisible: !current.treeVisible })) }}
               onHtmlView={(htmlView) => { update(current => ({ ...current, htmlView })) }}
               onRefresh={() => { setFileVersion(version => version + 1) }}
-              onBack={canBack ? () => { update(current => stepHistory(current, -1)) } : undefined}
-              onForward={canForward ? () => { update(current => stepHistory(current, 1)) } : undefined}
               onClose={() => { update(current => ({ ...current, openFile: null })) }}
             />
-            {treeDocked && <div className={css.dock}>{tree}</div>}
+            {treeDocked && (
+              <>
+                <DockHandle
+                  dockRef={dockRef}
+                  label={t('tree.resize')}
+                  onResize={(dockWidth) => { update(current => ({ ...current, dockWidth })) }}
+                />
+                <div
+                  ref={dockRef}
+                  className={css.dock}
+                  style={memory.dockWidth === null ? undefined : { '--dock-width': `${String(memory.dockWidth)}px` } as CSSProperties}
+                >
+                  {tree}
+                </div>
+              </>
+            )}
           </div>
         )}
       {rowMenu !== null && (
@@ -973,15 +980,105 @@ export function FilesPane({
   )
 }
 
-/** Left padding of an entry row at `depth`. Depth 0 starts on the toolbar's left edge. */
-/**
- * The pane width from which the tree docks beside an open file: the dock's
- * 240px floor (`.dock` in FilesPane.module.css), the 4px split gap, and 380px
- * for the file, which its bar needs for every action plus a short path.
- * Narrower, the file takes the pane and closing it returns to the tree.
- */
-const DOCK_ROOM = 240 + 4 + 380
+/** The docked tree's narrowest width in px, dragged or default. */
+const DOCK_FLOOR = 240
 
+/**
+ * The open file's narrowest width in px beside the docked tree: its bar's every action plus a short path. A pane
+ * narrower than this and {@link DOCK_FLOOR} together gives the file the whole pane, and closing it returns to the tree.
+ */
+const FILE_FLOOR = 380
+
+/** Hands both floors to `.split` and `.dock` in FilesPane.module.css, which bound the dock's width with them. */
+const SPLIT_FLOORS = { '--dock-floor': `${String(DOCK_FLOOR)}px`, '--file-floor': `${String(FILE_FLOOR)}px` } as CSSProperties
+
+/** How far one arrow key press moves the docked tree's edge, in px. */
+const DOCK_KEY_STEP = 16
+
+/**
+ * The drag strip on the docked tree's left edge. A drag writes the dock's width straight to its style on each move and
+ * reports the width once, on release; Left and Right arrow keys widen and narrow it by {@link DOCK_KEY_STEP}. Widths stay
+ * between {@link DOCK_FLOOR} and the room that leaves the file {@link FILE_FLOOR}.
+ */
+function DockHandle({ dockRef, label, onResize }: {
+  dockRef: RefObject<HTMLDivElement | null>
+  label: string
+  /** Receives the settled width in px. */
+  onResize: (width: number) => void
+}): ReactNode {
+  const drag = useRef<{ origin: number; start: number } | null>(null)
+  const [dragging, setDragging] = useState(false)
+
+  const clamped = (dock: HTMLDivElement, width: number): number => {
+    const room = (dock.parentElement?.clientWidth ?? 0) - FILE_FLOOR
+    return Math.round(Math.max(DOCK_FLOOR, Math.min(width, room)))
+  }
+  const settle = (): void => {
+    const dock = dockRef.current
+    drag.current = null
+    setDragging(false)
+    if (dock !== null) onResize(clamped(dock, dock.getBoundingClientRect().width))
+  }
+
+  return (
+    <div
+      className={css.dockHandle}
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={label}
+      tabIndex={0}
+      data-dragging={dragging || undefined}
+      onPointerDown={(event: ReactPointerEvent<HTMLDivElement>) => {
+        const dock = dockRef.current
+        if (dock === null || event.button !== 0) return
+        event.preventDefault()
+        event.currentTarget.setPointerCapture(event.pointerId)
+        drag.current = { origin: event.clientX, start: dock.getBoundingClientRect().width }
+        setDragging(true)
+      }}
+      onPointerMove={(event: ReactPointerEvent<HTMLDivElement>) => {
+        const dock = dockRef.current
+        if (drag.current === null || dock === null) return
+        const width = clamped(dock, drag.current.start - (event.clientX - drag.current.origin))
+        dock.style.setProperty('--dock-width', `${String(width)}px`)
+      }}
+      onPointerUp={(event: ReactPointerEvent<HTMLDivElement>) => {
+        if (drag.current === null) return
+        event.currentTarget.releasePointerCapture(event.pointerId)
+        settle()
+      }}
+      onLostPointerCapture={() => { if (drag.current !== null) settle() }}
+      onKeyDown={(event: ReactKeyboardEvent<HTMLDivElement>) => {
+        const dock = dockRef.current
+        const step = event.key === 'ArrowLeft' ? DOCK_KEY_STEP : event.key === 'ArrowRight' ? -DOCK_KEY_STEP : 0
+        if (dock === null || step === 0) return
+        event.preventDefault()
+        onResize(clamped(dock, dock.getBoundingClientRect().width + step))
+      }}
+    />
+  )
+}
+
+/**
+ * Work in flight on a note's line: the shared loading mark, announced as `label`.
+ * @param props.label - what is loading, read to assistive technology.
+ * @param props.className - extra class for the line's inset.
+ * @param props.style - inline style, such as a tree note's indent.
+ * @returns the note element.
+ */
+function BusyNote({ label, className, style }: {
+  label: string
+  className?: string | undefined
+  style?: CSSProperties | undefined
+}): ReactNode {
+  return (
+    <div className={clsx(css.note, css.busyNote, className)} style={style} role="status" aria-label={label}>
+      <Spinner />
+    </div>
+  )
+}
+
+/** Left padding of an entry row at `depth`. Depth 0 starts on the toolbar's left edge. */
 function rowIndent(depth: number): string {
   return `${String(depth * 16)}px`
 }
@@ -1041,7 +1138,7 @@ function visibleRows(
   const walk = (path: string, depth: number) => {
     const folder = folders.get(path)
     if (folder === undefined || folder.status === 'loading') {
-      rows.push({ kind: 'note', key: `${path}\u0000loading`, text: t('loading'), depth })
+      rows.push({ kind: 'note', key: `${path}\u0000loading`, text: t('loading'), depth, busy: true })
       return
     }
     if (folder.status === 'error') {
@@ -1199,7 +1296,7 @@ function SearchRows({ search, focus, tabStop, openFile, t, onOpen, onFocus, onMe
   onFocus: (path: string) => void
   onMenu: (event: ReactMouseEvent, path: string, type: EntryType) => void
 }) {
-  if (search.pending && search.hits.length === 0) return <div className={css.note}>{t('loading')}</div>
+  if (search.pending && search.hits.length === 0) return <BusyNote label={t('loading')} />
   if (search.hits.length === 0) return <div className={css.note}>{t('search.empty')}</div>
   return (
     <>
@@ -1238,10 +1335,10 @@ function SearchRows({ search, focus, tabStop, openFile, t, onOpen, onFocus, onMe
   )
 }
 
-/** The open file: its history steps, breadcrumbs and actions, its type and copy bar, and its content by kind. */
+/** The open file: its breadcrumbs and actions, and its content by kind. */
 function FileView({
   path, version, copy, root, canOpenNative, treeVisible, canDock, htmlView, remote, sessionId, t,
-  onReveal, onToggleTree, onHtmlView, onRefresh, onBack, onForward, onClose,
+  onReveal, onToggleTree, onHtmlView, onRefresh, onClose,
 }: {
   path: string
   /** Bumped whenever the file may have changed, which reloads it in place. */
@@ -1261,8 +1358,6 @@ function FileView({
   onToggleTree: () => void
   onHtmlView: (view: 'preview' | 'source') => void
   onRefresh: () => void
-  onBack: (() => void) | undefined
-  onForward: (() => void) | undefined
   onClose: () => void
 }) {
   const name = basename(path)
@@ -1270,7 +1365,6 @@ function FileView({
   const extension = extensionOf(name)
   // Images, video, and audio play from the file's bytes; every other kind previews its text.
   const media = kind === 'image' || kind === 'video' || kind === 'audio'
-  const isCode = !media && kind !== 'markdown'
   const isHtml = extension === 'html' || extension === 'htm'
   const showPreview = isHtml && htmlView === 'preview'
   const [content, setContent] = useState<{ status: 'loading' } | { status: 'ready'; file: WorkspaceFileText } | { status: 'error'; message: string }>(
@@ -1378,18 +1472,16 @@ function FileView({
   return (
     <div className={css.file}>
       <div className={css.fileBar}>
-        {(onBack !== undefined || onForward !== undefined) && (
-          <span className={css.history}>
-            <button type="button" className={clsx(css.iconButton, css.lightButton, css.historyButton)} aria-label={t('file.back')}
-              title={t('file.back')} disabled={onBack === undefined} onClick={onBack}>
-              <IconLucideArrowLeft />
-            </button>
-            <button type="button" className={clsx(css.iconButton, css.lightButton, css.historyButton)} aria-label={t('file.forward')}
-              title={t('file.forward')} disabled={onForward === undefined} onClick={onForward}>
-              <IconLucideArrowRight />
-            </button>
-          </span>
-        )}
+        <Tooltip label={t('file.close')} side="bottom" anchor="icon">
+          <button
+            type="button"
+            className={clsx(css.iconButton, css.lightButton, css.fileBarClose)}
+            aria-label={t('file.close')}
+            onClick={onClose}
+          >
+            <IconLucideX />
+          </button>
+        </Tooltip>
         <nav
           className={clsx(css.crumbs, fadeLeft && css.fadeLeft, fadeRight && css.fadeRight)}
           ref={(node) => { crumbsRef.current = node; setCrumbs(node) }}
@@ -1415,71 +1507,59 @@ function FileView({
           })}
         </nav>
         {!(treeVisible && canDock) && !media && (
-          <button type="button" className={clsx(css.iconButton, css.lightButton)} aria-label={t('file.refresh')} title={t('file.refresh')} onClick={onRefresh}>
-            <IconLucideRefreshCw />
-          </button>
+          <Tooltip label={t('file.refresh')} side="bottom" anchor="icon">
+            <button type="button" className={clsx(css.iconButton, css.lightButton)} aria-label={t('file.refresh')} onClick={onRefresh}>
+              <IconLucideRefreshCw />
+            </button>
+          </Tooltip>
         )}
-        {canOpenNative && root !== null && <OpenWithButton path={absolute} remote={remote} t={t} />}
-        <button
-          type="button"
-          className={clsx(css.iconButton, css.lightButton)}
-          aria-label={t('file.download')}
-          title={t('file.download')}
-          disabled={root === null}
-          onClick={() => { downloadWorkspaceFile(sessionId, absolute) }}
-        >
-          <IconLucideDownload />
-        </button>
-        {canDock && (
+        {isHtml && (
+          // Shows the view a press switches to: the rendered page from the source, the source from the page.
+          <Tooltip label={previewLabel} side="bottom" anchor="icon">
+            <button
+              type="button"
+              className={clsx(css.iconButton, css.lightButton)}
+              aria-label={previewLabel}
+              onClick={() => {
+                if (!showPreview) sourceScroll.current = bodyRef.current?.scrollTop ?? 0
+                onHtmlView(showPreview ? 'source' : 'preview')
+              }}
+            >
+              {showPreview ? <IconLucideCode /> : <IconLucideTvMinimalPlay />}
+            </button>
+          </Tooltip>
+        )}
+        <Tooltip label={t('file.download')} side="bottom" anchor="icon">
           <button
             type="button"
             className={clsx(css.iconButton, css.lightButton)}
-            aria-pressed={treeVisible}
-            aria-label={treeVisible ? t('tree.hide') : t('tree.show')}
-            title={treeVisible ? t('tree.hide') : t('tree.show')}
-            onClick={onToggleTree}
+            aria-label={t('file.download')}
+            disabled={root === null}
+            onClick={() => { downloadWorkspaceFile(sessionId, absolute) }}
           >
-            <IconLucideFolderSearch />
+            <IconLucideDownload />
           </button>
+        </Tooltip>
+        {canDock && (
+          <Tooltip label={treeVisible ? t('tree.hide') : t('tree.show')} side="bottom" anchor="icon">
+            <button
+              type="button"
+              className={clsx(css.iconButton, css.lightButton)}
+              aria-pressed={treeVisible}
+              aria-label={treeVisible ? t('tree.hide') : t('tree.show')}
+              onClick={onToggleTree}
+            >
+              <IconLucideList />
+            </button>
+          </Tooltip>
         )}
-        <button
-          type="button"
-          className={clsx(css.iconButton, css.lightButton, css.fileClose)}
-          aria-label={t('file.close')}
-          title={t('file.close')}
-          onClick={onClose}
-        >
-          <IconLucideX />
-        </button>
+        {canOpenNative && root !== null && <OpenWithButton path={absolute} remote={remote} t={t} />}
       </div>
-      {isCode && (
-        <div className={css.codeBar}>
-          <span className={css.codeLang}>{extension}</span>
-          <span className={css.codeActions}>
-            {isHtml && (
-              <button
-                type="button"
-                className={clsx(css.iconButton, css.lightButton)}
-                aria-pressed={showPreview}
-                aria-label={previewLabel}
-                title={previewLabel}
-                onClick={() => {
-                  if (!showPreview) sourceScroll.current = bodyRef.current?.scrollTop ?? 0
-                  onHtmlView(showPreview ? 'source' : 'preview')
-                }}
-              >
-                <IconLucideEye />
-              </button>
-            )}
-            {content.status === 'ready' && (
-              <CopyIconButton text={content.file.text} label={t('code.copy')} copiedLabel={t('code.copied')} />
-            )}
-          </span>
-        </div>
-      )}
       {showPreview && (
         page === null
-          ? <div className={clsx(css.note, css.fileNote)}>{content.status === 'error' ? content.message : t('file.rendering')}</div>
+          ? content.status === 'error'
+            ? <div className={clsx(css.note, css.fileNote)}>{content.message}</div>
+            : <BusyNote label={t('file.rendering')} className={css.fileNote} />
           : <iframe className={css.preview} sandbox="allow-scripts" srcDoc={page} title={name} />
       )}
       <div className={css.scrollFrame} hidden={showPreview}>
@@ -1494,7 +1574,7 @@ function FileView({
             <audio className={css.audio} src={copy ?? workspaceFileUrl(sessionId, absolute)} controls preload="metadata" aria-label={name} />
           )}
           {!media && (content.status === 'loading'
-            ? <div className={css.note}>{t('loading')}</div>
+            ? <BusyNote label={t('loading')} />
             : content.status === 'error'
               ? <div className={css.note}>{content.message}</div>
               : (

@@ -1237,6 +1237,18 @@ export const IconLucideFiles = ({ className }: LucideGlyphProps) => (
   </LucideSvg>
 )
 
+/** lucide `list`: a bulleted list (the Files pane's tree toggle). */
+export const IconLucideList = ({ className }: LucideGlyphProps) => (
+  <LucideSvg className={className}>
+    <path d="M3 5h.01" />
+    <path d="M3 12h.01" />
+    <path d="M3 19h.01" />
+    <path d="M8 5h13" />
+    <path d="M8 12h13" />
+    <path d="M8 19h13" />
+  </LucideSvg>
+)
+
 /** lucide `folder-search`: a folder with a magnifier at its corner (the file browser's entry). */
 export const IconLucideFolderSearch = ({ className }: LucideGlyphProps) => (
   <LucideSvg className={className}>
@@ -1766,6 +1778,15 @@ export const IconLucideCode = ({ className }: LucideGlyphProps) => (
   <LucideSvg className={className}>
     <path d="m16 18 6-6-6-6" />
     <path d="m8 6-6 6 6 6" />
+  </LucideSvg>
+)
+
+/** lucide `tv-minimal-play`: show a document rendered as a page. */
+export const IconLucideTvMinimalPlay = ({ className }: LucideGlyphProps) => (
+  <LucideSvg className={className}>
+    <path d="M15.033 9.44a.647.647 0 0 1 0 1.12l-4.065 2.352a.645.645 0 0 1-.968-.56V7.648a.645.645 0 0 1 .967-.56z" />
+    <path d="M7 21h10" />
+    <rect width="20" height="14" x="2" y="3" rx="2" />
   </LucideSvg>
 )
 
