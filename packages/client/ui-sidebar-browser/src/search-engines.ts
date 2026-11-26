@@ -14,7 +14,7 @@ export const SEARCH_ENGINE_IDS = ['google', 'duckduckgo'] as const
 export type SearchEngineId = typeof SEARCH_ENGINE_IDS[number]
 
 /** Engine used until the reader picks another. */
-export const DEFAULT_SEARCH_ENGINE: SearchEngineId = 'google'
+export const DEFAULT_SEARCH_ENGINE: SearchEngineId = 'duckduckgo'
 
 /** Longest completion list kept from one engine answer. */
 export const MAX_SUGGESTIONS = 8
