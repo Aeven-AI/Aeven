@@ -192,6 +192,8 @@ export const Config: z<Config> = z.object({
    * first-run step knows it can end.
    */
   apiKeyEnv: z.string().role('credential-ref').default(DEFAULT_API_KEY_ENV),
+  /** Long-lived credential presented once the `apiKeyEnv` access token has expired. */
+  unattendedApiKeyEnv: z.string(),
   /** Shipped catalog; a user-settings section replaces it whole. */
   models: z.array(catalogModel).default([...DEFAULT_MODELS] as DeepSeekCatalogModel[]),
   /** Both are forwarded and both are accepted by the gateway. */
@@ -221,6 +223,29 @@ export const Config: z<Config> = z.object({
 /* jscpd:ignore-end */
 
 /**
+ * Whether a credential is a JWT whose `exp` claim has passed.
+ *
+ * The signature is not checked: the gateway verifies the token, and this only decides which of the user's own
+ * credentials to present. A value that is not a JWT, or carries no numeric `exp`, counts as unexpired.
+ * @param token - the credential value.
+ * @param nowSeconds - the current time in seconds since the epoch.
+ * @returns true when the token states an expiry at or before `nowSeconds`.
+ */
+function expired(token: string, nowSeconds: number = Math.floor(Date.now() / 1000)): boolean {
+  const payload = token.split('.')[1]
+  if (payload === undefined) return false
+  let claims: unknown
+  try {
+    claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'))
+  } catch {
+    // A segment that is not base64url JSON is not a JWT payload, so it states no expiry.
+    return false
+  }
+  const exp = (claims as { exp?: unknown } | null)?.exp
+  return typeof exp === 'number' && exp <= nowSeconds
+}
+
+/**
  * Entry and user-settings configuration.
  *
  * Declared rather than inferred, because schemastery's `z` is a callable generic
@@ -231,6 +256,13 @@ export interface Config {
   apiUrl?: string
   /** Credential holding the signed-in session; defaults to `AEVEN_TOKEN`. */
   apiKeyEnv?: string
+  /**
+   * Credential presented for the request's user when the `apiKeyEnv` value is an access token whose `exp` claim has
+   * passed, such as the refresh token a hosted Host stores per account (`AEVEN_REFRESH_TOKEN`). Aeven's `/v1` accepts
+   * it as a bearer while the account has a live session, so a turn that runs after the account's last page has closed,
+   * such as an automation, still authenticates. Absent, the `apiKeyEnv` value is presented even when expired.
+   */
+  unattendedApiKeyEnv?: string
   /** Advisory catalog shown to the picker; defaults to the shipped Aeven models. */
   models?: DeepSeekCatalogModel[]
   /** Forwarded to the gateway, which accepts both values. */
@@ -403,7 +435,13 @@ export function apply(ctx: Context, config: Config): void {
     const credentials = ctx.get('credentials')
 
     if (credentials !== undefined) {
-      const hit = await credentials.resolve(ref, requestUser(request))
+      const user = requestUser(request)
+      const hit = await credentials.resolve(ref, user)
+      if (hit !== undefined && hit.value.length > 0 && !expired(hit.value)) return hit.value
+      const unattended = config.unattendedApiKeyEnv === undefined
+        ? undefined
+        : await credentials.resolve(credentialRef(config.unattendedApiKeyEnv), user)
+      if (unattended !== undefined && unattended.value.length > 0) return unattended.value
       if (hit !== undefined && hit.value.length > 0) return hit.value
     }
 

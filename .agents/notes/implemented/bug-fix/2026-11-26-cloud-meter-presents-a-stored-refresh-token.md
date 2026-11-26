@@ -26,4 +26,4 @@ Separately, storage was rarely billed for four accounts. `du -sk` exits 1 when i
 
 ## Consequences
 
-A hosted account's credential file holds its refresh token from its first request after this change. The file is mode `0600` under the Host's private account folder, is left out of account exports, and is removed when the account is erased. A sign-out does not remove it; the API refuses it while the account has no live session. Model requests through `llm-aeven` still present only `AEVEN_TOKEN`.
+A hosted account's credential file holds its refresh token from its first request after this change. The file is mode `0600` under the Host's private account folder, is left out of account exports, and is removed when the account is erased. A sign-out does not remove it; the API refuses it while the account has no live session. `llm-aeven` presents the access token while its `exp` has not passed and the stored refresh token (`unattendedApiKeyEnv`) after it, so an automation that runs after the account's last page has closed still reaches `/v1`. It does not retry a refused request with the other credential, because a model call is not repeated on 401.

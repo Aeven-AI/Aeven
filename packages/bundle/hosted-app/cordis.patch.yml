@@ -99,6 +99,10 @@
   config:
     apiUrl: !!js process.env.AEVEN_API_URL ?? 'http://localhost:9000'
     requestCompression: none
+    # A turn that runs after the account's last page has closed, such as an
+    # automation, presents the refresh token the connection stores per account
+    # once the page's access token has expired.
+    unattendedApiKeyEnv: AEVEN_REFRESH_TOKEN
 
 - id: sync-yjs
   config:

@@ -52,6 +52,7 @@ kind: "package-reference"
 |---|---|---|
 | `apiUrl` | `http://localhost:9000` | Aeven API 来源；会追加 `/v1`，因此来源仍是运维方唯一需要配置的事实 |
 | `apiKeyEnv` | `AEVEN_TOKEN` | 持有已登录会话的凭据引用，先经凭据 seam 解析，再回退到环境变量 |
+| `unattendedApiKeyEnv` | 无 | 当 `apiKeyEnv` 的值是 `exp` 已过的 JWT 时，为请求的用户出示的凭据引用，例如托管 Host 按账户保存的 refresh token；缺省时出示已过期的值，由网关拒绝 |
 | `models` | Aeven Flash + Aeven Pro | 供发现类消费者读取的建议性目录；设置中的一节会整体替换它 |
 | `thinking` | `enabled` | 部署策略；`disabled` 会把每个请求锁定为 `off` |
 | `reasoningEffort` | `high` | 默认强度：`off`、`low`、`high` 或 `max` |
