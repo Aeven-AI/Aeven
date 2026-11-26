@@ -27,6 +27,16 @@
     "gemini-\\d",
     "\\]\\(\\.\\./"
    ]
+  },
+  "JuliusBrussee/caveman": {
+   "ref": "e74a11ccdb38b98d15c9f9545787c907dd15f0ab",
+   "patch": "patches/juliusbrussee-caveman.patch",
+   "forbid": [
+    "Claude",
+    "\\.claude/",
+    "caveman-compress",
+    "disable-model-invocation"
+   ]
   }
  },
  "skills": [
@@ -330,6 +340,36 @@
    "category": "pstack",
    "author": "Lauren Tan (poteto)",
    "pack": "pstack"
+  },
+  {
+   "repo": "JuliusBrussee/caveman",
+   "path": "skills/caveman",
+   "files": [
+    "SKILL.md"
+   ],
+   "category": "caveman",
+   "author": "Julius Brussee",
+   "pack": "caveman"
+  },
+  {
+   "repo": "JuliusBrussee/caveman",
+   "path": "skills/ultracave",
+   "files": [
+    "SKILL.md"
+   ],
+   "category": "caveman",
+   "author": "Julius Brussee",
+   "pack": "caveman"
+  },
+  {
+   "repo": "JuliusBrussee/caveman",
+   "path": "skills/megacave",
+   "files": [
+    "SKILL.md"
+   ],
+   "category": "caveman",
+   "author": "Julius Brussee",
+   "pack": "caveman"
   }
  ]
 }
