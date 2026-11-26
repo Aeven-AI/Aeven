@@ -168,7 +168,9 @@ function longestRun(indices: readonly number[]): [number, number] | undefined {
 function readingWords(text: string): number {
   const spaced = text.match(/[\p{L}\p{M}\p{N}%$]+/gu) ?? []
   const unspaced = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Thai}]/u
-  return spaced.reduce((count, word) => count + (unspaced.test(word) ? Math.max(1, Math.ceil([...word].length / 2)) : 1), 0)
+  const segmenter = new Intl.Segmenter('ja', { granularity: 'word' })
+  const wordsIn = (run: string): number => Array.from(segmenter.segment(run)).filter(segment => segment.isWordLike === true).length
+  return spaced.reduce((count, word) => count + (unspaced.test(word) ? Math.max(1, wordsIn(word)) : 1), 0)
 }
 
 const seconds = (value: number): string => `${value.toFixed(2)} s`

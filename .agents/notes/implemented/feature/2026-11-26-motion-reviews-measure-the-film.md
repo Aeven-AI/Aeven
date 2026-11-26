@@ -2,7 +2,7 @@
 
 Status: implemented
 
-English
+English | [中文](2026-11-26-motion-reviews-measure-the-film.zh.md)
 
 ## Problem
 

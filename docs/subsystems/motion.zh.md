@@ -28,7 +28,7 @@ register(renderer: MotionRenderer): () => Promise<void>
 
 /**
  * Apply the configured defaults and capture the registered renderer.
- * @param request - composition, output, and optional fps, quality, and still times.
+ * @param request - composition, output, and optional fps, quality, still times and region, and audit times.
  * @returns renderer-pinned input for {@link render}.
  * @throws When no renderer is registered.
  */
@@ -47,7 +47,7 @@ async bundle(compositionDir: string): Promise<string>
  * @param spec - resolved render; a withdrawn or replaced renderer is rejected.
  * @param signal - caller cancellation.
  * @param onProgress - optional progress sink.
- * @returns the written film.
+ * @returns the written film, with the findings judged from the renderer's audit samples.
  */
 async render(spec: MotionRenderSpec, signal: AbortSignal, onProgress?: (progress: MotionProgress) => void): Promise<MotionRenderOutput>
 ```

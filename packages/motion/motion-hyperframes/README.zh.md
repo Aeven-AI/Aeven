@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-该提供方把 [HyperFrames](https://github.com/heygen-com/hyperframes)（Apache-2.0）注册为动态影片渲染器。HyperFrames 在无头 Chromium 中加载合成，逐帧定位其已暂停的 GSAP 时间线，并用 ffmpeg 编码这些帧，因此同一组文件每次渲染的结果都相同。编码使用 Aeven 构建的 ffmpeg 与 ffprobe，它们不含任何 GPL 代码，因此 H.264 来自各平台自身提供的编码器。其 `bundle()` 即内联运行时的 HyperFrames `bundleToSingleHtml`。
+该提供方把 [HyperFrames](https://github.com/heygen-com/hyperframes)（Apache-2.0）注册为动态影片渲染器。HyperFrames 在无头 Chromium 中加载合成，逐帧定位其已暂停的 GSAP 时间线，并用 ffmpeg 编码这些帧，因此同一组文件每次渲染的结果都相同。编码使用 Aeven 构建的 ffmpeg 与 ffprobe，它们不含任何 GPL 代码，因此 H.264 来自各平台自身提供的编码器。其 `bundle()` 即内联运行时并嵌入字体的 HyperFrames `bundleToSingleHtml`。
 
 ## 目录
 
@@ -33,7 +33,8 @@ kind: "package-reference"
 | `fallbackEncoders` | `h264_mf`、`libopenh264` | HyperFrames 找不到硬件编码器时依次尝试的 H.264 编码器 |
 | `intermediateProfile` | `422` | 回退编码器所读取中间文件的 ProRes 档次 |
 | `fallbackBitrate` | `6M` / `12M` / `20M` | `draft` / `standard` / `high` 的回退视频码率 |
-| `stillWidth` | `960` | 返回静帧的像素宽度 |
+| `stillWidth` | `960` | 返回静帧的最大像素宽度；裁剪到更窄区域的静帧保留自身像素 |
+| `auditReadyMs` | `30000` | 审计页面加载合成并等到其播放器就绪的最长时间 |
 
 各平台的编码器：
 
@@ -54,7 +55,11 @@ kind: "package-reference"
 - **直接路径：** HyperFrames 自己的探测找到硬件编码器时，用该编码器写出 MP4。
 - **回退路径：** 否则先在临时文件夹中渲染 ProRes `.mov`，再由第一个能编码测试帧的回退编码器把它重新编码为 H.264，并复制 AAC 音频。
 
-随后 ffprobe 读取影片的时长与尺寸，ffmpeg 取出请求的静帧。渲染一次只运行一个；每次渲染本身已用满所有核心。
+随后 ffprobe 读取影片的时长与尺寸，ffmpeg 取出请求的静帧，请求指定静帧区域时会裁剪到该区域。渲染一次只运行一个；每次渲染本身已用满所有核心。
+
+`bundle()` 先用 HyperFrames 的编译器内联合成，再把字体以 data URL 嵌入：HyperFrames 随附的字体族、Google Fonts 以合成所用名称提供的任何其他字体族（首次获取后存入 HyperFrames 的字体缓存），以及文件夹内的 `@font-face` 文件。任何途径都无法解析的字体族会被记录，并交由浏览器回退。
+
+请求了审计时间的渲染会在影片写出后测量它：打包文档加上 [`avn-motion`](../motion/README.zh.md) 的审计脚本，经由 producer 所依赖的 Puppeteer 在同一浏览器的无头页面中加载，页面的采样随影片一起返回。无法运行的审计会被记录，影片不带采样返回。
 
 -----
 

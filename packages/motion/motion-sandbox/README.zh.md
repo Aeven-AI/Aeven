@@ -41,7 +41,7 @@ kind: "package-reference"
 <a id="understand-the-implementation"></a>
 ## 理解实现
 
-复制过程用 `ctx.fs.listDir` 遍历文件夹，只保留解析后目标位于该文件夹内的普通文件与目录，因此命令放在那里的符号链接无法把其他文件夹的文件带入文档。写出影片的顶层 `renders/` 文件夹会被跳过。渲染先要求合成文件夹与输出路径都解析在策略的工作区根内，再以标准输入传入打包文档运行 `render-motion - <out.mp4> --json`，因此页面从不接触账户文件夹；命令标准输出的最后一行是其 JSON 结果。影片大小取自 `ctx.fs.stat`，编码器为沙箱的 libx264。
+复制过程用 `ctx.fs.listDir` 遍历文件夹，只保留解析后目标位于该文件夹内的普通文件与目录，因此命令放在那里的符号链接无法把其他文件夹的文件带入文档。写出影片的顶层 `renders/` 文件夹会被跳过。渲染先要求合成文件夹与输出路径都解析在策略的工作区根内，再以标准输入传入打包文档运行 `render-motion - <out.mp4> --json`，因此页面从不接触账户文件夹；命令标准输出的最后一行是其 JSON 结果。打包文档以 data URL 携带字体，由 Host 在文档进入沙箱前获取并嵌入，因为沙箱内任何网络请求都不会成功：HyperFrames 随附的字体族、Google Fonts 以合成所用名称提供的任何其他字体族，以及文件夹内的 `@font-face` 文件。带静帧区域的请求会传入 `--still-region`，带审计时间的请求会把 [`avn-motion`](../motion/README.zh.md) 的审计脚本加入文档并传入 `--audit-times`；命令在结果中返回页面的采样。已安装的 `render-motion` 必须是本版本的：旧版本会拒绝这两个选项。影片大小取自 `ctx.fs.stat`，编码器为沙箱的 libx264。
 
 -----
 
