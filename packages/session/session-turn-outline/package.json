@@ -1,7 +1,7 @@
 {
   "name": "@aeven/session-turn-outline",
   "description": "Whole-log turn outline (turnOutline) and per-turn produced files (turnDeliverables) projections for the Aeven",
-  "version": "0.3.70-alpha",
+  "version": "0.3.71-alpha",
   "publishConfig": {
     "access": "public"
   },
