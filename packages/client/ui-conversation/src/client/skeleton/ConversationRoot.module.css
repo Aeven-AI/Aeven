@@ -641,44 +641,6 @@
    usage panel (1100), paints above the plate while the body is mounted under it.
    `.scrollArea` capped that group at 5 and went with the one-scroller box tree
    ([decision](../../../../../../.agents/notes/implemented/bug-fix/2026-09-09-content-cover-behind-composer.md)). */
-/* Fills the frame's cover layer, which states the box (ui-layout
-   AppFrame.module.css): every column right of the sidebar, and the chrome laid
-   over them. The layer carries the stacking order, so this needs none. */
-.contentLoader {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 1;
-}
-
-.contentLoaderHide {
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 400ms linear;
-}
-
-/* Size, rotation and reduced-motion come from the shared Spinner primitive;
-   this only lifts it above the overlay's background plate. */
-.contentLoaderSpinner {
-  position: relative;
-  z-index: 1;
-  color: var(--dsw-alias-label-primary);
-}
-
-.contentLoaderBackground {
-  position: absolute;
-  inset: 0;
-  background-color: var(--dsw-alias-bg-base);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .contentLoaderHide {
-    transition: none;
-  }
-}
-
 /* The column's one scroller. It draws no bar of its own: the element also
    carries ui-theme's `no-scrollbar`, so the wheel and the keyboard still move
    the flow while nothing reserves a gutter or paints a thumb over the

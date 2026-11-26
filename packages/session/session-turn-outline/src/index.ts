@@ -14,6 +14,7 @@ import { turnDeliverablesProjectionDefinition } from './deliverables-projection.
 import { turnOutlineProjectionDefinition } from './projection.ts'
 
 export type * from './types.ts'
+export { turnDeliverablesProjectionDefinition } from './deliverables-projection.ts'
 
 /** Cordis plugin name. */
 export const name = 'session-turn-outline'

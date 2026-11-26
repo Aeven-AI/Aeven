@@ -5,11 +5,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import clsx from 'clsx'
-import { Button, HeroShell, IconLucideArchiveArrowUp, Tooltip } from '@aeven/client-ui-primitives'
+import { Button, HeroShell, IconLucideArchiveArrowUp, Tooltip, ContentLoader } from '@aeven/client-ui-primitives'
 import type { SessionId } from '@aeven/session/types'
 import type { ConversationSlotProps, InputZone } from '../contract/slots.ts'
 import { useContentCover } from './content-cover.ts'
-import { ContentLoader } from './ContentLoader.tsx'
 import css from './ConversationRoot.module.css'
 
 /** Full props composed from the slot contract. */

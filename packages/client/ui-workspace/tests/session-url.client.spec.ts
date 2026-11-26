@@ -131,4 +131,27 @@ describe('BrowserSessionUrlNavigation', () => {
     for (const release of releases) release()
     expect(navigation.matchStart(bot)).toBeUndefined()
   })
+
+  it('resolves a :key pattern for a plain word, after an exact address and an :id pattern', () => {
+    const browser = new FakeWindow()
+    const navigation = new BrowserSessionUrlNavigation(() => browser)
+    const uuid = '3a2b1c0d-5e6f-4a7b-8c9d-0e1f2a3b4c5d'
+    const releases = [
+      navigation.registerStart('/inspiration/slides'), navigation.registerStart('/inspiration/:key'),
+      navigation.registerStart('/artifacts/:key'), navigation.registerStart('/artifacts/:id'),
+    ]
+
+    expect(navigation.matchStart('/inspiration/slides')).toBe('/inspiration/slides')
+    expect(navigation.matchStart('/inspiration/sketch')).toBe('/inspiration/:key')
+    expect(navigation.matchStart('/artifacts/c2Vzc2lvbi0x_LQ')).toBe('/artifacts/:key')
+    expect(navigation.matchStart(`/artifacts/${uuid}`)).toBe('/artifacts/:id')
+    for (const path of ['/inspiration/a.b', '/inspiration/a%2Fb', '/inspiration/slides/x', '/artifacts']) {
+      expect(navigation.matchStart(path)).toBeUndefined()
+    }
+    browser.navigate('/inspiration/sketch')
+    expect(navigation.readStart()).toBe('/inspiration/sketch')
+    expect(navigation.ownsAddress()).toBe(true)
+
+    for (const release of releases) release()
+  })
 })

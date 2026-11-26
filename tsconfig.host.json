@@ -424,6 +424,8 @@
     { "path": "./packages/host/cloud-meter" },
     { "path": "./packages/host/account-data" },
     { "path": "./packages/host/message-share" },
+    { "path": "./packages/host/artifacts" },
+    { "path": "./packages/host/artifact-previews" },
     { "path": "./packages/host/plugin-inventory" },
     { "path": "./packages/llm/plugin-package-inventory-deepseek" },
     { "path": "./packages/host/webserver" },

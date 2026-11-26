@@ -33,7 +33,25 @@
   transform-origin: center;
 }
 
+/* Each sparkle shrinks and regrows about its own centre, one after the other. */
+.sparkle {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
 @media (prefers-reduced-motion: no-preference) {
+  :is(a, button):is(:hover, :focus-visible) .sparkle {
+    animation: avn-glyph-sparkle 600ms ease-in-out;
+  }
+
+  :is(a, button):is(:hover, :focus-visible) .sparkle:nth-of-type(4) {
+    animation-delay: 120ms;
+  }
+
+  :is(a, button):is(:hover, :focus-visible) .sparkle:nth-of-type(5) {
+    animation-delay: 240ms;
+  }
+
   .plus {
     transition: transform 620ms cubic-bezier(0.34, 1.45, 0.5, 1);
   }
@@ -148,5 +166,16 @@
   100% {
     transform: translateY(0) scale(1);
     opacity: 1;
+  }
+}
+
+@keyframes avn-glyph-sparkle {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+
+  50% {
+    transform: scale(0.35) rotate(90deg);
   }
 }

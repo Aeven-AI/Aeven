@@ -1,0 +1,62 @@
+{
+  "name": "@aeven/host-artifact-previews",
+  "description": "Card pictures for the files Aeven made: rendered once per file version and served from a disk cache",
+  "version": "0.3.73-alpha",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aeven-AI/Aeven.git",
+    "directory": "packages/host/artifact-previews"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/pdf-worker.cjs",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@deepseek-ai/schemastery": "workspace:^",
+    "@napi-rs/canvas": "1.0.9",
+    "fflate": "0.8.3",
+    "pdfjs-dist": "6.1.200",
+    "puppeteer-core": "25.16.0",
+    "sharp": "0.35.3"
+  },
+  "peerDependencies": {
+    "@aeven/api-workspace-files": "workspace:^",
+    "@aeven/brand": "workspace:^",
+    "@aeven/client-connection": "workspace:^",
+    "@aeven/fs": "workspace:^",
+    "@aeven/motion-hyperframes": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
+  },
+  "peerDependenciesMeta": {
+    "@aeven/motion-hyperframes": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@aeven/api-workspace-files": "workspace:^",
+    "@aeven/brand": "workspace:^",
+    "@aeven/client-connection": "workspace:^",
+    "@aeven/fs": "workspace:^",
+    "@aeven/motion-hyperframes": "workspace:^",
+    "@aeven/session": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:^"
+  }
+}

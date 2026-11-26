@@ -1,0 +1,319 @@
+/* The Inspiration page's box and cards (ui-imagine ImaginePrompts.module.css): the composer's own horizontal
+   box, pills on one track, and 4:5 cards four to a row, three and then two as the page itself narrows. */
+.root {
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 53px var(--avn-composer-side-clearance) 24px;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 32px;
+  width: 100%;
+  max-width: var(--avn-composer-card-max-width);
+}
+
+.tabs {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  height: 30px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-radius: 15px;
+  background: var(--dsw-alias-bg-module-platform);
+  --avn-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --avn-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+.tab {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 15px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.875rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tab:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.tab[aria-pressed='true'] {
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: -2px;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.groupTitle {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-family: var(--dsw-font-family);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.125rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+.root[data-cards='3'] .grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.root[data-cards='2'] .grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.card {
+  position: relative;
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  aspect-ratio: 4 / 5;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 30px;
+  background: var(--dsw-alias-interactive-bg-hover);
+  cursor: pointer;
+}
+
+.card:focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 300ms ease;
+}
+
+.card[data-state='ready']:hover .image,
+.card[data-state='ready']:hover .stage {
+  transform: scale(1.03);
+}
+
+/* A Motion film's player fills the card; the card, not the film, takes every click. The film keeps its own
+   frame, centred on the dark ground. */
+.stage {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  pointer-events: none;
+  transition: transform 300ms ease;
+}
+
+.player {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* A dark fade at the card's foot keeps the caption legible on any picture. */
+.shade {
+  position: absolute;
+  inset: 55% 0 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.5), transparent);
+  pointer-events: none;
+}
+
+.caption {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: #fff;
+  font-family: var(--dsw-font-family);
+  text-align: left;
+}
+
+.title {
+  overflow: hidden;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.125rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kind {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  opacity: 0.8;
+}
+
+/* A file with no picture of its own reads as paper: the raised layer with the caption in ink. */
+.card[data-state='paper'] {
+  background: var(--dsw-alias-bg-layer-1);
+  box-shadow: inset 0 0 0 1px var(--dsw-alias-border-l1, rgba(0, 0, 0, 0.08));
+}
+
+.card[data-state='paper'] .caption,
+.card[data-state='loading'] .caption {
+  color: var(--dsw-alias-label-primary);
+}
+
+/* The loading surface, as on the Inspiration cards: the spinner centred on the raised layer, the caption in ink
+   above it. It fades out as the content arrives while the shade fades in, so the hand-over is one cross-fade;
+   it never takes a click. */
+.preloader {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--dsw-alias-bg-layer-1);
+  pointer-events: none;
+  transition: opacity 260ms ease, visibility 0s linear 260ms;
+}
+
+.card:not([data-state='loading']) .preloader {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.card[data-state='loading'] .caption {
+  z-index: 1;
+}
+
+.shade,
+.caption {
+  transition: opacity 260ms ease, color 260ms ease;
+}
+
+.card[data-state='loading'] .shade {
+  opacity: 0;
+}
+
+/* A text file set in its card: small ink lines on paper, cut at the card's foot under a fade the caption sits on. */
+.text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 22px 20px;
+  overflow: hidden;
+  background: #fbfaf7;
+  color: #1f1f1f;
+  font-family: var(--dsw-font-family);
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  text-align: left;
+  pointer-events: none;
+}
+
+.textHeading {
+  margin: 4px 0 2px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  line-height: 1.125rem;
+}
+
+.textHeading[data-level='1'] {
+  font-size: 1.125rem;
+  line-height: 1.375rem;
+}
+
+.textLine {
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.textGap {
+  min-height: 6px;
+}
+
+.textShade {
+  position: absolute;
+  inset: 45% 0 0;
+  background: linear-gradient(to top, #fbfaf7 30%, rgba(251, 250, 247, 0));
+}
+
+.card[data-kind] .text ~ .caption {
+  color: #1f1f1f;
+}
+
+.progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-family: var(--dsw-font-family);
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+}
+
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--dsw-alias-label-secondary);
+  font-family: var(--dsw-font-family);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.state p {
+  margin: 0;
+}
+
+.retry {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preloader,
+  .shade,
+  .caption,
+  .stage,
+  .image {
+    transition: none;
+  }
+}

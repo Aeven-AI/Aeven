@@ -14,19 +14,25 @@ const source = readFileSync(
   'utf8',
 )
 
+/** The content cover's own sheet, which the shared primitive owns. */
+const coverSource = readFileSync(
+  fileURLToPath(new URL('../../ui-primitives/src/ContentLoader.module.css', import.meta.url)),
+  'utf8',
+)
+
 /** The active phase's seat rule; the sheet spells attribute values in double quotes. */
 const ACTIVE_SEAT = '.root[data-phase="active"] .composerSeat'
 
-function declarationsFrom(selector: string): string[] {
-  const declarationText = source.replace(/\/\*[\s\S]*?\*\//g, ' ')
+function declarationsFrom(selector: string, sheet: string = source): string[] {
+  const declarationText = sheet.replace(/\/\*[\s\S]*?\*\//g, ' ')
   const rule = new RegExp(`(?:^|[{}])\\s*${selector.replace(/[.[\]():*+^$\\]/g, '\\$&')}\\s*\\{([^{}]*)\\}`).exec(declarationText)
   if (rule === null) throw new Error(`no \`${selector}\` rule`)
   return (rule[1] ?? '').split(';').map(part => part.trim()).filter(Boolean)
 }
 
 /** Whether one rule takes a stacking level of its own. */
-function takesLevel(selector: string): boolean {
-  return declarationsFrom(selector).some(part => part.startsWith('z-index:'))
+function takesLevel(selector: string, sheet: string = source): boolean {
+  return declarationsFrom(selector, sheet).some(part => part.startsWith('z-index:'))
 }
 
 describe('conversation composer seat styles', () => {
@@ -73,7 +79,7 @@ describe('conversation content cover styles', () => {
     // resident seat — which stays mounted across a Session switch — out and
     // back in. Nothing inside the one scroller takes a level either: a level on
     // the scroller would cap every child it holds, the seat among them.
-    expect(takesLevel('.contentLoader')).toBe(false)
+    expect(takesLevel('.contentLoader', coverSource)).toBe(false)
     expect(takesLevel('.scrollBody')).toBe(false)
     expect(takesLevel('.transcriptHold')).toBe(false)
   })
@@ -82,7 +88,7 @@ describe('conversation content cover styles', () => {
     // Absolute fill against `.root` is ConversationRoot's width and the full
     // page height of that column; a viewport-fixed layer would also cover the
     // sidebar. The seat stacks above the cover, so the input stays usable.
-    const declarations = declarationsFrom('.contentLoader')
+    const declarations = declarationsFrom('.contentLoader', coverSource)
     expect(declarations).toContain('position: absolute')
     expect(declarations).toContain('inset: 0')
     expect(declarations).not.toContain('position: fixed')

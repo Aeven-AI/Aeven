@@ -37,17 +37,19 @@ import {
   type MarkdownLabels, type MenuEntry,
 } from '@aeven/client-ui-primitives'
 import type { SidebarContentPaneProps } from '@aeven/client-ui-sidebar-select/client'
+import { randomUUID } from '@aeven/util-crypto'
 import { resolveWorkspacePath } from '@aeven/util-workspace-path'
 import type { TranslateNS } from '@aeven/client-ui-slots'
 import {
-  ancestorsOf, forgotten, recall, remember, renamed, type ExplorerMemory,
+  ancestorsOf, forgotten, recall, remember, renamed, saveHtmlView, type ExplorerMemory,
 } from './memory.ts'
 import { middleTruncate, nameProblem } from './names.ts'
 import {
   applicationItems, canPreviewFile, downloadWorkspaceFile, openOnDesktop, operationOf, OpenWithButton, revealLabel,
   useApplications, workspaceFileUrl,
 } from './open-with.tsx'
-import { previewDocument } from './preview.ts'
+import { previewDocument, serveFrameFiles } from './preview.ts'
+import { MotionStage } from './MotionStage.tsx'
 import css from './FilesPane.module.css'
 
 /** What the plugin hands every Files pane beyond the column's props. */
@@ -934,7 +936,10 @@ export function FilesPane({
               t={t}
               onReveal={(path) => { reveal(path, 'directory') }}
               onToggleTree={() => { update(current => ({ ...current, treeVisible: !current.treeVisible })) }}
-              onHtmlView={(htmlView) => { update(current => ({ ...current, htmlView })) }}
+              onHtmlView={(htmlView) => {
+                saveHtmlView(htmlView)
+                update(current => ({ ...current, htmlView }))
+              }}
               onRefresh={() => { setFileVersion(version => version + 1) }}
               onClose={() => { update(current => ({ ...current, openFile: null })) }}
             />
@@ -1335,6 +1340,27 @@ function SearchRows({ search, focus, tabStop, openFile, t, onOpen, onFocus, onMe
   )
 }
 
+/** The root page of a HyperFrames composition, which a Motion film starts from. */
+const COMPOSITION_ROOT = /data-composition-id\s*=\s*["']main["']/u
+
+/**
+ * Whether an HTML file is a Motion composition's root page.
+ * @param html - the file's text.
+ * @returns true when the page declares the composition root.
+ */
+function isCompositionRoot(html: string): boolean {
+  return COMPOSITION_ROOT.test(html)
+}
+
+/**
+ * The folder holding a file.
+ * @param path - absolute file path.
+ * @returns the path without its last segment.
+ */
+function folderOfPath(path: string): string {
+  return path.slice(0, Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')))
+}
+
 /** The open file: its breadcrumbs and actions, and its content by kind. */
 function FileView({
   path, version, copy, root, canOpenNative, treeVisible, canDock, htmlView, remote, sessionId, t,
@@ -1366,10 +1392,12 @@ function FileView({
   // Images, video, and audio play from the file's bytes; every other kind previews its text.
   const media = kind === 'image' || kind === 'video' || kind === 'audio'
   const isHtml = extension === 'html' || extension === 'htm'
-  const showPreview = isHtml && htmlView === 'preview'
   const [content, setContent] = useState<{ status: 'loading' } | { status: 'ready'; file: WorkspaceFileText } | { status: 'error'; message: string }>(
     { status: 'loading' },
   )
+  const showPreview = isHtml && htmlView === 'preview'
+  // A Motion composition's root page previews as its film.
+  const showFilm = showPreview && content.status === 'ready' && isCompositionRoot(content.file.text)
   // A reload keeps the text on screen until the new one arrives, so the reader keeps their place.
   useEffect(() => {
     if (media) return undefined
@@ -1385,30 +1413,50 @@ function FileView({
     return () => { controller.abort() }
   }, [media, path, remote, sessionId, t, version])
 
-  const [page, setPage] = useState<string | null>(null)
+  const [page, setPage] = useState<{ readonly html: string; readonly token: string } | null>(null)
+  // The text view's refusal (a file past its byte cap) says nothing about the rendered page, which reads the whole
+  // document; it shows only once building the page has failed too.
+  const [pageFailed, setPageFailed] = useState(false)
+  // The spinner covers the frame until the frame's document has loaded, then fades.
+  const [pageLoaded, setPageLoaded] = useState(false)
+  const readAsset = useCallback(async (asset: string, signal: AbortSignal): Promise<Blob | undefined> => {
+    const response = await fetch(workspaceFileUrl(sessionId, absolutePath(root, asset)), { signal, credentials: 'same-origin' })
+    return response.ok ? response.blob() : undefined
+  }, [root, sessionId])
   useEffect(() => {
-    if (!showPreview || content.status === 'loading') return undefined
+    if (!showPreview || showFilm || content.status === 'loading') return undefined
     const controller = new AbortController()
-    const read = async (asset: string, signal: AbortSignal): Promise<Blob | undefined> => {
-      const response = await fetch(workspaceFileUrl(sessionId, absolutePath(root, asset)), { signal, credentials: 'same-origin' })
-      return response.ok ? response.blob() : undefined
-    }
+    const token = randomUUID()
+    setPageFailed(false)
+    setPageLoaded(false)
     // The text view reads one capped page of the file, and refuses a file past its byte cap; the rendered page reads
     // the whole document.
     const text = content.status === 'ready' ? content.file.text : undefined
     const whole = content.status === 'ready' && content.file.eof
       ? Promise.resolve(content.file.text)
-      : read(path, controller.signal).then(blob => blob?.text() ?? text)
+      : readAsset(path, controller.signal).then(blob => blob?.text() ?? text)
     void whole.then(async (html) => {
       if (html === undefined) throw new Error('page unavailable')
-      return previewDocument(html, path, read, controller.signal)
+      return previewDocument(html, path, readAsset, controller.signal, token)
     }).then((built) => {
-      if (!controller.signal.aborted) setPage(built)
+      if (!controller.signal.aborted) setPage({ html: built, token })
     }, () => {
-      if (!controller.signal.aborted && text !== undefined) setPage(text)
+      if (controller.signal.aborted) return
+      if (text !== undefined) setPage({ html: text, token })
+      else setPageFailed(true)
     })
     return () => { controller.abort() }
-  }, [content, path, root, sessionId, showPreview])
+  }, [content, path, readAsset, showPreview, showFilm])
+
+  // The rendered page's scripts load workspace files through the app while the frame shows it. A layout effect
+  // listens before the frame's document can run its first script.
+  const [frame, setFrame] = useState<HTMLIFrameElement | null>(null)
+  useLayoutEffect(() => {
+    if (frame === null || page === null) return undefined
+    const controller = new AbortController()
+    serveFrameFiles(frame, path, readAsset, page.token, controller.signal)
+    return () => { controller.abort() }
+  }, [frame, page, path, readAsset])
 
   const labels = useMemo<MarkdownLabels>(() => ({
     code: { copyLabel: t('code.copy'), copiedLabel: t('code.copied') },
@@ -1555,12 +1603,33 @@ function FileView({
         )}
         {canOpenNative && root !== null && <OpenWithButton path={absolute} remote={remote} t={t} />}
       </div>
-      {showPreview && (
-        page === null
-          ? content.status === 'error'
-            ? <div className={clsx(css.note, css.fileNote)}>{content.message}</div>
-            : <BusyNote label={t('file.rendering')} className={css.fileNote} />
-          : <iframe className={css.preview} sandbox="allow-scripts" srcDoc={page} title={name} />
+      {showFilm && <MotionStage folder={folderOfPath(absolute)} copy={copy} className={css.preview} title={name} t={t} />}
+      {showPreview && !showFilm && (
+        pageFailed && content.status === 'error'
+          ? <div className={clsx(css.note, css.fileNote)}>{content.message}</div>
+          : (
+            <div className={css.previewStage}>
+              {page !== null && (
+                <iframe
+                  ref={setFrame}
+                  className={css.preview}
+                  sandbox="allow-scripts"
+                  srcDoc={page.html}
+                  title={name}
+                  onLoad={() => { setPageLoaded(true) }}
+                />
+              )}
+              <div
+                className={css.previewLoader}
+                data-loaded={pageLoaded || undefined}
+                role="status"
+                aria-label={t('file.rendering')}
+                aria-hidden={pageLoaded || undefined}
+              >
+                <Spinner />
+              </div>
+            </div>
+          )
       )}
       <div className={css.scrollFrame} hidden={showPreview}>
         <div ref={bodyRef} className={clsx(css.fileBody, kind === 'markdown' && css.fileBodyProse)}>

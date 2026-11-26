@@ -76,20 +76,42 @@ export function apply(ctx: ClientContext): void {
     const openers = new Map<string, (path: string) => void>()
     // Stored copies by session and path, named by the surface that opened the file.
     const copies = new Map<string, string>()
-    const openFile = async (sessionId: SessionId, path: string, copy?: string): Promise<boolean> => {
-      if (!await canPreviewFile(remote, sessionId, path)) return false
-      if (copy !== undefined) copies.set(`${sessionId}\u0000${path}`, copy)
+    // A file asked for before any Files pane of its session mounted, such as by a link opened in a new tab: which
+    // pill takes it is decided once the session's saved pills have mounted and reported what they show.
+    const deferred = new Map<string, string>()
+    const placeFile = (sessionId: SessionId, path: string): void => {
       // The pill showing the file comes forward; a pill showing only the tree, such as one a reload returned to the
       // root, opens it in place; otherwise the file opens in a new pill.
       const target = openTarget(openFiles, sessionId, path, key => openers.has(key))
       if (target !== undefined) {
         if (!target.showing) openers.get(target.key)?.(path)
         scoped.sidebarContent.requestOpen(sessionId, 'files', false, target.surfaceId)
-        return true
+        return
       }
       pending.set(sessionId, { path, type: 'file' })
       scoped.sidebarContent.requestOpen(sessionId, 'files', true)
+    }
+    const openFile = async (sessionId: SessionId, path: string, copy?: string): Promise<boolean> => {
+      if (!await canPreviewFile(remote, sessionId, path)) return false
+      if (copy !== undefined) copies.set(`${sessionId}\u0000${path}`, copy)
+      if ([...openFiles.values()].some(pill => pill.sessionId === sessionId)) {
+        placeFile(sessionId, path)
+        return true
+      }
+      // Showing the column mounts its saved pills, or a first Files pill when it has none.
+      deferred.set(sessionId, path)
+      scoped.sidebarContent.requestOpen(sessionId, 'files', false)
       return true
+    }
+    // The panes of one column mount in one commit, so a microtask after the first reports runs after all of them.
+    const settleDeferred = (sessionId: SessionId): void => {
+      if (!deferred.has(sessionId)) return
+      queueMicrotask(() => {
+        const path = deferred.get(sessionId)
+        if (path === undefined) return
+        deferred.delete(sessionId)
+        placeFile(sessionId, path)
+      })
     }
     const openFolder = (sessionId: SessionId, path: string): void => {
       const mounted = [...revealers.values()].find(pane => pane.sessionId === sessionId)
@@ -123,6 +145,7 @@ export function apply(ctx: ClientContext): void {
       const key = `${props.sessionId}\u0000${props.surfaceId}`
       const onFileChange = useCallback((path: string | null, root: string | null) => {
         openFiles.set(key, { sessionId: props.sessionId, surfaceId: props.surfaceId, path, root })
+        settleDeferred(props.sessionId as SessionId)
       }, [key, props.sessionId, props.surfaceId])
       useEffect(() => () => { openFiles.delete(key) }, [key])
       const registerReveal = useCallback((reveal: (path: string) => void) => {

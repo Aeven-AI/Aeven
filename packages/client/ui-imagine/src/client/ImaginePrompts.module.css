@@ -91,6 +91,8 @@
 .card {
   position: relative;
   display: block;
+  color: inherit;
+  text-decoration: none;
   aspect-ratio: 4 / 5;
   padding: 0;
   overflow: hidden;

@@ -28,7 +28,7 @@ import { imageModelDecoration, videoModelDecoration } from './image-model-picker
 import { ImaginePrompts } from './ImaginePrompts.tsx'
 import { ImagineRow, type ImagineRowInjected } from './ImagineRow.tsx'
 import { en, es, zh } from './locales.ts'
-import { CATEGORY_PATHS } from './categories.ts'
+import { CARD_PATTERNS, CATEGORY_PATHS } from './categories.ts'
 import type { Category, InspirationInjected } from './categories.ts'
 
 export type { ImagineKey } from './locales.ts'
@@ -89,21 +89,28 @@ export function apply(ctx: ClientContext): void {
   ctx.inject(['uiWorkspace'], (startCtx: ClientContext) => {
     const addresses = startCtx.get('uiWorkspace') as unknown as StartAddresses
     const showCategory = (category: Category): void => { addresses.openStartAddress(CATEGORY_PATHS[category]) }
+    const openCard = (path: string): void => { addresses.openStartAddress(path) }
     for (const [category, path] of Object.entries(CATEGORY_PATHS) as [Category, string][]) {
-      startCtx.effect(() => addresses.registerStartAddress(path, {
+      const claim = {
         // The page's own composer prompt: what the reader describes here is
         // that category's work, not a question.
         composerPlaceholder: () => t(category === 'image-video' ? 'composer.placeholder' : `composer.${category}`),
         // Images, decks and resumes are chats of their own, never work in the project folder that happened to be open.
         builtInWorkspace: true,
-      }), `ui-imagine: ${path} start address`)
-      const injected: InspirationInjected = { category, showCategory }
-      startCtx.slots.inject('conversation.start', () => startCtx.slots.register({
-        name: 'conversation.start',
-        key: path,
-        locale: NS,
-        inject: () => injected,
-      }, ImaginePrompts))
+      }
+      const injected: InspirationInjected = {
+        category, showCategory, openCard, hooks: { address: addresses.startAddress },
+      }
+      // The category's own address and its cards' addresses show the same page; a card's address also opens its popup.
+      for (const key of [path, CARD_PATTERNS[category]]) {
+        startCtx.effect(() => addresses.registerStartAddress(key, claim), `ui-imagine: ${key} start address`)
+        startCtx.slots.inject('conversation.start', () => startCtx.slots.register({
+          name: 'conversation.start',
+          key,
+          locale: NS,
+          inject: () => injected,
+        }, ImaginePrompts))
+      }
     }
     const row: ImagineRowInjected = {
       href: CATEGORY_PATHS['image-video'],
@@ -112,9 +119,8 @@ export function apply(ctx: ClientContext): void {
     startCtx.slots.inject('sidebar.nav', () => startCtx.slots.register({
       name: 'sidebar.nav',
       id: 'imagine',
-      // After the Bots row: the two shares an order, so the explicit step keeps
-      // Imagine second regardless of which package registers first.
-      order: 1,
+      // After the Bots row and the Artifacts row, which hold orders 0 and 1.
+      order: 2,
       locale: NS,
       inject: () => row,
     }, ImagineRow))

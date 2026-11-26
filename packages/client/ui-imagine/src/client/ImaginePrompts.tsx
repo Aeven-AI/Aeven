@@ -5,10 +5,13 @@
  * are presentation templates and `Resumes` cards are CV templates, shown by their full-page cover; choosing one
  * opens its slides or pages, and `Use template` puts a request for a deck or a CV in that template in the composer.
  * Every message is edited and sent like any other.
+ *
+ * Every card is a link to its popup's own address, so a card opens in a new tab like any link, and Back closes
+ * the popup it opened.
  */
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import clsx from 'clsx'
-import type { PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
+import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import { Spinner, useNarrowerThan } from '@aeven/client-ui-primitives'
 import type {} from '@aeven/client-ui-conversation/client'
 import { IMAGINE_PROMPTS, promptClipUrl, promptImageUrl } from './prompts.ts'
@@ -16,11 +19,11 @@ import type { ImaginePromptId } from './prompts.ts'
 import { PromptDialog } from './PromptDialog.tsx'
 import { TemplateDialog } from './TemplateDialog.tsx'
 import type { OpenTemplate } from './TemplateDialog.tsx'
-import { SLIDE_TEMPLATES, slideAssetUrl, slideFile } from './slides.ts'
-import { RESUME_TEMPLATES, resumeAssetUrl } from './resumes.ts'
+import { SLIDE_TEMPLATES, slideAssetUrl, slideFile, type SlideTemplateId } from './slides.ts'
+import { RESUME_TEMPLATES, resumeAssetUrl, type ResumeTemplateId } from './resumes.ts'
 import { SketchCanvas } from './SketchCanvas.tsx'
 import type {} from './locales.ts'
-import { CATEGORIES } from './categories.ts'
+import { CATEGORIES, cardPath, openedCard } from './categories.ts'
 import type { InspirationInjected } from './categories.ts'
 import css from './ImaginePrompts.module.css'
 
@@ -39,11 +42,16 @@ const TWO_CARDS_BELOW_PX = 449
  * @param props - the Session's input actions, the address's category and its navigation, and the translator.
  * @returns the pills, the prompt grid and, while one is open, its popup.
  */
-export function ImaginePrompts({ inputActions, category, showCategory, t }:
-  PropsRuntime<'conversation.start'> & InspirationInjected & PropsLocale<'imagine'>) {
-  const [open, setOpen] = useState<ImaginePromptId | null>(null)
-  const [openTemplate, setOpenTemplate] = useState<OpenTemplate | null>(null)
-  const opened = IMAGINE_PROMPTS.find(prompt => prompt.id === open)
+export function ImaginePrompts({ inputActions, category, showCategory, openCard, useAddress, t }:
+  PropsRuntime<'conversation.start'> & InjectFace<InspirationInjected> & PropsLocale<'imagine'>) {
+  const card = openedCard(category, useAddress(value => value))
+  const opened = category === 'image-video' ? IMAGINE_PROMPTS.find(prompt => prompt.id === card) : undefined
+  const openTemplate: OpenTemplate | null = category === 'slides' && SLIDE_TEMPLATES.some(template => template.id === card)
+    ? { kind: 'slides', id: card as SlideTemplateId }
+    : category === 'resumes' && RESUME_TEMPLATES.some(template => template.id === card)
+      ? { kind: 'resumes', id: card as ResumeTemplateId }
+      : null
+  const close = (): void => { showCategory(category) }
   const root = useRef<HTMLElement>(null)
   const three = useNarrowerThan(root, THREE_CARDS_BELOW_PX)
   const two = useNarrowerThan(root, TWO_CARDS_BELOW_PX)
@@ -66,7 +74,8 @@ export function ImaginePrompts({ inputActions, category, showCategory, t }:
                 image={image}
                 clip={clip}
                 title={t(`prompt.${id}.title`)}
-                onOpen={() => { setOpen(id) }}
+                href={cardPath(category, id)}
+                onOpen={() => { openCard(cardPath(category, id)) }}
               />
             ))}
           </div>
@@ -80,7 +89,8 @@ export function ImaginePrompts({ inputActions, category, showCategory, t }:
                 className={css.slideCard}
                 image={slideAssetUrl(id, slideFile(0))}
                 title={t(`slides.${id}.title`)}
-                onOpen={() => { setOpenTemplate({ kind: 'slides', id }) }}
+                href={cardPath(category, id)}
+                onOpen={() => { openCard(cardPath(category, id)) }}
               />
             ))}
           </div>
@@ -94,20 +104,21 @@ export function ImaginePrompts({ inputActions, category, showCategory, t }:
                 className={css.docCard}
                 image={resumeAssetUrl(id, 0)}
                 title={t(`resumes.${id}.title`)}
-                onOpen={() => { setOpenTemplate({ kind: 'resumes', id }) }}
+                href={cardPath(category, id)}
+                onOpen={() => { openCard(cardPath(category, id)) }}
               />
             ))}
           </div>
         )}
       </div>
       {openTemplate !== null && (
-        <TemplateDialog key={`${openTemplate.kind}:${openTemplate.id}`} template={openTemplate} inputActions={inputActions} t={t} onClose={() => { setOpenTemplate(null) }} />
+        <TemplateDialog key={`${openTemplate.kind}:${openTemplate.id}`} template={openTemplate} inputActions={inputActions} t={t} onClose={close} />
       )}
       {opened !== undefined && (opened.id === 'sketch'
         ? (
           // The sketch starts as a drawing, not as a description: its card
           // opens the sheet the reader draws on instead of the prompt popup.
-          <SketchCanvas inputActions={inputActions} t={t} onClose={() => { setOpen(null) }} />
+          <SketchCanvas inputActions={inputActions} t={t} onClose={close} />
         )
         : (
           <PromptDialog
@@ -115,7 +126,7 @@ export function ImaginePrompts({ inputActions, category, showCategory, t }:
             prompt={opened}
             inputActions={inputActions}
             t={t}
-            onClose={() => { setOpen(null) }}
+            onClose={close}
           />
         ))}
     </section>
@@ -123,23 +134,38 @@ export function ImaginePrompts({ inputActions, category, showCategory, t }:
 }
 
 /**
- * One template card: its first slide or page as the picture, with the shade and the title over it.
- * @param props - the template id, the card's shape class, the picture URL, the translated title, and the open handler.
- * @returns the card button.
+ * Click handler of a card link: a plain primary click opens the popup in place; a modified or middle click is
+ * left to the browser, which opens the card's address in a new tab.
+ * @param onOpen - opens the popup in place.
+ * @returns the handler.
  */
-function TemplateCard({ id, className, image, title, onOpen }: {
+function cardClick(onOpen: () => void): (event: ReactMouseEvent) => void {
+  return (event) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+    event.preventDefault()
+    onOpen()
+  }
+}
+
+/**
+ * One template card: its first slide or page as the picture, with the shade and the title over it.
+ * @param props - the template id, the card's shape class, the picture URL, the translated title, its address and the open handler.
+ * @returns the card link.
+ */
+function TemplateCard({ id, className, image, title, href, onOpen }: {
   id: string
   className: string | undefined
   image: string
   title: string
+  href: string
   onOpen: () => void
 }) {
   return (
-    <button type="button" className={clsx(css.card, className)} data-template={id} data-state="ready" onClick={onOpen}>
+    <a href={href} className={clsx(css.card, className)} data-template={id} data-state="ready" onClick={cardClick(onOpen)}>
       <img className={css.image} src={image} alt="" loading="lazy" />
       <span className={css.shade} aria-hidden="true" />
       <span className={css.title}>{title}</span>
-    </button>
+    </a>
   )
 }
 
@@ -150,14 +176,15 @@ type CardState = 'loading' | 'ready' | 'title-only'
  * One starter card. While its example loads, a light surface with a spinner and the title in ink covers it; the
  * surface fades out as the first frame arrives. An example that never shipped, or fails to load, leaves the card
  * title-only. The whole card stays one click target in every state.
- * @param props - the prompt's id, example assets, translated title, and the open handler.
- * @returns the card button.
+ * @param props - the prompt's id, example assets, translated title, its address and the open handler.
+ * @returns the card link.
  */
-function PromptCard({ id, image, clip, title, onOpen }: {
+function PromptCard({ id, image, clip, title, href, onOpen }: {
   id: ImaginePromptId
   image: string | undefined
   clip: string | undefined
   title: string
+  href: string
   onOpen: () => void
 }) {
   // A clip that fails falls back to its still, when it has one.
@@ -181,7 +208,7 @@ function PromptCard({ id, image, clip, title, onOpen }: {
     if (element !== null && element.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) ready()
   }, [ready])
   return (
-    <button type="button" className={css.card} data-prompt={id} data-state={state} onClick={onOpen}>
+    <a href={href} className={css.card} data-prompt={id} data-state={state} onClick={cardClick(onOpen)}>
       {state !== 'title-only' && (playClip
         ? (
           // A card whose example moves plays it in place, silently and on
@@ -226,6 +253,6 @@ function PromptCard({ id, image, clip, title, onOpen }: {
           <span className={css.preloaderTitle}>{title}</span>
         </span>
       )}
-    </button>
+    </a>
   )
 }

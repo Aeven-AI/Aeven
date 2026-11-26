@@ -44,7 +44,7 @@ import z from '@deepseek-ai/schemastery'
 import mime from 'mime-types'
 import type {} from '@aeven/client-connection'
 import type { Agent } from '@aeven/agent'
-import type { FsError, FsTarget } from '@aeven/fs'
+import type { FsError, FsInfo, FsTarget } from '@aeven/fs'
 import type {} from '@aeven/sandbox-policy'
 import type {} from '@aeven/aeven-folder-sync'
 import type {} from '@aeven/identity-user'
@@ -298,6 +298,27 @@ export class WorkspaceFiles extends TypertRemoteService {
     })
   }
 
+  /**
+   * Resolve one file of a Session's workspace for a reader acting for the caller, under the same rules as the
+   * `/api/workspace-file` route: the Session must belong to the caller and the path resolves under the read rule
+   * of a preview. A file not here yet is waited for as long as the workspace syncs take, up to `arrivalWaitMs`,
+   * unless `wait` is false.
+   * @param sessionId - the Session whose workspace the path is in.
+   * @param path - workspace-relative or absolute path.
+   * @param signal - aborts the resolution.
+   * @param wait - whether to wait for a file that has not arrived; false answers at once.
+   * @returns the entry and its stat, or undefined when nothing exists at the path.
+   * @throws RemoteError `session/not-found` for an absent or foreign Session, and the filesystem's error for a refused path.
+   */
+  async locateFile(sessionId: SessionId, path: string, signal: AbortSignal, wait: boolean = true): Promise<{ target: FsTarget; info: FsInfo } | undefined> {
+    const target = await this.readTarget(await this.placeOf(sessionId), path, signal)
+    const info = await this.ctx.fs.stat(target, signal)
+    if (info !== undefined) return { target, info }
+    if (!wait) return undefined
+    const arrived = await this.afterArrival(sessionId, path, signal)
+    return arrived.info === undefined ? undefined : { target: arrived.target, info: arrived.info }
+  }
+
   /** Answer one `/api/workspace-file` request: the named Session's file, whole or as one byte range. */
   private async serveFile(request: Request): Promise<Response> {
     const url = new URL(request.url)
@@ -309,11 +330,10 @@ export class WorkspaceFiles extends TypertRemoteService {
     let target: FsTarget
     let bytes: Uint8Array
     try {
-      const id = brandString<SessionId>(sessionId)
-      target = await this.readTarget(await this.placeOf(id), path, request.signal)
-      let info = await this.ctx.fs.stat(target, request.signal)
-      if (info === undefined) ({ target, info } = await this.afterArrival(id, path, request.signal))
-      if (info === undefined) return plain(404, 'not found')
+      const located = await this.locateFile(brandString<SessionId>(sessionId), path, request.signal)
+      if (located === undefined) return plain(404, 'not found')
+      target = located.target
+      const { info } = located
       if (info.type !== 'file') return plain(403, 'not a regular file')
       if (info.size !== undefined && info.size > this.config.maxFileBytes) return plain(413, 'file exceeds byte limit')
       bytes = await this.ctx.fs.readBytes(target, request.signal, this.config.maxFileBytes)

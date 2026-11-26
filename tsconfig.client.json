@@ -116,6 +116,7 @@
     { "path": "./packages/client/ui-goal" },
     { "path": "./packages/client/ui-message-feedback" },
     { "path": "./packages/client/ui-message-share" },
+    { "path": "./packages/client/ui-artifacts" },
     { "path": "./packages/client/ui-model-selection" },
     { "path": "./packages/client/ui-permission-presets" },
     { "path": "./packages/client/ui-plan" },

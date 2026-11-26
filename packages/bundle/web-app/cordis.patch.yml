@@ -173,6 +173,20 @@
         apiUrl: !!js process.env.AEVEN_API_URL ?? 'http://localhost:9000'
         workspaceMount: /workspace
 
+    # Artifacts: lists the finished files Aeven created across the signed-in account's stored
+    # Sessions, read from each Session log, for the Artifacts page.
+    - id: artifacts
+      name: '@aeven/host-artifacts'
+      config:
+        cacheFile: !!js avnHomePath('artifacts', 'lists.json')
+
+    # Artifact previews: the card picture of each file Aeven made, drawn once per file version and cached here.
+    # Page previews use an installed Chrome; this bundle downloads none.
+    - id: artifact-previews
+      name: '@aeven/host-artifact-previews'
+      config:
+        cacheDir: !!js avnHomePath('artifact-previews')
+
     # ── the authenticated reader ────────────────────────────────────────────────
 
     # The seam every authority registers into. Mounted before the authority so
@@ -786,6 +800,10 @@
     # share dialog, and the shared-link manager, over the messageShare Remote.
     - id: ui-message-share
       name: '@aeven/client-ui-message-share'
+
+    # Artifacts: the sidebar row under Bots and the /artifacts page of cards, over the artifacts Remote.
+    - id: ui-artifacts
+      name: '@aeven/client-ui-artifacts'
 
     # Model selection: the /model popupSelect + composer seat over session.models.
     - id: ui-model-selection

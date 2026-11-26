@@ -30,6 +30,7 @@ export { greetingKeyOf, heroGreeting, readerDisplayName, useHeroGreeting } from 
 export type { HeroCopyKey, HeroGreetingKey, HeroTranslate } from './hero-greeting.ts'
 export { Spinner } from './Spinner.tsx'
 export { LoadingBlock } from './LoadingBlock.tsx'
+export { ContentLoader } from './ContentLoader.tsx'
 export { FailMark } from './FailMark.tsx'
 export {
   ActivityCard, ActivityCode, ActivityDetails, ActivityItem, ActivityLink, ActivityMenu, ActivityMessage, ActivityNote,

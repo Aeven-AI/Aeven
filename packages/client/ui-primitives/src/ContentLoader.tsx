@@ -1,9 +1,9 @@
-/** Session-switch cover: appear immediately, fade out. */
+/** Full-surface loading cover: appears at once with a centred spinner and fades out once the content has painted. */
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import clsx from 'clsx'
-import { Spinner } from '@aeven/client-ui-primitives'
-import css from './ConversationRoot.module.css'
+import { Spinner } from './Spinner.tsx'
+import css from './ContentLoader.module.css'
 
 /** Fade duration shared with `.contentLoaderHide`. */
 const FADE_MS = 400

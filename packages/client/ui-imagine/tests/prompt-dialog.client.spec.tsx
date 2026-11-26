@@ -8,6 +8,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { useState } from 'react'
 import type { SessionListState } from '@aeven/api-session-controller/client'
 import type { InputState } from '@aeven/client-ui-conversation/client'
 import type { SessionPendingInteractionSnapshot } from '@aeven/client-ui-session/client'
@@ -22,6 +23,7 @@ import type { ImaginePrompt } from '../src/client/prompts.ts'
 import { IMAGINE_LOOKS, IMAGINE_SCENES } from '../src/client/scenes.ts'
 import { PromptDialog } from '../src/client/PromptDialog.tsx'
 import { ImaginePrompts } from '../src/client/ImaginePrompts.tsx'
+import { CATEGORY_PATHS } from '../src/client/categories.ts'
 
 afterEach(cleanup)
 
@@ -295,11 +297,16 @@ describe('starter prompt grid', () => {
       ids: [], byId: {}, current: SID, phase: 'ready', subagentsByParent: {}, jobsBySession: {}, currentAddress: undefined,
     }
     const pending: SessionPendingInteractionSnapshot = new Map()
-    return render(
-      <ImaginePrompts
-        inputActions={actions}
-        category={category}
-        showCategory={() => {}}
+    // The page reads its open card from the start address, which a card click and Close move.
+    function Grid() {
+      const [address, setAddress] = useState<string>(CATEGORY_PATHS[category])
+      return (
+        <ImaginePrompts
+          inputActions={actions}
+          category={category}
+          showCategory={(next) => { setAddress(CATEGORY_PATHS[next]) }}
+          openCard={setAddress}
+          useAddress={select => select(address)}
         useSession={bindSnapshotSelector(source(sessionSnapshot(SID)))}
         sessionId={SID}
         useConversation={bindSnapshotSelector(source(conversationSnapshot()))}
@@ -309,10 +316,12 @@ describe('starter prompt grid', () => {
         useProjection={() => undefined}
         useSessions={bindSnapshotSelector(source(list))}
         useSessionPendingInteraction={bindSnapshotSelector(source(pending))}
-        useWorkspaces={bindSnapshotSelector(source(workspaceSnapshot()))}
-        t={t}
-      />,
-    )
+          useWorkspaces={bindSnapshotSelector(source(workspaceSnapshot()))}
+          t={t}
+        />
+      )
+    }
+    return render(<Grid />)
   }
 
   it('leads with the create preset, then the retouch preset', () => {
@@ -323,8 +332,8 @@ describe('starter prompt grid', () => {
       for (const hidden of copy.querySelectorAll('[aria-hidden="true"]')) hidden.remove()
       return copy.textContent
     }
-    // The category pills come first; the cards are the buttons that carry a prompt.
-    const cards = screen.getAllByRole('button').filter(button => button.hasAttribute('data-prompt')).map(caption)
+    // The category pills come first; the cards are the links that carry a prompt.
+    const cards = screen.getAllByRole('link').filter(link => link.hasAttribute('data-prompt')).map(caption)
     expect(cards[0]).toBe('Instagram original')
     expect(cards[1]).toBe('Instagram improve')
     expect(cards[2]).toBe('Aerial view')
@@ -332,10 +341,11 @@ describe('starter prompt grid', () => {
 
   it('shows the CV templates by their covers on the Resumes address and opens one', () => {
     mountGrid(inputFace(), 'resumes')
-    const cards = screen.getAllByRole('button').filter(button => button.hasAttribute('data-template'))
+    const cards = screen.getAllByRole('link').filter(link => link.hasAttribute('data-template'))
     expect(cards.map(card => card.dataset.template)).toEqual(['black', 'white', 'slate', 'fresh', 'classic', 'glow', 'forest', 'blobs', 'pulse', 'portfolio', 'sage', 'contrast', 'magic', 'gridfolio', 'tang', 'sunbeam', 'noirband', 'confetti', 'mintmist', 'serifbold', 'bluewash', 'minimalrule', 'supa', 'supa-dark', 'marina', 'judit', 'monica', 'sunny', 'javorkai', 'khalil', 'ember', 'harvard', 'kit', 'kit-dark', 'six', 'pills', 'aurora', 'aurora-dark', 'resumate', 'brix'])
     expect(cards[0]?.querySelector('img')?.getAttribute('src')).toMatch(/cv-templates\/black\/page-01\.webp$/)
-    fireEvent.click(screen.getByRole('button', { name: 'White' }))
+    expect(cards[1]?.getAttribute('href')).toBe('/inspiration/resumes/white')
+    fireEvent.click(screen.getByRole('link', { name: 'White' }))
     expect(screen.getByRole('dialog', { name: 'White' })).toBeTruthy()
   })
 
@@ -343,11 +353,19 @@ describe('starter prompt grid', () => {
     const actions = inputFace()
     mountGrid(actions)
     expect(screen.queryByRole('dialog')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Instagram improve' }))
+    fireEvent.click(screen.getByRole('link', { name: 'Instagram improve' }))
     expect(screen.getByRole('dialog', { name: 'Instagram improve' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(actions.setDraft).not.toHaveBeenCalled()
+  })
+
+  it('links each card to its popup address, leaving a modified click to the browser', () => {
+    mountGrid(inputFace())
+    const card = screen.getByRole('link', { name: 'Instagram improve' })
+    expect(card.getAttribute('href')).toBe('/inspiration/instagram-retouch')
+    fireEvent.click(card, { metaKey: true })
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('plays a moving example in place of its still, silently and on a loop', () => {
@@ -366,6 +384,6 @@ describe('starter prompt grid', () => {
     fireEvent.error(image)
     expect(images().length).toBe(cards - 1)
     expect(images().some(one => (one.getAttribute('src') ?? '').endsWith('instagram-retouch.jpg'))).toBe(false)
-    expect(screen.getByRole('button', { name: 'Instagram improve' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Instagram improve' })).toBeTruthy()
   })
 })

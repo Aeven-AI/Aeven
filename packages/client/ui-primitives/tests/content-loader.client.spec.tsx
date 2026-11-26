@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, render } from '@testing-library/react'
-import { ContentLoader } from '../src/client/skeleton/ContentLoader.tsx'
+import { ContentLoader } from '../src/ContentLoader.tsx'
 
 /** The frame-owned cover layer this loader portals into. */
 function mountCoverLayer(): HTMLElement {

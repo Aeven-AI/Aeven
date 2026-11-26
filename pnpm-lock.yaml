@@ -1143,6 +1143,9 @@ importers:
       '@aeven/host-account-integrations':
         specifier: workspace:^
         version: link:../../host/account-integrations
+      '@aeven/host-artifacts':
+        specifier: workspace:^
+        version: link:../../host/artifacts
       '@aeven/host-message-share':
         specifier: workspace:^
         version: link:../../host/message-share
@@ -2333,6 +2336,9 @@ importers:
       '@aeven/client-ui-approval':
         specifier: workspace:^
         version: link:../../client/ui-approval
+      '@aeven/client-ui-artifacts':
+        specifier: workspace:^
+        version: link:../../client/ui-artifacts
       '@aeven/client-ui-attachment':
         specifier: workspace:^
         version: link:../../client/ui-attachment
@@ -2546,6 +2552,12 @@ importers:
       '@aeven/host-account-integrations':
         specifier: workspace:^
         version: link:../../host/account-integrations
+      '@aeven/host-artifact-previews':
+        specifier: workspace:^
+        version: link:../../host/artifact-previews
+      '@aeven/host-artifacts':
+        specifier: workspace:^
+        version: link:../../host/artifacts
       '@aeven/host-directory-picker-auto':
         specifier: workspace:^
         version: link:../../host/directory-picker-auto
@@ -3122,6 +3134,64 @@ importers:
       react:
         specifier: ^18.2.0
         version: 18.3.1
+
+  packages/client/ui-artifacts:
+    dependencies:
+      '@hyperframes/player':
+        specifier: 0.9.19
+        version: 0.9.19(@types/node@22.20.1)
+    devDependencies:
+      '@aeven/api-remotes':
+        specifier: workspace:^
+        version: link:../../api/remotes
+      '@aeven/api-session-controller':
+        specifier: workspace:^
+        version: link:../../api/session-controller
+      '@aeven/client-locale':
+        specifier: workspace:^
+        version: link:../locale
+      '@aeven/client-test-runtime':
+        specifier: workspace:^
+        version: link:../../test-support/client-runtime
+      '@aeven/client-ui-conversation':
+        specifier: workspace:^
+        version: link:../ui-conversation
+      '@aeven/client-ui-primitives':
+        specifier: workspace:^
+        version: link:../ui-primitives
+      '@aeven/client-ui-renderer':
+        specifier: workspace:^
+        version: link:../ui-renderer
+      '@aeven/client-ui-sidebar':
+        specifier: workspace:^
+        version: link:../ui-sidebar
+      '@aeven/client-ui-sidebar-files':
+        specifier: workspace:^
+        version: link:../ui-sidebar-files
+      '@aeven/client-ui-slots':
+        specifier: workspace:^
+        version: link:../ui-slots
+      '@aeven/client-ui-workspace':
+        specifier: workspace:^
+        version: link:../ui-workspace
+      '@aeven/host-artifacts':
+        specifier: workspace:^
+        version: link:../../host/artifacts
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@types/react':
+        specifier: ~18.3.1
+        version: 18.3.31
+      '@types/react-dom':
+        specifier: ~18.3.0
+        version: 18.3.7(@types/react@18.3.31)
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.2.0
+        version: 18.3.1(react@18.3.1)
 
   packages/client/ui-attachment:
     dependencies:
@@ -5093,6 +5163,9 @@ importers:
 
   packages/client/ui-sidebar-files:
     dependencies:
+      '@hyperframes/player':
+        specifier: 0.9.19
+        version: 0.9.19(@types/node@22.20.1)
       clsx:
         specifier: ^2.0.0
         version: 2.1.1
@@ -5127,6 +5200,9 @@ importers:
       '@aeven/typert-protocol':
         specifier: workspace:^
         version: link:../../typert/protocol
+      '@aeven/util-crypto':
+        specifier: workspace:^
+        version: link:../../util/crypto
       '@aeven/util-workspace-path':
         specifier: workspace:^
         version: link:../../util/workspace-path
@@ -8669,6 +8745,86 @@ importers:
       '@aeven/whatsapp-mcp-win32-x64':
         specifier: workspace:^
         version: link:../../../native/whatsapp-mcp/packages/win32-x64
+
+  packages/host/artifact-previews:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+      '@napi-rs/canvas':
+        specifier: 1.0.9
+        version: 1.0.9
+      fflate:
+        specifier: 0.8.3
+        version: 0.8.3
+      pdfjs-dist:
+        specifier: 6.1.200
+        version: 6.1.200
+      puppeteer-core:
+        specifier: 25.16.0
+        version: 25.16.0
+      sharp:
+        specifier: 0.35.3
+        version: 0.35.3(@types/node@22.20.1)
+    devDependencies:
+      '@aeven/api-workspace-files':
+        specifier: workspace:^
+        version: link:../../api/workspace-files
+      '@aeven/brand':
+        specifier: workspace:^
+        version: link:../../util/brand
+      '@aeven/client-connection':
+        specifier: workspace:^
+        version: link:../../client/connection
+      '@aeven/fs':
+        specifier: workspace:^
+        version: link:../../fs/fs
+      '@aeven/motion-hyperframes':
+        specifier: workspace:^
+        version: link:../../motion/motion-hyperframes
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+
+  packages/host/artifacts:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+      zod:
+        specifier: ^4.4.3
+        version: 4.6.5
+    devDependencies:
+      '@aeven/brand':
+        specifier: workspace:^
+        version: link:../../util/brand
+      '@aeven/fs':
+        specifier: workspace:^
+        version: link:../../fs/fs
+      '@aeven/identity-user':
+        specifier: workspace:^
+        version: link:../../identity/user
+      '@aeven/llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
+      '@aeven/session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@aeven/session-persistence':
+        specifier: workspace:^
+        version: link:../../session/session-persistence
+      '@aeven/session-turn-outline':
+        specifier: workspace:^
+        version: link:../../session/session-turn-outline
+      '@aeven/typert-protocol':
+        specifier: workspace:^
+        version: link:../../typert/protocol
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
 
   packages/host/cloud-meter:
     dependencies:
@@ -24441,7 +24597,7 @@ snapshots:
       google-auth-library: 10.7.0
       p-retry: 4.6.2
       protobufjs: 7.6.4
-      ws: 8.21.3
+      ws: 8.22.1
     optionalDependencies:
       '@modelcontextprotocol/sdk': 1.32.0(zod@4.6.5)
     transitivePeerDependencies:
@@ -24638,7 +24794,7 @@ snapshots:
       postcss: 8.5.26
       postcss-selector-parser: 7.1.7
     optionalDependencies:
-      sharp: 0.35.5(@types/node@22.20.1)
+      sharp: 0.35.3(@types/node@22.20.1)
     transitivePeerDependencies:
       - '@types/node'
       - canvas

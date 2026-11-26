@@ -7,7 +7,10 @@
  * That frame has an opaque origin, so the page can neither reach the app's storage, cookies or `parent`, nor
  * navigate the top window, and it could not authenticate a request for its own files either: this module reads
  * them through the app instead, as the explorer's image view does, and hands them to the page as text or `data:`
- * URLs. Remote (`https:`) references load as written.
+ * URLs. Remote (`https:`) references load as written. Files the page's scripts load while running (`fetch`,
+ * `XMLHttpRequest`, or an image or media element's `src` set from script) cannot be found in the document ahead of time;
+ * a script the page receives first sends each such request to the app over `postMessage`, and {@link serveFrameFiles}
+ * answers it with the file's bytes.
  * @module
  */
 
@@ -24,18 +27,182 @@ const MAX_ASSET_BYTES = 8 * 1024 * 1024
 const MAX_PAGE_BYTES = 32 * 1024 * 1024
 
 /**
- * What the page may load. Its inlined files need inline styles, scripts and `data:` URLs; remote files load over
- * HTTPS. The frame's sandbox, not this policy, keeps the page away from the app.
+ * What the page may load. Its inlined files need inline styles, scripts and `data:` URLs; files its scripts load
+ * while running arrive as `blob:` URLs; remote files load over HTTPS. The frame's sandbox, not this policy, keeps
+ * the page away from the app.
  */
 const PREVIEW_POLICY = [
   "default-src 'none'",
-  "script-src 'unsafe-inline' 'unsafe-eval' data: https:",
+  "script-src 'unsafe-inline' 'unsafe-eval' data: blob: https:",
   "style-src 'unsafe-inline' data: https:",
   'img-src data: blob: https:',
   'media-src data: blob: https:',
   'font-src data: https:',
-  'connect-src https:',
+  'connect-src blob: https:',
 ].join('; ')
+
+/** Message field that marks a runtime file request or answer between a preview frame and the app. */
+const FILE_CHANNEL = 'avnWorkspaceFile'
+
+/**
+ * Origin of the addresses a preview page and its inlined modules see as their own: a reserved name (RFC 2606) that
+ * never resolves, so an address the bridge does not intercept fails instead of reaching a server. The address path is
+ * the file's workspace path, so a relative URL resolved against it names the file it would on disk.
+ */
+const WORKSPACE_ORIGIN = 'https://workspace.invalid'
+
+/**
+ * The address a workspace file has inside a preview page.
+ * @param path - the file's workspace path, workspace-relative or absolute.
+ * @returns the address under {@link WORKSPACE_ORIGIN}.
+ */
+function workspaceAddress(path: string): string {
+  return `${WORKSPACE_ORIGIN}/${path.split('/').filter(part => part !== '').map(encodeURIComponent).join('/')}`
+}
+
+/**
+ * The script a preview page runs before its own: it routes the page's runtime requests for workspace files to the
+ * app. A relative request resolves against the page's {@link workspaceAddress}; a request the page already resolved
+ * against the frame's base URL, which a `srcdoc` frame inherits from the app, is mapped back the same way; a rooted
+ * one (`/x`) keeps the meaning static references give it. Anything else loads as written.
+ * @param token - the value every request carries, so only the document this module built is answered.
+ * @param path - the page's workspace path.
+ * @returns the script's text.
+ */
+function fileBridgeScript(token: string, path: string): string {
+  return `(() => {
+  const KEY = ${JSON.stringify(FILE_CHANNEL)}, TOKEN = ${JSON.stringify(token)};
+  const ROOT = ${JSON.stringify(WORKSPACE_ORIGIN)}, PAGE = ${JSON.stringify(workspaceAddress(path))};
+  const pending = new Map();
+  let next = 0;
+  addEventListener('message', (event) => {
+    const data = event.data;
+    if (event.source !== parent || data === null || typeof data !== 'object' || data[KEY] !== TOKEN) return;
+    const settle = pending.get(data.id);
+    if (settle === undefined) return;
+    pending.delete(data.id);
+    settle(data.body instanceof Blob ? data.body : undefined);
+  });
+  const base = document.baseURI.replace(/[?#].*$/, '');
+  const folder = base.slice(0, base.lastIndexOf('/') + 1);
+  let origin = 'null';
+  try { origin = new URL(base).origin; } catch (error) { /* An opaque base: only relative requests are local. */ }
+  const scheme = /^[a-z][a-z0-9+.-]*:/i;
+  // The file a request names: { path } for a full workspace path, { reference } for a rooted reference.
+  const local = (value) => {
+    const text = String(value).trim();
+    if (text === '' || text.startsWith('#')) return undefined;
+    if (text.startsWith('/') && !text.startsWith('//')) return { reference: text };
+    let url;
+    try { url = new URL(text, scheme.test(text) || text.startsWith('//') ? base : PAGE); } catch (error) { return undefined; }
+    if (url.origin !== ROOT) {
+      if ((url.protocol !== 'http:' && url.protocol !== 'https:') || url.origin !== origin) return undefined;
+      if (!url.href.startsWith(folder)) return { reference: url.pathname };
+      url = new URL(url.href.slice(folder.length), PAGE);
+    }
+    try { return { path: decodeURIComponent(url.pathname) }; } catch (error) { return undefined; }
+  };
+  const file = (request) => new Promise((resolve) => {
+    const id = ++next;
+    pending.set(id, resolve);
+    parent.postMessage({ [KEY]: TOKEN, id, ...request }, '*');
+  });
+
+  const nativeFetch = window.fetch.bind(window);
+  window.fetch = (input, init) => {
+    const request = input instanceof Request ? input : undefined;
+    const method = String((init && init.method) || (request ? request.method : 'GET')).toUpperCase();
+    const target = method === 'GET' || method === 'HEAD' ? local(request ? request.url : input) : undefined;
+    if (target === undefined) return nativeFetch(input, init);
+    return file(target).then((body) => body === undefined
+      ? new Response(null, { status: 404, statusText: 'Not Found' })
+      : new Response(method === 'HEAD' ? null : body, { status: 200, headers: { 'Content-Type': body.type || 'application/octet-stream', 'Content-Length': String(body.size) } }));
+  };
+
+  const xhr = XMLHttpRequest.prototype;
+  const open = xhr.open, send = xhr.send, setHeader = xhr.setRequestHeader;
+  const held = new WeakMap();
+  // A synchronous request cannot wait for the app, so it loads as written.
+  xhr.open = function (method, url, ...rest) {
+    const request = String(method).toUpperCase() === 'GET' && rest[0] !== false ? local(url) : undefined;
+    if (request === undefined) { held.delete(this); return open.call(this, method, url, ...rest); }
+    held.set(this, { request, rest, headers: [] });
+  };
+  xhr.setRequestHeader = function (name, value) {
+    const state = held.get(this);
+    if (state === undefined) return setHeader.call(this, name, value);
+    state.headers.push([name, value]);
+  };
+  xhr.send = function (body) {
+    const state = held.get(this);
+    if (state === undefined) return send.call(this, body);
+    held.delete(this);
+    file(state.request).then((blob) => {
+      const url = URL.createObjectURL(blob === undefined ? new Blob() : blob);
+      // A missing file is a revoked URL, which fails as a network error does.
+      if (blob === undefined) URL.revokeObjectURL(url);
+      else this.addEventListener('loadend', () => { URL.revokeObjectURL(url); }, { once: true });
+      open.call(this, 'GET', url, ...state.rest);
+      for (const [name, value] of state.headers) setHeader.call(this, name, value);
+      send.call(this);
+    });
+  };
+
+  // An element's src set from script, as a property or an attribute; the last value set wins.
+  const latest = new WeakMap();
+  const sourced = [HTMLImageElement, HTMLMediaElement, HTMLSourceElement, HTMLScriptElement];
+  for (const kind of sourced) {
+    const descriptor = Object.getOwnPropertyDescriptor(kind.prototype, 'src');
+    if (descriptor === undefined || descriptor.set === undefined) continue;
+    Object.defineProperty(kind.prototype, 'src', { ...descriptor, set(value) {
+      latest.set(this, value);
+      const request = local(value);
+      if (request === undefined) return descriptor.set.call(this, value);
+      file(request).then((blob) => {
+        if (latest.get(this) !== value) return;
+        descriptor.set.call(this, blob === undefined ? 'data:,' : URL.createObjectURL(blob));
+      });
+    } });
+  }
+  const setAttribute = Element.prototype.setAttribute;
+  Element.prototype.setAttribute = function (name, value) {
+    if (String(name).toLowerCase() === 'src' && sourced.some((kind) => this instanceof kind)) { this.src = value; return; }
+    return setAttribute.call(this, name, value);
+  };
+})();`
+}
+
+/**
+ * Answer the runtime file requests of the page {@link previewDocument} built for one frame, until `signal` aborts.
+ * A request names either a full workspace path, from an address under {@link WORKSPACE_ORIGIN}, or a rooted
+ * reference, which resolves as the page's static references do; the app reads the file under its own access rules.
+ * @param frame - the frame rendering the page.
+ * @param path - the page's workspace path.
+ * @param read - reads one workspace file's bytes.
+ * @param token - the token the page was built with.
+ * @param signal - stops answering, and drops answers still being read, when the page goes away.
+ */
+export function serveFrameFiles(frame: HTMLIFrameElement, path: string, read: AssetReader, token: string, signal: AbortSignal): void {
+  const folder = folderOf(path)
+  const absolute = path.startsWith('/')
+  const onMessage = (event: MessageEvent<unknown>): void => {
+    const target = frame.contentWindow
+    if (target === null || event.source !== target || typeof event.data !== 'object' || event.data === null) return
+    const { [FILE_CHANNEL]: tag, id, path: named, reference } = event.data as Record<string, unknown>
+    if (tag !== token || typeof id !== 'number') return
+    // An address path is rooted at the workspace for a workspace page, and at the disk for a page outside it.
+    const file = typeof named === 'string' && named.startsWith('/')
+      ? (absolute ? named : named.slice(1)) || undefined
+      : typeof reference === 'string' && isWorkspaceReference(reference) ? resolveReference(folder, reference) : undefined
+    void (file === undefined ? Promise.resolve(undefined) : read(file, signal).catch(() => undefined)).then((blob) => {
+      // The file reaches the page as a Blob rather than text inside its document, so no inlining cap applies; the
+      // file route's own byte cap does.
+      if (!signal.aborted) target.postMessage({ [FILE_CHANNEL]: token, id, body: blob }, '*')
+    })
+  }
+  window.addEventListener('message', onMessage)
+  signal.addEventListener('abort', () => { window.removeEventListener('message', onMessage) }, { once: true })
+}
 
 /** Whether a reference names a workspace file rather than a remote address, a fragment or inline data. */
 function isWorkspaceReference(reference: string): boolean {
@@ -106,12 +273,16 @@ class Inliner {
     return blob === undefined ? undefined : dataUrl(blob)
   }
 
-  /** A stylesheet with its workspace `url(...)` references inlined, resolved against the stylesheet's own folder. */
+  /**
+   * A stylesheet with its workspace `url(...)` references inlined, resolved against the stylesheet's own folder. A
+   * quoted value is read whole, quotes of the other kind and parentheses included, so a `url()` written inside it, such
+   * as an SVG filter reference inside a `data:` image, stays part of that value.
+   */
   async css(text: string, folder: string): Promise<string> {
-    const pattern = /url\(\s*(['"]?)([^'")]+)\1\s*\)/g
+    const pattern = /url\(\s*(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)'|([^'"()\s]+))\s*\)/g
     const found = [...text.matchAll(pattern)]
     const urls = await Promise.all(found.map(async (match) => {
-      const reference = match[2] ?? ''
+      const reference = match[1] ?? match[2] ?? match[3] ?? ''
       if (!isWorkspaceReference(reference)) return undefined
       const path = resolveReference(folder, reference)
       return path === undefined ? undefined : this.url(path)
@@ -208,12 +379,16 @@ class ModuleGraph {
   }
 
   /**
-   * Rewrite a module's workspace imports to their keys and queue each imported module for inlining.
+   * Rewrite a module's workspace imports to their keys and queue each imported module for inlining. A module read
+   * from its own file runs from a `data:` URL, so its `import.meta` is given that file's workspace address as `url`,
+   * and `new URL('./model.glb', import.meta.url)` names the file beside it, which the runtime bridge then serves.
    * @param source - the module's text.
    * @param folder - the folder its relative specifiers resolve against.
+   * @param file - the module's own workspace path; absent for a module written inside the page, whose `import.meta.url`
+   * is the page's address already.
    * @returns the module text with every workspace specifier replaced by its key.
    */
-  rewrite(source: string, folder: string): string {
+  rewrite(source: string, folder: string, file?: string): string {
     let imports: ReturnType<typeof parseModule>[0]
     try {
       imports = parseModule(source)[0]
@@ -225,6 +400,12 @@ class ModuleGraph {
     let at = 0
     for (const entry of imports) {
       // `d` is -1 for a static import, the dynamic import's offset for `import()`, and -2 for `import.meta`.
+      if (entry.d === -2) {
+        if (file === undefined) continue
+        out += `${source.slice(at, entry.s)}({ ...import.meta, url: ${JSON.stringify(workspaceAddress(file))} })`
+        at = entry.e
+        continue
+      }
       if (entry.n === undefined || entry.d < -1) continue
       const path = this.resolve(entry.n, folder)
       if (path === undefined) continue
@@ -248,7 +429,7 @@ class ModuleGraph {
         }
         return
       }
-      const rewritten = this.rewrite(text, folderOf(path))
+      const rewritten = this.rewrite(text, folderOf(path), path)
       this.entries.set(this.key(path), await dataUrl(new Blob([rewritten], { type: 'text/javascript' })))
     }))
   }
@@ -358,14 +539,20 @@ const MEDIA_ATTRIBUTES: ReadonlyArray<readonly [selector: string, attribute: str
  * @param path - the file's workspace path, which its relative references resolve against.
  * @param read - reads one workspace file's bytes.
  * @param signal - abandons the build when the file view moves on.
+ * @param token - the token the page's runtime file requests carry; {@link serveFrameFiles} answers only it.
  * @returns the complete document for the frame's `srcdoc`.
  */
-export async function previewDocument(html: string, path: string, read: AssetReader, signal: AbortSignal): Promise<string> {
+export async function previewDocument(html: string, path: string, read: AssetReader, signal: AbortSignal, token: string): Promise<string> {
   const doc = new DOMParser().parseFromString(html, 'text/html')
   const folder = folderOf(path)
   const inliner = new Inliner(read, signal)
   const work: Array<Promise<void>> = []
 
+  // A fetch hint for a workspace file would load it from the app's address, which the page cannot reach; the file
+  // itself reaches the page through the reference that uses it.
+  for (const hint of doc.querySelectorAll('link[rel~="preload"][href], link[rel~="prefetch"][href], link[rel~="modulepreload"][href]')) {
+    if (isWorkspaceReference(hint.getAttribute('href') ?? '')) hint.remove()
+  }
   for (const link of doc.querySelectorAll<HTMLLinkElement>('link[rel~="stylesheet"][href]')) {
     const reference = link.getAttribute('href') ?? ''
     const target = isWorkspaceReference(reference) ? resolveReference(folder, reference) : undefined
@@ -397,7 +584,7 @@ export async function previewDocument(html: string, path: string, read: AssetRea
       script.removeAttribute('src')
       // A module keeps its type and imports through the generated map; `</script` inside the text would end the
       // element early.
-      const source = module ? modules.rewrite(text, folderOf(target)) : text
+      const source = module ? modules.rewrite(text, folderOf(target), target) : text
       script.textContent = source.replace(/<\/script/gi, '<\\/script')
     }))
   }
@@ -425,6 +612,10 @@ export async function previewDocument(html: string, path: string, read: AssetRea
     map.textContent = JSON.stringify({ imports: Object.fromEntries(modules.entries) }).replace(/<\/script/gi, '<\\/script')
     doc.head.prepend(map)
   }
+  // The bridge runs before every page script, so the page's first runtime request already goes through it.
+  const bridge = doc.createElement('script')
+  bridge.textContent = fileBridgeScript(token, path)
+  doc.head.prepend(bridge)
 
   const policy = doc.createElement('meta')
   policy.setAttribute('http-equiv', 'Content-Security-Policy')

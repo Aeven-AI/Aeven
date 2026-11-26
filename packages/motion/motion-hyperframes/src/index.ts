@@ -7,10 +7,8 @@
  * @module @aeven/motion-hyperframes
  */
 import { mkdir, mkdtemp, rm, stat } from 'node:fs/promises'
-import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { MOTION_QUEUED_STAGE, type MotionAuditSamples, type MotionProgress, type MotionQuality, type MotionRenderInput, type MotionRendered } from '@aeven/motion'
@@ -19,7 +17,7 @@ import type { ProducerLogger, RenderJob } from '@hyperframes/producer'
 import { resolveFfBinaries } from './binaries.ts'
 import type { FfBinaries } from './binaries.ts'
 import { auditComposition } from './audit.ts'
-import { resolveBrowser } from './browser.ts'
+import { headlessShellBuildId, resolveBrowser } from './browser.ts'
 import { firstWorkingEncoder, probeFilm, takeStills, transcode } from './encode.ts'
 
 export const name = 'motion-hyperframes'
@@ -68,19 +66,6 @@ export const Config: z<Config> = z.object({
 
 /** How a host encodes H.264: HyperFrames' hardware path, or a ProRes intermediate plus a fallback encoder. */
 type EncodePath = { readonly kind: 'direct'; readonly encoder: string } | { readonly kind: 'transcode'; readonly encoder: string }
-
-/**
- * The headless shell build matching the Puppeteer that HyperFrames drives, read from that Puppeteer's revisions.
- * @returns a Chrome for Testing build id.
- */
-async function headlessShellBuildId(): Promise<string> {
-  const producer = fileURLToPath(import.meta.resolve('@hyperframes/producer'))
-  const revisions = createRequire(producer).resolve('puppeteer-core/internal/revisions.js')
-  const loaded = await import(pathToFileURL(revisions).href) as { PUPPETEER_REVISIONS: Record<string, string> }
-  const build = loaded.PUPPETEER_REVISIONS['chrome-headless-shell']
-  if (build === undefined) throw new Error('motion-hyperframes: Puppeteer names no chrome-headless-shell build')
-  return build
-}
 
 /**
  * Route HyperFrames' log lines to the plugin logger; its per-frame info lines become debug lines.

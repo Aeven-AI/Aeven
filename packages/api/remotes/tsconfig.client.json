@@ -123,6 +123,9 @@
       "path": "../../host/message-share"
     },
     {
+      "path": "../../host/artifacts"
+    },
+    {
       "path": "../../skill/skill"
     },
     {

@@ -1,7 +1,8 @@
 /**
  * Sidebar glyphs that come alive while the row carrying them is hovered or
  * focused: the New Session plus turns over, the Bots face glances about and
- * blinks, and the Imagine sun sets behind its island and rises again. The same
+ * blinks, the Imagine sun sets behind its island and rises again, and the Artifacts
+ * sparkles twinkle. The same
  * Bots face also ships as a self-running loop, for the Bots page's empty state.
  *
  * Each glyph draws the artwork of its static counterpart in `./index.tsx`;
@@ -83,5 +84,26 @@ export const IconStackedImagesAnimated = ({ className }: LucideGlyphProps) => (
     <rect x="8" y="2" width="14" height="14" rx="2" />
     <path d="m22 11-1.296-1.296a2.4 2.4 0 0 0-3.408 0L11 16" />
     <circle className={css.sun} cx="13" cy="7" r="1" fill="currentColor" />
+  </svg>
+)
+
+/** lucide `pencil-sparkles` whose three sparkles twinkle in turn: the Artifacts row. */
+export const IconPencilSparklesAnimated = ({ className }: LucideGlyphProps) => (
+  <svg
+    aria-hidden="true"
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="m15.007 5.008 3.987 3.986" />
+    <path d="M21.174 6.813a2.82 2.82 0 0 0-3.986-3.987L3.842 16.175a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" />
+    <path className={css.sparkle} d="M4 5v4M6 7H2" />
+    <path className={css.sparkle} d="M9 2v2M10 3H8" />
+    <path className={css.sparkle} d="M20 15v4M22 17h-4" />
   </svg>
 )

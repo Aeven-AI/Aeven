@@ -13,6 +13,12 @@
     helpCenterUrl: !!js process.env.AEVEN_HELP_CENTER_URL ?? 'https://helpcenter.aeven.io'
     jwksCacheFile: !!js avnHomePath('identity', 'aeven-jwks.json')
 
+# Page previews on the Artifacts page share Motion's downloaded headless browser.
+- id: artifact-previews
+  config:
+    cacheDir: !!js avnHomePath('artifact-previews')
+    browserCacheDir: !!js avnHomePath('motion', 'browser')
+
 - id: llm-aeven
   config:
     apiUrl: !!js process.env.AEVEN_API_URL ?? 'https://aeven.io/api'

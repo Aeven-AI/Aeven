@@ -5,7 +5,9 @@
  * rendered or as source.
  *
  * Kept in memory per session and surface, so switching sessions or pills and
- * back finds the explorer where it was; a reload starts it at the root.
+ * back finds the explorer where it was; a reload starts it at the root. The
+ * HTML view is the reader's own preference: a surface starts with the view
+ * chosen last on this browser, rendered when none was chosen.
  */
 
 /** One Files surface's navigation state. */
@@ -26,10 +28,38 @@ export interface ExplorerMemory {
   readonly htmlView: 'preview' | 'source'
 }
 
-/** A surface the explorer has not shown before. */
+/** A surface the explorer has not shown before, before the saved HTML view is applied. */
 export const FRESH_MEMORY: ExplorerMemory = {
   expanded: new Set(), openFile: null, treeVisible: false, dockWidth: null, query: '', showIgnored: false,
-  htmlView: 'source',
+  htmlView: 'preview',
+}
+
+/** Browser storage key of the HTML view the reader chose last. */
+const HTML_VIEW_KEY = 'avn.sidebarFiles.htmlView'
+
+/**
+ * The HTML view the reader chose last on this browser.
+ * @returns the saved view, or `preview` when none was saved.
+ */
+export function savedHtmlView(): ExplorerMemory['htmlView'] {
+  try {
+    return localStorage.getItem(HTML_VIEW_KEY) === 'source' ? 'source' : 'preview'
+  } catch {
+    // Storage unavailable: files open rendered, the default.
+    return 'preview'
+  }
+}
+
+/**
+ * Save the HTML view the reader chose, so every surface opened after it starts there.
+ * @param view - the chosen view.
+ */
+export function saveHtmlView(view: ExplorerMemory['htmlView']): void {
+  try {
+    localStorage.setItem(HTML_VIEW_KEY, view)
+  } catch {
+    // Same unavailable storage as savedHtmlView: the choice holds for this surface only.
+  }
 }
 
 /**
@@ -76,7 +106,7 @@ function keyOf(sessionId: string, surfaceId: string): string {
  * @returns its remembered state, or a fresh one.
  */
 export function recall(sessionId: string, surfaceId: string): ExplorerMemory {
-  return memories.get(keyOf(sessionId, surfaceId)) ?? FRESH_MEMORY
+  return memories.get(keyOf(sessionId, surfaceId)) ?? { ...FRESH_MEMORY, htmlView: savedHtmlView() }
 }
 
 /**

@@ -122,7 +122,9 @@ export interface UiWorkspace {
    * disagree.
    * @param path - absolute path, such as `/inspiration` or `/bots/runs`, or a
    * pattern ending in `/:id`, such as `/bots/:id`, that claims every child whose
-   * last segment is a UUID; an exact registration wins over a pattern.
+   * last segment is a UUID, or in `/:key`, such as `/artifacts/:key`, that claims
+   * every child whose last segment is letters, digits, `-` and `_`; an exact
+   * registration wins over a pattern, and `:id` over `:key`.
    * @param claim - what this page contributes to the shell; absent claims nothing.
    * @returns disposer releasing the claim.
    */

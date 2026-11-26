@@ -12,9 +12,21 @@ const SESSION_PATH_PREFIX = '/c/'
 const START_PARAM = ':id'
 
 /**
+ * Last segment of a start address pattern, as in `/artifacts/:key`: it matches
+ * one segment of letters, digits, `-` and `_`, such as a page's own word or a
+ * base64url id, so a page can address items whose ids are not UUIDs.
+ */
+const START_KEY_PARAM = ':key'
+
+/** One segment a `:key` pattern accepts. */
+const START_KEY = /^[A-Za-z0-9_-]+$/
+
+/**
  * The registered start address a pathname resolves to: the pathname itself
  * when registered, else the `:id` pattern of its parent when its last segment
- * is a UUID. An exact registration therefore wins over a pattern.
+ * is a UUID, else the `:key` pattern of its parent when its last segment is a
+ * plain word. An exact registration therefore wins over a pattern, and `:id`
+ * over `:key`.
  * @param pathname - the address bar's pathname.
  * @param starts - the registered start addresses and patterns.
  * @returns the registration it matches, or undefined.
@@ -22,9 +34,13 @@ const START_PARAM = ':id'
 function matchStartIn(pathname: string, starts: ReadonlySet<string>): string | undefined {
   if (starts.has(pathname)) return pathname
   const slash = pathname.lastIndexOf('/')
-  if (slash <= 0 || !SESSION_UUID.test(pathname.slice(slash + 1))) return undefined
-  const pattern = `${pathname.slice(0, slash)}/${START_PARAM}`
-  return starts.has(pattern) ? pattern : undefined
+  if (slash <= 0) return undefined
+  const parent = pathname.slice(0, slash)
+  const last = pathname.slice(slash + 1)
+  const pattern = `${parent}/${START_PARAM}`
+  if (SESSION_UUID.test(last) && starts.has(pattern)) return pattern
+  const keyed = `${parent}/${START_KEY_PARAM}`
+  return START_KEY.test(last) && starts.has(keyed) ? keyed : undefined
 }
 
 /**
@@ -104,7 +120,7 @@ export interface SessionUrlNavigation {
   /**
    * The registration one start address resolves to.
    * @param path - a concrete address, such as `/bots/<uuid>`.
-   * @returns the registered path or `:id` pattern, or undefined when none claims it.
+   * @returns the registered path, `:id` or `:key` pattern, or undefined when none claims it.
    */
   matchStart(path: string): string | undefined
   /**
