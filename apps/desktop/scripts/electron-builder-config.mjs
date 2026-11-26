@@ -144,8 +144,9 @@ export function createElectronBuilderConfig(
       backgroundColor: 'transparent',
       // The client's locales (`LOCALE_IDS` in @aeven/client-locale); Partner Center lists the Store page in these.
       languages: ['en-US', 'zh-CN', 'es-ES'],
-      // The template adds the desktop6 properties that turn off file-system and registry write virtualization, so
-      // AppData and the browsers' native-messaging registration under HKCU stay where unpackaged programs read them.
+      // The template leaves file-system writes and the app's native-messaging keys under HKCU unvirtualized, so
+      // what the agent's tools write under AppData and the app's browser registration stay where unpackaged programs
+      // read them. Windows 11 excludes only those keys; Windows 10 cannot, and leaves every registry write unvirtualized.
       customManifestPath: 'appx/AppxManifest.xml',
       // Windows 10 1903 is the first release that honours the desktop6 virtualization properties.
       minVersion: '10.0.18362.0',

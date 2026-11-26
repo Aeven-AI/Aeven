@@ -491,6 +491,11 @@ export function apply(ctx: ClientContext): void {
   // connects to the extension in the browser it runs in.
   const pageBridge = pageExtensionBridge(new PageExtensionLink(pageConnector))
   const extensionStatus = desktopBrowser()?.extensionStatus ?? pageBridge.extensionStatus
+  // Only the desktop app registers itself with the browsers, so only it offers turning that off.
+  const { extensionEnabled, setExtensionEnabled } = desktopBrowser() ?? {}
+  const integration = extensionEnabled === undefined || setExtensionEnabled === undefined
+    ? undefined
+    : { read: extensionEnabled, write: setExtensionEnabled }
   // A web page in a browser that can install the extension offers the store from the row.
   const installUrl = !isDesktopShell() && canInstallExtension() ? AEVEN_EXTENSION_STORE_URL : undefined
   ctx.slots.inject('settings.general.item', () => ctx.slots.register({
@@ -499,7 +504,7 @@ export function apply(ctx: ClientContext): void {
     // Under General's Advanced heading (order 998), above Developer mode (order 1000).
     order: 999,
     locale: NS,
-    inject: (): ExtensionRowInjected => ({ extensionStatus, installUrl }),
+    inject: (): ExtensionRowInjected => ({ extensionStatus, installUrl, integration }),
   }, ExtensionRow))
 
   if (!isDesktopShell()) {

@@ -1,16 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Microsoft Store package manifest. electron-builder fills each placeholder from the `appx` options in
-  scripts/electron-builder-config.mjs. Unlike electron-builder's default template, it turns off file-system and
-  registry write virtualization: the Host's AppData and the browsers' native-messaging keys under HKCU must be the
-  ones unpackaged programs read. Turning it off requires the unvirtualizedResources restricted capability.
+  scripts/electron-builder-config.mjs. Unlike electron-builder's default template, it leaves two kinds of write
+  unvirtualized, under the unvirtualizedResources restricted capability:
+
+  - File-system writes. The agent's tools write wherever the user's task names, and other programs must read what
+    they wrote under AppData. Those folders are not known ahead of the task, so no ExcludedDirectories list covers them.
+  - The app's io.aeven.browser key under each browser's NativeMessagingHosts key in HKCU, where a browser looks up
+    the host that connects it to the app. Windows 11 excludes exactly those keys (virtualization:ExcludedKeys) and
+    virtualizes every other registry write. Windows 10 has no key exclusions, ignores that element, and applies the
+    desktop6 property, which leaves all registry writes unvirtualized. The app writes only the keys
+    windowsHostKeys() in src/browser-extension.ts names; tests/store-manifest.spec.ts holds this list to them.
 -->
 <Package
    xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
    xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
    xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
    xmlns:desktop6="http://schemas.microsoft.com/appx/manifest/desktop/windows10/6"
-   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities">
+   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+   xmlns:virtualization="http://schemas.microsoft.com/appx/manifest/virtualization/windows10"
+   IgnorableNamespaces="virtualization">
   <Identity Name="${identityName}"
     ProcessorArchitecture="${arch}"
     Publisher="${publisher}"
@@ -22,6 +31,14 @@
     <Logo>${logo}</Logo>
     <desktop6:FileSystemWriteVirtualization>disabled</desktop6:FileSystemWriteVirtualization>
     <desktop6:RegistryWriteVirtualization>disabled</desktop6:RegistryWriteVirtualization>
+    <virtualization:RegistryWriteVirtualization>
+      <virtualization:ExcludedKeys>
+        <virtualization:ExcludedKey>HKEY_CURRENT_USER\Software\Google\Chrome\NativeMessagingHosts\io.aeven.browser</virtualization:ExcludedKey>
+        <virtualization:ExcludedKey>HKEY_CURRENT_USER\Software\Chromium\NativeMessagingHosts\io.aeven.browser</virtualization:ExcludedKey>
+        <virtualization:ExcludedKey>HKEY_CURRENT_USER\Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\io.aeven.browser</virtualization:ExcludedKey>
+        <virtualization:ExcludedKey>HKEY_CURRENT_USER\Software\Microsoft\Edge\NativeMessagingHosts\io.aeven.browser</virtualization:ExcludedKey>
+      </virtualization:ExcludedKeys>
+    </virtualization:RegistryWriteVirtualization>
   </Properties>
   <Resources>
     ${resourceLanguages}

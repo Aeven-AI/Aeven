@@ -24,6 +24,8 @@ export const DESKTOP_IPC = {
   browserChromeAutomate: 'avn-desktop:browser-chrome-automate',
   browserExtensionRead: 'avn-desktop:browser-extension-read',
   browserExtensionStatus: 'avn-desktop:browser-extension-status',
+  browserExtensionEnabledGet: 'avn-desktop:browser-extension-enabled-get',
+  browserExtensionEnabledSet: 'avn-desktop:browser-extension-enabled-set',
   browserSuggest: 'avn-desktop:browser-suggest',
   browserCursor: 'avn-desktop:browser-cursor',
   browserCursorArrived: 'avn-desktop:browser-cursor-arrived',
@@ -191,6 +193,17 @@ export interface AvnDesktopBrowserApi {
    * @returns each install's id and browser name.
    */
   extensionStatus(): Promise<Array<{ instance: string; browser: string }>>
+  /**
+   * Whether the browsers are told where to find this app, so the extension can connect.
+   * @returns the stored choice; on until the reader turns it off.
+   */
+  extensionEnabled(): Promise<boolean>
+  /**
+   * Store the choice and apply it: off removes this app's registration from every browser, on writes it again.
+   * @param enabled - whether the extension may connect.
+   * @returns resolution after the registration follows the choice.
+   */
+  setExtensionEnabled(enabled: boolean): Promise<void>
   /**
    * Ask a search engine to complete a query: the endpoint's response body.
    * @param url - the engine's completion endpoint.
