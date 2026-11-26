@@ -307,15 +307,15 @@ describe('starter prompt grid', () => {
           showCategory={(next) => { setAddress(CATEGORY_PATHS[next]) }}
           openCard={setAddress}
           useAddress={select => select(address)}
-        useSession={bindSnapshotSelector(source(sessionSnapshot(SID)))}
-        sessionId={SID}
-        useConversation={bindSnapshotSelector(source(conversationSnapshot()))}
-        useChat={bindSnapshotSelector(source(chatSnapshot()))}
-        useInput={bindSnapshotSelector(source(input))}
-        useTrajectory={selector => selector(trajectory)}
-        useProjection={() => undefined}
-        useSessions={bindSnapshotSelector(source(list))}
-        useSessionPendingInteraction={bindSnapshotSelector(source(pending))}
+          useSession={bindSnapshotSelector(source(sessionSnapshot(SID)))}
+          sessionId={SID}
+          useConversation={bindSnapshotSelector(source(conversationSnapshot()))}
+          useChat={bindSnapshotSelector(source(chatSnapshot()))}
+          useInput={bindSnapshotSelector(source(input))}
+          useTrajectory={selector => selector(trajectory)}
+          useProjection={() => undefined}
+          useSessions={bindSnapshotSelector(source(list))}
+          useSessionPendingInteraction={bindSnapshotSelector(source(pending))}
           useWorkspaces={bindSnapshotSelector(source(workspaceSnapshot()))}
           t={t}
         />
