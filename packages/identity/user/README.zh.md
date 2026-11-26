@@ -46,6 +46,8 @@ kind: "package-reference"
 
 该服务暴露三个成员：`registerResolver(resolver)` 添加一个 authority 并返回移除它的 disposer，`enforcing` 报告是否注册了任何 authority，`resolve(request)` 从携带凭据的 header 中识别调用方。
 
+authority 还可以声明 `unattendedCredential`：其调用方出示的长期凭据（例如 Aeven 的 refresh-token cookie）的引用和读取器。`unattendedCredentialFor(request, user)` 从认得该请求的 authority 返回该引用和值，且仅当凭据恰好属于该用户时返回。连接把它保存在调用方的账户凭据中，因此调用方的短期会话凭据过期后，为该账户运行的工作仍能通过认证。
+
 ### 解析回答了什么
 
 `resolve` 按注册顺序把请求交给每个已注册的 authority，返回其中第一个认得的用户；都不认得时返回 `undefined`。组合完全通过挂载 authority 的顺序来控制优先级。凭据失败的原因刻意不上报——两种情况下 AVN 都回答 401，而说明原因等于把凭据的情况描述给提交它的人。

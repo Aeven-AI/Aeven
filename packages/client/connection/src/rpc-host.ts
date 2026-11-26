@@ -14,6 +14,7 @@ import { API_PATH } from './api-path.ts'
 import type { BrowserAuth } from './browser-auth.ts'
 import type {} from '@aeven/identity-user'
 import type { User } from '@aeven/identity-user'
+import type { CredentialProvider } from '@aeven/credentials'
 import type {
   ConnectionIndexRequest,
   ConnectionIndexResponse,
@@ -86,6 +87,8 @@ declare module '@deepseek-ai/cordis' {
 export class HostConnectionService extends Service implements HostConnectionHandle {
   private readonly interceptors = new Map<string, ConnectionRpcInterceptor>()
   private readonly fetchRoutes = new Map<string, RegisteredFetchRoute>()
+  /** The unattended credential last stored per user and reference, so a request that repeats it writes nothing. */
+  private readonly storedUnattended = new Map<string, string>()
 
   /**
    * Provide the Host half over the active HTTP server.
@@ -188,6 +191,13 @@ export class HostConnectionService extends Service implements HostConnectionHand
    * An authority declares whether its credential is re-presentable at all, so a
    * launch token — which admits one browser and opens nothing else — is never
    * published anywhere.
+   *
+   * On a credential provider with account storage, the authority's long-lived
+   * `unattendedCredential` is also stored in the caller's own
+   * account credentials whenever it changes. That copy is what work for the
+   * account presents once no page of theirs is open and the published session
+   * credential has expired; a Host without account storage keeps none, because
+   * its credential file is shared by every caller.
    * @param request - a request {@link requestRejection} already admitted.
    */
   publishCallerCredential(request: ConnectionTrustRequest): void {
@@ -209,6 +219,30 @@ export class HostConnectionService extends Service implements HostConnectionHand
     // by the caller, so clients signed in to different accounts never present
     // each other's session.
     credentials.setSession?.(ref, user.id, bearer)
+    if (credentials.accountStorage) this.storeUnattendedCredential(credentials, request, user)
+  }
+
+  /**
+   * Store the caller's unattended credential in their account credentials when it differs from the last one stored.
+   * @param credentials - the credential provider, which has account storage.
+   * @param request - the admitted request.
+   * @param user - the caller the request was identified as.
+   */
+  private storeUnattendedCredential(credentials: CredentialProvider, request: ConnectionTrustRequest, user: User): void {
+    const unattended = this.ctx.get('identityUsers')?.unattendedCredentialFor(request, user)
+    if (unattended === undefined) return
+    const key = `${user.id}\0${unattended.ref}`
+    if (this.storedUnattended.get(key) === unattended.value) return
+    this.storedUnattended.set(key, unattended.value)
+    void (async () => {
+      // After a restart the cache is empty, so compare with the stored value before writing it again.
+      if ((await credentials.resolve(unattended.ref, user.id))?.value === unattended.value) return
+      await credentials.set(unattended.ref, unattended.value, user.id)
+    })().catch((error: unknown) => {
+      // Forget the value so the next request retries the write.
+      this.storedUnattended.delete(key)
+      this.ctx.logger('connection').warn('cannot store the unattended credential of %s: %s', user.id, error instanceof Error ? error.message : String(error))
+    })
   }
 
   /**

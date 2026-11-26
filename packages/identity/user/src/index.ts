@@ -17,7 +17,7 @@ import { Service, type Context } from '@deepseek-ai/cordis'
 import type { CredentialRef } from '@aeven/credentials'
 import type { IdentityRequest, User, UserResolver } from './types.ts'
 
-export type { IdentityRequest, User, UserResolver } from './types.ts'
+export type { IdentityRequest, UnattendedCredential, User, UserResolver } from './types.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -137,6 +137,23 @@ export class IdentityUsers extends Service {
   credentialRefFor(request: IdentityRequest): CredentialRef | undefined {
     for (const resolver of this.resolvers.values()) {
       if (resolver.resolve(request) !== undefined) return resolver.credentialRef
+    }
+    return undefined
+  }
+
+  /**
+   * The long-lived credential a request carries for its user, read by the resolver that recognizes the request.
+   * @param request - the credential-bearing headers.
+   * @param user - the user the request was identified as.
+   * @returns the reference and value to store for the user, or undefined when the recognizing authority declares no
+   * {@link UserResolver.unattendedCredential} or the request carries none for this user.
+   */
+  unattendedCredentialFor(request: IdentityRequest, user: User): { ref: CredentialRef; value: string } | undefined {
+    for (const resolver of this.resolvers.values()) {
+      if (resolver.resolve(request)?.id !== user.id) continue
+      const credential = resolver.unattendedCredential
+      const value = credential?.read(request, user)
+      return credential === undefined || value === undefined ? undefined : { ref: credential.ref, value }
     }
     return undefined
   }

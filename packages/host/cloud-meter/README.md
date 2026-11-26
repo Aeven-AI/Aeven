@@ -9,10 +9,10 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@aeven/cloud-meter` bills the cloud work a hosted Host does for each account to that account's Aeven credit. It meters three things under the session owner, whose `AEVEN_TOKEN` pays:
+`@aeven/cloud-meter` bills the cloud work a hosted Host does for each account to that account's Aeven credit. It meters three things under the session owner, whose Aeven credential pays:
 
 - the CPU seconds of the account's jailed commands, from `sandbox-jail/usage`;
-- the bytes of the account's folder, measured once a day;
+- the bytes of the account's folder, measured once a day, leaving out directories the Host cannot read;
 - each turn on a provider whose inference the Aeven API does not bill.
 
 It sends them to `POST /api/cloud/meter/charges`, where the Aeven API prices them from its `cloud` configuration, applies the plan discount and charges the plan allowance first, then the purchased balance. An account the API reports as unfunded starts no jailed command and no turn on an unbilled provider.
@@ -37,7 +37,7 @@ The `avn-hosted-app` bundle mounts it when `AVN_CLOUD_BILLING=1`, with `apiUrl` 
 | Field | Default | Effect |
 | --- | --- | --- |
 | `apiUrl` | required | Aeven API origin the reports and quotes go to. |
-| `credentialRef` | `AEVEN_TOKEN` | Credential holding each owner's Aeven session. |
+| `credentialRefs` | `[AEVEN_TOKEN]` | Credentials holding each owner's Aeven session, presented in order until the API stops answering `401`. The `avn-hosted-app` bundle states `[AEVEN_REFRESH_TOKEN, AEVEN_TOKEN]`, so the refresh token the connection stores per account keeps reports accepted after the account's last page has closed. |
 | `flushIntervalMs` | `60000` | Milliseconds between sends of the queued reports. |
 | `quoteTtlMs` | `60000` | Milliseconds an owner's funding answer stays fresh. |
 | `accountsRoot` | none | Directory whose children are account folders named by owner; omitted, storage is not metered. |
@@ -59,7 +59,7 @@ A jailed command fails with `SANDBOX_UNAVAILABLE`, and a turn on an unbilled pro
 
 ### Reports and ids
 
-CPU seconds add up per owner until the next send, which turns them into one `sandbox` report with a random id. A turn's id is `turn:<session id>:<turn>`, and a storage report names its UTC day; a day's report still waiting makes a later measurement of that day add nothing. A report keeps its id until the API accepts it, so a report resent after a failed request is charged once; the API's ledger is keyed on the account and that id, and on the day for storage. A `400` answer drops the batch, because resending it cannot succeed; any other failure keeps it.
+CPU seconds add up per owner until the next send, which turns them into one `sandbox` report with a random id. A turn's id is `turn:<session id>:<turn>`, and a storage report names its UTC day; a day's report still waiting makes a later measurement of that day add nothing. A report keeps its id until the API accepts it, so a report resent after a failed request is charged once; the API's ledger is keyed on the account and that id, and on the day for storage. A `400` answer drops the batch, because resending it cannot succeed; a `401` moves to the owner's next credential, and any other failure keeps the batch.
 
 ### Funding
 
@@ -104,7 +104,7 @@ Prefix-stable: the plugin changes no request content, and a refusal is appended 
 
 - **Queued reports live in memory**: a Host restart loses at most one interval of CPU seconds and any reports the API had not accepted.
 - **CPU time, not wall-clock**: a command that waits or sleeps costs nothing while it waits, and a command using both CPUs of its account's limit counts double.
-- **Storage is measured with `du -sk`**, the disk space a folder takes: each account folder is walked once a day, which takes longer as folders grow.
+- **Storage is measured with `du -sk`**, the disk space a folder takes: each account folder is walked once a day, which takes longer as folders grow. A directory the Host user cannot enter, such as a `0700` temporary folder a jailed command created, is left out of the total `du` prints, so such folders are not billed.
 
 <a id="dev-note"></a>
 ### Dev Note

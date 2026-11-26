@@ -46,6 +46,8 @@ The row takes no configuration; an authority mounts after it and injects the ser
 
 The service exposes three members: `registerResolver(resolver)` adds one authority and returns the disposer that removes it, `enforcing` reports whether any authority is registered, and `resolve(request)` identifies the caller from credential-bearing headers.
 
+An authority may also declare `unattendedCredential`: a reference and a reader for a long-lived credential its callers present, such as the Aeven refresh-token cookie. `unattendedCredentialFor(request, user)` returns that reference and value from the authority that recognizes the request, and only when the credential belongs to exactly that user. The connection stores it in the caller's account credentials, so work for the account can authenticate after the caller's short-lived session credential has expired.
+
 ### What resolution answers
 
 `resolve` hands the request to each registered authority in registration order and returns the first user any of them recognizes, or `undefined` when none does. A composition controls precedence purely by the order it mounts authorities. The reason a credential failed is deliberately not reported — AVN answers 401 either way, and naming the reason describes the credential back to whoever supplied it.

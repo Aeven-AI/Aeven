@@ -38,6 +38,8 @@ cookie 签名密钥是 `ctx.credentials` 中由 `client-connection/browser-sessi
 
 当 identity authority 强制执行身份认证时，启动 cookie 不授予 API 访问权。`/api` 下每个获准的 bearer 请求（包括 `HEAD /api/credential`）都会续签独立的 `avn-account-<authority hash>` cookie，使用同一个持久化密钥签名。其 payload 记录 `version`、`authority`、`userId`、`issuedAt` 和 `expiresAt`；它限定在 `Path=/api`，并在签发 12 小时后过期，因此常规流量会持续续签，而退出登录的账号会在该窗口内停止读取资源字节。身份解析优先；显式 Authorization header 无效时仍返回 401。该 cookie 只放行已注册精确 Fetch 路由上的 `GET` 和 `HEAD`——浏览器自行加载的字节路由，例如 `/api/file` 与 `/api/attachment-image`——并通过 `identityUsers.runAs` 分发该读取，保留附件及其他账号数据的所有权检查。RPC 通道、流以及所有其他方法仍需页面自身的 bearer，因此该 cookie 绝不会成为通往工具型 API 的第二把钥匙。浏览器原生资源读取共享该 origin 最新的账号 cookie，因此最后一个获准的 bearer 请求决定这些读取所属的账号；bearer RPC 和 WebSocket 请求保留页面自身的身份。参见 [Host 账号 cookie](../../../.agents/notes/implemented/bug-fix/2026-10-15-host-account-cookies-for-native-resources.zh.md)。
 
+每个获准的 RPC 请求都会把调用方的 bearer 以会话凭据的形式发布在 authority 的 `credentialRef` 下，只保存在内存中。在支持账户存储的凭据提供方上，请求还会在 authority 的 `unattendedCredential`（Aeven refresh cookie，经验证属于同一用户）的值变化时，把它保存到该账户自己的凭据文件中。没有账户存储的 Host 不保存任何内容，因为其凭据文件由所有调用方共享。
+
 认证之前，每个请求仍经过 `src/api-request-trust.ts`。其 `Host` 必须是 loopback，或与 `trustedHosts` 条目匹配：带端口的 `host:port` 精确匹配，不带端口的条目匹配任意端口，两侧均经 WHATWG 归一化。若附带 `Origin`，它必须等于该 Host；`sec-fetch-site: cross-site` 一律拒绝。畸形配置 authority 会让插件加载失败。这些检查防御 DNS rebinding 与跨站浏览器请求，绝不建立身份。Host/Origin 校验失败返回 403；Host 可信但未认证的请求返回 401。`avn web --host 0.0.0.0` 仍不受支持。决策记录：[浏览器请求信任](../../../.agents/notes/implemented/architecture/2026-07-28-api-browser-trust-boundary.zh.md)与[浏览器令牌认证](../../../.agents/notes/implemented/architecture/2026-08-24-browser-token-authentication.zh.md)。
 
 <a id="connection-generation"></a>

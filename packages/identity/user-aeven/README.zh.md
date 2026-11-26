@@ -50,6 +50,7 @@ kind: "package-reference"
 | `jwksTimeoutMs` | 10000 | 单次获取密钥集的时限 |
 | `jwksCacheFile` | 无 | 保存最近一次获取的密钥集的文件；带着它启动的 Host 立即可以校验，并在后台刷新密钥集；不设置则密钥只保存在内存中 |
 | `refreshCookieName` | `refreshToken` | 为不带 bearer 的请求携带 refresh token 的 cookie |
+| `unattendedCredentialRef` | `AEVEN_REFRESH_TOKEN` | 在按账户保存凭据的 Host 上，经验证的 refresh cookie 按账户保存所用的凭据引用，即 resolver 的 `unattendedCredential`；账户没有打开页面时运行的工作（例如 `cloud-meter` 报告）在 access token 过期后出示它 |
 | `apiUrl` | 无 | 浏览器据以登录的 Aeven API origin；缺失时客户端没有任何认证界面 |
 | `socketUrl` | 无 | Aeven API 的账户 socket，例如 `wss://aeven.io/socket`；页面用自己的 access token 打开它，以便在会话于其他页面结束、或账户语言改变时立即得知；缺失时，页面只有在下次续期 token 时才会得知会话已结束 |
 | `webUrl` | 无 | 账户菜单链接到的 Aeven web 客户端 origin |
