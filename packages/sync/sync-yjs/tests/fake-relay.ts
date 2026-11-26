@@ -31,6 +31,8 @@ interface StoredHolder {
 interface Account {
   seq: number
   frames: StoredFrame[]
+  /** The device of every snapshot published so far, in order, including those a later snapshot pruned. */
+  snapshots: string[]
   key: string
   /** Set while passkeys hold the key: the key id and every copy; the relay then holds no key. */
   protection?: { keyId: string; holders: StoredHolder[] } | undefined
@@ -48,9 +50,9 @@ interface Peer {
 }
 
 /** Header fields the relay routes on. */
-function headerOf(data: Buffer): { kind: string; id: string } {
+function headerOf(data: Buffer): { kind: string; id: string; device: string } {
   const end = 3 + data.readUInt16BE(1)
-  return JSON.parse(data.subarray(3, end).toString('utf8')) as { kind: string; id: string }
+  return JSON.parse(data.subarray(3, end).toString('utf8')) as { kind: string; id: string; device: string }
 }
 
 /** A running fake relay. */
@@ -116,7 +118,7 @@ export class FakeRelay {
   account(owner: string): Account {
     let account = this.accounts.get(owner)
     if (account === undefined) {
-      account = { seq: 0, frames: [], key: randomBytes(32).toString('base64url'), leases: new Map(), sockets: new Set() }
+      account = { seq: 0, frames: [], snapshots: [], key: randomBytes(32).toString('base64url'), leases: new Map(), sockets: new Set() }
       this.accounts.set(owner, account)
     }
     return account
@@ -235,6 +237,7 @@ export class FakeRelay {
           const header = headerOf(data)
           account.seq += 1
           account.frames.push({ seq: account.seq, id: header.id, kind: header.kind, data })
+          if (header.kind === 'snapshot') account.snapshots.push(header.device)
           if (typeof item.covers === 'number') {
             const covers = item.covers
             account.frames = account.frames.filter(frame => frame.id !== header.id || frame.seq > covers)

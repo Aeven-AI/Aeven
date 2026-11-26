@@ -5345,8 +5345,12 @@ export interface Config {
   compactAfter: number
   /** Bytes of updates a document may accumulate since its last merge before they are merged into one. */
   compactBytes: number
-  /** Frames per document since its last snapshot before this device queues a new one. */
+  /** Frames per document since its last snapshot before the device whose own update crosses the count queues a new one. */
   snapshotAfter: number
+  /** Updates one document may take within `churnWindowMs` before this device warns that it is being rewritten. */
+  churnUpdates: number
+  /** The period `churnUpdates` is counted over, in milliseconds. */
+  churnWindowMs: number
   /** Share of an account store's file that free pages may take before the file is rewritten without them at open. */
   reclaimFreeRatio: number
   /** Received frames opened on the sync worker and stored in one transaction per batch. */

@@ -9,7 +9,7 @@ import { Deque } from '@aeven/deque'
 import {
   fromBase64Url, generateVaultKey, keyIdOf, derivedSecretOf, opaqueIdOf, openEnvelope, proveKey, sealEnvelope, toBase64Url,
   unwrapUnderPasskey, verifyKeyProof, wrapUnderPasskey,
-  type DeviceId, type EnvelopeKind, type KeyId, type OpaqueId,
+  type DeviceId, type EnvelopeHeader, type EnvelopeKind, type KeyId, type OpaqueId,
 } from '@aeven/sync-vault'
 import { SyncKeyHolderMismatch, type SyncDocument, type SyncKeyHolder, type SyncKeyMode, type SyncPasskey, type SyncPasskeyDevice, type SyncProtection, type SyncState, type SyncStatus } from '@aeven/sync'
 import type { SyncOffload } from './offload.ts'
@@ -53,8 +53,15 @@ export interface VaultTuning {
    * what many small ones do.
    */
   compactBytes: number
-  /** Frames per document since its last snapshot before this device queues a new one. */
+  /**
+   * Frames per document since its last snapshot before the device whose own update crosses the count queues a new
+   * one. A device that only receives the document queues one at {@link RECEIVER_SNAPSHOT_FACTOR} times the count.
+   */
   snapshotAfter: number
+  /** Updates one document may take within `churnWindowMs` before this device warns that it is being rewritten. */
+  churnUpdates: number
+  /** The period `churnUpdates` is counted over, in milliseconds. */
+  churnWindowMs: number
   /** Received frames opened and stored per batch; opening runs on the sync worker, storing in one transaction. */
   applyFrames: number
   /** Pause between two slices while received frames wait, in milliseconds; it bounds the share of CPU and disk catch-up takes. */
@@ -171,12 +178,23 @@ function pause(ms: number): Promise<void> {
   return new Promise((resolve) => { setTimeout(resolve, ms) })
 }
 
+/**
+ * How many times `snapshotAfter` frames a device that did not write the last one lets pass before it queues a
+ * snapshot itself. Every device counts the same frames, so without the gap each would upload the whole document at
+ * the same frame; with it the writer's snapshot arrives first and resets the receivers' counts, and a receiver
+ * still bounds the relay's backlog when the writer cannot snapshot, as while its copy waits for a missing update.
+ */
+const RECEIVER_SNAPSHOT_FACTOR = 2
+
 interface OpenDoc {
   doc: Y.Doc
   handles: number
 }
 
-/** Diagnostics sink for frames that are dropped rather than applied. */
+/**
+ * Diagnostics sink for frames that are dropped rather than applied and for documents rewritten at a high rate;
+ * `error` is undefined when none caused the warning.
+ */
 export type VaultWarn = (message: string, error: unknown) => void
 
 /** One account's vault on this device. */
@@ -195,6 +213,10 @@ export class AccountVault {
   private lanSend: ((frame: Uint8Array) => void) | undefined
   private readonly streamWatchers = new Map<OpaqueId, Set<(payload: Uint8Array) => void>>()
   private readonly docs = new Map<OpaqueId, OpenDoc>()
+  /** Documents with a snapshot queued that the sync worker has not sealed yet. */
+  private readonly snapshotting = new Set<OpaqueId>()
+  /** Updates each document took in its current churn window. */
+  private readonly churn = new Map<OpaqueId, { since: number; updates: number; warned: boolean }>()
   /**
    * Ids already derived under {@link documentIdsKey}. Every derivation is a keyed hash, and status reads, routing,
    * and each account's documents ask for the same names thousands of times while a Host starts.
@@ -813,6 +835,15 @@ export class AccountVault {
     if (key === undefined) return
     const opened = await this.offload.open(frames, key)
     const applied = new Map<OpaqueId, Uint8Array[]>()
+    // Frames stored after the last snapshot another device sent in this batch, for the documents it sent one of.
+    const sinceSnapshot = new Map<OpaqueId, number>()
+    const stored = (header: EnvelopeHeader, payload: Uint8Array): void => {
+      const updates = applied.get(header.id)
+      if (updates === undefined) applied.set(header.id, [payload])
+      else updates.push(payload)
+      if (header.kind === 'snapshot') sinceSnapshot.set(header.id, 0)
+      else if (sinceSnapshot.has(header.id)) sinceSnapshot.set(header.id, (sinceSnapshot.get(header.id) as number) + 1)
+    }
     const held = new Map<OpaqueId, Map<number, number>>()
     this.store.transaction(() => {
       for (const result of opened) {
@@ -835,9 +866,7 @@ export class AccountVault {
           for (const [client, clock] of Y.decodeStateVector(Y.encodeStateVectorFromUpdate(result.payload))) {
             state.set(client, Math.max(state.get(client) ?? 0, clock))
           }
-          const updates = applied.get(header.id)
-          if (updates === undefined) applied.set(header.id, [result.payload])
-          else updates.push(result.payload)
+          stored(header, result.payload)
           continue
         }
         const payload = this.store.assemble(header, result.payload)
@@ -846,9 +875,7 @@ export class AccountVault {
         // A retired document's frames are counted, so they are not offered again, and not stored.
         if (this.store.isRetired(header.id)) continue
         this.store.appendDocUpdate(header.id, payload)
-        const updates = applied.get(header.id)
-        if (updates === undefined) applied.set(header.id, [payload])
-        else updates.push(payload)
+        stored(header, payload)
       }
       if (advance) this.store.setRelayCursor((frames.at(-1) as { seq: number }).seq)
     })
@@ -858,7 +885,10 @@ export class AccountVault {
         for (const update of updates) Y.applyUpdate(open.doc, update, REMOTE)
         this.noteMissing(id, missingClocks(open.doc))
       }
-      this.afterAppend(id, updates.length)
+      const afterSnapshot = sinceSnapshot.get(id)
+      // Another device's snapshot let the relay prune the document: one from this device would repeat it.
+      if (afterSnapshot !== undefined) this.store.resetSinceSnapshot(id)
+      this.afterAppend(id, afterSnapshot ?? updates.length, false)
       this.documentChanged(id)
     }
   }
@@ -1104,7 +1134,7 @@ export class AccountVault {
       return sealed
     })
     this.sendLan(frame)
-    this.afterAppend(id)
+    this.afterAppend(id, 1, true)
     this.changed()
     void this.flush()
   }
@@ -1198,11 +1228,38 @@ export class AccountVault {
    * one pass at a time.
    * @param id - the document.
    * @param added - how many updates were just stored.
+   * @param own - whether this device made them.
    */
-  private afterAppend(id: OpaqueId, added = 1): void {
-    const snapshotDue = this.store.countSinceSnapshot(id, added) > this.tuning.snapshotAfter
+  private afterAppend(id: OpaqueId, added: number, own: boolean): void {
+    this.noteChurn(id, added)
+    const threshold = own ? this.tuning.snapshotAfter : this.tuning.snapshotAfter * RECEIVER_SNAPSHOT_FACTOR
+    // The count resets only once the queued snapshot is sealed; updates stored until then must not queue another.
+    const snapshotDue = this.store.countSinceSnapshot(id, added) > threshold && !this.snapshotting.has(id)
     if (!snapshotDue && !this.compactionDue(id)) return
-    void this.scheduleMaintenance(id, snapshotDue)
+    const pass = this.scheduleMaintenance(id, snapshotDue)
+    if (!snapshotDue) return
+    this.snapshotting.add(id)
+    void pass.then(() => { this.snapshotting.delete(id) })
+  }
+
+  /**
+   * Warn once per window when a document took more than `churnUpdates` updates within `churnWindowMs`: a writer that
+   * rewrites a document in a loop is otherwise visible only as CPU, traffic, and a growing store.
+   */
+  private noteChurn(id: OpaqueId, added: number): void {
+    const now = Date.now()
+    let window = this.churn.get(id)
+    if (window === undefined || now - window.since > this.tuning.churnWindowMs) {
+      window = { since: now, updates: 0, warned: false }
+      this.churn.set(id, window)
+    }
+    window.updates += added
+    if (window.warned || window.updates <= this.tuning.churnUpdates) return
+    window.warned = true
+    const seconds = Math.max(1, Math.round((now - window.since) / 1000))
+    // Only a document some Consumer named in this run has a readable name; any other shows its opaque id.
+    const name = [...this.documentIds].find(([, known]) => known === id)?.[0] ?? id
+    this.warn(`sync: document ${name} took ${String(window.updates)} updates in ${String(seconds)} s; a writer may be rewriting it in a loop`, undefined)
   }
 
   /** Whether a document's stored updates are due to be merged: too many of them, or too many bytes since the last merge. */

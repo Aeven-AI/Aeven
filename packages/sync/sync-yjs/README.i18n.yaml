@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/sync/sync-yjs/README.md
-README.md: 86e1d78215f00966b4868533a1f9866d5c971069
-README.zh.md: a37556f8a7e5ff023a2cf5559b55a43149a3f9cb
+README.md: 24702293b4c53db37ce04702cda1588ae96346f3
+README.zh.md: 21601e3c1a7ebe64a80bb53f5b12ab34ccae0bf4
