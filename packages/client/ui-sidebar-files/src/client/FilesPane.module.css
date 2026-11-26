@@ -1,10 +1,9 @@
 /* The file explorer fills its pane: the tree alone, or an open file with the
    tree docked beside it. It states no width of its own; the column animates. */
 
-/* One glass recipe for every raised control here: a faint tint, the theme's
-   double inset highlight, a hairline stroke, and a blur of what lies behind. */
+/* One glass recipe for every raised control here: the theme's double inset
+   highlight, a hairline stroke, and a blur of what lies behind. */
 .root {
-  --files-glass-fill: var(--dsw-alias-interactive-bg-hover);
   --files-glass-edge:
     inset 1px 1px 0 0 var(--dsw-specific-popup-highlight),
     inset 0 0 1px 1px var(--dsw-specific-popup-highlight),
@@ -253,13 +252,37 @@
   line-height: 1.25rem;
 }
 
+/* A loading note holds the shared loading mark on the note's 20px line, so the
+   row keeps the height a text note has. */
+.busyNote {
+  display: flex;
+  align-items: center;
+  min-height: 1.25rem;
+}
+
 /* An open file with the tree docked on its right, when the pane is wide
-   enough to leave the file its room (DOCK_ROOM in FilesPane.tsx). */
+   enough for both floors. FilesPane.tsx sets --dock-floor and --file-floor
+   (DOCK_FLOOR and FILE_FLOOR) on this element, and data-docked while the tree
+   is beside the file. */
 .split {
   display: flex;
   flex: 1 1 auto;
-  gap: 4px;
   min-height: 0;
+}
+
+/* Beside the docked tree the file's right side keeps 16px: its bar, and the
+   text view's body, so the content stops 16px before the tree. */
+.split[data-docked] > .file > .fileBar,
+.split[data-docked] > .file > .fileNote,
+.split[data-docked] > .file .fileBody {
+  padding-right: 16px;
+}
+
+/* The rendered page, which has no side padding, stops the same 16px short of
+   the docked tree, so neither the bars nor the tree move when the page view
+   is toggled. */
+.split[data-docked] > .file > .preview {
+  width: calc(100% - 16px);
 }
 
 .file {
@@ -274,7 +297,11 @@
   display: flex;
   flex: none;
   flex-direction: column;
-  width: clamp(240px, 36%, 340px);
+  /* --dock-width is the dragged width, set on the element; the default grows
+     with the pane. Either way the file keeps its floor. */
+  width: var(--dock-width, clamp(var(--dock-floor), 36%, 340px));
+  min-width: var(--dock-floor);
+  max-width: calc(100% - var(--file-floor));
   min-height: 0;
   overflow: hidden;
   /* The sidebar's own fill, white in the light theme. Its toolbar keeps the
@@ -282,6 +309,46 @@
      centered in the 40px file bar, and the first row sits at the same height as
      in the tree view. */
   background: var(--dsw-specific-sidebar-fill);
+}
+
+/* The tree's resize strip, the same in the text and page views: a 12px item
+   centred on the line 16px before the tree, where the rendered page and the
+   file bar's controls end, with margins that leave it no width. On hover,
+   keyboard focus and drag it shows the conversation width handle's rule
+   (ConversationRoot.module.css) on that line: 1px, black at 10%, the divider
+   tone in the dark theme. */
+.dockHandle {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  width: 12px;
+  margin-right: 10px;
+  margin-left: -22px;
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
+}
+
+.dockHandle::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 6px;
+  width: 1px;
+  background: rgb(0 0 0 / 0.1);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.dockHandle:hover::after,
+.dockHandle:focus-visible::after,
+.dockHandle[data-dragging]::after {
+  opacity: 1;
+}
+
+:global(body[data-ds-dark-theme]) .dockHandle::after {
+  background: #222222;
 }
 
 .dock .toolbar {
@@ -299,6 +366,13 @@
   gap: 8px;
   height: 40px;
   padding: 0 var(--dsw-aeven-page-inset);
+}
+
+/* The close control leads the bar. Pulling its 30px button back by the 6px
+   around its 18px glyph puts the glyph's box on the Files tab glyph's box
+   above, which starts on the same page inset, so the two share a centre. */
+.iconButton.fileBarClose {
+  margin-left: -6px;
 }
 
 /* The path scrolls sideways on one line, as the right sidebar's pill strip
@@ -369,35 +443,19 @@
 }
 
 /* File-bar controls carry the 18px glyph metric; their glyph tone comes from
-   `.lightButton` below, and the close control's disc from `.fileClose`. */
+   `.lightButton` below. */
 .fileBar > .iconButton svg {
   width: 18px;
   height: 18px;
 }
 
-/* Refresh, collapse, and the file bar's two controls take the pane's label
+/* Refresh and the file bar's two controls take the pane's label
    tone over its own fill, including on hover and while pressed. */
 .iconButton.lightButton,
 .iconButton.lightButton:hover:not(:disabled),
 .iconButton.lightButton[aria-pressed="true"] {
   background: transparent;
   color: var(--dsw-alias-label-primary);
-}
-
-/* The file bar's close control sits on the pane's glass fill with the primary
-   label tone, including on hover, so its glyph reads in both themes. */
-.iconButton.fileClose,
-.iconButton.fileClose:hover:not(:disabled) {
-  background: var(--files-glass-fill);
-  color: var(--dsw-alias-label-primary);
-}
-
-/* Collapse-all keeps the hover fill at rest: the search field's well, so the
-   disc and the field share one fill in either theme under the button's
-   secondary ink. */
-.iconButton.collapseAll,
-.iconButton.collapseAll:hover:not(:disabled) {
-  background: var(--dsw-alias-bg-base);
 }
 
 .fileBody {
@@ -419,59 +477,6 @@
    no further left padding, so the source starts on that line. */
 .code :global(pre) {
   padding-left: 0;
-}
-
-/* The open file's type and copy control. It spans 40px to 80px of the pane,
-   as the docked tree's first row does, so the two share a centre line. The
-   right padding puts the copy glyph's edge one page inset in, under the file
-   bar's. */
-.codeBar {
-  display: flex;
-  flex: none;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  height: 40px;
-  padding: 0 var(--dsw-aeven-page-inset);
-}
-
-/* Back and forward sit side by side with no gap. Each button is 24px wide, so
-   the 18px glyph leaves 3px on either side and the arrow's tip lies 6.75px into
-   the button (x = 5 of lucide's 24 grid). The Files glyph above starts its
-   drawing 1.5px into its own box at the same 24px inset (x = 2 of the grid), so
-   pulling the pair 5.25px left puts the tip on that edge. */
-.history {
-  display: flex;
-  flex: none;
-  margin-left: -5.25px;
-}
-
-.iconButton.historyButton {
-  width: 24px;
-}
-
-.history .iconButton svg {
-  width: 18px;
-  height: 18px;
-}
-
-/* The HTML preview toggle and the copy control, at the bar's right end. */
-.codeActions {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 4px;
-}
-
-.codeLang {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--dsw-alias-label-primary);
-  font-family: var(--dsw-font-family);
-  font-size: 0.875rem;
-  line-height: 1.25rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* A video wears the product's player, the same the conversation's clips do. */
