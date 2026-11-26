@@ -90,6 +90,27 @@
   font-size: 1rem;
 }
 
+/* The MP4 export popup's body: one status line beside the loading mark, laid
+   out like the update popup's. Modal owns the card, header, and footer. */
+.exportStatus {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.exportSpinner {
+  flex: none;
+  color: var(--dsw-alias-text-secondary);
+}
+
+.exportMessage {
+  margin: 0;
+  color: var(--dsw-alias-text-primary);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  overflow-wrap: anywhere;
+}
+
 /* An earlier version of a re-shown film: one line, in the loading row's type,
    that opens the film as its call stored it. */
 .motionEarlier {
