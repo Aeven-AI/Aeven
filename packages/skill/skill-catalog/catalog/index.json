@@ -2,7 +2,7 @@
   "upstream": {
     "repo": "davila7/claude-code-templates",
     "commit": "8293bc3e6130e49391c1a3530cd73212f01aec83",
-    "synced": "2026-11-20"
+    "synced": "2026-11-26"
   },
   "sources": [
     {
@@ -145,6 +145,10 @@
     },
     {
       "name": "business-marketing",
+      "skills": 3
+    },
+    {
+      "name": "caveman",
       "skills": 3
     },
     {
@@ -779,6 +783,58 @@
       "sha256": "0562bf328e04807fcdeff8eff85e1a51168fce0e233ef5bbcdc2e1065471eb13",
       "verdict": "partial",
       "value": 4
+    },
+    {
+      "name": "caveman",
+      "displayName": "caveman",
+      "category": "caveman",
+      "description": "Terse caveman voice: answer first, fluff gone, every technical fact kept. Use for /caveman, \"caveman mode\", \"talk like caveman\", \"be brief\", \"less tokens\". Stays on until \"stop caveman\" or \"normal mode\".",
+      "keywords": [],
+      "downloads": 0,
+      "author": "Julius Brussee",
+      "path": "JuliusBrussee/caveman/skills/caveman",
+      "files": 2,
+      "bytes": 6452,
+      "sha256": "3f3faa0eee187cb56cd90b49d69089cb25aa8d882529388bb72c48acce46423f",
+      "verdict": "net-new",
+      "value": 4,
+      "pack": "caveman",
+      "requires": [
+        "megacave",
+        "ultracave"
+      ]
+    },
+    {
+      "name": "megacave",
+      "displayName": "megacave",
+      "category": "caveman",
+      "description": "Caveman in Classical Chinese: 文言文 register, far fewer characters, technical terms verbatim. Invoke only with /megacave or /caveman wenyan. Stays on until \"stop caveman\" or \"normal mode\".",
+      "keywords": [],
+      "downloads": 0,
+      "author": "Julius Brussee",
+      "path": "JuliusBrussee/caveman/skills/megacave",
+      "files": 2,
+      "bytes": 5745,
+      "sha256": "c5a97486073dd1b2a6cdd7a96569cb1ada762d66a754ac6aa9a7b1b081a07cd7",
+      "verdict": "net-new",
+      "value": 4,
+      "pack": "caveman"
+    },
+    {
+      "name": "ultracave",
+      "displayName": "ultracave",
+      "category": "caveman",
+      "description": "Caveman at maximum compression: fragments, one word when one word is enough, each fact once. Invoke only with /ultracave or /caveman ultra. Stays on until \"stop caveman\" or \"normal mode\".",
+      "keywords": [],
+      "downloads": 0,
+      "author": "Julius Brussee",
+      "path": "JuliusBrussee/caveman/skills/ultracave",
+      "files": 2,
+      "bytes": 5416,
+      "sha256": "efb8156f62d32464709f1021ce9b2195511a585768d7e4dde18b4e71a0730349",
+      "verdict": "net-new",
+      "value": 4,
+      "pack": "caveman"
     },
     {
       "name": "figma-implement-design",

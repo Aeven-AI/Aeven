@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-每个发行版都会在此包内附带一份技能目录：上游 `davila7/claude-code-templates` 集合中经评审的高价值子集，加上为本仓库编写、覆盖该集合未涉及目标的技能（`reverse-engineering`、`leanrea`，以及由 `aicodeking/deepseek-stack` 移植的二十九项 `aeven-stack` 工作流技能），以及来自其他仓库、以相同 `SKILL.md` 布局发布并经评审的技能（目前为 `nexu-io/open-design` 的十项动效技能，取代合集中旧版副本的 `blader/humanizer` 的 `humanizer`，以及 `backnotprop/pstack` 中 `pstack` 技能包的二十七项技能），以一份索引加每个技能一个 zip 的形式存放。设置页面可按标题顺序浏览整份目录，也可按分类浏览——先列出各分类及其技能数量，再进入某一个分类——并支持搜索，将选中的技能安装到已登录账户自己的库中。在有人安装之前，目录内容不会到达模型。
+每个发行版都会在此包内附带一份技能目录：上游 `davila7/claude-code-templates` 集合中经评审的高价值子集，加上为本仓库编写、覆盖该集合未涉及目标的技能（`reverse-engineering`、`leanrea`，以及由 `aicodeking/deepseek-stack` 移植的二十九项 `aeven-stack` 工作流技能），以及来自其他仓库、以相同 `SKILL.md` 布局发布并经评审的技能（目前为 `nexu-io/open-design` 的十项动效技能，取代合集中旧版副本的 `blader/humanizer` 的 `humanizer`，`backnotprop/pstack` 中 `pstack` 技能包的二十七项技能，以及 `JuliusBrussee/caveman` 中 `caveman` 技能包的三项技能），以一份索引加每个技能一个 zip 的形式存放。设置页面可按标题顺序浏览整份目录，也可按分类浏览——先列出各分类及其技能数量，再进入某一个分类——并支持搜索，将选中的技能安装到已登录账户自己的库中。在有人安装之前，目录内容不会到达模型。
 
 宿主在运行时不获取任何内容：索引与包内文件都通过 `ctx.skillCatalog` 从磁盘读取。安装会把内置 zip 交给账户原有的导入路径，因此路径校验、大小上限、资源存储与目录失效行为与手动上传完全一致。
 
@@ -78,7 +78,7 @@ None, as 此包只读取随发行版附带的目录，并把一个包交给账�
 <a id="known-limitations-and-deferred-work"></a>
 
 - **是快照而非订阅源。** 上游变更需要在发行时重新生成目录；热度数字停留在内置时的取值。在此编写的技能只在其目录发生变化并重新同步时才更新。
-- **上游指令原样内置**，除非其仓库带有补丁，如 pstack；pstack 的补丁还把其 `watch-pr` 辅助工具从 Bun 移植到 Node。其余指令可能提到 Claude Code 的界面，或部署可能并不具备的 Python、Node 工具，安装时不会改写。
+- **上游指令原样内置**，除非其仓库带有补丁，如 pstack 与 caveman；caveman 的补丁删去对该包未附带技能的引用，并让模型可以加载它的两个别名技能，pstack 的补丁还把其 `watch-pr` 辅助工具从 Bun 移植到 Node。其余指令可能提到 Claude Code 的界面，或部署可能并不具备的 Python、Node 工具，安装时不会改写。
 - **无 invariant 伴随模块**——不发布 invariant 伴随模块，因为该服务只读取一份不可变的文件集合，且没有第二套注册表，因此不存在可独立观测的关系。
 
 -----

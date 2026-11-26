@@ -3824,6 +3824,18 @@
   "why": {
    "verdict": "net-new",
    "value": 4
+  },
+  "caveman": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "ultracave": {
+   "verdict": "net-new",
+   "value": 4
+  },
+  "megacave": {
+   "verdict": "net-new",
+   "value": 4
   }
  }
 }

@@ -1,0 +1,55 @@
+diff --git a/skills/caveman/SKILL.md b/skills/caveman/SKILL.md
+index 9a94044..c756fb5 100644
+--- a/skills/caveman/SKILL.md
++++ b/skills/caveman/SKILL.md
+@@ -77,7 +77,7 @@ Plain prose, then resume:
+ 2. Irreversible action. Confirm in full sentences first.
+ 3. Step order a fragment could scramble.
+ 4. User confused or repeats the question.
+-5. Anything persisted outside chat: code, comments, commits, docs, issues, PRs, tickets, memory files, third-party messages. `/caveman-compress` exempt.
++5. Anything persisted outside chat: code, comments, commits, docs, issues, PRs, tickets, memory files, third-party messages.
+ 6. Harness asks for a status line or confirmation. Give it. Harness decides *when* you speak, caveman decides *how*.
+ 7. You ask the user a question or offer options. Full sentences, so the answer comes back right first time.
+ 
+diff --git a/skills/megacave/SKILL.md b/skills/megacave/SKILL.md
+index e26ef73..10f42f1 100644
+--- a/skills/megacave/SKILL.md
++++ b/skills/megacave/SKILL.md
+@@ -4,7 +4,6 @@ description: >
+   Caveman in Classical Chinese: 文言文 register, far fewer characters, technical
+   terms verbatim. Invoke only with /megacave or /caveman wenyan. Stays on until
+   "stop caveman" or "normal mode".
+-disable-model-invocation: true
+ ---
+ 
+ # megacave
+@@ -58,7 +57,7 @@ No "文言模式啟", no modern answer plus classical copy. 文言 not shorter t
+ 
+ ## When to break the rules
+ 
+-白話 or the user's language, full sentences, then resume: security warning. Irreversible action, confirm first. Any clause with two readings. User confused. Question to the user, with its options. Anything persisted outside chat (code, comments, commits, docs, issues, PRs, tickets, memory, third-party messages; `/caveman-compress` exempt). Harness asks for a status line.
++白話 or the user's language, full sentences, then resume: security warning. Irreversible action, confirm first. Any clause with two readings. User confused. Question to the user, with its options. Anything persisted outside chat (code, comments, commits, docs, issues, PRs, tickets, memory, third-party messages). Harness asks for a status line.
+ 
+ ## Pre-send check
+ 
+diff --git a/skills/ultracave/SKILL.md b/skills/ultracave/SKILL.md
+index 136db7e..c7ed324 100644
+--- a/skills/ultracave/SKILL.md
++++ b/skills/ultracave/SKILL.md
+@@ -4,7 +4,6 @@ description: >
+   Caveman at maximum compression: fragments, one word when one word is enough,
+   each fact once. Invoke only with /ultracave or /caveman ultra. Stays on until
+   "stop caveman" or "normal mode".
+-disable-model-invocation: true
+ ---
+ 
+ # ultracave
+@@ -56,7 +55,7 @@ No prefix, no announcement, no mangled verbs for flavor. Fragment not shorter th
+ 
+ ## When to break the rules
+ 
+-Plain prose, then resume: security warning. Irreversible action, confirm first. Any fragment with two readings. User confused. Question to the user, with its options. Anything persisted outside chat (code, comments, commits, docs, issues, PRs, tickets, memory, third-party messages; `/caveman-compress` exempt). Harness asks for a status line.
++Plain prose, then resume: security warning. Irreversible action, confirm first. Any fragment with two readings. User confused. Question to the user, with its options. Anything persisted outside chat (code, comments, commits, docs, issues, PRs, tickets, memory, third-party messages). Harness asks for a status line.
+ 
+ ## Pre-send check
+ 
