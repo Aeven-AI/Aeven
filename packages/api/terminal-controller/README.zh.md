@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`@aeven/api-terminal-controller` 拥有 `ctx.terminalController`，即侧栏终端背后的 Host 服务：它报告会话的工作目录与终端限制，发现执行环境提供的 shell，按调用方给出的终端 id 一次性分配 PTY，并为该会话保留、跟随、写入、调整尺寸、重命名和关闭该终端。终端以执行环境的系统用户权限运行，按会话计入 `maxTerminals`，且只有拥有该会话的账户可以访问。同一个实例在其之上注册 `sidebar_terminal` 工具，并在调用触及非 `danger-full-access` 会话的终端之前通过 `tools/pre-execute` 询问。
+`@aeven/api-terminal-controller` 拥有 `ctx.terminalController`，即侧栏终端背后的 Host 服务：它报告会话的工作目录与终端限制，发现执行环境提供的 shell，按调用方给出的终端 id 一次性分配 PTY，并为该会话保留、跟随、写入、调整尺寸、重命名和关闭该终端。终端以执行环境的系统用户权限运行，按会话计入 `maxTerminals`，且只有拥有该会话的账户可以访问。启用 `hostShells`（桌面组合会启用）时，shell 在 Host 自己的执行提供方上运行，起始目录是该会话工作区在本设备上的文件夹，从存储的日志读取而不恢复会话的 Agent，因此本设备仅持有同步副本的会话也能打开终端，把会话交给另一台设备后其 shell 仍继续运行；未启用时，会恢复会话的 Agent，shell 在该 Agent 的执行环境中运行并随其结束，Host 无法恢复的会话会被拒绝。同一个实例在其之上注册 `sidebar_terminal` 工具，并在调用触及非 `danger-full-access` 会话的终端之前通过 `tools/pre-execute` 询问。
 
 ## 目录
 

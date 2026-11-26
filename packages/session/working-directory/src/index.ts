@@ -36,7 +36,7 @@ import type { WorkingDirectoryProjection } from './types.ts'
 import { localDirectory, type LocalDirectory, type RecordedDirectory, WorkingDirectoryUnavailableError } from './local.ts'
 export type * from './types.ts'
 export * from './local.ts'
-export { sessionDirectory, sessionWorkspaceRoot } from './directory.ts'
+export { observedSessionDirectory, sessionDirectory, sessionWorkspaceRoot } from './directory.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Events {

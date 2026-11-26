@@ -22,6 +22,8 @@ export const zh = {
   attachmentEnded: '终端连接已结束，请重新连接。',
   invalidOutput: '终端画面传输异常，请重新连接。',
   terminalLimit: '终端数量已达上限，请关闭不用的终端后重试。已退出的终端也计入数量。',
+  noLocalFolder: '此会话的工作区在这台电脑上还没有文件夹。请先选择它的文件夹，然后重新打开终端。',
+  runsElsewhere: '此会话正在另一台设备上运行，请在那台设备上打开终端。',
 } satisfies Record<string, string>
 
 /** English terminal copy. */
@@ -39,6 +41,8 @@ export const en = {
   attachmentEnded: 'The terminal connection ended. Reconnect to continue.',
   invalidOutput: 'The terminal screen could not be received. Reconnect to recover it.',
   terminalLimit: 'The terminal limit has been reached. Close unused terminals and try again. Exited terminals also count toward the limit.',
+  noLocalFolder: 'This conversation’s workspace has no folder on this computer yet. Choose its folder, then open the terminal again.',
+  runsElsewhere: 'This conversation runs on another device. Open the terminal on that device.',
 } satisfies Record<keyof typeof zh, string>
 
 /**
@@ -72,4 +76,6 @@ export const es = {
   'attachmentEnded': 'La conexión de la terminal terminó. Reconecta para continuar.',
   'invalidOutput': 'No se pudo recibir la pantalla de la terminal. Reconecta para recuperarla.',
   'terminalLimit': 'Se alcanzó el límite de terminales. Cierra las terminales sin usar e inténtalo de nuevo. Las terminales ya terminadas también cuentan para el límite.',
+  'noLocalFolder': 'El espacio de trabajo de esta conversación aún no tiene carpeta en este equipo. Elige su carpeta y vuelve a abrir la terminal.',
+  'runsElsewhere': 'Esta conversación se ejecuta en otro dispositivo. Abre la terminal en ese dispositivo.',
 } satisfies Record<keyof typeof zh, string>

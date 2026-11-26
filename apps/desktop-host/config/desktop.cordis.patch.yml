@@ -48,6 +48,12 @@
     slackClientId: !!js process.env.SLACK_CLIENT_ID
     slackCallbackPort: 12751
 
+# The desktop's shells run on the user's own machine: a conversation this computer holds as a synced copy still
+# opens a terminal, and handing a conversation to another device leaves its shells running.
+- id: terminal-controller
+  config:
+    hostShells: true
+
 - id: web-startup
   disabled: true
 

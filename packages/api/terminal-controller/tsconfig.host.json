@@ -61,6 +61,15 @@
     },
     {
       "path": "../../core/scope"
+    },
+    {
+      "path": "../session-controller/tsconfig.host.json"
+    },
+    {
+      "path": "../../session-query/session-query"
+    },
+    {
+      "path": "../../session/working-directory"
     }
   ]
 }

@@ -1425,9 +1425,6 @@ importers:
       '@aeven/util-values':
         specifier: workspace:^
         version: link:../../util/values
-      '@aeven/working-directory':
-        specifier: workspace:^
-        version: link:../../session/working-directory
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
@@ -1447,6 +1444,9 @@ importers:
       '@aeven/api-gateway':
         specifier: workspace:^
         version: link:../gateway
+      '@aeven/api-session-controller':
+        specifier: workspace:^
+        version: link:../session-controller
       '@aeven/brand':
         specifier: workspace:^
         version: link:../../util/brand
@@ -1471,6 +1471,9 @@ importers:
       '@aeven/session-projection':
         specifier: workspace:^
         version: link:../../session/session-projection
+      '@aeven/session-query':
+        specifier: workspace:^
+        version: link:../../session-query/session-query
       '@aeven/subprocess':
         specifier: workspace:^
         version: link:../../subprocess/subprocess
@@ -1489,6 +1492,9 @@ importers:
       '@aeven/util-crypto':
         specifier: workspace:^
         version: link:../../util/crypto
+      '@aeven/working-directory':
+        specifier: workspace:^
+        version: link:../../session/working-directory
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis

@@ -60,6 +60,7 @@ Consumers call one of two exported helpers, never the header:
 
 - `sessionDirectory(ctx, session)` — the directory a file, search, shell, LSP, media, terminal, hook, or subagent call acts in.
 - `sessionWorkspaceRoot(ctx, session)` — the root that confines writes, used by `@aeven/sandbox-policy`, the workspace file browser, and `@`-file references.
+- `observedSessionDirectory(ctx, header, logged)` — the same answer for a stored session this process holds no Session object for, an idle one or a synced copy, from its header and folded projection; used by the workspace file browser and the desktop terminal.
 
 Both throw `WorkingDirectoryUnavailableError` when the session's workspace has no local folder, and fall back to the header only when this plugin is not composed at all — a composition with no workspace registry, and therefore no synced sessions either. The shell tools (`tool-bash`, `tool-bash-persistent`, `tool-pwsh`, `tool-pwsh-persistent`), file tools (`tool-fs`), `glob`/`grep` (`tool-fs-search`), `tool-lsp`, `tool-media`, `bash-edit-guard`, the terminal panel, the workspace file browser, project instruction discovery, project context, hooks, and the Codex subagent provider all resolve through them. A persistent shell spawned in another directory restarts on its next command.
 

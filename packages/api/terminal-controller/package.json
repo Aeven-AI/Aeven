@@ -61,16 +61,17 @@
     "@deepseek-ai/schemastery": "workspace:^",
     "@xterm/addon-serialize": "^0.14.0",
     "@xterm/headless": "^6.0.0",
-    "zod": "^4.4.3",
-    "@aeven/working-directory": "workspace:^"
+    "zod": "^4.4.3"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "workspace:^",
-    "@aeven/scope": "workspace:^"
+    "@aeven/scope": "workspace:^",
+    "@aeven/working-directory": "workspace:^",
+    "@deepseek-ai/cordis": "workspace:^"
   },
   "devDependencies": {
     "@aeven/agent": "workspace:^",
     "@aeven/api-gateway": "workspace:^",
+    "@aeven/api-session-controller": "workspace:^",
     "@aeven/brand": "workspace:^",
     "@aeven/client-store": "workspace:^",
     "@aeven/identity-user": "workspace:^",
@@ -79,12 +80,14 @@
     "@aeven/scope": "workspace:^",
     "@aeven/session": "workspace:^",
     "@aeven/session-projection": "workspace:^",
+    "@aeven/session-query": "workspace:^",
     "@aeven/subprocess": "workspace:^",
     "@aeven/subprocess-local": "workspace:^",
     "@aeven/system-prompt": "workspace:^",
     "@aeven/typert-registry": "workspace:^",
     "@aeven/user-approval": "workspace:^",
     "@aeven/util-crypto": "workspace:^",
+    "@aeven/working-directory": "workspace:^",
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/cordis-plugin-include": "workspace:^",
     "@deepseek-ai/cordis-plugin-loader": "workspace:^"
