@@ -16,8 +16,8 @@ import type {
   HostObservable, InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore,
 } from '@aeven/client-ui-slots'
 import {
-  CENTER_MIN, clampRightbar, clampWidth, DETAILS_MAX, DETAILS_MIN, SIDEBAR_AUTO_COLLAPSE,
-  SIDEBAR_DEFAULT, SIDEBAR_MAX, SIDEBAR_MIN,
+  clampRightbar, clampWidth, DETAILS_MAX, DETAILS_MIN, RIGHTBAR_CONVERSATION_MIN, rightbarMin,
+  SIDEBAR_AUTO_COLLAPSE, SIDEBAR_DEFAULT, SIDEBAR_MAX, SIDEBAR_MIN,
 } from './columns.ts'
 import { DocumentTitle } from './DocumentTitle.tsx'
 import type { createLayoutStore } from './stores.ts'
@@ -218,6 +218,16 @@ export function AppFrame({
   const detailsWidth = onSurface || currentSession === undefined || panels.details === 0
     ? 0
     : clampWidth(panels.details, DETAILS_MIN, DETAILS_MAX)
+  // The theme states the token in px on every frame the sidebar sits beside
+  // the conversation; a phone frame states a `min()`, which does not parse and
+  // leaves the last value, and overlays every right-hand panel anyway.
+  const [sidebarPaint, setSidebarPaint] = useState(SIDEBAR_DEFAULT)
+  useLayoutEffect(() => {
+    const frame = frameRef.current
+    if (frame === null) return
+    const px = Number.parseFloat(getComputedStyle(frame).getPropertyValue('--dsw-aeven-sidebar-width'))
+    if (Number.isFinite(px)) setSidebarPaint(px)
+  }, [viewport])
   const detailsRef = useRef(detailsWidth)
   detailsRef.current = detailsWidth
 
@@ -231,15 +241,24 @@ export function AppFrame({
   // this one. Clamping on the way out keeps a reload from opening a panel
   // wider than the frame it reopens in.
   const rightbarShown = !onSurface && rightbarSession !== undefined && panels.rightbar[rightbarSession]?.shown === true
+  // The widest the column can be while the conversation beside it keeps its
+  // phone-width floor; the store's clamp cannot subtract the other columns.
+  // ui-sidebar paints its column at the theme's sidebar token, not at the
+  // stored preference above, so the room subtracts the token's width.
+  const rightbarRoom = viewport - (sidebarCollapsed ? 0 : sidebarPaint) - detailsWidth - RIGHTBAR_CONVERSATION_MIN
+  // The right sidebar overlays the conversation rather than taking a column
+  // beside it wherever even its floor would leave the conversation under its
+  // own; below the breakpoint every right-hand panel overlays. The decision
+  // does not read whether the panel is shown, so a closing panel keeps its
+  // mode for the slide.
+  const rightbarOverlay = narrow || rightbarRoom < rightbarMin(viewport)
   // The width the column opens at, published even while it is collapsed, so
   // its content keeps that layout through the slide instead of re-wrapping.
-  const rightbarOpenWidth = clampRightbar(panels.rightbarWidth, viewport)
+  // As a column it stops where the conversation reaches its floor; overlaid
+  // it covers the conversation, so only the frame bounds it.
+  const rightbarClamped = clampRightbar(panels.rightbarWidth, viewport)
+  const rightbarOpenWidth = rightbarOverlay ? rightbarClamped : Math.min(rightbarClamped, rightbarRoom)
   const rightbarWidth = rightbarShown ? rightbarOpenWidth : 0
-  // The right sidebar overlays the conversation rather than taking a column
-  // beside it wherever a column would leave the conversation under its floor;
-  // below the breakpoint every right-hand panel overlays. Decided from the open
-  // width, not the shown one, so a closing panel keeps its mode for the slide.
-  const rightbarOverlay = narrow || viewport - sidebarWidth - detailsWidth - rightbarOpenWidth < CENTER_MIN
   const rightbarRef = useRef(rightbarWidth)
   rightbarRef.current = rightbarWidth
 
@@ -280,15 +299,21 @@ export function AppFrame({
   // every move would buy nothing and put a layout read on the pointer path.
   const rightbarBase = useRef(0)
   const rightbarFrame = useRef(0)
+  // Read at drag start like the frame width: a store width past the room would
+  // leave a dead zone at the start of a drag back.
+  const rightbarRoomRef = useRef(rightbarRoom)
+  rightbarRoomRef.current = rightbarRoom
+  const rightbarCeiling = useRef(0)
   const onRightbarStart = useCallback(() => {
     rightbarBase.current = rightbarRef.current
     rightbarFrame.current = frameRef.current?.getBoundingClientRect().width ?? 0
+    rightbarCeiling.current = rightbarRoomRef.current
     setDragging(true)
   }, [])
   // The drag names no session: the width it writes is the reader's, and every
   // session's panel opens at it.
   const onRightbarDrag = useCallback((dx: number) => {
-    actions.setRightbar(rightbarBase.current - dx, rightbarFrame.current)
+    actions.setRightbar(Math.min(rightbarBase.current - dx, rightbarCeiling.current), rightbarFrame.current)
   }, [actions])
   const productTitle = process.env.AVN_CLIENT_TITLE ?? t('brand.localBuild')
 

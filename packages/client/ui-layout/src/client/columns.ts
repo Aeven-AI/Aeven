@@ -51,18 +51,18 @@ export const RIGHTBAR_MIN_WIDE = 464
  */
 export const RIGHTBAR_MIN_BREAKPOINT = 480
 /**
- * Right sidebar ceiling as a fraction of the frame. A fraction rather than a
- * fixed px ceiling: the panel is a reading column whose useful width scales
- * with the display, where the details column inspects one tool call and does
- * not.
+ * The narrowest the conversation goes beside an open right sidebar: a phone's
+ * width, so the conversation beside a widened panel reads as the phone layout
+ * does. It is the panel's drag ceiling, and a frame that cannot keep it beside
+ * the panel's floor overlays the panel instead (AppFrame).
  */
-export const RIGHTBAR_MAX_RATIO = 0.7
+export const RIGHTBAR_CONVERSATION_MIN = 375
 /**
  * Right sidebar width on first opening. A fixed width rather than a fraction:
  * the panel is a reading column, so what it should open at is a width that
  * reads well, not a share of whatever display it lands on. Frames too narrow
  * to give it this scale it back through {@link clampRightbar}, whose ceiling
- * is a fraction of the frame.
+ * leaves the conversation {@link RIGHTBAR_CONVERSATION_MIN}.
  */
 export const RIGHTBAR_DEFAULT = 600
 
@@ -89,17 +89,19 @@ export function rightbarMin(viewport: number): number {
 
 /**
  * Clamp a right sidebar width against the frame it is drawn in. Both bounds
- * follow the frame: the floor from {@link rightbarMin}, the ceiling as a
- * fraction of the frame, and the ceiling is never below the floor on a narrow
- * frame — the floor wins there and the center concedes, which keeps a dragged
- * edge tracking the pointer instead of sticking at an inverted range.
+ * follow the frame: the floor from {@link rightbarMin}, the ceiling what
+ * leaves the conversation {@link RIGHTBAR_CONVERSATION_MIN}, and the ceiling
+ * is never below the floor on a narrow frame — the floor wins there and the
+ * panel overlays, which keeps a dragged edge tracking the pointer instead of
+ * sticking at an inverted range. The left sidebar and details column are not
+ * known here; AppFrame subtracts them.
  * @param px - requested width.
  * @param viewport - available frame width in px.
  * @returns the clamped width.
  */
 export function clampRightbar(px: number, viewport: number): number {
   const min = rightbarMin(viewport)
-  return clampWidth(px, min, Math.max(min, viewport * RIGHTBAR_MAX_RATIO))
+  return clampWidth(px, min, Math.max(min, viewport - RIGHTBAR_CONVERSATION_MIN))
 }
 
 /**

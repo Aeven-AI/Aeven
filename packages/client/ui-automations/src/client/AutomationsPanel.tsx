@@ -1,6 +1,6 @@
 /** The bot pages: overview at /bots, one bot at /bots/<id>, and runs at /bots/runs. */
 import { useEffect, useRef } from 'react'
-import { Button, IconTrashOutline16, Modal } from '@aeven/client-ui-primitives'
+import { Button, IconTrashOutline16, Modal, useNarrowerThan } from '@aeven/client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
 import type {} from '@aeven/client-ui-conversation/client'
 import { formatters } from './format.ts'
@@ -10,6 +10,13 @@ import { BotDetail } from './BotDetail.tsx'
 import { IdeaGallery, RunRows, ViewBar } from './shared.tsx'
 import { confirmationOf, useAutomations } from './useAutomations.ts'
 import css from './AutomationsPanel.module.css'
+
+/**
+ * Content width under which a bot page takes its phone layout, read from the
+ * page itself so a conversation narrowed by the right sidebar takes it too: a
+ * 640px window, inclusive, less the 16px page inset on each side.
+ */
+const PHONE_BELOW_PX = 609
 
 /** Whether a bot page's composer takes the caret when that page next shows, after Edit on another page. */
 let focusOnArrival = false
@@ -39,6 +46,7 @@ export function AutomationsPanel(props: PropsRuntime<'conversation.start'> & Pro
   const fmt = formatters(t, data)
   const showOverview = (): void => { showView('overview') }
   const root = useRef<HTMLElement>(null)
+  const phone = useNarrowerThan(root, PHONE_BELOW_PX)
   // The seat is ui-conversation's, reached through its data attribute because the input actions carry no focus.
   const focusComposer = (): void => {
     const column = root.current?.closest('[data-conversation-root]')
@@ -98,7 +106,7 @@ export function AutomationsPanel(props: PropsRuntime<'conversation.start'> & Pro
   }
   const copy = pending === null ? null : confirmationOf(pending, t)
   return (
-    <section ref={root} className={css.root} aria-label={t('title')}>
+    <section ref={root} className={css.root} data-phone={phone ? '' : undefined} aria-label={t('title')}>
       <div className={css.content}>
         <ViewBar t={t} view={view} showView={showView} />
         {state.error && <p role="alert" className={css.alert}>{state.error}</p>}

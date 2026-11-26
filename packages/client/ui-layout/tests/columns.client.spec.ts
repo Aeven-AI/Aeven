@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   CENTER_MIN, clampRightbar, clampWidth, computeColumns,
-  DETAILS_DEFAULT, DETAILS_MIN, RIGHTBAR_MIN, RIGHTBAR_MIN_BREAKPOINT, RIGHTBAR_MIN_WIDE,
+  DETAILS_DEFAULT, DETAILS_MIN, RIGHTBAR_CONVERSATION_MIN, RIGHTBAR_MIN, RIGHTBAR_MIN_BREAKPOINT, RIGHTBAR_MIN_WIDE,
   SIDEBAR_COLLAPSED, SIDEBAR_DEFAULT, SIDEBAR_MIN,
 } from '@aeven/client-ui-layout/src/client/columns.ts'
 
@@ -25,13 +25,13 @@ describe('clampRightbar', () => {
 
   it('holds the smaller floor below the breakpoint', () => {
     expect(clampRightbar(1, RIGHTBAR_MIN_BREAKPOINT - 1)).toBe(RIGHTBAR_MIN)
-    // 0.7 * 300 = 210 sits under the floor, so the floor wins and the ceiling
-    // is raised to it — the frame's fraction cannot invert the range.
+    // 300 - 375 sits under the floor, so the floor wins and the ceiling is
+    // raised to it — the conversation's floor cannot invert the range.
     expect(clampRightbar(210, 300)).toBe(RIGHTBAR_MIN)
   })
 
-  it('caps the width at the frame fraction where that ceiling is the larger bound', () => {
-    expect(clampRightbar(9999, 1600)).toBe(1120)
+  it('caps the width where the conversation would drop under its floor', () => {
+    expect(clampRightbar(9999, 1600)).toBe(1600 - RIGHTBAR_CONVERSATION_MIN)
   })
 })
 

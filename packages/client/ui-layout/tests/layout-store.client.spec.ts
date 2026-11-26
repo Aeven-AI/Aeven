@@ -179,9 +179,9 @@ describe('the right sidebar is one surface per session', () => {
     actions.setRightbar(1000, FRAME)
     actions.toggleRightbar('s1', FRAME)
 
-    // 800 * 0.7 = 560 is the ceiling in the narrower frame.
-    actions.toggleRightbar('s1', 800)
-    expect(store.getSnapshot().rightbarWidth).toBe(560)
+    // 900 - 375 = 525 is the ceiling in the narrower frame.
+    actions.toggleRightbar('s1', 900)
+    expect(store.getSnapshot().rightbarWidth).toBe(525)
   })
 
   it('never opens below the floor, however narrow the frame', () => {
