@@ -5,7 +5,8 @@
  */
 import { describe, expect, it } from 'vitest'
 import {
-  derivedSecretOf, fromBase64Url, generateDeviceId, generateVaultKey, opaqueIdOf, openEnvelope, proveKey, readEnvelopeHeader,
+  derivedSecretOf, documentNaming, fromBase64Url, generateDeviceId, generateVaultKey, opaqueIdOf, openEnvelope, proveKey,
+  readEnvelopeHeader,
   sealEnvelope, SyncVaultError, toBase64Url, verifyKeyProof,
 } from '../src/index.ts'
 
@@ -73,6 +74,11 @@ describe('keys', () => {
 
   it('derive stable opaque ids that hide names, and fresh device ids', () => {
     expect(opaqueIdOf(key, 'notes')).toBe(id)
+    // One naming function for the account gives every name the id a single derivation gives it.
+    const naming = documentNaming(key)
+    expect(naming('notes')).toBe(id)
+    expect(naming('memory/traces/ab')).toBe(opaqueIdOf(key, 'memory/traces/ab'))
+    expect(documentNaming(generateVaultKey())('notes')).not.toBe(id)
     expect(id).not.toContain('notes')
     expect(generateDeviceId()).not.toBe(device)
   })

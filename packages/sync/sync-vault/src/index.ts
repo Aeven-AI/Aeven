@@ -6,8 +6,8 @@
  */
 export * from './types.ts'
 export {
-  contentKeyOf, derivedSecretOf, fromBase64Url, generateDeviceId, generateVaultKey, opaqueIdOf, proveKey, SyncVaultError, toBase64Url,
-  verifyKeyProof,
+  contentKeyOf, derivedSecretOf, documentNaming, fromBase64Url, generateDeviceId, generateVaultKey, opaqueIdOf, proveKey, SyncVaultError,
+  toBase64Url, verifyKeyProof,
 } from './keys.ts'
 export { openEnvelope, readEnvelopeHeader, sealEnvelope } from './envelope.ts'
 export type { SealEnvelopeInput } from './envelope.ts'

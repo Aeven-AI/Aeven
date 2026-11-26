@@ -54,14 +54,24 @@ function hkdf(key: Uint8Array, salt: Uint8Array, info: string): Uint8Array {
 }
 
 /**
+ * Derive the function that names an account's documents and streams for the relay. The naming key is derived once, so
+ * naming many documents costs one keyed hash each.
+ * @param accountKey - the account key.
+ * @returns the opaque id the relay sees for a logical name, such as `memory/traces/yf`.
+ */
+export function documentNaming(accountKey: Uint8Array): (name: string) => OpaqueId {
+  const naming = hkdf(accountKey, new Uint8Array(0), 'aeven-sync/naming')
+  return name => brandString<OpaqueId>(toBase64Url(createHmac('sha256', naming).update(name).digest()))
+}
+
+/**
  * Derive the opaque id the relay sees for a logical document or stream name.
  * @param accountKey - the account key.
  * @param name - logical name, such as `memory/traces/yf`.
  * @returns the opaque id.
  */
 export function opaqueIdOf(accountKey: Uint8Array, name: string): OpaqueId {
-  const naming = hkdf(accountKey, new Uint8Array(0), 'aeven-sync/naming')
-  return brandString<OpaqueId>(toBase64Url(createHmac('sha256', naming).update(name).digest()))
+  return documentNaming(accountKey)(name)
 }
 
 /**
