@@ -70,7 +70,9 @@
 }
 
 /* Equal 4:5 cards, four to a row at most so each example stays big enough to
-   read; narrower windows drop to three, then two. */
+   read; a narrower page drops to three, then two. The page measures its own
+   width and marks `data-cards` (ImaginePrompts.tsx), so a conversation
+   narrowed by the right sidebar takes the phone rows too. */
 .grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -78,16 +80,12 @@
   width: 100%;
 }
 
-@media (max-width: 768px) {
-  .grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
+.root[data-cards='3'] .grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-@media (max-width: 480px) {
-  .grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+.root[data-cards='2'] .grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .card {
@@ -226,16 +224,12 @@
 
 /* Below the four-card row an image card is too tall for a slide to match
    without cutting its title, so covers keep their own 16:9 shape there. */
-@media (max-width: 768px) {
-  .slideCard::before {
-    padding-top: 56.25%;
-  }
+.root[data-cards] .slideCard::before {
+  padding-top: 56.25%;
 }
 
-@media (max-width: 480px) {
-  .wideGrid {
-    grid-template-columns: minmax(0, 1fr);
-  }
+.root[data-cards='2'] .wideGrid {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 /* CV templates read as A4 pages: a portrait card on the image grid, four to a

@@ -328,9 +328,10 @@
 
 /* The right sidebar overlays the conversation instead of sitting beside it
    whenever the frame marks `data-rightbar-overlay`: below the med breakpoint,
-   and on a wider frame whose conversation would otherwise drop under its
-   floor (CENTER_MIN, columns.ts). Opening it then leaves the conversation its
-   full width instead of squeezing it to whatever the panel leaves over.
+   and on a wider frame where even the panel's floor would leave the
+   conversation under its phone-width floor (RIGHTBAR_CONVERSATION_MIN,
+   columns.ts). Opening it then leaves the conversation its full width instead
+   of squeezing it to whatever the panel leaves over.
 
    The column keeps zero width there: its panel is anchored to the column's
    right edge and grows leftwards over the conversation, so the column itself

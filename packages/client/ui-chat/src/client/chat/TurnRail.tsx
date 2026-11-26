@@ -1,4 +1,5 @@
-import { memo, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent } from 'react'
+import { memo, useId, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent } from 'react'
+import { useNarrowerThan } from '@aeven/client-ui-primitives'
 import type { ChatViewSlotProps } from '../contract/slots.ts'
 import type { TurnRailMark } from './turn-rail-marks.ts'
 import type { SessionSeq } from '@aeven/session/types'
@@ -31,31 +32,6 @@ const MAX_LENS_GAIN = 8
  * off the column: its 24px edge plus 16px clear.
  */
 const RAIL_MIN_GAP_PX = 40
-
-/**
- * Track whether one element is narrower than `minWidth`, as state.
- *
- * The gap the rail lives in is this slot's own width: it follows the scroller
- * and the shared column width, so no `@media` width can stand in for it, and a
- * container query needs Safari 16.0. The slot reads its own box instead.
- * @param ref - the measured element.
- * @param minWidth - the threshold in CSS pixels.
- * @returns whether the element has been observed below the threshold.
- */
-function useNarrowerThan(ref: { readonly current: HTMLElement | null }, minWidth: number): boolean {
-  const [narrow, setNarrow] = useState(false)
-  useEffect(() => {
-    const element = ref.current
-    if (element === null || typeof ResizeObserver === 'undefined') return
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0]
-      if (entry !== undefined) setNarrow(entry.contentRect.width < minWidth)
-    })
-    observer.observe(element)
-    return () => { observer.disconnect() }
-  }, [ref, minWidth])
-  return narrow
-}
 
 type RailStyle = CSSProperties & {
   readonly '--avn-turn-pitch': string

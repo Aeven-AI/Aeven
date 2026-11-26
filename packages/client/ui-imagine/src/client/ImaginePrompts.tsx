@@ -6,10 +6,10 @@
  * opens its slides or pages, and `Use template` puts a request for a deck or a CV in that template in the composer.
  * Every message is edited and sent like any other.
  */
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import clsx from 'clsx'
 import type { PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
-import { Spinner } from '@aeven/client-ui-primitives'
+import { Spinner, useNarrowerThan } from '@aeven/client-ui-primitives'
 import type {} from '@aeven/client-ui-conversation/client'
 import { IMAGINE_PROMPTS, promptClipUrl, promptImageUrl } from './prompts.ts'
 import type { ImaginePromptId } from './prompts.ts'
@@ -24,6 +24,15 @@ import { CATEGORIES } from './categories.ts'
 import type { InspirationInjected } from './categories.ts'
 import css from './ImaginePrompts.module.css'
 
+/**
+ * Content widths under which the grids drop to three cards and then two, read
+ * from the page itself so a conversation narrowed by the right sidebar counts
+ * its cards as a phone window does: a 768px and a 480px window, inclusive, less
+ * the page inset on each side (24px and 16px).
+ */
+const THREE_CARDS_BELOW_PX = 721
+const TWO_CARDS_BELOW_PX = 449
+
 
 /**
  * Render the category pills and the shown category's content; a pill opens its category's own address.
@@ -35,8 +44,11 @@ export function ImaginePrompts({ inputActions, category, showCategory, t }:
   const [open, setOpen] = useState<ImaginePromptId | null>(null)
   const [openTemplate, setOpenTemplate] = useState<OpenTemplate | null>(null)
   const opened = IMAGINE_PROMPTS.find(prompt => prompt.id === open)
+  const root = useRef<HTMLElement>(null)
+  const three = useNarrowerThan(root, THREE_CARDS_BELOW_PX)
+  const two = useNarrowerThan(root, TWO_CARDS_BELOW_PX)
   return (
-    <section className={css.root} aria-label={t('title')}>
+    <section ref={root} className={css.root} data-cards={two ? '2' : three ? '3' : undefined} aria-label={t('title')}>
       <div className={css.content}>
         <nav className={css.tabs} aria-label={t('categories.label')}>
           {CATEGORIES.map(id => (

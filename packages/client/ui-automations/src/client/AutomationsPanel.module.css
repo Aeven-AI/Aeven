@@ -844,12 +844,12 @@ button.disc:focus-visible {
   }
 }
 
-@media (max-width: 640px) {
-  .templates {
-    grid-template-columns: 1fr;
-  }
+/* The phone layout, marked by the page from its own width (AutomationsPanel.tsx)
+   so a conversation narrowed by the right sidebar takes it too. */
+.root[data-phone] .templates {
+  grid-template-columns: 1fr;
+}
 
-  .bar .headerAction {
-    flex: 1;
-  }
+.root[data-phone] .bar .headerAction {
+  flex: 1;
 }

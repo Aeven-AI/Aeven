@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package occupies the `rightbar` column of the Web GUI layout: each session opens and closes its own panel from the session header, folds it again from a control inside it, and drags the column's inner edge to resize it between 300px and 70% of the frame, at 45% of the frame on first opening. The panel is per session, so switching sessions redraws the column at whatever width that session was left at. Its body is empty until a content package registers at the `sidebar.right.body` seat; the surface, the toggle, and the drag handle all work before any such package exists.
+This package occupies the `rightbar` column of the Web GUI layout: each session opens and closes its own panel from the session header, folds it again from a control inside it, and drags the column's inner edge to resize it from a 464px floor (360px on a frame under 480px) until the conversation beside it is 375px wide, a phone's width; it opens at 600px the first time. A frame that cannot keep the conversation at 375px beside the floor lays the panel over the conversation instead. The panel is per session, so switching sessions redraws the column at whatever width that session was left at. Its body is empty until a content package registers at the `sidebar.right.body` seat; the surface, the toggle, and the drag handle all work before any such package exists.
 
 ## Table of Contents
 
@@ -43,7 +43,7 @@ The seat is root-scoped, so the header control reads the current session from th
 
 The frame owns the geometry. `SidebarRightRoot` states nothing about its width: it reads `--avn-frame-rightbar-width`, the custom property ui-layout writes from its store, and resolves its open width from it while `.visible`; a drag is therefore a CSS-only write that never invalidates the transcript's styles. Collapse is the one `.visible` state, so the shell repositions and remounts nothing, and the panel keeps rendering its surface with an unoccupied body.
 
-ui-layout holds the per-session surface in its layout store: `shown` plus a remembered `width`, seeded at 45% of the frame on a first opening and clamped to a 300px floor and a 70% ceiling on every write. The frame resolves the current session's surface to place the column, reads the width into the property above, and draws the rightbar drag handle only while that width is above zero. That state is memory-only, so a reload starts every session closed.
+ui-layout holds the per-session surface in its layout store: `shown` plus a remembered `width`, seeded at 600px on a first opening and clamped on every write to the floor above and a ceiling that leaves the frame 375px; the frame subtracts the left sidebar and details columns from that ceiling. The frame resolves the current session's surface to place the column, reads the width into the property above, and draws the rightbar drag handle only while that width is above zero. That state is memory-only, so a reload starts every session closed.
 
 </details>
 
