@@ -165,6 +165,34 @@ describe('SyncStore', () => {
     store.close()
   })
 
+  it('answers the account key and the sync preference without reading the database again until either is written', () => {
+    const path = tempPath()
+    const store = new SyncStore(path, owner)
+    store.setAccountKey(new Uint8Array(32).fill(1), 'server')
+    expect(store.accountKey()).toEqual(new Uint8Array(32).fill(1))
+    expect(store.enabled()).toBe(true)
+    // Another connection changes both rows, which nothing in the product does: the answers stay as last read.
+    const other = new Database(path)
+    other.prepare("UPDATE meta SET value = ? WHERE key = 'key'").run(Buffer.alloc(32, 9).toString('base64url'))
+    other.prepare("INSERT INTO meta (key, value) VALUES ('enabled', 'false') ON CONFLICT (key) DO UPDATE SET value = excluded.value").run()
+    other.close()
+    expect(store.accountKey()).toEqual(new Uint8Array(32).fill(1))
+    expect(store.enabled()).toBe(true)
+    // A caller that changes the bytes it received does not change the next answer.
+    store.accountKey()!.fill(7)
+    expect(store.accountKey()).toEqual(new Uint8Array(32).fill(1))
+    // Each write through the store is read back.
+    store.setEnabled(false)
+    expect(store.enabled()).toBe(false)
+    store.setEnabled(true)
+    expect(store.enabled()).toBe(true)
+    expect(store.setAccountKey(new Uint8Array(32).fill(2), 'server')).toBe(true)
+    expect(store.accountKey()).toEqual(new Uint8Array(32).fill(2))
+    expect(store.dropAccountKey()).toBe(true)
+    expect(store.accountKey()).toBeUndefined()
+    store.close()
+  })
+
   it('keeps a device id, the account key, the enabled flag, and the relay cursor', () => {
     const store = new SyncStore(tempPath(), owner)
     const deviceId = store.deviceId()
