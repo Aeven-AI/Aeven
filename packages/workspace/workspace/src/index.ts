@@ -1616,8 +1616,10 @@ export class WorkspaceRegistry extends Service {
       // is a member by definition, so reporting one would be a false alarm.
       if (record.kind !== 'folder' || record.path === undefined) continue
       for (const sessionId of record.sessionIds) {
+        // The entity decides membership: a session replicated from another device is a member whatever directory its
+        // cwd names there, and so is one whose cwd is a directory a relink replaced.
+        if (entity.holds(sessionId)) continue
         const path = this.sessionPaths.get(sessionId)
-        if (path === record.path) continue
         const reason = this.invalidSessionPaths.get(sessionId)
           ?? (this.headers.has(sessionId)
             ? `canonical cwd '${path}' differs from workspace path '${record.path}'`
