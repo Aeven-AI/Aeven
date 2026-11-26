@@ -6,7 +6,9 @@ import { assertNever } from '@aeven/util-values'
 import type { Agent } from '@aeven/agent'
 import type { SessionId } from '@aeven/session'
 import type {} from '@aeven/sandbox-policy'
-import { sessionDirectory } from '@aeven/working-directory'
+import type {} from '@aeven/session-query'
+import type {} from '@aeven/api-session-controller'
+import { observedSessionDirectory, sessionDirectory, WorkingDirectoryUnavailableError, type LocalDirectoryProblem } from '@aeven/working-directory'
 import type {} from '@aeven/identity-user'
 import { Remote, RemoteError, TypertRemoteService } from '@aeven/typert-protocol'
 import { scopeTarget } from '@aeven/scope'
@@ -28,8 +30,16 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-/** Deployment limits and an optional shell profile. */
+/** Deployment limits, an optional shell profile, and where a Session's user shells run. */
 export interface Config {
+  /**
+   * Run a Session's user shells on this Host's own execution providers, in this device's folder for the Session's
+   * workspace, without resuming its Agent; the shells then live as long as the Host. A desktop Host, whose providers
+   * are the user's own machine, enables it, so a conversation it holds only as a synced copy still opens a terminal
+   * and a handover to another device leaves its shells running. A Host that runs each Session in its Agent's sandbox
+   * leaves it off, and its shells start in that sandbox and end with the Agent.
+   */
+  readonly hostShells: boolean
   /** Explicit shell profile; omission uses the execution environment's default shell. */
   readonly shell?: {
     /** Executable path or PATH name, verified by the subprocess provider. */
@@ -71,6 +81,18 @@ export interface Config {
   readonly showTimeoutMs: number
 }
 
+/** Where one Session's user shells run and whom they belong to. */
+interface TerminalPlace {
+  readonly sessionId: SessionId
+  /** Account the Session belongs to; only that account reaches its terminals. */
+  readonly account: string | undefined
+  readonly subprocess: Context['subprocess']
+  /** Directory new shells start in. */
+  readonly cwd: string
+  /** The Agent context the Session's shells end with, or undefined when they live as long as the Host. */
+  readonly lifetime: Context | undefined
+}
+
 interface TerminalAllocation {
   info: WebTerminalInfo
   readonly cleanup: TerminalRetention
@@ -91,6 +113,7 @@ interface OwnedSession {
 export class TerminalController extends TypertRemoteService {
   static inject = ['subprocess', 'sandboxPolicy', 'typert']
   static Config: z<Config> = z.object({
+    hostShells: z.boolean().default(false),
     shell: z.union([z.object({
       path: z.string().required(), name: z.string().required(), args: z.array(z.string()).default([]),
     }), z.const(undefined)]),
@@ -131,30 +154,29 @@ export class TerminalController extends TypertRemoteService {
 
   /**
    * Read the Session's local working directory and terminal limits without resolving a shell.
-   * @param agent - Session owner supplied by the Gateway.
+   * @param sessionId - the Session whose terminals the window shows.
    * @param signal - request cancellation.
    * @returns the directory this device starts the Session's terminals in, and terminal limits.
-   * @throws {WorkingDirectoryUnavailableError} when the Session's workspace has no folder on this device.
+   * @throws RemoteError `workspace/no-local-directory` when the Session's workspace has no folder on this device.
    */
   @Remote
-  environment(agent: Agent, signal: AbortSignal): TerminalEnvironment {
-    signal.throwIfAborted()
-    const { sandboxPolicy } = this.execution(agent)
-    return { cwd: sessionDirectory(this.ctx, agent.session) ?? sandboxPolicy.workspaceRoot,
+  async environment(sessionId: SessionId, signal: AbortSignal): Promise<TerminalEnvironment> {
+    const place = await this.place(sessionId, signal)
+    return { cwd: place.cwd,
       maxInputBytes: this.config.maxInputBytes, maxCols: this.config.maxCols,
       maxRows: this.config.maxRows, scrollback: this.config.scrollback }
   }
 
   /**
    * Discover installed shells in the Session's execution environment.
-   * @param agent - Session owner supplied by the Gateway.
+   * @param sessionId - the Session whose terminals the window shows.
    * @param signal - request cancellation.
    * @returns verified profiles, with the configured or system default first.
    */
   @Remote
-  shells(agent: Agent, signal: AbortSignal): Promise<TerminalShell[]> {
-    signal.throwIfAborted()
-    return discoverShells(this.execution(agent).subprocess, this.config.shell, this.config.shellCandidates, signal)
+  async shells(sessionId: SessionId, signal: AbortSignal): Promise<TerminalShell[]> {
+    const place = await this.place(sessionId, signal)
+    return discoverShells(place.subprocess, this.config.shell, this.config.shellCandidates, signal)
   }
 
   /**
@@ -171,17 +193,22 @@ export class TerminalController extends TypertRemoteService {
 
   /**
    * Allocate a user shell once for a caller-generated identity, without Agent sandbox or approval restrictions.
-   * @param agent - Session owner supplied by the Gateway.
+   * @param sessionId - the Session the shell belongs to.
    * @param request - initial dimensions and idempotency identity.
    * @param signal - allocation cancellation; committed terminals survive disconnection.
    * @returns the existing or newly committed terminal.
    */
   @Remote
-  async create(agent: Agent, request: TerminalCreateRequest, signal: AbortSignal): Promise<WebTerminalInfo> {
+  async create(sessionId: SessionId, request: TerminalCreateRequest, signal: AbortSignal): Promise<WebTerminalInfo> {
+    this.lifetime.signal.throwIfAborted()
+    return this.createIn(await this.place(sessionId, signal), request, signal)
+  }
+
+  private async createIn(place: TerminalPlace, request: TerminalCreateRequest, signal: AbortSignal): Promise<WebTerminalInfo> {
     this.lifetime.signal.throwIfAborted()
     if (!/^[\w-]{1,128}$/u.test(request.id)) throw new Error('Invalid terminal identity')
     this.dimensions(request.cols, request.rows)
-    const owner = this.owner(agent)
+    const owner = this.owner(place)
     owner.lifetime.signal.throwIfAborted()
     this.requireOpen(owner, request.id)
     const existing = owner.terminals.get(request.id)
@@ -193,7 +220,7 @@ export class TerminalController extends TypertRemoteService {
       return terminal.info
     }
     if (new Set([...owner.terminals.keys(), ...owner.pending.keys(), ...owner.allocations.keys()]).size >= this.config.maxTerminals) throw new RemoteError('terminal/limit-reached', 'Session terminal limit reached', { limit: this.config.maxTerminals })
-    const allocation = this.spawn(agent, owner, request, AbortSignal.any([signal, this.lifetime.signal, owner.lifetime.signal]))
+    const allocation = this.spawn(place, owner, request, AbortSignal.any([signal, this.lifetime.signal, owner.lifetime.signal]))
     owner.pending.set(request.id, allocation)
     try {
       const terminal = await allocation
@@ -228,35 +255,35 @@ export class TerminalController extends TypertRemoteService {
 
   /**
    * Attach to a terminal without binding its process lifetime to the transport.
-   * @param agent - Session owner supplied by the Gateway.
+   * @param sessionId - the Session the terminal belongs to.
    * @param id - terminal identity.
    * @param attachmentId - new exclusive input attachment.
    * @param signal - physical stream cancellation.
    * @returns screen recovery followed by output and metadata changes.
    */
   @Remote({ mode: 'stream' })
-  follow(agent: Agent, id: WebTerminalId, attachmentId: TerminalAttachmentId, signal: AbortSignal): AsyncIterable<TerminalFrame> {
+  follow(sessionId: SessionId, id: WebTerminalId, attachmentId: TerminalAttachmentId, signal: AbortSignal): AsyncIterable<TerminalFrame> {
     if (!/^[\w-]{1,128}$/u.test(attachmentId)) throw new Error('Invalid terminal attachment identity')
-    return this.terminal(agent, id).follow(attachmentId, signal)
+    return this.callerTerminal(sessionId, id).follow(attachmentId, signal)
   }
 
   /**
    * Deliver raw input, including Tab completion and control characters.
-   * @param agent - Session owner supplied by the Gateway.
+   * @param sessionId - the Session the terminal belongs to.
    * @param id - terminal identity.
    * @param attachmentId - current writable attachment.
    * @param data - input bytes represented as UTF-8 text.
    * @returns after provider input acceptance.
    */
   @Remote
-  async write(agent: Agent, id: WebTerminalId, attachmentId: TerminalAttachmentId, data: string): Promise<void> {
+  async write(sessionId: SessionId, id: WebTerminalId, attachmentId: TerminalAttachmentId, data: string): Promise<void> {
     if (Buffer.byteLength(data, 'utf8') > this.config.maxInputBytes) throw new Error('Terminal input exceeds the configured limit')
-    await this.terminal(agent, id).write(attachmentId, data)
+    await this.callerTerminal(sessionId, id).write(attachmentId, data)
   }
 
   /**
    * Update the dimensions of the PTY and recovery screen.
-   * @param agent - Session owner supplied by the Gateway.
+   * @param sessionId - the Session the terminal belongs to.
    * @param id - terminal identity.
    * @param attachmentId - current writable attachment.
    * @param cols - column count.
@@ -264,32 +291,43 @@ export class TerminalController extends TypertRemoteService {
    * @returns after the resize completes.
    */
   @Remote
-  async resize(agent: Agent, id: WebTerminalId, attachmentId: TerminalAttachmentId, cols: number, rows: number): Promise<void> {
+  async resize(sessionId: SessionId, id: WebTerminalId, attachmentId: TerminalAttachmentId, cols: number, rows: number): Promise<void> {
     this.dimensions(cols, rows)
-    await this.terminal(agent, id).resize(attachmentId, cols, rows)
+    await this.callerTerminal(sessionId, id).resize(attachmentId, cols, rows)
   }
 
   /**
    * Rename a terminal without changing its shell.
-   * @param agent - Session owner supplied by the Gateway.
+   * @param sessionId - the Session the terminal belongs to.
    * @param id - terminal identity.
    * @param title - nonempty display title, at most 120 characters.
    */
   @Remote
-  rename(agent: Agent, id: WebTerminalId, title: string): void {
+  rename(sessionId: SessionId, id: WebTerminalId, title: string): void {
+    this.callerTerminal(sessionId, id)
+    this.renameIn(sessionId, id, title)
+  }
+
+  private renameIn(sessionId: SessionId, id: WebTerminalId, title: string): void {
     if (title.trim().length === 0 || title.length > 120) throw new Error('Terminal title must contain 1–120 characters')
-    this.terminal(agent, id).rename(title.trim())
+    this.terminal(sessionId, id).rename(title.trim())
   }
 
   /**
-   * Close an identity to future creation and kill its process range; repeated closes succeed.
-   * @param agent - Session owner supplied by the Gateway.
+   * Close an identity to future creation and kill its process range; repeated closes succeed, and closing in a
+   * Session with no terminals on this Host does nothing.
+   * @param sessionId - the Session the terminal belongs to.
    * @param id - terminal identity.
    * @returns after provider cleanup succeeds. A failure retains the terminal for retry.
    */
   @Remote
-  async close(agent: Agent, id: WebTerminalId): Promise<void> {
-    const owner = this.owner(agent)
+  async close(sessionId: SessionId, id: WebTerminalId): Promise<void> {
+    const owner = this.owners.get(sessionId)
+    if (owner === undefined || !this.callerMayAccess(owner)) return
+    await this.closeIn(owner, id)
+  }
+
+  private async closeIn(owner: OwnedSession, id: WebTerminalId): Promise<void> {
     owner.closedIds.add(id)
     // create publishes the allocation before this wait settles; close owns it even if create then rejects.
     await owner.pending.get(id)?.catch(() => { /* Creation reports its failure; close still owns any allocated process. */ })
@@ -315,7 +353,7 @@ export class TerminalController extends TypertRemoteService {
       if (policy.mode === 'danger-full-access') return decision
       const id = 'terminalId' in args && typeof args.terminalId === 'string' ? args.terminalId : undefined
       if (id === undefined) return decision
-      const terminal = this.terminal(exec.agent, id as WebTerminalId)
+      const terminal = this.terminal(exec.agent.id, id as WebTerminalId)
       return {
         kind: 'ask',
         reason: `Allow ${String(args.action)} access to sidebar terminal "${terminal.info.title}" (${id}) with system-user permissions?`,
@@ -344,7 +382,7 @@ export class TerminalController extends TypertRemoteService {
         if (args.action === 'open') return JSON.stringify(await this.openShown(ctx, agent, exec.signal))
         if (args.terminalId === undefined) throw new Error('terminalId is required for this action; call list for current ids')
         const id = args.terminalId as WebTerminalId
-        const terminal = this.terminal(agent, id)
+        const terminal = this.terminal(agent.id, id)
         switch (args.action) {
           case 'read': {
             const count = args.count ?? 100
@@ -361,7 +399,7 @@ export class TerminalController extends TypertRemoteService {
           }
           case 'rename':
             if (args.title === undefined) throw new Error('title is required for rename')
-            this.rename(agent, id, args.title)
+            this.renameIn(agent.id, id, args.title)
             return JSON.stringify(terminal.info)
           case 'resize':
             if (args.cols === undefined || args.rows === undefined) throw new Error('cols and rows are required for resize')
@@ -372,7 +410,7 @@ export class TerminalController extends TypertRemoteService {
             // The pointer's press on the pill's close button closes it the way the reader would; the shell is closed
             // here either way, so a window that does not answer still loses nothing.
             await this.present(ctx, agent, id, 'close', exec.signal)
-            await this.close(agent, id)
+            await this.closeIn(this.owner(this.placeOfAgent(agent)), id)
             return JSON.stringify({ closed: id })
           default: return assertNever(args.action)
         }
@@ -417,7 +455,7 @@ export class TerminalController extends TypertRemoteService {
    * @returns the new terminal.
    */
   private async openShown(ctx: Context, agent: Agent, signal: AbortSignal): Promise<WebTerminalInfo> {
-    const info = await this.create(agent, {
+    const info = await this.createIn(this.placeOfAgent(agent), {
       id: randomUUID() as WebTerminalId, cols: this.config.openCols, rows: this.config.openRows,
     }, signal)
     const bounded = AbortSignal.any([signal, AbortSignal.timeout(this.config.showTimeoutMs)])
@@ -430,7 +468,7 @@ export class TerminalController extends TypertRemoteService {
       unanswered,
     ])
     if (shown) return info
-    await this.close(agent, info.id)
+    await this.closeIn(this.owner(this.placeOfAgent(agent)), info.id)
     signal.throwIfAborted()
     throw new Error('No window is showing this chat, so no terminal was opened. Ask the user to open Terminal in the sidebar.')
   }
@@ -439,16 +477,82 @@ export class TerminalController extends TypertRemoteService {
     return this.ctx.get('identityUsers')?.mayAccess(owner.account) ?? true
   }
 
-  private owner(agent: Agent): OwnedSession {
-    let owner = this.owners.get(agent.id)
+  /**
+   * Where a Session's shells run, read without resuming its Agent when `hostShells` is on: from the live Agent when
+   * this process runs the Session, otherwise from the stored header and this device's folder for its workspace.
+   * Without `hostShells`, the Session's Agent is resolved and resumed, and a Session it cannot resume is refused.
+   * A Session another account owns answers exactly as an absent one.
+   */
+  private async place(sessionId: SessionId, signal: AbortSignal): Promise<TerminalPlace> {
+    signal.throwIfAborted()
+    const live = this.ctx.get('agents')?.get(sessionId)
+    if (live !== undefined) {
+      this.assertMayAccess(sessionId, live.session.header.owner)
+      return this.placeOfAgent(live)
+    }
+    if (!this.config.hostShells) {
+      const controller = this.ctx.get('sessionController')
+      if (controller === undefined) throw notFound(sessionId)
+      const found = await controller.resolveAgent(sessionId)
+      if ('error' in found) throw found.error
+      return this.placeOfAgent(found.agent)
+    }
+    const query = this.ctx.get('sessionQuery')
+    if (query === undefined) throw notFound(sessionId)
+    let observation
+    try {
+      observation = await query.observeSession(sessionId, { signal })
+    } catch (error: unknown) {
+      if ((error as { code?: unknown } | null)?.code === 'SESSION_QUERY_SESSION_NOT_FOUND') throw notFound(sessionId)
+      throw error
+    }
+    using held = observation
+    this.assertMayAccess(sessionId, held.header.owner)
+    const local = observedSessionDirectory(this.ctx, held.header, held.projections?.values.workingDirectory)
+    if (local.state === 'unresolved') throw noLocalDirectory(sessionId, local.reason)
+    return {
+      sessionId, account: held.header.owner, subprocess: this.ctx.subprocess,
+      cwd: local.state === 'local' ? local.cwd : this.ctx.sandboxPolicy.workspaceRoot, lifetime: undefined,
+    }
+  }
+
+  /** Where a live Agent's shells run: the Host's own providers under `hostShells`, otherwise the Agent's. */
+  private placeOfAgent(agent: Agent): TerminalPlace {
+    let cwd: string | undefined
+    try {
+      cwd = sessionDirectory(this.ctx, agent.session)
+    } catch (error) {
+      if (!(error instanceof WorkingDirectoryUnavailableError)) throw error
+      throw noLocalDirectory(agent.id, error.reason)
+    }
+    if (this.config.hostShells) {
+      return {
+        sessionId: agent.id, account: agent.session.header.owner, subprocess: this.ctx.subprocess,
+        cwd: cwd ?? this.ctx.sandboxPolicy.workspaceRoot, lifetime: undefined,
+      }
+    }
+    const { subprocess, sandboxPolicy } = this.execution(agent)
+    return {
+      sessionId: agent.id, account: agent.session.header.owner, subprocess,
+      cwd: cwd ?? sandboxPolicy.workspaceRoot, lifetime: agent.ctx,
+    }
+  }
+
+  /** Refuse a Session another account owns exactly as an absent one, so a caller cannot learn which exist. */
+  private assertMayAccess(sessionId: SessionId, account: string | undefined): void {
+    if (this.ctx.get('identityUsers')?.mayAccess(account) === false) throw notFound(sessionId)
+  }
+
+  private owner(place: TerminalPlace): OwnedSession {
+    let owner = this.owners.get(place.sessionId)
     if (owner === undefined) {
       owner = {
-        account: agent.session.header.owner, terminals: new Map(), pending: new Map(),
+        account: place.account, terminals: new Map(), pending: new Map(),
         allocations: new Map(), closedIds: new Set(), lifetime: new AbortController(),
       }
-      this.owners.set(agent.id, owner)
+      this.owners.set(place.sessionId, owner)
       const owned = owner
-      agent.ctx.effect(() => async () => { await this.disposeOwner(agent.id, owned) }, 'terminal-controller.owner')
+      place.lifetime?.effect(() => async () => { await this.disposeOwner(place.sessionId, owned) }, 'terminal-controller.owner')
     }
     return owner
   }
@@ -471,11 +575,20 @@ export class TerminalController extends TypertRemoteService {
     return owner.cleanup
   }
 
-  private terminal(agent: Agent, id: WebTerminalId): BrowserTerminal {
-    const terminal = this.owners.get(agent.id)?.terminals.get(id)
+  private terminal(sessionId: SessionId, id: WebTerminalId): BrowserTerminal {
+    const terminal = this.owners.get(sessionId)?.terminals.get(id)
     if (terminal === undefined) throw new RemoteError('terminal/unavailable', 'Terminal no longer exists in this Session', {})
-    this.requireOpen(this.owners.get(agent.id) as OwnedSession, id)
+    this.requireOpen(this.owners.get(sessionId) as OwnedSession, id)
     return terminal
+  }
+
+  /** A terminal a Remote caller names, answering a Session another account owns as one without that terminal. */
+  private callerTerminal(sessionId: SessionId, id: WebTerminalId): BrowserTerminal {
+    const owner = this.owners.get(sessionId)
+    if (owner !== undefined && !this.callerMayAccess(owner)) {
+      throw new RemoteError('terminal/unavailable', 'Terminal no longer exists in this Session', {})
+    }
+    return this.terminal(sessionId, id)
   }
 
   private requireOpen(owner: OwnedSession, id: WebTerminalId): void {
@@ -495,20 +608,22 @@ export class TerminalController extends TypertRemoteService {
     return { subprocess, sandboxPolicy }
   }
 
-  private async spawn(agent: Agent, owner: OwnedSession, request: TerminalCreateRequest, signal: AbortSignal): Promise<BrowserTerminal> {
-    const environment = this.environment(agent, signal)
-    const { subprocess } = this.execution(agent)
+  private async spawn(
+    place: TerminalPlace, owner: OwnedSession, request: TerminalCreateRequest, signal: AbortSignal,
+  ): Promise<BrowserTerminal> {
+    const { subprocess, cwd } = place
     const shell = request.shellPath === undefined
       ? await resolveShell(subprocess, this.config.shell, signal)
-      : (await this.shells(agent, signal)).find(candidate => candidate.path === request.shellPath)
+      : (await discoverShells(subprocess, this.config.shell, this.config.shellCandidates, signal))
+        .find(candidate => candidate.path === request.shellPath)
     if (shell === undefined) throw new Error('Selected shell is not available in this execution environment')
     const handle = await subprocess.spawnTerminal({
-      argv: [shell.path, ...shell.args], cwd: environment.cwd, cols: request.cols, rows: request.rows,
-      env: { TERM: 'xterm-256color', AVN_SESSION_ID: agent.id },
+      argv: [shell.path, ...shell.args], cwd, cols: request.cols, rows: request.rows,
+      env: { TERM: 'xterm-256color', AVN_SESSION_ID: place.sessionId },
       graceMs: this.config.disposeGraceMs, signal,
     })
     const info: WebTerminalInfo = {
-      id: request.id, shell, title: shell.name, cwd: environment.cwd,
+      id: request.id, shell, title: shell.name, cwd,
       cols: request.cols, rows: request.rows, state: 'running', exitCode: null,
     }
     try {
@@ -531,6 +646,14 @@ export class TerminalController extends TypertRemoteService {
       throw error
     }
   }
+}
+
+function notFound(sessionId: SessionId): RemoteError<'session/not-found'> {
+  return new RemoteError('session/not-found', `session "${sessionId}" not found`, { sessionId })
+}
+
+function noLocalDirectory(sessionId: SessionId, reason: LocalDirectoryProblem): RemoteError<'workspace/no-local-directory'> {
+  return new RemoteError('workspace/no-local-directory', new WorkingDirectoryUnavailableError(sessionId, reason).message, { sessionId, reason })
 }
 
 /** Browser terminal service plugin. */

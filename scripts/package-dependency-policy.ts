@@ -46,7 +46,7 @@ const SAFE_HOST_DEPENDENCY_EXPORTS = {
   '@aeven/credentials': ['credentialKey'],
   '@aeven/deque': ['Deque'],
   '@aeven/home-paths': ['accountHomePath', 'resolveAvnHome'],
-  '@aeven/working-directory': ['sessionDirectory'],
+  '@aeven/working-directory': ['observedSessionDirectory', 'sessionDirectory'],
   '@aeven/llm': [
     'LlmAdapter',
     'RetryPolicySchema',
@@ -69,6 +69,9 @@ const PEER_REQUIRED_HOST_EXPORTS = {
   // second installed copy would read a real provider failure as an unknown one.
   '@aeven/llm': ['LlmError'],
   '@aeven/scope': ['carrierKeyOf', 'scopeOf', 'scopeTarget'],
+  // A missing local folder is narrowed with `error instanceof WorkingDirectoryUnavailableError` across packages, so a
+  // second installed copy would let that refusal through as an unknown failure.
+  '@aeven/working-directory': ['WorkingDirectoryUnavailableError'],
 } as const satisfies HostDependencyExports
 
 /** Exact import specifier to reviewed runtime exports. */

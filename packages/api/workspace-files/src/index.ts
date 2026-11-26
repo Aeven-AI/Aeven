@@ -52,7 +52,7 @@ import type { SessionId } from '@aeven/session'
 import type {} from '@aeven/session-query'
 import type {} from '@aeven/session-projection'
 import type {} from '@aeven/workspace'
-import { sessionWorkspaceRoot, WorkingDirectoryUnavailableError } from '@aeven/working-directory'
+import { observedSessionDirectory, sessionWorkspaceRoot, WorkingDirectoryUnavailableError } from '@aeven/working-directory'
 import { Remote, RemoteError, TypertRemoteService } from '@aeven/typert-protocol'
 import { brandString } from '@aeven/brand'
 import { scopeTarget } from '@aeven/scope'
@@ -850,10 +850,7 @@ export class WorkspaceFiles extends TypertRemoteService {
     }
     using held = observation
     this.assertMayAccess(sessionId, held.header.owner)
-    const directory = this.ctx.get('workingDirectory')
-    const local = directory === undefined
-      ? (held.header.cwd === undefined ? { state: 'absent' as const } : { state: 'local' as const, cwd: held.header.cwd, root: held.header.cwd })
-      : directory.observed(held.header, held.projections?.values.workingDirectory)
+    const local = observedSessionDirectory(this.ctx, held.header, held.projections?.values.workingDirectory)
     if (local.state === 'unresolved') throw new WorkingDirectoryUnavailableError(sessionId, local.reason)
     return {
       root: local.state === 'local' ? local.root : this.ctx.sandboxPolicy.workspaceRoot,

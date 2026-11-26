@@ -428,8 +428,16 @@ Source: [`packages/api/sync-controller/src/index.ts`](../packages/api/sync-contr
 Requires: `subprocess` · `sandboxPolicy` · `typert`
 
 ```ts config-catalog
-/** Deployment limits and an optional shell profile. */
+/** Deployment limits, an optional shell profile, and where a Session's user shells run. */
 export interface Config {
+  /**
+   * Run a Session's user shells on this Host's own execution providers, in this device's folder for the Session's
+   * workspace, without resuming its Agent; the shells then live as long as the Host. A desktop Host, whose providers
+   * are the user's own machine, enables it, so a conversation it holds only as a synced copy still opens a terminal
+   * and a handover to another device leaves its shells running. A Host that runs each Session in its Agent's sandbox
+   * leaves it off, and its shells start in that sandbox and end with the Agent.
+   */
+  readonly hostShells: boolean
   /** Explicit shell profile; omission uses the execution environment's default shell. */
   readonly shell?: {
     /** Executable path or PATH name, verified by the subprocess provider. */

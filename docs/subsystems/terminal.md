@@ -107,20 +107,20 @@ Typed Remote control of transient Session-owned terminal processes.
 ```ts cordis-catalog
 /**
  * Read the Session's local working directory and terminal limits without resolving a shell.
- * @param agent - Session owner supplied by the Gateway.
+ * @param sessionId - the Session whose terminals the window shows.
  * @param signal - request cancellation.
  * @returns the directory this device starts the Session's terminals in, and terminal limits.
- * @throws {WorkingDirectoryUnavailableError} when the Session's workspace has no folder on this device.
+ * @throws RemoteError `workspace/no-local-directory` when the Session's workspace has no folder on this device.
  */
-@Remote environment(agent: Agent, signal: AbortSignal): TerminalEnvironment
+@Remote async environment(sessionId: SessionId, signal: AbortSignal): Promise<TerminalEnvironment>
 
 /**
  * Discover installed shells in the Session's execution environment.
- * @param agent - Session owner supplied by the Gateway.
+ * @param sessionId - the Session whose terminals the window shows.
  * @param signal - request cancellation.
  * @returns verified profiles, with the configured or system default first.
  */
-@Remote shells(agent: Agent, signal: AbortSignal): Promise<TerminalShell[]>
+@Remote async shells(sessionId: SessionId, signal: AbortSignal): Promise<TerminalShell[]>
 
 /**
  * List retained terminals without resolving or activating an Agent.
@@ -131,12 +131,12 @@ Typed Remote control of transient Session-owned terminal processes.
 
 /**
  * Allocate a user shell once for a caller-generated identity, without Agent sandbox or approval restrictions.
- * @param agent - Session owner supplied by the Gateway.
+ * @param sessionId - the Session the shell belongs to.
  * @param request - initial dimensions and idempotency identity.
  * @param signal - allocation cancellation; committed terminals survive disconnection.
  * @returns the existing or newly committed terminal.
  */
-@Remote async create(agent: Agent, request: TerminalCreateRequest, signal: AbortSignal): Promise<WebTerminalInfo>
+@Remote async create(sessionId: SessionId, request: TerminalCreateRequest, signal: AbortSignal): Promise<WebTerminalInfo>
 
 /**
  * Retain an existing terminal for a window without activating its Agent or taking input control.
@@ -149,53 +149,54 @@ Typed Remote control of transient Session-owned terminal processes.
 
 /**
  * Attach to a terminal without binding its process lifetime to the transport.
- * @param agent - Session owner supplied by the Gateway.
+ * @param sessionId - the Session the terminal belongs to.
  * @param id - terminal identity.
  * @param attachmentId - new exclusive input attachment.
  * @param signal - physical stream cancellation.
  * @returns screen recovery followed by output and metadata changes.
  */
-@Remote({ mode: 'stream' }) follow(agent: Agent, id: WebTerminalId, attachmentId: TerminalAttachmentId, signal: AbortSignal): AsyncIterable<TerminalFrame>
+@Remote({ mode: 'stream' }) follow(sessionId: SessionId, id: WebTerminalId, attachmentId: TerminalAttachmentId, signal: AbortSignal): AsyncIterable<TerminalFrame>
 
 /**
  * Deliver raw input, including Tab completion and control characters.
- * @param agent - Session owner supplied by the Gateway.
+ * @param sessionId - the Session the terminal belongs to.
  * @param id - terminal identity.
  * @param attachmentId - current writable attachment.
  * @param data - input bytes represented as UTF-8 text.
  * @returns after provider input acceptance.
  */
-@Remote async write(agent: Agent, id: WebTerminalId, attachmentId: TerminalAttachmentId, data: string): Promise<void>
+@Remote async write(sessionId: SessionId, id: WebTerminalId, attachmentId: TerminalAttachmentId, data: string): Promise<void>
 
 /**
  * Update the dimensions of the PTY and recovery screen.
- * @param agent - Session owner supplied by the Gateway.
+ * @param sessionId - the Session the terminal belongs to.
  * @param id - terminal identity.
  * @param attachmentId - current writable attachment.
  * @param cols - column count.
  * @param rows - row count.
  * @returns after the resize completes.
  */
-@Remote async resize(agent: Agent, id: WebTerminalId, attachmentId: TerminalAttachmentId, cols: number, rows: number): Promise<void>
+@Remote async resize(sessionId: SessionId, id: WebTerminalId, attachmentId: TerminalAttachmentId, cols: number, rows: number): Promise<void>
 
 /**
  * Rename a terminal without changing its shell.
- * @param agent - Session owner supplied by the Gateway.
+ * @param sessionId - the Session the terminal belongs to.
  * @param id - terminal identity.
  * @param title - nonempty display title, at most 120 characters.
  */
-@Remote rename(agent: Agent, id: WebTerminalId, title: string): void
+@Remote rename(sessionId: SessionId, id: WebTerminalId, title: string): void
 
 /**
- * Close an identity to future creation and kill its process range; repeated closes succeed.
- * @param agent - Session owner supplied by the Gateway.
+ * Close an identity to future creation and kill its process range; repeated closes succeed, and closing in a
+ * Session with no terminals on this Host does nothing.
+ * @param sessionId - the Session the terminal belongs to.
  * @param id - terminal identity.
  * @returns after provider cleanup succeeds. A failure retains the terminal for retry.
  */
-@Remote async close(agent: Agent, id: WebTerminalId): Promise<void>
+@Remote async close(sessionId: SessionId, id: WebTerminalId): Promise<void>
 ```
 
-Types: [Agent](core.md) · [SessionId](core.md)
+Types: [SessionId](core.md)
 
 Source: [`packages/api/terminal-controller/src/index.ts`](../../packages/api/terminal-controller/src/index.ts)
 

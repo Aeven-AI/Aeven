@@ -63,6 +63,7 @@ Chats 等虚拟工作区没有文件夹绑定。由本设备写入的聊天使�
 
 - `sessionDirectory(ctx, session)` —— 文件、搜索、shell、LSP、媒体、终端、钩子或 subagent 调用所在的目录。
 - `sessionWorkspaceRoot(ctx, session)` —— 限制写入的工作区根，由 `@aeven/sandbox-policy`、工作区文件浏览器与 `@` 文件引用使用。
+- `observedSessionDirectory(ctx, header, logged)` —— 对本进程未持有 Session 对象的已存储会话（空闲会话或同步副本）给出相同的答案，依据其头信息与折叠后的投影；由工作区文件浏览器与桌面终端使用。
 
 两者都会在会话的工作区没有本地文件夹时抛出 `WorkingDirectoryUnavailableError`，且只在本插件根本没有被组合时回退到头部：这种组合没有工作区注册表，因此也没有同步会话。shell 工具（`tool-bash`、`tool-bash-persistent`、`tool-pwsh`、`tool-pwsh-persistent`）、文件工具（`tool-fs`）、`glob`/`grep`（`tool-fs-search`）、`tool-lsp`、`tool-media`、`bash-edit-guard`、终端面板、工作区文件浏览器、项目指令发现、项目上下文、钩子与 Codex subagent 提供方都通过它们解析目录。在另一个目录中启动的持久 shell 会在下一条命令时重启。
 

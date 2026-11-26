@@ -79,7 +79,7 @@ suite('sidebar terminal model control', () => {
     await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(configPath).href } })
     await ctx.loader.await()
     owner = agent('sidebar-owner')
-    await ctx.terminalController.create(owner, { id: 'main' as WebTerminalId, cols: 80, rows: 24 }, new AbortController().signal)
+    await ctx.terminalController.create(owner.id, { id: 'main' as WebTerminalId, cols: 80, rows: 24 }, new AbortController().signal)
   })
 
   afterEach(async () => {
@@ -94,17 +94,17 @@ suite('sidebar terminal model control', () => {
     const frames: TerminalFrame[] = []
     const watching = (async () => {
       try {
-        for await (const frame of ctx.terminalController.follow(owner, 'main' as WebTerminalId, 'browser' as TerminalAttachmentId, lifetime.signal)) frames.push(frame)
+        for await (const frame of ctx.terminalController.follow(owner.id, 'main' as WebTerminalId, 'browser' as TerminalAttachmentId, lifetime.signal)) frames.push(frame)
       } catch (error) { if (!lifetime.signal.aborted) throw error }
     })()
     await expect.poll(() => frames.length).toBeGreaterThan(0)
-    await ctx.terminalController.write(owner, 'main' as WebTerminalId, 'browser' as TerminalAttachmentId, 'export SHARED=sidebar\r')
+    await ctx.terminalController.write(owner.id, 'main' as WebTerminalId, 'browser' as TerminalAttachmentId, 'export SHARED=sidebar\r')
     const sent = await run({ action: 'send', terminalId: 'main', text: 'printf "AGENT_%s\\n" "$SHARED"' })
     expect(sent.result.isError).toBeFalsy()
     expect(JSON.parse(sent.text)).toMatchObject({ accepted: true, info: { controllerId: 'browser' } })
     await expect.poll(async () => (await run({ action: 'read', terminalId: 'main' })).text).toContain('AGENT_sidebar')
     expect(frames.some(frame => frame.type === 'output' && frame.data.includes('AGENT_sidebar'))).toBe(true)
-    await ctx.terminalController.write(owner, 'main' as WebTerminalId, 'browser' as TerminalAttachmentId, 'printf "USER_STILL_WRITABLE\\n"\r')
+    await ctx.terminalController.write(owner.id, 'main' as WebTerminalId, 'browser' as TerminalAttachmentId, 'printf "USER_STILL_WRITABLE\\n"\r')
     await expect.poll(async () => (await run({ action: 'read', terminalId: 'main' })).text).toContain('USER_STILL_WRITABLE')
     await run({ action: 'send', terminalId: 'main', text: "printf 'WAITING_FOR_INTERRUPT\\n'; sleep 30" })
     const readLines = async (): Promise<string[]> => {

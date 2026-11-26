@@ -15,6 +15,7 @@ export type TerminalRemote = ClientRemote['terminal']
 
 /** Product error identifiers translated by the terminal UI. */
 export type TerminalViewIssue = 'missingTerminal' | 'inputFull' | 'attachmentEnded' | 'invalidOutput' | 'terminalLimit'
+  | 'noLocalFolder' | 'runsElsewhere'
 
 declare module '@aeven/typert-protocol' {
   interface RemoteErrorDetailsMap {
@@ -354,8 +355,26 @@ export class TerminalView {
       this.patch({ writable: false, error: undefined, issue: undefined })
       return
     }
-    const issue = failure?.code === 'terminal/view' ? failure.details.issue : failure?.code === 'terminal/limit-reached' ? 'terminalLimit' : failure?.code === 'terminal/unavailable' ? 'missingTerminal' : undefined
+    const issue = issueOf(failure)
     this.patch({ phase: error instanceof RemoteStreamCarrierError ? 'disconnected' : 'failed', writable: false, issue, choosingShell: false, error: error instanceof Error ? error.message : String(error) })
+  }
+}
+
+/**
+ * The translated issue a failed terminal request shows in place of its raw message, or undefined to show the message.
+ * @param failure - the request's Remote error, when it carried one.
+ * @returns the issue key.
+ */
+function issueOf(failure: ReturnType<typeof remoteErrorOf>): TerminalViewIssue | undefined {
+  if (failure?.code === 'terminal/view') return failure.details.issue
+  // Session-domain codes the Host's Session resolution raises; this face does not compose their detail types.
+  const code: string | undefined = failure?.code
+  switch (code) {
+    case 'terminal/limit-reached': return 'terminalLimit'
+    case 'terminal/unavailable': return 'missingTerminal'
+    case 'workspace/no-local-directory': return 'noLocalFolder'
+    case 'session/agent-busy': return 'runsElsewhere'
+    default: return undefined
   }
 }
 

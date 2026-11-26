@@ -13,8 +13,9 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import type { Session } from '@aeven/session'
+import type { Session, SessionHeader } from '@aeven/session'
 import { WorkingDirectoryUnavailableError, type LocalDirectory } from './local.ts'
+import type { WorkingDirectoryProjection } from './types.ts'
 
 /**
  * The directory the calling session's file, search, and shell work acts in.
@@ -36,6 +37,25 @@ export function sessionDirectory(ctx: Context, session: Session): string | undef
  */
 export function sessionWorkspaceRoot(ctx: Context, session: Session): string | undefined {
   return pick(ctx, session, 'root')
+}
+
+/**
+ * The directory pair in force on this device for a stored session this process holds no Session object for — an idle
+ * one, or a copy another device writes — read from its header and folded `workingDirectory` projection.
+ * @param ctx - the plugin's context, through which `workingDirectory` is looked up when composed.
+ * @param header - the session's stored header.
+ * @param logged - the folded `workingDirectory` projection of its log, when one was read.
+ * @returns the local directory and workspace root, why this device has none, or the fact that the session records
+ *   none; without the working-directory capability, the header's directory.
+ */
+export function observedSessionDirectory(
+  ctx: Context,
+  header: SessionHeader,
+  logged: WorkingDirectoryProjection | undefined,
+): LocalDirectory {
+  const directory = ctx.get('workingDirectory')
+  if (directory !== undefined) return directory.observed(header, logged)
+  return header.cwd === undefined ? { state: 'absent' } : { state: 'local', cwd: header.cwd, root: header.cwd }
 }
 
 function pick(ctx: Context, session: Session, field: 'cwd' | 'root'): string | undefined {
