@@ -17,14 +17,14 @@ describe('Microsoft Store manifest', () => {
     expect(excluded.toSorted()).toEqual(windowsHostKeys().toSorted())
   })
 
-  it('lets a Windows release without key exclusions install the package', () => {
-    expect(manifest).toMatch(/IgnorableNamespaces="[^"]*\bvirtualization\b[^"]*"/)
-    expect(manifest).toContain('<desktop6:RegistryWriteVirtualization>disabled</desktop6:RegistryWriteVirtualization>')
+  it("excludes only the app's own user-data folder from file-system virtualization", () => {
+    const directories = [...manifest.matchAll(/<virtualization:ExcludedDirectory>([^<]+)<\/virtualization:ExcludedDirectory>/g)]
+      .map(([, directory]) => directory)
+    expect(directories).toEqual(['$(KnownFolder:RoamingAppData)\\Aeven'])
   })
 
-  it('leaves file-system writes unvirtualized and excludes no directory by name', () => {
-    expect(manifest).not.toContain('<virtualization:ExcludedDirector')
-    expect(manifest).toContain('<desktop6:FileSystemWriteVirtualization>disabled</desktop6:FileSystemWriteVirtualization>')
+  it('opts out of no kind of write virtualization for the whole package', () => {
+    expect(manifest).not.toContain('desktop6:')
   })
 })
 
