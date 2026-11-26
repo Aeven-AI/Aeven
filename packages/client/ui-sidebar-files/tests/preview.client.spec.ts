@@ -287,7 +287,6 @@ describe('runtime file bridge in the page', () => {
     const frame = { fetch: network } as { fetch: typeof fetch }
     // The script is the page's own text, run with its globals bound to the stand-ins, and with Node's Blob, which the
     // test runtime's Response reads (a browser has one Blob).
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval
     new Function('window', 'parent', 'addEventListener', 'document', 'Blob', script)(
       frame,
       parent,
@@ -295,8 +294,9 @@ describe('runtime file bridge in the page', () => {
       { baseURI: 'http://127.0.0.1:3080/c/session-1' },
       NodeBlob,
     )
-    const answer = (id: number, body: NodeBlob | undefined) => { listener?.({ source: parent, data: { avnWorkspaceFile: TOKEN, id, body } }) }
-    return { fetch: frame.fetch, network, requests, answer, parent, deliver: (event: { source: unknown; data: unknown }) => { listener?.(event) } }
+    const deliver = (event: { source: unknown; data: unknown }) => { listener?.(event) }
+    const answer = (id: number, body: NodeBlob | undefined) => { deliver({ source: parent, data: { avnWorkspaceFile: TOKEN, id, body } }) }
+    return { fetch: frame.fetch, network, requests, answer, parent, deliver }
   }
 
   it('sends a relative fetch to the app and answers it with the file', async () => {

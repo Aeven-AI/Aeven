@@ -47,4 +47,3 @@ export function linkedArtifact(pathname: string, hash: string):
   const attachmentId = fragment.get(COPY_PARAM)
   return { sessionId, path, ...attachmentId === null ? {} : { attachmentId } }
 }
-

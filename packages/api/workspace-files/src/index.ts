@@ -310,7 +310,12 @@ export class WorkspaceFiles extends TypertRemoteService {
    * @returns the entry and its stat, or undefined when nothing exists at the path.
    * @throws RemoteError `session/not-found` for an absent or foreign Session, and the filesystem's error for a refused path.
    */
-  async locateFile(sessionId: SessionId, path: string, signal: AbortSignal, wait: boolean = true): Promise<{ target: FsTarget; info: FsInfo } | undefined> {
+  async locateFile(
+    sessionId: SessionId,
+    path: string,
+    signal: AbortSignal,
+    wait: boolean = true,
+  ): Promise<{ target: FsTarget; info: FsInfo } | undefined> {
     const target = await this.readTarget(await this.placeOf(sessionId), path, signal)
     const info = await this.ctx.fs.stat(target, signal)
     if (info !== undefined) return { target, info }

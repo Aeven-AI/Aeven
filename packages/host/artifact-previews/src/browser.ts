@@ -129,6 +129,7 @@ export class PreviewBrowser {
     if (this.source.browserCacheDir === undefined) {
       return await resolveBrowser({ cacheDir: '', headlessShellBuildId: '', allowDownload: false }, AbortSignal.timeout(1000))
     }
-    return await resolveBrowser({ cacheDir: this.source.browserCacheDir, headlessShellBuildId: await headlessShellBuildId() }, new AbortController().signal)
+    const request = { cacheDir: this.source.browserCacheDir, headlessShellBuildId: await headlessShellBuildId() }
+    return await resolveBrowser(request, new AbortController().signal)
   }
 }

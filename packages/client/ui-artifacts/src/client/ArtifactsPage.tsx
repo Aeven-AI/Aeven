@@ -189,8 +189,15 @@ export function ArtifactsPage({ list, open, hrefOf, previewUrls, loadMotion, loa
             <div className={css.grid}>
               {group.items.map(artifact => (
                 <ArtifactCard
-                  key={artifact.id} artifact={artifact} away={unavailable(artifact)} t={t} urls={previewUrls(artifact)} loadMotion={loadMotion} loadText={loadText}
-                  href={hrefOf(artifact)} onOpen={() => { open(artifact) }}
+                  key={artifact.id}
+                  artifact={artifact}
+                  away={unavailable(artifact)}
+                  t={t}
+                  urls={previewUrls(artifact)}
+                  loadMotion={loadMotion}
+                  loadText={loadText}
+                  href={hrefOf(artifact)}
+                  onOpen={() => { open(artifact) }}
                 />
               ))}
             </div>

@@ -1,6 +1,6 @@
 /**
- * Artifact previews: which renderer a file gets, the thumbnail an Office or iWork file carries, the cache that draws each version once, the queue that bounds drawings, and a PDF's first
- * page drawn in the worker.
+ * Artifact previews: which renderer a file gets, the thumbnail an Office or iWork file carries, the cache that draws
+ * each version once, the queue that bounds drawings, and a PDF's first page drawn in the worker.
  */
 import { mkdtemp, readdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -130,7 +130,8 @@ function onePagePdf(): Uint8Array {
 
 describe('PDF first page', () => {
   it('draws the first page at card size as WebP in the worker', async () => {
-    const image = await drawPdf(onePagePdf(), { width: 120, height: 150, quality: 80 }, { timeoutMs: 20_000, maxHeapMb: 256 }, new AbortController().signal)
+    const limits = { timeoutMs: 20_000, maxHeapMb: 256 }
+    const image = await drawPdf(onePagePdf(), { width: 120, height: 150, quality: 80 }, limits, new AbortController().signal)
     const text = new TextDecoder().decode(image.subarray(0, 16))
     expect(text.startsWith('RIFF')).toBe(true)
     expect(text.slice(8, 12)).toBe('WEBP')

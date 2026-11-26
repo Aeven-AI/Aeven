@@ -136,7 +136,12 @@ function noPicture(etag?: string): Response {
 export function apply(ctx: Context, config: Config): void {
   const cache = new PreviewCache(config.cacheDir)
   const queue = new DrawingQueue(config.concurrency)
-  const browser = new PreviewBrowser({ browserPath: config.browserPath, browserCacheDir: config.browserCacheDir }, config.browserIdleMs, { networkIdleMs: config.networkIdleMs, settleMs: config.settleMs })
+  const pdfLimits = { timeoutMs: config.timeoutMs, maxHeapMb: config.maxWorkerHeapMb }
+  const browser = new PreviewBrowser(
+    { browserPath: config.browserPath, browserCacheDir: config.browserCacheDir },
+    config.browserIdleMs,
+    { networkIdleMs: config.networkIdleMs, settleMs: config.settleMs },
+  )
   ctx.effect(() => () => { void browser.close() }, 'artifact-previews: browser')
   const picture = { width: config.width, height: config.height, quality: config.quality }
   const logger = ctx.logger(name)
@@ -159,13 +164,13 @@ export function apply(ctx: Context, config: Config): void {
       case 'image':
         return await scaled(await read(target, signal))
       case 'pdf':
-        return await drawPdf(await read(target, signal), picture, { timeoutMs: config.timeoutMs, maxHeapMb: config.maxWorkerHeapMb }, signal)
+        return await drawPdf(await read(target, signal), picture, pdfLimits, signal)
       case 'office': {
         const thumbnail = embeddedThumbnail(await read(target, signal))
         if (thumbnail !== undefined) return await scaled(thumbnail)
         const pdf = await ctx.workspaceFiles.locateFile(sessionId, siblingPdf(path), signal, false)
         if (pdf === undefined || pdf.info.type !== 'file') return 'none'
-        return await drawPdf(await read(pdf.target, signal), picture, { timeoutMs: config.timeoutMs, maxHeapMb: config.maxWorkerHeapMb }, signal)
+        return await drawPdf(await read(pdf.target, signal), picture, pdfLimits, signal)
       }
       case 'page': {
         // A page on this machine's own disk opens from its file, so its stylesheets, scripts and images load.
@@ -245,7 +250,9 @@ export function apply(ctx: Context, config: Config): void {
       const cache = url.searchParams.get('v') === versionToken(info) ? KEPT : HEADERS['Cache-Control']
       if (opening) return await openingOf(target, info, cache, request)
       if (kind === undefined || (info.size !== undefined && info.size > config.maxSourceBytes)) return noPicture()
-      const key = previewKey([RENDER_VERSION, kind, target.displayPath, String(info.version), info.size ?? -1, config.width, config.height, config.quality])
+      const key = previewKey([
+        RENDER_VERSION, kind, target.displayPath, String(info.version), info.size ?? -1, config.width, config.height, config.quality,
+      ])
       const etag = `"${key}"`
       if (request.headers.get('if-none-match') === etag) return new Response(null, { status: 304, headers: { ...HEADERS, 'Cache-Control': cache, ETag: etag } })
       let image: CachedPreview
