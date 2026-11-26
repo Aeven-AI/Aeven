@@ -1,7 +1,7 @@
 {
   "name": "@aeven/util-workspace-path",
   "description": "Browser-safe Workspace path and display helpers",
-  "version": "0.3.72-alpha",
+  "version": "0.3.73-alpha",
   "publishConfig": {
     "access": "public"
   },
