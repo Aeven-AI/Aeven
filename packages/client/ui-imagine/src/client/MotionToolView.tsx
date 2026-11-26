@@ -9,7 +9,8 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 // so the player ships inside this module rather than as a lazily loaded chunk.
 import '@hyperframes/player'
 import {
-  IconLucideChevronDown, IconLucideChevronRight, MediaPlayer, Spinner, saveClip, videoPlayerLabels, type ClipMedia,
+  Button, IconLucideChevronDown, IconLucideChevronRight, MediaPlayer, Modal, Spinner, saveClip, videoPlayerLabels,
+  type ClipMedia,
 } from '@aeven/client-ui-primitives'
 import type { ToolCallViewProps } from '@aeven/client-ui-tool/client'
 import type { PropsLocale } from '@aeven/client-ui-slots'
@@ -256,6 +257,8 @@ export function MotionToolView({ block, cwd, sessionId, t }: ToolCallViewProps &
   // How far a running export has come, as the Host reports it while it renders.
   const [exportProgress, setExportProgress] = useState<ExportProgress | undefined>(undefined)
   const [exportError, setExportError] = useState<string | undefined>(undefined)
+  // Whether the export popup shows: closing it hides the popup while the render keeps running and still downloads.
+  const [exportOpen, setExportOpen] = useState(false)
 
   // The folder's current files, bundled by the Host into one document. Where this Host lacks the folder or the
   // preview route, the film the call stored, else the composition the Host rebuilds from this conversation's log.
@@ -337,6 +340,7 @@ export function MotionToolView({ block, cwd, sessionId, t }: ToolCallViewProps &
     if (dir === undefined) return
     setExporting(true)
     setExportError(undefined)
+    setExportOpen(true)
     try {
       const ask = (): Promise<Response> => hostFetch(new URL('api/motion/export', document.baseURI), {
         method: 'POST',
@@ -356,6 +360,7 @@ export function MotionToolView({ block, cwd, sessionId, t }: ToolCallViewProps &
       saveClip(url.href, film.path.split(/[\\/]/).pop() ?? 'film.mp4')
     } catch (error) {
       setExportError(error instanceof Error ? error.message : String(error))
+      setExportOpen(true)
     } finally {
       setExporting(false)
       setExportProgress(undefined)
@@ -367,6 +372,7 @@ export function MotionToolView({ block, cwd, sessionId, t }: ToolCallViewProps &
   const exportCall = async (): Promise<void> => {
     setExporting(true)
     setExportError(undefined)
+    setExportOpen(true)
     try {
       const ask = (): Promise<Response> => hostFetch(new URL('api/motion/export-call', document.baseURI), {
         method: 'POST',
@@ -391,12 +397,18 @@ export function MotionToolView({ block, cwd, sessionId, t }: ToolCallViewProps &
       setTimeout(() => { URL.revokeObjectURL(url) }, 60_000)
     } catch (error) {
       setExportError(error instanceof Error ? error.message : String(error))
+      setExportOpen(true)
     } finally {
       setExporting(false)
       setExportProgress(undefined)
     }
   }
 
+  // Hiding the popup leaves a running render to finish and download; a failure it showed is dismissed with it.
+  const closeExport = (): void => {
+    setExportOpen(false)
+    if (!exporting) setExportError(undefined)
+  }
   const showError = failed || loadError !== undefined
   // Until the player is ready the card is one compact row: a running call, or a film still on its way from the
   // folder, the stored copy, or the replay, never reserves a player-sized frame.
@@ -450,24 +462,29 @@ export function MotionToolView({ block, cwd, sessionId, t }: ToolCallViewProps &
               <div ref={stage} className={css.motionStage} role="img" aria-label={t('motion.label')} />
             </MediaPlayer>
           ) : null}
-          {exportError !== undefined && !showError && (
-            <ErrorDetailControl title={t('motion.exportFailed')} message={exportError} t={t} />
-          )}
         </div>
       </div>
-      {exporting && (
-        <span className={css.motionPending} role="status">
-          <Spinner />
-          <span>
-            {exportProgress?.queued === true
+      <Modal
+        open={exportOpen && (exporting || exportError !== undefined)}
+        onClose={closeExport}
+        title={exportError === undefined ? t('motion.export') : t('motion.exportFailed')}
+        closeLabel={t('dialog.close')}
+        footer={exportError === undefined ? undefined : (
+          <Button variant="primary" onClick={closeExport}>{t('dialog.close')}</Button>
+        )}
+      >
+        <div className={css.exportStatus} role="status" aria-live="polite">
+          {exportError === undefined && <Spinner className={css.exportSpinner} />}
+          <p className={css.exportMessage}>
+            {exportError ?? (exportProgress?.queued === true
               ? t('motion.exportQueued')
               // A renderer that reports no progress, such as the sandboxed one, shows no number.
               : exportProgress === undefined || exportProgress.fraction === 0
                 ? t('motion.exportStarting')
-                : t('motion.exporting', { percent: String(Math.round(exportProgress.fraction * 100)) })}
-          </span>
-        </span>
-      )}
+                : t('motion.exporting', { percent: String(Math.round(exportProgress.fraction * 100)) }))}
+          </p>
+        </div>
+      </Modal>
     </figure>
   )
 }
