@@ -9,6 +9,10 @@
  * here. Only the extension id named in the host manifest may start the host, and
  * no network port is opened.
  *
+ * The registration is the reader's choice (`ExtensionIntegration`), on until
+ * they turn it off: turning it off closes the socket and removes the manifest
+ * and each browser's registration.
+ *
  * Several browsers can be connected at once, one link per install of the
  * extension (`ExtensionLinks`); an agent tab's id names its install and tab. When
  * none is connected and the agent opens a tab, the browser that has the extension
@@ -22,6 +26,7 @@
  */
 
 import { createServer, type Socket } from 'node:net'
+import { readFileSync } from 'node:fs'
 import { chmod, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -332,8 +337,40 @@ function hostFolders(): Array<{ browser: string; folder: string }> {
   return []
 }
 
-/** Windows registry keys that name the host manifest, per browser. */
-const WINDOWS_HOST_KEYS = ['Google\\Chrome', 'Chromium', 'BraveSoftware\\Brave-Browser', 'Microsoft\\Edge']
+/** Each Chromium browser's key under `HKCU\Software` on Windows. */
+const WINDOWS_BROWSER_KEYS = ['Google\\Chrome', 'Chromium', 'BraveSoftware\\Brave-Browser', 'Microsoft\\Edge']
+
+/**
+ * The Windows registry keys that name the host manifest, one per browser. The app writes no other registry key:
+ * the Microsoft Store manifest excludes exactly these from registry write
+ * virtualization, and the installer's uninstall step deletes these keys.
+ * @returns each key, in `reg` syntax.
+ */
+export function windowsHostKeys(): string[] {
+  return WINDOWS_BROWSER_KEYS.map(browser => `HKCU\\Software\\${browser}\\NativeMessagingHosts\\${NATIVE_HOST_NAME}`)
+}
+
+/**
+ * Run `reg` and wait for it. A failure is ignored: deleting an absent key fails, and a browser
+ * that cannot be registered is one the extension does not connect from.
+ * @param args - its arguments.
+ */
+async function reg(args: readonly string[]): Promise<void> {
+  await new Promise<void>((resolve) => { execFile('reg', [...args], { windowsHide: true }, () => { resolve() }) })
+}
+
+/**
+ * The launcher the browsers start and, on Windows, the manifest their registry keys name.
+ * @param avnHome - the Aeven home folder.
+ * @returns both paths, in the home's `runtime` folder.
+ */
+function hostFiles(avnHome: string): { launcher: string; manifest: string } {
+  const runtime = join(avnHome, 'runtime')
+  return {
+    launcher: join(runtime, process.platform === 'win32' ? 'aeven-browser-host.bat' : 'aeven-browser-host'),
+    manifest: join(runtime, `${NATIVE_HOST_NAME}.json`),
+  }
+}
 
 /**
  * Register the native messaging host with every installed Chromium browser:
@@ -342,27 +379,21 @@ const WINDOWS_HOST_KEYS = ['Google\\Chrome', 'Chromium', 'BraveSoftware\\Brave-B
  * @param avnHome - the Aeven home folder, where the launcher and socket live.
  */
 async function installHost(avnHome: string): Promise<void> {
-  const runtime = join(avnHome, 'runtime')
-  await mkdir(runtime, { recursive: true })
+  const files = hostFiles(avnHome)
+  await mkdir(dirname(files.launcher), { recursive: true })
   const script = fileURLToPath(new URL('./native-host.js', import.meta.url))
   const socket = socketPath(avnHome)
   const windows = process.platform === 'win32'
-  const launcher = join(runtime, windows ? 'aeven-browser-host.bat' : 'aeven-browser-host')
-  await writeFile(launcher, windows
+  await writeFile(files.launcher, windows
     ? `@echo off\r\nset ELECTRON_RUN_AS_NODE=1\r\n"${process.execPath}" "${script}" "${socket}"\r\n`
     : `#!/bin/sh\nELECTRON_RUN_AS_NODE=1 exec "${process.execPath}" "${script}" "${socket}"\n`)
-  if (!windows) await chmod(launcher, 0o755)
+  if (!windows) await chmod(files.launcher, 0o755)
   const manifest = `${JSON.stringify({
-    name: NATIVE_HOST_NAME, description: 'Aeven', path: launcher, type: 'stdio', allowed_origins: EXTENSION_IDS.map(id => `chrome-extension://${id}/`),
+    name: NATIVE_HOST_NAME, description: 'Aeven', path: files.launcher, type: 'stdio', allowed_origins: EXTENSION_IDS.map(id => `chrome-extension://${id}/`),
   }, null, 2)}\n`
   if (windows) {
-    const file = join(runtime, `${NATIVE_HOST_NAME}.json`)
-    await writeFile(file, manifest)
-    for (const key of WINDOWS_HOST_KEYS) {
-      await new Promise<void>((resolve) => {
-        execFile('reg', ['add', `HKCU\\Software\\${key}\\NativeMessagingHosts\\${NATIVE_HOST_NAME}`, '/ve', '/t', 'REG_SZ', '/d', file, '/f'], () => { resolve() })
-      })
-    }
+    await writeFile(files.manifest, manifest)
+    for (const key of windowsHostKeys()) await reg(['add', key, '/ve', '/t', 'REG_SZ', '/d', files.manifest, '/f'])
     return
   }
   for (const { browser, folder } of hostFolders()) {
@@ -371,6 +402,21 @@ async function installHost(avnHome: string): Promise<void> {
     await mkdir(folder, { recursive: true })
     await writeFile(join(folder, `${NATIVE_HOST_NAME}.json`), manifest)
   }
+}
+
+/**
+ * Remove what `installHost` wrote: each browser's registration, the manifest, and the launcher.
+ * The browsers then find no host, so the extension cannot start one.
+ * @param avnHome - the Aeven home folder.
+ */
+async function removeHost(avnHome: string): Promise<void> {
+  const files = hostFiles(avnHome)
+  if (process.platform === 'win32') {
+    for (const key of windowsHostKeys()) await reg(['delete', key, '/f'])
+    await rm(files.manifest, { force: true })
+  }
+  for (const { folder } of hostFolders()) await rm(join(folder, `${NATIVE_HOST_NAME}.json`), { force: true })
+  await rm(files.launcher, { force: true })
 }
 
 /**
@@ -397,14 +443,112 @@ export async function serveExtensions(path: string, registry: ExtensionLinks): P
 }
 
 /**
- * Serve the extension's host and register it with the installed browsers.
- * @param avnHome - the Aeven home folder.
- * @returns disposer closing the server.
+ * Read the stored choice.
+ * @param file - the JSON record of the choice.
+ * @returns whether the integration is on; a missing or unreadable record reads as on.
  */
-export async function startExtensionBridge(avnHome: string): Promise<() => void> {
-  await installHost(avnHome)
-  const stop = await serveExtensions(socketPath(avnHome), links)
-  return stop
+function readIntegrationChoice(file: string): boolean {
+  try {
+    return (JSON.parse(readFileSync(file, 'utf8')) as { enabled?: unknown }).enabled !== false
+  } catch {
+    // Absent until the reader first turns the integration off, and a record that does not parse is no decision.
+    return true
+  }
+}
+
+/** What an `ExtensionIntegration` registers and serves; the defaults are this computer's browsers and socket. */
+export interface ExtensionIntegrationParts {
+  /** The links new connections join. */
+  readonly registry: ExtensionLinks
+  /** The socket path the native host connects to, or a named pipe on Windows. */
+  readonly socket: string
+  /** Register the host with the browsers. */
+  readonly install: (avnHome: string) => Promise<void>
+  /** Remove every registration `install` wrote. */
+  readonly remove: (avnHome: string) => Promise<void>
+}
+
+/**
+ * The reader's choice to let the browser extension reach this app, and the
+ * registration and socket that follow it. The choice is stored in the Aeven
+ * home, which every install of the app on the computer shares.
+ */
+export class ExtensionIntegration {
+  readonly #avnHome: string
+  readonly #file: string
+  readonly #parts: ExtensionIntegrationParts
+  #enabled: boolean
+  #stop: (() => void) | undefined
+  /** The change in progress; each change starts after the one before it settles. */
+  #settled: Promise<void> = Promise.resolve()
+
+  /**
+   * @param avnHome - the Aeven home folder.
+   * @param parts - what is registered and served.
+   */
+  constructor(
+    avnHome: string,
+    parts: ExtensionIntegrationParts = { registry: links, socket: socketPath(avnHome), install: installHost, remove: removeHost },
+  ) {
+    this.#avnHome = avnHome
+    this.#file = join(avnHome, 'desktop', 'browser-extension.json')
+    this.#parts = parts
+    this.#enabled = readIntegrationChoice(this.#file)
+  }
+
+  /** Whether the browsers are told where to find this app's host. */
+  get enabled(): boolean {
+    return this.#enabled
+  }
+
+  /**
+   * Apply the stored choice: when on, register the host with the browsers and serve its socket.
+   * @returns resolution once the socket is listening, or at once when the integration is off.
+   */
+  async start(): Promise<void> {
+    await this.#change(async () => {
+      if (this.#enabled) await this.#serve()
+    })
+  }
+
+  /**
+   * Store the choice and apply it. Turning it off closes every extension connection
+   * and removes the registrations; turning it on writes them again.
+   * @param enabled - whether the integration is on.
+   * @returns resolution after the choice is stored and applied.
+   */
+  async setEnabled(enabled: boolean): Promise<void> {
+    await this.#change(async () => {
+      await mkdir(dirname(this.#file), { recursive: true })
+      await writeFile(this.#file, `${JSON.stringify({ enabled })}\n`)
+      this.#enabled = enabled
+      if (enabled) {
+        await this.#serve()
+        return
+      }
+      this.close()
+      await this.#parts.remove(this.#avnHome)
+    })
+  }
+
+  /** Close the socket and every connection, leaving the registrations for the next launch. */
+  close(): void {
+    this.#stop?.()
+    this.#stop = undefined
+  }
+
+  async #serve(): Promise<void> {
+    if (this.#stop !== undefined) return
+    await this.#parts.install(this.#avnHome)
+    this.#stop = await serveExtensions(this.#parts.socket, this.#parts.registry)
+  }
+
+  async #change(step: () => Promise<void>): Promise<void> {
+    const run = this.#settled.then(step)
+    // A failed change is its caller's to report; the next change still runs.
+    this.#settled = run.catch(() => undefined)
+    await run
+  }
 }
 
 /**

@@ -81,6 +81,8 @@ const api: AvnDesktopAppApi = {
       ipcRenderer.invoke(DESKTOP_IPC.browserChromeClose, kind, browserUrl, targetId) as Promise<void>,
     extensionRead: (what, query, limit) => ipcRenderer.invoke(DESKTOP_IPC.browserExtensionRead, what, query, limit),
     extensionStatus: () => ipcRenderer.invoke(DESKTOP_IPC.browserExtensionStatus) as Promise<Array<{ instance: string; browser: string }>>,
+    extensionEnabled: () => ipcRenderer.invoke(DESKTOP_IPC.browserExtensionEnabledGet) as Promise<boolean>,
+    setExtensionEnabled: enabled => ipcRenderer.invoke(DESKTOP_IPC.browserExtensionEnabledSet, enabled) as Promise<void>,
     chromeAutomate: (kind, browserUrl, targetId, operation, input, requestId, timeoutMs) =>
       ipcRenderer.invoke(
         DESKTOP_IPC.browserChromeAutomate, kind, browserUrl, targetId, operation, input, requestId, timeoutMs,

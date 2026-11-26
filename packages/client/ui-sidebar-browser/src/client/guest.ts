@@ -91,6 +91,10 @@ export interface DesktopBrowserBridge {
   extensionRead: (what: 'history' | 'bookmarks', query: string, limit: number) => Promise<unknown>
   /** The browsers whose Aeven extension is connected (desktop `extensionStatus`). */
   extensionStatus: () => Promise<Array<{ instance: string; browser: string }>>
+  /** Whether the extension may connect to the app (desktop `extensionEnabled`); absent in a shell that offers no choice. */
+  extensionEnabled?: () => Promise<boolean>
+  /** Turn the extension's connection to the app on or off (desktop `setExtensionEnabled`); absent with `extensionEnabled`. */
+  setExtensionEnabled?: (enabled: boolean) => Promise<void>
   /** Run one engine operation on a Chrome tab (desktop `chromeAutomate`). */
   chromeAutomate: (
     kind: ChromeKind, browserUrl: string | undefined, targetId: string, operation: string, input: Record<string, unknown>,
