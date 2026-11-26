@@ -346,6 +346,8 @@ function registerMotion(ctx: Context, config: Config): void {
           path: { type: 'string', required: true },
           compositionDir: { type: 'string', required: true },
           durationSeconds: { type: 'number', required: true },
+          // Whether this is the first time the session shows a film from the folder.
+          created: { type: 'boolean' },
           film: {
             type: 'object',
             additionalProperties: false,
@@ -364,10 +366,17 @@ function registerMotion(ctx: Context, config: Config): void {
       ],
       // The card plays the folder through the Host's preview route, which takes the absolute path, and plays the
       // stored film where that Host lacks the folder, such as another of the account's devices.
+      // `producedFiles` declares the film as what the Turn delivers, so the Turn's file list shows one row for the
+      // film, opened from its root page with the stored copy, instead of every scene file written on the way.
       presentationMeta: (_args, value) => ({
         compositionDir: value.compositionDir,
         durationSeconds: value.durationSeconds,
         ...value.film === undefined ? {} : { film: value.film },
+        producedFiles: [{
+          path: `${value.path.replace(/[\\/]+$/, '')}/index.html`,
+          created: value.created !== false,
+          ...value.film === undefined ? {} : { attachmentId: value.film.attachmentId },
+        }],
       }),
     },
     async execute(args: { composition: string; force?: boolean }, exec) {
@@ -380,7 +389,10 @@ function registerMotion(ctx: Context, config: Config): void {
       }
       const film = await saveFilm(ctx, compositionDir, args.composition)
       shown.set(key, facts.durationSeconds)
-      return { path: args.composition, compositionDir, durationSeconds: facts.durationSeconds, ...film === undefined ? {} : { film } }
+      return {
+        path: args.composition, compositionDir, durationSeconds: facts.durationSeconds, created: previous === undefined,
+        ...film === undefined ? {} : { film },
+      }
     },
   }))
 
