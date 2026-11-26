@@ -58,8 +58,12 @@ export interface Config {
   compactAfter: number
   /** Bytes of updates a document may accumulate since its last merge before they are merged into one. */
   compactBytes: number
-  /** Frames per document since its last snapshot before this device queues a new one. */
+  /** Frames per document since its last snapshot before the device whose own update crosses the count queues a new one. */
   snapshotAfter: number
+  /** Updates one document may take within `churnWindowMs` before this device warns that it is being rewritten. */
+  churnUpdates: number
+  /** The period `churnUpdates` is counted over, in milliseconds. */
+  churnWindowMs: number
   /** Share of an account store's file that free pages may take before the file is rewritten without them at open. */
   reclaimFreeRatio: number
   /** Received frames opened on the sync worker and stored in one transaction per batch. */
@@ -170,6 +174,8 @@ export default class YjsSync extends Sync {
     compactAfter: Schema.natural().min(1).default(200),
     compactBytes: Schema.natural().min(1_024).default(8 * 1024 * 1024),
     snapshotAfter: Schema.natural().min(1).default(500),
+    churnUpdates: Schema.natural().min(1).default(10_000),
+    churnWindowMs: Schema.natural().min(1_000).default(3_600_000),
     reclaimFreeRatio: Schema.number().min(0).max(1).default(0.5),
     applyFrames: Schema.natural().min(1).default(200),
     applyPauseMs: Schema.natural().default(16),
@@ -249,6 +255,8 @@ export default class YjsSync extends Sync {
         compactAfter: this.config.compactAfter,
         compactBytes: this.config.compactBytes,
         snapshotAfter: this.config.snapshotAfter,
+        churnUpdates: this.config.churnUpdates,
+        churnWindowMs: this.config.churnWindowMs,
         applyFrames: this.config.applyFrames,
         applyPauseMs: this.config.applyPauseMs,
         pageFrames: this.config.pageFrames,
@@ -275,7 +283,7 @@ export default class YjsSync extends Sync {
       },
       (message, error) => {
         this.ctx.logger.warn(message)
-        this.ctx.logger.warn(error)
+        if (error !== undefined) this.ctx.logger.warn(error)
       },
       this.offload,
       () => { this.notifyReset(owner) },

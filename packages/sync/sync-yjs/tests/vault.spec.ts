@@ -40,6 +40,8 @@ const TUNING: VaultTuning = {
   compactAfter: 100,
   compactBytes: 8_388_608,
   snapshotAfter: 100,
+  churnUpdates: 10_000,
+  churnWindowMs: 3_600_000,
   applyFrames: 200,
   applyPauseMs: 0,
   pageFrames: 500,
@@ -240,6 +242,55 @@ describe('a vault on two devices', () => {
     for (let i = 0; i < 6; i++) doc.doc.getMap('m').set('k', i)
     await vi.waitFor(() => { expect(relay.account(owner).frames.some(frame => frame.kind === 'snapshot')).toBe(true) })
     await vi.waitFor(() => { expect(a.store.docUpdates(a.vault.documentId('doc')).length).toBeLessThanOrEqual(3) })
+    doc.close()
+  })
+
+  it('lets only the device that writes a document upload its snapshot, and counts again from that snapshot on the other', async () => {
+    const { owner, a, b } = await pair({ ...TUNING, compactAfter: 1_000, snapshotAfter: 4 })
+    const id = a.vault.documentId('doc')
+    const docA = a.vault.openDocument('doc')
+    const docB = b.vault.openDocument('doc')
+    for (let i = 0; i < 6; i++) docA.doc.getMap('m').set('k', i)
+    await vi.waitFor(() => { expect(docB.doc.getMap('m').get('k')).toBe(5) })
+    await vi.waitFor(() => { expect(relay.account(owner).snapshots).toEqual([a.store.deviceId()]) })
+    await vi.waitFor(() => { expect(a.store.pending() + b.store.pending()).toBe(0) })
+    // B received the same six frames and A's snapshot; its count starts over at the snapshot instead of passing four.
+    expect(b.store.countSinceSnapshot(id, 0)).toBeLessThanOrEqual(2)
+    expect(relay.account(owner).snapshots).toEqual([a.store.deviceId()])
+    docA.close()
+    docB.close()
+  })
+
+  it('uploads a snapshot from a device that only receives once the writer left twice the count unanswered', async () => {
+    const { owner, a, b } = await pair({ ...TUNING, compactAfter: 1_000, snapshotAfter: 4 })
+    const id = a.vault.documentId('doc')
+    const docB = b.vault.openDocument('doc')
+    // Frames of another device that never snapshots, as while its own copy waits for a missing update.
+    const writer = new Y.Doc()
+    const updates: Uint8Array[] = []
+    writer.on('update', (update: Uint8Array) => { updates.push(update) })
+    for (let i = 0; i < 9; i++) writer.getMap('m').set('k', i)
+    const key = a.store.accountKey()!
+    const connection = await RelayConnection.open(relay.url, { scheme: 'Bearer', token: `ok-${owner}` }, { frame: () => {}, closed: () => {} }, 2000, 2000, 0, 0)
+    connections.push(connection)
+    const other = generateDeviceId()
+    for (const [index, update] of updates.entries()) {
+      const frame = sealEnvelope({ kind: 'update', id, accountKey: key, device: other, counter: index + 1, payload: update })
+      await connection.request('publish', { frame: Buffer.from(frame).toString('base64url') })
+    }
+    await vi.waitFor(() => { expect(docB.doc.getMap('m').get('k')).toBe(8) })
+    await vi.waitFor(() => { expect(relay.account(owner).snapshots.length).toBeGreaterThan(0) })
+    expect(relay.account(owner).snapshots.every(device => device === a.store.deviceId() || device === b.store.deviceId())).toBe(true)
+    docB.close()
+  })
+
+  it('warns once when a document takes more updates than the churn limit within the window', async () => {
+    const { a } = await pair({ ...TUNING, churnUpdates: 5 })
+    const doc = a.vault.openDocument('workspace-git/example')
+    for (let i = 0; i < 12; i++) doc.doc.getMap('m').set('k', i)
+    const churn = a.warn.mock.calls.filter(([message]) => String(message).includes('may be rewriting it in a loop'))
+    expect(churn).toHaveLength(1)
+    expect(String(churn[0]![0])).toContain('document workspace-git/example took 6 updates')
     doc.close()
   })
 
