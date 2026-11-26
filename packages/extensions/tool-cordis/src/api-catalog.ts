@@ -2509,7 +2509,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       {
         signature: 'resolve(request: MotionRenderRequest): MotionRenderSpec',
         description: 'Apply the configured defaults and capture the registered renderer.',
-        parameters: [{ name: 'request', description: 'composition, output, and optional fps, quality, and still times.' }],
+        parameters: [{ name: 'request', description: 'composition, output, and optional fps, quality, still times and region, and audit times.' }],
         returns: 'renderer-pinned input for {@link render}.',
         throws: ['When no renderer is registered.'],
       },
@@ -2524,7 +2524,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         signature: 'async render(spec: MotionRenderSpec, signal: AbortSignal, onProgress?: (progress: MotionProgress) => void): Promise<MotionRenderOutput>',
         description: 'Render with exactly the resolved renderer.',
         parameters: [{ name: 'spec', description: 'resolved render; a withdrawn or replaced renderer is rejected.' }, { name: 'signal', description: 'caller cancellation.' }, { name: 'onProgress', description: 'optional progress sink.' }],
-        returns: 'the written film.',
+        returns: 'the written film, with the findings judged from the renderer\'s audit samples.',
       },
     ],
   },
@@ -8630,6 +8630,30 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ModelReasoningEffort {\n    readonly id: string;\n    readonly name: string;\n    readonly description?: string;\n}',
   },
   {
+    name: 'MotionAuditIssue',
+    declaration: 'export interface MotionAuditIssue {\n    readonly code: string;\n    readonly severity: string;\n    readonly selector: string;\n    readonly text: string;\n    readonly message: string;\n    readonly fixHint: string | null;\n}',
+  },
+  {
+    name: 'MotionAuditPart',
+    declaration: 'export interface MotionAuditPart {\n    readonly key: string;\n    readonly block: string;\n    readonly selector: string;\n    readonly text: string;\n    readonly blockText: string;\n    readonly opacity: number;\n    readonly fontPx: number;\n    readonly captions: boolean;\n}',
+  },
+  {
+    name: 'MotionAuditSample',
+    declaration: 'export interface MotionAuditSample {\n    readonly time: number;\n    readonly issues: readonly MotionAuditIssue[];\n    readonly parts: readonly MotionAuditPart[];\n}',
+  },
+  {
+    name: 'MotionAuditSamples',
+    declaration: 'export interface MotionAuditSamples {\n    readonly width: number;\n    readonly height: number;\n    readonly missingFonts: readonly {\n        readonly family: string;\n        readonly text: string;\n    }[];\n    readonly samples: readonly MotionAuditSample[];\n}',
+  },
+  {
+    name: 'MotionFinding',
+    declaration: 'export interface MotionFinding {\n    readonly code: string;\n    readonly severity: MotionFindingSeverity;\n    readonly seconds: number;\n    readonly untilSeconds: number;\n    readonly selector?: string;\n    readonly text?: string;\n    readonly message: string;\n}',
+  },
+  {
+    name: 'MotionFindingSeverity',
+    declaration: 'export type MotionFindingSeverity = \'error\' | \'warning\';',
+  },
+  {
     name: 'MotionFps',
     declaration: 'export type MotionFps = 24 | 30 | 60;',
   },
@@ -8642,20 +8666,28 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type MotionQuality = \'draft\' | \'standard\' | \'high\';',
   },
   {
+    name: 'MotionRegion',
+    declaration: 'export interface MotionRegion {\n    readonly x: number;\n    readonly y: number;\n    readonly width: number;\n    readonly height: number;\n}',
+  },
+  {
+    name: 'MotionRendered',
+    declaration: 'export interface MotionRendered extends Omit<MotionRenderOutput, \'findings\'> {\n    readonly audit?: MotionAuditSamples;\n}',
+  },
+  {
     name: 'MotionRenderer',
-    declaration: 'export interface MotionRenderer {\n    readonly name: string;\n    render(input: MotionRenderInput, signal: AbortSignal, onProgress?: (progress: MotionProgress) => void): Promise<MotionRenderOutput>;\n    bundle(compositionDir: string): Promise<string>;\n}',
+    declaration: 'export interface MotionRenderer {\n    readonly name: string;\n    render(input: MotionRenderInput, signal: AbortSignal, onProgress?: (progress: MotionProgress) => void): Promise<MotionRendered>;\n    bundle(compositionDir: string): Promise<string>;\n}',
   },
   {
     name: 'MotionRenderInput',
-    declaration: 'export interface MotionRenderInput {\n    readonly compositionDir: string;\n    readonly outputPath: string;\n    readonly fps: MotionFps;\n    readonly quality: MotionQuality;\n    readonly stillTimes: readonly number[];\n    readonly sandboxPolicy?: SandboxExecutionPolicy;\n}',
+    declaration: 'export interface MotionRenderInput {\n    readonly compositionDir: string;\n    readonly outputPath: string;\n    readonly fps: MotionFps;\n    readonly quality: MotionQuality;\n    readonly stillTimes: readonly number[];\n    readonly stillRegion?: MotionRegion;\n    readonly auditTimes: readonly number[];\n    readonly sandboxPolicy?: SandboxExecutionPolicy;\n}',
   },
   {
     name: 'MotionRenderOutput',
-    declaration: 'export interface MotionRenderOutput {\n    readonly outputPath: string;\n    readonly bytes: number;\n    readonly durationSeconds: number;\n    readonly width: number;\n    readonly height: number;\n    readonly encoder: string;\n    readonly stills: readonly MotionStill[];\n}',
+    declaration: 'export interface MotionRenderOutput {\n    readonly outputPath: string;\n    readonly bytes: number;\n    readonly durationSeconds: number;\n    readonly width: number;\n    readonly height: number;\n    readonly encoder: string;\n    readonly stills: readonly MotionStill[];\n    readonly findings: readonly MotionFinding[];\n}',
   },
   {
     name: 'MotionRenderRequest',
-    declaration: 'export interface MotionRenderRequest {\n    readonly compositionDir: string;\n    readonly outputPath: string;\n    readonly fps?: MotionFps;\n    readonly quality?: MotionQuality;\n    readonly stillTimes?: readonly number[];\n    readonly sandboxPolicy?: SandboxExecutionPolicy;\n}',
+    declaration: 'export interface MotionRenderRequest {\n    readonly compositionDir: string;\n    readonly outputPath: string;\n    readonly fps?: MotionFps;\n    readonly quality?: MotionQuality;\n    readonly stillTimes?: readonly number[];\n    readonly stillRegion?: MotionRegion;\n    readonly auditTimes?: readonly number[];\n    readonly sandboxPolicy?: SandboxExecutionPolicy;\n}',
   },
   {
     name: 'MotionRenderSpec',

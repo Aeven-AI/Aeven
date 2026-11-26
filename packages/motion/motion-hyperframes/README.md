@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This provider registers [HyperFrames](https://github.com/heygen-com/hyperframes) (Apache-2.0) as the motion renderer. HyperFrames loads the composition in a headless Chromium, seeks its paused GSAP timelines frame by frame, and encodes the frames with ffmpeg, so every render of the same files is identical. Encoding uses the Aeven-built ffmpeg and ffprobe, which carry no GPL code, so H.264 comes from an encoder each platform provides. Its `bundle()` is HyperFrames' `bundleToSingleHtml` with the runtime inlined.
+This provider registers [HyperFrames](https://github.com/heygen-com/hyperframes) (Apache-2.0) as the motion renderer. HyperFrames loads the composition in a headless Chromium, seeks its paused GSAP timelines frame by frame, and encodes the frames with ffmpeg, so every render of the same files is identical. Encoding uses the Aeven-built ffmpeg and ffprobe, which carry no GPL code, so H.264 comes from an encoder each platform provides. Its `bundle()` is HyperFrames' `bundleToSingleHtml` with the runtime inlined and the fonts embedded.
 
 ## Table of Contents
 
@@ -33,7 +33,8 @@ Mount it after [`avn-motion`](../motion/README.md). `browserCacheDir` is require
 | `fallbackEncoders` | `h264_mf`, `libopenh264` | H.264 encoders tried in order when HyperFrames finds no hardware encoder |
 | `intermediateProfile` | `422` | ProRes profile of the intermediate a fallback encoder reads |
 | `fallbackBitrate` | `6M` / `12M` / `20M` | Fallback video bitrate for `draft` / `standard` / `high` |
-| `stillWidth` | `960` | Width of returned stills in pixels |
+| `stillWidth` | `960` | Widest a returned still may be, in pixels; a still cropped to a narrower region keeps its own pixels |
+| `auditReadyMs` | `30000` | How long the audit page may take to load a composition and report its player ready |
 
 Encoders by platform:
 
@@ -54,7 +55,11 @@ On the first render it chooses the browser and the encode path and reuses both a
 - **Direct path:** when HyperFrames' own probe finds a hardware encoder, it writes the MP4 with that encoder.
 - **Fallback path:** otherwise it renders a ProRes `.mov` into a temporary folder, and the first fallback encoder that encodes a test frame re-encodes it to H.264, copying the AAC audio.
 
-ffprobe then reads the film's duration and size, and ffmpeg takes the requested stills. Renders run one at a time; each already uses every core.
+ffprobe then reads the film's duration and size, and ffmpeg takes the requested stills, cropped to the request's still region when it names one. Renders run one at a time; each already uses every core.
+
+`bundle()` inlines the composition with HyperFrames' compiler and then embeds its fonts as data URLs: HyperFrames' bundled families, any other family Google Fonts serves under the name the composition uses, fetched once into HyperFrames' font cache, and `@font-face` files in the folder. A family that resolves nowhere is logged and left to the browser's fallback.
+
+A render that asks for audit times measures the film after it is written: the bundle, with the audit script from [`avn-motion`](../motion/README.md) added, loads in a headless page of the same browser through the Puppeteer the producer depends on, and the page's samples return with the film. An audit that cannot run is logged and the film returns without samples.
 
 -----
 

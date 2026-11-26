@@ -170,6 +170,8 @@ const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
   // The vendored skill catalog is the package's own read-only data payload:
   // the service reads `<package>/catalog/` when no catalogDir is configured.
   '@aeven/skill-catalog': ['catalog'],
+  // The browser scripts a renderer adds to a composition it measures are read through `<package>/audit/`.
+  '@aeven/motion': ['audit'],
   // The pinned whisper.cpp asset lock is read through `<package>/runtime/assets.json`.
   '@aeven/speech-to-text-whisper': ['runtime/assets.json'],
   // The pinned diarization model lock is read through `<package>/runtime/assets.json`.

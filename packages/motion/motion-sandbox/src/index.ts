@@ -14,7 +14,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { FsTarget } from '@aeven/fs'
 import type {} from '@aeven/fs'
-import type { MotionQuality, MotionRenderInput, MotionRenderOutput, MotionRenderer } from '@aeven/motion'
+import { withMotionAuditScript, type MotionAuditSamples, type MotionQuality, type MotionRenderInput, type MotionRendered, type MotionRenderer } from '@aeven/motion'
 import type {} from '@aeven/motion'
 import type {} from '@aeven/shell'
 
@@ -61,6 +61,8 @@ interface RenderResult {
   height: number
   encoder: string
   stills: { seconds: number; png: string }[]
+  /** The page's audit samples; null when the page carries no player to seek, absent when no times were passed. */
+  audit?: MotionAuditSamples | null
 }
 
 /**
@@ -119,7 +121,14 @@ async function bundle(ctx: Context, compositionDir: string, config: Config): Pro
     await copyFolder(ctx, root, scratch, config)
     // Loaded on first use: the compiler's module graph is large and most Hosts never bundle a composition.
     const { bundleToSingleHtml } = await import('@hyperframes/core/compiler')
-    return await bundleToSingleHtml(scratch, { runtime: 'inline' })
+    const { injectDeterministicFontFaces } = await import('@hyperframes/core/fonts/embed')
+    // The Host fetches the fonts and embeds them: the sandbox that renders the document has no network, and the
+    // live player runs in an opaque-origin frame.
+    const logger = ctx.logger(name)
+    return await injectDeterministicFontFaces(await bundleToSingleHtml(scratch, { runtime: 'inline' }), {
+      allowSystemFontCapture: false,
+      logger: { warn: (message) => { logger.warn(message) }, info: (message) => { logger.debug(message) } },
+    })
   } finally {
     await rm(scratch, { recursive: true, force: true })
   }
@@ -134,7 +143,7 @@ async function bundle(ctx: Context, compositionDir: string, config: Config): Pro
  * @returns the written film.
  * @throws When the request carries no sandbox policy, a path leaves the policy's workspace, or the command fails.
  */
-async function render(ctx: Context, input: MotionRenderInput, signal: AbortSignal, config: Config): Promise<MotionRenderOutput> {
+async function render(ctx: Context, input: MotionRenderInput, signal: AbortSignal, config: Config): Promise<MotionRendered> {
   const policy = input.sandboxPolicy
   if (policy === undefined) throw new Error('rendering here needs the calling session\'s sandbox policy')
   const workspace = await ctx.fs.resolve(policy.workspaceRoot, { signal })
@@ -143,12 +152,16 @@ async function render(ctx: Context, input: MotionRenderInput, signal: AbortSigna
   for (const target of [composition, output]) {
     if (!ctx.fs.contains(workspace, target)) throw new Error(`${target.displayPath} is outside the workspace`)
   }
-  const html = await bundle(ctx, composition.displayPath, config)
+  const bundled = await bundle(ctx, composition.displayPath, config)
+  const html = input.auditTimes.length === 0 ? bundled : await withMotionAuditScript(bundled)
+  const region = input.stillRegion
   const command = [
     `mkdir -p ${quote(dirname(output.displayPath))} &&`,
     config.command, '-', quote(output.displayPath),
     '--fps', String(input.fps), '--crf', String(config.crf[input.quality]),
     ...input.stillTimes.length === 0 ? [] : ['--still-times', input.stillTimes.map(String).join(',')],
+    ...region === undefined ? [] : ['--still-region', [region.x, region.y, region.width, region.height].map(value => String(Math.round(value))).join(',')],
+    ...input.auditTimes.length === 0 ? [] : ['--audit-times', input.auditTimes.map(String).join(',')],
     '--still-width', String(config.stillWidth), '--json',
   ].join(' ')
   const result = await ctx.shell.run(ctx.shell.resolve({
@@ -178,6 +191,7 @@ async function render(ctx: Context, input: MotionRenderInput, signal: AbortSigna
     height: film.height,
     encoder: film.encoder,
     stills: film.stills.map(still => ({ seconds: still.seconds, png: new Uint8Array(Buffer.from(still.png, 'base64')) })),
+    ...film.audit === undefined || film.audit === null ? {} : { audit: film.audit },
   }
 }
 

@@ -3537,6 +3537,8 @@ export interface Config {
   fps: MotionFps
   /** Quality tier of a request that names none. */
   quality: MotionQuality
+  /** Thresholds an audited render's samples are judged against. */
+  audit: MotionAuditRules
 }
 
 /** Frame rates a motion film is rendered at. */
@@ -3544,6 +3546,24 @@ export type MotionFps = 24 | 30 | 60
 
 /** Encoding quality tiers, from fastest and smallest to slowest and sharpest. */
 export type MotionQuality = 'draft' | 'standard' | 'high'
+
+/** Thresholds of {@link summarizeAudit}. */
+export interface MotionAuditRules {
+  /** Smallest reading text, as a share of the frame's short side. */
+  readonly typeFloorFraction: number
+  /** Opacity below which text counts as too faint to read, and above which it counts as reading text. */
+  readonly readOpacity: number
+  /** Seconds a problem must hold before it is reported, which leaves out entrances, exits, and scene changes. */
+  readonly minHeldSeconds: number
+  /** Share of an element's time on screen a layout problem must cover before it is reported. */
+  readonly minHeldShare: number
+  /** Seconds any line needs on screen before its words. */
+  readonly holdBaseSeconds: number
+  /** Further seconds a line needs per word. */
+  readonly holdPerWordSeconds: number
+  /** Most findings returned; errors come first. */
+  readonly maxFindings: number
+}
 ```
 
 来源：[`packages/motion/motion/src/index.ts`](../packages/motion/motion/src/index.ts)
@@ -3573,6 +3593,8 @@ export interface Config {
   fallbackBitrate: Record<MotionQuality, string>
   /** Width in pixels of the stills a render returns. */
   stillWidth: number
+  /** How long the audit page may take to load a composition and report its player ready, in milliseconds. */
+  auditReadyMs: number
 }
 
 /** ProRes profiles the intermediate may use; all are 4:2:2 without alpha. */
@@ -6174,6 +6196,10 @@ export interface Config {
    * of an unchanged folder instead of rendering it again; capture, not encoding, sets the render time.
    */
   reviewQuality: MotionQuality
+  /** Seconds between the film times a review measures layout, type, and reading time at. */
+  auditStepSeconds: number
+  /** Most film times one review measures; a longer film widens the step. */
+  maxAuditSamples: number
 }
 ```
 

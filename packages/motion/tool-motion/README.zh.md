@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`avn-tool-motion` 注册 `show_motion`、`review_motion`、`render_motion` 与 `motion` 技能。技能教模型规划影片、在工作区中编写 [HyperFrames](https://github.com/heygen-com/hyperframes) 合成、审阅、修改，并展示每一轮完成的结果。`show_motion` 不做任何渲染：它把合成文件夹交给 Imagine 的 Motion 卡片，卡片实时播放它，并在用户请求时导出为 MP4；它还把文件夹打包成一个 HTML 文档存为文件附件，使缺少该文件夹的账户其他设备也能播放同一部影片。`review_motion` 以 `reviewQuality`（默认 `high`）把影片渲染到文件夹内的 `renders/.review.mp4`（每次审阅都会替换它，并会被记录下来，使用户对未改动文件夹的导出直接复用它），并只把静帧返回给模型：可指定影片时间、在某个场景的时间窗内均匀分布，或在整部影片中均匀分布；用户看到的影片保持不变。二者都会先读取 `index.html`，拒绝无法按原样渲染的合成：根元素没有时长、场景文件不存在，或场景超出影片末尾。`show_motion` 还会拒绝比同一会话中同一文件夹上次展示的时长短于 `shrinkRatio` 的影片，除非调用传入 `force`。`render_motion` 把文件夹渲染为放在其内部的 MP4，并把影片存为对话文件附件，用于用户向模型索要文件的情形。它们都等待 `ctx.motion`，因此没有渲染器的组合都不会出现。
+`avn-tool-motion` 注册 `show_motion`、`review_motion`、`render_motion` 与 `motion` 技能。技能教模型规划影片、在工作区中编写 [HyperFrames](https://github.com/heygen-com/hyperframes) 合成、审阅、修改，并展示每一轮完成的结果。`show_motion` 不做任何渲染：它把合成文件夹交给 Imagine 的 Motion 卡片，卡片实时播放它，并在用户请求时导出为 MP4；它还把文件夹打包成一个 HTML 文档存为文件附件，使缺少该文件夹的账户其他设备也能播放同一部影片。其结果把影片（即合成的 `index.html` 连同该存储副本）声明为该轮次产出的文件，因此轮次的文件列表只显示影片这一行，而不是途中写入的每个场景文件；与任何声明的输出一样，它会取代该轮次在列表中其他已写入的文件。`review_motion` 以 `reviewQuality`（默认 `high`）把影片渲染到文件夹内的 `renders/.review.mp4`（每次审阅都会替换它，并会被记录下来，使用户对未改动文件夹的导出直接复用它），并只把静帧返回给模型：可指定影片时间、在某个场景的时间窗内均匀分布，或在整部影片中均匀分布，还可裁剪到画面的某个 `region` 并以原始尺寸呈现；用户看到的影片保持不变。每次审阅还会每隔 `auditStepSeconds` 测量整部影片，并列出 `ctx.motion` 发现的问题：被裁切、重叠、超出画面、低于字号下限、过淡或在屏时间过短的文字，以及未加载的字体。二者都会先读取 `index.html`，拒绝无法按原样渲染的合成：根元素没有时长、场景文件不存在，或场景超出影片末尾。`show_motion` 还会拒绝比同一会话中同一文件夹上次展示的时长短于 `shrinkRatio` 的影片，除非调用传入 `force`。`render_motion` 把文件夹渲染为放在其内部的 MP4，并把影片存为对话文件附件，用于用户向模型索要文件的情形。它们都等待 `ctx.motion`，因此没有渲染器的组合都不会出现。
 
 ## 目录
 
@@ -24,9 +24,9 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在提供 `ctx.tools`、`ctx.attachments` 与 `ctx.fs` 的 Host 组合旁按会话挂载。工具与技能只在 `ctx.motion` 存在时注册，因此没有渲染器的组合会激活该插件但不注册任何内容；`ctx.skills` 为可选项，用于添加该技能及 `/motion`。`maxStills`（默认 8，最多 16）限制一次 `render_motion` 调用可请求的静帧数量，`maxReviewStills`（默认 12，最多 16）限制一次审阅的静帧数量，`shrinkRatio`（默认 0.5）决定重新展示的影片可比上次展示的短多少，超出则需要 `force`。每次渲染都携带会话的沙箱策略，限定在账户沙箱内的渲染器（如 [`avn-motion-sandbox`](../motion-sandbox/README.zh.md)）需要它。
+在提供 `ctx.tools`、`ctx.attachments` 与 `ctx.fs` 的 Host 组合旁按会话挂载。工具与技能只在 `ctx.motion` 存在时注册，因此没有渲染器的组合会激活该插件但不注册任何内容；`ctx.skills` 为可选项，用于添加该技能及 `/motion`。`maxStills`（默认 8，最多 16）限制一次 `render_motion` 调用可请求的静帧数量，`maxReviewStills`（默认 12，最多 16）限制一次审阅的静帧数量，`shrinkRatio`（默认 0.5）决定重新展示的影片可比上次展示的短多少，超出则需要 `force`。`auditStepSeconds`（默认 0.25）是一次审阅所测量的影片时间之间的间隔，`maxAuditSamples`（默认 120，最多 240）限制其数量，影片更长时会加大间隔。每次渲染都携带会话的沙箱策略，限定在账户沙箱内的渲染器（如 [`avn-motion-sandbox`](../motion-sandbox/README.zh.md)）需要它。
 
-两个工具都需要必填的 `composition`。它像文件系统工具那样经由 `ctx.fs` 解析：相对会话工作目录，或对于没有工作目录的聊天，相对沙箱策略的工作区根目录。`output` 默认为合成文件夹内的 `renders/<folder>.mp4`。`show_motion` 可选 `force`；`review_motion` 可选 `times`，或 `scene` 与 `stills`；`render_motion` 可选 `fps`、`quality` 与 `stills`。两个路径都必须位于会话的工作区根目录内，会话没有时则位于策略的根目录内。
+两个工具都需要必填的 `composition`。它像文件系统工具那样经由 `ctx.fs` 解析：相对会话工作目录，或对于没有工作目录的聊天，相对沙箱策略的工作区根目录。`output` 默认为合成文件夹内的 `renders/<folder>.mp4`。`show_motion` 可选 `force`；`review_motion` 可选 `times`，或 `scene` 与 `stills`，以及以画面像素表示的可选 `region`（`[x, y, width, height]`）；`render_motion` 可选 `fps`、`quality` 与 `stills`。两个路径都必须位于会话的工作区根目录内，会话没有时则位于策略的根目录内。
 
 -----
 
@@ -58,11 +58,11 @@ kind: "package-reference"
 
 #### 模型看到的内容
 
-技能目录列出 `motion` 及其描述。加载后返回规划、合成、手艺以及渲染与审阅的说明。
+技能目录列出 `motion` 及其描述。加载后返回规划、视觉风格、布局、合成、动效与审阅的说明。
 
 #### Token 影响
 
-目录条目每次请求约花费几十个 token；加载的正文每次加载约 1,800 个 token。
+目录条目每次请求约花费几十个 token；加载的正文每次加载约 2,900 个 token。
 
 #### KV Cache 影响
 
@@ -72,7 +72,7 @@ kind: "package-reference"
 
 #### 模型看到的内容
 
-一行文字给出 MP4 的相对路径、时长与尺寸，并说明影片已展示，或无法附加的原因。随后是影片的文件块，以及每张静帧的图片块。
+一行文字给出 MP4 的相对路径、时长与尺寸，并说明影片已展示，或无法附加的原因。随后是影片的文件块，以及每张静帧的图片块。`review_motion` 的结果在静帧之前多一个文本块：一行说明测量检查未发现问题，或每个发现一行，给出其严重程度、规则、影片时间、元素、文字与修改建议。
 
 #### Token 影响
 

@@ -2,7 +2,8 @@
  * render-motion: turn an animated HTML page into an MP4, inside the sandbox.
  *
  *   render-motion <page.html | -> <out.mp4> [--seconds N] [--fps N] [--width N] [--height N] [--audio FILE]
- *                 [--crf N] [--still-times S,S,...] [--still-width N] [--json]
+ *                 [--crf N] [--still-times S,S,...] [--still-width N] [--still-region X,Y,W,H]
+ *                 [--audit-times S,S,...] [--json]
  *
  * The page is driven frame by frame. A page carrying a HyperFrames composition
  * bundled with its runtime, as the Motion card plays it, is sought through the
@@ -17,9 +18,15 @@
  *
  * `--still-times S,S,...` also takes a frame at each of those film times (up to
  * 16; a time past the end takes the last frame), scaled to `--still-width`
- * pixels wide (default 960). `--json` replaces the summary line with one JSON
- * line: `{ seconds, width, height, fps, frames, encoder, stills: [{ seconds, png }] }`,
- * each still's PNG in base64.
+ * pixels wide (default 960). `--still-region X,Y,W,H` crops each still to that
+ * rectangle of the frame first, clamped to the frame; a region narrower than
+ * `--still-width` keeps its own pixels. `--audit-times S,S,...` (up to 240) calls
+ * the page's `window.__avnMotionAudit(times)`, which the Host adds to a
+ * HyperFrames composition it wants measured, and returns its answer as `audit`.
+ * `--json` replaces the summary line with one JSON line:
+ * `{ seconds, width, height, fps, frames, encoder, stills: [{ seconds, png }], audit }`,
+ * each still's PNG in base64; `audit` is present only with `--audit-times`, and
+ * null when the page defines no audit.
  *
  * host/install-motion.sh installs it as /opt/aeven-sandbox/motion/render-motion.mjs, run by
  * the /opt/aeven-sandbox/bin/render-motion wrapper.
@@ -39,14 +46,16 @@ const GSAP_DIR = `${IMAGE}/node/node_modules/gsap/dist`
 const LIMITS = { seconds: 120, fps: 60, width: 1920, height: 1920, crf: 51, 'still-width': 1920 }
 /** Most stills one render returns. */
 const MAX_STILLS = 16
+/** Most film times one render measures. */
+const MAX_AUDIT_TIMES = 240
 const NUMERIC = Object.keys(LIMITS)
-const usage = 'usage: render-motion <page.html | -> <out.mp4> [--seconds N] [--fps N] [--width N] [--height N] [--audio FILE] [--crf N] [--still-times S,S,...] [--still-width N] [--json]'
+const usage = 'usage: render-motion <page.html | -> <out.mp4> [--seconds N] [--fps N] [--width N] [--height N] [--audio FILE] [--crf N] [--still-times S,S,...] [--still-width N] [--still-region X,Y,W,H] [--audit-times S,S,...] [--json]'
 /** How long a HyperFrames composition may take to report ready, in milliseconds. */
 const READY_MS = 30_000
 
 function parse(argv) {
   const positional = []
-  const options = { fps: 30, crf: 23, 'still-width': 960, json: false, stillTimes: [] }
+  const options = { fps: 30, crf: 23, 'still-width': 960, json: false, stillTimes: [], auditTimes: [] }
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
     if (arg === '-' || !arg.startsWith('--')) { positional.push(arg); continue }
@@ -56,6 +65,8 @@ function parse(argv) {
     if (value === undefined) throw new Error(`${arg} needs a value`)
     if (key === 'audio') options.audio = value
     else if (key === 'still-times') options.stillTimes = value.split(',').map(Number)
+    else if (key === 'audit-times') options.auditTimes = value.split(',').map(Number)
+    else if (key === 'still-region') options.stillRegion = value.split(',').map(Number)
     else if (NUMERIC.includes(key)) options[key] = Number(value)
     else throw new Error(`unknown option ${arg}`)
   }
@@ -70,6 +81,13 @@ function parse(argv) {
   }
   if (options.stillTimes.length > MAX_STILLS || options.stillTimes.some(time => !Number.isFinite(time) || time < 0)) {
     throw new Error(`--still-times takes up to ${MAX_STILLS} times of 0 seconds or more`)
+  }
+  if (options.auditTimes.length > MAX_AUDIT_TIMES || options.auditTimes.some(time => !Number.isFinite(time) || time < 0)) {
+    throw new Error(`--audit-times takes up to ${MAX_AUDIT_TIMES} times of 0 seconds or more`)
+  }
+  const region = options.stillRegion
+  if (region !== undefined && (region.length !== 4 || region.some(value => !Number.isFinite(value) || value < 0) || region[2] < 2 || region[3] < 2)) {
+    throw new Error('--still-region takes X,Y,W,H in frame pixels, W and H at least 2')
   }
   return { ...options, page: positional[0] === '-' ? '-' : resolve(positional[0]), out: resolve(positional[1]) }
 }
@@ -91,6 +109,19 @@ function scalePng(png, width) {
     ffmpeg.on('close', code => code === 0 ? ok(Buffer.concat(chunks)) : fail(new Error(`ffmpeg exited with ${code} scaling a still`)))
     ffmpeg.stdin.end(png)
   })
+}
+
+/**
+ * The still region clamped to the frame.
+ * @param job - the parsed job, its frame size settled.
+ * @returns a screenshot clip, or undefined for the whole frame.
+ */
+function stillClip(job) {
+  if (job.stillRegion === undefined) return undefined
+  const [left, top, wide, high] = job.stillRegion.map(Math.round)
+  const x = Math.min(left, job.width - 2)
+  const y = Math.min(top, job.height - 2)
+  return { x, y, width: Math.min(wide, job.width - x), height: Math.min(high, job.height - y) }
 }
 
 async function main() {
@@ -187,15 +218,21 @@ async function render(browser, job, pagePath) {
   // A time at or past the end takes the film's last frame.
   const last = Math.max(0, frames - 1) / job.fps
   const stills = []
+  const clip = stillClip(job)
+  const stillSource = clip?.width ?? job.width
   for (const time of job.stillTimes) {
     const at = Math.round(Math.min(time, last) * 1000) / 1000
     await seekTo(at)
-    const png = await page.screenshot({ type: 'png' })
-    const scaled = job['still-width'] < job.width ? await scalePng(png, even(job['still-width'])) : png
+    const png = await page.screenshot(clip === undefined ? { type: 'png' } : { type: 'png', clip })
+    const scaled = job['still-width'] < stillSource ? await scalePng(png, even(job['still-width'])) : png
     stills.push({ seconds: at, png: scaled.toString('base64') })
   }
+  // The audit seeks the player itself, so it runs after every frame and still is taken.
+  const audit = job.auditTimes.length === 0 ? undefined
+    : await page.evaluate(times => typeof globalThis.__avnMotionAudit === 'function' ? globalThis.__avnMotionAudit(times) : null,
+      job.auditTimes.map(time => Math.min(time, last)))
   if (job.json) {
-    console.log(JSON.stringify({ seconds, width: job.width, height: job.height, fps: job.fps, frames, encoder: 'libx264', stills }))
+    console.log(JSON.stringify({ seconds, width: job.width, height: job.height, fps: job.fps, frames, encoder: 'libx264', stills, ...audit === undefined ? {} : { audit } }))
   } else {
     console.log(`render-motion: wrote ${job.out} (${frames} frames, ${seconds.toFixed(2)} s, ${job.width}x${job.height} at ${job.fps} fps)`)
   }

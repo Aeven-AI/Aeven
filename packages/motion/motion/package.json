@@ -23,6 +23,7 @@
   },
   "files": [
     "lib/index.js",
+    "audit",
     "lib/types/**/*.d.ts"
   ],
   "license": "Apache-2.0",

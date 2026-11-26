@@ -15,7 +15,7 @@ import z from '@deepseek-ai/schemastery'
 import type { FileAttachmentRef, ImageAttachmentRef } from '@aeven/attachment'
 import type {} from '@aeven/attachment'
 import type {} from '@aeven/fs'
-import { recordRender, type MotionFps, type MotionQuality, type MotionStill } from '@aeven/motion'
+import { motionAuditTimes, recordRender, type MotionFinding, type MotionFps, type MotionQuality, type MotionRegion, type MotionStill } from '@aeven/motion'
 import type {} from '@aeven/motion'
 import type {} from '@aeven/sandbox-policy'
 import type { SandboxExecutionPolicy } from '@aeven/sandbox'
@@ -52,6 +52,10 @@ export interface Config {
    * of an unchanged folder instead of rendering it again; capture, not encoding, sets the render time.
    */
   reviewQuality: MotionQuality
+  /** Seconds between the film times a review measures layout, type, and reading time at. */
+  auditStepSeconds: number
+  /** Most film times one review measures; a longer film widens the step. */
+  maxAuditSamples: number
 }
 
 export const Config: z<Config> = z.object({
@@ -59,6 +63,8 @@ export const Config: z<Config> = z.object({
   maxReviewStills: z.natural().min(1).max(16).default(12),
   shrinkRatio: z.number().min(0).max(1).default(0.5),
   reviewQuality: z.union(['draft', 'standard', 'high'] as const).default('high'),
+  auditStepSeconds: z.number().min(0.05).max(5).default(0.25),
+  maxAuditSamples: z.natural().min(1).max(240).default(120),
 })
 
 const FPS: readonly MotionFps[] = [24, 30, 60]
@@ -70,6 +76,7 @@ interface ReviewMotionArgs {
   times?: number[]
   scene?: string
   stills?: number
+  region?: number[]
 }
 
 /** Stills a review takes when the call names neither times nor a count. */
@@ -202,6 +209,48 @@ function stillsText(stills: readonly { seconds: number }[]): string[] {
   return stills.length === 0 ? [] : [`Stills at ${stills.map(still => `${String(still.seconds)} s`).join(', ')} follow for your review.`]
 }
 
+/** A finding as the tool's stored result holds it: {@link MotionFinding} with its severity as plain text. */
+type ReviewFinding = Omit<MotionFinding, 'severity'> & { readonly severity: string }
+
+/**
+ * The findings of a review as the model reads them: one line each, errors first.
+ * @param findings - measured problems.
+ * @returns the lines, or one line saying nothing was found.
+ */
+function findingsText(findings: readonly ReviewFinding[]): string[] {
+  if (findings.length === 0) return ['Measured checks found no clipped, overlapping, undersized, faint, or too-brief text.']
+  const window = (finding: ReviewFinding): string => finding.untilSeconds > finding.seconds
+    ? `${String(finding.seconds)}-${String(finding.untilSeconds)} s`
+    : `${String(finding.seconds)} s`
+  return [
+    `Measured checks found ${String(findings.length)} problem${findings.length === 1 ? '' : 's'}; fix each or decide it is intended, then review again:`,
+    ...findings.map((finding) => {
+      const subject = [
+        `[${finding.severity}] ${finding.code} at ${window(finding)}`,
+        ...finding.selector === undefined ? [] : [finding.selector],
+        ...finding.text === undefined ? [] : [JSON.stringify(finding.text)],
+      ].join(' ')
+      return `- ${subject}: ${finding.message}`
+    }),
+  ]
+}
+
+/**
+ * Validate the part of the frame a review's stills show.
+ * @param region - `[x, y, width, height]` as the model passed it.
+ * @returns the region, or undefined when none was passed.
+ * @throws When the value is not four finite numbers with a positive size.
+ */
+function reviewRegion(region: number[] | undefined): MotionRegion | undefined {
+  if (region === undefined) return undefined
+  const [x, y, width, height] = region
+  if (region.length !== 4 || x === undefined || y === undefined || width === undefined || height === undefined
+    || region.some(value => !Number.isFinite(value) || value < 0) || width < 2 || height < 2) {
+    throw new Error('region takes [x, y, width, height] in frame pixels, width and height at least 2')
+  }
+  return { x, y, width, height }
+}
+
 /**
  * Validate a requested still count.
  * @param stills - the count the model passed.
@@ -297,6 +346,8 @@ function registerMotion(ctx: Context, config: Config): void {
           path: { type: 'string', required: true },
           compositionDir: { type: 'string', required: true },
           durationSeconds: { type: 'number', required: true },
+          // Whether this is the first time the session shows a film from the folder.
+          created: { type: 'boolean' },
           film: {
             type: 'object',
             additionalProperties: false,
@@ -315,10 +366,17 @@ function registerMotion(ctx: Context, config: Config): void {
       ],
       // The card plays the folder through the Host's preview route, which takes the absolute path, and plays the
       // stored film where that Host lacks the folder, such as another of the account's devices.
+      // `producedFiles` declares the film as what the Turn delivers, so the Turn's file list shows one row for the
+      // film, opened from its root page with the stored copy, instead of every scene file written on the way.
       presentationMeta: (_args, value) => ({
         compositionDir: value.compositionDir,
         durationSeconds: value.durationSeconds,
         ...value.film === undefined ? {} : { film: value.film },
+        producedFiles: [{
+          path: `${value.path.replace(/[\\/]+$/, '')}/index.html`,
+          created: value.created !== false,
+          ...value.film === undefined ? {} : { attachmentId: value.film.attachmentId },
+        }],
       }),
     },
     async execute(args: { composition: string; force?: boolean }, exec) {
@@ -331,18 +389,22 @@ function registerMotion(ctx: Context, config: Config): void {
       }
       const film = await saveFilm(ctx, compositionDir, args.composition)
       shown.set(key, facts.durationSeconds)
-      return { path: args.composition, compositionDir, durationSeconds: facts.durationSeconds, ...film === undefined ? {} : { film } }
+      return {
+        path: args.composition, compositionDir, durationSeconds: facts.durationSeconds, created: previous === undefined,
+        ...film === undefined ? {} : { film },
+      }
     },
   }))
 
   ctx.tools.register(defineTool({
     name: 'review_motion',
-    description: 'Render a HyperFrames composition folder and return stills to you alone, to check your work; the user sees nothing of it and the film on their screen stays as it is. Take stills at exact film times, spread through one scene, or spread through the whole film. Rendering takes about as long as the film plays. Review after every round of edits, and call show_motion only once the stills look right.',
+    description: 'Render a HyperFrames composition folder and return stills and measured problems to you alone, to check your work; the user sees nothing of it and the film on their screen stays as it is. Take stills at exact film times, spread through one scene, or spread through the whole film, and pass region to see part of the frame at full size. Every review also measures the whole film and lists text that is clipped, overlapping, off the frame, too small, too faint, or on screen too briefly, and fonts that did not load. Rendering takes about as long as the film plays. Review after every round of edits, and call show_motion only once the stills look right and the list is empty or intended.',
     parameters: {
       composition: { type: 'string', required: true, description: 'Composition folder, relative to the working directory.' },
       times: { type: 'array', items: { type: 'number' }, description: `Film times in seconds to take stills at, 1 to ${String(config.maxReviewStills)}. Use alone, without scene or stills.` },
       scene: { type: 'string', description: 'Id of one scene index.html hosts; the stills spread through its window only.' },
       stills: { type: 'integer', description: `How many evenly spaced stills, 1 to ${String(config.maxReviewStills)}. Omit for ${String(DEFAULT_REVIEW_STILLS)}.` },
+      region: { type: 'array', items: { type: 'number' }, description: 'Part of the frame the stills show, as [x, y, width, height] in frame pixels, to inspect small type or an edge at full size. Omit for the whole frame.' },
     },
     output: {
       schema: {
@@ -352,6 +414,23 @@ function registerMotion(ctx: Context, config: Config): void {
           path: { type: 'string', required: true },
           durationSeconds: { type: 'number', required: true },
           stills: STILLS_SCHEMA,
+          findings: {
+            type: 'array',
+            required: true,
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                code: { type: 'string', required: true },
+                severity: { type: 'string', required: true },
+                seconds: { type: 'number', required: true },
+                untilSeconds: { type: 'number', required: true },
+                selector: { type: 'string' },
+                text: { type: 'string' },
+                message: { type: 'string', required: true },
+              },
+            },
+          },
         },
       },
       render: (_args, value) => [
@@ -362,6 +441,7 @@ function registerMotion(ctx: Context, config: Config): void {
             ...stillsText(value.stills),
           ].join(' '),
         },
+        { type: 'text', text: findingsText(value.findings).join('\n') },
         ...value.stills.map(still => ({ type: 'image' as const, attachment: imageBlockRef(still) })),
       ],
     },
@@ -369,6 +449,7 @@ function registerMotion(ctx: Context, config: Config): void {
       const compositionDir = await localPath(ctx, exec, args.composition)
       const facts = await compositionFacts(compositionDir, args.composition)
       const times = reviewTimes(args, facts, config.maxReviewStills)
+      const region = reviewRegion(args.region)
       // The review film stays inside the composition, where a renderer confined to the workspace can write it;
       // each review replaces it.
       const policy = sandboxPolicyOf(ctx, exec)
@@ -377,12 +458,14 @@ function registerMotion(ctx: Context, config: Config): void {
         outputPath: join(compositionDir, 'renders', '.review.mp4'),
         quality: config.reviewQuality,
         stillTimes: times,
+        ...region === undefined ? {} : { stillRegion: region },
+        auditTimes: motionAuditTimes(facts.durationSeconds, config.auditStepSeconds, config.maxAuditSamples),
         ...policy === undefined ? {} : { sandboxPolicy: policy },
       })
       const review = await ctx.motion.render(spec, exec.signal)
       await recordRender(review, config.reviewQuality)
       const stills = await saveStills(ctx, basename(compositionDir), review.stills)
-      return { path: args.composition, durationSeconds: review.durationSeconds, stills }
+      return { path: args.composition, durationSeconds: review.durationSeconds, stills, findings: [...review.findings] }
     },
   }))
 

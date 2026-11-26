@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`avn-tool-motion` registers `show_motion`, `review_motion`, `render_motion`, and the `motion` skill. The skill teaches the model to plan a film, write a [HyperFrames](https://github.com/heygen-com/hyperframes) composition in the workspace, review it, revise, and show each finished round. `show_motion` renders nothing: it hands the composition folder to the Imagine Motion card, which plays it live and exports it to MP4 on the user's request, and stores the folder bundled into one HTML document as a file attachment, so the account's other devices, which lack the folder, play the same film. `review_motion` renders the film at `reviewQuality` (default `high`) to `renders/.review.mp4` inside the folder, replaced by each review and recorded so the user's export of the unchanged folder reuses it, and returns stills to the model alone, at given film times, spread through one scene's window, or spread through the whole film; the user's film stays as it is. Both read `index.html` first and refuse a composition that cannot render as written: no root length, a scene file that does not exist, or a scene running past the film. `show_motion` also refuses a film shorter than `shrinkRatio` of the length last shown from the same folder in the session, unless the call passes `force`. `render_motion` renders the folder to an MP4 inside it and stores the film as a conversation file attachment, for when the user asks the model for the file. All wait for `ctx.motion`, so a composition without a renderer shows none of them.
+`avn-tool-motion` registers `show_motion`, `review_motion`, `render_motion`, and the `motion` skill. The skill teaches the model to plan a film, write a [HyperFrames](https://github.com/heygen-com/hyperframes) composition in the workspace, review it, revise, and show each finished round. `show_motion` renders nothing: it hands the composition folder to the Imagine Motion card, which plays it live and exports it to MP4 on the user's request, and stores the folder bundled into one HTML document as a file attachment, so the account's other devices, which lack the folder, play the same film. Its result declares the film, as the composition's `index.html` with that stored copy, as the Turn's produced file, so the Turn's file list shows one row for the film instead of each scene file written on the way; like any declared output, it replaces the Turn's other written files in that list. `review_motion` renders the film at `reviewQuality` (default `high`) to `renders/.review.mp4` inside the folder, replaced by each review and recorded so the user's export of the unchanged folder reuses it, and returns stills to the model alone, at given film times, spread through one scene's window, or spread through the whole film, optionally cropped to one `region` of the frame at full size; the user's film stays as it is. Every review also measures the whole film every `auditStepSeconds` and lists the problems `ctx.motion` found: text that is clipped, overlapping, off the frame, under the size floor, faint, or on screen too briefly, and fonts that did not load. Both read `index.html` first and refuse a composition that cannot render as written: no root length, a scene file that does not exist, or a scene running past the film. `show_motion` also refuses a film shorter than `shrinkRatio` of the length last shown from the same folder in the session, unless the call passes `force`. `render_motion` renders the folder to an MP4 inside it and stores the film as a conversation file attachment, for when the user asks the model for the file. All wait for `ctx.motion`, so a composition without a renderer shows none of them.
 
 ## Table of Contents
 
@@ -24,9 +24,9 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount it per session beside a Host composition that provides `ctx.tools`, `ctx.attachments`, and `ctx.fs`. The tools and skill register only while `ctx.motion` exists, so a composition without a renderer activates the plugin with nothing registered; `ctx.skills` is optional and adds the skill, including `/motion`. `maxStills` (default 8, at most 16) caps the stills one `render_motion` call may request, `maxReviewStills` (default 12, at most 16) those of one review, and `shrinkRatio` (default 0.5) sets how much shorter than the last shown film a re-show may be before it needs `force`. Every render carries the session's sandbox policy, which a renderer confined to the account's sandbox, such as [`avn-motion-sandbox`](../motion-sandbox/README.md), requires.
+Mount it per session beside a Host composition that provides `ctx.tools`, `ctx.attachments`, and `ctx.fs`. The tools and skill register only while `ctx.motion` exists, so a composition without a renderer activates the plugin with nothing registered; `ctx.skills` is optional and adds the skill, including `/motion`. `maxStills` (default 8, at most 16) caps the stills one `render_motion` call may request, `maxReviewStills` (default 12, at most 16) those of one review, and `shrinkRatio` (default 0.5) sets how much shorter than the last shown film a re-show may be before it needs `force`. `auditStepSeconds` (default 0.25) is the distance between the film times a review measures, and `maxAuditSamples` (default 120, at most 240) caps them, widening the step for a longer film. Every render carries the session's sandbox policy, which a renderer confined to the account's sandbox, such as [`avn-motion-sandbox`](../motion-sandbox/README.md), requires.
 
-Both tools take a required `composition`. It resolves through `ctx.fs` the way the filesystem tools resolve paths: against the session's working directory, or, for a chat without one, against the sandbox policy's workspace root. `output` defaults to `renders/<folder>.mp4` inside the composition folder. `show_motion` takes an optional `force`; `review_motion` takes optional `times`, or `scene` and `stills`; `render_motion` takes optional `fps`, `quality`, and `stills`. Both paths must stay inside the session's workspace root, or the policy's when the session has none.
+Both tools take a required `composition`. It resolves through `ctx.fs` the way the filesystem tools resolve paths: against the session's working directory, or, for a chat without one, against the sandbox policy's workspace root. `output` defaults to `renders/<folder>.mp4` inside the composition folder. `show_motion` takes an optional `force`; `review_motion` takes optional `times`, or `scene` and `stills`, and an optional `region` as `[x, y, width, height]` in frame pixels; `render_motion` takes optional `fps`, `quality`, and `stills`. Both paths must stay inside the session's workspace root, or the policy's when the session has none.
 
 -----
 
@@ -58,11 +58,11 @@ Prefix-stable while the definition and visibility are unchanged.
 
 #### What the model sees
 
-The skill catalog lists `motion` with its description. Loading it returns the planning, composition, craft, and render-and-review instructions.
+The skill catalog lists `motion` with its description. Loading it returns the planning, look, layout, composition, motion, and review instructions.
 
 #### Token effect
 
-The catalog line costs a few dozen tokens per request; the loaded body costs about 1,800 tokens once per load.
+The catalog line costs a few dozen tokens per request; the loaded body costs about 2,900 tokens once per load.
 
 #### KV Cache effect
 
@@ -72,7 +72,7 @@ The catalog line is stable while the skill is registered. A loaded body appends 
 
 #### What the model sees
 
-One line names the relative MP4 path, the duration, and the size. The line says the film is already displayed, or why it could not be attached. A file block for the film and one image block per still follow.
+One line names the relative MP4 path, the duration, and the size. The line says the film is already displayed, or why it could not be attached. A file block for the film and one image block per still follow. A `review_motion` result adds one text block before its stills: a line saying the measured checks found nothing, or one line per finding with its severity, rule, film time, element, text, and what to change.
 
 #### Token effect
 
