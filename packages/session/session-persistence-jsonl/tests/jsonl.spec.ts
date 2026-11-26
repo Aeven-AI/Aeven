@@ -1364,6 +1364,30 @@ describe('JsonlSessionPersistence: edge cases', () => {
     expect(ids).toEqual(['p1', 'p2', 'p3'])
   })
 
+  it('lists through a context without deriving a context for each stored session', async () => {
+    // A member read through the proxy a context hands out derives a context; a listing that did so for every
+    // session would make its cost grow with the store instead of with the directory reads alone.
+    const derived = vi.spyOn(Context.prototype, 'extend')
+    const count = async (): Promise<number> => {
+      derived.mockClear()
+      await ctx.sessionPersistence.list()
+      return derived.mock.calls.length
+    }
+    for (const id of ['few-1', 'few-2']) {
+      await ctx.sessionPersistence.create(meta(id, '/projA'))
+      await ctx.sessionPersistence.append(SessionId(id), oneTurnLog())
+    }
+    const few = await count()
+    for (let index = 0; index < 12; index++) {
+      const id = `many-${String(index)}`
+      await ctx.sessionPersistence.create(meta(id, '/projA'))
+      await ctx.sessionPersistence.append(SessionId(id), oneTurnLog())
+    }
+    expect((await ctx.sessionPersistence.list()).length).toBe(14)
+    expect(await count()).toBeLessThanOrEqual(few)
+    derived.mockRestore()
+  })
+
   it('groups sessions whose cwd paths normalize to the same project directory', async () => {
     const first = meta('normalized-first', '/a/b-c')
     const second = meta('normalized-second', '/a-b/c')

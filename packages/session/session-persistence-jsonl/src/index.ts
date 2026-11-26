@@ -6,7 +6,7 @@
  * @module @aeven/session-persistence-jsonl
  */
 
-import { Context } from '@deepseek-ai/cordis'
+import { Context, symbols } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { readdirSync } from 'node:fs'
 import { open, mkdir, readFile, readdir, realpath, link, rename, rm, stat, truncate, writeFile } from 'node:fs/promises'
@@ -109,6 +109,18 @@ async function mapConcurrent<T, R>(
  * listing leaves the session out and reports it, so one damaged log does not hide every other session.
  */
 class CorruptSessionHeaderError extends Error {}
+
+/**
+ * A service without the Cordis proxy a context hands out. Through the proxy every `this.member` derives a context and
+ * wraps the member, which a pass over every stored session pays several times per session. A method of the service
+ * cannot return it, because the proxy wraps what its methods return; use it only for work that registers no effect
+ * and so needs no caller context.
+ * @param service - the service as a context handed it out, or already unwrapped.
+ * @returns the service object itself.
+ */
+function unwrapped<T extends object>(service: T): T {
+  return (service as T & { [symbols.original]?: T })[symbols.original] ?? service
+}
 
 /** Assert that the independently decodable first frame contains only the header record. */
 function assertZstdHeaderFrame(plaintext: Buffer): void {
@@ -771,10 +783,11 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
     for (const project of await this.listProjectDirs()) {
       dirs.push(...await this.listSessionDirs(project))
     }
+    const own = unwrapped(this)
     const read = await mapConcurrent(
       dirs,
       LIST_READ_CONCURRENCY,
-      dir => this.listedArtifactHeader(dir),
+      dir => own.listedArtifactHeader(dir),
     )
     const present = new Set(read.flatMap(artifact => artifact === undefined ? [] : [artifact.path]))
     for (const [path, entry] of this.listed) {
@@ -976,16 +989,17 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
    * @throws when the directory holds a log in the opposite encoding.
    */
   private async readArtifactHeader(dir: string, signal?: AbortSignal): Promise<ListedArtifact | undefined> {
+    const own = unwrapped(this)
     signal?.throwIfAborted()
-    const logName = `session${logSuffix(this.compression)}`
-    const oppositeName = `session${logSuffix(this.oppositeCompression())}`
+    const logName = `session${logSuffix(own.compression)}`
+    const oppositeName = `session${logSuffix(own.oppositeCompression())}`
     const path = join(dir, logName)
     // One directory read answers which of the log, the opposite encoding's log, and the replica marker exist, so
     // listing a session costs no failed open or stat of a file that is absent.
-    const names = await this.sessionDirNames(dir)
+    const names = await own.sessionDirNames(dir)
     signal?.throwIfAborted()
     if (names === undefined) return undefined
-    if (names.includes(oppositeName)) throw this.encodingMismatch(join(dir, oppositeName))
+    if (names.includes(oppositeName)) throw own.encodingMismatch(join(dir, oppositeName))
     if (!names.includes(logName)) return undefined
     const identity = await stat(path, { bigint: true }).catch((error: unknown) => {
       // A log removed since the directory read means the directory holds no session.
@@ -995,24 +1009,24 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
     signal?.throwIfAborted()
     if (identity === undefined) return undefined
     const revision = names.includes(REPLICA_MARKER)
-      ? await this.replicaRevision(path, fileRevision(identity))
+      ? await own.replicaRevision(path, fileRevision(identity))
       : fileRevision(identity)
-    const cached = this.listed.get(path)
+    const cached = own.listed.get(path)
     // Callers own the header they receive, so a cache hit hands out a copy.
     if (cached?.revision === revision) {
-      this.listedPaths.set(cached.artifact.header.id, path)
+      own.listedPaths.set(cached.artifact.header.id, path)
       return { ...cached.artifact, header: { ...cached.artifact.header } }
     }
     // Read only headers so listing scales with session count, not log size.
-    const first = this.compression === 'zstd'
-      ? await this.readFirstZstdLine(path, signal)
-      : await this.readFirstLine(path, signal)
+    const first = own.compression === 'zstd'
+      ? await own.readFirstZstdLine(path, signal)
+      : await own.readFirstLine(path, signal)
     signal?.throwIfAborted()
     if (first === undefined) return undefined // empty/half-written file
     const parsed = parseHeader(first)
     if (parsed === undefined) return undefined // not a session header
-    const meta = await this.replicaMeta(path, parsed.meta)
-    await this.assertStoredIdentity(path, meta, undefined, signal)
+    const meta = await own.replicaMeta(path, parsed.meta)
+    await own.assertStoredIdentity(path, meta, undefined, signal)
     signal?.throwIfAborted()
     // The inherited cut rides along: it was parsed from the header line the
     // listing already read, so carrying it costs nothing, and a consumer
@@ -1024,9 +1038,9 @@ export class JsonlSessionPersistence extends SessionPersistence implements Persi
       ...meta.isSeeded ? { inheritedEventCount: parsed.inheritedEventCount } : {},
       revision,
     }
-    this.listed.set(path, { revision, artifact: { ...artifact, header: { ...meta } } })
-    this.listingIndexDirty = true
-    this.listedPaths.set(meta.id, path)
+    own.listed.set(path, { revision, artifact: { ...artifact, header: { ...meta } } })
+    own.listingIndexDirty = true
+    own.listedPaths.set(meta.id, path)
     return artifact
   }
 

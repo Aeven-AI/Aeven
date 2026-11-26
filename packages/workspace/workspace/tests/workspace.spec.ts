@@ -1193,6 +1193,24 @@ describe('membership re-derived from cwd', () => {
     expect(warnings.join('\n')).toContain(`workspace '${id}' filtered session 'ghost' from membership: session header is missing`)
     await result.fiber.dispose()
   })
+
+  it('keeps a session replicated from another device as a member and reports nothing for it', async () => {
+    const owned = await makeDir('replicated-member')
+    const id = WorkspaceId('00000000-0000-4000-8000-000000000043')
+    const pool = storedPool([[id, record(owned, ['from-other-device'])]], { initialized: true, workspaceIds: [id] })
+    const warnings: string[] = []
+    const result = await harness({
+      pool,
+      // Its cwd names the directory the workspace has on the device that ran it, which does not exist here.
+      sessions: [{ ...header('from-other-device', '/Users/elsewhere/project', 100), replica: true }],
+      beforeRegistry: (ctx) => {
+        ctx.logger.warn = ((value: unknown) => { warnings.push(String(value)) }) as typeof ctx.logger.warn
+      },
+    })
+    expect(result.registry.list()[0]!.sessionIds).toEqual(['from-other-device'])
+    expect(warnings.filter(warning => warning.includes('from membership'))).toEqual([])
+    await result.fiber.dispose()
+  })
 })
 
 describe('workspace kind and its pathless records', () => {
