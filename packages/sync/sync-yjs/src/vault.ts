@@ -7,7 +7,7 @@ import { timingSafeEqual } from 'node:crypto'
 import * as Y from 'yjs'
 import { Deque } from '@aeven/deque'
 import {
-  fromBase64Url, generateVaultKey, keyIdOf, derivedSecretOf, opaqueIdOf, openEnvelope, proveKey, sealEnvelope, toBase64Url,
+  documentNaming, fromBase64Url, generateVaultKey, keyIdOf, derivedSecretOf, openEnvelope, proveKey, sealEnvelope, toBase64Url,
   unwrapUnderPasskey, verifyKeyProof, wrapUnderPasskey,
   type DeviceId, type EnvelopeHeader, type EnvelopeKind, type KeyId, type OpaqueId,
 } from '@aeven/sync-vault'
@@ -224,6 +224,8 @@ export class AccountVault {
   private readonly documentIds = new Map<string, OpaqueId>()
   /** The account key {@link documentIds} was derived under; another key empties the map. */
   private documentIdsKey: Uint8Array | undefined
+  /** Names documents under {@link documentIdsKey}; set whenever that key is. */
+  private naming: ((name: string) => OpaqueId) | undefined
   /** Frames the relay delivered that wait to be applied, in sequence order. */
   private readonly inbound = new Deque<{ seq: number; frame: Uint8Array }>()
   /** The highest sequence number received, applied or still waiting; the next page starts after it. */
@@ -996,10 +998,11 @@ export class AccountVault {
     if (this.documentIdsKey === undefined || !timingSafeEqual(key, this.documentIdsKey)) {
       this.documentIds.clear()
       this.documentIdsKey = key
+      this.naming = documentNaming(key)
     }
     let id = this.documentIds.get(name)
     if (id === undefined) {
-      id = opaqueIdOf(key, name)
+      id = (this.naming as (name: string) => OpaqueId)(name)
       this.documentIds.set(name, id)
     }
     return id
