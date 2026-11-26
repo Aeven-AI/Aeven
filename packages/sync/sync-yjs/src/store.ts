@@ -27,6 +27,13 @@ export class SyncStore {
   private db: Database.Database
   /** Documents this device stopped storing, read from `meta` on first use. */
   private retired: Set<string> | undefined
+  /**
+   * The account key and the sync preference as last read, `undefined` until read and after either is written. Naming
+   * a document reads both, and a Consumer names thousands of documents in one pass when an account connects. Only
+   * this object writes them: the sync worker's connection writes no `meta` row.
+   */
+  private keyRead: { key: Uint8Array | undefined } | undefined
+  private enabledRead: boolean | undefined
 
   /**
    * Open or create the store.
@@ -201,8 +208,12 @@ export class SyncStore {
    * @returns the key, or undefined before the relay or a passkey handed one over.
    */
   accountKey(): Uint8Array | undefined {
-    const stored = this.meta('key')
-    return stored === undefined ? undefined : fromBase64Url(stored, 32)
+    if (this.keyRead === undefined) {
+      const stored = this.meta('key')
+      this.keyRead = { key: stored === undefined ? undefined : fromBase64Url(stored, 32) }
+    }
+    // Callers own what they receive.
+    return this.keyRead.key === undefined ? undefined : new Uint8Array(this.keyRead.key)
   }
 
   /**
@@ -233,6 +244,7 @@ export class SyncStore {
   setAccountKey(key: Uint8Array, mode: SyncKeyMode): boolean {
     const stored = this.meta('key')
     const encoded = toBase64Url(key)
+    this.keyRead = undefined
     return this.transaction(() => {
       this.setMeta('key-mode', mode)
       if (stored === encoded) return false
@@ -249,6 +261,7 @@ export class SyncStore {
    */
   dropAccountKey(): boolean {
     if (this.meta('key') === undefined) return false
+    this.keyRead = undefined
     this.transaction(() => {
       this.wipe()
       this.statement("DELETE FROM meta WHERE key = 'key'").run()
@@ -266,7 +279,8 @@ export class SyncStore {
    * @returns the stored preference.
    */
   enabled(): boolean {
-    return this.meta('enabled') !== 'false'
+    this.enabledRead ??= this.meta('enabled') !== 'false'
+    return this.enabledRead
   }
 
   /**
@@ -274,6 +288,7 @@ export class SyncStore {
    * @param enabled - whether this device syncs the account.
    */
   setEnabled(enabled: boolean): void {
+    this.enabledRead = undefined
     this.setMeta('enabled', String(enabled))
   }
 
