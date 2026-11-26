@@ -31,6 +31,20 @@
   visibility: hidden;
 }
 
+/* The macOS desktop shell draws its window controls over the page's top-left,
+   on the corner row (desktop main.ts `trafficLightPosition`), which only a
+   full screen column reaches. The strip then starts one page inset past their
+   gutter, as the left sidebar's header does (ui-sidebar SidebarRoot.module.css),
+   and the empty launcher starts one row lower, so its first kind stands below
+   the controls instead of under them. */
+:global(html[data-avn-traffic-lights]) .root[data-fullscreen] .tabbar {
+  padding-left: calc(var(--dsw-aeven-window-controls-gutter) + var(--dsw-aeven-page-inset));
+}
+
+:global(html[data-avn-traffic-lights]) .root[data-fullscreen] .launcher {
+  padding-top: var(--dsw-aeven-control-size);
+}
+
 /* The strip shares its row with the frame's corner controls (full screen,
    the column toggle and the account), so it stops short of them. The row is
    40px under the column's 8px top inset, which centres a 30px pill on the
