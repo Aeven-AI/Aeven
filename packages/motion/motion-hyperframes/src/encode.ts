@@ -1,5 +1,6 @@
 /** ffmpeg and ffprobe invocations around a HyperFrames render: encoder probes, the fallback transcode, and output facts. @module */
 import { spawn } from 'node:child_process'
+import type { MotionRegion } from '@aeven/motion'
 
 /** Exit status and captured output of one finished process. */
 interface Completed {
@@ -107,27 +108,47 @@ export async function probeFilm(ffprobe: string, path: string, signal: AbortSign
 const LAST_FRAME_MARGIN = 0.05
 
 /**
+ * The ffmpeg filter that crops a frame to a region and scales it down to the still width; a region narrower than
+ * that width keeps its own pixels.
+ * @param film - frame size.
+ * @param width - widest a still may be, in pixels.
+ * @param region - the part of the frame to show; undefined, the whole frame.
+ * @returns the `-vf` value.
+ */
+function stillFilter(film: { width: number; height: number }, width: number, region: MotionRegion | undefined): string {
+  if (region === undefined) return `scale=${String(width)}:-2`
+  const x = Math.min(Math.max(0, Math.round(region.x)), film.width - 2)
+  const y = Math.min(Math.max(0, Math.round(region.y)), film.height - 2)
+  const cropWidth = Math.max(2, Math.min(Math.round(region.width), film.width - x))
+  const cropHeight = Math.max(2, Math.min(Math.round(region.height), film.height - y))
+  return `crop=${String(cropWidth)}:${String(cropHeight)}:${String(x)}:${String(y)},scale=${String(Math.min(width, cropWidth))}:-2`
+}
+
+/**
  * Take PNG stills from a film at the requested times. A time at or past the film's end takes its last frame.
  * @param ffmpeg - ffmpeg executable.
  * @param path - film path.
- * @param durationSeconds - film length.
+ * @param film - film length and frame size.
  * @param times - film times in seconds, in the order the stills are returned.
- * @param width - still width in pixels; height follows the film's aspect ratio.
+ * @param width - widest a still may be, in pixels; height follows the aspect ratio of what it shows.
+ * @param region - the part of the frame each still shows, clamped to the frame; undefined, the whole frame.
  * @param signal - cancellation.
  * @returns the stills, each with the time it shows.
  * @throws When ffmpeg fails to decode a frame.
  */
 export async function takeStills(
-  ffmpeg: string, path: string, durationSeconds: number, times: readonly number[], width: number, signal: AbortSignal,
+  ffmpeg: string, path: string, film: { durationSeconds: number; width: number; height: number }, times: readonly number[],
+  width: number, region: MotionRegion | undefined, signal: AbortSignal,
 ): Promise<{ seconds: number; png: Uint8Array }[]> {
   const stills: { seconds: number; png: Uint8Array }[] = []
-  const last = Math.max(0, durationSeconds - LAST_FRAME_MARGIN)
+  const last = Math.max(0, film.durationSeconds - LAST_FRAME_MARGIN)
+  const filter = stillFilter(film, width, region)
   for (const time of times) {
     const seconds = Math.round(Math.min(Math.max(0, time), last) * 1000) / 1000
     const png = await new Promise<Uint8Array>((resolve, reject) => {
       const child = spawn(ffmpeg, [
         '-hide_banner', '-loglevel', 'error', '-ss', String(seconds), '-i', path,
-        '-frames:v', '1', '-vf', `scale=${String(width)}:-2`, '-f', 'image2pipe', '-c:v', 'png', '-',
+        '-frames:v', '1', '-vf', filter, '-f', 'image2pipe', '-c:v', 'png', '-',
       ], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, signal })
       const chunks: Buffer[] = []
       let stderr = ''

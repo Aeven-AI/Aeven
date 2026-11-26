@@ -13,11 +13,12 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { MOTION_QUEUED_STAGE, type MotionProgress, type MotionQuality, type MotionRenderInput, type MotionRenderOutput } from '@aeven/motion'
+import { MOTION_QUEUED_STAGE, type MotionAuditSamples, type MotionProgress, type MotionQuality, type MotionRenderInput, type MotionRendered } from '@aeven/motion'
 import type {} from '@aeven/motion'
 import type { ProducerLogger, RenderJob } from '@hyperframes/producer'
 import { resolveFfBinaries } from './binaries.ts'
 import type { FfBinaries } from './binaries.ts'
+import { auditComposition } from './audit.ts'
 import { resolveBrowser } from './browser.ts'
 import { firstWorkingEncoder, probeFilm, takeStills, transcode } from './encode.ts'
 
@@ -45,6 +46,8 @@ export interface Config {
   fallbackBitrate: Record<MotionQuality, string>
   /** Width in pixels of the stills a render returns. */
   stillWidth: number
+  /** How long the audit page may take to load a composition and report its player ready, in milliseconds. */
+  auditReadyMs: number
 }
 
 export const Config: z<Config> = z.object({
@@ -60,6 +63,7 @@ export const Config: z<Config> = z.object({
     high: z.string().default('20M'),
   }),
   stillWidth: z.natural().min(64).default(960),
+  auditReadyMs: z.natural().min(1_000).default(30_000),
 })
 
 /** How a host encodes H.264: HyperFrames' hardware path, or a ProRes intermediate plus a fallback encoder. */
@@ -160,7 +164,7 @@ export function apply(ctx: Context, config: Config): void {
 
   const render = async (
     input: MotionRenderInput, signal: AbortSignal, onProgress?: (progress: MotionProgress) => void,
-  ): Promise<MotionRenderOutput> => {
+  ): Promise<MotionRendered> => {
     // HyperFrames loads on the first render: its engine, producer and font tooling are large, and most Hosts never render.
     const { createRenderJob, executeRenderJob, resolveConfig } = await import('@hyperframes/producer')
     const ff = ffBinaries()
@@ -200,8 +204,33 @@ export function apply(ctx: Context, config: Config): void {
     }
     const facts = await probeFilm(ff.ffprobe, input.outputPath, signal)
     const { size } = await stat(input.outputPath)
-    const stills = await takeStills(ff.ffmpeg, input.outputPath, facts.durationSeconds, input.stillTimes, config.stillWidth, signal)
-    return { outputPath: input.outputPath, bytes: size, encoder: path.encoder, stills, ...facts }
+    const stills = await takeStills(ff.ffmpeg, input.outputPath, facts, input.stillTimes, config.stillWidth, input.stillRegion, signal)
+    const audit = input.auditTimes.length === 0 ? undefined : await audited(input.compositionDir, chromePath, input.auditTimes, signal)
+    return { outputPath: input.outputPath, bytes: size, encoder: path.encoder, stills, ...facts, ...audit === undefined ? {} : { audit } }
+  }
+
+  const bundle = async (compositionDir: string): Promise<string> => {
+    const { bundleToSingleHtml } = await import('@hyperframes/core/compiler')
+    const { injectDeterministicFontFaces } = await import('@hyperframes/core/fonts/embed')
+    // The fonts travel inside the document: its player runs in an opaque-origin frame, possibly offline.
+    return await injectDeterministicFontFaces(await bundleToSingleHtml(compositionDir, { runtime: 'inline' }), {
+      allowSystemFontCapture: false,
+      logger: { warn: (message) => { logger.warn(message) }, info: (message) => { logger.debug(message) } },
+    })
+  }
+
+  // The film is already written when the audit runs, so an audit that cannot run costs the review its measurements
+  // and nothing else.
+  const audited = async (
+    compositionDir: string, chromePath: string, times: readonly number[], signal: AbortSignal,
+  ): Promise<MotionAuditSamples | undefined> => {
+    try {
+      return await auditComposition(await bundle(compositionDir), chromePath, times, config.auditReadyMs, signal)
+    } catch (error) {
+      signal.throwIfAborted()
+      logger.warn(`the film was rendered but not measured: ${error instanceof Error ? error.message : String(error)}`)
+      return undefined
+    }
   }
 
   ctx.effect(() => ctx.motion.register({
@@ -214,9 +243,6 @@ export function apply(ctx: Context, config: Config): void {
       queue = next.catch(() => {})
       return next
     },
-    bundle: async (compositionDir) => {
-      const { bundleToSingleHtml } = await import('@hyperframes/core/compiler')
-      return await bundleToSingleHtml(compositionDir, { runtime: 'inline' })
-    },
+    bundle,
   }), 'motion-hyperframes: renderer')
 }

@@ -142,7 +142,9 @@ async function bundleFiles(files: ReadonlyMap<string, string>): Promise<string> 
     }
     // Loaded on first use: the compiler's module graph is large and most Hosts never bundle a composition.
     const { bundleToSingleHtml } = await import('@hyperframes/core/compiler')
-    return await bundleToSingleHtml(scratch, { runtime: 'inline' })
+    const { injectDeterministicFontFaces } = await import('@hyperframes/core/fonts/embed')
+    // The fonts travel inside the document, as in the renderer's own bundle.
+    return await injectDeterministicFontFaces(await bundleToSingleHtml(scratch, { runtime: 'inline' }), { allowSystemFontCapture: false })
   } finally {
     await rm(scratch, { recursive: true, force: true })
   }

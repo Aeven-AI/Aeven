@@ -7,6 +7,7 @@
 import { Context, Service } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { SandboxExecutionPolicy } from '@aeven/sandbox'
+import { summarizeAudit, type MotionAuditRules, type MotionAuditSamples, type MotionFinding } from './audit.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -31,6 +32,10 @@ export interface MotionRenderRequest {
   readonly quality?: MotionQuality
   /** Film times, in seconds, of the stills to return with the film; omitted, none. */
   readonly stillTimes?: readonly number[]
+  /** The part of the frame each still shows, in frame pixels; omitted, the whole frame. */
+  readonly stillRegion?: MotionRegion
+  /** Film times, in seconds, the film's layout and type are measured at; omitted, the film is not audited. */
+  readonly auditTimes?: readonly number[]
   /**
    * The calling session's sandbox policy. A renderer that runs inside the account's sandbox requires it and keeps
    * every path inside its workspace root; a renderer on the Host's own machine ignores it.
@@ -46,8 +51,20 @@ export interface MotionRenderInput {
   readonly quality: MotionQuality
   /** Film times, in seconds, of the stills to return; a time past the film's end takes its last frame. */
   readonly stillTimes: readonly number[]
+  /** The part of the frame each still shows; absent, the whole frame. A renderer clamps it to the frame. */
+  readonly stillRegion?: MotionRegion
+  /** Film times, in seconds, to measure the film at; empty, the renderer returns no audit samples. */
+  readonly auditTimes: readonly number[]
   /** The calling session's sandbox policy, as {@link MotionRenderRequest.sandboxPolicy} describes. */
   readonly sandboxPolicy?: SandboxExecutionPolicy
+}
+
+/** A rectangle of the frame, in frame pixels from its top-left corner. */
+export interface MotionRegion {
+  readonly x: number
+  readonly y: number
+  readonly width: number
+  readonly height: number
 }
 
 /** One PNG frame taken from the finished film. */
@@ -65,6 +82,11 @@ export interface MotionProgress {
 }
 
 export { currentRender, recordRender, type RenderedFilm } from './renders.ts'
+export {
+  motionAuditScript, motionAuditTimes, summarizeAudit, withMotionAuditScript,
+  type MotionAuditIssue, type MotionAuditPart, type MotionAuditRules, type MotionAuditSample, type MotionAuditSamples,
+  type MotionFinding, type MotionFindingSeverity,
+} from './audit.ts'
 
 /** The stage a renderer reports while a render waits for another render to finish before it starts. */
 export const MOTION_QUEUED_STAGE = 'queued'
@@ -81,6 +103,17 @@ export interface MotionRenderOutput {
   readonly encoder: string
   /** The requested stills, in film order. */
   readonly stills: readonly MotionStill[]
+  /** Measured layout, type, and reading-time problems; empty when the render was not audited or found none. */
+  readonly findings: readonly MotionFinding[]
+}
+
+/** What a renderer returns: the film, and the page's audit samples when the render asked for audit times. */
+export interface MotionRendered extends Omit<MotionRenderOutput, 'findings'> {
+  /**
+   * The samples `window.__avnMotionAudit` returned for {@link MotionRenderInput.auditTimes}; absent when no times
+   * were asked for or the page could not be measured.
+   */
+  readonly audit?: MotionAuditSamples
 }
 
 /** A renderer a provider registers into {@link Motion}. */
@@ -92,9 +125,9 @@ export interface MotionRenderer {
    * @param input - resolved render.
    * @param signal - cancellation; the renderer removes a partial output when it aborts.
    * @param onProgress - optional progress sink.
-   * @returns the written film.
+   * @returns the written film and, when asked for, its audit samples.
    */
-  render(input: MotionRenderInput, signal: AbortSignal, onProgress?: (progress: MotionProgress) => void): Promise<MotionRenderOutput>
+  render(input: MotionRenderInput, signal: AbortSignal, onProgress?: (progress: MotionProgress) => void): Promise<MotionRendered>
   /**
    * Bundle one composition folder into a single HTML document that plays without its folder: scene files,
    * the player runtime, images, and fonts are inlined, so a player can load it as `srcdoc` in an opaque-origin
@@ -116,6 +149,8 @@ export interface Config {
   fps: MotionFps
   /** Quality tier of a request that names none. */
   quality: MotionQuality
+  /** Thresholds an audited render's samples are judged against. */
+  audit: MotionAuditRules
 }
 
 interface Registration {
@@ -129,6 +164,16 @@ export default class Motion extends Service {
   static Config: z<Partial<Config>, Config> = z.object({
     fps: z.union([24, 30, 60] as const).default(30),
     quality: z.union(['draft', 'standard', 'high'] as const).default('standard'),
+    // The defaults are the thresholds HyperFrames' own `check` judges type size, opacity, and reading time by.
+    audit: z.object({
+      typeFloorFraction: z.number().min(0).max(1).default(0.026),
+      readOpacity: z.number().min(0).max(1).default(0.5),
+      minHeldSeconds: z.number().min(0).default(0.5),
+      minHeldShare: z.number().min(0).max(1).default(0.5),
+      holdBaseSeconds: z.number().min(0).default(0.5),
+      holdPerWordSeconds: z.number().min(0).default(0.3),
+      maxFindings: z.natural().min(1).default(20),
+    }),
   })
 
   private registration: Registration | undefined
@@ -161,7 +206,7 @@ export default class Motion extends Service {
 
   /**
    * Apply the configured defaults and capture the registered renderer.
-   * @param request - composition, output, and optional fps, quality, and still times.
+   * @param request - composition, output, and optional fps, quality, still times and region, and audit times.
    * @returns renderer-pinned input for {@link render}.
    * @throws When no renderer is registered.
    */
@@ -175,6 +220,8 @@ export default class Motion extends Service {
       fps: request.fps ?? this.config.fps,
       quality: request.quality ?? this.config.quality,
       stillTimes: request.stillTimes ?? [],
+      ...request.stillRegion === undefined ? {} : { stillRegion: request.stillRegion },
+      auditTimes: request.auditTimes ?? [],
       ...request.sandboxPolicy === undefined ? {} : { sandboxPolicy: request.sandboxPolicy },
     }
   }
@@ -196,7 +243,7 @@ export default class Motion extends Service {
    * @param spec - resolved render; a withdrawn or replaced renderer is rejected.
    * @param signal - caller cancellation.
    * @param onProgress - optional progress sink.
-   * @returns the written film.
+   * @returns the written film, with the findings judged from the renderer's audit samples.
    */
   async render(spec: MotionRenderSpec, signal: AbortSignal, onProgress?: (progress: MotionProgress) => void): Promise<MotionRenderOutput> {
     signal.throwIfAborted()
@@ -207,9 +254,9 @@ export default class Motion extends Service {
     const pending = spec.renderer.render(input, combined, onProgress)
     registration.pending.add(pending)
     try {
-      const output = await pending
+      const { audit, ...film } = await pending
       combined.throwIfAborted()
-      return output
+      return { ...film, findings: audit === undefined ? [] : summarizeAudit(audit, film.durationSeconds, this.config.audit) }
     } finally {
       registration.pending.delete(pending)
     }
