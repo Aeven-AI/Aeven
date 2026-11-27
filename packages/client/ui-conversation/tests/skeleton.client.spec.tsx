@@ -568,7 +568,7 @@ describe('ConversationRoot resident composer', () => {
     expect(b.lineageOwners.at(-1)).toEqual({ lineageSessionId: SID, displayTitle: SID })
   })
 
-  it('active phase: one scroller holds the header, the transcript, and the composer seat', () => {
+  it('active phase: one scroller holds the transcript and the composer seat, with the header over it', () => {
     const b = mount(sessionSnapshotOf())
     const host = b.view.container.querySelector('[data-conversation-scroll]')
     const seat = b.view.container.querySelector('[data-composer-seat]')
@@ -577,14 +577,13 @@ describe('ConversationRoot resident composer', () => {
     expect(host).not.toBeNull()
     expect(seat).not.toBeNull()
     expect(header).not.toBeNull()
-    // The column is one scrollport: the header sticks at its top, the transcript
-    // is in flow, and the seat sticks at its floor, so all three are laid out in
-    // one content box and a scrollbar shortens them identically. The view
-    // chrome layer stays outside it — a layer among the scrolled children is
-    // placed by its own spot in the flow, travels with it, and extends the
-    // scroll range. The seat-level layer rides the sticky seat's top edge, so
-    // it follows the seat's height (dock sections, a growing draft).
-    expect(host?.contains(header)).toBe(true)
+    // The column is one scrollport: the transcript is in flow and the seat
+    // sticks at its floor, so both are laid out in one content box. The header
+    // and the view chrome layer stay outside it — a child of the scroller rides
+    // the macOS overscroll bounce, and a layer among the scrolled children
+    // extends the scroll range. The seat-level layer rides the sticky seat's top
+    // edge, so it follows the seat's height (dock sections, a growing draft).
+    expect(host?.contains(header)).toBe(false)
     expect(host?.contains(seat)).toBe(true)
     expect(seat?.contains(textarea)).toBe(true)
     expect(host?.contains(b.view.container.querySelector('[data-conversation-chrome]'))).toBe(false)
@@ -767,7 +766,7 @@ describe('ConversationRoot resident composer', () => {
     const host = b.view.container.querySelector('[data-conversation-scroll]')
     const header = b.view.container.querySelector('header')
     expect(header).not.toBeNull()
-    expect(host?.contains(header)).toBe(true)
+    expect(host?.contains(header)).toBe(false)
     expect(b.slotCalls).toContain('conversation.navigation.utilities')
     // The Session header's own content stays Session-gated.
     expect(b.slotCalls).not.toContain('conversation.session.header')

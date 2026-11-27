@@ -212,15 +212,16 @@ describe('SettingsRoot', () => {
     expect(alert.textContent).toContain('Disconnected')
     expect(alert.querySelector('svg')).toBeTruthy()
     const indicator = screen.getByRole('button', { name: 'Disconnected, reconnect now' })
-    expect(indicator.textContent).toBe('Reconnect now')
+    expect(indicator.textContent).toBe('')
+    expect(indicator.querySelector('svg')).toBeTruthy()
     expect(indicator.hasAttribute('title')).toBe(false)
     fireEvent.click(indicator)
     expect(mounted.reconnect).toHaveBeenCalledOnce()
 
     mounted.setConnectionState('connecting')
-    expect(screen.getByRole('alert').textContent).toContain('Connecting...')
-    expect(screen.getByRole('button', { name: 'Connecting, restart now' }).textContent)
-      .toBe('Reconnect now')
+    // While connecting, the spinner stands in for the reconnect action.
+    expect(screen.getByRole('alert').textContent).toContain('Connecting')
+    expect(screen.queryByRole('button', { name: 'Disconnected, reconnect now' })).toBeNull()
 
     mounted.setConnectionState('connected')
     // The confirmation toast carries its own dismiss control, so its role and
