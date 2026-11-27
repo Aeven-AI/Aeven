@@ -154,7 +154,7 @@ macOS 配置使用必填发布环境，不会接受钥匙串中最先发现的�
 
 每条 Windows 打包命令还会把未打包的应用打成 `aeven-<version>-win-<arch>-store.appx`，供 Partner Center 以 "Æven" 预留的 Microsoft Store 产品（Store ID `9P7Q0BFG2Z9B`）使用。第二次 electron-builder 运行带 `--prepackaged` 与 `AVN_DESKTOP_STORE_PACKAGE=1`，打包安装程序所携带的应用（包括已签名的可执行文件），包本身保持未签名：Store 会为其分发的包签名，而 Windows 不会安装来自其他来源的未签名包。`scripts/electron-builder-config.mjs` 中的 `MICROSOFT_STORE_IDENTITY` 保存 Partner Center 分配的身份；身份或显示名称不一致的包会被 Store 拒绝。
 
-Store 包使用 electron-builder 自带的清单模板，要求 Windows 10 1809（`10.0.17763.0`）或更高版本，除 `runFullTrust` 外不声明任何受限功能。因此应用对 AppData 和 `HKCU` 的所有写入，包括代理的工具在那里的写入，Windows 都会虚拟化：Store 安装保留自己的 `%APPDATA%\Aeven` 配置和单实例锁，与 NSIS 安装互不相干，卸载该包时它们会被删除。Aeven 主目录位于 AppData 之外，从不被虚拟化。应用不写入任何注册表键：浏览器扩展连接的是回环 WebSocket，而不是原生消息主机。Store 安装在清单中声明 `aeven://` 协议，且从不运行 electron-updater，因为由 Store 替换它的包。发布工作流把每个架构的包作为 `store-win-<arch>` 工作流产物上传，而不是发布资产；两个包都放进同一个 Partner Center 提交。
+Store 包使用 electron-builder 自带的清单模板，要求 Windows 10 1809（`10.0.17763.0`）或更高版本，除 `runFullTrust` 外不声明任何受限功能。因此应用对 AppData 和 `HKCU` 的所有写入，包括代理的工具在那里的写入，Windows 都会虚拟化：Store 安装保留自己的 `%APPDATA%\Aeven` 配置和单实例锁，与 NSIS 安装互不相干，卸载该包时它们会被删除。Aeven 主目录位于 AppData 之外，从不被虚拟化。浏览器扩展通过回环 WebSocket 连接 Store 安装：应用为旧扩展写入的原生消息主机键落在包的虚拟化注册表中，浏览器不会读取那里。Store 安装在清单中声明 `aeven://` 协议，且从不运行 electron-updater，因为由 Store 替换它的包。发布工作流把每个架构的包作为 `store-win-<arch>` 工作流产物上传，而不是发布资产；两个包都放进同一个 Partner Center 提交。
 
 使用对应的 `:dir` 命令可以生成可直接运行的应用目录，而不是安装包，例如：
 

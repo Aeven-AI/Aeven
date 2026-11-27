@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/process/2026-11-21-microsoft-store-msix-package.md
-2026-11-21-microsoft-store-msix-package.md: bc1f2aa90f980dc36989f8d85100e9643e60d7df
-2026-11-21-microsoft-store-msix-package.zh.md: 0c64bc6c9c9204e47f964df443359ab04f6a91cc
+2026-11-21-microsoft-store-msix-package.md: 5f73ac60e5c73a8e38ad0802c41635ae9adc8b56
+2026-11-21-microsoft-store-msix-package.zh.md: e988c48a9a17e128fb4fa0c8155e904b770cdc8c

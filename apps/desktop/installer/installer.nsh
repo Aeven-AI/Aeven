@@ -18,3 +18,14 @@
     !endif
   !endif
 !macroend
+
+; Uninstalling removes the registrations that point each browser at this app's native messaging host, the keys
+; windowsHostKeys() in src/browser-extension.ts names. An update keeps them: the next launch rewrites them anyway.
+!macro customUnInstall
+  ${ifNot} ${isUpdated}
+    DeleteRegKey HKCU "Software\Google\Chrome\NativeMessagingHosts\io.aeven.browser"
+    DeleteRegKey HKCU "Software\Chromium\NativeMessagingHosts\io.aeven.browser"
+    DeleteRegKey HKCU "Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\io.aeven.browser"
+    DeleteRegKey HKCU "Software\Microsoft\Edge\NativeMessagingHosts\io.aeven.browser"
+  ${endIf}
+!macroend

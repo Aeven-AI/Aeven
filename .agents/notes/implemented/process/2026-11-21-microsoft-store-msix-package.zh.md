@@ -14,7 +14,7 @@ Windows 发布只提供 NSIS 安装程序，而发布工作流读取的 Azure Tr
 
 `MICROSOFT_STORE_IDENTITY` 保存 Partner Center 分配的值：身份名称 `AevenAI.ven`（Partner Center 去掉了 Æ）、发布者 `CN=361943AA-1813-410C-890C-540D8C89681E`、发布者显示名称 `AevenAI`、显示名称 `Æven`。身份或显示名称不一致的包会被 Store 拒绝。清单的 Description 使用 Linux 包已在显示的产品简介，而不是写给维护者的 package.json description。
 
-包使用 electron-builder 自带的清单模板，除 `runFullTrust` 外不声明任何受限功能，要求 Windows 10 1809（`10.0.17763.0`）；应用对 AppData 和 `HKCU` 的所有写入，Windows 都会虚拟化。Microsoft 三次拒绝了 `unvirtualizedResources`，因此浏览器扩展改为通过回环 WebSocket 连接，而不是原生消息主机（[回环 WebSocket Agent Note](../architecture/2026-11-27-browser-extension-loopback-websocket.zh.md)）。包声明了 `location`、`microphone` 和 `webcam`，因为 Windows 隐私设置按打包应用声明的功能授予设备访问权限。
+包使用 electron-builder 自带的清单模板，除 `runFullTrust` 外不声明任何受限功能，要求 Windows 10 1809（`10.0.17763.0`）；应用对 AppData 和 `HKCU` 的所有写入，Windows 都会虚拟化。Microsoft 三次拒绝了 `unvirtualizedResources`，因此浏览器扩展通过回环 WebSocket 连接 Store 安装；它为旧扩展写入的原生消息主机键留在其虚拟化注册表中（[回环 WebSocket Agent Note](../architecture/2026-11-27-browser-extension-loopback-websocket.zh.md)）。包声明了 `location`、`microphone` 和 `webcam`，因为 Windows 隐私设置按打包应用声明的功能授予设备访问权限。
 
 当 `process.windowsStore` 为 true 时，应用跳过两步。`UpdateCoordinator` 报告没有更新配置，因为由 Store 替换包，而 electron-updater 会下载并运行 NSIS 安装程序。不调用 `setAsDefaultProtocolClient`，因为清单声明了 `aeven://`，而安装目录会随每次 Store 更新改变。
 

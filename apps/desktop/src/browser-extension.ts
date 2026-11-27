@@ -12,10 +12,18 @@
  * ports passes for either side. An extension that cannot prove the secret is
  * refused, and the app opens `connect.html` in that browser with the secret in
  * its fragment, once per browser while it serves; that page hands the secret to
- * the extension. No registry key or browser registration is written.
+ * the extension.
+ *
+ * Extensions from before the WebSocket (0.3.37 and older) connect only through
+ * a native messaging host, so the app also registers one (`io.aeven.browser`)
+ * with each installed Chromium browser and serves its local socket
+ * (`native-host.ts` relays between them). The browser starts that host only for
+ * the extension ids its manifest names. Newer extensions use the host only when
+ * no port answers, which is how they reach desktop apps from before the WebSocket.
  *
  * The connection is the reader's choice (`ExtensionIntegration`), on until
- * they turn it off: turning it off closes the server and every connection.
+ * they turn it off: turning it off closes both servers and every connection and
+ * removes the native host's registrations.
  *
  * Several browsers can be connected at once, one link per install of the
  * extension (`ExtensionLinks`); an agent tab's id names its install and tab. When
@@ -31,14 +39,19 @@
  */
 
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
+import { createServer, type Socket } from 'node:net'
 import { readFileSync } from 'node:fs'
 import { chmod, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import type { IncomingMessage } from 'node:http'
 import type { AddressInfo } from 'node:net'
+import { fileURLToPath } from 'node:url'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { execFile } from 'node:child_process'
 import { WebSocketServer, type RawData, type WebSocket } from 'ws'
+
+/** The native messaging host name extensions from before the WebSocket connect to. */
+export const NATIVE_HOST_NAME = 'io.aeven.browser'
 
 /**
  * The Aeven extension's ids: the Chrome Web Store item's, then the development
@@ -72,6 +85,63 @@ function frameText(data: RawData): string {
   if (Array.isArray(data)) return Buffer.concat(data).toString('utf8')
   if (Buffer.isBuffer(data)) return data.toString('utf8')
   return Buffer.from(data).toString('utf8')
+}
+
+/** One connection's text messages, whichever carrier delivers them. */
+export interface LinkTransport {
+  /** Send one JSON message. */
+  send(text: string): void
+  /** Close the connection at once. */
+  close(): void
+  /** Observe each received JSON message. */
+  onText(listener: (text: string) => void): void
+  /** Observe the connection closing or failing; called at most once per cause. */
+  onClose(listener: () => void): void
+}
+
+/**
+ * An authenticated WebSocket as a link transport: one JSON message per text frame.
+ * @param socket - the socket.
+ * @returns the transport.
+ */
+export function wsTransport(socket: WebSocket): LinkTransport {
+  return {
+    send: (text) => { socket.send(text) },
+    close: () => { socket.terminate() },
+    onText: (listener) => { socket.on('message', (data, isBinary) => { if (!isBinary) listener(frameText(data)) }) },
+    onClose: (listener) => {
+      socket.on('close', listener)
+      socket.on('error', listener)
+    },
+  }
+}
+
+/**
+ * A native host's socket as a link transport: one JSON message per line.
+ * @param socket - the socket.
+ * @returns the transport.
+ */
+export function lineTransport(socket: Socket): LinkTransport {
+  socket.setEncoding('utf8')
+  return {
+    send: (text) => { socket.write(`${text}\n`) },
+    close: () => { socket.destroy() },
+    onText: (listener) => {
+      let buffer = ''
+      socket.on('data', (chunk: string) => {
+        buffer += chunk
+        for (let newline = buffer.indexOf('\n'); newline >= 0; newline = buffer.indexOf('\n')) {
+          const line = buffer.slice(0, newline)
+          buffer = buffer.slice(newline + 1)
+          if (line.trim() !== '') listener(line)
+        }
+      })
+    },
+    onClose: (listener) => {
+      socket.on('close', listener)
+      socket.on('error', listener)
+    },
+  }
 }
 
 /** One extension tab as listed to the agent. */
@@ -109,11 +179,12 @@ interface RequestOptions {
 }
 
 /**
- * One connected extension: its authenticated WebSocket. Requests are matched to
- * answers by id; the socket closing fails what is pending.
+ * One connected extension: its authenticated WebSocket, or the socket of the
+ * native host its browser started. Requests are matched to answers by id; the
+ * connection closing fails what is pending.
  */
 export class ExtensionLink {
-  readonly #socket: WebSocket
+  readonly #transport: LinkTransport
   #info: ExtensionInfo | undefined
   #nextId = 1
   #closed = false
@@ -122,13 +193,12 @@ export class ExtensionLink {
   readonly #closeListeners = new Set<() => void>()
 
   /**
-   * @param socket - the extension's connection, after it proved the pairing secret.
+   * @param transport - the extension's connection: a WebSocket after it proved the pairing secret, or a native host's socket.
    */
-  constructor(socket: WebSocket) {
-    this.#socket = socket
-    socket.on('message', (data, isBinary) => { if (!isBinary) this.#receive(frameText(data)) })
-    socket.on('close', () => { this.#drop() })
-    socket.on('error', () => { this.#drop() })
+  constructor(transport: LinkTransport) {
+    this.#transport = transport
+    transport.onText((text) => { this.#receive(text) })
+    transport.onClose(() => { this.#drop() })
   }
 
   /** What the extension reported, once it has. */
@@ -154,7 +224,7 @@ export class ExtensionLink {
 
   /** Close the connection, as when the same install connected again. */
   close(): void {
-    this.#socket.terminate()
+    this.#transport.close()
     this.#drop()
   }
 
@@ -208,7 +278,7 @@ export class ExtensionLink {
       }, options.timeoutMs ?? REQUEST_TIMEOUT_MS)
       this.#pending.set(id, { resolve, reject, timer })
       options.signal?.addEventListener('abort', () => { options.onCancel?.(id) }, { once: true })
-      this.#socket.send(JSON.stringify({ id, method, params }))
+      this.#transport.send(JSON.stringify({ id, method, params }))
     })
   }
 
@@ -241,11 +311,11 @@ export class ExtensionLinks {
 
   /**
    * Take a newly authenticated connection; it counts once the extension says which install it is.
-   * @param socket - the extension's connection.
+   * @param transport - the extension's connection.
    * @returns the link, registered when its `info` answer arrives.
    */
-  adopt(socket: WebSocket): ExtensionLink {
-    const link = new ExtensionLink(socket)
+  adopt(transport: LinkTransport): ExtensionLink {
+    const link = new ExtensionLink(transport)
     const register = (value: { instance?: unknown; browser?: unknown; protocol?: unknown }): void => {
       if (link.closed) return
       const info = link.learn(value)
@@ -421,7 +491,7 @@ function authenticate(
     const expected = Buffer.from(pairingProof(options.secret, 'extension', port, challenge), 'hex')
     if (reply?.proof !== undefined && timingSafeEqual(Buffer.from(reply.proof, 'hex'), expected)) {
       socket.send(JSON.stringify({ event: 'authed', proof: pairingProof(options.secret, 'app', port, reply.challenge) }))
-      registry.adopt(socket)
+      registry.adopt(wsTransport(socket))
       return
     }
     socket.close(4001, 'unpaired')
@@ -501,45 +571,137 @@ async function pairBrowser(extensionId: string, browser: string, secret: string)
   }
 }
 
-/** Native messaging host manifest folders of the Chromium browsers earlier releases registered with on macOS and Linux. */
-function legacyHostFolders(): string[] {
+/**
+ * The socket the native host connects to.
+ * @param avnHome - the Aeven home folder.
+ * @returns the socket path, or a named pipe on Windows.
+ */
+function socketPath(avnHome: string): string {
+  return process.platform === 'win32'
+    ? `\\\\.\\pipe\\aeven-browser-extension-${(process.env.USERNAME ?? 'user').replace(/[^\w-]/g, '')}`
+    : join(avnHome, 'runtime', 'browser-extension.sock')
+}
+
+/** Native messaging host manifest folders of the Chromium browsers this platform may have, by browser data folder. */
+function hostFolders(): Array<{ browser: string; folder: string }> {
   const home = homedir()
   if (process.platform === 'darwin') {
     const support = join(home, 'Library', 'Application Support')
-    return ['Google/Chrome', 'Google/Chrome Canary', 'Chromium', 'BraveSoftware/Brave-Browser', 'Microsoft Edge', 'Arc/User Data']
-      .map(browser => join(support, browser, 'NativeMessagingHosts'))
+    return [
+      ['Google/Chrome', 'Google/Chrome'], ['Google/Chrome Canary', 'Google/Chrome Canary'], ['Chromium', 'Chromium'],
+      ['BraveSoftware/Brave-Browser', 'BraveSoftware/Brave-Browser'], ['Microsoft Edge', 'Microsoft Edge'], ['Arc/User Data', 'Arc/User Data'],
+    ].map(([browser, folder]) => ({ browser: join(support, browser ?? ''), folder: join(support, folder ?? '', 'NativeMessagingHosts') }))
   }
   if (process.platform === 'linux') {
     const config = process.env.XDG_CONFIG_HOME ?? join(home, '.config')
-    return ['google-chrome', 'chromium', 'BraveSoftware/Brave-Browser', 'microsoft-edge'].map(browser => join(config, browser, 'NativeMessagingHosts'))
+    return ['google-chrome', 'chromium', 'BraveSoftware/Brave-Browser', 'microsoft-edge']
+      .map(browser => ({ browser: join(config, browser), folder: join(config, browser, 'NativeMessagingHosts') }))
   }
   return []
 }
 
+/** Each Chromium browser's key under `HKCU\Software` on Windows. */
+const WINDOWS_BROWSER_KEYS = ['Google\\Chrome', 'Chromium', 'BraveSoftware\\Brave-Browser', 'Microsoft\\Edge']
+
 /**
- * Remove the native messaging host earlier releases registered, so an extension
- * that has not updated yet finds no host instead of starting one that no longer
- * exists: the launcher and manifest in the home's `runtime` folder, each
- * browser's manifest, and on Windows the `io.aeven.browser` key under each
- * browser's `NativeMessagingHosts` key in `HKCU`. Does nothing once the launcher is gone.
+ * The Windows registry keys that name the host manifest, one per browser. The app writes no other registry key,
+ * and the installer's uninstall step deletes these keys. A Microsoft Store install writes them into its private,
+ * virtualized registry, where no browser reads them; extensions reach that install over the WebSocket.
+ * @returns each key, in `reg` syntax.
+ */
+export function windowsHostKeys(): string[] {
+  return WINDOWS_BROWSER_KEYS.map(browser => `HKCU\\Software\\${browser}\\NativeMessagingHosts\\${NATIVE_HOST_NAME}`)
+}
+
+/**
+ * Run `reg` and wait for it. A failure is ignored: deleting an absent key fails, and a browser
+ * that cannot be registered is one the extension does not connect from.
+ * @param args - its arguments.
+ */
+async function reg(args: readonly string[]): Promise<void> {
+  await new Promise<void>((resolve) => { execFile('reg', [...args], { windowsHide: true }, () => { resolve() }) })
+}
+
+/**
+ * The launcher the browsers start and, on Windows, the manifest their registry keys name.
+ * @param avnHome - the Aeven home folder.
+ * @returns both paths, in the home's `runtime` folder.
+ */
+function hostFiles(avnHome: string): { launcher: string; manifest: string } {
+  const runtime = join(avnHome, 'runtime')
+  return {
+    launcher: join(runtime, process.platform === 'win32' ? 'aeven-browser-host.bat' : 'aeven-browser-host'),
+    manifest: join(runtime, `${NATIVE_HOST_NAME}.json`),
+  }
+}
+
+/**
+ * Register the native messaging host with every installed Chromium browser:
+ * a launcher that runs this app's host script with its own runtime, and the
+ * manifest each browser looks up.
+ * @param avnHome - the Aeven home folder, where the launcher and socket live.
+ */
+async function installHost(avnHome: string): Promise<void> {
+  const files = hostFiles(avnHome)
+  await mkdir(dirname(files.launcher), { recursive: true })
+  const script = fileURLToPath(new URL('./native-host.js', import.meta.url))
+  const socket = socketPath(avnHome)
+  const windows = process.platform === 'win32'
+  await writeFile(files.launcher, windows
+    ? `@echo off\r\nset ELECTRON_RUN_AS_NODE=1\r\n"${process.execPath}" "${script}" "${socket}"\r\n`
+    : `#!/bin/sh\nELECTRON_RUN_AS_NODE=1 exec "${process.execPath}" "${script}" "${socket}"\n`)
+  if (!windows) await chmod(files.launcher, 0o755)
+  const manifest = `${JSON.stringify({
+    name: NATIVE_HOST_NAME, description: 'Aeven', path: files.launcher, type: 'stdio', allowed_origins: EXTENSION_IDS.map(id => `chrome-extension://${id}/`),
+  }, null, 2)}\n`
+  if (windows) {
+    await writeFile(files.manifest, manifest)
+    for (const key of windowsHostKeys()) await reg(['add', key, '/ve', '/t', 'REG_SZ', '/d', files.manifest, '/f'])
+    return
+  }
+  for (const { browser, folder } of hostFolders()) {
+    const installed = await stat(browser).then(() => true, () => false)
+    if (!installed) continue
+    await mkdir(folder, { recursive: true })
+    await writeFile(join(folder, `${NATIVE_HOST_NAME}.json`), manifest)
+  }
+}
+
+/**
+ * Remove what `installHost` wrote: each browser's registration, the manifest, and the launcher.
+ * The browsers then find no host, so the extension cannot start one.
  * @param avnHome - the Aeven home folder.
  */
-// TODO: delete at the first tagged release, with the installs it cleans up.
-export async function removeLegacyNativeHost(avnHome: string): Promise<void> {
-  const windows = process.platform === 'win32'
-  const launcher = join(avnHome, 'runtime', windows ? 'aeven-browser-host.bat' : 'aeven-browser-host')
-  if (!await stat(launcher).then(() => true, () => false)) return
-  if (windows) {
-    for (const browser of ['Google\\Chrome', 'Chromium', 'BraveSoftware\\Brave-Browser', 'Microsoft\\Edge']) {
-      await new Promise<void>((resolve) => {
-        // Deleting a key that was never written fails, which leaves nothing to remove.
-        execFile('reg', ['delete', `HKCU\\Software\\${browser}\\NativeMessagingHosts\\io.aeven.browser`, '/f'], { windowsHide: true }, () => { resolve() })
-      })
-    }
+async function removeHost(avnHome: string): Promise<void> {
+  const files = hostFiles(avnHome)
+  if (process.platform === 'win32') {
+    for (const key of windowsHostKeys()) await reg(['delete', key, '/f'])
+    await rm(files.manifest, { force: true })
   }
-  for (const folder of legacyHostFolders()) await rm(join(folder, 'io.aeven.browser.json'), { force: true })
-  await rm(join(avnHome, 'runtime', 'io.aeven.browser.json'), { force: true })
-  await rm(launcher, { force: true })
+  for (const { folder } of hostFolders()) await rm(join(folder, `${NATIVE_HOST_NAME}.json`), { force: true })
+  await rm(files.launcher, { force: true })
+}
+
+/**
+ * Serve the native host's connections on a local socket. The browser starts that
+ * host only for the extension ids its manifest names, so a connection needs no
+ * pairing exchange.
+ * @param path - the socket path, or a named pipe on Windows.
+ * @param registry - the links new connections join.
+ * @returns disposer closing the server.
+ */
+export async function serveNativeHost(path: string, registry: ExtensionLinks): Promise<() => void> {
+  if (process.platform !== 'win32') {
+    await mkdir(dirname(path), { recursive: true })
+    await rm(path, { force: true })
+  }
+  const listening = createServer((socket) => { registry.adopt(lineTransport(socket)) })
+  await new Promise<void>((resolve, reject) => {
+    listening.once('error', reject)
+    listening.listen(path, () => { resolve() })
+  })
+  if (process.platform !== 'win32') await chmod(path, 0o600)
+  return () => { listening.close() }
 }
 
 /**
@@ -574,7 +736,7 @@ async function pairingSecret(file: string): Promise<string> {
 /** The pairing secret of the server now running, which the page that starts a browser hands to its extension. */
 let servingSecret: string | undefined
 
-/** What an `ExtensionIntegration` serves; the defaults are this computer's browsers and ports. */
+/** What an `ExtensionIntegration` registers and serves; the defaults are this computer's browsers, ports and socket. */
 export interface ExtensionIntegrationParts {
   /** The links authenticated connections join. */
   readonly registry: ExtensionLinks
@@ -582,14 +744,23 @@ export interface ExtensionIntegrationParts {
   readonly ports: readonly number[]
   /** Open the pairing page in the browsers named `browser` that have the extension `extensionId`. */
   readonly pair: (extensionId: string, browser: string, secret: string) => Promise<void>
+  /** The socket path the native host connects to, or a named pipe on Windows. */
+  readonly socket: string
+  /** Register the native host with the browsers. */
+  readonly install: (avnHome: string) => Promise<void>
+  /** Remove every registration `install` wrote. */
+  readonly remove: (avnHome: string) => Promise<void>
 }
 
 /**
- * The reader's choice to let the browser extension reach this app, and the
- * server that follows it. The choice and the pairing secret are stored in the
- * Aeven home, which every install of the app on the computer shares.
+ * The reader's choice to let the browser extension reach this app, and what
+ * follows it: the WebSocket server, and the native host registration and socket
+ * that extensions from before the WebSocket (0.3.37 and older) connect through.
+ * The choice and the pairing secret are stored in the Aeven home, which every
+ * install of the app on the computer shares.
  */
 export class ExtensionIntegration {
+  readonly #avnHome: string
   readonly #file: string
   readonly #secretFile: string
   readonly #parts: ExtensionIntegrationParts
@@ -602,7 +773,13 @@ export class ExtensionIntegration {
    * @param avnHome - the Aeven home folder.
    * @param parts - what is served.
    */
-  constructor(avnHome: string, parts: ExtensionIntegrationParts = { registry: links, ports: EXTENSION_PORTS, pair: pairBrowser }) {
+  constructor(
+    avnHome: string,
+    parts: ExtensionIntegrationParts = {
+      registry: links, ports: EXTENSION_PORTS, pair: pairBrowser, socket: socketPath(avnHome), install: installHost, remove: removeHost,
+    },
+  ) {
+    this.#avnHome = avnHome
     this.#file = join(avnHome, 'desktop', 'browser-extension.json')
     this.#secretFile = join(avnHome, 'desktop', 'browser-extension-secret')
     this.#parts = parts
@@ -615,8 +792,8 @@ export class ExtensionIntegration {
   }
 
   /**
-   * Apply the stored choice: when on, serve the extension.
-   * @returns resolution once the server is listening, or at once when the integration is off.
+   * Apply the stored choice: when on, register the native host and serve both connections.
+   * @returns resolution once both servers are listening, or at once when the integration is off.
    * @throws {Error} when every port is taken.
    */
   async start(): Promise<void> {
@@ -626,8 +803,9 @@ export class ExtensionIntegration {
   }
 
   /**
-   * Store the choice and apply it. Turning it off closes the server and every
-   * extension connection; turning it on serves again.
+   * Store the choice and apply it. Turning it off closes both servers and every
+   * extension connection and removes the native host registrations; turning it on
+   * registers and serves again.
    * @param enabled - whether the integration is on.
    * @returns resolution after the choice is stored and applied.
    */
@@ -636,12 +814,16 @@ export class ExtensionIntegration {
       await mkdir(dirname(this.#file), { recursive: true })
       await writeFile(this.#file, `${JSON.stringify({ enabled })}\n`)
       this.#enabled = enabled
-      if (enabled) await this.#serve()
-      else this.close()
+      if (enabled) {
+        await this.#serve()
+        return
+      }
+      this.close()
+      await this.#parts.remove(this.#avnHome)
     })
   }
 
-  /** Close the server and every connection. */
+  /** Close both servers and every connection, leaving the registrations for the next launch. */
   close(): void {
     this.#stop?.()
     this.#stop = undefined
@@ -650,10 +832,12 @@ export class ExtensionIntegration {
 
   async #serve(): Promise<void> {
     if (this.#stop !== undefined) return
+    await this.#parts.install(this.#avnHome)
+    const stopNative = await serveNativeHost(this.#parts.socket, this.#parts.registry)
     const secret = await pairingSecret(this.#secretFile)
     // One pairing page per browser while the server runs; an extension retries every minute.
     const offered = new Set<string>()
-    const { stop } = await serveExtensions(this.#parts.registry, {
+    const served = await serveExtensions(this.#parts.registry, {
       ports: this.#parts.ports,
       secret,
       onUnpaired: (extensionId, browser) => {
@@ -662,8 +846,14 @@ export class ExtensionIntegration {
         offered.add(key)
         void this.#parts.pair(extensionId, browser, secret).catch((error: unknown) => { console.error('avn desktop: browser extension pairing failed', error) })
       },
+    }).catch((error: unknown) => {
+      stopNative()
+      throw error
     })
-    this.#stop = stop
+    this.#stop = () => {
+      stopNative()
+      served.stop()
+    }
     servingSecret = secret
   }
 
@@ -674,7 +864,6 @@ export class ExtensionIntegration {
     await run
   }
 }
-
 
 /**
  * The browsers whose extension is connected.
