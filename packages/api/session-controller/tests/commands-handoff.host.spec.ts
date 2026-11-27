@@ -151,6 +151,25 @@ describe('input for a session another device writes', () => {
     }
   })
 
+  it('records a prompt account sync sends again on its message source, and keeps the mark when it travels on', async () => {
+    const { controller, followup, forward } = await harness()
+    const content = [{ type: 'text', text: 'the runbook is almost done' }]
+    await controller.applyForwarded(LOCAL, { operation: 'prompt', request: { requestId, mode: 'queue', resent: true, content } })
+    await controller.applyForwarded(LOCAL, { operation: 'prompt', request: { requestId: 'request-2', mode: 'queue', content } })
+    expect(followup.mock.calls.map(([message]) => (message as { source: unknown }).source)).toEqual([
+      { kind: 'user', rpcId: requestId, resent: true },
+      { kind: 'user', rpcId: 'request-2' },
+    ])
+    // A client request cannot carry the mark: only the forwarded input's own field sets it.
+    await controller.prompt({ requestId: 'request-3' as SessionRequestId, sessionId: LOCAL, mode: 'queue', content: [{ type: 'text', text: 'typed' }], resent: true } as never)
+    expect((followup.mock.calls[2]?.[0] as { source: unknown }).source).toEqual({ kind: 'user', rpcId: 'request-3' })
+    await controller.applyForwarded(REMOTE, { operation: 'prompt', request: { requestId, mode: 'queue', resent: true, content } })
+    expect(forward.mock.calls[0]?.[2]).toEqual({
+      operation: 'prompt',
+      request: { requestId, sessionId: REMOTE, mode: 'queue', content, resent: true },
+    })
+  })
+
   it('applies input forwarded to this device through the same commands as local input', async () => {
     const { controller, agent, followup, cancel } = await harness()
     await controller.applyForwarded(LOCAL, { operation: 'prompt', request: { requestId, mode: 'queue', content: [{ type: 'text', text: 'from the desktop' }] } })

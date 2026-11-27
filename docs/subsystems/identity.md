@@ -118,6 +118,15 @@ mayAccess(owner: string | undefined, caller: User | undefined = this.actingUser(
 credentialRefFor(request: IdentityRequest): CredentialRef | undefined
 
 /**
+ * The long-lived credential a request carries for its user, read by the resolver that recognizes the request.
+ * @param request - the credential-bearing headers.
+ * @param user - the user the request was identified as.
+ * @returns the reference and value to store for the user, or undefined when the recognizing authority declares no
+ * {@link UserResolver.unattendedCredential} or the request carries none for this user.
+ */
+unattendedCredentialFor(request: IdentityRequest, user: User): { ref: CredentialRef; value: string } | undefined
+
+/**
  * The credential references every registered authority names, once each.
  * @returns the references, for a caller that hands a signed-in user's session credentials to another device.
  */

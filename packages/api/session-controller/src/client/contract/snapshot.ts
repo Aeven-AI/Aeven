@@ -13,6 +13,8 @@ export interface QueuedMessage {
   readonly placement: 'queued' | 'steering' | 'context'
   /** Prompt-RPC identity of a browser-submitted occurrence; correlates the local submission echo. */
   readonly rpcId?: SessionRequestId
+  /** Set when account sync submitted the prompt a second time: the turn that first answered it never reached the account history. */
+  readonly resent?: true
   readonly content: readonly ContentBlock[]
   readonly preview: string
   readonly text: string | null

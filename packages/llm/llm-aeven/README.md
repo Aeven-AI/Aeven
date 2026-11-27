@@ -52,6 +52,7 @@ Only `apiUrl` and `apiKeyEnv` describe where requests go and what authenticates 
 |---|---|---|
 | `apiUrl` | `http://localhost:9000` | Aeven API origin; `/v1` is appended, so the origin stays the one fact an operator configures |
 | `apiKeyEnv` | `AEVEN_TOKEN` | Credential reference holding the signed-in session, resolved through the credentials seam then the environment |
+| `unattendedApiKeyEnv` | none | Credential reference presented for the request's user once the `apiKeyEnv` value is a JWT whose `exp` has passed, such as the refresh token a hosted Host stores per account; absent, the expired value is presented and the gateway refuses it |
 | `models` | Aeven Flash + Aeven Pro | Advisory catalog shown by discovery consumers; a settings section replaces it whole |
 | `thinking` | `enabled` | Deployment policy; `disabled` locks every request to `off` |
 | `reasoningEffort` | `high` | Default effort: `off`, `low`, `high`, or `max` |

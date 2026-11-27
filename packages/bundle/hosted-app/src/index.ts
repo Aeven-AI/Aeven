@@ -78,11 +78,12 @@ export function apply(ctx: Context, config: Config): void {
     }
     const analytics = config.googleAnalyticsId
     if (analytics !== undefined) {
-      // The queue and its config call come first; gtag.js drains `dataLayer` whenever it arrives.
+      // The queue and its config call come first; gtag.js drains `dataLayer` whenever it arrives. The page title names
+      // the open conversation, so every event carries the fixed title `Æven` instead.
       table.push({
         kind: 'script',
         placement: 'head',
-        text: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config',${JSON.stringify(analytics)})`,
+        text: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('set',{page_title:'Æven'});gtag('config',${JSON.stringify(analytics)},{page_title:'Æven'})`,
       })
       table.push({ kind: 'script-src', placement: 'head', src: `https://www.googletagmanager.com/gtag/js?id=${analytics}` })
     }
