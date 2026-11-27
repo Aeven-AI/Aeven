@@ -382,7 +382,6 @@ export class CommandRuntime extends TypertRemoteService {
    * @returns the settled execution (result + lifecycle pairing id), or
    *   `undefined` when syntax or name does not resolve.
    */
-  @Remote
   async execute(
     agent: Agent,
     line: string,

@@ -41,7 +41,7 @@ kind: "package-reference"
 <a id="understand-the-implementation"></a>
 ## 理解实现
 
-工具以调用它的 agent 为作用域分发 `desktop-handoff/offer`，携带模型给出的 `reason`（`computer`、`files`、`terminal`、`device` 或 `models`）以及受 `answerTimeoutMs` 限制的信号。`@aeven/api-remotes` 把它转发给显示该会话的窗口，窗口用对应原因的说明打开对话框并应答 `shown`；显示其他会话的窗口调用 `next()`，最终的回退应答 `no-window`。由于推荐以实时事件传递，之后从历史加载的对话不会再次打开对话框。
+工具以调用它的 agent 为作用域分发 `desktop-handoff/offer`，携带模型给出的 `reason`（`computer`、`browser`、`files`、`terminal`、`device` 或 `models`）以及受 `answerTimeoutMs` 限制的信号。`@aeven/api-remotes` 把它转发给显示该会话的窗口，窗口用对应原因的说明打开对话框并应答 `shown`；显示其他会话的窗口调用 `next()`，最终的回退应答 `no-window`。由于推荐以实时事件传递，之后从历史加载的对话不会再次打开对话框。
 
 <a id="model-experience"></a>
 ## 模型体验

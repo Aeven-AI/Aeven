@@ -26,18 +26,21 @@ async function bench() {
     name: 'root',
     children: { 'conversation.input.plan': { kind: 'single', scope: 'session' } },
   } as never, () => null)
-  const execute = vi.fn((_sessionId: SessionId, _line: string) =>
-    Promise.resolve({ ok: true, value: { commandId: 'c1', result: { kind: 'success' as const } } }))
-  const commandsRemote = { execute }
-  ctx.provide('remote', { commands: commandsRemote })
-  ctx.provide('remote.commands', commandsRemote)
+  const command = vi.fn((_request: { sessionId: SessionId; line: string; images: readonly unknown[] }) =>
+    Promise.resolve({
+      ok: true,
+      value: { outcome: { kind: 'executed', execution: { commandId: 'c1', result: { kind: 'success' as const } } } },
+    }))
+  const sessionRemote = { command }
+  ctx.provide('remote', { session: sessionRemote })
+  ctx.provide('remote.session', sessionRemote)
   ctx.provide('locale', new LocaleRuntime(ctx))
-  return { ctx, slots, execute }
+  return { ctx, slots, command }
 }
 
 describe('ui-plan browser apply', () => {
   it('declares every service it binds', () => {
-    expect(inject).toEqual(['slots', 'remote', 'remote.commands', 'locale'])
+    expect(inject).toEqual(['slots', 'remote', 'remote.session', 'locale'])
   })
 
   it('node-half apply is an intentional no-op', () => {
@@ -47,8 +50,8 @@ describe('ui-plan browser apply', () => {
   it('waits until conversation declares the plan seat', async () => {
     const ctx = new Context()
     await ctx.plugin(SlotRegistry).await()
-    ctx.provide('remote', { commands: {} })
-    ctx.provide('remote.commands', {})
+    ctx.provide('remote', { session: {} })
+    ctx.provide('remote.session', {})
     ctx.provide('locale', new LocaleRuntime(ctx))
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
@@ -69,18 +72,18 @@ describe('ui-plan browser apply', () => {
     const injected = (entry.inject as unknown as (id: SessionId) => PlanChipInjected)(SID)
 
     await expect(injected.exitPlanMode()).resolves.toBeNull()
-    expect(b.execute).toHaveBeenLastCalledWith(SID, '/plan off', [])
+    expect(b.command).toHaveBeenLastCalledWith({ sessionId: SID, line: '/plan off', images: [] })
 
     // Business failure folds to the composer-visible line: the generated method
     // reports the RPC failure in its error branch.
-    b.execute.mockResolvedValueOnce({
+    b.command.mockResolvedValueOnce({
       ok: false,
       error: new RemoteError('session/not-found', 'gone', { sessionId: SID }),
     } as never)
     await expect(injected.exitPlanMode()).resolves.toBe('gone (session/not-found)')
 
     // Unmatched admission (plan-mode not composed host-side) is also a failure line.
-    b.execute.mockResolvedValueOnce({ ok: true, value: undefined } as never)
+    b.command.mockResolvedValueOnce({ ok: true, value: { outcome: { kind: 'unmatched' } } } as never)
     await expect(injected.exitPlanMode()).resolves.toBe('unknown command: /plan off')
 
     await fiber.dispose()

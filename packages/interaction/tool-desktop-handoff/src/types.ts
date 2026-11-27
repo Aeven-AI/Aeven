@@ -4,7 +4,7 @@ import type { Scoped } from '@aeven/scope'
 import type { Agent } from '@aeven/agent/types'
 
 /** What the request needs from the user's own computer. */
-export type DesktopHandoffReason = 'computer' | 'files' | 'terminal' | 'device' | 'models'
+export type DesktopHandoffReason = 'computer' | 'browser' | 'files' | 'terminal' | 'device' | 'models'
 
 /** How an offer ended: the window showing the session opened the dialog, or no window answered. */
 export type DesktopHandoffResult = 'shown' | 'no-window'

@@ -1143,9 +1143,6 @@ importers:
       '@aeven/file-reference':
         specifier: workspace:^
         version: link:../../context/file-reference
-      '@aeven/goal':
-        specifier: workspace:^
-        version: link:../../goal/goal
       '@aeven/host-account-integrations':
         specifier: workspace:^
         version: link:../../host/account-integrations
@@ -1215,6 +1212,9 @@ importers:
       '@aeven/deque':
         specifier: workspace:^
         version: link:../../util/deque
+      '@aeven/util-values':
+        specifier: workspace:^
+        version: link:../../util/values
       '@deepseek-ai/schemastery':
         specifier: link:../../../vendor/schemastery
         version: link:../../../vendor/schemastery
@@ -1261,6 +1261,9 @@ importers:
       '@aeven/fs':
         specifier: workspace:^
         version: link:../../fs/fs
+      '@aeven/goal':
+        specifier: workspace:^
+        version: link:../../goal/goal
       '@aeven/identity-user':
         specifier: workspace:^
         version: link:../../identity/user
@@ -8176,9 +8179,6 @@ importers:
       '@aeven/subprocess-local':
         specifier: workspace:^
         version: link:../../subprocess/subprocess-local
-      '@aeven/typert-protocol':
-        specifier: workspace:^
-        version: link:../../typert/protocol
       '@deepseek-ai/cordis':
         specifier: workspace:^
         version: link:../../../vendor/cordis

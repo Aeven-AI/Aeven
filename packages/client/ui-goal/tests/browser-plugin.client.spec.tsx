@@ -73,24 +73,16 @@ async function bench(options: {
     }
   }
   const ref = { id: 'g-1', revision: 3 }
-  const goals = (prefix: string) => ({
-    edit: answer(`${prefix}/edit`, { ref }),
-    pause: answer(`${prefix}/pause`, { ref }),
-    resume: answer(`${prefix}/resume`, { ref }),
-    clear: answer(`${prefix}/clear`, ref),
-  })
-  let activeGoals: ReturnType<typeof goals> | undefined = goals('goals')
+  const session = (prefix: string) => ({ goal: answer(`${prefix}/goal`, { delivery: 'applied', ref }) })
+  let activeSession: ReturnType<typeof session> | undefined = session('session')
   class RemoteService extends Service {
     constructor(serviceCtx: Context) {
       super(serviceCtx, 'remote')
     }
   }
   new RemoteService(ctx)
-  ctx.provide('remote.goals', {
-    get edit() { return activeGoals?.edit },
-    get pause() { return activeGoals?.pause },
-    get resume() { return activeGoals?.resume },
-    get clear() { return activeGoals?.clear },
+  ctx.provide('remote.session', {
+    get goal() { return activeSession?.goal },
   })
   await ctx.plugin(SlotRegistry).await()
   ctx.slots.register({
@@ -106,8 +98,8 @@ async function bench(options: {
     fiber,
     calls,
     definitions: () => conversationEvents.entries(),
-    remountGoals: () => { activeGoals = goals('remounted-goals') },
-    unmountGoals: () => { activeGoals = undefined },
+    remountGoals: () => { activeSession = session('remounted-session') },
+    unmountGoals: () => { activeSession = undefined },
     entry: () => {
       const entry = ctx.slots.entries('conversation.input.dock')[0]
       if (entry === undefined) return undefined
@@ -138,17 +130,19 @@ describe('ui-goal browser plugin', () => {
     const verbs = b.entry()!.inject!(sid('s1'))
     // The strip forwards the Remote value verbatim; `answered` is the fake's
     // reply, unrelated to the CAS ref the call carries.
-    const answered = { id: 'g-1', revision: 3 }
-    expect(await verbs.onEdit('New objective')).toEqual({ ok: true, value: { ref: answered } })
-    expect(await verbs.onPause()).toEqual({ ok: true, value: { ref: answered } })
-    expect(await verbs.onResume()).toEqual({ ok: true, value: { ref: answered } })
-    expect(await verbs.onClear()).toEqual({ ok: true, value: answered })
-    expect(b.calls.map(c => c.method)).toEqual(['goals/edit', 'goals/pause', 'goals/resume', 'goals/clear'])
+    const answered = { ok: true, value: { delivery: 'applied', ref: { id: 'g-1', revision: 3 } } }
+    expect(await verbs.onEdit('New objective')).toEqual(answered)
+    expect(await verbs.onPause()).toEqual(answered)
+    expect(await verbs.onResume()).toEqual(answered)
+    expect(await verbs.onClear()).toEqual(answered)
+    expect(b.calls.map(c => c.method)).toEqual(['session/goal', 'session/goal', 'session/goal', 'session/goal'])
     const ref = { id: 'g-1', revision: 5 }
-    expect(b.calls[0]?.args).toEqual(['s1', ref, { objective: 'New objective' }])
-    expect(b.calls[1]?.args).toEqual(['s1', ref])
-    expect(b.calls[2]?.args).toEqual(['s1', ref])
-    expect(b.calls[3]?.args).toEqual(['s1', ref])
+    expect(b.calls.map(c => c.args)).toEqual([
+      [{ sessionId: 's1', change: { kind: 'edit', ref, request: { objective: 'New objective' } } }],
+      [{ sessionId: 's1', change: { kind: 'pause', ref } }],
+      [{ sessionId: 's1', change: { kind: 'resume', ref } }],
+      [{ sessionId: 's1', change: { kind: 'clear', ref } }],
+    ])
   })
 
   it('verbs read a remounted Remote namespace at action time', async () => {
@@ -157,8 +151,8 @@ describe('ui-goal browser plugin', () => {
     const verbs = b.entry()!.inject!(sid('s1'))
     b.remountGoals()
 
-    expect(await verbs.onPause()).toEqual({ ok: true, value: { ref: { id: 'g-1', revision: 3 } } })
-    expect(b.calls).toMatchObject([{ method: 'remounted-goals/pause' }])
+    expect(await verbs.onPause()).toEqual({ ok: true, value: { delivery: 'applied', ref: { id: 'g-1', revision: 3 } } })
+    expect(b.calls).toMatchObject([{ method: 'remounted-session/goal' }])
   })
 
   it('rejects every verb once the Remote namespace is gone', async () => {
@@ -168,7 +162,7 @@ describe('ui-goal browser plugin', () => {
     b.unmountGoals()
 
     // A missing namespace is an assembly fault, not a call outcome: this plugin
-    // declares remote.goals in `inject`, so cordis disposes the dock entry along
+    // declares remote.session in `inject`, so cordis disposes the dock entry along
     // with the namespace. Only a React closure that outlived that disposal can
     // reach these verbs, so no consumer-side guard renders it as an error.
     for (const verb of [() => verbs.onEdit('x'), () => verbs.onPause(), () => verbs.onResume(), () => verbs.onClear()]) {

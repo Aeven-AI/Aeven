@@ -47,7 +47,7 @@ declare module '@aeven/client-ui-slots' {
 const NS = 'goal'
 
 /** Required services for the Goal dock, command-input projection, Remote mutations, and copy. */
-export const inject = ['slots', 'sessions', 'remote', 'remote.goals', 'locale', 'uiConversation']
+export const inject = ['slots', 'sessions', 'remote', 'remote.session', 'locale', 'uiConversation']
 
 /**
  * Client plugin body: the GoalBar dock entry with its mutation verbs.
@@ -87,22 +87,22 @@ export function apply(ctx: ClientContext): void {
       onEdit: async (objective) => {
         const ref = refOf(sessionId)
         if (ref === undefined) return noCurrentGoal
-        return await ctx.remote.goals.edit(sessionId, ref, { objective })
+        return await ctx.remote.session.goal({ sessionId, change: { kind: 'edit', ref, request: { objective } } })
       },
       onPause: async () => {
         const ref = refOf(sessionId)
         if (ref === undefined) return noCurrentGoal
-        return await ctx.remote.goals.pause(sessionId, ref)
+        return await ctx.remote.session.goal({ sessionId, change: { kind: 'pause', ref } })
       },
       onResume: async () => {
         const ref = refOf(sessionId)
         if (ref === undefined) return noCurrentGoal
-        return await ctx.remote.goals.resume(sessionId, ref)
+        return await ctx.remote.session.goal({ sessionId, change: { kind: 'resume', ref } })
       },
       onClear: async () => {
         const ref = refOf(sessionId)
         if (ref === undefined) return noCurrentGoal
-        return await ctx.remote.goals.clear(sessionId, ref)
+        return await ctx.remote.session.goal({ sessionId, change: { kind: 'clear', ref } })
       },
     }),
   }, GoalDock))

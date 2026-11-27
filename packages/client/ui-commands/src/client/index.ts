@@ -47,8 +47,8 @@ declare module '@aeven/client-ui-slots' {
 /** Dictionary namespace owned by this plugin. */
 const NS = 'command'
 
-/** Required services: the '/' source registry, session scopes, commands Remote, and locale registry. */
-export const inject = ['inputTriggers', 'sessions', 'remote', 'remote.commands', 'locale']
+/** Required services: the '/' source registry, session scopes, commands and Session Remotes, and locale registry. */
+export const inject = ['inputTriggers', 'sessions', 'remote', 'remote.commands', 'remote.session', 'locale']
 
 /**
  * Client plugin body: mount the service, then register the popupSelect shell

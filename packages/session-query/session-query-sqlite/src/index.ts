@@ -316,6 +316,8 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
   private _persistenceBinding: PersistenceBinding = { identity: Symbol() }
   private _lastPersistenceIdentity: symbol | undefined
   private _persistenceEpoch = 0
+  /** Revision of each stored session last reported as corrupt, so one refresh after another warns once per revision. */
+  private readonly _reportedCorrupt = new Map<SessionId, string>()
   private _globalGeneration = 0
   private _localGeneration = 0
   private _tail: Promise<void> = Promise.resolve()
@@ -641,6 +643,13 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
     return { id: entry.header.id, revision, generation }
   }
 
+  /** Warn once per revision that a stored session's log failed validation and stays out of search. */
+  private _reportCorrupt(id: SessionId, revision: string, error: unknown): void {
+    if (this._reportedCorrupt.get(id) === revision) return
+    this._reportedCorrupt.set(id, revision)
+    this.ctx.logger.warn(`session-query-sqlite: stored session "${id}" is left out of search until its log validates: ${errorMessage(error)}`)
+  }
+
   private async _observeStable(
     indexed: Map<SessionId, IndexedPersistedRow>,
     liveIndexed: ReadonlyMap<SessionId, IndexedLiveRow>,
@@ -652,6 +661,9 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
       const persistence = persistenceBinding.service
       const initiallyLive = new Set(this.ctx.sessions.list().map(session => session.id))
       let persisted = new Map<SessionId, ObservedPersistedSession>()
+      // Stored sessions whose log failed validation: left out of the index so one corrupt log cannot stop every
+      // other session from being searchable.
+      const corrupt = new Set<SessionId>()
       // Whether sessions changed while this attempt observed them. Rows are keyed by revision, so an attempt that saw
       // churn is still correct as of its first listing; the next reconcile picks up what changed after it.
       let churned = false
@@ -670,7 +682,15 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
             // the returned observation live-preferred.
             if (initiallyLive.has(entry.header.id) || this.ctx.sessions.get(entry.header.id) !== undefined) continue
             assertNotAborted(signal)
-            const loaded = await persistence.inspect(entry.header.id, signal)
+            let loaded
+            try {
+              loaded = await persistence.inspect(entry.header.id, signal)
+            } catch (error: unknown) {
+              if (!await isCorruptLog(error)) throw error
+              this._reportCorrupt(entry.header.id, String(entry.revision), error)
+              corrupt.add(entry.header.id)
+              continue
+            }
             assertNotAborted(signal)
             assertSessionHeadersCompatible(entry.header, loaded.meta)
             // Rows are keyed by revision, so a revision committed here stays
@@ -686,6 +706,7 @@ export class SqliteSessionQueryEngine extends SessionQueryEngine {
           const after = materializePersistenceSnapshots(afterSnapshots)
           if (this._persistenceBinding !== persistenceBinding) continue
           churned = !samePersistenceSnapshots(persisted, after)
+          for (const id of corrupt) persisted.delete(id)
         } catch (error: unknown) {
           if (isAbort(error) || signal?.aborted) {
             throw new SessionQueryError('session-search aborted', 'SESSION_QUERY_ABORTED', {
@@ -1738,6 +1759,15 @@ function asError(error: unknown): Error {
   return error instanceof Error
     ? error
     : new Error('session-search dependency rejected with a non-Error value', { cause: error })
+}
+
+/**
+ * Whether a persistence read failed because the stored log does not validate. The persistence package is an
+ * optional peer, so its error class loads only once a read has failed.
+ */
+async function isCorruptLog(error: unknown): Promise<boolean> {
+  const { SessionPersistenceCorruptionError } = await import('@aeven/session-persistence')
+  return error instanceof SessionPersistenceCorruptionError
 }
 
 function errorMessage(error: unknown): string {

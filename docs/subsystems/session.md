@@ -831,6 +831,22 @@ async inspect( sessionId: SessionId, signal?: AbortSignal, ): Promise<SessionIns
 @Remote('retry') retry(request: SessionRetryRequest, signal: AbortSignal): Promise<SessionRetryValue>
 
 /**
+ * Change the Session's goal on the device of the account that writes the Session.
+ * @param request - Session identity and the goal change.
+ * @param signal - caller cancellation before the change begins.
+ * @returns the goal's new revision when this device applied the change, or the forward receipt.
+ */
+@Remote('goal') goal(request: SessionGoalRequest, signal: AbortSignal): Promise<SessionGoalValue>
+
+/**
+ * Run one slash-command line on the device of the account that writes the Session.
+ * @param request - Session identity, command line, and composer images.
+ * @param signal - caller cancellation of a line this device runs.
+ * @returns the local execution, an unmatched line, or the forward receipt.
+ */
+@Remote('command') command(request: SessionCommandRequest, signal: AbortSignal): Promise<SessionCommandValue>
+
+/**
  * Read one image proven reachable from the addressed Session log.
  * @param request - Session and attachment identities used for authorization.
  * @returns the durable attachment reference and base64-encoded bytes.

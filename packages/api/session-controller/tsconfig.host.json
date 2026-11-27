@@ -56,6 +56,9 @@
     { "path": "../../skill/skill" },
     { "path": "../../subagent/subagent" },
     { "path": "../../util/time" },
+    { "path": "../../goal/goal" },
+    { "path": "../../interaction/commands" },
+    { "path": "../../util/values" },
     { "path": "../../typert/protocol" },
     { "path": "../../typert/registry" },
     { "path": "../../workspace/workspace" }

@@ -59,7 +59,7 @@ A command may declare `input.images` to accept composer image attachments. The e
 
 ### Dispatching from an adapter
 
-An interactive adapter calls `execute(agent, line, images, signal)` with the exact receiving agent, the full command line, and the submission's images. It returns the settled `CommandExecution` — the normalized result plus its lifecycle `commandId` — or `undefined` for invalid syntax or an unknown name. `list(agent)` and `find(agent, name)` serve discovery after agent-scoped shadowing.
+An interactive adapter calls `execute(agent, line, images, signal)` with the exact receiving agent (clients reach it through the Session Controller's `session.command`, which first routes the line to the device that writes the Session), the full command line, and the submission's images. It returns the settled `CommandExecution` — the normalized result plus its lifecycle `commandId` — or `undefined` for invalid syntax or an unknown name. `list(agent)` and `find(agent, name)` serve discovery after agent-scoped shadowing.
 
 ### Cancellation
 
