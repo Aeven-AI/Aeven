@@ -18,11 +18,9 @@ export const zh = {
   'developer.title': '开发者模式',
   'developer.description': '显示为构建 Æven 本身准备的设置，例如 Agent 预设。',
   'connection.error': '连接异常',
-  'connection.retry': '立即重连',
   'connection.connecting': '连接中',
   'connection.connected': '连接成功',
   'connection.reconnect': '连接异常，点击立即重连',
-  'connection.restart': '连接中，点击立即重连',
 } satisfies Record<string, string>
 
 /** The settings namespace key union. */
@@ -46,11 +44,9 @@ export const en = {
   'developer.title': 'Developer mode',
   'developer.description': 'Show settings for building Æven itself, such as agent presets.',
   'connection.error': 'Disconnected',
-  'connection.retry': 'Reconnect now',
   'connection.connecting': 'Connecting',
   'connection.connected': 'Connected',
   'connection.reconnect': 'Disconnected, reconnect now',
-  'connection.restart': 'Connecting, restart now',
 } satisfies Record<SettingsKey, string>
 
 /** Spanish dictionary, checked complete against the zh key set. */
@@ -71,9 +67,7 @@ export const es = {
   'developer.title': 'Modo desarrollador',
   'developer.description': 'Muestra los ajustes para construir Æven, como los preajustes de agentes.',
   'connection.error': 'Desconectado',
-  'connection.retry': 'Reconectar ahora',
   'connection.connecting': 'Conectando',
   'connection.connected': 'Conectado',
   'connection.reconnect': 'Desconectado, reconectar ahora',
-  'connection.restart': 'Conectando, reiniciar ahora',
 } satisfies Record<SettingsKey, string>
