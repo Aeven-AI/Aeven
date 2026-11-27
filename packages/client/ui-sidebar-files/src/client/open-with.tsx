@@ -29,14 +29,15 @@ const DOCUMENTS = new Set([
  * @param remote - workspace reader used to detect other binary formats.
  * @param sessionId - session owning the workspace.
  * @param path - workspace-relative or absolute file path.
- * @returns false for documents and other binary files that need a desktop application, and for a file this Host
- * cannot read, outside its folders or absent, such as one written on another device of the account: the caller then
- * opens the file another way, from its stored copy when it has one.
+ * @param copied - whether a stored copy of the file is at hand, which the viewer reads when the path holds no file.
+ * @returns false for documents and other binary files that need a desktop application, and, without a stored copy,
+ * for a file this Host cannot read, outside its folders or absent, such as one written on another device of the
+ * account: the caller then opens the file another way.
  */
-export async function canPreviewFile(remote: ClientRemote, sessionId: SessionId, path: string): Promise<boolean> {
+export async function canPreviewFile(remote: ClientRemote, sessionId: SessionId, path: string, copied = false): Promise<boolean> {
   if (DOCUMENTS.has(extensionOf(path))) return false
   const kind = fileKindOf(path)
-  if (kind === 'image' || kind === 'video' || kind === 'audio') return true
+  if (kind === 'image' || kind === 'video' || kind === 'audio' || copied) return true
   const result = await remote.workspaceFiles.read(sessionId, path)
   if (result.ok) return true
   const code = result.error.code

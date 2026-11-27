@@ -28,7 +28,8 @@ declare module '@deepseek-ai/cordis' {
        * Focus the file’s existing Files pane, or open a new pane.
        * @param sessionId - Session owning the workspace.
        * @param path - Workspace-relative or absolute file path.
-       * @param copy - URL of a stored copy an image, video, or audio file plays from, for a file this Host may not hold.
+       * @param copy - URL of the file's stored copy, for a file this Host may not hold: an image, video, or audio file
+       * plays from it, and a text file or page whose path holds no file is read from it.
        * @returns Whether the file can be displayed in the sidebar; false for documents and other binary files without a viewer.
        */
       open(sessionId: SessionId, path: string, copy?: string): Promise<boolean>
@@ -92,7 +93,7 @@ export function apply(ctx: ClientContext): void {
       scoped.sidebarContent.requestOpen(sessionId, 'files', true)
     }
     const openFile = async (sessionId: SessionId, path: string, copy?: string): Promise<boolean> => {
-      if (!await canPreviewFile(remote, sessionId, path)) return false
+      if (!await canPreviewFile(remote, sessionId, path, copy !== undefined)) return false
       if (copy !== undefined) copies.set(`${sessionId}\u0000${path}`, copy)
       if ([...openFiles.values()].some(pill => pill.sessionId === sessionId)) {
         placeFile(sessionId, path)

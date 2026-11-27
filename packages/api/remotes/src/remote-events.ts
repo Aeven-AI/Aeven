@@ -7,6 +7,7 @@
  */
 
 import type {} from '@aeven/api-session-controller/remote-events'
+import type {} from '@aeven/host-artifacts/types'
 import type {} from '@aeven/skill'
 import type {} from '@aeven/sync'
 import type {} from '@aeven/api-terminal-controller/types'
@@ -20,6 +21,7 @@ import type { TypertForwardableEventEntry } from '@aeven/typert-protocol'
  */
 export const API_REMOTE_FORWARDED_EVENTS = [
   { event: 'agent-preset/selected', mode: 'emit' },
+  { event: 'artifacts/change', mode: 'emit' },
   { event: 'approval/request', mode: 'waterfall' },
   { event: 'browser/automation', mode: 'waterfall' },
   { event: 'api-session/activity', mode: 'emit' },

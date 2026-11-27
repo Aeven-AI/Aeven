@@ -26,11 +26,11 @@ import { brandString } from '@aeven/brand'
 import type { SessionId } from '@aeven/session'
 import { BrowserUnavailableError, PreviewBrowser } from './browser.ts'
 import { DrawingQueue, PreviewCache, previewKey, type CachedPreview } from './cache.ts'
-import { previewKind, siblingPdf, type PreviewKind } from './kinds.ts'
+import { needsAppServer, previewKind, siblingPdf, type PreviewKind } from './kinds.ts'
 import { embeddedThumbnail } from './office.ts'
 import { drawPdf } from './pdf.ts'
 
-export { previewKind, siblingPdf, type PreviewKind } from './kinds.ts'
+export { needsAppServer, previewKind, siblingPdf, type PreviewKind } from './kinds.ts'
 export { embeddedThumbnail } from './office.ts'
 export { PreviewCache, DrawingQueue, previewKey } from './cache.ts'
 
@@ -40,8 +40,8 @@ export const name = 'artifact-previews'
 /** The route answers HTTP and resolves files through the workspace file service. */
 export const inject = ['connection', 'workspaceFiles', 'fs']
 
-/** Bumped when a renderer changes what it draws, so every cached picture is drawn again. */
-const RENDER_VERSION = 1
+/** Bumped when a renderer changes what it draws, so every cached picture of that kind is drawn again. */
+const RENDER_VERSION: Readonly<Record<PreviewKind, number>> = { image: 1, pdf: 1, office: 1, page: 2 }
 
 /** Path of the route. */
 const ROUTE = '/api/artifact-preview'
@@ -76,6 +76,11 @@ export interface Config {
   maxWorkerHeapMb: number
   /** Characters of a text file's opening the route answers; the card shows fewer. */
   openingChars: number
+  /**
+   * A page screenshot whose colour channels all vary less than this, as a standard deviation over 0 to 255, is
+   * blank, such as a page that drew nothing, and gets no picture.
+   */
+  blankStdev: number
 }
 
 export const Config: z<Config> = z.object({
@@ -93,6 +98,7 @@ export const Config: z<Config> = z.object({
   maxSourceBytes: z.natural().min(1).default(64 * 1024 * 1024),
   maxWorkerHeapMb: z.natural().min(64).default(512),
   openingChars: z.natural().min(1).default(4000),
+  blankStdev: z.number().min(0).max(255).default(3),
 })
 
 /** Headers of every response: the caller's own files, revalidated by ETag on each view. */
@@ -153,6 +159,13 @@ export function apply(ctx: Context, config: Config): void {
       .webp({ quality: config.quality }).toBuffer())
   }
 
+  /** Whether a screenshot shows one flat colour: a page that drew nothing, or nothing yet. */
+  const blank = async (image: Uint8Array): Promise<boolean> => {
+    const { default: sharp } = await import('sharp')
+    const { channels } = await sharp(image).stats()
+    return channels.slice(0, 3).every(channel => channel.stdev < config.blankStdev)
+  }
+
   const read = (target: FsTarget, signal: AbortSignal): Promise<Uint8Array> =>
     ctx.fs.readBytes(target, signal, config.maxSourceBytes)
 
@@ -173,12 +186,13 @@ export function apply(ctx: Context, config: Config): void {
         return await drawPdf(await read(pdf.target, signal), picture, pdfLimits, signal)
       }
       case 'page': {
+        const html = new TextDecoder().decode(await read(target, signal))
+        // An app's source page draws nothing without its server or build; its card is paper rather than a blank.
+        if (needsAppServer(html)) return 'none'
         // A page on this machine's own disk opens from its file, so its stylesheets, scripts and images load.
         const local = isAbsolute(target.displayPath) && existsSync(target.displayPath)
-        const source = local
-          ? { kind: 'file' as const, path: target.displayPath }
-          : { kind: 'html' as const, html: new TextDecoder().decode(await read(target, signal)) }
-        return await browser.screenshot(source, picture, config.timeoutMs, signal)
+        const shot = await browser.screenshot(local ? { kind: 'file', path: target.displayPath } : { kind: 'html', html }, picture, config.timeoutMs, signal)
+        return await blank(shot) ? 'none' : shot
       }
       default: {
         const unknown: never = kind
@@ -251,7 +265,7 @@ export function apply(ctx: Context, config: Config): void {
       if (opening) return await openingOf(target, info, cache, request)
       if (kind === undefined || (info.size !== undefined && info.size > config.maxSourceBytes)) return noPicture()
       const key = previewKey([
-        RENDER_VERSION, kind, target.displayPath, String(info.version), info.size ?? -1, config.width, config.height, config.quality,
+        RENDER_VERSION[kind], kind, target.displayPath, String(info.version), info.size ?? -1, config.width, config.height, config.quality,
       ])
       const etag = `"${key}"`
       if (request.headers.get('if-none-match') === etag) return new Response(null, { status: 304, headers: { ...HEADERS, 'Cache-Control': cache, ETag: etag } })

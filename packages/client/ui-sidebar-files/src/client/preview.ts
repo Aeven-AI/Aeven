@@ -553,6 +553,11 @@ export async function previewDocument(html: string, path: string, read: AssetRea
   for (const hint of doc.querySelectorAll('link[rel~="preload"][href], link[rel~="prefetch"][href], link[rel~="modulepreload"][href]')) {
     if (isWorkspaceReference(hint.getAttribute('href') ?? '')) hint.remove()
   }
+  // A refresh would navigate the frame away from the page, to an address on the app's origin that serves no page
+  // of the workspace; the preview shows the page itself, as with a redirect stub's own text and links.
+  for (const refresh of doc.querySelectorAll('meta[http-equiv]')) {
+    if (refresh.getAttribute('http-equiv')?.toLowerCase() === 'refresh') refresh.remove()
+  }
   for (const link of doc.querySelectorAll<HTMLLinkElement>('link[rel~="stylesheet"][href]')) {
     const reference = link.getAttribute('href') ?? ''
     const target = isWorkspaceReference(reference) ? resolveReference(folder, reference) : undefined

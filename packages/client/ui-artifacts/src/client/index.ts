@@ -15,6 +15,7 @@ import type {} from '@aeven/api-remotes/client'
 import type { Artifact } from '@aeven/host-artifacts/types'
 import { ArtifactsPage, type ArtifactsPageInjected } from './ArtifactsPage.tsx'
 import { ArtifactsRow, type ArtifactsRowInjected } from './ArtifactsRow.tsx'
+import { withSession } from './groups.ts'
 import { artifactHref, linkedArtifact } from './links.ts'
 import { isTextArtifact } from './TextPreview.tsx'
 import { en, es, zh, type ArtifactsKey } from './locales.ts'
@@ -141,10 +142,16 @@ export function apply(ctx: Context): void {
       ? [attachmentUrl(artifact, artifact.attachmentId)]
       : artifact.missing === true || files === undefined ? [] : [files.fileUrl(artifact.sessionId, artifact.path)]
     const originals = artifact.kind === 'image' || artifact.kind === 'video' ? original : []
-    return artifact.kind === 'video' || artifact.missing === true ? originals : [previewUrl(artifact), ...originals]
+    // A stored-only artifact, such as a generated picture, is its copy: the Host has no file to draw.
+    return artifact.kind === 'video' || artifact.missing === true || artifact.stored === true ? originals : [previewUrl(artifact), ...originals]
   }
-  // The last complete list, for as long as the app stays open.
+  // The last complete list, for as long as the app stays open, kept current by the Host's change notices.
   let kept: readonly Artifact[] | undefined
+  const watchers = new Set<(sessionId: Artifact['sessionId'], items: readonly Artifact[]) => void>()
+  ctx.remote.$on('artifacts/change', (sessionId, items) => {
+    if (kept !== undefined) kept = withSession(kept, sessionId, items)
+    for (const watcher of watchers) watcher(sessionId, items)
+  })
   const page: ArtifactsPageInjected = {
     list: async (cursor) => {
       const result = await ctx.remote.artifacts.list(cursor === undefined ? {} : { cursor })
@@ -157,7 +164,14 @@ export function apply(ctx: Context): void {
       void ctx.get('sidebarFiles')?.open(artifact.sessionId, artifact.path, copy)
     },
     previewUrls,
-    lastList: { read: () => kept, keep: (items) => { kept = items } },
+    lastList: {
+      read: () => kept,
+      keep: (items) => { kept = items },
+      watch: (watcher) => {
+        watchers.add(watcher)
+        return () => { watchers.delete(watcher) }
+      },
+    },
     loadText: (artifact, signal) => {
       const cached = openings.get(artifact.id)
       if (cached !== undefined) return cached

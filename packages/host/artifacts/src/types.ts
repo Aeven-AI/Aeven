@@ -41,13 +41,40 @@ export interface Artifact {
   readonly attachmentId?: string | undefined
   /** For a Motion film, the `show_motion` call that last showed it, from which the Host can rebuild the film. */
   readonly callId?: string | undefined
-  /** Whether the file is not on this device now, such as one deleted, moved, or made on another device. */
+  /**
+   * What the file is one export of, when the Session made it as part of a set: `resume` for a résumé the CV skill
+   * built, `deck` for a slide deck. Read from the skill's source file in the same folder, `cv.json` or `deck.json`,
+   * or, for a deck, from a slides file of the same name.
+   */
+  readonly family?: 'resume' | 'deck' | undefined
+  /**
+   * Whether the artifact exists only as its stored copy, such as a generated picture or clip: `path` is then the
+   * copy's name rather than a file, and `attachmentId` is always set.
+   */
+  readonly stored?: true | undefined
+  /**
+   * Whether the file is not on this device now, such as one deleted, moved, or made on another device, and its
+   * stored copy stands for it. An artifact with neither its file nor a stored copy is not listed.
+   */
   readonly missing?: true | undefined
   /**
    * Opaque token of the file's current version on this device, absent when the file is missing. It changes
    * whenever the file does, so an address carrying it names one version and may be cached for good.
    */
   readonly version?: string | undefined
+}
+
+declare module '@deepseek-ai/cordis' {
+  interface Events {
+    /**
+     * A Session running on this Host changed its artifacts: it made, changed or linked a file, was renamed, or was
+     * rewound. Sent only when the list differs from the one last sent for that Session.
+     * @mode emit
+     * @param sessionId - the Session.
+     * @param items - all of that Session's artifacts that can be shown, newest first.
+     */
+    'artifacts/change'(sessionId: SessionId, items: readonly Artifact[]): void
+  }
 }
 
 /** Read one page of artifacts. */

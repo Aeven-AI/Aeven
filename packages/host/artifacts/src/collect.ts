@@ -44,6 +44,156 @@ export function artifactKind(path: string): ArtifactKind | undefined {
 /** The tool whose result shows a Motion film: a folder of HTML scenes played as one video. */
 const SHOW_MOTION = 'show_motion'
 
+/** Tools whose results hold the pictures and clips they generated as stored copies, with no file on disk. */
+const GENERATORS = new Set(['generate_image', 'generate_video'])
+
+/** Characters of a generation prompt a card's title keeps. */
+const PROMPT_TITLE_CHARS = 120
+
+/** One picture or clip a generation tool stored. */
+interface GeneratedCopy {
+  readonly seq: number
+  readonly time: number
+  readonly attachmentId: string
+  readonly name: string
+  readonly kind: 'image' | 'video'
+  /** The prompt the call generated it from, as the card's title. */
+  readonly prompt?: string | undefined
+}
+
+/** One image a reply links to by a path on disk. */
+interface LinkedImage {
+  readonly seq: number
+  readonly time: number
+  readonly path: string
+  /** The link's own text, when it says something. */
+  readonly label?: string | undefined
+}
+
+/** File extensions of the media types a generated copy is stored as. */
+const EXTENSION_BY_TYPE: Readonly<Record<string, string>> = {
+  'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif', 'video/mp4': 'mp4', 'video/webm': 'webm',
+}
+
+/**
+ * The stored copies one generation result holds.
+ * @param content - the result's content blocks.
+ * @returns each picture and clip with the name it is shown under: its own, else its digest's first characters and
+ * the extension its media type names, the name the conversation shows it under.
+ */
+function generatedCopies(content: readonly unknown[]): Array<Pick<GeneratedCopy, 'attachmentId' | 'name' | 'kind'>> {
+  return content.flatMap((block) => {
+    if (typeof block !== 'object' || block === null || !('type' in block) || !('attachment' in block)) return []
+    const attachment = block.attachment
+    if (typeof attachment !== 'object' || attachment === null || !('attachmentId' in attachment)) return []
+    const { attachmentId } = attachment
+    const mediaType = 'mediaType' in attachment && typeof attachment.mediaType === 'string' ? attachment.mediaType : ''
+    if (typeof attachmentId !== 'string') return []
+    const kind = block.type === 'image' ? 'image' : block.type === 'file' && mediaType.startsWith('video/') ? 'video' : undefined
+    if (kind === undefined) return []
+    const own = 'name' in attachment && typeof attachment.name === 'string' && attachment.name !== '' ? attachment.name : undefined
+    const name = own ?? `${attachmentId.replace(/^sha256:/u, '').slice(0, 12)}.${EXTENSION_BY_TYPE[mediaType] ?? kind}`
+    return [{ attachmentId, name, kind }]
+  })
+}
+
+/**
+ * The prompt a generation call names, as a one-line title.
+ * @param raw - the call's arguments as the model sent them.
+ * @returns the prompt, clipped, or undefined when the call names none.
+ */
+function promptTitle(raw: string): string | undefined {
+  let args: unknown
+  try {
+    args = JSON.parse(raw)
+  } catch {
+    // Unreadable arguments name no prompt; the card falls back to the conversation's title.
+    return undefined
+  }
+  if (typeof args !== 'object' || args === null || !('prompt' in args) || typeof args.prompt !== 'string') return undefined
+  const line = args.prompt.replace(/\s+/gu, ' ').trim()
+  if (line === '') return undefined
+  return line.length > PROMPT_TITLE_CHARS ? `${line.slice(0, PROMPT_TITLE_CHARS - 1).trimEnd()}\u2026` : line
+}
+
+/** The source file a skill keeps in the folder of each thing it makes, naming what that folder's files are. */
+export const SOURCE_FAMILY: Readonly<Record<string, Family>> = { 'cv.json': 'resume', 'deck.json': 'deck' }
+
+/** What a set of exports is: a résumé or a slide deck. */
+type Family = NonNullable<Artifact['family']>
+
+/** Kinds an exporter writes beside the page it exports, whose page of the same name is the version to publish. */
+const EXPORT_KINDS: ReadonlySet<ArtifactKind> = new Set(['document', 'slides', 'pdf'])
+
+/**
+ * A path without its extension, so the exports of one source match.
+ * @param path - a path in either separator spelling.
+ * @returns the path up to its last dot after the last separator.
+ */
+function stemOf(path: string): string {
+  const dot = path.lastIndexOf('.')
+  return dot > Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')) ? path.slice(0, dot) : path
+}
+
+/**
+ * The folder of a comparable path.
+ * @param path - comparable path.
+ * @returns the path up to its last slash.
+ */
+function folderOf(path: string): string {
+  return path.slice(0, path.lastIndexOf('/'))
+}
+
+/**
+ * Whether a path names a scratch file: a hidden file, or one whose name or folder starts with `_`, the names Aeven
+ * gives the throwaway pages, probes and review copies it makes while working. Such a file is not an artifact.
+ * @param path - a path in either separator spelling.
+ * @returns true for a scratch file.
+ */
+function scratch(path: string): boolean {
+  const parts = path.split(/[\\/]/u)
+  const name = parts.at(-1) ?? ''
+  return name.startsWith('.') || name.startsWith('_') || (parts.at(-2) ?? '').startsWith('_')
+}
+
+/** Tools whose successful results can add an artifact on their own, beside any result that declares output files. */
+export const ARTIFACT_TOOLS: ReadonlySet<string> = new Set(['write', 'edit', 'str_replace_editor', SHOW_MOTION, ...GENERATORS])
+
+/**
+ * Whether a reply's text links to an image on disk, which lists that image.
+ * @param text - the reply's text.
+ * @returns true when the text holds such a link.
+ */
+export function linksImage(text: string): boolean {
+  return text.includes('](') && linkedImages(text).length > 0
+}
+
+/** A Markdown image or link: its text, then its target up to the first space or closing parenthesis. */
+const MARKDOWN_LINK = /(!?)\[([^\]\n]*)\]\(\s*<?([^)\s>]+)>?(?:\s+"[^"]*")?\s*\)/gu
+
+/**
+ * The images on disk a reply links to, written as Markdown images or links.
+ * @param text - the reply's text.
+ * @returns each image's path as written and the link's text; web addresses and inline data are not files.
+ */
+function linkedImages(text: string): Array<{ path: string; label?: string }> {
+  const found: Array<{ path: string; label?: string }> = []
+  for (const match of text.matchAll(MARKDOWN_LINK)) {
+    let target = match[3] ?? ''
+    try {
+      target = decodeURI(target)
+    } catch {
+      // A malformed escape stays as written.
+    }
+    target = target.replace(/^file:\/\//u, '')
+    if (/^[a-z][a-z\d+.-]*:/iu.test(target) && !/^[a-z]:[\\/]/iu.test(target)) continue
+    if (target.startsWith('#') || artifactKind(target) !== 'image') continue
+    const label = (match[2] ?? '').trim()
+    found.push({ path: target, ...label === '' || label === '...' ? {} : { label } })
+  }
+  return found
+}
+
 /** One Motion film as its latest `show_motion` result recorded it. */
 interface MotionFilm {
   readonly seq: number
@@ -156,16 +306,6 @@ function titleOf(path: string, written: string | undefined, conversation: string
 }
 
 /**
- * A path split into its folder and its name without the extension, for matching a source page to its export.
- * @param path - comparable path.
- * @returns the folder and the stem joined, so two files match when both agree.
- */
-function stemKey(path: string): string {
-  const dot = path.lastIndexOf('.')
-  return dot > path.lastIndexOf('/') ? path.slice(0, dot) : path
-}
-
-/**
  * The whole page a write call puts on disk: `write` with its content, or `str_replace_editor` creating a file.
  * @param name - the tool's name.
  * @param raw - the call's arguments as the model sent them.
@@ -194,9 +334,9 @@ function writtenPage(name: string, raw: string): { path: string; content: string
  * more than once is listed once, at its latest creation. Events inherited from a fork parent are skipped,
  * because the parent Session lists them.
  *
- * A page that is only the source of something else is not listed. A Motion film is one artifact, its
- * composition folder, and the scene pages inside that folder are left out. A page beside an export of the
- * same name, such as `deck.html` next to `deck.pdf`, is left out in favour of the export.
+ * A Motion film is one artifact, its composition folder, and the scene pages inside that folder are left out. A
+ * page beside an export of the same name, such as `deck.html` next to `deck.pdf`, is listed beside it, because
+ * the page is the version that can be published.
  * @param header - the Session's immutable metadata.
  * @param inheritedEventCount - length of the fork-inherited event prefix.
  * @param events - the Session's whole logical log.
@@ -212,6 +352,9 @@ export function collectArtifacts(
   const times = new Map<number, number>()
   const motionCalls = new Set<string>()
   let films = new Map<string, MotionFilm>()
+  const generations = new Map<string, string | undefined>()
+  let generated: GeneratedCopy[] = []
+  let linked: LinkedImage[] = []
   // The `<title>` of each page as Aeven last wrote it whole, by the path the call named.
   const written = new Map<string, string>()
   let conversation: string | undefined
@@ -219,6 +362,7 @@ export function collectArtifacts(
     state = definition.apply(state, event)
     if (event.type === 'tool/call') {
       if (event.data.name === SHOW_MOTION) motionCalls.add(String(event.data.callId))
+      if (GENERATORS.has(event.data.name)) generations.set(String(event.data.callId), promptTitle(event.data.arguments))
       const page = writtenPage(event.data.name, event.data.arguments)
       if (page !== undefined) {
         const title = htmlTitle(page.content)
@@ -237,18 +381,40 @@ export function collectArtifacts(
         const motion = motionOf(event.data.meta)
         if (motion !== undefined) films.set(motion.dir, { seq: event.seq, time: event.time, callId, ...motion })
       }
+      if (generations.has(callId)) {
+        const prompt = generations.get(callId)
+        generations.delete(callId)
+        if (result.isError !== true) {
+          for (const copy of generatedCopies(result.content)) generated.push({ seq: event.seq, time: event.time, prompt, ...copy })
+        }
+      }
+    } else if (event.type === 'assistant/message') {
+      for (const block of event.data.message.content) {
+        if (block.type !== 'text') continue
+        for (const link of linkedImages(block.text)) linked.push({ seq: event.seq, time: event.time, ...link })
+      }
     } else if (event.type === 'session/rewind') {
       const target = event.data.seq
       films = new Map([...films].filter(([, film]) => film.seq < target))
+      generated = generated.filter(copy => copy.seq < target)
+      linked = linked.filter(link => link.seq < target)
     }
   }
   const ownFrom = events[inheritedEventCount]?.seq ?? Number.POSITIVE_INFINITY
   const byPath = new Map<string, Artifact>()
+  const linkedOnly = new Set<string>()
+  // Folders the Session keeps a skill's source in, and the family their files belong to.
+  const families = new Map<string, Family>()
+  // The page an exporter wrote beside the exports a command declared, which the command did not declare itself.
+  const pages = new Map<string, { readonly seq: number }>()
   for (const turn of state.turns) {
     for (const file of turn.produced) {
+      const family = SOURCE_FAMILY[artifactName(file.path)]
+      if (family !== undefined) families.set(folderOf(comparable(file.path, header.cwd)), family)
       if (file.seq < ownFrom || !(file.created || file.declared === true)) continue
       const kind = artifactKind(file.path)
-      if (kind === undefined) continue
+      if (kind === undefined || scratch(file.path)) continue
+      if (file.declared === true && EXPORT_KINDS.has(kind)) pages.set(`${stemOf(file.path)}.html`, { seq: file.seq })
       byPath.set(file.path, {
         id: `${header.id}:${file.path}` as ArtifactId,
         sessionId: header.id,
@@ -261,16 +427,47 @@ export function collectArtifacts(
       })
     }
   }
+  // Listed while it is on disk; the presence check leaves out one the exporter did not write.
+  for (const [path, page] of pages) {
+    if (byPath.has(path)) continue
+    byPath.set(path, {
+      id: `${header.id}:${path}` as ArtifactId,
+      sessionId: header.id,
+      path,
+      name: artifactName(path),
+      title: titleOf(comparable(path, header.cwd), written.get(path), conversation),
+      kind: 'page',
+      createdAt: times.get(page.seq) ?? header.createdAt,
+    })
+  }
+  // An image a reply links to is listed when no tool's record of the file already lists it, at its latest link.
+  for (const link of linked) {
+    if (link.seq < ownFrom || scratch(link.path) || byPath.get(link.path)?.kind === 'image' && !linkedOnly.has(link.path)) continue
+    linkedOnly.add(link.path)
+    const path = comparable(link.path, header.cwd)
+    byPath.set(link.path, {
+      id: `${header.id}:${link.path}` as ArtifactId,
+      sessionId: header.id,
+      path: link.path,
+      name: artifactName(link.path),
+      title: link.label ?? titleOf(path, undefined, conversation),
+      kind: 'image',
+      createdAt: link.time,
+    })
+  }
   const files = [...byPath.values()]
-  const exported = new Set(files.filter(item => item.kind !== 'page').map(item => stemKey(comparable(item.path, header.cwd))))
   const dirs = [...films.keys()]
-  const listed = files.filter((item) => {
+  // A file beside a deck's own slides file, such as `deck.pdf` next to `deck.pptx`, is one of its exports.
+  const decks = new Set(files.filter(item => item.kind === 'slides').map(item => stemOf(comparable(item.path, header.cwd))))
+  const listed = files.flatMap((item) => {
     const path = comparable(item.path, header.cwd)
-    if (dirs.some(dir => path.startsWith(`${dir}/`))) return false
-    return item.kind !== 'page' || !exported.has(stemKey(path))
+    if (dirs.some(dir => path.startsWith(`${dir}/`))) return []
+    if (item.kind === 'image' || item.kind === 'video') return [item]
+    const family = families.get(folderOf(path)) ?? (decks.has(stemOf(path)) ? 'deck' : undefined)
+    return [family === undefined ? item : { ...item, family }]
   })
   for (const film of films.values()) {
-    if (film.seq < ownFrom) continue
+    if (film.seq < ownFrom || scratch(`${film.dir}/index.html`)) continue
     listed.push({
       id: `${header.id}:${film.dir}` as ArtifactId,
       sessionId: header.id,
@@ -281,6 +478,22 @@ export function collectArtifacts(
       createdAt: film.time,
       callId: film.callId,
       ...film.attachmentId === undefined ? {} : { attachmentId: film.attachmentId },
+    })
+  }
+  const copies = new Set<string>()
+  for (const copy of generated) {
+    if (copy.seq < ownFrom || copies.has(copy.attachmentId)) continue
+    copies.add(copy.attachmentId)
+    listed.push({
+      id: `${header.id}:${copy.attachmentId}` as ArtifactId,
+      sessionId: header.id,
+      path: copy.name,
+      name: copy.name,
+      title: copy.prompt ?? conversation ?? copy.name,
+      kind: copy.kind,
+      createdAt: copy.time,
+      attachmentId: copy.attachmentId,
+      stored: true,
     })
   }
   return listed.sort((a, b) => b.createdAt - a.createdAt)

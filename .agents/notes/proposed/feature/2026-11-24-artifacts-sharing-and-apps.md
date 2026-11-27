@@ -217,7 +217,7 @@ Front-end apps that save in the browser need nothing more. Apps with shared data
 - **Model and image calls:** billed to the app's owner with a daily cap and a visible notice to visitors, or to the visitor's own Æven account after sign-in when the owner chooses that.
 - **Limits:** quotas and rate limits per app, charged through the existing cloud billing.
 
-There is no custom server per app. That would mean long-running processes per user, which is costly and the largest security risk. Small on-demand functions could be added later.
+There is no custom server per app. That would mean long-running processes per user, which is costly and the largest security risk. Small on-demand functions could be added later. [Full-stack apps](#full-stack-apps) describes how other builders run app server code and databases, and a route on Cloudflare Workers that runs no long-lived process.
 
 ### The bridge
 
@@ -355,6 +355,61 @@ A later, paid add-on.
 - **One official address.** Once a domain is connected, the `aeven.app` address redirects to it and keeps the rest of the path.
 - **Start with subdomains** such as `app.olivier.com`. A bare `olivier.com` needs a record type that not every DNS provider supports.
 - **Installs are tied to the address.** People who installed an app from the old address have to install it again from the new one.
+
+## Full-stack apps
+
+Lovable, Z.ai and Kimi host complete apps with server code and a database, built and published from chat. This section records how each does it, researched on 27 November 2026 from their documentation, their published npm packages, projects their users exported to GitHub, DNS and response headers, and vendor case studies, and what Æven would need to offer the same.
+
+### How three builders do it
+
+| | Lovable | Z.ai | Kimi |
+| --- | --- | --- | --- |
+| Generated stack | Vite, React and shadcn; since May 2026 TanStack Start with server rendering per route | Next.js 16 standalone server, Prisma on SQLite and shadcn, run with Bun | Vite, React and shadcn; the backend adds Hono, tRPC and Drizzle on MySQL |
+| Preview while editing | A dev server per session in a sandbox, about one million sandboxes a day; first on Modal, now on their own gVisor scheduler across clouds | A container per chat starts the dev server itself; the preview is `preview-chat-<id>.space-z.ai` in an iframe | A Debian container per session; the full-stack preview sometimes has to be started again by hand |
+| Published apps run on | Cloudflare Workers: each publish builds the app, pre-renders the static routes and deploys one Worker, at `<name>.lovable.app` | Alibaba Cloud Function Compute, a serverless container running the Next.js server behind Alibaba's web firewall, at `<random>-d.space-z.ai` | nginx for static builds; full-stack sites are built from a generated Dockerfile; at `<name>.ok.kimi.link` |
+| Database | Supabase: the user's own organisation, connected by Supabase's sign-in and managed through its Management API, or Lovable Cloud, a Supabase instance Lovable owns and bills from credits | A SQLite file packaged with the deployment and kept inside the instance, so data does not reliably survive a redeploy | One logical MySQL database per site on a shared TiDB Cloud cluster, handed out from a warm pool and scaled to zero when idle |
+| Sign-in in generated apps | Google, Apple, Microsoft or "Sign in with Lovable" | NextAuth | A Kimi account, or username and password on the site's database |
+| AI inside apps | An AI gateway SDK, billed to the owner | An internal gateway keyed to the chat and the user | Not documented |
+| Abuse controls | User domains on the Public Suffix List, a check while the prompt is typed, a Safe Browsing check before going live, daily scans, and security checks in the publish dialog | Web firewall and content review | A separate domain and takedown on report |
+| Open source | Small parts only, such as their Rust dev server | No; the template ships inside every exported project | No; Moonshot's agent SDK runs its tools on swappable sandboxes but includes no hosting |
+
+What the three share:
+
+- **One fixed template and skill.** Kimi's database vendor reports that standardising on one set of frameworks and starter files raised the share of generations that work.
+- **A live preview.** A dev server runs while the agent edits, and the agent checks it with lint, type checks, the dev server log and a headless browser.
+- **An explicit publish.** The user's click builds and deploys a snapshot to a wildcard subdomain on a domain separate from the product.
+- **A database per app, managed for the user.**
+- **Sign-in with the builder's own account.**
+- **Abuse controls from the first release.** Proofpoint counted tens of thousands of Lovable addresses a month in phishing email from February 2025, before Lovable added its checks.
+- **Database access checks at publish.** Generated apps without row-level access rules exposed their data (CVE-2025-48757, CVSS 9.3), which is why Lovable checks database access before publishing.
+
+### What Æven has
+
+- The per-account jail on pink, with npm and pip through the egress proxy.
+- Account folders synced from desktops, and storage billing.
+- Cloudflare in front, and the certificate for `*.aeven.app`.
+- Credit billing for inference and cloud use.
+- The static hosting in this note: `public/`, `links/` and `shared/`, the nginx vhost, and the scan before serving.
+- On the desktop, the agent can already build an app and run its dev server locally, and the sidebar browser can show it.
+
+### What Æven would need
+
+1. **A template and an app skill.** Vite, React and shadcn with address-independent links, as in [Links inside apps](#links-inside-apps), plus one backend recipe. This is prompt and template work.
+2. **A hosted preview.** The desktop already has one. The hosted Host needs the jail's dev server reachable through a preview proxy: a token-checked preview address, iframe-safe cookies, and a sandbox that sleeps when idle.
+3. **Server code without a server per app.** Cloudflare Workers for Platforms runs each customer's code in its own V8 isolate, scales to zero and needs no server of Æven's own; Lovable publishes this way. It meets the reason [Built-in backend](#built-in-backend) gives against a server per app, since no long-lived process runs. Its limit is the Workers runtime: no native Node modules and no local SQLite file, so the database is a separate service. Containers per app, as Z.ai and Kimi use, would mean running a container platform.
+4. **A database per app,** offered two ways:
+   - **Managed:** Cloudflare D1, one SQLite database bound to each app's Worker, with R2 for uploaded files. It is per app and costs nothing while idle, as Kimi's TiDB setup does, and pairs with Workers.
+   - **The user's own Supabase:** connected through Supabase's sign-in and Management API, as Lovable does, with every migration shown for approval and secrets kept in Supabase.
+5. **Sign in with Æven, and AI billed through Æven.** The accounts and the credit balance exist. The visitor-pays and owner-pays rules in [End goals check](#end-goals-check) apply here.
+6. **A version per agent turn.** A git commit per turn with rollback, as all three do; Share publishes a snapshot.
+7. **Checks at publish.** On top of [Nothing is served until scanned](#nothing-is-served-until-scanned): a phishing check, a check that every table has access rules, and takedown.
+8. **A charge for each live site.** A small fee from the credit balance while a site is live, as Kimi charges, with quotas per account.
+
+### Order
+
+- Sharing built static apps first: Phase 1 as written.
+- Then Workers for Platforms with D1 and Sign in with Æven as the full-stack tier, with the user's own Supabase beside it. This would replace the per-app data store of [Phase 3](#phase-3-built-in-backend).
+- The hosted preview proxy when hosted Æven builds apps; the desktop does not need it.
 
 ## Security and abuse
 
@@ -503,6 +558,7 @@ After this phase several people can work on one artifact, as in Claude.
 | Install other people's apps into Æven in the first version? | No, own apps first. |
 | Include the Dock or Start menu launcher in the first "Add to my computer"? | Own window first, launcher right after. |
 | May a published app call the model for visitors? | Not until the backend phase, then capped and billed to the owner. |
+| Run app server code on Cloudflare Workers for Platforms, with a D1 database per app? | Yes, as the full-stack tier after static sharing; see [Full-stack apps](#full-stack-apps). It revisits "no custom server per app" without long-lived processes. |
 
 ## Not yet verified
 
@@ -516,6 +572,9 @@ After this phase several people can work on one artifact, as in Claude.
 - **Microsoft Store rules** on creating Start menu shortcuts for sub-apps.
 - **Hosted Host browser cookies.** Only the API's cookies were checked.
 - **Shared browser storage.** All of one user's apps share storage at `<username>.aeven.app`. An app-per-subdomain layout would isolate them and was not chosen.
+- **Workers for Platforms and D1:** pricing, and the limits on Workers and databases per account.
+- **The jail's preview port:** whether the hosted jail can expose a dev server's port to a preview proxy without widening its network rules.
+- **The research in Full-stack apps** comes from documentation, packages and exported projects, not from building on those platforms; some of it is inferred from headers and DNS.
 
 ## Alternatives considered
 

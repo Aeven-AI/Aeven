@@ -191,6 +191,18 @@
   color: var(--dsw-alias-label-primary);
 }
 
+/* The glyph of a paper card's file kind, centred above the caption. */
+.placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-bottom: 3rem;
+  color: var(--dsw-alias-label-tertiary, var(--dsw-alias-label-secondary));
+  pointer-events: none;
+}
+
 /* The loading surface, as on the Inspiration cards: the spinner centred on the raised layer, the caption in ink
    above it. It fades out as the content arrives while the shade fades in, so the hand-over is one cross-fade;
    it never takes a click. */

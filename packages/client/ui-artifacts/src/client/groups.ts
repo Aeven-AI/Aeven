@@ -46,3 +46,14 @@ export function groupByDate(artifacts: readonly Artifact[], now: number): Artifa
   }
   return [...groups].map(([key, group]) => ({ key, ...group }))
 }
+
+/**
+ * A list with one conversation's artifacts replaced, newest first.
+ * @param items - the list.
+ * @param sessionId - the conversation whose artifacts changed.
+ * @param next - all of that conversation's artifacts now.
+ * @returns the new list.
+ */
+export function withSession(items: readonly Artifact[], sessionId: Artifact['sessionId'], next: readonly Artifact[]): Artifact[] {
+  return [...items.filter(item => item.sessionId !== sessionId), ...next].sort((a, b) => b.createdAt - a.createdAt)
+}

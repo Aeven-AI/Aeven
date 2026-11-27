@@ -13,6 +13,23 @@ const LOAD_MARGIN = '400px'
 /** Lines set on the card; more never fit its height. */
 const MAX_LINES = 40
 
+/** Openings already set while the app stays open, by artifact id and file version, so a card shown again sets its text at once. */
+const known = new Map<string, string>()
+
+/** The key of one file version's opening. */
+function openingKey(artifact: Artifact): string {
+  return `${artifact.id}\n${artifact.version ?? ''}`
+}
+
+/**
+ * The opening of an artifact's current version, when a card already set it.
+ * @param artifact - a text artifact.
+ * @returns the opening, or undefined when none was read yet.
+ */
+export function knownOpening(artifact: Artifact): string | undefined {
+  return known.get(openingKey(artifact))
+}
+
 /**
  * Whether an artifact is drawn as text in its card.
  * @param artifact - the artifact.
@@ -53,8 +70,8 @@ export function TextPreview({ artifact, load, onReady, onFail }: {
   onFail: () => void
 }) {
   const paper = useRef<HTMLDivElement>(null)
-  const [near, setNear] = useState(false)
-  const [text, setText] = useState<string | undefined>(undefined)
+  const [text, setText] = useState<string | undefined>(() => knownOpening(artifact))
+  const [near, setNear] = useState(text !== undefined)
 
   useEffect(() => {
     const element = paper.current
@@ -77,6 +94,7 @@ export function TextPreview({ artifact, load, onReady, onFail }: {
       if (controller.signal.aborted) return
       if (loaded === undefined) onFail()
       else {
+        known.set(openingKey(artifact), loaded)
         setText(loaded)
         onReady()
       }

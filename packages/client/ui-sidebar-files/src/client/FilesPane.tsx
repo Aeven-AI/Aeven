@@ -1369,7 +1369,10 @@ function FileView({
   path: string
   /** Bumped whenever the file may have changed, which reloads it in place. */
   version: number
-  /** A stored copy the media kinds play from instead of the workspace path. */
+  /**
+   * A stored copy of the file: the media kinds play from it instead of the workspace path, and a text file or page
+   * whose path no longer holds a file is read from it.
+   */
   copy: string | undefined
   root: string | null
   canOpenNative: boolean
@@ -1402,16 +1405,29 @@ function FileView({
   useEffect(() => {
     if (media) return undefined
     const controller = new AbortController()
-    void remote.workspaceFiles.read(sessionId as SessionId, path, controller.signal).then((result) => {
+    void remote.workspaceFiles.read(sessionId as SessionId, path, controller.signal).then(async (result) => {
       if (controller.signal.aborted) return
-      setContent(result.ok
-        ? { status: 'ready', file: result.value }
-        : { status: 'error', message: failureLine(t, result.error.code, result.error.message) })
-    }, (error: unknown) => {
+      if (result.ok) {
+        setContent({ status: 'ready', file: result.value })
+        return
+      }
+      // A file gone from this device whose stored copy was named is read from that copy.
+      if (result.error.code === 'workspace-file/not-found' && copy !== undefined) {
+        const response = await fetch(copy, { signal: controller.signal, credentials: 'same-origin' })
+        if (response.ok) {
+          const text = await response.text()
+          if (!controller.signal.aborted) {
+            setContent({ status: 'ready', file: { absolutePath: absolutePath(root, path), bytes: text.length, text, eof: true } })
+          }
+          return
+        }
+      }
+      if (!controller.signal.aborted) setContent({ status: 'error', message: failureLine(t, result.error.code, result.error.message) })
+    }).catch((error: unknown) => {
       if (!controller.signal.aborted) setContent({ status: 'error', message: t('error.unavailable', { message: String(error) }) })
     })
     return () => { controller.abort() }
-  }, [media, path, remote, sessionId, t, version])
+  }, [copy, media, path, remote, root, sessionId, t, version])
 
   const [page, setPage] = useState<{ readonly html: string; readonly token: string } | null>(null)
   // The text view's refusal (a file past its byte cap) says nothing about the rendered page, which reads the whole

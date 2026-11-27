@@ -150,16 +150,14 @@ function directImageRef(url: URL): ImageAttachmentRef | undefined {
   }
 }
 
+/** Cache directive of a stored copy: its id is the content digest, so one address always answers the same bytes. */
+const CITED = 'private, max-age=31536000, immutable'
+
 /** One stored original's bytes, under the name it is served with. */
 interface StoredOriginal {
   mediaType: string
   name: string
   data: Uint8Array
-  /**
-   * Cache directive to send instead of the default `no-store`. A content-
-   * addressed read names immutable bytes, so it may be cached privately.
-   */
-  cache?: string | undefined
 }
 
 /**
@@ -190,7 +188,7 @@ function storedOriginal(stored: StoredOriginal, request: Request): Response {
   const size = stored.data.byteLength
   const headers: Record<string, string> = {
     ...BASE_HEADERS,
-    ...stored.cache === undefined ? {} : { 'Cache-Control': stored.cache },
+    'Cache-Control': CITED,
     'Content-Type': stored.mediaType,
     'Content-Length': String(size),
     'Accept-Ranges': 'bytes',
@@ -295,8 +293,7 @@ async function readImage(
   }
   if (stored === undefined) return failure(404, 'ATTACHMENT_NOT_REFERENCED', 'Image is not referenced by this session.')
   const name = stored.ref.name ?? derivedImageName(String(stored.ref.attachmentId), stored.ref.mediaType)
-  const cache = ref === undefined ? undefined : 'private, max-age=31536000, immutable'
-  return storedOriginal({ mediaType: stored.ref.mediaType, name, data: stored.data, cache }, request)
+  return storedOriginal({ mediaType: stored.ref.mediaType, name, data: stored.data }, request)
 }
 
 /**

@@ -132,7 +132,7 @@ describe('collectArtifacts', () => {
     })
   })
 
-  it('leaves a page out when an export of the same name sits beside it', async () => {
+  it('lists a page beside an export of the same name', async () => {
     const target = await session('deck')
     target.append('turn/start', { turn: 1 })
     runTool(target, 1, 'write', { file_path: 'presentations/a/deck.html', content: '<p>' }, { text: 'Created file deck.html' })
@@ -141,7 +141,7 @@ describe('collectArtifacts', () => {
       meta: { producedFiles: [{ path: 'presentations/a/deck.pdf', created: true }, { path: 'presentations/a/deck.pptx', created: true }] },
     })
 
-    expect(collect(target).map(item => item.name).sort()).toEqual(['deck.pdf', 'deck.pptx', 'notes.html'])
+    expect(collect(target).map(item => item.name).sort()).toEqual(['deck.html', 'deck.pdf', 'deck.pptx', 'notes.html'])
   })
 
   it('names a page by its own title, else a generic file by its folder, else by the conversation', async () => {

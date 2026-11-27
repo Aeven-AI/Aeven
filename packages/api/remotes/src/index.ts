@@ -24,6 +24,7 @@ import type {} from '@aeven/cordis-host-runner/types'
 import type {} from '@aeven/credentials/types'
 import type {} from '@aeven/llm/types'
 import type {} from '@aeven/agent-presets/types'
+import type {} from '@aeven/host-artifacts/types'
 import type {} from '@aeven/settings/types'
 import type {} from '@aeven/user-approval'
 import type {} from '@aeven/tool-browser/types'
@@ -53,6 +54,7 @@ export function apply(ctx: Context): void {
 const NOTIFICATION_SESSION: Readonly<Partial<Record<string, (args: readonly unknown[]) => unknown>>> = {
   'agent-preset/selected': args => args[0],
   'api-session/activity': args => args[0],
+  'artifacts/change': args => args[0],
   'api-session/added': args => fieldOf(args[0], 'sessionId'),
   'api-session/error': args => args[0],
   'api-session/removed': args => args[0],

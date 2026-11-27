@@ -7,12 +7,12 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PropsLocale, PropsRuntime } from '@aeven/client-ui-slots'
-import { ContentLoader, Spinner, useNarrowerThan } from '@aeven/client-ui-primitives'
+import { ContentLoader, FileTypeIcon, Spinner, useNarrowerThan } from '@aeven/client-ui-primitives'
 import type {} from '@aeven/client-ui-conversation/client'
-import type { Artifact, ArtifactCursor, ArtifactKind, ArtifactListValue } from '@aeven/host-artifacts/types'
-import { groupByDate, type ArtifactGroup } from './groups.ts'
+import type { Artifact, ArtifactCursor, ArtifactListValue } from '@aeven/host-artifacts/types'
+import { groupByDate, withSession, type ArtifactGroup } from './groups.ts'
 import { MotionPreview } from './MotionPreview.tsx'
-import { TextPreview, isTextArtifact } from './TextPreview.tsx'
+import { TextPreview, isTextArtifact, knownOpening } from './TextPreview.tsx'
 import { usePictureTurn } from './slots.ts'
 import type {} from './locales.ts'
 import css from './ArtifactsPage.module.css'
@@ -21,25 +21,39 @@ import css from './ArtifactsPage.module.css'
 const THREE_CARDS_BELOW_PX = 721
 const TWO_CARDS_BELOW_PX = 449
 
-/** The kind pills, in order. A Motion film is a video to its reader, so the Videos pill shows both. */
-const KINDS = ['document', 'slides', 'pdf', 'page', 'image', 'video'] as const satisfies readonly ArtifactKind[]
+/** The pills, in order. */
+const PILLS = ['app', 'image', 'video', 'slides', 'resume', 'document'] as const
 
-/** One kind pill. */
-type KindFilter = typeof KINDS[number]
+/** One pill. */
+type Pill = typeof PILLS[number]
 
 /**
- * Whether an artifact has nothing to show on this device: its file is gone and no stored copy was kept. Such an
- * artifact stays out of the grid and makes no request; the Missing pill lists it.
+ * The pills an artifact is shown under. A page is an app, and a résumé's or a deck's page is also listed with that
+ * résumé or deck; a Motion film is a video to its reader; a PDF or document is a résumé's or a deck's export, else a
+ * document.
  * @param artifact - the artifact.
- * @returns true when nothing of it can be shown here.
+ * @returns its pills.
  */
-function unavailable(artifact: Artifact): boolean {
-  return artifact.missing === true && artifact.attachmentId === undefined
-}
-
-/** The pill an artifact is shown under. */
-function pillOf(kind: ArtifactKind): KindFilter {
-  return kind === 'motion' ? 'video' : kind
+function pillsOf(artifact: Artifact): readonly Pill[] {
+  const family: Pill | undefined = artifact.family === 'resume' ? 'resume' : artifact.family === 'deck' ? 'slides' : undefined
+  switch (artifact.kind) {
+    case 'page':
+      return family === undefined ? ['app'] : ['app', family]
+    case 'image':
+      return ['image']
+    case 'video':
+    case 'motion':
+      return ['video']
+    case 'slides':
+      return ['slides']
+    case 'document':
+    case 'pdf':
+      return [family ?? 'document']
+    default: {
+      const unknown: never = artifact.kind
+      return unknown
+    }
+  }
 }
 
 /** What the page receives from the plugin. */
@@ -83,9 +97,14 @@ export interface ArtifactsPageInjected {
   loadText: (artifact: Artifact, signal: AbortSignal) => Promise<string | undefined>
   /**
    * The last complete list the page read, kept while the app stays open: a return to the page shows it at once
-   * and replaces it when the fresh read completes, so the cards never empty out and load again.
+   * and replaces it when the fresh read completes, so the cards never empty out and load again. The Host's change
+   * notices keep it current, and `watch` passes each one to the open page.
    */
-  lastList: { read: () => readonly Artifact[] | undefined; keep: (items: readonly Artifact[]) => void }
+  lastList: {
+    read: () => readonly Artifact[] | undefined
+    keep: (items: readonly Artifact[]) => void
+    watch: (watcher: (sessionId: Artifact['sessionId'], items: readonly Artifact[]) => void) => () => void
+  }
 }
 
 type Translate = PropsLocale<'artifacts'>['t']
@@ -112,7 +131,7 @@ export function ArtifactsPage({ list, open, hrefOf, previewUrls, loadMotion, loa
   })
   const [failed, setFailed] = useState(false)
   const [attempt, setAttempt] = useState(0)
-  const [kind, setKind] = useState<KindFilter | 'all' | 'missing'>('all')
+  const [kind, setKind] = useState<Pill | 'all'>('all')
   const root = useRef<HTMLElement>(null)
   const three = useNarrowerThan(root, THREE_CARDS_BELOW_PX)
   const two = useNarrowerThan(root, TWO_CARDS_BELOW_PX)
@@ -123,9 +142,16 @@ export function ArtifactsPage({ list, open, hrefOf, previewUrls, loadMotion, loa
     // With a list already on screen, the fresh read runs behind it and replaces it once complete.
     const refreshing = lastList.read() !== undefined
     if (!refreshing) setLoaded({ items: [], scanned: 0, total: 0, done: false })
+    // A change notice is shown at once, and laid over the read in progress, which may have read that conversation
+    // before the change reached its stored log.
+    const changed = new Map<Artifact['sessionId'], readonly Artifact[]>()
+    const unwatch = lastList.watch((sessionId, next) => {
+      changed.set(sessionId, next)
+      setLoaded(value => ({ ...value, items: withSession(value.items, sessionId, next) }))
+    })
     void (async () => {
       let cursor: ArtifactCursor | undefined
-      const items: Artifact[] = []
+      let items: Artifact[] = []
       for (;;) {
         const page = await list(cursor)
         if (cancelled) return
@@ -135,21 +161,29 @@ export function ArtifactsPage({ list, open, hrefOf, previewUrls, loadMotion, loa
         }
         items.push(...page.items)
         const done = page.nextCursor === null
-        if (done) lastList.keep([...items])
-        if (!refreshing || done) setLoaded({ items: [...items], scanned: page.scanned, total: page.total, done })
+        if (done) {
+          for (const [sessionId, next] of changed) items = withSession(items, sessionId, next)
+          lastList.keep([...items])
+        }
+        if (!refreshing || done) {
+          const read = [...items]
+          const shown = done ? read : [...changed].reduce((all, [id, next]) => withSession(all, id, next), read)
+          setLoaded({ items: shown, scanned: page.scanned, total: page.total, done })
+        }
         if (done) return
         cursor = page.nextCursor
       }
     })()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+      unwatch()
+    }
   }, [list, lastList, attempt])
 
-  const missingCount = useMemo(() => loaded.items.filter(unavailable).length, [loaded.items])
-  const shown = useMemo(() => {
-    if (kind === 'missing') return loaded.items.filter(unavailable)
-    const present = loaded.items.filter(item => !unavailable(item))
-    return kind === 'all' ? present : present.filter(item => pillOf(item.kind) === kind)
-  }, [loaded.items, kind])
+  const shown = useMemo(
+    () => (kind === 'all' ? loaded.items : loaded.items.filter(item => pillsOf(item).includes(kind))),
+    [loaded.items, kind],
+  )
   const groups = useMemo(() => groupByDate(shown, Date.now()), [shown])
   const monthName = useMemo(() => new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }), [])
   const groupTitle = useCallback(
@@ -166,16 +200,11 @@ export function ArtifactsPage({ list, open, hrefOf, previewUrls, loadMotion, loa
           <button type="button" className={css.tab} aria-pressed={kind === 'all'} onClick={() => { setKind('all') }}>
             {t('filter.all')}
           </button>
-          {KINDS.map(id => (
+          {PILLS.map(id => (
             <button key={id} type="button" className={css.tab} aria-pressed={kind === id} onClick={() => { setKind(id) }}>
               {t(`filter.${id}`)}
             </button>
           ))}
-          {missingCount > 0 && (
-            <button type="button" className={css.tab} aria-pressed={kind === 'missing'} onClick={() => { setKind('missing') }}>
-              {t('filter.missing', { count: missingCount })}
-            </button>
-          )}
         </nav>
         {failed && (
           <div className={css.state}>
@@ -191,7 +220,6 @@ export function ArtifactsPage({ list, open, hrefOf, previewUrls, loadMotion, loa
                 <ArtifactCard
                   key={artifact.id}
                   artifact={artifact}
-                  away={unavailable(artifact)}
                   t={t}
                   urls={previewUrls(artifact)}
                   loadMotion={loadMotion}
@@ -215,6 +243,14 @@ export function ArtifactsPage({ list, open, hrefOf, previewUrls, loadMotion, loa
 }
 
 /**
+ * How each card's picture settled while the app stays open: the index of the candidate URL that loaded, or the
+ * number of candidates when none did. A picture is keyed by its candidate URLs, which name the file's version, and a
+ * Motion film by its id. A card shown again, such as on a return from a conversation, starts from that outcome, so
+ * it paints at once from the browser's cache instead of queueing, showing its spinner and fading in again.
+ */
+const settled = new Map<string, number>()
+
+/**
  * One artifact card. An image or video draws itself, trying each candidate URL in turn, and a video plays
  * silently while hovered. A Motion film shows its first frame and plays the same way. Any other kind, and a
  * picture none of whose sources load, is a paper card with the kind and the name in ink.
@@ -223,10 +259,8 @@ export function ArtifactsPage({ list, open, hrefOf, previewUrls, loadMotion, loa
  * @param props - the artifact, its candidate preview URLs, the film loader, its address, the translator and the open handler.
  * @returns the card link.
  */
-function ArtifactCard({ artifact, away, urls, loadMotion, loadText, href, t, onOpen }: {
+function ArtifactCard({ artifact, urls, loadMotion, loadText, href, t, onOpen }: {
   artifact: Artifact
-  /** Nothing of the artifact is on this device: the card is paper and loads nothing. */
-  away: boolean
   urls: readonly string[]
   loadMotion: ArtifactsPageInjected['loadMotion']
   loadText: ArtifactsPageInjected['loadText']
@@ -234,26 +268,34 @@ function ArtifactCard({ artifact, away, urls, loadMotion, loadText, href, t, onO
   t: Translate
   onOpen: () => void
 }) {
-  const [attempt, setAttempt] = useState(0)
-  const [ready, setReady] = useState(false)
+  const settleKey = artifact.kind === 'motion' ? `motion:${artifact.id}` : urls.length > 0 ? urls.join('\n') : undefined
+  const [attempt, setAttempt] = useState(() => (settleKey === undefined ? 0 : settled.get(settleKey) ?? 0))
+  const [ready, setReady] = useState(() => settleKey !== undefined && settled.has(settleKey))
   const [motionFailed, setMotionFailed] = useState(false)
-  const [textState, setTextState] = useState<'loading' | 'ready' | 'failed'>('loading')
-  const text = !away && isTextArtifact(artifact)
+  const text = isTextArtifact(artifact)
+  const [textState, setTextState] = useState<'loading' | 'ready' | 'failed'>(() => (text && knownOpening(artifact) !== undefined ? 'ready' : 'loading'))
   const textReady = useCallback(() => { setTextState('ready') }, [])
   const textFailed = useCallback(() => { setTextState('failed') }, [])
   const [hovered, setHovered] = useState(false)
-  const motion = !away && artifact.kind === 'motion' && !motionFailed
-  const url = away ? undefined : urls[attempt]
-  const next = useCallback(() => { setAttempt(value => value + 1) }, [])
-  const show = useCallback(() => { setReady(true) }, [])
+  const motion = artifact.kind === 'motion' && !motionFailed
+  const url = urls[attempt]
+  const next = useCallback(() => {
+    if (settleKey !== undefined && attempt + 1 >= urls.length) settled.set(settleKey, urls.length)
+    setAttempt(attempt + 1)
+  }, [settleKey, attempt, urls.length])
+  const show = useCallback(() => {
+    if (settleKey !== undefined) settled.set(settleKey, attempt)
+    setReady(true)
+  }, [settleKey, attempt])
   const failMotion = useCallback(() => { setMotionFailed(true) }, [])
   // A cached image can finish before React attaches its listener, so the element's own state is read on mount.
   const imageRef = useCallback((element: HTMLImageElement | null) => {
-    if (element !== null && element.complete && element.naturalWidth > 0) setReady(true)
-  }, [])
+    if (element !== null && element.complete && element.naturalWidth > 0) show()
+  }, [show])
   const card = useRef<HTMLAnchorElement>(null)
   const picture = !motion && !text && artifact.kind !== 'video' && url !== undefined
-  const turn = usePictureTurn(card, picture)
+  // A picture already shown once comes from the browser's cache and needs no turn.
+  const turn = usePictureTurn(card, picture && !ready)
   // A picture whose sources all failed, and one that loaded, give their turn back.
   const { done } = turn
   useEffect(() => { if (url === undefined || ready) done() }, [url, ready, done])
@@ -283,11 +325,13 @@ function ArtifactCard({ artifact, away, urls, loadMotion, loadText, href, t, onO
             onMouseLeave={(event) => { event.currentTarget.pause() }}
           />
         )
-        : turn.granted && <img key={url} ref={imageRef} className={css.image} src={url} alt="" onLoad={show} onError={next} />)}
+        : (turn.granted || ready) && <img key={url} ref={imageRef} className={css.image} src={url} alt="" onLoad={show} onError={next} />)}
       {pictured && !text && <span className={css.shade} aria-hidden="true" />}
+      {/* A file with no picture, such as an app that runs only on its own server, shows its kind's glyph. */}
+      {state === 'paper' && !text && <span className={css.placeholder} aria-hidden="true"><FileTypeIcon path={artifact.path} size={56} /></span>}
       <span className={css.caption}>
         <span className={css.title}>{artifact.title}</span>
-        <span className={css.kind}>{away ? t('missingNote') : t(`kind.${artifact.kind}`)}</span>
+        <span className={css.kind}>{t(`kind.${artifact.kind}`)}</span>
       </span>
       {/* Kept mounted while anything loads into the card, so it fades out as the content arrives, as on Inspiration. */}
       {(pictured || text) && <span className={css.preloader} aria-hidden="true"><Spinner /></span>}

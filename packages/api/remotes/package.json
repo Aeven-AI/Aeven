@@ -88,6 +88,7 @@
     "@aeven/subagent": "workspace:^",
     "@aeven/tool-browser": "workspace:^",
     "@aeven/tool-desktop-handoff": "workspace:^",
+    "@aeven/host-artifacts": "workspace:^",
     "@aeven/tool-location": "workspace:^",
     "@aeven/typert-protocol": "workspace:^",
     "@aeven/user-approval": "workspace:^",

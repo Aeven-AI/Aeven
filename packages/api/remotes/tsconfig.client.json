@@ -75,6 +75,9 @@
       "path": "../../interaction/tool-desktop-handoff"
     },
     {
+      "path": "../../host/artifacts"
+    },
+    {
       "path": "../session-controller/tsconfig.client.json"
     },
     {
