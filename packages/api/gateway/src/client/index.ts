@@ -475,6 +475,7 @@ class ClientRemoteService extends Service implements ClientRemote {
       // cancellation even when the local throw wins the race against the wire
       // round-trip, so it gets the same code the Host would have produced.
       if (prepared.signal.aborted) return cancelledFailure(endpoint, error)
+      if (isUnclaimedEndpoint(error)) return unclaimedFailure(endpoint, error)
       return carrierFailure(endpoint, error)
     }
   }
@@ -766,15 +767,47 @@ function parseInput(codec: TypertCodec, value: unknown, endpoint: string, field:
 }
 
 /**
- * Whether a carrier failure is the proxy's 502 or 503 for a Host process that is down, as during a restart. The
- * Connection's `RpcTransportError` is matched by name because a Client plugin may not import another plugin's values.
+ * The HTTP status of a carrier failure that received an answer without a response envelope. The Connection's
+ * `RpcTransportError` is matched by name because a Client plugin may not import another plugin's values.
+ * @param error - what the carrier threw.
+ * @returns the answer's status, or undefined when no HTTP answer arrived.
+ */
+function transportStatus(error: unknown): number | undefined {
+  if (!(error instanceof Error) || error.name !== 'RpcTransportError') return undefined
+  return (error as RpcTransportError).status
+}
+
+/**
+ * Whether a carrier failure is the proxy's 502 or 503 for a Host process that is down, as during a restart.
  * @param error - what the carrier threw.
  * @returns true for a 502 or 503 answer.
  */
 function isRestartRefusal(error: unknown): boolean {
-  if (!(error instanceof Error) || error.name !== 'RpcTransportError') return false
-  const status = (error as RpcTransportError).status
+  const status = transportStatus(error)
   return status === 502 || status === 503
+}
+
+/**
+ * Whether a carrier failure is the HTTP 404 the Host's `/api` channel answers for an endpoint no active Service claims,
+ * as when a deployment disables the plugin that serves it. The method never ran.
+ * @param error - what the carrier threw.
+ * @returns true for a 404 answer.
+ */
+function isUnclaimedEndpoint(error: unknown): boolean {
+  return transportStatus(error) === 404
+}
+
+/** The Host serves no method at this endpoint: the code the Host's own dispatch answers for the same condition. */
+function unclaimedFailure(endpoint: string, cause: unknown): Extract<RemoteResult<never>, { readonly ok: false }> {
+  return {
+    ok: false,
+    error: new RemoteError(
+      'gateway/invocation-unavailable',
+      `client api: the Host serves no Remote method ${endpoint}`,
+      { endpoint },
+      { cause },
+    ),
+  }
 }
 
 /** The namespace retired before or during the call, so no request outcome exists. */
