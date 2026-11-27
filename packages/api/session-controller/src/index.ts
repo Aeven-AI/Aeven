@@ -47,6 +47,10 @@ import type {
   SessionEditValue,
   SessionRetryRequest,
   SessionRetryValue,
+  SessionGoalRequest,
+  SessionGoalValue,
+  SessionCommandRequest,
+  SessionCommandValue,
   SessionFollowFrame,
   SessionFollowRequest,
   SessionContinueOnRequest,
@@ -620,6 +624,30 @@ The user's account display name is ${JSON.stringify(source.clientDisplayName)}.
   retry(request: SessionRetryRequest, signal: AbortSignal): Promise<SessionRetryValue> {
     signal.throwIfAborted()
     return this.commands.retry(request)
+  }
+
+  /**
+   * Change the Session's goal on the device of the account that writes the Session.
+   * @param request - Session identity and the goal change.
+   * @param signal - caller cancellation before the change begins.
+   * @returns the goal's new revision when this device applied the change, or the forward receipt.
+   */
+  @Remote('goal')
+  goal(request: SessionGoalRequest, signal: AbortSignal): Promise<SessionGoalValue> {
+    signal.throwIfAborted()
+    return this.commands.goal(request)
+  }
+
+  /**
+   * Run one slash-command line on the device of the account that writes the Session.
+   * @param request - Session identity, command line, and composer images.
+   * @param signal - caller cancellation of a line this device runs.
+   * @returns the local execution, an unmatched line, or the forward receipt.
+   */
+  @Remote('command')
+  command(request: SessionCommandRequest, signal: AbortSignal): Promise<SessionCommandValue> {
+    signal.throwIfAborted()
+    return this.commands.command(request, signal)
   }
 
   /**

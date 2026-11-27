@@ -202,10 +202,9 @@ export class FakeApiClient {
       $stream: <Item>(options: RemoteStreamOptions<Item>) => (
         new RemoteStream(AVAILABLE_STREAM_CONNECTION, options)
       ),
-      commands: {
-        execute: () => Promise.resolve({ ok: true, value: undefined }),
-      },
       session: {
+        command: () => Promise.resolve(ok({ outcome: { kind: 'unmatched' as const } })),
+        goal: () => Promise.resolve(ok({ delivery: 'forwarded' as const })),
         canOpenWorkspacePath: () => Promise.resolve(ok(true)),
         // No media seam in the fixture composition: the empty catalog is what
         // a deployment without image generation answers.

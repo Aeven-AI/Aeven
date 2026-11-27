@@ -29,11 +29,6 @@ export interface CreateGoalRequest {
   readonly maxGoalRounds?: number
 }
 
-/** Wire-safe acknowledgement of one created goal. */
-export interface CreateGoalResult {
-  readonly ref: GoalRef
-}
-
 /** Fields changed by an edit; at least one must be present. */
 export interface EditGoalRequest {
   readonly objective?: string

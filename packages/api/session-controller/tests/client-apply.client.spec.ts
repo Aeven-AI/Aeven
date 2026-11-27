@@ -80,7 +80,6 @@ async function mount(initialGeneration?: ConnectionGeneration): Promise<Bench> {
       return () => { eventListeners.delete(listener) }
     },
   })
-  ctx.reflect.provide('remote.commands', remote.commands)
   ctx.reflect.provide('remote.session', remote.session)
   ctx.reflect.provide('remote.subagents', remote.subagents)
   const fiber = ctx.plugin(SessionClient)

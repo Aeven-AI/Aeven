@@ -456,9 +456,9 @@ export class Session implements SessionFace {
    * @returns the admission result.
    */
   async command(line: string): Promise<RemoteResult<{ matched: boolean }>> {
-    const result = await this.remote.commands.execute(this.sessionId, line, [])
+    const result = await this.remote.session.command({ sessionId: this.sessionId, line, images: [] })
     if (!result.ok) return result
-    return { ok: true, value: { matched: result.value !== undefined } }
+    return { ok: true, value: { matched: result.value.outcome.kind !== 'unmatched' } }
   }
 
   /** First open: pull the tail page (idempotent — in-flight/already-open returns the existing promise). */

@@ -5,7 +5,6 @@
  * @module @aeven/api-session-controller/client/sessions/remotes
  */
 
-import type { EncodedImageAttachment } from '@aeven/attachment/types'
 import type { ClientRemote } from '@aeven/api-gateway/client'
 import type { SessionId } from '@aeven/session/types'
 import type {
@@ -13,16 +12,6 @@ import type {
 } from '@aeven/subagent/client'
 import type { RemoteResult } from '@aeven/typert-protocol'
 import type { SessionRemote } from '../transport.ts'
-
-/** Narrow Commands namespace consumed by a Client Session. */
-export interface SessionCommandsRemote {
-  execute(
-    agentId: SessionId,
-    line: string,
-    images: readonly EncodedImageAttachment[],
-    signal?: AbortSignal,
-  ): Promise<RemoteResult<object | undefined>>
-}
 
 /** Narrow subagent namespace consumed by a Client Session and its manager. */
 export interface SessionSubagentsRemote {
@@ -41,7 +30,6 @@ export interface SessionSubagentsRemote {
 /** Generated Remote namespaces consumed by the Client Session object layer. */
 export interface SessionRemotes {
   readonly $stream: ClientRemote['$stream']
-  readonly commands: SessionCommandsRemote
   readonly session: SessionRemote
   readonly subagents: SessionSubagentsRemote
 }

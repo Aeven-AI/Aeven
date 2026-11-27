@@ -43,7 +43,7 @@ A rejected mutation surfaces the Remote error inline on the strip; loading, abse
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The strip is projection-mode: the live goal arrives through `useProjection('goal')` (seeded by the history tail page and updated by `session/projection` frames), so the plugin owns no domain store, refresh chain, or event listener. The inject face carries only the four mutation verbs through `ctx.remote.goals`; each reads the CAS ref from the session's current projected value at call time, and the RPC's compare-and-set is the staleness guard. The strip single-flights mutations synchronously because a pending render cannot fence same-frame clicks. The command-input projection is a separate Conversation Definition that builds a `command-input` Chat Node before the generic command result Node; it never creates `user/message` or a model turn.
+The strip is projection-mode: the live goal arrives through `useProjection('goal')` (seeded by the history tail page and updated by `session/projection` frames), so the plugin owns no domain store, refresh chain, or event listener. The inject face carries only the four mutation verbs through `ctx.remote.session.goal`, which applies each change on the device that writes the Session; each reads the CAS ref from the session's current projected value at call time, and the RPC's compare-and-set is the staleness guard. The strip single-flights mutations synchronously because a pending render cannot fence same-frame clicks. The command-input projection is a separate Conversation Definition that builds a `command-input` Chat Node before the generic command result Node; it never creates `user/message` or a model turn.
 
 </details>
 

@@ -4,7 +4,6 @@ import type { Context } from '@deepseek-ai/cordis'
 import agentPresetsRemote from '@aeven/agent-presets/remote'
 import commandsRemote from '@aeven/commands/remote'
 import settingsControllerRemote from '@aeven/api-settings-controller/remote'
-import goalsRemote from '@aeven/goal/remote'
 import llmRemote from '@aeven/llm/remote'
 import dynamicRemote from '@aeven/cordis-host-runner/remote'
 import pluginInventoryRemote from '@aeven/host-plugin-inventory/remote'
@@ -44,7 +43,6 @@ export type { PluginInventorySnapshot } from '@aeven/host-plugin-inventory/types
 export type {} from '@aeven/agent-presets/remote'
 export type {} from '@aeven/commands/remote'
 export type {} from '@aeven/api-settings-controller/remote'
-export type {} from '@aeven/goal/remote'
 export type {} from '@aeven/llm/remote'
 export type {} from '@aeven/host-plugin-inventory/remote'
 export type {} from '@aeven/message-feedback/remote'
@@ -190,7 +188,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
   const disposers: Array<() => Promise<void>> = []
   try {
     for (const contribution of [
-      agentPresetsRemote, commandsRemote, settingsControllerRemote, goalsRemote, llmRemote, dynamicRemote,
+      agentPresetsRemote, commandsRemote, settingsControllerRemote, llmRemote, dynamicRemote,
       pluginInventoryRemote, messageFeedbackRemote, sessionReferencesRemote,
       subagentsRemote, sessionRemote, jobRemote, workspaceRemote, browserChromiumRemote, workspaceFilesRemote,
       terminalRemote, deviceRemote, speechRemote, ttsRemote, memoryManagerRemote, personalizationRemote, accountIntegrationsRemote,

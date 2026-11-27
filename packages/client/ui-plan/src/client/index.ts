@@ -42,8 +42,8 @@ export interface PlanChipInjected {
   exitPlanMode: () => Promise<string | null>
 }
 
-/** Required services: the seat's slot registry, commands Remote, and locale registry. */
-export const inject = ['slots', 'remote', 'remote.commands', 'locale']
+/** Required services: the seat's slot registry, Session Remote, and locale registry. */
+export const inject = ['slots', 'remote', 'remote.session', 'locale']
 
 /**
  * Client plugin body: register the plan chip over the command channel.
@@ -58,9 +58,9 @@ export function apply(ctx: ClientContext): void {
     inject: (sessionId: SessionId): PlanChipInjected => ({
       // Failure strings stay English (error-surface policy: not localized).
       exitPlanMode: async () => {
-        const result = await ctx.remote.commands.execute(sessionId, '/plan off', [])
+        const result = await ctx.remote.session.command({ sessionId, line: '/plan off', images: [] })
         if (!result.ok) return `${result.error.message} (${result.error.code})`
-        if (result.value === undefined) return 'unknown command: /plan off'
+        if (result.value.outcome.kind === 'unmatched') return 'unknown command: /plan off'
         return null
       },
     }),

@@ -78,7 +78,6 @@ declare module '@deepseek-ai/cordis' {
 export const inject = [
   'typert',
   'remote',
-  'remote.commands',
   'remote.session',
   'remote.subagents',
 ]

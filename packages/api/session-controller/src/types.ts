@@ -6,6 +6,9 @@ import type {
 import type { Branded } from '@aeven/brand'
 import type { MessageId } from '@aeven/llm/brand'
 import type { ContentBlock } from '@aeven/llm/types'
+import type { EncodedImageAttachment } from '@aeven/attachment/types'
+import type { CommandExecution } from '@aeven/commands/types'
+import type { CreateGoalRequest, EditGoalRequest, GoalRef } from '@aeven/goal/types'
 import type { ChunkRow } from '@aeven/session/chunk-rows'
 import type { SessionId, SessionSeq } from '@aeven/session/types'
 import type { SessionProjectionMap } from '@aeven/session-projection/types'
@@ -482,6 +485,55 @@ export interface SessionRetryRequest {
 /** Receipt after the continuation notice enters the Agent inbox as the next turn. */
 export interface SessionRetryValue {
   readonly accepted: true
+}
+
+/**
+ * One goal change. `edit`, `pause`, `resume`, `complete`, and `clear` name the
+ * exact revision they replace; a stale revision is refused.
+ */
+export type SessionGoalChange =
+  | { readonly kind: 'create'; readonly request: CreateGoalRequest }
+  | { readonly kind: 'edit'; readonly ref: GoalRef; readonly request: EditGoalRequest }
+  | { readonly kind: 'pause' | 'resume' | 'complete' | 'clear'; readonly ref: GoalRef }
+
+/** Request to change a Session's goal. */
+export interface SessionGoalRequest {
+  readonly sessionId: SessionId
+  readonly change: SessionGoalChange
+}
+
+/**
+ * Receipt for a goal change: `applied` with the goal's new revision when this
+ * device wrote it (a clear answers the tombstone revision), or `forwarded`
+ * when another device of the account writes the Session and applies it there.
+ */
+export type SessionGoalValue =
+  | { readonly delivery: 'applied'; readonly ref: GoalRef }
+  | { readonly delivery: 'forwarded' }
+
+/** Request to run one slash-command line in a Session. */
+export interface SessionCommandRequest {
+  readonly sessionId: SessionId
+  /** The complete command line, leading slash included. */
+  readonly line: string
+  /** Base64 composer images in submission order; empty for a plain invocation. */
+  readonly images: readonly EncodedImageAttachment[]
+}
+
+/**
+ * Where a command line went: run here with its settled execution, refused here
+ * because its syntax or name does not resolve, or forwarded to the device of
+ * the account that writes the Session, whose logged lifecycle reports the
+ * outcome.
+ */
+export type SessionCommandOutcome =
+  | { readonly kind: 'executed'; readonly execution: CommandExecution }
+  | { readonly kind: 'unmatched' }
+  | { readonly kind: 'forwarded' }
+
+/** Receipt for one command line. */
+export interface SessionCommandValue {
+  readonly outcome: SessionCommandOutcome
 }
 
 /** Durable image read request. */
