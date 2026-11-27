@@ -40,28 +40,38 @@ afterEach(async () => {
 /**
  * Open a WebSocket to the server and run the extension's side of the pairing exchange.
  * @param options - the origin it connects with and the secret it proves; a missing secret sends no proof.
- * @returns the socket and whether the server proved the secret back; false when it refused.
+ * @returns the socket, whether the server proved the secret back (false when it refused), and the frames that
+ * followed the proof, which the app sends at once.
  */
-async function pair(options: { origin?: string; secret?: string | undefined } = {}): Promise<{ socket: WebSocket; authed: boolean }> {
+async function pair(
+  options: { origin?: string; secret?: string | undefined } = {},
+): Promise<{ socket: WebSocket; authed: boolean; early: Buffer[] }> {
   const socket = new WebSocket(`ws://127.0.0.1:${String(port)}/`, { origin: options.origin ?? `chrome-extension://${EXTENSION_ID}` })
   clients.push(socket)
   const challenge = randomBytes(16).toString('hex')
   const secret = 'secret' in options ? options.secret : SECRET
+  const early: Buffer[] = []
+  let proven = false
   const authed = await new Promise<boolean>((resolve) => {
     socket.on('error', () => { resolve(false) })
     socket.on('close', () => { resolve(false) })
     socket.on('message', (data: Buffer) => {
+      if (proven) {
+        early.push(data)
+        return
+      }
       const message = JSON.parse(String(data)) as { event?: string; nonce?: string; proof?: string }
       if (message.event === 'challenge' && message.nonce !== undefined) {
         const proof = secret === undefined ? undefined : pairingProof(secret, 'extension', port, message.nonce)
         socket.send(JSON.stringify({ event: 'auth', nonce: challenge, browser: 'Google Chrome', proof }))
       } else if (message.event === 'authed') {
-        resolve(message.proof === pairingProof(SECRET, 'app', port, challenge))
+        proven = message.proof === pairingProof(SECRET, 'app', port, challenge)
+        resolve(proven)
       }
     })
   })
   socket.removeAllListeners('message')
-  return { socket, authed }
+  return { socket, authed, early }
 }
 
 /**
@@ -73,16 +83,18 @@ async function pair(options: { origin?: string; secret?: string | undefined } = 
 async function fakeExtension(
   info: FakeInfo, options: { answerInfo?: boolean; hello?: boolean; answers?: Record<string, unknown> } = {},
 ): Promise<WebSocket> {
-  const { socket, authed } = await pair()
+  const { socket, authed, early } = await pair()
   expect(authed).toBe(true)
-  socket.on('message', (data: Buffer) => {
+  const receive = (data: Buffer): void => {
     const message = JSON.parse(String(data)) as { id: number; method: string }
     if (message.method === 'info') {
       if (options.answerInfo !== false) socket.send(JSON.stringify({ id: message.id, result: info }))
     } else if (options.answers !== undefined && message.method in options.answers) {
       socket.send(JSON.stringify({ id: message.id, result: options.answers[message.method] }))
     }
-  })
+  }
+  for (const data of early) receive(data)
+  socket.on('message', receive)
   if (options.hello === true) socket.send(JSON.stringify({ event: 'hello', ...info }))
   return socket
 }
