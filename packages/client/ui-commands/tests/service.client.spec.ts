@@ -679,7 +679,7 @@ describe('detached admission notices', () => {
     expect(notices).toEqual([{
       scope: sid('s1'),
       level: 'error',
-      text: 'command.execute failed: gateway/internal: network down',
+      text: 'session.command failed: gateway/internal: network down',
     }])
   })
 
